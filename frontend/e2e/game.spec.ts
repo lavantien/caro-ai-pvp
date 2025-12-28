@@ -186,16 +186,87 @@ test.describe('Caro Game - Move History', () => {
 });
 
 test.describe('Caro Game - Winning Line Animation', () => {
-	test.skip('should display winning line when game is won', async ({ page }) => {
-		// SKIPPED: Open Rule prevents simple winning patterns in E2E tests
-		// This feature is tested manually and via unit tests
-		// TODO: Create mock backend to bypass Open Rule for E2E testing
+	test('should display winning line when game is won', async ({ page }) => {
+		await page.goto('/game');
+		await page.waitForLoadState('networkidle');
+
+		// Handle alert dialog before it appears
+		page.on('dialog', dialog => dialog.accept());
+
+		// Create a horizontal winning line for Red that respects Open Rule
+		// Move 3 (Red's second move) must be outside center 3x3 (6-8, 6-8)
+		const moves = [
+			{ x: 0, y: 7 }, // Red - Move 1 (anywhere OK)
+			{ x: 7, y: 8 }, // Blue - Move 2 (anywhere OK)
+			{ x: 1, y: 7 }, // Red - Move 3 (must be outside center 3x3, x=1 is OK)
+			{ x: 7, y: 6 }, // Blue - Move 4
+			{ x: 2, y: 7 }, // Red - Move 5
+			{ x: 8, y: 8 }, // Blue - Move 6
+			{ x: 3, y: 7 }, // Red - Move 7
+			{ x: 8, y: 6 }, // Blue - Move 8
+			{ x: 4, y: 7 }  // Red - Move 9 (WINNING MOVE - horizontal line 0-4 at y=7)
+		];
+
+		// Make all moves
+		for (const move of moves) {
+			await page.locator(`[data-x="${move.x}"][data-y="${move.y}"]`).click();
+			await page.waitForTimeout(100);
+		}
+
+		// Wait for win detection and alert
+		await page.waitForTimeout(1000);
+
+		// Wait for winning line animation to complete (0.5s animation)
+		await page.waitForTimeout(600);
+
+		// Check for winning line SVG element
+		// Note: Line uses stroke-dashoffset animation, so we check existence and attributes
+		const lineElement = page.locator('line[stroke="#ef4444"]');
+		await expect(lineElement).toHaveCount(1);
+
+		// Verify line has correct coordinates (horizontal line from x=0 to x=4 at y=7)
+		const x1 = await lineElement.getAttribute('x1');
+		const x2 = await lineElement.getAttribute('x2');
+		const y1 = await lineElement.getAttribute('y1');
+
+		// y=7 means center is at 7*40 + 20 = 300
+		expect(y1).toBe('300');
+		// x=0 to x=4 means centers at 20 and 180
+		expect(x1).toBe('20');
+		expect(x2).toBe('180');
 	});
 
-	test.skip('should show game over state with winner', async ({ page }) => {
-		// SKIPPED: Open Rule prevents simple winning patterns in E2E tests
-		// This feature is tested manually and via unit tests
-		// TODO: Create mock backend to bypass Open Rule for E2E testing
+	test('should show game over state with winner', async ({ page }) => {
+		await page.goto('/game');
+		await page.waitForLoadState('networkidle');
+
+		// Handle alert dialog
+		page.on('dialog', dialog => dialog.accept());
+
+		// Create a vertical winning line for Red that respects Open Rule
+		// Move 3 (Red's second move) must be outside center 3x3 (6-8, 6-8)
+		const moves = [
+			{ x: 7, y: 0 }, // Red - Move 1 (anywhere OK)
+			{ x: 8, y: 7 }, // Blue - Move 2 (anywhere OK)
+			{ x: 7, y: 1 }, // Red - Move 3 (must be outside center 3x3, y=1 is OK)
+			{ x: 8, y: 6 }, // Blue - Move 4
+			{ x: 7, y: 2 }, // Red - Move 5
+			{ x: 6, y: 8 }, // Blue - Move 6
+			{ x: 7, y: 3 }, // Red - Move 7
+			{ x: 6, y: 6 }, // Blue - Move 8
+			{ x: 7, y: 4 }  // Red - Move 9 (WINNING MOVE - vertical line 0-4 at x=7)
+		];
+
+		for (const move of moves) {
+			await page.locator(`[data-x="${move.x}"][data-y="${move.y}"]`).click();
+			await page.waitForTimeout(100);
+		}
+
+		await page.waitForTimeout(1000);
+
+		// Game over banner should be visible
+		await expect(page.locator('.bg-green-100')).toBeVisible();
+		await expect(page.locator('text=/WINS!/')).toBeVisible();
 	});
 });
 
