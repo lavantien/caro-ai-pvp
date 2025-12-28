@@ -118,6 +118,39 @@
 		}
 	}
 
+	async function handleUndo() {
+		if (!gameId || store.isGameOver) return;
+
+		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
+
+		try {
+			const response = await fetch(`${apiUrl}/api/game/${gameId}/undo`, {
+				method: 'POST'
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				alert(errorText);
+				return;
+			}
+
+			const data = await response.json();
+
+			// Update local state with server response
+			store.board = data.state.board;
+			store.currentPlayer = data.state.currentPlayer;
+			store.moveNumber = data.state.moveNumber;
+			store.isGameOver = data.state.isGameOver;
+			redTime = data.state.redTimeRemaining;
+			blueTime = data.state.blueTimeRemaining;
+
+			// Clear winning line if present
+			winningLine = [];
+		} catch (err) {
+			alert('Failed to undo move');
+		}
+	}
+
 	function handleTimeOut(player: string) {
 		if (store.isGameOver) return;
 
@@ -142,7 +175,16 @@
 	<div class="container mx-auto p-4 max-w-4xl">
 		<div class="flex justify-between items-center mb-4">
 			<h1 class="text-2xl font-bold text-gray-800">Caro Game</h1>
-			<SoundToggle />
+			<div class="flex gap-2">
+				<button
+					onclick={handleUndo}
+					disabled={!gameId || store.moveNumber === 0 || store.isGameOver}
+					class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+				>
+					Undo
+				</button>
+				<SoundToggle />
+			</div>
 		</div>
 
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">

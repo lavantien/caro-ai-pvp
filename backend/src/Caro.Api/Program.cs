@@ -79,6 +79,28 @@ app.MapPost("/api/game/{id}/move", (string id, MoveRequest request) =>
     }
 });
 
+// POST /api/game/{id}/undo - Undo last move
+app.MapPost("/api/game/{id}/undo", (string id) =>
+{
+    lock (gamesLock)
+    {
+        if (!games.TryGetValue(id, out var game))
+            return Results.NotFound("Game not found");
+
+        try
+        {
+            var board = game.Board;
+            game.UndoMove(board);
+
+            return Results.Ok(new { state = MapToResponse(game) });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(ex.Message);
+        }
+    }
+});
+
 // GET /api/game/{id} - Get game state
 app.MapGet("/api/game/{id}", (string id) =>
 {

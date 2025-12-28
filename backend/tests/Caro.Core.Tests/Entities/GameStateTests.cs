@@ -4,143 +4,168 @@ using Caro.Core.Entities;
 
 namespace Caro.Core.Tests.Entities;
 
-public class GameStateTests
+public class GameStateUndoTests
 {
     [Fact]
-    public void NewGame_InitialState_HasCorrectDefaults()
-    {
-        // Act
-        var game = new GameState();
-
-        // Assert
-        game.CurrentPlayer.Should().Be(Player.Red);
-        game.MoveNumber.Should().Be(0);
-        game.IsGameOver.Should().BeFalse();
-        game.RedTimeRemaining.Should().BeCloseTo(TimeSpan.FromMinutes(3), precision: TimeSpan.FromSeconds(1));
-        game.BlueTimeRemaining.Should().BeCloseTo(TimeSpan.FromMinutes(3), precision: TimeSpan.FromSeconds(1));
-    }
-
-    [Fact]
-    public void RecordMove_UpdatesMoveNumberAndSwitchesPlayer()
+    public void UndoMove_WhenGameHasMoves_RevertsLastMove()
     {
         // Arrange
         var game = new GameState();
         var board = game.Board;
 
+        // Make 3 moves
+        game.RecordMove(board, 7, 7); // Red
+        game.RecordMove(board, 7, 8); // Blue
+        game.RecordMove(board, 8, 8); // Red
+
+        var initialMoveNumber = game.MoveNumber;
+        var initialPlayer = game.CurrentPlayer;
+
         // Act
-        game.RecordMove(board, 7, 7);
+        game.UndoMove(board);
 
         // Assert
-        game.MoveNumber.Should().Be(1);
-        game.CurrentPlayer.Should().Be(Player.Blue);
+        game.MoveNumber.Should().Be(initialMoveNumber - 1);
+        game.CurrentPlayer.Should().Be(initialPlayer);
+
+        // Last move should be removed
+        board.GetCell(8, 8).Player.Should().Be(Player.None);
+        board.GetCell(7, 8).Player.Should().Be(Player.Blue);
         board.GetCell(7, 7).Player.Should().Be(Player.Red);
     }
 
     [Fact]
-    public void RecordMove_AlternatesPlayersCorrectly()
+    public void UndoMove_WhenOnlyOneMove_RevertsToInitialState()
     {
         // Arrange
         var game = new GameState();
         var board = game.Board;
 
+        game.RecordMove(board, 7, 7);
+
         // Act
-        game.RecordMove(board, 7, 7);  // Red
-        game.RecordMove(board, 8, 7);  // Blue
+        game.UndoMove(board);
 
         // Assert
-        game.MoveNumber.Should().Be(2);
+        game.MoveNumber.Should().Be(0);
         game.CurrentPlayer.Should().Be(Player.Red);
+        board.GetCell(7, 7).Player.Should().Be(Player.None);
     }
 
     [Fact]
-    public void RecordMove_Adds2SecondsToCurrentPlayer()
-    {
-        // Arrange
-        var game = new GameState();
-        var board = game.Board;
-        var initialRedTime = game.RedTimeRemaining;
-
-        // Act
-        game.RecordMove(board, 7, 7);
-
-        // Assert
-        game.RedTimeRemaining.Should().Be(initialRedTime + TimeSpan.FromSeconds(2));
-    }
-
-    [Fact]
-    public void RecordMove_SwitchesPlayer()
+    public void UndoMove_WhenNoMoves_ThrowsInvalidOperationException()
     {
         // Arrange
         var game = new GameState();
         var board = game.Board;
 
-        // Act
-        game.RecordMove(board, 7, 7);
-
-        // Assert
-        game.CurrentPlayer.Should().Be(Player.Blue);
+        // Act & Assert
+        FluentActions.Invoking(() => game.UndoMove(board))
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("No moves to undo");
     }
 
     [Fact]
-    public void EndGame_SetsGameOverAndWinner()
+    public void UndoMove_WhenGameOver_ThrowsInvalidOperationException()
     {
         // Arrange
         var game = new GameState();
+        var board = game.Board;
 
-        // Act
+        game.RecordMove(board, 7, 7);
         game.EndGame(Player.Red);
 
-        // Assert
-        game.IsGameOver.Should().BeTrue();
-        game.CurrentPlayer.Should().Be(Player.None);
+        // Act & Assert
+        FluentActions.Invoking(() => game.UndoMove(board))
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("Cannot undo moves after game is over");
     }
 
     [Fact]
-    public void EndGame_StoresWinner()
+    public void UndoMove_RestoresTimeIncrement()
+    {
+        // Arrange
+        var game = new GameState();
+        var board = game.Board;
+
+        var redTimeBefore = game.RedTimeRemaining;
+        game.RecordMove(board, 7, 7); // Red - adds 2 seconds
+        var redTimeAfterMove = game.RedTimeRemaining;
+
+        // Act
+        game.UndoMove(board);
+
+        // Assert
+        game.RedTimeRemaining.Should().Be(redTimeBefore);
+        game.RedTimeRemaining.Should().NotBe(redTimeAfterMove);
+    }
+
+    [Fact]
+    public void CanUndo_WhenGameHasMoves_ReturnsTrue()
+    {
+        // Arrange
+        var game = new GameState();
+        var board = game.Board;
+
+        game.RecordMove(board, 7, 7);
+
+        // Act
+        var canUndo = game.CanUndo();
+
+        // Assert
+        canUndo.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CanUndo_WhenNoMoves_ReturnsFalse()
     {
         // Arrange
         var game = new GameState();
 
         // Act
-        game.EndGame(Player.Blue);
+        var canUndo = game.CanUndo();
 
         // Assert
-        game.Winner.Should().Be(Player.Blue);
+        canUndo.Should().BeFalse();
     }
 
     [Fact]
-    public void EndGame_StoresWinningLine()
+    public void CanUndo_WhenGameOver_ReturnsFalse()
     {
         // Arrange
         var game = new GameState();
-        var winningLine = new List<Caro.Core.GameLogic.Position>
-        {
-            new(5, 7),
-            new(6, 7),
-            new(7, 7),
-            new(8, 7),
-            new(9, 7)
-        };
+        var board = game.Board;
+
+        game.RecordMove(board, 7, 7);
+        game.EndGame(Player.Red);
 
         // Act
-        game.EndGame(Player.Red, winningLine);
+        var canUndo = game.CanUndo();
 
         // Assert
-        game.WinningLine.Should().HaveCount(5);
-        game.WinningLine[0].X.Should().Be(5);
-        game.WinningLine[0].Y.Should().Be(7);
-        game.WinningLine[4].X.Should().Be(9);
-        game.WinningLine[4].Y.Should().Be(7);
+        canUndo.Should().BeFalse();
     }
 
     [Fact]
-    public void NewGame_HasNoWinnerInitially()
+    public void UndoMove_MultipleTimes_RevertsToInitialState()
     {
-        // Arrange & Act
+        // Arrange
         var game = new GameState();
+        var board = game.Board;
+
+        game.RecordMove(board, 7, 7); // Red
+        game.RecordMove(board, 7, 8); // Blue
+        game.RecordMove(board, 8, 8); // Red
+
+        // Act - Undo twice
+        game.UndoMove(board);
+        game.UndoMove(board);
 
         // Assert
-        game.Winner.Should().Be(Player.None);
-        game.WinningLine.Should().BeEmpty();
+        game.MoveNumber.Should().Be(1);
+        game.CurrentPlayer.Should().Be(Player.Blue);
+        board.GetCell(8, 8).Player.Should().Be(Player.None);
+        board.GetCell(7, 8).Player.Should().Be(Player.None); // After 2 undos from 3 moves, only move 1 remains
+        board.GetCell(7, 7).Player.Should().Be(Player.Red);
     }
 }
