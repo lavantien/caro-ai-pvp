@@ -1,15 +1,17 @@
 <script lang="ts">
 	import type { Cell } from '$lib/types/game';
 	import CellComponent from './Cell.svelte';
+	import WinningLine from './WinningLine.svelte';
 	import { calculateGhostStonePosition, isValidCell } from '$lib/utils/boardUtils';
 	import { vibrateOnValidMove, vibrateOnInvalidMove } from '$lib/utils/haptics';
 
 	interface Props {
 		board: Cell[];
 		onMove: (x: number, y: number) => void;
+		winningLine?: Array<{ x: number; y: number }>;
 	}
 
-	let { board, onMove }: Props = $props();
+	let { board, onMove, winningLine = [] }: Props = $props();
 
 	let ghostPosition = $state<{ x: number; y: number } | null>(null);
 
@@ -59,6 +61,8 @@
 				onkeydown={(e) => e.key === 'Enter' && handleCellClick(cell.x, cell.y)} />
 		{/each}
 	</div>
+
+	<WinningLine winningLine={winningLine} boardSize={15} cellSize={40} />
 
 	{#if ghostPosition}
 		<div

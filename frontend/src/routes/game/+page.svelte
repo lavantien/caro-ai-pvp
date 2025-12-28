@@ -12,6 +12,7 @@
 	let gameId = $state<string>('');
 	let loading = $state(true);
 	let error = $state<string>('');
+	let winningLine = $state<Array<{ x: number; y: number }>>([]);
 
 	// Timer values from backend
 	let redTime = $state(180);
@@ -57,6 +58,9 @@
 		if (data.state.winner) {
 			store.winner = data.state.winner;
 		}
+		if (data.state.winningLine) {
+			winningLine = data.state.winningLine;
+		}
 	}
 
 	async function handleMove(x: number, y: number) {
@@ -99,6 +103,10 @@
 			store.isGameOver = data.state.isGameOver;
 			redTime = data.state.redTimeRemaining;
 			blueTime = data.state.blueTimeRemaining;
+
+			if (data.state.winningLine) {
+				winningLine = data.state.winningLine;
+			}
 
 			if (data.state.isGameOver && data.state.winner) {
 				store.winner = data.state.winner;
@@ -160,7 +168,7 @@
 		</div>
 
 		<div class="flex justify-center">
-			<Board board={store.board} onMove={handleMove} />
+			<Board board={store.board} onMove={handleMove} winningLine={winningLine} />
 		</div>
 
 		<div class="mt-6">
