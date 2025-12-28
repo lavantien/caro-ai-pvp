@@ -101,6 +101,61 @@ app.MapPost("/api/game/{id}/undo", (string id) =>
     }
 });
 
+// POST /api/game/{id}/ai-move - Get AI move and make it
+app.MapPost("/api/game/{id}/ai-move", (string id, AIMoveRequest request) =>
+{
+    lock (gamesLock)
+    {
+        if (!games.TryGetValue(id, out var game))
+            return Results.NotFound("Game not found");
+
+        if (game.IsGameOver)
+            return Results.BadRequest("Game is over");
+
+        var board = game.Board;
+
+        // Parse difficulty
+        if (!Enum.TryParse<AIDifficulty>(request.Difficulty, true, out var difficulty))
+        {
+            return Results.BadRequest("Invalid difficulty. Use: Easy, Medium, Hard, or Expert");
+        }
+
+        // Get AI move
+        var ai = new MinimaxAI();
+        var (x, y) = ai.GetBestMove(board, game.CurrentPlayer, difficulty);
+
+        // Validate and apply the move
+        var validator = new OpenRuleValidator();
+
+        if (!validator.IsValidSecondMove(board, x, y))
+            return Results.BadRequest("AI move violates Open Rule");
+
+        try
+        {
+            game.RecordMove(board, x, y);
+            game.ApplyTimeIncrement();
+
+            var detector = new WinDetector();
+            var result = detector.CheckWin(board);
+
+            if (result.HasWinner)
+            {
+                game.EndGame(result.Winner, result.WinningLine);
+            }
+
+            return Results.Ok(new { state = MapToResponse(game) });
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return Results.BadRequest("AI returned invalid position");
+        }
+        catch (InvalidOperationException)
+        {
+            return Results.BadRequest("AI tried to occupy already occupied cell");
+        }
+    }
+});
+
 // GET /api/game/{id} - Get game state
 app.MapGet("/api/game/{id}", (string id) =>
 {
@@ -136,3 +191,4 @@ static object MapToResponse(GameState game) => new
 };
 
 record MoveRequest(int X, int Y);
+record AIMoveRequest(string Difficulty);
