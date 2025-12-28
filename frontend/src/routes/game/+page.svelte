@@ -26,6 +26,11 @@
 	let showNameInput = $state(false);
 	let currentPlayer = $state<{ name: string; rating: number } | null>(null);
 
+	// Game mode: PvP or PvAI
+	let gameMode = $state<'pvp' | 'pvai'>('pvp');
+	let aiDifficulty = $state<'Easy' | 'Medium' | 'Hard' | 'Expert'>('Medium');
+	let isAiThinking = $state(false);
+
 	function handleRegisterPlayer() {
 		if (playerName.trim()) {
 			ratingStore.createPlayer(playerName.trim());
@@ -147,6 +152,62 @@
 		} catch (err) {
 			alert('Failed to make move');
 		}
+
+		// If playing against AI and game not over, trigger AI move
+		if (gameMode === 'pvai' && !store.isGameOver && store.currentPlayer === 'blue') {
+			makeAiMove();
+		}
+	}
+
+	async function makeAiMove() {
+		if (!gameId || store.isGameOver) return;
+
+		isAiThinking = true;
+		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
+
+		try {
+			const response = await fetch(`${apiUrl}/api/game/${gameId}/ai-move`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ difficulty: aiDifficulty })
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				alert(errorText);
+				return;
+			}
+
+			const data = await response.json();
+
+			// Update local state with server response
+			store.board = data.state.board;
+			store.currentPlayer = data.state.currentPlayer;
+			store.moveNumber = data.state.moveNumber;
+			store.isGameOver = data.state.isGameOver;
+			redTime = data.state.redTimeRemaining;
+			blueTime = data.state.blueTimeRemaining;
+
+			if (data.state.winningLine) {
+				winningLine = data.state.winningLine;
+			}
+
+			if (data.state.isGameOver && data.state.winner) {
+				store.winner = data.state.winner;
+				soundManager.playWinSound(data.state.winner);
+				alert(`${data.state.winner.toUpperCase()} WINS!`);
+
+				// Update player rating (AI always has DEFAULT_RATING)
+				if (currentPlayer) {
+					const playerWon = data.state.winner === 'red';
+					ratingStore.updateRating(playerWon, DEFAULT_RATING);
+				}
+			}
+		} catch (err) {
+			alert('Failed to make AI move');
+		} finally {
+			isAiThinking = false;
+		}
 	}
 
 	async function handleUndo() {
@@ -215,6 +276,65 @@
 					Undo
 				</button>
 				<SoundToggle />
+			</div>
+		</div>
+
+		<!-- Game Mode Selection -->
+		<div class="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+			<div class="flex flex-wrap gap-4 items-center justify-between">
+				<div class="flex gap-2">
+					<button
+						onclick={() => gameMode = 'pvp'}
+						class="px-4 py-2 rounded transition-colors {gameMode === 'pvp'
+							? 'bg-blue-600 text-white'
+							: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}"
+					>
+						Player vs Player
+					</button>
+					<button
+						onclick={() => gameMode = 'pvai'}
+						class="px-4 py-2 rounded transition-colors {gameMode === 'pvai'
+							? 'bg-blue-600 text-white'
+							: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}"
+					>
+						Player vs AI
+					</button>
+				</div>
+
+				{#if gameMode === 'pvai'}
+					<div class="flex items-center gap-2">
+						<label class="text-sm font-medium text-gray-700">AI Difficulty:</label>
+						<select
+							bind:value={aiDifficulty}
+							class="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+							disabled={store.moveNumber > 0}
+						>
+							<option value="Easy">Easy</option>
+							<option value="Medium">Medium</option>
+							<option value="Hard">Hard</option>
+							<option value="Expert">Expert</option>
+						</select>
+					</div>
+				{/if}
+
+				{#if isAiThinking}
+					<div class="flex items-center gap-2 text-blue-600">
+						<svg
+							class="animate-spin h-5 w-5"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+						>
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path
+								class="opacity-75"
+								fill="currentColor"
+								d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+							></path>
+						</svg>
+						<span class="text-sm font-medium">AI is thinking...</span>
+					</div>
+				{/if}
 			</div>
 		</div>
 
