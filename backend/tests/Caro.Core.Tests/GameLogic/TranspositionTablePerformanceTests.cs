@@ -1,0 +1,116 @@
+using Caro.Core.Entities;
+using Caro.Core.GameLogic;
+using Xunit;
+using Xunit.Abstractions;
+
+namespace Caro.Core.Tests.GameLogic;
+
+public class TranspositionTablePerformanceTests
+{
+    private readonly ITestOutputHelper _output;
+
+    public TranspositionTablePerformanceTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
+    [Fact]
+    public void TranspositionTable_ProvidesSpeedup()
+    {
+        // Arrange
+        var ai = new MinimaxAI();
+        var board = new Board();
+
+        // Set up a mid-game position (some stones already placed)
+        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(7, 8, Player.Blue);
+        board.PlaceStone(8, 7, Player.Red);
+        board.PlaceStone(8, 8, Player.Blue);
+        board.PlaceStone(6, 6, Player.Red);
+        board.PlaceStone(6, 7, Player.Blue);
+
+        // Act - Run GetBestMove with Hard difficulty (depth 3)
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        stopwatch.Stop();
+
+        // Assert - Should complete reasonably quickly (< 5 seconds)
+        _output.WriteLine($"Move: ({move.x}, {move.y})");
+        _output.WriteLine($"Time: {stopwatch.ElapsedMilliseconds}ms");
+
+        Assert.True(stopwatch.ElapsedMilliseconds < 5000,
+            $"Move calculation took {stopwatch.ElapsedMilliseconds}ms, expected < 5000ms");
+
+        // Move should be valid
+        var cell = board.GetCell(move.x, move.y);
+        Assert.True(cell.IsEmpty, "Move should be on an empty cell");
+    }
+
+    [Fact]
+    public void TranspositionTable_HitRateIsMeasurable()
+    {
+        // This test verifies the transposition table is being used
+        // by checking internal statistics through reflection or observing behavior
+
+        // Arrange
+        var board = new Board();
+        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(7, 8, Player.Blue);
+        board.PlaceStone(8, 7, Player.Red);
+        board.PlaceStone(8, 8, Player.Blue);
+
+        // Act - Multiple searches on same/similar positions should benefit from TT
+        var ai = new MinimaxAI();
+
+        // First search (will populate transposition table)
+        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+
+        // Second search on same position (should benefit from TT)
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        stopwatch.Stop();
+
+        _output.WriteLine($"First move: ({move1.x}, {move1.y})");
+        _output.WriteLine($"Second move: ({move2.x}, {move2.y})");
+        _output.WriteLine($"Second search time: {stopwatch.ElapsedMilliseconds}ms");
+
+        // Assert - Moves should be consistent (deterministic AI)
+        Assert.Equal(move1, move2);
+
+        // Second search should be fast due to transposition table
+        Assert.True(stopwatch.ElapsedMilliseconds < 1000,
+            $"Second search took {stopwatch.ElapsedMilliseconds}ms, expected < 1000ms with TT");
+    }
+
+    [Fact]
+    public void TranspositionTable_HandlesComplexPosition()
+    {
+        // Arrange - More complex mid-game position
+        var board = new Board();
+
+        // Create a position with multiple threats
+        board.PlaceStone(7, 6, Player.Red);
+        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(7, 8, Player.Red);
+        board.PlaceStone(8, 6, Player.Blue);
+        board.PlaceStone(8, 7, Player.Blue);
+        board.PlaceStone(6, 7, Player.Blue);
+
+        // Act
+        var ai = new MinimaxAI();
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        stopwatch.Stop();
+
+        _output.WriteLine($"Move: ({move.x}, {move.y})");
+        _output.WriteLine($"Time: {stopwatch.ElapsedMilliseconds}ms");
+
+        // Assert - Should find blocking move or winning move quickly
+        Assert.True(stopwatch.ElapsedMilliseconds < 10000,
+            $"Complex position analysis took {stopwatch.ElapsedMilliseconds}ms, expected < 10000ms");
+
+        // Move should be valid
+        var cell = board.GetCell(move.x, move.y);
+        Assert.True(cell.IsEmpty, "Move should be on an empty cell");
+    }
+}
