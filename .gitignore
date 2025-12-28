@@ -7,3 +7,7 @@ nul
 # OS
 .DS_Store
 Thumbs.db
+backend/backend-lint-results.txt
+backend/backend-test-results.txt
+frontend/frontend-lint-results.txt
+frontend/frontend-test-results.txt
