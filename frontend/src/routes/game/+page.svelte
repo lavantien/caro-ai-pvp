@@ -2,7 +2,9 @@
 	import { onMount } from 'svelte';
 	import Board from '$lib/components/Board.svelte';
 	import Timer from '$lib/components/Timer.svelte';
+	import SoundToggle from '$lib/components/SoundToggle.svelte';
 	import { GameStore } from '$lib/stores/gameStore.svelte';
+	import { soundManager } from '$lib/utils/sound';
 	import type { GameState } from '$lib/types/game';
 
 	let store = new GameStore();
@@ -63,6 +65,9 @@
 		const success = store.makeMove(x, y);
 		if (!success) return;
 
+		// Play stone placement sound (after move validation, currentPlayer is never 'none')
+		soundManager.playStoneSound(store.currentPlayer === 'none' ? 'red' : store.currentPlayer);
+
 		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
 
 		try {
@@ -96,6 +101,7 @@
 
 			if (data.state.isGameOver && data.state.winner) {
 				store.winner = data.state.winner;
+				soundManager.playWinSound(data.state.winner);
 				alert(`${data.state.winner.toUpperCase()} WINS!`);
 			}
 		} catch (err) {
@@ -125,7 +131,10 @@
 	</div>
 {:else}
 	<div class="container mx-auto p-4 max-w-4xl">
-		<h1 class="text-2xl font-bold mb-4 text-center text-gray-800">Caro Game</h1>
+		<div class="flex justify-between items-center mb-4">
+			<h1 class="text-2xl font-bold text-gray-800">Caro Game</h1>
+			<SoundToggle />
+		</div>
 
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
 			<Timer
@@ -150,7 +159,7 @@
 		</div>
 
 		<div class="flex justify-center">
-			<svelte:component this={Board} board={store.board} onMove={handleMove} />
+			<Board board={store.board} onMove={handleMove} />
 		</div>
 
 		{#if store.isGameOver}
