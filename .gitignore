@@ -1,0 +1,9 @@
+# Claude-specific
+.claude/
+
+# Temporary files
+nul
+
+# OS
+.DS_Store
+Thumbs.db
