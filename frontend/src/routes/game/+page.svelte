@@ -3,6 +3,7 @@
 	import Board from '$lib/components/Board.svelte';
 	import Timer from '$lib/components/Timer.svelte';
 	import SoundToggle from '$lib/components/SoundToggle.svelte';
+	import MoveHistory from '$lib/components/MoveHistory.svelte';
 	import { GameStore } from '$lib/stores/gameStore.svelte';
 	import { soundManager } from '$lib/utils/sound';
 	import type { GameState } from '$lib/types/game';
@@ -160,6 +161,10 @@
 
 		<div class="flex justify-center">
 			<Board board={store.board} onMove={handleMove} />
+		</div>
+
+		<div class="mt-6">
+			<MoveHistory moves={store.moveHistory} currentMoveNumber={store.moveNumber} />
 		</div>
 
 		{#if store.isGameOver}
