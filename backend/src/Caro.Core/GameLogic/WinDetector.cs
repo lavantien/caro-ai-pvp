@@ -2,6 +2,12 @@ namespace Caro.Core.GameLogic;
 
 using Caro.Core.Entities;
 
+public struct Position(int x, int y)
+{
+    public int X { get; set; } = x;
+    public int Y { get; set; } = y;
+}
+
 public class WinDetector
 {
     private static readonly (int dx, int dy)[] Directions =
@@ -37,7 +43,19 @@ public class WinDetector
                         // Win only if exactly 5 (not 6+) and not both ends blocked
                         if (count == 5 && !hasExtension && !(leftBlocked && rightBlocked))
                         {
-                            return new WinResult { HasWinner = true, Winner = cell.Player };
+                            // Build winning line
+                            var winningLine = new List<Position>();
+                            for (int i = 0; i < 5; i++)
+                            {
+                                winningLine.Add(new Position(x + i * dx, y + i * dy));
+                            }
+
+                            return new WinResult
+                            {
+                                HasWinner = true,
+                                Winner = cell.Player,
+                                WinningLine = winningLine
+                            };
                         }
                     }
                 }
@@ -87,4 +105,5 @@ public class WinResult
 {
     public bool HasWinner { get; set; }
     public Player Winner { get; set; } = Player.None;
+    public List<Position> WinningLine { get; set; } = new();
 }
