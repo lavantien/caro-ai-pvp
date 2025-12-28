@@ -9,10 +9,6 @@ export default defineConfig({
 		host: true
 	},
 	test: {
-		browser: {
-			enabled: true,
-			headless: true
-		},
 		include: ['src/**/*.{test,spec}.{js,ts}'],
 		coverage: {
 			provider: 'v8',

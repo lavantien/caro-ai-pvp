@@ -53,27 +53,29 @@ public class GameStateTests
     }
 
     [Fact]
-    public void ApplyTimeIncrement_Adds2SecondsToCurrentPlayer()
+    public void RecordMove_Adds2SecondsToCurrentPlayer()
     {
         // Arrange
         var game = new GameState();
+        var board = game.Board;
         var initialRedTime = game.RedTimeRemaining;
 
         // Act
-        game.ApplyTimeIncrement();
+        game.RecordMove(board, 7, 7);
 
         // Assert
         game.RedTimeRemaining.Should().Be(initialRedTime + TimeSpan.FromSeconds(2));
     }
 
     [Fact]
-    public void ApplyTimeIncrement_SwitchesPlayer()
+    public void RecordMove_SwitchesPlayer()
     {
         // Arrange
         var game = new GameState();
+        var board = game.Board;
 
         // Act
-        game.ApplyTimeIncrement();
+        game.RecordMove(board, 7, 7);
 
         // Assert
         game.CurrentPlayer.Should().Be(Player.Blue);

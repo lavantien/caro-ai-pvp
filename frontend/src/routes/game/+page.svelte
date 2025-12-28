@@ -10,6 +10,10 @@
 	let loading = $state(true);
 	let error = $state<string>('');
 
+	// Timer values from backend
+	let redTime = $state(180);
+	let blueTime = $state(180);
+
 	onMount(async () => {
 		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
 
@@ -45,6 +49,8 @@
 		store.currentPlayer = data.state.currentPlayer;
 		store.moveNumber = data.state.moveNumber;
 		store.isGameOver = data.state.isGameOver;
+		redTime = data.state.redTimeRemaining;
+		blueTime = data.state.blueTimeRemaining;
 		if (data.state.winner) {
 			store.winner = data.state.winner;
 		}
@@ -85,6 +91,8 @@
 			store.currentPlayer = data.state.currentPlayer;
 			store.moveNumber = data.state.moveNumber;
 			store.isGameOver = data.state.isGameOver;
+			redTime = data.state.redTimeRemaining;
+			blueTime = data.state.blueTimeRemaining;
 
 			if (data.state.isGameOver && data.state.winner) {
 				store.winner = data.state.winner;
@@ -93,6 +101,15 @@
 		} catch (err) {
 			alert('Failed to make move');
 		}
+	}
+
+	function handleTimeOut(player: string) {
+		if (store.isGameOver) return;
+
+		store.isGameOver = true;
+		const winner = player === 'red' ? 'blue' : 'red';
+		store.winner = winner;
+		alert(`${winner.toUpperCase()} WINS! ${player.toUpperCase()} ran out of time.`);
 	}
 </script>
 
@@ -111,11 +128,16 @@
 		<h1 class="text-2xl font-bold mb-4 text-center text-gray-800">Caro Game</h1>
 
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-			<Timer player="red" timeRemaining={180} isActive={store.currentPlayer === 'red' && !store.isGameOver} />
+			<Timer
+				player="red"
+				timeRemaining={redTime}
+				isActive={store.currentPlayer === 'red' && !store.isGameOver}
+				onTimeOut={() => handleTimeOut('red')} />
 			<Timer
 				player="blue"
-				timeRemaining={180}
-				isActive={store.currentPlayer === 'blue' && !store.isGameOver} />
+				timeRemaining={blueTime}
+				isActive={store.currentPlayer === 'blue' && !store.isGameOver}
+				onTimeOut={() => handleTimeOut('blue')} />
 		</div>
 
 		<div class="mb-4 text-center">
