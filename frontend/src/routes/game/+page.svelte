@@ -96,12 +96,15 @@
 	async function handleMove(x: number, y: number) {
 		if (store.isGameOver || !gameId) return;
 
-		// Optimistic update
-		const success = store.makeMove(x, y);
-		if (!success) return;
+		// Optimistic board update only (not move history or state)
+		const cell = store.board.find((c) => c.x === x && c.y === y);
+		if (!cell || cell.player !== 'none') return;
 
-		// Play stone placement sound (after move validation, currentPlayer is never 'none')
-		soundManager.playStoneSound(store.currentPlayer === 'none' ? 'red' : store.currentPlayer);
+		const previousPlayer = store.currentPlayer;
+		cell.player = previousPlayer;
+
+		// Play stone placement sound
+		soundManager.playStoneSound(previousPlayer);
 
 		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
 
@@ -114,25 +117,32 @@
 
 			if (!response.ok) {
 				const errorText = await response.text();
+				// Revert board cell on error
+				cell.player = 'none';
 				alert(errorText);
-				// Revert on error
-				store.board = store.board.map((c) =>
-					c.x === x && c.y === y ? { ...c, player: 'none' as const } : c
-				);
-				store.moveNumber--;
-				store.currentPlayer = store.currentPlayer === 'red' ? 'blue' : 'red';
 				return;
 			}
 
 			const data = await response.json();
 
-			// Update local state with server response
+			// Update local state with server response (authoritative)
 			store.board = data.state.board;
 			store.currentPlayer = data.state.currentPlayer;
 			store.moveNumber = data.state.moveNumber;
 			store.isGameOver = data.state.isGameOver;
 			redTime = data.state.redTimeRemaining;
 			blueTime = data.state.blueTimeRemaining;
+
+			// Add to move history after successful move
+			store.moveHistory = [
+				...store.moveHistory,
+				{
+					moveNumber: data.state.moveNumber,
+					player: previousPlayer,
+					x,
+					y
+				}
+			];
 
 			if (data.state.winningLine) {
 				winningLine = data.state.winningLine;
@@ -150,6 +160,8 @@
 				}
 			}
 		} catch (err) {
+			// Revert board cell on error
+			cell.player = 'none';
 			alert('Failed to make move');
 		}
 
@@ -164,6 +176,9 @@
 
 		isAiThinking = true;
 		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
+
+		// Store previous board to find AI's move
+		const previousBoard = [...store.board];
 
 		try {
 			const response = await fetch(`${apiUrl}/api/game/${gameId}/ai-move`, {
@@ -180,6 +195,15 @@
 
 			const data = await response.json();
 
+			// Find which cell changed (AI's move)
+			let aiMove = { x: 0, y: 0 };
+			for (let i = 0; i < store.board.length; i++) {
+				if (previousBoard[i].player === 'none' && data.state.board[i].player === 'blue') {
+					aiMove = { x: data.state.board[i].x, y: data.state.board[i].y };
+					break;
+				}
+			}
+
 			// Update local state with server response
 			store.board = data.state.board;
 			store.currentPlayer = data.state.currentPlayer;
@@ -187,6 +211,17 @@
 			store.isGameOver = data.state.isGameOver;
 			redTime = data.state.redTimeRemaining;
 			blueTime = data.state.blueTimeRemaining;
+
+			// Add AI move to history
+			store.moveHistory = [
+				...store.moveHistory,
+				{
+					moveNumber: data.state.moveNumber,
+					player: 'blue',
+					x: aiMove.x,
+					y: aiMove.y
+				}
+			];
 
 			if (data.state.winningLine) {
 				winningLine = data.state.winningLine;

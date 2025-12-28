@@ -1,0 +1,72 @@
+================================================================================
+AI TOURNAMENT BALANCE REPORT
+================================================================================
+
+OVERALL STATISTICS
+--------------------------------------------------------------------------------
+Total Games: 90
+Red Wins: 37 (41.1%)
+Blue Wins: 53 (58.9%)
+Draws: 0 (0.0%)
+Timeouts: 0 (0.0%)
+
+WIN RATE BY DIFFICULTY PAIRING
+--------------------------------------------------------------------------------
+Red        Blue       Games    Red Win%   Blue Win%  Draw%     
+------------------------------------------------------------
+Easy       Easy       10       70.0%      30.0%      0.0%      
+Easy       Medium     20       0.0%       100.0%     0.0%      
+Easy       Medium     20       0.0%       100.0%     0.0%      
+Easy       Expert     20       0.0%       100.0%     0.0%      
+Medium     Easy       20       0.0%       100.0%     0.0%      
+Medium     Medium     10       100.0%     0.0%       0.0%      
+Medium     Medium     10       100.0%     0.0%       0.0%      
+Medium     Expert     20       100.0%     0.0%       0.0%      
+Medium     Easy       20       0.0%       100.0%     0.0%      
+Medium     Medium     10       100.0%     0.0%       0.0%      
+Medium     Medium     10       100.0%     0.0%       0.0%      
+Medium     Expert     20       100.0%     0.0%       0.0%      
+Expert     Easy       20       0.0%       100.0%     0.0%      
+Expert     Medium     20       100.0%     0.0%       0.0%      
+Expert     Medium     20       100.0%     0.0%       0.0%      
+Expert     Expert     10       0.0%       100.0%     0.0%      
+
+AVERAGE GAME LENGTH (MOVES)
+--------------------------------------------------------------------------------
+Red        Blue       Avg Moves    Min    Max   
+--------------------------------------------------
+Easy       Easy       F1-12 10     27    
+Easy       Medium     F1-12 9      67    
+Easy       Medium     F1-12 9      67    
+Easy       Expert     F1-12 9      51    
+Medium     Easy       F1-12 9      67    
+Medium     Medium     F1-12 16     16    
+Medium     Medium     F1-12 16     16    
+Medium     Expert     F1-12 34     34    
+Medium     Easy       F1-12 9      67    
+Medium     Medium     F1-12 16     16    
+Medium     Medium     F1-12 16     16    
+Medium     Expert     F1-12 34     34    
+Expert     Easy       F1-12 9      51    
+Expert     Medium     F1-12 34     34    
+Expert     Medium     F1-12 34     34    
+Expert     Expert     F1-12 155    155   
+
+AVERAGE MOVE TIME (MS)
+--------------------------------------------------------------------------------
+Difficulty Avg Time (ms)   Min        Max       
+--------------------------------------------------
+Easy       F2-15 0          2123      
+Medium     F2-15 0          2541      
+Medium     F2-15 0          2541      
+Expert     F2-15 0          6497      
+
+BALANCE ANALYSIS
+--------------------------------------------------------------------------------
+Medium vs Easy: Medium wins 100.0% ✓ (Good balance - stronger AI wins more often)
+Medium vs Easy: Medium wins 100.0% ✓ (Good balance - stronger AI wins more often)
+Expert vs Easy: Expert wins 100.0% ✓ (Good balance - stronger AI wins more often)
+Expert vs Medium: Expert wins 0.0% ⚠ WARNING: Medium beating Expert too often!
+Expert vs Medium: Expert wins 0.0% ⚠ WARNING: Medium beating Expert too often!
+
+================================================================================

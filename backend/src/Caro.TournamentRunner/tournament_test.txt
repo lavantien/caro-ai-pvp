@@ -1,0 +1,77 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║           CARO AI TOURNAMENT - AUTOMATED BATTLE SYSTEM              ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+DEBUG - Matchups configured:
+  Easy vs Easy: 10 games
+  Easy vs Medium: 20 games
+  Easy vs Expert: 20 games
+  Medium vs Medium: 10 games
+  Medium vs Expert: 20 games
+  Expert vs Expert: 10 games
+
+Tournament Configuration:
+  Total Matchups: 6
+  Total Games: 90
+  Estimated Time: ~45 minutes
+
+Auto-mode: Starting tournament...
+🏁 TOURNAMENT STARTED
+
+[1/90] 1.1% - Easy vs Easy: Blue wins[2/90] 2.2% - Easy vs Easy: Red wins[3/90] 3.3% - Easy vs Easy: Blue wins[4/90] 4.4% - Easy vs Easy: Red wins[5/90] 5.6% - Easy vs Easy: Blue wins[6/90] 6.7% - Easy vs Easy: Blue wins[7/90] 7.8% - Easy vs Easy: Red wins[8/90] 8.9% - Easy vs Easy: Red wins[9/90] 10.0% - Easy vs Easy: Red wins[10/90] 11.1% - Easy vs Easy: Red wins
+  → Easy (Red) defeated Easy (Blue)
+     Moves: 12, Time: 0.1s, Avg Move: 4.8ms
+[11/90] 12.2% - Easy vs Medium: Blue wins[12/90] 13.3% - Easy vs Medium: Blue wins[13/90] 14.4% - Easy vs Medium: Blue wins[14/90] 15.6% - Easy vs Medium: Blue wins[15/90] 16.7% - Easy vs Medium: Blue wins[16/90] 17.8% - Easy vs Medium: Blue wins[17/90] 18.9% - Easy vs Medium: Blue wins[18/90] 20.0% - Easy vs Medium: Blue wins[19/90] 21.1% - Easy vs Medium: Blue wins[20/90] 22.2% - Easy vs Medium: Blue wins
+  → Medium (Blue) defeated Easy (Red)
+     Moves: 11, Time: 0.9s, Avg Move: 72.0ms
+[21/90] 23.3% - Easy vs Medium: Blue wins[22/90] 24.4% - Easy vs Medium: Blue wins[23/90] 25.6% - Easy vs Medium: Blue wins[24/90] 26.7% - Easy vs Medium: Blue wins[25/90] 27.8% - Easy vs Medium: Blue wins[26/90] 28.9% - Easy vs Medium: Blue wins[27/90] 30.0% - Easy vs Medium: Blue wins[28/90] 31.1% - Easy vs Medium: Blue wins[29/90] 32.2% - Easy vs Medium: Blue wins[30/90] 33.3% - Easy vs Medium: Blue wins
+  → Medium (Blue) defeated Easy (Red)
+     Moves: 15, Time: 1.1s, Avg Move: 71.3ms
+[31/90] 34.4% - Easy vs Expert: Blue wins[32/90] 35.6% - Easy vs Expert: Blue wins[33/90] 36.7% - Easy vs Expert: Blue wins[34/90] 37.8% - Easy vs Expert: Blue wins[35/90] 38.9% - Easy vs Expert: Blue wins[36/90] 40.0% - Easy vs Expert: Blue wins[37/90] 41.1% - Easy vs Expert: Blue wins[38/90] 42.2% - Easy vs Expert: Blue wins[39/90] 43.3% - Easy vs Expert: Blue wins[40/90] 44.4% - Easy vs Expert: Blue wins
+  → Expert (Blue) defeated Easy (Red)
+     Moves: 13, Time: 4.0s, Avg Move: 282.3ms
+[41/90] 45.6% - Easy vs Expert: Blue wins[42/90] 46.7% - Easy vs Expert: Blue wins[43/90] 47.8% - Easy vs Expert: Blue wins[44/90] 48.9% - Easy vs Expert: Blue wins[45/90] 50.0% - Easy vs Expert: Blue wins[46/90] 51.1% - Easy vs Expert: Blue wins[47/90] 52.2% - Easy vs Expert: Blue wins[48/90] 53.3% - Easy vs Expert: Blue wins[49/90] 54.4% - Easy vs Expert: Blue wins[50/90] 55.6% - Easy vs Expert: Blue wins
+  → Expert (Blue) defeated Easy (Red)
+     Moves: 15, Time: 4.8s, Avg Move: 302.4ms
+[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[51/90] 56.7% - Medium vs Medium: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[52/90] 57.8% - Medium vs Medium: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[53/90] 58.9% - Medium vs Medium: Red wins[54/90] 60.0% - Medium vs Medium: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[55/90] 61.1% - Medium vs Medium: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[56/90] 62.2% - Medium vs Medium: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[57/90] 63.3% - Medium vs Medium: Red wins[58/90] 64.4% - Medium vs Medium: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[59/90] 65.6% - Medium vs Medium: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[60/90] 66.7% - Medium vs Medium: Red wins
+  → Medium (Red) defeated Medium (Blue)
+     Moves: 16, Time: 1.5s, Avg Move: 85.0ms
+[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[61/90] 67.8% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[62/90] 68.9% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[63/90] 70.0% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[64/90] 71.1% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[65/90] 72.2% - Medium vs Expert: Red wins[66/90] 73.3% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[67/90] 74.4% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[68/90] 75.6% - Medium vs Expert: Red wins[69/90] 76.7% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[70/90] 77.8% - Medium vs Expert: Red wins
+  → Medium (Red) defeated Expert (Blue)
+     Moves: 34, Time: 20.5s, Avg Move: 584.7ms
+[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[71/90] 78.9% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[72/90] 80.0% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[73/90] 81.1% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[74/90] 82.2% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[75/90] 83.3% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[76/90] 84.4% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[77/90] 85.6% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[78/90] 86.7% - Medium vs Expert: Red wins[AI DEBUG] Medium: baseDepth=3, adjustedDepth=3, timeRemaining=180.0s
+[79/90] 87.8% - Medium vs Expert: Red wins[AI DEBUG] Expert: baseDepth=4, adjustedDepth=4, timeRemaining=180.0s
+[80/90] 88.9% - Medium vs Expert: Red wins
+  → Medium (Red) defeated Expert (Blue)
+     Moves: 34, Time: 21.1s, Avg Move: 602.6ms
+[AI DEBUG] Expert: baseDepth=4, adjustedDepth=4, timeRemaining=180.0s
+[81/90] 90.0% - Expert vs Expert: Blue wins
