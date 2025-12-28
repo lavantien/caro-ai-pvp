@@ -1,15 +1,51 @@
 <script lang="ts">
 	import type { Player } from '$lib/types/game';
+	import { onMount, onDestroy } from 'svelte';
 
 	interface Props {
 		player: Player;
 		timeRemaining: number; // seconds
 		isActive: boolean;
+		onTimeOut?: () => void;
 	}
 
-	let { player, timeRemaining, isActive }: Props = $props();
+	let { player, timeRemaining: initialTime, isActive, onTimeOut }: Props = $props();
+
+	// Local state for countdown
+	let timeRemaining = $state(initialTime);
+
+	// Update when initial time changes (e.g., after backend sync)
+	$effect(() => {
+		timeRemaining = initialTime;
+	});
+
+	let interval: ReturnType<typeof setInterval> | null = null;
+
+	// Start countdown when active
+	$effect(() => {
+		if (isActive) {
+			interval = setInterval(() => {
+				timeRemaining--;
+
+				if (timeRemaining <= 0) {
+					if (interval) clearInterval(interval);
+					if (onTimeOut) onTimeOut();
+				}
+			}, 1000);
+		} else {
+			if (interval) {
+				clearInterval(interval);
+				interval = null;
+			}
+		}
+
+		return () => {
+			if (interval) clearInterval(interval);
+		};
+	});
 
 	function formatTime(seconds: number): string {
+		if (seconds < 0) seconds = 0;
 		const mins = Math.floor(seconds / 60);
 		const secs = seconds % 60;
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
