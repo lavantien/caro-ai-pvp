@@ -4,7 +4,9 @@
 	import Timer from '$lib/components/Timer.svelte';
 	import SoundToggle from '$lib/components/SoundToggle.svelte';
 	import MoveHistory from '$lib/components/MoveHistory.svelte';
+	import Leaderboard from '$lib/components/Leaderboard.svelte';
 	import { GameStore } from '$lib/stores/gameStore.svelte';
+	import { ratingStore } from '$lib/stores/ratingStore.svelte';
 	import { soundManager } from '$lib/utils/sound';
 	import type { GameState } from '$lib/types/game';
 
@@ -17,6 +19,29 @@
 	// Timer values from backend
 	let redTime = $state(180);
 	let blueTime = $state(180);
+
+	// Player registration
+	const DEFAULT_RATING = 1500;
+	let playerName = $state('');
+	let showNameInput = $state(false);
+	let currentPlayer = $state<{ name: string; rating: number } | null>(null);
+
+	function handleRegisterPlayer() {
+		if (playerName.trim()) {
+			ratingStore.createPlayer(playerName.trim());
+		}
+	}
+
+	// Subscribe to rating store
+	ratingStore.subscribe((data) => {
+		if (data.currentPlayer) {
+			currentPlayer = {
+				name: data.currentPlayer.name,
+				rating: data.currentPlayer.rating
+			};
+			showNameInput = false;
+		}
+	});
 
 	onMount(async () => {
 		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
@@ -112,6 +137,12 @@
 				store.winner = data.state.winner;
 				soundManager.playWinSound(data.state.winner);
 				alert(`${data.state.winner.toUpperCase()} WINS!`);
+
+				// Update player rating (for local PvP, both players get the same opponent rating)
+				if (currentPlayer) {
+					const playerWon = store.currentPlayer === data.state.winner;
+					ratingStore.updateRating(playerWon, DEFAULT_RATING);
+				}
 			}
 		} catch (err) {
 			alert('Failed to make move');
@@ -215,6 +246,44 @@
 
 		<div class="mt-6">
 			<MoveHistory moves={store.moveHistory} currentMoveNumber={store.moveNumber} />
+		</div>
+
+		<div class="mt-6">
+			{#if currentPlayer}
+				<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+					<div class="flex justify-between items-center">
+						<div>
+							<p class="text-sm text-gray-600">Playing as</p>
+							<p class="text-lg font-bold text-blue-900">{currentPlayer.name}</p>
+						</div>
+						<div class="text-right">
+							<p class="text-sm text-gray-600">Rating</p>
+							<p class="text-2xl font-bold text-blue-900">{currentPlayer.rating}</p>
+						</div>
+					</div>
+				</div>
+			{:else}
+				<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+					<p class="text-gray-700 mb-2">Track your rating on the leaderboard!</p>
+					<div class="flex gap-2">
+						<input
+							type="text"
+							bind:value={playerName}
+							placeholder="Enter your name"
+							class="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+							onkeypress={(e) => e.key === 'Enter' && handleRegisterPlayer()}
+						/>
+						<button
+							onclick={handleRegisterPlayer}
+							class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+						>
+							Register
+						</button>
+					</div>
+				</div>
+			{/if}
+
+			<Leaderboard limit={5} />
 		</div>
 
 		{#if store.isGameOver}
