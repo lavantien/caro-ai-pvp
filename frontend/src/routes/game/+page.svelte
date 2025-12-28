@@ -1,0 +1,140 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import Board from '$lib/components/Board.svelte';
+	import Timer from '$lib/components/Timer.svelte';
+	import { GameStore } from '$lib/stores/gameStore.svelte';
+	import type { GameState } from '$lib/types/game';
+
+	let store = new GameStore();
+	let gameId = $state<string>('');
+	let loading = $state(true);
+	let error = $state<string>('');
+
+	onMount(async () => {
+		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
+
+		try {
+			// Create new game on backend
+			const response = await fetch(`${apiUrl}/api/game/new`, {
+				method: 'POST'
+			});
+
+			if (!response.ok) throw new Error('Failed to create game');
+
+			const data = await response.json();
+			gameId = data.gameId;
+
+			// Sync with backend state
+			await syncWithBackend();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Unknown error';
+		} finally {
+			loading = false;
+		}
+	});
+
+	async function syncWithBackend() {
+		if (!gameId) return;
+
+		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
+		const response = await fetch(`${apiUrl}/api/game/${gameId}`);
+		const data = await response.json();
+
+		// Update local state with backend state
+		store.board = data.state.board;
+		store.currentPlayer = data.state.currentPlayer;
+		store.moveNumber = data.state.moveNumber;
+		store.isGameOver = data.state.isGameOver;
+		if (data.state.winner) {
+			store.winner = data.state.winner;
+		}
+	}
+
+	async function handleMove(x: number, y: number) {
+		if (store.isGameOver || !gameId) return;
+
+		// Optimistic update
+		const success = store.makeMove(x, y);
+		if (!success) return;
+
+		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
+
+		try {
+			const response = await fetch(`${apiUrl}/api/game/${gameId}/move`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ x, y })
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				alert(errorText);
+				// Revert on error
+				store.board = store.board.map((c) =>
+					c.x === x && c.y === y ? { ...c, player: 'none' as const } : c
+				);
+				store.moveNumber--;
+				store.currentPlayer = store.currentPlayer === 'red' ? 'blue' : 'red';
+				return;
+			}
+
+			const data = await response.json();
+
+			// Update local state with server response
+			store.board = data.state.board;
+			store.currentPlayer = data.state.currentPlayer;
+			store.moveNumber = data.state.moveNumber;
+			store.isGameOver = data.state.isGameOver;
+
+			if (data.state.isGameOver && data.state.winner) {
+				store.winner = data.state.winner;
+				alert(`${data.state.winner.toUpperCase()} WINS!`);
+			}
+		} catch (err) {
+			alert('Failed to make move');
+		}
+	}
+</script>
+
+{#if loading}
+	<div class="container mx-auto p-8 text-center">
+		<p class="text-xl">Loading game...</p>
+	</div>
+{:else if error}
+	<div class="container mx-auto p-8 text-center">
+		<p class="text-xl text-red-500">Error: {error}</p>
+		<p class="mt-4">Make sure the backend API is running on http://localhost:5207</p>
+		<p class="text-sm text-gray-500">API URL: {import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207'}</p>
+	</div>
+{:else}
+	<div class="container mx-auto p-4 max-w-4xl">
+		<h1 class="text-2xl font-bold mb-4 text-center text-gray-800">Caro Game</h1>
+
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+			<Timer player="red" timeRemaining={180} isActive={store.currentPlayer === 'red' && !store.isGameOver} />
+			<Timer
+				player="blue"
+				timeRemaining={180}
+				isActive={store.currentPlayer === 'blue' && !store.isGameOver} />
+		</div>
+
+		<div class="mb-4 text-center">
+			<p class="text-lg">
+				Current Player: <strong class="uppercase {store.currentPlayer === 'red'
+						? 'text-red-600'
+						: 'text-blue-600'}">{store.currentPlayer}</strong>
+				(Move #{store.moveNumber})
+			</p>
+		</div>
+
+		<div class="flex justify-center">
+			<svelte:component this={Board} board={store.board} onMove={handleMove} />
+		</div>
+
+		{#if store.isGameOver}
+			<div class="mt-4 p-4 bg-green-100 rounded text-center">
+				<h2 class="text-2xl font-bold uppercase text-green-800">{store.winner} WINS!</h2>
+			</div>
+		{/if}
+	</div>
+{/if}

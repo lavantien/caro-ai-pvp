@@ -1,0 +1,9 @@
+# AI assistant-specific
+.config/
+
+# Temporary files
+nul
+
+# OS
+.DS_Store
+Thumbs.db
