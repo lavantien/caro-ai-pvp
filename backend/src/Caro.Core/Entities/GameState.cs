@@ -1,5 +1,7 @@
 namespace Caro.Core.Entities;
 
+using Caro.Core.GameLogic;
+
 public class GameState
 {
     private const int InitialTimeMinutes = 3;
@@ -11,6 +13,8 @@ public class GameState
     public bool IsGameOver { get; private set; } = false;
     public TimeSpan RedTimeRemaining { get; private set; } = TimeSpan.FromMinutes(InitialTimeMinutes);
     public TimeSpan BlueTimeRemaining { get; private set; } = TimeSpan.FromMinutes(InitialTimeMinutes);
+    public Player Winner { get; private set; } = Player.None;
+    public List<Position> WinningLine { get; private set; } = new();
 
     public void RecordMove(Board board, int x, int y)
     {
@@ -33,9 +37,11 @@ public class GameState
         // This method is kept for backward compatibility but does nothing
     }
 
-    public void EndGame(Player winner)
+    public void EndGame(Player winner, List<Position>? winningLine = null)
     {
         IsGameOver = true;
         CurrentPlayer = Player.None;
+        Winner = winner;
+        WinningLine = winningLine ?? new List<Position>();
     }
 }

@@ -94,4 +94,53 @@ public class GameStateTests
         game.IsGameOver.Should().BeTrue();
         game.CurrentPlayer.Should().Be(Player.None);
     }
+
+    [Fact]
+    public void EndGame_StoresWinner()
+    {
+        // Arrange
+        var game = new GameState();
+
+        // Act
+        game.EndGame(Player.Blue);
+
+        // Assert
+        game.Winner.Should().Be(Player.Blue);
+    }
+
+    [Fact]
+    public void EndGame_StoresWinningLine()
+    {
+        // Arrange
+        var game = new GameState();
+        var winningLine = new List<Caro.Core.GameLogic.Position>
+        {
+            new(5, 7),
+            new(6, 7),
+            new(7, 7),
+            new(8, 7),
+            new(9, 7)
+        };
+
+        // Act
+        game.EndGame(Player.Red, winningLine);
+
+        // Assert
+        game.WinningLine.Should().HaveCount(5);
+        game.WinningLine[0].X.Should().Be(5);
+        game.WinningLine[0].Y.Should().Be(7);
+        game.WinningLine[4].X.Should().Be(9);
+        game.WinningLine[4].Y.Should().Be(7);
+    }
+
+    [Fact]
+    public void NewGame_HasNoWinnerInitially()
+    {
+        // Arrange & Act
+        var game = new GameState();
+
+        // Assert
+        game.Winner.Should().Be(Player.None);
+        game.WinningLine.Should().BeEmpty();
+    }
 }

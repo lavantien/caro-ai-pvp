@@ -63,7 +63,7 @@ app.MapPost("/api/game/{id}/move", (string id, MoveRequest request) =>
 
             if (result.HasWinner)
             {
-                game.EndGame(result.Winner);
+                game.EndGame(result.Winner, result.WinningLine);
             }
 
             return Results.Ok(new { state = MapToResponse(game) });
@@ -107,6 +107,8 @@ static object MapToResponse(GameState game) => new
     currentPlayer = game.CurrentPlayer.ToString().ToLower(),
     moveNumber = game.MoveNumber,
     isGameOver = game.IsGameOver,
+    winner = game.Winner.ToString().ToLower(),
+    winningLine = game.WinningLine.Select(p => new { x = p.X, y = p.Y }),
     redTimeRemaining = game.RedTimeRemaining.TotalSeconds,
     blueTimeRemaining = game.BlueTimeRemaining.TotalSeconds
 };
