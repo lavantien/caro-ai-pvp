@@ -2,13 +2,14 @@
 
 ## Non-Negotiables
 
-* Strict TDD is mandatory: Write failing test first (test-as-documentation, one-at-a-time, regression-proof, table-driven, test-doubles) -> minimal code to pass -> refactor -> using linters & formatters.
-* Adversarial Cooperation: Rigorously check against linters and hostile unit tests or security exploits. If complexity requires, utilize parallel Tasks, Consensus Voting, Synthetic and Fuzzy Test Case Generation with high-quality examples and high volume variations.
-* Only trust independent verification: Never claim "done" without test output and command evidence.
-* Commits & Comments: No watermarks. No `Co-Authored-By` lines. Only plain simple text, maybe with unordered dash list or numbered list, avoid em/en dashes or bolting or italicizing or emojis. For comments, always in my humble voice and stay as unconfrontational as possible and phrase most things as constructive questions.
-  * Conventions: Use Conventional Commits (feat, fix, docs, refactor, test, chore).
-  * Granularity: Atomic commits. If the logic changes, the test must be committed in the same SHA.
-  * Security: Never commit secrets. If a test requires a secret, it must use environment variables or skipped if the variable is missing.
+- Strict TDD is mandatory: Write failing test first (test-as-documentation, one-at-a-time, regression-proof, table-driven, test-doubles) -> minimal code to pass -> refactor -> using linters & formatters.
+- Always research the latest and up-to-date information and official documentation before implement any thing to prevent hallucinated syntax.
+- Adversarial Cooperation: Rigorously check against linters and hostile unit tests or security exploits. If complexity requires, utilize parallel Tasks, Consensus Voting, Synthetic and Fuzzy Test Case Generation with high-quality examples and high volume variations.
+- Only trust independent verification: Never claim "done" without test output and command evidence.
+- Commits & Comments: No watermarks. No `Co-Authored-By` lines. Only plain simple text, maybe with unordered dash list or numbered list, avoid em/en dashes or bolting or italicizing or emojis. For comments, always in my humble voice and stay as unconfrontational as possible and phrase most things as constructive questions.
+  - Conventions: Use Conventional Commits (feat, fix, docs, refactor, test, chore).
+  - Granularity: Atomic commits. If the logic changes, the test must be committed in the same SHA.
+  - Security: Never commit secrets. If a test requires a secret, it must use environment variables or skipped if the variable is missing.
 
 ## Core Workflow
 
@@ -27,14 +28,14 @@ If you cannot write acceptance criteria, pause and clarify.
 
 #### Tool Usage
 
-* Repomix: Use to explore and pack the repository for full-structure views.
-* Context7: Use to acquire up-to-date, version-specific documentation for any library/API.
-* Vision MCP: Use for image understanding.
-* Playwright: Use for interactive browser-based E2E tests and UI debugging.
-* Web Search MCP or Web Reader MCP: Use to acquire latest documentations or information.
-* ZRead MCP: Use for documentation search, repository structure exploration, and code reading on GitHub.
-* GitHub CLI: Use `gh` for PR/Issue operations.
-* Offline Docs: Use `go doc` or `x --help` or `man x` or equivalences for accurate command references.
+- Repomix: Use to explore and pack the repository for full-structure views.
+- Context7: Use to acquire up-to-date, version-specific documentation for any library/API.
+- Vision MCP: Use for image understanding.
+- Playwright: Use for interactive browser-based E2E tests and UI debugging.
+- Web Search MCP or Web Reader MCP: Use to acquire latest documentations or information.
+- ZRead MCP: Use for documentation search, repository structure exploration, and code reading on GitHub.
+- GitHub CLI: Use `gh` for PR/Issue operations.
+- Offline Docs: Use `go doc` or `x --help` or `man x` or equivalences for accurate command references.
 
 ### Verification Minimum
 
@@ -72,10 +73,10 @@ If a conversation exceeds 64 turns or context becomes stale:
 
 Use for: uncertain decisions, codebase surveys, implementing and voting on approaches.
 
-* Cleanup: Use Git Worktree if necessary, but strictly ensure cleanup (`git worktree remove` and branch deletion) occurs regardless of success/failure via a `defer` or `trap` mechanism, or just standard branching if sufficient.
-* Independence: Paraphrase prompts for each agent to ensure cognitive diversity.
-* Voting: Prefer simpler, more testable proposals.
-* Consensus Protocol: When agents disagree, prioritize the solution with the fewest dependencies and highest test coverage. Discard "clever" solutions in favor of "boring" standard library usage.
+- Cleanup: Use Git Worktree if necessary, but strictly ensure cleanup (`git worktree remove` and branch deletion) occurs regardless of success/failure via a `defer` or `trap` mechanism, or just standard branching if sufficient.
+- Independence: Paraphrase prompts for each agent to ensure cognitive diversity.
+- Voting: Prefer simpler, more testable proposals.
+- Consensus Protocol: When agents disagree, prioritize the solution with the fewest dependencies and highest test coverage. Discard "clever" solutions in favor of "boring" standard library usage.
 
 ### Workflow Exception: Trivial Edits
 
@@ -89,5 +90,5 @@ For simple typo fixes, comment updates, or one-line non-logic changes:
 
 E.g. Go
 
-* CGO_ENABLED=1: Always prefix Go commands with this (SQLite and Race Detection require CGO).
-* Gen Directories: Never edit `gen/`. Run `go generate`, `protoc`, or `sqlc` to regenerate.
+- CGO_ENABLED=1: Always prefix Go commands with this (SQLite and Race Detection require CGO).
+- Gen Directories: Never edit `gen/`. Run `go generate`, `protoc`, or `sqlc` to regenerate.
