@@ -1,0 +1,92 @@
+import * as signalR from "@microsoft/signalr";
+
+type TournamentStatus = "idle" | "running" | "paused" | "completed";
+type Player = "none" | "red" | "blue";
+type AIDifficulty =
+  | "beginner"
+  | "easy"
+  | "normal"
+  | "medium"
+  | "hard"
+  | "harder"
+  | "veryHard"
+  | "expert"
+  | "master"
+  | "grandmaster"
+  | "legend";
+
+export interface BoardCell {
+  x: number;
+  y: number;
+  player: string;
+}
+
+export interface AIBot {
+  name: string;
+  difficulty: AIDifficulty;
+  elo: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  gamesPlayed: number;
+  winRate: number;
+}
+
+export interface CurrentMatchInfo {
+  gameId: string;
+  redBotName: string;
+  blueBotName: string;
+  redDifficulty: AIDifficulty;
+  blueDifficulty: AIDifficulty;
+  moveNumber: number;
+  board: BoardCell[];
+  redTimeRemainingMs: number;
+  blueTimeRemainingMs: number;
+  initialTimeSeconds: number;
+  incrementSeconds: number;
+  lastMove: { x: number; y: number } | null;
+  lastMoveTimestamp: number; // When the last move was made (for countdown)
+  lastMoveStats: EngineStats | null;
+}
+
+export interface EngineStats {
+  depthAchieved: number;
+  nodesSearched: number;
+  nodesPerSecond: number;
+  tableHitRate: number;
+  ponderingActive: boolean;
+  vcfDepthAchieved: number;
+  vcfNodesSearched: number;
+}
+
+export interface TournamentProgress {
+  completed: number;
+  total: number;
+  percent: number;
+}
+
+export interface MatchResult {
+  winner: Player;
+  loser: Player;
+  totalMoves: number;
+  durationMs: number;
+  winnerDifficulty: AIDifficulty;
+  loserDifficulty: AIDifficulty;
+  isDraw: boolean;
+  endedByTimeout: boolean;
+}
+
+export interface TournamentState {
+  status: TournamentStatus;
+  progress: TournamentProgress;
+  bots: AIBot[];
+  matchHistory: MatchResult[];
+  currentMatch: CurrentMatchInfo | null;
+  startTimeUtc: string;
+  endTimeUtc: string | null;
+  elapsed: string;
+  connectionState: "disconnected" | "connecting" | "connected" | "reconnecting";
+  errorMessage: string | null;
+}
+
+// Map backend status enum number to string

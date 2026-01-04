@@ -28,11 +28,38 @@ public class AIBot
 
 /// <summary>
 /// Factory for creating AI bots with names and initial ELO ratings
-/// 8 bots total: 2 per difficulty level, all starting at 600 ELO
+/// 22 bots total: 2 per difficulty level (11 levels), all starting at 600 ELO
 /// </summary>
 public static class AIBotFactory
 {
-    // Easy bots (depth 1)
+    // D1 Beginner bots
+    public static AIBot CreateNovice1()
+    {
+        return new AIBot
+        {
+            Name = "Novice Alpha",
+            Difficulty = AIDifficulty.Beginner,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    public static AIBot CreateNovice2()
+    {
+        return new AIBot
+        {
+            Name = "Novice Bravo",
+            Difficulty = AIDifficulty.Beginner,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    // D2 Easy bots
     public static AIBot CreateRookie1()
     {
         return new AIBot
@@ -59,13 +86,13 @@ public static class AIBotFactory
         };
     }
 
-    // Medium bots (depth 2)
+    // D3 Normal bots
     public static AIBot CreateCasual1()
     {
         return new AIBot
         {
             Name = "Casual Alpha",
-            Difficulty = AIDifficulty.Medium,
+            Difficulty = AIDifficulty.Normal,
             ELO = 600,
             Wins = 0,
             Losses = 0,
@@ -78,6 +105,20 @@ public static class AIBotFactory
         return new AIBot
         {
             Name = "Casual Bravo",
+            Difficulty = AIDifficulty.Normal,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    // D4 Medium bots
+    public static AIBot CreateClub1()
+    {
+        return new AIBot
+        {
+            Name = "Club Alpha",
             Difficulty = AIDifficulty.Medium,
             ELO = 600,
             Wins = 0,
@@ -86,7 +127,20 @@ public static class AIBotFactory
         };
     }
 
-    // Hard bots (depth 3)
+    public static AIBot CreateClub2()
+    {
+        return new AIBot
+        {
+            Name = "Club Bravo",
+            Difficulty = AIDifficulty.Medium,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    // D5 Hard bots
     public static AIBot CreateSkilled1()
     {
         return new AIBot
@@ -113,13 +167,94 @@ public static class AIBotFactory
         };
     }
 
-    // Expert bots (depth 5)
+    // D6 Harder bots
+    public static AIBot CreateAdvanced1()
+    {
+        return new AIBot
+        {
+            Name = "Advanced Alpha",
+            Difficulty = AIDifficulty.Harder,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    public static AIBot CreateAdvanced2()
+    {
+        return new AIBot
+        {
+            Name = "Advanced Bravo",
+            Difficulty = AIDifficulty.Harder,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    // D7 Very Hard bots
+    public static AIBot CreateTournament1()
+    {
+        return new AIBot
+        {
+            Name = "Tournament Alpha",
+            Difficulty = AIDifficulty.VeryHard,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    public static AIBot CreateTournament2()
+    {
+        return new AIBot
+        {
+            Name = "Tournament Bravo",
+            Difficulty = AIDifficulty.VeryHard,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    // D8 Expert bots
+    public static AIBot CreateExpert1()
+    {
+        return new AIBot
+        {
+            Name = "Expert Alpha",
+            Difficulty = AIDifficulty.Expert,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    public static AIBot CreateExpert2()
+    {
+        return new AIBot
+        {
+            Name = "Expert Bravo",
+            Difficulty = AIDifficulty.Expert,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    // D9 Master bots
     public static AIBot CreateMaster1()
     {
         return new AIBot
         {
             Name = "Master Alpha",
-            Difficulty = AIDifficulty.Expert,
+            Difficulty = AIDifficulty.Master,
             ELO = 600,
             Wins = 0,
             Losses = 0,
@@ -132,7 +267,61 @@ public static class AIBotFactory
         return new AIBot
         {
             Name = "Master Bravo",
-            Difficulty = AIDifficulty.Expert,
+            Difficulty = AIDifficulty.Master,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    // D10 Grandmaster bots
+    public static AIBot CreateGrandmaster1()
+    {
+        return new AIBot
+        {
+            Name = "Grandmaster Alpha",
+            Difficulty = AIDifficulty.Grandmaster,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    public static AIBot CreateGrandmaster2()
+    {
+        return new AIBot
+        {
+            Name = "Grandmaster Bravo",
+            Difficulty = AIDifficulty.Grandmaster,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    // D11 Legend bots
+    public static AIBot CreateLegend1()
+    {
+        return new AIBot
+        {
+            Name = "Legend Alpha",
+            Difficulty = AIDifficulty.Legend,
+            ELO = 600,
+            Wins = 0,
+            Losses = 0,
+            Draws = 0
+        };
+    }
+
+    public static AIBot CreateLegend2()
+    {
+        return new AIBot
+        {
+            Name = "Legend Bravo",
+            Difficulty = AIDifficulty.Legend,
             ELO = 600,
             Wins = 0,
             Losses = 0,
@@ -141,34 +330,55 @@ public static class AIBotFactory
     }
 
     /// <summary>
-    /// Get all 8 tournament bots
+    /// Get all 22 tournament bots (2 per difficulty level)
     /// </summary>
     public static List<AIBot> GetAllTournamentBots()
     {
         return new List<AIBot>
         {
+            CreateNovice1(),
+            CreateNovice2(),
             CreateRookie1(),
             CreateRookie2(),
             CreateCasual1(),
             CreateCasual2(),
+            CreateClub1(),
+            CreateClub2(),
             CreateSkilled1(),
             CreateSkilled2(),
+            CreateAdvanced1(),
+            CreateAdvanced2(),
+            CreateTournament1(),
+            CreateTournament2(),
+            CreateExpert1(),
+            CreateExpert2(),
             CreateMaster1(),
-            CreateMaster2()
+            CreateMaster2(),
+            CreateGrandmaster1(),
+            CreateGrandmaster2(),
+            CreateLegend1(),
+            CreateLegend2()
         };
     }
 
-    public static AIBot FromDifficulty(AIDifficulty difficulty)
+    /// <summary>
+    /// Create a bot from difficulty level
+    /// </summary>
+    public static AIBot FromDifficulty(AIDifficulty difficulty) => difficulty switch
     {
-        return difficulty switch
-        {
-            AIDifficulty.Easy => CreateRookie1(),
-            AIDifficulty.Medium => CreateCasual1(),
-            AIDifficulty.Hard => CreateSkilled1(),
-            AIDifficulty.Expert => CreateMaster1(),
-            _ => throw new ArgumentException($"Unknown difficulty: {difficulty}")
-        };
-    }
+        AIDifficulty.Beginner => CreateNovice1(),
+        AIDifficulty.Easy => CreateRookie1(),
+        AIDifficulty.Normal => CreateCasual1(),
+        AIDifficulty.Medium => CreateClub1(),
+        AIDifficulty.Hard => CreateSkilled1(),
+        AIDifficulty.Harder => CreateAdvanced1(),
+        AIDifficulty.VeryHard => CreateTournament1(),
+        AIDifficulty.Expert => CreateExpert1(),
+        AIDifficulty.Master => CreateMaster1(),
+        AIDifficulty.Grandmaster => CreateGrandmaster1(),
+        AIDifficulty.Legend => CreateLegend1(),
+        _ => throw new ArgumentException($"Unknown difficulty: {difficulty}")
+    };
 }
 
 /// <summary>

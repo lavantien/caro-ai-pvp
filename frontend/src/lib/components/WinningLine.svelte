@@ -26,9 +26,9 @@
 		return `M ${points.join(' L ')}`;
 	}
 
-	// SVG dimensions
-	const svgWidth = boardSize * cellSize;
-	const svgHeight = boardSize * cellSize;
+	// SVG dimensions - use $derived for reactive values
+	const svgWidth = $derived(boardSize * cellSize);
+	const svgHeight = $derived(boardSize * cellSize);
 	const pathData = $derived(calculatePath(winningLine));
 </script>
 

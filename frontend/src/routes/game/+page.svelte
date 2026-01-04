@@ -103,8 +103,8 @@
 		const previousPlayer = store.currentPlayer;
 		cell.player = previousPlayer;
 
-		// Play stone placement sound
-		soundManager.playStoneSound(previousPlayer);
+		// Play stone placement sound (previousPlayer is always "red" or "blue" at this point)
+		soundManager.playStoneSound(previousPlayer as "red" | "blue");
 
 		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
 
@@ -338,8 +338,9 @@
 
 				{#if gameMode === 'pvai'}
 					<div class="flex items-center gap-2">
-						<label class="text-sm font-medium text-gray-700">AI Difficulty:</label>
+						<label for="ai-difficulty" class="text-sm font-medium text-gray-700">AI Difficulty:</label>
 						<select
+							id="ai-difficulty"
 							bind:value={aiDifficulty}
 							class="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
 							disabled={store.moveNumber > 0}
