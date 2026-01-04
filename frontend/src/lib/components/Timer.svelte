@@ -9,14 +9,14 @@
 		onTimeOut?: () => void;
 	}
 
-	let { player, timeRemaining: initialTime, isActive, onTimeOut }: Props = $props();
+	let { player, isActive, onTimeOut, timeRemaining: propTimeRemaining }: Props = $props();
 
-	// Local state for countdown
-	let timeRemaining = $state(initialTime);
+	// Local state for countdown - track value separately from prop
+	let localTimeRemaining = $state(0);
 
-	// Update when initial time changes (e.g., after backend sync)
+	// Sync with prop value (runs on mount and when prop changes)
 	$effect(() => {
-		timeRemaining = initialTime;
+		localTimeRemaining = propTimeRemaining;
 	});
 
 	let interval: ReturnType<typeof setInterval> | null = null;
@@ -25,9 +25,9 @@
 	$effect(() => {
 		if (isActive) {
 			interval = setInterval(() => {
-				timeRemaining--;
+				localTimeRemaining--;
 
-				if (timeRemaining <= 0) {
+				if (localTimeRemaining <= 0) {
 					if (interval) clearInterval(interval);
 					if (onTimeOut) onTimeOut();
 				}
@@ -51,7 +51,7 @@
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
 	}
 
-	const isLowTime = $derived(timeRemaining < 60);
+	const isLowTime = $derived(localTimeRemaining < 60);
 </script>
 
 <div
@@ -65,6 +65,6 @@
 	<span
 		class="text-xl font-mono {isLowTime && isActive ? 'text-red-500 animate-pulse' : 'text-gray-700'}"
 	>
-		{formatTime(timeRemaining)}
+		{formatTime(localTimeRemaining)}
 	</span>
 </div>

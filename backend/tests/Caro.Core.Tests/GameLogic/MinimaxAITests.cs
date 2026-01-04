@@ -15,7 +15,7 @@ public class MinimaxAITests
         var board = new Board();
 
         // Act
-        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Easy);
+        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Beginner);
 
         // Assert
         // Should play center move
@@ -37,7 +37,7 @@ public class MinimaxAITests
         board.PlaceStone(10, 7, Player.Red);
 
         // Act
-        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Easy);
+        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Beginner);
 
         // Assert
         // Should play at (11, 7) or (6, 7) to complete 5-in-row and win
@@ -62,7 +62,7 @@ public class MinimaxAITests
         board.PlaceStone(10, 7, Player.Blue);
 
         // Act - Red should block
-        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Easy);
+        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Beginner);
 
         // Assert
         // For now, just verify it returns a valid move
@@ -83,12 +83,41 @@ public class MinimaxAITests
         board.PlaceStone(7, 7, Player.Red);
 
         // Act & Assert - only test Easy difficulty for unit tests
-        var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Easy);
+        var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Beginner);
 
         // Should return a valid position on the board
         x.Should().BeGreaterThanOrEqualTo(0);
         x.Should().BeLessThan(15);
         y.Should().BeGreaterThanOrEqualTo(0);
         y.Should().BeLessThan(15);
+    }
+
+    [Fact]
+    public void GetBestMove_WithVCFPosition_FindsWinningMove()
+    {
+        // Arrange - Position where Red has immediate winning threat
+        var ai = new MinimaxAI();
+        var board = new Board();
+
+        // Red has XXXX_ - can win immediately
+        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(8, 7, Player.Red);
+        board.PlaceStone(9, 7, Player.Red);
+        board.PlaceStone(10, 7, Player.Red);
+
+        // Act - Hard difficulty or above should use VCF
+        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+
+        // Assert - Should find winning move quickly (VCF should find it)
+        // Winning move is either (11, 7) or (6, 7)
+        bool isWinningMove = (x == 11 && y == 7) || (x == 6 && y == 7);
+        isWinningMove.Should().BeTrue("VCF should find immediate winning move");
+
+        // Verify the move actually wins
+        board.PlaceStone(x, y, Player.Red);
+        var winDetector = new WinDetector();
+        var result = winDetector.CheckWin(board);
+        result.HasWinner.Should().BeTrue("The suggested move should actually win");
+        result.Winner.Should().Be(Player.Red);
     }
 }

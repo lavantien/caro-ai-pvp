@@ -26,79 +26,34 @@ public class TranspositionTable
     }
 
     private readonly TableEntry[] _table;
-    private readonly ulong[,] _zobristTableRed;   // Zobrist keys for Red pieces
-    private readonly ulong[,] _zobristTableBlue;  // Zobrist keys for Blue pieces
-    private readonly Random _random;
     private readonly int _size;
     private byte _currentAge;
 
-    public TranspositionTable(int sizeMB = 64)
+    /// <summary>
+    /// Create a transposition table with specified size in MB
+    /// Default 256MB provides ~8M entries (suitable for 12-24GB RAM systems)
+    /// Uses shared ZobristTables for hash key consistency
+    /// </summary>
+    public TranspositionTable(int sizeMB = 256)
     {
         // Calculate number of entries (each entry is ~32 bytes)
         _size = (sizeMB * 1024 * 1024) / 32;
         _table = new TableEntry[_size];
-        _random = new Random(42); // Fixed seed for reproducibility
-
-        // Initialize Zobrist tables for 15x15 board
-        _zobristTableRed = new ulong[15, 15];
-        _zobristTableBlue = new ulong[15, 15];
-        InitializeZobristTables();
-    }
-
-    /// <summary>
-    /// Initialize Zobrist hash tables with random 64-bit numbers
-    /// Each board position has two random numbers: one for Red, one for Blue
-    /// </summary>
-    private void InitializeZobristTables()
-    {
-        var buffer = new byte[8];
-        for (int x = 0; x < 15; x++)
-        {
-            for (int y = 0; y < 15; y++)
-            {
-                _zobristTableRed[x, y] = RandomUInt64();
-                _zobristTableBlue[x, y] = RandomUInt64();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Generate a random 64-bit integer
-    /// </summary>
-    private ulong RandomUInt64()
-    {
-        var bytes = new byte[8];
-        _random.NextBytes(bytes);
-        return BitConverter.ToUInt64(bytes, 0);
     }
 
     /// <summary>
     /// Calculate Zobrist hash for the current board position
-    /// XOR of random numbers for each occupied cell
+    /// Uses Board.Hash for O(1) access (incremental hash maintained by Board)
+    /// Falls back to full calculation if needed
     /// </summary>
     public ulong CalculateHash(Board board)
     {
-        ulong hash = 0;
-        for (int x = 0; x < 15; x++)
-        {
-            for (int y = 0; y < 15; y++)
-            {
-                var cell = board.GetCell(x, y);
-                if (cell.Player == Player.Red)
-                {
-                    hash ^= _zobristTableRed[x, y];
-                }
-                else if (cell.Player == Player.Blue)
-                {
-                    hash ^= _zobristTableBlue[x, y];
-                }
-            }
-        }
-        return hash;
+        return board.Hash; // O(1) - Board maintains hash incrementally
     }
 
     /// <summary>
     /// Store a search result in the transposition table
+    /// Uses "deep replacement" strategy: prefer deeper entries regardless of age
     /// </summary>
     public void Store(ulong hash, int depth, int score, (int x, int y)? bestMove, int alpha, int beta)
     {
@@ -114,13 +69,30 @@ public class TranspositionTable
         else
             flag = EntryFlag.Exact;
 
-        // Replace strategy:
-        // 1. Empty slot
-        // 2. Same position with deeper depth
-        // 3. Old entry (different age)
-        bool shouldReplace = entry == null ||
-                            entry.Hash == hash && depth > entry.Depth ||
-                            entry.Age != _currentAge;
+        // Deep replacement strategy:
+        // 1. Empty slot - always store
+        // 2. Same position - update if deeper
+        // 3. Different position - replace if:
+        //    a) New entry is deeper by at least 2, OR
+        //    b) Old entry is from a previous search age (stale)
+        bool shouldReplace = entry == null;
+
+        if (!shouldReplace && entry != null)
+        {
+            if (entry.Hash == hash)
+            {
+                // Same position: update if deeper or same depth with better flag
+                shouldReplace = depth > entry.Depth ||
+                               (depth == entry.Depth && flag == EntryFlag.Exact && entry.Flag != EntryFlag.Exact);
+            }
+            else
+            {
+                // Different position: deep replacement
+                // Replace if significantly deeper or if old entry is stale
+                int depthDifference = depth - entry.Depth;
+                shouldReplace = depthDifference >= 2 || entry.Age != _currentAge;
+            }
+        }
 
         if (shouldReplace)
         {

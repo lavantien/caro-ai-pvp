@@ -48,7 +48,7 @@
 <div class="relative">
 	<div
 		class="grid gap-0 bg-amber-100 p-4 rounded-lg shadow-lg touch-none select-none"
-		style="display: grid; grid-template-columns: repeat(15, 40px); grid-template-rows: repeat(15, 40px); width: 632px; height: 632px;"
+		style="display: grid; grid-template-columns: repeat(15, 64px); grid-template-rows: repeat(15, 64px); width: 992px; height: 992px;"
 		ontouchmove={handleTouchMove}
 		ontouchend={() => (ghostPosition = null)}
 	>
@@ -62,12 +62,12 @@
 		{/each}
 	</div>
 
-	<WinningLine winningLine={winningLine} boardSize={15} cellSize={40} />
+	<WinningLine winningLine={winningLine} boardSize={15} cellSize={64} />
 
 	{#if ghostPosition}
 		<div
-			class="fixed pointer-events-none w-10 h-10 rounded-full border-4 border-dashed border-gray-400 opacity-60"
-			style="left: {ghostPosition.x - 20}px; top: {ghostPosition.y - 20}px;"
+			class="fixed pointer-events-none w-16 h-16 rounded-full border-4 border-dashed border-gray-400 opacity-60"
+			style="left: {ghostPosition.x - 32}px; top: {ghostPosition.y - 32}px;"
 		>
 			<span class="flex items-center justify-center h-full text-2xl text-gray-400">?</span>
 		</div>

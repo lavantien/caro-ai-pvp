@@ -16,6 +16,8 @@ public class MatchResult
     public required AIDifficulty WinnerDifficulty { get; init; }
     public required AIDifficulty LoserDifficulty { get; init; }
     public required Board FinalBoard { get; init; }
+    public required string WinnerBotName { get; init; }
+    public required string LoserBotName { get; init; }
 
     /// <summary>
     /// Average move time in milliseconds

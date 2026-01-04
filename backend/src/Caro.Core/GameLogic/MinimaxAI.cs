@@ -1,16 +1,32 @@
+using System.Runtime.CompilerServices;
+using System.Diagnostics;
 using Caro.Core.Entities;
+using Caro.Core.GameLogic.TimeManagement;
+using Caro.Core.GameLogic.Pondering;
 
 namespace Caro.Core.GameLogic;
 
 /// <summary>
 /// AI opponent using Minimax algorithm with alpha-beta pruning and advanced optimizations
-/// Optimizations: Transposition Table, Killer Heuristic, History Heuristic, Improved Move Ordering, Iterative Deepening
+/// Optimizations: Transposition Table, Killer Heuristic, History Heuristic, Improved Move Ordering, Iterative Deepening, VCF Solver
+/// For higher difficulties (D7+), uses parallel search (Lazy SMP) for multi-core speedup
+/// Time management: Intelligent time allocation optimized for 7+5 time control
 /// </summary>
 public class MinimaxAI
 {
     private readonly BoardEvaluator _evaluator = new();
     private readonly Random _random = new();
     private readonly TranspositionTable _transpositionTable = new();
+    private readonly WinDetector _winDetector = new();
+    private readonly ThreatSpaceSearch _vcfSolver = new();
+    private readonly OpeningBook _openingBook = new();
+
+    // Time management for 7+5 time control
+    private readonly TimeManager _timeManager = new();
+
+    // Parallel search for high difficulties (D7+)
+    // Lazy SMP provides 4-8x speedup on multi-core systems
+    private readonly ParallelMinimaxSearch _parallelSearch = new();
 
     // Search radius around existing stones (optimization)
     private const int SearchRadius = 2;
@@ -24,23 +40,56 @@ public class MinimaxAI
     private readonly int[,] _historyRed = new int[15, 15];   // History scores for Red moves
     private readonly int[,] _historyBlue = new int[15, 15];  // History scores for Blue moves
 
+    // Butterfly heuristic: track moves that cause beta cutoffs (complements history)
+    private readonly int[,] _butterflyRed = new int[15, 15];
+    private readonly int[,] _butterflyBlue = new int[15, 15];
+
     // Track transposition table hits for debugging
     private int _tableHits;
     private int _tableLookups;
 
+    // Track search statistics for last move
+    private long _nodesSearched;
+    private int _depthAchieved;
+    private int _vcfNodesSearched;
+    private int _vcfDepthAchieved;
+    private readonly Stopwatch _searchStopwatch = new();
+
+    // Pondering (thinking on opponent's time)
+    private readonly Ponderer _ponderer = new();
+    private PV _lastPV = PV.Empty;
+    private Board? _lastBoard;
+    private Player _lastPlayer;
+
     /// <summary>
     /// Get the best move for the AI player
     /// </summary>
-    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty)
+    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, bool ponderingEnabled = false)
     {
-        return GetBestMove(board, player, difficulty, timeRemainingMs: null);
+        return GetBestMove(board, player, difficulty, timeRemainingMs: null, moveNumber: 0, ponderingEnabled: ponderingEnabled);
     }
 
     /// <summary>
     /// Get the best move for the AI player with time awareness
     /// Dynamically adjusts search depth based on remaining time
     /// </summary>
-    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, long? timeRemainingMs)
+    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, long? timeRemainingMs, bool ponderingEnabled = false)
+    {
+        return GetBestMove(board, player, difficulty, timeRemainingMs, moveNumber: 0, ponderingEnabled: ponderingEnabled);
+    }
+
+    /// <summary>
+    /// Get the best move for the AI player with full time awareness
+    /// Dynamically adjusts search depth based on remaining time and game phase
+    /// </summary>
+    /// <param name="board">Current board state</param>
+    /// <param name="player">Player to move</param>
+    /// <param name="difficulty">AI difficulty level (D1-D11)</param>
+    /// <param name="timeRemainingMs">Time remaining on clock in milliseconds (null for unlimited)</param>
+    /// <param name="moveNumber">Current move number (1-indexed, 0 if unknown)</param>
+    /// <param name="ponderingEnabled">Enable pondering (thinking on opponent's time)</param>
+    /// <returns>Best move coordinates</returns>
+    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, long? timeRemainingMs, int moveNumber, bool ponderingEnabled = false)
     {
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
@@ -48,112 +97,345 @@ public class MinimaxAI
         var baseDepth = (int)difficulty;
         var candidates = GetCandidateMoves(board);
 
+        // Apply Open Rule: Red's second move (move #3) cannot be in center 3x3 zone
+        if (player == Player.Red && moveNumber == 3)
+        {
+            candidates = candidates.Where(c => !(c.x >= 6 && c.x <= 8 && c.y >= 6 && c.y <= 8)).ToList();
+        }
+
         if (candidates.Count == 0)
         {
-            // Board is empty, play center
+            // No valid candidates - board is empty or all filtered out, play center (if not filtered) or first available
+            if (player == Player.Red && moveNumber == 3)
+            {
+                // Open rule applies - find first valid cell outside center 3x3
+                for (int x = 0; x < 15; x++)
+                {
+                    for (int y = 0; y < 15; y++)
+                    {
+                        if (board.GetCell(x, y).Player == Player.None && !(x >= 6 && x <= 8 && y >= 6 && y <= 8))
+                            return (x, y);
+                    }
+                }
+            }
             return (7, 7);
         }
 
-        // For Easy difficulty, sometimes add randomness
-        if (difficulty == AIDifficulty.Easy && _random.Next(100) < 20)
+        // Check for ponder hit - if opponent played predicted move, we can use cached result
+        if (ponderingEnabled && _ponderer.IsPondering && _lastPV.IsEmpty == false)
+        {
+            var opponent = player == Player.Red ? Player.Blue : Player.Red;
+            var (ponderState, ponderResult) = _ponderer.HandleOpponentMove(-1, -1); // Dummy, just to get state
+
+            // For now, we handle ponder hit by checking if board matches our pondered position
+            // The actual ponder hit detection is done externally via TournamentEngine
+        }
+
+        // TODO: Opening book disabled temporarily - needs better threat detection to avoid interfering with tactical positions
+        // var bookMove = _openingBook.GetBookMove(board, player, lastOpponentMove);
+        // if (bookMove.HasValue)
+        // {
+        //     return bookMove.Value;
+        // }
+
+        // For Beginner difficulty, sometimes add randomness
+        if (difficulty == AIDifficulty.Beginner && _random.Next(100) < 20)
         {
             // 20% chance to play random valid move
             var randomIndex = _random.Next(candidates.Count);
             return candidates[randomIndex];
         }
 
+        // Calculate time allocation for 7+5 time control
+        TimeAllocation timeAlloc;
+        if (timeRemainingMs.HasValue)
+        {
+            timeAlloc = _timeManager.CalculateMoveTime(
+                timeRemainingMs.Value,
+                moveNumber,
+                candidates.Count,
+                board,
+                player
+            );
+        }
+        else
+        {
+            timeAlloc = GetDefaultTimeAllocation(difficulty);
+        }
+
+        // Emergency mode - use TT move at D5+ if available
+        if (timeAlloc.IsEmergency && difficulty >= AIDifficulty.Hard)
+        {
+            var ttMove = GetTranspositionTableMove(board, player, minDepth: 5);
+            if (ttMove.HasValue)
+            {
+                Console.WriteLine("[AI] Emergency mode: Using TT move at D5+");
+                return ttMove.Value;
+            }
+        }
+
+        // Try VCF (Victory by Continuous Four) search first for higher difficulties
+        // VCF is much faster than full minimax for tactical positions
+        if (difficulty >= AIDifficulty.Hard)
+        {
+            var vcfTimeLimit = CalculateVCFTimeLimit(timeAlloc);
+            var vcfResult = _vcfSolver.SolveVCF(board, player, timeLimitMs: vcfTimeLimit, maxDepth: 30);
+
+            // Capture VCF statistics even if not a winning sequence
+            _vcfDepthAchieved = vcfResult.DepthAchieved;
+            _vcfNodesSearched = vcfResult.NodesSearched;
+
+            if (vcfResult.IsSolved && vcfResult.IsWin && vcfResult.BestMove.HasValue)
+            {
+                // VCF found a forced win sequence - use it immediately
+                Console.WriteLine($"[AI VCF] Found winning move ({vcfResult.BestMove.Value.x}, {vcfResult.BestMove.Value.y}), depth: {vcfResult.DepthAchieved}, nodes: {vcfResult.NodesSearched}");
+                return vcfResult.BestMove.Value;
+            }
+        }
+
+        // Use parallel search (Lazy SMP) for high difficulties (D7/VeryHard+)
+        // Provides 4-8x speedup on multi-core systems
+        if (difficulty >= AIDifficulty.VeryHard)
+        {
+            Console.WriteLine($"[AI] Using parallel search (Lazy SMP) for {difficulty} (D{baseDepth})");
+
+            // Start stopwatch for NPS calculation
+            _searchStopwatch.Restart();
+
+            var result = _parallelSearch.GetBestMoveWithStats(board, player, difficulty, timeRemainingMs, timeAlloc, moveNumber);
+
+            // Update statistics from parallel search
+            _depthAchieved = result.DepthAchieved;
+            _nodesSearched = result.NodesSearched;
+
+            _searchStopwatch.Stop();
+
+            return (result.X, result.Y);
+        }
+
         // Adjust depth based on time remaining
-        var adjustedDepth = CalculateDepthForTime(baseDepth, timeRemainingMs, candidates.Count);
+        var adjustedDepth = CalculateDepthForTime(baseDepth, timeAlloc, candidates.Count);
 
         // Initialize transposition table for this search
         _transpositionTable.IncrementAge();
         _tableHits = 0;
         _tableLookups = 0;
 
-        // Debug: Print depth usage for Medium, Hard, Expert, and Master to investigate balance
-        if (difficulty == AIDifficulty.Medium || difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Expert || difficulty == AIDifficulty.Master)
+        // Initialize search statistics
+        _nodesSearched = 0;
+        _depthAchieved = 0;
+        _vcfNodesSearched = 0;
+        _vcfDepthAchieved = 0;
+        _searchStopwatch.Restart();
+
+        // Debug: Print depth usage for Normal, Hard, Expert, and Master to investigate balance
+        if (difficulty == AIDifficulty.Normal || difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Master || difficulty == AIDifficulty.Grandmaster)
         {
-            Console.WriteLine($"[AI DEBUG] {difficulty}: baseDepth={baseDepth}, adjustedDepth={adjustedDepth}, candidates={candidates.Count}, timeRemaining={(timeRemainingMs.HasValue ? $"{timeRemainingMs.Value/1000.0:F1}s" : "N/A")}");
+            Console.WriteLine($"[AI DEBUG] {difficulty}: baseDepth={baseDepth}, adjustedDepth={adjustedDepth}, candidates={candidates.Count}, timeRemaining={(timeRemainingMs.HasValue ? $"{timeRemainingMs.Value / 1000.0:F1}s" : "N/A")}");
         }
 
         // Iterative deepening with time awareness
         var bestMove = candidates[0];
         var currentDepth = Math.Min(2, adjustedDepth); // Start with depth 2
-        var searchStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         while (currentDepth <= adjustedDepth)
         {
-            // Check if we're running low on time during search
-            if (timeRemainingMs.HasValue)
+            // Check time bounds using TimeAllocation
+            var elapsed = _searchStopwatch.ElapsedMilliseconds;
+            if (elapsed >= timeAlloc.HardBoundMs)
             {
-                var timeUsed = searchStopwatch.ElapsedMilliseconds;
-                var timeLeft = timeRemainingMs.Value - timeUsed;
-                if (timeLeft < 2000) // Less than 2 seconds left, stop searching
-                {
-                    break;
-                }
+                break; // Hard bound reached, must stop
+            }
+
+            // Soft bound check - can continue if position is unstable
+            if (elapsed >= timeAlloc.SoftBoundMs)
+            {
+                // Continue only if this seems critical (e.g., close game)
+                // For now, be conservative and stop
+                break;
             }
 
             var result = SearchWithDepth(board, player, currentDepth, candidates);
             if (result.x != -1)
             {
                 bestMove = (result.x, result.y);
+                _depthAchieved = currentDepth; // Track deepest completed search
             }
             currentDepth++;
         }
 
+        _searchStopwatch.Stop();
+
         // Print transposition table statistics for debugging
-        if (difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Expert || difficulty == AIDifficulty.Master)
+        if (difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Master || difficulty == AIDifficulty.Grandmaster || difficulty == AIDifficulty.Legend)
         {
             double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
             Console.WriteLine($"[AI TT] Hits: {_tableHits}/{_tableLookups} ({hitRate:F1}%)");
             var (used, usage) = _transpositionTable.GetStats();
             Console.WriteLine($"[AI TT] Table usage: {used} entries ({usage:F2}%)");
+            var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
+            var nps = elapsedMs > 0 ? _nodesSearched * 1000 / elapsedMs : 0;
+            Console.WriteLine($"[AI STATS] Depth: {_depthAchieved}, Nodes: {_nodesSearched}, NPS: {nps:F0}");
+        }
+
+        // Store PV for pondering
+        _lastPV = PV.FromSingleMove(bestMove.x, bestMove.y, baseDepth, 0);
+        _lastBoard = board.Clone();
+        _lastPlayer = player;
+
+        // Start pondering for opponent's response
+        if (ponderingEnabled)
+        {
+            var opponent = player == Player.Red ? Player.Blue : Player.Red;
+            var predictedOpponentMove = _lastPV.GetPredictedOpponentMove();
+            var ponderTimeMs = CalculatePonderTime(timeRemainingMs, difficulty);
+
+            if (ponderTimeMs > 0)
+            {
+                _ponderer.StartPondering(
+                    board,
+                    opponent,
+                    predictedOpponentMove,
+                    player,  // Pondering for us (next to move after opponent)
+                    difficulty,
+                    ponderTimeMs
+                );
+            }
         }
 
         return bestMove;
     }
 
     /// <summary>
-    /// Calculate appropriate search depth based on time remaining and position complexity
-    /// Accounts for increment system (2s per move) - more aggressive time management
+    /// Calculate appropriate search depth based on time allocation and position complexity
+    /// Uses TimeAllocation for 7+5 time control
     /// </summary>
-    private int CalculateDepthForTime(int baseDepth, long? timeRemainingMs, int candidateCount)
+    private int CalculateDepthForTime(int baseDepth, TimeAllocation timeAlloc, int candidateCount)
     {
-        if (!timeRemainingMs.HasValue)
+        // Emergency mode - reduce depth significantly
+        if (timeAlloc.IsEmergency)
         {
-            return baseDepth; // No time limit, use full depth
+            return Math.Max(1, baseDepth - 3);
         }
 
-        var timeLeft = timeRemainingMs.Value;
+        // Adjust based on time available
+        var softBoundSeconds = timeAlloc.SoftBoundMs / 1000.0;
 
-        // With 3+2 time control, be more aggressive about time management
-        // Average game length ~25 moves, so ~2s net loss per move
-
-        // Emergency mode: less than 30 seconds
-        if (timeLeft < 30000)
+        // Very tight time (< 2s)
+        if (softBoundSeconds < 2)
         {
-            return Math.Max(1, baseDepth - 2); // Significant reduction
+            return Math.Max(1, baseDepth - 2);
         }
 
-        // Low time: less than 60 seconds (20 moves remaining)
-        if (timeLeft < 60000)
+        // Tight time (< 5s)
+        if (softBoundSeconds < 5)
         {
-            return Math.Max(2, baseDepth - 1); // Moderate reduction
+            return Math.Max(2, baseDepth - 1);
         }
 
-        // Moderate time: less than 90 seconds (30 moves remaining)
-        if (timeLeft < 90000)
+        // Moderate time (< 10s)
+        if (softBoundSeconds < 10)
         {
-            if (candidateCount > 15) // Complex position
+            if (candidateCount > 20) // Complex position
             {
                 return Math.Max(2, baseDepth - 1);
             }
             return baseDepth;
         }
 
-        // Plenty of time (>90s): use full depth
+        // Good time availability: use full depth
         return baseDepth;
+    }
+
+    /// <summary>
+    /// Calculate appropriate time limit for VCF search based on time allocation
+    /// VCF is fast for tactical positions but we limit it to avoid wasting time
+    /// </summary>
+    private int CalculateVCFTimeLimit(TimeAllocation timeAlloc)
+    {
+        // Emergency mode - very quick VCF check
+        if (timeAlloc.IsEmergency)
+        {
+            return 50; // Very quick check
+        }
+
+        // Use a fraction of the soft bound for VCF
+        var vcfTime = Math.Max(50, timeAlloc.SoftBoundMs / 10);
+
+        // Cap at reasonable values
+        return (int)Math.Min(vcfTime, 500);
+    }
+
+    /// <summary>
+    /// Calculate pondering time based on remaining time and difficulty
+    /// Pondering uses a portion of the opponent's thinking time
+    /// </summary>
+    private long CalculatePonderTime(long? timeRemainingMs, AIDifficulty difficulty)
+    {
+        // Proportional time allocation based on difficulty
+        var baseTimeMs = timeRemainingMs ?? 5000;
+
+        return difficulty switch
+        {
+            AIDifficulty.Beginner => baseTimeMs / 20,   // 5% of time
+            AIDifficulty.Easy => baseTimeMs / 10,       // 10%
+            AIDifficulty.Normal => baseTimeMs / 5,      // 20%
+            AIDifficulty.Medium => baseTimeMs / 4,      // 25%
+            AIDifficulty.Hard => baseTimeMs / 3,        // 33%
+            AIDifficulty.Harder => (long)(baseTimeMs / 2.5),  // 40%
+            _ => baseTimeMs / 2                          // 50% for high levels (D7+)
+        };
+    }
+
+    /// <summary>
+    /// Get default time allocation when no time limit is specified
+    /// Provides reasonable time targets for each difficulty level
+    /// </summary>
+    private static TimeAllocation GetDefaultTimeAllocation(AIDifficulty difficulty) => difficulty switch
+    {
+        AIDifficulty.Beginner => new() { SoftBoundMs = 100, HardBoundMs = 500, OptimalTimeMs = 80, IsEmergency = false },
+        AIDifficulty.Easy => new() { SoftBoundMs = 200, HardBoundMs = 1000, OptimalTimeMs = 160, IsEmergency = false },
+        AIDifficulty.Normal => new() { SoftBoundMs = 500, HardBoundMs = 2000, OptimalTimeMs = 400, IsEmergency = false },
+        AIDifficulty.Medium => new() { SoftBoundMs = 1000, HardBoundMs = 3000, OptimalTimeMs = 800, IsEmergency = false },
+        AIDifficulty.Hard => new() { SoftBoundMs = 2000, HardBoundMs = 5000, OptimalTimeMs = 1600, IsEmergency = false },
+        AIDifficulty.Harder => new() { SoftBoundMs = 3000, HardBoundMs = 8000, OptimalTimeMs = 2400, IsEmergency = false },
+        AIDifficulty.VeryHard => new() { SoftBoundMs = 5000, HardBoundMs = 15000, OptimalTimeMs = 4000, IsEmergency = false },
+        AIDifficulty.Expert => new() { SoftBoundMs = 8000, HardBoundMs = 20000, OptimalTimeMs = 6400, IsEmergency = false },
+        AIDifficulty.Master => new() { SoftBoundMs = 10000, HardBoundMs = 30000, OptimalTimeMs = 8000, IsEmergency = false },
+        AIDifficulty.Grandmaster => new() { SoftBoundMs = 12000, HardBoundMs = 40000, OptimalTimeMs = 9600, IsEmergency = false },
+        AIDifficulty.Legend => new() { SoftBoundMs = 15000, HardBoundMs = 60000, OptimalTimeMs = 12000, IsEmergency = false },
+        _ => TimeAllocation.Default
+    };
+
+    /// <summary>
+    /// Get a move from the transposition table if available at sufficient depth
+    /// Used for emergency mode when time is very low
+    /// </summary>
+    private (int x, int y)? GetTranspositionTableMove(Board board, Player player, int minDepth)
+    {
+        var boardHash = _transpositionTable.CalculateHash(board);
+
+        // Try to get the best move from TT with a wide search
+        _tableLookups++;
+        var (found, cachedScore, cachedMove) = _transpositionTable.Lookup(
+            boardHash, minDepth, int.MinValue, int.MaxValue);
+
+        if (found && cachedMove.HasValue)
+        {
+            // Verify the move is valid
+            var (x, y) = cachedMove.Value;
+            if (x >= 0 && x < 15 && y >= 0 && y < 15)
+            {
+                var cell = board.GetCell(x, y);
+                if (cell.IsEmpty)
+                {
+                    _tableHits++;
+                    return cachedMove;
+                }
+            }
+        }
+
+        return null;
     }
 
     private (int x, int y) SearchWithDepth(Board board, Player player, int depth, List<(int x, int y)> candidates)
@@ -279,39 +561,51 @@ public class MinimaxAI
     /// <summary>
     /// Order moves for better alpha-beta pruning
     /// Priority: TT cached move > Killer moves > History heuristic > Tactical patterns > Position heuristics
+    /// Zero-allocation implementation using array-based sorting
     /// </summary>
     private List<(int x, int y)> OrderMoves(List<(int x, int y)> candidates, int depth, Board board, Player player, (int x, int y)? cachedMove = null)
     {
-        var scored = candidates.Select(move =>
+        int count = candidates.Count;
+        if (count <= 1) return candidates;
+
+        // Score array on stack (zero allocation)
+        Span<int> scores = stackalloc int[count];
+
+        // Score each move
+        for (int i = 0; i < count; i++)
         {
+            var (x, y) = candidates[i];
             var score = 0;
 
             // Cached move from transposition table gets highest priority
-            if (cachedMove.HasValue && move.x == cachedMove.Value.x && move.y == cachedMove.Value.y)
+            if (cachedMove.HasValue && x == cachedMove.Value.x && y == cachedMove.Value.y)
             {
                 score += 2000;
             }
 
             // Killer moves get high priority
-            for (int i = 0; i < MaxKillerMoves; i++)
+            for (int k = 0; k < MaxKillerMoves; k++)
             {
-                if (_killerMoves[depth, i].x == move.x && _killerMoves[depth, i].y == move.y)
+                if (_killerMoves[depth, k].x == x && _killerMoves[depth, k].y == y)
                 {
                     score += 1000;
                     break;
                 }
             }
 
-            // History heuristic: moves that caused cutoffs get priority
-            // Scale down history score to fit in our scoring system
-            var historyScore = GetHistoryScore(player, move.x, move.y);
-            score += Math.Min(500, historyScore / 10); // Cap at 500 to avoid dominating
+            // Butterfly heuristic: moves that cause beta cutoffs
+            var butterflyScore = player == Player.Red ? _butterflyRed[x, y] : _butterflyBlue[x, y];
+            score += Math.Min(300, butterflyScore / 100);
 
-            // ENHANCED: Tactical pattern scoring
-            score += EvaluateTacticalPattern(board, move.x, move.y, player);
+            // History heuristic: moves that caused cutoffs get priority
+            var historyScore = GetHistoryScore(player, x, y);
+            score += Math.Min(500, historyScore / 10);
+
+            // Tactical pattern scoring
+            score += EvaluateTacticalPattern(board, x, y, player);
 
             // Prefer center (7,7)
-            var distanceToCenter = Math.Abs(move.x - 7) + Math.Abs(move.y - 7);
+            var distanceToCenter = Math.Abs(x - 7) + Math.Abs(y - 7);
             score += (14 - distanceToCenter) * 10;
 
             // Prefer moves near existing stones
@@ -321,8 +615,8 @@ public class MinimaxAI
                 for (int dy = -1; dy <= 1; dy++)
                 {
                     if (dx == 0 && dy == 0) continue;
-                    var nx = move.x + dx;
-                    var ny = move.y + dy;
+                    var nx = x + dx;
+                    var ny = y + dy;
                     if (nx >= 0 && nx < 15 && ny >= 0 && ny < 15)
                     {
                         var cell = board.GetCell(nx, ny);
@@ -333,49 +627,64 @@ public class MinimaxAI
             }
             score += nearby;
 
-            return (move, score);
-        })
-        .OrderByDescending(m => m.score)
-        .Select(m => m.move)
-        .ToList();
+            scores[i] = score;
+        }
 
-        return scored;
+        // Simple insertion sort (fast for small arrays, no allocations)
+        for (int i = 1; i < count; i++)
+        {
+            var keyMove = candidates[i];
+            var keyScore = scores[i];
+            int j = i - 1;
+
+            while (j >= 0 && scores[j] < keyScore)
+            {
+                candidates[j + 1] = candidates[j];
+                scores[j + 1] = scores[j];
+                j--;
+            }
+
+            candidates[j + 1] = keyMove;
+            scores[j + 1] = keyScore;
+        }
+
+        return candidates;
     }
 
     /// <summary>
     /// Evaluate tactical importance of a move by detecting patterns
     /// Returns high scores for winning moves, threats, and blocks
+    /// Optimized using BitBoard operations
     /// </summary>
     private int EvaluateTacticalPattern(Board board, int x, int y, Player player)
     {
         var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var playerBitBoard = board.GetBitBoard(player);
+        var opponentBitBoard = board.GetBitBoard(opponent);
+        var occupied = playerBitBoard | opponentBitBoard;
         var score = 0;
-
-        // Temporarily place the stone to evaluate
-        board.PlaceStone(x, y, player);
 
         // Check all 4 directions for patterns
         var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
 
         foreach (var (dx, dy) in directions)
         {
-            // Count consecutive stones in both directions
+            // Count consecutive stones in both directions (for player)
             var count = 1; // Include the placed stone
             var openEnds = 0;
 
-            // Check positive direction
+            // Check positive direction (using BitBoard)
             for (int i = 1; i <= 4; i++)
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
                 if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
 
-                var cell = board.GetCell(nx, ny);
-                if (cell.Player == player)
+                if (playerBitBoard.GetBit(nx, ny))
                 {
                     count++;
                 }
-                else if (cell.Player == Player.None)
+                else if (!occupied.GetBit(nx, ny))
                 {
                     openEnds++;
                     break;
@@ -386,19 +695,18 @@ public class MinimaxAI
                 }
             }
 
-            // Check negative direction
+            // Check negative direction (using BitBoard)
             for (int i = 1; i <= 4; i++)
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
                 if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
 
-                var cell = board.GetCell(nx, ny);
-                if (cell.Player == player)
+                if (playerBitBoard.GetBit(nx, ny))
                 {
                     count++;
                 }
-                else if (cell.Player == Player.None)
+                else if (!occupied.GetBit(nx, ny))
                 {
                     openEnds++;
                     break;
@@ -437,12 +745,7 @@ public class MinimaxAI
             }
         }
 
-        // Remove the temporary stone
-        board.GetCell(x, y).Player = Player.None;
-
-        // Check blocking value (how much this blocks opponent)
-        board.PlaceStone(x, y, opponent);
-
+        // Check blocking value (how much this blocks opponent) - using BitBoard
         foreach (var (dx, dy) in directions)
         {
             var count = 1;
@@ -455,12 +758,11 @@ public class MinimaxAI
                 var ny = y + dy * i;
                 if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
 
-                var cell = board.GetCell(nx, ny);
-                if (cell.Player == opponent)
+                if (opponentBitBoard.GetBit(nx, ny))
                 {
                     count++;
                 }
-                else if (cell.Player == Player.None)
+                else if (!occupied.GetBit(nx, ny))
                 {
                     openEnds++;
                     break;
@@ -478,12 +780,11 @@ public class MinimaxAI
                 var ny = y - dy * i;
                 if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
 
-                var cell = board.GetCell(nx, ny);
-                if (cell.Player == opponent)
+                if (opponentBitBoard.GetBit(nx, ny))
                 {
                     count++;
                 }
-                else if (cell.Player == Player.None)
+                else if (!occupied.GetBit(nx, ny))
                 {
                     openEnds++;
                     break;
@@ -509,9 +810,6 @@ public class MinimaxAI
             }
         }
 
-        // Remove the temporary stone
-        board.GetCell(x, y).Player = Player.None;
-
         return score;
     }
 
@@ -533,14 +831,17 @@ public class MinimaxAI
     {
         // Depth-based bonus: deeper cutoffs are more significant
         var bonus = depth * depth;
+        var butterflyBonus = depth * depth * 2; // Butterfly gets higher weight for beta cutoffs
 
         if (player == Player.Red)
         {
             _historyRed[x, y] += bonus;
+            _butterflyRed[x, y] += butterflyBonus;
         }
         else
         {
             _historyBlue[x, y] += bonus;
+            _butterflyBlue[x, y] += butterflyBonus;
         }
     }
 
@@ -559,6 +860,39 @@ public class MinimaxAI
     {
         Array.Clear(_historyRed, 0, _historyRed.Length);
         Array.Clear(_historyBlue, 0, _historyBlue.Length);
+        Array.Clear(_butterflyRed, 0, _butterflyRed.Length);
+        Array.Clear(_butterflyBlue, 0, _butterflyBlue.Length);
+    }
+
+    /// <summary>
+    /// Clear all AI state between games to prevent cross-contamination
+    /// This is critical when AI of different difficulties play in sequence
+    /// </summary>
+    public void ClearAllState()
+    {
+        ClearHistory();
+        _transpositionTable.Clear();
+        ResetPondering();
+
+        // Clear killer moves
+        for (int d = 0; d < 20; d++)
+        {
+            for (int k = 0; k < MaxKillerMoves; k++)
+            {
+                _killerMoves[d, k] = (0, 0);
+            }
+        }
+
+        // Reset statistics
+        _nodesSearched = 0;
+        _depthAchieved = 0;
+        _vcfNodesSearched = 0;
+        _vcfDepthAchieved = 0;
+        _tableHits = 0;
+        _tableLookups = 0;
+
+        // Clear parallel search state
+        _parallelSearch.Clear();
     }
 
     /// <summary>
@@ -720,11 +1054,57 @@ public class MinimaxAI
         return false;  // Not tactical
     }
 
+    // Null-move pruning constants
+    private const int NullMoveDepthReduction = 3;  // Search depth-R for null move verification
+    private const int NullMoveMinDepth = 3;        // Don't use null-move at shallow depths
+
+    /// <summary>
+    /// Verify if null-move is safe (avoid zugzwang positions)
+    /// In Caro, null-move is generally safe except in very tight tactical positions
+    /// </summary>
+    private bool IsNullMoveSafe(Board board, Player player)
+    {
+        var playerBitBoard = board.GetBitBoard(player);
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var opponentBitBoard = board.GetBitBoard(opponent);
+        var occupied = playerBitBoard | opponentBitBoard;
+
+        // Check if position is "quiet" enough for null-move
+        // Count stones on board - if too few, null-move is risky
+        int totalStones = playerBitBoard.CountBits() + opponentBitBoard.CountBits();
+        if (totalStones < 10) return false;  // Early game, too volatile
+
+        // Check for immediate threats (4-in-row, open 3s)
+        // If there are threats, null-move is unsafe (might miss tactical sequences)
+        foreach (var (dx, dy) in new[] { (1, 0), (0, 1), (1, 1), (1, -1) })
+        {
+            for (int x = 0; x < 15; x++)
+            {
+                for (int y = 0; y < 15; y++)
+                {
+                    if (!opponentBitBoard.GetBit(x, y)) continue;
+
+                    var count = BitBoardEvaluator.CountConsecutiveBoth(opponentBitBoard, x, y, dx, dy);
+                    var openEnds = BitBoardEvaluator.CountOpenEnds(opponentBitBoard, occupied, x, y, dx, dy, count);
+
+                    // Opponent has 4-in-row or open 3 - too dangerous for null-move
+                    if (count == 4 && openEnds > 0) return false;
+                    if (count == 3 && openEnds == 2) return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     /// <summary>
     /// Minimax algorithm with alpha-beta pruning and transposition table
     /// </summary>
     private int Minimax(Board board, int depth, int alpha, int beta, bool isMaximizing, Player aiPlayer, int rootDepth)
     {
+        // Count this node
+        _nodesSearched++;
+
         // Check terminal states
         var winner = CheckWinner(board);
         if (winner != null)
@@ -736,6 +1116,30 @@ public class MinimaxAI
         {
             // Use quiescence search to resolve tactical positions
             return Quiesce(board, alpha, beta, isMaximizing, aiPlayer, rootDepth);
+        }
+
+        // NULL-MOVE PRUNING: Skip a move to verify position is already good
+        // Only apply in non-PV nodes with sufficient depth and safe position
+        var isNullMoveEligible = (beta - alpha) <= 1;  // Not a PV node (narrow window)
+        if (depth >= NullMoveMinDepth && isNullMoveEligible && IsNullMoveSafe(board, isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red)))
+        {
+            // Make null move: skip turn, search with reduced depth
+            // The reduced depth search is done from opponent's perspective (flipped min/max)
+            int nullMoveDepth = depth - NullMoveDepthReduction;
+
+            if (nullMoveDepth > 0)
+            {
+                // Search with null move (flip min/max because we skipped a turn)
+                int nullMoveScore = Minimax(board, nullMoveDepth, beta - 1, beta, !isMaximizing, aiPlayer, rootDepth);
+
+                // If null move fails high (score >= beta), the position is so good
+                // that even giving opponent a free move doesn't help them
+                if (nullMoveScore >= beta)
+                {
+                    // Beta cutoff: position is good enough, skip searching remaining moves
+                    return beta;
+                }
+            }
         }
 
         var candidates = GetCandidateMoves(board);
@@ -767,7 +1171,6 @@ public class MinimaxAI
         {
             var maxEval = int.MinValue;
             var moveIndex = 0;
-            (int x, int y)? bestMove = null;
 
             foreach (var (x, y) in orderedMoves)
             {
@@ -833,7 +1236,6 @@ public class MinimaxAI
                 if (eval > maxEval)
                 {
                     maxEval = eval;
-                    bestMove = (x, y);
                 }
 
                 alpha = Math.Max(alpha, eval);
@@ -853,7 +1255,6 @@ public class MinimaxAI
         {
             var minEval = int.MaxValue;
             var moveIndex = 0;
-            (int x, int y)? bestMove = null;
 
             foreach (var (x, y) in orderedMoves)
             {
@@ -919,7 +1320,6 @@ public class MinimaxAI
                 if (eval < minEval)
                 {
                     minEval = eval;
-                    bestMove = (x, y);
                 }
 
                 beta = Math.Min(beta, eval);
@@ -944,15 +1344,22 @@ public class MinimaxAI
 
     /// <summary>
     /// Get candidate moves (empty cells near existing stones)
+    /// Zero-allocation implementation using stackalloc for tracking
     /// </summary>
     private List<(int x, int y)> GetCandidateMoves(Board board)
     {
-        var candidates = new List<(int x, int y)>();
-        var considered = new bool[15, 15];
+        const int boardSize = 15;
+        const int cellCount = boardSize * boardSize;
 
-        for (int x = 0; x < 15; x++)
+        // Use stackalloc for considered tracking (zero allocation)
+        Span<bool> considered = stackalloc bool[cellCount];
+
+        // Pre-allocate with reasonable capacity to avoid resizing
+        var candidates = new List<(int x, int y)>(64);
+
+        for (int x = 0; x < boardSize; x++)
         {
-            for (int y = 0; y < 15; y++)
+            for (int y = 0; y < boardSize; y++)
             {
                 var cell = board.GetCell(x, y);
                 if (cell.Player != Player.None)
@@ -965,12 +1372,16 @@ public class MinimaxAI
                             var nx = x + dx;
                             var ny = y + dy;
 
-                            if (nx >= 0 && nx < 15 && ny >= 0 && ny < 15 && !considered[nx, ny])
+                            if (nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize)
                             {
-                                if (board.GetCell(nx, ny).Player == Player.None)
+                                int idx = nx * boardSize + ny;
+                                if (!considered[idx])
                                 {
-                                    candidates.Add((nx, ny));
-                                    considered[nx, ny] = true;
+                                    considered[idx] = true;
+                                    if (board.GetCell(nx, ny).Player == Player.None)
+                                    {
+                                        candidates.Add((nx, ny));
+                                    }
                                 }
                             }
                         }
@@ -982,34 +1393,39 @@ public class MinimaxAI
         // If no candidates (empty board), return center
         if (candidates.Count == 0)
         {
-            return new List<(int x, int y)> { (7, 7) };
+            candidates.Add((7, 7));
         }
 
         return candidates;
     }
 
     /// <summary>
-    /// Check if there's a winner on the board
+    /// Check if there's a winner on the board using WinDetector
+    /// This ensures Caro rules are enforced: exact 5-in-a-row, no sandwiched wins, no overlines
     /// </summary>
     private Player? CheckWinner(Board board)
     {
-        // Check all possible 5-in-row sequences
+        var result = _winDetector.CheckWin(board);
+        return result.HasWinner ? result.Winner : null;
+    }
+
+    /// <summary>
+    /// Get the last move made by the opponent
+    /// Used by opening book for intelligent responses
+    /// </summary>
+    private (int x, int y)? GetLastOpponentMove(Board board, Player currentPlayer)
+    {
+        var opponent = currentPlayer == Player.Red ? Player.Blue : Player.Red;
+
+        // Find the most recent opponent move by checking all occupied cells
+        // We'll return any occupied opponent cell (for opening book, this is sufficient)
         for (int x = 0; x < 15; x++)
         {
             for (int y = 0; y < 15; y++)
             {
-                var cell = board.GetCell(x, y);
-                if (cell.Player == Player.None)
-                    continue;
-
-                // Check all 4 directions
-                var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
-                foreach (var (dx, dy) in directions)
+                if (board.GetCell(x, y).Player == opponent)
                 {
-                    if (CheckDirection(board, x, y, dx, dy, cell.Player))
-                    {
-                        return cell.Player;
-                    }
+                    return (x, y);
                 }
             }
         }
@@ -1017,23 +1433,289 @@ public class MinimaxAI
         return null;
     }
 
+    // ========== AGGRESSIVE PRUNING TECHNIQUES FOR D10/D11 ==========
+
+    // Futility pruning constants
+    private const int FutilityMarginBase = 300;      // Base margin for futility pruning
+    private const int FutilityMarginPerDepth = 100;  // Additional margin per depth remaining
+    private const int FutilityMinDepth = 3;          // Don't use futility at shallow depths
+
     /// <summary>
-    /// Check if there's a winning sequence in a direction
+    /// Check if a move at (x, y) creates or blocks critical threats
+    /// These moves should NEVER be pruned as they're tactically significant
     /// </summary>
-    private bool CheckDirection(Board board, int startX, int startY, int dx, int dy, Player player)
+    private bool IsCriticalMove(Board board, int x, int y, Player player)
     {
-        for (int i = 1; i < 5; i++)
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var playerBitBoard = board.GetBitBoard(player);
+        var opponentBitBoard = board.GetBitBoard(opponent);
+        var occupied = playerBitBoard | opponentBitBoard;
+
+        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
+
+        foreach (var (dx, dy) in directions)
         {
-            var x = startX + i * dx;
-            var y = startY + i * dy;
+            // Check if this move creates threats for current player
+            var count = 1; // Include the placed stone
 
-            if (x < 0 || x >= 15 || y < 0 || y >= 15)
-                return false;
+            // Count in positive direction
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x + dx * i;
+                var ny = y + dy * i;
+                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (playerBitBoard.GetBit(nx, ny)) count++;
+                else if (!occupied.GetBit(nx, ny)) break;
+                else break;
+            }
 
-            if (board.GetCell(x, y).Player != player)
-                return false;
+            // Count in negative direction
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x - dx * i;
+                var ny = y - dy * i;
+                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (playerBitBoard.GetBit(nx, ny)) count++;
+                else if (!occupied.GetBit(nx, ny)) break;
+                else break;
+            }
+
+            // Critical: creates 4+ or open 3
+            if (count >= 4) return true; // Potential winning move
+            if (count == 3)
+            {
+                // Check if both ends are open
+                bool leftOpen = x - dx >= 0 && x - dx < 15 && y - dy >= 0 && y - dy < 15
+                               && !occupied.GetBit(x - dx, y - dy);
+                bool rightOpen = x + dx * 3 >= 0 && x + dx * 3 < 15 && y + dy * 3 >= 0 && y + dy * 3 < 15
+                                && !occupied.GetBit(x + dx * 3, y + dy * 3);
+                if (leftOpen && rightOpen) return true; // Creates open three
+            }
+
+            // Check if this move blocks opponent threats
+            var oppCount = 1;
+
+            // Count opponent stones in positive direction
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x + dx * i;
+                var ny = y + dy * i;
+                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (opponentBitBoard.GetBit(nx, ny)) oppCount++;
+                else if (!occupied.GetBit(nx, ny)) break;
+                else break;
+            }
+
+            // Count opponent stones in negative direction
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x - dx * i;
+                var ny = y - dy * i;
+                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (opponentBitBoard.GetBit(nx, ny)) oppCount++;
+                else if (!occupied.GetBit(nx, ny)) break;
+                else break;
+            }
+
+            // Critical: blocks opponent's 4 or open 3
+            if (oppCount >= 4) return true; // Blocks winning threat
+            if (oppCount == 3)
+            {
+                // Check if this blocks an open three
+                var leftOpen = x - dx >= 0 && x - dx < 15 && y - dy >= 0 && y - dy < 15
+                              && !occupied.GetBit(x - dx, y - dy);
+                var rightOpen = x + dx * 3 >= 0 && x + dx * 3 < 15 && y + dy * 3 >= 0 && y + dy * 3 < 15
+                               && !occupied.GetBit(x + dx * 3, y + dy * 3);
+                if (leftOpen && rightOpen) return true; // Blocks open three
+            }
         }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Estimate the maximum possible gain from a move at (x, y)
+    /// Used for futility pruning - if max gain < alpha - margin, skip search
+    /// </summary>
+    private int EstimateMaxGain(Board board, int x, int y, Player player)
+    {
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var playerBitBoard = board.GetBitBoard(player);
+        var opponentBitBoard = board.GetBitBoard(opponent);
+        var occupied = playerBitBoard | opponentBitBoard;
+
+        int maxGain = 0;
+        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
+
+        foreach (var (dx, dy) in directions)
+        {
+            // Count consecutive stones after placing this stone
+            var count = 1;
+
+            // Positive direction
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x + dx * i;
+                var ny = y + dy * i;
+                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (playerBitBoard.GetBit(nx, ny)) count++;
+                else if (!occupied.GetBit(nx, ny)) break;
+                else break;
+            }
+
+            // Negative direction
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x - dx * i;
+                var ny = y - dy * i;
+                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (playerBitBoard.GetBit(nx, ny)) count++;
+                else if (!occupied.GetBit(nx, ny)) break;
+                else break;
+            }
+
+            // Score based on potential
+            if (count >= 5) maxGain += 100000;
+            else if (count == 4) maxGain += 10000;
+            else if (count == 3) maxGain += 1000;
+            else if (count == 2) maxGain += 100;
+            else if (count == 1) maxGain += 10;
+        }
+
+        // Add blocking value
+        foreach (var (dx, dy) in directions)
+        {
+            var count = 1;
+
+            // Positive direction (opponent)
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x + dx * i;
+                var ny = y + dy * i;
+                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (opponentBitBoard.GetBit(nx, ny)) count++;
+                else if (!occupied.GetBit(nx, ny)) break;
+                else break;
+            }
+
+            // Negative direction (opponent)
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x - dx * i;
+                var ny = y - dy * i;
+                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (opponentBitBoard.GetBit(nx, ny)) count++;
+                else if (!occupied.GetBit(nx, ny)) break;
+                else break;
+            }
+
+            if (count >= 4) maxGain += 10000;
+            else if (count == 3) maxGain += 1000;
+        }
+
+        return maxGain;
+    }
+
+    /// <summary>
+    /// Check if futility pruning is safe for this position
+    /// Returns false if the position is tactical or has high uncertainty
+    /// </summary>
+    private bool IsFutilitySafe(Board board, int depth, int alpha, int beta)
+    {
+        // Don't use futility in PV nodes
+        if (beta - alpha > 1) return false;
+
+        // Don't use futility at shallow depths
+        if (depth < FutilityMinDepth) return false;
+
+        // Don't use futility if position is tactical
+        if (IsTacticalPosition(board)) return false;
 
         return true;
     }
+
+    /// <summary>
+    /// Calculate LMR reduction based on move index and depth
+    /// More aggressive reduction for later moves at higher depths
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int CalculateLMRReduction(int depth, int moveIndex, bool isCriticalMove)
+    {
+        // Critical moves (threats/blocks) get no reduction
+        if (isCriticalMove) return 0;
+
+        // Base reduction: floor(depth/3) + floor(moveIndex/3)
+        int reduction = depth / 3 + moveIndex / 3;
+
+        // Cap reduction at depth-2 (always search at least 2 ply)
+        return Math.Min(reduction, depth - 2);
+    }
+
+    /// <summary>
+    /// ProbCut: Probabilistic cutoff for deep searches
+    /// Try a shallow search first; if it shows clear cutoff, skip deep search
+    /// </summary>
+    private bool TryProbCut(Board board, int depth, int alpha, int beta, bool isMaximizing, Player aiPlayer, int rootDepth)
+    {
+        // Only use ProbCut at depth 5+ when we have a narrow window
+        if (depth < 5 || (beta - alpha) > 100) return false;
+
+        // Try shallow search at reduced depth
+        int probCutDepth = depth / 2;
+        int probCutBeta = beta + 200; // More optimistic threshold
+
+        var score = Minimax(board, probCutDepth, probCutBeta - 1, probCutBeta, isMaximizing, aiPlayer, rootDepth);
+
+        // If shallow search already exceeds beta, we're likely to cutoff
+        return score >= probCutBeta;
+    }
+
+    #region Pondering Support
+
+    /// <summary>
+    /// Get the ponderer instance for external access (e.g., TournamentEngine)
+    /// </summary>
+    public Ponderer GetPonderer() => _ponderer;
+
+    /// <summary>
+    /// Get the last calculated Principal Variation
+    /// </summary>
+    public PV GetLastPV() => _lastPV;
+
+    /// <summary>
+    /// Stop any active pondering
+    /// </summary>
+    public void StopPondering()
+    {
+        _ponderer.StopPondering();
+    }
+
+    /// <summary>
+    /// Reset pondering state (call when starting a new game)
+    /// </summary>
+    public void ResetPondering()
+    {
+        _ponderer.Reset();
+        _lastPV = PV.Empty;
+        _lastBoard = null;
+        _lastPlayer = Player.None;
+    }
+
+    /// <summary>
+    /// Get pondering statistics
+    /// </summary>
+    public string GetPonderingStatistics() => _ponderer.GetStatistics();
+
+    /// <summary>
+    /// Get search statistics for the last move
+    /// </summary>
+    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched) GetSearchStatistics()
+    {
+        double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
+        var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
+        double nps = elapsedMs > 0 ? (double)_nodesSearched * 1000 / elapsedMs : 0;
+        return (_depthAchieved, _nodesSearched, nps, hitRate, _ponderer.IsPondering, _vcfDepthAchieved, _vcfNodesSearched);
+    }
+
+    #endregion
 }

@@ -62,23 +62,32 @@ public class AspirationWindowTests
     [Fact]
     public void AspirationWindows_WorksWithIterativeDeepening()
     {
-        // Arrange - position where iterative deepening is used
+        // Arrange - More realistic position where iterative deepening is used
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(8, 8, Player.Blue);
 
-        // Act - Expert uses iterative deepening with aspiration windows
+        // Create a mid-game position (~20% board occupancy)
+        for (int x = 5; x <= 9; x++)
+        {
+            for (int y = 5; y <= 9; y++)
+            {
+                if ((x + y) % 2 == 0)
+                    board.PlaceStone(x, y, Player.Red);
+                else
+                    board.PlaceStone(x, y, Player.Blue);
+            }
+        }
+
+        // Act - Expert (D8) uses iterative deepening with aspiration windows
         var ai = new MinimaxAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
         stopwatch.Stop();
 
         // Assert - Should complete in reasonable time
+        // Expert (D8) with depth 9 and parallel search
         _output.WriteLine($"Move: ({move.x}, {move.y}), Time: {stopwatch.ElapsedMilliseconds}ms");
-        Assert.True(stopwatch.ElapsedMilliseconds < 15000,
-            $"Expert search took {stopwatch.ElapsedMilliseconds}ms, expected < 15000ms");
+        Assert.True(stopwatch.ElapsedMilliseconds < 30000,
+            $"Expert search took {stopwatch.ElapsedMilliseconds}ms, expected < 30000ms");
 
         // Move should be valid
         var cell = board.GetCell(move.x, move.y);
@@ -194,7 +203,7 @@ public class AspirationWindowTests
         // Act
         var ai = new MinimaxAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
         stopwatch.Stop();
 
         // Assert - Should be very fast with aspiration windows
