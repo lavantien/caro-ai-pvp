@@ -49,10 +49,9 @@ public class BoardEvaluator
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
 
-        // Use SIMD evaluator for VeryHard and above (D7+)
-        return (difficulty >= AIDifficulty.VeryHard)
-            ? SIMDBitBoardEvaluator.Evaluate(board, player)
-            : BitBoardEvaluator.Evaluate(board, player);
+        // TEMPORARY FIX: Disable SIMD evaluator until scoring bugs are fixed
+        // SIMD evaluator was causing D7+ to lose to D1-D6 due to score inflation
+        return BitBoardEvaluator.Evaluate(board, player);
     }
 
     /// <summary>

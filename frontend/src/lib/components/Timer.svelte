@@ -4,43 +4,92 @@
 
 	interface Props {
 		player: Player;
-		timeRemaining: number; // seconds
+		timeRemaining: number; // seconds from server ( authoritative )
 		isActive: boolean;
 		onTimeOut?: () => void;
+		gameId?: string; // Optional: used for periodic server sync
 	}
 
-	let { player, isActive, onTimeOut, timeRemaining: propTimeRemaining }: Props = $props();
+	let { player, isActive, onTimeOut, timeRemaining: propTimeRemaining, gameId }: Props = $props();
 
-	// Local state for countdown - track value separately from prop
-	let localTimeRemaining = $state(0);
+	// Server time base and timestamp - used to calculate display time
+	let serverTimeBase = $state(propTimeRemaining);
+	let serverTimeTimestamp = $state(Date.now());
 
-	// Sync with prop value (runs on mount and when prop changes)
+	// Sync with prop value when it changes (after move, undo, etc.)
 	$effect(() => {
-		localTimeRemaining = propTimeRemaining;
+		serverTimeBase = propTimeRemaining;
+		serverTimeTimestamp = Date.now();
 	});
 
-	let interval: ReturnType<typeof setInterval> | null = null;
+	let displayInterval: ReturnType<typeof setInterval> | null = null;
+	let hasTriggeredTimeout = $state(false);
 
-	// Start countdown when active
+	// Calculate display time based on elapsed time since last server sync
+	const displayTime = $derived(() => {
+		if (!isActive) return serverTimeBase;
+		const elapsed = (Date.now() - serverTimeTimestamp) / 1000;
+		const calculated = Math.max(0, Math.round(serverTimeBase - elapsed));
+		return calculated;
+	});
+
+	// Trigger timeout when display time reaches 0
+	$effect(() => {
+		const current = displayTime();
+		if (current <= 0 && isActive && !hasTriggeredTimeout) {
+			hasTriggeredTimeout = true;
+			if (onTimeOut) onTimeOut();
+		}
+	});
+
+	// High-frequency update for smooth display (100ms)
 	$effect(() => {
 		if (isActive) {
-			interval = setInterval(() => {
-				localTimeRemaining--;
-
-				if (localTimeRemaining <= 0) {
-					if (interval) clearInterval(interval);
-					if (onTimeOut) onTimeOut();
-				}
-			}, 1000);
+			displayInterval = setInterval(() => {
+				// Force reactivity by reading displayTime
+				const _ = displayTime();
+			}, 100);
 		} else {
-			if (interval) {
-				clearInterval(interval);
-				interval = null;
+			if (displayInterval) {
+				clearInterval(displayInterval);
+				displayInterval = null;
 			}
 		}
 
 		return () => {
-			if (interval) clearInterval(interval);
+			if (displayInterval) clearInterval(displayInterval);
+		};
+	});
+
+	// Optional: Periodic server sync if gameId is provided
+	// This keeps the timer in sync with server time
+	let syncInterval: ReturnType<typeof setInterval> | null = null;
+
+	$effect(() => {
+		if (isActive && gameId) {
+			syncInterval = setInterval(async () => {
+				try {
+					const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
+					const response = await fetch(`${apiUrl}/api/game/${gameId}`);
+					if (response.ok) {
+						const data = await response.json();
+						const serverTime = player === 'red' ? data.state.redTimeRemaining : data.state.blueTimeRemaining;
+						serverTimeBase = serverTime;
+						serverTimeTimestamp = Date.now();
+					}
+				} catch {
+					// Ignore sync errors - continue with local calculation
+				}
+			}, 500); // Sync every 500ms
+		} else {
+			if (syncInterval) {
+				clearInterval(syncInterval);
+				syncInterval = null;
+			}
+		}
+
+		return () => {
+			if (syncInterval) clearInterval(syncInterval);
 		};
 	});
 
@@ -51,7 +100,7 @@
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
 	}
 
-	const isLowTime = $derived(localTimeRemaining < 60);
+	const isLowTime = $derived(displayTime() < 60);
 </script>
 
 <div
@@ -65,6 +114,6 @@
 	<span
 		class="text-xl font-mono {isLowTime && isActive ? 'text-red-500 animate-pulse' : 'text-gray-700'}"
 	>
-		{formatTime(localTimeRemaining)}
+		{formatTime(displayTime())}
 	</span>
 </div>

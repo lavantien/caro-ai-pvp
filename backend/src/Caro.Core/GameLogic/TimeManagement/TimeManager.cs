@@ -11,10 +11,22 @@ namespace Caro.Core.GameLogic.TimeManagement;
 /// - Game phase awareness: opening/early-mid/late-mid/endgame modifiers
 /// - Position complexity: 0.5x to 2.0x multiplier based on threats and candidates
 /// - Emergency mode: panic when low on time
+/// - Difficulty-based allocation: higher difficulties get more time per move
 /// </summary>
 public sealed class TimeManager
 {
     private readonly ThreatDetector _threatDetector = new();
+
+    // For high difficulties (D10-D11), we allocate more time per move to reach full depth
+    // Balance: 420s total / ~20-25 moves = ~15-20s per move average
+    private static readonly Dictionary<AIDifficulty, double> DifficultyTimeMultipliers = new()
+    {
+        { AIDifficulty.Legend, 3.5 },      // D11: 3.5x (~20s per move in opening)
+        { AIDifficulty.Grandmaster, 2.5 }, // D10: 2.5x (~14s per move in opening)
+        { AIDifficulty.Master, 1.8 },      // D9: 1.8x time allocation
+        { AIDifficulty.Expert, 1.3 },      // D8: 1.3x time allocation
+        { AIDifficulty.VeryHard, 1.1 },    // D7: 1.1x time allocation
+    };
 
     /// <summary>
     /// Calculate time allocation for a move based on game state
@@ -24,13 +36,15 @@ public sealed class TimeManager
     /// <param name="candidateCount">Number of candidate moves to consider</param>
     /// <param name="board">Current board position</param>
     /// <param name="player">Player to move</param>
+    /// <param name="difficulty">AI difficulty level (affects time allocation)</param>
     /// <returns>Time allocation with soft/hard bounds and game phase info</returns>
     public TimeAllocation CalculateMoveTime(
         long timeRemainingMs,
         int moveNumber,
         int candidateCount,
         Board board,
-        Player player)
+        Player player,
+        AIDifficulty difficulty = AIDifficulty.Harder)
     {
         // Validate inputs
         if (timeRemainingMs <= 0)
@@ -57,7 +71,11 @@ public sealed class TimeManager
 
         // Apply phase modifier
         double phaseMultiplier = GetPhaseModifier(phase);
-        double adjustedTimeMs = baseTimeMs * complexity * phaseMultiplier;
+
+        // Apply difficulty multiplier for higher difficulties to reach full depth
+        double difficultyMultiplier = DifficultyTimeMultipliers.GetValueOrDefault(difficulty, 1.0);
+
+        double adjustedTimeMs = baseTimeMs * complexity * phaseMultiplier * difficultyMultiplier;
 
         // Calculate bounds with 1s minimum reserve
         long maxAllocatableMs = Math.Max(0, timeRemainingMs - TimeControl.MinimumReserveMs);

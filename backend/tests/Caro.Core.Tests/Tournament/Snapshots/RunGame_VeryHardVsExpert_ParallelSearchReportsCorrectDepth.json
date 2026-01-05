@@ -1,0 +1,190 @@
+{
+  "testName": "RunGame_VeryHardVsExpert_ParallelSearchReportsCorrectDepth",
+  "timestampUtc": "2026-01-04T16:38:42.0217069Z",
+  "games": [
+    {
+      "gameId": "31bc13e6",
+      "redBot": "VeryHard",
+      "blueBot": "Expert",
+      "redDifficulty": 7,
+      "blueDifficulty": 8,
+      "moveLogs": [
+        {
+          "moveNumber": 1,
+          "player": "red",
+          "x": 7,
+          "y": 7,
+          "timeMs": 1,
+          "depthAchieved": 0,
+          "nodesSearched": 0,
+          "nodesPerSecond": 0,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 2,
+          "player": "blue",
+          "x": 7,
+          "y": 8,
+          "timeMs": 3743,
+          "depthAchieved": 5,
+          "nodesSearched": 15218,
+          "nodesPerSecond": 4070,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 3,
+          "player": "red",
+          "x": 5,
+          "y": 7,
+          "timeMs": 3380,
+          "depthAchieved": 5,
+          "nodesSearched": 12625,
+          "nodesPerSecond": 3743,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 4,
+          "player": "blue",
+          "x": 8,
+          "y": 7,
+          "timeMs": 5307,
+          "depthAchieved": 5,
+          "nodesSearched": 26188,
+          "nodesPerSecond": 4939,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 5,
+          "player": "red",
+          "x": 5,
+          "y": 8,
+          "timeMs": 5837,
+          "depthAchieved": 5,
+          "nodesSearched": 68104,
+          "nodesPerSecond": 11674,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 6,
+          "player": "blue",
+          "x": 6,
+          "y": 9,
+          "timeMs": 5862,
+          "depthAchieved": 5,
+          "nodesSearched": 20560,
+          "nodesPerSecond": 3510,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 7,
+          "player": "red",
+          "x": 9,
+          "y": 8,
+          "timeMs": 6386,
+          "depthAchieved": 5,
+          "nodesSearched": 94318,
+          "nodesPerSecond": 14781,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 8,
+          "player": "blue",
+          "x": 7,
+          "y": 6,
+          "timeMs": 7088,
+          "depthAchieved": 5,
+          "nodesSearched": 31927,
+          "nodesPerSecond": 4509,
+          "vcfDepth": 0,
+          "vcfNodes": 6,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 9,
+          "player": "red",
+          "x": 3,
+          "y": 6,
+          "timeMs": 6786,
+          "depthAchieved": 4,
+          "nodesSearched": 23479,
+          "nodesPerSecond": 3462,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 10,
+          "player": "blue",
+          "x": 9,
+          "y": 6,
+          "timeMs": 6975,
+          "depthAchieved": 7,
+          "nodesSearched": 27060,
+          "nodesPerSecond": 3885,
+          "vcfDepth": 0,
+          "vcfNodes": 6,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 11,
+          "player": "red",
+          "x": 5,
+          "y": 10,
+          "timeMs": 8,
+          "depthAchieved": 1,
+          "nodesSearched": 68,
+          "nodesPerSecond": 17000,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 12,
+          "player": "blue",
+          "x": 10,
+          "y": 5,
+          "timeMs": 1,
+          "depthAchieved": 1,
+          "nodesSearched": 68,
+          "nodesPerSecond": 17000,
+          "vcfDepth": 1,
+          "vcfNodes": 1,
+          "ponderingActive": false
+        }
+      ],
+      "rawLogs": [],
+      "result": {
+        "winner": "blue",
+        "winnerDifficulty": "Expert",
+        "totalMoves": 11,
+        "durationMs": 51379,
+        "endedByTimeout": false,
+        "hadIllegalMove": false
+      }
+    }
+  ],
+  "summary": {
+    "totalGames": 1,
+    "redWins": 0,
+    "blueWins": 1,
+    "draws": 0,
+    "illegalMoves": 0,
+    "winsByDifficulty": {
+      "Expert": 1
+    }
+  }
+}

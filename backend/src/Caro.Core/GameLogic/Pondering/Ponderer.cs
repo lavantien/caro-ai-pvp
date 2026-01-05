@@ -15,8 +15,8 @@ public sealed class Ponderer : IDisposable
     private readonly VCFPrecheck _vcfPrecheck = new();
     private readonly ParallelMinimaxSearch _parallelSearch = new();
 
-    // State management
-    private volatile PonderState _state = PonderState.Idle;
+    // State management - use lock for all access (removed volatile)
+    private PonderState _state = PonderState.Idle;
     private readonly object _stateLock = new();
 
     // Pondering context
@@ -32,8 +32,8 @@ public sealed class Ponderer : IDisposable
     private long _totalPonderTimeMs;
     private PonderResult _currentResult;
 
-    // Cancellation
-    private volatile bool _shouldStop;
+    // Cancellation - use lock for all access (removed volatile)
+    private bool _shouldStop;
     private CancellationTokenSource? _cts;
     private Task? _ponderTask;
 
@@ -44,9 +44,18 @@ public sealed class Ponderer : IDisposable
     private long _nodesSearched;
 
     /// <summary>
-    /// Current pondering state
+    /// Current pondering state (thread-safe with lock)
     /// </summary>
-    public PonderState State => _state;
+    public PonderState State
+    {
+        get
+        {
+            lock (_stateLock)
+            {
+                return _state;
+            }
+        }
+    }
 
     /// <summary>
     /// Predicted move being pondered
@@ -327,28 +336,48 @@ public sealed class Ponderer : IDisposable
 
     /// <summary>
     /// Update the current pondering result (called by search during pondering)
+    /// Uses lock to safely check state
     /// </summary>
     public void UpdatePonderResult((int x, int y) bestMove, int depth, int score, long nodesSearched)
     {
-        if (_state != PonderState.Pondering)
+        PonderState currentState;
+        lock (_stateLock)
+        {
+            currentState = _state;
+        }
+
+        if (currentState != PonderState.Pondering)
             return;
 
-        _currentResult = new PonderResult
+        lock (_stateLock)
         {
-            BestMove = bestMove,
-            Depth = depth,
-            Score = score,
-            TimeSpentMs = Stopwatch.GetElapsedTime(_ponderStartTimeTicks).Milliseconds,
-            FinalState = _state,
-            PonderHit = false, // Will be set when opponent moves
-            NodesSearched = nodesSearched
-        };
+            _currentResult = new PonderResult
+            {
+                BestMove = bestMove,
+                Depth = depth,
+                Score = score,
+                TimeSpentMs = Stopwatch.GetElapsedTime(_ponderStartTimeTicks).Milliseconds,
+                FinalState = _state,
+                PonderHit = false, // Will be set when opponent moves
+                NodesSearched = nodesSearched
+            };
+        }
     }
 
     /// <summary>
     /// Check if pondering should stop (called by search during pondering)
+    /// Uses lock for thread-safe access to _shouldStop
     /// </summary>
-    public bool ShouldStopPondering => _shouldStop || _cts?.IsCancellationRequested == true;
+    public bool ShouldStopPondering
+    {
+        get
+        {
+            lock (_stateLock)
+            {
+                return _shouldStop || _cts?.IsCancellationRequested == true;
+            }
+        }
+    }
 
     /// <summary>
     /// Get the board being pondered (with predicted move already made)
@@ -376,9 +405,18 @@ public sealed class Ponderer : IDisposable
     public CancellationToken GetCancellationToken() => _cts?.Token ?? default;
 
     /// <summary>
-    /// Check if pondering is currently active
+    /// Check if pondering is currently active (thread-safe)
     /// </summary>
-    public bool IsPondering => _state == PonderState.Pondering;
+    public bool IsPondering
+    {
+        get
+        {
+            lock (_stateLock)
+            {
+                return _state == PonderState.Pondering;
+            }
+        }
+    }
 
     /// <summary>
     /// Reset state for new game or after ponder miss

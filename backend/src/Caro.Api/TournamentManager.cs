@@ -1,4 +1,5 @@
 using Caro.Api.Logging;
+using Caro.Core.Concurrency;
 using Caro.Core.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
@@ -15,12 +16,23 @@ namespace Caro.Api;
 /// Manages long-running AI tournaments with pause/resume capability
 /// Runs as a background service and broadcasts updates via SignalR
 /// </summary>
-public class TournamentManager : BackgroundService
+public sealed class TournamentManager : BackgroundService
 {
     private readonly IHubContext<TournamentHub, ITournamentClient> _hub;
     private readonly ILogger<TournamentManager> _logger;
     private readonly GameLogService _logService;
-    private readonly object _stateLock = new();
+
+    // ReaderWriterLockSlim allows multiple concurrent readers but exclusive writers
+    // GetState() is read-heavy (called frequently by polling clients)
+    private readonly ReaderWriterLockSlim _stateLock = new();
+
+    // Channels for fire-and-forget broadcasts (replaces Task.Run pattern)
+    private readonly AsyncQueue<MoveBroadcast> _moveQueue;
+    private readonly AsyncQueue<BoardUpdateBroadcast> _boardQueue;
+    private readonly AsyncQueue<GameLogBroadcast> _logQueue;
+
+    // Atomic status using Interlocked.CompareExchange for thread-safe transitions
+    private volatile TournamentStatus _status = TournamentStatus.Idle;
 
     private List<AIBot> _bots = new();
     private List<TournamentMatch> _scheduledMatches = new();
@@ -37,14 +49,36 @@ public class TournamentManager : BackgroundService
         _hub = hub;
         _logger = logger;
         _logService = logService;
+
+        // Create Channel-based queues for broadcasts
+        // DropOldest mode prevents unbounded growth under high load
+        _moveQueue = new AsyncQueue<MoveBroadcast>(
+            ProcessMoveBroadcastAsync,
+            capacity: 100,
+            queueName: "MoveBroadcast",
+            dropOldest: true);
+
+        _boardQueue = new AsyncQueue<BoardUpdateBroadcast>(
+            ProcessBoardBroadcastAsync,
+            capacity: 50,
+            queueName: "BoardUpdate",
+            dropOldest: true);
+
+        _logQueue = new AsyncQueue<GameLogBroadcast>(
+            ProcessLogBroadcastAsync,
+            capacity: 200,
+            queueName: "GameLog",
+            dropOldest: true);
     }
 
     /// <summary>
-    /// Gets the current tournament state (thread-safe)
+    /// Gets the current tournament state (thread-safe with ReaderWriterLockSlim)
+    /// Multiple readers can access simultaneously without blocking each other
     /// </summary>
     public TournamentState GetState()
     {
-        lock (_stateLock)
+        _stateLock.EnterReadLock();
+        try
         {
             // Return a deep copy to avoid external modifications
             return new TournamentState
@@ -94,21 +128,29 @@ public class TournamentManager : BackgroundService
                 EndTimeUtc = _state.EndTimeUtc
             };
         }
+        finally
+        {
+            _stateLock.ExitReadLock();
+        }
     }
 
     /// <summary>
     /// Starts the tournament with all 22 bots
+    /// Uses Interlocked.CompareExchange for atomic status transition
     /// </summary>
     public async Task<bool> StartTournamentAsync()
     {
-        lock (_stateLock)
+        // Atomic check-and-set: only proceed if currently Idle
+        if (Interlocked.CompareExchange(ref _status, TournamentStatus.Running, TournamentStatus.Idle)
+            != TournamentStatus.Idle)
         {
-            if (_state.Status == TournamentStatus.Running)
-            {
-                _logger.LogWarning("Tournament is already running");
-                return false;
-            }
+            _logger.LogWarning("Tournament is already running or paused");
+            return false;
+        }
 
+        _stateLock.EnterWriteLock();
+        try
+        {
             // Initialize bots
             _bots = AIBotFactory.GetAllTournamentBots();
             _scheduledMatches = TournamentScheduler.GenerateRoundRobinSchedule(_bots);
@@ -128,6 +170,10 @@ public class TournamentManager : BackgroundService
 
             _tournamentCts = new CancellationTokenSource();
         }
+        finally
+        {
+            _stateLock.ExitWriteLock();
+        }
 
         _logger.LogInformation("Tournament started: {TotalGames} games scheduled", _scheduledMatches.Count);
         await _hub.Clients.All.OnTournamentStatusChanged(TournamentStatus.Running,
@@ -141,15 +187,25 @@ public class TournamentManager : BackgroundService
 
     /// <summary>
     /// Pauses the tournament after the current game completes
+    /// Uses Interlocked.CompareExchange for atomic status transition
     /// </summary>
     public async Task<bool> PauseTournamentAsync()
     {
-        lock (_stateLock)
+        // Atomic check-and-set: only proceed if currently Running
+        if (Interlocked.CompareExchange(ref _status, TournamentStatus.Paused, TournamentStatus.Running)
+            != TournamentStatus.Running)
         {
-            if (_state.Status != TournamentStatus.Running)
-                return false;
+            return false;
+        }
 
+        _stateLock.EnterWriteLock();
+        try
+        {
             _state.Status = TournamentStatus.Paused;
+        }
+        finally
+        {
+            _stateLock.ExitWriteLock();
         }
 
         _logger.LogInformation("Tournament pause requested");
@@ -161,15 +217,25 @@ public class TournamentManager : BackgroundService
 
     /// <summary>
     /// Resumes a paused tournament
+    /// Uses Interlocked.CompareExchange for atomic status transition
     /// </summary>
     public async Task<bool> ResumeTournamentAsync()
     {
-        lock (_stateLock)
+        // Atomic check-and-set: only proceed if currently Paused
+        if (Interlocked.CompareExchange(ref _status, TournamentStatus.Running, TournamentStatus.Paused)
+            != TournamentStatus.Paused)
         {
-            if (_state.Status != TournamentStatus.Paused)
-                return false;
+            return false;
+        }
 
+        _stateLock.EnterWriteLock();
+        try
+        {
             _state.Status = TournamentStatus.Running;
+        }
+        finally
+        {
+            _stateLock.ExitWriteLock();
         }
 
         _logger.LogInformation("Tournament resumed");
@@ -206,14 +272,8 @@ public class TournamentManager : BackgroundService
         {
             while (!ct.IsCancellationRequested && _scheduledMatches.Count > 0)
             {
-                // Check if paused
-                TournamentStatus currentStatus;
-                lock (_stateLock)
-                {
-                    currentStatus = _state.Status;
-                }
-
-                if (currentStatus == TournamentStatus.Paused)
+                // Check if paused (read volatile _status directly, no lock needed)
+                if (_status == TournamentStatus.Paused)
                 {
                     await Task.Delay(500, ct);
                     continue;
@@ -224,7 +284,8 @@ public class TournamentManager : BackgroundService
                 _scheduledMatches.RemoveAt(0);
 
                 // Update current match info
-                lock (_stateLock)
+                _stateLock.EnterWriteLock();
+                try
                 {
                     match.IsInProgress = true;
                     _state.CurrentMatch = new CurrentMatchInfo
@@ -240,6 +301,10 @@ public class TournamentManager : BackgroundService
                         BlueTimeRemainingMs = 420 * 1000
                     };
                 }
+                finally
+                {
+                    _stateLock.ExitWriteLock();
+                }
 
                 // Notify clients game started
                 await _hub.Clients.All.OnGameStarted(
@@ -250,12 +315,12 @@ public class TournamentManager : BackgroundService
                     match.BlueBot.Difficulty
                 );
 
+                // Capture current game ID for callbacks (avoid lock in callbacks)
+                var currentGameId = _state.CurrentMatch?.GameId ?? string.Empty;
+
                 // Run the match with callbacks for live updates
                 var result = await Task.Run(() =>
                 {
-                    string currentGameId = _state.CurrentMatch?.GameId ?? string.Empty;
-                    Player? lastMovePlayer = null;
-
                     return engine.RunGame(
                         match.RedBot.Difficulty,
                         match.BlueBot.Difficulty,
@@ -265,116 +330,49 @@ public class TournamentManager : BackgroundService
                         ponderingEnabled: true,
                         onMove: (x, y, player, moveNumber, redTimeMs, blueTimeMs, stats) =>
                         {
-                            // Track last move player for pondering detection
-                            lastMovePlayer = player;
-
-                            // Fire-and-forget broadcast move stats to all clients
-                            _ = Task.Run(async () =>
+                            // Channel-based broadcast: enqueue without blocking
+                            _moveQueue.TryEnqueue(new MoveBroadcast
                             {
-                                try
-                                {
-                                    await _hub.Clients.All.OnMovePlayed(new MoveEvent
-                                    {
-                                        GameId = currentGameId,
-                                        X = x,
-                                        Y = y,
-                                        Player = player.ToString().ToLower(),
-                                        MoveNumber = moveNumber,
-                                        RedTimeRemainingMs = redTimeMs,
-                                        BlueTimeRemainingMs = blueTimeMs,
-                                        DepthAchieved = stats?.DepthAchieved ?? 0,
-                                        NodesSearched = stats?.NodesSearched ?? 0,
-                                        NodesPerSecond = stats?.NodesPerSecond ?? 0,
-                                        TableHitRate = stats?.TableHitRate ?? 0,
-                                        PonderingActive = stats?.PonderingActive ?? false,
-                                        VCFDepthAchieved = stats?.VCFDepthAchieved ?? 0,
-                                        VCFNodesSearched = stats?.VCFNodesSearched ?? 0
-                                    });
-                                }
-                                catch (Exception ex)
-                                {
-                                    _logger.LogError(ex, "Error broadcasting move");
-                                }
+                                GameId = currentGameId,
+                                X = x,
+                                Y = y,
+                                Player = player,
+                                MoveNumber = moveNumber,
+                                RedTimeRemainingMs = redTimeMs,
+                                BlueTimeRemainingMs = blueTimeMs,
+                                Stats = stats
                             });
                         },
                         onBoardUpdate: (board, moveNumber, redTimeMs, blueTimeMs, lastMoveX, lastMoveY, lastMovePlayer) =>
                         {
-                            // Fire-and-forget broadcast board state with move info
-                            _ = Task.Run(async () =>
+                            // Channel-based broadcast: enqueue without blocking
+                            // Capture board state here (avoid accessing board after callback returns)
+                            var boardCells = ExtractBoardCells(board);
+
+                            _boardQueue.TryEnqueue(new BoardUpdateBroadcast
                             {
-                                try
-                                {
-                                    var boardCells = new List<BoardCell>();
-
-                                    for (int bx = 0; bx < 15; bx++)
-                                    {
-                                        for (int by = 0; by < 15; by++)
-                                        {
-                                            var cell = board.GetCell(bx, by);
-                                            if (cell.Player != Player.None)
-                                            {
-                                                boardCells.Add(new BoardCell { X = bx, Y = by, Player = cell.Player.ToString().ToLower() });
-                                            }
-                                        }
-                                    }
-
-                                    // Atomic update: board + move info together (using actual move coordinates)
-                                    await _hub.Clients.All.OnBoardUpdate(
-                                        currentGameId,
-                                        boardCells,
-                                        moveNumber,
-                                        lastMovePlayer.ToString().ToLower(),
-                                        lastMoveX,
-                                        lastMoveY
-                                    );
-
-                                    // Update current match state with time
-                                    lock (_stateLock)
-                                    {
-                                        if (_state.CurrentMatch != null)
-                                        {
-                                            _state.CurrentMatch.Board = boardCells;
-                                            _state.CurrentMatch.MoveNumber = moveNumber;
-                                            _state.CurrentMatch.RedTimeRemainingMs = redTimeMs;
-                                            _state.CurrentMatch.BlueTimeRemainingMs = blueTimeMs;
-                                        }
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    _logger.LogError(ex, "Error broadcasting board update");
-                                }
+                                GameId = currentGameId,
+                                BoardCells = boardCells,
+                                MoveNumber = moveNumber,
+                                RedTimeRemainingMs = redTimeMs,
+                                BlueTimeRemainingMs = blueTimeMs,
+                                LastMoveX = lastMoveX,
+                                LastMoveY = lastMoveY,
+                                LastMovePlayer = lastMovePlayer
                             });
                         },
                         onLog: (level, source, message) =>
                         {
-                            // Fire-and-forget: persist to database and broadcast to clients
-                            _ = Task.Run(async () =>
+                            // Channel-based broadcast: enqueue without blocking
+                            _logQueue.TryEnqueue(new GameLogBroadcast
                             {
-                                try
+                                Entry = new GameLogEntry
                                 {
-                                    // Persist to SQLite database
-                                    await _logService.LogAsync(new GameLogEntry
-                                    {
-                                        Timestamp = DateTime.UtcNow.ToString("HH:mm:ss.fff"),
-                                        Level = level,
-                                        Source = source,
-                                        Message = message,
-                                        GameId = currentGameId
-                                    });
-
-                                    // Broadcast to clients
-                                    await _hub.Clients.All.OnGameLog(new GameLogEvent
-                                    {
-                                        Timestamp = DateTime.UtcNow.ToString("HH:mm:ss.fff"),
-                                        Level = level,
-                                        Source = source,
-                                        Message = message
-                                    });
-                                }
-                                catch (Exception ex)
-                                {
-                                    _logger.LogError(ex, "Error processing game log");
+                                    Timestamp = DateTime.UtcNow.ToString("HH:mm:ss.fff"),
+                                    Level = level,
+                                    Source = source,
+                                    Message = message,
+                                    GameId = currentGameId
                                 }
                             });
                         },
@@ -429,7 +427,8 @@ public class TournamentManager : BackgroundService
         match.IsInProgress = false;
         match.Result = result;
 
-        lock (_stateLock)
+        _stateLock.EnterWriteLock();
+        try
         {
             _completedMatches.Add(match);
             _state.CompletedGames++;
@@ -446,6 +445,10 @@ public class TournamentManager : BackgroundService
                 Losses = b.Losses,
                 Draws = b.Draws
             }).ToList();
+        }
+        finally
+        {
+            _stateLock.ExitWriteLock();
         }
 
         // Send updates to clients
@@ -478,10 +481,17 @@ public class TournamentManager : BackgroundService
     /// </summary>
     private async Task CompleteTournamentAsync()
     {
-        lock (_stateLock)
+        Interlocked.Exchange(ref _status, TournamentStatus.Completed);
+
+        _stateLock.EnterWriteLock();
+        try
         {
             _state.Status = TournamentStatus.Completed;
             _state.EndTimeUtc = DateTime.UtcNow;
+        }
+        finally
+        {
+            _stateLock.ExitWriteLock();
         }
 
         var finalStandings = _bots.OrderByDescending(b => b.ELO).ToList();
@@ -500,6 +510,128 @@ public class TournamentManager : BackgroundService
     }
 
     /// <summary>
+    /// Extracts occupied board cells from a board
+    /// Called outside of lock context to avoid holding lock during iteration
+    /// </summary>
+    private static List<BoardCell> ExtractBoardCells(Board board)
+    {
+        var cells = new List<BoardCell>();
+        for (int bx = 0; bx < 15; bx++)
+        {
+            for (int by = 0; by < 15; by++)
+            {
+                var cell = board.GetCell(bx, by);
+                if (cell.Player != Player.None)
+                {
+                    cells.Add(new BoardCell
+                    {
+                        X = bx,
+                        Y = by,
+                        Player = cell.Player.ToString().ToLower()
+                    });
+                }
+            }
+        }
+        return cells;
+    }
+
+    /// <summary>
+    /// Processes move broadcasts from the channel (background processing)
+    /// </summary>
+    private async ValueTask ProcessMoveBroadcastAsync(MoveBroadcast broadcast)
+    {
+        try
+        {
+            await _hub.Clients.All.OnMovePlayed(new MoveEvent
+            {
+                GameId = broadcast.GameId,
+                X = broadcast.X,
+                Y = broadcast.Y,
+                Player = broadcast.Player.ToString().ToLower(),
+                MoveNumber = broadcast.MoveNumber,
+                RedTimeRemainingMs = broadcast.RedTimeRemainingMs,
+                BlueTimeRemainingMs = broadcast.BlueTimeRemainingMs,
+                DepthAchieved = broadcast.Stats?.DepthAchieved ?? 0,
+                NodesSearched = broadcast.Stats?.NodesSearched ?? 0,
+                NodesPerSecond = broadcast.Stats?.NodesPerSecond ?? 0,
+                TableHitRate = broadcast.Stats?.TableHitRate ?? 0,
+                PonderingActive = broadcast.Stats?.PonderingActive ?? false,
+                VCFDepthAchieved = broadcast.Stats?.VCFDepthAchieved ?? 0,
+                VCFNodesSearched = broadcast.Stats?.VCFNodesSearched ?? 0
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error broadcasting move");
+        }
+    }
+
+    /// <summary>
+    /// Processes board update broadcasts from the channel (background processing)
+    /// </summary>
+    private async ValueTask ProcessBoardBroadcastAsync(BoardUpdateBroadcast broadcast)
+    {
+        try
+        {
+            // Broadcast board state to clients
+            await _hub.Clients.All.OnBoardUpdate(
+                broadcast.GameId,
+                broadcast.BoardCells,
+                broadcast.MoveNumber,
+                broadcast.LastMovePlayer.ToString().ToLower(),
+                broadcast.LastMoveX,
+                broadcast.LastMoveY
+            );
+
+            // Update current match state (minimal lock time)
+            _stateLock.EnterWriteLock();
+            try
+            {
+                if (_state.CurrentMatch != null)
+                {
+                    _state.CurrentMatch.Board = broadcast.BoardCells;
+                    _state.CurrentMatch.MoveNumber = broadcast.MoveNumber;
+                    _state.CurrentMatch.RedTimeRemainingMs = broadcast.RedTimeRemainingMs;
+                    _state.CurrentMatch.BlueTimeRemainingMs = broadcast.BlueTimeRemainingMs;
+                }
+            }
+            finally
+            {
+                _stateLock.ExitWriteLock();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error broadcasting board update");
+        }
+    }
+
+    /// <summary>
+    /// Processes log broadcasts from the channel (background processing)
+    /// </summary>
+    private async ValueTask ProcessLogBroadcastAsync(GameLogBroadcast broadcast)
+    {
+        try
+        {
+            // Persist to SQLite database
+            await _logService.LogAsync(broadcast.Entry);
+
+            // Broadcast to clients
+            await _hub.Clients.All.OnGameLog(new GameLogEvent
+            {
+                Timestamp = broadcast.Entry.Timestamp,
+                Level = broadcast.Entry.Level,
+                Source = broadcast.Entry.Source,
+                Message = broadcast.Entry.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing game log");
+        }
+    }
+
+    /// <summary>
     /// Stops the tournament service gracefully
     /// </summary>
     public override async Task StopAsync(CancellationToken cancellationToken)
@@ -511,6 +643,49 @@ public class TournamentManager : BackgroundService
             await Task.WhenAny(_tournamentTask, Task.Delay(5000, cancellationToken));
         }
 
+        // Dispose broadcast queues
+        _moveQueue.Dispose();
+        _boardQueue.Dispose();
+        _logQueue.Dispose();
+
         await base.StopAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Broadcast record for move events
+    /// </summary>
+    private record MoveBroadcast
+    {
+        public required string GameId { get; init; }
+        public int X { get; init; }
+        public int Y { get; init; }
+        public Player Player { get; init; }
+        public int MoveNumber { get; init; }
+        public long RedTimeRemainingMs { get; init; }
+        public long BlueTimeRemainingMs { get; init; }
+        public MoveStats? Stats { get; init; }
+    }
+
+    /// <summary>
+    /// Broadcast record for board update events
+    /// </summary>
+    private record BoardUpdateBroadcast
+    {
+        public required string GameId { get; init; }
+        public required List<BoardCell> BoardCells { get; init; }
+        public int MoveNumber { get; init; }
+        public long RedTimeRemainingMs { get; init; }
+        public long BlueTimeRemainingMs { get; init; }
+        public int LastMoveX { get; init; }
+        public int LastMoveY { get; init; }
+        public Player LastMovePlayer { get; init; }
+    }
+
+    /// <summary>
+    /// Broadcast record for log events
+    /// </summary>
+    private record GameLogBroadcast
+    {
+        public required GameLogEntry Entry { get; init; }
     }
 }

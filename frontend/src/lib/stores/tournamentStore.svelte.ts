@@ -36,19 +36,28 @@ export class TournamentStore {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private countdownInterval: ReturnType<typeof setInterval> | null = null;
+  private lastCountdownUpdate: number = 0; // Track last update time for incremental countdown
 
-  constructor() { this.countdownInterval = setInterval(() => this.updateCountdown(), 100); }
+  constructor() { this.countdownInterval = setInterval(() => this.updateCountdown(), 100); this.lastCountdownUpdate = Date.now(); }
 
   private updateCountdown(): void {
     if (!this.state.currentMatch || this.state.status !== "running") return;
     const now = Date.now();
-    // Calculate elapsed time since last move timestamp
-    const elapsed = now - this.state.currentMatch.lastMoveTimestamp;
-    const isRedTurn = this.state.currentMatch.moveNumber % 2 === 0;
-    if (isRedTurn) this.state.currentMatch.redTimeRemainingMs = Math.max(0, this.state.currentMatch.redTimeRemainingMs - elapsed);
-    else this.state.currentMatch.blueTimeRemainingMs = Math.max(0, this.state.currentMatch.blueTimeRemainingMs - elapsed);
-    // Note: Don't update lastMoveTimestamp here - it should only be updated in OnBoardUpdate
-    // This prevents race conditions with board state updates
+
+    // Calculate INCREMENTAL elapsed time since last countdown update (not total elapsed since last move)
+    // This prevents the clock from skipping numbers and desyncing
+    const incrementalElapsed = now - this.lastCountdownUpdate;
+    this.lastCountdownUpdate = now;
+
+    // Red moves on odd numbers (1, 3, 5...), so odd moveNumber means Red just moved = Blue's turn now
+    // Even moveNumber means Blue just moved = Red's turn now
+    // Subtract from the clock of the player whose turn it is (the one who needs to move)
+    const isRedTurn = this.state.currentMatch.moveNumber % 2 === 1;
+    if (isRedTurn) this.state.currentMatch.blueTimeRemainingMs = Math.max(0, this.state.currentMatch.blueTimeRemainingMs - incrementalElapsed);
+    else this.state.currentMatch.redTimeRemainingMs = Math.max(0, this.state.currentMatch.redTimeRemainingMs - incrementalElapsed);
+
+    // Note: lastMoveTimestamp is only updated in OnBoardUpdate when server sends authoritative time
+    // The server periodically syncs via OnMovePlayed to correct any drift
   }
 
   async connect(): Promise<void> {
@@ -112,6 +121,11 @@ export class TournamentStore {
     });
     this.connection.on("OnMovePlayed", (moveEvent: any) => {
       if (!this.state.currentMatch) return;
+      // Sync timestamp if OnBoardUpdate hasn't fired yet or is stale (prevents race condition)
+      const now = Date.now();
+      if (Math.abs(now - this.state.currentMatch.lastMoveTimestamp) > 2000) {
+        this.state.currentMatch.lastMoveTimestamp = now;
+      }
       // Update times from backend (authoritative time source)
       this.state.currentMatch.redTimeRemainingMs = moveEvent.redTimeRemainingMs;
       this.state.currentMatch.blueTimeRemainingMs = moveEvent.blueTimeRemainingMs;

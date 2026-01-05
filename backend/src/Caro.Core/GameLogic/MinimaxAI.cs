@@ -155,7 +155,8 @@ public class MinimaxAI
                 moveNumber,
                 candidates.Count,
                 board,
-                player
+                player,
+                difficulty
             );
         }
         else
@@ -193,28 +194,21 @@ public class MinimaxAI
             }
         }
 
-        // Use parallel search (Lazy SMP) for high difficulties (D7/VeryHard+)
-        // Provides 4-8x speedup on multi-core systems
-        if (difficulty >= AIDifficulty.VeryHard)
-        {
-            Console.WriteLine($"[AI] Using parallel search (Lazy SMP) for {difficulty} (D{baseDepth})");
-
-            // Start stopwatch for NPS calculation
-            _searchStopwatch.Restart();
-
-            var result = _parallelSearch.GetBestMoveWithStats(board, player, difficulty, timeRemainingMs, timeAlloc, moveNumber);
-
-            // Update statistics from parallel search
-            _depthAchieved = result.DepthAchieved;
-            _nodesSearched = result.NodesSearched;
-
-            _searchStopwatch.Stop();
-
-            return (result.X, result.Y);
-        }
+        // DISABLED: Parallel search (Lazy SMP) has fundamental architectural issues
+        // The current implementation with shared transposition table causes:
+        // 1. Result aggregation picking wrong moves due to thread timing differences
+        // 2. Transposition table corruption from concurrent writes
+        // 3. AI strength inversion where higher difficulties lose to lower ones
+        //
+        // TODO: Re-implement using one of these approaches:
+        // - Young Brothers Wait Concept (YBWC): Helper threads depend on master thread
+        // - Root Parallelization: Different threads search different root moves
+        // - Aspiration Windows with proper per-thread alpha/beta isolation
+        //
+        // For now, sequential search provides correct AI strength ordering.
 
         // Adjust depth based on time remaining
-        var adjustedDepth = CalculateDepthForTime(baseDepth, timeAlloc, candidates.Count);
+        var adjustedDepth = CalculateDepthForTime(baseDepth, timeAlloc, timeRemainingMs, candidates.Count);
 
         // Initialize transposition table for this search
         _transpositionTable.IncrementAge();
@@ -228,8 +222,8 @@ public class MinimaxAI
         _vcfDepthAchieved = 0;
         _searchStopwatch.Restart();
 
-        // Debug: Print depth usage for Normal, Hard, Expert, and Master to investigate balance
-        if (difficulty == AIDifficulty.Normal || difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Master || difficulty == AIDifficulty.Grandmaster)
+        // Debug: Print depth usage for high difficulties to investigate balance
+        if (difficulty == AIDifficulty.Normal || difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Master || difficulty == AIDifficulty.Grandmaster || difficulty == AIDifficulty.Legend || difficulty == AIDifficulty.Expert)
         {
             Console.WriteLine($"[AI DEBUG] {difficulty}: baseDepth={baseDepth}, adjustedDepth={adjustedDepth}, candidates={candidates.Count}, timeRemaining={(timeRemainingMs.HasValue ? $"{timeRemainingMs.Value / 1000.0:F1}s" : "N/A")}");
         }
@@ -308,42 +302,58 @@ public class MinimaxAI
 
     /// <summary>
     /// Calculate appropriate search depth based on time allocation and position complexity
-    /// Uses TimeAllocation for 7+5 time control
+    /// Uses percentage-based thresholds for 7+5 time control (420 seconds initial)
+    /// Ensures full depth is reachable at the start of the game
     /// </summary>
-    private int CalculateDepthForTime(int baseDepth, TimeAllocation timeAlloc, int candidateCount)
+    private int CalculateDepthForTime(int baseDepth, TimeAllocation timeAlloc, long? timeRemainingMs, int candidateCount)
     {
-        // Emergency mode - reduce depth significantly
+        // Emergency mode - VERY aggressive depth reduction to avoid timeout
+        // In time scramble, rely on VCF + TT move, not deep search
         if (timeAlloc.IsEmergency)
         {
-            return Math.Max(1, baseDepth - 3);
+            return Math.Max(1, baseDepth / 3); // D11 -> D3, D10 -> D3, etc.
         }
 
-        // Adjust based on time available
+        // Per-move time allocation
         var softBoundSeconds = timeAlloc.SoftBoundMs / 1000.0;
 
-        // Very tight time (< 2s)
-        if (softBoundSeconds < 2)
+        // Total time remaining (for 7+5, initial time is 420 seconds)
+        // Default to 420s if not specified (assumes 7+5 time control)
+        var totalTimeRemainingSeconds = timeRemainingMs.HasValue ? timeRemainingMs.Value / 1000.0 : 420.0;
+
+        // For 7+5 time control (420s), use percentage-based thresholds:
+        // - Full depth when > 50% time remaining (>210s)
+        // - Depth-1 when 25-50% time remaining (105-210s)
+        // - Depth-2 when 15-25% time remaining (63-105s)
+        // - Aggressive reduction when < 15% time remaining (<63s)
+
+        // Critical: less than 15% of initial time (63s for 7+5) or very tight per-move limit
+        if (softBoundSeconds < 3 || totalTimeRemainingSeconds < 60)
         {
-            return Math.Max(1, baseDepth - 2);
+            return Math.Max(2, baseDepth / 2); // D11 -> D5, D10 -> D5
         }
 
-        // Tight time (< 5s)
-        if (softBoundSeconds < 5)
+        // Low: 15-25% of initial time (63-105s for 7+5) or moderate per-move limit
+        if (softBoundSeconds < 6 || totalTimeRemainingSeconds < 105)
         {
-            return Math.Max(2, baseDepth - 1);
-        }
-
-        // Moderate time (< 10s)
-        if (softBoundSeconds < 10)
-        {
-            if (candidateCount > 20) // Complex position
+            if (candidateCount > 25) // Complex position
             {
-                return Math.Max(2, baseDepth - 1);
+                return Math.Max(3, baseDepth - 3);
             }
-            return baseDepth;
+            return Math.Max(3, baseDepth - 2); // D11 -> D9, D10 -> D8
         }
 
-        // Good time availability: use full depth
+        // Moderate: 25-50% of initial time (105-210s for 7+5)
+        if (totalTimeRemainingSeconds < 210)
+        {
+            if (candidateCount > 25) // Complex position with limited time
+            {
+                return Math.Max(4, baseDepth - 2);
+            }
+            return Math.Max(4, baseDepth - 1); // D11 -> D10, D10 -> D9
+        }
+
+        // Good time availability (>50% remaining): use full depth
         return baseDepth;
     }
 

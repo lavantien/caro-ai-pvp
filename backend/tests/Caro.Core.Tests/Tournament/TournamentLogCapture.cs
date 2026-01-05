@@ -235,7 +235,7 @@ public class TournamentLogCapture : IDisposable
     public static async Task<TournamentSnapshot> LoadSnapshotAsync(string path)
     {
         var json = await File.ReadAllTextAsync(path);
-        return JsonSerializer.Deserialize<TournamentSnapshot>(json)
+        return JsonSerializer.Deserialize<TournamentSnapshot>(json, JsonOptions)
             ?? throw new InvalidOperationException($"Failed to deserialize snapshot from {path}");
     }
 
