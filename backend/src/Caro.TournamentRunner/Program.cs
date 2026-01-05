@@ -9,6 +9,14 @@ class Program
     static void Main(string[] args)
     {
         var autoMode = args.Contains("--auto");
+        var quickTestMode = args.Contains("--test");
+
+        // Quick test mode: Run isolated matchups to verify AI strength
+        if (quickTestMode)
+        {
+            QuickTest.RunAllTests();
+            return;
+        }
 
         Console.WriteLine("╔═══════════════════════════════════════════════════════════════════╗");
         Console.WriteLine("║           CARO AI TOURNAMENT - AUTOMATED BATTLE SYSTEM              ║");

@@ -30,6 +30,10 @@ public static class TournamentScheduler
     /// Generates a full round-robin schedule where each bot plays every other bot twice
     /// (once as Red, once as Blue), with balanced match ordering so every bot plays
     /// approximately the same number of matches before any bot gets a second game.
+    ///
+    /// The schedule is randomized using Fisher-Yates shuffle with time-based seed,
+    /// ensuring different pairing orders across tournaments while maintaining
+    /// balanced play constraints.
     /// </summary>
     public static List<TournamentMatch> GenerateRoundRobinSchedule(List<AIBot> bots)
     {
@@ -62,9 +66,29 @@ public static class TournamentScheduler
             }
         }
 
+        // SHUFFLE for random starting pairing
+        // Use time-based seed for different randomization each tournament
+        var random = new Random((int)(DateTime.UtcNow.Ticks & 0xFFFFFFFF));
+        ShuffleMatches(allMatches, random);
+
         // Reorder matches for balanced play
         // Use a "round-based" approach where each bot plays at most once per round
         return ReorderMatchesForBalance(allMatches, bots.Count);
+    }
+
+    /// <summary>
+    /// Fisher-Yates shuffle for true randomization of match order.
+    /// Ensures each tournament starts with different pairings.
+    /// </summary>
+    private static void ShuffleMatches(List<TournamentMatch> matches, Random random)
+    {
+        int n = matches.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = random.Next(n + 1);
+            (matches[k], matches[n]) = (matches[n], matches[k]);
+        }
     }
 
     /// <summary>

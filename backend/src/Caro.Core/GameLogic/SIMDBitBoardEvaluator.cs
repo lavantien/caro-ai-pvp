@@ -21,6 +21,15 @@ public static class SIMDBitBoardEvaluator
     private const int CenterBonus = 50;
 
     /// <summary>
+    /// Defense multiplier for asymmetric scoring.
+    /// In Caro, blocking opponent threats is MORE important than creating your own.
+    /// This multiplier ensures opponent threats are weighted 2.2x higher than equivalent player threats.
+    /// Rationale: In Blitz (3+2), safer to be "paranoid" and block early than miss a VCF.
+    /// Effect: Opponent Open 4 = -22,000, My Open 4 = +10,000 -> AI prioritizes blocking.
+    /// </summary>
+    private const float DefenseMultiplier = 2.2f;
+
+    /// <summary>
     /// Platform capability detection
     /// </summary>
     public static readonly bool SupportsHardwarePOPCNT = true; // .NET uses hardware POPCNT on x64/ARM64
@@ -61,11 +70,17 @@ public static class SIMDBitBoardEvaluator
         score += EvaluateDiagonalOptimized(p0, p1, p2, p3, occ0, occ1, occ2, occ3, true);  // Main diagonal
         score += EvaluateDiagonalOptimized(p0, p1, p2, p3, occ0, occ1, occ2, occ3, false); // Anti-diagonal
 
-        // Subtract opponent's score
-        score -= EvaluateHorizontalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3);
-        score -= EvaluateVerticalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3);
-        score -= EvaluateDiagonalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3, true);
-        score -= EvaluateDiagonalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3, false);
+        // Subtract opponent's score with DefenseMultiplier (asymmetric scoring)
+        // In Caro, blocking opponent threats is MORE important than creating your own attacks
+        var oppHorizontal = EvaluateHorizontalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3);
+        var oppVertical = EvaluateVerticalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3);
+        var oppDiagMain = EvaluateDiagonalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3, true);
+        var oppDiagAnti = EvaluateDiagonalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3, false);
+
+        score -= (int)(oppHorizontal * DefenseMultiplier);
+        score -= (int)(oppVertical * DefenseMultiplier);
+        score -= (int)(oppDiagMain * DefenseMultiplier);
+        score -= (int)(oppDiagAnti * DefenseMultiplier);
 
         // Add center control bonus
         score += EvaluateCenterControlOptimized(p0, p1, p2, p3);
@@ -133,11 +148,13 @@ public static class SIMDBitBoardEvaluator
             ulong mask = 0x1FUL << i;
             if ((row & mask) == mask)
             {
-                // Check for sandwich (OXXXXXO) - should NOT count as win
+                // Check for sandwich (OXXXXXO) - should NOT count as win in Caro
                 bool leftBlocked = (i > 0) && ((rowOcc & (1UL << (i - 1))) != 0);
                 bool rightBlocked = (i < 10) && ((rowOcc & (1UL << (i + 5))) != 0);
 
-                if (!leftBlocked || !rightBlocked)
+                // Only count as win if NOT sandwiched (at least one end is open)
+                bool isSandwiched = leftBlocked && rightBlocked;
+                if (!isSandwiched)
                 {
                     score += FiveInRowScore;
                 }
@@ -251,6 +268,8 @@ public static class SIMDBitBoardEvaluator
 
     /// <summary>
     /// Optimized diagonal evaluation
+    /// CRITICAL FIX: Use counted array to avoid counting the same run multiple times
+    /// A run of N stones was being counted N times, massively inflating scores
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int EvaluateDiagonalOptimized(
@@ -265,15 +284,30 @@ public static class SIMDBitBoardEvaluator
         int dx = 1;
         int dy = mainDiagonal ? 1 : -1;
 
+        // CRITICAL: Track counted stones to avoid counting the same run multiple times
+        // Without this, a run of N stones would be counted N times, massively inflating scores
+        var counted = new bool[15, 15];
+
         // Scan all starting positions
         for (int x = 0; x < 15; x++)
         {
             for (int y = 0; y < 15; y++)
             {
-                if (!playerBoard.GetBit(x, y)) continue;
+                if (!playerBoard.GetBit(x, y) || counted[x, y]) continue;
 
                 var count = BitBoardEvaluator.CountConsecutiveBoth(playerBoard, x, y, dx, dy);
                 if (count < 2) continue;
+
+                // Mark all stones in this run as counted
+                var cx = x;
+                var cy = y;
+                for (int i = 0; i < count; i++)
+                {
+                    if (cx >= 0 && cx < 15 && cy >= 0 && cy < 15)
+                        counted[cx, cy] = true;
+                    cx += dx;
+                    cy += dy;
+                }
 
                 var openEnds = BitBoardEvaluator.CountOpenEnds(playerBoard, occupied, x, y, dx, dy, count);
 
@@ -428,9 +462,89 @@ public static class SIMDBitBoardEvaluator
 
             if (count == 3 && openEnds == 2) blocked += 4; // Blocking open three is valuable
             if (count == 4 && openEnds > 0) blocked += 10; // Blocking four is critical
+
+            // CRITICAL FIX: Also check for broken four patterns (__xx_x__) that would become five if not blocked
+            // If placing at (x, y) creates/extends opponent's pattern to 4 with a gap, must block
+            var brokenFourCount = CountBrokenFourPatterns(opponentBoard, occupied, x, y, dx, dy);
+            if (brokenFourCount > 0) blocked += brokenFourCount * 15; // High priority - broken four is almost as bad as open four
         }
 
         return blocked;
+    }
+
+    /// <summary>
+    /// Detects broken four patterns (__xx_x__) where opponent has 4 stones with a gap
+    /// If the gap is filled, it becomes 5-in-a-row (a win). Must block!
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int CountBrokenFourPatterns(BitBoard opponentBoard, BitBoard occupied, int x, int y, int dx, int dy)
+    {
+        int blockedPatterns = 0;
+
+        // Check all pattern variations centered around (x, y)
+        // Pattern 1: __XX_X (gap after 2 stones) - opponent would win if they fill the gap
+        // Pattern 2: X__XX (gap before last 2 stones)
+        // Pattern 3: X_X__X (middle gap)
+        // etc.
+
+        // We simulate: what if opponent plays at (x, y)? Would they have 4 stones with potential to win?
+        // Check up to 4 cells in each direction to see the full pattern
+
+        // Look for patterns where opponent has stones that would form 4 with this gap filled
+        int totalStones = 0;
+        int gapCount = 0;
+
+        // Check positive direction (dx, dy)
+        for (int i = 1; i <= 4; i++)
+        {
+            int nx = x + dx * i;
+            int ny = y + dy * i;
+            if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break; // Out of bounds
+
+            if (opponentBoard.GetBit(nx, ny))
+            {
+                totalStones++;
+            }
+            else if (!occupied.GetBit(nx, ny))
+            {
+                gapCount++;
+            }
+            else
+            {
+                break; // Blocked by current player
+            }
+        }
+
+        // Check negative direction (-dx, -dy)
+        for (int i = 1; i <= 4; i++)
+        {
+            int nx = x - dx * i;
+            int ny = y - dy * i;
+            if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break; // Out of bounds
+
+            if (opponentBoard.GetBit(nx, ny))
+            {
+                totalStones++;
+            }
+            else if (!occupied.GetBit(nx, ny))
+            {
+                gapCount++;
+            }
+            else
+            {
+                break; // Blocked by current player
+            }
+        }
+
+        // If opponent would have 4 stones (including this gap position) with few gaps, it's a threat
+        // A broken four like __XX_X__ has 4 stones + 1 gap + 2 empty = 7 positions
+        if (totalStones >= 3 && gapCount <= 3)
+        {
+            // This looks like a broken four pattern
+            blockedPatterns++;
+        }
+
+        return blockedPatterns;
     }
 
     /// <summary>

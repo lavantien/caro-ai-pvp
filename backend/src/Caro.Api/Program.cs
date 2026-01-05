@@ -4,6 +4,7 @@ using Caro.Core.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Concurrent;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,32 +48,28 @@ app.UseCors();
 // Map SignalR hub
 app.MapHub<TournamentHub>("/hubs/tournament");
 
-// In-memory game storage (for prototype)
-var games = new Dictionary<string, GameState>();
-var gamesLock = new object();
+// In-memory game storage with per-game locks (concurrent-safe)
+// Using ConcurrentDictionary eliminates the need for a global lock
+var games = new ConcurrentDictionary<string, GameSession>();
 
 // POST /api/game/new - Create new game
 app.MapPost("/api/game/new", () =>
 {
     var gameId = Guid.NewGuid().ToString();
-    var game = new GameState();
+    var session = new GameSession();
+    games[gameId] = session;
 
-    lock (gamesLock)
-    {
-        games[gameId] = game;
-    }
-
-    return Results.Ok(new { gameId, state = MapToResponse(game) });
+    return Results.Ok(new { gameId, state = session.GetResponse() });
 });
 
 // POST /api/game/{id}/move - Make a move
 app.MapPost("/api/game/{id}/move", (string id, MoveRequest request) =>
 {
-    lock (gamesLock)
-    {
-        if (!games.TryGetValue(id, out var game))
-            return Results.NotFound("Game not found");
+    if (!games.TryGetValue(id, out var session))
+        return Results.NotFound("Game not found");
 
+    return session.ExecuteUnderLock(game =>
+    {
         if (game.IsGameOver)
             return Results.BadRequest("Game is over");
 
@@ -95,7 +92,7 @@ app.MapPost("/api/game/{id}/move", (string id, MoveRequest request) =>
                 game.EndGame(result.Winner, result.WinningLine);
             }
 
-            return Results.Ok(new { state = MapToResponse(game) });
+            return Results.Ok(new { state = session.GetResponse() });
         }
         catch (ArgumentOutOfRangeException)
         {
@@ -105,74 +102,81 @@ app.MapPost("/api/game/{id}/move", (string id, MoveRequest request) =>
         {
             return Results.BadRequest("Cell already occupied");
         }
-    }
+    });
 });
 
 // POST /api/game/{id}/undo - Undo last move
 app.MapPost("/api/game/{id}/undo", (string id) =>
 {
-    lock (gamesLock)
-    {
-        if (!games.TryGetValue(id, out var game))
-            return Results.NotFound("Game not found");
+    if (!games.TryGetValue(id, out var session))
+        return Results.NotFound("Game not found");
 
+    return session.ExecuteUnderLock(game =>
+    {
         try
         {
             var board = game.Board;
             game.UndoMove(board);
 
-            return Results.Ok(new { state = MapToResponse(game) });
+            return Results.Ok(new { state = session.GetResponse() });
         }
         catch (InvalidOperationException ex)
         {
             return Results.BadRequest(ex.Message);
         }
-    }
+    });
 });
 
 // POST /api/game/{id}/ai-move - Get AI move and make it
+// AI calculation is performed OUTSIDE the lock using a cloned board
+// This prevents blocking other game requests during AI thinking time
 app.MapPost("/api/game/{id}/ai-move", (string id, AIMoveRequest request) =>
 {
-    lock (gamesLock)
+    if (!games.TryGetValue(id, out var session))
+        return Results.NotFound("Game not found");
+
+    // Step 1: Extract game data under lock (minimal lock time)
+    var (boardClone, currentPlayer, isGameOver) = session.ExtractForAI();
+
+    if (isGameOver)
+        return Results.BadRequest("Game is over");
+
+    // Step 2: Parse difficulty
+    if (!Enum.TryParse<AIDifficulty>(request.Difficulty, true, out var difficulty))
     {
-        if (!games.TryGetValue(id, out var game))
-            return Results.NotFound("Game not found");
+        return Results.BadRequest("Invalid difficulty. Use: Easy, Medium, Hard, or Expert");
+    }
 
+    // Step 3: AI calculation OUTSIDE lock (can take seconds without blocking other games)
+    var ai = new MinimaxAI();
+    var (x, y) = ai.GetBestMove(boardClone, currentPlayer, difficulty);
+
+    // Step 4: Validate and apply the move under lock
+    return session.ExecuteUnderLock(game =>
+    {
+        // Double-check game didn't end while we were calculating
         if (game.IsGameOver)
-            return Results.BadRequest("Game is over");
+            return Results.BadRequest("Game ended while AI was thinking");
 
-        var board = game.Board;
-
-        // Parse difficulty
-        if (!Enum.TryParse<AIDifficulty>(request.Difficulty, true, out var difficulty))
-        {
-            return Results.BadRequest("Invalid difficulty. Use: Easy, Medium, Hard, or Expert");
-        }
-
-        // Get AI move
-        var ai = new MinimaxAI();
-        var (x, y) = ai.GetBestMove(board, game.CurrentPlayer, difficulty);
-
-        // Validate and apply the move
         var validator = new OpenRuleValidator();
 
-        if (!validator.IsValidSecondMove(board, x, y))
+        if (!validator.IsValidSecondMove(game.Board, x, y))
             return Results.BadRequest("AI move violates Open Rule");
 
         try
         {
-            game.RecordMove(board, x, y);
+            game.RecordMove(game.Board, x, y);
             game.ApplyTimeIncrement();
 
             var detector = new WinDetector();
-            var result = detector.CheckWin(board);
+            var result = detector.CheckWin(game.Board);
 
             if (result.HasWinner)
             {
                 game.EndGame(result.Winner, result.WinningLine);
             }
 
-            return Results.Ok(new { state = MapToResponse(game) });
+            return Results.Ok(new { state = session.GetResponse() });
         }
         catch (ArgumentOutOfRangeException)
         {
@@ -182,19 +186,16 @@ app.MapPost("/api/game/{id}/ai-move", (string id, AIMoveRequest request) =>
         {
             return Results.BadRequest("AI tried to occupy already occupied cell");
         }
-    }
+    });
 });
 
 // GET /api/game/{id} - Get game state
 app.MapGet("/api/game/{id}", (string id) =>
 {
-    lock (gamesLock)
-    {
-        if (!games.TryGetValue(id, out var game))
-            return Results.NotFound("Game not found");
+    if (!games.TryGetValue(id, out var session))
+        return Results.NotFound("Game not found");
 
-        return Results.Ok(new { state = MapToResponse(game) });
-    }
+    return Results.Ok(new { state = session.GetResponse() });
 });
 
 // ==================== Tournament API Endpoints ====================
@@ -234,25 +235,82 @@ app.MapPost("/api/tournament/resume", async ([FromServices] TournamentManager ma
 
 app.Run();
 
-static object MapToResponse(GameState game) => new
+/// <summary>
+/// Thread-safe game session with per-game locking.
+/// Each game has its own lock, allowing concurrent games to proceed independently.
+/// This eliminates the global lock bottleneck in the original implementation.
+/// </summary>
+public sealed class GameSession
 {
-    board = from x in Enumerable.Range(0, 15)
-            from y in Enumerable.Range(0, 15)
-            let cell = game.Board.GetCell(x, y)
-            select new
+    private readonly object _lock = new();
+    private GameState _game = new();
+
+    /// <summary>
+    /// Executes an action under the per-game lock.
+    /// Returns the result of the action.
+    /// </summary>
+    public TResult ExecuteUnderLock<TResult>(Func<GameState, TResult> action)
+    {
+        lock (_lock)
+        {
+            return action(_game);
+        }
+    }
+
+    /// <summary>
+    /// Executes an action under the per-game lock.
+    /// </summary>
+    public void ExecuteUnderLock(Action<GameState> action)
+    {
+        lock (_lock)
+        {
+            action(_game);
+        }
+    }
+
+    /// <summary>
+    /// Extracts data needed for AI calculation WITHOUT holding the lock.
+    /// Returns a cloned board so AI can compute without blocking other requests.
+    /// </summary>
+    public (Board BoardClone, Player CurrentPlayer, bool IsGameOver) ExtractForAI()
+    {
+        lock (_lock)
+        {
+            // Clone the board to allow AI calculation outside the lock
+            return (_game.Board.Clone(), _game.CurrentPlayer, _game.IsGameOver);
+        }
+    }
+
+    /// <summary>
+    /// Gets the current game state as a response object (under lock)
+    /// </summary>
+    public object GetResponse()
+    {
+        lock (_lock)
+        {
+            var game = _game;
+            return new
             {
-                x,
-                y,
-                player = cell.Player.ToString().ToLower()
-            },
-    currentPlayer = game.CurrentPlayer.ToString().ToLower(),
-    moveNumber = game.MoveNumber,
-    isGameOver = game.IsGameOver,
-    winner = game.Winner.ToString().ToLower(),
-    winningLine = game.WinningLine.Select(p => new { x = p.X, y = p.Y }),
-    redTimeRemaining = game.RedTimeRemaining.TotalSeconds,
-    blueTimeRemaining = game.BlueTimeRemaining.TotalSeconds
-};
+                board = from x in Enumerable.Range(0, 15)
+                        from y in Enumerable.Range(0, 15)
+                        let cell = game.Board.GetCell(x, y)
+                        select new
+                        {
+                            x,
+                            y,
+                            player = cell.Player.ToString().ToLower()
+                        },
+                currentPlayer = game.CurrentPlayer.ToString().ToLower(),
+                moveNumber = game.MoveNumber,
+                isGameOver = game.IsGameOver,
+                winner = game.Winner.ToString().ToLower(),
+                winningLine = game.WinningLine.Select(p => new { x = p.X, y = p.Y }),
+                redTimeRemaining = game.RedTimeRemaining.TotalSeconds,
+                blueTimeRemaining = game.BlueTimeRemaining.TotalSeconds
+            };
+        }
+    }
+}
 
 record MoveRequest(int X, int Y);
 record AIMoveRequest(string Difficulty);

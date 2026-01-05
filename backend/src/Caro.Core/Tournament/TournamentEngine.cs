@@ -106,7 +106,8 @@ public class TournamentEngine
             // Time the AI move
             var moveStopwatch = Stopwatch.StartNew();
             var (x, y) = _ai.GetBestMove(board, currentPlayer, difficulty,
-                isRed ? redTimeRemainingMs : blueTimeRemainingMs, moveNumber: moveNumber);
+                isRed ? redTimeRemainingMs : blueTimeRemainingMs, moveNumber: moveNumber,
+                ponderingEnabled: ponderingEnabled);
             moveStopwatch.Stop();
 
             // Validate move (single source of truth for all move validation)

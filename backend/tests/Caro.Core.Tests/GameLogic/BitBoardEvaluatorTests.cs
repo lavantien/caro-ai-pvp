@@ -172,8 +172,10 @@ public class BitBoardEvaluatorTests
         var blueScore = BitBoardEvaluator.Evaluate(board, Player.Blue);
 
         // Assert
-        redScore.Should().BePositive("Red should have positive score from Red's perspective");
-        blueScore.Should().BePositive("Blue should have positive score from Blue's perspective");
+        // With asymmetric scoring (2.2x defense multiplier), both scores are negative
+        // because opponent's threat (3-in-row) is weighted higher than own threat
+        redScore.Should().BeNegative("Red sees Blue's 3-in-row as 2.2x threat vs own 1x, so net negative");
+        blueScore.Should().BeNegative("Blue sees Red's 3-in-row as 2.2x threat vs own 1x, so net negative");
 
         // Red score and Blue score should be roughly equal (symmetric position)
         var diff = Math.Abs(redScore - blueScore);

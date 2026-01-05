@@ -18,6 +18,15 @@ public static class BitBoardEvaluator
     private const int OpenTwoScore = 100;
     private const int CenterBonus = 50;
 
+    /// <summary>
+    /// Defense multiplier for asymmetric scoring.
+    /// In Caro, blocking opponent threats is MORE important than creating your own.
+    /// This multiplier ensures opponent threats are weighted 2.2x higher than equivalent player threats.
+    /// Rationale: In Blitz (3+2), safer to be "paranoid" and block early than miss a VCF.
+    /// Effect: Opponent Open 4 = -22,000, My Open 4 = +10,000 -> AI prioritizes blocking.
+    /// </summary>
+    private const float DefenseMultiplier = 2.2f;
+
     // Direction vectors: horizontal, vertical, 2 diagonals
     private static readonly (int dx, int dy)[] Directions = new[]
     {
@@ -58,11 +67,17 @@ public static class BitBoardEvaluator
         score += EvaluateDirection(playerBoard, occupied, 1, 1);   // Diagonal
         score += EvaluateDirection(playerBoard, occupied, 1, -1);  // Anti-diagonal
 
-        // Subtract opponent's threats
-        score -= EvaluateDirection(opponentBoard, occupied, 1, 0);
-        score -= EvaluateDirection(opponentBoard, occupied, 0, 1);
-        score -= EvaluateDirection(opponentBoard, occupied, 1, 1);
-        score -= EvaluateDirection(opponentBoard, occupied, 1, -1);
+        // Subtract opponent's threats with DefenseMultiplier (asymmetric scoring)
+        // In Caro, blocking opponent threats is MORE important than creating your own attacks
+        var oppHorizontal = EvaluateDirection(opponentBoard, occupied, 1, 0);
+        var oppVertical = EvaluateDirection(opponentBoard, occupied, 0, 1);
+        var oppDiagonal = EvaluateDirection(opponentBoard, occupied, 1, 1);
+        var oppAntiDiagonal = EvaluateDirection(opponentBoard, occupied, 1, -1);
+
+        score -= (int)(oppHorizontal * DefenseMultiplier);
+        score -= (int)(oppVertical * DefenseMultiplier);
+        score -= (int)(oppDiagonal * DefenseMultiplier);
+        score -= (int)(oppAntiDiagonal * DefenseMultiplier);
 
         // Add center control bonus
         score += EvaluateCenterControl(playerBoard);

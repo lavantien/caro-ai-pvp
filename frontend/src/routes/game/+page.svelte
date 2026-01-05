@@ -379,12 +379,14 @@
 				player="red"
 				timeRemaining={redTime}
 				isActive={store.currentPlayer === 'red' && !store.isGameOver}
-				onTimeOut={() => handleTimeOut('red')} />
+				onTimeOut={() => handleTimeOut('red')}
+				gameId={gameId} />
 			<Timer
 				player="blue"
 				timeRemaining={blueTime}
 				isActive={store.currentPlayer === 'blue' && !store.isGameOver}
-				onTimeOut={() => handleTimeOut('blue')} />
+				onTimeOut={() => handleTimeOut('blue')}
+				gameId={gameId} />
 		</div>
 
 		<div class="mb-4 text-center">
