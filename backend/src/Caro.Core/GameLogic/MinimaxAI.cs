@@ -179,13 +179,17 @@ public class MinimaxAI
         }
 
         // CRITICAL DEFENSE: Check if opponent has immediate winning threat
+        // Only apply at higher difficulties (D7+) to avoid giving lower AIs free knowledge
         // This takes priority over everything - even VCF search
         // If opponent has four in a row (or open three), we must block immediately
-        var criticalDefense = FindCriticalDefense(board, player);
-        if (criticalDefense.HasValue)
+        if (difficulty >= AIDifficulty.Hard)
         {
-            var (blockX, blockY) = criticalDefense.Value;
-            return (blockX, blockY);
+            var criticalDefense = FindCriticalDefense(board, player);
+            if (criticalDefense.HasValue)
+            {
+                var (blockX, blockY) = criticalDefense.Value;
+                return (blockX, blockY);
+            }
         }
 
         // Try VCF (Victory by Continuous Four) search first for higher difficulties
@@ -1050,6 +1054,9 @@ public class MinimaxAI
         ClearHistory();
         _transpositionTable.Clear();
         ResetPondering();
+
+        // Reset inferred initial time for adaptive thresholds
+        _inferredInitialTimeMs = 420000;  // Default to 7+5
 
         // Clear killer moves
         for (int d = 0; d < 20; d++)
