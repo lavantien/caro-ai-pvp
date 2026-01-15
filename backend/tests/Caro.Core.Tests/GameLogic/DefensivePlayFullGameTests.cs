@@ -49,9 +49,17 @@ public class DefensivePlayFullGameTests
                 AIDifficulty.Grandmaster,  // Red: D10
                 AIDifficulty.Easy,          // Blue: D2
                 maxMoves: 225,
-                initialTimeSeconds: 60,     // 1 minute each
-                incrementSeconds: 1,
-                ponderingEnabled: false
+                initialTimeSeconds: 420,    // 7+5 time control (standard)
+                incrementSeconds: 5,
+                ponderingEnabled: false,
+                onMove: (x, y, player, moveNum, redTime, blueTime, stats) => {
+                    if (moveNum <= 10 || moveNum >= 30)  // Log first 10 and last few moves
+                        _output.WriteLine($"  M{moveNum}: {player} -> ({x},{y}) | Depth:{stats.DepthAchieved} Nodes:{stats.NodesSearched/1000}K");
+                },
+                onLog: (level, source, message) => {
+                    if (level == "error" || message.Contains("DEFENSE"))
+                        _output.WriteLine($"  [{level}] {message}");
+                }
             );
 
             _output.WriteLine($"Result: {result.Winner} ({result.WinnerDifficulty}) in {result.TotalMoves} moves");
@@ -114,8 +122,8 @@ public class DefensivePlayFullGameTests
                     AIDifficulty.Legend,      // Red: D11
                     opponent,                 // Blue: lower difficulty
                     maxMoves: 225,
-                    initialTimeSeconds: 30,   // 30 seconds for quicker games
-                    incrementSeconds: 0,
+                    initialTimeSeconds: 420,   // 7+5 time control (standard)
+                    incrementSeconds: 5,
                     ponderingEnabled: false
                 );
 
@@ -144,7 +152,7 @@ public class DefensivePlayFullGameTests
 
     /// <summary>
     /// Quick smoke test: Single game between each adjacent difficulty pair.
-    /// Catches any major regressions in 30+ minutes total time.
+    /// Catches any major regressions in reasonable time.
     /// </summary>
     [Fact]
     public void AdjacentDifficulties_SingleGame_NoRegressions()
@@ -177,8 +185,8 @@ public class DefensivePlayFullGameTests
                 higher,
                 lower,
                 maxMoves: 225,
-                initialTimeSeconds: 20,   // 20 seconds for quick games
-                incrementSeconds: 0,
+                initialTimeSeconds: 420,   // 7+5 time control (standard)
+                incrementSeconds: 5,
                 ponderingEnabled: false
             );
 

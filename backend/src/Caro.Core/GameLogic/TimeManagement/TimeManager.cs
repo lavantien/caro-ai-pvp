@@ -17,6 +17,9 @@ public sealed class TimeManager
 {
     private readonly ThreatDetector _threatDetector = new();
 
+    // Track initial time for adaptive thresholds
+    private long _inferredInitialTimeMs = 420000;  // Default to 7 minutes
+
     // For high difficulties (D10-D11), we allocate more time per move to reach full depth
     // Balance: 420s total / ~20-25 moves = ~15-20s per move average
     private static readonly Dictionary<AIDifficulty, double> DifficultyTimeMultipliers = new()
@@ -37,6 +40,7 @@ public sealed class TimeManager
     /// <param name="board">Current board position</param>
     /// <param name="player">Player to move</param>
     /// <param name="difficulty">AI difficulty level (affects time allocation)</param>
+    /// <param name="initialTimeSeconds">Initial time control in seconds (for adaptive thresholds)</param>
     /// <returns>Time allocation with soft/hard bounds and game phase info</returns>
     public TimeAllocation CalculateMoveTime(
         long timeRemainingMs,
@@ -44,11 +48,19 @@ public sealed class TimeManager
         int candidateCount,
         Board board,
         Player player,
-        AIDifficulty difficulty = AIDifficulty.Harder)
+        AIDifficulty difficulty = AIDifficulty.Harder,
+        int initialTimeSeconds = 420)  // Default to 7+5, but tests may use different time controls
     {
         // Validate inputs
         if (timeRemainingMs <= 0)
             return GetEmergencyAllocation(timeRemainingMs);
+
+        // Infer initial time on first move (move 1-3)
+        // Assume timeRemainingMs ≈ initial time at game start
+        if (moveNumber <= 3 && timeRemainingMs > _inferredInitialTimeMs * 0.9)
+        {
+            _inferredInitialTimeMs = timeRemainingMs;
+        }
 
         // Determine game phase
         var phase = DetermineGamePhase(moveNumber);
@@ -57,7 +69,9 @@ public sealed class TimeManager
         int movesToEnd = GetMovesToGameEnd(phase, moveNumber);
 
         // Check for emergency mode FIRST (before any calculations)
-        bool isEmergency = ShouldUsePanicMode(timeRemainingMs, movesToEnd);
+        // Use adaptive threshold: 10% of initial time, or 10s minimum (for 7+5)
+        long adaptiveEmergencyThreshold = Math.Max(10000, _inferredInitialTimeMs / 10);
+        bool isEmergency = ShouldUsePanicMode(timeRemainingMs, movesToEnd, adaptiveEmergencyThreshold);
         if (isEmergency)
         {
             return GetEmergencyAllocation(timeRemainingMs, phase);
@@ -81,8 +95,21 @@ public sealed class TimeManager
         long maxAllocatableMs = Math.Max(0, timeRemainingMs - TimeControl.MinimumReserveMs);
         long softBoundMs = (long)Math.Clamp(adjustedTimeMs, 500, maxAllocatableMs);
 
-        // Hard bound: soft bound × 1.5, but respect max allocatable and add at least 1s
-        long hardBoundMs = (long)Math.Clamp(softBoundMs * 1.5, softBoundMs + 1000, maxAllocatableMs);
+        // Hard bound: soft bound × 1.5, but ensure min ≤ max to avoid Math.Clamp exception
+        // When time is tight (softBoundMs + 1000 would exceed max), we can't add the full 1s buffer
+        long minHardBoundMs = Math.Min(softBoundMs + 1000, maxAllocatableMs);
+        long desiredHardBoundMs = (long)(softBoundMs * 1.5);
+
+        // If min equals max (edge case: very low on time), use max directly
+        long hardBoundMs;
+        if (minHardBoundMs >= maxAllocatableMs)
+        {
+            hardBoundMs = maxAllocatableMs;
+        }
+        else
+        {
+            hardBoundMs = (long)Math.Clamp(desiredHardBoundMs, minHardBoundMs, maxAllocatableMs);
+        }
 
         // Optimal time: 80% of soft bound
         long optimalTimeMs = softBoundMs * 8 / 10;
@@ -185,12 +212,12 @@ public sealed class TimeManager
 
     /// <summary>
     /// Check if panic mode should be activated
-    /// Panic when: < 10 seconds OR < 1s per move remaining
+    /// Panic when: < adaptive threshold (10% of initial time, or 10s minimum) OR < 1s per move remaining
     /// </summary>
-    private static bool ShouldUsePanicMode(long timeRemainingMs, int movesEstimate)
+    private static bool ShouldUsePanicMode(long timeRemainingMs, int movesEstimate, long emergencyThresholdMs)
     {
-        // Hard threshold: less than 10 seconds
-        if (timeRemainingMs < TimeControl.EmergencyThresholdMs)
+        // Hard threshold: less than emergency threshold (adaptive based on time control)
+        if (timeRemainingMs < emergencyThresholdMs)
             return true;
 
         // Per-move threshold: less than 1 second per move
