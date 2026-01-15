@@ -175,6 +175,17 @@ public class MinimaxAI
             }
         }
 
+        // CRITICAL DEFENSE: Check if opponent has immediate winning threat
+        // This takes priority over everything - even VCF search
+        // If opponent has four in a row (or open three), we must block immediately
+        var criticalDefense = FindCriticalDefense(board, player);
+        if (criticalDefense.HasValue)
+        {
+            var (blockX, blockY) = criticalDefense.Value;
+            Console.WriteLine($"[AI DEFENSE] Critical threat detected! Blocking at ({blockX}, {blockY})");
+            return (blockX, blockY);
+        }
+
         // Try VCF (Victory by Continuous Four) search first for higher difficulties
         // VCF is much faster than full minimax for tactical positions
         if (difficulty >= AIDifficulty.Hard)
@@ -443,6 +454,144 @@ public class MinimaxAI
                     return cachedMove;
                 }
             }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Check if opponent has an immediate winning move that must be blocked
+    /// This is a critical defensive check that runs before any search
+    /// Returns the blocking position if found, null otherwise
+    /// </summary>
+    private (int x, int y)? FindCriticalDefense(Board board, Player player)
+    {
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var opponentBoard = board.GetBitBoard(opponent);
+        var occupied = board.GetBitBoard(player) | opponentBoard;
+
+        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
+
+        // Use a HashSet to track positions we've already checked (avoid duplicates)
+        var criticalMoves = new HashSet<(int x, int y)>();
+
+        // Check each opponent stone for threats
+        for (int x = 0; x < BitBoard.Size; x++)
+        {
+            for (int y = 0; y < BitBoard.Size; y++)
+            {
+                if (!opponentBoard.GetBit(x, y))
+                    continue;
+
+                foreach (var (dx, dy) in directions)
+                {
+                    // Count consecutive opponent stones in this direction
+                    var count = BitBoardEvaluator.CountConsecutiveBoth(opponentBoard, x, y, dx, dy);
+
+                    // Four in a row - CRITICAL! Must block immediately
+                    if (count == 4)
+                    {
+                        var openEnds = BitBoardEvaluator.CountOpenEnds(opponentBoard, occupied, x, y, dx, dy, count);
+
+                        if (openEnds >= 1)
+                        {
+                            // Find the sequence start and end
+                            var startX = x;
+                            var startY = y;
+
+                            // Find the start of the sequence
+                            while (startX - dx >= 0 && startX - dx < BitBoard.Size &&
+                                   startY - dy >= 0 && startY - dy < BitBoard.Size &&
+                                   opponentBoard.GetBit(startX - dx, startY - dy))
+                            {
+                                startX -= dx;
+                                startY -= dy;
+                            }
+
+                            var endX = startX + dx * 3;
+                            var endY = startY + dy * 3;
+
+                            // Check positive end (after the sequence)
+                            if (endX + dx >= 0 && endX + dx < BitBoard.Size &&
+                                endY + dy >= 0 && endY + dy < BitBoard.Size &&
+                                !occupied.GetBit(endX + dx, endY + dy))
+                            {
+                                criticalMoves.Add((endX + dx, endY + dy));
+                            }
+
+                            // Check negative end (before the sequence)
+                            if (startX - dx >= 0 && startX - dx < BitBoard.Size &&
+                                startY - dy >= 0 && startY - dy < BitBoard.Size &&
+                                !occupied.GetBit(startX - dx, startY - dy))
+                            {
+                                criticalMoves.Add((startX - dx, startY - dy));
+                            }
+                        }
+                    }
+
+                    // Open three (three in a row with both ends open) - also critical
+                    // Opponent can create four in a row on their next turn
+                    if (count == 3)
+                    {
+                        var openEnds = BitBoardEvaluator.CountOpenEnds(opponentBoard, occupied, x, y, dx, dy, count);
+
+                        if (openEnds == 2)
+                        {
+                            // Find the sequence start and end
+                            var startX = x;
+                            var startY = y;
+
+                            while (startX - dx >= 0 && startX - dx < BitBoard.Size &&
+                                   startY - dy >= 0 && startY - dy < BitBoard.Size &&
+                                   opponentBoard.GetBit(startX - dx, startY - dy))
+                            {
+                                startX -= dx;
+                                startY -= dy;
+                            }
+
+                            var endX = startX + dx * 2;
+                            var endY = startY + dy * 2;
+
+                            // Block one end - prioritize based on board position (center is better)
+                            if (startX - dx >= 0 && startX - dx < BitBoard.Size &&
+                                startY - dy >= 0 && startY - dy < BitBoard.Size &&
+                                !occupied.GetBit(startX - dx, startY - dy))
+                            {
+                                criticalMoves.Add((startX - dx, startY - dy));
+                            }
+
+                            if (endX + dx >= 0 && endX + dx < BitBoard.Size &&
+                                endY + dy >= 0 && endY + dy < BitBoard.Size &&
+                                !occupied.GetBit(endX + dx, endY + dy))
+                            {
+                                criticalMoves.Add((endX + dx, endY + dy));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Return the highest priority critical move
+        // For four in a row, any blocking move works - return first found
+        // For open three, prefer center positions
+        if (criticalMoves.Count > 0)
+        {
+            // Prefer moves closer to center (7, 7)
+            var bestMove = criticalMoves.First();
+            var bestDistance = Math.Abs(bestMove.x - 7) + Math.Abs(bestMove.y - 7);
+
+            foreach (var move in criticalMoves)
+            {
+                var distance = Math.Abs(move.x - 7) + Math.Abs(move.y - 7);
+                if (distance < bestDistance)
+                {
+                    bestMove = move;
+                    bestDistance = distance;
+                }
+            }
+
+            return bestMove;
         }
 
         return null;
