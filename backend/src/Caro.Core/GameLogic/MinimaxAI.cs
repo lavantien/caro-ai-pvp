@@ -19,7 +19,6 @@ public class MinimaxAI
     private readonly TranspositionTable _transpositionTable = new();
     private readonly WinDetector _winDetector = new();
     private readonly ThreatSpaceSearch _vcfSolver = new();
-    private readonly ThreatDetector _threatDetector = new();
     private readonly OpeningBook _openingBook = new();
 
     // Time management for 7+5 time control
@@ -209,19 +208,6 @@ public class MinimaxAI
                 // VCF found a forced win sequence - use it immediately
                 Console.WriteLine($"[AI VCF] Found winning move ({vcfResult.BestMove.Value.x}, {vcfResult.BestMove.Value.y}), depth: {vcfResult.DepthAchieved}, nodes: {vcfResult.NodesSearched}");
                 return vcfResult.BestMove.Value;
-            }
-        }
-
-        // EMERGENCY TACTICAL MODE for D7+: Use threat-based scoring instead of shallow minimax
-        // In time scramble, D7+ should play smarter tactical moves, not just depth-2 search like D2
-        if (timeAlloc.IsEmergency && difficulty >= AIDifficulty.Hard)
-        {
-            var tacticalMove = GetTacticalBestMove(board, player, candidates);
-            if (tacticalMove.HasValue)
-            {
-                var (tx, ty) = tacticalMove.Value;
-                Console.WriteLine($"[AI TACTICAL] Emergency mode: Using tactical evaluation at ({tx}, {ty})");
-                return (tx, ty);
             }
         }
 
@@ -481,192 +467,155 @@ public class MinimaxAI
 
     /// <summary>
     /// Check if opponent has an immediate winning move that must be blocked
-    /// Uses ThreatDetector to catch ALL threat types including broken patterns (XXX_X, XX_X)
-    /// This is a critical defensive check that runs before any search for D7+
+    /// This is a critical defensive check that runs before any search
     /// Returns the blocking position if found, null otherwise
     /// </summary>
     private (int x, int y)? FindCriticalDefense(Board board, Player player)
     {
         var opponent = player == Player.Red ? Player.Blue : Player.Red;
-        var occupied = board.GetBitBoard(player) | board.GetBitBoard(opponent);
+        var opponentBoard = board.GetBitBoard(opponent);
+        var occupied = board.GetBitBoard(player) | opponentBoard;
 
-        // Use ThreatDetector to find ALL opponent threats (including broken patterns)
-        var threats = _threatDetector.DetectThreats(board, opponent);
+        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
 
-        // Group threats by type and find blocking moves
-        var straightFours = threats.Where(t => t.Type == ThreatType.StraightFour).ToList();
-        var brokenFours = threats.Where(t => t.Type == ThreatType.BrokenFour).ToList();
-        var straightThrees = threats.Where(t => t.Type == ThreatType.StraightThree).ToList();
+        // Track ALL four-in-a-row threats (not just blocking positions)
+        var fourInRowThreats = new List<(int x, int y)>();
 
-        // Priority 1: Straight Four (XXXX_) - must block immediately
-        // There's only one blocking square for a straight four
-        if (straightFours.Count > 0)
+        // Use a HashSet to track positions we've already checked (avoid duplicates)
+        var criticalMoves = new HashSet<(int x, int y)>();
+
+        // Check each opponent stone for threats
+        for (int x = 0; x < BitBoard.Size; x++)
         {
-            // If multiple straight fours, we can only block one - let search handle it
-            if (straightFours.Count > 1)
-                return null;
-
-            var threat = straightFours[0];
-            // The blocking move is at the gain square (the winning move)
-            foreach (var gainSquare in threat.GainSquares)
+            for (int y = 0; y < BitBoard.Size; y++)
             {
-                if (gainSquare.x >= 0 && gainSquare.x < 15 &&
-                    gainSquare.y >= 0 && gainSquare.y < 15 &&
-                    !occupied.GetBit(gainSquare.x, gainSquare.y))
+                if (!opponentBoard.GetBit(x, y))
+                    continue;
+
+                foreach (var (dx, dy) in directions)
                 {
-                    return gainSquare;
+                    // Count consecutive opponent stones in this direction
+                    var count = BitBoardEvaluator.CountConsecutiveBoth(opponentBoard, x, y, dx, dy);
+
+                    // Four in a row - CRITICAL! Must block immediately
+                    if (count == 4)
+                    {
+                        var openEnds = BitBoardEvaluator.CountOpenEnds(opponentBoard, occupied, x, y, dx, dy, count);
+
+                        if (openEnds >= 1)
+                        {
+                            // Record this threat location for counting multiple threats
+                            // Use the starting position of the 4-in-row as identifier
+                            var startX = x;
+                            var startY = y;
+
+                            // Find the start of the sequence
+                            while (startX - dx >= 0 && startX - dx < BitBoard.Size &&
+                                   startY - dy >= 0 && startY - dy < BitBoard.Size &&
+                                   opponentBoard.GetBit(startX - dx, startY - dy))
+                            {
+                                startX -= dx;
+                                startY -= dy;
+                            }
+
+                            // Record the threat (using the starting position as unique identifier)
+                            fourInRowThreats.Add((startX, startY));
+
+                            var endX = startX + dx * 3;
+                            var endY = startY + dy * 3;
+
+                            // Check positive end (after the sequence)
+                            if (endX + dx >= 0 && endX + dx < BitBoard.Size &&
+                                endY + dy >= 0 && endY + dy < BitBoard.Size &&
+                                !occupied.GetBit(endX + dx, endY + dy))
+                            {
+                                criticalMoves.Add((endX + dx, endY + dy));
+                            }
+
+                            // Check negative end (before the sequence)
+                            if (startX - dx >= 0 && startX - dx < BitBoard.Size &&
+                                startY - dy >= 0 && startY - dy < BitBoard.Size &&
+                                !occupied.GetBit(startX - dx, startY - dy))
+                            {
+                                criticalMoves.Add((startX - dx, startY - dy));
+                            }
+                        }
+                    }
+
+                    // Open three (three in a row with both ends open) - also critical
+                    // Opponent can create four in a row on their next turn
+                    if (count == 3)
+                    {
+                        var openEnds = BitBoardEvaluator.CountOpenEnds(opponentBoard, occupied, x, y, dx, dy, count);
+
+                        if (openEnds == 2)
+                        {
+                            // Find the sequence start and end
+                            var startX = x;
+                            var startY = y;
+
+                            while (startX - dx >= 0 && startX - dx < BitBoard.Size &&
+                                   startY - dy >= 0 && startY - dy < BitBoard.Size &&
+                                   opponentBoard.GetBit(startX - dx, startY - dy))
+                            {
+                                startX -= dx;
+                                startY -= dy;
+                            }
+
+                            var endX = startX + dx * 2;
+                            var endY = startY + dy * 2;
+
+                            // Block one end - prioritize based on board position (center is better)
+                            if (startX - dx >= 0 && startX - dx < BitBoard.Size &&
+                                startY - dy >= 0 && startY - dy < BitBoard.Size &&
+                                !occupied.GetBit(startX - dx, startY - dy))
+                            {
+                                criticalMoves.Add((startX - dx, startY - dy));
+                            }
+
+                            if (endX + dx >= 0 && endX + dx < BitBoard.Size &&
+                                endY + dy >= 0 && endY + dy < BitBoard.Size &&
+                                !occupied.GetBit(endX + dx, endY + dy))
+                            {
+                                criticalMoves.Add((endX + dx, endY + dy));
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // Priority 2: Broken Four (XXX_X) - must block, but multiple options
-        // Can block at the gap or either end
-        if (brokenFours.Count > 0)
+        // Check for multiple four-in-a-row threats
+        // If opponent has multiple 4-in-row threats, we can only block one
+        // Let the normal search handle it (might find a counter-attack)
+        if (fourInRowThreats.Count > 1)
         {
-            // Get all blocking squares for broken fours
-            var blockingSquares = new List<(int x, int y)>();
-            foreach (var threat in brokenFours)
-            {
-                foreach (var gainSquare in threat.GainSquares)
-                {
-                    if (gainSquare.x >= 0 && gainSquare.x < 15 &&
-                        gainSquare.y >= 0 && gainSquare.y < 15 &&
-                        !occupied.GetBit(gainSquare.x, gainSquare.y))
-                    {
-                        blockingSquares.Add(gainSquare);
-                    }
-                }
-            }
-
-            if (blockingSquares.Count > 0)
-            {
-                // Prefer center blocking position
-                var bestBlock = blockingSquares[0];
-                var bestDist = Math.Abs(bestBlock.x - 7) + Math.Abs(bestBlock.y - 7);
-                foreach (var block in blockingSquares)
-                {
-                    var dist = Math.Abs(block.x - 7) + Math.Abs(block.y - 7);
-                    if (dist < bestDist)
-                    {
-                        bestBlock = block;
-                        bestDist = dist;
-                    }
-                }
-                return bestBlock;
-            }
+            return null;
         }
 
-        // Priority 3: Straight Three (XXX__) - very dangerous, must block
-        if (straightThrees.Count > 0)
+        // Return the highest priority critical move
+        // For four in a row, any blocking move works - return first found
+        // For open three, prefer center positions
+        if (criticalMoves.Count > 0)
         {
-            // Multiple straight threes are very dangerous - block one
-            var threat = straightThrees[0];
-            foreach (var gainSquare in threat.GainSquares)
+            // Prefer moves closer to center (7, 7)
+            var bestMove = criticalMoves.First();
+            var bestDistance = Math.Abs(bestMove.x - 7) + Math.Abs(bestMove.y - 7);
+
+            foreach (var move in criticalMoves)
             {
-                if (gainSquare.x >= 0 && gainSquare.x < 15 &&
-                    gainSquare.y >= 0 && gainSquare.y < 15 &&
-                    !occupied.GetBit(gainSquare.x, gainSquare.y))
+                var distance = Math.Abs(move.x - 7) + Math.Abs(move.y - 7);
+                if (distance < bestDistance)
                 {
-                    return gainSquare;
+                    bestMove = move;
+                    bestDistance = distance;
                 }
             }
+
+            return bestMove;
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Get the best move using tactical evaluation (threat-based scoring)
-    /// Used in emergency mode for D7+ to maintain advantage over lower difficulties
-    /// This focuses on forcing sequences and tactical patterns, not deep search
-    /// </summary>
-    private (int x, int y)? GetTacticalBestMove(Board board, Player player, List<(int x, int y)> candidates)
-    {
-        if (candidates.Count == 0)
-            return null;
-
-        var opponent = player == Player.Red ? Player.Blue : Player.Red;
-        var playerBoard = board.GetBitBoard(player);
-        var opponentBoard = board.GetBitBoard(opponent);
-        var occupied = playerBoard | opponentBoard;
-
-        var bestScore = int.MinValue;
-        (int x, int y)? bestMove = null;
-
-        foreach (var (x, y) in candidates)
-        {
-            int score = 0;
-
-            // 1. Check if this move creates a winning threat (four in a row)
-            board.PlaceStone(x, y, player);
-            var winResult = _winDetector.CheckWin(board);
-            board.GetCell(x, y).Player = Player.None;
-
-            if (winResult.HasWinner && winResult.Winner == player)
-            {
-                // Immediate win - highest priority
-                return (x, y);
-            }
-
-            // 2. Check if this move blocks opponent's winning threat
-            board.PlaceStone(x, y, opponent);
-            var opponentWin = _winDetector.CheckWin(board);
-            board.GetCell(x, y).Player = Player.None;
-
-            if (opponentWin.HasWinner && opponentWin.Winner == opponent)
-            {
-                score += 100000; // Critical defensive block
-            }
-
-            // 3. Evaluate offensive threats this move creates
-            board.PlaceStone(x, y, player);
-            var offensiveThreats = _threatDetector.DetectThreats(board, player);
-            board.GetCell(x, y).Player = Player.None;
-
-            foreach (var threat in offensiveThreats)
-            {
-                score += threat.Type switch
-                {
-                    ThreatType.StraightFour => 50000,
-                    ThreatType.BrokenFour => 30000,
-                    ThreatType.StraightThree => 10000,
-                    ThreatType.BrokenThree => 3000,
-                    _ => 0
-                };
-            }
-
-            // 4. Evaluate defensive value (blocks opponent threats)
-            board.PlaceStone(x, y, opponent);
-            var defensiveThreats = _threatDetector.DetectThreats(board, opponent);
-            board.GetCell(x, y).Player = Player.None;
-
-            foreach (var threat in defensiveThreats)
-            {
-                score += threat.Type switch
-                {
-                    ThreatType.StraightFour => 40000, // Block opponent's four
-                    ThreatType.BrokenFour => 20000,
-                    ThreatType.StraightThree => 8000,
-                    ThreatType.BrokenThree => 2000,
-                    _ => 0
-                };
-            }
-
-            // 5. Positional value (center preference)
-            var centerDistance = Math.Abs(x - 7) + Math.Abs(y - 7);
-            score -= centerDistance * 10;
-
-            // 6. Prefer moves with more tactical patterns (using existing evaluation)
-            score += EvaluateTacticalPattern(board, x, y, player);
-
-            if (score > bestScore)
-            {
-                bestScore = score;
-                bestMove = (x, y);
-            }
-        }
-
-        return bestMove;
     }
 
     private (int x, int y) SearchWithDepth(Board board, Player player, int depth, List<(int x, int y)> candidates)
