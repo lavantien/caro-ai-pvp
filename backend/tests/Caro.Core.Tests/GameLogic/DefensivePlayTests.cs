@@ -254,4 +254,93 @@ public class DefensivePlayTests
         (result.x == 10 || result.x == 5).Should().BeTrue("Blue should take winning move");
         result.y.Should().Be(7);
     }
+
+    /// <summary>
+    /// Test for the critical bug where Grandmaster lost to Easy.
+    /// Reproduces the exact game scenario: Blue has four in a row vertically at (3,4)-(6,4),
+    /// Red blocked bottom at (7,4), so Red MUST block top at (2,4) or lose immediately.
+    /// This test should FAIL before the fix and PASS after.
+    /// </summary>
+    [Theory]
+    [InlineData(AIDifficulty.Easy)]
+    [InlineData(AIDifficulty.Normal)]
+    [InlineData(AIDifficulty.Medium)]
+    [InlineData(AIDifficulty.Hard)]
+    [InlineData(AIDifficulty.Expert)]
+    [InlineData(AIDifficulty.Master)]
+    [InlineData(AIDifficulty.Grandmaster)]
+    public void MinimaxAI_BlocksFourInARow_Vertical_BugScenario(AIDifficulty difficulty)
+    {
+        // Arrange: Exact scenario from the bug report
+        // Blue has four in a row vertically at (3,4), (4,4), (5,4), (6,4)
+        // Red blocked bottom at (7,4)
+        // Red MUST block top at (2,4) or Blue wins on next move
+        var board = new Board();
+        board.PlaceStone(3, 4, Player.Blue);
+        board.PlaceStone(4, 4, Player.Blue);
+        board.PlaceStone(5, 4, Player.Blue);
+        board.PlaceStone(6, 4, Player.Blue);
+        board.PlaceStone(7, 4, Player.Red); // Red's previous block - wrong end!
+
+        var ai = new MinimaxAI();
+
+        // Act: Red to move - must block at (2, 4)
+        var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);
+
+        // Assert: Must block at (2, 4) to prevent immediate loss
+        x.Should().Be(2, "Red must block Blue's four in a row at the top end");
+        y.Should().Be(4, "Red must block Blue's vertical four in a row");
+    }
+
+    /// <summary>
+    /// Additional test: Block at bottom when top is blocked
+    /// </summary>
+    [Theory]
+    [InlineData(AIDifficulty.Hard)]
+    [InlineData(AIDifficulty.Grandmaster)]
+    public void MinimaxAI_BlocksFourInARow_Vertical_BottomEnd(AIDifficulty difficulty)
+    {
+        // Arrange: Blue has four in a row at (3,4)-(6,4), top blocked by Red
+        var board = new Board();
+        board.PlaceStone(3, 4, Player.Blue);
+        board.PlaceStone(4, 4, Player.Blue);
+        board.PlaceStone(5, 4, Player.Blue);
+        board.PlaceStone(6, 4, Player.Blue);
+        board.PlaceStone(2, 4, Player.Red); // Red blocked top
+
+        var ai = new MinimaxAI();
+
+        // Act: Red to move - must block at (7, 4)
+        var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);
+
+        // Assert: Must block at (7, 4)
+        x.Should().Be(7, "Red must block Blue's four in a row at the bottom end");
+        y.Should().Be(4, "Red must block Blue's vertical four in a row");
+    }
+
+    /// <summary>
+    /// Test: Detect open three (three in a row with both ends open)
+    /// This is also critical as opponent can create four in a row
+    /// </summary>
+    [Theory]
+    [InlineData(AIDifficulty.Hard)]
+    [InlineData(AIDifficulty.Grandmaster)]
+    public void MinimaxAI_BlocksOpenThree_Vertical(AIDifficulty difficulty)
+    {
+        // Arrange: Blue has three in a row at (4,4)-(6,4), both ends open
+        // This is an open three - very dangerous
+        var board = new Board();
+        board.PlaceStone(4, 4, Player.Blue);
+        board.PlaceStone(5, 4, Player.Blue);
+        board.PlaceStone(6, 4, Player.Blue);
+
+        var ai = new MinimaxAI();
+
+        // Act: Red to move - should block at one end
+        var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);
+
+        // Assert: Should block at (3, 4) or (7, 4)
+        ((x == 3 || x == 7) && y == 4).Should().BeTrue(
+            "Red must block Blue's open three at either end");
+    }
 }
