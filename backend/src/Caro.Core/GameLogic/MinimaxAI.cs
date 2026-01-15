@@ -24,6 +24,9 @@ public class MinimaxAI
     // Time management for 7+5 time control
     private readonly TimeManager _timeManager = new();
 
+    // Track initial time for adaptive depth thresholds
+    private long _inferredInitialTimeMs = 420000;  // Default to 7 minutes
+
     // Parallel search for high difficulties (D7+)
     // Lazy SMP provides 4-8x speedup on multi-core systems
     private readonly ParallelMinimaxSearch _parallelSearch = new();
@@ -182,7 +185,6 @@ public class MinimaxAI
         if (criticalDefense.HasValue)
         {
             var (blockX, blockY) = criticalDefense.Value;
-            Console.WriteLine($"[AI DEFENSE] Critical threat detected! Blocking at ({blockX}, {blockY})");
             return (blockX, blockY);
         }
 
@@ -232,12 +234,6 @@ public class MinimaxAI
         _vcfNodesSearched = 0;
         _vcfDepthAchieved = 0;
         _searchStopwatch.Restart();
-
-        // Debug: Print depth usage for high difficulties to investigate balance
-        if (difficulty == AIDifficulty.Normal || difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Master || difficulty == AIDifficulty.Grandmaster || difficulty == AIDifficulty.Legend || difficulty == AIDifficulty.Expert)
-        {
-            Console.WriteLine($"[AI DEBUG] {difficulty}: baseDepth={baseDepth}, adjustedDepth={adjustedDepth}, candidates={candidates.Count}, timeRemaining={(timeRemainingMs.HasValue ? $"{timeRemainingMs.Value / 1000.0:F1}s" : "N/A")}");
-        }
 
         // Iterative deepening with time awareness
         var bestMove = candidates[0];
@@ -313,11 +309,17 @@ public class MinimaxAI
 
     /// <summary>
     /// Calculate appropriate search depth based on time allocation and position complexity
-    /// Uses percentage-based thresholds for 7+5 time control (420 seconds initial)
+    /// Uses adaptive percentage-based thresholds based on inferred initial time
     /// Ensures full depth is reachable at the start of the game
     /// </summary>
     private int CalculateDepthForTime(int baseDepth, TimeAllocation timeAlloc, long? timeRemainingMs, int candidateCount)
     {
+        // Infer initial time on first move
+        if (timeRemainingMs.HasValue && timeRemainingMs.Value > _inferredInitialTimeMs * 0.9)
+        {
+            _inferredInitialTimeMs = timeRemainingMs.Value;
+        }
+
         // Emergency mode - VERY aggressive depth reduction to avoid timeout
         // In time scramble, rely on VCF + TT move, not deep search
         if (timeAlloc.IsEmergency)
@@ -328,24 +330,24 @@ public class MinimaxAI
         // Per-move time allocation
         var softBoundSeconds = timeAlloc.SoftBoundMs / 1000.0;
 
-        // Total time remaining (for 7+5, initial time is 420 seconds)
-        // Default to 420s if not specified (assumes 7+5 time control)
-        var totalTimeRemainingSeconds = timeRemainingMs.HasValue ? timeRemainingMs.Value / 1000.0 : 420.0;
+        // Total time remaining
+        var totalTimeRemainingSeconds = timeRemainingMs.HasValue ? timeRemainingMs.Value / 1000.0 : (double)_inferredInitialTimeMs / 1000.0;
+        var initialTimeSeconds = (double)_inferredInitialTimeMs / 1000.0;
 
-        // For 7+5 time control (420s), use percentage-based thresholds:
-        // - Full depth when > 50% time remaining (>210s)
-        // - Depth-1 when 25-50% time remaining (105-210s)
-        // - Depth-2 when 15-25% time remaining (63-105s)
-        // - Aggressive reduction when < 15% time remaining (<63s)
+        // Adaptive thresholds based on initial time:
+        // - Full depth when > 50% time remaining
+        // - Depth-1 when 25-50% time remaining
+        // - Depth-2 when 15-25% time remaining
+        // - Aggressive reduction when < 15% time remaining
 
-        // Critical: less than 15% of initial time (63s for 7+5) or very tight per-move limit
-        if (softBoundSeconds < 3 || totalTimeRemainingSeconds < 60)
+        // Critical: less than 15% of initial time or very tight per-move limit
+        if (softBoundSeconds < 3 || totalTimeRemainingSeconds < initialTimeSeconds * 0.15)
         {
             return Math.Max(2, baseDepth / 2); // D11 -> D5, D10 -> D5
         }
 
-        // Low: 15-25% of initial time (63-105s for 7+5) or moderate per-move limit
-        if (softBoundSeconds < 6 || totalTimeRemainingSeconds < 105)
+        // Low: 15-25% of initial time or moderate per-move limit
+        if (softBoundSeconds < 6 || totalTimeRemainingSeconds < initialTimeSeconds * 0.25)
         {
             if (candidateCount > 25) // Complex position
             {
@@ -354,8 +356,8 @@ public class MinimaxAI
             return Math.Max(3, baseDepth - 2); // D11 -> D9, D10 -> D8
         }
 
-        // Moderate: 25-50% of initial time (105-210s for 7+5)
-        if (totalTimeRemainingSeconds < 210)
+        // Moderate: 25-50% of initial time
+        if (totalTimeRemainingSeconds < initialTimeSeconds * 0.50)
         {
             if (candidateCount > 25) // Complex position with limited time
             {
@@ -472,6 +474,10 @@ public class MinimaxAI
 
         var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
 
+        // Track ALL four-in-a-row threats (not just blocking positions)
+        var fourInRowThreats = new List<(int x, int y)>();
+        var threeInRowThreats = new List<(int x, int y)>();
+
         // Use a HashSet to track positions we've already checked (avoid duplicates)
         var criticalMoves = new HashSet<(int x, int y)>();
 
@@ -495,7 +501,8 @@ public class MinimaxAI
 
                         if (openEnds >= 1)
                         {
-                            // Find the sequence start and end
+                            // Record this threat location for counting multiple threats
+                            // Use the starting position of the 4-in-row as identifier
                             var startX = x;
                             var startY = y;
 
@@ -507,6 +514,9 @@ public class MinimaxAI
                                 startX -= dx;
                                 startY -= dy;
                             }
+
+                            // Record the threat (using the starting position as unique identifier)
+                            fourInRowThreats.Add((startX, startY));
 
                             var endX = startX + dx * 3;
                             var endY = startY + dy * 3;
@@ -570,6 +580,14 @@ public class MinimaxAI
                     }
                 }
             }
+        }
+
+        // Check for multiple four-in-a-row threats
+        // If opponent has multiple 4-in-row threats, we can only block one
+        // Let the normal search handle it (might find a counter-attack)
+        if (fourInRowThreats.Count > 1)
+        {
+            return null;
         }
 
         // Return the highest priority critical move
