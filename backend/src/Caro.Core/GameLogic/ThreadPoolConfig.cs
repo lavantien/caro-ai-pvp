@@ -56,4 +56,31 @@ public static class ThreadPoolConfig
     /// Check if thread pool has been configured
     /// </summary>
     public static bool IsConfigured => _configured;
+
+    /// <summary>
+    /// Get conservative thread count for Lazy SMP parallel search
+    /// Uses (processorCount / 2) - 1 to avoid hyperthreading contention
+    /// while leaving headroom for the main thread
+    /// Example: 8 cores -> (8/2)-1 = 3 helper threads
+    /// </summary>
+    public static int GetLazySMPThreadCount()
+    {
+        int processorCount = Environment.ProcessorCount;
+        // Formula: (total threads/2) - 1
+        // Minimum 1 thread, maximum processorCount - 2
+        int halfCount = processorCount / 2;
+        return Math.Max(1, halfCount - 1);
+    }
+
+    /// <summary>
+    /// Get thread count for pondering (background search during opponent's turn)
+    /// Uses fewer threads than main search to avoid system responsiveness issues
+    /// </summary>
+    public static int GetPonderingThreadCount()
+    {
+        // Pondering uses even fewer threads to avoid impacting system responsiveness
+        // and to leave resources for the main search when it starts
+        int processorCount = Environment.ProcessorCount;
+        return Math.Max(1, processorCount / 4);
+    }
 }

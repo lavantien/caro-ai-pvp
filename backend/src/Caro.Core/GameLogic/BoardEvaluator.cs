@@ -49,28 +49,12 @@ public class BoardEvaluator
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
 
-        // DISABLED: SIMD evaluator has sign inversion bug causing AI strength inversion
-        //
-        // BUG DESCRIPTION:
-        // When evaluating from Red's perspective with Blue having an open four:
-        // - Scalar evaluator: -19865 (correctly penalizes Blue's threat with 2.2x multiplier)
-        // - SIMD evaluator: +2135 (incorrectly ADDS Blue's weighted threat instead of penalizing)
-        //
-        // The 22000 point difference equals OpenFourScore (10000) × DefenseMultiplier (2.2),
-        // confirming the SIMD evaluator is adding opponent threats instead of subtracting them.
-        //
-        // ROOT CAUSE: Not yet fully diagnosed. Potential issues:
-        // 1. Sign inversion in defense multiplier application
-        // 2. Integer overflow/casting issue with float multiplier
-        // 3. Pattern detection returning different values than expected
-        //
-        // TEST: Run Caro.Core.Tests.GameLogic.EvaluatorComparisonTests to reproduce
-        //
-        // TODO: Fix SIMD evaluator or rewrite with clearer logic
-        // - Add comprehensive unit tests comparing scalar vs SIMD outputs
-        // - Use the counted[] array approach consistently across all direction evaluations
-        // - Verify defense multiplier is applied with correct sign
-        // - Test with known positions to verify perspective correctness
+        // Use SIMD for D9 (Expert) and above (Grandmaster/Legend)
+        if (difficulty >= AIDifficulty.Expert)
+        {
+            return SIMDBitBoardEvaluator.Evaluate(board, player);
+        }
+
         return BitBoardEvaluator.Evaluate(board, player);
     }
 

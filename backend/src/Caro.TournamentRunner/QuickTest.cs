@@ -32,8 +32,8 @@ public static class QuickTest
                 redDiff,
                 blueDiff,
                 maxMoves: 225,
-                initialTimeSeconds: 180,  // 3+2 time control (faster iteration)
-                incrementSeconds: 2,
+                initialTimeSeconds: 120,  // 2+1 time control for faster but reasonable games
+                incrementSeconds: 1,
                 ponderingEnabled: true,
                 onMove: (x, y, player, moveNumber, redTimeMs, blueTimeMs, stats) =>
                 {
@@ -106,6 +106,10 @@ public static class QuickTest
         // TEST 1: D11 vs D11 - Verify both can reach full depth
         Console.WriteLine("\n📊 TEST GROUP 1: MAXIMUM DEPTH VERIFICATION (D11 vs D11)");
         RunMatchup(AIDifficulty.Legend, AIDifficulty.Legend, games: 1);
+
+        // TEST 1.5: D10 vs D10 - Check for Blue advantage (symmetric test)
+        Console.WriteLine("\n📊 TEST GROUP 1.5: BLUE ADVANTAGE CHECK (D10 vs D10)");
+        RunMatchup(AIDifficulty.Grandmaster, AIDifficulty.Grandmaster, games: 1);
 
         // TEST 2: D11 vs D10 - Verify both can reach full depth
         Console.WriteLine("\n📊 TEST GROUP 2: FULL DEPTH VERIFICATION (D11 vs D10)");

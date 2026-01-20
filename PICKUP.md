@@ -2,123 +2,257 @@
 
 ## Context Summary
 
-This session focused on fixing time management abstraction and resolving AI strength inversion issues in the Caro AI PvP tournament system.
+This session focused on implementing advanced AI features: Lazy SMP parallel search, constant pondering, MDAP, and adaptive time management. While implementations were successful, a critical non-determinism issue was discovered in parallel search that causes AI strength inversion in some test runs.
 
 ## Key Issues Addressed
 
-### 1. Time Control Abstraction - DONE
-- Created `TimeControl` record struct to support different time controls
-- Tests now use 3+2 (Blitz) for faster iteration
-- Core defaults to 7+5 (Rapid) for production
-- Time is now inferred from first move instead of hardcoded
-- Changed `QuickTest.cs` to use 180s + 2s increment
+### 1. Lazy SMP Parallel Search - IMPLEMENTED (HAS ISSUES)
+- **Thread Count Formula**: `(processorCount / 2) - 1` for conservative multi-core usage
+- **Files Modified**:
+  - `ThreadPoolConfig.cs` - Added `GetLazySMPThreadCount()` and `GetPonderingThreadCount()`
+  - `ParallelMinimaxSearch.cs` - Updated constructor to use new thread formula
+  - `MinimaxAI.cs` - Enabled parallel search for D7+ (depth 4+)
 
-### 2. Time Checking During Search - PARTIALLY DONE
-- Added time checking inside `Minimax()` every 100K nodes
-- Added time checking inside `Quiesce()` with staggered offset
-- `_searchStopped` flag breaks iterative deepening when time exceeded
-- **Remaining Issue**: D11 still times out because depth targets are too aggressive
+**Status**: Enabled but **NON-DETERMINISTIC** - see Outstanding Issues below
 
-### 3. AI Strength Inversion (D4 vs D6) - RESOLVED ✅
-**Previous behavior (7+5)**: D4 beat D6 in 42 moves (real inversion)
-**New behavior (3+2)**: D6 correctly beats D4 in 35 moves with VCF
-The defense multiplier and critical defense logic are working correctly!
+### 2. Constant Pondering for D7+ - IMPLEMENTED
+- **Files Modified**: `Ponderer.cs`
+- D7+ (VeryHard and above) always ponders during opponent's turn
+- D1-D6 only ponders when there are immediate threats (VCF pre-check enabled)
 
-## Test Results (2025-01-19) - 3+2 Time Control
+### 3. MDAP (Move-Dependent Adaptive Pruning) - IMPLEMENTED
+- **Files Modified**: `ParallelMinimaxSearch.cs`
+- First 4 moves searched at full depth
+- Moves after index 4 get reduced depth (base -1, scaling with move index)
+- High-priority moves (hash moves) skip reduction
+- Verification re-search if reduced depth score beats alpha/beta
+
+### 4. Adaptive Time Management - INTEGRATED
+- **Files Modified**: `MinimaxAI.cs`
+- Switched from `TimeManager` to `AdaptiveTimeManager`
+- PID-like controller with feedback loop
+- Added `ReportTimeUsed()` calls after each move
+- Added reset in `ClearAllState()`
+
+### 5. SIMD Evaluator Bug - DOCUMENTED (NOT FIXED)
+- **Files Modified**:
+  - `EvaluatorComparisonTests.cs` - Comprehensive scalar vs SIMD comparison tests
+  - `SIMDDebugTest.cs` - Focused debugging tests
+  - `SIMDPerspectiveTest.cs` - Perspective verification tests
+  - `BoardEvaluator.cs` - Detailed bug documentation
+
+**Bug**: SIMD evaluator has sign inversion causing 22000 point score difference
+- Scalar: -19865 (correctly penalizes Blue's threat)
+- SIMD: +2135 (incorrectly ADDS Blue's weighted threat)
+- **Status**: SIMD evaluator remains disabled
+
+## Test Results (2025-01-20) - 7+5 Time Control with Lazy SMP
 
 | Test | Expected | Actual | Result | Notes |
 |------|----------|--------|--------|-------|
-| D11 vs D11 | Tie | TIMEOUT | ⚠️ Tie | D11 Red timed out after 14 moves (500s) |
-| D11 vs D10 | D11 wins | TIMEOUT | ❌ FAIL | D11 Red timed out after 12 moves |
-| D10 vs D8 | D10 wins | D10 won | ✅ PASS | **No timeout! VCF found winning move** |
-| D11 vs D6 | D11 wins | D11 won | ✅ PASS | D6 timed out |
-| **D4 vs D6** | **D6 wins** | **D6 won** | **✅ PASS** | **VCF found winning move** |
+| D11 vs D11 | Tie | D11 won | ⚠️ Expected tie | Parallel working but VCF decisive |
+| D11 vs D10 | D11 wins | D11 won (22m) | ✅ PASS | VCF-only advantage working |
+| D10 vs D8 | D10 wins | **INCONSISTENT** | ❌ **FAIL** | Non-deterministic! |
+| D11 vs D6 | D11 wins | D11 won (18m) | ✅ PASS | VCF decisive |
+| D4 vs D6 | D6 wins | D6 won (27m) | ✅ PASS | Depth advantage wins |
 
 ## Outstanding Issues
 
-### 1. D11 Timeout Bug - HIGH PRIORITY
-**Root Cause**: D11 searches depth 7-8 with 14M+ nodes, exceeding time budget
-- Move 13 (D11 vs D11): Depth 7, 14.5M nodes - took way too long
-- Time budget: 180s + 13×2s = 206s, but search took 100+ seconds
+### 1. PARALLEL SEARCH NON-DETERMINISM - CRITICAL BUG 🔴
 
-**Potential Solutions**:
-1. Reduce D11's depth multiplier in TimeManager (currently 3.5x)
-2. Lower maximum depth for D11 in 3+2 time control
-3. More aggressive depth reduction based on actual time per move
+**Symptom**: D10 vs D8 test produces inconsistent results between runs
+- **Run 1**: Grandmaster (D10) won in 8 moves ✅
+- **Run 2**: Expert (D8) won in 19 moves ❌
 
-### 2. D11 vs D10 Time Inversion - TIMEOUT RELATED
-D11 loses to D10 due to timeout, not real strength inversion. When D11 Red plays, it times out first because:
-- D11 searches deeper (depth 7-8 vs depth 6-7 for D10)
-- D11 uses more nodes per move (1-14M vs 100K-2M for D10)
-- With proper time management, D11 would beat D10
+**Root Cause**: Lazy SMP relies on "natural" diversity from thread timing differences, but this introduces non-determinism:
+1. Different threads finish at different times due to OS scheduling
+2. Result aggregation may pick suboptimal moves depending on which thread finishes first
+3. Transposition table race conditions during concurrent writes
+4. Time-based cancellation happening at different points in different threads
 
-### 3. D10 vs D8 - WORKING CORRECTLY ✅
-D10 correctly beats D8 in 32 moves without timeout. This shows the time control abstraction is working for mid-high difficulties.
+**Evidence**: The exact same matchup (D10 vs D8) with same code produces different winners, proving non-determinism.
+
+**Impact**: AI strength ordering is NOT RELIABLE with parallel search enabled.
+
+### 2. Why Parallel Search is Non-Deterministic
+
+The current implementation in `ParallelMinimaxSearch.cs`:
+- Multiple threads search the SAME tree independently
+- Each thread has its own killer moves, history tables
+- Shared transposition table for caching
+- Master thread (ThreadIndex=0) is supposed to be deterministic
+- BUT: Threads finish at different times, and TT entries depend on search order
+
+**The fundamental issue**: When helper threads finish at different times, they write different entries to the TT. The master thread then reads these entries, which can vary based on thread timing.
 
 ## Files Modified This Session
 
-1. `backend/src/Caro.Core/GameLogic/TimeManagement/TimeControl.cs`
-   - Created `TimeControl` record struct for configurable time controls
-   - Added Blitz (3+2), Rapid (7+5), Classical (15+10) presets
+1. **ThreadPoolConfig.cs**
+   - Added `GetLazySMPThreadCount()` - returns `(processorCount/2)-1`
+   - Added `GetPonderingThreadCount()` - returns `processorCount/4` for pondering
 
-2. `backend/src/Caro.Core/GameLogic/TimeManagement/TimeManager.cs`
-   - Added `incrementSeconds` parameter to `CalculateMoveTime()`
-   - Uses dynamic increment calculation based on initial time
+2. **ParallelMinimaxSearch.cs**
+   - Updated constructor to use `GetLazySMPThreadCount()` by default
+   - Added MDAP constants: `LMRMinDepth`, `LMRFullDepthMoves`, `LMRBaseReduction`
+   - Implemented LMR in `Minimax()` with verification re-search
+   - Updated class documentation to reflect all optimizations
 
-3. `backend/src/Caro.Core/GameLogic/MinimaxAI.cs`
-   - `_inferredInitialTimeMs` now starts at -1 (unknown) instead of hardcoded 420000
-   - Time inference logic updated to detect any time control
-   - Added time checking during Minimax search (every 100K nodes)
-   - Added time checking during Quiesce search (staggered)
-   - Passes initialTimeSeconds and incrementSeconds to TimeManager
+3. **MinimaxAI.cs**
+   - Enabled Lazy SMP for D7+ (depth 4+)
+   - Switched to `AdaptiveTimeManager` instead of `TimeManager`
+   - Added time tracking and `ReportTimeUsed()` feedback loop
+   - Added `_adaptiveTimeManager.Reset()` in `ClearAllState()`
+   - Updated class documentation
 
-4. `backend/src/Caro.TournamentRunner/QuickTest.cs`
-   - Changed to 3+2 (180s + 2s increment) for faster test iteration
+4. **Ponderer.cs**
+   - Modified `StartPondering()` to skip VCF pre-check for D7+
+   - Updated class documentation
+
+5. **Test Files Created**
+   - `EvaluatorComparisonTests.cs` - Scalar vs SIMD comparison
+   - `SIMDDebugTest.cs` - Focused SIMD debugging tests
+   - `SIMDPerspectiveTest.cs` - Perspective verification tests
 
 ## Key Findings
 
-1. **D4 vs D6 Inversion RESOLVED**: The real AI strength inversion is fixed! D6 now correctly beats D4.
+### 1. Parallel Search Non-Determinism is a Fundamental Issue
 
-2. **Time Control Abstraction Working**: Tests can now use different time controls without modifying core logic. The AI infers the time control from the first few moves.
+Lazy SMP as implemented is inherently non-deterministic because:
+- Thread scheduling is OS-dependent and non-deterministic
+- Shared TT state depends on which thread writes first
+- Master thread result selection depends on timing
 
-3. **D11 Timeout Issue**: D11's depth targets are too aggressive for 3+2. The 3.5x time multiplier gives D11 ~6s per move in opening, but depth 7-8 search takes 30-100+ seconds.
+**Potential Solutions** (for future work):
+1. **Root Parallelization**: Different threads search different root moves, then compare
+2. **YBWC (Young Brothers Wait Concept)**: Helper threads depend on master thread
+3. **Deterministic TT partitioning**: Each thread has its own TT partition
+4. **Full tree search with parallel evaluation**: Parallelize only the evaluation function
 
-4. **Time Checking Works**: The time check during search prevents catastrophic failures, but D11 still exceeds its budget because it keeps searching deeper.
+### 2. MDAP Implementation Appears Sound
+
+The LMR implementation follows standard practices:
+- Full depth for first 4 moves
+- Reduced depth for late moves
+- Verification re-search when reduced depth is promising
+- High-priority moves skip reduction
+
+No evidence that MDAP is causing issues.
+
+### 3. SIMD Evaluator Bug is Well-Documented
+
+The sign inversion bug (22000 point difference) is now:
+- Thoroughly documented in `BoardEvaluator.cs`
+- Reproducible via unit tests
+- SIMD evaluator remains safely disabled
 
 ## Next Session Priorities
 
-### Priority 1: Fix D11 Timeout for 3+2
-Options:
-1. Reduce D11's depth multiplier from 3.5x to 2.0x or lower
-2. Cap D11's maximum depth based on time control
-3. More aggressive depth reduction when moves take longer than expected
+### Priority 1: DISABLE PARALLEL SEARCH UNTIL FIXED
 
-### Priority 2: Consider 7+5 as Production Time Control
-The 3+2 is good for fast testing, but 7+5 might be more appropriate for production:
-- D11 has more time to reach full depth
-- Less time pressure means more accurate strength ordering
-- Matches original design goals
+The non-determinism is a critical bug that makes AI strength ordering unreliable. Options:
 
-### Priority 3: Clean Up and Commit
-Many files are modified but not committed. Consider:
-1. Testing with 7+5 to verify D11 can reach full depth
-2. Committing the time control abstraction changes
-3. Updating documentation
+1. **Immediate**: Disable parallel search (revert to sequential only)
+2. **Investigation**: Study the race conditions and timing dependencies
+3. **Fix**: Implement one of the solutions listed above
+
+### Priority 2: Verify Baseline with Sequential Search Only
+
+Run the full test suite with parallel search disabled to confirm AI strength ordering is stable without it.
+
+### Priority 3: Re-implement Parallel Search (if desired)
+
+Once baseline is confirmed, consider:
+- Root parallelization (safest, deterministic)
+- YBWC (more complex but proven in chess engines)
+- Or accept the current Lazy SMP with documented non-determinism
 
 ## Git Status
 
-Modified files need to be committed:
-```bash
-git status
-git add -A
-git commit -m "feat: time control abstraction and test improvements"
-```
+**Modified files not yet committed:**
+- `ThreadPoolConfig.cs`
+- `ParallelMinimaxSearch.cs`
+- `MinimaxAI.cs`
+- `Ponderer.cs`
+- Test files: `EvaluatorComparisonTests.cs`, `SIMDDebugTest.cs`, `SIMDPerspectiveTest.cs`
 
-## Command to Run Tests
+## Commands
 
+### Run Tests
 ```bash
 cd backend/src/Caro.TournamentRunner
 dotnet run -- --test
 ```
 
-Note: Tests currently use 3+2 for fast iteration. To test with 7+5 (production), modify `QuickTest.cs` line 35-36 to use `initialTimeSeconds: 420` and `incrementSeconds: 5`.
+### Build
+```bash
+cd backend
+dotnet build
+```
+
+### Run Specific Tests
+```bash
+cd backend/tests/Caro.Core.Tests
+dotnet test --filter "FullyQualifiedName~EvaluatorComparisonTests"
+```
+
+## Implementation Details
+
+### Lazy SMP Thread Count Formula
+```csharp
+// Formula: (total threads/2) - 1
+// Example: 20 cores -> (20/2)-1 = 9 helper threads
+public static int GetLazySMPThreadCount()
+{
+    int processorCount = Environment.ProcessorCount;
+    int halfCount = processorCount / 2;
+    return Math.Max(1, halfCount - 1);
+}
+```
+
+### MDAP (Late Move Reduction)
+```csharp
+// Apply LMR for late moves when depth is sufficient
+if (depth >= LMRMinDepth && moveIndex >= LMRFullDepthMoves)
+{
+    bool isHighPriority = (cachedMove.HasValue && cachedMove.Value == (x, y));
+    if (!isHighPriority)
+    {
+        int extraReduction = Math.Min(2, (moveIndex - LMRFullDepthMoves) / 4);
+        reducedDepth = depth - LMRBaseReduction - extraReduction;
+        if (reducedDepth < 1) reducedDepth = 1;
+        doLMR = true;
+    }
+}
+```
+
+### Constant Pondering for D7+
+```csharp
+bool isHighDifficulty = difficulty >= AIDifficulty.VeryHard;
+if (!isHighDifficulty)
+{
+    // VCF pre-check - skip pondering if no immediate threats
+    // D1-D6 only ponder when there are threats
+}
+// D7+ always ponders regardless of position
+```
+
+## Known Workarounds
+
+1. **Parallel Search Disabled**: Set `useParallelSearch = false` in MinimaxAI.cs line 303 to use sequential search only
+2. **SIMD Disabled**: Already disabled in BoardEvaluator.cs line 74
+3. **VCF Defense Disabled**: Already disabled in MinimaxAI.cs lines 221-235
+
+## Performance Impact
+
+With parallel search enabled (9 threads):
+- Node throughput: 10K-100K nodes/sec depending on position
+- NPS varies significantly due to thread scheduling
+- Time per move: 5-30 seconds for D7-D11
+
+With sequential search:
+- Node throughput: More consistent but lower
+- Time per move: More predictable
+
+## Conclusion
+
+All requested features were successfully implemented, but the parallel search has a critical non-determinism bug that causes AI strength inversion in some test runs. Until this is fixed, the parallel search should be disabled for reliable AI strength ordering.

@@ -135,7 +135,8 @@ public sealed class AdaptiveTimeManager
         var percentageBoundMs = (long)(timeRemainingMs * maxTimePercent);
 
         // Soft bound: adjusted time, but respect percentage cap
-        var softBoundMs = (long)Math.Clamp(adjustedTimeMs, 100, percentageBoundMs);
+        // Use 1% of percentageBoundMs as minimum to handle edge cases where percentageBoundMs is very small
+        var softBoundMs = (long)Math.Clamp(adjustedTimeMs, Math.Max(1, percentageBoundMs / 100), percentageBoundMs);
 
         // Hard bound: soft bound × 1.3, but never exceed percentage cap
         var desiredHardBoundMs = (long)(softBoundMs * 1.3);
@@ -145,10 +146,14 @@ public sealed class AdaptiveTimeManager
         var optimalTimeMs = softBoundMs * 8 / 10;
 
         // === EMERGENCY DETECTION ===
-        // Adaptive threshold based on time control
-        var emergencyThreshold = Math.Max(10000, initialTimeMs / 10);
+        // Adaptive threshold based on time control - scales with initial time
+        // Use 5% of initial time as minimum, but at least 2 seconds
+        // This ensures emergency mode doesn't trigger too early in fast time controls
+        var emergencyThreshold = Math.Max(2000, initialTimeMs / 20);
+        // Second condition: only trigger if we have less than 1 second per move remaining
+        // But only apply this when we have very few moves left (last 5 moves of the game)
         var isEmergency = timeRemainingMs < emergencyThreshold ||
-                         (movesToEnd > 0 && timeRemainingMs < movesToEnd * 1000);
+                         (movesToEnd > 0 && movesToEnd <= 5 && timeRemainingMs < movesToEnd * 1000);
 
         return new TimeAllocation
         {

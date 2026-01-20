@@ -8,6 +8,10 @@ namespace Caro.Core.GameLogic.Pondering;
 /// Manages pondering (thinking during opponent's turn) with state machine approach
 /// Uses PV-based prediction with time merging on ponder hit
 /// Uses Lazy SMP (parallel search) for effective pondering on multi-core systems
+///
+/// CONSTANT PONDERING for D7+:
+/// - D7+ (VeryHard and above): Always ponders regardless of position
+/// - D1-D6: Only ponders when there are immediate threats (VCF pre-check enabled)
 /// </summary>
 public sealed class Ponderer : IDisposable
 {
@@ -92,6 +96,10 @@ public sealed class Ponderer : IDisposable
     /// <summary>
     /// Start pondering based on predicted opponent move
     /// Spawns a background task that uses Lazy SMP to search with the predicted move
+    ///
+    /// CONSTANT PONDERING for D7+:
+    /// - D7+ (VeryHard and above): Always ponders regardless of position
+    /// - D1-D6: Only ponders when there are immediate threats (VCF pre-check enabled)
     /// </summary>
     /// <param name="currentBoard">Board state before opponent moves</param>
     /// <param name="opponentToMove">Player whose turn it is (opponent)</param>
@@ -118,14 +126,21 @@ public sealed class Ponderer : IDisposable
             _cts = new CancellationTokenSource();
             _shouldStop = false;
 
-            // VCF pre-check - skip pondering if no immediate threats
-            if (!_vcfPrecheck.IsOpeningPhase(currentBoard))
+            // CONSTANT PONDERING for D7+: Skip VCF pre-check for higher difficulties
+            // D7+ (VeryHard+) always ponders regardless of position complexity
+            // D1-D6 only ponder when there are immediate threats to save CPU
+            bool isHighDifficulty = difficulty >= AIDifficulty.VeryHard;
+            if (!isHighDifficulty)
             {
-                var hasThreats = _vcfPrecheck.HasPotentialThreats(currentBoard, opponentToMove);
-                if (!hasThreats && _vcfPrecheck.GetThreatUrgency(currentBoard, opponentToMove) < 20)
+                // VCF pre-check - skip pondering if no immediate threats
+                if (!_vcfPrecheck.IsOpeningPhase(currentBoard))
                 {
-                    _state = PonderState.Idle;
-                    return;
+                    var hasThreats = _vcfPrecheck.HasPotentialThreats(currentBoard, opponentToMove);
+                    if (!hasThreats && _vcfPrecheck.GetThreatUrgency(currentBoard, opponentToMove) < 20)
+                    {
+                        _state = PonderState.Idle;
+                        return;
+                    }
                 }
             }
 

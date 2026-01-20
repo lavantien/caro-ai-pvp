@@ -15,6 +15,13 @@ public record ParallelSearchResult(int X, int Y, int DepthAchieved, long NodesSe
 /// Multiple threads search independently with shared transposition table
 /// Provides 4-8× speedup on multi-core systems
 /// Time-aware iterative deepening with move stability detection
+///
+/// OPTIMIZATIONS:
+/// - Lazy SMP with conservative thread count (processorCount/2)-1
+/// - MDAP (Move-Dependent Adaptive Pruning) / Late Move Reduction
+/// - Iterative deepening with aspiration windows
+/// - Killer moves and history heuristic
+/// - Lock-free transposition table
 /// </summary>
 public sealed class ParallelMinimaxSearch
 {
@@ -29,6 +36,11 @@ public sealed class ParallelMinimaxSearch
     private const int SearchRadius = 2;
     private const int NullMoveMinDepth = 3;
     private const int NullMoveDepthReduction = 3;
+
+    // MDAP (Move-Dependent Adaptive Pruning) constants
+    private const int LMRMinDepth = 3;           // Minimum depth to apply LMR
+    private const int LMRFullDepthMoves = 4;     // Number of moves searched at full depth
+    private const int LMRBaseReduction = 1;      // Base depth reduction for late moves
 
     // Time management - CancellationTokenSource for proper cross-thread cancellation
     private CancellationTokenSource? _searchCts;
@@ -64,7 +76,7 @@ public sealed class ParallelMinimaxSearch
     /// Create parallel search instance
     /// </summary>
     /// <param name="sizeMB">Transposition table size in MB</param>
-    /// <param name="maxThreads">Maximum threads to use (default: processor count - 1)</param>
+    /// <param name="maxThreads">Maximum threads to use (default: uses Lazy SMP formula (n/2)-1)</param>
     public ParallelMinimaxSearch(int sizeMB = 256, int? maxThreads = null)
     {
         _transpositionTable = new LockFreeTranspositionTable(sizeMB);
@@ -72,7 +84,8 @@ public sealed class ParallelMinimaxSearch
         _winDetector = new WinDetector();
         _vcfSolver = new ThreatSpaceSearch();
         _random = new Random();
-        _maxThreads = maxThreads ?? ThreadPoolConfig.GetOptimalThreadCount();
+        // Use Lazy SMP formula (processorCount/2)-1 by default for better stability
+        _maxThreads = maxThreads ?? ThreadPoolConfig.GetLazySMPThreadCount();
 
         // Configure thread pool for CPU-bound work
         ThreadPoolConfig.ConfigureForSearch();
@@ -317,7 +330,8 @@ public sealed class ParallelMinimaxSearch
 
         // Number of threads based on depth and available cores
         int threadCount = Math.Min(_maxThreads, Math.Max(2, depth / 2));
-        var results = new ConcurrentBag<(int x, int y, int score, int depth, long nodes)>();
+        // Include threadIndex to distinguish master thread (0) from helper threads (1+)
+        var results = new ConcurrentBag<(int x, int y, int score, int depth, long nodes, int threadIndex)>();
 
         // Create thread-local copies of board and candidates for each thread
         var boardsArray = new Board[threadCount];
@@ -349,7 +363,9 @@ public sealed class ParallelMinimaxSearch
                     boardsArray[threadId], player, depth, candidatesArray[threadId],
                     threadData, timeAlloc, difficulty, token);
 
-                results.Add(result);
+                // Add threadIndex to identify master vs helper thread results
+                var (x, y, score, depthAchieved, nodes) = result;
+                results.Add((x, y, score, depthAchieved, nodes, threadId));
             }, token);
             tasks.Add(task);
         }
@@ -386,21 +402,34 @@ public sealed class ParallelMinimaxSearch
         // The master thread searches deterministically without noise injection.
         // Helper threads populate the transposition table for speedup, but their
         // result selection may be affected by timing and cutoff differences.
-        // We pick the result with the highest score among those with depth >= targetDepth - 2.
-        // If no such result exists, pick the highest score result.
+        //
+        // First try to get the master thread result at acceptable depth
         int minAcceptableDepth = Math.Max(1, depth - 2);
-        var acceptableResults = results.Where(r => r.depth >= minAcceptableDepth).ToList();
+        var masterThreadResult = results.FirstOrDefault(r => r.threadIndex == 0 && r.depth >= minAcceptableDepth);
 
-        (int x, int y, int score, int depth, long nodes) bestResult;
-        if (acceptableResults.Count > 0)
+        // Fallback 1: Any master thread result (regardless of depth)
+        if (masterThreadResult == default)
         {
-            bestResult = acceptableResults.OrderByDescending(r => r.score).First();
+            masterThreadResult = results.FirstOrDefault(r => r.threadIndex == 0);
         }
-        else
+
+        // Fallback 2: Best result from any thread at acceptable depth
+        if (masterThreadResult == default)
         {
-            // Fallback: pick the result with highest score regardless of depth
-            bestResult = results.OrderByDescending(r => r.score).First();
+            var acceptableResults = results.Where(r => r.depth >= minAcceptableDepth).ToList();
+            if (acceptableResults.Count > 0)
+            {
+                masterThreadResult = acceptableResults.OrderByDescending(r => r.score).First();
+            }
         }
+
+        // Fallback 3: Any result at all
+        if (masterThreadResult == default)
+        {
+            masterThreadResult = results.OrderByDescending(r => r.score).FirstOrDefault();
+        }
+
+        var bestResult = (masterThreadResult.x, masterThreadResult.y, masterThreadResult.score, masterThreadResult.depth, masterThreadResult.nodes);
 
         // Use real node count instead of estimated
         long totalNodesFinal = Interlocked.Read(ref _realNodesSearched);
@@ -623,12 +652,54 @@ public sealed class ParallelMinimaxSearch
 
         int bestScore = isMaximizing ? int.MinValue : int.MaxValue;
         (int x, int y)? bestMove = null;
+        int moveIndex = 0;
 
         foreach (var (x, y) in orderedMoves)
         {
+            // MDAP: Move-Dependent Adaptive Pruning (Late Move Reduction)
+            // Apply depth reduction for moves searched later in the list
+            int reducedDepth = depth;
+            bool doLMR = false;
+
+            // Apply LMR for late moves when depth is sufficient
+            if (depth >= LMRMinDepth && moveIndex >= LMRFullDepthMoves)
+            {
+                // Check if this is NOT a high-priority move (hash move, killer, threat)
+                bool isHighPriority = (cachedMove.HasValue && cachedMove.Value == (x, y));
+                if (!isHighPriority)
+                {
+                    // Calculate reduction based on move index
+                    // Later moves get more reduction
+                    int extraReduction = Math.Min(2, (moveIndex - LMRFullDepthMoves) / 4);
+                    reducedDepth = depth - LMRBaseReduction - extraReduction;
+                    if (reducedDepth < 1) reducedDepth = 1;
+                    doLMR = true;
+                }
+            }
+
             board.PlaceStone(x, y, currentPlayer);
-            var score = Minimax(board, depth - 1, alpha, beta, !isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
+            int score;
+
+            if (doLMR)
+            {
+                // Search with reduced depth first
+                score = Minimax(board, reducedDepth - 1, alpha, beta, !isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
+
+                // If reduced depth search returns a score that could improve alpha/beta,
+                // re-search at full depth (verification)
+                if ((isMaximizing && score > alpha) || (!isMaximizing && score < beta))
+                {
+                    score = Minimax(board, depth - 1, alpha, beta, !isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
+                }
+            }
+            else
+            {
+                // Full depth search for early/high-priority moves
+                score = Minimax(board, depth - 1, alpha, beta, !isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
+            }
+
             board.GetCell(x, y).Player = Player.None;
+            moveIndex++;
 
             // Check if search was stopped during recursion
             if (cancellationToken.IsCancellationRequested)
@@ -1112,9 +1183,9 @@ public sealed class ParallelMinimaxSearch
         if (candidates.Count == 0)
             return (null, 0, 0, 0);
 
-        // Use reduced thread count for pondering (half of max, minimum 1)
+        // Use dedicated pondering thread count (conservative to avoid system responsiveness issues)
         // This prevents pondering from starving the main search when it starts
-        int ponderThreadCount = Math.Max(1, _maxThreads / 2);
+        int ponderThreadCount = ThreadPoolConfig.GetPonderingThreadCount();
 
         // Cap thread count based on depth to avoid overhead
         ponderThreadCount = Math.Min(ponderThreadCount, Math.Max(2, targetDepth / 2));
@@ -1128,7 +1199,8 @@ public sealed class ParallelMinimaxSearch
         _searchStopwatch = Stopwatch.StartNew();
         _hardTimeBoundMs = maxPonderTimeMs;
 
-        var results = new ConcurrentBag<(int x, int y, int score, int depth, long nodes)>();
+        // Include threadIndex to distinguish master thread (0) from helper threads (1+)
+        var results = new ConcurrentBag<(int x, int y, int score, int depth, long nodes, int threadIndex)>();
 
         // Create thread-local copies of board and candidates for each thread
         var boardsArray = new Board[ponderThreadCount];
@@ -1170,7 +1242,9 @@ public sealed class ParallelMinimaxSearch
                     linkedToken,
                     progressCallback);
 
-                results.Add(result);
+                // Add threadIndex to identify master vs helper thread results
+                var (x, y, score, depthAchieved, nodes) = result;
+                results.Add((x, y, score, depthAchieved, nodes, threadId));
             }, linkedToken);
             tasks.Add(task);
         }
@@ -1188,10 +1262,15 @@ public sealed class ParallelMinimaxSearch
         _searchStopwatch.Stop();
         _searchCts?.Cancel();
 
-        // Find best result (prefer deeper results if scores are similar)
-        var bestResult = results.OrderByDescending(r => r.score)
-                                .ThenByDescending(r => r.depth)
-                                .FirstOrDefault();
+        // Find best result (prefer master thread, then deeper results if scores are similar)
+        // For pondering, we still prefer master thread result for consistency
+        var bestResult = results.FirstOrDefault(r => r.threadIndex == 0);
+        if (bestResult == default)
+        {
+            bestResult = results.OrderByDescending(r => r.score)
+                                       .ThenByDescending(r => r.depth)
+                                       .FirstOrDefault();
+        }
 
         if (bestResult.depth == 0)
             return (null, 0, 0, 0);

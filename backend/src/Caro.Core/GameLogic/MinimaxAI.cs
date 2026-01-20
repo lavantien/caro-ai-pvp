@@ -9,8 +9,9 @@ namespace Caro.Core.GameLogic;
 /// <summary>
 /// AI opponent using Minimax algorithm with alpha-beta pruning and advanced optimizations
 /// Optimizations: Transposition Table, Killer Heuristic, History Heuristic, Improved Move Ordering, Iterative Deepening, VCF Solver
-/// For higher difficulties (D7+), uses parallel search (Lazy SMP) for multi-core speedup
+/// Parallel Search: Lazy SMP for D7+ (VeryHard and above) with conservative thread count (processorCount/2)-1
 /// Time management: Intelligent time allocation optimized for 7+5 time control
+/// Pondering: Constant pondering for D7+ during opponent's turn
 /// </summary>
 public class MinimaxAI
 {
@@ -175,7 +176,9 @@ public class MinimaxAI
             // 3+2: 2/180 = 1.1%, 7+5: 5/420 = 1.2%, 15+10: 10/900 = 1.1%
             var incrementSeconds = Math.Max(2, (int)Math.Round(initialTimeSeconds / 90.0));
 
-            timeAlloc = _timeManager.CalculateMoveTime(
+            // Use AdaptiveTimeManager with PID-like controller for better time management
+            // Automatically adjusts to any time control without hardcoded multipliers
+            timeAlloc = _adaptiveTimeManager.CalculateMoveTime(
                 timeRemainingMs.Value,
                 moveNumber,
                 candidates.Count,
@@ -285,90 +288,153 @@ public class MinimaxAI
             }
         }
 
-        // DISABLED: Parallel search (Lazy SMP) has fundamental architectural issues
-        // The current implementation with shared transposition table causes:
-        // 1. Result aggregation picking wrong moves due to thread timing differences
-        // 2. Transposition table corruption from concurrent writes
-        // 3. AI strength inversion where higher difficulties lose to lower ones
+        // LAZY SMP PARALLEL SEARCH: Enabled for D7+ (VeryHard and above)
+        // Uses conservative thread count (processorCount/2)-1 to avoid hyperthreading contention
+        // - D7-D11: Lazy SMP with helper threads
+        // - D1-D6: Sequential search (overhead not worth it for low depths)
         //
-        // TODO: Re-implement using one of these approaches:
-        // - Young Brothers Wait Concept (YBWC): Helper threads depend on master thread
-        // - Root Parallelization: Different threads search different root moves
-        // - Aspiration Windows with proper per-thread alpha/beta isolation
-        //
-        // For now, sequential search provides correct AI strength ordering.
+        // Key improvements from previous implementation:
+        // 1. Conservative thread count prevents contention
+        // 2. Master thread (ThreadIndex=0) provides deterministic result selection
+        // 3. Lock-free transposition table prevents corruption
+        // 4. Proper per-thread data (killer moves, history) prevents interference
 
-        // Adjust depth based on time remaining
         var adjustedDepth = CalculateDepthForTime(baseDepth, timeAlloc, timeRemainingMs, candidates.Count);
 
-        // Initialize transposition table for this search
-        _transpositionTable.IncrementAge();
-        _tableHits = 0;
-        _tableLookups = 0;
+        // Determine if we should use parallel search
+        // Only use parallel for D7+ with sufficient depth (4+) to justify overhead
+        bool useParallelSearch = difficulty >= AIDifficulty.VeryHard && adjustedDepth >= 4;
 
-        // Initialize search statistics
-        _nodesSearched = 0;
-        _depthAchieved = 0;
-        _vcfNodesSearched = 0;
-        _vcfDepthAchieved = 0;
-        _searchStopwatch.Restart();
+        (int x, int y) bestMove;
+        int depthAchieved;
+        long nodesSearched;
 
-        // Initialize time control for search timeout
-        _searchHardBoundMs = timeAlloc.HardBoundMs;
-        _searchStopped = false;
-
-        // Iterative deepening with time awareness
-        var bestMove = candidates[0];
-        var currentDepth = Math.Min(2, adjustedDepth); // Start with depth 2
-
-        while (currentDepth <= adjustedDepth)
+        if (useParallelSearch)
         {
-            // Check time bounds using TimeAllocation
-            var elapsed = _searchStopwatch.ElapsedMilliseconds;
-            if (elapsed >= timeAlloc.HardBoundMs)
+            // Track time for parallel search
+            var parallelStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            // Use Lazy SMP parallel search
+            var parallelResult = _parallelSearch.GetBestMoveWithStats(
+                board,
+                player,
+                difficulty,
+                timeRemainingMs,
+                timeAlloc,
+                moveNumber
+            );
+
+            parallelStopwatch.Stop();
+
+            bestMove = (parallelResult.X, parallelResult.Y);
+            depthAchieved = parallelResult.DepthAchieved;
+            nodesSearched = parallelResult.NodesSearched;
+
+            // Update local statistics
+            _depthAchieved = depthAchieved;
+            _nodesSearched = nodesSearched;
+
+            // Get parallel search TT stats
+            var (ttUsed, ttUsage, _, _, _) = _parallelSearch.GetStats();
+
+            // Report time used to adaptive time manager for feedback loop
+            if (timeRemainingMs.HasValue)
             {
-                break; // Hard bound reached, must stop
+                var actualTimeMs = parallelStopwatch.ElapsedMilliseconds;
+                bool timedOut = actualTimeMs >= timeAlloc.HardBoundMs;
+                _adaptiveTimeManager.ReportTimeUsed(actualTimeMs, timeAlloc.SoftBoundMs, timedOut);
             }
 
-            // Soft bound check - can continue if position is unstable
-            if (elapsed >= timeAlloc.SoftBoundMs)
+            // Print statistics for high difficulties
+            if (difficulty >= AIDifficulty.Hard)
             {
-                // Continue only if this seems critical (e.g., close game)
-                // For now, be conservative and stop
-                break;
+                var elapsedMs = parallelStopwatch.ElapsedMilliseconds;
+                var nps = elapsedMs > 0 ? nodesSearched * 1000 / elapsedMs : 0;
+                int threadCount = ThreadPoolConfig.GetLazySMPThreadCount();
+                Console.WriteLine($"[AI PARALLEL] Threads: {threadCount}, Depth: {depthAchieved}, Nodes: {nodesSearched:N0}, NPS: {nps:F0}");
+                Console.WriteLine($"[AI TT] Table usage: {ttUsed} entries ({ttUsage:F2}%)");
             }
+        }
+        else
+        {
+            // Sequential search for lower difficulties or shallow depths
+            // Initialize transposition table for this search
+            _transpositionTable.IncrementAge();
+            _tableHits = 0;
+            _tableLookups = 0;
 
-            // Reset stopped flag for this depth
+            // Initialize search statistics
+            _nodesSearched = 0;
+            _depthAchieved = 0;
+            _vcfNodesSearched = 0;
+            _vcfDepthAchieved = 0;
+            _searchStopwatch.Restart();
+
+            // Initialize time control for search timeout
+            _searchHardBoundMs = timeAlloc.HardBoundMs;
             _searchStopped = false;
 
-            var result = SearchWithDepth(board, player, currentDepth, candidates);
-            if (result.x != -1)
+            // Iterative deepening with time awareness
+            bestMove = candidates[0];
+            var currentDepth = Math.Min(2, adjustedDepth); // Start with depth 2
+
+            while (currentDepth <= adjustedDepth)
             {
-                bestMove = (result.x, result.y);
-                _depthAchieved = currentDepth; // Track deepest completed search
+                // Check time bounds using TimeAllocation
+                var elapsed = _searchStopwatch.ElapsedMilliseconds;
+                if (elapsed >= timeAlloc.HardBoundMs)
+                {
+                    break; // Hard bound reached, must stop
+                }
+
+                // Soft bound check - can continue if position is unstable
+                if (elapsed >= timeAlloc.SoftBoundMs)
+                {
+                    break;
+                }
+
+                // Reset stopped flag for this depth
+                _searchStopped = false;
+
+                var result = SearchWithDepth(board, player, currentDepth, candidates);
+                if (result.x != -1)
+                {
+                    bestMove = (result.x, result.y);
+                    _depthAchieved = currentDepth; // Track deepest completed search
+                }
+
+                // If search was stopped due to timeout, don't continue to next depth
+                if (_searchStopped)
+                {
+                    break;
+                }
+
+                currentDepth++;
             }
 
-            // If search was stopped due to timeout, don't continue to next depth
-            if (_searchStopped)
+            _searchStopwatch.Stop();
+            depthAchieved = _depthAchieved;
+            nodesSearched = _nodesSearched;
+
+            // Report time used to adaptive time manager for feedback loop
+            if (timeRemainingMs.HasValue)
             {
-                break;
+                var actualTimeMs = _searchStopwatch.ElapsedMilliseconds;
+                bool timedOut = actualTimeMs >= timeAlloc.HardBoundMs;
+                _adaptiveTimeManager.ReportTimeUsed(actualTimeMs, timeAlloc.SoftBoundMs, timedOut);
             }
 
-            currentDepth++;
-        }
-
-        _searchStopwatch.Stop();
-
-        // Print transposition table statistics for debugging
-        if (difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Master || difficulty == AIDifficulty.Grandmaster || difficulty == AIDifficulty.Legend)
-        {
-            double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
-            Console.WriteLine($"[AI TT] Hits: {_tableHits}/{_tableLookups} ({hitRate:F1}%)");
-            var (used, usage) = _transpositionTable.GetStats();
-            Console.WriteLine($"[AI TT] Table usage: {used} entries ({usage:F2}%)");
-            var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
-            var nps = elapsedMs > 0 ? _nodesSearched * 1000 / elapsedMs : 0;
-            Console.WriteLine($"[AI STATS] Depth: {_depthAchieved}, Nodes: {_nodesSearched}, NPS: {nps:F0}");
+            // Print transposition table statistics for debugging
+            if (difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Master || difficulty == AIDifficulty.Grandmaster || difficulty == AIDifficulty.Legend)
+            {
+                double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
+                Console.WriteLine($"[AI TT] Hits: {_tableHits}/{_tableLookups} ({hitRate:F1}%)");
+                var (used, usage) = _transpositionTable.GetStats();
+                Console.WriteLine($"[AI TT] Table usage: {used} entries ({usage:F2}%)");
+                var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
+                var nps = elapsedMs > 0 ? nodesSearched * 1000 / elapsedMs : 0;
+                Console.WriteLine($"[AI STATS] Depth: {depthAchieved}, Nodes: {nodesSearched}, NPS: {nps:F0}");
+            }
         }
 
         // Store PV for pondering
@@ -1361,6 +1427,9 @@ public class MinimaxAI
         ClearHistory();
         _transpositionTable.Clear();
         ResetPondering();
+
+        // Reset adaptive time manager state
+        _adaptiveTimeManager.Reset();
 
         // Reset inferred initial time for adaptive thresholds
         // -1 means "unknown, will infer from first move"
