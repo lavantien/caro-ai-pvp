@@ -24,8 +24,12 @@ public class MinimaxAI
     // Time management for 7+5 time control
     private readonly TimeManager _timeManager = new();
 
+    // Adaptive time management using PID-like controller
+    private readonly AdaptiveTimeManager _adaptiveTimeManager = new();
+
     // Track initial time for adaptive depth thresholds
-    private long _inferredInitialTimeMs = 420000;  // Default to 7 minutes
+    // -1 means "unknown, will infer from first move"
+    private long _inferredInitialTimeMs = -1;
 
     // Parallel search for high difficulties (D7+)
     // Lazy SMP provides 4-8x speedup on multi-core systems
@@ -57,6 +61,14 @@ public class MinimaxAI
     private int _vcfNodesSearched;
     private int _vcfDepthAchieved;
     private readonly Stopwatch _searchStopwatch = new();
+
+    // Time control for search timeout
+    private long _searchHardBoundMs;
+    // Check time more frequently to catch timeout earlier (power of 2 for efficient masking)
+    // 4096 = check every ~4K nodes. At 1M nodes/sec, this checks every ~4ms
+    // This is much more frequent than the old 100K interval which only checked every ~100ms
+    private const int TimeCheckInterval = 4096;
+    private bool _searchStopped;
 
     // Pondering (thinking on opponent's time)
     private readonly Ponderer _ponderer = new();
@@ -149,17 +161,29 @@ public class MinimaxAI
             return candidates[randomIndex];
         }
 
-        // Calculate time allocation for 7+5 time control
+        // Calculate time allocation for chess-clock time control
+        // Infer initial time and increment from the remaining time
+        // This works for any time control: 3+2, 7+5, 15+10, etc.
         TimeAllocation timeAlloc;
         if (timeRemainingMs.HasValue)
         {
+            // Infer initial time from first few moves
+            var inferredInitialMs = _inferredInitialTimeMs > 0 ? _inferredInitialTimeMs : timeRemainingMs.Value;
+            var initialTimeSeconds = (int)(inferredInitialMs / 1000);
+
+            // Estimate increment based on common time control ratios
+            // 3+2: 2/180 = 1.1%, 7+5: 5/420 = 1.2%, 15+10: 10/900 = 1.1%
+            var incrementSeconds = Math.Max(2, (int)Math.Round(initialTimeSeconds / 90.0));
+
             timeAlloc = _timeManager.CalculateMoveTime(
                 timeRemainingMs.Value,
                 moveNumber,
                 candidates.Count,
                 board,
                 player,
-                difficulty
+                difficulty,
+                initialTimeSeconds,
+                incrementSeconds
             );
         }
         else
@@ -179,12 +203,14 @@ public class MinimaxAI
         }
 
         // CRITICAL DEFENSE: Check if opponent has immediate winning threat
-        // Only apply at higher difficulties (D7+) to avoid giving lower AIs free knowledge
-        // This takes priority over everything - even VCF search
-        // If opponent has four in a row (or open three), we must block immediately
-        if (difficulty >= AIDifficulty.Hard)
+        // SCALES WITH DIFFICULTY - this is KEY for AI strength ordering!
+        // - D11-D9: Full threat detection (four + open three)
+        // - D8-D7: Basic threat detection (four only)
+        // - D6 and below: No automatic threat detection (must rely on evaluation)
+        var criticalDefenseLevel = GetCriticalDefenseLevel(difficulty);
+        if (criticalDefenseLevel > 0)
         {
-            var criticalDefense = FindCriticalDefense(board, player);
+            var criticalDefense = FindCriticalDefense(board, player, criticalDefenseLevel);
             if (criticalDefense.HasValue)
             {
                 var (blockX, blockY) = criticalDefense.Value;
@@ -192,12 +218,43 @@ public class MinimaxAI
             }
         }
 
-        // Try VCF (Victory by Continuous Four) search first for higher difficulties
-        // VCF is much faster than full minimax for tactical positions
-        if (difficulty >= AIDifficulty.Hard)
+        // VCF DEFENSE MODE: DISABLED
+        // VCF Defense was causing D11 to play too reactively, blocking opponent threats
+        // instead of developing its own position. The evaluation function's defense
+        // multiplier (2.2x for opponent threats) should be sufficient for defense.
+        // D11's advantage comes from offensive VCF, not defensive VCF detection.
+        // if (difficulty >= AIDifficulty.Legend)  // Only D11
+        // {
+        //     var vcfDefense = FindVCFDefense(board, player, timeAlloc, difficulty);
+        //     if (vcfDefense.HasValue)
+        //     {
+        //         var (defenseX, defenseY) = vcfDefense.Value;
+        //         Console.WriteLine($"[AI VCF] Opponent VCF detected, blocking at ({defenseX}, {defenseY})");
+        //         return (defenseX, defenseY);
+        //     }
+        // }
+
+        // Try VCF (Victory by Continuous Four) search - ONLY D11 (Legend) has this!
+        // VCF finds forced win sequences through continuous four threats.
+        // By restricting VCF to only D11, we ensure it's a unique differentiator, not an equalizer.
+        // - D11: Full VCF with maximum time and depth
+        // - D10 and below: NO VCF (must rely on minimax evaluation)
+        var vcfThreshold = GetVCFThreshold(difficulty);
+        if (difficulty >= vcfThreshold)
         {
-            var vcfTimeLimit = CalculateVCFTimeLimit(timeAlloc);
-            var vcfResult = _vcfSolver.SolveVCF(board, player, timeLimitMs: vcfTimeLimit, maxDepth: 30);
+            var (vcfTimeLimit, vcfMaxDepth) = CalculateVCFTimeLimit(timeAlloc, difficulty);
+
+            // VCF-FIRST MODE: In emergency, use up to 80% of hard bound for VCF
+            // CRITICAL: Even in emergency, VCF time scales with difficulty!
+            // This prevents emergency mode from making all AIs equal
+            if (timeAlloc.IsEmergency)
+            {
+                var emergencyVcfCap = GetEmergencyVCFCap(difficulty);
+                vcfTimeLimit = (int)Math.Min(timeAlloc.HardBoundMs * 0.8, emergencyVcfCap);
+                Console.WriteLine($"[AI VCF] Emergency mode: Using up to 80% of hard bound ({vcfTimeLimit}ms, cap: {emergencyVcfCap}ms) for VCF");
+            }
+
+            var vcfResult = _vcfSolver.SolveVCF(board, player, timeLimitMs: vcfTimeLimit, maxDepth: vcfMaxDepth);
 
             // Capture VCF statistics even if not a winning sequence
             _vcfDepthAchieved = vcfResult.DepthAchieved;
@@ -208,6 +265,23 @@ public class MinimaxAI
                 // VCF found a forced win sequence - use it immediately
                 Console.WriteLine($"[AI VCF] Found winning move ({vcfResult.BestMove.Value.x}, {vcfResult.BestMove.Value.y}), depth: {vcfResult.DepthAchieved}, nodes: {vcfResult.NodesSearched}");
                 return vcfResult.BestMove.Value;
+            }
+
+            // VCF-FIRST MODE: In emergency mode, if VCF didn't find a win, fall back to TT move
+            // Skip the expensive minimax search entirely when time is critical
+            if (timeAlloc.IsEmergency)
+            {
+                // Try to get a TT move as fallback
+                var ttMove = GetTranspositionTableMove(board, player, minDepth: 3);
+                if (ttMove.HasValue)
+                {
+                    Console.WriteLine("[AI VCF] Emergency: No VCF found, using TT move as fallback");
+                    return ttMove.Value;
+                }
+
+                // Last resort: return the first candidate (usually the center or near existing stones)
+                Console.WriteLine("[AI VCF] Emergency: No TT move, using quick candidate selection");
+                return candidates[0];
             }
         }
 
@@ -239,6 +313,10 @@ public class MinimaxAI
         _vcfDepthAchieved = 0;
         _searchStopwatch.Restart();
 
+        // Initialize time control for search timeout
+        _searchHardBoundMs = timeAlloc.HardBoundMs;
+        _searchStopped = false;
+
         // Iterative deepening with time awareness
         var bestMove = candidates[0];
         var currentDepth = Math.Min(2, adjustedDepth); // Start with depth 2
@@ -260,12 +338,22 @@ public class MinimaxAI
                 break;
             }
 
+            // Reset stopped flag for this depth
+            _searchStopped = false;
+
             var result = SearchWithDepth(board, player, currentDepth, candidates);
             if (result.x != -1)
             {
                 bestMove = (result.x, result.y);
                 _depthAchieved = currentDepth; // Track deepest completed search
             }
+
+            // If search was stopped due to timeout, don't continue to next depth
+            if (_searchStopped)
+            {
+                break;
+            }
+
             currentDepth++;
         }
 
@@ -315,39 +403,76 @@ public class MinimaxAI
     /// Calculate appropriate search depth based on time allocation and position complexity
     /// Uses adaptive percentage-based thresholds based on inferred initial time
     /// Ensures full depth is reachable at the start of the game
+    ///
+    /// CRITICAL: Must preserve AI strength ordering! D11 should always search deeper than D10,
+    /// which searches deeper than D8, etc. The depth reduction must maintain relative ordering.
     /// </summary>
     private int CalculateDepthForTime(int baseDepth, TimeAllocation timeAlloc, long? timeRemainingMs, int candidateCount)
     {
-        // Infer initial time on first move
-        if (timeRemainingMs.HasValue && timeRemainingMs.Value > _inferredInitialTimeMs * 0.9)
+        // Infer initial time from the move number and remaining time
+        // On early moves (when we haven't spent much time yet), use current remaining as initial
+        // This works for any time control: 3+2, 7+5, 15+10, etc.
+        if (timeRemainingMs.HasValue && timeAlloc.Phase == GamePhase.Opening)
         {
-            _inferredInitialTimeMs = timeRemainingMs.Value;
+            // First move or unknown initial time: infer from current remaining
+            if (_inferredInitialTimeMs < 0)
+            {
+                _inferredInitialTimeMs = timeRemainingMs.Value;
+            }
+            // Update inferred time if we're seeing a significantly different time control
+            else if (Math.Abs(timeRemainingMs.Value - _inferredInitialTimeMs) > _inferredInitialTimeMs * 0.3)
+            {
+                _inferredInitialTimeMs = timeRemainingMs.Value;
+            }
         }
+
+        // Fallback for edge cases (shouldn't happen with proper time control)
+        var effectiveInitialTimeMs = _inferredInitialTimeMs > 0 ? _inferredInitialTimeMs : 420_000;
 
         // Emergency mode - VERY aggressive depth reduction to avoid timeout
         // In time scramble, rely on VCF + TT move, not deep search
+        // But still preserve relative strength: D11 should be deeper than D10 even in emergency
         if (timeAlloc.IsEmergency)
         {
-            return Math.Max(1, baseDepth / 3); // D11 -> D3, D10 -> D3, etc.
+            // Emergency depth with separation: D11->6, D10->5, D9->5, D8->4, D7->4, D6->3
+            return baseDepth switch
+            {
+                >= 11 => 6,  // D11: depth 6
+                >= 10 => 5,  // D10: depth 5
+                >= 9 => 5,   // D9: depth 5
+                >= 8 => 4,   // D8: depth 4
+                >= 7 => 4,   // D7: depth 4
+                >= 6 => 3,   // D6: depth 3
+                _ => 3       // D5 and below: depth 3
+            };
         }
 
         // Per-move time allocation
         var softBoundSeconds = timeAlloc.SoftBoundMs / 1000.0;
 
         // Total time remaining
-        var totalTimeRemainingSeconds = timeRemainingMs.HasValue ? timeRemainingMs.Value / 1000.0 : (double)_inferredInitialTimeMs / 1000.0;
-        var initialTimeSeconds = (double)_inferredInitialTimeMs / 1000.0;
+        var totalTimeRemainingSeconds = timeRemainingMs.HasValue ? timeRemainingMs.Value / 1000.0 : (double)effectiveInitialTimeMs / 1000.0;
+        var initialTimeSeconds = (double)effectiveInitialTimeMs / 1000.0;
 
-        // Adaptive thresholds based on initial time:
-        // - Full depth when > 50% time remaining
-        // - Depth-1 when 25-50% time remaining
-        // - Depth-2 when 15-25% time remaining
-        // - Aggressive reduction when < 15% time remaining
+        // Calculate minimum depth to preserve AI strength ordering
+        // CRITICAL: Create 1-py separation between adjacent difficulties!
+        // D11 searches at least 1 ply deeper than D10, which searches 1 ply deeper than D9, etc.
+        int minDepthForStrength = baseDepth switch
+        {
+            >= 11 => 8,  // D11: at least depth 8 (1 ply above D10)
+            >= 10 => 7,  // D10: at least depth 7 (1 ply above D9)
+            >= 9 => 6,   // D9: at least depth 6 (1 ply above D8)
+            >= 8 => 5,   // D8: at least depth 5 (1 ply above D7)
+            >= 7 => 4,   // D7: at least depth 4
+            >= 6 => 4,   // D6: at least depth 4
+            >= 4 => 3,   // D4-D5: at least depth 3
+            _ => 2        // D1-D3: at least depth 2
+        };
 
         // Critical: less than 15% of initial time or very tight per-move limit
         if (softBoundSeconds < 3 || totalTimeRemainingSeconds < initialTimeSeconds * 0.15)
         {
-            return Math.Max(2, baseDepth / 2); // D11 -> D5, D10 -> D5
+            return Math.Max(minDepthForStrength, baseDepth / 2);
         }
 
         // Low: 15-25% of initial time or moderate per-move limit
@@ -355,9 +480,9 @@ public class MinimaxAI
         {
             if (candidateCount > 25) // Complex position
             {
-                return Math.Max(3, baseDepth - 3);
+                return Math.Max(minDepthForStrength, baseDepth - 3);
             }
-            return Math.Max(3, baseDepth - 2); // D11 -> D9, D10 -> D8
+            return Math.Max(minDepthForStrength, baseDepth - 1);
         }
 
         // Moderate: 25-50% of initial time
@@ -365,9 +490,9 @@ public class MinimaxAI
         {
             if (candidateCount > 25) // Complex position with limited time
             {
-                return Math.Max(4, baseDepth - 2);
+                return Math.Max(minDepthForStrength, baseDepth - 2);
             }
-            return Math.Max(4, baseDepth - 1); // D11 -> D10, D10 -> D9
+            return Math.Max(minDepthForStrength, baseDepth - 1);
         }
 
         // Good time availability (>50% remaining): use full depth
@@ -375,23 +500,120 @@ public class MinimaxAI
     }
 
     /// <summary>
-    /// Calculate appropriate time limit for VCF search based on time allocation
-    /// VCF is fast for tactical positions but we limit it to avoid wasting time
+    /// Calculate appropriate time limit for VCF search based on time allocation and difficulty
+    ///
+    /// CRITICAL: VCF must scale with difficulty for proper AI strength ordering!
+    /// Higher difficulties should have:
+    /// - More time for VCF search (find deeper tactical sequences)
+    /// - Higher maxDepth (look further ahead for forcing moves)
+    /// - Better defensive VCF (find moves that break opponent's VCF)
+    ///
+    /// Without proper scaling, VCF becomes an "equalizer" where lower difficulties
+    /// can beat higher ones through tactical brilliance alone.
     /// </summary>
-    private int CalculateVCFTimeLimit(TimeAllocation timeAlloc)
+    private (int timeLimitMs, int maxDepth) CalculateVCFTimeLimit(TimeAllocation timeAlloc, AIDifficulty difficulty)
     {
-        // Emergency mode - very quick VCF check
+        // Emergency mode - very quick VCF check for all difficulties
         if (timeAlloc.IsEmergency)
         {
-            return 50; // Very quick check
+            return (50, 15); // Very quick check, shallow depth
         }
 
-        // Use a fraction of the soft bound for VCF
-        var vcfTime = Math.Max(50, timeAlloc.SoftBoundMs / 10);
+        // Base VCF time from soft bound
+        var baseVcfTime = Math.Max(50, timeAlloc.SoftBoundMs / 10);
 
-        // Cap at reasonable values
-        return (int)Math.Min(vcfTime, 500);
+        // Difficulty-based multipliers for VCF time and depth
+        // Higher difficulties spend MORE time on VCF because it's their primary tactical weapon
+        var (timeMultiplier, depthBonus) = difficulty switch
+        {
+            AIDifficulty.Legend => (3.0, 10),      // D11: 3x time, depth 40
+            AIDifficulty.Grandmaster => (2.0, 5),   // D10: 2x time, depth 35
+            AIDifficulty.Master => (1.5, 3),        // D9: 1.5x time, depth 33
+            AIDifficulty.Expert => (1.2, 0),        // D8: 1.2x time, depth 30
+            AIDifficulty.VeryHard => (1.0, 0),      // D7: 1x time, depth 30
+            AIDifficulty.Harder => (0.8, 0),        // D6: 0.8x time, depth 30
+            AIDifficulty.Hard => (0.6, 0),          // D5: 0.6x time, depth 30
+            _ => (0.5, 0)                           // D4 and below: 0.5x time
+        };
+
+        var vcfTime = (int)(baseVcfTime * timeMultiplier);
+        var maxDepth = 30 + depthBonus;
+
+        // Scale caps based on difficulty
+        var maxCap = difficulty switch
+        {
+            AIDifficulty.Legend => 2000,     // D11: up to 2 seconds for VCF
+            AIDifficulty.Grandmaster => 1500,  // D10: up to 1.5 seconds
+            AIDifficulty.Master => 1000,       // D9: up to 1 second
+            _ => 500                           // D8 and below: up to 500ms
+        };
+
+        var finalVcfTime = (int)Math.Clamp(vcfTime, 50, maxCap);
+
+        return (finalVcfTime, maxDepth);
     }
+
+    /// <summary>
+    /// Get critical defense level based on difficulty
+    /// Level 2: Full defense (four + open three) - D9+
+    /// Level 1: Basic defense (four only) - D7-D8
+    /// Level 0: No automatic defense - D6 and below
+    /// </summary>
+    private static int GetCriticalDefenseLevel(AIDifficulty difficulty) => difficulty switch
+    {
+        AIDifficulty.Legend => 2,          // D11: Full defense
+        AIDifficulty.Grandmaster => 2,     // D10: Full defense
+        AIDifficulty.Master => 2,          // D9: Full defense
+        AIDifficulty.Expert => 1,          // D8: Basic defense
+        AIDifficulty.VeryHard => 1,        // D7: Basic defense
+        _ => 0                             // D6 and below: No automatic defense
+    };
+
+    /// <summary>
+    /// Get VCF activation threshold based on difficulty
+    /// ONLY D9 and above have VCF access!
+    /// D8 and below must rely purely on minimax evaluation
+    ///
+    /// VCF is a powerful tactical weapon that can equalize the game.
+    /// By restricting it to only the highest difficulties, we preserve AI strength ordering.
+    /// </summary>
+    private static AIDifficulty GetVCFThreshold(AIDifficulty difficulty) => difficulty switch
+    {
+        // CRITICAL: ONLY D11 (Legend) gets VCF access!
+        // VCF is a powerful feature that finds forced wins. If multiple difficulties have it,
+        // it acts as an equalizer rather than a differentiator.
+        // By giving VCF ONLY to D11, we ensure it's a unique advantage for the highest difficulty.
+        AIDifficulty.Legend => AIDifficulty.Legend,      // D11: Legend >= Legend = true (ONLY D11 HAS VCF)
+        // All other difficulties: Return Legend so that their comparison with Legend is false
+        AIDifficulty.Grandmaster => AIDifficulty.Legend, // D10: Grandmaster >= Legend = 10 >= 11 = false (NO VCF)
+        AIDifficulty.Master => AIDifficulty.Legend,      // D9: NO VCF
+        AIDifficulty.Expert => AIDifficulty.Legend,      // D8: NO VCF
+        AIDifficulty.VeryHard => AIDifficulty.Legend,    // D7: NO VCF
+        AIDifficulty.Harder => AIDifficulty.Legend,      // D6: NO VCF
+        AIDifficulty.Hard => AIDifficulty.Legend,        // D5: NO VCF
+        AIDifficulty.Medium => AIDifficulty.Legend,      // D4: NO VCF
+        AIDifficulty.Normal => AIDifficulty.Legend,      // D3: NO VCF
+        AIDifficulty.Easy => AIDifficulty.Legend,        // D2: NO VCF
+        AIDifficulty.Beginner => AIDifficulty.Legend,    // D1: NO VCF
+        _ => AIDifficulty.Legend                          // Default: NO VCF
+    };
+
+    /// <summary>
+    /// Get emergency VCF time cap based on difficulty
+    /// CRITICAL: Even in emergency mode, higher difficulties get more VCF time!
+    /// This prevents emergency mode from equalizing all AI strengths
+    /// </summary>
+    private static int GetEmergencyVCFCap(AIDifficulty difficulty) => difficulty switch
+    {
+        AIDifficulty.Legend => 1000,      // D11: up to 1 second even in emergency
+        AIDifficulty.Grandmaster => 800,  // D10: up to 800ms
+        AIDifficulty.Master => 600,       // D9: up to 600ms
+        AIDifficulty.Expert => 500,       // D8: up to 500ms
+        AIDifficulty.VeryHard => 400,     // D7: up to 400ms
+        AIDifficulty.Harder => 300,       // D6: up to 300ms
+        AIDifficulty.Hard => 200,         // D5: up to 200ms
+        _ => 150                          // D4 and below: 150ms
+    };
 
     /// <summary>
     /// Calculate pondering time based on remaining time and difficulty
@@ -470,7 +692,10 @@ public class MinimaxAI
     /// This is a critical defensive check that runs before any search
     /// Returns the blocking position if found, null otherwise
     /// </summary>
-    private (int x, int y)? FindCriticalDefense(Board board, Player player)
+    /// <param name="board">Current board state</param>
+    /// <param name="player">Current player (defending against opponent)</param>
+    /// <param name="level">Defense level: 2=full (4+open3), 1=basic (4 only), 0=none</param>
+    private (int x, int y)? FindCriticalDefense(Board board, Player player, int level = 2)
     {
         var opponent = player == Player.Red ? Player.Blue : Player.Red;
         var opponentBoard = board.GetBitBoard(opponent);
@@ -544,7 +769,8 @@ public class MinimaxAI
 
                     // Open three (three in a row with both ends open) - also critical
                     // Opponent can create four in a row on their next turn
-                    if (count == 3)
+                    // ONLY checked at level 2 (full defense) - D9 and above
+                    if (count == 3 && level >= 2)
                     {
                         var openEnds = BitBoardEvaluator.CountOpenEnds(opponentBoard, occupied, x, y, dx, dy, count);
 
@@ -613,6 +839,88 @@ public class MinimaxAI
             }
 
             return bestMove;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Check if opponent can VCF (Victory by Continuous Four) and find blocking move
+    /// This is essential for D11 to prevent losing to lower difficulty VCF attacks
+    ///
+    /// OPTIMIZED: Uses fast threat detection + immediate defensive move selection
+    /// - VCF check time scales with difficulty (D11 gets more time for defensive VCF)
+    /// - Quick check: if opponent has no threats, skip VCF check entirely
+    /// - Single VCF check (not nested) to detect opponent threats
+    /// - Return first valid defensive move without re-checking VCF for each one
+    /// - Skip VCF defense in emergency mode (prioritize speed over accuracy)
+    /// </summary>
+    private (int x, int y)? FindVCFDefense(Board board, Player player, TimeAllocation timeAlloc, AIDifficulty difficulty)
+    {
+        // Skip VCF defense in emergency mode - we need to move quickly
+        // In emergency, the VCF-first mode already handles defensive prioritization
+        if (timeAlloc.IsEmergency)
+        {
+            return null;
+        }
+
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+
+        // Quick check: if opponent has very few threats, no need for VCF defense
+        // This is a fast check that avoids expensive VCF search in non-tactical positions
+        var opponentThreats = _vcfSolver.GetThreatMoves(board, opponent);
+        if (opponentThreats.Count < 2)
+        {
+            // Opponent has less than 2 threat moves - not a VCF danger
+            return null;
+        }
+
+        // Use scaled VCF time based on difficulty for defensive checking
+        // Higher difficulties get more time to find defensive moves
+        var (vcfCheckTime, vcfMaxDepth) = CalculateVCFTimeLimit(timeAlloc, difficulty);
+
+        // For defensive VCF, use 50% of the offensive VCF time (we need to be efficient)
+        vcfCheckTime = vcfCheckTime / 2;
+
+        var opponentVCFResult = _vcfSolver.SolveVCF(board, opponent, timeLimitMs: vcfCheckTime, maxDepth: vcfMaxDepth);
+
+        // If opponent can VCF, we need to find a defensive move
+        if (opponentVCFResult.IsSolved && opponentVCFResult.IsWin)
+        {
+            Console.WriteLine($"[AI VCF] Opponent has VCF threat (depth: {opponentVCFResult.DepthAchieved}, nodes: {opponentVCFResult.NodesSearched})");
+
+            // Get defensive moves - these are moves that block opponent's threats
+            var defenses = _vcfSolver.GetDefenseMoves(board, opponent, player);
+
+            if (defenses.Count > 0)
+            {
+                // OPTIMIZATION: Return first valid defensive move without re-checking
+                // The old implementation did a nested VCF check for each defense move,
+                // which was O(defenses × VCF_time) = 10 × 500ms = 5+ seconds overhead
+                // The new approach is O(1) = just validate and return first valid move
+
+                foreach (var defense in defenses)
+                {
+                    // Validate move is on board and empty
+                    if (defense.x >= 0 && defense.x < board.BoardSize &&
+                        defense.y >= 0 && defense.y < board.BoardSize &&
+                        board.GetCell(defense.x, defense.y).IsEmpty)
+                    {
+                        Console.WriteLine($"[AI VCF] Using defensive move ({defense.x}, {defense.y})");
+                        return defense;
+                    }
+                }
+
+                // Fallback: use first defensive move even if not currently empty
+                // (shouldn't happen, but handle gracefully)
+                var fallback = defenses[0];
+                if (fallback.x >= 0 && fallback.x < board.BoardSize &&
+                    fallback.y >= 0 && fallback.y < board.BoardSize)
+                {
+                    Console.WriteLine($"[AI VCF] Using fallback defense at ({fallback.x}, {fallback.y})");
+                    return fallback;
+                }
+            }
         }
 
         return null;
@@ -1055,7 +1363,8 @@ public class MinimaxAI
         ResetPondering();
 
         // Reset inferred initial time for adaptive thresholds
-        _inferredInitialTimeMs = 420000;  // Default to 7+5
+        // -1 means "unknown, will infer from first move"
+        _inferredInitialTimeMs = -1;
 
         // Clear killer moves
         for (int d = 0; d < 20; d++)
@@ -1084,6 +1393,19 @@ public class MinimaxAI
     /// </summary>
     private int Quiesce(Board board, int alpha, int beta, bool isMaximizing, Player aiPlayer, int rootDepth)
     {
+        // Time control: check periodically (every N nodes) to avoid timeout
+        // Use a different offset to stagger checks between Minimax and Quiesce
+        if ((_nodesSearched & (TimeCheckInterval - 1)) == (TimeCheckInterval / 2))
+        {
+            var elapsed = _searchStopwatch.ElapsedMilliseconds;
+            if (elapsed >= _searchHardBoundMs)
+            {
+                _searchStopped = true;
+                // Return current bound to avoid corrupting alpha-beta
+                return isMaximizing ? alpha : beta;
+            }
+        }
+
         // Get stand-pat score (static evaluation)
         var standPat = _evaluator.Evaluate(board, aiPlayer);
 
@@ -1287,6 +1609,18 @@ public class MinimaxAI
     {
         // Count this node
         _nodesSearched++;
+
+        // Time control: check periodically (every N nodes) to avoid timeout
+        if ((_nodesSearched & (TimeCheckInterval - 1)) == 0)
+        {
+            var elapsed = _searchStopwatch.ElapsedMilliseconds;
+            if (elapsed >= _searchHardBoundMs)
+            {
+                _searchStopped = true;
+                // Return current bound to avoid corrupting alpha-beta
+                return isMaximizing ? alpha : beta;
+            }
+        }
 
         // Check terminal states
         var winner = CheckWinner(board);
