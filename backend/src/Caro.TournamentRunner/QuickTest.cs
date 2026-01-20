@@ -32,8 +32,8 @@ public static class QuickTest
                 redDiff,
                 blueDiff,
                 maxMoves: 225,
-                initialTimeSeconds: 420,  // 7+5 time control
-                incrementSeconds: 5,
+                initialTimeSeconds: 180,  // 3+2 time control (faster iteration)
+                incrementSeconds: 2,
                 ponderingEnabled: true,
                 onMove: (x, y, player, moveNumber, redTimeMs, blueTimeMs, stats) =>
                 {
