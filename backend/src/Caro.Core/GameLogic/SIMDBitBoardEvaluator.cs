@@ -23,11 +23,14 @@ public static class SIMDBitBoardEvaluator
     /// <summary>
     /// Defense multiplier for asymmetric scoring.
     /// In Caro, blocking opponent threats is MORE important than creating your own.
-    /// This multiplier ensures opponent threats are weighted 2.2x higher than equivalent player threats.
-    /// Rationale: In Blitz (3+2), safer to be "paranoid" and block early than miss a VCF.
-    /// Effect: Opponent Open 4 = -22,000, My Open 4 = +10,000 -> AI prioritizes blocking.
+    /// This multiplier ensures opponent threats are weighted higher than equivalent player threats.
+    /// Rationale: In fast time controls, safer to be "paranoid" and block early than miss a VCF.
+    /// Effect: Opponent Open 4 = -15,000, My Open 4 = +10,000 -> AI prioritizes blocking.
+    ///
+    /// NOTE: Reduced from 2.2x to 1.5x to prevent second-mover (Blue) advantage.
+    /// 2.2x was too aggressive and caused Blue to consistently win regardless of difficulty difference.
     /// </summary>
-    private const float DefenseMultiplier = 2.2f;
+    private const float DefenseMultiplier = 1.5f;
 
     /// <summary>
     /// Platform capability detection
@@ -72,15 +75,21 @@ public static class SIMDBitBoardEvaluator
 
         // Subtract opponent's score with DefenseMultiplier (asymmetric scoring)
         // In Caro, blocking opponent threats is MORE important than creating your own attacks
+        // Use integer math (multiply by 3, divide by 2) to avoid floating-point precision issues
+        // DefenseMultiplier of 1.5 = 3/2
+        const int DefenseMultiplierNumer = 3;
+        const int DefenseMultiplierDenom = 2;
+
         var oppHorizontal = EvaluateHorizontalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3);
         var oppVertical = EvaluateVerticalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3);
         var oppDiagMain = EvaluateDiagonalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3, true);
         var oppDiagAnti = EvaluateDiagonalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3, false);
 
-        score -= (int)(oppHorizontal * DefenseMultiplier);
-        score -= (int)(oppVertical * DefenseMultiplier);
-        score -= (int)(oppDiagMain * DefenseMultiplier);
-        score -= (int)(oppDiagAnti * DefenseMultiplier);
+        // Use integer math: opp * 11 / 5 for consistent results
+        score -= (oppHorizontal * DefenseMultiplierNumer) / DefenseMultiplierDenom;
+        score -= (oppVertical * DefenseMultiplierNumer) / DefenseMultiplierDenom;
+        score -= (oppDiagMain * DefenseMultiplierNumer) / DefenseMultiplierDenom;
+        score -= (oppDiagAnti * DefenseMultiplierNumer) / DefenseMultiplierDenom;
 
         // Add center control bonus
         score += EvaluateCenterControlOptimized(p0, p1, p2, p3);
@@ -89,123 +98,54 @@ public static class SIMDBitBoardEvaluator
     }
 
     /// <summary>
-    /// Fast horizontal evaluation using bitwise operations and hardware POPCNT
-    /// Each 15-bit row is evaluated independently
+    /// Horizontal evaluation using run-length encoding (same approach as vertical)
+    /// Replaces the broken bit-extraction approach with GetBit() for correctness
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int EvaluateHorizontalOptimized(
         ulong p0, ulong p1, ulong p2, ulong p3,
         ulong occ0, ulong occ1, ulong occ2, ulong occ3)
     {
+        // Reconstruct BitBoard for horizontal scanning
+        var playerBoard = BitBoard.FromRawValues(p0, p1, p2, p3);
+        var occupied = BitBoard.FromRawValues(occ0, occ1, occ2, occ3);
+
         var score = 0;
 
-        // Process each row using hardware POPCNT for fast counting
-        // _bits0: rows 0-3, _bits1: rows 4-7, _bits2: rows 8-11, _bits3: rows 12-14
-
-        score += ProcessRowsHorizontal(p0, occ0, 0);  // Rows 0-3
-        score += ProcessRowsHorizontal(p1, occ1, 4);  // Rows 4-7
-        score += ProcessRowsHorizontal(p2, occ2, 8);  // Rows 8-11
-        score += ProcessRowsHorizontal(p3, occ3, 12); // Rows 12-14 (only 3 rows)
-
-        return score;
-    }
-
-    /// <summary>
-    /// Process horizontal patterns in an ulong containing 4 rows of 15 bits each
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int ProcessRowsHorizontal(ulong playerBits, ulong occupiedBits, int startRow)
-    {
-        var score = 0;
-        int rows = (startRow == 12) ? 3 : 4;
-
-        for (int r = 0; r < rows; r++)
+        // For each row, count horizontal runs using run-length encoding
+        for (int y = 0; y < 15; y++)
         {
-            int bitOffset = r * 15;
-            ulong rowMask = 0x7FFFUL << bitOffset;
-            ulong row = (playerBits & rowMask) >> bitOffset;
-            ulong rowOcc = (occupiedBits & rowMask) >> bitOffset;
+            int runStart = -1;
+            int runLength = 0;
 
-            score += ScoreRowPatterns(row, rowOcc);
-        }
-
-        return score;
-    }
-
-    /// <summary>
-    /// Score patterns in a single 15-bit row using precomputed masks
-    /// This is the hot path - heavily optimized
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int ScoreRowPatterns(ulong row, ulong rowOcc)
-    {
-        var score = 0;
-
-        // Check 5-in-row (11 positions)
-        // Mask: 0b11111 = 0x1F
-        for (int i = 0; i <= 10; i++)
-        {
-            ulong mask = 0x1FUL << i;
-            if ((row & mask) == mask)
+            for (int x = 0; x < 15; x++)
             {
-                // Check for sandwich (OXXXXXO) - should NOT count as win in Caro
-                bool leftBlocked = (i > 0) && ((rowOcc & (1UL << (i - 1))) != 0);
-                bool rightBlocked = (i < 10) && ((rowOcc & (1UL << (i + 5))) != 0);
-
-                // Only count as win if NOT sandwiched (at least one end is open)
-                bool isSandwiched = leftBlocked && rightBlocked;
-                if (!isSandwiched)
+                if (playerBoard.GetBit(x, y))
                 {
-                    score += FiveInRowScore;
+                    if (runStart == -1) runStart = x;
+                    runLength++;
+                }
+                else
+                {
+                    if (runLength > 0)
+                    {
+                        // Score this run
+                        bool leftOpen = (runStart > 0) && !occupied.GetBit(runStart - 1, y);
+                        bool rightOpen = (x < 14) && !occupied.GetBit(x, y);
+
+                        score += ScoreRun(runLength, leftOpen, rightOpen);
+                        runStart = -1;
+                        runLength = 0;
+                    }
                 }
             }
-        }
 
-        // Check 4-in-row (12 positions)
-        for (int i = 0; i <= 11; i++)
-        {
-            ulong mask = 0xFUL << i;
-            if ((row & mask) == mask)
+            // Handle run ending at right edge of board
+            if (runLength > 0)
             {
-                bool leftOpen = (i > 0) && ((rowOcc & (1UL << (i - 1))) == 0);
-                bool rightOpen = (i < 11) && ((rowOcc & (1UL << (i + 4))) == 0);
-
-                if (leftOpen || rightOpen)
-                    score += OpenFourScore;
-                else
-                    score += ClosedFourScore;
-            }
-        }
-
-        // Check 3-in-row (13 positions)
-        for (int i = 0; i <= 12; i++)
-        {
-            ulong mask = 0x7UL << i;
-            if ((row & mask) == mask)
-            {
-                bool leftOpen = (i > 0) && ((rowOcc & (1UL << (i - 1))) == 0);
-                bool rightOpen = (i < 12) && ((rowOcc & (1UL << (i + 3))) == 0);
-
-                if (leftOpen && rightOpen)
-                    score += OpenThreeScore * 2;
-                else if (leftOpen || rightOpen)
-                    score += OpenThreeScore;
-                else
-                    score += ClosedThreeScore;
-            }
-        }
-
-        // Check open 2-in-row (14 positions) - building blocks
-        for (int i = 0; i <= 13; i++)
-        {
-            ulong mask = 0x3UL << i;
-            if ((row & mask) == mask)
-            {
-                bool leftOpen = (i > 0) && ((rowOcc & (1UL << (i - 1))) == 0);
-                bool rightOpen = (i < 13) && ((rowOcc & (1UL << (i + 2))) == 0);
-
-                if (leftOpen && rightOpen)
-                    score += OpenTwoScore;
+                bool leftOpen = (runStart > 0) && !occupied.GetBit(runStart - 1, y);
+                bool rightOpen = false; // Board edge
+                score += ScoreRun(runLength, leftOpen, rightOpen);
             }
         }
 

@@ -21,11 +21,14 @@ public static class BitBoardEvaluator
     /// <summary>
     /// Defense multiplier for asymmetric scoring.
     /// In Caro, blocking opponent threats is MORE important than creating your own.
-    /// This multiplier ensures opponent threats are weighted 2.2x higher than equivalent player threats.
-    /// Rationale: In Blitz (3+2), safer to be "paranoid" and block early than miss a VCF.
-    /// Effect: Opponent Open 4 = -22,000, My Open 4 = +10,000 -> AI prioritizes blocking.
+    /// This multiplier ensures opponent threats are weighted higher than equivalent player threats.
+    /// Rationale: In fast time controls, safer to be "paranoid" and block early than miss a VCF.
+    /// Effect: Opponent Open 4 = -15,000, My Open 4 = +10,000 -> AI prioritizes blocking.
+    ///
+    /// NOTE: Reduced from 2.2x to 1.5x to prevent second-mover (Blue) advantage.
+    /// 2.2x was too aggressive and caused Blue to consistently win regardless of difficulty difference.
     /// </summary>
-    private const float DefenseMultiplier = 2.2f;
+    private const float DefenseMultiplier = 1.5f;
 
     // Direction vectors: horizontal, vertical, 2 diagonals
     private static readonly (int dx, int dy)[] Directions = new[]
@@ -69,15 +72,21 @@ public static class BitBoardEvaluator
 
         // Subtract opponent's threats with DefenseMultiplier (asymmetric scoring)
         // In Caro, blocking opponent threats is MORE important than creating your own attacks
+        // Use integer math (multiply by 3, divide by 2) to avoid floating-point precision issues
+        // DefenseMultiplier of 1.5 = 3/2
+        const int DefenseMultiplierNumer = 3;
+        const int DefenseMultiplierDenom = 2;
+
         var oppHorizontal = EvaluateDirection(opponentBoard, occupied, 1, 0);
         var oppVertical = EvaluateDirection(opponentBoard, occupied, 0, 1);
         var oppDiagonal = EvaluateDirection(opponentBoard, occupied, 1, 1);
         var oppAntiDiagonal = EvaluateDirection(opponentBoard, occupied, 1, -1);
 
-        score -= (int)(oppHorizontal * DefenseMultiplier);
-        score -= (int)(oppVertical * DefenseMultiplier);
-        score -= (int)(oppDiagonal * DefenseMultiplier);
-        score -= (int)(oppAntiDiagonal * DefenseMultiplier);
+        // Use integer math: opp * 11 / 5 for consistent results
+        score -= (oppHorizontal * DefenseMultiplierNumer) / DefenseMultiplierDenom;
+        score -= (oppVertical * DefenseMultiplierNumer) / DefenseMultiplierDenom;
+        score -= (oppDiagonal * DefenseMultiplierNumer) / DefenseMultiplierDenom;
+        score -= (oppAntiDiagonal * DefenseMultiplierNumer) / DefenseMultiplierDenom;
 
         // Add center control bonus
         score += EvaluateCenterControl(playerBoard);
