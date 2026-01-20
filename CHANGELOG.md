@@ -5,6 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.2] - 2026-01-20
+
+### Added
+
+- AI Strength Validation Test Suite - Comprehensive statistical validation framework
+  - StatisticalAnalyzer with LOS, Elo CI, binomial tests, SPRT
+  - MatchupStatistics data model for tracking matchup results
+  - 4-phase test suite: Adjacent, Cross-Level, Color Advantage, Round-Robin
+  - HTML report generation with CSS styling
+  - CLI runner with configurable parameters
+  - 38 statistical unit tests (all passing)
+- Paired game design with color swapping for fair comparison
+- Likelihood of Superiority (LOS) calculation using error function approximation
+- Elo difference with 95% confidence intervals (delta method)
+- Color advantage detection using binomial test
+- Sequential Probability Ratio Test (SPRT) for early termination
+- HTML report generation with summary statistics and Elo ranking
+- CLI flags: --validate-strength, --quick-validate, --games, --time, --inc, --verbose
+
+### Changed
+
+- PICKUP.md updated with comprehensive documentation of new validation suite
+- README.md updated with AI Strength Validation section
+- Tournament runner now supports statistical validation modes
+
+### Technical Details
+
+**Statistical Methods:**
+
+- Elo Difference: Standard chess rating system (400-point scale)
+- 95% Confidence Intervals: Delta method approximation
+- Likelihood of Superiority (LOS): Based on error function
+- Binomial Test: For win rate significance (p < 0.05)
+- Paired Game Design: Color swapping to neutralize first-move advantage
+
+**Sample Size Guidelines:**
+
+- 25 games per matchup: Preliminary results (default)
+- 50 games per matchup: Moderate confidence
+- 100+ games per matchup: High confidence
+
+**Test Configuration:**
+
+- Time control: 2+1 (120s + 1s increment) by default
+- Pondering: Enabled for D7+
+- Color swapping: Every other game
+
+### Files Added
+
+- src/Caro.Core/Tournament/StatisticalAnalyzer.cs
+- src/Caro.Core/Tournament/MatchupStatistics.cs
+- tests/Caro.Core.Tests/Tournament/StatisticalAnalyzerTests.cs
+- tests/Caro.Core.Tests/Tournament/AIStrengthValidationSuite.cs
+- src/Caro.TournamentRunner/ReportGenerators/HtmlReportGenerator.cs
+- src/Caro.TournamentRunner/AIStrengthTestRunner.cs
+
+[0.0.2]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v0.0.2
+
 ## [0.0.1] - 2026-01-20
 
 ### Added
