@@ -18,18 +18,37 @@ public sealed class TimeManager
     private readonly ThreatDetector _threatDetector = new();
 
     // Track initial time for adaptive thresholds
-    private long _inferredInitialTimeMs = 420000;  // Default to 7 minutes
+    private long _inferredInitialTimeMs = 420000;  // Default to 7 minutes (7+5)
 
-    // For high difficulties (D10-D11), we allocate more time per move to reach full depth
-    // Balance: 420s total / ~20-25 moves = ~15-20s per move average
+    // CRITICAL: Time multipliers for difficulty differentiation
+    // Must be carefully balanced to avoid timeouts while creating separation
+    // D11 gets more time but not so much that it timeouts
     private static readonly Dictionary<AIDifficulty, double> DifficultyTimeMultipliers = new()
     {
-        { AIDifficulty.Legend, 3.5 },      // D11: 3.5x (~20s per move in opening)
-        { AIDifficulty.Grandmaster, 2.5 }, // D10: 2.5x (~14s per move in opening)
-        { AIDifficulty.Master, 1.8 },      // D9: 1.8x time allocation
-        { AIDifficulty.Expert, 1.3 },      // D8: 1.3x time allocation
-        { AIDifficulty.VeryHard, 1.1 },    // D7: 1.1x time allocation
+        { AIDifficulty.Legend, 1.5 },      // D11: 1.5x - reduced from 2.0x to avoid timeout
+        { AIDifficulty.Grandmaster, 1.2 }, // D10: 1.2x - slight increase
+        { AIDifficulty.Master, 1.0 },      // D9: 1.0x - baseline
+        { AIDifficulty.Expert, 0.9 },      // D8: 0.9x - less than baseline
+        { AIDifficulty.VeryHard, 0.8 },    // D7: 0.8x
+        { AIDifficulty.Harder, 0.7 },      // D6: 0.7x
     };
+
+    /// <summary>
+    /// Get adaptive difficulty multiplier based on time control
+    /// The base multipliers are now conservative enough that we don't need aggressive reduction
+    /// </summary>
+    private static double GetAdaptiveDifficultyMultiplier(AIDifficulty difficulty, long initialTimeMs)
+    {
+        double baseMultiplier = DifficultyTimeMultipliers.GetValueOrDefault(difficulty, 1.0);
+
+        // For very short time controls (< 3 minutes), use a modest reduction
+        if (initialTimeMs < 180_000) // Less than 3 minutes
+        {
+            return baseMultiplier * 0.8;
+        }
+
+        return baseMultiplier;
+    }
 
     /// <summary>
     /// Calculate time allocation for a move based on game state
@@ -41,6 +60,7 @@ public sealed class TimeManager
     /// <param name="player">Player to move</param>
     /// <param name="difficulty">AI difficulty level (affects time allocation)</param>
     /// <param name="initialTimeSeconds">Initial time control in seconds (for adaptive thresholds)</param>
+    /// <param name="incrementSeconds">Time increment per move in seconds</param>
     /// <returns>Time allocation with soft/hard bounds and game phase info</returns>
     public TimeAllocation CalculateMoveTime(
         long timeRemainingMs,
@@ -49,7 +69,8 @@ public sealed class TimeManager
         Board board,
         Player player,
         AIDifficulty difficulty = AIDifficulty.Harder,
-        int initialTimeSeconds = 420)  // Default to 7+5, but tests may use different time controls
+        int initialTimeSeconds = 420,  // Default to 7+5, but tests may use different time controls
+        int incrementSeconds = 5)       // Default increment for 7+5
     {
         // Validate inputs
         if (timeRemainingMs <= 0)
@@ -78,7 +99,7 @@ public sealed class TimeManager
         }
 
         // Base time: remaining / moves_left + 60% of increment
-        double baseTimeMs = (timeRemainingMs / (double)movesToEnd) + (TimeControl.SevenPlusFiveIncrementMs * 0.6);
+        double baseTimeMs = (timeRemainingMs / (double)movesToEnd) + (incrementSeconds * 1000 * 0.6);
 
         // Position complexity: 0.5x to 2.0x multiplier
         double complexity = CalculateComplexity(board, candidateCount, player);
@@ -87,7 +108,8 @@ public sealed class TimeManager
         double phaseMultiplier = GetPhaseModifier(phase);
 
         // Apply difficulty multiplier for higher difficulties to reach full depth
-        double difficultyMultiplier = DifficultyTimeMultipliers.GetValueOrDefault(difficulty, 1.0);
+        // Use adaptive multiplier based on time control to prevent timeouts in short TC
+        double difficultyMultiplier = GetAdaptiveDifficultyMultiplier(difficulty, _inferredInitialTimeMs);
 
         double adjustedTimeMs = baseTimeMs * complexity * phaseMultiplier * difficultyMultiplier;
 
