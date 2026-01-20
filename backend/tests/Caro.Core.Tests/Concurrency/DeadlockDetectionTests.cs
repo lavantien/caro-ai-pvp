@@ -463,15 +463,15 @@ public class DeadlockDetectionTests
                     {
                         // Acquire locks in consistent order
                         lock (locks[0])
-                        lock (locks[1])
-                        lock (locks[2])
-                        lock (locks[3])
-                        lock (locks[4])
-                        {
-                            // Simulate work
-                            Interlocked.Increment(ref completedTasks);
-                            Thread.Sleep(random.Next(5));
-                        }
+                            lock (locks[1])
+                                lock (locks[2])
+                                    lock (locks[3])
+                                        lock (locks[4])
+                                        {
+                                            // Simulate work
+                                            Interlocked.Increment(ref completedTasks);
+                                            Thread.Sleep(random.Next(5));
+                                        }
                     }
                 }
                 catch (Exception ex)

@@ -125,7 +125,7 @@ public class BalancedSchedulerTests
         }
         if (failures.Count > 0)
         {
-            Assert.True(false, string.Join("\n", failures));
+            Assert.Fail(string.Join("\n", failures));
         }
 
         // Also verify total unique bots in first 11 matches is 22
