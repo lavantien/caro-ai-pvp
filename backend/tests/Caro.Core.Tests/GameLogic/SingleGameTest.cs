@@ -39,7 +39,7 @@ public class SingleGameTest
         if (result.Winner == Player.Blue && result.WinnerDifficulty == AIDifficulty.Easy)
         {
             _output.WriteLine("\n*** FAILED: Grandmaster lost to Easy! ***");
-            Assert.True(false, "Grandmaster should never lose to Easy AI");
+            Assert.Fail("Grandmaster should never lose to Easy AI");
         }
     }
 }

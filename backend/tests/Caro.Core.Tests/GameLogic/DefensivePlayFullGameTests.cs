@@ -52,11 +52,13 @@ public class DefensivePlayFullGameTests
                 initialTimeSeconds: 420,    // 7+5 time control (standard)
                 incrementSeconds: 5,
                 ponderingEnabled: false,
-                onMove: (x, y, player, moveNum, redTime, blueTime, stats) => {
+                onMove: (x, y, player, moveNum, redTime, blueTime, stats) =>
+                {
                     if (moveNum <= 10 || moveNum >= 30)  // Log first 10 and last few moves
-                        _output.WriteLine($"  M{moveNum}: {player} -> ({x},{y}) | Depth:{stats.DepthAchieved} Nodes:{stats.NodesSearched/1000}K");
+                        _output.WriteLine($"  M{moveNum}: {player} -> ({x},{y}) | Depth:{stats.DepthAchieved} Nodes:{stats.NodesSearched / 1000}K");
                 },
-                onLog: (level, source, message) => {
+                onLog: (level, source, message) =>
+                {
                     if (level == "error" || message.Contains("DEFENSE"))
                         _output.WriteLine($"  [{level}] {message}");
                 }

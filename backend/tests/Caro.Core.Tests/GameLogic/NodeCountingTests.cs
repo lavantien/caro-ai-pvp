@@ -199,7 +199,7 @@ public class NodeCountingTests
         // (the bug was they were identical at 1,739,501,775)
         if (nodes1 == nodes2)
         {
-            Assert.True(false, $"Different board positions should yield different node counts: {nodes1} vs {nodes2}");
+            Assert.Fail($"Different board positions should yield different node counts: {nodes1} vs {nodes2}");
         }
     }
 }
