@@ -56,18 +56,19 @@ Core Search Optimizations:
 - Late Move Reduction (LMR) - Reduce late moves, re-search if promising (30-50% speedup)
 - Quiescence Search - Extend search in tactical positions to prevent blunders
 - Enhanced Move Ordering - Tactical pattern detection (15-25% speedup)
-- Transposition Table - Lock-free 256MB Zobrist hashing cache (~8M entries, 2-5x speedup)
+- Transposition Table - 256MB Zobrist hashing cache (~8M entries, 2-5x speedup)
 - History Heuristic - Track moves causing cutoffs across all depths (10-20% speedup)
 - Aspiration Windows - Narrow search windows around estimated score (10-30% speedup)
 
 Advanced Features:
 
+- VCF Solver (Legend only) - Victory by Continuous Four tactical solver
 - Threat Space Search - Focus search on critical threats only
 - DFPN Solver - Depth-First Proof Number search for forced wins
-- BitBoard Representation - SIMD-accelerated board evaluation
+- BitBoard Representation - Board evaluation with bit manipulation
 - Opening Book - Pre-computed strong opening positions
-- Pondering - AI thinks during opponent's turn
 - Adaptive Time Management - Smart time allocation per move
+- Critical Defense - Automatic threat detection (scales with difficulty)
 
 Difficulty Levels (D1-D11):
 
@@ -76,9 +77,9 @@ Difficulty Levels (D1-D11):
 - D5-D6: Intermediate challenge
 - D7-D8: Advanced
 - D9-D10: Expert (threat space + advanced pruning)
-- D11: Grandmaster (all optimizations + deep search)
+- D11 (Legend): Grandmaster (all optimizations + VCF solver + deep search)
 
-Note: In 7+5 time control, D11 practically reaches depth 9, D10 reaches depth 8. Full depth capabilities require longer time controls.
+Note: VCF is exclusive to Legend (D11) to maintain AI strength ordering. In 7+5 time control, D11 reaches depth 9, D10 reaches depth 8. Full depth capabilities require longer time controls.
 
 ### Tournament Mode
 
@@ -161,16 +162,16 @@ Threat Space Search:
 
 ### Performance Metrics
 
-| Difficulty | Search Type | Avg Time | Positions/S | TT Hit Rate | Max Depth (7+5) |
-|------------|-------------|----------|-------------|-------------|-----------------|
-| Easy (D1) | Sequential | <100ms | ~100K | N/A | 2-3 |
-| Medium (D2-D3) | Sequential | <500ms | ~50K | 20% | 4-5 |
-| Hard (D4-D5) | Sequential | <2s | ~20K | 35% | 6 |
-| Expert (D6-D7) | Sequential | <5s | ~50K | 45% | 7 |
-| Master (D8-D9) | Sequential | 5-30s | ~500K | 50%+ | 8-9 |
-| Grandmaster (D10-D11) | Sequential + TSS | 15-60s | ~1M | 55%+ | 9 (D11) / 8 (D10) |
+| Difficulty | Search Type | Avg Time | Positions/S | TT Hit Rate | Max Depth (7+5) | VCF Access |
+|------------|-------------|----------|-------------|-------------|-----------------|------------|
+| Beginner (D1-D2) | Sequential | <100ms | ~100K | N/A | 2-3 | No |
+| Casual (D3-D4) | Sequential | <500ms | ~50K | 20% | 4-5 | No |
+| Intermediate (D5-D6) | Sequential | <2s | ~20K | 35% | 5-6 | No |
+| Advanced (D7-D8) | Sequential | <5s | ~50K | 45% | 6-7 | No |
+| Expert (D9-D10) | Sequential | 5-15s | ~500K | 50%+ | 7-8 | No |
+| Legend (D11) | Sequential + VCF | 10-30s | ~1M | 55%+ | 9 | Yes (exclusive) |
 
-Note: Max depths shown are for 7+5 (Rapid) time control. Longer time controls enable deeper search.
+Note: Max depths shown are for 7+5 (Rapid) time control. VCF is exclusive to Legend (D11) to maintain AI strength ordering.
 
 Combined Optimization Impact: 100-500x faster than naive minimax.
 
@@ -435,13 +436,13 @@ graph TB
 
     subgraph Backend["Backend (ASP.NET Core 10)"]
         B1[TournamentHub SignalR]
-        B2[MinimaxAI Lazy SMP + TSS]
+        B2[MinimaxAI Sequential + VCF]
         B3[ELOCalc Standard Formula]
         B4[TournamentMgr Channel Qs ReaderWriter Lock]
         B5[ThreatDetect Pattern Rec]
         B6[GameLogSvc SQLite+FTS]
-        B7[BitBoardEval SIMD Acceler]
-        B8[Transposition 256MB Lock-Free TT]
+        B7[BitBoardEval Eval]
+        B8[Transposition 256MB TT]
         B9[Validator Open Rule]
     end
 
@@ -484,12 +485,13 @@ graph TB
 
 ### AI/ML
 
-- Custom Minimax with Lazy SMP parallel search
-- Zobrist hashing with lock-free transposition tables
-- BitBoard representation with SIMD operations
+- Custom Minimax with alpha-beta pruning
+- Zobrist hashing with transposition tables (256MB)
+- BitBoard representation for efficient board operations
+- VCF solver (Legend difficulty only)
 - Threat space search and DFPN solver
 - Opening book with pre-computed positions
-- Pondering for optimal time utilization
+- Adaptive time management with difficulty multipliers
 
 [Back to Table of Contents](#table-of-contents)
 
@@ -734,15 +736,15 @@ caro-ai-pvp/
 
 - Core game logic (board, win detection, Open Rule)
 - Minimax AI with alpha-beta pruning
-- All 8+ search optimizations (PVS, LMR, Quiescence, Lazy SMP, etc.)
-- 11 difficulty levels (D1-D11)
-- Lazy SMP parallel search (4-8x speedup)
+- All 8+ search optimizations (PVS, LMR, Quiescence, etc.)
+- 11 difficulty levels (D1-D11) with verified strength ordering
+- VCF solver restricted to Legend (D11) for tactical advantage
 - Threat detection and Threat Space Search
-- BitBoard with SIMD evaluation
-- Lock-free transposition table
+- BitBoard representation
+- Transposition table (256MB)
 - Opening book
-- Pondering (think on opponent's time)
-- Adaptive time management
+- Adaptive time management with difficulty multipliers
+- Critical defense scaling by difficulty
 - AI tournament mode with 22 bots
 - Balanced round-robin scheduling
 - SQLite logging with FTS5
@@ -753,6 +755,7 @@ caro-ai-pvp/
 - Channel-based async queues (no fire-and-forget)
 - Per-game locking (concurrent games)
 - Adversarial concurrency tests (32 tests)
+- AI strength ordering verification (v0.0.1)
 
 ### In Progress
 
@@ -762,10 +765,16 @@ caro-ai-pvp/
 
 ### Planned
 
+- Parallel search (Lazy SMP) - Currently disabled due to architectural issues
+- MDAP (Move-Dependent Adaptive Pruning)
+- Fully adaptive time management (PID controller)
+- SIMD evaluation for accelerated scoring
 - Progressive Web App (PWA)
 - Mobile app stores (iOS/Android)
 - Endgame tablebase
 - Machine learning evaluation function
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
 [Back to Table of Contents](#table-of-contents)
 
