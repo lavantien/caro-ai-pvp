@@ -6,10 +6,34 @@ namespace Caro.TournamentRunner;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         var autoMode = args.Contains("--auto");
         var quickTestMode = args.Contains("--test");
+        var validateStrengthMode = args.Contains("--validate-strength");
+        var quickValidateMode = args.Contains("--quick-validate");
+
+        // AI Strength Validation mode
+        if (validateStrengthMode)
+        {
+            var config = new AIStrengthTestRunner.TestConfig
+            {
+                GamesPerMatchup = GetArgValue(args, "--games", 25),
+                InitialTimeSeconds = GetArgValue(args, "--time", 120),
+                IncrementSeconds = GetArgValue(args, "--inc", 1),
+                EnablePondering = !args.Contains("--no-pondering"),
+                Verbose = args.Contains("--verbose")
+            };
+            await AIStrengthTestRunner.RunAllAsync(config);
+            return;
+        }
+
+        // Quick validation mode (fewer games)
+        if (quickValidateMode)
+        {
+            await AIStrengthTestRunner.RunQuickAsync();
+            return;
+        }
 
         // Quick test mode: Run isolated matchups to verify AI strength
         if (quickTestMode)
@@ -22,6 +46,13 @@ class Program
         Console.WriteLine("║           CARO AI TOURNAMENT - AUTOMATED BATTLE SYSTEM              ║");
         Console.WriteLine("╚═══════════════════════════════════════════════════════════════════╝");
         Console.WriteLine();
+
+        // Show help if requested
+        if (args.Contains("--help") || args.Contains("-h"))
+        {
+            ShowHelp();
+            return;
+        }
 
         var engine = new TournamentEngine();
 
@@ -152,5 +183,40 @@ class Program
         Console.WriteLine();
         Console.WriteLine("Press ENTER to exit...");
         Console.ReadLine();
+    }
+
+    private static int GetArgValue(string[] args, string key, int defaultValue)
+    {
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == key && int.TryParse(args[i + 1], out int value))
+            {
+                return value;
+            }
+        }
+        return defaultValue;
+    }
+
+    private static void ShowHelp()
+    {
+        Console.WriteLine("Caro AI Tournament Runner - Usage:");
+        Console.WriteLine();
+        Console.WriteLine("Options:");
+        Console.WriteLine("  --test              Run quick strength tests (legacy)");
+        Console.WriteLine("  --validate-strength Run full AI strength validation suite");
+        Console.WriteLine("  --quick-validate    Run quick AI strength validation (10 games/matchup)");
+        Console.WriteLine("  --auto              Run tournament in auto mode (no prompts)");
+        Console.WriteLine();
+        Console.WriteLine("Validation options (with --validate-strength):");
+        Console.WriteLine("  --games <n>         Number of games per matchup (default: 25)");
+        Console.WriteLine("  --time <n>          Initial time in seconds (default: 120)");
+        Console.WriteLine("  --inc <n>           Increment time in seconds (default: 1)");
+        Console.WriteLine("  --no-pondering      Disable pondering");
+        Console.WriteLine("  --verbose           Show detailed progress");
+        Console.WriteLine();
+        Console.WriteLine("Examples:");
+        Console.WriteLine("  dotnet run -- --validate-strength");
+        Console.WriteLine("  dotnet run -- --validate-strength --games 50 --verbose");
+        Console.WriteLine("  dotnet run -- --quick-validate");
     }
 }

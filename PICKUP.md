@@ -2,7 +2,9 @@
 
 ## Context Summary
 
-This session focused on implementing advanced AI features: Lazy SMP parallel search, constant pondering, MDAP, and adaptive time management. While implementations were successful, a critical non-determinism issue was discovered in parallel search that causes AI strength inversion in some test runs.
+**Session 2025-01-20**: Implemented comprehensive AI Strength Validation Test Suite with statistical analysis. This provides proper statistical validation for AI difficulty levels, replacing the basic QuickTest.cs with a robust framework.
+
+**Previous Session**: Focused on implementing advanced AI features: Lazy SMP parallel search, constant pondering, MDAP, and adaptive time management. While implementations were successful, a critical non-determinism issue was discovered in parallel search that causes AI strength inversion in some test runs.
 
 ## Key Issues Addressed
 
@@ -46,6 +48,75 @@ This session focused on implementing advanced AI features: Lazy SMP parallel sea
 - SIMD: +2135 (incorrectly ADDS Blue's weighted threat)
 - **Status**: SIMD evaluator remains disabled
 
+### 6. AI Strength Validation Test Suite - NEWLY IMPLEMENTED (2025-01-20)
+
+**Purpose**: Provides comprehensive statistical validation for AI difficulty levels, replacing the basic QuickTest.cs with a robust, scientifically-grounded testing framework.
+
+**Files Created**:
+1. `StatisticalAnalyzer.cs` - Core statistical analysis functions
+   - CalculateLOS() - Likelihood of Superiority (probability one AI is truly stronger)
+   - CalculateEloWithCI() - Elo difference with 95% confidence intervals
+   - BinomialTestPValue() - Statistical significance testing
+   - DetectColorAdvantage() - Color bias detection using paired game analysis
+   - SPRT() - Sequential Probability Ratio Test for early termination
+
+2. `MatchupStatistics.cs` - Data model for matchup results
+   - Tracks wins, draws, color-specific performance
+   - Stores LOS, Elo difference, confidence intervals, p-values
+   - Provides summary string formatting
+
+3. `StatisticalAnalyzerTests.cs` - Unit tests (38 tests, all passing)
+   - Known-value tests for mathematical functions
+   - Property-based tests for range validation
+   - Color advantage detection tests
+
+4. `AIStrengthValidationSuite.cs` - XUnit test suite with 4 phases:
+   - Phase 1: Adjacent difficulty testing (D11 vs D10, D10 vs D9, etc.)
+   - Phase 2: Cross-level testing (D11 vs D9, D11 vs D8, etc.)
+   - Phase 3: Color advantage detection (symmetric matchups)
+   - Phase 4: Quick round-robin (Elo ranking)
+
+5. `HtmlReportGenerator.cs` - HTML report generation
+   - Beautiful, responsive HTML reports
+   - Summary statistics with pass/fail tracking
+   - Elo ranking tables
+   - Color advantage visualization
+
+6. `AIStrengthTestRunner.cs` - CLI runner
+   - Configurable games per matchup, time control
+   - Progress reporting during long runs
+   - HTML report generation
+   - Quick validation mode (10 games per matchup)
+
+**Usage**:
+```bash
+# Run full validation suite (25 games per matchup)
+cd backend/src/Caro.TournamentRunner
+dotnet run -- --validate-strength
+
+# Quick validation (10 games per matchup)
+dotnet run -- --quick-validate
+
+# Custom configuration
+dotnet run -- --validate-strength --games 50 --verbose
+
+# Run XUnit tests
+cd backend/tests/Caro.Core.Tests
+dotnet test --filter "FullyQualifiedName~AIStrengthValidationSuite"
+```
+
+**Statistical Methods Used**:
+- **Elo Difference**: Standard chess rating system (400-point scale)
+- **95% Confidence Intervals**: Delta method approximation
+- **Likelihood of Superiority (LOS)**: Based on error function
+- **Binomial Test**: For win rate significance (p < 0.05)
+- **Paired Game Design**: Color swapping to neutralize first-move advantage
+
+**Configuration**:
+- Default: 25 games per matchup, 2+1 time control
+- Sample size based on industry best practices (CCRL, CEGT)
+- 40-100 games for preliminary results, 200+ for high confidence
+
 ## Test Results (2025-01-20) - 7+5 Time Control with Lazy SMP
 
 | Test | Expected | Actual | Result | Notes |
@@ -87,6 +158,7 @@ The current implementation in `ParallelMinimaxSearch.cs`:
 
 ## Files Modified This Session
 
+### Previous Session Files
 1. **ThreadPoolConfig.cs**
    - Added `GetLazySMPThreadCount()` - returns `(processorCount/2)-1`
    - Added `GetPonderingThreadCount()` - returns `processorCount/4` for pondering
@@ -108,10 +180,59 @@ The current implementation in `ParallelMinimaxSearch.cs`:
    - Modified `StartPondering()` to skip VCF pre-check for D7+
    - Updated class documentation
 
-5. **Test Files Created**
+5. **Test Files Created (Previous)**
    - `EvaluatorComparisonTests.cs` - Scalar vs SIMD comparison
    - `SIMDDebugTest.cs` - Focused SIMD debugging tests
    - `SIMDPerspectiveTest.cs` - Perspective verification tests
+
+### New Files (2025-01-20) - AI Strength Validation Suite
+
+#### Core Library Files
+1. **src/Caro.Core/Tournament/StatisticalAnalyzer.cs**
+   - CalculateLOS() - Likelihood of Superiority
+   - CalculateEloWithCI() - Elo with confidence intervals
+   - BinomialTestPValue() - Statistical significance test
+   - DetectColorAdvantage() - Color bias detection
+   - SPRT() - Sequential Probability Ratio Test
+
+2. **src/Caro.Core/Tournament/MatchupStatistics.cs**
+   - Data model for matchup results
+   - Color-specific win tracking (RedAsRed_Wins, BlueAsBlue_Wins, etc.)
+   - Statistical metrics (LOS, Elo, CI, p-value)
+   - ToSummaryString() for formatted output
+
+#### Test Files
+3. **tests/Caro.Core.Tests/Tournament/StatisticalAnalyzerTests.cs** (38 tests)
+   - Known-value tests for mathematical functions
+   - Property-based range validation tests
+   - Color advantage detection tests
+   - SPRT early termination tests
+
+4. **tests/Caro.Core.Tests/Tournament/AIStrengthValidationSuite.cs**
+   - Phase 1: Adjacent difficulty tests (10 matchups)
+   - Phase 2: Cross-level tests (4 large gaps)
+   - Phase 3: Color advantage detection (4 symmetric tests)
+   - Phase 4: Quick round-robin (Elo ranking)
+
+#### CLI and Reports
+5. **src/Caro.TournamentRunner/ReportGenerators/HtmlReportGenerator.cs**
+   - Responsive HTML report generation
+   - Summary statistics with pass/fail tracking
+   - Elo ranking tables
+   - Color advantage visualization
+   - CSS styling for beautiful output
+
+6. **src/Caro.TournamentRunner/AIStrengthTestRunner.cs**
+   - RunAllAsync() - Full validation suite
+   - RunQuickAsync() - Quick validation (10 games)
+   - Configurable games, time control, pondering
+   - Progress reporting
+
+7. **src/Caro.TournamentRunner/Program.cs** (Modified)
+   - Added --validate-strength flag
+   - Added --quick-validate flag
+   - Added --games, --time, --inc options
+   - Added ShowHelp() function
 
 ## Key Findings
 
@@ -168,16 +289,56 @@ Once baseline is confirmed, consider:
 
 ## Git Status
 
-**Modified files not yet committed:**
+**Previously modified files (from earlier session):**
 - `ThreadPoolConfig.cs`
 - `ParallelMinimaxSearch.cs`
 - `MinimaxAI.cs`
 - `Ponderer.cs`
 - Test files: `EvaluatorComparisonTests.cs`, `SIMDDebugTest.cs`, `SIMDPerspectiveTest.cs`
 
+**New files (2025-01-20) - AI Strength Validation Suite:**
+- `src/Caro.Core/Tournament/StatisticalAnalyzer.cs`
+- `src/Caro.Core/Tournament/MatchupStatistics.cs`
+- `tests/Caro.Core.Tests/Tournament/StatisticalAnalyzerTests.cs`
+- `tests/Caro.Core.Tests/Tournament/AIStrengthValidationSuite.cs`
+- `src/Caro.TournamentRunner/ReportGenerators/HtmlReportGenerator.cs`
+- `src/Caro.TournamentRunner/AIStrengthTestRunner.cs`
+- `src/Caro.TournamentRunner/Program.cs` (modified)
+
 ## Commands
 
-### Run Tests
+### AI Strength Validation (NEW)
+```bash
+# Full validation suite (25 games per matchup, ~30-60 minutes)
+cd backend/src/Caro.TournamentRunner
+dotnet run -- --validate-strength
+
+# Quick validation (10 games per matchup, ~10-15 minutes)
+dotnet run -- --quick-validate
+
+# Custom configuration
+dotnet run -- --validate-strength --games 50 --verbose
+dotnet run -- --validate-strength --games 100 --time 180 --inc 2
+
+# Show help
+dotnet run -- --help
+```
+
+### Run XUnit Tests
+```bash
+# Statistical analyzer tests (38 tests, fast)
+cd backend/tests/Caro.Core.Tests
+dotnet test --filter "FullyQualifiedName~StatisticalAnalyzerTests"
+
+# Full AI strength validation suite (slow, runs actual AI games)
+dotnet test --filter "FullyQualifiedName~AIStrengthValidationSuite"
+
+# Specific phase
+dotnet test --filter "FullyQualifiedName~Phase1"
+dotnet test --filter "FullyQualifiedName~Phase3_1"
+```
+
+### Legacy Quick Tests
 ```bash
 cd backend/src/Caro.TournamentRunner
 dotnet run -- --test

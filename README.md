@@ -504,11 +504,13 @@ graph TB
 | Category | Tests | Focus |
 |----------|-------|-------|
 | Backend Unit | 200+ | AI algorithms, board logic |
+| Statistical Tests | 38 | LOS, Elo CI, binomial tests, SPRT |
+| AI Strength Validation | 19 | 4-phase statistical validation |
 | Concurrency | 32 | Race conditions, deadlocks, data corruption |
 | Integration | 13 | Tournament with snapshots |
 | Frontend Unit | 19+ | Components, stores |
 | E2E Tests | 17+ | Full user flows |
-| TOTAL | 280+ | Full coverage |
+| TOTAL | 330+ | Full coverage |
 
 ### Concurrency Tests
 
@@ -553,10 +555,60 @@ dotnet test --filter "FullyQualifiedName~Concurrency"
 # Integration tests only
 dotnet test --filter "FullyQualifiedName~TournamentIntegration"
 
+# Statistical analyzer tests (38 tests, fast)
+dotnet test --filter "FullyQualifiedName~StatisticalAnalyzerTests"
+
+# AI Strength Validation Suite (slow, runs actual AI games)
+dotnet test --filter "FullyQualifiedName~AIStrengthValidationSuite"
+
 # Frontend
 cd frontend
 npm run test -- --run
 ```
+
+### AI Strength Validation Test Suite
+
+The project includes a comprehensive statistical validation framework for verifying AI difficulty levels are correctly ordered.
+
+**Features:**
+
+- Statistical analysis with LOS (Likelihood of Superiority), Elo difference with 95% CI, binomial tests, SPRT
+- Color advantage detection using paired game design
+- HTML report generation with summary statistics and Elo ranking
+- CLI runner with configurable parameters
+
+**Running Validation:**
+
+```bash
+cd backend/src/Caro.TournamentRunner
+
+# Full validation suite (25 games per matchup, ~30-60 minutes)
+dotnet run -- --validate-strength
+
+# Quick validation (10 games per matchup, ~10-15 minutes)
+dotnet run -- --quick-validate
+
+# Custom configuration
+dotnet run -- --validate-strength --games 50 --verbose
+dotnet run -- --validate-strength --games 100 --time 180 --inc 2
+```
+
+**Test Phases:**
+
+| Phase | Purpose | Matchups | Games per matchup |
+|-------|---------|----------|-------------------|
+| Phase 1 | Adjacent difficulty testing | 10 (D11 vs D10, D10 vs D9, etc.) | 25 |
+| Phase 2 | Cross-level testing (large gaps) | 4 (D11 vs D9, D11 vs D8, etc.) | 25 |
+| Phase 3 | Color advantage detection | 4 symmetric matchups | 50 |
+| Phase 4 | Round-robin Elo ranking | All difficulties | 10 |
+
+**Statistical Methods:**
+
+- Elo Difference: Standard chess rating system (400-point scale)
+- 95% Confidence Intervals: Delta method approximation
+- LOS: Based on Abramowitz & Stegun error function approximation
+- Binomial Test: For win rate significance (p < 0.05)
+- SPRT: Sequential Probability Ratio Test for early termination
 
 [Back to Table of Contents](#table-of-contents)
 
@@ -698,7 +750,15 @@ caro-ai-pvp/
 │   │   └── Tournament/
 │   │       ├── TournamentEngine.cs   # Game runner
 │   │       ├── TournamentMatch.cs    # Match scheduling
-│   │       └── AIBot.cs              # Bot factory
+│   │       ├── AIBot.cs              # Bot factory
+│   │       ├── StatisticalAnalyzer.cs # Statistical analysis (LOS, Elo, SPRT)
+│   │       └── MatchupStatistics.cs   # Matchup data model
+│   ├── src/Caro.TournamentRunner/
+│   │   ├── Program.cs                # CLI entry point
+│   │   ├── QuickTest.cs              # Legacy quick tests
+│   │   ├── AIStrengthTestRunner.cs   # Validation runner
+│   │   └── ReportGenerators/
+│   │       └── HtmlReportGenerator.cs # HTML reports
 │   ├── src/Caro.Api/
 │   │   ├── TournamentHub.cs          # SignalR hub
 │   │   ├── TournamentManager.cs      # Tournament state (Channel-based)
@@ -714,7 +774,9 @@ caro-ai-pvp/
 │       │   ├── TournamentIntegrationTests.cs
 │       │   ├── SavedLogVerifierTests.cs
 │       │   ├── BalancedSchedulerTests.cs
-│       │   └── TournamentLogCapture.cs
+│       │   ├── TournamentLogCapture.cs
+│       │   ├── StatisticalAnalyzerTests.cs
+│       │   └── AIStrengthValidationSuite.cs
 │       └── GameLogic/               # 200+ unit tests
 ├── frontend/
 │   ├── src/routes/
@@ -756,6 +818,7 @@ caro-ai-pvp/
 - Per-game locking (concurrent games)
 - Adversarial concurrency tests (32 tests)
 - AI strength ordering verification (v0.0.1)
+- AI Strength Validation Test Suite with statistical analysis (v0.0.2)
 
 ### In Progress
 
@@ -783,9 +846,12 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 ## Achievements
 
 - 100-500x AI speedup through advanced search optimizations
-- 280+ automated tests with snapshot-based regression detection
+- 330+ automated tests with snapshot-based regression detection
+- 38 statistical tests validating mathematical functions
+- 19 AI strength validation tests across 4 phases
 - 32 concurrency tests validating thread-safety
 - Sequential search reaching depth 9+ in 7+5 time control
+- Statistical validation framework with LOS, Elo CI, and SPRT
 - BitBoard with SIMD for accelerated evaluation
 - Threat Space Search for focused tactical calculation
 - 22 AI tournament bots with balanced scheduling
@@ -794,6 +860,7 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 - Production-ready concurrency with .NET 10 best practices
 - Channel-based broadcasts (no unobserved exceptions)
 - Per-game locking (100+ concurrent games)
+- AI Strength Validation Test Suite with HTML report generation
 
 [Back to Table of Contents](#table-of-contents)
 
