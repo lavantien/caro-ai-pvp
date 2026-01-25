@@ -8,7 +8,7 @@ namespace Caro.Core.GameLogic;
 /// <summary>
 /// Result from parallel search including move and statistics
 /// </summary>
-public record ParallelSearchResult(int X, int Y, int DepthAchieved, long NodesSearched);
+public record ParallelSearchResult(int X, int Y, int DepthAchieved, long NodesSearched, int ThreadCount = 0);
 
 /// <summary>
 /// Parallel Minimax search using Lazy SMP (Shared Memory Parallelism)
@@ -105,13 +105,13 @@ public sealed class ParallelMinimaxSearch
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
 
-        var baseDepth = (int)difficulty;
+        var baseDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
         var candidates = GetCandidateMoves(board);
 
-        // Apply Open Rule: Red's second move (move #3) cannot be in center 3x3 zone
+        // Apply Open Rule: Red's second move (move #3) cannot be in center 5x5 zone
         if (player == Player.Red && moveNumber == 3)
         {
-            candidates = candidates.Where(c => !(c.x >= 6 && c.x <= 8 && c.y >= 6 && c.y <= 8)).ToList();
+            candidates = candidates.Where(c => !(c.x >= 5 && c.x <= 9 && c.y >= 5 && c.y <= 9)).ToList();
         }
 
         if (candidates.Count == 0)
@@ -119,12 +119,12 @@ public sealed class ParallelMinimaxSearch
             // No valid candidates - board is empty or all filtered out
             if (player == Player.Red && moveNumber == 3)
             {
-                // Open rule applies - find first valid cell outside center 3x3
+                // Open rule applies - find first valid cell outside center 5x5
                 for (int x = 0; x < 15; x++)
                 {
                     for (int y = 0; y < 15; y++)
                     {
-                        if (board.GetCell(x, y).Player == Player.None && !(x >= 6 && x <= 8 && y >= 6 && y <= 8))
+                        if (board.GetCell(x, y).Player == Player.None && !(x >= 5 && x <= 9 && y >= 5 && y <= 9))
                             return (x, y);
                     }
                 }
@@ -168,8 +168,8 @@ public sealed class ParallelMinimaxSearch
         // Adjust depth based on time allocation
         var adjustedDepth = CalculateDepthForTime(baseDepth, alloc, candidates.Count);
 
-        // For Beginner difficulty, add randomness
-        if (difficulty == AIDifficulty.Beginner && _random.Next(100) < 20)
+        // For Braindead difficulty, add randomness
+        if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 50)
         {
             return candidates[_random.Next(candidates.Count)];
         }
@@ -200,13 +200,13 @@ public sealed class ParallelMinimaxSearch
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
 
-        var baseDepth = (int)difficulty;
+        var baseDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
         var candidates = GetCandidateMoves(board);
 
-        // Apply Open Rule: Red's second move (move #3) cannot be in center 3x3 zone
+        // Apply Open Rule: Red's second move (move #3) cannot be in center 5x5 zone
         if (player == Player.Red && moveNumber == 3)
         {
-            candidates = candidates.Where(c => !(c.x >= 6 && c.x <= 8 && c.y >= 6 && c.y <= 8)).ToList();
+            candidates = candidates.Where(c => !(c.x >= 5 && c.x <= 9 && c.y >= 5 && c.y <= 9)).ToList();
         }
 
         if (candidates.Count == 0)
@@ -251,8 +251,8 @@ public sealed class ParallelMinimaxSearch
         // Adjust depth based on time allocation
         var adjustedDepth = CalculateDepthForTime(baseDepth, alloc, candidates.Count);
 
-        // For Beginner difficulty, add randomness
-        if (difficulty == AIDifficulty.Beginner && _random.Next(100) < 20)
+        // For Braindead difficulty, add randomness
+        if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 50)
         {
             var randomMove = candidates[_random.Next(candidates.Count)];
             return new ParallelSearchResult(randomMove.x, randomMove.y, 1, candidates.Count);
@@ -315,7 +315,8 @@ public sealed class ParallelMinimaxSearch
         int depth,
         List<(int x, int y)> candidates,
         AIDifficulty difficulty,
-        TimeAllocation timeAlloc)
+        TimeAllocation timeAlloc,
+        int fixedThreadCount = -1)
     {
         _transpositionTable.IncrementAge();
 
@@ -329,7 +330,10 @@ public sealed class ParallelMinimaxSearch
         Interlocked.Exchange(ref _realNodesSearched, 0);
 
         // Number of threads based on depth and available cores
-        int threadCount = Math.Min(_maxThreads, Math.Max(2, depth / 2));
+        // FIX: Use fixed thread count when provided to reduce non-determinism
+        int threadCount = fixedThreadCount > 0
+            ? fixedThreadCount
+            : Math.Min(_maxThreads, Math.Max(2, depth / 2));
         // Include threadIndex to distinguish master thread (0) from helper threads (1+)
         var results = new ConcurrentBag<(int x, int y, int score, int depth, long nodes, int threadIndex)>();
 
@@ -438,7 +442,7 @@ public sealed class ParallelMinimaxSearch
                          $"{timeAlloc.SoftBoundMs}ms, Phase: {timeAlloc.Phase}, " +
                          $"Complexity: {timeAlloc.ComplexityMultiplier:F2}, Nodes: {totalNodesFinal:N0}");
 
-        return new ParallelSearchResult(bestResult.x, bestResult.y, bestResult.depth, totalNodesFinal);
+        return new ParallelSearchResult(bestResult.x, bestResult.y, bestResult.depth, totalNodesFinal, threadCount);
     }
 
     /// <summary>
@@ -941,11 +945,12 @@ public sealed class ParallelMinimaxSearch
     }
 
     /// <summary>
-    /// Evaluate board position
+    /// Evaluate board position using scalar evaluator for consistency
+    /// SIMD evaluator has potential bugs that cause AI strength inversion
     /// </summary>
     private int Evaluate(Board board, Player player)
     {
-        return _evaluator.EvaluateOptimized(board, player, AIDifficulty.Grandmaster);
+        return BitBoardEvaluator.Evaluate(board, player);
     }
 
     /// <summary>
@@ -1032,17 +1037,11 @@ public sealed class ParallelMinimaxSearch
         // No time info - use difficulty defaults
         return difficulty switch
         {
-            AIDifficulty.Beginner => new() { SoftBoundMs = 100, HardBoundMs = 500, OptimalTimeMs = 80, IsEmergency = false },
+            AIDifficulty.Braindead => new() { SoftBoundMs = 50, HardBoundMs = 200, OptimalTimeMs = 40, IsEmergency = false },
             AIDifficulty.Easy => new() { SoftBoundMs = 200, HardBoundMs = 1000, OptimalTimeMs = 160, IsEmergency = false },
-            AIDifficulty.Normal => new() { SoftBoundMs = 500, HardBoundMs = 2000, OptimalTimeMs = 400, IsEmergency = false },
             AIDifficulty.Medium => new() { SoftBoundMs = 1000, HardBoundMs = 3000, OptimalTimeMs = 800, IsEmergency = false },
-            AIDifficulty.Hard => new() { SoftBoundMs = 2000, HardBoundMs = 5000, OptimalTimeMs = 1600, IsEmergency = false },
-            AIDifficulty.Harder => new() { SoftBoundMs = 3000, HardBoundMs = 8000, OptimalTimeMs = 2400, IsEmergency = false },
-            AIDifficulty.VeryHard => new() { SoftBoundMs = 5000, HardBoundMs = 15000, OptimalTimeMs = 4000, IsEmergency = false },
-            AIDifficulty.Expert => new() { SoftBoundMs = 8000, HardBoundMs = 20000, OptimalTimeMs = 6400, IsEmergency = false },
-            AIDifficulty.Master => new() { SoftBoundMs = 10000, HardBoundMs = 30000, OptimalTimeMs = 8000, IsEmergency = false },
-            AIDifficulty.Grandmaster => new() { SoftBoundMs = 12000, HardBoundMs = 40000, OptimalTimeMs = 9600, IsEmergency = false },
-            AIDifficulty.Legend => new() { SoftBoundMs = 15000, HardBoundMs = 60000, OptimalTimeMs = 12000, IsEmergency = false },
+            AIDifficulty.Hard => new() { SoftBoundMs = 3000, HardBoundMs = 10000, OptimalTimeMs = 2400, IsEmergency = false },
+            AIDifficulty.Grandmaster => new() { SoftBoundMs = 5000, HardBoundMs = 20000, OptimalTimeMs = 4000, IsEmergency = false },
             _ => TimeAllocation.Default
         };
     }
@@ -1177,7 +1176,7 @@ public sealed class ParallelMinimaxSearch
         if (player == Player.None)
             return (null, 0, 0, 0);
 
-        var targetDepth = (int)difficulty;
+        var targetDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
         var candidates = GetCandidateMoves(board);
 
         if (candidates.Count == 0)
