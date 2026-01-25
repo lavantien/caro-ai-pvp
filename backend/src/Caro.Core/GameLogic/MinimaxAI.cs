@@ -16,7 +16,6 @@ namespace Caro.Core.GameLogic;
 public class MinimaxAI
 {
     private readonly BoardEvaluator _evaluator = new();
-    private readonly Random _random = new();
     private readonly TranspositionTable _transpositionTable = new();
     private readonly WinDetector _winDetector = new();
     private readonly ThreatSpaceSearch _vcfSolver = new();
@@ -110,13 +109,14 @@ public class MinimaxAI
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
 
-        var baseDepth = (int)difficulty;
+        var baseDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
         var candidates = GetCandidateMoves(board);
 
-        // Apply Open Rule: Red's second move (move #3) cannot be in center 3x3 zone
+        // Apply Open Rule: Red's second move (move #3) cannot be in center 5x5 zone
+        // This is 2 layers around the center, expanding the restriction to reduce first-move advantage
         if (player == Player.Red && moveNumber == 3)
         {
-            candidates = candidates.Where(c => !(c.x >= 6 && c.x <= 8 && c.y >= 6 && c.y <= 8)).ToList();
+            candidates = candidates.Where(c => !(c.x >= 5 && c.x <= 9 && c.y >= 5 && c.y <= 9)).ToList();
         }
 
         if (candidates.Count == 0)
@@ -124,12 +124,12 @@ public class MinimaxAI
             // No valid candidates - board is empty or all filtered out, play center (if not filtered) or first available
             if (player == Player.Red && moveNumber == 3)
             {
-                // Open rule applies - find first valid cell outside center 3x3
+                // Open rule applies - find first valid cell outside center 5x5
                 for (int x = 0; x < 15; x++)
                 {
                     for (int y = 0; y < 15; y++)
                     {
-                        if (board.GetCell(x, y).Player == Player.None && !(x >= 6 && x <= 8 && y >= 6 && y <= 8))
+                        if (board.GetCell(x, y).Player == Player.None && !(x >= 5 && x <= 9 && y >= 5 && y <= 9))
                             return (x, y);
                     }
                 }
@@ -154,11 +154,14 @@ public class MinimaxAI
         //     return bookMove.Value;
         // }
 
-        // For Beginner difficulty, sometimes add randomness
-        if (difficulty == AIDifficulty.Beginner && _random.Next(100) < 20)
+        // Error rate simulation: Lower difficulties make random/suboptimal moves
+        // Uses AdaptiveDepthCalculator.GetErrorRate() for consistent error rates
+        // - Braindead: 50%, Easy: 15%, Medium: 5%, Hard: 1%, Grandmaster: 0%
+        var errorRate = AdaptiveDepthCalculator.GetErrorRate(difficulty);
+        if (errorRate > 0 && Random.Shared.NextDouble() < errorRate)
         {
-            // 20% chance to play random valid move
-            var randomIndex = _random.Next(candidates.Count);
+            // Play a random valid move instead of searching
+            var randomIndex = Random.Shared.Next(candidates.Count);
             return candidates[randomIndex];
         }
 
@@ -194,8 +197,8 @@ public class MinimaxAI
             timeAlloc = GetDefaultTimeAllocation(difficulty);
         }
 
-        // Emergency mode - use TT move at D5+ if available
-        if (timeAlloc.IsEmergency && difficulty >= AIDifficulty.Hard)
+        // Emergency mode - use TT move at D3+ (Medium+) if available
+        if (timeAlloc.IsEmergency && difficulty >= AIDifficulty.Medium)
         {
             var ttMove = GetTranspositionTableMove(board, player, minDepth: 5);
             if (ttMove.HasValue)
@@ -226,7 +229,7 @@ public class MinimaxAI
         // instead of developing its own position. The evaluation function's defense
         // multiplier (2.2x for opponent threats) should be sufficient for defense.
         // D11's advantage comes from offensive VCF, not defensive VCF detection.
-        // if (difficulty >= AIDifficulty.Legend)  // Only D11
+        // if (difficulty >= AIDifficulty.Grandmaster)  // Only D5
         // {
         //     var vcfDefense = FindVCFDefense(board, player, timeAlloc, difficulty);
         //     if (vcfDefense.HasValue)
@@ -302,8 +305,9 @@ public class MinimaxAI
         var adjustedDepth = CalculateDepthForTime(baseDepth, timeAlloc, timeRemainingMs, candidates.Count);
 
         // Determine if we should use parallel search
-        // Only use parallel for D7+ with sufficient depth (4+) to justify overhead
-        bool useParallelSearch = difficulty >= AIDifficulty.VeryHard && adjustedDepth >= 4;
+        // TEMPORARY FIX: Disabled for Hard due to strength inversion bug
+        // Parallel search appears to return suboptimal moves compared to sequential search
+        bool useParallelSearch = difficulty >= AIDifficulty.Grandmaster && adjustedDepth >= 4;
 
         (int x, int y) bestMove;
         int depthAchieved;
@@ -350,8 +354,7 @@ public class MinimaxAI
             {
                 var elapsedMs = parallelStopwatch.ElapsedMilliseconds;
                 var nps = elapsedMs > 0 ? nodesSearched * 1000 / elapsedMs : 0;
-                int threadCount = ThreadPoolConfig.GetLazySMPThreadCount();
-                Console.WriteLine($"[AI PARALLEL] Threads: {threadCount}, Depth: {depthAchieved}, Nodes: {nodesSearched:N0}, NPS: {nps:F0}");
+                Console.WriteLine($"[AI PARALLEL] Threads: {parallelResult.ThreadCount}, Depth: {depthAchieved}, Nodes: {nodesSearched:N0}, NPS: {nps:F0}");
                 Console.WriteLine($"[AI TT] Table usage: {ttUsed} entries ({ttUsage:F2}%)");
             }
         }
@@ -425,7 +428,7 @@ public class MinimaxAI
             }
 
             // Print transposition table statistics for debugging
-            if (difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Master || difficulty == AIDifficulty.Grandmaster || difficulty == AIDifficulty.Legend)
+            if (difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Grandmaster)
             {
                 double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
                 Console.WriteLine($"[AI TT] Hits: {_tableHits}/{_tableLookups} ({hitRate:F1}%)");
@@ -592,14 +595,10 @@ public class MinimaxAI
         // Higher difficulties spend MORE time on VCF because it's their primary tactical weapon
         var (timeMultiplier, depthBonus) = difficulty switch
         {
-            AIDifficulty.Legend => (3.0, 10),      // D11: 3x time, depth 40
-            AIDifficulty.Grandmaster => (2.0, 5),   // D10: 2x time, depth 35
-            AIDifficulty.Master => (1.5, 3),        // D9: 1.5x time, depth 33
-            AIDifficulty.Expert => (1.2, 0),        // D8: 1.2x time, depth 30
-            AIDifficulty.VeryHard => (1.0, 0),      // D7: 1x time, depth 30
-            AIDifficulty.Harder => (0.8, 0),        // D6: 0.8x time, depth 30
-            AIDifficulty.Hard => (0.6, 0),          // D5: 0.6x time, depth 30
-            _ => (0.5, 0)                           // D4 and below: 0.5x time
+            AIDifficulty.Grandmaster => (2.5, 10),   // D5: 2.5x time, depth 40
+            AIDifficulty.Hard => (1.5, 5),            // D4: 1.5x time, depth 35
+            AIDifficulty.Medium => (1.0, 0),          // D3: 1x time, depth 30
+            _ => (0.5, 0)                             // D2 and below: 0.5x time
         };
 
         var vcfTime = (int)(baseVcfTime * timeMultiplier);
@@ -608,10 +607,9 @@ public class MinimaxAI
         // Scale caps based on difficulty
         var maxCap = difficulty switch
         {
-            AIDifficulty.Legend => 2000,     // D11: up to 2 seconds for VCF
-            AIDifficulty.Grandmaster => 1500,  // D10: up to 1.5 seconds
-            AIDifficulty.Master => 1000,       // D9: up to 1 second
-            _ => 500                           // D8 and below: up to 500ms
+            AIDifficulty.Grandmaster => 2000,  // D5: up to 2 seconds for VCF
+            AIDifficulty.Hard => 1000,         // D4: up to 1 second
+            _ => 500                           // D3 and below: up to 500ms
         };
 
         var finalVcfTime = (int)Math.Clamp(vcfTime, 50, maxCap);
@@ -621,47 +619,38 @@ public class MinimaxAI
 
     /// <summary>
     /// Get critical defense level based on difficulty
-    /// Level 2: Full defense (four + open three) - D9+
-    /// Level 1: Basic defense (four only) - D7-D8
-    /// Level 0: No automatic defense - D6 and below
+    /// Level 2: Full defense (four + open three) - Grandmaster only
+    /// Level 1: Basic defense (four only) - Hard
+    /// Level 0: No automatic defense - Medium and below
     /// </summary>
     private static int GetCriticalDefenseLevel(AIDifficulty difficulty) => difficulty switch
     {
-        AIDifficulty.Legend => 2,          // D11: Full defense
-        AIDifficulty.Grandmaster => 2,     // D10: Full defense
-        AIDifficulty.Master => 2,          // D9: Full defense
-        AIDifficulty.Expert => 1,          // D8: Basic defense
-        AIDifficulty.VeryHard => 1,        // D7: Basic defense
-        _ => 0                             // D6 and below: No automatic defense
+        AIDifficulty.Grandmaster => 2,     // D5: Full defense
+        AIDifficulty.Hard => 1,            // D4: Basic defense
+        _ => 0                             // D3 and below: No automatic defense
     };
 
     /// <summary>
     /// Get VCF activation threshold based on difficulty
-    /// ONLY D9 and above have VCF access!
-    /// D8 and below must rely purely on minimax evaluation
+    /// ONLY Grandmaster (D5) has VCF access!
+    /// Hard and below must rely purely on minimax evaluation
     ///
     /// VCF is a powerful tactical weapon that can equalize the game.
-    /// By restricting it to only the highest difficulties, we preserve AI strength ordering.
+    /// By restricting it to only the highest difficulty, we preserve AI strength ordering.
     /// </summary>
     private static AIDifficulty GetVCFThreshold(AIDifficulty difficulty) => difficulty switch
     {
-        // CRITICAL: ONLY D11 (Legend) gets VCF access!
+        // CRITICAL: ONLY D5 (Grandmaster) gets VCF access!
         // VCF is a powerful feature that finds forced wins. If multiple difficulties have it,
         // it acts as an equalizer rather than a differentiator.
-        // By giving VCF ONLY to D11, we ensure it's a unique advantage for the highest difficulty.
-        AIDifficulty.Legend => AIDifficulty.Legend,      // D11: Legend >= Legend = true (ONLY D11 HAS VCF)
-        // All other difficulties: Return Legend so that their comparison with Legend is false
-        AIDifficulty.Grandmaster => AIDifficulty.Legend, // D10: Grandmaster >= Legend = 10 >= 11 = false (NO VCF)
-        AIDifficulty.Master => AIDifficulty.Legend,      // D9: NO VCF
-        AIDifficulty.Expert => AIDifficulty.Legend,      // D8: NO VCF
-        AIDifficulty.VeryHard => AIDifficulty.Legend,    // D7: NO VCF
-        AIDifficulty.Harder => AIDifficulty.Legend,      // D6: NO VCF
-        AIDifficulty.Hard => AIDifficulty.Legend,        // D5: NO VCF
-        AIDifficulty.Medium => AIDifficulty.Legend,      // D4: NO VCF
-        AIDifficulty.Normal => AIDifficulty.Legend,      // D3: NO VCF
-        AIDifficulty.Easy => AIDifficulty.Legend,        // D2: NO VCF
-        AIDifficulty.Beginner => AIDifficulty.Legend,    // D1: NO VCF
-        _ => AIDifficulty.Legend                          // Default: NO VCF
+        // By giving VCF ONLY to D5, we ensure it's a unique advantage for the highest difficulty.
+        AIDifficulty.Grandmaster => AIDifficulty.Grandmaster,  // D5: Grandmaster >= Grandmaster = true (ONLY D5 HAS VCF)
+        // All other difficulties: Return Grandmaster so that their comparison with Grandmaster is false
+        AIDifficulty.Hard => AIDifficulty.Grandmaster,        // D4: Hard >= Grandmaster = 4 >= 5 = false (NO VCF)
+        AIDifficulty.Medium => AIDifficulty.Grandmaster,      // D3: NO VCF
+        AIDifficulty.Easy => AIDifficulty.Grandmaster,        // D2: NO VCF
+        AIDifficulty.Braindead => AIDifficulty.Grandmaster,   // D1: NO VCF
+        _ => AIDifficulty.Grandmaster                          // Default: NO VCF
     };
 
     /// <summary>
@@ -671,14 +660,9 @@ public class MinimaxAI
     /// </summary>
     private static int GetEmergencyVCFCap(AIDifficulty difficulty) => difficulty switch
     {
-        AIDifficulty.Legend => 1000,      // D11: up to 1 second even in emergency
-        AIDifficulty.Grandmaster => 800,  // D10: up to 800ms
-        AIDifficulty.Master => 600,       // D9: up to 600ms
-        AIDifficulty.Expert => 500,       // D8: up to 500ms
-        AIDifficulty.VeryHard => 400,     // D7: up to 400ms
-        AIDifficulty.Harder => 300,       // D6: up to 300ms
-        AIDifficulty.Hard => 200,         // D5: up to 200ms
-        _ => 150                          // D4 and below: 150ms
+        AIDifficulty.Grandmaster => 1000,  // D5: up to 1 second even in emergency
+        AIDifficulty.Hard => 400,          // D4: up to 400ms
+        _ => 200                           // D3 and below: 200ms
     };
 
     /// <summary>
@@ -692,13 +676,12 @@ public class MinimaxAI
 
         return difficulty switch
         {
-            AIDifficulty.Beginner => baseTimeMs / 20,   // 5% of time
-            AIDifficulty.Easy => baseTimeMs / 10,       // 10%
-            AIDifficulty.Normal => baseTimeMs / 5,      // 20%
-            AIDifficulty.Medium => baseTimeMs / 4,      // 25%
-            AIDifficulty.Hard => baseTimeMs / 3,        // 33%
-            AIDifficulty.Harder => (long)(baseTimeMs / 2.5),  // 40%
-            _ => baseTimeMs / 2                          // 50% for high levels (D7+)
+            AIDifficulty.Braindead => baseTimeMs / 20,   // 5% of time
+            AIDifficulty.Easy => baseTimeMs / 10,         // 10%
+            AIDifficulty.Medium => baseTimeMs / 3,        // 33% (pondering enabled)
+            AIDifficulty.Hard => baseTimeMs / 2,          // 50% (pondering enabled)
+            AIDifficulty.Grandmaster => baseTimeMs / 2,   // 50% (pondering enabled)
+            _ => baseTimeMs / 20                          // Default: minimal
         };
     }
 
@@ -708,17 +691,11 @@ public class MinimaxAI
     /// </summary>
     private static TimeAllocation GetDefaultTimeAllocation(AIDifficulty difficulty) => difficulty switch
     {
-        AIDifficulty.Beginner => new() { SoftBoundMs = 100, HardBoundMs = 500, OptimalTimeMs = 80, IsEmergency = false },
+        AIDifficulty.Braindead => new() { SoftBoundMs = 50, HardBoundMs = 200, OptimalTimeMs = 40, IsEmergency = false },
         AIDifficulty.Easy => new() { SoftBoundMs = 200, HardBoundMs = 1000, OptimalTimeMs = 160, IsEmergency = false },
-        AIDifficulty.Normal => new() { SoftBoundMs = 500, HardBoundMs = 2000, OptimalTimeMs = 400, IsEmergency = false },
         AIDifficulty.Medium => new() { SoftBoundMs = 1000, HardBoundMs = 3000, OptimalTimeMs = 800, IsEmergency = false },
-        AIDifficulty.Hard => new() { SoftBoundMs = 2000, HardBoundMs = 5000, OptimalTimeMs = 1600, IsEmergency = false },
-        AIDifficulty.Harder => new() { SoftBoundMs = 3000, HardBoundMs = 8000, OptimalTimeMs = 2400, IsEmergency = false },
-        AIDifficulty.VeryHard => new() { SoftBoundMs = 5000, HardBoundMs = 15000, OptimalTimeMs = 4000, IsEmergency = false },
-        AIDifficulty.Expert => new() { SoftBoundMs = 8000, HardBoundMs = 20000, OptimalTimeMs = 6400, IsEmergency = false },
-        AIDifficulty.Master => new() { SoftBoundMs = 10000, HardBoundMs = 30000, OptimalTimeMs = 8000, IsEmergency = false },
-        AIDifficulty.Grandmaster => new() { SoftBoundMs = 12000, HardBoundMs = 40000, OptimalTimeMs = 9600, IsEmergency = false },
-        AIDifficulty.Legend => new() { SoftBoundMs = 15000, HardBoundMs = 60000, OptimalTimeMs = 12000, IsEmergency = false },
+        AIDifficulty.Hard => new() { SoftBoundMs = 3000, HardBoundMs = 10000, OptimalTimeMs = 2400, IsEmergency = false },
+        AIDifficulty.Grandmaster => new() { SoftBoundMs = 5000, HardBoundMs = 20000, OptimalTimeMs = 4000, IsEmergency = false },
         _ => TimeAllocation.Default
     };
 
@@ -1000,6 +977,7 @@ public class MinimaxAI
 
         var bestScore = int.MinValue;
         var bestMove = candidates[0];
+        int bestTiebreaker = 0;  // Track tiebreaker score
 
         // Calculate board hash for transposition table
         var boardHash = _transpositionTable.CalculateHash(board);
@@ -1011,21 +989,29 @@ public class MinimaxAI
             // Quick search with wide window to get estimate
             var searchAlpha = int.MinValue;
             var searchBeta = int.MaxValue;
+
+            // Pre-score candidates for tiebreaking (use position heuristics)
+            var candidateScores = ScoreCandidatesForTiebreak(candidates, board, player, depth);
+
+            int idx = 0;
             foreach (var (x, y) in candidates)
             {
                 board.PlaceStone(x, y, player);
                 var score = Minimax(board, depth - 2, searchAlpha, searchBeta, false, player, depth);
                 board.GetCell(x, y).Player = Player.None;
 
-                if (score > bestScore)
+                // Tie-breaking: higher score wins, or equal score with better tiebreaker
+                if (score > bestScore || (score == bestScore && candidateScores[idx] > bestTiebreaker))
                 {
                     bestScore = score;
                     bestMove = (x, y);
+                    bestTiebreaker = candidateScores[idx];
                 }
 
                 searchAlpha = Math.Max(searchAlpha, score);
                 if (searchBeta <= searchAlpha)
                     break;
+                idx++;
             }
             estimatedScore = bestScore;
         }
@@ -1049,11 +1035,16 @@ public class MinimaxAI
             // Reset best score for this attempt
             bestScore = int.MinValue;
             bestMove = candidates[0];
+            bestTiebreaker = 0;
 
             // Order moves: try killer moves first, then by proximity to center, then cached move
             var orderedMoves = OrderMoves(candidates, depth, board, player, cachedMove);
 
+            // Pre-score ordered moves for tiebreaking
+            var orderedTiebreakScores = ScoreCandidatesForTiebreak(orderedMoves, board, player, depth);
+
             var aspirationFailed = false;
+            int orderedIdx = 0;
             foreach (var (x, y) in orderedMoves)
             {
                 // Make move
@@ -1065,10 +1056,24 @@ public class MinimaxAI
                 // Undo move
                 board.GetCell(x, y).Player = Player.None;
 
+                // Tie-breaking: higher score wins, or equal score with better tiebreaker + small random
                 if (score > bestScore)
                 {
                     bestScore = score;
                     bestMove = (x, y);
+                    bestTiebreaker = orderedTiebreakScores[orderedIdx];
+                }
+                else if (score == bestScore)
+                {
+                    var currentTiebreaker = orderedTiebreakScores[orderedIdx];
+                    var randomBonus = Random.Shared.Next(100);  // Small random factor (0-99)
+
+                    // Prefer better tiebreaker score, or add randomness
+                    if (currentTiebreaker + randomBonus > bestTiebreaker)
+                    {
+                        bestMove = (x, y);
+                        bestTiebreaker = currentTiebreaker + randomBonus;
+                    }
                 }
 
                 alpha = Math.Max(alpha, score);
@@ -1086,6 +1091,7 @@ public class MinimaxAI
                     aspirationFailed = true;
                     break;
                 }
+                orderedIdx++;
             }
 
             // If aspiration didn't fail, we're done
@@ -1110,6 +1116,71 @@ public class MinimaxAI
         }
 
         return bestMove;
+    }
+
+    /// <summary>
+    /// Score candidates for tie-breaking when minimax scores are equal.
+    /// Uses position heuristics similar to OrderMoves but without full sorting.
+    /// Higher score = more desirable move.
+    /// </summary>
+    private int[] ScoreCandidatesForTiebreak(List<(int x, int y)> candidates, Board board, Player player, int depth)
+    {
+        int count = candidates.Count;
+        var scores = new int[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            var (x, y) = candidates[i];
+            var score = 0;
+
+            // Killer moves get high priority
+            for (int k = 0; k < MaxKillerMoves; k++)
+            {
+                if (_killerMoves[depth, k].x == x && _killerMoves[depth, k].y == y)
+                {
+                    score += 1000;
+                    break;
+                }
+            }
+
+            // Butterfly heuristic
+            var butterflyScore = player == Player.Red ? _butterflyRed[x, y] : _butterflyBlue[x, y];
+            score += Math.Min(300, butterflyScore / 100);
+
+            // History heuristic
+            var historyScore = GetHistoryScore(player, x, y);
+            score += Math.Min(500, historyScore / 10);
+
+            // Tactical pattern scoring
+            score += EvaluateTacticalPattern(board, x, y, player);
+
+            // Prefer center (7,7)
+            var distanceToCenter = Math.Abs(x - 7) + Math.Abs(y - 7);
+            score += (14 - distanceToCenter) * 10;
+
+            // Prefer moves near existing stones
+            var nearby = 0;
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    if (dx == 0 && dy == 0) continue;
+                    var nx = x + dx;
+                    var ny = y + dy;
+                    if (nx >= 0 && nx < 15 && ny >= 0 && ny < 15)
+                    {
+                        var cell = board.GetCell(nx, ny);
+                        if (cell.Player != Player.None)
+                            nearby += 5;
+                    }
+                }
+            }
+            score += nearby;
+
+            scores[i] = score;
+        }
+
+        return scores;
     }
 
     /// <summary>
@@ -1518,12 +1589,16 @@ public class MinimaxAI
         // Order tactical moves for better pruning
         var orderedMoves = OrderMoves(tacticalMoves, rootDepth, board, currentPlayer, null);
 
-        // Search tactical moves
+        // Search tactical moves (only empty cells)
         if (isMaximizing)
         {
             var maxEval = standPat;
             foreach (var (x, y) in orderedMoves)
             {
+                // Skip occupied cells (can happen during quiescence recursion)
+                if (!board.GetCell(x, y).IsEmpty)
+                    continue;
+
                 board.PlaceStone(x, y, currentPlayer);
 
                 // Recursive quiescence search (depth stays at 0, but we track via rootDepth)
@@ -1544,6 +1619,10 @@ public class MinimaxAI
             var minEval = standPat;
             foreach (var (x, y) in orderedMoves)
             {
+                // Skip occupied cells (can happen during quiescence recursion)
+                if (!board.GetCell(x, y).IsEmpty)
+                    continue;
+
                 board.PlaceStone(x, y, currentPlayer);
 
                 var eval = Quiesce(board, alpha, beta, true, aiPlayer, rootDepth + 1);
