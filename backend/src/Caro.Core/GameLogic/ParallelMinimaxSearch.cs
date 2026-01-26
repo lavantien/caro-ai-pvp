@@ -273,7 +273,7 @@ public sealed class ParallelMinimaxSearch
         }
 
         // Multi-threaded Lazy SMP for deeper searches
-        return SearchLazySMP(board, player, adjustedDepth, candidates, difficulty, alloc);
+        return SearchLazySMP(board, player, adjustedDepth, candidates, difficulty, alloc, fixedThreadCount);
     }
 
     /// <summary>
