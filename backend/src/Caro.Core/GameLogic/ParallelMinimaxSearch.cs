@@ -332,9 +332,22 @@ public sealed class ParallelMinimaxSearch
 
         // Number of threads based on depth and available cores
         // FIX: Use fixed thread count when provided to reduce non-determinism
-        int threadCount = fixedThreadCount > 0
-            ? fixedThreadCount
+        // fixedThreadCount = 0 means single-threaded (skip parallel search)
+        int threadCount = fixedThreadCount >= 0
+            ? fixedThreadCount  // 0 = single-threaded, >0 = use that many threads
             : Math.Min(_maxThreads, Math.Max(2, depth / 2));
+
+        // If threadCount is 0, fall back to single-threaded search
+        if (threadCount == 0)
+        {
+            Interlocked.Exchange(ref _realNodesSearched, 0);
+            _transpositionTable.IncrementAge();
+
+            var (x, y) = SearchSingleThreaded(board, player, depth, candidates);
+            long actualNodes = Interlocked.Read(ref _realNodesSearched);
+            return new ParallelSearchResult(x, y, depth, actualNodes, 0);
+        }
+
         // Include threadIndex to distinguish master thread (0) from helper threads (1+)
         var results = new ConcurrentBag<(int x, int y, int score, int depth, long nodes, int threadIndex)>();
 
