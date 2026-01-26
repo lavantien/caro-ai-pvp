@@ -542,14 +542,17 @@ public class MinimaxAI
             _ => 2        // D1-D3: at least depth 2
         };
 
-        // Critical: less than 15% of initial time or very tight per-move limit
-        if (softBoundSeconds < 3 || totalTimeRemainingSeconds < initialTimeSeconds * 0.15)
+        // Critical: less than 10% of initial time or very tight per-move limit
+        if (softBoundSeconds < 2 || totalTimeRemainingSeconds < initialTimeSeconds * 0.10)
         {
             return Math.Max(minDepthForStrength, baseDepth / 2);
         }
 
-        // Low: 15-25% of initial time or moderate per-move limit
-        if (softBoundSeconds < 6 || totalTimeRemainingSeconds < initialTimeSeconds * 0.25)
+        // Low: 10-25% of initial time or moderate per-move limit
+        // Check if soft bound is very small relative to initial time (< 1.5%)
+        // This prevents triggering depth reduction when we have plenty of time (e.g., 5s out of 420s)
+        double softBoundRatio = softBoundSeconds / initialTimeSeconds;
+        if ((softBoundSeconds < 4 && softBoundRatio < 0.015) || totalTimeRemainingSeconds < initialTimeSeconds * 0.15)
         {
             if (candidateCount > 25) // Complex position
             {
