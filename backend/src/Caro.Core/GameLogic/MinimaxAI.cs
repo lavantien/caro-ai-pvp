@@ -315,6 +315,9 @@ public class MinimaxAI
 
         if (useParallelSearch)
         {
+            // Get thread count from AdaptiveDepthCalculator
+            int threadCount = AdaptiveDepthCalculator.GetThreadCount(difficulty);
+
             // Track time for parallel search
             var parallelStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
@@ -325,7 +328,8 @@ public class MinimaxAI
                 difficulty,
                 timeRemainingMs,
                 timeAlloc,
-                moveNumber
+                moveNumber,
+                threadCount
             );
 
             parallelStopwatch.Stop();
