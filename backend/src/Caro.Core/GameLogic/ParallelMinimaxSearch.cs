@@ -166,7 +166,7 @@ public sealed class ParallelMinimaxSearch
         }
 
         // Adjust depth based on time allocation
-        var adjustedDepth = CalculateDepthForTime(baseDepth, alloc, candidates.Count);
+        var adjustedDepth = CalculateDepthForTime(baseDepth, alloc, candidates.Count, timeRemainingMs);
 
         // For Braindead difficulty, add randomness
         if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 50)
@@ -250,7 +250,7 @@ public sealed class ParallelMinimaxSearch
         }
 
         // Adjust depth based on time allocation
-        var adjustedDepth = CalculateDepthForTime(baseDepth, alloc, candidates.Count);
+        var adjustedDepth = CalculateDepthForTime(baseDepth, alloc, candidates.Count, timeRemainingMs);
 
         // For Braindead difficulty, add randomness
         if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 50)
@@ -970,7 +970,7 @@ public sealed class ParallelMinimaxSearch
     /// <summary>
     /// Calculate search depth based on time allocation
     /// </summary>
-    private int CalculateDepthForTime(int baseDepth, TimeAllocation timeAlloc, int candidateCount)
+    private int CalculateDepthForTime(int baseDepth, TimeAllocation timeAlloc, int candidateCount, long? timeRemainingMs = null)
     {
         // Emergency mode - reduce depth significantly
         if (timeAlloc.IsEmergency)
@@ -981,22 +981,20 @@ public sealed class ParallelMinimaxSearch
         // Adjust based on time available
         var softBoundSeconds = timeAlloc.SoftBoundMs / 1000.0;
 
-        // Very tight time (< 2s)
-        if (softBoundSeconds < 2)
+        // Infer initial time for ratio calculation (default to 7 minutes = 420s for 7+5 time control)
+        var initialTimeSeconds = timeRemainingMs.HasValue ? timeRemainingMs.Value / 1000.0 : 420.0;
+        var softBoundRatio = softBoundSeconds / initialTimeSeconds;
+
+        // Very tight time (< 1.5% of initial time or < 2s)
+        if ((softBoundSeconds < 2 && softBoundRatio < 0.015) || (timeRemainingMs.HasValue && timeRemainingMs.Value < initialTimeSeconds * 1000 * 0.10))
         {
             return Math.Max(1, baseDepth - 2);
         }
 
-        // Tight time (< 5s)
-        if (softBoundSeconds < 5)
+        // Tight time (< 3% of initial time or < 4s)
+        if ((softBoundSeconds < 4 && softBoundRatio < 0.03) || (timeRemainingMs.HasValue && timeRemainingMs.Value < initialTimeSeconds * 1000 * 0.15))
         {
-            return Math.Max(2, baseDepth - 1);
-        }
-
-        // Moderate time (< 10s)
-        if (softBoundSeconds < 10)
-        {
-            if (candidateCount > 20) // Complex position
+            if (candidateCount > 30) // Very complex position with some time pressure
             {
                 return Math.Max(2, baseDepth - 1);
             }
@@ -1004,6 +1002,7 @@ public sealed class ParallelMinimaxSearch
         }
 
         // Good time availability: use full depth
+        // For 7+5 time control (420s initial), 5s soft bound is only 1.2% - plenty of time
         return baseDepth;
     }
 
