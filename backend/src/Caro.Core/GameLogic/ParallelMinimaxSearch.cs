@@ -195,7 +195,8 @@ public sealed class ParallelMinimaxSearch
         AIDifficulty difficulty,
         long? timeRemainingMs = null,
         TimeAllocation? timeAlloc = null,
-        int moveNumber = 0)
+        int moveNumber = 0,
+        int fixedThreadCount = -1)
     {
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
