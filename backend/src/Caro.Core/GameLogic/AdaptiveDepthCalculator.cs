@@ -3,15 +3,54 @@ using Caro.Core.Entities;
 namespace Caro.Core.GameLogic;
 
 /// <summary>
-/// Adaptive depth calculator for AI difficulty levels
-/// Grandmaster level uses position-aware depth selection instead of fixed depth
-/// This prevents search horizon issues and optimizes computational resources
+/// Adaptive depth calculator for AI difficulty levels.
+///
+/// DEPRECATED: Use TimeBudgetDepthManager for main depth calculation.
+/// This class now provides fallback values and difficulty-specific parameters.
+/// The primary mechanism is time-budgeted iterative deepening that scales
+/// with machine capability rather than hardcoded depths.
 /// </summary>
 public static class AdaptiveDepthCalculator
 {
     /// <summary>
-    /// Get the search depth for a given difficulty level and board position
-    /// For Grandmaster, depth adapts based on position complexity
+    /// Get the time multiplier for a difficulty level.
+    /// Higher difficulties use a larger percentage of their allocated time.
+    /// This is the PRIMARY mechanism for difficulty differentiation.
+    /// </summary>
+    public static double GetTimeMultiplier(AIDifficulty difficulty)
+    {
+        return difficulty switch
+        {
+            AIDifficulty.Braindead => 0.01,   // Barely thinks
+            AIDifficulty.Easy => 0.1,          // 10% of allocated time
+            AIDifficulty.Medium => 0.3,        // 30% of allocated time
+            AIDifficulty.Hard => 0.7,          // 70% of allocated time
+            AIDifficulty.Grandmaster => 1.0,   // Full allocated time
+            _ => 0.5
+        };
+    }
+
+    /// <summary>
+    /// Get the minimum depth for a difficulty level.
+    /// Even with minimal time, AI should search at least this deep.
+    /// This ensures strength separation even on very slow machines.
+    /// </summary>
+    public static int GetMinimumDepth(AIDifficulty difficulty)
+    {
+        return difficulty switch
+        {
+            AIDifficulty.Braindead => 1,
+            AIDifficulty.Easy => 2,
+            AIDifficulty.Medium => 3,
+            AIDifficulty.Hard => 4,
+            AIDifficulty.Grandmaster => 5,
+            _ => 3
+        };
+    }
+
+    /// <summary>
+    /// Fallback depth for legacy code paths.
+    /// Use TimeBudgetDepthManager.CalculateMaxDepth() instead.
     /// </summary>
     public static int GetDepth(AIDifficulty difficulty, Board board)
     {

@@ -27,6 +27,10 @@ public class MinimaxAI
     // Adaptive time management using PID-like controller
     private readonly AdaptiveTimeManager _adaptiveTimeManager = new();
 
+    // Time-budget-based depth manager - scales depth with machine capability
+    // Replaces hardcoded depths with iterative deepening based on NPS and time
+    private readonly TimeBudgetDepthManager _depthManager = new();
+
     // Track initial time for adaptive depth thresholds
     // -1 means "unknown, will infer from first move"
     private long _inferredInitialTimeMs = -1;
@@ -294,10 +298,24 @@ public class MinimaxAI
             }
         }
 
-        // SEQUENTIAL SEARCH: Parallel search disabled due to bugs causing suboptimal moves
-        // Future work: Fix Lazy SMP issues (TT pollution, move selection) before re-enabling
+        // TIME-BUDGET-BASED SEARCH: No hardcoded depths, scales with machine capability
+        // Each difficulty uses a time multiplier: Braindead 1%, Easy 10%, Medium 30%, Hard 70%, Grandmaster 100%
+        // Faster machines reach deeper depths naturally, slower machines stop earlier
+        // This ensures strength ordering regardless of server performance
 
-        var adjustedDepth = CalculateDepthForTime(baseDepth, timeAlloc, timeRemainingMs, candidates.Count);
+        // Apply time multiplier to the soft bound - lower difficulties use less time
+        double timeMultiplier = AdaptiveDepthCalculator.GetTimeMultiplier(difficulty);
+        long adjustedSoftBoundMs = Math.Max(100, (long)(timeAlloc.SoftBoundMs * timeMultiplier));
+
+        // Calculate max depth from time budget using NPS and EBF estimates
+        // Formula: max_depth = log(time * nps) / log(ebf)
+        double timeForDepthSeconds = adjustedSoftBoundMs / 1000.0;
+        int maxDepthFromBudget = _depthManager.CalculateMaxDepth(timeForDepthSeconds, difficulty);
+
+        // Ensure at least minimum depth for this difficulty
+        int minDepth = AdaptiveDepthCalculator.GetMinimumDepth(difficulty);
+        int targetDepth = Math.Max(maxDepthFromBudget, minDepth);
+
         (int x, int y) bestMove;
         int depthAchieved;
         long nodesSearched;
@@ -318,23 +336,34 @@ public class MinimaxAI
         _searchHardBoundMs = timeAlloc.HardBoundMs;
         _searchStopped = false;
 
-        // Iterative deepening with time awareness
+        // ITERATIVE DEEPENING: Search depth 1, 2, 3... until time runs out
+        // Always return best move from deepest completed iteration
         bestMove = candidates[0];
-        var currentDepth = Math.Min(2, adjustedDepth); // Start with depth 2
+        int currentDepth = minDepth; // Start at minimum depth for this difficulty
 
-        while (currentDepth <= adjustedDepth)
+        while (currentDepth <= targetDepth)
         {
             // Check time bounds using TimeAllocation
             var elapsed = _searchStopwatch.ElapsedMilliseconds;
+
+            // Hard bound check - must stop
             if (elapsed >= timeAlloc.HardBoundMs)
             {
-                break; // Hard bound reached, must stop
+                break;
             }
 
-            // Soft bound check - can continue if position is unstable
-            if (elapsed >= timeAlloc.SoftBoundMs)
+            // Soft bound check with time multiplier applied
+            // Lower difficulties hit soft bound earlier due to multiplier
+            if (elapsed >= adjustedSoftBoundMs)
             {
-                break;
+                // Check if we should continue for one more iteration
+                // Only continue if we have significant time left and next iteration won't exceed hard bound
+                double remainingSeconds = (timeAlloc.HardBoundMs - elapsed) / 1000.0;
+                double estimatedNextTime = elapsed / 1000.0 * 2.5; // EBF ~2.5
+                if (remainingSeconds < estimatedNextTime * 0.8)
+                {
+                    break;
+                }
             }
 
             // Reset stopped flag for this depth
@@ -345,6 +374,13 @@ public class MinimaxAI
             {
                 bestMove = (result.x, result.y);
                 _depthAchieved = currentDepth; // Track deepest completed search
+
+                // Update NPS estimate from this iteration
+                double iterationElapsedSeconds = _searchStopwatch.Elapsed.TotalSeconds;
+                if (iterationElapsedSeconds > 0)
+                {
+                    _depthManager.UpdateNpsEstimate(_nodesSearched, iterationElapsedSeconds);
+                }
             }
 
             // If search was stopped due to timeout, don't continue to next depth
@@ -377,7 +413,7 @@ public class MinimaxAI
             Console.WriteLine($"[AI TT] Table usage: {used} entries ({usage:F2}%)");
             var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
             var nps = elapsedMs > 0 ? nodesSearched * 1000 / elapsedMs : 0;
-            Console.WriteLine($"[AI STATS] Depth: {depthAchieved}, Nodes: {nodesSearched}, NPS: {nps:F0}");
+            Console.WriteLine($"[AI STATS] TimeMult: {timeMultiplier:P0}, TargetD: {maxDepthFromBudget}, Depth: {depthAchieved}, Nodes: {nodesSearched}, NPS: {nps:F0}");
         }
 
         // Store PV for pondering
