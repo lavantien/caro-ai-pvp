@@ -31,6 +31,9 @@ public class MinimaxAI
     // -1 means "unknown, will infer from first move"
     private long _inferredInitialTimeMs = -1;
 
+    // Track last calculated depth for smoothing (prevent sudden drops)
+    private int _lastCalculatedDepth = -1;
+
     // Parallel search for high difficulties (D7+)
     // Lazy SMP provides 4-8x speedup on multi-core systems
     private readonly ParallelMinimaxSearch _parallelSearch = new();
@@ -291,157 +294,90 @@ public class MinimaxAI
             }
         }
 
-        // LAZY SMP PARALLEL SEARCH: Enabled for D7+ (VeryHard and above)
-        // Uses conservative thread count (processorCount/2)-1 to avoid hyperthreading contention
-        // - D7-D11: Lazy SMP with helper threads
-        // - D1-D6: Sequential search (overhead not worth it for low depths)
-        //
-        // Key improvements from previous implementation:
-        // 1. Conservative thread count prevents contention
-        // 2. Master thread (ThreadIndex=0) provides deterministic result selection
-        // 3. Lock-free transposition table prevents corruption
-        // 4. Proper per-thread data (killer moves, history) prevents interference
+        // SEQUENTIAL SEARCH: Parallel search disabled due to bugs causing suboptimal moves
+        // Future work: Fix Lazy SMP issues (TT pollution, move selection) before re-enabling
 
         var adjustedDepth = CalculateDepthForTime(baseDepth, timeAlloc, timeRemainingMs, candidates.Count);
-
-        // Determine if we should use parallel search
-        // TEMPORARY FIX: Disabled for Hard due to strength inversion bug
-        // Parallel search appears to return suboptimal moves compared to sequential search
-        bool useParallelSearch = difficulty >= AIDifficulty.Grandmaster && adjustedDepth >= 4;
-
         (int x, int y) bestMove;
         int depthAchieved;
         long nodesSearched;
 
-        if (useParallelSearch)
+        // Initialize transposition table for this search
+        _transpositionTable.IncrementAge();
+        _tableHits = 0;
+        _tableLookups = 0;
+
+        // Initialize search statistics
+        _nodesSearched = 0;
+        _depthAchieved = 0;
+        _vcfNodesSearched = 0;
+        _vcfDepthAchieved = 0;
+        _searchStopwatch.Restart();
+
+        // Initialize time control for search timeout
+        _searchHardBoundMs = timeAlloc.HardBoundMs;
+        _searchStopped = false;
+
+        // Iterative deepening with time awareness
+        bestMove = candidates[0];
+        var currentDepth = Math.Min(2, adjustedDepth); // Start with depth 2
+
+        while (currentDepth <= adjustedDepth)
         {
-            // Get thread count from AdaptiveDepthCalculator
-            int threadCount = AdaptiveDepthCalculator.GetThreadCount(difficulty);
-
-            // Track time for parallel search
-            var parallelStopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-            // Use Lazy SMP parallel search
-            var parallelResult = _parallelSearch.GetBestMoveWithStats(
-                board,
-                player,
-                difficulty,
-                timeRemainingMs,
-                timeAlloc,
-                moveNumber,
-                threadCount
-            );
-
-            parallelStopwatch.Stop();
-
-            bestMove = (parallelResult.X, parallelResult.Y);
-            depthAchieved = parallelResult.DepthAchieved;
-            nodesSearched = parallelResult.NodesSearched;
-
-            // Update local statistics
-            _depthAchieved = depthAchieved;
-            _nodesSearched = nodesSearched;
-
-            // Get parallel search TT stats
-            var (ttUsed, ttUsage, _, _, _) = _parallelSearch.GetStats();
-
-            // Report time used to adaptive time manager for feedback loop
-            if (timeRemainingMs.HasValue)
+            // Check time bounds using TimeAllocation
+            var elapsed = _searchStopwatch.ElapsedMilliseconds;
+            if (elapsed >= timeAlloc.HardBoundMs)
             {
-                var actualTimeMs = parallelStopwatch.ElapsedMilliseconds;
-                bool timedOut = actualTimeMs >= timeAlloc.HardBoundMs;
-                _adaptiveTimeManager.ReportTimeUsed(actualTimeMs, timeAlloc.SoftBoundMs, timedOut);
+                break; // Hard bound reached, must stop
             }
 
-            // Print statistics for high difficulties
-            if (difficulty >= AIDifficulty.Hard)
+            // Soft bound check - can continue if position is unstable
+            if (elapsed >= timeAlloc.SoftBoundMs)
             {
-                var elapsedMs = parallelStopwatch.ElapsedMilliseconds;
-                var nps = elapsedMs > 0 ? nodesSearched * 1000 / elapsedMs : 0;
-                Console.WriteLine($"[AI PARALLEL] Threads: {parallelResult.ThreadCount}, Depth: {depthAchieved}, Nodes: {nodesSearched:N0}, NPS: {nps:F0}");
-                Console.WriteLine($"[AI TT] Table usage: {ttUsed} entries ({ttUsage:F2}%)");
+                break;
             }
-        }
-        else
-        {
-            // Sequential search for lower difficulties or shallow depths
-            // Initialize transposition table for this search
-            _transpositionTable.IncrementAge();
-            _tableHits = 0;
-            _tableLookups = 0;
 
-            // Initialize search statistics
-            _nodesSearched = 0;
-            _depthAchieved = 0;
-            _vcfNodesSearched = 0;
-            _vcfDepthAchieved = 0;
-            _searchStopwatch.Restart();
-
-            // Initialize time control for search timeout
-            _searchHardBoundMs = timeAlloc.HardBoundMs;
+            // Reset stopped flag for this depth
             _searchStopped = false;
 
-            // Iterative deepening with time awareness
-            bestMove = candidates[0];
-            var currentDepth = Math.Min(2, adjustedDepth); // Start with depth 2
-
-            while (currentDepth <= adjustedDepth)
+            var result = SearchWithDepth(board, player, currentDepth, candidates);
+            if (result.x != -1)
             {
-                // Check time bounds using TimeAllocation
-                var elapsed = _searchStopwatch.ElapsedMilliseconds;
-                if (elapsed >= timeAlloc.HardBoundMs)
-                {
-                    break; // Hard bound reached, must stop
-                }
-
-                // Soft bound check - can continue if position is unstable
-                if (elapsed >= timeAlloc.SoftBoundMs)
-                {
-                    break;
-                }
-
-                // Reset stopped flag for this depth
-                _searchStopped = false;
-
-                var result = SearchWithDepth(board, player, currentDepth, candidates);
-                if (result.x != -1)
-                {
-                    bestMove = (result.x, result.y);
-                    _depthAchieved = currentDepth; // Track deepest completed search
-                }
-
-                // If search was stopped due to timeout, don't continue to next depth
-                if (_searchStopped)
-                {
-                    break;
-                }
-
-                currentDepth++;
+                bestMove = (result.x, result.y);
+                _depthAchieved = currentDepth; // Track deepest completed search
             }
 
-            _searchStopwatch.Stop();
-            depthAchieved = _depthAchieved;
-            nodesSearched = _nodesSearched;
-
-            // Report time used to adaptive time manager for feedback loop
-            if (timeRemainingMs.HasValue)
+            // If search was stopped due to timeout, don't continue to next depth
+            if (_searchStopped)
             {
-                var actualTimeMs = _searchStopwatch.ElapsedMilliseconds;
-                bool timedOut = actualTimeMs >= timeAlloc.HardBoundMs;
-                _adaptiveTimeManager.ReportTimeUsed(actualTimeMs, timeAlloc.SoftBoundMs, timedOut);
+                break;
             }
 
-            // Print transposition table statistics for debugging
-            if (difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Grandmaster)
-            {
-                double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
-                Console.WriteLine($"[AI TT] Hits: {_tableHits}/{_tableLookups} ({hitRate:F1}%)");
-                var (used, usage) = _transpositionTable.GetStats();
-                Console.WriteLine($"[AI TT] Table usage: {used} entries ({usage:F2}%)");
-                var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
-                var nps = elapsedMs > 0 ? nodesSearched * 1000 / elapsedMs : 0;
-                Console.WriteLine($"[AI STATS] Depth: {depthAchieved}, Nodes: {nodesSearched}, NPS: {nps:F0}");
-            }
+            currentDepth++;
+        }
+
+        _searchStopwatch.Stop();
+        depthAchieved = _depthAchieved;
+        nodesSearched = _nodesSearched;
+
+        // Report time used to adaptive time manager for feedback loop
+        if (timeRemainingMs.HasValue)
+        {
+            var actualTimeMs = _searchStopwatch.ElapsedMilliseconds;
+            bool timedOut = actualTimeMs >= timeAlloc.HardBoundMs;
+            _adaptiveTimeManager.ReportTimeUsed(actualTimeMs, timeAlloc.SoftBoundMs, timedOut);
+        }
+
+        // Print transposition table statistics for debugging
+        if (difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Grandmaster)
+        {
+            double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
+            Console.WriteLine($"[AI TT] Hits: {_tableHits}/{_tableLookups} ({hitRate:F1}%)");
+            var (used, usage) = _transpositionTable.GetStats();
+            Console.WriteLine($"[AI TT] Table usage: {used} entries ({usage:F2}%)");
+            var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
+            var nps = elapsedMs > 0 ? nodesSearched * 1000 / elapsedMs : 0;
+            Console.WriteLine($"[AI STATS] Depth: {depthAchieved}, Nodes: {nodesSearched}, NPS: {nps:F0}");
         }
 
         // Store PV for pondering
@@ -504,11 +440,11 @@ public class MinimaxAI
 
         // Emergency mode - VERY aggressive depth reduction to avoid timeout
         // In time scramble, rely on VCF + TT move, not deep search
-        // But still preserve relative strength: D11 should be deeper than D10 even in emergency
+        // But still preserve relative strength: D5 should be deeper than D4 even in emergency
         if (timeAlloc.IsEmergency)
         {
-            // Emergency depth with separation: D11->6, D10->5, D9->5, D8->4, D7->4, D6->3
-            return baseDepth switch
+            // Emergency depth with separation: D5->4, D4->3
+            int emergencyDepth = baseDepth switch
             {
                 >= 11 => 6,  // D11: depth 6
                 >= 10 => 5,  // D10: depth 5
@@ -516,8 +452,10 @@ public class MinimaxAI
                 >= 8 => 4,   // D8: depth 4
                 >= 7 => 4,   // D7: depth 4
                 >= 6 => 3,   // D6: depth 3
-                _ => 3       // D5 and below: depth 3
+                >= 5 => 4,   // D5 (Grandmaster): depth 4 - ALWAYS deeper than D4!
+                _ => 3       // D4 and below: depth 3
             };
+            return SmoothDepth(emergencyDepth);
         }
 
         // Per-move time allocation
@@ -528,8 +466,8 @@ public class MinimaxAI
         var initialTimeSeconds = (double)effectiveInitialTimeMs / 1000.0;
 
         // Calculate minimum depth to preserve AI strength ordering
-        // CRITICAL: Create 1-py separation between adjacent difficulties!
-        // D11 searches at least 1 ply deeper than D10, which searches 1 ply deeper than D9, etc.
+        // CRITICAL: Create 1-ply separation between adjacent difficulties!
+        // D5 searches at least 1 ply deeper than D4, which searches 1 ply deeper than D3, etc.
         int minDepthForStrength = baseDepth switch
         {
             >= 11 => 8,  // D11: at least depth 8 (1 ply above D10)
@@ -538,41 +476,81 @@ public class MinimaxAI
             >= 8 => 5,   // D8: at least depth 5 (1 ply above D7)
             >= 7 => 4,   // D7: at least depth 4
             >= 6 => 4,   // D6: at least depth 4
-            >= 4 => 3,   // D4-D5: at least depth 3
+            >= 5 => 4,   // D5 (Grandmaster): at least depth 4 - ALWAYS deeper than D4!
+            >= 4 => 3,   // D4 (Hard): at least depth 3
             _ => 2        // D1-D3: at least depth 2
         };
 
         // Critical: less than 10% of initial time or very tight per-move limit
+        int targetDepth;
         if (softBoundSeconds < 2 || totalTimeRemainingSeconds < initialTimeSeconds * 0.10)
         {
-            return Math.Max(minDepthForStrength, baseDepth / 2);
+            targetDepth = Math.Max(minDepthForStrength, baseDepth / 2);
         }
-
         // Low: 10-25% of initial time or moderate per-move limit
         // Check if soft bound is very small relative to initial time (< 1.5%)
         // This prevents triggering depth reduction when we have plenty of time (e.g., 5s out of 420s)
-        double softBoundRatio = softBoundSeconds / initialTimeSeconds;
-        if ((softBoundSeconds < 4 && softBoundRatio < 0.015) || totalTimeRemainingSeconds < initialTimeSeconds * 0.15)
+        else
         {
-            if (candidateCount > 25) // Complex position
+            double softBoundRatio = softBoundSeconds / initialTimeSeconds;
+            if ((softBoundSeconds < 4 && softBoundRatio < 0.015) || totalTimeRemainingSeconds < initialTimeSeconds * 0.15)
             {
-                return Math.Max(minDepthForStrength, baseDepth - 3);
+                if (candidateCount > 25) // Complex position
+                {
+                    targetDepth = Math.Max(minDepthForStrength, baseDepth - 3);
+                }
+                else
+                {
+                    targetDepth = Math.Max(minDepthForStrength, baseDepth - 1);
+                }
             }
-            return Math.Max(minDepthForStrength, baseDepth - 1);
+            // Moderate: 25-50% of initial time
+            else if (totalTimeRemainingSeconds < initialTimeSeconds * 0.50)
+            {
+                if (candidateCount > 25) // Complex position with limited time
+                {
+                    targetDepth = Math.Max(minDepthForStrength, baseDepth - 2);
+                }
+                else
+                {
+                    targetDepth = Math.Max(minDepthForStrength, baseDepth - 1);
+                }
+            }
+            // Good time availability (>50% remaining): use full depth
+            else
+            {
+                targetDepth = baseDepth;
+            }
         }
 
-        // Moderate: 25-50% of initial time
-        if (totalTimeRemainingSeconds < initialTimeSeconds * 0.50)
+        return SmoothDepth(targetDepth);
+    }
+
+    /// <summary>
+    /// Apply depth smoothing to prevent sudden drops in search depth
+    /// Gradually transition between depths to maintain move quality consistency
+    /// </summary>
+    private int SmoothDepth(int targetDepth)
+    {
+        // First move or game reset
+        if (_lastCalculatedDepth < 0)
         {
-            if (candidateCount > 25) // Complex position with limited time
-            {
-                return Math.Max(minDepthForStrength, baseDepth - 2);
-            }
-            return Math.Max(minDepthForStrength, baseDepth - 1);
+            _lastCalculatedDepth = targetDepth;
+            return targetDepth;
         }
 
-        // Good time availability (>50% remaining): use full depth
-        return baseDepth;
+        // Allow increases immediately (good positions deserve deeper search)
+        if (targetDepth > _lastCalculatedDepth)
+        {
+            _lastCalculatedDepth = targetDepth;
+            return targetDepth;
+        }
+
+        // For decreases, apply gradual smoothing (reduce by at most 1 per move)
+        // This prevents sudden quality drops when time gets tight
+        int smoothedDepth = Math.Max(targetDepth, _lastCalculatedDepth - 1);
+        _lastCalculatedDepth = smoothedDepth;
+        return smoothedDepth;
     }
 
     /// <summary>
@@ -662,14 +640,15 @@ public class MinimaxAI
 
     /// <summary>
     /// Get emergency VCF time cap based on difficulty
-    /// CRITICAL: Even in emergency mode, higher difficulties get more VCF time!
-    /// This prevents emergency mode from equalizing all AI strengths
+    /// CRITICAL: In time scramble, use the available increment time for VCF
+    /// Higher difficulties get more VCF time to find tactical solutions
     /// </summary>
     private static int GetEmergencyVCFCap(AIDifficulty difficulty) => difficulty switch
     {
-        AIDifficulty.Grandmaster => 1000,  // D5: up to 1 second even in emergency
-        AIDifficulty.Hard => 400,          // D4: up to 400ms
-        _ => 200                           // D3 and below: 200ms
+        AIDifficulty.Grandmaster => 2500,  // D5: up to 2.5s (50% of 5s increment)
+        AIDifficulty.Hard => 2000,         // D4: up to 2s (40% of 5s increment)
+        AIDifficulty.Medium => 1500,       // D3: up to 1.5s (30% of 5s increment)
+        _ => 1000                          // D2 and below: up to 1s
     };
 
     /// <summary>
@@ -1302,7 +1281,7 @@ public class MinimaxAI
         foreach (var (dx, dy) in directions)
         {
             // Count consecutive stones in both directions (for player)
-            var count = 1; // Include the placed stone
+            var count = 1;
             var openEnds = 0;
 
             // Check positive direction (using BitBoard)
@@ -1323,7 +1302,7 @@ public class MinimaxAI
                 }
                 else
                 {
-                    break; // Blocked by opponent
+                    break;
                 }
             }
 
@@ -1345,7 +1324,7 @@ public class MinimaxAI
                 }
                 else
                 {
-                    break; // Blocked by opponent
+                    break;
                 }
             }
 
@@ -1377,7 +1356,7 @@ public class MinimaxAI
             }
         }
 
-        // Check blocking value (how much this blocks opponent) - using BitBoard
+        // Check blocking value (how much this blocks opponent)
         foreach (var (dx, dy) in directions)
         {
             var count = 1;
@@ -1512,6 +1491,9 @@ public class MinimaxAI
         // Reset inferred initial time for adaptive thresholds
         // -1 means "unknown, will infer from first move"
         _inferredInitialTimeMs = -1;
+
+        // Reset depth smoothing
+        _lastCalculatedDepth = -1;
 
         // Clear killer moves
         for (int d = 0; d < 20; d++)
@@ -1712,6 +1694,82 @@ public class MinimaxAI
         }
 
         return false;  // Not tactical
+    }
+
+    /// <summary>
+    /// Check if a specific move is tactical (creates threats or blocks opponent)
+    /// Used for LMR - tactical moves should not use reduced depth
+    /// </summary>
+    private bool IsTacticalMove(Board board, int x, int y, Player player)
+    {
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var playerBitBoard = board.GetBitBoard(player);
+        var opponentBitBoard = board.GetBitBoard(opponent);
+        var occupied = playerBitBoard | opponentBitBoard;
+        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
+
+        foreach (var (dx, dy) in directions)
+        {
+            // Check if this move creates threat for player
+            var playerCount = 1;
+            var playerOpenEnds = 0;
+
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x + dx * i;
+                var ny = y + dy * i;
+                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (playerBitBoard.GetBit(nx, ny)) playerCount++;
+                else if (!occupied.GetBit(nx, ny)) { playerOpenEnds++; break; }
+                else break;
+            }
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x - dx * i;
+                var ny = y - dy * i;
+                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (playerBitBoard.GetBit(nx, ny)) playerCount++;
+                else if (!occupied.GetBit(nx, ny)) { playerOpenEnds++; break; }
+                else break;
+            }
+
+            // Creating 3+ with open ends is tactical
+            if (playerCount >= 3 && playerOpenEnds >= 1)
+                return true;
+            if (playerCount >= 4)
+                return true;
+
+            // Check if this move blocks opponent threat
+            var oppCount = 1;
+            var oppOpenEnds = 0;
+
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x + dx * i;
+                var ny = y + dy * i;
+                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (opponentBitBoard.GetBit(nx, ny)) oppCount++;
+                else if (!occupied.GetBit(nx, ny)) { oppOpenEnds++; break; }
+                else break;
+            }
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x - dx * i;
+                var ny = y - dy * i;
+                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (opponentBitBoard.GetBit(nx, ny)) oppCount++;
+                else if (!occupied.GetBit(nx, ny)) { oppOpenEnds++; break; }
+                else break;
+            }
+
+            // Blocking 3+ with open ends is tactical (must block)
+            if (oppCount >= 3 && oppOpenEnds >= 1)
+                return true;
+            if (oppCount >= 4)
+                return true;
+        }
+
+        return false;  // Not a tactical move
     }
 
     // Null-move pruning constants

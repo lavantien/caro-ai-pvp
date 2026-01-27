@@ -22,15 +22,14 @@ public sealed class TimeManager
 
     // CRITICAL: Time multipliers for difficulty differentiation
     // Must be carefully balanced to avoid timeouts while creating separation
-    // D11 gets more time but not so much that it timeouts
+    // Grandmaster gets more time but not so much that it timeouts
     private static readonly Dictionary<AIDifficulty, double> DifficultyTimeMultipliers = new()
     {
-        { AIDifficulty.Legend, 1.5 },      // D11: 1.5x - reduced from 2.0x to avoid timeout
-        { AIDifficulty.Grandmaster, 1.2 }, // D10: 1.2x - slight increase
-        { AIDifficulty.Master, 1.0 },      // D9: 1.0x - baseline
-        { AIDifficulty.Expert, 0.9 },      // D8: 0.9x - less than baseline
-        { AIDifficulty.VeryHard, 0.8 },    // D7: 0.8x
-        { AIDifficulty.Harder, 0.7 },      // D6: 0.7x
+        { AIDifficulty.Grandmaster, 1.3 }, // D5: 1.3x - maximum time
+        { AIDifficulty.Hard, 1.0 },         // D4: 1.0x - baseline
+        { AIDifficulty.Medium, 0.8 },       // D3: 0.8x
+        { AIDifficulty.Easy, 0.6 },         // D2: 0.6x
+        { AIDifficulty.Braindead, 0.4 },    // D1: 0.4x
     };
 
     /// <summary>
@@ -68,13 +67,13 @@ public sealed class TimeManager
         int candidateCount,
         Board board,
         Player player,
-        AIDifficulty difficulty = AIDifficulty.Harder,
+        AIDifficulty difficulty = AIDifficulty.Medium,
         int initialTimeSeconds = 420,  // Default to 7+5, but tests may use different time controls
         int incrementSeconds = 5)       // Default increment for 7+5
     {
         // Validate inputs
         if (timeRemainingMs <= 0)
-            return GetEmergencyAllocation(timeRemainingMs);
+            return GetEmergencyAllocation(timeRemainingMs, GamePhase.Endgame, incrementSeconds);
 
         // Infer initial time on first move (move 1-3)
         // Assume timeRemainingMs ≈ initial time at game start
@@ -95,7 +94,7 @@ public sealed class TimeManager
         bool isEmergency = ShouldUsePanicMode(timeRemainingMs, movesToEnd, adaptiveEmergencyThreshold);
         if (isEmergency)
         {
-            return GetEmergencyAllocation(timeRemainingMs, phase);
+            return GetEmergencyAllocation(timeRemainingMs, phase, incrementSeconds);
         }
 
         // Base time: remaining / moves_left + 60% of increment
@@ -149,13 +148,25 @@ public sealed class TimeManager
 
     /// <summary>
     /// Get emergency mode time allocation
-    /// Uses minimal time, relies on TT move or VCF solver
+    /// In time scramble, use the increment time to ensure we can keep playing
+    /// CRITICAL: Timeout must NEVER happen - only win/lose/draw should end games
     /// </summary>
-    private static TimeAllocation GetEmergencyAllocation(long timeRemainingMs, GamePhase phase = GamePhase.Endgame)
+    private static TimeAllocation GetEmergencyAllocation(long timeRemainingMs, GamePhase phase = GamePhase.Endgame, int incrementSeconds = 5)
     {
-        // Panic allocation: timeRemaining / 10 (minimum 500ms)
-        long softBoundMs = Math.Max(500, timeRemainingMs / 10);
-        long hardBoundMs = Math.Min(softBoundMs + 500, Math.Max(0, timeRemainingMs - 100));
+        long incrementMs = incrementSeconds * 1000;
+
+        // In time scramble, we rely on VCF + heuristics to make quick moves
+        // Hard bound: 75% of increment (leaves 25% safety margin)
+        // For 7+5: 3750ms hard bound, 1250ms safety margin
+        long hardBoundMs = (long)(incrementMs * 0.75);
+
+        // Soft bound: 50% of increment (encourages faster moves)
+        // For 7+5: 2500ms soft bound
+        long softBoundMs = (long)(incrementMs * 0.5);
+
+        // Minimum guarantees regardless of increment size
+        softBoundMs = Math.Max(softBoundMs, 1000);  // At least 1 second
+        hardBoundMs = Math.Max(hardBoundMs, 2000);  // At least 2 seconds
 
         return new TimeAllocation
         {
