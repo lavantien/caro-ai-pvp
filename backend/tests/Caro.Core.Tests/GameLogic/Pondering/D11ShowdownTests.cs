@@ -8,7 +8,7 @@ using System.Diagnostics;
 namespace Caro.Core.Tests.GameLogic.Pondering;
 
 /// <summary>
-/// D11 Showdown: Test two Legend-level AIs playing against each other
+/// D5 Grandmaster Showdown: Test two Grandmaster-level AIs playing against each other
 /// This demonstrates the full power of the AI with pondering enabled
 /// </summary>
 [Trait("Category", "Showcase")]
@@ -16,16 +16,16 @@ namespace Caro.Core.Tests.GameLogic.Pondering;
 public class D11ShowdownTests
 {
     [Fact]
-    public void D11vsD11_WithPondering_CompletesSuccessfully()
+    public void D5vsD5_WithPondering_CompletesSuccessfully()
     {
         // Arrange
         var engine = new TournamentEngine();
         var stopwatch = Stopwatch.StartNew();
 
-        // Act - Run a full D11 vs D11 game with pondering
+        // Act - Run a full D5 vs D5 game with pondering
         var result = engine.RunGame(
-            AIDifficulty.Legend,      // Red: D11
-            AIDifficulty.Legend,      // Blue: D11
+            AIDifficulty.Grandmaster,      // Red: D5
+            AIDifficulty.Grandmaster,      // Blue: D5
             maxMoves: 225,
             initialTimeSeconds: 60,   // 1 minute each for quick test
             incrementSeconds: 1,
@@ -41,7 +41,7 @@ public class D11ShowdownTests
 
         // Output results
         Console.WriteLine($"\n{'=' * 60}");
-        Console.WriteLine($"D11 vs D11 Showdown Results (1+1 time control)");
+        Console.WriteLine($"D5 vs D5 Showdown Results (1+1 time control)");
         Console.WriteLine($"{'=' * 60}");
         Console.WriteLine($"Winner: {result.Winner} ({result.WinnerDifficulty})");
         Console.WriteLine($"Loser: {result.Loser} ({result.LoserDifficulty})");
@@ -53,16 +53,16 @@ public class D11ShowdownTests
     }
 
     [Fact]
-    public void D11vsD11_WithProperTimeControl_ReachesFullDepth()
+    public void D5vsD5_WithProperTimeControl_ReachesFullDepth()
     {
         // Arrange
         var engine = new TournamentEngine();
         var stopwatch = Stopwatch.StartNew();
 
-        // Act - Run with 7+5 time control (designed for D11)
+        // Act - Run with 7+5 time control (designed for D5)
         var result = engine.RunGame(
-            AIDifficulty.Legend,      // Red: D11
-            AIDifficulty.Legend,      // Blue: D11
+            AIDifficulty.Grandmaster,      // Red: D5
+            AIDifficulty.Grandmaster,      // Blue: D5
             maxMoves: 50,             // Limit moves for demo
             initialTimeSeconds: 420,  // 7 minutes each (7+5 time control)
             incrementSeconds: 5,
@@ -78,7 +78,7 @@ public class D11ShowdownTests
 
         // Output results
         Console.WriteLine($"\n{'=' * 60}");
-        Console.WriteLine($"D11 vs D11 Showdown Results (7+5 time control - PROPER)");
+        Console.WriteLine($"D5 vs D5 Showdown Results (7+5 time control - PROPER)");
         Console.WriteLine($"{'=' * 60}");
         Console.WriteLine($"Winner: {result.Winner} ({result.WinnerDifficulty})");
         Console.WriteLine($"Loser: {result.Loser} ({result.LoserDifficulty})");
@@ -86,21 +86,21 @@ public class D11ShowdownTests
         Console.WriteLine($"Duration: {result.DurationMs / 1000.0:F2}s");
         Console.WriteLine($"Is Draw: {result.IsDraw}");
         Console.WriteLine($"Ended by Timeout: {result.EndedByTimeout}");
-        Console.WriteLine($"Note: With 7+5 time control, D11 should reach depth 10-11");
+        Console.WriteLine($"Note: With 7+5 time control, D5 should reach adaptive depth 9-11");
         Console.WriteLine($"{'=' * 60}\n");
     }
 
     [Fact]
-    public void D11vsD11_WithoutPondering_CompletesSuccessfully()
+    public void D5vsD5_WithoutPondering_CompletesSuccessfully()
     {
         // Arrange
         var engine = new TournamentEngine();
         var stopwatch = Stopwatch.StartNew();
 
-        // Act - Run a full D11 vs D11 game WITHOUT pondering
+        // Act - Run a full D5 vs D5 game WITHOUT pondering
         var result = engine.RunGame(
-            AIDifficulty.Legend,      // Red: D11
-            AIDifficulty.Legend,      // Blue: D11
+            AIDifficulty.Grandmaster,      // Red: D5
+            AIDifficulty.Grandmaster,      // Blue: D5
             maxMoves: 225,
             initialTimeSeconds: 60,   // 1 minute each
             incrementSeconds: 1,
@@ -116,7 +116,7 @@ public class D11ShowdownTests
 
         // Output results
         Console.WriteLine($"\n{'=' * 60}");
-        Console.WriteLine($"D11 vs D11 (No Pondering) Results");
+        Console.WriteLine($"D5 vs D5 (No Pondering) Results");
         Console.WriteLine($"{'=' * 60}");
         Console.WriteLine($"Winner: {result.Winner} ({result.WinnerDifficulty})");
         Console.WriteLine($"Loser: {result.Loser} ({result.LoserDifficulty})");
@@ -128,7 +128,7 @@ public class D11ShowdownTests
     }
 
     [Fact]
-    public void D11vsD11_PonderingSpeedup_Comparison()
+    public void D5vsD5_PonderingSpeedup_Comparison()
     {
         // Arrange
         var engine = new TournamentEngine();
@@ -136,8 +136,8 @@ public class D11ShowdownTests
         // Act - Run two games and compare
         var stopwatchWith = Stopwatch.StartNew();
         var resultWithPondering = engine.RunGame(
-            AIDifficulty.Legend,
-            AIDifficulty.Legend,
+            AIDifficulty.Grandmaster,
+            AIDifficulty.Grandmaster,
             maxMoves: 50,             // Limit moves for quick comparison
             initialTimeSeconds: 30,
             incrementSeconds: 0,
@@ -147,8 +147,8 @@ public class D11ShowdownTests
 
         var stopwatchWithout = Stopwatch.StartNew();
         var resultWithoutPondering = engine.RunGame(
-            AIDifficulty.Legend,
-            AIDifficulty.Legend,
+            AIDifficulty.Grandmaster,
+            AIDifficulty.Grandmaster,
             maxMoves: 50,
             initialTimeSeconds: 30,
             incrementSeconds: 0,
@@ -162,7 +162,7 @@ public class D11ShowdownTests
 
         // Output comparison
         Console.WriteLine($"\n{'=' * 60}");
-        Console.WriteLine($"Pondering Speedup Comparison (D11 vs D11)");
+        Console.WriteLine($"Pondering Speedup Comparison (D5 vs D5)");
         Console.WriteLine($"{'=' * 60}");
         Console.WriteLine($"WITH Pondering:");
         Console.WriteLine($"  Duration: {resultWithPondering.DurationMs / 1000.0:F2}s");
@@ -176,31 +176,31 @@ public class D11ShowdownTests
     }
 
     [Fact]
-    public void D11_FullGame_DepthProgressionThroughAllPhases()
+    public void D5_FullGame_DepthProgressionThroughAllPhases()
     {
         // Arrange - Run a FULL game to see depth progression through all phases
         var engine = new TournamentEngine();
 
         Console.WriteLine($"\n{'=' * 60}");
-        Console.WriteLine($"D11 vs D11 Full Game - Depth Progression Analysis");
+        Console.WriteLine($"D5 vs D5 Full Game - Depth Progression Analysis");
         Console.WriteLine($"{'=' * 60}");
         Console.WriteLine($"Phase boundaries:");
         Console.WriteLine($"  Opening:   moves 1-10   (0.5x time multiplier)");
         Console.WriteLine($"  EarlyMid:  moves 11-25  (0.8x time multiplier)");
         Console.WriteLine($"  LateMid:   moves 26-45  (1.2x time multiplier)");
         Console.WriteLine($"  Endgame:   moves 46+    (1.0x time multiplier)");
-        Console.WriteLine($"");
+        Console.WriteLine("");
         Console.WriteLine($"Expected depth by phase:");
         Console.WriteLine($"  Opening:   Depth 7-8  (limited by 0.5x time)");
-        Console.WriteLine($"  EarlyMid:  Depth 8-9  (slightly more time)");
+        Console.WriteLine($"  EarlyMid:   Depth 8-9  (slightly more time)");
         Console.WriteLine($"  LateMid:   Depth 9-11 (1.2x time = MORE depth)");
         Console.WriteLine($"  Endgame:   Depth 9-11");
         Console.WriteLine($"{'=' * 60}\n");
 
         // Act - Run a full game with no move limit
         var result = engine.RunGame(
-            AIDifficulty.Legend,      // Red: D11
-            AIDifficulty.Legend,      // Blue: D11
+            AIDifficulty.Grandmaster,      // Red: D5
+            AIDifficulty.Grandmaster,      // Blue: D5
             maxMoves: 225,            // Full board
             initialTimeSeconds: 420,  // 7 minutes each
             incrementSeconds: 5,
@@ -211,28 +211,28 @@ public class D11ShowdownTests
         result.Should().NotBeNull();
 
         Console.WriteLine($"\n{'=' * 60}");
-        Console.WriteLine($"D11 Full Game Complete");
+        Console.WriteLine($"D5 Full Game Complete");
         Console.WriteLine($"Total moves: {result.TotalMoves}");
         Console.WriteLine($"Winner: {result.Winner}");
         Console.WriteLine($"Is Draw: {result.IsDraw}");
         Console.WriteLine($"Duration: {result.DurationMs / 1000.0:F2}s");
-        Console.WriteLine($"");
+        Console.WriteLine("");
         Console.WriteLine($"Check [TIME] logs above to see depth progression!");
         Console.WriteLine($"Look for depth increasing in LateMid phase (move 26+)");
         Console.WriteLine($"{'=' * 60}\n");
     }
 
     [Fact]
-    public void D11vsD11_MultipleGames_StatisticsAnalysis()
+    public void D5vsD5_MultipleGames_StatisticsAnalysis()
     {
-        // Arrange - Run multiple D11 vs D11 games to get statistics
+        // Arrange - Run multiple D5 vs D5 games to get statistics
         var engine = new TournamentEngine();
         var gameCount = 10;
         var results = new List<(MatchResult result, double durationSeconds)>();
         var stopwatch = Stopwatch.StartNew();
 
         Console.WriteLine($"\n{'=' * 60}");
-        Console.WriteLine($"D11 vs D11 Multi-Game Statistics ({gameCount} games)");
+        Console.WriteLine($"D5 vs D5 Multi-Game Statistics ({gameCount} games)");
         Console.WriteLine($"Time control: 30+0 (fast for statistics)");
         Console.WriteLine($"{'=' * 60}\n");
 
@@ -241,8 +241,8 @@ public class D11ShowdownTests
         {
             var gameStopwatch = Stopwatch.StartNew();
             var result = engine.RunGame(
-                AIDifficulty.Legend,
-                AIDifficulty.Legend,
+                AIDifficulty.Grandmaster,
+                AIDifficulty.Grandmaster,
                 maxMoves: 225,
                 initialTimeSeconds: 30,  // 30 seconds each for quick games
                 incrementSeconds: 0,
@@ -274,12 +274,12 @@ public class D11ShowdownTests
         Console.WriteLine($"Red wins: {redWins} ({100.0 * redWins / gameCount:F1}%)");
         Console.WriteLine($"Blue wins: {blueWins} ({100.0 * blueWins / gameCount:F1}%)");
         Console.WriteLine($"Draws: {draws} ({100.0 * draws / gameCount:F1}%)");
-        Console.WriteLine($"");
+        Console.WriteLine("");
         Console.WriteLine($"Average moves: {avgMoves:F1}");
         Console.WriteLine($"Min moves: {minMoves}");
         Console.WriteLine($"Max moves: {maxMoves}");
         Console.WriteLine($"Average duration: {avgDuration:F1}s");
-        Console.WriteLine($"");
+        Console.WriteLine("");
         Console.WriteLine($"Games reaching LateMid (26+ moves): {results.Count(r => r.result.TotalMoves >= 26)}");
         Console.WriteLine($"Games reaching Endgame (46+ moves): {results.Count(r => r.result.TotalMoves >= 46)}");
         Console.WriteLine($"Games reaching >70 moves: {results.Count(r => r.result.TotalMoves >= 70)}");
@@ -293,31 +293,30 @@ public class D11ShowdownTests
         if (maxMoves < 26)
         {
             Console.WriteLine($"WARNING: All games ended before LateMid phase!");
-            Console.WriteLine($"This suggests D11 is playing very aggressively or finding early wins.");
+            Console.WriteLine($"This suggests D5 is playing very aggressively or finding early wins.");
         }
     }
 
     [Fact]
-    public void D11_RealWorldDepth_FullTimeControlMultipleDifficulties()
+    public void D5_RealWorldDepth_FullTimeControlMultipleDifficulties()
     {
-        // Run D11 against various difficulties to see depth in practice
-        // With full 14+ minute time control (7+5 designed for D11)
+        // Run D5 against various difficulties to see depth in practice
+        // With full 14+ minute time control (7+5 designed for D5)
         var engine = new TournamentEngine();
 
         var matchups = new (AIDifficulty red, AIDifficulty blue, string name)[]
         {
-            (AIDifficulty.Legend, AIDifficulty.Legend, "D11 vs D11"),
-            (AIDifficulty.Legend, AIDifficulty.Grandmaster, "D11 vs D10"),
-            (AIDifficulty.Legend, AIDifficulty.Master, "D11 vs D9"),
-            (AIDifficulty.Legend, AIDifficulty.Expert, "D11 vs D8"),
-            (AIDifficulty.Legend, AIDifficulty.VeryHard, "D11 vs D7"),
+            (AIDifficulty.Grandmaster, AIDifficulty.Grandmaster, "D5 vs D5"),
+            (AIDifficulty.Grandmaster, AIDifficulty.Hard, "D5 vs D4"),
+            (AIDifficulty.Grandmaster, AIDifficulty.Medium, "D5 vs D3"),
+            (AIDifficulty.Grandmaster, AIDifficulty.Easy, "D5 vs D2"),
         };
 
         var allResults = new List<(string matchup, MatchResult result, double durationSeconds)>();
 
         Console.WriteLine($"\n{'=' * 70}");
-        Console.WriteLine($"D11 Real-World Depth Analysis - Full Time Control (7+5)");
-        Console.WriteLine($"Designed to show D11 reaching depth 10-11 in LateMid phase");
+        Console.WriteLine($"D5 Real-World Depth Analysis - Full Time Control (7+5)");
+        Console.WriteLine($"Designed to show D5 reaching adaptive depth 9-11 in LateMid phase");
         Console.WriteLine($"{'=' * 70}\n");
 
         foreach (var (redDiff, blueDiff, name) in matchups)
@@ -327,7 +326,7 @@ public class D11ShowdownTests
                 redDiff,
                 blueDiff,
                 maxMoves: 225,           // Full board
-                initialTimeSeconds: 420, // 7 minutes each (proper D11 time control)
+                initialTimeSeconds: 420, // 7 minutes each (proper D5 time control)
                 incrementSeconds: 5,     // 5 second increment
                 ponderingEnabled: false
             );
@@ -352,13 +351,12 @@ public class D11ShowdownTests
                 _ => "Endgame (46+)"
             };
             Console.WriteLine($"  Phase reached: {phaseReached}");
-            Console.WriteLine($"");
+            Console.WriteLine("");
         }
 
         // Overall summary
         Console.WriteLine($"{'=' * 70}");
         Console.WriteLine($"Summary");
-        Console.WriteLine($"{'=' * 70}");
 
         foreach (var (matchup, result, duration) in allResults)
         {
@@ -373,7 +371,7 @@ public class D11ShowdownTests
         // Check [TIME] logs above for actual depth reached
         Console.WriteLine($"IMPORTANT: Check [TIME] logs above for actual depth values!");
         Console.WriteLine($"  - Opening phase should show Depth 7-8");
-        Console.WriteLine($"  - LateMid phase should show Depth 10-11 (1.2x time multiplier)");
+        Console.WriteLine($"  - LateMid phase should show Depth 9-11 (1.2x time multiplier)");
         Console.WriteLine($"  - Endgame phase should show Depth 9-11");
         Console.WriteLine($"{'=' * 70}\n");
 
@@ -393,12 +391,12 @@ public class D11ShowdownTests
     }
 
     /// <summary>
-    /// Test D11 starting from a natural late-midgame position
-    /// Approach: Let Medium AI play 40 moves naturally, then D11 continues
+    /// Test D5 starting from a natural late-midgame position
+    /// Approach: Let Medium AI play 40 moves naturally, then D5 continues
     /// This creates a realistic position without forced VCF wins
     /// </summary>
     [Fact]
-    public void D11_FromNaturalLateMidPosition_ReachesDepth10_11()
+    public void D5_FromNaturalLateMidPosition_ReachesDepth9_11()
     {
         // Arrange - Let Medium AI play 40 moves to create natural position
         var board = new Board();
@@ -407,9 +405,9 @@ public class D11ShowdownTests
         var mediumAI = new MinimaxAI();
 
         Console.WriteLine($"\n{'=' * 70}");
-        Console.WriteLine($"D11 From Natural LateMid Position - Depth Verification");
+        Console.WriteLine($"D5 From Natural LateMid Position - Depth Verification");
         Console.WriteLine($"{'=' * 70}");
-        Console.WriteLine($"Step 1: Let Medium (D5) AI play 40 moves to create natural position");
+        Console.WriteLine($"Step 1: Let Medium (D3) AI play 40 moves to create natural position");
 
         // Play 40 moves with Medium AI
         for (int i = 0; i < 40; i++)
@@ -447,24 +445,24 @@ public class D11ShowdownTests
         Console.WriteLine($"  Total stones: {totalStones} (LateMid phase: 26-45 moves)");
         Console.WriteLine($"  Red stones: {redStones}, Blue stones: {blueStones}");
         Console.WriteLine($"  Next to move: {currentPlayer}");
-        Console.WriteLine($"");
-        Console.WriteLine($"Step 2: D11 analyzes this position (5 seconds)");
-        Console.WriteLine($"");
+        Console.WriteLine("");
+        Console.WriteLine($"Step 2: D5 analyzes this position (5 seconds)");
+        Console.WriteLine("");
         Console.WriteLine($"Expected behavior:");
         Console.WriteLine($"  - Natural position has no immediate VCF win");
-        Console.WriteLine($"  - D11 should use full 5 seconds for deep search");
+        Console.WriteLine($"  - D5 should use full 5 seconds for deep search");
         Console.WriteLine($"  - Should reach depth 9-11 in LateMid phase");
         Console.WriteLine($"{'=' * 70}\n");
 
-        // Act - Have D11 play from this position
+        // Act - Have D5 play from this position
         var stopwatch = Stopwatch.StartNew();
 
         var ai = new MinimaxAI();
         var timeMs = 5000; // 5 seconds for deep search
-        var (d11x, d11y) = ai.GetBestMove(
+        var (d5x, d5y) = ai.GetBestMove(
             board,
             currentPlayer,
-            AIDifficulty.Legend,
+            AIDifficulty.Grandmaster,
             timeMs,
             moveCount,
             ponderingEnabled: false
@@ -473,15 +471,15 @@ public class D11ShowdownTests
         stopwatch.Stop();
 
         // Assert
-        d11x.Should().BeGreaterThanOrEqualTo(0);
-        d11x.Should().BeLessThan(15);
-        d11y.Should().BeGreaterThanOrEqualTo(0);
-        d11y.Should().BeLessThan(15);
+        d5x.Should().BeGreaterThanOrEqualTo(0);
+        d5x.Should().BeLessThan(15);
+        d5y.Should().BeGreaterThanOrEqualTo(0);
+        d5y.Should().BeLessThan(15);
 
         Console.WriteLine($"");
         Console.WriteLine($"{'=' * 70}");
         Console.WriteLine($"Result:");
-        Console.WriteLine($"  D11 selected: ({d11x}, {d11y})");
+        Console.WriteLine($"  D5 selected: ({d5x}, {d5y})");
         Console.WriteLine($"  Time taken: {stopwatch.ElapsedMilliseconds}ms");
         Console.WriteLine($"");
         Console.WriteLine($"Check [TIME] logs above - should show depth 9-11!");
@@ -490,13 +488,13 @@ public class D11ShowdownTests
     }
 
     /// <summary>
-    /// Test D11 playing multiple moves from a late-midgame position
-    /// to see consistent depth 10-11 performance
+    /// Test D5 playing multiple moves from a late-midgame position
+    /// to see consistent depth 9-11 performance
     /// </summary>
     [Fact]
-    public void D11_FromLateMidPosition_5Moves_DepthConsistency()
+    public void D5_FromLateMidPosition_5Moves_DepthConsistency()
     {
-        // Arrange - Let weaker AIs play to move 40, then D11 continues
+        // Arrange - Let weaker AIs play to move 40, then D5 continues
         var engine = new TournamentEngine();
         var board = new Board();
         var currentPlayer = Player.Red;
@@ -507,9 +505,9 @@ public class D11ShowdownTests
         var mediumAI = new MinimaxAI();
 
         Console.WriteLine($"\n{'=' * 70}");
-        Console.WriteLine($"D11 LateMid Position - Natural Position Approach");
+        Console.WriteLine($"D5 LateMid Position - Natural Position Approach");
         Console.WriteLine($"{'=' * 70}");
-        Console.WriteLine($"Step 1: Let Medium (D5) AI play 40 moves to create natural position");
+        Console.WriteLine($"Step 1: Let Medium (D3) AI play 40 moves to create natural position");
 
         for (int i = 0; i < 40; i++)
         {
@@ -541,28 +539,28 @@ public class D11ShowdownTests
 
         Console.WriteLine($"Position created: {CountStones(board)} stones");
         Console.WriteLine($"  Red: {CountStonesForPlayer(board, Player.Red)}, Blue: {CountStonesForPlayer(board, Player.Blue)}");
-        Console.WriteLine($"");
-        Console.WriteLine($"Step 2: D11 plays 5 moves from this position (5 seconds each)");
-        Console.WriteLine($"");
+        Console.WriteLine("");
+        Console.WriteLine($"Step 2: D5 plays 5 moves from this position (5 seconds each)");
+        Console.WriteLine("");
 
-        // Act - D11 plays 5 moves from this position
-        var d11AI = new MinimaxAI();
+        // Act - D5 plays 5 moves from this position
+        var d5AI = new MinimaxAI();
         for (int moveNum = 1; moveNum <= 5; moveNum++)
         {
             var timeMs = 5000; // 5 seconds for deep search
 
-            var (d11x, d11y) = d11AI.GetBestMove(
+            var (d5x, d5y) = d5AI.GetBestMove(
                 board,
                 currentPlayer,
-                AIDifficulty.Legend,
+                AIDifficulty.Grandmaster,
                 timeMs,
                 moveCount,
                 ponderingEnabled: false
             );
 
-            Console.WriteLine($"Move {moveNum} ({currentPlayer}): ({d11x}, {d11y})");
+            Console.WriteLine($"Move {moveNum} ({currentPlayer}): ({d5x}, {d5y})");
 
-            board.PlaceStone(d11x, d11y, currentPlayer);
+            board.PlaceStone(d5x, d5y, currentPlayer);
             moveCount++;
             currentPlayer = currentPlayer == Player.Red ? Player.Blue : Player.Red;
 
@@ -582,7 +580,7 @@ public class D11ShowdownTests
         Console.WriteLine($"Final stone count: {CountStones(board)}");
         Console.WriteLine($"");
         Console.WriteLine($"Check [TIME] logs above for depth values!");
-        Console.WriteLine($"  Each D11 move should show depth 8-11");
+        Console.WriteLine($"  Each D5 move should show depth 8-11");
         Console.WriteLine($"{'=' * 70}\n");
     }
 

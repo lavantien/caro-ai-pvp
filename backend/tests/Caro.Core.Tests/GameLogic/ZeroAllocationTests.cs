@@ -148,7 +148,7 @@ public class ZeroAllocationTests
     }
 
     [Fact]
-    public void Phase1_Benchmark_D7_CompletesUnder4Seconds()
+    public void Phase1_Benchmark_D4_CompletesUnder4Seconds()
     {
         // Arrange - Realistic mid-game position (~30% board occupancy)
         // This gives ~150 candidates which is more realistic for move 30
@@ -177,22 +177,22 @@ public class ZeroAllocationTests
         board.PlaceStone(8, 10, Player.Red);
         board.PlaceStone(9, 4, Player.Blue);
 
-        // Act - Test D7 (VeryHard difficulty) with 7+5 time control
+        // Act - Test D4 (Hard difficulty) with 7+5 time control
         // Simulating mid-game (move 30) with 5 minutes remaining
         var ai = new MinimaxAI();
         var timeRemainingMs = 300_000L;  // 5 minutes left
         var moveNumber = 30;              // LateMid game phase
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.VeryHard, timeRemainingMs, moveNumber);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard, timeRemainingMs, moveNumber);
         stopwatch.Stop();
 
         _output.WriteLine($"Move: ({move.x}, {move.y})");
         _output.WriteLine($"Time: {stopwatch.ElapsedMilliseconds}ms ({stopwatch.Elapsed.TotalSeconds:F2}s)");
 
-        // Assert - D7 with time-aware search should complete within the hard bound
+        // Assert - D4 with time-aware search should complete within the hard bound
         // With ~150 candidates, TimeManager allocates ~25-30 seconds soft, ~35-40 seconds hard
         Assert.True(stopwatch.ElapsedMilliseconds < 45000,
-            $"D7 took {stopwatch.ElapsedMilliseconds}ms, expected < 45000ms (time-aware hard bound)");
+            $"D4 took {stopwatch.ElapsedMilliseconds}ms, expected < 45000ms (time-aware hard bound)");
 
         // Move should be valid
         var cell = board.GetCell(move.x, move.y);
@@ -200,7 +200,7 @@ public class ZeroAllocationTests
     }
 
     [Fact]
-    public void Benchmark_D10_Grandmaster_CompletesUnder60Seconds()
+    public void Benchmark_D5_Grandmaster_CompletesUnder60Seconds()
     {
         // Arrange - Realistic mid-game position (~35% board occupancy)
         // This gives ~140 candidates which is realistic for move 30
@@ -224,7 +224,7 @@ public class ZeroAllocationTests
         board.PlaceStone(7, 2, Player.Red);
         board.PlaceStone(8, 12, Player.Blue);
 
-        // Act - Test D10 (Grandmaster difficulty) with 7+5 time control
+        // Act - Test D5 (Grandmaster difficulty) with 7+5 time control
         var ai = new MinimaxAI();
         var timeRemainingMs = 300_000L;  // 5 minutes left
         var moveNumber = 30;              // LateMid game phase
@@ -235,10 +235,10 @@ public class ZeroAllocationTests
         _output.WriteLine($"Move: ({move.x}, {move.y})");
         _output.WriteLine($"Time: {stopwatch.ElapsedMilliseconds}ms ({stopwatch.Elapsed.TotalSeconds:F2}s)");
 
-        // Assert - D10 with time-aware search should complete within hard bound
-        // With ~140 candidates and depth 11, TimeManager allocates ~30-40s soft, ~45-60s hard
+        // Assert - D5 with time-aware search should complete within hard bound
+        // With ~140 candidates and adaptive depth, TimeManager allocates ~30-40s soft, ~45-60s hard
         Assert.True(stopwatch.ElapsedMilliseconds < 65000,
-            $"D10 took {stopwatch.ElapsedMilliseconds}ms, expected < 65000ms (time-aware hard bound)");
+            $"D5 took {stopwatch.ElapsedMilliseconds}ms, expected < 65000ms (time-aware hard bound)");
 
         // Move should be valid
         var cell = board.GetCell(move.x, move.y);
@@ -246,7 +246,7 @@ public class ZeroAllocationTests
     }
 
     [Fact]
-    public void Phase1_Benchmark_D5_CompletesUnder1Second()
+    public void Phase1_Benchmark_D4_CompletesUnder1Second()
     {
         // Arrange - Simple tactical position
         var board = new Board();
@@ -255,7 +255,7 @@ public class ZeroAllocationTests
         board.PlaceStone(8, 7, Player.Red);
         board.PlaceStone(8, 8, Player.Blue);
 
-        // Act - Test D5 (Hard difficulty)
+        // Act - Test D4 (Hard difficulty)
         var ai = new MinimaxAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
@@ -264,9 +264,9 @@ public class ZeroAllocationTests
         _output.WriteLine($"Move: ({move.x}, {move.y})");
         _output.WriteLine($"Time: {stopwatch.ElapsedMilliseconds}ms");
 
-        // Assert - D5 should be fast with optimizations (< 5 seconds, allowing for JIT/system variation)
+        // Assert - D4 should be fast with optimizations (< 5 seconds, allowing for JIT/system variation)
         Assert.True(stopwatch.ElapsedMilliseconds < 5000,
-            $"D5 took {stopwatch.ElapsedMilliseconds}ms, expected < 5000ms");
+            $"D4 took {stopwatch.ElapsedMilliseconds}ms, expected < 5000ms");
     }
 
     [Fact]

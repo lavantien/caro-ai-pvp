@@ -58,10 +58,10 @@ public class SavedLogVerifierTests
     }
 
     [Fact]
-    public async Task VerifyAllSnapshots_DepthIsNonZeroForD7Plus()
+    public async Task VerifyAllSnapshots_DepthIsNonZeroForD4Plus()
     {
         // This test verifies the parallel search statistics fix
-        // D7+ (VeryHard and above) should report depth > 0
+        // D4+ (Hard and above) should report depth > 0
 
         var snapshotFiles = TournamentLogCapture.GetSnapshotFiles(SourceSnapshotDirectory);
 
@@ -78,8 +78,8 @@ public class SavedLogVerifierTests
 
             foreach (var game in snapshot.Games)
             {
-                // Check VeryHard (D7) moves
-                if (game.RedDifficulty >= AIDifficulty.VeryHard)
+                // Check Hard (D4) moves
+                if (game.RedDifficulty >= AIDifficulty.Hard)
                 {
                     var redMoves = game.MoveLogs.Where(m => m.Player == "red").ToList();
                     if (redMoves.Any() && redMoves.All(m => m.DepthAchieved == 0))
@@ -88,8 +88,8 @@ public class SavedLogVerifierTests
                     }
                 }
 
-                // Check Expert/Master/Grandmaster moves
-                if (game.BlueDifficulty >= AIDifficulty.VeryHard)
+                // Check Hard/Grandmaster moves
+                if (game.BlueDifficulty >= AIDifficulty.Hard)
                 {
                     var blueMoves = game.MoveLogs.Where(m => m.Player == "blue").ToList();
                     if (blueMoves.Any() && blueMoves.All(m => m.DepthAchieved == 0))

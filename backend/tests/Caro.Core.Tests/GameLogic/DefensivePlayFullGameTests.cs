@@ -24,7 +24,7 @@ public class DefensivePlayFullGameTests
     }
 
     /// <summary>
-    /// Verify Grandmaster (D10) consistently beats Easy (D2) in full games.
+    /// Verify Grandmaster (D5) consistently beats Easy (D2) in full games.
     /// This was the original bug - Grandmaster lost to Easy.
     /// Run 3 games to ensure consistency.
     /// </summary>
@@ -37,7 +37,7 @@ public class DefensivePlayFullGameTests
         var draws = 0;
 
         _output.WriteLine("\n" + new string('=', 60));
-        _output.WriteLine("Grandmaster (D10) vs Easy (D2) - 3 Full Games");
+        _output.WriteLine("Grandmaster (D5) vs Easy (D2) - 3 Full Games");
         _output.WriteLine("Original bug: Grandmaster LOST to Easy - should never happen");
         _output.WriteLine(new string('=', 60) + "\n");
 
@@ -46,7 +46,7 @@ public class DefensivePlayFullGameTests
             _output.WriteLine($"--- Game {game} ---");
 
             var result = engine.RunGame(
-                AIDifficulty.Grandmaster,  // Red: D10
+                AIDifficulty.Grandmaster,  // Red: D5
                 AIDifficulty.Easy,          // Blue: D2
                 maxMoves: 225,
                 initialTimeSeconds: 420,    // 7+5 time control (standard)
@@ -90,41 +90,40 @@ public class DefensivePlayFullGameTests
     }
 
     /// <summary>
-    /// Verify Legend (D11) beats lower difficulties consistently.
+    /// Verify Grandmaster (D5) beats lower difficulties consistently.
     /// Run 2 games against each to verify AI strength ordering.
     /// </summary>
     [Fact]
-    public void Legend_vs_LowerDifficulties_2GamesEach_MaintainsStrengthOrdering()
+    public void Grandmaster_vs_LowerDifficulties_2GamesEach_MaintainsStrengthOrdering()
     {
         var engine = new TournamentEngine();
         var matchups = new (AIDifficulty opponent, string name)[]
         {
-            (AIDifficulty.Easy, "D11 vs Easy (D2)"),
-            (AIDifficulty.Normal, "D11 vs Normal (D3)"),
-            (AIDifficulty.Medium, "D11 vs Medium (D5)"),
-            (AIDifficulty.Hard, "D11 vs Hard (D7)"),
+            (AIDifficulty.Easy, "D5 vs Easy (D2)"),
+            (AIDifficulty.Medium, "D5 vs Medium (D3)"),
+            (AIDifficulty.Hard, "D5 vs Hard (D4)"),
         };
 
         var results = new List<string>();
 
         _output.WriteLine("\n" + new string('=', 70));
-        _output.WriteLine("Legend (D11) vs Lower Difficulties - 2 Games Each");
+        _output.WriteLine("Grandmaster (D5) vs Lower Difficulties - 2 Games Each");
         _output.WriteLine("Verifies AI strength ordering is maintained after defensive fix");
         _output.WriteLine(new string('=', 70) + "\n");
 
         foreach (var (opponent, name) in matchups)
         {
-            var legendWins = 0;
+            var grandmasterWins = 0;
 
             for (int game = 1; game <= 2; game++)
             {
                 _output.WriteLine($"--- {name} - Game {game} ---");
 
                 var result = engine.RunGame(
-                    AIDifficulty.Legend,      // Red: D11
-                    opponent,                 // Blue: lower difficulty
+                    AIDifficulty.Grandmaster,      // Red: D5
+                    opponent,                      // Blue: lower difficulty
                     maxMoves: 225,
-                    initialTimeSeconds: 420,   // 7+5 time control (standard)
+                    initialTimeSeconds: 420,       // 7+5 time control (standard)
                     incrementSeconds: 5,
                     ponderingEnabled: false
                 );
@@ -132,12 +131,12 @@ public class DefensivePlayFullGameTests
                 _output.WriteLine($"Result: {result.Winner} in {result.TotalMoves} moves");
 
                 if (!result.IsDraw && result.Winner == Player.Red)
-                    legendWins++;
+                    grandmasterWins++;
 
                 _output.WriteLine("");
             }
 
-            var summary = $"{name,30} | Legend wins: {legendWins}/2";
+            var summary = $"{name,30} | Grandmaster wins: {grandmasterWins}/2";
             results.Add(summary);
             _output.WriteLine(summary);
         }
@@ -162,14 +161,10 @@ public class DefensivePlayFullGameTests
         var engine = new TournamentEngine();
         var pairs = new (AIDifficulty higher, AIDifficulty lower, string name)[]
         {
-            (AIDifficulty.Legend, AIDifficulty.Grandmaster, "D11 vs D10"),
-            (AIDifficulty.Grandmaster, AIDifficulty.Master, "D10 vs D9"),
-            (AIDifficulty.Master, AIDifficulty.Expert, "D9 vs D8"),
-            (AIDifficulty.Expert, AIDifficulty.VeryHard, "D8 vs D7"),
-            (AIDifficulty.VeryHard, AIDifficulty.Hard, "D7 vs D6"),
-            (AIDifficulty.Hard, AIDifficulty.Medium, "D6 vs D5"),
-            (AIDifficulty.Medium, AIDifficulty.Normal, "D5 vs D3"),
-            (AIDifficulty.Normal, AIDifficulty.Easy, "D3 vs D2"),
+            (AIDifficulty.Grandmaster, AIDifficulty.Hard, "D5 vs D4"),
+            (AIDifficulty.Hard, AIDifficulty.Medium, "D4 vs D3"),
+            (AIDifficulty.Medium, AIDifficulty.Easy, "D3 vs D2"),
+            (AIDifficulty.Easy, AIDifficulty.Braindead, "D2 vs D1"),
         };
 
         _output.WriteLine("\n" + new string('=', 70));

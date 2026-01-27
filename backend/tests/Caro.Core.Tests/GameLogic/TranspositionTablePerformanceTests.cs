@@ -29,7 +29,7 @@ public class TranspositionTablePerformanceTests
         board.PlaceStone(6, 6, Player.Red);
         board.PlaceStone(6, 7, Player.Blue);
 
-        // Act - Run GetBestMove with Hard difficulty (depth 3)
+        // Act - Run GetBestMove with Hard difficulty (uses TT)
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
         stopwatch.Stop();
@@ -63,11 +63,11 @@ public class TranspositionTablePerformanceTests
         var ai = new MinimaxAI();
 
         // First search (will populate transposition table)
-        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Second search on same position (should benefit from TT)
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
         stopwatch.Stop();
 
         _output.WriteLine($"First move: ({move1.x}, {move1.y})");

@@ -28,7 +28,7 @@ public class NodeCountingTests
         for (int i = 0; i < 5; i++)
         {
             board.PlaceStone(6 + i, 6, Player.Red);
-            var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.VeryHard); // D7 uses parallel search
+            var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard); // D4 uses parallel search
             var (_, nodesSearched, _, _, _, _, _) = ai.GetSearchStatistics();
             results.Add(nodesSearched);
         }
@@ -45,7 +45,7 @@ public class NodeCountingTests
     [Fact]
     public void SequentialSearch_RealNodeCountShouldBePositive()
     {
-        // Low-depth search (D3) uses sequential search
+        // Low-depth search (D2) uses sequential search
         var ai = new MinimaxAI();
         var board = new Board();
 
@@ -61,9 +61,9 @@ public class NodeCountingTests
     }
 
     [Fact]
-    public void ParallelSearch_VeryHardDifficulty_ShouldCountRealNodes()
+    public void ParallelSearch_HardDifficulty_ShouldCountRealNodes()
     {
-        // D7 (VeryHard) uses Lazy SMP parallel search
+        // D4 (Hard) uses Lazy SMP parallel search
         var ai = new MinimaxAI();
         var board = new Board();
 
@@ -73,7 +73,7 @@ public class NodeCountingTests
         board.PlaceStone(7, 8, Player.Red);
         board.PlaceStone(8, 8, Player.Blue);
 
-        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.VeryHard);
+        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
 
         var (_, nodesSearched, _, _, _, _, _) = ai.GetSearchStatistics();
 
@@ -97,13 +97,13 @@ public class NodeCountingTests
         board.PlaceStone(7, 7, Player.Red);
         board.PlaceStone(7, 8, Player.Blue);
 
-        var (x1, y1) = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
+        var (x1, y1) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
         var (_, nodes1, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // Clear AI state for second search
         ai.ClearAllState();
 
-        var (x2, y2) = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
+        var (x2, y2) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
         var (_, nodes2, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // Both should have positive node counts
@@ -127,12 +127,12 @@ public class NodeCountingTests
         board.PlaceStone(7, 7, Player.Red);
         board.PlaceStone(7, 8, Player.Blue);
 
-        var (x1, y1) = ai.GetBestMove(board, Player.Red, AIDifficulty.Harder);
+        var (x1, y1) = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
         var (_, nodesLow, _, _, _, _, _) = ai.GetSearchStatistics();
 
         ai.ClearAllState();
 
-        var (x2, y2) = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
+        var (x2, y2) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
         var (_, nodesHigh, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // Higher depth should search more nodes (generally)
@@ -146,14 +146,11 @@ public class NodeCountingTests
     }
 
     [Theory]
-    [InlineData(AIDifficulty.Beginner)]  // D1
-    [InlineData(AIDifficulty.Easy)]      // D2
-    [InlineData(AIDifficulty.Normal)]    // D3
-    [InlineData(AIDifficulty.Medium)]    // D4
-    [InlineData(AIDifficulty.Hard)]      // D5
-    [InlineData(AIDifficulty.Harder)]    // D6
-    [InlineData(AIDifficulty.VeryHard)]  // D7 - parallel
-    [InlineData(AIDifficulty.Expert)]    // D8 - parallel
+    [InlineData(AIDifficulty.Braindead)]  // D1
+    [InlineData(AIDifficulty.Easy)]       // D2
+    [InlineData(AIDifficulty.Medium)]     // D3
+    [InlineData(AIDifficulty.Hard)]       // D4
+    [InlineData(AIDifficulty.Grandmaster)] // D5
     public void AllDifficulties_ShouldReportValidNodeCounts(AIDifficulty difficulty)
     {
         var ai = new MinimaxAI();
@@ -188,11 +185,11 @@ public class NodeCountingTests
         board2.PlaceStone(7, 8, Player.Blue);
 
         ai.ClearAllState();
-        var (x1, y1) = ai.GetBestMove(board1, Player.Blue, AIDifficulty.VeryHard);
+        var (x1, y1) = ai.GetBestMove(board1, Player.Blue, AIDifficulty.Hard);
         var (_, nodes1, _, _, _, _, _) = ai.GetSearchStatistics();
 
         ai.ClearAllState();
-        var (x2, y2) = ai.GetBestMove(board2, Player.Blue, AIDifficulty.VeryHard);
+        var (x2, y2) = ai.GetBestMove(board2, Player.Blue, AIDifficulty.Hard);
         var (_, nodes2, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // Node counts should be different for different board states
