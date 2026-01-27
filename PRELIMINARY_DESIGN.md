@@ -25,7 +25,7 @@ A real-time, mobile-first web implementation of "Caro" (Gomoku variant).
 *   **Winning:** Exact 5 in a row.
     *   Overlines (6+) = No win.
     *   Blocked ends = No win (If `X O O O O O X`, Red does not win).
-*   **Time:** 3 minutes + 2 seconds increment (Fisher Control).
+*   **Time:** 7 minutes + 5 seconds increment (Fisher Control).
 
 ## 4. Mobile-First UX Strategy
 *   **Interaction:**
