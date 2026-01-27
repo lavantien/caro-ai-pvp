@@ -126,10 +126,10 @@ public sealed class Ponderer : IDisposable
             _cts = new CancellationTokenSource();
             _shouldStop = false;
 
-            // CONSTANT PONDERING for D7+: Skip VCF pre-check for higher difficulties
-            // D7+ (VeryHard+) always ponders regardless of position complexity
-            // D1-D6 only ponder when there are immediate threats to save CPU
-            bool isHighDifficulty = difficulty >= AIDifficulty.VeryHard;
+            // CONSTANT PONDERING for Medium (D3) and above: Skip VCF pre-check for higher difficulties
+            // Medium+ always ponders regardless of position complexity
+            // Braindead-Easy only ponder when there are immediate threats to save CPU
+            bool isHighDifficulty = difficulty >= AIDifficulty.Medium;
             if (!isHighDifficulty)
             {
                 // VCF pre-check - skip pondering if no immediate threats
