@@ -15,7 +15,7 @@ public class MasterDifficultyTests
     }
 
     [Fact]
-    public void MasterDifficulty_FindsBestMoves()
+    public void GrandmasterDifficulty_FindsBestMoves()
     {
         // Arrange - Tactical position
         var board = new Board();
@@ -26,9 +26,9 @@ public class MasterDifficultyTests
         board.PlaceStone(8, 5, Player.Blue);
         board.PlaceStone(8, 6, Player.Blue);
 
-        // Act - Master should find the best move
+        // Act - Grandmaster should find the best move
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Master);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should extend the 3-in-row
         Assert.Equal(7, move.x);
@@ -37,7 +37,7 @@ public class MasterDifficultyTests
     }
 
     [Fact]
-    public void MasterDifficulty_HandlesComplexPositions()
+    public void GrandmasterDifficulty_HandlesComplexPositions()
     {
         // Arrange - Simpler tactical position (to avoid excessive search time)
         var board = new Board();
@@ -46,17 +46,17 @@ public class MasterDifficultyTests
         board.PlaceStone(8, 7, Player.Red);
         board.PlaceStone(8, 8, Player.Blue);
 
-        // Act - Master should find optimal move
+        // Act - Grandmaster should find optimal move
         var ai = new MinimaxAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Master);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
         stopwatch.Stop();
 
         _output.WriteLine($"Move: ({move.x}, {move.y}), Time: {stopwatch.ElapsedMilliseconds}ms");
 
         // Assert - Should complete in reasonable time
         Assert.True(stopwatch.ElapsedMilliseconds < 60000,
-            $"Master search took {stopwatch.ElapsedMilliseconds}ms, expected < 60000ms");
+            $"Grandmaster search took {stopwatch.ElapsedMilliseconds}ms, expected < 60000ms");
 
         // Move should be valid and strategic
         Assert.True(move.x >= 0 && move.x < 15);
@@ -67,7 +67,7 @@ public class MasterDifficultyTests
     }
 
     [Fact]
-    public void MasterDifficulty_FindsWinningMoves()
+    public void GrandmasterDifficulty_FindsWinningMoves()
     {
         // Arrange - Red has 4 in a row
         var board = new Board();
@@ -76,9 +76,9 @@ public class MasterDifficultyTests
         board.PlaceStone(7, 7, Player.Red);
         board.PlaceStone(7, 8, Player.Red);
 
-        // Act - Master should find winning move immediately
+        // Act - Grandmaster should find winning move immediately
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Master);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should complete the winning line
         Assert.Equal(7, move.x);
@@ -87,7 +87,7 @@ public class MasterDifficultyTests
     }
 
     [Fact]
-    public void MasterDifficulty_BlocksThreats()
+    public void GrandmasterDifficulty_BlocksThreats()
     {
         // Arrange - Blue has 4 in a row (almost winning)
         var board = new Board();
@@ -98,9 +98,9 @@ public class MasterDifficultyTests
 
         board.PlaceStone(8, 6, Player.Red);
 
-        // Act - Master must block
+        // Act - Grandmaster must block
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Master);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should block the threat
         Assert.Equal(7, move.x);
@@ -109,17 +109,17 @@ public class MasterDifficultyTests
     }
 
     [Fact]
-    public void MasterDifficulty_UsesAllOptimizations()
+    public void GrandmasterDifficulty_UsesAllOptimizations()
     {
-        // Verify Master difficulty uses all advanced optimizations
+        // Verify Grandmaster difficulty uses all advanced optimizations
         // Arrange - Simple position for quick verification
         var board = new Board();
         board.PlaceStone(7, 7, Player.Red);
         board.PlaceStone(7, 8, Player.Blue);
 
-        // Act - Master search
+        // Act - Grandmaster search
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Master);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should find valid move
         Assert.True(move.x >= 0 && move.x < 15);
@@ -130,7 +130,7 @@ public class MasterDifficultyTests
     }
 
     [Fact]
-    public void MasterDifficulty_MaintainsConsistency()
+    public void GrandmasterDifficulty_MaintainsConsistency()
     {
         // Arrange
         var board = new Board();
@@ -139,10 +139,10 @@ public class MasterDifficultyTests
         board.PlaceStone(8, 7, Player.Red);
         board.PlaceStone(8, 8, Player.Blue);
 
-        // Act - Multiple Master searches
+        // Act - Multiple Grandmaster searches
         var ai = new MinimaxAI();
-        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Master);
-        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Master);
+        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
+        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Both moves should be valid (parallel search may have slight non-determinism)
         var cell1 = board.GetCell(move1.x, move1.y);
@@ -159,7 +159,7 @@ public class MasterDifficultyTests
     }
 
     [Fact]
-    public void MasterDifficulty_HandlesEndgame()
+    public void GrandmasterDifficulty_HandlesEndgame()
     {
         // Arrange - Complex endgame position
         var board = new Board();
@@ -176,9 +176,9 @@ public class MasterDifficultyTests
             }
         }
 
-        // Act - Master should handle endgame
+        // Act - Grandmaster should handle endgame
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Master);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should find valid move
         Assert.True(move.x >= 0 && move.x < 15);
@@ -189,9 +189,9 @@ public class MasterDifficultyTests
     }
 
     [Fact]
-    public void MasterDifficulty_StrongerThanExpert()
+    public void GrandmasterDifficulty_StrongerThanHard()
     {
-        // Verify Master uses deeper search than Expert
+        // Verify Grandmaster uses deeper search than Hard
         // Arrange - Simple position to test both difficulties
         var board = new Board();
         board.PlaceStone(7, 7, Player.Red);
@@ -200,22 +200,22 @@ public class MasterDifficultyTests
         // Act - Both should find valid moves
         var ai = new MinimaxAI();
 
-        var expertMove = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
+        var hardMove = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
         ai.ClearHistory();
 
-        var masterMove = ai.GetBestMove(board, Player.Red, AIDifficulty.Master);
+        var grandmasterMove = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
-        _output.WriteLine($"Expert: ({expertMove.x}, {expertMove.y})");
-        _output.WriteLine($"Master: ({masterMove.x}, {masterMove.y})");
+        _output.WriteLine($"Hard: ({hardMove.x}, {hardMove.y})");
+        _output.WriteLine($"Grandmaster: ({grandmasterMove.x}, {grandmasterMove.y})");
 
         // Assert - Both should find valid moves
-        Assert.True(expertMove.x >= 0 && expertMove.x < 15);
-        Assert.True(masterMove.x >= 0 && masterMove.x < 15);
+        Assert.True(hardMove.x >= 0 && hardMove.x < 15);
+        Assert.True(grandmasterMove.x >= 0 && grandmasterMove.x < 15);
 
         // Both moves should be on empty cells
-        var expertCell = board.GetCell(expertMove.x, expertMove.y);
-        var masterCell = board.GetCell(masterMove.x, masterMove.y);
-        Assert.True(expertCell.IsEmpty, "Expert move should be on an empty cell");
-        Assert.True(masterCell.IsEmpty, "Master move should be on an empty cell");
+        var hardCell = board.GetCell(hardMove.x, hardMove.y);
+        var grandmasterCell = board.GetCell(grandmasterMove.x, grandmasterMove.y);
+        Assert.True(hardCell.IsEmpty, "Hard move should be on an empty cell");
+        Assert.True(grandmasterCell.IsEmpty, "Grandmaster move should be on an empty cell");
     }
 }

@@ -26,7 +26,7 @@ public class EnhancedMoveOrderingTests
 
         // Act - Enhanced move ordering should prioritize winning move
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should complete the winning line
         Assert.Equal(7, move.x);
@@ -74,7 +74,7 @@ public class EnhancedMoveOrderingTests
 
         // Act - Should extend open 3
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should play on the open 3 line
         Assert.Equal(7, move.y);  // Should stay on column 7
@@ -177,7 +177,7 @@ public class EnhancedMoveOrderingTests
 
         // Act - Should extend the open 3
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should extend at either end
         Assert.Equal(7, move.x);
@@ -229,9 +229,9 @@ public class EnhancedMoveOrderingTests
 
         // Act - Multiple searches should produce consistent results
         var ai = new MinimaxAI();
-        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
-        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
-        var move3 = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move3 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should be deterministic
         Assert.Equal(move1, move2);
@@ -258,7 +258,7 @@ public class EnhancedMoveOrderingTests
 
         // Act - Should handle complex endgame
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should find valid move
         Assert.True(move.x >= 0 && move.x < 15);

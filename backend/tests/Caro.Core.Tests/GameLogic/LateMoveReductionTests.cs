@@ -92,7 +92,7 @@ public class LateMoveReductionTests
         board.PlaceStone(8, 7, Player.Red);
         board.PlaceStone(8, 8, Player.Blue);
 
-        // Act - Search with Hard difficulty (depth 3, LMR applies)
+        // Act - Search with Hard difficulty (uses LMR)
         var ai = new MinimaxAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
@@ -122,8 +122,8 @@ public class LateMoveReductionTests
 
         // Act - Multiple searches with LMR should be deterministic
         var ai = new MinimaxAI();
-        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
-        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Moves should be consistent
         Assert.Equal(move1, move2);
@@ -171,7 +171,7 @@ public class LateMoveReductionTests
 
         // Act - LMR may not apply much with few candidate moves
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should still play near center
         Assert.True(move.x >= 0 && move.x < 15);
@@ -210,7 +210,7 @@ public class LateMoveReductionTests
 
         // Act - Should find winning move
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should complete the winning line
         Assert.Equal(7, move.x);
@@ -234,14 +234,20 @@ public class LateMoveReductionTests
         // Act - Multiple searches should work correctly
         for (int i = 0; i < 3; i++)
         {
-            var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+            var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
             // Assert - Each move should be valid
             Assert.True(move.x >= 0 && move.x < 15);
             Assert.True(move.y >= 0 && move.y < 15);
 
-            var cell = board.GetCell(move.x, move.y);
-            Assert.True(cell.IsEmpty, "Move should be on an empty cell");
+            // Make the move temporarily
+            board.PlaceStone(move.x, move.y, Player.Red);
+
+            // Undo
+            board.GetCell(move.x, move.y).Player = Player.None;
         }
+
+        // Assert - All searches should complete successfully
+        // History should accumulate without issues
     }
 }

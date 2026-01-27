@@ -78,9 +78,9 @@ public class PrincipalVariationSearchTests
 
         // Act - Multiple searches should be deterministic
         var ai = new MinimaxAI();
-        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
-        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
-        var move3 = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move3 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should be consistent
         Assert.Equal(move1, move2);
@@ -99,7 +99,7 @@ public class PrincipalVariationSearchTests
 
         // Act - Should find winning move
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should complete the winning line
         Assert.Equal(7, move.x);
@@ -118,17 +118,17 @@ public class PrincipalVariationSearchTests
         var ai = new MinimaxAI();
 
         // Act & Assert - All difficulty levels should work
-        var easyMove = ai.GetBestMove(board, Player.Red, AIDifficulty.Beginner);
+        var easyMove = ai.GetBestMove(board, Player.Red, AIDifficulty.Easy);
         Assert.True(easyMove.x >= 0 && easyMove.x < 15);
 
-        var mediumMove = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var mediumMove = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
         Assert.True(mediumMove.x >= 0 && mediumMove.x < 15);
 
         var hardMove = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
         Assert.True(hardMove.x >= 0 && hardMove.x < 15);
 
-        var expertMove = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
-        Assert.True(expertMove.x >= 0 && expertMove.x < 15);
+        var grandmasterMove = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
+        Assert.True(grandmasterMove.x >= 0 && grandmasterMove.x < 15);
     }
 
     [Fact]
@@ -151,7 +151,7 @@ public class PrincipalVariationSearchTests
 
         // Act - Should handle complex position
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should find valid move
         Assert.True(move.x >= 0 && move.x < 15);
@@ -201,7 +201,7 @@ public class PrincipalVariationSearchTests
         // Act - Should complete quickly in quiet positions
         var ai = new MinimaxAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
         stopwatch.Stop();
 
         _output.WriteLine($"Quiet position time: {stopwatch.ElapsedMilliseconds}ms");
@@ -261,7 +261,7 @@ public class PrincipalVariationSearchTests
 
         // Act - Must block the threat
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should block at (7, 4) or (7, 9)
         Assert.Equal(7, move.x);
@@ -287,7 +287,7 @@ public class PrincipalVariationSearchTests
         foreach (var board in positions)
         {
             // Act - Should not throw
-            var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Beginner);
+            var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
 
             // Assert - Should be valid
             Assert.True(move.x >= 0 && move.x < 15,

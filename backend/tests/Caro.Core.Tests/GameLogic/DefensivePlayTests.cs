@@ -7,18 +7,16 @@ namespace Caro.Core.Tests.GameLogic;
 
 /// <summary>
 /// Tests for defensive AI behavior, specifically blocking semi-open fours
-/// These tests ensure D7+ AI correctly identifies and blocks critical threats
+/// These tests ensure D4+ AI correctly identifies and blocks critical threats
 /// </summary>
 public class DefensivePlayTests
 {
     /// <summary>
-    /// Test that D7+ AI blocks semi-open four (XXXX_ pattern where one end is blocked)
+    /// Test that D4+ AI blocks semi-open four (XXXX_ pattern where one end is blocked)
     /// This is the critical bug fix - the AI was not blocking this pattern consistently
     /// </summary>
     [Theory]
     [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Expert)]
-    [InlineData(AIDifficulty.Master)]
     [InlineData(AIDifficulty.Grandmaster)]
     public void ParallelSearch_BlocksSemiOpenFour_Horizontal(AIDifficulty difficulty)
     {
@@ -45,8 +43,6 @@ public class DefensivePlayTests
 
     [Theory]
     [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Expert)]
-    [InlineData(AIDifficulty.Master)]
     [InlineData(AIDifficulty.Grandmaster)]
     public void ParallelSearch_BlocksSemiOpenFour_Vertical(AIDifficulty difficulty)
     {
@@ -70,8 +66,6 @@ public class DefensivePlayTests
 
     [Theory]
     [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Expert)]
-    [InlineData(AIDifficulty.Master)]
     [InlineData(AIDifficulty.Grandmaster)]
     public void ParallelSearch_BlocksSemiOpenFour_Diagonal(AIDifficulty difficulty)
     {
@@ -99,8 +93,6 @@ public class DefensivePlayTests
     /// </summary>
     [Theory]
     [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Expert)]
-    [InlineData(AIDifficulty.Master)]
     [InlineData(AIDifficulty.Grandmaster)]
     public void LazyMP_ConsistentBlocking_SemiOpenFour(AIDifficulty difficulty)
     {
@@ -156,7 +148,7 @@ public class DefensivePlayTests
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
         // Act
-        var result = ai.GetBestMove(board, Player.Blue, AIDifficulty.Expert);
+        var result = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard);
 
         // Assert: Should block Red's threat at (11, 7) rather than extend Blue's attack
         result.x.Should().Be(11, "Should block opponent's threat first");
@@ -168,8 +160,6 @@ public class DefensivePlayTests
     /// </summary>
     [Theory]
     [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Expert)]
-    [InlineData(AIDifficulty.Master)]
     [InlineData(AIDifficulty.Grandmaster)]
     public void ParallelSearch_BlocksBrokenFour(AIDifficulty difficulty)
     {
@@ -198,8 +188,6 @@ public class DefensivePlayTests
     /// </summary>
     [Theory]
     [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Expert)]
-    [InlineData(AIDifficulty.Master)]
     [InlineData(AIDifficulty.Grandmaster)]
     public void MinimaxAI_BlocksSemiOpenFour(AIDifficulty difficulty)
     {
@@ -248,7 +236,7 @@ public class DefensivePlayTests
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
         // Act: Blue to move
-        var result = ai.GetBestMove(board, Player.Blue, AIDifficulty.Expert);
+        var result = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard);
 
         // Assert: Blue should win at (10, 7) or (5, 7)
         (result.x == 10 || result.x == 5).Should().BeTrue("Blue should take winning move");
@@ -263,11 +251,8 @@ public class DefensivePlayTests
     /// </summary>
     [Theory]
     [InlineData(AIDifficulty.Easy)]
-    [InlineData(AIDifficulty.Normal)]
     [InlineData(AIDifficulty.Medium)]
     [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Expert)]
-    [InlineData(AIDifficulty.Master)]
     [InlineData(AIDifficulty.Grandmaster)]
     public void MinimaxAI_BlocksFourInARow_Vertical_BugScenario(AIDifficulty difficulty)
     {

@@ -15,7 +15,7 @@ public class MinimaxAITests
         var board = new Board();
 
         // Act
-        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Beginner);
+        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
 
         // Assert
         // Should play center move
@@ -37,7 +37,7 @@ public class MinimaxAITests
         board.PlaceStone(10, 7, Player.Red);
 
         // Act
-        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Beginner);
+        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
 
         // Assert
         // Should play at (11, 7) or (6, 7) to complete 5-in-row and win
@@ -62,7 +62,7 @@ public class MinimaxAITests
         board.PlaceStone(10, 7, Player.Blue);
 
         // Act - Red should block
-        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Beginner);
+        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
 
         // Assert
         // For now, just verify it returns a valid move
@@ -83,7 +83,7 @@ public class MinimaxAITests
         board.PlaceStone(7, 7, Player.Red);
 
         // Act & Assert - only test Easy difficulty for unit tests
-        var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Beginner);
+        var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Braindead);
 
         // Should return a valid position on the board
         x.Should().BeGreaterThanOrEqualTo(0);

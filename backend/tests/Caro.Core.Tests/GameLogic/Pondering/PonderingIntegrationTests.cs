@@ -23,7 +23,7 @@ public class PonderingIntegrationTests
         // Act
         var result = engine.RunGame(
             AIDifficulty.Easy,
-            AIDifficulty.Beginner,
+            AIDifficulty.Braindead,
             maxMoves: 50,
             initialTimeSeconds: 60,
             incrementSeconds: 1,
@@ -45,7 +45,7 @@ public class PonderingIntegrationTests
         // Act
         var result = engine.RunGame(
             AIDifficulty.Easy,
-            AIDifficulty.Beginner,
+            AIDifficulty.Braindead,
             maxMoves: 50,
             initialTimeSeconds: 60,
             incrementSeconds: 1,
@@ -144,7 +144,7 @@ public class PonderingIntegrationTests
         board.PlaceStone(7, 7, Player.Red);
 
         // Start a move that will trigger pondering
-        _ = ai.GetBestMove(board, Player.Blue, AIDifficulty.Normal, 5000, 0, true);
+        _ = ai.GetBestMove(board, Player.Blue, AIDifficulty.Easy, 5000, 0, true);
 
         // Act
         ai.StopPondering();
@@ -163,7 +163,7 @@ public class PonderingIntegrationTests
         board.PlaceStone(7, 7, Player.Red);
 
         // Start a move that will trigger pondering
-        _ = ai.GetBestMove(board, Player.Blue, AIDifficulty.Normal, 5000, 0, true);
+        _ = ai.GetBestMove(board, Player.Blue, AIDifficulty.Easy, 5000, 0, true);
 
         // Act
         ai.ResetPondering();
@@ -202,7 +202,7 @@ public class PonderingIntegrationTests
         // Act - Run two games with same settings
         var resultWithPondering = engine.RunGame(
             AIDifficulty.Easy,
-            AIDifficulty.Beginner,
+            AIDifficulty.Braindead,
             maxMoves: 30,
             initialTimeSeconds: 30,
             incrementSeconds: 1,
@@ -211,7 +211,7 @@ public class PonderingIntegrationTests
 
         var resultWithoutPondering = engine.RunGame(
             AIDifficulty.Easy,
-            AIDifficulty.Beginner,
+            AIDifficulty.Braindead,
             maxMoves: 30,
             initialTimeSeconds: 30,
             incrementSeconds: 1,
@@ -332,9 +332,9 @@ public class PonderingIntegrationTests
 
         var difficulties = new[]
         {
-            AIDifficulty.Beginner,
+            AIDifficulty.Braindead,
             AIDifficulty.Easy,
-            AIDifficulty.Normal,
+            AIDifficulty.Easy,
             AIDifficulty.Medium
         };
 
@@ -421,7 +421,7 @@ public class PonderingIntegrationTests
         var engine = new TournamentEngine();
         var matchups = new Dictionary<(AIDifficulty, AIDifficulty), int>
         {
-            { (AIDifficulty.Easy, AIDifficulty.Beginner), 2 }
+            { (AIDifficulty.Easy, AIDifficulty.Braindead), 2 }
         };
 
         // Act

@@ -25,7 +25,7 @@ public class QuiescenceSearchTests
 
         // Act - With quiescence, AI should see the threat
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should extend the line (create 4 in a row)
         Assert.True(move.x == 7 || move.y == 7, "Should extend the 3-in-row");
@@ -44,7 +44,7 @@ public class QuiescenceSearchTests
 
         // Act - Red should extend the other way or play nearby
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should play near the threat
         Assert.InRange(move.x, 6, 8);  // Near the threat line
@@ -66,7 +66,7 @@ public class QuiescenceSearchTests
         // Act - Should complete quickly in quiet positions
         var ai = new MinimaxAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
         stopwatch.Stop();
 
         // Assert - Should be fast (quiescence stops early in quiet positions)
@@ -90,7 +90,7 @@ public class QuiescenceSearchTests
 
         // Act - Red should find the winning move with quiescence
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should complete the 5-in-row or play very close
         Assert.Equal(7, move.x);  // Should stay on same column
@@ -161,7 +161,7 @@ public class QuiescenceSearchTests
         // Act - Should complete without excessive search
         var ai = new MinimaxAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
         stopwatch.Stop();
 
         // Assert - Should complete in reasonable time (quiescence limited to depth 4)
@@ -194,7 +194,7 @@ public class QuiescenceSearchTests
         foreach (var board in positions)
         {
             // Act - Get move should not throw
-            var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Beginner);
+            var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
 
             // Assert - Should be valid
             Assert.True(move.x >= 0 && move.x < 15);

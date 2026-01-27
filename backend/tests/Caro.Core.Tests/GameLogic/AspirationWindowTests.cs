@@ -77,17 +77,17 @@ public class AspirationWindowTests
             }
         }
 
-        // Act - Expert (D8) uses iterative deepening with aspiration windows
+        // Act - Grandmaster (D5) uses iterative deepening with aspiration windows
         var ai = new MinimaxAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
         stopwatch.Stop();
 
         // Assert - Should complete in reasonable time
-        // Expert (D8) with depth 9 and parallel search
+        // Grandmaster (D5) with adaptive depth
         _output.WriteLine($"Move: ({move.x}, {move.y}), Time: {stopwatch.ElapsedMilliseconds}ms");
         Assert.True(stopwatch.ElapsedMilliseconds < 30000,
-            $"Expert search took {stopwatch.ElapsedMilliseconds}ms, expected < 30000ms");
+            $"Grandmaster search took {stopwatch.ElapsedMilliseconds}ms, expected < 30000ms");
 
         // Move should be valid
         var cell = board.GetCell(move.x, move.y);
@@ -135,7 +135,7 @@ public class AspirationWindowTests
 
         // Act - Should find winning move for Red
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should find move near the winning line
         Assert.InRange(move.x, 6, 8);
@@ -163,7 +163,7 @@ public class AspirationWindowTests
 
         // Act - Get best move
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Move should be strategic (near existing stones)
         Assert.True(move.x >= 0 && move.x < 15);
@@ -203,7 +203,7 @@ public class AspirationWindowTests
         // Act
         var ai = new MinimaxAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
         stopwatch.Stop();
 
         // Assert - Should be very fast with aspiration windows

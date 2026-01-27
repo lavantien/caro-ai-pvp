@@ -37,15 +37,15 @@ public class TournamentIntegrationTests
 
         // Act - Run a single game
         var result = engine.RunGame(
-            redDifficulty: AIDifficulty.Beginner,  // D1 - weakest
-            blueDifficulty: AIDifficulty.Medium,    // D5 - stronger
-            onLog: capture.GetCallback(gameId, "Beginner", "Medium", AIDifficulty.Beginner, AIDifficulty.Medium)
+            redDifficulty: AIDifficulty.Braindead,  // D1 - weakest
+            blueDifficulty: AIDifficulty.Medium,    // D3 - stronger
+            onLog: capture.GetCallback(gameId, "Braindead", "Medium", AIDifficulty.Braindead, AIDifficulty.Medium)
         );
 
         capture.FinalizeGame(result);
 
         // Assert - Higher difficulty should win
-        Assert.Equal(Player.Blue, result.Winner);  // Medium should beat Beginner
+        Assert.Equal(Player.Blue, result.Winner);  // Medium should beat Braindead
         Assert.Equal(AIDifficulty.Medium, result.WinnerDifficulty);
         Assert.False(result.IsDraw);
         Assert.False(result.EndedByTimeout);
@@ -63,7 +63,7 @@ public class TournamentIntegrationTests
         // Verify snapshot content
         var snapshot = capture.BuildSnapshot(nameof(RunSingleGame_BasicVsMedium_SavesSnapshotAndHigherDifficultyWins));
         Assert.Single(snapshot.Games);
-        Assert.Equal("Beginner", snapshot.Games[0].RedBot);
+        Assert.Equal("Braindead", snapshot.Games[0].RedBot);
         Assert.Equal("Medium", snapshot.Games[0].BlueBot);
         Assert.True(snapshot.Games[0].MoveLogs.Count > 0, "Should have captured move logs");
     }
@@ -123,21 +123,21 @@ public class TournamentIntegrationTests
     }
 
     [Fact]
-    public void RunGame_VeryHardVsExpert_ParallelSearchReportsCorrectDepth()
+    public void RunGame_HardVsGrandmaster_ParallelSearchReportsCorrectDepth()
     {
         // This test specifically verifies the parallel search statistics fix
-        // D7+ (VeryHard/Expert) use Lazy SMP and should report actual depth, not 0
+        // D4+ (Hard/Grandmaster) use Lazy SMP and should report actual depth, not 0
 
         // Arrange
         var engine = new TournamentEngine();
         using var capture = new TournamentLogCapture();
         var gameId = Guid.NewGuid().ToString("N")[..8];
 
-        // Act - Run game with D7+ bots that use parallel search
+        // Act - Run game with D4+ bots that use parallel search
         var result = engine.RunGame(
-            redDifficulty: AIDifficulty.VeryHard,  // D7 - uses parallel search
-            blueDifficulty: AIDifficulty.Expert,    // D8 - uses parallel search
-            onLog: capture.GetCallback(gameId, "VeryHard", "Expert", AIDifficulty.VeryHard, AIDifficulty.Expert)
+            redDifficulty: AIDifficulty.Hard,  // D4 - uses parallel search
+            blueDifficulty: AIDifficulty.Grandmaster,    // D5 - uses parallel search
+            onLog: capture.GetCallback(gameId, "Hard", "Grandmaster", AIDifficulty.Hard, AIDifficulty.Grandmaster)
         );
 
         capture.FinalizeGame(result);
@@ -146,12 +146,12 @@ public class TournamentIntegrationTests
         Assert.True(result.TotalMoves > 0);
 
         // Verify depth was captured and is NOT 0 (the bug we fixed)
-        var snapshot = capture.BuildSnapshot(nameof(RunGame_VeryHardVsExpert_ParallelSearchReportsCorrectDepth));
+        var snapshot = capture.BuildSnapshot(nameof(RunGame_HardVsGrandmaster_ParallelSearchReportsCorrectDepth));
         Assert.Single(snapshot.Games);
 
         var game = snapshot.Games[0];
 
-        // Both VeryHard (D7) and Expert (D8) should report depth > 0
+        // Both Hard (D4) and Grandmaster (D5) should report depth > 0
         var redMoves = game.MoveLogs.Where(m => m.Player == "red").ToList();
         var blueMoves = game.MoveLogs.Where(m => m.Player == "blue").ToList();
 
@@ -159,32 +159,32 @@ public class TournamentIntegrationTests
         {
             var maxRedDepth = redMoves.Max(m => m.DepthAchieved);
             var avgRedDepth = redMoves.Average(m => m.DepthAchieved);
-            _output.WriteLine($"VeryHard (red) - Max depth: {maxRedDepth}, Avg: {avgRedDepth:F1}");
+            _output.WriteLine($"Hard (red) - Max depth: {maxRedDepth}, Avg: {avgRedDepth:F1}");
 
             // This was the bug: depth was 0 before the fix
             // Now we verify depth is being reported correctly (> 0)
-            Assert.True(maxRedDepth > 0, $"VeryHard should report depth > 0, got {maxRedDepth}");
+            Assert.True(maxRedDepth > 0, $"Hard should report depth > 0, got {maxRedDepth}");
             // Average may vary due to time management, just check it's reasonable
-            Assert.True(avgRedDepth >= 3, $"VeryHard (D7) should average depth 3+, got {avgRedDepth:F1}");
+            Assert.True(avgRedDepth >= 3, $"Hard (D4) should average depth 3+, got {avgRedDepth:F1}");
         }
 
         if (blueMoves.Count > 0)
         {
             var maxBlueDepth = blueMoves.Max(m => m.DepthAchieved);
             var avgBlueDepth = blueMoves.Average(m => m.DepthAchieved);
-            _output.WriteLine($"Expert (blue) - Max depth: {maxBlueDepth}, Avg: {avgBlueDepth:F1}");
+            _output.WriteLine($"Grandmaster (blue) - Max depth: {maxBlueDepth}, Avg: {avgBlueDepth:F1}");
 
-            // Max depth should reach target (D8 = depth 8)
-            Assert.True(maxBlueDepth > 0, $"Expert should report depth > 0, got {maxBlueDepth}");
+            // Max depth should reach target (D5 = depth 5)
+            Assert.True(maxBlueDepth > 0, $"Grandmaster should report depth > 0, got {maxBlueDepth}");
             // Average may vary due to time management
-            Assert.True(avgBlueDepth >= 3, $"Expert (D8) should average depth 3+, got {avgBlueDepth:F1}");
+            Assert.True(avgBlueDepth >= 3, $"Grandmaster (D5) should average depth 3+, got {avgBlueDepth:F1}");
         }
 
         // Save snapshot
         Task.Run(async () =>
         {
             await capture.SaveSnapshotAsync(
-                nameof(RunGame_VeryHardVsExpert_ParallelSearchReportsCorrectDepth),
+                nameof(RunGame_HardVsGrandmaster_ParallelSearchReportsCorrectDepth),
                 SourceSnapshotDirectory
             );
         }).Wait();
@@ -202,7 +202,7 @@ public class TournamentIntegrationTests
             new() { Name = "BotA", Difficulty = AIDifficulty.Easy },
             new() { Name = "BotB", Difficulty = AIDifficulty.Medium },
             new() { Name = "BotC", Difficulty = AIDifficulty.Hard },
-            new() { Name = "BotD", Difficulty = AIDifficulty.VeryHard }
+            new() { Name = "BotD", Difficulty = AIDifficulty.Hard }
         };
 
         var schedule = TournamentScheduler.GenerateRoundRobinSchedule(bots);
@@ -245,7 +245,7 @@ public class TournamentIntegrationTests
     }
 
     [Fact]
-    public void RunGame_BeginnerVsBeginner_WithShortTimeControl_FinishesSuccessfully()
+    public void RunGame_BraindeadVsBraindead_WithShortTimeControl_FinishesSuccessfully()
     {
         // Test with very short time control to ensure timeout handling works
         var engine = new TournamentEngine();
@@ -253,11 +253,11 @@ public class TournamentIntegrationTests
         var gameId = Guid.NewGuid().ToString("N")[..8];
 
         var result = engine.RunGame(
-            redDifficulty: AIDifficulty.Beginner,
-            blueDifficulty: AIDifficulty.Beginner,
+            redDifficulty: AIDifficulty.Braindead,
+            blueDifficulty: AIDifficulty.Braindead,
             initialTimeSeconds: 30,  // Short time control
             incrementSeconds: 0,
-            onLog: capture.GetCallback(gameId, "BeginnerA", "BeginnerB", AIDifficulty.Beginner, AIDifficulty.Beginner)
+            onLog: capture.GetCallback(gameId, "BraindeadA", "BraindeadB", AIDifficulty.Braindead, AIDifficulty.Braindead)
         );
 
         capture.FinalizeGame(result);
@@ -265,13 +265,13 @@ public class TournamentIntegrationTests
         // Should finish (either by win or time running out)
         Assert.True(result.TotalMoves >= 0 || result.EndedByTimeout);
 
-        var snapshot = capture.BuildSnapshot(nameof(RunGame_BeginnerVsBeginner_WithShortTimeControl_FinishesSuccessfully));
+        var snapshot = capture.BuildSnapshot(nameof(RunGame_BraindeadVsBraindead_WithShortTimeControl_FinishesSuccessfully));
 
         // Save snapshot
         Task.Run(async () =>
         {
             await capture.SaveSnapshotAsync(
-                nameof(RunGame_BeginnerVsBeginner_WithShortTimeControl_FinishesSuccessfully),
+                nameof(RunGame_BraindeadVsBraindead_WithShortTimeControl_FinishesSuccessfully),
                 SourceSnapshotDirectory
             );
         }).Wait();

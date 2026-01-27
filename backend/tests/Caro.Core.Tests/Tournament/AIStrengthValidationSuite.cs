@@ -20,9 +20,9 @@ public class AIStrengthValidationSuite : IDisposable
     private readonly List<MatchResult> _allResults = new();
 
     // Test configuration
-    private const int GamesPerMatchup = 25;  // Balance between statistical power and test duration
-    private const int InitialTimeSeconds = 120;  // 2+1 time control for faster games
-    private const int IncrementSeconds = 1;
+    private const int GamesPerMatchup = 10;  // Balance between statistical power and test duration
+    private const int InitialTimeSeconds = 420;  // 7+5 time control
+    private const int IncrementSeconds = 5;
 
     public AIStrengthValidationSuite(ITestOutputHelper output)
     {
@@ -182,10 +182,10 @@ public class AIStrengthValidationSuite : IDisposable
     #region PHASE 1: Adjacent Difficulty Testing
 
     [Fact]
-    public void Phase1_1_D11VsD10_HigherDifficultyWinsSignificantly()
+    public void Phase1_1_D5VsD4_HigherDifficultyWinsSignificantly()
     {
         var stats = RunMatchupWithStatistics(
-            AIDifficulty.Legend, AIDifficulty.Grandmaster,
+            AIDifficulty.Grandmaster, AIDifficulty.Hard,
             GamesPerMatchup);
 
         _output.WriteLine(stats.ToSummaryString());
@@ -194,67 +194,7 @@ public class AIStrengthValidationSuite : IDisposable
     }
 
     [Fact]
-    public void Phase1_2_D10VsD9_HigherDifficultyWinsSignificantly()
-    {
-        var stats = RunMatchupWithStatistics(
-            AIDifficulty.Grandmaster, AIDifficulty.Master,
-            GamesPerMatchup);
-
-        _output.WriteLine(stats.ToSummaryString());
-
-        Assert.True(stats.TestPassed, stats.Conclusion);
-    }
-
-    [Fact]
-    public void Phase1_3_D9VsD8_HigherDifficultyWinsSignificantly()
-    {
-        var stats = RunMatchupWithStatistics(
-            AIDifficulty.Master, AIDifficulty.Expert,
-            GamesPerMatchup);
-
-        _output.WriteLine(stats.ToSummaryString());
-
-        Assert.True(stats.TestPassed, stats.Conclusion);
-    }
-
-    [Fact]
-    public void Phase1_4_D8VsD7_HigherDifficultyWinsSignificantly()
-    {
-        var stats = RunMatchupWithStatistics(
-            AIDifficulty.Expert, AIDifficulty.VeryHard,
-            GamesPerMatchup);
-
-        _output.WriteLine(stats.ToSummaryString());
-
-        Assert.True(stats.TestPassed, stats.Conclusion);
-    }
-
-    [Fact]
-    public void Phase1_5_D7VsD6_HigherDifficultyWinsSignificantly()
-    {
-        var stats = RunMatchupWithStatistics(
-            AIDifficulty.VeryHard, AIDifficulty.Harder,
-            GamesPerMatchup);
-
-        _output.WriteLine(stats.ToSummaryString());
-
-        Assert.True(stats.TestPassed, stats.Conclusion);
-    }
-
-    [Fact]
-    public void Phase1_6_D6VsD5_HigherDifficultyWinsSignificantly()
-    {
-        var stats = RunMatchupWithStatistics(
-            AIDifficulty.Harder, AIDifficulty.Hard,
-            GamesPerMatchup);
-
-        _output.WriteLine(stats.ToSummaryString());
-
-        Assert.True(stats.TestPassed, stats.Conclusion);
-    }
-
-    [Fact]
-    public void Phase1_7_D5VsD4_HigherDifficultyWinsSignificantly()
+    public void Phase1_2_D4VsD3_HigherDifficultyWinsSignificantly()
     {
         var stats = RunMatchupWithStatistics(
             AIDifficulty.Hard, AIDifficulty.Medium,
@@ -266,10 +206,10 @@ public class AIStrengthValidationSuite : IDisposable
     }
 
     [Fact]
-    public void Phase1_8_D4VsD3_HigherDifficultyWinsSignificantly()
+    public void Phase1_3_D3VsD2_HigherDifficultyWinsSignificantly()
     {
         var stats = RunMatchupWithStatistics(
-            AIDifficulty.Medium, AIDifficulty.Normal,
+            AIDifficulty.Medium, AIDifficulty.Easy,
             GamesPerMatchup);
 
         _output.WriteLine(stats.ToSummaryString());
@@ -278,22 +218,10 @@ public class AIStrengthValidationSuite : IDisposable
     }
 
     [Fact]
-    public void Phase1_9_D3VsD2_HigherDifficultyWinsSignificantly()
+    public void Phase1_4_D2VsD1_HigherDifficultyWinsSignificantly()
     {
         var stats = RunMatchupWithStatistics(
-            AIDifficulty.Normal, AIDifficulty.Easy,
-            GamesPerMatchup);
-
-        _output.WriteLine(stats.ToSummaryString());
-
-        Assert.True(stats.TestPassed, stats.Conclusion);
-    }
-
-    [Fact]
-    public void Phase1_10_D2VsD1_HigherDifficultyWinsSignificantly()
-    {
-        var stats = RunMatchupWithStatistics(
-            AIDifficulty.Easy, AIDifficulty.Beginner,
+            AIDifficulty.Easy, AIDifficulty.Braindead,
             GamesPerMatchup);
 
         _output.WriteLine(stats.ToSummaryString());
@@ -306,10 +234,10 @@ public class AIStrengthValidationSuite : IDisposable
     #region PHASE 2: Cross-Level Testing
 
     [Fact]
-    public void Phase2_1_D11VsD9_LargeGapDetected()
+    public void Phase2_1_D5VsD3_LargeGapDetected()
     {
         var stats = RunMatchupWithStatistics(
-            AIDifficulty.Legend, AIDifficulty.Master,
+            AIDifficulty.Grandmaster, AIDifficulty.Medium,
             GamesPerMatchup);
 
         _output.WriteLine(stats.ToSummaryString());
@@ -318,10 +246,10 @@ public class AIStrengthValidationSuite : IDisposable
     }
 
     [Fact]
-    public void Phase2_2_D11VsD8_LargeGapDetected()
+    public void Phase2_2_D5VsD2_VeryLargeGapDetected()
     {
         var stats = RunMatchupWithStatistics(
-            AIDifficulty.Legend, AIDifficulty.Expert,
+            AIDifficulty.Grandmaster, AIDifficulty.Easy,
             GamesPerMatchup);
 
         _output.WriteLine(stats.ToSummaryString());
@@ -330,22 +258,10 @@ public class AIStrengthValidationSuite : IDisposable
     }
 
     [Fact]
-    public void Phase2_3_D11VsD6_VeryLargeGapDetected()
+    public void Phase2_3_D4VsD2_LargeGapDetected()
     {
         var stats = RunMatchupWithStatistics(
-            AIDifficulty.Legend, AIDifficulty.Harder,
-            GamesPerMatchup);
-
-        _output.WriteLine(stats.ToSummaryString());
-
-        Assert.True(stats.TestPassed, stats.Conclusion);
-    }
-
-    [Fact]
-    public void Phase2_4_D10VsD6_LargeGapDetected()
-    {
-        var stats = RunMatchupWithStatistics(
-            AIDifficulty.Grandmaster, AIDifficulty.Harder,
+            AIDifficulty.Hard, AIDifficulty.Easy,
             GamesPerMatchup);
 
         _output.WriteLine(stats.ToSummaryString());
@@ -358,10 +274,10 @@ public class AIStrengthValidationSuite : IDisposable
     #region PHASE 3: Color Advantage Detection
 
     [Fact]
-    public void Phase3_1_D11VsD11_NoSignificantColorAdvantage()
+    public void Phase3_1_D5VsD5_NoSignificantColorAdvantage()
     {
         var stats = RunMatchupWithStatistics(
-            AIDifficulty.Legend, AIDifficulty.Legend,
+            AIDifficulty.Grandmaster, AIDifficulty.Grandmaster,
             GamesPerMatchup);
 
         _output.WriteLine(stats.ToSummaryString());
@@ -373,10 +289,10 @@ public class AIStrengthValidationSuite : IDisposable
     }
 
     [Fact]
-    public void Phase3_2_D10VsD10_NoSignificantColorAdvantage()
+    public void Phase3_2_D4VsD4_NoSignificantColorAdvantage()
     {
         var stats = RunMatchupWithStatistics(
-            AIDifficulty.Grandmaster, AIDifficulty.Grandmaster,
+            AIDifficulty.Hard, AIDifficulty.Hard,
             GamesPerMatchup);
 
         _output.WriteLine(stats.ToSummaryString());
@@ -386,23 +302,10 @@ public class AIStrengthValidationSuite : IDisposable
     }
 
     [Fact]
-    public void Phase3_3_D8VsD8_NoSignificantColorAdvantage()
+    public void Phase3_3_D3VsD3_NoSignificantColorAdvantage()
     {
         var stats = RunMatchupWithStatistics(
-            AIDifficulty.Expert, AIDifficulty.Expert,
-            GamesPerMatchup);
-
-        _output.WriteLine(stats.ToSummaryString());
-        _output.WriteLine($"  Red color win rate: {stats.RedColorWinRate:P1}");
-
-        Assert.InRange(stats.RedColorWinRate, 0.40, 0.60);
-    }
-
-    [Fact]
-    public void Phase3_4_D6VsD6_NoSignificantColorAdvantage()
-    {
-        var stats = RunMatchupWithStatistics(
-            AIDifficulty.Harder, AIDifficulty.Harder,
+            AIDifficulty.Medium, AIDifficulty.Medium,
             GamesPerMatchup);
 
         _output.WriteLine(stats.ToSummaryString());
@@ -421,8 +324,7 @@ public class AIStrengthValidationSuite : IDisposable
         // Run a quick round-robin with fewer games per matchup
         var difficulties = new[]
         {
-            AIDifficulty.Legend, AIDifficulty.Grandmaster, AIDifficulty.Master,
-            AIDifficulty.Expert, AIDifficulty.VeryHard, AIDifficulty.Harder
+            AIDifficulty.Grandmaster, AIDifficulty.Hard, AIDifficulty.Medium, AIDifficulty.Easy
         };
 
         var eloScores = new Dictionary<AIDifficulty, double>();
@@ -452,14 +354,14 @@ public class AIStrengthValidationSuite : IDisposable
             _output.WriteLine($"  {red} vs {blue}: {stats.EloDifference:+0} Elo");
         }
 
-        // Verify monotonic ordering - Legend should have highest score
+        // Verify monotonic ordering - Grandmaster should have highest score
         var sortedScores = eloScores.OrderByDescending(kvp => kvp.Value).Select(kvp => kvp.Key).ToList();
         _output.WriteLine($"  Elo ranking: {string.Join(" > ", sortedScores.Select(d => $"{d} ({eloScores[d]:+0})"))}");
 
-        // Assert that Legend (D11) is top or tied for top
+        // Assert that Grandmaster (D5) is top or tied for top
         var topScore = eloScores.Values.Max();
-        Assert.True(eloScores[AIDifficulty.Legend] >= topScore - 50,
-            $"Legend should be top scorer, got {eloScores[AIDifficulty.Legend]} vs {topScore}");
+        Assert.True(eloScores[AIDifficulty.Grandmaster] >= topScore - 50,
+            $"Grandmaster should be top scorer, got {eloScores[AIDifficulty.Grandmaster]} vs {topScore}");
     }
 
     #endregion

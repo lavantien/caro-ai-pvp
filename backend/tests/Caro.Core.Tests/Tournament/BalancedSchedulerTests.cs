@@ -16,9 +16,9 @@ public class BalancedSchedulerTests
         // Arrange: 4 bots should generate 4 * (4-1) = 12 matches
         var bots = new List<AIBot>
         {
-            new() { Name = "A", Difficulty = AIDifficulty.Beginner },
+            new() { Name = "A", Difficulty = AIDifficulty.Braindead },
             new() { Name = "B", Difficulty = AIDifficulty.Easy },
-            new() { Name = "C", Difficulty = AIDifficulty.Normal },
+            new() { Name = "C", Difficulty = AIDifficulty.Easy },
             new() { Name = "D", Difficulty = AIDifficulty.Medium }
         };
 
@@ -35,9 +35,9 @@ public class BalancedSchedulerTests
         // Arrange
         var bots = new List<AIBot>
         {
-            new() { Name = "A", Difficulty = AIDifficulty.Beginner },
+            new() { Name = "A", Difficulty = AIDifficulty.Braindead },
             new() { Name = "B", Difficulty = AIDifficulty.Easy },
-            new() { Name = "C", Difficulty = AIDifficulty.Normal }
+            new() { Name = "C", Difficulty = AIDifficulty.Easy }
         };
 
         // Act
@@ -62,9 +62,9 @@ public class BalancedSchedulerTests
         // Arrange
         var bots = new List<AIBot>
         {
-            new() { Name = "A", Difficulty = AIDifficulty.Beginner },
+            new() { Name = "A", Difficulty = AIDifficulty.Braindead },
             new() { Name = "B", Difficulty = AIDifficulty.Easy },
-            new() { Name = "C", Difficulty = AIDifficulty.Normal },
+            new() { Name = "C", Difficulty = AIDifficulty.Easy },
             new() { Name = "D", Difficulty = AIDifficulty.Medium }
         };
 

@@ -15,14 +15,14 @@ public class HistoryHeuristicTests
         board.PlaceStone(7, 7, Player.Red);
 
         // Act - Make a move to populate some history
-        var move1 = ai.GetBestMove(board, Player.Blue, AIDifficulty.Normal);
+        var move1 = ai.GetBestMove(board, Player.Blue, AIDifficulty.Medium);
 
         // Clear history
         ai.ClearHistory();
 
         // Assert - History should be cleared (no easy way to verify directly, but method should not throw)
         // Make another move - should work fine
-        var move2 = ai.GetBestMove(board, Player.Blue, AIDifficulty.Normal);
+        var move2 = ai.GetBestMove(board, Player.Blue, AIDifficulty.Medium);
         Assert.True(move2.x >= 0 && move2.x < 15);
         Assert.True(move2.y >= 0 && move2.y < 15);
     }
@@ -88,15 +88,15 @@ public class HistoryHeuristicTests
         var ai = new MinimaxAI();
 
         var stopwatch1 = System.Diagnostics.Stopwatch.StartNew();
-        var move1a = ai.GetBestMove(board1, Player.Blue, AIDifficulty.Normal);
+        var move1a = ai.GetBestMove(board1, Player.Blue, AIDifficulty.Medium);
         stopwatch1.Stop();
 
         var stopwatch2 = System.Diagnostics.Stopwatch.StartNew();
-        var move1b = ai.GetBestMove(board1, Player.Blue, AIDifficulty.Normal);
+        var move1b = ai.GetBestMove(board1, Player.Blue, AIDifficulty.Medium);
         stopwatch2.Stop();
 
         var stopwatch3 = System.Diagnostics.Stopwatch.StartNew();
-        var move2 = ai.GetBestMove(board2, Player.Red, AIDifficulty.Normal);
+        var move2 = ai.GetBestMove(board2, Player.Red, AIDifficulty.Medium);
         stopwatch3.Stop();
 
         // Assert - Moves should be reasonable
@@ -124,7 +124,7 @@ public class HistoryHeuristicTests
         // Act - Multiple searches should build up history
         for (int i = 0; i < 5; i++)
         {
-            var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Normal);
+            var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
             Assert.True(move.x >= 0 && move.x < 15);
             Assert.True(move.y >= 0 && move.y < 15);
 
@@ -167,7 +167,7 @@ public class HistoryHeuristicTests
         var board = new Board();
 
         // Act - Search on empty board
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Beginner);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
 
         // Assert - Should play center or near center
         Assert.True(move.x >= 0 && move.x < 15);
@@ -190,7 +190,7 @@ public class HistoryHeuristicTests
 
         // Act - Find winning move
         var ai = new MinimaxAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Expert);
+        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should find a move near the winning line
         // The winning move is at (7, 4) or (7, 9), but we just verify it's reasonable
