@@ -11,3 +11,13 @@ backend/backend-lint-results.txt
 backend/backend-test-results.txt
 frontend/frontend-lint-results.txt
 frontend/frontend-test-results.txt
+
+# Serena MCP plugin data
+.serena/
+
+# Diagnostic tool
+backend/src/Caro.Diagnostic/
+
+# Test configuration and scripts
+backend/test_config.txt
+backend/test_diagnostic.csx
