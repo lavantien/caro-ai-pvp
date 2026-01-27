@@ -49,8 +49,8 @@ public class BoardEvaluator
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
 
-        // Use SIMD for D9 (Expert) and above (Grandmaster/Legend)
-        if (difficulty >= AIDifficulty.Expert)
+        // Use SIMD for Hard (D4) and above (Grandmaster)
+        if (difficulty >= AIDifficulty.Hard)
         {
             return SIMDBitBoardEvaluator.Evaluate(board, player);
         }

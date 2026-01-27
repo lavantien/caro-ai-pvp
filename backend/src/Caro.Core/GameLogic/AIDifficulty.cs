@@ -1,87 +1,44 @@
 namespace Caro.Core.GameLogic;
 
 /// <summary>
-/// AI difficulty levels for Minimax algorithm
-/// Optimized for 7+5 time control (7 minutes initial + 5 second increment)
-///
-/// Complete 11-level gradient from beginner to world-class:
-/// D1-D3: Casual/beginner levels with basic lookahead
-/// D4-D6: Club player levels with solid tactics
-/// D7-D9: Tournament/master levels with deep search
-/// D10-D11: Grandmaster levels with maximum strength
+/// AI difficulty levels optimized for human play (bot vs bot is for testing only)
+/// 5 semantic levels with progressive feature disclosure
 /// </summary>
 public enum AIDifficulty
 {
     /// <summary>
-    /// D1 Beginner: Depth 1 with 20% randomness
+    /// D1 Braindead: Depth 1-2 with 50% error rate
     /// Suitable for complete beginners learning the rules
+    /// Makes random-ish mistakes, very predictable
     /// </summary>
-    Beginner = 1,
+    Braindead = 1,
 
     /// <summary>
-    /// D2 Easy: Depth 2 with basic lookahead
+    /// D2 Easy: Depth 3-4 with basic lookahead
     /// Understands rules but makes mistakes
+    /// No advanced optimizations, basic move ordering only
     /// </summary>
     Easy = 2,
 
     /// <summary>
-    /// D3 Normal: Depth 3
-    /// Casual player level, basic tactical awareness
+    /// D3 Medium: Depth 5-6
+    /// Club player level with solid tactics
+    /// Pondering enabled for better time utilization
     /// </summary>
-    Normal = 3,
+    Medium = 3,
 
     /// <summary>
-    /// D4 Medium: Depth 4
-    /// Club player developing skills, decent tactics
+    /// D4 Hard: Depth 7-8
+    /// Strong player with deep search
+    /// Pondering + Lazy SMP (parallel search with (N/2)-1 threads)
     /// </summary>
-    Medium = 4,
+    Hard = 4,
 
     /// <summary>
-    /// D5 Hard: Depth 5
-    /// Strong club player, solid tactical play
+    /// D5 Grandmaster: Adaptive depth (9-11 based on position)
+    /// Maximum strength with position-aware depth selection
+    /// Lazy SMP + SIMD + VCF solver (optimized)
+    /// Adapts search depth based on game phase and tactical complexity
     /// </summary>
-    Hard = 5,
-
-    /// <summary>
-    /// D6 Harder: Depth 6
-    /// Experienced player, good pattern recognition
-    /// </summary>
-    Harder = 6,
-
-    /// <summary>
-    /// D7 Very Hard: Depth 7
-    /// Tournament level, deep search with all optimizations
-    /// Uses: PVS, LMR, Quiescence, TT, History, Aspiration Windows
-    /// Parallel search (Lazy SMP) enabled for multi-core speedup
-    /// </summary>
-    VeryHard = 7,
-
-    /// <summary>
-    /// D8 Expert: Depth 8
-    /// High-level club player, very deep search
-    /// Aggressive pruning with SIMD pattern evaluation
-    /// </summary>
-    Expert = 8,
-
-    /// <summary>
-    /// D9 Master: Depth 9
-    /// National master strength
-    /// Full optimization pipeline with extended search
-    /// </summary>
-    Master = 9,
-
-    /// <summary>
-    /// D10 Grandmaster: Depth 10
-    /// International master level, near-maximum depth
-    /// Time-aware iterative deepening with move stability
-    /// </summary>
-    Grandmaster = 10,
-
-    /// <summary>
-    /// D11 Legend: Depth 11+
-    /// World-class level, maximum strength
-    /// Uses all available techniques: parallel search, deep TT, VCF solver
-    /// May extend to depth 12+ in favorable positions with time remaining
-    /// </summary>
-    Legend = 11
+    Grandmaster = 5
 }

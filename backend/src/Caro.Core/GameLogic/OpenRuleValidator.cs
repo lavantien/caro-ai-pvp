@@ -13,8 +13,8 @@ public class OpenRuleValidator
         if (stoneCount != 2)
             return true;
 
-        // Check if position is in 3x3 zone around center (7,7)
-        bool isInRestrictedZone = x >= 6 && x <= 8 && y >= 6 && y <= 8;
+        // Check if position is in 5x5 zone around center (7,7)
+        bool isInRestrictedZone = x >= 5 && x <= 9 && y >= 5 && y <= 9;
 
         return !isInRestrictedZone;
     }
