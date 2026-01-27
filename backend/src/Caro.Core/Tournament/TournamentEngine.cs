@@ -24,7 +24,7 @@ public class MoveValidator
         if (x < 0 || x >= 15 || y < 0 || y >= 15)
             return false;
 
-        // Open Rule: Red's second move (move #3) cannot be in center 3x3
+        // Open Rule: Red's second move (move #3) cannot be in center 3x3 zone (coordinates 6-8)
         if (player == Player.Red && moveNumber == 3)
         {
             if (!_openRuleValidator.IsValidSecondMove(board, x, y))
@@ -67,7 +67,7 @@ public class TournamentEngine
         int maxMoves = 225,
         int initialTimeSeconds = 180,  // 3 minutes per player
         int incrementSeconds = 2,      // +2 seconds per move
-        bool ponderingEnabled = true,   // Enable pondering
+        bool ponderingEnabled = false,   // Disabled: parallel search has bugs
         MoveCallback? onMove = null,    // Callback when a move is played
         BoardCallback? onBoardUpdate = null,  // Callback for board state updates
         LogCallback? onLog = null,      // Callback for structured logging

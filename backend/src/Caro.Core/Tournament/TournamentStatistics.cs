@@ -87,10 +87,11 @@ public class TournamentStatistics
         // Track which bot index to use for each game (distribute games evenly)
         var botIndices = new Dictionary<AIDifficulty, int>
         {
+            { AIDifficulty.Braindead, 0 },
             { AIDifficulty.Easy, 0 },
             { AIDifficulty.Medium, 0 },
             { AIDifficulty.Hard, 0 },
-            { AIDifficulty.Expert, 0 }
+            { AIDifficulty.Grandmaster, 0 }
         };
 
         // Process all games and update ELO for specific bots
