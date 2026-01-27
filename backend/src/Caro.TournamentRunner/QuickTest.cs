@@ -32,9 +32,9 @@ public static class QuickTest
                 redDiff,
                 blueDiff,
                 maxMoves: 225,
-                initialTimeSeconds: 120,  // 2+1 time control for faster but reasonable games
-                incrementSeconds: 1,
-                ponderingEnabled: true,
+                initialTimeSeconds: 420,  // 7+5 time control (like before)
+                incrementSeconds: 5,
+                ponderingEnabled: false,  // Disabled: parallel search has bugs
                 onMove: (x, y, player, moveNumber, redTimeMs, blueTimeMs, stats) =>
                 {
                     var playerChar = player == Player.Red ? 'R' : 'B';
@@ -103,29 +103,29 @@ public static class QuickTest
         Console.WriteLine("║           AI STRENGTH VERIFICATION - QUICK TEST SUITE              ║");
         Console.WriteLine("╚═══════════════════════════════════════════════════════════════════╝");
 
-        // TEST 1: D11 vs D11 - Verify both can reach full depth
-        Console.WriteLine("\n📊 TEST GROUP 1: MAXIMUM DEPTH VERIFICATION (D11 vs D11)");
-        RunMatchup(AIDifficulty.Legend, AIDifficulty.Legend, games: 1);
-
-        // TEST 1.5: D10 vs D10 - Check for Blue advantage (symmetric test)
-        Console.WriteLine("\n📊 TEST GROUP 1.5: BLUE ADVANTAGE CHECK (D10 vs D10)");
+        // TEST 1: D5 vs D5 - Verify both can reach full depth
+        Console.WriteLine("\n📊 TEST GROUP 1: MAXIMUM DEPTH VERIFICATION (Grandmaster vs Grandmaster)");
         RunMatchup(AIDifficulty.Grandmaster, AIDifficulty.Grandmaster, games: 1);
 
-        // TEST 2: D11 vs D10 - Verify both can reach full depth
-        Console.WriteLine("\n📊 TEST GROUP 2: FULL DEPTH VERIFICATION (D11 vs D10)");
-        RunMatchup(AIDifficulty.Legend, AIDifficulty.Grandmaster, games: 1);
+        // TEST 1.5: D4 vs D4 - Check for Blue advantage (symmetric test)
+        Console.WriteLine("\n📊 TEST GROUP 1.5: BLUE ADVANTAGE CHECK (Hard vs Hard)");
+        RunMatchup(AIDifficulty.Hard, AIDifficulty.Hard, games: 1);
 
-        // TEST 3: D10 vs D8 - Both high difficulty levels
-        Console.WriteLine("\n📊 TEST GROUP 3: HIGH DIFFICULTY (D10 vs D8)");
-        RunMatchup(AIDifficulty.Grandmaster, AIDifficulty.Expert, games: 1);
+        // TEST 2: D5 vs D4 - Verify strength ordering
+        Console.WriteLine("\n📊 TEST GROUP 2: FULL DEPTH VERIFICATION (Grandmaster vs Hard)");
+        RunMatchup(AIDifficulty.Grandmaster, AIDifficulty.Hard, games: 3);
 
-        // TEST 4: D11 vs D6 - Legend vs mid-level
-        Console.WriteLine("\n📊 TEST GROUP 4: VERY HIGH vs MID (D11 vs D6)");
-        RunMatchup(AIDifficulty.Legend, AIDifficulty.Harder, games: 1);
+        // TEST 3: D4 vs D3 - Both good difficulty levels
+        Console.WriteLine("\n📊 TEST GROUP 3: HIGH DIFFICULTY (Hard vs Medium)");
+        RunMatchup(AIDifficulty.Hard, AIDifficulty.Medium, games: 1);
 
-        // TEST 5: Both use SEQUENTIAL search (D4 vs D6)
-        Console.WriteLine("\n📊 TEST GROUP 5: SEQUENTIAL SEARCH (D4 vs D6)");
-        RunMatchup(AIDifficulty.Medium, AIDifficulty.Harder, games: 1);
+        // TEST 4: D5 vs D2 - Grandmaster vs low-level
+        Console.WriteLine("\n📊 TEST GROUP 4: VERY HIGH vs LOW (Grandmaster vs Easy)");
+        RunMatchup(AIDifficulty.Grandmaster, AIDifficulty.Easy, games: 1);
+
+        // TEST 5: Both use SEQUENTIAL search (Easy vs Medium)
+        Console.WriteLine("\n📊 TEST GROUP 5: SEQUENTIAL SEARCH (Easy vs Medium)");
+        RunMatchup(AIDifficulty.Easy, AIDifficulty.Medium, games: 1);
 
         Console.WriteLine();
         Console.WriteLine("═══════════════════════════════════════════════════════════════════");

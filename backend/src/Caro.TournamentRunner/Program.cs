@@ -12,6 +12,25 @@ class Program
         var quickTestMode = args.Contains("--test");
         var validateStrengthMode = args.Contains("--validate-strength");
         var quickValidateMode = args.Contains("--quick-validate");
+        var depthProfileMode = args.Contains("--profile-depths");
+        var quickValidationMode = args.Contains("--quick-val");
+
+        // Quick validation mode
+        if (quickValidationMode)
+        {
+            var time = GetArgValue(args, "--time", 180);
+            var inc = GetArgValue(args, "--inc", 2);
+            var games = GetArgValue(args, "--games", 10);
+            await QuickValidationRunner.RunAsync(time, inc, games);
+            return;
+        }
+
+        // Depth profiler mode
+        if (depthProfileMode)
+        {
+            DepthProfiler.Run(args);
+            return;
+        }
 
         // AI Strength Validation mode
         if (validateStrengthMode)
@@ -61,16 +80,16 @@ class Program
         matchups[(AIDifficulty.Easy, AIDifficulty.Easy)] = 10;
         matchups[(AIDifficulty.Easy, AIDifficulty.Medium)] = 20;
         matchups[(AIDifficulty.Easy, AIDifficulty.Hard)] = 20;
-        matchups[(AIDifficulty.Easy, AIDifficulty.Expert)] = 20;
+        matchups[(AIDifficulty.Easy, AIDifficulty.Grandmaster)] = 20;
 
         matchups[(AIDifficulty.Medium, AIDifficulty.Medium)] = 10;
         matchups[(AIDifficulty.Medium, AIDifficulty.Hard)] = 20;
-        matchups[(AIDifficulty.Medium, AIDifficulty.Expert)] = 20;
+        matchups[(AIDifficulty.Medium, AIDifficulty.Grandmaster)] = 20;
 
         matchups[(AIDifficulty.Hard, AIDifficulty.Hard)] = 10;
-        matchups[(AIDifficulty.Hard, AIDifficulty.Expert)] = 20;
+        matchups[(AIDifficulty.Hard, AIDifficulty.Grandmaster)] = 20;
 
-        matchups[(AIDifficulty.Expert, AIDifficulty.Expert)] = 10;
+        matchups[(AIDifficulty.Grandmaster, AIDifficulty.Grandmaster)] = 10;
 
         // Debug: Print all matchups
         Console.WriteLine("DEBUG - Matchups configured:");
@@ -205,6 +224,7 @@ class Program
         Console.WriteLine("  --test              Run quick strength tests (legacy)");
         Console.WriteLine("  --validate-strength Run full AI strength validation suite");
         Console.WriteLine("  --quick-validate    Run quick AI strength validation (10 games/matchup)");
+        Console.WriteLine("  --profile-depths    Profile search depths at different time controls");
         Console.WriteLine("  --auto              Run tournament in auto mode (no prompts)");
         Console.WriteLine();
         Console.WriteLine("Validation options (with --validate-strength):");
@@ -218,5 +238,6 @@ class Program
         Console.WriteLine("  dotnet run -- --validate-strength");
         Console.WriteLine("  dotnet run -- --validate-strength --games 50 --verbose");
         Console.WriteLine("  dotnet run -- --quick-validate");
+        Console.WriteLine("  dotnet run -- --profile-depths");
     }
 }

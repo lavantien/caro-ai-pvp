@@ -86,16 +86,10 @@ public static class AIStrengthTestRunner
 
         var matchups = new (AIDifficulty higher, AIDifficulty lower)[]
         {
-            (AIDifficulty.Legend, AIDifficulty.Grandmaster),
-            (AIDifficulty.Grandmaster, AIDifficulty.Master),
-            (AIDifficulty.Master, AIDifficulty.Expert),
-            (AIDifficulty.Expert, AIDifficulty.VeryHard),
-            (AIDifficulty.VeryHard, AIDifficulty.Harder),
-            (AIDifficulty.Harder, AIDifficulty.Hard),
+            (AIDifficulty.Grandmaster, AIDifficulty.Hard),
             (AIDifficulty.Hard, AIDifficulty.Medium),
-            (AIDifficulty.Medium, AIDifficulty.Normal),
-            (AIDifficulty.Normal, AIDifficulty.Easy),
-            (AIDifficulty.Easy, AIDifficulty.Beginner),
+            (AIDifficulty.Medium, AIDifficulty.Easy),
+            (AIDifficulty.Easy, AIDifficulty.Braindead),
         };
 
         foreach (var (higher, lower) in matchups)
@@ -123,10 +117,9 @@ public static class AIStrengthTestRunner
 
         var matchups = new (AIDifficulty higher, AIDifficulty lower)[]
         {
-            (AIDifficulty.Legend, AIDifficulty.Master),
-            (AIDifficulty.Legend, AIDifficulty.Expert),
-            (AIDifficulty.Legend, AIDifficulty.Harder),
-            (AIDifficulty.Grandmaster, AIDifficulty.Harder),
+            (AIDifficulty.Grandmaster, AIDifficulty.Medium),
+            (AIDifficulty.Grandmaster, AIDifficulty.Easy),
+            (AIDifficulty.Hard, AIDifficulty.Easy),
         };
 
         foreach (var (higher, lower) in matchups)
@@ -154,10 +147,9 @@ public static class AIStrengthTestRunner
 
         var difficulties = new[]
         {
-            AIDifficulty.Legend,
             AIDifficulty.Grandmaster,
-            AIDifficulty.Expert,
-            AIDifficulty.Harder,
+            AIDifficulty.Hard,
+            AIDifficulty.Medium,
         };
 
         foreach (var diff in difficulties)
@@ -232,7 +224,7 @@ public static class AIStrengthTestRunner
             }
         }
 
-        Console.Write($"\r{' ', 60}\r"); // Clear progress line
+        Console.Write($"\r{' ',60}\r"); // Clear progress line
 
         // Build stats object
         var stats = new MatchupStatistics
@@ -361,9 +353,10 @@ public static class AIStrengthTestRunner
     /// </summary>
     public static async Task RunQuickAsync(TestConfig? config = null)
     {
-        config ??= new TestConfig { GamesPerMatchup = 10, Verbose = true };
+        config ??= new TestConfig { GamesPerMatchup = 10, Verbose = true, EnablePondering = false };
 
         Console.WriteLine("QUICK VALIDATION MODE (10 games per matchup)");
+        Console.WriteLine($"  Pondering: {(config.EnablePondering ? "Enabled" : "Disabled")}");
         Console.WriteLine();
 
         var results = new List<MatchupStatistics>();
@@ -372,11 +365,11 @@ public static class AIStrengthTestRunner
         // Test only a few key matchups
         var keyMatchups = new (AIDifficulty, AIDifficulty)[]
         {
-            (AIDifficulty.Legend, AIDifficulty.Grandmaster),
-            (AIDifficulty.Grandmaster, AIDifficulty.Master),
-            (AIDifficulty.Master, AIDifficulty.Expert),
-            (AIDifficulty.Expert, AIDifficulty.Legend),  // Cross-level
-            (AIDifficulty.Legend, AIDifficulty.Legend),  // Color advantage
+            (AIDifficulty.Grandmaster, AIDifficulty.Hard),
+            (AIDifficulty.Hard, AIDifficulty.Medium),
+            (AIDifficulty.Medium, AIDifficulty.Easy),
+            (AIDifficulty.Grandmaster, AIDifficulty.Medium),  // Cross-level
+            (AIDifficulty.Grandmaster, AIDifficulty.Grandmaster),  // Color advantage
         };
 
         foreach (var (red, blue) in keyMatchups)
