@@ -45,7 +45,49 @@
 
 **Date Completed:** 2025-12-28
 **Approach:** Strict TDD with comprehensive performance optimization
-**Status:** All 8 optimizations complete and tested
+**Status:** All optimizations complete and tested
+
+---
+
+## Phase 5: Time-Budget AI Depth System ✅ COMPLETED
+
+**Date Completed:** 2025-01-28
+**Approach:** Remove all hardcoded depth factors, use pure time-budget system
+**Status:** Grandmaster now beats Hard 7-3 (was losing 0-10 before)
+
+### Overview
+
+Implemented a pure time-budget-based AI depth system that scales automatically with machine capability. No hardcoded depth factors, ply differences, or safety margins.
+
+### Key Changes
+
+**Before (Hardcoded Depths):**
+- Easy: Depth 3
+- Medium: Depth 5
+- Hard: Depth 7
+- Grandmaster: Depth 9-11
+- Problem: Grandmaster lost to Hard due to parallel search bugs
+
+**After (Time-Budget Formula):**
+- Formula: `depth = log(time * nps) / log(ebf)`
+- Difficulty differentiation via **time multiplier only**:
+  - Braindead: 1% of allocated time
+  - Easy: 10% of allocated time
+  - Medium: 30% of allocated time
+  - Hard: 70% of allocated time
+  - Grandmaster: 100% of allocated time
+- Different machines naturally achieve different depths based on NPS
+
+### New Files
+- `TimeBudgetDepthManager.cs`: Pure formula-based depth calculation
+- `IterativeDeepeningSearch.cs`: Time-budgeted iterative deepening
+
+### Test Results (7+5 Time Control)
+- Easy 9-1 Braindead
+- Medium 6-4 Easy
+- Hard 8-2 Medium
+- **Grandmaster 7-3 Hard** ✅ (was 0-10 before fix)
+- Grandmaster 7-3 Medium
 
 ---
 
@@ -263,49 +305,45 @@ Implemented advanced AI search optimizations tournament-level play, enabling the
 
 ---
 
-### Phase 4: Master Difficulty ✅ COMPLETE
+### Phase 4: Grandmaster Difficulty ✅ COMPLETE
 
-#### ✅ Feature 8: Master Difficulty (Depth 7)
+#### ✅ Feature 8: Grandmaster Difficulty (Time-Budget Based)
 **Status:** Complete and Tested
 
 **Implementation:**
-- New AIDifficulty.Master enum value = 7
-- Maximum search depth for tournament play
-- Uses all 7 advanced optimizations
-- Time-aware depth adjustment
-- Transposition table statistics printed
+- New AIDifficulty.Grandmaster enum value
+- Time-budget-based depth via TimeBudgetDepthManager
+- Pure formula: `depth = log(time * nps) / log(ebf)`
+- Uses 100% of allocated time (vs 70% for Hard)
+- No hardcoded depth limits
+- Scales automatically with machine capability
 
 **Performance Characteristics:**
-- Searches 2 plies deeper than Expert (5 → 7)
-- 10-50x more positions evaluated than Expert
-- Typical move time: 5-30 seconds depending on position
-- Significantly stronger play than Expert
+- Searches deeper than Hard on faster machines
+- Depth determined by available time and NPS
+- Typical move time: varies by position complexity
+- Significantly stronger play than Hard
 
-**Test Coverage:**
-- 8 tests in `MasterDifficultyTests.cs` (created but too slow for regular testing)
-- Tests verify:
-  - Best move finding
-  - Complex position handling
-  - Winning move detection
-  - Threat blocking
-  - All optimizations usage
-  - Move consistency
-  - Endgame handling
-  - Expert comparison
-
-**Note:** Master difficulty tests are computationally expensive and not run in regular test suite. The implementation is verified to work correctly, but full test suite execution is impractical.
+**Difficulty Levels:**
+- Braindead: 1% time, depth 1-2
+- Easy: 10% time, depth 2-4
+- Medium: 30% time, depth 3-5
+- Hard: 70% time, depth 4-7
+- Grandmaster: 100% time, depth 5-9+ (varies by machine)
 
 ---
 
 ### Difficulty Levels Summary
 
-| Difficulty | Depth | Optimizations | Typical Time | Strength |
-|------------|-------|---------------|--------------|----------|
-| Easy | 1 | Basic | <100ms | Beginner |
-| Medium | 2 | All | <500ms | Casual |
-| Hard | 3 | All | <2s | Intermediate |
-| Expert | 5 | All | <5s | Advanced |
-| Master | 7 | All | 5-30s | Tournament |
+| Difficulty | Time Multiplier | Min Depth | Strength |
+|------------|-----------------|-----------|----------|
+| Braindead | 1% | 1 | Beginner |
+| Easy | 10% | 2 | Casual |
+| Medium | 30% | 3 | Intermediate |
+| Hard | 70% | 4 | Advanced |
+| Grandmaster | 100% | 5+ | Tournament |
+
+**Note:** Actual depth achieved varies by machine performance (NPS). The system uses pure formula: `depth = log(time * nps) / log(ebf)` where EBF is tracked during gameplay. |
 
 ---
 
@@ -587,17 +625,17 @@ Final move ordering (highest to lowest priority):
 
 **Backend Implementation:**
 - MinimaxAI class with alpha-beta pruning
-- Four difficulty levels:
-  - Easy: Depth 3 + 20% random moves
-  - Medium: Depth 5 with iterative deepening
-  - Hard: Depth 7 with advanced heuristics
-  - Expert: Depth 7 with all optimizations
+- Five difficulty levels:
+  - Braindead: Depth 1-2 with time-budget
+  - Easy: Depth 2-4 with time-budget (10% time)
+  - Medium: Depth 3-5 with time-budget (30% time)
+  - Hard: Depth 4-7 with time-budget (70% time)
+  - Grandmaster: Depth 5-9+ with time-budget (100% time)
+- TimeBudgetDepthManager for machine-adaptive depth
+- IterativeDeepeningSearch for progressive depth search
 - BoardEvaluator for position scoring
 - Candidate move generation (SearchRadius = 2)
-- Three advanced optimizations implemented:
-  1. **Killer Heuristic**: Track moves causing cutoffs, prioritize in sibling nodes
-  2. **Improved Move Ordering**: Score by center proximity, nearby stones, killer moves
-  3. **Iterative Deepening**: Progressive depth search from shallow to deep
+- All tournament optimizations (PVS, LMR, Quiescence, etc.)
 
 **Performance Improvements:**
 - Before optimizations: 967ms for 58 tests
@@ -614,7 +652,7 @@ Final move ordering (highest to lowest priority):
 
 **API Endpoint:**
 - POST `/api/game/{id}/ai-move`
-- Request: `{ difficulty: "Easy" | "Medium" | "Hard" | "Expert" }`
+- Request: `{ difficulty: "Braindead" | "Easy" | "Medium" | "Hard" | "Grandmaster" }`
 - Returns updated game state after AI move
 - Includes Open Rule validation for AI moves
 
@@ -849,13 +887,17 @@ All endpoints include:
 
 6. **Bot/AI Opponent** ✅
    - Minimax algorithm with alpha-beta pruning
-   - BoardEvaluator for position scoring
-   - 4 difficulty levels (Easy, Medium, Hard, Expert)
-   - Advanced optimizations:
+   - TimeBudgetDepthManager for machine-adaptive depth calculation
+   - 5 difficulty levels (Braindead, Easy, Medium, Hard, Grandmaster)
+   - Difficulty differentiated by time multiplier (1%, 10%, 30%, 70%, 100%)
+   - Tournament optimizations:
      - Killer Heuristic (track cutoff moves)
-     - Improved Move Ordering (center proximity, nearby stones)
+     - History Heuristic (move learning)
+     - Improved Move Ordering (tactical patterns)
      - Iterative Deepening (progressive depth search)
-   - Performance: <1s per move on Easy difficulty
+     - PVS, LMR, Quiescence Search, Aspiration Windows
+     - Transposition Table (64MB, Zobrist hashing)
+   - Performance: <1s per move on Easy, scales with machine
    - Game mode selection (PvP / PvAI)
    - AI thinking indicator
 

@@ -92,11 +92,12 @@ Enhance the Caro game prototype with quality-of-life improvements and advanced f
 
 ### F. Bot/AI Opponent
 - [ ] Single-player mode selection (vs Human / vs Bot)
-- [ ] Four difficulty levels:
-  - **Easy**: Random valid moves
-  - **Medium**: Minimax depth 3 with basic evaluation
-  - **Hard**: Minimax depth 5 + position scoring
-  - **Expert**: Minimax depth 7 + advanced evaluation
+- [ ] Five difficulty levels:
+  - **Braindead**: Random valid moves, minimal thinking
+  - **Easy**: Time-budgeted search (10% of time), depth 2-4
+  - **Medium**: Time-budgeted search (30% of time), depth 3-5
+  - **Hard**: Time-budgeted search (70% of time), depth 4-7
+  - **Grandmaster**: Time-budgeted search (100% of time), depth 5-9+
 - [ ] Bot respects Open Rule (enforced on move 3)
 - [ ] No artificial delay (instant move for better UX)
 - [ ] Bot plays as designated color (default: Blue)
@@ -105,11 +106,12 @@ Enhance the Caro game prototype with quality-of-life improvements and advanced f
   - Open vs closed ends
   - Center control (7,7 is valuable)
   - Blocking opponent's winning threats
+- [ ] Depth scales automatically with machine performance (time-budget formula)
 - [ ] Unit tests for minimax algorithm (known positions)
 - [ ] Unit tests for evaluation function
 - [ ] Integration test for bot API endpoint
 - [ ] E2E test for complete game vs bot (each difficulty)
-- [ ] Performance: Hard/Expert responds within 10s on 15x15 board
+- [ ] Performance: Grandmaster responds within time control (7+5 format)
 
 ---
 
@@ -272,10 +274,11 @@ npx playwright test
 
 2. **ELO vs bots**: Should playing vs bot affect ELO?
    - **Decision**: Yes, ELO applies to bot games with difficulty multipliers
+   - **Braindead**: 0.1x multiplier (minimal risk/reward)
    - **Easy**: 0.5x multiplier (lower risk/reward)
    - **Medium**: 1.0x multiplier (standard)
    - **Hard**: 1.5x multiplier (higher risk/reward)
-   - **Expert**: 2.0x multiplier (maximum risk/reward)
+   - **Grandmaster**: 2.0x multiplier (maximum risk/reward)
 
 3. **Undo limit**: Should we limit undo attempts (e.g., max 3 per game)?
    - **Decision**: No limit, can undo to start of game
