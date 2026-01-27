@@ -30,6 +30,15 @@ public static class AdaptiveDepthCalculator
     /// Calculate adaptive depth for Grandmaster level based on position complexity
     /// Analyzes stone count, threat count, and game phase to determine optimal depth
     /// </summary>
+    /// <summary>
+    /// Calculate adaptive depth for Grandmaster level based on position complexity
+    /// Analyzes stone count, threat count, and game phase to determine optimal depth
+    ///
+    /// CRITICAL: Depth must be sustainable within time control!
+    /// - 7+5 time control can support depth 7-8 consistently
+    /// - Depth 9+ causes time exhaustion in midgame (move 25-40)
+    /// - Maintain 1-ply advantage over Hard (depth 7)
+    /// </summary>
     private static int GetAdaptiveDepth(Board board)
     {
         // Count total stones on board
@@ -44,34 +53,35 @@ public static class AdaptiveDepthCalculator
         bool isEndgame = stoneCount >= 100;
 
         // Adaptive depth selection based on position characteristics
+        // Reduced from 9-11 to 7-8 to avoid time exhaustion in 3+2 and 7+5 time controls
         if (isOpening)
         {
             // Opening: Use moderate depth, positions are less tactical
             // But we need to see tactics early, so still search reasonably deep
-            return 9;
+            return 7;
         }
 
         if (threatCount > 5)
         {
             // High tactical complexity: Search deeper to find forcing sequences
             // This covers positions with multiple threats from either player
-            return 11;
+            return 8;
         }
 
         if (isEndgame)
         {
             // Endgame: Precision matters, search deep
-            return 10;
+            return 8;
         }
 
         if (isMiddlegame)
         {
             // Middlegame: Standard depth for balanced positions
-            return 10;
+            return 7;
         }
 
         // Default fallback
-        return 10;
+        return 7;
     }
 
     /// <summary>

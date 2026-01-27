@@ -14,6 +14,17 @@ class Program
         var quickValidateMode = args.Contains("--quick-validate");
         var depthProfileMode = args.Contains("--profile-depths");
         var quickValidationMode = args.Contains("--quick-val");
+        var baselineMode = args.Contains("--baseline");
+
+        // Baseline mode: Comprehensive test with all difficulties
+        if (baselineMode)
+        {
+            var time = GetArgValue(args, "--time", 420);  // Default 7+5
+            var inc = GetArgValue(args, "--inc", 5);
+            var games = GetArgValue(args, "--games", 10);
+            await BaselineRunner.RunAsync(time, inc, games);
+            return;
+        }
 
         // Quick validation mode
         if (quickValidationMode)
@@ -221,23 +232,22 @@ class Program
         Console.WriteLine("Caro AI Tournament Runner - Usage:");
         Console.WriteLine();
         Console.WriteLine("Options:");
+        Console.WriteLine("  --baseline          Run comprehensive baseline (all difficulties, detailed log)");
         Console.WriteLine("  --test              Run quick strength tests (legacy)");
         Console.WriteLine("  --validate-strength Run full AI strength validation suite");
         Console.WriteLine("  --quick-validate    Run quick AI strength validation (10 games/matchup)");
         Console.WriteLine("  --profile-depths    Profile search depths at different time controls");
         Console.WriteLine("  --auto              Run tournament in auto mode (no prompts)");
         Console.WriteLine();
-        Console.WriteLine("Validation options (with --validate-strength):");
-        Console.WriteLine("  --games <n>         Number of games per matchup (default: 25)");
-        Console.WriteLine("  --time <n>          Initial time in seconds (default: 120)");
-        Console.WriteLine("  --inc <n>           Increment time in seconds (default: 1)");
-        Console.WriteLine("  --no-pondering      Disable pondering");
-        Console.WriteLine("  --verbose           Show detailed progress");
+        Console.WriteLine("Validation options (with --baseline, --quick-val, or --validate-strength):");
+        Console.WriteLine("  --games <n>         Number of games per matchup (default: 10)");
+        Console.WriteLine("  --time <n>          Initial time in seconds (default: 420 for baseline)");
+        Console.WriteLine("  --inc <n>           Increment time in seconds (default: 5 for baseline)");
         Console.WriteLine();
         Console.WriteLine("Examples:");
+        Console.WriteLine("  dotnet run -- --baseline");
+        Console.WriteLine("  dotnet run -- --baseline --games 5 --time 180 --inc 2");
         Console.WriteLine("  dotnet run -- --validate-strength");
-        Console.WriteLine("  dotnet run -- --validate-strength --games 50 --verbose");
         Console.WriteLine("  dotnet run -- --quick-validate");
-        Console.WriteLine("  dotnet run -- --profile-depths");
     }
 }

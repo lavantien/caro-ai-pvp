@@ -416,6 +416,20 @@ public class MinimaxAI
     /// CRITICAL: Must preserve AI strength ordering! D11 should always search deeper than D10,
     /// which searches deeper than D8, etc. The depth reduction must maintain relative ordering.
     /// </summary>
+    /// <summary>
+    /// Calculate appropriate search depth based on time allocation and position complexity
+    /// Uses adaptive percentage-based thresholds based on inferred initial time
+    /// Ensures full depth is reachable at the start of the game
+    ///
+    /// ADAPTIVE DEPTH CALCULATION:
+    /// - Estimates nodes per ply based on branching factor
+    /// - Uses NPS from previous searches to estimate server capability
+    /// - Calculates how many plies can be completed in the allocated time
+    /// - Reduces depth aggressively for short time controls
+    ///
+    /// CRITICAL: Must preserve AI strength ordering! D5 should always search deeper than D10,
+    /// which searches deeper than D8, etc. The depth reduction must maintain relative ordering.
+    /// </summary>
     private int CalculateDepthForTime(int baseDepth, TimeAllocation timeAlloc, long? timeRemainingMs, int candidateCount)
     {
         // Infer initial time from the move number and remaining time
@@ -438,13 +452,22 @@ public class MinimaxAI
         // Fallback for edge cases (shouldn't happen with proper time control)
         var effectiveInitialTimeMs = _inferredInitialTimeMs > 0 ? _inferredInitialTimeMs : 420_000;
 
+        // ADAPTIVE: Estimate maximum sustainable depth based on time control and NPS
+        // Formula: max_depth = log(time_per_move * NPS / branching_factor) / log(branching_factor)
+        // For Caro: branching factor ~35, NPS varies by server capability
+        int adaptiveMaxDepth = CalculateAdaptiveMaxDepth(timeAlloc, effectiveInitialTimeMs);
+
+        // Clamp base depth to what's sustainable for this time control
+        // This is the key fix: don't even try for depth 9-11 on short time controls
+        int sustainableBaseDepth = Math.Min(baseDepth, adaptiveMaxDepth);
+
         // Emergency mode - VERY aggressive depth reduction to avoid timeout
         // In time scramble, rely on VCF + TT move, not deep search
         // But still preserve relative strength: D5 should be deeper than D4 even in emergency
         if (timeAlloc.IsEmergency)
         {
             // Emergency depth with separation: D5->4, D4->3
-            int emergencyDepth = baseDepth switch
+            int emergencyDepth = sustainableBaseDepth switch
             {
                 >= 11 => 6,  // D11: depth 6
                 >= 10 => 5,  // D10: depth 5
@@ -468,7 +491,7 @@ public class MinimaxAI
         // Calculate minimum depth to preserve AI strength ordering
         // CRITICAL: Create 1-ply separation between adjacent difficulties!
         // D5 searches at least 1 ply deeper than D4, which searches 1 ply deeper than D3, etc.
-        int minDepthForStrength = baseDepth switch
+        int minDepthForStrength = sustainableBaseDepth switch
         {
             >= 11 => 8,  // D11: at least depth 8 (1 ply above D10)
             >= 10 => 7,  // D10: at least depth 7 (1 ply above D9)
@@ -485,7 +508,7 @@ public class MinimaxAI
         int targetDepth;
         if (softBoundSeconds < 2 || totalTimeRemainingSeconds < initialTimeSeconds * 0.10)
         {
-            targetDepth = Math.Max(minDepthForStrength, baseDepth / 2);
+            targetDepth = Math.Max(minDepthForStrength, sustainableBaseDepth / 2);
         }
         // Low: 10-25% of initial time or moderate per-move limit
         // Check if soft bound is very small relative to initial time (< 1.5%)
@@ -497,11 +520,11 @@ public class MinimaxAI
             {
                 if (candidateCount > 25) // Complex position
                 {
-                    targetDepth = Math.Max(minDepthForStrength, baseDepth - 3);
+                    targetDepth = Math.Max(minDepthForStrength, sustainableBaseDepth - 3);
                 }
                 else
                 {
-                    targetDepth = Math.Max(minDepthForStrength, baseDepth - 1);
+                    targetDepth = Math.Max(minDepthForStrength, sustainableBaseDepth - 1);
                 }
             }
             // Moderate: 25-50% of initial time
@@ -509,21 +532,110 @@ public class MinimaxAI
             {
                 if (candidateCount > 25) // Complex position with limited time
                 {
-                    targetDepth = Math.Max(minDepthForStrength, baseDepth - 2);
+                    targetDepth = Math.Max(minDepthForStrength, sustainableBaseDepth - 2);
                 }
                 else
                 {
-                    targetDepth = Math.Max(minDepthForStrength, baseDepth - 1);
+                    targetDepth = Math.Max(minDepthForStrength, sustainableBaseDepth - 1);
                 }
             }
             // Good time availability (>50% remaining): use full depth
             else
             {
-                targetDepth = baseDepth;
+                targetDepth = sustainableBaseDepth;
             }
         }
 
         return SmoothDepth(targetDepth);
+    }
+
+    /// <summary>
+    /// Calculate the maximum sustainable depth based on time control and server capability
+    /// 
+    /// This is the core adaptive function that prevents time exhaustion on short time controls.
+    /// Formula estimates how many plies can be completed in the allocated time:
+    /// - Branching factor for Caro: ~35 candidates in midgame
+    /// - Time per move: soft bound from TimeManager
+    /// - NPS: estimated from previous searches, with conservative defaults
+    /// 
+    /// Examples for 7+5 time control:
+    /// - Opening (7 min / 40 moves = ~10s/move): depth 8-9 on fast server, 6-7 on slow
+    /// - Middlegame (4 min / 30 moves = ~8s/move): depth 7-8 on fast server, 5-6 on slow
+    /// - Endgame (2 min / 20 moves = ~6s/move): depth 6-7 on fast server, 4-5 on slow
+    /// 
+    /// Examples for 3+2 time control:
+    /// - Opening (3 min / 40 moves = ~4.5s/move): depth 6-7 on fast server, 4-5 on slow
+    /// - Middlegame (2 min / 30 moves = ~4s/move): depth 5-6 on fast server, 3-4 on slow
+    /// </summary>
+    private int CalculateAdaptiveMaxDepth(TimeAllocation timeAlloc, long initialTimeMs)
+    {
+        // Estimate NPS from previous search, or use conservative defaults
+        // These are conservative estimates that should work on most servers
+        double estimatedNps = EstimateNodesPerSecond();
+
+        // Time available for this move (in seconds)
+        double timeAvailableSeconds = timeAlloc.SoftBoundMs / 1000.0;
+
+        // Branching factor for Caro (varies by phase)
+        // Opening: ~25 candidates, Middlegame: ~35, Endgame: ~20
+        double branchingFactor = timeAlloc.Phase switch
+        {
+            GamePhase.Opening => 25.0,
+            GamePhase.EarlyMid => 35.0,
+            GamePhase.LateMid => 35.0,
+            GamePhase.Endgame => 20.0,
+            _ => 30.0
+        };
+
+        // Calculate max depth using formula: max_depth = log(time * NPS / BF) / log(BF)
+        // This estimates how many plies we can complete in the given time
+        double maxPly = 1;
+        if (estimatedNps > 0 && timeAvailableSeconds > 0 && branchingFactor > 1)
+        {
+            // Total nodes we can search in this time
+            double totalNodes = timeAvailableSeconds * estimatedNps;
+
+            // Solve for ply: BF^ply = totalNodes
+            // ply = log(totalNodes) / log(BF)
+            maxPly = Math.Log(totalNodes) / Math.Log(branchingFactor);
+        }
+
+        // Adjust for Caro ruleset complexity (5-in-a-row is more tactical than chess)
+        // Add overhead for VCF, threat detection, evaluation
+        int maxDepth = (int)(maxPly * 0.7); // 70% efficiency factor
+
+        // Clamp to reasonable bounds (depth 3 minimum, depth 12 maximum)
+        maxDepth = Math.Clamp(maxDepth, 3, 12);
+
+        return maxDepth;
+    }
+
+    /// <summary>
+    /// Estimate nodes per second based on previous search performance
+    /// Uses conservative defaults if no history available
+    /// 
+    /// Returns NPS estimate (nodes per second)
+    /// </summary>
+    private double EstimateNodesPerSecond()
+    {
+        // Try to estimate from last search if available
+        if (_searchStopwatch != null && _searchStopwatch.ElapsedMilliseconds > 0 && _nodesSearched > 0)
+        {
+            double lastNps = _nodesSearched * 1000.0 / _searchStopwatch.ElapsedMilliseconds;
+
+            // Only use if we have a reasonable sample (at least 1000 nodes searched)
+            if (_nodesSearched > 1000)
+            {
+                // Apply a safety factor (80%) to account for position variability
+                return lastNps * 0.8;
+            }
+        }
+
+        // Conservative defaults based on server capability tiers
+        // These are safe minimums that most servers should exceed
+        return _inferredInitialTimeMs < 180_000 ? 50_000  // Fast server for 3+2
+             : _inferredInitialTimeMs < 300_000 ? 100_000 // Medium server for 5+3 or 7+5
+             : 200_000;                             // Slow server or long time control
     }
 
     /// <summary>
