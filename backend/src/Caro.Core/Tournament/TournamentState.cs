@@ -157,7 +157,15 @@ public record MoveStats(
     double TableHitRate,
     bool PonderingActive,
     int VCFDepthAchieved,
-    long VCFNodesSearched
+    long VCFNodesSearched,
+    int ThreadCount,
+    string? ParallelDiagnostics = null,
+    long MoveTimeMs = 0,
+    double MasterTTPercent = 0,     // % of TT reads from master thread
+    double HelperAvgDepth = 0,      // Average depth achieved by helper threads
+    long AllocatedTimeMs = 0,       // Time allocated for this move
+    long PonderNodesSearched = 0,   // Nodes searched during pondering (opponent's turn)
+    double PonderNodesPerSecond = 0 // NPS during pondering
 );
 
 /// <summary>
