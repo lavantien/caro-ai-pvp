@@ -126,7 +126,7 @@ public sealed class LockFreeTranspositionTable
         {
             // Different position - check deep replacement criteria
             sbyte depthDiff = (sbyte)(depth - existing.Depth);
-            
+
             // MASTER PRIORITY: Protect master entries from helper overwrites
             if (existing.ThreadIndex == 0 && threadIndex > 0)
             {
