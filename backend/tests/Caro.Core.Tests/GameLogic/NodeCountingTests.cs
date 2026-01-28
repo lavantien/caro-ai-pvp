@@ -29,7 +29,7 @@ public class NodeCountingTests
         {
             board.PlaceStone(6 + i, 6, Player.Red);
             var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard); // D4 uses parallel search
-            var (_, nodesSearched, _, _, _, _, _) = ai.GetSearchStatistics();
+            var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
             results.Add(nodesSearched);
         }
 
@@ -54,7 +54,7 @@ public class NodeCountingTests
 
         var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Easy);
 
-        var (_, nodesSearched, _, _, _, _, _) = ai.GetSearchStatistics();
+        var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // Should have searched actual nodes
         Assert.True(nodesSearched > 0, $"Sequential search should count nodes, got {nodesSearched}");
@@ -75,7 +75,7 @@ public class NodeCountingTests
 
         var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
 
-        var (_, nodesSearched, _, _, _, _, _) = ai.GetSearchStatistics();
+        var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // Node count should be reasonable (not a mathematical constant like 1,739,501,775)
         // Real counts vary, but shouldn't be exact round numbers from estimation
@@ -98,13 +98,13 @@ public class NodeCountingTests
         board.PlaceStone(7, 8, Player.Blue);
 
         var (x1, y1) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
-        var (_, nodes1, _, _, _, _, _) = ai.GetSearchStatistics();
+        var (_, nodes1, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // Clear AI state for second search
         ai.ClearAllState();
 
         var (x2, y2) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
-        var (_, nodes2, _, _, _, _, _) = ai.GetSearchStatistics();
+        var (_, nodes2, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // Both should have positive node counts
         Assert.True(nodes1 > 0);
@@ -128,12 +128,12 @@ public class NodeCountingTests
         board.PlaceStone(7, 8, Player.Blue);
 
         var (x1, y1) = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
-        var (_, nodesLow, _, _, _, _, _) = ai.GetSearchStatistics();
+        var (_, nodesLow, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
 
         ai.ClearAllState();
 
         var (x2, y2) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
-        var (_, nodesHigh, _, _, _, _, _) = ai.GetSearchStatistics();
+        var (_, nodesHigh, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // Higher depth should search more nodes (generally)
         // Due to timing differences, this is a soft check
@@ -161,7 +161,7 @@ public class NodeCountingTests
 
         var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);
 
-        var (_, nodesSearched, _, _, _, _, _) = ai.GetSearchStatistics();
+        var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // All difficulties should report positive node counts
         Assert.True(nodesSearched > 0,
@@ -186,11 +186,11 @@ public class NodeCountingTests
 
         ai.ClearAllState();
         var (x1, y1) = ai.GetBestMove(board1, Player.Blue, AIDifficulty.Hard);
-        var (_, nodes1, _, _, _, _, _) = ai.GetSearchStatistics();
+        var (_, nodes1, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
 
         ai.ClearAllState();
         var (x2, y2) = ai.GetBestMove(board2, Player.Blue, AIDifficulty.Hard);
-        var (_, nodes2, _, _, _, _, _) = ai.GetSearchStatistics();
+        var (_, nodes2, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // Node counts should be different for different board states
         // (the bug was they were identical at 1,739,501,775)

@@ -71,8 +71,8 @@ public class SimdPrecisionDebug
                 var blueBoard = testBoard.GetBitBoard(Player.Blue);
 
                 // Check Red's score components
-                var (p0, p1, p2, p3) = redBoard.GetRawValues();
-                var (b0, b1, b2, b3) = blueBoard.GetRawValues();
+                var (p0, p1, p2, p3, p4, p5) = redBoard.GetRawValues();
+                var (b0, b1, b2, b3, b4, b5) = blueBoard.GetRawValues();
 
                 // Check open threes - 1000 * 2.2 = 2200
                 _output.WriteLine($"\n  Checking for open threes (1000 * 2.2 = 2200):");

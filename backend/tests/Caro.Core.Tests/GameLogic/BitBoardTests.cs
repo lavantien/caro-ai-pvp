@@ -329,8 +329,8 @@ public class BitBoardTests
         board.SetBit(14, 14);
 
         // Act
-        var (b0, b1, b2, b3) = board.GetRawValues();
-        var newBoard = BitBoard.FromRawValues(b0, b1, b2, b3);
+        var (b0, b1, b2, b3, b4, b5) = board.GetRawValues();
+        var newBoard = BitBoard.FromRawValues(b0, b1, b2, b3, b4, b5);
 
         // Assert
         newBoard.GetBit(0, 0).Should().BeTrue();
