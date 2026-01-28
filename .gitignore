@@ -20,4 +20,5 @@ backend/src/Caro.Diagnostic/
 
 # Test configuration and scripts
 backend/test_config.txt
-backend/test_diagnostic.csx
+backend/test_diagnostic.txt
+**/test_output.txt

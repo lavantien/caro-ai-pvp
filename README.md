@@ -72,7 +72,7 @@ Advanced Features:
 
 Difficulty Levels (D1-D5):
 
-- D1 Braindead: Depth 1-2 with 50% error rate. Suitable for complete beginners.
+- D1 Braindead: Depth 1-2 with 20% error rate. Suitable for complete beginners.
 - D2 Easy: Depth 3-4 with basic lookahead. No advanced optimizations.
 - D3 Medium: Depth 5-6. Sequential search with pondering enabled.
 - D4 Hard: Depth 7-8. Lazy SMP parallel search with (N/2)-1 threads, pondering enabled.
