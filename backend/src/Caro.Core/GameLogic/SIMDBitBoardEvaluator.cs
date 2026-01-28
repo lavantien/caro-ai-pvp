@@ -60,18 +60,18 @@ public static class SIMDBitBoardEvaluator
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int EvaluateOptimized(BitBoard playerBoard, BitBoard opponentBoard)
     {
-        var (p0, p1, p2, p3) = playerBoard.GetRawValues();
-        var (o0, o1, o2, o3) = opponentBoard.GetRawValues();
+        var (p0, p1, p2, p3, p4, p5) = playerBoard.GetRawValues();
+        var (o0, o1, o2, o3, o4, o5) = opponentBoard.GetRawValues();
         var occupied = playerBoard | opponentBoard;
-        var (occ0, occ1, occ2, occ3) = occupied.GetRawValues();
+        var (occ0, occ1, occ2, occ3, occ4, occ5) = occupied.GetRawValues();
 
         var score = 0;
 
         // Evaluate all directions using optimized shift-based detection
-        score += EvaluateHorizontalOptimized(p0, p1, p2, p3, occ0, occ1, occ2, occ3);
-        score += EvaluateVerticalOptimized(p0, p1, p2, p3, occ0, occ1, occ2, occ3);
-        score += EvaluateDiagonalOptimized(p0, p1, p2, p3, occ0, occ1, occ2, occ3, true);  // Main diagonal
-        score += EvaluateDiagonalOptimized(p0, p1, p2, p3, occ0, occ1, occ2, occ3, false); // Anti-diagonal
+        score += EvaluateHorizontalOptimized(p0, p1, p2, p3, p4, p5, occ0, occ1, occ2, occ3, occ4, occ5);
+        score += EvaluateVerticalOptimized(p0, p1, p2, p3, p4, p5, occ0, occ1, occ2, occ3, occ4, occ5);
+        score += EvaluateDiagonalOptimized(p0, p1, p2, p3, p4, p5, occ0, occ1, occ2, occ3, occ4, occ5, true);  // Main diagonal
+        score += EvaluateDiagonalOptimized(p0, p1, p2, p3, p4, p5, occ0, occ1, occ2, occ3, occ4, occ5, false); // Anti-diagonal
 
         // Subtract opponent's score with DefenseMultiplier (asymmetric scoring)
         // In Caro, blocking opponent threats is MORE important than creating your own attacks
@@ -80,10 +80,10 @@ public static class SIMDBitBoardEvaluator
         const int DefenseMultiplierNumer = 3;
         const int DefenseMultiplierDenom = 2;
 
-        var oppHorizontal = EvaluateHorizontalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3);
-        var oppVertical = EvaluateVerticalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3);
-        var oppDiagMain = EvaluateDiagonalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3, true);
-        var oppDiagAnti = EvaluateDiagonalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3, false);
+        var oppHorizontal = EvaluateHorizontalOptimized(o0, o1, o2, o3, o4, o5, occ0, occ1, occ2, occ3, occ4, occ5);
+        var oppVertical = EvaluateVerticalOptimized(o0, o1, o2, o3, o4, o5, occ0, occ1, occ2, occ3, occ4, occ5);
+        var oppDiagMain = EvaluateDiagonalOptimized(o0, o1, o2, o3, o4, o5, occ0, occ1, occ2, occ3, occ4, occ5, true);
+        var oppDiagAnti = EvaluateDiagonalOptimized(o0, o1, o2, o3, o4, o5, occ0, occ1, occ2, occ3, occ4, occ5, false);
 
         // Use integer math: opp * 11 / 5 for consistent results
         score -= (oppHorizontal * DefenseMultiplierNumer) / DefenseMultiplierDenom;
@@ -92,7 +92,7 @@ public static class SIMDBitBoardEvaluator
         score -= (oppDiagAnti * DefenseMultiplierNumer) / DefenseMultiplierDenom;
 
         // Add center control bonus
-        score += EvaluateCenterControlOptimized(p0, p1, p2, p3);
+        score += EvaluateCenterControlOptimized(p0, p1, p2, p3, p4, p5);
 
         return score;
     }
@@ -103,22 +103,22 @@ public static class SIMDBitBoardEvaluator
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int EvaluateHorizontalOptimized(
-        ulong p0, ulong p1, ulong p2, ulong p3,
-        ulong occ0, ulong occ1, ulong occ2, ulong occ3)
+        ulong p0, ulong p1, ulong p2, ulong p3, ulong p4, ulong p5,
+        ulong occ0, ulong occ1, ulong occ2, ulong occ3, ulong occ4, ulong occ5)
     {
         // Reconstruct BitBoard for horizontal scanning
-        var playerBoard = BitBoard.FromRawValues(p0, p1, p2, p3);
-        var occupied = BitBoard.FromRawValues(occ0, occ1, occ2, occ3);
+        var playerBoard = BitBoard.FromRawValues(p0, p1, p2, p3, p4, p5);
+        var occupied = BitBoard.FromRawValues(occ0, occ1, occ2, occ3, occ4, occ5);
 
         var score = 0;
 
         // For each row, count horizontal runs using run-length encoding
-        for (int y = 0; y < 15; y++)
+        for (int y = 0; y < 19; y++)
         {
             int runStart = -1;
             int runLength = 0;
 
-            for (int x = 0; x < 15; x++)
+            for (int x = 0; x < 19; x++)
             {
                 if (playerBoard.GetBit(x, y))
                 {
@@ -131,7 +131,7 @@ public static class SIMDBitBoardEvaluator
                     {
                         // Score this run
                         bool leftOpen = (runStart > 0) && !occupied.GetBit(runStart - 1, y);
-                        bool rightOpen = (x < 14) && !occupied.GetBit(x, y);
+                        bool rightOpen = (x < 18) && !occupied.GetBit(x, y);
 
                         score += ScoreRun(runLength, leftOpen, rightOpen);
                         runStart = -1;
@@ -157,22 +157,22 @@ public static class SIMDBitBoardEvaluator
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int EvaluateVerticalOptimized(
-        ulong p0, ulong p1, ulong p2, ulong p3,
-        ulong occ0, ulong occ1, ulong occ2, ulong occ3)
+        ulong p0, ulong p1, ulong p2, ulong p3, ulong p4, ulong p5,
+        ulong occ0, ulong occ1, ulong occ2, ulong occ3, ulong occ4, ulong occ5)
     {
         // Reconstruct BitBoard for vertical shift operations
-        var playerBoard = BitBoard.FromRawValues(p0, p1, p2, p3);
-        var occupied = BitBoard.FromRawValues(occ0, occ1, occ2, occ3);
+        var playerBoard = BitBoard.FromRawValues(p0, p1, p2, p3, p4, p5);
+        var occupied = BitBoard.FromRawValues(occ0, occ1, occ2, occ3, occ4, occ5);
 
         var score = 0;
 
         // For each column, count vertical runs using bit operations
-        for (int x = 0; x < 15; x++)
+        for (int x = 0; x < 19; x++)
         {
             int runStart = -1;
             int runLength = 0;
 
-            for (int y = 0; y < 15; y++)
+            for (int y = 0; y < 19; y++)
             {
                 if (playerBoard.GetBit(x, y))
                 {
@@ -185,7 +185,7 @@ public static class SIMDBitBoardEvaluator
                     {
                         // Score this run
                         bool topOpen = (runStart > 0) && !occupied.GetBit(x, runStart - 1);
-                        bool bottomOpen = (y < 14) && !occupied.GetBit(x, y);
+                        bool bottomOpen = (y < 18) && !occupied.GetBit(x, y);
 
                         score += ScoreRun(runLength, topOpen, bottomOpen);
                         runStart = -1;
@@ -213,12 +213,12 @@ public static class SIMDBitBoardEvaluator
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int EvaluateDiagonalOptimized(
-        ulong p0, ulong p1, ulong p2, ulong p3,
-        ulong occ0, ulong occ1, ulong occ2, ulong occ3,
+        ulong p0, ulong p1, ulong p2, ulong p3, ulong p4, ulong p5,
+        ulong occ0, ulong occ1, ulong occ2, ulong occ3, ulong occ4, ulong occ5,
         bool mainDiagonal) // true = down-right (1,1), false = down-left (1,-1)
     {
-        var playerBoard = BitBoard.FromRawValues(p0, p1, p2, p3);
-        var occupied = BitBoard.FromRawValues(occ0, occ1, occ2, occ3);
+        var playerBoard = BitBoard.FromRawValues(p0, p1, p2, p3, p4, p5);
+        var occupied = BitBoard.FromRawValues(occ0, occ1, occ2, occ3, occ4, occ5);
 
         var score = 0;
         int dx = 1;
@@ -226,12 +226,12 @@ public static class SIMDBitBoardEvaluator
 
         // CRITICAL: Track counted stones to avoid counting the same run multiple times
         // Without this, a run of N stones would be counted N times, massively inflating scores
-        var counted = new bool[15, 15];
+        var counted = new bool[19, 19];
 
         // Scan all starting positions
-        for (int x = 0; x < 15; x++)
+        for (int x = 0; x < 19; x++)
         {
-            for (int y = 0; y < 15; y++)
+            for (int y = 0; y < 19; y++)
             {
                 if (!playerBoard.GetBit(x, y) || counted[x, y]) continue;
 
@@ -243,7 +243,7 @@ public static class SIMDBitBoardEvaluator
                 var cy = y;
                 for (int i = 0; i < count; i++)
                 {
-                    if (cx >= 0 && cx < 15 && cy >= 0 && cy < 15)
+                    if (cx >= 0 && cx < 19 && cy >= 0 && cy < 19)
                         counted[cx, cy] = true;
                     cx += dx;
                     cy += dy;
@@ -291,18 +291,20 @@ public static class SIMDBitBoardEvaluator
     /// Optimized center control evaluation
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int EvaluateCenterControlOptimized(ulong p0, ulong p1, ulong p2, ulong p3)
+    private static int EvaluateCenterControlOptimized(ulong p0, ulong p1, ulong p2, ulong p3, ulong p4, ulong p5)
     {
         var score = 0;
+        const int center = 9;
+        const int centerZone = 3; // 3 cells from center in each direction
 
-        // Center zone: 5x5 area from (5,5) to (9,9)
-        for (int x = 5; x <= 9; x++)
+        // Center zone: 7x7 area from (6,6) to (12,12)
+        for (int x = center - centerZone; x <= center + centerZone; x++)
         {
-            for (int y = 5; y <= 9; y++)
+            for (int y = center - centerZone; y <= center + centerZone; y++)
             {
-                int index = y * 15 + x;
-                int ulongIdx = index / 64;
-                int bitIdx = index % 64;
+                int index = y * 19 + x;
+                int ulongIdx = index >> 6; // index / 64
+                int bitIdx = index & 0x3F; // index % 64
 
                 ulong bits = ulongIdx switch
                 {
@@ -310,12 +312,14 @@ public static class SIMDBitBoardEvaluator
                     1 => p1,
                     2 => p2,
                     3 => p3,
+                    4 => p4,
+                    5 => p5,
                     _ => 0
                 };
 
                 if ((bits & (1UL << bitIdx)) != 0)
                 {
-                    int distanceToCenter = Math.Abs(x - 7) + Math.Abs(y - 7);
+                    int distanceToCenter = Math.Abs(x - center) + Math.Abs(y - center);
                     score += CenterBonus - (distanceToCenter * 5);
                 }
             }
@@ -439,7 +443,7 @@ public static class SIMDBitBoardEvaluator
         {
             int nx = x + dx * i;
             int ny = y + dy * i;
-            if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break; // Out of bounds
+            if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break; // Out of bounds
 
             if (opponentBoard.GetBit(nx, ny))
             {
@@ -460,7 +464,7 @@ public static class SIMDBitBoardEvaluator
         {
             int nx = x - dx * i;
             int ny = y - dy * i;
-            if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break; // Out of bounds
+            if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break; // Out of bounds
 
             if (opponentBoard.GetBit(nx, ny))
             {
@@ -502,8 +506,8 @@ public static class SIMDBitBoardEvaluator
 
         for (int i = 0; i < positions.Length; i++)
         {
-            var (x, y) = positions[i];
-            scores[i] = EvaluateMoveAt(x, y, playerBoard, opponentBoard, occupied);
+            var (px, py) = positions[i];
+            scores[i] = EvaluateMoveAt(px, py, playerBoard, opponentBoard, occupied);
         }
 
         return scores;

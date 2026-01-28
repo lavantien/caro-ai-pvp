@@ -35,7 +35,7 @@ public class Cell
 
 public class Board
 {
-    private const int Size = 15;
+    private const int Size = 19;
     private readonly Cell[,] _cells;
     private ulong _hash;
 
