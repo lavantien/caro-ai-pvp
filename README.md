@@ -64,15 +64,64 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 graph TB
     subgraph Frontend["SvelteKit 5"]
         F1[Board.svelte]
-        F2[GameStore Svelte 5 Runes]
+        F2[GameStore<br/>Svelte 5 Runes]
         F3[SignalR Client]
     end
 
     subgraph Backend[".NET 10"]
-        B1[TournamentHub SignalR]
-        B2[MinimaxAI Lazy SMP]
-        B3[ELOCalc]
-        B4[TranspositionTable 256MB]
+        subgraph SignalR["TournamentHub"]
+            H1[Move Handler]
+            H2[Game Queue<br/>Channel&lt;GameEvent&gt;]
+        end
+
+        subgraph AI["MinimaxAI + Parallel Engine"]
+            direction TB
+            AI1[MinimaxAI<br/>IStatsPublisher]
+
+            subgraph Parallel["Lazy SMP Parallel Search"]
+                direction LR
+                P1[Master Thread<br/>ThreadIndex=0<br/>Result Selection]
+                P2[Helper Thread 1<br/>ThreadIndex=1]
+                P3[Helper Thread N<br/>ThreadIndex=N]
+
+                P1 --> P2
+                P1 --> P3
+                P2 -.->|"Shared"| P1
+                P3 -.->|"Shared"| P1
+            end
+
+            subgraph TT["Transposition Table<br/>256MB, 16 Shards"]
+                T1[Shard 0]
+                T2[Shard 8]
+                T3[Shard 15]
+
+                T1 -.->|"Hash-based<br/>Distribution"| T2
+                T2 -.->|"Reduced<br/>Contention"| T3
+            end
+
+            subgraph Ponder["Ponderer<br/>Think on Opponent Time"]
+                PV[PV Prediction]
+                BG[Background Search]
+                TM[Time Merge on Hit]
+            end
+
+            AI1 --> Parallel
+            Parallel --> TT
+            AI1 --> Ponder
+        end
+
+        subgraph Stats["Stats Publisher-Subscriber"]
+            PUB[IStatsPublisher<br/>Channel&lt;MoveStatsEvent&gt;]
+            SUB1[TournamentEngine<br/>Subscriber Task 1]
+            SUB2[TournamentEngine<br/>Subscriber Task 2]
+        end
+
+        subgraph Time["Time Budget Manager"]
+            TB[TimeBudgetDepthManager]
+            NPS[NPS Tracking]
+            EBF[EBF Calculation]
+            TMUL[Time Multiplier<br/>Braindead:1%<br/>Easy:10%<br/>Medium:30%<br/>Hard:70%<br/>GM:100%]
+        end
     end
 
     subgraph Database["SQLite + FTS5"]
@@ -80,8 +129,52 @@ graph TB
         D2[ELO Ratings]
     end
 
-    Frontend -->|WebSocket| Backend
-    Backend --> Database
+    F3 -->|"WebSocket<br/>Move/State"| H1
+    H1 --> H2
+    H2 --> AI1
+
+    Parallel -->|"ThreadIndex=0<br/>Full Write"| TT
+    Parallel -->|"ThreadIndex>0<br/>Restricted Write<br/>depth>=rootDepth/2<br/>flag==Exact"| TT
+
+    AI1 -->|"Publish"| PUB
+    PUB -->|"MainSearch Stats"| SUB1
+    PUB -->|"Pondering Stats"| SUB2
+
+    TB -->|"CalculateMaxDepth<br/>log(time*nps*multiplier)/log(ebf)"| Parallel
+    NPS --> TB
+    EBF --> TB
+    TMUL --> TB
+
+    AI1 --> D1
+    AI1 --> D2
+```
+
+### Component Flow
+
+**Move Request Flow:**
+1. Frontend sends move via SignalR → TournamentHub
+2. TournamentEngine calls `MinimaxAI.GetBestMove()`
+3. Parallel search spawns N threads (based on difficulty)
+4. Master thread selects best result, helpers explore with TT sharing
+
+**Stats Pub-Sub Flow:**
+1. MinimaxAI implements `IStatsPublisher` with `Channel<MoveStatsEvent>`
+2. After each move, stats published to channel (MainSearch, Pondering, VCFSearch)
+3. TournamentEngine runs async subscriber tasks for both AIs
+4. Ponder stats cached separately for post-move reporting
+
+**Transposition Table Sharding:**
+- 16 segments with independent hash-based distribution
+- `shardIndex = (hash >> 32) & shardMask`
+- Reduces cache coherency traffic for parallel threads
+
+**Helper Thread TT Write Policy:**
+```
+if (threadIndex > 0) {
+    if (depth < rootDepth / 2) return;  // Too shallow
+    if (flag != Exact) return;           // Misleading bounds
+}
+// Master threads (threadIndex=0) can store any entry
 ```
 
 ---
