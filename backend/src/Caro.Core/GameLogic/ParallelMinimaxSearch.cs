@@ -63,8 +63,9 @@ public sealed class ParallelMinimaxSearch
     {
         public int ThreadIndex; // Identifies master (0) vs helper (1+) threads for diversity logic
         public (int x, int y)[,] KillerMoves = new (int x, int y)[20, 2];
-        public int[,] HistoryRed = new int[15, 15];
-        public int[,] HistoryBlue = new int[15, 15];
+        // CRITICAL FIX: Use BitBoard.Size not hardcoded 15 for 19x19 boards
+        public int[,] HistoryRed = new int[BitBoard.Size, BitBoard.Size];
+        public int[,] HistoryBlue = new int[BitBoard.Size, BitBoard.Size];
         public int TableHits;
         public int TableLookups;
 
@@ -1387,9 +1388,10 @@ public sealed class ParallelMinimaxSearch
         var threats = new List<(int x, int y)>();
 
         // Priority 1: Check for immediate winning moves (5-in-row completion)
-        for (int x = 0; x < 15; x++)
+        // CRITICAL FIX: Use BitBoard.Size not hardcoded 15
+        for (int x = 0; x < BitBoard.Size; x++)
         {
-            for (int y = 0; y < 15; y++)
+            for (int y = 0; y < BitBoard.Size; y++)
             {
                 if (!board.GetCell(x, y).IsEmpty)
                     continue;
@@ -1412,34 +1414,29 @@ public sealed class ParallelMinimaxSearch
         var detector = new ThreatDetector();
         var opponentThreats = detector.DetectThreats(board, opponent);
 
-        // Check for StraightFour (XXXX_ pattern) - semi-open four
-        // GainSquares contains the winning square(s) - for StraightFour, this is the block position
+        // Check for StraightFour (XXXX_ pattern) - semi-open four and open four
+        // GainSquares contains the blocking squares
+        // CRITICAL FIX: For open four (2 gain squares), both must be in candidates
+        // For semi-open four (1 gain square), only one blocking move exists
         foreach (var threat in opponentThreats)
         {
             if (threat.Type == ThreatType.StraightFour)
             {
-                // StraightFour with exactly 1 gain square = semi-open four (one end blocked)
-                // This is critical and must be blocked immediately
-                if (threat.GainSquares.Count == 1)
+                // Add all gain squares (blocking moves) for this threat
+                foreach (var gainSquare in threat.GainSquares)
                 {
-                    var blockSquare = threat.GainSquares[0];
-                    if (board.GetCell(blockSquare.x, blockSquare.y).IsEmpty)
+                    if (board.GetCell(gainSquare.x, gainSquare.y).IsEmpty && !threats.Contains(gainSquare))
                     {
-                        threats.Add(blockSquare);
-                        return threats; // Critical threat - return immediately
+                        threats.Add(gainSquare);
                     }
                 }
-                // StraightFour with 2+ gain squares = open four (both ends open)
-                // Also critical - add the first gain square
-                else if (threat.GainSquares.Count > 1)
+
+                // CRITICAL FIX: For semi-open four (1 blocking move), return immediately
+                // For open four (2+ blocking moves), continue checking for other threats
+                // But if we have any threats, filter candidates to only blocking moves
+                if (threat.GainSquares.Count == 1 && threats.Count > 0)
                 {
-                    foreach (var gainSquare in threat.GainSquares)
-                    {
-                        if (board.GetCell(gainSquare.x, gainSquare.y).IsEmpty && !threats.Contains(gainSquare))
-                        {
-                            threats.Add(gainSquare);
-                        }
-                    }
+                    return threats; // Semi-open four - only one way to block
                 }
             }
         }
