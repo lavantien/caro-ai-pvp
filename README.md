@@ -414,6 +414,139 @@ Benefits:
 - Consistent state visibility across threads
 - Proper memory semantics
 
+#### 6. Stats Publisher-Subscriber Pattern
+
+File: `backend/src/Caro.Core/Tournament/StatsChannel.cs`
+
+Replaced callback-based stats reporting with typed Channel-based pub-sub:
+
+```csharp
+// Publisher interface
+public interface IStatsPublisher
+{
+    Channel<MoveStatsEvent> StatsChannel { get; }
+    string PublisherId { get; }
+}
+
+// Event with comprehensive metrics
+public class MoveStatsEvent
+{
+    public required string PublisherId { get; init; }
+    public required Player Player { get; init; }
+    public required StatsType Type { get; init; }  // MainSearch, Pondering, VCFSearch
+    public int DepthAchieved { get; init; }
+    public long NodesSearched { get; init; }
+    public double NodesPerSecond { get; init; }
+    // ... full statistics
+}
+
+// MinimaxAI implements IStatsPublisher
+public class MinimaxAI : IStatsPublisher
+{
+    private readonly Channel<MoveStatsEvent> _statsChannel;
+
+    public void PublishSearchStats(Player player, StatsType type, long moveTimeMs)
+    {
+        _statsChannel.Writer.TryWrite(new MoveStatsEvent { /* ... */ });
+    }
+}
+```
+
+Subscriber in TournamentEngine:
+
+```csharp
+// Subscribe to both AI channels
+_redStatsTask = Task.Run(() => SubscribeStatsAsync(_redAI, _redAI.StatsChannel, Player.Red, _cts.Token));
+_blueStatsTask = Task.Run(() => SubscribeStatsAsync(_blueAI, _blueAI.StatsChannel, Player.Blue, _cts.Token));
+
+private async Task SubscribeStatsAsync(MinimaxAI ai, Channel<MoveStatsEvent> channel, Player player, CancellationToken token)
+{
+    await foreach (var statsEvent in channel.Reader.ReadAllAsync(token))
+    {
+        if (statsEvent.Type == StatsType.Pondering)
+        {
+            // Cache ponder stats for post-move reporting
+            _ponderNodes[player] = statsEvent.NodesSearched;
+            _ponderNps[player] = statsEvent.NodesPerSecond;
+        }
+    }
+}
+```
+
+Benefits:
+
+- Type-safe stats communication
+- No callback hell or unobserved exceptions
+- Separate tracking for MainSearch, Pondering, VCFSearch
+- Ponder stats available immediately after opponent moves
+
+#### 7. Transposition Table Sharding
+
+File: `backend/src/Caro.Core/GameLogic/LockFreeTranspositionTable.cs`
+
+Converted single array to 16 sharded segments:
+
+```csharp
+// Before: Single array causes cache line contention
+private readonly TranspositionEntry?[] _table;
+
+// After: 16 independent segments
+private readonly TranspositionEntry?[][] _shards;
+private readonly int _shardCount = 16;
+private readonly int _shardMask = 15;
+private readonly int _sizePerShard;
+
+public LockFreeTranspositionTable(int sizeMB = 256, int shardCount = 16)
+{
+    _shards = new TranspositionEntry[shardCount][];
+    for (int i = 0; i < shardCount; i++)
+    {
+        _shards[i] = new TranspositionEntry[_sizePerShard];
+    }
+}
+
+private (int shardIndex, int entryIndex) GetShardAndIndex(ulong hash)
+{
+    // High bits for shard, low bits for index - good distribution
+    int shardIndex = (int)(hash >> 32) & _shardMask;
+    int entryIndex = (int)(hash % (ulong)_sizePerShard);
+    return (shardIndex, entryIndex);
+}
+```
+
+Helper Thread Write Policy (prevents TT pollution):
+
+```csharp
+public void Store(ulong hash, sbyte depth, short score, /* ... */, byte threadIndex, int rootDepth)
+{
+    // ... entry lookup logic ...
+
+    // STRICT HELPER WRITE POLICY
+    if (threadIndex > 0)
+    {
+        // Helper threads only store if:
+        // 1. Depth is at least rootDepth/2 (not too shallow)
+        // 2. Score is exact (not upper/lower bound which can be misleading)
+
+        if (depth < (sbyte)(rootDepth / 2))
+            return; // Skip shallow helper entries
+
+        if (flag != EntryFlag.Exact)
+            return; // Skip bound entries from helpers
+    }
+
+    // Store entry
+    shard[entryIndex] = newEntry;
+}
+```
+
+Benefits:
+
+- 16x reduction in cache coherency traffic
+- Helper threads can't pollute TT with shallow/misleading entries
+- Master thread results protected from helper interference
+- Better parallel search scaling
+
 ### Adversarial Testing
 
 Test Files:
@@ -433,6 +566,7 @@ Results:
 | Practice | Implementation |
 |----------|----------------|
 | Channel over Task.Run | AsyncQueue for fire-and-forget |
+| Publisher-Subscriber | StatsChannel for AI telemetry |
 | ReaderWriterLockSlim | GetState() allows concurrent readers |
 | ConcurrentDictionary | Per-game locking for scalability |
 | CancellationTokenSource | Coordinated search cancellation |
@@ -440,6 +574,8 @@ Results:
 | Interlocked operations | Atomic status transitions |
 | ConfigureAwait(false) | Avoid async deadlocks |
 | Bounded channels | Backpressure for producer-consumer |
+| Array sharding | TT segments reduce cache contention |
+| Helper write policy | Stricter rules prevent TT pollution |
 
 [Back to Table of Contents](#table-of-contents)
 
@@ -776,11 +912,13 @@ caro-ai-pvp/
 │   │   │   ├── WinDetector.cs        # Win detection
 │   │   │   └── AIDifficulty.cs       # D1-D11 levels
 │   │   └── Tournament/
-│   │       ├── TournamentEngine.cs   # Game runner
+│   │       ├── TournamentEngine.cs   # Game runner + stats subscriber
 │   │       ├── TournamentMatch.cs    # Match scheduling
 │   │       ├── AIBot.cs              # Bot factory
 │   │       ├── StatisticalAnalyzer.cs # Statistical analysis (LOS, Elo, SPRT)
-│   │       └── MatchupStatistics.cs   # Matchup data model
+│   │       ├── MatchupStatistics.cs   # Matchup data model
+│   │       ├── StatsChannel.cs       # Pub-sub for AI statistics
+│   │       └── IStatsPublisher.cs    # Stats publisher interface
 │   ├── src/Caro.TournamentRunner/
 │   │   ├── Program.cs                # CLI entry point
 │   │   ├── QuickTest.cs              # Legacy quick tests
@@ -793,6 +931,8 @@ caro-ai-pvp/
 │   │   └── Logging/
 │   │       └── GameLogService.cs     # SQLite + FTS5
 │   └── tests/Caro.Core.Tests/
+├── test_diagnostic.csx             # Quick AI strength validation
+└── frontend/
 │       ├── Concurrency/              # 32 adversarial tests
 │       │   ├── ConcurrencyStressTests.cs
 │       │   ├── AdversarialConcurrencyTests.cs
