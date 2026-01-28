@@ -31,7 +31,7 @@ Built with .NET 10 and SvelteKit 5, representing cutting-edge 2025 web developme
 
 ## Overview
 
-Caro is a sophisticated 15x15 board game implementation featuring:
+Caro is a sophisticated 19x19 board game implementation featuring:
 
 - Grandmaster-level AI with sequential search (depth 9+ capable in 7+5 time control)
 - Real-time multiplayer with WebSocket support (SignalR)
@@ -94,9 +94,9 @@ Note: VCF is exclusive to Legend (D11) to maintain AI strength ordering. In 7+5 
 
 Core Gameplay:
 
-- 15x15 board with exact 5-in-row winning condition
-- Open Rule enforcement (second move restriction in center 3x3 zone)
-- Blocked ends detection (6+ or blocked lines don't win)
+- 19x19 board (361 intersections) with exact 5-in-row winning condition
+- Open Rule enforcement (Red's second move must be at least 3 intersections away from first move)
+- Blocked ends detection (6+ or both ends blocked don't count as win)
 - Chess clock with Fisher control (7min + 5sec increment)
 
 Polish Features:
@@ -134,8 +134,8 @@ graph TD
 
 ```mermaid
 graph TD
-    A[BitBoard Layout 15x15 = 225 bits] --> B[Red BitBoard UInt128]
-    A --> C[Blue BitBoard UInt128]
+    A[BitBoard Layout 19x19 = 361 bits] --> B[Red BitBoard 6x ulong]
+    A --> C[Blue BitBoard 6x ulong]
     A --> D[Occupied BitBoard Red OR Blue]
     A --> E[SIMD Operations]
 
@@ -697,19 +697,21 @@ graph TD
 
 ### Board Setup
 
-- 15x15 grid (225 intersections)
+- 19x19 grid (361 intersections)
 - Red (O) moves first
 - Blue (X) moves second
 
 ### The Open Rule
 
-The second Red move (move #3 overall) cannot be placed in the 3x3 zone surrounding the center intersection.
+Red's second move (move #3 overall) must be at least 3 intersections away from the first red stone in either direction (outside the 5x5 zone centered on the first move).
+
+This rule prevents the first player from creating an immediate tactical cluster in the early game, ensuring the game remains balanced despite first-move advantage.
 
 ### Winning Conditions
 
 - Exactly 5 stones in a row (horizontal, vertical, diagonal)
-- Neither end blocked
-- 6+ stones (overline) is not a win
+- Overlines (6+ stones) are not wins
+- Lines blocked on both ends are not wins (the "sandwich rule")
 
 ### Time Control
 
@@ -726,7 +728,7 @@ caro-ai-pvp/
 ├── backend/
 │   ├── src/Caro.Core/
 │   │   ├── Entities/
-│   │   │   ├── Board.cs              # 15x15 game board
+│   │   │   ├── Board.cs              # 19x19 game board
 │   │   │   ├── Cell.cs               # Intersection state
 │   │   │   └── GameState.cs          # Game state + undo
 │   │   ├── Concurrency/
