@@ -28,9 +28,9 @@ public class ThreatDetector
         var seen = new HashSet<string>();
 
         // Scan each cell as a potential starting point
-        for (int x = 0; x < board.BoardSize; x++)
+        for (int x = 0; x < BitBoard.Size; x++)
         {
-            for (int y = 0; y < board.BoardSize; y++)
+            for (int y = 0; y < BitBoard.Size; y++)
             {
                 var cell = board.GetCell(x, y);
                 if (cell.IsEmpty || cell.Player != player)
@@ -64,7 +64,7 @@ public class ThreatDetector
         var costSquares = new List<(int x, int y)>();
         foreach (var square in threat.GainSquares)
         {
-            if (IsValidPosition(square.x, square.y, board.BoardSize) &&
+            if (IsValidPosition(square.x, square.y, BitBoard.Size) &&
                 board.GetCell(square.x, square.y).IsEmpty)
             {
                 costSquares.Add(square);
@@ -95,9 +95,9 @@ public class ThreatDetector
     {
         var threatMoves = new List<(int x, int y)>();
 
-        for (int x = 0; x < board.BoardSize; x++)
+        for (int x = 0; x < BitBoard.Size; x++)
         {
-            for (int y = 0; y < board.BoardSize; y++)
+            for (int y = 0; y < BitBoard.Size; y++)
             {
                 if (!board.GetCell(x, y).IsEmpty || !IsAdjacentToPlayer(board, x, y, player))
                     continue;
@@ -148,7 +148,7 @@ public class ThreatDetector
 
         // First, scan backward to find the start of the line
         int x = startX, y = startY;
-        while (IsValidPosition(x - dx, y - dy, board.BoardSize))
+        while (IsValidPosition(x - dx, y - dy, BitBoard.Size))
         {
             int bx = x - dx, by = y - dy;
             var cell = board.GetCell(bx, by);
@@ -161,7 +161,7 @@ public class ThreatDetector
             {
                 // Check if there's a stone before this empty
                 int bbx = bx - dx, bby = by - dy;
-                if (IsValidPosition(bbx, bby, board.BoardSize) && board.GetCell(bbx, bby).Player == player)
+                if (IsValidPosition(bbx, bby, BitBoard.Size) && board.GetCell(bbx, bby).Player == player)
                 {
                     // Empty with player stone on both sides = gap
                     empties.Insert(0, (bx, by));
@@ -185,7 +185,7 @@ public class ThreatDetector
         }
 
         // Now scan forward from start, collecting all stones and empties
-        while (IsValidPosition(x, y, board.BoardSize))
+        while (IsValidPosition(x, y, BitBoard.Size))
         {
             var cell = board.GetCell(x, y);
             if (cell.Player == player)
@@ -199,7 +199,7 @@ public class ThreatDetector
 
                 // Check if there's a stone after this empty (gap)
                 int nx = x + dx, ny = y + dy;
-                if (IsValidPosition(nx, ny, board.BoardSize) && board.GetCell(nx, ny).Player == player)
+                if (IsValidPosition(nx, ny, BitBoard.Size) && board.GetCell(nx, ny).Player == player)
                 {
                     gaps.Add(emptyIdx);
                 }
@@ -232,7 +232,7 @@ public class ThreatDetector
 
     private bool IsEmptyInLine(Board board, int x, int y)
     {
-        return IsValidPosition(x, y, board.BoardSize) && board.GetCell(x, y).IsEmpty;
+        return IsValidPosition(x, y, BitBoard.Size) && board.GetCell(x, y).IsEmpty;
     }
 
     private Threat? ClassifyPattern(LineInfo line, Board board, Player player, int dx, int dy)
@@ -241,18 +241,30 @@ public class ThreatDetector
         int gapCount = line.GapIndices.Count;
 
         // Straight Four: XXXX_ (4 consecutive, at least one open end)
+        // CRITICAL FIX: Add BOTH forward and backward gain squares
+        // For open four (_XXXX or XXXX_), both ends need blocking
+        // For semi-open four (OXXXX or XXXXO), only one end needs blocking
         if (stoneCount == 4 && gapCount == 0)
         {
             var gainSquares = new List<(int x, int y)>();
 
-            // Only add the forward direction (after the last stone)
-            // This matches the XXXX_ pattern where gain square is after the stones
+            // Add forward direction (after the last stone)
             var lastStone = line.Stones[^1];
             int gainX = lastStone.x + dx, gainY = lastStone.y + dy;
-            if (IsValidPosition(gainX, gainY, board.BoardSize) &&
+            if (IsValidPosition(gainX, gainY, BitBoard.Size) &&
                 board.GetCell(gainX, gainY).IsEmpty)
             {
                 gainSquares.Add((gainX, gainY));
+            }
+
+            // CRITICAL FIX: Also add backward direction (before the first stone)
+            // This ensures both blocking squares are detected for an open four
+            var firstStone = line.Stones[0];
+            int backX = firstStone.x - dx, backY = firstStone.y - dy;
+            if (IsValidPosition(backX, backY, BitBoard.Size) &&
+                board.GetCell(backX, backY).IsEmpty)
+            {
+                gainSquares.Add((backX, backY));
             }
 
             return new Threat
@@ -372,7 +384,7 @@ public class ThreatDetector
     private bool IsBetweenStones((int x, int y) pos, List<(int x, int y)> stones)
     {
         // Check if the position is between two consecutive stones
-        var sortedStones = stones.OrderBy(s => s.x * 15 + s.y).ToList();
+        var sortedStones = stones.OrderBy(s => s.x * BitBoard.Size + s.y).ToList();
         for (int i = 0; i < sortedStones.Count - 1; i++)
         {
             var curr = sortedStones[i];
@@ -400,7 +412,7 @@ public class ThreatDetector
     {
         foreach (var (gx, gy) in threat.GainSquares)
         {
-            if (!IsValidPosition(gx, gy, board.BoardSize))
+            if (!IsValidPosition(gx, gy, BitBoard.Size))
                 return false;
             if (!board.GetCell(gx, gy).IsEmpty)
                 return false;
@@ -440,11 +452,11 @@ public class ThreatDetector
         var last = threat.StonePositions[^1];
 
         // Check if both ends are blocked
-        bool blockedStart = !IsValidPosition(first.x - dx, first.y - dy, board.BoardSize) ||
+        bool blockedStart = !IsValidPosition(first.x - dx, first.y - dy, BitBoard.Size) ||
                            (!board.GetCell(first.x - dx, first.y - dy).IsEmpty &&
                             board.GetCell(first.x - dx, first.y - dy).Player != threat.Owner);
 
-        bool blockedEnd = !IsValidPosition(last.x + dx, last.y + dy, board.BoardSize) ||
+        bool blockedEnd = !IsValidPosition(last.x + dx, last.y + dy, BitBoard.Size) ||
                          (!board.GetCell(last.x + dx, last.y + dy).IsEmpty &&
                           board.GetCell(last.x + dx, last.y + dy).Player != threat.Owner);
 
@@ -458,7 +470,7 @@ public class ThreatDetector
 
         // Count forward
         int x = startX + dx, y = startY + dy;
-        while (IsValidPosition(x, y, board.BoardSize) && board.GetCell(x, y).Player == player)
+        while (IsValidPosition(x, y, BitBoard.Size) && board.GetCell(x, y).Player == player)
         {
             count++;
             x += dx;
@@ -468,7 +480,7 @@ public class ThreatDetector
         // Count backward
         x = startX - dx;
         y = startY - dy;
-        while (IsValidPosition(x, y, board.BoardSize) && board.GetCell(x, y).Player == player)
+        while (IsValidPosition(x, y, BitBoard.Size) && board.GetCell(x, y).Player == player)
         {
             count++;
             x -= dx;
@@ -486,7 +498,7 @@ public class ThreatDetector
             {
                 if (dx == 0 && dy == 0) continue;
                 int nx = x + dx, ny = y + dy;
-                if (IsValidPosition(nx, ny, board.BoardSize) && board.GetCell(nx, ny).Player == player)
+                if (IsValidPosition(nx, ny, BitBoard.Size) && board.GetCell(nx, ny).Player == player)
                     return true;
             }
         }
