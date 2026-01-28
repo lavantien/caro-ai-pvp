@@ -83,7 +83,7 @@ public class BaselineRunner
             var result = engine.RunGame(
                 redDifficulty: redDiff,
                 blueDifficulty: blueDiff,
-                maxMoves: 225,
+                maxMoves: 361,
                 initialTimeSeconds: initialTimeSeconds,
                 incrementSeconds: incrementSeconds,
                 ponderingEnabled: false,
@@ -91,14 +91,14 @@ public class BaselineRunner
                 {
                     var diff = player == Player.Red ? redDiff : blueDiff;
                     var color = player == Player.Red ? "R" : "B";
-                    var timeMs = player == Player.Red ? redTimeMs : blueTimeMs;
+                    var moveTimeMs = stats?.MoveTimeMs ?? 0;
 
                     // Log every 5th move and final moves to reduce noise
                     if (moveNumber % 5 == 0 || moveNumber < 10)
                     {
                         var depthInfo = stats != null ? $" D{stats.DepthAchieved}" : "";
                         var npsInfo = stats != null ? $" {stats.NodesPerSecond:F0}nps" : "";
-                        Console.WriteLine($"    M{moveNumber,3}: {color}({x},{y}) by {diff,-12} T:{timeMs / 1000:F1}s{depthInfo}{npsInfo}");
+                        Console.WriteLine($"    M{moveNumber,3}: {color}({x},{y}) by {diff,-12} T:{moveTimeMs / 1000:F1}s{depthInfo}{npsInfo}");
                     }
 
                     totalMoves = moveNumber;
