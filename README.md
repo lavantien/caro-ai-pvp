@@ -480,6 +480,42 @@ Benefits:
 - Separate tracking for MainSearch, Pondering, VCFSearch
 - Ponder stats available immediately after opponent moves
 
+```mermaid
+graph LR
+    subgraph Publishers["AI Instances (Publishers)"]
+        MAI1["MinimaxAI (Red)"]
+        MAI2["MinimaxAI (Blue)"]
+    end
+
+    subgraph Channels["Stats Channels"]
+        CH1["Channel<MoveStatsEvent>"]
+        CH2["Channel<MoveStatsEvent>"]
+    end
+
+    subgraph Subscribers["TournamentEngine (Subscriber)"]
+        SUB1["SubscribeStatsAsync (Red)"]
+        SUB2["SubscribeStatsAsync (Blue)"]
+        CACHE["Ponder Stats Cache"]
+    end
+
+    subgraph EventTypes["Event Types"]
+        EVT1["MainSearch"]
+        EVT2["Pondering"]
+        EVT3["VCFSearch"]
+    end
+
+    MAI1 -->|"TryWrite"| CH1
+    MAI2 -->|"TryWrite"| CH2
+    CH1 -->|"ReadAllAsync"| SUB1
+    CH2 -->|"ReadAllAsync"| SUB2
+    SUB1 --> CACHE
+    SUB2 --> CACHE
+
+    EVT1 -.->|published| CH1
+    EVT2 -.->|published| CH1
+    EVT3 -.->|published| CH2
+```
+
 #### 7. Transposition Table Sharding
 
 File: `backend/src/Caro.Core/GameLogic/LockFreeTranspositionTable.cs`
@@ -546,6 +582,81 @@ Benefits:
 - Helper threads can't pollute TT with shallow/misleading entries
 - Master thread results protected from helper interference
 - Better parallel search scaling
+
+```mermaid
+graph TD
+    subgraph Input["Input"]
+        HASH["Zobrist Hash (64-bit)"]
+    end
+
+    subgraph ShardSelection["Shard Selection"]
+        HIGH["High 32 bits"]
+        LOW["Low 32 bits"]
+        MASK["& shardMask (15)"]
+        SHARD_IDX["Shard Index (0-15)"]
+        ENTRY_IDX["Entry Index"]
+    end
+
+    subgraph Shards["16 Shards (Independent)"]
+        S0["Shard 0"]
+        S1["Shard 1"]
+        S2["Shard 2"]
+        SN["Shard 15"]
+    end
+
+    subgraph Entries["Per Shard"]
+        ENT["Entries Array"]
+        E1["Entry 0"]
+        E2["Entry 1"]
+        EN["Entry N-1"]
+    end
+
+    HASH --> HIGH
+    HASH --> LOW
+    HIGH --> MASK
+    MASK --> SHARD_IDX
+    LOW --> ENTRY_IDX
+
+    SHARD_IDX --> S0
+    SHARD_IDX --> S1
+    SHARD_IDX --> S2
+    SHARD_IDX --> SN
+
+    S0 --> ENT
+    S1 --> ENT
+    S2 --> ENT
+    SN --> ENT
+
+    ENT --> E1
+    ENT --> E2
+    ENT --> EN
+```
+
+```mermaid
+graph TB
+    subgraph Threads["Parallel Search Threads"]
+        MASTER["Master Thread (Index 0)"]
+        H1["Helper Thread 1"]
+        H2["Helper Thread 2"]
+        HN["Helper Thread N"]
+    end
+
+    subgraph WritePolicy["Write Policy"]
+        MWP["Any depth, any flag"]
+        HWP["depth >= rootDepth/2<br/>AND flag == Exact"]
+    end
+
+    subgraph TT["Shared Sharded TT"]
+        S0["Shard 0-15"]
+    end
+
+    MASTER -->|"Full write access"| S0
+    H1 -->|"Restricted"| HWP
+    H2 -->|"Restricted"| HWP
+    HN -->|"Restricted"| HWP
+
+    HWP -->|"Only if passes"| S0
+```
 
 ### Adversarial Testing
 
