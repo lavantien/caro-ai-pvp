@@ -21,10 +21,11 @@ public class MoveValidator
             return false;
 
         // Check coordinates are valid
-        if (x < 0 || x >= 15 || y < 0 || y >= 15)
+        if (x < 0 || x >= board.BoardSize || y < 0 || y >= board.BoardSize)
             return false;
 
-        // Open Rule: Red's second move (move #3) cannot be in center 3x3 zone (coordinates 6-8)
+        // Open Rule: Red's second move (move #3) must be at least 3 intersections away from first red stone
+        // This creates a 5x5 exclusion zone centered on the first move
         if (player == Player.Red && moveNumber == 3)
         {
             if (!_openRuleValidator.IsValidSecondMove(board, x, y))
@@ -64,7 +65,7 @@ public class TournamentEngine
     public MatchResult RunGame(
         AIDifficulty redDifficulty,
         AIDifficulty blueDifficulty,
-        int maxMoves = 225,
+        int maxMoves = 361,
         int initialTimeSeconds = 180,  // 3 minutes per player
         int incrementSeconds = 2,      // +2 seconds per move
         bool ponderingEnabled = false,
@@ -153,14 +154,15 @@ public class TournamentEngine
                 game.RecordMove(board, x, y);
 
                 // Get search statistics for this move
-                var (depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched) = _ai.GetSearchStatistics();
-                var stats = new MoveStats(depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched);
+                var (depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, masterTTPercent, helperAvgDepth, allocatedTimeMs) = _ai.GetSearchStatistics();
+                var (ponderNodes, ponderNps, ponderTimeMs) = _ai.GetLastPonderStats();
+                var stats = new MoveStats(depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, moveTimeMs, masterTTPercent, helperAvgDepth, allocatedTimeMs, ponderNodes, ponderNps);
 
                 // Log the move with stats
                 var timeStr = $"{moveTimeMs}ms";
                 var ponderStr = ponderingActive ? " [pondering]" : "";
                 onLog?.Invoke("info", currentPlayer.ToString().ToLower(),
-                    $"Move #{moveNumber}: ({x},{y}) | {timeStr}{ponderStr} | Depth: {depthAchieved} | Nodes: {nodesSearched:N0} | NPS: {nodesPerSecond:N0} | VCF: {vcfDepthAchieved}d/{vcfNodesSearched:N0}n");
+                    $"Move #{moveNumber}: ({x},{y}) | {timeStr}{ponderStr} | Depth: {depthAchieved} | Nodes: {nodesSearched:N0} | NPS: {nodesPerSecond:N0} | Threads: {threadCount} | VCF: {vcfDepthAchieved}d/{vcfNodesSearched:N0}n");
 
                 // Call move callback with stats
                 onMove?.Invoke(x, y, currentPlayer, totalMoves + 1, redTimeRemainingMs, blueTimeRemainingMs, stats);
@@ -229,9 +231,11 @@ public class TournamentEngine
         {
             // True draw - board full or max moves reached
             var occupiedCells = 0;
-            for (int x = 0; x < 15; x++)
+            int boardSize = board.BoardSize;
+            int totalCells = boardSize * boardSize;
+            for (int x = 0; x < boardSize; x++)
             {
-                for (int y = 0; y < 15; y++)
+                for (int y = 0; y < boardSize; y++)
                 {
                     if (board.GetCell(x, y).Player != Player.None)
                         occupiedCells++;
@@ -240,7 +244,7 @@ public class TournamentEngine
 
             // Debug output for draws
             onLog?.Invoke("info", "system",
-                $"DRAW: {redDifficulty} vs {blueDifficulty} | Moves: {totalMoves}/{maxMoves} | Board: {occupiedCells}/225 cells");
+                $"DRAW: {redDifficulty} vs {blueDifficulty} | Moves: {totalMoves}/{maxMoves} | Board: {occupiedCells}/{totalCells} cells");
             Console.WriteLine($"\n DRAW: {redDifficulty} vs {blueDifficulty}");
             Console.WriteLine($"    Total Moves: {totalMoves}/{maxMoves}");
             Console.WriteLine($"    Board Occupied: {occupiedCells}/225 cells");
