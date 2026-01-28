@@ -82,13 +82,13 @@ public class AdversarialConcurrencyTests
         // Assert - Should not crash, last writer typically wins (acceptable)
         Assert.Empty(exceptions);
 
-        var (found, score, move) = tt.Lookup(sameHash, 1, 0, 0);
+        var (found, _, score, move, _) = tt.Lookup(sameHash, 1, 0, 0);
         _output.WriteLine($"Final entry - Found: {found}, Score: {score}, Move: {move}");
 
         // The entry should be valid (one of the writers won)
         if (found)
         {
-            Assert.InRange(score, 50, 100 + iterations);
+            Assert.InRange((int)score, 50, 100 + iterations);
         }
     }
 
@@ -131,7 +131,7 @@ public class AdversarialConcurrencyTests
             {
                 for (int i = 0; i < iterations; i++)
                 {
-                    var (found, score, move) = tt.Lookup(hash, (sbyte)(i % 10), -10000, 10000);
+                    var (found, _, score, _, _) = tt.Lookup(hash, (sbyte)(i % 10), -10000, 10000);
                     Interlocked.Increment(ref readCount);
 
                     // Track if we see obviously inconsistent data
@@ -273,7 +273,7 @@ public class AdversarialConcurrencyTests
                 {
                     var ai = new MinimaxAI();
                     var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Easy);
-                    var (depth, _, _, _, _, _, _) = ai.GetSearchStatistics();
+                    var (depth, _, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
                     results.Add((x, y, depth));
                 }
                 catch (Exception ex)
