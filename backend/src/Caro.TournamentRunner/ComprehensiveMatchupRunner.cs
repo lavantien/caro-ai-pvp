@@ -1,6 +1,7 @@
 using Caro.Core.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
+using System.IO;
 
 namespace Caro.TournamentRunner;
 
@@ -11,6 +12,7 @@ namespace Caro.TournamentRunner;
 /// </summary>
 public class ComprehensiveMatchupRunner
 {
+    private static StreamWriter? _outputFile;
     public class MatchupConfig
     {
         public AIDifficulty RedDifficulty { get; set; }
@@ -24,17 +26,45 @@ public class ComprehensiveMatchupRunner
         public bool IsExperimental { get; set; } = false;
     }
 
+    private static void LogWrite(string? message = null)
+    {
+        Console.WriteLine(message);
+        _outputFile?.WriteLine(message ?? "");
+    }
+
     public static async Task RunAsync(int timeSeconds = 420, int incSeconds = 5, int gamesPerMatchup = 10)
+    {
+        // Initialize output file with auto-flush for real-time monitoring
+        // When running with 'dotnet run', CurrentDirectory is the project dir (src/Caro.TournamentRunner)
+        // We need to go up two levels to reach backend/, then write to test_output.txt
+        var currentDir = Environment.CurrentDirectory;
+        var outputPath = Path.GetFullPath(Path.Combine(currentDir, "..", "..", "test_output.txt"));
+
+        _outputFile = new StreamWriter(outputPath, false, System.Text.Encoding.UTF8);
+        _outputFile.AutoFlush = true;
+
+        try
+        {
+            await RunAsyncInternal(timeSeconds, incSeconds, gamesPerMatchup);
+        }
+        finally
+        {
+            _outputFile?.Dispose();
+            _outputFile = null;
+        }
+    }
+
+    private static async Task RunAsyncInternal(int timeSeconds = 420, int incSeconds = 5, int gamesPerMatchup = 10)
     {
         var engine = new TournamentEngine();
         var tcName = $"{timeSeconds / 60}+{incSeconds}";
 
-        Console.WriteLine($"╔═══════════════════════════════════════════════════════════════════╗");
-        Console.WriteLine($"║     COMPREHENSIVE MATCHUP RUNNER: {tcName} Time Control               ║");
-        Console.WriteLine($"║     {gamesPerMatchup} games per matchup (alternating colors)              ║");
-        Console.WriteLine($"║     Full parallel search, Full pondering                             ║");
-        Console.WriteLine($"╚═══════════════════════════════════════════════════════════════════╝");
-        Console.WriteLine();
+        LogWrite($"╔═══════════════════════════════════════════════════════════════════╗");
+        LogWrite($"║     COMPREHENSIVE MATCHUP RUNNER: {tcName} Time Control               ║");
+        LogWrite($"║     {gamesPerMatchup} games per matchup (alternating colors)              ║");
+        LogWrite($"║     Full parallel search, Full pondering                             ║");
+        LogWrite($"╚═══════════════════════════════════════════════════════════════════╝");
+        LogWrite();
 
         var matchups = GenerateMatchups(gamesPerMatchup, timeSeconds, incSeconds);
 
@@ -42,19 +72,19 @@ public class ComprehensiveMatchupRunner
         var standardMatchups = matchups.Where(m => !m.IsExperimental).ToList();
         var experimentalMatchups = matchups.Where(m => m.IsExperimental).ToList();
 
-        Console.WriteLine($"Standard matchups: {standardMatchups.Count}");
-        Console.WriteLine($"Experimental matchups: {experimentalMatchups.Count}");
-        Console.WriteLine($"Total matchups: {matchups.Count}");
-        Console.WriteLine($"Total games: {matchups.Sum(m => m.Games)}");
-        Console.WriteLine();
+        LogWrite($"Standard matchups: {standardMatchups.Count}");
+        LogWrite($"Experimental matchups: {experimentalMatchups.Count}");
+        LogWrite($"Total matchups: {matchups.Count}");
+        LogWrite($"Total games: {matchups.Sum(m => m.Games)}");
+        LogWrite();
 
         var results = new List<MatchupResult>();
 
         // Run standard matchups
-        Console.WriteLine("═══════════════════════════════════════════════════════════════════");
-        Console.WriteLine("  STANDARD MATCHUPS");
-        Console.WriteLine("═══════════════════════════════════════════════════════════════════");
-        Console.WriteLine();
+        LogWrite("═══════════════════════════════════════════════════════════════════");
+        LogWrite("  STANDARD MATCHUPS");
+        LogWrite("═══════════════════════════════════════════════════════════════════");
+        LogWrite();
 
         foreach (var matchup in standardMatchups)
         {
@@ -63,11 +93,11 @@ public class ComprehensiveMatchupRunner
         }
 
         // Run experimental matchups
-        Console.WriteLine();
-        Console.WriteLine("═══════════════════════════════════════════════════════════════════");
-        Console.WriteLine("  EXPERIMENTAL MATCHUPS");
-        Console.WriteLine("═══════════════════════════════════════════════════════════════════");
-        Console.WriteLine();
+        LogWrite();
+        LogWrite("═══════════════════════════════════════════════════════════════════");
+        LogWrite("  EXPERIMENTAL MATCHUPS");
+        LogWrite("═══════════════════════════════════════════════════════════════════");
+        LogWrite();
 
         foreach (var matchup in experimentalMatchups)
         {
@@ -76,11 +106,11 @@ public class ComprehensiveMatchupRunner
         }
 
         // Final summary
-        Console.WriteLine();
-        Console.WriteLine("═══════════════════════════════════════════════════════════════════");
-        Console.WriteLine("  FINAL SUMMARY");
-        Console.WriteLine("═══════════════════════════════════════════════════════════════════");
-        Console.WriteLine();
+        LogWrite();
+        LogWrite("═══════════════════════════════════════════════════════════════════");
+        LogWrite("  FINAL SUMMARY");
+        LogWrite("═══════════════════════════════════════════════════════════════════");
+        LogWrite();
 
         PrintFinalSummary(results);
     }
@@ -362,12 +392,12 @@ public class ComprehensiveMatchupRunner
         var redDiff = config.RedDifficulty;
         var blueDiff = config.BlueDifficulty;
 
-        Console.WriteLine($"┌─────────────────────────────────────────────────────────────────────┐");
-        Console.WriteLine($"│ {config.Description,-71} │");
-        Console.WriteLine($"├─────────────────────────────────────────────────────────────────────┤");
-        Console.WriteLine($"│ Time: {config.InitialTimeSeconds / 60}+{config.IncrementSeconds} | Pondering: {(config.EnablePondering ? "ON" : "OFF"),3} | Parallel: {(config.EnableParallel ? "ON" : "OFF"),3} │");
-        Console.WriteLine($"└─────────────────────────────────────────────────────────────────────┘");
-        Console.WriteLine();
+        LogWrite($"┌─────────────────────────────────────────────────────────────────────┐");
+        LogWrite($"│ {config.Description,-71} │");
+        LogWrite($"├─────────────────────────────────────────────────────────────────────┤");
+        LogWrite($"│ Time: {config.InitialTimeSeconds / 60}+{config.IncrementSeconds} | Pondering: {(config.EnablePondering ? "ON" : "OFF"),3} | Parallel: {(config.EnableParallel ? "ON" : "OFF"),3} │");
+        LogWrite($"└─────────────────────────────────────────────────────────────────────┘");
+        LogWrite();
 
         for (int game = 1; game <= config.Games; game++)
         {
@@ -396,26 +426,49 @@ public class ComprehensiveMatchupRunner
                     var timeStr = FormatTime(stats?.MoveTimeMs ?? 0);
                     var allocStr = FormatTime((stats?.AllocatedTimeMs ?? 0));
                     var depthStr = stats != null ? $"D{stats.DepthAchieved}" : "D-";
-                    var nStr = stats != null ? FormatLargeNumber(stats.NodesSearched) : "N/A";
-                    var npsStr = stats != null ? FormatLargeNumber((long)stats.NodesPerSecond) : "N/A";
+
+                    // Format N and NPS as main/ponder or just main if no ponder stats
+                    long mainNodes = stats?.NodesSearched ?? 0;
+                    long ponderNodes = stats?.PonderNodesSearched ?? 0;
+                    double mainNps = stats?.NodesPerSecond ?? 0;
+                    double ponderNps = stats?.PonderNodesPerSecond ?? 0;
+
+                    string nStr, npsStr;
+                    if (ponderNodes > 0)
+                    {
+                        nStr = $"{FormatLargeNumber(mainNodes)}/{FormatLargeNumber(ponderNodes)}";
+                        npsStr = $"{FormatLargeNumber((long)mainNps)}/{FormatLargeNumber((long)ponderNps)}";
+                    }
+                    else
+                    {
+                        nStr = FormatLargeNumber(mainNodes);
+                        npsStr = FormatLargeNumber((long)mainNps);
+                    }
+
                     var ttStr = stats != null ? $"{stats.TableHitRate:F1}% " : "N/A";
                     var masterStr = stats != null ? $"{stats.MasterTTPercent:F1}% " : "N/A";
                     var helperStr = stats != null ? $"{stats.HelperAvgDepth:F1}" : "N/A";
                     var ponderStr = stats?.PonderingActive == true ? "Y" : "N";
                     var threadsStr = stats?.ThreadCount.ToString() ?? "1";
 
+                    // VCF stats
+                    var vcfDepth = stats?.VCFDepthAchieved ?? 0;
+                    var vcfNodes = stats?.VCFNodesSearched ?? 0;
+                    var vcfStr = (vcfDepth > 0 || vcfNodes > 0) ? $"{vcfDepth}d/{FormatLargeNumber(vcfNodes)}n" : "-";
+
                     // One-line aligned output
-                    Console.WriteLine(
+                    LogWrite(
                         $"    G{game,2} M{moveNumber,3} | {color}({x},{y}) by {diff,-12} | " +
                         $"T: {timeStr,-9}/{allocStr,-8} | " +
                         $"Th: {threadsStr} | " +
                         $"{depthStr,-3} | " +
-                        $"N: {nStr,13} | " +
-                        $"NPS: {npsStr,12} | " +
+                        $"N: {nStr,20} | " +
+                        $"NPS: {npsStr,20} | " +
                         $"TT: {ttStr,-5} | " +
                         $"%M: {masterStr,-5} | " +
                         $"HD: {helperStr,-4} | " +
-                        $"P: {ponderStr}");
+                        $"P: {ponderStr} | " +
+                        $"VCF: {vcfStr}");
 
                     moveCount = moveNumber;
                 },
@@ -423,7 +476,7 @@ public class ComprehensiveMatchupRunner
                 {
                     if (level == "warn" || level == "error")
                     {
-                        Console.WriteLine($"    [{level.ToUpper()}] {source}: {message}");
+                        LogWrite($"    [{level.ToUpper()}] {source}: {message}");
                     }
                 });
 
@@ -435,7 +488,7 @@ public class ComprehensiveMatchupRunner
             if (result.IsDraw)
             {
                 draws++;
-                Console.WriteLine($"    → Game {game}: DRAW after {moveCount} moves ({gameDurationMs / 1000:F1}s)");
+                LogWrite($"    → Game {game}: DRAW after {moveCount} moves ({gameDurationMs / 1000:F1}s)");
             }
             else
             {
@@ -459,10 +512,10 @@ public class ComprehensiveMatchupRunner
                 }
 
                 var whichDiff = (winner == Player.Red) == swapColors ? blueDiff : redDiff;
-                Console.WriteLine($"    → Game {game}: {whichDiff} ({winningColor}) wins on move {moveCount} ({gameDurationMs / 1000:F1}s)");
+                LogWrite($"    → Game {game}: {whichDiff} ({winningColor}) wins on move {moveCount} ({gameDurationMs / 1000:F1}s)");
             }
 
-            Console.WriteLine();
+            LogWrite();
         }
 
         // Summary for this matchup
@@ -470,12 +523,12 @@ public class ComprehensiveMatchupRunner
         var redWinRate = (double)redWins / total;
         var blueWinRate = (double)blueWins / total;
 
-        Console.WriteLine($"  ───────────────────────────────────────────────────────────────────");
-        Console.WriteLine($"  SUMMARY: {redDiff} {redWins} - {blueWins} {blueDiff} - {draws} draws");
-        Console.WriteLine($"  Win rates: {redDiff} {redWinRate:P1} | {blueDiff} {blueWinRate:P1}");
-        Console.WriteLine($"  Avg moves: {(double)totalMoves / total:F1} | Avg time: {totalTimeMs / total / 1000:F1}s/game");
-        Console.WriteLine();
-        Console.WriteLine();
+        LogWrite($"  ───────────────────────────────────────────────────────────────────");
+        LogWrite($"  SUMMARY: {redDiff} {redWins} - {blueWins} {blueDiff} - {draws} draws");
+        LogWrite($"  Win rates: {redDiff} {redWinRate:P1} | {blueDiff} {blueWinRate:P1}");
+        LogWrite($"  Avg moves: {(double)totalMoves / total:F1} | Avg time: {totalTimeMs / total / 1000:F1}s/game");
+        LogWrite();
+        LogWrite();
 
         return new MatchupResult
         {
@@ -492,26 +545,26 @@ public class ComprehensiveMatchupRunner
 
     private static void PrintFinalSummary(List<MatchupResult> results)
     {
-        Console.WriteLine("╔═══════════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║                       MATCHUP RESULTS                             ║");
-        Console.WriteLine("╚═══════════════════════════════════════════════════════════════════╝");
-        Console.WriteLine();
+        LogWrite("╔═══════════════════════════════════════════════════════════════════╗");
+        LogWrite("║                       MATCHUP RESULTS                             ║");
+        LogWrite("╚═══════════════════════════════════════════════════════════════════╝");
+        LogWrite();
 
-        Console.WriteLine("┌─────────────────────────────────┬──────┬──────┬──────┬────────┬────────┐");
-        Console.WriteLine("│ Matchup                         │ Red  │ Blue │ Draw │  Avg   │  Avg   │");
-        Console.WriteLine("│                                 │ Wins │ Wins │      │ Moves  │ Time(s)│");
-        Console.WriteLine("├─────────────────────────────────┼──────┼──────┼──────┼────────┼────────┤");
+        LogWrite("┌─────────────────────────────────┬──────┬──────┬──────┬────────┬────────┐");
+        LogWrite("│ Matchup                         │ Red  │ Blue │ Draw │  Avg   │  Avg   │");
+        LogWrite("│                                 │ Wins │ Wins │      │ Moves  │ Time(s)│");
+        LogWrite("├─────────────────────────────────┼──────┼──────┼──────┼────────┼────────┤");
 
         foreach (var result in results)
         {
             var matchupName = $"{result.RedDifficulty} vs {result.BlueDifficulty}";
             var paddedName = matchupName.Length > 31 ? matchupName[..31] : matchupName.PadRight(31);
 
-            Console.WriteLine($"│ {paddedName} │ {result.RedWins,4} │ {result.BlueWins,4} │ {result.Draws,4} │ {result.AverageMoves,6:F1} │ {result.AverageTimeSeconds,6:F1} │");
+            LogWrite($"│ {paddedName} │ {result.RedWins,4} │ {result.BlueWins,4} │ {result.Draws,4} │ {result.AverageMoves,6:F1} │ {result.AverageTimeSeconds,6:F1} │");
         }
 
-        Console.WriteLine("└─────────────────────────────────┴──────┴──────┴──────┴────────┴────────┘");
-        Console.WriteLine();
+        LogWrite("└─────────────────────────────────┴──────┴──────┴──────┴────────┴────────┘");
+        LogWrite();
 
         // Calculate overall stats by difficulty
         var allDifficulties = new[] {
@@ -522,14 +575,14 @@ public class ComprehensiveMatchupRunner
             AIDifficulty.Grandmaster
         };
 
-        Console.WriteLine("╔═══════════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║                      PERFORMANCE BY DIFFICULTY                   ║");
-        Console.WriteLine("╚═══════════════════════════════════════════════════════════════════╝");
-        Console.WriteLine();
+        LogWrite("╔═══════════════════════════════════════════════════════════════════╗");
+        LogWrite("║                      PERFORMANCE BY DIFFICULTY                   ║");
+        LogWrite("╚═══════════════════════════════════════════════════════════════════╝");
+        LogWrite();
 
-        Console.WriteLine("┌───────────────┬────────┬────────┬────────┬────────┐");
-        Console.WriteLine("│ Difficulty    │  Wins  │ Losses │  Draws │  Win % │");
-        Console.WriteLine("├───────────────┼────────┼────────┼────────┼────────┤");
+        LogWrite("┌───────────────┬────────┬────────┬────────┬────────┐");
+        LogWrite("│ Difficulty    │  Wins  │ Losses │  Draws │  Win % │");
+        LogWrite("├───────────────┼────────┼────────┼────────┼────────┤");
 
         foreach (var diff in allDifficulties)
         {
@@ -556,11 +609,11 @@ public class ComprehensiveMatchupRunner
             var total = wins + losses + draws;
             var winRate = total > 0 ? (double)wins / total : 0;
 
-            Console.WriteLine($"│ {diff,-13} │ {wins,6} │ {losses,6} │ {draws,6} │ {winRate,6:P1} │");
+            LogWrite($"│ {diff,-13} │ {wins,6} │ {losses,6} │ {draws,6} │ {winRate,6:P1} │");
         }
 
-        Console.WriteLine("└───────────────┴────────┴────────┴────────┴────────┘");
-        Console.WriteLine();
+        LogWrite("└───────────────┴────────┴────────┴────────┴────────┘");
+        LogWrite();
     }
 
     private static string FormatTime(long ms)
