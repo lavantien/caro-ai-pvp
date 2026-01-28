@@ -235,20 +235,43 @@ public sealed class Ponderer : IDisposable
     }
 
     /// <summary>
-    /// Signal that pondering should stop
+    /// Signal that pondering should stop and capture final stats
     /// </summary>
     public void StopPondering()
     {
+        var elapsedMs = 0L;
+        var finalNodesSearched = 0L;
+
         lock (_stateLock)
         {
             if (_state != PonderState.Pondering)
                 return;
 
+            // Capture elapsed time and nodes before cancelling
+            elapsedMs = Stopwatch.GetElapsedTime(_ponderStartTimeTicks).Milliseconds;
+            finalNodesSearched = _nodesSearched;
+
             _shouldStop = true;
             _parallelSearch.StopSearch();
             _cts?.Cancel();
+
+            // Update result with final stats before cancelling
+            _currentResult = new PonderResult
+            {
+                BestMove = _currentResult.BestMove,
+                Depth = _currentResult.Depth,
+                Score = _currentResult.Score,
+                TimeSpentMs = elapsedMs,
+                FinalState = PonderState.Cancelled,
+                PonderHit = false,
+                NodesSearched = finalNodesSearched
+            };
+
             _state = PonderState.Cancelled;
         }
+
+        // Debug logging
+        Console.WriteLine($"[PONDER STOP] Captured stats: {finalNodesSearched} nodes, {elapsedMs}ms");
 
         // Wait for task to complete (outside lock)
         try
