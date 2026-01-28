@@ -192,8 +192,8 @@ public sealed class ParallelMinimaxSearch
         var minDepth = TimeBudgetDepthManager.GetMinimumDepth(difficulty);
         var adjustedDepth = Math.Max(depthFromBudget, minDepth);
 
-        // For Braindead difficulty, add randomness
-        if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 50)
+        // For Braindead difficulty, add randomness (20% error rate)
+        if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 20)
         {
             return candidates[_random.Next(candidates.Count)];
         }
@@ -285,8 +285,8 @@ public sealed class ParallelMinimaxSearch
         var minDepth = TimeBudgetDepthManager.GetMinimumDepth(difficulty);
         var adjustedDepth = Math.Max(depthFromBudget, minDepth);
 
-        // For Braindead difficulty, add randomness
-        if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 50)
+        // For Braindead difficulty, add randomness (20% error rate)
+        if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 20)
         {
             var randomMove = candidates[_random.Next(candidates.Count)];
             return new ParallelSearchResult(randomMove.x, randomMove.y, 1, candidates.Count);
@@ -706,7 +706,7 @@ public sealed class ParallelMinimaxSearch
         bool shouldStore = threadData.ThreadIndex == 0 || depth >= 3;
         if (shouldStore)
         {
-            _transpositionTable.Store(board.Hash, (sbyte)depth, (short)bestScore, (sbyte)bestMove.x, (sbyte)bestMove.y, alpha, beta, (byte)threadData.ThreadIndex);
+            _transpositionTable.Store(board.Hash, (sbyte)depth, (short)bestScore, (sbyte)bestMove.x, (sbyte)bestMove.y, alpha, beta, (byte)threadData.ThreadIndex, rootDepth: depth);
         }
 
         return (bestMove.x, bestMove.y, bestScore);
@@ -922,7 +922,7 @@ public sealed class ParallelMinimaxSearch
                 : (bestScore >= beta ? LockFreeTranspositionTable.EntryFlag.LowerBound : LockFreeTranspositionTable.EntryFlag.Exact);
 
             _transpositionTable.Store(boardHash, (sbyte)depth, (short)bestScore,
-                (sbyte)bestMove.Value.x, (sbyte)bestMove.Value.y, alpha, beta, (byte)threadData.ThreadIndex);
+                (sbyte)bestMove.Value.x, (sbyte)bestMove.Value.y, alpha, beta, (byte)threadData.ThreadIndex, rootDepth);
         }
 
         return bestScore;
@@ -1606,14 +1606,22 @@ public sealed class ParallelMinimaxSearch
         var bestMove = candidates[0];
         var bestScore = int.MinValue;
         int bestDepth = 1;
-        long nodesSearched = 0;
+
+        // Use the real node counter (thread-safe via Interlocked)
+        Interlocked.Exchange(ref _realNodesSearched, 0);
+
+        // Debug: log start of ponder iteration
+        Console.WriteLine($"[PONDER SEARCH] Starting ponder search, targetDepth={targetDepth}");
 
         // Start from depth 2 and iterate up
         for (int currentDepth = 2; currentDepth <= targetDepth; currentDepth++)
         {
             // Check cancellation
             if (cancellationToken.IsCancellationRequested)
+            {
+                Console.WriteLine($"[PONDER SEARCH] Cancelled at depth {currentDepth}");
                 break;
+            }
 
             var elapsed = _searchStopwatch?.ElapsedMilliseconds ?? 0;
 
@@ -1641,7 +1649,6 @@ public sealed class ParallelMinimaxSearch
             }
 
             var result = SearchRoot(board, player, currentDepth, candidates, threadData, alpha, beta, cancellationToken);
-            nodesSearched += CountNodes(currentDepth, candidates.Count);
 
             if (result.score > bestScore || bestMove == (-1, -1))
             {
@@ -1659,7 +1666,13 @@ public sealed class ParallelMinimaxSearch
                 break;
         }
 
-        return (bestMove.x, bestMove.y, bestScore, bestDepth, nodesSearched);
+        // Use real node count instead of estimate
+        long actualNodes = Interlocked.Read(ref _realNodesSearched);
+
+        // Debug: log final node count
+        Console.WriteLine($"[PONDER SEARCH] Finished: {actualNodes} nodes, depth {bestDepth}");
+
+        return (bestMove.x, bestMove.y, bestScore, bestDepth, actualNodes);
     }
 
     /// <summary>
