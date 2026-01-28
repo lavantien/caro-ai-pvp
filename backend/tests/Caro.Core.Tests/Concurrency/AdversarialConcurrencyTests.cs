@@ -249,11 +249,11 @@ public class AdversarialConcurrencyTests
         var boards = Enumerable.Range(0, 15).Select(_ =>
         {
             var b = new Board();
-            // Random starting positions
+            // Random starting positions (19x19 board)
             for (int i = 0; i < 20; i++)
             {
-                int x = random.Next(15);
-                int y = random.Next(15);
+                int x = random.Next(19);
+                int y = random.Next(19);
                 try
                 {
                     b.PlaceStone(x, y, i % 2 == 0 ? Player.Red : Player.Blue);
@@ -292,8 +292,8 @@ public class AdversarialConcurrencyTests
         // Verify results are reasonable
         foreach (var (x, y, depth) in results)
         {
-            Assert.InRange(x, 0, 14);
-            Assert.InRange(y, 0, 14);
+            Assert.InRange(x, 0, 18);
+            Assert.InRange(y, 0, 18);
             Assert.True(depth > 0, "Depth should be positive");
         }
     }
