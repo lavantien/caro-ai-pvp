@@ -216,19 +216,18 @@ public static class AdaptiveDepthCalculator
     /// <summary>
     /// Get the error rate for a given difficulty level (used for simulating human-like mistakes)
     /// Returns probability (0-1) of making a random/suboptimal move
-    /// NOTE: Keep error rates LOW to maintain consistent AI strength hierarchy
-    /// Higher error rates introduce randomness that can paradoxically make weaker AIs harder to beat
+    /// Only Braindead has error rate - all higher difficulties play optimally
     /// </summary>
     public static double GetErrorRate(AIDifficulty difficulty)
     {
         return difficulty switch
         {
-            AIDifficulty.Braindead => 0.5,  // 50% error rate - intentional weak play
-            AIDifficulty.Easy => 0.02,       // 2% error rate - 1 in 50 moves
-            AIDifficulty.Medium => 0.005,    // 0.5% error rate - 1 in 200 moves
+            AIDifficulty.Braindead => 0.2,  // 20% error rate - intentional weak play
+            AIDifficulty.Easy => 0.0,        // No intentional errors
+            AIDifficulty.Medium => 0.0,      // No intentional errors
             AIDifficulty.Hard => 0.0,        // No intentional errors
             AIDifficulty.Grandmaster => 0.0, // No intentional errors
-            _ => 0.1
+            _ => 0.0
         };
     }
 
