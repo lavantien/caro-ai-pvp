@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-01-29
+
+### Added
+
+- Comprehensive AI engine architecture diagram in README
+  - Lazy SMP parallel search flow (master + helper threads)
+  - Stats publisher-subscriber pattern with Channel<MoveStatsEvent>
+  - Transposition Table 16-segment sharding with hash distribution
+  - Ponderer flow (PV prediction, background search, time merge)
+  - Time Budget Manager (NPS, EBF, time multiplier per difficulty)
+  - Component Flow descriptions with helper thread TT write policy
+
+[0.4.2]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v0.4.2
+
+## [0.4.1] - 2026-01-29
+
+### Fixed
+
+- Performance table to reflect actual implementation
+  - Fixed thread counts: Braindead=1, Easy=2, Medium=3, Hard=4, GM=(N/2)-1
+  - All difficulties use parallel search (not sequential as documented)
+  - Depth is dynamic based on host NPS, not arbitrary caps
+  - Added time budget percentages per difficulty
+
+[0.4.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v0.4.1
+
 ## [0.4.0] - 2026-01-29
 
 ### Changed
