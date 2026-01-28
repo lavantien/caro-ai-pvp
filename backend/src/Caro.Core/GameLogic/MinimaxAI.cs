@@ -38,6 +38,12 @@ public class MinimaxAI
     // Track last calculated depth for smoothing (prevent sudden drops)
     private int _lastCalculatedDepth = -1;
 
+    // Track thread count used for last search (for diagnostics)
+    private int _lastThreadCount = 1;
+
+    // Track parallel diagnostics from last search
+    private string? _lastParallelDiagnostics = null;
+
     // Parallel search for high difficulties (D7+)
     // Lazy SMP provides 4-8x speedup on multi-core systems
     private readonly ParallelMinimaxSearch _parallelSearch = new();
@@ -51,12 +57,12 @@ public class MinimaxAI
 
     // History heuristic: track moves that cause cutoffs across all depths
     // Two tables: one for Red, one for Blue (each move can be good for different players)
-    private readonly int[,] _historyRed = new int[15, 15];   // History scores for Red moves
-    private readonly int[,] _historyBlue = new int[15, 15];  // History scores for Blue moves
+    private readonly int[,] _historyRed = new int[19, 19];   // History scores for Red moves
+    private readonly int[,] _historyBlue = new int[19, 19];  // History scores for Blue moves
 
     // Butterfly heuristic: track moves that cause beta cutoffs (complements history)
-    private readonly int[,] _butterflyRed = new int[15, 15];
-    private readonly int[,] _butterflyBlue = new int[15, 15];
+    private readonly int[,] _butterflyRed = new int[19, 19];
+    private readonly int[,] _butterflyBlue = new int[19, 19];
 
     // Track transposition table hits for debugging
     private int _tableHits;
@@ -68,6 +74,7 @@ public class MinimaxAI
     private int _vcfNodesSearched;
     private int _vcfDepthAchieved;
     private readonly Stopwatch _searchStopwatch = new();
+    private long _lastAllocatedTimeMs;  // Track time allocated for last move
 
     // Time control for search timeout
     private long _searchHardBoundMs;
@@ -120,29 +127,90 @@ public class MinimaxAI
         var baseDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
         var candidates = GetCandidateMoves(board);
 
-        // Apply Open Rule: Red's second move (move #3) cannot be in center 5x5 zone
-        // This is 2 layers around the center, expanding the restriction to reduce first-move advantage
+        // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections away from first red stone
+        // Rule: |x - firstX| >= 3 OR |y - firstY| >= 3 (outside 5x5 zone centered on first move)
         if (player == Player.Red && moveNumber == 3)
         {
-            candidates = candidates.Where(c => !(c.x >= 5 && c.x <= 9 && c.y >= 5 && c.y <= 9)).ToList();
+            // Find first red stone
+            (int firstX, int firstY)? firstRed = null;
+            for (int bx = 0; bx < board.BoardSize; bx++)
+            {
+                for (int by = 0; by < board.BoardSize; by++)
+                {
+                    if (board.GetCell(bx, by).Player == Player.Red)
+                    {
+                        firstRed = (bx, by);
+                        break;
+                    }
+                }
+                if (firstRed.HasValue)
+                    break;
+            }
+
+            if (firstRed.HasValue)
+            {
+                var fx = firstRed.Value.firstX;
+                var fy = firstRed.Value.firstY;
+                candidates = candidates.Where(c =>
+                {
+                    int dx = System.Math.Abs(c.x - fx);
+                    int dy = System.Math.Abs(c.y - fy);
+                    return dx >= 3 || dy >= 3;  // Valid if at least 3 away in one direction
+                }).ToList();
+            }
         }
 
         if (candidates.Count == 0)
         {
-            // No valid candidates - board is empty or all filtered out, play center (if not filtered) or first available
-            if (player == Player.Red && moveNumber == 3)
+            // No valid candidates - board is empty or all filtered out
+            // Play first available cell that satisfies open rule (if applicable)
+            for (int x = 0; x < board.BoardSize; x++)
             {
-                // Open rule applies - find first valid cell outside center 5x5
-                for (int x = 0; x < 15; x++)
+                for (int y = 0; y < board.BoardSize; y++)
                 {
-                    for (int y = 0; y < 15; y++)
+                    if (board.GetCell(x, y).Player == Player.None)
                     {
-                        if (board.GetCell(x, y).Player == Player.None && !(x >= 5 && x <= 9 && y >= 5 && y <= 9))
+                        // For move #3, check open rule
+                        if (player == Player.Red && moveNumber == 3)
+                        {
+                            // Find first red stone and check distance
+                            (int firstX, int firstY)? firstRed = null;
+                            for (int fx = 0; fx < board.BoardSize; fx++)
+                            {
+                                for (int fy = 0; fy < board.BoardSize; fy++)
+                                {
+                                    if (board.GetCell(fx, fy).Player == Player.Red)
+                                    {
+                                        firstRed = (fx, fy);
+                                        break;
+                                    }
+                                }
+                                if (firstRed.HasValue)
+                                    break;
+                            }
+
+                            if (firstRed.HasValue)
+                            {
+                                int dx = System.Math.Abs(x - firstRed.Value.firstX);
+                                int dy = System.Math.Abs(y - firstRed.Value.firstY);
+                                if (dx >= 3 || dy >= 3)
+                                    return (x, y);
+                            }
+                            else
+                            {
+                                // No red stone yet (shouldn't happen on move #3), play anywhere
+                                return (x, y);
+                            }
+                        }
+                        else
+                        {
                             return (x, y);
+                        }
                     }
                 }
             }
-            return (7, 7);
+            // Fallback: play center
+            return (9, 9);
         }
 
         // Check for ponder hit - if opponent played predicted move, we can use cached result
@@ -211,7 +279,7 @@ public class MinimaxAI
             var ttMove = GetTranspositionTableMove(board, player, minDepth: 5);
             if (ttMove.HasValue)
             {
-                Console.WriteLine("[AI] Emergency mode: Using TT move at D5+");
+                //Console.WriteLine("[AI] Emergency mode: Using TT move at D5+");
                 return ttMove.Value;
             }
         }
@@ -309,7 +377,8 @@ public class MinimaxAI
         if (parallelSearchEnabled && difficulty >= AIDifficulty.Hard)
         {
             int threadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
-            Console.WriteLine($"[AI] Using parallel search (Lazy SMP) for {difficulty} with {threadCount} threads");
+            _lastThreadCount = threadCount;
+            //Console.WriteLine($"[AI] Using parallel search (Lazy SMP) for {difficulty} with {threadCount} threads");
 
             var parallelResult = _parallelSearch.GetBestMoveWithStats(
                 board,
@@ -323,6 +392,7 @@ public class MinimaxAI
             // Update statistics from parallel search
             _depthAchieved = parallelResult.DepthAchieved;
             _nodesSearched = parallelResult.NodesSearched;
+            _lastParallelDiagnostics = parallelResult.ParallelDiagnostics;
 
             // Store PV for pondering
             _lastPV = PV.FromSingleMove(parallelResult.X, parallelResult.Y, _depthAchieved, 0);
@@ -349,7 +419,7 @@ public class MinimaxAI
                 }
             }
 
-            Console.WriteLine($"[AI PARALLEL] Move: ({parallelResult.X}, {parallelResult.Y}), Depth: {_depthAchieved}, Nodes: {_nodesSearched:N0}, Threads: {parallelResult.ThreadCount}");
+            //Console.WriteLine($"[AI PARALLEL] Move: ({parallelResult.X}, {parallelResult.Y}), Depth: {_depthAchieved}, Nodes: {_nodesSearched:N0}, Threads: {parallelResult.ThreadCount}");
             return (parallelResult.X, parallelResult.Y);
         }
 
@@ -357,6 +427,10 @@ public class MinimaxAI
         // Each difficulty uses a time multiplier: Braindead 1%, Easy 10%, Medium 30%, Hard 70%, Grandmaster 100%
         // Faster machines reach deeper depths naturally, slower machines stop earlier
         // This ensures strength ordering regardless of server performance
+
+        // Track thread count for diagnostics (even if using sequential search)
+        _lastThreadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
+        _lastParallelDiagnostics = null; // No parallel search in this path
 
         // Apply time multiplier to the soft bound - lower difficulties use less time
         double timeMultiplier = AdaptiveDepthCalculator.GetTimeMultiplier(difficulty);
@@ -389,6 +463,7 @@ public class MinimaxAI
 
         // Initialize time control for search timeout
         _searchHardBoundMs = timeAlloc.HardBoundMs;
+        _lastAllocatedTimeMs = timeAlloc.HardBoundMs;
         _searchStopped = false;
 
         // ITERATIVE DEEPENING: Search depth 1, 2, 3... until time runs out
@@ -905,7 +980,7 @@ public class MinimaxAI
         {
             // Verify the move is valid
             var (x, y) = cachedMove.Value;
-            if (x >= 0 && x < 15 && y >= 0 && y < 15)
+            if (x >= 0 && x < 19 && y >= 0 && y < 19)
             {
                 var cell = board.GetCell(x, y);
                 if (cell.IsEmpty)
@@ -1343,9 +1418,9 @@ public class MinimaxAI
             // Tactical pattern scoring
             score += EvaluateTacticalPattern(board, x, y, player);
 
-            // Prefer center (7,7)
-            var distanceToCenter = Math.Abs(x - 7) + Math.Abs(y - 7);
-            score += (14 - distanceToCenter) * 10;
+            // Prefer center (9,9) for 19x19 board
+            var distanceToCenter = Math.Abs(x - 9) + Math.Abs(y - 9);
+            score += (18 - distanceToCenter) * 10;
 
             // Prefer moves near existing stones
             var nearby = 0;
@@ -1356,7 +1431,7 @@ public class MinimaxAI
                     if (dx == 0 && dy == 0) continue;
                     var nx = x + dx;
                     var ny = y + dy;
-                    if (nx >= 0 && nx < 15 && ny >= 0 && ny < 15)
+                    if (nx >= 0 && nx < 19 && ny >= 0 && ny < 19)
                     {
                         var cell = board.GetCell(nx, ny);
                         if (cell.Player != Player.None)
@@ -1418,9 +1493,9 @@ public class MinimaxAI
             // Tactical pattern scoring
             score += EvaluateTacticalPattern(board, x, y, player);
 
-            // Prefer center (7,7)
-            var distanceToCenter = Math.Abs(x - 7) + Math.Abs(y - 7);
-            score += (14 - distanceToCenter) * 10;
+            // Prefer center (9,9) for 19x19 board
+            var distanceToCenter = Math.Abs(x - 9) + Math.Abs(y - 9);
+            score += (18 - distanceToCenter) * 10;
 
             // Prefer moves near existing stones
             var nearby = 0;
@@ -1431,7 +1506,7 @@ public class MinimaxAI
                     if (dx == 0 && dy == 0) continue;
                     var nx = x + dx;
                     var ny = y + dy;
-                    if (nx >= 0 && nx < 15 && ny >= 0 && ny < 15)
+                    if (nx >= 0 && nx < 19 && ny >= 0 && ny < 19)
                     {
                         var cell = board.GetCell(nx, ny);
                         if (cell.Player != Player.None)
@@ -1492,7 +1567,7 @@ public class MinimaxAI
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
 
                 if (playerBitBoard.GetBit(nx, ny))
                 {
@@ -1514,7 +1589,7 @@ public class MinimaxAI
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
 
                 if (playerBitBoard.GetBit(nx, ny))
                 {
@@ -1570,7 +1645,7 @@ public class MinimaxAI
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
 
                 if (opponentBitBoard.GetBit(nx, ny))
                 {
@@ -1592,7 +1667,7 @@ public class MinimaxAI
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
 
                 if (opponentBitBoard.GetBit(nx, ny))
                 {
@@ -1838,9 +1913,9 @@ public class MinimaxAI
     private bool IsTacticalPosition(Board board)
     {
         // Check for 3+ in a row
-        for (int x = 0; x < 15; x++)
+        for (int x = 0; x < 19; x++)
         {
-            for (int y = 0; y < 15; y++)
+            for (int y = 0; y < 19; y++)
             {
                 var cell = board.GetCell(x, y);
                 if (cell.Player == Player.None)
@@ -1848,7 +1923,7 @@ public class MinimaxAI
 
                 // Check horizontal
                 var count = 1;
-                for (int dy = 1; dy <= 4 && y + dy < 15; dy++)
+                for (int dy = 1; dy <= 4 && y + dy < 19; dy++)
                 {
                     if (board.GetCell(x, y + dy).Player == cell.Player)
                         count++;
@@ -1860,7 +1935,7 @@ public class MinimaxAI
 
                 // Check vertical
                 count = 1;
-                for (int dx = 1; dx <= 4 && x + dx < 15; dx++)
+                for (int dx = 1; dx <= 4 && x + dx < 19; dx++)
                 {
                     if (board.GetCell(x + dx, y).Player == cell.Player)
                         count++;
@@ -1872,7 +1947,7 @@ public class MinimaxAI
 
                 // Check diagonal (down-right)
                 count = 1;
-                for (int i = 1; i <= 4 && x + i < 15 && y + i < 15; i++)
+                for (int i = 1; i <= 4 && x + i < 19 && y + i < 19; i++)
                 {
                     if (board.GetCell(x + i, y + i).Player == cell.Player)
                         count++;
@@ -1884,7 +1959,7 @@ public class MinimaxAI
 
                 // Check diagonal (down-left)
                 count = 1;
-                for (int i = 1; i <= 4 && x + i < 15 && y - i >= 0; i++)
+                for (int i = 1; i <= 4 && x + i < 19 && y - i >= 0; i++)
                 {
                     if (board.GetCell(x + i, y - i).Player == cell.Player)
                         count++;
@@ -1921,7 +1996,7 @@ public class MinimaxAI
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
                 if (playerBitBoard.GetBit(nx, ny)) playerCount++;
                 else if (!occupied.GetBit(nx, ny)) { playerOpenEnds++; break; }
                 else break;
@@ -1930,7 +2005,7 @@ public class MinimaxAI
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
                 if (playerBitBoard.GetBit(nx, ny)) playerCount++;
                 else if (!occupied.GetBit(nx, ny)) { playerOpenEnds++; break; }
                 else break;
@@ -1950,7 +2025,7 @@ public class MinimaxAI
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
                 if (opponentBitBoard.GetBit(nx, ny)) oppCount++;
                 else if (!occupied.GetBit(nx, ny)) { oppOpenEnds++; break; }
                 else break;
@@ -1959,7 +2034,7 @@ public class MinimaxAI
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
                 if (opponentBitBoard.GetBit(nx, ny)) oppCount++;
                 else if (!occupied.GetBit(nx, ny)) { oppOpenEnds++; break; }
                 else break;
@@ -1999,9 +2074,9 @@ public class MinimaxAI
         // If there are threats, null-move is unsafe (might miss tactical sequences)
         foreach (var (dx, dy) in new[] { (1, 0), (0, 1), (1, 1), (1, -1) })
         {
-            for (int x = 0; x < 15; x++)
+            for (int x = 0; x < 19; x++)
             {
-                for (int y = 0; y < 15; y++)
+                for (int y = 0; y < 19; y++)
                 {
                     if (!opponentBitBoard.GetBit(x, y)) continue;
 
@@ -2281,7 +2356,7 @@ public class MinimaxAI
     /// </summary>
     private List<(int x, int y)> GetCandidateMoves(Board board)
     {
-        const int boardSize = 15;
+        const int boardSize = 19;
         const int cellCount = boardSize * boardSize;
 
         // Use stackalloc for considered tracking (zero allocation)
@@ -2352,9 +2427,9 @@ public class MinimaxAI
 
         // Find the most recent opponent move by checking all occupied cells
         // We'll return any occupied opponent cell (for opening book, this is sufficient)
-        for (int x = 0; x < 15; x++)
+        for (int x = 0; x < 19; x++)
         {
-            for (int y = 0; y < 15; y++)
+            for (int y = 0; y < 19; y++)
             {
                 if (board.GetCell(x, y).Player == opponent)
                 {
@@ -2396,7 +2471,7 @@ public class MinimaxAI
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
                 if (playerBitBoard.GetBit(nx, ny)) count++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2407,7 +2482,7 @@ public class MinimaxAI
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
                 if (playerBitBoard.GetBit(nx, ny)) count++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2418,9 +2493,9 @@ public class MinimaxAI
             if (count == 3)
             {
                 // Check if both ends are open
-                bool leftOpen = x - dx >= 0 && x - dx < 15 && y - dy >= 0 && y - dy < 15
+                bool leftOpen = x - dx >= 0 && x - dx < 19 && y - dy >= 0 && y - dy < 19
                                && !occupied.GetBit(x - dx, y - dy);
-                bool rightOpen = x + dx * 3 >= 0 && x + dx * 3 < 15 && y + dy * 3 >= 0 && y + dy * 3 < 15
+                bool rightOpen = x + dx * 3 >= 0 && x + dx * 3 < 19 && y + dy * 3 >= 0 && y + dy * 3 < 19
                                 && !occupied.GetBit(x + dx * 3, y + dy * 3);
                 if (leftOpen && rightOpen) return true; // Creates open three
             }
@@ -2433,7 +2508,7 @@ public class MinimaxAI
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
                 if (opponentBitBoard.GetBit(nx, ny)) oppCount++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2444,7 +2519,7 @@ public class MinimaxAI
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
                 if (opponentBitBoard.GetBit(nx, ny)) oppCount++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2455,9 +2530,9 @@ public class MinimaxAI
             if (oppCount == 3)
             {
                 // Check if this blocks an open three
-                var leftOpen = x - dx >= 0 && x - dx < 15 && y - dy >= 0 && y - dy < 15
+                var leftOpen = x - dx >= 0 && x - dx < 19 && y - dy >= 0 && y - dy < 19
                               && !occupied.GetBit(x - dx, y - dy);
-                var rightOpen = x + dx * 3 >= 0 && x + dx * 3 < 15 && y + dy * 3 >= 0 && y + dy * 3 < 15
+                var rightOpen = x + dx * 3 >= 0 && x + dx * 3 < 19 && y + dy * 3 >= 0 && y + dy * 3 < 19
                                && !occupied.GetBit(x + dx * 3, y + dy * 3);
                 if (leftOpen && rightOpen) return true; // Blocks open three
             }
@@ -2490,7 +2565,7 @@ public class MinimaxAI
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
                 if (playerBitBoard.GetBit(nx, ny)) count++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2501,7 +2576,7 @@ public class MinimaxAI
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
                 if (playerBitBoard.GetBit(nx, ny)) count++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2525,7 +2600,7 @@ public class MinimaxAI
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
                 if (opponentBitBoard.GetBit(nx, ny)) count++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2536,7 +2611,7 @@ public class MinimaxAI
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 15 || ny < 0 || ny >= 15) break;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
                 if (opponentBitBoard.GetBit(nx, ny)) count++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2640,14 +2715,46 @@ public class MinimaxAI
     public string GetPonderingStatistics() => _ponderer.GetStatistics();
 
     /// <summary>
+    /// Get last ponder result statistics (nodes searched during opponent's turn)
+    /// Returns (nodesSearched, nodesPerSecond, timeSpentMs)
+    /// </summary>
+    public (long NodesSearched, double NodesPerSecond, long TimeSpentMs) GetLastPonderStats()
+    {
+        // TODO: Track last ponder result properly in Ponderer
+        return (0, 0, 0);
+    }
+
+    /// <summary>
     /// Get search statistics for the last move
     /// </summary>
-    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched) GetSearchStatistics()
+    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched, int ThreadCount, string? ParallelDiagnostics, double MasterTTPercent, double HelperAvgDepth, long AllocatedTimeMs) GetSearchStatistics()
     {
         double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
         var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
         double nps = elapsedMs > 0 ? (double)_nodesSearched * 1000 / elapsedMs : 0;
-        return (_depthAchieved, _nodesSearched, nps, hitRate, _ponderer.IsPondering, _vcfDepthAchieved, _vcfNodesSearched);
+
+        // Parse % from master and helper avg depth from diagnostics string
+        double masterTTPercent = 0;
+        double helperAvgDepth = 0;
+
+        if (!string.IsNullOrEmpty(_lastParallelDiagnostics))
+        {
+            // Parse "XX% from master" from TT part
+            var ttMatch = System.Text.RegularExpressions.Regex.Match(_lastParallelDiagnostics, @"(\d+\.?\d*)% from master");
+            if (ttMatch.Success && double.TryParse(ttMatch.Groups[1].Value, out var ttPercent))
+            {
+                masterTTPercent = ttPercent;
+            }
+
+            // Parse "avg=X.X" from Depths part
+            var avgMatch = System.Text.RegularExpressions.Regex.Match(_lastParallelDiagnostics, @"avg=([\d\.]+)");
+            if (avgMatch.Success && double.TryParse(avgMatch.Groups[1].Value, out var avgDepth))
+            {
+                helperAvgDepth = avgDepth;
+            }
+        }
+
+        return (_depthAchieved, _nodesSearched, nps, hitRate, _ponderer.IsPondering, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs);
     }
 
     #endregion
