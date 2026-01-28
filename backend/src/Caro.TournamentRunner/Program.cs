@@ -15,6 +15,17 @@ class Program
         var depthProfileMode = args.Contains("--profile-depths");
         var quickValidationMode = args.Contains("--quick-val");
         var baselineMode = args.Contains("--baseline");
+        var detailedVerifyMode = args.Contains("--detailed-verify");
+
+        // Detailed verification mode: Per-move diagnostics with time, threads, nodes, NPS, TT
+        if (detailedVerifyMode)
+        {
+            var time = GetArgValue(args, "--time", 420);
+            var inc = GetArgValue(args, "--inc", 5);
+            var games = GetArgValue(args, "--games", 10);
+            await DetailedVerificationRunner.RunAsync(time, inc, games);
+            return;
+        }
 
         // Baseline mode: Comprehensive test with all difficulties
         if (baselineMode)
@@ -233,18 +244,21 @@ class Program
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --baseline          Run comprehensive baseline (all difficulties, detailed log)");
+        Console.WriteLine("  --detailed-verify   Run detailed verification (per-move diagnostics)");
         Console.WriteLine("  --test              Run quick strength tests (legacy)");
         Console.WriteLine("  --validate-strength Run full AI strength validation suite");
         Console.WriteLine("  --quick-validate    Run quick AI strength validation (10 games/matchup)");
         Console.WriteLine("  --profile-depths    Profile search depths at different time controls");
         Console.WriteLine("  --auto              Run tournament in auto mode (no prompts)");
         Console.WriteLine();
-        Console.WriteLine("Validation options (with --baseline, --quick-val, or --validate-strength):");
+        Console.WriteLine("Validation options (with --baseline, --detailed-verify, --quick-val, or --validate-strength):");
         Console.WriteLine("  --games <n>         Number of games per matchup (default: 10)");
-        Console.WriteLine("  --time <n>          Initial time in seconds (default: 420 for baseline)");
-        Console.WriteLine("  --inc <n>           Increment time in seconds (default: 5 for baseline)");
+        Console.WriteLine("  --time <n>          Initial time in seconds (default: 420 for baseline/detailed-verify)");
+        Console.WriteLine("  --inc <n>           Increment time in seconds (default: 5 for baseline/detailed-verify)");
         Console.WriteLine();
         Console.WriteLine("Examples:");
+        Console.WriteLine("  dotnet run -- --detailed-verify");
+        Console.WriteLine("  dotnet run -- --detailed-verify --games 5 --time 180 --inc 2");
         Console.WriteLine("  dotnet run -- --baseline");
         Console.WriteLine("  dotnet run -- --baseline --games 5 --time 180 --inc 2");
         Console.WriteLine("  dotnet run -- --validate-strength");

@@ -324,7 +324,7 @@ public sealed class TournamentManager : BackgroundService
                     return engine.RunGame(
                         match.RedBot.Difficulty,
                         match.BlueBot.Difficulty,
-                        maxMoves: 225,
+                        maxMoves: 361,
                         initialTimeSeconds: 420,
                         incrementSeconds: 5,
                         ponderingEnabled: true,
