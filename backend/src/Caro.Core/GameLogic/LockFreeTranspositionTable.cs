@@ -7,6 +7,7 @@ namespace Caro.Core.GameLogic;
 /// <summary>
 /// Lock-free transposition table for parallel search (Lazy SMP)
 /// Uses atomic operations and memory barriers for thread safety without locks
+/// TT SHARDING: Partitioned into segments to reduce cache line contention
 /// </summary>
 public sealed class LockFreeTranspositionTable
 {
@@ -64,50 +65,107 @@ public sealed class LockFreeTranspositionTable
         public (int x, int y)? GetMove() => HasMove ? ((int x, int y)?)(MoveX, MoveY) : null;
     }
 
-    private readonly TranspositionEntry?[] _entries;
-    private readonly int _size;
+    // TT SHARDING: Multiple segments to reduce cache line contention
+    // Each segment is a separate array, reducing contention between threads
+    private readonly TranspositionEntry?[][] _shards;
+    private readonly int _shardCount;
+    private readonly int _shardMask;
+    private readonly int _sizePerShard;
     private int _currentAge;
     private int _hitCount;
     private int _lookupCount;
 
     /// <summary>
-    /// Create a lock-free transposition table
+    /// Create a lock-free transposition table with sharding for reduced contention
     /// </summary>
     /// <param name="sizeMB">Size in MB (default 256MB = ~8M entries)</param>
-    public LockFreeTranspositionTable(int sizeMB = 256)
+    /// <param name="shardCount">Number of shards (default 16, must be power of 2)</param>
+    public LockFreeTranspositionTable(int sizeMB = 256, int shardCount = 16)
     {
+        // Validate shard count is power of 2
+        if ((shardCount & (shardCount - 1)) != 0)
+            shardCount = 16;
+
+        _shardCount = shardCount;
+        _shardMask = shardCount - 1;
+
         // Each entry is 16 bytes (8 hash + 8 data)
-        _size = (sizeMB * 1024 * 1024) / 16;
-        _entries = new TranspositionEntry[_size];
+        int totalEntries = (sizeMB * 1024 * 1024) / 16;
+        _sizePerShard = totalEntries / shardCount;
+
+        // Create separate arrays for each shard
+        _shards = new TranspositionEntry[shardCount][];
+        for (int i = 0; i < shardCount; i++)
+        {
+            _shards[i] = new TranspositionEntry[_sizePerShard];
+        }
+
         _currentAge = 1;
     }
 
     /// <summary>
-    /// Calculate table index from hash
+    /// Calculate shard and index from hash
+    /// TT SHARDING: Uses high bits of hash for shard selection to distribute entries evenly
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetIndex(ulong hash) => (int)(hash % (ulong)_size);
+    private (int shardIndex, int entryIndex) GetShardAndIndex(ulong hash)
+    {
+        // Use high bits for shard, low bits for index within shard
+        // This distributes entries across shards to reduce contention
+        int shardIndex = (int)(hash >> 32) & _shardMask;
+        int entryIndex = (int)(hash % (ulong)_sizePerShard);
+        return (shardIndex, entryIndex);
+    }
 
     /// <summary>
     /// Store a position in the transposition table (thread-safe)
     /// Uses atomic Interlocked.Exchange for lock-free write
+    /// STRICT HELPER WRITE POLICY: Helpers only store deep, exact entries to prevent TT pollution
+    /// TT SHARDING: Uses separate shard arrays to reduce cache line contention
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Store(ulong hash, sbyte depth, short score, sbyte moveX, sbyte moveY, int alpha, int beta, byte threadIndex = 0)
+    public void Store(ulong hash, sbyte depth, short score, sbyte moveX, sbyte moveY, int alpha, int beta, byte threadIndex = 0, int rootDepth = 1)
     {
-        int index = GetIndex(hash);
+        var (shardIndex, entryIndex) = GetShardAndIndex(hash);
+        var shard = _shards[shardIndex];
+
+        // HELPER WRITE POLICY: Only store high-quality entries
+        // Helper threads (threadIndex > 0) have stricter write criteria
+        if (threadIndex > 0)
+        {
+            // Helpers only store if:
+            // 1. Depth is at least rootDepth/2 (not too shallow)
+            // 2. Score is exact (not upper/lower bound which can be misleading)
+            // This prevents shallow, unreliable helper entries from polluting the TT
+            EntryFlag flag;
+            if (score <= alpha)
+                flag = EntryFlag.UpperBound;
+            else if (score >= beta)
+                flag = EntryFlag.LowerBound;
+            else
+                flag = EntryFlag.Exact;
+
+            // Minimum depth for helper writes: must be at least half of root depth
+            sbyte minHelperDepth = (sbyte)(rootDepth / 2);
+            if (depth < minHelperDepth)
+                return; // Skip shallow helper entries
+
+            // Only exact scores from helpers (bounds are too unreliable)
+            if (flag != EntryFlag.Exact)
+                return; // Skip bound entries from helpers
+        }
 
         // Determine flag based on score relative to alpha/beta
-        EntryFlag flag;
+        EntryFlag entryFlag;
         if (score <= alpha)
-            flag = EntryFlag.UpperBound;
+            entryFlag = EntryFlag.UpperBound;
         else if (score >= beta)
-            flag = EntryFlag.LowerBound;
+            entryFlag = EntryFlag.LowerBound;
         else
-            flag = EntryFlag.Exact;
+            entryFlag = EntryFlag.Exact;
 
-        var newEntry = new TranspositionEntry(hash, depth, score, moveX, moveY, flag, (byte)_currentAge, threadIndex);
-        var existing = Volatile.Read(ref _entries[index]);
+        var newEntry = new TranspositionEntry(hash, depth, score, moveX, moveY, entryFlag, (byte)_currentAge, threadIndex);
+        var existing = Volatile.Read(ref shard[entryIndex]);
 
         // Deep replacement strategy (lock-free) with MASTER PRIORITY:
         // MASTER THREAD (threadIndex=0) entries are protected from helper overwrites
@@ -150,7 +208,7 @@ public sealed class LockFreeTranspositionTable
         if (shouldStore)
         {
             // Atomic write - may overwrite another thread's write, but that's acceptable
-            Interlocked.Exchange(ref _entries[index], newEntry);
+            Interlocked.Exchange(ref shard[entryIndex], newEntry);
         }
     }
 
@@ -158,13 +216,15 @@ public sealed class LockFreeTranspositionTable
     /// Look up a position in the transposition table (thread-safe)
     /// Returns entry provenance (threadIndex) for selective reading
     /// For Lazy SMP: Also returns entries found at shallower depths for move ordering
+    /// TT SHARDING: Uses separate shard arrays to reduce cache line contention
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public (bool found, bool hasExactDepth, short score, (int x, int y)? move, byte threadIndex) Lookup(ulong hash, sbyte depth, int alpha, int beta)
     {
         Interlocked.Increment(ref _lookupCount);
-        int index = GetIndex(hash);
-        var entry = Volatile.Read(ref _entries[index]);
+        var (shardIndex, entryIndex) = GetShardAndIndex(hash);
+        var shard = _shards[shardIndex];
+        var entry = Volatile.Read(ref shard[entryIndex]);
 
         if (entry is null || entry.Hash != hash)
             return (false, false, 0, null, 0);
@@ -226,7 +286,10 @@ public sealed class LockFreeTranspositionTable
     /// </summary>
     public void Clear()
     {
-        Array.Clear(_entries, 0, _entries.Length);
+        for (int i = 0; i < _shardCount; i++)
+        {
+            Array.Clear(_shards[i], 0, _sizePerShard);
+        }
         _currentAge = 1;
         Interlocked.Exchange(ref _hitCount, 0);
         Interlocked.Exchange(ref _lookupCount, 0);
@@ -238,11 +301,17 @@ public sealed class LockFreeTranspositionTable
     public (int used, double usagePercent, int hitCount, int lookupCount, double hitRate) GetStats()
     {
         int used = 0;
-        for (int i = 0; i < _size; i++)
+        int totalSize = _sizePerShard * _shardCount;
+
+        for (int s = 0; s < _shardCount; s++)
         {
-            var entry = Volatile.Read(ref _entries[i]);
-            if (entry is not null && entry.IsValid && entry.Age == _currentAge)
-                used++;
+            var shard = _shards[s];
+            for (int i = 0; i < _sizePerShard; i++)
+            {
+                var entry = Volatile.Read(ref shard[i]);
+                if (entry is not null && entry.IsValid && entry.Age == _currentAge)
+                    used++;
+            }
         }
 
         // Use Interlocked.CompareExchange to get current value without volatile read
@@ -250,13 +319,13 @@ public sealed class LockFreeTranspositionTable
         int lookups = Interlocked.CompareExchange(ref _lookupCount, 0, 0);
         double hitRate = lookups > 0 ? (double)hits / lookups * 100 : 0;
 
-        return (used, (double)used / _size * 100, hits, lookups, hitRate);
+        return (used, (double)used / totalSize * 100, hits, lookups, hitRate);
     }
 
     /// <summary>
     /// Get the table size in entries
     /// </summary>
-    public int Size => _size;
+    public int Size => _sizePerShard * _shardCount;
 
     /// <summary>
     /// Get current age counter
