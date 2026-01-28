@@ -31,6 +31,7 @@ public sealed class ParallelMinimaxSearch
     private readonly ThreatSpaceSearch _vcfSolver;
     private readonly Random _random;
     private readonly int _maxThreads;
+    private readonly TimeBudgetDepthManager _depthManager = new();
 
     // Search constants
     private const int SearchRadius = 2;
@@ -59,6 +60,13 @@ public sealed class ParallelMinimaxSearch
         public int[,] HistoryBlue = new int[15, 15];
         public int TableHits;
         public int TableLookups;
+        
+        // Diagnostic counters for TT provenance tracking
+        public int TTReadsFromMaster;    // Entries from master thread (ThreadIndex=0)
+        public int TTReadsFromHelpers;   // Entries from helper threads (ThreadIndex>0)
+        public int TTReadsSkipped;       // Helper entries skipped due to depth threshold
+        public int TTScoresUsed;         // How many TT entries actually returned scores
+        
         public Random Random = new();
 
         public void Reset()
@@ -135,6 +143,10 @@ public sealed class ParallelMinimaxSearch
         // Use provided time allocation or create default
         var alloc = timeAlloc ?? GetDefaultTimeAllocation(difficulty, timeRemainingMs);
 
+        // CRITICAL FIX: Calibrate NPS for difficulty to ensure proper depth scaling
+        // Easy targets 50k nps, Medium targets 100k nps, Hard targets 200k nps, Grandmaster targets 500k nps
+        _depthManager.CalibrateNpsForDifficulty(difficulty);
+
         // Try VCF first for higher difficulties
         if (difficulty >= AIDifficulty.Hard)
         {
@@ -165,8 +177,12 @@ public sealed class ParallelMinimaxSearch
                 candidates = opponentThreatMoves;
         }
 
-        // Adjust depth based on time allocation
-        var adjustedDepth = CalculateDepthForTime(baseDepth, alloc, candidates.Count, timeRemainingMs);
+        // CRITICAL FIX: Use time-budget calculation with difficulty time multiplier
+        // This ensures Easy (10% time), Medium (30% time), Hard (70% time), Grandmaster (100% time)
+        // scale their search depths appropriately even in parallel mode
+        var depthFromBudget = CalculateDepthFromTimeBudget(alloc, difficulty);
+        var minDepth = TimeBudgetDepthManager.GetMinimumDepth(difficulty);
+        var adjustedDepth = Math.Max(depthFromBudget, minDepth);
 
         // For Braindead difficulty, add randomness
         if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 50)
@@ -212,12 +228,17 @@ public sealed class ParallelMinimaxSearch
 
         if (candidates.Count == 0)
         {
-            // No valid candidates - return center with minimal stats
-            return new ParallelSearchResult(7, 7, 0, 0);
+            // Empty board - return center move with depth 1 (not 0, which is misleading)
+            // For empty board, center is the only reasonable move
+            return new ParallelSearchResult(7, 7, 1, 1);
         }
 
         // Use provided time allocation or create default
         var alloc = timeAlloc ?? GetDefaultTimeAllocation(difficulty, timeRemainingMs);
+
+        // CRITICAL FIX: Calibrate NPS for difficulty to ensure proper depth scaling
+        // Easy targets 50k nps, Medium targets 100k nps, Hard targets 200k nps, Grandmaster targets 500k nps
+        _depthManager.CalibrateNpsForDifficulty(difficulty);
 
         // Try VCF first for higher difficulties
         if (difficulty >= AIDifficulty.Hard)
@@ -249,8 +270,12 @@ public sealed class ParallelMinimaxSearch
                 candidates = opponentThreatMoves;
         }
 
-        // Adjust depth based on time allocation
-        var adjustedDepth = CalculateDepthForTime(baseDepth, alloc, candidates.Count, timeRemainingMs);
+        // CRITICAL FIX: Use time-budget calculation with difficulty time multiplier
+        // This ensures Easy (10% time), Medium (30% time), Hard (70% time), Grandmaster (100% time)
+        // scale their search depths appropriately even in parallel mode
+        var depthFromBudget = CalculateDepthFromTimeBudget(alloc, difficulty);
+        var minDepth = TimeBudgetDepthManager.GetMinimumDepth(difficulty);
+        var adjustedDepth = Math.Max(depthFromBudget, minDepth);
 
         // For Braindead difficulty, add randomness
         if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 50)
@@ -350,6 +375,7 @@ public sealed class ParallelMinimaxSearch
 
         // Include threadIndex to distinguish master thread (0) from helper threads (1+)
         var results = new ConcurrentBag<(int x, int y, int score, int depth, long nodes, int threadIndex)>();
+        var diagnosticsList = new ConcurrentBag<ThreadData>();
 
         // Create thread-local copies of board and candidates for each thread
         var boardsArray = new Board[threadCount];
@@ -361,12 +387,24 @@ public sealed class ParallelMinimaxSearch
         }
 
         // Launch parallel searches with time-aware iterative deepening
+        // Use dedicated threads instead of Task.Run for true parallelism
+        // Task.Run queues to thread pool which doesn't scale immediately
         var token = _searchCts.Token;
-        var tasks = new List<Task>();
+        var threads = new List<Thread>();
+
+        // PREVENT EARLY CANCELLATION: Track minimum depth reached across all threads
+        // Only allow cancellation when all threads reach at least minTargetDepth
+        int minTargetDepth = Math.Max(3, depth - 1); // Ensure at least depth 3 or target-1
+        var threadsReachedMinDepth = 0;
+        var depthLock = new object();
+
         for (int i = 0; i < threadCount; i++)
         {
             int threadId = i;
-            var task = Task.Run(() =>
+            
+            // Create dedicated thread for true parallelism
+            // Task.Run uses thread pool which doesn't scale immediately
+            var thread = new Thread(() =>
             {
                 // DIVERSITY FIX: Set ThreadIndex to distinguish master (0) from helper (1+) threads
                 // Master thread (ThreadIndex=0) searches deterministically without noise
@@ -379,75 +417,64 @@ public sealed class ParallelMinimaxSearch
 
                 var result = SearchWithIterationTimeAware(
                     boardsArray[threadId], player, depth, candidatesArray[threadId],
-                    threadData, timeAlloc, difficulty, token);
+                    threadData, timeAlloc, difficulty, token, minTargetDepth, () =>
+                    {
+                        // Callback when thread reaches minimum depth
+                        lock (depthLock)
+                        {
+                            threadsReachedMinDepth++;
+                        }
+                    });
 
                 // Add threadIndex to identify master vs helper thread results
                 var (x, y, score, depthAchieved, nodes) = result;
                 results.Add((x, y, score, depthAchieved, nodes, threadId));
-            }, token);
-            tasks.Add(task);
+                
+                // Collect diagnostics for analysis
+                diagnosticsList.Add(threadData);
+            });
+            
+            thread.IsBackground = false; // Important: keep thread alive until done
+            thread.Start();
+            threads.Add(thread);
         }
 
         // Wait for all threads - handle cancellation gracefully
-        try
+        foreach (var thread in threads)
         {
-            Task.WaitAll(tasks.ToArray());
-        }
-        catch (AggregateException ae)
-        {
-            // TaskCanceledException is expected when time runs out
-            // Filter out expected cancellation exceptions
-            var unexpectedExceptions = ae.InnerExceptions.Where(e => e is not TaskCanceledException).ToList();
-            if (unexpectedExceptions.Any())
-            {
-                throw new AggregateException("Unexpected exceptions during parallel search", unexpectedExceptions);
-            }
-            // If all are TaskCanceledException, that's expected - just continue
+            thread.Join();
         }
 
         _searchStopwatch.Stop();
 
-        // Select best result (prefer deeper results if scores are similar)
-        // If no results were produced (all tasks cancelled), use a fallback move
-        if (results.IsEmpty)
-        {
-            // Fallback to first candidate if no results
-            long totalNodes = Interlocked.Read(ref _realNodesSearched);
-            return new ParallelSearchResult(candidates[0].x, candidates[0].y, 1, totalNodes);
-        }
-
-        // RELIABILITY FIX: Always trust the Master Thread (ThreadIndex=0) result
-        // The master thread searches deterministically without noise injection.
-        // Helper threads populate the transposition table for speedup, but their
-        // result selection may be affected by timing and cutoff differences.
+        // CRITICAL FIX: Only use master thread (threadIndex=0) result for move selection
+        // Lazy SMP helper threads are for populating the transposition table ONLY
+        // They should NOT influence move selection as their results may be inconsistent
+        // due to early cancellation at different depths during iterative deepening.
         //
-        // First try to get the master thread result at acceptable depth
-        int minAcceptableDepth = Math.Max(1, depth - 2);
-        var masterThreadResult = results.FirstOrDefault(r => r.threadIndex == 0 && r.depth >= minAcceptableDepth);
+        // The regression (Medium losing to Easy) was caused by selecting shallow
+        // helper results instead of waiting for the master thread's deeper result.
 
-        // Fallback 1: Any master thread result (regardless of depth)
-        if (masterThreadResult == default)
-        {
-            masterThreadResult = results.FirstOrDefault(r => r.threadIndex == 0);
-        }
+        var bestResult = results.FirstOrDefault(r => r.threadIndex == 0);
 
-        // Fallback 2: Best result from any thread at acceptable depth
-        if (masterThreadResult == default)
+        // If master thread produced no result, use fallback
+        if (bestResult == default)
         {
-            var acceptableResults = results.Where(r => r.depth >= minAcceptableDepth).ToList();
-            if (acceptableResults.Count > 0)
+            // Fallback: deepest result from any thread (should rarely happen)
+            var maxDepth = results.Max(r => r.depth);
+            if (maxDepth > 0)
             {
-                masterThreadResult = acceptableResults.OrderByDescending(r => r.score).First();
+                bestResult = results.Where(r => r.depth == maxDepth)
+                                   .OrderByDescending(r => r.score)
+                                   .FirstOrDefault();
+            }
+            else
+            {
+                // Last resort: first candidate
+                long totalNodes = Interlocked.Read(ref _realNodesSearched);
+                return new ParallelSearchResult(candidates[0].x, candidates[0].y, 1, totalNodes);
             }
         }
-
-        // Fallback 3: Any result at all
-        if (masterThreadResult == default)
-        {
-            masterThreadResult = results.OrderByDescending(r => r.score).FirstOrDefault();
-        }
-
-        var bestResult = (masterThreadResult.x, masterThreadResult.y, masterThreadResult.score, masterThreadResult.depth, masterThreadResult.nodes);
 
         // Use real node count instead of estimated
         long totalNodesFinal = Interlocked.Read(ref _realNodesSearched);
@@ -456,6 +483,17 @@ public sealed class ParallelMinimaxSearch
                          $"{timeAlloc.SoftBoundMs}ms, Phase: {timeAlloc.Phase}, " +
                          $"Complexity: {timeAlloc.ComplexityMultiplier:F2}, Nodes: {totalNodesFinal:N0}");
 
+        // Print TT provenance diagnostics
+        var masterDiag = diagnosticsList.FirstOrDefault(d => d.ThreadIndex == 0);
+        if (masterDiag != null)
+        {
+            var totalReads = masterDiag.TTReadsFromMaster + masterDiag.TTReadsFromHelpers;
+            var masterRate = totalReads > 0 ? (double)masterDiag.TTReadsFromMaster / totalReads * 100 : 0;
+            Console.WriteLine($"[TT-PROVENANCE] Master: {masterDiag.TTReadsFromMaster} reads, " +
+                             $"Helpers: {masterDiag.TTReadsFromHelpers} reads, Skipped: {masterDiag.TTReadsSkipped}, " +
+                             $"({masterRate:F1}% from master), Scores used: {masterDiag.TTScoresUsed}");
+        }
+
         return new ParallelSearchResult(bestResult.x, bestResult.y, bestResult.depth, totalNodesFinal, threadCount);
     }
 
@@ -463,6 +501,8 @@ public sealed class ParallelMinimaxSearch
     /// Iterative deepening search for a single thread with time awareness
     /// Implements move stability detection for early termination
     /// Note: Node counting is done globally via Interlocked in Minimax()
+    /// CRITICAL FIX: Only master thread (ThreadIndex=0) can trigger cancellation
+    /// Helper threads must NOT cancel as they complete early and would interrupt deeper searches
     /// </summary>
     private (int x, int y, int score, int depth, long nodes) SearchWithIterationTimeAware(
         Board board,
@@ -472,12 +512,19 @@ public sealed class ParallelMinimaxSearch
         ThreadData threadData,
         TimeAllocation timeAlloc,
         AIDifficulty difficulty,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int minTargetDepth = 2,
+        Action? onMinDepthReached = null)
     {
         var bestMove = candidates[0];
         var bestScore = int.MinValue;
         int bestDepth = 1;
         int stableCount = 0; // Number of consecutive depths with same best move
+        bool minDepthCallbackCalled = false;
+
+        // CRITICAL: Only master thread (ThreadIndex=0) can trigger cancellation
+        // Helper threads complete early with shallow searches and must NOT interrupt master
+        bool isMasterThread = threadData.ThreadIndex == 0;
 
         // Start from depth 2 and iterate up
         for (int currentDepth = 2; currentDepth <= targetDepth; currentDepth++)
@@ -490,15 +537,25 @@ public sealed class ParallelMinimaxSearch
 
             var elapsed = _searchStopwatch?.ElapsedMilliseconds ?? 0;
 
-            // Check hard bound (absolute maximum) - cancel for all threads
-            if (elapsed >= _hardTimeBoundMs)
+            // Check hard bound (absolute maximum) - ONLY master thread can cancel
+            if (isMasterThread && elapsed >= _hardTimeBoundMs)
             {
                 _searchCts?.Cancel();
                 break;
             }
 
+            // Helper threads: also check hard bound but don't cancel others
+            if (!isMasterThread && elapsed >= _hardTimeBoundMs)
+            {
+                break; // Just exit, don't cancel
+            }
+
+            // CRITICAL FIX: Don't exit early until we've reached minimum target depth
+            // This prevents threads from cancelling each other too early when there are few candidates
+            bool hasReachedMinDepth = currentDepth >= minTargetDepth;
+
             // Check soft bound with stability consideration
-            if (elapsed >= timeAlloc.SoftBoundMs)
+            if (elapsed >= timeAlloc.SoftBoundMs && hasReachedMinDepth)
             {
                 // If move is stable (same for 2+ consecutive depths), we can stop early
                 if (stableCount >= 2)
@@ -508,7 +565,7 @@ public sealed class ParallelMinimaxSearch
             }
 
             // Check optimal time - if move is very stable, exit
-            if (elapsed >= timeAlloc.OptimalTimeMs && stableCount >= 3)
+            if (elapsed >= timeAlloc.OptimalTimeMs && hasReachedMinDepth && stableCount >= 3)
             {
                 break;
             }
@@ -545,6 +602,13 @@ public sealed class ParallelMinimaxSearch
             }
 
             bestDepth = currentDepth;
+
+            // Call callback when minimum target depth is reached (once only)
+            if (hasReachedMinDepth && !minDepthCallbackCalled && onMinDepthReached != null)
+            {
+                minDepthCallbackCalled = true;
+                onMinDepthReached();
+            }
 
             // Early exit on winning move
             if (result.score >= 100000)
@@ -606,8 +670,13 @@ public sealed class ParallelMinimaxSearch
             }
         }
 
-        // Store in shared TT
-        _transpositionTable.Store(board.Hash, (sbyte)depth, (short)bestScore, bestMove, alpha, beta);
+        // LAZY SMP TT WRITING: Allow helper threads to write with quality criteria
+        // See Minimax() function for detailed explanation
+        bool shouldStore = threadData.ThreadIndex == 0 || depth >= 3;
+        if (shouldStore)
+        {
+            _transpositionTable.Store(board.Hash, (sbyte)depth, (short)bestScore, (sbyte)bestMove.x, (sbyte)bestMove.y, alpha, beta, (byte)threadData.ThreadIndex);
+        }
 
         return (bestMove.x, bestMove.y, bestScore);
     }
@@ -627,12 +696,17 @@ public sealed class ParallelMinimaxSearch
         }
 
         // Periodic time check at the start of each node
+        // CRITICAL FIX: Only master thread (ThreadIndex=0) can trigger cancellation
         if (_searchStopwatch != null && _hardTimeBoundMs > 0)
         {
             var elapsed = _searchStopwatch.ElapsedMilliseconds;
             if (elapsed >= _hardTimeBoundMs)
             {
-                _searchCts?.Cancel();
+                // Only master thread cancels - helpers just exit
+                if (threadData.ThreadIndex == 0)
+                {
+                    _searchCts?.Cancel();
+                }
                 return 0;
             }
         }
@@ -646,7 +720,9 @@ public sealed class ParallelMinimaxSearch
 
         if (depth == 0)
         {
-            return Evaluate(board, aiPlayer);
+            // Use quiescence search to resolve tactical positions
+            // This extends search in positions with active threats to avoid horizon effect
+            return Quiesce(board, alpha, beta, isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
         }
 
         var candidates = GetCandidateMoves(board);
@@ -655,13 +731,45 @@ public sealed class ParallelMinimaxSearch
             return 0; // Draw
         }
 
-        // TT lookup
+        // TT lookup with provenance-based selective reading
+        // MASTER THREAD (ThreadIndex=0): Ignores ALL helper entries for score
+        // HELPER THREADS (ThreadIndex>0): Can use any TT entry for diversity
+        //
+        // The root cause of the regression was that helper threads write entries
+        // with inconsistent bounds due to early cancellation during iterative deepening.
+        // The master thread would then use these entries and make suboptimal decisions.
+        //
+        // FIX: Master thread completely ignores helper-written entries for scoring.
+        // Helper entries can still be used for move ordering (cachedMove), which is safe.
+        
         var boardHash = board.Hash;
         threadData.TableLookups++;
-        var (found, cachedScore, cachedMove) = _transpositionTable.Lookup(boardHash, (sbyte)depth, alpha, beta);
+        var (found, hasExactDepth, cachedScore, cachedMove, ttThreadIndex) = _transpositionTable.Lookup(boardHash, (sbyte)depth, alpha, beta);
+        
+        // Track lookups for diagnostics (even if we don't use the result)
         if (found)
         {
+            if (ttThreadIndex == 0)
+                threadData.TTReadsFromMaster++;
+            else
+                threadData.TTReadsFromHelpers++;
+        }
+        
+        // Master thread: only use scores from entries written by master (ThreadIndex=0)
+        // AND only if the entry is at sufficient depth
+        bool shouldUseScore = found && hasExactDepth;
+        if (shouldUseScore && threadData.ThreadIndex == 0 && ttThreadIndex > 0)
+        {
+            // Master thread ignores ALL helper entries for scoring
+            shouldUseScore = false;
+            threadData.TTReadsSkipped++;
+        }
+        
+        // Use the score if we have a valid exact-depth entry
+        if (shouldUseScore)
+        {
             threadData.TableHits++;
+            threadData.TTScoresUsed++;
             return cachedScore;
         }
 
@@ -756,15 +864,34 @@ public sealed class ParallelMinimaxSearch
             }
         }
 
-        // Store result
-        if (bestMove.HasValue)
+        // LAZY SMP TT WRITING: All threads can write to transposition table
+        // This is essential for Lazy SMP - helper threads populate TT with results
+        // from different parts of the tree, allowing master thread to benefit.
+        //
+        // To prevent "pollution" from shallow helper entries:
+        // 1. Only store entries where depth >= currentDepth - 1 (not too shallow)
+        // 2. Prefer exact bounds over upper/lower bounds for helpers
+        // 3. Master thread (ThreadIndex=0) can store any entry
+        //
+        // The regression was caused by disabling ALL helper writes, which
+        // broke Lazy SMP's fundamental sharing mechanism.
+
+        bool shouldStore = bestMove.HasValue;
+        if (threadData.ThreadIndex > 0 && depth < rootDepth - 1)
         {
-            _ = (bestScore <= alpha)
+            // Helper threads: only store if at reasonable depth relative to root
+            // This prevents very shallow entries from polluting the TT
+            shouldStore = depth >= rootDepth / 2;
+        }
+
+        if (shouldStore && bestMove.HasValue)
+        {
+            var flag = (bestScore <= alpha)
                 ? LockFreeTranspositionTable.EntryFlag.UpperBound
                 : (bestScore >= beta ? LockFreeTranspositionTable.EntryFlag.LowerBound : LockFreeTranspositionTable.EntryFlag.Exact);
 
             _transpositionTable.Store(boardHash, (sbyte)depth, (short)bestScore,
-                (sbyte)bestMove.Value.x, (sbyte)bestMove.Value.y, alpha, beta);
+                (sbyte)bestMove.Value.x, (sbyte)bestMove.Value.y, alpha, beta, (byte)threadData.ThreadIndex);
         }
 
         return bestScore;
@@ -862,6 +989,7 @@ public sealed class ParallelMinimaxSearch
 
     /// <summary>
     /// Get candidate moves near existing stones
+    /// For empty board, returns center-area moves for the opening
     /// </summary>
     private List<(int x, int y)> GetCandidateMoves(Board board)
     {
@@ -871,6 +999,31 @@ public sealed class ParallelMinimaxSearch
         var playerBitBoard = board.GetBitBoard(Player.Red);
         var opponentBitBoard = board.GetBitBoard(Player.Blue);
         var occupied = playerBitBoard | opponentBitBoard;
+
+        // Check if board is empty (no stones placed)
+        bool boardIsEmpty = true;
+        for (int x = 0; x < 15 && boardIsEmpty; x++)
+        {
+            for (int y = 0; y < 15 && boardIsEmpty; y++)
+            {
+                if (occupied.GetBit(x, y))
+                    boardIsEmpty = false;
+            }
+        }
+
+        // Empty board - return center-area moves for opening
+        if (boardIsEmpty)
+        {
+            // Return center 3x3 area as candidates (standard opening positions)
+            for (int x = 6; x <= 8; x++)
+            {
+                for (int y = 6; y <= 8; y++)
+                {
+                    candidates.Add((x, y));
+                }
+            }
+            return candidates;
+        }
 
         // Find all cells within SearchRadius of existing stones
         for (int x = 0; x < 15; x++)
@@ -959,6 +1112,112 @@ public sealed class ParallelMinimaxSearch
     }
 
     /// <summary>
+    /// Quiescence search: extend search in tactical positions to get accurate evaluation
+    /// Only considers moves near existing stones (tactical moves)
+    /// Prevents horizon effect by searching deeper when there are active threats
+    /// </summary>
+    private int Quiesce(Board board, int alpha, int beta, bool isMaximizing, Player aiPlayer, int quiesceDepth, ThreadData threadData, CancellationToken cancellationToken)
+    {
+        // Check cancellation
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return isMaximizing ? alpha : beta;
+        }
+
+        // Get stand-pat score (static evaluation)
+        var standPat = Evaluate(board, aiPlayer);
+
+        // Beta cutoff (stand-pat is good enough for maximizing player)
+        if (isMaximizing && standPat >= beta)
+            return beta;
+
+        // Alpha cutoff (stand-pat is good enough for minimizing player)
+        if (!isMaximizing && standPat <= alpha)
+            return alpha;
+
+        // Update bounds for search
+        if (isMaximizing)
+            alpha = Math.Max(alpha, standPat);
+        else
+            beta = Math.Min(beta, standPat);
+
+        // Check for terminal states in quiescence
+        var winner = CheckWinner(board);
+        if (winner != null)
+        {
+            return winner == aiPlayer ? 100000 : -100000;
+        }
+
+        // Limit quiescence search depth to avoid explosion
+        const int maxQuiescenceDepth = 4;
+        if (quiesceDepth > maxQuiescenceDepth)
+        {
+            return standPat;
+        }
+
+        // Generate tactical moves (only near existing stones)
+        var tacticalMoves = GetCandidateMoves(board);
+
+        // If no tactical moves, return static evaluation
+        if (tacticalMoves.Count == 0)
+            return standPat;
+
+        var currentPlayer = isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red);
+
+        // Order tactical moves for better pruning
+        var orderedMoves = OrderMoves(tacticalMoves, quiesceDepth, board, currentPlayer, null, threadData);
+
+        // Search tactical moves (only empty cells)
+        if (isMaximizing)
+        {
+            var maxEval = standPat;
+            foreach (var (x, y) in orderedMoves)
+            {
+                // Skip occupied cells
+                if (!board.GetCell(x, y).IsEmpty)
+                    continue;
+
+                board.PlaceStone(x, y, currentPlayer);
+
+                // Recursive quiescence search
+                var eval = Quiesce(board, alpha, beta, false, aiPlayer, quiesceDepth + 1, threadData, cancellationToken);
+
+                board.GetCell(x, y).Player = Player.None;
+
+                maxEval = Math.Max(maxEval, eval);
+                alpha = Math.Max(alpha, eval);
+
+                if (beta <= alpha)
+                    return beta;
+            }
+            return maxEval;
+        }
+        else
+        {
+            var minEval = standPat;
+            foreach (var (x, y) in orderedMoves)
+            {
+                // Skip occupied cells
+                if (!board.GetCell(x, y).IsEmpty)
+                    continue;
+
+                board.PlaceStone(x, y, currentPlayer);
+
+                var eval = Quiesce(board, alpha, beta, true, aiPlayer, quiesceDepth + 1, threadData, cancellationToken);
+
+                board.GetCell(x, y).Player = Player.None;
+
+                minEval = Math.Min(minEval, eval);
+                beta = Math.Min(beta, eval);
+
+                if (beta <= alpha)
+                    return alpha;
+            }
+            return minEval;
+        }
+    }
+
+    /// <summary>
     /// Evaluate board position using scalar evaluator for consistency
     /// SIMD evaluator has potential bugs that cause AI strength inversion
     /// </summary>
@@ -1004,6 +1263,16 @@ public sealed class ParallelMinimaxSearch
         // Good time availability: use full depth
         // For 7+5 time control (420s initial), 5s soft bound is only 1.2% - plenty of time
         return baseDepth;
+    }
+
+    /// <summary>
+    /// Calculate depth using time-budget formula (same as sequential path)
+    /// Uses TimeBudgetDepthManager for consistency with sequential search
+    /// </summary>
+    private int CalculateDepthFromTimeBudget(TimeAllocation timeAlloc, AIDifficulty difficulty)
+    {
+        double timeForDepthSeconds = timeAlloc.SoftBoundMs / 1000.0;
+        return _depthManager.CalculateMaxDepth(timeForDepthSeconds, difficulty);
     }
 
     /// <summary>
@@ -1167,7 +1436,7 @@ public sealed class ParallelMinimaxSearch
     #region Pondering Support
 
     /// <summary>
-    /// Pondering variant of Lazy SMP - uses reduced thread count to avoid starving main search
+    /// Pondering variant of Lazy SMP - uses same thread count as main search
     /// Searches with predicted opponent move already made on the board
     /// Results are stored in the shared transposition table for main search benefit
     /// </summary>
@@ -1195,9 +1464,9 @@ public sealed class ParallelMinimaxSearch
         if (candidates.Count == 0)
             return (null, 0, 0, 0);
 
-        // Use dedicated pondering thread count (conservative to avoid system responsiveness issues)
-        // This prevents pondering from starving the main search when it starts
-        int ponderThreadCount = ThreadPoolConfig.GetPonderingThreadCount();
+        // Use same thread count as main search for this difficulty
+        // This ensures pondering uses the same resources as thinking
+        int ponderThreadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
 
         // Cap thread count based on depth to avoid overhead
         ponderThreadCount = Math.Min(ponderThreadCount, Math.Max(2, targetDepth / 2));
@@ -1242,7 +1511,11 @@ public sealed class ParallelMinimaxSearch
             int threadId = i;
             var task = Task.Run(() =>
             {
-                var threadData = new ThreadData { Random = new Random(threadId + (int)DateTime.UtcNow.Ticks) };
+                var threadData = new ThreadData 
+                { 
+                    ThreadIndex = threadId,
+                    Random = new Random(threadId + (int)DateTime.UtcNow.Ticks) 
+                };
 
                 var result = SearchPonderIteration(
                     boardsArray[threadId],

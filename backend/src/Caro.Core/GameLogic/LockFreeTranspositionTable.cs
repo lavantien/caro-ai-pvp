@@ -34,8 +34,9 @@ public sealed class LockFreeTranspositionTable
         public sbyte MoveY;
         public EntryFlag Flag;
         public byte Age;
+        public byte ThreadIndex;  // Track which thread wrote this entry (0=master, 1+=helpers)
 
-        public TranspositionEntry(ulong hash, sbyte depth, short score, sbyte moveX, sbyte moveY, EntryFlag flag, byte age)
+        public TranspositionEntry(ulong hash, sbyte depth, short score, sbyte moveX, sbyte moveY, EntryFlag flag, byte age, byte threadIndex = 0)
         {
             Hash = hash;
             Depth = depth;
@@ -44,6 +45,7 @@ public sealed class LockFreeTranspositionTable
             MoveY = moveY;
             Flag = flag;
             Age = age;
+            ThreadIndex = threadIndex;
         }
 
         /// <summary>
@@ -91,7 +93,7 @@ public sealed class LockFreeTranspositionTable
     /// Uses atomic Interlocked.Exchange for lock-free write
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Store(ulong hash, sbyte depth, short score, sbyte moveX, sbyte moveY, int alpha, int beta)
+    public void Store(ulong hash, sbyte depth, short score, sbyte moveX, sbyte moveY, int alpha, int beta, byte threadIndex = 0)
     {
         int index = GetIndex(hash);
 
@@ -104,15 +106,19 @@ public sealed class LockFreeTranspositionTable
         else
             flag = EntryFlag.Exact;
 
-        var newEntry = new TranspositionEntry(hash, depth, score, moveX, moveY, flag, (byte)_currentAge);
+        var newEntry = new TranspositionEntry(hash, depth, score, moveX, moveY, flag, (byte)_currentAge, threadIndex);
         var existing = Volatile.Read(ref _entries[index]);
 
-        // Deep replacement strategy (lock-free):
+        // Deep replacement strategy (lock-free) with MASTER PRIORITY:
+        // MASTER THREAD (threadIndex=0) entries are protected from helper overwrites
+        // This ensures master's high-quality entries are not lost
+        //
         // Replace if:
         // 1. Empty slot
         // 2. Same position with deeper search
-        // 3. New entry is significantly deeper (depth diff >= 2)
-        // 4. Old entry is from a previous search age
+        // 3. Master thread overwriting helper (same or greater depth)
+        // 4. New entry is significantly deeper (depth diff >= 2)
+        // 5. Old entry is from a previous search age
 
         bool shouldStore = existing is null || existing.Hash == 0 || existing.Hash == hash;
 
@@ -120,7 +126,25 @@ public sealed class LockFreeTranspositionTable
         {
             // Different position - check deep replacement criteria
             sbyte depthDiff = (sbyte)(depth - existing.Depth);
-            shouldStore = depthDiff >= 2 || existing.Age != _currentAge;
+            
+            // MASTER PRIORITY: Protect master entries from helper overwrites
+            if (existing.ThreadIndex == 0 && threadIndex > 0)
+            {
+                // Helper thread CANNOT overwrite master's entry unless going much deeper
+                // This preserves master's high-quality search results
+                shouldStore = depthDiff >= 3;
+            }
+            else if (threadIndex == 0 && existing.ThreadIndex > 0)
+            {
+                // Master thread CAN overwrite helper's entry (same depth or deeper)
+                // Master's results are more reliable
+                shouldStore = depthDiff >= 0;
+            }
+            else
+            {
+                // Same thread type (both master or both helper) - use depth/age criteria
+                shouldStore = depthDiff >= 2 || existing.Age != _currentAge;
+            }
         }
 
         if (shouldStore)
@@ -131,33 +155,30 @@ public sealed class LockFreeTranspositionTable
     }
 
     /// <summary>
-    /// Store overload with move tuple
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Store(ulong hash, sbyte depth, short score, (int x, int y)? move, int alpha, int beta)
-    {
-        sbyte moveX = move.HasValue ? (sbyte)move.Value.x : (sbyte)-1;
-        sbyte moveY = move.HasValue ? (sbyte)move.Value.y : (sbyte)-1;
-        Store(hash, depth, score, moveX, moveY, alpha, beta);
-    }
-
-    /// <summary>
     /// Look up a position in the transposition table (thread-safe)
+    /// Returns entry provenance (threadIndex) for selective reading
+    /// For Lazy SMP: Also returns entries found at shallower depths for move ordering
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public (bool found, short score, (int x, int y)? move) Lookup(ulong hash, sbyte depth, int alpha, int beta)
+    public (bool found, bool hasExactDepth, short score, (int x, int y)? move, byte threadIndex) Lookup(ulong hash, sbyte depth, int alpha, int beta)
     {
         Interlocked.Increment(ref _lookupCount);
         int index = GetIndex(hash);
         var entry = Volatile.Read(ref _entries[index]);
 
-        if (entry is null)
-            return (false, 0, null);
+        if (entry is null || entry.Hash != hash)
+            return (false, false, 0, null, 0);
 
-        // Check if entry matches our query
-        if (entry.Hash != hash || entry.Depth < depth)
+        // Check if entry has sufficient depth
+        bool hasExactDepth = entry.Depth >= depth;
+        byte threadIndex = entry.ThreadIndex;
+
+        // If not at sufficient depth, only return for move ordering (not for cutoff)
+        if (!hasExactDepth)
         {
-            return (false, 0, null);
+            Interlocked.Increment(ref _hitCount);
+            // Return found=true but hasExactDepth=false - caller can use move but not score
+            return (true, false, entry.Score, entry.GetMove(), threadIndex);
         }
 
         Interlocked.Increment(ref _hitCount);
@@ -166,21 +187,21 @@ public sealed class LockFreeTranspositionTable
         switch (entry.Flag)
         {
             case EntryFlag.Exact:
-                return (true, entry.Score, entry.GetMove());
+                return (true, true, entry.Score, entry.GetMove(), threadIndex);
 
             case EntryFlag.LowerBound:
                 if (entry.Score >= beta)
-                    return (true, entry.Score, entry.GetMove());
+                    return (true, true, entry.Score, entry.GetMove(), threadIndex);
                 break;
 
             case EntryFlag.UpperBound:
                 if (entry.Score <= alpha)
-                    return (true, entry.Score, entry.GetMove());
+                    return (true, true, entry.Score, entry.GetMove(), threadIndex);
                 break;
         }
 
         // Can't use the score, but can use the move for ordering
-        return (false, 0, entry.GetMove());
+        return (true, false, entry.Score, entry.GetMove(), threadIndex);
     }
 
     /// <summary>

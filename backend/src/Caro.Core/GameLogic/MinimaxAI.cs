@@ -86,18 +86,18 @@ public class MinimaxAI
     /// <summary>
     /// Get the best move for the AI player
     /// </summary>
-    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, bool ponderingEnabled = false)
+    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, bool ponderingEnabled = false, bool parallelSearchEnabled = false)
     {
-        return GetBestMove(board, player, difficulty, timeRemainingMs: null, moveNumber: 0, ponderingEnabled: ponderingEnabled);
+        return GetBestMove(board, player, difficulty, timeRemainingMs: null, moveNumber: 0, ponderingEnabled: ponderingEnabled, parallelSearchEnabled: parallelSearchEnabled);
     }
 
     /// <summary>
     /// Get the best move for the AI player with time awareness
     /// Dynamically adjusts search depth based on remaining time
     /// </summary>
-    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, long? timeRemainingMs, bool ponderingEnabled = false)
+    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, long? timeRemainingMs, bool ponderingEnabled = false, bool parallelSearchEnabled = false)
     {
-        return GetBestMove(board, player, difficulty, timeRemainingMs, moveNumber: 0, ponderingEnabled: ponderingEnabled);
+        return GetBestMove(board, player, difficulty, timeRemainingMs, moveNumber: 0, ponderingEnabled: ponderingEnabled, parallelSearchEnabled: parallelSearchEnabled);
     }
 
     /// <summary>
@@ -110,8 +110,9 @@ public class MinimaxAI
     /// <param name="timeRemainingMs">Time remaining on clock in milliseconds (null for unlimited)</param>
     /// <param name="moveNumber">Current move number (1-indexed, 0 if unknown)</param>
     /// <param name="ponderingEnabled">Enable pondering (thinking on opponent's time)</param>
+    /// <param name="parallelSearchEnabled">Enable Lazy SMP parallel search</param>
     /// <returns>Best move coordinates</returns>
-    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, long? timeRemainingMs, int moveNumber, bool ponderingEnabled = false)
+    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, long? timeRemainingMs, int moveNumber, bool ponderingEnabled = false, bool parallelSearchEnabled = false)
     {
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
@@ -296,6 +297,60 @@ public class MinimaxAI
                 Console.WriteLine("[AI VCF] Emergency: No TT move, using quick candidate selection");
                 return candidates[0];
             }
+        }
+
+        // PARALLEL SEARCH: Use Lazy SMP when enabled and difficulty is high enough
+        // Parallel search provides 4-8x speedup on multi-core systems
+        // NOTE: Parallel search is only enabled for Hard and above due to regression
+        // where Medium with parallel search loses to Easy with sequential search
+        // The parallel search implementation needs further debugging before
+        // it can be safely used for Medium difficulty
+        // Thread counts when enabled: braindead=1, easy=2, medium=3, hard=4, grandmaster=(N/2)-1
+        if (parallelSearchEnabled && difficulty >= AIDifficulty.Hard)
+        {
+            int threadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
+            Console.WriteLine($"[AI] Using parallel search (Lazy SMP) for {difficulty} with {threadCount} threads");
+
+            var parallelResult = _parallelSearch.GetBestMoveWithStats(
+                board,
+                player,
+                difficulty,
+                timeRemainingMs: timeRemainingMs,
+                timeAlloc: timeAlloc,
+                moveNumber: moveNumber,
+                fixedThreadCount: threadCount);
+
+            // Update statistics from parallel search
+            _depthAchieved = parallelResult.DepthAchieved;
+            _nodesSearched = parallelResult.NodesSearched;
+
+            // Store PV for pondering
+            _lastPV = PV.FromSingleMove(parallelResult.X, parallelResult.Y, _depthAchieved, 0);
+            _lastBoard = board.Clone();
+            _lastPlayer = player;
+
+            // Start pondering for opponent's response
+            if (ponderingEnabled)
+            {
+                var opponent = player == Player.Red ? Player.Blue : Player.Red;
+                var predictedOpponentMove = _lastPV.GetPredictedOpponentMove();
+                var ponderTimeMs = CalculatePonderTime(timeRemainingMs, difficulty);
+
+                if (ponderTimeMs > 0)
+                {
+                    _ponderer.StartPondering(
+                        board,
+                        opponent,
+                        predictedOpponentMove,
+                        player,
+                        difficulty,
+                        ponderTimeMs
+                    );
+                }
+            }
+
+            Console.WriteLine($"[AI PARALLEL] Move: ({parallelResult.X}, {parallelResult.Y}), Depth: {_depthAchieved}, Nodes: {_nodesSearched:N0}, Threads: {parallelResult.ThreadCount}");
+            return (parallelResult.X, parallelResult.Y);
         }
 
         // TIME-BUDGET-BASED SEARCH: No hardcoded depths, scales with machine capability

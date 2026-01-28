@@ -29,35 +29,37 @@ public sealed class AdaptiveTimeManager
     private static readonly double[] BaseAggressiveness = new double[]
     {
         0.3,  // D0: Beginner - very conservative
-        0.4,  // D1: Easy
-        0.5,  // D2: Normal
-        0.6,  // D3: Medium
-        0.7,  // D4: Hard
-        0.8,  // D5: Harder
-        0.9,  // D6: VeryHard
-        1.0,  // D7: Expert - baseline
-        1.1,  // D8: Expert
-        1.3,  // D9: Master
-        1.6,  // D10: Grandmaster
-        2.0   // D11: Legend - most aggressive
+        0.5,  // Easy: more aggressive to compensate for sequential-only path
+        0.7,  // Normal: medium aggressiveness
+        1.0,  // Medium: aggressive enough to compete
+        1.2,  // Hard: very aggressive for parallel search
+        1.4,  // Harder
+        1.6,  // VeryHard
+        1.8,  // Expert - baseline
+        2.0,  // Expert
+        2.2,  // Master
+        2.5,  // Grandmaster: very aggressive
+        3.0   // Legend - most aggressive
     };
 
     // Maximum time per move (percentage of remaining time)
     // Higher difficulties can spend more per move
+    // CRITICAL: Must allow enough time for parallel search to reach deeper depths
+    // Too restrictive and parallel search can't compete with sequential
     private static readonly double[] MaxTimePercentage = new double[]
     {
         0.01, // D0: 1% max per move
-        0.015,
-        0.02,
-        0.025,
-        0.03,
-        0.035,
-        0.04,
-        0.05, // D7: 5% max per move
-        0.06,
-        0.08,
-        0.10, // D10: 10% max per move
-        0.12  // D11: 12% max per move
+        0.02, // Easy: 2% - still conservative
+        0.05, // Medium: 5%
+        0.10, // Hard: 10% - allow more time for parallel search to scale
+        0.15, // Harder: 15%
+        0.20, // VeryHard: 20%
+        0.25, // Expert: 25%
+        0.30, // Expert: 30%
+        0.35, // Master: 35%
+        0.40, // Grandmaster: 40% - can use 40% of remaining time for one move
+        0.45, // Legend+: 45%
+        0.50  // D11: 50% max per move - very aggressive
     };
 
     /// <summary>

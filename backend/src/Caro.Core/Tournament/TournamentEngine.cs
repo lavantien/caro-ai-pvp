@@ -67,7 +67,8 @@ public class TournamentEngine
         int maxMoves = 225,
         int initialTimeSeconds = 180,  // 3 minutes per player
         int incrementSeconds = 2,      // +2 seconds per move
-        bool ponderingEnabled = false,   // Disabled: parallel search has bugs
+        bool ponderingEnabled = false,
+        bool parallelSearchEnabled = false,
         MoveCallback? onMove = null,    // Callback when a move is played
         BoardCallback? onBoardUpdate = null,  // Callback for board state updates
         LogCallback? onLog = null,      // Callback for structured logging
@@ -107,7 +108,7 @@ public class TournamentEngine
             var moveStopwatch = Stopwatch.StartNew();
             var (x, y) = _ai.GetBestMove(board, currentPlayer, difficulty,
                 isRed ? redTimeRemainingMs : blueTimeRemainingMs, moveNumber: moveNumber,
-                ponderingEnabled: ponderingEnabled);
+                ponderingEnabled: ponderingEnabled, parallelSearchEnabled: parallelSearchEnabled);
             moveStopwatch.Stop();
 
             // Validate move (single source of truth for all move validation)
