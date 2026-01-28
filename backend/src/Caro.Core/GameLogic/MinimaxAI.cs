@@ -1,8 +1,10 @@
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
+using System.Threading.Channels;
 using Caro.Core.Entities;
 using Caro.Core.GameLogic.TimeManagement;
 using Caro.Core.GameLogic.Pondering;
+using Caro.Core.Tournament;
 
 namespace Caro.Core.GameLogic;
 
@@ -12,8 +14,9 @@ namespace Caro.Core.GameLogic;
 /// Parallel Search: Lazy SMP for D7+ (VeryHard and above) with conservative thread count (processorCount/2)-1
 /// Time management: Intelligent time allocation optimized for 7+5 time control
 /// Pondering: Constant pondering for D7+ during opponent's turn
+/// Stats: Publisher-subscriber pattern for real-time stats reporting
 /// </summary>
-public class MinimaxAI
+public class MinimaxAI : IStatsPublisher
 {
     private readonly BoardEvaluator _evaluator = new();
     private readonly TranspositionTable _transpositionTable = new();
@@ -90,6 +93,19 @@ public class MinimaxAI
     private Board? _lastBoard;
     private Player _lastPlayer;
 
+    // Stats publisher-subscriber pattern
+    private static int _instanceCounter = 0;
+    private readonly string _publisherId;
+    private readonly Channel<MoveStatsEvent> _statsChannel;
+    public Channel<MoveStatsEvent> StatsChannel => _statsChannel;
+    public string PublisherId => _publisherId;
+
+    public MinimaxAI()
+    {
+        _publisherId = Interlocked.Increment(ref _instanceCounter).ToString();
+        _statsChannel = Channel.CreateUnbounded<MoveStatsEvent>();
+    }
+
     /// <summary>
     /// Get the best move for the AI player
     /// </summary>
@@ -126,6 +142,18 @@ public class MinimaxAI
 
         var baseDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
         var candidates = GetCandidateMoves(board);
+
+        // Initialize search statistics BEFORE any early returns
+        // This ensures stats are clean even for instant moves (error rate, critical defense, VCF, etc.)
+        _nodesSearched = 0;
+        _depthAchieved = 0;
+        _vcfNodesSearched = 0;
+        _vcfDepthAchieved = 0;
+        _searchStopwatch.Restart();
+
+        // Reset thread count and parallel diagnostics for this difficulty
+        _lastThreadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
+        _lastParallelDiagnostics = null;
 
         // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections away from first red stone
         // Rule: |x - firstX| >= 3 OR |y - firstY| >= 3 (outside 5x5 zone centered on first move)
@@ -570,6 +598,9 @@ public class MinimaxAI
                 );
             }
         }
+
+        // Publish search stats to channel
+        PublishSearchStats(player, StatsType.MainSearch, _searchStopwatch.ElapsedMilliseconds);
 
         return bestMove;
     }
@@ -2691,11 +2722,12 @@ public class MinimaxAI
     public PV GetLastPV() => _lastPV;
 
     /// <summary>
-    /// Stop any active pondering
+    /// Stop any active pondering and publish ponder stats
     /// </summary>
     public void StopPondering()
     {
         _ponderer.StopPondering();
+        PublishPonderStats(_lastPlayer);
     }
 
     /// <summary>
@@ -2720,8 +2752,16 @@ public class MinimaxAI
     /// </summary>
     public (long NodesSearched, double NodesPerSecond, long TimeSpentMs) GetLastPonderStats()
     {
-        // TODO: Track last ponder result properly in Ponderer
-        return (0, 0, 0);
+        var ponderResult = _ponderer.GetCurrentResult();
+        var nodesSearched = ponderResult.NodesSearched;
+        var timeSpentMs = ponderResult.TimeSpentMs;
+        var nps = timeSpentMs > 0 ? (double)nodesSearched * 1000 / timeSpentMs : 0;
+
+        // Debug logging to track ponder stats
+        if (nodesSearched > 0 || timeSpentMs > 0)
+            Console.WriteLine($"[AI PONDER] Stats: {nodesSearched} nodes, {timeSpentMs}ms, {nps:F0} nps");
+
+        return (nodesSearched, nps, timeSpentMs);
     }
 
     /// <summary>
@@ -2755,6 +2795,67 @@ public class MinimaxAI
         }
 
         return (_depthAchieved, _nodesSearched, nps, hitRate, _ponderer.IsPondering, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs);
+    }
+
+    /// <summary>
+    /// Publish search statistics to the stats channel
+    /// Called automatically after each search
+    /// </summary>
+    public void PublishSearchStats(Player player, StatsType statsType, long moveTimeMs)
+    {
+        var (depthAchieved, nodesSearched, nps, hitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, _, masterTTPercent, helperAvgDepth, allocatedTimeMs) = GetSearchStatistics();
+
+        var statsEvent = new MoveStatsEvent
+        {
+            PublisherId = _publisherId,
+            Player = player,
+            Type = statsType,
+            DepthAchieved = depthAchieved,
+            NodesSearched = nodesSearched,
+            NodesPerSecond = nps,
+            TableHitRate = hitRate,
+            PonderingActive = ponderingActive,
+            VCFDepthAchieved = vcfDepthAchieved,
+            VCFNodesSearched = vcfNodesSearched,
+            ThreadCount = threadCount,
+            MoveTimeMs = moveTimeMs,
+            TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            MasterTTPercent = masterTTPercent,
+            HelperAvgDepth = helperAvgDepth,
+            AllocatedTimeMs = allocatedTimeMs
+        };
+
+        _statsChannel.Writer.TryWrite(statsEvent);
+    }
+
+    /// <summary>
+    /// Publish pondering statistics to the stats channel
+    /// </summary>
+    public void PublishPonderStats(Player player)
+    {
+        var (nodesSearched, nps, timeSpentMs) = GetLastPonderStats();
+
+        if (nodesSearched == 0 && timeSpentMs == 0)
+            return;
+
+        var statsEvent = new MoveStatsEvent
+        {
+            PublisherId = _publisherId,
+            Player = player,
+            Type = StatsType.Pondering,
+            DepthAchieved = 0,
+            NodesSearched = nodesSearched,
+            NodesPerSecond = nps,
+            TableHitRate = 0,
+            PonderingActive = true,
+            VCFDepthAchieved = 0,
+            VCFNodesSearched = 0,
+            ThreadCount = 0,
+            MoveTimeMs = timeSpentMs,
+            TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+
+        _statsChannel.Writer.TryWrite(statsEvent);
     }
 
     #endregion

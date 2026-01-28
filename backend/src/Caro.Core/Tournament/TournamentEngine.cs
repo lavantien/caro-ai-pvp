@@ -1,6 +1,8 @@
 using Caro.Core.Entities;
 using Caro.Core.GameLogic;
 using System.Diagnostics;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 
 namespace Caro.Core.Tournament;
 
@@ -53,11 +55,24 @@ public delegate void LogCallback(string level, string source, string message);
 
 /// <summary>
 /// Runs automated AI vs AI tournaments
+/// Uses stats publisher-subscriber pattern for receiving move statistics
 /// </summary>
 public class TournamentEngine
 {
-    private readonly MinimaxAI _ai = new();
+    private readonly MinimaxAI _redAI = new();
+    private readonly MinimaxAI _blueAI = new();
     private readonly MoveValidator _moveValidator = new();
+
+    // Stats subscriber tasks
+    private CancellationTokenSource? _statsCts;
+    private Task? _redStatsTask;
+    private Task? _blueStatsTask;
+
+    // Cached ponder stats from async subscriber
+    private long _redPonderNodes;
+    private double _redPonderNps;
+    private long _bluePonderNodes;
+    private double _bluePonderNps;
 
     /// <summary>
     /// Run a single game between two AI opponents with chess clock time controls
@@ -79,7 +94,19 @@ public class TournamentEngine
     {
         // Clear all AI state to prevent cross-contamination between games
         // This is CRITICAL when bots of different difficulties play in sequence
-        _ai.ClearAllState();
+        _redAI.ClearAllState();
+        _blueAI.ClearAllState();
+
+        // Reset cached ponder stats
+        _redPonderNodes = 0;
+        _redPonderNps = 0;
+        _bluePonderNodes = 0;
+        _bluePonderNps = 0;
+
+        // Start stats subscriber tasks
+        _statsCts = new CancellationTokenSource();
+        _redStatsTask = Task.Run(() => SubscribeStatsAsync(_redAI, _redAI.StatsChannel, Player.Red, _statsCts.Token));
+        _blueStatsTask = Task.Run(() => SubscribeStatsAsync(_blueAI, _blueAI.StatsChannel, Player.Blue, _statsCts.Token));
 
         // Log game start
         onLog?.Invoke("info", "system", $"Game started: {redBotName} ({redDifficulty}) vs {blueBotName} ({blueDifficulty}) | Time: {initialTimeSeconds}s+{incrementSeconds}s | Max moves: {maxMoves}");
@@ -105,9 +132,12 @@ public class TournamentEngine
             var isRed = currentPlayer == Player.Red;
             var moveNumber = totalMoves + 1;  // 1-indexed move number
 
+            // Use the appropriate AI instance for this player
+            var currentAI = isRed ? _redAI : _blueAI;
+
             // Time the AI move
             var moveStopwatch = Stopwatch.StartNew();
-            var (x, y) = _ai.GetBestMove(board, currentPlayer, difficulty,
+            var (x, y) = currentAI.GetBestMove(board, currentPlayer, difficulty,
                 isRed ? redTimeRemainingMs : blueTimeRemainingMs, moveNumber: moveNumber,
                 ponderingEnabled: ponderingEnabled, parallelSearchEnabled: parallelSearchEnabled);
             moveStopwatch.Stop();
@@ -153,9 +183,25 @@ public class TournamentEngine
             {
                 game.RecordMove(board, x, y);
 
-                // Get search statistics for this move
-                var (depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, masterTTPercent, helperAvgDepth, allocatedTimeMs) = _ai.GetSearchStatistics();
-                var (ponderNodes, ponderNps, ponderTimeMs) = _ai.GetLastPonderStats();
+                // Get search statistics for this move from the correct AI
+                var (depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, masterTTPercent, helperAvgDepth, allocatedTimeMs) = currentAI.GetSearchStatistics();
+
+                // Get ponder statistics from cached values (populated by stats subscriber)
+                // The stats subscriber receives ponder stats asynchronously from opponent's AI
+                var (ponderNodes, ponderNps) = isRed ? (_bluePonderNodes, _bluePonderNps) : (_redPonderNodes, _redPonderNps);
+
+                // Clear cached ponder stats after use
+                if (isRed)
+                {
+                    _bluePonderNodes = 0;
+                    _bluePonderNps = 0;
+                }
+                else
+                {
+                    _redPonderNodes = 0;
+                    _redPonderNps = 0;
+                }
+
                 var stats = new MoveStats(depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, moveTimeMs, masterTTPercent, helperAvgDepth, allocatedTimeMs, ponderNodes, ponderNps);
 
                 // Log the move with stats
@@ -270,6 +316,23 @@ public class TournamentEngine
         onLog?.Invoke("info", "system",
             $"Game ended: {resultStr} | Duration: {stopwatch.ElapsedMilliseconds / 1000.0:F1}s | Moves: {totalMoves}");
 
+        // Stop stats subscriber tasks
+        _statsCts?.Cancel();
+        try
+        {
+            Task.WhenAll(_redStatsTask ?? Task.CompletedTask, _blueStatsTask ?? Task.CompletedTask)
+                .Wait(TimeSpan.FromSeconds(1));
+        }
+        catch (AggregateException)
+        {
+            // Tasks were cancelled - expected
+        }
+        finally
+        {
+            _statsCts?.Dispose();
+            _statsCts = null;
+        }
+
         return new MatchResult
         {
             Winner = winner,
@@ -285,6 +348,31 @@ public class TournamentEngine
             IsDraw = !game.IsGameOver && !endedByTimeout,
             EndedByTimeout = endedByTimeout
         };
+    }
+
+    /// <summary>
+    /// Subscribe to stats events from an AI instance
+    /// Caches ponder stats for use by the game loop
+    /// </summary>
+    private async Task SubscribeStatsAsync(MinimaxAI ai, Channel<MoveStatsEvent> channel, Player player, CancellationToken cancellationToken)
+    {
+        await foreach (var statsEvent in channel.Reader.ReadAllAsync(cancellationToken))
+        {
+            if (statsEvent.Type == StatsType.Pondering)
+            {
+                // Cache ponder stats for this player
+                if (player == Player.Red)
+                {
+                    _redPonderNodes = statsEvent.NodesSearched;
+                    _redPonderNps = statsEvent.NodesPerSecond;
+                }
+                else
+                {
+                    _bluePonderNodes = statsEvent.NodesSearched;
+                    _bluePonderNps = statsEvent.NodesPerSecond;
+                }
+            }
+        }
     }
 
     /// <summary>
