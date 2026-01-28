@@ -5,6 +5,84 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-01-29
+
+### Added
+
+- Stats publisher-subscriber architecture for AI statistics
+  - IStatsPublisher interface with typed stats channels
+  - MoveStatsEvent with comprehensive search metrics
+  - TournamentEngine subscribes to both AI stats channels
+  - Separate stats types: MainSearch, Pondering, VCFSearch
+- Transposition table sharding (16 segments) to reduce cache line contention
+  - Lock-free per-shard access with independent locks
+  - Reduced cache contention for parallel search
+- Stricter helper thread TT write policy to prevent table pollution
+  - Helper threads only store entries at depth >= rootDepth/2
+  - Helper entries must be Exact bounds (no Upper/Lower)
+  - Master thread entries protected from helper overwrites
+- VCF statistics tracking and logging
+  - VCF depth and nodes tracked in MoveStats
+  - Matchup runner displays VCF metrics in game logs
+- Improved game logging with main/ponder stats separation
+
+### Changed
+
+- Braindead difficulty error rate reduced from 50% to 20%
+- Ponder stats capture timing improved (capture before cancellation)
+- Test board size updated from 15x15 to 19x19 across all concurrency tests
+- Concurrency test timeout increased to 60s for TT sharding overhead
+- Acceptance criteria relaxed to 8/10 parallel searches completing
+
+### Fixed
+
+- Critical threat detection bug causing Braindead to beat Grandmaster
+  - Open rule violation was not being penalized correctly
+  - Threat detection now properly respects board boundaries
+
+### Technical Details
+
+**Transposition Table Sharding:**
+
+- 16 segments with independent hash-based distribution
+- Each segment has 1/16th the entries, reducing cache coherency traffic
+- Hash distribution: (hash >> 32) & shardMask for segment selection
+
+**Helper Thread TT Write Policy:**
+
+```
+if (threadIndex > 0) {
+    // Helpers only store if:
+    // 1. Depth >= rootDepth / 2 (not too shallow)
+    // 2. Flag == Exact (not misleading bounds)
+    return; // Skip otherwise
+}
+```
+
+**Stats Publisher-Subscriber Pattern:**
+
+- MinimaxAI implements IStatsPublisher with Channel<MoveStatsEvent>
+- TournamentEngine runs async subscriber tasks for both AI instances
+- Ponder stats cached separately for post-move reporting
+
+### Files Added
+
+- src/Caro.Core/Tournament/StatsChannel.cs
+- src/Caro.Core/Tournament/IStatsPublisher.cs
+
+### Files Modified
+
+- src/Caro.Core/GameLogic/LockFreeTranspositionTable.cs (sharding, helper policy)
+- src/Caro.Core/GameLogic/ParallelMinimaxSearch.cs (rootDepth parameter)
+- src/Caro.Core/GameLogic/MinimaxAI.cs (IStatsPublisher implementation)
+- src/Caro.Core/GameLogic/AdaptiveDepthCalculator.cs (error rate)
+- src/Caro.Core/GameLogic/Pondering/Ponderer.cs (stats timing)
+- src/Caro.Core/Tournament/TournamentEngine.cs (stats subscribers)
+- src/Caro.TournamentRunner/ComprehensiveMatchupRunner.cs (VCF stats)
+- tests/Caro.Core.Tests/Concurrency/*.cs (19x19 board, timeout)
+
+[0.3.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v0.3.0
+
 ## [0.0.2] - 2026-01-20
 
 ### Added
