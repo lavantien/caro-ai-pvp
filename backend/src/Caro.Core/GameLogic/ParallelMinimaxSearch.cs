@@ -8,7 +8,14 @@ namespace Caro.Core.GameLogic;
 /// <summary>
 /// Result from parallel search including move and statistics
 /// </summary>
-public record ParallelSearchResult(int X, int Y, int DepthAchieved, long NodesSearched, int ThreadCount = 0);
+public record ParallelSearchResult(
+    int X,
+    int Y,
+    int DepthAchieved,
+    long NodesSearched,
+    int ThreadCount = 0,
+    string? ParallelDiagnostics = null
+);
 
 /// <summary>
 /// Parallel Minimax search using Lazy SMP (Shared Memory Parallelism)
@@ -60,13 +67,13 @@ public sealed class ParallelMinimaxSearch
         public int[,] HistoryBlue = new int[15, 15];
         public int TableHits;
         public int TableLookups;
-        
+
         // Diagnostic counters for TT provenance tracking
         public int TTReadsFromMaster;    // Entries from master thread (ThreadIndex=0)
         public int TTReadsFromHelpers;   // Entries from helper threads (ThreadIndex>0)
         public int TTReadsSkipped;       // Helper entries skipped due to depth threshold
         public int TTScoresUsed;         // How many TT entries actually returned scores
-        
+
         public Random Random = new();
 
         public void Reset()
@@ -167,7 +174,7 @@ public sealed class ParallelMinimaxSearch
         var opponentThreatMoves = GetOpponentThreatMoves(board, opponent);
         if (opponentThreatMoves.Count > 0)
         {
-            Console.WriteLine($"[AI] Threat detected! Considering {opponentThreatMoves.Count} blocking moves.");
+            //Console.WriteLine($"[AI] Threat detected! Considering {opponentThreatMoves.Count} blocking moves.");
             // Filter candidates to only blocking moves
             var forcingSet = new HashSet<(int x, int y)>(opponentThreatMoves);
             candidates = candidates.Where(c => forcingSet.Contains((c.x, c.y))).ToList();
@@ -260,7 +267,7 @@ public sealed class ParallelMinimaxSearch
         var opponentThreatMoves = GetOpponentThreatMoves(board, opponent);
         if (opponentThreatMoves.Count > 0)
         {
-            Console.WriteLine($"[AI] Threat detected! Considering {opponentThreatMoves.Count} blocking moves.");
+            //Console.WriteLine($"[AI] Threat detected! Considering {opponentThreatMoves.Count} blocking moves.");
             // Filter candidates to only blocking moves
             var forcingSet = new HashSet<(int x, int y)>(opponentThreatMoves);
             candidates = candidates.Where(c => forcingSet.Contains((c.x, c.y))).ToList();
@@ -401,7 +408,7 @@ public sealed class ParallelMinimaxSearch
         for (int i = 0; i < threadCount; i++)
         {
             int threadId = i;
-            
+
             // Create dedicated thread for true parallelism
             // Task.Run uses thread pool which doesn't scale immediately
             var thread = new Thread(() =>
@@ -429,11 +436,11 @@ public sealed class ParallelMinimaxSearch
                 // Add threadIndex to identify master vs helper thread results
                 var (x, y, score, depthAchieved, nodes) = result;
                 results.Add((x, y, score, depthAchieved, nodes, threadId));
-                
+
                 // Collect diagnostics for analysis
                 diagnosticsList.Add(threadData);
             });
-            
+
             thread.IsBackground = false; // Important: keep thread alive until done
             thread.Start();
             threads.Add(thread);
@@ -479,22 +486,46 @@ public sealed class ParallelMinimaxSearch
         // Use real node count instead of estimated
         long totalNodesFinal = Interlocked.Read(ref _realNodesSearched);
 
-        Console.WriteLine($"[TIME] Depth: {bestResult.depth}, Time: {_searchStopwatch.ElapsedMilliseconds}ms/" +
-                         $"{timeAlloc.SoftBoundMs}ms, Phase: {timeAlloc.Phase}, " +
-                         $"Complexity: {timeAlloc.ComplexityMultiplier:F2}, Nodes: {totalNodesFinal:N0}");
+        // Build parallel diagnostics string
+        var diagBuilder = new System.Text.StringBuilder();
 
-        // Print TT provenance diagnostics
+        // Helper thread depths
+        var helperResults = results.Where(r => r.threadIndex > 0).ToList();
+        if (helperResults.Count > 0)
+        {
+            var helperDepths = helperResults.Select(r => r.depth).ToList();
+            var maxHelperDepth = helperDepths.Max();
+            var minHelperDepth = helperDepths.Min();
+            var avgHelperDepth = helperDepths.Average();
+            diagBuilder.Append($"Helpers: {helperResults.Count} threads, ");
+            diagBuilder.Append($"Depths: min={minHelperDepth}, max={maxHelperDepth}, avg={avgHelperDepth:F1}");
+        }
+
+        // TT provenance diagnostics
         var masterDiag = diagnosticsList.FirstOrDefault(d => d.ThreadIndex == 0);
         if (masterDiag != null)
         {
             var totalReads = masterDiag.TTReadsFromMaster + masterDiag.TTReadsFromHelpers;
             var masterRate = totalReads > 0 ? (double)masterDiag.TTReadsFromMaster / totalReads * 100 : 0;
-            Console.WriteLine($"[TT-PROVENANCE] Master: {masterDiag.TTReadsFromMaster} reads, " +
-                             $"Helpers: {masterDiag.TTReadsFromHelpers} reads, Skipped: {masterDiag.TTReadsSkipped}, " +
-                             $"({masterRate:F1}% from master), Scores used: {masterDiag.TTScoresUsed}");
+
+            if (diagBuilder.Length > 0)
+                diagBuilder.Append("; ");
+
+            diagBuilder.Append($"TT: {masterDiag.TTReadsFromMaster}M/{masterDiag.TTReadsFromHelpers}H reads, ");
+            diagBuilder.Append($"{masterRate:F0}% from master");
         }
 
-        return new ParallelSearchResult(bestResult.x, bestResult.y, bestResult.depth, totalNodesFinal, threadCount);
+        // Threads reached minimum depth
+        if (threadsReachedMinDepth > 0)
+        {
+            if (diagBuilder.Length > 0)
+                diagBuilder.Append("; ");
+            diagBuilder.Append($"{threadsReachedMinDepth}/{threadCount} reached min depth");
+        }
+
+        string diagnostics = diagBuilder.Length > 0 ? diagBuilder.ToString() : null;
+
+        return new ParallelSearchResult(bestResult.x, bestResult.y, bestResult.depth, totalNodesFinal, threadCount, diagnostics);
     }
 
     /// <summary>
@@ -550,22 +581,21 @@ public sealed class ParallelMinimaxSearch
                 break; // Just exit, don't cancel
             }
 
-            // CRITICAL FIX: Don't exit early until we've reached minimum target depth
-            // This prevents threads from cancelling each other too early when there are few candidates
-            bool hasReachedMinDepth = currentDepth >= minTargetDepth;
+            // CRITICAL FIX: Don't exit early until we've reached at least 80% of target depth
+            // This ensures each difficulty searches to an appropriate depth
+            // Only master thread (ThreadIndex=0) can use stability-based early termination
+            bool hasReachedSufficientDepth = currentDepth >= (targetDepth * 4 / 5);
+            bool isStableEnough = stableCount >= 2;
 
-            // Check soft bound with stability consideration
-            if (elapsed >= timeAlloc.SoftBoundMs && hasReachedMinDepth)
+            // Check soft bound with stability consideration - ONLY for master thread
+            // Helper threads must not terminate early as they provide tree diversity
+            if (isMasterThread && elapsed >= timeAlloc.SoftBoundMs && hasReachedSufficientDepth && isStableEnough)
             {
-                // If move is stable (same for 2+ consecutive depths), we can stop early
-                if (stableCount >= 2)
-                {
-                    break;
-                }
+                break;
             }
 
-            // Check optimal time - if move is very stable, exit
-            if (elapsed >= timeAlloc.OptimalTimeMs && hasReachedMinDepth && stableCount >= 3)
+            // Check optimal time - only for master thread with very stable moves
+            if (isMasterThread && elapsed >= timeAlloc.OptimalTimeMs && hasReachedSufficientDepth && stableCount >= 3)
             {
                 break;
             }
@@ -604,7 +634,7 @@ public sealed class ParallelMinimaxSearch
             bestDepth = currentDepth;
 
             // Call callback when minimum target depth is reached (once only)
-            if (hasReachedMinDepth && !minDepthCallbackCalled && onMinDepthReached != null)
+            if (hasReachedSufficientDepth && !minDepthCallbackCalled && onMinDepthReached != null)
             {
                 minDepthCallbackCalled = true;
                 onMinDepthReached();
@@ -741,11 +771,11 @@ public sealed class ParallelMinimaxSearch
         //
         // FIX: Master thread completely ignores helper-written entries for scoring.
         // Helper entries can still be used for move ordering (cachedMove), which is safe.
-        
+
         var boardHash = board.Hash;
         threadData.TableLookups++;
         var (found, hasExactDepth, cachedScore, cachedMove, ttThreadIndex) = _transpositionTable.Lookup(boardHash, (sbyte)depth, alpha, beta);
-        
+
         // Track lookups for diagnostics (even if we don't use the result)
         if (found)
         {
@@ -754,7 +784,7 @@ public sealed class ParallelMinimaxSearch
             else
                 threadData.TTReadsFromHelpers++;
         }
-        
+
         // Master thread: only use scores from entries written by master (ThreadIndex=0)
         // AND only if the entry is at sufficient depth
         bool shouldUseScore = found && hasExactDepth;
@@ -764,7 +794,7 @@ public sealed class ParallelMinimaxSearch
             shouldUseScore = false;
             threadData.TTReadsSkipped++;
         }
-        
+
         // Use the score if we have a valid exact-depth entry
         if (shouldUseScore)
         {
@@ -1511,10 +1541,10 @@ public sealed class ParallelMinimaxSearch
             int threadId = i;
             var task = Task.Run(() =>
             {
-                var threadData = new ThreadData 
-                { 
+                var threadData = new ThreadData
+                {
                     ThreadIndex = threadId,
-                    Random = new Random(threadId + (int)DateTime.UtcNow.Ticks) 
+                    Random = new Random(threadId + (int)DateTime.UtcNow.Ticks)
                 };
 
                 var result = SearchPonderIteration(
