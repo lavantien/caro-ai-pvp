@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-01-29
+
+### Added
+
+- Diagnostic script (`test_diagnostic.csx`) for quick AI strength validation
+  - Quick 5-game matchups for Hard vs Medium and Medium vs Easy
+  - Useful for fast regression testing during development
+
+### Changed
+
+- README extensively refactored with new architecture documentation
+  - Added Stats Publisher-Subscriber pattern section with mermaid diagram
+  - Added Transposition Table Sharding section with two mermaid diagrams
+  - Updated Best Practices table with new patterns
+  - Updated project structure with new files
+- CLAUDE.md updated to prefer native tools over plugin tools
+
+[0.3.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v0.3.1
+
 ## [0.3.0] - 2026-01-29
 
 ### Added
