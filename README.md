@@ -33,7 +33,7 @@ Built with .NET 10 and SvelteKit 5, representing cutting-edge 2025 web developme
 
 Caro is a sophisticated 19x19 board game implementation featuring:
 
-- Grandmaster-level AI with sequential search (depth 9+ capable in 7+5 time control)
+- Grandmaster-level AI with Lazy SMP parallel search (depth 11 capable in 7+5 time control)
 - Real-time multiplayer with WebSocket support (SignalR)
 - AI tournament mode with balanced scheduling and ELO tracking
 - Mobile-first UX with ghost stone positioning and haptic feedback
@@ -62,24 +62,29 @@ Core Search Optimizations:
 
 Advanced Features:
 
-- VCF Solver (Legend only) - Victory by Continuous Four tactical solver
+- Lazy SMP Parallel Search - Multi-threaded search for Hard/Grandmaster (Line 589: ParallelMinimaxSearch.cs)
+- VCF Solver (Grandmaster only) - Victory by Continuous Four tactical solver
 - Threat Space Search - Focus search on critical threats only
-- DFPN Solver - Depth-First Proof Number search for forced wins
-- BitBoard Representation - Board evaluation with bit manipulation
-- Opening Book - Pre-computed strong opening positions
-- Adaptive Time Management - Smart time allocation per move
+- BitBoard Representation - Board evaluation with bit manipulation (6x ulong for 19x19)
+- Adaptive Time Management - Smart time allocation per move (80% depth requirement before early termination)
+- Pondering - Think on opponent's time (Medium and above)
 - Critical Defense - Automatic threat detection (scales with difficulty)
 
-Difficulty Levels (D1-D11):
+Difficulty Levels (D1-D5):
 
-- D1-D2: Beginner (randomness added for mercy)
-- D3-D4: Casual play
-- D5-D6: Intermediate challenge
-- D7-D8: Advanced
-- D9-D10: Expert (threat space + advanced pruning)
-- D11 (Legend): Grandmaster (all optimizations + VCF solver + deep search)
+- D1 Braindead: Depth 1-2 with 50% error rate. Suitable for complete beginners.
+- D2 Easy: Depth 3-4 with basic lookahead. No advanced optimizations.
+- D3 Medium: Depth 5-6. Sequential search with pondering enabled.
+- D4 Hard: Depth 7-8. Lazy SMP parallel search with (N/2)-1 threads, pondering enabled.
+- D5 Grandmaster: Adaptive depth 9-11. Lazy SMP with maximum threads, VCF solver, pondering enabled.
 
-Note: VCF is exclusive to Legend (D11) to maintain AI strength ordering. In 7+5 time control, D11 reaches depth 9, D10 reaches depth 8. Full depth capabilities require longer time controls.
+Parallel Search Architecture:
+
+Hard and Grandmaster use Lazy SMP (Lazy Split-Point Multi-Processing) for parallel search:
+- Master thread (ThreadIndex=0) drives iterative deepening
+- Helper threads search independently and share transposition table
+- TT provenance tracking: master entries protected from helper overwrites
+- Early termination requires 80% of target depth (master thread only)
 
 ### Tournament Mode
 
@@ -113,7 +118,29 @@ Polish Features:
 
 ## AI Engine Deep Dive
 
-### Sequential Search Architecture
+### Search Architecture
+
+Sequential (Braindead, Easy, Medium) and Lazy SMP Parallel (Hard, Grandmaster):
+
+```mermaid
+graph TD
+    A[Iterative Deepening] --> B[Depth 2, 3, 4, ... Target]
+    A --> C[Transposition Table]
+    A --> D[Time Management]
+    A --> E[Parallel Search]
+
+    C --> C1[Zobrist hashing cache]
+    C --> C2[8M entries, 256MB]
+    C --> C3[Provenance tracking]
+
+    D --> D1[Adaptive time allocation]
+    D --> D2[80% depth for early exit]
+    D --> D3[Master-only stability check]
+
+    E --> E1[Master thread drives ID]
+    E --> E2[Helper threads search independently]
+    E --> E3[Shared TT with priority]
+```
 
 ```mermaid
 graph TD
@@ -162,16 +189,15 @@ Threat Space Search:
 
 ### Performance Metrics
 
-| Difficulty | Search Type | Avg Time | Positions/S | TT Hit Rate | Max Depth (7+5) | VCF Access |
-|------------|-------------|----------|-------------|-------------|-----------------|------------|
-| Beginner (D1-D2) | Sequential | <100ms | ~100K | N/A | 2-3 | No |
-| Casual (D3-D4) | Sequential | <500ms | ~50K | 20% | 4-5 | No |
-| Intermediate (D5-D6) | Sequential | <2s | ~20K | 35% | 5-6 | No |
-| Advanced (D7-D8) | Sequential | <5s | ~50K | 45% | 6-7 | No |
-| Expert (D9-D10) | Sequential | 5-15s | ~500K | 50%+ | 7-8 | No |
-| Legend (D11) | Sequential + VCF | 10-30s | ~1M | 55%+ | 9 | Yes (exclusive) |
+| Difficulty | Search Type | Threads | Avg Time | Positions/S | TT Hit Rate | Max Depth (7+5) | VCF Access |
+|------------|-------------|---------|----------|-------------|-------------|-----------------|------------|
+| D1 Braindead | Sequential | 1 | <50ms | ~10K | N/A | 1-2 | No |
+| D2 Easy | Sequential | 1 | <200ms | ~50K | 15% | 3-4 | No |
+| D3 Medium | Sequential | 1 | <1s | ~100K | 30% | 5-6 | No |
+| D4 Hard | Lazy SMP | 3 | <3s | ~500K | 45% | 7-8 | No |
+| D5 Grandmaster | Lazy SMP | (N/2)-1 | <10s | ~1M | 55%+ | 9-11 | Yes |
 
-Note: Max depths shown are for 7+5 (Rapid) time control. VCF is exclusive to Legend (D11) to maintain AI strength ordering.
+Note: Max depths shown are for 7+5 (7min+5sec) time control. Parallel search uses thread pool with (N/2)-1 helper threads where N is logical CPU count. VCF is exclusive to Grandmaster (D5).
 
 Combined Optimization Impact: 100-500x faster than naive minimax.
 
@@ -669,7 +695,7 @@ AI vs AI tournaments with balanced scheduling:
 
 ### Features
 
-- 22 AI bots across 11 difficulty levels (2 bots per level)
+- 5 AI difficulty levels (Braindead, Easy, Medium, Hard, Grandmaster)
 - Round-robin format - each bot plays every other bot twice
 - Balanced scheduling - each bot plays at most once per round
 - ELO tracking - ratings update after each match
@@ -686,7 +712,7 @@ graph TD
     C --> E[No bot appears more than once per round]
     C --> F[Ensures fair distribution]
     F --> G[Total matches n x n-1 for n bots]
-    G --> H[22 bots = 462 matches]
+    G --> H[5 difficulties = 20 matchups for comprehensive testing]
 ```
 
 [Back to Table of Contents](#table-of-contents)
@@ -703,9 +729,9 @@ graph TD
 
 ### The Open Rule
 
-Red's second move (move #3 overall) must be at least 3 intersections away from the first red stone in either direction (outside the 5x5 zone centered on the first move).
+Red's second move (move #3 overall) must be at least 3 intersections away from the first red stone in either direction. Specifically, |x2 - x1| >= 3 OR |y2 - y1| >= 3.
 
-This rule prevents the first player from creating an immediate tactical cluster in the early game, ensuring the game remains balanced despite first-move advantage.
+Implementation: The open rule filter (MinimaxAI.cs:130-177) finds the first red stone and filters candidates by relative distance.
 
 ### Winning Conditions
 
@@ -830,10 +856,8 @@ caro-ai-pvp/
 
 ### Planned
 
-- Parallel search (Lazy SMP) - Currently disabled due to architectural issues
 - MDAP (Move-Dependent Adaptive Pruning)
 - Fully adaptive time management (PID controller)
-- SIMD evaluation for accelerated scoring
 - Progressive Web App (PWA)
 - Mobile app stores (iOS/Android)
 - Endgame tablebase
@@ -853,8 +877,9 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 - 19 AI strength validation tests across 4 phases
 - 32 concurrency tests validating thread-safety
 - Sequential search reaching depth 9+ in 7+5 time control
+- Lazy SMP parallel search for Hard/Grandmaster difficulties
 - Statistical validation framework with LOS, Elo CI, and SPRT
-- BitBoard with SIMD for accelerated evaluation
+- BitBoard with 6x ulong for 19x19 board representation
 - Threat Space Search for focused tactical calculation
 - 22 AI tournament bots with balanced scheduling
 - SQLite + FTS5 logging for game analysis
@@ -863,6 +888,7 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 - Channel-based broadcasts (no unobserved exceptions)
 - Per-game locking (100+ concurrent games)
 - AI Strength Validation Test Suite with HTML report generation
+- Transposition table with provenance tracking (master vs helper threads)
 
 [Back to Table of Contents](#table-of-contents)
 
