@@ -38,13 +38,15 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 
 ### Difficulty Levels
 
-| Level | Depth | Features |
-|-------|-------|----------|
-| Braindead | 1-2 | 20% error rate, beginners |
-| Easy | 3-4 | Basic lookahead |
-| Medium | 5-6 | Sequential + pondering |
-| Hard | 7-8 | Lazy SMP, (N/2)-1 threads |
-| Grandmaster | 9-11 | Lazy SMP, VCF solver |
+| Level | Threads | Time Budget | Features |
+|-------|---------|-------------|----------|
+| Braindead | 1 | 1% | 20% error rate, beginners |
+| Easy | 2 | 10% | Parallel search from Easy |
+| Medium | 3 | 30% | Parallel + pondering |
+| Hard | 4 | 70% | Parallel + pondering |
+| Grandmaster | (N/2)-1 | 100% | Max parallel, VCF, pondering |
+
+**Depth:** Dynamic calculation based on host machine NPS and time control. Formula: `depth = log(time * nps * timeMultiplier) / log(ebf)`
 
 ### Tournament Mode
 
@@ -102,13 +104,15 @@ Production-grade concurrency following .NET 10 best practices:
 
 ## Performance
 
-| Difficulty | Search | Threads | Time | NPS | Max Depth |
-|------------|--------|---------|------|-----|-----------|
-| Braindead | Sequential | 1 | <50ms | ~10K | 1-2 |
-| Easy | Sequential | 1 | <200ms | ~50K | 3-4 |
-| Medium | Sequential | 1 | <1s | ~100K | 5-6 |
-| Hard | Lazy SMP | 3+ | <3s | ~500K | 7-8 |
-| Grandmaster | Lazy SMP | (N/2)-1 | <10s | ~1M | 9-11 |
+| Difficulty | Threads | Time Budget | Depth (7+5 TC) |
+|------------|---------|-------------|----------------|
+| Braindead | 1 | 1% | ~1-3 |
+| Easy | 2 | 10% | ~3-5 |
+| Medium | 3 | 30% | ~5-7 |
+| Hard | 4 | 70% | ~7-9 |
+| Grandmaster | (N/2)-1 | 100% | ~9-12+ |
+
+**Depth varies by host machine** - calculated dynamically from NPS and time budget. Higher-spec machines achieve greater depth naturally.
 
 ---
 
