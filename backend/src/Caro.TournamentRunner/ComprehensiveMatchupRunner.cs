@@ -35,10 +35,26 @@ public class ComprehensiveMatchupRunner
     public static async Task RunAsync(int timeSeconds = 420, int incSeconds = 5, int gamesPerMatchup = 10)
     {
         // Initialize output file with auto-flush for real-time monitoring
-        // When running with 'dotnet run', CurrentDirectory is the project dir (src/Caro.TournamentRunner)
-        // We need to go up two levels to reach backend/, then write to test_output.txt
+        // Find backend directory by searching upward from current directory
         var currentDir = Environment.CurrentDirectory;
-        var outputPath = Path.GetFullPath(Path.Combine(currentDir, "..", "..", "test_output.txt"));
+        var searchDir = new DirectoryInfo(currentDir);
+        DirectoryInfo? backendDir = null;
+
+        // Search upward for backend directory (contains src/ and test_output.txt should go there)
+        while (searchDir != null)
+        {
+            if (Directory.Exists(Path.Combine(searchDir.FullName, "src", "Caro.Core")) &&
+                Directory.Exists(Path.Combine(searchDir.FullName, "src", "Caro.Api")))
+            {
+                backendDir = searchDir;
+                break;
+            }
+            searchDir = searchDir.Parent;
+        }
+
+        var outputPath = backendDir != null
+            ? Path.Combine(backendDir.FullName, "test_output.txt")
+            : Path.Combine(currentDir, "test_output.txt"); // Fallback
 
         _outputFile = new StreamWriter(outputPath, false, System.Text.Encoding.UTF8);
         _outputFile.AutoFlush = true;
@@ -427,29 +443,24 @@ public class ComprehensiveMatchupRunner
                     var allocStr = FormatTime((stats?.AllocatedTimeMs ?? 0));
                     var depthStr = stats != null ? $"D{stats.DepthAchieved}" : "D-";
 
-                    // Format N and NPS as main/ponder or just main if no ponder stats
+                    // N and NPS: only show main search stats, not ponder
                     long mainNodes = stats?.NodesSearched ?? 0;
-                    long ponderNodes = stats?.PonderNodesSearched ?? 0;
                     double mainNps = stats?.NodesPerSecond ?? 0;
-                    double ponderNps = stats?.PonderNodesPerSecond ?? 0;
-
-                    string nStr, npsStr;
-                    if (ponderNodes > 0)
-                    {
-                        nStr = $"{FormatLargeNumber(mainNodes)}/{FormatLargeNumber(ponderNodes)}";
-                        npsStr = $"{FormatLargeNumber((long)mainNps)}/{FormatLargeNumber((long)ponderNps)}";
-                    }
-                    else
-                    {
-                        nStr = FormatLargeNumber(mainNodes);
-                        npsStr = FormatLargeNumber((long)mainNps);
-                    }
+                    var nStr = FormatLargeNumber(mainNodes);
+                    var npsStr = FormatLargeNumber((long)mainNps);
 
                     var ttStr = stats != null ? $"{stats.TableHitRate:F1}% " : "N/A";
                     var masterStr = stats != null ? $"{stats.MasterTTPercent:F1}% " : "N/A";
                     var helperStr = stats != null ? $"{stats.HelperAvgDepth:F1}" : "N/A";
-                    var ponderStr = stats?.PonderingActive == true ? "Y" : "N";
                     var threadsStr = stats?.ThreadCount.ToString() ?? "1";
+
+                    // Pondering stats for the P: column (depth, nodes, nps)
+                    long ponderNodes = stats?.PonderNodesSearched ?? 0;
+                    double ponderNps = stats?.PonderNodesPerSecond ?? 0;
+                    int ponderDepth = stats?.PonderDepth ?? 0;
+                    var ponderStr = (stats?.PonderingActive == true && ponderNodes > 0)
+                        ? $"D{ponderDepth}/{FormatLargeNumber(ponderNodes)}n/{FormatLargeNumber((long)ponderNps)}nps"
+                        : "-";
 
                     // VCF stats
                     var vcfDepth = stats?.VCFDepthAchieved ?? 0;
@@ -461,13 +472,13 @@ public class ComprehensiveMatchupRunner
                         $"    G{game,2} M{moveNumber,3} | {color}({x},{y}) by {diff,-12} | " +
                         $"T: {timeStr,-9}/{allocStr,-8} | " +
                         $"Th: {threadsStr} | " +
-                        $"{depthStr,-3} | " +
+                        $"{depthStr,-9} | " +
                         $"N: {nStr,20} | " +
                         $"NPS: {npsStr,20} | " +
                         $"TT: {ttStr,-5} | " +
                         $"%M: {masterStr,-5} | " +
                         $"HD: {helperStr,-4} | " +
-                        $"P: {ponderStr} | " +
+                        $"P: {ponderStr,-25} | " +
                         $"VCF: {vcfStr}");
 
                     moveCount = moveNumber;
