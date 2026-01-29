@@ -14,38 +14,24 @@ public static class AdaptiveDepthCalculator
 {
     /// <summary>
     /// Get the time multiplier for a difficulty level.
+    /// Delegates to AIDifficultyConfig for centralized configuration.
     /// Higher difficulties use a larger percentage of their allocated time.
     /// This is the PRIMARY mechanism for difficulty differentiation.
     /// </summary>
     public static double GetTimeMultiplier(AIDifficulty difficulty)
     {
-        return difficulty switch
-        {
-            AIDifficulty.Braindead => 0.01,   // Barely thinks
-            AIDifficulty.Easy => 0.1,          // 10% of allocated time
-            AIDifficulty.Medium => 0.3,        // 30% of allocated time
-            AIDifficulty.Hard => 0.7,          // 70% of allocated time
-            AIDifficulty.Grandmaster => 1.0,   // Full allocated time
-            _ => 0.5
-        };
+        return AIDifficultyConfig.Instance.GetSettings(difficulty).TimeMultiplier;
     }
 
     /// <summary>
     /// Get the minimum depth for a difficulty level.
+    /// Delegates to AIDifficultyConfig for centralized configuration.
     /// Even with minimal time, AI should search at least this deep.
     /// This ensures strength separation even on very slow machines.
     /// </summary>
     public static int GetMinimumDepth(AIDifficulty difficulty)
     {
-        return difficulty switch
-        {
-            AIDifficulty.Braindead => 1,
-            AIDifficulty.Easy => 2,
-            AIDifficulty.Medium => 3,
-            AIDifficulty.Hard => 4,
-            AIDifficulty.Grandmaster => 5,
-            _ => 3
-        };
+        return AIDifficultyConfig.Instance.GetSettings(difficulty).MinDepth;
     }
 
     /// <summary>
@@ -215,20 +201,13 @@ public static class AdaptiveDepthCalculator
 
     /// <summary>
     /// Get the error rate for a given difficulty level (used for simulating human-like mistakes)
+    /// Delegates to AIDifficultyConfig for centralized configuration.
     /// Returns probability (0-1) of making a random/suboptimal move
     /// Only Braindead has error rate - all higher difficulties play optimally
     /// </summary>
     public static double GetErrorRate(AIDifficulty difficulty)
     {
-        return difficulty switch
-        {
-            AIDifficulty.Braindead => 0.2,  // 20% error rate - intentional weak play
-            AIDifficulty.Easy => 0.0,        // No intentional errors
-            AIDifficulty.Medium => 0.0,      // No intentional errors
-            AIDifficulty.Hard => 0.0,        // No intentional errors
-            AIDifficulty.Grandmaster => 0.0, // No intentional errors
-            _ => 0.0
-        };
+        return AIDifficultyConfig.Instance.GetSettings(difficulty).ErrorRate;
     }
 
     /// <summary>

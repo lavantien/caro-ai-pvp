@@ -1,0 +1,190 @@
+{
+  "testName": "RunGame_BraindeadVsBraindead_WithShortTimeControl_FinishesSuccessfully",
+  "timestampUtc": "2026-01-29T05:00:35.5680086Z",
+  "games": [
+    {
+      "gameId": "6f16222f",
+      "redBot": "BraindeadA",
+      "blueBot": "BraindeadB",
+      "redDifficulty": 1,
+      "blueDifficulty": 1,
+      "moveLogs": [
+        {
+          "moveNumber": 1,
+          "player": "red",
+          "x": 7,
+          "y": 7,
+          "timeMs": 232,
+          "depthAchieved": 2,
+          "nodesSearched": 80,
+          "nodesPerSecond": 345,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 2,
+          "player": "blue",
+          "x": 7,
+          "y": 9,
+          "timeMs": 854,
+          "depthAchieved": 1,
+          "nodesSearched": 72,
+          "nodesPerSecond": 84,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 3,
+          "player": "red",
+          "x": 6,
+          "y": 10,
+          "timeMs": 1163,
+          "depthAchieved": 2,
+          "nodesSearched": 283,
+          "nodesPerSecond": 243,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 4,
+          "player": "blue",
+          "x": 9,
+          "y": 11,
+          "timeMs": 1330,
+          "depthAchieved": 2,
+          "nodesSearched": 570,
+          "nodesPerSecond": 429,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 5,
+          "player": "red",
+          "x": 5,
+          "y": 10,
+          "timeMs": 516,
+          "depthAchieved": 1,
+          "nodesSearched": 110,
+          "nodesPerSecond": 213,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 6,
+          "player": "blue",
+          "x": 8,
+          "y": 10,
+          "timeMs": 570,
+          "depthAchieved": 2,
+          "nodesSearched": 531,
+          "nodesPerSecond": 932,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 7,
+          "player": "red",
+          "x": 10,
+          "y": 12,
+          "timeMs": 2548,
+          "depthAchieved": 2,
+          "nodesSearched": 812,
+          "nodesPerSecond": 319,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 8,
+          "player": "blue",
+          "x": 10,
+          "y": 9,
+          "timeMs": 0,
+          "depthAchieved": 0,
+          "nodesSearched": 0,
+          "nodesPerSecond": 0,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 9,
+          "player": "red",
+          "x": 4,
+          "y": 10,
+          "timeMs": 1287,
+          "depthAchieved": 1,
+          "nodesSearched": 143,
+          "nodesPerSecond": 111,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 10,
+          "player": "blue",
+          "x": 6,
+          "y": 8,
+          "timeMs": 539,
+          "depthAchieved": 1,
+          "nodesSearched": 225,
+          "nodesPerSecond": 417,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 11,
+          "player": "red",
+          "x": 3,
+          "y": 10,
+          "timeMs": 471,
+          "depthAchieved": 1,
+          "nodesSearched": 155,
+          "nodesPerSecond": 329,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        },
+        {
+          "moveNumber": 12,
+          "player": "blue",
+          "x": 5,
+          "y": 7,
+          "timeMs": 1265,
+          "depthAchieved": 4,
+          "nodesSearched": 1448,
+          "nodesPerSecond": 1145,
+          "vcfDepth": 0,
+          "vcfNodes": 0,
+          "ponderingActive": false
+        }
+      ],
+      "rawLogs": [],
+      "result": {
+        "winner": "blue",
+        "winnerDifficulty": "Braindead",
+        "totalMoves": 11,
+        "durationMs": 10796,
+        "endedByTimeout": false,
+        "hadIllegalMove": false
+      }
+    }
+  ],
+  "summary": {
+    "totalGames": 1,
+    "redWins": 0,
+    "blueWins": 1,
+    "draws": 0,
+    "illegalMoves": 0,
+    "winsByDifficulty": {
+      "Braindead": 1
+    }
+  }
+}
