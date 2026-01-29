@@ -5,6 +5,111 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-01-29
+
+### Added
+
+- Time-budget AI depth system with dynamic depth calculation
+  - Depth formula: depth = log(time * nps * timeMultiplier) / log(ebf)
+  - Per-difficulty time multipliers: Braindead 1%, Easy 10%, Medium 30%, Hard 70%, Grandmaster 100%
+  - NPS calibration per difficulty for fair depth scaling
+  - Automatic adaptation to host machine performance
+- Centralized AI difficulty configuration (AIDifficultyConfig)
+  - Single source of truth for all difficulty parameters
+  - Thread counts, time budgets, pondering, VCF, parallel search settings
+  - Per-difficulty target NPS for depth calculation
+  - Dynamic grandmaster thread count: (processorCount/2)-1
+- Dynamic Open Rule enforcement for AI move generation
+  - AI now correctly respects Open Rule on move #3
+  - Exclusion zone centered on first move, not fixed board center
+  - Added IsValidPerOpenRule() helper method
+  - 4 new integration tests for Open Rule compliance
+- Unified ponder log format across all components
+  - All logs use `[PONDER Red]` or `[PONDER Blue]` prefix
+  - Removed verbose formats like "thinking for X's turn"
+  - Consistent stats display: nodes, time, depth, NPS
+
+### Changed
+
+- Pondering statistics now properly display depth, nodes, and NPS
+  - Fixed GetLastPonderStats() to return depth achieved
+  - Ponder stats shown in P column with format D{depth}/{nodes}Kn/{nps}nps
+  - Both-pondering now works correctly when both players have it enabled
+- Tournament runner simplified to use comprehensive runner only
+  - Removed multiple runner modes
+  - Fixed preset: 420+5 seconds, 10 games per matchup
+  - Auto-resolving output file path
+- Move numbering bug fixed (moves showing 1, 3, 5 now show 1, 2, 3)
+
+### Fixed
+
+- Critical Open Rule violation bug causing illegal moves
+  - Old code used fixed center 5x5 zone [5-9, 5-9]
+  - New code uses dynamic zone centered on first move
+  - Example: First move at (7,6), exclusion zone is x in [5,9], y in [4,8]
+  - Move (7,4) now correctly filtered as invalid (was incorrectly allowed before)
+- Pondering timing issues
+  - Fixed StopPondering() to capture final stats after cancellation
+  - Fixed PonderLazySMP to return total nodes searched
+  - Fixed ponder thread count to match main search settings
+
+### Technical Details
+
+**Time-Budget Depth Calculation:**
+
+```
+depth = log(time_ms * nps * timeMultiplier) / log(ebf)
+- ebf (effective branching factor): ~3-4 for Caro
+- timeMultiplier: 0.01 (Braindead), 0.10 (Easy), 0.30 (Medium), 0.70 (Hard), 1.0 (Grandmaster)
+- Depth varies by host machine - higher-spec machines achieve greater depth naturally
+```
+
+**Dynamic Open Rule Enforcement:**
+
+```
+if (player == Red && moveNumber == 3) {
+    // Find first red stone position
+    // Calculate exclusion zone: x in [firstX-2, firstX+2], y in [firstY-2, firstY+2]
+    // Filter out any candidate within Chebyshev distance < 3
+}
+```
+
+**Centralized Configuration:**
+
+```csharp
+AIDifficultyConfig.Instance.GetSettings(difficulty)
+// Returns: ThreadCount, TimeMultiplier, PonderingEnabled, ParallelSearchEnabled, etc.
+```
+
+### Files Added
+
+- src/Caro.Core/GameLogic/AIDifficultyConfig.cs
+- src/Caro.Core/GameLogic/TimeBudgetDepthManager.cs
+- tests/Caro.Core.Tests/GameLogic/ParallelMinimaxSearchOpenRuleTests.cs
+
+### Files Modified
+
+- src/Caro.Core/GameLogic/ParallelMinimaxSearch.cs (Open Rule, time budget, depth calc)
+- src/Caro.Core/GameLogic/MinimaxAI.cs (pondering stats, config integration)
+- src/Caro.Core/GameLogic/Pondering/Ponderer.cs (unified logging, timing fixes)
+- src/Caro.Core/GameLogic/ThreadPoolConfig.cs (difficulty-based thread counts)
+- src/Caro.Core/Tournament/TournamentEngine.cs (both-pondering timing)
+- src/Caro.TournamentRunner/Program.cs (simplified to comprehensive runner)
+
+[1.1.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.1.0
+
+## [1.0.0] - 2026-01-29
+
+### Added
+
+- Comprehensive AI tournament system with round-robin matchups
+- ELO rating tracking and calculation
+- SQLite logging with FTS5 full-text search
+- SignalR broadcasts via async queues
+- Balanced scheduling with color swapping
+
+[1.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.0.0
+
 ## [0.4.2] - 2026-01-29
 
 ### Added
