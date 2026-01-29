@@ -38,6 +38,7 @@ public sealed class Ponderer : IDisposable
 
     // Cancellation - use lock for all access (removed volatile)
     private bool _shouldStop;
+    private bool _allowFinalResultUpdate;  // Allow final result update even after stopping
     private CancellationTokenSource? _cts;
     private Task? _ponderTask;
 
@@ -45,7 +46,6 @@ public sealed class Ponderer : IDisposable
     private long _totalPonderHits;
     private long _totalPonderMisses;
     private long _totalPonderTimeMsAll;
-    private long _nodesSearched;
 
     /// <summary>
     /// Current pondering state (thread-safe with lock)
@@ -166,7 +166,6 @@ public sealed class Ponderer : IDisposable
 
             // Start with empty result
             _currentResult = PonderResult.None;
-            _nodesSearched = 0;
         }
 
         // Spawn background pondering task (outside lock to prevent deadlock)
@@ -189,6 +188,7 @@ public sealed class Ponderer : IDisposable
 
         // Store local references for the closure
         var localPonderBoard = ponderBoard.Clone();
+        var localPonderingForPlayer = _ponderingForPlayer;
 
         _ponderTask = Task.Run(() =>
         {
@@ -208,11 +208,13 @@ public sealed class Ponderer : IDisposable
                         {
                             UpdatePonderResult((move.Item1, move.Item2), move.Item3, move.Item4, 0);
                         }
-                    }
+                    },
+                    ponderingFor: localPonderingForPlayer
                 );
 
                 // Final update with complete result
-                if (!ShouldStopPondering && result.bestMove.HasValue)
+                // Always update even if pondering was stopped - this captures the final depth achieved
+                if (result.bestMove.HasValue)
                 {
                     UpdatePonderResult(
                         result.bestMove.Value,
@@ -220,7 +222,6 @@ public sealed class Ponderer : IDisposable
                         result.score,
                         result.nodesSearched
                     );
-                    _nodesSearched = result.nodesSearched;
                 }
             }
             catch (OperationCanceledException)
@@ -239,49 +240,57 @@ public sealed class Ponderer : IDisposable
     /// </summary>
     public void StopPondering()
     {
-        var elapsedMs = 0L;
-        var finalNodesSearched = 0L;
+        PonderState currentState;
+        lock (_stateLock)
+        {
+            currentState = _state;
+            if (currentState != PonderState.Pondering)
+                return;
+
+            _shouldStop = true;
+            _allowFinalResultUpdate = true;  // Allow final result update from background task
+            _parallelSearch.StopSearch();
+            _cts?.Cancel();
+            _state = PonderState.Cancelled;
+        }
+
+        // Wait for task to complete (outside lock) - longer timeout to allow final results
+        try
+        {
+            _ponderTask?.Wait(TimeSpan.FromMilliseconds(500));
+        }
+        catch (AggregateException)
+        {
+            // Task was cancelled - this is expected
+        }
+
+        // Now capture final stats AFTER task completes
+        long elapsedMs;
+        long finalNodesSearched;
+        int finalDepth;
 
         lock (_stateLock)
         {
-            if (_state != PonderState.Pondering)
-                return;
-
-            // Capture elapsed time and nodes before cancelling
             elapsedMs = Stopwatch.GetElapsedTime(_ponderStartTimeTicks).Milliseconds;
-            finalNodesSearched = _nodesSearched;
+            finalNodesSearched = _parallelSearch.GetRealNodesSearched();
+            finalDepth = _currentResult.Depth;
+            _allowFinalResultUpdate = false;  // Prevent further updates
 
-            _shouldStop = true;
-            _parallelSearch.StopSearch();
-            _cts?.Cancel();
-
-            // Update result with final stats before cancelling
+            // Update result with final time spent (depth and nodes from the completed search)
             _currentResult = new PonderResult
             {
                 BestMove = _currentResult.BestMove,
-                Depth = _currentResult.Depth,
+                Depth = finalDepth,
                 Score = _currentResult.Score,
                 TimeSpentMs = elapsedMs,
                 FinalState = PonderState.Cancelled,
                 PonderHit = false,
                 NodesSearched = finalNodesSearched
             };
-
-            _state = PonderState.Cancelled;
         }
 
-        // Debug logging
-        Console.WriteLine($"[PONDER STOP] Captured stats: {finalNodesSearched} nodes, {elapsedMs}ms");
-
-        // Wait for task to complete (outside lock)
-        try
-        {
-            _ponderTask?.Wait(TimeSpan.FromMilliseconds(100));
-        }
-        catch (AggregateException)
-        {
-            // Task was cancelled - this is expected
-        }
+        // Debug logging - simplified format
+        Console.WriteLine($"[PONDER {_ponderingForPlayer}] Stop: {finalNodesSearched:N0} nodes, {elapsedMs}ms, depth {finalDepth}");
     }
 
     /// <summary>
@@ -344,7 +353,7 @@ public sealed class Ponderer : IDisposable
                     TimeSpentMs = elapsedMs,
                     FinalState = PonderState.PonderHit,
                     PonderHit = true,
-                    NodesSearched = _nodesSearched
+                    NodesSearched = _parallelSearch.GetRealNodesSearched()
                 };
 
                 return (PonderState.PonderHit, hitResult);
@@ -364,7 +373,7 @@ public sealed class Ponderer : IDisposable
                     TimeSpentMs = elapsedMs,
                     FinalState = PonderState.PonderMiss,
                     PonderHit = false,
-                    NodesSearched = _nodesSearched
+                    NodesSearched = _parallelSearch.GetRealNodesSearched()
                 };
 
                 return (PonderState.PonderMiss, missResult);
@@ -375,28 +384,24 @@ public sealed class Ponderer : IDisposable
     /// <summary>
     /// Update the current pondering result (called by search during pondering)
     /// Uses lock to safely check state
+    /// Only updates depth if a non-zero value is provided (preserves depth from previous updates)
     /// </summary>
     public void UpdatePonderResult((int x, int y) bestMove, int depth, int score, long nodesSearched)
     {
-        PonderState currentState;
         lock (_stateLock)
         {
-            currentState = _state;
-        }
+            // Allow update if pondering OR if we're allowing final result update (after stop)
+            if (_state != PonderState.Pondering && !_allowFinalResultUpdate)
+                return;
 
-        if (currentState != PonderState.Pondering)
-            return;
-
-        lock (_stateLock)
-        {
             _currentResult = new PonderResult
             {
                 BestMove = bestMove,
-                Depth = depth,
+                Depth = depth > 0 ? depth : _currentResult.Depth,
                 Score = score,
                 TimeSpentMs = Stopwatch.GetElapsedTime(_ponderStartTimeTicks).Milliseconds,
                 FinalState = _state,
-                PonderHit = false, // Will be set when opponent moves
+                PonderHit = false,
                 NodesSearched = nodesSearched
             };
         }
@@ -469,7 +474,6 @@ public sealed class Ponderer : IDisposable
             _totalPonderTimeMs = 0;
             _currentResult = PonderResult.None;
             _ponderTask = null;
-            _nodesSearched = 0;
             _state = PonderState.Idle;
         }
     }
