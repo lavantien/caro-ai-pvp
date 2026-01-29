@@ -78,6 +78,7 @@ public class MinimaxAI : IStatsPublisher
     private int _vcfDepthAchieved;
     private readonly Stopwatch _searchStopwatch = new();
     private long _lastAllocatedTimeMs;  // Track time allocated for last move
+    private bool _lastPonderingEnabled;  // Track if pondering was enabled for last move
 
     // Time control for search timeout
     private long _searchHardBoundMs;
@@ -92,6 +93,7 @@ public class MinimaxAI : IStatsPublisher
     private PV _lastPV = PV.Empty;
     private Board? _lastBoard;
     private Player _lastPlayer;
+    private AIDifficulty _lastDifficulty;
 
     // Stats publisher-subscriber pattern
     private static int _instanceCounter = 0;
@@ -344,13 +346,12 @@ public class MinimaxAI : IStatsPublisher
         //     }
         // }
 
-        // Try VCF (Victory by Continuous Four) search - ONLY D11 (Legend) has this!
+        // Try VCF (Victory by Continuous Four) search - ONLY Grandmaster has this!
         // VCF finds forced win sequences through continuous four threats.
-        // By restricting VCF to only D11, we ensure it's a unique differentiator, not an equalizer.
-        // - D11: Full VCF with maximum time and depth
-        // - D10 and below: NO VCF (must rely on minimax evaluation)
-        var vcfThreshold = GetVCFThreshold(difficulty);
-        if (difficulty >= vcfThreshold)
+        // By restricting VCF to only Grandmaster, we ensure it's a unique differentiator.
+        // Use centralized config to check VCF support for this difficulty.
+        var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
+        if (settings.VCFEnabled)
         {
             var (vcfTimeLimit, vcfMaxDepth) = CalculateVCFTimeLimit(timeAlloc, difficulty);
 
@@ -395,14 +396,10 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // PARALLEL SEARCH: Use Lazy SMP when enabled and difficulty is high enough
-        // Parallel search provides 4-8x speedup on multi-core systems
-        // NOTE: Parallel search is only enabled for Hard and above due to regression
-        // where Medium with parallel search loses to Easy with sequential search
-        // The parallel search implementation needs further debugging before
-        // it can be safely used for Medium difficulty
-        // Thread counts when enabled: braindead=1, easy=2, medium=3, hard=4, grandmaster=(N/2)-1
-        if (parallelSearchEnabled && difficulty >= AIDifficulty.Hard)
+        // PARALLEL SEARCH: Use Lazy SMP when enabled
+        // TournamentEngine already checks the config, so we just respect the flag here
+        // Thread counts are fetched from config via ThreadPoolConfig
+        if (parallelSearchEnabled)
         {
             int threadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
             _lastThreadCount = threadCount;
@@ -421,11 +418,14 @@ public class MinimaxAI : IStatsPublisher
             _depthAchieved = parallelResult.DepthAchieved;
             _nodesSearched = parallelResult.NodesSearched;
             _lastParallelDiagnostics = parallelResult.ParallelDiagnostics;
+            _lastAllocatedTimeMs = parallelResult.AllocatedTimeMs;
+            _lastPonderingEnabled = ponderingEnabled;
 
             // Store PV for pondering
             _lastPV = PV.FromSingleMove(parallelResult.X, parallelResult.Y, _depthAchieved, 0);
             _lastBoard = board.Clone();
             _lastPlayer = player;
+            _lastDifficulty = difficulty;
 
             // Start pondering for opponent's response
             if (ponderingEnabled)
@@ -459,6 +459,7 @@ public class MinimaxAI : IStatsPublisher
         // Track thread count for diagnostics (even if using sequential search)
         _lastThreadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
         _lastParallelDiagnostics = null; // No parallel search in this path
+        _lastPonderingEnabled = ponderingEnabled;
 
         // Apply time multiplier to the soft bound - lower difficulties use less time
         double timeMultiplier = AdaptiveDepthCalculator.GetTimeMultiplier(difficulty);
@@ -578,6 +579,7 @@ public class MinimaxAI : IStatsPublisher
         _lastPV = PV.FromSingleMove(bestMove.x, bestMove.y, baseDepth, 0);
         _lastBoard = board.Clone();
         _lastPlayer = player;
+        _lastDifficulty = difficulty;
 
         // Start pondering for opponent's response
         if (ponderingEnabled)
@@ -925,28 +927,6 @@ public class MinimaxAI : IStatsPublisher
     };
 
     /// <summary>
-    /// Get VCF activation threshold based on difficulty
-    /// ONLY Grandmaster (D5) has VCF access!
-    /// Hard and below must rely purely on minimax evaluation
-    ///
-    /// VCF is a powerful tactical weapon that can equalize the game.
-    /// By restricting it to only the highest difficulty, we preserve AI strength ordering.
-    /// </summary>
-    private static AIDifficulty GetVCFThreshold(AIDifficulty difficulty) => difficulty switch
-    {
-        // CRITICAL: ONLY D5 (Grandmaster) gets VCF access!
-        // VCF is a powerful feature that finds forced wins. If multiple difficulties have it,
-        // it acts as an equalizer rather than a differentiator.
-        // By giving VCF ONLY to D5, we ensure it's a unique advantage for the highest difficulty.
-        AIDifficulty.Grandmaster => AIDifficulty.Grandmaster,  // D5: Grandmaster >= Grandmaster = true (ONLY D5 HAS VCF)
-        // All other difficulties: Return Grandmaster so that their comparison with Grandmaster is false
-        AIDifficulty.Hard => AIDifficulty.Grandmaster,        // D4: Hard >= Grandmaster = 4 >= 5 = false (NO VCF)
-        AIDifficulty.Medium => AIDifficulty.Grandmaster,      // D3: NO VCF
-        AIDifficulty.Easy => AIDifficulty.Grandmaster,        // D2: NO VCF
-        AIDifficulty.Braindead => AIDifficulty.Grandmaster,   // D1: NO VCF
-        _ => AIDifficulty.Grandmaster                          // Default: NO VCF
-    };
-
     /// <summary>
     /// Get emergency VCF time cap based on difficulty
     /// CRITICAL: In time scramble, use the available increment time for VCF
@@ -2731,6 +2711,60 @@ public class MinimaxAI : IStatsPublisher
     }
 
     /// <summary>
+    /// Start pondering for opponent's response (called at start of opponent's turn)
+    /// </summary>
+    public void StartPonderingForOpponent(Board board, Player opponentToMove)
+    {
+        var predictedOpponentMove = _lastPV.GetPredictedOpponentMove();
+        var player = _lastPlayer;
+        var difficulty = _lastDifficulty;
+
+        if (player == Player.None)
+            return;
+
+        var ponderTimeMs = CalculatePonderTime(null, difficulty);
+        if (ponderTimeMs > 0)
+        {
+            _ponderer.StartPondering(board, opponentToMove, predictedOpponentMove, player, difficulty, ponderTimeMs);
+        }
+    }
+
+    /// <summary>
+    /// Start pondering immediately (at start of opponent's turn, without waiting for prediction)
+    /// </summary>
+    public void StartPonderingNow(Board board, Player currentPlayerToMove, AIDifficulty difficulty)
+    {
+        // The AI owning this method will ponder during currentPlayerToMove's turn
+        // We want to analyze the position where currentPlayerToMove is to move
+        var thisAI = currentPlayerToMove == Player.Red ? Player.Blue : Player.Red;
+        var ponderTimeMs = CalculatePonderTime(null, difficulty);
+        if (ponderTimeMs > 0)
+        {
+            // Ponder the position where the current player is to move
+            _ponderer.StartPondering(board, currentPlayerToMove, null, thisAI, difficulty, ponderTimeMs);
+        }
+    }
+
+    /// <summary>
+    /// Start pondering after making a move (for opponent's response)
+    /// </summary>
+    public void StartPonderingAfterMove(Board board, Player opponentToMove)
+    {
+        var player = _lastPlayer;
+        var difficulty = _lastDifficulty;
+        var predictedOpponentMove = _lastPV.GetPredictedOpponentMove();
+
+        if (player == Player.None)
+            return;
+
+        var ponderTimeMs = CalculatePonderTime(null, difficulty);
+        if (ponderTimeMs > 0)
+        {
+            _ponderer.StartPondering(board, opponentToMove, predictedOpponentMove, player, difficulty, ponderTimeMs);
+        }
+    }
+
+    /// <summary>
     /// Reset pondering state (call when starting a new game)
     /// </summary>
     public void ResetPondering()
@@ -2748,20 +2782,21 @@ public class MinimaxAI : IStatsPublisher
 
     /// <summary>
     /// Get last ponder result statistics (nodes searched during opponent's turn)
-    /// Returns (nodesSearched, nodesPerSecond, timeSpentMs)
+    /// Returns (depth, nodesSearched, nodesPerSecond, timeSpentMs)
     /// </summary>
-    public (long NodesSearched, double NodesPerSecond, long TimeSpentMs) GetLastPonderStats()
+    public (int Depth, long NodesSearched, double NodesPerSecond, long TimeSpentMs) GetLastPonderStats(Player forPlayer)
     {
         var ponderResult = _ponderer.GetCurrentResult();
+        var depth = ponderResult.Depth;
         var nodesSearched = ponderResult.NodesSearched;
         var timeSpentMs = ponderResult.TimeSpentMs;
         var nps = timeSpentMs > 0 ? (double)nodesSearched * 1000 / timeSpentMs : 0;
 
-        // Debug logging to track ponder stats
+        // Debug logging - simplified format
         if (nodesSearched > 0 || timeSpentMs > 0)
-            Console.WriteLine($"[AI PONDER] Stats: {nodesSearched} nodes, {timeSpentMs}ms, {nps:F0} nps");
+            Console.WriteLine($"[PONDER {forPlayer}] Stats: {nodesSearched} nodes, {timeSpentMs}ms, {nps:F0} nps, depth {depth}");
 
-        return (nodesSearched, nps, timeSpentMs);
+        return (depth, nodesSearched, nps, timeSpentMs);
     }
 
     /// <summary>
@@ -2794,7 +2829,7 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        return (_depthAchieved, _nodesSearched, nps, hitRate, _ponderer.IsPondering, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs);
+        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs);
     }
 
     /// <summary>
@@ -2833,7 +2868,7 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     public void PublishPonderStats(Player player)
     {
-        var (nodesSearched, nps, timeSpentMs) = GetLastPonderStats();
+        var (depth, nodesSearched, nps, timeSpentMs) = GetLastPonderStats(player);
 
         if (nodesSearched == 0 && timeSpentMs == 0)
             return;
@@ -2843,7 +2878,7 @@ public class MinimaxAI : IStatsPublisher
             PublisherId = _publisherId,
             Player = player,
             Type = StatsType.Pondering,
-            DepthAchieved = 0,
+            DepthAchieved = depth,
             NodesSearched = nodesSearched,
             NodesPerSecond = nps,
             TableHitRate = 0,
