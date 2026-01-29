@@ -71,8 +71,10 @@ public class TournamentEngine
     // Cached ponder stats from async subscriber
     private long _redPonderNodes;
     private double _redPonderNps;
+    private int _redPonderDepth;
     private long _bluePonderNodes;
     private double _bluePonderNps;
+    private int _bluePonderDepth;
 
     /// <summary>
     /// Run a single game between two AI opponents with chess clock time controls
@@ -100,8 +102,14 @@ public class TournamentEngine
         // Reset cached ponder stats
         _redPonderNodes = 0;
         _redPonderNps = 0;
+        _redPonderDepth = 0;
         _bluePonderNodes = 0;
         _bluePonderNps = 0;
+        _bluePonderDepth = 0;
+
+        // Get per-player difficulty settings from centralized config
+        var redSettings = AIDifficultyConfig.Instance.GetSettings(redDifficulty);
+        var blueSettings = AIDifficultyConfig.Instance.GetSettings(blueDifficulty);
 
         // Start stats subscriber tasks
         _statsCts = new CancellationTokenSource();
@@ -135,11 +143,30 @@ public class TournamentEngine
             // Use the appropriate AI instance for this player
             var currentAI = isRed ? _redAI : _blueAI;
 
-            // Time the AI move
+            // Use THIS PLAYER's difficulty settings for pondering and parallel search
+            var currentSettings = isRed ? redSettings : blueSettings;
+            var playerPonderingEnabled = ponderingEnabled && currentSettings.PonderingEnabled;
+            var playerParallelEnabled = parallelSearchEnabled && currentSettings.ParallelSearchEnabled;
+
+            // Stop current player's pondering (from during opponent's previous move) and get their stats
+            // These stats will be displayed on the current player's move line
+            currentAI.StopPondering();
+            var (ponderDepth, ponderNodes, ponderNps, _) = currentAI.GetLastPonderStats(currentPlayer);
+
+            // Start opponent's pondering IMMEDIATELY (opponent will think during current player's move)
+            var opponentAI = isRed ? _blueAI : _redAI;
+            var opponentSettings = isRed ? blueSettings : redSettings;
+            var opponentPonderingEnabled = ponderingEnabled && opponentSettings.PonderingEnabled;
+            if (opponentPonderingEnabled)
+            {
+                opponentAI.StartPonderingNow(board, currentPlayer, opponentSettings.Difficulty);
+            }
+
+            // Time the AI move (opponent is pondering in background)
             var moveStopwatch = Stopwatch.StartNew();
             var (x, y) = currentAI.GetBestMove(board, currentPlayer, difficulty,
                 isRed ? redTimeRemainingMs : blueTimeRemainingMs, moveNumber: moveNumber,
-                ponderingEnabled: ponderingEnabled, parallelSearchEnabled: parallelSearchEnabled);
+                ponderingEnabled: false, parallelSearchEnabled: playerParallelEnabled);
             moveStopwatch.Stop();
 
             // Validate move (single source of truth for all move validation)
@@ -184,25 +211,12 @@ public class TournamentEngine
                 game.RecordMove(board, x, y);
 
                 // Get search statistics for this move from the correct AI
-                var (depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, masterTTPercent, helperAvgDepth, allocatedTimeMs) = currentAI.GetSearchStatistics();
+                var (depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, _, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, masterTTPercent, helperAvgDepth, allocatedTimeMs) = currentAI.GetSearchStatistics();
 
-                // Get ponder statistics from cached values (populated by stats subscriber)
-                // The stats subscriber receives ponder stats asynchronously from opponent's AI
-                var (ponderNodes, ponderNps) = isRed ? (_bluePonderNodes, _bluePonderNps) : (_redPonderNodes, _redPonderNps);
+                // Determine if current player supports pondering and actually did ponder work
+                bool ponderingActive = playerPonderingEnabled && (ponderNodes > 0 || currentSettings.Difficulty >= AIDifficulty.Hard);
 
-                // Clear cached ponder stats after use
-                if (isRed)
-                {
-                    _bluePonderNodes = 0;
-                    _bluePonderNps = 0;
-                }
-                else
-                {
-                    _redPonderNodes = 0;
-                    _redPonderNps = 0;
-                }
-
-                var stats = new MoveStats(depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, moveTimeMs, masterTTPercent, helperAvgDepth, allocatedTimeMs, ponderNodes, ponderNps);
+                var stats = new MoveStats(depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, moveTimeMs, masterTTPercent, helperAvgDepth, allocatedTimeMs, ponderNodes, ponderNps, ponderDepth);
 
                 // Log the move with stats
                 var timeStr = $"{moveTimeMs}ms";
@@ -229,6 +243,12 @@ public class TournamentEngine
                 }
 
                 totalMoves++;
+
+                // Start current player's pondering for opponent's response (runs during opponent's next turn)
+                if (playerPonderingEnabled)
+                {
+                    currentAI.StartPonderingAfterMove(board, currentPlayer);
+                }
             }
             catch (Exception ex)
             {
@@ -365,11 +385,13 @@ public class TournamentEngine
                 {
                     _redPonderNodes = statsEvent.NodesSearched;
                     _redPonderNps = statsEvent.NodesPerSecond;
+                    _redPonderDepth = statsEvent.DepthAchieved;
                 }
                 else
                 {
                     _bluePonderNodes = statsEvent.NodesSearched;
                     _bluePonderNps = statsEvent.NodesPerSecond;
+                    _bluePonderDepth = statsEvent.DepthAchieved;
                 }
             }
         }

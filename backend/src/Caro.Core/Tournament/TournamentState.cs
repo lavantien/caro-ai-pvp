@@ -165,7 +165,8 @@ public record MoveStats(
     double HelperAvgDepth = 0,      // Average depth achieved by helper threads
     long AllocatedTimeMs = 0,       // Time allocated for this move
     long PonderNodesSearched = 0,   // Nodes searched during pondering (opponent's turn)
-    double PonderNodesPerSecond = 0 // NPS during pondering
+    double PonderNodesPerSecond = 0, // NPS during pondering
+    int PonderDepth = 0             // Depth achieved during pondering
 );
 
 /// <summary>
