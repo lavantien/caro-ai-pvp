@@ -14,7 +14,8 @@ public record ParallelSearchResult(
     int DepthAchieved,
     long NodesSearched,
     int ThreadCount = 0,
-    string? ParallelDiagnostics = null
+    string? ParallelDiagnostics = null,
+    long AllocatedTimeMs = 0
 );
 
 /// <summary>
@@ -108,6 +109,48 @@ public sealed class ParallelMinimaxSearch
     }
 
     /// <summary>
+    /// Check if a move is valid per the Open Rule for Red's second move (move #3)
+    /// The Open Rule requires Red's second move to be at least 3 intersections away
+    /// from the first red stone (Chebyshev distance >= 3)
+    /// </summary>
+    private bool IsValidPerOpenRule(Board board, int x, int y)
+    {
+        // Count stones to verify this is move #3 (2 stones on board)
+        int stoneCount = 0;
+        (int firstX, int firstY) firstRed = (-1, -1);
+
+        for (int bx = 0; bx < board.BoardSize; bx++)
+        {
+            for (int by = 0; by < board.BoardSize; by++)
+            {
+                var cell = board.GetCell(bx, by);
+                if (cell.Player != Player.None)
+                {
+                    stoneCount++;
+                    if (cell.Player == Player.Red && firstRed.firstX < 0)
+                    {
+                        firstRed = (bx, by);
+                    }
+                }
+            }
+        }
+
+        // Only applies to move #3 (exactly 2 stones on board)
+        if (stoneCount != 2)
+            return true;
+
+        // No first red found (shouldn't happen), allow move
+        if (firstRed.firstX < 0)
+            return true;
+
+        // Check if move is at least 3 intersections away from first red
+        // Chebyshev distance: max(|dx|, |dy|) >= 3
+        int dx = Math.Abs(x - firstRed.firstX);
+        int dy = Math.Abs(y - firstRed.firstY);
+        return Math.Max(dx, dy) >= 3;
+    }
+
+    /// <summary>
     /// Get best move using parallel search (Lazy SMP)
     /// </summary>
     public (int x, int y) GetBestMove(
@@ -124,10 +167,11 @@ public sealed class ParallelMinimaxSearch
         var baseDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
         var candidates = GetCandidateMoves(board);
 
-        // Apply Open Rule: Red's second move (move #3) cannot be in center 5x5 zone
+        // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections
+        // away from the first red stone (5x5 exclusion zone centered on first move)
         if (player == Player.Red && moveNumber == 3)
         {
-            candidates = candidates.Where(c => !(c.x >= 5 && c.x <= 9 && c.y >= 5 && c.y <= 9)).ToList();
+            candidates = candidates.Where(c => IsValidPerOpenRule(board, c.x, c.y)).ToList();
         }
 
         if (candidates.Count == 0)
@@ -135,12 +179,12 @@ public sealed class ParallelMinimaxSearch
             // No valid candidates - board is empty or all filtered out
             if (player == Player.Red && moveNumber == 3)
             {
-                // Open rule applies - find first valid cell outside center 5x5
+                // Open rule applies - find first valid cell outside exclusion zone
                 for (int x = 0; x < 15; x++)
                 {
                     for (int y = 0; y < 15; y++)
                     {
-                        if (board.GetCell(x, y).Player == Player.None && !(x >= 5 && x <= 9 && y >= 5 && y <= 9))
+                        if (board.GetCell(x, y).Player == Player.None && IsValidPerOpenRule(board, x, y))
                             return (x, y);
                     }
                 }
@@ -228,17 +272,18 @@ public sealed class ParallelMinimaxSearch
         var baseDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
         var candidates = GetCandidateMoves(board);
 
-        // Apply Open Rule: Red's second move (move #3) cannot be in center 5x5 zone
+        // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections
+        // away from the first red stone (5x5 exclusion zone centered on first move)
         if (player == Player.Red && moveNumber == 3)
         {
-            candidates = candidates.Where(c => !(c.x >= 5 && c.x <= 9 && c.y >= 5 && c.y <= 9)).ToList();
+            candidates = candidates.Where(c => IsValidPerOpenRule(board, c.x, c.y)).ToList();
         }
 
         if (candidates.Count == 0)
         {
             // Empty board - return center move with depth 1 (not 0, which is misleading)
             // For empty board, center is the only reasonable move
-            return new ParallelSearchResult(7, 7, 1, 1);
+            return new ParallelSearchResult(7, 7, 1, 1, 0, null, 0);
         }
 
         // Use provided time allocation or create default
@@ -258,7 +303,7 @@ public sealed class ParallelMinimaxSearch
             {
                 Console.WriteLine($"[AI VCF] Found winning move ({vcfResult.BestMove.Value.x}, {vcfResult.BestMove.Value.y}), depth: {vcfResult.DepthAchieved}");
                 return new ParallelSearchResult(vcfResult.BestMove.Value.x, vcfResult.BestMove.Value.y,
-                    vcfResult.DepthAchieved, vcfResult.NodesSearched);
+                    vcfResult.DepthAchieved, vcfResult.NodesSearched, 0, null, vcfTimeLimit);
             }
         }
 
@@ -289,7 +334,7 @@ public sealed class ParallelMinimaxSearch
         if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 20)
         {
             var randomMove = candidates[_random.Next(candidates.Count)];
-            return new ParallelSearchResult(randomMove.x, randomMove.y, 1, candidates.Count);
+            return new ParallelSearchResult(randomMove.x, randomMove.y, 1, candidates.Count, 0, null, alloc.HardBoundMs);
         }
 
         // Single-threaded for low depths (overhead not worth it)
@@ -302,7 +347,7 @@ public sealed class ParallelMinimaxSearch
             var (x, y) = SearchSingleThreaded(board, player, adjustedDepth, candidates);
             // Use real node count instead of estimate
             long actualNodes = Interlocked.Read(ref _realNodesSearched);
-            return new ParallelSearchResult(x, y, adjustedDepth, actualNodes);
+            return new ParallelSearchResult(x, y, adjustedDepth, actualNodes, 0, null, alloc.HardBoundMs);
         }
 
         // Multi-threaded Lazy SMP for deeper searches
@@ -378,7 +423,7 @@ public sealed class ParallelMinimaxSearch
 
             var (x, y) = SearchSingleThreaded(board, player, depth, candidates);
             long actualNodes = Interlocked.Read(ref _realNodesSearched);
-            return new ParallelSearchResult(x, y, depth, actualNodes, 0);
+            return new ParallelSearchResult(x, y, depth, actualNodes, 0, null, _hardTimeBoundMs);
         }
 
         // Include threadIndex to distinguish master thread (0) from helper threads (1+)
@@ -480,7 +525,7 @@ public sealed class ParallelMinimaxSearch
             {
                 // Last resort: first candidate
                 long totalNodes = Interlocked.Read(ref _realNodesSearched);
-                return new ParallelSearchResult(candidates[0].x, candidates[0].y, 1, totalNodes);
+                return new ParallelSearchResult(candidates[0].x, candidates[0].y, 1, totalNodes, 0, null, _hardTimeBoundMs);
             }
         }
 
@@ -524,9 +569,9 @@ public sealed class ParallelMinimaxSearch
             diagBuilder.Append($"{threadsReachedMinDepth}/{threadCount} reached min depth");
         }
 
-        string diagnostics = diagBuilder.Length > 0 ? diagBuilder.ToString() : null;
+        string? diagnostics = diagBuilder.Length > 0 ? diagBuilder.ToString() : null;
 
-        return new ParallelSearchResult(bestResult.x, bestResult.y, bestResult.depth, totalNodesFinal, threadCount, diagnostics);
+        return new ParallelSearchResult(bestResult.x, bestResult.y, bestResult.depth, totalNodesFinal, threadCount, diagnostics, _hardTimeBoundMs);
     }
 
     /// <summary>
@@ -786,15 +831,11 @@ public sealed class ParallelMinimaxSearch
                 threadData.TTReadsFromHelpers++;
         }
 
-        // Master thread: only use scores from entries written by master (ThreadIndex=0)
-        // AND only if the entry is at sufficient depth
+        // Master thread TT reading policy for Lazy SMP:
+        // Helper write policy ensures quality: depth >= rootDepth/2 AND exact scores only.
+        // Master thread uses all valid helper entries for proper Lazy SMP operation.
+        // The write policy is the quality gate - if helper stored it, we can use it.
         bool shouldUseScore = found && hasExactDepth;
-        if (shouldUseScore && threadData.ThreadIndex == 0 && ttThreadIndex > 0)
-        {
-            // Master thread ignores ALL helper entries for scoring
-            shouldUseScore = false;
-            threadData.TTReadsSkipped++;
-        }
 
         // Use the score if we have a valid exact-depth entry
         if (shouldUseScore)
@@ -1333,8 +1374,22 @@ public sealed class ParallelMinimaxSearch
         if (timeRemainingMs.HasValue)
         {
             var timeLeft = timeRemainingMs.Value;
-            long softBound = Math.Max(500, timeLeft / 40); // Distribute over 40 moves
-            long hardBound = Math.Min(softBound * 2, timeLeft - 1000);
+
+            // SHORT TIME CONTROL FIX: Use percentage-based allocation instead of fixed division
+            // For short time controls (< 60s), allocate based on percentage of remaining time
+            // For long time controls, distribute over remaining moves
+            long softBound;
+            if (timeLeft < 60000) // Less than 60 seconds - short time control
+            {
+                // Use 20-30% of remaining time per move for short controls
+                softBound = Math.Max(500, timeLeft / 5); // 20% of remaining time
+            }
+            else
+            {
+                // Distribute over estimated remaining moves (40 for long games)
+                softBound = Math.Max(500, timeLeft / 40);
+            }
+            long hardBound = Math.Min(softBound * 3, timeLeft - 500);
 
             return new TimeAllocation
             {
@@ -1473,6 +1528,7 @@ public sealed class ParallelMinimaxSearch
     /// <param name="maxPonderTimeMs">Maximum time to spend pondering</param>
     /// <param name="cancellationToken">Token to cancel pondering</param>
     /// <param name="progressCallback">Optional callback for progress updates</param>
+    /// <param name="ponderingFor">Player doing the pondering (for debug logging)</param>
     /// <returns>Best move found, depth reached, score, and nodes searched</returns>
     public ((int x, int y)? bestMove, int depth, int score, long nodesSearched) PonderLazySMP(
         Board board,
@@ -1480,7 +1536,8 @@ public sealed class ParallelMinimaxSearch
         AIDifficulty difficulty,
         long maxPonderTimeMs,
         CancellationToken cancellationToken,
-        Action<(int x, int y, int depth, int score)>? progressCallback = null)
+        Action<(int x, int y, int depth, int score)>? progressCallback = null,
+        Player ponderingFor = Player.None)
     {
         if (player == Player.None)
             return (null, 0, 0, 0);
@@ -1552,7 +1609,8 @@ public sealed class ParallelMinimaxSearch
                     threadData,
                     ponderTimeAlloc,
                     linkedToken,
-                    progressCallback);
+                    progressCallback,
+                    ponderingFor);
 
                 // Add threadIndex to identify master vs helper thread results
                 var (x, y, score, depthAchieved, nodes) = result;
@@ -1587,7 +1645,13 @@ public sealed class ParallelMinimaxSearch
         if (bestResult.depth == 0)
             return (null, 0, 0, 0);
 
-        return ((bestResult.x, bestResult.y), bestResult.depth, bestResult.score, bestResult.nodes);
+        // Track maximum depth achieved across all threads (not just the winning move's depth)
+        // This gives a better picture of how deeply the AI thought during pondering
+        int maxDepth = results.Any() ? results.Max(r => r.depth) : bestResult.depth;
+
+        // Return total nodes searched across all threads (via Interlocked counter), not just the winning thread's nodes
+        long totalNodes = Interlocked.Read(ref _realNodesSearched);
+        return ((bestResult.x, bestResult.y), maxDepth, bestResult.score, totalNodes);
     }
 
     /// <summary>
@@ -1601,7 +1665,8 @@ public sealed class ParallelMinimaxSearch
         ThreadData threadData,
         TimeAllocation timeAlloc,
         CancellationToken cancellationToken,
-        Action<(int x, int y, int depth, int score)>? progressCallback)
+        Action<(int x, int y, int depth, int score)>? progressCallback,
+        Player ponderingFor = Player.None)
     {
         var bestMove = candidates[0];
         var bestScore = int.MinValue;
@@ -1610,8 +1675,8 @@ public sealed class ParallelMinimaxSearch
         // Use the real node counter (thread-safe via Interlocked)
         Interlocked.Exchange(ref _realNodesSearched, 0);
 
-        // Debug: log start of ponder iteration
-        Console.WriteLine($"[PONDER SEARCH] Starting ponder search, targetDepth={targetDepth}");
+        // Debug: log start - simplified format
+        Console.WriteLine($"[PONDER {ponderingFor}] Starting, targetDepth={targetDepth}");
 
         // Start from depth 2 and iterate up
         for (int currentDepth = 2; currentDepth <= targetDepth; currentDepth++)
@@ -1619,7 +1684,7 @@ public sealed class ParallelMinimaxSearch
             // Check cancellation
             if (cancellationToken.IsCancellationRequested)
             {
-                Console.WriteLine($"[PONDER SEARCH] Cancelled at depth {currentDepth}");
+                Console.WriteLine($"[PONDER {ponderingFor}] Cancelled at depth {currentDepth}");
                 break;
             }
 
@@ -1669,8 +1734,8 @@ public sealed class ParallelMinimaxSearch
         // Use real node count instead of estimate
         long actualNodes = Interlocked.Read(ref _realNodesSearched);
 
-        // Debug: log final node count
-        Console.WriteLine($"[PONDER SEARCH] Finished: {actualNodes} nodes, depth {bestDepth}");
+        // Debug: log final result
+        Console.WriteLine($"[PONDER {ponderingFor}] Finished: {actualNodes} nodes, depth {bestDepth}");
 
         return (bestMove.x, bestMove.y, bestScore, bestDepth, actualNodes);
     }
@@ -1699,6 +1764,12 @@ public sealed class ParallelMinimaxSearch
     /// Stop any ongoing search (used when pondering needs to stop)
     /// </summary>
     public void StopSearch() => _searchCts?.Cancel();
+
+    /// <summary>
+    /// Get the actual node count from the search (thread-safe)
+    /// Returns the total nodes searched across all threads via Interlocked counter
+    /// </summary>
+    public long GetRealNodesSearched() => Interlocked.Read(ref _realNodesSearched);
 
     /// <summary>
     /// Check if search is currently running
