@@ -76,6 +76,11 @@ public sealed class ParallelMinimaxSearch
         public int TTReadsSkipped;       // Helper entries skipped due to depth threshold
         public int TTScoresUsed;         // How many TT entries actually returned scores
 
+        // CRITICAL FIX: Thread-local node counting to eliminate cache contention
+        // All 9 threads incrementing a shared Interlocked counter on every node causes
+        // severe performance degradation. Each thread now counts locally and we aggregate.
+        public long LocalNodesSearched;
+
         public Random Random = new();
 
         public void Reset()
@@ -245,7 +250,8 @@ public sealed class ParallelMinimaxSearch
         // Single-threaded for low depths (overhead not worth it)
         if (adjustedDepth <= 3)
         {
-            return SearchSingleThreaded(board, player, adjustedDepth, candidates);
+            var (x, y, _) = SearchSingleThreaded(board, player, adjustedDepth, candidates);
+            return (x, y);
         }
 
         // Multi-threaded Lazy SMP for deeper searches
@@ -340,14 +346,10 @@ public sealed class ParallelMinimaxSearch
         // Single-threaded for low depths (overhead not worth it)
         if (adjustedDepth <= 3)
         {
-            // Reset node counter for single-threaded search
-            Interlocked.Exchange(ref _realNodesSearched, 0);
             _transpositionTable.IncrementAge();
 
-            var (x, y) = SearchSingleThreaded(board, player, adjustedDepth, candidates);
-            // Use real node count instead of estimate
-            long actualNodes = Interlocked.Read(ref _realNodesSearched);
-            return new ParallelSearchResult(x, y, adjustedDepth, actualNodes, 0, null, alloc.HardBoundMs);
+            var (x, y, nodes) = SearchSingleThreaded(board, player, adjustedDepth, candidates);
+            return new ParallelSearchResult(x, y, adjustedDepth, nodes, 0, null, alloc.HardBoundMs);
         }
 
         // Multi-threaded Lazy SMP for deeper searches
@@ -357,8 +359,9 @@ public sealed class ParallelMinimaxSearch
     /// <summary>
     /// Single-threaded search (fallback for low depths)
     /// Note: TranspositionTable age is incremented by caller
+    /// Returns node count via out parameter for accurate reporting
     /// </summary>
-    private (int x, int y) SearchSingleThreaded(Board board, Player player, int depth, List<(int x, int y)> candidates)
+    private (int x, int y, long nodes) SearchSingleThreaded(Board board, Player player, int depth, List<(int x, int y)> candidates)
     {
         var threadData = new ThreadData();
         var cts = new CancellationTokenSource();
@@ -380,7 +383,7 @@ public sealed class ParallelMinimaxSearch
             }
         }
 
-        return bestMove;
+        return (bestMove.x, bestMove.y, threadData.LocalNodesSearched);
     }
 
     /// <summary>
@@ -405,9 +408,6 @@ public sealed class ParallelMinimaxSearch
         _searchStopwatch = Stopwatch.StartNew();
         _hardTimeBoundMs = timeAlloc.HardBoundMs;
 
-        // Reset real node counter for this search
-        Interlocked.Exchange(ref _realNodesSearched, 0);
-
         // Number of threads based on depth and available cores
         // FIX: Use fixed thread count when provided to reduce non-determinism
         // fixedThreadCount = 0 means single-threaded (skip parallel search)
@@ -418,12 +418,10 @@ public sealed class ParallelMinimaxSearch
         // If threadCount is 0, fall back to single-threaded search
         if (threadCount == 0)
         {
-            Interlocked.Exchange(ref _realNodesSearched, 0);
             _transpositionTable.IncrementAge();
 
-            var (x, y) = SearchSingleThreaded(board, player, depth, candidates);
-            long actualNodes = Interlocked.Read(ref _realNodesSearched);
-            return new ParallelSearchResult(x, y, depth, actualNodes, 0, null, _hardTimeBoundMs);
+            var (x, y, nodes) = SearchSingleThreaded(board, player, depth, candidates);
+            return new ParallelSearchResult(x, y, depth, nodes, 0, null, _hardTimeBoundMs);
         }
 
         // Include threadIndex to distinguish master thread (0) from helper threads (1+)
@@ -514,16 +512,16 @@ public sealed class ParallelMinimaxSearch
         // Group results by depth, then select best within each depth
         if (!results.Any())
         {
-            // Last resort: first candidate
-            long totalNodes = Interlocked.Read(ref _realNodesSearched);
+            // Last resort: first candidate, sum node counts from diagnostics
+            long totalNodes = diagnosticsList.Sum(d => d.LocalNodesSearched);
             return new ParallelSearchResult(candidates[0].x, candidates[0].y, 1, totalNodes, 0, null, _hardTimeBoundMs);
         }
 
         var maxDepth = results.Max(r => r.depth);
         if (maxDepth <= 0)
         {
-            // Last resort: first candidate
-            long totalNodes = Interlocked.Read(ref _realNodesSearched);
+            // Last resort: first candidate, sum node counts from diagnostics
+            long totalNodes = diagnosticsList.Sum(d => d.LocalNodesSearched);
             return new ParallelSearchResult(candidates[0].x, candidates[0].y, 1, totalNodes, 0, null, _hardTimeBoundMs);
         }
 
@@ -535,8 +533,9 @@ public sealed class ParallelMinimaxSearch
             .OrderBy(r => (-r.score, r.threadIndex == 0 ? 0 : 1))  // Compound: (-score for desc, master priority)
             .FirstOrDefault();
 
-        // Use real node count instead of estimated
-        long totalNodesFinal = Interlocked.Read(ref _realNodesSearched);
+        // CRITICAL FIX: Aggregate local node counts from all threads (no Interlocked contention)
+        // Each thread counted locally, now sum them up for accurate total
+        long totalNodesFinal = results.Sum(r => r.nodes);
 
         // Build parallel diagnostics string
         var diagBuilder = new System.Text.StringBuilder();
@@ -699,8 +698,8 @@ public sealed class ParallelMinimaxSearch
             }
         }
 
-        // Return 0 for nodes - real count is tracked globally in _realNodesSearched
-        return (bestMove.x, bestMove.y, bestScore, bestDepth, 0);
+        // Return local node count - will be aggregated across all threads
+        return (bestMove.x, bestMove.y, bestScore, bestDepth, threadData.LocalNodesSearched);
     }
 
     /// <summary>
@@ -768,8 +767,9 @@ public sealed class ParallelMinimaxSearch
     /// </summary>
     private int Minimax(Board board, int depth, int alpha, int beta, bool isMaximizing, Player aiPlayer, int rootDepth, ThreadData threadData, CancellationToken cancellationToken)
     {
-        // Count this node (thread-safe)
-        Interlocked.Increment(ref _realNodesSearched);
+        // CRITICAL FIX: Count nodes locally to avoid cache contention from Interlocked
+        // All 9 threads incrementing shared counter on every node = severe bottleneck
+        threadData.LocalNodesSearched++;
 
         // Time management check - use CancellationToken for proper cancellation
         if (cancellationToken.IsCancellationRequested)
@@ -1184,6 +1184,9 @@ public sealed class ParallelMinimaxSearch
     /// </summary>
     private int Quiesce(Board board, int alpha, int beta, bool isMaximizing, Player aiPlayer, int quiesceDepth, ThreadData threadData, CancellationToken cancellationToken)
     {
+        // Count quiescence node locally (no Interlocked contention)
+        threadData.LocalNodesSearched++;
+
         // Check cancellation
         if (cancellationToken.IsCancellationRequested)
         {
@@ -1650,8 +1653,8 @@ public sealed class ParallelMinimaxSearch
         // This gives a better picture of how deeply the AI thought during pondering
         int overallMaxDepth = results.Any() ? results.Max(r => r.depth) : bestResult.depth;
 
-        // Return total nodes searched across all threads (via Interlocked counter), not just the winning thread's nodes
-        long totalNodes = Interlocked.Read(ref _realNodesSearched);
+        // CRITICAL FIX: Aggregate local node counts from all threads (no Interlocked contention)
+        long totalNodes = results.Sum(r => r.nodes);
         return ((bestResult.x, bestResult.y), overallMaxDepth, bestResult.score, totalNodes);
     }
 
@@ -1672,9 +1675,6 @@ public sealed class ParallelMinimaxSearch
         var bestMove = candidates[0];
         var bestScore = int.MinValue;
         int bestDepth = 1;
-
-        // Use the real node counter (thread-safe via Interlocked)
-        Interlocked.Exchange(ref _realNodesSearched, 0);
 
         // Debug: log start - simplified format
         Console.WriteLine($"[PONDER {ponderingFor}] Starting, targetDepth={targetDepth}");
@@ -1732,8 +1732,8 @@ public sealed class ParallelMinimaxSearch
                 break;
         }
 
-        // Use real node count instead of estimate
-        long actualNodes = Interlocked.Read(ref _realNodesSearched);
+        // Use local node count (no Interlocked contention)
+        long actualNodes = threadData.LocalNodesSearched;
 
         // Debug: log final result
         Console.WriteLine($"[PONDER {ponderingFor}] Finished: {actualNodes} nodes, depth {bestDepth}");
