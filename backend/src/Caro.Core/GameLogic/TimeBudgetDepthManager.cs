@@ -134,8 +134,9 @@ public sealed class TimeBudgetDepthManager
 
         lock (_lock)
         {
-            // Apply time multiplier - lower difficulties use less time
-            double effectiveTime = timeSeconds * GetTimeMultiplier(difficulty);
+            // Time multiplier is now applied at call site (MinimaxAI)
+            // to avoid double application
+            double effectiveTime = timeSeconds;
 
             // Minimum time to ensure at least minimum depth
             effectiveTime = Math.Max(effectiveTime, 0.01);

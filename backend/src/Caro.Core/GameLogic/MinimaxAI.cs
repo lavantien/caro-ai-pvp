@@ -394,6 +394,10 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
+        // Get time multiplier for this difficulty (applies to both parallel and sequential search)
+        // Braindead: 1%, Easy: 10%, Medium: 30%, Hard: 70%, Grandmaster: 100%
+        double timeMultiplier = AdaptiveDepthCalculator.GetTimeMultiplier(difficulty);
+
         // PARALLEL SEARCH: Use Lazy SMP when enabled
         // TournamentEngine already checks the config, so we just respect the flag here
         // Thread counts are fetched from config via ThreadPoolConfig
@@ -403,12 +407,23 @@ public class MinimaxAI : IStatsPublisher
             _lastThreadCount = threadCount;
             //Console.WriteLine($"[AI] Using parallel search (Lazy SMP) for {difficulty} with {threadCount} threads");
 
+            // CRITICAL: Apply time multiplier to time allocation for parallel search
+            // Lower difficulties should use proportionally less time
+            var adjustedTimeAlloc = new TimeAllocation
+            {
+                SoftBoundMs = Math.Max(1, (long)(timeAlloc.SoftBoundMs * timeMultiplier)),
+                HardBoundMs = Math.Max(1, (long)(timeAlloc.HardBoundMs * timeMultiplier)),
+                OptimalTimeMs = Math.Max(1, (long)(timeAlloc.OptimalTimeMs * timeMultiplier)),
+                IsEmergency = timeAlloc.IsEmergency,
+                Phase = timeAlloc.Phase
+            };
+
             var parallelResult = _parallelSearch.GetBestMoveWithStats(
                 board,
                 player,
                 difficulty,
                 timeRemainingMs: timeRemainingMs,
-                timeAlloc: timeAlloc,
+                timeAlloc: adjustedTimeAlloc,
                 moveNumber: moveNumber,
                 fixedThreadCount: threadCount);
 
@@ -460,8 +475,12 @@ public class MinimaxAI : IStatsPublisher
         _lastPonderingEnabled = ponderingEnabled;
 
         // Apply time multiplier to the soft bound - lower difficulties use less time
-        double timeMultiplier = AdaptiveDepthCalculator.GetTimeMultiplier(difficulty);
-        long adjustedSoftBoundMs = Math.Max(100, (long)(timeAlloc.SoftBoundMs * timeMultiplier));
+        long adjustedSoftBoundMs = Math.Max(1, (long)(timeAlloc.SoftBoundMs * timeMultiplier));
+
+        // CRITICAL FIX: Also apply time multiplier to hard bound!
+        // Without this, lower difficulties search until the original hard bound,
+        // which defeats the purpose of the time multiplier.
+        long adjustedHardBoundMs = Math.Max(adjustedSoftBoundMs, (long)(timeAlloc.HardBoundMs * timeMultiplier));
 
         // Calculate max depth from time budget using NPS and EBF estimates
         // Formula: max_depth = log(time * nps) / log(ebf)
@@ -489,8 +508,8 @@ public class MinimaxAI : IStatsPublisher
         _searchStopwatch.Restart();
 
         // Initialize time control for search timeout
-        _searchHardBoundMs = timeAlloc.HardBoundMs;
-        _lastAllocatedTimeMs = timeAlloc.HardBoundMs;
+        _searchHardBoundMs = adjustedHardBoundMs;
+        _lastAllocatedTimeMs = adjustedHardBoundMs;
         _searchStopped = false;
 
         // ITERATIVE DEEPENING: Search depth 1, 2, 3... until time runs out
@@ -504,7 +523,7 @@ public class MinimaxAI : IStatsPublisher
             var elapsed = _searchStopwatch.ElapsedMilliseconds;
 
             // Hard bound check - must stop
-            if (elapsed >= timeAlloc.HardBoundMs)
+            if (elapsed >= _searchHardBoundMs)
             {
                 break;
             }
@@ -515,7 +534,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 // Check if we should continue for one more iteration
                 // Only continue if we have significant time left and next iteration won't exceed hard bound
-                double remainingSeconds = (timeAlloc.HardBoundMs - elapsed) / 1000.0;
+                double remainingSeconds = (_searchHardBoundMs - elapsed) / 1000.0;
                 double estimatedNextTime = elapsed / 1000.0 * 2.5; // EBF ~2.5
                 if (remainingSeconds < estimatedNextTime * 0.8)
                 {
