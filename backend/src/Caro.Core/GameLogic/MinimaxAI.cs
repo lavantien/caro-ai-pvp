@@ -267,6 +267,9 @@ public class MinimaxAI : IStatsPublisher
         if (errorRate > 0 && Random.Shared.NextDouble() < errorRate)
         {
             // Play a random valid move instead of searching
+            // Report minimal stats to indicate instant move (not D0 which looks like a bug)
+            _depthAchieved = 1;
+            _nodesSearched = 1;
             var randomIndex = Random.Shared.Next(candidates.Count);
             return candidates[randomIndex];
         }
@@ -310,6 +313,8 @@ public class MinimaxAI : IStatsPublisher
             if (ttMove.HasValue)
             {
                 //Console.WriteLine("[AI] Emergency mode: Using TT move at D5+");
+                _depthAchieved = 5;
+                _nodesSearched = 1;
                 return ttMove.Value;
             }
         }
@@ -376,11 +381,15 @@ public class MinimaxAI : IStatsPublisher
                 if (ttMove.HasValue)
                 {
                     Console.WriteLine("[AI VCF] Emergency: No VCF found, using TT move as fallback");
+                    _depthAchieved = 3;
+                    _nodesSearched = 1;
                     return ttMove.Value;
                 }
 
                 // Last resort: return the first candidate (usually the center or near existing stones)
                 Console.WriteLine("[AI VCF] Emergency: No TT move, using quick candidate selection");
+                _depthAchieved = 1;
+                _nodesSearched = 1;
                 return candidates[0];
             }
         }
