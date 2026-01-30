@@ -21,6 +21,7 @@ public class MinimaxAI : IStatsPublisher
     private readonly BoardEvaluator _evaluator = new();
     private readonly TranspositionTable _transpositionTable = new();
     private readonly WinDetector _winDetector = new();
+    private readonly ThreatDetector _threatDetector = new();
     private readonly ThreatSpaceSearch _vcfSolver = new();
     private readonly OpeningBook _openingBook = new();
 
@@ -319,12 +320,43 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // REMOVED: Critical defense immediate return
-        // The evaluation function's defense multiplier \(2\.2x for opponent threats\) is sufficient for handling threats\.
-        // This was causing Grandmaster to play too reactively, returning D0 without searching\.
-        // Let the search engine handle threats through proper evaluation rather than immediate blocking\.
+        // CRITICAL DEFENSE: Filter candidates to only blocking moves when opponent has StraightFour or StraightThree
+        // StraightFour: Immediate threat that must be blocked now
+        // StraightThree: 3 consecutive with both ends open - creates unstoppable StraightFour next turn
+        // By blocking StraightThrees early, we prevent them from becoming StraightFours with 2 blocking squares
+        var oppPlayer = player == Player.Red ? Player.Blue : Player.Red;
+        var threats = _threatDetector.DetectThreats(board, oppPlayer)
+            .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.StraightThree)
+            .ToList();
 
-        // VCF DEFENSE MODE: DISABLED
+        if (threats.Count > 0)
+        {
+            var straightFourCount = threats.Count(t => t.Type == ThreatType.StraightFour);
+            var straightThreeCount = threats.Count(t => t.Type == ThreatType.StraightThree);
+
+            var blockingSquares = threats
+                .SelectMany(t => t.GainSquares)
+                .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
+                .ToList();
+
+            Console.WriteLine($"[AI DEFENSE] Opponent has {straightFourCount} StraightFour, {straightThreeCount} StraightThree threat(s), blocking squares: {string.Join(", ", blockingSquares.Select(g => $"({g.x},{g.y})"))}");
+
+            // Filter candidates to only blocking moves
+            var blockingSet = new HashSet<(int x, int y)>(blockingSquares);
+            var filteredCandidates = candidates.Where(c => blockingSet.Contains(c)).ToList();
+
+            if (filteredCandidates.Count > 0)
+            {
+                candidates = filteredCandidates;
+                Console.WriteLine($"[AI DEFENSE] Filtered to {candidates.Count} blocking move(s)");
+            }
+            else
+            {
+                // Fallback: use the blocking squares directly as candidates
+                candidates = blockingSquares;
+                Console.WriteLine($"[AI DEFENSE] Using blocking squares directly as candidates");
+            }
+        }
         // VCF Defense was causing D11 to play too reactively, blocking opponent threats
         // instead of developing its own position. The evaluation function's defense
         // multiplier (2.2x for opponent threats) should be sufficient for defense.
@@ -425,7 +457,8 @@ public class MinimaxAI : IStatsPublisher
                 timeRemainingMs: timeRemainingMs,
                 timeAlloc: adjustedTimeAlloc,
                 moveNumber: moveNumber,
-                fixedThreadCount: threadCount);
+                fixedThreadCount: threadCount,
+                candidates: candidates);
 
             // Update statistics from parallel search
             _depthAchieved = parallelResult.DepthAchieved;
