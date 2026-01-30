@@ -93,8 +93,16 @@ public class ThreatSpaceSearch
         var opponentImmediateWin = FindImmediateWin(board, opponent);
         if (opponentImmediateWin.HasValue)
         {
-            // Attacker might still have VCF if they can win on their turn
-            // But typically this is a losing position
+            // If opponent has an immediate win, we cannot execute a VCF
+            // because they will ignore our threat and just win
+            return new VCFResult
+            {
+                IsSolved = false,
+                IsWin = false,
+                BestMove = null,
+                NodesSearched = nodesSearched,
+                DepthAchieved = 0
+            };
         }
 
         // Generate threat moves for attacker
