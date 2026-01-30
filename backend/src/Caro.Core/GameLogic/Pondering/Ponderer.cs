@@ -36,6 +36,11 @@ public sealed class Ponderer : IDisposable
     private long _totalPonderTimeMs;
     private PonderResult _currentResult;
 
+    // Cache last progress result for use when cancelled
+    private (int x, int y)? _lastProgressMove;
+    private int _lastProgressDepth;
+    private int _lastProgressScore;
+
     // Cancellation - use lock for all access (removed volatile)
     private bool _shouldStop;
     private bool _allowFinalResultUpdate;  // Allow final result update even after stopping
@@ -153,6 +158,11 @@ public sealed class Ponderer : IDisposable
             _ponderStartTimeTicks = Stopwatch.GetTimestamp();
             _maxPonderTimeMs = maxPonderTimeMs;
 
+            // Reset cached progress
+            _lastProgressMove = null;
+            _lastProgressDepth = 0;
+            _lastProgressScore = 0;
+
             // Clone board and make predicted move
             _ponderBoard = currentBoard.Clone();
             if (predictedOpponentMove.HasValue)
@@ -192,10 +202,11 @@ public sealed class Ponderer : IDisposable
 
         _ponderTask = Task.Run(() =>
         {
+            ((int x, int y)? bestMove, int depth, int score, long nodesSearched) result = (null, 0, 0, 0);
             try
             {
                 // Use Lazy SMP parallel search for pondering
-                var result = _parallelSearch.PonderLazySMP(
+                result = _parallelSearch.PonderLazySMP(
                     localPonderBoard,
                     playerToMove,
                     difficulty,
@@ -203,6 +214,14 @@ public sealed class Ponderer : IDisposable
                     token,
                     progressCallback: (move) =>
                     {
+                        // Cache last progress for use when cancelled
+                        lock (_stateLock)
+                        {
+                            _lastProgressMove = (move.Item1, move.Item2);
+                            _lastProgressDepth = move.Item3;
+                            _lastProgressScore = move.Item4;
+                        }
+
                         // Update result as search progresses
                         if (_state == PonderState.Pondering && !ShouldStopPondering)
                         {
@@ -226,7 +245,30 @@ public sealed class Ponderer : IDisposable
             }
             catch (OperationCanceledException)
             {
-                // Expected when pondering is cancelled
+                // Expected when pondering is cancelled - use cached progress result
+                // Report at least 1 node to indicate pondering was active (even if we don't have exact count)
+                lock (_stateLock)
+                {
+                    if (_lastProgressMove.HasValue)
+                    {
+                        UpdatePonderResult(
+                            _lastProgressMove.Value,
+                            _lastProgressDepth,
+                            _lastProgressScore,
+                            _currentResult.NodesSearched > 0 ? _currentResult.NodesSearched : 1
+                        );
+                    }
+                    else if (_currentResult.Depth > 0)
+                    {
+                        // We have some result but no cached progress - use current result with min nodes
+                        UpdatePonderResult(
+                            _currentResult.BestMove ?? (0, 0),
+                            _currentResult.Depth,
+                            _currentResult.Score,
+                            1
+                        );
+                    }
+                }
             }
             catch (Exception)
             {
@@ -248,7 +290,7 @@ public sealed class Ponderer : IDisposable
                 return;
 
             _shouldStop = true;
-            _allowFinalResultUpdate = true;  // Allow final result update from background task
+            _allowFinalResultUpdate = true;  // IMPORTANT: Set BEFORE state change to prevent race condition
             _parallelSearch.StopSearch();
             _cts?.Cancel();
             _state = PonderState.Cancelled;
