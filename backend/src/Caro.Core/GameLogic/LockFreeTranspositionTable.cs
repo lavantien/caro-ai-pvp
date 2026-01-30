@@ -120,7 +120,7 @@ public sealed class LockFreeTranspositionTable
     /// <summary>
     /// Store a position in the transposition table (thread-safe)
     /// Uses atomic Interlocked.Exchange for lock-free write
-    /// STRICT HELPER WRITE POLICY: Helpers only store deep, exact entries to prevent TT pollution
+    /// IDENTICAL THREAD LOGIC: All threads (master and helper) use same write policy
     /// TT SHARDING: Uses separate shard arrays to reduce cache line contention
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -129,31 +129,8 @@ public sealed class LockFreeTranspositionTable
         var (shardIndex, entryIndex) = GetShardAndIndex(hash);
         var shard = _shards[shardIndex];
 
-        // HELPER WRITE POLICY: Only store high-quality entries
-        // Helper threads (threadIndex > 0) have stricter write criteria
-        if (threadIndex > 0)
-        {
-            // Helpers only store if:
-            // 1. Depth is at least rootDepth/2 (not too shallow)
-            // 2. Score is exact (not upper/lower bound which can be misleading)
-            // This prevents shallow, unreliable helper entries from polluting the TT
-            EntryFlag flag;
-            if (score <= alpha)
-                flag = EntryFlag.UpperBound;
-            else if (score >= beta)
-                flag = EntryFlag.LowerBound;
-            else
-                flag = EntryFlag.Exact;
-
-            // Minimum depth for helper writes: must be at least half of root depth
-            sbyte minHelperDepth = (sbyte)(rootDepth / 2);
-            if (depth < minHelperDepth)
-                return; // Skip shallow helper entries
-
-            // Only exact scores from helpers (bounds are too unreliable)
-            if (flag != EntryFlag.Exact)
-                return; // Skip bound entries from helpers
-        }
+        // ALL THREADS use identical logic - only difference is threadIndex for tracking
+        // No special restrictions for helper threads
 
         // Determine flag based on score relative to alpha/beta
         EntryFlag entryFlag;
@@ -167,42 +144,24 @@ public sealed class LockFreeTranspositionTable
         var newEntry = new TranspositionEntry(hash, depth, score, moveX, moveY, entryFlag, (byte)_currentAge, threadIndex);
         var existing = Volatile.Read(ref shard[entryIndex]);
 
-        // Deep replacement strategy (lock-free) with MASTER PRIORITY:
-        // MASTER THREAD (threadIndex=0) entries are protected from helper overwrites
-        // This ensures master's high-quality entries are not lost
+        // Deep replacement strategy (lock-free) with EQUAL THREAD PRIORITY:
+        // ALL THREADS compete equally - master has no special priority
+        // Only difference is threadIndex tracks provenance for debugging
         //
         // Replace if:
         // 1. Empty slot
         // 2. Same position with deeper search
-        // 3. Master thread overwriting helper (same or greater depth)
-        // 4. New entry is significantly deeper (depth diff >= 2)
-        // 5. Old entry is from a previous search age
+        // 3. New entry is significantly deeper (depth diff >= 2)
+        // 4. Old entry is from a previous search age
 
         bool shouldStore = existing is null || existing.Hash == 0 || existing.Hash == hash;
 
         if (!shouldStore && existing is not null && existing.Hash != 0 && existing.Hash != hash)
         {
             // Different position - check deep replacement criteria
+            // ALL THREADS use same criteria - no master priority
             sbyte depthDiff = (sbyte)(depth - existing.Depth);
-
-            // MASTER PRIORITY: Protect master entries from helper overwrites
-            if (existing.ThreadIndex == 0 && threadIndex > 0)
-            {
-                // Helper thread CANNOT overwrite master's entry unless going much deeper
-                // This preserves master's high-quality search results
-                shouldStore = depthDiff >= 3;
-            }
-            else if (threadIndex == 0 && existing.ThreadIndex > 0)
-            {
-                // Master thread CAN overwrite helper's entry (same depth or deeper)
-                // Master's results are more reliable
-                shouldStore = depthDiff >= 0;
-            }
-            else
-            {
-                // Same thread type (both master or both helper) - use depth/age criteria
-                shouldStore = depthDiff >= 2 || existing.Age != _currentAge;
-            }
+            shouldStore = depthDiff >= 2 || existing.Age != _currentAge;
         }
 
         if (shouldStore)

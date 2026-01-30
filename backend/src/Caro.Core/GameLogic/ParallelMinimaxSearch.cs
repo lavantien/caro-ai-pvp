@@ -500,34 +500,40 @@ public sealed class ParallelMinimaxSearch
 
         _searchStopwatch.Stop();
 
-        // CRITICAL FIX: Only use master thread (threadIndex=0) result for move selection
-        // Lazy SMP helper threads are for populating the transposition table ONLY
-        // They should NOT influence move selection as their results may be inconsistent
-        // due to early cancellation at different depths during iterative deepening.
+        // INTELLIGENT MERGING: Aggregate results from ALL threads
+        // Lazy SMP works best when we consider all thread results, not just master
+        // Master thread is more reliable (less cancellation), but helpers can find better moves
         //
-        // The regression (Medium losing to Easy) was caused by selecting shallow
-        // helper results instead of waiting for the master thread's deeper result.
+        // Selection priority:
+        // 1. Depth (deeper is always better)
+        // 2. Score (at same depth, higher score wins)
+        // 3. Thread reliability (master > helper as tiebreaker)
+        //
+        // This is the MERGER's job - aggregate intelligently, not authoritarian rejection
 
-        var bestResult = results.FirstOrDefault(r => r.threadIndex == 0);
-
-        // If master thread produced no result, use fallback
-        if (bestResult == default)
+        // Group results by depth, then select best within each depth
+        if (!results.Any())
         {
-            // Fallback: deepest result from any thread (should rarely happen)
-            var maxDepth = results.Max(r => r.depth);
-            if (maxDepth > 0)
-            {
-                bestResult = results.Where(r => r.depth == maxDepth)
-                                   .OrderByDescending(r => r.score)
-                                   .FirstOrDefault();
-            }
-            else
-            {
-                // Last resort: first candidate
-                long totalNodes = Interlocked.Read(ref _realNodesSearched);
-                return new ParallelSearchResult(candidates[0].x, candidates[0].y, 1, totalNodes, 0, null, _hardTimeBoundMs);
-            }
+            // Last resort: first candidate
+            long totalNodes = Interlocked.Read(ref _realNodesSearched);
+            return new ParallelSearchResult(candidates[0].x, candidates[0].y, 1, totalNodes, 0, null, _hardTimeBoundMs);
         }
+
+        var maxDepth = results.Max(r => r.depth);
+        if (maxDepth <= 0)
+        {
+            // Last resort: first candidate
+            long totalNodes = Interlocked.Read(ref _realNodesSearched);
+            return new ParallelSearchResult(candidates[0].x, candidates[0].y, 1, totalNodes, 0, null, _hardTimeBoundMs);
+        }
+
+        // At maximum depth, pick highest score (with master as tiebreaker)
+        // CRITICAL FIX: Use single OrderBy with compound key to avoid replacing previous sort
+        // OrderByDescending().OrderBy() bug: second OrderBy REPLACES first sort, doesn't chain!
+        var bestResult = results
+            .Where(r => r.depth == maxDepth)
+            .OrderBy(r => (-r.score, r.threadIndex == 0 ? 0 : 1))  // Compound: (-score for desc, master priority)
+            .FirstOrDefault();
 
         // Use real node count instead of estimated
         long totalNodesFinal = Interlocked.Read(ref _realNodesSearched);
@@ -936,27 +942,15 @@ public sealed class ParallelMinimaxSearch
             }
         }
 
-        // LAZY SMP TT WRITING: All threads can write to transposition table
+        // LAZY SMP TT WRITING: All threads (master and helper) use identical write policy
         // This is essential for Lazy SMP - helper threads populate TT with results
         // from different parts of the tree, allowing master thread to benefit.
         //
-        // To prevent "pollution" from shallow helper entries:
-        // 1. Only store entries where depth >= currentDepth - 1 (not too shallow)
-        // 2. Prefer exact bounds over upper/lower bounds for helpers
-        // 3. Master thread (ThreadIndex=0) can store any entry
-        //
-        // The regression was caused by disabling ALL helper writes, which
-        // broke Lazy SMP's fundamental sharing mechanism.
+        // ALL THREADS use the same logic - no helper restrictions.
+        // Only difference is threadIndex tracking for diagnostics.
+        // The TT replacement strategy handles quality naturally via depth-based replacement.
 
-        bool shouldStore = bestMove.HasValue;
-        if (threadData.ThreadIndex > 0 && depth < rootDepth - 1)
-        {
-            // Helper threads: only store if at reasonable depth relative to root
-            // This prevents very shallow entries from polluting the TT
-            shouldStore = depth >= rootDepth / 2;
-        }
-
-        if (shouldStore && bestMove.HasValue)
+        if (bestMove.HasValue)
         {
             var flag = (bestScore <= alpha)
                 ? LockFreeTranspositionTable.EntryFlag.UpperBound
@@ -1632,26 +1626,33 @@ public sealed class ParallelMinimaxSearch
         _searchStopwatch.Stop();
         _searchCts?.Cancel();
 
-        // Find best result (prefer master thread, then deeper results if scores are similar)
-        // For pondering, we still prefer master thread result for consistency
-        var bestResult = results.FirstOrDefault(r => r.threadIndex == 0);
-        if (bestResult == default)
-        {
-            bestResult = results.OrderByDescending(r => r.score)
-                                       .ThenByDescending(r => r.depth)
-                                       .FirstOrDefault();
-        }
+        // INTELLIGENT MERGING for pondering: Aggregate ALL thread results
+        // Pondering searched predicted opponent moves - those results are valuable
+        // Don't discard helper thread work - merge intelligently
+        //
+        // Same priority as main search: Depth > Score > Reliability(master > helper)
 
-        if (bestResult.depth == 0)
+        if (!results.Any())
             return (null, 0, 0, 0);
+
+        var maxDepth = results.Max(r => r.depth);
+        if (maxDepth <= 0)
+            return (null, 0, 0, 0);
+
+        // At max depth, pick highest score with master as tiebreaker
+        // CRITICAL FIX: Use single OrderBy with compound key to avoid replacing previous sort
+        var bestResult = results
+            .Where(r => r.depth == maxDepth)
+            .OrderBy(r => (-r.score, r.threadIndex == 0 ? 0 : 1))  // Compound: (-score for desc, master priority)
+            .FirstOrDefault();
 
         // Track maximum depth achieved across all threads (not just the winning move's depth)
         // This gives a better picture of how deeply the AI thought during pondering
-        int maxDepth = results.Any() ? results.Max(r => r.depth) : bestResult.depth;
+        int overallMaxDepth = results.Any() ? results.Max(r => r.depth) : bestResult.depth;
 
         // Return total nodes searched across all threads (via Interlocked counter), not just the winning thread's nodes
         long totalNodes = Interlocked.Read(ref _realNodesSearched);
-        return ((bestResult.x, bestResult.y), maxDepth, bestResult.score, totalNodes);
+        return ((bestResult.x, bestResult.y), overallMaxDepth, bestResult.score, totalNodes);
     }
 
     /// <summary>

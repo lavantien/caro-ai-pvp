@@ -1,7 +1,6 @@
 using Caro.Core.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
-using System.IO;
 
 namespace Caro.TournamentRunner;
 
@@ -12,7 +11,6 @@ namespace Caro.TournamentRunner;
 /// </summary>
 public class ComprehensiveMatchupRunner
 {
-    private static StreamWriter? _outputFile;
     public class MatchupConfig
     {
         public AIDifficulty RedDifficulty { get; set; }
@@ -29,45 +27,11 @@ public class ComprehensiveMatchupRunner
     private static void LogWrite(string? message = null)
     {
         Console.WriteLine(message);
-        _outputFile?.WriteLine(message ?? "");
     }
 
     public static async Task RunAsync(int timeSeconds = 420, int incSeconds = 5, int gamesPerMatchup = 10)
     {
-        // Initialize output file with auto-flush for real-time monitoring
-        // Find backend directory by searching upward from current directory
-        var currentDir = Environment.CurrentDirectory;
-        var searchDir = new DirectoryInfo(currentDir);
-        DirectoryInfo? backendDir = null;
-
-        // Search upward for backend directory (contains src/ and test_output.txt should go there)
-        while (searchDir != null)
-        {
-            if (Directory.Exists(Path.Combine(searchDir.FullName, "src", "Caro.Core")) &&
-                Directory.Exists(Path.Combine(searchDir.FullName, "src", "Caro.Api")))
-            {
-                backendDir = searchDir;
-                break;
-            }
-            searchDir = searchDir.Parent;
-        }
-
-        var outputPath = backendDir != null
-            ? Path.Combine(backendDir.FullName, "test_output.txt")
-            : Path.Combine(currentDir, "test_output.txt"); // Fallback
-
-        _outputFile = new StreamWriter(outputPath, false, System.Text.Encoding.UTF8);
-        _outputFile.AutoFlush = true;
-
-        try
-        {
-            await RunAsyncInternal(timeSeconds, incSeconds, gamesPerMatchup);
-        }
-        finally
-        {
-            _outputFile?.Dispose();
-            _outputFile = null;
-        }
+        await RunAsyncInternal(timeSeconds, incSeconds, gamesPerMatchup);
     }
 
     private static async Task RunAsyncInternal(int timeSeconds = 420, int incSeconds = 5, int gamesPerMatchup = 10)
