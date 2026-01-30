@@ -314,21 +314,10 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // CRITICAL DEFENSE: Check if opponent has immediate winning threat
-        // SCALES WITH DIFFICULTY - this is KEY for AI strength ordering!
-        // - D11-D9: Full threat detection (four + open three)
-        // - D8-D7: Basic threat detection (four only)
-        // - D6 and below: No automatic threat detection (must rely on evaluation)
-        var criticalDefenseLevel = GetCriticalDefenseLevel(difficulty);
-        if (criticalDefenseLevel > 0)
-        {
-            var criticalDefense = FindCriticalDefense(board, player, criticalDefenseLevel);
-            if (criticalDefense.HasValue)
-            {
-                var (blockX, blockY) = criticalDefense.Value;
-                return (blockX, blockY);
-            }
-        }
+        // REMOVED: Critical defense immediate return
+        // The evaluation function's defense multiplier \(2\.2x for opponent threats\) is sufficient for handling threats\.
+        // This was causing Grandmaster to play too reactively, returning D0 without searching\.
+        // Let the search engine handle threats through proper evaluation rather than immediate blocking\.
 
         // VCF DEFENSE MODE: DISABLED
         // VCF Defense was causing D11 to play too reactively, blocking opponent threats
@@ -913,18 +902,7 @@ public class MinimaxAI : IStatsPublisher
         return (finalVcfTime, maxDepth);
     }
 
-    /// <summary>
-    /// Get critical defense level based on difficulty
-    /// Level 2: Full defense (four + open three) - Grandmaster only
-    /// Level 1: Basic defense (four only) - Hard
-    /// Level 0: No automatic defense - Medium and below
-    /// </summary>
-    private static int GetCriticalDefenseLevel(AIDifficulty difficulty) => difficulty switch
-    {
-        AIDifficulty.Grandmaster => 2,     // D5: Full defense
-        AIDifficulty.Hard => 1,            // D4: Basic defense
-        _ => 0                             // D3 and below: No automatic defense
-    };
+    // REMOVED: GetCriticalDefenseLevel - no longer used, threats handled by evaluation function
 
     /// <summary>
     /// <summary>
@@ -1009,158 +987,7 @@ public class MinimaxAI : IStatsPublisher
     /// Check if opponent has an immediate winning move that must be blocked
     /// This is a critical defensive check that runs before any search
     /// Returns the blocking position if found, null otherwise
-    /// </summary>
-    /// <param name="board">Current board state</param>
-    /// <param name="player">Current player (defending against opponent)</param>
-    /// <param name="level">Defense level: 2=full (4+open3), 1=basic (4 only), 0=none</param>
-    private (int x, int y)? FindCriticalDefense(Board board, Player player, int level = 2)
-    {
-        var opponent = player == Player.Red ? Player.Blue : Player.Red;
-        var opponentBoard = board.GetBitBoard(opponent);
-        var occupied = board.GetBitBoard(player) | opponentBoard;
-
-        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
-
-        // Track ALL four-in-a-row threats (not just blocking positions)
-        var fourInRowThreats = new List<(int x, int y)>();
-
-        // Use a HashSet to track positions we've already checked (avoid duplicates)
-        var criticalMoves = new HashSet<(int x, int y)>();
-
-        // Check each opponent stone for threats
-        for (int x = 0; x < BitBoard.Size; x++)
-        {
-            for (int y = 0; y < BitBoard.Size; y++)
-            {
-                if (!opponentBoard.GetBit(x, y))
-                    continue;
-
-                foreach (var (dx, dy) in directions)
-                {
-                    // Count consecutive opponent stones in this direction
-                    var count = BitBoardEvaluator.CountConsecutiveBoth(opponentBoard, x, y, dx, dy);
-
-                    // Four in a row - CRITICAL! Must block immediately
-                    if (count == 4)
-                    {
-                        var openEnds = BitBoardEvaluator.CountOpenEnds(opponentBoard, occupied, x, y, dx, dy, count);
-
-                        if (openEnds >= 1)
-                        {
-                            // Record this threat location for counting multiple threats
-                            // Use the starting position of the 4-in-row as identifier
-                            var startX = x;
-                            var startY = y;
-
-                            // Find the start of the sequence
-                            while (startX - dx >= 0 && startX - dx < BitBoard.Size &&
-                                   startY - dy >= 0 && startY - dy < BitBoard.Size &&
-                                   opponentBoard.GetBit(startX - dx, startY - dy))
-                            {
-                                startX -= dx;
-                                startY -= dy;
-                            }
-
-                            // Record the threat (using the starting position as unique identifier)
-                            fourInRowThreats.Add((startX, startY));
-
-                            var endX = startX + dx * 3;
-                            var endY = startY + dy * 3;
-
-                            // Check positive end (after the sequence)
-                            if (endX + dx >= 0 && endX + dx < BitBoard.Size &&
-                                endY + dy >= 0 && endY + dy < BitBoard.Size &&
-                                !occupied.GetBit(endX + dx, endY + dy))
-                            {
-                                criticalMoves.Add((endX + dx, endY + dy));
-                            }
-
-                            // Check negative end (before the sequence)
-                            if (startX - dx >= 0 && startX - dx < BitBoard.Size &&
-                                startY - dy >= 0 && startY - dy < BitBoard.Size &&
-                                !occupied.GetBit(startX - dx, startY - dy))
-                            {
-                                criticalMoves.Add((startX - dx, startY - dy));
-                            }
-                        }
-                    }
-
-                    // Open three (three in a row with both ends open) - also critical
-                    // Opponent can create four in a row on their next turn
-                    // ONLY checked at level 2 (full defense) - D9 and above
-                    if (count == 3 && level >= 2)
-                    {
-                        var openEnds = BitBoardEvaluator.CountOpenEnds(opponentBoard, occupied, x, y, dx, dy, count);
-
-                        if (openEnds == 2)
-                        {
-                            // Find the sequence start and end
-                            var startX = x;
-                            var startY = y;
-
-                            while (startX - dx >= 0 && startX - dx < BitBoard.Size &&
-                                   startY - dy >= 0 && startY - dy < BitBoard.Size &&
-                                   opponentBoard.GetBit(startX - dx, startY - dy))
-                            {
-                                startX -= dx;
-                                startY -= dy;
-                            }
-
-                            var endX = startX + dx * 2;
-                            var endY = startY + dy * 2;
-
-                            // Block one end - prioritize based on board position (center is better)
-                            if (startX - dx >= 0 && startX - dx < BitBoard.Size &&
-                                startY - dy >= 0 && startY - dy < BitBoard.Size &&
-                                !occupied.GetBit(startX - dx, startY - dy))
-                            {
-                                criticalMoves.Add((startX - dx, startY - dy));
-                            }
-
-                            if (endX + dx >= 0 && endX + dx < BitBoard.Size &&
-                                endY + dy >= 0 && endY + dy < BitBoard.Size &&
-                                !occupied.GetBit(endX + dx, endY + dy))
-                            {
-                                criticalMoves.Add((endX + dx, endY + dy));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Check for multiple four-in-a-row threats
-        // If opponent has multiple 4-in-row threats, we can only block one
-        // Let the normal search handle it (might find a counter-attack)
-        if (fourInRowThreats.Count > 1)
-        {
-            return null;
-        }
-
-        // Return the highest priority critical move
-        // For four in a row, any blocking move works - return first found
-        // For open three, prefer center positions
-        if (criticalMoves.Count > 0)
-        {
-            // Prefer moves closer to center (7, 7)
-            var bestMove = criticalMoves.First();
-            var bestDistance = Math.Abs(bestMove.x - 7) + Math.Abs(bestMove.y - 7);
-
-            foreach (var move in criticalMoves)
-            {
-                var distance = Math.Abs(move.x - 7) + Math.Abs(move.y - 7);
-                if (distance < bestDistance)
-                {
-                    bestMove = move;
-                    bestDistance = distance;
-                }
-            }
-
-            return bestMove;
-        }
-
-        return null;
-    }
+    // REMOVED: FindCriticalDefense - no longer used, threats handled by evaluation function
 
     /// <summary>
     /// Check if opponent can VCF (Victory by Continuous Four) and find blocking move
