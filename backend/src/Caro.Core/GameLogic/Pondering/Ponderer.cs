@@ -272,11 +272,13 @@ public sealed class Ponderer : IDisposable
         lock (_stateLock)
         {
             elapsedMs = Stopwatch.GetElapsedTime(_ponderStartTimeTicks).Milliseconds;
-            finalNodesSearched = _parallelSearch.GetRealNodesSearched();
+            // Use nodes from _currentResult (set by UpdatePonderResult during search)
+            // GetRealNodesSearched() is unreliable as the shared counter may not be updated
+            finalNodesSearched = _currentResult.NodesSearched;
             finalDepth = _currentResult.Depth;
             _allowFinalResultUpdate = false;  // Prevent further updates
 
-            // Update result with final time spent (depth and nodes from the completed search)
+            // Update result with final time spent (keep existing depth and nodes from search)
             _currentResult = new PonderResult
             {
                 BestMove = _currentResult.BestMove,
