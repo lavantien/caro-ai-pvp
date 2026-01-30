@@ -270,13 +270,14 @@ public sealed class ParallelMinimaxSearch
         long? timeRemainingMs = null,
         TimeAllocation? timeAlloc = null,
         int moveNumber = 0,
-        int fixedThreadCount = -1)
+        int fixedThreadCount = -1,
+        List<(int x, int y)>? candidates = null)
     {
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
 
         var baseDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
-        var candidates = GetCandidateMoves(board);
+        candidates ??= GetCandidateMoves(board);
 
         // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections
         // away from the first red stone (5x5 exclusion zone centered on first move)
