@@ -140,7 +140,6 @@ public class AsyncQueueTests
     {
         // Arrange
         var processedCount = 0;
-        var errorCount = 0;
         var tcs = new TaskCompletionSource<bool>();
 
         var queue = new AsyncQueue<int>(async item =>

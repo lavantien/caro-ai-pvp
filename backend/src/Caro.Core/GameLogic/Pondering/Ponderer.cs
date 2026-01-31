@@ -397,7 +397,7 @@ public sealed class Ponderer : IDisposable
                     TimeSpentMs = elapsedMs,
                     FinalState = PonderState.PonderHit,
                     PonderHit = true,
-                    NodesSearched = _parallelSearch.GetRealNodesSearched()
+                    NodesSearched = _currentResult.NodesSearched
                 };
 
                 return (PonderState.PonderHit, hitResult);
@@ -417,7 +417,7 @@ public sealed class Ponderer : IDisposable
                     TimeSpentMs = elapsedMs,
                     FinalState = PonderState.PonderMiss,
                     PonderHit = false,
-                    NodesSearched = _parallelSearch.GetRealNodesSearched()
+                    NodesSearched = _currentResult.NodesSearched
                 };
 
                 return (PonderState.PonderMiss, missResult);

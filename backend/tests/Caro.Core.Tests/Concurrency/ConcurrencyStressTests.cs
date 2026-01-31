@@ -7,6 +7,8 @@ using Caro.Core.GameLogic.Pondering;
 using Caro.Core.Entities;
 using Caro.Core.Tournament;
 
+#pragma warning disable xUnit1031 // Stress tests intentionally use blocking operations
+
 namespace Caro.Core.Tests.Concurrency;
 
 /// <summary>

@@ -3,6 +3,8 @@ using System.Diagnostics;
 using Xunit;
 using Xunit.Abstractions;
 
+#pragma warning disable xUnit1031 // Deadlock tests intentionally use blocking operations
+
 namespace Caro.Core.Tests.Concurrency;
 
 /// <summary>
