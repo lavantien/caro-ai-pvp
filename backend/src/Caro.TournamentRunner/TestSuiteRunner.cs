@@ -91,10 +91,16 @@ public class TestSuiteRunner
         int currentGame = 1;
         for (int i = 0; i < config.GameCount; i++)
         {
-            var redDiff = i < config.GameCount / 2 ? config.RedDifficulty : config.BlueDifficulty;
-            var blueDiff = i < config.GameCount / 2 ? config.BlueDifficulty : config.RedDifficulty;
-            var redBotName = i < config.GameCount / 2 ? redName : blueName;
-            var blueBotName = i < config.GameCount / 2 ? blueName : redName;
+            // Alternate colors each game: odd games (i=1,3,5...) swap colors
+            bool swapColors = (i % 2 == 1);
+
+            // Difficulties stay constant with their bot instances
+            var redDiff = config.RedDifficulty;  // Difficulty for first bot
+            var blueDiff = config.BlueDifficulty; // Difficulty for second bot
+
+            // Bot names stay constant to their color positions for result tracking
+            var redBotName = redName;
+            var blueBotName = blueName;
 
             var result = engine.RunGame(
                 redDiff,
@@ -106,11 +112,16 @@ public class TestSuiteRunner
                 parallelSearchEnabled: true,
                 redBotName: redBotName,
                 blueBotName: blueBotName,
+                swapColors: swapColors,
                 onMove: (x, y, player, moveNumber, redTimeMs, blueTimeMs, stats) =>
                 {
-                    var difficulty = player == Player.Red ? redDiff : blueDiff;
+                    // Determine actual difficulty based on which bot is playing which color
+                    // When swapped: Red slot has Blue's bot (with blueDiff), Blue slot has Red's bot (with redDiff)
+                    var actualDifficulty = swapColors
+                        ? (player == Player.Red ? blueDiff : redDiff)
+                        : (player == Player.Red ? redDiff : blueDiff);
                     output.WriteLine(GameStatsFormatter.FormatMoveLine(
-                        currentGame, moveNumber, x, y, player, difficulty, stats));
+                        currentGame, moveNumber, x, y, player, actualDifficulty, stats));
                 }
             );
 
