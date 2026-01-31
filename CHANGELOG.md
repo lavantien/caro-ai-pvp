@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-02-01
+
+### Fixed
+
+- Test suite move statistics output missing from tournament_results.txt
+  - Added onMove callback to TestSuiteRunner.RunMatchup()
+  - Each move now writes formatted stat line with depth, nodes, NPS, TT%, pondering, VCF
+  - Game result lines now included after each game
+- Game counter tracking for proper move numbering across multiple games
+
+### Files Modified
+
+- backend/src/Caro.TournamentRunner/TestSuiteRunner.cs
+
+[1.3.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.3.1
+
 ## [1.3.0] - 2026-02-01
 
 ### Added

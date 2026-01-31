@@ -88,6 +88,7 @@ public class TestSuiteRunner
         var blueWins = 0;
         var draws = 0;
 
+        int currentGame = 1;
         for (int i = 0; i < config.GameCount; i++)
         {
             var redDiff = i < config.GameCount / 2 ? config.RedDifficulty : config.BlueDifficulty;
@@ -104,8 +105,19 @@ public class TestSuiteRunner
                 ponderingEnabled: true,
                 parallelSearchEnabled: true,
                 redBotName: redBotName,
-                blueBotName: blueBotName
+                blueBotName: blueBotName,
+                onMove: (x, y, player, moveNumber, redTimeMs, blueTimeMs, stats) =>
+                {
+                    var difficulty = player == Player.Red ? redDiff : blueDiff;
+                    output.WriteLine(GameStatsFormatter.FormatMoveLine(
+                        currentGame, moveNumber, x, y, player, difficulty, stats));
+                }
             );
+
+            output.WriteLine(GameStatsFormatter.FormatGameResult(
+                currentGame, result.WinnerDifficulty, result.TotalMoves, result.DurationMs / 1000.0, result.Winner, result.IsDraw));
+
+            currentGame++;
 
             if (result.IsDraw)
                 draws++;
