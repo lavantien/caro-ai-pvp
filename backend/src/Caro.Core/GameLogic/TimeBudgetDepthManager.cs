@@ -126,20 +126,22 @@ public sealed class TimeBudgetDepthManager
     /// Calculate maximum sustainable depth for given time budget.
     /// Formula: max_depth = log(time * nps) / log(ebf)
     ///
-    /// This ensures we never timeout while maximizing depth reached.
+    /// PURE TIME-BASED: Returns depth achievable in given time.
+    /// Different machines will naturally reach different depths based on their NPS.
+    /// The difficulty's time multiplier is the only differentiator (applied at call site).
     /// </summary>
     public int CalculateMaxDepth(double timeSeconds, AIDifficulty difficulty)
     {
         if (timeSeconds <= 0.001)
-            return GetMinimumDepth(difficulty);
+            return 1;  // Minimum depth for non-zero time
 
         lock (_lock)
         {
-            // Time multiplier is now applied at call site (MinimaxAI)
+            // Time multiplier is applied at call site (MinimaxAI.GetBestMove)
             // to avoid double application
             double effectiveTime = timeSeconds;
 
-            // Minimum time to ensure at least minimum depth
+            // Minimum time to ensure at least depth 1
             effectiveTime = Math.Max(effectiveTime, 0.01);
 
             // Calculate max depth from formula
@@ -148,18 +150,12 @@ public sealed class TimeBudgetDepthManager
             // depth = log(nodes) / log(ebf)
             double totalNodes = effectiveTime * _estimatedNps;
 
-            // Calculate depth with NO hardcoded safety factor
-            // The time multiplier is the ONLY difficulty differentiator
-            // Different machines will naturally achieve different depths based on their NPS
+            // Calculate depth - different machines get different results naturally
             double maxDepth = Math.Log(totalNodes) / Math.Log(_effectiveBranchingFactor);
             int calculatedDepth = Math.Max((int)maxDepth, 1);
 
-            // FIX: Use difficulty's minimum depth instead of hardcoded 1
-            // This ensures each difficulty searches at least to its designed minimum
-            int minDepth = GetMinimumDepth(difficulty);
-
-            // Clamp to reasonable bounds (minDepth-15)
-            return Math.Clamp(calculatedDepth, minDepth, 15);
+            // Clamp to reasonable bounds (1-15) - purely safety bounds, not difficulty-based
+            return Math.Clamp(calculatedDepth, 1, 15);
         }
     }
 
