@@ -144,24 +144,34 @@ public sealed class LockFreeTranspositionTable
         var newEntry = new TranspositionEntry(hash, depth, score, moveX, moveY, entryFlag, (byte)_currentAge, threadIndex);
         var existing = Volatile.Read(ref shard[entryIndex]);
 
-        // Deep replacement strategy (lock-free) with EQUAL THREAD PRIORITY:
-        // ALL THREADS compete equally - master has no special priority
-        // Only difference is threadIndex tracks provenance for debugging
+        // Deep replacement strategy:
+        // CRITICAL FIX: Master thread (threadIndex=0) has priority for same position/depth
+        // Helper threads can only replace if they're significantly deeper
         //
         // Replace if:
         // 1. Empty slot
-        // 2. Same position with deeper search
+        // 2. Same position with deeper search OR same depth with master priority
         // 3. New entry is significantly deeper (depth diff >= 2)
         // 4. Old entry is from a previous search age
 
-        bool shouldStore = existing is null || existing.Hash == 0 || existing.Hash == hash;
+        bool shouldStore = existing is null || existing.Hash == 0;
 
-        if (!shouldStore && existing is not null && existing.Hash != 0 && existing.Hash != hash)
+        if (existing is not null && existing.Hash != 0)
         {
-            // Different position - check deep replacement criteria
-            // ALL THREADS use same criteria - no master priority
-            sbyte depthDiff = (sbyte)(depth - existing.Depth);
-            shouldStore = depthDiff >= 2 || existing.Age != _currentAge;
+            if (existing.Hash == hash)
+            {
+                // Same position: only replace if deeper or same depth with master priority
+                bool isDeeper = depth > existing.Depth;
+                bool isSameDepthMaster = depth == existing.Depth && threadIndex == 0;
+                bool isSameDepthBetterFlag = depth == existing.Depth && entryFlag == EntryFlag.Exact && existing.Flag != EntryFlag.Exact;
+                shouldStore = isDeeper || isSameDepthMaster || isSameDepthBetterFlag;
+            }
+            else
+            {
+                // Different position - check deep replacement criteria
+                sbyte depthDiff = (sbyte)(depth - existing.Depth);
+                shouldStore = depthDiff >= 2 || existing.Age != _currentAge;
+            }
         }
 
         if (shouldStore)
