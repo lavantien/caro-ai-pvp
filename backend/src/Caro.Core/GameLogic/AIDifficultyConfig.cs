@@ -29,15 +29,15 @@ public sealed class AIDifficultyConfig
                 DisplayName = "Braindead",
                 ThreadCount = 1,
                 PonderingThreadCount = 0,
-                TimeMultiplier = 0.01,         // 1% of allocated time
-                TimeBudgetPercent = 0.01,     // 1% time budget
+                TimeMultiplier = 0.05,         // 5% of allocated time
+                TimeBudgetPercent = 0.05,     // 5% time budget
                 ParallelSearchEnabled = false,
                 PonderingEnabled = false,
                 VCFEnabled = false,
-                ErrorRate = 0.20,              // 20% error rate
+                ErrorRate = 0.10,              // 10% error rate
                 MinDepth = 1,
                 TargetNps = 10_000,
-                Description = "20% error rate, beginners"
+                Description = "10% error rate, beginners"
             },
 
             AIDifficulty.Easy => new AIDifficultySettings
@@ -46,8 +46,8 @@ public sealed class AIDifficultyConfig
                 DisplayName = "Easy",
                 ThreadCount = 2,
                 PonderingThreadCount = 1,
-                TimeMultiplier = 0.10,         // 10% of allocated time
-                TimeBudgetPercent = 0.10,     // 10% time budget
+                TimeMultiplier = 0.20,         // 20% of allocated time
+                TimeBudgetPercent = 0.20,     // 20% time budget
                 ParallelSearchEnabled = true,
                 PonderingEnabled = false,
                 VCFEnabled = false,
@@ -63,8 +63,8 @@ public sealed class AIDifficultyConfig
                 DisplayName = "Medium",
                 ThreadCount = 3,
                 PonderingThreadCount = 2,
-                TimeMultiplier = 0.30,         // 30% of allocated time
-                TimeBudgetPercent = 0.30,     // 30% time budget
+                TimeMultiplier = 0.50,         // 50% of allocated time
+                TimeBudgetPercent = 0.50,     // 50% time budget
                 ParallelSearchEnabled = true,
                 PonderingEnabled = true,
                 VCFEnabled = false,
@@ -80,15 +80,15 @@ public sealed class AIDifficultyConfig
                 DisplayName = "Hard",
                 ThreadCount = 4,
                 PonderingThreadCount = 3,
-                TimeMultiplier = 0.70,         // 70% of allocated time
-                TimeBudgetPercent = 0.70,     // 70% time budget
+                TimeMultiplier = 0.75,         // 75% of allocated time
+                TimeBudgetPercent = 0.75,     // 75% time budget
                 ParallelSearchEnabled = true,
                 PonderingEnabled = true,
-                VCFEnabled = false,
+                VCFEnabled = true,
                 ErrorRate = 0.0,                // No intentional errors
                 MinDepth = 4,
                 TargetNps = 200_000,
-                Description = "Parallel + pondering"
+                Description = "Parallel + pondering + VCF"
             },
 
             AIDifficulty.Grandmaster => new AIDifficultySettings
