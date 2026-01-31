@@ -58,9 +58,6 @@ public sealed class ParallelMinimaxSearch
     private Stopwatch? _searchStopwatch;
     private long _hardTimeBoundMs;
 
-    // Real node counting (thread-safe via Interlocked)
-    private long _realNodesSearched;
-
     // Per-thread data (not shared between threads)
     private sealed class ThreadData
     {
@@ -75,7 +72,6 @@ public sealed class ParallelMinimaxSearch
         // Diagnostic counters for TT provenance tracking
         public int TTReadsFromMaster;    // Entries from master thread (ThreadIndex=0)
         public int TTReadsFromHelpers;   // Entries from helper threads (ThreadIndex>0)
-        public int TTReadsSkipped;       // Helper entries skipped due to depth threshold
         public int TTScoresUsed;         // How many TT entries actually returned scores
 
         // CRITICAL FIX: Thread-local node counting to eliminate cache contention
@@ -1447,14 +1443,6 @@ public sealed class ParallelMinimaxSearch
     public (int used, double usagePercent, int hitCount, int lookupCount, double hitRate) GetStats()
     {
         return _transpositionTable.GetStats();
-    }
-
-    /// <summary>
-    /// Get real nodes searched (thread-safe counter)
-    /// </summary>
-    public long GetRealNodesSearched()
-    {
-        return _realNodesSearched;
     }
 
     /// <summary>

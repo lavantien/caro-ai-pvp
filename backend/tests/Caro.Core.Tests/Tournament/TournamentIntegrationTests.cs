@@ -4,6 +4,8 @@ using Caro.Core.Tournament;
 using Xunit;
 using Xunit.Abstractions;
 
+#pragma warning disable xUnit1031 // Integration tests use blocking for test isolation
+
 namespace Caro.Core.Tests.Tournament;
 
 /// <summary>

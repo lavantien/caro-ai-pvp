@@ -55,7 +55,11 @@ public class DefensivePlayFullGameTests
                 onMove: (x, y, player, moveNum, redTime, blueTime, stats) =>
                 {
                     if (moveNum <= 10 || moveNum >= 30)  // Log first 10 and last few moves
-                        _output.WriteLine($"  M{moveNum}: {player} -> ({x},{y}) | Depth:{stats.DepthAchieved} Nodes:{stats.NodesSearched / 1000}K");
+                    {
+                        var depth = stats?.DepthAchieved ?? 0;
+                        var nodes = stats?.NodesSearched ?? 0;
+                        _output.WriteLine($"  M{moveNum}: {player} -> ({x},{y}) | Depth:{depth} Nodes:{nodes / 1000}K");
+                    }
                 },
                 onLog: (level, source, message) =>
                 {
