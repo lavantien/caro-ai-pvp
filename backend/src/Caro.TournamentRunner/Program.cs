@@ -23,17 +23,30 @@ class Program
             currentDir = currentDir.Parent;
         }
 
-        var outputPath = backendDir != null
+        var defaultOutputPath = backendDir != null
             ? Path.Combine(backendDir.FullName, "tournament_results.txt")
             : "tournament_results.txt";
 
-        using var writer = new StreamWriter(outputPath, append: false, Encoding.UTF8)
+        var testSuiteArg = args.FirstOrDefault(a => a.StartsWith("--test-suite="));
+        if (testSuiteArg != null)
+        {
+            var suiteName = testSuiteArg.Split('=')[1];
+            var outputPath = args
+                .FirstOrDefault(a => a.StartsWith("--output="))
+                ?.Split('=')[1] ?? defaultOutputPath;
+
+            var runner = new TestSuiteRunner();
+            runner.Run(suiteName, outputPath);
+            return;
+        }
+
+        using var writer = new StreamWriter(defaultOutputPath, append: false, Encoding.UTF8)
         {
             AutoFlush = true
         };
         Console.SetOut(writer);
         Console.SetError(writer);
 
-        await ComprehensiveMatchupRunner.RunAsync();
+        await GrandmasterVsBraindeadRunner.RunAsync();
     }
 }
