@@ -40,4 +40,41 @@ public class GrandmasterVsBraindeadTest
         // a proportional difference in search time, but exact values depend on machine capability
         Assert.True(bdTime < gmTime, $"Braindead time {bdTime}ms should be < Grandmaster time {gmTime}ms");
     }
+
+    [Fact]
+    public void Braindead_ShouldMakeRandomMoves_Approximately20PercentOfTime()
+    {
+        var board = new Board();
+        var ai = new MinimaxAI();
+
+        int randomMoveCount = 0;
+        int totalMoves = 100;
+
+        for (int i = 0; i < totalMoves; i++)
+        {
+            ai.GetBestMove(
+                board,
+                Player.Red,
+                AIDifficulty.Braindead,
+                timeRemainingMs: 420000,
+                moveNumber: 1,
+                ponderingEnabled: false,
+                parallelSearchEnabled: false
+            );
+
+            // Check if it was an instant random move (depth 1, 1 node)
+            var stats = ai.GetSearchStatistics();
+            if (stats.DepthAchieved == 1 && stats.NodesSearched == 1)
+            {
+                randomMoveCount++;
+            }
+        }
+
+        double actualErrorRate = (double)randomMoveCount / totalMoves;
+        _output.WriteLine($"Error rate: {randomMoveCount}/{totalMoves} = {actualErrorRate:P1}");
+        _output.WriteLine($"Expected: 20%");
+
+        // Allow some variance due to randomness, but should be approximately 20%
+        Assert.InRange(actualErrorRate, 0.10, 0.30);
+    }
 }
