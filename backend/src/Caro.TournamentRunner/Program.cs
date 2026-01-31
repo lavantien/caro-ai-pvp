@@ -7,19 +7,12 @@ namespace Caro.TournamentRunner;
 
 class Program
 {
-    // Fixed preset for reproducibility
-    private const int PresetTimeSeconds = 420;
-    private const int PresetIncrementSeconds = 5;
-    private const int PresetGamesPerMatchup = 10;
-
     static async Task Main(string[] args)
     {
-        // Find backend directory by searching upward from base directory
         var baseDir = AppDomain.CurrentDomain.BaseDirectory;
         var currentDir = new DirectoryInfo(baseDir);
         DirectoryInfo? backendDir = null;
 
-        // Search upward for backend folder
         while (currentDir != null && currentDir.Parent != null)
         {
             if (currentDir.Name.Equals("backend", StringComparison.OrdinalIgnoreCase))
@@ -30,10 +23,9 @@ class Program
             currentDir = currentDir.Parent;
         }
 
-        // Fallback: create in current working directory if backend not found
         var outputPath = backendDir != null
-            ? Path.Combine(backendDir.FullName, "test_output.txt")
-            : "test_output.txt";
+            ? Path.Combine(backendDir.FullName, "tournament_results.txt")
+            : "tournament_results.txt";
 
         using var writer = new StreamWriter(outputPath, append: false, Encoding.UTF8)
         {
@@ -42,6 +34,6 @@ class Program
         Console.SetOut(writer);
         Console.SetError(writer);
 
-        await ComprehensiveMatchupRunner.RunAsync(PresetTimeSeconds, PresetIncrementSeconds, PresetGamesPerMatchup);
+        await ComprehensiveMatchupRunner.RunAsync();
     }
 }
