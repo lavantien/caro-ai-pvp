@@ -147,7 +147,7 @@ public class PonderingIntegrationTests
         _ = ai.GetBestMove(board, Player.Blue, AIDifficulty.Easy, 5000, 0, true);
 
         // Act
-        ai.StopPondering();
+        ai.StopPondering(Player.Blue);
 
         // Assert
         var ponderer = ai.GetPonderer();
