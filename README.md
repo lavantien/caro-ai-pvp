@@ -38,13 +38,13 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 
 ### Difficulty Levels
 
-| Level | Threads | Time Budget | Features |
-|-------|---------|-------------|----------|
-| Braindead | 1 | 1% | 20% error rate, beginners |
-| Easy | 2 | 10% | Parallel search from Easy |
-| Medium | 3 | 30% | Parallel + pondering |
-| Hard | 4 | 70% | Parallel + pondering |
-| Grandmaster | (N/2)-1 | 100% | Max parallel, VCF, pondering |
+| Level | Threads | Time Budget | Error | Features |
+|-------|---------|-------------|-------|----------|
+| Braindead | 1 | 5% | 10% | Beginners |
+| Easy | 2 | 20% | 0% | Parallel search |
+| Medium | 3 | 50% | 0% | Parallel + pondering |
+| Hard | 4 | 75% | 0% | Parallel + pondering + VCF |
+| Grandmaster | (N/2)-1 | 100% | 0% | Max parallel, VCF, pondering |
 
 **Depth:** Dynamic calculation based on host machine NPS and time control. Formula: `depth = log(time * nps * timeMultiplier) / log(ebf)`
 
@@ -55,6 +55,26 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 - Balanced scheduling (one game per bot per round)
 - SQLite logging with FTS5 full-text search
 - SignalR broadcasts via async queues
+
+### Test Suites
+
+Centralized AI testing framework for validating difficulty strength:
+
+```bash
+dotnet run --project backend/src/Caro.TournamentRunner -- --test-suite=<name>
+```
+
+| Suite | Description |
+|-------|-------------|
+| `braindead` | Self-play baseline (20 games) |
+| `easy` | vs Braindead, self (20 games each) |
+| `medium` | vs Braindead, Easy, self (20 games each) |
+| `hard` | vs Braindead, Easy, Medium, self (20 games each) |
+| `grandmaster` | vs All + self (20 games each) |
+| `experimental` | Custom AI testing (10 games each) |
+| `full` | Run all suites in series |
+
+Results written to `backend/tournament_results.txt` with pass/fail thresholds.
 
 ---
 
@@ -120,7 +140,7 @@ graph TB
             TB[TimeBudgetDepthManager]
             NPS[NPS Tracking]
             EBF[EBF Calculation]
-            TMUL[Time Multiplier<br/>Braindead:1%<br/>Easy:10%<br/>Medium:30%<br/>Hard:70%<br/>GM:100%]
+            TMUL[Time Multiplier<br/>Braindead:5%<br/>Easy:20%<br/>Medium:50%<br/>Hard:75%<br/>GM:100%]
         end
     end
 
@@ -199,10 +219,10 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Difficulty | Threads | Time Budget | Depth (7+5 TC) |
 |------------|---------|-------------|----------------|
-| Braindead | 1 | 1% | ~1-3 |
-| Easy | 2 | 10% | ~3-5 |
-| Medium | 3 | 30% | ~5-7 |
-| Hard | 4 | 70% | ~7-9 |
+| Braindead | 1 | 5% | ~1-3 |
+| Easy | 2 | 20% | ~3-5 |
+| Medium | 3 | 50% | ~5-7 |
+| Hard | 4 | 75% | ~7-9 |
 | Grandmaster | (N/2)-1 | 100% | ~9-12+ |
 
 **Depth varies by host machine** - calculated dynamically from NPS and time budget. Higher-spec machines achieve greater depth naturally.

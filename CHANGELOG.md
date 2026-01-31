@@ -5,6 +5,82 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-01
+
+### Added
+
+- Centralized testing framework for AI difficulty validation
+  - Single CLI entry point: `--test-suite=<name>` for running test suites
+  - 7 test suites: braindead, easy, medium, hard, grandmaster, experimental, full
+  - Win rate thresholds enforced and reported per matchup
+  - Consistent output format always overwrites `tournament_results.txt`
+  - Exit code 0 for informational-only CI compatibility
+- Test suite infrastructure in `Caro.TournamentRunner/TestSuite/`
+  - ITestSuite interface with TestSuiteResult and MatchupResult records
+  - Per-suite expectations with configurable win rate thresholds
+  - 20 games per matchup (10+10 alternating colors)
+  - Experimental suite uses 10 games for faster iteration
+- Owner tags to all AI debug logs
+  - `[AI DEFENSE]`, `[AI VCF]`, `[AI TT]`, `[AI STATS]` now include `{difficulty} ({player})`
+  - Easier tracing of which AI is generating which log line
+
+### Changed
+
+- AI difficulty configurations for better strength progression
+  - Braindead: time 1% -> 5%, error 20% -> 10%
+  - Easy: time 10% -> 20%
+  - Medium: time 30% -> 50%
+  - Hard: time 70% -> 75%, added VCF enabled
+- README updated with current difficulty specs and test suite documentation
+
+### Fixed
+
+- TournamentEngine.RunGame no longer terminates early when both players run out of time
+  - Previously treated double timeout as draw, now correctly identifies winner by move completion
+- ParallelMinimaxSearch helper thread TT write policy
+  - Helper threads now respect depth >= rootDepth/2 constraint for all writes
+  - Master thread (threadIndex=0) retains priority for same-depth entries
+
+### Technical Details
+
+**Test Suite CLI Usage:**
+```bash
+dotnet run --project backend/src/Caro.TournamentRunner -- --test-suite=full --output=results.txt
+```
+
+**Win Rate Thresholds:**
+- Grandmaster vs Braindead: 100% (win+draw)
+- Grandmaster vs Easy: 95% (win+draw)
+- Grandmaster vs Medium: 90% (win+draw)
+- Grandmaster vs Hard: 80% (win+draw)
+- Hard vs Braindead: 95% (win+draw)
+- Hard vs Easy: 90% (win+draw)
+- Hard vs Medium: 80% (win+draw)
+- Medium vs Braindead: 90% (win+draw)
+- Medium vs Easy: 80% (win+draw)
+- Easy vs Braindead: 80% (win+draw)
+
+### Files Added
+
+- backend/src/Caro.TournamentRunner/TestSuite/ITestSuite.cs
+- backend/src/Caro.TournamentRunner/TestSuite/GrandmasterTestSuite.cs
+- backend/src/Caro.TournamentRunner/TestSuite/HardTestSuite.cs
+- backend/src/Caro.TournamentRunner/TestSuite/MediumTestSuite.cs
+- backend/src/Caro.TournamentRunner/TestSuite/EasyTestSuite.cs
+- backend/src/Caro.TournamentRunner/TestSuite/BraindeadTestSuite.cs
+- backend/src/Caro.TournamentRunner/TestSuite/ExperimentalTestSuite.cs
+- backend/src/Caro.TournamentRunner/TestSuite/FullIntegratedTestSuite.cs
+- backend/src/Caro.TournamentRunner/TestSuiteRunner.cs
+
+### Files Modified
+
+- backend/src/Caro.Core/GameLogic/AIDifficultyConfig.cs (time multipliers, error rates)
+- backend/src/Caro.Core/GameLogic/MinimaxAI.cs (owner tags in logs)
+- backend/src/Caro.TournamentRunner/Program.cs (CLI argument parsing)
+- README.md (difficulty specs, test suite documentation)
+
+[1.3.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.3.0
+
 ## [1.2.0] - 2026-01-31
 
 ### Fixed
