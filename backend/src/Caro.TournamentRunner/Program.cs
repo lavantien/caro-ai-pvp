@@ -40,6 +40,12 @@ class Program
             return;
         }
 
+        if (args.Contains("--color-swap-test"))
+        {
+            ColorSwapTest.Run();
+            return;
+        }
+
         using var writer = new StreamWriter(defaultOutputPath, append: false, Encoding.UTF8)
         {
             AutoFlush = true
