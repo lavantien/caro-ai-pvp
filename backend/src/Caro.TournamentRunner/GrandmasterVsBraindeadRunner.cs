@@ -38,9 +38,13 @@ public class GrandmasterVsBraindeadRunner
 
         for (int game = 1; game <= gamesPerMatchup; game++)
         {
-            bool swapColors = (game % 2 == 1);
-            var redDiff = swapColors ? AIDifficulty.Braindead : AIDifficulty.Grandmaster;
-            var blueDiff = swapColors ? AIDifficulty.Grandmaster : AIDifficulty.Braindead;
+            // Alternate colors each game: even games swap colors
+            // Game 1: Grandmaster=Red, Braindead=Blue
+            // Game 2: Grandmaster=Blue, Braindead=Red
+            // Difficulties stay constant - swapColors controls which bot plays which color
+            bool swapColors = (game % 2 == 0);
+            var redDiff = AIDifficulty.Grandmaster;  // BotA's difficulty
+            var blueDiff = AIDifficulty.Braindead;   // BotB's difficulty
 
             var swapNote = swapColors ? " (swapped)" : "";
             LogWrite($"  Game {game}/{gamesPerMatchup}: Red={redDiff,-12}{swapNote} Blue={blueDiff,-12}");
@@ -56,10 +60,15 @@ public class GrandmasterVsBraindeadRunner
                 incrementSeconds: incrementSeconds,
                 ponderingEnabled: true,
                 parallelSearchEnabled: true,
+                swapColors: swapColors,  // Use swapColors parameter to control color assignment
                 onMove: (x, y, player, moveNumber, redTimeMs, blueTimeMs, stats) =>
                 {
-                    var diff = player == Player.Red ? redDiff : blueDiff;
-                    LogWrite(GameStatsFormatter.FormatMoveLine(game, moveNumber, x, y, player, diff, stats));
+                    // Determine actual difficulty based on which bot is playing which color
+                    // When swapped: Red slot has Braindead, Blue slot has Grandmaster
+                    var actualDiff = swapColors
+                        ? (player == Player.Red ? AIDifficulty.Braindead : AIDifficulty.Grandmaster)
+                        : (player == Player.Red ? AIDifficulty.Grandmaster : AIDifficulty.Braindead);
+                    LogWrite(GameStatsFormatter.FormatMoveLine(game, moveNumber, x, y, player, actualDiff, stats));
                     moveCount = moveNumber;
                 },
                 onLog: (level, source, message) =>
@@ -82,7 +91,10 @@ public class GrandmasterVsBraindeadRunner
             else
             {
                 var winner = result.Winner;
-                var winningDiff = winner == Player.Red ? redDiff : blueDiff;
+                // Determine actual winning difficulty based on swapColors
+                var winningDiff = swapColors
+                    ? (winner == Player.Red ? AIDifficulty.Braindead : AIDifficulty.Grandmaster)
+                    : (winner == Player.Red ? AIDifficulty.Grandmaster : AIDifficulty.Braindead);
 
                 if (winner == Player.Red)
                 {
