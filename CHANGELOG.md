@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-31
+
+### Fixed
+
+- Transposition table master thread priority for same-position entries
+  - Master thread (threadIndex=0) now has priority when storing entries at same depth
+  - Helper threads can only replace if significantly deeper (depth diff >= 2)
+  - Prevents helper threads from overwriting master's more accurate results
+  - Same-position replacement now considers entry flag quality (Exact > Alpha/Beta)
+- Tournament runner output path changed to tournament_results.txt for clarity
+  - Previous test_output.txt was ambiguous
+
+### Changed
+
+- ComprehensiveMatchupRunner simplified to use compile-time constants
+  - TimeSeconds=420, IncSeconds=5, GamesPerMatchup=10
+  - Removed method parameters for reproducibility
+  - Cleaner console output formatting (removed box-drawing borders)
+- Program.cs output file renamed from test_output.txt to tournament_results.txt
+
+### Added
+
+- DepthVsRandomTest - validates depth-5 search beats random 80%+ of time
+- DiagonalThreatTest - tests AI correctly blocks diagonal four-in-row threats
+- GrandmasterVsBraindeadTest now includes 20% error rate validation test
+
+### Removed
+
+- Temporary tournament output files (tournament_report_*.txt, tournament_test.txt)
+
+### Technical Details
+
+**Transposition Table Replacement Strategy:**
+
+```csharp
+// Same position: only replace if deeper or same depth with master priority
+bool isDeeper = depth > existing.Depth;
+bool isSameDepthMaster = depth == existing.Depth && threadIndex == 0;
+bool isSameDepthBetterFlag = depth == existing.Depth && entryFlag == EntryFlag.Exact;
+shouldStore = isDeeper || isSameDepthMaster || isSameDepthBetterFlag;
+```
+
+This ensures the master thread's principal variation results are not overwritten by helper threads exploring alternate lines.
+
+### Test Coverage Update
+
+- Total tests: 500+ (up from 330+)
+- Backend: 480+ tests
+- Frontend: 26 tests
+
+[1.2.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.2.0
+
 ## [1.1.0] - 2026-01-29
 
 ### Added

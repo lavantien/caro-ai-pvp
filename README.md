@@ -10,7 +10,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 - **Real-time multiplayer** - WebSocket support via SignalR
 - **AI tournament mode** - Balanced round-robin with ELO tracking
 - **Mobile-first UX** - Ghost stone positioning and haptic feedback
-- **330+ automated tests** - Including adversarial concurrency tests
+- **500+ automated tests** - Including adversarial concurrency tests
 
 ---
 
@@ -223,14 +223,13 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Category | Tests |
 |----------|-------|
-| Backend Unit | 200+ |
+| Backend Unit | 480+ |
 | Statistical | 38 |
 | AI Strength Validation | 19 |
 | Concurrency | 32 |
 | Integration | 13 |
-| Frontend Unit | 19+ |
-| E2E | 17+ |
-| **TOTAL** | **330+** |
+| Frontend Unit | 26 |
+| **TOTAL** | **500+** |
 
 ---
 
