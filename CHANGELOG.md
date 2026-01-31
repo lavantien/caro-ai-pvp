@@ -5,6 +5,82 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-01
+
+### Changed
+
+- **Breaking: Stateless AI architecture** - MinimaxAI no longer tracks which color it's playing
+  - Player color must now be passed explicitly to pondering methods
+  - `StartPonderingAfterMove()` now requires explicit `Player thisAIColor` and `AIDifficulty difficulty` parameters
+  - `StartPonderingNow()` now requires explicit `Player thisAIColor` parameter
+  - `StopPondering()` has an overload that takes `Player forPlayer` parameter
+  - Old stateful methods marked `[Obsolete]` - will be removed in future version
+- TournamentEngine now uses bot-instance-based architecture
+  - Renamed `_redAI/_blueAI` to `_botA/_botB` for clarity
+  - Bots maintain their difficulty capabilities regardless of which color they play
+  - `swapColors` parameter controls which bot instance plays which color
+- TestSuiteRunner and GrandmasterVsBraindeadRunner updated to use `swapColors` parameter
+  - Difficulties stay constant with their bot instances
+  - Color alternation now handled via `swapColors` instead of difficulty swapping
+
+### Fixed
+
+- Color attribution in pondering stats was incorrect when colors were swapped
+  - Pondering output now correctly shows `[PONDER Red]` or `[PONDER Blue]` based on actual bot color assignment
+  - Previously always showed `[PONDER Red]` due to state leakage between games
+- Winner/loser difficulty determination now correctly maps colors to bot instances
+  - Previously could report wrong difficulty when `swapColors=true`
+- Opponent pondering now uses correct bot's difficulty settings
+
+### Added
+
+- `ColorSwapTest.cs` - Test runner for verifying color alternation works correctly
+- `--color-swap-test` CLI argument to run color swap verification test
+
+### Technical Details
+
+**Before (Stateful):**
+```csharp
+// AI tracked which color it was playing
+private Player _lastPlayer;
+private AIDifficulty _lastDifficulty;
+
+// Engine used color-based AI selection
+var currentAI = isRed ? _redAI : _blueAI;
+var difficulty = isRed ? redDifficulty : blueDifficulty;
+```
+
+**After (Stateless):**
+```csharp
+// AI is stateless about color - engine passes everything explicitly
+var currentBotIsA = (isRed && botAIsRed) || (!isRed && !botAIsRed);
+var difficulty = currentBotIsA ? botADifficulty : botBDifficulty;
+
+// Pondering receives explicit color and difficulty
+currentAI.StartPonderingAfterMove(board, opponent, currentPlayer, currentSettings.Difficulty);
+```
+
+This architecture ensures the AI engine remains a pure algorithmic component, while the TournamentEngine tracks game-level concerns like which bot is playing which color.
+
+### Files Modified
+
+- backend/src/Caro.Core/GameLogic/MinimaxAI.cs
+- backend/src/Caro.Core/GameLogic/OpeningBook.cs
+- backend/src/Caro.Core/GameLogic/ParallelMinimaxSearch.cs
+- backend/src/Caro.Core/GameLogic/Pondering/Ponderer.cs
+- backend/src/Caro.Core/GameLogic/TimeBudgetDepthManager.cs
+- backend/src/Caro.Core/Tournament/TournamentEngine.cs
+- backend/src/Caro.TournamentRunner/TestSuiteRunner.cs
+- backend/src/Caro.TournamentRunner/GrandmasterVsBraindeadRunner.cs
+- backend/src/Caro.TournamentRunner/Program.cs
+- backend/tests/Caro.Core.Tests/GameLogic/Pondering/PonderingIntegrationTests.cs
+
+### Files Added
+
+- backend/src/Caro.TournamentRunner/ColorSwapTest.cs
+
+[1.4.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.4.0
+
 ## [1.3.1] - 2026-02-01
 
 ### Fixed
