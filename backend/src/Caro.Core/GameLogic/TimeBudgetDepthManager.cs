@@ -73,8 +73,9 @@ public sealed class TimeBudgetDepthManager
 
         lock (_lock)
         {
-            // Exponential moving average with 0.3 weight for new value
-            _estimatedNps = _estimatedNps * 0.7 + actualNps * 0.3;
+            // FIX: Increased weight from 0.3 to 0.5 for faster adaptation
+            // This helps the NPS estimate converge more quickly to actual machine performance
+            _estimatedNps = _estimatedNps * 0.5 + actualNps * 0.5;
         }
     }
 
@@ -153,11 +154,11 @@ public sealed class TimeBudgetDepthManager
             double maxDepth = Math.Log(totalNodes) / Math.Log(_effectiveBranchingFactor);
             int calculatedDepth = Math.Max((int)maxDepth, 1);
 
-            // Only minimum depth constraint is to ensure at least 1 ply was searched
-            // All difficulty separation comes from time multiplier, not hardcoded depths
-            int minDepth = 1;
+            // FIX: Use difficulty's minimum depth instead of hardcoded 1
+            // This ensures each difficulty searches at least to its designed minimum
+            int minDepth = GetMinimumDepth(difficulty);
 
-            // Clamp to reasonable bounds (1-15)
+            // Clamp to reasonable bounds (minDepth-15)
             return Math.Clamp(calculatedDepth, minDepth, 15);
         }
     }
@@ -186,21 +187,17 @@ public sealed class TimeBudgetDepthManager
     /// </summary>
     public void CalibrateNpsForDifficulty(AIDifficulty difficulty)
     {
-        double targetNps = difficulty switch
-        {
-            AIDifficulty.Braindead => MinNpsBraindead,
-            AIDifficulty.Easy => MinNpsEasy,
-            AIDifficulty.Medium => MinNpsMedium,
-            AIDifficulty.Hard => MinNpsHard,
-            AIDifficulty.Grandmaster => MinNpsGrandmaster,
-            _ => 100_000
-        };
+        // FIX: Get the target NPS from AIDifficultyConfig instead of hardcoded constants
+        // This ensures consistency with the difficulty settings
+        var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
+        double targetNps = settings.TargetNps;
 
         lock (_lock)
         {
-            // Only update if current estimate is below target
-            // This allows actual performance to exceed baseline
-            if (_estimatedNps < targetNps)
+            // FIX: Only update if current estimate is significantly below target (less than 50%)
+            // This allows actual performance to exceed baseline while ensuring
+            // we don't start with a grossly underestimated NPS
+            if (_estimatedNps < targetNps * 0.5)
             {
                 _estimatedNps = targetNps;
             }

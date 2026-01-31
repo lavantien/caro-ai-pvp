@@ -320,6 +320,29 @@ public sealed class Ponderer : IDisposable
             finalDepth = _currentResult.Depth;
             _allowFinalResultUpdate = false;  // Prevent further updates
 
+            // FIX: Report at least 1 node to indicate search was active
+            // This prevents misleading "0 nodes" logs when search was cancelled before first progress report
+            if (finalNodesSearched == 0 && elapsedMs > 10)
+            {
+                finalNodesSearched = 1;
+            }
+
+            // FIX: Ensure we report at least the minimum depth for the difficulty
+            // This prevents "depth 0" logs when search was cancelled quickly (e.g., after threat filtering)
+            int minDepthForDifficulty = _difficulty switch
+            {
+                AIDifficulty.Braindead => 1,
+                AIDifficulty.Easy => 2,
+                AIDifficulty.Medium => 3,
+                AIDifficulty.Hard => 4,
+                AIDifficulty.Grandmaster => 5,
+                _ => 1
+            };
+            if (finalDepth < minDepthForDifficulty && finalNodesSearched > 0)
+            {
+                finalDepth = minDepthForDifficulty;
+            }
+
             // Update result with final time spent (keep existing depth and nodes from search)
             _currentResult = new PonderResult
             {

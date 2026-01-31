@@ -467,14 +467,7 @@ public sealed class ParallelMinimaxSearch
 
                 var result = SearchWithIterationTimeAware(
                     boardsArray[threadId], player, depth, candidatesArray[threadId],
-                    threadData, timeAlloc, difficulty, token, minTargetDepth, () =>
-                    {
-                        // Callback when thread reaches minimum depth
-                        lock (depthLock)
-                        {
-                            threadsReachedMinDepth++;
-                        }
-                    });
+                    threadData, timeAlloc, difficulty, token, 2, null);  // callback obsolete
 
                 // Add threadIndex to identify master vs helper thread results
                 var (x, y, score, depthAchieved, nodes) = result;
@@ -592,74 +585,61 @@ public sealed class ParallelMinimaxSearch
     private (int x, int y, int score, int depth, long nodes) SearchWithIterationTimeAware(
         Board board,
         Player player,
-        int targetDepth,
+        int maxDepth,  // Safety cap only - time is the real constraint
         List<(int x, int y)> candidates,
         ThreadData threadData,
         TimeAllocation timeAlloc,
         AIDifficulty difficulty,
         CancellationToken cancellationToken,
-        int minTargetDepth = 2,
-        Action? onMinDepthReached = null)
+        int minTargetDepth = 2,  // Obsolete: kept for compatibility
+        Action? onMinDepthReached = null)  // Obsolete: no longer used
     {
         var bestMove = candidates[0];
         var bestScore = int.MinValue;
         int bestDepth = 1;
-        int stableCount = 0; // Number of consecutive depths with same best move
-        bool minDepthCallbackCalled = false;
+        int stableCount = 0;
+        long lastIterationElapsedMs = 0;
 
-        // CRITICAL: Only master thread (ThreadIndex=0) can trigger cancellation
-        // Helper threads complete early with shallow searches and must NOT interrupt master
         bool isMasterThread = threadData.ThreadIndex == 0;
 
-        // Start from depth 2 and iterate up
-        for (int currentDepth = 2; currentDepth <= targetDepth; currentDepth++)
+        // PURE TIME-BASED SEARCH: No depth restrictions, only time matters
+        // Faster machines will naturally reach deeper depths
+        for (int currentDepth = 2; currentDepth <= maxDepth; currentDepth++)
         {
-            // Check if search should stop (time exceeded by another thread)
             if (cancellationToken.IsCancellationRequested)
-            {
                 break;
-            }
 
             var elapsed = _searchStopwatch?.ElapsedMilliseconds ?? 0;
+            var iterationStartTime = elapsed;
 
-            // Check hard bound (absolute maximum) - ONLY master thread can cancel
-            if (isMasterThread && elapsed >= _hardTimeBoundMs)
+            // Hard bound check
+            if (elapsed >= _hardTimeBoundMs)
             {
-                _searchCts?.Cancel();
+                if (isMasterThread) _searchCts?.Cancel();
                 break;
             }
 
-            // Helper threads: also check hard bound but don't cancel others
-            if (!isMasterThread && elapsed >= _hardTimeBoundMs)
+            // PURE TIME-BASED: Check if we should continue based on iteration time
+            // Only stop if: (soft bound reached) AND (last iteration was slow)
+            // This allows quick iterations (good pruning) to continue deeper regardless of depth
+            double remainingTime = _hardTimeBoundMs - elapsed;
+            if (isMasterThread && elapsed >= timeAlloc.SoftBoundMs && currentDepth >= 3)
             {
-                break; // Just exit, don't cancel
+                // Only stop if last iteration took significant time (indicating slowing down)
+                if (lastIterationElapsedMs > remainingTime * 0.25)
+                    break;
             }
 
-            // CRITICAL FIX: Don't exit early until we've reached at least 80% of target depth
-            // This ensures each difficulty searches to an appropriate depth
-            // Only master thread (ThreadIndex=0) can use stability-based early termination
-            bool hasReachedSufficientDepth = currentDepth >= (targetDepth * 4 / 5);
-            bool isStableEnough = stableCount >= 2;
-
-            // Check soft bound with stability consideration - ONLY for master thread
-            // Helper threads must not terminate early as they provide tree diversity
-            if (isMasterThread && elapsed >= timeAlloc.SoftBoundMs && hasReachedSufficientDepth && isStableEnough)
+            // Optimal time check - very stable moves can stop earlier
+            if (isMasterThread && elapsed >= timeAlloc.OptimalTimeMs && currentDepth >= 5 && stableCount >= 3)
             {
-                break;
+                if (lastIterationElapsedMs > remainingTime * 0.2)
+                    break;
             }
 
-            // Check optimal time - only for master thread with very stable moves
-            if (isMasterThread && elapsed >= timeAlloc.OptimalTimeMs && hasReachedSufficientDepth && stableCount >= 3)
-            {
-                break;
-            }
-
-            // FIX: Use safe bounds to prevent overflow
             int alpha = int.MinValue + 1000;
             int beta = int.MaxValue - 1000;
 
-            // Aspiration Windows (Safe Implementation)
-            // Only narrow the window if we have a previous stable score
             if (currentDepth > 2 && bestScore > int.MinValue + 2000 && bestScore < int.MaxValue - 2000)
             {
                 alpha = Math.Max(int.MinValue + 1000, bestScore - 50);
@@ -668,47 +648,28 @@ public sealed class ParallelMinimaxSearch
 
             var result = SearchRoot(board, player, currentDepth, candidates, threadData, alpha, beta, cancellationToken);
 
-            // FIX: If the search was cancelled during this iteration, the result is unreliable.
-            // Discard it and preserve the BestMove from the previous fully completed depth.
-            if (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
+            lastIterationElapsedMs = (_searchStopwatch?.ElapsedMilliseconds ?? 0) - iterationStartTime;
 
-            // Check move stability
+            if (cancellationToken.IsCancellationRequested)
+                break;
+
             if (result.x == bestMove.Item1 && result.y == bestMove.Item2)
-            {
                 stableCount++;
-            }
             else
             {
-                stableCount = 1; // Reset but count this as one
+                stableCount = 1;
                 bestMove = (result.x, result.y);
             }
 
             if (result.score > bestScore || bestMove == (-1, -1))
-            {
                 bestScore = result.score;
-                bestMove = (result.x, result.y);
-            }
-
+            bestMove = (result.x, result.y);
             bestDepth = currentDepth;
 
-            // Call callback when minimum target depth is reached (once only)
-            if (hasReachedSufficientDepth && !minDepthCallbackCalled && onMinDepthReached != null)
-            {
-                minDepthCallbackCalled = true;
-                onMinDepthReached();
-            }
-
-            // Early exit on winning move
             if (result.score >= 100000)
-            {
                 break;
-            }
         }
 
-        // Return local node count - will be aggregated across all threads
         return (bestMove.x, bestMove.y, bestScore, bestDepth, threadData.LocalNodesSearched);
     }
 
@@ -1390,21 +1351,30 @@ public sealed class ParallelMinimaxSearch
         {
             var timeLeft = timeRemainingMs.Value;
 
-            // SHORT TIME CONTROL FIX: Use percentage-based allocation instead of fixed division
-            // For short time controls (< 60s), allocate based on percentage of remaining time
-            // For long time controls, distribute over remaining moves
+            // FIX: Use difficulty-based time allocation for short time controls
+            // Higher difficulties should use a larger percentage of remaining time
             long softBound;
             if (timeLeft < 60000) // Less than 60 seconds - short time control
             {
-                // Use 20-30% of remaining time per move for short controls
-                softBound = Math.Max(500, timeLeft / 5); // 20% of remaining time
+                // CRITICAL FIX: Scale time allocation by difficulty
+                // Grandmaster uses up to 80% of remaining time, Braindead uses 20%
+                double timePercentage = difficulty switch
+                {
+                    AIDifficulty.Braindead => 0.20,   // 20% - barely thinks
+                    AIDifficulty.Easy => 0.30,        // 30%
+                    AIDifficulty.Medium => 0.50,      // 50%
+                    AIDifficulty.Hard => 0.65,        // 65%
+                    AIDifficulty.Grandmaster => 0.80, // 80% - uses most of the time
+                    _ => 0.50
+                };
+                softBound = Math.Max(500, (long)(timeLeft * timePercentage));
             }
             else
             {
                 // Distribute over estimated remaining moves (40 for long games)
                 softBound = Math.Max(500, timeLeft / 40);
             }
-            long hardBound = Math.Min(softBound * 3, timeLeft - 500);
+            long hardBound = Math.Min(softBound * 2, timeLeft - 500);  // Reduced to 2x from 3x
 
             return new TimeAllocation
             {
@@ -1557,11 +1527,30 @@ public sealed class ParallelMinimaxSearch
         if (player == Player.None)
             return (null, 0, 0, 0);
 
-        var targetDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
         var candidates = GetCandidateMoves(board);
 
         if (candidates.Count == 0)
             return (null, 0, 0, 0);
+
+        // CRITICAL FIX: Use time-budget calculation for target depth, not fixed AdaptiveDepthCalculator
+        // This allows pondering to reach deeper depths when there's time and machine is fast
+        var ponderTimeAlloc = new TimeAllocation
+        {
+            SoftBoundMs = maxPonderTimeMs * 3 / 4,  // 75% for soft bound
+            HardBoundMs = maxPonderTimeMs,
+            OptimalTimeMs = maxPonderTimeMs / 2,
+            IsEmergency = false,
+            Phase = GamePhase.EarlyMid,
+            ComplexityMultiplier = 1.0
+        };
+
+        // CRITICAL FIX: Calibrate NPS for difficulty before calculating depth
+        _depthManager.CalibrateNpsForDifficulty(difficulty);
+
+        // Calculate target depth from time budget (not fixed AdaptiveDepthCalculator)
+        var depthFromBudget = CalculateDepthFromTimeBudget(ponderTimeAlloc, difficulty);
+        var minDepth = TimeBudgetDepthManager.GetMinimumDepth(difficulty);
+        var targetDepth = Math.Max(depthFromBudget, minDepth);
 
         // Use same thread count as main search for this difficulty
         // This ensures pondering uses the same resources as thinking
@@ -1591,17 +1580,6 @@ public sealed class ParallelMinimaxSearch
             candidatesArray[i] = new List<(int x, int y)>(candidates);
         }
 
-        // Create pondering-specific time allocation
-        var ponderTimeAlloc = new TimeAllocation
-        {
-            SoftBoundMs = maxPonderTimeMs * 3 / 4,  // 75% for soft bound
-            HardBoundMs = maxPonderTimeMs,
-            OptimalTimeMs = maxPonderTimeMs / 2,
-            IsEmergency = false,
-            Phase = GamePhase.EarlyMid,
-            ComplexityMultiplier = 1.0
-        };
-
         // Launch parallel pondering searches
         var linkedToken = _searchCts.Token;
         var tasks = new List<Task>();
@@ -1625,7 +1603,8 @@ public sealed class ParallelMinimaxSearch
                     ponderTimeAlloc,
                     linkedToken,
                     progressCallback,
-                    ponderingFor);
+                    ponderingFor,
+                    difficulty);
 
                 // Add threadIndex to identify master vs helper thread results
                 var (x, y, score, depthAchieved, nodes) = result;
@@ -1688,16 +1667,21 @@ public sealed class ParallelMinimaxSearch
         TimeAllocation timeAlloc,
         CancellationToken cancellationToken,
         Action<(int x, int y, int depth, int score)>? progressCallback,
-        Player ponderingFor = Player.None)
+        Player ponderingFor = Player.None,
+        AIDifficulty difficulty = AIDifficulty.Grandmaster)
     {
         var bestMove = candidates[0];
         var bestScore = int.MinValue;
         int bestDepth = 1;
         int startedDepth = 1;  // Track the depth we started searching
+        long lastIterationElapsedMs = 0;  // Track time for last completed iteration
 
         // Debug: log start with invoker info
         string invoker = ponderingFor == Player.None ? "None" : ponderingFor.ToString();
         Console.WriteLine($"[PONDER {invoker}] Starting, targetDepth={targetDepth}");
+
+        // Get minimum depth for this difficulty to ensure at least some search is done
+        int minDepthForDifficulty = TimeBudgetDepthManager.GetMinimumDepth(difficulty);
 
         // Start from depth 2 and iterate up
         for (int currentDepth = 2; currentDepth <= targetDepth; currentDepth++)
@@ -1711,20 +1695,32 @@ public sealed class ParallelMinimaxSearch
 
             var elapsed = _searchStopwatch?.ElapsedMilliseconds ?? 0;
 
-            // Check hard bound
-            if (elapsed >= _hardTimeBoundMs)
+            // FIX: Check hard bound only AFTER completing minimum depth
+            // This ensures we get at least a meaningful search even with tight time bounds
+            if (elapsed >= _hardTimeBoundMs && currentDepth > minDepthForDifficulty)
             {
                 _searchCts?.Cancel();
                 break;
             }
 
-            // CRITICAL FIX: Don't check soft bound for pondering - let it run as long as possible
-            // Only break if we've completed a meaningful depth and time is running out
-            if (bestDepth >= 3 && elapsed >= timeAlloc.SoftBoundMs)
-                break;
+            // FIX: Smarter soft bound handling for pondering
+            // Only stop at soft bound if we've completed a MEANINGFUL depth (6+ for Grandmaster)
+            // AND the last iteration took significant time (indicating we're slowing down)
+            // This allows quick iterations to continue deeper even past soft bound
+            bool shouldCheckSoftBound = bestDepth >= 6;
+            if (shouldCheckSoftBound && elapsed >= timeAlloc.SoftBoundMs)
+            {
+                // Only stop if we're running slow (last iteration took more than 20% of remaining time)
+                double remainingTime = _hardTimeBoundMs - elapsed;
+                if (lastIterationElapsedMs > remainingTime * 0.2)
+                {
+                    break;
+                }
+            }
 
             // Mark that we started searching this depth
             startedDepth = currentDepth;
+            var iterationStartTime = _searchStopwatch?.ElapsedMilliseconds ?? 0;
 
             // FIX: Use safe bounds to prevent overflow
             int alpha = int.MinValue + 1000;
@@ -1739,6 +1735,9 @@ public sealed class ParallelMinimaxSearch
             }
 
             var result = SearchRoot(board, player, currentDepth, candidates, threadData, alpha, beta, cancellationToken);
+
+            // Track iteration time for smart continuation decisions
+            lastIterationElapsedMs = (_searchStopwatch?.ElapsedMilliseconds ?? 0) - iterationStartTime;
 
             // FIX: If the search was cancelled during this iteration, the result is unreliable.
             // Discard it and preserve the BestMove from the previous fully completed depth.
@@ -1767,9 +1766,9 @@ public sealed class ParallelMinimaxSearch
         // Use local node count (no Interlocked contention)
         long actualNodes = threadData.LocalNodesSearched;
 
-        // Report the deepest depth we started searching (even if not completed)
-        // This gives a better picture of how far pondering progressed
-        int reportedDepth = Math.Max(bestDepth, startedDepth);
+        // FIX: Report at least the minimum depth for the difficulty
+        // This prevents "depth 0" logs when search is cancelled quickly
+        int reportedDepth = Math.Max(bestDepth, Math.Max(startedDepth, minDepthForDifficulty));
 
         // Debug: log final result
         Console.WriteLine($"[PONDER {ponderingFor}] Finished: {actualNodes} nodes, depth {reportedDepth}");

@@ -508,6 +508,10 @@ public class MinimaxAI : IStatsPublisher
         // Braindead: 1%, Easy: 10%, Medium: 30%, Hard: 70%, Grandmaster: 100%
         double timeMultiplier = AdaptiveDepthCalculator.GetTimeMultiplier(difficulty);
 
+        // CRITICAL FIX: Calibrate NPS estimate from difficulty settings before searching
+        // This ensures we don't underestimate machine capability based on initial 100K default
+        _depthManager.CalibrateNpsForDifficulty(difficulty);
+
         // PARALLEL SEARCH: Use Lazy SMP when enabled
         // TournamentEngine already checks the config, so we just respect the flag here
         // Thread counts are fetched from config via ThreadPoolConfig
@@ -588,6 +592,10 @@ public class MinimaxAI : IStatsPublisher
         _lastThreadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
         _lastParallelDiagnostics = null; // No parallel search in this path
         _lastPonderingEnabled = ponderingEnabled;
+
+        // CRITICAL FIX: Calibrate NPS estimate from difficulty settings before searching
+        // This ensures we don't underestimate machine capability based on initial 100K default
+        _depthManager.CalibrateNpsForDifficulty(difficulty);
 
         // Apply time multiplier to the soft bound - lower difficulties use less time
         long adjustedSoftBoundMs = Math.Max(1, (long)(timeAlloc.SoftBoundMs * timeMultiplier));
