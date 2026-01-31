@@ -1,122 +1,0 @@
-╔═══════════════════════════════════════════════════════════════════╗
-║           CARO AI TOURNAMENT - AUTOMATED BATTLE SYSTEM              ║
-╚═══════════════════════════════════════════════════════════════════╝
-
-Tournament Configuration:
-  Total Matchups: 6
-  Total Games: 90
-  Estimated Time: ~45 minutes
-
-Auto-mode: Starting tournament...
-🏁 TOURNAMENT STARTED
-
-[1/90] 1.1% - Easy vs Easy: Red wins[2/90] 2.2% - Easy vs Easy: Red wins[3/90] 3.3% - Easy vs Easy: Red wins[4/90] 4.4% - Easy vs Easy: Red wins[5/90] 5.6% - Easy vs Easy: Red wins[6/90] 6.7% - Easy vs Easy: Blue wins[7/90] 7.8% - Easy vs Easy: Blue wins[8/90] 8.9% - Easy vs Easy: Blue wins[9/90] 10.0% - Easy vs Easy: Red wins[10/90] 11.1% - Easy vs Easy: Red wins
-  → Easy (Red) defeated Easy (Blue)
-     Moves: 26, Time: 0.3s, Avg Move: 9.9ms
-[11/90] 12.2% - Easy vs Medium: Blue wins[12/90] 13.3% - Easy vs Medium: Blue wins[13/90] 14.4% - Easy vs Medium: Blue wins[14/90] 15.6% - Easy vs Medium: Blue wins[15/90] 16.7% - Easy vs Medium: Blue wins[16/90] 17.8% - Easy vs Medium: Blue wins[17/90] 18.9% - Easy vs Medium: Blue wins[18/90] 20.0% - Easy vs Medium: Blue wins[19/90] 21.1% - Easy vs Medium: Blue wins[20/90] 22.2% - Easy vs Medium: Blue wins
-  → Medium (Blue) defeated Easy (Red)
-     Moves: 15, Time: 1.0s, Avg Move: 64.9ms
-[21/90] 23.3% - Easy vs Medium: Blue wins[22/90] 24.4% - Easy vs Medium: Blue wins[23/90] 25.6% - Easy vs Medium: Blue wins[24/90] 26.7% - Easy vs Medium: Blue wins[25/90] 27.8% - Easy vs Medium: Blue wins[26/90] 28.9% - Easy vs Medium: Blue wins[27/90] 30.0% - Easy vs Medium: Blue wins[28/90] 31.1% - Easy vs Medium: Blue wins[29/90] 32.2% - Easy vs Medium: Blue wins[30/90] 33.3% - Easy vs Medium: Blue wins
-  → Medium (Blue) defeated Easy (Red)
-     Moves: 11, Time: 0.7s, Avg Move: 60.4ms
-[31/90] 34.4% - Easy vs Expert: Blue wins[32/90] 35.6% - Easy vs Expert: Blue wins[33/90] 36.7% - Easy vs Expert: Blue wins[34/90] 37.8% - Easy vs Expert: Blue wins[35/90] 38.9% - Easy vs Expert: Blue wins[36/90] 40.0% - Easy vs Expert: Blue wins[37/90] 41.1% - Easy vs Expert: Blue wins[38/90] 42.2% - Easy vs Expert: Blue wins[39/90] 43.3% - Easy vs Expert: Blue wins[40/90] 44.4% - Easy vs Expert: Blue wins
-  → Expert (Blue) defeated Easy (Red)
-     Moves: 13, Time: 4.3s, Avg Move: 310.1ms
-[41/90] 45.6% - Easy vs Expert: Blue wins[42/90] 46.7% - Easy vs Expert: Blue wins[43/90] 47.8% - Easy vs Expert: Blue wins[44/90] 48.9% - Easy vs Expert: Blue wins[45/90] 50.0% - Easy vs Expert: Blue wins[46/90] 51.1% - Easy vs Expert: Blue wins[47/90] 52.2% - Easy vs Expert: Blue wins[48/90] 53.3% - Easy vs Expert: Blue wins[49/90] 54.4% - Easy vs Expert: Blue wins[50/90] 55.6% - Easy vs Expert: Blue wins
-  → Expert (Blue) defeated Easy (Red)
-     Moves: 11, Time: 2.8s, Avg Move: 233.7ms
-[51/90] 56.7% - Medium vs Medium: Red wins[52/90] 57.8% - Medium vs Medium: Red wins[53/90] 58.9% - Medium vs Medium: Red wins[54/90] 60.0% - Medium vs Medium: Red wins[55/90] 61.1% - Medium vs Medium: Red wins[56/90] 62.2% - Medium vs Medium: Red wins[57/90] 63.3% - Medium vs Medium: Red wins[58/90] 64.4% - Medium vs Medium: Red wins[59/90] 65.6% - Medium vs Medium: Red wins[60/90] 66.7% - Medium vs Medium: Red wins
-  → Medium (Red) defeated Medium (Blue)
-     Moves: 16, Time: 1.4s, Avg Move: 83.6ms
-[61/90] 67.8% - Medium vs Expert: Red wins[62/90] 68.9% - Medium vs Expert: Red wins[63/90] 70.0% - Medium vs Expert: Red wins[64/90] 71.1% - Medium vs Expert: Red wins[65/90] 72.2% - Medium vs Expert: Red wins[66/90] 73.3% - Medium vs Expert: Red wins[67/90] 74.4% - Medium vs Expert: Red wins[68/90] 75.6% - Medium vs Expert: Red wins[69/90] 76.7% - Medium vs Expert: Red wins[70/90] 77.8% - Medium vs Expert: Red wins
-  → Medium (Red) defeated Expert (Blue)
-     Moves: 34, Time: 19.3s, Avg Move: 551.7ms
-[71/90] 78.9% - Medium vs Expert: Red wins[72/90] 80.0% - Medium vs Expert: Red wins[73/90] 81.1% - Medium vs Expert: Red wins[74/90] 82.2% - Medium vs Expert: Red wins[75/90] 83.3% - Medium vs Expert: Red wins[76/90] 84.4% - Medium vs Expert: Red wins[77/90] 85.6% - Medium vs Expert: Red wins[78/90] 86.7% - Medium vs Expert: Red wins[79/90] 87.8% - Medium vs Expert: Red wins[80/90] 88.9% - Medium vs Expert: Red wins
-  → Medium (Red) defeated Expert (Blue)
-     Moves: 34, Time: 19.7s, Avg Move: 561.7ms
-[81/90] 90.0% - Expert vs Expert: Blue wins[82/90] 91.1% - Expert vs Expert: Blue wins[83/90] 92.2% - Expert vs Expert: Blue wins[84/90] 93.3% - Expert vs Expert: Blue wins[85/90] 94.4% - Expert vs Expert: Blue wins[86/90] 95.6% - Expert vs Expert: Blue wins[87/90] 96.7% - Expert vs Expert: Blue wins[88/90] 97.8% - Expert vs Expert: Blue wins[89/90] 98.9% - Expert vs Expert: Blue wins[90/90] 100.0% - Expert vs Expert: Blue wins
-  → Expert (Blue) defeated Expert (Red)
-     Moves: 155, Time: 367.8s, Avg Move: 2357.4ms
-
-
-✓ Tournament Complete!
-  Total Time: 70.36 minutes
-  Games Completed: 90/90
-
-================================================================================
-AI TOURNAMENT BALANCE REPORT
-================================================================================
-
-OVERALL STATISTICS
---------------------------------------------------------------------------------
-Total Games: 90
-Red Wins: 37 (41.1%)
-Blue Wins: 53 (58.9%)
-Draws: 0 (0.0%)
-Timeouts: 0 (0.0%)
-
-WIN RATE BY DIFFICULTY PAIRING
---------------------------------------------------------------------------------
-Red        Blue       Games    Red Win%   Blue Win%  Draw%     
-------------------------------------------------------------
-Easy       Easy       10       70.0%      30.0%      0.0%      
-Easy       Medium     20       0.0%       100.0%     0.0%      
-Easy       Medium     20       0.0%       100.0%     0.0%      
-Easy       Expert     20       0.0%       100.0%     0.0%      
-Medium     Easy       20       0.0%       100.0%     0.0%      
-Medium     Medium     10       100.0%     0.0%       0.0%      
-Medium     Medium     10       100.0%     0.0%       0.0%      
-Medium     Expert     20       100.0%     0.0%       0.0%      
-Medium     Easy       20       0.0%       100.0%     0.0%      
-Medium     Medium     10       100.0%     0.0%       0.0%      
-Medium     Medium     10       100.0%     0.0%       0.0%      
-Medium     Expert     20       100.0%     0.0%       0.0%      
-Expert     Easy       20       0.0%       100.0%     0.0%      
-Expert     Medium     20       100.0%     0.0%       0.0%      
-Expert     Medium     20       100.0%     0.0%       0.0%      
-Expert     Expert     10       0.0%       100.0%     0.0%      
-
-AVERAGE GAME LENGTH (MOVES)
---------------------------------------------------------------------------------
-Red        Blue       Avg Moves    Min    Max   
---------------------------------------------------
-Easy       Easy       F1-12 10     27    
-Easy       Medium     F1-12 9      67    
-Easy       Medium     F1-12 9      67    
-Easy       Expert     F1-12 9      51    
-Medium     Easy       F1-12 9      67    
-Medium     Medium     F1-12 16     16    
-Medium     Medium     F1-12 16     16    
-Medium     Expert     F1-12 34     34    
-Medium     Easy       F1-12 9      67    
-Medium     Medium     F1-12 16     16    
-Medium     Medium     F1-12 16     16    
-Medium     Expert     F1-12 34     34    
-Expert     Easy       F1-12 9      51    
-Expert     Medium     F1-12 34     34    
-Expert     Medium     F1-12 34     34    
-Expert     Expert     F1-12 155    155   
-
-AVERAGE MOVE TIME (MS)
---------------------------------------------------------------------------------
-Difficulty Avg Time (ms)   Min        Max       
---------------------------------------------------
-Easy       F2-15 0          2123      
-Medium     F2-15 0          2541      
-Medium     F2-15 0          2541      
-Expert     F2-15 0          6497      
-
-BALANCE ANALYSIS
---------------------------------------------------------------------------------
-Medium vs Easy: Medium wins 100.0% ✓ (Good balance - stronger AI wins more often)
-Medium vs Easy: Medium wins 100.0% ✓ (Good balance - stronger AI wins more often)
-Expert vs Easy: Expert wins 100.0% ✓ (Good balance - stronger AI wins more often)
-Expert vs Medium: Expert wins 0.0% ⚠ WARNING: Medium beating Expert too often!
-Expert vs Medium: Expert wins 0.0% ⚠ WARNING: Medium beating Expert too often!
-
-================================================================================
-
-
-📄 Report saved to: tournament_report_20251228_134430.txt
-
-Press ENTER to exit...
