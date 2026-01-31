@@ -254,12 +254,14 @@ public class MinimaxAI : IStatsPublisher
             // The actual ponder hit detection is done externally via TournamentEngine
         }
 
-        // TODO: Opening book disabled temporarily - needs better threat detection to avoid interfering with tactical positions
-        // var bookMove = _openingBook.GetBookMove(board, player, lastOpponentMove);
-        // if (bookMove.HasValue)
-        // {
-        //     return bookMove.Value;
-        // }
+        // Opening book for Hard and Grandmaster difficulties
+        // Only used for first 10 moves (20 stones total)
+        var lastOpponentMove = GetLastOpponentMove(board, player);
+        var bookMove = _openingBook.GetBookMove(board, player, difficulty, lastOpponentMove);
+        if (bookMove.HasValue)
+        {
+            return bookMove.Value;
+        }
 
         // Error rate simulation: Lower difficulties make random/suboptimal moves
         // Uses AdaptiveDepthCalculator.GetErrorRate() for consistent error rates
@@ -553,11 +555,9 @@ public class MinimaxAI : IStatsPublisher
             _tableHits = parallelResult.TableHits;
             _tableLookups = parallelResult.TableLookups;
 
-            // Store PV for pondering
+            // Store PV and board for pondering prediction
             _lastPV = PV.FromSingleMove(parallelResult.X, parallelResult.Y, _depthAchieved, 0);
             _lastBoard = board.Clone();
-            _lastPlayer = player;
-            _lastDifficulty = difficulty;
 
             // Start pondering for opponent's response
             if (ponderingEnabled)
@@ -605,15 +605,6 @@ public class MinimaxAI : IStatsPublisher
         // which defeats the purpose of the time multiplier.
         long adjustedHardBoundMs = Math.Max(adjustedSoftBoundMs, (long)(timeAlloc.HardBoundMs * timeMultiplier));
 
-        // Calculate max depth from time budget using NPS and EBF estimates
-        // Formula: max_depth = log(time * nps) / log(ebf)
-        double timeForDepthSeconds = adjustedSoftBoundMs / 1000.0;
-        int maxDepthFromBudget = _depthManager.CalculateMaxDepth(timeForDepthSeconds, difficulty);
-
-        // Ensure at least minimum depth for this difficulty
-        int minDepth = AdaptiveDepthCalculator.GetMinimumDepth(difficulty);
-        int targetDepth = Math.Max(maxDepthFromBudget, minDepth);
-
         (int x, int y) bestMove;
         int depthAchieved;
         long nodesSearched;
@@ -636,11 +627,12 @@ public class MinimaxAI : IStatsPublisher
         _searchStopped = false;
 
         // ITERATIVE DEEPENING: Search depth 1, 2, 3... until time runs out
+        // PURE TIME-BASED: No depth target - different machines reach different depths naturally
         // Always return best move from deepest completed iteration
         bestMove = candidates[0];
-        int currentDepth = minDepth; // Start at minimum depth for this difficulty
+        int currentDepth = 1; // Start from depth 1
 
-        while (currentDepth <= targetDepth)
+        while (true)  // Time-based only - depth is incidental
         {
             // Check time bounds using TimeAllocation
             var elapsed = _searchStopwatch.ElapsedMilliseconds;
@@ -712,7 +704,7 @@ public class MinimaxAI : IStatsPublisher
             Console.WriteLine($"[AI TT] {difficulty} ({player}) Table usage: {used} entries ({usage:F2}%)");
             var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
             var nps = elapsedMs > 0 ? nodesSearched * 1000 / elapsedMs : 0;
-            Console.WriteLine($"[AI STATS] {difficulty} ({player}) TimeMult: {timeMultiplier:P0}, TargetD: {maxDepthFromBudget}, Depth: {depthAchieved}, Nodes: {nodesSearched}, NPS: {nps:F0}");
+            Console.WriteLine($"[AI STATS] {difficulty} ({player}) TimeMult: {timeMultiplier:P0}, Depth: {depthAchieved}, Nodes: {nodesSearched}, NPS: {nps:F0}");
         }
 
         // Store PV for pondering
@@ -1803,6 +1795,10 @@ public class MinimaxAI : IStatsPublisher
 
         // Clear parallel search state
         _parallelSearch.Clear();
+
+        // Reset PV prediction state for pondering
+        _lastPV = PV.Empty;
+        _lastBoard = null;
     }
 
     /// <summary>
@@ -2703,64 +2699,66 @@ public class MinimaxAI : IStatsPublisher
 
     /// <summary>
     /// Stop any active pondering and publish ponder stats
+    /// OBSOLETE: Use StopPondering(Player forPlayer) for explicit player color
     /// </summary>
+    [Obsolete("Use StopPondering(Player forPlayer) for explicit player color")]
     public void StopPondering()
     {
         _ponderer.StopPondering();
-        PublishPonderStats(_lastPlayer);
+        // Can't publish stats without knowing player color - this method shouldn't be used
+    }
+
+    /// <summary>
+    /// Stop any active pondering and publish ponder stats with explicit player color
+    /// </summary>
+    public void StopPondering(Player forPlayer)
+    {
+        _ponderer.StopPondering();
+        PublishPonderStats(forPlayer);
     }
 
     /// <summary>
     /// Start pondering for opponent's response (called at start of opponent's turn)
+    /// OBSOLETE: Use StartPonderingNow() with explicit parameters
     /// </summary>
+    [Obsolete("Use StartPonderingNow(Board, Player currentPlayerToMove, AIDifficulty difficulty, Player thisAIColor)")]
     public void StartPonderingForOpponent(Board board, Player opponentToMove)
     {
-        var predictedOpponentMove = _lastPV.GetPredictedOpponentMove();
-        var player = _lastPlayer;
-        var difficulty = _lastDifficulty;
-
-        if (player == Player.None)
-            return;
-
-        var ponderTimeMs = CalculatePonderTime(null, difficulty);
-        if (ponderTimeMs > 0)
-        {
-            _ponderer.StartPondering(board, opponentToMove, predictedOpponentMove, player, difficulty, ponderTimeMs);
-        }
+        // This method should not be used - it relies on internal state
+        throw new InvalidOperationException("Use StartPonderingNow with explicit parameters");
     }
 
     /// <summary>
     /// Start pondering immediately (at start of opponent's turn, without waiting for prediction)
     /// </summary>
-    public void StartPonderingNow(Board board, Player currentPlayerToMove, AIDifficulty difficulty)
+    public void StartPonderingNow(Board board, Player currentPlayerToMove, AIDifficulty difficulty, Player thisAIColor)
     {
         // The AI owning this method will ponder during currentPlayerToMove's turn
         // We want to analyze the position where currentPlayerToMove is to move
-        var thisAI = currentPlayerToMove == Player.Red ? Player.Blue : Player.Red;
         var ponderTimeMs = CalculatePonderTime(null, difficulty);
         if (ponderTimeMs > 0)
         {
             // Ponder the position where the current player is to move
-            _ponderer.StartPondering(board, currentPlayerToMove, null, thisAI, difficulty, ponderTimeMs);
+            // thisAIColor explicitly tells this AI which color it is playing as
+            _ponderer.StartPondering(board, currentPlayerToMove, null, thisAIColor, difficulty, ponderTimeMs);
         }
     }
 
     /// <summary>
     /// Start pondering after making a move (for opponent's response)
     /// </summary>
-    public void StartPonderingAfterMove(Board board, Player opponentToMove)
+    /// <summary>
+    /// Start pondering after making a move (for opponent's response)
+    /// This is a stateless version - all parameters passed explicitly
+    /// </summary>
+    public void StartPonderingAfterMove(Board board, Player opponentToMove, Player thisAIColor, AIDifficulty difficulty, PV? lastPV = null)
     {
-        var player = _lastPlayer;
-        var difficulty = _lastDifficulty;
-        var predictedOpponentMove = _lastPV.GetPredictedOpponentMove();
-
-        if (player == Player.None)
-            return;
+        var predictedOpponentMove = lastPV?.GetPredictedOpponentMove() ?? _lastPV.GetPredictedOpponentMove();
 
         var ponderTimeMs = CalculatePonderTime(null, difficulty);
         if (ponderTimeMs > 0)
         {
-            _ponderer.StartPondering(board, opponentToMove, predictedOpponentMove, player, difficulty, ponderTimeMs);
+            _ponderer.StartPondering(board, opponentToMove, predictedOpponentMove, thisAIColor, difficulty, ponderTimeMs);
         }
     }
 
@@ -2772,7 +2770,6 @@ public class MinimaxAI : IStatsPublisher
         _ponderer.Reset();
         _lastPV = PV.Empty;
         _lastBoard = null;
-        _lastPlayer = Player.None;
     }
 
     /// <summary>
@@ -2791,10 +2788,6 @@ public class MinimaxAI : IStatsPublisher
         var nodesSearched = ponderResult.NodesSearched;
         var timeSpentMs = ponderResult.TimeSpentMs;
         var nps = timeSpentMs > 0 ? (double)nodesSearched * 1000 / timeSpentMs : 0;
-
-        // Debug logging - simplified format
-        if (nodesSearched > 0 || timeSpentMs > 0)
-            Console.WriteLine($"[PONDER {forPlayer}] Stats: {nodesSearched} nodes, {timeSpentMs}ms, {nps:F0} nps, depth {depth}");
 
         return (depth, nodesSearched, nps, timeSpentMs);
     }
