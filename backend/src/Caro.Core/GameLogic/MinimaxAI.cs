@@ -307,8 +307,51 @@ public class MinimaxAI : IStatsPublisher
             timeAlloc = GetDefaultTimeAllocation(difficulty);
         }
 
+        // CRITICAL DEFENSE: Check for opponent threats BEFORE any early returns
+        // This ensures we don't skip blocking in emergency mode
+        var oppPlayer = player == Player.Red ? Player.Blue : Player.Red;
+        var threats = _threatDetector.DetectThreats(board, oppPlayer)
+            .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.StraightThree)
+            .ToList();
+
+        bool hasOpponentThreats = threats.Count > 0;
+        bool hasOpenFour = false;  // Open four: 4 stones with 2 blocking squares
+
+        List<(int x, int y)> blockingSquares = new();
+        List<(int x, int y)> priorityBlockingSquares = new();  // For open fours
+
+        if (hasOpponentThreats)
+        {
+            var straightFourCount = threats.Count(t => t.Type == ThreatType.StraightFour);
+            var straightThreeCount = threats.Count(t => t.Type == ThreatType.StraightThree);
+
+            blockingSquares = threats
+                .SelectMany(t => t.GainSquares)
+                .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
+                .ToList();
+
+            // Check for open four (StraightFour with exactly 2 blocking squares)
+            // This is a critical threat that requires special handling
+            foreach (var threat in threats.Where(t => t.Type == ThreatType.StraightFour))
+            {
+                if (threat.GainSquares.Count >= 2)
+                {
+                    hasOpenFour = true;
+                    // For open fours, prioritize blocking squares that also prevent other threats
+                    foreach (var square in threat.GainSquares)
+                    {
+                        if (board.GetCell(square.x, square.y).IsEmpty)
+                            priorityBlockingSquares.Add(square);
+                    }
+                }
+            }
+
+            Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) Opponent has {straightFourCount} StraightFour, {straightThreeCount} StraightThree threat(s), blocking squares: {string.Join(", ", blockingSquares.Select(g => $"({g.x},{g.y})"))}{(hasOpenFour ? " [OPEN FOUR DETECTED]" : "")}");
+        }
+
         // Emergency mode - use TT move at D3+ (Medium+) if available
-        if (timeAlloc.IsEmergency && difficulty >= AIDifficulty.Medium)
+        // BUT: If opponent has threats, blocking takes priority
+        if (timeAlloc.IsEmergency && difficulty >= AIDifficulty.Medium && !hasOpponentThreats)
         {
             var ttMove = GetTranspositionTableMove(board, player, minDepth: 5);
             if (ttMove.HasValue)
@@ -320,41 +363,66 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // CRITICAL DEFENSE: Filter candidates to only blocking moves when opponent has StraightFour or StraightThree
-        // StraightFour: Immediate threat that must be blocked now
-        // StraightThree: 3 consecutive with both ends open - creates unstoppable StraightFour next turn
-        // By blocking StraightThrees early, we prevent them from becoming StraightFours with 2 blocking squares
-        var oppPlayer = player == Player.Red ? Player.Blue : Player.Red;
-        var threats = _threatDetector.DetectThreats(board, oppPlayer)
-            .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.StraightThree)
-            .ToList();
-
-        if (threats.Count > 0)
+        // CRITICAL DEFENSE: Filter candidates to only blocking moves when opponent has threats
+        if (hasOpponentThreats)
         {
-            var straightFourCount = threats.Count(t => t.Type == ThreatType.StraightFour);
-            var straightThreeCount = threats.Count(t => t.Type == ThreatType.StraightThree);
+            // CRITICAL FIX: For open fours, reserve minimum time to respond properly
+            // An open four is a game-ending threat that requires proper calculation
+            if (hasOpenFour)
+            {
+                const long minCriticalResponseTimeMs = 3000;  // Minimum 3 seconds for critical responses
 
-            var blockingSquares = threats
-                .SelectMany(t => t.GainSquares)
-                .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
-                .ToList();
+                if (timeAlloc.SoftBoundMs < minCriticalResponseTimeMs)
+                {
+                    Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) CRITICAL: Open four detected - reserving minimum time ({minCriticalResponseTimeMs}ms)");
+                    timeAlloc = new TimeAllocation
+                    {
+                        SoftBoundMs = Math.Max(minCriticalResponseTimeMs, timeAlloc.SoftBoundMs),
+                        HardBoundMs = Math.Max(minCriticalResponseTimeMs * 13 / 10, timeAlloc.HardBoundMs),
+                        OptimalTimeMs = Math.Max(minCriticalResponseTimeMs * 8 / 10, timeAlloc.OptimalTimeMs),
+                        IsEmergency = false,
+                        Phase = timeAlloc.Phase,
+                        ComplexityMultiplier = timeAlloc.ComplexityMultiplier
+                    };
+                }
+            }
 
-            Console.WriteLine($"[AI DEFENSE] Opponent has {straightFourCount} StraightFour, {straightThreeCount} StraightThree threat(s), blocking squares: {string.Join(", ", blockingSquares.Select(g => $"({g.x},{g.y})"))}");
-
-            // Filter candidates to only blocking moves
+            // For open fours with 2+ blocking squares, use ALL blocking squares as candidates
+            // The search will choose the best one based on evaluation
             var blockingSet = new HashSet<(int x, int y)>(blockingSquares);
             var filteredCandidates = candidates.Where(c => blockingSet.Contains(c)).ToList();
 
             if (filteredCandidates.Count > 0)
             {
                 candidates = filteredCandidates;
-                Console.WriteLine($"[AI DEFENSE] Filtered to {candidates.Count} blocking move(s)");
+                Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) Filtered to {candidates.Count} blocking move(s)");
             }
             else
             {
                 // Fallback: use the blocking squares directly as candidates
                 candidates = blockingSquares;
-                Console.WriteLine($"[AI DEFENSE] Using blocking squares directly as candidates");
+                Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) Using blocking squares directly as candidates");
+            }
+
+            // CRITICAL FIX: For open fours (StraightFour with 2+ blocking squares),
+            // we're in a lost position if we can't win immediately. Log this for debugging.
+            if (hasOpenFour)
+            {
+                Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) WARNING: Open four detected - opponent can win in 2 moves");
+
+                // Check if we have counter-threats
+                var ourThreats = _threatDetector.DetectThreats(board, player);
+                var ourStraightFours = ourThreats.Count(t => t.Type == ThreatType.StraightFour);
+                var ourStraightThrees = ourThreats.Count(t => t.Type == ThreatType.StraightThree);
+
+                if (ourStraightFours > 0)
+                {
+                    Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) We have {ourStraightFours} StraightFour threat(s) - counter-attack instead of just blocking");
+                }
+                else if (ourStraightThrees > 1)
+                {
+                    Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) We have {ourStraightThrees} StraightThree threat(s) - creating counter-play");
+                }
             }
         }
         // VCF Defense was causing D11 to play too reactively, blocking opponent threats
@@ -388,7 +456,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var emergencyVcfCap = GetEmergencyVCFCap(difficulty);
                 vcfTimeLimit = (int)Math.Min(timeAlloc.HardBoundMs * 0.8, emergencyVcfCap);
-                Console.WriteLine($"[AI VCF] Emergency mode: Using up to 80% of hard bound ({vcfTimeLimit}ms, cap: {emergencyVcfCap}ms) for VCF");
+                Console.WriteLine($"[AI VCF] {difficulty} ({player}) Emergency mode: Using up to 80% of hard bound ({vcfTimeLimit}ms, cap: {emergencyVcfCap}ms) for VCF");
             }
 
             var vcfResult = _vcfSolver.SolveVCF(board, player, timeLimitMs: vcfTimeLimit, maxDepth: vcfMaxDepth);
@@ -400,26 +468,36 @@ public class MinimaxAI : IStatsPublisher
             if (vcfResult.IsSolved && vcfResult.IsWin && vcfResult.BestMove.HasValue)
             {
                 // VCF found a forced win sequence - use it immediately
-                Console.WriteLine($"[AI VCF] Found winning move ({vcfResult.BestMove.Value.x}, {vcfResult.BestMove.Value.y}), depth: {vcfResult.DepthAchieved}, nodes: {vcfResult.NodesSearched}");
+                Console.WriteLine($"[AI VCF] {difficulty} ({player}) Found winning move ({vcfResult.BestMove.Value.x}, {vcfResult.BestMove.Value.y}), depth: {vcfResult.DepthAchieved}, nodes: {vcfResult.NodesSearched}");
                 return vcfResult.BestMove.Value;
             }
 
-            // VCF-FIRST MODE: In emergency mode, if VCF didn't find a win, fall back to TT move
-            // Skip the expensive minimax search entirely when time is critical
+            // VCF-FIRST MODE: In emergency mode, if VCF didn't find a win, check opponent threats
+            // CRITICAL: Don't skip blocking even in emergency mode
             if (timeAlloc.IsEmergency)
             {
-                // Try to get a TT move as fallback
+                // If opponent has threats, MUST block - don't use TT fallback
+                if (hasOpponentThreats && candidates.Count > 0)
+                {
+                    Console.WriteLine($"[AI VCF] {difficulty} ({player}) Emergency: No VCF found, but opponent has threats - using blocking move");
+                    // Candidates are already filtered to blocking squares from earlier threat detection
+                    _depthAchieved = 1;
+                    _nodesSearched = 1;
+                    return candidates[0];
+                }
+
+                // No opponent threats - safe to use TT move
                 var ttMove = GetTranspositionTableMove(board, player, minDepth: 3);
                 if (ttMove.HasValue)
                 {
-                    Console.WriteLine("[AI VCF] Emergency: No VCF found, using TT move as fallback");
+                    Console.WriteLine($"[AI VCF] {difficulty} ({player}) Emergency: No VCF found, using TT move as fallback");
                     _depthAchieved = 3;
                     _nodesSearched = 1;
                     return ttMove.Value;
                 }
 
                 // Last resort: return the first candidate (usually the center or near existing stones)
-                Console.WriteLine("[AI VCF] Emergency: No TT move, using quick candidate selection");
+                Console.WriteLine($"[AI VCF] {difficulty} ({player}) Emergency: No TT move, using quick candidate selection");
                 _depthAchieved = 1;
                 _nodesSearched = 1;
                 return candidates[0];
@@ -437,6 +515,8 @@ public class MinimaxAI : IStatsPublisher
         {
             int threadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
             _lastThreadCount = threadCount;
+            _tableHits = 0;
+            _tableLookups = 0;
             //Console.WriteLine($"[AI] Using parallel search (Lazy SMP) for {difficulty} with {threadCount} threads");
 
             // CRITICAL: Apply time multiplier to time allocation for parallel search
@@ -466,6 +546,8 @@ public class MinimaxAI : IStatsPublisher
             _lastParallelDiagnostics = parallelResult.ParallelDiagnostics;
             _lastAllocatedTimeMs = parallelResult.AllocatedTimeMs;
             _lastPonderingEnabled = ponderingEnabled;
+            _tableHits = parallelResult.TableHits;
+            _tableLookups = parallelResult.TableLookups;
 
             // Store PV for pondering
             _lastPV = PV.FromSingleMove(parallelResult.X, parallelResult.Y, _depthAchieved, 0);
@@ -617,12 +699,12 @@ public class MinimaxAI : IStatsPublisher
         if (difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Grandmaster)
         {
             double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
-            Console.WriteLine($"[AI TT] Hits: {_tableHits}/{_tableLookups} ({hitRate:F1}%)");
+            Console.WriteLine($"[AI TT] {difficulty} ({player}) Hits: {_tableHits}/{_tableLookups} ({hitRate:F1}%)");
             var (used, usage) = _transpositionTable.GetStats();
-            Console.WriteLine($"[AI TT] Table usage: {used} entries ({usage:F2}%)");
+            Console.WriteLine($"[AI TT] {difficulty} ({player}) Table usage: {used} entries ({usage:F2}%)");
             var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
             var nps = elapsedMs > 0 ? nodesSearched * 1000 / elapsedMs : 0;
-            Console.WriteLine($"[AI STATS] TimeMult: {timeMultiplier:P0}, TargetD: {maxDepthFromBudget}, Depth: {depthAchieved}, Nodes: {nodesSearched}, NPS: {nps:F0}");
+            Console.WriteLine($"[AI STATS] {difficulty} ({player}) TimeMult: {timeMultiplier:P0}, TargetD: {maxDepthFromBudget}, Depth: {depthAchieved}, Nodes: {nodesSearched}, NPS: {nps:F0}");
         }
 
         // Store PV for pondering
@@ -1093,7 +1175,7 @@ public class MinimaxAI : IStatsPublisher
         // If opponent can VCF, we need to find a defensive move
         if (opponentVCFResult.IsSolved && opponentVCFResult.IsWin)
         {
-            Console.WriteLine($"[AI VCF] Opponent has VCF threat (depth: {opponentVCFResult.DepthAchieved}, nodes: {opponentVCFResult.NodesSearched})");
+            Console.WriteLine($"[AI VCF] {difficulty} ({player}) Opponent has VCF threat (depth: {opponentVCFResult.DepthAchieved}, nodes: {opponentVCFResult.NodesSearched})");
 
             // Get defensive moves - these are moves that block opponent's threats
             var defenses = _vcfSolver.GetDefenseMoves(board, opponent, player);
@@ -1112,7 +1194,7 @@ public class MinimaxAI : IStatsPublisher
                         defense.y >= 0 && defense.y < board.BoardSize &&
                         board.GetCell(defense.x, defense.y).IsEmpty)
                     {
-                        Console.WriteLine($"[AI VCF] Using defensive move ({defense.x}, {defense.y})");
+                        Console.WriteLine($"[AI VCF] {difficulty} ({player}) Using defensive move ({defense.x}, {defense.y})");
                         return defense;
                     }
                 }
@@ -1123,8 +1205,30 @@ public class MinimaxAI : IStatsPublisher
                 if (fallback.x >= 0 && fallback.x < board.BoardSize &&
                     fallback.y >= 0 && fallback.y < board.BoardSize)
                 {
-                    Console.WriteLine($"[AI VCF] Using fallback defense at ({fallback.x}, {fallback.y})");
+                    Console.WriteLine($"[AI VCF] {difficulty} ({player}) Using fallback defense at ({fallback.x}, {fallback.y})");
                     return fallback;
+                }
+            }
+        }
+
+        // CRITICAL FIX: Check for opponent immediate win even when VCF returns IsSolved=false
+        // The VCF solver returns IsSolved=false when opponent has an immediate one-move win
+        // We must detect this and defend against it by scanning all empty squares
+        for (int x = 0; x < board.BoardSize; x++)
+        {
+            for (int y = 0; y < board.BoardSize; y++)
+            {
+                if (board.GetCell(x, y).IsEmpty)
+                {
+                    board.PlaceStone(x, y, opponent);
+                    var winResult = _winDetector.CheckWin(board);
+                    board.GetCell(x, y).Player = Player.None;
+
+                    if (winResult.HasWinner && winResult.Winner == opponent)
+                    {
+                        Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) Opponent has immediate win at ({x}, {y}) - blocking!");
+                        return (x, y);
+                    }
                 }
             }
         }
