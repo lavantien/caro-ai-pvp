@@ -59,16 +59,16 @@ public delegate void LogCallback(string level, string source, string message);
 /// </summary>
 public class TournamentEngine
 {
-    private readonly MinimaxAI _redAI = new();
-    private readonly MinimaxAI _blueAI = new();
+    private readonly MinimaxAI _botA = new();
+    private readonly MinimaxAI _botB = new();
     private readonly MoveValidator _moveValidator = new();
 
     // Stats subscriber tasks
     private CancellationTokenSource? _statsCts;
-    private Task? _redStatsTask;
-    private Task? _blueStatsTask;
+    private Task? _botAStatsTask;
+    private Task? _botBStatsTask;
 
-    // Cached ponder stats from async subscriber
+    // Cached ponder stats from async subscriber (indexed by Player color, not bot)
     private long _redPonderNodes;
     private double _redPonderNps;
     private int _redPonderDepth;
@@ -91,13 +91,27 @@ public class TournamentEngine
         BoardCallback? onBoardUpdate = null,  // Callback for board state updates
         LogCallback? onLog = null,      // Callback for structured logging
         string redBotName = "Red",
-        string blueBotName = "Blue"
+        string blueBotName = "Blue",
+        bool swapColors = false  // If true, BotA plays as Blue, BotB plays as Red
     )
     {
+        // Map bots to colors based on swap parameter
+        // swapColors=false: BotA (with redDifficulty capabilities) plays Red, BotB (with blueDifficulty) plays Blue
+        // swapColors=true: BotA plays Blue, BotB plays Red (each bot keeps its difficulty capabilities)
+        var botAIsRed = !swapColors;
+        var redAI = botAIsRed ? _botA : _botB;
+        var blueAI = botAIsRed ? _botB : _botA;
+
+        // Map difficulties to bots (not to colors)
+        // BotA always uses redDifficulty config, BotB always uses blueDifficulty config
+        // When swapped, Red gets BotB (with blueDifficulty), Blue gets BotA (with redDifficulty)
+        var botADifficulty = redDifficulty;   // BotA's difficulty
+        var botBDifficulty = blueDifficulty;  // BotB's difficulty
+
         // Clear all AI state to prevent cross-contamination between games
         // This is CRITICAL when bots of different difficulties play in sequence
-        _redAI.ClearAllState();
-        _blueAI.ClearAllState();
+        _botA.ClearAllState();
+        _botB.ClearAllState();
 
         // Reset cached ponder stats
         _redPonderNodes = 0;
@@ -111,12 +125,12 @@ public class TournamentEngine
         var redSettings = AIDifficultyConfig.Instance.GetSettings(redDifficulty);
         var blueSettings = AIDifficultyConfig.Instance.GetSettings(blueDifficulty);
 
-        // Start stats subscriber tasks
+        // Start stats subscriber tasks - subscribe based on which bot is playing which color
         _statsCts = new CancellationTokenSource();
-        _redStatsTask = Task.Run(() => SubscribeStatsAsync(_redAI, _redAI.StatsChannel, Player.Red, _statsCts.Token));
-        _blueStatsTask = Task.Run(() => SubscribeStatsAsync(_blueAI, _blueAI.StatsChannel, Player.Blue, _statsCts.Token));
+        _botAStatsTask = Task.Run(() => SubscribeStatsAsync(_botA, _botA.StatsChannel, botAIsRed ? Player.Red : Player.Blue, _statsCts.Token));
+        _botBStatsTask = Task.Run(() => SubscribeStatsAsync(_botB, _botB.StatsChannel, botAIsRed ? Player.Blue : Player.Red, _statsCts.Token));
 
-        // Log game start
+        // Log game start with actual color assignments
         onLog?.Invoke("info", "system", $"Game started: {redBotName} ({redDifficulty}) vs {blueBotName} ({blueDifficulty}) | Time: {initialTimeSeconds}s+{incrementSeconds}s | Max moves: {maxMoves}");
 
         var board = new Board();
@@ -136,30 +150,37 @@ public class TournamentEngine
         while (totalMoves < maxMoves && !game.IsGameOver)
         {
             var currentPlayer = game.CurrentPlayer;
-            var difficulty = currentPlayer == Player.Red ? redDifficulty : blueDifficulty;
             var isRed = currentPlayer == Player.Red;
             var moveNumber = totalMoves + 1;  // 1-indexed move number
 
             // Use the appropriate AI instance for this player
-            var currentAI = isRed ? _redAI : _blueAI;
+            var currentAI = isRed ? redAI : blueAI;
 
-            // Use THIS PLAYER's difficulty settings for pondering and parallel search
-            var currentSettings = isRed ? redSettings : blueSettings;
+            // Determine which bot is playing, and use that bot's difficulty
+            // BotA always uses botADifficulty, BotB always uses botBDifficulty
+            var currentBotIsA = (isRed && botAIsRed) || (!isRed && !botAIsRed);
+            var difficulty = currentBotIsA ? botADifficulty : botBDifficulty;
+
+            // Use THIS BOT's difficulty settings for pondering and parallel search
+            var currentSettings = currentBotIsA ? redSettings : blueSettings;
             var playerPonderingEnabled = ponderingEnabled && currentSettings.PonderingEnabled;
             var playerParallelEnabled = parallelSearchEnabled && currentSettings.ParallelSearchEnabled;
 
             // Stop current player's pondering (from during opponent's previous move) and get their stats
-            // These stats will be displayed on the current player's move line
-            currentAI.StopPondering();
+            // Pass the AI's actual color (currentPlayer) for correct stats attribution
+            currentAI.StopPondering(currentPlayer);
             var (ponderDepth, ponderNodes, ponderNps, _) = currentAI.GetLastPonderStats(currentPlayer);
 
             // Start opponent's pondering IMMEDIATELY (opponent will think during current player's move)
-            var opponentAI = isRed ? _blueAI : _redAI;
-            var opponentSettings = isRed ? blueSettings : redSettings;
+            var opponentAI = isRed ? blueAI : redAI;
+            var opponentBotIsA = (isRed && !botAIsRed) || (!isRed && botAIsRed);  // Opponent is the other bot
+            var opponentSettings = opponentBotIsA ? redSettings : blueSettings;
+            var opponentColor = isRed ? Player.Blue : Player.Red;  // Explicit opponent color
             var opponentPonderingEnabled = ponderingEnabled && opponentSettings.PonderingEnabled;
             if (opponentPonderingEnabled)
             {
-                opponentAI.StartPonderingNow(board, currentPlayer, opponentSettings.Difficulty);
+                onLog?.Invoke("debug", "system", $"Starting pondering: opponent={opponentColor}, difficulty={opponentSettings.Difficulty}");
+                opponentAI.StartPonderingNow(board, currentPlayer, opponentSettings.Difficulty, opponentColor);
             }
 
             // Time the AI move (opponent is pondering in background)
@@ -247,7 +268,8 @@ public class TournamentEngine
                 // Start current player's pondering for opponent's response (runs during opponent's next turn)
                 if (playerPonderingEnabled)
                 {
-                    currentAI.StartPonderingAfterMove(board, currentPlayer);
+                    onLog?.Invoke("debug", "system", $"Starting pondering after move: player={currentPlayer}, difficulty={currentSettings.Difficulty}");
+                    currentAI.StartPonderingAfterMove(board, currentPlayer, currentPlayer, currentSettings.Difficulty);
                 }
             }
             catch (Exception ex)
@@ -276,16 +298,22 @@ public class TournamentEngine
         {
             winner = game.Winner;
             loser = winner == Player.Red ? Player.Blue : Player.Red;
-            winnerDifficulty = winner == Player.Red ? redDifficulty : blueDifficulty;
-            loserDifficulty = loser == Player.Red ? redDifficulty : blueDifficulty;
+            // Map color to bot difficulty (Red may be BotA or BotB depending on swapColors)
+            var winnerBotIsA = (winner == Player.Red && botAIsRed) || (winner == Player.Blue && !botAIsRed);
+            winnerDifficulty = winnerBotIsA ? botADifficulty : botBDifficulty;
+            var loserBotIsA = (loser == Player.Red && botAIsRed) || (loser == Player.Blue && !botAIsRed);
+            loserDifficulty = loserBotIsA ? botADifficulty : botBDifficulty;
         }
         else if (endedByTimeout)
         {
             // Timeout = loss for the player who timed out
             winner = timeoutPlayer == Player.Red ? Player.Blue : Player.Red;
             loser = timeoutPlayer;
-            winnerDifficulty = winner == Player.Red ? redDifficulty : blueDifficulty;
-            loserDifficulty = loser == Player.Red ? redDifficulty : blueDifficulty;
+            // Map color to bot difficulty (Red may be BotA or BotB depending on swapColors)
+            var winnerBotIsA = (winner == Player.Red && botAIsRed) || (winner == Player.Blue && !botAIsRed);
+            winnerDifficulty = winnerBotIsA ? botADifficulty : botBDifficulty;
+            var loserBotIsA = (loser == Player.Red && botAIsRed) || (loser == Player.Blue && !botAIsRed);
+            loserDifficulty = loserBotIsA ? botADifficulty : botBDifficulty;
 
             onLog?.Invoke("warning", "system",
                 $"TIMEOUT: {loserDifficulty} ({loser}) ran out of time | {winnerDifficulty} ({winner}) wins by default | Moves: {totalMoves}");
@@ -340,7 +368,7 @@ public class TournamentEngine
         _statsCts?.Cancel();
         try
         {
-            Task.WhenAll(_redStatsTask ?? Task.CompletedTask, _blueStatsTask ?? Task.CompletedTask)
+            Task.WhenAll(_botAStatsTask ?? Task.CompletedTask, _botBStatsTask ?? Task.CompletedTask)
                 .Wait(TimeSpan.FromSeconds(1));
         }
         catch (AggregateException)
