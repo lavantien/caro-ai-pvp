@@ -5,7 +5,7 @@ using Caro.Core.Tournament;
 namespace Caro.TournamentRunner;
 
 /// <summary>
-/// Comprehensive matchup runner with 20 matchups (10 games each)
+/// Comprehensive matchup runner with 20 matchups (10 GamesPerMatchup each)
 /// 15 standard matchups + 5 experimental matchups
 /// All with alternating colors, full parallel, full pondering
 /// </summary>
@@ -29,24 +29,28 @@ public class ComprehensiveMatchupRunner
         Console.WriteLine(message);
     }
 
-    public static async Task RunAsync(int timeSeconds = 420, int incSeconds = 5, int gamesPerMatchup = 10)
+    public static async Task RunAsync()
     {
-        await RunAsyncInternal(timeSeconds, incSeconds, gamesPerMatchup);
+        await RunAsyncInternal();
     }
 
-    private static async Task RunAsyncInternal(int timeSeconds = 420, int incSeconds = 5, int gamesPerMatchup = 10)
+    private const int TimeSeconds = 420;
+    private const int IncSeconds = 5;
+    private const int GamesPerMatchup = 10;
+
+    private static async Task RunAsyncInternal()
     {
         var engine = new TournamentEngine();
-        var tcName = $"{timeSeconds / 60}+{incSeconds}";
+        const string tcName = "7+5";
 
-        LogWrite($"╔═══════════════════════════════════════════════════════════════════╗");
-        LogWrite($"║     COMPREHENSIVE MATCHUP RUNNER: {tcName} Time Control               ║");
-        LogWrite($"║     {gamesPerMatchup} games per matchup (alternating colors)              ║");
-        LogWrite($"║     Full parallel search, Full pondering                             ║");
-        LogWrite($"╚═══════════════════════════════════════════════════════════════════╝");
+        LogWrite($"═══════════════════════════════════════════════════════════════════");
+        LogWrite($"  COMPREHENSIVE MATCHUP RUNNER: {tcName} Time Control");
+        LogWrite($"  {GamesPerMatchup} GamesPerMatchup per matchup (alternating colors)");
+        LogWrite($"  Full parallel search, Full pondering");
+        LogWrite($"═══════════════════════════════════════════════════════════════════");
         LogWrite();
 
-        var matchups = GenerateMatchups(gamesPerMatchup, timeSeconds, incSeconds);
+        var matchups = GenerateMatchups();
 
         // Group by standard vs experimental
         var standardMatchups = matchups.Where(m => !m.IsExperimental).ToList();
@@ -55,7 +59,7 @@ public class ComprehensiveMatchupRunner
         LogWrite($"Standard matchups: {standardMatchups.Count}");
         LogWrite($"Experimental matchups: {experimentalMatchups.Count}");
         LogWrite($"Total matchups: {matchups.Count}");
-        LogWrite($"Total games: {matchups.Sum(m => m.Games)}");
+        LogWrite($"Total GamesPerMatchup: {matchups.Sum(m => m.Games)}");
         LogWrite();
 
         var results = new List<MatchupResult>();
@@ -95,7 +99,7 @@ public class ComprehensiveMatchupRunner
         PrintFinalSummary(results);
     }
 
-    private static List<MatchupConfig> GenerateMatchups(int games, int time, int inc)
+    private static List<MatchupConfig> GenerateMatchups()
     {
         var matchups = new List<MatchupConfig>();
 
@@ -105,9 +109,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Braindead,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = true,
             EnableParallel = true,
             Description = "1. Grandmaster vs Braindead"
@@ -117,9 +121,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Easy,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = true,
             EnableParallel = true,
             Description = "2. Grandmaster vs Easy"
@@ -129,9 +133,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Medium,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = true,
             EnableParallel = true,
             Description = "3. Grandmaster vs Medium"
@@ -141,9 +145,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Hard,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = true,
             EnableParallel = true,
             Description = "4. Grandmaster vs Hard"
@@ -153,9 +157,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Grandmaster,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = true,
             EnableParallel = true,
             Description = "5. Grandmaster vs Grandmaster"
@@ -166,9 +170,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Hard,
             BlueDifficulty = AIDifficulty.Braindead,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = true,
             EnableParallel = true,
             Description = "6. Hard vs Braindead"
@@ -178,9 +182,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Hard,
             BlueDifficulty = AIDifficulty.Easy,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = true,
             EnableParallel = true,
             Description = "7. Hard vs Easy"
@@ -190,9 +194,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Hard,
             BlueDifficulty = AIDifficulty.Medium,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = true,
             EnableParallel = true,
             Description = "8. Hard vs Medium"
@@ -202,9 +206,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Hard,
             BlueDifficulty = AIDifficulty.Hard,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = true,
             EnableParallel = true,
             Description = "9. Hard vs Hard"
@@ -215,9 +219,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Medium,
             BlueDifficulty = AIDifficulty.Braindead,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = true,
             EnableParallel = false,
             Description = "10. Medium vs Braindead"
@@ -227,9 +231,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Medium,
             BlueDifficulty = AIDifficulty.Easy,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = true,
             EnableParallel = false,
             Description = "11. Medium vs Easy"
@@ -239,9 +243,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Medium,
             BlueDifficulty = AIDifficulty.Medium,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = true,
             EnableParallel = false,
             Description = "12. Medium vs Medium"
@@ -252,9 +256,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Easy,
             BlueDifficulty = AIDifficulty.Braindead,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = false,
             EnableParallel = false,
             Description = "13. Easy vs Braindead"
@@ -264,9 +268,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Easy,
             BlueDifficulty = AIDifficulty.Easy,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = false,
             EnableParallel = false,
             Description = "14. Easy vs Easy"
@@ -277,9 +281,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Braindead,
             BlueDifficulty = AIDifficulty.Braindead,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = false,
             EnableParallel = false,
             Description = "15. Braindead vs Braindead"
@@ -293,9 +297,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Hard,
-            Games = games,
-            InitialTimeSeconds = time / 2,
-            IncrementSeconds = inc / 2,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds / 2,
+            IncrementSeconds = IncSeconds / 2,
             EnablePondering = true,
             EnableParallel = true,
             Description = "16. EXP: Grandmaster (half time) vs Hard",
@@ -307,9 +311,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Hard,
             BlueDifficulty = AIDifficulty.Medium,
-            Games = games,
-            InitialTimeSeconds = time * 2,
-            IncrementSeconds = inc * 2,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds * 2,
+            IncrementSeconds = IncSeconds * 2,
             EnablePondering = true,
             EnableParallel = true,
             Description = "17. EXP: Hard (double time) vs Medium",
@@ -321,9 +325,9 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Medium,
             BlueDifficulty = AIDifficulty.Medium,
-            Games = games,
-            InitialTimeSeconds = time,
-            IncrementSeconds = inc,
+            Games = GamesPerMatchup,
+            InitialTimeSeconds = TimeSeconds,
+            IncrementSeconds = IncSeconds,
             EnablePondering = false,
             EnableParallel = false,
             Description = "18. EXP: Medium vs Medium (no pondering)",
@@ -335,7 +339,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Grandmaster,
-            Games = games,
+            Games = GamesPerMatchup,
             InitialTimeSeconds = 60,
             IncrementSeconds = 1,
             EnablePondering = true,
@@ -349,7 +353,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Hard,
-            Games = games / 2, // Fewer games due to longer time
+            Games = GamesPerMatchup / 2, // Fewer GamesPerMatchup due to longer time
             InitialTimeSeconds = 1200, // 20 minutes
             IncrementSeconds = 10,
             EnablePondering = true,
