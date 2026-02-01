@@ -1,0 +1,10 @@
+global using Xunit;
+global using FluentAssertions;
+global using Moq;
+global using Caro.Core.Application.DTOs;
+global using Caro.Core.Application.Interfaces;
+global using Caro.Core.Application.Mappers;
+global using Caro.Core.Application.Services;
+global using Caro.Core.Domain.Entities;
+global using Caro.Core.Domain.ValueObjects;
+global using Microsoft.Extensions.Logging;
