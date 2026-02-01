@@ -41,9 +41,10 @@ public class RandomizedSchedulerTests
         var bots = AIBotFactory.GetAllTournamentBots();
         var matches = TournamentScheduler.GenerateRoundRobinSchedule(bots);
 
-        // First 11 matches should have all 22 unique bots (no bot plays twice in first round)
+        // First half of matches should have all unique bots (no bot plays twice in first round)
         var firstRoundBots = new HashSet<string>();
-        for (int i = 0; i < 11; i++)
+        int firstRoundCount = bots.Count / 2;
+        for (int i = 0; i < firstRoundCount; i++)
         {
             firstRoundBots.Contains(matches[i].RedBot.Name).Should().BeFalse(
                 $"Red bot {matches[i].RedBot.Name} already played in first round at index {i}");
@@ -54,7 +55,7 @@ public class RandomizedSchedulerTests
             firstRoundBots.Add(matches[i].BlueBot.Name);
         }
 
-        firstRoundBots.Count.Should().Be(22);
+        firstRoundBots.Count.Should().Be(bots.Count);
     }
 
     [Fact]
@@ -63,10 +64,10 @@ public class RandomizedSchedulerTests
         var bots = AIBotFactory.GetAllTournamentBots();
         var matches = TournamentScheduler.GenerateRoundRobinSchedule(bots);
 
-        // 22 bots, each plays 21 opponents twice = 22 * 21 = 462 games
+        // Each bot plays each opponent twice (once as Red, once as Blue)
+        // Total games = n * (n-1) where n is number of bots
         int expectedGames = TournamentScheduler.CalculateTotalGames(bots.Count);
         matches.Count.Should().Be(expectedGames);
-        matches.Count.Should().Be(462);
     }
 
     [Fact]

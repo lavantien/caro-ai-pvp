@@ -170,12 +170,12 @@ public class HistoryHeuristicTests
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
 
         // Assert - Should play center or near center
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < 19);
+        Assert.True(move.y >= 0 && move.y < 19);
 
-        // Empty board should result in center move
-        Assert.Equal(7, move.x);
-        Assert.Equal(7, move.y);
+        // Empty board should result in center move (center of 19x19 board)
+        Assert.Equal(9, move.x);
+        Assert.Equal(9, move.y);
     }
 
     [Fact]
