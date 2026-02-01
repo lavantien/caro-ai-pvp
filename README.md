@@ -23,6 +23,7 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 
 | Optimization | Speedup |
 |--------------|---------|
+| Hash Move First (Lazy SMP) | 2-5x (TT work sharing) |
 | Principal Variation Search (PVS) | 20-40% |
 | Late Move Reduction (LMR) | 30-50% |
 | Quiescence Search | Prevents blunders |
@@ -30,12 +31,21 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 | History Heuristic | 10-20% |
 | Aspiration Windows | 10-30% |
 
+**Move Ordering Priority (Optimized for Lazy SMP):**
+1. Hash Move (TT Move) - UNCONDITIONAL #1 for thread work sharing
+2. Emergency Defense - Blocks opponent's immediate threats (Open 4)
+3. Winning Threats - Creates own threats (Open 4, Double 3)
+4. Killer Moves - Caused cutoffs at sibling nodes
+5. History/Butterfly Heuristic - General statistical sorting
+6. Positional Heuristics - Center proximity, nearby stones
+
 **Advanced Features:**
-- Lazy SMP parallel search (Hard/Grandmaster)
-- VCF Solver (Grandmaster only)
-- Threat Space Search
+- Lazy SMP parallel search - Helper threads share TT via hash move priority
+- VCF Solver - Runs BEFORE alpha-beta to detect forcing sequences
+- Emergency Defense - Immediate threat blocking at priority #2
+- Threat Space Search - Tactical move generation
 - BitBoard representation (6x ulong for 19x19)
-- Pondering (think on opponent's time)
+- Pondering - Think on opponent's time
 
 ### Difficulty Levels
 
@@ -113,8 +123,9 @@ Clean Architecture with three core layers:
 ┌──────────────────────────────────────────────────────────────────┐
 │                    Infrastructure Layer                          │
 │  ┌─────────────────────────────────────────────────────────────┐ │
-│  │  MinimaxAI  │  ParallelMinimaxSearch  │  BitBoardEvaluator  │ │
-│  │  Lazy SMP   │  Transposition Table    │  Ponderer           │ │
+│  │  MinimaxAI  │  VCFSolver  │  ParallelMinimaxSearch          │ │
+│  │  Hash Move  │  VCF Pre-Search │  Lazy SMP  │  TT Sharding    │ │
+│  │  Priority #1│  Emergency Defense │  BitBoardEvaluator       │ │
 │  └─────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -194,7 +205,7 @@ Production-grade concurrency following .NET 10 best practices:
 
 **Backend:** .NET 10, ASP.NET Core 10, SignalR, System.Threading.Channels, SQLite + FTS5, xUnit v3.1
 
-**AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF solver, Threat space search
+**AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP, Hash Move-first ordering
 
 ---
 
