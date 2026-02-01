@@ -7,7 +7,11 @@ namespace Caro.Core.Tests.Tournament;
 /// <summary>
 /// Tests that verify saved tournament snapshots against expected invariants.
 /// These tests can detect regressions by ensuring snapshots maintain expected properties.
+///
+/// Integration path test - covered by matchup suite which includes file logging.
+/// Run with: dotnet test --filter "Category!=Integration" to exclude.
 /// </summary>
+[Trait("Category", "Integration")]
 public class SavedLogVerifierTests
 {
     private const string SnapshotDirectory = @"Tournament\Snapshots";

@@ -11,7 +11,11 @@ namespace Caro.Core.Tests.GameLogic.Pondering;
 /// <summary>
 /// Integration tests for pondering functionality
 /// Tests the interaction between pondering components and the main AI
+///
+/// Integration path test - covered by matchup suite which includes pondering verification.
+/// Run with: dotnet test --filter "Category!=Integration" to exclude.
 /// </summary>
+[Trait("Category", "Integration")]
 public class PonderingIntegrationTests
 {
     [Fact]
