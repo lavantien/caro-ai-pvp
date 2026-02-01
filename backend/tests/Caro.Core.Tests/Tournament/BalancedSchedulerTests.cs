@@ -91,36 +91,38 @@ public class BalancedSchedulerTests
     }
 
     [Fact]
-    public void GenerateRoundRobinSchedule_With22Bots_First11Matches_HaveAllUniqueBots()
+    public void GenerateRoundRobinSchedule_WithAllBots_FirstMatches_HaveAllUniqueBots()
     {
         // Arrange: Use actual tournament bots
         var bots = AIBotFactory.GetAllTournamentBots();
+        var botCount = bots.Count;
+        var firstRoundCount = botCount / 2;
 
         // Act
         var matches = TournamentScheduler.GenerateRoundRobinSchedule(bots);
 
-        // Assert: First 11 matches should involve all 22 bots exactly once
-        // (22 bots / 2 per match = 11 matches can run in parallel)
+        // Assert: First (botCount/2) matches should involve all bots exactly once
+        // (n bots / 2 per match = n/2 matches can run in parallel)
         var botAppearances = new Dictionary<string, int>();
         foreach (var bot in bots)
         {
             botAppearances[bot.Name] = 0;
         }
 
-        // Check first 11 matches
-        for (int i = 0; i < 11 && i < matches.Count; i++)
+        // Check first (botCount/2) matches
+        for (int i = 0; i < firstRoundCount && i < matches.Count; i++)
         {
             botAppearances[matches[i].RedBot.Name]++;
             botAppearances[matches[i].BlueBot.Name]++;
         }
 
-        // Each bot should appear exactly once in the first 11 matches
+        // Each bot should appear exactly once in the first (botCount/2) matches
         var failures = new List<string>();
         foreach (var bot in bots)
         {
             if (botAppearances[bot.Name] != 1)
             {
-                failures.Add($"Bot {bot.Name} should appear exactly once in first 11 matches, but appeared {botAppearances[bot.Name]} times");
+                failures.Add($"Bot {bot.Name} should appear exactly once in first {firstRoundCount} matches, but appeared {botAppearances[bot.Name]} times");
             }
         }
         if (failures.Count > 0)
@@ -128,14 +130,14 @@ public class BalancedSchedulerTests
             Assert.Fail(string.Join("\n", failures));
         }
 
-        // Also verify total unique bots in first 11 matches is 22
+        // Also verify total unique bots in first (botCount/2) matches equals botCount
         var uniqueBots = new HashSet<string>();
-        for (int i = 0; i < 11 && i < matches.Count; i++)
+        for (int i = 0; i < firstRoundCount && i < matches.Count; i++)
         {
             uniqueBots.Add(matches[i].RedBot.Name);
             uniqueBots.Add(matches[i].BlueBot.Name);
         }
-        Assert.Equal(22, uniqueBots.Count);
+        Assert.Equal(botCount, uniqueBots.Count);
     }
 
     [Fact]

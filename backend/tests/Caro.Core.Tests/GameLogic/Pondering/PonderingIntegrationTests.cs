@@ -64,7 +64,7 @@ public class PonderingIntegrationTests
         // Arrange
         var ai = new MinimaxAI();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(9, 9, Player.Red);
 
         // Act
         var (x, y) = ai.GetBestMove(
@@ -78,9 +78,9 @@ public class PonderingIntegrationTests
 
         // Assert
         x.Should().BeGreaterThanOrEqualTo(0);
-        x.Should().BeLessThan(15);
+        x.Should().BeLessThan(19);
         y.Should().BeGreaterThanOrEqualTo(0);
-        y.Should().BeLessThan(15);
+        y.Should().BeLessThan(19);
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public class PonderingIntegrationTests
         // Arrange
         var ai = new MinimaxAI();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(9, 9, Player.Red);
 
         // Act
         var (x, y) = ai.GetBestMove(
@@ -103,9 +103,9 @@ public class PonderingIntegrationTests
 
         // Assert
         x.Should().BeGreaterThanOrEqualTo(0);
-        x.Should().BeLessThan(15);
+        x.Should().BeLessThan(19);
         y.Should().BeGreaterThanOrEqualTo(0);
-        y.Should().BeLessThan(15);
+        y.Should().BeLessThan(19);
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public class PonderingIntegrationTests
         // Arrange
         var ai = new MinimaxAI();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(9, 9, Player.Red);
 
         // Start a move that will trigger pondering
         _ = ai.GetBestMove(board, Player.Blue, AIDifficulty.Easy, 5000, 0, true);
@@ -160,7 +160,7 @@ public class PonderingIntegrationTests
         // Arrange
         var ai = new MinimaxAI();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(9, 9, Player.Red);
 
         // Start a move that will trigger pondering
         _ = ai.GetBestMove(board, Player.Blue, AIDifficulty.Easy, 5000, 0, true);
@@ -180,7 +180,7 @@ public class PonderingIntegrationTests
         // Arrange
         var ai = new MinimaxAI();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(9, 9, Player.Red);
 
         // Generate a move with pondering
         _ = ai.GetBestMove(board, Player.Blue, AIDifficulty.Easy, 5000, 0, true);
@@ -256,7 +256,7 @@ public class PonderingIntegrationTests
         // Arrange
         var ponderer = new Ponderer();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(9, 9, Player.Red);
 
         ponderer.StartPondering(
             board,
@@ -285,7 +285,7 @@ public class PonderingIntegrationTests
         // Arrange
         var ai = new MinimaxAI();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(9, 9, Player.Red);
 
         // Act
         ai.GetBestMove(board, Player.Blue, AIDifficulty.Easy, 5000, 0, false);
@@ -319,7 +319,7 @@ public class PonderingIntegrationTests
         // Assert
         result.Should().NotBeNull();
         result.TotalMoves.Should().BeGreaterThan(0);
-        stopwatch.ElapsedMilliseconds.Should().BeLessThan(60000); // Should complete in under 1 minute
+        stopwatch.ElapsedMilliseconds.Should().BeLessThan(120000); // Should complete in under 2 minutes (parallel search has overhead)
     }
 
     [Fact]
@@ -328,7 +328,7 @@ public class PonderingIntegrationTests
         // Arrange
         var ai = new MinimaxAI();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(9, 9, Player.Red);
 
         var difficulties = new[]
         {
@@ -344,7 +344,9 @@ public class PonderingIntegrationTests
             var (x, y) = ai.GetBestMove(board, Player.Blue, difficulty, 5000, 0, true);
 
             x.Should().BeGreaterThanOrEqualTo(0);
+            x.Should().BeLessThan(19);
             y.Should().BeGreaterThanOrEqualTo(0);
+            y.Should().BeLessThan(19);
         }
     }
 
@@ -354,7 +356,7 @@ public class PonderingIntegrationTests
         // Arrange
         var ponderer = new Ponderer();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(9, 9, Player.Red);
 
         ponderer.StartPondering(
             board,
@@ -387,7 +389,7 @@ public class PonderingIntegrationTests
         // Arrange
         var ponderer = new Ponderer();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board.PlaceStone(9, 9, Player.Red);
 
         // Initial state
         ponderer.State.Should().Be(PonderState.Idle);

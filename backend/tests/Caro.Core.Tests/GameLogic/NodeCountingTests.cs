@@ -27,7 +27,7 @@ public class NodeCountingTests
         // Run 5 searches with different positions
         for (int i = 0; i < 5; i++)
         {
-            board.PlaceStone(6 + i, 6, Player.Red);
+            board.PlaceStone(6 + (i % 3), 6 + (i / 2), Player.Red);
             var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard); // D4 uses parallel search
             var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
             results.Add(nodesSearched);

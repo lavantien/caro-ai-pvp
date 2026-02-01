@@ -352,11 +352,11 @@ public class VCFPrecheckTests
     [Fact]
     public void IsEndgamePhase_BoardOver70PercentFull_ReturnsTrue()
     {
-        // Arrange - Board with >70% occupancy (more than 157 stones)
+        // Arrange - Board with >70% occupancy (more than 253 stones for 19x19 board)
         var board = new Board();
-        for (int x = 0; x < 15; x++)
+        for (int x = 0; x < 19; x++)
         {
-            for (int y = 0; y < 12; y++) // 12 * 15 = 180 stones
+            for (int y = 0; y < 14; y++) // 14 * 19 = 266 stones (>70% of 361)
             {
                 board.PlaceStone(x, y, x % 2 == 0 ? Player.Red : Player.Blue);
             }
@@ -372,11 +372,11 @@ public class VCFPrecheckTests
     [Fact]
     public void IsEndgamePhase_HalfFull_ReturnsFalse()
     {
-        // Arrange - Board with ~50% occupancy
+        // Arrange - Board with ~50% occupancy (19x19 board)
         var board = new Board();
-        for (int x = 0; x < 15; x++)
+        for (int x = 0; x < 19; x++)
         {
-            for (int y = 0; y < 7; y++) // 7 * 15 = 105 stones (46%)
+            for (int y = 0; y < 10; y++) // 10 * 19 = 190 stones (~53%)
             {
                 board.PlaceStone(x, y, x % 2 == 0 ? Player.Red : Player.Blue);
             }
@@ -446,18 +446,18 @@ public class VCFPrecheckTests
     [Fact]
     public void CalculatePonderTimeMultiplier_EndgamePhase_IncreasesMultiplier()
     {
-        // Arrange - Endgame position (>70% full)
+        // Arrange - Endgame position (>70% full for 19x19 board)
         var board = new Board();
-        for (int x = 0; x < 15; x++)
+        for (int x = 0; x < 19; x++)
         {
-            for (int y = 0; y < 12; y++)
+            for (int y = 0; y < 14; y++) // 14 * 19 = 266 stones (>70% of 361)
             {
                 board.PlaceStone(x, y, x % 2 == 0 ? Player.Red : Player.Blue);
             }
         }
         // Add a threat
-        board.PlaceStone(5, 13, Player.Red);
-        board.PlaceStone(6, 13, Player.Red);
+        board.PlaceStone(5, 15, Player.Red);
+        board.PlaceStone(6, 15, Player.Red);
 
         // Act
         var multiplier = _precheck.CalculatePonderTimeMultiplier(board, Player.Red);

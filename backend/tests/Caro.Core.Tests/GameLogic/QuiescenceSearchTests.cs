@@ -74,8 +74,8 @@ public class QuiescenceSearchTests
         Assert.True(stopwatch.ElapsedMilliseconds < 2000,
             $"Quiet position took {stopwatch.ElapsedMilliseconds}ms, expected < 2000ms");
 
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < 19);
+        Assert.True(move.y >= 0 && move.y < 19);
     }
 
     [Fact]
@@ -138,8 +138,8 @@ public class QuiescenceSearchTests
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
 
         // Assert - Should either extend Red's threat or block Blue's
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < 19);
+        Assert.True(move.y >= 0 && move.y < 19);
 
         // Move should be tactical (near threats)
         var cell = board.GetCell(move.x, move.y);
@@ -169,8 +169,8 @@ public class QuiescenceSearchTests
         Assert.True(stopwatch.ElapsedMilliseconds < 15000,
             $"Quiescence search took {stopwatch.ElapsedMilliseconds}ms, expected < 15000ms");
 
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < 19);
+        Assert.True(move.y >= 0 && move.y < 19);
     }
 
     [Fact]
@@ -197,8 +197,8 @@ public class QuiescenceSearchTests
             var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
 
             // Assert - Should be valid
-            Assert.True(move.x >= 0 && move.x < 15);
-            Assert.True(move.y >= 0 && move.y < 15);
+            Assert.True(move.x >= 0 && move.x < 19);
+            Assert.True(move.y >= 0 && move.y < 19);
         }
     }
 

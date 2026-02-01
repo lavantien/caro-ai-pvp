@@ -18,9 +18,9 @@ public class MinimaxAITests
         var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
 
         // Assert
-        // Should play center move
-        x.Should().Be(7);
-        y.Should().Be(7);
+        // Should play center move (center of 19x19 board is 9,9)
+        x.Should().Be(9);
+        y.Should().Be(9);
     }
 
     [Fact]
