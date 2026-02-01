@@ -23,6 +23,7 @@ public class MinimaxAI : IStatsPublisher
     private readonly WinDetector _winDetector = new();
     private readonly ThreatDetector _threatDetector = new();
     private readonly ThreatSpaceSearch _vcfSolver = new();
+    private readonly VCFSolver _inTreeVCFSolver;  // In-tree VCF solver for Lazy SMP
     private readonly OpeningBook _openingBook = new();
 
     // Time management for 7+5 time control
@@ -56,8 +57,10 @@ public class MinimaxAI : IStatsPublisher
     private const int SearchRadius = 2;
 
     // Killer heuristic: track best moves at each depth
+    // No depth cap - array sized for maximum practical depth (19x19 board = 361 cells)
     private const int MaxKillerMoves = 2;
-    private readonly (int x, int y)[,] _killerMoves = new (int x, int y)[20, MaxKillerMoves]; // Max depth 20
+    private const int MaxKillerDepth = 512;  // Effectively unlimited for practical game play
+    private readonly (int x, int y)[,] _killerMoves = new (int x, int y)[MaxKillerDepth, MaxKillerMoves];
 
     // History heuristic: track moves that cause cutoffs across all depths
     // Two tables: one for Red, one for Blue (each move can be good for different players)
@@ -107,6 +110,7 @@ public class MinimaxAI : IStatsPublisher
     {
         _publisherId = Interlocked.Increment(ref _instanceCounter).ToString();
         _statsChannel = Channel.CreateUnbounded<MoveStatsEvent>();
+        _inTreeVCFSolver = new VCFSolver(_vcfSolver);
     }
 
     /// <summary>
@@ -1304,7 +1308,7 @@ public class MinimaxAI : IStatsPublisher
             bestMove = candidates[0];
             bestTiebreaker = 0;
 
-            // Order moves: try killer moves first, then by proximity to center, then cached move
+            // Order moves: Hash > Emergency > Threats > Killers > History > Positional
             var orderedMoves = OrderMoves(candidates, depth, board, player, cachedMove);
 
             // Pre-score ordered moves for tiebreaking
@@ -1452,10 +1456,16 @@ public class MinimaxAI : IStatsPublisher
 
     /// <summary>
     /// Order moves for better alpha-beta pruning
-    /// Priority: TT cached move > Killer moves > History heuristic > Tactical patterns > Position heuristics
+    /// Priority (optimized for Lazy SMP):
+    /// 1. Hash Move (TT Move) - UNCONDITIONAL #1 for thread work sharing
+    /// 2. Emergency Defense - blocks opponent's immediate threats (Open 4/Double 3)
+    /// 3. Winning Threats - creates own threats (Open 4, Double 3)
+    /// 4. Killer Moves - caused cutoffs at sibling nodes
+    /// 5. History/Butterfly Heuristic - general statistical sorting
+    /// 6. Positional Heuristics - center proximity, nearby stones
     /// Zero-allocation implementation using array-based sorting
     /// </summary>
-    private List<(int x, int y)> OrderMoves(List<(int x, int y)> candidates, int depth, Board board, Player player, (int x, int y)? cachedMove = null)
+    private List<(int x, int y)> OrderMoves(List<(int x, int y)> candidates, int depth, Board board, Player player, (int x, int y)? ttMove = null)
     {
         int count = candidates.Count;
         if (count <= 1) return candidates;
@@ -1469,55 +1479,67 @@ public class MinimaxAI : IStatsPublisher
             var (x, y) = candidates[i];
             var score = 0;
 
-            // Cached move from transposition table gets highest priority
-            if (cachedMove.HasValue && x == cachedMove.Value.x && y == cachedMove.Value.y)
+            // PRIORITY #1: Hash Move (TT Move) - UNCONDITIONAL #1 for Lazy SMP
+            // This is CRITICAL: In Lazy SMP, TT is the primary communication between threads.
+            // Searching the TT move first maximizes work reuse from other threads.
+            if (ttMove.HasValue && x == ttMove.Value.x && y == ttMove.Value.y)
             {
-                score += 2000;
+                score = 10000;  // Highest priority - above all else
             }
-
-            // Killer moves get high priority
-            for (int k = 0; k < MaxKillerMoves; k++)
+            else
             {
-                if (_killerMoves[depth, k].x == x && _killerMoves[depth, k].y == y)
+                // PRIORITY #2: Emergency Defense - blocks opponent's immediate winning threats
+                // These are moves we MUST play to avoid losing (Open 4, Double 3 blocks)
+                if (IsEmergencyDefense(board, x, y, player))
                 {
-                    score += 1000;
-                    break;
+                    score += 5000;
                 }
-            }
 
-            // Butterfly heuristic: moves that cause beta cutoffs
-            var butterflyScore = player == Player.Red ? _butterflyRed[x, y] : _butterflyBlue[x, y];
-            score += Math.Min(300, butterflyScore / 100);
+                // PRIORITY #3: Winning Threats (attacking) - creates own forcing moves
+                // EvaluateTacticalPattern returns high scores for Open 4, Double 3, etc.
+                score += EvaluateTacticalPattern(board, x, y, player);
 
-            // History heuristic: moves that caused cutoffs get priority
-            var historyScore = GetHistoryScore(player, x, y);
-            score += Math.Min(500, historyScore / 10);
-
-            // Tactical pattern scoring
-            score += EvaluateTacticalPattern(board, x, y, player);
-
-            // Prefer center (9,9) for 19x19 board
-            var distanceToCenter = Math.Abs(x - 9) + Math.Abs(y - 9);
-            score += (18 - distanceToCenter) * 10;
-
-            // Prefer moves near existing stones
-            var nearby = 0;
-            for (int dx = -1; dx <= 1; dx++)
-            {
-                for (int dy = -1; dy <= 1; dy++)
+                // PRIORITY #4: Killer Moves - caused cutoffs at sibling nodes
+                for (int k = 0; k < MaxKillerMoves; k++)
                 {
-                    if (dx == 0 && dy == 0) continue;
-                    var nx = x + dx;
-                    var ny = y + dy;
-                    if (nx >= 0 && nx < 19 && ny >= 0 && ny < 19)
+                    if (_killerMoves[depth, k].x == x && _killerMoves[depth, k].y == y)
                     {
-                        var cell = board.GetCell(nx, ny);
-                        if (cell.Player != Player.None)
-                            nearby += 5;
+                        score += 1000;
+                        break;
                     }
                 }
+
+                // PRIORITY #5: History/Butterfly Heuristic - general statistical sorting
+                var butterflyScore = player == Player.Red ? _butterflyRed[x, y] : _butterflyBlue[x, y];
+                score += Math.Min(300, butterflyScore / 100);
+
+                var historyScore = GetHistoryScore(player, x, y);
+                score += Math.Min(500, historyScore / 10);
+
+                // PRIORITY #6: Positional Heuristics - center proximity, nearby stones
+                // Prefer center (9,9) for 19x19 board
+                var distanceToCenter = Math.Abs(x - 9) + Math.Abs(y - 9);
+                score += (18 - distanceToCenter) * 10;
+
+                // Prefer moves near existing stones
+                var nearby = 0;
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        if (dx == 0 && dy == 0) continue;
+                        var nx = x + dx;
+                        var ny = y + dy;
+                        if (nx >= 0 && nx < 19 && ny >= 0 && ny < 19)
+                        {
+                            var cell = board.GetCell(nx, ny);
+                            if (cell.Player != Player.None)
+                                nearby += 5;
+                        }
+                    }
+                }
+                score += nearby;
             }
-            score += nearby;
 
             scores[i] = score;
         }
@@ -1705,6 +1727,87 @@ public class MinimaxAI : IStatsPublisher
         return score;
     }
 
+    /// <summary>
+    /// Check if a move is emergency defense (must block immediate threat)
+    /// Returns true if this move blocks opponent's open-4 or double-open-3 threats.
+    /// This is priority #2 in move ordering (after Hash Move, before general threats).
+    /// Zero-allocation, very fast - runs at every node.
+    /// </summary>
+    private bool IsEmergencyDefense(Board board, int x, int y, Player player)
+    {
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var opponentBitBoard = board.GetBitBoard(opponent);
+        var playerBitBoard = board.GetBitBoard(player);
+        var occupied = playerBitBoard | opponentBitBoard;
+
+        // Temporarily place stone to check if it blocks threats
+        playerBitBoard.SetBit(x, y, true);
+
+        // Check all 4 directions for blocking patterns
+        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
+
+        foreach (var (dx, dy) in directions)
+        {
+            // Count opponent consecutive stones if we DON'T block
+            var count = 1;
+            var openEnds = 0;
+
+            // Positive direction
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x + dx * i;
+                var ny = y + dy * i;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+
+                if (opponentBitBoard.GetBit(nx, ny))
+                {
+                    count++;
+                }
+                else if (!occupied.GetBit(nx, ny))
+                {
+                    openEnds++;
+                    break;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // Negative direction
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x - dx * i;
+                var ny = y - dy * i;
+                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+
+                if (opponentBitBoard.GetBit(nx, ny))
+                {
+                    count++;
+                }
+                else if (!occupied.GetBit(nx, ny))
+                {
+                    openEnds++;
+                    break;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // Emergency if blocking open-4 (4 with open end)
+            if (count == 4 && openEnds >= 1)
+            {
+                playerBitBoard.SetBit(x, y, false);  // Undo before returning
+                return true;
+            }
+        }
+
+        playerBitBoard.SetBit(x, y, false);  // Undo
+        return false;
+    }
+
     private void RecordKillerMove(int depth, int x, int y)
     {
         // Shift existing killer moves
@@ -1777,7 +1880,7 @@ public class MinimaxAI : IStatsPublisher
         _lastCalculatedDepth = -1;
 
         // Clear killer moves
-        for (int d = 0; d < 20; d++)
+        for (int d = 0; d < MaxKillerDepth; d++)
         {
             for (int k = 0; k < MaxKillerMoves; k++)
             {
@@ -2174,6 +2277,35 @@ public class MinimaxAI : IStatsPublisher
         }
 
         var currentPlayer = isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red);
+
+        // IN-TREE VCF CHECK: Check for forcing sequences before move generation
+        // VCF runs at all nodes; only time budget limits it (no depth caps)
+        // Percentage-based threshold: VCF runs MORE in time scramble (low time remaining)
+        var remainingTime = _searchHardBoundMs - _searchStopwatch.ElapsedMilliseconds;
+        var initialTime = _inferredInitialTimeMs > 0 ? _inferredInitialTimeMs : _searchHardBoundMs;
+        var timeRemainingPercent = (double)remainingTime / initialTime;
+
+        // Time scramble: < 10% time remaining - VCF is critical (find quick wins)
+        // Normal time: use 5% of initial time as threshold
+        var vcfThresholdMs = timeRemainingPercent < 0.1
+            ? 1  // Always run in time scramble (minimal threshold)
+            : initialTime * 0.05;  // 5% of initial time in normal case
+
+        if (remainingTime > vcfThresholdMs)
+        {
+            var vcfResult = _inTreeVCFSolver.CheckNodeVCF(board, currentPlayer, depth, alpha, remainingTime);
+            if (vcfResult != null && vcfResult.Type != VCFResultType.NoVCF)
+            {
+                // VCF found - return immediately with appropriate score
+                if (vcfResult.Type == VCFResultType.WinningSequence)
+                {
+                    _nodesSearched += vcfResult.NodesSearched;
+                    return vcfResult.Score;
+                }
+                // For losing sequences, we could filter candidates, but for now
+                // let the normal search handle it with proper alpha-beta bounds
+            }
+        }
 
         // Order moves for better pruning (use cached move if available)
         var orderedMoves = OrderMoves(candidates, rootDepth - depth, board, currentPlayer, cachedMove);
