@@ -19,15 +19,20 @@ public class NodeCountingTests
         var board = new Board();
 
         // Place a few stones to create different positions
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
+        board.PlaceStone(9, 9, Player.Red);
+        board.PlaceStone(10, 10, Player.Blue);
 
         var results = new List<long>();
 
-        // Run 5 searches with different positions
+        // Run 5 searches with different positions (explicit coordinates to avoid collisions)
+        var testPositions = new (int x, int y)[]
+        {
+            (8, 8), (9, 8), (10, 8), (8, 9), (11, 11)
+        };
+
         for (int i = 0; i < 5; i++)
         {
-            board.PlaceStone(6 + (i % 3), 6 + (i / 2), Player.Red);
+            board.PlaceStone(testPositions[i].x, testPositions[i].y, Player.Red);
             var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard); // D4 uses parallel search
             var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
             results.Add(nodesSearched);
