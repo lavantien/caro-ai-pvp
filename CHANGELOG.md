@@ -5,6 +5,100 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-02-01
+
+### Changed
+
+- **Move ordering refactored for optimal Lazy SMP performance**
+  - Hash Move (TT Move) now at UNCONDITIONAL #1 priority for thread work sharing
+  - Removed VCF from move ordering - now handled by separate solver
+  - Added Emergency Defense stage (#2 priority) for immediate threat blocking
+  - New priority: Hash Move > Emergency Defense > Winning Threats > Killer > History/Butterfly > Positional
+- **VCF (Victory by Continuous Fours) architecture redesign**
+  - Separate `VCFSolver` class runs BEFORE alpha-beta search at each node
+  - VCF detection moved from move ordering to dedicated solver
+  - No depth caps - only time limits control VCF search (algorithmic principle compliance)
+  - Percentage-based activation: VCF runs MORE frequently in time scramble (<10% time remaining)
+  - Thread-safe with `ConcurrentDictionary` cache for VCF results
+- **Algorithmic principle compliance**
+  - Removed all hardcoded depth/time thresholds
+  - Engine never caps depth - only threads and time are limited per difficulty
+  - VCF activation uses percentage of initial time, not hardcoded milliseconds
+
+### Added
+
+- `VCFSolver.cs` - Separate VCF solver class with in-tree VCF detection
+- `VCFNodeResult.cs` - Result types for VCF solver (WinningSequence, LosingSequence, NoVCF)
+- `IsEmergencyDefense()` method - Fast Open-4 threat blocking detection
+- Percentage-based VCF time threshold:
+  - Time scramble (<10% remaining): 1ms threshold (always runs)
+  - Normal time: 5% of initial time threshold
+
+### Fixed
+
+- `PrincipalVariationSearchTests` determinism issues
+  - Tests now use separate AI instances for consistent results
+  - Added `ClearAllState()` calls where appropriate
+- `NodeCountingTests` stone placement collisions
+  - Fixed test position array to avoid occupied cells
+
+### Technical Details
+
+**Move Ordering Priority (Before vs After):**
+
+```
+Before (Incorrect for Lazy SMP):
+1. Offensive VCF: +5000
+2. Defensive VCF: +4000
+3. Hash Move: +2000  <- WRONG: Should be #1
+4. Killer Moves: +1000
+...
+
+After (Correct for Lazy SMP):
+1. Hash Move (TT): +10000  <- UNCONDITIONAL #1 for thread work sharing
+2. Emergency Defense: +5000  <- NEW: Immediate threat blocking
+3. Winning Threats: from EvaluateTacticalPattern()
+4. Killer Moves: +1000
+...
+```
+
+**Why Hash Move Must Be #1:**
+
+In Lazy SMP parallel search, the transposition table is the PRIMARY communication mechanism between threads. Thread A may discover a strong move and store it in the TT. Thread B arriving at the same position must search the TT move FIRST to maximize work reuse. Searching VCF or other heuristics before the TT move causes threads to waste cycles re-discovering what other threads already know.
+
+**VCF Architecture:**
+
+```
+Before: VCF integrated into move ordering (slow, runs at every node)
+After:  VCF runs as separate pre-search solver (fast, caches results)
+
+VCF Activation:
+- Always runs if remainingTime > percentageThreshold
+- Time scramble (<10%): threshold = 1ms (aggressive)
+- Normal: threshold = 5% of initialTime
+```
+
+### Files Modified
+
+- backend/src/Caro.Core/GameLogic/MinimaxAI.cs
+  - Removed VCFMoveInfo struct
+  - Removed IdentifyVCFMoves() method
+  - Rewrote OrderMoves() with new priority structure
+  - Added IsEmergencyDefense() method
+  - Added in-tree VCF check with percentage-based activation
+  - Updated all OrderMoves() call sites
+- backend/tests/Caro.Core.Tests/GameLogic/PrincipalVariationSearchTests.cs
+  - Fixed determinism by using separate AI instances
+- backend/tests/Caro.Core.Tests/GameLogic/NodeCountingTests.cs
+  - Fixed stone placement collisions
+
+### Files Added
+
+- backend/src/Caro.Core/GameLogic/VCFSolver.cs
+- backend/src/Caro.Core/GameLogic/VCFNodeResult.cs
+
+[1.6.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.6.0
+
 ## [1.5.1] - 2026-02-01
 
 ### Changed
