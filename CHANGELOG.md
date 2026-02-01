@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-02-01
+
+### Changed
+
+- Integration path tests now properly separated with `[Trait("Category", "Integration")]`
+  - `SavedLogVerifierTests` - Snapshot verification (covered by matchup file logging)
+  - `PonderingIntegrationTests` - Pondering integration (covered by matchup pondering)
+  - `AIStrengthValidationSuite` - Statistical validation (covered by matchup strength validation)
+- Core algorithmic tests remain in unit test suite:
+  - `PrincipalVariationSearchTests` - PVS algorithm unit tests
+  - `NodeCountingTests` - Parallel search verification
+
+### Run Tests
+
+```bash
+# Unit tests only (exclude integration path tests)
+dotnet test --filter "Category!=Integration"
+
+# All tests including integration path
+dotnet test
+```
+
+[1.5.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.5.1
+
 ## [1.5.0] - 2026-02-01
 
 ### Added
