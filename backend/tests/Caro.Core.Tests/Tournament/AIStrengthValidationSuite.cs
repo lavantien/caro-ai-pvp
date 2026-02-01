@@ -11,8 +11,12 @@ namespace Caro.Core.Tests.Tournament;
 /// Uses statistical analysis to validate that AI difficulty levels are correctly ordered
 /// and that there are no unexpected color advantages or strength inversions.
 ///
-/// Run with: dotnet test --filter "FullyQualifiedName~AIStrengthValidationSuite"
+/// Integration path test - covered by matchup suite which includes AI strength validation.
+/// Run with: dotnet test --filter "Category!=Integration" to exclude.
+///
+/// Original run command: dotnet test --filter "FullyQualifiedName~AIStrengthValidationSuite"
 /// </summary>
+[Trait("Category", "Integration")]
 public class AIStrengthValidationSuite : IDisposable
 {
     private readonly ITestOutputHelper _output;
