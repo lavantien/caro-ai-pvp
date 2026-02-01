@@ -7,6 +7,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 ## Overview
 
 - **Grandmaster-level AI** - Lazy SMP parallel search reaching depth 11+
+- **Clean Architecture** - Separated Domain, Application, and Infrastructure layers
 - **Real-time multiplayer** - WebSocket support via SignalR
 - **AI tournament mode** - Balanced round-robin with ELO tracking
 - **Mobile-first UX** - Ghost stone positioning and haptic feedback
@@ -80,94 +81,52 @@ Results written to `backend/tournament_results.txt` with pass/fail thresholds.
 
 ## Architecture
 
-```mermaid
-graph TB
-    subgraph Frontend["SvelteKit 5"]
-        F1[Board.svelte]
-        F2[GameStore<br/>Svelte 5 Runes]
-        F3[SignalR Client]
-    end
+Clean Architecture with three core layers:
 
-    subgraph Backend[".NET 10"]
-        subgraph SignalR["TournamentHub"]
-            H1[Move Handler]
-            H2[Game Queue<br/>Channel&lt;GameEvent&gt;]
-        end
-
-        subgraph AI["MinimaxAI + Parallel Engine"]
-            direction TB
-            AI1[MinimaxAI<br/>IStatsPublisher]
-
-            subgraph Parallel["Lazy SMP Parallel Search"]
-                direction LR
-                P1[Master Thread<br/>ThreadIndex=0<br/>Result Selection]
-                P2[Helper Thread 1<br/>ThreadIndex=1]
-                P3[Helper Thread N<br/>ThreadIndex=N]
-
-                P1 --> P2
-                P1 --> P3
-                P2 -.->|"Shared"| P1
-                P3 -.->|"Shared"| P1
-            end
-
-            subgraph TT["Transposition Table<br/>256MB, 16 Shards"]
-                T1[Shard 0]
-                T2[Shard 8]
-                T3[Shard 15]
-
-                T1 -.->|"Hash-based<br/>Distribution"| T2
-                T2 -.->|"Reduced<br/>Contention"| T3
-            end
-
-            subgraph Ponder["Ponderer<br/>Think on Opponent Time"]
-                PV[PV Prediction]
-                BG[Background Search]
-                TM[Time Merge on Hit]
-            end
-
-            AI1 --> Parallel
-            Parallel --> TT
-            AI1 --> Ponder
-        end
-
-        subgraph Stats["Stats Publisher-Subscriber"]
-            PUB[IStatsPublisher<br/>Channel&lt;MoveStatsEvent&gt;]
-            SUB1[TournamentEngine<br/>Subscriber Task 1]
-            SUB2[TournamentEngine<br/>Subscriber Task 2]
-        end
-
-        subgraph Time["Time Budget Manager"]
-            TB[TimeBudgetDepthManager]
-            NPS[NPS Tracking]
-            EBF[EBF Calculation]
-            TMUL[Time Multiplier<br/>Braindead:5%<br/>Easy:20%<br/>Medium:50%<br/>Hard:75%<br/>GM:100%]
-        end
-    end
-
-    subgraph Database["SQLite + FTS5"]
-        D1[Game Logs]
-        D2[ELO Ratings]
-    end
-
-    F3 -->|"WebSocket<br/>Move/State"| H1
-    H1 --> H2
-    H2 --> AI1
-
-    Parallel -->|"ThreadIndex=0<br/>Full Write"| TT
-    Parallel -->|"ThreadIndex>0<br/>Restricted Write<br/>depth>=rootDepth/2<br/>flag==Exact"| TT
-
-    AI1 -->|"Publish"| PUB
-    PUB -->|"MainSearch Stats"| SUB1
-    PUB -->|"Pondering Stats"| SUB2
-
-    TB -->|"CalculateMaxDepth<br/>log(time*nps*multiplier)/log(ebf)"| Parallel
-    NPS --> TB
-    EBF --> TB
-    TMUL --> TB
-
-    AI1 --> D1
-    AI1 --> D2
 ```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Presentation                            │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │   SvelteKit  │  │  SignalR    │  │  ASP.NET Core API       │  │
+│  │   Frontend   │  │   Hub        │  │  Controllers            │  │
+│  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────────┘  │
+└─────────┼──────────────────┼───────────────────┼──────────────────┘
+          │                  │                    │
+          ▼                  ▼                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Application Layer                            │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  TournamentEngine  │  MatchScheduler  │  IStatsPublisher   │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+└───────────────────────────┬───────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Domain Layer (Core)                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
+│  │  Board   │  │  Player  │  │ GameState│  │  AIDifficulty   │  │
+│  │  (19x19) │  │  Enum    │  │          │  │  (Braindead-GM) │  │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────────────┘  │
+└───────────────────────────┬───────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Infrastructure Layer                           │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  MinimaxAI  │  ParallelMinimaxSearch  │  BitBoardEvaluator│  │
+│  │  Lazy SMP   │  Transposition Table     │  Ponderer         │  │
+│  └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Clean Architecture Projects:**
+
+| Project | Purpose | Dependencies |
+|---------|---------|--------------|
+| `Caro.Core.Domain` | Core entities, value objects | None |
+| `Caro.Core.Application` | Interfaces, application services | Domain |
+| `Caro.Core.Infrastructure` | AI algorithms, external concerns | Domain, Application |
+| `Caro.Api` | Web API, SignalR hub | All layers |
 
 ### Component Flow
 

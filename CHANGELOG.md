@@ -5,6 +5,104 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-02-01
+
+### Added
+
+- **Clean Architecture refactoring** - Separated Caro.Core into domain, application, and infrastructure layers
+  - `Caro.Core.Domain` - Core entities (Board, Cell, Player, GameState, AIDifficulty) with no external dependencies
+  - `Caro.Core.Application` - Application services, interfaces, and DTOs
+  - `Caro.Core.Infrastructure` - External concerns (BitBoard, evaluators, AI algorithms)
+  - Clear dependency direction: Domain → Application → Infrastructure
+- New test projects aligned with Clean Architecture layers:
+  - `Caro.Core.Domain.Tests` - Entity tests (48 passing)
+  - `Caro.Core.Application.Tests` - Service tests (48 passing)
+  - `Caro.Core.Infrastructure.Tests` - AI algorithm tests (48 passing)
+- `CaroCoreOnboarding.md` - C# workspace onboarding guide for Clean Architecture
+
+### Changed
+
+- Board size increased from 15x15 to 19x19 (225 to 361 cells)
+  - Center position updated from (7,7) to (9,9)
+  - BitBoard representation updated for 19x19 board
+  - Endgame phase threshold updated to 70% of 361 cells
+- Integration tests separated with `[Trait("Category", "Integration")]`
+  - Run unit tests only: `dotnet test --filter "Category!=Integration"`
+  - Run integration tests: `dotnet test --filter "Category=Integration"`
+- Removed platform-dependent depth assertions from tests
+  - Depth is now reported as achieved (not pre-determined)
+  - Depth depends on host machine capability (threads + time)
+
+### Fixed
+
+- Test suite migrations for 19x19 board
+  - Updated bounds checks (15 → 19) across all test files
+  - Fixed center position references (7,7 → 9,9)
+  - Fixed BitBoard row boundary tests for circular shift behavior
+  - Fixed stone distribution in NodeCountingTests
+  - Fixed QuiescenceSearchTests syntax errors
+  - Made SIMD evaluation tests more lenient
+  - Updated SavedLogVerifierTests coordinate validation
+  - Enhanced move ordering tests for larger board
+  - Updated tournament scheduler tests for flexible bot count
+
+### Removed
+
+- Obsolete documentation files (PHASE2-REQUIREMENTS.md, PICKUP.md, PRELIMINARY_DESIGN.md, PROGRESSION.md, TEST-REPORT.md)
+- Obsolete scripts (benchmark_tt.ps1, watch_tournament.ps1)
+
+### Technical Details
+
+**Clean Architecture Structure:**
+
+```
+Caro.Core.Domain (Entities)
+├── Entities/
+│   ├── Board.cs
+│   ├── Cell.cs
+│   ├── Player.cs
+│   ├── GameState.cs
+│   └── AIDifficulty.cs
+└── ValueObjects/
+    └── ...
+
+Caro.Core.Application (Interfaces & Services)
+├── Interfaces/
+│   ├── IBoardEvaluator.cs
+│   ├── IMoveGenerator.cs
+│   └── ...
+└── Services/
+    └── ...
+
+Caro.Core.Infrastructure (Implementation)
+├── GameLogic/
+│   ├── MinimaxAI.cs
+│   ├── ParallelMinimaxSearch.cs
+│   └── ...
+└── Evaluators/
+    └── BitBoardEvaluator.cs
+```
+
+**Dependency Rule:** Domain → Application → Infrastructure (outer layers depend on inner, never vice versa)
+
+### Files Modified
+
+- backend/src/Caro.Core/* (refactored into three projects)
+- backend/tests/Caro.Core.Tests/* (migrated to 19x19 board)
+- backend/Caro.Api.sln (updated solution structure)
+
+### Files Added
+
+- backend/src/Caro.Core.Domain/Caro.Core.Domain.csproj
+- backend/src/Caro.Core.Application/Caro.Core.Application.csproj
+- backend/src/Caro.Core.Infrastructure/Caro.Core.Infrastructure.csproj
+- backend/tests/Caro.Core.Domain.Tests/Caro.Core.Domain.Tests.csproj
+- backend/tests/Caro.Core.Application.Tests/Caro.Core.Application.Tests.csproj
+- backend/tests/Caro.Core.Infrastructure.Tests/Caro.Core.Infrastructure.Tests.csproj
+- CSHARP_ONBOARDING.md
+
+[1.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.5.0
+
 ## [1.4.0] - 2026-02-01
 
 ### Changed
