@@ -65,12 +65,14 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 Precomputed opening positions for instant move retrieval and deeper analysis:
 
 - **Symmetry reduction** - 8-way transformations (4 rotations × mirror) reduce storage by ~8x
-- **SQLite storage** - Persistent `opening_book.db` with indexed position lookup
+- **SQLite storage** - Persistent `opening_book.db` with indexed position lookup + WAL mode
 - **Translation invariant** - Canonical positions work regardless of board location
 - **Per-move metadata** - Win rate, depth achieved, nodes searched, forcing move flag
-- **Offline generation** - Caro.BookBuilder tool with (N-4) threads for faster analysis
+- **Worker pool generation** - Parallel position + candidate evaluation for 30x throughput
+- **Tapered beam width** - Converts exponential growth to linear (4→2→1 children by depth)
+- **Early exit optimization** - Skips remaining candidates when best move dominates
 
-**Generate opening book:**
+**Generate opening book** (~1 hour for ply 12):
 ```bash
 dotnet run --project backend/src/Caro.BookBuilder -- \
   --output=opening_book.db \
