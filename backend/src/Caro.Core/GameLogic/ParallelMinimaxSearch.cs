@@ -203,7 +203,9 @@ public sealed class ParallelMinimaxSearch
         _depthManager.CalibrateNpsForDifficulty(difficulty);
 
         // Try VCF first for higher difficulties
-        if (difficulty >= AIDifficulty.Hard)
+        // CRITICAL FIX: Skip VCF for BookGeneration - full search is sufficient and VCF consumes time budget
+        var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
+        if (settings.VCFEnabled && difficulty != AIDifficulty.BookGeneration)
         {
             var vcfTimeLimit = CalculateVCFTimeLimit(alloc);
             var vcfResult = _vcfSolver.SolveVCF(board, player, vcfTimeLimit, maxDepth: 30);
@@ -287,7 +289,9 @@ public sealed class ParallelMinimaxSearch
         _depthManager.CalibrateNpsForDifficulty(difficulty);
 
         // Try VCF first for higher difficulties
-        if (difficulty >= AIDifficulty.Hard)
+        // CRITICAL FIX: Skip VCF for BookGeneration - full search is sufficient and VCF consumes time budget
+        var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
+        if (settings.VCFEnabled && difficulty != AIDifficulty.BookGeneration)
         {
             var vcfTimeLimit = CalculateVCFTimeLimit(alloc);
             var vcfResult = _vcfSolver.SolveVCF(board, player, vcfTimeLimit, maxDepth: 30);
@@ -1320,8 +1324,10 @@ public sealed class ParallelMinimaxSearch
             {
                 // CRITICAL FIX: Scale time allocation by difficulty
                 // Grandmaster uses up to 80% of remaining time, Braindead uses 20%
+                // BookGeneration uses 100% to maximize search depth
                 double timePercentage = difficulty switch
                 {
+                    AIDifficulty.BookGeneration => 1.00, // 100% - use full time for max depth
                     AIDifficulty.Braindead => 0.20,   // 20% - barely thinks
                     AIDifficulty.Easy => 0.30,        // 30%
                     AIDifficulty.Medium => 0.50,      // 50%
@@ -1333,10 +1339,17 @@ public sealed class ParallelMinimaxSearch
             }
             else
             {
-                // Distribute over estimated remaining moves (40 for long games)
-                softBound = Math.Max(500, timeLeft / 40);
+                // CRITICAL FIX: For long time controls, use difficulty-based divisor
+                // BookGeneration needs full time budget - use divisor of 2 instead of 40
+                // This fixes the bug where 60s budget was divided by 40 = 1.5s actual search
+                double divisor = (difficulty == AIDifficulty.BookGeneration) ? 2.0 : 40.0;
+                softBound = Math.Max(500, (long)(timeLeft / divisor));
             }
-            long hardBound = Math.Min(softBound * 2, timeLeft - 500);  // Reduced to 2x from 3x
+            // CRITICAL FIX: For BookGeneration, use full timeLeft for hard bound
+            // This ensures the full budget is utilized for deep searches
+            long hardBound = (difficulty == AIDifficulty.BookGeneration)
+                ? timeLeft - 100  // Use almost full remaining time for BookGeneration
+                : Math.Min(softBound * 2, timeLeft - 500);  // Reduced to 2x from 3x
 
             return new TimeAllocation
             {
@@ -1357,6 +1370,8 @@ public sealed class ParallelMinimaxSearch
             AIDifficulty.Medium => new() { SoftBoundMs = 1000, HardBoundMs = 3000, OptimalTimeMs = 800, IsEmergency = false },
             AIDifficulty.Hard => new() { SoftBoundMs = 3000, HardBoundMs = 10000, OptimalTimeMs = 2400, IsEmergency = false },
             AIDifficulty.Grandmaster => new() { SoftBoundMs = 5000, HardBoundMs = 20000, OptimalTimeMs = 4000, IsEmergency = false },
+            AIDifficulty.Experimental => new() { SoftBoundMs = 5000, HardBoundMs = 20000, OptimalTimeMs = 4000, IsEmergency = false },
+            AIDifficulty.BookGeneration => new() { SoftBoundMs = 15000, HardBoundMs = 30000, OptimalTimeMs = 5000, IsEmergency = false },
             _ => TimeAllocation.Default
         };
     }
