@@ -37,7 +37,8 @@ public sealed class AIDifficultyConfig
                 ErrorRate = 0.10,              // 10% error rate
                 MinDepth = 1,
                 TargetNps = 10_000,
-                Description = "10% error rate, beginners"
+                Description = "10% error rate, beginners",
+                OpeningBookEnabled = false      // No opening book for beginner level
             },
 
             AIDifficulty.Easy => new AIDifficultySettings
@@ -54,7 +55,8 @@ public sealed class AIDifficultyConfig
                 ErrorRate = 0.0,                // No intentional errors
                 MinDepth = 2,
                 TargetNps = 50_000,
-                Description = "Parallel search from Easy"
+                Description = "Parallel search from Easy",
+                OpeningBookEnabled = false      // No opening book for easy level
             },
 
             AIDifficulty.Medium => new AIDifficultySettings
@@ -71,7 +73,8 @@ public sealed class AIDifficultyConfig
                 ErrorRate = 0.0,                // No intentional errors
                 MinDepth = 3,
                 TargetNps = 100_000,
-                Description = "Parallel + pondering"
+                Description = "Parallel + pondering",
+                OpeningBookEnabled = false      // No opening book for medium level
             },
 
             AIDifficulty.Hard => new AIDifficultySettings
@@ -88,7 +91,8 @@ public sealed class AIDifficultyConfig
                 ErrorRate = 0.0,                // No intentional errors
                 MinDepth = 4,
                 TargetNps = 200_000,
-                Description = "Parallel + pondering + VCF"
+                Description = "Parallel + pondering + VCF",
+                OpeningBookEnabled = true       // Hard uses opening book
             },
 
             AIDifficulty.Grandmaster => new AIDifficultySettings
@@ -105,11 +109,58 @@ public sealed class AIDifficultyConfig
                 ErrorRate = 0.0,                // No intentional errors
                 MinDepth = 5,
                 TargetNps = 500_000,
-                Description = "Max parallel, VCF, pondering"
+                Description = "Max parallel, VCF, pondering",
+                OpeningBookEnabled = true       // Grandmaster uses opening book
+            },
+
+            AIDifficulty.Experimental => new AIDifficultySettings
+            {
+                Difficulty = AIDifficulty.Experimental,
+                DisplayName = "Experimental",
+                ThreadCount = GetGrandmasterThreadCount(),
+                PonderingThreadCount = GetGrandmasterPonderThreadCount(),
+                TimeMultiplier = 1.0,          // 100% of allocated time
+                TimeBudgetPercent = 1.0,     // 100% time budget
+                ParallelSearchEnabled = true,
+                PonderingEnabled = true,
+                VCFEnabled = true,
+                ErrorRate = 0.0,                // No intentional errors
+                MinDepth = 5,
+                TargetNps = 500_000,
+                Description = "Full opening book + max features for testing",
+                OpeningBookEnabled = true       // Experimental uses full opening book
+            },
+
+            AIDifficulty.BookGeneration => new AIDifficultySettings
+            {
+                Difficulty = AIDifficulty.BookGeneration,
+                DisplayName = "BookGeneration",
+                ThreadCount = GetBookGenerationThreadCount(),
+                PonderingThreadCount = 0,
+                TimeMultiplier = 1.0,
+                TimeBudgetPercent = 1.0,
+                ParallelSearchEnabled = true,
+                PonderingEnabled = false,
+                VCFEnabled = true,
+                ErrorRate = 0.0,
+                MinDepth = 12,
+                TargetNps = 1_000_000,
+                Description = "Offline book generation with (N-4) threads",
+                OpeningBookEnabled = true
             },
 
             _ => throw new ArgumentException($"Unknown difficulty: {difficulty}")
         };
+    }
+
+    /// <summary>
+    /// Get book generation thread count using (processorCount-4) formula
+    /// More aggressive than grandmaster for faster book generation
+    /// </summary>
+    private static int GetBookGenerationThreadCount()
+    {
+        int processorCount = Environment.ProcessorCount;
+        return Math.Max(4, processorCount - 4);
     }
 
     /// <summary>
@@ -150,6 +201,7 @@ public sealed record AIDifficultySettings
     public required int MinDepth { get; init; }
     public required long TargetNps { get; init; }
     public required string Description { get; init; }
+    public required bool OpeningBookEnabled { get; init; }  // Whether this difficulty uses opening book
 
     /// <summary>
     /// Check if this difficulty supports pondering (Medium+)
@@ -163,7 +215,12 @@ public sealed record AIDifficultySettings
     public bool SupportsParallelSearch => ParallelSearchEnabled;
 
     /// <summary>
-    /// Check if this difficulty supports VCF (Grandmaster only)
+    /// Check if this difficulty supports VCF (Hard and above)
     /// </summary>
     public bool SupportsVCF => VCFEnabled;
+
+    /// <summary>
+    /// Check if this difficulty uses the opening book (Hard, Grandmaster, Experimental)
+    /// </summary>
+    public bool SupportsOpeningBook => OpeningBookEnabled;
 }
