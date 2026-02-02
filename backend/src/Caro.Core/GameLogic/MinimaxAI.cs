@@ -285,7 +285,9 @@ public class MinimaxAI : IStatsPublisher
         // Infer initial time and increment from the remaining time
         // This works for any time control: 3+2, 7+5, 15+10, etc.
         TimeAllocation timeAlloc;
-        if (timeRemainingMs.HasValue)
+        // CRITICAL FIX: For BookGeneration, use direct time allocation without AdaptiveTimeManager
+        // The adaptive manager is designed for tournament play and under-allocates for long time budgets
+        if (timeRemainingMs.HasValue && difficulty != AIDifficulty.BookGeneration)
         {
             // Infer initial time from first few moves
             var inferredInitialMs = _inferredInitialTimeMs > 0 ? _inferredInitialTimeMs : timeRemainingMs.Value;
@@ -310,7 +312,15 @@ public class MinimaxAI : IStatsPublisher
         }
         else
         {
-            timeAlloc = GetDefaultTimeAllocation(difficulty);
+            // For BookGeneration with timeRemainingMs, create a direct time allocation
+            timeAlloc = (difficulty == AIDifficulty.BookGeneration && timeRemainingMs.HasValue)
+                ? GetDefaultTimeAllocation(difficulty) with
+                {
+                    SoftBoundMs = timeRemainingMs.Value - 1000,  // Leave 1s margin
+                    HardBoundMs = timeRemainingMs.Value - 100,
+                    OptimalTimeMs = (long)(timeRemainingMs.Value * 0.8)
+                }
+                : GetDefaultTimeAllocation(difficulty);
         }
 
         // CRITICAL DEFENSE: Check for opponent threats BEFORE any early returns
@@ -450,8 +460,9 @@ public class MinimaxAI : IStatsPublisher
         // VCF finds forced win sequences through continuous four threats.
         // By restricting VCF to only Grandmaster, we ensure it's a unique differentiator.
         // Use centralized config to check VCF support for this difficulty.
+        // CRITICAL FIX: Skip VCF for BookGeneration - full search is sufficient and VCF consumes time budget
         var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
-        if (settings.VCFEnabled)
+        if (settings.VCFEnabled && difficulty != AIDifficulty.BookGeneration)
         {
             var (vcfTimeLimit, vcfMaxDepth) = CalculateVCFTimeLimit(timeAlloc, difficulty);
 
@@ -539,6 +550,13 @@ public class MinimaxAI : IStatsPublisher
                 IsEmergency = timeAlloc.IsEmergency,
                 Phase = timeAlloc.Phase
             };
+
+            // DEBUG: Log time allocation for BookGeneration
+            if (difficulty == AIDifficulty.BookGeneration)
+            {
+                Console.WriteLine($"[BookGeneration DEBUG] timeRemainingMs={timeRemainingMs}, timeMultiplier={timeMultiplier}");
+                Console.WriteLine($"[BookGeneration DEBUG] adjustedTimeAlloc: Soft={adjustedTimeAlloc.SoftBoundMs}ms, Hard={adjustedTimeAlloc.HardBoundMs}ms, Optimal={adjustedTimeAlloc.OptimalTimeMs}ms");
+            }
 
             var parallelResult = _parallelSearch.GetBestMoveWithStats(
                 board,
@@ -1398,19 +1416,31 @@ public class MinimaxAI : IStatsPublisher
     {
         int count = candidates.Count;
         var scores = new int[count];
+        const int butterflySize = 19;  // Must match array declaration
 
         for (int i = 0; i < count; i++)
         {
             var (x, y) = candidates[i];
             var score = 0;
 
-            // Killer moves get high priority
-            for (int k = 0; k < MaxKillerMoves; k++)
+            // Bounds check - skip invalid coordinates
+            if (x < 0 || x >= butterflySize || y < 0 || y >= butterflySize)
             {
-                if (_killerMoves[depth, k].x == x && _killerMoves[depth, k].y == y)
+                scores[i] = int.MinValue;  // Penalize invalid coordinates heavily
+                continue;
+            }
+
+            // Killer moves get high priority
+            // Bounds check for depth parameter
+            if (depth >= 0 && depth < MaxKillerDepth)
+            {
+                for (int k = 0; k < MaxKillerMoves; k++)
                 {
-                    score += 1000;
-                    break;
+                    if (_killerMoves[depth, k].x == x && _killerMoves[depth, k].y == y)
+                    {
+                        score += 1000;
+                        break;
+                    }
                 }
             }
 
@@ -1500,17 +1530,25 @@ public class MinimaxAI : IStatsPublisher
                 score += EvaluateTacticalPattern(board, x, y, player);
 
                 // PRIORITY #4: Killer Moves - caused cutoffs at sibling nodes
-                for (int k = 0; k < MaxKillerMoves; k++)
+                // Bounds check for depth parameter
+                if (depth >= 0 && depth < MaxKillerDepth)
                 {
-                    if (_killerMoves[depth, k].x == x && _killerMoves[depth, k].y == y)
+                    for (int k = 0; k < MaxKillerMoves; k++)
                     {
-                        score += 1000;
-                        break;
+                        if (_killerMoves[depth, k].x == x && _killerMoves[depth, k].y == y)
+                        {
+                            score += 1000;
+                            break;
+                        }
                     }
                 }
 
                 // PRIORITY #5: History/Butterfly Heuristic - general statistical sorting
-                var butterflyScore = player == Player.Red ? _butterflyRed[x, y] : _butterflyBlue[x, y];
+                // Bounds check for butterfly tables (19x19)
+                const int butterflySize = 19;
+                var butterflyScore = (x >= 0 && x < butterflySize && y >= 0 && y < butterflySize)
+                    ? (player == Player.Red ? _butterflyRed[x, y] : _butterflyBlue[x, y])
+                    : 0;
                 score += Math.Min(300, butterflyScore / 100);
 
                 var historyScore = GetHistoryScore(player, x, y);
