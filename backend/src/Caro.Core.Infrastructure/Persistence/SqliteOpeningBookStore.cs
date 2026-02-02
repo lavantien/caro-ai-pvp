@@ -60,6 +60,11 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
 
                 using var command = Connection.CreateCommand();
                 command.CommandText = $@"
+                    PRAGMA journal_mode=WAL;
+                    PRAGMA synchronous=NORMAL;
+                    PRAGMA cache_size=-64000;
+                    PRAGMA busy_timeout=5000;
+
                     CREATE TABLE IF NOT EXISTS {TableName} (
                         CanonicalHash INTEGER PRIMARY KEY NOT NULL,
                         Depth INTEGER NOT NULL,
@@ -73,7 +78,7 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
 
                     CREATE INDEX IF NOT EXISTS idx_{TableName}_Depth ON {TableName}(Depth);
                     CREATE INDEX IF NOT EXISTS idx_{TableName}_Player ON {TableName}(Player);
-                    
+
                     CREATE TABLE IF NOT EXISTS BookMetadata (
                         Key TEXT PRIMARY KEY NOT NULL,
                         Value TEXT NOT NULL
