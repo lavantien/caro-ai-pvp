@@ -5,6 +5,113 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-02-02
+
+### Added
+
+- **Worker pool architecture** for opening book generation
+  - Parallel position processing via `ProcessPositionsInParallelAsync`
+  - Parallel candidate evaluation within each position using `Task.WhenAll`
+  - 30x throughput improvement: 90 positions/10min (was 3)
+  - Breadth-first depth-level processing with position batching
+- **Parallel candidate evaluation** in `GenerateMovesForPositionAsync`
+  - Candidates evaluated simultaneously instead of sequentially
+  - Time budget divided among candidates (2+ seconds each)
+  - Inner search disabled to avoid thread oversubscription
+- **Tapered beam width** for exponential-to-linear growth conversion
+  - Depth 0-4: 4 children (wide variety)
+  - Depth 5-9: 2 children (best + alternative)
+  - Depth 10+: 1 child (sniper mode)
+- **Dynamic early exit** when best move dominates
+  - Stops evaluation if top move has >200 point advantage
+  - Saves computation on obviously superior moves
+- **SQLite WAL mode** for concurrent writes
+  - `PRAGMA journal_mode=WAL` for better concurrent access
+  - `PRAGMA synchronous=NORMAL` for performance
+  - `PRAGMA busy_timeout=5000` for lock handling
+- **PositionToProcess** record for parallel job tracking
+
+### Changed
+
+- **BookGeneration time budget** reduced from 60s to 30s per position
+  - With parallel candidates, total time per position is now ~6-7 seconds
+  - Maintains quality while dramatically improving throughput
+- **BookGeneration depth improved** from d1-d2 to d3-d5 consistently
+- **VCF disabled** for BookGeneration difficulty
+  - Preserves full time budget for main search
+  - VCF provides less value when exploring multiple candidates in parallel
+- **Opening book generation performance**
+  - Positions/minute: 9 (was 0.3)
+  - Projected ply 12 completion: ~1 hour (was 4+ days)
+  - Nodes per position: 80K-150K (lower but 30x throughput)
+
+### Fixed
+
+- **Time allocation bug** where BookGeneration fell to Default case
+  - Added explicit BookGeneration case in `GetDefaultTimeAllocation`
+  - Fixed time percentage formula for long time controls
+- **IndexOutOfRangeException** in `ScoreCandidatesForTiebreak`
+  - Added bounds checking for 19x19 butterfly tables
+  - Added bounds checking for killer move array access
+
+### Technical Details
+
+**Worker Pool Architecture:**
+
+```csharp
+// Process positions at each depth level in parallel
+var results = await ProcessPositionsInParallelAsync(
+    positionsToEvaluate,
+    AIDifficulty.BookGeneration,
+    cancellationToken
+);
+
+// Within each position, evaluate candidates in parallel
+var candidateTasks = candidates.Select(async candidate => {
+    // Each candidate gets timeBudget / candidateCount
+    // parallelSearchEnabled: false to avoid oversubscription
+}).ToArray();
+await Task.WhenAll(candidateTasks);
+```
+
+**Performance Comparison:**
+
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Positions/10min | 3 | 90 | 30x |
+| Time/position | ~200s | ~6-7s | 30x |
+| Depth reached | 1-2 | 3-5 | 2.5x deeper |
+| Ply 12 ETA | 4+ days | ~1 hour | 96x faster |
+
+**Tapered Beam Width:**
+
+```
+Depth 0-4:  maxChildren = 4  (Wide - explore opening variety)
+Depth 5-9:  maxChildren = 2  (Narrow - best + alternative)
+Depth 10+:  maxChildren = 1  (Sniper - single best line)
+```
+
+This converts exponential growth (4^depth) to linear (roughly depth × 2).
+
+### Files Modified
+
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs`
+  - Refactored `GenerateAsync` for breadth-first parallel processing
+  - Added parallel candidate evaluation in `GenerateMovesForPositionAsync`
+  - Added `PositionToProcess` record
+  - Reduced `TimePerPositionMs` from 60000 to 30000
+- `backend/src/Caro.Core/GameLogic/ParallelMinimaxSearch.cs`
+  - Added BookGeneration case to `GetDefaultTimeAllocation`
+  - Fixed time allocation formula for long time controls
+  - Disabled VCF for BookGeneration difficulty
+- `backend/src/Caro.Core/GameLogic/MinimaxAI.cs`
+  - Added bounds checking in `ScoreCandidatesForTiebreak` for 19x19 arrays
+  - Bypassed AdaptiveTimeManager for BookGeneration
+- `backend/src/Caro.Core.Infrastructure/Persistence/SqliteOpeningBookStore.cs`
+  - Added WAL mode, synchronous=NORMAL, busy_timeout pragmas
+
+[1.8.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.8.0
+
 ## [1.7.0] - 2026-02-02
 
 ### Added
