@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Caro.Core.Domain", "src\Car
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Caro.Core.Application", "src\Caro.Core.Application\Caro.Core.Application.csproj", "{F351EB8D-0560-434A-89F8-015B414690F1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Caro.BookBuilder", "src\Caro.BookBuilder\Caro.BookBuilder.csproj", "{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -129,6 +131,18 @@ Global
 		{F351EB8D-0560-434A-89F8-015B414690F1}.Release|x64.Build.0 = Release|Any CPU
 		{F351EB8D-0560-434A-89F8-015B414690F1}.Release|x86.ActiveCfg = Release|Any CPU
 		{F351EB8D-0560-434A-89F8-015B414690F1}.Release|x86.Build.0 = Release|Any CPU
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}.Debug|x64.Build.0 = Debug|Any CPU
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}.Debug|x86.Build.0 = Debug|Any CPU
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}.Release|x64.ActiveCfg = Release|Any CPU
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}.Release|x64.Build.0 = Release|Any CPU
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}.Release|x86.ActiveCfg = Release|Any CPU
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -142,5 +156,6 @@ Global
 		{F9DA9A36-B922-4686-989B-503AC4FCE1F4} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{DBE50B04-6571-4A56-832C-6A3565A7E4A4} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{F351EB8D-0560-434A-89F8-015B414690F1} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{B7F3A1C9-5D8E-4B2A-9A1F-8C7D6E5F4A3B} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
