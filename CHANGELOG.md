@@ -5,6 +5,119 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-02-02
+
+### Added
+
+- **Opening book system** - Precomputed opening positions for instant move retrieval
+  - SQLite-backed storage with `SqliteOpeningBookStore` for persistent book data
+  - 8-way symmetry reduction (4 rotations × mirror) for ~8x storage efficiency
+  - Translation-invariant canonical positions via `PositionCanonicalizer`
+  - Per-move metadata: win rate, depth achieved, nodes searched, forcing move flag
+  - `OpeningBookLookupService` integrates with MinimaxAI for seamless book queries
+  - `OpeningBookGenerator` for offline book generation using full MinimaxAI engine
+  - `Caro.BookBuilder` CLI tool for book generation and verification
+  - Opening book enabled for Hard, Grandmaster, and Experimental difficulties
+- **AIDifficulty.BookGeneration** - New difficulty level (D7) for offline book generation
+  - Uses (N-4) threads for more aggressive parallel search than Grandmaster's (N/2)-1
+  - 60-second time budget per position evaluation
+  - Lazy SMP parallel search with full engine features (VCF, pondering disabled)
+- **OpeningBookEntry** and related entities - Core data models for book system
+  - `SymmetryType` enum for 8 transformation types
+  - `BookMove` record with evaluation metadata
+  - `CanonicalPosition` record for symmetry-reduced positions
+  - `BookGenerationResult`, `VerificationResult`, `BookStatistics` records
+- **Interfaces for opening book architecture**
+  - `IOpeningBookStore` - Abstract storage interface (in-memory and SQLite implementations)
+  - `IOpeningBookGenerator` - Book generation interface
+  - `IPositionCanonicalizer` - Symmetry reduction interface
+  - `IOpeningBookValidator` - Move validation interface
+- **InMemoryOpeningBookStore** - In-memory implementation for testing and fallback
+
+### Changed
+
+- **AIDifficulty enum renumbered** - BookGeneration added as D7, Experimental shifted to D6
+- **AIDifficultyConfig updated** - Added `OpeningBookEnabled` flag to all difficulty settings
+  - Hard, Grandmaster, and Experimental now have opening book enabled
+  - BookGeneration uses dedicated thread count formula: `GetBookGenerationThreadCount()`
+- **OpeningBook.cs** - Now uses `IOpeningBookStore` for storage abstraction
+  - Changed from hardcoded moves to dynamic store-based lookups
+  - Supports both in-memory and SQLite-backed stores
+
+### Technical Details
+
+**Opening Book Storage:**
+
+```sql
+CREATE TABLE OpeningBook (
+    CanonicalHash INTEGER PRIMARY KEY NOT NULL,
+    Depth INTEGER NOT NULL,
+    Player INTEGER NOT NULL,
+    Symmetry INTEGER NOT NULL,
+    IsNearEdge INTEGER NOT NULL,
+    MovesData TEXT NOT NULL,  -- JSON array of BookMove[]
+    TotalMoves INTEGER NOT NULL,
+    CreatedAt TEXT NOT NULL
+);
+```
+
+**Symmetry Reduction:**
+
+- 8 transformations: Identity, Rotate90, Rotate180, Rotate270, FlipHorizontal, FlipVertical, DiagonalA, DiagonalB
+- Positions near board edges use absolute coordinates (no symmetry)
+- Center positions use canonical form with transformation metadata
+
+**Book Builder CLI:**
+
+```bash
+# Generate new book
+dotnet run --project backend/src/Caro.BookBuilder -- \
+  --output=opening_book.db \
+  --max-depth=12 \
+  --target-depth=24
+
+# Verify existing book
+dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=opening_book.db
+```
+
+**Thread Count Formulas:**
+
+- Grandmaster/Experimental: `(processorCount / 2) - 1`
+- BookGeneration: `Math.Max(4, processorCount - 4)`
+
+On a 20-core system:
+- Grandmaster: 9 threads
+- BookGeneration: 16 threads
+
+### Files Added
+
+- `backend/src/Caro.Core/Entities/OpeningBookEntry.cs` - Book data models
+- `backend/src/Caro.Core/GameLogic/OpeningBook/IOpeningBookStore.cs` - Storage interface
+- `backend/src/Caro.Core/GameLogic/OpeningBook/IOpeningBookGenerator.cs` - Generator interface
+- `backend/src/Caro.Core/GameLogic/OpeningBook/IPositionCanonicalizer.cs` - Canonicalizer interface
+- `backend/src/Caro.Core/GameLogic/OpeningBook/IOpeningBookValidator.cs` - Validator interface
+- `backend/src/Caro.Core/GameLogic/OpeningBook/InMemoryOpeningBookStore.cs` - In-memory store
+- `backend/src/Caro.Core/GameLogic/OpeningBook/PositionCanonicalizer.cs` - Symmetry reduction
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookValidator.cs` - Move validation
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookLookupService.cs` - Lookup integration
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs` - Book generator
+- `backend/src/Caro.Core.Infrastructure/Persistence/SqliteOpeningBookStore.cs` - SQLite store
+- `backend/src/Caro.BookBuilder/Program.cs` - CLI tool
+- `backend/src/Caro.BookBuilder/Caro.BookBuilder.csproj` - Project file
+
+### Files Modified
+
+- `backend/src/Caro.Core/GameLogic/AIDifficulty.cs` - Added BookGeneration = 7
+- `backend/src/Caro.Core/GameLogic/AIDifficultyConfig.cs` - Added OpeningBookEnabled flag
+- `backend/src/Caro.Core/GameLogic/OpeningBook.cs` - Store-based lookups
+- `backend/src/Caro.Core.Infrastructure/Caro.Core.Infrastructure.csproj` - Added Microsoft.Data.Sqlite
+- `backend/Caro.Api.sln` - Added Caro.BookBuilder project
+
+[1.7.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.7.0
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [1.6.0] - 2026-02-01
 
 ### Changed

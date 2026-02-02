@@ -54,10 +54,34 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 | Braindead | 1 | 5% | 10% | Beginners |
 | Easy | 2 | 20% | 0% | Parallel search |
 | Medium | 3 | 50% | 0% | Parallel + pondering |
-| Hard | 4 | 75% | 0% | Parallel + pondering + VCF |
-| Grandmaster | (N/2)-1 | 100% | 0% | Max parallel, VCF, pondering |
+| Hard | 4 | 75% | 0% | Parallel + pondering + VCF + Opening book |
+| Grandmaster | (N/2)-1 | 100% | 0% | Max parallel, VCF, pondering, Opening book |
+| Experimental | (N/2)-1 | 100% | 0% | Full opening book, max features |
 
 **Depth:** Dynamic calculation based on host machine NPS and time control. Formula: `depth = log(time * nps * timeMultiplier) / log(ebf)`
+
+### Opening Book
+
+Precomputed opening positions for instant move retrieval and deeper analysis:
+
+- **Symmetry reduction** - 8-way transformations (4 rotations × mirror) reduce storage by ~8x
+- **SQLite storage** - Persistent `opening_book.db` with indexed position lookup
+- **Translation invariant** - Canonical positions work regardless of board location
+- **Per-move metadata** - Win rate, depth achieved, nodes searched, forcing move flag
+- **Offline generation** - Caro.BookBuilder tool with (N-4) threads for faster analysis
+
+**Generate opening book:**
+```bash
+dotnet run --project backend/src/Caro.BookBuilder -- \
+  --output=opening_book.db \
+  --max-depth=12 \
+  --target-depth=24
+```
+
+**Verify existing book:**
+```bash
+dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=opening_book.db
+```
 
 ### Tournament Mode
 
@@ -126,6 +150,7 @@ Clean Architecture with three core layers:
 │  │  MinimaxAI  │  VCFSolver  │  ParallelMinimaxSearch          │ │
 │  │  Hash Move  │  VCF Pre-Search │  Lazy SMP  │  TT Sharding    │ │
 │  │  Priority #1│  Emergency Defense │  BitBoardEvaluator       │ │
+│  │  OpeningBook │ PositionCanonicalizer │ BookGeneration       │ │
 │  └─────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -138,6 +163,7 @@ Clean Architecture with three core layers:
 | `Caro.Core.Application` | Interfaces, application services | Domain |
 | `Caro.Core.Infrastructure` | AI algorithms, external concerns | Domain, Application |
 | `Caro.Api` | Web API, SignalR hub | All layers |
+| `Caro.BookBuilder` | CLI tool for offline book generation | Infrastructure |
 
 ### Component Flow
 
@@ -205,7 +231,7 @@ Production-grade concurrency following .NET 10 best practices:
 
 **Backend:** .NET 10, ASP.NET Core 10, SignalR, System.Threading.Channels, SQLite + FTS5, xUnit v3.1
 
-**AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP, Hash Move-first ordering
+**AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP, Hash Move-first ordering, Opening book with symmetry reduction
 
 ---
 
@@ -213,13 +239,13 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Category | Tests |
 |----------|-------|
-| Backend Unit | 480+ |
+| Backend Unit | 550+ |
 | Statistical | 38 |
 | AI Strength Validation | 19 |
 | Concurrency | 32 |
 | Integration | 13 |
 | Frontend Unit | 26 |
-| **TOTAL** | **500+** |
+| **TOTAL** | **550+** |
 
 ---
 
