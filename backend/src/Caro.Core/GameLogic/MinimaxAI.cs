@@ -24,7 +24,7 @@ public class MinimaxAI : IStatsPublisher
     private readonly ThreatDetector _threatDetector = new();
     private readonly ThreatSpaceSearch _vcfSolver = new();
     private readonly VCFSolver _inTreeVCFSolver;  // In-tree VCF solver for Lazy SMP
-    private readonly OpeningBook _openingBook = new();
+    private readonly OpeningBook _openingBook = OpeningBook.Instance;
 
     // Time management for 7+5 time control
     private readonly TimeManager _timeManager = new();
