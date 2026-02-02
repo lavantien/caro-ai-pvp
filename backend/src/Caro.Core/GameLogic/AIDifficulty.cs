@@ -40,5 +40,19 @@ public enum AIDifficulty
     /// Lazy SMP + SIMD + VCF solver (optimized)
     /// Adapts search depth based on game phase and tactical complexity
     /// </summary>
-    Grandmaster = 5
+    Grandmaster = 5,
+
+    /// <summary>
+    /// D6 Experimental: Maximum features for testing
+    /// Opening book + max depth + all optimizations enabled
+    /// Used for testing new features and experimental AI improvements
+    /// </summary>
+    Experimental = 6,
+
+    /// <summary>
+    /// D7 BookGeneration: Maximum threads for offline book generation
+    /// Uses (N-4) threads for aggressive parallel search
+    /// 60 second time budget per position evaluation
+    /// </summary>
+    BookGeneration = 7
 }
