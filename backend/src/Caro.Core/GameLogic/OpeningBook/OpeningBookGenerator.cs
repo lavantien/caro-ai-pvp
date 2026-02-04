@@ -33,6 +33,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     private readonly IOpeningBookStore _store;
     private readonly IPositionCanonicalizer _canonicalizer;
     private readonly IOpeningBookValidator _validator;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<OpeningBookGenerator> _logger;
     private readonly GeneratorProgress _progress = new();
     private readonly AsyncQueue<BookProgressEvent> _progressQueue;
@@ -42,12 +43,13 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         IOpeningBookStore store,
         IPositionCanonicalizer canonicalizer,
         IOpeningBookValidator validator,
-        ILogger<OpeningBookGenerator>? logger = null)
+        ILoggerFactory? loggerFactory = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _canonicalizer = canonicalizer ?? throw new ArgumentNullException(nameof(canonicalizer));
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
-        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<OpeningBookGenerator>.Instance;
+        _loggerFactory = loggerFactory ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
+        _logger = _loggerFactory.CreateLogger<OpeningBookGenerator>();
 
         // Create progress queue for thread-safe updates from workers
         _progressQueue = new AsyncQueue<BookProgressEvent>(
@@ -478,7 +480,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                 // Create local AI instance to avoid shared state corruption
                 // Use smaller TT (64MB) since positions are independent
-                var localAI = new MinimaxAI(ttSizeMb: 64);
+                var localAI = new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
 
                 // Run search with divided time budget, NO inner parallel to avoid oversubscription
                 var (bestX, bestY) = localAI.GetBestMove(

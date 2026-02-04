@@ -5,6 +5,7 @@ using Caro.Core.Entities;
 using Caro.Core.GameLogic.TimeManagement;
 using Caro.Core.GameLogic.Pondering;
 using Caro.Core.Tournament;
+using Microsoft.Extensions.Logging;
 
 namespace Caro.Core.GameLogic;
 
@@ -106,8 +107,12 @@ public class MinimaxAI : IStatsPublisher
     public Channel<MoveStatsEvent> StatsChannel => _statsChannel;
     public string PublisherId => _publisherId;
 
-    public MinimaxAI(int ttSizeMb = 256)
+    // Optional logger for diagnostics
+    private readonly ILogger<MinimaxAI> _logger;
+
+    public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null)
     {
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<MinimaxAI>.Instance;
         _publisherId = Interlocked.Increment(ref _instanceCounter).ToString();
         _statsChannel = Channel.CreateUnbounded<MoveStatsEvent>();
 
@@ -367,7 +372,10 @@ public class MinimaxAI : IStatsPublisher
                 }
             }
 
-            Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) Opponent has {straightFourCount} StraightFour, {straightThreeCount} StraightThree threat(s), blocking squares: {string.Join(", ", blockingSquares.Select(g => $"({g.x},{g.y})"))}{(hasOpenFour ? " [OPEN FOUR DETECTED]" : "")}");
+            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Opponent has {StraightFourCount} StraightFour, {StraightThreeCount} StraightThree threat(s), blocking squares: {BlockingSquares}{OpenFourSuffix}",
+                difficulty, player, straightFourCount, straightThreeCount,
+                string.Join(", ", blockingSquares.Select(g => $"({g.x},{g.y})")),
+                hasOpenFour ? " [OPEN FOUR DETECTED]" : "");
         }
 
         // Emergency mode - use TT move at D3+ (Medium+) if available
@@ -395,7 +403,8 @@ public class MinimaxAI : IStatsPublisher
 
                 if (timeAlloc.SoftBoundMs < minCriticalResponseTimeMs)
                 {
-                    Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) CRITICAL: Open four detected - reserving minimum time ({minCriticalResponseTimeMs}ms)");
+                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) CRITICAL: Open four detected - reserving minimum time ({MinCriticalResponseTimeMs}ms)",
+                        difficulty, player, minCriticalResponseTimeMs);
                     timeAlloc = new TimeAllocation
                     {
                         SoftBoundMs = Math.Max(minCriticalResponseTimeMs, timeAlloc.SoftBoundMs),
@@ -416,20 +425,23 @@ public class MinimaxAI : IStatsPublisher
             if (filteredCandidates.Count > 0)
             {
                 candidates = filteredCandidates;
-                Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) Filtered to {candidates.Count} blocking move(s)");
+                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Filtered to {CandidateCount} blocking move(s)",
+                    difficulty, player, candidates.Count);
             }
             else
             {
                 // Fallback: use the blocking squares directly as candidates
                 candidates = blockingSquares;
-                Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) Using blocking squares directly as candidates");
+                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Using blocking squares directly as candidates",
+                    difficulty, player);
             }
 
             // CRITICAL FIX: For open fours (StraightFour with 2+ blocking squares),
             // we're in a lost position if we can't win immediately. Log this for debugging.
             if (hasOpenFour)
             {
-                Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) WARNING: Open four detected - opponent can win in 2 moves");
+                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) WARNING: Open four detected - opponent can win in 2 moves",
+                    difficulty, player);
 
                 // Check if we have counter-threats
                 var ourThreats = _threatDetector.DetectThreats(board, player);
@@ -438,11 +450,13 @@ public class MinimaxAI : IStatsPublisher
 
                 if (ourStraightFours > 0)
                 {
-                    Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) We have {ourStraightFours} StraightFour threat(s) - counter-attack instead of just blocking");
+                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) We have {OurStraightFours} StraightFour threat(s) - counter-attack instead of just blocking",
+                        difficulty, player, ourStraightFours);
                 }
                 else if (ourStraightThrees > 1)
                 {
-                    Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) We have {ourStraightThrees} StraightThree threat(s) - creating counter-play");
+                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) We have {OurStraightThrees} StraightThree threat(s) - creating counter-play",
+                        difficulty, player, ourStraightThrees);
                 }
             }
         }
@@ -1253,7 +1267,8 @@ public class MinimaxAI : IStatsPublisher
 
                     if (winResult.HasWinner && winResult.Winner == opponent)
                     {
-                        Console.WriteLine($"[AI DEFENSE] {difficulty} ({player}) Opponent has immediate win at ({x}, {y}) - blocking!");
+                        _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Opponent has immediate win at ({X}, {Y}) - blocking!",
+                            difficulty, player, x, y);
                         return (x, y);
                     }
                 }

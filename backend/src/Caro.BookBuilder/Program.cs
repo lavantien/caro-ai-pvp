@@ -24,7 +24,7 @@ class Program
             Console.WriteLine("  --max-depth <plies>   Maximum book depth in plies (default: 12)");
             Console.WriteLine("  --target-depth <plies> Search depth for move evaluation (default: 24)");
             Console.WriteLine("  --verify-only         Verify existing book without generation");
-            Console.WriteLine("  --debug               Enable debug logging (default: Information level)");
+            Console.WriteLine("  --debug               Enable verbose logging (default: quiet mode)");
             Console.WriteLine("  --help, -h            Show this help message");
             Console.WriteLine();
             Console.WriteLine("Examples:");
@@ -43,7 +43,8 @@ class Program
                 options.SingleLine = false;
                 options.TimestampFormat = "HH:mm:ss ";
             });
-            builder.SetMinimumLevel(debugLogging ? LogLevel.Debug : LogLevel.Information);
+            // Default to Warning (quiet), use --debug for verbose output
+            builder.SetMinimumLevel(debugLogging ? LogLevel.Debug : LogLevel.Warning);
         });
 
         var logger = loggerFactory.CreateLogger<Program>();
@@ -57,27 +58,6 @@ class Program
         var maxDepthStr = GetArgument(args, "--max-depth", "12");  // Default to 12 plies (6 moves each)
         var targetDepthStr = GetArgument(args, "--target-depth", "24");  // Default to 24 ply search
         var verifyOnly = args.Contains("--verify-only");
-
-        if (showHelp)
-        {
-            Console.WriteLine("Caro Opening Book Builder");
-            Console.WriteLine();
-            Console.WriteLine("Usage: dotnet run -- [options]");
-            Console.WriteLine();
-            Console.WriteLine("Options:");
-            Console.WriteLine("  --output <path>       Output database path (default: opening_book.db)");
-            Console.WriteLine("  --max-depth <plies>   Maximum book depth in plies (default: 12)");
-            Console.WriteLine("  --target-depth <plies> Search depth for move evaluation (default: 24)");
-            Console.WriteLine("  --verify-only         Verify existing book without generation");
-            Console.WriteLine("  --debug               Enable debug logging (default: Information level)");
-            Console.WriteLine("  --help, -h            Show this help message");
-            Console.WriteLine();
-            Console.WriteLine("Examples:");
-            Console.WriteLine("  dotnet run -- --output book.db --max-depth 14");
-            Console.WriteLine("  dotnet run -- --verify-only");
-            Console.WriteLine("  dotnet run -- --max-depth 10 --debug");
-            return;
-        }
 
         if (!int.TryParse(maxDepthStr, out int maxDepth))
         {
@@ -128,7 +108,7 @@ class Program
             store,
             canonicalizer,
             validator,
-            loggerFactory.CreateLogger<OpeningBookGenerator>()
+            loggerFactory
         );
 
         Console.WriteLine("Starting book generation...");
@@ -147,7 +127,7 @@ class Program
         try
         {
             // Progress reporting
-            var progressTimer = new System.Timers.Timer(5000);
+            var progressTimer = new System.Timers.Timer(60000);  // 60 second intervals
             progressTimer.Elapsed += (s, e) =>
             {
                 var progress = generator.GetProgress();
