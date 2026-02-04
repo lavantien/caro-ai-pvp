@@ -74,15 +74,24 @@ Precomputed opening positions for instant move retrieval and deeper analysis:
 - **Aggressive candidate pruning** - Static evaluation pre-sorting reduces 24→6 candidates
 - **Tapered beam width** - Converts exponential growth to linear (4→2→1 children by depth)
 - **Early exit optimization** - Skips remaining candidates when best move dominates
+- **Survival zone enhancements** - Extra branching (4 children) and time (+50%) for moves 4-7
 - **Resume capability** - Incremental deepening of existing books
 - **Real-time progress** - Thread-safe position tracking with AsyncQueue
 
-**Generate opening book** (~8 hours for ply 14):
+**Generate opening book** (defaults: max-depth=32, target-depth=32):
 ```bash
 dotnet run --project backend/src/Caro.BookBuilder -- \
   --output=opening_book.db \
-  --max-depth=14 \
-  --target-depth=24
+  --max-depth=32 \
+  --target-depth=32
+```
+
+**Generate quicker book for testing** (~10 minutes for ply 10):
+```bash
+dotnet run --project backend/src/Caro.BookBuilder -- \
+  --output=opening_book.db \
+  --max-depth=10 \
+  --target-depth=12
 ```
 
 **Resume and extend existing book:**
@@ -97,7 +106,7 @@ dotnet run --project backend/src/Caro.BookBuilder -- \
 ```bash
 dotnet run --project backend/src/Caro.BookBuilder -- \
   --output=opening_book.db \
-  --max-depth=14 \
+  --max-depth=32 \
   --debug
 ```
 
