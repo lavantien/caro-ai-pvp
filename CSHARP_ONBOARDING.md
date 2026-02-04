@@ -1,6 +1,41 @@
 # Modern C\# Survival Guide (C\# 14 / .NET 10 Era)
 
-Welcome to the codebase! You are entering an environment that likely follows a "Functional Core, Imperative Shell" architecture. This is very different from "classic" Object-Oriented C\#. We prioritize data consistency (Immutability), side-effect-free logic (Statelessness), and robust modularity (DI).
+Welcome to the **Caro AI PvP** codebase! This is a grandmaster-level Caro (Gomoku variant) AI built with .NET 10 and Clean Architecture principles.
+
+## Quick Project Overview
+
+### Solution Structure
+```
+backend/
+├── src/
+│   ├── Caro.Core.Domain/         # Pure C# entities (no dependencies)
+│   ├── Caro.Core.Application/    # DTOs, mappers, interfaces
+│   ├── Caro.Core.Infrastructure/ # AI algorithms, persistence
+│   ├── Caro.Api/               # Web API + SignalR hub
+│   ├── Caro.BookBuilder/        # Opening book generation CLI
+│   └── Caro.TournamentRunner/   # AI strength validation tests
+└── tests/
+    ├── Caro.Core.Domain.Tests/     # 85 unit tests
+    ├── Caro.Core.Application.Tests/ # 8 unit tests
+    ├── Caro.Core.Infrastructure.Tests/ # 48 unit/integration tests
+    └── Caro.Core.Tests/         # 484 mixed tests (AI/tournament/concurrency)
+```
+
+### Key Technologies
+- .NET 10, C# 14
+- ASP.NET Core 10 + SignalR
+- xUnit 2.9.2, Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
+- 660+ total tests (583 backend unit + 44 integration + 30 concurrency + 17 statistical + 19 frontend unit + 17 frontend E2E)
+
+### Architecture Principles
+This codebase follows **Clean Architecture** with a "Functional Core, Imperative Shell" approach:
+
+- **Immutability**: Data cannot change once created (use `record` types)
+- **Statelessness**: AI logic has no mutable instance variables
+- **Dependency Injection**: All dependencies injected via constructor parameters
+- **Layered Design**: Domain → Application → Infrastructure clear separation
+
+
 
 ## Part 1: Immutability (The "Data" Layer)
 
@@ -65,13 +100,15 @@ In older C\#, injecting dependencies required a lot of boilerplate code. Modern 
 **Old Way:**
 
 ```csharp
-public class OrderService
+public class GameStateService
 {
-private readonly IRepository _repo;
-public OrderService(IRepository repo) // Constructor
-{
-_repo = repo;
-}
+ private readonly ILogger _logger;
+ private readonly IGameRepository _repo;
+ public GameStateService(ILogger<GameStateService> logger, IGameRepository repo)
+ {
+ _logger = logger;
+ _repo = repo;
+ }
 }
 ```
 
@@ -80,19 +117,26 @@ _repo = repo;
 We declare dependencies directly in the class signature.
 
 ```csharp
-// The parameters 'repo' and 'logger' are available throughout the class
-public class OrderService(IOrderRepository repo, ILogger<OrderService> logger) :
-IOrderService
+// The parameters 'logger' and 'store' are available throughout the class
+public class StatelessSearchEngine(ILogger<StatelessSearchEngine> logger) :
+ IAIEngine
 {
-public async Task ProcessOrderAsync(Order order)
-{
-logger.LogInformation("Processing order {Id}", order.Id);
-// Pure logic: Inputs -> Processing -> Output
+ private const int WinLength = 5;
 
+ public (int x, int y, int score) FindBestMove(
+ GameState state,
+ AIDifficulty difficulty,
+ CancellationToken ct = default)
+ {
+ logger.LogDebug("Searching with difficulty {Difficulty}", difficulty);
+ // Pure logic: State -> Options -> Best Move
 
-var processedOrder = order with { Status = OrderStatus.Processed };
-await repo.SaveAsync(processedOrder);
-}
+ // Stateless design - no mutable instance variables
+ var emptyCells = GetOrderedMoves(state, difficulty);
+ // ... search logic
+
+ return (bestX, bestY, bestScore);
+ }
 }
 ```
 
@@ -103,41 +147,54 @@ When registering these in Program.cs, you define how long they live.
 - **Scoped (AddScoped)** : Created once per _HTTP Request_. (Standard for web APIs).
 - **Singleton (AddSingleton)** : Created once per _Application lifetime_. (Be careful! Not thread-safe if you hold state).
 
-```cshsarp
+```csharp
 // Program.cs
 var builder = WebApplication.CreateBuilder(args);
-// Registering our service
-builder.Services.AddScoped<IOrderService, OrderService>();
+
+// Register AI services
+builder.Services.AddScoped<IBookGenerator, OpeningBookGenerator>();
+builder.Services.AddSingleton<TournamentManager>();
+builder.Services.AddSignalR();
+
+// Register repositories
+builder.Services.AddScoped<IGameRepository, InMemoryGameRepository>();
 ```
 
 ## Part 3: Testing (xUnit)
 
 We use **xUnit**. It is the industry standard for .NET.
 
+### Test Stack
+
+| Component | Version | Purpose |
+|-----------|----------|---------|
+| xUnit | 2.9.2 | Test framework |
+| xUnit Runner Visual Studio | 3.1.4 | Test runner |
+| FluentAssertions | 7.0.0-8.8.0 | Assertion library |
+| Moq | 4.20.72 | Mocking library |
+| Coverlet | 6.0.4 | Code coverage |
+
 ### 1. The Attributes
 
 - [Fact]: A test that is always true. It takes no arguments. Used for invariant logic.
 - [Theory]: A test that is true for a specific set of data. It takes arguments.
+- [Trait("Category", "Integration")]: Marks integration tests that require external dependencies.
 
 ### 2. AAA Pattern (Arrange, Act, Assert)
 
 Every test method should be visually split into these three sections.
 
-### 3. Practical Example
+### 3. Practical Examples
 
-Let's test a simple calculator logic.
+#### Example 1: Testing Immutable Records (Domain Layer)
 
 **The Code to Test:**
 
 ```csharp
-public record Calculator
+// Position.cs - Immutable record
+public record Position(int X, int Y)
 {
-public int Add(int a, int b) => a + b;
-public double Divide(double a, double b)
-{
-if (b == 0) throw new DivideByZeroException();
-return a / b;
-}
+ public bool IsValid => X >= 0 && X < 19 && Y >= 0 && Y < 19;
 }
 ```
 
@@ -145,14 +202,252 @@ return a / b;
 
 ```csharp
 using Xunit;
-using FluentAssertions; // Highly recommended library for readable assertions
-public class CalculatorTests
+using FluentAssertions;
+using Caro.Core.Domain.Entities;
+
+public class PositionTests
 {
-// [Fact]: Single scenario
+ [Fact]
+ public void Invalid_Position_IsInvalid()
+ {
+ // Arrange
+ var position = new Position(-1, 0);
+
+ // Act & Assert
+ position.IsValid.Should().BeFalse();
+ }
+
+ [Fact]
+ public void InRange_Position_IsValid()
+ {
+ // Arrange
+ var positions = new[]
+ {
+ new Position(0, 0),
+ new Position(9, 9),
+ new Position(18, 18)
+ };
+
+ // Act & Assert
+ foreach (var pos in positions)
+ {
+ pos.IsValid.Should().BeTrue();
+ }
+ }
+}
+```
+
+#### Example 2: Testing with [Theory] and Data
+
+```csharp
+using Xunit;
+using FluentAssertions;
+using Caro.Core.Domain.Entities;
+
+public class PlayerTests
+{
+ [Theory]
+ [InlineData(Player.Red, true)]
+ [InlineData(Player.Blue, true)]
+ [InlineData(Player.None, false)]
+ public void Player_IsValid_WhenHasValue(Player player, bool expected)
+ {
+ // Act
+ var isValid = player != Player.None;
+
+ // Assert
+ isValid.Should().Be(expected);
+ }
+}
+```
+
+#### Example 3: Testing Non-Destructive Mutation
+
+```csharp
+using Xunit;
+using FluentAssertions;
+using Caro.Core.Domain.Entities;
+
+public class GameStateTests
+{
+ [Fact]
+ public void MakeMove_ReturnsNewState_WithoutMutatingOriginal()
+ {
+ // Arrange
+ var originalState = GameState.CreateInitial();
+
+ // Act
+ var newState = originalState.MakeMove(9, 9);
+
+ // Assert - original unchanged
+ originalState.MoveNumber.Should().Be(0);
+ originalState.Board.IsEmpty().Should().BeTrue();
+
+ // Assert - new state updated
+ newState.MoveNumber.Should().Be(1);
+ newState.Board.GetCell(9, 9).Player.Should().Be(Player.Red);
+ }
+}
+```
+
+### 4. Mocking Dependencies
+
+Since your codebase uses DI, your services depend on Interfaces. In unit tests, we "mock" these to isolate the class we are testing.
+
+**We use Moq 4.20.72** (not NSubstitute).
+
+```csharp
+using Xunit;
+using FluentAssertions;
+using Moq;
+using Caro.Core.Infrastructure.Persistence;
+
+public class AIServiceTests
+{
+ [Fact]
+ public async Task GetBestMove_ShouldCallStore_WhenMoveRequested()
+ {
+ // Arrange
+ var mockStore = new Mock<IGameRepository>();
+ var mockLogger = new Mock<ILogger<AIService>>();
+
+ // Setup mock behavior
+ mockStore
+ .Setup(x => x.GetLastMoveAsync(It.IsAny<string>()))
+ .ReturnsAsync((9, 9));
+
+ var service = new AIService(mockStore.Object, mockLogger.Object);
+
+ // Act
+ var result = await service.GetBestMoveAsync("game-123");
+
+ // Assert - verify interaction
+ mockStore.Verify(x => x.GetLastMoveAsync("game-123"), Times.Once);
+ result.X.Should().Be(9);
+ result.Y.Should().Be(9);
+ }
+}
+```
+
+### 5. Project-Specific Testing Patterns
+
+#### Testing Value Objects (BitBoard)
+
+```csharp
 [Fact]
-public void Divide_ShouldThrowException_WhenDivisorIsZero()
+public void BitBoard_SetBit_UpdatesCorrectly()
 {
-// Arrange (Setup objects)
+ // Arrange
+ var board = new BitBoard();
+
+ // Act
+ board.SetBit(9, 9);
+
+ // Assert
+ board.GetBit(9, 9).Should().BeTrue();
+ board.GetBit(0, 0).Should().BeFalse();
+ board.CountBits().Should().Be(1);
+}
+```
+
+#### Testing AI Algorithms
+
+```csharp
+[Theory]
+[InlineData(AIDifficulty.Easy, 3)]
+[InlineData(AIDifficulty.Medium, 5)]
+[InlineData(AIDifficulty.Hard, 7)]
+public void SearchDepth_CorrelatesWithDifficulty(AIDifficulty difficulty, int expectedDepth)
+{
+ // Arrange
+ var state = GameState.CreateInitial();
+ var ai = new MinimaxAI();
+
+ // Act
+ var (x, y, depth) = ai.GetBestMove(state, difficulty);
+
+ // Assert
+ depth.Should().BeGreaterOrEqualTo(expectedDepth);
+}
+```
+
+#### Testing Concurrency
+
+```csharp
+[Fact]
+public async Task ConcurrentMoves_DoNotCauseRaceConditions()
+{
+ // Arrange
+ var state = GameState.CreateInitial();
+ var tasks = new List<Task>();
+
+ // Act - simulate concurrent access
+ for (int i = 0; i < 100; i++)
+ {
+ tasks.Add(Task.Run(() =>
+ {
+ // Each thread gets its own state copy
+ var threadState = state.MakeMove(i % 19, i % 19);
+ return threadState;
+ }));
+ }
+
+ await Task.WhenAll(tasks);
+
+ // Assert - original state unchanged (immutable)
+ state.MoveNumber.Should().Be(0);
+ state.Board.IsEmpty().Should().BeTrue();
+}
+```
+
+## Part 4: Clean Architecture Context
+
+This codebase follows Clean Architecture with three core layers:
+
+### 1. Domain Layer (`Caro.Core.Domain`)
+- **Purpose**: Core business logic, entities, value objects
+- **Dependencies**: None (pure C#)
+- **Key Types**:
+  - Records: `GameState`, `Position`, `Player`
+  - Value Objects: `BitBoard`, `ZobristHash`
+  - No framework dependencies
+
+**Testing**: Unit tests only (no mocking needed)
+- Project: `Caro.Core.Domain.Tests`
+- Example: Test record immutability, value object operations
+
+### 2. Application Layer (`Caro.Core.Application`)
+- **Purpose**: Application services, DTOs, mappers
+- **Dependencies**: Domain layer
+- **Key Types**:
+  - Interfaces: `IStatsPublisher`, `ITimeManager`
+  - DTOs: `GameDTO`, `MoveDTO`
+  - Mappers: `GameMapper`
+
+**Testing**: Unit tests with mocking
+- Project: `Caro.Core.Application.Tests`
+- Mock: Domain entities (using FluentAssertions assertions)
+
+### 3. Infrastructure Layer (`Caro.Core.Infrastructure`)
+- **Purpose**: External concerns, AI algorithms, persistence
+- **Dependencies**: Domain, Application layers
+- **Key Types**:
+  - AI Engine: `StatelessSearchEngine`, `MinimaxAI`
+  - Services: `AIService`, `TimeManagementService`
+  - Persistence: `InMemoryGameRepository`
+
+**Testing**: Unit and integration tests
+- Project: `Caro.Core.Infrastructure.Tests`
+- Mock: External dependencies (file system, database, timers)
+
+### Test Project Organization
+
+| Test Project | Source Project | Test Type | Count |
+|-------------|----------------|------------|--------|
+| Caro.Core.Domain.Tests | Caro.Core.Domain | Unit | 85 |
+| Caro.Core.Application.Tests | Caro.Core.Application | Unit | 8 |
+| Caro.Core.Infrastructure.Tests | Caro.Core.Infrastructure | Unit/Integration | 48 |
+| Caro.Core.Tests | Caro.Core (GameLogic/Tournament/Concurrency) | Mixed | 484 |
 var calculator = new Calculator();
 // Act (Execute the method)
 // For exceptions, we record the action
@@ -177,33 +472,21 @@ result.Should().Be(expected);
 }
 ```
 
-### 4. Mocking Dependencies
 
-Since your codebase uses DI, your services depend on Interfaces (IRepository, etc.). In unit tests, we "mock" these to isolate the class we are testing.
-
-*Common library: NSubstitute or Moq.*
-
-```csharp
-[Fact]
-public async Task ProcessOrder_ShouldCallSave_WhenOrderIsValid()
-{
-// Arrange
-var mockRepo = Substitute.For<IOrderRepository>(); // Fake repository
-var service = new OrderService(mockRepo); // Inject fake
-var order = new Order(1, "Book");
-// Act
-await service.ProcessOrderAsync(order);
-// Assert
-// Verify that the repository's Save method was actually called
-await mockRepo.Received(1).SaveAsync(Arg.Any<Order>());
-}
-```
 
 ## Summary Checklist for your Onboarding
 
-1. **Look for record definitions** : Understand the data shapes.
-2. **Identify the Aggregates** : Look for the root objects being mutated via with.
-3. **Check Program.cs** : See how services are wired (Transient vs Scoped).
-4. **Run the Tests** : Open the Test Explorer. If a test fails, look at the [Theory] data to see  *which* specific input caused the crash.
+1. **Understand Clean Architecture layers** : Domain → Application → Infrastructure
+2. **Locate test projects** : Find tests in Caro.Core.Domain.Tests, Caro.Core.Application.Tests, etc.
+3. **Review record definitions** : Understand immutable data shapes (GameState, Position, Player)
+4. **Identify with-expression mutations** : Look for non-destructive state updates
+5. **Check Program.cs** : See how services are wired (Transient/Scoped/Singleton)
+6. **Run the Tests** : Use `dotnet test` in backend/ or Test Explorer
+   - Caro.Core.Domain.Tests: 85 unit tests (no mocking needed)
+   - Caro.Core.Application.Tests: 8 unit tests (mock DTOs)
+   - Caro.Core.Infrastructure.Tests: 48 unit/integration tests
+   - Caro.Core.Tests: 484 mixed tests (AI, tournament, concurrency)
+7. **When tests fail** : Check [Theory] inline data to see which input caused the crash
+8. **Mocking** : Use Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
 
 

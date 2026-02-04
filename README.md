@@ -1,6 +1,6 @@
 # Caro AI PvP
 
-A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built with .NET 10 and SvelteKit 5.
+A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built with .NET 10, SvelteKit 2.49+ with Svelte 5 Runes.
 
 ---
 
@@ -242,9 +242,9 @@ Production-grade concurrency following .NET 10 best practices:
 
 ## Tech Stack
 
-**Frontend:** SvelteKit 5, TypeScript, Svelte 5 Runes, Skeleton UI v4, TailwindCSS v4, SignalR
+**Frontend:** SvelteKit 2.49+ with Svelte 5 Runes, TypeScript 5.9, TailwindCSS 4.1, SignalR (@microsoft/signalr 8.0), Vitest 4.0, Playwright 1.57
 
-**Backend:** .NET 10, ASP.NET Core 10, SignalR, System.Threading.Channels, SQLite + FTS5, xUnit v3.1
+**Backend:** .NET 10, ASP.NET Core 10, SignalR, System.Threading.Channels, SQLite + FTS5, xUnit 2.9.2 with xUnit Runner 3.1.4, Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
 
 **AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP, Hash Move-first ordering, Opening book with symmetry reduction
 
@@ -254,13 +254,32 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Category | Tests |
 |----------|-------|
-| Backend Unit | 550+ |
-| Statistical | 38 |
-| AI Strength Validation | 19 |
-| Concurrency | 32 |
-| Integration | 13 |
-| Frontend Unit | 26 |
-| **TOTAL** | **550+** |
+| Backend Unit (Core/Domain/Infrastructure/Application) | 583 |
+| Statistical | 17 |
+| AI Strength Validation | 11 |
+| Concurrency | 30 |
+| Integration | 44 |
+| Frontend Unit (Vitest) | 19 |
+| Frontend E2E (Playwright) | 17 |
+| **TOTAL** | **660+** |
+
+### Frontend E2E Tests
+
+Playwright end-to-end tests covering core gameplay mechanics:
+
+| Feature | Tests |
+|---------|-------|
+| Basic Mechanics (move placement, open rule) | 4 |
+| Sound Effects (valid/invalid moves) | 3 |
+| Move History (tracking, display) | 3 |
+| Winning Line Animation | 2 |
+| Timer Functionality (Fisher time control) | 3 |
+| Regression Tests (edge cases) | 2 |
+
+Run E2E tests:
+```bash
+cd frontend && npm run test:e2e
+```
 
 ---
 

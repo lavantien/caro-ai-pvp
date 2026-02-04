@@ -5,6 +5,81 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-02-05
+
+### Documentation Updates
+
+- **README.md comprehensive accuracy refresh**
+  - Fixed SvelteKit version description: "SvelteKit 5" → "SvelteKit 2.49+ with Svelte 5 Runes"
+  - Removed incorrect "Skeleton UI v4" reference from tech stack
+  - Updated testing stack with accurate versions:
+    - xUnit: "v3.1" → "2.9.2 with xUnit Runner 3.1.4"
+    - Added Moq 4.20.72 and FluentAssertions 7.0.0-8.8.0
+    - Added Vitest 4.0 and Playwright 1.57 for frontend
+  - Corrected test count from "550+" to "660+" (+111 total)
+  - Fixed test category counts:
+    - Backend Unit: 583 (was 550+)
+    - Statistical: 17 (was 38)
+    - AI Strength Validation: 11 (was 19)
+    - Concurrency: 30 (was 32)
+    - Integration: 44 (was 13)
+    - Frontend Unit: 19 (was 26)
+    - Added missing Frontend E2E: 17 tests
+  - Added new Frontend E2E Tests section:
+    - Documented 6 test categories (Basic Mechanics, Sound Effects, Move History, Winning Line Animation, Timer, Regression)
+    - Added test command: `npm run test:e2e`
+
+- **CSHARP_ONBOARDING.md comprehensive overhaul**
+  - Fixed critical typo: `cshsarp` → `csharp` (line 106)
+  - Added "Quick Project Overview" section with solution structure tree
+  - Added "Key Technologies" section with actual versions:
+    - .NET 10, C# 14
+    - ASP.NET Core 10 + SignalR
+    - xUnit 2.9.2, Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
+    - Total test breakdown by project
+  - Added "Architecture Principles" section explaining Clean Architecture approach
+  - Replaced generic examples with project-specific code:
+    - OrderService/OrderRepository → StatelessSearchEngine
+    - Calculator → Position/GameState/BitBoard tests
+    - Generic DI → Actual Caro services (OpeningBookGenerator, TournamentManager)
+  - Updated mock examples to use Moq exclusively:
+    - Removed NSubstitute references
+    - Changed `Substitute.For<T>()` → `new Mock<T>()`
+    - Updated verification from `Received()` → `Verify()`
+  - Added Clean Architecture context section:
+    - Documented Domain/Application/Infrastructure layers
+    - Explained dependencies and key types per layer
+    - Added test project organization table with actual counts
+  - Added project-specific testing pattern examples:
+    - Immutable record testing (Position, GameState)
+    - Value object testing (BitBoard)
+    - AI algorithm testing (depth vs difficulty)
+    - Concurrency testing (immutable state safety)
+  - Updated summary checklist to reflect actual project structure:
+    - Added Clean Architecture layers understanding
+    - Added test project locations and counts
+    - Added Moq/FluentAssertions versions
+
+### Files Modified
+
+- `README.md`
+  - Line 3: SvelteKit version fix
+  - Lines 243-249: Tech stack accuracy refresh
+  - Lines 253-281: Testing section rewrite with accurate counts
+  - Added Frontend E2E Tests section
+- `CSHARP_ONBOARDING.md`
+  - Line 106: Typo fix (cshsarp → csharp)
+  - Lines 3-36: New Quick Project Overview section
+  - Lines 24-36: New Key Technologies section
+  - Lines 30-36: New Architecture Principles section
+  - Lines 61-120: DI examples with actual Caro services
+  - Lines 128-330: Project-specific test examples
+  - Lines 165-195: Testing stack documentation
+  - Lines 368-480: Clean Architecture context
+  - Lines 477-491: Updated summary checklist
+
+[1.12.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.12.0
+
 ## [1.11.0] - 2026-02-04
 
 ### Fixed
