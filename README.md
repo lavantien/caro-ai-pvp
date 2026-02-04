@@ -65,6 +65,7 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 Precomputed opening positions for instant move retrieval and deeper analysis:
 
 - **Symmetry reduction** - 8-way transformations (4 rotations × mirror) reduce storage by ~8x
+- Moves stored in canonical coordinate space for symmetry-aware lookups
 - **SQLite storage** - Persistent `opening_book.db` with indexed position lookup + WAL mode
 - **Translation invariant** - Canonical positions work regardless of board location
 - **Per-move metadata** - Win rate, depth achieved, nodes searched, forcing move flag
