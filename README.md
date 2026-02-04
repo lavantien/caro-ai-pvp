@@ -101,6 +101,8 @@ dotnet run --project backend/src/Caro.BookBuilder -- \
   --debug
 ```
 
+Default is quiet mode (warnings/errors only). Use `--debug` for detailed progress.
+
 **Verify existing book:**
 ```bash
 dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=opening_book.db

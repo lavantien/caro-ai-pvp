@@ -11,16 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`--debug` flag** for opening book builder
   - Enables verbose debug logging during book generation
-  - Default logging level is Information (quieter output)
+  - Default logging level is Warning (quiet mode - only warnings and errors)
   - Use `--debug` for detailed candidate filtering and evaluation diagnostics
   - Added `--help` / `-h` flag for usage information
 
 ### Changed
 
-- **Opening book builder CLI** now uses Information level logging by default
+- **Opening book builder CLI** now uses Warning level logging by default
   - Previously hardcoded to Debug level (very verbose)
   - Cleaner output for normal book generation operations
+  - Progress updates now every 60 seconds (was 5 seconds)
   - Debug logging still available when needed for troubleshooting
+- **AI defense logging** now uses ILogger instead of Console.WriteLine
+  - `[AI DEFENSE]` logs now controlled by `--debug` flag
+  - Previously bypassed logging system entirely
+  - MinimaxAI now accepts optional ILogger parameter
 
 ### Files Modified
 
