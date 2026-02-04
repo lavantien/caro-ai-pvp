@@ -18,7 +18,7 @@ class Program
                 options.SingleLine = false;
                 options.TimestampFormat = "HH:mm:ss ";
             });
-            builder.SetMinimumLevel(LogLevel.Information);
+            builder.SetMinimumLevel(LogLevel.Debug);  // Enable debug logging for diagnostics
         });
 
         var logger = loggerFactory.CreateLogger<Program>();
@@ -81,7 +81,8 @@ class Program
         var generator = new OpeningBookGenerator(
             store,
             canonicalizer,
-            validator
+            validator,
+            loggerFactory.CreateLogger<OpeningBookGenerator>()
         );
 
         Console.WriteLine("Starting book generation...");
