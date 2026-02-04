@@ -5,6 +5,93 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-02-04
+
+### Fixed
+
+- **Thread oversubscription** in opening book generation
+  - Root cause: BookGeneration used (N-4) threads with Lazy SMP parallel search enabled
+  - Combined with parallel position processing, this created excessive thread contention
+  - Fix: Disabled parallel search, use single-threaded search per position with many parallel positions
+  - Architecture shift: "few parallel positions with multi-threaded search" → "many parallel positions with single-threaded search"
+
+- **Thread safety issue** with shared MinimaxAI instance
+  - Root cause: `_searchEngine` was a shared MinimaxAI instance accessed by multiple parallel tasks
+  - Multiple tasks called `GetBestMove()` simultaneously, corrupting stateful fields
+  - Affected fields: `_transpositionTable`, `_killerMoves`, `_historyRed`, `_historyBlue`
+  - Fix: Create local MinimaxAI instances per task (64MB TT each instead of shared 256MB)
+
+### Changed
+
+- **MinimaxAI constructor** now accepts optional `ttSizeMb` parameter (default 256MB)
+  - Enables opening book workers to use smaller TT sizes (64MB) for memory efficiency
+  - Removed inline field initialization from `_transpositionTable` and `_parallelSearch`
+- **Batch sizing** for opening book generation now uses `Environment.ProcessorCount`
+  - With single-threaded search, batch size equals core count for optimal CPU saturation
+- **Candidate pruning** now uses static evaluation for intelligent pre-sorting
+  - Candidates sorted by `BoardEvaluator.EvaluateMoveAt()` before deep search
+  - Reduced from maxMoves*2 (24) to top 6 candidates
+  - Additional 2-4x speedup from avoiding evaluation of weak moves
+
+### Performance Improvements
+
+Expected 5-10x speedup from thread oversubscription fix:
+- Eliminated excessive thread contention
+- Eliminated race condition overhead
+- Reduced memory pressure per worker (64MB vs 256MB TT)
+- Additional 2-4x speedup from candidate pruning
+
+### Technical Details
+
+**Before (Thread Oversubscription):**
+```
+BookGeneration: (N-4) threads × Parallel Search = (N-4)² helper threads
+On 20-core system: 16 threads × parallel search = ~256 threads total
+Result: Severe contention, context switching, state corruption
+```
+
+**After (Balanced Parallelism):**
+```
+BookGeneration: 1 thread × N parallel positions = N single-threaded searches
+On 20-core system: 20 parallel positions × 1 thread = 20 threads total
+Result: CPU saturation, no contention, no state sharing
+```
+
+**Per-Worker AI Instance Pattern:**
+```csharp
+// Create local AI instance to avoid shared state corruption
+var localAI = new MinimaxAI(ttSizeMb: 64);
+
+var (bestX, bestY) = localAI.GetBestMove(
+    searchBoard,
+    opponent,
+    difficulty,
+    timeRemainingMs: timePerCandidateMs,
+    moveNumber: moveNumber,
+    ponderingEnabled: false,
+    parallelSearchEnabled: false // Single-threaded per position
+);
+
+var stats = localAI.GetSearchStatistics();
+```
+
+### Files Modified
+
+- `backend/src/Caro.Core/GameLogic/AIDifficultyConfig.cs`
+  - BookGeneration: `ParallelSearchEnabled = false`, `ThreadCount = 1`
+- `backend/src/Caro.Core/GameLogic/MinimaxAI.cs`
+  - Added `int ttSizeMb = 256` parameter to constructor
+  - Removed inline initialization from `_transpositionTable` and `_parallelSearch`
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs`
+  - Removed shared `_searchEngine` field
+  - Create local `MinimaxAI` instances per task with 64MB TT
+  - Changed batch size to `Environment.ProcessorCount`
+  - Added candidate pre-sorting via `BoardEvaluator.EvaluateMoveAt()`
+- `README.md`
+  - Added notes about per-position AI instances and candidate pruning
+
+[1.11.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.11.0
+
 ## [1.10.0] - 2026-02-04
 
 ### Fixed

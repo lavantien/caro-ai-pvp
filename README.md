@@ -70,6 +70,8 @@ Precomputed opening positions for instant move retrieval and deeper analysis:
 - **Translation invariant** - Canonical positions work regardless of board location
 - **Per-move metadata** - Win rate, depth achieved, nodes searched, forcing move flag
 - **Worker pool generation** - Parallel position + candidate evaluation for 30x throughput
+- **Per-position AI instances** - Local MinimaxAI per worker eliminates shared state corruption
+- **Aggressive candidate pruning** - Static evaluation pre-sorting reduces 24→6 candidates
 - **Tapered beam width** - Converts exponential growth to linear (4→2→1 children by depth)
 - **Early exit optimization** - Skips remaining candidates when best move dominates
 - **Resume capability** - Incremental deepening of existing books
