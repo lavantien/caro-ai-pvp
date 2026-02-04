@@ -180,15 +180,15 @@ Clean Architecture with three core layers:
 └───────────────────────────┬──────────────────────────────────────┘
                             │
                             ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                    Infrastructure Layer                          │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │  MinimaxAI  │  VCFSolver  │  ParallelMinimaxSearch          │ │
-│  │  Hash Move  │  VCF Pre-Search │  Lazy SMP  │  TT Sharding    │ │
-│  │  Priority #1│  Emergency Defense │  BitBoardEvaluator       │ │
-│  │  OpeningBook │ PositionCanonicalizer │ BookGeneration       │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Infrastructure Layer                             │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │  MinimaxAI   │  VCFSolver            │  ParallelMinimaxSearch  │ │
+│  │  Hash Move   │  VCF Pre-Search       │  Lazy SMP │ TT Sharding │ │
+│  │  Priority #1 │  Emergency Defense    │  BitBoardEvaluator      │ │
+│  │  OpeningBook │ PositionCanonicalizer │  BookGeneration         │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 **Clean Architecture Projects:**
