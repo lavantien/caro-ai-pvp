@@ -21,8 +21,8 @@ class Program
             Console.WriteLine();
             Console.WriteLine("Options:");
             Console.WriteLine("  --output <path>       Output database path (default: opening_book.db)");
-            Console.WriteLine("  --max-depth <plies>   Maximum book depth in plies (default: 12)");
-            Console.WriteLine("  --target-depth <plies> Search depth for move evaluation (default: 24)");
+            Console.WriteLine("  --max-depth <plies>   Maximum book depth in plies (default: 32)");
+            Console.WriteLine("  --target-depth <plies> Search depth for move evaluation (default: 32)");
             Console.WriteLine("  --verify-only         Verify existing book without generation");
             Console.WriteLine("  --debug               Enable verbose logging (default: quiet mode)");
             Console.WriteLine("  --help, -h            Show this help message");
@@ -55,8 +55,8 @@ class Program
 
         // Parse remaining arguments
         var outputPath = GetArgument(args, "--output", "opening_book.db");
-        var maxDepthStr = GetArgument(args, "--max-depth", "12");  // Default to 12 plies (6 moves each)
-        var targetDepthStr = GetArgument(args, "--target-depth", "24");  // Default to 24 ply search
+        var maxDepthStr = GetArgument(args, "--max-depth", "32");  // Default to 32 plies (16 moves each)
+        var targetDepthStr = GetArgument(args, "--target-depth", "32");  // Default to 32 ply search
         var verifyOnly = args.Contains("--verify-only");
 
         if (!int.TryParse(maxDepthStr, out int maxDepth))
