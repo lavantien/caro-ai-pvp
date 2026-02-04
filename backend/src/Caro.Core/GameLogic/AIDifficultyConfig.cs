@@ -135,11 +135,11 @@ public sealed class AIDifficultyConfig
             {
                 Difficulty = AIDifficulty.BookGeneration,
                 DisplayName = "BookGeneration",
-                ThreadCount = GetBookGenerationThreadCount(),
+                ThreadCount = 1,                // Single thread per position (positions run in parallel)
                 PonderingThreadCount = 0,
                 TimeMultiplier = 1.0,
                 TimeBudgetPercent = 1.0,
-                ParallelSearchEnabled = true,
+                ParallelSearchEnabled = false,   // Disable: parallel positions, single-threaded search
                 PonderingEnabled = false,
                 VCFEnabled = true,
                 ErrorRate = 0.0,
