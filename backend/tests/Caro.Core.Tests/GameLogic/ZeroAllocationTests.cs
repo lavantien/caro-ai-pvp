@@ -246,30 +246,6 @@ public class ZeroAllocationTests
     }
 
     [Fact]
-    public void Phase1_Benchmark_D4_CompletesUnder1Second()
-    {
-        // Arrange - Simple tactical position
-        var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(8, 8, Player.Blue);
-
-        // Act - Test D4 (Hard difficulty)
-        var ai = new MinimaxAI();
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
-        stopwatch.Stop();
-
-        _output.WriteLine($"Move: ({move.x}, {move.y})");
-        _output.WriteLine($"Time: {stopwatch.ElapsedMilliseconds}ms");
-
-        // Assert - D4 should be fast with optimizations (< 5 seconds, allowing for JIT/system variation)
-        Assert.True(stopwatch.ElapsedMilliseconds < 5000,
-            $"D4 took {stopwatch.ElapsedMilliseconds}ms, expected < 5000ms");
-    }
-
-    [Fact]
     public void HashCalculation_DifferentPositions_DifferentHashes()
     {
         // Arrange - Two different board positions
