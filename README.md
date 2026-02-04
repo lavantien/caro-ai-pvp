@@ -93,6 +93,14 @@ dotnet run --project backend/src/Caro.BookBuilder -- \
   --max-depth=20  # Extend beyond previous depth
 ```
 
+**Generate with verbose debug logging:**
+```bash
+dotnet run --project backend/src/Caro.BookBuilder -- \
+  --output=opening_book.db \
+  --max-depth=14 \
+  --debug
+```
+
 **Verify existing book:**
 ```bash
 dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=opening_book.db

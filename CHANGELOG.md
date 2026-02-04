@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-02-05
+
+### Added
+
+- **`--debug` flag** for opening book builder
+  - Enables verbose debug logging during book generation
+  - Default logging level is Information (quieter output)
+  - Use `--debug` for detailed candidate filtering and evaluation diagnostics
+  - Added `--help` / `-h` flag for usage information
+
+### Changed
+
+- **Opening book builder CLI** now uses Information level logging by default
+  - Previously hardcoded to Debug level (very verbose)
+  - Cleaner output for normal book generation operations
+  - Debug logging still available when needed for troubleshooting
+
+### Files Modified
+
+- `backend/src/Caro.BookBuilder/Program.cs`
+  - Added `--debug` flag parsing
+  - Added `--help` / `-h` flag with usage information
+  - Changed default log level from Debug to Information
+- `README.md`
+  - Updated opening book generation section with `--debug` example
+
+[1.14.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.14.0
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [1.13.0] - 2026-02-05
 
 ### Fixed
