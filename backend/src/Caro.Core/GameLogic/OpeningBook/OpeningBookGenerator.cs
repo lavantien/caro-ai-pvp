@@ -110,7 +110,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                 // Separate positions into: new (need evaluation) vs existing (use stored moves)
                 var positionsToEvaluate = new List<(Board board, Player player, int depth, ulong hash, SymmetryType symmetry, bool nearEdge, int maxMoves)>();
-                var positionsInBook = new List<(Board board, Player player, int depth, ulong hash, BookMove[] moves)>();
+                var positionsInBook = new List<(Board board, Player player, int depth, ulong hash, SymmetryType symmetry, bool nearEdge, BookMove[] moves)>();
 
                 foreach (var pos in currentLevelPositions)
                 {
@@ -136,6 +136,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                                 pos.Player,
                                 pos.Depth,
                                 canonical.CanonicalHash,
+                                canonical.SymmetryApplied,
+                                canonical.IsNearEdge,
                                 existingEntry.Moves
                             ));
                         }
@@ -223,7 +225,16 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     foreach (var move in moves.Take(maxChildren))
                     {
                         var newBoard = CloneBoard(posData.board);
-                        newBoard.PlaceStone(move.RelativeX, move.RelativeY, posData.player);
+
+                        // Transform canonical coordinates back to actual before placing
+                        // Moves are stored in canonical space, board is in actual space
+                        (int actualX, int actualY) = _canonicalizer.TransformToActual(
+                            (move.RelativeX, move.RelativeY),
+                            posData.symmetry,
+                            posData.board
+                        );
+
+                        newBoard.PlaceStone(actualX, actualY, posData.player);
                         var nextPlayer = posData.player == Player.Red ? Player.Blue : Player.Red;
 
                         var winResult = new WinDetector().CheckWin(newBoard);
@@ -258,7 +269,16 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     foreach (var move in moves.Take(maxChildren))
                     {
                         var newBoard = CloneBoard(posData.board);
-                        newBoard.PlaceStone(move.RelativeX, move.RelativeY, posData.player);
+
+                        // Transform canonical coordinates back to actual before placing
+                        // Moves are stored in canonical space, board is in actual space
+                        (int actualX, int actualY) = _canonicalizer.TransformToActual(
+                            (move.RelativeX, move.RelativeY),
+                            posData.symmetry,
+                            posData.board
+                        );
+
+                        newBoard.PlaceStone(actualX, actualY, posData.player);
                         var nextPlayer = posData.player == Player.Red ? Player.Blue : Player.Red;
 
                         var winResult = new WinDetector().CheckWin(newBoard);
@@ -330,6 +350,23 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         Player player,
         AIDifficulty difficulty,
         int maxMoves,
+        CancellationToken cancellationToken = default)
+    {
+        // For backward compatibility - use Identity symmetry (no transformation)
+        return await GenerateMovesForPositionAsync(
+            board, player, difficulty, maxMoves,
+            SymmetryType.Identity, true,
+            cancellationToken
+        );
+    }
+
+    public async Task<BookMove[]> GenerateMovesForPositionAsync(
+        Board board,
+        Player player,
+        AIDifficulty difficulty,
+        int maxMoves,
+        SymmetryType canonicalSymmetry,
+        bool isNearEdge,
         CancellationToken cancellationToken = default)
     {
         var bookMoves = new List<BookMove>();
@@ -442,15 +479,23 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         }
 
         // Convert to BookMove records
+        // IMPORTANT: Transform coordinates to canonical space before storing
+        // Moves are stored relative to the canonical position, not actual board
         int priority = maxMoves;
         foreach (var (x, y, score, nodes, depth) in sortedResults.Take(maxMoves))
         {
             int winRate = ScoreToWinRate(score);
 
+            // Transform actual coordinates to canonical space
+            // For edge positions or identity symmetry, coordinates stay the same
+            (int canonicalX, int canonicalY) = (!isNearEdge && canonicalSymmetry != SymmetryType.Identity)
+                ? _canonicalizer.ApplySymmetry(x, y, canonicalSymmetry)
+                : (x, y);
+
             bookMoves.Add(new BookMove
             {
-                RelativeX = x,
-                RelativeY = y,
+                RelativeX = canonicalX,
+                RelativeY = canonicalY,
                 WinRate = winRate,
                 DepthAchieved = depth,
                 NodesSearched = nodes,
@@ -749,24 +794,27 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
             double totalPercent = (completedDepthsPercent + currentDepthPercent) * 100;
 
-            // Cap at 95% until actually complete (progress is an estimate)
-            return Status == GeneratorState.Completed ? 100 : Math.Min(95, totalPercent);
+            // Cap at 99% until actually complete (allows final 1% when done)
+            return Status == GeneratorState.Completed ? 100 : Math.Min(99, totalPercent);
         }
 
         private static double GetDepthWeight(int depth) => depth switch
         {
             0 => 0.02,   // Root position: 2%
-            1 => 0.08,   // ~4 positions: 8%
-            2 => 0.10,   // ~16 positions: 10%
-            3 => 0.10,   // ~32 positions: 10%
-            4 => 0.10,   // ~64 positions: 10%
-            5 => 0.12,   // ~64 positions: 12%
-            6 => 0.12,   // ~128 positions: 12%
-            7 => 0.18,   // ~128+ positions: 18%
+            1 => 0.06,   // ~4 positions: 6%
+            2 => 0.08,   // ~16 positions: 8%
+            3 => 0.08,   // ~32 positions: 8%
+            4 => 0.08,   // ~64 positions: 8%
+            5 => 0.10,   // ~64 positions: 10%
+            6 => 0.10,   // ~128 positions: 10%
+            7 => 0.12,   // ~128+ positions: 12%
             8 => 0.10,   // ~128 positions: 10%
-            9 => 0.04,   // ~64 positions: 4%
-            10 => 0.02,  // ~32 positions: 2%
-            _ => 0.02    // Remaining: 2%
+            9 => 0.08,   // ~64 positions: 8%
+            10 => 0.06,  // ~32 positions: 6%
+            11 => 0.05,  // ~16 positions: 5%
+            12 => 0.04,  // ~8 positions: 4%
+            13 => 0.03,  // ~4 positions: 3%
+            _ => 0.00    // Remaining: 0% (cap at 100%)
         };
 
         public void Reset()
@@ -895,6 +943,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                             pos.player,
                             difficulty,
                             pos.maxMoves,
+                            pos.symmetry,
+                            pos.nearEdge,
                             cancellationToken
                         ).GetAwaiter().GetResult();
 
