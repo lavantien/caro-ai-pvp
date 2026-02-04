@@ -19,7 +19,7 @@ namespace Caro.Core.GameLogic;
 public class MinimaxAI : IStatsPublisher
 {
     private readonly BoardEvaluator _evaluator = new();
-    private readonly TranspositionTable _transpositionTable = new();
+    private readonly TranspositionTable _transpositionTable;
     private readonly WinDetector _winDetector = new();
     private readonly ThreatDetector _threatDetector = new();
     private readonly ThreatSpaceSearch _vcfSolver = new();
@@ -51,7 +51,7 @@ public class MinimaxAI : IStatsPublisher
 
     // Parallel search for high difficulties (D7+)
     // Lazy SMP provides 4-8x speedup on multi-core systems
-    private readonly ParallelMinimaxSearch _parallelSearch = new();
+    private readonly ParallelMinimaxSearch _parallelSearch;
 
     // Search radius around existing stones (optimization)
     private const int SearchRadius = 2;
@@ -106,10 +106,15 @@ public class MinimaxAI : IStatsPublisher
     public Channel<MoveStatsEvent> StatsChannel => _statsChannel;
     public string PublisherId => _publisherId;
 
-    public MinimaxAI()
+    public MinimaxAI(int ttSizeMb = 256)
     {
         _publisherId = Interlocked.Increment(ref _instanceCounter).ToString();
         _statsChannel = Channel.CreateUnbounded<MoveStatsEvent>();
+
+        // Initialize with passed size parameter
+        _transpositionTable = new TranspositionTable(ttSizeMb);
+        _parallelSearch = new ParallelMinimaxSearch(ttSizeMb);
+
         _inTreeVCFSolver = new VCFSolver(_vcfSolver);
     }
 
