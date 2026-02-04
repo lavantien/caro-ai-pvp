@@ -33,7 +33,6 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     private readonly IPositionCanonicalizer _canonicalizer;
     private readonly IOpeningBookValidator _validator;
     private readonly GeneratorProgress _progress = new();
-    private readonly MinimaxAI _searchEngine;
     private readonly AsyncQueue<BookProgressEvent> _progressQueue;
     private CancellationTokenSource? _cts;
 
@@ -45,9 +44,6 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _canonicalizer = canonicalizer ?? throw new ArgumentNullException(nameof(canonicalizer));
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
-
-        // Create MinimaxAI instance with book generation configuration
-        _searchEngine = new MinimaxAI();
 
         // Create progress queue for thread-safe updates from workers
         _progressQueue = new AsyncQueue<BookProgressEvent>(
@@ -378,7 +374,13 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
         // Evaluate candidates IN PARALLEL for performance
         // This is critical - parallelizing candidate evaluation provides 4-8x speedup
-        var candidatesToEvaluate = candidates.Take(maxMoves * 2).ToList();
+
+        // Aggressive candidate pruning: use static evaluation for pre-sorting
+        // In Caro, usually only top 4-6 moves are relevant. Evaluating 24 branches to depth 12+ is extremely expensive.
+        var candidatesToEvaluate = candidates
+            .OrderByDescending(c => BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player))
+            .Take(Math.Min(candidates.Count, 6))  // Limit to top 6 instead of maxMoves * 2 (24)
+            .ToList();
         var results = new ConcurrentBag<(int x, int y, int score, long nodes, int depth)>();
 
         // Adaptive time allocation based on depth
@@ -420,8 +422,12 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 var opponent = player == Player.Red ? Player.Blue : Player.Red;
                 var moveNumber = candidateBoard.GetBitBoard(Player.Red).CountBits() + candidateBoard.GetBitBoard(Player.Blue).CountBits();
 
+                // Create local AI instance to avoid shared state corruption
+                // Use smaller TT (64MB) since positions are independent
+                var localAI = new MinimaxAI(ttSizeMb: 64);
+
                 // Run search with divided time budget, NO inner parallel to avoid oversubscription
-                var (bestX, bestY) = _searchEngine.GetBestMove(
+                var (bestX, bestY) = localAI.GetBestMove(
                     searchBoard,
                     opponent,
                     difficulty,
@@ -432,7 +438,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 );
 
                 var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _)
-                    = _searchEngine.GetSearchStatistics();
+                    = localAI.GetSearchStatistics();
 
                 searchBoard.PlaceStone(bestX, bestY, opponent);
                 int score = EvaluateBoard(searchBoard, opponent);
@@ -904,7 +910,6 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         int totalPositions = 0)
     {
         var results = new ConcurrentDictionary<ulong, BookMove[]>();
-        var threadCount = AIDifficultyConfig.Instance.GetSettings(difficulty).ThreadCount;
 
         // Use provided total or default to positions count
         int totalPositionsToReport = totalPositions > 0 ? totalPositions : positions.Count;
@@ -912,11 +917,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         // Get current depth for dynamic batch sizing
         int currentDepth = positions.Count > 0 ? positions[0].depth : 0;
 
-        // Dynamic batch sizing: smaller batches for deep positions (more frequent progress updates)
-        // Larger batches for shallow positions (better throughput)
-        int batchSize = currentDepth >= 4
-            ? Math.Max(1, threadCount / 2)           // Small batches at depth 4+ for more frequent updates
-            : Math.Max(2, positions.Count / 4);      // Moderate batches early for better throughput
+        // Use all cores for parallel position processing (single-threaded search per position)
+        int processorCount = Environment.ProcessorCount;
+        int batchSize = processorCount;
 
         // Process in batches to avoid overwhelming memory
         for (int i = 0; i < positions.Count; i += batchSize)
