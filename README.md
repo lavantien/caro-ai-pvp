@@ -125,25 +125,27 @@ dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=open
 - SQLite logging with FTS5 full-text search
 - SignalR broadcasts via async queues
 
-### Test Suites
+### Test Projects
 
-Centralized AI testing framework for validating difficulty strength:
+Separate test projects for focused testing:
 
 ```bash
-dotnet run --project backend/src/Caro.TournamentRunner -- --test-suite=<name>
+# Unit tests (fast, no integration/matchup tests)
+cd backend/tests/Caro.Core.Tests && dotnet test
+
+# Matchup/integration tests (slower, AI vs AI matchups)
+cd backend/tests/Caro.Core.MatchupTests && dotnet test
 ```
 
-| Suite | Description |
-|-------|-------------|
-| `braindead` | Self-play baseline (20 games) |
-| `easy` | vs Braindead, self (20 games each) |
-| `medium` | vs Braindead, Easy, self (20 games each) |
-| `hard` | vs Braindead, Easy, Medium, self (20 games each) |
-| `grandmaster` | vs All + self (20 games each) |
-| `experimental` | Custom AI testing (10 games each) |
-| `full` | Run all suites in series |
+| Project | Tests | Duration |
+|---------|-------|----------|
+| Caro.Core.Tests | 507 unit tests | ~9 min |
+| Caro.Core.MatchupTests | AI matchups, integration | Variable |
+| Caro.Core.Domain.Tests | 48 entity tests | ~5 sec |
+| Caro.Core.Application.Tests | 48 service tests | ~5 sec |
+| Caro.Core.Infrastructure.Tests | 48 algorithm tests | ~5 sec |
 
-Results written to `backend/tournament_results.txt` with pass/fail thresholds.
+**Note:** Run `dotnet test` in Caro.Core.Tests for fast unit test feedback. Use Caro.Core.MatchupTests for AI strength validation and full game matchups.
 
 ---
 
@@ -271,16 +273,16 @@ Production-grade concurrency following .NET 10 best practices:
 
 ## Testing
 
-| Category | Tests |
-|----------|-------|
-| Backend Unit (Core/Domain/Infrastructure/Application) | 583 |
-| Statistical | 17 |
-| AI Strength Validation | 11 |
-| Concurrency | 30 |
-| Integration | 44 |
-| Frontend Unit (Vitest) | 19 |
-| Frontend E2E (Playwright) | 17 |
-| **TOTAL** | **660+** |
+| Project | Tests | Focus |
+|---------|-------|-------|
+| Caro.Core.Tests | 508 | Unit tests (algorithms, evaluators, concurrency) |
+| Caro.Core.MatchupTests | ~50 | AI matchups, integration, tournament |
+| Caro.Core.Domain.Tests | 48 | Entities (Board, Cell, Player, GameState) |
+| Caro.Core.Application.Tests | 48 | Services, interfaces, DTOs |
+| Caro.Core.Infrastructure.Tests | 48 | AI algorithms, external concerns |
+| Frontend Unit (Vitest) | 19 | Component tests |
+| Frontend E2E (Playwright) | 17 | End-to-end gameplay |
+| **TOTAL** | **740+** | |
 
 ### Frontend E2E Tests
 

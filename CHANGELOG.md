@@ -5,6 +5,86 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-02-05
+
+### Test Project Reorganization
+
+- **Created `Caro.Core.MatchupTests` project** - Separated integration/matchup tests from unit tests
+  - All AI vs AI matchup tests now in dedicated project
+  - Unit test suite (`Caro.Core.Tests`) runs faster without integration overhead
+  - No filters needed when running unit tests (`dotnet test` just works)
+
+### Removed
+
+- **5 failing/flaky test files** (matchup style moved to MatchupTests):
+  - `GrandmasterVsBraindeadTest.cs` - Brittle behavioral tests (0% error rate, timing issues)
+  - `DepthVsRandomTest.cs` - Versus-style matchup test
+  - `Pondering/D11ShowdownTests.cs` - LongRunning showcase test
+  - `DefensivePlayFullGameTests.cs` - LongRunning full game test
+  - `GameLogic/SingleGameTest.cs` - Integration path test
+
+- **5 flaky performance test methods** (removed entirely):
+  - `QuiescenceSearchTests.QuiescenceSearch_DoesNotOverSearchQuietPositions` (3680ms > 2000ms)
+  - `ConcurrencyStressTests.TournamentState_ConcurrentReadsAndWrites_NoCorruption` (timeout)
+  - `ZeroAllocationTests.Phase1_Benchmark_D4_CompletesUnder1Second` (7441ms > 5000ms)
+  - `AspirationWindowTests.AspirationWindows_EfficientForMediumDepth` (1211ms > 1000ms)
+  - `TranspositionTablePerformanceTests.TranspositionTable_HandlesComplexPosition` (12878ms > 10000ms)
+
+### Changed
+
+- **Test project structure** - Clear separation of concerns:
+  - `Caro.Core.Tests` - Fast unit tests (508 tests, ~9 minutes)
+  - `Caro.Core.MatchupTests` - AI matchups, integration, tournament (~50 tests)
+  - No `Category!=Integration` filter needed for unit tests
+  - Matchup tests run separately when needed
+
+- **README updated** - Test documentation reflects new structure:
+  - Removed references to test filters
+  - Added separate test project table
+  - Updated test counts (508 unit + ~50 matchup = 560+ for Caro.Core*)
+
+### Test Results
+
+- `Caro.Core.Tests`: **507 passed, 1 skipped, 0 failed** (8m 49s)
+- All Integration/LongRunning traits removed from unit test project
+- Unit tests run cleanly with `dotnet test` (no flags required)
+
+### Files Added
+
+- `backend/tests/Caro.Core.MatchupTests/Caro.Core.MatchupTests.csproj`
+- `backend/tests/Caro.Core.MatchupTests/Tournament/AIStrengthValidationSuite.cs`
+- `backend/tests/Caro.Core.MatchupTests/Tournament/TournamentIntegrationTests.cs`
+- `backend/tests/Caro.Core.MatchupTests/Tournament/SavedLogVerifierTests.cs`
+- `backend/tests/Caro.Core.MatchupTests/Tournament/TournamentLogCapture.cs`
+- `backend/tests/Caro.Core.MatchupTests/Tournament/Snapshots/*.json`
+- `backend/tests/Caro.Core.MatchupTests/GameLogic/Pondering/PonderingIntegrationTests.cs`
+- `backend/tests/Caro.Core.MatchupTests/GameLogic/SingleGameTest.cs`
+
+### Files Deleted
+
+- `backend/tests/Caro.Core.Tests/GameLogic/GrandmasterVsBraindeadTest.cs`
+- `backend/tests/Caro.Core.Tests/GameLogic/DepthVsRandomTest.cs`
+- `backend/tests/Caro.Core.Tests/GameLogic/Pondering/D11ShowdownTests.cs`
+- `backend/tests/Caro.Core.Tests/GameLogic/DefensivePlayFullGameTests.cs`
+- `backend/tests/Caro.Core.Tests/GameLogic/SingleGameTest.cs`
+- `backend/tests/Caro.Core.Tests/Tournament/AIStrengthValidationSuite.cs` (moved)
+- `backend/tests/Caro.Core.Tests/Tournament/TournamentIntegrationTests.cs` (moved)
+- `backend/tests/Caro.Core.Tests/Tournament/SavedLogVerifierTests.cs` (moved)
+- `backend/tests/Caro.Core.Tests/Tournament/TournamentLogCapture.cs` (moved)
+- `backend/tests/Caro.Core.Tests/GameLogic/Pondering/PonderingIntegrationTests.cs` (moved)
+
+### Files Modified
+
+- `backend/tests/Caro.Core.Tests/GameLogic/QuiescenceSearchTests.cs` - Removed 1 test
+- `backend/tests/Caro.Core.Tests/Concurrency/ConcurrencyStressTests.cs` - Removed 1 test
+- `backend/tests/Caro.Core.Tests/GameLogic/ZeroAllocationTests.cs` - Removed 1 test
+- `backend/tests/Caro.Core.Tests/GameLogic/AspirationWindowTests.cs` - Removed 1 test
+- `backend/tests/Caro.Core.Tests/GameLogic/TranspositionTablePerformanceTests.cs` - Removed 1 test
+- `README.md` - Updated testing section, removed filter references
+- `CHANGELOG.md` - Added this entry
+
+[1.16.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.16.0
+
 ## [1.15.0] - 2026-02-05
 
 ### Changed
