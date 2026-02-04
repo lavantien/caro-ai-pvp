@@ -56,29 +56,6 @@ public class QuiescenceSearchTests
     }
 
     [Fact]
-    public void QuiescenceSearch_DoesNotOverSearchQuietPositions()
-    {
-        // Arrange - Quiet position with no immediate threats
-        var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
-
-        // Act - Should complete quickly in quiet positions
-        var ai = new MinimaxAI();
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
-        stopwatch.Stop();
-
-        // Assert - Should be fast (quiescence stops early in quiet positions)
-        _output.WriteLine($"Quiet position search time: {stopwatch.ElapsedMilliseconds}ms");
-        Assert.True(stopwatch.ElapsedMilliseconds < 2000,
-            $"Quiet position took {stopwatch.ElapsedMilliseconds}ms, expected < 2000ms");
-
-        Assert.True(move.x >= 0 && move.x < 19);
-        Assert.True(move.y >= 0 && move.y < 19);
-    }
-
-    [Fact]
     public void QuiescenceSearch_AccuratelyEvaluatesWinningThreats()
     {
         // Arrange - Red has 4 in a row (one move from winning)

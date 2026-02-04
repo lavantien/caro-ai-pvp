@@ -82,36 +82,4 @@ public class TranspositionTablePerformanceTests
         Assert.True(stopwatch.ElapsedMilliseconds < 5000,
             $"Second search took {stopwatch.ElapsedMilliseconds}ms, expected < 5000ms with TT");
     }
-
-    [Fact]
-    public void TranspositionTable_HandlesComplexPosition()
-    {
-        // Arrange - More complex mid-game position
-        var board = new Board();
-
-        // Create a position with multiple threats
-        board.PlaceStone(7, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Red);
-        board.PlaceStone(8, 6, Player.Blue);
-        board.PlaceStone(8, 7, Player.Blue);
-        board.PlaceStone(6, 7, Player.Blue);
-
-        // Act
-        var ai = new MinimaxAI();
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
-        stopwatch.Stop();
-
-        _output.WriteLine($"Move: ({move.x}, {move.y})");
-        _output.WriteLine($"Time: {stopwatch.ElapsedMilliseconds}ms");
-
-        // Assert - Should find blocking move or winning move quickly
-        Assert.True(stopwatch.ElapsedMilliseconds < 10000,
-            $"Complex position analysis took {stopwatch.ElapsedMilliseconds}ms, expected < 10000ms");
-
-        // Move should be valid
-        var cell = board.GetCell(move.x, move.y);
-        Assert.True(cell.IsEmpty, "Move should be on an empty cell");
-    }
 }

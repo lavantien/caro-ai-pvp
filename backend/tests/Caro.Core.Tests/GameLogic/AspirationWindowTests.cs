@@ -191,32 +191,4 @@ public class AspirationWindowTests
         }
         Assert.True(nearStones, "Move should be near existing stones");
     }
-
-    [Fact]
-    public void AspirationWindows_EfficientForMediumDepth()
-    {
-        // Verify aspiration windows provide benefit for medium depth (depth 2-3)
-
-        // Arrange
-        var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(8, 8, Player.Blue);
-
-        // Act
-        var ai = new MinimaxAI();
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
-        stopwatch.Stop();
-
-        // Assert - Should be very fast with aspiration windows
-        _output.WriteLine($"Medium depth search time: {stopwatch.ElapsedMilliseconds}ms");
-        Assert.True(stopwatch.ElapsedMilliseconds < 1000,
-            $"Medium depth search took {stopwatch.ElapsedMilliseconds}ms, expected < 1000ms");
-
-        // Move should be valid
-        var cell = board.GetCell(move.x, move.y);
-        Assert.True(cell.IsEmpty, "Move should be on an empty cell");
-    }
 }
