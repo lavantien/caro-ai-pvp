@@ -448,29 +448,23 @@ This codebase follows Clean Architecture with three core layers:
 | Caro.Core.Application.Tests | Caro.Core.Application | Unit | 8 |
 | Caro.Core.Infrastructure.Tests | Caro.Core.Infrastructure | Unit/Integration | 48 |
 | Caro.Core.Tests | Caro.Core (GameLogic/Tournament/Concurrency) | Mixed | 484 |
-var calculator = new Calculator();
-// Act (Execute the method)
-// For exceptions, we record the action
-Action act = () => calculator.Divide(10, 0);
-// Assert (Verify results)
-act.Should().Throw<DivideByZeroException>();
-}
-// [Theory]: Multiple data scenarios
-[Theory]
-[InlineData(1, 2, 3)] // Case 1
-[InlineData(-1, -1, -2)] // Case 2
-[InlineData(100, 50, 150)] // Case 3
-public void Add_ShouldReturnSum_WhenNumbersAreValid(int a, int b, int expected)
-{
-// Arrange
-var calculator = new Calculator();
-// Act
-var result = calculator.Add(a, b);
-// Assert
-result.Should().Be(expected);
-}
-}
 ```
+
+## Summary Checklist for your Onboarding
+
+1. **Understand Clean Architecture layers** : Domain → Application → Infrastructure
+2. **Locate test projects** : Find tests in Caro.Core.Domain.Tests, Caro.Core.Application.Tests, etc.
+3. **Review record definitions** : Understand immutable data shapes (GameState, Position, Player)
+4. **Identify with-expression mutations** : Look for non-destructive state updates
+5. **Check Program.cs** : See how services are wired (Transient/Scoped/Singleton)
+6. **Run Tests** : Use `dotnet test` in backend/ or Test Explorer
+   - Caro.Core.Domain.Tests: 85 unit tests (no mocking needed)
+   - Caro.Core.Application.Tests: 8 unit tests (mock DTOs)
+   - Caro.Core.Infrastructure.Tests: 48 unit/integration tests
+   - Caro.Core.Tests: 484 mixed tests (AI, tournament, concurrency)
+7. **When tests fail** : Check [Theory] inline data to see which input caused crash
+8. **Mocking** : Use Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
+
 
 
 
