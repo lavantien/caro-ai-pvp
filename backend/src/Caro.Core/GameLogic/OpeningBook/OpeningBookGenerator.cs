@@ -20,6 +20,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     /// <param name="PositionsCompleted">Number of positions completed in this batch</param>
     /// <param name="TotalPositions">Total positions to process at this depth</param>
     /// <param name="TimestampMs">Event timestamp</param>
+    private const int SurvivalZoneStartPly = 6;   // Move 4 (ply 6-7): where Red's disadvantage begins
+    private const int SurvivalZoneEndPly = 13;    // Move 7 (ply 12-13): end of survival zone
+
     private sealed record BookProgressEvent(
         int Depth,
         int PositionsCompleted,
@@ -122,9 +125,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     int boardMoveNumber = pos.Depth * 2;
                     int maxChildren = boardMoveNumber switch
                     {
-                        <= 8 => 4,
-                        <= 14 => 2,
-                        _ => 1
+                        <= 8 => 4,     // Plies 0-8 (moves 1-4): 4 children
+                        <= 14 => 4,    // Plies 9-14 (moves 5-7, SURVIVAL ZONE): 4 children (increased from 2)
+                        _ => 1         // Plies 15+ (moves 8+): 1 child (single best line)
                     };
 
                     if (_store.ContainsEntry(canonical.CanonicalHash, pos.Player))
@@ -220,11 +223,12 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     positionsEvaluated++;
 
                     // Calculate max children for this position
+                    // Note: posData.depth is ply count (0-indexed), not move number
                     int maxChildren = posData.depth switch
                     {
-                        <= 4 => 4,
-                        <= 9 => 2,
-                        _ => 1
+                        <= 4 => 4,     // Plies 0-4 (moves 1-3): 4 children
+                        <= 14 => 4,    // Plies 5-14 (moves 3-8, includes SURVIVAL ZONE): 4 children
+                        _ => 1         // Plies 15+ (moves 8+): 1 child (single best line)
                     };
 
                     // Enqueue child positions
@@ -278,11 +282,12 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     var moves = posData.moves;
 
                     // Calculate max children for this position
+                    // Note: posData.depth is ply count (0-indexed), not move number
                     int maxChildren = posData.depth switch
                     {
-                        <= 4 => 4,
-                        <= 9 => 2,
-                        _ => 1
+                        <= 4 => 4,     // Plies 0-4 (moves 1-3): 4 children
+                        <= 14 => 4,    // Plies 5-14 (moves 3-8, includes SURVIVAL ZONE): 4 children
+                        _ => 1         // Plies 15+ (moves 8+): 1 child (single best line)
                     };
 
                     int movesAvailable = moves.Length;
@@ -427,9 +432,13 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             return Array.Empty<BookMove>();
         }
 
+        // Evaluate more candidates in survival zone (plies 6-13, moves 4-7)
+        int currentDepth = _progress.CurrentDepth;
+        int candidatesToTake = (currentDepth >= SurvivalZoneStartPly && currentDepth <= SurvivalZoneEndPly) ? 10 : 6;
+
         var candidatesToEvaluate = validCandidates
             .OrderByDescending(c => BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player))
-            .Take(Math.Min(validCandidates.Count, 6))  // Limit to top 6 instead of maxMoves * 2 (24)
+            .Take(Math.Min(validCandidates.Count, candidatesToTake))
             .ToList();
 
         _logger.LogDebug("Candidate filtering: {TotalCandidates} total -> {ValidCandidates} valid -> {CandidatesToEvaluate} to evaluate",
@@ -440,12 +449,13 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
         // Adaptive time allocation based on depth
         // Reduce time for early positions (simpler positions), increase for deep positions
-        int currentDepth = _progress.CurrentDepth;
+        // SURVIVAL ZONE (plies 6-13, moves 4-7) gets extra time for thorough evaluation
         int depthAdjustment = currentDepth switch
         {
             <= 3 => -30,    // Early positions: 30% less time
-            <= 5 => 0,      // Mid positions: standard time
-            _ => +20        // Deep positions: 20% more time
+            <= 5 => 0,      // Pre-survival: standard time
+            <= 13 => +50,   // SURVIVAL ZONE: 50% more time (plies 6-13)
+            _ => +20        // Late positions: 20% more time
         };
 
         int adjustedTimePerPosition = TimePerPositionMs * (100 + depthAdjustment) / 100;
@@ -892,19 +902,19 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         private static double GetDepthWeight(int depth) => depth switch
         {
             0 => 0.02,   // Root position: 2%
-            1 => 0.06,   // ~4 positions: 6%
-            2 => 0.08,   // ~16 positions: 8%
-            3 => 0.08,   // ~32 positions: 8%
-            4 => 0.08,   // ~64 positions: 8%
-            5 => 0.10,   // ~64 positions: 10%
-            6 => 0.10,   // ~128 positions: 10%
-            7 => 0.12,   // ~128+ positions: 12%
-            8 => 0.10,   // ~128 positions: 10%
-            9 => 0.08,   // ~64 positions: 8%
-            10 => 0.06,  // ~32 positions: 6%
-            11 => 0.05,  // ~16 positions: 5%
-            12 => 0.04,  // ~8 positions: 4%
-            13 => 0.03,  // ~4 positions: 3%
+            1 => 0.04,   // ~4 positions: 4%
+            2 => 0.05,   // ~16 positions: 5%
+            3 => 0.06,   // ~32 positions: 6%
+            4 => 0.07,   // ~64 positions: 7%
+            5 => 0.08,   // ~64 positions: 8%
+            6 => 0.12,   // SURVIVAL ZONE start: ~128 positions: 12% (increased)
+            7 => 0.15,   // SURVIVAL ZONE: ~256 positions: 15% (increased)
+            8 => 0.12,   // SURVIVAL ZONE: ~256 positions: 12% (increased)
+            9 => 0.10,   // SURVIVAL ZONE: ~128 positions: 10% (increased)
+            10 => 0.08,  // SURVIVAL ZONE: ~64 positions: 8% (increased)
+            11 => 0.06,  // SURVIVAL ZONE end: ~32 positions: 6% (increased)
+            12 => 0.03,  // ~16 positions: 3%
+            13 => 0.02,  // SURVIVAL ZONE end: ~8 positions: 2%
             _ => 0.00    // Remaining: 0% (cap at 100%)
         };
 
