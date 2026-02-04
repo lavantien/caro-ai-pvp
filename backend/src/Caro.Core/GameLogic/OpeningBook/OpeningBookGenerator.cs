@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Threading;
+using Caro.Core.Concurrency;
 using Caro.Core.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -8,8 +9,22 @@ namespace Caro.Core.GameLogic;
 /// Generates opening book positions using the full MinimaxAI engine.
 /// Uses Lazy SMP parallel search with (N-4) threads for maximum performance.
 /// </summary>
-public sealed class OpeningBookGenerator : IOpeningBookGenerator
+public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 {
+    /// <summary>
+    /// Progress event from a worker completing a batch of positions.
+    /// Enqueued to AsyncQueue for thread-safe progress aggregation.
+    /// </summary>
+    /// <param name="Depth">Current depth level being processed</param>
+    /// <param name="PositionsCompleted">Number of positions completed in this batch</param>
+    /// <param name="TotalPositions">Total positions to process at this depth</param>
+    /// <param name="TimestampMs">Event timestamp</param>
+    private sealed record BookProgressEvent(
+        int Depth,
+        int PositionsCompleted,
+        int TotalPositions,
+        long TimestampMs
+    );
     private const int MaxBookMoves = 12;           // Maximum plies in book (6 moves each)
     private const int MaxCandidatesPerPosition = 8; // Top N moves to store per position
     private const int TimePerPositionMs = 30000;   // 30 seconds per position (optimized from 60s)
@@ -19,6 +34,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
     private readonly IOpeningBookValidator _validator;
     private readonly GeneratorProgress _progress = new();
     private readonly MinimaxAI _searchEngine;
+    private readonly AsyncQueue<BookProgressEvent> _progressQueue;
     private CancellationTokenSource? _cts;
 
     public OpeningBookGenerator(
@@ -32,6 +48,13 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
 
         // Create MinimaxAI instance with book generation configuration
         _searchEngine = new MinimaxAI();
+
+        // Create progress queue for thread-safe updates from workers
+        _progressQueue = new AsyncQueue<BookProgressEvent>(
+            ProcessProgressEventAsync,
+            capacity: 1000,
+            queueName: "BookProgress"
+        );
     }
 
     public GenerationProgress GetProgress() => _progress.ToPublicProgress();
@@ -74,7 +97,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
             int positionsEvaluated = 0;
 
             // Process each depth level
-            for (int depth = 0; depth < MaxBookMoves && !_cts.Token.IsCancellationRequested; depth++)
+            for (int depth = 0; depth < maxDepth && !_cts.Token.IsCancellationRequested; depth++)
             {
                 if (depth >= positionsByDepth.Count)
                     break;
@@ -85,24 +108,41 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
 
                 _progress.CurrentPhase = $"Evaluating depth {depth}";
 
-                // Filter out positions already in the book
+                // Separate positions into: new (need evaluation) vs existing (use stored moves)
                 var positionsToEvaluate = new List<(Board board, Player player, int depth, ulong hash, SymmetryType symmetry, bool nearEdge, int maxMoves)>();
+                var positionsInBook = new List<(Board board, Player player, int depth, ulong hash, BookMove[] moves)>();
 
                 foreach (var pos in currentLevelPositions)
                 {
                     var canonical = _canonicalizer.Canonicalize(pos.Board);
 
-                    if (!_store.ContainsEntry(canonical.CanonicalHash, pos.Player))
+                    // Calculate max children based on position depth
+                    int boardMoveNumber = pos.Depth * 2;
+                    int maxChildren = boardMoveNumber switch
                     {
-                        // Calculate max moves based on position depth
-                        int boardMoveNumber = pos.Depth * 2;
-                        int maxMovesToStore = boardMoveNumber switch
-                        {
-                            <= 8 => 4,
-                            <= 14 => 2,
-                            _ => 1
-                        };
+                        <= 8 => 4,
+                        <= 14 => 2,
+                        _ => 1
+                    };
 
+                    if (_store.ContainsEntry(canonical.CanonicalHash, pos.Player))
+                    {
+                        // Position already in book - retrieve stored moves for child generation
+                        var existingEntry = _store.GetEntry(canonical.CanonicalHash, pos.Player);
+                        if (existingEntry != null && existingEntry.Moves.Length > 0)
+                        {
+                            positionsInBook.Add((
+                                pos.Board,
+                                pos.Player,
+                                pos.Depth,
+                                canonical.CanonicalHash,
+                                existingEntry.Moves
+                            ));
+                        }
+                    }
+                    else
+                    {
+                        // New position - needs evaluation
                         positionsToEvaluate.Add((
                             pos.Board,
                             pos.Player,
@@ -110,27 +150,40 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
                             canonical.CanonicalHash,
                             canonical.SymmetryApplied,
                             canonical.IsNearEdge,
-                            maxMovesToStore
+                            maxChildren
                         ));
                     }
                 }
 
-                if (positionsToEvaluate.Count == 0)
+                // Set up depth tracking
+                _progress.CurrentDepth = depth;
+                _progress.TotalPositionsAtCurrentDepth = positionsToEvaluate.Count + positionsInBook.Count;
+                Interlocked.Exchange(ref _progress._positionsCompletedAtCurrentDepth, 0);
+
+                // Skip if nothing to process at this depth
+                if (positionsToEvaluate.Count == 0 && positionsInBook.Count == 0)
                 {
                     _progress.PositionsEvaluated = positionsEvaluated;
                     continue;
                 }
 
                 // Process positions in parallel using worker pool
-                var results = await ProcessPositionsInParallelAsync(
-                    positionsToEvaluate,
-                    bookDifficulty,
-                    _cts.Token
-                );
+                Dictionary<ulong, BookMove[]> results = new();
+                int totalPositions = positionsToEvaluate.Count + positionsInBook.Count;
+                if (positionsToEvaluate.Count > 0)
+                {
+                    results = await ProcessPositionsInParallelAsync(
+                        positionsToEvaluate,
+                        bookDifficulty,
+                        _cts.Token,
+                        totalPositions
+                    );
+                }
 
                 // Store results and generate child positions
                 var nextLevelPositions = new List<PositionToProcess>();
 
+                // Process newly evaluated positions
                 foreach (var posData in positionsToEvaluate)
                 {
                     if (cancellationToken.IsCancellationRequested)
@@ -185,6 +238,48 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
                     _progress.TotalMovesStored = totalMovesStored;
                 }
 
+                // Process positions already in the book - generate child positions from stored moves
+                foreach (var posData in positionsInBook)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        break;
+
+                    var moves = posData.moves;
+
+                    // Calculate max children for this position
+                    int maxChildren = posData.depth switch
+                    {
+                        <= 4 => 4,
+                        <= 9 => 2,
+                        _ => 1
+                    };
+
+                    // Enqueue child positions from stored moves
+                    foreach (var move in moves.Take(maxChildren))
+                    {
+                        var newBoard = CloneBoard(posData.board);
+                        newBoard.PlaceStone(move.RelativeX, move.RelativeY, posData.player);
+                        var nextPlayer = posData.player == Player.Red ? Player.Blue : Player.Red;
+
+                        var winResult = new WinDetector().CheckWin(newBoard);
+                        if (winResult.Winner == Player.None)
+                        {
+                            nextLevelPositions.Add(new PositionToProcess(newBoard, nextPlayer, posData.depth + 1));
+                        }
+                    }
+                }
+
+                // Update progress to include positions from the book
+                if (positionsInBook.Count > 0)
+                {
+                    _progressQueue.TryEnqueue(new BookProgressEvent(
+                        Depth: depth,
+                        PositionsCompleted: positionsInBook.Count,
+                        TotalPositions: positionsToEvaluate.Count + positionsInBook.Count,
+                        TimestampMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                    ));
+                }
+
                 // Add next level if we have positions
                 if (nextLevelPositions.Count > 0)
                 {
@@ -194,9 +289,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
                         positionsByDepth[depth + 1].AddRange(nextLevelPositions);
                 }
 
-                // Safety limit
-                if (positionsEvaluated > 1000)
-                    break;
+
             }
 
             // Final flush
@@ -251,37 +344,47 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
         var candidatesToEvaluate = candidates.Take(maxMoves * 2).ToList();
         var results = new ConcurrentBag<(int x, int y, int score, long nodes, int depth)>();
 
-        // Divide time budget among candidates to keep total time per position reasonable
-        var timePerCandidateMs = Math.Max(2000, TimePerPositionMs / candidatesToEvaluate.Count);
+        // Adaptive time allocation based on depth
+        // Reduce time for early positions (simpler positions), increase for deep positions
+        int currentDepth = _progress.CurrentDepth;
+        int depthAdjustment = currentDepth switch
+        {
+            <= 3 => -30,    // Early positions: 30% less time
+            <= 5 => 0,      // Mid positions: standard time
+            _ => +20        // Deep positions: 20% more time
+        };
 
-        var candidateTasks = candidatesToEvaluate.Select(async candidate =>
+        int adjustedTimePerPosition = TimePerPositionMs * (100 + depthAdjustment) / 100;
+        var timePerCandidateMs = Math.Max(2000, adjustedTimePerPosition / candidatesToEvaluate.Count);
+
+        var candidateTasks = candidatesToEvaluate.Select(candidate =>
         {
             var (cx, cy) = candidate;
-            cancellationToken.ThrowIfCancellationRequested();
-
-            // Skip if invalid
-            if (!_validator.IsValidMove(board, cx, cy, player))
-                return;
-
-            // Check for immediate win
-            if (_validator.IsWinningMove(board, cx, cy, player))
+            return Task.Run(() =>
             {
-                results.Add((cx, cy, 100000, 1, 1));
-                return;
-            }
+                cancellationToken.ThrowIfCancellationRequested();
 
-            // Clone board for this candidate (don't modify original)
-            var candidateBoard = CloneBoard(board);
-            candidateBoard.PlaceStone(cx, cy, player);
+                // Skip if invalid
+                if (!_validator.IsValidMove(board, cx, cy, player))
+                    return;
 
-            var searchBoard = CloneBoard(candidateBoard);
-            var opponent = player == Player.Red ? Player.Blue : Player.Red;
-            var moveNumber = candidateBoard.GetBitBoard(Player.Red).CountBits() + candidateBoard.GetBitBoard(Player.Blue).CountBits();
+                // Check for immediate win
+                if (_validator.IsWinningMove(board, cx, cy, player))
+                {
+                    results.Add((cx, cy, 100000, 1, 1));
+                    return;
+                }
 
-            // Run search with divided time budget, NO inner parallel to avoid oversubscription
-            var (bestX, bestY) = await Task.Run(() =>
-            {
-                return _searchEngine.GetBestMove(
+                // Clone board for this candidate (don't modify original)
+                var candidateBoard = CloneBoard(board);
+                candidateBoard.PlaceStone(cx, cy, player);
+
+                var searchBoard = CloneBoard(candidateBoard);
+                var opponent = player == Player.Red ? Player.Blue : Player.Red;
+                var moveNumber = candidateBoard.GetBitBoard(Player.Red).CountBits() + candidateBoard.GetBitBoard(Player.Blue).CountBits();
+
+                // Run search with divided time budget, NO inner parallel to avoid oversubscription
+                var (bestX, bestY) = _searchEngine.GetBestMove(
                     searchBoard,
                     opponent,
                     difficulty,
@@ -290,21 +393,21 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
                     ponderingEnabled: false,
                     parallelSearchEnabled: false // Disable Lazy SMP to avoid oversubscribing threads
                 );
+
+                var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _)
+                    = _searchEngine.GetSearchStatistics();
+
+                searchBoard.PlaceStone(bestX, bestY, opponent);
+                int score = EvaluateBoard(searchBoard, opponent);
+                searchBoard.GetCell(bestX, bestY).Player = Player.None;
+
+                results.Add((cx, cy, score, nodesSearched, depthAchieved));
+
+                // Update progress (last write wins is acceptable for display purposes)
+                _progress.LastDepth = depthAchieved;
+                _progress.LastNodes = nodesSearched;
+                _progress.LastThreads = threadCount;
             }, cancellationToken);
-
-            var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _)
-                = _searchEngine.GetSearchStatistics();
-
-            searchBoard.PlaceStone(bestX, bestY, opponent);
-            int score = EvaluateBoard(searchBoard, opponent);
-            searchBoard.GetCell(bestX, bestY).Player = Player.None;
-
-            results.Add((cx, cy, score, nodesSearched, depthAchieved));
-
-            // Update progress (last write wins is acceptable for display purposes)
-            _progress.LastDepth = depthAchieved;
-            _progress.LastNodes = nodesSearched;
-            _progress.LastThreads = threadCount;
         }).ToArray();
 
         await Task.WhenAll(candidateTasks);
@@ -316,15 +419,26 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
         sortedResults.Sort((a, b) => b.score.CompareTo(a.score));
 
         // EARLY EXIT: If best move dominates, skip remaining evaluation
-        // If top move has >200 point advantage (2 pawns), it's clearly superior
+        // Use more aggressive thresholds at deeper depths
         if (sortedResults.Count >= 2)
         {
+            int threshold = currentDepth >= 6 ? 150 : 200;  // More aggressive at depth 6+
+
             int scoreGap = sortedResults[0].score - sortedResults[1].score;
-            if (scoreGap > 200)
+            if (scoreGap > threshold)
             {
                 // Best move is clearly superior - stop evaluating further candidates
                 sortedResults = sortedResults.Take(1).ToList();
             }
+        }
+
+        // Also skip obviously bad moves (don't keep candidates > 500 points behind first)
+        if (sortedResults.Count >= 3)
+        {
+            var bestScore = sortedResults[0].score;
+            sortedResults = sortedResults
+                .TakeWhile(r => bestScore - r.score <= 500)
+                .ToList();
         }
 
         // Convert to BookMove records
@@ -579,12 +693,27 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
         public long LastNodes { get; set; }
         public int LastThreads { get; set; }
 
+        // Depth-weighted progress tracking
+        public int CurrentDepth { get; set; }
+        public int TotalPositionsAtCurrentDepth { get; set; }
+
+        // Internal field for Interlocked operations (used by AsyncQueue processor)
+        internal int _positionsCompletedAtCurrentDepth;
+
+        // Public property reads atomically (for progress display)
+        public int PositionsCompletedAtCurrentDepth => Interlocked.CompareExchange(ref _positionsCompletedAtCurrentDepth, 0, 0);
+
+        public int EstimatedTotalDepths { get; set; } = 10;
+
+        // Note: Candidate progress is not tracked because multiple workers process
+        // different positions in parallel, making per-position candidate counts
+        // meaningless (each worker resets and updates the same shared counters).
+        // Progress updates come via AsyncQueue for thread safety.
+
         public GenerationProgress ToPublicProgress()
         {
             var elapsed = DateTime.UtcNow - StartTime;
-            double percent = PositionsEvaluated > 0
-                ? (double)PositionsEvaluated / Math.Max(PositionsEvaluated + 100, 1) * 100
-                : 0;
+            double percent = CalculateDepthWeightedProgress();
 
             return new GenerationProgress(
                 PositionsEvaluated: PositionsEvaluated,
@@ -593,9 +722,52 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
                 PercentComplete: percent,
                 CurrentPhase: $"{CurrentPhase} (Last: d{LastDepth}, {LastThreads} threads, {LastNodes}N)",
                 ElapsedTime: elapsed,
-                EstimatedTimeRemaining: percent > 0 ? TimeSpan.FromSeconds(elapsed.TotalSeconds * (100 - percent) / percent) : null
+                EstimatedTimeRemaining: percent > 1 ? TimeSpan.FromSeconds(elapsed.TotalSeconds * (100 - percent) / percent) : null,
+                CurrentDepth: CurrentDepth,
+                PositionsCompletedAtCurrentDepth: PositionsCompletedAtCurrentDepth,
+                TotalPositionsAtCurrentDepth: TotalPositionsAtCurrentDepth
             );
         }
+
+        private double CalculateDepthWeightedProgress()
+        {
+            // Weight each depth level based on expected position count
+            // These weights sum to 1.0 (100%)
+            double completedDepthsPercent = 0;
+            for (int d = 0; d < CurrentDepth; d++)
+            {
+                completedDepthsPercent += GetDepthWeight(d);
+            }
+
+            // Add current depth progress
+            double currentDepthPercent = 0;
+            if (TotalPositionsAtCurrentDepth > 0)
+            {
+                double depthWeight = GetDepthWeight(CurrentDepth);
+                currentDepthPercent = (double)PositionsCompletedAtCurrentDepth / TotalPositionsAtCurrentDepth * depthWeight;
+            }
+
+            double totalPercent = (completedDepthsPercent + currentDepthPercent) * 100;
+
+            // Cap at 95% until actually complete (progress is an estimate)
+            return Status == GeneratorState.Completed ? 100 : Math.Min(95, totalPercent);
+        }
+
+        private static double GetDepthWeight(int depth) => depth switch
+        {
+            0 => 0.02,   // Root position: 2%
+            1 => 0.08,   // ~4 positions: 8%
+            2 => 0.10,   // ~16 positions: 10%
+            3 => 0.10,   // ~32 positions: 10%
+            4 => 0.10,   // ~64 positions: 10%
+            5 => 0.12,   // ~64 positions: 12%
+            6 => 0.12,   // ~128 positions: 12%
+            7 => 0.18,   // ~128+ positions: 18%
+            8 => 0.10,   // ~128 positions: 10%
+            9 => 0.04,   // ~64 positions: 4%
+            10 => 0.02,  // ~32 positions: 2%
+            _ => 0.02    // Remaining: 2%
+        };
 
         public void Reset()
         {
@@ -680,13 +852,23 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
     private async Task<Dictionary<ulong, BookMove[]>> ProcessPositionsInParallelAsync(
         List<(Board board, Player player, int depth, ulong hash, SymmetryType symmetry, bool nearEdge, int maxMoves)> positions,
         AIDifficulty difficulty,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int totalPositions = 0)
     {
         var results = new ConcurrentDictionary<ulong, BookMove[]>();
         var threadCount = AIDifficultyConfig.Instance.GetSettings(difficulty).ThreadCount;
 
-        // Calculate batch size based on position count and thread count
-        int batchSize = Math.Max(1, positions.Count / (threadCount * 2));
+        // Use provided total or default to positions count
+        int totalPositionsToReport = totalPositions > 0 ? totalPositions : positions.Count;
+
+        // Get current depth for dynamic batch sizing
+        int currentDepth = positions.Count > 0 ? positions[0].depth : 0;
+
+        // Dynamic batch sizing: smaller batches for deep positions (more frequent progress updates)
+        // Larger batches for shallow positions (better throughput)
+        int batchSize = currentDepth >= 4
+            ? Math.Max(1, threadCount / 2)           // Small batches at depth 4+ for more frequent updates
+            : Math.Max(2, positions.Count / 4);      // Moderate batches early for better throughput
 
         // Process in batches to avoid overwhelming memory
         for (int i = 0; i < positions.Count; i += batchSize)
@@ -736,9 +918,42 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator
             }
 
             _progress.PositionsEvaluated = i + currentBatchSize;
+
+            // Enqueue progress event for async update (non-blocking)
+            _progressQueue.TryEnqueue(new BookProgressEvent(
+                Depth: currentDepth,
+                PositionsCompleted: currentBatchSize,
+                TotalPositions: totalPositionsToReport,
+                TimestampMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            ));
         }
 
         return new Dictionary<ulong, BookMove[]>(results);
+    }
+
+    /// <summary>
+    /// Processes progress events from workers.
+    /// Updates PositionsCompletedAtCurrentDepth atomically.
+    /// Runs on background thread via AsyncQueue.
+    /// </summary>
+    private ValueTask ProcessProgressEventAsync(BookProgressEvent evt)
+    {
+        // Update depth-specific progress
+        _progress.CurrentDepth = evt.Depth;
+        _progress.TotalPositionsAtCurrentDepth = evt.TotalPositions;
+
+        // Atomically increment completed count
+        Interlocked.Add(ref _progress._positionsCompletedAtCurrentDepth, evt.PositionsCompleted);
+
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// Disposes the progress queue.
+    /// </summary>
+    public void Dispose()
+    {
+        _progressQueue?.Dispose();
     }
 }
 
