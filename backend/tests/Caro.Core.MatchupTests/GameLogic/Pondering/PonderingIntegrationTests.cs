@@ -6,7 +6,7 @@ using Caro.Core.GameLogic.Pondering;
 using Caro.Core.Tournament;
 using System.Diagnostics;
 
-namespace Caro.Core.Tests.GameLogic.Pondering;
+namespace Caro.Core.MatchupTests.GameLogic.Pondering;
 
 /// <summary>
 /// Integration tests for pondering functionality

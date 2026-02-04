@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace Caro.Core.Tests.Tournament;
+namespace Caro.Core.MatchupTests.Tournament;
 
 /// <summary>
 /// Snapshot data structures for tournament integration tests
