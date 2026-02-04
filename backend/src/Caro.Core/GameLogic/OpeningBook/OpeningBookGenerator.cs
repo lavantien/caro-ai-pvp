@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using Caro.Core.Concurrency;
 using Caro.Core.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace Caro.Core.GameLogic;
 
@@ -32,6 +33,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     private readonly IOpeningBookStore _store;
     private readonly IPositionCanonicalizer _canonicalizer;
     private readonly IOpeningBookValidator _validator;
+    private readonly ILogger<OpeningBookGenerator> _logger;
     private readonly GeneratorProgress _progress = new();
     private readonly AsyncQueue<BookProgressEvent> _progressQueue;
     private CancellationTokenSource? _cts;
@@ -39,11 +41,13 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     public OpeningBookGenerator(
         IOpeningBookStore store,
         IPositionCanonicalizer canonicalizer,
-        IOpeningBookValidator validator)
+        IOpeningBookValidator validator,
+        ILogger<OpeningBookGenerator>? logger = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _canonicalizer = canonicalizer ?? throw new ArgumentNullException(nameof(canonicalizer));
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<OpeningBookGenerator>.Instance;
 
         // Create progress queue for thread-safe updates from workers
         _progressQueue = new AsyncQueue<BookProgressEvent>(
@@ -127,6 +131,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                         var existingEntry = _store.GetEntry(canonical.CanonicalHash, pos.Player);
                         if (existingEntry != null && existingEntry.Moves.Length > 0)
                         {
+                            _logger.LogDebug("Found existing entry at depth {Depth}: {MoveCount} moves stored", pos.Depth, existingEntry.Moves.Length);
                             positionsInBook.Add((
                                 pos.Board,
                                 pos.Player,
@@ -141,6 +146,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     else
                     {
                         // New position - needs evaluation
+                        _logger.LogDebug("New position at depth {Depth} needs evaluation", pos.Depth);
                         positionsToEvaluate.Add((
                             pos.Board,
                             pos.Player,
@@ -193,6 +199,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     var moves = results[posData.hash];
                     var canonical = _canonicalizer.Canonicalize(posData.board);
 
+                    _logger.LogInformation("Storing entry at depth {Depth}: {MoveCount} moves evaluated and stored", posData.depth, moves.Length);
+
                     // Store entry
                     var entry = new OpeningBookEntry
                     {
@@ -218,6 +226,10 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     };
 
                     // Enqueue child positions
+                    int movesAvailable = moves.Length;
+                    int movesActuallyAdded = 0;
+                    int movesSkippedWin = 0;
+
                     foreach (var move in moves.Take(maxChildren))
                     {
                         var newBoard = CloneBoard(posData.board);
@@ -234,11 +246,21 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                         var nextPlayer = posData.player == Player.Red ? Player.Blue : Player.Red;
 
                         var winResult = new WinDetector().CheckWin(newBoard);
+                        _logger.LogDebug("Move ({ActualX}, {ActualY}) at depth {Depth}: Winner={Winner}", actualX, actualY, posData.depth, winResult.Winner);
+
                         if (winResult.Winner == Player.None)
                         {
                             nextLevelPositions.Add(new PositionToProcess(newBoard, nextPlayer, posData.depth + 1));
+                            movesActuallyAdded++;
+                        }
+                        else
+                        {
+                            movesSkippedWin++;
                         }
                     }
+
+                    _logger.LogInformation("Position at depth {Depth}: {MovesAvailable} moves available, {MaxChildren} max children, {MovesActuallyAdded} added, {MovesSkippedWin} skipped (win detected)",
+                        posData.depth, movesAvailable, maxChildren, movesActuallyAdded, movesSkippedWin);
 
                     _progress.PositionsGenerated = positionsGenerated;
                     _progress.PositionsEvaluated = positionsEvaluated;
@@ -261,6 +283,10 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                         _ => 1
                     };
 
+                    int movesAvailable = moves.Length;
+                    int movesActuallyAdded = 0;
+                    int movesSkippedWin = 0;
+
                     // Enqueue child positions from stored moves
                     foreach (var move in moves.Take(maxChildren))
                     {
@@ -278,11 +304,21 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                         var nextPlayer = posData.player == Player.Red ? Player.Blue : Player.Red;
 
                         var winResult = new WinDetector().CheckWin(newBoard);
+                        _logger.LogDebug("Move ({ActualX}, {ActualY}) at depth {Depth} (from book): Winner={Winner}", actualX, actualY, posData.depth, winResult.Winner);
+
                         if (winResult.Winner == Player.None)
                         {
                             nextLevelPositions.Add(new PositionToProcess(newBoard, nextPlayer, posData.depth + 1));
+                            movesActuallyAdded++;
+                        }
+                        else
+                        {
+                            movesSkippedWin++;
                         }
                     }
+
+                    _logger.LogInformation("Position at depth {Depth} (from book): {MovesAvailable} moves available, {MaxChildren} max children, {MovesActuallyAdded} added, {MovesSkippedWin} skipped (win detected)",
+                        posData.depth, movesAvailable, maxChildren, movesActuallyAdded, movesSkippedWin);
                 }
 
                 // Update progress to include positions from the book
@@ -305,6 +341,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                         positionsByDepth[depth + 1].AddRange(nextLevelPositions);
                 }
 
+                _logger.LogInformation("Depth {Depth}: Generated {NextLevelCount} child positions for depth {NextDepth}", depth, nextLevelPositions.Count, depth + 1);
 
             }
 
@@ -377,10 +414,26 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
         // Aggressive candidate pruning: use static evaluation for pre-sorting
         // In Caro, usually only top 4-6 moves are relevant. Evaluating 24 branches to depth 12+ is extremely expensive.
-        var candidatesToEvaluate = candidates
-            .OrderByDescending(c => BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player))
-            .Take(Math.Min(candidates.Count, 6))  // Limit to top 6 instead of maxMoves * 2 (24)
+        // IMPORTANT: Filter out invalid candidates first (e.g., Open Rule violations) to ensure we evaluate valid moves
+        var validCandidates = candidates
+            .Where(c => _validator.IsValidMove(board, c.Item1, c.Item2, player))
             .ToList();
+
+        if (validCandidates.Count == 0)
+        {
+            _logger.LogWarning("No valid candidates found at depth {CurrentDepth} (all {CandidateCount} candidates failed validation)", _progress.CurrentDepth, candidates.Count);
+            return Array.Empty<BookMove>();
+        }
+
+        var candidatesToEvaluate = validCandidates
+            .OrderByDescending(c => BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player))
+            .Take(Math.Min(validCandidates.Count, 6))  // Limit to top 6 instead of maxMoves * 2 (24)
+            .ToList();
+
+        _logger.LogDebug("Candidate filtering: {TotalCandidates} total -> {ValidCandidates} valid -> {CandidatesToEvaluate} to evaluate",
+            candidates.Count, validCandidates.Count, candidatesToEvaluate.Count);
+
+        _logger.LogDebug("Position evaluation: {TotalCandidates} total candidates -> {CandidatesToEvaluate} candidates to evaluate", candidates.Count, candidatesToEvaluate.Count);
         var results = new ConcurrentBag<(int x, int y, int score, long nodes, int depth)>();
 
         // Adaptive time allocation based on depth
@@ -403,6 +456,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                // Candidates are pre-filtered for validity, but double-check for safety
                 // Skip if invalid
                 if (!_validator.IsValidMove(board, cx, cy, player))
                     return;
@@ -444,6 +498,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 int score = EvaluateBoard(searchBoard, opponent);
                 searchBoard.GetCell(bestX, bestY).Player = Player.None;
 
+                _logger.LogDebug("Candidate ({Cx}, {Cy}) evaluated: best response=({BestX},{BestY}), score={Score}", cx, cy, bestX, bestY, score);
+
                 results.Add((cx, cy, score, nodesSearched, depthAchieved));
 
                 // Update progress (last write wins is acceptable for display purposes)
@@ -457,9 +513,14 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
         // Convert to list for sorting
         var sortedResults = results.ToList();
+        int resultsBeforePruning = sortedResults.Count;
 
         // Sort by score
         sortedResults.Sort((a, b) => b.score.CompareTo(a.score));
+
+        // Log all scores before pruning for diagnosis
+        var scoreLog = string.Join(", ", sortedResults.Select(r => $"({r.x},{r.y}):{r.score}"));
+        _logger.LogDebug("Scores at depth {CurrentDepth} before pruning: {Scores}", currentDepth, scoreLog);
 
         // EARLY EXIT: If best move dominates, skip remaining evaluation
         // Use more aggressive thresholds at deeper depths
@@ -471,6 +532,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             if (scoreGap > threshold)
             {
                 // Best move is clearly superior - stop evaluating further candidates
+                _logger.LogDebug("Early exit: best move dominates with score gap {ScoreGap} > {Threshold}", scoreGap, threshold);
                 sortedResults = sortedResults.Take(1).ToList();
             }
         }
@@ -483,6 +545,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 .TakeWhile(r => bestScore - r.score <= 500)
                 .ToList();
         }
+
+        _logger.LogDebug("Position at depth {CurrentDepth}: {CandidatesToEvaluate} candidates -> {ResultsBeforePruning} results -> {SortedResultsCount} after pruning",
+            currentDepth, candidatesToEvaluate.Count, resultsBeforePruning, sortedResults.Count);
 
         // Convert to BookMove records
         // IMPORTANT: Transform coordinates to canonical space before storing
@@ -667,6 +732,24 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     candidates.Add((x, y));
                 }
             }
+        }
+
+        int stoneCount = 0;
+        for (int x = 0; x < boardSize; x++)
+        {
+            for (int y = 0; y < boardSize; y++)
+            {
+                if (!board.GetCell(x, y).IsEmpty)
+                    stoneCount++;
+            }
+        }
+        _logger.LogDebug("GetCandidateMoves: Board has {StoneCount} stones, found {CandidateCount} candidate moves", stoneCount, candidates.Count);
+
+        // Log first few candidates for diagnosis
+        if (candidates.Count > 0)
+        {
+            var candidateSample = string.Join(", ", candidates.Take(10).Select(c => $"({c.Item1},{c.Item2})"));
+            _logger.LogDebug("Candidate samples: {Candidates}", candidateSample + (candidates.Count > 10 ? "..." : ""));
         }
 
         // If board is empty, return center
