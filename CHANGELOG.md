@@ -5,6 +5,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-02-05
+
+### Fixed
+
+- **Opening book generation stopping prematurely at depth 1**
+  - Root cause: Candidate selection used static evaluation ranking BEFORE filtering by validity
+  - At depth 2 (Red's second move), top 6 candidates by static evaluation were all adjacent to (9,9)
+  - All 6 candidates violated the Open Rule (Red's second move must be 3+ squares away from first)
+  - All candidates were rejected by validator, resulting in 0 moves stored at depth 2
+  - Fix: Filter candidates by validity (including Open Rule) BEFORE static evaluation ranking
+  - Opening book now correctly progresses through multiple depths while respecting game rules
+
+### Added
+
+- **ILogger<OpeningBookGenerator> dependency** for diagnostic logging
+  - Added Microsoft.Extensions.Logging.Abstractions package to Caro.Core
+  - Comprehensive logging for candidate filtering, move evaluation, and child position generation
+  - Helps diagnose issues with candidate selection and Open Rule enforcement
+
+### Performance Results
+
+Before fix (max-depth=3):
+- Max Depth: 1 (stuck after depth 2)
+- Total Moves: 2
+- Positions Generated: 2
+
+After fix (max-depth=6):
+- Max Depth: 5 (reached target depth - 1)
+- Total Moves: 71
+- Positions Generated: 64
+- Depth 5: Generated 51 child positions for depth 6
+
+### Technical Details
+
+**Candidate Selection Flow (Before):**
+```
+1. GetCandidateMoves() returns all adjacent moves
+2. Static evaluation ranks all candidates
+3. Take top 6 candidates
+4. Validate each candidate during evaluation
+5. Result: All 6 rejected at depth 2 due to Open Rule
+```
+
+**Candidate Selection Flow (After):**
+```
+1. GetCandidateMoves() returns all adjacent moves
+2. Filter by IsValidMove() including Open Rule
+3. Static evaluation ranks valid candidates only
+4. Take top 6 from valid candidates
+5. Result: Valid moves at all depths
+```
+
+### Files Modified
+
+- `backend/src/Caro.Core/Caro.Core.csproj` - Added Microsoft.Extensions.Logging.Abstractions v9.0.0
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs`
+  - Added ILogger<OpeningBookGenerator> field with optional constructor parameter
+  - Added validity filtering before static evaluation ranking
+  - Added comprehensive diagnostic logging
+- `backend/src/Caro.BookBuilder/Program.cs` - Pass logger to OpeningBookGenerator
+
+[1.13.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.13.0
+
 ## [1.12.0] - 2026-02-05
 
 ### Documentation Updates
