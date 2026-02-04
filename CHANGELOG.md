@@ -5,6 +5,94 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-02-04
+
+### Added
+
+- **AsyncQueue-based progress tracking** for opening book generation
+  - Thread-safe progress updates via `AsyncQueue<BookProgressEvent>`
+  - Progress counter uses `Interlocked.Add` for atomic updates
+  - Real-time position completion tracking (e.g., "8/811 positions")
+  - Resolves issue where progress was stuck at "0/159 positions"
+- **Resume functionality** for opening book generation
+  - Existing book positions are recognized and skipped during re-runs
+  - Child positions generated from stored moves of existing entries
+  - Generation continues from the last completed depth level
+  - Enables incremental deepening of existing books (e.g., depth 8 → 14)
+- **Configurable max-depth via CLI parameter**
+  - `--max-depth` flag now controls generation depth (was hardcoded to 12)
+  - Enables deeper opening books (e.g., `--max-depth=14` for 7 moves per side)
+
+### Changed
+
+- **Progress display granularity** improved
+  - Batch size threshold lowered from depth >= 6 to depth >= 4
+  - More frequent progress updates at shallower depths
+- **OpeningBookGenerator** now implements `IDisposable` for proper queue cleanup
+
+### Removed
+
+- **1000 position safety limit** that was stopping generation prematurely
+  - Generation now continues until `--max-depth` is reached
+  - Removes arbitrary cap on book size
+
+### Fixed
+
+- **Progress counter stuck at 0** during book generation
+  - Root cause: Progress update only executed after `ProcessPositionsInParallelAsync` completed
+  - Fix: AsyncQueue processes events from workers during batch execution
+- **Generation not resuming** from existing book
+  - Root cause: Positions in book were filtered out, no children enqueued
+  - Fix: Retrieve stored moves and generate children for existing entries
+
+### Technical Details
+
+**AsyncQueue Progress Architecture:**
+
+```csharp
+// Worker enqueues progress events (non-blocking)
+_progressQueue.TryEnqueue(new BookProgressEvent(
+    Depth: currentDepth,
+    PositionsCompleted: currentBatchSize,
+    TotalPositions: positions.Count,
+    TimestampMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+));
+
+// Background processor aggregates atomically
+private ValueTask ProcessProgressEventAsync(BookProgressEvent evt)
+{
+    _progress.CurrentDepth = evt.Depth;
+    _progress.TotalPositionsAtCurrentDepth = evt.TotalPositions;
+    Interlocked.Add(ref _progress._positionsCompletedAtCurrentDepth, evt.PositionsCompleted);
+    return ValueTask.CompletedTask;
+}
+```
+
+**Resume Logic Flow:**
+
+```
+1. Check if position exists in book
+   ├─ No: Evaluate via worker pool, store result, enqueue children
+   └─ Yes: Retrieve stored moves, enqueue children (skip evaluation)
+
+2. Progress bar includes both new and existing positions
+   └─ Total = positionsToEvaluate.Count + positionsInBook.Count
+```
+
+### Files Modified
+
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs`
+  - Added `AsyncQueue<BookProgressEvent>` for progress tracking
+  - Added `IDisposable` implementation
+  - Changed loop condition from `MaxBookMoves` to `maxDepth` parameter
+  - Added resume logic with `positionsInBook` tracking
+  - Removed 1000 position safety limit
+  - Made `PositionsCompletedAtCurrentDepth` thread-safe via `Interlocked`
+- `backend/src/Caro.BookBuilder/Program.cs`
+  - Updated progress display format for new counter fields
+
+[1.9.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.9.0
+
 ## [1.8.0] - 2026-02-02
 
 ### Added
