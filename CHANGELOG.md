@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-02-04
+
+### Fixed
+
+- **Canonical coordinate storage bug** in opening book generation
+  - Root cause: Moves were stored in actual coordinates but design specifies canonical coordinates
+  - Symmetry-transformed positions had moves in wrong coordinate space
+  - Fix: Transform moves to canonical space before storing via `ApplySymmetry()`
+  - Fix: Transform canonical coordinates back to actual when generating child positions via `TransformToActual()`
+  - Resolves (0,x) blocking square pattern during generation
+  - **Breaking change:** Existing `opening_book.db` files must be regenerated
+
+- **Progress display stuck at 95%** during deep level generation
+  - Root cause: Depth weights allocated only 2% for depths 10+, making progress appear frozen
+  - Fix: Rebalanced weights to 6%, 5%, 4%, 3% for depths 10-13 respectively
+  - Progress now updates meaningfully through depth 13 (was capped at 95%)
+
+### Changed
+
+- **OpeningBookGenerator.GenerateMovesForPositionAsync** - Added overload accepting `canonicalSymmetry` and `isNearEdge` parameters
+- **positionsInBook tuple** - Now includes `symmetry` and `nearEdge` fields for proper coordinate transformation
+
+### Technical Details
+
+**Coordinate System Architecture:**
+- Book moves are stored in CANONICAL coordinate space (after symmetry transformation)
+- Lookup service applies `TransformToActual()` to convert back to board coordinates
+- Generation now transforms actual→canonical before storing, canonical→actual for child creation
+
 ## [1.9.0] - 2026-02-04
 
 ### Added
