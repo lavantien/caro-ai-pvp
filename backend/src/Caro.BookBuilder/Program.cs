@@ -106,7 +106,9 @@ class Program
                 var progress = generator.GetProgress();
                 if (progress.PercentComplete < 100)
                 {
-                    Console.WriteLine($"[{progress.ElapsedTime:hh\\:mm\\:ss}] {progress.CurrentPhase}: " +
+                    Console.WriteLine($"[{progress.ElapsedTime:hh\\:mm\\:ss}] " +
+                                    $"Depth {progress.CurrentDepth} " +
+                                    $"({progress.PositionsCompletedAtCurrentDepth}/{progress.TotalPositionsAtCurrentDepth} positions): " +
                                     $"Stored: {progress.PositionsStored}, " +
                                     $"Evaluated: {progress.PositionsEvaluated}, " +
                                     $"Progress: {progress.PercentComplete:F1}%");

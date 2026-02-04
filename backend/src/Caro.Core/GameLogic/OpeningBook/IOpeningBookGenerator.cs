@@ -68,5 +68,10 @@ public sealed record GenerationProgress(
     double PercentComplete,
     string CurrentPhase,
     TimeSpan ElapsedTime,
-    TimeSpan? EstimatedTimeRemaining
+    TimeSpan? EstimatedTimeRemaining,
+
+    // Depth-weighted progress fields
+    int CurrentDepth = 0,
+    int PositionsCompletedAtCurrentDepth = 0,
+    int TotalPositionsAtCurrentDepth = 0
 );
