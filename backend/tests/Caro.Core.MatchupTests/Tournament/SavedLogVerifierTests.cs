@@ -2,7 +2,7 @@ using Caro.Core.GameLogic;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Caro.Core.Tests.Tournament;
+namespace Caro.Core.MatchupTests.Tournament;
 
 /// <summary>
 /// Tests that verify saved tournament snapshots against expected invariants.

@@ -4,7 +4,7 @@ using Caro.Core.Tournament;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Caro.Core.Tests.Tournament;
+namespace Caro.Core.MatchupTests.Tournament;
 
 /// <summary>
 /// Comprehensive AI strength validation test suite.

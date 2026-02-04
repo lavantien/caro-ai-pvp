@@ -5,7 +5,7 @@ using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Caro.Core.Tests.GameLogic;
+namespace Caro.Core.MatchupTests.GameLogic;
 
 /// <summary>
 /// Integration test for a full game matchup.

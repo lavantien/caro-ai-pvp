@@ -6,7 +6,7 @@ using Xunit.Abstractions;
 
 #pragma warning disable xUnit1031 // Integration tests use blocking for test isolation
 
-namespace Caro.Core.Tests.Tournament;
+namespace Caro.Core.MatchupTests.Tournament;
 
 /// <summary>
 /// Integration tests that run full tournament games with actual AI opponents.
