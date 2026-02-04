@@ -5,6 +5,80 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-02-05
+
+### Changed
+
+- **Default book generation depths increased** for deeper opening coverage
+  - `--max-depth` default: 12 → 32 plies (16 moves each)
+  - `--target-depth` default: 24 → 32 plies (deeper move evaluation)
+  - Enables much deeper opening books for better AI play
+
+- **Survival zone enhancements** - Improved book quality for moves 4-7 (plies 6-13)
+  - Branching factor increased from 2 to 4 children for moves 5-7 (plies 9-14)
+  - Time allocation increased from +20% to +50% for survival zone positions
+  - Candidate evaluation increased from 6 to 10 candidates in survival zone
+  - Progress tracking weights increased for survival zone depths
+  - Survival zone is where Red's disadvantage from distance rule determines outcome
+
+### Technical Details
+
+**Survival Zone Definition:**
+- Plies 6-13 (moves 4-7): Critical phase where Red navigates the distance rule disadvantage
+- Plies 9-14 (moves 5-7): "Survival zone" with enhanced branching (4 vs 2 children)
+
+**Branching Factor Changes:**
+```
+Before: Plies 9-14 had 2 children (moves 5-7)
+After:  Plies 9-14 have 4 children (moves 5-7)
+Result: More thorough exploration of survival zone positions
+```
+
+**Time Allocation Changes:**
+```
+Before: Deep positions (ply 6+) got +20% time
+After:  Survival zone (plies 6-13) gets +50% time
+        Late positions (ply 14+) gets +20% time
+Result: Better quality moves in critical survival zone
+```
+
+**Candidate Evaluation Changes:**
+```
+Before: 6 candidates evaluated at all depths
+After:  10 candidates in survival zone (plies 6-13)
+        6 candidates elsewhere
+Result: More thorough search in critical positions
+```
+
+### Files Modified
+
+- `backend/src/Caro.BookBuilder/Program.cs`
+  - Default max-depth: 12 → 32
+  - Default target-depth: 24 → 32
+  - Updated help text
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs`
+  - Added SurvivalZoneStartPly (6) and SurvivalZoneEndPly (13) constants
+  - Updated branching factor at 3 locations (position discovery, child generation for new/book positions)
+  - Updated time allocation: +50% for survival zone
+  - Updated candidate count: 10 for survival zone, 6 elsewhere
+  - Updated GetDepthWeight: increased weights for plies 6-11
+- `README.md`
+  - Updated opening book generation examples with new defaults
+  - Added quick test example (max-depth=10, target-depth=12)
+  - Added survival zone to feature list
+
+### Performance Impact
+
+With new defaults (max-depth=32, target-depth=32):
+- **Generation time:** 5-10x increase due to deeper max depth and increased branching
+- **Book quality:** Significantly improved for critical moves 4-7 and beyond
+- **Book size:** Much larger due to increased max-depth and branching
+
+Recommendation: For testing, use lower depths (e.g., --max-depth=10 --target-depth=12).
+For production, generate progressively (start with max-depth=16, then extend to 32).
+
+[1.15.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.15.0
+
 ## [1.14.0] - 2026-02-05
 
 ### Added
