@@ -238,7 +238,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                     foreach (var move in moves.Take(maxChildren))
                     {
-                        var newBoard = CloneBoard(posData.board);
+                        var newBoard = posData.board.Clone();
 
                         // Transform canonical coordinates back to actual before placing
                         // Moves are stored in canonical space, board is in actual space
@@ -297,7 +297,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     // Enqueue child positions from stored moves
                     foreach (var move in moves.Take(maxChildren))
                     {
-                        var newBoard = CloneBoard(posData.board);
+                        var newBoard = posData.board.Clone();
 
                         // Transform canonical coordinates back to actual before placing
                         // Moves are stored in canonical space, board is in actual space
@@ -481,10 +481,10 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 }
 
                 // Clone board for this candidate (don't modify original)
-                var candidateBoard = CloneBoard(board);
+                var candidateBoard = board.Clone();
                 candidateBoard.PlaceStone(cx, cy, player);
 
-                var searchBoard = CloneBoard(candidateBoard);
+                var searchBoard = candidateBoard.Clone();
                 var opponent = player == Player.Red ? Player.Blue : Player.Red;
                 var moveNumber = candidateBoard.GetBitBoard(Player.Red).CountBits() + candidateBoard.GetBitBoard(Player.Blue).CountBits();
 
@@ -805,19 +805,6 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         const double scale = 0.005;
         double winProb = 1.0 / (1.0 + Math.Exp(-score * scale));
         return (int)(winProb * 100);
-    }
-
-    private static Board CloneBoard(Board board)
-    {
-        var newBoard = new Board();
-        for (int x = 0; x < board.BoardSize; x++)
-        {
-            for (int y = 0; y < board.BoardSize; y++)
-            {
-                newBoard.GetCell(x, y).Player = board.GetCell(x, y).Player;
-            }
-        }
-        return newBoard;
     }
 
     private record PositionToProcess(Board Board, Player Player, int Depth);
