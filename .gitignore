@@ -25,3 +25,5 @@ backend/test_diagnostic.txt
 **/tournament_results.txt
 **/comprehensive_output.txt
 *.host.*-*/
+*.db-shm
+*.db-wal
