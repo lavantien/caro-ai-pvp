@@ -76,7 +76,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         CancellationToken cancellationToken = default)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _progress.Reset();
+        _progress.Reset(maxDepth);
         _progress.Status = GeneratorState.Running;
         _progress.StartTime = DateTime.UtcNow;
 
@@ -102,7 +102,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             int positionsEvaluated = 0;
 
             // Process each depth level
-            for (int depth = 0; depth < maxDepth && !_cts.Token.IsCancellationRequested; depth++)
+            for (int depth = 0; depth <= maxDepth && !_cts.Token.IsCancellationRequested; depth++)
             {
                 if (depth >= positionsByDepth.Count)
                     break;
@@ -851,6 +851,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         // Depth-weighted progress tracking
         public int CurrentDepth { get; set; }
         public int TotalPositionsAtCurrentDepth { get; set; }
+        public int MaxDepth { get; set; } = 32;
 
         // Internal field for Interlocked operations (used by AsyncQueue processor)
         internal int _positionsCompletedAtCurrentDepth;
@@ -886,8 +887,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
         private double CalculateDepthWeightedProgress()
         {
-            // Weight each depth level based on expected position count
-            // These weights sum to 1.0 (100%)
+            // Calculate weights dynamically based on MaxDepth
             double completedDepthsPercent = 0;
             for (int d = 0; d < CurrentDepth; d++)
             {
@@ -908,31 +908,57 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             return Status == GeneratorState.Completed ? 100 : Math.Min(99, totalPercent);
         }
 
-        private static double GetDepthWeight(int depth) => depth switch
+        private double GetDepthWeight(int depth)
         {
-            0 => 0.02,   // Root position: 2%
-            1 => 0.04,   // ~4 positions: 4%
-            2 => 0.05,   // ~16 positions: 5%
-            3 => 0.06,   // ~32 positions: 6%
-            4 => 0.07,   // ~64 positions: 7%
-            5 => 0.08,   // ~64 positions: 8%
-            6 => 0.12,   // SURVIVAL ZONE start: ~128 positions: 12% (increased)
-            7 => 0.15,   // SURVIVAL ZONE: ~256 positions: 15% (increased)
-            8 => 0.12,   // SURVIVAL ZONE: ~256 positions: 12% (increased)
-            9 => 0.10,   // SURVIVAL ZONE: ~128 positions: 10% (increased)
-            10 => 0.08,  // SURVIVAL ZONE: ~64 positions: 8% (increased)
-            11 => 0.06,  // SURVIVAL ZONE end: ~32 positions: 6% (increased)
-            12 => 0.03,  // ~16 positions: 3%
-            13 => 0.02,  // SURVIVAL ZONE end: ~8 positions: 2%
-            _ => 0.00    // Remaining: 0% (cap at 100%)
-        };
+            // Base weights for early depths (survival zone)
+            double baseWeight = depth switch
+            {
+                0 => 0.02,   // Root position
+                1 => 0.04,   // ~4 positions
+                2 => 0.05,   // ~16 positions
+                3 => 0.06,   // ~32 positions
+                4 => 0.07,   // ~64 positions
+                5 => 0.08,   // ~64 positions
+                6 => 0.12,   // SURVIVAL ZONE start: ~128 positions
+                7 => 0.15,   // SURVIVAL ZONE: ~256 positions (peak)
+                8 => 0.12,   // SURVIVAL ZONE: ~256 positions
+                9 => 0.10,   // SURVIVAL ZONE: ~128 positions
+                10 => 0.08,  // SURVIVAL ZONE: ~64 positions
+                11 => 0.06,  // SURVIVAL ZONE end: ~32 positions
+                12 => 0.03,  // ~16 positions
+                13 => 0.02,  // ~8 positions
+                _ => 0.01    // Deeper positions: default small weight
+            };
 
-        public void Reset()
+            // Scale weights so total equals 1.0 based on MaxDepth
+            // Calculate sum of base weights for all depths up to MaxDepth
+            double totalBaseWeight = 0;
+            for (int d = 0; d <= MaxDepth; d++)
+            {
+                totalBaseWeight += (d switch
+                {
+                    <= 13 => d switch
+                    {
+                        0 => 0.02, 1 => 0.04, 2 => 0.05, 3 => 0.06, 4 => 0.07,
+                        5 => 0.08, 6 => 0.12, 7 => 0.15, 8 => 0.12, 9 => 0.10,
+                        10 => 0.08, 11 => 0.06, 12 => 0.03, 13 => 0.02,
+                        _ => 0.01
+                    },
+                    _ => 0.01
+                });
+            }
+
+            // Normalize weight so all depths sum to 1.0
+            return baseWeight / totalBaseWeight;
+        }
+
+        public void Reset(int maxDepth = 32)
         {
             Status = GeneratorState.NotStarted;
             PositionsGenerated = 0;
             PositionsEvaluated = 0;
             TotalMovesStored = 0;
+            MaxDepth = maxDepth;
             CurrentPhase = "Initializing";
         }
     }
