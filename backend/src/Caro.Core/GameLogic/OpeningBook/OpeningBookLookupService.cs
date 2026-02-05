@@ -145,6 +145,21 @@ public sealed class OpeningBookLookupService
     }
 
     /// <summary>
+    /// Get maximum book depth allowed for a difficulty level.
+    /// Hard uses depth 24 for faster games, GM/Experimental use full depth 32.
+    /// </summary>
+    private static int GetMaxBookDepth(AIDifficulty difficulty)
+    {
+        return difficulty switch
+        {
+            AIDifficulty.Hard => 24,        // Hard: up to depth 24
+            AIDifficulty.Grandmaster => 32,  // GM: full depth
+            AIDifficulty.Experimental => 32, // Experimental: full depth
+            _ => 0
+        };
+    }
+
+    /// <summary>
     /// Select the best move from available book moves.
     /// Selection strategy varies by difficulty.
     /// </summary>
@@ -153,11 +168,18 @@ public sealed class OpeningBookLookupService
         if (moves.Length == 0)
             return null;
 
+        // Filter moves by max depth for this difficulty
+        int maxDepth = GetMaxBookDepth(difficulty);
+        var depthFilteredMoves = moves.Where(m => m.DepthAchieved <= maxDepth).ToArray();
+
+        // If no moves pass depth filter, fall back to all moves
+        var candidateMoves = depthFilteredMoves.Length > 0 ? depthFilteredMoves : moves;
+
         // For Experimental: prioritize verified, forcing moves with highest priority
         if (difficulty == AIDifficulty.Experimental)
         {
             // First try: verified forcing moves
-            var best = moves
+            var best = candidateMoves
                 .Where(m => m.IsVerified && m.IsForcing)
                 .OrderByDescending(m => m.Priority)
                 .ThenByDescending(m => m.Score)
@@ -167,7 +189,7 @@ public sealed class OpeningBookLookupService
                 return best;
 
             // Second try: any verified move
-            best = moves
+            best = candidateMoves
                 .Where(m => m.IsVerified)
                 .OrderByDescending(m => m.Priority)
                 .ThenByDescending(m => m.Score)
@@ -180,7 +202,7 @@ public sealed class OpeningBookLookupService
         // For Grandmaster: verified moves with highest score
         if (difficulty == AIDifficulty.Grandmaster)
         {
-            return moves
+            return candidateMoves
                 .Where(m => m.IsVerified)
                 .OrderByDescending(m => m.Score)
                 .ThenByDescending(m => m.Priority)
@@ -188,13 +210,13 @@ public sealed class OpeningBookLookupService
         }
 
         // For Hard: any verified move, or highest score if none verified
-        var verified = moves.Where(m => m.IsVerified).ToArray();
+        var verified = candidateMoves.Where(m => m.IsVerified).ToArray();
         if (verified.Length > 0)
         {
             return verified.OrderByDescending(m => m.Score).FirstOrDefault();
         }
 
         // Fallback: highest scoring move
-        return moves.OrderByDescending(m => m.Score).FirstOrDefault();
+        return candidateMoves.OrderByDescending(m => m.Score).FirstOrDefault();
     }
 }

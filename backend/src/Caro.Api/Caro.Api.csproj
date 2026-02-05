@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Caro.Core\Caro.Core.csproj" />
+    <ProjectReference Include="..\Caro.Core.Infrastructure\Caro.Core.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -25,7 +25,7 @@ public class MinimaxAI : IStatsPublisher
     private readonly ThreatDetector _threatDetector = new();
     private readonly ThreatSpaceSearch _vcfSolver = new();
     private readonly VCFSolver _inTreeVCFSolver;  // In-tree VCF solver for Lazy SMP
-    private readonly OpeningBook _openingBook = OpeningBook.Instance;
+    private readonly OpeningBook _openingBook;
 
     // Time management for 7+5 time control
     private readonly TimeManager _timeManager = new();
@@ -110,9 +110,10 @@ public class MinimaxAI : IStatsPublisher
     // Optional logger for diagnostics
     private readonly ILogger<MinimaxAI> _logger;
 
-    public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null)
+    public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null, OpeningBook? openingBook = null)
     {
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<MinimaxAI>.Instance;
+        _openingBook = openingBook ?? OpeningBook.Instance;
         _publisherId = Interlocked.Increment(ref _instanceCounter).ToString();
         _statsChannel = Channel.CreateUnbounded<MoveStatsEvent>();
 
