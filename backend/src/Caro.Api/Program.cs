@@ -2,6 +2,7 @@ using Caro.Api;
 using Caro.Api.Logging;
 using Caro.Core.Entities;
 using Caro.Core.GameLogic;
+using Caro.Core.Infrastructure.Persistence;
 using Caro.Core.Tournament;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Concurrent;
@@ -29,6 +30,29 @@ builder.Services.AddSingleton<GameLogService>(sp =>
 // Register TournamentManager as both a singleton (for injection) and hosted service
 builder.Services.AddSingleton<TournamentManager>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<TournamentManager>());
+
+// Register SqliteOpeningBookStore
+builder.Services.AddSingleton<SqliteOpeningBookStore>(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<SqliteOpeningBookStore>>();
+    // opening_book.db is at repository root
+    var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "opening_book.db");
+    return new SqliteOpeningBookStore(dbPath, logger);
+});
+
+// Register OpeningBook with SQLite store
+builder.Services.AddSingleton<OpeningBook>(sp =>
+{
+    var store = sp.GetRequiredService<SqliteOpeningBookStore>();
+    store.Initialize(); // Ensure tables exist
+    var canonicalizer = new PositionCanonicalizer();
+    var validator = new OpeningBookValidator();
+    var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
+    return new OpeningBook(store, canonicalizer, lookupService);
+});
+
+// Register MinimaxAI to use DI
+builder.Services.AddSingleton<MinimaxAI>();
 
 // CORS for local development - allow any localhost port
 builder.Services.AddCors(options =>
@@ -130,7 +154,10 @@ app.MapPost("/api/game/{id}/undo", (string id) =>
 // POST /api/game/{id}/ai-move - Get AI move and make it
 // AI calculation is performed OUTSIDE the lock using a cloned board
 // This prevents blocking other game requests during AI thinking time
-app.MapPost("/api/game/{id}/ai-move", (string id, AIMoveRequest request) =>
+app.MapPost("/api/game/{id}/ai-move", (
+    string id,
+    AIMoveRequest request,
+    [FromServices] MinimaxAI ai) =>
 {
     if (!games.TryGetValue(id, out var session))
         return Results.NotFound("Game not found");
@@ -148,7 +175,6 @@ app.MapPost("/api/game/{id}/ai-move", (string id, AIMoveRequest request) =>
     }
 
     // Step 3: AI calculation OUTSIDE lock (can take seconds without blocking other games)
-    var ai = new MinimaxAI();
     var (x, y) = ai.GetBestMove(boardClone, currentPlayer, difficulty);
 
     // Step 4: Validate and apply the move under lock
