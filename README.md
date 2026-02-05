@@ -54,20 +54,21 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 | Braindead | 1 | 5% | 10% | Beginners |
 | Easy | 2 | 20% | 0% | Parallel search |
 | Medium | 3 | 50% | 0% | Parallel + pondering |
-| Hard | 4 | 75% | 0% | Parallel + pondering + VCF + Opening book |
-| Grandmaster | (N/2)-1 | 100% | 0% | Max parallel, VCF, pondering, Opening book |
-| Experimental | (N/2)-1 | 100% | 0% | Full opening book, max features |
+| Hard | 4 | 75% | 0% | Parallel + pondering + VCF + Opening book (≤depth 24) |
+| Grandmaster | (N/2)-1 | 100% | 0% | Max parallel, VCF, pondering, Opening book (≤depth 32) |
+| Experimental | (N/2)-1 | 100% | 0% | Full opening book (≤depth 32), max features |
 
 **Depth:** Dynamic calculation based on host machine NPS and time control. Formula: `depth = log(time * nps * timeMultiplier) / log(ebf)`
 
 ### Opening Book
 
-Precomputed opening positions for instant move retrieval and deeper analysis:
+Precomputed opening positions loaded at API startup for instant move retrieval:
 
+- **DI Integration** - `SqliteOpeningBookStore` and `OpeningBook` registered as singletons
+- **Auto-loaded at startup** - `opening_book.db` from repository root loaded when API starts
+- **Depth-based filtering** - Hard uses depth 24, GM/Experimental use full depth 32
 - **Symmetry reduction** - 8-way transformations (4 rotations × mirror) reduce storage by ~8x
-- Moves stored in canonical coordinate space for symmetry-aware lookups
 - **SQLite storage** - Persistent `opening_book.db` with indexed position lookup + WAL mode
-- **Translation invariant** - Canonical positions work regardless of board location
 - **Per-move metadata** - Win rate, depth achieved, nodes searched, forcing move flag
 - **Worker pool generation** - Parallel position + candidate evaluation for 30x throughput
 - **Per-position AI instances** - Local MinimaxAI per worker eliminates shared state corruption
@@ -275,7 +276,7 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Project | Tests | Focus |
 |---------|-------|-------|
-| Caro.Core.Tests | 523 | Unit tests (algorithms, evaluators, concurrency, board cloning) |
+| Caro.Core.Tests | 523 | Unit tests (algorithms, evaluators, concurrency, board cloning, opening book) |
 | Caro.Core.MatchupTests | ~50 | AI matchups, integration, tournament |
 | Caro.Core.Domain.Tests | 48 | Entities (Board, Cell, Player, GameState) |
 | Caro.Core.Application.Tests | 48 | Services, interfaces, DTOs |
