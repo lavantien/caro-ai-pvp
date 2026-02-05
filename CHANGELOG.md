@@ -5,6 +5,98 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.0] - 2026-02-06
+
+### Changed
+
+- **Clean Architecture refactoring for OpeningBook and Domain entities**
+  - Removed singleton pattern from `OpeningBook` - no more `OpeningBook.Instance`
+  - `MinimaxAI` now requires `OpeningBook` via constructor injection (no fallback)
+  - Opening book types moved to `Caro.Core.Domain.Entities` namespace
+  - Duplicate `using Caro.Core.Entities` replaced with `Caro.Core.Domain.Entities`
+  - Updated all namespace references from `Caro.Core.Entities` to `Caro.Core.Domain.Entities`
+
+- **OpeningBook API improvements**
+  - Added `IsInOpeningPhase(Board, AIDifficulty)` overload for difficulty-aware phase checking
+  - Updated documentation for depth-filtered book usage by difficulty
+  - Removed private singleton constructor and `_instance` field
+
+### Removed
+
+- `OpeningBook.Instance` singleton property
+- `OpeningBook` private constructor with `InMemoryOpeningBookStore` initialization
+- `Caro.Core/Entities/OpeningBookEntry.cs` - moved to `Caro.Core.Domain/Entities/`
+- Duplicate entity files from `Caro.Core.Domain/Entities/` (Board, Cell, GameState, Move, Position)
+- Duplicate entity files from `Caro.Core/Entities/` (Board, GameState, OpeningBookEntry)
+
+### Technical Details
+
+**Before (Anti-pattern):**
+```csharp
+// MinimaxAI fell back to singleton
+_openingBook = openingBook ?? OpeningBook.Instance;
+
+// OpeningBook created singleton with in-memory store
+private static readonly OpeningBook _instance = new();
+private OpeningBook() { _store = new InMemoryOpeningBookStore(); }
+```
+
+**After (DI-only):**
+```csharp
+// MinimaxAI requires explicit OpeningBook
+_openingBook = openingBook ?? throw new ArgumentNullException(nameof(openingBook));
+
+// OpeningBook uses DI exclusively
+public OpeningBook(IOpeningBookStore store, IPositionCanonicalizer canonicalizer, ...)
+```
+
+**DI Registration in Program.cs:**
+```csharp
+builder.Services.AddSingleton<SqliteOpeningBookStore>(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<SqliteOpeningBookStore>>();
+    var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "opening_book.db");
+    return new SqliteOpeningBookStore(dbPath, logger);
+});
+
+builder.Services.AddSingleton<OpeningBook>(sp =>
+{
+    var store = sp.GetRequiredService<SqliteOpeningBookStore>();
+    store.Initialize();
+    var canonicalizer = new PositionCanonicalizer();
+    var validator = new OpeningBookValidator();
+    var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
+    return new OpeningBook(store, canonicalizer, lookupService);
+});
+
+builder.Services.AddSingleton<MinimaxAI>();
+```
+
+### Files Added
+
+- `backend/src/Caro.Core.Domain/Entities/OpeningBookEntry.cs` - Moved from Caro.Core/Entities/
+- `backend/src/Caro.Core.Domain/Entities/Player.cs` - Domain entity
+
+### Files Deleted
+
+- `backend/src/Caro.Core/Entities/Board.cs`
+- `backend/src/Caro.Core/Entities/GameState.cs`
+- `backend/src/Caro.Core/Entities/OpeningBookEntry.cs`
+- `backend/src/Caro.Core.Domain/Entities/Board.cs`
+- `backend/src/Caro.Core.Domain/Entities/Cell.cs`
+- `backend/src/Caro.Core.Domain/Entities/GameState.cs`
+- `backend/src/Caro.Core.Domain/Entities/Move.cs`
+- `backend/src/Caro.Core.Domain/Entities/Position.cs`
+
+### Files Modified
+
+- `backend/src/Caro.Core/GameLogic/OpeningBook.cs` - Removed singleton, added difficulty-aware IsInOpeningPhase
+- `backend/src/Caro.Core/GameLogic/MinimaxAI.cs` - Require OpeningBook via constructor
+- All files with `using Caro.Core.Entities` - Updated to `Caro.Core.Domain.Entities`
+- All test files updated for new namespace
+
+[1.22.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.22.0
+
 ## [1.21.0] - 2026-02-06
 
 ### Added
