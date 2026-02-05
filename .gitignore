@@ -25,4 +25,3 @@ backend/test_diagnostic.txt
 **/tournament_results.txt
 **/comprehensive_output.txt
 *.host.*-*/
-opening_book.db
