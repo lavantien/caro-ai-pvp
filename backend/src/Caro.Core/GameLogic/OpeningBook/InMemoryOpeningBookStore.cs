@@ -1,4 +1,5 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
+using Caro.Core.Domain.Entities;
 using System.Collections.Concurrent;
 
 namespace Caro.Core.GameLogic;
@@ -98,5 +99,10 @@ public sealed class InMemoryOpeningBookStore : IOpeningBookStore
     public string? GetMetadata(string key)
     {
         return _metadata.TryGetValue(key, out var value) ? value : null;
+    }
+
+    public OpeningBookEntry[] GetAllEntries()
+    {
+        return _store.Values.ToArray();
     }
 }

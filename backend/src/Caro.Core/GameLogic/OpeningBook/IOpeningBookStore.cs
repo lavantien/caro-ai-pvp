@@ -1,4 +1,5 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
+using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
 
@@ -69,4 +70,10 @@ public interface IOpeningBookStore
     /// Returns null if key doesn't exist.
     /// </summary>
     string? GetMetadata(string key);
+
+    /// <summary>
+    /// Get all entries from the book.
+    /// Used for response generation phase.
+    /// </summary>
+    OpeningBookEntry[] GetAllEntries();
 }

@@ -1,4 +1,5 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
@@ -17,12 +18,18 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
     private readonly string _connectionString;
     private readonly ILogger<SqliteOpeningBookStore> _logger;
     private readonly object _lock = new();
+    private readonly bool _readOnly;
     private SqliteConnection? _connection;
     private bool _isInitialized;
 
-    public SqliteOpeningBookStore(string databasePath, ILogger<SqliteOpeningBookStore> logger)
+    public SqliteOpeningBookStore(string databasePath, ILogger<SqliteOpeningBookStore> logger, bool readOnly = true)
     {
         _connectionString = $"Data Source={databasePath}";
+        if (readOnly)
+        {
+            _connectionString += ";Mode=ReadOnly";
+        }
+        _readOnly = readOnly;
         _logger = logger;
     }
 
@@ -46,6 +53,14 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
         lock (_lock)
         {
             if (_isInitialized) return;
+
+            // Read-only mode: database is already generated, skip table creation
+            if (_readOnly)
+            {
+                _isInitialized = true;
+                _logger.LogDebug("Opening book opened in read-only mode");
+                return;
+            }
 
             try
             {
@@ -360,6 +375,35 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
 
         var result = command.ExecuteScalar();
         return result as string;
+    }
+
+    public OpeningBookEntry[] GetAllEntries()
+    {
+        EnsureInitialized();
+
+        try
+        {
+            var entries = new List<OpeningBookEntry>();
+
+            using var command = Connection.CreateCommand();
+            command.CommandText = $@"
+                SELECT CanonicalHash, Depth, Player, Symmetry, IsNearEdge, MovesData
+                FROM {TableName};
+            ";
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                entries.Add(ReadEntry(reader));
+            }
+
+            return entries.ToArray();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get all entries");
+            return Array.Empty<OpeningBookEntry>();
+        }
     }
 
     private static OpeningBookEntry ReadEntry(SqliteDataReader reader)

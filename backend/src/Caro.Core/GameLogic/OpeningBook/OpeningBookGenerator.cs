@@ -1,7 +1,8 @@
 using System.Collections.Concurrent;
 using System.Threading;
 using Caro.Core.Concurrency;
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
+using Caro.Core.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Caro.Core.GameLogic;
@@ -222,6 +223,25 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     totalMovesStored += moves.Length;
                     positionsEvaluated++;
 
+                    // Generate and store opponent responses for ALL stored moves
+                    // This ensures GM/Exp always have book responses regardless of opponent's choice
+                    if (posData.depth < maxDepth - 1)
+                    {
+                        var (responsesGenerated, responsePositionsCount) = await GenerateOpponentResponsesAsync(
+                            posData.board,
+                            posData.player,
+                            moves,
+                            posData.depth,
+                            posData.symmetry,
+                            bookDifficulty,
+                            cancellationToken
+                        );
+                        totalMovesStored += responsesGenerated;
+                        positionsGenerated += responsePositionsCount;
+                        _logger.LogDebug("Generated {Count} opponent responses ({PosCount} positions) at depth {Depth}",
+                            responsesGenerated, responsePositionsCount, posData.depth);
+                    }
+
                     // Calculate max children for this position
                     // Note: posData.depth is ply count (0-indexed), not move number
                     int maxChildren = posData.depth switch
@@ -405,6 +425,103 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             _cts?.Dispose();
             _cts = null;
         }
+    }
+
+    /// <summary>
+    /// Generate and store opponent responses for all stored moves at a position.
+    /// This ensures that for any move from this position, the opponent has a book response.
+    /// </summary>
+    private async Task<(int responsesGenerated, int positionsCount)> GenerateOpponentResponsesAsync(
+        Board board,
+        Player currentPlayer,
+        BookMove[] storedMoves,
+        int currentDepth,
+        SymmetryType symmetry,
+        AIDifficulty difficulty,
+        CancellationToken cancellationToken)
+    {
+        int responsesGenerated = 0;
+        int responsePositionsCount = 0;
+        var opponent = currentPlayer == Player.Red ? Player.Blue : Player.Red;
+
+        foreach (var move in storedMoves)
+        {
+            if (cancellationToken.IsCancellationRequested)
+                break;
+
+            // Apply the stored move to get the opponent's position
+            var newBoard = board.Clone();
+            (int actualX, int actualY) = _canonicalizer.TransformToActual(
+                (move.RelativeX, move.RelativeY),
+                symmetry,
+                board
+            );
+
+            // Check if move is still valid (cell might be occupied)
+            if (!_validator.IsValidMove(newBoard, actualX, actualY, currentPlayer))
+                continue;
+
+            newBoard.PlaceStone(actualX, actualY, currentPlayer);
+
+            // Check if this move wins
+            var winResult = new WinDetector().CheckWin(newBoard);
+            if (winResult.Winner != Player.None)
+                continue; // Don't generate responses for terminal positions
+
+            // Canonicalize the resulting position for the opponent
+            var opponentCanonical = _canonicalizer.Canonicalize(newBoard);
+
+            // Check if we already have responses for this position
+            if (_store.ContainsEntry(opponentCanonical.CanonicalHash, opponent))
+            {
+                continue; // Already has book entries
+            }
+
+            // Generate best responses for the opponent
+            // Use a smaller search budget since we're generating many responses
+            var responseMoves = await GenerateMovesForPositionAsync(
+                newBoard,
+                opponent,
+                difficulty,
+                maxMoves: 4, // Store top 4 responses for opponent
+                canonicalSymmetry: opponentCanonical.SymmetryApplied,
+                isNearEdge: opponentCanonical.IsNearEdge,
+                cancellationToken
+            );
+
+            if (responseMoves.Length > 0)
+            {
+                // Update depth for response moves (they're at currentDepth + 1)
+                var responseMoveWithDepth = responseMoves.Select(m => new BookMove
+                {
+                    RelativeX = m.RelativeX,
+                    RelativeY = m.RelativeY,
+                    WinRate = m.WinRate,
+                    DepthAchieved = m.DepthAchieved,
+                    NodesSearched = m.NodesSearched,
+                    Score = m.Score,
+                    IsForcing = m.IsForcing,
+                    Priority = m.Priority,
+                    IsVerified = m.IsVerified
+                }).ToArray();
+
+                var responseEntry = new OpeningBookEntry
+                {
+                    CanonicalHash = opponentCanonical.CanonicalHash,
+                    Depth = currentDepth + 1,
+                    Player = opponent,
+                    Symmetry = opponentCanonical.SymmetryApplied,
+                    IsNearEdge = opponentCanonical.IsNearEdge,
+                    Moves = responseMoveWithDepth
+                };
+
+                _store.StoreEntry(responseEntry);
+                responsesGenerated += responseMoveWithDepth.Length;
+                responsePositionsCount++;
+            }
+        }
+
+        return (responsesGenerated, responsePositionsCount);
     }
 
     public async Task<BookMove[]> GenerateMovesForPositionAsync(
@@ -831,6 +948,15 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
     private record PositionToProcess(Board Board, Player Player, int Depth);
     private record PositionToSearch(Board Board, Player Player, int Depth);
+
+    /// <summary>
+    /// Statistics for response generation phase.
+    /// </summary>
+    private record ResponseGenerationStats
+    {
+        public int ResponsesGenerated { get; init; }
+        public TimeSpan Elapsed { get; init; }
+    }
 
     /// <summary>
     /// Internal progress tracking.
