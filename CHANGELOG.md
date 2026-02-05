@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-02-05
+
+### Fixed
+
+- **Opening book depth range off-by-one error**
+  - Changed loop condition from `depth < maxDepth` to `depth <= maxDepth`
+  - `--max-depth=32` now actually processes to ply 32 (previously stopped at ply 31)
+  - Book generation now reaches the target depth specified by the user
+
+- **Progress percentage stalled at 99% during generation**
+  - Root cause: Depth weights were hardcoded for depths 0-13 only
+  - Deeper depths (14+) returned 0.00 weight, contributing nothing to progress
+  - Fix: Made `GetDepthWeight()` calculate dynamic weights based on `MaxDepth`
+  - Weights are normalized so all depths sum to 1.0 regardless of max depth
+  - Progress now updates smoothly throughout entire generation
+
+### Technical Details
+
+**Dynamic Weight Calculation:**
+
+```csharp
+private double GetDepthWeight(int depth)
+{
+    // Base weights for early depths (survival zone)
+    double baseWeight = depth switch { ... };
+    
+    // Calculate sum of base weights for all depths up to MaxDepth
+    double totalBaseWeight = 0;
+    for (int d = 0; d <= MaxDepth; d++) { ... }
+    
+    // Normalize weight so all depths sum to 1.0
+    return baseWeight / totalBaseWeight;
+}
+```
+
+**Weight Distribution (maxDepth=32):**
+- Depths 0-13: ~85% (survival zone with branching)
+- Depths 14-32: ~15% (single-line play)
+
+### Files Modified
+
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs`
+  - Line 105: Changed `depth < maxDepth` to `depth <= maxDepth`
+  - Lines 838-928: Added `MaxDepth` property, updated `GetDepthWeight()` to dynamic calculation
+  - Line 861: Changed `static` to instance method for `GetDepthWeight()`
+
 ## [1.18.0] - 2026-02-05
 
 ### Fixed
