@@ -67,6 +67,7 @@ Precomputed opening positions loaded at API startup for instant move retrieval:
 - **DI Integration** - `SqliteOpeningBookStore` and `OpeningBook` registered as singletons
 - **Auto-loaded at startup** - `opening_book.db` from repository root loaded when API starts
 - **Depth-based filtering** - Hard uses depth 24, GM/Experimental use full depth 32
+- **Opponent response coverage** - Book generates responses for ALL stored moves (top 4 per move), ensuring GM stays in book to depth 32 regardless of opponent's choices
 - **Symmetry reduction** - 8-way transformations (4 rotations × mirror) reduce storage by ~8x
 - **SQLite storage** - Persistent `opening_book.db` with indexed position lookup + WAL mode
 - **Per-move metadata** - Win rate, depth achieved, nodes searched, forcing move flag
@@ -277,13 +278,13 @@ Production-grade concurrency following .NET 10 best practices:
 | Project | Tests | Focus |
 |---------|-------|-------|
 | Caro.Core.Tests | 523 | Unit tests (algorithms, evaluators, concurrency, board cloning, opening book) |
-| Caro.Core.MatchupTests | ~50 | AI matchups, integration, tournament |
+| Caro.Core.MatchupTests | ~57 | AI matchups, integration, tournament, opening book verification |
 | Caro.Core.Domain.Tests | 48 | Entities (Board, Cell, Player, GameState) |
 | Caro.Core.Application.Tests | 48 | Services, interfaces, DTOs |
 | Caro.Core.Infrastructure.Tests | 48 | AI algorithms, external concerns |
 | Frontend Unit (Vitest) | 19 | Component tests |
 | Frontend E2E (Playwright) | 17 | End-to-end gameplay |
-| **TOTAL** | **755+** | |
+| **TOTAL** | **760+** | |
 
 ### Frontend E2E Tests
 
