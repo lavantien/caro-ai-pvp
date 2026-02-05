@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.0] - 2026-02-05
+
+### Added
+
+- **SQLite opening book integration with DI container**
+  - `SqliteOpeningBookStore` registered as singleton in ASP.NET Core DI
+  - `OpeningBook` registered as singleton with SQLite store (replaces in-memory default)
+  - `MinimaxAI` registered as singleton for DI injection
+  - Opening book database loaded at API startup from repository root
+  - AI endpoint now uses `[FromServices]` for injected `MinimaxAI`
+
+- **Depth-based opening book filtering by difficulty**
+  - Hard difficulty: uses opening book up to depth 24 (faster, varied games)
+  - Grandmaster/Experimental: uses full opening book up to depth 32 (stronger play)
+  - `GetMaxBookDepth()` helper maps difficulty to max depth
+  - `SelectBestMove()` filters candidates by depth before selection
+
+### Technical Details
+
+**DI Registration Flow:**
+```csharp
+// SqliteOpeningBookStore registered first
+builder.Services.AddSingleton<SqliteOpeningBookStore>(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<SqliteOpeningBookStore>>();
+    var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "opening_book.db");
+    return new SqliteOpeningBookStore(dbPath, logger);
+});
+
+// OpeningBook uses the store
+builder.Services.AddSingleton<OpeningBook>(sp =>
+{
+    var store = sp.GetRequiredService<SqliteOpeningBookStore>();
+    store.Initialize();
+    var canonicalizer = new PositionCanonicalizer();
+    var validator = new OpeningBookValidator();
+    var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
+    return new OpeningBook(store, canonicalizer, lookupService);
+});
+
+// MinimaxAI receives OpeningBook via constructor
+builder.Services.AddSingleton<MinimaxAI>();
+```
+
+**Depth Filtering Logic:**
+```csharp
+private static int GetMaxBookDepth(AIDifficulty difficulty)
+{
+    return difficulty switch
+    {
+        AIDifficulty.Hard => 24,        // Hard: up to depth 24
+        AIDifficulty.Grandmaster => 32,  // GM: full depth
+        AIDifficulty.Experimental => 32, // Experimental: full depth
+        _ => 0
+    };
+}
+```
+
+### Changed
+
+- `MinimaxAI` constructor now accepts optional `OpeningBook` parameter for DI
+- AI endpoint signature updated to use `[FromServices] MinimaxAI ai`
+- Added `Caro.Core.Infrastructure` project reference to `Caro.Api`
+
+### Files Modified
+
+- `backend/src/Caro.Api/Caro.Api.csproj` - Added Infrastructure project reference
+- `backend/src/Caro.Api/Program.cs` - Added DI registrations, updated endpoint
+- `backend/src/Caro.Core/GameLogic/MinimaxAI.cs` - Updated constructor for DI
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookLookupService.cs` - Added depth filtering
+
+[1.20.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.20.0
+
 ## [1.19.0] - 2026-02-05
 
 ### Fixed
