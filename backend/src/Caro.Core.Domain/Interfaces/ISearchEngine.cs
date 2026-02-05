@@ -1,3 +1,5 @@
+using Caro.Core.Domain.Entities;
+
 namespace Caro.Core.Domain.Interfaces;
 
 /// <summary>
@@ -16,8 +18,8 @@ public interface ISearchEngine
     /// <param name="cancellationToken">Cancellation token for stopping the search</param>
     /// <returns>Search result containing the best move and statistics</returns>
     SearchResult Search(
-        Entities.Board board,
-        Entities.Player player,
+        IBoard board,
+        Player player,
         SearchOptions options,
         ITranspositionTable transpositionTable,
         System.Threading.CancellationToken cancellationToken = default);

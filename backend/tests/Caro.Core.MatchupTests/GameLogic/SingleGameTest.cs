@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 using FluentAssertions;
@@ -25,7 +25,7 @@ public class SingleGameTest
     [Fact]
     public void SingleGame_Grandmaster_vs_Easy_7Plus5_ShouldNotLose()
     {
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
 
         var result = engine.RunGame(
             AIDifficulty.Grandmaster,  // Red: D5

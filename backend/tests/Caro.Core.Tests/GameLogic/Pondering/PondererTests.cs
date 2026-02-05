@@ -1,6 +1,6 @@
 using Xunit;
 using FluentAssertions;
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.Pondering;
 using System.Threading;

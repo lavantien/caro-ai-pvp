@@ -5,7 +5,7 @@ using Xunit;
 using Xunit.Abstractions;
 using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.Pondering;
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.Tests.Concurrency;
 

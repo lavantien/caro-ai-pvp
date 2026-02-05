@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 
@@ -11,7 +11,7 @@ public class DepthProfiler
 {
     public static void Run(string[] args)
     {
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
         var difficulties = new[]
         {
             AIDifficulty.Braindead,

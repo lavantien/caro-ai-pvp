@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 
@@ -12,7 +12,7 @@ public static class QuickTest
 {
     public static void RunMatchup(AIDifficulty redDiff, AIDifficulty blueDiff, int games = 5)
     {
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
         var results = new List<MatchResult>();
 
         Console.WriteLine();

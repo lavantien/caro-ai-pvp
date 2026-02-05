@@ -1,6 +1,8 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
+using Caro.Core.Infrastructure.Persistence;
 using Caro.Core.Tournament;
+using Microsoft.Extensions.Logging;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -31,11 +33,33 @@ public class TournamentIntegrationTests
         _output = output;
     }
 
+    /// <summary>
+    /// Helper method to create a TournamentEngine with MinimaxAI instances.
+    /// Uses InMemoryOpeningBookStore for tests that don't specifically test opening book functionality.
+    /// </summary>
+    private static TournamentEngine CreateTournamentEngine()
+    {
+        // Create in-memory opening book store for tests
+        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<InMemoryOpeningBookStore>.Instance;
+        var store = new InMemoryOpeningBookStore();
+        store.Initialize();
+
+        var canonicalizer = new PositionCanonicalizer();
+        var validator = new OpeningBookValidator();
+        var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
+        var openingBook = new OpeningBook(store, canonicalizer, lookupService);
+
+        // Create AI instances with OpeningBook dependency
+        var botA = new MinimaxAI(openingBook: openingBook);
+        var botB = new MinimaxAI(openingBook: openingBook);
+        return new TournamentEngine(botA, botB);
+    }
+
     [Fact]
     public void RunSingleGame_BasicVsMedium_SavesSnapshotAndHigherDifficultyWins()
     {
         // Arrange
-        var engine = new TournamentEngine();
+        var engine = CreateTournamentEngine();
         using var capture = new TournamentLogCapture();
         var gameId = Guid.NewGuid().ToString("N")[..8];
 
@@ -76,7 +100,7 @@ public class TournamentIntegrationTests
     public void RunThreeGames_EasyVsHard_LogsDepthStatisticsCorrectly()
     {
         // Arrange
-        var engine = new TournamentEngine();
+        var engine = CreateTournamentEngine();
         using var capture = new TournamentLogCapture();
         var results = new List<MatchResult>();
 
@@ -133,7 +157,7 @@ public class TournamentIntegrationTests
         // D4+ (Hard/Grandmaster) use Lazy SMP and should report actual depth, not 0
 
         // Arrange
-        var engine = new TournamentEngine();
+        var engine = CreateTournamentEngine();
         using var capture = new TournamentLogCapture();
         var gameId = Guid.NewGuid().ToString("N")[..8];
 
@@ -195,7 +219,7 @@ public class TournamentIntegrationTests
     public void RunMiniTournament_FourBots_BalancedScheduleAndNoRepeats()
     {
         // Arrange
-        var engine = new TournamentEngine();
+        var engine = CreateTournamentEngine();
         using var capture = new TournamentLogCapture();
 
         var bots = new List<AIBot>
@@ -249,7 +273,7 @@ public class TournamentIntegrationTests
     public void RunGame_BraindeadVsBraindead_WithShortTimeControl_FinishesSuccessfully()
     {
         // Test with very short time control to ensure timeout handling works
-        var engine = new TournamentEngine();
+        var engine = CreateTournamentEngine();
         using var capture = new TournamentLogCapture();
         var gameId = Guid.NewGuid().ToString("N")[..8];
 

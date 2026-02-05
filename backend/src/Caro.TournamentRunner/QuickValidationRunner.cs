@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 
@@ -11,7 +11,7 @@ public class QuickValidationRunner
 {
     public static async Task RunAsync(int initialSeconds, int incrementSeconds, int gamesPerMatchup = 10)
     {
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
         var tcName = $"{initialSeconds / 60}+{incrementSeconds}";
 
         Console.WriteLine($"=== AI Strength Validation: {tcName} Time Control ===");

@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using System.Diagnostics;
 using System.Threading.Tasks;
 

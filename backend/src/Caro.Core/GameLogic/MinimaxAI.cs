@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
 using System.Threading.Channels;
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic.TimeManagement;
 using Caro.Core.GameLogic.Pondering;
 using Caro.Core.Tournament;
@@ -113,7 +113,7 @@ public class MinimaxAI : IStatsPublisher
     public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null, OpeningBook? openingBook = null)
     {
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<MinimaxAI>.Instance;
-        _openingBook = openingBook ?? OpeningBook.Instance;
+        _openingBook = openingBook ?? throw new ArgumentNullException(nameof(openingBook));
         _publisherId = Interlocked.Increment(ref _instanceCounter).ToString();
         _statsChannel = Channel.CreateUnbounded<MoveStatsEvent>();
 
@@ -269,8 +269,10 @@ public class MinimaxAI : IStatsPublisher
             // The actual ponder hit detection is done externally via TournamentEngine
         }
 
-        // Opening book for Hard and Grandmaster difficulties
-        // Only used for first 10 moves (20 stones total)
+        // Opening book for Hard, Grandmaster, and Experimental difficulties
+        // Depth-filtered by difficulty:
+        // - Hard: book moves up to depth 24 (12 moves per side, 24 plies)
+        // - Grandmaster/Experimental: book moves up to depth 32 (16 moves per side, 32 plies)
         var lastOpponentMove = GetLastOpponentMove(board, player);
         var bookMove = _openingBook.GetBookMove(board, player, difficulty, lastOpponentMove);
         if (bookMove.HasValue)

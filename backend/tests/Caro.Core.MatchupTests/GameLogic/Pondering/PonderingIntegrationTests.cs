@@ -1,8 +1,9 @@
 using Xunit;
 using FluentAssertions;
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.Pondering;
+using Caro.Core.Infrastructure.Persistence;
 using Caro.Core.Tournament;
 using System.Diagnostics;
 
@@ -18,11 +19,48 @@ namespace Caro.Core.MatchupTests.GameLogic.Pondering;
 [Trait("Category", "Integration")]
 public class PonderingIntegrationTests
 {
+    /// <summary>
+    /// Helper method to create a TournamentEngine with MinimaxAI instances.
+    /// Uses InMemoryOpeningBookStore for tests that don't specifically test opening book functionality.
+    /// </summary>
+    private static TournamentEngine CreateTournamentEngine()
+    {
+        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<InMemoryOpeningBookStore>.Instance;
+        var store = new InMemoryOpeningBookStore();
+        store.Initialize();
+
+        var canonicalizer = new PositionCanonicalizer();
+        var validator = new OpeningBookValidator();
+        var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
+        var openingBook = new Caro.Core.GameLogic.OpeningBook(store, canonicalizer, lookupService);
+
+        var botA = new MinimaxAI(openingBook: openingBook);
+        var botB = new MinimaxAI(openingBook: openingBook);
+        return new TournamentEngine(botA, botB);
+    }
+
+    /// <summary>
+    /// Helper method to create a MinimaxAI with opening book.
+    /// </summary>
+    private static MinimaxAI CreateMinimaxAI()
+    {
+        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<InMemoryOpeningBookStore>.Instance;
+        var store = new InMemoryOpeningBookStore();
+        store.Initialize();
+
+        var canonicalizer = new PositionCanonicalizer();
+        var validator = new OpeningBookValidator();
+        var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
+        var openingBook = new Caro.Core.GameLogic.OpeningBook(store, canonicalizer, lookupService);
+
+        return new MinimaxAI(openingBook: openingBook);
+    }
+
     [Fact]
     public void TournamentEngine_RunGameWithPondering_CompletesSuccessfully()
     {
         // Arrange
-        var engine = new TournamentEngine();
+        var engine = CreateTournamentEngine();
 
         // Act
         var result = engine.RunGame(
@@ -44,7 +82,7 @@ public class PonderingIntegrationTests
     public void TournamentEngine_RunGameWithoutPondering_CompletesSuccessfully()
     {
         // Arrange
-        var engine = new TournamentEngine();
+        var engine = CreateTournamentEngine();
 
         // Act
         var result = engine.RunGame(
@@ -66,7 +104,7 @@ public class PonderingIntegrationTests
     public void MinimaxAI_GetBestMoveWithPonderingEnabled_ReturnsValidMove()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = CreateMinimaxAI();
         var board = new Board();
         board.PlaceStone(9, 9, Player.Red);
 
@@ -91,7 +129,7 @@ public class PonderingIntegrationTests
     public void MinimaxAI_GetBestMoveWithPonderingDisabled_ReturnsValidMove()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = CreateMinimaxAI();
         var board = new Board();
         board.PlaceStone(9, 9, Player.Red);
 
@@ -116,7 +154,7 @@ public class PonderingIntegrationTests
     public void MinimaxAI_GetPonderer_ReturnsPondererInstance()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = CreateMinimaxAI();
 
         // Act
         var ponderer = ai.GetPonderer();
@@ -130,7 +168,7 @@ public class PonderingIntegrationTests
     public void MinimaxAI_GetLastPV_InitiallyReturnsEmpty()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = CreateMinimaxAI();
 
         // Act
         var pv = ai.GetLastPV();
@@ -143,7 +181,7 @@ public class PonderingIntegrationTests
     public void MinimaxAI_StopPondering_StopsActivePondering()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = CreateMinimaxAI();
         var board = new Board();
         board.PlaceStone(9, 9, Player.Red);
 
@@ -162,7 +200,7 @@ public class PonderingIntegrationTests
     public void MinimaxAI_ResetPondering_ResetsState()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = CreateMinimaxAI();
         var board = new Board();
         board.PlaceStone(9, 9, Player.Red);
 
@@ -182,7 +220,7 @@ public class PonderingIntegrationTests
     public void MinimaxAI_GetPonderingStatistics_ReturnsStatistics()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = CreateMinimaxAI();
         var board = new Board();
         board.PlaceStone(9, 9, Player.Red);
 
@@ -201,7 +239,7 @@ public class PonderingIntegrationTests
     public void TournamentEngine_PonderingEnabledVersusDisabled_NoDifferenceInResult()
     {
         // Arrange
-        var engine = new TournamentEngine();
+        var engine = CreateTournamentEngine();
 
         // Act - Run two games with same settings
         var resultWithPondering = engine.RunGame(
@@ -287,7 +325,7 @@ public class PonderingIntegrationTests
     public void PV_IntegrationWithAI_StoresCorrectMove()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = CreateMinimaxAI();
         var board = new Board();
         board.PlaceStone(9, 9, Player.Red);
 
@@ -305,7 +343,7 @@ public class PonderingIntegrationTests
     public void TournamentEngine_BothAIsPondering_NoDeadlock()
     {
         // Arrange
-        var engine = new TournamentEngine();
+        var engine = CreateTournamentEngine();
         var stopwatch = Stopwatch.StartNew();
 
         // Act - Run a game where both AIs ponder
@@ -330,7 +368,7 @@ public class PonderingIntegrationTests
     public void MinimaxAI_PonderingWithDifferentDifficulties_AllWork()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = CreateMinimaxAI();
         var board = new Board();
         board.PlaceStone(9, 9, Player.Red);
 
@@ -424,7 +462,7 @@ public class PonderingIntegrationTests
     public void TournamentEngine_RunTournamentWithPondering_CompletesAllGames()
     {
         // Arrange
-        var engine = new TournamentEngine();
+        var engine = CreateTournamentEngine();
         var matchups = new Dictionary<(AIDifficulty, AIDifficulty), int>
         {
             { (AIDifficulty.Easy, AIDifficulty.Braindead), 2 }

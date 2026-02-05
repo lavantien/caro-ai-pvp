@@ -1,6 +1,7 @@
 using Caro.Core.Domain.Entities;
-using Caro.Core.Domain.ValueObjects;
+using Caro.Core.GameLogic;
 using Caro.Core.Domain.Interfaces;
+using ZobristHash = Caro.Core.Domain.ValueObjects.ZobristHash;
 
 namespace Caro.Core.Infrastructure.AI;
 
@@ -47,7 +48,7 @@ public sealed class AIGameState : IDisposable
     /// <summary>
     /// Last calculated principal variation
     /// </summary>
-    public Move[] LastPV { get; set; } = Array.Empty<Move>();
+    public Position[] LastPV { get; set; } = Array.Empty<Position>();
 
     /// <summary>
     /// Current age for transposition table entries
@@ -92,7 +93,7 @@ public sealed class AIGameState : IDisposable
     /// </summary>
     public int GetHistoryScore(Position position)
     {
-        if (!position.IsValid) return 0;
+        if (!position.IsValid()) return 0;
         return _historyScores[position.X, position.Y];
     }
 
@@ -101,7 +102,7 @@ public sealed class AIGameState : IDisposable
     /// </summary>
     public void UpdateHistoryScore(Position position, int depth)
     {
-        if (!position.IsValid) return;
+        if (!position.IsValid()) return;
         _historyScores[position.X, position.Y] += depth * depth;
     }
 
@@ -110,7 +111,7 @@ public sealed class AIGameState : IDisposable
     /// </summary>
     public int GetButterflyScore(Position position)
     {
-        if (!position.IsValid) return 0;
+        if (!position.IsValid()) return 0;
         return _butterflyScores[position.X, position.Y];
     }
 
@@ -119,7 +120,7 @@ public sealed class AIGameState : IDisposable
     /// </summary>
     public void UpdateButterflyScore(Position position, int delta)
     {
-        if (!position.IsValid) return;
+        if (!position.IsValid()) return;
         _butterflyScores[position.X, position.Y] += delta;
     }
 

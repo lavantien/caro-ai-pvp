@@ -1,10 +1,10 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
 
 /// <summary>
-/// Opening book facade for backward compatibility with existing MinimaxAI code.
-/// Provides access to precomputed opening moves for Hard, Grandmaster, and Experimental difficulties.
+/// Opening book for precomputed opening moves.
+/// Provides access to opening moves for Hard, Grandmaster, and Experimental difficulties.
 /// Uses clean architecture with dependency injection for storage, canonicalization, and validation.
 /// </summary>
 public sealed class OpeningBook
@@ -15,31 +15,6 @@ public sealed class OpeningBook
     private readonly OpeningBookLookupService _lookupService;
     private readonly IOpeningBookStore _store;
     private readonly IPositionCanonicalizer _canonicalizer;
-
-    // Lazy initialization of services
-    private static readonly OpeningBook _instance = new();
-    private static readonly object _lock = new();
-
-    /// <summary>
-    /// Get the singleton instance of the opening book.
-    /// </summary>
-    public static OpeningBook Instance => _instance;
-
-    /// <summary>
-    /// Private constructor for singleton pattern.
-    /// Services are initialized lazily on first access.
-    /// </summary>
-    private OpeningBook()
-    {
-        // Initialize with default implementations
-        _store = new InMemoryOpeningBookStore();
-        _store.Initialize();
-
-        _canonicalizer = new PositionCanonicalizer();
-        var validator = new OpeningBookValidator();
-
-        _lookupService = new OpeningBookLookupService(_store, _canonicalizer, validator);
-    }
 
     /// <summary>
     /// Constructor with dependency injection for testing.
@@ -54,7 +29,10 @@ public sealed class OpeningBook
     /// <summary>
     /// Get a good opening move from the book.
     /// Only returns moves for Hard, Grandmaster, and Experimental difficulties.
-    /// First move (empty board) always returns center (9,9).
+    /// First move (empty board) always returns center (9,9) for all difficulties.
+    /// Book usage is depth-filtered by difficulty in SelectBestMove():
+    /// - Hard: moves evaluated at depth ≤ 24 plies (12 moves per side)
+    /// - Grandmaster/Experimental: moves evaluated at depth ≤ 32 plies (16 moves per side)
     /// </summary>
     public (int x, int y)? GetBookMove(Board board, Player player, AIDifficulty difficulty, (int x, int y)? lastOpponentMove)
     {
@@ -74,8 +52,8 @@ public sealed class OpeningBook
         if (!DifficultyUsesBook(difficulty))
             return null;
 
-        // Check if still in opening phase (first 12 moves)
-        if (!_lookupService.IsInOpeningPhase(board))
+        // Check if still in opening phase (difficulty-dependent)
+        if (!_lookupService.IsInOpeningPhase(board, difficulty))
             return null;
 
         // Query the book for a move
@@ -84,7 +62,17 @@ public sealed class OpeningBook
 
     /// <summary>
     /// Check if we're still in the opening phase.
-    /// Opening phase is defined as the first 12 moves (24 stones).
+    /// Opening phase is defined as having fewer than 24 stones on the board
+    /// (up to 12 moves per side, or 24 plies). This is a loose upper bound;
+    /// actual book usage ends earlier based on depth filtering in SelectBestMove().
+    /// </summary>
+    public bool IsInOpeningPhase(Board board, AIDifficulty difficulty)
+    {
+        return _lookupService.IsInOpeningPhase(board, difficulty);
+    }
+
+    /// <summary>
+    /// Check if we're still in the opening phase (uses Hard limit by default).
     /// </summary>
     public bool IsInOpeningPhase(Board board)
     {
@@ -122,30 +110,6 @@ public sealed class OpeningBook
     /// Get the underlying canonicalizer for testing purposes.
     /// </summary>
     internal IPositionCanonicalizer GetCanonicalizer() => _canonicalizer;
-
-    /// <summary>
-    /// Load opening book from a SQLite database file.
-    /// This replaces the in-memory store with a SQLite-backed store.
-    /// </summary>
-    /// <param name="databasePath">Path to the SQLite database file.</param>
-    public static void LoadFromFile(string databasePath)
-    {
-        lock (_lock)
-        {
-            // Note: For simplicity, we use in-memory store by default.
-            // To use SQLite, the application needs to inject a SqliteOpeningBookStore.
-            // This is a placeholder for future enhancement.
-
-            // The actual implementation would require:
-            // 1. Resetting the singleton instance
-            // 2. Creating a new SqliteOpeningBookStore
-            // 3. Reconstructing the lookup service
-
-            throw new NotImplementedException(
-                "Loading from file requires DI container integration. " +
-                "Use SqliteOpeningBookStore directly with OpeningBook constructor for now.");
-        }
-    }
 
     /// <summary>
     /// Get book statistics.

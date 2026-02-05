@@ -1,3 +1,5 @@
+using Caro.Core.Domain.Entities;
+
 namespace Caro.Core.Domain.ValueObjects;
 
 /// <summary>
@@ -92,12 +94,12 @@ public sealed class ZobristTable
     /// <summary>
     /// Get the Zobrist key for placing a stone at (x, y) for the given player
     /// </summary>
-    public ulong GetKey(int x, int y, Entities.Player player)
+    public ulong GetKey(int x, int y, Player player)
     {
         if (x < 0 || x >= BoardSize || y < 0 || y >= BoardSize)
             throw new ArgumentOutOfRangeException(nameof(x), "Position must be within board bounds");
 
-        return player == Entities.Player.Red ? _redKeys[x, y] : _blueKeys[x, y];
+        return player == Player.Red ? _redKeys[x, y] : _blueKeys[x, y];
     }
 
     /// <summary>
@@ -108,19 +110,19 @@ public sealed class ZobristTable
     /// <summary>
     /// Calculate the Zobrist hash for a complete board position
     /// </summary>
-    public ulong CalculateHash(Entities.Board board)
+    public ulong CalculateHash(IBoard board)
     {
         ulong hash = _initialHash;
         for (int x = 0; x < BoardSize; x++)
         {
             for (int y = 0; y < BoardSize; y++)
             {
-                var player = board.GetCell(x, y);
-                if (player == Entities.Player.Red)
+                var player = board.GetCell(x, y).Player;
+                if (player == Player.Red)
                 {
                     hash ^= _redKeys[x, y];
                 }
-                else if (player == Entities.Player.Blue)
+                else if (player == Player.Blue)
                 {
                     hash ^= _blueKeys[x, y];
                 }
@@ -152,7 +154,7 @@ public static class ZobristTables
     /// <summary>
     /// Get the Zobrist key for placing a stone at (x, y) for the given player
     /// </summary>
-    public static ulong GetKey(int x, int y, Entities.Player player) => Instance.GetKey(x, y, player);
+    public static ulong GetKey(int x, int y, Player player) => Instance.GetKey(x, y, player);
 
     /// <summary>
     /// Get the initial hash for an empty board

@@ -1,6 +1,6 @@
 using Xunit;
 using FluentAssertions;
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.Tests.Entities;
 

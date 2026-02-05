@@ -1,5 +1,4 @@
 using Caro.Core.Domain.Entities;
-using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
 

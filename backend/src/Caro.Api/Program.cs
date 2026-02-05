@@ -1,6 +1,6 @@
 using Caro.Api;
 using Caro.Api.Logging;
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Infrastructure.Persistence;
 using Caro.Core.Tournament;
@@ -35,8 +35,8 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<TournamentManager>
 builder.Services.AddSingleton<SqliteOpeningBookStore>(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<SqliteOpeningBookStore>>();
-    // opening_book.db is at repository root
-    var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "opening_book.db");
+    // From bin/Debug/net10.0/, go up 6 levels to reach repo root
+    var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "..", "opening_book.db");
     return new SqliteOpeningBookStore(dbPath, logger);
 });
 
@@ -51,8 +51,13 @@ builder.Services.AddSingleton<OpeningBook>(sp =>
     return new OpeningBook(store, canonicalizer, lookupService);
 });
 
-// Register MinimaxAI to use DI
-builder.Services.AddSingleton<MinimaxAI>();
+// Register MinimaxAI with OpeningBook dependency
+builder.Services.AddSingleton<MinimaxAI>(sp =>
+{
+    var openingBook = sp.GetRequiredService<OpeningBook>();
+    var logger = sp.GetRequiredService<ILogger<MinimaxAI>>();
+    return new MinimaxAI(logger: logger, openingBook: openingBook);
+});
 
 // CORS for local development - allow any localhost port
 builder.Services.AddCors(options =>

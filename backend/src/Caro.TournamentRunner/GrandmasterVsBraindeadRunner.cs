@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 
@@ -16,7 +16,7 @@ public class GrandmasterVsBraindeadRunner
 
     public static async Task RunAsync()
     {
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
         const int initialTimeSeconds = 420;  // 7 minutes
         const int incrementSeconds = 5;      // +5 seconds per move
         const int gamesPerMatchup = 10;
