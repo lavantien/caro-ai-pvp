@@ -1,5 +1,6 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.Domain.ValueObjects;
+using Caro.Core.GameLogic;
 using Caro.Core.Infrastructure.AI;
 using FluentAssertions;
 using Xunit;

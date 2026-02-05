@@ -1,11 +1,43 @@
 namespace Caro.Core.GameLogic;
 
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 
 public struct Position(int x, int y)
 {
+    public static readonly int BoardSize = 19;
     public int X { get; set; } = x;
     public int Y { get; set; } = y;
+}
+
+/// <summary>
+/// Extension methods for Position
+/// </summary>
+public static class PositionExtensions
+{
+    private const int BoardSize = 19;
+
+    /// <summary>
+    /// Check if position is within board bounds
+    /// </summary>
+    public static bool IsValid(this Position position) =>
+        position.X >= 0 && position.X < BoardSize &&
+        position.Y >= 0 && position.Y < BoardSize;
+
+    /// <summary>
+    /// Check if board is full (all cells occupied)
+    /// </summary>
+    public static bool IsFull(this Board board)
+    {
+        for (int x = 0; x < BoardSize; x++)
+        {
+            for (int y = 0; y < BoardSize; y++)
+            {
+                if (board.GetCell(x, y).IsEmpty)
+                    return false;
+            }
+        }
+        return true;
+    }
 }
 
 public class WinDetector

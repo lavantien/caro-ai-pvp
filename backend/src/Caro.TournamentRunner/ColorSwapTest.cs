@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 
@@ -8,7 +8,7 @@ public class ColorSwapTest
 {
     public static void Run()
     {
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
         const int games = 4;
 
         for (int i = 0; i < games; i++)

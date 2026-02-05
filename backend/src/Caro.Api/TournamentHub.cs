@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 

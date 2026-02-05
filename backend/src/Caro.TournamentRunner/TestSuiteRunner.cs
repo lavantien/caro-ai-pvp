@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 using Caro.TournamentRunner.TestSuite;
@@ -54,7 +54,7 @@ public class TestSuiteRunner
         TextWriter output,
         string? customRedName = null)
     {
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
         var results = new List<MatchupResult>();
 
         foreach (var config in matchups)

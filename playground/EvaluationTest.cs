@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 
 // Test: Can depth-5 search consistently beat random moves?

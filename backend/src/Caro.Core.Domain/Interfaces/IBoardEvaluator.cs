@@ -1,3 +1,5 @@
+using Caro.Core.Domain.Entities;
+
 namespace Caro.Core.Domain.Interfaces;
 
 /// <summary>
@@ -13,7 +15,7 @@ public interface IBoardEvaluator
     /// <param name="board">The board to evaluate</param>
     /// <param name="player">The player to evaluate for</param>
     /// <returns>A score (higher is better for the player)</returns>
-    int Evaluate(Entities.Board board, Entities.Player player);
+    int Evaluate(IBoard board, Player player);
 
     /// <summary>
     /// Evaluate the board position and check if it's terminal.
@@ -21,5 +23,5 @@ public interface IBoardEvaluator
     /// <param name="board">The board to evaluate</param>
     /// <param name="player">The player to evaluate for</param>
     /// <returns>A tuple containing the score and whether the position is terminal</returns>
-    (int score, bool isTerminal) EvaluateWithTerminalCheck(Entities.Board board, Entities.Player player);
+    (int score, bool isTerminal) EvaluateWithTerminalCheck(IBoard board, Player player);
 }

@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Infrastructure.Persistence;
 using Microsoft.Extensions.Logging;
@@ -76,8 +76,8 @@ class Program
         Console.WriteLine($"Target Search Depth: {targetDepth} plies");
         Console.WriteLine();
 
-        // Create store and generator
-        var store = new SqliteOpeningBookStore(outputPath, loggerFactory.CreateLogger<SqliteOpeningBookStore>());
+        // Create store and generator (write mode - only place that modifies the database)
+        var store = new SqliteOpeningBookStore(outputPath, loggerFactory.CreateLogger<SqliteOpeningBookStore>(), readOnly: false);
         store.Initialize();
 
         if (verifyOnly)

@@ -1,6 +1,6 @@
 namespace Caro.Core.GameLogic;
 
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 
 /// <summary>
 /// Validates the Open Rule for Caro.

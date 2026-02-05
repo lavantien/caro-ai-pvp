@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 using Xunit;
@@ -31,7 +31,7 @@ public class AIStrengthValidationSuite : IDisposable
     public AIStrengthValidationSuite(ITestOutputHelper output)
     {
         _output = output;
-        _engine = new TournamentEngine();
+        _engine = TournamentEngine.CreateDefault();
     }
 
     public void Dispose()

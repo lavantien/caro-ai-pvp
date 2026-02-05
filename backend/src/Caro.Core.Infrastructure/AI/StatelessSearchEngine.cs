@@ -1,8 +1,9 @@
 using Caro.Core.Application.DTOs;
 using Caro.Core.Domain.Entities;
-using Caro.Core.Domain.ValueObjects;
+using Caro.Core.GameLogic;
 using Caro.Core.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
+using ZobristHash = Caro.Core.Domain.ValueObjects.ZobristHash;
 
 namespace Caro.Core.Infrastructure.AI;
 
@@ -65,7 +66,7 @@ public sealed partial class StatelessSearchEngine
                     // Check for immediate win
                     if (CheckWin(newBoard, x, y, state.CurrentPlayer))
                     {
-                        aiState.LastPV = new[] { new Move(x, y, state.CurrentPlayer) };
+                        aiState.LastPV = new[] { new Position(x, y) };
                         StoreTT(newBoard.Hash, 100000, depth, new TTMove(x, y), TTFlag.Exact, aiState);
                         return (x, y, 100000 + depth, CreateStats(aiState, stopwatch.ElapsedMilliseconds));
                     }
@@ -152,7 +153,7 @@ public sealed partial class StatelessSearchEngine
         }
 
         // Check for game over
-        if (board.IsFull())
+        if (board.TotalStones() >= Board.TotalCells)
         {
             return 0; // Draw
         }
@@ -235,7 +236,7 @@ public sealed partial class StatelessSearchEngine
                     var nx = x + dx;
                     var ny = y + dy;
                     var pos = new Position(nx, ny);
-                    if (pos.IsValid && board.IsEmpty(nx, ny))
+                    if (pos.IsValid() && board.IsEmpty(nx, ny))
                     {
                         occupied.Add(pos);
                     }
@@ -252,7 +253,7 @@ public sealed partial class StatelessSearchEngine
                     var nx = x + dx;
                     var ny = y + dy;
                     var pos = new Position(nx, ny);
-                    if (pos.IsValid && board.IsEmpty(nx, ny))
+                    if (pos.IsValid() && board.IsEmpty(nx, ny))
                     {
                         occupied.Add(pos);
                     }
@@ -315,9 +316,9 @@ public sealed partial class StatelessSearchEngine
         {
             for (int y = 7; y <= 11; y++)
             {
-                if (board.GetCell(x, y) == player)
+                if (board.GetCell(x, y).Player == player)
                     score += 10;
-                else if (board.GetCell(x, y) == opponent)
+                else if (board.GetCell(x, y).Player == opponent)
                     score -= 10;
             }
         }
@@ -401,7 +402,7 @@ public sealed partial class StatelessSearchEngine
 
             // Count forward
             int nx = x + dx, ny = y + dy;
-            while (nx >= 0 && nx < BoardSize && ny >= 0 && ny < BoardSize && board.GetCell(nx, ny) == player)
+            while (nx >= 0 && nx < BoardSize && ny >= 0 && ny < BoardSize && board.GetCell(nx, ny).Player == player)
             {
                 count++;
                 nx += dx;
@@ -411,7 +412,7 @@ public sealed partial class StatelessSearchEngine
             // Count backward
             nx = x - dx;
             ny = y - dy;
-            while (nx >= 0 && nx < BoardSize && ny >= 0 && ny < BoardSize && board.GetCell(nx, ny) == player)
+            while (nx >= 0 && nx < BoardSize && ny >= 0 && ny < BoardSize && board.GetCell(nx, ny).Player == player)
             {
                 count++;
                 nx -= dx;

@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using System.Diagnostics;
 using System.Threading.Channels;
@@ -59,9 +59,29 @@ public delegate void LogCallback(string level, string source, string message);
 /// </summary>
 public class TournamentEngine
 {
-    private readonly MinimaxAI _botA = new();
-    private readonly MinimaxAI _botB = new();
+    private readonly MinimaxAI _botA;
+    private readonly MinimaxAI _botB;
     private readonly MoveValidator _moveValidator = new();
+
+    /// <summary>
+    /// Constructor with dependency injection for AI instances.
+    /// </summary>
+    public TournamentEngine(MinimaxAI botA, MinimaxAI botB)
+    {
+        _botA = botA ?? throw new ArgumentNullException(nameof(botA));
+        _botB = botB ?? throw new ArgumentNullException(nameof(botB));
+    }
+
+    /// <summary>
+    /// Create a TournamentEngine with default AI instances for standalone testing.
+    /// This factory method creates MinimaxAI instances with default settings.
+    /// </summary>
+    public static TournamentEngine CreateDefault()
+    {
+        var botA = new MinimaxAI();
+        var botB = new MinimaxAI();
+        return new TournamentEngine(botA, botB);
+    }
 
     // Stats subscriber tasks
     private CancellationTokenSource? _statsCts;

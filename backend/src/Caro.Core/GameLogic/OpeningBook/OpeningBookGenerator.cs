@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Threading;
 using Caro.Core.Concurrency;
 using Caro.Core.Domain.Entities;
-using Caro.Core.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Caro.Core.GameLogic;

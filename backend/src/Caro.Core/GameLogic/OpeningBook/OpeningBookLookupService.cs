@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
 
@@ -12,7 +12,10 @@ public sealed class OpeningBookLookupService
     private readonly IPositionCanonicalizer _canonicalizer;
     private readonly IOpeningBookValidator _validator;
 
-    // Maximum number of moves to be considered in opening phase (12 per side = 24 stones)
+    // Upper bound for opening phase: 12 moves per side = 24 stones = 24 plies
+    // Actual book exit is earlier due to depth filtering in SelectBestMove()
+    // - Hard stops at depth 24 (12 of its own moves)
+    // - Grandmaster stops at depth 32 (16 of its own moves)
     private const int MaxBookMoves = 12;
 
     public OpeningBookLookupService(
@@ -101,16 +104,26 @@ public sealed class OpeningBookLookupService
     }
 
     /// <summary>
-    /// Check if we're still in the opening phase.
-    /// Opening phase is defined as having fewer than MaxBookMoves per side played.
+    /// Check if we're still in the opening phase (fewer than max stones on board).
+    /// The limit depends on difficulty: Hard uses 24 stones, Grandmaster uses 32 stones.
     /// </summary>
-    public bool IsInOpeningPhase(Board board)
+    public bool IsInOpeningPhase(Board board, AIDifficulty difficulty)
     {
         var redBitBoard = board.GetBitBoard(Player.Red);
         var blueBitBoard = board.GetBitBoard(Player.Blue);
         int stoneCount = redBitBoard.CountBits() + blueBitBoard.CountBits();
 
-        return stoneCount < MaxBookMoves * 2;
+        int maxStones = GetMaxBookDepth(difficulty);
+        return stoneCount < maxStones;
+    }
+
+    /// <summary>
+    /// Check if we're still in the opening phase (fewer than 24 stones on board).
+    /// This overload uses the default Hard limit for backward compatibility.
+    /// </summary>
+    public bool IsInOpeningPhase(Board board)
+    {
+        return IsInOpeningPhase(board, AIDifficulty.Hard);
     }
 
     /// <summary>
@@ -145,16 +158,18 @@ public sealed class OpeningBookLookupService
     }
 
     /// <summary>
-    /// Get maximum book depth allowed for a difficulty level.
-    /// Hard uses depth 24 for faster games, GM/Experimental use full depth 32.
+    /// Get maximum book depth allowed for a difficulty level (in plies/half-moves).
+    /// This filters which book entries can be used based on their DepthAchieved.
+    /// Hard: depth 24 (12 of its own moves before exiting book)
+    /// Grandmaster/Experimental: depth 32 (16 of its own moves before exiting book)
     /// </summary>
     private static int GetMaxBookDepth(AIDifficulty difficulty)
     {
         return difficulty switch
         {
             AIDifficulty.Hard => 24,        // Hard: up to depth 24
-            AIDifficulty.Grandmaster => 32,  // GM: full depth
-            AIDifficulty.Experimental => 32, // Experimental: full depth
+            AIDifficulty.Grandmaster => 32,  // GM: up to depth 32
+            AIDifficulty.Experimental => int.MaxValue, // Experimental: no limit (uses all available book)
             _ => 0
         };
     }
@@ -209,14 +224,19 @@ public sealed class OpeningBookLookupService
                 .FirstOrDefault();
         }
 
-        // For Hard: any verified move, or highest score if none verified
+        // For Hard: randomly pick from moves with equal highest score
         var verified = candidateMoves.Where(m => m.IsVerified).ToArray();
         if (verified.Length > 0)
         {
-            return verified.OrderByDescending(m => m.Score).FirstOrDefault();
+            // Find max score, then randomly pick from all moves with that score
+            int maxScore = verified.Max(m => m.Score);
+            var topMoves = verified.Where(m => m.Score == maxScore).ToArray();
+            return topMoves[Random.Shared.Next(topMoves.Length)];
         }
 
-        // Fallback: highest scoring move
-        return candidateMoves.OrderByDescending(m => m.Score).FirstOrDefault();
+        // Fallback: highest scoring moves (with random tiebreak)
+        int maxFallbackScore = candidateMoves.Max(m => m.Score);
+        var topFallbackMoves = candidateMoves.Where(m => m.Score == maxFallbackScore).ToArray();
+        return topFallbackMoves[Random.Shared.Next(topFallbackMoves.Length)];
     }
 }

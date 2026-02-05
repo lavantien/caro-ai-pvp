@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
 

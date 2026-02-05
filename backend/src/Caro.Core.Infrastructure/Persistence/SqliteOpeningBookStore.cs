@@ -1,5 +1,4 @@
 using Caro.Core.Domain.Entities;
-using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;

@@ -2,6 +2,7 @@ using Caro.Core.Application.DTOs;
 using Caro.Core.Domain.Entities;
 using Caro.Core.Domain.Interfaces;
 using Caro.Core.Domain.ValueObjects;
+using Caro.Core.GameLogic;
 using Caro.Core.Infrastructure.AI;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;

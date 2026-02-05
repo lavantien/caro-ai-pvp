@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 using Caro.TournamentRunner.ReportGenerators;
@@ -82,7 +82,7 @@ public static class AIStrengthTestRunner
         Console.WriteLine("─────────────────────────────────────────────────────────────────");
 
         var results = new List<MatchupStatistics>();
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
 
         var matchups = new (AIDifficulty higher, AIDifficulty lower)[]
         {
@@ -113,7 +113,7 @@ public static class AIStrengthTestRunner
         Console.WriteLine("─────────────────────────────────────────────────────────────────");
 
         var results = new List<MatchupStatistics>();
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
 
         var matchups = new (AIDifficulty higher, AIDifficulty lower)[]
         {
@@ -143,7 +143,7 @@ public static class AIStrengthTestRunner
         Console.WriteLine("─────────────────────────────────────────────────────────────────");
 
         var results = new List<MatchupStatistics>();
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
 
         var difficulties = new[]
         {
@@ -360,7 +360,7 @@ public static class AIStrengthTestRunner
         Console.WriteLine();
 
         var results = new List<MatchupStatistics>();
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
 
         // Test only a few key matchups
         var keyMatchups = new (AIDifficulty, AIDifficulty)[]

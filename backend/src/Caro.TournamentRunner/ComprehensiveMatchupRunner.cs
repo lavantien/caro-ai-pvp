@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 
@@ -40,7 +40,7 @@ public class ComprehensiveMatchupRunner
 
     private static async Task RunAsyncInternal()
     {
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
         const string tcName = "7+5";
 
         LogWrite($"═══════════════════════════════════════════════════════════════════");

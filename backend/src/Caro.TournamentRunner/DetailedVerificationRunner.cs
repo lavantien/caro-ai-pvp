@@ -1,4 +1,4 @@
-using Caro.Core.Entities;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tournament;
 
@@ -12,7 +12,7 @@ public class DetailedVerificationRunner
 {
     public static async Task RunAsync(int initialSeconds = 420, int incrementSeconds = 5, int gamesPerMatchup = 10)
     {
-        var engine = new TournamentEngine();
+        var engine = TournamentEngine.CreateDefault();
         var tcName = $"{initialSeconds / 60}+{incrementSeconds}";
 
         Console.WriteLine("╔═══════════════════════════════════════════════════════════════════╗");

@@ -2,6 +2,7 @@ using Caro.Core.Application.DTOs;
 using Caro.Core.Application.Interfaces;
 using Caro.Core.Application.Mappers;
 using Caro.Core.Domain.Entities;
+using Caro.Core.GameLogic;
 using Caro.Core.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 
@@ -140,7 +141,7 @@ public sealed class GameService : IGameService
 
             // Apply move
             var movePosition = new Position(request.X, request.Y);
-            if (!movePosition.IsValid)
+            if (!movePosition.IsValid())
             {
                 return new GameResponse
                 {
@@ -151,7 +152,7 @@ public sealed class GameService : IGameService
                 };
             }
 
-            if (!updatedState.Board.IsEmpty(request.X, request.Y))
+            if (!updatedState.Board.GetCell(request.X, request.Y).IsEmpty)
             {
                 return new GameResponse
                 {
@@ -162,19 +163,19 @@ public sealed class GameService : IGameService
                 };
             }
 
-            var newState = updatedState.MakeMove(request.X, request.Y);
+            var newState = updatedState.MakeMove(request.X, request.Y, updatedState.Board);
 
             // Check for win condition
             var winningLine = CheckForWin(newState.Board, request.X, request.Y, currentState.CurrentPlayer);
             if (winningLine.Length > 0)
             {
-                newState = newState.EndGame(currentState.CurrentPlayer, winningLine);
+                newState = newState.WithEndGame(currentState.CurrentPlayer, winningLine);
             }
 
             // Check for draw
             if (!newState.IsGameOver && newState.Board.IsFull())
             {
-                newState = newState.EndGame(Player.None);
+                newState = newState.WithEndGame(Player.None);
             }
 
             await _gameRepository.SaveAsync(gameId, newState, cancellationToken);
@@ -317,7 +318,7 @@ public sealed class GameService : IGameService
 
             var resigningPlayer = GameMapper.ToPlayer(player);
             var winner = resigningPlayer.Opponent();
-            var endedState = currentState.EndGame(winner);
+            var endedState = currentState.WithEndGame(winner);
 
             await _gameRepository.SaveAsync(gameId, endedState, cancellationToken);
 
@@ -464,8 +465,9 @@ public sealed class GameService : IGameService
         // Count in positive direction
         var x = startX + dx;
         var y = startY + dy;
-        while (x >= 0 && x < Board.BoardSize && y >= 0 && y < Board.BoardSize &&
-               board.GetCell(x, y) == player)
+        var boardSize = board.BoardSize;
+        while (x >= 0 && x < boardSize && y >= 0 && y < boardSize &&
+               board.GetCell(x, y).Player == player)
         {
             positions.Add(new Position(x, y));
             x += dx;
@@ -478,8 +480,8 @@ public sealed class GameService : IGameService
         // Count in negative direction
         x = startX - dx;
         y = startY - dy;
-        while (x >= 0 && x < Board.BoardSize && y >= 0 && y < Board.BoardSize &&
-               board.GetCell(x, y) == player)
+        while (x >= 0 && x < boardSize && y >= 0 && y < boardSize &&
+               board.GetCell(x, y).Player == player)
         {
             positions.Add(new Position(x, y));
             x -= dx;

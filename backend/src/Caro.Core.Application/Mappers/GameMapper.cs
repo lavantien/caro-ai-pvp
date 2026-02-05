@@ -1,5 +1,6 @@
 using Caro.Core.Application.DTOs;
 using Caro.Core.Domain.Entities;
+using Caro.Core.GameLogic;
 using Caro.Core.Domain.ValueObjects;
 
 namespace Caro.Core.Application.Mappers;
@@ -35,12 +36,13 @@ public static class GameMapper
     /// </summary>
     public static BoardDto ToBoardDto(Board board)
     {
-        var cells = new string[Board.BoardSize * Board.BoardSize];
-        for (int y = 0; y < Board.BoardSize; y++)
+        var boardSize = board.BoardSize;
+        var cells = new string[boardSize * boardSize];
+        for (int y = 0; y < boardSize; y++)
         {
-            for (int x = 0; x < Board.BoardSize; x++)
+            for (int x = 0; x < boardSize; x++)
             {
-                cells[y * Board.BoardSize + x] = board.GetCell(x, y).ToString();
+                cells[y * boardSize + x] = board.GetCell(x, y).ToString();
             }
         }
 
@@ -54,15 +56,14 @@ public static class GameMapper
     /// <summary>
     /// Convert ReadOnlyMemory<Position> to PositionDto array
     /// </summary>
-    public static PositionDto[] ToPositionDtos(ReadOnlyMemory<Position> positions)
+    public static PositionDto[] ToPositionDtos(IList<Position> positions)
     {
-        if (positions.IsEmpty) return Array.Empty<PositionDto>();
+        if (positions.Count == 0) return Array.Empty<PositionDto>();
 
-        var result = new PositionDto[positions.Length];
-        var span = positions.Span;
-        for (int i = 0; i < positions.Length; i++)
+        var result = new PositionDto[positions.Count];
+        for (int i = 0; i < positions.Count; i++)
         {
-            result[i] = new PositionDto(span[i].X, span[i].Y);
+            result[i] = new PositionDto(positions[i].X, positions[i].Y);
         }
         return result;
     }
@@ -80,10 +81,10 @@ public static class GameMapper
         {
             result[i] = new MoveDto
             {
-                X = span[i].Move.X,
-                Y = span[i].Move.Y,
-                Player = span[i].Move.Player.ToString(),
-                MoveNumber = span[i].MoveNumber
+                X = span[i].X,
+                Y = span[i].Y,
+                Player = span[i].Player.ToString(),
+                MoveNumber = span[i].Move
             };
         }
         return result;
