@@ -307,6 +307,28 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                             posData.board
                         );
 
+                        // Debug: Check if cell is already occupied BEFORE attempting to place
+                        var existingCell = newBoard.GetCell(actualX, actualY);
+                        if (existingCell.Player != Player.None)
+                        {
+                            _logger.LogError("INTERNAL ERROR: Trying to place at ({ActualX},{ActualY}) but cell is occupied by {ExistingPlayer}. Move from book: ({RelX},{RelY}), Symmetry={Sym}, Depth={Depth}",
+                                actualX, actualY, existingCell.Player, move.RelativeX, move.RelativeY, posData.symmetry, posData.depth);
+
+                            // Count stones on board for diagnostic
+                            int redCount = 0, blueCount = 0;
+                            for (int x = 0; x < 19; x++)
+                                for (int y = 0; y < 19; y++)
+                                {
+                                    var c = newBoard.GetCell(x, y);
+                                    if (c.Player == Player.Red) redCount++;
+                                    else if (c.Player == Player.Blue) blueCount++;
+                                }
+                            _logger.LogError("Board state: Red={RedCount}, Blue={BlueCount}, Total={Total}", redCount, blueCount, redCount + blueCount);
+
+                            // Skip this move and continue
+                            continue;
+                        }
+
                         newBoard.PlaceStone(actualX, actualY, posData.player);
                         var nextPlayer = posData.player == Player.Red ? Player.Blue : Player.Red;
 
