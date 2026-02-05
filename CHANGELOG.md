@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2026-02-05
+
+### Fixed
+
+- **Opening book generation "Cell is already occupied" error**
+  - Root cause: `OpeningBookGenerator` used custom `CloneBoard` method instead of proper `Board.Clone()`
+  - `CloneBoard` created new Board and copied cells via Player setter, which triggered incorrect hash updates
+  - `CloneBoard` did not copy the hash field (remained at default value 0), breaking transposition table lookups
+  - `CloneBoard` did not properly handle BitBoard state copying
+  - Fix: Replaced all uses of `CloneBoard` with `board.Clone()` and removed the method entirely
+  - Opening book generation now completes successfully without cell occupation errors
+
+### Technical Details
+
+**Board.Clone() (correct implementation):**
+- Copies cell states using `SetPlayerDirect` (avoids duplicate hash updates)
+- Manually updates BitBoards for occupied cells
+- Copies hash directly: `clone._hash = _hash`
+
+**CloneBoard() (buggy implementation - removed):**
+- Created new Board and copied cells via Player setter
+- Triggered `UpdateHashForCell` which called BitBoard.SetBit/ClearBit
+- Did NOT copy the hash field (remained at default value 0)
+
+### Added
+
+- **13 new tests** for Board.Clone() and OpeningBookGenerator to prevent regression
+  - `BoardTests.cs`: 6 new tests for `Board.Clone()` behavior
+  - `OpeningBookGeneratorTests.cs`: 7 new tests (new test file)
+  - Tests cover: exact copy, independence, hash preservation, BitBoard preservation, multiple placements, chain cloning, empty board cloning
+
+### Test Results
+
+- `Caro.Core.Tests`: 521 passed (was 508, +13 new tests)
+- Book builder verification: Generates successfully to depth 4 without "Cell is already occupied" error
+
+### Files Modified
+
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs`
+  - Replaced `CloneBoard(posData.board)` with `posData.board.Clone()` (3 locations)
+  - Removed `CloneBoard` method entirely
+- `backend/tests/Caro.Core.Tests/Entities/BoardTests.cs`
+  - Added 6 `Board.Clone()` tests
+
+### Files Added
+
+- `backend/tests/Caro.Core.Tests/GameLogic/OpeningBook/OpeningBookGeneratorTests.cs`
+  - 7 tests covering the bug scenario and board cloning edge cases
+
+[1.17.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.17.0
+
 ## [1.16.0] - 2026-02-05
 
 ### Test Project Reorganization
