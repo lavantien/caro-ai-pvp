@@ -77,8 +77,6 @@ if (existingCell.Player != Player.None)
 
 [1.18.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.18.0
 
-## [1.17.0] - 2026-02-05
-
 ### Fixed
 
 - **Opening book generation "Cell is already occupied" error**
