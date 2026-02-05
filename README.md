@@ -275,14 +275,14 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Project | Tests | Focus |
 |---------|-------|-------|
-| Caro.Core.Tests | 508 | Unit tests (algorithms, evaluators, concurrency) |
+| Caro.Core.Tests | 521 | Unit tests (algorithms, evaluators, concurrency, board cloning) |
 | Caro.Core.MatchupTests | ~50 | AI matchups, integration, tournament |
 | Caro.Core.Domain.Tests | 48 | Entities (Board, Cell, Player, GameState) |
 | Caro.Core.Application.Tests | 48 | Services, interfaces, DTOs |
 | Caro.Core.Infrastructure.Tests | 48 | AI algorithms, external concerns |
 | Frontend Unit (Vitest) | 19 | Component tests |
 | Frontend E2E (Playwright) | 17 | End-to-end gameplay |
-| **TOTAL** | **740+** | |
+| **TOTAL** | **753+** | |
 
 ### Frontend E2E Tests
 
