@@ -5,6 +5,82 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-02-06
+
+### Added
+
+- **Opponent response generation for opening book**
+  - Book generator now generates and stores opponent responses for ALL stored moves
+  - Previously, only branches followed for tree continuation got opponent responses
+  - Now GM/Experimental always have book responses regardless of opponent's move choice
+  - `GenerateOpponentResponsesAsync` method stores top 4 responses per stored move
+  - `GetAllEntries()` method added to IOpeningBookStore for response generation phase
+
+- **GM vs GM book depth verification**
+  - `GMBookDepthTest` verifies GM vs GM reaches depth 32 (16 moves per player)
+  - Test output shows book move usage turn-by-turn for verification
+  - Confirms Grandmaster stays in book for full 32 plies
+
+- **Opening book consistency tests**
+  - `OpeningBookConsistencyTests` - Verifies Hard shows variety while GM stays deterministic
+  - `OpeningBookMatchupTests` - Integration tests for Hard vs Grandmaster book usage
+  - `BoardMutationTests` - Tests for board state during book move application
+  - Tests verify depth filtering: Hard stops at depth 24, GM at depth 32
+
+### Changed
+
+- `IOpeningBookStore` interface - Added `GetAllEntries()` method
+- `SqliteOpeningBookStore` - Implemented `GetAllEntries()` for full book enumeration
+- `InMemoryOpeningBookStore` - Implemented `GetAllEntries()` for test scenarios
+- `OpeningBookGenerator` - Now generates opponent responses after storing each position's moves
+
+### Technical Details
+
+**Opponent Response Generation Flow:**
+```csharp
+// After storing moves for a position, generate opponent responses
+if (posData.depth < maxDepth - 1)
+{
+    var (responsesGenerated, responsePositionsCount) = await GenerateOpponentResponsesAsync(
+        posData.board,
+        posData.player,
+        moves,  // ALL stored moves, not just branches
+        posData.depth,
+        posData.symmetry,
+        bookDifficulty,
+        cancellationToken
+    );
+}
+```
+
+**Benefits:**
+- GM vs GM now reaches full depth 32 regardless of opponent's move choices
+- If opponent plays off the main line, book still has responses prepared
+- No "book exit" due to missing opponent response entries
+- Deeper, more consistent opening play for Grandmaster and Experimental
+
+### Test Results
+
+- `GM_vs_GM_Should_Get_16_Book_Moves`: 32 book moves total (16 per player)
+- `HardVsHard_ShowsVariety_GMvsGM_IsDeterministic`: Verifies selection strategies
+- `GMvsGM_AllGamesIdentical`: Confirms GM determinism across 5 games
+
+### Files Added
+
+- `backend/tests/Caro.Core.MatchupTests/GameLogic/OpeningBook/GMBookDepthTest.cs`
+- `backend/tests/Caro.Core.MatchupTests/GameLogic/OpeningBook/OpeningBookConsistencyTests.cs`
+- `backend/tests/Caro.Core.MatchupTests/GameLogic/OpeningBook/OpeningBookMatchupTests.cs`
+- `backend/tests/Caro.Core.MatchupTests/GameLogic/OpeningBook/BoardMutationTests.cs`
+
+### Files Modified
+
+- `backend/src/Caro.Core/GameLogic/OpeningBook/IOpeningBookStore.cs` - Added GetAllEntries()
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs` - Added GenerateOpponentResponsesAsync()
+- `backend/src/Caro.Core.Infrastructure/Persistence/SqliteOpeningBookStore.cs` - Implemented GetAllEntries()
+- `backend/src/Caro.Core/GameLogic/OpeningBook/InMemoryOpeningBookStore.cs` - Implemented GetAllEntries()
+
+[1.21.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.21.0
+
 ## [1.20.0] - 2026-02-05
 
 ### Added
