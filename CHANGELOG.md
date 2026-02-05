@@ -51,6 +51,8 @@ private double GetDepthWeight(int depth)
   - Lines 838-928: Added `MaxDepth` property, updated `GetDepthWeight()` to dynamic calculation
   - Line 861: Changed `static` to instance method for `GetDepthWeight()`
 
+[1.19.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.19.0
+
 ## [1.18.0] - 2026-02-05
 
 ### Fixed
