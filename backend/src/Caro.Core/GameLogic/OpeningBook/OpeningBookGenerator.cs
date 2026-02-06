@@ -122,13 +122,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     var canonical = _canonicalizer.Canonicalize(pos.Board);
 
                     // Calculate max children based on position depth
-                    int boardMoveNumber = pos.Depth * 2;
-                    int maxChildren = boardMoveNumber switch
-                    {
-                        <= 8 => 4,     // Plies 0-8 (moves 1-4): 4 children
-                        <= 14 => 4,    // Plies 9-14 (moves 5-7, SURVIVAL ZONE): 4 children (increased from 2)
-                        _ => 1         // Plies 15+ (moves 8+): 1 child (single best line)
-                    };
+                    int maxChildren = GetMaxChildrenForDepth(pos.Depth);
 
                     if (_store.ContainsEntry(canonical.CanonicalHash, pos.Player))
                     {
@@ -243,12 +237,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                     // Calculate max children for this position
                     // Note: posData.depth is ply count (0-indexed), not move number
-                    int maxChildren = posData.depth switch
-                    {
-                        <= 4 => 4,     // Plies 0-4 (moves 1-3): 4 children
-                        <= 14 => 4,    // Plies 5-14 (moves 3-8, includes SURVIVAL ZONE): 4 children
-                        _ => 1         // Plies 15+ (moves 8+): 1 child (single best line)
-                    };
+                    int maxChildren = GetMaxChildrenForDepth(posData.depth);
 
                     // Enqueue child positions
                     int movesAvailable = moves.Length;
@@ -300,12 +289,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                     // Calculate max children for this position
                     // Note: posData.depth is ply count (0-indexed), not move number
-                    int maxChildren = posData.depth switch
-                    {
-                        <= 4 => 4,     // Plies 0-4 (moves 1-3): 4 children
-                        <= 14 => 4,    // Plies 5-14 (moves 3-8, includes SURVIVAL ZONE): 4 children
-                        _ => 1         // Plies 15+ (moves 8+): 1 child (single best line)
-                    };
+                    int maxChildren = GetMaxChildrenForDepth(posData.depth);
 
                     int movesAvailable = moves.Length;
                     int movesActuallyAdded = 0;
@@ -471,13 +455,16 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 continue; // Already has book entries
             }
 
+            // Tiered response generation: adjust max responses based on depth
+            int maxResponses = GetMaxChildrenForDepth(currentDepth + 1);
+
             // Generate best responses for the opponent
             // Use a smaller search budget since we're generating many responses
             var responseMoves = await GenerateMovesForPositionAsync(
                 newBoard,
                 opponent,
                 difficulty,
-                maxMoves: 4, // Store top 4 responses for opponent
+                maxMoves: maxResponses,
                 canonicalSymmetry: opponentCanonical.SymmetryApplied,
                 isNearEdge: opponentCanonical.IsNearEdge,
                 cancellationToken
@@ -1155,6 +1142,23 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             // Return empty result on cancellation
             return new PositionResult(job.JobId, job.CanonicalHash, Array.Empty<BookMove>(), 0, 0, 0);
         }
+    }
+
+
+    /// <summary>
+    /// Get the maximum number of children to expand for a given depth.
+    /// Tiered strategy ensures coverage for all difficulty levels.
+    /// </summary>
+    private static int GetMaxChildrenForDepth(int depth)
+    {
+        return depth switch
+        {
+            <= 14 => 4,     // Early game + survival zone (plies 0-14)
+            <= 24 => 3,     // Hard coverage (plies 15-24)
+            <= 32 => 2,     // GM coverage (plies 25-32)
+            <= 40 => 1,     // Exp coverage (plies 33-40)
+            _ => 0          // No book beyond ply 40
+        };
     }
 
     /// <summary>
