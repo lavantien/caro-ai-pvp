@@ -7,6 +7,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 ## Overview
 
 - **Grandmaster-level AI** - Lazy SMP parallel search reaching depth 11+
+- **UCI Protocol Support** - Standalone engine compatible with UCI chess GUIs
 - **Clean Architecture** - Separated Domain, Application, and Infrastructure layers
 - **Real-time multiplayer** - WebSocket support via SignalR
 - **AI tournament mode** - Balanced round-robin with ELO tracking
@@ -59,6 +60,35 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 | Experimental | (N/2)-1 | 100% | 0% | 40 plies | Full opening book, max features |
 
 **Depth:** Dynamic calculation based on host machine NPS and time control. Formula: `depth = log(time * nps * timeMultiplier) / log(ebf)`
+
+### UCI Protocol
+
+Universal Chess Interface (UCI) protocol compatibility for standalone engine usage:
+
+- **Standalone console engine** - Run as separate process like Stockfish
+- **Standard UCI commands** - uci, isready, ucinewgame, position, go, stop, quit, setoption
+- **Engine options** - Skill Level, Use Opening Book, Book Depth Limit, Threads, Hash, Ponder
+- **WebSocket bridge** - Frontend can connect directly to UCI engine
+- **Algebraic notation** - Coordinates a-s (columns), 1-19 (rows)
+
+**Run standalone UCI engine:**
+```bash
+dotnet run --project backend/src/Caro.UCI
+```
+
+**Example UCI session:**
+```
+> uci
+< id name Caro AI 1.0
+< id author Caro AI Project
+< option name Skill Level type spin default 3 min 1 max 6
+< option name Use Opening Book type check default true
+< uciok
+> position startpos moves j10
+> go movetime 2000
+< info depth 2 nodes 13524 time 1590 pv j11
+< bestmove j11
+```
 
 ### Opening Book
 
@@ -175,8 +205,9 @@ All domain entities are fully immutable for thread safety:
 - `GameState` - `sealed record` with `ImmutableStack<Board>` for undo history
 - `Board` - Immutable via `PlaceStone()` returning new instances
 - Operations return new state: `WithMove()`, `WithGameOver()`, `UndoMove()`
-| `Caro.Api` | Web API, SignalR hub | All layers |
+| `Caro.Api` | Web API, SignalR hub, WebSocket UCI bridge | All layers |
 | `Caro.BookBuilder` | CLI tool for offline book generation | Infrastructure |
+| `Caro.UCI` | Standalone UCI console engine | Infrastructure |
 
 ### Component Flow
 

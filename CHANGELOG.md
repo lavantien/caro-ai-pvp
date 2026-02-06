@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.0] - 2026-02-07
+
+### Added
+- UCI (Universal Chess Interface) protocol support for standalone engine usage
+  - Caro.UCI console application for standard UCI compliance
+  - UCI protocol library in Caro.Core.GameLogic.UCI namespace
+  - UCIMoveNotation for algebraic coordinate conversion (a-s, 1-19)
+  - UCIPositionConverter for parsing position commands
+  - UCIEngineOptions for runtime configuration (Skill Level, Opening Book, Threads, Hash, Ponder)
+  - UCISearchController bridging UCI go parameters to MinimaxAI
+- API WebSocket UCI bridge at /ws/uci endpoint
+- Frontend UCI engine client (uciEngine.ts) with promise-based API
+- Frontend UCI integration in gameStore (connectUCI, disconnectUCI, getAIMoveUCI)
+- UCI connection status indicator and toggle in game page
+- Engine options exposed as UCI setoption commands:
+  - Skill Level (1-6): Maps to AIDifficulty enum
+  - Use Opening Book (true/false)
+  - Book Depth Limit (0-40 plies)
+  - Threads (1-32)
+  - Hash (32-4096 MB)
+  - Ponder (true/false)
+
+### Changed
+- Caro.Api.sln includes Caro.UCI project
+- Program.cs registers UCIHandler as singleton and adds /ws/uci WebSocket endpoint
+
+### Fixed
+- Console output buffering in UCI engine (added explicit Console.Out.Flush)
+- UCI quit command now waits for ongoing search to complete before exiting
+- Multi-word option name parsing (e.g., "Skill Level", "Use Opening Book")
+
+### Test Counts
+- Caro.Core.Tests: 525 passed
+- Caro.Core.Infrastructure.Tests: 48 passed
+- Total: 573 backend tests (unchanged)
+
+### Documentation
+- README.md updated with UCI protocol section and standalone engine usage
+
+[1.27.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.27.0
+
 ## [1.26.0] - 2026-02-07
 
 ### Added
