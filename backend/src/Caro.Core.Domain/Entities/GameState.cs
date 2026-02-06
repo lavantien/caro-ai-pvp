@@ -15,12 +15,24 @@ public sealed record GameState(
     Player Winner,
     ImmutableArray<Position> WinningLine,
     ImmutableStack<Board> BoardHistory,
-    ImmutableArray<Position> MoveHistory)
+    ImmutableArray<Position> MoveHistory,
+    string TimeControl,                     // Time control name (e.g., "7+5")
+    long InitialTimeMs,                     // Initial time per player in milliseconds
+    int IncrementSeconds,                   // Time increment per move in seconds
+    string GameMode,                         // "pvp", "pvai", "aivai"
+    string? RedAIDifficulty,                 // AI difficulty for Red player (if AI)
+    string? BlueAIDifficulty)                // AI difficulty for Blue player (if AI)
 {
     /// <summary>
     /// Create an initial game state.
     /// </summary>
-    public static GameState CreateInitial() => new(
+    public static GameState CreateInitial(
+        string timeControl = "7+5",
+        long initialTimeMs = 420_000,
+        int incrementSeconds = 5,
+        string gameMode = "pvp",
+        string? redAIDifficulty = null,
+        string? blueAIDifficulty = null) => new(
         new Board(),
         Player.Red,
         0,
@@ -28,7 +40,13 @@ public sealed record GameState(
         Player.None,
         ImmutableArray<Position>.Empty,
         ImmutableStack<Board>.Empty,
-        ImmutableArray<Position>.Empty
+        ImmutableArray<Position>.Empty,
+        timeControl,
+        initialTimeMs,
+        incrementSeconds,
+        gameMode,
+        redAIDifficulty,
+        blueAIDifficulty
     );
 
     /// <summary>
