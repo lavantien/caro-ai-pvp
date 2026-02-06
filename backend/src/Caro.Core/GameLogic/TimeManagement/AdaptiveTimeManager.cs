@@ -131,18 +131,46 @@ public sealed class AdaptiveTimeManager
         var adjustedTimeMs = baseTimeMs * complexity * phaseMultiplier * _currentMultiplier;
 
         // === HARD BOUND: Maximum percentage of remaining time ===
-        // This is the safety net - never spend more than X% of remaining time
+        // CRITICAL FIX: In time scramble, use increment-based allocation instead of remaining time
+        // The key insight: with increment time control, we can ONLY spend up to (increment - margin) per move
+        // If average move time > increment, we will eventually timeout regardless of initial time
         var maxTimePercent = GetDifficultyValue(MaxTimePercentage, difficultyIndex);
-        var maxAllocatableMs = Math.Max(0, timeRemainingMs - 1000); // Keep 1s reserve
-        var percentageBoundMs = (long)(timeRemainingMs * maxTimePercent);
+        var incrementMs = incrementSeconds * 1000L;
+
+        // Time scramble detection: less than 3x increment OR less than 30 seconds remaining
+        var isInTimeScramble = timeRemainingMs < Math.Min(incrementMs * 3, 30000);
+
+        long maxAllocatableMs;
+        long percentageBoundMs;
+
+        if (isInTimeScramble)
+        {
+            // In time scramble: CRITICAL - we MUST spend less than increment per move
+            // Use 40% of increment as max (leaves 60% safety margin for communication overhead)
+            // For 2 second increment: max 800ms per move
+            // For 5 second increment: max 2000ms per move
+            maxAllocatableMs = Math.Max(incrementMs * 2 / 5, 300); // 40% of increment, min 300ms
+            percentageBoundMs = maxAllocatableMs;
+        }
+        else
+        {
+            // Normal case: keep 1s reserve from remaining time
+            maxAllocatableMs = Math.Max(0, timeRemainingMs - 1000);
+            percentageBoundMs = (long)(timeRemainingMs * maxTimePercent);
+        }
 
         // Soft bound: adjusted time, but respect percentage cap
         // Use 1% of percentageBoundMs as minimum to handle edge cases where percentageBoundMs is very small
         var softBoundMs = (long)Math.Clamp(adjustedTimeMs, Math.Max(1, percentageBoundMs / 100), percentageBoundMs);
 
         // Hard bound: soft bound × 1.3, but never exceed percentage cap
+        // In time scramble, hard bound is STRICTLY capped at 50% of increment
         var desiredHardBoundMs = (long)(softBoundMs * 1.3);
-        var hardBoundMs = Math.Min(desiredHardBoundMs, Math.Max(softBoundMs + 500, maxAllocatableMs));
+        if (isInTimeScramble)
+        {
+            desiredHardBoundMs = Math.Min(desiredHardBoundMs, incrementMs / 2);
+        }
+        var hardBoundMs = Math.Min(desiredHardBoundMs, Math.Max(softBoundMs + 100, maxAllocatableMs));
 
         // Optimal: 80% of soft bound
         var optimalTimeMs = softBoundMs * 8 / 10;
