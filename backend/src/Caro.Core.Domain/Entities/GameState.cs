@@ -81,28 +81,28 @@ public class GameState
     /// Undo the last move.
     /// </summary>
     public void UndoMove()
-{
-    if (IsGameOver)
-        throw new InvalidOperationException("Cannot undo moves after game is over");
+    {
+        if (IsGameOver)
+            throw new InvalidOperationException("Cannot undo moves after game is over");
 
-    if (MoveNumber == 0 || _moveHistory.Count == 0 || _boardHistory.Count == 0)
-        throw new InvalidOperationException("No moves to undo");
+        if (MoveNumber == 0 || _moveHistory.Count == 0 || _boardHistory.Count == 0)
+            throw new InvalidOperationException("No moves to undo");
 
-    // Remove last move from history
-    _moveHistory.RemoveAt(_moveHistory.Count - 1);
+        // Remove last move from history
+        _moveHistory.RemoveAt(_moveHistory.Count - 1);
 
-    // Restore previous board
-    _board = _boardHistory[^1];
-    _boardHistory.RemoveAt(_boardHistory.Count - 1);
+        // Restore previous board
+        _board = _boardHistory[^1];
+        _boardHistory.RemoveAt(_boardHistory.Count - 1);
 
-    // Decrement move number
-    MoveNumber--;
+        // Decrement move number
+        MoveNumber--;
 
-    // If back to initial state, reset to Red's turn
-    // Otherwise, keep current player (same player can try a different move)
-    if (MoveNumber == 0)
-        CurrentPlayer = Player.Red;
-}
+        // If back to initial state, reset to Red's turn
+        // Otherwise, keep current player (same player can try a different move)
+        if (MoveNumber == 0)
+            CurrentPlayer = Player.Red;
+    }
 
     /// <summary>
     /// Check if undo is possible.
