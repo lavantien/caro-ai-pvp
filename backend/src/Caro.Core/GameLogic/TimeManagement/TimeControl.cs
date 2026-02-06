@@ -24,6 +24,7 @@ public readonly record struct TimeControl(
     /// <summary>
     /// Standard time controls
     /// </summary>
+    public static TimeControl Bullet => new(60_000, 0, "1+0");      // 1 minute + 0 seconds per move
     public static TimeControl Blitz => new(180_000, 2, "3+2");      // 3 minutes + 2 seconds per move
     public static TimeControl Rapid => new(420_000, 5, "7+5");       // 7 minutes + 5 seconds per move
     public static TimeControl Classical => new(900_000, 10, "15+10"); // 15 minutes + 10 seconds per move
