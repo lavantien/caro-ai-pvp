@@ -76,6 +76,11 @@ Universal Chess Interface (UCI) protocol compatibility for standalone engine usa
 dotnet run --project backend/src/Caro.UCI
 ```
 
+**Run UCI Mock Client (engine vs engine testing):**
+```bash
+dotnet run --project backend/src/Caro.UCIMockClient -- --games 4 --time 180 --inc 2
+```
+
 **Example UCI session:**
 ```
 > uci
@@ -208,6 +213,7 @@ All domain entities are fully immutable for thread safety:
 | `Caro.Api` | Web API, SignalR hub, WebSocket UCI bridge | All layers |
 | `Caro.BookBuilder` | CLI tool for offline book generation | Infrastructure |
 | `Caro.UCI` | Standalone UCI console engine | Infrastructure |
+| `Caro.UCIMockClient` | UCI protocol testing tool (engine vs engine) | Infrastructure |
 
 ### Component Flow
 

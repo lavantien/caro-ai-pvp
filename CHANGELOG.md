@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.28.0] - 2026-02-07
+
+### Added
+- UCI Mock Client console application for testing UCI protocol layer
+  - Runs matches between two UCI engine instances via stdin/stdout
+  - Full time control support with increment handling
+  - Proper engine state synchronization across both engines
+  - Configurable game count, time control, and skill levels
+  - Detailed match statistics and move-by-move reporting
+
+### Fixed
+- **Critical:** Time scramble timeout bug - engine now uses increment-based allocation when low on time
+  - When remaining time < 3× increment, allocates 40% of increment as max time budget
+  - Prevents timeouts in long games (tested up to 361 moves / 25 minutes)
+  - Ensures all games end by win/loss/draw, never by timeout
+- Infinite recursion in OpeningBookLookupService.NextRandomInt() (was calling itself)
+- Engine state synchronization issue in mock client (both engines now track same move history)
+- Windows Process.Start() native DLL loading issue (disabled stderr redirect)
+- UCI engine now gracefully handles missing opening book database
+- ObjectDisposedException in UCIMockClient cleanup (proper disposal order)
+
+### Changed
+- AdaptiveTimeManager time scramble detection threshold (3× increment or 30 seconds)
+- UCIMockClient prefers .csproj files for 'dotnet run' (better cross-platform compatibility)
+- OpeningBook fields nullable for graceful degradation without database
+
+### Documentation
+- README.md updated with test counts and feature descriptions
+
+### Test Counts
+- Caro.Core.Tests: 525 passed
+- Caro.Core.Infrastructure.Tests: 48 passed
+- Total: 573 backend tests (unchanged)
+
+[1.28.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.28.0
+
 ## [1.27.0] - 2026-02-07
 
 ### Added
@@ -55,8 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Plies 25-32: 2 responses (GM coverage)
   - Plies 33-40: 1 response (Exp coverage)
   - Ensures GM/Exp always have responses to opponent deviations
-- GetMaxChildrenForDepth helper method for centralized branching logic
-- 3 tiered branching unit tests
+  - GetMaxChildrenForDepth helper method for centralized branching logic
+  - 3 tiered branching unit tests
 
 ### Changed
 - Experimental max book depth capped at 40 plies (was unlimited)
