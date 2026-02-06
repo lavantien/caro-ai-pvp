@@ -141,8 +141,8 @@ cd backend/tests/Caro.Core.MatchupTests && dotnet test
 
 | Project | Tests | Duration |
 |---------|-------|----------|
-| Caro.Core.Tests | 507 unit tests | ~9 min |
-| Caro.Core.MatchupTests | AI matchups, integration | Variable |
+| Caro.Core.Tests | 522 unit tests | ~9 min |
+| Caro.Core.MatchupTests | ~57 | Variable |
 | Caro.Core.Domain.Tests | 48 entity tests | ~5 sec |
 | Caro.Core.Application.Tests | 48 service tests | ~5 sec |
 | Caro.Core.Infrastructure.Tests | 48 algorithm tests | ~5 sec |
@@ -200,6 +200,14 @@ Clean Architecture with three core layers:
 | `Caro.Core.Domain` | Core entities, value objects | None |
 | `Caro.Core.Application` | Interfaces, application services | Domain |
 | `Caro.Core.Infrastructure` | AI algorithms, external concerns | Domain, Application |
+
+**Immutable Domain Model:**
+
+All domain entities are fully immutable for thread safety:
+- `Cell` - `readonly record struct` with `Player` property
+- `GameState` - `sealed record` with `ImmutableStack<Board>` for undo history
+- `Board` - Immutable via `PlaceStone()` returning new instances
+- Operations return new state: `WithMove()`, `WithGameOver()`, `UndoMove()`
 | `Caro.Api` | Web API, SignalR hub | All layers |
 | `Caro.BookBuilder` | CLI tool for offline book generation | Infrastructure |
 
@@ -277,14 +285,14 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Project | Tests | Focus |
 |---------|-------|-------|
-| Caro.Core.Tests | 523 | Unit tests (algorithms, evaluators, concurrency, board cloning, opening book) |
+| Caro.Core.Tests | 522 | Unit tests (algorithms, evaluators, concurrency, immutable state, opening book) |
 | Caro.Core.MatchupTests | ~57 | AI matchups, integration, tournament, opening book verification |
 | Caro.Core.Domain.Tests | 48 | Entities (Board, Cell, Player, GameState) |
 | Caro.Core.Application.Tests | 48 | Services, interfaces, DTOs |
 | Caro.Core.Infrastructure.Tests | 48 | AI algorithms, external concerns |
 | Frontend Unit (Vitest) | 19 | Component tests |
 | Frontend E2E (Playwright) | 17 | End-to-end gameplay |
-| **TOTAL** | **760+** | |
+| **TOTAL** | **759+** | |
 
 ### Frontend E2E Tests
 
