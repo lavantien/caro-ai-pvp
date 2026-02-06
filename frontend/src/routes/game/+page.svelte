@@ -26,9 +26,15 @@
 	let showNameInput = $state(false);
 	let currentPlayer = $state<{ name: string; rating: number } | null>(null);
 
-	// Game mode: PvP or PvAI
-	let gameMode = $state<'pvp' | 'pvai'>('pvp');
-	let aiDifficulty = $state<'Easy' | 'Medium' | 'Hard' | 'Expert'>('Medium');
+	// Game mode: PvP, PvAI, or AIvAI
+	type GameMode = 'pvp' | 'pvai' | 'aivai';
+	type TimeControl = '1+0' | '3+2' | '7+5' | '15+10';
+	type AIDifficulty = 'Braindead' | 'Easy' | 'Medium' | 'Hard' | 'Grandmaster' | 'Experimental';
+
+	let gameMode = $state<GameMode>('pvp');
+	let timeControl = $state<TimeControl>('7+5');
+	let aiDifficulty = $state<AIDifficulty>('Medium');
+	let aiSide = $state<'red' | 'blue'>('blue');  // For PvAI, which side is human?
 	let isAiThinking = $state(false);
 
 	function handleRegisterPlayer() {
@@ -49,18 +55,57 @@
 	});
 
 	onMount(async () => {
+		await createNewGame();
+	});
+
+	async function createNewGame() {
 		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
 
 		try {
+			// Determine AI difficulties based on game mode
+			let redAIDifficulty: string | undefined;
+			let blueAIDifficulty: string | undefined;
+
+			switch (gameMode) {
+				case 'pvai':
+					// Player vs AI - human plays red by default (AI goes first)
+					if (aiSide === 'blue') {
+						// Human plays blue, AI plays red
+						redAIDifficulty = aiDifficulty;
+					} else {
+						// Human plays red, AI plays blue (default)
+						blueAIDifficulty = aiDifficulty;
+					}
+					break;
+				case 'aivai':
+					// AI vs AI - both sides are AI
+					redAIDifficulty = aiDifficulty;
+					blueAIDifficulty = aiDifficulty;
+					break;
+			}
+
 			// Create new game on backend
 			const response = await fetch(`${apiUrl}/api/game/new`, {
-				method: 'POST'
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					timeControl: timeControl,
+					gameMode: gameMode,
+					redAIDifficulty: redAIDifficulty,
+					blueAIDifficulty: blueAIDifficulty
+				})
 			});
 
 			if (!response.ok) throw new Error('Failed to create game');
 
 			const data = await response.json();
 			gameId = data.gameId;
+
+			// Initialize timer values from backend response
+			if (data.state.initialTime) {
+				redTime = data.state.initialTime;
+				blueTime = data.state.initialTime;
+			}
 
 			// Sync with backend state
 			await syncWithBackend();
@@ -69,7 +114,7 @@
 		} finally {
 			loading = false;
 		}
-	});
+	}
 
 	async function syncWithBackend() {
 		if (!gameId) return;
@@ -166,7 +211,11 @@
 		}
 
 		// If playing against AI and game not over, trigger AI move
-		if (gameMode === 'pvai' && !store.isGameOver && store.currentPlayer === 'blue') {
+		// PvAI mode with human as red (default) - AI plays blue
+		// PvAI mode with human as blue - AI plays red
+		// AIvAI mode - both sides are AI (not fully implemented on frontend yet)
+		const aiPlayer = gameMode === 'pvai' && aiSide === 'red' ? 'red' : 'blue';
+		if ((gameMode === 'pvai' || gameMode === 'aivai') && !store.isGameOver && store.currentPlayer === aiPlayer) {
 			makeAiMove();
 		}
 	}
@@ -179,6 +228,7 @@
 
 		// Store previous board to find AI's move
 		const previousBoard = [...store.board];
+		const currentPlayer = store.currentPlayer;
 
 		try {
 			const response = await fetch(`${apiUrl}/api/game/${gameId}/ai-move`, {
@@ -198,7 +248,7 @@
 			// Find which cell changed (AI's move)
 			let aiMove = { x: 0, y: 0 };
 			for (let i = 0; i < store.board.length; i++) {
-				if (previousBoard[i].player === 'none' && data.state.board[i].player === 'blue') {
+				if (previousBoard[i].player === 'none' && data.state.board[i].player !== 'none') {
 					aiMove = { x: data.state.board[i].x, y: data.state.board[i].y };
 					break;
 				}
@@ -212,12 +262,12 @@
 			redTime = data.state.redTimeRemaining;
 			blueTime = data.state.blueTimeRemaining;
 
-			// Add AI move to history
+			// Add AI move to history (use the actual player from the move)
 			store.moveHistory = [
 				...store.moveHistory,
 				{
 					moveNumber: data.state.moveNumber,
-					player: 'blue',
+					player: currentPlayer as 'red' | 'blue',
 					x: aiMove.x,
 					y: aiMove.y
 				}
@@ -317,41 +367,88 @@
 		<!-- Game Mode Selection -->
 		<div class="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
 			<div class="flex flex-wrap gap-4 items-center justify-between">
-				<div class="flex gap-2">
-					<button
-						onclick={() => gameMode = 'pvp'}
-						class="px-4 py-2 rounded transition-colors {gameMode === 'pvp'
-							? 'bg-blue-600 text-white'
-							: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}"
-					>
-						Player vs Player
-					</button>
-					<button
-						onclick={() => gameMode = 'pvai'}
-						class="px-4 py-2 rounded transition-colors {gameMode === 'pvai'
-							? 'bg-blue-600 text-white'
-							: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}"
-					>
-						Player vs AI
-					</button>
-				</div>
+				<div class="flex flex-wrap gap-2 items-center">
+					<!-- Game Mode Buttons -->
+					<div class="flex gap-2">
+						<button
+							onclick={() => gameMode = 'pvp'}
+							class="px-4 py-2 rounded transition-colors {gameMode === 'pvp'
+								? 'bg-blue-600 text-white'
+								: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}"
+							disabled={store.moveNumber > 0}
+						>
+							Player vs Player
+						</button>
+						<button
+							onclick={() => gameMode = 'pvai'}
+							class="px-4 py-2 rounded transition-colors {gameMode === 'pvai'
+								? 'bg-blue-600 text-white'
+								: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}"
+							disabled={store.moveNumber > 0}
+						>
+							Player vs AI
+						</button>
+						<button
+							onclick={() => gameMode = 'aivai'}
+							class="px-4 py-2 rounded transition-colors {gameMode === 'aivai'
+								? 'bg-blue-600 text-white'
+								: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}"
+							disabled={store.moveNumber > 0}
+						>
+							AI vs AI
+						</button>
+					</div>
 
-				{#if gameMode === 'pvai'}
-					<div class="flex items-center gap-2">
-						<label for="ai-difficulty" class="text-sm font-medium text-gray-700">AI Difficulty:</label>
+					<!-- Time Control Selector -->
+					<div class="flex items-center gap-2 ml-4">
+						<label for="time-control" class="text-sm font-medium text-gray-700">Time Control:</label>
 						<select
-							id="ai-difficulty"
-							bind:value={aiDifficulty}
+							id="time-control"
+							bind:value={timeControl}
 							class="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
 							disabled={store.moveNumber > 0}
 						>
-							<option value="Easy">Easy</option>
-							<option value="Medium">Medium</option>
-							<option value="Hard">Hard</option>
-							<option value="Expert">Expert</option>
+							<option value="1+0">1+0 (Bullet)</option>
+							<option value="3+2">3+2 (Blitz)</option>
+							<option value="7+5">7+5 (Rapid)</option>
+							<option value="15+10">15+10 (Classical)</option>
 						</select>
 					</div>
-				{/if}
+
+					{#if gameMode === 'pvai' || gameMode === 'aivai'}
+						<div class="flex items-center gap-2">
+							<label for="ai-difficulty" class="text-sm font-medium text-gray-700">AI Difficulty:</label>
+							<select
+								id="ai-difficulty"
+								bind:value={aiDifficulty}
+								class="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+								disabled={store.moveNumber > 0}
+							>
+								<option value="Braindead">Braindead</option>
+								<option value="Easy">Easy</option>
+								<option value="Medium">Medium</option>
+								<option value="Hard">Hard</option>
+								<option value="Grandmaster">Grandmaster</option>
+								<option value="Experimental">Experimental</option>
+							</select>
+						</div>
+					{/if}
+
+					{#if gameMode === 'pvai'}
+						<div class="flex items-center gap-2">
+							<label for="ai-side" class="text-sm font-medium text-gray-700">You play as:</label>
+							<select
+								id="ai-side"
+								bind:value={aiSide}
+								class="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+								disabled={store.moveNumber > 0}
+							>
+								<option value="blue">Red (AI goes first)</option>
+								<option value="red">Blue (Human goes first)</option>
+							</select>
+						</div>
+					{/if}
+				</div>
 
 				{#if isAiThinking}
 					<div class="flex items-center gap-2 text-blue-600">
