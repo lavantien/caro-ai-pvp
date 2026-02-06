@@ -25,7 +25,7 @@ public class MinimaxAI : IStatsPublisher
     private readonly ThreatDetector _threatDetector = new();
     private readonly ThreatSpaceSearch _vcfSolver = new();
     private readonly VCFSolver _inTreeVCFSolver;  // In-tree VCF solver for Lazy SMP
-    private readonly OpeningBook _openingBook;
+    private readonly OpeningBook? _openingBook;
 
     // Time management for 7+5 time control
     private readonly TimeManager _timeManager = new();
@@ -116,7 +116,7 @@ public class MinimaxAI : IStatsPublisher
     public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null, OpeningBook? openingBook = null, Random? random = null)
     {
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<MinimaxAI>.Instance;
-        _openingBook = openingBook ?? throw new ArgumentNullException(nameof(openingBook));
+        _openingBook = openingBook;  // Can be null - engine will work without opening book
         _random = random;  // null means use Random.Shared (default behavior)
         _publisherId = Interlocked.Increment(ref _instanceCounter).ToString();
         _statsChannel = Channel.CreateUnbounded<MoveStatsEvent>();
@@ -286,7 +286,7 @@ public class MinimaxAI : IStatsPublisher
         // - Hard: book moves up to depth 24 (12 moves per side, 24 plies)
         // - Grandmaster/Experimental: book moves up to depth 32 (16 moves per side, 32 plies)
         var lastOpponentMove = GetLastOpponentMove(board, player);
-        var bookMove = _openingBook.GetBookMove(board, player, difficulty, lastOpponentMove);
+        var bookMove = _openingBook?.GetBookMove(board, player, difficulty, lastOpponentMove);
         if (bookMove.HasValue)
         {
             return bookMove.Value;
