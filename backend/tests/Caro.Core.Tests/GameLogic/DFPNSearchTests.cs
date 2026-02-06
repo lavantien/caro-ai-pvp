@@ -29,10 +29,10 @@ public class DFPNSearchTests
     {
         // Arrange - XXXX_ pattern, Red can win immediately
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
         // Positions 6,7 and 11,7 are empty - both are winning moves
 
         // Act
@@ -44,9 +44,8 @@ public class DFPNSearchTests
 
         // Verify the suggested move actually wins
         var (x, y) = result.move.Value;
-        board.PlaceStone(x, y, Player.Red);
-        var winResult = _winDetector.CheckWin(board);
-        board.GetCell(x, y).Player = Player.None;
+        var boardWithWin = board.PlaceStone(x, y, Player.Red);
+        var winResult = _winDetector.CheckWin(boardWithWin);
 
         winResult.HasWinner.Should().BeTrue("Suggested move should actually win");
         winResult.Winner.Should().Be(Player.Red);
@@ -58,16 +57,16 @@ public class DFPNSearchTests
         // Arrange - Position where Red creates double threat
         var board = new Board();
         // First S4 threat horizontal
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
         // Blue blocks at 9,7
-        board.PlaceStone(9, 7, Player.Blue);
+        board = board.PlaceStone(9, 7, Player.Blue);
         // Red has vertical threat at 7,5
-        board.PlaceStone(7, 5, Player.Red);
-        board.PlaceStone(7, 6, Player.Red);
-        board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
         // Position 7,9 creates second threat
 
         // Act
@@ -84,13 +83,13 @@ public class DFPNSearchTests
         // Arrange - Blue has immediate winning move, Red can't prevent
         var board = new Board();
         // Blue has XXXX_ pattern
-        board.PlaceStone(7, 7, Player.Blue);
-        board.PlaceStone(8, 7, Player.Blue);
-        board.PlaceStone(9, 7, Player.Blue);
-        board.PlaceStone(10, 7, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Blue);
+        board = board.PlaceStone(9, 7, Player.Blue);
+        board = board.PlaceStone(10, 7, Player.Blue);
         // Red has some stones but no immediate threats
-        board.PlaceStone(5, 5, Player.Red);
-        board.PlaceStone(6, 6, Player.Red);
+        board = board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(6, 6, Player.Red);
 
         // Act
         var result = _search.Solve(board, Player.Red, maxDepth: 3, timeLimitMs: 500);
@@ -105,12 +104,12 @@ public class DFPNSearchTests
     {
         // Arrange - Position with no immediate threats (scattered stones)
         var board = new Board();
-        board.PlaceStone(5, 5, Player.Red);
-        board.PlaceStone(6, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(3, 3, Player.Blue);
-        board.PlaceStone(4, 4, Player.Blue);
-        board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(6, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(3, 3, Player.Blue);
+        board = board.PlaceStone(4, 4, Player.Blue);
+        board = board.PlaceStone(8, 8, Player.Blue);
 
         // Act - Very shallow depth limit with short time
         var result = _search.Solve(board, Player.Red, maxDepth: 1, timeLimitMs: 10);
@@ -124,10 +123,10 @@ public class DFPNSearchTests
     {
         // Arrange - Complex position
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
-        board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(8, 8, Player.Blue);
 
         // Act - Very short time limit
         var result = _search.Solve(board, Player.Red, maxDepth: 30, timeLimitMs: 1);
@@ -141,10 +140,10 @@ public class DFPNSearchTests
     {
         // Arrange - S4 position
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
         var result = _search.Solve(board, Player.Red, maxDepth: 5, timeLimitMs: 1000);
@@ -153,9 +152,8 @@ public class DFPNSearchTests
         if (result.result == SearchResult.Win && result.move.HasValue)
         {
             var (x, y) = result.move.Value;
-            board.PlaceStone(x, y, Player.Red);
-            var winResult = _winDetector.CheckWin(board);
-            board.GetCell(x, y).Player = Player.None; // Undo
+            var boardWithWin = board.PlaceStone(x, y, Player.Red);
+            var winResult = _winDetector.CheckWin(boardWithWin);
 
             winResult.HasWinner.Should().BeTrue("Suggested winning move should actually win");
             winResult.Winner.Should().Be(Player.Red);
@@ -167,10 +165,10 @@ public class DFPNSearchTests
     {
         // Arrange - S4 for Red
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
         var (proof, disproof) = _search.GetProofNumbers(board, Player.Red);

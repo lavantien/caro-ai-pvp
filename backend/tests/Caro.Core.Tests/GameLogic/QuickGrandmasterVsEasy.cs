@@ -1,5 +1,6 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
+using Caro.Core.Tests.Helpers;
 using FluentAssertions;
 using Xunit;
 
@@ -16,13 +17,13 @@ public class QuickGrandmasterVsEasy
         // Blue has four in a row vertically at (3,4), (4,4), (5,4), (6,4)
         // Red blocked bottom at (7,4)
         // Red MUST block top at (2,4) or lose
-        board.PlaceStone(3, 4, Player.Blue);
-        board.PlaceStone(4, 4, Player.Blue);
-        board.PlaceStone(5, 4, Player.Blue);
-        board.PlaceStone(6, 4, Player.Blue);
-        board.PlaceStone(7, 4, Player.Red);
+        board = board.PlaceStone(3, 4, Player.Blue);
+        board = board.PlaceStone(4, 4, Player.Blue);
+        board = board.PlaceStone(5, 4, Player.Blue);
+        board = board.PlaceStone(6, 4, Player.Blue);
+        board = board.PlaceStone(7, 4, Player.Red);
 
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
 
         // Grandmaster (D10) should block at (2, 4)
         var (gx, gy) = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
@@ -31,11 +32,11 @@ public class QuickGrandmasterVsEasy
 
         // Reset board
         board = new Board();
-        board.PlaceStone(3, 4, Player.Blue);
-        board.PlaceStone(4, 4, Player.Blue);
-        board.PlaceStone(5, 4, Player.Blue);
-        board.PlaceStone(6, 4, Player.Blue);
-        board.PlaceStone(7, 4, Player.Red);
+        board = board.PlaceStone(3, 4, Player.Blue);
+        board = board.PlaceStone(4, 4, Player.Blue);
+        board = board.PlaceStone(5, 4, Player.Blue);
+        board = board.PlaceStone(6, 4, Player.Blue);
+        board = board.PlaceStone(7, 4, Player.Red);
 
         // Easy (D2) should also block - even Easy AI should see immediate threats
         var (ex, ey) = ai.GetBestMove(board, Player.Red, AIDifficulty.Easy);

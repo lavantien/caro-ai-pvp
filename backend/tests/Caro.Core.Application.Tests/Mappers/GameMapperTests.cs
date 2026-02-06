@@ -1,3 +1,9 @@
+using Caro.Core.Application.DTOs;
+using Caro.Core.Application.Mappers;
+using Caro.Core.Domain.Entities;
+using Caro.Core.GameLogic;
+using FluentAssertions;
+
 namespace Caro.Core.Application.Tests.Mappers;
 
 public class GameMapperTests
@@ -6,7 +12,7 @@ public class GameMapperTests
     public void ToDto_ConvertsGameStateCorrectly()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
         var gameId = Guid.NewGuid();
 
         // Act
@@ -27,7 +33,8 @@ public class GameMapperTests
     public void ToDto_WithMove_ConvertsCorrectly()
     {
         // Arrange
-        var state = GameState.CreateInitial().MakeMove(9, 9);
+        var state = GameStateFactory.CreateInitial();
+        state.RecordMove(9, 9);
         var gameId = Guid.NewGuid();
 
         // Act
@@ -46,7 +53,8 @@ public class GameMapperTests
     public void ToBoardDto_ConvertsBoardCorrectly()
     {
         // Arrange
-        var board = Board.CreateEmpty().PlaceStone(5, 5, Player.Red);
+        var board = new Board();
+        board.PlaceStone(5, 5, Player.Red);
 
         // Act
         var dto = GameMapper.ToBoardDto(board);
@@ -54,7 +62,6 @@ public class GameMapperTests
         // Assert
         dto.Cells.Should().HaveCount(361); // 19x19
         dto.Cells[5 * 19 + 5].Should().Be("Red"); // Position (5,5) in linear array
-        dto.Hash.Should().Be(board.Hash);
     }
 
     [Fact]

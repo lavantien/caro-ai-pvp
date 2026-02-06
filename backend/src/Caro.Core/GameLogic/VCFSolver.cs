@@ -60,7 +60,7 @@ public sealed class VCFSolver
             return null;
 
         // Check cache first
-        var boardHash = board.Hash;
+        var boardHash = board.GetHash();
         if (_vcfCache.TryGetValue(boardHash, out var cached) && cached.Age == _currentAge)
         {
             return cached.ResultType == VCFResultType.NoVCF
@@ -154,7 +154,7 @@ public sealed class VCFSolver
         if (forcingMoves.Count == 0)
         {
             // No forcing moves - no VCF possible
-            CacheNoResult(board.Hash);
+            CacheNoResult(board.GetHash());
             return null;
         }
 
@@ -168,7 +168,7 @@ public sealed class VCFSolver
                 break;
 
             // Make move
-            board.PlaceStone(x, y, attacker);
+            board.GetCell(x, y).SetPlayerUnsafe(attacker);
 
             // Check if this leads to win
             var sequence = new List<(int x, int y)> { (x, y) };
@@ -176,7 +176,7 @@ public sealed class VCFSolver
                 board, attacker, depth - 1, 1, sequence, timeLimitMs, stopwatch, ref nodesSearched);
 
             // Undo move
-            board.GetCell(x, y).Player = Player.None;
+            board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
             if (found && seq.Count > bestSequence.Count)
             {
@@ -189,7 +189,7 @@ public sealed class VCFSolver
             return VCFNodeResult.Winning(bestSequence, bestSequence.Count, nodesSearched);
         }
 
-        CacheNoResult(board.Hash);
+        CacheNoResult(board.GetHash());
         return null;
     }
 
@@ -231,14 +231,14 @@ public sealed class VCFSolver
         // Recurse on each forcing move
         foreach (var (x, y) in forcingMoves)
         {
-            board.PlaceStone(x, y, attacker);
+            board.GetCell(x, y).SetPlayerUnsafe(attacker);
             var newSequence = new List<(int x, int y)>(currentSequence) { (x, y) };
 
             var (found, seq, nodes) = SolveVCFRecursive(
                 board, attacker, remainingDepth - 1, currentDepth + 1,
                 newSequence, timeLimitMs, stopwatch, ref totalNodes);
 
-            board.GetCell(x, y).Player = Player.None;
+            board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
             if (found)
             {

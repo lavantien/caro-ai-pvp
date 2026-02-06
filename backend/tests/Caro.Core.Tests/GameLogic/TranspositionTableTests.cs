@@ -26,7 +26,7 @@ public class TranspositionTableTests
         // Arrange
         var table = new TranspositionTable();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act
         var hash1 = table.CalculateHash(board);
@@ -44,8 +44,8 @@ public class TranspositionTableTests
         var board1 = new Board();
         var board2 = new Board();
 
-        board1.PlaceStone(7, 7, Player.Red);
-        board2.PlaceStone(7, 8, Player.Red); // Different position
+        board1 = board1.PlaceStone(7, 7, Player.Red);
+        board2 = board2.PlaceStone(7, 8, Player.Red); // Different position
 
         // Act
         var hash1 = table.CalculateHash(board1);
@@ -62,15 +62,14 @@ public class TranspositionTableTests
         var table = new TranspositionTable();
         var board = new Board();
 
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         var hash1 = table.CalculateHash(board);
 
         // Make move
-        board.PlaceStone(7, 8, Player.Blue);
-        var hash2 = table.CalculateHash(board);
+        var boardAfterMove = board.PlaceStone(7, 8, Player.Blue);
+        var hash2 = table.CalculateHash(boardAfterMove);
 
-        // Undo move
-        board.GetCell(7, 8).Player = Player.None;
+        // Undo move - original board state is still in 'board'
         var hash3 = table.CalculateHash(board);
 
         // Assert
@@ -283,11 +282,11 @@ public class TranspositionTableTests
         var board2 = new Board();
 
         // Place same pieces in different positions
-        board1.PlaceStone(0, 0, Player.Red);
-        board1.PlaceStone(1, 1, Player.Blue);
+        board1 = board1.PlaceStone(0, 0, Player.Red);
+        board1 = board1.PlaceStone(1, 1, Player.Blue);
 
-        board2.PlaceStone(14, 14, Player.Red);
-        board2.PlaceStone(13, 13, Player.Blue);
+        board2 = board2.PlaceStone(14, 14, Player.Red);
+        board2 = board2.PlaceStone(13, 13, Player.Blue);
 
         // Act
         var hash1 = table.CalculateHash(board1);

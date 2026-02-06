@@ -1,5 +1,6 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
+using Caro.Core.Tests.Helpers;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
@@ -23,10 +24,10 @@ public class ThreatDetectorDebugTest
         var detector = new ThreatDetector();
 
         // Blue has four in a row vertically at (3,4), (4,4), (5,4), (6,4)
-        board.PlaceStone(3, 4, Player.Blue);
-        board.PlaceStone(4, 4, Player.Blue);
-        board.PlaceStone(5, 4, Player.Blue);
-        board.PlaceStone(6, 4, Player.Blue);
+        board = board.PlaceStone(3, 4, Player.Blue);
+        board = board.PlaceStone(4, 4, Player.Blue);
+        board = board.PlaceStone(5, 4, Player.Blue);
+        board = board.PlaceStone(6, 4, Player.Blue);
 
         var threats = detector.DetectThreats(board, Player.Blue);
 
@@ -48,13 +49,13 @@ public class ThreatDetectorDebugTest
 
         // Blue has four in a row vertically at (3,4), (4,4), (5,4), (6,4)
         // Red blocked bottom at (7,4)
-        board.PlaceStone(3, 4, Player.Blue);
-        board.PlaceStone(4, 4, Player.Blue);
-        board.PlaceStone(5, 4, Player.Blue);
-        board.PlaceStone(6, 4, Player.Blue);
-        board.PlaceStone(7, 4, Player.Red);
+        board = board.PlaceStone(3, 4, Player.Blue);
+        board = board.PlaceStone(4, 4, Player.Blue);
+        board = board.PlaceStone(5, 4, Player.Blue);
+        board = board.PlaceStone(6, 4, Player.Blue);
+        board = board.PlaceStone(7, 4, Player.Red);
 
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         _output.WriteLine($"Grandmaster chose: ({x}, {y})");

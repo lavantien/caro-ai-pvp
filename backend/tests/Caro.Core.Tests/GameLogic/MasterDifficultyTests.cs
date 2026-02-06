@@ -1,5 +1,6 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
+using Caro.Core.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -19,15 +20,15 @@ public class MasterDifficultyTests
     {
         // Arrange - Tactical position
         var board = new Board();
-        board.PlaceStone(7, 5, Player.Red);
-        board.PlaceStone(7, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
-        board.PlaceStone(8, 5, Player.Blue);
-        board.PlaceStone(8, 6, Player.Blue);
+        board = board.PlaceStone(8, 5, Player.Blue);
+        board = board.PlaceStone(8, 6, Player.Blue);
 
         // Act - Grandmaster should find the best move
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should extend the 3-in-row
@@ -41,13 +42,13 @@ public class MasterDifficultyTests
     {
         // Arrange - Simpler tactical position (to avoid excessive search time)
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Blue);
 
         // Act - Grandmaster should find optimal move
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
         stopwatch.Stop();
@@ -71,13 +72,13 @@ public class MasterDifficultyTests
     {
         // Arrange - Red has 4 in a row
         var board = new Board();
-        board.PlaceStone(7, 5, Player.Red);
-        board.PlaceStone(7, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
 
         // Act - Grandmaster should find winning move immediately
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should complete the winning line
@@ -91,15 +92,15 @@ public class MasterDifficultyTests
     {
         // Arrange - Blue has 4 in a row (almost winning)
         var board = new Board();
-        board.PlaceStone(7, 5, Player.Blue);
-        board.PlaceStone(7, 6, Player.Blue);
-        board.PlaceStone(7, 7, Player.Blue);
-        board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(7, 5, Player.Blue);
+        board = board.PlaceStone(7, 6, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(7, 8, Player.Blue);
 
-        board.PlaceStone(8, 6, Player.Red);
+        board = board.PlaceStone(8, 6, Player.Red);
 
         // Act - Grandmaster must block
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should block the threat
@@ -114,11 +115,11 @@ public class MasterDifficultyTests
         // Verify Grandmaster difficulty uses all advanced optimizations
         // Arrange - Simple position for quick verification
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
 
         // Act - Grandmaster search
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should find valid move
@@ -134,13 +135,13 @@ public class MasterDifficultyTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Blue);
 
         // Act - Multiple Grandmaster searches
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
         var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
@@ -170,14 +171,14 @@ public class MasterDifficultyTests
             for (int y = 5; y <= 9; y++)
             {
                 if ((x + y) % 3 == 0)
-                    board.PlaceStone(x, y, Player.Red);
+                    board = board.PlaceStone(x, y, Player.Red);
                 else if ((x + y) % 3 == 1)
-                    board.PlaceStone(x, y, Player.Blue);
+                    board = board.PlaceStone(x, y, Player.Blue);
             }
         }
 
         // Act - Grandmaster should handle endgame
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should find valid move
@@ -194,11 +195,11 @@ public class MasterDifficultyTests
         // Verify Grandmaster uses deeper search than Hard
         // Arrange - Simple position to test both difficulties
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
 
         // Act - Both should find valid moves
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
 
         var hardMove = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
         ai.ClearHistory();

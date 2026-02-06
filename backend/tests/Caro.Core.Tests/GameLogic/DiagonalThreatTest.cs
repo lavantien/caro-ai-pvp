@@ -1,5 +1,6 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
+using Caro.Core.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -23,23 +24,23 @@ public class DiagonalThreatTest
         var board = new Board();
 
         // Red (Braindead) moves
-        board.PlaceStone(7, 7, Player.Red);   // M1
-        board.PlaceStone(10, 7, Player.Red);  // M3
-        board.PlaceStone(6, 8, Player.Red);   // M5
-        board.PlaceStone(8, 8, Player.Red);   // M7
-        board.PlaceStone(10, 5, Player.Red);  // M9
-        board.PlaceStone(9, 4, Player.Red);   // M11
-        board.PlaceStone(6, 6, Player.Red);   // M13 - now has (6,6)-(7,7)-(8,8) diagonal
-        board.PlaceStone(9, 9, Player.Red);   // M15 - now has (6,6)-(7,7)-(8,8)-(9,9) - 4 in a row!
+        board = board.PlaceStone(7, 7, Player.Red);   // M1
+        board = board.PlaceStone(10, 7, Player.Red);  // M3
+        board = board.PlaceStone(6, 8, Player.Red);   // M5
+        board = board.PlaceStone(8, 8, Player.Red);   // M7
+        board = board.PlaceStone(10, 5, Player.Red);  // M9
+        board = board.PlaceStone(9, 4, Player.Red);   // M11
+        board = board.PlaceStone(6, 6, Player.Red);   // M13 - now has (6,6)-(7,7)-(8,8) diagonal
+        board = board.PlaceStone(9, 9, Player.Red);   // M15 - now has (6,6)-(7,7)-(8,8)-(9,9) - 4 in a row!
 
         // Blue (Grandmaster) moves - these were played before
-        board.PlaceStone(8, 7, Player.Blue);  // M2
-        board.PlaceStone(6, 7, Player.Blue);  // M4
-        board.PlaceStone(8, 6, Player.Blue);  // M6
-        board.PlaceStone(8, 5, Player.Blue);  // M8
-        board.PlaceStone(7, 6, Player.Blue);  // M10
-        board.PlaceStone(7, 8, Player.Blue);  // M12
-        board.PlaceStone(7, 5, Player.Blue);  // M14
+        board = board.PlaceStone(8, 7, Player.Blue);  // M2
+        board = board.PlaceStone(6, 7, Player.Blue);  // M4
+        board = board.PlaceStone(8, 6, Player.Blue);  // M6
+        board = board.PlaceStone(8, 5, Player.Blue);  // M8
+        board = board.PlaceStone(7, 6, Player.Blue);  // M10
+        board = board.PlaceStone(7, 8, Player.Blue);  // M12
+        board = board.PlaceStone(7, 5, Player.Blue);  // M14
 
         // Print board state
         _output.WriteLine("Board state before Grandmaster's move (M16):");
@@ -103,7 +104,7 @@ public class DiagonalThreatTest
         }
 
         // Act - Get Grandmaster's move
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Blue, AIDifficulty.Grandmaster);
 
         var stats = ai.GetSearchStatistics();

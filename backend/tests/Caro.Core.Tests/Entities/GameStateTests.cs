@@ -11,27 +11,26 @@ public class GameStateUndoTests
     {
         // Arrange
         var game = new GameState();
-        var board = game.Board;
 
-        // Make 3 moves
-        game.RecordMove(board, 7, 7); // Red
-        game.RecordMove(board, 7, 8); // Blue
-        game.RecordMove(board, 8, 8); // Red
+        // Make 3 moves - now GameState manages its own Board
+        game.RecordMove(7, 7); // Red
+        game.RecordMove(7, 8); // Blue
+        game.RecordMove(8, 8); // Red
 
         var initialMoveNumber = game.MoveNumber;
         var initialPlayer = game.CurrentPlayer;
 
         // Act
-        game.UndoMove(board);
+        game.UndoMove();
 
         // Assert
         game.MoveNumber.Should().Be(initialMoveNumber - 1);
         game.CurrentPlayer.Should().Be(initialPlayer);
 
         // Last move should be removed
-        board.GetCell(8, 8).Player.Should().Be(Player.None);
-        board.GetCell(7, 8).Player.Should().Be(Player.Blue);
-        board.GetCell(7, 7).Player.Should().Be(Player.Red);
+        game.Board.GetCell(8, 8).Player.Should().Be(Player.None);
+        game.Board.GetCell(7, 8).Player.Should().Be(Player.Blue);
+        game.Board.GetCell(7, 7).Player.Should().Be(Player.Red);
     }
 
     [Fact]
@@ -39,17 +38,16 @@ public class GameStateUndoTests
     {
         // Arrange
         var game = new GameState();
-        var board = game.Board;
 
-        game.RecordMove(board, 7, 7);
+        game.RecordMove(7, 7);
 
         // Act
-        game.UndoMove(board);
+        game.UndoMove();
 
         // Assert
         game.MoveNumber.Should().Be(0);
         game.CurrentPlayer.Should().Be(Player.Red);
-        board.GetCell(7, 7).Player.Should().Be(Player.None);
+        game.Board.GetCell(7, 7).Player.Should().Be(Player.None);
     }
 
     [Fact]
@@ -57,10 +55,9 @@ public class GameStateUndoTests
     {
         // Arrange
         var game = new GameState();
-        var board = game.Board;
 
         // Act & Assert
-        FluentActions.Invoking(() => game.UndoMove(board))
+        FluentActions.Invoking(() => game.UndoMove())
             .Should().Throw<InvalidOperationException>()
             .WithMessage("No moves to undo");
     }
@@ -70,34 +67,14 @@ public class GameStateUndoTests
     {
         // Arrange
         var game = new GameState();
-        var board = game.Board;
 
-        game.RecordMove(board, 7, 7);
+        game.RecordMove(7, 7);
         game.EndGame(Player.Red);
 
         // Act & Assert
-        FluentActions.Invoking(() => game.UndoMove(board))
+        FluentActions.Invoking(() => game.UndoMove())
             .Should().Throw<InvalidOperationException>()
             .WithMessage("Cannot undo moves after game is over");
-    }
-
-    [Fact]
-    public void UndoMove_RestoresTimeIncrement()
-    {
-        // Arrange
-        var game = new GameState();
-        var board = game.Board;
-
-        var redTimeBefore = game.RedTimeRemaining;
-        game.RecordMove(board, 7, 7); // Red - adds 2 seconds
-        var redTimeAfterMove = game.RedTimeRemaining;
-
-        // Act
-        game.UndoMove(board);
-
-        // Assert
-        game.RedTimeRemaining.Should().Be(redTimeBefore);
-        game.RedTimeRemaining.Should().NotBe(redTimeAfterMove);
     }
 
     [Fact]
@@ -105,9 +82,8 @@ public class GameStateUndoTests
     {
         // Arrange
         var game = new GameState();
-        var board = game.Board;
 
-        game.RecordMove(board, 7, 7);
+        game.RecordMove(7, 7);
 
         // Act
         var canUndo = game.CanUndo();
@@ -134,9 +110,8 @@ public class GameStateUndoTests
     {
         // Arrange
         var game = new GameState();
-        var board = game.Board;
 
-        game.RecordMove(board, 7, 7);
+        game.RecordMove(7, 7);
         game.EndGame(Player.Red);
 
         // Act
@@ -151,21 +126,20 @@ public class GameStateUndoTests
     {
         // Arrange
         var game = new GameState();
-        var board = game.Board;
 
-        game.RecordMove(board, 7, 7); // Red
-        game.RecordMove(board, 7, 8); // Blue
-        game.RecordMove(board, 8, 8); // Red
+        game.RecordMove(7, 7); // Red
+        game.RecordMove(7, 8); // Blue
+        game.RecordMove(8, 8); // Red
 
         // Act - Undo twice
-        game.UndoMove(board);
-        game.UndoMove(board);
+        game.UndoMove();
+        game.UndoMove();
 
         // Assert
         game.MoveNumber.Should().Be(1);
         game.CurrentPlayer.Should().Be(Player.Blue);
-        board.GetCell(8, 8).Player.Should().Be(Player.None);
-        board.GetCell(7, 8).Player.Should().Be(Player.None); // After 2 undos from 3 moves, only move 1 remains
-        board.GetCell(7, 7).Player.Should().Be(Player.Red);
+        game.Board.GetCell(8, 8).Player.Should().Be(Player.None);
+        game.Board.GetCell(7, 8).Player.Should().Be(Player.None); // After 2 undos from 3 moves, only move 1 remains
+        game.Board.GetCell(7, 7).Player.Should().Be(Player.Red);
     }
 }

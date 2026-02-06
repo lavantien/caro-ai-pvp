@@ -6,6 +6,7 @@ using Xunit.Abstractions;
 using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.Pondering;
 using Caro.Core.Domain.Entities;
+using Caro.Core.Tests.Helpers;
 
 namespace Caro.Core.Tests.Concurrency;
 
@@ -166,7 +167,7 @@ public class AdversarialConcurrencyTests
         // This exposes issues with volatile/lock mixing
         var ponderer = new Ponderer();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         // Don't pre-place (7, 8) - Ponderer will place the predicted move internally
 
         var iterations = 1000;
@@ -256,7 +257,7 @@ public class AdversarialConcurrencyTests
                 int y = random.Next(19);
                 try
                 {
-                    b.PlaceStone(x, y, i % 2 == 0 ? Player.Red : Player.Blue);
+                    b = b.PlaceStone(x, y, i % 2 == 0 ? Player.Red : Player.Blue);
                 }
                 catch { /* Cell occupied - skip */ }
             }
@@ -271,7 +272,7 @@ public class AdversarialConcurrencyTests
             {
                 try
                 {
-                    var ai = new MinimaxAI();
+                    var ai = AITestHelper.CreateAI();
                     var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Easy);
                     var (depth, _, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
                     results.Add((x, y, depth));

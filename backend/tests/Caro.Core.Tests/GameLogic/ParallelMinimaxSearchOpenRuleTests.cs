@@ -12,8 +12,8 @@ public class ParallelMinimaxSearchOpenRuleTests
         // Arrange: First red move at (7,6), Blue responds at (7,7)
         // The Open Rule exclusion zone centered on (7,6) is: x in [5,9], y in [4,8]
         var board = new Board();
-        board.PlaceStone(7, 6, Player.Red);   // Move #1: Red at (7,6)
-        board.PlaceStone(7, 7, Player.Blue);  // Move #2: Blue at (7,7)
+        board = board.PlaceStone(7, 6, Player.Red);   // Move #1: Red at (7,6)
+        board = board.PlaceStone(7, 7, Player.Blue);  // Move #2: Blue at (7,7)
 
         var search = new ParallelMinimaxSearch();
 
@@ -36,8 +36,8 @@ public class ParallelMinimaxSearchOpenRuleTests
         // Arrange: First red move near edge (3,3)
         // Exclusion zone: x in [1,5], y in [1,5]
         var board = new Board();
-        board.PlaceStone(3, 3, Player.Red);   // Move #1: Red at (3,3)
-        board.PlaceStone(7, 7, Player.Blue);  // Move #2: Blue at (7,7)
+        board = board.PlaceStone(3, 3, Player.Red);   // Move #1: Red at (3,3)
+        board = board.PlaceStone(7, 7, Player.Blue);  // Move #2: Blue at (7,7)
 
         var search = new ParallelMinimaxSearch();
 
@@ -59,8 +59,8 @@ public class ParallelMinimaxSearchOpenRuleTests
         // Exclusion zone: x in [-1,3], y in [-1,3] (clipped to board)
         // Valid positions on board must have x >= 4 or y >= 4
         var board = new Board();
-        board.PlaceStone(1, 1, Player.Red);   // Move #1: Red at (1,1)
-        board.PlaceStone(7, 7, Player.Blue);  // Move #2: Blue at (7,7)
+        board = board.PlaceStone(1, 1, Player.Red);   // Move #1: Red at (1,1)
+        board = board.PlaceStone(7, 7, Player.Blue);  // Move #2: Blue at (7,7)
 
         var search = new ParallelMinimaxSearch();
 
@@ -80,9 +80,9 @@ public class ParallelMinimaxSearchOpenRuleTests
     {
         // Arrange: Three stones already on board (Open Rule only applies to move #3)
         var board = new Board();
-        board.PlaceStone(7, 6, Player.Red);   // Move #1
-        board.PlaceStone(7, 7, Player.Blue);  // Move #2
-        board.PlaceStone(10, 6, Player.Red);  // Move #3 (valid, 3 intersections from (7,6))
+        board = board.PlaceStone(7, 6, Player.Red);   // Move #1
+        board = board.PlaceStone(7, 7, Player.Blue);  // Move #2
+        board = board.PlaceStone(10, 6, Player.Red);  // Move #3 (valid, 3 intersections from (7,6))
 
         var search = new ParallelMinimaxSearch();
 

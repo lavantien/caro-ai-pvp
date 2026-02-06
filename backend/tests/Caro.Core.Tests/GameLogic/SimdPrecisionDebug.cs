@@ -36,7 +36,7 @@ public class SimdPrecisionDebug
 
                 if (testBoard.GetCell(x, y).IsEmpty)
                 {
-                    testBoard.PlaceStone(x, y, player);
+                    testBoard = testBoard.PlaceStone(x, y, player);
                 }
             }
 

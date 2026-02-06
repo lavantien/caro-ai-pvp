@@ -14,10 +14,10 @@ public class ThreatDetectorTests
     {
         // Arrange - XXXX_ pattern (both ends open)
         var board = new Board();
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
         // Positions 4,7 and 9,7 are empty
 
         // Act
@@ -36,10 +36,10 @@ public class ThreatDetectorTests
     {
         // Arrange - XXXX_ pattern vertical
         var board = new Board();
-        board.PlaceStone(7, 5, Player.Red);
-        board.PlaceStone(7, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
 
         // Act
         var threats = _detector.DetectThreats(board, Player.Red);
@@ -53,10 +53,10 @@ public class ThreatDetectorTests
     {
         // Arrange - XXXX_ pattern diagonal
         var board = new Board();
-        board.PlaceStone(5, 5, Player.Red);
-        board.PlaceStone(6, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 8, Player.Red);
+        board = board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(6, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Red);
 
         // Act
         var threats = _detector.DetectThreats(board, Player.Red);
@@ -70,10 +70,10 @@ public class ThreatDetectorTests
     {
         // Arrange - XXX_X pattern
         var board = new Board();
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
         // Position 8,7 is empty (gap)
 
         // Act
@@ -90,9 +90,9 @@ public class ThreatDetectorTests
     {
         // Arrange - XXX__ pattern (both ends open)
         var board = new Board();
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
         // Positions 5,7 and 9,7 are empty
 
         // Act
@@ -109,9 +109,9 @@ public class ThreatDetectorTests
     {
         // Arrange - XX_X_ pattern
         var board = new Board();
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
         // Positions 7,7 and 9,7 are empty
 
         // Act
@@ -126,11 +126,11 @@ public class ThreatDetectorTests
     {
         // Arrange - OXXXX_ pattern (one end blocked, still a threat)
         var board = new Board();
-        board.PlaceStone(4, 7, Player.Blue);  // Blocked on left
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(4, 7, Player.Blue);  // Blocked on left
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
         // Position 9,7 is empty
 
         // Act
@@ -145,12 +145,12 @@ public class ThreatDetectorTests
     {
         // Arrange - OXXXXO pattern (both ends blocked, can't complete to 5)
         var board = new Board();
-        board.PlaceStone(4, 7, Player.Blue);  // Blocked on left
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Blue);  // Blocked on right
+        board = board.PlaceStone(4, 7, Player.Blue);  // Blocked on left
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Blue);  // Blocked on right
 
         // Act
         var threats = _detector.DetectThreats(board, Player.Red);
@@ -165,7 +165,7 @@ public class ThreatDetectorTests
         // Arrange - XXXXXX (6 in a row, overline rule - not a threat)
         var board = new Board();
         for (int i = 0; i < 6; i++)
-            board.PlaceStone(5 + i, 7, Player.Red);
+            board = board.PlaceStone(5 + i, 7, Player.Red);
 
         // Act
         var threats = _detector.DetectThreats(board, Player.Red);
@@ -180,11 +180,11 @@ public class ThreatDetectorTests
     {
         // Arrange - _XXXXX_ (5 with open ends, playing anywhere makes 6)
         var board = new Board();
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         // Act
         var threats = _detector.DetectThreats(board, Player.Red);
@@ -212,10 +212,10 @@ public class ThreatDetectorTests
     {
         // Arrange - XXXX_ pattern (both ends open), defender must block at gain squares
         var board = new Board();
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
 
         // Act
         var threats = _detector.DetectThreats(board, Player.Red);
@@ -232,10 +232,10 @@ public class ThreatDetectorTests
     {
         // Arrange - XXX_X pattern, defender can block at gap or end
         var board = new Board();
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         // Act
         var threats = _detector.DetectThreats(board, Player.Red);
@@ -252,10 +252,10 @@ public class ThreatDetectorTests
     {
         // Arrange - S4 requires immediate response
         var board = new Board();
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
 
         // Act
         var threats = _detector.DetectThreats(board, Player.Red);
@@ -271,9 +271,9 @@ public class ThreatDetectorTests
     {
         // Arrange - S3 is forcing if unblocked
         var board = new Board();
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
 
         // Act
         var threats = _detector.DetectThreats(board, Player.Red);
@@ -289,10 +289,10 @@ public class ThreatDetectorTests
     {
         // Arrange - Threat near edge with only one gain square
         var board = new Board();
-        board.PlaceStone(0, 7, Player.Red);
-        board.PlaceStone(1, 7, Player.Red);
-        board.PlaceStone(2, 7, Player.Red);
-        board.PlaceStone(3, 7, Player.Red);
+        board = board.PlaceStone(0, 7, Player.Red);
+        board = board.PlaceStone(1, 7, Player.Red);
+        board = board.PlaceStone(2, 7, Player.Red);
+        board = board.PlaceStone(3, 7, Player.Red);
 
         // Act
         var threats = _detector.DetectThreats(board, Player.Red);
@@ -308,9 +308,9 @@ public class ThreatDetectorTests
     {
         // Arrange - Board with some threats and non-threat moves
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         // Act
         var threatMoves = _detector.FindThreatMoves(board, Player.Red);
@@ -320,10 +320,9 @@ public class ThreatDetectorTests
         foreach (var move in threatMoves)
         {
             // Verify each move creates at least one threat
-            board.PlaceStone(move.x, move.y, Player.Red);
-            var threats = _detector.DetectThreats(board, Player.Red);
+            var testBoard = board.PlaceStone(move.x, move.y, Player.Red);
+            var threats = _detector.DetectThreats(testBoard, Player.Red);
             threats.Should().NotBeEmpty($"Move ({move.x}, {move.y}) should create threats");
-            board.GetCell(move.x, move.y).Player = Player.None;  // Undo
         }
     }
 
@@ -332,10 +331,10 @@ public class ThreatDetectorTests
     {
         // Arrange - XXXX_ pattern for Blue
         var board = new Board();
-        board.PlaceStone(5, 7, Player.Blue);
-        board.PlaceStone(6, 7, Player.Blue);
-        board.PlaceStone(7, 7, Player.Blue);
-        board.PlaceStone(8, 7, Player.Blue);
+        board = board.PlaceStone(5, 7, Player.Blue);
+        board = board.PlaceStone(6, 7, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Blue);
 
         // Act
         var threats = _detector.DetectThreats(board, Player.Blue);
@@ -350,15 +349,15 @@ public class ThreatDetectorTests
         // Arrange - Position with two separate S4 threats
         var board = new Board();
         // First S4 horizontal
-        board.PlaceStone(5, 5, Player.Red);
-        board.PlaceStone(6, 5, Player.Red);
-        board.PlaceStone(7, 5, Player.Red);
-        board.PlaceStone(8, 5, Player.Red);
+        board = board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(6, 5, Player.Red);
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(8, 5, Player.Red);
         // Second S4 vertical
-        board.PlaceStone(3, 7, Player.Red);
-        board.PlaceStone(3, 8, Player.Red);
-        board.PlaceStone(3, 9, Player.Red);
-        board.PlaceStone(3, 10, Player.Red);
+        board = board.PlaceStone(3, 7, Player.Red);
+        board = board.PlaceStone(3, 8, Player.Red);
+        board = board.PlaceStone(3, 9, Player.Red);
+        board = board.PlaceStone(3, 10, Player.Red);
 
         // Act
         var threats = _detector.DetectThreats(board, Player.Red);

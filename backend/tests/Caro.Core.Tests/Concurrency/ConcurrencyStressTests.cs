@@ -6,6 +6,7 @@ using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.Pondering;
 using Caro.Core.Domain.Entities;
 using Caro.Core.Tournament;
+using Caro.Core.Tests.Helpers;
 
 #pragma warning disable xUnit1031 // Stress tests intentionally use blocking operations
 
@@ -92,10 +93,10 @@ public class ConcurrencyStressTests
                     var offsetY = (i / 3) * 4;
 
                     // Place stones in non-overlapping regions
-                    board.PlaceStone(offsetX, offsetY, Player.Red);
-                    board.PlaceStone(offsetX, offsetY + 1, Player.Blue);
-                    board.PlaceStone(offsetX + 1, offsetY, Player.Red);
-                    board.PlaceStone(offsetX + 1, offsetY + 1, Player.Blue);
+                    board = board.PlaceStone(offsetX, offsetY, Player.Red);
+                    board = board.PlaceStone(offsetX, offsetY + 1, Player.Blue);
+                    board = board.PlaceStone(offsetX + 1, offsetY, Player.Red);
+                    board = board.PlaceStone(offsetX + 1, offsetY + 1, Player.Blue);
 
                     var result = search.GetBestMoveWithStats(
                         board, Player.Red, AIDifficulty.Hard,
@@ -143,7 +144,7 @@ public class ConcurrencyStressTests
             var ponderer = ponderers[i % ponderers.Length];
             // Create a unique board for each task with base position only
             var board = new Board();
-            board.PlaceStone(7, 7, Player.Red);
+            board = board.PlaceStone(7, 7, Player.Red);
             // Don't place the predicted move here - Ponderer will place it on its cloned board
 
             return Task.Run(() =>
@@ -195,8 +196,8 @@ public class ConcurrencyStressTests
         var boards = Enumerable.Range(0, 20).Select(i =>
         {
             var b = new Board();
-            b.PlaceStone(7, 7, Player.Red);
-            b.PlaceStone(7 + (i % 3), 8 + (i / 3), Player.Blue);
+            b = b.PlaceStone(7, 7, Player.Red);
+            b = b.PlaceStone(7 + (i % 3), 8 + (i / 3), Player.Blue);
             return b;
         }).ToArray();
 
@@ -209,7 +210,7 @@ public class ConcurrencyStressTests
                 try
                 {
                     // Each AI gets its own instance
-                    var ai = new MinimaxAI();
+                    var ai = AITestHelper.CreateAI();
                     var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Easy);
                     results.Add((x, y));
                 }

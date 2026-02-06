@@ -1,4 +1,5 @@
 using Caro.Core.Application.DTOs;
+using Caro.Core.Application.Extensions;
 using Caro.Core.Domain.Entities;
 using Caro.Core.Domain.Interfaces;
 using Caro.Core.Domain.ValueObjects;
@@ -26,7 +27,7 @@ public sealed class StatelessSearchEngineTests
     public void FindBestMove_EmptyBoard_ReturnsValidMove()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
         var aiState = new AIGameState(maxDepth: 5, tableSizeMB: 16);
         var options = new SearchOptions { MaxDepth = 3, TimeLimitMs = 5000 };
 
@@ -51,7 +52,7 @@ public sealed class StatelessSearchEngineTests
         // Arrange - Create a position with both players having stones
         // Red has stones at (9,5), (9,6), (9,7), (9,8)
         // Blue has stones at (0,0), (0,1), (0,2), (1,1)
-        var state = GameState.CreateInitial()
+        var state = GameStateFactory.CreateInitial()
             .MakeMove(9, 5).MakeMove(0, 0)  // Red at (9,5), Blue at (0,0)
             .MakeMove(9, 6).MakeMove(0, 1)  // Red at (9,6), Blue at (0,1)
             .MakeMove(9, 7).MakeMove(0, 2)  // Red at (9,7), Blue at (0,2)
@@ -72,7 +73,7 @@ public sealed class StatelessSearchEngineTests
     public void FindBestMove_RespectsMaxDepth()
     {
         // Arrange - Each test should use a fresh AIGameState
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
         var aiState = new AIGameState(maxDepth: 5, tableSizeMB: 16);
         var options = new SearchOptions { MaxDepth = 1, TimeLimitMs = 5000 };
 
@@ -87,7 +88,7 @@ public sealed class StatelessSearchEngineTests
     public void FindBestMove_PopulatesStatistics()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
         var aiState = new AIGameState(maxDepth: 5, tableSizeMB: 16);
         var options = new SearchOptions { MaxDepth = 2, TimeLimitMs = 5000 };
 
@@ -109,7 +110,7 @@ public sealed class StatelessSearchEngineTests
     public void FindBestMove_UsesTranspositionTable()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
         var aiState = new AIGameState(maxDepth: 5, tableSizeMB: 16);
         var options = new SearchOptions { MaxDepth = 2, TimeLimitMs = 5000 };
 
@@ -130,7 +131,7 @@ public sealed class StatelessSearchEngineTests
     public void FindBestMove_UpdatesHistoryHeuristic()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
         var aiState = new AIGameState(maxDepth: 5, tableSizeMB: 16);
         var options = new SearchOptions { MaxDepth = 2, TimeLimitMs = 5000 };
 
@@ -146,7 +147,7 @@ public sealed class StatelessSearchEngineTests
     public void FindBestMove_Cancelled_ThrowsOperationCanceledException()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
         var aiState = new AIGameState(maxDepth: 5, tableSizeMB: 16);
         var options = new SearchOptions { MaxDepth = 10, TimeLimitMs = 5000 };
         var cts = new CancellationTokenSource();
@@ -163,7 +164,7 @@ public sealed class StatelessSearchEngineTests
     public async Task FindBestMove_Cancelled_ReturnsBestMoveFound()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
         var aiState = new AIGameState(maxDepth: 5, tableSizeMB: 16);
         var options = new SearchOptions { MaxDepth = 10, TimeLimitMs = 5000 };
         var cts = new CancellationTokenSource();

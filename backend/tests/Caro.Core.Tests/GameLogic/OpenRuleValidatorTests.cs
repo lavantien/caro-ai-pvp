@@ -43,8 +43,8 @@ public class OpenRuleValidatorTests
         // Arrange
         var validator = new OpenRuleValidator();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);   // Move #1 (Red at center)
-        board.PlaceStone(4, 7, Player.Blue);  // Move #2 (Blue somewhere else)
+        board = board.PlaceStone(7, 7, Player.Red);   // Move #1 (Red at center)
+        board = board.PlaceStone(4, 7, Player.Blue);  // Move #2 (Blue somewhere else)
 
         // Act - Move #3: Red's second move, Open Rule applies
         var isValid = validator.IsValidSecondMove(board, x, y);
@@ -59,9 +59,9 @@ public class OpenRuleValidatorTests
         // Arrange
         var validator = new OpenRuleValidator();
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);   // Move #1
-        board.PlaceStone(4, 7, Player.Blue);  // Move #2 (Blue can place anywhere)
-        board.PlaceStone(10, 7, Player.Red);  // Move #3 (Open Rule applied)
+        board = board.PlaceStone(7, 7, Player.Red);   // Move #1
+        board = board.PlaceStone(4, 7, Player.Blue);  // Move #2 (Blue can place anywhere)
+        board = board.PlaceStone(10, 7, Player.Red);  // Move #3 (Open Rule applied)
 
         // Act - Move #4 onwards, no restriction
         var isValid = validator.IsValidSecondMove(board, 7, 8);

@@ -154,7 +154,7 @@ public class DFPNSearch
             }
 
             // Check for transposition
-            ulong hash = board.Hash;
+            ulong hash = board.GetHash();
             if (transpositionTable.TryGetValue(hash, out var cached))
             {
                 if (cached.IsSolved)
@@ -195,13 +195,13 @@ public class DFPNSearch
             var nextIsAttacker = !isAttacker;
 
             var move = mostProving.Move ?? throw new InvalidOperationException("Most proving move is null");
-            board.PlaceStone(move.x, move.y, nextPlayer);
+            board.GetCell(move.x, move.y).SetPlayerUnsafe(nextPlayer);
 
             // Check if move creates win
             var winResult = _winDetector.CheckWin(board);
             if (winResult.HasWinner && winResult.Winner == attacker)
             {
-                board.GetCell(move.x, move.y).Player = Player.None;
+                board.GetCell(move.x, move.y).SetPlayerUnsafe(Player.None);
                 MarkProven(node);
                 transpositionTable[hash] = node;
                 return SearchResult.Win;
@@ -218,7 +218,7 @@ public class DFPNSearch
                 transpositionTable);
 
             // Undo move
-            board.GetCell(move.x, move.y).Player = Player.None;
+            board.GetCell(move.x, move.y).SetPlayerUnsafe(Player.None);
 
             // Update proof numbers based on child result
             UpdateNodeProofNumbers(node, depth % 2 == 0);

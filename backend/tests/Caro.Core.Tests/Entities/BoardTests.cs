@@ -1,6 +1,7 @@
 using Xunit;
 using FluentAssertions;
 using Caro.Core.Domain.Entities;
+using Caro.Core.GameLogic;
 
 namespace Caro.Core.Tests.Entities;
 
@@ -24,7 +25,7 @@ public class BoardTests
         var board = new Board();
 
         // Act
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Assert
         board.GetCell(7, 7).Player.Should().Be(Player.Red);
@@ -42,7 +43,7 @@ public class BoardTests
         var board = new Board();
 
         // Act
-        Action act = () => board.PlaceStone(x, y, Player.Red);
+        Action act = () => board = board.PlaceStone(x, y, Player.Red);
 
         // Assert
         act.Should().Throw<ArgumentOutOfRangeException>();
@@ -53,10 +54,10 @@ public class BoardTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act
-        Action act = () => board.PlaceStone(7, 7, Player.Blue);
+        Action act = () => board = board.PlaceStone(7, 7, Player.Blue);
 
         // Assert
         act.Should().Throw<InvalidOperationException>();
@@ -67,9 +68,9 @@ public class BoardTests
     {
         // Arrange
         var original = new Board();
-        original.PlaceStone(5, 5, Player.Red);
-        original.PlaceStone(6, 6, Player.Blue);
-        original.PlaceStone(7, 7, Player.Red);
+        original = original.PlaceStone(5, 5, Player.Red);
+        original = original.PlaceStone(6, 6, Player.Blue);
+        original = original.PlaceStone(7, 7, Player.Red);
 
         // Act
         var clone = original.Clone();
@@ -86,11 +87,11 @@ public class BoardTests
     {
         // Arrange
         var original = new Board();
-        original.PlaceStone(5, 5, Player.Red);
+        original = original.PlaceStone(5, 5, Player.Red);
 
         // Act
         var clone = original.Clone();
-        clone.PlaceStone(6, 6, Player.Blue);
+        clone = clone.PlaceStone(6, 6, Player.Blue);
 
         // Assert - clone modification doesn't affect original
         original.GetCell(6, 6).Player.Should().Be(Player.None);
@@ -102,8 +103,8 @@ public class BoardTests
     {
         // Arrange
         var original = new Board();
-        original.PlaceStone(9, 9, Player.Red);
-        original.PlaceStone(10, 10, Player.Blue);
+        original = original.PlaceStone(9, 9, Player.Red);
+        original = original.PlaceStone(10, 10, Player.Blue);
 
         // Act
         var clone = original.Clone();
@@ -125,9 +126,9 @@ public class BoardTests
     {
         // Arrange
         var original = new Board();
-        original.PlaceStone(5, 5, Player.Red);
-        original.PlaceStone(6, 6, Player.Blue);
-        original.PlaceStone(7, 7, Player.Red);
+        original = original.PlaceStone(5, 5, Player.Red);
+        original = original.PlaceStone(6, 6, Player.Blue);
+        original = original.PlaceStone(7, 7, Player.Red);
 
         // Act
         var clone = original.Clone();
@@ -169,16 +170,16 @@ public class BoardTests
     {
         // Arrange
         var original = new Board();
-        original.PlaceStone(5, 5, Player.Red);
-        original.PlaceStone(6, 6, Player.Blue);
+        original = original.PlaceStone(5, 5, Player.Red);
+        original = original.PlaceStone(6, 6, Player.Blue);
 
         // Act
         var clone = original.Clone();
 
         // Assert - can place stones on any empty cell without "already occupied" error
         // This was the bug: CloneBoard didn't properly copy state
-        clone.PlaceStone(7, 7, Player.Red);
-        clone.PlaceStone(8, 8, Player.Blue);
+        clone = clone.PlaceStone(7, 7, Player.Red);
+        clone = clone.PlaceStone(8, 8, Player.Blue);
 
         clone.GetCell(7, 7).Player.Should().Be(Player.Red);
         clone.GetCell(8, 8).Player.Should().Be(Player.Blue);
@@ -189,7 +190,7 @@ public class BoardTests
     {
         // Arrange
         var original = new Board();
-        original.PlaceStone(5, 5, Player.Red);
+        original = original.PlaceStone(5, 5, Player.Red);
 
         // Act
         var clone1 = original.Clone();
@@ -197,9 +198,9 @@ public class BoardTests
         var clone3 = clone1.Clone();
 
         // Modify each clone differently
-        clone1.PlaceStone(6, 6, Player.Blue);
-        clone2.PlaceStone(7, 7, Player.Blue);
-        clone3.PlaceStone(8, 8, Player.Blue);
+        clone1 = clone1.PlaceStone(6, 6, Player.Blue);
+        clone2 = clone2.PlaceStone(7, 7, Player.Blue);
+        clone3 = clone3.PlaceStone(8, 8, Player.Blue);
 
         // Assert - all copies are independent
         original.GetCell(6, 6).Player.Should().Be(Player.None);

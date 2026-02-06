@@ -24,37 +24,37 @@ public class ExactFailingBoardTest
 
         // Recreate the exact board from iteration 1522
         // Row 0: ..........B....  (col 10)
-        board.PlaceStone(10, 0, Player.Blue);
+        board = board.PlaceStone(10, 0, Player.Blue);
         // Row 1: .......B.......  (col 7)
-        board.PlaceStone(7, 1, Player.Blue);
+        board = board.PlaceStone(7, 1, Player.Blue);
         // Row 2: ............B..  (col 12)
-        board.PlaceStone(12, 2, Player.Blue);
+        board = board.PlaceStone(12, 2, Player.Blue);
         // Row 3: .......B...R...  (col 7 Blue, col 11 Red)
-        board.PlaceStone(7, 3, Player.Blue);
-        board.PlaceStone(11, 3, Player.Red);
+        board = board.PlaceStone(7, 3, Player.Blue);
+        board = board.PlaceStone(11, 3, Player.Red);
         // Row 4: ..R............  (col 2 Red)
-        board.PlaceStone(2, 4, Player.Red);
+        board = board.PlaceStone(2, 4, Player.Red);
         // Row 5: .BR............  (col 1 Blue, col 2 Red)
-        board.PlaceStone(1, 5, Player.Blue);
-        board.PlaceStone(2, 5, Player.Red);
+        board = board.PlaceStone(1, 5, Player.Blue);
+        board = board.PlaceStone(2, 5, Player.Red);
         // Row 6: .......R..BB...  (col 7 Red, col 10 Blue, col 11 Blue)
-        board.PlaceStone(7, 6, Player.Red);
-        board.PlaceStone(10, 6, Player.Blue);
-        board.PlaceStone(11, 6, Player.Blue);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(10, 6, Player.Blue);
+        board = board.PlaceStone(11, 6, Player.Blue);
         // Row 7: .B.............  (col 1 Blue)
-        board.PlaceStone(1, 7, Player.Blue);
+        board = board.PlaceStone(1, 7, Player.Blue);
         // Row 8: ..............R  (col 14 Red)
-        board.PlaceStone(14, 8, Player.Red);
+        board = board.PlaceStone(14, 8, Player.Red);
         // Row 9: ...R..B.R......  (col 3 Red, col 6 Blue, col 8 Red)
-        board.PlaceStone(3, 9, Player.Red);
-        board.PlaceStone(6, 9, Player.Blue);
-        board.PlaceStone(8, 9, Player.Red);
+        board = board.PlaceStone(3, 9, Player.Red);
+        board = board.PlaceStone(6, 9, Player.Blue);
+        board = board.PlaceStone(8, 9, Player.Red);
         // Row 10: ..............B  (col 14 Blue)
-        board.PlaceStone(14, 10, Player.Blue);
+        board = board.PlaceStone(14, 10, Player.Blue);
         // Row 11: ..............B  (col 14 Blue)
-        board.PlaceStone(14, 11, Player.Blue);
+        board = board.PlaceStone(14, 11, Player.Blue);
         // Row 12: ..............B  (col 14 Blue)
-        board.PlaceStone(14, 12, Player.Blue);
+        board = board.PlaceStone(14, 12, Player.Blue);
 
         _output.WriteLine(board.ToString());
 

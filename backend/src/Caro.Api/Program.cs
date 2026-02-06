@@ -110,11 +110,10 @@ app.MapPost("/api/game/{id}/move", (string id, MoveRequest request) =>
 
         try
         {
-            game.RecordMove(board, request.X, request.Y);
-            game.ApplyTimeIncrement();
+            game.RecordMove(request.X, request.Y);
 
             var detector = new WinDetector();
-            var result = detector.CheckWin(board);
+            var result = detector.CheckWin(game.Board);
 
             if (result.HasWinner)
             {
@@ -144,8 +143,7 @@ app.MapPost("/api/game/{id}/undo", (string id) =>
     {
         try
         {
-            var board = game.Board;
-            game.UndoMove(board);
+            game.UndoMove();
 
             return Results.Ok(new { state = session.GetResponse() });
         }
@@ -196,8 +194,7 @@ app.MapPost("/api/game/{id}/ai-move", (
 
         try
         {
-            game.RecordMove(game.Board, x, y);
-            game.ApplyTimeIncrement();
+            game.RecordMove(x, y);
 
             var detector = new WinDetector();
             var result = detector.CheckWin(game.Board);
@@ -336,8 +333,8 @@ public sealed class GameSession
                 isGameOver = game.IsGameOver,
                 winner = game.Winner.ToString().ToLower(),
                 winningLine = game.WinningLine.Select(p => new { x = p.X, y = p.Y }),
-                redTimeRemaining = game.RedTimeRemaining.TotalSeconds,
-                blueTimeRemaining = game.BlueTimeRemaining.TotalSeconds
+                redTimeRemaining = 0.0,  // Time tracking moved to application layer
+                blueTimeRemaining = 0.0
             };
         }
     }

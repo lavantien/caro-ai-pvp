@@ -2,13 +2,6 @@ namespace Caro.Core.GameLogic;
 
 using Caro.Core.Domain.Entities;
 
-public struct Position(int x, int y)
-{
-    public static readonly int BoardSize = 19;
-    public int X { get; set; } = x;
-    public int Y { get; set; } = y;
-}
-
 /// <summary>
 /// Extension methods for Position
 /// </summary>
@@ -19,7 +12,7 @@ public static class PositionExtensions
     /// <summary>
     /// Check if position is within board bounds
     /// </summary>
-    public static bool IsValid(this Position position) =>
+    public static bool IsValid(this Domain.Entities.Position position) =>
         position.X >= 0 && position.X < BoardSize &&
         position.Y >= 0 && position.Y < BoardSize;
 
@@ -76,10 +69,10 @@ public class WinDetector
                         if (count == 5 && !hasExtension && !(leftBlocked && rightBlocked))
                         {
                             // Build winning line
-                            var winningLine = new List<Position>();
+                            var winningLine = new List<Domain.Entities.Position>();
                             for (int i = 0; i < 5; i++)
                             {
-                                winningLine.Add(new Position(x + i * dx, y + i * dy));
+                                winningLine.Add(new Domain.Entities.Position(x + i * dx, y + i * dy));
                             }
 
                             return new WinResult
@@ -137,5 +130,5 @@ public class WinResult
 {
     public bool HasWinner { get; set; }
     public Player Winner { get; set; } = Player.None;
-    public List<Position> WinningLine { get; set; } = new();
+    public List<Domain.Entities.Position> WinningLine { get; set; } = new();
 }

@@ -34,7 +34,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act
         _ponderer.StartPondering(
@@ -56,7 +56,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act - Try to start pondering again
@@ -71,7 +71,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act
         _ponderer.StartPondering(
@@ -95,7 +95,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act
@@ -123,7 +123,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act - Opponent plays predicted move
@@ -140,7 +140,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act - Opponent plays different move
@@ -171,7 +171,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act
@@ -187,7 +187,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act
@@ -203,7 +203,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act
@@ -243,7 +243,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act
@@ -258,7 +258,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act & Assert
@@ -277,7 +277,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act & Assert
@@ -289,7 +289,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act
@@ -307,7 +307,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act
@@ -324,7 +324,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act - 2 hits, 1 miss
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
@@ -357,7 +357,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act - Multiple pondering sessions
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
@@ -381,7 +381,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
         _ponderer.HandleOpponentMove(8, 8);
 
@@ -399,7 +399,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act - No predicted move
         _ponderer.StartPondering(
@@ -425,7 +425,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, null, Player.Red, AIDifficulty.Medium, 5000);
 
         // Act
@@ -442,7 +442,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act - 3 pondering sessions
         for (int i = 0; i < 3; i++)
@@ -464,7 +464,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act
@@ -479,7 +479,7 @@ public class PondererTests : IDisposable
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
         _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, AIDifficulty.Medium, 5000);
 
         // Act - Should not throw

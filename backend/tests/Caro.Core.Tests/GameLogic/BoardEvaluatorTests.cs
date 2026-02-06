@@ -29,10 +29,10 @@ public class BoardEvaluatorTests
         var board = new Board();
 
         // Place 4 red stones in a row (not blocked)
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
         var score = evaluator.Evaluate(board, Player.Red);
@@ -49,10 +49,10 @@ public class BoardEvaluatorTests
         var board = new Board();
 
         // Place 4 blue stones in a row
-        board.PlaceStone(7, 7, Player.Blue);
-        board.PlaceStone(8, 7, Player.Blue);
-        board.PlaceStone(9, 7, Player.Blue);
-        board.PlaceStone(10, 7, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Blue);
+        board = board.PlaceStone(9, 7, Player.Blue);
+        board = board.PlaceStone(10, 7, Player.Blue);
 
         // Act
         var score = evaluator.Evaluate(board, Player.Red);
@@ -69,9 +69,9 @@ public class BoardEvaluatorTests
         var board = new Board();
 
         // Place 3 red stones in a row, ends open
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         // Act
         var score = evaluator.Evaluate(board, Player.Red);
@@ -90,10 +90,10 @@ public class BoardEvaluatorTests
         var board2 = new Board();
 
         // Place red at center (7,7)
-        board1.PlaceStone(7, 7, Player.Red);
+        board1 = board1.PlaceStone(7, 7, Player.Red);
 
         // Place red at corner
-        board2.PlaceStone(0, 7, Player.Red);
+        board2 = board2.PlaceStone(0, 7, Player.Red);
 
         // Act
         var centerScore = evaluator.Evaluate(board1, Player.Red);
@@ -111,11 +111,11 @@ public class BoardEvaluatorTests
         var board = new Board();
 
         // 3 in a row with both ends blocked
-        board.PlaceStone(6, 7, Player.Blue);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Blue);
+        board = board.PlaceStone(6, 7, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Blue);
 
         // Act
         var score = evaluator.Evaluate(board, Player.Red);
@@ -132,14 +132,14 @@ public class BoardEvaluatorTests
         var board = new Board();
 
         // Open-ended 3 in a row
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         var openScore = evaluator.Evaluate(board, Player.Red);
 
         // Block one end
-        board.PlaceStone(6, 7, Player.Blue);
+        board = board.PlaceStone(6, 7, Player.Blue);
 
         var blockedScore = evaluator.Evaluate(board, Player.Red);
 

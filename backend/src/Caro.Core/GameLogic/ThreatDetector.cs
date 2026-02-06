@@ -102,9 +102,9 @@ public class ThreatDetector
                 if (!board.GetCell(x, y).IsEmpty || !IsAdjacentToPlayer(board, x, y, player))
                     continue;
 
-                board.PlaceStone(x, y, player);
+                board.GetCell(x, y).SetPlayerUnsafe(player);
                 var newThreats = DetectThreats(board, player);
-                board.GetCell(x, y).Player = Player.None;
+                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                 if (newThreats.Count > 0 && !threatMoves.Contains((x, y)))
                 {
@@ -121,9 +121,9 @@ public class ThreatDetector
     /// </summary>
     public bool IsWinningMove(Board board, int x, int y, Player player)
     {
-        board.PlaceStone(x, y, player);
+        board.GetCell(x, y).SetPlayerUnsafe(player);
         var winResult = _winDetector.CheckWin(board);
-        board.GetCell(x, y).Player = Player.None;
+        board.GetCell(x, y).SetPlayerUnsafe(Player.None);
         return winResult.HasWinner && winResult.Winner == player;
     }
 
@@ -431,10 +431,10 @@ public class ThreatDetector
     {
         foreach (var (gx, gy) in threat.GainSquares)
         {
-            board.PlaceStone(gx, gy, threat.Owner);
+            board.GetCell(gx, gy).SetPlayerUnsafe(threat.Owner);
 
             int count = CountInDirection(board, gx, gy, threat.Direction, threat.Owner);
-            board.GetCell(gx, gy).Player = Player.None;
+            board.GetCell(gx, gy).SetPlayerUnsafe(Player.None);
 
             if (count > 5)
                 return true;

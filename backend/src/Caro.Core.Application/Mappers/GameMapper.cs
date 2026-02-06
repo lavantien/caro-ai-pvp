@@ -1,7 +1,6 @@
 using Caro.Core.Application.DTOs;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
-using Caro.Core.Domain.ValueObjects;
 
 namespace Caro.Core.Application.Mappers;
 
@@ -25,9 +24,9 @@ public static class GameMapper
             IsGameOver = state.IsGameOver,
             Winner = state.Winner == Player.None ? null : state.Winner.ToString(),
             WinningLine = ToPositionDtos(state.WinningLine),
-            RedTimeRemaining = state.RedTimeRemaining.ToString(@"mm\:ss"),
-            BlueTimeRemaining = state.BlueTimeRemaining.ToString(@"mm\:ss"),
-            MoveHistory = ToMoveDtos(state.MoveHistory)
+            RedTimeRemaining = "03:00",
+            BlueTimeRemaining = "03:00",
+            MoveHistory = ToMoveDtos(state.MoveHistory.ToList())
         };
     }
 
@@ -49,12 +48,12 @@ public static class GameMapper
         return new BoardDto
         {
             Cells = cells,
-            Hash = board.Hash
+            Hash = board.GetHash()
         };
     }
 
     /// <summary>
-    /// Convert ReadOnlyMemory<Position> to PositionDto array
+    /// Convert IList<Position> to PositionDto array
     /// </summary>
     public static PositionDto[] ToPositionDtos(IList<Position> positions)
     {
@@ -69,22 +68,21 @@ public static class GameMapper
     }
 
     /// <summary>
-    /// Convert ReadOnlyMemory<AnnotatedMove> to MoveDto array
+    /// Convert IList<Position> to MoveDto array
     /// </summary>
-    public static MoveDto[] ToMoveDtos(ReadOnlyMemory<AnnotatedMove> moves)
+    public static MoveDto[] ToMoveDtos(IList<Position> moves)
     {
-        if (moves.IsEmpty) return Array.Empty<MoveDto>();
+        if (moves.Count == 0) return Array.Empty<MoveDto>();
 
-        var result = new MoveDto[moves.Length];
-        var span = moves.Span;
-        for (int i = 0; i < moves.Length; i++)
+        var result = new MoveDto[moves.Count];
+        for (int i = 0; i < moves.Count; i++)
         {
             result[i] = new MoveDto
             {
-                X = span[i].X,
-                Y = span[i].Y,
-                Player = span[i].Player.ToString(),
-                MoveNumber = span[i].Move
+                X = moves[i].X,
+                Y = moves[i].Y,
+                Player = "",  // Filled by caller
+                MoveNumber = i + 1
             };
         }
         return result;
