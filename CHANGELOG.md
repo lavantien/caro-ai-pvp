@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.0] - 2026-02-06
+
+### Fixed
+
+- **Board size hardcoded values** - AI code now correctly uses `board.BoardSize` instead of hardcoded 15
+  - Fixed `ParallelMinimaxSearch.GetCandidateMoves()` - candidate generation loops now use 19x19 bounds
+  - Fixed `ParallelMinimaxSearch.GetProximityScore()` - proximity scoring uses full board size
+  - Fixed `ParallelMinimaxSearch.OrderMoves()` - center calculation uses `board.BoardSize / 2`
+  - Fixed `MinimaxAI.GetBestMove()` - empty board fallback uses calculated center position
+
+- **Hardcoded center positions** - Center moves now calculate correctly for 19x19 boards
+  - Changed hardcoded `(7, 7)` to `(board.BoardSize / 2, board.BoardSize / 2)` throughout AI code
+  - Opening book correctly uses `(9, 9)` as center for 19x19 board
+
+- **Board.Clone() shallow copy bug** - Fixed cell sharing between cloned boards
+  - `Clone()` now creates deep copies of `Cell` objects, not just the array
+  - Prevents `SetPlayerUnsafe()` mutations during AI search from affecting original board
+  - Fixes failing `PondererTests.TotalPonderTime_AccumulatesCorrectly` test
+
+### Added
+
+- **Domain layer entities** - Pure domain objects separated from AI concerns
+  - `Board.cs` - Immutable 19x19 board with `PlaceStone()`, `Clone()`, `AsMutable()`
+  - `GameState.cs` - Game state with board, current player, move history
+  - `Position.cs` - Simple coordinate struct
+  - `Factories/` - Domain factories for entity creation
+
+- **BoardExtensions.cs** - AI technical concerns via extension methods
+  - `GetRedBitBoard()`, `GetBlueBitBoard()` - BitBoard conversion
+  - `GetHash()` - Zobrist hash for transposition table
+  - `CloneWithState()` - Clone with cached BitBoard/hash state
+  - Uses `ConditionalWeakTable` for per-instance state caching
+
+### Technical Details
+
+**Board Clone Bug:**
+```csharp
+// Before (shallow copy - cells shared):
+public Board Clone()
+{
+    var newCells = new Cell[Size, Size];
+    Array.Copy(_cells, newCells, _cells.Length);
+    return new Board(newCells);
+}
+
+// After (deep copy - cells independent):
+public Board Clone()
+{
+    var newCells = new Cell[Size, Size];
+    for (int x = 0; x < Size; x++)
+    {
+        for (int y = 0; y < Size; y++)
+        {
+            newCells[x, y] = new Cell(x, y, _cells[x, y].Player);
+        }
+    }
+    return new Board(newCells);
+}
+```
+
+**Center Position Calculation:**
+```csharp
+// Before (hardcoded for 15x15):
+return (7, 7);
+
+// After (dynamic for 19x19):
+int center = board.BoardSize / 2;
+return (center, center);
+```
+
 ## [1.22.0] - 2026-02-06
 
 ### Changed
