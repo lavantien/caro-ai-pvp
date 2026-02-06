@@ -13,7 +13,7 @@
 	let { player, isActive, onTimeOut, timeRemaining: propTimeRemaining, gameId }: Props = $props();
 
 	// Server time base and timestamp - used to calculate display time
-	let serverTimeBase = $state(propTimeRemaining);
+	let serverTimeBase = $state(0);
 	let serverTimeTimestamp = $state(Date.now());
 
 	// Sync with prop value when it changes (after move, undo, etc.)
