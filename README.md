@@ -62,59 +62,23 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 
 ### Opening Book
 
-Precomputed opening positions loaded at API startup for instant move retrieval:
+Precomputed opening positions with SQLite storage, symmetry reduction, and parallel generation:
 
 - **Hard+ only** - Easy/Medium do NOT use opening book, AI calculates first move naturally
-- **No hardcoded first move** - Opening book or AI decides first move naturally (removed (9,9) center hardcode)
-- **Configurable depth per difficulty** - Hard: 24 plies, Grandmaster: 32 plies, Experimental: unlimited
-- **DI Integration** - `SqliteOpeningBookStore` and `OpeningBook` registered as singletons
-- **Auto-loaded at startup** - `opening_book.db` from repository root loaded when API starts
-- **Opponent response coverage** - Book generates responses for ALL stored moves (top 4 per move), ensuring GM stays in book to depth 32 regardless of opponent's choices
-- **Symmetry reduction** - 8-way transformations (4 rotations × mirror) reduce storage by ~8x
-- **SQLite storage** - Persistent `opening_book.db` with indexed position lookup + WAL mode
-- **Per-move metadata** - Win rate, depth achieved, nodes searched, forcing move flag
-- **Worker pool generation** - Parallel position + candidate evaluation for 30x throughput
-- **Per-position AI instances** - Local MinimaxAI per worker eliminates shared state corruption
-- **Aggressive candidate pruning** - Static evaluation pre-sorting reduces 24→6 candidates
-- **Tapered beam width** - Converts exponential growth to linear (4→2→1 children by depth)
-- **Early exit optimization** - Skips remaining candidates when best move dominates
-- **Survival zone enhancements** - Extra branching (4 children) and time (+50%) for moves 4-7
+- **Configurable depth** - Hard: 24 plies, Grandmaster: 32 plies, Experimental: unlimited
+- **Symmetry reduction** - 8-way transformations reduce storage by ~8x
+- **Worker pool** - Parallel position/candidate evaluation for 30x throughput
 - **Resume capability** - Incremental deepening of existing books
-- **Real-time progress** - Thread-safe position tracking with AsyncQueue
 
-**Generate opening book** (defaults: max-depth=32, target-depth=32):
+**Generate book:**
 ```bash
-dotnet run --project backend/src/Caro.BookBuilder -- \
-  --output=opening_book.db \
-  --max-depth=32 \
-  --target-depth=32
+dotnet run --project backend/src/Caro.BookBuilder -- --output=opening_book.db --max-depth=32
 ```
 
-**Generate quicker book for testing** (~10 minutes for ply 10):
+**Quick test book (~10 min):**
 ```bash
-dotnet run --project backend/src/Caro.BookBuilder -- \
-  --output=opening_book.db \
-  --max-depth=10 \
-  --target-depth=12
+dotnet run --project backend/src/Caro.BookBuilder -- --output=opening_book.db --max-depth=10
 ```
-
-**Resume and extend existing book:**
-```bash
-# Re-run with same output file - generation resumes from last depth
-dotnet run --project backend/src/Caro.BookBuilder -- \
-  --output=opening_book.db \
-  --max-depth=20  # Extend beyond previous depth
-```
-
-**Generate with verbose debug logging:**
-```bash
-dotnet run --project backend/src/Caro.BookBuilder -- \
-  --output=opening_book.db \
-  --max-depth=32 \
-  --debug
-```
-
-Default is quiet mode (warnings/errors only). Use `--debug` for detailed progress.
 
 **Verify existing book:**
 ```bash
