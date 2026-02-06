@@ -56,7 +56,7 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 | Medium | 3 | 50% | 0% | 0 | Parallel + pondering |
 | Hard | 4 | 75% | 0% | 24 plies | Parallel + pondering + VCF + Opening book |
 | Grandmaster | (N/2)-1 | 100% | 0% | 32 plies | Max parallel, VCF, pondering, Opening book |
-| Experimental | (N/2)-1 | 100% | 0% | Unlimited | Full opening book, max features |
+| Experimental | (N/2)-1 | 100% | 0% | 40 plies | Full opening book, max features |
 
 **Depth:** Dynamic calculation based on host machine NPS and time control. Formula: `depth = log(time * nps * timeMultiplier) / log(ebf)`
 
@@ -65,7 +65,8 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 Precomputed opening positions with SQLite storage, symmetry reduction, and parallel generation:
 
 - **Hard+ only** - Easy/Medium do NOT use opening book, AI calculates first move naturally
-- **Configurable depth** - Hard: 24 plies, Grandmaster: 32 plies, Experimental: unlimited
+- **Configurable depth** - Hard: 24 plies, Grandmaster: 32 plies, Experimental: 40 plies
+- **Tiered continuation** - Response counts decrease with depth (4→3→2→1) ensuring coverage
 - **Symmetry reduction** - 8-way transformations reduce storage by ~8x
 - **Worker pool** - Parallel position/candidate evaluation for 30x throughput
 - **Resume capability** - Incremental deepening of existing books
@@ -107,7 +108,7 @@ cd backend/tests/Caro.Core.MatchupTests && dotnet test
 
 | Project | Tests | Duration |
 |---------|-------|----------|
-| Caro.Core.Tests | 522 unit tests | ~9 min |
+| Caro.Core.Tests | 525 unit tests | ~9 min |
 | Caro.Core.MatchupTests | ~57 | Variable |
 | Caro.Core.Domain.Tests | 48 entity tests | ~5 sec |
 | Caro.Core.Application.Tests | 48 service tests | ~5 sec |
@@ -251,14 +252,14 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Project | Tests | Focus |
 |---------|-------|-------|
-| Caro.Core.Tests | 522 | Unit tests (algorithms, evaluators, concurrency, immutable state, opening book) |
+| Caro.Core.Tests | 525 | Unit tests (algorithms, evaluators, concurrency, immutable state, opening book) |
 | Caro.Core.MatchupTests | ~57 | AI matchups, integration, tournament, opening book verification |
 | Caro.Core.Domain.Tests | 48 | Entities (Board, Cell, Player, GameState) |
 | Caro.Core.Application.Tests | 48 | Services, interfaces, DTOs |
 | Caro.Core.Infrastructure.Tests | 48 | AI algorithms, external concerns |
 | Frontend Unit (Vitest) | 19 | Component tests |
 | Frontend E2E (Playwright) | 17 | End-to-end gameplay |
-| **TOTAL** | **759+** | |
+| **TOTAL** | **762+** | |
 
 ### Frontend E2E Tests
 
