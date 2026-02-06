@@ -49,14 +49,14 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 
 ### Difficulty Levels
 
-| Level | Threads | Time Budget | Error | Features |
-|-------|---------|-------------|-------|----------|
-| Braindead | 1 | 5% | 10% | Beginners |
-| Easy | 2 | 20% | 0% | Parallel search |
-| Medium | 3 | 50% | 0% | Parallel + pondering |
-| Hard | 4 | 75% | 0% | Parallel + pondering + VCF + Opening book (≤depth 24) |
-| Grandmaster | (N/2)-1 | 100% | 0% | Max parallel, VCF, pondering, Opening book (≤depth 32) |
-| Experimental | (N/2)-1 | 100% | 0% | Full opening book (≤depth 32), max features |
+| Level | Threads | Time Budget | Error | Book Depth | Features |
+|-------|---------|-------------|-------|------------|----------|
+| Braindead | 1 | 5% | 10% | 0 | Beginners |
+| Easy | 2 | 20% | 0% | 0 | Parallel search |
+| Medium | 3 | 50% | 0% | 0 | Parallel + pondering |
+| Hard | 4 | 75% | 0% | 24 plies | Parallel + pondering + VCF + Opening book |
+| Grandmaster | (N/2)-1 | 100% | 0% | 32 plies | Max parallel, VCF, pondering, Opening book |
+| Experimental | (N/2)-1 | 100% | 0% | Unlimited | Full opening book, max features |
 
 **Depth:** Dynamic calculation based on host machine NPS and time control. Formula: `depth = log(time * nps * timeMultiplier) / log(ebf)`
 
@@ -64,9 +64,11 @@ State-of-the-art algorithms from computer chess achieving 100-500x speedup over 
 
 Precomputed opening positions loaded at API startup for instant move retrieval:
 
+- **Hard+ only** - Easy/Medium do NOT use opening book, AI calculates first move naturally
+- **No hardcoded first move** - Opening book or AI decides first move naturally (removed (9,9) center hardcode)
+- **Configurable depth per difficulty** - Hard: 24 plies, Grandmaster: 32 plies, Experimental: unlimited
 - **DI Integration** - `SqliteOpeningBookStore` and `OpeningBook` registered as singletons
 - **Auto-loaded at startup** - `opening_book.db` from repository root loaded when API starts
-- **Depth-based filtering** - Hard uses depth 24, GM/Experimental use full depth 32
 - **Opponent response coverage** - Book generates responses for ALL stored moves (top 4 per move), ensuring GM stays in book to depth 32 regardless of opponent's choices
 - **Symmetry reduction** - 8-way transformations (4 rotations × mirror) reduce storage by ~8x
 - **SQLite storage** - Persistent `opening_book.db` with indexed position lookup + WAL mode
@@ -339,7 +341,7 @@ Backend: http://localhost:5207 | Frontend: http://localhost:5173
 - **19x19 board** (361 intersections)
 - **Open Rule:** Red's second move must be at least 3 intersections away from first
 - **Win:** Exactly 5 in a row (6+ or blocked ends don't count)
-- **Time Control:** 7min + 5sec increment (Fisher)
+- **Time Control:** Selectable - 1+0 (Bullet), 3+2 (Blitz), 7+5 (Rapid), 15+10 (Classical)
 
 ---
 
