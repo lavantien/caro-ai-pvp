@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.26.0] - 2026-02-07
+
+### Added
+- Tiered opening book continuation system for better coverage
+  - Plies 0-14: 4 responses (early game + survival zone)
+  - Plies 15-24: 3 responses (Hard coverage)
+  - Plies 25-32: 2 responses (GM coverage)
+  - Plies 33-40: 1 response (Exp coverage)
+  - Ensures GM/Exp always have responses to opponent deviations
+- GetMaxChildrenForDepth helper method for centralized branching logic
+- 3 tiered branching unit tests
+
+### Changed
+- Experimental max book depth capped at 40 plies (was unlimited)
+- Opening book generation now uses tiered response counts at all depths
+- Opponent response generation uses depth-based tiered strategy
+
+### Fixed
+- Flaky TranspositionTable_HitRateIsMeasurable performance test (removed timing assertion)
+- Move equality assertion now sufficient to verify TT functionality
+
+### Test Counts
+- Caro.Core.Tests: 525 passed (+3 from v1.25.0)
+- Caro.Core.Infrastructure.Tests: 48 passed
+- Total: 573 backend tests
+
+[1.26.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.26.0
+
 ## [1.25.0] - 2026-02-06
 
 ### Added
