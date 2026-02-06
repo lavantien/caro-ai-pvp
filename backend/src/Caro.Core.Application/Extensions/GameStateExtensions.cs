@@ -1,4 +1,5 @@
 using Caro.Core.Domain.Entities;
+using System.Collections.Immutable;
 
 namespace Caro.Core.Application.Extensions;
 
@@ -14,7 +15,7 @@ public static class GameStateExtensions
     /// </summary>
     public static GameState CreateInitial()
     {
-        return new GameState();
+        return GameState.CreateInitial();
     }
 
     /// <summary>
@@ -23,7 +24,7 @@ public static class GameStateExtensions
     /// </summary>
     public static GameState CreateInitial(TimeSpan initialTime, TimeSpan increment)
     {
-        return new GameState();
+        return GameState.CreateInitial();
     }
 
     /// <summary>
@@ -32,8 +33,7 @@ public static class GameStateExtensions
     /// </summary>
     public static GameState MakeMove(this GameState state, int x, int y)
     {
-        state.RecordMove(x, y);
-        return state;
+        return state.WithMove(x, y);
     }
 
     /// <summary>
@@ -53,8 +53,7 @@ public static class GameStateExtensions
     /// </summary>
     public static GameState WithEndGame(this GameState state, Player winner, List<Position>? winningLine = null)
     {
-        state.EndGame(winner, winningLine);
-        return state;
+        return state.WithGameOver(winner, winningLine?.ToImmutableArray());
     }
 
     /// <summary>
@@ -63,8 +62,7 @@ public static class GameStateExtensions
     /// </summary>
     public static GameState WithEndGame(this GameState state, Player winner, ReadOnlyMemory<Position> winningLine)
     {
-        state.EndGame(winner, winningLine.Length > 0 ? winningLine.ToArray().ToList() : null);
-        return state;
+        return state.WithGameOver(winner, winningLine.Length > 0 ? winningLine.ToArray().ToImmutableArray() : null);
     }
 
     /// <summary>
@@ -72,8 +70,7 @@ public static class GameStateExtensions
     /// </summary>
     public static GameState WithEndGame(this GameState state, Player winner)
     {
-        state.EndGame(winner, null);
-        return state;
+        return state.WithGameOver(winner, null);
     }
 
     /// <summary>
@@ -81,7 +78,6 @@ public static class GameStateExtensions
     /// </summary>
     public static GameState UndoMoveAndReturn(this GameState state)
     {
-        state.UndoMove();
-        return state;
+        return state.UndoMove();
     }
 }

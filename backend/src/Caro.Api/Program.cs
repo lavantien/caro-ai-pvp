@@ -6,6 +6,7 @@ using Caro.Core.Infrastructure.Persistence;
 using Caro.Core.Tournament;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -110,14 +111,14 @@ app.MapPost("/api/game/{id}/move", (string id, MoveRequest request) =>
 
         try
         {
-            game.RecordMove(request.X, request.Y);
+            game = game.WithMove(request.X, request.Y);
 
             var detector = new WinDetector();
             var result = detector.CheckWin(game.Board);
 
             if (result.HasWinner)
             {
-                game.EndGame(result.Winner, result.WinningLine);
+                game = game.WithGameOver(result.Winner, result.WinningLine.ToImmutableArray());
             }
 
             return Results.Ok(new { state = session.GetResponse() });
@@ -143,7 +144,7 @@ app.MapPost("/api/game/{id}/undo", (string id) =>
     {
         try
         {
-            game.UndoMove();
+            game = game.UndoMove();
 
             return Results.Ok(new { state = session.GetResponse() });
         }
@@ -194,14 +195,14 @@ app.MapPost("/api/game/{id}/ai-move", (
 
         try
         {
-            game.RecordMove(x, y);
+            game = game.WithMove(x, y);
 
             var detector = new WinDetector();
             var result = detector.CheckWin(game.Board);
 
             if (result.HasWinner)
             {
-                game.EndGame(result.Winner, result.WinningLine);
+                game = game.WithGameOver(result.Winner, result.WinningLine.ToImmutableArray());
             }
 
             return Results.Ok(new { state = session.GetResponse() });
@@ -271,7 +272,7 @@ app.Run();
 public sealed class GameSession
 {
     private readonly object _lock = new();
-    private GameState _game = new();
+    private GameState _game = GameState.CreateInitial();
 
     /// <summary>
     /// Executes an action under the per-game lock.
@@ -298,14 +299,15 @@ public sealed class GameSession
 
     /// <summary>
     /// Extracts data needed for AI calculation WITHOUT holding the lock.
-    /// Returns a cloned board so AI can compute without blocking other requests.
+    /// Returns the board so AI can compute without blocking other requests.
+    /// Board is immutable, so no cloning is needed.
     /// </summary>
     public (Board BoardClone, Player CurrentPlayer, bool IsGameOver) ExtractForAI()
     {
         lock (_lock)
         {
-            // Clone the board to allow AI calculation outside the lock
-            return (_game.Board.Clone(), _game.CurrentPlayer, _game.IsGameOver);
+            // Board is immutable, so we can return it directly
+            return (_game.Board, _game.CurrentPlayer, _game.IsGameOver);
         }
     }
 
