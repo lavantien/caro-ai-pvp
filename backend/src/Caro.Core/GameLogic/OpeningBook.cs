@@ -29,26 +29,14 @@ public sealed class OpeningBook
     /// <summary>
     /// Get a good opening move from the book.
     /// Only returns moves for Hard, Grandmaster, and Experimental difficulties.
-    /// First move (empty board) always returns center (9,9) for all difficulties.
     /// Book usage is depth-filtered by difficulty in SelectBestMove():
     /// - Hard: moves evaluated at depth ≤ 24 plies (12 moves per side)
     /// - Grandmaster/Experimental: moves evaluated at depth ≤ 32 plies (16 moves per side)
+    /// First move is not hardcoded - the opening book or AI decides naturally.
     /// </summary>
     public (int x, int y)? GetBookMove(Board board, Player player, AIDifficulty difficulty, (int x, int y)? lastOpponentMove)
     {
-        // Special case: empty board - always return center move for ALL difficulties
-        // This maintains backward compatibility with the original implementation
-        var redBitBoard = board.GetBitBoard(Player.Red);
-        var blueBitBoard = board.GetBitBoard(Player.Blue);
-        int stoneCount = redBitBoard.CountBits() + blueBitBoard.CountBits();
-
-        if (stoneCount == 0)
-        {
-            // Empty board - first move should be center
-            return (Center, Center);
-        }
-
-        // Check if difficulty supports opening book for subsequent moves
+        // Check if difficulty supports opening book
         if (!DifficultyUsesBook(difficulty))
             return null;
 
