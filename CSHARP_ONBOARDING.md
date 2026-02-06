@@ -15,17 +15,18 @@ backend/
 │   ├── Caro.BookBuilder/        # Opening book generation CLI
 │   └── Caro.TournamentRunner/   # AI strength validation tests
 └── tests/
-    ├── Caro.Core.Domain.Tests/     # 85 unit tests
-    ├── Caro.Core.Application.Tests/ # 8 unit tests
+    ├── Caro.Core.Domain.Tests/     # 48 unit tests
+    ├── Caro.Core.Application.Tests/ # 48 unit tests
     ├── Caro.Core.Infrastructure.Tests/ # 48 unit/integration tests
-    └── Caro.Core.Tests/         # 484 mixed tests (AI/tournament/concurrency)
+    ├── Caro.Core.Tests/         # 522 unit tests (AI/tournament/concurrency)
+    └── Caro.Core.MatchupTests/  # ~57 integration/matchup tests
 ```
 
 ### Key Technologies
 - .NET 10, C# 14
 - ASP.NET Core 10 + SignalR
 - xUnit 2.9.2, Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
-- 660+ total tests (583 backend unit + 44 integration + 30 concurrency + 17 statistical + 19 frontend unit + 17 frontend E2E)
+- 759+ total tests (522 Core + 48 Domain + 48 Application + 48 Infrastructure + 57 Matchup + 19 frontend unit + 17 frontend E2E)
 
 ### Architecture Principles
 This codebase follows **Clean Architecture** with a "Functional Core, Imperative Shell" approach:
@@ -444,10 +445,11 @@ This codebase follows Clean Architecture with three core layers:
 
 | Test Project | Source Project | Test Type | Count |
 |-------------|----------------|------------|--------|
-| Caro.Core.Domain.Tests | Caro.Core.Domain | Unit | 85 |
-| Caro.Core.Application.Tests | Caro.Core.Application | Unit | 8 |
+| Caro.Core.Domain.Tests | Caro.Core.Domain | Unit | 48 |
+| Caro.Core.Application.Tests | Caro.Core.Application | Unit | 48 |
 | Caro.Core.Infrastructure.Tests | Caro.Core.Infrastructure | Unit/Integration | 48 |
-| Caro.Core.Tests | Caro.Core (GameLogic/Tournament/Concurrency) | Mixed | 484 |
+| Caro.Core.Tests | Caro.Core (GameLogic/Tournament/Concurrency) | Unit | 522 |
+| Caro.Core.MatchupTests | Caro.Core (Integration/Matchup) | Integration | ~57 |
 
 ## Summary Checklist for your Onboarding
 
@@ -457,10 +459,11 @@ This codebase follows Clean Architecture with three core layers:
 4. **Identify with-expression mutations** : Look for non-destructive state updates
 5. **Check Program.cs** : See how services are wired (Transient/Scoped/Singleton)
 6. **Run Tests** : Use `dotnet test` in backend/ or Test Explorer
-   - Caro.Core.Domain.Tests: 85 unit tests (no mocking needed)
-   - Caro.Core.Application.Tests: 8 unit tests (mock DTOs)
+   - Caro.Core.Domain.Tests: 48 unit tests (no mocking needed)
+   - Caro.Core.Application.Tests: 48 unit tests (mock DTOs)
    - Caro.Core.Infrastructure.Tests: 48 unit/integration tests
-   - Caro.Core.Tests: 484 mixed tests (AI, tournament, concurrency)
+   - Caro.Core.Tests: 522 unit tests (AI, tournament, concurrency)
+   - Caro.Core.MatchupTests: ~57 integration/matchup tests
 7. **When tests fail** : Check [Theory] inline data to see which input caused crash
 8. **Mocking** : Use Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
 
