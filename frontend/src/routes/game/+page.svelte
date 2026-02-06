@@ -3,7 +3,7 @@
 	import Board from '$lib/components/Board.svelte';
 	import Timer from '$lib/components/Timer.svelte';
 	import SoundToggle from '$lib/components/SoundToggle.svelte';
-	import MoveHistory from '$lib/components/MoveHistory.svelte';
+ import MoveHistory from '$lib/components/MoveHistory.svelte';
 	import Leaderboard from '$lib/components/Leaderboard.svelte';
 	import { GameStore } from '$lib/stores/gameStore.svelte';
 	import { ratingStore } from '$lib/stores/ratingStore.svelte';
@@ -37,6 +37,10 @@
 	let aiSide = $state<'red' | 'blue'>('blue');  // For PvAI, which side is human?
 	let isAiThinking = $state(false);
 
+	// UCI integration
+	let useUCIForAI = $state(false);
+	let uciConnectionStatus = $state<'disconnected' | 'connecting' | 'connected'>('disconnected');
+
 	function handleRegisterPlayer() {
 		if (playerName.trim()) {
 			ratingStore.createPlayer(playerName.trim());
@@ -53,6 +57,34 @@
 			showNameInput = false;
 		}
 	});
+
+	// UCI connection management
+	async function connectUCI() {
+		uciConnectionStatus = 'connecting';
+		try {
+			const connected = await store.connectUCI();
+			uciConnectionStatus = connected ? 'connected' : 'disconnected';
+			if (connected) {
+				store.reset();
+			}
+		} catch (err) {
+			console.error('Failed to connect to UCI:', err);
+			uciConnectionStatus = 'disconnected';
+		}
+	}
+
+	function disconnectUCI() {
+		store.disconnectUCI();
+		uciConnectionStatus = 'disconnected';
+	}
+
+	async function toggleUCI() {
+		if (uciConnectionStatus === 'connected') {
+			disconnectUCI();
+		} else {
+			await connectUCI();
+		}
+	}
 
 	onMount(async () => {
 		await createNewGame();
@@ -231,26 +263,75 @@
 		const currentPlayer = store.currentPlayer;
 
 		try {
-			const response = await fetch(`${apiUrl}/api/game/${gameId}/ai-move`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ difficulty: aiDifficulty })
-			});
-
-			if (!response.ok) {
-				const errorText = await response.text();
-				alert(errorText);
-				return;
-			}
-
-			const data = await response.json();
-
-			// Find which cell changed (AI's move)
 			let aiMove = { x: 0, y: 0 };
-			for (let i = 0; i < store.board.length; i++) {
-				if (previousBoard[i].player === 'none' && data.state.board[i].player !== 'none') {
-					aiMove = { x: data.state.board[i].x, y: data.state.board[i].y };
-					break;
+			let data;
+
+			// Try UCI engine first if enabled
+			if (useUCIForAI && uciConnectionStatus === 'connected') {
+				try {
+					const move = await store.getAIMoveUCI();
+					if (move) {
+						aiMove = move;
+						// Make the move via API to update game state
+						const response = await fetch(`${apiUrl}/api/game/${gameId}/move`, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ x: move.x, y: move.y })
+						});
+						if (!response.ok) {
+							throw new Error('Failed to apply UCI move');
+						}
+						data = await response.json();
+					} else {
+						// Fallback to API-based AI
+						useUCIForAI = false; // Disable UCI on failure
+						throw new Error('UCI move failed');
+					}
+				} catch (uciError) {
+					console.warn('UCI move failed, falling back to API:', uciError);
+					// Fallback to API-based AI
+					const response = await fetch(`${apiUrl}/api/game/${gameId}/ai-move`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ difficulty: aiDifficulty })
+					});
+					if (!response.ok) {
+						const errorText = await response.text();
+						alert(errorText);
+						return;
+					}
+					data = await response.json();
+
+					// Find which cell changed (AI's move)
+					for (let i = 0; i < store.board.length; i++) {
+						if (previousBoard[i].player === 'none' && data.state.board[i].player !== 'none') {
+							aiMove = { x: data.state.board[i].x, y: data.state.board[i].y };
+							break;
+						}
+					}
+				}
+			} else {
+				// Use API-based AI
+				const response = await fetch(`${apiUrl}/api/game/${gameId}/ai-move`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ difficulty: aiDifficulty })
+				});
+
+				if (!response.ok) {
+					const errorText = await response.text();
+					alert(errorText);
+					return;
+				}
+
+				data = await response.json();
+
+				// Find which cell changed (AI's move)
+				for (let i = 0; i < store.board.length; i++) {
+					if (previousBoard[i].player === 'none' && data.state.board[i].player !== 'none') {
+						aiMove = { x: data.state.board[i].x, y: data.state.board[i].y };
+						break;
+					}
 				}
 			}
 
@@ -352,7 +433,37 @@
 	<div class="container mx-auto p-4 max-w-4xl">
 		<div class="flex justify-between items-center mb-4">
 			<h1 class="text-2xl font-bold text-gray-800">Caro Game</h1>
-			<div class="flex gap-2">
+			<div class="flex gap-2 items-center">
+				<!-- UCI Connection Status -->
+				<div class="flex items-center gap-2 mr-4">
+					<span class="text-sm text-gray-600">UCI Engine:</span>
+					<button
+						onclick={toggleUCI}
+						class="px-3 py-1 rounded text-sm font-medium transition-colors {
+							uciConnectionStatus === 'connected' 
+								? 'bg-green-600 text-white hover:bg-green-700' 
+								: uciConnectionStatus === 'connecting' 
+									? 'bg-yellow-500 text-white' 
+									: 'bg-gray-400 text-white hover:bg-gray-500'
+						}"
+						disabled={uciConnectionStatus === 'connecting'}
+					>
+						{uciConnectionStatus === 'connected' ? 'Connected' : 
+						 uciConnectionStatus === 'connecting' ? 'Connecting...' : 'Connect'}
+					</button>
+					{#if uciConnectionStatus === 'connected'}
+						<button
+							onclick={() => useUCIForAI = !useUCIForAI}
+							class="px-3 py-1 rounded text-sm font-medium ml-1 transition-colors {
+								useUCIForAI 
+									? 'bg-blue-600 text-white hover:bg-blue-700' 
+									: 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+							}"
+						>
+							{useUCIForAI ? 'UCI Active' : 'Use API'}
+						</button>
+					{/if}
+				</div>
 				<button
 					onclick={handleUndo}
 					disabled={!gameId || store.moveNumber === 0 || store.isGameOver}
