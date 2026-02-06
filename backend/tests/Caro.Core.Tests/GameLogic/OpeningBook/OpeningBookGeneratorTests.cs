@@ -456,4 +456,105 @@ public class OpeningBookGeneratorTests
     }
 
     #endregion
+
+    #region Tiered Branching Tests
+
+    /// <summary>
+    /// Test that GetMaxChildrenForDepth returns correct tier values
+    /// </summary>
+    [Fact]
+    public void GetMaxChildrenForDepth_ReturnsCorrectTier()
+    {
+        // Plies 0-14: 4 children
+        for (int d = 0; d <= 14; d++)
+        {
+            int result = GetMaxChildrenForDepth_Private(d);
+            result.Should().Be(4, $"Depth {d} should return 4 children");
+        }
+
+        // Plies 15-24: 3 children
+        for (int d = 15; d <= 24; d++)
+        {
+            int result = GetMaxChildrenForDepth_Private(d);
+            result.Should().Be(3, $"Depth {d} should return 3 children");
+        }
+
+        // Plies 25-32: 2 children
+        for (int d = 25; d <= 32; d++)
+        {
+            int result = GetMaxChildrenForDepth_Private(d);
+            result.Should().Be(2, $"Depth {d} should return 2 children");
+        }
+
+        // Plies 33-40: 1 child
+        for (int d = 33; d <= 40; d++)
+        {
+            int result = GetMaxChildrenForDepth_Private(d);
+            result.Should().Be(1, $"Depth {d} should return 1 child");
+        }
+
+        // Beyond 40: 0 children
+        GetMaxChildrenForDepth_Private(41).Should().Be(0);
+        GetMaxChildrenForDepth_Private(50).Should().Be(0);
+        GetMaxChildrenForDepth_Private(100).Should().Be(0);
+    }
+
+    /// <summary>
+    /// Test that tiered branching covers all difficulty levels
+    /// Hard (max 24), GM (max 32), Exp (max 40) all have responses
+    /// </summary>
+    [Fact]
+    public void TieredBranching_CoversAllDifficultyLevels()
+    {
+        // Hard's max depth is 24 - should have 3 responses available
+        Assert.Equal(3, GetMaxChildrenForDepth_Private(24));
+
+        // GM's max depth is 32 - should have 2 responses available  
+        Assert.Equal(2, GetMaxChildrenForDepth_Private(32));
+
+        // Exp's max depth is 40 - should have 1 response available
+        Assert.Equal(1, GetMaxChildrenForDepth_Private(40));
+
+        // Beyond book depth - no responses
+        Assert.Equal(0, GetMaxChildrenForDepth_Private(41));
+    }
+
+    /// <summary>
+    /// Test tier boundaries are correct
+    /// </summary>
+    [Fact]
+    public void TieredBranching_BoundaryValues_Correct()
+    {
+        // Tier 1 -> Tier 2 boundary at ply 14/15
+        Assert.Equal(4, GetMaxChildrenForDepth_Private(14));
+        Assert.Equal(3, GetMaxChildrenForDepth_Private(15));
+
+        // Tier 2 -> Tier 3 boundary at ply 24/25
+        Assert.Equal(3, GetMaxChildrenForDepth_Private(24));
+        Assert.Equal(2, GetMaxChildrenForDepth_Private(25));
+
+        // Tier 3 -> Tier 4 boundary at ply 32/33
+        Assert.Equal(2, GetMaxChildrenForDepth_Private(32));
+        Assert.Equal(1, GetMaxChildrenForDepth_Private(33));
+
+        // Tier 4 -> No book boundary at ply 40/41
+        Assert.Equal(1, GetMaxChildrenForDepth_Private(40));
+        Assert.Equal(0, GetMaxChildrenForDepth_Private(41));
+    }
+
+    /// <summary>
+    /// Helper to access private GetMaxChildrenForDepth method via reflection
+    /// </summary>
+    private static int GetMaxChildrenForDepth_Private(int depth)
+    {
+        var method = typeof(Caro.Core.GameLogic.OpeningBookGenerator)
+            .GetMethod("GetMaxChildrenForDepth", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        if (method == null)
+            throw new InvalidOperationException("GetMaxChildrenForDepth method not found");
+
+        return (int)method.Invoke(null, new object[] { depth })!;
+    }
+
+    #endregion
 }
