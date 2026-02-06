@@ -166,18 +166,14 @@ public sealed class OpeningBookLookupService
     /// <summary>
     /// Get maximum book depth allowed for a difficulty level (in plies/half-moves).
     /// This filters which book entries can be used based on their DepthAchieved.
+    /// Values are sourced from AIDifficultyConfig for consistency.
     /// Hard: depth 24 (12 of its own moves before exiting book)
     /// Grandmaster/Experimental: depth 32 (16 of its own moves before exiting book)
     /// </summary>
     private static int GetMaxBookDepth(AIDifficulty difficulty)
     {
-        return difficulty switch
-        {
-            AIDifficulty.Hard => 24,        // Hard: up to depth 24
-            AIDifficulty.Grandmaster => 32,  // GM: up to depth 32
-            AIDifficulty.Experimental => int.MaxValue, // Experimental: no limit (uses all available book)
-            _ => 0
-        };
+        var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
+        return settings.MaxBookDepth;
     }
 
     /// <summary>
