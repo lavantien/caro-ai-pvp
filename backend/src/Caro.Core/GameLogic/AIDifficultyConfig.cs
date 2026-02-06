@@ -38,7 +38,8 @@ public sealed class AIDifficultyConfig
                 MinDepth = 1,
                 TargetNps = 10_000,
                 Description = "10% error rate, beginners",
-                OpeningBookEnabled = false      // No opening book for beginner level
+                OpeningBookEnabled = false,     // No opening book for beginner level
+                MaxBookDepth = 0               // No opening book
             },
 
             AIDifficulty.Easy => new AIDifficultySettings
@@ -56,7 +57,8 @@ public sealed class AIDifficultyConfig
                 MinDepth = 2,
                 TargetNps = 50_000,
                 Description = "Parallel search from Easy",
-                OpeningBookEnabled = false      // No opening book for easy level
+                OpeningBookEnabled = false,     // No opening book for easy level
+                MaxBookDepth = 0               // No opening book
             },
 
             AIDifficulty.Medium => new AIDifficultySettings
@@ -74,7 +76,8 @@ public sealed class AIDifficultyConfig
                 MinDepth = 3,
                 TargetNps = 100_000,
                 Description = "Parallel + pondering",
-                OpeningBookEnabled = false      // No opening book for medium level
+                OpeningBookEnabled = false,     // No opening book for medium level
+                MaxBookDepth = 0               // No opening book
             },
 
             AIDifficulty.Hard => new AIDifficultySettings
@@ -92,7 +95,8 @@ public sealed class AIDifficultyConfig
                 MinDepth = 4,
                 TargetNps = 200_000,
                 Description = "Parallel + pondering + VCF",
-                OpeningBookEnabled = true       // Hard uses opening book
+                OpeningBookEnabled = true,      // Hard uses opening book
+                MaxBookDepth = 24              // 24 plies (12 moves per side)
             },
 
             AIDifficulty.Grandmaster => new AIDifficultySettings
@@ -110,7 +114,8 @@ public sealed class AIDifficultyConfig
                 MinDepth = 5,
                 TargetNps = 500_000,
                 Description = "Max parallel, VCF, pondering",
-                OpeningBookEnabled = true       // Grandmaster uses opening book
+                OpeningBookEnabled = true,      // Grandmaster uses opening book
+                MaxBookDepth = 32              // 32 plies (16 moves per side)
             },
 
             AIDifficulty.Experimental => new AIDifficultySettings
@@ -128,7 +133,8 @@ public sealed class AIDifficultyConfig
                 MinDepth = 5,
                 TargetNps = 500_000,
                 Description = "Full opening book + max features for testing",
-                OpeningBookEnabled = true       // Experimental uses full opening book
+                OpeningBookEnabled = true,      // Experimental uses full opening book
+                MaxBookDepth = int.MaxValue    // No limit (uses all available book)
             },
 
             AIDifficulty.BookGeneration => new AIDifficultySettings
@@ -146,7 +152,8 @@ public sealed class AIDifficultyConfig
                 MinDepth = 12,
                 TargetNps = 1_000_000,
                 Description = "Offline book generation with (N-4) threads",
-                OpeningBookEnabled = true
+                OpeningBookEnabled = true,
+                MaxBookDepth = int.MaxValue
             },
 
             _ => throw new ArgumentException($"Unknown difficulty: {difficulty}")
@@ -202,6 +209,7 @@ public sealed record AIDifficultySettings
     public required long TargetNps { get; init; }
     public required string Description { get; init; }
     public required bool OpeningBookEnabled { get; init; }  // Whether this difficulty uses opening book
+    public required int MaxBookDepth { get; init; }  // Maximum book depth in plies (0 = no book)
 
     /// <summary>
     /// Check if this difficulty supports pondering (Medium+)
