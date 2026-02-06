@@ -1,5 +1,6 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -153,8 +154,8 @@ public class TournamentEngine
         // Log game start with actual color assignments
         onLog?.Invoke("info", "system", $"Game started: {redBotName} ({redDifficulty}) vs {blueBotName} ({blueDifficulty}) | Time: {initialTimeSeconds}s+{incrementSeconds}s | Max moves: {maxMoves}");
 
-        var board = new Board();
-        var game = new GameState();
+        var game = GameState.CreateInitial();
+        var board = game.Board;
         var moveTimesMs = new List<long>();
         var stopwatch = Stopwatch.StartNew();
         var totalMoves = 0;
@@ -216,9 +217,9 @@ public class TournamentEngine
                 // Move is invalid - AI loses for making illegal move
                 onLog?.Invoke("error", currentPlayer.ToString().ToLower(), $"ILLEGAL MOVE at ({x},{y}) move #{moveNumber}");
                 Console.WriteLine($"[ILLEGAL MOVE] {currentPlayer} attempted invalid move ({x}, {y}) at move #{moveNumber}");
-                game.EndGame(
+                game = game.WithGameOver(
                     currentPlayer == Player.Red ? Player.Blue : Player.Red,
-                    new List<Position>()
+                    ImmutableArray<Position>.Empty
                 );
                 break;
             }
@@ -249,7 +250,8 @@ public class TournamentEngine
             // Make the move
             try
             {
-                game.RecordMove(board, x, y);
+                game = game.WithMove(x, y);
+                board = game.Board;
 
                 // Get search statistics for this move from the correct AI
                 var (depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, _, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, masterTTPercent, helperAvgDepth, allocatedTimeMs) = currentAI.GetSearchStatistics();
@@ -279,7 +281,7 @@ public class TournamentEngine
                     var winBy = result.Winner == Player.Red ? redBotName : blueBotName;
                     var winByDiff = result.Winner == Player.Red ? redDifficulty : blueDifficulty;
                     onLog?.Invoke("info", "system", $"WIN by {winBy} ({winByDiff}) at move #{moveNumber} | Line: {string.Join(", ", result.WinningLine.Select(p => $"({p.X},{p.Y})"))}");
-                    game.EndGame(result.Winner, result.WinningLine);
+                    game = game.WithGameOver(result.Winner, result.WinningLine.ToImmutableArray());
                     break;
                 }
 

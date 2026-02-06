@@ -164,7 +164,7 @@ public sealed class GameService : IGameService
                 };
             }
 
-            updatedState.RecordMove(request.X, request.Y);
+            updatedState = updatedState.WithMove(request.X, request.Y);
 
             // Check for win condition
             var winningLine = CheckForWin(updatedState.Board, request.X, request.Y, currentState.CurrentPlayer);
