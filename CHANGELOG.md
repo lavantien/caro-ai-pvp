@@ -5,6 +5,109 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.0] - 2026-02-06
+
+### Added
+
+- **Four time control options** - Selectable time controls for games
+  - 1+0 (Bullet) - 1 minute, no increment
+  - 3+2 (Blitz) - 3 minutes + 2 second increment
+  - 7+5 (Rapid) - 7 minutes + 5 second increment (default)
+  - 15+10 (Classical) - 15 minutes + 10 second increment
+- **Unified game creation API** - Single endpoint for PvP, PvAI, and AIvAI modes
+  - `POST /api/game/new` accepts `timeControl`, `gameMode`, `redAIDifficulty`, `blueAIDifficulty`
+  - Game modes: `pvp` (Player vs Player), `pvai` (Player vs AI), `aivai` (AI vs AI)
+  - Response includes time control info (name, initialTime, increment)
+- **Frontend time control selector** - UI dropdown for selecting time control before game starts
+- **Frontend game mode extensions** - Added AIvAI mode and side selection for PvAI
+- **Extended AI difficulty options** - Added Grandmaster and Experimental to frontend selector
+- **Configurable opening book depth per difficulty** - Via `AIDifficultySettings.MaxBookDepth` property
+  - Hard: 24 plies (12 turns)
+  - Grandmaster: 32 plies (16 turns)
+  - Experimental: `int.MaxValue` (unlimited)
+  - Easy/Medium/Braindead: 0 (no opening book)
+
+### Changed
+
+- **Opening book first move no longer hardcoded** - Removed (9,9) center hardcode
+  - First move is now decided by opening book (Hard+) or AI calculation (Easy/Medium)
+  - OpeningBook.cs lines 45-49 removed - empty board no longer returns center
+- **OpeningBookLookupService** - Now uses `AIDifficultyConfig.Instance.GetSettings().MaxBookDepth`
+  - Removed hardcoded depth constants, centralized in configuration
+- **AIDifficultySettings** - Added `MaxBookDepth` property for difficulty-based book depth limits
+- **GameState** - Added properties for time control and game mode
+  - `TimeControl` (string, e.g., "7+5")
+  - `InitialTimeMs` (long)
+  - `IncrementSeconds` (int)
+  - `GameMode` ("pvp", "pvai", "aivai")
+  - `RedAIDifficulty` (string?)
+  - `BlueAIDifficulty` (string?)
+- **GameSession** - Constructor accepts time control and game mode parameters
+- **Frontend types** - Extended `game.ts` with new types
+  - `TimeControl` type
+  - `GameMode` type
+  - `AIDifficulty` type (includes Grandmaster, Experimental)
+  - `GameCreateRequest` interface
+
+### Fixed
+
+- **Opening book not used by Easy/Medium** - Now correctly disabled via `MaxBookDepth = 0`
+- **First move always center** - AI now calculates natural first move when opening book disabled
+
+### Technical Details
+
+**API Request Format:**
+```json
+{
+  "timeControl": "7+5",    // "1+0", "3+2", "7+5", "15+10"
+  "gameMode": "pvai",      // "pvp", "pvai", "aivai"
+  "redAIDifficulty": null, // for AI players only
+  "blueAIDifficulty": "Medium"
+}
+```
+
+**Opening Book Depth Configuration:**
+```csharp
+// AIDifficultyConfig.cs
+Hard => new AIDifficultySettings { MaxBookDepth = 24 }
+Grandmaster => new AIDifficultySettings { MaxBookDepth = 32 }
+Experimental => new AIDifficultySettings { MaxBookDepth = int.MaxValue }
+```
+
+**GameState CreateInitial Signature:**
+```csharp
+public static GameState CreateInitial(
+    string timeControl = "7+5",
+    long initialTimeMs = 420_000,
+    int incrementSeconds = 5,
+    string gameMode = "pvp",
+    string? redAIDifficulty = null,
+    string? blueAIDifficulty = null)
+```
+
+### Files Modified
+
+**Backend:**
+- `backend/src/Caro.Core/GameLogic/TimeManagement/TimeControl.cs` - Added Bullet preset
+- `backend/src/Caro.Core/GameLogic/OpeningBook.cs` - Removed hardcoded first move
+- `backend/src/Caro.Core/GameLogic/AIDifficultyConfig.cs` - Added MaxBookDepth property
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookLookupService.cs` - Uses config for depth
+- `backend/src/Caro.Core.Domain/Entities/GameState.cs` - Added time control and game mode properties
+- `backend/src/Caro.Api/Program.cs` - Added CreateGameRequest, unified game creation endpoint
+
+**Frontend:**
+- `frontend/src/lib/types/game.ts` - Added TimeControl, GameMode, AIDifficulty types
+- `frontend/src/routes/game/+page.svelte` - Added time control selector, AIvAI mode, side selection
+
+**Documentation:**
+- `README.md` - Updated time control description, difficulty table with book depth
+
+### Test Results
+
+- All 570 tests passing (522 Core + 48 Infrastructure)
+
+[1.25.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.25.0
+
 ## [1.24.0] - 2026-02-06
 
 ### Changed
