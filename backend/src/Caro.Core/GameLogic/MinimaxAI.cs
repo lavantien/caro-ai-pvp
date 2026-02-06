@@ -613,7 +613,7 @@ public class MinimaxAI : IStatsPublisher
 
             // Store PV and board for pondering prediction
             _lastPV = PV.FromSingleMove(parallelResult.X, parallelResult.Y, _depthAchieved, 0);
-            _lastBoard = board.Clone();
+            _lastBoard = board;
 
             // Start pondering for opponent's response
             if (ponderingEnabled)
@@ -765,7 +765,7 @@ public class MinimaxAI : IStatsPublisher
 
         // Store PV for pondering
         _lastPV = PV.FromSingleMove(bestMove.x, bestMove.y, baseDepth, 0);
-        _lastBoard = board.Clone();
+        _lastBoard = board;
         _lastPlayer = player;
         _lastDifficulty = difficulty;
 
@@ -1276,9 +1276,8 @@ public class MinimaxAI : IStatsPublisher
             {
                 if (board.GetCell(x, y).IsEmpty)
                 {
-                    board.GetCell(x, y).SetPlayerUnsafe(opponent);
-                    var winResult = _winDetector.CheckWin(board);
-                    board.GetCell(x, y).SetPlayerUnsafe(Player.None);
+                    var testBoard = board.PlaceStone(x, y, opponent);
+                    var winResult = _winDetector.CheckWin(testBoard);
 
                     if (winResult.HasWinner && winResult.Winner == opponent)
                     {
@@ -1320,9 +1319,8 @@ public class MinimaxAI : IStatsPublisher
             int idx = 0;
             foreach (var (x, y) in candidates)
             {
-                board.GetCell(x, y).SetPlayerUnsafe(player);
-                var score = Minimax(board, depth - 2, searchAlpha, searchBeta, false, player, depth);
-                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
+                var newBoard = board.PlaceStone(x, y, player);
+                var score = Minimax(newBoard, depth - 2, searchAlpha, searchBeta, false, player, depth);
 
                 // Tie-breaking: higher score wins, or equal score with better tiebreaker
                 if (score > bestScore || (score == bestScore && candidateScores[idx] > bestTiebreaker))
@@ -1372,13 +1370,10 @@ public class MinimaxAI : IStatsPublisher
             foreach (var (x, y) in orderedMoves)
             {
                 // Make move
-                board.GetCell(x, y).SetPlayerUnsafe(player);
+                var newBoard = board.PlaceStone(x, y, player);
 
                 // Evaluate using minimax
-                var score = Minimax(board, depth - 1, alpha, beta, false, player, depth);
-
-                // Undo move
-                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
+                var score = Minimax(newBoard, depth - 1, alpha, beta, false, player, depth);
 
                 // Tie-breaking: higher score wins, or equal score with better tiebreaker + small random
                 if (score > bestScore)
@@ -2049,12 +2044,10 @@ public class MinimaxAI : IStatsPublisher
                 if (!board.GetCell(x, y).IsEmpty)
                     continue;
 
-                board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
+                var qBoard = board.PlaceStone(x, y, currentPlayer);
 
                 // Recursive quiescence search (depth stays at 0, but we track via rootDepth)
-                var eval = Quiesce(board, alpha, beta, false, aiPlayer, rootDepth + 1);
-
-                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
+                var eval = Quiesce(qBoard, alpha, beta, false, aiPlayer, rootDepth + 1);
 
                 maxEval = Math.Max(maxEval, eval);
                 alpha = Math.Max(alpha, eval);
@@ -2073,11 +2066,9 @@ public class MinimaxAI : IStatsPublisher
                 if (!board.GetCell(x, y).IsEmpty)
                     continue;
 
-                board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
+                var qBoard = board.PlaceStone(x, y, currentPlayer);
 
-                var eval = Quiesce(board, alpha, beta, true, aiPlayer, rootDepth + 1);
-
-                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
+                var eval = Quiesce(qBoard, alpha, beta, true, aiPlayer, rootDepth + 1);
 
                 minEval = Math.Min(minEval, eval);
                 beta = Math.Min(beta, eval);
@@ -2394,7 +2385,7 @@ public class MinimaxAI : IStatsPublisher
 
             foreach (var (x, y) in orderedMoves)
             {
-                board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
+                var newBoard = board.PlaceStone(x, y, currentPlayer);
 
                 int eval;
                 bool isPvNode = (moveIndex == 0) && (depth >= pvsEnabledDepth);
@@ -2406,18 +2397,18 @@ public class MinimaxAI : IStatsPublisher
                     if (depth >= 3 && moveIndex >= lmrFullDepthMoves && !IsTacticalPosition(board))
                     {
                         // LMR: reduced depth search first
-                        eval = Minimax(board, depth - 2, alpha, beta, false, aiPlayer, rootDepth);
+                        eval = Minimax(newBoard, depth - 2, alpha, beta, false, aiPlayer, rootDepth);
 
                         // If reduced search is promising, re-search at full depth
                         if (eval > alpha && eval < beta - 100)
                         {
-                            eval = Minimax(board, depth - 1, alpha, beta, false, aiPlayer, rootDepth);
+                            eval = Minimax(newBoard, depth - 1, alpha, beta, false, aiPlayer, rootDepth);
                         }
                     }
                     else
                     {
                         // Full depth search for early moves or tactical positions
-                        eval = Minimax(board, depth - 1, alpha, beta, false, aiPlayer, rootDepth);
+                        eval = Minimax(newBoard, depth - 1, alpha, beta, false, aiPlayer, rootDepth);
                     }
                 }
                 else
@@ -2432,7 +2423,7 @@ public class MinimaxAI : IStatsPublisher
                     }
 
                     // Null window search (alpha, alpha+1)
-                    eval = Minimax(board, searchDepth, alpha, alpha + 1, false, aiPlayer, rootDepth);
+                    eval = Minimax(newBoard, searchDepth, alpha, alpha + 1, false, aiPlayer, rootDepth);
 
                     // If null window search beats alpha, re-search with full window
                     if (eval > alpha && eval < beta)
@@ -2441,17 +2432,15 @@ public class MinimaxAI : IStatsPublisher
                         if (searchDepth == depth - 2)
                         {
                             // Had used LMR, now search at full depth
-                            eval = Minimax(board, depth - 1, alpha, beta, false, aiPlayer, rootDepth);
+                            eval = Minimax(newBoard, depth - 1, alpha, beta, false, aiPlayer, rootDepth);
                         }
                         else
                         {
                             // Re-search with full beta
-                            eval = Minimax(board, depth - 1, alpha, beta, false, aiPlayer, rootDepth);
+                            eval = Minimax(newBoard, depth - 1, alpha, beta, false, aiPlayer, rootDepth);
                         }
                     }
                 }
-
-                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                 if (eval > maxEval)
                 {
@@ -2478,7 +2467,7 @@ public class MinimaxAI : IStatsPublisher
 
             foreach (var (x, y) in orderedMoves)
             {
-                board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
+                var newBoard = board.PlaceStone(x, y, currentPlayer);
 
                 int eval;
                 bool isPvNode = (moveIndex == 0) && (depth >= pvsEnabledDepth);
@@ -2490,18 +2479,18 @@ public class MinimaxAI : IStatsPublisher
                     if (depth >= 3 && moveIndex >= lmrFullDepthMoves && !IsTacticalPosition(board))
                     {
                         // LMR: reduced depth search first
-                        eval = Minimax(board, depth - 2, alpha, beta, true, aiPlayer, rootDepth);
+                        eval = Minimax(newBoard, depth - 2, alpha, beta, true, aiPlayer, rootDepth);
 
                         // If reduced search is promising, re-search at full depth
                         if (eval < beta && eval > alpha + 100)
                         {
-                            eval = Minimax(board, depth - 1, alpha, beta, true, aiPlayer, rootDepth);
+                            eval = Minimax(newBoard, depth - 1, alpha, beta, true, aiPlayer, rootDepth);
                         }
                     }
                     else
                     {
                         // Full depth search for early moves or tactical positions
-                        eval = Minimax(board, depth - 1, alpha, beta, true, aiPlayer, rootDepth);
+                        eval = Minimax(newBoard, depth - 1, alpha, beta, true, aiPlayer, rootDepth);
                     }
                 }
                 else
@@ -2516,7 +2505,7 @@ public class MinimaxAI : IStatsPublisher
                     }
 
                     // Null window search (beta-1, beta)
-                    eval = Minimax(board, searchDepth, beta - 1, beta, true, aiPlayer, rootDepth);
+                    eval = Minimax(newBoard, searchDepth, beta - 1, beta, true, aiPlayer, rootDepth);
 
                     // If null window search is below beta, re-search with full window
                     if (eval < beta && eval > alpha)
@@ -2525,17 +2514,15 @@ public class MinimaxAI : IStatsPublisher
                         if (searchDepth == depth - 2)
                         {
                             // Had used LMR, now search at full depth
-                            eval = Minimax(board, depth - 1, alpha, beta, true, aiPlayer, rootDepth);
+                            eval = Minimax(newBoard, depth - 1, alpha, beta, true, aiPlayer, rootDepth);
                         }
                         else
                         {
                             // Re-search with full alpha
-                            eval = Minimax(board, depth - 1, alpha, beta, true, aiPlayer, rootDepth);
+                            eval = Minimax(newBoard, depth - 1, alpha, beta, true, aiPlayer, rootDepth);
                         }
                     }
                 }
-
-                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                 if (eval < minEval)
                 {

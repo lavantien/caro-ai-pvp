@@ -128,14 +128,13 @@ public class ThreatSpaceSearch
                 break;
             }
 
-            board.GetCell(move.x, move.y).SetPlayerUnsafe(attacker);
+            var attackBoard = board.PlaceStone(move.x, move.y, attacker);
             nodesSearched++;
 
             // Check if this move wins
-            var winResult = _winDetector.CheckWin(board);
+            var winResult = _winDetector.CheckWin(attackBoard);
             if (winResult.HasWinner && winResult.Winner == attacker)
             {
-                board.GetCell(move.x, move.y).SetPlayerUnsafe(Player.None);
                 return new VCFResult
                 {
                     IsSolved = true,
@@ -146,8 +145,8 @@ public class ThreatSpaceSearch
                 };
             }
 
-            // Get defender's possible responses
-            var defenses = GetDefenseMoves(board, attacker, opponent);
+            // Get defender's possible responses (using attackBoard since it has the attacker's move)
+            var defenses = GetDefenseMoves(attackBoard, attacker, opponent);
 
             bool allDefensesLose = true;
             bool atLeastOneDefense = false;
@@ -161,13 +160,11 @@ public class ThreatSpaceSearch
 
                 atLeastOneDefense = true;
 
-                board.GetCell(defense.x, defense.y).SetPlayerUnsafe(opponent);
+                var defenseBoard = attackBoard.PlaceStone(defense.x, defense.y, opponent);
                 nodesSearched++;
 
                 // Recursively check if attacker can still win
-                var subResult = SolveVCFRecursive(board, attacker, 2, maxDepth, startTime, timeLimitMs, ref nodesSearched);
-
-                board.GetCell(defense.x, defense.y).SetPlayerUnsafe(Player.None);
+                var subResult = SolveVCFRecursive(defenseBoard, attacker, 2, maxDepth, startTime, timeLimitMs, ref nodesSearched);
 
                 if (!subResult.IsWin)
                 {
@@ -176,8 +173,6 @@ public class ThreatSpaceSearch
                     break;
                 }
             }
-
-            board.GetCell(move.x, move.y).SetPlayerUnsafe(Player.None);
 
             if (allDefensesLose && atLeastOneDefense)
             {
@@ -355,10 +350,10 @@ public class ThreatSpaceSearch
         // Try each threat move
         foreach (var move in threatMoves)
         {
-            board.GetCell(move.x, move.y).SetPlayerUnsafe(attacker);
+            var attackBoard = board.PlaceStone(move.x, move.y, attacker);
             nodesSearched++;
 
-            var defenses = GetDefenseMoves(board, attacker, opponent);
+            var defenses = GetDefenseMoves(attackBoard, attacker, opponent);
 
             bool allDefensesLose = true;
             bool atLeastOneDefense = false;
@@ -367,12 +362,10 @@ public class ThreatSpaceSearch
             {
                 atLeastOneDefense = true;
 
-                board.GetCell(defense.x, defense.y).SetPlayerUnsafe(opponent);
+                var defenseBoard = attackBoard.PlaceStone(defense.x, defense.y, opponent);
                 nodesSearched++;
 
-                var subResult = SolveVCFRecursive(board, attacker, depth + 1, maxDepth, startTime, timeLimitMs, ref nodesSearched);
-
-                board.GetCell(defense.x, defense.y).SetPlayerUnsafe(Player.None);
+                var subResult = SolveVCFRecursive(defenseBoard, attacker, depth + 1, maxDepth, startTime, timeLimitMs, ref nodesSearched);
 
                 if (!subResult.IsWin)
                 {
@@ -380,8 +373,6 @@ public class ThreatSpaceSearch
                     break;
                 }
             }
-
-            board.GetCell(move.x, move.y).SetPlayerUnsafe(Player.None);
 
             if (allDefensesLose && atLeastOneDefense)
             {

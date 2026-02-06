@@ -49,8 +49,7 @@ public sealed class OpeningBookValidator : IOpeningBookValidator
         }
 
         // Check if move creates an immediate win (good, not a blunder)
-        var testBoard = board.Clone();
-        testBoard.PlaceStone(x, y, player);
+        var testBoard = board.PlaceStone(x, y, player);
         var winResult = _winDetector.CheckWin(testBoard);
         if (winResult.HasWinner && winResult.Winner == player)
         {
@@ -79,8 +78,7 @@ public sealed class OpeningBookValidator : IOpeningBookValidator
         if (!IsValidMove(board, x, y, player))
             return false;
 
-        var testBoard = board.Clone();
-        testBoard.PlaceStone(x, y, player);
+        var testBoard = board.PlaceStone(x, y, player);
         var winResult = _winDetector.CheckWin(testBoard);
 
         return winResult.HasWinner && winResult.Winner == player;

@@ -101,11 +101,9 @@ public sealed class IterativeDeepeningSearch
                 if (elapsedSeconds >= hardBoundSeconds)
                     break;
 
-                board.GetCell(x, y).SetPlayerUnsafe(player);
+                var newBoard = board.PlaceStone(x, y, player);
 
-                var (score, nodes) = _searchFunc(board, player, depth - 1, alpha, beta, false, player, depth);
-
-                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
+                var (score, nodes) = _searchFunc(newBoard, player, depth - 1, alpha, beta, false, player, depth);
 
                 iterationNodes += nodes;
 

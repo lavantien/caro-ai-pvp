@@ -168,15 +168,12 @@ public sealed class VCFSolver
                 break;
 
             // Make move
-            board.GetCell(x, y).SetPlayerUnsafe(attacker);
+            var newBoard = board.PlaceStone(x, y, attacker);
 
             // Check if this leads to win
             var sequence = new List<(int x, int y)> { (x, y) };
             var (found, seq, nodes) = SolveVCFRecursive(
-                board, attacker, depth - 1, 1, sequence, timeLimitMs, stopwatch, ref nodesSearched);
-
-            // Undo move
-            board.GetCell(x, y).SetPlayerUnsafe(Player.None);
+                newBoard, attacker, depth - 1, 1, sequence, timeLimitMs, stopwatch, ref nodesSearched);
 
             if (found && seq.Count > bestSequence.Count)
             {
@@ -231,14 +228,12 @@ public sealed class VCFSolver
         // Recurse on each forcing move
         foreach (var (x, y) in forcingMoves)
         {
-            board.GetCell(x, y).SetPlayerUnsafe(attacker);
+            var recurseBoard = board.PlaceStone(x, y, attacker);
             var newSequence = new List<(int x, int y)>(currentSequence) { (x, y) };
 
             var (found, seq, nodes) = SolveVCFRecursive(
-                board, attacker, remainingDepth - 1, currentDepth + 1,
+                recurseBoard, attacker, remainingDepth - 1, currentDepth + 1,
                 newSequence, timeLimitMs, stopwatch, ref totalNodes);
-
-            board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
             if (found)
             {

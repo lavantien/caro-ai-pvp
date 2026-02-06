@@ -257,8 +257,6 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                     foreach (var move in moves.Take(maxChildren))
                     {
-                        var newBoard = posData.board.Clone();
-
                         // Transform canonical coordinates back to actual before placing
                         // Moves are stored in canonical space, board is in actual space
                         (int actualX, int actualY) = _canonicalizer.TransformToActual(
@@ -267,7 +265,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                             posData.board
                         );
 
-                        newBoard.PlaceStone(actualX, actualY, posData.player);
+                        var newBoard = posData.board.PlaceStone(actualX, actualY, posData.player);
                         var nextPlayer = posData.player == Player.Red ? Player.Blue : Player.Red;
 
                         var winResult = new WinDetector().CheckWin(newBoard);
@@ -316,8 +314,6 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     // Enqueue child positions from stored moves
                     foreach (var move in moves.Take(maxChildren))
                     {
-                        var newBoard = posData.board.Clone();
-
                         // Transform canonical coordinates back to actual before placing
                         // Moves are stored in canonical space, board is in actual space
                         (int actualX, int actualY) = _canonicalizer.TransformToActual(
@@ -327,7 +323,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                         );
 
                         // Debug: Check if cell is already occupied BEFORE attempting to place
-                        var existingCell = newBoard.GetCell(actualX, actualY);
+                        var existingCell = posData.board.GetCell(actualX, actualY);
                         if (existingCell.Player != Player.None)
                         {
                             _logger.LogError("INTERNAL ERROR: Trying to place at ({ActualX},{ActualY}) but cell is occupied by {ExistingPlayer}. Move from book: ({RelX},{RelY}), Symmetry={Sym}, Depth={Depth}",
@@ -338,7 +334,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                             for (int x = 0; x < 19; x++)
                                 for (int y = 0; y < 19; y++)
                                 {
-                                    var c = newBoard.GetCell(x, y);
+                                    var c = posData.board.GetCell(x, y);
                                     if (c.Player == Player.Red) redCount++;
                                     else if (c.Player == Player.Blue) blueCount++;
                                 }
@@ -348,7 +344,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                             continue;
                         }
 
-                        newBoard.PlaceStone(actualX, actualY, posData.player);
+                        var newBoard = posData.board.PlaceStone(actualX, actualY, posData.player);
                         var nextPlayer = posData.player == Player.Red ? Player.Blue : Player.Red;
 
                         var winResult = new WinDetector().CheckWin(newBoard);
@@ -449,7 +445,6 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 break;
 
             // Apply the stored move to get the opponent's position
-            var newBoard = board.Clone();
             (int actualX, int actualY) = _canonicalizer.TransformToActual(
                 (move.RelativeX, move.RelativeY),
                 symmetry,
@@ -457,10 +452,10 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             );
 
             // Check if move is still valid (cell might be occupied)
-            if (!_validator.IsValidMove(newBoard, actualX, actualY, currentPlayer))
+            if (!_validator.IsValidMove(board, actualX, actualY, currentPlayer))
                 continue;
 
-            newBoard.PlaceStone(actualX, actualY, currentPlayer);
+            var newBoard = board.PlaceStone(actualX, actualY, currentPlayer);
 
             // Check if this move wins
             var winResult = new WinDetector().CheckWin(newBoard);
@@ -618,11 +613,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     return;
                 }
 
-                // Clone board for this candidate (don't modify original)
-                var candidateBoard = board.Clone();
-                candidateBoard.PlaceStone(cx, cy, player);
-
-                var searchBoard = candidateBoard.Clone();
+                // Create board for this candidate (don't modify original)
+                var candidateBoard = board.PlaceStone(cx, cy, player);
+                var searchBoard = candidateBoard;
                 var opponent = player == Player.Red ? Player.Blue : Player.Red;
                 var moveNumber = candidateBoard.GetBitBoard(Player.Red).CountBits() + candidateBoard.GetBitBoard(Player.Blue).CountBits();
 
@@ -644,9 +637,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _)
                     = localAI.GetSearchStatistics();
 
-                searchBoard.PlaceStone(bestX, bestY, opponent);
-                int score = EvaluateBoard(searchBoard, opponent);
-                searchBoard.GetCell(bestX, bestY).SetPlayerUnsafe(Player.None);
+                var evalBoard = searchBoard.PlaceStone(bestX, bestY, opponent);
+                int score = EvaluateBoard(evalBoard, opponent);
 
                 _logger.LogDebug("Candidate ({Cx}, {Cy}) evaluated: best response=({BestX},{BestY}), score={Score}", cx, cy, bestX, bestY, score);
 

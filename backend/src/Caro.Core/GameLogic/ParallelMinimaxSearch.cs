@@ -351,9 +351,8 @@ public sealed class ParallelMinimaxSearch
 
         foreach (var (x, y) in candidates)
         {
-            board.GetCell(x, y).SetPlayerUnsafe(player);
-            var score = Minimax(board, depth - 1, int.MinValue, int.MaxValue, false, player, depth, threadData, token);
-            board.GetCell(x, y).SetPlayerUnsafe(Player.None);
+            var newBoard = board.PlaceStone(x, y, player);
+            var score = Minimax(newBoard, depth - 1, int.MinValue, int.MaxValue, false, player, depth, threadData, token);
 
             if (score > bestScore)
             {
@@ -415,7 +414,7 @@ public sealed class ParallelMinimaxSearch
         var candidatesArray = new List<(int x, int y)>[threadCount];
         for (int i = 0; i < threadCount; i++)
         {
-            boardsArray[i] = board.Clone();
+            boardsArray[i] = board;
             candidatesArray[i] = new List<(int x, int y)>(candidates);
         }
 
@@ -683,9 +682,8 @@ public sealed class ParallelMinimaxSearch
 
         foreach (var (x, y) in orderedMoves)
         {
-            board.GetCell(x, y).SetPlayerUnsafe(player);
-            var score = Minimax(board, depth - 1, alpha, beta, false, player, depth, threadData, cancellationToken);
-            board.GetCell(x, y).SetPlayerUnsafe(Player.None);
+            var newBoard = board.PlaceStone(x, y, player);
+            var score = Minimax(newBoard, depth - 1, alpha, beta, false, player, depth, threadData, cancellationToken);
 
             // CRITICAL FIX: If search was cancelled during Minimax, the score may be invalid (0 from early return)
             // Check cancellation and break out of the move loop without updating bestScore/bestMove
@@ -839,28 +837,26 @@ public sealed class ParallelMinimaxSearch
                 }
             }
 
-            board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
+            var newBoard = board.PlaceStone(x, y, currentPlayer);
             int score;
 
             if (doLMR)
             {
                 // Search with reduced depth first
-                score = Minimax(board, reducedDepth - 1, alpha, beta, !isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
+                score = Minimax(newBoard, reducedDepth - 1, alpha, beta, !isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
 
                 // If reduced depth search returns a score that could improve alpha/beta,
                 // re-search at full depth (verification)
                 if ((isMaximizing && score > alpha) || (!isMaximizing && score < beta))
                 {
-                    score = Minimax(board, depth - 1, alpha, beta, !isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
+                    score = Minimax(newBoard, depth - 1, alpha, beta, !isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
                 }
             }
             else
             {
                 // Full depth search for early/high-priority moves
-                score = Minimax(board, depth - 1, alpha, beta, !isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
+                score = Minimax(newBoard, depth - 1, alpha, beta, !isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
             }
-
-            board.GetCell(x, y).SetPlayerUnsafe(Player.None);
             moveIndex++;
 
             // Check if search was stopped during recursion
@@ -1208,12 +1204,10 @@ public sealed class ParallelMinimaxSearch
                 if (!board.GetCell(x, y).IsEmpty)
                     continue;
 
-                board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
+                var qBoard = board.PlaceStone(x, y, currentPlayer);
 
                 // Recursive quiescence search
-                var eval = Quiesce(board, alpha, beta, false, aiPlayer, quiesceDepth + 1, threadData, cancellationToken);
-
-                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
+                var eval = Quiesce(qBoard, alpha, beta, false, aiPlayer, quiesceDepth + 1, threadData, cancellationToken);
 
                 maxEval = Math.Max(maxEval, eval);
                 alpha = Math.Max(alpha, eval);
@@ -1232,11 +1226,9 @@ public sealed class ParallelMinimaxSearch
                 if (!board.GetCell(x, y).IsEmpty)
                     continue;
 
-                board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
+                var qBoard = board.PlaceStone(x, y, currentPlayer);
 
-                var eval = Quiesce(board, alpha, beta, true, aiPlayer, quiesceDepth + 1, threadData, cancellationToken);
-
-                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
+                var eval = Quiesce(qBoard, alpha, beta, true, aiPlayer, quiesceDepth + 1, threadData, cancellationToken);
 
                 minEval = Math.Min(minEval, eval);
                 beta = Math.Min(beta, eval);
@@ -1420,9 +1412,8 @@ public sealed class ParallelMinimaxSearch
                 if (!board.GetCell(x, y).IsEmpty)
                     continue;
 
-                board.GetCell(x, y).SetPlayerUnsafe(opponent);
-                bool isWinningMove = _winDetector.CheckWin(board).HasWinner;
-                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
+                var testBoard = board.PlaceStone(x, y, opponent);
+                bool isWinningMove = _winDetector.CheckWin(testBoard).HasWinner;
 
                 if (isWinningMove)
                 {
@@ -1554,7 +1545,7 @@ public sealed class ParallelMinimaxSearch
         var candidatesArray = new List<(int x, int y)>[ponderThreadCount];
         for (int i = 0; i < ponderThreadCount; i++)
         {
-            boardsArray[i] = board.Clone();
+            boardsArray[i] = board;
             candidatesArray[i] = new List<(int x, int y)>(candidates);
         }
 

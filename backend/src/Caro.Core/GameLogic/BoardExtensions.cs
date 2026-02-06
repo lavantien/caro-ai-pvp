@@ -102,12 +102,14 @@ public static class BoardExtensions
 
     /// <summary>
     /// Clone a board including its technical state (bitboards, hash).
+    /// NOTE: No longer needed as Board is immutable, kept for API compatibility.
     /// </summary>
     public static Board CloneWithState(this Board board)
     {
-        var clone = board.Clone();
-        clone.SyncFromClone(board);
-        return clone;
+        // Board is now immutable (Cell is a record struct), no cloning needed
+        // Just sync the technical state
+        board.SyncFromClone(board);
+        return board;
     }
 
     /// <summary>

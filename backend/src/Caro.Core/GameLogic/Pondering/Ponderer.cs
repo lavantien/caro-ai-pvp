@@ -164,7 +164,7 @@ public sealed class Ponderer : IDisposable
             _lastProgressScore = 0;
 
             // Clone board and make predicted move
-            _ponderBoard = currentBoard.Clone();
+            _ponderBoard = currentBoard;
             if (predictedOpponentMove.HasValue)
             {
                 // Note: PlaceStone returns a new Board (immutable), so we capture the result
@@ -198,7 +198,7 @@ public sealed class Ponderer : IDisposable
             return;
 
         // Store local references for the closure
-        var localPonderBoard = ponderBoard.Clone();
+        var localPonderBoard = ponderBoard;
         var localPonderingForPlayer = _ponderingForPlayer;
 
         _ponderTask = Task.Run(() =>
