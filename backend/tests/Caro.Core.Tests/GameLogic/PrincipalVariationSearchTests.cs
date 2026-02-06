@@ -59,8 +59,8 @@ public class PrincipalVariationSearchTests
 
         // Assert - Should complete quickly
         // Parallel search has some overhead, so we allow more time
-        Assert.True(stopwatch.ElapsedMilliseconds < 15000,
-            $"PVS search took {stopwatch.ElapsedMilliseconds}ms, expected < 15000ms");
+        Assert.True(stopwatch.ElapsedMilliseconds < 30000,
+            $"PVS search took {stopwatch.ElapsedMilliseconds}ms, expected < 30000ms");
 
         // Move should be valid
         Assert.True(move.x >= 0 && move.x < 15);

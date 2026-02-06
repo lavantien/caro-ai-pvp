@@ -170,7 +170,7 @@ public class EvaluatorComparisonTests
 
         for (int i = 0; i < totalTests; i++)
         {
-            var testBoard = board.Clone();
+            var testBoard = board;
 
             // Place 10-20 random stones
             int stoneCount = random.Next(10, 21);

@@ -64,7 +64,7 @@ public class BoardTests
     }
 
     [Fact]
-    public void Clone_ProducesExactCopy_OfCellStates()
+    public void BoardAssignment_ProducesExactCopy_OfCellStates()
     {
         // Arrange
         var original = new Board();
@@ -72,8 +72,8 @@ public class BoardTests
         original = original.PlaceStone(6, 6, Player.Blue);
         original = original.PlaceStone(7, 7, Player.Red);
 
-        // Act
-        var clone = original.Clone();
+        // Act - Board is immutable, so assignment creates a reference copy
+        var clone = original;
 
         // Assert - all cell states match
         clone.GetCell(5, 5).Player.Should().Be(Player.Red);
@@ -83,35 +83,32 @@ public class BoardTests
     }
 
     [Fact]
-    public void Clone_DoesNotShareState_WithOriginal()
+    public void PlaceStone_DoesNotAffectOriginal_BoardIsImmutable()
     {
         // Arrange
         var original = new Board();
         original = original.PlaceStone(5, 5, Player.Red);
 
-        // Act
-        var clone = original.Clone();
-        clone = clone.PlaceStone(6, 6, Player.Blue);
+        // Act - PlaceStone returns a new Board (immutable)
+        var clone = original.PlaceStone(6, 6, Player.Blue);
 
-        // Assert - clone modification doesn't affect original
+        // Assert - original is unchanged because Board is immutable
         original.GetCell(6, 6).Player.Should().Be(Player.None);
         clone.GetCell(6, 6).Player.Should().Be(Player.Blue);
     }
 
     [Fact]
-    public void Clone_PreservesHash_Exactly()
+    public void BoardAssignment_PreservesState_Exactly()
     {
         // Arrange
         var original = new Board();
         original = original.PlaceStone(9, 9, Player.Red);
         original = original.PlaceStone(10, 10, Player.Blue);
 
-        // Act
-        var clone = original.Clone();
+        // Act - Board is immutable, assignment creates a reference
+        var clone = original;
 
-        // Assert - hashes should be identical (copied directly, not recomputed)
-        // Note: We can't access _hash directly, but we can verify the board state is identical
-        // which would produce the same hash if recomputed
+        // Assert - board state is identical
         for (int x = 0; x < 19; x++)
         {
             for (int y = 0; y < 19; y++)
@@ -122,7 +119,7 @@ public class BoardTests
     }
 
     [Fact]
-    public void Clone_PreservesBitBoards()
+    public void BoardAssignment_PreservesBitBoards()
     {
         // Arrange
         var original = new Board();
@@ -130,8 +127,8 @@ public class BoardTests
         original = original.PlaceStone(6, 6, Player.Blue);
         original = original.PlaceStone(7, 7, Player.Red);
 
-        // Act
-        var clone = original.Clone();
+        // Act - Board is immutable, assignment creates a reference
+        var clone = original;
 
         // Assert - BitBoards match
         var originalRed = original.GetBitBoard(Player.Red);
@@ -166,19 +163,17 @@ public class BoardTests
     }
 
     [Fact]
-    public void Clone_AllowsPlacingStones_OnAllCells()
+    public void PlaceStone_AllowsPlacingStones_OnAllCells()
     {
         // Arrange
         var original = new Board();
         original = original.PlaceStone(5, 5, Player.Red);
         original = original.PlaceStone(6, 6, Player.Blue);
 
-        // Act
-        var clone = original.Clone();
+        // Act - PlaceStone returns new Board (immutable)
+        var clone = original.PlaceStone(7, 7, Player.Red);
 
-        // Assert - can place stones on any empty cell without "already occupied" error
-        // This was the bug: CloneBoard didn't properly copy state
-        clone = clone.PlaceStone(7, 7, Player.Red);
+        // Assert - can place stones on any empty cell
         clone = clone.PlaceStone(8, 8, Player.Blue);
 
         clone.GetCell(7, 7).Player.Should().Be(Player.Red);
@@ -186,21 +181,16 @@ public class BoardTests
     }
 
     [Fact]
-    public void Clone_MultipleTimes_ProducesIndependentCopies()
+    public void PlaceStone_MultipleTimes_ProducesIndependentBoards()
     {
         // Arrange
         var original = new Board();
         original = original.PlaceStone(5, 5, Player.Red);
 
-        // Act
-        var clone1 = original.Clone();
-        var clone2 = original.Clone();
-        var clone3 = clone1.Clone();
-
-        // Modify each clone differently
-        clone1 = clone1.PlaceStone(6, 6, Player.Blue);
-        clone2 = clone2.PlaceStone(7, 7, Player.Blue);
-        clone3 = clone3.PlaceStone(8, 8, Player.Blue);
+        // Act - Each PlaceStone returns a new Board (immutable)
+        var clone1 = original.PlaceStone(6, 6, Player.Blue);
+        var clone2 = original.PlaceStone(7, 7, Player.Blue);
+        var clone3 = clone1.PlaceStone(8, 8, Player.Blue);
 
         // Assert - all copies are independent
         original.GetCell(6, 6).Player.Should().Be(Player.None);
@@ -215,7 +205,7 @@ public class BoardTests
         clone2.GetCell(7, 7).Player.Should().Be(Player.Blue);
         clone2.GetCell(8, 8).Player.Should().Be(Player.None);
 
-        clone3.GetCell(6, 6).Player.Should().Be(Player.None);
+        clone3.GetCell(6, 6).Player.Should().Be(Player.Blue);
         clone3.GetCell(7, 7).Player.Should().Be(Player.None);
         clone3.GetCell(8, 8).Player.Should().Be(Player.Blue);
     }
