@@ -1,3 +1,5 @@
+using System.Net.WebSockets;
+using System.Text;
 using Caro.Api;
 using Caro.Api.Logging;
 using Caro.Core.Domain.Entities;
@@ -61,6 +63,9 @@ builder.Services.AddSingleton<MinimaxAI>(sp =>
     return new MinimaxAI(logger: logger, openingBook: openingBook);
 });
 
+// Register UCIHandler for WebSocket UCI protocol
+builder.Services.AddSingleton<UCIHandler>();
+
 // CORS for local development - allow any localhost port
 builder.Services.AddCors(options =>
 {
@@ -75,9 +80,61 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 app.UseCors();
+app.UseWebSockets();
 
 // Map SignalR hub
 app.MapHub<TournamentHub>("/hubs/tournament");
+
+// WebSocket endpoint for UCI protocol
+app.Map("/ws/uci", async (HttpContext context, UCIHandler handler) =>
+{
+    if (context.WebSockets.IsWebSocketRequest)
+    {
+        using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+        var buffer = new byte[4096];
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+
+        logger.LogInformation("UCI WebSocket connection established");
+
+        while (webSocket.State == WebSocketState.Open)
+        {
+            var result = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
+
+            if (result.MessageType == WebSocketMessageType.Close)
+            {
+                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                break;
+            }
+
+            if (result.MessageType == WebSocketMessageType.Text)
+            {
+                var message = Encoding.UTF8.GetString(buffer, 0, result.Count).Trim();
+                if (!string.IsNullOrEmpty(message))
+                {
+                    logger.LogDebug("UCI command received: {Message}", message);
+
+                    var response = await handler.HandleMessageAsync(message);
+                    if (!string.IsNullOrEmpty(response))
+                    {
+                        var responseBytes = Encoding.UTF8.GetBytes(response);
+                        await webSocket.SendAsync(
+                            new ArraySegment<byte>(responseBytes),
+                            WebSocketMessageType.Text,
+                            true,
+                            CancellationToken.None
+                        );
+                    }
+                }
+            }
+        }
+
+        logger.LogInformation("UCI WebSocket connection closed");
+    }
+    else
+    {
+        context.Response.StatusCode = 400;
+    }
+});
 
 // In-memory game storage with per-game locks (concurrent-safe)
 // Using ConcurrentDictionary eliminates the need for a global lock
