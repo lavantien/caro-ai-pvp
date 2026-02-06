@@ -10,7 +10,7 @@ public class GameStateTests
     public void CreateInitial_ReturnsInitialState()
     {
         // Act
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
 
         // Assert
         state.CurrentPlayer.Should().Be(Player.Red);
@@ -39,7 +39,7 @@ public class GameStateTests
     public void MakeMove_ReturnsNewState_WithoutMutatingOriginal()
     {
         // Arrange
-        var originalState = GameState.CreateInitial();
+        var originalState = GameStateFactory.CreateInitial();
 
         // Act
         var newState = originalState.MakeMove(9, 9);
@@ -57,7 +57,7 @@ public class GameStateTests
     public void MakeMove_SwitchesPlayer()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
 
         // Act
         var newState = state.MakeMove(9, 9);
@@ -85,7 +85,7 @@ public class GameStateTests
     public void MakeMove_AddsToMoveHistory()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
 
         // Act
         var newState = state.MakeMove(9, 9);
@@ -101,7 +101,7 @@ public class GameStateTests
     public void MakeMove_AfterGameOver_ThrowsGameOverException()
     {
         // Arrange
-        var state = GameState.CreateInitial().EndGame(Player.Red);
+        var state = GameStateFactory.CreateInitial().EndGame(Player.Red);
 
         // Act & Assert
         Action act = () => state.MakeMove(9, 9);
@@ -113,7 +113,7 @@ public class GameStateTests
     public void MakeMove_AtOccupiedCell_ThrowsInvalidMoveException()
     {
         // Arrange
-        var state = GameState.CreateInitial().MakeMove(9, 9);
+        var state = GameStateFactory.CreateInitial().MakeMove(9, 9);
 
         // Act & Assert
         Action act = () => state.MakeMove(9, 9);
@@ -125,7 +125,7 @@ public class GameStateTests
     public void EndGame_SetsGameOverAndWinner()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
         var winningLine = new Position[]
         {
             new(5, 5), new(6, 5), new(7, 5), new(8, 5), new(9, 5)
@@ -144,7 +144,7 @@ public class GameStateTests
     public void UndoMove_RevertsToPreviousState()
     {
         // Arrange
-        var state = GameState.CreateInitial()
+        var state = GameStateFactory.CreateInitial()
             .MakeMove(9, 9)
             .MakeMove(10, 10);
 
@@ -163,7 +163,7 @@ public class GameStateTests
     public void UndoMove_RemovesStoneFromBoard()
     {
         // Arrange
-        var state = GameState.CreateInitial().MakeMove(9, 9);
+        var state = GameStateFactory.CreateInitial().MakeMove(9, 9);
 
         // Act
         var undone = state.UndoMove();
@@ -177,7 +177,7 @@ public class GameStateTests
     public void UndoMove_WithNoMoves_ThrowsInvalidOperationException()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
 
         // Act & Assert
         Action act = () => state.UndoMove();
@@ -189,7 +189,7 @@ public class GameStateTests
     public void UndoMove_AfterGameOver_ThrowsGameOverException()
     {
         // Arrange
-        var state = GameState.CreateInitial().EndGame();
+        var state = GameStateFactory.CreateInitial().WithEndGame();
 
         // Act & Assert
         Action act = () => state.UndoMove();
@@ -201,7 +201,7 @@ public class GameStateTests
     public void CanUndo_ReturnsTrueWhenMovesExist()
     {
         // Arrange
-        var state = GameState.CreateInitial().MakeMove(9, 9);
+        var state = GameStateFactory.CreateInitial().MakeMove(9, 9);
 
         // Act & Assert
         state.CanUndo().Should().BeTrue();
@@ -211,7 +211,7 @@ public class GameStateTests
     public void CanUndo_ReturnsFalseWhenNoMoves()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
 
         // Act & Assert
         state.CanUndo().Should().BeFalse();
@@ -221,7 +221,7 @@ public class GameStateTests
     public void CanUndo_ReturnsFalseAfterGameOver()
     {
         // Arrange
-        var state = GameState.CreateInitial().MakeMove(9, 9).EndGame();
+        var state = GameStateFactory.CreateInitial().MakeMove(9, 9).EndGame();
 
         // Act & Assert
         state.CanUndo().Should().BeFalse();
@@ -247,7 +247,7 @@ public class GameStateTests
     public void WithTimeRemaining_UpdatesCurrentPlayerTime()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
 
         // Act
         var newState = state.WithTimeRemaining(TimeSpan.FromMinutes(3));
@@ -262,8 +262,8 @@ public class GameStateTests
     public void Equality_StatesWithSameBoardAreEqual()
     {
         // Arrange
-        var state1 = GameState.CreateInitial().MakeMove(9, 9);
-        var state2 = GameState.CreateInitial().MakeMove(9, 9);
+        var state1 = GameStateFactory.CreateInitial().MakeMove(9, 9);
+        var state2 = GameStateFactory.CreateInitial().MakeMove(9, 9);
 
         // Act & Assert
         state1.Should().Be(state2);
@@ -273,8 +273,8 @@ public class GameStateTests
     public void Equality_StatesWithDifferentBoardsAreNotEqual()
     {
         // Arrange
-        var state1 = GameState.CreateInitial().MakeMove(9, 9);
-        var state2 = GameState.CreateInitial().MakeMove(10, 10);
+        var state1 = GameStateFactory.CreateInitial().MakeMove(9, 9);
+        var state2 = GameStateFactory.CreateInitial().MakeMove(10, 10);
 
         // Act & Assert
         state1.Should().NotBe(state2);

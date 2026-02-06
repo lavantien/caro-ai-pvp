@@ -1,3 +1,4 @@
+using Caro.Core.Application.Extensions;
 using Caro.Core.Domain.Entities;
 using Caro.Core.Infrastructure.Persistence;
 using FluentAssertions;
@@ -22,7 +23,7 @@ public sealed class InMemoryGameRepositoryTests
     {
         // Arrange
         var gameId = Guid.NewGuid();
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
 
         // Act
         await _repository.SaveAsync(gameId, state);
@@ -39,7 +40,7 @@ public sealed class InMemoryGameRepositoryTests
     {
         // Arrange
         var gameId = Guid.NewGuid();
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
         await _repository.SaveAsync(gameId, state);
 
         // Act
@@ -64,7 +65,7 @@ public sealed class InMemoryGameRepositoryTests
     {
         // Arrange
         var gameId = Guid.NewGuid();
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
         await _repository.SaveAsync(gameId, state);
 
         // Act
@@ -92,9 +93,9 @@ public sealed class InMemoryGameRepositoryTests
         var id1 = Guid.NewGuid();
         var id2 = Guid.NewGuid();
         var id3 = Guid.NewGuid();
-        await _repository.SaveAsync(id1, GameState.CreateInitial());
-        await _repository.SaveAsync(id2, GameState.CreateInitial());
-        await _repository.SaveAsync(id3, GameState.CreateInitial());
+        await _repository.SaveAsync(id1, GameStateFactory.CreateInitial());
+        await _repository.SaveAsync(id2, GameStateFactory.CreateInitial());
+        await _repository.SaveAsync(id3, GameStateFactory.CreateInitial());
 
         // Act
         var ids = await _repository.GetAllIdsAsync();
@@ -111,7 +112,7 @@ public sealed class InMemoryGameRepositoryTests
     {
         // Arrange
         var gameId = Guid.NewGuid();
-        var state1 = GameState.CreateInitial();
+        var state1 = GameStateFactory.CreateInitial();
         await _repository.SaveAsync(gameId, state1);
 
         // Act - MakeMove returns a new state with incremented move number
@@ -143,8 +144,8 @@ public sealed class InMemoryGameRepositoryTests
     public async Task Clear_RemovesAllGames()
     {
         // Arrange
-        await _repository.SaveAsync(Guid.NewGuid(), GameState.CreateInitial());
-        await _repository.SaveAsync(Guid.NewGuid(), GameState.CreateInitial());
+        await _repository.SaveAsync(Guid.NewGuid(), GameStateFactory.CreateInitial());
+        await _repository.SaveAsync(Guid.NewGuid(), GameStateFactory.CreateInitial());
 
         // Act
         _repository.Clear();

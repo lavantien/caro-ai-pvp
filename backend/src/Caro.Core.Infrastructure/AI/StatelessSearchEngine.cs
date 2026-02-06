@@ -67,7 +67,7 @@ public sealed partial class StatelessSearchEngine
                     if (CheckWin(newBoard, x, y, state.CurrentPlayer))
                     {
                         aiState.LastPV = new[] { new Position(x, y) };
-                        StoreTT(newBoard.Hash, 100000, depth, new TTMove(x, y), TTFlag.Exact, aiState);
+                        StoreTT(newBoard.GetHash(), 100000, depth, new TTMove(x, y), TTFlag.Exact, aiState);
                         return (x, y, 100000 + depth, CreateStats(aiState, stopwatch.ElapsedMilliseconds));
                     }
 
@@ -135,7 +135,7 @@ public sealed partial class StatelessSearchEngine
         aiState.NodesSearched++;
 
         // Check transposition table
-        var ttEntry = aiState.TranspositionTable.Lookup(new ZobristHash(board.Hash), depth);
+        var ttEntry = aiState.TranspositionTable.Lookup(new ZobristHash(board.GetHash()), depth);
         if (ttEntry != null)
         {
             aiState.TableHits++;
@@ -153,7 +153,7 @@ public sealed partial class StatelessSearchEngine
         }
 
         // Check for game over
-        if (board.TotalStones() >= Board.TotalCells)
+        if (board.TotalStones() >= board.TotalCells())
         {
             return 0; // Draw
         }
@@ -178,7 +178,7 @@ public sealed partial class StatelessSearchEngine
             if (CheckWin(newBoard, x, y, player))
             {
                 int winScore = 100000 + depth; // Prefer faster wins
-                StoreTT(board.Hash, winScore, depth, new TTMove(x, y), TTFlag.Exact, aiState);
+                StoreTT(board.GetHash(), winScore, depth, new TTMove(x, y), TTFlag.Exact, aiState);
                 return winScore;
             }
 
@@ -207,7 +207,7 @@ public sealed partial class StatelessSearchEngine
             }
         }
 
-        StoreTT(board.Hash, bestScore, depth, new TTMove(bestMove.X, bestMove.Y), GetTTType(bestScore, alpha, beta), aiState);
+        StoreTT(board.GetHash(), bestScore, depth, new TTMove(bestMove.X, bestMove.Y), GetTTType(bestScore, alpha, beta), aiState);
         return bestScore;
     }
 
@@ -431,7 +431,7 @@ public sealed partial class StatelessSearchEngine
     /// </summary>
     private static int GetMaxDepthRemaining(GameState state)
     {
-        var remaining = Board.TotalCells - state.Board.TotalStones();
+        var remaining = state.Board.TotalCells() - state.Board.TotalStones();
 
         return remaining switch
         {

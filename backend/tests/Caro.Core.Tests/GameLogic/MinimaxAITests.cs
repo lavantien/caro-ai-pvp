@@ -2,6 +2,7 @@ using Xunit;
 using FluentAssertions;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
+using Caro.Core.Tests.Helpers;
 
 namespace Caro.Core.Tests.GameLogic;
 
@@ -11,7 +12,7 @@ public class MinimaxAITests
     public void GetBestMove_EmptyBoard_ReturnsCenterMove()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Act
@@ -27,14 +28,14 @@ public class MinimaxAITests
     public void GetBestMove_CanWinInOneMove_TakesWinningMove()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Create 4-in-row for Red, ready to win
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
         var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
@@ -52,14 +53,14 @@ public class MinimaxAITests
     public void GetBestMove_OponentCanWin_BlocksWinningMove()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Blue has 4-in-row, ready to win
-        board.PlaceStone(7, 7, Player.Blue);
-        board.PlaceStone(8, 7, Player.Blue);
-        board.PlaceStone(9, 7, Player.Blue);
-        board.PlaceStone(10, 7, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Blue);
+        board = board.PlaceStone(9, 7, Player.Blue);
+        board = board.PlaceStone(10, 7, Player.Blue);
 
         // Act - Red should block
         var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
@@ -76,11 +77,11 @@ public class MinimaxAITests
     public void GetBestMove_AllDifficulties_ReturnsValidMove()
     {
         // Arrange
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Place one stone in center
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act & Assert - only test Easy difficulty for unit tests
         var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Braindead);
@@ -96,14 +97,14 @@ public class MinimaxAITests
     public void GetBestMove_WithVCFPosition_FindsWinningMove()
     {
         // Arrange - Position where Red has immediate winning threat
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Red has XXXX_ - can win immediately
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
 
         // Act - Hard difficulty or above should use VCF
         var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
@@ -114,7 +115,7 @@ public class MinimaxAITests
         isWinningMove.Should().BeTrue("VCF should find immediate winning move");
 
         // Verify the move actually wins
-        board.PlaceStone(x, y, Player.Red);
+        board = board.PlaceStone(x, y, Player.Red);
         var winDetector = new WinDetector();
         var result = winDetector.CheckWin(board);
         result.HasWinner.Should().BeTrue("The suggested move should actually win");

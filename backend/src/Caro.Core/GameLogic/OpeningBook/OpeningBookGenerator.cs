@@ -646,7 +646,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                 searchBoard.PlaceStone(bestX, bestY, opponent);
                 int score = EvaluateBoard(searchBoard, opponent);
-                searchBoard.GetCell(bestX, bestY).Player = Player.None;
+                searchBoard.GetCell(bestX, bestY).SetPlayerUnsafe(Player.None);
 
                 _logger.LogDebug("Candidate ({Cx}, {Cy}) evaluated: best response=({BestX},{BestY}), score={Score}", cx, cy, bestX, bestY, score);
 

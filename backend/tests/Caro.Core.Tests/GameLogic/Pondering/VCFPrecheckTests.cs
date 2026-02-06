@@ -14,10 +14,10 @@ public class VCFPrecheckTests
     {
         // Arrange - XXXX_ pattern
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
         var hasThreats = _precheck.HasPotentialThreats(board, Player.Red);
@@ -31,10 +31,10 @@ public class VCFPrecheckTests
     {
         // Arrange - XXX_X pattern
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(11, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(11, 7, Player.Red);
 
         // Act
         var hasThreats = _precheck.HasPotentialThreats(board, Player.Red);
@@ -49,13 +49,13 @@ public class VCFPrecheckTests
         // Arrange - Two separate S3 threats
         var board = new Board();
         // First S3
-        board.PlaceStone(5, 5, Player.Red);
-        board.PlaceStone(6, 5, Player.Red);
-        board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(6, 5, Player.Red);
+        board = board.PlaceStone(7, 5, Player.Red);
         // Second S3
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act
         var hasThreats = _precheck.HasPotentialThreats(board, Player.Red);
@@ -69,9 +69,9 @@ public class VCFPrecheckTests
     {
         // Arrange - Single S3 without other threats
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         // Act
         var hasThreats = _precheck.HasPotentialThreats(board, Player.Red);
@@ -99,9 +99,9 @@ public class VCFPrecheckTests
     {
         // Arrange - Few scattered stones, no pattern
         var board = new Board();
-        board.PlaceStone(5, 5, Player.Red);
-        board.PlaceStone(10, 10, Player.Blue);
-        board.PlaceStone(3, 7, Player.Red);
+        board = board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(10, 10, Player.Blue);
+        board = board.PlaceStone(3, 7, Player.Red);
 
         // Act
         var hasThreats = _precheck.HasPotentialThreats(board, Player.Red);
@@ -121,12 +121,12 @@ public class VCFPrecheckTests
             var x = i % 15;
             var y = (i / 15) % 15;
             var player = i % 2 == 0 ? Player.Red : Player.Blue;
-            board.PlaceStone(x, y, player);
+            board = board.PlaceStone(x, y, player);
         }
         // Add a threat
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         // Act
         var hasThreats = _precheck.HasPotentialThreats(board, Player.Red);
@@ -146,11 +146,11 @@ public class VCFPrecheckTests
             var x = i % 15;
             var y = (i / 15) % 15;
             var player = i % 2 == 0 ? Player.Red : Player.Blue;
-            board.PlaceStone(x, y, player);
+            board = board.PlaceStone(x, y, player);
         }
         // Add a weak threat (two in a row)
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
 
         // Act
         var hasThreats = _precheck.HasPotentialThreats(board, Player.Red);
@@ -164,11 +164,11 @@ public class VCFPrecheckTests
     {
         // Arrange - Opponent has S4 threat
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Blue);
-        board.PlaceStone(8, 7, Player.Blue);
-        board.PlaceStone(9, 7, Player.Blue);
-        board.PlaceStone(10, 7, Player.Blue);
-        board.PlaceStone(5, 5, Player.Red); // Red has no threats
+        board = board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Blue);
+        board = board.PlaceStone(9, 7, Player.Blue);
+        board = board.PlaceStone(10, 7, Player.Blue);
+        board = board.PlaceStone(5, 5, Player.Red); // Red has no threats
 
         // Act
         var hasThreats = _precheck.HasPotentialThreats(board, Player.Red);
@@ -182,10 +182,10 @@ public class VCFPrecheckTests
     {
         // Arrange - Opponent has S3 threat
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Blue);
-        board.PlaceStone(8, 7, Player.Blue);
-        board.PlaceStone(9, 7, Player.Blue);
-        board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Blue);
+        board = board.PlaceStone(9, 7, Player.Blue);
+        board = board.PlaceStone(5, 5, Player.Red);
 
         // Act
         var hasThreats = _precheck.HasPotentialThreats(board, Player.Red);
@@ -199,10 +199,10 @@ public class VCFPrecheckTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
         var urgency = _precheck.GetThreatUrgency(board, Player.Red);
@@ -216,10 +216,10 @@ public class VCFPrecheckTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(11, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(11, 7, Player.Red);
 
         // Act
         var urgency = _precheck.GetThreatUrgency(board, Player.Red);
@@ -233,9 +233,9 @@ public class VCFPrecheckTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         // Act
         var urgency = _precheck.GetThreatUrgency(board, Player.Red);
@@ -250,15 +250,15 @@ public class VCFPrecheckTests
         // Arrange - Two S4 threats
         var board = new Board();
         // First S4
-        board.PlaceStone(5, 5, Player.Red);
-        board.PlaceStone(6, 5, Player.Red);
-        board.PlaceStone(7, 5, Player.Red);
-        board.PlaceStone(8, 5, Player.Red);
+        board = board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(6, 5, Player.Red);
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(8, 5, Player.Red);
         // Second S4
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
 
         // Act
         var urgency = _precheck.GetThreatUrgency(board, Player.Red);
@@ -288,10 +288,10 @@ public class VCFPrecheckTests
         // Create many threats that would exceed 100
         for (int i = 0; i < 5; i++)
         {
-            board.PlaceStone(i, 0, Player.Red);
-            board.PlaceStone(i, 1, Player.Red);
-            board.PlaceStone(i, 2, Player.Red);
-            board.PlaceStone(i, 3, Player.Red);
+            board = board.PlaceStone(i, 0, Player.Red);
+            board = board.PlaceStone(i, 1, Player.Red);
+            board = board.PlaceStone(i, 2, Player.Red);
+            board = board.PlaceStone(i, 3, Player.Red);
         }
 
         // Act
@@ -306,11 +306,11 @@ public class VCFPrecheckTests
     {
         // Arrange - 5 stones on board
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 8, Player.Blue);
-        board.PlaceStone(6, 6, Player.Red);
-        board.PlaceStone(9, 9, Player.Blue);
-        board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(6, 6, Player.Red);
+        board = board.PlaceStone(9, 9, Player.Blue);
+        board = board.PlaceStone(5, 5, Player.Red);
 
         // Act
         var isOpening = _precheck.IsOpeningPhase(board);
@@ -326,7 +326,7 @@ public class VCFPrecheckTests
         var board = new Board();
         for (int i = 0; i < 10; i++)
         {
-            board.PlaceStone(i, 0, i % 2 == 0 ? Player.Red : Player.Blue);
+            board = board.PlaceStone(i, 0, i % 2 == 0 ? Player.Red : Player.Blue);
         }
 
         // Act
@@ -358,7 +358,7 @@ public class VCFPrecheckTests
         {
             for (int y = 0; y < 14; y++) // 14 * 19 = 266 stones (>70% of 361)
             {
-                board.PlaceStone(x, y, x % 2 == 0 ? Player.Red : Player.Blue);
+                board = board.PlaceStone(x, y, x % 2 == 0 ? Player.Red : Player.Blue);
             }
         }
 
@@ -378,7 +378,7 @@ public class VCFPrecheckTests
         {
             for (int y = 0; y < 10; y++) // 10 * 19 = 190 stones (~53%)
             {
-                board.PlaceStone(x, y, x % 2 == 0 ? Player.Red : Player.Blue);
+                board = board.PlaceStone(x, y, x % 2 == 0 ? Player.Red : Player.Blue);
             }
         }
 
@@ -397,13 +397,13 @@ public class VCFPrecheckTests
         // Add enough stones to avoid opening phase reduction
         for (int i = 0; i < 12; i++)
         {
-            board.PlaceStone(i, 0, i % 2 == 0 ? Player.Blue : Player.Red);
+            board = board.PlaceStone(i, 0, i % 2 == 0 ? Player.Blue : Player.Red);
         }
         // Add S4 threat for high urgency
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
         var multiplier = _precheck.CalculatePonderTimeMultiplier(board, Player.Red);
@@ -417,8 +417,8 @@ public class VCFPrecheckTests
     {
         // Arrange - Low urgency position
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
 
         // Act
         var multiplier = _precheck.CalculatePonderTimeMultiplier(board, Player.Red);
@@ -432,9 +432,9 @@ public class VCFPrecheckTests
     {
         // Arrange - Opening position with threat
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         // Act
         var multiplier = _precheck.CalculatePonderTimeMultiplier(board, Player.Red);
@@ -452,12 +452,12 @@ public class VCFPrecheckTests
         {
             for (int y = 0; y < 14; y++) // 14 * 19 = 266 stones (>70% of 361)
             {
-                board.PlaceStone(x, y, x % 2 == 0 ? Player.Red : Player.Blue);
+                board = board.PlaceStone(x, y, x % 2 == 0 ? Player.Red : Player.Blue);
             }
         }
         // Add a threat
-        board.PlaceStone(5, 15, Player.Red);
-        board.PlaceStone(6, 15, Player.Red);
+        board = board.PlaceStone(5, 15, Player.Red);
+        board = board.PlaceStone(6, 15, Player.Red);
 
         // Act
         var multiplier = _precheck.CalculatePonderTimeMultiplier(board, Player.Red);
@@ -474,10 +474,10 @@ public class VCFPrecheckTests
         // Create multiple S4 threats
         for (int i = 0; i < 3; i++)
         {
-            board.PlaceStone(i, 0, Player.Red);
-            board.PlaceStone(i, 1, Player.Red);
-            board.PlaceStone(i, 2, Player.Red);
-            board.PlaceStone(i, 3, Player.Red);
+            board = board.PlaceStone(i, 0, Player.Red);
+            board = board.PlaceStone(i, 1, Player.Red);
+            board = board.PlaceStone(i, 2, Player.Red);
+            board = board.PlaceStone(i, 3, Player.Red);
         }
 
         // Act
@@ -492,7 +492,7 @@ public class VCFPrecheckTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act
         var multiplier = _precheck.CalculatePonderTimeMultiplier(board, Player.Red);
@@ -506,7 +506,7 @@ public class VCFPrecheckTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act
         var hasThreats = _precheck.HasPotentialThreats(board, Player.None);

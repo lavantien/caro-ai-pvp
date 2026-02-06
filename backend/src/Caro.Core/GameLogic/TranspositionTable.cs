@@ -43,12 +43,12 @@ public class TranspositionTable
 
     /// <summary>
     /// Calculate Zobrist hash for the current board position
-    /// Uses Board.Hash for O(1) access (incremental hash maintained by Board)
+    /// Uses Board.GetHash() for O(1) access (incremental hash maintained by Board)
     /// Falls back to full calculation if needed
     /// </summary>
     public ulong CalculateHash(Board board)
     {
-        return board.Hash; // O(1) - Board maintains hash incrementally
+        return board.GetHash(); // O(1) - Board maintains hash incrementally
     }
 
     /// <summary>

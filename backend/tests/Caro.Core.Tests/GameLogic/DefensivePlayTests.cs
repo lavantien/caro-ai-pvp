@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using Caro.Core.Tests.Helpers;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 
@@ -25,11 +26,11 @@ public class DefensivePlayTests
         // Position (11,7) is open - this is the winning move
         // Position (6,7) is blocked by Blue
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Blue); // Blocks one end
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Blue); // Blocks one end
 
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
@@ -48,11 +49,11 @@ public class DefensivePlayTests
     {
         // Arrange: Create vertical semi-open four
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Red);
-        board.PlaceStone(7, 9, Player.Red);
-        board.PlaceStone(7, 10, Player.Red);
-        board.PlaceStone(7, 6, Player.Blue); // Blocks one end
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(7, 9, Player.Red);
+        board = board.PlaceStone(7, 10, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Blue); // Blocks one end
 
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
@@ -71,11 +72,11 @@ public class DefensivePlayTests
     {
         // Arrange: Create diagonal semi-open four
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 8, Player.Red);
-        board.PlaceStone(9, 9, Player.Red);
-        board.PlaceStone(10, 10, Player.Red);
-        board.PlaceStone(6, 6, Player.Blue); // Blocks one end
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Red);
+        board = board.PlaceStone(9, 9, Player.Red);
+        board = board.PlaceStone(10, 10, Player.Red);
+        board = board.PlaceStone(6, 6, Player.Blue); // Blocks one end
 
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
@@ -98,11 +99,11 @@ public class DefensivePlayTests
     {
         // Arrange: Create semi-open four position
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Blue);
 
         var moves = new List<(int x, int y)>();
 
@@ -134,16 +135,16 @@ public class DefensivePlayTests
         // Blue should prioritize blocking Red's threat over extending its own attack
         var board = new Board();
         // Red's semi-open four (critical threat)
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Blue);
 
         // Blue's potential attack (less urgent)
-        board.PlaceStone(5, 5, Player.Blue);
-        board.PlaceStone(6, 5, Player.Blue);
-        board.PlaceStone(7, 5, Player.Blue);
+        board = board.PlaceStone(5, 5, Player.Blue);
+        board = board.PlaceStone(6, 5, Player.Blue);
+        board = board.PlaceStone(7, 5, Player.Blue);
 
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
@@ -166,10 +167,10 @@ public class DefensivePlayTests
         // Arrange: Create broken four (XXX_X) for Red
         // Red has stones at (7,7), (8,7), (9,7), (11,7) - gap at (10,7)
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(11, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(11, 7, Player.Red);
 
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
@@ -193,13 +194,13 @@ public class DefensivePlayTests
     {
         // Arrange: Create semi-open four
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Blue);
 
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
 
         // Act
         var (x, y) = ai.GetBestMove(board, Player.Blue, difficulty);
@@ -222,16 +223,16 @@ public class DefensivePlayTests
         // Blue should take the winning move
         var board = new Board();
         // Blue's winning threat
-        board.PlaceStone(6, 7, Player.Blue);
-        board.PlaceStone(7, 7, Player.Blue);
-        board.PlaceStone(8, 7, Player.Blue);
-        board.PlaceStone(9, 7, Player.Blue);
+        board = board.PlaceStone(6, 7, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Blue);
+        board = board.PlaceStone(9, 7, Player.Blue);
 
         // Red's semi-open four (but Red is not to move)
-        board.PlaceStone(11, 7, Player.Red);
-        board.PlaceStone(12, 7, Player.Red);
-        board.PlaceStone(13, 7, Player.Red);
-        board.PlaceStone(14, 7, Player.Red);
+        board = board.PlaceStone(11, 7, Player.Red);
+        board = board.PlaceStone(12, 7, Player.Red);
+        board = board.PlaceStone(13, 7, Player.Red);
+        board = board.PlaceStone(14, 7, Player.Red);
 
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
@@ -261,13 +262,13 @@ public class DefensivePlayTests
         // Red blocked bottom at (7,4)
         // Red MUST block top at (2,4) or Blue wins on next move
         var board = new Board();
-        board.PlaceStone(3, 4, Player.Blue);
-        board.PlaceStone(4, 4, Player.Blue);
-        board.PlaceStone(5, 4, Player.Blue);
-        board.PlaceStone(6, 4, Player.Blue);
-        board.PlaceStone(7, 4, Player.Red); // Red's previous block - wrong end!
+        board = board.PlaceStone(3, 4, Player.Blue);
+        board = board.PlaceStone(4, 4, Player.Blue);
+        board = board.PlaceStone(5, 4, Player.Blue);
+        board = board.PlaceStone(6, 4, Player.Blue);
+        board = board.PlaceStone(7, 4, Player.Red); // Red's previous block - wrong end!
 
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
 
         // Act: Red to move - must block at (2, 4)
         var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);
@@ -287,13 +288,13 @@ public class DefensivePlayTests
     {
         // Arrange: Blue has four in a row at (3,4)-(6,4), top blocked by Red
         var board = new Board();
-        board.PlaceStone(3, 4, Player.Blue);
-        board.PlaceStone(4, 4, Player.Blue);
-        board.PlaceStone(5, 4, Player.Blue);
-        board.PlaceStone(6, 4, Player.Blue);
-        board.PlaceStone(2, 4, Player.Red); // Red blocked top
+        board = board.PlaceStone(3, 4, Player.Blue);
+        board = board.PlaceStone(4, 4, Player.Blue);
+        board = board.PlaceStone(5, 4, Player.Blue);
+        board = board.PlaceStone(6, 4, Player.Blue);
+        board = board.PlaceStone(2, 4, Player.Red); // Red blocked top
 
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
 
         // Act: Red to move - must block at (7, 4)
         var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);
@@ -315,11 +316,11 @@ public class DefensivePlayTests
         // Arrange: Blue has three in a row at (4,4)-(6,4), both ends open
         // This is an open three - very dangerous
         var board = new Board();
-        board.PlaceStone(4, 4, Player.Blue);
-        board.PlaceStone(5, 4, Player.Blue);
-        board.PlaceStone(6, 4, Player.Blue);
+        board = board.PlaceStone(4, 4, Player.Blue);
+        board = board.PlaceStone(5, 4, Player.Blue);
+        board = board.PlaceStone(6, 4, Player.Blue);
 
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
 
         // Act: Red to move - should block at one end
         var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);

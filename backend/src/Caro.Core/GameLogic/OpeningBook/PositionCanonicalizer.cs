@@ -33,7 +33,7 @@ public sealed class PositionCanonicalizer : IPositionCanonicalizer
         if (isNearEdge)
         {
             // Edge positions: use absolute coordinates, no symmetry
-            canonicalHash = board.Hash;
+            canonicalHash = board.GetHash();
             symmetryApplied = SymmetryType.Identity;
         }
         else

@@ -23,15 +23,15 @@ public class SIMDDebugTest
         var board = new Board();
 
         // Red has three in a row horizontally at y=7
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Blue has four in a row horizontally at y=8 (OPEN FOUR - should be heavily penalized)
-        board.PlaceStone(5, 8, Player.Blue);
-        board.PlaceStone(6, 8, Player.Blue);
-        board.PlaceStone(7, 8, Player.Blue);
-        board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(5, 8, Player.Blue);
+        board = board.PlaceStone(6, 8, Player.Blue);
+        board = board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(8, 8, Player.Blue);
 
         int scalarScore = BitBoardEvaluator.Evaluate(board, Player.Red);
         int simdScore = SIMDBitBoardEvaluator.Evaluate(board, Player.Red);
@@ -55,10 +55,10 @@ public class SIMDDebugTest
         var board = new Board();
 
         // Only Red has four in a row
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
 
         int scalarScore = BitBoardEvaluator.Evaluate(board, Player.Red);
         int simdScore = SIMDBitBoardEvaluator.Evaluate(board, Player.Red);

@@ -12,11 +12,11 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         // Act
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
@@ -30,11 +30,11 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 5, Player.Red);
-        board.PlaceStone(7, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Red);
-        board.PlaceStone(7, 9, Player.Red);
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(7, 9, Player.Red);
 
         // Act
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
@@ -48,11 +48,11 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(5, 5, Player.Red);
-        board.PlaceStone(6, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 8, Player.Red);
-        board.PlaceStone(9, 9, Player.Red);
+        board = board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(6, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Red);
+        board = board.PlaceStone(9, 9, Player.Red);
 
         // Act
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
@@ -66,11 +66,11 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(9, 5, Player.Red);
-        board.PlaceStone(8, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(6, 8, Player.Red);
-        board.PlaceStone(5, 9, Player.Red);
+        board = board.PlaceStone(9, 5, Player.Red);
+        board = board.PlaceStone(8, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(6, 8, Player.Red);
+        board = board.PlaceStone(5, 9, Player.Red);
 
         // Act
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
@@ -85,10 +85,10 @@ public class BitBoardEvaluatorTests
         // Arrange
         var board = new Board();
         // _XXXX_ pattern
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         // Act
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
@@ -103,9 +103,9 @@ public class BitBoardEvaluatorTests
         // Arrange
         var board = new Board();
         // _XXX_ pattern
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
 
         // Act
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
@@ -121,12 +121,12 @@ public class BitBoardEvaluatorTests
         // Arrange
         var board = new Board();
         // OXXXXO pattern (blocked on BOTH sides - truly dead)
-        board.PlaceStone(5, 7, Player.Blue);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Blue);
+        board = board.PlaceStone(5, 7, Player.Blue);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Blue);
 
         // Act
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
@@ -141,10 +141,10 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board1 = new Board();
-        board1.PlaceStone(7, 7, Player.Red);  // Center
+        board1 = board1.PlaceStone(7, 7, Player.Red);  // Center
 
         var board2 = new Board();
-        board2.PlaceStone(0, 0, Player.Red);  // Corner
+        board2 = board2.PlaceStone(0, 0, Player.Red);  // Corner
 
         // Act
         var centerScore = BitBoardEvaluator.Evaluate(board1, Player.Red);
@@ -159,13 +159,13 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Red);
-        board.PlaceStone(7, 9, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(7, 9, Player.Red);
 
-        board.PlaceStone(8, 7, Player.Blue);
-        board.PlaceStone(8, 8, Player.Blue);
-        board.PlaceStone(8, 9, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Blue);
+        board = board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(8, 9, Player.Blue);
 
         // Act
         var redScore = BitBoardEvaluator.Evaluate(board, Player.Red);
@@ -201,9 +201,9 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
         var bitBoard = board.GetBitBoard(Player.Red);
 
         // Act
@@ -218,8 +218,8 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
         var bitBoard = board.GetBitBoard(Player.Red);
 
         // Act
@@ -234,10 +234,10 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(5, 5, Player.Red);
-        board.PlaceStone(6, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 8, Player.Red);
+        board = board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(6, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Red);
         var bitBoard = board.GetBitBoard(Player.Red);
 
         // Act
@@ -252,10 +252,10 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Blue);  // Blocks
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Blue);  // Blocks
+        board = board.PlaceStone(8, 7, Player.Red);
         var bitBoard = board.GetBitBoard(Player.Red);
 
         // Act
@@ -270,10 +270,10 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
         var bitBoard = board.GetBitBoard(Player.Red);
         var occupied = board.GetBitBoard(Player.Red) | board.GetBitBoard(Player.Blue);
 
@@ -290,9 +290,9 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
         var bitBoard = board.GetBitBoard(Player.Red);
         var occupied = board.GetBitBoard(Player.Red) | board.GetBitBoard(Player.Blue);
 
@@ -308,9 +308,9 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         var redBoard = board.GetBitBoard(Player.Red);
         var blueBoard = board.GetBitBoard(Player.Blue);
@@ -327,9 +327,9 @@ public class BitBoardEvaluatorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
 
         var bitBoard = board.GetBitBoard(Player.Red);
 
@@ -348,13 +348,13 @@ public class BitBoardEvaluatorTests
         // Arrange
         var board = new Board();
         // Create multiple threats
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
-        board.PlaceStone(7, 5, Player.Red);
-        board.PlaceStone(7, 6, Player.Red);
-        board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
 
         var redBoard = board.GetBitBoard(Player.Red);
         var occupied = board.GetBitBoard(Player.Red) | board.GetBitBoard(Player.Blue);
@@ -372,13 +372,13 @@ public class BitBoardEvaluatorTests
         // Arrange
         var board = new Board();
         // OXXXXXO pattern - sandwiched
-        board.PlaceStone(5, 7, Player.Blue);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
-        board.PlaceStone(11, 7, Player.Blue);
+        board = board.PlaceStone(5, 7, Player.Blue);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(11, 7, Player.Blue);
 
         var redBoard = board.GetBitBoard(Player.Red);
         var occupied = board.GetBitBoard(Player.Red) | board.GetBitBoard(Player.Blue);
@@ -396,12 +396,12 @@ public class BitBoardEvaluatorTests
         // Arrange
         var board = new Board();
         // XXXXXX pattern - overline
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
-        board.PlaceStone(11, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(11, 7, Player.Red);
 
         var redBoard = board.GetBitBoard(Player.Red);
 

@@ -1,5 +1,6 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
+using Caro.Core.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -19,12 +20,12 @@ public class QuiescenceSearchTests
     {
         // Arrange - Position with immediate tactical threat (3 in a row)
         var board = new Board();
-        board.PlaceStone(7, 5, Player.Red);
-        board.PlaceStone(7, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);  // 3 in a row
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);  // 3 in a row
 
         // Act - With quiescence, AI should see the threat
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should extend the line (create 4 in a row)
@@ -37,13 +38,13 @@ public class QuiescenceSearchTests
     {
         // Arrange - Red has 3 in a row but Blue blocks one end
         var board = new Board();
-        board.PlaceStone(7, 5, Player.Red);
-        board.PlaceStone(7, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);  // Blue blocks
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);  // Blue blocks
 
         // Act - Red should extend the other way or play nearby
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should play near the threat
@@ -60,13 +61,13 @@ public class QuiescenceSearchTests
     {
         // Arrange - Red has 4 in a row (one move from winning)
         var board = new Board();
-        board.PlaceStone(7, 5, Player.Red);
-        board.PlaceStone(7, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
 
         // Act - Red should find the winning move with quiescence
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Should complete the 5-in-row or play very close
@@ -79,14 +80,14 @@ public class QuiescenceSearchTests
     {
         // Arrange - Blue has 3 in a row, Red to move
         var board = new Board();
-        board.PlaceStone(7, 5, Player.Blue);
-        board.PlaceStone(7, 6, Player.Blue);
-        board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(7, 5, Player.Blue);
+        board = board.PlaceStone(7, 6, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Blue);
 
-        board.PlaceStone(8, 6, Player.Red);  // Red has stones nearby
+        board = board.PlaceStone(8, 6, Player.Red);  // Red has stones nearby
 
         // Act - Red should block the threat
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
 
         // Assert - Should block at (7, 4) or (7, 8)
@@ -101,17 +102,17 @@ public class QuiescenceSearchTests
         var board = new Board();
 
         // Red has 3-in-row horizontally
-        board.PlaceStone(7, 5, Player.Red);
-        board.PlaceStone(7, 6, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Blue has 3-in-row vertically
-        board.PlaceStone(8, 5, Player.Blue);
-        board.PlaceStone(8, 6, Player.Blue);
-        board.PlaceStone(8, 7, Player.Blue);
+        board = board.PlaceStone(8, 5, Player.Blue);
+        board = board.PlaceStone(8, 6, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Blue);
 
         // Act - Find best move
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
 
         // Assert - Should either extend Red's threat or block Blue's
@@ -130,13 +131,13 @@ public class QuiescenceSearchTests
         var board = new Board();
         for (int i = 0; i < 5; i++)
         {
-            board.PlaceStone(7 + i, 7, Player.Red);
+            board = board.PlaceStone(7 + i, 7, Player.Red);
             if (i < 4)
-                board.PlaceStone(7 + i, 8, Player.Blue);
+                board = board.PlaceStone(7 + i, 8, Player.Blue);
         }
 
         // Act - Should complete without excessive search
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
         stopwatch.Stop();
@@ -166,7 +167,7 @@ public class QuiescenceSearchTests
             CreateBoardWithMoves(new[] { (7, 7, Player.Red), (7, 8, Player.Blue), (8, 7, Player.Red) }),
         };
 
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
 
         foreach (var board in positions)
         {
@@ -184,7 +185,7 @@ public class QuiescenceSearchTests
         var board = new Board();
         foreach (var (x, y, player) in moves)
         {
-            board.PlaceStone(x, y, player);
+            board = board.PlaceStone(x, y, player);
         }
         return board;
     }

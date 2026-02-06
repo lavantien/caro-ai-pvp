@@ -15,7 +15,7 @@ public class WinDetectorTests
         // Arrange
         var board = new Board();
         for (int i = 0; i < 5; i++)
-            board.PlaceStone(i + 5, 7, Player.Red);
+            board = board.PlaceStone(i + 5, 7, Player.Red);
 
         // Act
         var result = _detector.CheckWin(board);
@@ -31,7 +31,7 @@ public class WinDetectorTests
         // Arrange
         var board = new Board();
         for (int i = 0; i < 6; i++)
-            board.PlaceStone(i + 4, 7, Player.Red);
+            board = board.PlaceStone(i + 4, 7, Player.Red);
 
         // Act
         var result = _detector.CheckWin(board);
@@ -45,10 +45,10 @@ public class WinDetectorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(4, 7, Player.Blue);  // Block left
+        board = board.PlaceStone(4, 7, Player.Blue);  // Block left
         for (int i = 0; i < 5; i++)
-            board.PlaceStone(i + 5, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Blue); // Block right
+            board = board.PlaceStone(i + 5, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Blue); // Block right
 
         // Act
         var result = _detector.CheckWin(board);
@@ -62,9 +62,9 @@ public class WinDetectorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(4, 7, Player.Blue);  // Block left
+        board = board.PlaceStone(4, 7, Player.Blue);  // Block left
         for (int i = 0; i < 5; i++)
-            board.PlaceStone(i + 5, 7, Player.Red);
+            board = board.PlaceStone(i + 5, 7, Player.Red);
 
         // Act
         var result = _detector.CheckWin(board);
@@ -80,7 +80,7 @@ public class WinDetectorTests
         // Arrange
         var board = new Board();
         for (int i = 0; i < 5; i++)
-            board.PlaceStone(7, i + 5, Player.Red);
+            board = board.PlaceStone(7, i + 5, Player.Red);
 
         // Act
         var result = _detector.CheckWin(board);
@@ -96,7 +96,7 @@ public class WinDetectorTests
         // Arrange
         var board = new Board();
         for (int i = 0; i < 5; i++)
-            board.PlaceStone(5 + i, 5 + i, Player.Red);
+            board = board.PlaceStone(5 + i, 5 + i, Player.Red);
 
         // Act
         var result = _detector.CheckWin(board);
@@ -112,7 +112,7 @@ public class WinDetectorTests
         // Arrange
         var board = new Board();
         for (int i = 0; i < 5; i++)
-            board.PlaceStone(9 + i, 5 - i, Player.Red);
+            board = board.PlaceStone(9 + i, 5 - i, Player.Red);
 
         // Act
         var result = _detector.CheckWin(board);
@@ -141,7 +141,7 @@ public class WinDetectorTests
         // Arrange
         var board = new Board();
         for (int i = 0; i < 5; i++)
-            board.PlaceStone(i + 5, 7, Player.Red);
+            board = board.PlaceStone(i + 5, 7, Player.Red);
 
         // Act
         var result = _detector.CheckWin(board);
@@ -166,7 +166,7 @@ public class WinDetectorTests
         // Arrange
         var board = new Board();
         for (int i = 0; i < 5; i++)
-            board.PlaceStone(7, i + 5, Player.Red);
+            board = board.PlaceStone(7, i + 5, Player.Red);
 
         // Act
         var result = _detector.CheckWin(board);
@@ -191,7 +191,7 @@ public class WinDetectorTests
         // Arrange
         var board = new Board();
         for (int i = 0; i < 5; i++)
-            board.PlaceStone(5 + i, 5 + i, Player.Red);
+            board = board.PlaceStone(5 + i, 5 + i, Player.Red);
 
         // Act
         var result = _detector.CheckWin(board);

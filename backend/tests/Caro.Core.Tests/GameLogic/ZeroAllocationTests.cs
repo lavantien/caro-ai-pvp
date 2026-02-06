@@ -1,5 +1,6 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
+using Caro.Core.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -19,16 +20,16 @@ public class ZeroAllocationTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Blue);
 
         // Act
-        var boardHash = board.Hash;
+        var boardHash = board.GetHash();
         var calculatedHash = ZobristTables.CalculateHash(board);
 
-        // Assert - Board.Hash should match ZobristTables.CalculateHash
+        // Assert - Board.GetHash() should match ZobristTables.CalculateHash
         Assert.Equal(calculatedHash, boardHash);
     }
 
@@ -37,15 +38,15 @@ public class ZeroAllocationTests
     {
         // Arrange
         var board = new Board();
-        var initialHash = board.Hash;
+        var initialHash = board.GetHash();
 
         // Act - Place a stone
-        board.PlaceStone(7, 7, Player.Red);
-        var afterFirstHash = board.Hash;
+        board = board.PlaceStone(7, 7, Player.Red);
+        var afterFirstHash = board.GetHash();
 
         // Place another stone
-        board.PlaceStone(7, 8, Player.Blue);
-        var afterSecondHash = board.Hash;
+        board = board.PlaceStone(7, 8, Player.Blue);
+        var afterSecondHash = board.GetHash();
 
         // Assert - Hash should change after each move
         Assert.NotEqual(initialHash, afterFirstHash);
@@ -54,20 +55,19 @@ public class ZeroAllocationTests
     }
 
     [Fact]
-    public void HashCalculation_UndoMove_RestoresOriginalHash()
+    public void HashCalculation_DifferentBoards_DifferentHashes()
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        var hashBeforeSecond = board.Hash;
+        board = board.PlaceStone(7, 7, Player.Red);
+        var hashBeforeSecond = board.GetHash();
 
-        // Act - Place and remove a stone (simulating undo)
-        board.PlaceStone(7, 8, Player.Blue);
-        board.GetCell(7, 8).Player = Player.None; // Undo
-        var hashAfterUndo = board.Hash;
+        // Act - Create a new board with an additional stone
+        var boardWithSecondStone = board.PlaceStone(7, 8, Player.Blue);
+        var hashWithSecond = boardWithSecondStone.GetHash();
 
-        // Assert - Hash should return to original after undo
-        Assert.Equal(hashBeforeSecond, hashAfterUndo);
+        // Assert - Hashes should be different
+        Assert.NotEqual(hashBeforeSecond, hashWithSecond);
     }
 
     [Fact]
@@ -77,16 +77,16 @@ public class ZeroAllocationTests
         var board = new Board();
 
         // Test 1: Sandwiched five should NOT win (OXXXXXO)
-        board.PlaceStone(5, 7, Player.Blue);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
-        board.PlaceStone(11, 7, Player.Blue);
+        board = board.PlaceStone(5, 7, Player.Blue);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(11, 7, Player.Blue);
 
         // Act & Assert - Use reflection to call private CheckWinner method
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var checkWinnerMethod = typeof(MinimaxAI).GetMethod("CheckWinner",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
@@ -97,11 +97,11 @@ public class ZeroAllocationTests
 
         // Test 2: Exactly five with one open end should win
         var board2 = new Board();
-        board2.PlaceStone(6, 7, Player.Red);
-        board2.PlaceStone(7, 7, Player.Red);
-        board2.PlaceStone(8, 7, Player.Red);
-        board2.PlaceStone(9, 7, Player.Red);
-        board2.PlaceStone(10, 7, Player.Red);
+        board2 = board2.PlaceStone(6, 7, Player.Red);
+        board2 = board2.PlaceStone(7, 7, Player.Red);
+        board2 = board2.PlaceStone(8, 7, Player.Red);
+        board2 = board2.PlaceStone(9, 7, Player.Red);
+        board2 = board2.PlaceStone(10, 7, Player.Red);
         // Position 5 and 11 are empty
 
         var winner2 = checkWinnerMethod?.Invoke(ai, new object[] { board2 }) as Player?;
@@ -113,15 +113,15 @@ public class ZeroAllocationTests
     {
         // Arrange - Six in a row should NOT win in Caro
         var board = new Board();
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var checkWinnerMethod = typeof(MinimaxAI).GetMethod("CheckWinner",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
@@ -161,25 +161,25 @@ public class ZeroAllocationTests
             for (int y = 5; y <= 9; y++)
             {
                 if ((x + y) % 3 == 0)
-                    board.PlaceStone(x, y, Player.Red);
+                    board = board.PlaceStone(x, y, Player.Red);
                 else if ((x + y) % 3 == 1)
-                    board.PlaceStone(x, y, Player.Blue);
+                    board = board.PlaceStone(x, y, Player.Blue);
             }
         }
 
         // Add some scattered stones around
-        board.PlaceStone(3, 7, Player.Red);
-        board.PlaceStone(4, 8, Player.Blue);
-        board.PlaceStone(11, 6, Player.Red);
-        board.PlaceStone(10, 5, Player.Blue);
-        board.PlaceStone(7, 3, Player.Red);
-        board.PlaceStone(6, 11, Player.Blue);
-        board.PlaceStone(8, 10, Player.Red);
-        board.PlaceStone(9, 4, Player.Blue);
+        board = board.PlaceStone(3, 7, Player.Red);
+        board = board.PlaceStone(4, 8, Player.Blue);
+        board = board.PlaceStone(11, 6, Player.Red);
+        board = board.PlaceStone(10, 5, Player.Blue);
+        board = board.PlaceStone(7, 3, Player.Red);
+        board = board.PlaceStone(6, 11, Player.Blue);
+        board = board.PlaceStone(8, 10, Player.Red);
+        board = board.PlaceStone(9, 4, Player.Blue);
 
         // Act - Test D4 (Hard difficulty) with 7+5 time control
         // Simulating mid-game (move 30) with 5 minutes remaining
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var timeRemainingMs = 300_000L;  // 5 minutes left
         var moveNumber = 30;              // LateMid game phase
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -212,20 +212,20 @@ public class ZeroAllocationTests
             for (int y = 4; y <= 10; y++)
             {
                 if ((x * y) % 2 == 0)
-                    board.PlaceStone(x, y, Player.Red);
+                    board = board.PlaceStone(x, y, Player.Red);
                 else if ((x + y) % 3 == 0)
-                    board.PlaceStone(x, y, Player.Blue);
+                    board = board.PlaceStone(x, y, Player.Blue);
             }
         }
 
         // Add some edge stones
-        board.PlaceStone(2, 7, Player.Red);
-        board.PlaceStone(12, 8, Player.Blue);
-        board.PlaceStone(7, 2, Player.Red);
-        board.PlaceStone(8, 12, Player.Blue);
+        board = board.PlaceStone(2, 7, Player.Red);
+        board = board.PlaceStone(12, 8, Player.Blue);
+        board = board.PlaceStone(7, 2, Player.Red);
+        board = board.PlaceStone(8, 12, Player.Blue);
 
         // Act - Test D5 (Grandmaster difficulty) with 7+5 time control
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var timeRemainingMs = 300_000L;  // 5 minutes left
         var moveNumber = 30;              // LateMid game phase
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -250,14 +250,14 @@ public class ZeroAllocationTests
     {
         // Arrange - Two different board positions
         var board1 = new Board();
-        board1.PlaceStone(7, 7, Player.Red);
+        board1 = board1.PlaceStone(7, 7, Player.Red);
 
         var board2 = new Board();
-        board2.PlaceStone(7, 8, Player.Red);
+        board2 = board2.PlaceStone(7, 8, Player.Red);
 
         // Act
-        var hash1 = board1.Hash;
-        var hash2 = board2.Hash;
+        var hash1 = board1.GetHash();
+        var hash2 = board2.GetHash();
 
         // Assert - Different positions should have different hashes
         Assert.NotEqual(hash1, hash2);
@@ -268,16 +268,16 @@ public class ZeroAllocationTests
     {
         // Arrange - Same pieces in different order should produce same hash
         var board1 = new Board();
-        board1.PlaceStone(7, 7, Player.Red);
-        board1.PlaceStone(7, 8, Player.Blue);
+        board1 = board1.PlaceStone(7, 7, Player.Red);
+        board1 = board1.PlaceStone(7, 8, Player.Blue);
 
         var board2 = new Board();
-        board2.PlaceStone(7, 8, Player.Blue);
-        board2.PlaceStone(7, 7, Player.Red);
+        board2 = board2.PlaceStone(7, 8, Player.Blue);
+        board2 = board2.PlaceStone(7, 7, Player.Red);
 
         // Act
-        var hash1 = board1.Hash;
-        var hash2 = board2.Hash;
+        var hash1 = board1.GetHash();
+        var hash2 = board2.GetHash();
 
         // Assert - Same position should have same hash regardless of placement order
         Assert.Equal(hash1, hash2);

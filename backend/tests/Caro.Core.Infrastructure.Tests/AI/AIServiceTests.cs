@@ -1,4 +1,5 @@
 using Caro.Core.Application.DTOs;
+using Caro.Core.Application.Extensions;
 using Caro.Core.Domain.Entities;
 using Caro.Core.Infrastructure.AI;
 using FluentAssertions;
@@ -28,7 +29,7 @@ public sealed class AIServiceTests : IDisposable
     public async Task CalculateBestMoveAsync_EmptyBoard_ReturnsValidMove()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
 
         // Act
         var response = await _service.CalculateBestMoveAsync(state, "medium");
@@ -53,7 +54,7 @@ public sealed class AIServiceTests : IDisposable
         // Act & Assert
         foreach (var difficulty in difficulties)
         {
-            var state = GameState.CreateInitial();
+            var state = GameStateFactory.CreateInitial();
             var response = await _service.CalculateBestMoveAsync(state, difficulty);
             response.X.Should().BeGreaterOrEqualTo(0);
             response.Y.Should().BeGreaterOrEqualTo(0);
@@ -66,7 +67,7 @@ public sealed class AIServiceTests : IDisposable
     public async Task CalculateBestMoveAsync_Grandmaster_Works()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
 
         // Act
         var response = await _service.CalculateBestMoveAsync(state, "grandmaster");
@@ -83,7 +84,7 @@ public sealed class AIServiceTests : IDisposable
     public async Task CalculateBestMoveAsync_WithCancellation_Throws()
     {
         // Arrange
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
@@ -109,7 +110,7 @@ public sealed class AIServiceTests : IDisposable
     {
         // Arrange
         var gameId = Guid.NewGuid();
-        var state = GameState.CreateInitial();
+        var state = GameStateFactory.CreateInitial();
 
         // Act
         var act = async () => await _service.StartPonderingAsync(gameId, state, "medium");

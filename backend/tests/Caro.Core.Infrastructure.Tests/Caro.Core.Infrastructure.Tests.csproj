@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Caro.Core.Application\Caro.Core.Application.csproj" />
     <ProjectReference Include="..\..\src\Caro.Core.Infrastructure\Caro.Core.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Caro.Core.Domain\Caro.Core.Domain.csproj" />
   </ItemGroup>

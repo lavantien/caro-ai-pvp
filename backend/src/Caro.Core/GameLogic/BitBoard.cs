@@ -392,6 +392,19 @@ public struct BitBoard
         new BitBoard(b0, b1, b2, b3, b4, b5);
 
     /// <summary>
+    /// Copy bits from another BitBoard
+    /// </summary>
+    public void CopyFrom(BitBoard source)
+    {
+        _bits0 = source._bits0;
+        _bits1 = source._bits1;
+        _bits2 = source._bits2;
+        _bits3 = source._bits3;
+        _bits4 = source._bits4;
+        _bits5 = source._bits5;
+    }
+
+    /// <summary>
     /// Get all set positions as a list
     /// </summary>
     public List<(int x, int y)> GetSetPositions()

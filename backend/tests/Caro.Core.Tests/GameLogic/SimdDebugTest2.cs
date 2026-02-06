@@ -24,10 +24,10 @@ public class SimdDebugTest2
 
         // Blue has open four at y=8: (5,8), (6,8), (7,8), (8,8)
         // Empty at (4,8) and (9,8) - should be OPEN
-        board.PlaceStone(5, 8, Player.Blue);
-        board.PlaceStone(6, 8, Player.Blue);
-        board.PlaceStone(7, 8, Player.Blue);
-        board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(5, 8, Player.Blue);
+        board = board.PlaceStone(6, 8, Player.Blue);
+        board = board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(8, 8, Player.Blue);
 
         // Get BitBoards
         var blueBoard = board.GetBitBoard(Player.Blue);

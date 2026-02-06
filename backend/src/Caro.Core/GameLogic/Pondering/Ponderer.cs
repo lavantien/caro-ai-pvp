@@ -167,7 +167,8 @@ public sealed class Ponderer : IDisposable
             _ponderBoard = currentBoard.Clone();
             if (predictedOpponentMove.HasValue)
             {
-                _ponderBoard.PlaceStone(
+                // Note: PlaceStone returns a new Board (immutable), so we capture the result
+                _ponderBoard = _ponderBoard.PlaceStone(
                     predictedOpponentMove.Value.x,
                     predictedOpponentMove.Value.y,
                     opponentToMove

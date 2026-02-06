@@ -1,6 +1,7 @@
 using Xunit;
 using FluentAssertions;
 using Caro.Core.Domain.Entities;
+using Caro.Core.GameLogic;
 
 namespace Caro.Core.Tests.GameLogic.OpeningBook;
 
@@ -20,16 +21,13 @@ public class OpeningBookGeneratorTests
 
         // Arrange
         var original = new Board();
-        original.PlaceStone(9, 9, Player.Red);
+        original = original.PlaceStone(9, 9, Player.Red);
 
         // Act - Clone and place stone on clone
         var clone = original.Clone();
-        var action = () => clone.PlaceStone(9, 10, Player.Blue);
+        clone = clone.PlaceStone(9, 10, Player.Blue);
 
-        // Assert - Should not throw "Cell is already occupied"
-        action.Should().NotThrow();
-
-        // Verify original is unchanged
+        // Assert - Verify original is unchanged
         original.GetCell(9, 10).Player.Should().Be(Player.None);
         clone.GetCell(9, 10).Player.Should().Be(Player.Blue);
     }
@@ -39,17 +37,17 @@ public class OpeningBookGeneratorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(5, 5, Player.Red);
-        board.PlaceStone(6, 6, Player.Blue);
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(6, 6, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Act
         var clone = board.Clone();
 
         // These should all succeed without "already occupied" errors
-        clone.PlaceStone(8, 8, Player.Blue);
-        clone.PlaceStone(9, 9, Player.Red);
-        clone.PlaceStone(10, 10, Player.Blue);
+        clone = clone.PlaceStone(8, 8, Player.Blue);
+        clone = clone.PlaceStone(9, 9, Player.Red);
+        clone = clone.PlaceStone(10, 10, Player.Blue);
 
         // Assert
         clone.GetCell(8, 8).Player.Should().Be(Player.Blue);
@@ -62,13 +60,13 @@ public class OpeningBookGeneratorTests
     {
         // Arrange
         var original = new Board();
-        original.PlaceStone(5, 5, Player.Red);
-        original.PlaceStone(6, 6, Player.Blue);
-        original.PlaceStone(7, 7, Player.Red);
-        original.PlaceStone(8, 8, Player.Blue);
+        original = original.PlaceStone(5, 5, Player.Red);
+        original = original.PlaceStone(6, 6, Player.Blue);
+        original = original.PlaceStone(7, 7, Player.Red);
+        original = original.PlaceStone(8, 8, Player.Blue);
 
         // Act
-        var clone = original.Clone();
+        var clone = original.CloneWithState();
 
         // Assert - Verify all bits match exactly
         var originalRed = original.GetBitBoard(Player.Red);
@@ -106,15 +104,15 @@ public class OpeningBookGeneratorTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(9, 9, Player.Red);
+        board = board.PlaceStone(9, 9, Player.Red);
 
         // Act
         var clone1 = board.Clone();
         var clone2 = board.Clone();
 
         // Modify each clone independently
-        clone1.PlaceStone(9, 10, Player.Blue);
-        clone2.PlaceStone(10, 9, Player.Blue);
+        clone1 = clone1.PlaceStone(9, 10, Player.Blue);
+        clone2 = clone2.PlaceStone(10, 9, Player.Blue);
 
         // Assert - Each clone is independent
         board.GetCell(9, 10).Player.Should().Be(Player.None);
@@ -136,14 +134,14 @@ public class OpeningBookGeneratorTests
 
         // Arrange
         var board = new Board();
-        board.PlaceStone(9, 9, Player.Red);
+        board = board.PlaceStone(9, 9, Player.Red);
 
         // Act - Clone from clone
         var clone1 = board.Clone();
         var clone2 = clone1.Clone();
 
         // Place on the second clone
-        clone2.PlaceStone(9, 10, Player.Blue);
+        clone2 = clone2.PlaceStone(9, 10, Player.Blue);
 
         // Assert - Original and first clone unaffected
         board.GetCell(9, 10).Player.Should().Be(Player.None);
@@ -161,9 +159,9 @@ public class OpeningBookGeneratorTests
         var clone = emptyBoard.Clone();
 
         // Should be able to place anywhere
-        clone.PlaceStone(0, 0, Player.Red);
-        clone.PlaceStone(18, 18, Player.Blue);
-        clone.PlaceStone(9, 9, Player.Red);
+        clone = clone.PlaceStone(0, 0, Player.Red);
+        clone = clone.PlaceStone(18, 18, Player.Blue);
+        clone = clone.PlaceStone(9, 9, Player.Red);
 
         // Assert
         clone.GetCell(0, 0).Player.Should().Be(Player.Red);
@@ -183,8 +181,8 @@ public class OpeningBookGeneratorTests
     {
         // Arrange - Create a board with the starting position
         var board = new Board();
-        board.PlaceStone(9, 9, Player.Red);  // Center move
-        board.PlaceStone(9, 10, Player.Blue); // Response
+        board = board.PlaceStone(9, 9, Player.Red);  // Center move
+        board = board.PlaceStone(9, 10, Player.Blue); // Response
 
         // Create canonicalizer for coordinate transformation (same as used in OpeningBookGenerator)
         var canonicalizer = new Caro.Core.GameLogic.PositionCanonicalizer();
@@ -242,8 +240,8 @@ public class OpeningBookGeneratorTests
                 $"Cell ({actualX},{actualY}) should be empty before placing stone from book move ({move.RelativeX},{move.RelativeY})");
 
             // Place the stone - this should not throw "Cell is already occupied"
-            var action = () => newBoard.PlaceStone(actualX, actualY, Player.Red);
-            action.Should().NotThrow();
+            // Note: PlaceStone returns a new Board (immutable), so we capture the result
+            newBoard = newBoard.PlaceStone(actualX, actualY, Player.Red);
 
             // Verify the stone was placed
             newBoard.GetCell(actualX, actualY).Player.Should().Be(Player.Red);
@@ -263,8 +261,8 @@ public class OpeningBookGeneratorTests
     {
         // Arrange - Create a board with center position (not near edge)
         var board = new Board();
-        board.PlaceStone(9, 9, Player.Red);
-        board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(9, 9, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Blue);
 
         var canonicalizer = new Caro.Core.GameLogic.PositionCanonicalizer();
 
@@ -308,8 +306,8 @@ public class OpeningBookGeneratorTests
             $"Cell ({actualX},{actualY}) should be empty before placing stone");
 
         // Place the stone - should not throw
-        var action = () => newBoard.PlaceStone(actualX, actualY, Player.Red);
-        action.Should().NotThrow();
+        // Note: PlaceStone returns a new Board (immutable), so we capture the result
+        newBoard = newBoard.PlaceStone(actualX, actualY, Player.Red);
 
         // Verify the stone was placed at the transformed coordinates
         newBoard.GetCell(actualX, actualY).Player.Should().Be(Player.Red);
@@ -324,8 +322,8 @@ public class OpeningBookGeneratorTests
     {
         // Arrange - Starting position with 2 moves
         var board = new Board();
-        board.PlaceStone(9, 9, Player.Red);
-        board.PlaceStone(9, 10, Player.Blue);
+        board = board.PlaceStone(9, 9, Player.Red);
+        board = board.PlaceStone(9, 10, Player.Blue);
 
         var canonicalizer = new Caro.Core.GameLogic.PositionCanonicalizer();
 
@@ -357,8 +355,8 @@ public class OpeningBookGeneratorTests
             );
 
             // Place stone - should not throw
-            var action = () => newBoard.PlaceStone(actualX, actualY, player);
-            action.Should().NotThrow($"Failed at move {i + 1}: ({relX},{relY}) -> ({actualX},{actualY})");
+            // Note: PlaceStone returns a new Board (immutable), so we capture the result
+            newBoard = newBoard.PlaceStone(actualX, actualY, player);
 
             // Verify placement
             newBoard.GetCell(actualX, actualY).Player.Should().Be(player);
@@ -394,9 +392,9 @@ public class OpeningBookGeneratorTests
 
         // Arrange - Position data similar to what's loaded from the book
         var board = new Board();
-        board.PlaceStone(9, 9, Player.Red);
-        board.PlaceStone(9, 10, Player.Blue);
-        board.PlaceStone(8, 10, Player.Red);  // Third move
+        board = board.PlaceStone(9, 9, Player.Red);
+        board = board.PlaceStone(9, 10, Player.Blue);
+        board = board.PlaceStone(8, 10, Player.Red);  // Third move
 
         var canonicalizer = new Caro.Core.GameLogic.PositionCanonicalizer();
 
@@ -438,7 +436,7 @@ public class OpeningBookGeneratorTests
             }
 
             // Place stone (line ~326)
-            newBoard.PlaceStone(actualX, actualY, posData.player);
+            newBoard = newBoard.PlaceStone(actualX, actualY, posData.player);
             var nextPlayer = posData.player == Player.Red ? Player.Blue : Player.Red;
 
             // Add to next level (line ~333)

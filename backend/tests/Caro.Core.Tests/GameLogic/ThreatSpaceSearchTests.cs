@@ -29,10 +29,10 @@ public class ThreatSpaceSearchTests
     {
         // Arrange - Red has XXXX_ can win immediately
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(9, 7, Player.Red);
-        board.PlaceStone(10, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
         var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 500);
@@ -49,13 +49,13 @@ public class ThreatSpaceSearchTests
         // Arrange - Red has two S4 threats that Blue can't both block
         var board = new Board();
         // First S4 horizontal
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
         // Blue has some stones
-        board.PlaceStone(3, 5, Player.Blue);
-        board.PlaceStone(4, 6, Player.Blue);
+        board = board.PlaceStone(3, 5, Player.Blue);
+        board = board.PlaceStone(4, 6, Player.Blue);
 
         // Act
         var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 2000);
@@ -69,10 +69,10 @@ public class ThreatSpaceSearchTests
     {
         // Arrange - Blue has immediate win
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Blue);
-        board.PlaceStone(8, 7, Player.Blue);
-        board.PlaceStone(9, 7, Player.Blue);
-        board.PlaceStone(10, 7, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Blue);
+        board = board.PlaceStone(9, 7, Player.Blue);
+        board = board.PlaceStone(10, 7, Player.Blue);
 
         // Act
         var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 500);
@@ -87,18 +87,18 @@ public class ThreatSpaceSearchTests
         // Arrange - Complex position requiring deep search
         var board = new Board();
         // Red has a 4-in-a-row that's blocked on one side
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
         // Blue blocks on right
-        board.PlaceStone(9, 7, Player.Blue);
+        board = board.PlaceStone(9, 7, Player.Blue);
         // Various other stones creating complexity
-        board.PlaceStone(5, 8, Player.Blue);
-        board.PlaceStone(6, 9, Player.Red);
-        board.PlaceStone(7, 6, Player.Blue);
-        board.PlaceStone(10, 5, Player.Red);
-        board.PlaceStone(11, 8, Player.Blue);
+        board = board.PlaceStone(5, 8, Player.Blue);
+        board = board.PlaceStone(6, 9, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Blue);
+        board = board.PlaceStone(10, 5, Player.Red);
+        board = board.PlaceStone(11, 8, Player.Blue);
 
         // Act - Very short time limit (not enough for deep VCF)
         var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 5);
@@ -113,10 +113,10 @@ public class ThreatSpaceSearchTests
     {
         // Arrange - Scattered stones, no real threats
         var board = new Board();
-        board.PlaceStone(5, 5, Player.Red);
-        board.PlaceStone(10, 10, Player.Blue);
-        board.PlaceStone(6, 6, Player.Red);
-        board.PlaceStone(9, 9, Player.Blue);
+        board = board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(10, 10, Player.Blue);
+        board = board.PlaceStone(6, 6, Player.Red);
+        board = board.PlaceStone(9, 9, Player.Blue);
 
         // Act
         var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 500);
@@ -130,11 +130,11 @@ public class ThreatSpaceSearchTests
     {
         // Arrange - Mid-game position
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
-        board.PlaceStone(8, 7, Player.Red);
-        board.PlaceStone(8, 8, Player.Blue);
-        board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(6, 7, Player.Red);
 
         // Act
         var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 500);
@@ -155,8 +155,8 @@ public class ThreatSpaceSearchTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Blue);
 
         // Act - Very shallow depth
         var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 500, maxDepth: 3);

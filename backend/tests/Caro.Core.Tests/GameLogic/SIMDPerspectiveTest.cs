@@ -23,15 +23,15 @@ public class SIMDPerspectiveTest
         var board = new Board();
 
         // Red has 3 in a row
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Blue has 4 in a row (OPEN FOUR) - should be BAD for Red
-        board.PlaceStone(5, 8, Player.Blue);
-        board.PlaceStone(6, 8, Player.Blue);
-        board.PlaceStone(7, 8, Player.Blue);
-        board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(5, 8, Player.Blue);
+        board = board.PlaceStone(6, 8, Player.Blue);
+        board = board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(8, 8, Player.Blue);
 
         // Evaluate for RED (should be NEGATIVE because Blue has open four)
         int redScore_scalar = BitBoardEvaluator.Evaluate(board, Player.Red);

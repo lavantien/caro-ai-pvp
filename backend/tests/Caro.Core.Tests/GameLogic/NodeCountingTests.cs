@@ -1,5 +1,6 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
+using Caro.Core.Tests.Helpers;
 using Xunit;
 
 namespace Caro.Core.Tests.GameLogic;
@@ -15,12 +16,12 @@ public class NodeCountingTests
     {
         // Run multiple searches and verify node counts are NOT identical
         // (identical counts would indicate estimation instead of real counting)
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Place a few stones to create different positions
-        board.PlaceStone(9, 9, Player.Red);
-        board.PlaceStone(10, 10, Player.Blue);
+        board = board.PlaceStone(9, 9, Player.Red);
+        board = board.PlaceStone(10, 10, Player.Blue);
 
         var results = new List<long>();
 
@@ -32,7 +33,7 @@ public class NodeCountingTests
 
         for (int i = 0; i < 5; i++)
         {
-            board.PlaceStone(testPositions[i].x, testPositions[i].y, Player.Red);
+            board = board.PlaceStone(testPositions[i].x, testPositions[i].y, Player.Red);
             var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard); // D4 uses parallel search
             var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
             results.Add(nodesSearched);
@@ -51,11 +52,11 @@ public class NodeCountingTests
     public void SequentialSearch_RealNodeCountShouldBePositive()
     {
         // Low-depth search (D2) uses sequential search
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var board = new Board();
 
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
 
         var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Easy);
 
@@ -69,14 +70,14 @@ public class NodeCountingTests
     public void ParallelSearch_HardDifficulty_ShouldCountRealNodes()
     {
         // D4 (Hard) uses Lazy SMP parallel search
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Create a mid-game position
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Blue);
-        board.PlaceStone(7, 8, Player.Red);
-        board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Blue);
+        board = board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Blue);
 
         var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
 
@@ -96,11 +97,11 @@ public class NodeCountingTests
     {
         // Running the same search twice should give approximately the same node count
         // (within some variance due to threading and timing)
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var board = new Board();
 
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
 
         var (x1, y1) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
         var (_, nodes1, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
@@ -126,11 +127,11 @@ public class NodeCountingTests
     public void ParallelSearch_DifferentDepths_NodesShouldIncreaseWithDepth()
     {
         // Higher depth should generally search more nodes
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var board = new Board();
 
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
 
         var (x1, y1) = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
         var (_, nodesLow, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
@@ -158,11 +159,11 @@ public class NodeCountingTests
     [InlineData(AIDifficulty.Grandmaster)] // D5
     public void AllDifficulties_ShouldReportValidNodeCounts(AIDifficulty difficulty)
     {
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var board = new Board();
 
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
 
         var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);
 
@@ -180,14 +181,14 @@ public class NodeCountingTests
     public void NodeCount_ShouldNotBeIdenticalForDifferentPositions()
     {
         // This specifically tests the bug where same depth always returned same node count
-        var ai = new MinimaxAI();
+        var ai = AITestHelper.CreateAI();
         var board1 = new Board();
         var board2 = new Board();
 
         // Two different starting positions
-        board1.PlaceStone(7, 7, Player.Red);
-        board2.PlaceStone(7, 7, Player.Red);
-        board2.PlaceStone(7, 8, Player.Blue);
+        board1 = board1.PlaceStone(7, 7, Player.Red);
+        board2 = board2.PlaceStone(7, 7, Player.Red);
+        board2 = board2.PlaceStone(7, 8, Player.Blue);
 
         ai.ClearAllState();
         var (x1, y1) = ai.GetBestMove(board1, Player.Blue, AIDifficulty.Hard);

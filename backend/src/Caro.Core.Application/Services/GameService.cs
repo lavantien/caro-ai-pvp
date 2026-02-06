@@ -1,6 +1,7 @@
 using Caro.Core.Application.DTOs;
 using Caro.Core.Application.Interfaces;
 using Caro.Core.Application.Mappers;
+using Caro.Core.Application.Extensions;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Domain.Exceptions;
@@ -43,7 +44,7 @@ public sealed class GameService : IGameService
             var gameId = Guid.NewGuid();
             var (initialTime, increment) = GameMapper.ParseTimeControl(request);
 
-            var initialState = GameState.CreateInitial(initialTime, increment);
+            var initialState = GameStateExtensions.CreateInitial(initialTime, increment);
 
             await _gameRepository.SaveAsync(gameId, initialState, cancellationToken);
 
@@ -163,33 +164,33 @@ public sealed class GameService : IGameService
                 };
             }
 
-            var newState = updatedState.MakeMove(request.X, request.Y, updatedState.Board);
+            updatedState.RecordMove(request.X, request.Y);
 
             // Check for win condition
-            var winningLine = CheckForWin(newState.Board, request.X, request.Y, currentState.CurrentPlayer);
+            var winningLine = CheckForWin(updatedState.Board, request.X, request.Y, currentState.CurrentPlayer);
             if (winningLine.Length > 0)
             {
-                newState = newState.WithEndGame(currentState.CurrentPlayer, winningLine);
+                updatedState = updatedState.WithEndGame(currentState.CurrentPlayer, winningLine);
             }
 
             // Check for draw
-            if (!newState.IsGameOver && newState.Board.IsFull())
+            if (!updatedState.IsGameOver && updatedState.Board.IsFull())
             {
-                newState = newState.WithEndGame(Player.None);
+                updatedState = updatedState.WithEndGame(Player.None);
             }
 
-            await _gameRepository.SaveAsync(gameId, newState, cancellationToken);
+            await _gameRepository.SaveAsync(gameId, updatedState, cancellationToken);
 
             // Start next player's timer if game not over
-            if (!newState.IsGameOver)
+            if (!updatedState.IsGameOver)
             {
-                await _timeService.StartTimerAsync(gameId, newState.CurrentPlayer.ToString(), cancellationToken);
+                await _timeService.StartTimerAsync(gameId, updatedState.CurrentPlayer.ToString(), cancellationToken);
             }
 
             return new GameResponse
             {
                 GameId = gameId,
-                State = GameMapper.ToDto(newState, gameId),
+                State = GameMapper.ToDto(updatedState, gameId),
                 Success = true,
                 Message = $"Move made at ({request.X}, {request.Y})"
             };
@@ -259,7 +260,8 @@ public sealed class GameService : IGameService
                 };
             }
 
-            var undoneState = currentState.UndoMove();
+            currentState.UndoMove();
+            var undoneState = currentState;
             await _gameRepository.SaveAsync(gameId, undoneState, cancellationToken);
 
             return new GameResponse

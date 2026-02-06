@@ -11,6 +11,7 @@ public sealed class OpeningBookLookupService
     private readonly IOpeningBookStore _store;
     private readonly IPositionCanonicalizer _canonicalizer;
     private readonly IOpeningBookValidator _validator;
+    private readonly Random? _random;
 
     // Upper bound for opening phase: 12 moves per side = 24 stones = 24 plies
     // Actual book exit is earlier due to depth filtering in SelectBestMove()
@@ -21,12 +22,17 @@ public sealed class OpeningBookLookupService
     public OpeningBookLookupService(
         IOpeningBookStore store,
         IPositionCanonicalizer canonicalizer,
-        IOpeningBookValidator validator)
+        IOpeningBookValidator validator,
+        Random? random = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _canonicalizer = canonicalizer ?? throw new ArgumentNullException(nameof(canonicalizer));
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
+        _random = random;  // null means use Random.Shared (default behavior)
     }
+
+    // Helper method for random operations
+    private int NextRandomInt(int maxValue) => _random?.Next(maxValue) ?? NextRandomInt(maxValue);
 
     /// <summary>
     /// Get best move from opening book for current position.
@@ -178,7 +184,7 @@ public sealed class OpeningBookLookupService
     /// Select the best move from available book moves.
     /// Selection strategy varies by difficulty.
     /// </summary>
-    private static BookMove? SelectBestMove(BookMove[] moves, AIDifficulty difficulty)
+    private BookMove? SelectBestMove(BookMove[] moves, AIDifficulty difficulty)
     {
         if (moves.Length == 0)
             return null;
@@ -231,12 +237,12 @@ public sealed class OpeningBookLookupService
             // Find max score, then randomly pick from all moves with that score
             int maxScore = verified.Max(m => m.Score);
             var topMoves = verified.Where(m => m.Score == maxScore).ToArray();
-            return topMoves[Random.Shared.Next(topMoves.Length)];
+            return topMoves[NextRandomInt(topMoves.Length)];
         }
 
         // Fallback: highest scoring moves (with random tiebreak)
         int maxFallbackScore = candidateMoves.Max(m => m.Score);
         var topFallbackMoves = candidateMoves.Where(m => m.Score == maxFallbackScore).ToArray();
-        return topFallbackMoves[Random.Shared.Next(topFallbackMoves.Length)];
+        return topFallbackMoves[NextRandomInt(topFallbackMoves.Length)];
     }
 }

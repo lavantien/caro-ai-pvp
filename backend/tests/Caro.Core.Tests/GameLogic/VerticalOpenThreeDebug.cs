@@ -24,9 +24,9 @@ public class VerticalOpenThreeDebug
 
         // Blue has three in a row vertically at column 14, rows 10-12
         // Both ends are open (row 9 and row 13 are empty)
-        board.PlaceStone(14, 10, Player.Blue);
-        board.PlaceStone(14, 11, Player.Blue);
-        board.PlaceStone(14, 12, Player.Blue);
+        board = board.PlaceStone(14, 10, Player.Blue);
+        board = board.PlaceStone(14, 11, Player.Blue);
+        board = board.PlaceStone(14, 12, Player.Blue);
 
         // Verify the position is correct
         _output.WriteLine("Board state:");

@@ -34,7 +34,7 @@ public class EvaluatorComparisonTests
     public void ScalarVsSIMD_CenterMove_ShouldMatch()
     {
         var board = new Board();
-        board.PlaceStone(9, 9, Player.Red); // Center of 19x19 board
+        board = board.PlaceStone(9, 9, Player.Red); // Center of 19x19 board
 
         int scalarScore = BitBoardEvaluator.Evaluate(board, Player.Red);
         int simdScore = SIMDBitBoardEvaluator.Evaluate(board, Player.Red);
@@ -51,10 +51,10 @@ public class EvaluatorComparisonTests
     {
         var board = new Board();
         // Create horizontal line: Red at (5,7), (6,7), (7,7), (8,7)
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
 
         int scalarScore = BitBoardEvaluator.Evaluate(board, Player.Red);
         int simdScore = SIMDBitBoardEvaluator.Evaluate(board, Player.Red);
@@ -72,10 +72,10 @@ public class EvaluatorComparisonTests
         var board = new Board();
         // Create open four: Red at (5,7), (6,7), (7,7), (8,7)
         // Ends at (4,7) and (9,7) are empty
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
 
         int scalarScore = BitBoardEvaluator.Evaluate(board, Player.Red);
         int simdScore = SIMDBitBoardEvaluator.Evaluate(board, Player.Red);
@@ -92,15 +92,15 @@ public class EvaluatorComparisonTests
     {
         var board = new Board();
         // Red has three in a row
-        board.PlaceStone(5, 7, Player.Red);
-        board.PlaceStone(6, 7, Player.Red);
-        board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(5, 7, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
 
         // Blue has open four (should be weighted 2.2x higher)
-        board.PlaceStone(5, 8, Player.Blue);
-        board.PlaceStone(6, 8, Player.Blue);
-        board.PlaceStone(7, 8, Player.Blue);
-        board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(5, 8, Player.Blue);
+        board = board.PlaceStone(6, 8, Player.Blue);
+        board = board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(8, 8, Player.Blue);
 
         int scalarScore = BitBoardEvaluator.Evaluate(board, Player.Red);
         int simdScore = SIMDBitBoardEvaluator.Evaluate(board, Player.Red);
@@ -117,15 +117,15 @@ public class EvaluatorComparisonTests
     {
         var board = new Board();
         // Create a complex position with multiple threats
-        board.PlaceStone(7, 7, Player.Red);
-        board.PlaceStone(7, 8, Player.Red);
-        board.PlaceStone(7, 9, Player.Red);
-        board.PlaceStone(6, 6, Player.Blue);
-        board.PlaceStone(8, 6, Player.Blue);
-        board.PlaceStone(9, 6, Player.Blue);
-        board.PlaceStone(10, 6, Player.Blue);
-        board.PlaceStone(5, 5, Player.Red);
-        board.PlaceStone(6, 5, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(7, 9, Player.Red);
+        board = board.PlaceStone(6, 6, Player.Blue);
+        board = board.PlaceStone(8, 6, Player.Blue);
+        board = board.PlaceStone(9, 6, Player.Blue);
+        board = board.PlaceStone(10, 6, Player.Blue);
+        board = board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(6, 5, Player.Red);
 
         int scalarScore = BitBoardEvaluator.Evaluate(board, Player.Red);
         int simdScore = SIMDBitBoardEvaluator.Evaluate(board, Player.Red);
@@ -146,7 +146,7 @@ public class EvaluatorComparisonTests
     public void ScalarVsSIMD_SingleMoves_ShouldMatch(int x, int y)
     {
         var board = new Board();
-        board.PlaceStone(x, y, Player.Red);
+        board = board.PlaceStone(x, y, Player.Red);
 
         int scalarScore = BitBoardEvaluator.Evaluate(board, Player.Red);
         int simdScore = SIMDBitBoardEvaluator.Evaluate(board, Player.Red);
@@ -182,7 +182,7 @@ public class EvaluatorComparisonTests
 
                 if (testBoard.GetCell(x, y).IsEmpty)
                 {
-                    testBoard.PlaceStone(x, y, player);
+                    testBoard = testBoard.PlaceStone(x, y, player);
                 }
             }
 
