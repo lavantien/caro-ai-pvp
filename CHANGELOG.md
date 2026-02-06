@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.29.0] - 2026-02-07
+
+### Fixed
+- Removed redundant System.Collections.Immutable package reference in .NET 10 (NU1510 warning)
+  - Package is built into .NET 10 runtime, explicit reference was unnecessary
+- Svelte 5 reactivity warning in Timer.svelte
+  - Changed $state initialization from prop capture to explicit sync in $effect
+- Flaky AsyncQueueTests.EnqueueAsync_ItemGetsProcessed test
+  - Added processingStarted signal to ensure background processor starts before enqueuing
+  - Removed Task.WhenAny timeout pattern for deterministic behavior
+
+### Build Quality
+- Backend: 0 warnings, 0 errors
+- Frontend: 0 errors, 0 warnings (svelte-check)
+
+### Test Counts
+- Caro.Core.Tests: 525 passed, 1 skipped
+- Caro.Core.Infrastructure.Tests: 48 passed
+- Frontend Unit (Vitest): 19 passed
+- Total: 592 tests passing
+
+[1.29.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.29.0
+
 ## [1.28.0] - 2026-02-07
 
 ### Added

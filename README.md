@@ -12,7 +12,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 - **Real-time multiplayer** - WebSocket support via SignalR
 - **AI tournament mode** - Balanced round-robin with ELO tracking
 - **Mobile-first UX** - Ghost stone positioning and haptic feedback
-- **500+ automated tests** - Including adversarial concurrency tests
+- **590+ automated tests** - Including adversarial concurrency tests
 
 ---
 
@@ -143,11 +143,11 @@ cd backend/tests/Caro.Core.MatchupTests && dotnet test
 
 | Project | Tests | Duration |
 |---------|-------|----------|
-| Caro.Core.Tests | 525 unit tests | ~9 min |
+| Caro.Core.Tests | 525 unit tests | ~8 min |
 | Caro.Core.MatchupTests | ~57 | Variable |
 | Caro.Core.Domain.Tests | 48 entity tests | ~5 sec |
 | Caro.Core.Application.Tests | 48 service tests | ~5 sec |
-| Caro.Core.Infrastructure.Tests | 48 algorithm tests | ~5 sec |
+| Caro.Core.Infrastructure.Tests | 48 algorithm tests | ~45 sec |
 
 **Note:** Run `dotnet test` in Caro.Core.Tests for fast unit test feedback. Use Caro.Core.MatchupTests for AI strength validation and full game matchups.
 
