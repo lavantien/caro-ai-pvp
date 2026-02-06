@@ -110,10 +110,14 @@ public class MinimaxAI : IStatsPublisher
     // Optional logger for diagnostics
     private readonly ILogger<MinimaxAI> _logger;
 
-    public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null, OpeningBook? openingBook = null)
+    // Random source for tie-breaking and error rate simulation (injectable for deterministic tests)
+    private readonly Random? _random;
+
+    public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null, OpeningBook? openingBook = null, Random? random = null)
     {
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<MinimaxAI>.Instance;
         _openingBook = openingBook ?? throw new ArgumentNullException(nameof(openingBook));
+        _random = random;  // null means use Random.Shared (default behavior)
         _publisherId = Interlocked.Increment(ref _instanceCounter).ToString();
         _statsChannel = Channel.CreateUnbounded<MoveStatsEvent>();
 
@@ -123,6 +127,13 @@ public class MinimaxAI : IStatsPublisher
 
         _inTreeVCFSolver = new VCFSolver(_vcfSolver);
     }
+
+    // Helper methods for random operations (uses injected Random or Random.Shared)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private double NextRandomDouble() => _random?.NextDouble() ?? Random.Shared.NextDouble();
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int NextRandomInt(int maxValue) => _random?.Next(maxValue) ?? Random.Shared.Next(maxValue);
 
     /// <summary>
     /// Get the best move for the AI player
@@ -256,7 +267,8 @@ public class MinimaxAI : IStatsPublisher
                 }
             }
             // Fallback: play center
-            return (9, 9);
+            int center = board.BoardSize / 2;
+            return (center, center);
         }
 
         // Check for ponder hit - if opponent played predicted move, we can use cached result
@@ -284,13 +296,13 @@ public class MinimaxAI : IStatsPublisher
         // Uses AdaptiveDepthCalculator.GetErrorRate() for consistent error rates
         // - Braindead: 50%, Easy: 15%, Medium: 5%, Hard: 1%, Grandmaster: 0%
         var errorRate = AdaptiveDepthCalculator.GetErrorRate(difficulty);
-        if (errorRate > 0 && Random.Shared.NextDouble() < errorRate)
+        if (errorRate > 0 && NextRandomDouble() < errorRate)
         {
             // Play a random valid move instead of searching
             // Report minimal stats to indicate instant move (not D0 which looks like a bug)
             _depthAchieved = 1;
             _nodesSearched = 1;
-            var randomIndex = Random.Shared.Next(candidates.Count);
+            var randomIndex = NextRandomInt(candidates.Count);
             return candidates[randomIndex];
         }
 
@@ -1264,9 +1276,9 @@ public class MinimaxAI : IStatsPublisher
             {
                 if (board.GetCell(x, y).IsEmpty)
                 {
-                    board.PlaceStone(x, y, opponent);
+                    board.GetCell(x, y).SetPlayerUnsafe(opponent);
                     var winResult = _winDetector.CheckWin(board);
-                    board.GetCell(x, y).Player = Player.None;
+                    board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                     if (winResult.HasWinner && winResult.Winner == opponent)
                     {
@@ -1308,9 +1320,9 @@ public class MinimaxAI : IStatsPublisher
             int idx = 0;
             foreach (var (x, y) in candidates)
             {
-                board.PlaceStone(x, y, player);
+                board.GetCell(x, y).SetPlayerUnsafe(player);
                 var score = Minimax(board, depth - 2, searchAlpha, searchBeta, false, player, depth);
-                board.GetCell(x, y).Player = Player.None;
+                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                 // Tie-breaking: higher score wins, or equal score with better tiebreaker
                 if (score > bestScore || (score == bestScore && candidateScores[idx] > bestTiebreaker))
@@ -1360,13 +1372,13 @@ public class MinimaxAI : IStatsPublisher
             foreach (var (x, y) in orderedMoves)
             {
                 // Make move
-                board.PlaceStone(x, y, player);
+                board.GetCell(x, y).SetPlayerUnsafe(player);
 
                 // Evaluate using minimax
                 var score = Minimax(board, depth - 1, alpha, beta, false, player, depth);
 
                 // Undo move
-                board.GetCell(x, y).Player = Player.None;
+                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                 // Tie-breaking: higher score wins, or equal score with better tiebreaker + small random
                 if (score > bestScore)
@@ -1378,7 +1390,7 @@ public class MinimaxAI : IStatsPublisher
                 else if (score == bestScore)
                 {
                     var currentTiebreaker = orderedTiebreakScores[orderedIdx];
-                    var randomBonus = Random.Shared.Next(100);  // Small random factor (0-99)
+                    var randomBonus = NextRandomInt(100);  // Small random factor (0-99)
 
                     // Prefer better tiebreaker score, or add randomness
                     if (currentTiebreaker + randomBonus > bestTiebreaker)
@@ -2037,12 +2049,12 @@ public class MinimaxAI : IStatsPublisher
                 if (!board.GetCell(x, y).IsEmpty)
                     continue;
 
-                board.PlaceStone(x, y, currentPlayer);
+                board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
 
                 // Recursive quiescence search (depth stays at 0, but we track via rootDepth)
                 var eval = Quiesce(board, alpha, beta, false, aiPlayer, rootDepth + 1);
 
-                board.GetCell(x, y).Player = Player.None;
+                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                 maxEval = Math.Max(maxEval, eval);
                 alpha = Math.Max(alpha, eval);
@@ -2061,11 +2073,11 @@ public class MinimaxAI : IStatsPublisher
                 if (!board.GetCell(x, y).IsEmpty)
                     continue;
 
-                board.PlaceStone(x, y, currentPlayer);
+                board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
 
                 var eval = Quiesce(board, alpha, beta, true, aiPlayer, rootDepth + 1);
 
-                board.GetCell(x, y).Player = Player.None;
+                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                 minEval = Math.Min(minEval, eval);
                 beta = Math.Min(beta, eval);
@@ -2382,7 +2394,7 @@ public class MinimaxAI : IStatsPublisher
 
             foreach (var (x, y) in orderedMoves)
             {
-                board.PlaceStone(x, y, currentPlayer);
+                board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
 
                 int eval;
                 bool isPvNode = (moveIndex == 0) && (depth >= pvsEnabledDepth);
@@ -2439,7 +2451,7 @@ public class MinimaxAI : IStatsPublisher
                     }
                 }
 
-                board.GetCell(x, y).Player = Player.None;
+                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                 if (eval > maxEval)
                 {
@@ -2466,7 +2478,7 @@ public class MinimaxAI : IStatsPublisher
 
             foreach (var (x, y) in orderedMoves)
             {
-                board.PlaceStone(x, y, currentPlayer);
+                board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
 
                 int eval;
                 bool isPvNode = (moveIndex == 0) && (depth >= pvsEnabledDepth);
@@ -2523,7 +2535,7 @@ public class MinimaxAI : IStatsPublisher
                     }
                 }
 
-                board.GetCell(x, y).Player = Player.None;
+                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                 if (eval < minEval)
                 {
@@ -2601,7 +2613,8 @@ public class MinimaxAI : IStatsPublisher
         // If no candidates (empty board), return center
         if (candidates.Count == 0)
         {
-            candidates.Add((7, 7));
+            int center = boardSize / 2;
+            candidates.Add((center, center));
         }
 
         return candidates;
