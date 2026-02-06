@@ -32,7 +32,7 @@ public sealed class OpeningBookLookupService
     }
 
     // Helper method for random operations
-    private int NextRandomInt(int maxValue) => _random?.Next(maxValue) ?? NextRandomInt(maxValue);
+    private int NextRandomInt(int maxValue) => _random?.Next(maxValue) ?? Random.Shared.Next(maxValue);
 
     /// <summary>
     /// Get best move from opening book for current position.
