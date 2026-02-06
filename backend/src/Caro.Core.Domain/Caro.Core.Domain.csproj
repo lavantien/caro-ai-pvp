@@ -12,4 +12,8 @@
     <InternalsVisibleTo Include="Caro.Core.Application.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.Collections.Immutable" Version="9.0.0" />
+  </ItemGroup>
+
 </Project>
