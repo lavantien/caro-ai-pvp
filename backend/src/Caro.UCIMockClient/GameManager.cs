@@ -305,7 +305,7 @@ public class GameManager
         {
             // Alternate colors: Games 0,1 have A as Red; Games 2,3 have B as Red
             var botAIsRed = i < 2;
-            
+
             UCIMockClient redEngine = botAIsRed ? botA : botB;
             UCIMockClient blueEngine = botAIsRed ? botB : botA;
             string redBotName = botAIsRed ? botAName : botBName;

@@ -47,7 +47,7 @@ public sealed class UCIMockClient : IDisposable
     public UCIMockClient(string exePath)
     {
         _exePath = exePath ?? throw new ArgumentNullException(nameof(exePath));
-        
+
         // Create dummy streams for initialization (will be replaced when engine starts)
         _stdout = new StreamReader(Stream.Null);
         _stdin = new StreamWriter(Stream.Null);
@@ -60,11 +60,11 @@ public sealed class UCIMockClient : IDisposable
     {
         // Determine if we're using a project file or exe
         bool useDotnetRun = _exePath.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase);
-        
+
         // Get the directory of the executable for DLL resolution
         var exeDir = Path.GetDirectoryName(_exePath);
         var workingDir = useDotnetRun ? exeDir : exeDir;
-        
+
         var startInfo = new ProcessStartInfo
         {
             FileName = useDotnetRun ? "dotnet" : _exePath,
@@ -84,14 +84,14 @@ public sealed class UCIMockClient : IDisposable
             if (!string.IsNullOrEmpty(exeDir) && !string.IsNullOrEmpty(pathEnv))
             {
                 var newPath = exeDir;
-                
+
                 // Add runtimes directory to PATH if it exists
                 var runtimesDir = Path.Combine(exeDir, "runtimes", "win-x64", "native");
                 if (Directory.Exists(runtimesDir))
                 {
                     newPath = runtimesDir + Path.PathSeparator + newPath;
                 }
-                
+
                 startInfo.Environment["PATH"] = newPath + Path.PathSeparator + pathEnv;
             }
         }
@@ -127,7 +127,7 @@ public sealed class UCIMockClient : IDisposable
         SendCommand($"setoption name Book Depth Limit value {_bookDepthLimit}");
 
         SendCommand("ucinewgame");
-        
+
         _isInitialized = true;
     }
 
@@ -153,7 +153,7 @@ public sealed class UCIMockClient : IDisposable
     {
         _openingBookEnabled = enabled;
         _bookDepthLimit = depthLimit;
-        
+
         if (_isInitialized)
         {
             SendCommand($"setoption name Use Opening Book value {_openingBookEnabled.ToString().ToLowerInvariant()}");
@@ -222,7 +222,7 @@ public sealed class UCIMockClient : IDisposable
 
         // Wait for bestmove response
         var bestMove = await WaitForBestMoveAsync(TimeSpan.FromMinutes(5));
-        
+
         if (string.IsNullOrEmpty(bestMove))
             throw new InvalidOperationException("Engine did not return a move");
 
@@ -254,7 +254,7 @@ public sealed class UCIMockClient : IDisposable
         var infoLines = new List<string>();
 
         using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
-        
+
         while (await timer.WaitForNextTickAsync(_cts.Token))
         {
             if (DateTime.UtcNow - startTime > timeout)
@@ -315,7 +315,7 @@ public sealed class UCIMockClient : IDisposable
     private async Task WaitForResponseAsync(string expectedResponse, TimeSpan timeout)
     {
         var startTime = DateTime.UtcNow;
-        
+
         while (DateTime.UtcNow - startTime < timeout)
         {
             if (_process == null)
@@ -423,19 +423,19 @@ public sealed class UCIMockClient : IDisposable
     public void Dispose()
     {
         StopEngine();  // StopEngine uses _cts.Cancel(), so call before disposing
-        
+
         try
         {
             _cts.Dispose();
         }
         catch { }
-        
+
         try
         {
             _stdin?.Dispose();
         }
         catch { }
-        
+
         try
         {
             _stdout?.Dispose();
