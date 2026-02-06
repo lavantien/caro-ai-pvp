@@ -195,13 +195,12 @@ public class DFPNSearch
             var nextIsAttacker = !isAttacker;
 
             var move = mostProving.Move ?? throw new InvalidOperationException("Most proving move is null");
-            board.GetCell(move.x, move.y).SetPlayerUnsafe(nextPlayer);
+            var newBoard = board.PlaceStone(move.x, move.y, nextPlayer);
 
             // Check if move creates win
-            var winResult = _winDetector.CheckWin(board);
+            var winResult = _winDetector.CheckWin(newBoard);
             if (winResult.HasWinner && winResult.Winner == attacker)
             {
-                board.GetCell(move.x, move.y).SetPlayerUnsafe(Player.None);
                 MarkProven(node);
                 transpositionTable[hash] = node;
                 return SearchResult.Win;
@@ -209,16 +208,13 @@ public class DFPNSearch
 
             var childResult = SearchInternal(
                 mostProving,
-                board,
+                newBoard,
                 attacker,
                 depth + 1,
                 maxDepth,
                 startTime,
                 timeLimitMs,
                 transpositionTable);
-
-            // Undo move
-            board.GetCell(move.x, move.y).SetPlayerUnsafe(Player.None);
 
             // Update proof numbers based on child result
             UpdateNodeProofNumbers(node, depth % 2 == 0);
