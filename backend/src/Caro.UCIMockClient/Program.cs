@@ -10,7 +10,7 @@ class Program
     static async Task Main(string[] args)
     {
         var exePath = GetEnginePath(args);
-        
+
         if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
         {
             Console.WriteLine("Error: UCI engine project/executable not found.");
@@ -121,7 +121,7 @@ class Program
 
         Console.WriteLine();
         Console.WriteLine("Match completed.");
-        
+
         // Only wait for key if running interactively
         try
         {
@@ -174,20 +174,20 @@ class Program
     {
         Console.WriteLine();
         Console.WriteLine($"Game {result.GameNumber} Result: {result.ResultString} in {result.TotalMoves} moves ({result.DurationMs / 1000.0:F1}s)");
-        
+
         if (result.Moves.Count > 0)
         {
             Console.WriteLine("Move summary:");
             var redMoves = result.Moves.Where(m => m.Player == Player.Red).ToList();
             var blueMoves = result.Moves.Where(m => m.Player == Player.Blue).ToList();
-            
+
             if (redMoves.Count > 0)
             {
                 var avgRedTime = redMoves.Average(m => m.MoveTimeMs);
                 var maxRedTime = redMoves.Max(m => m.MoveTimeMs);
                 Console.WriteLine($"  Red: {redMoves.Count} moves, avg {avgRedTime:F0}ms, max {maxRedTime}ms");
             }
-            
+
             if (blueMoves.Count > 0)
             {
                 var avgBlueTime = blueMoves.Average(m => m.MoveTimeMs);
@@ -235,7 +235,7 @@ class Program
         Console.WriteLine("----------------------");
         foreach (var result in results)
         {
-            var winner = result.Winner == Player.None ? "Draw" : 
+            var winner = result.Winner == Player.None ? "Draw" :
                          result.Winner == Player.Red ? result.RedBotName : result.BlueBotName;
             Console.WriteLine($"Game {result.GameNumber}: {winner} ({result.TotalMoves} moves, {result.DurationMs / 1000.0:F1}s)");
         }
@@ -249,7 +249,7 @@ class Program
             var avgTime = allMoves.Average(m => m.MoveTimeMs);
             var maxTime = allMoves.Max(m => m.MoveTimeMs);
             var minTime = allMoves.Min(m => m.MoveTimeMs);
-            
+
             Console.WriteLine("Move Time Statistics:");
             Console.WriteLine($"  Average: {avgTime:F0}ms");
             Console.WriteLine($"  Min: {minTime}ms");
