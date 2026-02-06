@@ -134,7 +134,7 @@ public sealed class AIDifficultyConfig
                 TargetNps = 500_000,
                 Description = "Full opening book + max features for testing",
                 OpeningBookEnabled = true,      // Experimental uses full opening book
-                MaxBookDepth = int.MaxValue    // No limit (uses all available book)
+                MaxBookDepth = 40    // Experimental capped at ply 40
             },
 
             AIDifficulty.BookGeneration => new AIDifficultySettings
