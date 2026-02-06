@@ -75,8 +75,7 @@ public class OpeningBookMatchupTests : IDisposable
     {
         // Arrange
         var results = new List<BookMoveTracker>();
-        var board = new Board();
-        var game = new GameState();
+        var game = GameState.CreateInitial();
 
         // Create AI instances for each difficulty with opening book injection
         var redAI = new MinimaxAI(openingBook: _openingBook);
@@ -85,6 +84,7 @@ public class OpeningBookMatchupTests : IDisposable
         // Act - Play 40 half-moves (20 full turns)
         for (int moveNumber = 0; moveNumber < MaxMoves && !game.IsGameOver; moveNumber++)
         {
+            var board = game.Board;
             var difficulty = game.CurrentPlayer == Player.Red ? AIDifficulty.Hard : AIDifficulty.Grandmaster;
             var ai = game.CurrentPlayer == Player.Red ? redAI : blueAI;
 
@@ -112,11 +112,11 @@ public class OpeningBookMatchupTests : IDisposable
             ));
 
             // Make the move (GameState handles player switching)
-            game.RecordMove(board, actualMove.x, actualMove.y);
+            game = game.WithMove(actualMove.x, actualMove.y);
 
             // Check for win
             var detector = new WinDetector();
-            var result = detector.CheckWin(board);
+            var result = detector.CheckWin(game.Board);
             if (result.HasWinner)
             {
                 _output.WriteLine($"Game ended at move {moveNumber + 1} with winner {result.Winner}");
@@ -203,8 +203,7 @@ public class OpeningBookMatchupTests : IDisposable
     public void HardVsGrandmaster_DepthFiltering_HardStopsAtDepth24_GmGoesToDepth32()
     {
         // Arrange - Create a position at depth 25 (beyond Hard's limit but within GM's)
-        var board = new Board();
-        var game = new GameState();
+        var game = GameState.CreateInitial();
         var moves = new List<(int x, int y)>
         {
             (9, 9), (9, 8),  // 1
@@ -224,11 +223,12 @@ public class OpeningBookMatchupTests : IDisposable
 
         foreach (var (x, y) in moves)
         {
-            game.RecordMove(board, x, y);
+            game = game.WithMove(x, y);
         }
 
         // Next move is at depth 26 (27 half-moves, Red to move)
         var currentPlayer = game.CurrentPlayer;
+        var board = game.Board;
 
         // Act - Get book moves for both difficulties at the same position
         var lastOpponentMove = GetLastOpponentMove(board, currentPlayer);
@@ -255,14 +255,14 @@ public class OpeningBookMatchupTests : IDisposable
     private List<BookMoveTracker> PlayAndTrackBookUsage(AIDifficulty redDifficulty, AIDifficulty blueDifficulty)
     {
         var results = new List<BookMoveTracker>();
-        var board = new Board();
-        var game = new GameState();
+        var game = GameState.CreateInitial();
 
         var redAI = new MinimaxAI(openingBook: _openingBook);
         var blueAI = new MinimaxAI(openingBook: _openingBook);
 
         for (int moveNumber = 0; moveNumber < MaxMoves && !game.IsGameOver; moveNumber++)
         {
+            var board = game.Board;
             var difficulty = game.CurrentPlayer == Player.Red ? redDifficulty : blueDifficulty;
             var ai = game.CurrentPlayer == Player.Red ? redAI : blueAI;
 
@@ -284,10 +284,10 @@ public class OpeningBookMatchupTests : IDisposable
                 CurrentDepth: game.MoveNumber
             ));
 
-            game.RecordMove(board, actualMove.x, actualMove.y);
+            game = game.WithMove(actualMove.x, actualMove.y);
 
             var detector = new WinDetector();
-            var result = detector.CheckWin(board);
+            var result = detector.CheckWin(game.Board);
             if (result.HasWinner) break;
         }
 

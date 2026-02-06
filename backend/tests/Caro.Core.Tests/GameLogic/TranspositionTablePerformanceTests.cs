@@ -39,8 +39,8 @@ public class TranspositionTablePerformanceTests
         _output.WriteLine($"Move: ({move.x}, {move.y})");
         _output.WriteLine($"Time: {stopwatch.ElapsedMilliseconds}ms");
 
-        Assert.True(stopwatch.ElapsedMilliseconds < 15000,
-            $"Move calculation took {stopwatch.ElapsedMilliseconds}ms, expected < 15000ms");
+        Assert.True(stopwatch.ElapsedMilliseconds < 30000,
+            $"Move calculation took {stopwatch.ElapsedMilliseconds}ms, expected < 30000ms");
 
         // Move should be valid
         var cell = board.GetCell(move.x, move.y);

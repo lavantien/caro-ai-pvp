@@ -10,51 +10,51 @@ public class GameStateUndoTests
     public void UndoMove_WhenGameHasMoves_RevertsLastMove()
     {
         // Arrange
-        var game = new GameState();
+        var game = GameState.CreateInitial();
 
         // Make 3 moves - now GameState manages its own Board
-        game.RecordMove(7, 7); // Red
-        game.RecordMove(7, 8); // Blue
-        game.RecordMove(8, 8); // Red
+        game = game.WithMove(7, 7); // Red
+        game = game.WithMove(7, 8); // Blue
+        game = game.WithMove(8, 8); // Red
 
         var initialMoveNumber = game.MoveNumber;
         var initialPlayer = game.CurrentPlayer;
 
         // Act
-        game.UndoMove();
+        var undoneGame = game.UndoMove();
 
         // Assert
-        game.MoveNumber.Should().Be(initialMoveNumber - 1);
-        game.CurrentPlayer.Should().Be(initialPlayer);
+        undoneGame.MoveNumber.Should().Be(initialMoveNumber - 1);
+        undoneGame.CurrentPlayer.Should().Be(initialPlayer);
 
         // Last move should be removed
-        game.Board.GetCell(8, 8).Player.Should().Be(Player.None);
-        game.Board.GetCell(7, 8).Player.Should().Be(Player.Blue);
-        game.Board.GetCell(7, 7).Player.Should().Be(Player.Red);
+        undoneGame.Board.GetCell(8, 8).Player.Should().Be(Player.None);
+        undoneGame.Board.GetCell(7, 8).Player.Should().Be(Player.Blue);
+        undoneGame.Board.GetCell(7, 7).Player.Should().Be(Player.Red);
     }
 
     [Fact]
     public void UndoMove_WhenOnlyOneMove_RevertsToInitialState()
     {
         // Arrange
-        var game = new GameState();
+        var game = GameState.CreateInitial();
 
-        game.RecordMove(7, 7);
+        game = game.WithMove(7, 7);
 
         // Act
-        game.UndoMove();
+        var undoneGame = game.UndoMove();
 
         // Assert
-        game.MoveNumber.Should().Be(0);
-        game.CurrentPlayer.Should().Be(Player.Red);
-        game.Board.GetCell(7, 7).Player.Should().Be(Player.None);
+        undoneGame.MoveNumber.Should().Be(0);
+        undoneGame.CurrentPlayer.Should().Be(Player.Red);
+        undoneGame.Board.GetCell(7, 7).Player.Should().Be(Player.None);
     }
 
     [Fact]
     public void UndoMove_WhenNoMoves_ThrowsInvalidOperationException()
     {
         // Arrange
-        var game = new GameState();
+        var game = GameState.CreateInitial();
 
         // Act & Assert
         FluentActions.Invoking(() => game.UndoMove())
@@ -66,10 +66,10 @@ public class GameStateUndoTests
     public void UndoMove_WhenGameOver_ThrowsInvalidOperationException()
     {
         // Arrange
-        var game = new GameState();
+        var game = GameState.CreateInitial();
 
-        game.RecordMove(7, 7);
-        game.EndGame(Player.Red);
+        game = game.WithMove(7, 7);
+        game = game.WithGameOver(Player.Red);
 
         // Act & Assert
         FluentActions.Invoking(() => game.UndoMove())
@@ -81,9 +81,9 @@ public class GameStateUndoTests
     public void CanUndo_WhenGameHasMoves_ReturnsTrue()
     {
         // Arrange
-        var game = new GameState();
+        var game = GameState.CreateInitial();
 
-        game.RecordMove(7, 7);
+        game = game.WithMove(7, 7);
 
         // Act
         var canUndo = game.CanUndo();
@@ -96,7 +96,7 @@ public class GameStateUndoTests
     public void CanUndo_WhenNoMoves_ReturnsFalse()
     {
         // Arrange
-        var game = new GameState();
+        var game = GameState.CreateInitial();
 
         // Act
         var canUndo = game.CanUndo();
@@ -109,10 +109,10 @@ public class GameStateUndoTests
     public void CanUndo_WhenGameOver_ReturnsFalse()
     {
         // Arrange
-        var game = new GameState();
+        var game = GameState.CreateInitial();
 
-        game.RecordMove(7, 7);
-        game.EndGame(Player.Red);
+        game = game.WithMove(7, 7);
+        game = game.WithGameOver(Player.Red);
 
         // Act
         var canUndo = game.CanUndo();
@@ -125,21 +125,21 @@ public class GameStateUndoTests
     public void UndoMove_MultipleTimes_RevertsToInitialState()
     {
         // Arrange
-        var game = new GameState();
+        var game = GameState.CreateInitial();
 
-        game.RecordMove(7, 7); // Red
-        game.RecordMove(7, 8); // Blue
-        game.RecordMove(8, 8); // Red
+        game = game.WithMove(7, 7); // Red
+        game = game.WithMove(7, 8); // Blue
+        game = game.WithMove(8, 8); // Red
 
         // Act - Undo twice
-        game.UndoMove();
-        game.UndoMove();
+        var undoneOnce = game.UndoMove();
+        var undoneTwice = undoneOnce.UndoMove();
 
         // Assert
-        game.MoveNumber.Should().Be(1);
-        game.CurrentPlayer.Should().Be(Player.Blue);
-        game.Board.GetCell(8, 8).Player.Should().Be(Player.None);
-        game.Board.GetCell(7, 8).Player.Should().Be(Player.None); // After 2 undos from 3 moves, only move 1 remains
-        game.Board.GetCell(7, 7).Player.Should().Be(Player.Red);
+        undoneTwice.MoveNumber.Should().Be(1);
+        undoneTwice.CurrentPlayer.Should().Be(Player.Blue);
+        undoneTwice.Board.GetCell(8, 8).Player.Should().Be(Player.None);
+        undoneTwice.Board.GetCell(7, 8).Player.Should().Be(Player.None); // After 2 undos from 3 moves, only move 1 remains
+        undoneTwice.Board.GetCell(7, 7).Player.Should().Be(Player.Red);
     }
 }

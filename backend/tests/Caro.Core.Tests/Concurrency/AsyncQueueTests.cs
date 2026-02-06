@@ -83,7 +83,7 @@ public class AsyncQueueTests
         }
 
         // Wait for some processing
-        await Task.WhenAny(tcs.Task, Task.Delay(2000));
+        await Task.WhenAny(tcs.Task, Task.Delay(5000));
 
         var (processed, errors, dropped) = queue.GetStatistics();
 

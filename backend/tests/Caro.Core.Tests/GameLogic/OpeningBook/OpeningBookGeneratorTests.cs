@@ -13,19 +13,18 @@ namespace Caro.Core.Tests.GameLogic.OpeningBook;
 public class OpeningBookGeneratorTests
 {
     [Fact]
-    public void BoardClone_ThenPlaceStone_DoesNotAffectOriginal()
+    public void PlaceStone_DoesNotAffectOriginal_BoardIsImmutable()
     {
         // This is a focused test for the exact bug pattern:
-        // Clone a board, then place a stone on the clone.
-        // The bug was that CloneBoard didn't properly copy state.
+        // Place a stone, creating a new board.
+        // With immutability, the original is never affected.
 
         // Arrange
         var original = new Board();
         original = original.PlaceStone(9, 9, Player.Red);
 
-        // Act - Clone and place stone on clone
-        var clone = original.Clone();
-        clone = clone.PlaceStone(9, 10, Player.Blue);
+        // Act - PlaceStone returns a new Board (immutable)
+        var clone = original.PlaceStone(9, 10, Player.Blue);
 
         // Assert - Verify original is unchanged
         original.GetCell(9, 10).Player.Should().Be(Player.None);
@@ -33,7 +32,7 @@ public class OpeningBookGeneratorTests
     }
 
     [Fact]
-    public void BoardClone_AfterMultiplePlacements_AllowsFurtherPlacements()
+    public void PlaceStone_AfterMultiplePlacements_AllowsFurtherPlacements()
     {
         // Arrange
         var board = new Board();
@@ -41,11 +40,10 @@ public class OpeningBookGeneratorTests
         board = board.PlaceStone(6, 6, Player.Blue);
         board = board.PlaceStone(7, 7, Player.Red);
 
-        // Act
-        var clone = board.Clone();
+        // Act - PlaceStone returns new Board (immutable)
+        var clone = board.PlaceStone(8, 8, Player.Blue);
 
         // These should all succeed without "already occupied" errors
-        clone = clone.PlaceStone(8, 8, Player.Blue);
         clone = clone.PlaceStone(9, 9, Player.Red);
         clone = clone.PlaceStone(10, 10, Player.Blue);
 
@@ -66,7 +64,7 @@ public class OpeningBookGeneratorTests
         original = original.PlaceStone(8, 8, Player.Blue);
 
         // Act
-        var clone = original.CloneWithState();
+        var clone = original; // Board is immutable, reference copy is safe
 
         // Assert - Verify all bits match exactly
         var originalRed = original.GetBitBoard(Player.Red);
@@ -100,21 +98,17 @@ public class OpeningBookGeneratorTests
     }
 
     [Fact]
-    public void BoardClone_WithSameBoardTwice_ProducesIndependentCopies()
+    public void PlaceStone_WithSameBase_ProducesIndependentBoards()
     {
         // Arrange
         var board = new Board();
         board = board.PlaceStone(9, 9, Player.Red);
 
-        // Act
-        var clone1 = board.Clone();
-        var clone2 = board.Clone();
+        // Act - Each PlaceStone returns a new Board (immutable)
+        var clone1 = board.PlaceStone(9, 10, Player.Blue);
+        var clone2 = board.PlaceStone(10, 9, Player.Blue);
 
-        // Modify each clone independently
-        clone1 = clone1.PlaceStone(9, 10, Player.Blue);
-        clone2 = clone2.PlaceStone(10, 9, Player.Blue);
-
-        // Assert - Each clone is independent
+        // Assert - Each board is independent
         board.GetCell(9, 10).Player.Should().Be(Player.None);
         board.GetCell(10, 9).Player.Should().Be(Player.None);
 
@@ -126,40 +120,38 @@ public class OpeningBookGeneratorTests
     }
 
     [Fact]
-    public void BoardClone_FromClonedBoard_ProducesIndependentCopy()
+    public void PlaceStone_SequentialFromBase_ProducesIndependentBoards()
     {
-        // Tests the pattern in OpeningBookGenerator:
-        // var candidateBoard = board.Clone();
-        // var searchBoard = candidateBoard.Clone();
+        // Tests the pattern with immutable boards:
+        // var clone1 = board.PlaceStone(...);
+        // var clone2 = clone1.PlaceStone(...);
 
         // Arrange
         var board = new Board();
         board = board.PlaceStone(9, 9, Player.Red);
 
-        // Act - Clone from clone
-        var clone1 = board.Clone();
-        var clone2 = clone1.Clone();
-
-        // Place on the second clone
-        clone2 = clone2.PlaceStone(9, 10, Player.Blue);
+        // Act - Each PlaceStone returns a new Board (immutable)
+        var clone1 = board.PlaceStone(9, 10, Player.Blue);
+        var clone2 = clone1.PlaceStone(10, 9, Player.Red);
 
         // Assert - Original and first clone unaffected
         board.GetCell(9, 10).Player.Should().Be(Player.None);
-        clone1.GetCell(9, 10).Player.Should().Be(Player.None);
+        board.GetCell(10, 9).Player.Should().Be(Player.None);
+        clone1.GetCell(10, 9).Player.Should().Be(Player.None);
         clone2.GetCell(9, 10).Player.Should().Be(Player.Blue);
+        clone2.GetCell(10, 9).Player.Should().Be(Player.Red);
     }
 
     [Fact]
-    public void BoardClone_EmptyBoard_AllowsAnyPlacement()
+    public void PlaceStone_EmptyBoard_AllowsAnyPlacement()
     {
         // Arrange
         var emptyBoard = new Board();
 
-        // Act
-        var clone = emptyBoard.Clone();
+        // Act - Each PlaceStone returns a new Board (immutable)
+        var clone = emptyBoard.PlaceStone(0, 0, Player.Red);
 
         // Should be able to place anywhere
-        clone = clone.PlaceStone(0, 0, Player.Red);
         clone = clone.PlaceStone(18, 18, Player.Blue);
         clone = clone.PlaceStone(9, 9, Player.Red);
 
@@ -221,11 +213,11 @@ public class OpeningBookGeneratorTests
         // For edge positions, this would be Identity (no transformation)
         SymmetryType storedSymmetry = SymmetryType.Identity;
 
-        // Act & Assert - Apply each stored move to a cloned board
+        // Act & Assert - Apply each stored move to create new board
         foreach (var move in bookMoves)
         {
-            // Clone the board (as done in OpeningBookGenerator line ~300)
-            var newBoard = board.Clone();
+            // Create a new board by placing a stone (immutable pattern)
+            var newBoard = board;
 
             // Transform canonical coordinates back to actual (same logic as line ~301-304)
             (int actualX, int actualY) = canonicalizer.TransformToActual(
@@ -285,8 +277,8 @@ public class OpeningBookGeneratorTests
             IsVerified = true
         };
 
-        // Act - Clone board and apply the stored move with symmetry transformation
-        var newBoard = board.Clone();
+        // Act - Start with current board and apply the stored move
+        var newBoard = board;
 
         (int actualX, int actualY) = canonicalizer.TransformToActual(
             (bookMove.RelativeX, bookMove.RelativeY),
@@ -344,8 +336,8 @@ public class OpeningBookGeneratorTests
         {
             var (relX, relY, player) = moveSequence[i];
 
-            // Clone current board
-            var newBoard = currentBoard.Clone();
+            // Start with current board (immutable pattern)
+            var newBoard = currentBoard;
 
             // Transform to actual coordinates
             (int actualX, int actualY) = canonicalizer.TransformToActual(
@@ -414,15 +406,15 @@ public class OpeningBookGeneratorTests
 
         var nextLevelPositions = new List<(Board board, Player player, int depth)>();
 
-        // Act - Process moves exactly as OpeningBookGenerator does
+        // Act - Process moves
         foreach (var move in posData.moves.Take(2))  // maxChildren = 2 for this depth
         {
-            // Clone board (line ~300)
-            var newBoard = posData.board.Clone();
+            // Start with current board (immutable pattern)
+            var newBoard = posData.board;
 
             // Transform canonical to actual (lines ~301-304)
             (int actualX, int actualY) = canonicalizer.TransformToActual(
-                (move.RelativeX, move.RelativeY),
+                (relX: move.RelativeX, relY: move.RelativeY),
                 posData.symmetry,
                 posData.board
             );
