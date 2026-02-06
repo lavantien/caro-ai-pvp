@@ -2,6 +2,7 @@ using Caro.Api;
 using Caro.Api.Logging;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
+using Caro.Core.GameLogic.TimeManagement;
 using Caro.Core.Infrastructure.Persistence;
 using Caro.Core.Tournament;
 using Microsoft.AspNetCore.Mvc;
@@ -83,10 +84,48 @@ app.MapHub<TournamentHub>("/hubs/tournament");
 var games = new ConcurrentDictionary<string, GameSession>();
 
 // POST /api/game/new - Create new game
-app.MapPost("/api/game/new", () =>
+app.MapPost("/api/game/new", (CreateGameRequest? request) =>
 {
     var gameId = Guid.NewGuid().ToString();
-    var session = new GameSession();
+
+    // Parse time control from request
+    TimeControl timeControl = (request?.TimeControl?.ToLowerInvariant()) switch
+    {
+        "1+0" or "bullet" => TimeControl.Bullet,
+        "3+2" or "blitz" => TimeControl.Blitz,
+        "15+10" or "classical" => TimeControl.Classical,
+        _ => TimeControl.Rapid  // default to 7+5
+    };
+
+    // Parse game mode (default to PvP)
+    var gameMode = request?.GameMode ?? "pvp";
+
+    // Determine AI difficulties based on game mode
+    string? redAIDifficulty = null;
+    string? blueAIDifficulty = null;
+
+    switch (gameMode)
+    {
+        case "pvai":
+            // Player vs AI - AI plays blue by default (unless specified)
+            var aiDifficulty = request?.BlueAIDifficulty ?? request?.RedAIDifficulty ?? "Medium";
+            blueAIDifficulty = aiDifficulty;
+            break;
+        case "aivai":
+            // AI vs AI - both sides are AI
+            redAIDifficulty = request?.RedAIDifficulty ?? "Hard";
+            blueAIDifficulty = request?.BlueAIDifficulty ?? "Hard";
+            break;
+    }
+
+    var session = new GameSession(
+        timeControl.Name,
+        timeControl.InitialTimeMs,
+        timeControl.IncrementSeconds,
+        gameMode,
+        redAIDifficulty,
+        blueAIDifficulty
+    );
     games[gameId] = session;
 
     return Results.Ok(new { gameId, state = session.GetResponse() });
@@ -272,7 +311,28 @@ app.Run();
 public sealed class GameSession
 {
     private readonly object _lock = new();
-    private GameState _game = GameState.CreateInitial();
+    private GameState _game;
+
+    /// <summary>
+    /// Create a new game session with specified parameters.
+    /// </summary>
+    public GameSession(
+        string timeControl = "7+5",
+        long initialTimeMs = 420_000,
+        int incrementSeconds = 5,
+        string gameMode = "pvp",
+        string? redAIDifficulty = null,
+        string? blueAIDifficulty = null)
+    {
+        _game = GameState.CreateInitial(
+            timeControl: timeControl,
+            initialTimeMs: initialTimeMs,
+            incrementSeconds: incrementSeconds,
+            gameMode: gameMode,
+            redAIDifficulty: redAIDifficulty,
+            blueAIDifficulty: blueAIDifficulty
+        );
+    }
 
     /// <summary>
     /// Executes an action under the per-game lock.
@@ -336,11 +396,18 @@ public sealed class GameSession
                 winner = game.Winner.ToString().ToLower(),
                 winningLine = game.WinningLine.Select(p => new { x = p.X, y = p.Y }),
                 redTimeRemaining = 0.0,  // Time tracking moved to application layer
-                blueTimeRemaining = 0.0
+                blueTimeRemaining = 0.0,
+                timeControl = game.TimeControl,
+                initialTime = game.InitialTimeMs / 1000,
+                increment = game.IncrementSeconds,
+                gameMode = game.GameMode,
+                redAIDifficulty = game.RedAIDifficulty,
+                blueAIDifficulty = game.BlueAIDifficulty
             };
         }
     }
 }
 
+record CreateGameRequest(string? TimeControl, string? GameMode, string? RedAIDifficulty, string? BlueAIDifficulty);
 record MoveRequest(int X, int Y);
 record AIMoveRequest(string Difficulty);
