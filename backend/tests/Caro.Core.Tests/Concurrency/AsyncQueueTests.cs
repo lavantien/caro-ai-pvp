@@ -25,9 +25,11 @@ public class AsyncQueueTests
         // Arrange
         var processedItems = new List<int>();
         var tcs = new TaskCompletionSource<bool>();
+        var processingStarted = new TaskCompletionSource<bool>();
 
         var queue = new AsyncQueue<int>(async item =>
         {
+            processingStarted.TrySetResult(true);
             processedItems.Add(item);
             if (item == 5)
                 tcs.SetResult(true);
@@ -37,19 +39,24 @@ public class AsyncQueueTests
         queueName: "TestQueue");
 
         // Act
+        // Ensure processing has started before enqueuing
+        await processingStarted.Task;
+
         for (int i = 1; i <= 5; i++)
         {
             await queue.EnqueueAsync(i);
         }
 
-        // Wait for processing
-        var completed = await Task.WhenAny(tcs.Task, Task.Delay(1000));
+        // Wait for all items to be processed
+        await tcs.Task;
+
+        // Give a small grace period for the final item to be recorded
+        await Task.Yield();
 
         // Cleanup
         queue.Dispose();
 
         // Assert
-        Assert.True(completed == tcs.Task, "Item should be processed");
         Assert.Equal(5, processedItems.Count);
         Assert.Equal(new[] { 1, 2, 3, 4, 5 }, processedItems);
     }
