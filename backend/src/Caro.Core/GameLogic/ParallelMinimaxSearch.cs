@@ -183,16 +183,18 @@ public sealed class ParallelMinimaxSearch
             if (player == Player.Red && moveNumber == 3)
             {
                 // Open rule applies - find first valid cell outside exclusion zone
-                for (int x = 0; x < 15; x++)
+                int boardSize = board.BoardSize;
+                for (int x = 0; x < boardSize; x++)
                 {
-                    for (int y = 0; y < 15; y++)
+                    for (int y = 0; y < boardSize; y++)
                     {
                         if (board.GetCell(x, y).Player == Player.None && IsValidPerOpenRule(board, x, y))
                             return (x, y);
                     }
                 }
             }
-            return (7, 7); // Center move
+            int center = board.BoardSize / 2;
+            return (center, center); // Center move
         }
 
         // Use provided time allocation or create default
@@ -278,7 +280,8 @@ public sealed class ParallelMinimaxSearch
         {
             // Empty board - return center move with depth 1 (not 0, which is misleading)
             // For empty board, center is the only reasonable move
-            return new ParallelSearchResult(7, 7, 1, 1, 0, null, 0, 0, 0);
+            int center = board.BoardSize / 2;
+            return new ParallelSearchResult(center, center, 1, 1, 0, null, 0, 0, 0);
         }
 
         // Use provided time allocation or create default
@@ -348,9 +351,9 @@ public sealed class ParallelMinimaxSearch
 
         foreach (var (x, y) in candidates)
         {
-            board.PlaceStone(x, y, player);
+            board.GetCell(x, y).SetPlayerUnsafe(player);
             var score = Minimax(board, depth - 1, int.MinValue, int.MaxValue, false, player, depth, threadData, token);
-            board.GetCell(x, y).Player = Player.None;
+            board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
             if (score > bestScore)
             {
@@ -680,9 +683,9 @@ public sealed class ParallelMinimaxSearch
 
         foreach (var (x, y) in orderedMoves)
         {
-            board.PlaceStone(x, y, player);
+            board.GetCell(x, y).SetPlayerUnsafe(player);
             var score = Minimax(board, depth - 1, alpha, beta, false, player, depth, threadData, cancellationToken);
-            board.GetCell(x, y).Player = Player.None;
+            board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
             // CRITICAL FIX: If search was cancelled during Minimax, the score may be invalid (0 from early return)
             // Check cancellation and break out of the move loop without updating bestScore/bestMove
@@ -711,7 +714,7 @@ public sealed class ParallelMinimaxSearch
         bool shouldStore = threadData.ThreadIndex == 0 || depth >= 3;
         if (shouldStore)
         {
-            _transpositionTable.Store(board.Hash, (sbyte)depth, (short)bestScore, (sbyte)bestMove.x, (sbyte)bestMove.y, alpha, beta, (byte)threadData.ThreadIndex, rootDepth: depth);
+            _transpositionTable.Store(board.GetHash(), (sbyte)depth, (short)bestScore, (sbyte)bestMove.x, (sbyte)bestMove.y, alpha, beta, (byte)threadData.ThreadIndex, rootDepth: depth);
         }
 
         return (bestMove.x, bestMove.y, bestScore);
@@ -779,7 +782,7 @@ public sealed class ParallelMinimaxSearch
         // FIX: Master thread completely ignores helper-written entries for scoring.
         // Helper entries can still be used for move ordering (cachedMove), which is safe.
 
-        var boardHash = board.Hash;
+        var boardHash = board.GetHash();
         threadData.TableLookups++;
         var (found, hasExactDepth, cachedScore, cachedMove, ttThreadIndex) = _transpositionTable.Lookup(boardHash, (sbyte)depth, alpha, beta);
 
@@ -836,7 +839,7 @@ public sealed class ParallelMinimaxSearch
                 }
             }
 
-            board.PlaceStone(x, y, currentPlayer);
+            board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
             int score;
 
             if (doLMR)
@@ -857,7 +860,7 @@ public sealed class ParallelMinimaxSearch
                 score = Minimax(board, depth - 1, alpha, beta, !isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
             }
 
-            board.GetCell(x, y).Player = Player.None;
+            board.GetCell(x, y).SetPlayerUnsafe(Player.None);
             moveIndex++;
 
             // Check if search was stopped during recursion
@@ -965,8 +968,9 @@ public sealed class ParallelMinimaxSearch
             score += Math.Min(historyTable[x, y], 10000);
 
             // 6. Center Preference & Proximity
-            int centerDist = Math.Abs(x - 7) + Math.Abs(y - 7);
-            score += (14 - centerDist) * 100;
+            int center = board.BoardSize / 2;
+            int centerDist = Math.Abs(x - center) + Math.Abs(y - center);
+            score += ((board.BoardSize * 2 - 4) - centerDist) * 100;
             score += GetProximityScore(x, y, board) * 10;
 
             // NOISE REMOVED: Lazy SMP diversity comes naturally from:
@@ -1015,7 +1019,8 @@ public sealed class ParallelMinimaxSearch
     private List<(int x, int y)> GetCandidateMoves(Board board)
     {
         var candidates = new List<(int x, int y)>(64);
-        var considered = new bool[15, 15];
+        int boardSize = board.BoardSize;
+        var considered = new bool[boardSize, boardSize];
 
         var playerBitBoard = board.GetBitBoard(Player.Red);
         var opponentBitBoard = board.GetBitBoard(Player.Blue);
@@ -1023,9 +1028,9 @@ public sealed class ParallelMinimaxSearch
 
         // Check if board is empty (no stones placed)
         bool boardIsEmpty = true;
-        for (int x = 0; x < 15 && boardIsEmpty; x++)
+        for (int x = 0; x < boardSize && boardIsEmpty; x++)
         {
-            for (int y = 0; y < 15 && boardIsEmpty; y++)
+            for (int y = 0; y < boardSize && boardIsEmpty; y++)
             {
                 if (occupied.GetBit(x, y))
                     boardIsEmpty = false;
@@ -1036,9 +1041,10 @@ public sealed class ParallelMinimaxSearch
         if (boardIsEmpty)
         {
             // Return center 3x3 area as candidates (standard opening positions)
-            for (int x = 6; x <= 8; x++)
+            int center = boardSize / 2;
+            for (int x = center - 1; x <= center + 1; x++)
             {
-                for (int y = 6; y <= 8; y++)
+                for (int y = center - 1; y <= center + 1; y++)
                 {
                     candidates.Add((x, y));
                 }
@@ -1047,9 +1053,9 @@ public sealed class ParallelMinimaxSearch
         }
 
         // Find all cells within SearchRadius of existing stones
-        for (int x = 0; x < 15; x++)
+        for (int x = 0; x < boardSize; x++)
         {
-            for (int y = 0; y < 15; y++)
+            for (int y = 0; y < boardSize; y++)
             {
                 if (occupied.GetBit(x, y))
                 {
@@ -1060,7 +1066,7 @@ public sealed class ParallelMinimaxSearch
                         {
                             int nx = x + dx;
                             int ny = y + dy;
-                            if (nx >= 0 && nx < 15 && ny >= 0 && ny < 15 &&
+                            if (nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize &&
                                 !occupied.GetBit(nx, ny) && !considered[nx, ny])
                             {
                                 candidates.Add((nx, ny));
@@ -1080,6 +1086,7 @@ public sealed class ParallelMinimaxSearch
     /// </summary>
     private int GetProximityScore(int x, int y, Board board)
     {
+        int boardSize = board.BoardSize;
         var playerBitBoard = board.GetBitBoard(Player.Red);
         var opponentBitBoard = board.GetBitBoard(Player.Blue);
         int score = 0;
@@ -1090,7 +1097,7 @@ public sealed class ParallelMinimaxSearch
             {
                 int nx = x + dx;
                 int ny = y + dy;
-                if (nx >= 0 && nx < 15 && ny >= 0 && ny < 15)
+                if (nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize)
                 {
                     if (playerBitBoard.GetBit(nx, ny)) score += 3;
                     if (opponentBitBoard.GetBit(nx, ny)) score += 2;
@@ -1201,12 +1208,12 @@ public sealed class ParallelMinimaxSearch
                 if (!board.GetCell(x, y).IsEmpty)
                     continue;
 
-                board.PlaceStone(x, y, currentPlayer);
+                board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
 
                 // Recursive quiescence search
                 var eval = Quiesce(board, alpha, beta, false, aiPlayer, quiesceDepth + 1, threadData, cancellationToken);
 
-                board.GetCell(x, y).Player = Player.None;
+                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                 maxEval = Math.Max(maxEval, eval);
                 alpha = Math.Max(alpha, eval);
@@ -1225,11 +1232,11 @@ public sealed class ParallelMinimaxSearch
                 if (!board.GetCell(x, y).IsEmpty)
                     continue;
 
-                board.PlaceStone(x, y, currentPlayer);
+                board.GetCell(x, y).SetPlayerUnsafe(currentPlayer);
 
                 var eval = Quiesce(board, alpha, beta, true, aiPlayer, quiesceDepth + 1, threadData, cancellationToken);
 
-                board.GetCell(x, y).Player = Player.None;
+                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                 minEval = Math.Min(minEval, eval);
                 beta = Math.Min(beta, eval);
@@ -1413,9 +1420,9 @@ public sealed class ParallelMinimaxSearch
                 if (!board.GetCell(x, y).IsEmpty)
                     continue;
 
-                board.PlaceStone(x, y, opponent);
+                board.GetCell(x, y).SetPlayerUnsafe(opponent);
                 bool isWinningMove = _winDetector.CheckWin(board).HasWinner;
-                board.GetCell(x, y).Player = Player.None;
+                board.GetCell(x, y).SetPlayerUnsafe(Player.None);
 
                 if (isWinningMove)
                 {
