@@ -63,8 +63,8 @@ class Program
 
         // Parse remaining arguments
         // From build output directory, go up 6 levels to reach repo root
-var defaultPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "..", "opening_book.db"));
-var outputPath = GetArgument(args, "--output", defaultPath);
+        var defaultPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "..", "opening_book.db"));
+        var outputPath = GetArgument(args, "--output", defaultPath);
         var verifyOnly = args.Contains("--verify-only");
 
         // Validate no unrecognized arguments
