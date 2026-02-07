@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added ValidateArguments() method to reject unrecognized CLI arguments with clear error messages
 
 ### Fixed
+- Opening book builder: Default output path now correctly resolves to repository root
+  - Previously created book at backend/src/Caro.BookBuilder/ (project directory)
+  - Now uses AppContext.BaseDirectory with relative path navigation to repo root
+  - Ensures consistency with Caro.Api, Caro.UCI, and test projects' book location expectations
 - README.md book builder examples now reflect hardcoded structure (removed --max-depth references)
 
 ### Documentation
