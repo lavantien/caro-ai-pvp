@@ -21,16 +21,20 @@ class Program
             Console.WriteLine();
             Console.WriteLine("Options:");
             Console.WriteLine("  --output <path>       Output database path (default: opening_book.db)");
-            Console.WriteLine("  --max-depth <plies>   Maximum book depth in plies (default: 32)");
-            Console.WriteLine("  --target-depth <plies> Search depth for move evaluation (default: 32)");
             Console.WriteLine("  --verify-only         Verify existing book without generation");
             Console.WriteLine("  --debug               Enable verbose logging (default: quiet mode)");
             Console.WriteLine("  --help, -h            Show this help message");
             Console.WriteLine();
+            Console.WriteLine("Book Structure:");
+            Console.WriteLine("  Plies 0-14:   4 moves per position (early game + survival zone)");
+            Console.WriteLine("  Plies 15-24:  3 moves per position (Hard difficulty)");
+            Console.WriteLine("  Plies 25-32:  2 moves per position (Grandmaster)");
+            Console.WriteLine("  Plies 33-40:  1 move per position (Experimental - main line)");
+            Console.WriteLine();
             Console.WriteLine("Examples:");
-            Console.WriteLine("  dotnet run -- --output book.db --max-depth 14");
+            Console.WriteLine("  dotnet run --");
+            Console.WriteLine("  dotnet run -- --output custom_book.db --debug");
             Console.WriteLine("  dotnet run -- --verify-only");
-            Console.WriteLine("  dotnet run -- --max-depth 10 --debug");
             return;
         }
 
@@ -53,27 +57,24 @@ class Program
         Console.WriteLine("=========================");
         Console.WriteLine();
 
+        // Hardcoded book structure: 4-3-2-1 tapered beam up to ply 40
+        const int MaxBookDepth = 40;
+        const int TargetSearchDepth = 32;
+
         // Parse remaining arguments
         var outputPath = GetArgument(args, "--output", "opening_book.db");
-        var maxDepthStr = GetArgument(args, "--max-depth", "32");  // Default to 32 plies (16 moves each)
-        var targetDepthStr = GetArgument(args, "--target-depth", "32");  // Default to 32 ply search
         var verifyOnly = args.Contains("--verify-only");
 
-        if (!int.TryParse(maxDepthStr, out int maxDepth))
-        {
-            Console.WriteLine($"Invalid max-depth: {maxDepthStr}");
-            return;
-        }
-
-        if (!int.TryParse(targetDepthStr, out int targetDepth))
-        {
-            Console.WriteLine($"Invalid target-depth: {targetDepthStr}");
-            return;
-        }
+        // Validate no unrecognized arguments
+        ValidateArguments(args);
 
         Console.WriteLine($"Output: {outputPath}");
-        Console.WriteLine($"Max Depth: {maxDepth} plies");
-        Console.WriteLine($"Target Search Depth: {targetDepth} plies");
+        Console.WriteLine("Book Structure: 4-3-2-1 tapered beam up to ply 40");
+        Console.WriteLine();
+        Console.WriteLine("  Plies 0-14:  4 moves/position");
+        Console.WriteLine("  Plies 15-24: 3 moves/position");
+        Console.WriteLine("  Plies 25-32: 2 moves/position");
+        Console.WriteLine("  Plies 33-40: 1 move/position");
         Console.WriteLine();
 
         // Create store and generator (write mode - only place that modifies the database)
@@ -143,7 +144,7 @@ class Program
             };
             progressTimer.Start();
 
-            var result = await generator.GenerateAsync(maxDepth, targetDepth, cts.Token);
+            var result = await generator.GenerateAsync(MaxBookDepth, TargetSearchDepth, cts.Token);
 
             progressTimer.Stop();
 
@@ -188,5 +189,32 @@ class Program
             }
         }
         return defaultValue;
+    }
+
+    static void ValidateArguments(string[] args)
+    {
+        var validArguments = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "--output",
+            "--verify-only",
+            "--debug",
+            "--help",
+            "-h"
+        };
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            var arg = args[i];
+            if (arg.StartsWith("--") || arg.StartsWith("-"))
+            {
+                if (!validArguments.Contains(arg))
+                {
+                    Console.WriteLine($"Error: Unrecognized argument '{arg}'");
+                    Console.WriteLine();
+                    Console.WriteLine("Run 'dotnet run -- --help' for usage information.");
+                    Environment.Exit(1);
+                }
+            }
+        }
     }
 }

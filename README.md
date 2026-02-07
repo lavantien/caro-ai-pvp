@@ -108,18 +108,24 @@ Precomputed opening positions with SQLite storage, symmetry reduction, and paral
 
 **Generate book:**
 ```bash
-dotnet run --project backend/src/Caro.BookBuilder -- --output=opening_book.db --max-depth=32
+dotnet run --project backend/src/Caro.BookBuilder
 ```
 
-**Quick test book (~10 min):**
+**Custom output path:**
 ```bash
-dotnet run --project backend/src/Caro.BookBuilder -- --output=opening_book.db --max-depth=10
+dotnet run --project backend/src/Caro.BookBuilder -- --output=custom_book.db
 ```
 
 **Verify existing book:**
 ```bash
 dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=opening_book.db
 ```
+
+**Book Structure (hardcoded 4-3-2-1 tapered beam):**
+- Plies 0-14: 4 moves per position (early game + survival zone)
+- Plies 15-24: 3 moves per position (Hard difficulty)
+- Plies 25-32: 2 moves per position (Grandmaster)
+- Plies 33-40: 1 move per position (Experimental)
 
 ### Tournament Mode
 
