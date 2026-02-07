@@ -39,6 +39,23 @@ public sealed class InMemoryOpeningBookStore : IOpeningBookStore
         Interlocked.Add(ref _totalMovesStored, entry.Moves.Length);
     }
 
+    public void StoreEntriesBatch(IEnumerable<OpeningBookEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+
+        foreach (var entry in entries)
+        {
+            ArgumentNullException.ThrowIfNull(entry);
+            _store.AddOrUpdate(entry.CanonicalHash, entry, (_, _) => entry);
+            _storeByPlayer.AddOrUpdate(
+                (entry.CanonicalHash, entry.Player),
+                entry,
+                (_, _) => entry);
+
+            Interlocked.Add(ref _totalMovesStored, entry.Moves.Length);
+        }
+    }
+
     public bool ContainsEntry(ulong canonicalHash)
     {
         return _store.ContainsKey(canonicalHash);

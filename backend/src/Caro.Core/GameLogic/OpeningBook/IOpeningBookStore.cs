@@ -27,6 +27,12 @@ public interface IOpeningBookStore
     void StoreEntry(OpeningBookEntry entry);
 
     /// <summary>
+    /// Store multiple book entries in a single transaction for better performance.
+    /// Reduces database lock contention during book generation.
+    /// </summary>
+    void StoreEntriesBatch(IEnumerable<OpeningBookEntry> entries);
+
+    /// <summary>
     /// Check if book contains an entry for the given canonical hash.
     /// </summary>
     bool ContainsEntry(ulong canonicalHash);

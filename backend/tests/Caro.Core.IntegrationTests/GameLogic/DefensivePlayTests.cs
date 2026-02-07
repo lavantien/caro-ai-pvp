@@ -1,10 +1,10 @@
 using Xunit;
 using FluentAssertions;
-using Caro.Core.Tests.Helpers;
+using Caro.Core.IntegrationTests.Helpers;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 
-namespace Caro.Core.Tests.GameLogic;
+namespace Caro.Core.IntegrationTests.GameLogic;
 
 /// <summary>
 /// Tests for defensive AI behavior, specifically blocking semi-open fours

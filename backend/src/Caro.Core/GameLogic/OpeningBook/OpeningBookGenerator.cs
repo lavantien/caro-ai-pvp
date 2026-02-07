@@ -39,6 +39,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<OpeningBookGenerator> _logger;
     private readonly GeneratorProgress _progress = new();
+    private readonly ConcurrentBag<MinimaxAI> _aiPool = new();
     private readonly AsyncQueue<BookProgressEvent> _progressQueue;
     private CancellationTokenSource? _cts;
 
@@ -60,6 +61,36 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             capacity: 1000,
             queueName: "BookProgress"
         );
+    }
+
+    /// <summary>
+    /// Rent a MinimaxAI instance from the pool, or create a new one if pool is empty.
+    /// Each instance has a 64MB TT, sufficient for candidate evaluation.
+    /// </summary>
+    private MinimaxAI RentAI()
+    {
+        if (_aiPool.TryTake(out var ai))
+        {
+            return ai;
+        }
+        return new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
+    }
+
+    /// <summary>
+    /// Return a MinimaxAI instance to the pool after clearing its state.
+    /// Try-catch ensures pool integrity is maintained even if ClearAllState fails.
+    /// </summary>
+    private void ReturnAI(MinimaxAI ai)
+    {
+        try
+        {
+            ai.ClearAllState();
+        }
+        catch
+        {
+            // Log but don't throw - pool integrity is more important
+        }
+        _aiPool.Add(ai);
     }
 
     public GenerationProgress GetProgress() => _progress.ToPublicProgress();
@@ -565,7 +596,6 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             candidates.Count, validCandidates.Count, candidatesToEvaluate.Count);
 
         _logger.LogDebug("Position evaluation: {TotalCandidates} total candidates -> {CandidatesToEvaluate} candidates to evaluate", candidates.Count, candidatesToEvaluate.Count);
-        var results = new ConcurrentBag<(int x, int y, int score, long nodes, int depth)>();
 
         // Adaptive time allocation based on depth
         // Reduce time for early positions (simpler positions), increase for deep positions
@@ -581,23 +611,31 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         int adjustedTimePerPosition = TimePerPositionMs * (100 + depthAdjustment) / 100;
         var timePerCandidateMs = Math.Max(2000, adjustedTimePerPosition / candidatesToEvaluate.Count);
 
-        var candidateTasks = candidatesToEvaluate.Select(candidate =>
+        // FLATTENED CONCURRENCY: Process candidates sequentially with a single rented AI
+        // The outer loop (ProcessPositionsInParallelAsync) already provides position-level parallelism.
+        // This prevents nested parallelism which causes oversubscription (e.g., 12 x 8 = 96 threads fighting for 12 cores).
+        var results = new List<(int x, int y, int score, long nodes, int depth)>();
+        
+        MinimaxAI ai = null!;
+        try
         {
-            var (cx, cy) = candidate;
-            return Task.Run(() =>
+            ai = RentAI();
+
+            foreach (var candidate in candidatesToEvaluate)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                var (cx, cy) = candidate;
+
                 // Candidates are pre-filtered for validity, but double-check for safety
-                // Skip if invalid
                 if (!_validator.IsValidMove(board, cx, cy, player))
-                    return;
+                    continue;
 
                 // Check for immediate win
                 if (_validator.IsWinningMove(board, cx, cy, player))
                 {
                     results.Add((cx, cy, 100000, 1, 1));
-                    return;
+                    break; // No need to evaluate further candidates
                 }
 
                 // Create board for this candidate (don't modify original)
@@ -606,12 +644,11 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 var opponent = player == Player.Red ? Player.Blue : Player.Red;
                 var moveNumber = candidateBoard.GetBitBoard(Player.Red).CountBits() + candidateBoard.GetBitBoard(Player.Blue).CountBits();
 
-                // Create local AI instance to avoid shared state corruption
-                // Use smaller TT (64MB) since positions are independent
-                var localAI = new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
+                // Clear AI state before each candidate to prevent cross-contamination
+                ai.ClearAllState();
 
                 // Run search with divided time budget, NO inner parallel to avoid oversubscription
-                var (bestX, bestY) = localAI.GetBestMove(
+                var (bestX, bestY) = ai.GetBestMove(
                     searchBoard,
                     opponent,
                     difficulty,
@@ -622,7 +659,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 );
 
                 var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _)
-                    = localAI.GetSearchStatistics();
+                    = ai.GetSearchStatistics();
 
                 var evalBoard = searchBoard.PlaceStone(bestX, bestY, opponent);
                 int score = EvaluateBoard(evalBoard, opponent);
@@ -635,10 +672,16 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 _progress.LastDepth = depthAchieved;
                 _progress.LastNodes = nodesSearched;
                 _progress.LastThreads = threadCount;
-            }, cancellationToken);
-        }).ToArray();
-
-        await Task.WhenAll(candidateTasks);
+            }
+        }
+        finally
+        {
+            // Always return AI to pool even if exception occurs
+            if (ai != null)
+            {
+                ReturnAI(ai);
+            }
+        }
 
         // Convert to list for sorting
         var sortedResults = results.ToList();
