@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.32.0] - 2026-02-07
+
+### Added
+- Detailed test output: `dotnet test --logger "console;verbosity=detailed"` now shows each test name and result
+- Test documentation updated to recommend verbose logging as default approach
+
+### Changed
+- Test runner script (`run-tests.ps1`) now uses detailed logger by default
+- Simplified test script: removed obsolete stress/verification filter commands
+- Test README reorganized with clearer quick reference section
+
+### Removed
+- Obsolete test files moved from Caro.Core.Tests to Caro.Core.IntegrationTests:
+  - DFPNSearchTests, ThreatSpaceSearchTests, ParallelMinimaxSearchOpenRuleTests
+  - EnhancedMoveOrderingTests, MinimaxAITests, PondererTests
+  - SIMDDebugTest, SimdDebugTest2, SimdPrecisionDebug, VerticalOpenThreeDebug
+  - Concurrency stress tests (ConcurrencyStressTests, AdversarialConcurrencyTests, DeadlockDetectionTests)
+- Slow AI search tests no longer run with default `dotnet test`
+
+### Fixed
+- Default `dotnet test` now completes in ~30 seconds (was 10+ minutes with hanging AI tests)
+- Test organization: slow tests properly isolated to IntegrationTests project
+
+### Test Counts
+- Unit tests (default): 378 tests (~30s)
+  - Caro.Core.Tests: 330 tests
+  - Caro.Core.Infrastructure.Tests: 48 tests
+- Integration tests (opt-in): 100+ tests
+- Matchup tests (opt-in): 50+ tests
+
+[1.32.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.32.0
+
 ## [1.31.0] - 2026-02-07
 
 ### Performance

@@ -8,6 +8,7 @@ namespace Caro.Core.Tests.GameLogic;
 /// <summary>
 /// Debug test to identify SIMD evaluator scoring issues
 /// </summary>
+[Trait("Category", "Debug")]
 public class SIMDDebugTest
 {
     private readonly ITestOutputHelper _output;

@@ -5,8 +5,10 @@ using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.Pondering;
 using System.Threading;
 
-namespace Caro.Core.Tests.GameLogic.Pondering;
+namespace Caro.Core.IntegrationTests.GameLogic.Pondering;
 
+[Trait("Category", "Slow")]
+[Trait("Category", "Integration")]
 public class PondererTests : IDisposable
 {
     private readonly Ponderer _ponderer;

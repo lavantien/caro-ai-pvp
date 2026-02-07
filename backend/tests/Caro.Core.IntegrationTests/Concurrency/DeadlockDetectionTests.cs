@@ -5,13 +5,15 @@ using Xunit.Abstractions;
 
 #pragma warning disable xUnit1031 // Deadlock tests intentionally use blocking operations
 
-namespace Caro.Core.Tests.Concurrency;
+namespace Caro.Core.IntegrationTests.Concurrency;
 
 /// <summary>
 /// Tests for potential deadlock scenarios using timeout detection
 /// Tests lock ordering violations and nested lock acquisitions
 /// These tests help identify deadlock-prone patterns before they cause issues in production
 /// </summary>
+[Trait("Category", "Stress")]
+[Trait("Category", "Integration")]
 public class DeadlockDetectionTests
 {
     private readonly ITestOutputHelper _output;

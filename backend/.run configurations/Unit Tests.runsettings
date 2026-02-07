@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <!-- Configurations for fast unit tests only -->
+  <!-- Run with: dotnet test --settings ".run configurations\Unit Tests.runsettings" -->
+  <RunConfiguration>
+    <!-- Skip slow tests by default -->
+    <MaxCpuCount>1</MaxCpuCount>
+  </RunConfiguration>
+
+  <!-- Test filter to exclude stress and integration tests -->
+  <!-- Note: Traits are filtered at the test framework level (xUnit) -->
+  <!-- Use: dotnet test --filter "Category!=Stress&Category!=Integration" -->
+</RunSettings>

@@ -4,12 +4,13 @@ using Caro.Core.Concurrency;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Caro.Core.Tests.Concurrency;
+namespace Caro.Core.IntegrationTests.Concurrency;
 
 /// <summary>
 /// Tests for the AsyncQueue utility class
 /// Tests thread-safe enqueue/dequeue operations and error handling
 /// </summary>
+[Trait("Category", "Stress")]
 public class AsyncQueueTests
 {
     private readonly ITestOutputHelper _output;

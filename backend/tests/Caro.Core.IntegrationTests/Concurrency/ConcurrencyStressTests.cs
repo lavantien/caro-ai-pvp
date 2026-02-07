@@ -6,17 +6,19 @@ using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.Pondering;
 using Caro.Core.Domain.Entities;
 using Caro.Core.Tournament;
-using Caro.Core.Tests.Helpers;
+using Caro.Core.IntegrationTests.Helpers;
 
 #pragma warning disable xUnit1031 // Stress tests intentionally use blocking operations
 
-namespace Caro.Core.Tests.Concurrency;
+namespace Caro.Core.IntegrationTests.Concurrency;
 
 /// <summary>
 /// Stress tests that run 100+ concurrent operations to surface race conditions
 /// Uses high contention scenarios to trigger edge cases
 /// These tests should FAIL initially, revealing concurrency issues that will be fixed
 /// </summary>
+[Trait("Category", "Stress")]
+[Trait("Category", "Integration")]
 public class ConcurrencyStressTests
 {
     private readonly ITestOutputHelper _output;

@@ -8,6 +8,7 @@ namespace Caro.Core.Tests.GameLogic;
 /// <summary>
 /// Debug test for vertical open three at column 14 (edge)
 /// </summary>
+[Trait("Category", "Debug")]
 public class VerticalOpenThreeDebug
 {
     private readonly ITestOutputHelper _output;

@@ -6,6 +6,7 @@ using Xunit.Abstractions;
 
 namespace Caro.Core.IntegrationTests.GameLogic;
 
+[Trait("Category", "Benchmark")]
 public class ZeroAllocationTests
 {
     private readonly ITestOutputHelper _output;
