@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.33.0] - 2026-02-07
+
+### Fixed
+- Domain and Application test projects updated to match current simplified domain API
+- BoardTests.cs rewritten to test `new Board()` constructor instead of `Board.CreateEmpty()`
+- GameStateTests.cs updated to use `WithMove()` and `WithGameOver()` record methods
+- PositionTests.cs updated to test current Position struct API (BoardSize, IsValid, Offset, ToTuple, FromTuple)
+- GameMapperTests.cs updated to use `WithMove()` instead of obsolete `RecordMove()`
+- GameMapper.ToBoardDto() no longer calls non-existent `board.GetHash()` - uses placeholder value
+
+### Changed
+- Domain tests now properly test the simplified immutable domain design
+- Removed tests for non-existent APIs: Hash, TotalStones, RemoveStone, CountStones, GetBitBoard, GetEmptyCells, GetOccupiedCells, ApplyMoves
+- Removed tests for Position.Index, FromIndex, GetAdjacentPositions, GetNeighbors
+- GameState equality tests updated to compare properties (Board is a class, not a record)
+
+### Test Counts
+- Caro.Core.Domain.Tests: 67 passed (updated for current API)
+- Caro.Core.Application.Tests: 8 passed
+- Total backend tests: 453+ passing
+
+[1.33.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.33.0
+
 ## [1.32.0] - 2026-02-07
 
 ### Added

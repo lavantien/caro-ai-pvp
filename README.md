@@ -152,12 +152,12 @@ cd backend/tests/Caro.Core.MatchupTests && dotnet test
 
 | Project | Tests | Duration |
 |---------|-------|----------|
-| Caro.Core.Tests | 431 unit tests | ~30 sec |
+| Caro.Core.Tests | 330 unit tests | ~2 sec |
 | Caro.Core.IntegrationTests | 143 | Opt-in, AI searches |
 | Caro.Core.MatchupTests | ~57 | Variable |
-| Caro.Core.Domain.Tests | 48 entity tests | ~5 sec |
-| Caro.Core.Application.Tests | 48 service tests | ~5 sec |
-| Caro.Core.Infrastructure.Tests | 48 algorithm tests | ~45 sec |
+| Caro.Core.Domain.Tests | 67 entity tests | ~1 sec |
+| Caro.Core.Application.Tests | 8 service tests | ~1 sec |
+| Caro.Core.Infrastructure.Tests | 48 algorithm tests | ~25 sec |
 
 **Note:** Run `dotnet test` in Caro.Core.Tests for fast unit test feedback. IntegrationTests are excluded from default test runs (marked as `<IsTestProject>false</IsTestProject>`).
 
@@ -299,15 +299,15 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Project | Tests | Focus |
 |---------|-------|-------|
-| Caro.Core.Tests | 431 | Unit tests (algorithms, evaluators, concurrency, immutable state, opening book) |
+| Caro.Core.Tests | 330 | Unit tests (algorithms, evaluators, concurrency, immutable state, opening book) |
 | Caro.Core.IntegrationTests | 143 | AI search integration (full depth searches, performance benchmarks) |
 | Caro.Core.MatchupTests | ~57 | AI matchups, integration, tournament, opening book verification |
-| Caro.Core.Domain.Tests | 48 | Entities (Board, Cell, Player, GameState) |
-| Caro.Core.Application.Tests | 48 | Services, interfaces, DTOs |
+| Caro.Core.Domain.Tests | 67 | Entities (Board, Cell, Player, GameState, Position) |
+| Caro.Core.Application.Tests | 8 | Services, interfaces, DTOs, Mappers |
 | Caro.Core.Infrastructure.Tests | 48 | AI algorithms, external concerns |
 | Frontend Unit (Vitest) | 19 | Component tests |
 | Frontend E2E (Playwright) | 17 | End-to-end gameplay |
-| **TOTAL** | **811+** | |
+| **TOTAL** | **690+** | |
 
 ### Frontend E2E Tests
 
