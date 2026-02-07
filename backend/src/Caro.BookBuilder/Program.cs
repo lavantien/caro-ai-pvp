@@ -20,7 +20,7 @@ class Program
             Console.WriteLine("Usage: dotnet run -- [options]");
             Console.WriteLine();
             Console.WriteLine("Options:");
-            Console.WriteLine("  --output <path>       Output database path (default: opening_book.db)");
+            Console.WriteLine("  --output <path>       Output database path (default: ../opening_book.db at repo root)");
             Console.WriteLine("  --verify-only         Verify existing book without generation");
             Console.WriteLine("  --debug               Enable verbose logging (default: quiet mode)");
             Console.WriteLine("  --help, -h            Show this help message");
@@ -62,7 +62,9 @@ class Program
         const int TargetSearchDepth = 32;
 
         // Parse remaining arguments
-        var outputPath = GetArgument(args, "--output", "opening_book.db");
+        // From build output directory, go up 6 levels to reach repo root
+var defaultPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "..", "opening_book.db"));
+var outputPath = GetArgument(args, "--output", defaultPath);
         var verifyOnly = args.Contains("--verify-only");
 
         // Validate no unrecognized arguments
