@@ -88,7 +88,7 @@ public sealed class UCIHandler
     {
         return new UCIResponse
         {
-            Id = new[] { "Caro AI 1.0", "Caro AI Project" },
+            Id = new[] { "Caro AI 1.30.0", "Caro AI Project" },
             Options = UCIEngineOptions.GetOptionDeclarations(),
             UciOk = true
         };
