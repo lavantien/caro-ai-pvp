@@ -145,7 +145,7 @@ public sealed class LockFreeTranspositionTable
             entryFlag = EntryFlag.Exact;
 
         var newEntry = new TranspositionEntry(hash, depth, score, moveX, moveY, entryFlag, (byte)_currentAge, threadIndex);
-        
+
         // Read existing entry directly from array (struct copy to stack)
         // Note: 16-byte struct assignment is NOT atomic on 64-bit CPUs (tearing possible)
         // We accept this "lossy" behavior - corrupted reads are harmless (<0.01%) and self-correct
@@ -201,7 +201,7 @@ public sealed class LockFreeTranspositionTable
         Interlocked.Increment(ref _lookupCount);
         var (shardIndex, entryIndex) = GetShardAndIndex(hash);
         var shard = _shards[shardIndex];
-        
+
         // Read struct directly from array (copy to local stack)
         // Hash verification validates integrity - corrupted reads are harmless
         TranspositionEntry entry = shard[entryIndex];
