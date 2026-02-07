@@ -615,7 +615,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         // The outer loop (ProcessPositionsInParallelAsync) already provides position-level parallelism.
         // This prevents nested parallelism which causes oversubscription (e.g., 12 x 8 = 96 threads fighting for 12 cores).
         var results = new List<(int x, int y, int score, long nodes, int depth)>();
-        
+
         MinimaxAI ai = null!;
         try
         {

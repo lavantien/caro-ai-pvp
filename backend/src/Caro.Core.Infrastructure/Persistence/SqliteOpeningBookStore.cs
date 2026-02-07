@@ -214,42 +214,42 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
             try
             {
                 using var transaction = Connection.BeginTransaction();
-                
+
                 using var command = Connection.CreateCommand();
                 command.CommandText = $@"
                     INSERT OR REPLACE INTO {TableName} 
                     (CanonicalHash, Depth, Player, Symmetry, IsNearEdge, MovesData, TotalMoves, CreatedAt)
                     VALUES ($hash, $depth, $player, $symmetry, $nearEdge, $moves, $totalMoves, $createdAt);
                 ";
-                
+
                 var hashParam = command.CreateParameter();
                 hashParam.ParameterName = "$hash";
                 command.Parameters.Add(hashParam);
-                
+
                 var depthParam = command.CreateParameter();
                 depthParam.ParameterName = "$depth";
                 command.Parameters.Add(depthParam);
-                
+
                 var playerParam = command.CreateParameter();
                 playerParam.ParameterName = "$player";
                 command.Parameters.Add(playerParam);
-                
+
                 var symmetryParam = command.CreateParameter();
                 symmetryParam.ParameterName = "$symmetry";
                 command.Parameters.Add(symmetryParam);
-                
+
                 var nearEdgeParam = command.CreateParameter();
                 nearEdgeParam.ParameterName = "$nearEdge";
                 command.Parameters.Add(nearEdgeParam);
-                
+
                 var movesParam = command.CreateParameter();
                 movesParam.ParameterName = "$moves";
                 command.Parameters.Add(movesParam);
-                
+
                 var totalMovesParam = command.CreateParameter();
                 totalMovesParam.ParameterName = "$totalMoves";
                 command.Parameters.Add(totalMovesParam);
-                
+
                 var createdAtParam = command.CreateParameter();
                 createdAtParam.ParameterName = "$createdAt";
                 command.Parameters.Add(createdAtParam);
@@ -265,7 +265,7 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
                     movesParam.Value = System.Text.Json.JsonSerializer.Serialize(entry.Moves);
                     totalMovesParam.Value = entry.Moves.Length;
                     createdAtParam.Value = DateTime.UtcNow.ToString("o");
-                    
+
                     command.ExecuteNonQuery();
                     count++;
                 }
