@@ -1,9 +1,9 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
-using Caro.Core.Tests.Helpers;
+using Caro.Core.IntegrationTests.Helpers;
 using Xunit;
 
-namespace Caro.Core.Tests.GameLogic;
+namespace Caro.Core.IntegrationTests.GameLogic;
 
 public class HistoryHeuristicTests
 {

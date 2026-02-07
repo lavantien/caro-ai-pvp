@@ -5,6 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.31.0] - 2026-02-07
+
+### Performance
+- Opening book generation: MinimaxAI object pooling eliminates 8GB rapid allocations
+  - Fixed memory churn where each candidate evaluation created new 64MB TT instance
+  - Reuse pooled AI instances per position instead of per candidate
+  - Reduced GC pressure from continuous Gen2 collections
+- TranspositionTable: Zero-allocation hot path with struct-based entries
+  - Converted TranspositionEntry from class to 16-byte struct
+  - Eliminated heap allocations for every TT store operation
+  - Accepts "lossy" atomicity (hash verification validates integrity post-read)
+- SQLite batch writes for opening book storage
+  - Added StoreEntriesBatch() to IOpeningBookStore interface
+  - Transactions group 500-1000 entries for reduced lock contention
+  - Background actor model prevents worker threads blocking on I/O
+
+### Fixed
+- Nested parallelism in opening book generation
+  - Removed Task.WhenAll for candidate evaluation within position threads
+  - Process candidates sequentially per thread (outer loop provides parallelism)
+  - Eliminated thread oversubscription (96 threads fighting for 12 cores)
+- Opening book generator now flattens concurrency for proper CPU utilization
+  - One AI instance rented per position, not per candidate
+  - try/finally ensures AI returns to pool even on exceptions
+
+### Changed
+- OpeningBookGenerator: Added RentAI(), ReturnAI(), and _aiPool field
+- LockFreeTranspositionTable: TranspositionEntry now a struct with explicit layout
+- IOpeningBookStore: Added StoreEntriesBatch(IEnumerable<OpeningBookEntry>) method
+- SqliteOpeningBookStore: Batch INSERT OR REPLACE within transactions
+- InMemoryOpeningBookStore: Implemented batch storage for consistency
+
+### Test Organization
+- Created Caro.Core.IntegrationTests project for slow AI search tests
+  - Marked with <IsTestProject>false</IsTestProject> to exclude from default runs
+  - Tests run only with explicit project targeting
+- Moved 13 integration test files from Caro.Core.Tests:
+  - DefensivePlayTests, MasterDifficultyTests, QuickGrandmasterVsEasy
+  - TranspositionTablePerformanceTests, NodeCountingTests
+  - DiagonalThreatTest, ThreatDetectorDebugTest, ZeroAllocationTests
+  - AspirationWindowTests, HistoryHeuristicTests, LateMoveReductionTests
+  - PrincipalVariationSearchTests, QuiescenceSearchTests
+- Separated concerns: Unit tests (fast), IntegrationTests (AI searches), MatchupTests (full matchups)
+
+### Build Quality
+- Backend: 0 warnings, 0 errors
+- Frontend: 0 errors, 0 warnings (svelte-check)
+
+### Test Counts
+- Caro.Core.Tests: 431 passed (removed slow integration tests)
+- Caro.Core.IntegrationTests: 143 passed (opt-in, excluded from default)
+- Caro.Core.Infrastructure.Tests: 48 passed
+- Caro.Core.MatchupTests: 57 passed
+- Frontend Unit (Vitest): 19 passed
+- Total: 698 tests passing
+
+[1.31.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.31.0
+
 ## [1.30.0] - 2026-02-07
 
 ### Changed

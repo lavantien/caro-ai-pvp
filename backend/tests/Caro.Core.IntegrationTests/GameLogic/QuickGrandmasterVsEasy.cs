@@ -1,10 +1,10 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
-using Caro.Core.Tests.Helpers;
+using Caro.Core.IntegrationTests.Helpers;
 using FluentAssertions;
 using Xunit;
 
-namespace Caro.Core.Tests.GameLogic;
+namespace Caro.Core.IntegrationTests.GameLogic;
 
 [Trait("Category", "Verification")]
 public class QuickGrandmasterVsEasy

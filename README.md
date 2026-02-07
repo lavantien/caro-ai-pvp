@@ -12,7 +12,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 - **Real-time multiplayer** - WebSocket support via SignalR
 - **AI tournament mode** - Balanced round-robin with ELO tracking
 - **Mobile-first UX** - Ghost stone positioning and haptic feedback
-- **590+ automated tests** - Including adversarial concurrency tests
+- **700+ automated tests** - Including adversarial concurrency tests
 
 ---
 
@@ -84,7 +84,7 @@ dotnet run --project backend/src/Caro.UCIMockClient -- --games 4 --time 180 --in
 **Example UCI session:**
 ```
 > uci
-< id name Caro AI 1.30.0
+< id name Caro AI 1.31.0
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
 < option name Use Opening Book type check default true
@@ -143,19 +143,23 @@ Separate test projects for focused testing:
 # Unit tests (fast, no integration/matchup tests)
 cd backend/tests/Caro.Core.Tests && dotnet test
 
+# Integration tests (opt-in, full AI searches - slower)
+cd backend/tests/Caro.Core.IntegrationTests && dotnet test
+
 # Matchup/integration tests (slower, AI vs AI matchups)
 cd backend/tests/Caro.Core.MatchupTests && dotnet test
 ```
 
 | Project | Tests | Duration |
 |---------|-------|----------|
-| Caro.Core.Tests | 525 unit tests | ~8 min |
+| Caro.Core.Tests | 431 unit tests | ~30 sec |
+| Caro.Core.IntegrationTests | 143 | Opt-in, AI searches |
 | Caro.Core.MatchupTests | ~57 | Variable |
 | Caro.Core.Domain.Tests | 48 entity tests | ~5 sec |
 | Caro.Core.Application.Tests | 48 service tests | ~5 sec |
 | Caro.Core.Infrastructure.Tests | 48 algorithm tests | ~45 sec |
 
-**Note:** Run `dotnet test` in Caro.Core.Tests for fast unit test feedback. Use Caro.Core.MatchupTests for AI strength validation and full game matchups.
+**Note:** Run `dotnet test` in Caro.Core.Tests for fast unit test feedback. IntegrationTests are excluded from default test runs (marked as `<IsTestProject>false</IsTestProject>`).
 
 ---
 
@@ -295,14 +299,15 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Project | Tests | Focus |
 |---------|-------|-------|
-| Caro.Core.Tests | 525 | Unit tests (algorithms, evaluators, concurrency, immutable state, opening book) |
+| Caro.Core.Tests | 431 | Unit tests (algorithms, evaluators, concurrency, immutable state, opening book) |
+| Caro.Core.IntegrationTests | 143 | AI search integration (full depth searches, performance benchmarks) |
 | Caro.Core.MatchupTests | ~57 | AI matchups, integration, tournament, opening book verification |
 | Caro.Core.Domain.Tests | 48 | Entities (Board, Cell, Player, GameState) |
 | Caro.Core.Application.Tests | 48 | Services, interfaces, DTOs |
 | Caro.Core.Infrastructure.Tests | 48 | AI algorithms, external concerns |
 | Frontend Unit (Vitest) | 19 | Component tests |
 | Frontend E2E (Playwright) | 17 | End-to-end gameplay |
-| **TOTAL** | **762+** | |
+| **TOTAL** | **811+** | |
 
 ### Frontend E2E Tests
 
