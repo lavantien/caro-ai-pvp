@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <!-- Test run configuration -->
+  <RunConfiguration>
+    <MaxCpuCount>1</MaxCpuCount>
+    <DesignMode>false</DesignMode>
+    <DisableParallelization>true</DisableParallelization>
+    <UpdateStackTraceWhenDebugging>false</UpdateStackTraceWhenDebugging>
+  </RunConfiguration>
+
+  <!-- Data collection -->
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>json,cobertura</Format>
+          <Exclude>[Caro.Core.Tests]*,[Caro.Core.Domain.Tests]*,[Caro.Core.Application.Tests]*,[Caro.Core.Infrastructure.Tests]*</Exclude>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+
+  <!-- xUnit configuration -->
+  <xUnit>
+    <!-- Disable parallelization for consistent test behavior -->
+    <parallelizeAssemblies>false</parallelizeAssemblies>
+    <parallelizeTestCollections>false</parallelizeTestCollections>
+    <maxParallelThreads>0</maxParallelThreads>
+  </xUnit>
+</RunSettings>

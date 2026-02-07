@@ -8,6 +8,7 @@ namespace Caro.Core.Tests.GameLogic;
 /// <summary>
 /// Debug test to find the exact scenario causing 2200 point difference
 /// </summary>
+[Trait("Category", "Debug")]
 public class SimdPrecisionDebug
 {
     private readonly ITestOutputHelper _output;

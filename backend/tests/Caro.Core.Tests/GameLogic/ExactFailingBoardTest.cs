@@ -8,6 +8,7 @@ namespace Caro.Core.Tests.GameLogic;
 /// <summary>
 /// Exact board from failing test case
 /// </summary>
+[Trait("Category", "Debug")]
 public class ExactFailingBoardTest
 {
     private readonly ITestOutputHelper _output;

@@ -8,6 +8,7 @@ namespace Caro.Core.Tests.GameLogic;
 /// <summary>
 /// Test to verify SIMD evaluator returns correct perspective
 /// </summary>
+[Trait("Category", "Debug")]
 public class SIMDPerspectiveTest
 {
     private readonly ITestOutputHelper _output;

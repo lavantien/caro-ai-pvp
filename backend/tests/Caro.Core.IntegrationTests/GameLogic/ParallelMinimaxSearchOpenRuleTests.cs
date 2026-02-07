@@ -2,8 +2,10 @@ using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Xunit;
 
-namespace Caro.Core.Tests.GameLogic;
+namespace Caro.Core.IntegrationTests.GameLogic;
 
+[Trait("Category", "Slow")]
+[Trait("Category", "Integration")]
 public class ParallelMinimaxSearchOpenRuleTests
 {
     [Fact]

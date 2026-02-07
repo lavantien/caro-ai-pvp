@@ -3,8 +3,10 @@ using FluentAssertions;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 
-namespace Caro.Core.Tests.GameLogic;
+namespace Caro.Core.IntegrationTests.GameLogic;
 
+[Trait("Category", "Slow")]
+[Trait("Category", "Integration")]
 public class ThreatSpaceSearchTests
 {
     private readonly ThreatSpaceSearch _vcf = new();

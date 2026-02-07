@@ -1,11 +1,13 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
-using Caro.Core.Tests.Helpers;
+using Caro.Core.IntegrationTests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Caro.Core.Tests.GameLogic;
+namespace Caro.Core.IntegrationTests.GameLogic;
 
+[Trait("Category", "Slow")]
+[Trait("Category", "Integration")]
 public class EnhancedMoveOrderingTests
 {
     private readonly ITestOutputHelper _output;

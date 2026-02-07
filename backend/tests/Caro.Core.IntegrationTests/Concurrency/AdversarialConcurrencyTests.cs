@@ -6,15 +6,17 @@ using Xunit.Abstractions;
 using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.Pondering;
 using Caro.Core.Domain.Entities;
-using Caro.Core.Tests.Helpers;
+using Caro.Core.IntegrationTests.Helpers;
 
-namespace Caro.Core.Tests.Concurrency;
+namespace Caro.Core.IntegrationTests.Concurrency;
 
 /// <summary>
 /// Adversarial tests using systematic delay injection to expose race conditions
 /// Similar to CHESS (Microsoft's concurrency testing tool) approach
 /// These tests intentionally introduce timing variations to trigger edge cases
 /// </summary>
+[Trait("Category", "Stress")]
+[Trait("Category", "Integration")]
 public class AdversarialConcurrencyTests
 {
     private readonly ITestOutputHelper _output;
