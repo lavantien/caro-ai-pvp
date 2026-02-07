@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.30.0] - 2026-02-07
+
+### Changed
+- Opening book builder: Removed misleading `--max-depth` and `--target-depth` CLI arguments
+  - Book structure is now hardcoded as a 4-3-2-1 tapered beam up to ply 40
+  - Plies 0-14: 4 moves/position (early game + survival zone)
+  - Plies 15-24: 3 moves/position (Hard difficulty)
+  - Plies 25-32: 2 moves/position (Grandmaster)
+  - Plies 33-40: 1 move/position (Experimental - main line)
+  - Arguments were misleading since the actual tiered structure is determined by GetMaxChildrenForDepth()
+- Added ValidateArguments() method to reject unrecognized CLI arguments with clear error messages
+
+### Fixed
+- README.md book builder examples now reflect hardcoded structure (removed --max-depth references)
+
+### Documentation
+- Updated book builder help text to document the hardcoded tiered beam structure
+- Console output now displays "4-3-2-1 tapered beam up to ply 40" instead of configurable depths
+
+### Build Quality
+- Backend: 0 warnings, 0 errors
+- Frontend: 0 errors, 0 warnings (svelte-check)
+
+### Test Counts
+- Caro.Core.Tests: 525 passed, 1 skipped
+- Caro.Core.Infrastructure.Tests: 48 passed
+- Frontend Unit (Vitest): 19 passed
+- Total: 592 tests passing
+
+[1.30.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.30.0
+
 ## [1.29.0] - 2026-02-07
 
 ### Fixed
