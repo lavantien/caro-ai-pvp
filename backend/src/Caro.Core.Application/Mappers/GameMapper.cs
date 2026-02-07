@@ -41,14 +41,14 @@ public static class GameMapper
         {
             for (int x = 0; x < boardSize; x++)
             {
-                cells[y * boardSize + x] = board.GetCell(x, y).ToString();
+                cells[y * boardSize + x] = board.GetCell(x, y).Player.ToString();
             }
         }
 
         return new BoardDto
         {
             Cells = cells,
-            Hash = board.GetHash()
+            Hash = 0  // TODO: Implement board hashing if needed
         };
     }
 

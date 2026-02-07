@@ -53,38 +53,10 @@ public class PositionTests
     }
 
     [Fact]
-    public void Index_ReturnsLinearIndex()
-    {
-        // Arrange
-        var position = new Position(5, 10);
-
-        // Act
-        var index = position.Index;
-
-        // Assert
-        index.Should().Be(10 * 19 + 5); // y * Size + x
-    }
-
-    [Fact]
-    public void FromIndex_ReturnsCorrectPosition()
-    {
-        // Arrange & Act
-        var position = Position.FromIndex(100);
-
-        // Assert
-        position.X.Should().Be(100 % 19);
-        position.Y.Should().Be(100 / 19);
-    }
-
-    [Fact]
-    public void FromIndex_OutOfRange_ThrowsArgumentOutOfRangeException()
+    public void BoardSize_Returns19()
     {
         // Act & Assert
-        Action act = () => Position.FromIndex(-1);
-        act.Should().Throw<ArgumentOutOfRangeException>();
-
-        act = () => Position.FromIndex(361);
-        act.Should().Throw<ArgumentOutOfRangeException>();
+        Position.BoardSize.Should().Be(19);
     }
 
     [Fact]
@@ -102,61 +74,31 @@ public class PositionTests
     }
 
     [Fact]
-    public void GetAdjacentPositions_ReturnsFourNeighbors()
+    public void ToTuple_ConvertsToTuple()
     {
         // Arrange
-        var position = new Position(10, 10);
+        var position = new Position(5, 10);
 
         // Act
-        var neighbors = position.GetAdjacentPositions();
+        var tuple = position.ToTuple();
 
         // Assert
-        neighbors.Length.Should().Be(4);
-        neighbors.ToArray().Should().Contain(p => p.X == 10 && p.Y == 9);  // Up
-        neighbors.ToArray().Should().Contain(p => p.X == 10 && p.Y == 11); // Down
-        neighbors.ToArray().Should().Contain(p => p.X == 9 && p.Y == 10);  // Left
-        neighbors.ToArray().Should().Contain(p => p.X == 11 && p.Y == 10); // Right
+        tuple.x.Should().Be(5);
+        tuple.y.Should().Be(10);
     }
 
     [Fact]
-    public void GetAdjacentPositions_AtCorner_ReturnsOnlyValidNeighbors()
+    public void FromTuple_CreatesPositionFromTuple()
     {
         // Arrange
-        var position = new Position(0, 0);
+        var tuple = (x: 5, y: 10);
 
         // Act
-        var neighbors = position.GetAdjacentPositions();
+        var position = Position.FromTuple(tuple);
 
         // Assert
-        neighbors.Length.Should().Be(2);
-        neighbors.ToArray().Should().Contain(p => p.X == 0 && p.Y == 1);  // Down
-        neighbors.ToArray().Should().Contain(p => p.X == 1 && p.Y == 0);  // Right
-    }
-
-    [Fact]
-    public void GetNeighbors_ReturnsEightNeighbors()
-    {
-        // Arrange
-        var position = new Position(10, 10);
-
-        // Act
-        var neighbors = position.GetNeighbors();
-
-        // Assert
-        neighbors.Length.Should().Be(8);
-    }
-
-    [Fact]
-    public void GetNeighbors_AtCorner_ReturnsOnlyValidNeighbors()
-    {
-        // Arrange
-        var position = new Position(0, 0);
-
-        // Act
-        var neighbors = position.GetNeighbors();
-
-        // Assert
-        neighbors.Length.Should().Be(3);
+        position.X.Should().Be(5);
+        position.Y.Should().Be(10);
     }
 
     [Fact]

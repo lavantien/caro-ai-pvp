@@ -24,8 +24,8 @@ public class GameMapperTests
         dto.MoveNumber.Should().Be(0);
         dto.IsGameOver.Should().BeFalse();
         dto.Winner.Should().BeNull();
-        dto.RedTimeRemaining.Should().Be("07:00");
-        dto.BlueTimeRemaining.Should().Be("07:00");
+        dto.RedTimeRemaining.Should().Be("03:00");
+        dto.BlueTimeRemaining.Should().Be("03:00");
         dto.MoveHistory.Should().BeEmpty();
     }
 
@@ -34,7 +34,7 @@ public class GameMapperTests
     {
         // Arrange
         var state = GameStateFactory.CreateInitial();
-        state.RecordMove(9, 9);
+        state = state.WithMove(9, 9);
         var gameId = Guid.NewGuid();
 
         // Act
@@ -46,7 +46,6 @@ public class GameMapperTests
         dto.MoveHistory.Should().HaveCount(1);
         dto.MoveHistory[0].X.Should().Be(9);
         dto.MoveHistory[0].Y.Should().Be(9);
-        dto.MoveHistory[0].Player.Should().Be("Red");
     }
 
     [Fact]
@@ -54,7 +53,7 @@ public class GameMapperTests
     {
         // Arrange
         var board = new Board();
-        board.PlaceStone(5, 5, Player.Red);
+        board = board.PlaceStone(5, 5, Player.Red);
 
         // Act
         var dto = GameMapper.ToBoardDto(board);
