@@ -11,7 +11,6 @@ public sealed class SqliteOpeningBookStoreTests : IDisposable
 {
     private readonly string _dbPath;
     private readonly SqliteOpeningBookStore _store;
-    private readonly MockLogger<SqliteOpeningBookStore> _logger;
     private static readonly string _testDir = Path.Combine(Path.GetTempPath(), $"caro_test_{Guid.NewGuid()}");
 
     static SqliteOpeningBookStoreTests()
@@ -26,8 +25,8 @@ public sealed class SqliteOpeningBookStoreTests : IDisposable
     public SqliteOpeningBookStoreTests()
     {
         _dbPath = Path.Combine(_testDir, $"test_book_{Guid.NewGuid()}.db");
-        _logger = new MockLogger<SqliteOpeningBookStore>();
-        _store = new SqliteOpeningBookStore(_dbPath, _logger, readOnly: false);
+        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<SqliteOpeningBookStore>.Instance;
+        _store = new SqliteOpeningBookStore(_dbPath, logger, readOnly: false);
         _store.Initialize();
     }
 
@@ -336,14 +335,5 @@ public sealed class SqliteOpeningBookStoreTests : IDisposable
             IsNearEdge = false,
             Moves = moves
         };
-    }
-
-    private sealed class MockLogger<T> : ILogger<T>
-    {
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-        public bool IsEnabled(LogLevel logLevel) => true;
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-        {
-        }
     }
 }

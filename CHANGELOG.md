@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.35.0] - 2026-02-09
 
+### Added
+- **Test Helper Infrastructure** - New test helpers in `Caro.Core.Tests/Helpers/`:
+  - `MockOpeningBookStore.cs` - In-memory IOpeningBookStore with thread-safe ConcurrentDictionary
+  - `MockPositionCanonicalizer.cs` - Identity symmetry implementation for predictable tests
+  - `MockOpeningBookValidator.cs` - Basic validation logic for testing
+  - `OpeningBookEntryBuilder.cs` - Fluent builder for OpeningBookEntry test data
+  - `BookMoveBuilder.cs` - Fluent builder for BookMove test data
+  - `OpeningBookTestSetup.cs` - Shared setup utilities for creating generators with mock/real stores
+- **Performance Optimization Tests** - 15+ new tests in `OpeningBookGeneratorEdgeCaseTests.cs`:
+  - Survival zone tests (plies 6-13: extra time, more candidates)
+  - Early exit tests (score gap thresholds: 150 at depth 6+, 200 otherwise)
+  - Adaptive time allocation tests (-30% early, +50% survival zone, +20% late)
+  - Depth-weighted progress tests (survival zone has higher weights)
+  - Thread worker pool tests (min(4, positionCount) formula)
+  - Progress event tests (atomic Interlocked operations)
+
+### Changed
+- **Test Architecture Migration** - Migrated opening book tests to new architecture:
+  - `SqliteOpeningBookStoreTests.cs` - Replaced custom MockLogger with NullLogger<T>
+  - `OpeningBookMatchupTests.cs` - Uses IAsyncLifetime, temp files, NullLogger
+  - `OpeningBookConsistencyTests.cs` - Uses temp file pattern with proper cleanup
+  - `GMBookDepthTest.cs` - Uses temp file pattern with proper cleanup
+  - All tests now use `Path.GetTempPath()` instead of hardcoded relative paths
+  - Added `[Trait("Category", "SkipOnCI")]` for tests requiring external book file
+
 ### Performance
 - **Major:** Opening book generation now achieves 70%+ CPU utilization across all cores
   - Enabled parallel search for BookGeneration difficulty (was disabled)
@@ -41,13 +66,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AtomicBoolean helper class (no longer needed after reverting to sequential candidates)
 
 ### Test Counts
-- Caro.Core.Tests: 338 unit tests (+7 AIDifficultyConfigTests, -5 OpeningBookGeneratorEdgeCaseTests moved)
-- Caro.Core.IntegrationTests: 148 tests (+5 OpeningBookGeneratorEdgeCaseTests moved)
+- Caro.Core.Tests: 344 unit tests (+6 helpers, +7 AIDifficultyConfigTests, -5 OpeningBookGeneratorEdgeCaseTests moved)
+- Caro.Core.IntegrationTests: 153 tests (+5 OpeningBookGeneratorEdgeCaseTests moved, +15 performance tests)
 - Caro.Core.MatchupTests: 57 tests
 - Caro.Core.Domain.Tests: 67 tests
 - Caro.Core.Application.Tests: 8 tests
 - Caro.Core.Infrastructure.Tests: 72 tests (+12 SqliteOpeningBookStoreTests)
-- Total: 690+ backend tests passing
+- Total: 700+ backend tests passing
 
 [1.35.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.35.0
 

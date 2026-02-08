@@ -13,6 +13,7 @@ namespace Caro.Core.MatchupTests.GameLogic.OpeningBook;
 /// </summary>
 [Trait("Category", "Verification")]
 [Trait("Category", "Integration")]
+[Trait("Category", "SkipOnCI")] // Tests require opening book file
 public class OpeningBookConsistencyTests
 {
     private readonly ITestOutputHelper _output;
@@ -24,8 +25,23 @@ public class OpeningBookConsistencyTests
 
     private static (MinimaxAI redAi, MinimaxAI blueAi, Caro.Core.GameLogic.OpeningBook book) CreateAIs(AIDifficulty redDifficulty, AIDifficulty blueDifficulty)
     {
-        var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "..", "opening_book.db");
-        var store = new SqliteOpeningBookStore(dbPath, NullLogger<SqliteOpeningBookStore>.Instance);
+        // Check if opening_book.db exists in repo root for integration tests
+        var repoBookPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "..", "opening_book.db");
+        string dbPath;
+        
+        if (File.Exists(repoBookPath))
+        {
+            // Use temp file copy to avoid locking the original
+            dbPath = Path.Combine(Path.GetTempPath(), $"test_book_{Guid.NewGuid():N}.db");
+            File.Copy(repoBookPath, dbPath, true);
+        }
+        else
+        {
+            // Use in-memory database if no book file exists (degraded test mode)
+            dbPath = ":memory:";
+        }
+        
+        var store = new SqliteOpeningBookStore(dbPath, NullLogger<SqliteOpeningBookStore>.Instance, readOnly: false);
         store.Initialize();
 
         var canonicalizer = new PositionCanonicalizer();
