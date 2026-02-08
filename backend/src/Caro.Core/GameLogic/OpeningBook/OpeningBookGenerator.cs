@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Threading.Channels;
 using Caro.Core.Concurrency;
 using Caro.Core.Domain.Entities;
 using Microsoft.Extensions.Logging;
@@ -33,15 +34,26 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     private const int MaxCandidatesPerPosition = 8; // Top N moves to store per position
     private const int TimePerPositionMs = 30000;   // 30 seconds per position (optimized from 60s)
 
+    // Channel-based write buffer configuration
+    private const int WriteChannelCapacity = 1000;         // Bounded channel capacity for backpressure
+    private const int WriteBufferSize = 50;                // Target buffer size before flushing
+    private const int WriteBufferTimeoutMs = 5000;         // Max time to wait before flushing (5 seconds)
+
     private readonly IOpeningBookStore _store;
     private readonly IPositionCanonicalizer _canonicalizer;
     private readonly IOpeningBookValidator _validator;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<OpeningBookGenerator> _logger;
     private readonly GeneratorProgress _progress = new();
-    private readonly ConcurrentBag<MinimaxAI> _aiPool = new();
     private readonly AsyncQueue<BookProgressEvent> _progressQueue;
     private CancellationTokenSource? _cts;
+
+    // Channel-based async write buffer fields
+    private readonly Channel<OpeningBookEntry> _writeChannel;
+    private readonly CancellationTokenSource _writeCts;
+    private readonly Task _writeLoopTask;
+    private int _entriesBuffered;              // Count of entries currently in buffer
+    private int _totalEntriesStored;           // Total entries stored via batch operations
 
     public OpeningBookGenerator(
         IOpeningBookStore store,
@@ -61,37 +73,21 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             capacity: 1000,
             queueName: "BookProgress"
         );
+
+        // Initialize bounded channel for async write operations
+        _writeChannel = Channel.CreateBounded<OpeningBookEntry>(new BoundedChannelOptions(WriteChannelCapacity)
+        {
+            FullMode = BoundedChannelFullMode.Wait,  // Apply backpressure when channel is full
+            SingleReader = true,                     // Single consumer (background loop)
+            SingleWriter = false                     // Multiple producers (parallel workers)
+        });
+        _writeCts = new CancellationTokenSource();
+
+        // Start the background storage loop
+        _writeLoopTask = Task.Run(() => WriteLoopAsync(_writeCts.Token));
     }
 
-    /// <summary>
-    /// Rent a MinimaxAI instance from the pool, or create a new one if pool is empty.
-    /// Each instance has a 64MB TT, sufficient for candidate evaluation.
-    /// </summary>
-    private MinimaxAI RentAI()
-    {
-        if (_aiPool.TryTake(out var ai))
-        {
-            return ai;
-        }
-        return new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
-    }
 
-    /// <summary>
-    /// Return a MinimaxAI instance to the pool after clearing its state.
-    /// Try-catch ensures pool integrity is maintained even if ClearAllState fails.
-    /// </summary>
-    private void ReturnAI(MinimaxAI ai)
-    {
-        try
-        {
-            ai.ClearAllState();
-        }
-        catch
-        {
-            // Log but don't throw - pool integrity is more important
-        }
-        _aiPool.Add(ai);
-    }
 
     public GenerationProgress GetProgress() => _progress.ToPublicProgress();
 
@@ -99,6 +95,186 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     {
         _cts?.Cancel();
         _progress.Status = GeneratorState.Cancelled;
+
+        // Signal the write loop to flush and exit
+        _writeCts?.Cancel();
+    }
+
+    /// <summary>
+    /// Enqueue an entry for async batch storage.
+    /// This method is non-blocking and uses backpressure when the channel is full.
+    /// </summary>
+    private async ValueTask EnqueueEntryForStorageAsync(OpeningBookEntry entry, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _writeChannel.Writer.WriteAsync(entry, cancellationToken);
+        }
+        catch (ChannelClosedException)
+        {
+            _logger.LogWarning("Write channel closed, entry not stored: {Hash}", entry.CanonicalHash);
+        }
+    }
+
+    /// <summary>
+    /// Background storage loop that buffers entries and performs batch writes.
+    /// Targets storing entries when either:
+    /// - Buffer size reaches WriteBufferSize (50 items)
+    /// - WriteBufferTimeoutMs elapses (5 seconds)
+    /// </summary>
+    private async Task WriteLoopAsync(CancellationToken cancellationToken)
+    {
+        var buffer = new List<OpeningBookEntry>(WriteBufferSize);
+        var lastFlushTime = DateTime.UtcNow;
+        var reader = _writeChannel.Reader;
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                // Wait for items with timeout
+                try
+                {
+                    // Read up to WriteBufferSize items or wait for timeout
+                    while (buffer.Count < WriteBufferSize)
+                    {
+                        var timeUntilFlush = WriteBufferTimeoutMs - (int)(DateTime.UtcNow - lastFlushTime).TotalMilliseconds;
+                        if (timeUntilFlush <= 0)
+                        {
+                            // Timeout elapsed, flush what we have
+                            break;
+                        }
+
+                        // Wait for new entry or timeout
+                        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        linkedCts.CancelAfter(timeUntilFlush);
+
+                        try
+                        {
+                            if (await reader.WaitToReadAsync(linkedCts.Token))
+                            {
+                                if (reader.TryRead(out var entry))
+                                {
+                                    buffer.Add(entry);
+                                }
+                            }
+                            else
+                            {
+                                // Channel completed
+                                break;
+                            }
+                        }
+                        catch (OperationCanceledException) when (linkedCts.Token.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                        {
+                            // Timeout occurred, exit to flush
+                            break;
+                        }
+                    }
+
+                    // Drain any remaining items in channel (up to buffer size)
+                    while (buffer.Count < WriteBufferSize && reader.TryRead(out var entry))
+                    {
+                        buffer.Add(entry);
+                    }
+
+                    // Flush buffer if we have items
+                    if (buffer.Count > 0)
+                    {
+                        await FlushBufferAsync(buffer, cancellationToken);
+                        lastFlushTime = DateTime.UtcNow;
+                    }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // Cancellation requested - flush remaining buffer and exit
+                    _logger.LogInformation("Write loop cancellation requested, flushing {Count} remaining entries", buffer.Count);
+                    await FlushBufferAsync(buffer, CancellationToken.None);
+                    throw;
+                }
+            }
+
+            // Final flush on cancellation
+            await FlushBufferAsync(buffer, CancellationToken.None);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Write loop cancelled after storing {Total} entries", _totalEntriesStored);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Write loop failed with error");
+            throw;
+        }
+        finally
+        {
+            // Ensure we flush any remaining entries
+            if (buffer.Count > 0)
+            {
+                try
+                {
+                    await FlushBufferAsync(buffer, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to flush buffer during cleanup");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Flush buffered entries to storage using batch operation.
+    /// </summary>
+    private async Task FlushBufferAsync(List<OpeningBookEntry> buffer, CancellationToken cancellationToken)
+    {
+        if (buffer.Count == 0)
+            return;
+
+        try
+        {
+            _logger.LogDebug("Flushing {Count} entries to storage", buffer.Count);
+
+            // Use batch store operation for better performance
+            _store.StoreEntriesBatch(buffer);
+
+            int count = buffer.Count;
+            Interlocked.Add(ref _totalEntriesStored, count);
+            Interlocked.Exchange(ref _entriesBuffered, 0);
+
+            _logger.LogDebug("Successfully stored {Count} entries (total: {Total})", count, _totalEntriesStored);
+
+            buffer.Clear();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to store batch of {Count} entries", buffer.Count);
+            // Clear buffer even on failure to avoid re-trying failed entries
+            buffer.Clear();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Flush any remaining entries in the write buffer.
+    /// Called during normal completion to ensure all data is persisted.
+    /// </summary>
+    public async Task FlushWriteBufferAsync()
+    {
+        _logger.LogInformation("Flushing write buffer with {Total} total entries stored", _totalEntriesStored);
+
+        // Signal write loop to exit and flush
+        _writeCts.Cancel();
+
+        try
+        {
+            await _writeLoopTask;
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected - write loop exits on cancellation
+        }
+
+        _logger.LogInformation("Write buffer flush complete. Final total: {Total}", _totalEntriesStored);
     }
 
     public async Task<BookGenerationResult> GenerateAsync(
@@ -242,7 +418,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                         Moves = moves
                     };
 
-                    _store.StoreEntry(entry);
+                    // Enqueue for async batch storage
+                    await EnqueueEntryForStorageAsync(entry, cancellationToken);
                     positionsGenerated++;
                     totalMovesStored += moves.Length;
                     positionsEvaluated++;
@@ -404,6 +581,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
             }
 
+            // Flush the async write buffer before final store operations
+            await FlushWriteBufferAsync();
+
             // Final flush
             _store.Flush();
             _store.SetMetadata("Version", "1");
@@ -527,7 +707,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     Moves = responseMoveWithDepth
                 };
 
-                _store.StoreEntry(responseEntry);
+                // Enqueue for async batch storage
+                await EnqueueEntryForStorageAsync(responseEntry, cancellationToken);
                 responsesGenerated += responseMoveWithDepth.Length;
                 responsePositionsCount++;
             }
@@ -611,15 +792,14 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         int adjustedTimePerPosition = TimePerPositionMs * (100 + depthAdjustment) / 100;
         var timePerCandidateMs = Math.Max(2000, adjustedTimePerPosition / candidatesToEvaluate.Count);
 
-        // FLATTENED CONCURRENCY: Process candidates sequentially with a single rented AI
+        // FLATTENED CONCURRENCY: Process candidates sequentially with a single AI
         // The outer loop (ProcessPositionsInParallelAsync) already provides position-level parallelism.
         // This prevents nested parallelism which causes oversubscription (e.g., 12 x 8 = 96 threads fighting for 12 cores).
         var results = new List<(int x, int y, int score, long nodes, int depth)>();
 
-        MinimaxAI ai = null!;
+        var ai = new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
         try
         {
-            ai = RentAI();
 
             foreach (var candidate in candidatesToEvaluate)
             {
@@ -676,11 +856,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         }
         finally
         {
-            // Always return AI to pool even if exception occurs
-            if (ai != null)
-            {
-                ReturnAI(ai);
-            }
+            // AI will be garbage collected
         }
 
         // Convert to list for sorting
@@ -800,6 +976,192 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
         return player == Player.Red ? score : -score;
     }
+
+    /// <summary>
+    /// Private overload that accepts a pre-created MinimaxAI instance.
+    /// Used by WorkerThreadLoop to avoid pooling overhead.
+    /// </summary>
+    private Task<BookMove[]> GenerateMovesForPositionAsync(
+        Board board, Player player, AIDifficulty difficulty,
+        int maxMoves, SymmetryType canonicalSymmetry, bool isNearEdge,
+        MinimaxAI ai, CancellationToken cancellationToken = default)
+    {
+        var bookMoves = new List<BookMove>();
+
+        // Get candidate moves
+        var candidates = GetCandidateMoves(board, player);
+        if (candidates.Count == 0)
+            return Task.FromResult(Array.Empty<BookMove>());
+
+        // Evaluate candidates IN PARALLEL for performance
+        // This is critical - parallelizing candidate evaluation provides 4-8x speedup
+
+        // Aggressive candidate pruning: use static evaluation for pre-sorting
+        // In Caro, usually only top 4-6 moves are relevant. Evaluating 24 branches to depth 12+ is extremely expensive.
+        // IMPORTANT: Filter out invalid candidates first (e.g., Open Rule violations) to ensure we evaluate valid moves
+        var validCandidates = candidates
+            .Where(c => _validator.IsValidMove(board, c.Item1, c.Item2, player))
+            .ToList();
+
+        if (validCandidates.Count == 0)
+        {
+            _logger.LogWarning("No valid candidates found at depth {CurrentDepth} (all {CandidateCount} candidates failed validation)", _progress.CurrentDepth, candidates.Count);
+            return Task.FromResult(Array.Empty<BookMove>());
+        }
+
+        // Evaluate more candidates in survival zone (plies 6-13, moves 4-7)
+        int currentDepth = _progress.CurrentDepth;
+        int candidatesToTake = (currentDepth >= SurvivalZoneStartPly && currentDepth <= SurvivalZoneEndPly) ? 10 : 6;
+
+        var candidatesToEvaluate = validCandidates
+            .OrderByDescending(c => BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player))
+            .Take(Math.Min(validCandidates.Count, candidatesToTake))
+            .ToList();
+
+        _logger.LogDebug("Candidate filtering: {TotalCandidates} total -> {ValidCandidates} valid -> {CandidatesToEvaluate} to evaluate",
+            candidates.Count, validCandidates.Count, candidatesToEvaluate.Count);
+
+        _logger.LogDebug("Position evaluation: {TotalCandidates} total candidates -> {CandidatesToEvaluate} candidates to evaluate", candidates.Count, candidatesToEvaluate.Count);
+
+        // Adaptive time allocation based on depth
+        // Reduce time for early positions (simpler positions), increase for deep positions
+        // SURVIVAL ZONE (plies 6-13, moves 4-7) gets extra time for thorough evaluation
+        int depthAdjustment = currentDepth switch
+        {
+            <= 3 => -30,    // Early positions: 30% less time
+            <= 5 => 0,      // Pre-survival: standard time
+            <= 13 => +50,   // SURVIVAL ZONE: 50% more time (plies 6-13)
+            _ => +20        // Late positions: 20% more time
+        };
+
+        int adjustedTimePerPosition = TimePerPositionMs * (100 + depthAdjustment) / 100;
+        var timePerCandidateMs = Math.Max(2000, adjustedTimePerPosition / candidatesToEvaluate.Count);
+
+        // Use the provided AI instance directly (no pooling)
+        var results = new List<(int x, int y, int score, long nodes, int depth)>();
+
+        foreach (var candidate in candidatesToEvaluate)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var (cx, cy) = candidate;
+
+            // Candidates are pre-filtered for validity, but double-check for safety
+            if (!_validator.IsValidMove(board, cx, cy, player))
+                continue;
+
+            // Check for immediate win
+            if (_validator.IsWinningMove(board, cx, cy, player))
+            {
+                results.Add((cx, cy, 100000, 1, 1));
+                break; // No need to evaluate further candidates
+            }
+
+            // Create board for this candidate (don't modify original)
+            var candidateBoard = board.PlaceStone(cx, cy, player);
+            var searchBoard = candidateBoard;
+            var opponent = player == Player.Red ? Player.Blue : Player.Red;
+            var moveNumber = candidateBoard.GetBitBoard(Player.Red).CountBits() + candidateBoard.GetBitBoard(Player.Blue).CountBits();
+
+            // Clear AI state before each candidate to prevent cross-contamination
+            ai.ClearAllState();
+
+            // Run search with divided time budget, NO inner parallel to avoid oversubscription
+            var (bestX, bestY) = ai.GetBestMove(
+                searchBoard,
+                opponent,
+                difficulty,
+                timeRemainingMs: timePerCandidateMs,
+                moveNumber: moveNumber,
+                ponderingEnabled: false,
+                parallelSearchEnabled: false // Disable Lazy SMP to avoid oversubscribing threads
+            );
+
+            var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _)
+                = ai.GetSearchStatistics();
+
+            var evalBoard = searchBoard.PlaceStone(bestX, bestY, opponent);
+            int score = EvaluateBoard(evalBoard, opponent);
+
+            _logger.LogDebug("Candidate ({Cx}, {Cy}) evaluated: best response=({BestX},{BestY}), score={Score}", cx, cy, bestX, bestY, score);
+
+            results.Add((cx, cy, score, nodesSearched, depthAchieved));
+
+            // Update progress (last write wins is acceptable for display purposes)
+            _progress.LastDepth = depthAchieved;
+            _progress.LastNodes = nodesSearched;
+            _progress.LastThreads = threadCount;
+        }
+
+        // Convert to list for sorting
+        var sortedResults = results.ToList();
+        int resultsBeforePruning = sortedResults.Count;
+
+        // Sort by score
+        sortedResults.Sort((a, b) => b.score.CompareTo(a.score));
+
+        // Log all scores before pruning for diagnosis
+        var scoreLog = string.Join(", ", sortedResults.Select(r => $"({r.x},{r.y}):{r.score}"));
+        _logger.LogDebug("Scores at depth {CurrentDepth} before pruning: {Scores}", currentDepth, scoreLog);
+
+        // EARLY EXIT: If best move dominates, skip remaining evaluation
+        // Use more aggressive thresholds at deeper depths
+        if (sortedResults.Count >= 2)
+        {
+            int threshold = currentDepth >= 6 ? 150 : 200;  // More aggressive at depth 6+
+
+            int scoreGap = sortedResults[0].score - sortedResults[1].score;
+            if (scoreGap > threshold)
+            {
+                // Best move is clearly superior - stop evaluating further candidates
+                _logger.LogDebug("Early exit: best move dominates with score gap {ScoreGap} > {Threshold}", scoreGap, threshold);
+                sortedResults = sortedResults.Take(1).ToList();
+            }
+        }
+
+        // Also skip obviously bad moves (don't keep candidates > 500 points behind first)
+        if (sortedResults.Count >= 3)
+        {
+            var bestScore = sortedResults[0].score;
+            sortedResults = sortedResults
+                .TakeWhile(r => bestScore - r.score <= 500)
+                .ToList();
+        }
+
+        _logger.LogDebug("Position at depth {CurrentDepth}: {CandidatesToEvaluate} candidates -> {ResultsBeforePruning} results -> {SortedResultsCount} after pruning",
+            currentDepth, candidatesToEvaluate.Count, resultsBeforePruning, sortedResults.Count);
+
+        // Convert to BookMove records
+        // IMPORTANT: Transform coordinates to canonical space before storing
+        // Moves are stored relative to the canonical position, not actual board
+        int priority = maxMoves;
+        foreach (var (x, y, score, nodes, depth) in sortedResults.Take(maxMoves))
+        {
+            int winRate = ScoreToWinRate(score);
+
+            // Transform actual coordinates to canonical space
+            // For edge positions or identity symmetry, coordinates stay the same
+            (int canonicalX, int canonicalY) = (!isNearEdge && canonicalSymmetry != SymmetryType.Identity)
+                ? _canonicalizer.ApplySymmetry(x, y, canonicalSymmetry)
+                : (x, y);
+
+            bookMoves.Add(new BookMove
+            {
+                RelativeX = canonicalX,
+                RelativeY = canonicalY,
+                WinRate = winRate,
+                DepthAchieved = depth,
+                NodesSearched = nodes,
+                Score = score,
+                IsForcing = Math.Abs(score) > 1000, // Simplified forcing detection
+                Priority = priority--,
+                IsVerified = true
+            });
+        }
+
+        return Task.FromResult(bookMoves.ToArray());
+    }
+
 
     private int EvaluateThreats(Board board, Player player)
     {
@@ -1205,88 +1567,94 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     }
 
     /// <summary>
-    /// Process multiple positions in parallel using worker pool pattern
-    /// Uses thread count from BookGeneration difficulty config (N-4 threads)
+    /// Process multiple positions in parallel using dedicated worker threads.
+    /// Each thread owns its own MinimaxAI instance, bypassing the ThreadPool completely.
     /// </summary>
-    private async Task<Dictionary<ulong, BookMove[]>> ProcessPositionsInParallelAsync(
+    private Task<Dictionary<ulong, BookMove[]>> ProcessPositionsInParallelAsync(
         List<(Board board, Player player, int depth, ulong hash, SymmetryType symmetry, bool nearEdge, int maxMoves)> positions,
         AIDifficulty difficulty,
         CancellationToken cancellationToken,
         int totalPositions = 0)
     {
-        var results = new ConcurrentDictionary<ulong, BookMove[]>();
-
-        // Use provided total or default to positions count
         int totalPositionsToReport = totalPositions > 0 ? totalPositions : positions.Count;
-
-        // Get current depth for dynamic batch sizing
         int currentDepth = positions.Count > 0 ? positions[0].depth : 0;
 
-        // Use all cores for parallel position processing (single-threaded search per position)
-        int processorCount = Environment.ProcessorCount;
-        int batchSize = processorCount;
+        var jobQueue = new ConcurrentQueue<PositionJob>();
+        var results = new ConcurrentDictionary<ulong, BookMove[]>();
+        int completedCount = 0;
 
-        // Process in batches to avoid overwhelming memory
-        for (int i = 0; i < positions.Count; i += batchSize)
+        int jobId = 0;
+        foreach (var pos in positions)
         {
-            if (cancellationToken.IsCancellationRequested)
-                break;
-
-            int currentBatchSize = Math.Min(batchSize, positions.Count - i);
-            var batch = positions.Skip(i).Take(currentBatchSize).ToList();
-
-            // Create tasks for this batch
-            var tasks = new Task<(ulong hash, BookMove[] moves)>[currentBatchSize];
-            for (int j = 0; j < currentBatchSize; j++)
-            {
-                int idx = i + j;
-                var pos = batch[j];
-
-                tasks[j] = Task.Run(() =>
-                {
-                    try
-                    {
-                        var moves = GenerateMovesForPositionAsync(
-                            pos.board,
-                            pos.player,
-                            difficulty,
-                            pos.maxMoves,
-                            pos.symmetry,
-                            pos.nearEdge,
-                            cancellationToken
-                        ).GetAwaiter().GetResult();
-
-                        return (pos.hash, moves);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        return (pos.hash, Array.Empty<BookMove>());
-                    }
-                }, cancellationToken);
-            }
-
-            // Wait for all tasks in this batch
-            await Task.WhenAll(tasks);
-
-            // Collect results
-            foreach (var task in tasks)
-            {
-                var (hash, moves) = await task;
-                results[hash] = moves;
-            }
-
-            _progress.PositionsEvaluated = i + currentBatchSize;
-
-            // Enqueue progress event for async update (non-blocking)
-            _progressQueue.TryEnqueue(new BookProgressEvent(
-                Depth: currentDepth,
-                PositionsCompleted: currentBatchSize,
-                TotalPositions: totalPositionsToReport,
-                TimestampMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            ));
+            jobQueue.Enqueue(new PositionJob(jobId++, pos.board, pos.player, pos.depth,
+                pos.hash, pos.symmetry, pos.nearEdge, pos.maxMoves));
         }
 
-        return new Dictionary<ulong, BookMove[]>(results);
+        int threadCount = Environment.ProcessorCount;
+        var threads = new List<Thread>(threadCount);
+
+        for (int i = 0; i < threadCount; i++)
+        {
+            var thread = new Thread(() => WorkerThreadLoop(
+                jobQueue, results, _progressQueue, difficulty, currentDepth,
+                totalPositionsToReport, ref completedCount, cancellationToken))
+            {
+                Priority = ThreadPriority.AboveNormal,
+                IsBackground = false
+            };
+            threads.Add(thread);
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+            thread.Join();
+
+        return Task.FromResult(new Dictionary<ulong, BookMove[]>(results));
+    }
+
+    /// <summary>
+    /// Worker thread entry point for dedicated thread-based parallel processing.
+    /// Each thread owns its own MinimaxAI instance, bypassing the ThreadPool completely.
+    /// </summary>
+    private void WorkerThreadLoop(
+        ConcurrentQueue<PositionJob> jobQueue,
+        ConcurrentDictionary<ulong, BookMove[]> results,
+        AsyncQueue<BookProgressEvent> progressQueue,
+        AIDifficulty difficulty,
+        int currentDepth,
+        int totalPositions,
+        ref int completedCounter,
+        CancellationToken cancellationToken)
+    {
+        var ai = new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (!jobQueue.TryDequeue(out var job))
+                    break;
+
+                ai.ClearAllState();
+
+                var moves = GenerateMovesForPositionAsync(
+                    job.Board, job.Player, difficulty, job.MaxMovesToStore,
+                    job.Symmetry, job.IsNearEdge, ai, cancellationToken
+                ).GetAwaiter().GetResult();
+
+                results[job.CanonicalHash] = moves;
+
+                int currentCompleted = Interlocked.Increment(ref completedCounter);
+                _progress.PositionsEvaluated = currentCompleted;
+
+                progressQueue.TryEnqueue(new BookProgressEvent(
+                    Depth: currentDepth, PositionsCompleted: 1,
+                    TotalPositions: totalPositions,
+                    TimestampMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                ));
+            }
+        }
+        catch (OperationCanceledException) { }
     }
 
     /// <summary>
@@ -1307,11 +1675,23 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     }
 
     /// <summary>
-    /// Disposes the progress queue.
+    /// Disposes the progress queue and write channel resources.
     /// </summary>
     public void Dispose()
     {
         _progressQueue?.Dispose();
+        _writeCts?.Cancel();
+        _writeCts?.Dispose();
+
+        // Wait a short time for write loop to complete cleanup
+        try
+        {
+            _writeLoopTask?.Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (AggregateException)
+        {
+            // Task may have been cancelled - acceptable during disposal
+        }
     }
 }
 
