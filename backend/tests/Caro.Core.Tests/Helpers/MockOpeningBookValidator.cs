@@ -48,7 +48,7 @@ public sealed class MockOpeningBookValidator : IOpeningBookValidator
         var testBoard = board.PlaceStone(x, y, player);
         var winDetector = new WinDetector();
         var result = winDetector.CheckWin(testBoard);
-        
+
         return result.HasWinner && result.Winner == player;
     }
 

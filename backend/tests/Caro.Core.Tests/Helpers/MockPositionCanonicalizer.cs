@@ -18,9 +18,9 @@ public sealed class MockPositionCanonicalizer : IPositionCanonicalizer
         // This means canonical coordinates = actual coordinates
         var redBitBoard = board.GetBitBoard(Player.Red);
         var blueBitBoard = board.GetBitBoard(Player.Blue);
-        
+
         ulong hash = ComputeCanonicalHash(redBitBoard, blueBitBoard, Player.Red);
-        
+
         // Determine current player
         int redCount = redBitBoard.CountBits();
         int blueCount = blueBitBoard.CountBits();
