@@ -7,6 +7,8 @@ using Caro.Core.Infrastructure.Persistence;
 using Caro.Core.Tournament;
 using System.Diagnostics;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Caro.Core.MatchupTests.GameLogic.Pondering;
 
 /// <summary>
@@ -21,12 +23,16 @@ public class PonderingIntegrationTests
 {
     /// <summary>
     /// Helper method to create a TournamentEngine with MinimaxAI instances.
-    /// Uses InMemoryOpeningBookStore for tests that don't specifically test opening book functionality.
+    /// Uses SQLite in-memory database for tests that don't specifically test opening book functionality.
     /// </summary>
     private static TournamentEngine CreateTournamentEngine()
     {
-        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<InMemoryOpeningBookStore>.Instance;
-        var store = new InMemoryOpeningBookStore();
+        var logger = NullLogger<SqliteOpeningBookStore>.Instance;
+        var store = new SqliteOpeningBookStore(
+            "file::memory:?cache=shared",  // In-memory SQLite database
+            logger,
+            readOnly: false
+        );
         store.Initialize();
 
         var canonicalizer = new PositionCanonicalizer();
@@ -44,8 +50,12 @@ public class PonderingIntegrationTests
     /// </summary>
     private static MinimaxAI CreateMinimaxAI()
     {
-        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<InMemoryOpeningBookStore>.Instance;
-        var store = new InMemoryOpeningBookStore();
+        var logger = NullLogger<SqliteOpeningBookStore>.Instance;
+        var store = new SqliteOpeningBookStore(
+            "file::memory:?cache=shared",  // In-memory SQLite database
+            logger,
+            readOnly: false
+        );
         store.Initialize();
 
         var canonicalizer = new PositionCanonicalizer();
