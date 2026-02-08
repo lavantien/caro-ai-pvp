@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.34.0] - 2026-02-08
+
+### Fixed
+- **Critical:** SQLite transaction error in opening book batch storage
+  - Added `command.Transaction = transaction;` in `SqliteOpeningBookStore.StoreEntriesBatch`
+  - Microsoft.Data.Sqlite requires explicit transaction association when commands execute within transactions
+  - Error: "Execute requires the command to have a transaction object when the connection assigned to the command is in a pending local transaction"
+- SqliteOpeningBookStore.Dispose() NullReferenceException during cancellation
+  - Added try-catch protection for connection disposal in invalid states
+  - Gracefully handles cleanup when worker threads are cancelled mid-operation
+
+### Added
+- SqliteOpeningBookStoreTests.cs with comprehensive test coverage:
+  - StoreEntriesBatch_TransactionIsCommittedCorrectly - validates transaction handling
+  - StoreEntriesBatch_LargeBatch_DoesNotThrowTransactionError - stress test with 100 entries
+  - Basic CRUD operations, statistics, metadata, and edge case tests
+  - 12 new tests for Infrastructure.Tests project
+
+### Performance
+- OpeningBookGenerator: Dedicated Thread worker swarm replaces Parallel.ForEachAsync
+  - Bypasses ThreadPool hill-climbing for CPU-bound AI workloads
+  - Each worker thread owns its own MinimaxAI instance (64MB TT per thread)
+  - Utilizes all CPU cores on high-thread-count systems (i7-12700F: ~20 threads)
+  - Removed AI instance pooling (_aiPool, RentAI, ReturnAI) - no longer needed
+
+### Changed
+- OpeningBookGenerator.ProcessPositionsInParallelAsync implementation:
+  - Uses ConcurrentQueue for work distribution and Thread.Join() for synchronization
+  - WorkerThreadLoop method with per-thread MinimaxAI lifecycle
+  - GenerateMovesForPositionAsync overload accepting AI instance (DI pattern)
+
+### Removed
+- InMemoryOpeningBookStore.cs - consolidated to SqliteOpeningBookStore
+
+### Test Counts
+- Caro.Core.Tests: 330 unit tests
+- Caro.Core.IntegrationTests: 143 tests (opt-in)
+- Caro.Core.MatchupTests: 57 tests
+- Caro.Core.Domain.Tests: 67 tests
+- Caro.Core.Application.Tests: 8 tests
+- Caro.Core.Infrastructure.Tests: 60 tests (+12 new SqliteOpeningBookStoreTests)
+- Total: 665+ backend tests passing
+
+[1.34.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.34.0
+
 ## [1.33.0] - 2026-02-07
 
 ### Fixed
