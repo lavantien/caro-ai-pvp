@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Caro.Core\Caro.Core.csproj" />
+    <ProjectReference Include="..\..\src\Caro.Core.Infrastructure\Caro.Core.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
