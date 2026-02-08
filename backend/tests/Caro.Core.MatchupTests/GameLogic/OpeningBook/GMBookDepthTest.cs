@@ -11,26 +11,65 @@ namespace Caro.Core.MatchupTests.GameLogic.OpeningBook;
 /// <summary>
 /// Test to verify Grandmaster gets 16 book moves when playing vs itself.
 /// </summary>
-public class GMBookDepthTest
+[Trait("Category", "SkipOnCI")] // Tests require opening book file
+public class GMBookDepthTest : IAsyncLifetime
 {
     private readonly ITestOutputHelper _output;
+    private string? _dbPath;
+    private SqliteOpeningBookStore? _store;
 
     public GMBookDepthTest(ITestOutputHelper output)
     {
         _output = output;
     }
 
+    public Task InitializeAsync()
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task DisposeAsync()
+    {
+        try
+        {
+            _store?.Dispose();
+            if (_dbPath != null && _dbPath != ":memory:" && File.Exists(_dbPath))
+            {
+                File.Delete(_dbPath);
+            }
+        }
+        catch
+        {
+            // Ignore cleanup errors
+        }
+        return Task.CompletedTask;
+    }
+
     [Fact]
     public void GM_vs_GM_Should_Get_16_Book_Moves()
     {
-        var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "..", "opening_book.db");
-        var store = new SqliteOpeningBookStore(dbPath, NullLogger<SqliteOpeningBookStore>.Instance);
-        store.Initialize();
+        // Check if opening_book.db exists in repo root for integration tests
+        var repoBookPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "..", "opening_book.db");
+        
+        if (File.Exists(repoBookPath))
+        {
+            // Use temp file copy to avoid locking the original
+            _dbPath = Path.Combine(Path.GetTempPath(), $"test_book_{Guid.NewGuid():N}.db");
+            File.Copy(repoBookPath, _dbPath, true);
+        }
+        else
+        {
+            // Use in-memory database if no book file exists (degraded test mode)
+            _dbPath = ":memory:";
+        }
+        
+        _store = new SqliteOpeningBookStore(_dbPath, NullLogger<SqliteOpeningBookStore>.Instance, readOnly: false);
+        _store!.Initialize();
 
         var canonicalizer = new PositionCanonicalizer();
         var validator = new OpeningBookValidator();
-        var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
-        var openingBook = new Caro.Core.GameLogic.OpeningBook(store, canonicalizer, lookupService);
+        var lookupService = new OpeningBookLookupService(_store!, canonicalizer, validator);
+        var openingBook = new Caro.Core.GameLogic.OpeningBook(_store!, canonicalizer, lookupService);
 
         var redAi = new MinimaxAI(openingBook: openingBook);
         var blueAi = new MinimaxAI(openingBook: openingBook);

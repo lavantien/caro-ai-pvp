@@ -4,6 +4,7 @@ using Caro.Core.Infrastructure.Persistence;
 using Caro.Core.Tournament;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -22,11 +23,14 @@ namespace Caro.Core.MatchupTests.GameLogic.OpeningBook;
 [Trait("Category", "Verification")]
 [Trait("Category", "Integration")]
 [Trait("Category", "OpeningBook")]
-public class OpeningBookMatchupTests : IDisposable
+[Trait("Category", "SkipOnCI")] // Tests require opening book file
+public class OpeningBookMatchupTests : IAsyncLifetime
 {
     private readonly ITestOutputHelper _output;
-    private readonly TournamentEngine _engine;
-    private readonly OpeningBookType _openingBook;
+    private TournamentEngine? _engine;
+    private OpeningBookType? _openingBook;
+    private string? _dbPath;
+    private SqliteOpeningBookStore? _store;
 
     // Test configuration
     private const int MaxMoves = 40;  // 20 full turns (40 half-moves)
@@ -40,30 +44,55 @@ public class OpeningBookMatchupTests : IDisposable
     public OpeningBookMatchupTests(ITestOutputHelper output)
     {
         _output = output;
+    }
 
-        // Initialize opening book with SQLite store
-        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<SqliteOpeningBookStore>.Instance;
-        // From bin/Debug/net10.0/, go up 6 levels to reach repo root
-        var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "..", "opening_book.db");
-        var store = new SqliteOpeningBookStore(dbPath, logger);
-        store.Initialize();
+    public Task InitializeAsync()
+    {
+        // Use temp file for testing to avoid hardcoded paths
+        _dbPath = Path.Combine(Path.GetTempPath(), $"test_book_{Guid.NewGuid():N}.db");
+        
+        // Check if opening_book.db exists in repo root for integration tests
+        var repoBookPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "..", "opening_book.db");
+        if (File.Exists(repoBookPath))
+        {
+            // Copy the existing book to temp location for testing
+            File.Copy(repoBookPath, _dbPath, true);
+        }
+        
+        var logger = NullLogger<SqliteOpeningBookStore>.Instance;
+        _store = new SqliteOpeningBookStore(_dbPath, logger, readOnly: false);
+        _store.Initialize();
 
         var canonicalizer = new PositionCanonicalizer();
         var validator = new OpeningBookValidator();
-        var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
+        var lookupService = new OpeningBookLookupService(_store, canonicalizer, validator);
 
         // Create OpeningBook with SQLite store for injection into MinimaxAI
-        _openingBook = new OpeningBookType(store, canonicalizer, lookupService);
+        _openingBook = new OpeningBookType(_store, canonicalizer, lookupService);
 
         // Create AI instances with OpeningBook dependency
-        var botA = new MinimaxAI(openingBook: _openingBook);
-        var botB = new MinimaxAI(openingBook: _openingBook);
+        var botA = new MinimaxAI(openingBook: _openingBook!);
+        var botB = new MinimaxAI(openingBook: _openingBook!);
         _engine = new TournamentEngine(botA, botB);
+        
+        return Task.CompletedTask;
     }
 
-    public void Dispose()
+    public Task DisposeAsync()
     {
-        GC.SuppressFinalize(this);
+        try
+        {
+            _store?.Dispose();
+            if (_dbPath != null && File.Exists(_dbPath))
+            {
+                File.Delete(_dbPath);
+            }
+        }
+        catch
+        {
+            // Ignore cleanup errors
+        }
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -78,8 +107,8 @@ public class OpeningBookMatchupTests : IDisposable
         var game = GameState.CreateInitial();
 
         // Create AI instances for each difficulty with opening book injection
-        var redAI = new MinimaxAI(openingBook: _openingBook);
-        var blueAI = new MinimaxAI(openingBook: _openingBook);
+        var redAI = new MinimaxAI(openingBook: _openingBook!);
+        var blueAI = new MinimaxAI(openingBook: _openingBook!);
 
         // Act - Play 40 half-moves (20 full turns)
         for (int moveNumber = 0; moveNumber < MaxMoves && !game.IsGameOver; moveNumber++)
@@ -90,7 +119,7 @@ public class OpeningBookMatchupTests : IDisposable
 
             // Get the book move for this position
             var lastOpponentMove = GetLastOpponentMove(board, game.CurrentPlayer);
-            var bookMove = _openingBook.GetBookMove(board, game.CurrentPlayer, difficulty, lastOpponentMove);
+            var bookMove = _openingBook!.GetBookMove(board, game.CurrentPlayer, difficulty, lastOpponentMove);
             var actualMove = ai.GetBestMove(board, game.CurrentPlayer, difficulty);
 
             // Track whether the AI used the book move
@@ -232,8 +261,8 @@ public class OpeningBookMatchupTests : IDisposable
 
         // Act - Get book moves for both difficulties at the same position
         var lastOpponentMove = GetLastOpponentMove(board, currentPlayer);
-        var hardBookMove = _openingBook.GetBookMove(board, currentPlayer, AIDifficulty.Hard, lastOpponentMove);
-        var gmBookMove = _openingBook.GetBookMove(board, currentPlayer, AIDifficulty.Grandmaster, lastOpponentMove);
+        var hardBookMove = _openingBook!.GetBookMove(board, currentPlayer, AIDifficulty.Hard, lastOpponentMove);
+        var gmBookMove = _openingBook!.GetBookMove(board, currentPlayer, AIDifficulty.Grandmaster, lastOpponentMove);
 
         // Assert
         _output.WriteLine($"At depth 26 (beyond Hard's limit of {HardMaxDepth}):");
@@ -257,8 +286,8 @@ public class OpeningBookMatchupTests : IDisposable
         var results = new List<BookMoveTracker>();
         var game = GameState.CreateInitial();
 
-        var redAI = new MinimaxAI(openingBook: _openingBook);
-        var blueAI = new MinimaxAI(openingBook: _openingBook);
+        var redAI = new MinimaxAI(openingBook: _openingBook!);
+        var blueAI = new MinimaxAI(openingBook: _openingBook!);
 
         for (int moveNumber = 0; moveNumber < MaxMoves && !game.IsGameOver; moveNumber++)
         {
@@ -267,7 +296,7 @@ public class OpeningBookMatchupTests : IDisposable
             var ai = game.CurrentPlayer == Player.Red ? redAI : blueAI;
 
             var lastOpponentMove = GetLastOpponentMove(board, game.CurrentPlayer);
-            var bookMove = _openingBook.GetBookMove(board, game.CurrentPlayer, difficulty, lastOpponentMove);
+            var bookMove = _openingBook!.GetBookMove(board, game.CurrentPlayer, difficulty, lastOpponentMove);
             var actualMove = ai.GetBestMove(board, game.CurrentPlayer, difficulty);
 
             bool usedBookMove = bookMove.HasValue && bookMove.Value.x == actualMove.x && bookMove.Value.y == actualMove.y;
