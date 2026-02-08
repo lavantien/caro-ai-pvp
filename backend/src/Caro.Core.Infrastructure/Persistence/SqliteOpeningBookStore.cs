@@ -216,6 +216,7 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
                 using var transaction = Connection.BeginTransaction();
 
                 using var command = Connection.CreateCommand();
+                command.Transaction = transaction;
                 command.CommandText = $@"
                     INSERT OR REPLACE INTO {TableName} 
                     (CanonicalHash, Depth, Player, Symmetry, IsNearEdge, MovesData, TotalMoves, CreatedAt)
@@ -514,7 +515,24 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
 
     public void Dispose()
     {
-        _connection?.Dispose();
-        _connection = null;
+        try
+        {
+            if (_connection != null)
+            {
+                if (_connection.State == System.Data.ConnectionState.Open)
+                {
+                    _connection.Close();
+                }
+                _connection.Dispose();
+            }
+        }
+        catch
+        {
+            // Suppress dispose errors - connection may be in an invalid state due to cancellation
+        }
+        finally
+        {
+            _connection = null;
+        }
     }
 }
