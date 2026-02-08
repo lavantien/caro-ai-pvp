@@ -214,7 +214,7 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
         {
             using var transaction = Connection.BeginTransaction();
             bool committed = false;
-            
+
             try
             {
                 using var command = Connection.CreateCommand();
