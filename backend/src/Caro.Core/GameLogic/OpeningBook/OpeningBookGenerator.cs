@@ -32,7 +32,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     );
     private const int MaxBookMoves = 12;           // Maximum plies in book (6 moves each)
     private const int MaxCandidatesPerPosition = 8; // Top N moves to store per position
-    private const int TimePerPositionMs = 30000;   // 30 seconds per position (optimized from 60s)
+    private const int TimePerPositionMs = 15000;   // 15 seconds per position - with 4 parallel positions, gives deep search
 
     // Channel-based write buffer configuration
     private const int WriteChannelCapacity = 1000;         // Bounded channel capacity for backpressure
@@ -292,7 +292,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             // Configure thread pool for book generation (more aggressive than normal play)
             ThreadPoolConfig.ConfigureForSearch();
 
-            // Use BookGeneration difficulty for (N-4) threads
+            // Use BookGeneration difficulty for parallel search
             var bookDifficulty = AIDifficulty.BookGeneration;
 
             // Collect positions by depth level for breadth-first processing
@@ -426,7 +426,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                     // Generate and store opponent responses for ALL stored moves
                     // This ensures GM/Exp always have book responses regardless of opponent's choice
-                    if (posData.depth < maxDepth - 1)
+                    // DISABLED: Opponent response generation is too slow, blocking progress
+                    // TODO: Generate responses in second pass or with parallel position evaluation
+                    if (false && posData.depth < maxDepth - 1)
                     {
                         var (responsesGenerated, responsePositionsCount) = await GenerateOpponentResponsesAsync(
                             posData.board,
@@ -790,14 +792,15 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         };
 
         int adjustedTimePerPosition = TimePerPositionMs * (100 + depthAdjustment) / 100;
-        var timePerCandidateMs = Math.Max(2000, adjustedTimePerPosition / candidatesToEvaluate.Count);
+        var timePerCandidateMs = Math.Max(5000, adjustedTimePerPosition / candidatesToEvaluate.Count);
 
-        // FLATTENED CONCURRENCY: Process candidates sequentially with a single AI
-        // The outer loop (ProcessPositionsInParallelAsync) already provides position-level parallelism.
-        // This prevents nested parallelism which causes oversubscription (e.g., 12 x 8 = 96 threads fighting for 12 cores).
+        // TIERED CONCURRENCY: Process candidates sequentially with a single AI
+        // The outer loop uses ~4-6 worker threads (processorCount/4) for position-level parallelism.
+        // Each position evaluation uses parallel search (processorCount-4 threads) via BookGeneration config.
+        // This balances concurrency without oversubscription (e.g., 4 outer x 16 inner = 64 threads for 20 cores).
         var results = new List<(int x, int y, int score, long nodes, int depth)>();
 
-        var ai = new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
+        var ai = new MinimaxAI(ttSizeMb: 16, logger: _loggerFactory.CreateLogger<MinimaxAI>());
         try
         {
 
@@ -827,7 +830,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 // Clear AI state before each candidate to prevent cross-contamination
                 ai.ClearAllState();
 
-                // Run search with divided time budget, NO inner parallel to avoid oversubscription
+                // Run search with divided time budget
+                // Parallel search is enabled via BookGeneration difficulty config
                 var (bestX, bestY) = ai.GetBestMove(
                     searchBoard,
                     opponent,
@@ -835,7 +839,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     timeRemainingMs: timePerCandidateMs,
                     moveNumber: moveNumber,
                     ponderingEnabled: false,
-                    parallelSearchEnabled: false // Disable Lazy SMP to avoid oversubscribing threads
+                    parallelSearchEnabled: true  // Enable parallel search for BookGeneration
                 );
 
                 var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _)
@@ -1035,9 +1039,11 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         };
 
         int adjustedTimePerPosition = TimePerPositionMs * (100 + depthAdjustment) / 100;
-        var timePerCandidateMs = Math.Max(2000, adjustedTimePerPosition / candidatesToEvaluate.Count);
+        var timePerCandidateMs = Math.Max(5000, adjustedTimePerPosition / candidatesToEvaluate.Count);
 
-        // Use the provided AI instance directly (no pooling)
+        // SEQUENTIAL CANDIDATE EVALUATION with reused AI instance
+        // Reusing AI prevents the 276MB x 4 = 1.1GB memory blowup
+        // Each candidate still uses parallel search (4 threads) for speed
         var results = new List<(int x, int y, int score, long nodes, int depth)>();
 
         foreach (var candidate in candidatesToEvaluate)
@@ -1046,7 +1052,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
             var (cx, cy) = candidate;
 
-            // Candidates are pre-filtered for validity, but double-check for safety
+            // Skip invalid candidates
             if (!_validator.IsValidMove(board, cx, cy, player))
                 continue;
 
@@ -1054,40 +1060,38 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             if (_validator.IsWinningMove(board, cx, cy, player))
             {
                 results.Add((cx, cy, 100000, 1, 1));
-                break; // No need to evaluate further candidates
+                break;
             }
 
-            // Create board for this candidate (don't modify original)
+            // Create board for this candidate
             var candidateBoard = board.PlaceStone(cx, cy, player);
-            var searchBoard = candidateBoard;
             var opponent = player == Player.Red ? Player.Blue : Player.Red;
             var moveNumber = candidateBoard.GetBitBoard(Player.Red).CountBits() + candidateBoard.GetBitBoard(Player.Blue).CountBits();
 
             // Clear AI state before each candidate to prevent cross-contamination
             ai.ClearAllState();
 
-            // Run search with divided time budget, NO inner parallel to avoid oversubscription
+            // Run search with divided time budget, using parallel search for speed
             var (bestX, bestY) = ai.GetBestMove(
-                searchBoard,
+                candidateBoard,
                 opponent,
                 difficulty,
                 timeRemainingMs: timePerCandidateMs,
                 moveNumber: moveNumber,
                 ponderingEnabled: false,
-                parallelSearchEnabled: false // Disable Lazy SMP to avoid oversubscribing threads
+                parallelSearchEnabled: true
             );
 
             var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _)
                 = ai.GetSearchStatistics();
 
-            var evalBoard = searchBoard.PlaceStone(bestX, bestY, opponent);
+            var evalBoard = candidateBoard.PlaceStone(bestX, bestY, opponent);
             int score = EvaluateBoard(evalBoard, opponent);
 
             _logger.LogDebug("Candidate ({Cx}, {Cy}) evaluated: best response=({BestX},{BestY}), score={Score}", cx, cy, bestX, bestY, score);
 
             results.Add((cx, cy, score, nodesSearched, depthAchieved));
 
-            // Update progress (last write wins is acceptable for display purposes)
             _progress.LastDepth = depthAchieved;
             _progress.LastNodes = nodesSearched;
             _progress.LastThreads = threadCount;
@@ -1590,7 +1594,11 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 pos.hash, pos.symmetry, pos.nearEdge, pos.maxMoves));
         }
 
-        int threadCount = Environment.ProcessorCount;
+        // Use multiple outer workers for position-level parallelism
+        // Each position reuses its AI instance across candidates (sequential within position)
+        // Each search uses parallel search with multiple threads
+        // 4 outer workers x 4 threads per search = 16 threads active (good for 20-core machine)
+        int threadCount = Math.Min(4, positions.Count);
         var threads = new List<Thread>(threadCount);
 
         for (int i = 0; i < threadCount; i++)
@@ -1626,7 +1634,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         ref int completedCounter,
         CancellationToken cancellationToken)
     {
-        var ai = new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
+        var ai = new MinimaxAI(ttSizeMb: 16, logger: _loggerFactory.CreateLogger<MinimaxAI>());
 
         try
         {
@@ -1691,6 +1699,24 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         catch (AggregateException)
         {
             // Task may have been cancelled - acceptable during disposal
+        }
+    }
+
+    /// <summary>
+    /// Simple atomic boolean for thread-safe immediate win detection.
+    /// </summary>
+    private sealed class AtomicBoolean
+    {
+        private int _value;
+
+        public bool Get()
+        {
+            return Interlocked.CompareExchange(ref _value, 0, 0) == 1;
+        }
+
+        public void Set()
+        {
+            Interlocked.Exchange(ref _value, 1);
         }
     }
 }

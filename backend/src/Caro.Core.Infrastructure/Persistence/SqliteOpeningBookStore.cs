@@ -97,6 +97,7 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
                         Key TEXT PRIMARY KEY NOT NULL,
                         Value TEXT NOT NULL
                     );
+
                 ";
                 command.ExecuteNonQuery();
 
@@ -182,7 +183,7 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
 
                 using var command = Connection.CreateCommand();
                 command.CommandText = $@"
-                    INSERT OR REPLACE INTO {TableName} 
+                    INSERT OR REPLACE INTO {TableName}
                     (CanonicalHash, Depth, Player, Symmetry, IsNearEdge, MovesData, TotalMoves, CreatedAt)
                     VALUES ($hash, $depth, $player, $symmetry, $nearEdge, $moves, $totalMoves, $createdAt);
                 ";
@@ -211,71 +212,55 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
 
         lock (_lock)
         {
+            using var transaction = Connection.BeginTransaction();
+            bool committed = false;
+            
             try
             {
-                using var transaction = Connection.BeginTransaction();
-
                 using var command = Connection.CreateCommand();
                 command.Transaction = transaction;
                 command.CommandText = $@"
-                    INSERT OR REPLACE INTO {TableName} 
+                    INSERT OR REPLACE INTO {TableName}
                     (CanonicalHash, Depth, Player, Symmetry, IsNearEdge, MovesData, TotalMoves, CreatedAt)
                     VALUES ($hash, $depth, $player, $symmetry, $nearEdge, $moves, $totalMoves, $createdAt);
                 ";
 
-                var hashParam = command.CreateParameter();
-                hashParam.ParameterName = "$hash";
-                command.Parameters.Add(hashParam);
-
-                var depthParam = command.CreateParameter();
-                depthParam.ParameterName = "$depth";
-                command.Parameters.Add(depthParam);
-
-                var playerParam = command.CreateParameter();
-                playerParam.ParameterName = "$player";
-                command.Parameters.Add(playerParam);
-
-                var symmetryParam = command.CreateParameter();
-                symmetryParam.ParameterName = "$symmetry";
-                command.Parameters.Add(symmetryParam);
-
-                var nearEdgeParam = command.CreateParameter();
-                nearEdgeParam.ParameterName = "$nearEdge";
-                command.Parameters.Add(nearEdgeParam);
-
-                var movesParam = command.CreateParameter();
-                movesParam.ParameterName = "$moves";
-                command.Parameters.Add(movesParam);
-
-                var totalMovesParam = command.CreateParameter();
-                totalMovesParam.ParameterName = "$totalMoves";
-                command.Parameters.Add(totalMovesParam);
-
-                var createdAtParam = command.CreateParameter();
-                createdAtParam.ParameterName = "$createdAt";
-                command.Parameters.Add(createdAtParam);
-
                 int count = 0;
                 foreach (var entry in entries)
                 {
-                    hashParam.Value = (long)entry.CanonicalHash;
-                    depthParam.Value = entry.Depth;
-                    playerParam.Value = (int)entry.Player;
-                    symmetryParam.Value = (int)entry.Symmetry;
-                    nearEdgeParam.Value = entry.IsNearEdge ? 1 : 0;
-                    movesParam.Value = System.Text.Json.JsonSerializer.Serialize(entry.Moves);
-                    totalMovesParam.Value = entry.Moves.Length;
-                    createdAtParam.Value = DateTime.UtcNow.ToString("o");
+                    command.Parameters.Clear();
+                    command.Parameters.AddWithValue("$hash", (long)entry.CanonicalHash);
+                    command.Parameters.AddWithValue("$depth", entry.Depth);
+                    command.Parameters.AddWithValue("$player", (int)entry.Player);
+                    command.Parameters.AddWithValue("$symmetry", (int)entry.Symmetry);
+                    command.Parameters.AddWithValue("$nearEdge", entry.IsNearEdge ? 1 : 0);
+                    command.Parameters.AddWithValue("$moves", System.Text.Json.JsonSerializer.Serialize(entry.Moves));
+                    command.Parameters.AddWithValue("$totalMoves", entry.Moves.Length);
+                    command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("o"));
 
                     command.ExecuteNonQuery();
                     count++;
                 }
 
                 transaction.Commit();
+                committed = true;
                 _logger.LogDebug("Batch stored {Count} entries in transaction", count);
             }
             catch (Exception ex)
             {
+                // Only rollback if commit was not successful
+                if (!committed)
+                {
+                    try
+                    {
+                        transaction.Rollback();
+                    }
+                    catch (Exception rollbackEx)
+                    {
+                        // Log but don't throw - original exception is more important
+                        _logger.LogWarning(rollbackEx, "Failed to rollback transaction after error");
+                    }
+                }
                 _logger.LogError(ex, "Failed to store batch entries");
                 throw;
             }
@@ -334,7 +319,7 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
             using (var command = Connection.CreateCommand())
             {
                 command.CommandText = $@"
-                    SELECT 
+                    SELECT
                         COUNT(*) as TotalEntries,
                         COALESCE(MAX(Depth), 0) as MaxDepth,
                         COALESCE(SUM(TotalMoves), 0) as TotalMoves
