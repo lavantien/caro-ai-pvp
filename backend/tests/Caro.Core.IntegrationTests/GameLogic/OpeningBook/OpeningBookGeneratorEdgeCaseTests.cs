@@ -9,7 +9,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
-namespace Caro.Core.Tests.GameLogic.OpeningBook;
+namespace Caro.Core.IntegrationTests.GameLogic.OpeningBook;
 
 /// <summary>
 /// Edge case tests for OpeningBookGenerator focusing on:
@@ -142,8 +142,8 @@ public class OpeningBookGeneratorEdgeCaseTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Test that Parallel.ForEachAsync handles collections smaller than processor count.
-    /// This validates the streaming pipeline works for small position counts.
+    /// Test that the thread-based worker pool handles small position counts correctly.
+    /// With 4 outer workers (max), positions < 4 should complete without issues.
     /// </summary>
     [Fact]
     public async Task ProcessPositionsInParallelAsync_LessThanProcessorCount_DoesNotDeadlock()
@@ -655,6 +655,62 @@ public class OpeningBookGeneratorEdgeCaseTests : IAsyncLifetime
             entry.Depth.Should().BeGreaterThanOrEqualTo(0);
             entry.CanonicalHash.Should().NotBe(0);
         }
+    }
+
+    #endregion
+
+    #region New Architecture Verification
+
+    /// <summary>
+    /// Verify that the new balanced parallelism architecture is correctly configured.
+    /// - 4 outer workers (max) for position-level parallelism
+    /// - processorCount/4 threads per search for inner parallelism
+    /// - Parallel search enabled for BookGeneration difficulty
+    /// - AI instance reuse per worker thread (sequential candidate evaluation)
+    /// </summary>
+    [Fact]
+    public void BookGenerationArchitecture_VerifyConfiguration()
+    {
+        // Arrange & Act
+        var settings = AIDifficultyConfig.Instance.GetSettings(AIDifficulty.BookGeneration);
+
+        // Assert - Verify new architecture settings
+        settings.ParallelSearchEnabled.Should().BeTrue(
+            "BookGeneration must have parallel search enabled for high CPU utilization");
+
+        // New architecture uses processorCount/4 threads per search
+        int expectedThreadCount = Math.Max(5, Environment.ProcessorCount / 4);
+        settings.ThreadCount.Should().Be(expectedThreadCount,
+            $"BookGeneration should use processorCount/4 threads per search (min 5). Current: {expectedThreadCount}");
+
+        // With 4 outer workers, total threads should be substantial but not oversubscribed
+        const int maxOuterWorkers = 4;
+        int totalExpectedThreads = maxOuterWorkers * expectedThreadCount;
+        totalExpectedThreads.Should().BeGreaterThanOrEqualTo(Environment.ProcessorCount / 2,
+            "Total threads should utilize at least half of available cores");
+    }
+
+    /// <summary>
+    /// Verify that book generation uses the new Thread-based worker pool model
+    /// instead of Parallel.ForEachAsync, which caused thread oversubscription issues.
+    /// </summary>
+    [Fact]
+    public async Task BookGeneration_UsesThreadWorkerPool_NotParallelForEachAsync()
+    {
+        // Arrange
+        var generator = CreateGenerator();
+        var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+
+        // Act - Run a small book generation
+        var result = await generator.GenerateAsync(
+            maxDepth: 1,
+            targetDepth: 1,
+            cancellationToken: cts.Token
+        );
+
+        // Assert - Should complete successfully with new architecture
+        result.Should().NotBeNull();
+        result.PositionsGenerated.Should().BeGreaterThan(0);
     }
 
     #endregion

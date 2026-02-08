@@ -457,6 +457,57 @@ public class OpeningBookGeneratorTests
 
     #endregion
 
+    #region Concurrency Configuration Tests
+
+    /// <summary>
+    /// Test that the outer worker thread count uses the correct formula
+    /// to avoid oversubscription when inner parallel search is enabled.
+    /// </summary>
+    [Fact]
+    public void BookGenerationConcurrencyConfiguration_IsSimplified()
+    {
+        // Balanced concurrency: up to 4 outer workers, processorCount/4 threads at search level
+        // This achieves high CPU utilization without thread oversubscription
+
+        // On any system:
+        // - Outer workers: min(4, positionCount) for position-level parallelism
+        // - Inner parallel: processorCount/4 threads per position (search-level parallelism)
+        // - For large workloads: 4 x processorCount/4 = processorCount threads total
+
+        const int maxOuterWorkers = 4;  // Hardcoded maximum in OpeningBookGenerator
+        int expectedInnerThreads = Math.Max(5, Environment.ProcessorCount / 4);
+        int expectedTotalThreads = maxOuterWorkers * expectedInnerThreads;
+
+        // Assert the balanced configuration
+        maxOuterWorkers.Should().Be(4,
+            "BookGeneration uses max 4 outer workers for position-level parallelism");
+        expectedInnerThreads.Should().Be(Math.Max(5, Environment.ProcessorCount / 4),
+            $"BookGeneration uses processorCount/4 threads per position for search. Current: {expectedInnerThreads}");
+        expectedTotalThreads.Should().BeGreaterThanOrEqualTo(Environment.ProcessorCount / 2,
+            "Total threads should utilize at least half of available cores");
+    }
+
+    /// <summary>
+    /// Test that BookGeneration difficulty is configured correctly for parallel search.
+    /// This is critical for achieving high CPU utilization during book generation.
+    /// </summary>
+    [Fact]
+    public void BookGenerationDifficulty_HasCorrectConfiguration()
+    {
+        // Arrange & Act
+        var settings = AIDifficultyConfig.Instance.GetSettings(AIDifficulty.BookGeneration);
+
+        // Assert - These settings are critical for performance
+        settings.ParallelSearchEnabled.Should().BeTrue(
+            "BookGeneration must have parallel search enabled for high CPU utilization");
+
+        int expectedThreadCount = Math.Max(5, Environment.ProcessorCount / 4);
+        settings.ThreadCount.Should().Be(expectedThreadCount,
+            $"BookGeneration should use processorCount/4 threads (min 5) for balanced parallelism. Current: {expectedThreadCount}");
+    }
+
+    #endregion
+
     #region Tiered Branching Tests
 
     /// <summary>

@@ -585,13 +585,6 @@ public class MinimaxAI : IStatsPublisher
                 Phase = timeAlloc.Phase
             };
 
-            // DEBUG: Log time allocation for BookGeneration
-            if (difficulty == AIDifficulty.BookGeneration)
-            {
-                Console.WriteLine($"[BookGeneration DEBUG] timeRemainingMs={timeRemainingMs}, timeMultiplier={timeMultiplier}");
-                Console.WriteLine($"[BookGeneration DEBUG] adjustedTimeAlloc: Soft={adjustedTimeAlloc.SoftBoundMs}ms, Hard={adjustedTimeAlloc.HardBoundMs}ms, Optimal={adjustedTimeAlloc.OptimalTimeMs}ms");
-            }
-
             var parallelResult = _parallelSearch.GetBestMoveWithStats(
                 board,
                 player,

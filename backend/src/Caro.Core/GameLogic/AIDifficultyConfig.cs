@@ -141,11 +141,11 @@ public sealed class AIDifficultyConfig
             {
                 Difficulty = AIDifficulty.BookGeneration,
                 DisplayName = "BookGeneration",
-                ThreadCount = 1,                // Single thread per position (positions run in parallel)
+                ThreadCount = GetBookGenerationThreadCount(),
                 PonderingThreadCount = 0,
                 TimeMultiplier = 1.0,
                 TimeBudgetPercent = 1.0,
-                ParallelSearchEnabled = false,   // Disable: parallel positions, single-threaded search
+                ParallelSearchEnabled = true,    // Enable parallel search for maximum throughput
                 PonderingEnabled = false,
                 VCFEnabled = true,
                 ErrorRate = 0.0,
@@ -161,13 +161,15 @@ public sealed class AIDifficultyConfig
     }
 
     /// <summary>
-    /// Get book generation thread count using (processorCount-4) formula
-    /// More aggressive than grandmaster for faster book generation
+    /// Get book generation thread count for book generation.
+    /// Uses fewer threads per search to allow more parallel searches.
     /// </summary>
     private static int GetBookGenerationThreadCount()
     {
-        int processorCount = Environment.ProcessorCount;
-        return Math.Max(4, processorCount - 4);
+        // With position-level parallelism (4 outer workers) and sequential candidates,
+        // each search can use more threads for better core utilization
+        // 4 workers x 5 threads per search = 20 threads (optimal for 20-core machine)
+        return Math.Max(5, Environment.ProcessorCount / 4);
     }
 
     /// <summary>

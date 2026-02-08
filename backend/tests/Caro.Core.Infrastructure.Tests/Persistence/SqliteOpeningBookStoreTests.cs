@@ -218,6 +218,92 @@ public sealed class SqliteOpeningBookStoreTests : IDisposable
         _store.GetMetadata("NonExistent").Should().BeNull();
     }
 
+    [Fact]
+    public void StoreEntriesBatch_SingleEntry_DoesNotThrowArgumentOutOfRangeException()
+    {
+        // Arrange - This test specifically guards against the bug where parameter reuse
+        // caused SqliteConnection.RemoveCommand to throw ArgumentOutOfRangeException
+        // when disposing commands with reused parameter objects
+        var singleEntry = CreateTestEntry(canonicalHash: 99999UL, depth: 5, movesCount: 3);
+
+        // Act
+        var act = () => _store.StoreEntriesBatch(new[] { singleEntry });
+
+        // Assert - Should not throw ArgumentOutOfRangeException during command disposal
+        act.Should().NotThrow();
+        _store.ContainsEntry(99999UL).Should().BeTrue();
+    }
+
+    [Fact]
+    public void StoreEntriesBatch_CommitSucceeds_DoesNotThrowOnRollbackInFinally()
+    {
+        // Arrange - This test guards against the bug where Commit() succeeds but
+        // the finally block tries to rollback an already-committed transaction
+        var entry = CreateTestEntry(canonicalHash: 77777UL, depth: 3, movesCount: 4);
+
+        // Act - Store a single entry (commit succeeds, transaction should be null before finally)
+        var act = () => _store.StoreEntriesBatch(new[] { entry });
+
+        // Assert - Should not throw "cannot rollback - no transaction is active"
+        act.Should().NotThrow();
+        _store.ContainsEntry(77777UL).Should().BeTrue();
+    }
+
+    [Fact]
+    public void StoreEntriesBatch_FollowedByAnotherBatch_DoesNotThrow()
+    {
+        // Arrange - This tests that command disposal doesn't leave the connection
+        // in a corrupted state that affects subsequent batch operations
+        var batch1 = new List<OpeningBookEntry>
+        {
+            CreateTestEntry(canonicalHash: 1000UL, depth: 1),
+            CreateTestEntry(canonicalHash: 1001UL, depth: 1)
+        };
+        var batch2 = new List<OpeningBookEntry>
+        {
+            CreateTestEntry(canonicalHash: 2000UL, depth: 2),
+            CreateTestEntry(canonicalHash: 2001UL, depth: 2)
+        };
+
+        // Act
+        _store.StoreEntriesBatch(batch1);
+        var act = () => _store.StoreEntriesBatch(batch2);
+
+        // Assert
+        act.Should().NotThrow();
+        _store.GetStatistics().TotalEntries.Should().Be(4);
+    }
+
+    [Fact]
+    public void StoreEntriesBatch_MultipleBatchesSequentially_AllSucceed()
+    {
+        // Arrange - Stress test for sequential batch operations
+        // This ensures proper resource cleanup between batches
+        var allBatches = new List<List<OpeningBookEntry>>();
+        for (int batch = 0; batch < 10; batch++)
+        {
+            var batchEntries = new List<OpeningBookEntry>();
+            for (int i = 0; i < 5; i++)
+            {
+                batchEntries.Add(CreateTestEntry(
+                    canonicalHash: (ulong)(batch * 100 + i),
+                    depth: batch,
+                    movesCount: (i % 5) + 1
+                ));
+            }
+            allBatches.Add(batchEntries);
+        }
+
+        // Act
+        foreach (var batch in allBatches)
+        {
+            _store.StoreEntriesBatch(batch);
+        }
+
+        // Assert
+        _store.GetStatistics().TotalEntries.Should().Be(50); // 10 batches × 5 entries
+    }
+
     private static OpeningBookEntry CreateTestEntry(
         ulong canonicalHash,
         Player player = Player.Red,

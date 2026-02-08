@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.35.0] - 2026-02-09
+
+### Performance
+- **Major:** Opening book generation now achieves 70%+ CPU utilization across all cores
+  - Enabled parallel search for BookGeneration difficulty (was disabled)
+  - Optimized thread allocation: 4 outer workers x 5 threads per search = 20 threads
+  - Reduced memory footprint from 7-8GB to ~1GB through AI instance reuse
+  - Reduced MinimaxAI TT size from 64MB to 16MB for candidate evaluation
+  - Reduced TimePerPositionMs from 30s to 15s for faster generation
+- **Server GC enabled** for Caro.BookBuilder for better multi-threaded memory management
+
+### Changed
+- AIDifficultyConfig.GetBookGenerationThreadCount(): processorCount/4 (was 256 fixed)
+- OpeningBookGenerator: Reverted to sequential candidate evaluation (was parallel)
+  - Each position reuses one AI instance across 6 candidates
+  - Outer loop (4 workers) provides position-level parallelism
+  - Parallel search enabled within each candidate (processorCount/4 threads)
+- OpeningBookGeneratorEdgeCaseTests moved to IntegrationTests project (opt-in, slow tests)
+- Updated OpeningBookGeneratorTests to verify new architecture configuration
+- Removed debug Console.WriteLine statements from MinimaxAI for BookGeneration difficulty
+
+### Fixed
+- Nested parallelism causing thread oversubscription and low CPU utilization
+- Memory blowup from creating 24 concurrent MinimaxAI instances (276MB each)
+- Slow book generation progress (depth 3 in 2 minutes → depth 7-8 in 2 minutes)
+
+### Added
+- AIDifficultyConfigTests.cs with 7 tests for difficulty configuration validation
+- SqliteOpeningBookStoreTests.cs: 12 comprehensive infrastructure tests
+- OpeningBookGeneratorTests.cs: Edge case and behavior tests
+
+### Removed
+- Unused channel-based write loop code (replaced with direct batch storage)
+- AtomicBoolean helper class (no longer needed after reverting to sequential candidates)
+
+### Test Counts
+- Caro.Core.Tests: 338 unit tests (+7 AIDifficultyConfigTests, -5 OpeningBookGeneratorEdgeCaseTests moved)
+- Caro.Core.IntegrationTests: 148 tests (+5 OpeningBookGeneratorEdgeCaseTests moved)
+- Caro.Core.MatchupTests: 57 tests
+- Caro.Core.Domain.Tests: 67 tests
+- Caro.Core.Application.Tests: 8 tests
+- Caro.Core.Infrastructure.Tests: 72 tests (+12 SqliteOpeningBookStoreTests)
+- Total: 690+ backend tests passing
+
+[1.35.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.35.0
+
 ## [1.34.0] - 2026-02-08
 
 ### Fixed
