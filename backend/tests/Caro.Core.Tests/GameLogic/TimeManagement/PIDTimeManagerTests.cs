@@ -123,7 +123,7 @@ public class PIDTimeManagerTests
         // Act - Build up some error
         manager.CalculateTimeAdjustment(remainingTimeMs: 5000, movesRemaining: 10);
         manager.CalculateTimeAdjustment(remainingTimeMs: 5000, movesRemaining: 10);
-        
+
         // Reset
         manager.Reset();
 
