@@ -358,6 +358,12 @@ Backend: http://localhost:5207 | Frontend: http://localhost:5173
 
 ---
 
+## Documentation
+
+**Improvement Research:** `IMPROVEMENT_RESEARCH.md` - Comprehensive research report on AI optimization techniques from Rapfi, Stockfish 18, Chess Programming Wiki, and advanced optimization methods.
+
+---
+
 ## License
 
 MIT

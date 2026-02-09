@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.37.0] - 2026-02-09
+
+### Added
+- **AI Improvement Research** - Comprehensive research report (`IMPROVEMENT_RESEARCH.md`) analyzing optimization techniques from:
+  - Rapfi Gomoku/Renju engine (board representation, pattern system, move ordering)
+  - Stockfish 18 (continuation history, adaptive LMR, multi-entry TT, evaluation caching)
+  - Chess Programming Wiki (search optimizations, pruning techniques)
+  - Advanced optimization methods (CLOP, SPSA/RSPSA, TD Learning, PID time management, contempt factor)
+- **Prioritized roadmap** with 3 implementation phases targeting 340-660 ELO improvement
+- **Specific recommendations** for Caro AI including TD Learning for continuous evaluation improvement
+
+### Documentation
+- Added reference to IMPROVEMENT_RESEARCH.md in README.md
+- Research covers techniques with potential gains: TD Learning (+100-200 ELO), Multi-Entry TT (+30-50 ELO), SPSA/RSPSA (+30-60 ELO)
+
+[1.37.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.37.0
+
 ## [1.36.0] - 2026-02-09
 
 ### Changed
