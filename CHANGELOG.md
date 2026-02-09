@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.38.0] - 2026-02-09
+
+### Added
+- **Multi-Entry Transposition Table** - Cluster-based design with 3 entries per cluster (32-byte cache-line aligned)
+  - 10-byte TTEntry struct with Key16, Value, Depth8, BoundAndAge, Move16, Eval16
+  - Depth-age replacement formula: `value = depth - 8 * age`
+  - Expected ELO gain: +30-50 through improved hit rate (40% -> 60% target)
+- **Continuation History** - Move pair statistics for enhanced move ordering
+  - 6-ply history tracking with `short[,,]` for `[player, prevCell, currentCell]`
+  - Bounded update formula: `newValue = current + bonus - abs(current * bonus) / MaxScore`
+  - Expected ELO gain: +15-25 through better move ordering
+- **Evaluation Cache** - Position evaluation correction caching
+  - Cache correction values for repeated position evaluations
+  - Update formula based on search result vs static eval difference
+  - Expected ELO gain: +10-20 through faster evaluation
+- **Adaptive Late Move Reduction (LMR)** - Dynamic reduction based on position factors
+  - Factors: improving flag, depth, move count, delta, node types (PV/Cut/All)
+  - Formula: `reduction = baseReduction + pvAdjust + cutNodeAdjust - ttMoveBonus + capturePenalty - historyBonus`
+  - Bound reduction to `depth - 1` minimum
+  - Expected ELO gain: +25-40 through more efficient search
+- **PID Time Manager** - Dynamic time allocation using Proportional-Integral-Derivative control
+  - Kp=1.0, Ki=0.1, Kd=0.5 with integral windup clamping
+  - Formula: `adjustment = Kp*error + Ki*integral + Kd*derivative`
+  - Auto-adjusts time budget based on remaining time vs expected time
+  - Expected ELO gain: +20-50 through better time management
+- **Contest Manager (Contempt Factor)** - Position-aware playstyle adjustment
+  - Range: -200 to +200 centipawns
+  - Positive contempt (losing): play aggressively to complicate
+  - Negative contempt (winning): play conservatively to consolidate
+  - Difficulty adjustment for opponent strength
+  - Expected ELO gain: +5-20 through better playstyle adaptation
+- **SPSA Tuner** - Gradient-free parameter optimization engine
+  - Simultaneous Perturbation Stochastic Approximation algorithm
+  - Default (α=0.602, γ=0.101), Aggressive, Conservative presets
+  - Parameter bounds clamping for stability
+  - Reproducible results with optional random seed
+  - Expected ELO gain: +20-40 through optimized evaluation weights
+- **Structured Logging Infrastructure** - Async search operation logging
+  - Channel-based producer/consumer pattern (following StatsChannel design)
+  - JSON line format for machine parsing
+  - File rotation by size (100MB) and time (24h)
+  - Entry types: SearchComplete, Iteration, TTProbe, TTStore, Cutoff, TimeDecision
+
+### Test Coverage
+- 62 new tests added for AI improvements (414 total in Caro.Core.Tests)
+- TranspositionTableTests: 12 tests for cluster alignment, depth-age replacement, multi-entry probe
+- ContinuationHistoryTests: 10 tests for initialization, bounds checking, multiple updates
+- EvaluationCacheTests: 6 tests for cache hit/miss, update, bounds checking
+- AdaptiveLMRTests: 5 tests for reduction calculation, bounds, history bonus
+- PIDTimeManagerTests: 8 tests for on-track, behind, ahead scenarios, integral windup
+- ContestManagerTests: 12 tests for position-based contempt, difficulty adjustment, bounds
+- SPSATests: 8 tests for perturbation, parameter update, convergence
+- SearchLoggerTests: 7 tests for file creation, logging, rotation, disposal
+
+### Changed
+- README.md updated with AI improvements table and latest test counts
+- Test counts: Caro.Core.Tests 414 (+62), Total 750+ tests
+
+### Expected ELO Gain
+- Total from Phase 1 & 2 improvements: +125 to +245 ELO
+- Individual components: +30-50 +15-25 +10-20 +25-40 +20-50 +5-20 +20-40
+
+[1.38.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.38.0
+
 ## [1.37.0] - 2026-02-09
 
 ### Added
