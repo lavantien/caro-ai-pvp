@@ -39,6 +39,7 @@ public sealed class ParallelMinimaxSearch
     private readonly BoardEvaluator _evaluator;
     private readonly WinDetector _winDetector;
     private readonly ThreatSpaceSearch _vcfSolver;
+    private readonly ContinuationHistory _continuationHistory = new();
     private readonly Random _random;
     private readonly int _maxThreads;
     private readonly TimeBudgetDepthManager _depthManager = new();
@@ -79,6 +80,11 @@ public sealed class ParallelMinimaxSearch
         // severe performance degradation. Each thread now counts locally and we aggregate.
         public long LocalNodesSearched;
 
+        // Continuation history: tracks move history for up to 6 previous plies
+        // Uses cell indices (0-360 for 19x19 board) for efficient lookup
+        public int[] MoveHistory = new int[ContinuationHistory.TrackedPlyCount];
+        public int MoveHistoryCount;
+
         public Random Random = new();
 
         public void Reset()
@@ -89,6 +95,9 @@ public sealed class ParallelMinimaxSearch
                 KillerMoves[i, 0] = (-1, -1);
                 KillerMoves[i, 1] = (-1, -1);
             }
+            // Clear move history
+            Array.Clear(MoveHistory, 0, MoveHistory.Length);
+            MoveHistoryCount = 0;
         }
     }
 
@@ -842,6 +851,19 @@ public sealed class ParallelMinimaxSearch
                 doLMR = true;
             }
 
+            // Push current move to history for continuation tracking
+            int currentCell = y * BitBoard.Size + x;
+            if (threadData.MoveHistoryCount < ContinuationHistory.TrackedPlyCount)
+            {
+                // Shift existing history to make room at the front
+                for (int j = Math.Min(threadData.MoveHistoryCount, ContinuationHistory.TrackedPlyCount - 1); j > 0; j--)
+                {
+                    threadData.MoveHistory[j] = threadData.MoveHistory[j - 1];
+                }
+                threadData.MoveHistory[0] = currentCell;
+                threadData.MoveHistoryCount = Math.Min(threadData.MoveHistoryCount + 1, ContinuationHistory.TrackedPlyCount);
+            }
+
             var newBoard = board.PlaceStone(x, y, currentPlayer);
             int score;
 
@@ -897,7 +919,27 @@ public sealed class ParallelMinimaxSearch
                     RecordKillerMove(threadData, rootDepth - depth, x, y);
                 }
                 RecordHistoryMove(threadData, currentPlayer, x, y, depth);
+
+                // Update continuation history for this successful move
+                // Use move history to update continuation scores
+                int bonus = depth * depth * 4;
+                for (int j = 1; j < threadData.MoveHistoryCount && j <= ContinuationHistory.TrackedPlyCount; j++)
+                {
+                    int prevCell = threadData.MoveHistory[j];
+                    _continuationHistory.Update(currentPlayer, prevCell, currentCell, bonus);
+                }
+
                 break;
+            }
+
+            // Pop move from history (shift back)
+            if (threadData.MoveHistoryCount > 0)
+            {
+                for (int j = 0; j < threadData.MoveHistoryCount - 1; j++)
+                {
+                    threadData.MoveHistory[j] = threadData.MoveHistory[j + 1];
+                }
+                threadData.MoveHistoryCount--;
             }
         }
 
@@ -955,20 +997,33 @@ public sealed class ParallelMinimaxSearch
             if (cachedMove.HasValue && cachedMove.Value == (x, y))
                 score += 1000000;
 
-            // 3. Winning Move (Tactical)
+            // 3. Continuation History (Higher priority than killer moves)
+            // Weight formula: 2 * mainHistory + sum(continuationHistory[0..2])
+            // Continuation history tracks which moves have been good after previous moves
+            int currentCell = y * BitBoard.Size + x;
+            int continuationScore = 0;
+            for (int j = 0; j < threadData.MoveHistoryCount && j < ContinuationHistory.TrackedPlyCount; j++)
+            {
+                int prevCell = threadData.MoveHistory[j];
+                continuationScore += _continuationHistory.GetScore(player, prevCell, currentCell);
+            }
+            // Weight: continuation history gets bonus up to 300000
+            score += Math.Min(continuationScore * 3, 300000);
+
+            // 4. Winning Move (Tactical)
             // (You can call EvaluateTactical here if you want greater precision)
 
-            // 4. Killer Moves
+            // 5. Killer Moves
             if (depth < 20)
             {
                 if (threadData.KillerMoves[depth, 0] == (x, y)) score += 500000;
                 else if (threadData.KillerMoves[depth, 1] == (x, y)) score += 400000;
             }
 
-            // 5. History Heuristic
-            score += Math.Min(historyTable[x, y], 10000);
+            // 6. History Heuristic (weighted 2x as part of composite score)
+            score += Math.Min(historyTable[x, y] * 2, 20000);
 
-            // 6. Center Preference & Proximity
+            // 7. Center Preference & Proximity
             int center = board.BoardSize / 2;
             int centerDist = Math.Abs(x - center) + Math.Abs(y - center);
             score += ((board.BoardSize * 2 - 4) - centerDist) * 100;
@@ -1870,6 +1925,60 @@ public sealed class ParallelMinimaxSearch
     /// Check if search is currently running
     /// </summary>
     public bool IsSearching => _searchStopwatch != null && _searchStopwatch.IsRunning;
+
+    #endregion
+
+    #region Test Helpers
+
+    /// <summary>
+    /// Public test wrapper for OrderMoves to allow testing continuation history integration.
+    /// This method is internal for testing purposes only.
+    /// </summary>
+    internal List<(int x, int y)> OrderMovesPublic(
+        List<(int x, int y)> candidates,
+        int depth,
+        Board board,
+        Player player,
+        (int x, int y)? cachedMove,
+        int[] moveHistory,
+        (int x, int y)? killerMove = null)
+    {
+        // Create a test ThreadData with the provided move history
+        var threadData = new ThreadData
+        {
+            ThreadIndex = 0
+        };
+
+        // Set move history
+        for (int i = 0; i < Math.Min(moveHistory.Length, ContinuationHistory.TrackedPlyCount); i++)
+        {
+            threadData.MoveHistory[i] = moveHistory[i];
+        }
+        threadData.MoveHistoryCount = Math.Min(moveHistory.Length, ContinuationHistory.TrackedPlyCount);
+
+        // Set killer move if provided
+        if (killerMove.HasValue && depth < 20)
+        {
+            threadData.KillerMoves[depth, 0] = killerMove.Value;
+        }
+
+        return OrderMoves(candidates, depth, board, player, cachedMove, threadData);
+    }
+
+    /// <summary>
+    /// Public test wrapper for GetCandidateMoves.
+    /// </summary>
+    internal static List<(int x, int y)> GetMoveCandidates(Board board)
+    {
+        // This is a simplified version for testing
+        var search = new ParallelMinimaxSearch();
+        return search.GetCandidateMoves(board);
+    }
+
+    /// <summary>
+    /// Get the shared continuation history for testing.
+    /// </summary>
+    internal ContinuationHistory GetContinuationHistory() => _continuationHistory;
 
     #endregion
 }
