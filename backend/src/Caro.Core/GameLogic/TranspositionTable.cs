@@ -228,7 +228,7 @@ public class TranspositionTable
         // Key16 stores high 16 bits of hash, ORed with 1 to ensure non-zero
         var key16 = (ushort)(hash >> 48);
         if (key16 == 0) key16 = 1; // Ensure non-zero to distinguish from empty
-        
+
         var newEntry = new TTEntry
         {
             Key16 = key16,
