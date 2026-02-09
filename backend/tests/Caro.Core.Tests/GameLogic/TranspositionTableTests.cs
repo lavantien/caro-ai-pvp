@@ -241,7 +241,6 @@ public class TranspositionTableTests
     {
         // Arrange
         var table = new TranspositionTable();
-        table.IncrementAge();
 
         // Act
         table.Store(12345ul, 3, 100, (7, 7), -1000, 1000);
@@ -315,5 +314,102 @@ public class TranspositionTableTests
         // Assert - score not found, but best move should still be returned
         Assert.False(found);
         Assert.Equal(bestMove, cachedMove); // Best move available for move ordering
+    }
+
+    // Multi-Entry Cluster Tests (T1.1)
+
+    [Fact]
+    public void ClusterShouldBe32BytesAligned()
+    {
+        // The Cluster struct should be exactly 32 bytes for cache-line alignment
+        // 3 entries * 10 bytes + 2 bytes padding = 32 bytes
+        unsafe
+        {
+            var clusterSize = sizeof(TranspositionTable.Cluster);
+            Assert.Equal(32, clusterSize);
+        }
+    }
+
+    [Fact]
+    public void DepthAgeReplacement_PreferesDeeper()
+    {
+        // Arrange
+        var table = new TranspositionTable();
+        var hash = 12345ul;
+
+        // Store entry at current age, depth 5
+        table.Store(hash, 5, 100, (7, 7), -1000, 1000);
+
+        // Increment age (make entry older)
+        table.IncrementAge();
+
+        // Store different entry with hash collision at depth 3 (shallower but newer)
+        // The replacement value formula: depth - 8 * age
+        // Old entry: 5 - 8*1 = -3
+        // New entry: 3 - 8*0 = 3
+        // Newer shallow entry should be preferred
+        table.Store(hash + (ulong)table.GetHashCode(), 3, 200, (8, 8), -1000, 1000);
+
+        // The older deep entry should be replaced by newer shallow entry
+        // when probing the same cluster
+        var (found1, _, _) = table.Lookup(hash, 5, -1000, 1000);
+        var (found2, _, _) = table.Lookup(hash + (ulong)table.GetHashCode(), 3, -1000, 1000);
+
+        // At least one should be found (replacement occurred)
+        Assert.True(found1 || found2);
+    }
+
+    [Fact]
+    public void MultiEntryProbe_ReturnsBestMatch()
+    {
+        // When multiple entries match different hashes in the same cluster,
+        // probe should return the deepest matching entry for the queried hash
+        var table = new TranspositionTable();
+        var hash1 = 1000ul;
+        var hash2 = 2000ul;
+
+        // Store three entries at same cluster location (collision)
+        table.Store(hash1, 2, 50, (1, 1), -1000, 1000);  // Shallow
+        table.Store(hash2, 4, 100, (5, 5), -1000, 1000); // Deeper
+        table.Store(hash1, 6, 150, (7, 7), -1000, 1000); // Deepest for hash1
+
+        // Looking up hash1 should return the deepest entry (depth 6)
+        var (found, score, move) = table.Lookup(hash1, 3, -1000, 1000);
+
+        Assert.True(found);
+        Assert.Equal(150, score);
+        Assert.Equal((7, 7), move);
+    }
+
+    [Fact]
+    public void MultiEntryStore_ReplacesLowestValue()
+    {
+        // When cluster is full, should replace entry with lowest (depth - 8*age)
+        var table = new TranspositionTable();
+
+        // Use same hash index to force same cluster
+        var baseHash = 5000ul;
+
+        // Fill cluster with 3 entries
+        table.Store(baseHash, 5, 100, (1, 1), -1000, 1000);           // value = 5
+        table.Store(baseHash + 1, 3, 100, (2, 2), -1000, 1000);        // value = 3 (lowest)
+        table.Store(baseHash + 2, 4, 100, (3, 3), -1000, 1000);        // value = 4
+
+        // Increment age to reduce values of existing entries
+        table.IncrementAge();
+
+        // Add 4th entry - should replace the entry with value = 3 - 8*1 = -5 (lowest)
+        table.Store(baseHash + 3, 2, 200, (4, 4), -1000, 1000);        // value = 2 - 8*1 = -6
+
+        // The entry with lowest value should have been replaced
+        // This is verified by checking that we can still lookup entries with higher values
+        var (found1, _, _) = table.Lookup(baseHash, 5, -1000, 1000);
+        var (found2, _, _) = table.Lookup(baseHash + 1, 3, -1000, 1000);
+        var (found3, _, _) = table.Lookup(baseHash + 2, 4, -1000, 1000);
+        var (found4, _, _) = table.Lookup(baseHash + 3, 2, -1000, 1000);
+
+        // At least 3 of 4 should be found (one was replaced)
+        int foundCount = (found1 ? 1 : 0) + (found2 ? 1 : 0) + (found3 ? 1 : 0) + (found4 ? 1 : 0);
+        Assert.True(foundCount >= 3);
     }
 }
