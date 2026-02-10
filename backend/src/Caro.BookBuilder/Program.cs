@@ -59,7 +59,7 @@ class Program
 
         // Hardcoded book structure: 4-3-2-1 tapered beam up to ply 40
         const int MaxBookDepth = 40;
-        const int TargetSearchDepth = 32;
+        const int TargetSearchDepth = 12;
 
         // Parse remaining arguments
         // From build output directory, go up 6 levels to reach repo root
