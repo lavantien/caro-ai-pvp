@@ -114,8 +114,10 @@ Precomputed opening positions with SQLite storage, symmetry reduction, and paral
 - **Configurable depth** - Hard: 24 plies, Grandmaster: 32 plies, Experimental: 40 plies
 - **Tiered continuation** - Response counts decrease with depth (4→3→2→1) ensuring coverage
 - **Symmetry reduction** - 8-way transformations reduce storage by ~8x
-- **Worker pool** - Parallel position/candidate evaluation for 30x throughput
-- **Resume capability** - Incremental deepening of existing books
+- **Optimized generation** - 60-67 positions/minute through aggressive pruning (12-15x speedup)
+  - Smart candidate pruning: 2-5 candidates evaluated per position
+  - Depth 6 search cap with static eval threshold filtering
+  - Resume capability - Incremental deepening of existing books
 
 **Generate book:**
 ```bash

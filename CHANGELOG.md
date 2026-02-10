@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.39.0] - 2026-02-10
+
+### Added
+- **Opening Book Generation Performance Optimization** - 12-15x speedup for book generation
+  - Reduced `TimePerPositionMs` from 15000ms to 1000ms (15x reduction)
+  - Reduced per-candidate time floor from 5000ms to 100ms (50x reduction)
+  - Removed survival zone time bonus (+50% adjustment eliminated)
+  - Fixed time allocation math with proportional buffer instead of fixed 1000ms
+  - Depth cap for BookGeneration reduced from unlimited to depth 6
+  - TargetSearchDepth reduced from 32 to 12 for faster generation
+  - Candidate count reduced: survival zone 10→5, other zones 6→3
+  - Smart candidate pruning: filter out candidates >300 points worse than best (always keep top 2)
+
+### Performance
+- **Opening Book Generation Speed**
+  - Before: ~4-5 positions/minute
+  - After: ~60-67 positions/minute
+  - Total speedup: 12-15x improvement
+- **Smart Pruning Impact**
+  - Most positions reduced to 2-3 candidates after static evaluation filtering
+  - Maximum of 5 candidates in survival zone (often pruned further)
+  - Estimated completion time: 1-2 days (down from weeks/months)
+
+### Changed
+- `OpeningBookGenerator.cs`: Optimized time allocation, candidate selection, and pruning
+- `MinimaxAI.cs`: Added depth cap for BookGeneration, fixed time allocation math
+- `Program.cs`: Reduced TargetSearchDepth from 32 to 12
+
+### Notes
+- Book structure (4-3-2-1 tapered beam) remains unchanged
+- Full book regeneration recommended for consistent move quality
+- Hybrid approach possible: old evaluations at shallow depths, new at deeper depths
+
+[1.39.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.39.0
+
 ## [1.38.0] - 2026-02-09
 
 ### Added
