@@ -341,8 +341,8 @@ public class MinimaxAI : IStatsPublisher
             timeAlloc = (difficulty == AIDifficulty.BookGeneration && timeRemainingMs.HasValue)
                 ? GetDefaultTimeAllocation(difficulty) with
                 {
-                    SoftBoundMs = timeRemainingMs.Value - 1000,  // Leave 1s margin
-                    HardBoundMs = timeRemainingMs.Value - 100,
+                    SoftBoundMs = Math.Max(50, timeRemainingMs.Value - Math.Min(1000, timeRemainingMs.Value / 10)),
+                    HardBoundMs = timeRemainingMs.Value,
                     OptimalTimeMs = (long)(timeRemainingMs.Value * 0.8)
                 }
                 : GetDefaultTimeAllocation(difficulty);
@@ -683,6 +683,12 @@ public class MinimaxAI : IStatsPublisher
 
         while (true)  // Time-based only - depth is incidental
         {
+            // Depth cap for BookGeneration to prevent indefinite search
+            if (difficulty == AIDifficulty.BookGeneration && currentDepth > 6)
+            {
+                break;
+            }
+
             // Check time bounds using TimeAllocation
             var elapsed = _searchStopwatch.ElapsedMilliseconds;
 
