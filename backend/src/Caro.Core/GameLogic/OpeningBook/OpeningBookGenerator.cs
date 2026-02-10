@@ -885,6 +885,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
         // EARLY EXIT: If best move dominates, skip remaining evaluation
         // Use more aggressive thresholds at deeper depths
+        // IMPORTANT: For opening book, ensure we always keep at least maxMoves for the beam structure
         if (sortedResults.Count >= 2)
         {
             int threshold = currentDepth >= 6 ? 150 : 200;  // More aggressive at depth 6+
@@ -894,7 +895,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             {
                 // Best move is clearly superior - stop evaluating further candidates
                 _logger.LogDebug("Early exit: best move dominates with score gap {ScoreGap} > {Threshold}", scoreGap, threshold);
-                sortedResults = sortedResults.Take(1).ToList();
+                // Keep minimum of maxMoves for beam structure, or 1 if that's all we have
+                int minToKeep = Math.Min(maxMoves, sortedResults.Count);
+                sortedResults = sortedResults.Take(minToKeep).ToList();
             }
         }
 
@@ -1128,6 +1131,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
         // EARLY EXIT: If best move dominates, skip remaining evaluation
         // Use more aggressive thresholds at deeper depths
+        // IMPORTANT: For opening book, ensure we always keep at least maxMoves for the beam structure
         if (sortedResults.Count >= 2)
         {
             int threshold = currentDepth >= 6 ? 150 : 200;  // More aggressive at depth 6+
@@ -1137,7 +1141,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             {
                 // Best move is clearly superior - stop evaluating further candidates
                 _logger.LogDebug("Early exit: best move dominates with score gap {ScoreGap} > {Threshold}", scoreGap, threshold);
-                sortedResults = sortedResults.Take(1).ToList();
+                // Keep minimum of maxMoves for beam structure, or 1 if that's all we have
+                int minToKeep = Math.Min(maxMoves, sortedResults.Count);
+                sortedResults = sortedResults.Take(minToKeep).ToList();
             }
         }
 
