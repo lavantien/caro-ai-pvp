@@ -32,7 +32,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     );
     private const int MaxBookMoves = 12;           // Maximum plies in book (6 moves each)
     private const int MaxCandidatesPerPosition = 8; // Top N moves to store per position
-    private const int TimePerPositionMs = 15000;   // 15 seconds per position - with 4 parallel positions, gives deep search
+    private const int TimePerPositionMs = 1000;   // 15 seconds per position - with 4 parallel positions, gives deep search
 
     // Channel-based write buffer configuration
     private const int WriteChannelCapacity = 1000;         // Bounded channel capacity for backpressure
@@ -768,12 +768,24 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
         // Evaluate more candidates in survival zone (plies 6-13, moves 4-7)
         int currentDepth = _progress.CurrentDepth;
-        int candidatesToTake = (currentDepth >= SurvivalZoneStartPly && currentDepth <= SurvivalZoneEndPly) ? 10 : 6;
+        int candidatesToTake = (currentDepth >= SurvivalZoneStartPly && currentDepth <= SurvivalZoneEndPly) ? 5 : 3;
 
         var candidatesToEvaluate = validCandidates
             .OrderByDescending(c => BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player))
             .Take(Math.Min(validCandidates.Count, candidatesToTake))
             .ToList();
+
+        // Smart pruning: Drop candidates that are statically much worse than the best one
+        if (candidatesToEvaluate.Count > 1)
+        {
+            int bestStaticScore = BoardEvaluator.EvaluateMoveAt(candidatesToEvaluate[0].Item1, candidatesToEvaluate[0].Item2, board, player);
+
+            // Drop candidates that are statically > 300 points worse than the best one
+            // Exception: Always keep at least top 2 to ensure some variety
+            candidatesToEvaluate = candidatesToEvaluate
+                .Where((c, index) => index < 2 || (bestStaticScore - BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player)) < 300)
+                .ToList();
+        }
 
         _logger.LogDebug("Candidate filtering: {TotalCandidates} total -> {ValidCandidates} valid -> {CandidatesToEvaluate} to evaluate",
             candidates.Count, validCandidates.Count, candidatesToEvaluate.Count);
@@ -781,18 +793,15 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         _logger.LogDebug("Position evaluation: {TotalCandidates} total candidates -> {CandidatesToEvaluate} candidates to evaluate", candidates.Count, candidatesToEvaluate.Count);
 
         // Adaptive time allocation based on depth
-        // Reduce time for early positions (simpler positions), increase for deep positions
-        // SURVIVAL ZONE (plies 6-13, moves 4-7) gets extra time for thorough evaluation
+        // Flat time allocation for consistent performance across all depths
         int depthAdjustment = currentDepth switch
         {
-            <= 3 => -30,    // Early positions: 30% less time
-            <= 5 => 0,      // Pre-survival: standard time
-            <= 13 => +50,   // SURVIVAL ZONE: 50% more time (plies 6-13)
-            _ => +20        // Late positions: 20% more time
+            <= 5 => -20,    // Early positions: 20% less time (simpler positions)
+            _ => 0          // All other positions: standard time
         };
 
         int adjustedTimePerPosition = TimePerPositionMs * (100 + depthAdjustment) / 100;
-        var timePerCandidateMs = Math.Max(5000, adjustedTimePerPosition / candidatesToEvaluate.Count);
+        var timePerCandidateMs = Math.Max(100, adjustedTimePerPosition / candidatesToEvaluate.Count);
 
         // TIERED CONCURRENCY: Process candidates sequentially with a single AI
         // The outer loop uses ~4-6 worker threads (processorCount/4) for position-level parallelism.
@@ -1015,12 +1024,24 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
         // Evaluate more candidates in survival zone (plies 6-13, moves 4-7)
         int currentDepth = _progress.CurrentDepth;
-        int candidatesToTake = (currentDepth >= SurvivalZoneStartPly && currentDepth <= SurvivalZoneEndPly) ? 10 : 6;
+        int candidatesToTake = (currentDepth >= SurvivalZoneStartPly && currentDepth <= SurvivalZoneEndPly) ? 5 : 3;
 
         var candidatesToEvaluate = validCandidates
             .OrderByDescending(c => BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player))
             .Take(Math.Min(validCandidates.Count, candidatesToTake))
             .ToList();
+
+        // Smart pruning: Drop candidates that are statically much worse than the best one
+        if (candidatesToEvaluate.Count > 1)
+        {
+            int bestStaticScore = BoardEvaluator.EvaluateMoveAt(candidatesToEvaluate[0].Item1, candidatesToEvaluate[0].Item2, board, player);
+
+            // Drop candidates that are statically > 300 points worse than the best one
+            // Exception: Always keep at least top 2 to ensure some variety
+            candidatesToEvaluate = candidatesToEvaluate
+                .Where((c, index) => index < 2 || (bestStaticScore - BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player)) < 300)
+                .ToList();
+        }
 
         _logger.LogDebug("Candidate filtering: {TotalCandidates} total -> {ValidCandidates} valid -> {CandidatesToEvaluate} to evaluate",
             candidates.Count, validCandidates.Count, candidatesToEvaluate.Count);
@@ -1028,18 +1049,15 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         _logger.LogDebug("Position evaluation: {TotalCandidates} total candidates -> {CandidatesToEvaluate} candidates to evaluate", candidates.Count, candidatesToEvaluate.Count);
 
         // Adaptive time allocation based on depth
-        // Reduce time for early positions (simpler positions), increase for deep positions
-        // SURVIVAL ZONE (plies 6-13, moves 4-7) gets extra time for thorough evaluation
+        // Flat time allocation for consistent performance across all depths
         int depthAdjustment = currentDepth switch
         {
-            <= 3 => -30,    // Early positions: 30% less time
-            <= 5 => 0,      // Pre-survival: standard time
-            <= 13 => +50,   // SURVIVAL ZONE: 50% more time (plies 6-13)
-            _ => +20        // Late positions: 20% more time
+            <= 5 => -20,    // Early positions: 20% less time (simpler positions)
+            _ => 0          // All other positions: standard time
         };
 
         int adjustedTimePerPosition = TimePerPositionMs * (100 + depthAdjustment) / 100;
-        var timePerCandidateMs = Math.Max(5000, adjustedTimePerPosition / candidatesToEvaluate.Count);
+        var timePerCandidateMs = Math.Max(100, adjustedTimePerPosition / candidatesToEvaluate.Count);
 
         // SEQUENTIAL CANDIDATE EVALUATION with reused AI instance
         // Reusing AI prevents the 276MB x 4 = 1.1GB memory blowup
