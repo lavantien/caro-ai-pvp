@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.40.0] - 2026-02-11
+
+### Fixed
+- **Critical:** Opening book symmetry transformation bug
+  - Fixed line 346 in OpeningBookGenerator.cs where `canonical.SymmetryApplied` was used instead of `existingEntry.Symmetry`
+  - When retrieving positions from the book, the code now uses the symmetry stored when the entry was originally created
+  - This fixes "Cell is already occupied" errors that occurred when stored moves were transformed using incorrect symmetry
+  - Also fixed line 347 to use `existingEntry.IsNearEdge` for consistency
+
+### Added
+- **Opening Book Symmetry Tests** - 24 new unit tests for symmetry transformation
+  - Tests verify that stored positions use the correct symmetry when retrieving and transforming moves
+  - Coverage includes all 8 symmetry types (Identity, Rotate90, Rotate180, Rotate270, FlipHorizontal, FlipVertical, DiagonalA, DiagonalB)
+  - Edge position handling tests (absolute coordinates, no symmetry transformation)
+  - Symmetry transformation mathematical consistency validation
+  - Integration test with actual OpeningBookGenerator
+
+### Test Coverage
+- Caro.Core.Tests: 438 tests (+24 symmetry tests)
+- New test file: OpeningBookSymmetryTests.cs
+
+### Verified
+- Book builder runs without "INTERNAL ERROR" messages
+- All 24 symmetry tests pass
+- Integration test passed (90+ seconds of book generation)
+
+[1.40.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.40.0
+
 ## [1.39.0] - 2026-02-10
 
 ### Added
