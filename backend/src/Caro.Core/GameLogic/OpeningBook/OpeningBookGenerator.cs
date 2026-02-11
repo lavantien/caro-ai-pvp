@@ -343,8 +343,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                                 pos.Player,
                                 pos.Depth,
                                 canonical.CanonicalHash,
-                                canonical.SymmetryApplied,
-                                canonical.IsNearEdge,
+                                existingEntry.Symmetry,
+                                existingEntry.IsNearEdge,
                                 existingEntry.Moves
                             ));
                         }
