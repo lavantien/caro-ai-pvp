@@ -39,16 +39,16 @@ public class OpeningBookSymmetryTests
         // Arrange
         var store = new MockOpeningBookStore();
         var canonicalizer = new PositionCanonicalizer();
-        
+
         // Create a board with center position (not near edge, so symmetry reduction applies)
         // Red at (9, 9), Blue at (8, 8)
         var board1 = new Board();
         board1 = board1.PlaceStone(9, 9, Player.Red);
         board1 = board1.PlaceStone(8, 8, Player.Blue);
-        
+
         // Canonicalize this board - will find some symmetry (likely not Identity)
         var canonical1 = canonicalizer.Canonicalize(board1);
-        
+
         // Store an entry with the canonical symmetry
         var storedEntry = new OpeningBookEntry
         {
@@ -74,38 +74,38 @@ public class OpeningBookSymmetryTests
             }
         };
         store.StoreEntry(storedEntry);
-        
+
         // Now create a DIFFERENT board state that maps to the SAME canonical position
         // but would have a different symmetry if canonicalized fresh
         // For example, the same position accessed from a rotated board state
         var board2 = new Board();
         board2 = board2.PlaceStone(9, 9, Player.Red);
         board2 = board2.PlaceStone(10, 10, Player.Blue); // Blue's move in a different location
-        
+
         // Canonicalize this new board
         var canonical2 = canonicalizer.Canonicalize(board2);
-        
+
         // Act - Retrieve the stored entry using the canonical hash
         var retrievedEntry = store.GetEntry(canonical1.CanonicalHash, Player.Red);
-        
+
         // Assert - The retrieved entry should have the ORIGINAL symmetry, not the current one
         retrievedEntry.Should().NotBeNull();
         retrievedEntry!.Symmetry.Should().Be(canonical1.SymmetryApplied,
             "Retrieved entry should use the symmetry that was stored with it, not the current board's symmetry");
-        
+
         // Verify that applying the stored move with the STORED symmetry works correctly
         (int actualX, int actualY) = canonicalizer.TransformToActual(
             (retrievedEntry.Moves[0].RelativeX, retrievedEntry.Moves[0].RelativeY),
             retrievedEntry.Symmetry,  // Use stored symmetry
             board1
         );
-        
+
         // The transformed coordinates should be valid (on board)
         actualX.Should().BeGreaterThanOrEqualTo(0);
         actualX.Should().BeLessThan(19);
         actualY.Should().BeGreaterThanOrEqualTo(0);
         actualY.Should().BeLessThan(19);
-        
+
         // The cell should be empty (not already occupied)
         var cell = board1.GetCell(actualX, actualY);
         cell.Player.Should().Be(Player.None,
@@ -123,16 +123,16 @@ public class OpeningBookSymmetryTests
         // Arrange
         var store = new MockOpeningBookStore();
         var canonicalizer = new PositionCanonicalizer();
-        
+
         // Create a center position and manually set up the scenario
         var board = new Board();
         board = board.PlaceStone(9, 9, Player.Red);
         board = board.PlaceStone(8, 8, Player.Blue);
-        
+
         // Manually create an entry with a specific symmetry (simulating storage)
         var storedSymmetry = SymmetryType.Rotate180;
         var canonicalHash = 12345UL; // Arbitrary hash for testing
-        
+
         var entry = new OpeningBookEntry
         {
             CanonicalHash = canonicalHash,
@@ -157,34 +157,34 @@ public class OpeningBookSymmetryTests
             }
         };
         store.StoreEntry(entry);
-        
+
         // Act - Simulate the bug scenario where we retrieve with a different current symmetry
         var retrievedEntry = store.GetEntry(canonicalHash, Player.Red);
         retrievedEntry.Should().NotBeNull();
-        
+
         // The BUG would be: using currentSymmetry instead of retrievedEntry.Symmetry
         var currentSymmetry = SymmetryType.FlipHorizontal; // Different from stored!
-        
+
         // Bug version (wrong):
         (int bugX, int bugY) = canonicalizer.TransformToActual(
             (retrievedEntry!.Moves[0].RelativeX, retrievedEntry.Moves[0].RelativeY),
             currentSymmetry,  // BUG: Using current symmetry instead of stored
             board
         );
-        
+
         // Correct version (right):
         (int correctX, int correctY) = canonicalizer.TransformToActual(
             (retrievedEntry.Moves[0].RelativeX, retrievedEntry.Moves[0].RelativeY),
             retrievedEntry.Symmetry,  // CORRECT: Using stored symmetry
             board
         );
-        
+
         // Assert - The bug and correct transformations should be different
         // (demonstrating the bug has an effect)
         var areDifferent = (bugX, bugY) != (correctX, correctY);
         areDifferent.Should().BeTrue(
             "Using wrong symmetry should produce different coordinates, demonstrating the bug");
-        
+
         // The correct transformation should land on an empty cell
         var correctCell = board.GetCell(correctX, correctY);
         correctCell.Player.Should().Be(Player.None,
@@ -208,7 +208,7 @@ public class OpeningBookSymmetryTests
         // Arrange
         var store = new MockOpeningBookStore();
         var canonicalHash = 54321UL;
-        
+
         var entry = new OpeningBookEntry
         {
             CanonicalHash = canonicalHash,
@@ -232,11 +232,11 @@ public class OpeningBookSymmetryTests
                 }
             }
         };
-        
+
         // Act
         store.StoreEntry(entry);
         var retrieved = store.GetEntry(canonicalHash, Player.Blue);
-        
+
         // Assert
         retrieved.Should().NotBeNull();
         retrieved!.Symmetry.Should().Be(symmetry,
@@ -253,14 +253,14 @@ public class OpeningBookSymmetryTests
         // Arrange - Simulate the scenario from OpeningBookGenerator.cs lines 334-346
         var store = new MockOpeningBookStore();
         var canonicalizer = new PositionCanonicalizer();
-        
+
         // Create a position
         var board = new Board();
         board = board.PlaceStone(9, 9, Player.Red);
         board = board.PlaceStone(9, 10, Player.Blue);
-        
+
         var canonical = canonicalizer.Canonicalize(board);
-        
+
         // Simulate: position is already in the book with stored symmetry
         var existingEntry = new OpeningBookEntry
         {
@@ -286,28 +286,28 @@ public class OpeningBookSymmetryTests
             }
         };
         store.StoreEntry(existingEntry);
-        
+
         // Act - Simulate the code path at line 337: GetEntry returns existingEntry
         var retrievedEntry = store.GetEntry(canonical.CanonicalHash, Player.Red);
-        
+
         // This simulates line 346: populating positionsInBook
         // The FIX is to use existingEntry.Symmetry, NOT canonical.SymmetryApplied
         var symmetryForTransformation = retrievedEntry!.Symmetry;  // CORRECT
-        // var symmetryForTransformation = canonical.SymmetryApplied;  // BUG
-        
+                                                                   // var symmetryForTransformation = canonical.SymmetryApplied;  // BUG
+
         // Apply transformation using the STORED symmetry
         (int actualX, int actualY) = canonicalizer.TransformToActual(
             (retrievedEntry.Moves[0].RelativeX, retrievedEntry.Moves[0].RelativeY),
             symmetryForTransformation,
             board
         );
-        
+
         // Assert - The transformation should work correctly
         actualX.Should().BeGreaterThanOrEqualTo(0);
         actualX.Should().BeLessThan(19);
         actualY.Should().BeGreaterThanOrEqualTo(0);
         actualY.Should().BeLessThan(19);
-        
+
         // Verify the cell is empty
         var cell = board.GetCell(actualX, actualY);
         cell.Player.Should().Be(Player.None,
@@ -323,23 +323,23 @@ public class OpeningBookSymmetryTests
     {
         // Arrange
         var canonicalizer = new PositionCanonicalizer();
-        
+
         // Create a specific board state
         var board = new Board();
         board = board.PlaceStone(9, 9, Player.Red);
         board = board.PlaceStone(8, 8, Player.Blue);
-        
+
         // Store a move with Rotate180 symmetry
         SymmetryType storedSymmetry = SymmetryType.Rotate180;
         var canonicalMove = (8, 10);  // In canonical coordinates
-        
+
         // Transform using STORED symmetry (correct)
         (int correctX, int correctY) = canonicalizer.TransformToActual(
             canonicalMove,
             storedSymmetry,
             board
         );
-        
+
         // Transform using WRONG symmetry (simulating the bug)
         SymmetryType wrongSymmetry = SymmetryType.FlipHorizontal;
         var (wrongX, wrongY) = canonicalizer.TransformToActual(
@@ -347,15 +347,15 @@ public class OpeningBookSymmetryTests
             wrongSymmetry,
             board
         );
-        
+
         // The correct coordinate should be on an empty cell
         board.GetCell(correctX, correctY).Player.Should().Be(Player.None,
             "Correct transformation should land on empty cell");
-        
+
         // The wrong coordinate MIGHT land on an occupied cell (demonstrating the bug)
         // This depends on the specific board state and symmetries used
         var wrongCell = board.GetCell(wrongX, wrongY);
-        
+
         // At minimum, the two transformations should be different
         (correctX, correctY).Should().NotBe((wrongX, wrongY),
             "Different symmetries should produce different coordinates");
@@ -371,20 +371,20 @@ public class OpeningBookSymmetryTests
         // Arrange
         var store = new MockOpeningBookStore();
         var canonicalizer = new PositionCanonicalizer();
-        
+
         // Create a board with a stone near the edge
         var board = new Board();
         board = board.PlaceStone(1, 1, Player.Red);  // Near edge
         board = board.PlaceStone(2, 2, Player.Blue);
-        
+
         var canonical = canonicalizer.Canonicalize(board);
-        
+
         // Edge positions should have IsNearEdge = true and Symmetry = Identity
         canonical.IsNearEdge.Should().BeTrue(
             "Position with stone near edge should be marked as near edge");
         canonical.SymmetryApplied.Should().Be(SymmetryType.Identity,
             "Edge positions should use Identity symmetry");
-        
+
         // Store the entry
         var entry = new OpeningBookEntry
         {
@@ -410,14 +410,14 @@ public class OpeningBookSymmetryTests
             }
         };
         store.StoreEntry(entry);
-        
+
         // Act - Transform should return same coordinates for Identity symmetry
         (int actualX, int actualY) = canonicalizer.TransformToActual(
             (3, 3),  // canonical coordinates
             SymmetryType.Identity,
             board
         );
-        
+
         // Assert - For Identity/edge positions, coordinates should match
         actualX.Should().Be(3);
         actualY.Should().Be(3);
@@ -464,7 +464,7 @@ public class OpeningBookSymmetryTests
                 IsVerified = true
             });
         }
-        
+
         var entry = new OpeningBookEntry
         {
             CanonicalHash = canonicalHash,
@@ -475,10 +475,10 @@ public class OpeningBookSymmetryTests
             Moves = moves.ToArray()
         };
         store.StoreEntry(entry);
-        
+
         // Act - Retrieve and transform all moves
         var retrieved = store.GetEntry(canonicalHash, Player.Red);
-        
+
         // Assert - All transformed coordinates should be on empty cells
         foreach (var move in retrieved!.Moves)
         {
@@ -487,11 +487,11 @@ public class OpeningBookSymmetryTests
                 retrieved.Symmetry,
                 board
             );
-            
+
             // Should be valid coordinates
             actualX.Should().BeInRange(0, 18);
             actualY.Should().BeInRange(0, 18);
-            
+
             // Should be empty cells
             var cell = board.GetCell(actualX, actualY);
             cell.Player.Should().Be(Player.None,
@@ -518,11 +518,11 @@ public class OpeningBookSymmetryTests
     {
         // Arrange
         var canonicalizer = new PositionCanonicalizer();
-        
+
         // Act - Apply symmetry then inverse
         var (transformedX, transformedY) = canonicalizer.ApplySymmetry(x, y, symmetry);
         var (originalX, originalY) = canonicalizer.ApplyInverseSymmetry(transformedX, transformedY, symmetry);
-        
+
         // Assert - Should return to original coordinates
         originalX.Should().Be(x);
         originalY.Should().Be(y);
@@ -540,19 +540,19 @@ public class OpeningBookSymmetryTests
         var canonicalizer = new PositionCanonicalizer();
         var validator = new OpeningBookValidator();
         var loggerFactory = NullLoggerFactory.Instance;
-        
+
         var generator = new OpeningBookGenerator(
             store,
             canonicalizer,
             validator,
             loggerFactory
         );
-        
+
         // Create a position that will use symmetry reduction
         var board = new Board();
         board = board.PlaceStone(9, 9, Player.Red);
         board = board.PlaceStone(8, 8, Player.Blue);
-        
+
         // Generate moves for this position
         var moves = await generator.GenerateMovesForPositionAsync(
             board,
@@ -562,9 +562,9 @@ public class OpeningBookSymmetryTests
             canonicalSymmetry: SymmetryType.Rotate180,
             isNearEdge: false
         );
-        
+
         moves.Should().NotBeEmpty("Should generate some moves");
-        
+
         // Store the entry
         var canonical = canonicalizer.Canonicalize(board);
         var entry = new OpeningBookEntry
@@ -577,10 +577,10 @@ public class OpeningBookSymmetryTests
             Moves = moves.ToArray()
         };
         store.StoreEntry(entry);
-        
+
         // Act - Retrieve and verify transformations
         var retrieved = store.GetEntry(canonical.CanonicalHash, Player.Red);
-        
+
         // Assert - All moves should transform to valid empty cells
         foreach (var move in retrieved!.Moves)
         {
@@ -589,11 +589,11 @@ public class OpeningBookSymmetryTests
                 retrieved.Symmetry,
                 board
             );
-            
+
             // Valid coordinates
             actualX.Should().BeInRange(0, 18);
             actualY.Should().BeInRange(0, 18);
-            
+
             // Empty cells
             var cell = board.GetCell(actualX, actualY);
             cell.Player.Should().Be(Player.None,

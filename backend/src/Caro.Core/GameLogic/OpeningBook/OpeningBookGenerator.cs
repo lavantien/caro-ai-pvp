@@ -338,12 +338,16 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                         if (existingEntry != null && existingEntry.Moves.Length > 0)
                         {
                             _logger.LogDebug("Found existing entry at depth {Depth}: {MoveCount} moves stored", pos.Depth, existingEntry.Moves.Length);
+                            // IMPORTANT: Use canonical.SymmetryApplied (current board's canonicalization),
+                            // NOT existingEntry.Symmetry (stored value). Different boards can canonicalize to
+                            // the same hash with different symmetries, and we need the current one to correctly
+                            // transform canonical moves back to actual space for this specific board.
                             positionsInBook.Add((
                                 pos.Board,
                                 pos.Player,
                                 pos.Depth,
                                 canonical.CanonicalHash,
-                                existingEntry.Symmetry,
+                                canonical.SymmetryApplied,
                                 existingEntry.IsNearEdge,
                                 existingEntry.Moves
                             ));
