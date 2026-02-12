@@ -1,3 +1,5 @@
+using Caro.Core.Domain.Configuration;
+
 namespace Caro.Core.Domain.Entities;
 
 /// <summary>
@@ -6,7 +8,7 @@ namespace Caro.Core.Domain.Entities;
 /// </summary>
 public sealed class Board
 {
-    private const int Size = 32;
+    private const int Size = GameConstants.BoardSize;
     private readonly Cell[,] _cells;
 
     // Private constructor for internal use
