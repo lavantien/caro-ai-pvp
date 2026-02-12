@@ -396,7 +396,7 @@ public class ComprehensiveMatchupRunner
             var result = engine.RunGame(
                 redDifficulty: gameRedDiff,
                 blueDifficulty: gameBlueDiff,
-                maxMoves: 361,
+                maxMoves: 1024,
                 initialTimeSeconds: config.InitialTimeSeconds,
                 incrementSeconds: config.IncrementSeconds,
                 ponderingEnabled: config.EnablePondering,

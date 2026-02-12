@@ -90,7 +90,7 @@ public class DetailedVerificationRunner
             var result = engine.RunGame(
                 redDifficulty: actualRed,
                 blueDifficulty: actualBlue,
-                maxMoves: 361,
+                maxMoves: 1024,
                 initialTimeSeconds: initialTimeSeconds,
                 incrementSeconds: incrementSeconds,
                 ponderingEnabled: true,

@@ -55,7 +55,7 @@ public class GrandmasterVsBraindeadRunner
             var result = engine.RunGame(
                 redDifficulty: redDiff,
                 blueDifficulty: blueDiff,
-                maxMoves: 361,
+                maxMoves: 1024,
                 initialTimeSeconds: initialTimeSeconds,
                 incrementSeconds: incrementSeconds,
                 ponderingEnabled: true,

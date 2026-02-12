@@ -31,7 +31,7 @@ public static class QuickTest
             var result = engine.RunGame(
                 redDiff,
                 blueDiff,
-                maxMoves: 361,
+                maxMoves: 1024,
                 initialTimeSeconds: 420,  // 7+5 time control (like before)
                 incrementSeconds: 5,
                 ponderingEnabled: false,  // Disabled: parallel search has bugs

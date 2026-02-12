@@ -103,7 +103,7 @@ public class TournamentEngine
     public MatchResult RunGame(
         AIDifficulty redDifficulty,
         AIDifficulty blueDifficulty,
-        int maxMoves = 361,
+        int maxMoves = 1024,
         int initialTimeSeconds = 180,  // 3 minutes per player
         int incrementSeconds = 2,      // +2 seconds per move
         bool ponderingEnabled = false,
