@@ -1,4 +1,5 @@
 using Caro.Core.Application.DTOs;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Domain.Interfaces;
@@ -15,8 +16,8 @@ namespace Caro.Core.Infrastructure.AI;
 public sealed partial class StatelessSearchEngine
 {
     private readonly ILogger<StatelessSearchEngine> _logger;
-    private const int WinLength = 5;
-    private const int BoardSize = 32;
+    private const int WinLength = GameConstants.WinLength;
+    private const int BoardSize = GameConstants.BoardSize;
 
     public StatelessSearchEngine(ILogger<StatelessSearchEngine> logger)
     {

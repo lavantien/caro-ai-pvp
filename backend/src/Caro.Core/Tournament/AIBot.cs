@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.GameLogic;
 
 namespace Caro.Core.Tournament;
@@ -216,8 +217,8 @@ public static class ELOCalculator
     public static (int winnerChange, int loserChange) CalculateELOChange(int winnerELO, int loserELO, bool isDraw = false)
     {
         // K-factor: How much ELO can change per game
-        // Using K=32 for standard chess calculations
-        const int K = 32;
+        // Using centralized constant for consistency
+        const int K = GameConstants.EloKFactor;
 
         // Calculate expected scores
         double expectedWinner = 1.0 / (1.0 + Math.Pow(10, (loserELO - winnerELO) / 400.0));

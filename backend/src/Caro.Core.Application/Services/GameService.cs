@@ -2,6 +2,7 @@ using Caro.Core.Application.DTOs;
 using Caro.Core.Application.Interfaces;
 using Caro.Core.Application.Mappers;
 using Caro.Core.Application.Extensions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Domain.Exceptions;
@@ -427,7 +428,7 @@ public sealed class GameService : IGameService
         int lastY,
         Player player)
     {
-        const int WinLength = 5;
+        const int WinLength = GameConstants.WinLength;
 
         // Check all four directions
         var directions = new[]
