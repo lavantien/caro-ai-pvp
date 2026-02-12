@@ -12,7 +12,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 - **Real-time multiplayer** - WebSocket support via SignalR
 - **AI tournament mode** - Balanced round-robin with ELO tracking
 - **Mobile-first UX** - Ghost stone positioning and haptic feedback
-- **670+ automated tests** - Including adversarial concurrency tests
+- **700+ automated tests** - Including adversarial concurrency tests
 
 ---
 
@@ -80,7 +80,7 @@ Universal Chess Interface (UCI) protocol compatibility for standalone engine usa
 - **Standard UCI commands** - uci, isready, ucinewgame, position, go, stop, quit, setoption
 - **Engine options** - Skill Level, Use Opening Book, Book Depth Limit, Threads, Hash, Ponder
 - **WebSocket bridge** - Frontend can connect directly to UCI engine
-- **Algebraic notation** - Coordinates a-s (columns), 1-19 (rows)
+- **Algebraic notation** - Coordinates a-af (columns), 1-32 (rows)
 
 **Run standalone UCI engine:**
 ```bash
@@ -95,7 +95,7 @@ dotnet run --project backend/src/Caro.UCIMockClient -- --games 4 --time 180 --in
 **Example UCI session:**
 ```
 > uci
-< id name Caro AI 1.43.0
+< id name Caro AI 1.44.0
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
 < option name Use Opening Book type check default true
@@ -165,7 +165,7 @@ cd backend/tests/Caro.Core.MatchupTests && dotnet test
 
 | Project | Tests | Duration |
 |---------|-------|----------|
-| Caro.Core.Tests | 456 unit tests | ~2 sec |
+| Caro.Core.Tests | 515 unit tests | ~2 sec |
 | Caro.Core.IntegrationTests | 153 | Opt-in, AI searches |
 | Caro.Core.MatchupTests | ~57 | Variable |
 | Caro.Core.Domain.Tests | 67 entity tests | ~1 sec |
@@ -202,7 +202,7 @@ Clean Architecture with three core layers:
 │                      Domain Layer (Core)                         │
 │  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌─────────────────┐  │
 │  │  Board   │  │  Player  │  │ GameState │  │  AIDifficulty   │  │
-│  │  (19x19) │  │  Enum    │  │           │  │  (Braindead-GM) │  │
+│  │  (32x32) │  │  Enum    │  │           │  │  (Braindead-GM) │  │
 │  └──────────┘  └──────────┘  └───────────┘  └─────────────────┘  │
 └───────────────────────────┬──────────────────────────────────────┘
                             │
@@ -242,6 +242,10 @@ Advanced optimization techniques implemented in the engine:
 |---------|-------------|
 | **Multi-Entry TT** | 3-entry clusters (32-byte aligned), depth-age replacement |
 | **Continuation History** | 6-ply move pair statistics with bounded updates |
+| **Counter-Move History** | Move-response patterns for opponent replies |
+| **Staged Move Picker** | Prioritized move generation (TT, threats, killers, counter, quiet) |
+| **BitKey Pattern System** | O(1) pattern lookup using 64-bit keys with bit rotation |
+| **Pattern4 Evaluation** | 4-direction combined threat classification |
 | **Evaluation Cache** | Position evaluation correction caching |
 | **Adaptive LMR** | Dynamic reduction based on position factors |
 | **PID Time Manager** | Proportional-Integral-Derivative time allocation |
@@ -252,6 +256,10 @@ Advanced optimization techniques implemented in the engine:
 **Key Implementation Details:**
 - Cluster-based TT with 10-byte TTEntry struct, 30-byte cluster (padded to 32 bytes)
 - ContinuationHistory: `short[,,]` for `[player, prevCell, currentCell]` with MaxScore=30000
+- CounterMoveHistory: `short[,,]` for `[player, opponentCell, ourCell]` with bounded updates
+- BitKeyBoard: 32x32 representation with 4 directional 64-bit keys, 2 bits per cell
+- MovePicker: Staged generation (TT_MOVE, THREATS, KILLERS, COUNTER, GOOD_QUIET, BAD_QUIET)
+- Pattern4Evaluator: CaroPattern4 enum (None, Flex1-4, Block1-4, DoubleFlex3, Flex4Flex3, Exactly5)
 - SPSA: Default (alpha=0.602, gamma=0.101), Aggressive, Conservative presets
 - PID: Kp=1.0, Ki=0.1, Kd=0.5 with integral windup clamping
 - SearchLogger: Channel-based async logging, 100MB/24h rotation
@@ -334,7 +342,7 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Project | Tests | Focus |
 |---------|-------|-------|
-| Caro.Core.Tests | 456 | Unit tests (algorithms, evaluators, concurrency, immutable state, test helpers, AI improvements, symmetry) |
+| Caro.Core.Tests | 515 | Unit tests (algorithms, evaluators, concurrency, immutable state, test helpers, AI improvements, symmetry) |
 | Caro.Core.IntegrationTests | 153 | AI search integration (full depth searches, performance benchmarks, opening book edge cases + performance tests) |
 | Caro.Core.MatchupTests | ~57 | AI matchups, integration, tournament, opening book verification |
 | Caro.Core.Domain.Tests | 67 | Entities (Board, Cell, Player, GameState, Position) |
@@ -386,7 +394,7 @@ Backend: http://localhost:5207 | Frontend: http://localhost:5173
 
 ## Game Rules
 
-- **19x19 board** (361 intersections)
+- **32x32 board** (1024 intersections)
 - **Open Rule:** Red's second move must be at least 3 intersections away from first
 - **Win:** Exactly 5 in a row (6+ or blocked ends don't count)
 - **Time Control:** Selectable - 1+0 (Bullet), 3+2 (Blitz), 7+5 (Rapid), 15+10 (Classical)

@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.44.0] - 2026-02-13
+
+### Added
+- **Counter-Move History** - Move-response patterns for opponent replies
+  - `CounterMoveHistory.cs` with `[player, opponentCell, ourCell]` score table
+  - Bounded update formula matching ContinuationHistory pattern
+  - Integration with ParallelMinimaxSearch move ordering
+- **Staged Move Picker** - Prioritized move generation for better alpha-beta cutoffs
+  - `MovePicker.cs` with explicit stage state machine
+  - Stages: TT_MOVE, THREAT_MOVES, KILLERS, COUNTER_MOVES, GOOD_QUIET, BAD_QUIET
+  - Partial insertion sort with depth-based threshold
+- **Pattern4 Evaluation** - 4-direction combined threat classification
+  - `Pattern4Evaluator.cs` with CaroPattern4 enum
+  - Pattern types: None, Flex1-4, Block1-4, DoubleFlex3, Flex4Flex3, Exactly5, Overline
+  - Double-threat detection for winning combinations
+- **BitKey Pattern System** - O(1) pattern lookup using 64-bit keys
+  - `BitKeyBoard.cs` - 32x32 representation with 4 directional bitkeys
+  - `BitKeyPatternTable.cs` - Pre-computed pattern lookup table (16M entries)
+  - 2 bits per cell encoding with bit rotation for pattern alignment
+  - Integration with ThreatDetector for fast pattern evaluation
+
+### Changed
+- **Board Size Expansion** - Increased from 19x19 to 32x32
+  - Board.cs, BitBoard.cs, Position.cs updated for 32x32 dimensions
+  - SIMDBitBoardEvaluator.cs updated for 16-ulong representation
+  - WinDetector.cs updated for new board bounds
+  - ZobristTables.cs expanded hash tables
+  - All tests updated for new coordinate ranges (0-31 instead of 0-18)
+- **ShiftUp/ShiftDown** - Fixed for 32-bit row boundaries in BitBoard
+  - Previous implementation shifted by 2 ulongs (64-bit boundary)
+  - New implementation shifts by 32 bits (row boundary) with proper bit masking
+- **IMPROVEMENT_RESEARCH.md** - Updated with implementation status
+  - Counter-Move History, Staged Move Picker, Pattern4, BitKey marked as implemented
+  - Updated to reflect 32x32 board size
+
+### Test Coverage
+- Caro.Core.Tests: 515 tests (+59 from v1.43.0)
+- New test files: CounterMoveHistoryTests.cs, MovePickerTests.cs, BitKeyBoardTests.cs
+- All existing tests updated for 32x32 board coordinates
+
+[1.44.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.44.0
+
 ## [1.43.0] - 2026-02-12
 
 ### Changed

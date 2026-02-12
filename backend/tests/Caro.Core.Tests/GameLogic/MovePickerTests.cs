@@ -45,7 +45,7 @@ public class MovePickerTests
         // Act - Get all moves and track stage progression
         var moves = new List<(int x, int y)>();
         var stages = new List<MovePicker.Stage>();
-        
+
         (int x, int y)? move;
         while ((move = picker.NextMove()) != null)
         {
@@ -237,7 +237,7 @@ public class MovePickerTests
         };
 
         picker.NextMove(); // Gets first (and only) move
-        
+
         // The move should have been in one of the expected stages
         Assert.Contains(picker.CurrentStage, expectedOrder);
     }
