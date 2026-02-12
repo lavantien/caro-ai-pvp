@@ -460,13 +460,33 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                     foreach (var move in moves.Take(maxChildren))
                     {
-                        // Transform canonical coordinates back to actual before placing
-                        // Moves are stored in canonical space, board is in actual space
-                        (int actualX, int actualY) = _canonicalizer.TransformToActual(
-                            (move.RelativeX, move.RelativeY),
-                            posData.symmetry,
-                            posData.board
-                        );
+                        // CRITICAL: Use stored IsNearEdge to decide transformation
+                        // Moves stored with IsNearEdge=true were NOT transformed during storage
+                        // so they should NOT be inverse-transformed during retrieval
+                        int actualX, actualY;
+                        if (posData.nearEdge || posData.symmetry == SymmetryType.Identity)
+                        {
+                            actualX = move.RelativeX;
+                            actualY = move.RelativeY;
+                        }
+                        else
+                        {
+                            (actualX, actualY) = _canonicalizer.TransformToActual(
+                                (move.RelativeX, move.RelativeY),
+                                posData.symmetry,
+                                posData.board
+                            );
+                        }
+
+                        // Defensive check: verify cell is not already occupied
+                        var existingCell = posData.board.GetCell(actualX, actualY);
+                        if (existingCell.Player != Player.None)
+                        {
+                            _logger.LogError("INTERNAL ERROR: Trying to place at ({ActualX},{ActualY}) but cell is occupied by {ExistingPlayer}. " +
+                                "Move: ({RelX},{RelY}), NearEdge={NearEdge}, Sym={Sym}, Depth={Depth}",
+                                actualX, actualY, existingCell.Player, move.RelativeX, move.RelativeY, posData.nearEdge, posData.symmetry, posData.depth);
+                            continue;
+                        }
 
                         var newBoard = posData.board.PlaceStone(actualX, actualY, posData.player);
                         var nextPlayer = posData.player == Player.Red ? Player.Blue : Player.Red;
@@ -512,20 +532,31 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     // Enqueue child positions from stored moves
                     foreach (var move in moves.Take(maxChildren))
                     {
-                        // Transform canonical coordinates back to actual before placing
-                        // Moves are stored in canonical space, board is in actual space
-                        (int actualX, int actualY) = _canonicalizer.TransformToActual(
-                            (move.RelativeX, move.RelativeY),
-                            posData.symmetry,
-                            posData.board
-                        );
+                        // CRITICAL: Use stored IsNearEdge to decide transformation
+                        // Moves stored with IsNearEdge=true were NOT transformed during storage
+                        // so they should NOT be inverse-transformed during retrieval
+                        int actualX, actualY;
+                        if (posData.nearEdge || posData.symmetry == SymmetryType.Identity)
+                        {
+                            actualX = move.RelativeX;
+                            actualY = move.RelativeY;
+                        }
+                        else
+                        {
+                            (actualX, actualY) = _canonicalizer.TransformToActual(
+                                (move.RelativeX, move.RelativeY),
+                                posData.symmetry,
+                                posData.board
+                            );
+                        }
 
-                        // Debug: Check if cell is already occupied BEFORE attempting to place
+                        // Defensive check: verify cell is not already occupied
                         var existingCell = posData.board.GetCell(actualX, actualY);
                         if (existingCell.Player != Player.None)
                         {
-                            _logger.LogError("INTERNAL ERROR: Trying to place at ({ActualX},{ActualY}) but cell is occupied by {ExistingPlayer}. Move from book: ({RelX},{RelY}), Symmetry={Sym}, Depth={Depth}",
-                                actualX, actualY, existingCell.Player, move.RelativeX, move.RelativeY, posData.symmetry, posData.depth);
+                            _logger.LogError("INTERNAL ERROR: Trying to place at ({ActualX},{ActualY}) but cell is occupied by {ExistingPlayer}. " +
+                                "Move from book: ({RelX},{RelY}), NearEdge={NearEdge}, Symmetry={Sym}, Depth={Depth}",
+                                actualX, actualY, existingCell.Player, move.RelativeX, move.RelativeY, posData.nearEdge, posData.symmetry, posData.depth);
 
                             // Count stones on board for diagnostic
                             int redCount = 0, blueCount = 0;
@@ -538,7 +569,6 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                                 }
                             _logger.LogError("Board state: Red={RedCount}, Blue={BlueCount}, Total={Total}", redCount, blueCount, redCount + blueCount);
 
-                            // Skip this move and continue
                             continue;
                         }
 
