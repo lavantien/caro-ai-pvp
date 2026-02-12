@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.45.0] - 2026-02-13
+
+### Added
+- **Centralized Configuration System** - Single source of truth for game constants
+  - `GameConstants.cs` - BoardSize (32), WinLength (5), EloKFactor (32), DefaultEloRating (1500)
+  - `EvaluationConstants.cs` - AI evaluation scores (FiveInRowScore, OpenFourScore, etc.)
+  - `MoveOrderingConstants.cs` - Move picker scoring constants (MustBlockScore, TtMoveScore, etc.)
+  - `frontend/src/lib/config/gameConfig.ts` - Frontend mirror of backend constants
+  - All 25+ files across Domain, GameLogic, Application, Infrastructure, and Frontend now reference centralized constants
+
+### Changed
+- Updated outdated comments referencing 19x19 board to 32x32
+- Simplified `OrderMovesStaged` method by removing dead feature flag code path
+- Renamed legacy `OrderMoves` to `OrderMovesLegacyForTesting` (kept only for test compatibility)
+
+### Removed
+- **Legacy/Dead Code Cleanup:**
+  - `GameState.cs`: Removed 3 `[Obsolete]` methods (RecordMove overloads, EndGame)
+  - `MinimaxAI.cs`: Removed 2 `[Obsolete]` methods (parameterless StopPondering, StartPonderingForOpponent)
+  - `TimeControl.cs`: Removed entire `LegacyTimeControl` static class
+  - `ParallelMinimaxSearch.cs`: Removed `UseStagedMovePicker` feature flag (was always true)
+  - Removed all `#pragma warning disable` directives for unreachable code
+  - Removed unused variables `redCount` and `blueCount` from BitKeyPatternTable.cs
+
+### Fixed
+- All compiler warnings eliminated (0 warnings, 0 errors)
+- Removed outdated "CRITICAL FIX" and "19x19 board" comments
+
+### Test Coverage
+- All 579 backend tests passing (515 Core + 64 Infrastructure)
+- No test changes required - all modifications were backward compatible
+
+[1.45.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.45.0
+
 ## [1.44.0] - 2026-02-13
 
 ### Added
