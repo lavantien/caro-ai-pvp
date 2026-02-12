@@ -1,38 +1,46 @@
 # Checkpoint - 2026-02-13
 
 ## Current Goal
-Release v1.46.0 with Book Builder code quality improvements.
+Release v1.47.0 with UCI notation, opening book access, and time control changes.
 
 ## Recent Changes
 
-### Book Builder Code Quality Fixes
-1. **Phase 1 & 2: Fixed comments and removed dead code**
-   - Fixed incorrect TimePerPositionMs comment ("15 seconds" → "1 second")
-   - Removed unused constants: MaxBookMoves, MaxCandidatesPerPosition
-   - Removed disabled opponent response generation block
-   - Removed GenerateOpponentResponsesAsync method (95 lines)
-   - Removed unused records: PositionToSearch, ResponseGenerationStats
-   - Removed unused AtomicBoolean class
+### v1.47.0 Release
 
-2. **Phase 3: Consolidated code duplication**
-   - Refactored GenerateMovesForPositionAsync overloads to eliminate ~170 lines of duplicated code
-   - Public method now delegates to private overload that accepts MinimaxAI instance
-   - Preserved API surface and worker thread optimization
+1. **UCI Notation System Overhaul**
+   - Changed from base-26 (a-z, aa-af) to grid-based double-letter format (aa-hd)
+   - Encoding: `column = firstLetterIndex * 4 + secondLetterIndex`
+   - Updated backend `UCIMoveNotation.cs` and frontend `uciEngine.ts`
 
-3. **Phase 4: Fixed statistics coverage**
-   - Increased coverageByDepth array from int[25] to int[41] to support deeper plies
+2. **Opening Book Access Extended**
+   - Easy: 8 plies (4 moves per side)
+   - Medium: 16 plies (8 moves per side)
+   - Previously only Hard+ had book access
 
-4. **Phase 5: Updated tests to match implementation**
-   - Fixed candidate count expectations (10/6 → 5/3)
-   - Fixed time allocation test expectations to match two-tier system
-   - All 579 tests passing
+3. **Time Control Change**
+   - ComprehensiveMatchupRunner: 7+5 → 3+2
+   - Initial time: 420s → 180s
+   - Increment: 5s → 2s
+
+4. **Documentation Updates**
+   - README.md: Updated UCI notation, difficulty table, time control
+   - ENGINE_FEATURES.md: Version bump to 1.47.0
+   - CHANGELOG.md: Added v1.47.0 entry
 
 ## Files Modified
-- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs`
-- `backend/src/Caro.Core.Infrastructure/Persistence/SqliteOpeningBookStore.cs`
-- `backend/tests/Caro.Core.IntegrationTests/GameLogic/OpeningBook/OpeningBookGeneratorEdgeCaseTests.cs`
+- `backend/src/Caro.Core/GameLogic/AIDifficultyConfig.cs`
+- `backend/src/Caro.Core/GameLogic/UCI/UCIMoveNotation.cs`
+- `backend/src/Caro.TournamentRunner/ComprehensiveMatchupRunner.cs`
+- `backend/src/Caro.UCI/UCIProtocol.cs`
+- `frontend/src/lib/uciEngine.ts`
+- `README.md`
+- `ENGINE_FEATURES.md`
+- `CHANGELOG.md`
+
+## Test Status
+- Backend: 579/579 tests passing (515 Core + 64 Infrastructure)
+- Frontend: 19/19 tests passing
 
 ## Next Step
-- Commit changes
 - Push to GitHub
-- Create v1.46.0 release
+- Create v1.47.0 release
