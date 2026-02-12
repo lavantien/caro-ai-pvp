@@ -166,34 +166,42 @@ XOR-based key verification enables parallel access without locks.
 
 Move ordering is critical for alpha-beta efficiency. The engine uses staged generation with strict priority:
 
-| Priority | Category | Description |
-|----------|----------|-------------|
-| 1 | Hash Move | TT move searched unconditionally first |
-| 2 | Emergency Defense | Blocks opponent's immediate winning threats |
-| 3 | Winning Threats | Creates own winning threats |
-| 4 | Continuation History | Move pairs from recent plies |
-| 5 | Killer Moves | Caused cutoffs at sibling nodes |
-| 6 | Counter Moves | Good responses to opponent's last move |
-| 7 | History Heuristic | General statistical sorting |
-| 8 | Positional | Center proximity, nearby stones |
+| Priority | Stage | Description |
+|----------|-------|-------------|
+| 1 | TT_MOVE | Transposition table move, searched unconditionally first |
+| 2 | MUST_BLOCK | Mandatory defense against opponent's open four or five threat |
+| 3 | WINNING_MOVE | Creates winning position (open four, double threat) |
+| 4 | THREAT_CREATE | Creates threats (open three, broken four) |
+| 5 | KILLER_COUNTER | Killer moves and counter-move responses combined |
+| 6 | GOOD_QUIET | Quiet moves with high history scores (>500) |
+| 7 | BAD_QUIET | Remaining quiet moves |
 
 ### 4.2 Staged Move Picker
 
 Moves are generated and scored in stages, allowing early termination on cutoffs.
 
 **Stage Sequence:**
-1. **TT_MOVE** - Single move from transposition table
-2. **THREATS** - Tactical moves (emergency blocks, winning attacks)
-3. **KILLERS** - Two killer moves per ply
-4. **COUNTER** - Response to opponent's previous move
-5. **GOOD_QUIET** - Quiet moves with high history scores
-6. **BAD_QUIET** - Remaining quiet moves
+1. **TT_MOVE** - Single move from transposition table (2M score)
+2. **MUST_BLOCK** - Mandatory blocks against opponent's winning threats (2M score)
+3. **WINNING_MOVE** - Creates open four or double threat (1.5M score)
+4. **THREAT_CREATE** - Creates open three or broken four (800K score)
+5. **KILLER_COUNTER** - Killer moves (400K-500K) + counter-move responses (150K)
+6. **GOOD_QUIET** - Quiet moves with continuation + butterfly history > 500
+7. **BAD_QUIET** - Remaining quiet moves
 
-**Scoring Formula:**
-- Threats: Fixed high scores (1.5M-2M)
-- Killers: Fixed scores (400K-500K)
-- Counter: Counter-move history score + bonus
-- Quiet: Continuation history + butterfly history + positional bonus
+**Score Constants:**
+| Category | Score |
+|----------|-------|
+| Must Block | 2,000,000 |
+| Winning Move | 1,500,000 |
+| TT Move | 1,000,000 |
+| Threat Create | 800,000 |
+| Killer 1 | 500,000 |
+| Killer 2 | 400,000 |
+| Counter Move | 150,000 |
+| Continuation Max | 300,000 |
+| History Max | 20,000 |
+| Good Quiet Threshold | 500 |
 
 ### 4.3 Continuation History
 
