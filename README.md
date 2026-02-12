@@ -22,19 +22,19 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 
 State-of-the-art algorithms from computer chess achieving 100-500x speedup over naive minimax:
 
-| Optimization | Speedup / ELO Gain |
-|--------------|-------------------|
-| Multi-Entry Transposition Table | 2-5x (+30-50 ELO) |
-| Continuation History | +15-25 ELO |
-| Evaluation Cache | +10-20 ELO |
-| Adaptive Late Move Reduction | 30-50% (+25-40 ELO) |
-| PID Time Management | +20-50 ELO |
-| Contest Factor (Contempt) | +5-20 ELO |
-| Principal Variation Search (PVS) | 20-40% |
-| Quiescence Search | Prevents blunders |
-| Hash Move First (Lazy SMP) | 2-5x (TT work sharing) |
-| History Heuristic | 10-20% |
-| Aspiration Windows | 10-30% |
+| Optimization | Description |
+|--------------|-------------|
+| Multi-Entry Transposition Table | 3-entry clusters, depth-age replacement |
+| Continuation History | 6-ply move pair statistics |
+| Evaluation Cache | Position evaluation correction |
+| Adaptive Late Move Reduction | Dynamic reduction based on position factors |
+| PID Time Management | Control theory for time allocation |
+| Contest Factor (Contempt) | Position-aware playstyle adjustment |
+| Principal Variation Search (PVS) | Alpha-beta with null-window searches |
+| Quiescence Search | Prevents blunders at horizon |
+| Hash Move First (Lazy SMP) | TT work sharing between threads |
+| History Heuristic | Move ordering from past performance |
+| Aspiration Windows | Narrowed bounds near root |
 
 **Move Ordering Priority (Optimized for Lazy SMP):**
 1. Hash Move (TT Move) - UNCONDITIONAL #1 for thread work sharing
@@ -95,7 +95,7 @@ dotnet run --project backend/src/Caro.UCIMockClient -- --games 4 --time 180 --in
 **Example UCI session:**
 ```
 > uci
-< id name Caro AI 1.31.0
+< id name Caro AI 1.43.0
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
 < option name Use Opening Book type check default true
@@ -234,25 +234,25 @@ All domain entities are fully immutable for thread safety:
 - `Board` - Immutable via `PlaceStone()` returning new instances
 - Operations return new state: `WithMove()`, `WithGameOver()`, `UndoMove()`
 
-### AI Improvements (Phase 1 & 2)
+### AI Improvements
 
-Recent implementation of advanced AI optimization techniques targeting +125-245 ELO gain:
+Advanced optimization techniques implemented in the engine:
 
-| Feature | Description | ELO Gain |
-|---------|-------------|----------|
-| **Multi-Entry TT** | 3-entry clusters (32-byte aligned), depth-age replacement | +30-50 |
-| **Continuation History** | 6-ply move pair statistics with bounded updates | +15-25 |
-| **Evaluation Cache** | Position evaluation correction caching | +10-20 |
-| **Adaptive LMR** | Dynamic reduction based on position factors | +25-40 |
-| **PID Time Manager** | Proportional-Integral-Derivative time allocation | +20-50 |
-| **Contest Manager** | Dynamic contempt (-200 to +200 centipawns) | +5-20 |
-| **SPSA Tuner** | Gradient-free parameter optimization | +20-40 |
-| **Structured Logging** | Async search logging with file rotation | - |
+| Feature | Description |
+|---------|-------------|
+| **Multi-Entry TT** | 3-entry clusters (32-byte aligned), depth-age replacement |
+| **Continuation History** | 6-ply move pair statistics with bounded updates |
+| **Evaluation Cache** | Position evaluation correction caching |
+| **Adaptive LMR** | Dynamic reduction based on position factors |
+| **PID Time Manager** | Proportional-Integral-Derivative time allocation |
+| **Contest Manager** | Dynamic contempt (-200 to +200 centipawns) |
+| **SPSA Tuner** | Gradient-free parameter optimization |
+| **Structured Logging** | Async search logging with file rotation |
 
 **Key Implementation Details:**
 - Cluster-based TT with 10-byte TTEntry struct, 30-byte cluster (padded to 32 bytes)
 - ContinuationHistory: `short[,,]` for `[player, prevCell, currentCell]` with MaxScore=30000
-- SPSA: Default (α=0.602, γ=0.101), Aggressive, Conservative presets
+- SPSA: Default (alpha=0.602, gamma=0.101), Aggressive, Conservative presets
 - PID: Kp=1.0, Ki=0.1, Kd=0.5 with integral windup clamping
 - SearchLogger: Channel-based async logging, 100MB/24h rotation
 | `Caro.Api` | Web API, SignalR hub, WebSocket UCI bridge | All layers |
@@ -395,7 +395,7 @@ Backend: http://localhost:5207 | Frontend: http://localhost:5173
 
 ## Documentation
 
-**Improvement Research:** `IMPROVEMENT_RESEARCH.md` - Comprehensive research report on AI optimization techniques from Rapfi, minimax.dev, Stockfish 18, Chess Programming Wiki, and advanced optimization methods.
+**Improvement Research:** `IMPROVEMENT_RESEARCH.md` - Technical reference for AI optimization techniques from Rapfi, Stockfish 18, Chess Programming Wiki, and minimax.dev. Includes implementation status and research candidates.
 
 ---
 
