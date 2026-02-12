@@ -57,8 +57,8 @@ public sealed class AIDifficultyConfig
                 MinDepth = 2,
                 TargetNps = 50_000,
                 Description = "Parallel search from Easy",
-                OpeningBookEnabled = false,     // No opening book for easy level
-                MaxBookDepth = 0               // No opening book
+                OpeningBookEnabled = true,      // Easy uses opening book (8 plies)
+                MaxBookDepth = 8               // 8 plies = 4 moves per side
             },
 
             AIDifficulty.Medium => new AIDifficultySettings
@@ -76,8 +76,8 @@ public sealed class AIDifficultyConfig
                 MinDepth = 3,
                 TargetNps = 100_000,
                 Description = "Parallel + pondering",
-                OpeningBookEnabled = false,     // No opening book for medium level
-                MaxBookDepth = 0               // No opening book
+                OpeningBookEnabled = true,      // Medium uses opening book (16 plies)
+                MaxBookDepth = 16              // 16 plies = 8 moves per side
             },
 
             AIDifficulty.Hard => new AIDifficultySettings
@@ -230,7 +230,7 @@ public sealed record AIDifficultySettings
     public bool SupportsVCF => VCFEnabled;
 
     /// <summary>
-    /// Check if this difficulty uses the opening book (Hard, Grandmaster, Experimental)
+    /// Check if this difficulty uses the opening book (Easy, Medium, Hard, Grandmaster, Experimental)
     /// </summary>
     public bool SupportsOpeningBook => OpeningBookEnabled;
 }

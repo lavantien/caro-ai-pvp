@@ -310,41 +310,47 @@ export class UCIEngine {
 
 /**
  * Convert (x, y) coordinates to UCI notation.
- * x: 0-14 (column), y: 0-14 (row)
- * Returns UCI notation like "j10" for center (9, 9).
+ * x: 0-31 (column), y: 0-31 (row)
+ * Uses double-letter grid format: column = firstLetterIndex * 4 + secondLetterIndex
+ * - First letter: 'a'-'h' (0-7), Second letter: 'a'-'d' (0-3)
+ * Returns UCI notation like "qg17" for center (16, 16).
  */
 export function toUCI(x: number, y: number): string {
-	if (x < 0 || x > 18 || y < 0 || y > 18) {
+	if (x < 0 || x > 31 || y < 0 || y > 31) {
 		throw new Error(`Coordinates out of bounds: (${x}, ${y})`);
 	}
-	const column = String.fromCharCode(97 + x); // 'a' + x
+	const firstLetter = Math.floor(x / 4); // 0-7 maps to a-h
+	const secondLetter = x % 4; // 0-3 maps to a-d
+	const column = String.fromCharCode(97 + firstLetter) + String.fromCharCode(97 + secondLetter);
 	const row = y + 1;
 	return `${column}${row}`;
 }
 
 /**
  * Convert UCI notation to (x, y) coordinates.
- * UCI notation like "j10" becomes (9, 9).
+ * UCI notation like "qg17" becomes (16, 16).
+ * Uses double-letter grid format: column = firstLetterIndex * 4 + secondLetterIndex
  */
 export function fromUCI(move: string): { x: number; y: number } {
-	if (!move || move.length < 2) {
-		throw new Error(`Invalid UCI move: ${move}`);
+	if (!move || move.length < 3) {
+		throw new Error(`Invalid UCI move: ${move} (expected double-letter column)`);
 	}
 
 	move = move.toLowerCase();
-	const column = move[0];
-	const rowPart = move.substring(1);
+	const col1 = move[0];
+	const col2 = move[1];
+	const rowPart = move.substring(2);
 
-	if (!/[a-s]/.test(column)) {
-		throw new Error(`Invalid column in UCI move: ${move}`);
+	if (!/[a-h]/.test(col1) || !/[a-d]/.test(col2)) {
+		throw new Error(`Invalid column in UCI move: ${move} (first letter a-h, second letter a-d)`);
 	}
 
 	const row = parseInt(rowPart, 10);
-	if (isNaN(row) || row < 1 || row > 19) {
+	if (isNaN(row) || row < 1 || row > 32) {
 		throw new Error(`Invalid row in UCI move: ${move}`);
 	}
 
-	const x = column.charCodeAt(0) - 97; // 'a' = 97
+	const x = (col1.charCodeAt(0) - 97) * 4 + (col2.charCodeAt(0) - 97);
 	const y = row - 1;
 
 	return { x, y };
