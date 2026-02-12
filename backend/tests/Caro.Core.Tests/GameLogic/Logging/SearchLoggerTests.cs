@@ -30,26 +30,27 @@ public class SearchLoggerTests : IDisposable
     public void LogSearchCompletion_WritesToFile()
     {
         // Arrange
-        using var logger = new SearchLogger(_testLogDir);
-        string logPath = logger.GetCurrentLogPath();
+        string logPath;
+        {
+            using var logger = new SearchLogger(_testLogDir);
+            logPath = logger.GetCurrentLogPath();
 
-        // Act
-        logger.LogSearchCompletion(
-            playerId: "test-player",
-            player: Player.Red,
-            depth: 10,
-            nodes: 1000000,
-            nps: 500000,
-            ttHits: 6000,
-            ttProbes: 10000,
-            timeMs: 2000,
-            score: 150,
-            bestMove: (9, 9));
+            // Act
+            logger.LogSearchCompletion(
+                playerId: "test-player",
+                player: Player.Red,
+                depth: 10,
+                nodes: 1000000,
+                nps: 500000,
+                ttHits: 6000,
+                ttProbes: 10000,
+                timeMs: 2000,
+                score: 150,
+                bestMove: (9, 9));
+            // Dispose waits for background task to complete
+        }
 
-        // Give time for async write
-        Thread.Sleep(100);
-
-        // Assert
+        // Assert - read file after logger is disposed
         Assert.True(File.Exists(logPath));
         string content = File.ReadAllText(logPath);
         Assert.Contains("test-player", content);
@@ -60,21 +61,23 @@ public class SearchLoggerTests : IDisposable
     public void LogIteration_WritesToFile()
     {
         // Arrange
-        using var logger = new SearchLogger(_testLogDir);
-        string logPath = logger.GetCurrentLogPath();
+        string logPath;
+        {
+            using var logger = new SearchLogger(_testLogDir);
+            logPath = logger.GetCurrentLogPath();
 
-        // Act
-        logger.LogIteration(
-            playerId: "test-player",
-            depth: 5,
-            nodes: 50000,
-            score: 100,
-            bestMove: (8, 8),
-            timeMs: 100);
+            // Act
+            logger.LogIteration(
+                playerId: "test-player",
+                depth: 5,
+                nodes: 50000,
+                score: 100,
+                bestMove: (8, 8),
+                timeMs: 100);
+            // Dispose waits for background task to complete
+        }
 
-        Thread.Sleep(100);
-
-        // Assert
+        // Assert - read file after logger is disposed
         Assert.True(File.Exists(logPath));
         string content = File.ReadAllText(logPath);
         Assert.Contains("\"EntryType\":1", content); // Iteration = 1
@@ -84,21 +87,23 @@ public class SearchLoggerTests : IDisposable
     public void LogTTOperation_WritesToFile()
     {
         // Arrange
-        using var logger = new SearchLogger(_testLogDir);
-        string logPath = logger.GetCurrentLogPath();
+        string logPath;
+        {
+            using var logger = new SearchLogger(_testLogDir);
+            logPath = logger.GetCurrentLogPath();
 
-        // Act
-        logger.LogTTOperation(
-            playerId: "test-player",
-            hash: 0x123456789ABCDEF0,
-            depth: 10,
-            found: true,
-            score: 150,
-            bestMove: (9, 9));
+            // Act
+            logger.LogTTOperation(
+                playerId: "test-player",
+                hash: 0x123456789ABCDEF0,
+                depth: 10,
+                found: true,
+                score: 150,
+                bestMove: (9, 9));
+            // Dispose waits for background task to complete
+        }
 
-        Thread.Sleep(100);
-
-        // Assert
+        // Assert - read file after logger is disposed
         Assert.True(File.Exists(logPath));
         string content = File.ReadAllText(logPath);
         Assert.Contains("\"EntryType\":3", content); // TTProbe = 3
@@ -108,26 +113,26 @@ public class SearchLoggerTests : IDisposable
     public void Dispose_FlushesPendingEntries()
     {
         // Arrange
-        using var logger = new SearchLogger(_testLogDir);
-        string logPath = logger.GetCurrentLogPath();
-
-        // Act - Log multiple entries
-        for (int i = 0; i < 10; i++)
+        string logPath;
         {
-            logger.LogIteration(
-                playerId: "test-player",
-                depth: i,
-                nodes: i * 1000,
-                score: i * 10,
-                bestMove: (i, i),
-                timeMs: i * 10);
+            using var logger = new SearchLogger(_testLogDir);
+            logPath = logger.GetCurrentLogPath();
+
+            // Act - Log multiple entries
+            for (int i = 0; i < 10; i++)
+            {
+                logger.LogIteration(
+                    playerId: "test-player",
+                    depth: i,
+                    nodes: i * 1000,
+                    score: i * 10,
+                    bestMove: (i, i),
+                    timeMs: i * 10);
+            }
+            // Dispose waits for background task to complete
         }
 
-        // Dispose should flush
-        // (implicit in using statement)
-
-        // Assert
-        Thread.Sleep(200); // Give time for flush
+        // Assert - read file after logger is disposed
         string content = File.ReadAllText(logPath);
         // Should have multiple lines
         Assert.True(content.Count('\n') >= 10);
@@ -152,41 +157,43 @@ public class SearchLoggerTests : IDisposable
     public void LogMultipleEntries_AllPersisted()
     {
         // Arrange
-        using var logger = new SearchLogger(_testLogDir);
-        string logPath = logger.GetCurrentLogPath();
+        string logPath;
+        {
+            using var logger = new SearchLogger(_testLogDir);
+            logPath = logger.GetCurrentLogPath();
 
-        // Act - Log various entry types
-        logger.LogSearchCompletion(
-            playerId: "p1",
-            player: Player.Red,
-            depth: 8,
-            nodes: 100000,
-            nps: 100000,
-            ttHits: 1000,
-            ttProbes: 2000,
-            timeMs: 1000,
-            score: 100,
-            bestMove: (5, 5));
+            // Act - Log various entry types
+            logger.LogSearchCompletion(
+                playerId: "p1",
+                player: Player.Red,
+                depth: 8,
+                nodes: 100000,
+                nps: 100000,
+                ttHits: 1000,
+                ttProbes: 2000,
+                timeMs: 1000,
+                score: 100,
+                bestMove: (5, 5));
 
-        logger.LogTTOperation(
-            playerId: "p1",
-            hash: 0xABCD,
-            depth: 8,
-            found: false,
-            score: null,
-            bestMove: null);
+            logger.LogTTOperation(
+                playerId: "p1",
+                hash: 0xABCD,
+                depth: 8,
+                found: false,
+                score: null,
+                bestMove: null);
 
-        logger.LogIteration(
-            playerId: "p1",
-            depth: 9,
-            nodes: 200000,
-            score: 120,
-            bestMove: (6, 6),
-            timeMs: 2000);
+            logger.LogIteration(
+                playerId: "p1",
+                depth: 9,
+                nodes: 200000,
+                score: 120,
+                bestMove: (6, 6),
+                timeMs: 2000);
+            // Dispose waits for background task to complete
+        }
 
-        Thread.Sleep(200);
-
-        // Assert
+        // Assert - read file after logger is disposed
         string content = File.ReadAllText(logPath);
         Assert.Contains("\"EntryType\":2", content); // SearchComplete = 2
         Assert.Contains("\"EntryType\":3", content); // TTProbe = 3
