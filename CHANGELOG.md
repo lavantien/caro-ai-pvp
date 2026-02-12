@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.43.0] - 2026-02-12
+
+### Changed
+- **IMPROVEMENT_RESEARCH.md** - Major refactoring for accuracy and actionability:
+  - Removed all speculative ELO estimates and development time predictions
+  - Added clear "Currently Implemented Techniques" section with file references
+  - Consolidated redundant Part 9 content into main body
+  - Restructured as technical reference: Overview, Implemented, Research Candidates, References
+  - Reduced from ~1,400 lines to ~450 lines (68% reduction)
+  - Each research candidate now includes: Description, Source code, C# adaptation, Considerations, Files to modify
+- **README.md** - Removed ELO estimates from AI optimization tables
+
+[1.43.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.43.0
+
 ## [1.42.1] - 2026-02-12
 
 ### Fixed
