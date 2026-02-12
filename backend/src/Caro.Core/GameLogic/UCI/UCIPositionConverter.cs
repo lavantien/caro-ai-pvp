@@ -10,7 +10,7 @@ namespace Caro.Core.GameLogic.UCI;
 /// - "position startpos" - Start from empty board
 /// - "position startpos moves h9 j10 i9" - Start from empty, then apply moves
 /// 
-/// Caro uses 19x19 board with Red (equivalent to White) moving first.
+/// Caro uses 32x32 board with Red (equivalent to White) moving first.
 /// UCI "White" maps to Red, "Black" maps to Blue.
 /// </summary>
 public static class UCIPositionConverter

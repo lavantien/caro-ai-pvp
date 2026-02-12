@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -9,7 +10,7 @@ namespace Caro.Core.GameLogic;
 /// </summary>
 public static class ZobristTables
 {
-    private const int BoardSize = 32;
+    private const int BoardSize = GameConstants.BoardSize;
     private static readonly ulong[,] _redKeys = new ulong[BoardSize, BoardSize];
     private static readonly ulong[,] _blueKeys = new ulong[BoardSize, BoardSize];
     private static readonly Random _random = new(42); // Fixed seed for reproducibility

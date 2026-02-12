@@ -1,5 +1,6 @@
 namespace Caro.Core.GameLogic;
 
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 /// <summary>
@@ -7,7 +8,7 @@ using Caro.Core.Domain.Entities;
 /// </summary>
 public static class PositionExtensions
 {
-    private const int BoardSize = 32;
+    private const int BoardSize = GameConstants.BoardSize;
 
     /// <summary>
     /// Check if position is within board bounds
@@ -65,12 +66,12 @@ public class WinDetector
                         bool hasExtension = HasPlayerAt(board, x - dx, y - dy, cell.Player) ||
                                           HasPlayerAt(board, x + count * dx, y + count * dy, cell.Player);
 
-                        // Win only if exactly 5 (not 6+) and not both ends blocked
-                        if (count == 5 && !hasExtension && !(leftBlocked && rightBlocked))
+                        // Win only if exactly WinLength (not more) and not both ends blocked
+                        if (count == GameConstants.WinLength && !hasExtension && !(leftBlocked && rightBlocked))
                         {
                             // Build winning line
                             var winningLine = new List<Domain.Entities.Position>();
-                            for (int i = 0; i < 5; i++)
+                            for (int i = 0; i < GameConstants.WinLength; i++)
                             {
                                 winningLine.Add(new Domain.Entities.Position(x + i * dx, y + i * dy));
                             }
@@ -113,7 +114,7 @@ public class WinDetector
             y += dy;
         }
 
-        return count >= 5;
+        return count >= GameConstants.WinLength;
     }
 
     private bool IsPositionBlocked(Board board, int x, int y, Player player)

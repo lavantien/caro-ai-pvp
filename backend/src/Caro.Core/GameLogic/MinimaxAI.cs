@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
 using System.Threading.Channels;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic.TimeManagement;
 using Caro.Core.GameLogic.Pondering;
@@ -58,7 +59,7 @@ public class MinimaxAI : IStatsPublisher
     private const int SearchRadius = 2;
 
     // Board size constant for array sizing and bounds checking
-    private const int BoardSize = 32;
+    private const int BoardSize = GameConstants.BoardSize;
 
     // Killer heuristic: track best moves at each depth
     // No depth cap - array sized for maximum practical depth (32x32 board = 1024 cells)
@@ -1448,7 +1449,7 @@ public class MinimaxAI : IStatsPublisher
     {
         int count = candidates.Count;
         var scores = new int[count];
-        const int butterflySize = 32;  // Must match array declaration
+        const int butterflySize = BoardSize;  // Must match array declaration
 
         for (int i = 0; i < count; i++)
         {
@@ -1576,8 +1577,8 @@ public class MinimaxAI : IStatsPublisher
                 }
 
                 // PRIORITY #5: History/Butterfly Heuristic - general statistical sorting
-                // Bounds check for butterfly tables (19x19)
-                const int butterflySize = 32;
+                // Bounds check for butterfly tables
+                const int butterflySize = BoardSize;
                 var butterflyScore = (x >= 0 && x < butterflySize && y >= 0 && y < butterflySize)
                     ? (player == Player.Red ? _butterflyRed[x, y] : _butterflyBlue[x, y])
                     : 0;
@@ -1587,9 +1588,9 @@ public class MinimaxAI : IStatsPublisher
                 score += Math.Min(500, historyScore / 10);
 
                 // PRIORITY #6: Positional Heuristics - center proximity, nearby stones
-                // Prefer center (9,9) for 19x19 board
-                var distanceToCenter = Math.Abs(x - 9) + Math.Abs(y - 9);
-                score += (18 - distanceToCenter) * 10;
+                // Prefer center for 32x32 board
+                var distanceToCenter = Math.Abs(x - GameConstants.CenterPosition) + Math.Abs(y - GameConstants.CenterPosition);
+                score += ((GameConstants.BoardSize - 2) - distanceToCenter) * 10;
 
                 // Prefer moves near existing stones
                 var nearby = 0;
@@ -2557,7 +2558,7 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     private List<(int x, int y)> GetCandidateMoves(Board board)
     {
-        const int boardSize = 32;
+        const int boardSize = BoardSize;
         const int cellCount = boardSize * boardSize;
 
         // Use stackalloc for considered tracking (zero allocation)
@@ -2893,34 +2894,12 @@ public class MinimaxAI : IStatsPublisher
     public PV GetLastPV() => _lastPV;
 
     /// <summary>
-    /// Stop any active pondering and publish ponder stats
-    /// OBSOLETE: Use StopPondering(Player forPlayer) for explicit player color
-    /// </summary>
-    [Obsolete("Use StopPondering(Player forPlayer) for explicit player color")]
-    public void StopPondering()
-    {
-        _ponderer.StopPondering();
-        // Can't publish stats without knowing player color - this method shouldn't be used
-    }
-
-    /// <summary>
     /// Stop any active pondering and publish ponder stats with explicit player color
     /// </summary>
     public void StopPondering(Player forPlayer)
     {
         _ponderer.StopPondering();
         PublishPonderStats(forPlayer);
-    }
-
-    /// <summary>
-    /// Start pondering for opponent's response (called at start of opponent's turn)
-    /// OBSOLETE: Use StartPonderingNow() with explicit parameters
-    /// </summary>
-    [Obsolete("Use StartPonderingNow(Board, Player currentPlayerToMove, AIDifficulty difficulty, Player thisAIColor)")]
-    public void StartPonderingForOpponent(Board board, Player opponentToMove)
-    {
-        // This method should not be used - it relies on internal state
-        throw new InvalidOperationException("Use StartPonderingNow with explicit parameters");
     }
 
     /// <summary>

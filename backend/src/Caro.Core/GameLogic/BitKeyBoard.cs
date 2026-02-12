@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -17,7 +18,7 @@ namespace Caro.Core.GameLogic;
 /// </summary>
 public sealed class BitKeyBoard
 {
-    private const int BoardSize = 32;
+    private const int BoardSize = GameConstants.BoardSize;
     private const int HalfLineLen = 6;  // Half line length for pattern extraction (12-cell window)
 
     // Four directional bitkeys (64-bit each)

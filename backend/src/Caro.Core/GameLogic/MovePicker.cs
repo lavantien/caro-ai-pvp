@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -44,20 +45,17 @@ public sealed class MovePicker
         Done = 8
     }
 
-    // Threshold for separating good vs bad quiet moves
-    // Based on history score - moves above this are "good"
-    private const int GoodQuietThreshold = 500;
-
-    // Scoring constants for move evaluation
-    private const int MustBlockScore = 2_000_000;
-    private const int WinningMoveScore = 1_500_000;
-    private const int ThreatCreateScore = 800_000;
-    private const int TtMoveScore = 1_000_000;
-    private const int KillerScore1 = 500_000;
-    private const int KillerScore2 = 400_000;
-    private const int CounterMoveScore = 150_000;
-    private const int ContinuationScoreMax = 300_000;
-    private const int HistoryScoreMax = 20_000;
+    // Import scoring constants from centralized configuration
+    private const int GoodQuietThreshold = MoveOrderingConstants.GoodQuietThreshold;
+    private const int MustBlockScore = MoveOrderingConstants.MustBlockScore;
+    private const int WinningMoveScore = MoveOrderingConstants.WinningMoveScore;
+    private const int ThreatCreateScore = MoveOrderingConstants.ThreatCreateScore;
+    private const int TtMoveScore = MoveOrderingConstants.TtMoveScore;
+    private const int KillerScore1 = MoveOrderingConstants.KillerScore1;
+    private const int KillerScore2 = MoveOrderingConstants.KillerScore2;
+    private const int CounterMoveScore = MoveOrderingConstants.CounterMoveScore;
+    private const int ContinuationScoreMax = MoveOrderingConstants.ContinuationScoreMax;
+    private const int HistoryScoreMax = MoveOrderingConstants.HistoryScoreMax;
 
     // Picker state
     private readonly List<(int x, int y)> _candidates;

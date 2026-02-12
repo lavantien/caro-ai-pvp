@@ -1,3 +1,5 @@
+using Caro.Core.Domain.Configuration;
+
 namespace Caro.Core.GameLogic;
 
 /// <summary>
@@ -5,7 +7,7 @@ namespace Caro.Core.GameLogic;
 /// </summary>
 public class ELOCalculator
 {
-    private const int KFactor = 32;
+    private const int KFactor = GameConstants.EloKFactor;
 
     /// <summary>
     /// Calculate the new rating for a player after a game

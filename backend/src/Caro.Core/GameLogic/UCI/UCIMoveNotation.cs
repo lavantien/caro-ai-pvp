@@ -1,3 +1,5 @@
+using Caro.Core.Domain.Configuration;
+
 namespace Caro.Core.GameLogic.UCI;
 
 /// <summary>
@@ -12,7 +14,7 @@ namespace Caro.Core.GameLogic.UCI;
 /// </summary>
 public static class UCIMoveNotation
 {
-    private const int BoardSize = 32;
+    private const int BoardSize = GameConstants.BoardSize;
 
     /// <summary>
     /// Convert board coordinates to UCI notation.
