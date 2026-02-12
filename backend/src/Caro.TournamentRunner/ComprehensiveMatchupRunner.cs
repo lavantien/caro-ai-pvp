@@ -16,8 +16,8 @@ public class ComprehensiveMatchupRunner
         public AIDifficulty RedDifficulty { get; set; }
         public AIDifficulty BlueDifficulty { get; set; }
         public int Games { get; set; } = 10;
-        public int InitialTimeSeconds { get; set; } = 420;
-        public int IncrementSeconds { get; set; } = 5;
+        public int InitialTimeSeconds { get; set; } = 180;
+        public int IncrementSeconds { get; set; } = 2;
         public bool EnablePondering { get; set; } = true;
         public bool EnableParallel { get; set; } = true;
         public string? Description { get; set; }
@@ -34,14 +34,14 @@ public class ComprehensiveMatchupRunner
         await RunAsyncInternal();
     }
 
-    private const int TimeSeconds = 420;
-    private const int IncSeconds = 5;
+    private const int TimeSeconds = 180;
+    private const int IncSeconds = 2;
     private const int GamesPerMatchup = 10;
 
     private static async Task RunAsyncInternal()
     {
         var engine = TournamentEngine.CreateDefault();
-        const string tcName = "7+5";
+        const string tcName = "3+2";
 
         LogWrite($"═══════════════════════════════════════════════════════════════════");
         LogWrite($"  COMPREHENSIVE MATCHUP RUNNER: {tcName} Time Control");
