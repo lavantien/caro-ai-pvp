@@ -560,8 +560,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                             // Count stones on board for diagnostic
                             int redCount = 0, blueCount = 0;
-                            for (int x = 0; x < 19; x++)
-                                for (int y = 0; y < 19; y++)
+                            int boardSize = posData.board.BoardSize;
+                            for (int x = 0; x < boardSize; x++)
+                                for (int y = 0; y < boardSize; y++)
                                 {
                                     var c = posData.board.GetCell(x, y);
                                     if (c.Player == Player.Red) redCount++;
