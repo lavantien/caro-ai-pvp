@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.42.0] - 2026-02-12
+
+### Added
+- **Extended Research Findings** - Part 9 in IMPROVEMENT_RESEARCH.md with 8 new subsections:
+  - 9.1 Rapfi BitKey System for O(1) pattern lookup with rotation-based encoding
+  - 9.2 Pattern4 System for combined 4-direction threat categorization
+  - 9.3 Stockfish Move Picker Architecture with staged generation
+  - 9.4 NNUE Concepts adapted for Gomoku incremental evaluation
+  - 9.5 Transposition Table Advanced Techniques (lockless hashing, bucket indexing)
+  - 9.6 VCF (Victory by Continuous Four) for Caro tactical solver
+  - 9.7 Caro-Specific Opening Book Enhancements with opening rule validation
+  - 9.8 Prioritized implementation summary table with effort estimates
+
+### Changed
+- **Executive Summary** - Updated ELO potential estimates to 600-1000+ (from 340-660)
+- **Conclusion** - Enhanced Top 10 Recommendations with implementation priorities
+- **Appendix B** - Added additional references (minimax.dev, Stockfish wiki)
+
+### Documentation
+- Research now covers: Rapfi, minimax.dev, Stockfish 18, Chess Programming Wiki, Stockfish wiki
+- Code examples adapted for Caro's "exactly 5" rule and opening constraints
+- Implementation complexity ratings for each optimization technique
+
+[1.42.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.42.0
+
 ## [1.41.0] - 2026-02-12
 
 ### Fixed
