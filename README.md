@@ -34,13 +34,14 @@ Grandmaster-level engine achieving depth 11+ with 100-500x speedup over naive mi
 | **Transposition Table** | Multi-Entry Clusters | 3 entries per bucket, 32-byte aligned |
 | | Depth-Age Replacement | Smart entry eviction formula |
 | | Evaluation Cache | Static eval stored with entries |
-| **Move Ordering** | Hash Move Priority | TT move searched unconditionally first |
-| | Emergency Defense | Blocks opponent's immediate threats |
-| | Winning Threats | Creates own threats (Open 4, Double 3) |
-| | Continuation History | 6-ply move pair statistics |
-| | Counter-Move History | Opponent response patterns |
-| | Killer Moves | Cutoff-causing moves from sibling nodes |
-| | Staged Move Picker | TT → Threats → Killers → Counter → Quiet |
+| **Move Ordering** | Staged Picker | TT → Block → Win → Threat → Killer/Counter → Quiet |
+| | Hash Move | TT move searched unconditionally first |
+| | Must Block | Mandatory defense against opponent's open four |
+| | Winning Moves | Creates open four or double threat |
+| | Threat Create | Creates open three or broken four |
+| | Killer/Counter | Cutoff moves + opponent response patterns |
+| | Continuation History | 6-ply move pair scoring |
+| | Butterfly History | Long-term move statistics |
 | **Evaluation** | BitKey Pattern System | O(1) pattern lookup with bit rotation |
 | | Pattern4 Classification | 4-direction combined threat detection |
 | | Contest Factor | Dynamic contempt (-200 to +200 cp) |
