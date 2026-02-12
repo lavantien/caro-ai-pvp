@@ -10,9 +10,13 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 - **UCI Protocol Support** - Standalone engine compatible with UCI chess GUIs
 - **Clean Architecture** - Separated Domain, Application, and Infrastructure layers
 - **Real-time multiplayer** - WebSocket support via SignalR
-- **AI tournament mode** - Balanced round-robin with ELO tracking
 - **Mobile-first UX** - Ghost stone positioning and haptic feedback
 - **700+ automated tests** - Including adversarial concurrency tests
+
+**Tournament & Testing:**
+- Frontend tournament mode with balanced round-robin and live ELO tracking
+- Matchup suites for AI strength validation (statistical analysis with color-swapping)
+- Comprehensive test runners: 20 matchups, 10 games each, 7+5 time control
 
 **Game Rules (Caro/Gomoku variant):**
 - 32x32 board (1024 intersections)
