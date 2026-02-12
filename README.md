@@ -16,7 +16,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 **Tournament & Testing:**
 - Frontend tournament mode with balanced round-robin and live ELO tracking
 - Matchup suites for AI strength validation (statistical analysis with color-swapping)
-- Comprehensive test runners: 20 matchups, 10 games each, 7+5 time control
+- Comprehensive test runners: 20 matchups, 10 games each, 3+2 time control
 
 **Game Rules (Caro/Gomoku variant):**
 - 32x32 board (1024 intersections)
@@ -64,8 +64,8 @@ Grandmaster-level engine achieving depth 11+ with 100-500x speedup over naive mi
 | Level | Threads | Time Budget | Error | Book Depth | Features |
 |-------|---------|-------------|-------|------------|----------|
 | Braindead | 1 | 5% | 10% | 0 | Beginners |
-| Easy | 2 | 20% | 0% | 0 | Parallel search |
-| Medium | 3 | 50% | 0% | 0 | Parallel + pondering |
+| Easy | 2 | 20% | 0% | 8 plies | Parallel search + Opening book |
+| Medium | 3 | 50% | 0% | 16 plies | Parallel + pondering + Opening book |
 | Hard | 4 | 75% | 0% | 24 plies | Parallel + pondering + VCF + Opening book |
 | Grandmaster | (N/2)-1 | 100% | 0% | 32 plies | Max parallel, VCF, pondering, Opening book |
 | Experimental | (N/2)-1 | 100% | 0% | 40 plies | Full opening book, max features |
@@ -80,7 +80,7 @@ Universal Chess Interface (UCI) protocol compatibility for standalone engine usa
 - **Standard UCI commands** - uci, isready, ucinewgame, position, go, stop, quit, setoption
 - **Engine options** - Skill Level, Use Opening Book, Book Depth Limit, Threads, Hash, Ponder
 - **WebSocket bridge** - Frontend can connect directly to UCI engine
-- **Algebraic notation** - Coordinates a-af (columns), 1-32 (rows)
+- **Algebraic notation** - Double-letter coordinates aa-hd (columns), 1-32 (rows)
 
 **Run standalone UCI engine:**
 ```bash
@@ -95,23 +95,22 @@ dotnet run --project backend/src/Caro.UCIMockClient -- --games 4 --time 180 --in
 **Example UCI session:**
 ```
 > uci
-< id name Caro AI 1.45.0
+< id name Caro AI 1.47.0
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
 < option name Use Opening Book type check default true
 < uciok
-> position startpos moves j10
+> position startpos moves ea17
 > go movetime 2000
-< info depth 2 nodes 13524 time 1590 pv j11
-< bestmove j11
+< info depth 2 nodes 13524 time 1590 pv ea18
+< bestmove ea18
 ```
 
 ### Opening Book
 
 Precomputed opening positions with SQLite storage, symmetry reduction, and parallel generation:
 
-- **Hard+ only** - Easy/Medium do NOT use opening book, AI calculates first move naturally
-- **Configurable depth** - Hard: 24 plies, Grandmaster: 32 plies, Experimental: 40 plies
+- **All levels except Braindead** - Easy: 8 plies, Medium: 16 plies, Hard: 24 plies, Grandmaster: 32 plies, Experimental: 40 plies
 - **Tiered continuation** - Response counts decrease with depth (4→3→2→1) ensuring coverage
 - **Symmetry reduction** - 8-way transformations reduce storage by ~8x
 - **Optimized generation** - 60-67 positions/minute through aggressive pruning (12-15x speedup)

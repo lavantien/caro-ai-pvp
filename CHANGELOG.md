@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.47.0] - 2026-02-13
+
+### Changed
+- **UCI Notation System** - Changed from base-26 to grid-based double-letter format
+  - All 32 columns now use double letters: `aa` through `hd`
+  - Encoding formula: `column = firstLetterIndex * 4 + secondLetterIndex`
+  - First letter: `a-h` (0-7), Second letter: `a-d` (0-3)
+  - Examples: `aa`=0, `ea`=16 (center), `hd`=31
+  - Updated both backend `UCIMoveNotation.cs` and frontend `uciEngine.ts`
+- **Opening Book Access** - Extended to Easy and Medium difficulties
+  - Easy: 8 plies (4 moves per side)
+  - Medium: 16 plies (8 moves per side)
+  - Previously only Hard+ had book access
+- **Tournament Time Control** - ComprehensiveMatchupRunner changed from 7+5 to 3+2
+  - Faster games for quicker matchup validation
+  - Initial time: 420s → 180s (7 min → 3 min)
+  - Increment: 5s → 2s
+
+### Fixed
+- Frontend UCI bounds validation updated from 0-18 to 0-31 for 32x32 board consistency
+
+### Documentation
+- Updated README.md with new UCI notation format, difficulty table, and time control
+- Updated ENGINE_FEATURES.md version to 1.47.0
+- Updated UCI engine protocol version to 1.47.0
+
+### Test Coverage
+- All 579 backend tests passing (515 Core + 64 Infrastructure)
+- All 19 frontend tests passing
+
+[1.47.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.47.0
+
 ## [1.46.0] - 2026-02-13
 
 ### Changed

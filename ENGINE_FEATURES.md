@@ -1,6 +1,6 @@
 # Caro AI Engine Features
 
-**Version:** 1.45.0
+**Version:** 1.47.0
 **Board:** 32x32 (1024 intersections)
 **Rule:** Caro (exactly-5 to win, open rule for red's second move)
 
