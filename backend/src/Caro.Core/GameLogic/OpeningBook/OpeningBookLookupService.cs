@@ -60,12 +60,23 @@ public sealed class OpeningBookLookupService
         if (bestMove == null)
             return null;
 
-        // Transform back to actual coordinates if symmetry was applied
-        var actualMove = _canonicalizer.TransformToActual(
-            (bestMove.RelativeX, bestMove.RelativeY),
-            canonical.SymmetryApplied,
-            board
-        );
+        // Transform back to actual coordinates if needed
+        // CRITICAL: Use stored IsNearEdge to decide transformation
+        // Moves stored with IsNearEdge=true were NOT transformed during storage
+        // so they should NOT be inverse-transformed during retrieval
+        (int x, int y) actualMove;
+        if (entry.IsNearEdge || canonical.SymmetryApplied == SymmetryType.Identity)
+        {
+            actualMove = (bestMove.RelativeX, bestMove.RelativeY);
+        }
+        else
+        {
+            actualMove = _canonicalizer.TransformToActual(
+                (bestMove.RelativeX, bestMove.RelativeY),
+                canonical.SymmetryApplied,
+                board
+            );
+        }
 
         // Verify move is valid according to game rules
         if (!_validator.IsValidMove(board, actualMove.x, actualMove.y, player))
@@ -94,11 +105,22 @@ public sealed class OpeningBookLookupService
 
         foreach (var move in entry.Moves)
         {
-            var actualMove = _canonicalizer.TransformToActual(
-                (move.RelativeX, move.RelativeY),
-                canonical.SymmetryApplied,
-                board
-            );
+            // CRITICAL: Use stored IsNearEdge to decide transformation
+            // Moves stored with IsNearEdge=true were NOT transformed during storage
+            // so they should NOT be inverse-transformed during retrieval
+            (int x, int y) actualMove;
+            if (entry.IsNearEdge || canonical.SymmetryApplied == SymmetryType.Identity)
+            {
+                actualMove = (move.RelativeX, move.RelativeY);
+            }
+            else
+            {
+                actualMove = _canonicalizer.TransformToActual(
+                    (move.RelativeX, move.RelativeY),
+                    canonical.SymmetryApplied,
+                    board
+                );
+            }
 
             if (_validator.IsValidMove(board, actualMove.x, actualMove.y, player))
             {
