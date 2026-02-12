@@ -7,7 +7,7 @@ using Caro.Core.Domain.Entities;
 /// </summary>
 public static class PositionExtensions
 {
-    private const int BoardSize = 19;
+    private const int BoardSize = 32;
 
     /// <summary>
     /// Check if position is within board bounds

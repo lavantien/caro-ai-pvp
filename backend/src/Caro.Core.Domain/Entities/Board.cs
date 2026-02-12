@@ -6,7 +6,7 @@ namespace Caro.Core.Domain.Entities;
 /// </summary>
 public sealed class Board
 {
-    private const int Size = 19;
+    private const int Size = 32;
     private readonly Cell[,] _cells;
 
     // Private constructor for internal use

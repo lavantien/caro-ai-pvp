@@ -11,7 +11,7 @@ public readonly record struct Position(int X, int Y)
     /// <summary>
     /// Board size constant (19x19).
     /// </summary>
-    public static readonly int BoardSize = 19;
+    public static readonly int BoardSize = 32;
 
     /// <summary>
     /// Check if this position is within valid board bounds (0-18).
