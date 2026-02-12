@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.Domain.ValueObjects;
@@ -62,7 +63,7 @@ public readonly record struct ZobristHash(ulong Value)
 /// </summary>
 public sealed class ZobristTable
 {
-    private const int BoardSize = 32;
+    private const int BoardSize = GameConstants.BoardSize;
     private readonly ulong[,] _redKeys;
     private readonly ulong[,] _blueKeys;
     private readonly ulong _initialHash;
