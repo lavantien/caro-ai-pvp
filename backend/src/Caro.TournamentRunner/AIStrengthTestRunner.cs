@@ -188,7 +188,7 @@ public static class AIStrengthTestRunner
             var result = engine.RunGame(
                 redDifficulty: actualRed,
                 blueDifficulty: actualBlue,
-                maxMoves: 361,
+                maxMoves: 1024,
                 initialTimeSeconds: config.InitialTimeSeconds,
                 incrementSeconds: config.IncrementSeconds,
                 ponderingEnabled: config.EnablePondering);

@@ -16,7 +16,7 @@ public sealed partial class StatelessSearchEngine
 {
     private readonly ILogger<StatelessSearchEngine> _logger;
     private const int WinLength = 5;
-    private const int BoardSize = 19;
+    private const int BoardSize = 32;
 
     public StatelessSearchEngine(ILogger<StatelessSearchEngine> logger)
     {

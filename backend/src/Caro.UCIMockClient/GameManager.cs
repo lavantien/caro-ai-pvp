@@ -60,7 +60,7 @@ public class GameManager
         UCIMockClient blueEngine,
         int initialTimeSeconds = 180,
         int incrementSeconds = 2,
-        int maxMoves = 361)
+        int maxMoves = 1024)
     {
         _redEngine = redEngine ?? throw new ArgumentNullException(nameof(redEngine));
         _blueEngine = blueEngine ?? throw new ArgumentNullException(nameof(blueEngine));

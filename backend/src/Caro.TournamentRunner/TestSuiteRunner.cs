@@ -105,7 +105,7 @@ public class TestSuiteRunner
             var result = engine.RunGame(
                 redDiff,
                 blueDiff,
-                maxMoves: 361,
+                maxMoves: 1024,
                 initialTimeSeconds: 60,
                 incrementSeconds: 1,
                 ponderingEnabled: true,

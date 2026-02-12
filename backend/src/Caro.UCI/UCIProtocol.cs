@@ -116,7 +116,7 @@ public sealed class UCIProtocol
     {
         var responses = new List<string>
         {
-            "id name Caro AI 1.43.0",
+            "id name Caro AI 1.44.0",
             "id author Caro AI Project"
         };
 
