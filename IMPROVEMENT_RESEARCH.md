@@ -1,7 +1,7 @@
 # Caro Gomoku AI Improvement Research
 
-**Date:** 2026-02-12
-**Project:** Caro AI-PVP (19x19 Gomoku Variant)
+**Date:** 2026-02-13
+**Project:** Caro AI-PVP (32x32 Gomoku Variant)
 **Purpose:** Technical reference for potential engine improvements based on Rapfi, Stockfish 18, Chess Programming Wiki, and minimax.dev research.
 
 ---
@@ -48,6 +48,8 @@ The following techniques are already implemented in the codebase:
 | Feature | Description | File |
 |---------|-------------|------|
 | Continuation History | 6-ply move pair statistics | `ContinuationHistory.cs` |
+| Counter-Move History | Move-response patterns | `CounterMoveHistory.cs` |
+| Staged Move Picker | Prioritized move generation | `MovePicker.cs` |
 | Bounded History Updates | Overflow prevention formula | `ContinuationHistory.cs:11` |
 | Hash Move Prioritization | TT move searched first | `ParallelMinimaxSearch.cs` |
 
@@ -58,6 +60,8 @@ The following techniques are already implemented in the codebase:
 | VCF Solver | Victory by Continuous Fours detection | `VCFSolver.cs` |
 | Opening Book | SQLite-based opening database | `OpeningBook.cs` |
 | Exactly-5 Validation | Win detection for Caro rules | `WinDetector.cs` |
+| Pattern4 Evaluation | 4-direction combined threat classification | `Pattern4Evaluator.cs` |
+| BitKey Pattern System | O(1) pattern lookup with bit rotation | `BitKeyBoard.cs`, `BitKeyPatternTable.cs` |
 
 ### 2.5 Automated Tuning
 
@@ -70,9 +74,11 @@ The following techniques are already implemented in the codebase:
 
 ## 3. Research Candidates
 
-The following techniques are not yet implemented and could be evaluated for potential improvement:
+The following techniques are research candidates (some now implemented):
 
-### 3.1 Rapfi BitKey Pattern System
+### 3.1 Rapfi BitKey Pattern System [IMPLEMENTED]
+
+**Status:** Implemented in `BitKeyBoard.cs` and `BitKeyPatternTable.cs`
 
 **Description:** O(1) pattern lookup using bitkey rotation. Rapfi encodes board positions as 64-bit keys with 2 bits per cell, then uses rotation to align patterns around the position being evaluated.
 
@@ -139,7 +145,9 @@ public class BitKeyBoard
 
 ---
 
-### 3.2 Counter-Move History
+### 3.2 Counter-Move History [IMPLEMENTED]
+
+**Status:** Implemented in `CounterMoveHistory.cs`
 
 **Description:** Track which moves are good responses to specific opponent moves. Unlike continuation history (which tracks our own previous moves), counter-move history captures move-response patterns.
 
@@ -284,7 +292,9 @@ public class CaroNNUE
 
 ---
 
-### 3.5 Staged Move Picker
+### 3.5 Staged Move Picker [IMPLEMENTED]
+
+**Status:** Implemented in `MovePicker.cs`
 
 **Description:** Sophisticated move generation stages similar to Stockfish's MovePicker. Current implementation uses simpler move ordering.
 
@@ -325,7 +335,9 @@ partial_insertion_sort(cur, endCur, -3560 * depth);
 
 ---
 
-### 3.6 Rapfi Pattern4 Combined Evaluation
+### 3.6 Rapfi Pattern4 Combined Evaluation [IMPLEMENTED]
+
+**Status:** Implemented in `Pattern4Evaluator.cs`
 
 **Description:** 4-direction combined pattern evaluation that categorizes positions by threat level.
 
