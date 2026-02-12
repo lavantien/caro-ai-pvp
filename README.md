@@ -14,6 +14,12 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 - **Mobile-first UX** - Ghost stone positioning and haptic feedback
 - **700+ automated tests** - Including adversarial concurrency tests
 
+**Game Rules (Caro/Gomoku variant):**
+- 32x32 board (1024 intersections)
+- Open Rule: Red's second move must be at least 3 intersections away from first
+- Win: Exactly 5 in a row (6+ or blocked ends don't count)
+- Time Control: 1+0 (Bullet), 3+2 (Blitz), 7+5 (Rapid), 15+10 (Classical)
+
 ---
 
 ## Features
@@ -138,6 +144,10 @@ dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=open
 - SQLite logging with FTS5 full-text search
 - SignalR broadcasts via async queues
 
+### Documentation
+
+**Engine Features:** `ENGINE_FEATURES.md` - Comprehensive technical reference covering theoretical structures, algorithms, and patterns used in the AI engine. Includes search optimizations, transposition tables, move ordering systems, evaluation techniques, and time management strategies.
+
 ### Test Projects
 
 Separate test projects for focused testing:
@@ -170,42 +180,39 @@ cd backend/tests/Caro.Core.MatchupTests && dotnet test
 
 Clean Architecture with three core layers:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Presentation                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │   SvelteKit │  │  SignalR    │  │  ASP.NET Core API       │  │
-│  │   Frontend  │  │   Hub       │  │  Controllers            │  │
-│  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────────┘  │
-└─────────┼────────────────┼────────────────────┼─────────────────┘
-          │                │                    │
-          ▼                ▼                    ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                      Application Layer                           │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │  TournamentEngine  │  MatchScheduler  │  IStatsPublisher    │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-└───────────────────────────┬──────────────────────────────────────┘
-                            │
-                            ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                      Domain Layer (Core)                         │
-│  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌─────────────────┐  │
-│  │  Board   │  │  Player  │  │ GameState │  │  AIDifficulty   │  │
-│  │  (32x32) │  │  Enum    │  │           │  │  (Braindead-GM) │  │
-│  └──────────┘  └──────────┘  └───────────┘  └─────────────────┘  │
-└───────────────────────────┬──────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Infrastructure Layer                             │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │  MinimaxAI   │  VCFSolver            │  ParallelMinimaxSearch  │ │
-│  │  Hash Move   │  VCF Pre-Search       │  Lazy SMP │ TT Sharding │ │
-│  │  Priority #1 │  Emergency Defense    │  BitBoardEvaluator      │ │
-│  │  OpeningBook │ PositionCanonicalizer │  BookGeneration         │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Presentation["Presentation Layer"]
+        SvelteKit["SvelteKit Frontend"]
+        SignalR["SignalR Hub"]
+        API["ASP.NET Core API"]
+    end
+
+    subgraph Application["Application Layer"]
+        TournamentEngine["TournamentEngine"]
+        MatchScheduler["MatchScheduler"]
+        StatsPublisher["IStatsPublisher"]
+    end
+
+    subgraph Domain["Domain Layer (Core)"]
+        Board["Board (32x32)"]
+        Player["Player Enum"]
+        GameState["GameState"]
+        AIDifficulty["AIDifficulty"]
+    end
+
+    subgraph Infrastructure["Infrastructure Layer"]
+        MinimaxAI["MinimaxAI"]
+        VCFSolver["VCFSolver"]
+        ParallelSearch["ParallelMinimaxSearch (Lazy SMP)"]
+        OpeningBook["OpeningBook"]
+        Evaluator["BitBoardEvaluator"]
+    end
+
+    Presentation --> Application
+    Application --> Domain
+    Domain --> Infrastructure
+    Presentation --> Infrastructure
 ```
 
 **Clean Architecture Projects:**
@@ -354,21 +361,6 @@ npm run dev
 ```
 
 Backend: http://localhost:5207 | Frontend: http://localhost:5173
-
----
-
-## Game Rules
-
-- **32x32 board** (1024 intersections)
-- **Open Rule:** Red's second move must be at least 3 intersections away from first
-- **Win:** Exactly 5 in a row (6+ or blocked ends don't count)
-- **Time Control:** Selectable - 1+0 (Bullet), 3+2 (Blitz), 7+5 (Rapid), 15+10 (Classical)
-
----
-
-## Documentation
-
-**Engine Features:** `ENGINE_FEATURES.md` - Comprehensive technical reference covering theoretical structures, algorithms, and patterns used in the AI engine. Includes search optimizations, transposition tables, move ordering systems, evaluation techniques, and time management strategies.
 
 ---
 
