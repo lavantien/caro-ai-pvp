@@ -121,29 +121,4 @@ public sealed record GameState(
         };
     }
 
-    /// <summary>
-    /// Legacy RecordMove for backward compatibility.
-    /// OBSOLETE: Use WithMove() instead which returns a new state.
-    /// </summary>
-    [Obsolete("Use WithMove() instead, which returns a new GameState instance.")]
-    public GameState RecordMove(int x, int y) => WithMove(x, y);
-
-    /// <summary>
-    /// Legacy RecordMove for backward compatibility with external board.
-    /// OBSOLETE: Use WithMove() instead.
-    /// </summary>
-    [Obsolete("Use WithMove() instead, which uses the internal board.")]
-    public GameState RecordMove(Board board, int x, int y)
-    {
-        // For external board usage, we ignore the provided board and use internal state
-        return WithMove(x, y);
-    }
-
-    /// <summary>
-    /// Legacy EndGame for backward compatibility.
-    /// OBSOLETE: Use WithGameOver() instead.
-    /// </summary>
-    [Obsolete("Use WithGameOver() instead, which returns a new GameState instance.")]
-    public GameState EndGame(Player winner, List<Position>? winningLine = null) =>
-        WithGameOver(winner, winningLine?.ToImmutableArray());
 }

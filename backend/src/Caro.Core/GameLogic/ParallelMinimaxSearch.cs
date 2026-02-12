@@ -56,10 +56,6 @@ public sealed class ParallelMinimaxSearch
     private const int LMRFullDepthMoves = 4;     // Number of moves searched at full depth
     private const int LMRBaseReduction = 1;      // Base depth reduction for late moves
 
-    // Feature flag: Enable staged move picker for better alpha-beta cutoff rates
-    // Set to true to use MovePicker, false to use legacy OrderMoves
-    private const bool UseStagedMovePicker = true;
-
     // Time management - CancellationTokenSource for proper cross-thread cancellation
     private CancellationTokenSource? _searchCts;
     private Stopwatch? _searchStopwatch;
@@ -70,7 +66,6 @@ public sealed class ParallelMinimaxSearch
     {
         public int ThreadIndex; // Identifies master (0) vs helper (1+) threads for diversity logic
         public (int x, int y)[,] KillerMoves = new (int x, int y)[20, 2];
-        // CRITICAL FIX: Use BitBoard.Size not hardcoded 15 for 19x19 boards
         public int[,] HistoryRed = new int[BitBoard.Size, BitBoard.Size];
         public int[,] HistoryBlue = new int[BitBoard.Size, BitBoard.Size];
         public int TableHits;
@@ -87,7 +82,7 @@ public sealed class ParallelMinimaxSearch
         public long LocalNodesSearched;
 
         // Continuation history: tracks move history for up to 6 previous plies
-        // Uses cell indices (0-360 for 19x19 board) for efficient lookup
+        // Uses cell indices for efficient lookup
         public int[] MoveHistory = new int[ContinuationHistory.TrackedPlyCount];
         public int MoveHistoryCount;
 
@@ -991,8 +986,7 @@ public sealed class ParallelMinimaxSearch
     }
 
     /// <summary>
-    /// Order moves using staged move picker (recommended) or legacy scoring.
-    /// Controlled by UseStagedMovePicker feature flag.
+    /// Order moves using staged move picker for better alpha-beta cutoff rates.
     /// </summary>
     private List<(int x, int y)> OrderMovesStaged(
         List<(int x, int y)> candidates,
@@ -1002,11 +996,6 @@ public sealed class ParallelMinimaxSearch
         (int x, int y)? cachedMove,
         ThreadData threadData)
     {
-        if (!UseStagedMovePicker)
-        {
-            return OrderMoves(candidates, depth, board, player, cachedMove, threadData);
-        }
-
         // Convert ThreadData to MovePicker.ThreadData
         var pickerThreadData = ConvertToPickerThreadData(threadData);
 
@@ -1063,12 +1052,11 @@ public sealed class ParallelMinimaxSearch
     }
 
     /// <summary>
-    /// Order moves by priority (Defensive > TT move > Killer > History > Position)
-    /// Lazy SMP diversity comes naturally from different threads searching at different times,
-    /// different cutoffs, and different TT entries - no artificial noise needed.
-    /// LEGACY METHOD - kept for fallback when UseStagedMovePicker is false.
+    /// <summary>
+    /// Legacy move ordering for testing continuation history integration.
+    /// Production code uses OrderMovesStaged with MovePicker for better performance.
     /// </summary>
-    private List<(int x, int y)> OrderMoves(List<(int x, int y)> candidates, int depth, Board board, Player player, (int x, int y)? cachedMove, ThreadData threadData)
+    private List<(int x, int y)> OrderMovesLegacyForTesting(List<(int x, int y)> candidates, int depth, Board board, Player player, (int x, int y)? cachedMove, ThreadData threadData)
     {
         int count = candidates.Count;
         if (count == 0) return candidates; // Safety check
@@ -1448,8 +1436,8 @@ public sealed class ParallelMinimaxSearch
 
         var currentPlayer = isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red);
 
-        // Order tactical moves for better pruning
-        var orderedMoves = OrderMoves(tacticalMoves, quiesceDepth, board, currentPlayer, null, threadData);
+        // Order tactical moves for better pruning using staged move picker
+        var orderedMoves = OrderMovesStaged(tacticalMoves, quiesceDepth, board, currentPlayer, null, threadData);
 
         // Search tactical moves (only empty cells)
         if (isMaximizing)
@@ -2069,7 +2057,7 @@ public sealed class ParallelMinimaxSearch
             threadData.KillerMoves[depth, 0] = killerMove.Value;
         }
 
-        return OrderMoves(candidates, depth, board, player, cachedMove, threadData);
+        return OrderMovesLegacyForTesting(candidates, depth, board, player, cachedMove, threadData);
     }
 
     /// <summary>

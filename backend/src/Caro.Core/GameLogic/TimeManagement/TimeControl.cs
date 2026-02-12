@@ -59,15 +59,3 @@ public readonly record struct TimeControl(
         return Math.Max(10_000, InitialTimeMs / 10);
     }
 }
-
-/// <summary>
-/// Legacy constants for backward compatibility
-/// TODO: Migrate to TimeControl struct usage
-/// </summary>
-public static class LegacyTimeControl
-{
-    public const long SevenPlusFiveInitialMs = 420_000;
-    public const long SevenPlusFiveIncrementMs = 5_000;
-    public const long MinimumReserveMs = 1_000;
-    public const long EmergencyThresholdMs = 10_000;
-}
