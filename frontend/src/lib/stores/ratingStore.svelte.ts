@@ -1,5 +1,6 @@
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
+import { GameConfig } from '$lib/config/gameConfig';
 
 interface PlayerRating {
 	name: string;
@@ -15,7 +16,7 @@ interface RatingData {
 	leaderboard: PlayerRating[];
 }
 
-const DEFAULT_RATING = 1500;
+const DEFAULT_RATING = GameConfig.defaultEloRating;
 const STORAGE_KEY = 'caro-ratings';
 
 function createRatingStore() {
@@ -76,7 +77,7 @@ function createRatingStore() {
 			if (!data.currentPlayer) return data;
 
 			// Simple ELO calculation
-			const K = 32;
+			const K = GameConfig.eloKFactor;
 			const expectedScore =
 				1 / (1 + Math.pow(10, (opponentRating - data.currentPlayer.rating) / 400));
 			const actualScore = won ? 1 : 0;
