@@ -241,6 +241,33 @@ public sealed class SearchLogger : IDisposable
     }
 
     /// <summary>
+    /// Flush all pending log entries to disk.
+    /// Waits until all entries currently in the channel have been written.
+    /// </summary>
+    public async Task FlushAsync(TimeSpan? timeout = null)
+    {
+        timeout ??= TimeSpan.FromSeconds(5);
+
+        // Mark the channel as complete so the reader will drain it
+        _logChannel.Writer.Complete();
+
+        try
+        {
+            // Wait for the processing task to finish draining the channel
+            using var cts = new CancellationTokenSource(timeout.Value);
+            await _processingTask.WaitAsync(cts.Token);
+        }
+        catch (TimeoutException)
+        {
+            // Timeout waiting for flush
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancellation requested
+        }
+    }
+
+    /// <summary>
     /// Dispose of the logger and flush remaining entries.
     /// </summary>
     public void Dispose()
