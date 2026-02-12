@@ -1445,7 +1445,7 @@ public class MinimaxAI : IStatsPublisher
     {
         int count = candidates.Count;
         var scores = new int[count];
-        const int butterflySize = 19;  // Must match array declaration
+        const int butterflySize = 32;  // Must match array declaration
 
         for (int i = 0; i < count; i++)
         {
@@ -1574,7 +1574,7 @@ public class MinimaxAI : IStatsPublisher
 
                 // PRIORITY #5: History/Butterfly Heuristic - general statistical sorting
                 // Bounds check for butterfly tables (19x19)
-                const int butterflySize = 19;
+                const int butterflySize = 32;
                 var butterflyScore = (x >= 0 && x < butterflySize && y >= 0 && y < butterflySize)
                     ? (player == Player.Red ? _butterflyRed[x, y] : _butterflyBlue[x, y])
                     : 0;
@@ -2554,7 +2554,7 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     private List<(int x, int y)> GetCandidateMoves(Board board)
     {
-        const int boardSize = 19;
+        const int boardSize = 32;
         const int cellCount = boardSize * boardSize;
 
         // Use stackalloc for considered tracking (zero allocation)

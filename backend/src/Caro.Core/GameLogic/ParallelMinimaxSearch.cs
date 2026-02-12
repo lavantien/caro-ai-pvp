@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic.TimeManagement;
 
@@ -40,6 +41,7 @@ public sealed class ParallelMinimaxSearch
     private readonly WinDetector _winDetector;
     private readonly ThreatSpaceSearch _vcfSolver;
     private readonly ContinuationHistory _continuationHistory = new();
+    private readonly CounterMoveHistory _counterMoveHistory = new();
     private readonly Random _random;
     private readonly int _maxThreads;
     private readonly TimeBudgetDepthManager _depthManager = new();
@@ -53,6 +55,10 @@ public sealed class ParallelMinimaxSearch
     private const int LMRMinDepth = 3;           // Minimum depth to apply LMR
     private const int LMRFullDepthMoves = 4;     // Number of moves searched at full depth
     private const int LMRBaseReduction = 1;      // Base depth reduction for late moves
+
+    // Feature flag: Enable staged move picker for better alpha-beta cutoff rates
+    // Set to true to use MovePicker, false to use legacy OrderMoves
+    private const bool UseStagedMovePicker = true;
 
     // Time management - CancellationTokenSource for proper cross-thread cancellation
     private CancellationTokenSource? _searchCts;
@@ -85,6 +91,10 @@ public sealed class ParallelMinimaxSearch
         public int[] MoveHistory = new int[ContinuationHistory.TrackedPlyCount];
         public int MoveHistoryCount;
 
+        // Counter-move history: tracks opponent's last move for response scoring
+        // Updated on each move to enable counter-move heuristic
+        public int LastOpponentCell = -1;
+
         public Random Random = new();
 
         public void Reset()
@@ -98,6 +108,7 @@ public sealed class ParallelMinimaxSearch
             // Clear move history
             Array.Clear(MoveHistory, 0, MoveHistory.Length);
             MoveHistoryCount = 0;
+            LastOpponentCell = -1;
         }
     }
 
@@ -687,7 +698,7 @@ public sealed class ParallelMinimaxSearch
         var bestMove = candidates[0];
         var bestScore = int.MinValue;
 
-        var orderedMoves = OrderMoves(candidates, depth, board, player, null, threadData);
+        var orderedMoves = OrderMovesStaged(candidates, depth, board, player, null, threadData);
 
         foreach (var (x, y) in orderedMoves)
         {
@@ -817,7 +828,7 @@ public sealed class ParallelMinimaxSearch
         }
 
         var currentPlayer = isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red);
-        var orderedMoves = OrderMoves(candidates, rootDepth - depth, board, currentPlayer, cachedMove, threadData);
+        var orderedMoves = OrderMovesStaged(candidates, rootDepth - depth, board, currentPlayer, cachedMove, threadData);
 
         int bestScore = isMaximizing ? int.MinValue : int.MaxValue;
         (int x, int y)? bestMove = null;
@@ -853,6 +864,14 @@ public sealed class ParallelMinimaxSearch
 
             // Push current move to history for continuation tracking
             int currentCell = y * BitBoard.Size + x;
+
+            // Save opponent's last move for counter-move history before updating
+            // MoveHistory[0] contains opponent's last move (from 1 ply ago)
+            if (threadData.MoveHistoryCount > 0)
+            {
+                threadData.LastOpponentCell = threadData.MoveHistory[0];
+            }
+
             if (threadData.MoveHistoryCount < ContinuationHistory.TrackedPlyCount)
             {
                 // Shift existing history to make room at the front
@@ -929,6 +948,13 @@ public sealed class ParallelMinimaxSearch
                     _continuationHistory.Update(currentPlayer, prevCell, currentCell, bonus);
                 }
 
+                // Update counter-move history for this successful response
+                // Tracks: opponent's last move -> our response (current move)
+                if (threadData.LastOpponentCell >= 0)
+                {
+                    _counterMoveHistory.Update(currentPlayer, threadData.LastOpponentCell, currentCell, bonus);
+                }
+
                 break;
             }
 
@@ -965,9 +991,82 @@ public sealed class ParallelMinimaxSearch
     }
 
     /// <summary>
+    /// Order moves using staged move picker (recommended) or legacy scoring.
+    /// Controlled by UseStagedMovePicker feature flag.
+    /// </summary>
+    private List<(int x, int y)> OrderMovesStaged(
+        List<(int x, int y)> candidates,
+        int depth,
+        Board board,
+        Player player,
+        (int x, int y)? cachedMove,
+        ThreadData threadData)
+    {
+        if (!UseStagedMovePicker)
+        {
+            return OrderMoves(candidates, depth, board, player, cachedMove, threadData);
+        }
+
+        // Convert ThreadData to MovePicker.ThreadData
+        var pickerThreadData = ConvertToPickerThreadData(threadData);
+
+        var picker = new MovePicker(
+            candidates,
+            board,
+            player,
+            depth,
+            cachedMove,
+            pickerThreadData,
+            _continuationHistory,
+            _counterMoveHistory);
+
+        return picker.GetRemainingMoves();
+    }
+
+    /// <summary>
+    /// Convert ParallelMinimaxSearch.ThreadData to MovePicker.ThreadData.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static MovePicker.ThreadData ConvertToPickerThreadData(ThreadData source)
+    {
+        var target = new MovePicker.ThreadData
+        {
+            ThreadIndex = source.ThreadIndex,
+            MoveHistoryCount = source.MoveHistoryCount,
+            LastOpponentCell = source.LastOpponentCell
+        };
+
+        // Copy killer moves
+        for (int i = 0; i < 20; i++)
+        {
+            target.KillerMoves[i, 0] = source.KillerMoves[i, 0];
+            target.KillerMoves[i, 1] = source.KillerMoves[i, 1];
+        }
+
+        // Copy history tables
+        for (int x = 0; x < BitBoard.Size; x++)
+        {
+            for (int y = 0; y < BitBoard.Size; y++)
+            {
+                target.HistoryRed[x, y] = source.HistoryRed[x, y];
+                target.HistoryBlue[x, y] = source.HistoryBlue[x, y];
+            }
+        }
+
+        // Copy move history
+        for (int i = 0; i < source.MoveHistoryCount && i < source.MoveHistory.Length; i++)
+        {
+            target.MoveHistory[i] = source.MoveHistory[i];
+        }
+
+        return target;
+    }
+
+    /// <summary>
     /// Order moves by priority (Defensive > TT move > Killer > History > Position)
     /// Lazy SMP diversity comes naturally from different threads searching at different times,
     /// different cutoffs, and different TT entries - no artificial noise needed.
+    /// LEGACY METHOD - kept for fallback when UseStagedMovePicker is false.
     /// </summary>
     private List<(int x, int y)> OrderMoves(List<(int x, int y)> candidates, int depth, Board board, Player player, (int x, int y)? cachedMove, ThreadData threadData)
     {
@@ -1009,6 +1108,12 @@ public sealed class ParallelMinimaxSearch
             }
             // Weight: continuation history gets bonus up to 300000
             score += Math.Min(continuationScore * 3, 300000);
+
+            // 3b. Counter-Move History (Response to opponent's last move)
+            // Tracks which responses have been good after opponent's specific moves
+            int counterMoveScore = _counterMoveHistory.GetScore(player, threadData.LastOpponentCell, currentCell);
+            // Weight: counter-move history gets bonus up to 150000 (half of continuation)
+            score += Math.Min(counterMoveScore * 2, 150000);
 
             // 4. Winning Move (Tactical)
             // (You can call EvaluateTactical here if you want greater precision)
@@ -1533,6 +1638,8 @@ public sealed class ParallelMinimaxSearch
     public void Clear()
     {
         _transpositionTable.Clear();
+        _continuationHistory.Clear();
+        _counterMoveHistory.Clear();
     }
 
     /// <summary>
@@ -1979,6 +2086,7 @@ public sealed class ParallelMinimaxSearch
     /// Get the shared continuation history for testing.
     /// </summary>
     internal ContinuationHistory GetContinuationHistory() => _continuationHistory;
+    internal CounterMoveHistory GetCounterMoveHistory() => _counterMoveHistory;
 
     #endregion
 }

@@ -5,7 +5,9 @@ namespace Caro.Core.GameLogic;
 /// <summary>
 /// Threat detection engine for VCF (Victory by Continuous Four) solver
 /// Detects forcing patterns: Straight Four, Broken Four, Straight Three, Broken Three
-/// All threats respect Caro rules: no overline (6+), no sandwiched wins (OXXXXXO)
+/// All threats respect Caro rules: no overline (6+), no sandwiched wins (OXXXXXXO)
+///
+/// Supports both traditional scanning and BitKey-based O(1) pattern lookup.
 /// </summary>
 public class ThreatDetector
 {
@@ -18,6 +20,218 @@ public class ThreatDetector
     };
 
     private readonly WinDetector _winDetector = new();
+
+    #region BitKey-based Detection (O(1) pattern lookup)
+
+    /// <summary>
+    /// Fast threat detection using BitKey pattern system.
+    /// Returns threats detected at a specific position using O(1) pattern lookup.
+    /// </summary>
+    public List<Threat> DetectThreatsAt(BitKeyBoard bitKeyBoard, int x, int y, Player player)
+    {
+        var threats = new List<Threat>();
+        var (combined, threatCount) = BitKeyPatternTable.GetCombinedPattern(bitKeyBoard, x, y);
+
+        if (combined == Pattern4Evaluator.CaroPattern4.None)
+            return threats;
+
+        // Create threat based on pattern type
+        var threat = combined switch
+        {
+            Pattern4Evaluator.CaroPattern4.Exactly5 => CreateFiveThreat(x, y, player),
+            Pattern4Evaluator.CaroPattern4.Flex4 => CreateOpenFourThreat(bitKeyBoard, x, y, player),
+            Pattern4Evaluator.CaroPattern4.Block4 => CreateClosedFourThreat(bitKeyBoard, x, y, player),
+            Pattern4Evaluator.CaroPattern4.Flex3 => CreateOpenThreeThreat(bitKeyBoard, x, y, player),
+            Pattern4Evaluator.CaroPattern4.DoubleFlex3 => CreateDoubleThreeThreat(bitKeyBoard, x, y, player),
+            Pattern4Evaluator.CaroPattern4.Flex4Flex3 => CreateDoubleThreat(bitKeyBoard, x, y, player),
+            _ => null
+        };
+
+        if (threat != null)
+            threats.Add(threat);
+
+        return threats;
+    }
+
+    /// <summary>
+    /// Check if a position is a winning move using BitKey O(1) lookup.
+    /// </summary>
+    public bool IsWinningMoveFast(BitKeyBoard bitKeyBoard, int x, int y, Player player)
+    {
+        return BitKeyPatternTable.IsWinningMove(bitKeyBoard, x, y, player);
+    }
+
+    /// <summary>
+    /// Check if a position creates a double threat using BitKey O(1) lookup.
+    /// </summary>
+    public bool IsDoubleThreatFast(BitKeyBoard bitKeyBoard, int x, int y, Player player)
+    {
+        return BitKeyPatternTable.IsDoubleThreatMove(bitKeyBoard, x, y, player);
+    }
+
+    /// <summary>
+    /// Get the pattern classification at a position using BitKey O(1) lookup.
+    /// </summary>
+    public (Pattern4Evaluator.CaroPattern4 Pattern, int ThreatCount) GetPatternAt(BitKeyBoard bitKeyBoard, int x, int y)
+    {
+        return BitKeyPatternTable.GetCombinedPattern(bitKeyBoard, x, y);
+    }
+
+    /// <summary>
+    /// Evaluate a position using BitKey O(1) pattern scoring.
+    /// </summary>
+    public int EvaluatePosition(BitKeyBoard bitKeyBoard, int x, int y)
+    {
+        return BitKeyPatternTable.EvaluatePosition(bitKeyBoard, x, y);
+    }
+
+    /// <summary>
+    /// Find all threat moves using BitKey fast pattern detection.
+    /// </summary>
+    public List<(int x, int y, int Score)> FindThreatMovesFast(Board board, Player player)
+    {
+        var threatMoves = new List<(int x, int y, int Score)>();
+        var bitKeyBoard = new BitKeyBoard(board);
+
+        for (int x = 0; x < BitBoard.Size; x++)
+        {
+            for (int y = 0; y < BitBoard.Size; y++)
+            {
+                if (!board.GetCell(x, y).IsEmpty)
+                    continue;
+
+                // Create test board with the move
+                var testBoard = bitKeyBoard.Clone();
+                testBoard.SetBit(x, y, player);
+
+                var (pattern, threatCount) = BitKeyPatternTable.GetCombinedPattern(testBoard, x, y);
+
+                if (pattern >= Pattern4Evaluator.CaroPattern4.Flex3)
+                {
+                    int score = BitKeyPatternTable.EvaluatePosition(testBoard, x, y);
+                    threatMoves.Add((x, y, score));
+                }
+            }
+        }
+
+        // Sort by score descending
+        threatMoves.Sort((a, b) => b.Score.CompareTo(a.Score));
+        return threatMoves;
+    }
+
+    private Threat CreateFiveThreat(int x, int y, Player player)
+    {
+        return new Threat
+        {
+            Type = ThreatType.StraightFour,  // Five is the ultimate threat
+            Owner = player,
+            GainSquares = new List<(int x, int y)> { (x, y) },
+            StonePositions = new List<(int x, int y)> { (x, y) },
+            Direction = (1, 0)
+        };
+    }
+
+    private Threat CreateOpenFourThreat(BitKeyBoard board, int x, int y, Player player)
+    {
+        var gainSquares = FindOpenFourGains(board, x, y, player);
+        return new Threat
+        {
+            Type = ThreatType.StraightFour,
+            Owner = player,
+            GainSquares = gainSquares,
+            StonePositions = new List<(int x, int y)> { (x, y) },
+            Direction = (1, 0)  // Direction determined by pattern
+        };
+    }
+
+    private Threat CreateClosedFourThreat(BitKeyBoard board, int x, int y, Player player)
+    {
+        var gainSquares = FindClosedFourGains(board, x, y, player);
+        return new Threat
+        {
+            Type = ThreatType.BrokenFour,
+            Owner = player,
+            GainSquares = gainSquares,
+            StonePositions = new List<(int x, int y)> { (x, y) },
+            Direction = (1, 0)
+        };
+    }
+
+    private Threat CreateOpenThreeThreat(BitKeyBoard board, int x, int y, Player player)
+    {
+        var gainSquares = FindOpenThreeGains(board, x, y, player);
+        return new Threat
+        {
+            Type = ThreatType.StraightThree,
+            Owner = player,
+            GainSquares = gainSquares,
+            StonePositions = new List<(int x, int y)> { (x, y) },
+            Direction = (1, 0)
+        };
+    }
+
+    private Threat CreateDoubleThreeThreat(BitKeyBoard board, int x, int y, Player player)
+    {
+        return new Threat
+        {
+            Type = ThreatType.StraightThree,  // Double three is very strong
+            Owner = player,
+            GainSquares = new List<(int x, int y)> { (x, y) },
+            StonePositions = new List<(int x, int y)> { (x, y) },
+            Direction = (1, 0)
+        };
+    }
+
+    private Threat CreateDoubleThreat(BitKeyBoard board, int x, int y, Player player)
+    {
+        return new Threat
+        {
+            Type = ThreatType.StraightFour,  // Four + Three is winning
+            Owner = player,
+            GainSquares = new List<(int x, int y)> { (x, y) },
+            StonePositions = new List<(int x, int y)> { (x, y) },
+            Direction = (1, 0)
+        };
+    }
+
+    private List<(int x, int y)> FindOpenFourGains(BitKeyBoard board, int x, int y, Player player)
+    {
+        var gains = new List<(int x, int y)>();
+        // Find the two ends of the open four
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                if (dx == 0 && dy == 0) continue;
+                if (dx != 0 && dy != 0 && dx != dy && dx != -dy) continue;
+
+                // Check both directions
+                for (int dir = -1; dir <= 1; dir += 2)
+                {
+                    int nx = x + dx * dir, ny = y + dy * dir;
+                    if (nx >= 0 && nx < 32 && ny >= 0 && ny < 32)
+                    {
+                        var cellPlayer = board.GetPlayerAt(nx, ny);
+                        if (cellPlayer == Player.None)
+                            gains.Add((nx, ny));
+                    }
+                }
+            }
+        }
+        return gains.Distinct().ToList();
+    }
+
+    private List<(int x, int y)> FindClosedFourGains(BitKeyBoard board, int x, int y, Player player)
+    {
+        return FindOpenFourGains(board, x, y, player);
+    }
+
+    private List<(int x, int y)> FindOpenThreeGains(BitKeyBoard board, int x, int y, Player player)
+    {
+        return FindOpenFourGains(board, x, y, player);
+    }
+
+    #endregion
 
     /// <summary>
     /// Detect all threats for the given player on the board

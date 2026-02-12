@@ -29,7 +29,7 @@ public sealed class ContinuationHistory
     /// <summary>
     /// Size of the 19x19 board in cells.
     /// </summary>
-    private const int BoardSize = 19 * 19; // 361 cells
+    private const int BoardSize = 32 * 32; // 1024 cells
 
     /// <summary>
     /// Multi-dimensional array tracking continuation history.
