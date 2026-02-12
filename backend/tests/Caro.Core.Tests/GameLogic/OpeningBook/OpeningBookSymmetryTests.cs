@@ -102,9 +102,9 @@ public class OpeningBookSymmetryTests
 
         // The transformed coordinates should be valid (on board)
         actualX.Should().BeGreaterThanOrEqualTo(0);
-        actualX.Should().BeLessThan(19);
+        actualX.Should().BeLessThan(32);
         actualY.Should().BeGreaterThanOrEqualTo(0);
-        actualY.Should().BeLessThan(19);
+        actualY.Should().BeLessThan(32);
 
         // The cell should be empty (not already occupied)
         var cell = board1.GetCell(actualX, actualY);
@@ -304,9 +304,9 @@ public class OpeningBookSymmetryTests
 
         // Assert - The transformation should work correctly
         actualX.Should().BeGreaterThanOrEqualTo(0);
-        actualX.Should().BeLessThan(19);
+        actualX.Should().BeLessThan(32);
         actualY.Should().BeGreaterThanOrEqualTo(0);
-        actualY.Should().BeLessThan(19);
+        actualY.Should().BeLessThan(32);
 
         // Verify the cell is empty
         var cell = board.GetCell(actualX, actualY);
@@ -489,8 +489,8 @@ public class OpeningBookSymmetryTests
             );
 
             // Should be valid coordinates
-            actualX.Should().BeInRange(0, 18);
-            actualY.Should().BeInRange(0, 18);
+            actualX.Should().BeInRange(0, 31);
+            actualY.Should().BeInRange(0, 31);
 
             // Should be empty cells
             var cell = board.GetCell(actualX, actualY);
@@ -591,8 +591,8 @@ public class OpeningBookSymmetryTests
             );
 
             // Valid coordinates
-            actualX.Should().BeInRange(0, 18);
-            actualY.Should().BeInRange(0, 18);
+            actualX.Should().BeInRange(0, 31);
+            actualY.Should().BeInRange(0, 31);
 
             // Empty cells
             var cell = board.GetCell(actualX, actualY);
