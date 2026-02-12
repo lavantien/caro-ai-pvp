@@ -1,4 +1,5 @@
 import * as signalR from "@microsoft/signalr";
+import { NetworkConfig } from "$lib/config/gameConfig";
 
 type TournamentStatus = "idle" | "running" | "paused" | "completed";
 type Player = "none" | "red" | "blue";
@@ -27,8 +28,8 @@ export interface TournamentState { status: TournamentStatus; progress: Tournamen
 
 export interface GameLogEntry { timestamp: string; level: string; source: string; message: string; }
 
-const API_BASE = "http://localhost:5207/api/tournament";
-const HUB_URL = "http://localhost:5207/hubs/tournament";
+const API_BASE = NetworkConfig.apiBase;
+const HUB_URL = NetworkConfig.hubUrl;
 
 export class TournamentStore {
   state = $state<TournamentState>({ status: "idle", progress: { completed: 0, total: 0, percent: 0 }, bots: [], matchHistory: [], currentMatch: null, startTimeUtc: "", endTimeUtc: null, elapsed: "", connectionState: "disconnected", errorMessage: null, gameLogs: [] });
