@@ -57,20 +57,23 @@ public class MinimaxAI : IStatsPublisher
     // Search radius around existing stones (optimization)
     private const int SearchRadius = 2;
 
+    // Board size constant for array sizing and bounds checking
+    private const int BoardSize = 32;
+
     // Killer heuristic: track best moves at each depth
-    // No depth cap - array sized for maximum practical depth (19x19 board = 361 cells)
+    // No depth cap - array sized for maximum practical depth (32x32 board = 1024 cells)
     private const int MaxKillerMoves = 2;
     private const int MaxKillerDepth = 512;  // Effectively unlimited for practical game play
     private readonly (int x, int y)[,] _killerMoves = new (int x, int y)[MaxKillerDepth, MaxKillerMoves];
 
     // History heuristic: track moves that cause cutoffs across all depths
     // Two tables: one for Red, one for Blue (each move can be good for different players)
-    private readonly int[,] _historyRed = new int[19, 19];   // History scores for Red moves
-    private readonly int[,] _historyBlue = new int[19, 19];  // History scores for Blue moves
+    private readonly int[,] _historyRed = new int[BoardSize, BoardSize];   // History scores for Red moves
+    private readonly int[,] _historyBlue = new int[BoardSize, BoardSize];  // History scores for Blue moves
 
     // Butterfly heuristic: track moves that cause beta cutoffs (complements history)
-    private readonly int[,] _butterflyRed = new int[19, 19];
-    private readonly int[,] _butterflyBlue = new int[19, 19];
+    private readonly int[,] _butterflyRed = new int[BoardSize, BoardSize];
+    private readonly int[,] _butterflyBlue = new int[BoardSize, BoardSize];
 
     // Track transposition table hits for debugging
     private int _tableHits;
@@ -1167,7 +1170,7 @@ public class MinimaxAI : IStatsPublisher
         {
             // Verify the move is valid
             var (x, y) = cachedMove.Value;
-            if (x >= 0 && x < 19 && y >= 0 && y < 19)
+            if (x >= 0 && x < BoardSize && y >= 0 && y < BoardSize)
             {
                 var cell = board.GetCell(x, y);
                 if (cell.IsEmpty)
@@ -1484,9 +1487,9 @@ public class MinimaxAI : IStatsPublisher
             // Tactical pattern scoring
             score += EvaluateTacticalPattern(board, x, y, player);
 
-            // Prefer center (9,9) for 19x19 board
-            var distanceToCenter = Math.Abs(x - 9) + Math.Abs(y - 9);
-            score += (18 - distanceToCenter) * 10;
+            // Prefer center (16,16) for 32x32 board
+            var distanceToCenter = Math.Abs(x - 16) + Math.Abs(y - 16);
+            score += (31 - distanceToCenter) * 10;
 
             // Prefer moves near existing stones
             var nearby = 0;
@@ -1497,7 +1500,7 @@ public class MinimaxAI : IStatsPublisher
                     if (dx == 0 && dy == 0) continue;
                     var nx = x + dx;
                     var ny = y + dy;
-                    if (nx >= 0 && nx < 19 && ny >= 0 && ny < 19)
+                    if (nx >= 0 && nx < BoardSize && ny >= 0 && ny < BoardSize)
                     {
                         var cell = board.GetCell(nx, ny);
                         if (cell.Player != Player.None)
@@ -1597,7 +1600,7 @@ public class MinimaxAI : IStatsPublisher
                         if (dx == 0 && dy == 0) continue;
                         var nx = x + dx;
                         var ny = y + dy;
-                        if (nx >= 0 && nx < 19 && ny >= 0 && ny < 19)
+                        if (nx >= 0 && nx < BoardSize && ny >= 0 && ny < BoardSize)
                         {
                             var cell = board.GetCell(nx, ny);
                             if (cell.Player != Player.None)
@@ -1659,7 +1662,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
 
                 if (playerBitBoard.GetBit(nx, ny))
                 {
@@ -1681,7 +1684,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
 
                 if (playerBitBoard.GetBit(nx, ny))
                 {
@@ -1737,7 +1740,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
 
                 if (opponentBitBoard.GetBit(nx, ny))
                 {
@@ -1759,7 +1762,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
 
                 if (opponentBitBoard.GetBit(nx, ny))
                 {
@@ -1824,7 +1827,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
 
                 if (opponentBitBoard.GetBit(nx, ny))
                 {
@@ -1846,7 +1849,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
 
                 if (opponentBitBoard.GetBit(nx, ny))
                 {
@@ -2086,9 +2089,9 @@ public class MinimaxAI : IStatsPublisher
     private bool IsTacticalPosition(Board board)
     {
         // Check for 3+ in a row
-        for (int x = 0; x < 19; x++)
+        for (int x = 0; x < BoardSize; x++)
         {
-            for (int y = 0; y < 19; y++)
+            for (int y = 0; y < BoardSize; y++)
             {
                 var cell = board.GetCell(x, y);
                 if (cell.Player == Player.None)
@@ -2096,7 +2099,7 @@ public class MinimaxAI : IStatsPublisher
 
                 // Check horizontal
                 var count = 1;
-                for (int dy = 1; dy <= 4 && y + dy < 19; dy++)
+                for (int dy = 1; dy <= 4 && y + dy < BoardSize; dy++)
                 {
                     if (board.GetCell(x, y + dy).Player == cell.Player)
                         count++;
@@ -2108,7 +2111,7 @@ public class MinimaxAI : IStatsPublisher
 
                 // Check vertical
                 count = 1;
-                for (int dx = 1; dx <= 4 && x + dx < 19; dx++)
+                for (int dx = 1; dx <= 4 && x + dx < BoardSize; dx++)
                 {
                     if (board.GetCell(x + dx, y).Player == cell.Player)
                         count++;
@@ -2120,7 +2123,7 @@ public class MinimaxAI : IStatsPublisher
 
                 // Check diagonal (down-right)
                 count = 1;
-                for (int i = 1; i <= 4 && x + i < 19 && y + i < 19; i++)
+                for (int i = 1; i <= 4 && x + i < BoardSize && y + i < BoardSize; i++)
                 {
                     if (board.GetCell(x + i, y + i).Player == cell.Player)
                         count++;
@@ -2132,7 +2135,7 @@ public class MinimaxAI : IStatsPublisher
 
                 // Check diagonal (down-left)
                 count = 1;
-                for (int i = 1; i <= 4 && x + i < 19 && y - i >= 0; i++)
+                for (int i = 1; i <= 4 && x + i < BoardSize && y - i >= 0; i++)
                 {
                     if (board.GetCell(x + i, y - i).Player == cell.Player)
                         count++;
@@ -2169,7 +2172,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
                 if (playerBitBoard.GetBit(nx, ny)) playerCount++;
                 else if (!occupied.GetBit(nx, ny)) { playerOpenEnds++; break; }
                 else break;
@@ -2178,7 +2181,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
                 if (playerBitBoard.GetBit(nx, ny)) playerCount++;
                 else if (!occupied.GetBit(nx, ny)) { playerOpenEnds++; break; }
                 else break;
@@ -2198,7 +2201,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
                 if (opponentBitBoard.GetBit(nx, ny)) oppCount++;
                 else if (!occupied.GetBit(nx, ny)) { oppOpenEnds++; break; }
                 else break;
@@ -2207,7 +2210,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
                 if (opponentBitBoard.GetBit(nx, ny)) oppCount++;
                 else if (!occupied.GetBit(nx, ny)) { oppOpenEnds++; break; }
                 else break;
@@ -2247,9 +2250,9 @@ public class MinimaxAI : IStatsPublisher
         // If there are threats, null-move is unsafe (might miss tactical sequences)
         foreach (var (dx, dy) in new[] { (1, 0), (0, 1), (1, 1), (1, -1) })
         {
-            for (int x = 0; x < 19; x++)
+            for (int x = 0; x < BoardSize; x++)
             {
-                for (int y = 0; y < 19; y++)
+                for (int y = 0; y < BoardSize; y++)
                 {
                     if (!opponentBitBoard.GetBit(x, y)) continue;
 
@@ -2626,9 +2629,9 @@ public class MinimaxAI : IStatsPublisher
 
         // Find the most recent opponent move by checking all occupied cells
         // We'll return any occupied opponent cell (for opening book, this is sufficient)
-        for (int x = 0; x < 19; x++)
+        for (int x = 0; x < BoardSize; x++)
         {
-            for (int y = 0; y < 19; y++)
+            for (int y = 0; y < BoardSize; y++)
             {
                 if (board.GetCell(x, y).Player == opponent)
                 {
@@ -2670,7 +2673,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
                 if (playerBitBoard.GetBit(nx, ny)) count++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2681,7 +2684,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
                 if (playerBitBoard.GetBit(nx, ny)) count++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2692,9 +2695,9 @@ public class MinimaxAI : IStatsPublisher
             if (count == 3)
             {
                 // Check if both ends are open
-                bool leftOpen = x - dx >= 0 && x - dx < 19 && y - dy >= 0 && y - dy < 19
+                bool leftOpen = x - dx >= 0 && x - dx < BoardSize && y - dy >= 0 && y - dy < BoardSize
                                && !occupied.GetBit(x - dx, y - dy);
-                bool rightOpen = x + dx * 3 >= 0 && x + dx * 3 < 19 && y + dy * 3 >= 0 && y + dy * 3 < 19
+                bool rightOpen = x + dx * 3 >= 0 && x + dx * 3 < BoardSize && y + dy * 3 >= 0 && y + dy * 3 < BoardSize
                                 && !occupied.GetBit(x + dx * 3, y + dy * 3);
                 if (leftOpen && rightOpen) return true; // Creates open three
             }
@@ -2707,7 +2710,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
                 if (opponentBitBoard.GetBit(nx, ny)) oppCount++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2718,7 +2721,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
                 if (opponentBitBoard.GetBit(nx, ny)) oppCount++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2729,9 +2732,9 @@ public class MinimaxAI : IStatsPublisher
             if (oppCount == 3)
             {
                 // Check if this blocks an open three
-                var leftOpen = x - dx >= 0 && x - dx < 19 && y - dy >= 0 && y - dy < 19
+                var leftOpen = x - dx >= 0 && x - dx < BoardSize && y - dy >= 0 && y - dy < BoardSize
                               && !occupied.GetBit(x - dx, y - dy);
-                var rightOpen = x + dx * 3 >= 0 && x + dx * 3 < 19 && y + dy * 3 >= 0 && y + dy * 3 < 19
+                var rightOpen = x + dx * 3 >= 0 && x + dx * 3 < BoardSize && y + dy * 3 >= 0 && y + dy * 3 < BoardSize
                                && !occupied.GetBit(x + dx * 3, y + dy * 3);
                 if (leftOpen && rightOpen) return true; // Blocks open three
             }
@@ -2764,7 +2767,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
                 if (playerBitBoard.GetBit(nx, ny)) count++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2775,7 +2778,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
                 if (playerBitBoard.GetBit(nx, ny)) count++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2799,7 +2802,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x + dx * i;
                 var ny = y + dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
                 if (opponentBitBoard.GetBit(nx, ny)) count++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;
@@ -2810,7 +2813,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var nx = x - dx * i;
                 var ny = y - dy * i;
-                if (nx < 0 || nx >= 19 || ny < 0 || ny >= 19) break;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
                 if (opponentBitBoard.GetBit(nx, ny)) count++;
                 else if (!occupied.GetBit(nx, ny)) break;
                 else break;

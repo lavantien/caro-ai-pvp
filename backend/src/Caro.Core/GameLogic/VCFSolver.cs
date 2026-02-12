@@ -14,6 +14,7 @@ namespace Caro.Core.GameLogic;
 /// </summary>
 public sealed class VCFSolver
 {
+    private const int BoardSize = 32;
     private readonly ThreatSpaceSearch _threatSearch;
     private readonly WinDetector _winDetector = new();
 
@@ -97,7 +98,7 @@ public sealed class VCFSolver
         if (opponentThreats.Count >= 2)
         {
             var defenses = _threatSearch.GetDefenseMoves(board, attacker, defender);
-            return defenses.Where(m => m.x >= 0 && m.x < 19 && m.y >= 0 && m.y < 19).ToList();
+            return defenses.Where(m => m.x >= 0 && m.x < BoardSize && m.y >= 0 && m.y < BoardSize).ToList();
         }
 
         return new List<(int x, int y)>();
