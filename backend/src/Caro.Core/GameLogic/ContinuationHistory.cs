@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -27,9 +28,9 @@ public sealed class ContinuationHistory
     private const int PlyCount = 6;
 
     /// <summary>
-    /// Size of the 19x19 board in cells.
+    /// Total cells on the board for array sizing.
     /// </summary>
-    private const int BoardSize = 32 * 32; // 1024 cells
+    private const int BoardSize = GameConstants.TotalCells;
 
     /// <summary>
     /// Multi-dimensional array tracking continuation history.

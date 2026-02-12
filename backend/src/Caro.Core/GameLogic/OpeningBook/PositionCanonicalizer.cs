@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -9,9 +10,9 @@ namespace Caro.Core.GameLogic;
 /// </summary>
 public sealed class PositionCanonicalizer : IPositionCanonicalizer
 {
-    private const int BoardSize = 32;
+    private const int BoardSize = GameConstants.BoardSize;
     private const int EdgeThreshold = 5;
-    private const int Center = 16;
+    private const int Center = GameConstants.CenterPosition;
 
     /// <inheritdoc/>
     public CanonicalPosition Canonicalize(Board board)

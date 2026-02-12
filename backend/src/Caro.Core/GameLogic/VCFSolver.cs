@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -14,7 +15,7 @@ namespace Caro.Core.GameLogic;
 /// </summary>
 public sealed class VCFSolver
 {
-    private const int BoardSize = 32;
+    private const int BoardSize = GameConstants.BoardSize;
     private readonly ThreatSpaceSearch _threatSearch;
     private readonly WinDetector _winDetector = new();
 

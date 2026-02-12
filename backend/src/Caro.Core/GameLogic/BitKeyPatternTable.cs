@@ -111,9 +111,6 @@ public static class BitKeyPatternTable
         }
 
         // The center of the pattern is at index 6 (position being evaluated)
-        // Count consecutive stones of each type through the center
-        int redCount = 0;
-        int blueCount = 0;
         int centerCell = cells[6];
 
         // If center is empty, check what patterns could be formed

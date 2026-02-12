@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -9,14 +10,15 @@ namespace Caro.Core.GameLogic;
 /// </summary>
 public static class BitBoardEvaluator
 {
-    // Scoring weights
-    private const int FiveInRowScore = 100000;
-    private const int OpenFourScore = 10000;
-    private const int ClosedFourScore = 1000;
-    private const int OpenThreeScore = 1000;
-    private const int ClosedThreeScore = 100;
-    private const int OpenTwoScore = 100;
-    private const int CenterBonus = 50;
+    // Import scoring weights from centralized constants
+    // Local aliases for readability within this file
+    private const int FiveInRowScore = EvaluationConstants.FiveInRowScore;
+    private const int OpenFourScore = EvaluationConstants.OpenFourScore;
+    private const int ClosedFourScore = EvaluationConstants.ClosedFourScore;
+    private const int OpenThreeScore = EvaluationConstants.OpenThreeScore;
+    private const int ClosedThreeScore = EvaluationConstants.ClosedThreeScore;
+    private const int OpenTwoScore = EvaluationConstants.OpenTwoScore;
+    private const int CenterBonus = EvaluationConstants.CenterBonus;
 
     /// <summary>
     /// Defense multiplier for asymmetric scoring.
@@ -28,7 +30,7 @@ public static class BitBoardEvaluator
     /// NOTE: Reduced from 2.2x to 1.5x to prevent second-mover (Blue) advantage.
     /// 2.2x was too aggressive and caused Blue to consistently win regardless of difficulty difference.
     /// </summary>
-    private const float DefenseMultiplier = 1.5f;
+    private const float DefenseMultiplier = (float)EvaluationConstants.DefenseMultiplierNumerator / EvaluationConstants.DefenseMultiplierDenominator;
 
     // Direction vectors: horizontal, vertical, 2 diagonals
     private static readonly (int dx, int dy)[] Directions = new[]

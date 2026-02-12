@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Numerics;
+using Caro.Core.Domain.Configuration;
 
 namespace Caro.Core.GameLogic;
 
@@ -32,12 +33,12 @@ public struct BitBoard
     /// <summary>
     /// Board size (32x32)
     /// </summary>
-    public const int Size = 32;
+    public const int Size = GameConstants.BoardSize;
 
     /// <summary>
     /// Total number of cells
     /// </summary>
-    public const int TotalCells = Size * Size; // 1024
+    public const int TotalCells = GameConstants.TotalCells;
 
     /// <summary>
     /// Create an empty BitBoard
