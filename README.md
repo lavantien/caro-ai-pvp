@@ -20,21 +20,27 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 
 ### AI Engine
 
-State-of-the-art algorithms from computer chess achieving 100-500x speedup over naive minimax:
+Grandmaster-level engine achieving depth 11+ with 100-500x speedup over naive minimax:
 
-| Optimization | Description |
-|--------------|-------------|
-| Multi-Entry Transposition Table | 3-entry clusters, depth-age replacement |
-| Continuation History | 6-ply move pair statistics |
-| Evaluation Cache | Position evaluation correction |
-| Adaptive Late Move Reduction | Dynamic reduction based on position factors |
-| PID Time Management | Control theory for time allocation |
-| Contest Factor (Contempt) | Position-aware playstyle adjustment |
-| Principal Variation Search (PVS) | Alpha-beta with null-window searches |
-| Quiescence Search | Prevents blunders at horizon |
-| Hash Move First (Lazy SMP) | TT work sharing between threads |
-| History Heuristic | Move ordering from past performance |
-| Aspiration Windows | Narrowed bounds near root |
+| Category | Feature | Description |
+|----------|---------|-------------|
+| **Search** | Lazy SMP Parallel | Multi-threaded search with TT work sharing |
+| | Principal Variation Search | Alpha-beta with null-window searches |
+| | Aspiration Windows | Narrowed bounds near root |
+| | Quiescence Search | Prevents horizon blunders |
+| | Adaptive LMR | Dynamic depth reduction by position |
+| **Transposition Table** | Multi-Entry Clusters | 3 entries per bucket, 32-byte aligned |
+| | Depth-Age Replacement | Smart entry eviction formula |
+| | Evaluation Cache | Static eval stored with entries |
+| **Move Ordering** | Hash Move Priority | TT move searched unconditionally first |
+| | Continuation History | 6-ply move pair statistics |
+| | Counter-Move History | Opponent response patterns |
+| | Staged Move Picker | TT → Threats → Killers → Counter → Quiet |
+| **Evaluation** | BitKey Pattern System | O(1) pattern lookup with bit rotation |
+| | Pattern4 Classification | 4-direction combined threat detection |
+| | Contest Factor | Dynamic contempt (-200 to +200 cp) |
+| **Time Control** | PID Time Management | Control theory for allocation |
+| **Tuning** | SPSA Optimizer | Gradient-free parameter optimization |
 
 **Move Ordering Priority (Optimized for Lazy SMP):**
 1. Hash Move (TT Move) - UNCONDITIONAL #1 for thread work sharing
@@ -95,7 +101,7 @@ dotnet run --project backend/src/Caro.UCIMockClient -- --games 4 --time 180 --in
 **Example UCI session:**
 ```
 > uci
-< id name Caro AI 1.44.0
+< id name Caro AI 1.45.0
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
 < option name Use Opening Book type check default true
@@ -234,39 +240,14 @@ All domain entities are fully immutable for thread safety:
 - `Board` - Immutable via `PlaceStone()` returning new instances
 - Operations return new state: `WithMove()`, `WithGameOver()`, `UndoMove()`
 
-### AI Improvements
+**Infrastructure Projects:**
 
-Advanced optimization techniques implemented in the engine:
-
-| Feature | Description |
-|---------|-------------|
-| **Multi-Entry TT** | 3-entry clusters (32-byte aligned), depth-age replacement |
-| **Continuation History** | 6-ply move pair statistics with bounded updates |
-| **Counter-Move History** | Move-response patterns for opponent replies |
-| **Staged Move Picker** | Prioritized move generation (TT, threats, killers, counter, quiet) |
-| **BitKey Pattern System** | O(1) pattern lookup using 64-bit keys with bit rotation |
-| **Pattern4 Evaluation** | 4-direction combined threat classification |
-| **Evaluation Cache** | Position evaluation correction caching |
-| **Adaptive LMR** | Dynamic reduction based on position factors |
-| **PID Time Manager** | Proportional-Integral-Derivative time allocation |
-| **Contest Manager** | Dynamic contempt (-200 to +200 centipawns) |
-| **SPSA Tuner** | Gradient-free parameter optimization |
-| **Structured Logging** | Async search logging with file rotation |
-
-**Key Implementation Details:**
-- Cluster-based TT with 10-byte TTEntry struct, 30-byte cluster (padded to 32 bytes)
-- ContinuationHistory: `short[,,]` for `[player, prevCell, currentCell]` with MaxScore=30000
-- CounterMoveHistory: `short[,,]` for `[player, opponentCell, ourCell]` with bounded updates
-- BitKeyBoard: 32x32 representation with 4 directional 64-bit keys, 2 bits per cell
-- MovePicker: Staged generation (TT_MOVE, THREATS, KILLERS, COUNTER, GOOD_QUIET, BAD_QUIET)
-- Pattern4Evaluator: CaroPattern4 enum (None, Flex1-4, Block1-4, DoubleFlex3, Flex4Flex3, Exactly5)
-- SPSA: Default (alpha=0.602, gamma=0.101), Aggressive, Conservative presets
-- PID: Kp=1.0, Ki=0.1, Kd=0.5 with integral windup clamping
-- SearchLogger: Channel-based async logging, 100MB/24h rotation
-| `Caro.Api` | Web API, SignalR hub, WebSocket UCI bridge | All layers |
-| `Caro.BookBuilder` | CLI tool for offline book generation | Infrastructure |
-| `Caro.UCI` | Standalone UCI console engine | Infrastructure |
-| `Caro.UCIMockClient` | UCI protocol testing tool (engine vs engine) | Infrastructure |
+| Project | Purpose |
+|---------|---------|
+| `Caro.Api` | Web API, SignalR hub, WebSocket UCI bridge |
+| `Caro.BookBuilder` | CLI tool for offline book generation |
+| `Caro.UCI` | Standalone UCI console engine |
+| `Caro.UCIMockClient` | UCI protocol testing tool (engine vs engine) |
 
 ### Component Flow
 
@@ -403,7 +384,7 @@ Backend: http://localhost:5207 | Frontend: http://localhost:5173
 
 ## Documentation
 
-**Improvement Research:** `IMPROVEMENT_RESEARCH.md` - Technical reference for AI optimization techniques from Rapfi, Stockfish 18, Chess Programming Wiki, and minimax.dev. Includes implementation status and research candidates.
+**Engine Features:** `ENGINE_FEATURES.md` - Comprehensive technical reference covering theoretical structures, algorithms, and patterns used in the AI engine. Includes search optimizations, transposition tables, move ordering systems, evaluation techniques, and time management strategies.
 
 ---
 
