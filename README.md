@@ -28,42 +28,25 @@ Grandmaster-level engine achieving depth 11+ with 100-500x speedup over naive mi
 | | Principal Variation Search | Alpha-beta with null-window searches |
 | | Aspiration Windows | Narrowed bounds near root |
 | | Quiescence Search | Prevents horizon blunders |
-| | Adaptive LMR | Dynamic depth reduction by position |
+| | Adaptive LMR | Dynamic depth reduction by position factors |
+| | VCF Solver | Pre-search for forcing win sequences |
+| | Threat Space Search | Tactical move generation |
 | **Transposition Table** | Multi-Entry Clusters | 3 entries per bucket, 32-byte aligned |
 | | Depth-Age Replacement | Smart entry eviction formula |
 | | Evaluation Cache | Static eval stored with entries |
 | **Move Ordering** | Hash Move Priority | TT move searched unconditionally first |
+| | Emergency Defense | Blocks opponent's immediate threats |
+| | Winning Threats | Creates own threats (Open 4, Double 3) |
 | | Continuation History | 6-ply move pair statistics |
 | | Counter-Move History | Opponent response patterns |
+| | Killer Moves | Cutoff-causing moves from sibling nodes |
 | | Staged Move Picker | TT → Threats → Killers → Counter → Quiet |
 | **Evaluation** | BitKey Pattern System | O(1) pattern lookup with bit rotation |
 | | Pattern4 Classification | 4-direction combined threat detection |
 | | Contest Factor | Dynamic contempt (-200 to +200 cp) |
 | **Time Control** | PID Time Management | Control theory for allocation |
-| **Tuning** | SPSA Optimizer | Gradient-free parameter optimization |
-
-**Move Ordering Priority (Optimized for Lazy SMP):**
-1. Hash Move (TT Move) - UNCONDITIONAL #1 for thread work sharing
-2. Emergency Defense - Blocks opponent's immediate threats (Open 4)
-3. Winning Threats - Creates own threats (Open 4, Double 3)
-4. Continuation History - Move pair statistics from recent plies
-5. Killer Moves - Caused cutoffs at sibling nodes
-6. History/Butterfly Heuristic - General statistical sorting
-7. Positional Heuristics - Center proximity, nearby stones
-
-**Advanced Features:**
-- Lazy SMP parallel search - Helper threads share TT via hash move priority
-- Multi-entry TT clusters - 3 entries per cluster (32-byte cache-line aligned)
-- Continuation history - 6-ply move pair tracking with bounded updates
-- VCF Solver - Runs BEFORE alpha-beta to detect forcing sequences
-- Emergency Defense - Immediate threat blocking at priority #2
-- Threat Space Search - Tactical move generation
-- Evaluation cache - Correction values for position evaluations
-- Adaptive LMR - Dynamic reduction based on improving, depth, delta, node types
-- PID time management - Proportional-Integral-Derivative time allocation
-- Contest factor - Position-aware contempt from -200 to +200 centipawns
-- SPSA tuner - Gradient-free parameter optimization
-- Structured search logging - Async file-based logging with rotation
+| **Infrastructure** | SPSA Optimizer | Gradient-free parameter optimization |
+| | Structured Logging | Async file-based logging with rotation |
 
 ### Difficulty Levels
 
