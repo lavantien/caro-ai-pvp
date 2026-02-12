@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.46.0] - 2026-02-13
+
+### Changed
+- **OpeningBookGenerator Code Quality Improvements**
+  - Consolidated duplicated `GenerateMovesForPositionAsync` overloads (~170 lines eliminated)
+  - Public method now delegates to private overload that accepts MinimaxAI instance
+  - Fixed incorrect TimePerPositionMs comment ("15 seconds" → "1 second")
+
+### Removed
+- **Dead Code Cleanup in OpeningBookGenerator:**
+  - Removed unused constants: MaxBookMoves, MaxCandidatesPerPosition
+  - Removed disabled opponent response generation block
+  - Removed unused `GenerateOpponentResponsesAsync` method
+  - Removed unused records: PositionToSearch, ResponseGenerationStats
+  - Removed unused AtomicBoolean class
+
+### Fixed
+- **SqliteOpeningBookStore:** Increased coverageByDepth array from int[25] to int[41] for deeper plies
+- **Tests:** Updated OpeningBookGeneratorEdgeCaseTests to match current implementation
+  - Candidate count expectations: 10/6 → 5/3
+  - Time allocation test: Updated for two-tier system (<=5: -20%, else: 0%)
+
+### Test Coverage
+- All 579 backend tests passing (515 Core + 64 Infrastructure)
+
+[1.46.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.46.0
+
 ## [1.45.0] - 2026-02-13
 
 ### Added
