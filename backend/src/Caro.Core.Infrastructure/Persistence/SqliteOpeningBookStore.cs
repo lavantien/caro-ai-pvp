@@ -314,7 +314,7 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
 
         try
         {
-            var coverageByDepth = new int[25]; // 0-24 plies
+            var coverageByDepth = new int[41]; // 0-40 plies
 
             using (var command = Connection.CreateCommand())
             {
@@ -371,7 +371,7 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get statistics");
-            return new BookStatistics(0, 0, new int[25], 0, DateTime.UtcNow, CurrentVersion.ToString());
+            return new BookStatistics(0, 0, new int[41], 0, DateTime.UtcNow, CurrentVersion.ToString());
         }
     }
 

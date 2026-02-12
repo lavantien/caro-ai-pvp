@@ -30,9 +30,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         int TotalPositions,
         long TimestampMs
     );
-    private const int MaxBookMoves = 12;           // Maximum plies in book (6 moves each)
-    private const int MaxCandidatesPerPosition = 8; // Top N moves to store per position
-    private const int TimePerPositionMs = 1000;   // 15 seconds per position - with 4 parallel positions, gives deep search
+    private const int TimePerPositionMs = 1000;   // 1 second per position - with parallel search, gives adequate depth
 
     // Channel-based write buffer configuration
     private const int WriteChannelCapacity = 1000;         // Bounded channel capacity for backpressure
@@ -428,26 +426,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     totalMovesStored += moves.Length;
                     positionsEvaluated++;
 
-                    // Generate and store opponent responses for ALL stored moves
-                    // This ensures GM/Exp always have book responses regardless of opponent's choice
-                    // DISABLED: Opponent response generation is too slow, blocking progress
-                    // TODO: Generate responses in second pass or with parallel position evaluation
-                    if (false && posData.depth < maxDepth - 1)
-                    {
-                        var (responsesGenerated, responsePositionsCount) = await GenerateOpponentResponsesAsync(
-                            posData.board,
-                            posData.player,
-                            moves,
-                            posData.depth,
-                            posData.symmetry,
-                            bookDifficulty,
-                            cancellationToken
-                        );
-                        totalMovesStored += responsesGenerated;
-                        positionsGenerated += responsePositionsCount;
-                        _logger.LogDebug("Generated {Count} opponent responses ({PosCount} positions) at depth {Depth}",
-                            responsesGenerated, responsePositionsCount, posData.depth);
-                    }
+
 
                     // Calculate max children for this position
                     // Note: posData.depth is ply count (0-indexed), not move number
@@ -654,105 +633,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         }
     }
 
-    /// <summary>
-    /// Generate and store opponent responses for all stored moves at a position.
-    /// This ensures that for any move from this position, the opponent has a book response.
-    /// </summary>
-    private async Task<(int responsesGenerated, int positionsCount)> GenerateOpponentResponsesAsync(
-        Board board,
-        Player currentPlayer,
-        BookMove[] storedMoves,
-        int currentDepth,
-        SymmetryType symmetry,
-        AIDifficulty difficulty,
-        CancellationToken cancellationToken)
-    {
-        int responsesGenerated = 0;
-        int responsePositionsCount = 0;
-        var opponent = currentPlayer == Player.Red ? Player.Blue : Player.Red;
 
-        foreach (var move in storedMoves)
-        {
-            if (cancellationToken.IsCancellationRequested)
-                break;
-
-            // Apply the stored move to get the opponent's position
-            (int actualX, int actualY) = _canonicalizer.TransformToActual(
-                (move.RelativeX, move.RelativeY),
-                symmetry,
-                board
-            );
-
-            // Check if move is still valid (cell might be occupied)
-            if (!_validator.IsValidMove(board, actualX, actualY, currentPlayer))
-                continue;
-
-            var newBoard = board.PlaceStone(actualX, actualY, currentPlayer);
-
-            // Check if this move wins
-            var winResult = new WinDetector().CheckWin(newBoard);
-            if (winResult.Winner != Player.None)
-                continue; // Don't generate responses for terminal positions
-
-            // Canonicalize the resulting position for the opponent
-            var opponentCanonical = _canonicalizer.Canonicalize(newBoard);
-
-            // Check if we already have responses for this position
-            if (_store.ContainsEntry(opponentCanonical.CanonicalHash, opponent))
-            {
-                continue; // Already has book entries
-            }
-
-            // Tiered response generation: adjust max responses based on depth
-            int maxResponses = GetMaxChildrenForDepth(currentDepth + 1);
-
-            // Generate best responses for the opponent
-            // Use a smaller search budget since we're generating many responses
-            var responseMoves = await GenerateMovesForPositionAsync(
-                newBoard,
-                opponent,
-                difficulty,
-                maxMoves: maxResponses,
-                canonicalSymmetry: opponentCanonical.SymmetryApplied,
-                isNearEdge: opponentCanonical.IsNearEdge,
-                cancellationToken
-            );
-
-            if (responseMoves.Length > 0)
-            {
-                // Update depth for response moves (they're at currentDepth + 1)
-                var responseMoveWithDepth = responseMoves.Select(m => new BookMove
-                {
-                    RelativeX = m.RelativeX,
-                    RelativeY = m.RelativeY,
-                    WinRate = m.WinRate,
-                    DepthAchieved = m.DepthAchieved,
-                    NodesSearched = m.NodesSearched,
-                    Score = m.Score,
-                    IsForcing = m.IsForcing,
-                    Priority = m.Priority,
-                    IsVerified = m.IsVerified
-                }).ToArray();
-
-                var responseEntry = new OpeningBookEntry
-                {
-                    CanonicalHash = opponentCanonical.CanonicalHash,
-                    Depth = currentDepth + 1,
-                    Player = opponent,
-                    Symmetry = opponentCanonical.SymmetryApplied,
-                    IsNearEdge = opponentCanonical.IsNearEdge,
-                    Moves = responseMoveWithDepth
-                };
-
-                // Enqueue for async batch storage
-                await EnqueueEntryForStorageAsync(responseEntry, cancellationToken);
-                responsesGenerated += responseMoveWithDepth.Length;
-                responsePositionsCount++;
-            }
-        }
-
-        return (responsesGenerated, responsePositionsCount);
-    }
 
     public async Task<BookMove[]> GenerateMovesForPositionAsync(
         Board board,
@@ -769,6 +650,10 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         );
     }
 
+    /// <summary>
+    /// Public overload that creates AI instance internally.
+    /// Delegates to private overload for actual processing.
+    /// </summary>
     public async Task<BookMove[]> GenerateMovesForPositionAsync(
         Board board,
         Player player,
@@ -778,205 +663,18 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         bool isNearEdge,
         CancellationToken cancellationToken = default)
     {
-        var bookMoves = new List<BookMove>();
-
-        // Get candidate moves
-        var candidates = GetCandidateMoves(board, player);
-        if (candidates.Count == 0)
-            return Array.Empty<BookMove>();
-
-        // Evaluate candidates IN PARALLEL for performance
-        // This is critical - parallelizing candidate evaluation provides 4-8x speedup
-
-        // Aggressive candidate pruning: use static evaluation for pre-sorting
-        // In Caro, usually only top 4-6 moves are relevant. Evaluating 24 branches to depth 12+ is extremely expensive.
-        // IMPORTANT: Filter out invalid candidates first (e.g., Open Rule violations) to ensure we evaluate valid moves
-        var validCandidates = candidates
-            .Where(c => _validator.IsValidMove(board, c.Item1, c.Item2, player))
-            .ToList();
-
-        if (validCandidates.Count == 0)
-        {
-            _logger.LogWarning("No valid candidates found at depth {CurrentDepth} (all {CandidateCount} candidates failed validation)", _progress.CurrentDepth, candidates.Count);
-            return Array.Empty<BookMove>();
-        }
-
-        // Evaluate more candidates in survival zone (plies 6-13, moves 4-7)
-        int currentDepth = _progress.CurrentDepth;
-        int candidatesToTake = (currentDepth >= SurvivalZoneStartPly && currentDepth <= SurvivalZoneEndPly) ? 5 : 3;
-
-        var candidatesToEvaluate = validCandidates
-            .OrderByDescending(c => BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player))
-            .Take(Math.Min(validCandidates.Count, candidatesToTake))
-            .ToList();
-
-        // Smart pruning: Drop candidates that are statically much worse than the best one
-        if (candidatesToEvaluate.Count > 1)
-        {
-            int bestStaticScore = BoardEvaluator.EvaluateMoveAt(candidatesToEvaluate[0].Item1, candidatesToEvaluate[0].Item2, board, player);
-
-            // Drop candidates that are statically > 300 points worse than the best one
-            // Exception: Always keep at least top 2 to ensure some variety
-            candidatesToEvaluate = candidatesToEvaluate
-                .Where((c, index) => index < 2 || (bestStaticScore - BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player)) < 300)
-                .ToList();
-        }
-
-        _logger.LogDebug("Candidate filtering: {TotalCandidates} total -> {ValidCandidates} valid -> {CandidatesToEvaluate} to evaluate",
-            candidates.Count, validCandidates.Count, candidatesToEvaluate.Count);
-
-        _logger.LogDebug("Position evaluation: {TotalCandidates} total candidates -> {CandidatesToEvaluate} candidates to evaluate", candidates.Count, candidatesToEvaluate.Count);
-
-        // Adaptive time allocation based on depth
-        // Flat time allocation for consistent performance across all depths
-        int depthAdjustment = currentDepth switch
-        {
-            <= 5 => -20,    // Early positions: 20% less time (simpler positions)
-            _ => 0          // All other positions: standard time
-        };
-
-        int adjustedTimePerPosition = TimePerPositionMs * (100 + depthAdjustment) / 100;
-        var timePerCandidateMs = Math.Max(100, adjustedTimePerPosition / candidatesToEvaluate.Count);
-
-        // TIERED CONCURRENCY: Process candidates sequentially with a single AI
-        // The outer loop uses ~4-6 worker threads (processorCount/4) for position-level parallelism.
-        // Each position evaluation uses parallel search (processorCount-4 threads) via BookGeneration config.
-        // This balances concurrency without oversubscription (e.g., 4 outer x 16 inner = 64 threads for 20 cores).
-        var results = new List<(int x, int y, int score, long nodes, int depth)>();
-
+        // Create AI instance for this call - delegate to private overload
         var ai = new MinimaxAI(ttSizeMb: 16, logger: _loggerFactory.CreateLogger<MinimaxAI>());
         try
         {
-
-            foreach (var candidate in candidatesToEvaluate)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var (cx, cy) = candidate;
-
-                // Candidates are pre-filtered for validity, but double-check for safety
-                if (!_validator.IsValidMove(board, cx, cy, player))
-                    continue;
-
-                // Check for immediate win
-                if (_validator.IsWinningMove(board, cx, cy, player))
-                {
-                    results.Add((cx, cy, 100000, 1, 1));
-                    break; // No need to evaluate further candidates
-                }
-
-                // Create board for this candidate (don't modify original)
-                var candidateBoard = board.PlaceStone(cx, cy, player);
-                var searchBoard = candidateBoard;
-                var opponent = player == Player.Red ? Player.Blue : Player.Red;
-                var moveNumber = candidateBoard.GetBitBoard(Player.Red).CountBits() + candidateBoard.GetBitBoard(Player.Blue).CountBits();
-
-                // Clear AI state before each candidate to prevent cross-contamination
-                ai.ClearAllState();
-
-                // Run search with divided time budget
-                // Parallel search is enabled via BookGeneration difficulty config
-                var (bestX, bestY) = ai.GetBestMove(
-                    searchBoard,
-                    opponent,
-                    difficulty,
-                    timeRemainingMs: timePerCandidateMs,
-                    moveNumber: moveNumber,
-                    ponderingEnabled: false,
-                    parallelSearchEnabled: true  // Enable parallel search for BookGeneration
-                );
-
-                var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _)
-                    = ai.GetSearchStatistics();
-
-                var evalBoard = searchBoard.PlaceStone(bestX, bestY, opponent);
-                int score = EvaluateBoard(evalBoard, opponent);
-
-                _logger.LogDebug("Candidate ({Cx}, {Cy}) evaluated: best response=({BestX},{BestY}), score={Score}", cx, cy, bestX, bestY, score);
-
-                results.Add((cx, cy, score, nodesSearched, depthAchieved));
-
-                // Update progress (last write wins is acceptable for display purposes)
-                _progress.LastDepth = depthAchieved;
-                _progress.LastNodes = nodesSearched;
-                _progress.LastThreads = threadCount;
-            }
+            return await GenerateMovesForPositionAsync(
+                board, player, difficulty, maxMoves,
+                canonicalSymmetry, isNearEdge, ai, cancellationToken);
         }
         finally
         {
             // AI will be garbage collected
         }
-
-        // Convert to list for sorting
-        var sortedResults = results.ToList();
-        int resultsBeforePruning = sortedResults.Count;
-
-        // Sort by score
-        sortedResults.Sort((a, b) => b.score.CompareTo(a.score));
-
-        // Log all scores before pruning for diagnosis
-        var scoreLog = string.Join(", ", sortedResults.Select(r => $"({r.x},{r.y}):{r.score}"));
-        _logger.LogDebug("Scores at depth {CurrentDepth} before pruning: {Scores}", currentDepth, scoreLog);
-
-        // EARLY EXIT: If best move dominates, skip remaining evaluation
-        // Use more aggressive thresholds at deeper depths
-        // IMPORTANT: For opening book, ensure we always keep at least maxMoves for the beam structure
-        if (sortedResults.Count >= 2)
-        {
-            int threshold = currentDepth >= 6 ? 150 : 200;  // More aggressive at depth 6+
-
-            int scoreGap = sortedResults[0].score - sortedResults[1].score;
-            if (scoreGap > threshold)
-            {
-                // Best move is clearly superior - stop evaluating further candidates
-                _logger.LogDebug("Early exit: best move dominates with score gap {ScoreGap} > {Threshold}", scoreGap, threshold);
-                // Keep minimum of maxMoves for beam structure, or 1 if that's all we have
-                int minToKeep = Math.Min(maxMoves, sortedResults.Count);
-                sortedResults = sortedResults.Take(minToKeep).ToList();
-            }
-        }
-
-        // Also skip obviously bad moves (don't keep candidates > 500 points behind first)
-        if (sortedResults.Count >= 3)
-        {
-            var bestScore = sortedResults[0].score;
-            sortedResults = sortedResults
-                .TakeWhile(r => bestScore - r.score <= 500)
-                .ToList();
-        }
-
-        _logger.LogDebug("Position at depth {CurrentDepth}: {CandidatesToEvaluate} candidates -> {ResultsBeforePruning} results -> {SortedResultsCount} after pruning",
-            currentDepth, candidatesToEvaluate.Count, resultsBeforePruning, sortedResults.Count);
-
-        // Convert to BookMove records
-        // IMPORTANT: Transform coordinates to canonical space before storing
-        // Moves are stored relative to the canonical position, not actual board
-        int priority = maxMoves;
-        foreach (var (x, y, score, nodes, depth) in sortedResults.Take(maxMoves))
-        {
-            int winRate = ScoreToWinRate(score);
-
-            // Transform actual coordinates to canonical space
-            // For edge positions or identity symmetry, coordinates stay the same
-            (int canonicalX, int canonicalY) = (!isNearEdge && canonicalSymmetry != SymmetryType.Identity)
-                ? _canonicalizer.ApplySymmetry(x, y, canonicalSymmetry)
-                : (x, y);
-
-            bookMoves.Add(new BookMove
-            {
-                RelativeX = canonicalX,
-                RelativeY = canonicalY,
-                WinRate = winRate,
-                DepthAchieved = depth,
-                NodesSearched = nodes,
-                Score = score,
-                IsForcing = Math.Abs(score) > 1000, // Simplified forcing detection
-                Priority = priority--,
-                IsVerified = true
-            });
-        }
-
-        return bookMoves.ToArray();
     }
 
     // Forward to the overload with difficulty parameter
@@ -1393,16 +1091,6 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     }
 
     private record PositionToProcess(Board Board, Player Player, int Depth);
-    private record PositionToSearch(Board Board, Player Player, int Depth);
-
-    /// <summary>
-    /// Statistics for response generation phase.
-    /// </summary>
-    private record ResponseGenerationStats
-    {
-        public int ResponsesGenerated { get; init; }
-        public TimeSpan Elapsed { get; init; }
-    }
 
     /// <summary>
     /// Internal progress tracking.
@@ -1761,22 +1449,5 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         }
     }
 
-    /// <summary>
-    /// Simple atomic boolean for thread-safe immediate win detection.
-    /// </summary>
-    private sealed class AtomicBoolean
-    {
-        private int _value;
-
-        public bool Get()
-        {
-            return Interlocked.CompareExchange(ref _value, 0, 0) == 1;
-        }
-
-        public void Set()
-        {
-            Interlocked.Exchange(ref _value, 1);
-        }
-    }
 }
 
