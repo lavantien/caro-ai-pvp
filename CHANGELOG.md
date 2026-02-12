@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.41.0] - 2026-02-12
+
+### Fixed
+- **Critical:** Opening book IsNearEdge transformation bug causing "position occupied" crash at depth 20
+  - Root cause: During retrieval, code used current board's symmetry instead of stored entry's IsNearEdge flag
+  - When moves were stored with IsNearEdge=true (coordinates stored as-is), retrieval incorrectly inverse-transformed them using current board's symmetry
+  - Fix: Check stored entry's IsNearEdge flag before deciding to transform coordinates during retrieval
+  - Applied fix to both OpeningBookGenerator.cs (lines 463-489, 532-573) and OpeningBookLookupService.cs (lines 63-79, 103-125)
+  - Added defensive checks with detailed error logging including NearEdge info
+
+### Added
+- **Opening Book Symmetry Integrity Tests** - 12 new unit tests for IsNearEdge transformation logic
+  - Edge position storage behavior verification
+  - Center position storage behavior verification
+  - Retrieval with correct transformation logic based on stored IsNearEdge
+  - Symmetry round-trip verification for all 8 symmetry types
+  - IsNearEdge detection tests for edge and center positions
+
+### Changed
+- SymmetryTransformationBugTests.cs: Fixed incorrect stone count expectation (was 6/6, now 5/6)
+
+### Test Coverage
+- Caro.Core.Tests: 456 tests (+18 from v1.40.0: +12 symmetry integrity, +1 fixed test count, +5 from previous)
+- All 520+ backend tests passing (Core + Infrastructure)
+
+[1.41.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.41.0
+
 ## [1.40.0] - 2026-02-11
 
 ### Fixed
