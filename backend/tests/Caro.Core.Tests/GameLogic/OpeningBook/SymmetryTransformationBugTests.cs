@@ -23,13 +23,13 @@ public class SymmetryTransformationBugTests
 
         // Test ApplySymmetry(Rotate90)
         var (tx1, ty1) = canonicalizer.ApplySymmetry(5, 8, SymmetryType.Rotate90);
-        // Expected: (y, 18-x) = (8, 13)
+        // Expected: (y, 31-x) = (8, 26) for 32x32 board
         tx1.Should().Be(8);
-        ty1.Should().Be(13);
+        ty1.Should().Be(26);
 
         // Test ApplyInverseSymmetry(Rotate90)
-        var (tx2, ty2) = canonicalizer.ApplyInverseSymmetry(8, 13, SymmetryType.Rotate90);
-        // Expected: (18-y, x) = (5, 8) - inverse of above
+        var (tx2, ty2) = canonicalizer.ApplyInverseSymmetry(8, 26, SymmetryType.Rotate90);
+        // Expected: (31-y, x) = (5, 8) - inverse of above
         tx2.Should().Be(5);
         ty2.Should().Be(8);
     }
@@ -39,14 +39,14 @@ public class SymmetryTransformationBugTests
     {
         var canonicalizer = new PositionCanonicalizer();
 
-        // From bug report: Move from book (11,11), Symmetry=Rotate90
-        // Should transform to (7, 11)
+        // For 32x32 board: ApplyInverseSymmetry(Rotate90) on (11,11)
+        // Formula: (31-y, x) = (20, 11)
         var (actualX, actualY) = canonicalizer.ApplyInverseSymmetry(11, 11, SymmetryType.Rotate90);
-        actualX.Should().Be(7);
+        actualX.Should().Be(20);
         actualY.Should().Be(11);
 
-        // Verify round-trip: If actual was (7, 11), canonical should be (11, 11)
-        var (canonicalX, canonicalY) = canonicalizer.ApplySymmetry(7, 11, SymmetryType.Rotate90);
+        // Verify round-trip: If actual was (20, 11), canonical should be (11, 11)
+        var (canonicalX, canonicalY) = canonicalizer.ApplySymmetry(20, 11, SymmetryType.Rotate90);
         canonicalX.Should().Be(11);
         canonicalY.Should().Be(11);
     }

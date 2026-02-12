@@ -288,9 +288,9 @@ public class OpeningBookGeneratorTests
 
         // Assert - The transformed coordinates should be valid
         actualX.Should().BeGreaterThanOrEqualTo(0);
-        actualX.Should().BeLessThan(19);
+        actualX.Should().BeLessThan(32);
         actualY.Should().BeGreaterThanOrEqualTo(0);
-        actualY.Should().BeLessThan(19);
+        actualY.Should().BeLessThan(32);
 
         // Cell should be empty before placing
         var existingCell = newBoard.GetCell(actualX, actualY);

@@ -164,8 +164,8 @@ public class OpeningBookSymmetryIntegrityTests
             board
         );
 
-        // Rotate90 inverse is Rotate270: (18-y, x)
-        var expectedX = 18 - 10;  // 8
+        // Rotate90 inverse is Rotate270: (31-y, x) for 32x32 board
+        var expectedX = 31 - 10;  // 21
         var expectedY = 10;
 
         actualX.Should().Be(expectedX);
