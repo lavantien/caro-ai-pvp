@@ -9,8 +9,8 @@ namespace Caro.Core.GameLogic;
 /// </summary>
 public sealed class OpeningBook
 {
-    private const int BoardSize = 19;
-    private const int Center = 9;  // (9,9) is center of 19x19 board (0-indexed)
+    private const int BoardSize = 32;
+    private const int Center = 16;  // (16,16) is center of 32x32 board (0-indexed)
 
     private readonly OpeningBookLookupService _lookupService;
     private readonly IOpeningBookStore _store;
