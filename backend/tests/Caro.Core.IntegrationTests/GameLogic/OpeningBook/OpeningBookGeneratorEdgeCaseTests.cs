@@ -752,12 +752,12 @@ public class OpeningBookGeneratorEdgeCaseTests : IAsyncLifetime
     [Fact]
     public void GenerateAsync_SurvivalZonePosition_EvaluatesMoreCandidates()
     {
-        // Based on implementation logic (line 771):
-        // - Survival zone (plies 6-13): 10 candidates
-        // - Outside survival zone: 6 candidates
+        // Based on implementation logic:
+        // - Survival zone (plies 6-13): 5 candidates
+        // - Outside survival zone: 3 candidates
 
-        const int survivalZoneCandidates = 10;
-        const int normalCandidates = 6;
+        const int survivalZoneCandidates = 5;
+        const int normalCandidates = 3;
 
         // Verify survival zone gets more candidates
         survivalZoneCandidates.Should().BeGreaterThan(normalCandidates,
@@ -770,46 +770,38 @@ public class OpeningBookGeneratorEdgeCaseTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Verify that survival zone positions get extra time allocation.
-    /// This tests the adaptive time allocation logic at lines 786-792.
-    /// </summary>
-    [Fact]
-    public void GenerateAsync_SurvivalZone_GetsExtraTime()
-    {
-        // Based on implementation (lines 786-792):
-        // - Depth <= 3: -30% time
-        // - Depth <= 5: 0% adjustment (standard)
-        // - Depth <= 13 (survival zone): +50% time
-        // - Depth > 13: +20% time
-
-        const int earlyDepthAdjustment = -30;   // <= ply 3
-        const int standardDepthAdjustment = 0;   // <= ply 5
-        const int survivalZoneAdjustment = 50;   // <= ply 13
-        const int lateDepthAdjustment = 20;      // > ply 13
-
-        // Verify survival zone gets the most time
-        survivalZoneAdjustment.Should().BeGreaterThan(lateDepthAdjustment,
-            "Survival zone should get more time than late positions");
-        survivalZoneAdjustment.Should().BeGreaterThan(standardDepthAdjustment,
-            "Survival zone should get more time than standard positions");
-        survivalZoneAdjustment.Should().BeGreaterThan(Math.Abs(earlyDepthAdjustment),
-            "Survival zone should get more time than early positions");
-
-        // Verify early positions get less time (they're simpler)
-        earlyDepthAdjustment.Should().BeNegative(
-            "Early positions should get less time allocation");
-    }
-
-    /// <summary>
-    /// Verify that early positions (depth <= 3) get reduced time allocation.
-    /// This tests the early position time reduction at lines 786-792.
+    /// Verify that early positions get reduced time allocation.
+    /// This tests the adaptive time allocation logic.
     /// </summary>
     [Fact]
     public void GenerateAsync_EarlyPositions_GetsLessTime()
     {
-        // Early positions (ply <= 3) get 30% less time
-        const int earlyDepthAdjustment = -30;
-        const int baseTimePerPositionMs = 15000;
+        // Based on implementation (two-tier system):
+        // - Depth <= 5: -20% time (early positions are simpler)
+        // - All other depths: 0% adjustment (standard time)
+
+        const int earlyDepthAdjustment = -20;   // <= ply 5
+        const int standardDepthAdjustment = 0;   // > ply 5
+
+        // Verify early positions get less time (they're simpler)
+        earlyDepthAdjustment.Should().BeNegative(
+            "Early positions should get less time allocation");
+
+        // Verify early adjustment reduces time
+        earlyDepthAdjustment.Should().BeLessThan(standardDepthAdjustment,
+            "Early positions should have lower adjustment than standard positions");
+    }
+
+    /// <summary>
+    /// Verify that early positions (depth <= 5) get reduced time allocation.
+    /// This tests the early position time reduction.
+    /// </summary>
+    [Fact]
+    public void GenerateAsync_EarlyPositions_GetsLessTime()
+    {
+        // Early positions (ply <= 5) get 20% less time
+        const int earlyDepthAdjustment = -20;
+        const int baseTimePerPositionMs = 1000;
 
         // Calculate adjusted time
         int adjustedTime = baseTimePerPositionMs * (100 + earlyDepthAdjustment) / 100;
@@ -818,10 +810,10 @@ public class OpeningBookGeneratorEdgeCaseTests : IAsyncLifetime
         adjustedTime.Should().BeLessThan(baseTimePerPositionMs,
             "Early positions should get less time than base allocation");
 
-        // Verify the reduction is exactly 30%
+        // Verify the reduction is exactly 20%
         double reductionRatio = (double)(baseTimePerPositionMs - adjustedTime) / baseTimePerPositionMs;
-        Math.Round(reductionRatio, 2).Should().Be(0.30,
-            "Early positions should get exactly 30% less time");
+        Math.Round(reductionRatio, 2).Should().Be(0.20,
+            "Early positions should get exactly 20% less time");
     }
 
     #endregion
@@ -1161,31 +1153,29 @@ public class OpeningBookGeneratorEdgeCaseTests : IAsyncLifetime
 
     /// <summary>
     /// Verify that time allocation adjusts based on position depth.
-    /// This tests the adaptive time allocation at lines 786-792.
+    /// This tests the adaptive time allocation.
     /// </summary>
     [Fact]
     public void GenerateAsync_TimeAllocation_AdjustedByDepth()
     {
-        // Time allocation adjustments (lines 786-792):
-        // - Depth <= 3: -30% (early positions are simpler)
-        // - Depth <= 5: 0% (standard allocation)
-        // - Depth <= 13: +50% (survival zone needs thorough analysis)
-        // - Depth > 13: +20% (late positions)
+        // Time allocation adjustments (two-tier system):
+        // - Depth <= 5: -20% (early positions are simpler)
+        // - All other depths: 0% (standard allocation)
 
-        const int baseTimePerPositionMs = 15000;
+        const int baseTimePerPositionMs = 1000;
 
         var timeAdjustments = new[]
         {
-            (Depth: 0, Adjustment: -30, Description: "Root"),
-            (Depth: 1, Adjustment: -30, Description: "Ply 1"),
-            (Depth: 2, Adjustment: -30, Description: "Ply 2"),
-            (Depth: 3, Adjustment: -30, Description: "Ply 3"),
-            (Depth: 4, Adjustment: 0, Description: "Ply 4"),
-            (Depth: 5, Adjustment: 0, Description: "Ply 5"),
-            (Depth: 6, Adjustment: 50, Description: "Survival zone start"),
-            (Depth: 7, Adjustment: 50, Description: "Survival zone middle"),
-            (Depth: 13, Adjustment: 50, Description: "Survival zone end"),
-            (Depth: 14, Adjustment: 20, Description: "Post-survival")
+            (Depth: 0, Adjustment: -20, Description: "Root"),
+            (Depth: 1, Adjustment: -20, Description: "Ply 1"),
+            (Depth: 2, Adjustment: -20, Description: "Ply 2"),
+            (Depth: 3, Adjustment: -20, Description: "Ply 3"),
+            (Depth: 4, Adjustment: -20, Description: "Ply 4"),
+            (Depth: 5, Adjustment: -20, Description: "Ply 5"),
+            (Depth: 6, Adjustment: 0, Description: "Survival zone start"),
+            (Depth: 7, Adjustment: 0, Description: "Survival zone middle"),
+            (Depth: 13, Adjustment: 0, Description: "Survival zone end"),
+            (Depth: 14, Adjustment: 0, Description: "Post-survival")
         };
 
         foreach (var (depth, adjustment, description) in timeAdjustments)
@@ -1196,14 +1186,14 @@ public class OpeningBookGeneratorEdgeCaseTests : IAsyncLifetime
             adjustedTime.Should().BeGreaterThan(0,
                 $"Adjusted time for {description} should be positive");
 
-            adjustedTime.Should().BeLessThan(baseTimePerPositionMs * 2,
-                $"Adjusted time for {description} should not exceed 2x base time");
+            adjustedTime.Should().BeLessOrEqualTo(baseTimePerPositionMs,
+                $"Adjusted time for {description} should not exceed base time");
 
-            // Verify survival zone gets more time
-            if (depth >= 6 && depth <= 13)
+            // Verify early positions get less time
+            if (depth <= 5)
             {
-                adjustedTime.Should().BeGreaterThan(baseTimePerPositionMs,
-                    $"Survival zone depth {depth} should get more than base time");
+                adjustedTime.Should().BeLessThan(baseTimePerPositionMs,
+                    $"Early depth {depth} should get less than base time");
             }
         }
     }
