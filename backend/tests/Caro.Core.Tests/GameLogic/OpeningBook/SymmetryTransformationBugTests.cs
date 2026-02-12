@@ -54,7 +54,9 @@ public class SymmetryTransformationBugTests
     [Fact]
     public void CreateBoard_WithSpecificStones_Verify_CellIsOccupied()
     {
-        // Create a board matching the bug report: Red=6, Blue=5, Total=11
+        // Create a board with specific stone pattern for testing
+        // Red: (9,9), (8,10), (8,9), (7,10), (7,9) = 5 stones
+        // Blue: (9,10), (10,10), (10,9), (11,10), (11,9), (7,11) = 6 stones
         var board = new Board();
         board = board.PlaceStone(9, 9, Player.Red);
         board = board.PlaceStone(9, 10, Player.Blue);
@@ -83,8 +85,8 @@ public class SymmetryTransformationBugTests
                 else if (c.Player == Player.Blue) blueCount++;
             }
         }
-        redCount.Should().Be(6);
-        blueCount.Should().Be(6); // We added Blue at (7, 11)
+        redCount.Should().Be(5);
+        blueCount.Should().Be(6);
     }
 
     [Fact]
