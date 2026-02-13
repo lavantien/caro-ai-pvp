@@ -53,6 +53,7 @@ public class OpeningBookSymmetryTests
         var storedEntry = new OpeningBookEntry
         {
             CanonicalHash = canonical1.CanonicalHash,
+            DirectHash = board1.GetHash(),
             Depth = 2,
             Player = Player.Red,
             Symmetry = canonical1.SymmetryApplied,
@@ -136,6 +137,7 @@ public class OpeningBookSymmetryTests
         var entry = new OpeningBookEntry
         {
             CanonicalHash = canonicalHash,
+            DirectHash = canonicalHash,
             Depth = 2,
             Player = Player.Red,
             Symmetry = storedSymmetry,  // This is what was stored
@@ -212,6 +214,7 @@ public class OpeningBookSymmetryTests
         var entry = new OpeningBookEntry
         {
             CanonicalHash = canonicalHash,
+            DirectHash = canonicalHash,
             Depth = 3,
             Player = Player.Blue,
             Symmetry = symmetry,
@@ -265,6 +268,7 @@ public class OpeningBookSymmetryTests
         var existingEntry = new OpeningBookEntry
         {
             CanonicalHash = canonical.CanonicalHash,
+            DirectHash = board.GetHash(),
             Depth = 2,
             Player = Player.Red,
             Symmetry = SymmetryType.Rotate90,  // Stored with Rotate90
@@ -389,6 +393,7 @@ public class OpeningBookSymmetryTests
         var entry = new OpeningBookEntry
         {
             CanonicalHash = canonical.CanonicalHash,
+            DirectHash = board.GetHash(),
             Depth = 2,
             Player = Player.Red,
             Symmetry = canonical.SymmetryApplied,
@@ -468,6 +473,7 @@ public class OpeningBookSymmetryTests
         var entry = new OpeningBookEntry
         {
             CanonicalHash = canonicalHash,
+            DirectHash = canonicalHash,
             Depth = 2,
             Player = Player.Red,
             Symmetry = storedSymmetry,
@@ -570,6 +576,7 @@ public class OpeningBookSymmetryTests
         var entry = new OpeningBookEntry
         {
             CanonicalHash = canonical.CanonicalHash,
+            DirectHash = board.GetHash(),
             Depth = 2,
             Player = Player.Red,
             Symmetry = SymmetryType.Rotate180,

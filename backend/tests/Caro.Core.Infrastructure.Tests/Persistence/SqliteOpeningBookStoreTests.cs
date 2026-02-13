@@ -307,7 +307,8 @@ public sealed class SqliteOpeningBookStoreTests : IDisposable
         ulong canonicalHash,
         Player player = Player.Red,
         int depth = 0,
-        int movesCount = 5)
+        int movesCount = 5,
+        ulong? directHash = null)
     {
         var moves = new BookMove[movesCount];
         for (int i = 0; i < movesCount; i++)
@@ -329,6 +330,7 @@ public sealed class SqliteOpeningBookStoreTests : IDisposable
         return new OpeningBookEntry
         {
             CanonicalHash = canonicalHash,
+            DirectHash = directHash ?? canonicalHash,  // Default to canonical hash if not specified
             Depth = depth,
             Player = player,
             Symmetry = SymmetryType.Identity,
