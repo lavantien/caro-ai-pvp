@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using Caro.Core.Concurrency;
@@ -53,6 +54,18 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     private int _entriesBuffered;              // Count of entries currently in buffer
     private int _totalEntriesStored;           // Total entries stored via batch operations
 
+    // Enhanced statistics tracking
+    private long _totalNodesSearched;
+    private int _candidatesEvaluated;
+    private int _candidatesPruned;
+    private int _earlyExits;
+    private int _writeBufferFlushes;
+    private int _maxWriteBufferSize;
+    private int _totalPositionsEvaluated;  // Cumulative count for throughput calculation
+    private readonly Dictionary<int, DepthTracking> _depthTracking = new();
+    private DateTime _generationStartTime;
+    private DateTime _generationEndTime;
+
     public OpeningBookGenerator(
         IOpeningBookStore store,
         IPositionCanonicalizer canonicalizer,
@@ -87,7 +100,118 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
 
 
-    public GenerationProgress GetProgress() => _progress.ToPublicProgress();
+    public GenerationProgress GetProgress() => _progress.ToPublicProgress(
+            Interlocked.Read(ref _totalNodesSearched),
+            Interlocked.CompareExchange(ref _candidatesEvaluated, 0, 0),
+            Interlocked.CompareExchange(ref _candidatesPruned, 0, 0),
+            Interlocked.CompareExchange(ref _earlyExits, 0, 0),
+            Interlocked.CompareExchange(ref _writeBufferFlushes, 0, 0),
+            Interlocked.CompareExchange(ref _entriesBuffered, 0, 0),
+            Interlocked.CompareExchange(ref _maxWriteBufferSize, 0, 0),
+            Interlocked.CompareExchange(ref _totalPositionsEvaluated, 0, 0));
+
+    public DetailedStatistics? GetDetailedStatistics()
+    {
+        if (_progress.Status == GeneratorState.NotStarted)
+            return null;
+
+        var totalTime = _generationEndTime > _generationStartTime
+            ? _generationEndTime - _generationStartTime
+            : DateTime.UtcNow - _generationStartTime;
+
+        // Build per-depth statistics
+        var depthStats = new List<DepthStats>();
+        double peakThroughput = 0;
+        int peakDepth = 0;
+        double slowestThroughput = double.MaxValue;
+        int slowestDepth = 0;
+
+        foreach (var kvp in _depthTracking.OrderBy(d => d.Key))
+        {
+            var tracking = kvp.Value;
+            if (tracking.Positions == 0) continue;
+
+            var stats = new DepthStats(
+                Depth: kvp.Key,
+                Positions: tracking.Positions,
+                MovesStored: tracking.MovesStored,
+                Time: tracking.Duration,
+                NodesSearched: tracking.NodesSearched,
+                CandidatesEvaluated: tracking.CandidatesEvaluated,
+                EarlyExits: tracking.EarlyExits
+            );
+            depthStats.Add(stats);
+
+            // Calculate throughput for this depth
+            if (tracking.Duration.TotalMinutes > 0)
+            {
+                double throughput = tracking.Positions / tracking.Duration.TotalMinutes;
+                if (throughput > peakThroughput)
+                {
+                    peakThroughput = throughput;
+                    peakDepth = kvp.Key;
+                }
+                if (throughput < slowestThroughput)
+                {
+                    slowestThroughput = throughput;
+                    slowestDepth = kvp.Key;
+                }
+            }
+        }
+
+        var totalCandidatesEvaluated = Interlocked.CompareExchange(ref _candidatesEvaluated, 0, 0);
+        var totalCandidatesPruned = Interlocked.CompareExchange(ref _candidatesPruned, 0, 0);
+        var totalEarlyExits = Interlocked.CompareExchange(ref _earlyExits, 0, 0);
+        var totalFlushes = Interlocked.CompareExchange(ref _writeBufferFlushes, 0, 0);
+        var totalNodes = Interlocked.Read(ref _totalNodesSearched);
+        var totalPositionsEval = Interlocked.CompareExchange(ref _totalPositionsEvaluated, 0, 0);
+
+        double averagePositionsPerMinute = totalTime.TotalMinutes > 0
+            ? totalPositionsEval / totalTime.TotalMinutes
+            : 0;
+
+        double averageSearchDepth = totalPositionsEval > 0 && totalNodes > 0
+            ? (double)totalNodes / totalPositionsEval / 1000 // Rough estimate
+            : 0;
+
+        double pruneRate = totalCandidatesEvaluated + totalCandidatesPruned > 0
+            ? (double)totalCandidatesPruned / (totalCandidatesEvaluated + totalCandidatesPruned) * 100
+            : 0;
+
+        double earlyExitRate = totalPositionsEval > 0
+            ? (double)totalEarlyExits / totalPositionsEval * 100
+            : 0;
+
+        double averageBatchSize = totalFlushes > 0
+            ? (double)_progress.TotalMovesStored / totalFlushes
+            : 0;
+
+        return new DetailedStatistics(
+            TotalTime: totalTime,
+            SearchTime: totalTime, // Could refine with actual tracking
+            WriteTime: TimeSpan.Zero, // Could refine with actual tracking
+            PositionsGenerated: _progress.PositionsGenerated,
+            PositionsEvaluated: totalPositionsEval,
+            TotalMovesStored: _progress.TotalMovesStored,
+            AveragePositionsPerMinute: averagePositionsPerMinute,
+            PeakPositionsPerMinute: peakThroughput,
+            PeakPositionsPerMinuteDepth: peakDepth,
+            SlowestPositionsPerMinute: slowestThroughput == double.MaxValue ? 0 : slowestThroughput,
+            SlowestPositionsPerMinuteDepth: slowestThroughput == double.MaxValue ? 0 : slowestDepth,
+            TotalNodesSearched: totalNodes,
+            AverageSearchDepth: averageSearchDepth,
+            TotalCandidatesEvaluated: totalCandidatesEvaluated,
+            TotalCandidatesPruned: totalCandidatesPruned,
+            PruneRate: pruneRate,
+            TotalEarlyExits: totalEarlyExits,
+            EarlyExitRate: earlyExitRate,
+            WriteBufferFlushes: totalFlushes,
+            AverageBatchSize: averageBatchSize,
+            PeakBufferSize: Interlocked.CompareExchange(ref _maxWriteBufferSize, 0, 0),
+            BufferCapacity: WriteBufferSize,
+            DepthStatistics: depthStats
+        );
+    }
 
     public void Cancel()
     {
@@ -175,6 +299,12 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                         buffer.Add(entry);
                     }
 
+                    // Track peak buffer size
+                    if (buffer.Count > Interlocked.CompareExchange(ref _maxWriteBufferSize, 0, 0))
+                    {
+                        Interlocked.Exchange(ref _maxWriteBufferSize, buffer.Count);
+                    }
+
                     // Flush buffer if we have items
                     if (buffer.Count > 0)
                     {
@@ -239,6 +369,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             Interlocked.Add(ref _totalEntriesStored, count);
             Interlocked.Exchange(ref _entriesBuffered, 0);
 
+            // Track flush statistics
+            Interlocked.Increment(ref _writeBufferFlushes);
+
             _logger.LogDebug("Successfully stored {Count} entries (total: {Total})", count, _totalEntriesStored);
 
             buffer.Clear();
@@ -284,6 +417,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         _progress.Reset(maxDepth);
         _progress.Status = GeneratorState.Running;
         _progress.StartTime = DateTime.UtcNow;
+        _generationStartTime = DateTime.UtcNow;
 
         try
         {
@@ -318,34 +452,41 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                 _progress.CurrentPhase = $"Evaluating depth {depth}";
 
+                // Initialize depth tracking
+                if (!_depthTracking.ContainsKey(depth))
+                {
+                    _depthTracking[depth] = new DepthTracking { StartTime = DateTime.UtcNow };
+                }
+
                 // Separate positions into: new (need evaluation) vs existing (use stored moves)
-                var positionsToEvaluate = new List<(Board board, Player player, int depth, ulong hash, SymmetryType symmetry, bool nearEdge, int maxMoves)>();
-                var positionsInBook = new List<(Board board, Player player, int depth, ulong hash, SymmetryType symmetry, bool nearEdge, BookMove[] moves)>();
+                var positionsToEvaluate = new List<(Board board, Player player, int depth, ulong canonicalHash, ulong directHash, SymmetryType symmetry, bool nearEdge, int maxMoves)>();
+                var positionsInBook = new List<(Board board, Player player, int depth, ulong canonicalHash, ulong directHash, SymmetryType symmetry, bool nearEdge, BookMove[] moves)>();
 
                 foreach (var pos in currentLevelPositions)
                 {
                     var canonical = _canonicalizer.Canonicalize(pos.Board);
+                    var directHash = pos.Board.GetHash();
 
                     // Calculate max children based on position depth
                     int maxChildren = GetMaxChildrenForDepth(pos.Depth);
 
-                    if (_store.ContainsEntry(canonical.CanonicalHash, pos.Player))
+                    // Use compound key lookup (CanonicalHash + DirectHash + Player) for exact match
+                    if (_store.ContainsEntry(canonical.CanonicalHash, directHash, pos.Player))
                     {
                         // Position already in book - retrieve stored moves for child generation
-                        var existingEntry = _store.GetEntry(canonical.CanonicalHash, pos.Player);
+                        var existingEntry = _store.GetEntry(canonical.CanonicalHash, directHash, pos.Player);
                         if (existingEntry != null && existingEntry.Moves.Length > 0)
                         {
                             _logger.LogDebug("Found existing entry at depth {Depth}: {MoveCount} moves stored", pos.Depth, existingEntry.Moves.Length);
-                            // IMPORTANT: Use canonical.SymmetryApplied (current board's canonicalization),
-                            // NOT existingEntry.Symmetry (stored value). Different boards can canonicalize to
-                            // the same hash with different symmetries, and we need the current one to correctly
-                            // transform canonical moves back to actual space for this specific board.
+
+                            // With exact DirectHash match, the stored symmetry is guaranteed to be correct for this board
                             positionsInBook.Add((
                                 pos.Board,
                                 pos.Player,
                                 pos.Depth,
                                 canonical.CanonicalHash,
-                                canonical.SymmetryApplied,
+                                directHash,
+                                existingEntry.Symmetry,
                                 existingEntry.IsNearEdge,
                                 existingEntry.Moves
                             ));
@@ -360,6 +501,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                             pos.Player,
                             pos.Depth,
                             canonical.CanonicalHash,
+                            directHash,
                             canonical.SymmetryApplied,
                             canonical.IsNearEdge,
                             maxChildren
@@ -401,18 +543,19 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     if (cancellationToken.IsCancellationRequested)
                         break;
 
-                    if (!results.ContainsKey(posData.hash) || results[posData.hash].Length == 0)
+                    // Use board's direct hash for lookup
+                    if (!results.ContainsKey(posData.directHash) || results[posData.directHash].Length == 0)
                         continue;
 
-                    var moves = results[posData.hash];
-                    var canonical = _canonicalizer.Canonicalize(posData.board);
+                    var moves = results[posData.directHash];
 
                     _logger.LogInformation("Storing entry at depth {Depth}: {MoveCount} moves evaluated and stored", posData.depth, moves.Length);
 
-                    // Store entry
+                    // Store entry with DirectHash for exact identification
                     var entry = new OpeningBookEntry
                     {
-                        CanonicalHash = canonical.CanonicalHash,
+                        CanonicalHash = posData.canonicalHash,
+                        DirectHash = posData.directHash,
                         Depth = posData.depth,
                         Player = posData.player,
                         Symmetry = posData.symmetry,
@@ -426,10 +569,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     totalMovesStored += moves.Length;
                     positionsEvaluated++;
 
-
-
                     // Calculate max children for this position
-                    // Note: posData.depth is ply count (0-indexed), not move number
                     int maxChildren = GetMaxChildrenForDepth(posData.depth);
 
                     // Enqueue child positions
@@ -439,9 +579,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                     foreach (var move in moves.Take(maxChildren))
                     {
-                        // CRITICAL: Use stored IsNearEdge to decide transformation
-                        // Moves stored with IsNearEdge=true were NOT transformed during storage
-                        // so they should NOT be inverse-transformed during retrieval
+                        // Transform from canonical to actual coordinates
                         int actualX, actualY;
                         if (posData.nearEdge || posData.symmetry == SymmetryType.Identity)
                         {
@@ -457,13 +595,23 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                             );
                         }
 
-                        // Defensive check: verify cell is not already occupied
+                        // Validate the move is playable on this board
                         var existingCell = posData.board.GetCell(actualX, actualY);
                         if (existingCell.Player != Player.None)
                         {
-                            _logger.LogError("INTERNAL ERROR: Trying to place at ({ActualX},{ActualY}) but cell is occupied by {ExistingPlayer}. " +
-                                "Move: ({RelX},{RelY}), NearEdge={NearEdge}, Sym={Sym}, Depth={Depth}",
-                                actualX, actualY, existingCell.Player, move.RelativeX, move.RelativeY, posData.nearEdge, posData.symmetry, posData.depth);
+                            // This should not happen with DirectHash-based storage
+                            // If it does, it indicates a bug in the coordinate transformation
+                            _logger.LogWarning("Unexpected invalid move ({ActualX},{ActualY}) - cell occupied. " +
+                                "Canonical move: ({RelX},{RelY}), Symmetry={Sym}, Depth={Depth}",
+                                actualX, actualY, move.RelativeX, move.RelativeY, posData.symmetry, posData.depth);
+                            continue;
+                        }
+
+                        // Verify the move passes the validator
+                        if (!_validator.IsValidMove(posData.board, actualX, actualY, posData.player))
+                        {
+                            _logger.LogDebug("Skipping move ({ActualX},{ActualY}) - failed validation. Depth={Depth}",
+                                actualX, actualY, posData.depth);
                             continue;
                         }
 
@@ -501,7 +649,6 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     var moves = posData.moves;
 
                     // Calculate max children for this position
-                    // Note: posData.depth is ply count (0-indexed), not move number
                     int maxChildren = GetMaxChildrenForDepth(posData.depth);
 
                     int movesAvailable = moves.Length;
@@ -511,9 +658,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     // Enqueue child positions from stored moves
                     foreach (var move in moves.Take(maxChildren))
                     {
-                        // CRITICAL: Use stored IsNearEdge to decide transformation
-                        // Moves stored with IsNearEdge=true were NOT transformed during storage
-                        // so they should NOT be inverse-transformed during retrieval
+                        // Transform from canonical to actual coordinates using stored symmetry
                         int actualX, actualY;
                         if (posData.nearEdge || posData.symmetry == SymmetryType.Identity)
                         {
@@ -529,26 +674,23 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                             );
                         }
 
-                        // Defensive check: verify cell is not already occupied
+                        // Validate the move is playable on this board
                         var existingCell = posData.board.GetCell(actualX, actualY);
                         if (existingCell.Player != Player.None)
                         {
-                            _logger.LogError("INTERNAL ERROR: Trying to place at ({ActualX},{ActualY}) but cell is occupied by {ExistingPlayer}. " +
-                                "Move from book: ({RelX},{RelY}), NearEdge={NearEdge}, Symmetry={Sym}, Depth={Depth}",
-                                actualX, actualY, existingCell.Player, move.RelativeX, move.RelativeY, posData.nearEdge, posData.symmetry, posData.depth);
+                            // With DirectHash-based lookup, this should not happen
+                            // If it does, it indicates a bug in coordinate transformation
+                            _logger.LogWarning("Unexpected invalid move ({ActualX},{ActualY}) from book - cell occupied. " +
+                                "Canonical move: ({RelX},{RelY}), Symmetry={Sym}, Depth={Depth}",
+                                actualX, actualY, move.RelativeX, move.RelativeY, posData.symmetry, posData.depth);
+                            continue;
+                        }
 
-                            // Count stones on board for diagnostic
-                            int redCount = 0, blueCount = 0;
-                            int boardSize = posData.board.BoardSize;
-                            for (int x = 0; x < boardSize; x++)
-                                for (int y = 0; y < boardSize; y++)
-                                {
-                                    var c = posData.board.GetCell(x, y);
-                                    if (c.Player == Player.Red) redCount++;
-                                    else if (c.Player == Player.Blue) blueCount++;
-                                }
-                            _logger.LogError("Board state: Red={RedCount}, Blue={BlueCount}, Total={Total}", redCount, blueCount, redCount + blueCount);
-
+                        // Verify the move passes the validator
+                        if (!_validator.IsValidMove(posData.board, actualX, actualY, posData.player))
+                        {
+                            _logger.LogDebug("Skipping move ({ActualX},{ActualY}) - failed validation. Depth={Depth}",
+                                actualX, actualY, posData.depth);
                             continue;
                         }
 
@@ -595,6 +737,13 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
                 _logger.LogInformation("Depth {Depth}: Generated {NextLevelCount} child positions for depth {NextDepth}", depth, nextLevelPositions.Count, depth + 1);
 
+                // Update depth tracking statistics
+                if (_depthTracking.TryGetValue(depth, out var tracking))
+                {
+                    tracking.EndTime = DateTime.UtcNow;
+                    tracking.Positions = positionsToEvaluate.Count + positionsInBook.Count;
+                    tracking.MovesStored = results.Values.Sum(m => m.Length);
+                }
             }
 
             // Flush the async write buffer before final store operations
@@ -602,7 +751,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
             // Final flush
             _store.Flush();
-            _store.SetMetadata("Version", "1");
+            _store.SetMetadata("Version", "2");  // Updated for DirectHash support
             _store.SetMetadata("GeneratedAt", DateTime.UtcNow.ToString("o"));
             _store.SetMetadata("MaxDepth", maxDepth.ToString());
             _store.SetMetadata("TargetDepth", targetDepth.ToString());
@@ -612,6 +761,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 ? GeneratorState.Cancelled
                 : GeneratorState.Completed;
             _progress.EndTime = DateTime.UtcNow;
+            _generationEndTime = DateTime.UtcNow;
 
             return new BookGenerationResult(
                 PositionsGenerated: positionsGenerated,
@@ -779,10 +929,15 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 .ToList();
         }
 
+        // Track candidate pruning statistics
+        int prunedCount = validCandidates.Count - candidatesToEvaluate.Count;
+        if (prunedCount > 0)
+        {
+            Interlocked.Add(ref _candidatesPruned, prunedCount);
+        }
+
         _logger.LogDebug("Candidate filtering: {TotalCandidates} total -> {ValidCandidates} valid -> {CandidatesToEvaluate} to evaluate",
             candidates.Count, validCandidates.Count, candidatesToEvaluate.Count);
-
-        _logger.LogDebug("Position evaluation: {TotalCandidates} total candidates -> {CandidatesToEvaluate} candidates to evaluate", candidates.Count, candidatesToEvaluate.Count);
 
         // Adaptive time allocation based on depth
         // Flat time allocation for consistent performance across all depths
@@ -849,6 +1004,10 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             _progress.LastDepth = depthAchieved;
             _progress.LastNodes = nodesSearched;
             _progress.LastThreads = threadCount;
+
+            // Track statistics
+            Interlocked.Increment(ref _candidatesEvaluated);
+            Interlocked.Add(ref _totalNodesSearched, nodesSearched);
         }
 
         // Convert to list for sorting
@@ -874,6 +1033,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             {
                 // Best move is clearly superior - stop evaluating further candidates
                 _logger.LogDebug("Early exit: best move dominates with score gap {ScoreGap} > {Threshold}", scoreGap, threshold);
+                // Track early exit
+                Interlocked.Increment(ref _earlyExits);
                 // Keep minimum of maxMoves for beam structure, or 1 if that's all we have
                 int minToKeep = Math.Min(maxMoves, sortedResults.Count);
                 sortedResults = sortedResults.Take(minToKeep).ToList();
@@ -1126,22 +1287,47 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         // meaningless (each worker resets and updates the same shared counters).
         // Progress updates come via AsyncQueue for thread safety.
 
-        public GenerationProgress ToPublicProgress()
+        public GenerationProgress ToPublicProgress(
+            long totalNodesSearched,
+            int candidatesEvaluated,
+            int candidatesPruned,
+            int earlyExits,
+            int writeBufferFlushes,
+            int currentWriteBufferSize,
+            int maxWriteBufferSize,
+            int totalPositionsEvaluated)
         {
             var elapsed = DateTime.UtcNow - StartTime;
             double percent = CalculateDepthWeightedProgress();
 
+            // Calculate throughput metrics using cumulative position count
+            double positionsPerMinute = elapsed.TotalMinutes > 0
+                ? totalPositionsEvaluated / elapsed.TotalMinutes
+                : 0;
+            double nodesPerSecond = elapsed.TotalSeconds > 0
+                ? totalNodesSearched / elapsed.TotalSeconds
+                : 0;
+
             return new GenerationProgress(
-                PositionsEvaluated: PositionsEvaluated,
+                PositionsEvaluated: totalPositionsEvaluated,
                 PositionsStored: PositionsGenerated,
-                TotalPositions: PositionsEvaluated + PositionsGenerated,
+                TotalPositions: totalPositionsEvaluated + PositionsGenerated,
                 PercentComplete: percent,
                 CurrentPhase: $"{CurrentPhase} (Last: d{LastDepth}, {LastThreads} threads, {LastNodes}N)",
                 ElapsedTime: elapsed,
                 EstimatedTimeRemaining: percent > 1 ? TimeSpan.FromSeconds(elapsed.TotalSeconds * (100 - percent) / percent) : null,
                 CurrentDepth: CurrentDepth,
                 PositionsCompletedAtCurrentDepth: PositionsCompletedAtCurrentDepth,
-                TotalPositionsAtCurrentDepth: TotalPositionsAtCurrentDepth
+                TotalPositionsAtCurrentDepth: TotalPositionsAtCurrentDepth,
+                TotalNodesSearched: totalNodesSearched,
+                PositionsPerMinute: positionsPerMinute,
+                NodesPerSecond: nodesPerSecond,
+                CandidatesEvaluated: candidatesEvaluated,
+                CandidatesPruned: candidatesPruned,
+                EarlyExits: earlyExits,
+                WriteBufferFlushes: writeBufferFlushes,
+                CurrentWriteBufferSize: currentWriteBufferSize,
+                MaxWriteBufferSize: maxWriteBufferSize
             );
         }
 
@@ -1246,12 +1432,29 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     /// <summary>
     /// Job for parallel position evaluation
     /// </summary>
+
+    /// <summary>
+    /// Tracks statistics for a single depth during generation.
+    /// </summary>
+    private sealed class DepthTracking
+    {
+        public int Positions { get; set; }
+        public int MovesStored { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public long NodesSearched { get; set; }
+        public int CandidatesEvaluated { get; set; }
+        public int EarlyExits { get; set; }
+        public TimeSpan Duration => EndTime > StartTime ? EndTime - StartTime : TimeSpan.Zero;
+    }
+
     private record PositionJob(
         int JobId,
         Board Board,
         Player Player,
         int Depth,
         ulong CanonicalHash,
+        ulong DirectHash,  // Board's direct hash for unique identification
         SymmetryType Symmetry,
         bool IsNearEdge,
         int MaxMovesToStore
@@ -1322,7 +1525,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     /// Each thread owns its own MinimaxAI instance, bypassing the ThreadPool completely.
     /// </summary>
     private Task<Dictionary<ulong, BookMove[]>> ProcessPositionsInParallelAsync(
-        List<(Board board, Player player, int depth, ulong hash, SymmetryType symmetry, bool nearEdge, int maxMoves)> positions,
+        List<(Board board, Player player, int depth, ulong canonicalHash, ulong directHash, SymmetryType symmetry, bool nearEdge, int maxMoves)> positions,
         AIDifficulty difficulty,
         CancellationToken cancellationToken,
         int totalPositions = 0)
@@ -1331,14 +1534,14 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         int currentDepth = positions.Count > 0 ? positions[0].depth : 0;
 
         var jobQueue = new ConcurrentQueue<PositionJob>();
-        var results = new ConcurrentDictionary<ulong, BookMove[]>();
+        var results = new ConcurrentDictionary<(ulong canonicalHash, ulong directHash), BookMove[]>();
         int completedCount = 0;
 
         int jobId = 0;
         foreach (var pos in positions)
         {
             jobQueue.Enqueue(new PositionJob(jobId++, pos.board, pos.player, pos.depth,
-                pos.hash, pos.symmetry, pos.nearEdge, pos.maxMoves));
+                pos.canonicalHash, pos.directHash, pos.symmetry, pos.nearEdge, pos.maxMoves));
         }
 
         // Use multiple outer workers for position-level parallelism
@@ -1364,7 +1567,14 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         foreach (var thread in threads)
             thread.Join();
 
-        return Task.FromResult(new Dictionary<ulong, BookMove[]>(results));
+        // Convert compound key dictionary to simple dictionary for return
+        // Key by direct hash since that uniquely identifies the board
+        var returnResults = new Dictionary<ulong, BookMove[]>();
+        foreach (var kvp in results)
+        {
+            returnResults[kvp.Key.directHash] = kvp.Value;
+        }
+        return Task.FromResult(returnResults);
     }
 
     /// <summary>
@@ -1373,7 +1583,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     /// </summary>
     private void WorkerThreadLoop(
         ConcurrentQueue<PositionJob> jobQueue,
-        ConcurrentDictionary<ulong, BookMove[]> results,
+        ConcurrentDictionary<(ulong canonicalHash, ulong directHash), BookMove[]> results,
         AsyncQueue<BookProgressEvent> progressQueue,
         AIDifficulty difficulty,
         int currentDepth,
@@ -1397,10 +1607,10 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     job.Symmetry, job.IsNearEdge, ai, cancellationToken
                 ).GetAwaiter().GetResult();
 
-                results[job.CanonicalHash] = moves;
+                results[(job.CanonicalHash, job.DirectHash)] = moves;
 
                 int currentCompleted = Interlocked.Increment(ref completedCounter);
-                _progress.PositionsEvaluated = currentCompleted;
+                Interlocked.Increment(ref _totalPositionsEvaluated);
 
                 progressQueue.TryEnqueue(new BookProgressEvent(
                     Depth: currentDepth, PositionsCompleted: 1,

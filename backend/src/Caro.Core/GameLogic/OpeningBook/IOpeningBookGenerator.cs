@@ -56,7 +56,65 @@ public interface IOpeningBookGenerator
     /// Cancel the ongoing generation process.
     /// </summary>
     void Cancel();
+
+    /// <summary>
+    /// Get detailed statistics about the book generation.
+    /// </summary>
+    DetailedStatistics? GetDetailedStatistics();
 }
+
+/// <summary>
+/// Per-depth statistics for book generation.
+/// </summary>
+public sealed record DepthStats(
+    int Depth,
+    int Positions,
+    int MovesStored,
+    TimeSpan Time,
+    long NodesSearched,
+    int CandidatesEvaluated,
+    int EarlyExits
+);
+
+/// <summary>
+/// Detailed statistics for book generation.
+/// </summary>
+public sealed record DetailedStatistics(
+    // Time metrics
+    TimeSpan TotalTime,
+    TimeSpan SearchTime,
+    TimeSpan WriteTime,
+
+    // Position metrics
+    int PositionsGenerated,
+    int PositionsEvaluated,
+    int TotalMovesStored,
+
+    // Throughput metrics
+    double AveragePositionsPerMinute,
+    double PeakPositionsPerMinute,
+    int PeakPositionsPerMinuteDepth,
+    double SlowestPositionsPerMinute,
+    int SlowestPositionsPerMinuteDepth,
+
+    // Search statistics
+    long TotalNodesSearched,
+    double AverageSearchDepth,
+    int TotalCandidatesEvaluated,
+    int TotalCandidatesPruned,
+    double PruneRate,
+    int TotalEarlyExits,
+    double EarlyExitRate,
+
+    // Write performance
+    int WriteBufferFlushes,
+    double AverageBatchSize,
+    int PeakBufferSize,
+    int BufferCapacity,
+
+    // Per-depth breakdown
+    IReadOnlyList<DepthStats> DepthStatistics
+);
 
 /// <summary>
 /// Progress information for book generation.
@@ -73,5 +131,20 @@ public sealed record GenerationProgress(
     // Depth-weighted progress fields
     int CurrentDepth = 0,
     int PositionsCompletedAtCurrentDepth = 0,
-    int TotalPositionsAtCurrentDepth = 0
+    int TotalPositionsAtCurrentDepth = 0,
+
+    // Throughput metrics
+    long TotalNodesSearched = 0,
+    double PositionsPerMinute = 0,
+    double NodesPerSecond = 0,
+
+    // Candidate evaluation metrics
+    int CandidatesEvaluated = 0,
+    int CandidatesPruned = 0,
+    int EarlyExits = 0,
+
+    // Write buffer metrics
+    int WriteBufferFlushes = 0,
+    int CurrentWriteBufferSize = 0,
+    int MaxWriteBufferSize = 0
 );
