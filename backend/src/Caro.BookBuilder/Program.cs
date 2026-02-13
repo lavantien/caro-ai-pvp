@@ -129,19 +129,21 @@ class Program
 
         try
         {
-            // Progress reporting
-            var progressTimer = new System.Timers.Timer(60000);  // 60 second intervals
+            // Progress reporting - 15 second intervals for meaningful monitoring
+            var progressTimer = new System.Timers.Timer(15000);  // 15 second intervals
             progressTimer.Elapsed += (s, e) =>
             {
                 var progress = generator.GetProgress();
                 if (progress.PercentComplete < 100)
                 {
-                    Console.WriteLine($"[{progress.ElapsedTime:hh\\:mm\\:ss}] " +
-                                    $"Depth {progress.CurrentDepth} " +
-                                    $"({progress.PositionsCompletedAtCurrentDepth}/{progress.TotalPositionsAtCurrentDepth} positions): " +
-                                    $"Stored: {progress.PositionsStored}, " +
-                                    $"Evaluated: {progress.PositionsEvaluated}, " +
-                                    $"Progress: {progress.PercentComplete:F1}%");
+                    Console.WriteLine($"[{progress.ElapsedTime:hh\\:mm\\:ss}] Depth {progress.CurrentDepth} " +
+                                    $"({progress.PositionsCompletedAtCurrentDepth}/{progress.TotalPositionsAtCurrentDepth} positions)");
+                    Console.WriteLine($"  Stored: {progress.PositionsStored:N0}, Evaluated: {progress.PositionsEvaluated:N0}");
+                    Console.WriteLine($"  Throughput: {progress.PositionsPerMinute:F1} pos/min, {FormatNodesPerSecond(progress.NodesPerSecond)} nodes/sec");
+                    Console.WriteLine($"  Candidates: {progress.CandidatesEvaluated:N0} evaluated, {progress.CandidatesPruned:N0} pruned, {progress.EarlyExits:N0} early exits");
+                    Console.WriteLine($"  Write buffer: {progress.WriteBufferFlushes:N0} flushes, peak {progress.MaxWriteBufferSize}/{50}");
+                    Console.WriteLine($"  Progress: {progress.PercentComplete:F1}%");
+                    Console.WriteLine();
                 }
             };
             progressTimer.Start();
@@ -150,20 +152,66 @@ class Program
 
             progressTimer.Stop();
 
-            Console.WriteLine();
-            Console.WriteLine("Generation Complete!");
-            Console.WriteLine($"Positions Generated: {result.PositionsGenerated}");
-            Console.WriteLine($"Positions Verified: {result.PositionsVerified}");
-            Console.WriteLine($"Total Moves Stored: {result.TotalMovesStored}");
-            Console.WriteLine($"Blunders Found: {result.BlundersFound}");
-            Console.WriteLine($"Generation Time: {result.GenerationTime:hh\\:mm\\:ss}");
+            // Get detailed statistics for final summary
+            var detailedStats = generator.GetDetailedStatistics();
 
-            var stats = store.GetStatistics();
             Console.WriteLine();
+            Console.WriteLine("=== Book Generation Summary ===");
+            Console.WriteLine($"Total Time: {result.GenerationTime:hh\\:mm\\:ss}");
+            Console.WriteLine($"Positions: {result.PositionsGenerated:N0} generated, {result.PositionsVerified:N0} verified");
+            Console.WriteLine($"Moves: {result.TotalMovesStored:N0} stored");
+            Console.WriteLine();
+
+            if (detailedStats != null)
+            {
+                Console.WriteLine("Throughput:");
+                Console.WriteLine($"  Average: {detailedStats.AveragePositionsPerMinute:F1} positions/minute");
+                if (detailedStats.PeakPositionsPerMinute > 0)
+                {
+                    Console.WriteLine($"  Peak: {detailedStats.PeakPositionsPerMinute:F1} positions/minute (depth {detailedStats.PeakPositionsPerMinuteDepth})");
+                }
+                if (detailedStats.SlowestPositionsPerMinute > 0)
+                {
+                    Console.WriteLine($"  Slowest: {detailedStats.SlowestPositionsPerMinute:F1} positions/minute (depth {detailedStats.SlowestPositionsPerMinuteDepth})");
+                }
+                Console.WriteLine();
+
+                Console.WriteLine("Search Statistics:");
+                Console.WriteLine($"  Total nodes: {detailedStats.TotalNodesSearched:N0}");
+                Console.WriteLine($"  Candidates: {detailedStats.TotalCandidatesEvaluated:N0} evaluated, {detailedStats.TotalCandidatesPruned:N0} pruned ({detailedStats.PruneRate:F1}%)");
+                Console.WriteLine($"  Early exits: {detailedStats.TotalEarlyExits:N0} ({detailedStats.EarlyExitRate:F1}%)");
+                Console.WriteLine();
+
+                Console.WriteLine("Write Performance:");
+                Console.WriteLine($"  Flushes: {detailedStats.WriteBufferFlushes:N0}");
+                Console.WriteLine($"  Average batch: {detailedStats.AverageBatchSize:F1} entries");
+                Console.WriteLine($"  Peak buffer: {detailedStats.PeakBufferSize}/{detailedStats.BufferCapacity}");
+                Console.WriteLine();
+
+                // Show per-depth breakdown for completed depths
+                if (detailedStats.DepthStatistics.Count > 0)
+                {
+                    Console.WriteLine("Per-Depth Statistics:");
+                    foreach (var depth in detailedStats.DepthStatistics.Take(15))  // Show first 15 depths
+                    {
+                        var depthThroughput = depth.Time.TotalMinutes > 0
+                            ? depth.Positions / depth.Time.TotalMinutes
+                            : 0;
+                        Console.WriteLine($"  Depth {depth.Depth,2}: {depth.Positions,5} positions, {depth.MovesStored,5} moves, {depth.Time:mm\\:ss} time, {depthThroughput:F1} pos/min");
+                    }
+                    if (detailedStats.DepthStatistics.Count > 15)
+                    {
+                        Console.WriteLine($"  ... and {detailedStats.DepthStatistics.Count - 15} more depths");
+                    }
+                }
+            }
+
+            Console.WriteLine();
+            var stats = store.GetStatistics();
             Console.WriteLine("Book Statistics:");
-            Console.WriteLine($"Total Entries: {stats.TotalEntries}");
+            Console.WriteLine($"Total Entries: {stats.TotalEntries:N0}");
             Console.WriteLine($"Max Depth: {stats.MaxDepth}");
-            Console.WriteLine($"Total Moves: {stats.TotalMoves}");
+            Console.WriteLine($"Total Moves: {stats.TotalMoves:N0}");
 
             store.Flush();
         }
@@ -179,6 +227,15 @@ class Program
             Console.WriteLine(ex.StackTrace);
             Environment.Exit(1);
         }
+    }
+
+    static string FormatNodesPerSecond(double nodesPerSecond)
+    {
+        if (nodesPerSecond >= 1_000_000)
+            return $"{nodesPerSecond / 1_000_000:F1}M";
+        if (nodesPerSecond >= 1_000)
+            return $"{nodesPerSecond / 1_000:F1}K";
+        return $"{nodesPerSecond:F0}";
     }
 
     static string GetArgument(string[] args, string name, string defaultValue)
