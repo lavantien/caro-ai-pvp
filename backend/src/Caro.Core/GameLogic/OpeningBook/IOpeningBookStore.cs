@@ -21,8 +21,21 @@ public interface IOpeningBookStore
     OpeningBookEntry? GetEntry(ulong canonicalHash, Player player);
 
     /// <summary>
+    /// Get book entry for exact position (canonical hash + direct hash + player).
+    /// This is the preferred method for lookup as it avoids hash collision issues.
+    /// Returns null if position is not in the book.
+    /// </summary>
+    OpeningBookEntry? GetEntry(ulong canonicalHash, ulong directHash, Player player);
+
+    /// <summary>
+    /// Get all entries matching a canonical hash and player.
+    /// Used when checking symmetric equivalents during lookup.
+    /// </summary>
+    OpeningBookEntry[] GetAllEntriesForCanonicalHash(ulong canonicalHash, Player player);
+
+    /// <summary>
     /// Store a new book entry.
-    /// If an entry with the same canonical hash exists, it will be replaced.
+    /// If an entry with the same canonical hash and direct hash exists, it will be replaced.
     /// </summary>
     void StoreEntry(OpeningBookEntry entry);
 
@@ -41,6 +54,12 @@ public interface IOpeningBookStore
     /// Check if book contains an entry for the given canonical hash and player.
     /// </summary>
     bool ContainsEntry(ulong canonicalHash, Player player);
+
+    /// <summary>
+    /// Check if book contains an entry for the exact position (canonical hash + direct hash + player).
+    /// This is the preferred method for checking existence as it avoids hash collision issues.
+    /// </summary>
+    bool ContainsEntry(ulong canonicalHash, ulong directHash, Player player);
 
     /// <summary>
     /// Get book statistics including total entries and coverage by depth.

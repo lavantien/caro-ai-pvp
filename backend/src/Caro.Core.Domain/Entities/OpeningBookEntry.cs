@@ -39,9 +39,15 @@ public sealed record OpeningBookEntry
 {
     /// <summary>
     /// Canonical position hash after symmetry reduction.
-    /// This is the primary key for book lookups.
+    /// Used for initial lookup to find candidate entries.
     /// </summary>
     public required ulong CanonicalHash { get; init; }
+
+    /// <summary>
+    /// Direct hash of the board (Board.GetHash()).
+    /// Used to uniquely identify the exact board position among those sharing the same canonical hash.
+    /// </summary>
+    public required ulong DirectHash { get; init; }
 
     /// <summary>
     /// Ply depth of this position (0 = empty board, 1 = after first move, etc.)
