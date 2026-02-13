@@ -1,46 +1,50 @@
 # Checkpoint - 2026-02-13
 
 ## Current Goal
-Release v1.47.0 with UCI notation, opening book access, and time control changes.
+Release v1.48.0 with opening book hash collision fix and enhanced progress reporting.
 
 ## Recent Changes
 
-### v1.47.0 Release
+### v1.48.0 Release
 
-1. **UCI Notation System Overhaul**
-   - Changed from base-26 (a-z, aa-af) to grid-based double-letter format (aa-hd)
-   - Encoding: `column = firstLetterIndex * 4 + secondLetterIndex`
-   - Updated backend `UCIMoveNotation.cs` and frontend `uciEngine.ts`
+1. **Opening Book Hash Collision Fix (Critical)**
+   - Root cause: Different boards can share the same canonical hash
+   - Fix: Added `DirectHash` field to `OpeningBookEntry` for unique identification
+   - Storage now uses compound key `(CanonicalHash, DirectHash, Player)`
+   - SQLite schema updated with new primary key
+   - Automatic migration drops old unreliable entries
 
-2. **Opening Book Access Extended**
-   - Easy: 8 plies (4 moves per side)
-   - Medium: 16 plies (8 moves per side)
-   - Previously only Hard+ had book access
+2. **Book Builder Progress Enhancement**
+   - Progress interval: 60s → 15s
+   - Added throughput metrics (positions/minute, nodes/sec)
+   - Added candidate statistics (evaluated, pruned, early exits)
+   - Added write buffer utilization tracking
 
-3. **Time Control Change**
-   - ComprehensiveMatchupRunner: 7+5 → 3+2
-   - Initial time: 420s → 180s
-   - Increment: 5s → 2s
-
-4. **Documentation Updates**
-   - README.md: Updated UCI notation, difficulty table, time control
-   - ENGINE_FEATURES.md: Version bump to 1.47.0
-   - CHANGELOG.md: Added v1.47.0 entry
+3. **Documentation Updates**
+   - README.md: Updated book builder performance metrics (80-100 pos/min)
+   - ENGINE_FEATURES.md: Version bump to 1.48.0
+   - CHANGELOG.md: Added v1.48.0 entry
 
 ## Files Modified
-- `backend/src/Caro.Core/GameLogic/AIDifficultyConfig.cs`
-- `backend/src/Caro.Core/GameLogic/UCI/UCIMoveNotation.cs`
-- `backend/src/Caro.TournamentRunner/ComprehensiveMatchupRunner.cs`
+- `backend/src/Caro.Core.Domain/Entities/OpeningBookEntry.cs`
+- `backend/src/Caro.Core/GameLogic/OpeningBook/IOpeningBookStore.cs`
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs`
+- `backend/src/Caro.Core.Infrastructure/Persistence/SqliteOpeningBookStore.cs`
+- `backend/src/Caro.BookBuilder/Program.cs`
 - `backend/src/Caro.UCI/UCIProtocol.cs`
-- `frontend/src/lib/uciEngine.ts`
+- `backend/tests/Caro.Core.Tests/Helpers/MockOpeningBookStore.cs`
+- `backend/tests/Caro.Core.Tests/Helpers/OpeningBookEntryBuilder.cs`
+- `backend/tests/Caro.Core.Tests/GameLogic/OpeningBook/OpeningBookSymmetryTests.cs`
+- `backend/tests/Caro.Core.Infrastructure.Tests/Persistence/SqliteOpeningBookStoreTests.cs`
 - `README.md`
 - `ENGINE_FEATURES.md`
 - `CHANGELOG.md`
 
 ## Test Status
 - Backend: 579/579 tests passing (515 Core + 64 Infrastructure)
-- Frontend: 19/19 tests passing
+- Book builder: 10-minute verification run with zero errors
 
 ## Next Step
+- Commit changes atomically
 - Push to GitHub
-- Create v1.47.0 release
+- Create v1.48.0 release

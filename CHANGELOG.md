@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.48.0] - 2026-02-13
+
+### Fixed
+- **Critical:** Opening book hash collision bug causing "cell occupied" errors during generation
+  - Root cause: Different boards can share the same canonical hash due to hash collisions
+  - Fix: Added `DirectHash` field to `OpeningBookEntry` for unique board identification
+  - Storage now uses compound key `(CanonicalHash, DirectHash, Player)` for exact matching
+  - SQLite schema updated with new primary key constraint
+  - Automatic migration drops old entries (unreliable without DirectHash)
+
+### Changed
+- **Opening Book Storage Schema** - Breaking change requiring book regeneration
+  - `OpeningBookEntry` now requires `DirectHash` property
+  - `IOpeningBookStore` interface extended with compound-key methods:
+    - `GetEntry(ulong canonicalHash, ulong directHash, Player player)`
+    - `GetAllEntriesForCanonicalHash(ulong canonicalHash, Player player)`
+    - `ContainsEntry(ulong canonicalHash, ulong directHash, Player player)`
+  - `SqliteOpeningBookStore` primary key changed from `(CanonicalHash, Player)` to `(CanonicalHash, DirectHash, Player)`
+- **Book Builder Progress Reporting** - Enhanced visibility during generation
+  - Progress interval reduced from 60s to 15s
+  - Added throughput metrics (positions/minute, nodes/sec)
+  - Added candidate evaluation statistics (evaluated, pruned, early exits)
+  - Added write buffer utilization (flushes, peak size)
+
+### Added
+- `OpeningBookEntryBuilder.WithDirectHash()` and `WithSameHash()` fluent methods for testing
+- `MockOpeningBookStore` updated with compound-key storage support
+
+### Test Coverage
+- All 515 unit tests passing
+- All 64 infrastructure tests passing
+- Book builder verified: 10-minute run with zero "cell occupied" errors
+
+[1.48.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.48.0
+
 ## [1.47.0] - 2026-02-13
 
 ### Changed

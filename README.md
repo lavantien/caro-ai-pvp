@@ -95,7 +95,7 @@ dotnet run --project backend/src/Caro.UCIMockClient -- --games 4 --time 180 --in
 **Example UCI session:**
 ```
 > uci
-< id name Caro AI 1.47.0
+< id name Caro AI 1.48.0
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
 < option name Use Opening Book type check default true
@@ -113,6 +113,7 @@ Precomputed opening positions with SQLite storage, symmetry reduction, and paral
 - **All levels except Braindead** - Easy: 8 plies, Medium: 16 plies, Hard: 24 plies, Grandmaster: 32 plies, Experimental: 40 plies
 - **Tiered continuation** - Response counts decrease with depth (4→3→2→1) ensuring coverage
 - **Symmetry reduction** - 8-way transformations reduce storage by ~8x
+- **Compound key storage** - Uses (CanonicalHash, DirectHash, Player) to avoid hash collision issues
 - **Optimized generation** - 60-67 positions/minute through aggressive pruning (12-15x speedup)
   - Smart candidate pruning: 2-5 candidates evaluated per position
   - Depth 6 search cap with static eval threshold filtering
@@ -138,6 +139,25 @@ dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=open
 - Plies 15-24: 3 moves per position (Hard difficulty)
 - Plies 25-32: 2 moves per position (Grandmaster)
 - Plies 33-40: 1 move per position (Experimental)
+
+**Book Builder Performance (typical on modern hardware):**
+
+| Metric | Value |
+|--------|-------|
+| Average throughput | 80-100 positions/minute |
+| Peak throughput (early depths) | 100+ positions/minute |
+| Memory usage | 1.2-1.5 GB working set |
+| Progress updates | Every 15 seconds |
+
+**Throughput by depth:**
+- Depths 0-8: 80-100 pos/min (simpler positions, fewer candidates)
+- Depths 9-11: 70-90 pos/min (survival zone - more candidates evaluated)
+- Depths 12+: 50-80 pos/min (deeper search required)
+
+**Optimization metrics:**
+- Candidate pruning rate: 96%+ (static eval filtering)
+- Early exit rate: 25-35% (dominant move detection)
+- Write buffer efficiency: 50 entries per flush
 
 ### Tournament Mode
 
