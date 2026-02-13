@@ -9,7 +9,8 @@ namespace Caro.Core.Tests.Helpers;
 /// </summary>
 public sealed class OpeningBookEntryBuilder
 {
-    private ulong _hash;
+    private ulong _canonicalHash;
+    private ulong _directHash;
     private int _depth;
     private Player _player = Player.Red;
     private SymmetryType _symmetry = SymmetryType.Identity;
@@ -21,7 +22,8 @@ public sealed class OpeningBookEntryBuilder
     /// </summary>
     public OpeningBookEntryBuilder()
     {
-        _hash = 1; // Default hash
+        _canonicalHash = 1; // Default hash
+        _directHash = 1;    // Default to same as canonical
         _depth = 0;
     }
 
@@ -30,7 +32,26 @@ public sealed class OpeningBookEntryBuilder
     /// </summary>
     public OpeningBookEntryBuilder WithHash(ulong hash)
     {
-        _hash = hash;
+        _canonicalHash = hash;
+        return this;
+    }
+
+    /// <summary>
+    /// Set the direct hash for the entry (board's actual hash).
+    /// </summary>
+    public OpeningBookEntryBuilder WithDirectHash(ulong directHash)
+    {
+        _directHash = directHash;
+        return this;
+    }
+
+    /// <summary>
+    /// Set both canonical and direct hash to the same value.
+    /// </summary>
+    public OpeningBookEntryBuilder WithSameHash(ulong hash)
+    {
+        _canonicalHash = hash;
+        _directHash = hash;
         return this;
     }
 
@@ -134,7 +155,8 @@ public sealed class OpeningBookEntryBuilder
     {
         return new OpeningBookEntry
         {
-            CanonicalHash = _hash,
+            CanonicalHash = _canonicalHash,
+            DirectHash = _directHash,
             Depth = _depth,
             Player = _player,
             Symmetry = _symmetry,
@@ -149,7 +171,7 @@ public sealed class OpeningBookEntryBuilder
     public static OpeningBookEntryBuilder ForEmptyBoard()
     {
         return new OpeningBookEntryBuilder()
-            .WithHash(0)
+            .WithSameHash(0)
             .WithDepth(0)
             .WithPlayer(Player.Red)
             .WithSymmetry(SymmetryType.Identity);
@@ -161,7 +183,7 @@ public sealed class OpeningBookEntryBuilder
     public static OpeningBookEntryBuilder ForCenterPosition(int depth = 1)
     {
         return new OpeningBookEntryBuilder()
-            .WithHash(42) // Arbitrary hash for center
+            .WithSameHash(42) // Arbitrary hash for center
             .WithDepth(depth)
             .WithPlayer(depth % 2 == 0 ? Player.Red : Player.Blue)
             .WithSymmetry(SymmetryType.Identity);
