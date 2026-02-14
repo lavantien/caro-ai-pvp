@@ -512,16 +512,16 @@ public class OpeningBookGeneratorTests
 
     /// <summary>
     /// Test that GetMaxChildrenForDepth returns correct tier values
-    /// New simplified structure: 4 moves for depth 0-14, 0 beyond
+    /// Uniform structure: 2 moves for depth 0-14, 0 beyond
     /// </summary>
     [Fact]
     public void GetMaxChildrenForDepth_ReturnsCorrectTier()
     {
-        // Plies 0-14: 4 children (covers Easy through Grandmaster)
+        // Plies 0-14: 2 children (covers Easy through Grandmaster)
         for (int d = 0; d <= 14; d++)
         {
             int result = GetMaxChildrenForDepth_Private(d);
-            result.Should().Be(4, $"Depth {d} should return 4 children");
+            result.Should().Be(2, $"Depth {d} should return 2 children");
         }
 
         // Beyond 14: 0 children (book stops at Grandmaster level)
@@ -533,22 +533,22 @@ public class OpeningBookGeneratorTests
 
     /// <summary>
     /// Test that tiered branching covers all difficulty levels
-    /// Easy (4), Medium (6), Hard (10), Grandmaster (14) all have 4 responses
+    /// Easy (4), Medium (6), Hard (10), Grandmaster (14) all have 2 responses
     /// </summary>
     [Fact]
     public void TieredBranching_CoversAllDifficultyLevels()
     {
-        // Easy's max depth is 4 - should have 4 responses available
-        Assert.Equal(4, GetMaxChildrenForDepth_Private(4));
+        // Easy's max depth is 4 - should have 2 responses available
+        Assert.Equal(2, GetMaxChildrenForDepth_Private(4));
 
-        // Medium's max depth is 6 - should have 4 responses available
-        Assert.Equal(4, GetMaxChildrenForDepth_Private(6));
+        // Medium's max depth is 6 - should have 2 responses available
+        Assert.Equal(2, GetMaxChildrenForDepth_Private(6));
 
-        // Hard's max depth is 10 - should have 4 responses available
-        Assert.Equal(4, GetMaxChildrenForDepth_Private(10));
+        // Hard's max depth is 10 - should have 2 responses available
+        Assert.Equal(2, GetMaxChildrenForDepth_Private(10));
 
-        // GM's max depth is 14 - should have 4 responses available
-        Assert.Equal(4, GetMaxChildrenForDepth_Private(14));
+        // GM's max depth is 14 - should have 2 responses available
+        Assert.Equal(2, GetMaxChildrenForDepth_Private(14));
 
         // Beyond book depth - no responses
         Assert.Equal(0, GetMaxChildrenForDepth_Private(15));
@@ -562,14 +562,14 @@ public class OpeningBookGeneratorTests
     public void TieredBranching_BoundaryValues_Correct()
     {
         // Last book position at ply 14
-        Assert.Equal(4, GetMaxChildrenForDepth_Private(14));
+        Assert.Equal(2, GetMaxChildrenForDepth_Private(14));
 
         // First non-book position at ply 15
         Assert.Equal(0, GetMaxChildrenForDepth_Private(15));
 
         // Verify middle of book
-        Assert.Equal(4, GetMaxChildrenForDepth_Private(7));
-        Assert.Equal(4, GetMaxChildrenForDepth_Private(10));
+        Assert.Equal(2, GetMaxChildrenForDepth_Private(7));
+        Assert.Equal(2, GetMaxChildrenForDepth_Private(10));
 
         // Verify well beyond book
         Assert.Equal(0, GetMaxChildrenForDepth_Private(40));

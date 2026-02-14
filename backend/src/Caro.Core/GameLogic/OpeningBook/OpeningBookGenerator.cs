@@ -908,9 +908,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             return Task.FromResult(Array.Empty<BookMove>());
         }
 
-        // Evaluate more candidates in survival zone (plies 6-13, moves 4-7)
+        // Evaluate 2 candidates (store top 2)
         int currentDepth = _progress.CurrentDepth;
-        int candidatesToTake = (currentDepth >= SurvivalZoneStartPly && currentDepth <= SurvivalZoneEndPly) ? 7 : 4;
+        int candidatesToTake = 2;
 
         var candidatesToEvaluate = validCandidates
             .OrderByDescending(c => BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player))
@@ -1012,46 +1012,16 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
         // Convert to list for sorting
         var sortedResults = results.ToList();
-        int resultsBeforePruning = sortedResults.Count;
 
-        // Sort by score
+        // Sort by score (best first)
         sortedResults.Sort((a, b) => b.score.CompareTo(a.score));
 
-        // Log all scores before pruning for diagnosis
+        // Log all scores for diagnosis
         var scoreLog = string.Join(", ", sortedResults.Select(r => $"({r.x},{r.y}):{r.score}"));
-        _logger.LogDebug("Scores at depth {CurrentDepth} before pruning: {Scores}", currentDepth, scoreLog);
+        _logger.LogDebug("Scores at depth {CurrentDepth}: {Scores}", currentDepth, scoreLog);
 
-        // EARLY EXIT: If best move dominates, skip remaining evaluation
-        // Use more aggressive thresholds at deeper depths
-        // IMPORTANT: For opening book, ensure we always keep at least maxMoves for the beam structure
-        if (sortedResults.Count >= 2)
-        {
-            int threshold = currentDepth >= 6 ? 150 : 200;  // More aggressive at depth 6+
-
-            int scoreGap = sortedResults[0].score - sortedResults[1].score;
-            if (scoreGap > threshold)
-            {
-                // Best move is clearly superior - stop evaluating further candidates
-                _logger.LogDebug("Early exit: best move dominates with score gap {ScoreGap} > {Threshold}", scoreGap, threshold);
-                // Track early exit
-                Interlocked.Increment(ref _earlyExits);
-                // Keep minimum of maxMoves for beam structure, or 1 if that's all we have
-                int minToKeep = Math.Min(maxMoves, sortedResults.Count);
-                sortedResults = sortedResults.Take(minToKeep).ToList();
-            }
-        }
-
-        // Also skip obviously bad moves (don't keep candidates > 500 points behind first)
-        if (sortedResults.Count >= 3)
-        {
-            var bestScore = sortedResults[0].score;
-            sortedResults = sortedResults
-                .TakeWhile(r => bestScore - r.score <= 500)
-                .ToList();
-        }
-
-        _logger.LogDebug("Position at depth {CurrentDepth}: {CandidatesToEvaluate} candidates -> {ResultsBeforePruning} results -> {SortedResultsCount} after pruning",
-            currentDepth, candidatesToEvaluate.Count, resultsBeforePruning, sortedResults.Count);
+        _logger.LogDebug("Position at depth {CurrentDepth}: {CandidatesEvaluated} candidates -> {SortedResultsCount} results",
+            currentDepth, candidatesToEvaluate.Count, sortedResults.Count);
 
         // Convert to BookMove records
         // IMPORTANT: Transform coordinates to canonical space before storing
@@ -1506,13 +1476,13 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
     /// <summary>
     /// Get the maximum number of children to expand for a given depth.
-    /// Tiered strategy ensures coverage for all difficulty levels.
+    /// Uniform 2 moves/position for manageable tree growth.
     /// </summary>
     private static int GetMaxChildrenForDepth(int depth)
     {
         return depth switch
         {
-            <= 14 => 4,     // 4 moves/position (covers Easy through Grandmaster)
+            <= 14 => 2,     // 2 moves/position (covers Easy through Grandmaster)
             _ => 0          // No book beyond ply 14
         };
     }
