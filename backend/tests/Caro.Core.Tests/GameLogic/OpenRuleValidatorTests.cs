@@ -83,4 +83,89 @@ public class OpenRuleValidatorTests
         // Assert
         isValid.Should().BeTrue();
     }
+
+    [Fact]
+    public void IsValidSecondMove_EmptyBoardNoRedStone_ReturnsTrue()
+    {
+        // Arrange
+        var validator = new OpenRuleValidator();
+        var board = new Board();
+        // Board with only Blue stones (no Red found)
+        board = board.PlaceStone(5, 5, Player.Blue);
+        board = board.PlaceStone(6, 6, Player.Blue);
+
+        // Act - stoneCount is 2 but no Red stone found
+        var isValid = validator.IsValidSecondMove(board, 7, 7);
+
+        // Assert
+        isValid.Should().BeTrue();
+    }
+
+    // Simplified test for first stone at edge
+    [Fact]
+    public void IsValidSecondMove_FirstStoneAtEdge_AllowsValidMoves()
+    {
+        // Arrange
+        var validator = new OpenRuleValidator();
+        var board = new Board();
+        board = board.PlaceStone(0, 15, Player.Red);   // Move #1 at left edge
+        board = board.PlaceStone(10, 10, Player.Blue); // Move #2
+
+        // Act - Move #3: dx >= 3 from edge
+        var isValid = validator.IsValidSecondMove(board, 3, 15);
+
+        // Assert
+        isValid.Should().BeTrue();
+    }
+
+    // Simplified test for inside 3-distance
+    [Fact]
+    public void IsValidSecondMove_Inside3Distance_ReturnsFalse()
+    {
+        // Arrange
+        var validator = new OpenRuleValidator();
+        var board = new Board();
+        board = board.PlaceStone(15, 15, Player.Red);   // Move #1 at center
+        board = board.PlaceStone(0, 0, Player.Blue);    // Move #2 anywhere
+
+        // Act - Move #3: inside 3-distance boundary (dx=2, dy=0)
+        var isValid = validator.IsValidSecondMove(board, 17, 15);
+
+        // Assert
+        isValid.Should().BeFalse();
+    }
+
+    // Simplified test for at 3-distance boundary
+    [Fact]
+    public void IsValidSecondMove_At3DistanceBoundary_ReturnsTrue()
+    {
+        // Arrange
+        var validator = new OpenRuleValidator();
+        var board = new Board();
+        board = board.PlaceStone(15, 15, Player.Red);   // Move #1 at center
+        board = board.PlaceStone(0, 0, Player.Blue);    // Move #2 anywhere
+
+        // Act - Move #3: at 3-distance boundary (dx=3)
+        var isValid = validator.IsValidSecondMove(board, 18, 15);
+
+        // Assert
+        isValid.Should().BeTrue();
+    }
+
+    // Simplified test for first stone at corner
+    [Fact]
+    public void IsValidSecondMove_FirstStoneAtCorner_AllowsValidMoves()
+    {
+        // Arrange
+        var validator = new OpenRuleValidator();
+        var board = new Board();
+        board = board.PlaceStone(0, 0, Player.Red);   // Move #1 at top-left corner
+        board = board.PlaceStone(15, 15, Player.Blue); // Move #2
+
+        // Act - Move #3: dx >= 3 from corner
+        var isValid = validator.IsValidSecondMove(board, 3, 0);
+
+        // Assert
+        isValid.Should().BeTrue();
+    }
 }
