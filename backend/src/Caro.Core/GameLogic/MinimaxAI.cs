@@ -1931,6 +1931,30 @@ public class MinimaxAI : IStatsPublisher
     }
 
     /// <summary>
+    /// Clear search state for new position while preserving transposition table.
+    /// Use for opening book generation where TT memoization across positions is beneficial.
+    /// Clears: history tables, killer moves, pondering state.
+    /// Preserves: transposition table entries (memoization), adaptive time state.
+    /// </summary>
+    public void ClearSearchState()
+    {
+        ClearHistory();
+        ResetPondering();
+
+        // Clear killer moves (position-specific move ordering)
+        for (int d = 0; d < MaxKillerDepth; d++)
+        {
+            for (int k = 0; k < MaxKillerMoves; k++)
+            {
+                _killerMoves[d, k] = (0, 0);
+            }
+        }
+
+        // Note: Transposition table is NOT cleared - this preserves memoization
+        // TT entries will be aged out naturally via the depth-age replacement strategy
+    }
+
+    /// <summary>
     /// Clear all AI state between games to prevent cross-contamination
     /// This is critical when AI of different difficulties play in sequence
     /// </summary>

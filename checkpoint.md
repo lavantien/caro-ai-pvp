@@ -1,50 +1,36 @@
-# Checkpoint - 2026-02-13
+# Checkpoint - 2026-02-14
 
 ## Current Goal
-Release v1.48.0 with opening book hash collision fix and enhanced progress reporting.
+Release v1.49.0 with TT memoization optimization for book generator.
 
 ## Recent Changes
 
-### v1.48.0 Release
+### v1.49.0 Release
 
-1. **Opening Book Hash Collision Fix (Critical)**
-   - Root cause: Different boards can share the same canonical hash
-   - Fix: Added `DirectHash` field to `OpeningBookEntry` for unique identification
-   - Storage now uses compound key `(CanonicalHash, DirectHash, Player)`
-   - SQLite schema updated with new primary key
-   - Automatic migration drops old unreliable entries
+1. **TT Memoization for Book Generator (Performance)**
+   - Added `MinimaxAI.ClearSearchState()` method
+   - Clears history and killer moves but preserves TT
+   - Book generator uses `ClearSearchState()` instead of `ClearAllState()`
+   - TT entries preserved across candidates/positions for subtree reuse
+   - Expected 2-5x speedup at deep depths
 
-2. **Book Builder Progress Enhancement**
-   - Progress interval: 60s → 15s
-   - Added throughput metrics (positions/minute, nodes/sec)
-   - Added candidate statistics (evaluated, pruned, early exits)
-   - Added write buffer utilization tracking
-
-3. **Documentation Updates**
-   - README.md: Updated book builder performance metrics (80-100 pos/min)
-   - ENGINE_FEATURES.md: Version bump to 1.48.0
-   - CHANGELOG.md: Added v1.48.0 entry
+2. **Version Updates**
+   - UCIProtocol.cs: 1.48.0 -> 1.49.0
+   - ENGINE_FEATURES.md: Version bump to 1.49.0
+   - CHANGELOG.md: Added v1.49.0 entry
 
 ## Files Modified
-- `backend/src/Caro.Core.Domain/Entities/OpeningBookEntry.cs`
-- `backend/src/Caro.Core/GameLogic/OpeningBook/IOpeningBookStore.cs`
-- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs`
-- `backend/src/Caro.Core.Infrastructure/Persistence/SqliteOpeningBookStore.cs`
-- `backend/src/Caro.BookBuilder/Program.cs`
-- `backend/src/Caro.UCI/UCIProtocol.cs`
-- `backend/tests/Caro.Core.Tests/Helpers/MockOpeningBookStore.cs`
-- `backend/tests/Caro.Core.Tests/Helpers/OpeningBookEntryBuilder.cs`
-- `backend/tests/Caro.Core.Tests/GameLogic/OpeningBook/OpeningBookSymmetryTests.cs`
-- `backend/tests/Caro.Core.Infrastructure.Tests/Persistence/SqliteOpeningBookStoreTests.cs`
-- `README.md`
-- `ENGINE_FEATURES.md`
-- `CHANGELOG.md`
+- `backend/src/Caro.Core/GameLogic/MinimaxAI.cs` - Added ClearSearchState()
+- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs` - Use ClearSearchState()
+- `backend/src/Caro.UCI/UCIProtocol.cs` - Version bump
+- `ENGINE_FEATURES.md` - Version bump
+- `CHANGELOG.md` - Added v1.49.0 entry
 
 ## Test Status
 - Backend: 579/579 tests passing (515 Core + 64 Infrastructure)
-- Book builder: 10-minute verification run with zero errors
 
 ## Next Step
-- Commit changes atomically
+- Commit changes
 - Push to GitHub
-- Create v1.48.0 release
+- Create v1.49.0 release
+- User to verify performance improvement during book generation
