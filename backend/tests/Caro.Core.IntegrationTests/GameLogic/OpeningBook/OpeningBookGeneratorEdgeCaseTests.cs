@@ -329,9 +329,6 @@ public class OpeningBookGeneratorEdgeCaseTests : IAsyncLifetime
 
         // Act - Should not throw
         generator.Dispose();
-
-        // Assert - No exception means cleanup was successful
-        true.Should().BeTrue();
     }
 
     /// <summary>
@@ -366,8 +363,7 @@ public class OpeningBookGeneratorEdgeCaseTests : IAsyncLifetime
             // Expected
         }
 
-        // Assert - Should not throw
-        true.Should().BeTrue();
+        // No assert needed - test passes if no exception is thrown
     }
 
     #endregion

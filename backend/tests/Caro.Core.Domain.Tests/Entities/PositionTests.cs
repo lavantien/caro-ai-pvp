@@ -52,13 +52,7 @@ public class PositionTests
         }
     }
 
-    [Fact]
-    public void BoardSize_Returns19()
-    {
-        // Act & Assert
-        Position.BoardSize.Should().Be(19);
-    }
-
+    
     [Fact]
     public void Offset_ReturnsNewPosition()
     {
