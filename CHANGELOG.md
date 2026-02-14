@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.53.0] - 2026-02-15
+
+### Removed
+- **Debug Test Files** - Removed 4 unnecessary debug test files:
+  - `SIMDDebugTest.cs` - Debug-only SIMD testing
+  - `SimdDebugTest2.cs` - Debug-only SIMD testing
+  - `ThreatDetectorDebugTest.cs` - Debug-only threat detection testing
+  - `AdaptiveLMRTests.cs` - Redundant LMR tests (covered elsewhere)
+
+### Added
+- **Frontend Test Coverage** - New comprehensive tests for game logic:
+  - `gameStore.test.ts` - Tests for game store types, board utilities, win detection patterns, open rule validation, timer logic
+  - `boardUtils.test.ts` - Enhanced with additional edge case tests
+  - Tests cover: move history types, cell types, board dimensions, cell indexing, win patterns (horizontal, vertical, diagonal, anti-diagonal), open rule validation, time formatting
+
+### Changed
+- Updated README.md test counts to reflect current state (505 backend unit tests, 40 frontend tests)
+- Cleaned up test organization for better maintainability
+
+### Test Coverage
+- Backend: 505 unit tests passing (Caro.Core.Tests)
+- Frontend: 40 tests passing (Vitest)
+- Removed 594 lines of debug/redundant test code
+- Added 116 lines of useful test coverage
+
+[1.53.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.53.0
+
 ## [1.52.0] - 2026-02-15
 
 ### Fixed
