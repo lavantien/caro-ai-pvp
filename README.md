@@ -140,22 +140,24 @@ dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=open
 - Plies 25-32: 2 moves per position (Grandmaster)
 - Plies 33-40: 1 move per position (Experimental)
 
-**Book Builder Performance (typical on modern hardware):**
+**Book Builder Performance (v1.49.0+ with TT memoization):**
 
 | Metric | Value |
 |--------|-------|
-| Average throughput | 80-100 positions/minute |
-| Peak throughput (early depths) | 100+ positions/minute |
+| Average throughput | 55-85 positions/minute |
+| Peak throughput (early depths) | 90+ positions/minute |
+| Nodes per second | 200-650 nodes/sec |
 | Memory usage | 1.2-1.5 GB working set |
 | Progress updates | Every 15 seconds |
 
 **Throughput by depth:**
-- Depths 0-8: 80-100 pos/min (simpler positions, fewer candidates)
-- Depths 9-11: 70-90 pos/min (survival zone - more candidates evaluated)
-- Depths 12+: 50-80 pos/min (deeper search required)
+- Depths 0-9: 80-90 pos/min (simpler positions, fewer candidates)
+- Depths 10-11: 70-85 pos/min (~1.8x faster than pre-memoization)
+- Depths 12+: 55-70 pos/min (~1.9x faster than pre-memoization)
 
 **Optimization metrics:**
-- Candidate pruning rate: 96%+ (static eval filtering)
+- Candidate pruning rate: 97%+ (static eval filtering)
+- TT memoization: Transposition table preserved across searches for subtree reuse
 - Early exit rate: 25-35% (dominant move detection)
 - Write buffer efficiency: 50 entries per flush
 
