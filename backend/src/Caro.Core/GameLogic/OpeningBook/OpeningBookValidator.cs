@@ -39,9 +39,6 @@ public sealed class OpeningBookValidator : IOpeningBookValidator
     /// <inheritdoc/>
     public (bool isValid, string reason) ValidateBlunder(Board board, int x, int y, Player player)
     {
-        // Basic blunder check - ensure the move doesn't immediately lose
-        // Full implementation would use deep search to verify
-
         // First check if move is valid
         if (!IsValidMove(board, x, y, player))
         {
@@ -56,20 +53,34 @@ public sealed class OpeningBookValidator : IOpeningBookValidator
             return (true, "Winning move");
         }
 
-        // Basic tactical check - does this move create a pattern that can be immediately punished?
-        // For now, we'll do a simplified check
-        // Full implementation would run a deep search from the resulting position
-
-        // Check if move allows opponent to win immediately on their next turn
+        // Use AI search to check opponent's best response
         var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var moveNumber = testBoard.GetBitBoard(Player.Red).CountBits() + testBoard.GetBitBoard(Player.Blue).CountBits();
 
-        // This is a placeholder for the full blunder detection
-        // The actual implementation would:
-        // 1. Make the move
-        // 2. Run a search for the opponent's best response
-        // 3. Evaluate if the score drops significantly (> 200cp = blunder)
+        // Use lightweight AI instance for blunder detection
+        var ai = new MinimaxAI(ttSizeMb: 16);
+        var (oppBestX, oppBestY) = ai.GetBestMove(
+            testBoard,
+            opponent,
+            AIDifficulty.Hard,
+            timeRemainingMs: 500,
+            moveNumber: moveNumber,
+            ponderingEnabled: false,
+            parallelSearchEnabled: false
+        );
 
-        return (true, "No obvious blunder (full verification requires deep search)");
+        // Evaluate position after opponent's best response
+        var evalBoard = testBoard.PlaceStone(oppBestX, oppBestY, opponent);
+        // Score from player's perspective: positive = good for player
+        int score = BitBoardEvaluator.Evaluate(evalBoard, player);
+
+        // If score is very negative, opponent has a big advantage = this was a blunder
+        if (score < -5000)
+        {
+            return (false, $"Blunder: opponent gains {Math.Abs(score)}cp advantage after ({oppBestX},{oppBestY})");
+        }
+
+        return (true, $"Move verified (opponent best response ({oppBestX},{oppBestY}) yields {score}cp)");
     }
 
     /// <inheritdoc/>
