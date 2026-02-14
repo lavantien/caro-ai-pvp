@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.52.0] - 2026-02-15
+
+### Fixed
+- **Critical:** Win detection inconsistency between GameService and WinDetector
+  - GameService previously used Gomoku rules (5+ in a row wins)
+  - Now correctly uses Caro rules matching WinDetector and AI evaluation:
+    - Exactly 5 in a row wins (not 6+ which is an overline)
+    - Both ends blocked by opponent = no win
+    - Overline (extension beyond 5) = no win
+  - Removes unused `GetLine` method, adds `IsBlocked` and `BuildWinningLine` helpers
+- **Minor:** Stale comment in BitBoardEvaluator (11/5 -> 3/2)
+
+### Added
+- Comprehensive tests for GameService win detection (6 new tests)
+
+### Test Coverage
+- All 579 backend tests passing (515 Core + 64 Infrastructure)
+- All 11 WinDetector tests passing (unchanged)
+
+[1.52.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.52.0
+
 ## [1.51.0] - 2026-02-15
 
 ### Changed
