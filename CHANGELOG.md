@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.49.0] - 2026-02-14
+
+### Changed
+- **Opening Book Generator** - Transposition table memoization optimization
+  - Added `MinimaxAI.ClearSearchState()` method that preserves TT between searches
+  - Book generator now uses `ClearSearchState()` instead of `ClearAllState()`
+  - TT entries are preserved across candidates and positions, enabling subtree reuse
+  - Expected 2-5x speedup at deep depths where positions share common subtrees
+
+### Technical Details
+- Previous behavior: TT cleared before each candidate, losing all memoization
+- New behavior: Only history tables and killer moves cleared, TT preserved
+- TT uses age-based replacement; old entries naturally replaced during search
+- No correctness impact - same move quality, just faster convergence
+
+### Test Coverage
+- All 515 unit tests passing
+- All 64 infrastructure tests passing
+
+[1.49.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.49.0
+
 ## [1.48.0] - 2026-02-13
 
 ### Fixed

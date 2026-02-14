@@ -977,8 +977,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             var opponent = player == Player.Red ? Player.Blue : Player.Red;
             var moveNumber = candidateBoard.GetBitBoard(Player.Red).CountBits() + candidateBoard.GetBitBoard(Player.Blue).CountBits();
 
-            // Clear AI state before each candidate to prevent cross-contamination
-            ai.ClearAllState();
+            // Clear search state before each candidate (preserves TT for memoization)
+            ai.ClearSearchState();
 
             // Run search with divided time budget, using parallel search for speed
             var (bestX, bestY) = ai.GetBestMove(
@@ -1600,7 +1600,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 if (!jobQueue.TryDequeue(out var job))
                     break;
 
-                ai.ClearAllState();
+                ai.ClearSearchState();  // Preserve TT for memoization across positions
 
                 var moves = GenerateMovesForPositionAsync(
                     job.Board, job.Player, difficulty, job.MaxMovesToStore,
