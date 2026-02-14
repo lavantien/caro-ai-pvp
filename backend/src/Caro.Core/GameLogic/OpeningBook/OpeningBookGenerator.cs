@@ -910,7 +910,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
         // Evaluate more candidates in survival zone (plies 6-13, moves 4-7)
         int currentDepth = _progress.CurrentDepth;
-        int candidatesToTake = (currentDepth >= SurvivalZoneStartPly && currentDepth <= SurvivalZoneEndPly) ? 5 : 3;
+        int candidatesToTake = (currentDepth >= SurvivalZoneStartPly && currentDepth <= SurvivalZoneEndPly) ? 7 : 4;
 
         var candidatesToEvaluate = validCandidates
             .OrderByDescending(c => BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player))
@@ -922,10 +922,10 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         {
             int bestStaticScore = BoardEvaluator.EvaluateMoveAt(candidatesToEvaluate[0].Item1, candidatesToEvaluate[0].Item2, board, player);
 
-            // Drop candidates that are statically > 300 points worse than the best one
-            // Exception: Always keep at least top 2 to ensure some variety
+            // Drop candidates that are statically > 400 points worse than the best one
+            // Exception: Always keep at least top 3 to ensure variety
             candidatesToEvaluate = candidatesToEvaluate
-                .Where((c, index) => index < 2 || (bestStaticScore - BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player)) < 300)
+                .Where((c, index) => index < 3 || (bestStaticScore - BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player)) < 400)
                 .ToList();
         }
 
@@ -940,11 +940,11 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             candidates.Count, validCandidates.Count, candidatesToEvaluate.Count);
 
         // Adaptive time allocation based on depth
-        // Flat time allocation for consistent performance across all depths
+        // More time for complex positions with more candidates
         int depthAdjustment = currentDepth switch
         {
-            <= 5 => -20,    // Early positions: 20% less time (simpler positions)
-            _ => 0          // All other positions: standard time
+            <= 5 => 0,      // Early positions: standard time
+            _ => 20         // Complex positions: 20% more time
         };
 
         int adjustedTimePerPosition = TimePerPositionMs * (100 + depthAdjustment) / 100;
@@ -1544,8 +1544,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         // Use multiple outer workers for position-level parallelism
         // Each position reuses its AI instance across candidates (sequential within position)
         // Each search uses parallel search with multiple threads
-        // 4 outer workers x 4 threads per search = 16 threads active (good for 20-core machine)
-        int threadCount = Math.Min(4, positions.Count);
+        // 8 outer workers x 4 threads per search = 32 threads active (good for 32-core machine)
+        int threadCount = Math.Min(8, positions.Count);
         var threads = new List<Thread>(threadCount);
 
         for (int i = 0; i < threadCount; i++)

@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.51.0] - 2026-02-15
+
+### Changed
+- **Opening Book Generator Performance Optimizations**
+  - Increased parallel workers from 4 to 8 (2x position-level parallelism)
+  - Increased candidates per position: 4 normal, 7 in survival zone (was 3/5)
+  - Relaxed static eval pruning: 400 threshold, keep top 3 (was 300, top 2)
+  - More time for complex positions: +20% for depth > 5 (was -20% for depth <= 5)
+
+### Performance Impact
+- Full book generation (depth 0-14) completes in ~12 minutes (was 20+ minutes)
+- Peak throughput: 144 pos/min at early depths
+- Average throughput: 35-40 pos/min
+- Early exit rate: 82% (best move dominates quickly)
+- Candidate pruning: 95% (static eval filtering working well)
+
+### Test Coverage
+- All 57 OpeningBook tests passing
+- All 515 unit tests passing
+
+[1.51.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.51.0
+
 ## [1.50.0] - 2026-02-15
 
 ### Changed
