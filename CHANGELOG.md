@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.54.0] - 2026-02-15
+
+### Added
+- **Test Infrastructure** - New test helpers and utilities:
+  - `GlobalUsings.cs` - Centralized global usings for test project
+  - `BoardBuilder.cs` - Fluent builder for test board construction
+  - `TestPositions.cs` - Reusable test position constants
+- **New Test Coverage** - Comprehensive tests for core algorithms:
+  - `AdaptiveDepthCalculatorTests.cs` - 10 tests for difficulty-based depth/time parameters
+  - `IterativeDeepeningSearchTests.cs` - 16 tests for iterative deepening behavior
+  - `TimeBudgetDepthManagerTests.cs` - Tests for time budget management
+  - `OpenRuleValidatorTests.cs` - Enhanced with 85 additional lines of test coverage
+
+### Changed
+- **AdaptiveDepthCalculator Cleanup** - Removed deprecated/unused code (4 lines)
+
+### Removed
+- **Debug Test Files** - Removed 4 additional debug/redundant test files:
+  - `SimdPrecisionDebug.cs` - Debug-only SIMD precision testing
+  - `VerticalOpenThreeDebug.cs` - Debug-only vertical pattern testing
+  - `ExactFailingBoardTest.cs` - Debug-only board state testing
+  - `SIMDPerspectiveTest.cs` - Debug-only SIMD perspective testing
+
+### Fixed
+- **Compiler Warnings** - Resolved 2 warnings in IterativeDeepeningSearchTests:
+  - CS8629: Added null-forgiving operator for nullable value type access
+  - CS0219: Removed unused variable `hardBoundReached`
+
+### Documentation
+- Updated README.md test counts (579 unit tests, 990+ total)
+
+### Test Coverage
+- Backend: 579 unit tests passing (Caro.Core.Tests) - up from 505
+- Total: 990+ tests across all projects
+
+[1.54.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.54.0
+
 ## [1.53.0] - 2026-02-15
 
 ### Removed
