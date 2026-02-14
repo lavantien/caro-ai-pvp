@@ -429,6 +429,7 @@ public sealed class GameService : IGameService
         Player player)
     {
         const int WinLength = GameConstants.WinLength;
+        var boardSize = board.BoardSize;
 
         // Check all four directions
         var directions = new[]
@@ -441,9 +442,66 @@ public sealed class GameService : IGameService
 
         foreach (var (dx, dy) in directions)
         {
-            var line = GetLine(board, lastX, lastY, dx, dy, WinLength, player);
-            if (line.Length >= WinLength)
+            // Count consecutive stones in both directions from the last move
+            int count = 1; // Include the last move itself
+
+            // Count in positive direction
+            int x = lastX + dx;
+            int y = lastY + dy;
+            while (x >= 0 && x < boardSize && y >= 0 && y < boardSize &&
+                   board.GetCell(x, y).Player == player)
             {
+                count++;
+                x += dx;
+                y += dy;
+            }
+            // (x, y) is now one position beyond the last player stone in positive direction
+            int positiveEndX = x;
+            int positiveEndY = y;
+
+            // Count in negative direction
+            x = lastX - dx;
+            y = lastY - dy;
+            while (x >= 0 && x < boardSize && y >= 0 && y < boardSize &&
+                   board.GetCell(x, y).Player == player)
+            {
+                count++;
+                x -= dx;
+                y -= dy;
+            }
+            // (x, y) is now one position beyond the last player stone in negative direction
+            int negativeEndX = x;
+            int negativeEndY = y;
+
+            // Caro rules: exactly 5 in a row, not both ends blocked, no overline
+            if (count == WinLength)
+            {
+                // Check for overline (extension beyond exactly 5)
+                bool hasPositiveExtension = positiveEndX >= 0 && positiveEndX < boardSize &&
+                                            positiveEndY >= 0 && positiveEndY < boardSize &&
+                                            board.GetCell(positiveEndX, positiveEndY).Player == player;
+                bool hasNegativeExtension = negativeEndX >= 0 && negativeEndX < boardSize &&
+                                            negativeEndY >= 0 && negativeEndY < boardSize &&
+                                            board.GetCell(negativeEndX, negativeEndY).Player == player;
+
+                if (hasPositiveExtension || hasNegativeExtension)
+                {
+                    // Overline - not a win in Caro rules
+                    continue;
+                }
+
+                // Check if both ends are blocked
+                bool positiveBlocked = IsBlocked(board, positiveEndX, positiveEndY, player);
+                bool negativeBlocked = IsBlocked(board, negativeEndX, negativeEndY, player);
+
+                if (positiveBlocked && negativeBlocked)
+                {
+                    // Both ends blocked - not a win in Caro rules
+                    continue;
+                }
+
+                // Build and return the winning line
+                var line = BuildWinningLine(lastX, lastY, dx, dy, WinLength, boardSize, player, board);
                 return line;
             }
         }
@@ -451,48 +509,58 @@ public sealed class GameService : IGameService
         return ReadOnlyMemory<Position>.Empty;
     }
 
+
     /// <summary>
-    /// Get a line of stones in a direction (Pure function - stateless)
+    /// Check if a position is blocked (out of bounds or occupied by opponent)
     /// </summary>
-    private static ReadOnlyMemory<Position> GetLine(
-        Board board,
-        int startX,
-        int startY,
+    private static bool IsBlocked(Board board, int x, int y, Player player)
+    {
+        if (x < 0 || x >= board.BoardSize || y < 0 || y >= board.BoardSize)
+            return true;  // Edge of board counts as blocked
+
+        var cell = board.GetCell(x, y);
+        return !cell.IsEmpty && cell.Player != player;
+    }
+
+    /// <summary>
+    /// Build a winning line of exactly WinLength positions, centered around the last move
+    /// </summary>
+    private static ReadOnlyMemory<Position> BuildWinningLine(
+        int lastX,
+        int lastY,
         int dx,
         int dy,
-        int targetLength,
-        Player player)
+        int winLength,
+        int boardSize,
+        Player player,
+        Board board)
     {
         var positions = new List<Position>();
 
-        // Count in positive direction
-        var x = startX + dx;
-        var y = startY + dy;
-        var boardSize = board.BoardSize;
-        while (x >= 0 && x < boardSize && y >= 0 && y < boardSize &&
-               board.GetCell(x, y).Player == player)
+        // Find the start of the line by going to the negative end
+        int startX = lastX;
+        int startY = lastY;
+        int prevX = startX - dx;
+        int prevY = startY - dy;
+        while (prevX >= 0 && prevX < boardSize && prevY >= 0 && prevY < boardSize &&
+               board.GetCell(prevX, prevY).Player == player)
+        {
+            startX = prevX;
+            startY = prevY;
+            prevX -= dx;
+            prevY -= dy;
+        }
+
+        // Build the line from start, going in positive direction
+        int x = startX;
+        int y = startY;
+        for (int i = 0; i < winLength; i++)
         {
             positions.Add(new Position(x, y));
             x += dx;
             y += dy;
         }
 
-        // Add starting position
-        positions.Add(new Position(startX, startY));
-
-        // Count in negative direction
-        x = startX - dx;
-        y = startY - dy;
-        while (x >= 0 && x < boardSize && y >= 0 && y < boardSize &&
-               board.GetCell(x, y).Player == player)
-        {
-            positions.Add(new Position(x, y));
-            x -= dx;
-            y -= dy;
-        }
-
-        return positions.Count >= targetLength
-            ? positions.ToArray().AsMemory()
-            : ReadOnlyMemory<Position>.Empty;
+        return positions.ToArray().AsMemory();
     }
 }

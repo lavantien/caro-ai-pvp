@@ -84,7 +84,7 @@ public static class BitBoardEvaluator
         var oppDiagonal = EvaluateDirection(opponentBoard, occupied, 1, 1);
         var oppAntiDiagonal = EvaluateDirection(opponentBoard, occupied, 1, -1);
 
-        // Use integer math: opp * 11 / 5 for consistent results
+        // Use integer math: opp * 3 / 2 for consistent results
         score -= (oppHorizontal * DefenseMultiplierNumer) / DefenseMultiplierDenom;
         score -= (oppVertical * DefenseMultiplierNumer) / DefenseMultiplierDenom;
         score -= (oppDiagonal * DefenseMultiplierNumer) / DefenseMultiplierDenom;
