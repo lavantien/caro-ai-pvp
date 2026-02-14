@@ -54,10 +54,6 @@ public static class AdaptiveDepthCalculator
     /// <summary>
     /// Calculate adaptive depth for Grandmaster level based on position complexity
     /// Analyzes stone count, threat count, and game phase to determine optimal depth
-    /// </summary>
-    /// <summary>
-    /// Calculate adaptive depth for Grandmaster level based on position complexity
-    /// Analyzes stone count, threat count, and game phase to determine optimal depth
     ///
     /// CRITICAL: Depth must be sustainable within time control!
     /// - 7+5 time control can support depth 7-8 consistently
