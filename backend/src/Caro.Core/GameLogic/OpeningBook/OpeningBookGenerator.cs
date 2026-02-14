@@ -1512,11 +1512,8 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     {
         return depth switch
         {
-            <= 14 => 4,     // Early game + survival zone (plies 0-14)
-            <= 24 => 3,     // Hard coverage (plies 15-24)
-            <= 32 => 2,     // GM coverage (plies 25-32)
-            <= 40 => 1,     // Exp coverage (plies 33-40)
-            _ => 0          // No book beyond ply 40
+            <= 14 => 4,     // 4 moves/position (covers Easy through Grandmaster)
+            _ => 0          // No book beyond ply 14
         };
     }
 

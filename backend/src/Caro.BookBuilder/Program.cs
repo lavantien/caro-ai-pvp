@@ -26,10 +26,14 @@ class Program
             Console.WriteLine("  --help, -h            Show this help message");
             Console.WriteLine();
             Console.WriteLine("Book Structure:");
-            Console.WriteLine("  Plies 0-14:   4 moves per position (early game + survival zone)");
-            Console.WriteLine("  Plies 15-24:  3 moves per position (Hard difficulty)");
-            Console.WriteLine("  Plies 25-32:  2 moves per position (Grandmaster)");
-            Console.WriteLine("  Plies 33-40:  1 move per position (Experimental - main line)");
+            Console.WriteLine("  Plies 0-14:   4 moves per position (covers Easy through Grandmaster)");
+            Console.WriteLine();
+            Console.WriteLine("Difficulty Coverage:");
+            Console.WriteLine("  Easy:         depth 4  (2 moves per side)");
+            Console.WriteLine("  Medium:       depth 6  (3 moves per side)");
+            Console.WriteLine("  Hard:         depth 10 (5 moves per side)");
+            Console.WriteLine("  Grandmaster:  depth 14 (7 moves per side)");
+            Console.WriteLine("  Experimental: uses all available book depth");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  dotnet run --");
@@ -57,8 +61,9 @@ class Program
         Console.WriteLine("=========================");
         Console.WriteLine();
 
-        // Hardcoded book structure: 4-3-2-1 tapered beam up to ply 40
-        const int MaxBookDepth = 40;
+        // Book structure: 4 moves/position up to ply 14 (Grandmaster level)
+        // This covers Easy (4), Medium (6), Hard (10), Grandmaster (14)
+        const int MaxBookDepth = 14;
         const int TargetSearchDepth = 12;
 
         // Parse remaining arguments
@@ -71,12 +76,9 @@ class Program
         ValidateArguments(args);
 
         Console.WriteLine($"Output: {outputPath}");
-        Console.WriteLine("Book Structure: 4-3-2-1 tapered beam up to ply 40");
+        Console.WriteLine("Book Structure: 4 moves/position up to ply 14");
         Console.WriteLine();
-        Console.WriteLine("  Plies 0-14:  4 moves/position");
-        Console.WriteLine("  Plies 15-24: 3 moves/position");
-        Console.WriteLine("  Plies 25-32: 2 moves/position");
-        Console.WriteLine("  Plies 33-40: 1 move/position");
+        Console.WriteLine("  Plies 0-14:  4 moves/position (covers Easy through Grandmaster)");
         Console.WriteLine();
 
         // Create store and generator (write mode - only place that modifies the database)
