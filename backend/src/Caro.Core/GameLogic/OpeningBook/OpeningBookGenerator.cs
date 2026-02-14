@@ -908,26 +908,19 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             return Task.FromResult(Array.Empty<BookMove>());
         }
 
-        // Evaluate 2 candidates (store top 2)
+        // Evaluate 4 candidates for comprehensive opening coverage
+        // Static pruning still reduces from full candidate set, but 4 allows more theory
         int currentDepth = _progress.CurrentDepth;
-        int candidatesToTake = 2;
+        int candidatesToTake = 4;
 
         var candidatesToEvaluate = validCandidates
             .OrderByDescending(c => BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player))
             .Take(Math.Min(validCandidates.Count, candidatesToTake))
             .ToList();
 
-        // Smart pruning: Drop candidates that are statically much worse than the best one
-        if (candidatesToEvaluate.Count > 1)
-        {
-            int bestStaticScore = BoardEvaluator.EvaluateMoveAt(candidatesToEvaluate[0].Item1, candidatesToEvaluate[0].Item2, board, player);
-
-            // Drop candidates that are statically > 400 points worse than the best one
-            // Exception: Always keep at least top 3 to ensure variety
-            candidatesToEvaluate = candidatesToEvaluate
-                .Where((c, index) => index < 3 || (bestStaticScore - BoardEvaluator.EvaluateMoveAt(c.Item1, c.Item2, board, player)) < 400)
-                .ToList();
-        }
+        // No additional pruning: static evaluation doesn't perfectly correlate with deep search results
+        // Moves that look bad statically (e.g., sacrifices, VCF sequences) may have deep tactical value
+        // The Take() above already limits to the top N candidates by static eval
 
         // Track candidate pruning statistics
         int prunedCount = validCandidates.Count - candidatesToEvaluate.Count;
@@ -995,7 +988,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 = ai.GetSearchStatistics();
 
             var evalBoard = candidateBoard.PlaceStone(bestX, bestY, opponent);
-            int score = EvaluateBoard(evalBoard, opponent);
+            // Negate score: evaluation is from opponent's perspective, so negate to get player's perspective
+            // Positive = good for player, negative = bad for player
+            int score = -EvaluateBoard(evalBoard, opponent);
 
             _logger.LogDebug("Candidate ({Cx}, {Cy}) evaluated: best response=({BestX},{BestY}), score={Score}", cx, cy, bestX, bestY, score);
 
@@ -1045,7 +1040,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 DepthAchieved = depth,
                 NodesSearched = nodes,
                 Score = score,
-                IsForcing = Math.Abs(score) > 1000, // Simplified forcing detection
+                // Forcing if |score| > 3000 (roughly a strong open three or better)
+                // Scale: Open four = 10000, Open three = 1000-2000, Closed four = 1000
+                IsForcing = Math.Abs(score) > 3000,
                 Priority = priority--,
                 IsVerified = true
             });
