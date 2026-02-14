@@ -64,11 +64,11 @@ Grandmaster-level engine achieving depth 11+ with 100-500x speedup over naive mi
 | Level | Threads | Time Budget | Error | Book Depth | Features |
 |-------|---------|-------------|-------|------------|----------|
 | Braindead | 1 | 5% | 10% | 0 | Beginners |
-| Easy | 2 | 20% | 0% | 8 plies | Parallel search + Opening book |
-| Medium | 3 | 50% | 0% | 16 plies | Parallel + pondering + Opening book |
-| Hard | 4 | 75% | 0% | 24 plies | Parallel + pondering + VCF + Opening book |
-| Grandmaster | (N/2)-1 | 100% | 0% | 32 plies | Max parallel, VCF, pondering, Opening book |
-| Experimental | (N/2)-1 | 100% | 0% | 40 plies | Full opening book, max features |
+| Easy | 2 | 20% | 0% | 4 plies | Parallel search + Opening book |
+| Medium | 3 | 50% | 0% | 6 plies | Parallel + pondering + Opening book |
+| Hard | 4 | 75% | 0% | 10 plies | Parallel + pondering + VCF + Opening book |
+| Grandmaster | (N/2)-1 | 100% | 0% | 14 plies | Max parallel, VCF, pondering, Opening book |
+| Experimental | (N/2)-1 | 100% | 0% | 14+ plies | Full opening book, max features |
 
 **Depth:** Dynamic calculation based on host machine NPS and time control. Formula: `depth = log(time * nps * timeMultiplier) / log(ebf)`
 
@@ -95,7 +95,7 @@ dotnet run --project backend/src/Caro.UCIMockClient -- --games 4 --time 180 --in
 **Example UCI session:**
 ```
 > uci
-< id name Caro AI 1.48.0
+< id name Caro AI 1.51.0
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
 < option name Use Opening Book type check default true
@@ -110,13 +110,13 @@ dotnet run --project backend/src/Caro.UCIMockClient -- --games 4 --time 180 --in
 
 Precomputed opening positions with SQLite storage, symmetry reduction, and parallel generation:
 
-- **All levels except Braindead** - Easy: 8 plies, Medium: 16 plies, Hard: 24 plies, Grandmaster: 32 plies, Experimental: 40 plies
-- **Tiered continuation** - Response counts decrease with depth (4→3→2→1) ensuring coverage
+- **All levels except Braindead** - Easy: 4 plies, Medium: 6 plies, Hard: 10 plies, Grandmaster: 14 plies, Experimental: 14+ plies
+- **Uniform beam** - 4 moves per position up to ply 14 (covers all difficulty levels)
 - **Symmetry reduction** - 8-way transformations reduce storage by ~8x
 - **Compound key storage** - Uses (CanonicalHash, DirectHash, Player) to avoid hash collision issues
-- **Optimized generation** - 60-67 positions/minute through aggressive pruning (12-15x speedup)
-  - Smart candidate pruning: 2-5 candidates evaluated per position
-  - Depth 6 search cap with static eval threshold filtering
+- **Optimized generation** - 35-40 positions/minute with 8 parallel workers
+  - Smart candidate pruning: 4-7 candidates evaluated per position
+  - 2-second search cap with TT memoization for subtree reuse
   - Resume capability - Incremental deepening of existing books
 
 **Generate book:**
@@ -134,29 +134,29 @@ dotnet run --project backend/src/Caro.BookBuilder -- --output=custom_book.db
 dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=opening_book.db
 ```
 
-**Book Structure (hardcoded 4-3-2-1 tapered beam):**
-- Plies 0-14: 4 moves per position (early game + survival zone)
-- Plies 15-24: 3 moves per position (Hard difficulty)
-- Plies 25-32: 2 moves per position (Grandmaster)
-- Plies 33-40: 1 move per position (Experimental)
+**Book Structure (simplified 4-move beam):**
+- Plies 0-14: 4 moves per position (covers Easy through Grandmaster)
+- No book beyond ply 14 (Experimental uses unlimited depth during play)
 
-**Book Builder Performance (v1.49.0+ with TT memoization):**
+**Book Builder Performance (v1.51.0 with 8 workers):**
 
 | Metric | Value |
 |--------|-------|
-| Average throughput | 55-85 positions/minute |
-| Peak throughput (early depths) | 90+ positions/minute |
-| Nodes per second | 200-650 nodes/sec |
-| Memory usage | 1.2-1.5 GB working set |
+| Total time (depth 0-14) | ~12 minutes |
+| Average throughput | 35-40 positions/minute |
+| Peak throughput (early depths) | 144 positions/minute |
+| Nodes per second | 1,100 nodes/sec |
+| Workers | 8 parallel threads |
+| Memory usage | ~500 MB working set |
 | Progress updates | Every 15 seconds |
 
 **Throughput by depth:**
-- Depths 0-9: 80-90 pos/min (simpler positions, fewer candidates)
-- Depths 10-11: 70-85 pos/min (~1.8x faster than pre-memoization)
-- Depths 12+: 55-70 pos/min (~1.9x faster than pre-memoization)
+- Depths 0-7: 70-144 pos/min (simpler positions)
+- Depths 8-14: 23-45 pos/min (more candidates in survival zone)
 
 **Optimization metrics:**
-- Candidate pruning rate: 97%+ (static eval filtering)
+- Candidate pruning rate: 95% (static eval filtering)
+- Early exit rate: 82% (best move dominates)
 - TT memoization: Transposition table preserved across searches for subtree reuse
 - Early exit rate: 25-35% (dominant move detection)
 - Write buffer efficiency: 50 entries per flush
