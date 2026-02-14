@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.50.0] - 2026-02-15
+
+### Changed
+- **Opening Book Depth Scaling** - Simplified structure for faster generation
+  - Book generation now stops at depth 14 (Grandmaster level)
+  - All depths 0-14 use 4 moves/position (removed tiered 4-3-2-1 structure)
+  - Easy+ difficulties now have book access with scaled depths:
+    - Easy: depth 4 (2 moves per side)
+    - Medium: depth 6 (3 moves per side)
+    - Hard: depth 10 (5 moves per side)
+    - Grandmaster: depth 14 (7 moves per side)
+    - Experimental: unlimited (uses all available book depth)
+  - Braindead: no book access (unchanged)
+
+### Performance Impact
+- Book generation time reduced significantly (depth 14 vs depth 40)
+- Smaller book file size with focused coverage
+- Easy and Medium now benefit from opening book
+
+### Test Coverage
+- All 515 unit tests passing
+- All 64 infrastructure tests passing
+
+[1.50.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.50.0
+
 ## [1.49.0] - 2026-02-14
 
 ### Changed

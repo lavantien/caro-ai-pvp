@@ -173,11 +173,14 @@ public sealed class OpeningBookLookupService
 
     /// <summary>
     /// Check if a specific difficulty level uses the opening book.
+    /// Easy+ all use the book with different depth limits.
     /// </summary>
     private static bool DifficultyUsesBook(AIDifficulty difficulty)
     {
         return difficulty switch
         {
+            AIDifficulty.Easy => true,
+            AIDifficulty.Medium => true,
             AIDifficulty.Hard => true,
             AIDifficulty.Grandmaster => true,
             AIDifficulty.Experimental => true,
@@ -189,8 +192,11 @@ public sealed class OpeningBookLookupService
     /// Get maximum book depth allowed for a difficulty level (in plies/half-moves).
     /// This filters which book entries can be used based on their DepthAchieved.
     /// Values are sourced from AIDifficultyConfig for consistency.
-    /// Hard: depth 24 (12 of its own moves before exiting book)
-    /// Grandmaster/Experimental: depth 32 (16 of its own moves before exiting book)
+    /// Easy: 4 plies (2 moves per side)
+    /// Medium: 6 plies (3 moves per side)
+    /// Hard: 10 plies (5 moves per side)
+    /// Grandmaster: 14 plies (7 moves per side)
+    /// Experimental: unlimited (uses all available)
     /// </summary>
     private static int GetMaxBookDepth(AIDifficulty difficulty)
     {

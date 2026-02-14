@@ -57,8 +57,8 @@ public sealed class AIDifficultyConfig
                 MinDepth = 2,
                 TargetNps = 50_000,
                 Description = "Parallel search from Easy",
-                OpeningBookEnabled = true,      // Easy uses opening book (8 plies)
-                MaxBookDepth = 8               // 8 plies = 4 moves per side
+                OpeningBookEnabled = true,      // Easy uses opening book (4 plies)
+                MaxBookDepth = 4               // 4 plies = 2 moves per side
             },
 
             AIDifficulty.Medium => new AIDifficultySettings
@@ -76,8 +76,8 @@ public sealed class AIDifficultyConfig
                 MinDepth = 3,
                 TargetNps = 100_000,
                 Description = "Parallel + pondering",
-                OpeningBookEnabled = true,      // Medium uses opening book (16 plies)
-                MaxBookDepth = 16              // 16 plies = 8 moves per side
+                OpeningBookEnabled = true,      // Medium uses opening book (6 plies)
+                MaxBookDepth = 6               // 6 plies = 3 moves per side
             },
 
             AIDifficulty.Hard => new AIDifficultySettings
@@ -96,7 +96,7 @@ public sealed class AIDifficultyConfig
                 TargetNps = 200_000,
                 Description = "Parallel + pondering + VCF",
                 OpeningBookEnabled = true,      // Hard uses opening book
-                MaxBookDepth = 24              // 24 plies (12 moves per side)
+                MaxBookDepth = 10              // 10 plies = 5 moves per side
             },
 
             AIDifficulty.Grandmaster => new AIDifficultySettings
@@ -115,7 +115,7 @@ public sealed class AIDifficultyConfig
                 TargetNps = 500_000,
                 Description = "Max parallel, VCF, pondering",
                 OpeningBookEnabled = true,      // Grandmaster uses opening book
-                MaxBookDepth = 32              // 32 plies (16 moves per side)
+                MaxBookDepth = 14              // 14 plies = 7 moves per side
             },
 
             AIDifficulty.Experimental => new AIDifficultySettings
@@ -134,7 +134,7 @@ public sealed class AIDifficultyConfig
                 TargetNps = 500_000,
                 Description = "Full opening book + max features for testing",
                 OpeningBookEnabled = true,      // Experimental uses full opening book
-                MaxBookDepth = 40    // Experimental capped at ply 40
+                MaxBookDepth = int.MaxValue    // Experimental uses all available book depth
             },
 
             AIDifficulty.BookGeneration => new AIDifficultySettings
