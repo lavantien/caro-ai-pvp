@@ -1,36 +1,43 @@
-# Checkpoint - 2026-02-14
+# Checkpoint - 2026-02-15
 
 ## Current Goal
-Release v1.49.0 with TT memoization optimization for book generator.
+Release v1.52.0 with win detection fix and documentation updates.
 
 ## Recent Changes
 
-### v1.49.0 Release
+### v1.52.0 Release
 
-1. **TT Memoization for Book Generator (Performance)**
-   - Added `MinimaxAI.ClearSearchState()` method
-   - Clears history and killer moves but preserves TT
-   - Book generator uses `ClearSearchState()` instead of `ClearAllState()`
-   - TT entries preserved across candidates/positions for subtree reuse
-   - Expected 2-5x speedup at deep depths
+1. **Win Detection Fix (Critical)**
+   - Fixed GameService.CheckForWin to use Caro rules
+   - Previously used Gomoku rules (5+ wins)
+   - Now correctly: exactly 5, no overline, blocked ends check
+   - Added IsBlocked() and BuildWinningLine() helper methods
+   - Removed unused GetLine() method
 
-2. **Version Updates**
-   - UCIProtocol.cs: 1.48.0 -> 1.49.0
-   - ENGINE_FEATURES.md: Version bump to 1.49.0
-   - CHANGELOG.md: Added v1.49.0 entry
+2. **Minor Fixes**
+   - Stale comment in BitBoardEvaluator (11/5 -> 3/2)
+
+3. **Test Coverage**
+   - Added 6 new tests for GameService win detection
+   - All 579 backend tests passing
+
+4. **Documentation Updates**
+   - CHANGELOG.md: Added v1.52.0 entry
+   - README.md: Version bump to 1.52.0
 
 ## Files Modified
-- `backend/src/Caro.Core/GameLogic/MinimaxAI.cs` - Added ClearSearchState()
-- `backend/src/Caro.Core/GameLogic/OpeningBook/OpeningBookGenerator.cs` - Use ClearSearchState()
-- `backend/src/Caro.UCI/UCIProtocol.cs` - Version bump
-- `ENGINE_FEATURES.md` - Version bump
-- `CHANGELOG.md` - Added v1.49.0 entry
+- `backend/src/Caro.Core.Application/Services/GameService.cs` - Win detection fix
+- `backend/src/Caro.Core/GameLogic/BitBoardEvaluator.cs` - Comment fix
+- `backend/tests/Caro.Core.Application.Tests/Services/GameServiceWinDetectionTests.cs` - New tests
+- `CHANGELOG.md` - v1.52.0 entry
+- `README.md` - Version bump
 
 ## Test Status
 - Backend: 579/579 tests passing (515 Core + 64 Infrastructure)
+- WinDetector: 11/11 tests passing
+- GameService Win Detection: 6/6 tests passing
 
 ## Next Step
-- Commit changes
+- Commit documentation updates
 - Push to GitHub
-- Create v1.49.0 release
-- User to verify performance improvement during book generation
+- Create v1.52.0 release
