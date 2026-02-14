@@ -31,7 +31,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         int TotalPositions,
         long TimestampMs
     );
-    private const int TimePerPositionMs = 1000;   // 1 second per position - with parallel search, gives adequate depth
+    private const int TimePerPositionMs = 2000;   // 2 seconds per position - deeper search with TT memoization
 
     // Channel-based write buffer configuration
     private const int WriteChannelCapacity = 1000;         // Bounded channel capacity for backpressure
@@ -814,7 +814,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         CancellationToken cancellationToken = default)
     {
         // Create AI instance for this call - delegate to private overload
-        var ai = new MinimaxAI(ttSizeMb: 16, logger: _loggerFactory.CreateLogger<MinimaxAI>());
+        var ai = new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
         try
         {
             return await GenerateMovesForPositionAsync(
@@ -1588,7 +1588,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         ref int completedCounter,
         CancellationToken cancellationToken)
     {
-        var ai = new MinimaxAI(ttSizeMb: 16, logger: _loggerFactory.CreateLogger<MinimaxAI>());
+        var ai = new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
 
         try
         {
