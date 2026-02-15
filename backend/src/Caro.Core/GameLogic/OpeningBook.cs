@@ -5,7 +5,7 @@ namespace Caro.Core.GameLogic;
 
 /// <summary>
 /// Opening book for precomputed opening moves.
-/// Provides access to opening moves for Hard, Grandmaster, and Experimental difficulties.
+/// Provides access to opening moves for Easy, Medium, Hard, Grandmaster, and Experimental difficulties.
 /// Uses clean architecture with dependency injection for storage, canonicalization, and validation.
 /// </summary>
 public sealed class OpeningBook
@@ -29,10 +29,10 @@ public sealed class OpeningBook
 
     /// <summary>
     /// Get a good opening move from the book.
-    /// Only returns moves for Hard, Grandmaster, and Experimental difficulties.
-    /// Book usage is depth-filtered by difficulty in SelectBestMove():
-    /// - Hard: moves evaluated at depth ≤ 24 plies (12 moves per side)
-    /// - Grandmaster/Experimental: moves evaluated at depth ≤ 32 plies (16 moves per side)
+    /// Returns moves for Easy, Medium, Hard, Grandmaster, and Experimental difficulties.
+    /// Book usage is depth-filtered by difficulty in SelectBestMove() (from AIDifficultyConfig):
+    /// - Easy: 4 plies, Medium: 6 plies, Hard: 10 plies
+    /// - Grandmaster: 14 plies, Experimental: unlimited
     /// First move is not hardcoded - the opening book or AI decides naturally.
     /// </summary>
     public (int x, int y)? GetBookMove(Board board, Player player, AIDifficulty difficulty, (int x, int y)? lastOpponentMove)
@@ -78,11 +78,14 @@ public sealed class OpeningBook
 
     /// <summary>
     /// Check if a specific difficulty level uses the opening book.
+    /// Consistent with OpeningBookLookupService and AIDifficultyConfig.
     /// </summary>
     private static bool DifficultyUsesBook(AIDifficulty difficulty)
     {
         return difficulty switch
         {
+            AIDifficulty.Easy => true,
+            AIDifficulty.Medium => true,
             AIDifficulty.Hard => true,
             AIDifficulty.Grandmaster => true,
             AIDifficulty.Experimental => true,
