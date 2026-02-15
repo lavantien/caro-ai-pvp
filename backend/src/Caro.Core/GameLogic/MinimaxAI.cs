@@ -644,19 +644,15 @@ public class MinimaxAI : IStatsPublisher
                 fixedThreadCount: threadCount,
                 candidates: candidates);
 
-            // DEFENSIVE: Validate the returned move is actually in candidates and valid
-            var moveInCandidates = candidates.Any(c => c.x == parallelResult.X && c.y == parallelResult.Y);
-            if (!moveInCandidates)
-            {
-                Console.WriteLine($"[AI ERROR] Move ({parallelResult.X},{parallelResult.Y}) NOT in candidates list at move {moveNumber}!");
-                Console.WriteLine($"[AI ERROR] Candidates: {string.Join(", ", candidates.Take(10).Select(c => $"({c.x},{c.y})"))}...");
-            }
-
+            // DEFENSIVE: Validate the returned move is actually a valid, empty cell
+            // NOTE: Move validation against candidates is already done in SearchLazySMP
+            // GetBestMoveWithStats may filter candidates for blocking moves, so checking
+            // against the original candidates list here would be a false positive
             var cell = board.GetCell(parallelResult.X, parallelResult.Y);
             if (!cell.IsEmpty)
             {
                 Console.WriteLine($"[AI ERROR] Parallel search returned occupied cell ({parallelResult.X},{parallelResult.Y}) at move {moveNumber} - cell player: {cell.Player}");
-                // Fall back to first candidate
+                // Fall back to first empty candidate
                 var fallbackMove = candidates.FirstOrDefault(c => board.GetCell(c.x, c.y).IsEmpty, candidates[0]);
                 parallelResult = new ParallelSearchResult(fallbackMove.x, fallbackMove.y, 1, 1, 0, null, parallelResult.AllocatedTimeMs, 0, 0);
             }
