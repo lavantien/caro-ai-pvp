@@ -67,8 +67,8 @@ Grandmaster-level engine achieving depth 11+ with 100-500x speedup over naive mi
 | Easy | 2 | 20% | 0% | 4 plies | Parallel search + Opening book |
 | Medium | 3 | 50% | 0% | 6 plies | Parallel + pondering + Opening book |
 | Hard | 4 | 75% | 0% | 10 plies | Parallel + pondering + VCF + Opening book |
-| Grandmaster | (N/2)-1 | 100% | 0% | 14 plies | Max parallel, VCF, pondering, Opening book |
-| Experimental | (N/2)-1 | 100% | 0% | 14+ plies | Full opening book, max features |
+| Grandmaster | max(5,(N/2)-1) | 100% | 0% | 14 plies | Max parallel, VCF, pondering, Opening book |
+| Experimental | max(5,(N/2)-1) | 100% | 0% | Unlimited | Full opening book, max features |
 
 **Depth:** Dynamic calculation based on host machine NPS and time control. Formula: `depth = log(time * nps * timeMultiplier) / log(ebf)`
 

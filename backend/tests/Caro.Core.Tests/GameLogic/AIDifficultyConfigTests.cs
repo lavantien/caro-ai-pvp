@@ -51,10 +51,25 @@ public sealed class AIDifficultyConfigTests
     {
         // Arrange & Act
         var settings = AIDifficultyConfig.Instance.GetSettings(AIDifficulty.Grandmaster);
-        int expectedThreadCount = Math.Max(4, (Environment.ProcessorCount / 2) - 1);
+        // CRITICAL FIX: Grandmaster now uses max(5, (processorCount/2) - 1) to ensure it always has more threads than Hard (4)
+        int expectedThreadCount = Math.Max(5, (Environment.ProcessorCount / 2) - 1);
 
-        // Assert - Grandmaster uses (processorCount/2) - 1 formula
+        // Assert - Grandmaster uses (processorCount/2) - 1 formula with minimum 5 threads
         settings.ThreadCount.Should().Be(expectedThreadCount);
+        settings.ThreadCount.Should().BeGreaterThanOrEqualTo(5, "Grandmaster must have at least 5 threads (more than Hard's 4)");
+    }
+
+    [Fact]
+    public void Grandmaster_HasMoreThreadsThanHard()
+    {
+        // Arrange & Act
+        var hardSettings = AIDifficultyConfig.Instance.GetSettings(AIDifficulty.Hard);
+        var grandmasterSettings = AIDifficultyConfig.Instance.GetSettings(AIDifficulty.Grandmaster);
+
+        // Assert - Grandmaster should ALWAYS have more threads than Hard
+        // This is critical for ensuring GM is actually stronger than Hard
+        grandmasterSettings.ThreadCount.Should().BeGreaterThan(hardSettings.ThreadCount,
+            "Grandmaster must have more threads than Hard to ensure stronger play");
     }
 
     [Fact]
