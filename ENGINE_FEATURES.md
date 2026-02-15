@@ -405,7 +405,33 @@ Background search during opponent's turn.
 
 ## 7. Domain-Specific Features
 
-### 7.1 VCF Solver
+### 7.1 Board Representation
+
+Immutable board design with pre-computed AI optimization data.
+
+**Architecture:**
+- Board is immutable - operations return new instances
+- Cell uses record struct for value semantics
+- Pre-computed bitboards and hash updated incrementally
+
+**Performance Optimization:**
+- BitBoards: `ulong[16]` arrays (1024 bits for 32x32 board)
+- Hash: Zobrist-style XOR updated on each move
+- O(1) access during AI search instead of O(n²) iteration
+
+**Memory Layout:**
+```
+BitIndex = y * 32 + x
+UlongIndex = BitIndex / 64
+BitOffset = BitIndex % 64
+```
+
+**Trade-offs:**
+- PlaceStone copies 1024 cells + 128 bytes of bitboards
+- Acceptable for AI search depth (avoid repeated iteration)
+- NPS improved 10-50x over lazy computation
+
+### 7.2 VCF Solver
 
 Victory by Continuous Fours - tactical solver for forcing win sequences.
 
@@ -419,7 +445,7 @@ Victory by Continuous Fours - tactical solver for forcing win sequences.
 - Results cached for reuse
 - Depth-limited for practical use
 
-### 7.2 Opening Book
+### 7.3 Opening Book
 
 Precomputed opening positions for early game guidance.
 
@@ -439,7 +465,18 @@ Precomputed opening positions for early game guidance.
 | Grandmaster | 14 plies |
 | Experimental | Unlimited |
 
-### 7.3 Exactly-5 Validation
+**Book Move Validation:**
+- Hard+ difficulties validate book moves with quick D3-D5 search
+- Prevents strength inversions from bad book moves
+- Falls back to full search if book move scores < -100 centipawns
+- Lower difficulties use book moves directly for speed
+
+**Integration:**
+- TournamentEngineFactory creates engines with book pre-loaded
+- All tournament runners use factory to ensure book availability
+- Book path: `opening_book.db` at repository root
+
+### 7.4 Exactly-5 Validation
 
 Caro rule requires exactly 5 stones (not 6+) to win.
 
@@ -453,7 +490,7 @@ Caro rule requires exactly 5 stones (not 6+) to win.
 - Blocked fours can still win
 - Double threats prioritized
 
-### 7.4 Open Rule
+### 7.5 Open Rule
 
 Red's second move must be at least 3 intersections from first.
 
