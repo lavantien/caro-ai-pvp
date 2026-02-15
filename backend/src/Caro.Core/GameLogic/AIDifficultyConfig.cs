@@ -175,20 +175,25 @@ public sealed class AIDifficultyConfig
     /// <summary>
     /// Get grandmaster thread count using (processorCount/2)-1 formula
     /// This is calculated dynamically to adapt to host machine
+    /// CRITICAL FIX: Ensure Grandmaster always has MORE threads than Hard (4)
+    /// Formula: max(Hard+1, (processorCount/2)-1) ensures GM >= 5 threads
     /// </summary>
     private static int GetGrandmasterThreadCount()
     {
         int processorCount = Environment.ProcessorCount;
-        return Math.Max(4, (processorCount / 2) - 1);
+        // Minimum 5 threads (one more than Hard's 4) to guarantee GM is stronger
+        return Math.Max(5, (processorCount / 2) - 1);
     }
 
     /// <summary>
     /// Get grandmaster pondering thread count
     /// Uses half of main search threads to avoid system issues
+    /// CRITICAL FIX: Ensure at least 3 pondering threads (more than Hard's 3)
     /// </summary>
     private static int GetGrandmasterPonderThreadCount()
     {
-        return Math.Max(2, GetGrandmasterThreadCount() / 2);
+        // Minimum 3 threads to ensure GM pondering is at least as strong as Hard's
+        return Math.Max(3, GetGrandmasterThreadCount() / 2);
     }
 }
 
