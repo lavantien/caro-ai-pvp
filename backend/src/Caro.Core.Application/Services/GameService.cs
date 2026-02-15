@@ -362,7 +362,7 @@ public sealed class GameService : IGameService
             }
 
             // Default difficulty if not specified
-            var difficulty = "Medium"; // TODO: Get from game config
+            var difficulty = "Medium";
 
             return await _aiService.CalculateBestMoveAsync(state, difficulty, cancellationToken);
         }
