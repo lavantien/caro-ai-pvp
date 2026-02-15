@@ -46,24 +46,28 @@ public static class BoardExtensions
 
     /// <summary>
     /// Get the BitBoard representation for Red stones.
+    /// PERFORMANCE: O(1) - uses pre-computed bitboards from Board class.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static BitBoard GetRedBitBoard(this Board board)
     {
-        var state = GetOrCreateState(board);
-        state.EnsureInitialized(board);
-        return state.RedBitBoard;
+        var bits = board.GetBitBoardBits(Player.Red);
+        return new BitBoard(bits[0], bits[1], bits[2], bits[3], bits[4], bits[5],
+                           bits[6], bits[7], bits[8], bits[9], bits[10], bits[11],
+                           bits[12], bits[13], bits[14], bits[15]);
     }
 
     /// <summary>
     /// Get the BitBoard representation for Blue stones.
+    /// PERFORMANCE: O(1) - uses pre-computed bitboards from Board class.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static BitBoard GetBlueBitBoard(this Board board)
     {
-        var state = GetOrCreateState(board);
-        state.EnsureInitialized(board);
-        return state.BlueBitBoard;
+        var bits = board.GetBitBoardBits(Player.Blue);
+        return new BitBoard(bits[0], bits[1], bits[2], bits[3], bits[4], bits[5],
+                           bits[6], bits[7], bits[8], bits[9], bits[10], bits[11],
+                           bits[12], bits[13], bits[14], bits[15]);
     }
 
     /// <summary>
@@ -75,13 +79,12 @@ public static class BoardExtensions
 
     /// <summary>
     /// Get the Zobrist hash of the board position.
+    /// PERFORMANCE: O(1) - uses pre-computed hash from Board class.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ulong GetHash(this Board board)
     {
-        var state = GetOrCreateState(board);
-        state.EnsureInitialized(board);
-        return state.Hash;
+        return board.GetHash();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

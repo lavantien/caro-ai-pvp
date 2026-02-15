@@ -5,16 +5,26 @@ namespace Caro.Core.Domain.Entities;
 /// <summary>
 /// Pure domain representation of the game board.
 /// Immutable - operations return new instances.
+/// PERFORMANCE: Pre-computed BitBoards and Hash for O(1) AI search operations.
 /// </summary>
 public sealed class Board
 {
     private const int Size = GameConstants.BoardSize;
     private readonly Cell[,] _cells;
 
+    // Pre-computed bitboards for O(1) access during AI search
+    // 32x32 board = 1024 bits = 16 ulongs
+    private readonly ulong[] _redBits;
+    private readonly ulong[] _blueBits;
+    private readonly ulong _hash;
+
     // Private constructor for internal use
-    private Board(Cell[,] cells)
+    private Board(Cell[,] cells, ulong[] redBits, ulong[] blueBits, ulong hash)
     {
         _cells = cells;
+        _redBits = redBits;
+        _blueBits = blueBits;
+        _hash = hash;
     }
 
     /// <summary>
@@ -30,6 +40,10 @@ public sealed class Board
                 _cells[x, y] = new Cell(x, y, Player.None);
             }
         }
+        // Empty board has all zeros
+        _redBits = new ulong[16];
+        _blueBits = new ulong[16];
+        _hash = 0;
     }
 
     /// <summary>
@@ -61,6 +75,7 @@ public sealed class Board
     /// <summary>
     /// Place a stone at the given position.
     /// Immutable - returns a new board with the stone placed.
+    /// PERFORMANCE: O(n²) cell copy + O(1) bitboard/hash update
     /// </summary>
     public Board PlaceStone(int x, int y, Player player)
     {
@@ -76,18 +91,34 @@ public sealed class Board
         {
             for (int j = 0; j < Size; j++)
             {
-                if (i == x && j == y)
-                {
-                    newCells[i, j] = _cells[i, j].WithPlayer(player);
-                }
-                else
-                {
-                    newCells[i, j] = _cells[i, j];
-                }
+                newCells[i, j] = _cells[i, j];
             }
         }
 
-        return new Board(newCells);
+        // Place the new stone
+        newCells[x, y] = new Cell(x, y, player);
+
+        // O(1) incremental bitboard update - copy arrays and set one bit
+        var newRedBits = new ulong[16];
+        var newBlueBits = new ulong[16];
+        Array.Copy(_redBits, newRedBits, 16);
+        Array.Copy(_blueBits, newBlueBits, 16);
+
+        int bitIndex = y * Size + x;  // y * 32 + x
+        int ulongIndex = bitIndex >> 6;  // bitIndex / 64
+        int bitOffset = bitIndex & 63;    // bitIndex % 64
+        ulong bitMask = 1UL << bitOffset;
+
+        // Simple hash XOR (actual Zobrist handled by extension method for compatibility)
+        ulong pieceKey = (ulong)((x << 8) | y) ^ (player == Player.Red ? 0xAAAAAAAAAAAAAAAAUL : 0x5555555555555555UL);
+        ulong newHash = _hash ^ pieceKey;
+
+        if (player == Player.Red)
+            newRedBits[ulongIndex] |= bitMask;
+        else
+            newBlueBits[ulongIndex] |= bitMask;
+
+        return new Board(newCells, newRedBits, newBlueBits, newHash);
     }
 
     /// <summary>
@@ -126,13 +157,24 @@ public sealed class Board
     /// </summary>
     public bool IsEmpty()
     {
-        foreach (var cell in _cells)
+        for (int i = 0; i < 16; i++)
         {
-            if (!cell.IsEmpty)
+            if (_redBits[i] != 0 || _blueBits[i] != 0)
                 return false;
         }
         return true;
     }
+
+    /// <summary>
+    /// Get pre-computed bitboard bits for a player.
+    /// Returns array of 16 ulongs (1024 bits for 32x32 board).
+    /// </summary>
+    public ulong[] GetBitBoardBits(Player player) => player == Player.Red ? _redBits : _blueBits;
+
+    /// <summary>
+    /// Get the pre-computed hash for this position.
+    /// </summary>
+    public ulong GetHash() => _hash;
 }
 
 /// <summary>

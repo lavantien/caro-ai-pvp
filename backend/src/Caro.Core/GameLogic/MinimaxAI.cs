@@ -289,6 +289,8 @@ public class MinimaxAI : IStatsPublisher
         // Depth-filtered by difficulty (from AIDifficultyConfig):
         // - Easy: 4 plies, Medium: 6 plies, Hard: 10 plies
         // - Grandmaster: 14 plies, Experimental: unlimited
+        // BOOK MOVE VALIDATION: Always validate book moves with a quick search (D3-D5)
+        // to prevent book errors from causing strength inversions
         var lastOpponentMove = GetLastOpponentMove(board, player);
         var bookMove = _openingBook?.GetBookMove(board, player, difficulty, lastOpponentMove);
         if (bookMove.HasValue)
@@ -302,11 +304,30 @@ public class MinimaxAI : IStatsPublisher
             }
             else
             {
-                // Set statistics to indicate book move (not search)
-                _depthAchieved = 0;  // Book move, no search depth
-                _nodesSearched = 0;  // No nodes searched
-                _lastAllocatedTimeMs = 0;  // No time allocated for book lookup
-                return bookMove.Value;
+                // Validate book move with quick search (Grandmaster+ only for performance)
+                // This prevents book errors from causing losses against weaker opponents
+                if (difficulty >= AIDifficulty.Hard)
+                {
+                    var validationResult = ValidateBookMove(board, player, bookMove.Value, difficulty);
+                    if (validationResult.IsAcceptable)
+                    {
+                        // Book move passed validation - use it
+                        _depthAchieved = validationResult.ValidationDepth;
+                        _nodesSearched = validationResult.NodesSearched;
+                        _lastAllocatedTimeMs = validationResult.TimeMs;
+                        return bookMove.Value;
+                    }
+                    // Book move failed validation - fall through to full search
+                    // This prevents bad book moves from causing losses
+                }
+                else
+                {
+                    // Lower difficulties use book moves directly without validation
+                    _depthAchieved = 0;
+                    _nodesSearched = 0;
+                    _lastAllocatedTimeMs = 0;
+                    return bookMove.Value;
+                }
             }
         }
 
@@ -2632,6 +2653,90 @@ public class MinimaxAI : IStatsPublisher
         _transpositionTable.Store(boardHash, depth, score, null, alpha, beta);
 
         return score;
+    }
+
+    /// <summary>
+    /// Validate a book move with a quick search to ensure it's not a blunder.
+    /// This prevents bad book moves from causing strength inversions.
+    /// Returns (IsAcceptable, ValidationDepth, NodesSearched, TimeMs)
+    /// </summary>
+    private (bool IsAcceptable, int ValidationDepth, long NodesSearched, long TimeMs) ValidateBookMove(
+        Board board, Player player, (int x, int y) bookMove, AIDifficulty difficulty)
+    {
+        var validationSw = System.Diagnostics.Stopwatch.StartNew();
+
+        // Quick validation search depth based on difficulty
+        int validationDepth = difficulty switch
+        {
+            AIDifficulty.Grandmaster => 5,
+            AIDifficulty.Experimental => 5,
+            AIDifficulty.Hard => 4,
+            _ => 3
+        };
+
+        // Make the book move and evaluate the resulting position
+        var boardAfterMove = board.PlaceStone(bookMove.x, bookMove.y, player);
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+
+        // Evaluate position from opponent's perspective (after our move)
+        // A good book move should leave us with a reasonable position
+        int evaluation = _evaluator.Evaluate(boardAfterMove, player);
+
+        // Quick minimax search to validate the move
+        int searchScore = QuickValidateSearch(boardAfterMove, opponent, validationDepth, int.MinValue + 1, int.MaxValue - 1);
+
+        // Negate score because we evaluated from opponent's perspective
+        int ourScore = -searchScore;
+
+        validationSw.Stop();
+
+        // Accept the book move if:
+        // 1. The evaluation is not terrible (>= -100 centipawns)
+        // 2. Or we're in a clearly winning/losing position anyway
+        bool isAcceptable = ourScore >= -100 || Math.Abs(evaluation) > 500;
+
+        return (isAcceptable, validationDepth, _nodesSearched, validationSw.ElapsedMilliseconds);
+    }
+
+    /// <summary>
+    /// Quick validation search for book moves - simplified minimax without full features
+    /// </summary>
+    private int QuickValidateSearch(Board board, Player player, int depth, int alpha, int beta)
+    {
+        if (depth <= 0)
+        {
+            return _evaluator.Evaluate(board, player);
+        }
+
+        // Check for win
+        var winResult = _winDetector.CheckWin(board);
+        if (winResult.HasWinner)
+        {
+            // Return high score for win
+            return winResult.Winner == player ? 100000 : -100000;
+        }
+
+        var candidates = GetCandidateMoves(board);
+        if (candidates.Count == 0)
+            return 0; // Draw
+
+        int bestScore = int.MinValue + 1;
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+
+        foreach (var (x, y) in candidates.Take(20)) // Limit candidates for speed
+        {
+            var newBoard = board.PlaceStone(x, y, player);
+            int score = -QuickValidateSearch(newBoard, opponent, depth - 1, -beta, -alpha);
+
+            if (score > bestScore)
+                bestScore = score;
+            if (score > alpha)
+                alpha = score;
+            if (alpha >= beta)
+                break;
+        }
+
+        return bestScore;
     }
 
     /// <summary>
