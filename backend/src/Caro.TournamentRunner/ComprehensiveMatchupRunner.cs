@@ -36,11 +36,11 @@ public class ComprehensiveMatchupRunner
 
     private const int TimeSeconds = 180;
     private const int IncSeconds = 2;
-    private const int GamesPerMatchup = 10;
+    private const int GamesPerMatchup = 20;
 
     private static async Task RunAsyncInternal()
     {
-        var engine = TournamentEngine.CreateDefault();
+        var engine = TournamentEngineFactory.CreateWithOpeningBook();
         const string tcName = "3+2";
 
         LogWrite($"═══════════════════════════════════════════════════════════════════");

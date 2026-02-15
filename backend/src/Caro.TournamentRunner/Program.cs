@@ -40,6 +40,18 @@ class Program
             return;
         }
 
+        if (args.Contains("--quick"))
+        {
+            QuickSmokeTest.Run();
+            return;
+        }
+
+        if (args.Contains("--comprehensive"))
+        {
+            await ComprehensiveMatchupRunner.RunAsync();
+            return;
+        }
+
         if (args.Contains("--color-swap-test"))
         {
             ColorSwapTest.Run();
