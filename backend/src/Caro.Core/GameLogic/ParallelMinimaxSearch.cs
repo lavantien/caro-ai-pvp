@@ -36,6 +36,9 @@ public record ParallelSearchResult(
 /// </summary>
 public sealed class ParallelMinimaxSearch
 {
+    // Debug flag for verbose search logging - set to true only during development
+    private const bool DebugLogging = false;
+
     private readonly LockFreeTranspositionTable _transpositionTable;
     private readonly BoardEvaluator _evaluator;
     private readonly WinDetector _winDetector;
@@ -229,7 +232,6 @@ public sealed class ParallelMinimaxSearch
 
             if (vcfResult.IsSolved && vcfResult.IsWin && vcfResult.BestMove.HasValue)
             {
-                Console.WriteLine($"[AI VCF] Found winning move ({vcfResult.BestMove.Value.x}, {vcfResult.BestMove.Value.y}), depth: {vcfResult.DepthAchieved}");
                 return vcfResult.BestMove.Value;
             }
         }
@@ -254,11 +256,7 @@ public sealed class ParallelMinimaxSearch
         // Calibrate NPS for difficulty
         _depthManager.CalibrateNpsForDifficulty(difficulty);
 
-        // For Braindead difficulty, add randomness (20% error rate)
-        if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 20)
-        {
-            return candidates[_random.Next(candidates.Count)];
-        }
+        // NOTE: Error rate is handled in MinimaxAI.GetBestMove() - do not apply again here
 
         // Multi-threaded Lazy SMP - thread count is determined by difficulty internally
         var parallelResult = SearchLazySMP(board, player, candidates, difficulty, alloc);
@@ -316,7 +314,6 @@ public sealed class ParallelMinimaxSearch
 
             if (vcfResult.IsSolved && vcfResult.IsWin && vcfResult.BestMove.HasValue)
             {
-                Console.WriteLine($"[AI VCF] Found winning move ({vcfResult.BestMove.Value.x}, {vcfResult.BestMove.Value.y}), depth: {vcfResult.DepthAchieved}");
                 return new ParallelSearchResult(vcfResult.BestMove.Value.x, vcfResult.BestMove.Value.y,
                     vcfResult.DepthAchieved, vcfResult.NodesSearched, 0, null, vcfTimeLimit, 0, 0);
             }
@@ -328,7 +325,6 @@ public sealed class ParallelMinimaxSearch
         var opponentThreatMoves = GetOpponentThreatMoves(board, opponent);
         if (opponentThreatMoves.Count > 0)
         {
-            //Console.WriteLine($"[AI] Threat detected! Considering {opponentThreatMoves.Count} blocking moves.");
             // Filter candidates to only blocking moves
             var forcingSet = new HashSet<(int x, int y)>(opponentThreatMoves);
             candidates = candidates.Where(c => forcingSet.Contains((c.x, c.y))).ToList();
@@ -338,12 +334,8 @@ public sealed class ParallelMinimaxSearch
                 candidates = opponentThreatMoves;
         }
 
-        // For Braindead difficulty, add randomness (20% error rate)
-        if (difficulty == AIDifficulty.Braindead && _random.Next(100) < 20)
-        {
-            var randomMove = candidates[_random.Next(candidates.Count)];
-            return new ParallelSearchResult(randomMove.x, randomMove.y, 1, candidates.Count, 0, null, alloc.HardBoundMs, 0, 0);
-        }
+        // NOTE: Error rate is handled in MinimaxAI.GetBestMove() - do not apply again here
+        // Duplicate error rate checks would effectively double the error rate
 
         // PURE TIME-BASED: Always use SearchLazySMP which will internally decide thread count
         // based on difficulty. No depth-based decision making.
@@ -555,6 +547,25 @@ public sealed class ParallelMinimaxSearch
         int totalTableHits = diagnosticsList.Sum(d => d.TableHits);
         int totalTableLookups = diagnosticsList.Sum(d => d.TableLookups);
 
+        // DEFENSIVE: Validate the best move is actually in the candidates list and is empty
+        // This catches any bugs where the search might return an invalid move
+        var bestMoveInCandidates = candidates.Any(c => c.x == bestResult.x && c.y == bestResult.y);
+        if (!bestMoveInCandidates)
+        {
+            // Search returned a move not in candidates - this is a bug
+            // Fall back to first candidate
+            Console.WriteLine($"[SEARCH ERROR] Best move ({bestResult.x},{bestResult.y}) not in candidates list - using first candidate");
+            bestResult = (candidates[0].x, candidates[0].y, bestResult.score, bestResult.depth, bestResult.nodes, bestResult.threadIndex);
+        }
+        else if (!board.GetCell(bestResult.x, bestResult.y).IsEmpty)
+        {
+            // Search returned an occupied cell - this is a critical bug
+            // Find the first empty candidate
+            var emptyCandidate = candidates.FirstOrDefault(c => board.GetCell(c.x, c.y).IsEmpty, candidates[0]);
+            Console.WriteLine($"[SEARCH ERROR] Best move ({bestResult.x},{bestResult.y}) is occupied - using fallback ({emptyCandidate.x},{emptyCandidate.y})");
+            bestResult = (emptyCandidate.x, emptyCandidate.y, bestResult.score, bestResult.depth, bestResult.nodes, bestResult.threadIndex);
+        }
+
         return new ParallelSearchResult(bestResult.x, bestResult.y, bestResult.depth, totalNodesFinal, threadCount, diagnostics, _hardTimeBoundMs, totalTableHits, totalTableLookups);
     }
 
@@ -635,12 +646,6 @@ public sealed class ParallelMinimaxSearch
 
             lastIterationElapsedMs = (_searchStopwatch?.ElapsedMilliseconds ?? 0) - iterationStartTime;
 
-            // DIAGNOSTIC: Check if iteration completed suspiciously fast (indicates bug)
-            if (isMasterThread && lastIterationElapsedMs < 1 && currentDepth > 5)
-            {
-                Console.WriteLine($"[AI BUG] Depth {currentDepth} completed in {lastIterationElapsedMs}ms with only {threadData.LocalNodesSearched} nodes - this should not happen!");
-            }
-
             if (cancellationToken.IsCancellationRequested)
                 break;
 
@@ -690,11 +695,23 @@ public sealed class ParallelMinimaxSearch
         Board board, Player player, int depth, List<(int x, int y)> candidates,
         ThreadData threadData, int alpha, int beta, CancellationToken cancellationToken)
     {
+        // Quick time check before starting search at this depth
+        if (_searchStopwatch != null && _hardTimeBoundMs > 0)
+        {
+            var elapsed = _searchStopwatch.ElapsedMilliseconds;
+            if (elapsed >= _hardTimeBoundMs)
+            {
+                // Return first candidate immediately - time is up
+                return (candidates[0].x, candidates[0].y, 0);
+            }
+        }
+
         var bestMove = candidates[0];
         var bestScore = int.MinValue;
 
         var orderedMoves = OrderMovesStaged(candidates, depth, board, player, null, threadData);
 
+        int moveIndex = 0;
         foreach (var (x, y) in orderedMoves)
         {
             var newBoard = board.PlaceStone(x, y, player);
@@ -706,6 +723,16 @@ public sealed class ParallelMinimaxSearch
             if (cancellationToken.IsCancellationRequested)
             {
                 break;
+            }
+
+            // Additional time check every 8 moves to catch timeout faster
+            if ((++moveIndex & 7) == 0 && _searchStopwatch != null && _hardTimeBoundMs > 0)
+            {
+                if (_searchStopwatch.ElapsedMilliseconds >= _hardTimeBoundMs)
+                {
+                    if (threadData.ThreadIndex == 0) _searchCts?.Cancel();
+                    break;
+                }
             }
 
             if (score > bestScore)
@@ -748,9 +775,10 @@ public sealed class ParallelMinimaxSearch
             return 0;
         }
 
-        // Periodic time check at the start of each node
+        // Periodic time check - every 256 nodes to reduce Stopwatch overhead
         // CRITICAL FIX: Only master thread (ThreadIndex=0) can trigger cancellation
-        if (_searchStopwatch != null && _hardTimeBoundMs > 0)
+        // This balances responsiveness with performance (checking every node is expensive)
+        if (_searchStopwatch != null && _hardTimeBoundMs > 0 && (threadData.LocalNodesSearched & 255) == 0)
         {
             var elapsed = _searchStopwatch.ElapsedMilliseconds;
             if (elapsed >= _hardTimeBoundMs)
@@ -1890,31 +1918,20 @@ public sealed class ParallelMinimaxSearch
         long lastIterationElapsedMs = 0;  // Track time for last completed iteration
         int iterationCount = 0;  // DIAGNOSTIC: Track how many iterations actually ran
 
-        // Debug: log start with invoker info
-        string invoker = ponderingFor == Player.None ? "None" : ponderingFor.ToString();
-        Console.WriteLine($"[PONDER {invoker}] T{threadData.ThreadIndex} Starting (time-based only) candidates={candidates.Count}");
-
         // PURE TIME-BASED SEARCH
         // Search continues until time runs out
         int currentDepth = 2;
         while (true)  // Time-based only - depth is incidental
         {
-            // DIAGNOSTIC: Log loop entry
-            Console.WriteLine($"[PONDER {invoker}] T{threadData.ThreadIndex} LOOP ENTRY depth={currentDepth} iter={iterationCount}");
-
             // Check cancellation before starting this depth
             if (cancellationToken.IsCancellationRequested)
-            {
-                Console.WriteLine($"[PONDER {ponderingFor}] T{threadData.ThreadIndex} CANCELLED at depth {currentDepth}");
                 break;
-            }
 
             var elapsed = _searchStopwatch?.ElapsedMilliseconds ?? 0;
 
             // Hard bound check - stop when time is up
             if (elapsed >= _hardTimeBoundMs)
             {
-                Console.WriteLine($"[PONDER {ponderingFor}] T{threadData.ThreadIndex} HARD BOUND: {elapsed}ms >= {_hardTimeBoundMs}ms");
                 _searchCts?.Cancel();
                 break;
             }
@@ -1922,16 +1939,12 @@ public sealed class ParallelMinimaxSearch
             // Time-based soft bound: stop if soft bound reached and last iteration was slow
             double remainingTime = _hardTimeBoundMs - elapsed;
             if (elapsed >= timeAlloc.SoftBoundMs && lastIterationElapsedMs > remainingTime * 0.25)
-            {
-                Console.WriteLine($"[PONDER {ponderingFor}] T{threadData.ThreadIndex} SOFT BOUND stop");
                 break;
-            }
 
             var iterationStartTime = _searchStopwatch?.ElapsedMilliseconds ?? 0;
-            iterationCount++;  // DIAGNOSTIC: Count this iteration
+            iterationCount++;
 
             // Aspiration Windows - narrow window based on previous score
-            // Only apply if we have a completed iteration with a valid score
             int alpha = int.MinValue + 1000;
             int beta = int.MaxValue - 1000;
             if (bestScore > int.MinValue + 2000 && bestScore < int.MaxValue - 2000)
@@ -1940,8 +1953,6 @@ public sealed class ParallelMinimaxSearch
                 beta = Math.Min(int.MaxValue - 1000, bestScore + 50);
             }
 
-            Console.WriteLine($"[PONDER {invoker}] T{threadData.ThreadIndex} Calling SearchRoot depth={currentDepth} alpha={alpha} beta={beta}");
-
             var result = SearchRoot(board, player, currentDepth, candidates, threadData, alpha, beta, cancellationToken);
 
             // Track iteration time for smart continuation decisions
@@ -1949,9 +1960,7 @@ public sealed class ParallelMinimaxSearch
 
             // If search was cancelled during this iteration, result is unreliable
             if (cancellationToken.IsCancellationRequested)
-            {
                 break;
-            }
 
             if (result.score > bestScore || bestMove == (-1, -1))
             {
@@ -1969,10 +1978,6 @@ public sealed class ParallelMinimaxSearch
             if (result.score >= 100000)
                 break;
 
-            // DIAGNOSTIC: Log iteration completion
-            var iterationElapsedMs = (_searchStopwatch?.ElapsedMilliseconds ?? 0) - iterationStartTime;
-            Console.WriteLine($"[PONDER {ponderingFor}] T{threadData.ThreadIndex} ITER COMPLETE depth={currentDepth} score={result.score} nodes={threadData.LocalNodesSearched} time={iterationElapsedMs}ms");
-
             currentDepth++;  // Increment depth for next iteration
         }
 
@@ -1982,9 +1987,6 @@ public sealed class ParallelMinimaxSearch
         // Report the actual depth we achieved (not artificially inflated)
         // If actualNodes is 0 or 1 but we have a bestDepth, report bestDepth
         int reportedDepth = (actualNodes <= 1 && bestDepth < 2) ? 1 : bestDepth;
-
-        // Debug: log final result
-        Console.WriteLine($"[PONDER {ponderingFor}] T{threadData.ThreadIndex} FINISHED iterations={iterationCount} bestDepth={bestDepth} nodes={actualNodes:N0} reportedDepth={reportedDepth}");
 
         return (bestMove.x, bestMove.y, bestScore, reportedDepth, actualNodes);
     }
