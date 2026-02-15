@@ -1,5 +1,6 @@
 using Caro.Core.Application.DTOs;
 using Caro.Core.Application.Mappers;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using FluentAssertions;
@@ -59,8 +60,8 @@ public class GameMapperTests
         var dto = GameMapper.ToBoardDto(board);
 
         // Assert
-        dto.Cells.Should().HaveCount(361); // 19x19
-        dto.Cells[5 * 19 + 5].Should().Be("Red"); // Position (5,5) in linear array
+        dto.Cells.Should().HaveCount(GameConstants.TotalCells); // 32x32
+        dto.Cells[5 * GameConstants.BoardSize + 5].Should().Be("Red"); // Position (5,5) in linear array
     }
 
     [Fact]

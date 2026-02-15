@@ -48,7 +48,7 @@ public static class GameMapper
         return new BoardDto
         {
             Cells = cells,
-            Hash = 0  // TODO: Implement board hashing if needed
+            Hash = board.GetHash()
         };
     }
 
