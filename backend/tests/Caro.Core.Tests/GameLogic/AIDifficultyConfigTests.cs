@@ -46,7 +46,7 @@ public sealed class AIDifficultyConfigTests
         }
     }
 
-    [Fact(Skip = "Temporarily disabled - parallel search is disabled due to timing bug")]
+    [Fact]
     public void Grandmaster_UsesHalfProcessorThreads()
     {
         // Arrange & Act
@@ -59,7 +59,7 @@ public sealed class AIDifficultyConfigTests
         settings.ThreadCount.Should().BeGreaterThanOrEqualTo(5, "Grandmaster must have at least 5 threads (more than Hard's 4)");
     }
 
-    [Fact(Skip = "Temporarily disabled - parallel search is disabled due to timing bug")]
+    [Fact]
     public void Grandmaster_HasMoreThreadsThanHard()
     {
         // Arrange & Act

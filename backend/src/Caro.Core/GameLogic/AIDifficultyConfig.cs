@@ -210,10 +210,9 @@ public sealed class AIDifficultyConfig
     /// </summary>
     private static int GetGrandmasterThreadCount()
     {
-        // TEMPORARY: Force single-threaded search due to parallel search bug
-        // The parallel search tasks don't complete within time limits
-        // TODO: Fix the parallel search timing/synchronization issues
-        return 1;
+        // Ensure Grandmaster has more threads than Hard (which uses (n/3)-1, minimum 4)
+        // Formula: max(5, (processorCount/2)-1) ensures at least 5 threads
+        return Math.Max(5, (Environment.ProcessorCount / 2) - 1);
     }
 
     /// <summary>
