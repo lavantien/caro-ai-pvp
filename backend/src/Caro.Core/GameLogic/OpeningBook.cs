@@ -78,7 +78,7 @@ public sealed class OpeningBook
 
     /// <summary>
     /// Check if a specific difficulty level uses the opening book.
-    /// Consistent with OpeningBookLookupService and AIDifficultyConfig.
+    /// Easy+ all use the book with different depth limits.
     /// </summary>
     private static bool DifficultyUsesBook(AIDifficulty difficulty)
     {
