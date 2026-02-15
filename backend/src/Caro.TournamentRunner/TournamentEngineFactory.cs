@@ -37,24 +37,33 @@ public static class TournamentEngineFactory
     /// </summary>
     private static string FindOpeningBookPath()
     {
-        // Search order: repo root relative to bin, cwd, executable dir
+        // Get the assembly location for base path
+        var assemblyLocation = typeof(TournamentEngineFactory).Assembly.Location;
+        var assemblyDir = Path.GetDirectoryName(assemblyLocation) ?? Directory.GetCurrentDirectory();
+
+        // Search order: multiple possible locations
         var searchPaths = new[]
         {
-            // From bin/Debug/net10.0 back to repo root
-            Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "opening_book.db"),
+            // Repo root (when running from backend/src/Caro.TournamentRunner)
+            Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "..", "..", "..", "opening_book.db")),
+            // Repo root (when running from backend/)
+            Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "opening_book.db")),
             // Current working directory
             Path.Combine(Directory.GetCurrentDirectory(), "opening_book.db"),
+            // Parent of current directory (backend/ -> repo root)
+            Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "opening_book.db")),
+            // Two levels up (src/Caro.TournamentRunner -> repo root)
+            Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "opening_book.db")),
         };
 
         foreach (var path in searchPaths)
         {
-            var fullPath = Path.GetFullPath(path);
-            if (File.Exists(fullPath))
-                return fullPath;
+            if (File.Exists(path))
+                return path;
         }
 
         throw new FileNotFoundException(
             "opening_book.db not found. Searched: " +
-            string.Join(", ", searchPaths.Select(p => Path.GetFullPath(p))));
+            string.Join(", ", searchPaths));
     }
 }

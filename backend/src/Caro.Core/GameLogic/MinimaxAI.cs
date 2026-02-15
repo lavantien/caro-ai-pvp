@@ -622,11 +622,14 @@ public class MinimaxAI : IStatsPublisher
 
             // CRITICAL: Apply time multiplier to time allocation for parallel search
             // Lower difficulties should use proportionally less time
+            // BUT: Ensure minimum time for at least one search iteration (50ms)
+            // Without this, Easy with 20% multiplier can end up with 1ms which is too tight
+            const long minSearchTimeMs = 50;
             var adjustedTimeAlloc = new TimeAllocation
             {
-                SoftBoundMs = Math.Max(1, (long)(timeAlloc.SoftBoundMs * timeMultiplier)),
-                HardBoundMs = Math.Max(1, (long)(timeAlloc.HardBoundMs * timeMultiplier)),
-                OptimalTimeMs = Math.Max(1, (long)(timeAlloc.OptimalTimeMs * timeMultiplier)),
+                SoftBoundMs = Math.Max(minSearchTimeMs, (long)(timeAlloc.SoftBoundMs * timeMultiplier)),
+                HardBoundMs = Math.Max(minSearchTimeMs, (long)(timeAlloc.HardBoundMs * timeMultiplier)),
+                OptimalTimeMs = Math.Max(minSearchTimeMs / 2, (long)(timeAlloc.OptimalTimeMs * timeMultiplier)),
                 IsEmergency = timeAlloc.IsEmergency,
                 Phase = timeAlloc.Phase
             };
@@ -710,7 +713,9 @@ public class MinimaxAI : IStatsPublisher
         _depthManager.CalibrateNpsForDifficulty(difficulty);
 
         // Apply time multiplier to the soft bound - lower difficulties use less time
-        long adjustedSoftBoundMs = Math.Max(1, (long)(timeAlloc.SoftBoundMs * timeMultiplier));
+        // BUT: Ensure minimum time for at least one search iteration (50ms)
+        const long minSequentialSearchTimeMs = 50;
+        long adjustedSoftBoundMs = Math.Max(minSequentialSearchTimeMs, (long)(timeAlloc.SoftBoundMs * timeMultiplier));
 
         // CRITICAL FIX: Also apply time multiplier to hard bound!
         // Without this, lower difficulties search until the original hard bound,
