@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.56.0] - 2026-02-15
+
+### Removed
+- **Dead Code** - Removed unused interfaces and implementations:
+  - `ISearchEngine.cs` - Unused interface with duplicate AIDifficulty enum
+  - `ITimeManager.cs` - Unused interface with outdated 5-level AIDifficulty (missing Experimental, BookGeneration)
+  - `BitBoard.cs` (Domain.ValueObjects) - Unused duplicate BitBoard with buggy shift implementations
+  - `BitBoardTests.cs` (Domain.Tests) - Tests for unused BitBoard
+
+### Fixed
+- **Flaky Tests** - Removed timing-dependent assertions that failed under system load:
+  - TimeManagementServiceTests: Removed upper bound timing assertions (< 100ms)
+  - StatelessSearchEngineTests: Renamed cancellation test, removed assertion that could fail under timing
+- **Hardcoded Board Size** - All test files now use `GameConstants.BoardSize` instead of hardcoded `19`:
+  - Domain.Tests: PositionTests.cs, BoardTests.cs
+  - Core.Tests: ContinuationHistoryTests, CounterMoveHistoryTests, MovePickerTests, etc.
+  - Infrastructure.Tests: AIServiceTests, StatelessSearchEngineTests
+  - IntegrationTests: AdversarialConcurrencyTests, AspirationWindowTests, EnhancedMoveOrderingTests, etc.
+  - MatchupTests: SavedLogVerifierTests
+- **GameMapper** - Implemented proper board hash instead of placeholder:
+  - `Hash = 0` → `Hash = board.GetHash()`
+
+### Changed
+- All test files now reference centralized `GameConstants.BoardSize` (32) instead of hardcoded 19x19
+- Test counts updated in documentation to reflect actual counts
+
+### Test Coverage
+- Backend: 697 unit tests passing (574 Core + 64 Infrastructure + 45 Domain + 14 Application)
+- Total: 945 tests across all projects
+
+[1.56.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.56.0
+
 ## [1.55.0] - 2026-02-15
 
 ### Fixed

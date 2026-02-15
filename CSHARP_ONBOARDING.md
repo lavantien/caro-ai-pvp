@@ -15,10 +15,10 @@ backend/
 │   ├── Caro.BookBuilder/        # Opening book generation CLI
 │   └── Caro.TournamentRunner/   # AI strength validation tests
 └── tests/
-    ├── Caro.Core.Domain.Tests/     # 66 unit tests
+    ├── Caro.Core.Domain.Tests/     # 45 unit tests
     ├── Caro.Core.Application.Tests/ # 14 unit tests
     ├── Caro.Core.Infrastructure.Tests/ # 64 unit/integration tests
-    ├── Caro.Core.Tests/         # 469 unit tests (AI/tournament/concurrency)
+    ├── Caro.Core.Tests/         # 574 unit tests (AI/tournament/concurrency)
     └── Caro.Core.MatchupTests/  # ~54 integration/matchup tests
 ```
 
@@ -26,7 +26,7 @@ backend/
 - .NET 10, C# 14
 - ASP.NET Core 10 + SignalR
 - xUnit 2.9.2, Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
-- 948 total tests (469 Core + 66 Domain + 14 Application + 64 Infrastructure + 224 Integration + 54 Matchup + 40 frontend unit + 17 frontend E2E)
+- 945 total tests (466 Core + 66 Domain + 14 Application + 64 Infrastructure + 224 Integration + 54 Matchup + 40 frontend unit + 17 frontend E2E)
 
 ### Architecture Principles
 This codebase follows **Clean Architecture** with a "Functional Core, Imperative Shell" approach:
@@ -448,7 +448,7 @@ This codebase follows Clean Architecture with three core layers:
 | Caro.Core.Domain.Tests | Caro.Core.Domain | Unit | 66 |
 | Caro.Core.Application.Tests | Caro.Core.Application | Unit | 14 |
 | Caro.Core.Infrastructure.Tests | Caro.Core.Infrastructure | Unit/Integration | 64 |
-| Caro.Core.Tests | Caro.Core (GameLogic/Tournament/Concurrency) | Unit | 469 |
+| Caro.Core.Tests | Caro.Core (GameLogic/Tournament/Concurrency) | Unit | 466 |
 | Caro.Core.IntegrationTests | Caro.Core (AI Search) | Integration | 224 |
 | Caro.Core.MatchupTests | Caro.Core (Integration/Matchup) | Integration | ~54 |
 
@@ -460,10 +460,10 @@ This codebase follows Clean Architecture with three core layers:
 4. **Identify with-expression mutations** : Look for non-destructive state updates
 5. **Check Program.cs** : See how services are wired (Transient/Scoped/Singleton)
 6. **Run Tests** : Use `dotnet test` in backend/ or Test Explorer
-   - Caro.Core.Domain.Tests: 66 unit tests (no mocking needed)
+   - Caro.Core.Domain.Tests: 45 unit tests (no mocking needed)
    - Caro.Core.Application.Tests: 14 unit tests (mock DTOs)
    - Caro.Core.Infrastructure.Tests: 64 unit/integration tests
-   - Caro.Core.Tests: 469 unit tests (AI, tournament, concurrency)
+   - Caro.Core.Tests: 574 unit tests (AI, tournament, concurrency)
    - Caro.Core.IntegrationTests: 224 integration tests (opt-in, slower)
    - Caro.Core.MatchupTests: ~54 integration/matchup tests
 7. **When tests fail** : Check [Theory] inline data to see which input caused crash
