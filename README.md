@@ -11,7 +11,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 - **Clean Architecture** - Separated Domain, Application, and Infrastructure layers
 - **Real-time multiplayer** - WebSocket support via SignalR
 - **Mobile-first UX** - Ghost stone positioning and haptic feedback
-- **800+ automated tests** - Including adversarial concurrency tests
+- **900+ automated tests** - Including adversarial concurrency tests
 
 **Tournament & Testing:**
 - Frontend tournament mode with balanced round-robin and live ELO tracking
@@ -190,12 +190,12 @@ cd backend/tests/Caro.Core.MatchupTests && dotnet test
 
 | Project | Tests | Duration |
 |---------|-------|----------|
-| Caro.Core.Tests | 579 unit tests | ~3 sec |
-| Caro.Core.IntegrationTests | 150 | Opt-in, AI searches |
-| Caro.Core.MatchupTests | ~57 | Variable |
-| Caro.Core.Domain.Tests | 67 entity tests | ~1 sec |
-| Caro.Core.Application.Tests | 8 service tests | ~1 sec |
-| Caro.Core.Infrastructure.Tests | 72 tests | ~42 sec |
+| Caro.Core.Tests | 574 unit tests | ~3 sec |
+| Caro.Core.IntegrationTests | 224 | Opt-in, AI searches |
+| Caro.Core.MatchupTests | ~54 | Variable |
+| Caro.Core.Domain.Tests | 45 entity tests | ~1 sec |
+| Caro.Core.Application.Tests | 14 service tests | ~1 sec |
+| Caro.Core.Infrastructure.Tests | 64 tests | ~42 sec |
 
 **Note:** Run `dotnet test` in Caro.Core.Tests for fast unit test feedback. IntegrationTests are excluded from default test runs (marked as `<IsTestProject>false</IsTestProject>`).
 
@@ -339,15 +339,15 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Project | Tests | Focus |
 |---------|-------|-------|
-| Caro.Core.Tests | 469 | Unit tests (algorithms, evaluators, concurrency, immutable state, test helpers, AI improvements, symmetry) |
+| Caro.Core.Tests | 574 | Unit tests (algorithms, evaluators, concurrency, immutable state, test helpers, AI improvements, symmetry) |
 | Caro.Core.IntegrationTests | 224 | AI search integration (full depth searches, performance benchmarks, opening book edge cases + performance tests) |
 | Caro.Core.MatchupTests | ~54 | AI matchups, integration, tournament, opening book verification |
-| Caro.Core.Domain.Tests | 66 | Entities (Board, Cell, Player, GameState, Position) |
+| Caro.Core.Domain.Tests | 45 | Entities (Board, Cell, Player, GameState, Position) |
 | Caro.Core.Application.Tests | 14 | Services, interfaces, DTOs, Mappers |
 | Caro.Core.Infrastructure.Tests | 64 | AI algorithms, external concerns |
 | Frontend Unit (Vitest) | 40 | Store logic, utility functions, game types |
 | Frontend E2E (Playwright) | 17 | End-to-end gameplay |
-| **TOTAL** | **948** | |
+| **TOTAL** | **1032** | |
 
 ### Frontend E2E Tests
 
