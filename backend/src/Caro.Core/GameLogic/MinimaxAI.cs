@@ -94,7 +94,7 @@ public class MinimaxAI : IStatsPublisher
     // Check time more frequently to catch timeout earlier (power of 2 for efficient masking)
     // 4096 = check every ~4K nodes. At 1M nodes/sec, this checks every ~4ms
     // This is much more frequent than the old 100K interval which only checked every ~100ms
-    private const int TimeCheckInterval = 4096;
+    private const int TimeCheckInterval = 64;  // Check time every 64 nodes (was 4096 - too slow for short time controls)
     private bool _searchStopped;
 
     // Pondering (thinking on opponent's time)
@@ -616,10 +616,18 @@ public class MinimaxAI : IStatsPublisher
                 fixedThreadCount: threadCount,
                 candidates: candidates);
 
-            // DEFENSIVE: Validate the returned move is actually valid
-            if (!board.GetCell(parallelResult.X, parallelResult.Y).IsEmpty)
+            // DEFENSIVE: Validate the returned move is actually in candidates and valid
+            var moveInCandidates = candidates.Any(c => c.x == parallelResult.X && c.y == parallelResult.Y);
+            if (!moveInCandidates)
             {
-                Console.WriteLine($"[AI ERROR] Parallel search returned occupied cell ({parallelResult.X},{parallelResult.Y}) at move {moveNumber} - using first candidate");
+                Console.WriteLine($"[AI ERROR] Move ({parallelResult.X},{parallelResult.Y}) NOT in candidates list at move {moveNumber}!");
+                Console.WriteLine($"[AI ERROR] Candidates: {string.Join(", ", candidates.Take(10).Select(c => $"({c.x},{c.y})"))}...");
+            }
+
+            var cell = board.GetCell(parallelResult.X, parallelResult.Y);
+            if (!cell.IsEmpty)
+            {
+                Console.WriteLine($"[AI ERROR] Parallel search returned occupied cell ({parallelResult.X},{parallelResult.Y}) at move {moveNumber} - cell player: {cell.Player}");
                 // Fall back to first candidate
                 var fallbackMove = candidates.FirstOrDefault(c => board.GetCell(c.x, c.y).IsEmpty, candidates[0]);
                 parallelResult = new ParallelSearchResult(fallbackMove.x, fallbackMove.y, 1, 1, 0, null, parallelResult.AllocatedTimeMs, 0, 0);
@@ -1341,8 +1349,21 @@ public class MinimaxAI : IStatsPublisher
             int idx = 0;
             foreach (var (x, y) in candidates)
             {
+                // CRITICAL: Check time before evaluating each move
+                if (_searchStopwatch.ElapsedMilliseconds >= _searchHardBoundMs)
+                {
+                    _searchStopped = true;
+                    return bestMove;
+                }
+
                 var newBoard = board.PlaceStone(x, y, player);
                 var score = Minimax(newBoard, depth - 2, searchAlpha, searchBeta, false, player, depth);
+
+                // If search was stopped during Minimax, return current best
+                if (_searchStopped)
+                {
+                    return bestMove;
+                }
 
                 // Tie-breaking: higher score wins, or equal score with better tiebreaker
                 if (score > bestScore || (score == bestScore && candidateScores[idx] > bestTiebreaker))
@@ -1391,11 +1412,25 @@ public class MinimaxAI : IStatsPublisher
             int orderedIdx = 0;
             foreach (var (x, y) in orderedMoves)
             {
+                // CRITICAL: Check time before evaluating each move
+                // This catches timeout during long candidate loops
+                if (_searchStopwatch.ElapsedMilliseconds >= _searchHardBoundMs)
+                {
+                    _searchStopped = true;
+                    return bestMove;  // Return best move found so far
+                }
+
                 // Make move
                 var newBoard = board.PlaceStone(x, y, player);
 
                 // Evaluate using minimax
                 var score = Minimax(newBoard, depth - 1, alpha, beta, false, player, depth);
+
+                // If search was stopped during Minimax, return current best
+                if (_searchStopped)
+                {
+                    return bestMove;
+                }
 
                 // Tie-breaking: higher score wins, or equal score with better tiebreaker + small random
                 if (score > bestScore)
@@ -2024,9 +2059,9 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     private int Quiesce(Board board, int alpha, int beta, bool isMaximizing, Player aiPlayer, int rootDepth)
     {
-        // Time control: check periodically (every N nodes) to avoid timeout
+        // Time control: check frequently (every 64 nodes) to avoid timeout
         // Use a different offset to stagger checks between Minimax and Quiesce
-        if ((_nodesSearched & (TimeCheckInterval - 1)) == (TimeCheckInterval / 2))
+        if ((_nodesSearched & 63) == 32)
         {
             var elapsed = _searchStopwatch.ElapsedMilliseconds;
             if (elapsed >= _searchHardBoundMs)

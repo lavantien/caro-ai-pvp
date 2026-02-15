@@ -46,7 +46,7 @@ public sealed class AIDifficultyConfig
             {
                 Difficulty = AIDifficulty.Easy,
                 DisplayName = "Easy",
-                ThreadCount = 2,
+                ThreadCount = GetEasyThreadCount(),        // (n/5)-1 threads
                 PonderingThreadCount = 1,
                 TimeMultiplier = 0.20,         // 20% of allocated time
                 TimeBudgetPercent = 0.20,     // 20% time budget
@@ -65,7 +65,7 @@ public sealed class AIDifficultyConfig
             {
                 Difficulty = AIDifficulty.Medium,
                 DisplayName = "Medium",
-                ThreadCount = 3,
+                ThreadCount = GetMediumThreadCount(),      // (n/4)-1 threads
                 PonderingThreadCount = 2,
                 TimeMultiplier = 0.50,         // 50% of allocated time
                 TimeBudgetPercent = 0.50,     // 50% time budget
@@ -84,7 +84,7 @@ public sealed class AIDifficultyConfig
             {
                 Difficulty = AIDifficulty.Hard,
                 DisplayName = "Hard",
-                ThreadCount = 4,
+                ThreadCount = GetHardThreadCount(),        // (n/3)-1 threads
                 PonderingThreadCount = 3,
                 TimeMultiplier = 0.75,         // 75% of allocated time
                 TimeBudgetPercent = 0.75,     // 75% time budget
@@ -158,6 +158,36 @@ public sealed class AIDifficultyConfig
 
             _ => throw new ArgumentException($"Unknown difficulty: {difficulty}")
         };
+    }
+
+    /// <summary>
+    /// Get Easy thread count using (processorCount/5)-1 formula
+    /// Minimum 2 threads to ensure parallel search works
+    /// </summary>
+    private static int GetEasyThreadCount()
+    {
+        int processorCount = Environment.ProcessorCount;
+        return Math.Max(2, (processorCount / 5) - 1);
+    }
+
+    /// <summary>
+    /// Get Medium thread count using (processorCount/4)-1 formula
+    /// Minimum 3 threads to ensure more than Easy
+    /// </summary>
+    private static int GetMediumThreadCount()
+    {
+        int processorCount = Environment.ProcessorCount;
+        return Math.Max(3, (processorCount / 4) - 1);
+    }
+
+    /// <summary>
+    /// Get Hard thread count using (processorCount/3)-1 formula
+    /// Minimum 4 threads to ensure more than Medium
+    /// </summary>
+    private static int GetHardThreadCount()
+    {
+        int processorCount = Environment.ProcessorCount;
+        return Math.Max(4, (processorCount / 3) - 1);
     }
 
     /// <summary>

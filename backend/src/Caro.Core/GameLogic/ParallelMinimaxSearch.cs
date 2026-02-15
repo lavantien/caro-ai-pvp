@@ -466,9 +466,15 @@ public sealed class ParallelMinimaxSearch
         }
 
         // Wait for all threads - handle cancellation gracefully
+        // All threads should have stopped due to cancellation token
         foreach (var thread in threads)
         {
-            thread.Join();
+            // Give each thread up to 1 second to finish after cancellation
+            if (!thread.Join(1000))
+            {
+                // Thread didn't finish in time - this is unusual but not critical
+                // The thread will continue running in background but won't affect results
+            }
         }
 
         _searchStopwatch.Stop();
@@ -602,17 +608,31 @@ public sealed class ParallelMinimaxSearch
         int currentDepth = 2;
         while (true)
         {
+            // CRITICAL: Check cancellation FIRST before any other work
             if (cancellationToken.IsCancellationRequested)
                 break;
 
             var elapsed = _searchStopwatch?.ElapsedMilliseconds ?? 0;
             var iterationStartTime = elapsed;
 
-            // Hard bound check
+            // Hard bound check - ALL threads should stop when time is up
             if (elapsed >= _hardTimeBoundMs)
             {
+                // Master thread triggers cancellation for all threads
                 if (isMasterThread) _searchCts?.Cancel();
                 break;
+            }
+
+            // SOFT BOUND: Stop early if we're approaching time limit
+            // This prevents the common case of starting a deep iteration that won't finish
+            if (elapsed >= _hardTimeBoundMs * 0.9)
+            {
+                // Only stop if we've done at least one iteration
+                if (currentDepth > 2)
+                {
+                    if (isMasterThread) _searchCts?.Cancel();
+                    break;
+                }
             }
 
             // PURE TIME-BASED: Check if we should continue based on iteration time
@@ -714,6 +734,17 @@ public sealed class ParallelMinimaxSearch
         int moveIndex = 0;
         foreach (var (x, y) in orderedMoves)
         {
+            // CRITICAL: Check time before each move evaluation
+            // This catches timeout during long candidate loops
+            if (_searchStopwatch != null && _hardTimeBoundMs > 0)
+            {
+                if (_searchStopwatch.ElapsedMilliseconds >= _hardTimeBoundMs)
+                {
+                    if (threadData.ThreadIndex == 0) _searchCts?.Cancel();
+                    break;
+                }
+            }
+
             var newBoard = board.PlaceStone(x, y, player);
             var score = Minimax(newBoard, depth - 1, alpha, beta, false, player, depth, threadData, cancellationToken);
 
@@ -775,10 +806,10 @@ public sealed class ParallelMinimaxSearch
             return 0;
         }
 
-        // Periodic time check - every 256 nodes to reduce Stopwatch overhead
+        // Periodic time check - every 64 nodes to catch timeouts faster
         // CRITICAL FIX: Only master thread (ThreadIndex=0) can trigger cancellation
         // This balances responsiveness with performance (checking every node is expensive)
-        if (_searchStopwatch != null && _hardTimeBoundMs > 0 && (threadData.LocalNodesSearched & 255) == 0)
+        if (_searchStopwatch != null && _hardTimeBoundMs > 0 && (threadData.LocalNodesSearched & 63) == 0)
         {
             var elapsed = _searchStopwatch.ElapsedMilliseconds;
             if (elapsed >= _hardTimeBoundMs)
