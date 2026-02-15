@@ -94,7 +94,7 @@ public class MinimaxAI : IStatsPublisher
     // Check time more frequently to catch timeout earlier (power of 2 for efficient masking)
     // 4096 = check every ~4K nodes. At 1M nodes/sec, this checks every ~4ms
     // This is much more frequent than the old 100K interval which only checked every ~100ms
-    private const int TimeCheckInterval = 64;  // Check time every 64 nodes (was 4096 - too slow for short time controls)
+    private const int TimeCheckInterval = 16;  // Check time every 16 nodes (was 4096 - too slow for short time controls)
     private bool _searchStopped;
 
     // Pondering (thinking on opponent's time)
@@ -302,6 +302,10 @@ public class MinimaxAI : IStatsPublisher
             }
             else
             {
+                // Set statistics to indicate book move (not search)
+                _depthAchieved = 0;  // Book move, no search depth
+                _nodesSearched = 0;  // No nodes searched
+                _lastAllocatedTimeMs = 0;  // No time allocated for book lookup
                 return bookMove.Value;
             }
         }
@@ -2059,9 +2063,9 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     private int Quiesce(Board board, int alpha, int beta, bool isMaximizing, Player aiPlayer, int rootDepth)
     {
-        // Time control: check frequently (every 64 nodes) to avoid timeout
+        // Time control: check frequently (every 16 nodes) to avoid timeout
         // Use a different offset to stagger checks between Minimax and Quiesce
-        if ((_nodesSearched & 63) == 32)
+        if ((_nodesSearched & 15) == 8)
         {
             var elapsed = _searchStopwatch.ElapsedMilliseconds;
             if (elapsed >= _searchHardBoundMs)
