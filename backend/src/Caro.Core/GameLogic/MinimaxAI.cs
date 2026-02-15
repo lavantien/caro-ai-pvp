@@ -293,21 +293,43 @@ public class MinimaxAI : IStatsPublisher
         var bookMove = _openingBook?.GetBookMove(board, player, difficulty, lastOpponentMove);
         if (bookMove.HasValue)
         {
-            return bookMove.Value;
+            // DEFENSIVE: Verify the book move is actually valid before returning
+            if (!board.GetCell(bookMove.Value.x, bookMove.Value.y).IsEmpty)
+            {
+                // Book returned an invalid move - this should not happen
+                // Fall through to normal search instead
+                Console.WriteLine($"[AI ERROR] Book returned occupied cell ({bookMove.Value.x},{bookMove.Value.y}) - falling through to search");
+            }
+            else
+            {
+                return bookMove.Value;
+            }
         }
 
         // Error rate simulation: Lower difficulties make random/suboptimal moves
         // Uses AdaptiveDepthCalculator.GetErrorRate() for consistent error rates
         // - Braindead: 10%, all other difficulties: 0% (optimal play)
         var errorRate = AdaptiveDepthCalculator.GetErrorRate(difficulty);
-        if (errorRate > 0 && NextRandomDouble() < errorRate)
+        if (errorRate > 0 && NextRandomDouble() < errorRate && candidates.Count > 0)
         {
             // Play a random valid move instead of searching
             // Report minimal stats to indicate instant move (not D0 which looks like a bug)
             _depthAchieved = 1;
             _nodesSearched = 1;
             var randomIndex = NextRandomInt(candidates.Count);
-            return candidates[randomIndex];
+            var randomMove = candidates[randomIndex];
+
+            // DEFENSIVE: Verify the move is actually valid before returning
+            if (!board.GetCell(randomMove.x, randomMove.y).IsEmpty)
+            {
+                // This should never happen - candidates should only contain empty cells
+                // If it does, fall through to normal search instead of returning invalid move
+                Console.WriteLine($"[AI ERROR] Error rate path selected occupied cell ({randomMove.x},{randomMove.y}) - falling through to search");
+            }
+            else
+            {
+                return randomMove;
+            }
         }
 
         // Calculate time allocation for chess-clock time control
@@ -511,7 +533,6 @@ public class MinimaxAI : IStatsPublisher
             {
                 var emergencyVcfCap = GetEmergencyVCFCap(difficulty);
                 vcfTimeLimit = (int)Math.Min(timeAlloc.HardBoundMs * 0.8, emergencyVcfCap);
-                Console.WriteLine($"[AI VCF] {difficulty} ({player}) Emergency mode: Using up to 80% of hard bound ({vcfTimeLimit}ms, cap: {emergencyVcfCap}ms) for VCF");
             }
 
             var vcfResult = _vcfSolver.SolveVCF(board, player, timeLimitMs: vcfTimeLimit, maxDepth: vcfMaxDepth);
@@ -523,7 +544,6 @@ public class MinimaxAI : IStatsPublisher
             if (vcfResult.IsSolved && vcfResult.IsWin && vcfResult.BestMove.HasValue)
             {
                 // VCF found a forced win sequence - use it immediately
-                Console.WriteLine($"[AI VCF] {difficulty} ({player}) Found winning move ({vcfResult.BestMove.Value.x}, {vcfResult.BestMove.Value.y}), depth: {vcfResult.DepthAchieved}, nodes: {vcfResult.NodesSearched}");
                 return vcfResult.BestMove.Value;
             }
 
@@ -534,7 +554,6 @@ public class MinimaxAI : IStatsPublisher
                 // If opponent has threats, MUST block - don't use TT fallback
                 if (hasOpponentThreats && candidates.Count > 0)
                 {
-                    Console.WriteLine($"[AI VCF] {difficulty} ({player}) Emergency: No VCF found, but opponent has threats - using blocking move");
                     // Candidates are already filtered to blocking squares from earlier threat detection
                     _depthAchieved = 1;
                     _nodesSearched = 1;
@@ -545,14 +564,12 @@ public class MinimaxAI : IStatsPublisher
                 var ttMove = GetTranspositionTableMove(board, player, minDepth: 3);
                 if (ttMove.HasValue)
                 {
-                    Console.WriteLine($"[AI VCF] {difficulty} ({player}) Emergency: No VCF found, using TT move as fallback");
                     _depthAchieved = 3;
                     _nodesSearched = 1;
                     return ttMove.Value;
                 }
 
                 // Last resort: return the first candidate (usually the center or near existing stones)
-                Console.WriteLine($"[AI VCF] {difficulty} ({player}) Emergency: No TT move, using quick candidate selection");
                 _depthAchieved = 1;
                 _nodesSearched = 1;
                 return candidates[0];
@@ -598,6 +615,15 @@ public class MinimaxAI : IStatsPublisher
                 moveNumber: moveNumber,
                 fixedThreadCount: threadCount,
                 candidates: candidates);
+
+            // DEFENSIVE: Validate the returned move is actually valid
+            if (!board.GetCell(parallelResult.X, parallelResult.Y).IsEmpty)
+            {
+                Console.WriteLine($"[AI ERROR] Parallel search returned occupied cell ({parallelResult.X},{parallelResult.Y}) at move {moveNumber} - using first candidate");
+                // Fall back to first candidate
+                var fallbackMove = candidates.FirstOrDefault(c => board.GetCell(c.x, c.y).IsEmpty, candidates[0]);
+                parallelResult = new ParallelSearchResult(fallbackMove.x, fallbackMove.y, 1, 1, 0, null, parallelResult.AllocatedTimeMs, 0, 0);
+            }
 
             // Update statistics from parallel search
             _depthAchieved = parallelResult.DepthAchieved;
@@ -758,12 +784,9 @@ public class MinimaxAI : IStatsPublisher
         if (difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Grandmaster)
         {
             double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
-            Console.WriteLine($"[AI TT] {difficulty} ({player}) Hits: {_tableHits}/{_tableLookups} ({hitRate:F1}%)");
             var (used, usage) = _transpositionTable.GetStats();
-            Console.WriteLine($"[AI TT] {difficulty} ({player}) Table usage: {used} entries ({usage:F2}%)");
             var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
             var nps = elapsedMs > 0 ? nodesSearched * 1000 / elapsedMs : 0;
-            Console.WriteLine($"[AI STATS] {difficulty} ({player}) TimeMult: {timeMultiplier:P0}, Depth: {depthAchieved}, Nodes: {nodesSearched}, NPS: {nps:F0}");
         }
 
         // Store PV for pondering
@@ -1234,8 +1257,6 @@ public class MinimaxAI : IStatsPublisher
         // If opponent can VCF, we need to find a defensive move
         if (opponentVCFResult.IsSolved && opponentVCFResult.IsWin)
         {
-            Console.WriteLine($"[AI VCF] {difficulty} ({player}) Opponent has VCF threat (depth: {opponentVCFResult.DepthAchieved}, nodes: {opponentVCFResult.NodesSearched})");
-
             // Get defensive moves - these are moves that block opponent's threats
             var defenses = _vcfSolver.GetDefenseMoves(board, opponent, player);
 
@@ -1253,7 +1274,6 @@ public class MinimaxAI : IStatsPublisher
                         defense.y >= 0 && defense.y < board.BoardSize &&
                         board.GetCell(defense.x, defense.y).IsEmpty)
                     {
-                        Console.WriteLine($"[AI VCF] {difficulty} ({player}) Using defensive move ({defense.x}, {defense.y})");
                         return defense;
                     }
                 }
@@ -1264,7 +1284,6 @@ public class MinimaxAI : IStatsPublisher
                 if (fallback.x >= 0 && fallback.x < board.BoardSize &&
                     fallback.y >= 0 && fallback.y < board.BoardSize)
                 {
-                    Console.WriteLine($"[AI VCF] {difficulty} ({player}) Using fallback defense at ({fallback.x}, {fallback.y})");
                     return fallback;
                 }
             }
