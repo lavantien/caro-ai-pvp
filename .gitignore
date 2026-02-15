@@ -29,5 +29,4 @@ backend/test_diagnostic.txt
 *.db-wal
 backend/TestCoords/
 backend/test_book.csx
-opening_book.db
 test_tt.cs

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.57.0] - 2026-02-15
+
+### Added
+- **Opening Book Database** - Pre-generated opening book with 7,986 positions:
+  - 7,442 entries covering depths 0-14
+  - 13,035 move recommendations
+  - Generated with 95.4% candidate pruning efficiency
+
+### Changed
+- Updated Book Builder performance documentation with v1.56.0 run statistics
+- Opening book now tracked in repository (removed from .gitignore)
+
+[1.57.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.57.0
+[1.56.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.56.0
+
 ## [1.56.0] - 2026-02-15
 
 ### Removed
@@ -30,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - All test files now reference centralized `GameConstants.BoardSize` (32) instead of hardcoded 19x19
 - Test counts updated in documentation to reflect actual counts
+- Updated Book Builder performance metrics in README.md with v1.56.0 run statistics
 
 ### Test Coverage
 - Backend: 697 unit tests passing (574 Core + 64 Infrastructure + 45 Domain + 14 Application)
