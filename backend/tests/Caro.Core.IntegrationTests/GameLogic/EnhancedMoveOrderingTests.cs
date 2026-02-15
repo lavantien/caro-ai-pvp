@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.IntegrationTests.Helpers;
@@ -80,8 +81,8 @@ public class EnhancedMoveOrderingTests
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should make a valid move
-        Assert.True(move.x >= 0 && move.x < 19);
-        Assert.True(move.y >= 0 && move.y < 19);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
         var cell = board.GetCell(move.x, move.y);
         Assert.True(cell.IsEmpty, "Move should be on an empty cell");
     }
@@ -143,8 +144,8 @@ public class EnhancedMoveOrderingTests
             $"Search took {stopwatch.ElapsedMilliseconds}ms, expected < 15000ms with enhanced ordering");
 
         // Move should be valid and strategic
-        Assert.True(move.x >= 0 && move.x < 19);
-        Assert.True(move.y >= 0 && move.y < 19);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
     }
 
     [Fact]
@@ -271,8 +272,8 @@ public class EnhancedMoveOrderingTests
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
 
         // Assert - Should find valid move
-        Assert.True(move.x >= 0 && move.x < 19);
-        Assert.True(move.y >= 0 && move.y < 19);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
 
         var cell = board.GetCell(move.x, move.y);
         Assert.True(cell.IsEmpty, "Move should be on an empty cell");

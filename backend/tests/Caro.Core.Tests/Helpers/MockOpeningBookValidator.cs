@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 
@@ -9,7 +10,7 @@ namespace Caro.Core.Tests.Helpers;
 /// </summary>
 public sealed class MockOpeningBookValidator : IOpeningBookValidator
 {
-    private const int BoardSize = 19;
+    private const int BoardSize = GameConstants.BoardSize;
 
     /// <summary>
     /// Check if a move is valid (bounds check and empty cell check).

@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 
@@ -76,9 +77,9 @@ public class SymmetryTransformationBugTests
 
         // Count stones
         int redCount = 0, blueCount = 0;
-        for (int x = 0; x < 19; x++)
+        for (int x = 0; x < GameConstants.BoardSize; x++)
         {
-            for (int y = 0; y < 19; y++)
+            for (int y = 0; y < GameConstants.BoardSize; y++)
             {
                 var c = board.GetCell(x, y);
                 if (c.Player == Player.Red) redCount++;

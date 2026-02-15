@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using FluentAssertions;
 
@@ -16,7 +17,7 @@ public class BoardTests
     }
 
     [Fact]
-    public void BoardSize_Returns19()
+    public void BoardSize_ReturnsCorrectSize()
     {
         // Arrange
         var board = new Board();
@@ -25,7 +26,7 @@ public class BoardTests
         var size = board.BoardSize;
 
         // Assert
-        size.Should().Be(19);
+        size.Should().Be(GameConstants.BoardSize);
     }
 
     [Fact]
@@ -66,7 +67,7 @@ public class BoardTests
         Action act = () => board.PlaceStone(-1, 9, Player.Red);
         act.Should().Throw<ArgumentOutOfRangeException>();
 
-        act = () => board.PlaceStone(9, 19, Player.Red);
+        act = () => board.PlaceStone(9, GameConstants.BoardSize, Player.Red);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
@@ -166,7 +167,7 @@ public class BoardTests
         var allCells = board.Cells.ToList();
 
         // Assert
-        allCells.Count.Should().Be(19 * 19);
+        allCells.Count.Should().Be(GameConstants.BoardSize * GameConstants.BoardSize);
         allCells.Should().Contain(c => c.X == 5 && c.Y == 5 && c.Player == Player.Red);
     }
 

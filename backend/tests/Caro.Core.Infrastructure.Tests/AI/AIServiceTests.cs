@@ -1,5 +1,6 @@
 using Caro.Core.Application.DTOs;
 using Caro.Core.Application.Extensions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.Infrastructure.AI;
 using FluentAssertions;
@@ -37,8 +38,8 @@ public sealed class AIServiceTests : IDisposable
         // Assert
         response.X.Should().BeGreaterOrEqualTo(0);
         response.Y.Should().BeGreaterOrEqualTo(0);
-        response.X.Should().BeLessThan(19);
-        response.Y.Should().BeLessThan(19);
+        response.X.Should().BeLessThan(GameConstants.BoardSize);
+        response.Y.Should().BeLessThan(GameConstants.BoardSize);
         response.DepthAchieved.Should().BeGreaterThan(0);
         response.NodesSearched.Should().BeGreaterThan(0);
         response.NodesPerSecond.Should().BeGreaterThan(0);
@@ -58,8 +59,8 @@ public sealed class AIServiceTests : IDisposable
             var response = await _service.CalculateBestMoveAsync(state, difficulty);
             response.X.Should().BeGreaterOrEqualTo(0);
             response.Y.Should().BeGreaterOrEqualTo(0);
-            response.X.Should().BeLessThan(19);
-            response.Y.Should().BeLessThan(19);
+            response.X.Should().BeLessThan(GameConstants.BoardSize);
+            response.Y.Should().BeLessThan(GameConstants.BoardSize);
         }
     }
 
@@ -75,8 +76,8 @@ public sealed class AIServiceTests : IDisposable
         // Assert
         response.X.Should().BeGreaterOrEqualTo(0);
         response.Y.Should().BeGreaterOrEqualTo(0);
-        response.X.Should().BeLessThan(19);
-        response.Y.Should().BeLessThan(19);
+        response.X.Should().BeLessThan(GameConstants.BoardSize);
+        response.Y.Should().BeLessThan(GameConstants.BoardSize);
         response.DepthAchieved.Should().BeGreaterThan(0);
     }
 

@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.IntegrationTests.Helpers;
@@ -33,8 +34,8 @@ public class AspirationWindowTests
         var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
 
         // Assert - Both moves should be valid
-        Assert.True(move1.x >= 0 && move1.x < 19 && move1.y >= 0 && move1.y < 19);
-        Assert.True(move2.x >= 0 && move2.x < 19 && move2.y >= 0 && move2.y < 19);
+        Assert.True(move1.x >= 0 && move1.x < GameConstants.BoardSize && move1.y >= 0 && move1.y < GameConstants.BoardSize);
+        Assert.True(move2.x >= 0 && move2.x < GameConstants.BoardSize && move2.y >= 0 && move2.y < GameConstants.BoardSize);
         var cell1 = board.GetCell(move1.x, move1.y);
         var cell2 = board.GetCell(move2.x, move2.y);
         Assert.True(cell1.IsEmpty && cell2.IsEmpty, "Both moves should be on empty cells");
@@ -57,8 +58,8 @@ public class AspirationWindowTests
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
 
         // Assert - Should find a reasonable move
-        Assert.True(move.x >= 0 && move.x < 19);
-        Assert.True(move.y >= 0 && move.y < 19);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
 
         var cell = board.GetCell(move.x, move.y);
         Assert.True(cell.IsEmpty, "Move should be on an empty cell");
@@ -177,8 +178,8 @@ public class AspirationWindowTests
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
 
         // Assert - Move should be strategic (near existing stones)
-        Assert.True(move.x >= 0 && move.x < 19);
-        Assert.True(move.y >= 0 && move.y < 19);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
 
         // Check move is near existing stones (not random corner)
         var nearStones = false;
@@ -188,7 +189,7 @@ public class AspirationWindowTests
             {
                 var nx = move.x + dx;
                 var ny = move.y + dy;
-                if (nx >= 0 && nx < 19 && ny >= 0 && ny < 19)
+                if (nx >= 0 && nx < GameConstants.BoardSize && ny >= 0 && ny < GameConstants.BoardSize)
                 {
                     var cell = board.GetCell(nx, ny);
                     if (cell.Player != Player.None)

@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.IntegrationTests.Helpers;
@@ -168,10 +169,10 @@ public class HistoryHeuristicTests
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
 
         // Assert - Should play center or near center
-        Assert.True(move.x >= 0 && move.x < 19);
-        Assert.True(move.y >= 0 && move.y < 19);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
 
-        // Empty board should result in center move (center of 19x19 board)
+        // Empty board should result in center move (center of board)
         Assert.Equal(9, move.x);
         Assert.Equal(9, move.y);
     }

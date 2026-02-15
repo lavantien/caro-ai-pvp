@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Xunit;
@@ -6,7 +7,7 @@ namespace Caro.Core.Tests.GameLogic;
 
 public class ContinuationHistoryTests
 {
-    private const int BoardSize = 19;
+    private const int BoardSize = GameConstants.BoardSize;
 
     [Fact]
     public void ContinuationHistory_InitializesToZero()

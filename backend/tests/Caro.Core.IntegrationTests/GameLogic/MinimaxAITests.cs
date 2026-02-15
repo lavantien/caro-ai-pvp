@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.IntegrationTests.Helpers;
@@ -21,7 +22,7 @@ public class MinimaxAITests
         var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
 
         // Assert
-        // Should play center move (center of 19x19 board is 9,9)
+        // Should play center move (center of board is 9,9)
         x.Should().Be(9);
         y.Should().Be(9);
     }

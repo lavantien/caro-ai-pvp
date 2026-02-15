@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.GameLogic;
 using Xunit;
 using Xunit.Abstractions;
@@ -167,7 +168,7 @@ public class SavedLogVerifierTests
     [Fact]
     public async Task VerifyAllSnapshots_AllGamesHaveValidCoordinates()
     {
-        // All move coordinates should be within the 19x19 board
+        // All move coordinates should be within the board bounds
 
         var snapshotFiles = TournamentLogCapture.GetSnapshotFiles(SourceSnapshotDirectory);
 
@@ -186,7 +187,7 @@ public class SavedLogVerifierTests
             {
                 foreach (var move in game.MoveLogs)
                 {
-                    if (move.X < 0 || move.X >= 19 || move.Y < 0 || move.Y >= 19)
+                    if (move.X < 0 || move.X >= GameConstants.BoardSize || move.Y < 0 || move.Y >= GameConstants.BoardSize)
                     {
                         failures.Add($"Snapshot {Path.GetFileName(file)}, Game {game.GameId}, Move {move.MoveNumber}: Invalid coordinates ({move.X}, {move.Y})");
                     }
