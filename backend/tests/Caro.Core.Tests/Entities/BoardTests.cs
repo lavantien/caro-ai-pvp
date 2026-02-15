@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 
@@ -109,9 +110,9 @@ public class BoardTests
         var clone = original;
 
         // Assert - board state is identical
-        for (int x = 0; x < 19; x++)
+        for (int x = 0; x < GameConstants.BoardSize; x++)
         {
-            for (int y = 0; y < 19; y++)
+            for (int y = 0; y < GameConstants.BoardSize; y++)
             {
                 clone.GetCell(x, y).Player.Should().Be(original.GetCell(x, y).Player);
             }
@@ -147,9 +148,9 @@ public class BoardTests
         cloneBlue.GetBit(6, 6).Should().BeTrue();
 
         // Verify no extra bits set
-        for (int x = 0; x < 19; x++)
+        for (int x = 0; x < GameConstants.BoardSize; x++)
         {
-            for (int y = 0; y < 19; y++)
+            for (int y = 0; y < GameConstants.BoardSize; y++)
             {
                 bool origRed = originalRed.GetBit(x, y);
                 bool clRed = cloneRed.GetBit(x, y);

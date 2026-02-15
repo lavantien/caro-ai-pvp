@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading.Channels;
 using Xunit;
 using Xunit.Abstractions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.Pondering;
 using Caro.Core.Domain.Entities;
@@ -252,11 +253,11 @@ public class AdversarialConcurrencyTests
         var boards = Enumerable.Range(0, 15).Select(_ =>
         {
             var b = new Board();
-            // Random starting positions (19x19 board)
+            // Random starting positions
             for (int i = 0; i < 20; i++)
             {
-                int x = random.Next(19);
-                int y = random.Next(19);
+                int x = random.Next(GameConstants.BoardSize);
+                int y = random.Next(GameConstants.BoardSize);
                 try
                 {
                     b = b.PlaceStone(x, y, i % 2 == 0 ? Player.Red : Player.Blue);

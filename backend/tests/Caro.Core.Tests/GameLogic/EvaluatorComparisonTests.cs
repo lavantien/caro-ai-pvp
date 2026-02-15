@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Xunit;
@@ -34,7 +35,7 @@ public class EvaluatorComparisonTests
     public void ScalarVsSIMD_CenterMove_ShouldMatch()
     {
         var board = new Board();
-        board = board.PlaceStone(9, 9, Player.Red); // Center of 19x19 board
+        board = board.PlaceStone(9, 9, Player.Red); // Center of board
 
         int scalarScore = BitBoardEvaluator.Evaluate(board, Player.Red);
         int simdScore = SIMDBitBoardEvaluator.Evaluate(board, Player.Red);
@@ -176,8 +177,8 @@ public class EvaluatorComparisonTests
             int stoneCount = random.Next(10, 21);
             for (int j = 0; j < stoneCount; j++)
             {
-                int x = random.Next(19);  // 19x19 board
-                int y = random.Next(19);
+                int x = random.Next(GameConstants.BoardSize);  // board
+                int y = random.Next(GameConstants.BoardSize);
                 Player player = random.Next(2) == 0 ? Player.Red : Player.Blue;
 
                 if (testBoard.GetCell(x, y).IsEmpty)

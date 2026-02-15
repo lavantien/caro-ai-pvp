@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using FluentAssertions;
 
@@ -41,8 +42,8 @@ public class PositionTests
         {
             new Position(-1, 9),
             new Position(9, -1),
-            new Position(19, 9),
-            new Position(9, 19)
+            new Position(GameConstants.BoardSize, 9),
+            new Position(9, GameConstants.BoardSize)
         };
 
         // Act & Assert

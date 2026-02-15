@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 
@@ -87,9 +88,9 @@ public class OpeningBookGeneratorTests
         cloneBlue.GetBit(8, 8).Should().BeTrue();
 
         // No extra bits should be set in clone that weren't in original
-        for (int x = 0; x < 19; x++)
+        for (int x = 0; x < GameConstants.BoardSize; x++)
         {
-            for (int y = 0; y < 19; y++)
+            for (int y = 0; y < GameConstants.BoardSize; y++)
             {
                 cloneRed.GetBit(x, y).Should().Be(originalRed.GetBit(x, y), $"Red BitBoard mismatch at ({x},{y})");
                 cloneBlue.GetBit(x, y).Should().Be(originalBlue.GetBit(x, y), $"Blue BitBoard mismatch at ({x},{y})");
@@ -359,9 +360,9 @@ public class OpeningBookGeneratorTests
 
         // Assert - Final board should have 2 (initial) + 3 (new) = 5 stones
         int redCount = 0, blueCount = 0;
-        for (int x = 0; x < 19; x++)
+        for (int x = 0; x < GameConstants.BoardSize; x++)
         {
-            for (int y = 0; y < 19; y++)
+            for (int y = 0; y < GameConstants.BoardSize; y++)
             {
                 var cell = currentBoard.GetCell(x, y);
                 if (cell.Player == Player.Red) redCount++;
