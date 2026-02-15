@@ -437,17 +437,16 @@ public sealed class ParallelMinimaxSearch
             // This ensures true parallelism similar to the original Thread approach
             tasks[i] = Task.Factory.StartNew(() =>
             {
+                // CRITICAL FIX: Create threadData OUTSIDE try block so it's available
+                // in finally block for diagnostics collection, even when cancelled
+                var threadData = new ThreadData
+                {
+                    ThreadIndex = threadId,
+                    Random = new Random(threadId + (int)DateTime.UtcNow.Ticks)
+                };
+
                 try
                 {
-                    // DIVERSITY FIX: Set ThreadIndex to distinguish master (0) from helper (1+) threads
-                    // Master thread (ThreadIndex=0) searches deterministically without noise
-                    // Helper threads (ThreadIndex>0) get noise injection in OrderMoves for tree diversity
-                    var threadData = new ThreadData
-                    {
-                        ThreadIndex = threadId,
-                        Random = new Random(threadId + (int)DateTime.UtcNow.Ticks)
-                    };
-
                     var result = SearchWithIterationTimeAware(
                         boardsArray[threadId], player, candidatesArray[threadId],
                         threadData, timeAlloc, difficulty, token);
@@ -455,9 +454,6 @@ public sealed class ParallelMinimaxSearch
                     // Add threadIndex to identify master vs helper thread results
                     var (x, y, score, depthAchieved, nodes) = result;
                     results.Add((x, y, score, depthAchieved, nodes, threadId));
-
-                    // Collect diagnostics for analysis
-                    diagnosticsList.Add(threadData);
                 }
                 catch (OperationCanceledException)
                 {
@@ -466,6 +462,12 @@ public sealed class ParallelMinimaxSearch
                 catch (Exception)
                 {
                     // Thread exception - search will continue with available results
+                }
+                finally
+                {
+                    // CRITICAL FIX: Always collect diagnostics, even when cancelled
+                    // This ensures node counts are available for the fallback calculation
+                    diagnosticsList.Add(threadData);
                 }
             }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
@@ -497,17 +499,25 @@ public sealed class ParallelMinimaxSearch
         // Group results by depth, then select best within each depth
         if (results.IsEmpty)
         {
-            // Last resort: first candidate, sum node counts from diagnostics
-            long totalNodes = diagnosticsList.Sum(d => d.LocalNodesSearched);
-            return new ParallelSearchResult(candidates[0].x, candidates[0].y, 1, totalNodes, 0, null, _hardTimeBoundMs, 0, 0);
+            // CRITICAL FIX: Parallel search failed - fall back to single-threaded search
+            // This can happen when tasks don't complete before timeout
+            // We MUST do a real search, not just return candidates[0]
+            _searchStopwatch.Restart();
+            var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
+            var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
+                board, player, candidates, fallbackThreadData, timeAlloc, difficulty, CancellationToken.None);
+            return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0);
         }
 
         var maxDepth = results.Max(r => r.depth);
         if (maxDepth <= 0)
         {
-            // Last resort: first candidate, sum node counts from diagnostics
-            long totalNodes = diagnosticsList.Sum(d => d.LocalNodesSearched);
-            return new ParallelSearchResult(candidates[0].x, candidates[0].y, 1, totalNodes, 0, null, _hardTimeBoundMs, 0, 0);
+            // CRITICAL FIX: Parallel search returned invalid depth - fall back to single-threaded
+            _searchStopwatch.Restart();
+            var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
+            var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
+                board, player, candidates, fallbackThreadData, timeAlloc, difficulty, CancellationToken.None);
+            return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0);
         }
 
         // At maximum depth, pick highest score (with master as tiebreaker)
