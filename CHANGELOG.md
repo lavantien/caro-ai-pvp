@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.58.0] - 2026-02-16
+
+### Fixed
+- **Critical:** Parallel search iteration time tracking bug causing premature search termination
+  - Previous formula incorrectly calculated iteration time as cumulative instead of per-iteration
+  - Fix: Track `iterationStartMs` at each depth loop start, compute delta at iteration end
+  - Changed search start depth from 2 to 1 for complete depth coverage
+  - Wrapped time checks inside `if (currentDepth > 1)` to ensure depth 1 always completes
+- **Minimum search time:** Added 50ms floor for all AI searches to prevent ultra-short book move lookups
+- **Test diagnostics:** Enhanced QuickSmokeTest output with game numbering, move counts, and timing
+
+### Changed
+- **Thread allocation:** Updated to scaled formulas for better resource utilization
+  - Easy: `(N/5)-1` threads (minimum 2)
+  - Medium: `(N/4)-1` threads (minimum 3)
+  - Hard: `(N/3)-1` threads (minimum 4)
+  - Grandmaster: `(N/2)-1` threads (minimum 5)
+  - Provides clearer progression between difficulty levels
+- Re-enabled parallel search for Grandmaster difficulty after fixing iteration time tracking
+- Updated README.md difficulty table to show dynamic thread formulas
+
+### Test Coverage
+- All 575 backend tests passing
+
+[1.58.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.58.0
+
 ## [1.57.0] - 2026-02-15
 
 ### Added
