@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.55.0] - 2026-02-15
+
+### Fixed
+- **Documentation Consistency** - Comprehensive documentation/code alignment:
+  - ENGINE_FEATURES.md: Version corrected (1.52.0 → 1.54.0), book depths corrected
+  - MinimaxAI.cs: Fixed outdated comments for error rates, time multipliers, book depths
+  - OpeningBook.cs: Updated comments to reflect actual book usage (Easy+ use book)
+  - CSHARP_ONBOARDING.md: Corrected test counts (948 total, not 759+)
+  - README.md: Corrected test counts (469 Core tests, not 579)
+  - backend/tests/README.md: Updated test counts and removed "outdated" labels
+
+- **Code Consistency** - Unified configuration sources:
+  - TimeBudgetDepthManager now delegates to AIDifficultyConfig (single source of truth)
+  - OpeningBook.DifficultyUsesBook now includes Easy and Medium (consistent with lookup service)
+
+- **Flaky Test** - Fixed timing-sensitive test in IterativeDeepeningSearchTests:
+  - `Search_HardBoundStopsImmediately_DoesNotExceedHardBound` now uses realistic timing
+
+### Removed
+- **Dead Code** - Removed unused `AdaptiveDepthCalculator.GetThreadCount()`:
+  - Method returned incorrect values that contradicted AIDifficultyConfig
+  - Actual code uses `ThreadPoolConfig.GetThreadCountForDifficulty()` instead
+- **Obsolete Tests** - Removed 3 tests for deleted `GetThreadCount()` method
+
+### Changed
+- All difficulty-related parameters now flow from single source: `AIDifficultyConfig`
+- Book depth configuration: Easy=4, Medium=6, Hard=10, Grandmaster=14, Experimental=unlimited
+
+### Test Coverage
+- Backend: 574 unit tests passing (Caro.Core.Tests)
+- Total: 948 tests across all projects
+
+[1.55.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.55.0
+
 ## [1.54.0] - 2026-02-15
 
 ### Added

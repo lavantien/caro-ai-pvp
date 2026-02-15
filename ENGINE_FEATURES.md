@@ -1,6 +1,6 @@
 # Caro AI Engine Features
 
-**Version:** 1.52.0
+**Version:** 1.55.0
 **Board:** 32x32 (1024 intersections)
 **Rule:** Caro (exactly-5 to win, open rule for red's second move)
 
@@ -432,10 +432,12 @@ Precomputed opening positions for early game guidance.
 
 | Difficulty | Book Depth |
 |------------|------------|
-| Easy/Medium | None (AI calculates) |
-| Hard | 24 plies |
-| Grandmaster | 32 plies |
-| Experimental | 40 plies |
+| Braindead | None |
+| Easy | 4 plies |
+| Medium | 6 plies |
+| Hard | 10 plies |
+| Grandmaster | 14 plies |
+| Experimental | Unlimited |
 
 ### 7.3 Exactly-5 Validation
 
@@ -554,7 +556,7 @@ Standard UCI commands for engine control:
 |--------|------|---------|-------------|
 | Skill Level | spin | 3 | 1-6 difficulty |
 | Use Opening Book | check | true | Enable book |
-| Book Depth Limit | spin | 32 | Max book ply |
+| Book Depth Limit | spin | 14 | Max book ply (Grandmaster default) |
 | Threads | spin | auto | Search threads |
 | Hash | spin | 128 | TT size (MB) |
 | Ponder | check | true | Enable pondering |
