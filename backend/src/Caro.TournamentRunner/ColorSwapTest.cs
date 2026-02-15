@@ -8,7 +8,7 @@ public class ColorSwapTest
 {
     public static void Run()
     {
-        var engine = TournamentEngine.CreateDefault();
+        var engine = TournamentEngineFactory.CreateWithOpeningBook();
         const int games = 4;
 
         for (int i = 0; i < games; i++)

@@ -82,7 +82,7 @@ public static class AIStrengthTestRunner
         Console.WriteLine("─────────────────────────────────────────────────────────────────");
 
         var results = new List<MatchupStatistics>();
-        var engine = TournamentEngine.CreateDefault();
+        var engine = TournamentEngineFactory.CreateWithOpeningBook();
 
         var matchups = new (AIDifficulty higher, AIDifficulty lower)[]
         {
@@ -113,7 +113,7 @@ public static class AIStrengthTestRunner
         Console.WriteLine("─────────────────────────────────────────────────────────────────");
 
         var results = new List<MatchupStatistics>();
-        var engine = TournamentEngine.CreateDefault();
+        var engine = TournamentEngineFactory.CreateWithOpeningBook();
 
         var matchups = new (AIDifficulty higher, AIDifficulty lower)[]
         {
@@ -143,7 +143,7 @@ public static class AIStrengthTestRunner
         Console.WriteLine("─────────────────────────────────────────────────────────────────");
 
         var results = new List<MatchupStatistics>();
-        var engine = TournamentEngine.CreateDefault();
+        var engine = TournamentEngineFactory.CreateWithOpeningBook();
 
         var difficulties = new[]
         {
@@ -360,7 +360,7 @@ public static class AIStrengthTestRunner
         Console.WriteLine();
 
         var results = new List<MatchupStatistics>();
-        var engine = TournamentEngine.CreateDefault();
+        var engine = TournamentEngineFactory.CreateWithOpeningBook();
 
         // Test only a few key matchups
         var keyMatchups = new (AIDifficulty, AIDifficulty)[]

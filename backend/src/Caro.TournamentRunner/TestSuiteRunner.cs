@@ -54,7 +54,7 @@ public class TestSuiteRunner
         TextWriter output,
         string? customRedName = null)
     {
-        var engine = TournamentEngine.CreateDefault();
+        var engine = TournamentEngineFactory.CreateWithOpeningBook();
         var results = new List<MatchupResult>();
 
         foreach (var config in matchups)

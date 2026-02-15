@@ -12,7 +12,7 @@ public static class QuickTest
 {
     public static void RunMatchup(AIDifficulty redDiff, AIDifficulty blueDiff, int games = 5)
     {
-        var engine = TournamentEngine.CreateDefault();
+        var engine = TournamentEngineFactory.CreateWithOpeningBook();
         var results = new List<MatchResult>();
 
         Console.WriteLine();
