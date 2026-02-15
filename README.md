@@ -138,28 +138,35 @@ dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=open
 - Plies 0-14: 4 moves per position (covers Easy through Grandmaster)
 - No book beyond ply 14 (Experimental uses unlimited depth during play)
 
-**Book Builder Performance (v1.51.0 with 8 workers):**
+**Book Builder Performance (v1.56.0):**
 
 | Metric | Value |
 |--------|-------|
-| Total time (depth 0-14) | ~12 minutes |
-| Average throughput | 35-40 positions/minute |
-| Peak throughput (early depths) | 144 positions/minute |
-| Nodes per second | 1,100 nodes/sec |
-| Workers | 8 parallel threads |
-| Memory usage | ~500 MB working set |
-| Progress updates | Every 15 seconds |
+| Total time (depth 0-14) | 5h 55m 21s |
+| Positions generated | 7,986 |
+| Moves stored | 13,891 |
+| Average throughput | 22.5 positions/minute |
+| Peak throughput | 143.6 positions/minute (depth 5) |
+| Slowest depth | 12.0 positions/minute (depth 2) |
+| Total nodes searched | 1,723,499 |
+| Candidates evaluated | 23,621 |
+| Candidates pruned | 491,355 (95.4%) |
+| Write flushes | 178 (avg 78.0 entries/batch) |
 
 **Throughput by depth:**
-- Depths 0-7: 70-144 pos/min (simpler positions)
-- Depths 8-14: 23-45 pos/min (more candidates in survival zone)
 
-**Optimization metrics:**
-- Candidate pruning rate: 95% (static eval filtering)
-- Early exit rate: 82% (best move dominates)
-- TT memoization: Transposition table preserved across searches for subtree reuse
-- Early exit rate: 25-35% (dominant move detection)
-- Write buffer efficiency: 50 entries per flush
+| Depth | Positions | Moves | Time | Throughput |
+|-------|-----------|-------|------|------------|
+| 0-4 | 30 | 63 | 18s | 70-84 pos/min |
+| 5-7 | 112 | 224 | 58s | 103-144 pos/min |
+| 8-10 | 844 | 1,623 | 13m 42s | 58-76 pos/min |
+| 11-12 | 2,148 | 3,613 | 1h 21m | 21-40 pos/min |
+| 13-14 | 4,866 | 7,704 | 1h 19m | 18-20 pos/min |
+
+**Book statistics:**
+- Total entries: 7,442
+- Max depth: 14
+- Total moves: 13,035
 
 ### Tournament Mode
 
