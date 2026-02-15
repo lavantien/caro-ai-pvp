@@ -127,20 +127,28 @@ public class IterativeDeepeningSearchTests
         var search = new IterativeDeepeningSearch(
             (board, player, depth, alpha, beta, nullMove, rootPlayer, currentDepth) =>
             {
-                // Simulate slow search
-                Thread.Sleep(100);
+                // Simulate search work - 20ms per candidate
+                Thread.Sleep(20);
                 return (0, 10);
             }
         );
 
         var board = new Board();
-        var candidates = _multipleCandidates;
+        var candidates = _multipleCandidates; // 4 candidates
 
-        // Act - Very short hard bound
+        // Act - Short hard bound (50ms)
+        // With 4 candidates at 20ms each, one depth iteration takes ~80ms
+        // The hard bound check happens before each candidate, so we expect:
+        // - First candidate starts immediately, completes at ~20ms
+        // - Second candidate starts at ~20ms, completes at ~40ms
+        // - Third candidate starts at ~40ms, completes at ~60ms (exceeds hard bound)
+        // - Search should stop after checking hard bound before 4th candidate
         var result = search.Search(board, Player.Red, candidates, 1, 5, 0.1, 0.05);
 
         // Assert
-        result.ElapsedSeconds.Should().BeLessThan(0.2); // Allow some margin
+        // Should complete in ~60ms (3 candidates @ 20ms each) plus overhead
+        // Allow generous margin for CI variability
+        result.ElapsedSeconds.Should().BeLessThan(0.15);
     }
 
     [Fact]

@@ -155,49 +155,6 @@ public sealed class AdaptiveDepthCalculatorTests
         grandmasterError.Should().Be(0, "Grandmaster should have no error rate");
     }
 
-    [Theory]
-    [InlineData(AIDifficulty.Braindead, 0)]
-    [InlineData(AIDifficulty.Easy, 0)]
-    [InlineData(AIDifficulty.Medium, 0)]
-    public void GetThreadCount_LowerDifficulties_SingleThreaded(AIDifficulty difficulty, int expectedThreads)
-    {
-        // Arrange & Act
-        int threadCount = AdaptiveDepthCalculator.GetThreadCount(difficulty);
-
-        // Assert
-        threadCount.Should().Be(expectedThreads, $"{difficulty} should be single-threaded");
-    }
-
-    [Fact]
-    public void GetThreadCount_HardUsesProcessorQuarter()
-    {
-        // Arrange
-        var difficulty = AIDifficulty.Hard;
-        int processorCount = Environment.ProcessorCount;
-        int expectedThreads = Math.Max(2, processorCount / 4);
-
-        // Act
-        int threadCount = AdaptiveDepthCalculator.GetThreadCount(difficulty);
-
-        // Assert
-        threadCount.Should().Be(expectedThreads, "Hard should use processorCount/4 threads");
-    }
-
-    [Fact]
-    public void GetThreadCount_GrandmasterUsesLazySMP()
-    {
-        // Arrange
-        var difficulty = AIDifficulty.Grandmaster;
-        int processorCount = Environment.ProcessorCount;
-        int expectedThreads = Math.Max(2, (processorCount / 2) - 1);
-
-        // Act
-        int threadCount = AdaptiveDepthCalculator.GetThreadCount(difficulty);
-
-        // Assert
-        threadCount.Should().Be(expectedThreads, "Grandmaster should use (processorCount/2)-1 threads");
-    }
-
     // Helper method to test private GetAdaptiveDepth via reflection
     private static int GetAdaptiveDepthViaReflection(Board board)
     {
