@@ -285,10 +285,10 @@ public class MinimaxAI : IStatsPublisher
             // The actual ponder hit detection is done externally via TournamentEngine
         }
 
-        // Opening book for Hard, Grandmaster, and Experimental difficulties
-        // Depth-filtered by difficulty:
-        // - Hard: book moves up to depth 24 (12 moves per side, 24 plies)
-        // - Grandmaster/Experimental: book moves up to depth 32 (16 moves per side, 32 plies)
+        // Opening book for Easy, Medium, Hard, Grandmaster, and Experimental difficulties
+        // Depth-filtered by difficulty (from AIDifficultyConfig):
+        // - Easy: 4 plies, Medium: 6 plies, Hard: 10 plies
+        // - Grandmaster: 14 plies, Experimental: unlimited
         var lastOpponentMove = GetLastOpponentMove(board, player);
         var bookMove = _openingBook?.GetBookMove(board, player, difficulty, lastOpponentMove);
         if (bookMove.HasValue)
@@ -298,7 +298,7 @@ public class MinimaxAI : IStatsPublisher
 
         // Error rate simulation: Lower difficulties make random/suboptimal moves
         // Uses AdaptiveDepthCalculator.GetErrorRate() for consistent error rates
-        // - Braindead: 50%, Easy: 15%, Medium: 5%, Hard: 1%, Grandmaster: 0%
+        // - Braindead: 10%, all other difficulties: 0% (optimal play)
         var errorRate = AdaptiveDepthCalculator.GetErrorRate(difficulty);
         if (errorRate > 0 && NextRandomDouble() < errorRate)
         {
@@ -560,7 +560,7 @@ public class MinimaxAI : IStatsPublisher
         }
 
         // Get time multiplier for this difficulty (applies to both parallel and sequential search)
-        // Braindead: 1%, Easy: 10%, Medium: 30%, Hard: 70%, Grandmaster: 100%
+        // From AIDifficultyConfig: Braindead: 5%, Easy: 20%, Medium: 50%, Hard: 75%, Grandmaster: 100%
         double timeMultiplier = AdaptiveDepthCalculator.GetTimeMultiplier(difficulty);
 
         // CRITICAL FIX: Calibrate NPS estimate from difficulty settings before searching

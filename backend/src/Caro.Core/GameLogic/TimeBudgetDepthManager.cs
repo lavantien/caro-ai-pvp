@@ -19,45 +19,24 @@ public sealed class TimeBudgetDepthManager
     private double _estimatedNps = 100_000; // Conservative default
     private double _effectiveBranchingFactor = 2.5; // Alpha-beta with good move ordering
 
-    // Minimum NPS for different difficulty tiers (for calibration)
-    private const double MinNpsBraindead = 10_000;
-    private const double MinNpsEasy = 50_000;
-    private const double MinNpsMedium = 100_000;
-    private const double MinNpsHard = 200_000;
-    private const double MinNpsGrandmaster = 500_000;
-
     /// <summary>
     /// Get the time multiplier for a difficulty level.
+    /// Delegates to AIDifficultyConfig for centralized configuration.
     /// Higher difficulties use more of their allocated time.
     /// </summary>
     public static double GetTimeMultiplier(AIDifficulty difficulty)
     {
-        return difficulty switch
-        {
-            AIDifficulty.Braindead => 0.01,   // Barely thinks
-            AIDifficulty.Easy => 0.1,          // 10% of allocated time
-            AIDifficulty.Medium => 0.3,        // 30% of allocated time
-            AIDifficulty.Hard => 0.7,          // 70% of allocated time
-            AIDifficulty.Grandmaster => 1.0,   // Full allocated time
-            _ => 0.5
-        };
+        return AIDifficultyConfig.Instance.GetSettings(difficulty).TimeMultiplier;
     }
 
     /// <summary>
     /// Get the minimum depth for a difficulty.
+    /// Delegates to AIDifficultyConfig for centralized configuration.
     /// Even with zero time, AI should search at least this deep.
     /// </summary>
     public static int GetMinimumDepth(AIDifficulty difficulty)
     {
-        return difficulty switch
-        {
-            AIDifficulty.Braindead => 1,
-            AIDifficulty.Easy => 2,
-            AIDifficulty.Medium => 3,
-            AIDifficulty.Hard => 4,
-            AIDifficulty.Grandmaster => 5,
-            _ => 3
-        };
+        return AIDifficultyConfig.Instance.GetSettings(difficulty).MinDepth;
     }
 
     /// <summary>

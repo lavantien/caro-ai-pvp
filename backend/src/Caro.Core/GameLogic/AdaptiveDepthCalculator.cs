@@ -205,27 +205,4 @@ public static class AdaptiveDepthCalculator
     {
         return AIDifficultyConfig.Instance.GetSettings(difficulty).ErrorRate;
     }
-
-    /// <summary>
-    /// Get the parallel search thread count for a given difficulty level
-    /// Returns 0 for single-threaded search
-    /// </summary>
-    public static int GetThreadCount(AIDifficulty difficulty)
-    {
-        // Conservative thread allocation to avoid TT pollution
-        // System.Environment.ProcessorCount is used as baseline
-        int processorCount = Environment.ProcessorCount;
-
-        return difficulty switch
-        {
-            AIDifficulty.Braindead => 0,  // Single-threaded
-            AIDifficulty.Easy => 0,       // Single-threaded
-            AIDifficulty.Medium => 0,     // Single-threaded
-            AIDifficulty.Hard => Math.Max(2, processorCount / 4),  // 2 threads or 25% of CPU
-            // Use Lazy SMP formula for Grandmaster: (processorCount/2)-1
-            // On 20 threads: (20/2)-1 = 9 helper threads
-            AIDifficulty.Grandmaster => Math.Max(2, (processorCount / 2) - 1),
-            _ => 0
-        };
-    }
 }
