@@ -64,9 +64,9 @@ Grandmaster-level engine achieving depth 11+ with 100-500x speedup over naive mi
 | Level | Threads | Time Budget | Error | Book Depth | Features |
 |-------|---------|-------------|-------|------------|----------|
 | Braindead | 1 | 5% | 10% | 0 | Beginners |
-| Easy | 2 | 20% | 0% | 4 plies | Parallel search + Opening book |
-| Medium | 3 | 50% | 0% | 6 plies | Parallel + pondering + Opening book |
-| Hard | 4 | 75% | 0% | 10 plies | Parallel + pondering + VCF + Opening book |
+| Easy | max(2,(N/5)-1) | 20% | 0% | 4 plies | Parallel search + Opening book |
+| Medium | max(3,(N/4)-1) | 50% | 0% | 6 plies | Parallel + pondering + Opening book |
+| Hard | max(4,(N/3)-1) | 75% | 0% | 10 plies | Parallel + pondering + VCF + Opening book |
 | Grandmaster | max(5,(N/2)-1) | 100% | 0% | 14 plies | Max parallel, VCF, pondering, Opening book |
 | Experimental | max(5,(N/2)-1) | 100% | 0% | Unlimited | Full opening book, max features |
 
@@ -323,10 +323,10 @@ Production-grade concurrency following .NET 10 best practices:
 | Difficulty | Threads | Time Budget | Depth (7+5 TC) |
 |------------|---------|-------------|----------------|
 | Braindead | 1 | 5% | ~1-3 |
-| Easy | 2 | 20% | ~3-5 |
-| Medium | 3 | 50% | ~5-7 |
-| Hard | 4 | 75% | ~7-9 |
-| Grandmaster | (N/2)-1 | 100% | ~9-12+ |
+| Easy | max(2,(N/5)-1) | 20% | ~3-5 |
+| Medium | max(3,(N/4)-1) | 50% | ~5-7 |
+| Hard | max(4,(N/3)-1) | 75% | ~7-9 |
+| Grandmaster | max(5,(N/2)-1) | 100% | ~9-12+ |
 
 **Depth varies by host machine** - calculated dynamically from NPS and time budget. Higher-spec machines achieve greater depth naturally.
 
