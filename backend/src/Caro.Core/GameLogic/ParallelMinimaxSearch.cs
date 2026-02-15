@@ -603,58 +603,68 @@ public sealed class ParallelMinimaxSearch
         int bestDepth = 1;
         int stableCount = 0;
         long lastIterationElapsedMs = 0;
+        long iterationStartMs = 0;  // Track start time of current iteration
         long nodesAtStart = threadData.LocalNodesSearched;  // Track nodes at iteration start
 
         bool isMasterThread = threadData.ThreadIndex == 0;
 
         // PURE TIME-BASED SEARCH
         // Search continues until time runs out
-        int currentDepth = 2;
+        // CRITICAL FIX: Start at depth 1 to ensure at least one iteration completes
+        // This prevents returning D1 with N:0 when time is tight
+        int currentDepth = 1;
         while (true)
         {
-            // CRITICAL: Check cancellation FIRST before any other work
-            if (cancellationToken.IsCancellationRequested)
-                break;
+            // Record iteration start time BEFORE any work
+            iterationStartMs = _searchStopwatch?.ElapsedMilliseconds ?? 0;
 
-            var elapsed = _searchStopwatch?.ElapsedMilliseconds ?? 0;
-            var iterationStartTime = elapsed;
-
-            // Hard bound check - ALL threads should stop when time is up
-            if (elapsed >= _hardTimeBoundMs)
+            // For depth 1, skip time checks to ensure at least one iteration completes
+            // This guarantees we have meaningful search results even with tight time
+            if (currentDepth > 1)
             {
-                // Master thread triggers cancellation for all threads
-                if (isMasterThread) _searchCts?.Cancel();
-                break;
-            }
+                // CRITICAL: Check cancellation FIRST before any other work
+                if (cancellationToken.IsCancellationRequested)
+                    break;
 
-            // SOFT BOUND: Stop early if we're approaching time limit
-            // This prevents the common case of starting a deep iteration that won't finish
-            if (elapsed >= _hardTimeBoundMs * 0.9)
-            {
-                // Only stop if we've done at least one iteration
-                if (currentDepth > 2)
+                var elapsed = _searchStopwatch?.ElapsedMilliseconds ?? 0;
+
+                // Hard bound check - ALL threads should stop when time is up
+                if (elapsed >= _hardTimeBoundMs)
                 {
+                    // Master thread triggers cancellation for all threads
                     if (isMasterThread) _searchCts?.Cancel();
                     break;
                 }
-            }
 
-            // PURE TIME-BASED: Check if we should continue based on iteration time
-            // Only stop if: (soft bound reached) AND (last iteration was slow)
-            // This allows quick iterations (good pruning) to continue deeper
-            double remainingTime = _hardTimeBoundMs - elapsed;
-            if (isMasterThread && elapsed >= timeAlloc.SoftBoundMs)
-            {
-                // Only stop if last iteration took significant time (indicating slowing down)
-                if (lastIterationElapsedMs > remainingTime * 0.25)
-                    break;
-            }
+                // SOFT BOUND: Stop early if we're approaching time limit
+                // This prevents the common case of starting a deep iteration that won't finish
+                if (elapsed >= _hardTimeBoundMs * 0.9)
+                {
+                    // Only stop if we've done at least two iterations
+                    if (currentDepth > 2)
+                    {
+                        if (isMasterThread) _searchCts?.Cancel();
+                        break;
+                    }
+                }
 
-            // Optimal time check - very stable moves can stop earlier
-            if (isMasterThread && elapsed >= timeAlloc.OptimalTimeMs && stableCount >= 3)
-            {
-                if (lastIterationElapsedMs > remainingTime * 0.2)
-                    break;
+                // PURE TIME-BASED: Check if we should continue based on iteration time
+                // Only stop if: (soft bound reached) AND (last iteration was slow)
+                // This allows quick iterations (good pruning) to continue deeper
+                double remainingTime = _hardTimeBoundMs - elapsed;
+                if (isMasterThread && elapsed >= timeAlloc.SoftBoundMs)
+                {
+                    // Only stop if last iteration took significant time (indicating slowing down)
+                    if (lastIterationElapsedMs > remainingTime * 0.25)
+                        break;
+                }
+
+                // Optimal time check - very stable moves can stop earlier
+                if (isMasterThread && elapsed >= timeAlloc.OptimalTimeMs && stableCount >= 3)
+                {
+                    if (lastIterationElapsedMs > remainingTime * 0.2)
+                        break;
+                }
             }
 
             int alpha = int.MinValue + 1000;
@@ -668,7 +678,8 @@ public sealed class ParallelMinimaxSearch
 
             var result = SearchRoot(board, player, currentDepth, candidates, threadData, alpha, beta, cancellationToken);
 
-            lastIterationElapsedMs = (_searchStopwatch?.ElapsedMilliseconds ?? 0) - iterationStartTime;
+            var elapsedNow = _searchStopwatch?.ElapsedMilliseconds ?? 0;
+            lastIterationElapsedMs = elapsedNow - iterationStartMs;  // Time for THIS iteration only
 
             if (cancellationToken.IsCancellationRequested)
                 break;
