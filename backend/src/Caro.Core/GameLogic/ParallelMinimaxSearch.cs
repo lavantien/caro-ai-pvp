@@ -439,31 +439,39 @@ public sealed class ParallelMinimaxSearch
             // Task.Run uses thread pool which doesn't scale immediately
             var thread = new Thread(() =>
             {
-                // DIVERSITY FIX: Set ThreadIndex to distinguish master (0) from helper (1+) threads
-                // Master thread (ThreadIndex=0) searches deterministically without noise
-                // Helper threads (ThreadIndex>0) get noise injection in OrderMoves for tree diversity
-                var threadData = new ThreadData
+                try
                 {
-                    ThreadIndex = threadId,
-                    Random = new Random(threadId + (int)DateTime.UtcNow.Ticks)
-                };
+                    // DIVERSITY FIX: Set ThreadIndex to distinguish master (0) from helper (1+) threads
+                    // Master thread (ThreadIndex=0) searches deterministically without noise
+                    // Helper threads (ThreadIndex>0) get noise injection in OrderMoves for tree diversity
+                    var threadData = new ThreadData
+                    {
+                        ThreadIndex = threadId,
+                        Random = new Random(threadId + (int)DateTime.UtcNow.Ticks)
+                    };
 
-                var result = SearchWithIterationTimeAware(
-                    boardsArray[threadId], player, candidatesArray[threadId],
-                    threadData, timeAlloc, difficulty, token);
+                    var result = SearchWithIterationTimeAware(
+                        boardsArray[threadId], player, candidatesArray[threadId],
+                        threadData, timeAlloc, difficulty, token);
 
-                // Add threadIndex to identify master vs helper thread results
-                var (x, y, score, depthAchieved, nodes) = result;
-                results.Add((x, y, score, depthAchieved, nodes, threadId));
+                    // Add threadIndex to identify master vs helper thread results
+                    var (x, y, score, depthAchieved, nodes) = result;
+                    results.Add((x, y, score, depthAchieved, nodes, threadId));
 
-                // Collect diagnostics for analysis
-                diagnosticsList.Add(threadData);
+                    // Collect diagnostics for analysis
+                    diagnosticsList.Add(threadData);
+                }
+                catch (Exception)
+                {
+                    // Thread exception - search will continue with available results
+                }
             });
 
             thread.IsBackground = false; // Important: keep thread alive until done
             thread.Start();
             threads.Add(thread);
         }
+
 
         // Wait for all threads - handle cancellation gracefully
         // All threads should have stopped due to cancellation token
@@ -806,10 +814,10 @@ public sealed class ParallelMinimaxSearch
             return 0;
         }
 
-        // Periodic time check - every 64 nodes to catch timeouts faster
+        // Periodic time check - every 16 nodes to catch timeouts faster
         // CRITICAL FIX: Only master thread (ThreadIndex=0) can trigger cancellation
         // This balances responsiveness with performance (checking every node is expensive)
-        if (_searchStopwatch != null && _hardTimeBoundMs > 0 && (threadData.LocalNodesSearched & 63) == 0)
+        if (_searchStopwatch != null && _hardTimeBoundMs > 0 && (threadData.LocalNodesSearched & 15) == 0)
         {
             var elapsed = _searchStopwatch.ElapsedMilliseconds;
             if (elapsed >= _hardTimeBoundMs)
