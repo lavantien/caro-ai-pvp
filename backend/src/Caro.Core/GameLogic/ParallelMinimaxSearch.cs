@@ -406,13 +406,12 @@ public sealed class ParallelMinimaxSearch
 
             // Use time-based single-threaded search (no depth cap)
             var threadData = new ThreadData { ThreadIndex = 0 };
-            var cts = new CancellationTokenSource();
             var (x, y, score, depth, nodes) = SearchWithIterationTimeAware(
-                board, player, candidates, threadData, timeAlloc, difficulty, cts.Token);
+                board, player, candidates, threadData, timeAlloc, difficulty, _searchCts.Token);
             return new ParallelSearchResult(x, y, depth, nodes, 1, null, _hardTimeBoundMs, 0, 0);
         }
 
-        // Include threadIndex to distinguish master thread (0) from helper threads (1+)
+        // Use thread-safe collections with Task-based parallelism
         var results = new ConcurrentBag<(int x, int y, int score, int depth, long nodes, int threadIndex)>();
         var diagnosticsList = new ConcurrentBag<ThreadData>();
 
@@ -425,19 +424,18 @@ public sealed class ParallelMinimaxSearch
             candidatesArray[i] = new List<(int x, int y)>(candidates);
         }
 
-        // Launch parallel searches with time-aware iterative deepening
-        // Use dedicated threads instead of Task.Run for true parallelism
-        // Task.Run queues to thread pool which doesn't scale immediately
+        // Launch parallel searches using Task.Run with LongRunning option for true parallelism
+        // This fixes the memory visibility issue with Thread+ConcurrentBag
         var token = _searchCts.Token;
-        var threads = new List<Thread>();
+        var tasks = new Task[threadCount];
 
         for (int i = 0; i < threadCount; i++)
         {
             int threadId = i;
 
-            // Create dedicated thread for true parallelism
-            // Task.Run uses thread pool which doesn't scale immediately
-            var thread = new Thread(() =>
+            // Use Task.Factory.StartNew with LongRunning for dedicated threads
+            // This ensures true parallelism similar to the original Thread approach
+            tasks[i] = Task.Factory.StartNew(() =>
             {
                 try
                 {
@@ -461,28 +459,26 @@ public sealed class ParallelMinimaxSearch
                     // Collect diagnostics for analysis
                     diagnosticsList.Add(threadData);
                 }
+                catch (OperationCanceledException)
+                {
+                    // Expected when time runs out - not an error
+                }
                 catch (Exception)
                 {
                     // Thread exception - search will continue with available results
                 }
-            });
-
-            thread.IsBackground = false; // Important: keep thread alive until done
-            thread.Start();
-            threads.Add(thread);
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
 
-
-        // Wait for all threads - handle cancellation gracefully
-        // All threads should have stopped due to cancellation token
-        foreach (var thread in threads)
+        // Wait for all tasks to complete with proper synchronization
+        // Task.WhenAll ensures all results are visible to this thread
+        try
         {
-            // Give each thread up to 1 second to finish after cancellation
-            if (!thread.Join(1000))
-            {
-                // Thread didn't finish in time - this is unusual but not critical
-                // The thread will continue running in background but won't affect results
-            }
+            Task.WaitAll(tasks, (int)(timeAlloc.HardBoundMs + 1000));
+        }
+        catch (AggregateException)
+        {
+            // Some tasks may have thrown - continue with available results
         }
 
         _searchStopwatch.Stop();
@@ -499,7 +495,7 @@ public sealed class ParallelMinimaxSearch
         // This is the MERGER's job - aggregate intelligently, not authoritarian rejection
 
         // Group results by depth, then select best within each depth
-        if (!results.Any())
+        if (results.IsEmpty)
         {
             // Last resort: first candidate, sum node counts from diagnostics
             long totalNodes = diagnosticsList.Sum(d => d.LocalNodesSearched);
@@ -815,14 +811,18 @@ public sealed class ParallelMinimaxSearch
         }
 
         // Periodic time check - every 16 nodes to catch timeouts faster
-        // CRITICAL FIX: Only master thread (ThreadIndex=0) can trigger cancellation
-        // This balances responsiveness with performance (checking every node is expensive)
-        if (_searchStopwatch != null && _hardTimeBoundMs > 0 && (threadData.LocalNodesSearched & 15) == 0)
+        // CRITICAL: Check both time AND cancellation token for immediate abort
+        if ((_searchStopwatch != null && _hardTimeBoundMs > 0 && (threadData.LocalNodesSearched & 15) == 0) ||
+            ((threadData.LocalNodesSearched & 15) == 0 && cancellationToken.IsCancellationRequested))
         {
-            var elapsed = _searchStopwatch.ElapsedMilliseconds;
+            // Check cancellation token first for immediate abort
+            if (cancellationToken.IsCancellationRequested)
+                return 0;
+
+            var elapsed = _searchStopwatch!.ElapsedMilliseconds;
             if (elapsed >= _hardTimeBoundMs)
             {
-                // Only master thread cancels - helpers just exit
+                // Master thread triggers cancellation for all other threads
                 if (threadData.ThreadIndex == 0)
                 {
                     _searchCts?.Cancel();

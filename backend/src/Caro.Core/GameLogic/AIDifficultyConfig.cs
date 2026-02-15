@@ -210,9 +210,10 @@ public sealed class AIDifficultyConfig
     /// </summary>
     private static int GetGrandmasterThreadCount()
     {
-        int processorCount = Environment.ProcessorCount;
-        // Minimum 5 threads (one more than Hard's 4) to guarantee GM is stronger
-        return Math.Max(5, (processorCount / 2) - 1);
+        // TEMPORARY: Force single-threaded search due to parallel search bug
+        // The parallel search tasks don't complete within time limits
+        // TODO: Fix the parallel search timing/synchronization issues
+        return 1;
     }
 
     /// <summary>
