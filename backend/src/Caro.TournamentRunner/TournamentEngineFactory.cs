@@ -32,6 +32,18 @@ public static class TournamentEngineFactory
     }
 
     /// <summary>
+    /// Create a TournamentEngine WITHOUT opening book.
+    /// Use for testing to isolate book-related issues.
+    /// </summary>
+    public static TournamentEngine CreateWithoutOpeningBook()
+    {
+        return new TournamentEngine(
+            new MinimaxAI(openingBook: null),
+            new MinimaxAI(openingBook: null)
+        );
+    }
+
+    /// <summary>
     /// Find the opening book database path.
     /// Searches in common locations relative to the executable.
     /// </summary>
