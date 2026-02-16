@@ -114,7 +114,7 @@ public sealed class AdaptiveDepthCalculatorTests
     }
 
     [Theory]
-    [InlineData(AIDifficulty.Braindead, 0.10)]
+    [InlineData(AIDifficulty.Braindead, 0.40)]
     [InlineData(AIDifficulty.Easy, 0.0)]
     [InlineData(AIDifficulty.Medium, 0.0)]
     [InlineData(AIDifficulty.Hard, 0.0)]
@@ -136,7 +136,7 @@ public sealed class AdaptiveDepthCalculatorTests
 
         // Assert - Braindead should have positive error rate
         errorRate.Should().BeGreaterThan(0, "Braindead should have error rate");
-        errorRate.Should().Be(0.10, "Braindead error rate should be 10%");
+        errorRate.Should().Be(0.40, "Braindead error rate should be 40%");
     }
 
     [Fact]
