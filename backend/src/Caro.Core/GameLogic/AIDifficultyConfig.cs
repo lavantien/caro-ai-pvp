@@ -34,10 +34,10 @@ public sealed class AIDifficultyConfig
                 ParallelSearchEnabled = false,
                 PonderingEnabled = false,
                 VCFEnabled = false,
-                ErrorRate = 0.40,              // 40% error rate for clear weakness vs Easy
+                ErrorRate = 0.10,              // 10% error rate per README.md spec
                 MinDepth = 1,
                 TargetNps = 10_000,
-                Description = "40% error rate, absolute beginners",
+                Description = "10% error rate, absolute beginners",
                 OpeningBookEnabled = false,     // No opening book for beginner level
                 MaxBookDepth = 0               // No opening book
             },
