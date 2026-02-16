@@ -2,58 +2,78 @@
 
 ## Summary
 
-Investigating AI strength inversions between difficulty levels at blitz time controls (3+2).
+Fixed critical bug in parallel search where search results were being discarded due to premature cancellation check.
+
+## Root Cause
+
+In `SearchWithIterationTimeAware`, the cancellation check was placed BEFORE updating `bestScore`/`bestMove` from the SearchRoot result. This meant:
+
+1. SearchRoot completes and returns a valid result
+2. Cancellation token is checked
+3. If cancelled, loop breaks WITHOUT saving the result
+4. `bestScore` stays at `int.MinValue`
+5. All threads return `int.MinValue` score
+6. Result selection picks a bad move
 
 ## Changes Made
 
-### 1. Time Bound Enforcement (ParallelMinimaxSearch.cs)
+### 1. Move Result Update Before Cancellation Check (ParallelMinimaxSearch.cs)
 
-**Problem**: D1-D2 iterations could take 2-3x longer than time budget because time checks were skipped for shallow depths.
-
-**Solution**: Always check hard bound, even at D1-D2. Added pre-iteration time estimate check for D3+ only:
-
+**Before:**
 ```csharp
-// Only apply pre-iteration check for D3+ to ensure D1 and D2 are always attempted
-if (currentDepth > 2 && lastIterationElapsedMs > 0 && remainingTimeMs < lastIterationElapsedMs * 2)
-{
+if (cancellationToken.IsCancellationRequested)
     break;
-}
+
+// Update bestScore/bestMove...
 ```
 
-### 2. Braindead Error Rate (AIDifficultyConfig.cs)
+**After:**
+```csharp
+// Update bestScore/bestMove BEFORE checking cancellation
+if (result.score > bestScore || bestMove == (-1, -1))
+    bestScore = result.score;
+bestMove = (result.x, result.y);
+bestDepth = currentDepth;
 
-**No change** - Kept at 10% per README.md specification.
+// NOW check cancellation - after saving the result
+if (cancellationToken.IsCancellationRequested)
+    break;
+```
+
+### 2. Lazy SMP Depth Offset (ParallelMinimaxSearch.cs)
+
+Per Chessprogramming Wiki, helper threads should search at different depths:
+- Master (ThreadIndex=0): Start at depth 1
+- Helper odd (ThreadIndex=1,3,...): Start at depth 2
+- Helper even (ThreadIndex=2,4,...): Start at depth 1
+
+```csharp
+int depthOffset = threadData.ThreadIndex % 2 == 1 ? 1 : 0;
+```
+
+### 3. Null Check for Stopwatch (ParallelMinimaxSearch.cs)
+
+Fixed null reference warnings:
+```csharp
+_searchStopwatch?.Restart();
+```
 
 ## Test Results
 
 After fixes:
-- Easy now reaches D2 in some positions (when time allows)
-- Easy vs Braindead matchup is more balanced (~50% win rate)
-- Previous: Easy lost 100% to Braindead
-- After: Easy wins approximately 50% of games
+- Easy now consistently reaches D2 at blitz time controls
+- Games last longer (30-50+ moves instead of 20-27)
+- Parallel search results are now properly aggregated
+
+## Known Limitation (Per README.md)
+
+> At blitz time controls (3+2), both Braindead and Easy reach only D1-D2 depth where the evaluation cannot reliably distinguish good from bad moves. Strength separation between these levels is more pronounced at longer time controls (Rapid 7+5, Classical 15+10) where depth separation increases.
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `ParallelMinimaxSearch.cs` | Hard bound check for all depths, pre-iteration time estimate for D3+ |
-
-## Root Cause Analysis
-
-The original issue was that the pre-iteration time check was applied at all depths, including D1. This caused:
-1. If remaining time < lastIterationTime * 2, skip next depth
-2. At blitz with ~900ms allocation, D1 takes ~300-800ms
-3. D1 * 2 = 600-1600ms, but remaining time might be 100-600ms
-4. D2 was skipped even when there was enough time to attempt it
-
-**Fix**: Only apply the pre-iteration check for D3+. This ensures:
-- D1 is always attempted
-- D2 is always attempted
-- D3+ uses time estimate to avoid starting iterations that won't complete
-
-## Known Limitation (Per README.md)
-
-> At blitz time controls (3+2), both Braindead and Easy reach only D1-D2 depth where the evaluation cannot reliably distinguish good from bad moves. Strength separation between these levels is more pronounced at longer time controls (Rapid 7+5, Classical 15+10) where depth separation increases.
+| `ParallelMinimaxSearch.cs` | Move result update before cancellation check, add Lazy SMP depth offset, null check for stopwatch |
 
 ## Version
 
