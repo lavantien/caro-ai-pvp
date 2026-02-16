@@ -335,8 +335,11 @@ public class MinimaxAI : IStatsPublisher
         // Uses AdaptiveDepthCalculator.GetErrorRate() for consistent error rates
         // - Braindead: 10%, all other difficulties: 0% (optimal play)
         var errorRate = AdaptiveDepthCalculator.GetErrorRate(difficulty);
-        if (errorRate > 0 && NextRandomDouble() < errorRate && candidates.Count > 0)
+        var randomValue = NextRandomDouble();
+        if (errorRate > 0 && randomValue < errorRate && candidates.Count > 0)
         {
+            if (System.Diagnostics.Debugger.IsAttached)
+                Console.WriteLine($"[ERROR RATE] {difficulty} playing random move (rolled {randomValue:F2} < {errorRate})");
             // Play a random valid move instead of searching
             // Report minimal stats to indicate instant move (not D0 which looks like a bug)
             _depthAchieved = 1;

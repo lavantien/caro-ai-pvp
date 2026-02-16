@@ -532,6 +532,7 @@ public sealed class ParallelMinimaxSearch
         {
             // CRITICAL FIX: Parallel search failed - fall back to single-threaded search
             // Use remaining time allocation, not original
+            if (DebugLogging) Console.WriteLine($"[PARALLEL] Falling back to single-threaded (no results) for {difficulty}");
             _searchStopwatch.Restart();
             _hardTimeBoundMs = fallbackTimeAlloc.HardBoundMs;  // Update hard bound for fallback
             var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
@@ -544,6 +545,7 @@ public sealed class ParallelMinimaxSearch
         if (maxDepth <= 0)
         {
             // CRITICAL FIX: Parallel search returned invalid depth - fall back to single-threaded
+            if (DebugLogging) Console.WriteLine($"[PARALLEL] Falling back to single-threaded (invalid depth) for {difficulty}");
             _searchStopwatch.Restart();
             _hardTimeBoundMs = fallbackTimeAlloc.HardBoundMs;  // Update hard bound for fallback
             var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
@@ -660,9 +662,10 @@ public sealed class ParallelMinimaxSearch
             // Record iteration start time BEFORE any work
             iterationStartMs = _searchStopwatch?.ElapsedMilliseconds ?? 0;
 
-            // For depth 1, skip time checks to ensure at least one iteration completes
-            // This guarantees we have meaningful search results even with tight time
-            if (currentDepth > 1)
+            // For depth 1-2, skip time checks to ensure at least two iterations complete
+            // CRITICAL FIX: Easy needs at least D2 to see basic threats (open fours)
+            // At D1, Easy can't see that blocking one end of open four is futile
+            if (currentDepth > 2)
             {
                 // CRITICAL: Check cancellation FIRST before any other work
                 if (cancellationToken.IsCancellationRequested)
@@ -693,18 +696,20 @@ public sealed class ParallelMinimaxSearch
                 // PURE TIME-BASED: Check if we should continue based on iteration time
                 // Only stop if: (soft bound reached) AND (last iteration was slow)
                 // This allows quick iterations (good pruning) to continue deeper
+                // CRITICAL FIX: Reduced threshold from 0.25 to 0.5 to allow deeper search
+                // At 0.25, Easy with 800ms would stop after D1 if D1 took 400ms (> 25% of 400ms remaining)
                 double remainingTime = _hardTimeBoundMs - elapsed;
                 if (isMasterThread && elapsed >= timeAlloc.SoftBoundMs)
                 {
-                    // Only stop if last iteration took significant time (indicating slowing down)
-                    if (lastIterationElapsedMs > remainingTime * 0.25)
+                    // Only stop if last iteration took more than 50% of remaining time
+                    if (lastIterationElapsedMs > remainingTime * 0.5)
                         break;
                 }
 
                 // Optimal time check - very stable moves can stop earlier
                 if (isMasterThread && elapsed >= timeAlloc.OptimalTimeMs && stableCount >= 3)
                 {
-                    if (lastIterationElapsedMs > remainingTime * 0.2)
+                    if (lastIterationElapsedMs > remainingTime * 0.4)
                         break;
                 }
             }
