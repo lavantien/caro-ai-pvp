@@ -654,15 +654,19 @@ public sealed class ParallelMinimaxSearch
 
         // PURE TIME-BASED SEARCH
         // Search continues until time runs out
-        // LAZY SMP FIX: Helper threads start at different depths to exploit nondeterminism
-        // Per Chessprogramming Wiki's Cheng algorithm:
-        //   "add 1 for each even helper assuming 0-based indexing"
-        // Thread 0 (master): starts at depth 1
-        // Thread 1 (helper 0, even): starts at depth 2
-        // Thread 2 (helper 1, odd): starts at depth 1
-        // Thread 3 (helper 2, even): starts at depth 2
-        // This diversifies search paths and improves parallel efficiency
-        int depthOffset = threadData.ThreadIndex % 2;
+        // LAZY SMP: Per Chessprogramming Wiki, helper threads should search at different
+        // depths to exploit nondeterminism. However, at blitz time controls with limited
+        // time per move, starting helpers at depth 2 causes them to not complete any
+        // iteration, returning bad results.
+        // 
+        // FIX: All threads start at depth 1 for blitz time controls.
+        // The nondeterminism still comes from:
+        // 1. Different random seeds in move ordering
+        // 2. Different timing of when each thread checks time bounds
+        // 3. Transposition table interactions
+        //
+        // TODO: Consider depth offset only for longer time controls (>30s per move)
+        int depthOffset = 0;  // All threads start at depth 1
         int currentDepth = 1 + depthOffset;
         while (true)
         {
@@ -730,6 +734,9 @@ public sealed class ParallelMinimaxSearch
                 beta = Math.Min(int.MaxValue - 1000, bestScore + 50);
             }
 
+            // Track nodes before this iteration to detect if search actually happened
+            long nodesBeforeIteration = threadData.LocalNodesSearched;
+
             var result = SearchRoot(board, player, currentDepth, candidates, threadData, alpha, beta, cancellationToken);
 
             var elapsedNow = _searchStopwatch?.ElapsedMilliseconds ?? 0;
@@ -737,6 +744,23 @@ public sealed class ParallelMinimaxSearch
 
             if (cancellationToken.IsCancellationRequested)
                 break;
+
+            // CRITICAL FIX: Only update bestMove/bestDepth if search actually happened
+            // SearchRoot may return early with (candidates[0], 0) if time is up
+            // We detect this by checking if any nodes were searched
+            long nodesSearchedThisIteration = threadData.LocalNodesSearched - nodesBeforeIteration;
+            if (nodesSearchedThisIteration == 0)
+            {
+                // No actual search happened - SearchRoot returned early
+                // Don't update bestDepth, continue to next iteration or break
+                if (currentDepth > 2 && elapsedNow >= _hardTimeBoundMs * 0.8)
+                {
+                    // Running out of time and no search completed - stop trying deeper
+                    break;
+                }
+                currentDepth++;
+                continue;
+            }
 
             if (result.x == bestMove.Item1 && result.y == bestMove.Item2)
                 stableCount++;
