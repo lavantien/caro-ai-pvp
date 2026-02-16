@@ -48,13 +48,13 @@ public sealed class AIDifficultyConfig
                 DisplayName = "Easy",
                 ThreadCount = GetEasyThreadCount(),        // (n/5)-1 threads
                 PonderingThreadCount = 1,
-                TimeMultiplier = 0.20,         // 20% of allocated time
-                TimeBudgetPercent = 0.20,     // 20% time budget
+                TimeMultiplier = 0.35,         // 35% of allocated time (increased from 20% to reach D3)
+                TimeBudgetPercent = 0.35,     // 35% time budget
                 ParallelSearchEnabled = true,
                 PonderingEnabled = false,
                 VCFEnabled = false,
                 ErrorRate = 0.0,                // No intentional errors
-                MinDepth = 2,
+                MinDepth = 3,                   // Guarantee D3 minimum for tactical awareness
                 TargetNps = 50_000,
                 Description = "Parallel search from Easy",
                 OpeningBookEnabled = true,      // Easy uses opening book (4 plies)
