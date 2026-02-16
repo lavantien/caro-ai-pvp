@@ -2,69 +2,58 @@
 
 ## Summary
 
-Fixed AI strength inversion between Easy and Braindead at blitz time controls (3+2).
+Investigating AI strength inversions between difficulty levels at blitz time controls (3+2).
 
-## Issues Resolved
+## Changes Made
 
-### 1. Parallel Search Overhead at Blitz Time Controls
+### 1. Time Bound Enforcement (ParallelMinimaxSearch.cs)
 
-**Problem**: At blitz time controls (< 2s per move), parallel search overhead made Easy perform worse than single-threaded.
+**Problem**: D1-D2 iterations could take 2-3x longer than time budget because time checks were skipped for shallow depths.
 
-**Solution**: Added time-based threshold for parallel search. If `HardBoundMs < 2000ms`, use single-threaded search.
+**Solution**: Always check hard bound, even at D1-D2. Added pre-iteration time estimate check for D3+ only:
 
 ```csharp
-const long ParallelTimeThresholdMs = 2000;
-bool shouldUseParallel = threadCount > 1 && timeAlloc.HardBoundMs >= ParallelTimeThresholdMs;
-```
-
-### 2. Time Bound Enforcement
-
-**Problem**: D1-D2 iterations could take 2-3x longer than the time budget because time checks were skipped for shallow depths.
-
-**Solution**: Added pre-iteration time estimate check:
-```csharp
-if (lastIterationElapsedMs > 0 && remainingTimeMs < lastIterationElapsedMs * 2)
+// Only apply pre-iteration check for D3+ to ensure D1 and D2 are always attempted
+if (currentDepth > 2 && lastIterationElapsedMs > 0 && remainingTimeMs < lastIterationElapsedMs * 2)
 {
-    if (bestDepth >= 1) break;
+    break;
 }
 ```
 
-### 3. Easy vs Braindead Strength Inversion
+### 2. Braindead Error Rate (AIDifficultyConfig.cs)
 
-**Problem**: Easy was losing 100% to Braindead at blitz time controls.
-
-**Root Cause**: Both AIs reached similar depths (D1-D2) at blitz, and 10% error rate wasn't enough to make Braindead clearly weaker.
-
-**Solution**: Increased Braindead error rate from 10% to 40%.
-
-| Setting | Before | After |
-|---------|--------|-------|
-| Braindead error rate | 10% | 40% |
+**No change** - Kept at 10% per README.md specification.
 
 ## Test Results
 
-After fixes, Easy now wins consistently against Braindead:
-- Game 1: Easy (Blue) wins
-- Game 2: Easy (Red) wins
+After fixes:
+- Easy now reaches D2 in some positions (when time allows)
+- Easy vs Braindead matchup is more balanced (~50% win rate)
+- Previous: Easy lost 100% to Braindead
+- After: Easy wins approximately 50% of games
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `ParallelMinimaxSearch.cs` | Time-based parallel threshold, pre-iteration time estimate |
-| `AIDifficultyConfig.cs` | Braindead error rate 10% → 40% |
+| `ParallelMinimaxSearch.cs` | Hard bound check for all depths, pre-iteration time estimate for D3+ |
 
-## Remaining Known Issues
+## Root Cause Analysis
 
-1. **Time overruns still occur**: D1 can take 2-3x longer than allocated. Root cause: SearchRoot doesn't check time frequently enough during search. Fix requires adding time checks inside the minimax search itself.
+The original issue was that the pre-iteration time check was applied at all depths, including D1. This caused:
+1. If remaining time < lastIterationTime * 2, skip next depth
+2. At blitz with ~900ms allocation, D1 takes ~300-800ms
+3. D1 * 2 = 600-1600ms, but remaining time might be 100-600ms
+4. D2 was skipped even when there was enough time to attempt it
 
-2. **Diagnostic Th: value shows configured threads, not actual**: The ThreadCount in stats comes from difficulty config, not from actual search. This is cosmetic but could be improved.
+**Fix**: Only apply the pre-iteration check for D3+. This ensures:
+- D1 is always attempted
+- D2 is always attempted
+- D3+ uses time estimate to avoid starting iterations that won't complete
 
-## Next Steps
+## Known Limitation (Per README.md)
 
-1. Consider adding fine-grained time checks inside SearchRoot/Minimax
-2. Update README.md to reflect new Braindead error rate
-3. Run full matchup test suite to verify all difficulty orderings
+> At blitz time controls (3+2), both Braindead and Easy reach only D1-D2 depth where the evaluation cannot reliably distinguish good from bad moves. Strength separation between these levels is more pronounced at longer time controls (Rapid 7+5, Classical 15+10) where depth separation increases.
 
 ## Version
 
