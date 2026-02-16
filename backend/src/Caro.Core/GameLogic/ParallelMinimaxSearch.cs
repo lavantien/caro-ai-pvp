@@ -399,8 +399,19 @@ public sealed class ParallelMinimaxSearch
             ? fixedThreadCount  // 0 = single-threaded, >0 = use that many threads
             : ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
 
-        // If threadCount is 0 or 1, fall back to single-threaded search
-        if (threadCount <= 1)
+        // TIME-BASED PARALLEL THRESHOLD
+        // At blitz time controls (<2s per move), parallel search overhead dominates.
+        // Thread startup (~50ms) + Task.WaitAll overhead (~50ms) + synchronization
+        // can consume 10-20% of the time budget, making parallel search slower than single-threaded.
+        // Benchmark results at blitz (3+2):
+        //   - Single-threaded: 50% win rate vs Braindead
+        //   - Parallel (3 threads): 25% win rate vs Braindead
+        // Solution: Use single-threaded for short time allocations.
+        const long ParallelTimeThresholdMs = 2000;  // 2 seconds
+        bool shouldUseParallel = threadCount > 1 && timeAlloc.HardBoundMs >= ParallelTimeThresholdMs;
+
+        // If parallel is not beneficial, fall back to single-threaded search
+        if (!shouldUseParallel)
         {
             _transpositionTable.IncrementAge();
 
@@ -673,54 +684,59 @@ public sealed class ParallelMinimaxSearch
             // Record iteration start time BEFORE any work
             iterationStartMs = _searchStopwatch?.ElapsedMilliseconds ?? 0;
 
-            // For depth 1-2, skip time checks to ensure at least two iterations complete
-            // CRITICAL FIX: Easy needs at least D2 to see basic threats (open fours)
-            // At D1, Easy can't see that blocking one end of open four is futile
+            // TIME BOUND ENFORCEMENT
+            // CRITICAL: Always check hard bound, even at D1-D2, to prevent massive time overruns
+            // At blitz time controls, D2 can take 2+ seconds which exceeds the 900ms budget
+            var elapsedForCheck = _searchStopwatch?.ElapsedMilliseconds ?? 0;
+            long remainingTimeMs = _hardTimeBoundMs - elapsedForCheck;
+
+            // Hard bound check - ALL threads must stop when time is up
+            if (elapsedForCheck >= _hardTimeBoundMs)
+            {
+                if (isMasterThread) _searchCts?.Cancel();
+                break;
+            }
+
+            // PRE-ITERATION TIME ESTIMATE
+            // Estimate if the next iteration can complete in time.
+            // Each depth iteration typically takes 2-4x the previous iteration.
+            // If remaining time is less than 2x the last iteration, skip this depth.
+            // Apply to ALL depths (not just > D2) to prevent time overruns at blitz.
+            if (lastIterationElapsedMs > 0 && remainingTimeMs < lastIterationElapsedMs * 2)
+            {
+                // Not enough time to complete the next iteration - stop now
+                // Only stop if we've completed at least D1 (have a valid result)
+                if (bestDepth >= 1)
+                {
+                    break;
+                }
+            }
+
+            // Check cancellation
+            if (cancellationToken.IsCancellationRequested)
+                break;
+
+            // For depth 3+, use soft bound and optimal time checks
             if (currentDepth > 2)
             {
-                // CRITICAL: Check cancellation FIRST before any other work
-                if (cancellationToken.IsCancellationRequested)
-                    break;
-
-                var elapsed = _searchStopwatch?.ElapsedMilliseconds ?? 0;
-
-                // Hard bound check - ALL threads should stop when time is up
-                if (elapsed >= _hardTimeBoundMs)
+                // SOFT BOUND: Stop early if we're approaching time limit
+                if (elapsedForCheck >= _hardTimeBoundMs * 0.9)
                 {
-                    // Master thread triggers cancellation for all threads
                     if (isMasterThread) _searchCts?.Cancel();
                     break;
                 }
 
-                // SOFT BOUND: Stop early if we're approaching time limit
-                // This prevents the common case of starting a deep iteration that won't finish
-                if (elapsed >= _hardTimeBoundMs * 0.9)
-                {
-                    // Only stop if we've done at least two iterations
-                    if (currentDepth > 2)
-                    {
-                        if (isMasterThread) _searchCts?.Cancel();
-                        break;
-                    }
-                }
-
                 // PURE TIME-BASED: Check if we should continue based on iteration time
-                // Only stop if: (soft bound reached) AND (last iteration was slow)
-                // This allows quick iterations (good pruning) to continue deeper
-                // CRITICAL FIX: Reduced threshold from 0.25 to 0.5 to allow deeper search
-                // At 0.25, Easy with 800ms would stop after D1 if D1 took 400ms (> 25% of 400ms remaining)
-                double remainingTime = _hardTimeBoundMs - elapsed;
-                if (isMasterThread && elapsed >= timeAlloc.SoftBoundMs)
+                if (isMasterThread && elapsedForCheck >= timeAlloc.SoftBoundMs)
                 {
-                    // Only stop if last iteration took more than 50% of remaining time
-                    if (lastIterationElapsedMs > remainingTime * 0.5)
+                    if (lastIterationElapsedMs > remainingTimeMs * 0.5)
                         break;
                 }
 
                 // Optimal time check - very stable moves can stop earlier
-                if (isMasterThread && elapsed >= timeAlloc.OptimalTimeMs && stableCount >= 3)
+                if (isMasterThread && elapsedForCheck >= timeAlloc.OptimalTimeMs && stableCount >= 3)
                 {
-                    if (lastIterationElapsedMs > remainingTime * 0.4)
+                    if (lastIterationElapsedMs > remainingTimeMs * 0.4)
                         break;
                 }
             }
