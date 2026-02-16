@@ -399,19 +399,8 @@ public sealed class ParallelMinimaxSearch
             ? fixedThreadCount  // 0 = single-threaded, >0 = use that many threads
             : ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
 
-        // TIME-BASED PARALLEL THRESHOLD
-        // At blitz time controls (<2s per move), parallel search overhead dominates.
-        // Thread startup (~50ms) + Task.WaitAll overhead (~50ms) + synchronization
-        // can consume 10-20% of the time budget, making parallel search slower than single-threaded.
-        // Benchmark results at blitz (3+2):
-        //   - Single-threaded: 50% win rate vs Braindead
-        //   - Parallel (3 threads): 25% win rate vs Braindead
-        // Solution: Use single-threaded for short time allocations.
-        const long ParallelTimeThresholdMs = 2000;  // 2 seconds
-        bool shouldUseParallel = threadCount > 1 && timeAlloc.HardBoundMs >= ParallelTimeThresholdMs;
-
-        // If parallel is not beneficial, fall back to single-threaded search
-        if (!shouldUseParallel)
+        // If threadCount is 0 or 1, fall back to single-threaded search
+        if (threadCount <= 1)
         {
             _transpositionTable.IncrementAge();
 
@@ -700,16 +689,11 @@ public sealed class ParallelMinimaxSearch
             // PRE-ITERATION TIME ESTIMATE
             // Estimate if the next iteration can complete in time.
             // Each depth iteration typically takes 2-4x the previous iteration.
-            // If remaining time is less than 2x the last iteration, skip this depth.
-            // Apply to ALL depths (not just > D2) to prevent time overruns at blitz.
-            if (lastIterationElapsedMs > 0 && remainingTimeMs < lastIterationElapsedMs * 2)
+            // Only apply for D3+ to ensure at least D2 is attempted.
+            if (currentDepth > 2 && lastIterationElapsedMs > 0 && remainingTimeMs < lastIterationElapsedMs * 2)
             {
                 // Not enough time to complete the next iteration - stop now
-                // Only stop if we've completed at least D1 (have a valid result)
-                if (bestDepth >= 1)
-                {
-                    break;
-                }
+                break;
             }
 
             // Check cancellation
