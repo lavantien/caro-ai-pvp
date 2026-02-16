@@ -72,6 +72,8 @@ Grandmaster-level engine achieving depth 11+ with 100-500x speedup over naive mi
 
 **Depth:** Dynamic calculation based on host machine NPS and time control. Formula: `depth = log(time * nps * timeMultiplier) / log(ebf)`
 
+**Known Limitation:** At blitz time controls (3+2), both Braindead and Easy reach only D1-D2 depth where the evaluation cannot reliably distinguish good from bad moves. Strength separation between these levels is more pronounced at longer time controls (Rapid 7+5, Classical 15+10) where depth separation increases.
+
 ### UCI Protocol
 
 Universal Chess Interface (UCI) protocol compatibility for standalone engine usage:

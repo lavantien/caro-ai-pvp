@@ -2,51 +2,54 @@
 
 ## Summary
 
-This checkpoint documents the ongoing work to fix AI strength inversions between difficulty levels. The primary issue was Easy losing to Braindead due to both reaching similar shallow depths (D1-D2) at blitz time controls.
+This checkpoint documents the investigation of AI strength inversions between difficulty levels and the decision to document the limitation rather than modify the spec.
 
-## Changes Made
+## Resolution
 
-### Bug Fixes
-1. **Braindead error rate increased** - From 10% to 40% to ensure Easy wins majority of games
-   - At 10% error rate: Easy won 0% against Braindead
-   - At 25% error rate: Easy won ~0% against Braindead (games took 180+ moves)
-   - At 40% error rate: Easy wins ~25% against Braindead (partial improvement)
+**Decision: Document the limitation** - Updated README.md with a note explaining that at blitz time controls (3+2), both Braindead and Easy reach only D1-D2 depth where the evaluation cannot reliably distinguish good from bad moves. Strength separation is more pronounced at longer time controls.
 
-### Test Results with 40% Error Rate
+## Root Cause Analysis
 
-**Braindead vs Easy** (Braindead plays Red first):
-- Game 1: Easy (Blue) wins in 10 moves
-- Game 2: Braindead (Blue) wins in 58 moves
+**The Problem**: At blitz time controls, both Easy and Braindead reach only D1-D2 depth:
+- **Braindead**: 5% time budget, 1 thread, 10% error rate, no book
+- **Easy**: 20% time budget, 3 threads, 0% error rate, 4-ply book
 
-**Easy vs Braindead** (Easy plays Red first):
-- Game 3: Braindead (Blue) wins in 28 moves
-- Game 4: Braindead (Red) wins in 19 moves
+Despite Easy having 4x more time, parallel search (3 threads), and opening book, the depth separation is only 0-1 ply at blitz time controls.
 
-**GM vs Hard**:
-- Game 5: Hard (Blue) wins in 14 moves
-- Game 6: In progress at timeout
+**Why Depth Separation is Insufficient**:
+- At D1: Only sees immediate threats (1 ply ahead)
+- At D2: Can see simple 2-move combinations but misses deeper tactics
+- Evaluation function is designed for deeper searches (D4+)
+- At shallow depths, evaluation cannot distinguish good from bad moves reliably
 
-## Known Limitations
+## Test Results
 
-**Easy vs Braindead Partial Inversion**: Easy now wins ~25% of games but still struggles because:
-- Both reach D1-D2 depth at blitz time controls
-- At shallow depths, evaluation cannot reliably detect/block open fours
-- 40% error rate is the practical maximum before Braindead becomes unplayably weak
+| Braindead Error Rate | Easy Win Rate |
+|---------------------|---------------|
+| 10% (spec) | 0% (4/4 losses) |
+| 40% | ~25% |
+| 50% | 100% (4/4 wins) |
 
-**GM vs Hard Inversion**: Hard sometimes beats GM due to:
-- GM searching at similar or shallower depths despite more threads
-- Potential inefficiency in parallel search at low depths
+## Current Configuration (per README.md spec)
 
-**Potential Future Fixes**:
-1. Improve evaluation to detect/block open fours at shallow depths
-2. Add tactical move ordering for better pruning
-3. Give Easy a minimum depth guarantee (e.g., always search to D3)
-4. Investigate GM's shallow depth issue with parallel search
+```
+| Level       | Threads | Time Budget | Error | Book Depth |
+|-------------|---------|-------------|-------|------------|
+| Braindead   | 1       | 5%          | 10%   | 0          |
+| Easy        | (N/5)-1 | 20%         | 0%    | 4 plies    |
+```
+
+## Rejected Options
+
+1. **Update README.md spec** - Change Braindead error rate from 10% to 50% - Rejected: violates spec
+2. **Add hardcoded MinDepth enforcement** - Rejected: depth should be reached naturally based on machine
+3. **Add engine handicaps** - Rejected: engine should stay the same for all difficulties
 
 ## Files Modified
 
-- `backend/src/Caro.Core/GameLogic/AIDifficultyConfig.cs` - Error rate 0.10 -> 0.40
-- `backend/tests/Caro.Core.Tests/GameLogic/AdaptiveDepthCalculatorTests.cs` - Updated expected values
+- `README.md` - Added "Known Limitation" note about blitz time controls
+- `backend/src/Caro.Core/GameLogic/AIDifficultyConfig.cs` - Error rate remains at 10% per spec
+- `backend/tests/Caro.Core.Tests/GameLogic/AdaptiveDepthCalculatorTests.cs` - Tests expect 10%
 
 ## Test Status
 
@@ -54,6 +57,5 @@ All 575 backend tests passing.
 
 ## Next Steps
 
-1. Consider increasing Easy's minimum depth guarantee
-2. Investigate GM's parallel search efficiency at low depths
-3. Run comprehensive matchup tests to validate strength hierarchy
+- Continue development loop with QuickSmokeTest for other matchups (GM vs Hard, etc.)
+- Monitor for other issues (timeouts, crashes, documentation inconsistencies)
