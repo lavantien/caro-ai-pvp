@@ -533,7 +533,7 @@ public sealed class ParallelMinimaxSearch
             // CRITICAL FIX: Parallel search failed - fall back to single-threaded search
             // Use remaining time allocation, not original
             if (DebugLogging) Console.WriteLine($"[PARALLEL] Falling back to single-threaded (no results) for {difficulty}");
-            _searchStopwatch.Restart();
+            _searchStopwatch?.Restart();
             _hardTimeBoundMs = fallbackTimeAlloc.HardBoundMs;  // Update hard bound for fallback
             var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
             var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
@@ -546,7 +546,7 @@ public sealed class ParallelMinimaxSearch
         {
             // CRITICAL FIX: Parallel search returned invalid depth - fall back to single-threaded
             if (DebugLogging) Console.WriteLine($"[PARALLEL] Falling back to single-threaded (invalid depth) for {difficulty}");
-            _searchStopwatch.Restart();
+            _searchStopwatch?.Restart();
             _hardTimeBoundMs = fallbackTimeAlloc.HardBoundMs;  // Update hard bound for fallback
             var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
             var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
@@ -561,6 +561,17 @@ public sealed class ParallelMinimaxSearch
             .Where(r => r.depth == maxDepth)
             .OrderBy(r => (-r.score, r.threadIndex == 0 ? 0 : 1))  // Compound: (-score for desc, master priority)
             .FirstOrDefault();
+
+        // DEBUG: Log all thread results and selection
+        if (DebugLogging)
+        {
+            Console.WriteLine($"[PARALLEL DEBUG] Thread results for {difficulty}:");
+            foreach (var r in results.OrderByDescending(r => r.depth).ThenBy(r => r.threadIndex))
+            {
+                Console.WriteLine($"  Thread {r.threadIndex}: move=({r.x},{r.y}), depth={r.depth}, score={r.score}, nodes={r.nodes}");
+            }
+            Console.WriteLine($"  SELECTED: move=({bestResult.x},{bestResult.y}), depth={bestResult.depth}, score={bestResult.score}, from thread {bestResult.threadIndex}");
+        }
 
         // CRITICAL FIX: Aggregate local node counts from all threads (no Interlocked contention)
         // Each thread counted locally, now sum them up for accurate total
@@ -655,18 +666,20 @@ public sealed class ParallelMinimaxSearch
         // PURE TIME-BASED SEARCH
         // Search continues until time runs out
         // LAZY SMP: Per Chessprogramming Wiki, helper threads should search at different
-        // depths to exploit nondeterminism. However, at blitz time controls with limited
-        // time per move, starting helpers at depth 2 causes them to not complete any
-        // iteration, returning bad results.
-        // 
-        // FIX: All threads start at depth 1 for blitz time controls.
-        // The nondeterminism still comes from:
-        // 1. Different random seeds in move ordering
-        // 2. Different timing of when each thread checks time bounds
-        // 3. Transposition table interactions
+        // depths to exploit nondeterminism. Cheng uses: current depth + (1 for each even helper)
+        // This provides:
+        // 1. Some threads complete deeper searches (D2) before master completes D1
+        // 2. Shared hash table benefits from different search paths
+        // 3. Nondeterminism from depth diversity + move ordering + timing
         //
-        // TODO: Consider depth offset only for longer time controls (>30s per move)
-        int depthOffset = 0;  // All threads start at depth 1
+        // Implementation:
+        // - Master (ThreadIndex=0): Start at depth 1
+        // - Helper odd (ThreadIndex=1,3,...): Start at depth 2
+        // - Helper even (ThreadIndex=2,4,...): Start at depth 1
+        //
+        // This ensures at least some threads attempt D2 even at blitz time controls,
+        // which is critical because D2 can see immediate threats that D1 cannot.
+        int depthOffset = threadData.ThreadIndex % 2 == 1 ? 1 : 0;
         int currentDepth = 1 + depthOffset;
         while (true)
         {
@@ -742,9 +755,6 @@ public sealed class ParallelMinimaxSearch
             var elapsedNow = _searchStopwatch?.ElapsedMilliseconds ?? 0;
             lastIterationElapsedMs = elapsedNow - iterationStartMs;  // Time for THIS iteration only
 
-            if (cancellationToken.IsCancellationRequested)
-                break;
-
             // CRITICAL FIX: Only update bestMove/bestDepth if search actually happened
             // SearchRoot may return early with (candidates[0], 0) if time is up
             // We detect this by checking if any nodes were searched
@@ -762,6 +772,8 @@ public sealed class ParallelMinimaxSearch
                 continue;
             }
 
+            // CRITICAL FIX: Update bestMove/bestScore BEFORE checking cancellation
+            // If we completed the search, we should use the result even if cancellation is requested
             if (result.x == bestMove.Item1 && result.y == bestMove.Item2)
                 stableCount++;
             else
@@ -774,6 +786,10 @@ public sealed class ParallelMinimaxSearch
                 bestScore = result.score;
             bestMove = (result.x, result.y);
             bestDepth = currentDepth;
+
+            // NOW check cancellation - after saving the result
+            if (cancellationToken.IsCancellationRequested)
+                break;
 
             if (result.score >= 100000)
                 break;
@@ -840,6 +856,12 @@ public sealed class ParallelMinimaxSearch
 
             var newBoard = board.PlaceStone(x, y, player);
             var score = Minimax(newBoard, depth - 1, alpha, beta, false, player, depth, threadData, cancellationToken);
+
+            // DEBUG: Log score for each move
+            if (DebugLogging && threadData.ThreadIndex == 0 && moveIndex < 5)
+            {
+                Console.WriteLine($"  [SearchRoot] Thread {threadData.ThreadIndex}: move=({x},{y}), score={score}");
+            }
 
             // CRITICAL FIX: If search was cancelled during Minimax, the score may be invalid (0 from early return)
             // Check cancellation and break out of the move loop without updating bestScore/bestMove
