@@ -474,13 +474,30 @@ public sealed class ParallelMinimaxSearch
 
         // Wait for all tasks to complete with proper synchronization
         // Task.WhenAll ensures all results are visible to this thread
+        // CRITICAL FIX: Reduced timeout from HardBoundMs+1000 to HardBoundMs+200
+        // The old timeout caused 2x time overrun (wait + fallback both used full allocation)
         try
         {
-            Task.WaitAll(tasks, (int)(timeAlloc.HardBoundMs + 1000));
+            Task.WaitAll(tasks, (int)(timeAlloc.HardBoundMs + 200));
         }
         catch (AggregateException)
         {
             // Some tasks may have thrown - continue with available results
+        }
+
+        // CRITICAL FIX: Cancel parallel tasks before checking results
+        // Without this, timed-out tasks continue running and cause CPU contention
+        // with the fallback search, resulting in extremely slow NPS (300-400 vs 5000+)
+        _searchCts?.Cancel();
+
+        // Brief wait for tasks to acknowledge cancellation and release resources
+        try
+        {
+            Task.WaitAll(tasks, 100);
+        }
+        catch (AggregateException)
+        {
+            // Tasks may throw on cancellation - ignore
         }
 
         _searchStopwatch.Stop();
@@ -496,16 +513,30 @@ public sealed class ParallelMinimaxSearch
         //
         // This is the MERGER's job - aggregate intelligently, not authoritarian rejection
 
+        // CRITICAL FIX: Calculate remaining time for fallback
+        // Parallel search already used time waiting for tasks
+        // Fallback should only use remaining time to avoid 2x time overrun
+        long elapsedMs = _searchStopwatch?.ElapsedMilliseconds ?? 0;
+        long remainingHardBoundMs = Math.Max(50, _hardTimeBoundMs - elapsedMs / 2);  // At least 50ms, account for parallel overhead
+        var fallbackTimeAlloc = new TimeAllocation
+        {
+            SoftBoundMs = Math.Max(25, remainingHardBoundMs / 2),
+            HardBoundMs = remainingHardBoundMs,
+            OptimalTimeMs = Math.Max(25, remainingHardBoundMs / 4),
+            IsEmergency = timeAlloc.IsEmergency,
+            Phase = timeAlloc.Phase
+        };
+
         // Group results by depth, then select best within each depth
         if (results.IsEmpty)
         {
             // CRITICAL FIX: Parallel search failed - fall back to single-threaded search
-            // This can happen when tasks don't complete before timeout
-            // We MUST do a real search, not just return candidates[0]
+            // Use remaining time allocation, not original
             _searchStopwatch.Restart();
+            _hardTimeBoundMs = fallbackTimeAlloc.HardBoundMs;  // Update hard bound for fallback
             var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
             var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
-                board, player, candidates, fallbackThreadData, timeAlloc, difficulty, CancellationToken.None);
+                board, player, candidates, fallbackThreadData, fallbackTimeAlloc, difficulty, CancellationToken.None);
             return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0);
         }
 
@@ -514,9 +545,10 @@ public sealed class ParallelMinimaxSearch
         {
             // CRITICAL FIX: Parallel search returned invalid depth - fall back to single-threaded
             _searchStopwatch.Restart();
+            _hardTimeBoundMs = fallbackTimeAlloc.HardBoundMs;  // Update hard bound for fallback
             var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
             var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
-                board, player, candidates, fallbackThreadData, timeAlloc, difficulty, CancellationToken.None);
+                board, player, candidates, fallbackThreadData, fallbackTimeAlloc, difficulty, CancellationToken.None);
             return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0);
         }
 
