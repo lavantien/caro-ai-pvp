@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.59.0] - 2026-02-16
+
+### Fixed
+- **Parallel search fallback:** Fixed broken fallback when parallel search returns no results
+  - Previous code returned `candidates[0]` with 0 nodes searched - no actual search performed
+  - Fix: Added proper single-threaded fallback search when parallel results are empty
+- **Parallel search time management:** Fixed timeout handling causing 2x time usage
+  - Previous: `Task.WaitAll` with `HardBoundMs + 1000` timeout, then fallback used full allocation again
+  - Fix: Cancel parallel tasks before fallback, calculate remaining time for fallback search
+- **Search depth for Easy:** Improved depth calculation to reach D2 minimum
+  - Increased soft bound threshold from 0.25 to 0.5 for more aggressive depth progression
+  - Ensures Easy can see at least one ply of opponent responses
+
+### Added
+- **Immediate win detection:** AI instantly takes winning moves without search
+  - Checks all candidate moves for 5-in-a-row completion
+  - Applies to all difficulty levels - winning is winning
+- **Immediate win blocking:** AI blocks opponent's single-square winning threats
+  - Full board scan for opponent's immediate 5-in-a-row moves
+  - Returns blocking move instantly without search
+  - Note: Cannot block open fours (2 winning squares) - position already lost
+
+### Changed
+- **Documentation:** Updated UCI version to 1.59.0, test counts to 575
+
+### Technical Notes
+- Games between Easy and Braindead now last 25-50 moves (was 15-25)
+- Both difficulties reach D1-D2 depth; evaluation at shallow depth limits tactical vision
+- Open four (4-in-a-row with both ends open) is unblockable - prevention requires deeper search
+
+### Test Coverage
+- All 575 backend tests passing
+
+[1.59.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.59.0
+
 ## [1.58.0] - 2026-02-16
 
 ### Fixed

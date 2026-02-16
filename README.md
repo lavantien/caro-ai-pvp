@@ -95,7 +95,7 @@ dotnet run --project backend/src/Caro.UCIMockClient -- --games 4 --time 180 --in
 **Example UCI session:**
 ```
 > uci
-< id name Caro AI 1.55.0
+< id name Caro AI 1.59.0
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
 < option name Use Opening Book type check default true
@@ -197,7 +197,7 @@ cd backend/tests/Caro.Core.MatchupTests && dotnet test
 
 | Project | Tests | Duration |
 |---------|-------|----------|
-| Caro.Core.Tests | 574 unit tests | ~3 sec |
+| Caro.Core.Tests | 575 unit tests | ~3 sec |
 | Caro.Core.IntegrationTests | 224 | Opt-in, AI searches |
 | Caro.Core.MatchupTests | ~54 | Variable |
 | Caro.Core.Domain.Tests | 45 entity tests | ~1 sec |
@@ -346,7 +346,7 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Project | Tests | Focus |
 |---------|-------|-------|
-| Caro.Core.Tests | 574 | Unit tests (algorithms, evaluators, concurrency, immutable state, test helpers, AI improvements, symmetry) |
+| Caro.Core.Tests | 575 | Unit tests (algorithms, evaluators, concurrency, immutable state, test helpers, AI improvements, symmetry) |
 | Caro.Core.IntegrationTests | 224 | AI search integration (full depth searches, performance benchmarks, opening book edge cases + performance tests) |
 | Caro.Core.MatchupTests | ~54 | AI matchups, integration, tournament, opening book verification |
 | Caro.Core.Domain.Tests | 45 | Entities (Board, Cell, Player, GameState, Position) |
@@ -354,7 +354,7 @@ Production-grade concurrency following .NET 10 best practices:
 | Caro.Core.Infrastructure.Tests | 64 | AI algorithms, external concerns |
 | Frontend Unit (Vitest) | 40 | Store logic, utility functions, game types |
 | Frontend E2E (Playwright) | 17 | End-to-end gameplay |
-| **TOTAL** | **1032** | |
+| **TOTAL** | **1033** | |
 
 ### Frontend E2E Tests
 
