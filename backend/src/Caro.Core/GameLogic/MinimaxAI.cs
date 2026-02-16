@@ -345,35 +345,6 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // CRITICAL DEFENSE: Check for opponent's IMMEDIATE WINNING MOVES
-        // This is the highest priority defense - if opponent can win in one move, we MUST block
-        // This check is before error rate so we never play random when we must block
-        // IMPORTANT: Check ALL empty cells, not just candidates, because blocking square may be outside SearchRadius
-        var oppPlayer = player == Player.Red ? Player.Blue : Player.Red;
-        List<(int x, int y)> immediateWinBlocks = new();
-        for (int x = 0; x < BoardSize; x++)
-        {
-            for (int y = 0; y < BoardSize; y++)
-            {
-                if (board.GetCell(x, y).Player == Player.None)
-                {
-                    if (_threatDetector.IsWinningMove(board, x, y, oppPlayer))
-                    {
-                        immediateWinBlocks.Add((x, y));
-                    }
-                }
-            }
-        }
-
-        // If opponent has an immediate winning move, we MUST block it
-        // Replace candidates with only blocking squares - search will pick the best one
-        // This is the HIGHEST priority - skip all other threat detection
-        bool hasImmediateWinBlock = immediateWinBlocks.Count > 0;
-        if (hasImmediateWinBlock)
-        {
-            candidates = immediateWinBlocks;
-        }
-
         // Error rate simulation: Lower difficulties make random/suboptimal moves
         // Uses AdaptiveDepthCalculator.GetErrorRate() for consistent error rates
         // - Braindead: 10%, all other difficulties: 0% (optimal play)
@@ -447,19 +418,18 @@ public class MinimaxAI : IStatsPublisher
 
         // CRITICAL DEFENSE: Check for opponent threats BEFORE any early returns
         // This ensures we don't skip blocking in emergency mode
-        // Note: oppPlayer is already defined above
-        // CRITICAL: Skip this if we already found immediate win blocks (higher priority)
-        var threats = hasImmediateWinBlock ? new List<Threat>() : _threatDetector.DetectThreats(board, oppPlayer)
+        var oppPlayer = player == Player.Red ? Player.Blue : Player.Red;
+        var threats = _threatDetector.DetectThreats(board, oppPlayer)
             .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.StraightThree)
             .ToList();
 
-        bool hasOpponentThreats = hasImmediateWinBlock || threats.Count > 0;
+        bool hasOpponentThreats = threats.Count > 0;
         bool hasOpenFour = false;  // Open four: 4 stones with 2 blocking squares
 
-        List<(int x, int y)> blockingSquares = hasImmediateWinBlock ? immediateWinBlocks : new();
+        List<(int x, int y)> blockingSquares = new();
         List<(int x, int y)> priorityBlockingSquares = new();  // For open fours
 
-        if (!hasImmediateWinBlock && hasOpponentThreats)
+        if (hasOpponentThreats)
         {
             var straightFourCount = threats.Count(t => t.Type == ThreatType.StraightFour);
             var straightThreeCount = threats.Count(t => t.Type == ThreatType.StraightThree);

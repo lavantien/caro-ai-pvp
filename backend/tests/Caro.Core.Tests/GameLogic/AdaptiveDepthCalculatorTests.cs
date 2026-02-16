@@ -13,7 +13,7 @@ public sealed class AdaptiveDepthCalculatorTests
 {
     [Theory]
     [InlineData(AIDifficulty.Braindead, 0.05)]
-    [InlineData(AIDifficulty.Easy, 0.35)]
+    [InlineData(AIDifficulty.Easy, 0.20)]
     [InlineData(AIDifficulty.Medium, 0.50)]
     [InlineData(AIDifficulty.Hard, 0.75)]
     [InlineData(AIDifficulty.Grandmaster, 1.0)]
@@ -28,7 +28,7 @@ public sealed class AdaptiveDepthCalculatorTests
 
     [Theory]
     [InlineData(AIDifficulty.Braindead, 1)]
-    [InlineData(AIDifficulty.Easy, 3)]
+    [InlineData(AIDifficulty.Easy, 2)]
     [InlineData(AIDifficulty.Medium, 3)]
     [InlineData(AIDifficulty.Hard, 4)]
     [InlineData(AIDifficulty.Grandmaster, 5)]
