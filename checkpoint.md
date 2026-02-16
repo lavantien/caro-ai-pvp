@@ -2,54 +2,77 @@
 
 ## Current Goal
 
-Fix strength inversion where Braindead (easiest) beats Easy (second easiest) ~100% of the time.
-Target: Easy should beat Braindead ~95% of the time per documentation.
+Fix strength inversion where Braindead beats Easy ~100% of the time.
+Target: Easy should beat Braindead ~95% of the time.
 
-## Recent Changes (Commit 35515ee)
+## Summary of Findings
 
-1. **Immediate Win Detection**: Added check for AI's own winning moves before search
-2. **Immediate Win Block**: Added full-board scan for opponent's immediate winning threats  
-3. **Easy Difficulty Boost**: Increased time multiplier from 20% to 35%, MinDepth to 3
+### Depth Analysis
+Both bots reach similar depths:
+- **Braindead** (5% time, 10% error): D1-D2, 1-300 nodes
+- **Easy** (20% time, 0% error): D1-D2, 1-5K nodes
+
+Easy searches 10x more nodes but reaches similar depths because:
+- Both use same search algorithm
+- At shallow depths, parallelism doesn't help much
+- The evaluation function is the same for both
+
+### Root Cause of Strength Inversion
+
+At D1-D2 depth, the evaluation function doesn't differentiate well between good and bad positions:
+- D1 sees only your own moves
+- D2 sees one exchange
+- Neither is enough to see winning tactical combinations
+
+Braindead's 10% random moves sometimes help by being unpredictable, while Easy's "optimal" play at shallow depth is predictable.
+
+### What We Tried
+1. ✅ Added immediate win check (AI takes winning move instantly)
+2. ❌ Added full-board immediate win block (too expensive O(n²))
+3. ❌ Increased Easy's time budget (still reaches D1-D2)
+4. ❌ Removed expensive full-board scan
+
+### What Could Help
+1. **Smarter evaluation at shallow depths**: Add threat detection that works at D1-D2
+2. **Tactical pruning**: Prioritize moves that create/neutralize threats
+3. **Better move ordering**: Search forcing moves first to see deeper tactically
+4. **Reduce Braindead's strength**: Lower its search depth or increase error rate
 
 ## Current Results
 
-- Game 1: Braindead won in 31 moves (37.3s)
-- Game 2: Braindead won in 30 moves (33.8s)
-- Games are longer than before (was 15-25 moves), but Easy still loses
+```
+=== Braindead vs Easy ===
+Game 1: Braindead wins on move 31
+Game 2: Braindead wins on move 36
 
-## Root Cause Analysis
+=== Easy vs Braindead ===
+Game 3: Braindead wins on move 40
+Game 4: Braindead wins on move 17
 
-The immediate win block IS working (Easy blocks threats), but when Braindead has an **open four**
-(4 in a row with both ends open), Easy can only block ONE square and Braindead wins on the other.
+Total: Braindead beats Easy 4-0
+```
 
-This is a fundamental game mechanic - you can only make one move per turn. If opponent creates
-an unstoppable threat (open four), you lose regardless of AI strength.
+## Commits Made
 
-## Key Question
-
-Why is Braindead (10% error rate, D1-D2) able to create open fours while Easy (0% error, D1-D2) can't?
-
-Possible explanations:
-1. Braindead's random moves accidentally avoid predictable patterns
-2. Easy's "optimal" play at D1-D2 is actually defensive, not aggressive enough
-3. The evaluation function doesn't reward offensive threat creation enough
-4. Easy's opening book leads to positions where Braindead gets initiative
-
-## Next Steps to Try
-
-1. **Increase aggressiveness**: Make Easy prioritize creating threats over blocking
-2. **Improve threat detection**: Add "pre-threat" detection (3 in a row that can become open four)
-3. **Counter-attack**: When facing open four, check if Easy can create own winning threat
-4. **Deeper search**: Increase Easy's MinDepth to 4 to see more tactics
-5. **Evaluation tuning**: Increase offensive threat scores relative to defensive scores
+1. `35515ee` - Add immediate win/loss detection
+2. `14dab39` - Update test expectations  
+3. `1a1176a` - Remove expensive full-board scan
 
 ## Files Modified
 
-- `backend/src/Caro.Core/GameLogic/MinimaxAI.cs` - Immediate win/loss detection
-- `backend/src/Caro.Core/GameLogic/AIDifficultyConfig.cs` - Easy difficulty settings
+- `backend/src/Caro.Core/GameLogic/MinimaxAI.cs` - Immediate win detection
+- `backend/src/Caro.Core/GameLogic/AIDifficultyConfig.cs` - Settings (reverted to README values)
+- `backend/tests/Caro.Core.Tests/GameLogic/AdaptiveDepthCalculatorTests.cs` - Test expectations
+
+## Next Steps
+
+1. Investigate evaluation function for shallow depth tactical awareness
+2. Consider if Braindead's 10% error rate should be higher to make Easy win
+3. Look at move ordering to prioritize tactical moves at shallow depth
+4. Consider if this is a fundamental limitation of depth-limited search
 
 ## Open Questions
 
-- Is Braindead's 10% error rate actually helping by creating unpredictability?
-- Should Easy's opening book be disabled to avoid predictable patterns?
-- Is the evaluation function too defensive (DefenseMultiplier = 1.5x)?
+- Is the README's expected win rate achievable with D1-D2 depth?
+- Should the evaluation function be tuned differently for different depths?
+- Is Braindead's unpredictability actually a strength at shallow depths?

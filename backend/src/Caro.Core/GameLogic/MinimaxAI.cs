@@ -345,6 +345,42 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
+        // CRITICAL DEFENSE: Check for opponent's immediate winning moves
+        // Must scan full board since blocking square may be far from existing stones
+        // This is O(n²) but necessary to prevent instant losses
+        var oppPlayer = player == Player.Red ? Player.Blue : Player.Red;
+        (int x, int y)? immediateBlock = null;
+        for (int x = 0; x < BoardSize; x++)
+        {
+            for (int y = 0; y < BoardSize; y++)
+            {
+                if (board.GetCell(x, y).Player == Player.None)
+                {
+                    if (_threatDetector.IsWinningMove(board, x, y, oppPlayer))
+                    {
+                        if (immediateBlock == null)
+                        {
+                            immediateBlock = (x, y);
+                        }
+                        else
+                        {
+                            // Multiple blocking squares - can't block all, position is lost
+                            // But still try to block one
+                        }
+                    }
+                }
+            }
+        }
+
+        // If opponent has exactly one immediate win, block it
+        if (immediateBlock.HasValue)
+        {
+            _depthAchieved = 1;
+            _nodesSearched = 1;
+            _lastAllocatedTimeMs = 0;
+            return immediateBlock.Value;
+        }
+
         // Error rate simulation: Lower difficulties make random/suboptimal moves
         // Uses AdaptiveDepthCalculator.GetErrorRate() for consistent error rates
         // - Braindead: 10%, all other difficulties: 0% (optimal play)
@@ -418,7 +454,7 @@ public class MinimaxAI : IStatsPublisher
 
         // CRITICAL DEFENSE: Check for opponent threats BEFORE any early returns
         // This ensures we don't skip blocking in emergency mode
-        var oppPlayer = player == Player.Red ? Player.Blue : Player.Red;
+        // Note: oppPlayer is already defined above
         var threats = _threatDetector.DetectThreats(board, oppPlayer)
             .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.StraightThree)
             .ToList();
