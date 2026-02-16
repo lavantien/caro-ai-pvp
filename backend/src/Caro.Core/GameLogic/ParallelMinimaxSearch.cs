@@ -654,9 +654,16 @@ public sealed class ParallelMinimaxSearch
 
         // PURE TIME-BASED SEARCH
         // Search continues until time runs out
-        // CRITICAL FIX: Start at depth 1 to ensure at least one iteration completes
-        // This prevents returning D1 with N:0 when time is tight
-        int currentDepth = 1;
+        // LAZY SMP FIX: Helper threads start at different depths to exploit nondeterminism
+        // Per Chessprogramming Wiki's Cheng algorithm:
+        //   "add 1 for each even helper assuming 0-based indexing"
+        // Thread 0 (master): starts at depth 1
+        // Thread 1 (helper 0, even): starts at depth 2
+        // Thread 2 (helper 1, odd): starts at depth 1
+        // Thread 3 (helper 2, even): starts at depth 2
+        // This diversifies search paths and improves parallel efficiency
+        int depthOffset = threadData.ThreadIndex % 2;
+        int currentDepth = 1 + depthOffset;
         while (true)
         {
             // Record iteration start time BEFORE any work
