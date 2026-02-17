@@ -1,88 +1,69 @@
-# Checkpoint: v1.60.0 Development
+# Checkpoint: v1.61.0 Development
 
 ## Summary
 
-Major refactoring of difficulty configuration to remove all artificial depth/speed handicaps. All depth is now determined purely by machine capability and time budget. Added pondering support for Easy difficulty.
+Added comprehensive move type tracking to AI engine. Each move now reports how it was determined (search, book, immediate win/block, error rate). Improved tournament output format with compact stat lines.
 
-## Baseline Test Results (Blitz 3+2)
+## Changes
 
-| Matchup | Win Rate | Games | Avg Moves | Avg Time |
-|---------|----------|-------|-----------|----------|
-| Easy vs Braindead | 66% | 100 | 40.6 | 34.0s |
-| Medium vs Braindead | 58% | 100 | 42.1 | 91.0s |
+### Move Type Tracking
 
-Lower win rates at blitz time control are expected - both sides reach only D1-D2 depth where evaluation cannot reliably distinguish positions. Separation increases at longer time controls (Rapid 7+5, Classical 15+10).
+Added `MoveType` enum to track move determination:
 
-## Configuration Changes
+| Type | Code | Description |
+|------|------|-------------|
+| Normal | `-` | Full search performed |
+| Book | `Bk` | Opening book move (unvalidated) |
+| BookValidated | `Bv` | Book move validated by search |
+| ImmediateWin | `Wn` | Instant winning move (no search) |
+| ImmediateBlock | `Bl` | Forced block of opponent threat |
+| ErrorRate | `Er` | Random move (Braindead 10% error) |
+| CenterMove | `Ct` | Center opening move |
+| Emergency | `Em` | Emergency mode (low time) |
 
-### PonderingThreadCount = ThreadCount
+### Output Format Improvements
 
-All difficulties now use the same thread count for pondering as main search. Previous hardcoded values (1-3) wasted compute resources during opponent's turn.
+Before:
+```
+G1 M1 | R(16,16) by Easy | T: 69ms/0ms | B | Th: 3 | D1        | N:                    4 | NPS:                 71 | ...
+```
 
-| Difficulty | Before | After |
-|------------|--------|-------|
-| Easy | 0 (disabled) | = ThreadCount |
-| Medium | 2 | = ThreadCount |
-| Hard | 3 | = ThreadCount |
-| Grandmaster | ThreadCount/2 | = ThreadCount |
+After:
+```
+G1 M1 | R(16,16) by Easy | T: 69ms/0ms | Bk | Th: 3 | D1 | N: 4        | NPS: 71       | ...
+```
 
-### Easy Now Has Pondering
+- Replaced book-only column with move type column
+- Reduced depth column: 9 → 3 chars
+- Reduced nodes column: 20 → 8 chars
+- Reduced NPS column: 20 → 8 chars
 
-Since Easy uses multiple threads (max(2, N/5-1)), it now has pondering enabled for consistency.
-
-### Removed MinDepth
-
-Depth is no longer artificially capped per difficulty. The search naturally reaches whatever depth it can within the time budget based on machine NPS.
-
-| Difficulty | Before | After |
-|------------|--------|-------|
-| Braindead | 1 | Removed |
-| Easy | 2 | Removed |
-| Medium | 3 | Removed |
-| Hard | 4 | Removed |
-| Grandmaster | 5 | Removed |
-| Experimental | 5 | Removed |
-| BookGeneration | 12 | Removed |
-
-### Removed TargetNps
-
-NPS is no longer calibrated from hardcoded targets. Instead, it's learned from actual search performance using exponential moving average.
-
-| Difficulty | Before | After |
-|------------|--------|-------|
-| Braindead | 10K | Removed |
-| Easy | 50K | Removed |
-| Medium | 100K | Removed |
-| Hard | 200K | Removed |
-| Grandmaster | 500K | Removed |
-| Experimental | 500K | Removed |
-| BookGeneration | 1M | Removed |
-
-## Design Principle
-
-All depth/speed is determined by machine capability and time allotted:
-
-1. **Thread count** - More threads = faster search = deeper results
-2. **Time budget** - Higher difficulties get more time (5% to 100%)
-3. **Feature flags** - VCF, opening book depth vary by difficulty
-4. **Error rate** - Only Braindead has intentional errors (10%)
-
-No hardcoded minimum depths or NPS targets.
-
-## Files Modified
+### Files Modified
 
 | File | Change |
 |------|--------|
-| `AIDifficultyConfig.cs` | Removed MinDepth, TargetNps; PonderingThreadCount = ThreadCount; Easy pondering enabled |
-| `AdaptiveDepthCalculator.cs` | Removed GetMinimumDepth() |
-| `TimeBudgetDepthManager.cs` | Removed GetMinimumDepth(), CalibrateNpsForDifficulty(); Added CalibrateFromSearch() |
-| `MinimaxAI.cs` | Removed CalibrateNpsForDifficulty calls |
-| `ParallelMinimaxSearch.cs` | Removed CalibrateNpsForDifficulty calls |
-| `AdaptiveDepthCalculatorTests.cs` | Removed GetMinimumDepth test |
-| `TimeBudgetDepthManagerTests.cs` | Removed CalibrateNpsForDifficulty tests; Added CalibrateFromSearch test |
-| `README.md` | Updated difficulty table (Easy has pondering), added Medium vs Braindead baseline |
+| `StatsChannel.cs` | Added `MoveType` enum |
+| `TournamentState.cs` | Added `MoveType` to `MoveStats` record |
+| `MinimaxAI.cs` | Added `_moveType` tracking; set in all early exit paths |
+| `TournamentEngine.cs` | Pass move type when creating `MoveStats` |
+| `GameStatsFormatter.cs` | Display move type with short codes; compact columns |
+| `UCISearchController.cs` | Updated tuple deconstruction |
+| `OpeningBookGenerator.cs` | Updated tuple deconstruction |
+
+## Design Insights
+
+### Why Braindead Has Low Node Counts
+
+Braindead frequently shows 1-5 nodes because:
+1. **Immediate block detection** - If opponent has winning threat, block instantly (no search)
+2. **Error rate (10%)** - Random moves skip search entirely
+3. **Late game positions** - More likely to have immediate threats
+
+### 0ms Allocated Time
+
+Early exit paths set `_lastAllocatedTimeMs = 0` because no search time was allocated - the move was determined instantly. The actual time shown is overhead of checking threats, not search time.
 
 ## Version
 
-- Target: v1.60.0
-- Previous: v1.59.0
+- Target: v1.61.0
+- Previous: v1.60.0
