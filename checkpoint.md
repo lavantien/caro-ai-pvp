@@ -2,94 +2,85 @@
 
 ## Summary
 
-Fixed critical bug in SearchRoot where valid scores were discarded due to cancellation check placement. After fix, Easy beats Braindead 63.6% at blitz time controls (vs 0% before).
+Major refactoring of difficulty configuration to remove all artificial depth/speed handicaps. All depth is now determined purely by machine capability and time budget. Added pondering support for Easy difficulty.
 
-## Root Cause: SearchRoot Cancellation Check Order
+## Baseline Test Results (Blitz 3+2)
 
-The critical bug was in `SearchRoot` - when Minimax completed successfully and returned a valid score, the cancellation check was placed BEFORE updating `bestScore`/`bestMove`:
+| Matchup | Win Rate | Games | Avg Moves | Avg Time |
+|---------|----------|-------|-----------|----------|
+| Easy vs Braindead | 66% | 100 | 40.6 | 34.0s |
+| Medium vs Braindead | 58% | 100 | 42.1 | 91.0s |
 
-```csharp
-// BUGGY CODE:
-var score = Minimax(...);
+Lower win rates at blitz time control are expected - both sides reach only D1-D2 depth where evaluation cannot reliably distinguish positions. Separation increases at longer time controls (Rapid 7+5, Classical 15+10).
 
-// Check cancellation FIRST - WRONG!
-if (cancellationToken.IsCancellationRequested)
-    break;
+## Configuration Changes
 
-// This is never reached if cancelled!
-if (score > bestScore)
-{
-    bestScore = score;
-    bestMove = (x, y);
-}
-```
+### PonderingThreadCount = ThreadCount
 
-When the search timed out:
-1. Minimax returns valid score (e.g., -2147482648 = alpha value)
-2. Cancellation check triggers
-3. Loop breaks WITHOUT updating bestScore/bestMove
-4. bestScore stays at int.MinValue (initial value)
-5. SearchRoot returns garbage result
+All difficulties now use the same thread count for pondering as main search. Previous hardcoded values (1-3) wasted compute resources during opponent's turn.
 
-**The Fix:** Update bestScore/bestMove BEFORE checking cancellation, but only if the score is valid (not int.MinValue from cancelled Minimax):
+| Difficulty | Before | After |
+|------------|--------|-------|
+| Easy | 0 (disabled) | = ThreadCount |
+| Medium | 2 | = ThreadCount |
+| Hard | 3 | = ThreadCount |
+| Grandmaster | ThreadCount/2 | = ThreadCount |
 
-```csharp
-var score = Minimax(...);
+### Easy Now Has Pondering
 
-// FIX: Update BEFORE checking cancellation
-if (score != int.MinValue && score > bestScore)
-{
-    bestScore = score;
-    bestMove = (x, y);
-}
+Since Easy uses multiple threads (max(2, N/5-1)), it now has pondering enabled for consistency.
 
-// NOW check cancellation
-if (cancellationToken.IsCancellationRequested)
-    break;
-```
+### Removed MinDepth
 
-## All Bugs Fixed
+Depth is no longer artificially capped per difficulty. The search naturally reaches whatever depth it can within the time budget based on machine NPS.
 
-### Bug 1: SearchRoot Cancellation Order (CRITICAL)
+| Difficulty | Before | After |
+|------------|--------|-------|
+| Braindead | 1 | Removed |
+| Easy | 2 | Removed |
+| Medium | 3 | Removed |
+| Hard | 4 | Removed |
+| Grandmaster | 5 | Removed |
+| Experimental | 5 | Removed |
+| BookGeneration | 12 | Removed |
 
-In `SearchRoot`, the cancellation check was BEFORE updating bestScore/bestMove, causing valid scores to be discarded.
+### Removed TargetNps
 
-**Fix:** Update bestScore/bestMove before checking cancellation.
+NPS is no longer calibrated from hardcoded targets. Instead, it's learned from actual search performance using exponential moving average.
 
-### Bug 2: SearchWithIterationTimeAware Cancellation Order
+| Difficulty | Before | After |
+|------------|--------|-------|
+| Braindead | 10K | Removed |
+| Easy | 50K | Removed |
+| Medium | 100K | Removed |
+| Hard | 200K | Removed |
+| Grandmaster | 500K | Removed |
+| Experimental | 500K | Removed |
+| BookGeneration | 1M | Removed |
 
-Same issue in `SearchWithIterationTimeAware` - bestMove was updated unconditionally even when score was int.MinValue.
+## Design Principle
 
-**Fix:** Only update bestMove/bestDepth when score is not int.MinValue.
+All depth/speed is determined by machine capability and time allotted:
 
-### Bug 3: Result Selection Logic
+1. **Thread count** - More threads = faster search = deeper results
+2. **Time budget** - Higher difficulties get more time (5% to 100%)
+3. **Feature flags** - VCF, opening book depth vary by difficulty
+4. **Error rate** - Only Braindead has intentional errors (10%)
 
-The result selection used `OrderBy(r => (-r.score, ...))` which causes integer overflow when negating int.MinValue.
-
-**Fix:** Use `OrderByDescending(r => r.score)` instead.
-
-## Test Results
-
-### Before Fix
-- Easy vs Braindead: 0-11 (0% win rate)
-- Games: 20-27 moves (quick losses)
-
-### After Fix (11-game sample)
-- Easy vs Braindead: 7-4 (63.6% win rate)
-- Games: 37.2 moves average
-- Easy correctly finds winning positions (score=2147483647)
-
-### 100-Game Baseline
-- Easy vs Braindead: **66-34 (66.0% win rate)**
-- Avg moves: 40.6
-- Avg time: 34.0s/game
-- No draws
+No hardcoded minimum depths or NPS targets.
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `ParallelMinimaxSearch.cs` | Fix SearchRoot cancellation order, fix SearchWithIterationTimeAware score validation, fix result selection logic |
+| `AIDifficultyConfig.cs` | Removed MinDepth, TargetNps; PonderingThreadCount = ThreadCount; Easy pondering enabled |
+| `AdaptiveDepthCalculator.cs` | Removed GetMinimumDepth() |
+| `TimeBudgetDepthManager.cs` | Removed GetMinimumDepth(), CalibrateNpsForDifficulty(); Added CalibrateFromSearch() |
+| `MinimaxAI.cs` | Removed CalibrateNpsForDifficulty calls |
+| `ParallelMinimaxSearch.cs` | Removed CalibrateNpsForDifficulty calls |
+| `AdaptiveDepthCalculatorTests.cs` | Removed GetMinimumDepth test |
+| `TimeBudgetDepthManagerTests.cs` | Removed CalibrateNpsForDifficulty tests; Added CalibrateFromSearch test |
+| `README.md` | Updated difficulty table (Easy has pondering), added Medium vs Braindead baseline |
 
 ## Version
 
