@@ -28,21 +28,6 @@ public sealed class AdaptiveDepthCalculatorTests
 
     [Theory]
     [InlineData(AIDifficulty.Braindead, 1)]
-    [InlineData(AIDifficulty.Easy, 2)]
-    [InlineData(AIDifficulty.Medium, 3)]
-    [InlineData(AIDifficulty.Hard, 4)]
-    [InlineData(AIDifficulty.Grandmaster, 5)]
-    public void GetMinimumDepth_ReturnsExpectedValue(AIDifficulty difficulty, int expectedDepth)
-    {
-        // Arrange & Act
-        int minDepth = AdaptiveDepthCalculator.GetMinimumDepth(difficulty);
-
-        // Assert
-        minDepth.Should().Be(expectedDepth, $"Minimum depth for {difficulty} should match config");
-    }
-
-    [Theory]
-    [InlineData(AIDifficulty.Braindead, 1)]
     [InlineData(AIDifficulty.Easy, 3)]
     [InlineData(AIDifficulty.Medium, 5)]
     [InlineData(AIDifficulty.Hard, 7)]

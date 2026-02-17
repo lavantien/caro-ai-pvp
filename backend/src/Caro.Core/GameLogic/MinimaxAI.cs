@@ -88,6 +88,7 @@ public class MinimaxAI : IStatsPublisher
     private readonly Stopwatch _searchStopwatch = new();
     private long _lastAllocatedTimeMs;  // Track time allocated for last move
     private bool _lastPonderingEnabled;  // Track if pondering was enabled for last move
+    private bool _bookUsed;  // True if last move came from opening book
 
     // Time control for search timeout
     private long _searchHardBoundMs;
@@ -182,6 +183,7 @@ public class MinimaxAI : IStatsPublisher
         _depthAchieved = 0;
         _vcfNodesSearched = 0;
         _vcfDepthAchieved = 0;
+        _bookUsed = false;
         _searchStopwatch.Restart();
 
         // Reset thread count and parallel diagnostics for this difficulty
@@ -315,6 +317,7 @@ public class MinimaxAI : IStatsPublisher
                         _depthAchieved = validationResult.ValidationDepth;
                         _nodesSearched = validationResult.NodesSearched;
                         _lastAllocatedTimeMs = validationResult.TimeMs;
+                        _bookUsed = true;
                         return bookMove.Value;
                     }
                     // Book move failed validation - fall through to full search
@@ -326,6 +329,7 @@ public class MinimaxAI : IStatsPublisher
                     _depthAchieved = 0;
                     _nodesSearched = 0;
                     _lastAllocatedTimeMs = 0;
+                    _bookUsed = true;
                     return bookMove.Value;
                 }
             }
@@ -658,9 +662,7 @@ public class MinimaxAI : IStatsPublisher
         // From AIDifficultyConfig: Braindead: 5%, Easy: 20%, Medium: 50%, Hard: 75%, Grandmaster: 100%
         double timeMultiplier = AdaptiveDepthCalculator.GetTimeMultiplier(difficulty);
 
-        // CRITICAL FIX: Calibrate NPS estimate from difficulty settings before searching
-        // This ensures we don't underestimate machine capability based on initial 100K default
-        _depthManager.CalibrateNpsForDifficulty(difficulty);
+        // NPS is learned from actual search performance - no hardcoded targets
 
         // PARALLEL SEARCH: Use Lazy SMP when enabled
         // TournamentEngine already checks the config, so we just respect the flag here
@@ -757,9 +759,7 @@ public class MinimaxAI : IStatsPublisher
         _lastParallelDiagnostics = null; // No parallel search in this path
         _lastPonderingEnabled = ponderingEnabled;
 
-        // CRITICAL FIX: Calibrate NPS estimate from difficulty settings before searching
-        // This ensures we don't underestimate machine capability based on initial 100K default
-        _depthManager.CalibrateNpsForDifficulty(difficulty);
+        // NPS is learned from actual search performance - no hardcoded targets
 
         // Apply time multiplier to the soft bound - lower difficulties use less time
         // BUT: Ensure minimum time for at least one search iteration (50ms)
@@ -3210,7 +3210,7 @@ public class MinimaxAI : IStatsPublisher
     /// <summary>
     /// Get search statistics for the last move
     /// </summary>
-    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched, int ThreadCount, string? ParallelDiagnostics, double MasterTTPercent, double HelperAvgDepth, long AllocatedTimeMs) GetSearchStatistics()
+    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched, int ThreadCount, string? ParallelDiagnostics, double MasterTTPercent, double HelperAvgDepth, long AllocatedTimeMs, bool BookUsed) GetSearchStatistics()
     {
         double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
         var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
@@ -3222,7 +3222,7 @@ public class MinimaxAI : IStatsPublisher
 
         if (!string.IsNullOrEmpty(_lastParallelDiagnostics))
         {
-            // Parse "XX% from master" from TT part
+            // Parse "% from master" from TT part
             var ttMatch = System.Text.RegularExpressions.Regex.Match(_lastParallelDiagnostics, @"(\d+\.?\d*)% from master");
             if (ttMatch.Success && double.TryParse(ttMatch.Groups[1].Value, out var ttPercent))
             {
@@ -3237,7 +3237,7 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs);
+        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs, _bookUsed);
     }
 
     /// <summary>
@@ -3246,7 +3246,7 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     public void PublishSearchStats(Player player, StatsType statsType, long moveTimeMs)
     {
-        var (depthAchieved, nodesSearched, nps, hitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, _, masterTTPercent, helperAvgDepth, allocatedTimeMs) = GetSearchStatistics();
+        var (depthAchieved, nodesSearched, nps, hitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, _, masterTTPercent, helperAvgDepth, allocatedTimeMs, bookUsed) = GetSearchStatistics();
 
         var statsEvent = new MoveStatsEvent
         {

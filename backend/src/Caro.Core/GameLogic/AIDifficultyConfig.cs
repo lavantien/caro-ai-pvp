@@ -4,6 +4,9 @@ namespace Caro.Core.GameLogic;
 /// Centralized AI difficulty configuration
 /// Defines all parameters for each difficulty level in one place
 /// Integrates with pub-sub stats system for consistent behavior
+///
+/// Design principle: All depth/speed is determined by machine capability and time allotted.
+/// No hardcoded targets - the AI naturally reaches whatever depth it can within its time budget.
 /// </summary>
 public sealed class AIDifficultyConfig
 {
@@ -35,8 +38,6 @@ public sealed class AIDifficultyConfig
                 PonderingEnabled = false,
                 VCFEnabled = false,
                 ErrorRate = 0.10,              // 10% error rate per README.md spec
-                MinDepth = 1,
-                TargetNps = 10_000,
                 Description = "10% error rate, absolute beginners",
                 OpeningBookEnabled = false,     // No opening book for beginner level
                 MaxBookDepth = 0               // No opening book
@@ -47,16 +48,14 @@ public sealed class AIDifficultyConfig
                 Difficulty = AIDifficulty.Easy,
                 DisplayName = "Easy",
                 ThreadCount = GetEasyThreadCount(),        // (n/5)-1 threads
-                PonderingThreadCount = 1,
+                PonderingThreadCount = GetEasyThreadCount(), // Same as active threads
                 TimeMultiplier = 0.20,         // 20% of allocated time (per README)
                 TimeBudgetPercent = 0.20,     // 20% time budget
                 ParallelSearchEnabled = true,
-                PonderingEnabled = false,
+                PonderingEnabled = true,       // Enabled since using multiple threads
                 VCFEnabled = false,
                 ErrorRate = 0.0,                // No intentional errors
-                MinDepth = 2,                   // Natural depth from time budget
-                TargetNps = 50_000,
-                Description = "Parallel search from Easy",
+                Description = "Parallel search + pondering",
                 OpeningBookEnabled = true,      // Easy uses opening book (4 plies)
                 MaxBookDepth = 4               // 4 plies = 2 moves per side
             },
@@ -66,15 +65,13 @@ public sealed class AIDifficultyConfig
                 Difficulty = AIDifficulty.Medium,
                 DisplayName = "Medium",
                 ThreadCount = GetMediumThreadCount(),      // (n/4)-1 threads
-                PonderingThreadCount = 2,
+                PonderingThreadCount = GetMediumThreadCount(), // Same as active threads
                 TimeMultiplier = 0.50,         // 50% of allocated time
                 TimeBudgetPercent = 0.50,     // 50% time budget
                 ParallelSearchEnabled = true,
                 PonderingEnabled = true,
                 VCFEnabled = false,
                 ErrorRate = 0.0,                // No intentional errors
-                MinDepth = 3,
-                TargetNps = 100_000,
                 Description = "Parallel + pondering",
                 OpeningBookEnabled = true,      // Medium uses opening book (6 plies)
                 MaxBookDepth = 6               // 6 plies = 3 moves per side
@@ -85,15 +82,13 @@ public sealed class AIDifficultyConfig
                 Difficulty = AIDifficulty.Hard,
                 DisplayName = "Hard",
                 ThreadCount = GetHardThreadCount(),        // (n/3)-1 threads
-                PonderingThreadCount = 3,
+                PonderingThreadCount = GetHardThreadCount(), // Same as active threads
                 TimeMultiplier = 0.75,         // 75% of allocated time
                 TimeBudgetPercent = 0.75,     // 75% time budget
                 ParallelSearchEnabled = true,
                 PonderingEnabled = true,
                 VCFEnabled = true,
                 ErrorRate = 0.0,                // No intentional errors
-                MinDepth = 4,
-                TargetNps = 200_000,
                 Description = "Parallel + pondering + VCF",
                 OpeningBookEnabled = true,      // Hard uses opening book
                 MaxBookDepth = 10              // 10 plies = 5 moves per side
@@ -111,8 +106,6 @@ public sealed class AIDifficultyConfig
                 PonderingEnabled = true,
                 VCFEnabled = true,
                 ErrorRate = 0.0,                // No intentional errors
-                MinDepth = 5,
-                TargetNps = 500_000,
                 Description = "Max parallel, VCF, pondering",
                 OpeningBookEnabled = true,      // Grandmaster uses opening book
                 MaxBookDepth = 14              // 14 plies = 7 moves per side
@@ -130,8 +123,6 @@ public sealed class AIDifficultyConfig
                 PonderingEnabled = true,
                 VCFEnabled = true,
                 ErrorRate = 0.0,                // No intentional errors
-                MinDepth = 5,
-                TargetNps = 500_000,
                 Description = "Full opening book + max features for testing",
                 OpeningBookEnabled = true,      // Experimental uses full opening book
                 MaxBookDepth = int.MaxValue    // Experimental uses all available book depth
@@ -149,8 +140,6 @@ public sealed class AIDifficultyConfig
                 PonderingEnabled = false,
                 VCFEnabled = true,
                 ErrorRate = 0.0,
-                MinDepth = 12,
-                TargetNps = 1_000_000,
                 Description = "Offline book generation with (N-4) threads",
                 OpeningBookEnabled = true,
                 MaxBookDepth = int.MaxValue
@@ -217,13 +206,12 @@ public sealed class AIDifficultyConfig
 
     /// <summary>
     /// Get grandmaster pondering thread count
-    /// Uses half of main search threads to avoid system issues
-    /// CRITICAL FIX: Ensure at least 3 pondering threads (more than Hard's 3)
+    /// Uses same thread count as main search for consistent performance
     /// </summary>
     private static int GetGrandmasterPonderThreadCount()
     {
-        // Minimum 3 threads to ensure GM pondering is at least as strong as Hard's
-        return Math.Max(3, GetGrandmasterThreadCount() / 2);
+        // Same as main search - no reason to use fewer threads for pondering
+        return GetGrandmasterThreadCount();
     }
 }
 
@@ -242,20 +230,17 @@ public sealed record AIDifficultySettings
     public required bool PonderingEnabled { get; init; }
     public required bool VCFEnabled { get; init; }
     public required double ErrorRate { get; init; }
-    public required int MinDepth { get; init; }
-    public required long TargetNps { get; init; }
     public required string Description { get; init; }
     public required bool OpeningBookEnabled { get; init; }  // Whether this difficulty uses opening book
     public required int MaxBookDepth { get; init; }  // Maximum book depth in plies (0 = no book)
 
     /// <summary>
-    /// Check if this difficulty supports pondering (Medium+)
+    /// Check if this difficulty supports pondering (Easy+)
     /// </summary>
-    public bool SupportsPondering => PonderingEnabled && Difficulty >= AIDifficulty.Medium;
+    public bool SupportsPondering => PonderingEnabled && Difficulty >= AIDifficulty.Easy;
 
     /// <summary>
-    /// Check if this difficulty supports parallel search (Easy, Hard, Grandmaster)
-    /// Note: Medium uses single-threaded per current config
+    /// Check if this difficulty supports parallel search (Easy+)
     /// </summary>
     public bool SupportsParallelSearch => ParallelSearchEnabled;
 

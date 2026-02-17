@@ -218,10 +218,6 @@ public sealed class ParallelMinimaxSearch
         // Use provided time allocation or create default
         var alloc = timeAlloc ?? GetDefaultTimeAllocation(difficulty, timeRemainingMs);
 
-        // CRITICAL FIX: Calibrate NPS for difficulty to ensure proper depth scaling
-        // Easy targets 50k nps, Medium targets 100k nps, Hard targets 200k nps, Grandmaster targets 500k nps
-        _depthManager.CalibrateNpsForDifficulty(difficulty);
-
         // Try VCF first for higher difficulties
         // CRITICAL FIX: Skip VCF for BookGeneration - full search is sufficient and VCF consumes time budget
         var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
@@ -253,8 +249,7 @@ public sealed class ParallelMinimaxSearch
                 candidates = opponentThreatMoves;
         }
 
-        // Calibrate NPS for difficulty
-        _depthManager.CalibrateNpsForDifficulty(difficulty);
+        // NPS is learned from actual search performance - no hardcoded targets
 
         // NOTE: Error rate is handled in MinimaxAI.GetBestMove() - do not apply again here
 
@@ -299,10 +294,6 @@ public sealed class ParallelMinimaxSearch
 
         // Use provided time allocation or create default
         var alloc = timeAlloc ?? GetDefaultTimeAllocation(difficulty, timeRemainingMs);
-
-        // CRITICAL FIX: Calibrate NPS for difficulty to ensure proper depth scaling
-        // Easy targets 50k nps, Medium targets 100k nps, Hard targets 200k nps, Grandmaster targets 500k nps
-        _depthManager.CalibrateNpsForDifficulty(difficulty);
 
         // Try VCF first for higher difficulties
         // CRITICAL FIX: Skip VCF for BookGeneration - full search is sufficient and VCF consumes time budget
@@ -2050,8 +2041,7 @@ public sealed class ParallelMinimaxSearch
             ComplexityMultiplier = 1.0
         };
 
-        // Calibrate NPS for difficulty
-        _depthManager.CalibrateNpsForDifficulty(difficulty);
+        // NPS is learned from actual search performance - no hardcoded targets
 
         // Use same thread count as main search for this difficulty
         // This ensures pondering uses the same resources as thinking
