@@ -30,16 +30,6 @@ public sealed class TimeBudgetDepthManager
     }
 
     /// <summary>
-    /// Get the minimum depth for a difficulty.
-    /// Delegates to AIDifficultyConfig for centralized configuration.
-    /// Even with zero time, AI should search at least this deep.
-    /// </summary>
-    public static int GetMinimumDepth(AIDifficulty difficulty)
-    {
-        return AIDifficultyConfig.Instance.GetSettings(difficulty).MinDepth;
-    }
-
-    /// <summary>
     /// Update NPS estimate from actual search performance.
     /// Called after each search completes.
     /// </summary>
@@ -157,26 +147,13 @@ public sealed class TimeBudgetDepthManager
     }
 
     /// <summary>
-    /// Calibrate NPS based on difficulty tier.
-    /// Called on startup to set reasonable baseline.
+    /// Calibrate NPS based on initial measurement.
+    /// Called on startup to set reasonable baseline from actual performance.
+    /// NPS is learned from actual searches - no hardcoded targets.
     /// </summary>
-    public void CalibrateNpsForDifficulty(AIDifficulty difficulty)
+    public void CalibrateFromSearch(long nodesSearched, double elapsedSeconds)
     {
-        // FIX: Get the target NPS from AIDifficultyConfig instead of hardcoded constants
-        // This ensures consistency with the difficulty settings
-        var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
-        double targetNps = settings.TargetNps;
-
-        lock (_lock)
-        {
-            // FIX: Only update if current estimate is significantly below target (less than 50%)
-            // This allows actual performance to exceed baseline while ensuring
-            // we don't start with a grossly underestimated NPS
-            if (_estimatedNps < targetNps * 0.5)
-            {
-                _estimatedNps = targetNps;
-            }
-        }
+        UpdateNpsEstimate(nodesSearched, elapsedSeconds);
     }
 
     /// <summary>

@@ -24,17 +24,6 @@ public static class AdaptiveDepthCalculator
     }
 
     /// <summary>
-    /// Get the minimum depth for a difficulty level.
-    /// Delegates to AIDifficultyConfig for centralized configuration.
-    /// Even with minimal time, AI should search at least this deep.
-    /// This ensures strength separation even on very slow machines.
-    /// </summary>
-    public static int GetMinimumDepth(AIDifficulty difficulty)
-    {
-        return AIDifficultyConfig.Instance.GetSettings(difficulty).MinDepth;
-    }
-
-    /// <summary>
     /// Fallback depth for legacy code paths.
     /// Use TimeBudgetDepthManager.CalculateMaxDepth() instead.
     /// </summary>

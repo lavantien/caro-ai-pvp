@@ -343,55 +343,17 @@ public sealed class TimeBudgetDepthManagerTests
         ebfAfterReset.Should().Be(ebfBeforeReset, "EBF should persist across reset");
     }
 
-    [Theory]
-    [InlineData(AIDifficulty.Braindead, 10_000)]
-    [InlineData(AIDifficulty.Easy, 50_000)]
-    [InlineData(AIDifficulty.Medium, 100_000)]
-    [InlineData(AIDifficulty.Hard, 200_000)]
-    [InlineData(AIDifficulty.Grandmaster, 500_000)]
-    public void CalibrateNpsForDifficulty_SetsBaseline(AIDifficulty difficulty, long targetNps)
-    {
-        // Arrange
-        var manager = new TimeBudgetDepthManager();
-
-        // Act
-        manager.CalibrateNpsForDifficulty(difficulty);
-
-        // Assert - NPS should be at least 50% of target
-        double nps = manager.GetEstimatedNps();
-        nps.Should().BeGreaterThanOrEqualTo(targetNps * 0.5, $"NPS should be at least 50% of target for {difficulty}");
-    }
-
     [Fact]
-    public void CalibrateNpsForDifficulty_PresetsHigherEstimate()
+    public void CalibrateFromSearch_UpdatesNpsEstimate()
     {
         // Arrange
         var manager = new TimeBudgetDepthManager();
-        // Set initial estimate to 1M NPS
-        manager.UpdateNpsEstimate(nodesSearched: 1_000_000, elapsedSeconds: 1.0);
-        double initialNps = manager.GetEstimatedNps();
 
-        // Act - Calibrate to lower difficulty (500k target)
-        manager.CalibrateNpsForDifficulty(AIDifficulty.Grandmaster);
+        // Act - Simulate search with 50K nodes in 0.5 seconds = 100K NPS
+        manager.CalibrateFromSearch(nodesSearched: 50_000, elapsedSeconds: 0.5);
 
-        // Assert - Should keep higher estimate since it's > 50% of target
-        double finalNps = manager.GetEstimatedNps();
-        finalNps.Should().Be(initialNps, "Should preserve higher NPS estimate");
-    }
-
-    [Fact]
-    public void CalibrateNpsForDifficulty_LowEstimateUpdates()
-    {
-        // Arrange
-        var manager = new TimeBudgetDepthManager();
-        // Set initial estimate to very low value (below 50% of target)
-        manager.UpdateNpsEstimate(nodesSearched: 10_000, elapsedSeconds: 1.0);
-
-        // Act - Calibrate to higher difficulty
-        manager.CalibrateNpsForDifficulty(AIDifficulty.Hard);
-
-        // Assert - Should update to target since current is < 50%
+        // Assert - NPS should be updated from actual search performance
         double nps = manager.GetEstimatedNps();
-        nps.Should().BeGreaterThanOrEqualTo(100_000, "Should update to target NPS");
+        nps.Should().BeGreaterThan(50_000, "NPS should be updated from actual search");
     }
 }
