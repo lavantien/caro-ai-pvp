@@ -37,7 +37,7 @@ public record ParallelSearchResult(
 public sealed class ParallelMinimaxSearch
 {
     // Debug flag for verbose search logging - set to true only during development
-    private const bool DebugLogging = false;
+    private static readonly bool DebugLogging = false;
 
     private readonly LockFreeTranspositionTable _transpositionTable;
     private readonly BoardEvaluator _evaluator;
