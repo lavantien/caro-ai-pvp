@@ -167,7 +167,8 @@ public record MoveStats(
     long PonderNodesSearched = 0,   // Nodes searched during pondering (opponent's turn)
     double PonderNodesPerSecond = 0, // NPS during pondering
     int PonderDepth = 0,            // Depth achieved during pondering
-    bool BookUsed = false           // True if this move came from opening book
+    bool BookUsed = false,          // True if this move came from opening book
+    MoveType MoveType = MoveType.Normal  // How the move was determined
 );
 
 /// <summary>

@@ -254,12 +254,12 @@ public class TournamentEngine
                 board = game.Board;
 
                 // Get search statistics for this move from the correct AI
-                var (depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, _, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, masterTTPercent, helperAvgDepth, allocatedTimeMs, bookUsed) = currentAI.GetSearchStatistics();
+                var (depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, _, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, masterTTPercent, helperAvgDepth, allocatedTimeMs, bookUsed, moveType) = currentAI.GetSearchStatistics();
 
                 // Determine if current player supports pondering and actually did ponder work
                 bool ponderingActive = playerPonderingEnabled && (ponderNodes > 0 || currentSettings.Difficulty >= AIDifficulty.Hard);
 
-                var stats = new MoveStats(depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, moveTimeMs, masterTTPercent, helperAvgDepth, allocatedTimeMs, ponderNodes, ponderNps, ponderDepth, bookUsed);
+                var stats = new MoveStats(depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, moveTimeMs, masterTTPercent, helperAvgDepth, allocatedTimeMs, ponderNodes, ponderNps, ponderDepth, bookUsed, moveType);
 
                 // Log the move with stats
                 var timeStr = $"{moveTimeMs}ms";
