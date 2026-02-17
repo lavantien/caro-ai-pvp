@@ -166,7 +166,8 @@ public record MoveStats(
     long AllocatedTimeMs = 0,       // Time allocated for this move
     long PonderNodesSearched = 0,   // Nodes searched during pondering (opponent's turn)
     double PonderNodesPerSecond = 0, // NPS during pondering
-    int PonderDepth = 0             // Depth achieved during pondering
+    int PonderDepth = 0,            // Depth achieved during pondering
+    bool BookUsed = false           // True if this move came from opening book
 );
 
 /// <summary>

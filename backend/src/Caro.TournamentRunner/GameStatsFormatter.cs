@@ -12,6 +12,9 @@ public static class GameStatsFormatter
     /// <summary>
     /// Format a single move with all statistics in a consistent one-line format
     /// </summary>
+    /// <summary>
+    /// Format a single move with all statistics in a consistent one-line format
+    /// </summary>
     public static string FormatMoveLine(
         int game,
         int moveNumber,
@@ -26,6 +29,7 @@ public static class GameStatsFormatter
         var timeStr = FormatTime(stats?.MoveTimeMs ?? 0);
         var allocStr = FormatTime(stats?.AllocatedTimeMs ?? 0);
         var depthStr = stats != null ? $"D{stats.DepthAchieved}" : "D-";
+        var bookStr = stats?.BookUsed == true ? "B" : "-";
 
         long mainNodes = stats?.NodesSearched ?? 0;
         double mainNps = stats?.NodesPerSecond ?? 0;
@@ -51,6 +55,7 @@ public static class GameStatsFormatter
         return
             $"    G{game,2} M{moveNumber,3} | {color}({x},{y}) by {difficulty,-12} | " +
             $"T: {timeStr,-9}/{allocStr,-8} | " +
+            $"{bookStr,-2} | " +
             $"Th: {threadsStr} | " +
             $"{depthStr,-9} | " +
             $"N: {nStr,20} | " +
