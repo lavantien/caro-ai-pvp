@@ -5,6 +5,42 @@ using Caro.Core.Tournament;
 namespace Caro.TournamentRunner;
 
 /// <summary>
+/// Options for configuring the comprehensive matchup runner
+/// </summary>
+public class ComprehensiveOptions
+{
+    /// <summary>
+    /// Specific matchups to run. If empty, runs all standard matchups.
+    /// </summary>
+    public List<(AIDifficulty First, AIDifficulty Second)> Matchups { get; set; } = new();
+
+    /// <summary>
+    /// Time control: initial time in seconds
+    /// </summary>
+    public int InitialTimeSeconds { get; set; } = 180;
+
+    /// <summary>
+    /// Time control: increment per move in seconds
+    /// </summary>
+    public int IncrementSeconds { get; set; } = 2;
+
+    /// <summary>
+    /// Number of games per matchup
+    /// </summary>
+    public int GamesPerMatchup { get; set; } = 20;
+
+    /// <summary>
+    /// Enable pondering (thinking on opponent's time)
+    /// </summary>
+    public bool EnablePondering { get; set; } = true;
+
+    /// <summary>
+    /// Enable parallel search (Lazy SMP)
+    /// </summary>
+    public bool EnableParallel { get; set; } = true;
+}
+
+/// <summary>
 /// Comprehensive matchup runner with 20 matchups (10 GamesPerMatchup each)
 /// 15 standard matchups + 5 experimental matchups
 /// All with alternating colors, full parallel, full pondering
@@ -31,26 +67,41 @@ public class ComprehensiveMatchupRunner
 
     public static async Task RunAsync()
     {
-        await RunAsyncInternal();
+        await RunAsyncInternal(null);
+    }
+
+    public static async Task RunAsync(ComprehensiveOptions? options)
+    {
+        await RunAsyncInternal(options);
     }
 
     private const int TimeSeconds = 180;
     private const int IncSeconds = 2;
-    private const int GamesPerMatchup = 20;
+    private const int GamesPerMatchupDefault = 20;
 
-    private static async Task RunAsyncInternal()
+    private static async Task RunAsyncInternal(ComprehensiveOptions? options)
     {
         var engine = TournamentEngineFactory.CreateWithOpeningBook();
-        const string tcName = "3+2";
+
+        // Use options or defaults
+        var timeSeconds = options?.InitialTimeSeconds ?? TimeSeconds;
+        var incSeconds = options?.IncrementSeconds ?? IncSeconds;
+        var gamesPerMatchup = options?.GamesPerMatchup ?? GamesPerMatchupDefault;
+        var enablePondering = options?.EnablePondering ?? true;
+        var enableParallel = options?.EnableParallel ?? true;
+        var tcName = $"{timeSeconds}+{incSeconds}";
 
         LogWrite($"═══════════════════════════════════════════════════════════════════");
         LogWrite($"  COMPREHENSIVE MATCHUP RUNNER: {tcName} Time Control");
-        LogWrite($"  {GamesPerMatchup} GamesPerMatchup per matchup (alternating colors)");
-        LogWrite($"  Full parallel search, Full pondering");
+        LogWrite($"  {gamesPerMatchup} games per matchup (alternating colors)");
+        LogWrite($"  Parallel: {(enableParallel ? "ON" : "OFF")} | Pondering: {(enablePondering ? "ON" : "OFF")}");
         LogWrite($"═══════════════════════════════════════════════════════════════════");
         LogWrite();
 
-        var matchups = GenerateMatchups();
+        // Use custom matchups from options, or generate default set
+        var matchups = options?.Matchups.Count > 0
+            ? GenerateCustomMatchups(options.Matchups, gamesPerMatchup, timeSeconds, incSeconds, enablePondering, enableParallel)
+            : GenerateMatchups();
 
         // Group by standard vs experimental
         var standardMatchups = matchups.Where(m => !m.IsExperimental).ToList();
@@ -99,6 +150,40 @@ public class ComprehensiveMatchupRunner
         PrintFinalSummary(results);
     }
 
+    /// <summary>
+    /// Generate custom matchups from options
+    /// </summary>
+    private static List<MatchupConfig> GenerateCustomMatchups(
+        List<(AIDifficulty First, AIDifficulty Second)> matchups,
+        int games,
+        int timeSeconds,
+        int incSeconds,
+        bool enablePondering,
+        bool enableParallel)
+    {
+        var configs = new List<MatchupConfig>();
+        int index = 1;
+
+        foreach (var (first, second) in matchups)
+        {
+            configs.Add(new MatchupConfig
+            {
+                RedDifficulty = first,
+                BlueDifficulty = second,
+                Games = games,
+                InitialTimeSeconds = timeSeconds,
+                IncrementSeconds = incSeconds,
+                EnablePondering = enablePondering,
+                EnableParallel = enableParallel,
+                Description = $"{index}. {first} vs {second}",
+                IsExperimental = false
+            });
+            index++;
+        }
+
+        return configs;
+    }
+
     private static List<MatchupConfig> GenerateMatchups()
     {
         var matchups = new List<MatchupConfig>();
@@ -109,7 +194,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Braindead,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = true,
@@ -121,7 +206,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Easy,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = true,
@@ -133,7 +218,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Medium,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = true,
@@ -145,7 +230,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Hard,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = true,
@@ -157,7 +242,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Grandmaster,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = true,
@@ -170,7 +255,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Hard,
             BlueDifficulty = AIDifficulty.Braindead,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = true,
@@ -182,7 +267,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Hard,
             BlueDifficulty = AIDifficulty.Easy,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = true,
@@ -194,7 +279,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Hard,
             BlueDifficulty = AIDifficulty.Medium,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = true,
@@ -206,7 +291,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Hard,
             BlueDifficulty = AIDifficulty.Hard,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = true,
@@ -219,7 +304,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Medium,
             BlueDifficulty = AIDifficulty.Braindead,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = true,
@@ -231,7 +316,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Medium,
             BlueDifficulty = AIDifficulty.Easy,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = true,
@@ -243,7 +328,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Medium,
             BlueDifficulty = AIDifficulty.Medium,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = true,
@@ -256,7 +341,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Easy,
             BlueDifficulty = AIDifficulty.Braindead,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = false,
@@ -268,7 +353,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Easy,
             BlueDifficulty = AIDifficulty.Easy,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = false,
@@ -281,7 +366,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Braindead,
             BlueDifficulty = AIDifficulty.Braindead,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = false,
@@ -297,7 +382,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Hard,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds / 2,
             IncrementSeconds = IncSeconds / 2,
             EnablePondering = true,
@@ -311,7 +396,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Hard,
             BlueDifficulty = AIDifficulty.Medium,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds * 2,
             IncrementSeconds = IncSeconds * 2,
             EnablePondering = true,
@@ -325,7 +410,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Medium,
             BlueDifficulty = AIDifficulty.Medium,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = TimeSeconds,
             IncrementSeconds = IncSeconds,
             EnablePondering = false,
@@ -339,7 +424,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Grandmaster,
-            Games = GamesPerMatchup,
+            Games = GamesPerMatchupDefault,
             InitialTimeSeconds = 60,
             IncrementSeconds = 1,
             EnablePondering = true,
@@ -353,7 +438,7 @@ public class ComprehensiveMatchupRunner
         {
             RedDifficulty = AIDifficulty.Grandmaster,
             BlueDifficulty = AIDifficulty.Hard,
-            Games = GamesPerMatchup / 2, // Fewer GamesPerMatchup due to longer time
+            Games = GamesPerMatchupDefault / 2, // Fewer games due to longer time
             InitialTimeSeconds = 1200, // 20 minutes
             IncrementSeconds = 10,
             EnablePondering = true,
@@ -404,51 +489,7 @@ public class ComprehensiveMatchupRunner
                 onMove: (x, y, player, moveNumber, redTimeMs, blueTimeMs, stats) =>
                 {
                     var diff = player == Player.Red ? gameRedDiff : gameBlueDiff;
-                    var color = player == Player.Red ? "R" : "B";
-
-                    // Format stats for one-line output
-                    var timeStr = FormatTime(stats?.MoveTimeMs ?? 0);
-                    var allocStr = FormatTime((stats?.AllocatedTimeMs ?? 0));
-                    var depthStr = stats != null ? $"D{stats.DepthAchieved}" : "D-";
-
-                    // N and NPS: only show main search stats, not ponder
-                    long mainNodes = stats?.NodesSearched ?? 0;
-                    double mainNps = stats?.NodesPerSecond ?? 0;
-                    var nStr = FormatLargeNumber(mainNodes);
-                    var npsStr = FormatLargeNumber((long)mainNps);
-
-                    var ttStr = stats != null ? $"{stats.TableHitRate:F1}% " : "N/A";
-                    var masterStr = stats != null ? $"{stats.MasterTTPercent:F1}% " : "N/A";
-                    var helperStr = stats != null ? $"{stats.HelperAvgDepth:F1}" : "N/A";
-                    var threadsStr = stats?.ThreadCount.ToString() ?? "1";
-
-                    // Pondering stats for the P: column (depth, nodes, nps)
-                    long ponderNodes = stats?.PonderNodesSearched ?? 0;
-                    double ponderNps = stats?.PonderNodesPerSecond ?? 0;
-                    int ponderDepth = stats?.PonderDepth ?? 0;
-                    var ponderStr = (stats?.PonderingActive == true && ponderNodes > 0)
-                        ? $"D{ponderDepth}/{FormatLargeNumber(ponderNodes)}n/{FormatLargeNumber((long)ponderNps)}nps"
-                        : "-";
-
-                    // VCF stats
-                    var vcfDepth = stats?.VCFDepthAchieved ?? 0;
-                    var vcfNodes = stats?.VCFNodesSearched ?? 0;
-                    var vcfStr = (vcfDepth > 0 || vcfNodes > 0) ? $"{vcfDepth}d/{FormatLargeNumber(vcfNodes)}n" : "-";
-
-                    // One-line aligned output
-                    LogWrite(
-                        $"    G{game,2} M{moveNumber,3} | {color}({x},{y}) by {diff,-12} | " +
-                        $"T: {timeStr,-9}/{allocStr,-8} | " +
-                        $"Th: {threadsStr} | " +
-                        $"{depthStr,-9} | " +
-                        $"N: {nStr,20} | " +
-                        $"NPS: {npsStr,20} | " +
-                        $"TT: {ttStr,-5} | " +
-                        $"%M: {masterStr,-5} | " +
-                        $"HD: {helperStr,-4} | " +
-                        $"P: {ponderStr,-25} | " +
-                        $"VCF: {vcfStr}");
-
+                    LogWrite(GameStatsFormatter.FormatMoveLine(game, moveNumber, x, y, player, diff, stats));
                     moveCount = moveNumber;
                 },
                 onLog: (level, source, message) =>
@@ -530,7 +571,7 @@ public class ComprehensiveMatchupRunner
         LogWrite();
 
         LogWrite("┌─────────────────────────────────┬──────┬──────┬──────┬────────┬────────┐");
-        LogWrite("│ Matchup                         │ Red  │ Blue │ Draw │  Avg   │  Avg   │");
+        LogWrite("│ Matchup                         │ 1st  │ 2nd  │ Draw │  Avg   │  Avg   │");
         LogWrite("│                                 │ Wins │ Wins │      │ Moves  │ Time(s)│");
         LogWrite("├─────────────────────────────────┼──────┼──────┼──────┼────────┼────────┤");
 

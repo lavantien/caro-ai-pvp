@@ -9,6 +9,11 @@ namespace Caro.TournamentRunner;
 /// 5 matchups, 2 games each = 10 total games with 3+2 time control.
 /// Shows detailed stats per move for debugging.
 /// </summary>
+/// <summary>
+/// Quick smoke test for verifying AI strength ordering and book integration.
+/// 5 matchups, 2 games each = 10 total games with 3+2 time control.
+/// Shows detailed stats per move for debugging.
+/// </summary>
 public static class QuickSmokeTest
 {
     private const int GamesPerMatchup = 2;  // 2 games each = 10 total
@@ -34,16 +39,17 @@ public static class QuickSmokeTest
         Console.WriteLine("═══════════════════════════════════════════════════════════════════");
         Console.WriteLine();
 
-        var totalRedWins = 0;
-        var totalBlueWins = 0;
+        // Track wins by bot name (first/second in matchup), not by color
+        var totalFirstBotWins = 0;
+        var totalSecondBotWins = 0;
         var totalDraws = 0;
         var gameNumber = 0;
 
-        foreach (var (red, blue, name) in matchups)
+        foreach (var (firstBot, secondBot, name) in matchups)
         {
             Console.WriteLine($"\n=== {name} ===");
-            var redWins = 0;
-            var blueWins = 0;
+            var firstBotWins = 0;
+            var secondBotWins = 0;
             var draws = 0;
 
             for (int i = 0; i < GamesPerMatchup; i++)
@@ -53,19 +59,21 @@ public static class QuickSmokeTest
                 var moveCount = 0;
                 var gameStartMs = DateTime.UtcNow.Ticks / 10000;
 
+                // When swapColors is true, firstBot plays as Blue, secondBot plays as Red
+                var redDiff = swapColors ? secondBot : firstBot;
+                var blueDiff = swapColors ? firstBot : secondBot;
+
                 var result = engine.RunGame(
-                    redDifficulty: red,
-                    blueDifficulty: blue,
+                    redDifficulty: redDiff,
+                    blueDifficulty: blueDiff,
                     initialTimeSeconds: InitialTimeSeconds,
                     incrementSeconds: IncrementSeconds,
                     ponderingEnabled: true,
                     parallelSearchEnabled: true,
-                    swapColors: swapColors,
+                    swapColors: false,  // We handle color swapping via difficulty assignment
                     onMove: (x, y, player, moveNum, redTimeMs, blueTimeMs, stats) =>
                     {
-                        var actualDiff = swapColors
-                            ? (player == Player.Red ? blue : red)  // Swapped: Red plays blue's difficulty
-                            : (player == Player.Red ? red : blue);
+                        var actualDiff = player == Player.Red ? redDiff : blueDiff;
                         Console.WriteLine(GameStatsFormatter.FormatMoveLine(
                             gameNumber, moveNum, x, y, player, actualDiff, stats));
                         moveCount = moveNum;
@@ -77,30 +85,36 @@ public static class QuickSmokeTest
                 {
                     draws++;
                     totalDraws++;
-                    Console.WriteLine(GameStatsFormatter.FormatGameResult(gameNumber, AIDifficulty.Easy, moveCount, gameDurationSec, isDraw: true));
+                    Console.WriteLine(GameStatsFormatter.FormatGameResult(gameNumber, firstBot, moveCount, gameDurationSec, isDraw: true));
                 }
                 else
                 {
-                    if (result.Winner == Player.Red)
+                    // Determine which bot won (first or second in matchup name)
+                    var winnerIsFirstBot = (result.Winner == Player.Red && !swapColors) ||
+                                          (result.Winner == Player.Blue && swapColors);
+
+                    if (winnerIsFirstBot)
                     {
-                        redWins++;
-                        totalRedWins++;
+                        firstBotWins++;
+                        totalFirstBotWins++;
                     }
                     else
                     {
-                        blueWins++;
-                        totalBlueWins++;
+                        secondBotWins++;
+                        totalSecondBotWins++;
                     }
-                    Console.WriteLine(GameStatsFormatter.FormatGameResult(gameNumber, result.WinnerDifficulty, moveCount, gameDurationSec, result.Winner));
+
+                    var winningBot = winnerIsFirstBot ? firstBot : secondBot;
+                    Console.WriteLine(GameStatsFormatter.FormatGameResult(gameNumber, winningBot, moveCount, gameDurationSec, result.Winner));
                 }
             }
 
-            Console.WriteLine($"  Matchup result: Red {redWins} - Blue {blueWins} - Draw {draws}");
+            Console.WriteLine($"  Matchup result: {firstBot} {firstBotWins} - {secondBot} {secondBotWins} - Draw {draws}");
         }
 
         Console.WriteLine();
         Console.WriteLine("═══════════════════════════════════════════════════════════════════");
-        Console.WriteLine($"  TOTAL: Red {totalRedWins} - Blue {totalBlueWins} - Draw {totalDraws}");
+        Console.WriteLine($"  TOTAL: FirstBot {totalFirstBotWins} - SecondBot {totalSecondBotWins} - Draw {totalDraws}");
         Console.WriteLine("═══════════════════════════════════════════════════════════════════");
     }
 }

@@ -146,7 +146,7 @@ public sealed class UCISearchController
             stopwatch.Stop();
 
             // Update final stats
-            var (depthAchieved, nodesSearched, _, _, _, _, _, _, _, _, _, _) = _ai.GetSearchStatistics();
+            var (depthAchieved, nodesSearched, _, _, _, _, _, _, _, _, _, _, _) = _ai.GetSearchStatistics();
             LastStats = new SearchStats
             {
                 Depth = depthAchieved,
