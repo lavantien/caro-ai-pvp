@@ -984,7 +984,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 parallelSearchEnabled: true
             );
 
-            var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _, _)
+            var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _, _, _)
                 = ai.GetSearchStatistics();
 
             var evalBoard = candidateBoard.PlaceStone(bestX, bestY, opponent);
