@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.61.0] - 2026-02-17
+
+### Added
+- **Move type tracking:** AI now tracks and reports how each move was determined
+  - `Normal` - Full search performed
+  - `Book` - Opening book move (unvalidated)
+  - `BookValidated` - Book move validated by search (Hard+)
+  - `ImmediateWin` - Instant winning move found (no search needed)
+  - `ImmediateBlock` - Forced block of opponent's winning threat
+  - `ErrorRate` - Random move due to Braindead's 10% error rate
+  - `CenterMove` - Center opening move
+  - `Emergency` - Emergency mode (low time)
+- **Improved tournament output format:** Compact stat lines with move type codes
+  - Move type column shows: `-` (normal), `Bk` (book), `Bv` (validated book), `Wn` (win), `Bl` (block), `Er` (error rate)
+  - Reduced column widths for depth (3 chars), nodes (8 chars), NPS (8 chars)
+  - Better readability without losing information
+
+### Changed
+- **GameStatsFormatter:** Replaced book-only column with comprehensive move type column
+- **MinimaxAI:** Added `_moveType` tracking field, set in all early exit paths
+
+### Technical Notes
+- Move type helps diagnose AI behavior - especially useful for understanding why Braindead has low node counts (immediate blocks and error rate moves skip search)
+- Early exit paths (immediate win/block, book moves, error rate) now set `_lastAllocatedTimeMs = 0` consistently
+
 ## [1.60.0] - 2026-02-17
 
 ### Changed

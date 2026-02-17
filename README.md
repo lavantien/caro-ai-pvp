@@ -115,7 +115,7 @@ dotnet run --project backend/src/Caro.UCIMockClient -- --games 4 --time 180 --in
 **Example UCI session:**
 ```
 > uci
-< id name Caro AI 1.59.0
+< id name Caro AI 1.61.0
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
 < option name Use Opening Book type check default true
@@ -195,6 +195,47 @@ dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=open
 - Balanced scheduling (one game per bot per round)
 - SQLite logging with FTS5 full-text search
 - SignalR broadcasts via async queues
+
+### Tournament Stat Line Format
+
+Each move in tournament output shows detailed engine statistics:
+
+```
+G1 M10 | B(16,17) by Easy | T: 1.1s/796ms | Bk | Th: 3 | D2 | N: 2.0K | NPS: 1.9K | TT: 0.0% | %M: 0.0% | HD: 1.5 | P: - | VCF: -
+```
+
+| Column | Description |
+|--------|-------------|
+| `G#` | Game number |
+| `M#` | Move number |
+| `R/B(x,y)` | Player color and move coordinates |
+| `by Difficulty` | AI difficulty level |
+| `T: time/alloc` | Time spent / time allocated |
+| `Type` | Move type code (see below) |
+| `Th: #` | Thread count |
+| `D#` | Search depth achieved |
+| `N: #` | Nodes searched |
+| `NPS: #` | Nodes per second |
+| `TT: #%` | Transposition table hit rate |
+| `%M: #%` | Master thread TT usage |
+| `HD: #` | Helper thread average depth |
+| `P: info` | Pondering stats (if active) |
+| `VCF: info` | VCF solver stats (if active) |
+
+**Move Type Codes:**
+
+| Code | Type | Description |
+|------|------|-------------|
+| `-` | Normal | Full search performed |
+| `Bk` | Book | Opening book move (unvalidated) |
+| `Bv` | BookValidated | Book move validated by search |
+| `Wn` | ImmediateWin | Instant winning move (no search) |
+| `Bl` | ImmediateBlock | Forced block of opponent threat |
+| `Er` | ErrorRate | Random move (Braindead's 10% error) |
+| `Ct` | CenterMove | Center opening move |
+| `Em` | Emergency | Emergency mode (low time) |
+
+**Note:** Early exit moves (book, win, block, error) show `0ms` allocated time because no search was performed - the move was determined instantly. The actual time shown is overhead of checking conditions.
 
 ### Documentation
 

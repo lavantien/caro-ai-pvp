@@ -28,3 +28,10 @@ backend/test_diagnostic.txt
 backend/TestCoords/
 backend/test_book.csx
 test_tt.cs
+
+# SQLite WAL files (temporary)
+*.db-shm
+*.db-wal
+
+# Tournament output files
+matchup_results.txt
