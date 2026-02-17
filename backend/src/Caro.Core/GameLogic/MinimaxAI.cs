@@ -89,6 +89,7 @@ public class MinimaxAI : IStatsPublisher
     private long _lastAllocatedTimeMs;  // Track time allocated for last move
     private bool _lastPonderingEnabled;  // Track if pondering was enabled for last move
     private bool _bookUsed;  // True if last move came from opening book
+    private MoveType _moveType;  // How the last move was determined
 
     // Time control for search timeout
     private long _searchHardBoundMs;
@@ -184,6 +185,7 @@ public class MinimaxAI : IStatsPublisher
         _vcfNodesSearched = 0;
         _vcfDepthAchieved = 0;
         _bookUsed = false;
+        _moveType = MoveType.Normal;  // Default, will be overridden by early exits
         _searchStopwatch.Restart();
 
         // Reset thread count and parallel diagnostics for this difficulty
@@ -318,6 +320,7 @@ public class MinimaxAI : IStatsPublisher
                         _nodesSearched = validationResult.NodesSearched;
                         _lastAllocatedTimeMs = validationResult.TimeMs;
                         _bookUsed = true;
+                        _moveType = MoveType.BookValidated;
                         return bookMove.Value;
                     }
                     // Book move failed validation - fall through to full search
@@ -330,6 +333,7 @@ public class MinimaxAI : IStatsPublisher
                     _nodesSearched = 0;
                     _lastAllocatedTimeMs = 0;
                     _bookUsed = true;
+                    _moveType = MoveType.Book;
                     return bookMove.Value;
                 }
             }
@@ -345,6 +349,7 @@ public class MinimaxAI : IStatsPublisher
                 _depthAchieved = 1;
                 _nodesSearched = 1;
                 _lastAllocatedTimeMs = 0;
+                _moveType = MoveType.ImmediateWin;
                 return (cx, cy);
             }
         }
@@ -382,6 +387,7 @@ public class MinimaxAI : IStatsPublisher
             _depthAchieved = 1;
             _nodesSearched = 1;
             _lastAllocatedTimeMs = 0;
+            _moveType = MoveType.ImmediateBlock;
             return immediateBlock.Value;
         }
 
@@ -398,6 +404,8 @@ public class MinimaxAI : IStatsPublisher
             // Report minimal stats to indicate instant move (not D0 which looks like a bug)
             _depthAchieved = 1;
             _nodesSearched = 1;
+            _lastAllocatedTimeMs = 0;
+            _moveType = MoveType.ErrorRate;
             var randomIndex = NextRandomInt(candidates.Count);
             var randomMove = candidates[randomIndex];
 
@@ -3210,7 +3218,7 @@ public class MinimaxAI : IStatsPublisher
     /// <summary>
     /// Get search statistics for the last move
     /// </summary>
-    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched, int ThreadCount, string? ParallelDiagnostics, double MasterTTPercent, double HelperAvgDepth, long AllocatedTimeMs, bool BookUsed) GetSearchStatistics()
+    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched, int ThreadCount, string? ParallelDiagnostics, double MasterTTPercent, double HelperAvgDepth, long AllocatedTimeMs, bool BookUsed, MoveType MoveType) GetSearchStatistics()
     {
         double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
         var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
@@ -3237,7 +3245,7 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs, _bookUsed);
+        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs, _bookUsed, _moveType);
     }
 
     /// <summary>
@@ -3246,7 +3254,7 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     public void PublishSearchStats(Player player, StatsType statsType, long moveTimeMs)
     {
-        var (depthAchieved, nodesSearched, nps, hitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, _, masterTTPercent, helperAvgDepth, allocatedTimeMs, bookUsed) = GetSearchStatistics();
+        var (depthAchieved, nodesSearched, nps, hitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, _, masterTTPercent, helperAvgDepth, allocatedTimeMs, bookUsed, moveType) = GetSearchStatistics();
 
         var statsEvent = new MoveStatsEvent
         {
@@ -3265,7 +3273,8 @@ public class MinimaxAI : IStatsPublisher
             TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             MasterTTPercent = masterTTPercent,
             HelperAvgDepth = helperAvgDepth,
-            AllocatedTimeMs = allocatedTimeMs
+            AllocatedTimeMs = allocatedTimeMs,
+            MoveType = moveType
         };
 
         _statsChannel.Writer.TryWrite(statsEvent);

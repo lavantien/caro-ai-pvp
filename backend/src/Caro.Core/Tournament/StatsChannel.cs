@@ -28,6 +28,7 @@ public class MoveStatsEvent
     public double MasterTTPercent { get; init; }
     public double HelperAvgDepth { get; init; }
     public long AllocatedTimeMs { get; init; }
+    public MoveType MoveType { get; init; } = MoveType.Normal;
 }
 
 public enum StatsType
@@ -35,4 +36,19 @@ public enum StatsType
     MainSearch,
     Pondering,
     VCFSearch
+}
+
+/// <summary>
+/// Type of move determination - indicates how the move was selected
+/// </summary>
+public enum MoveType
+{
+    Normal,           // Full search performed
+    Book,             // Opening book move (unvalidated)
+    BookValidated,    // Book move validated by search
+    ImmediateWin,     // Immediate winning move found
+    ImmediateBlock,   // Forced block of opponent's winning move
+    ErrorRate,        // Random move due to error rate (Braindead)
+    CenterMove,       // First move at center (opening)
+    Emergency         // Emergency mode (low time)
 }
