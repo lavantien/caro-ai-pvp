@@ -29,7 +29,7 @@ public static class GameStatsFormatter
         var timeStr = FormatTime(stats?.MoveTimeMs ?? 0);
         var allocStr = FormatTime(stats?.AllocatedTimeMs ?? 0);
         var depthStr = stats != null ? $"D{stats.DepthAchieved}" : "D-";
-        var bookStr = stats?.BookUsed == true ? "B" : "-";
+        var moveTypeStr = FormatMoveType(stats?.MoveType ?? MoveType.Normal, stats?.BookUsed ?? false);
 
         long mainNodes = stats?.NodesSearched ?? 0;
         double mainNps = stats?.NodesPerSecond ?? 0;
@@ -54,17 +54,36 @@ public static class GameStatsFormatter
 
         return
             $"    G{game,2} M{moveNumber,3} | {color}({x},{y}) by {difficulty,-12} | " +
-            $"T: {timeStr,-9}/{allocStr,-8} | " +
-            $"{bookStr,-2} | " +
+            $"T: {timeStr,-7}/{allocStr,-6} | " +
+            $"{moveTypeStr,-4} | " +
             $"Th: {threadsStr} | " +
-            $"{depthStr,-9} | " +
-            $"N: {nStr,20} | " +
-            $"NPS: {npsStr,20} | " +
+            $"{depthStr,-3} | " +
+            $"N: {nStr,-8} | " +
+            $"NPS: {npsStr,-8} | " +
             $"TT: {ttStr,-5} | " +
             $"%M: {masterStr,-5} | " +
             $"HD: {helperStr,-4} | " +
             $"P: {ponderStr,-25} | " +
             $"VCF: {vcfStr}";
+    }
+
+    /// <summary>
+    /// Format move type as a short code for display
+    /// </summary>
+    private static string FormatMoveType(MoveType moveType, bool bookUsed)
+    {
+        return moveType switch
+        {
+            MoveType.Normal => "-",
+            MoveType.Book => "Bk",         // Book move (unvalidated)
+            MoveType.BookValidated => "Bv", // Book move validated by search
+            MoveType.ImmediateWin => "Wn",  // Immediate winning move
+            MoveType.ImmediateBlock => "Bl", // Forced block
+            MoveType.ErrorRate => "Er",     // Error rate random move
+            MoveType.CenterMove => "Ct",    // Center opening move
+            MoveType.Emergency => "Em",     // Emergency mode
+            _ => "-"
+        };
     }
 
     /// <summary>
