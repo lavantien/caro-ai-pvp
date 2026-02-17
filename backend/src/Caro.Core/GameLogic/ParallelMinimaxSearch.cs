@@ -554,13 +554,87 @@ public sealed class ParallelMinimaxSearch
             return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0);
         }
 
-        // At maximum depth, pick highest score (with master as tiebreaker)
-        // CRITICAL FIX: Use single OrderBy with compound key to avoid replacing previous sort
-        // OrderByDescending().OrderBy() bug: second OrderBy REPLACES first sort, doesn't chain!
-        var bestResult = results
-            .Where(r => r.depth == maxDepth)
-            .OrderBy(r => (-r.score, r.threadIndex == 0 ? 0 : 1))  // Compound: (-score for desc, master priority)
-            .FirstOrDefault();
+        // CRITICAL FIX: Select the best valid result, avoiding int.MinValue scores
+        // int.MinValue EXACTLY indicates search failure (cancellation, no moves, etc.)
+        // Scores close to int.MinValue (like int.MinValue + 1000) indicate losing positions
+        // Strategy: Try maxDepth first, but prefer lower depths with reasonable scores
+        // over higher depths with extremely negative scores
+        (int x, int y, int score, int depth, long nodes, int threadIndex) bestResult = default;
+        bool foundValidResult = false;
+
+        // Score threshold: below this, consider the position "effectively lost"
+        // int.MinValue + 1000000 = -2147482648, which is still a valid but terrible score
+        // We want to fall back to lower depths if all scores at higher depths are this bad
+        const int ReasonableScoreThreshold = int.MinValue + 100000000;  // -2147383648
+
+        // First, try to find results at maxDepth with reasonable scores
+        var reasonableAtMaxDepth = results
+            .Where(r => r.depth == maxDepth && r.score > ReasonableScoreThreshold)
+            .ToList();
+
+        if (reasonableAtMaxDepth.Count > 0)
+        {
+            // Found reasonable results at max depth - pick the best one
+            bestResult = reasonableAtMaxDepth
+                .OrderByDescending(r => r.score)  // Highest score first
+                .ThenBy(r => r.threadIndex == 0 ? 0 : 1)  // Master thread as tiebreaker
+                .First();
+            foundValidResult = true;
+        }
+        else
+        {
+            // All scores at maxDepth are extremely negative or int.MinValue
+            // Try lower depths for better results
+            for (int tryDepth = maxDepth - 1; tryDepth >= 1 && !foundValidResult; tryDepth--)
+            {
+                var validAtDepth = results
+                    .Where(r => r.depth == tryDepth && r.score != int.MinValue)
+                    .ToList();
+
+                if (validAtDepth.Count > 0)
+                {
+                    // Found valid results at this depth - pick the best one
+                    bestResult = validAtDepth
+                        .OrderByDescending(r => r.score)
+                        .ThenBy(r => r.threadIndex == 0 ? 0 : 1)
+                        .First();
+                    foundValidResult = true;
+                }
+            }
+
+            // If still no valid results, use maxDepth results (even if very negative)
+            if (!foundValidResult)
+            {
+                var anyAtMaxDepth = results
+                    .Where(r => r.depth == maxDepth && r.score != int.MinValue)
+                    .ToList();
+
+                if (anyAtMaxDepth.Count > 0)
+                {
+                    bestResult = anyAtMaxDepth
+                        .OrderByDescending(r => r.score)
+                        .First();
+                    foundValidResult = true;
+                }
+            }
+        }
+
+        // If no valid results at any depth, use master thread's result as last resort
+        if (!foundValidResult)
+        {
+            // All threads returned int.MinValue - this should be extremely rare
+            // Prefer master thread's result as it has the most reliable search
+            var masterResult = results.FirstOrDefault(r => r.threadIndex == 0);
+            if (!masterResult.Equals(default))
+            {
+                bestResult = masterResult;
+            }
+            else
+            {
+                // Last resort: pick any result
+                bestResult = results.First();
+            }
+        }
 
         // DEBUG: Log all thread results and selection
         if (DebugLogging)
@@ -774,7 +848,12 @@ public sealed class ParallelMinimaxSearch
 
             // CRITICAL FIX: Update bestMove/bestScore BEFORE checking cancellation
             // If we completed the search, we should use the result even if cancellation is requested
-            if (result.x == bestMove.Item1 && result.y == bestMove.Item2)
+            // BUT only update if the score is valid (not int.MinValue from aborted search)
+            if (result.score == int.MinValue)
+            {
+                // Search was aborted - don't update anything, keep previous iteration's result
+            }
+            else if (result.x == bestMove.Item1 && result.y == bestMove.Item2)
                 stableCount++;
             else
             {
@@ -782,10 +861,27 @@ public sealed class ParallelMinimaxSearch
                 bestMove = (result.x, result.y);
             }
 
+            // CRITICAL FIX: Only update bestMove/bestDepth when score is valid
+            // SearchRoot returns int.MinValue when search was aborted (timeout/cancellation)
+            // We should NOT update bestMove with garbage results
             if (result.score > bestScore || bestMove == (-1, -1))
-                bestScore = result.score;
-            bestMove = (result.x, result.y);
-            bestDepth = currentDepth;
+            {
+                // Only update bestScore if it's a real search result (not int.MinValue)
+                // int.MinValue means the search was aborted and returned first candidate
+                if (result.score != int.MinValue)
+                {
+                    bestScore = result.score;
+                    bestMove = (result.x, result.y);
+                    bestDepth = currentDepth;
+                }
+                else if (bestMove == (-1, -1))
+                {
+                    // First iteration with aborted search - use result but keep bestScore at int.MinValue
+                    // This is a fallback for the very first search when even D1 times out
+                    bestMove = (result.x, result.y);
+                    bestDepth = currentDepth;
+                }
+            }
 
             // NOW check cancellation - after saving the result
             if (cancellationToken.IsCancellationRequested)
@@ -830,8 +926,10 @@ public sealed class ParallelMinimaxSearch
             var elapsed = _searchStopwatch.ElapsedMilliseconds;
             if (elapsed >= _hardTimeBoundMs)
             {
-                // Return first candidate immediately - time is up
-                return (candidates[0].x, candidates[0].y, 0);
+                // CRITICAL FIX: Return int.MinValue to indicate invalid/timeout result
+                // Score 0 was being picked by result merging as a "valid" result
+                // int.MinValue signals "this search did not complete"
+                return (candidates[0].x, candidates[0].y, int.MinValue);
             }
         }
 
@@ -863,9 +961,17 @@ public sealed class ParallelMinimaxSearch
                 Console.WriteLine($"  [SearchRoot] Thread {threadData.ThreadIndex}: move=({x},{y}), score={score}");
             }
 
-            // CRITICAL FIX: If search was cancelled during Minimax, the score may be invalid (0 from early return)
-            // Check cancellation and break out of the move loop without updating bestScore/bestMove
-            // This preserves the best move from the previous fully-completed depth
+            // CRITICAL FIX: Update bestScore/bestMove BEFORE checking cancellation
+            // If Minimax completed successfully (score != int.MinValue), we should use the result
+            // even if cancellation was requested during the search.
+            // Only skip updating if the score is int.MinValue (which means Minimax was cancelled)
+            if (score != int.MinValue && score > bestScore)
+            {
+                bestScore = score;
+                bestMove = (x, y);
+            }
+
+            // NOW check cancellation - after saving any valid result
             if (cancellationToken.IsCancellationRequested)
             {
                 break;
@@ -879,12 +985,6 @@ public sealed class ParallelMinimaxSearch
                     if (threadData.ThreadIndex == 0) _searchCts?.Cancel();
                     break;
                 }
-            }
-
-            if (score > bestScore)
-            {
-                bestScore = score;
-                bestMove = (x, y);
             }
 
             alpha = Math.Max(alpha, score);
@@ -916,9 +1016,15 @@ public sealed class ParallelMinimaxSearch
         threadData.LocalNodesSearched++;
 
         // Time management check - use CancellationToken for proper cancellation
+        // CRITICAL FIX: Return int.MinValue on cancellation to signal invalid result
+        // Returning 0 was corrupting results - score 0 looks valid but is meaningless
         if (cancellationToken.IsCancellationRequested)
         {
-            return 0;
+            // Return a value that won't be selected as "best" by either player
+            // For maximizing: int.MinValue is worst possible, won't be selected
+            // For minimizing: int.MinValue is best possible, but we handle this by
+            // checking if bestScore stayed at int.MinValue in the caller
+            return int.MinValue;
         }
 
         // Periodic time check - every 16 nodes to catch timeouts faster
@@ -928,7 +1034,7 @@ public sealed class ParallelMinimaxSearch
         {
             // Check cancellation token first for immediate abort
             if (cancellationToken.IsCancellationRequested)
-                return 0;
+                return int.MinValue;
 
             var elapsed = _searchStopwatch!.ElapsedMilliseconds;
             if (elapsed >= _hardTimeBoundMs)
@@ -938,7 +1044,7 @@ public sealed class ParallelMinimaxSearch
                 {
                     _searchCts?.Cancel();
                 }
-                return 0;
+                return int.MinValue;
             }
         }
 

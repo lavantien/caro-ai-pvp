@@ -2,78 +2,88 @@
 
 ## Summary
 
-Fixed critical bug in parallel search where search results were being discarded due to premature cancellation check.
+Fixed critical bug in SearchRoot where valid scores were discarded due to cancellation check placement. After fix, Easy beats Braindead 63.6% at blitz time controls (vs 0% before).
 
-## Root Cause
+## Root Cause: SearchRoot Cancellation Check Order
 
-In `SearchWithIterationTimeAware`, the cancellation check was placed BEFORE updating `bestScore`/`bestMove` from the SearchRoot result. This meant:
+The critical bug was in `SearchRoot` - when Minimax completed successfully and returned a valid score, the cancellation check was placed BEFORE updating `bestScore`/`bestMove`:
 
-1. SearchRoot completes and returns a valid result
-2. Cancellation token is checked
-3. If cancelled, loop breaks WITHOUT saving the result
-4. `bestScore` stays at `int.MinValue`
-5. All threads return `int.MinValue` score
-6. Result selection picks a bad move
-
-## Changes Made
-
-### 1. Move Result Update Before Cancellation Check (ParallelMinimaxSearch.cs)
-
-**Before:**
 ```csharp
+// BUGGY CODE:
+var score = Minimax(...);
+
+// Check cancellation FIRST - WRONG!
 if (cancellationToken.IsCancellationRequested)
     break;
 
-// Update bestScore/bestMove...
+// This is never reached if cancelled!
+if (score > bestScore)
+{
+    bestScore = score;
+    bestMove = (x, y);
+}
 ```
 
-**After:**
-```csharp
-// Update bestScore/bestMove BEFORE checking cancellation
-if (result.score > bestScore || bestMove == (-1, -1))
-    bestScore = result.score;
-bestMove = (result.x, result.y);
-bestDepth = currentDepth;
+When the search timed out:
+1. Minimax returns valid score (e.g., -2147482648 = alpha value)
+2. Cancellation check triggers
+3. Loop breaks WITHOUT updating bestScore/bestMove
+4. bestScore stays at int.MinValue (initial value)
+5. SearchRoot returns garbage result
 
-// NOW check cancellation - after saving the result
+**The Fix:** Update bestScore/bestMove BEFORE checking cancellation, but only if the score is valid (not int.MinValue from cancelled Minimax):
+
+```csharp
+var score = Minimax(...);
+
+// FIX: Update BEFORE checking cancellation
+if (score != int.MinValue && score > bestScore)
+{
+    bestScore = score;
+    bestMove = (x, y);
+}
+
+// NOW check cancellation
 if (cancellationToken.IsCancellationRequested)
     break;
 ```
 
-### 2. Lazy SMP Depth Offset (ParallelMinimaxSearch.cs)
+## All Bugs Fixed
 
-Per Chessprogramming Wiki, helper threads should search at different depths:
-- Master (ThreadIndex=0): Start at depth 1
-- Helper odd (ThreadIndex=1,3,...): Start at depth 2
-- Helper even (ThreadIndex=2,4,...): Start at depth 1
+### Bug 1: SearchRoot Cancellation Order (CRITICAL)
 
-```csharp
-int depthOffset = threadData.ThreadIndex % 2 == 1 ? 1 : 0;
-```
+In `SearchRoot`, the cancellation check was BEFORE updating bestScore/bestMove, causing valid scores to be discarded.
 
-### 3. Null Check for Stopwatch (ParallelMinimaxSearch.cs)
+**Fix:** Update bestScore/bestMove before checking cancellation.
 
-Fixed null reference warnings:
-```csharp
-_searchStopwatch?.Restart();
-```
+### Bug 2: SearchWithIterationTimeAware Cancellation Order
+
+Same issue in `SearchWithIterationTimeAware` - bestMove was updated unconditionally even when score was int.MinValue.
+
+**Fix:** Only update bestMove/bestDepth when score is not int.MinValue.
+
+### Bug 3: Result Selection Logic
+
+The result selection used `OrderBy(r => (-r.score, ...))` which causes integer overflow when negating int.MinValue.
+
+**Fix:** Use `OrderByDescending(r => r.score)` instead.
 
 ## Test Results
 
-After fixes:
-- Easy now consistently reaches D2 at blitz time controls
-- Games last longer (30-50+ moves instead of 20-27)
-- Parallel search results are now properly aggregated
+### Before Fix
+- Easy vs Braindead: 0-11 (0% win rate)
+- Games: 20-27 moves (quick losses)
 
-## Known Limitation (Per README.md)
-
-> At blitz time controls (3+2), both Braindead and Easy reach only D1-D2 depth where the evaluation cannot reliably distinguish good from bad moves. Strength separation between these levels is more pronounced at longer time controls (Rapid 7+5, Classical 15+10) where depth separation increases.
+### After Fix
+- Easy vs Braindead: 7-4 (63.6% win rate)
+- Games: 37.2 moves average
+- Easy correctly finds winning positions (score=2147483647)
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `ParallelMinimaxSearch.cs` | Move result update before cancellation check, add Lazy SMP depth offset, null check for stopwatch |
+| `ParallelMinimaxSearch.cs` | Fix SearchRoot cancellation order, fix SearchWithIterationTimeAware score validation, fix result selection logic |
 
 ## Version
 
