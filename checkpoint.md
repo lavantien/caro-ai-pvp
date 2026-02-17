@@ -74,10 +74,16 @@ The result selection used `OrderBy(r => (-r.score, ...))` which causes integer o
 - Easy vs Braindead: 0-11 (0% win rate)
 - Games: 20-27 moves (quick losses)
 
-### After Fix
+### After Fix (11-game sample)
 - Easy vs Braindead: 7-4 (63.6% win rate)
 - Games: 37.2 moves average
 - Easy correctly finds winning positions (score=2147483647)
+
+### 100-Game Baseline
+- Easy vs Braindead: **66-34 (66.0% win rate)**
+- Avg moves: 40.6
+- Avg time: 34.0s/game
+- No draws
 
 ## Files Modified
 
