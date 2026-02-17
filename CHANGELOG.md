@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.60.0] - 2026-02-17
+
+### Changed
+- **Difficulty configuration refactored:** Removed all artificial depth/speed handicaps
+  - Removed `MinDepth` - depth is now purely determined by time budget and machine capability
+  - Removed `TargetNps` - NPS is learned from actual search performance, not hardcoded targets
+  - `PonderingThreadCount` now equals `ThreadCount` for all difficulties (was hardcoded 1-3)
+  - Easy difficulty now has pondering enabled (uses multiple threads)
+- **Design principle:** All depth/speed is determined by machine capability and time allotted
+  - Thread count varies by difficulty (parallelism)
+  - Time budget percentage varies (5% to 100%)
+  - Feature flags vary (VCF, opening book depth)
+  - No hardcoded minimum depths or NPS targets
+
+### Fixed
+- **CS0162 compiler warnings:** Changed `DebugLogging` from `const bool` to `static readonly bool`
+  - Previous: `const bool = false` caused unreachable code warnings
+  - Fix: `static readonly bool = false` allows compiler to emit the code
+
+### Baseline Test Results
+- Easy vs Braindead: 66% win rate (100 games, blitz 3+2)
+- Medium vs Braindead: 58% win rate (100 games, blitz 3+2)
+- Lower win rates at blitz expected due to shallow depths (D1-D2) limiting evaluation differentiation
+
+### Test Coverage
+- All 564 backend tests passing
+
+[1.60.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.60.0
+
 ## [1.59.0] - 2026-02-16
 
 ### Fixed

@@ -64,13 +64,13 @@ Grandmaster-level engine achieving depth 11+ with 100-500x speedup over naive mi
 | Level | Threads | Time Budget | Error | Book Depth | Features |
 |-------|---------|-------------|-------|------------|----------|
 | Braindead | 1 | 5% | 10% | 0 | Beginners |
-| Easy | max(2,(N/5)-1) | 20% | 0% | 4 plies | Parallel search + Opening book |
+| Easy | max(2,(N/5)-1) | 20% | 0% | 4 plies | Parallel search + pondering + Opening book |
 | Medium | max(3,(N/4)-1) | 50% | 0% | 6 plies | Parallel + pondering + Opening book |
 | Hard | max(4,(N/3)-1) | 75% | 0% | 10 plies | Parallel + pondering + VCF + Opening book |
 | Grandmaster | max(5,(N/2)-1) | 100% | 0% | 14 plies | Max parallel, VCF, pondering, Opening book |
 | Experimental | max(5,(N/2)-1) | 100% | 0% | Unlimited | Full opening book, max features |
 
-**Depth:** Dynamic calculation based on host machine NPS and time control. Formula: `depth = log(time * nps * timeMultiplier) / log(ebf)`
+**Depth:** Dynamic calculation based on host machine capability and time control. Formula: `depth = log(time * measured_nps * timeMultiplier) / log(ebf)`. NPS is learned from actual search performance - no hardcoded targets.
 
 ### Expected Win Rates (Blitz 3+2)
 
@@ -79,6 +79,7 @@ Based on 100-game matchups with alternating colors. Higher difficulty consistent
 | Matchup | Higher Level Win Rate | Sample Size |
 |---------|----------------------|-------------|
 | Easy vs Braindead | 66% | 100 games |
+| Medium vs Braindead | 58% | 100 games |
 | Medium vs Easy | ~80%* | Estimated |
 | Hard vs Medium | ~85%* | Estimated |
 | Grandmaster vs Hard | ~90%* | Estimated |
