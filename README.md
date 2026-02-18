@@ -87,10 +87,7 @@ Based on 100-game matchups with alternating colors. Higher difficulty consistent
 *Estimated based on resource differential. Full benchmark pending.
 
 **Notes:**
-- Win rates are lower at blitz (3+2) due to shallow search depths (D1-D3)
-- At blitz, both Braindead and Easy reach only D1-D2 depth where evaluation cannot reliably distinguish positions
-- Separation increases at longer time controls (Rapid 7+5, Classical 15+10) where depth separation grows
-- Braindead's 10% error rate allows occasional upsets at blitz speeds
+- Win rates vary by time control; longer controls allow deeper search
 
 ### UCI Protocol
 
@@ -109,8 +106,15 @@ dotnet run --project backend/src/Caro.UCI
 
 **Run UCI Mock Client (engine vs engine testing):**
 ```bash
-dotnet run --project backend/src/Caro.UCIMockClient -- --games 4 --time 180 --inc 2
+cd backend/src/Caro.UCIMockClient && dotnet run -- --games 4 --time 180 --inc 2
 ```
+
+**Run Comprehensive Tournament (AI vs AI matchups):**
+```bash
+cd backend/src/Caro.TournamentRunner && dotnet run -- --comprehensive --matchups=BraindeadvsBraindead,BraindeadvsEasy,BraindeadvsMedium,BraindeadvsHard,BraindeadvsGrandmaster,BraindeadvsExperimental --time=180+2 --games=10
+```
+
+Available matchups: `BraindeadvsBraindead`, `BraindeadvsEasy`, `BraindeadvsMedium`, `BraindeadvsHard`, `BraindeadvsGrandmaster`, `BraindeadvsExperimental`, `EasyvsMedium`, `EasyvsHard`, `EasyvsGrandmaster`, `EasyvsExperimental`, `MediumvsHard`, `MediumvsGrandmaster`, `MediumvsExperimental`, `HardvsGrandmaster`, `HardvsExperimental`, `GrandmastervsExperimental`
 
 **Example UCI session:**
 ```
