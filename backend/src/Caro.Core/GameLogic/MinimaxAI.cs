@@ -90,6 +90,7 @@ public class MinimaxAI : IStatsPublisher
     private bool _lastPonderingEnabled;  // Track if pondering was enabled for last move
     private bool _bookUsed;  // True if last move came from opening book
     private MoveType _moveType;  // How the last move was determined
+    private int _lastSearchScore;  // Score from last search (for book builder)
 
     // Time control for search timeout
     private long _searchHardBoundMs;
@@ -358,7 +359,8 @@ public class MinimaxAI : IStatsPublisher
         // Must scan full board since blocking square may be far from existing stones
         // This is O(n²) but necessary to prevent instant losses
         var oppPlayer = player == Player.Red ? Player.Blue : Player.Red;
-        (int x, int y)? immediateBlock = null;
+        var opponentWinningSquares = new List<(int x, int y)>();
+
         for (int x = 0; x < BoardSize; x++)
         {
             for (int y = 0; y < BoardSize; y++)
@@ -367,58 +369,88 @@ public class MinimaxAI : IStatsPublisher
                 {
                     if (_threatDetector.IsWinningMove(board, x, y, oppPlayer))
                     {
-                        if (immediateBlock == null)
-                        {
-                            immediateBlock = (x, y);
-                        }
-                        else
-                        {
-                            // Multiple blocking squares - can't block all, position is lost
-                            // But still try to block one
-                        }
+                        opponentWinningSquares.Add((x, y));
                     }
                 }
             }
         }
 
-        // If opponent has exactly one immediate win, block it
-        if (immediateBlock.HasValue)
+        // If opponent has immediate winning moves, we must block
+        if (opponentWinningSquares.Count > 0)
         {
-            _depthAchieved = 1;
-            _nodesSearched = 1;
-            _lastAllocatedTimeMs = 0;
-            _moveType = MoveType.ImmediateBlock;
-            return immediateBlock.Value;
+            // Single threat: block it directly
+            if (opponentWinningSquares.Count == 1)
+            {
+                _depthAchieved = 1;
+                _nodesSearched = 1;
+                _lastAllocatedTimeMs = 0;
+                _moveType = MoveType.ImmediateBlock;
+                return opponentWinningSquares[0];
+            }
+
+            // Multiple threats: find a square that blocks ALL of them
+            // Optimization: Only check if OTHER winning squares are still threats
+            // No need to scan entire board - if we block one winning square,
+            // the only remaining threats would be the other known winning squares
+            foreach (var (bx, by) in opponentWinningSquares)
+            {
+                // Simulate placing our stone at this candidate block position
+                var testBoard = board.PlaceStone(bx, by, player);
+
+                // Check if any OTHER winning squares are still threats after this block
+                bool stillHasThreat = false;
+                foreach (var (wx, wy) in opponentWinningSquares)
+                {
+                    if (wx == bx && wy == by)
+                        continue; // This square is now occupied by our block
+
+                    // Check if this other winning square is still a threat
+                    if (_threatDetector.IsWinningMove(testBoard, wx, wy, oppPlayer))
+                    {
+                        stillHasThreat = true;
+                        break;
+                    }
+                }
+
+                if (!stillHasThreat)
+                {
+                    // This block successfully eliminates ALL opponent threats
+                    _depthAchieved = 1;
+                    _nodesSearched = opponentWinningSquares.Count;
+                    _lastAllocatedTimeMs = 0;
+                    _moveType = MoveType.ImmediateBlock;
+                    return (bx, by);
+                }
+            }
+
+            // No single block can save us - multiple independent threats exist
+            // Position is lost. Fall through to normal search rather than
+            // playing a futile block that wastes time.
+            // The search will evaluate the position and find the best continuation.
         }
 
         // Error rate simulation: Lower difficulties make random/suboptimal moves
         // Uses AdaptiveDepthCalculator.GetErrorRate() for consistent error rates
         // - Braindead: 10%, all other difficulties: 0% (optimal play)
+        // IMPORTANT: Error moves are TRUE random - selected from ALL legal moves, not tactical moves
         var errorRate = AdaptiveDepthCalculator.GetErrorRate(difficulty);
         var randomValue = NextRandomDouble();
-        if (errorRate > 0 && randomValue < errorRate && candidates.Count > 0)
+        if (errorRate > 0 && randomValue < errorRate)
         {
-            if (System.Diagnostics.Debugger.IsAttached)
-                Console.WriteLine($"[ERROR RATE] {difficulty} playing random move (rolled {randomValue:F2} < {errorRate})");
-            // Play a random valid move instead of searching
-            // Report minimal stats to indicate instant move (not D0 which looks like a bug)
-            _depthAchieved = 1;
-            _nodesSearched = 1;
-            _lastAllocatedTimeMs = 0;
-            _moveType = MoveType.ErrorRate;
-            var randomIndex = NextRandomInt(candidates.Count);
-            var randomMove = candidates[randomIndex];
-
-            // DEFENSIVE: Verify the move is actually valid before returning
-            if (!board.GetCell(randomMove.x, randomMove.y).IsEmpty)
+            // Get ALL legal moves (every empty cell), not just tactical candidates
+            var allLegalMoves = GetAllLegalMoves(board);
+            if (allLegalMoves.Count > 0)
             {
-                // This should never happen - candidates should only contain empty cells
-                // If it does, fall through to normal search instead of returning invalid move
-                Console.WriteLine($"[AI ERROR] Error rate path selected occupied cell ({randomMove.x},{randomMove.y}) - falling through to search");
-            }
-            else
-            {
-                return randomMove;
+                if (System.Diagnostics.Debugger.IsAttached)
+                    Console.WriteLine($"[ERROR RATE] {difficulty} playing random move (rolled {randomValue:F2} < {errorRate})");
+                // Play a random valid move instead of searching
+                // Report minimal stats to indicate instant move (not D0 which looks like a bug)
+                _depthAchieved = 1;
+                _nodesSearched = 1;
+                _lastAllocatedTimeMs = 0;
+                _moveType = MoveType.ErrorRate;
+                var randomIndex = NextRandomInt(allLegalMoves.Count);
+                return allLegalMoves[randomIndex];
             }
         }
 
@@ -728,6 +760,7 @@ public class MinimaxAI : IStatsPublisher
             _lastPonderingEnabled = ponderingEnabled;
             _tableHits = parallelResult.TableHits;
             _tableLookups = parallelResult.TableLookups;
+            _lastSearchScore = parallelResult.Score;
 
             // Store PV and board for pondering prediction
             _lastPV = PV.FromSingleMove(parallelResult.X, parallelResult.Y, _depthAchieved, 0);
@@ -844,6 +877,7 @@ public class MinimaxAI : IStatsPublisher
             if (result.x != -1)
             {
                 bestMove = (result.x, result.y);
+                _lastSearchScore = result.score;  // Track score for book builder
                 _depthAchieved = currentDepth; // Track deepest completed search
 
                 // Update NPS estimate from this iteration
@@ -1409,7 +1443,7 @@ public class MinimaxAI : IStatsPublisher
         return null;
     }
 
-    private (int x, int y) SearchWithDepth(Board board, Player player, int depth, List<(int x, int y)> candidates)
+    private (int x, int y, int score) SearchWithDepth(Board board, Player player, int depth, List<(int x, int y)> candidates)
     {
         // Aspiration window: try narrow search first, then wider if needed
         const int aspirationWindow = 50;  // Initial window size
@@ -1440,7 +1474,7 @@ public class MinimaxAI : IStatsPublisher
                 if (_searchStopwatch.ElapsedMilliseconds >= _searchHardBoundMs)
                 {
                     _searchStopped = true;
-                    return bestMove;
+                    return (bestMove.x, bestMove.y, bestScore);
                 }
 
                 var newBoard = board.PlaceStone(x, y, player);
@@ -1449,7 +1483,7 @@ public class MinimaxAI : IStatsPublisher
                 // If search was stopped during Minimax, return current best
                 if (_searchStopped)
                 {
-                    return bestMove;
+                    return (bestMove.x, bestMove.y, bestScore);
                 }
 
                 // Tie-breaking: higher score wins, or equal score with better tiebreaker
@@ -1481,7 +1515,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 _tableHits++;
                 if (cachedMove.HasValue)
-                    return cachedMove.Value;
+                    return (cachedMove.Value.x, cachedMove.Value.y, cachedScore);
             }
 
             // Reset best score for this attempt
@@ -1504,7 +1538,7 @@ public class MinimaxAI : IStatsPublisher
                 if (_searchStopwatch.ElapsedMilliseconds >= _searchHardBoundMs)
                 {
                     _searchStopped = true;
-                    return bestMove;  // Return best move found so far
+                    return (bestMove.x, bestMove.y, bestScore);  // Return best move found so far
                 }
 
                 // Make move
@@ -1516,7 +1550,7 @@ public class MinimaxAI : IStatsPublisher
                 // If search was stopped during Minimax, return current best
                 if (_searchStopped)
                 {
-                    return bestMove;
+                    return (bestMove.x, bestMove.y, bestScore);
                 }
 
                 // Tie-breaking: higher score wins, or equal score with better tiebreaker + small random
@@ -1562,7 +1596,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 // Store result in transposition table
                 _transpositionTable.Store(boardHash, depth, bestScore, bestMove, estimatedScore - aspirationWindow, estimatedScore + aspirationWindow);
-                return bestMove;
+                return (bestMove.x, bestMove.y, bestScore);
             }
 
             // Aspiration failed - widen window and try again
@@ -1574,11 +1608,11 @@ public class MinimaxAI : IStatsPublisher
             {
                 // Store result with wide window
                 _transpositionTable.Store(boardHash, depth, bestScore, bestMove, int.MinValue, int.MaxValue);
-                return bestMove;
+                return (bestMove.x, bestMove.y, bestScore);
             }
         }
 
-        return bestMove;
+        return (bestMove.x, bestMove.y, bestScore);
     }
 
     /// <summary>
@@ -2860,6 +2894,28 @@ public class MinimaxAI : IStatsPublisher
     }
 
     /// <summary>
+    /// Get ALL legal moves (every empty cell on the board).
+    /// Used for error rate simulation - true random moves, not tactical moves.
+    /// </summary>
+    private List<(int x, int y)> GetAllLegalMoves(Board board)
+    {
+        var legalMoves = new List<(int x, int y)>(64);
+
+        for (int x = 0; x < BoardSize; x++)
+        {
+            for (int y = 0; y < BoardSize; y++)
+            {
+                if (board.GetCell(x, y).Player == Player.None)
+                {
+                    legalMoves.Add((x, y));
+                }
+            }
+        }
+
+        return legalMoves;
+    }
+
+    /// <summary>
     /// Check if there's a winner on the board using WinDetector
     /// This ensures Caro rules are enforced: exact 5-in-a-row, no sandwiched wins, no overlines
     /// </summary>
@@ -3218,7 +3274,7 @@ public class MinimaxAI : IStatsPublisher
     /// <summary>
     /// Get search statistics for the last move
     /// </summary>
-    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched, int ThreadCount, string? ParallelDiagnostics, double MasterTTPercent, double HelperAvgDepth, long AllocatedTimeMs, bool BookUsed, MoveType MoveType) GetSearchStatistics()
+    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched, int ThreadCount, string? ParallelDiagnostics, double MasterTTPercent, double HelperAvgDepth, long AllocatedTimeMs, bool BookUsed, MoveType MoveType, int SearchScore) GetSearchStatistics()
     {
         double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
         var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
@@ -3245,7 +3301,7 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs, _bookUsed, _moveType);
+        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs, _bookUsed, _moveType, _lastSearchScore);
     }
 
     /// <summary>
@@ -3254,7 +3310,7 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     public void PublishSearchStats(Player player, StatsType statsType, long moveTimeMs)
     {
-        var (depthAchieved, nodesSearched, nps, hitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, _, masterTTPercent, helperAvgDepth, allocatedTimeMs, bookUsed, moveType) = GetSearchStatistics();
+        var (depthAchieved, nodesSearched, nps, hitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, _, masterTTPercent, helperAvgDepth, allocatedTimeMs, bookUsed, moveType, _) = GetSearchStatistics();
 
         var statsEvent = new MoveStatsEvent
         {
