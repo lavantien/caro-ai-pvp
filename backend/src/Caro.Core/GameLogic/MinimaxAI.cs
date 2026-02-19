@@ -34,16 +34,9 @@ public class MinimaxAI : IStatsPublisher
     // Adaptive time management using PID-like controller
     private readonly AdaptiveTimeManager _adaptiveTimeManager = new();
 
-    // Time-budget-based depth manager - scales depth with machine capability
-    // Replaces hardcoded depths with iterative deepening based on NPS and time
-    private readonly TimeBudgetDepthManager _depthManager = new();
-
     // Track initial time for adaptive depth thresholds
     // -1 means "unknown, will infer from first move"
     private long _inferredInitialTimeMs = -1;
-
-    // Track last calculated depth for smoothing (prevent sudden drops)
-    private int _lastCalculatedDepth = -1;
 
     // Track thread count used for last search (for diagnostics)
     private int _lastThreadCount = 1;
@@ -56,7 +49,9 @@ public class MinimaxAI : IStatsPublisher
     private readonly ParallelMinimaxSearch _parallelSearch;
 
     // Search radius around existing stones (optimization)
-    private const int SearchRadius = 2;
+    // Set to 7 to ensure safety checks detect all winning moves (5-in-a-row can have winning cells
+    // up to 4 squares from existing stones, plus margin for complex patterns)
+    private const int SearchRadius = 7;
 
     // Board size constant for array sizing and bounds checking
     private const int BoardSize = GameConstants.BoardSize;
@@ -165,7 +160,7 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     /// <param name="board">Current board state</param>
     /// <param name="player">Player to move</param>
-    /// <param name="difficulty">AI difficulty level (D1-D11)</param>
+    /// <param name="difficulty">AI difficulty level (D1-D7)</param>
     /// <param name="timeRemainingMs">Time remaining on clock in milliseconds (null for unlimited)</param>
     /// <param name="moveNumber">Current move number (1-indexed, 0 if unknown)</param>
     /// <param name="ponderingEnabled">Enable pondering (thinking on opponent's time)</param>
@@ -280,14 +275,43 @@ public class MinimaxAI : IStatsPublisher
             return (center, center);
         }
 
-        // Check for ponder hit - if opponent played predicted move, we can use cached result
+        // PONDER HIT HANDLING
+        // On ponder hit, the ponder search is already running with the correct position.
+        // We should wait for it to complete (up to our time budget) and use the result.
+        // On ponder miss, we fall through to normal search.
         if (ponderingEnabled && _ponderer.IsPondering && _lastPV.IsEmpty == false)
         {
-            var opponent = player == Player.Red ? Player.Blue : Player.Red;
-            var (ponderState, ponderResult) = _ponderer.HandleOpponentMove(-1, -1); // Dummy, just to get state
+            var lastOppMove = GetLastOpponentMove(board, player);
+            if (lastOppMove.HasValue)
+            {
+                // Check if opponent played the predicted move
+                var (ponderState, _) = _ponderer.HandleOpponentMove(lastOppMove.Value.x, lastOppMove.Value.y);
 
-            // For now, we handle ponder hit by checking if board matches our pondered position
-            // The actual ponder hit detection is done externally via TournamentEngine
+                if (ponderState == PonderState.PonderHit)
+                {
+                    // PONDER HIT - opponent played expected move!
+                    // The ponder search was running during opponent's turn (free precomputation).
+                    // Use the result immediately - don't wait or count ponder time.
+                    var ponderResult = _ponderer.GetPonderHitResult();
+
+                    if (ponderResult.BestMove.HasValue && ponderResult.Depth > 0)
+                    {
+                        var ponderMove = ponderResult.BestMove.Value;
+                        // Validate the ponder move is still valid on current board
+                        if (board.GetCell(ponderMove.x, ponderMove.y).IsEmpty)
+                        {
+                            _depthAchieved = ponderResult.Depth;
+                            _nodesSearched = ponderResult.NodesSearched;
+                            _lastAllocatedTimeMs = ponderResult.TimeSpentMs;
+                            _moveType = MoveType.Normal;
+                            Console.WriteLine($"[PONDER HIT] Used ponder result: depth={ponderResult.Depth}, nodes={ponderResult.NodesSearched:N0}, time={ponderResult.TimeSpentMs}ms");
+                            return ponderMove;
+                        }
+                    }
+                }
+                // Ponder miss - fall through to normal search
+                // The ponder search was already stopped by HandleOpponentMove on miss
+            }
         }
 
         // Opening book for Easy, Medium, Hard, Grandmaster, and Experimental difficulties
@@ -423,10 +447,34 @@ public class MinimaxAI : IStatsPublisher
                 }
             }
 
-            // No single block can save us - multiple independent threats exist
-            // Position is lost. Fall through to normal search rather than
-            // playing a futile block that wastes time.
-            // The search will evaluate the position and find the best continuation.
+            // No single block can save us - multiple independent threats exist (e.g., open four)
+            // Block the first winning square anyway. This is NOT futile because:
+            // 1. It delays the opponent's win, giving us time to counter-attack
+            // 2. The opponent might not have time to play the other winning square
+            // 3. We might create our own threat that forces a response
+            // Falling through to normal search risks playing a non-blocking move.
+            _depthAchieved = 1;
+            _nodesSearched = opponentWinningSquares.Count;
+            _lastAllocatedTimeMs = 0;
+            _moveType = MoveType.ImmediateBlock;
+            return opponentWinningSquares[0];
+        }
+
+        // PROACTIVE DEFENSE: Check for opponent's open threes (3 in a row with both ends open)
+        // An open three becomes an open four on the next move, which has 2 winning squares.
+        // We should block open threes BEFORE they become open fours.
+        // This is critical for Caro rules where sandwiched wins are blocked.
+        var openThreeBlocks = FindOpenThreeBlocks(board, oppPlayer);
+        if (openThreeBlocks.Count > 0)
+        {
+            // Block the first open three. Priority:
+            // 1. Open threes that would become open fours
+            // 2. The square that blocks both ends if possible, otherwise pick one end
+            _depthAchieved = 1;
+            _nodesSearched = openThreeBlocks.Count;
+            _lastAllocatedTimeMs = 0;
+            _moveType = MoveType.ImmediateBlock;
+            return openThreeBlocks[0];
         }
 
         // Error rate simulation: Lower difficulties make random/suboptimal moves
@@ -499,8 +547,9 @@ public class MinimaxAI : IStatsPublisher
         // CRITICAL DEFENSE: Check for opponent threats BEFORE any early returns
         // This ensures we don't skip blocking in emergency mode
         // Note: oppPlayer is already defined above
+        // CRITICAL FIX: Include BrokenFour threats - they create double attacks that are as dangerous as open fours
         var threats = _threatDetector.DetectThreats(board, oppPlayer)
-            .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.StraightThree)
+            .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.StraightThree || t.Type == ThreatType.BrokenFour)
             .ToList();
 
         bool hasOpponentThreats = threats.Count > 0;
@@ -513,6 +562,7 @@ public class MinimaxAI : IStatsPublisher
         {
             var straightFourCount = threats.Count(t => t.Type == ThreatType.StraightFour);
             var straightThreeCount = threats.Count(t => t.Type == ThreatType.StraightThree);
+            var brokenFourCount = threats.Count(t => t.Type == ThreatType.BrokenFour);
 
             blockingSquares = threats
                 .SelectMany(t => t.GainSquares)
@@ -535,10 +585,16 @@ public class MinimaxAI : IStatsPublisher
                 }
             }
 
-            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Opponent has {StraightFourCount} StraightFour, {StraightThreeCount} StraightThree threat(s), blocking squares: {BlockingSquares}{OpenFourSuffix}",
-                difficulty, player, straightFourCount, straightThreeCount,
+            // CRITICAL FIX: BrokenFour also indicates critical threat (double attack potential)
+            if (brokenFourCount > 0)
+            {
+                hasOpenFour = true;  // Treat as critically as open four
+            }
+
+            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Opponent has {StraightFourCount} StraightFour, {StraightThreeCount} StraightThree, {BrokenFourCount} BrokenFour threat(s), blocking squares: {BlockingSquares}{OpenFourSuffix}",
+                difficulty, player, straightFourCount, straightThreeCount, brokenFourCount,
                 string.Join(", ", blockingSquares.Select(g => $"({g.x},{g.y})")),
-                hasOpenFour ? " [OPEN FOUR DETECTED]" : "");
+                hasOpenFour ? " [CRITICAL THREAT DETECTED]" : "");
         }
 
         // Emergency mode - use TT move at D3+ (Medium+) if available
@@ -623,10 +679,10 @@ public class MinimaxAI : IStatsPublisher
                 }
             }
         }
-        // VCF Defense was causing D11 to play too reactively, blocking opponent threats
+        // VCF Defense was causing Grandmaster+ to play too reactively, blocking opponent threats
         // instead of developing its own position. The evaluation function's defense
         // multiplier (2.2x for opponent threats) should be sufficient for defense.
-        // D11's advantage comes from offensive VCF, not defensive VCF detection.
+        // Grandmaster's advantage comes from offensive VCF, not defensive VCF detection.
         // if (difficulty >= AIDifficulty.Grandmaster)  // Only D5
         // {
         //     var vcfDefense = FindVCFDefense(board, player, timeAlloc, difficulty);
@@ -879,13 +935,6 @@ public class MinimaxAI : IStatsPublisher
                 bestMove = (result.x, result.y);
                 _lastSearchScore = result.score;  // Track score for book builder
                 _depthAchieved = currentDepth; // Track deepest completed search
-
-                // Update NPS estimate from this iteration
-                double iterationElapsedSeconds = _searchStopwatch.Elapsed.TotalSeconds;
-                if (iterationElapsedSeconds > 0)
-                {
-                    _depthManager.UpdateNpsEstimate(_nodesSearched, iterationElapsedSeconds);
-                }
             }
 
             // If search was stopped due to timeout, don't continue to next depth
@@ -951,260 +1000,40 @@ public class MinimaxAI : IStatsPublisher
     }
 
     /// <summary>
-    /// Calculate appropriate search depth based on time allocation and position complexity
-    /// Uses adaptive percentage-based thresholds based on inferred initial time
-    /// Ensures full depth is reachable at the start of the game
+    /// Calculate appropriate search depth based on time allocation.
     ///
-    /// CRITICAL: Must preserve AI strength ordering! D11 should always search deeper than D10,
-    /// which searches deeper than D8, etc. The depth reduction must maintain relative ordering.
-    /// </summary>
-    /// <summary>
-    /// Calculate appropriate search depth based on time allocation and position complexity
-    /// Uses adaptive percentage-based thresholds based on inferred initial time
-    /// Ensures full depth is reachable at the start of the game
-    ///
-    /// ADAPTIVE DEPTH CALCULATION:
-    /// - Estimates nodes per ply based on branching factor
-    /// - Uses NPS from previous searches to estimate server capability
-    /// - Calculates how many plies can be completed in the allocated time
-    /// - Reduces depth aggressively for short time controls
-    ///
-    /// CRITICAL: Must preserve AI strength ordering! D5 should always search deeper than D10,
-    /// which searches deeper than D8, etc. The depth reduction must maintain relative ordering.
+    /// PURE TIME-BASED DEPTH:
+    /// - Search runs until time expires via iterative deepening
+    /// - NO NPS estimation (unreliable across different machines)
+    /// - NO artificial depth floors or reductions
+    /// - Higher difficulties get more time allocation, naturally reaching deeper
+    /// - Different machines reach different depths based on hardware capability
     /// </summary>
     private int CalculateDepthForTime(int baseDepth, TimeAllocation timeAlloc, long? timeRemainingMs, int candidateCount)
     {
-        // Infer initial time from the move number and remaining time
-        // On early moves (when we haven't spent much time yet), use current remaining as initial
-        // This works for any time control: 3+2, 7+5, 15+10, etc.
+        // Infer initial time from the move number and remaining time (for emergency detection)
         if (timeRemainingMs.HasValue && timeAlloc.Phase == GamePhase.Opening)
         {
-            // First move or unknown initial time: infer from current remaining
             if (_inferredInitialTimeMs < 0)
             {
                 _inferredInitialTimeMs = timeRemainingMs.Value;
             }
-            // Update inferred time if we're seeing a significantly different time control
             else if (Math.Abs(timeRemainingMs.Value - _inferredInitialTimeMs) > _inferredInitialTimeMs * 0.3)
             {
                 _inferredInitialTimeMs = timeRemainingMs.Value;
             }
         }
 
-        // Fallback for edge cases (shouldn't happen with proper time control)
-        var effectiveInitialTimeMs = _inferredInitialTimeMs > 0 ? _inferredInitialTimeMs : 420_000;
-
-        // ADAPTIVE: Estimate maximum sustainable depth based on time control and NPS
-        // Formula: max_depth = log(time_per_move * NPS / branching_factor) / log(branching_factor)
-        // For Caro: branching factor ~35, NPS varies by server capability
-        int adaptiveMaxDepth = CalculateAdaptiveMaxDepth(timeAlloc, effectiveInitialTimeMs);
-
-        // Clamp base depth to what's sustainable for this time control
-        // This is the key fix: don't even try for depth 9-11 on short time controls
-        int sustainableBaseDepth = Math.Min(baseDepth, adaptiveMaxDepth);
-
-        // Emergency mode - VERY aggressive depth reduction to avoid timeout
-        // In time scramble, rely on VCF + TT move, not deep search
-        // But still preserve relative strength: D5 should be deeper than D4 even in emergency
+        // Emergency mode: minimum depth to avoid timeout
         if (timeAlloc.IsEmergency)
         {
-            // Emergency depth with separation: D5->4, D4->3
-            int emergencyDepth = sustainableBaseDepth switch
-            {
-                >= 11 => 6,  // D11: depth 6
-                >= 10 => 5,  // D10: depth 5
-                >= 9 => 5,   // D9: depth 5
-                >= 8 => 4,   // D8: depth 4
-                >= 7 => 4,   // D7: depth 4
-                >= 6 => 3,   // D6: depth 3
-                >= 5 => 4,   // D5 (Grandmaster): depth 4 - ALWAYS deeper than D4!
-                _ => 3       // D4 and below: depth 3
-            };
-            return SmoothDepth(emergencyDepth);
+            return 1;
         }
 
-        // Per-move time allocation
-        var softBoundSeconds = timeAlloc.SoftBoundMs / 1000.0;
-
-        // Total time remaining
-        var totalTimeRemainingSeconds = timeRemainingMs.HasValue ? timeRemainingMs.Value / 1000.0 : (double)effectiveInitialTimeMs / 1000.0;
-        var initialTimeSeconds = (double)effectiveInitialTimeMs / 1000.0;
-
-        // Calculate minimum depth to preserve AI strength ordering
-        // CRITICAL: Create 1-ply separation between adjacent difficulties!
-        // D5 searches at least 1 ply deeper than D4, which searches 1 ply deeper than D3, etc.
-        int minDepthForStrength = sustainableBaseDepth switch
-        {
-            >= 11 => 8,  // D11: at least depth 8 (1 ply above D10)
-            >= 10 => 7,  // D10: at least depth 7 (1 ply above D9)
-            >= 9 => 6,   // D9: at least depth 6 (1 ply above D8)
-            >= 8 => 5,   // D8: at least depth 5 (1 ply above D7)
-            >= 7 => 4,   // D7: at least depth 4
-            >= 6 => 4,   // D6: at least depth 4
-            >= 5 => 4,   // D5 (Grandmaster): at least depth 4 - ALWAYS deeper than D4!
-            >= 4 => 3,   // D4 (Hard): at least depth 3
-            _ => 2        // D1-D3: at least depth 2
-        };
-
-        // Critical: less than 10% of initial time or very tight per-move limit
-        int targetDepth;
-        if (softBoundSeconds < 2 || totalTimeRemainingSeconds < initialTimeSeconds * 0.10)
-        {
-            targetDepth = Math.Max(minDepthForStrength, sustainableBaseDepth / 2);
-        }
-        // Low: 10-25% of initial time or moderate per-move limit
-        // Check if soft bound is very small relative to initial time (< 1.5%)
-        // This prevents triggering depth reduction when we have plenty of time (e.g., 5s out of 420s)
-        else
-        {
-            double softBoundRatio = softBoundSeconds / initialTimeSeconds;
-            if ((softBoundSeconds < 4 && softBoundRatio < 0.015) || totalTimeRemainingSeconds < initialTimeSeconds * 0.15)
-            {
-                if (candidateCount > 25) // Complex position
-                {
-                    targetDepth = Math.Max(minDepthForStrength, sustainableBaseDepth - 3);
-                }
-                else
-                {
-                    targetDepth = Math.Max(minDepthForStrength, sustainableBaseDepth - 1);
-                }
-            }
-            // Moderate: 25-50% of initial time
-            else if (totalTimeRemainingSeconds < initialTimeSeconds * 0.50)
-            {
-                if (candidateCount > 25) // Complex position with limited time
-                {
-                    targetDepth = Math.Max(minDepthForStrength, sustainableBaseDepth - 2);
-                }
-                else
-                {
-                    targetDepth = Math.Max(minDepthForStrength, sustainableBaseDepth - 1);
-                }
-            }
-            // Good time availability (>50% remaining): use full depth
-            else
-            {
-                targetDepth = sustainableBaseDepth;
-            }
-        }
-
-        return SmoothDepth(targetDepth);
-    }
-
-    /// <summary>
-    /// Calculate the maximum sustainable depth based on time control and server capability
-    /// 
-    /// This is the core adaptive function that prevents time exhaustion on short time controls.
-    /// Formula estimates how many plies can be completed in the allocated time:
-    /// - Branching factor for Caro: ~35 candidates in midgame
-    /// - Time per move: soft bound from TimeManager
-    /// - NPS: estimated from previous searches, with conservative defaults
-    /// 
-    /// Examples for 7+5 time control:
-    /// - Opening (7 min / 40 moves = ~10s/move): depth 8-9 on fast server, 6-7 on slow
-    /// - Middlegame (4 min / 30 moves = ~8s/move): depth 7-8 on fast server, 5-6 on slow
-    /// - Endgame (2 min / 20 moves = ~6s/move): depth 6-7 on fast server, 4-5 on slow
-    /// 
-    /// Examples for 3+2 time control:
-    /// - Opening (3 min / 40 moves = ~4.5s/move): depth 6-7 on fast server, 4-5 on slow
-    /// - Middlegame (2 min / 30 moves = ~4s/move): depth 5-6 on fast server, 3-4 on slow
-    /// </summary>
-    private int CalculateAdaptiveMaxDepth(TimeAllocation timeAlloc, long initialTimeMs)
-    {
-        // Estimate NPS from previous search, or use conservative defaults
-        // These are conservative estimates that should work on most servers
-        double estimatedNps = EstimateNodesPerSecond();
-
-        // Time available for this move (in seconds)
-        double timeAvailableSeconds = timeAlloc.SoftBoundMs / 1000.0;
-
-        // Branching factor for Caro (varies by phase)
-        // Opening: ~25 candidates, Middlegame: ~35, Endgame: ~20
-        double branchingFactor = timeAlloc.Phase switch
-        {
-            GamePhase.Opening => 25.0,
-            GamePhase.EarlyMid => 35.0,
-            GamePhase.LateMid => 35.0,
-            GamePhase.Endgame => 20.0,
-            _ => 30.0
-        };
-
-        // Calculate max depth using formula: max_depth = log(time * NPS / BF) / log(BF)
-        // This estimates how many plies we can complete in the given time
-        double maxPly = 1;
-        if (estimatedNps > 0 && timeAvailableSeconds > 0 && branchingFactor > 1)
-        {
-            // Total nodes we can search in this time
-            double totalNodes = timeAvailableSeconds * estimatedNps;
-
-            // Solve for ply: BF^ply = totalNodes
-            // ply = log(totalNodes) / log(BF)
-            maxPly = Math.Log(totalNodes) / Math.Log(branchingFactor);
-        }
-
-        // Adjust for Caro ruleset complexity (5-in-a-row is more tactical than chess)
-        // Add overhead for VCF, threat detection, evaluation
-        int maxDepth = (int)(maxPly * 0.7); // 70% efficiency factor
-
-        // Clamp to reasonable bounds (depth 3 minimum, depth 12 maximum)
-        maxDepth = Math.Clamp(maxDepth, 3, 12);
-
-        return maxDepth;
-    }
-
-    /// <summary>
-    /// Estimate nodes per second based on previous search performance
-    /// Uses conservative defaults if no history available
-    /// 
-    /// Returns NPS estimate (nodes per second)
-    /// </summary>
-    private double EstimateNodesPerSecond()
-    {
-        // Try to estimate from last search if available
-        if (_searchStopwatch != null && _searchStopwatch.ElapsedMilliseconds > 0 && _nodesSearched > 0)
-        {
-            double lastNps = _nodesSearched * 1000.0 / _searchStopwatch.ElapsedMilliseconds;
-
-            // Only use if we have a reasonable sample (at least 1000 nodes searched)
-            if (_nodesSearched > 1000)
-            {
-                // Apply a safety factor (80%) to account for position variability
-                return lastNps * 0.8;
-            }
-        }
-
-        // Conservative defaults based on server capability tiers
-        // These are safe minimums that most servers should exceed
-        return _inferredInitialTimeMs < 180_000 ? 50_000  // Fast server for 3+2
-             : _inferredInitialTimeMs < 300_000 ? 100_000 // Medium server for 5+3 or 7+5
-             : 200_000;                             // Slow server or long time control
-    }
-
-    /// <summary>
-    /// Apply depth smoothing to prevent sudden drops in search depth
-    /// Gradually transition between depths to maintain move quality consistency
-    /// </summary>
-    private int SmoothDepth(int targetDepth)
-    {
-        // First move or game reset
-        if (_lastCalculatedDepth < 0)
-        {
-            _lastCalculatedDepth = targetDepth;
-            return targetDepth;
-        }
-
-        // Allow increases immediately (good positions deserve deeper search)
-        if (targetDepth > _lastCalculatedDepth)
-        {
-            _lastCalculatedDepth = targetDepth;
-            return targetDepth;
-        }
-
-        // For decreases, apply gradual smoothing (reduce by at most 1 per move)
-        // This prevents sudden quality drops when time gets tight
-        int smoothedDepth = Math.Max(targetDepth, _lastCalculatedDepth - 1);
-        _lastCalculatedDepth = smoothedDepth;
-        return smoothedDepth;
+        // Return high max depth and let iterative deepening stop when time runs out
+        // The search naturally completes as many depths as possible within the time budget
+        // Different machines will reach different depths - this is expected and correct
+        return 64;
     }
 
     /// <summary>
@@ -1345,10 +1174,10 @@ public class MinimaxAI : IStatsPublisher
 
     /// <summary>
     /// Check if opponent can VCF (Victory by Continuous Four) and find blocking move
-    /// This is essential for D11 to prevent losing to lower difficulty VCF attacks
+    /// This is essential for Grandmaster+ to prevent losing to VCF attacks
     ///
     /// OPTIMIZED: Uses fast threat detection + immediate defensive move selection
-    /// - VCF check time scales with difficulty (D11 gets more time for defensive VCF)
+    /// - VCF check time scales with difficulty (higher difficulties get more time)
     /// - Quick check: if opponent has no threats, skip VCF check entirely
     /// - Single VCF check (not nested) to detect opponent threats
     /// - Return first valid defensive move without re-checking VCF for each one
@@ -2146,9 +1975,6 @@ public class MinimaxAI : IStatsPublisher
         // -1 means "unknown, will infer from first move"
         _inferredInitialTimeMs = -1;
 
-        // Reset depth smoothing
-        _lastCalculatedDepth = -1;
-
         // Clear killer moves
         for (int d = 0; d < MaxKillerDepth; d++)
         {
@@ -2916,6 +2742,81 @@ public class MinimaxAI : IStatsPublisher
     }
 
     /// <summary>
+    /// PROACTIVE DEFENSE: Find squares that block opponent's open threes.
+    /// An open three is 3 stones in a row with BOTH ends open (not blocked).
+    /// Open threes become open fours on the next move, which are unblockable.
+    /// We should block open threes BEFORE they become open fours.
+    /// </summary>
+    private List<(int x, int y)> FindOpenThreeBlocks(Board board, Player opponent)
+    {
+        var blocks = new List<(int x, int y)>();
+        var directions = new (int dx, int dy)[] { (1, 0), (0, 1), (1, 1), (1, -1) };
+
+        // Scan for open threes in all 4 directions
+        for (int x = 0; x < BoardSize; x++)
+        {
+            for (int y = 0; y < BoardSize; y++)
+            {
+                if (board.GetCell(x, y).Player != opponent)
+                    continue;
+
+                foreach (var (dx, dy) in directions)
+                {
+                    // Check if this stone is the START of a 3-in-a-row
+                    int prevX = x - dx;
+                    int prevY = y - dy;
+
+                    // Skip if not the start (previous cell is also opponent's stone)
+                    if (prevX >= 0 && prevX < BoardSize && prevY >= 0 && prevY < BoardSize)
+                    {
+                        if (board.GetCell(prevX, prevY).Player == opponent)
+                            continue;
+                    }
+
+                    // Count consecutive opponent stones
+                    int count = 0;
+                    int currX = x, currY = y;
+                    while (currX >= 0 && currX < BoardSize && currY >= 0 && currY < BoardSize &&
+                           board.GetCell(currX, currY).Player == opponent)
+                    {
+                        count++;
+                        currX += dx;
+                        currY += dy;
+                    }
+
+                    // Only interested in exactly 3 consecutive stones
+                    if (count != 3)
+                        continue;
+
+                    // Check if both ends are open (empty)
+                    int endX = currX;
+                    int endY = currY;
+                    bool endOpen = endX >= 0 && endX < BoardSize && endY >= 0 && endY < BoardSize &&
+                                   board.GetCell(endX, endY).Player == Player.None;
+
+                    int startX = x - dx;
+                    int startY = y - dy;
+                    bool startOpen = startX >= 0 && startX < BoardSize && startY >= 0 && startY < BoardSize &&
+                                     board.GetCell(startX, startY).Player == Player.None;
+
+                    // Open three: 3 in a row with both ends open
+                    if (startOpen && endOpen)
+                    {
+                        // Block one end - prefer the end that prevents open four
+                        // Add both ends as potential blocks
+                        if (!blocks.Contains((startX, startY)))
+                            blocks.Add((startX, startY));
+                        if (!blocks.Contains((endX, endY)))
+                            blocks.Add((endX, endY));
+                    }
+                }
+            }
+        }
+
+        return blocks;
+    }
+
+    /// <summary>
     /// Check if there's a winner on the board using WinDetector
     /// This ensures Caro rules are enforced: exact 5-in-a-row, no sandwiched wins, no overlines
     /// </summary>
@@ -2949,7 +2850,7 @@ public class MinimaxAI : IStatsPublisher
         return null;
     }
 
-    // ========== AGGRESSIVE PRUNING TECHNIQUES FOR D10/D11 ==========
+    // ========== AGGRESSIVE PRUNING TECHNIQUES FOR Grandmaster+ ==========
 
     // Futility pruning constants
     private const int FutilityMarginBase = 300;      // Base margin for futility pruning

@@ -25,41 +25,34 @@ public sealed class AdaptiveTimeManager
     private double _timePressure = 0;       // 0 = relaxed, 1 = critical
 
     // Configuration for different difficulties
+    // Updated to match AIDifficulty enum values (1-7)
+    // Index: 0=unused, 1=Braindead, 2=Easy, 3=Medium, 4=Hard, 5=Grandmaster, 6=Experimental, 7=BookGeneration
     // Higher difficulties are more aggressive with time allocation
     private static readonly double[] BaseAggressiveness = new double[]
     {
-        0.3,  // D0: Beginner - very conservative
-        0.5,  // Easy: more aggressive to compensate for sequential-only path
-        0.7,  // Normal: medium aggressiveness
-        1.0,  // Medium: aggressive enough to compete
-        1.2,  // Hard: very aggressive for parallel search
-        1.4,  // Harder
-        1.6,  // VeryHard
-        1.8,  // Expert - baseline
-        2.0,  // Expert
-        2.2,  // Master
-        2.5,  // Grandmaster: very aggressive
-        3.0   // Legend - most aggressive
+        1.0,  // [0] unused
+        0.3,  // [1] Braindead: very conservative
+        0.6,  // [2] Easy: moderate aggressiveness
+        1.0,  // [3] Medium: standard aggressiveness
+        1.5,  // [4] Hard: aggressive for parallel search
+        2.5,  // [5] Grandmaster: very aggressive
+        3.0,  // [6] Experimental: maximum aggressiveness
+        3.0   // [7] BookGeneration: maximum aggressiveness
     };
 
     // Maximum time per move (percentage of remaining time)
     // Higher difficulties can spend more per move
     // CRITICAL: Must allow enough time for parallel search to reach deeper depths
-    // Too restrictive and parallel search can't compete with sequential
     private static readonly double[] MaxTimePercentage = new double[]
     {
-        0.01, // D0: 1% max per move
-        0.02, // Easy: 2% - still conservative
-        0.05, // Medium: 5%
-        0.10, // Hard: 10% - allow more time for parallel search to scale
-        0.15, // Harder: 15%
-        0.20, // VeryHard: 20%
-        0.25, // Expert: 25%
-        0.30, // Expert: 30%
-        0.35, // Master: 35%
-        0.40, // Grandmaster: 40% - can use 40% of remaining time for one move
-        0.45, // Legend+: 45%
-        0.50  // D11: 50% max per move - very aggressive
+        0.10, // [0] unused
+        0.05, // [1] Braindead: 5% max per move
+        0.10, // [2] Easy: 10%
+        0.15, // [3] Medium: 15%
+        0.25, // [4] Hard: 25%
+        0.40, // [5] Grandmaster: 40% - can use 40% of remaining time for one move
+        0.50, // [6] Experimental: 50%
+        0.50  // [7] BookGeneration: 50%
     };
 
     /// <summary>
@@ -131,9 +124,9 @@ public sealed class AdaptiveTimeManager
         var adjustedTimeMs = baseTimeMs * complexity * phaseMultiplier * _currentMultiplier;
 
         // === HARD BOUND: Maximum percentage of remaining time ===
-        // CRITICAL FIX: In time scramble, use increment-based allocation instead of remaining time
-        // The key insight: with increment time control, we can ONLY spend up to (increment - margin) per move
-        // If average move time > increment, we will eventually timeout regardless of initial time
+        // CRITICAL FIX: ALWAYS cap based on increment to prevent timeout
+        // With increment time control, average move time MUST be < increment to avoid eventual timeout
+        // This is true even at the start of the game - we cannot "bank" time for later
         var maxTimePercent = GetDifficultyValue(MaxTimePercentage, difficultyIndex);
         var incrementMs = incrementSeconds * 1000L;
 
@@ -142,6 +135,12 @@ public sealed class AdaptiveTimeManager
 
         long maxAllocatableMs;
         long percentageBoundMs;
+
+        // CRITICAL FIX: Always cap at 3x increment to prevent clock burn
+        // This ensures we never use more than 3 moves worth of increment on a single move
+        // For 2s increment: max 6s per move (was unlimited before time scramble)
+        // For 5s increment: max 15s per move
+        var incrementBasedMaxMs = incrementMs * 3;
 
         if (isInTimeScramble)
         {
@@ -157,6 +156,10 @@ public sealed class AdaptiveTimeManager
             // Normal case: keep 1s reserve from remaining time
             maxAllocatableMs = Math.Max(0, timeRemainingMs - 1000);
             percentageBoundMs = (long)(timeRemainingMs * maxTimePercent);
+
+            // CRITICAL FIX: Always apply increment cap, not just in time scramble
+            // This prevents burning through the clock with a few long moves early
+            percentageBoundMs = Math.Min(percentageBoundMs, incrementBasedMaxMs);
         }
 
         // Soft bound: adjusted time, but respect percentage cap
@@ -169,6 +172,11 @@ public sealed class AdaptiveTimeManager
         if (isInTimeScramble)
         {
             desiredHardBoundMs = Math.Min(desiredHardBoundMs, incrementMs / 2);
+        }
+        else
+        {
+            // CRITICAL FIX: Cap hard bound at 3x increment even in normal mode
+            desiredHardBoundMs = Math.Min(desiredHardBoundMs, incrementBasedMaxMs);
         }
         var hardBoundMs = Math.Min(desiredHardBoundMs, Math.Max(softBoundMs + 100, maxAllocatableMs));
 
@@ -292,6 +300,9 @@ public sealed class AdaptiveTimeManager
 
     private static double GetDifficultyValue(double[] array, int index)
     {
-        return index >= 0 && index < array.Length ? array[index] : array[7]; // Default to D7 (Expert)
+        // Arrays are indexed by AIDifficulty enum value directly
+        // Braindead=1, Easy=2, Medium=3, Hard=4, Grandmaster=5, Experimental=6, BookGeneration=7
+        // Index 0 is unused
+        return index >= 0 && index < array.Length ? array[index] : array[array.Length - 1];
     }
 }
