@@ -18,7 +18,8 @@ public record ParallelSearchResult(
     string? ParallelDiagnostics = null,
     long AllocatedTimeMs = 0,
     int TableHits = 0,
-    int TableLookups = 0
+    int TableLookups = 0,
+    int Score = 0
 );
 
 /// <summary>
@@ -50,7 +51,9 @@ public sealed class ParallelMinimaxSearch
     private readonly TimeBudgetDepthManager _depthManager = new();
 
     // Search constants
-    private const int SearchRadius = 2;
+    // Set to 7 to ensure safety checks detect all winning moves (5-in-a-row can have winning cells
+    // up to 4 squares from existing stones, plus margin for complex patterns)
+    private const int SearchRadius = 7;
     private const int NullMoveMinDepth = 3;
     private const int NullMoveDepthReduction = 3;
 
@@ -289,7 +292,7 @@ public sealed class ParallelMinimaxSearch
             // Empty board - return center move with depth 1 (not 0, which is misleading)
             // For empty board, center is the only reasonable move
             int center = board.BoardSize / 2;
-            return new ParallelSearchResult(center, center, 1, 1, 0, null, 0, 0, 0);
+            return new ParallelSearchResult(center, center, 1, 1, 0, null, 0, 0, 0, 0);
         }
 
         // Use provided time allocation or create default
@@ -306,7 +309,7 @@ public sealed class ParallelMinimaxSearch
             if (vcfResult.IsSolved && vcfResult.IsWin && vcfResult.BestMove.HasValue)
             {
                 return new ParallelSearchResult(vcfResult.BestMove.Value.x, vcfResult.BestMove.Value.y,
-                    vcfResult.DepthAchieved, vcfResult.NodesSearched, 0, null, vcfTimeLimit, 0, 0);
+                    vcfResult.DepthAchieved, vcfResult.NodesSearched, 0, null, vcfTimeLimit, 0, 0, 100000);
             }
         }
 
@@ -399,7 +402,7 @@ public sealed class ParallelMinimaxSearch
             var threadData = new ThreadData { ThreadIndex = 0 };
             var (x, y, score, depth, nodes) = SearchWithIterationTimeAware(
                 board, player, candidates, threadData, timeAlloc, difficulty, _searchCts.Token);
-            return new ParallelSearchResult(x, y, depth, nodes, 1, null, _hardTimeBoundMs, 0, 0);
+            return new ParallelSearchResult(x, y, depth, nodes, 1, null, _hardTimeBoundMs, 0, 0, score);
         }
 
         // Use thread-safe collections with Task-based parallelism
@@ -529,7 +532,7 @@ public sealed class ParallelMinimaxSearch
             var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
             var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
                 board, player, candidates, fallbackThreadData, fallbackTimeAlloc, difficulty, CancellationToken.None);
-            return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0);
+            return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0, fscore);
         }
 
         var maxDepth = results.Max(r => r.depth);
@@ -542,7 +545,7 @@ public sealed class ParallelMinimaxSearch
             var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
             var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
                 board, player, candidates, fallbackThreadData, fallbackTimeAlloc, difficulty, CancellationToken.None);
-            return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0);
+            return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0, fscore);
         }
 
         // CRITICAL FIX: Select the best valid result, avoiding int.MinValue scores
@@ -696,7 +699,7 @@ public sealed class ParallelMinimaxSearch
             bestResult = (emptyCandidate.x, emptyCandidate.y, bestResult.score, bestResult.depth, bestResult.nodes, bestResult.threadIndex);
         }
 
-        return new ParallelSearchResult(bestResult.x, bestResult.y, bestResult.depth, totalNodesFinal, threadCount, diagnostics, _hardTimeBoundMs, totalTableHits, totalTableLookups);
+        return new ParallelSearchResult(bestResult.x, bestResult.y, bestResult.depth, totalNodesFinal, threadCount, diagnostics, _hardTimeBoundMs, totalTableHits, totalTableLookups, bestResult.score);
     }
 
     /// <summary>
@@ -1674,6 +1677,30 @@ public sealed class ParallelMinimaxSearch
         // Get stand-pat score (static evaluation)
         var standPat = Evaluate(board, aiPlayer);
 
+        // Determine players
+        var currentPlayer = isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red);
+        var opponent = isMaximizing ? (aiPlayer == Player.Red ? Player.Blue : Player.Red) : aiPlayer;
+
+        // Generate candidate moves (near existing stones) - used for both immediate win check and tactical search
+        var candidateMoves = GetCandidateMoves(board);
+
+        // CRITICAL FIX: Check for immediate opponent wins before any early returns
+        // This prevents the horizon effect where we return a "good" static evaluation
+        // when the opponent actually has a winning move available
+        // OPTIMIZATION: Only check candidate moves (near existing stones) since winning moves
+        // must be adjacent to existing pieces
+        foreach (var (x, y) in candidateMoves)
+        {
+            if (board.GetCell(x, y).IsEmpty)
+            {
+                var testBoard = board.PlaceStone(x, y, opponent);
+                if (_winDetector.CheckWin(testBoard).HasWinner)
+                {
+                    return -100000;  // Losing score - opponent wins next move
+                }
+            }
+        }
+
         // Beta cutoff (stand-pat is good enough for maximizing player)
         if (isMaximizing && standPat >= beta)
             return beta;
@@ -1699,20 +1726,15 @@ public sealed class ParallelMinimaxSearch
         const int maxQuiescenceDepth = 4;
         if (quiesceDepth > maxQuiescenceDepth)
         {
-            return standPat;
+            return standPat;  // Safe to return now - we already checked for immediate opponent wins
         }
 
-        // Generate tactical moves (only near existing stones)
-        var tacticalMoves = GetCandidateMoves(board);
-
-        // If no tactical moves, return static evaluation
-        if (tacticalMoves.Count == 0)
+        // If no tactical moves, return static evaluation (already checked for opponent wins)
+        if (candidateMoves.Count == 0)
             return standPat;
 
-        var currentPlayer = isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red);
-
         // Order tactical moves for better pruning using staged move picker
-        var orderedMoves = OrderMovesStaged(tacticalMoves, quiesceDepth, board, currentPlayer, null, threadData);
+        var orderedMoves = OrderMovesStaged(candidateMoves, quiesceDepth, board, currentPlayer, null, threadData);
 
         // Search tactical moves (only empty cells)
         if (isMaximizing)
@@ -1940,9 +1962,21 @@ public sealed class ParallelMinimaxSearch
                 if (isWinningMove)
                 {
                     threats.Add((x, y));
-                    return threats; // Immediate win - highest priority, return immediately
+                    // CRITICAL FIX: Don't return immediately after finding just ONE!
+                    // Open fours have TWO winning squares - we must find ALL of them.
+                    // Returning after finding just one causes Grandmaster to block that one
+                    // while Braindead wins at the other (the strength inversion bug).
+                    // Continue scanning to find all winning squares.
                 }
             }
+        }
+
+        // CRITICAL FIX: If we found winning squares, return them immediately.
+        // No need to check lower priority threats - winning moves are the highest priority.
+        // Multiple winning squares = open four = unblockable threat (but we still try).
+        if (threats.Count > 0)
+        {
+            return threats;
         }
 
         // Priority 2: Check for semi-open four using ThreatDetector
