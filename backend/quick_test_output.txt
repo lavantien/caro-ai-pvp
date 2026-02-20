@@ -1,6 +1,0 @@
-Unhandled exception. System.IO.FileNotFoundException: opening_book.db not found. Searched: C:\Users\opening_book.db, C:\Users\lavantien\dev\github\caro-ai-pvp\backend\opening_book.db
-   at Caro.TournamentRunner.TournamentEngineFactory.FindOpeningBookPath() in C:\Users\lavantien\dev\github\caro-ai-pvp\backend\src\Caro.TournamentRunner\TournamentEngineFactory.cs:line 56
-   at Caro.TournamentRunner.TournamentEngineFactory.CreateWithOpeningBook() in C:\Users\lavantien\dev\github\caro-ai-pvp\backend\src\Caro.TournamentRunner\TournamentEngineFactory.cs:line 19
-   at Caro.TournamentRunner.QuickSmokeTest.Run() in C:\Users\lavantien\dev\github\caro-ai-pvp\backend\src\Caro.TournamentRunner\QuickSmokeTest.cs:line 20
-   at Caro.TournamentRunner.Program.Main(String[] args) in C:\Users\lavantien\dev\github\caro-ai-pvp\backend\src\Caro.TournamentRunner\Program.cs:line 45
-   at Caro.TournamentRunner.Program.<Main>(String[] args)
