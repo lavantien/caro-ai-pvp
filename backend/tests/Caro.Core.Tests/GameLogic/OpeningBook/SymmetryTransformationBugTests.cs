@@ -10,10 +10,9 @@ namespace Caro.Core.Tests.GameLogic.OpeningBook;
 /// Tests to debug the symmetry bug where moves from the book
 /// transform to occupied cells.
 ///
-/// Bug report:
-/// - Move from book: (11,11), Symmetry=Rotate90, Depth=11
-/// - Transforms to (7,11) which is occupied by Blue
-/// - Board state: Red=6, Blue=5, Total=11
+/// For 16x16 board:
+/// - Rotate90: (x, y) -> (y, 15-x) for ApplySymmetry
+/// - Rotate90 inverse: (x, y) -> (15-y, x) for ApplyInverseSymmetry
 /// </summary>
 public class SymmetryTransformationBugTests
 {
@@ -22,15 +21,15 @@ public class SymmetryTransformationBugTests
     {
         var canonicalizer = new PositionCanonicalizer();
 
-        // Test ApplySymmetry(Rotate90)
+        // Test ApplySymmetry(Rotate90) for 16x16 board
         var (tx1, ty1) = canonicalizer.ApplySymmetry(5, 8, SymmetryType.Rotate90);
-        // Expected: (y, 31-x) = (8, 26) for 32x32 board
+        // Expected: (y, 15-x) = (8, 10) for 16x16 board
         tx1.Should().Be(8);
-        ty1.Should().Be(26);
+        ty1.Should().Be(10);
 
-        // Test ApplyInverseSymmetry(Rotate90)
-        var (tx2, ty2) = canonicalizer.ApplyInverseSymmetry(8, 26, SymmetryType.Rotate90);
-        // Expected: (31-y, x) = (5, 8) - inverse of above
+        // Test ApplyInverseSymmetry(Rotate90) for 16x16 board
+        var (tx2, ty2) = canonicalizer.ApplyInverseSymmetry(8, 10, SymmetryType.Rotate90);
+        // Expected: (15-y, x) = (5, 8) - inverse of above
         tx2.Should().Be(5);
         ty2.Should().Be(8);
     }
@@ -40,40 +39,40 @@ public class SymmetryTransformationBugTests
     {
         var canonicalizer = new PositionCanonicalizer();
 
-        // For 32x32 board: ApplyInverseSymmetry(Rotate90) on (11,11)
-        // Formula: (31-y, x) = (20, 11)
-        var (actualX, actualY) = canonicalizer.ApplyInverseSymmetry(11, 11, SymmetryType.Rotate90);
-        actualX.Should().Be(20);
+        // For 16x16 board: ApplyInverseSymmetry(Rotate90) on (11,6)
+        // Formula: (15-y, x) = (9, 11)
+        var (actualX, actualY) = canonicalizer.ApplyInverseSymmetry(11, 6, SymmetryType.Rotate90);
+        actualX.Should().Be(9);
         actualY.Should().Be(11);
 
-        // Verify round-trip: If actual was (20, 11), canonical should be (11, 11)
-        var (canonicalX, canonicalY) = canonicalizer.ApplySymmetry(20, 11, SymmetryType.Rotate90);
+        // Verify round-trip: If actual was (9, 11), canonical should be (11, 6)
+        var (canonicalX, canonicalY) = canonicalizer.ApplySymmetry(9, 11, SymmetryType.Rotate90);
         canonicalX.Should().Be(11);
-        canonicalY.Should().Be(11);
+        canonicalY.Should().Be(6);
     }
 
     [Fact]
     public void CreateBoard_WithSpecificStones_Verify_CellIsOccupied()
     {
-        // Create a board with specific stone pattern for testing
-        // Red: (9,9), (8,10), (8,9), (7,10), (7,9) = 5 stones
-        // Blue: (9,10), (10,10), (10,9), (11,10), (11,9), (7,11) = 6 stones
+        // Create a board with specific stone pattern for testing (16x16 coordinates)
+        // Red: (8,8), (7,9), (7,8), (6,9), (6,8) = 5 stones
+        // Blue: (8,9), (9,9), (9,8), (10,9), (10,8), (6,10) = 6 stones
         var board = new Board();
-        board = board.PlaceStone(9, 9, Player.Red);
-        board = board.PlaceStone(9, 10, Player.Blue);
-        board = board.PlaceStone(8, 10, Player.Red);
-        board = board.PlaceStone(10, 10, Player.Blue);
-        board = board.PlaceStone(8, 9, Player.Red);
-        board = board.PlaceStone(10, 9, Player.Blue);
-        board = board.PlaceStone(7, 10, Player.Red);
-        board = board.PlaceStone(11, 10, Player.Blue);
+        board = board.PlaceStone(8, 8, Player.Red);
+        board = board.PlaceStone(8, 9, Player.Blue);
         board = board.PlaceStone(7, 9, Player.Red);
-        board = board.PlaceStone(11, 9, Player.Blue);
-        board = board.PlaceStone(7, 11, Player.Blue); // This is the occupied cell!
+        board = board.PlaceStone(9, 9, Player.Blue);
+        board = board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(9, 8, Player.Blue);
+        board = board.PlaceStone(6, 9, Player.Red);
+        board = board.PlaceStone(10, 9, Player.Blue);
+        board = board.PlaceStone(6, 8, Player.Red);
+        board = board.PlaceStone(10, 8, Player.Blue);
+        board = board.PlaceStone(6, 10, Player.Blue); // This is the occupied cell!
 
-        // Verify (7, 11) is occupied by Blue
-        var cell = board.GetCell(7, 11);
-        cell.Player.Should().Be(Player.Blue, "Cell (7, 11) should be occupied by Blue");
+        // Verify (6, 10) is occupied by Blue
+        var cell = board.GetCell(6, 10);
+        cell.Player.Should().Be(Player.Blue, "Cell (6, 10) should be occupied by Blue");
 
         // Count stones
         int redCount = 0, blueCount = 0;
@@ -95,14 +94,14 @@ public class SymmetryTransformationBugTests
     {
         var canonicalizer = new PositionCanonicalizer();
 
-        // Create a board
+        // Create a board (16x16 valid coordinates)
         var board = new Board();
-        board = board.PlaceStone(9, 9, Player.Red);
-        board = board.PlaceStone(9, 10, Player.Blue);
-        board = board.PlaceStone(8, 10, Player.Red);
-        board = board.PlaceStone(10, 10, Player.Blue);
-        board = board.PlaceStone(8, 9, Player.Red);
-        board = board.PlaceStone(10, 9, Player.Blue);
+        board = board.PlaceStone(8, 8, Player.Red);
+        board = board.PlaceStone(8, 9, Player.Blue);
+        board = board.PlaceStone(7, 9, Player.Red);
+        board = board.PlaceStone(9, 9, Player.Blue);
+        board = board.PlaceStone(7, 8, Player.Red);
+        board = board.PlaceStone(9, 8, Player.Blue);
 
         // Canonicalize twice
         var canonical1 = canonicalizer.Canonicalize(board);
@@ -122,13 +121,13 @@ public class SymmetryTransformationBugTests
 
         // TransformToActual should call ApplyInverseSymmetry
         var (actualX, actualY) = canonicalizer.TransformToActual(
-            (11, 11),
+            (5, 6),
             SymmetryType.Rotate90,
             board
         );
 
         // Should equal ApplyInverseSymmetry
-        var (expectedX, expectedY) = canonicalizer.ApplyInverseSymmetry(11, 11, SymmetryType.Rotate90);
+        var (expectedX, expectedY) = canonicalizer.ApplyInverseSymmetry(5, 6, SymmetryType.Rotate90);
 
         actualX.Should().Be(expectedX);
         actualY.Should().Be(expectedY);
@@ -150,7 +149,8 @@ public class SymmetryTransformationBugTests
             SymmetryType.DiagonalB
         };
 
-        var testPoints = new[] { (5, 8), (7, 11), (9, 9), (11, 11), (0, 0), (18, 18) };
+        // Use valid 16x16 test points (max coordinate is 15)
+        var testPoints = new[] { (5, 8), (6, 10), (8, 8), (10, 10), (0, 0), (12, 12) };
 
         foreach (var symmetry in symmetries)
         {

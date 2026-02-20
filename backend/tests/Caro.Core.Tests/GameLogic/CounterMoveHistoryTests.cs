@@ -157,10 +157,10 @@ public class CounterMoveHistoryTests
         var history = new CounterMoveHistory();
 
         // Act - Test with various cell positions
-        // Cell index = y * BoardSize + x
+        // Cell index = y * BoardSize + x (for 16x16 board, max valid index is 15*16+15=255)
         int cell1 = 0 * BoardSize + 0;  // (0, 0)
         int cell2 = 1 * BoardSize + 1;  // (1, 1)
-        int cell3 = 18 * BoardSize + 18; // (18, 18)
+        int cell3 = 8 * BoardSize + 8;   // (8, 8) - center for 16x16
 
         history.Update(Player.Red, cell1, cell2, 500);
         history.Update(Player.Red, cell2, cell3, 1000);
@@ -273,9 +273,9 @@ public class CounterMoveHistoryTests
     }
 
     [Fact]
-    public void CounterMoveHistory_BoardCellCount_Returns1024()
+    public void CounterMoveHistory_BoardCellCount_ReturnsCorrectValue()
     {
-        // Assert
-        Assert.Equal(1024, CounterMoveHistory.BoardCellCount);
+        // Assert - TotalCells is 16*16 = 256 for 16x16 board
+        Assert.Equal(256, CounterMoveHistory.BoardCellCount);
     }
 }

@@ -13,7 +13,7 @@ public sealed class Board
     private readonly Cell[,] _cells;
 
     // Pre-computed bitboards for O(1) access during AI search
-    // 32x32 board = 1024 bits = 16 ulongs
+    // 16x16 board = 256 bits = 4 ulongs
     private readonly ulong[] _redBits;
     private readonly ulong[] _blueBits;
     private readonly ulong _hash;
@@ -41,8 +41,8 @@ public sealed class Board
             }
         }
         // Empty board has all zeros
-        _redBits = new ulong[16];
-        _blueBits = new ulong[16];
+        _redBits = new ulong[4];
+        _blueBits = new ulong[4];
         _hash = 0;
     }
 
@@ -99,10 +99,10 @@ public sealed class Board
         newCells[x, y] = new Cell(x, y, player);
 
         // O(1) incremental bitboard update - copy arrays and set one bit
-        var newRedBits = new ulong[16];
-        var newBlueBits = new ulong[16];
-        Array.Copy(_redBits, newRedBits, 16);
-        Array.Copy(_blueBits, newBlueBits, 16);
+        var newRedBits = new ulong[4];
+        var newBlueBits = new ulong[4];
+        Array.Copy(_redBits, newRedBits, 4);
+        Array.Copy(_blueBits, newBlueBits, 4);
 
         int bitIndex = y * Size + x;  // y * 32 + x
         int ulongIndex = bitIndex >> 6;  // bitIndex / 64
@@ -157,7 +157,7 @@ public sealed class Board
     /// </summary>
     public bool IsEmpty()
     {
-        for (int i = 0; i < 16; i++)
+        for (int i = 0; i < 4; i++)
         {
             if (_redBits[i] != 0 || _blueBits[i] != 0)
                 return false;
@@ -167,7 +167,7 @@ public sealed class Board
 
     /// <summary>
     /// Get pre-computed bitboard bits for a player.
-    /// Returns array of 16 ulongs (1024 bits for 32x32 board).
+    /// Returns array of 4 ulongs (256 bits for 16x16 board).
     /// </summary>
     public ulong[] GetBitBoardBits(Player player) => player == Player.Red ? _redBits : _blueBits;
 

@@ -152,13 +152,13 @@ public class OpeningBookGeneratorTests
         // Act - Each PlaceStone returns a new Board (immutable)
         var clone = emptyBoard.PlaceStone(0, 0, Player.Red);
 
-        // Should be able to place anywhere
-        clone = clone.PlaceStone(18, 18, Player.Blue);
+        // Should be able to place anywhere (using 16x16 valid coordinates)
+        clone = clone.PlaceStone(8, 8, Player.Blue);
         clone = clone.PlaceStone(9, 9, Player.Red);
 
         // Assert
         clone.GetCell(0, 0).Player.Should().Be(Player.Red);
-        clone.GetCell(18, 18).Player.Should().Be(Player.Blue);
+        clone.GetCell(8, 8).Player.Should().Be(Player.Blue);
         clone.GetCell(9, 9).Player.Should().Be(Player.Red);
     }
 
@@ -289,9 +289,9 @@ public class OpeningBookGeneratorTests
 
         // Assert - The transformed coordinates should be valid
         actualX.Should().BeGreaterThanOrEqualTo(0);
-        actualX.Should().BeLessThan(32);
+        actualX.Should().BeLessThan(GameConstants.BoardSize);
         actualY.Should().BeGreaterThanOrEqualTo(0);
-        actualY.Should().BeLessThan(32);
+        actualY.Should().BeLessThan(GameConstants.BoardSize);
 
         // Cell should be empty before placing
         var existingCell = newBoard.GetCell(actualX, actualY);

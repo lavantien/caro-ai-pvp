@@ -231,16 +231,12 @@ public sealed class PositionCanonicalizer : IPositionCanonicalizer
     /// </summary>
     private static ulong ComputeSimpleHash(BitBoard redBitBoard, BitBoard blueBitBoard, Player player)
     {
-        var (rb0, rb1, rb2, rb3, rb4, rb5, rb6, rb7, rb8, rb9, rb10, rb11, rb12, rb13, rb14, rb15) = redBitBoard.GetRawValues();
-        var (bb0, bb1, bb2, bb3, bb4, bb5, bb6, bb7, bb8, bb9, bb10, bb11, bb12, bb13, bb14, bb15) = blueBitBoard.GetRawValues();
+        var (rb0, rb1, rb2, rb3) = redBitBoard.GetRawValues();
+        var (bb0, bb1, bb2, bb3) = blueBitBoard.GetRawValues();
 
         // Combine all values with XOR and mixing
-        ulong hash = rb0 ^ (rb1 << 1) ^ (rb2 << 2) ^ (rb3 << 3) ^ (rb4 << 4) ^ (rb5 << 5)
-                  ^ (rb6 << 6) ^ (rb7 << 7) ^ (rb8 << 8) ^ (rb9 << 9) ^ (rb10 << 10) ^ (rb11 << 11)
-                  ^ (rb12 << 12) ^ (rb13 << 13) ^ (rb14 << 14) ^ (rb15 << 15);
-        hash ^= bb0 ^ (bb1 << 1) ^ (bb2 << 2) ^ (bb3 << 3) ^ (bb4 << 4) ^ (bb5 << 5)
-              ^ (bb6 << 6) ^ (bb7 << 7) ^ (bb8 << 8) ^ (bb9 << 9) ^ (bb10 << 10) ^ (bb11 << 11)
-              ^ (bb12 << 12) ^ (bb13 << 13) ^ (bb14 << 14) ^ (bb15 << 15);
+        ulong hash = rb0 ^ (rb1 << 1) ^ (rb2 << 2) ^ (rb3 << 3);
+        hash ^= bb0 ^ (bb1 << 1) ^ (bb2 << 2) ^ (bb3 << 3);
         hash ^= (ulong)player * 0x9e3779b97f4a7c15UL; // Golden ratio prime
 
         // Final avalanche mix

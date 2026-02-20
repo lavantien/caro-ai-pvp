@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using FluentAssertions;
@@ -13,8 +14,8 @@ public class ThreatDetectionDiagnosticTests
 {
     /// <summary>
     /// Simulate Game 4 from the 5-game tournament where Braindead won.
-    /// Braindead (Blue) won with (20,21) on move 44.
-    /// Grandmaster (Red) blocked at (20,16) on move 43.
+    /// Braindead (Blue) won with (10,11) on move 44.
+    /// Grandmaster (Red) blocked at (10,6) on move 43.
     ///
     /// This confirms that open fours have TWO winning squares - blocking one lets opponent win at the other.
     /// </summary>
@@ -24,25 +25,26 @@ public class ThreatDetectionDiagnosticTests
         // This test traces back from the winning move to understand the threat pattern
         var board = new Board();
 
-        // Place a test pattern: Blue stones on column 20
-        // This is an OPEN FOUR with winning squares at (20,16) and (20,21)
-        board = board.PlaceStone(20, 17, Player.Blue);
-        board = board.PlaceStone(20, 18, Player.Blue);
-        board = board.PlaceStone(20, 19, Player.Blue);
-        board = board.PlaceStone(20, 20, Player.Blue);
+        // Place a test pattern: Blue stones on column 10 (vertical line)
+        // This is an OPEN FOUR with winning squares at (10,6) and (10,11)
+        // Using coordinates valid for 16x16 board (max 15)
+        board = board.PlaceStone(10, 7, Player.Blue);
+        board = board.PlaceStone(10, 8, Player.Blue);
+        board = board.PlaceStone(10, 9, Player.Blue);
+        board = board.PlaceStone(10, 10, Player.Blue);
 
         var threatDetector = new ThreatDetector();
 
-        // Check if (20,21) is a winning move
-        bool isWin21 = threatDetector.IsWinningMove(board, 20, 21, Player.Blue);
-        isWin21.Should().BeTrue("(20,21) should complete vertical 5-in-a-row: (20,17)-(20,18)-(20,19)-(20,20)-(20,21)");
+        // Check if (10,11) is a winning move
+        bool isWin11 = threatDetector.IsWinningMove(board, 10, 11, Player.Blue);
+        isWin11.Should().BeTrue("(10,11) should complete vertical 5-in-a-row: (10,7)-(10,8)-(10,9)-(10,10)-(10,11)");
 
-        // Check if (20,16) is ALSO a winning move - this is what makes it an open four!
-        bool isWin16 = threatDetector.IsWinningMove(board, 20, 16, Player.Blue);
-        isWin16.Should().BeTrue("(20,16) should ALSO complete vertical 5-in-a-row: (20,16)-(20,17)-(20,18)-(20,19)-(20,20)");
+        // Check if (10,6) is ALSO a winning move - this is what makes it an open four!
+        bool isWin6 = threatDetector.IsWinningMove(board, 10, 6, Player.Blue);
+        isWin6.Should().BeTrue("(10,6) should ALSO complete vertical 5-in-a-row: (10,6)-(10,7)-(10,8)-(10,9)-(10,10)");
 
         // Both are winning squares - this is the definition of an open four!
-        // Grandmaster blocked (20,16), but Braindead won at (20,21).
+        // Grandmaster blocked (10,6), but Braindead won at (10,11).
 
         // The real issue: why didn't Grandmaster block when it was an open THREE?
     }
@@ -55,18 +57,18 @@ public class ThreatDetectionDiagnosticTests
     {
         // Create an open three for Blue (3 in a row with both ends open)
         var board = new Board();
-        board = board.PlaceStone(20, 18, Player.Blue);
-        board = board.PlaceStone(20, 19, Player.Blue);
-        board = board.PlaceStone(20, 20, Player.Blue);
-        // (20,17) and (20,21) are open
+        board = board.PlaceStone(10, 8, Player.Blue);
+        board = board.PlaceStone(10, 9, Player.Blue);
+        board = board.PlaceStone(10, 10, Player.Blue);
+        // (10,7) and (10,11) are open
 
         var threatDetector = new ThreatDetector();
 
-        // Neither (20,17) nor (20,21) should be winning moves yet
-        bool isWin17 = threatDetector.IsWinningMove(board, 20, 17, Player.Blue);
-        bool isWin21 = threatDetector.IsWinningMove(board, 20, 21, Player.Blue);
-        isWin17.Should().BeFalse("(20,17) should NOT be a winning move yet - only 3 in a row");
-        isWin21.Should().BeFalse("(20,21) should NOT be a winning move yet - only 3 in a row");
+        // Neither (10,7) nor (10,11) should be winning moves yet
+        bool isWin7 = threatDetector.IsWinningMove(board, 10, 7, Player.Blue);
+        bool isWin11 = threatDetector.IsWinningMove(board, 10, 11, Player.Blue);
+        isWin7.Should().BeFalse("(10,7) should NOT be a winning move yet - only 3 in a row");
+        isWin11.Should().BeFalse("(10,11) should NOT be a winning move yet - only 3 in a row");
 
         // But this IS an open three - both ends are open
         // The FindOpenThreeBlocks method should detect this
@@ -74,7 +76,7 @@ public class ThreatDetectionDiagnosticTests
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster, timeRemainingMs: 60000, moveNumber: 1);
 
         // Grandmaster should block at one end of the open three
-        var validBlocks = new[] { (20, 17), (20, 21) };
+        var validBlocks = new[] { (10, 7), (10, 11) };
         validBlocks.Should().Contain((move.x, move.y),
             "Grandmaster should block the open three at one end before it becomes an open four");
     }
@@ -89,27 +91,27 @@ public class ThreatDetectionDiagnosticTests
         // Create two separate open fours for Blue
         var board = new Board();
 
-        // First open four: horizontal at row 10
-        board = board.PlaceStone(10, 10, Player.Blue);
-        board = board.PlaceStone(10, 11, Player.Blue);
-        board = board.PlaceStone(10, 12, Player.Blue);
-        board = board.PlaceStone(10, 13, Player.Blue);
-        // (10,9) and (10,14) complete this open four
+        // First open four: horizontal at row 5
+        board = board.PlaceStone(5, 5, Player.Blue);
+        board = board.PlaceStone(5, 6, Player.Blue);
+        board = board.PlaceStone(5, 7, Player.Blue);
+        board = board.PlaceStone(5, 8, Player.Blue);
+        // (5,4) and (5,9) complete this open four
 
-        // Second open four: vertical at column 20
-        board = board.PlaceStone(17, 20, Player.Blue);
-        board = board.PlaceStone(18, 20, Player.Blue);
-        board = board.PlaceStone(19, 20, Player.Blue);
-        board = board.PlaceStone(20, 20, Player.Blue);
-        // (16,20) and (21,20) complete this open four
+        // Second open four: vertical at column 10
+        board = board.PlaceStone(7, 10, Player.Blue);
+        board = board.PlaceStone(8, 10, Player.Blue);
+        board = board.PlaceStone(9, 10, Player.Blue);
+        board = board.PlaceStone(10, 10, Player.Blue);
+        // (6,10) and (11,10) complete this open four
 
         var threatDetector = new ThreatDetector();
 
         // Find ALL winning squares for Blue
         var winningSquares = new List<(int x, int y)>();
-        for (int x = 0; x < 32; x++)
+        for (int x = 0; x < GameConstants.BoardSize; x++)
         {
-            for (int y = 0; y < 32; y++)
+            for (int y = 0; y < GameConstants.BoardSize; y++)
             {
                 if (board.GetCell(x, y).Player == Player.None)
                 {
@@ -123,19 +125,19 @@ public class ThreatDetectionDiagnosticTests
 
         // Should find 4 winning squares (2 per open four)
         winningSquares.Count.Should().Be(4, "Two open fours = 4 winning squares total");
-        winningSquares.Should().Contain((10, 9), "First open four - left end");
-        winningSquares.Should().Contain((10, 14), "First open four - right end");
-        winningSquares.Should().Contain((16, 20), "Second open four - top end");
-        winningSquares.Should().Contain((21, 20), "Second open four - bottom end");
+        winningSquares.Should().Contain((5, 4), "First open four - left end");
+        winningSquares.Should().Contain((5, 9), "First open four - right end");
+        winningSquares.Should().Contain((6, 10), "Second open four - top end");
+        winningSquares.Should().Contain((11, 10), "Second open four - bottom end");
 
-        // Now simulate Red blocking at (10,9)
-        var boardAfterBlock = board.PlaceStone(10, 9, Player.Red);
+        // Now simulate Red blocking at (5,4)
+        var boardAfterBlock = board.PlaceStone(5, 4, Player.Red);
 
-        // Blue can still win at (10,14), (16,20), or (21,20)
+        // Blue can still win at (5,9), (6,10), or (11,10)
         var remainingWinningSquares = new List<(int x, int y)>();
-        for (int x = 0; x < 32; x++)
+        for (int x = 0; x < GameConstants.BoardSize; x++)
         {
-            for (int y = 0; y < 32; y++)
+            for (int y = 0; y < GameConstants.BoardSize; y++)
             {
                 if (boardAfterBlock.GetCell(x, y).Player == Player.None)
                 {
@@ -160,23 +162,23 @@ public class ThreatDetectionDiagnosticTests
         var board = new Board();
 
         // First open four for Blue (opponent)
-        board = board.PlaceStone(10, 10, Player.Blue);
-        board = board.PlaceStone(10, 11, Player.Blue);
-        board = board.PlaceStone(10, 12, Player.Blue);
-        board = board.PlaceStone(10, 13, Player.Blue);
+        board = board.PlaceStone(5, 5, Player.Blue);
+        board = board.PlaceStone(5, 6, Player.Blue);
+        board = board.PlaceStone(5, 7, Player.Blue);
+        board = board.PlaceStone(5, 8, Player.Blue);
 
         // Second open four for Blue
-        board = board.PlaceStone(17, 20, Player.Blue);
-        board = board.PlaceStone(18, 20, Player.Blue);
-        board = board.PlaceStone(19, 20, Player.Blue);
-        board = board.PlaceStone(20, 20, Player.Blue);
+        board = board.PlaceStone(7, 10, Player.Blue);
+        board = board.PlaceStone(8, 10, Player.Blue);
+        board = board.PlaceStone(9, 10, Player.Blue);
+        board = board.PlaceStone(10, 10, Player.Blue);
 
         // Red's turn - Grandmaster should detect and try to block
         var ai = new MinimaxAI();
         var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster, timeRemainingMs: 60000, moveNumber: 1);
 
         // Grandmaster should block at one of the winning squares
-        var validBlocks = new[] { (10, 9), (10, 14), (16, 20), (21, 20) };
+        var validBlocks = new[] { (5, 4), (5, 9), (6, 10), (11, 10) };
         validBlocks.Should().Contain((move.x, move.y), "Grandmaster should block at a winning square");
 
         // But this is expected to fail - there's no single move that blocks both open fours!
@@ -191,10 +193,10 @@ public class ThreatDetectionDiagnosticTests
     {
         // Create an open three for Blue
         var board = new Board();
-        board = board.PlaceStone(10, 11, Player.Blue);
-        board = board.PlaceStone(10, 12, Player.Blue);
-        board = board.PlaceStone(10, 13, Player.Blue);
-        // Both (10,10) and (10,14) are open
+        board = board.PlaceStone(5, 6, Player.Blue);
+        board = board.PlaceStone(5, 7, Player.Blue);
+        board = board.PlaceStone(5, 8, Player.Blue);
+        // Both (5,5) and (5,9) are open
 
         var threatDetector = new ThreatDetector();
         var threats = threatDetector.DetectThreats(board, Player.Blue);
@@ -217,59 +219,48 @@ public class ThreatDetectionDiagnosticTests
     {
         // Create an open three for Blue (Braindead)
         var board = new Board();
-        board = board.PlaceStone(10, 11, Player.Blue);
-        board = board.PlaceStone(10, 12, Player.Blue);
-        board = board.PlaceStone(10, 13, Player.Blue);
-        // Both (10,10) and (10,14) are open
+        board = board.PlaceStone(5, 6, Player.Blue);
+        board = board.PlaceStone(5, 7, Player.Blue);
+        board = board.PlaceStone(5, 8, Player.Blue);
+        // Both (5,5) and (5,9) are open
 
         var ai = new MinimaxAI();
 
         // Grandmaster's turn - should block the open three
         var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster, timeRemainingMs: 60000, moveNumber: 1);
-        var validBlocks = new[] { (10, 10), (10, 14) };
+        var validBlocks = new[] { (5, 5), (5, 9) };
         validBlocks.Should().Contain((move1.x, move1.y), "Grandmaster should block the open three");
 
         // Simulate Grandmaster blocking
         var board2 = board.PlaceStone(move1.x, move1.y, Player.Red);
 
         // Braindead plays at the other end of the open three
-        // If Grandmaster blocked at (10,10), Braindead plays (10,14)
-        // If Grandmaster blocked at (10,14), Braindead plays (10,10)
-        var (braindeadX, braindeadY) = move1.x == 10 && move1.y == 10 ? (10, 14) : (10, 10);
+        // If Grandmaster blocked at (5,5), Braindead plays (5,9)
+        // If Grandmaster blocked at (5,9), Braindead plays (5,5)
+        var (braindeadX, braindeadY) = move1.x == 5 && move1.y == 5 ? (5, 9) : (5, 5);
         var board3 = board2.PlaceStone(braindeadX, braindeadY, Player.Blue);
 
         // Now Blue has 4 in a row with one end blocked (semi-open four)
         // Determine which square would complete the 5 in a row
         var threatDetector = new ThreatDetector();
-        int winningY = braindeadY == 14 ? 15 : 10; // If Blue extended to (10,14), winning square is (10,15); otherwise (10,10)
+        int winningY = braindeadY == 9 ? 10 : 4; // If Blue extended to (5,9), winning square is (5,10); otherwise (5,4)
 
-        // But wait - if Blue played at (10,10) and Grandmaster blocked at (10,14),
-        // Blue has stones at (10,10), (10,11), (10,12), (10,13) with (10,14) blocked
-        // The winning square would be (10,9)
-        if (braindeadY == 10)
+        // But wait - if Blue played at (5,5) and Grandmaster blocked at (5,9),
+        // Blue has stones at (5,5), (5,6), (5,7), (5,8) with (5,9) blocked
+        // The winning square would be (5,4)
+        if (braindeadY == 5)
         {
-            // Blue extended left: (10,10)-(10,11)-(10,12)-(10,13) with (10,14) blocked
-            // Winning square is (10,9)
-            winningY = 9;
+            // Blue extended left: (5,5)-(5,6)-(5,7)-(5,8) with (5,9) blocked
+            // Winning square is (5,4)
+            winningY = 4;
         }
 
-        bool isWinning = threatDetector.IsWinningMove(board3, 10, winningY, Player.Blue);
-        isWinning.Should().BeTrue($"(10,{winningY}) should complete the semi-open four");
+        bool isWinning = threatDetector.IsWinningMove(board3, 5, winningY, Player.Blue);
+        isWinning.Should().BeTrue($"(5,{winningY}) should complete the semi-open four");
 
         // Grandmaster's turn again - should block the winning square
         var move2 = ai.GetBestMove(board3, Player.Red, AIDifficulty.Grandmaster, timeRemainingMs: 60000, moveNumber: 3);
-        move2.Should().Be((10, winningY), "Grandmaster should block the semi-open four");
+        move2.Should().Be((5, winningY), "Grandmaster should block the semi-open four");
     }
 
-    /// <summary>
-    /// Verify that a 10% random AI (Braindead) cannot consistently beat Grandmaster.
-    /// This test runs a mini-tournament and checks win rate.
-    /// </summary>
-    [Fact(Skip = "Long running tournament test - run manually")]
-    public void Grandmaster_ShouldBeat_Braindead_Consistently()
-    {
-        // This test is for manual verification
-        // Run tournament with: dotnet run -- --comprehensive --matchups=GrandmastervsBraindead --time=180+2 --games=50
-        Assert.True(true, "Run tournament manually to verify Grandmaster beats Braindead consistently");
-    }
 }

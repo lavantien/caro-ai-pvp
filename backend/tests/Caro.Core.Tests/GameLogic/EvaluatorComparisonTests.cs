@@ -140,8 +140,8 @@ public class EvaluatorComparisonTests
 
     [Theory]
     [InlineData(0, 0)]
-    [InlineData(16, 16)]  // Center of 32x32
-    [InlineData(31, 31)] // Far corner
+    [InlineData(8, 8)]   // Center of 16x16
+    [InlineData(15, 15)] // Far corner
     [InlineData(3, 5)]
     [InlineData(10, 8)]
     public void ScalarVsSIMD_SingleMoves_ShouldMatch(int x, int y)

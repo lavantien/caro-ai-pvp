@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 
@@ -164,8 +165,8 @@ public class OpeningBookSymmetryIntegrityTests
             board
         );
 
-        // Rotate90 inverse is Rotate270: (31-y, x) for 32x32 board
-        var expectedX = 31 - 10;  // 21
+        // Rotate90 inverse is Rotate270: (15-y, x) for 16x16 board
+        var expectedX = GameConstants.BoardSize - 1 - 10;  // 5
         var expectedY = 10;
 
         actualX.Should().Be(expectedX);
@@ -267,7 +268,8 @@ public class OpeningBookSymmetryIntegrityTests
             SymmetryType.DiagonalB
         };
 
-        var testPoints = new[] { (5, 8), (7, 11), (9, 9), (10, 10), (0, 0), (18, 18) };
+        // Use valid 16x16 test points (max coordinate is 15)
+        var testPoints = new[] { (5, 8), (6, 10), (8, 8), (10, 10), (0, 0), (12, 12) };
 
         foreach (var symmetry in symmetries)
         {

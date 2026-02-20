@@ -94,13 +94,13 @@ public class BitKeyBoardTests
 
         // Act
         board.SetBit(0, 0, Player.Red);
-        board.SetBit(15, 15, Player.Blue);
-        board.SetBit(31, 31, Player.Red);
+        board.SetBit(7, 7, Player.Blue);
+        board.SetBit(15, 15, Player.Red);
 
         // Assert
         board.GetPlayerAt(0, 0).Should().Be(Player.Red);
-        board.GetPlayerAt(15, 15).Should().Be(Player.Blue);
-        board.GetPlayerAt(31, 31).Should().Be(Player.Red);
+        board.GetPlayerAt(7, 7).Should().Be(Player.Blue);
+        board.GetPlayerAt(15, 15).Should().Be(Player.Red);
         board.CountStones().Should().Be(3);
     }
 
@@ -217,10 +217,10 @@ public class BitKeyBoardTests
 
     [Theory]
     [InlineData(0, 0)]
+    [InlineData(7, 7)]
     [InlineData(15, 15)]
-    [InlineData(31, 31)]
-    [InlineData(0, 31)]
-    [InlineData(31, 0)]
+    [InlineData(0, 15)]
+    [InlineData(15, 0)]
     public void GetPlayerAt_AtVariousPositions_ReturnsCorrectPlayer(int x, int y)
     {
         // Arrange
