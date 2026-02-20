@@ -115,6 +115,10 @@ public class MinimaxAI : IStatsPublisher
     // Random source for tie-breaking and error rate simulation (injectable for deterministic tests)
     private readonly Random? _random;
 
+    // Mutable SearchBoard for high-performance search (make/unmake pattern)
+    // Reused across searches to avoid allocations
+    private readonly SearchBoard _searchBoard = new();
+
     public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null, OpeningBook? openingBook = null, Random? random = null)
     {
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<MinimaxAI>.Instance;
@@ -1290,6 +1294,9 @@ public class MinimaxAI : IStatsPublisher
         // Calculate board hash for transposition table
         var boardHash = _transpositionTable.CalculateHash(board);
 
+        // Initialize SearchBoard from immutable Board for high-performance search
+        _searchBoard.CopyFrom(new SearchBoard(board));
+
         // First, do a quick search at depth-1 to get an estimate (if depth > 2)
         int estimatedScore = 0;
         if (depth > 2)
@@ -1311,8 +1318,10 @@ public class MinimaxAI : IStatsPublisher
                     return (bestMove.x, bestMove.y, bestScore);
                 }
 
-                var newBoard = board.PlaceStone(x, y, player);
-                var score = Minimax(newBoard, depth - 2, searchAlpha, searchBeta, false, player, depth);
+                // Make move on SearchBoard (in-place, zero allocation)
+                var undo = _searchBoard.MakeMove(x, y, player);
+                var score = MinimaxCore(_searchBoard, depth - 2, searchAlpha, searchBeta, false, player, depth);
+                _searchBoard.UnmakeMove(undo);
 
                 // If search was stopped during Minimax, return current best
                 if (_searchStopped)
@@ -1375,11 +1384,14 @@ public class MinimaxAI : IStatsPublisher
                     return (bestMove.x, bestMove.y, bestScore);  // Return best move found so far
                 }
 
-                // Make move
-                var newBoard = board.PlaceStone(x, y, player);
+                // Make move on SearchBoard (in-place, zero allocation)
+                var undo = _searchBoard.MakeMove(x, y, player);
 
-                // Evaluate using minimax
-                var score = Minimax(newBoard, depth - 1, alpha, beta, false, player, depth);
+                // Evaluate using MinimaxCore
+                var score = MinimaxCore(_searchBoard, depth - 1, alpha, beta, false, player, depth);
+
+                // Unmake move (restore board state)
+                _searchBoard.UnmakeMove(undo);
 
                 // If search was stopped during Minimax, return current best
                 if (_searchStopped)
@@ -2301,6 +2313,363 @@ public class MinimaxAI : IStatsPublisher
     }
 
     /// <summary>
+    /// Verify if null-move is safe for SearchBoard (high-performance path).
+    /// </summary>
+    private bool IsNullMoveSafe(SearchBoard board, Player player)
+    {
+        var playerBitBoard = board.GetBitBoard(player);
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var opponentBitBoard = board.GetBitBoard(opponent);
+        var occupied = playerBitBoard | opponentBitBoard;
+
+        // Count stones on board
+        int totalStones = playerBitBoard.CountBits() + opponentBitBoard.CountBits();
+        if (totalStones < 10) return false;
+
+        // Check for immediate threats
+        foreach (var (dx, dy) in new[] { (1, 0), (0, 1), (1, 1), (1, -1) })
+        {
+            for (int x = 0; x < BoardSize; x++)
+            {
+                for (int y = 0; y < BoardSize; y++)
+                {
+                    if (!opponentBitBoard.GetBit(x, y)) continue;
+
+                    var count = BitBoardEvaluator.CountConsecutiveBoth(opponentBitBoard, x, y, dx, dy);
+                    var openEnds = BitBoardEvaluator.CountOpenEnds(opponentBitBoard, occupied, x, y, dx, dy, count);
+
+                    if (count == 4 && openEnds > 0) return false;
+                    if (count == 3 && openEnds == 2) return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Core minimax algorithm using SearchBoard with make/unmake pattern.
+    /// High-performance path that avoids Board.PlaceStone allocations.
+    /// </summary>
+    private int MinimaxCore(SearchBoard board, int depth, int alpha, int beta, bool isMaximizing, Player aiPlayer, int rootDepth)
+    {
+        // Count this node
+        _nodesSearched++;
+
+        // Time control: check periodically (every N nodes) to avoid timeout
+        if ((_nodesSearched & (TimeCheckInterval - 1)) == 0)
+        {
+            var elapsed = _searchStopwatch.ElapsedMilliseconds;
+            if (elapsed >= _searchHardBoundMs)
+            {
+                _searchStopped = true;
+                return isMaximizing ? alpha : beta;
+            }
+        }
+
+        // Check terminal states
+        var winner = CheckWinner(board);
+        if (winner != null)
+        {
+            return winner == aiPlayer ? 100000 : -100000;
+        }
+
+        if (depth == 0)
+        {
+            return QuiesceCore(board, alpha, beta, isMaximizing, aiPlayer, rootDepth);
+        }
+
+        // NULL-MOVE PRUNING
+        var isNullMoveEligible = (beta - alpha) <= 1;
+        if (depth >= NullMoveMinDepth && isNullMoveEligible && IsNullMoveSafe(board, isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red)))
+        {
+            int nullMoveDepth = depth - NullMoveDepthReduction;
+            if (nullMoveDepth > 0)
+            {
+                int nullMoveScore = MinimaxCore(board, nullMoveDepth, beta - 1, beta, !isMaximizing, aiPlayer, rootDepth);
+                if (nullMoveScore >= beta)
+                {
+                    return beta;
+                }
+            }
+        }
+
+        var candidates = GetCandidateMoves(board);
+        if (candidates.Count == 0)
+        {
+            return 0;
+        }
+
+        // Transposition table lookup using SearchBoard hash
+        var boardHash = board.GetHash();
+        _tableLookups++;
+        var (found, cachedScore, cachedMove) = _transpositionTable.Lookup(boardHash, depth, alpha, beta);
+        if (found)
+        {
+            _tableHits++;
+            return cachedScore;
+        }
+
+        var currentPlayer = isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red);
+
+        // Order moves
+        var orderedMoves = OrderMoves(candidates, rootDepth - depth, board, currentPlayer, cachedMove);
+
+        int score;
+        const int lmrFullDepthMoves = 4;
+        const int pvsEnabledDepth = 2;
+
+        if (isMaximizing)
+        {
+            var maxEval = int.MinValue;
+            var moveIndex = 0;
+
+            foreach (var (x, y) in orderedMoves)
+            {
+                // Make move (mutates board in-place)
+                var undo = board.MakeMove(x, y, currentPlayer);
+
+                int eval;
+                bool isPvNode = (moveIndex == 0) && (depth >= pvsEnabledDepth);
+
+                if (isPvNode)
+                {
+                    if (depth >= 3 && moveIndex >= lmrFullDepthMoves && !IsTacticalPosition(board))
+                    {
+                        eval = MinimaxCore(board, depth - 2, alpha, beta, false, aiPlayer, rootDepth);
+                        if (eval > alpha && eval < beta - 100)
+                        {
+                            eval = MinimaxCore(board, depth - 1, alpha, beta, false, aiPlayer, rootDepth);
+                        }
+                    }
+                    else
+                    {
+                        eval = MinimaxCore(board, depth - 1, alpha, beta, false, aiPlayer, rootDepth);
+                    }
+                }
+                else
+                {
+                    int searchDepth = depth - 1;
+                    if (depth >= 3 && moveIndex >= lmrFullDepthMoves && !IsTacticalPosition(board))
+                    {
+                        searchDepth = depth - 2;
+                    }
+
+                    eval = MinimaxCore(board, searchDepth, alpha, alpha + 1, false, aiPlayer, rootDepth);
+
+                    if (eval > alpha && eval < beta)
+                    {
+                        if (searchDepth == depth - 2)
+                        {
+                            eval = MinimaxCore(board, depth - 1, alpha, beta, false, aiPlayer, rootDepth);
+                        }
+                        else
+                        {
+                            eval = MinimaxCore(board, depth - 1, alpha, beta, false, aiPlayer, rootDepth);
+                        }
+                    }
+                }
+
+                // Unmake move (restores board state)
+                board.UnmakeMove(undo);
+
+                if (eval > maxEval)
+                {
+                    maxEval = eval;
+                }
+
+                alpha = Math.Max(alpha, eval);
+                if (beta <= alpha)
+                {
+                    RecordKillerMove(rootDepth - depth, x, y);
+                    RecordHistoryMove(currentPlayer, x, y, depth);
+                    break;
+                }
+
+                moveIndex++;
+            }
+            score = maxEval;
+        }
+        else
+        {
+            var minEval = int.MaxValue;
+            var moveIndex = 0;
+
+            foreach (var (x, y) in orderedMoves)
+            {
+                // Make move (mutates board in-place)
+                var undo = board.MakeMove(x, y, currentPlayer);
+
+                int eval;
+                bool isPvNode = (moveIndex == 0) && (depth >= pvsEnabledDepth);
+
+                if (isPvNode)
+                {
+                    if (depth >= 3 && moveIndex >= lmrFullDepthMoves && !IsTacticalPosition(board))
+                    {
+                        eval = MinimaxCore(board, depth - 2, alpha, beta, true, aiPlayer, rootDepth);
+                        if (eval < beta && eval > alpha + 100)
+                        {
+                            eval = MinimaxCore(board, depth - 1, alpha, beta, true, aiPlayer, rootDepth);
+                        }
+                    }
+                    else
+                    {
+                        eval = MinimaxCore(board, depth - 1, alpha, beta, true, aiPlayer, rootDepth);
+                    }
+                }
+                else
+                {
+                    int searchDepth = depth - 1;
+                    if (depth >= 3 && moveIndex >= lmrFullDepthMoves && !IsTacticalPosition(board))
+                    {
+                        searchDepth = depth - 2;
+                    }
+
+                    eval = MinimaxCore(board, searchDepth, beta - 1, beta, true, aiPlayer, rootDepth);
+
+                    if (eval < beta && eval > alpha)
+                    {
+                        if (searchDepth == depth - 2)
+                        {
+                            eval = MinimaxCore(board, depth - 1, alpha, beta, true, aiPlayer, rootDepth);
+                        }
+                        else
+                        {
+                            eval = MinimaxCore(board, depth - 1, alpha, beta, true, aiPlayer, rootDepth);
+                        }
+                    }
+                }
+
+                // Unmake move (restores board state)
+                board.UnmakeMove(undo);
+
+                if (eval < minEval)
+                {
+                    minEval = eval;
+                }
+
+                beta = Math.Min(beta, eval);
+                if (beta <= alpha)
+                {
+                    RecordKillerMove(rootDepth - depth, x, y);
+                    RecordHistoryMove(currentPlayer, x, y, depth);
+                    break;
+                }
+
+                moveIndex++;
+            }
+            score = minEval;
+        }
+
+        // Store result in transposition table
+        _transpositionTable.Store(boardHash, depth, score, null, alpha, beta);
+
+        return score;
+    }
+
+    /// <summary>
+    /// Quiescence search using SearchBoard with make/unmake pattern.
+    /// High-performance path that avoids Board.PlaceStone allocations.
+    /// </summary>
+    private int QuiesceCore(SearchBoard board, int alpha, int beta, bool isMaximizing, Player aiPlayer, int rootDepth)
+    {
+        // Time control
+        if ((_nodesSearched & 15) == 8)
+        {
+            var elapsed = _searchStopwatch.ElapsedMilliseconds;
+            if (elapsed >= _searchHardBoundMs)
+            {
+                _searchStopped = true;
+                return isMaximizing ? alpha : beta;
+            }
+        }
+
+        // Get stand-pat score using SearchBoard evaluator
+        var standPat = _evaluator.Evaluate(board, aiPlayer);
+
+        // Beta cutoff
+        if (isMaximizing && standPat >= beta)
+            return beta;
+
+        // Alpha cutoff
+        if (!isMaximizing && standPat <= alpha)
+            return alpha;
+
+        // Update bounds
+        if (isMaximizing)
+            alpha = Math.Max(alpha, standPat);
+        else
+            beta = Math.Min(beta, standPat);
+
+        // Check for terminal states
+        var winner = CheckWinner(board);
+        if (winner != null)
+        {
+            return winner == aiPlayer ? 100000 : -100000;
+        }
+
+        // Generate tactical moves
+        var tacticalMoves = GetCandidateMoves(board);
+
+        // Limit quiescence depth
+        const int maxQuiescenceDepth = 4;
+        if (rootDepth > maxQuiescenceDepth)
+        {
+            return standPat;
+        }
+
+        if (tacticalMoves.Count == 0)
+            return standPat;
+
+        var currentPlayer = isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red);
+
+        // Order tactical moves
+        var orderedMoves = OrderMoves(tacticalMoves, rootDepth, board, currentPlayer, null);
+
+        if (isMaximizing)
+        {
+            var maxEval = standPat;
+            foreach (var (x, y) in orderedMoves)
+            {
+                if (!board.IsEmpty(x, y))
+                    continue;
+
+                var undo = board.MakeMove(x, y, currentPlayer);
+                var eval = QuiesceCore(board, alpha, beta, false, aiPlayer, rootDepth + 1);
+                board.UnmakeMove(undo);
+
+                maxEval = Math.Max(maxEval, eval);
+                alpha = Math.Max(alpha, eval);
+
+                if (beta <= alpha)
+                    return beta;
+            }
+            return maxEval;
+        }
+        else
+        {
+            var minEval = standPat;
+            foreach (var (x, y) in orderedMoves)
+            {
+                if (!board.IsEmpty(x, y))
+                    continue;
+
+                var undo = board.MakeMove(x, y, currentPlayer);
+                var eval = QuiesceCore(board, alpha, beta, true, aiPlayer, rootDepth + 1);
+                board.UnmakeMove(undo);
+
+                minEval = Math.Min(minEval, eval);
+                beta = Math.Min(beta, eval);
+
+                if (beta <= alpha)
+                    return alpha;
+            }
+            return minEval;
+        }
+    }
+
+    /// <summary>
     /// Minimax algorithm with alpha-beta pruning and transposition table
     /// </summary>
     private int Minimax(Board board, int depth, int alpha, int beta, bool isMaximizing, Player aiPlayer, int rootDepth)
@@ -2722,6 +3091,405 @@ public class MinimaxAI : IStatsPublisher
         }
 
         return candidates;
+    }
+
+    /// <summary>
+    /// Get candidate moves for SearchBoard (high-performance path).
+    /// Returns empty cells within SearchRadius of any existing stone.
+    /// </summary>
+    private List<(int x, int y)> GetCandidateMoves(SearchBoard board)
+    {
+        const int boardSize = BoardSize;
+        const int cellCount = boardSize * boardSize;
+
+        // Use stackalloc for considered tracking (zero allocation)
+        Span<bool> considered = stackalloc bool[cellCount];
+
+        // Pre-allocate with reasonable capacity to avoid resizing
+        var candidates = new List<(int x, int y)>(64);
+
+        for (int x = 0; x < boardSize; x++)
+        {
+            for (int y = 0; y < boardSize; y++)
+            {
+                if (!board.IsEmpty(x, y))
+                {
+                    // Check neighboring cells
+                    for (int dx = -SearchRadius; dx <= SearchRadius; dx++)
+                    {
+                        for (int dy = -SearchRadius; dy <= SearchRadius; dy++)
+                        {
+                            var nx = x + dx;
+                            var ny = y + dy;
+
+                            if (nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize)
+                            {
+                                int idx = nx * boardSize + ny;
+                                if (!considered[idx])
+                                {
+                                    considered[idx] = true;
+                                    if (board.IsEmpty(nx, ny))
+                                    {
+                                        candidates.Add((nx, ny));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // If no candidates (empty board), return center
+        if (candidates.Count == 0)
+        {
+            int center = boardSize / 2;
+            candidates.Add((center, center));
+        }
+
+        return candidates;
+    }
+
+    /// <summary>
+    /// Order moves for SearchBoard (high-performance path).
+    /// Uses same heuristics as Board version but optimized for SearchBoard.
+    /// </summary>
+    private List<(int x, int y)> OrderMoves(List<(int x, int y)> candidates, int depth, SearchBoard board, Player player, (int x, int y)? ttMove = null)
+    {
+        int count = candidates.Count;
+        if (count <= 1) return candidates;
+
+        // Score array on stack (zero allocation)
+        Span<int> scores = stackalloc int[count];
+
+        // Score each move
+        for (int i = 0; i < count; i++)
+        {
+            var (x, y) = candidates[i];
+            var score = 0;
+
+            // PRIORITY #1: Hash Move (TT Move)
+            if (ttMove.HasValue && x == ttMove.Value.x && y == ttMove.Value.y)
+            {
+                score = 10000;
+            }
+            else
+            {
+                // PRIORITY #2: Emergency Defense
+                if (IsEmergencyDefense(board, x, y, player))
+                {
+                    score += 5000;
+                }
+
+                // PRIORITY #3: Winning Threats
+                score += EvaluateTacticalPattern(board, x, y, player);
+
+                // PRIORITY #4: Killer Moves
+                if (depth >= 0 && depth < MaxKillerDepth)
+                {
+                    for (int k = 0; k < MaxKillerMoves; k++)
+                    {
+                        if (_killerMoves[depth, k].x == x && _killerMoves[depth, k].y == y)
+                        {
+                            score += 1000;
+                            break;
+                        }
+                    }
+                }
+
+                // PRIORITY #5: History/Butterfly Heuristic
+                const int butterflySize = BoardSize;
+                var butterflyScore = (x >= 0 && x < butterflySize && y >= 0 && y < butterflySize)
+                    ? (player == Player.Red ? _butterflyRed[x, y] : _butterflyBlue[x, y])
+                    : 0;
+                score += Math.Min(300, butterflyScore / 100);
+
+                var historyScore = GetHistoryScore(player, x, y);
+                score += Math.Min(500, historyScore / 10);
+
+                // PRIORITY #6: Positional Heuristics
+                var distanceToCenter = Math.Abs(x - GameConstants.CenterPosition) + Math.Abs(y - GameConstants.CenterPosition);
+                score += ((GameConstants.BoardSize - 2) - distanceToCenter) * 10;
+
+                // Prefer moves near existing stones
+                var nearby = 0;
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        if (dx == 0 && dy == 0) continue;
+                        var nx = x + dx;
+                        var ny = y + dy;
+                        if (nx >= 0 && nx < BoardSize && ny >= 0 && ny < BoardSize)
+                        {
+                            if (!board.IsEmpty(nx, ny))
+                                nearby += 5;
+                        }
+                    }
+                }
+                score += nearby;
+            }
+
+            scores[i] = score;
+        }
+
+        // Simple insertion sort (fast for small arrays, no allocations)
+        for (int i = 1; i < count; i++)
+        {
+            var keyMove = candidates[i];
+            var keyScore = scores[i];
+            int j = i - 1;
+
+            while (j >= 0 && scores[j] < keyScore)
+            {
+                candidates[j + 1] = candidates[j];
+                scores[j + 1] = scores[j];
+                j--;
+            }
+
+            candidates[j + 1] = keyMove;
+            scores[j + 1] = keyScore;
+        }
+
+        return candidates;
+    }
+
+    /// <summary>
+    /// Check if there's a winner using SearchBoard (high-performance path).
+    /// Uses bitboard-based 5-in-a-row detection.
+    /// </summary>
+    private Player? CheckWinner(SearchBoard board)
+    {
+        if (board.HasWin(Player.Red))
+            return Player.Red;
+        if (board.HasWin(Player.Blue))
+            return Player.Blue;
+        return null;
+    }
+
+    /// <summary>
+    /// Check if position is tactical using SearchBoard.
+    /// </summary>
+    private bool IsTacticalPosition(SearchBoard board)
+    {
+        var redBits = board.GetBitBoard(Player.Red);
+        var blueBits = board.GetBitBoard(Player.Blue);
+
+        // Quick check using bitboard operations
+        // Check for 3+ in a row in any direction for either player
+        return HasThreeInRow(redBits) || HasThreeInRow(blueBits);
+    }
+
+    /// <summary>
+    /// Check if a BitBoard has 3+ consecutive stones in any direction.
+    /// </summary>
+    private bool HasThreeInRow(BitBoard bits)
+    {
+        // Check horizontal: shift right 3 times and AND
+        var h1 = bits;
+        var h2 = h1.ShiftRight();
+        var h3 = h2.ShiftRight();
+        if ((h1 & h2 & h3).IsEmpty == false)
+            return true;
+
+        // Check vertical: shift down 3 times and AND
+        var v1 = bits;
+        var v2 = v1.ShiftDown();
+        var v3 = v2.ShiftDown();
+        if ((v1 & v2 & v3).IsEmpty == false)
+            return true;
+
+        // Check diagonal \
+        var d1 = bits;
+        var d2 = d1.ShiftDownRight();
+        var d3 = d2.ShiftDownRight();
+        if ((d1 & d2 & d3).IsEmpty == false)
+            return true;
+
+        // Check diagonal /
+        var a1 = bits;
+        var a2 = a1.ShiftDownLeft();
+        var a3 = a2.ShiftDownLeft();
+        if ((a1 & a2 & a3).IsEmpty == false)
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Emergency defense check for SearchBoard.
+    /// Returns true if this move blocks opponent's immediate winning threat.
+    /// </summary>
+    private bool IsEmergencyDefense(SearchBoard board, int x, int y, Player player)
+    {
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+
+        // Check if opponent would win by playing at (x, y)
+        if (board.IsWinningMove(x, y, opponent))
+            return true;
+
+        // Check for double threats (multiple open 3s or open 4s)
+        var opponentBits = board.GetBitBoard(opponent);
+        var threatCount = 0;
+
+        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
+        foreach (var (dx, dy) in directions)
+        {
+            var count = 1;
+            var openEnds = 0;
+
+            // Check positive direction
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x + dx * i;
+                var ny = y + dy * i;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
+                if (opponentBits.GetBit(nx, ny)) count++;
+                else if (board.IsEmpty(nx, ny)) { openEnds++; break; }
+                else break;
+            }
+
+            // Check negative direction
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x - dx * i;
+                var ny = y - dy * i;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
+                if (opponentBits.GetBit(nx, ny)) count++;
+                else if (board.IsEmpty(nx, ny)) { openEnds++; break; }
+                else break;
+            }
+
+            // Open 4 or open 3 is a threat
+            if (count >= 4 && openEnds >= 1) threatCount++;
+            else if (count >= 3 && openEnds >= 2) threatCount++;
+        }
+
+        return threatCount >= 2;
+    }
+
+    /// <summary>
+    /// Evaluate tactical pattern for SearchBoard.
+    /// Uses bitboard operations for efficiency.
+    /// </summary>
+    private int EvaluateTacticalPattern(SearchBoard board, int x, int y, Player player)
+    {
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var playerBitBoard = board.GetBitBoard(player);
+        var opponentBitBoard = board.GetBitBoard(opponent);
+        var occupied = playerBitBoard | opponentBitBoard;
+        var score = 0;
+
+        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
+
+        foreach (var (dx, dy) in directions)
+        {
+            // Count consecutive stones in both directions (for player)
+            var count = 1;
+            var openEnds = 0;
+
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x + dx * i;
+                var ny = y + dy * i;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
+
+                if (playerBitBoard.GetBit(nx, ny))
+                {
+                    count++;
+                }
+                else if (!occupied.GetBit(nx, ny))
+                {
+                    openEnds++;
+                    break;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x - dx * i;
+                var ny = y - dy * i;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
+
+                if (playerBitBoard.GetBit(nx, ny))
+                {
+                    count++;
+                }
+                else if (!occupied.GetBit(nx, ny))
+                {
+                    openEnds++;
+                    break;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // Score based on pattern
+            if (count >= 5) score += 100000;  // Winning move
+            else if (count == 4 && openEnds >= 1) score += 10000;  // Open 4
+            else if (count == 3 && openEnds == 2) score += 5000;   // Open 3 (double threat)
+            else if (count == 3 && openEnds == 1) score += 500;    // Half-open 3
+            else if (count == 2 && openEnds == 2) score += 100;    // Open 2
+
+            // Also check blocking value (opponent patterns)
+            var oppCount = 1;
+            var oppOpenEnds = 0;
+
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x + dx * i;
+                var ny = y + dy * i;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
+
+                if (opponentBitBoard.GetBit(nx, ny))
+                {
+                    oppCount++;
+                }
+                else if (!occupied.GetBit(nx, ny))
+                {
+                    oppOpenEnds++;
+                    break;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            for (int i = 1; i <= 4; i++)
+            {
+                var nx = x - dx * i;
+                var ny = y - dy * i;
+                if (nx < 0 || nx >= BoardSize || ny < 0 || ny >= BoardSize) break;
+
+                if (opponentBitBoard.GetBit(nx, ny))
+                {
+                    oppCount++;
+                }
+                else if (!occupied.GetBit(nx, ny))
+                {
+                    oppOpenEnds++;
+                    break;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // Blocking is slightly less valuable than attacking
+            if (oppCount >= 5) score += 90000;  // Block win
+            else if (oppCount == 4 && oppOpenEnds >= 1) score += 9000;  // Block open 4
+            else if (oppCount == 3 && oppOpenEnds == 2) score += 4000;   // Block open 3
+        }
+
+        return score;
     }
 
     /// <summary>
