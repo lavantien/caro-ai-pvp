@@ -333,8 +333,12 @@ public sealed class MovePicker
 
         foreach (var threat in threats)
         {
-            // Straight four and broken four require immediate response
-            if (threat.Type == ThreatType.StraightFour || threat.Type == ThreatType.BrokenFour)
+            // FIX: Include StraightThree in must-block moves
+            // Open threes (StraightThree) must be blocked early or they become winning threats
+            // Previously only StraightFour and BrokenFour were blocked, allowing threes to grow
+            if (threat.Type == ThreatType.StraightFour ||
+                threat.Type == ThreatType.BrokenFour ||
+                threat.Type == ThreatType.StraightThree)
             {
                 blocks.AddRange(threat.GainSquares);
             }

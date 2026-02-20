@@ -136,10 +136,24 @@ public sealed class AdaptiveTimeManager
         long maxAllocatableMs;
         long percentageBoundMs;
 
-        // Time allotment formula: (initial_time / 20) + (increment * 2)
-        // For 180+2: 180/20 + 2*2 = 9 + 4 = 13s max per move
-        // For 300+3: 300/20 + 3*2 = 15 + 6 = 21s max per move
-        var timeAllotMaxMs = ((initialTimeSeconds / 20) + (incrementSeconds * 2)) * 1000L;
+        // FIX: Time allotment formula adjusted to be more conservative
+        // Old formula: (initial_time / 20) + (increment * 2) was too aggressive for blitz
+        // New formula: (initial_time / 25) + (increment * 1.5)
+        // For 180+2: 180/25 + 2*1.5 = 7.2 + 3 = 10.2s max per move (was 13s)
+        // For 300+3: 300/25 + 3*1.5 = 12 + 4.5 = 16.5s max per move (was 21s)
+        var baseTimeAllotMs = ((initialTimeSeconds / 25.0) + (incrementSeconds * 1.5)) * 1000.0;
+
+        // Cap complexity multiplier to prevent excessive time usage
+        var complexityCap = Math.Min(complexity, 1.5);
+        var timeAllotMaxMs = (long)(baseTimeAllotMs * complexityCap);
+
+        // FIX: Safety scaling - when remaining time is low, scale back time allotment
+        // This prevents burning through the clock early in the game
+        if (timeRemainingMs < timeAllotMaxMs * 2)
+        {
+            // When remaining time < 2x our planned allotment, use 40% of remaining
+            timeAllotMaxMs = (long)(timeRemainingMs * 0.4);
+        }
 
         if (isInTimeScramble)
         {
