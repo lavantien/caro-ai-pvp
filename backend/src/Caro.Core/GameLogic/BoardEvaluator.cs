@@ -41,6 +41,18 @@ public class BoardEvaluator
     }
 
     /// <summary>
+    /// Evaluate the SearchBoard for a given player using the default evaluator.
+    /// High-performance path for search that avoids immutable Board overhead.
+    /// </summary>
+    public int Evaluate(SearchBoard board, Player player)
+    {
+        if (player == Player.None)
+            throw new ArgumentException("Player cannot be None");
+
+        return BitBoardEvaluator.Evaluate(board, player);
+    }
+
+    /// <summary>
     /// Evaluate with SIMD optimization for high difficulty levels
     /// Automatically falls back to scalar evaluation if SIMD is not beneficial
     /// </summary>

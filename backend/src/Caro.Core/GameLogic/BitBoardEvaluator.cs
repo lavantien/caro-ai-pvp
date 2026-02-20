@@ -58,6 +58,23 @@ public static class BitBoardEvaluator
     }
 
     /// <summary>
+    /// Evaluate the SearchBoard for a given player using BitBoard operations.
+    /// High-performance path for search that avoids immutable Board overhead.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int Evaluate(SearchBoard board, Player player)
+    {
+        if (player == Player.None)
+            throw new ArgumentException("Player cannot be None");
+
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var playerBoard = board.GetBitBoard(player);
+        var opponentBoard = board.GetBitBoard(opponent);
+
+        return EvaluateBitBoard(playerBoard, opponentBoard);
+    }
+
+    /// <summary>
     /// Evaluate using only BitBoard operations (fastest path)
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
