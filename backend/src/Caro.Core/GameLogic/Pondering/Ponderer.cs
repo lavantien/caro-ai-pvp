@@ -493,6 +493,44 @@ public sealed class Ponderer : IDisposable
     public PonderResult GetCurrentResult() => _currentResult;
 
     /// <summary>
+    /// Check if we have a valid ponder hit result ready to use.
+    /// This should be called BEFORE any other ponder operations to check state.
+    /// </summary>
+    public bool HasPonderHitResult
+    {
+        get
+        {
+            lock (_stateLock)
+            {
+                return _state == PonderState.PonderHit &&
+                       _currentResult.BestMove.HasValue &&
+                       _currentResult.Depth > 0;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get the ponder result immediately on ponder hit.
+    /// The ponder search runs during the opponent's turn, so by the time it's our turn,
+    /// we should have a result. We do NOT wait - ponder time is "free" (precomputation).
+    /// </summary>
+    /// <returns>Current ponder result, or None if not a ponder hit</returns>
+    public PonderResult GetPonderHitResult()
+    {
+        lock (_stateLock)
+        {
+            // Only valid for ponder hit state
+            if (_state != PonderState.PonderHit)
+                return PonderResult.None;
+
+            // Return current result immediately - don't wait!
+            // The ponder search has been running during opponent's turn.
+            // Ponder time is "free" precomputation.
+            return _currentResult;
+        }
+    }
+
+    /// <summary>
     /// Get total pondering time to merge with main search time
     /// </summary>
     public long GetPonderTimeToMerge() => _totalPonderTimeMs;

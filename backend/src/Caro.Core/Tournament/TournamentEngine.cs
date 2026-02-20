@@ -187,10 +187,9 @@ public class TournamentEngine
             var playerPonderingEnabled = ponderingEnabled && currentSettings.PonderingEnabled;
             var playerParallelEnabled = parallelSearchEnabled && currentSettings.ParallelSearchEnabled;
 
-            // Stop current player's pondering (from during opponent's previous move) and get their stats
-            // Pass the AI's actual color (currentPlayer) for correct stats attribution
-            currentAI.StopPondering(currentPlayer);
-            var (ponderDepth, ponderNodes, ponderNps, _) = currentAI.GetLastPonderStats(currentPlayer);
+            // IMPORTANT: Do NOT stop current player's pondering here!
+            // GetBestMove needs to check for ponder hit first. If there's a hit, use the ponder result.
+            // If no hit, GetBestMove will stop pondering internally and do a normal search.
 
             // Start opponent's pondering IMMEDIATELY (opponent will think during current player's move)
             var opponentAI = isRed ? blueAI : redAI;
@@ -205,11 +204,15 @@ public class TournamentEngine
             }
 
             // Time the AI move (opponent is pondering in background)
+            // Pass playerPonderingEnabled so GetBestMove can check for ponder hit and use the result
             var moveStopwatch = Stopwatch.StartNew();
             var (x, y) = currentAI.GetBestMove(board, currentPlayer, difficulty,
                 isRed ? redTimeRemainingMs : blueTimeRemainingMs, moveNumber: moveNumber,
-                ponderingEnabled: false, parallelSearchEnabled: playerParallelEnabled);
+                ponderingEnabled: playerPonderingEnabled, parallelSearchEnabled: playerParallelEnabled);
             moveStopwatch.Stop();
+
+            // Now get ponder stats AFTER GetBestMove (which handles ponder hit/miss internally)
+            var (ponderDepth, ponderNodes, ponderNps, _) = currentAI.GetLastPonderStats(currentPlayer);
 
             // Validate move (single source of truth for all move validation)
             if (!_moveValidator.IsValidMove(board, x, y, currentPlayer, moveNumber))
@@ -254,7 +257,7 @@ public class TournamentEngine
                 board = game.Board;
 
                 // Get search statistics for this move from the correct AI
-                var (depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, _, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, masterTTPercent, helperAvgDepth, allocatedTimeMs, bookUsed, moveType) = currentAI.GetSearchStatistics();
+                var (depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, _, vcfDepthAchieved, vcfNodesSearched, threadCount, parallelDiagnostics, masterTTPercent, helperAvgDepth, allocatedTimeMs, bookUsed, moveType, _) = currentAI.GetSearchStatistics();
 
                 // Determine if current player supports pondering and actually did ponder work
                 bool ponderingActive = playerPonderingEnabled && (ponderNodes > 0 || currentSettings.Difficulty >= AIDifficulty.Hard);
