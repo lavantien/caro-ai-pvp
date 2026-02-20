@@ -229,20 +229,36 @@ public class ThreatDetectionDiagnosticTests
         var validBlocks = new[] { (10, 10), (10, 14) };
         validBlocks.Should().Contain((move1.x, move1.y), "Grandmaster should block the open three");
 
-        // Simulate Grandmaster blocking at (10,10)
+        // Simulate Grandmaster blocking
         var board2 = board.PlaceStone(move1.x, move1.y, Player.Red);
 
-        // Braindead plays (10,14) - now has 4 in a row but one end blocked (semi-open four)
-        var board3 = board2.PlaceStone(10, 14, Player.Blue);
+        // Braindead plays at the other end of the open three
+        // If Grandmaster blocked at (10,10), Braindead plays (10,14)
+        // If Grandmaster blocked at (10,14), Braindead plays (10,10)
+        var (braindeadX, braindeadY) = move1.x == 10 && move1.y == 10 ? (10, 14) : (10, 10);
+        var board3 = board2.PlaceStone(braindeadX, braindeadY, Player.Blue);
 
-        // Now check if (10,15) would complete 5 in a row
+        // Now Blue has 4 in a row with one end blocked (semi-open four)
+        // Determine which square would complete the 5 in a row
         var threatDetector = new ThreatDetector();
-        bool isWinning = threatDetector.IsWinningMove(board3, 10, 15, Player.Blue);
-        isWinning.Should().BeTrue("(10,15) should complete the semi-open four");
+        int winningY = braindeadY == 14 ? 15 : 10; // If Blue extended to (10,14), winning square is (10,15); otherwise (10,10)
 
-        // Grandmaster's turn again - should block (10,15)
+        // But wait - if Blue played at (10,10) and Grandmaster blocked at (10,14),
+        // Blue has stones at (10,10), (10,11), (10,12), (10,13) with (10,14) blocked
+        // The winning square would be (10,9)
+        if (braindeadY == 10)
+        {
+            // Blue extended left: (10,10)-(10,11)-(10,12)-(10,13) with (10,14) blocked
+            // Winning square is (10,9)
+            winningY = 9;
+        }
+
+        bool isWinning = threatDetector.IsWinningMove(board3, 10, winningY, Player.Blue);
+        isWinning.Should().BeTrue($"(10,{winningY}) should complete the semi-open four");
+
+        // Grandmaster's turn again - should block the winning square
         var move2 = ai.GetBestMove(board3, Player.Red, AIDifficulty.Grandmaster, timeRemainingMs: 60000, moveNumber: 3);
-        move2.Should().Be((10, 15), "Grandmaster should block the semi-open four");
+        move2.Should().Be((10, winningY), "Grandmaster should block the semi-open four");
     }
 
     /// <summary>

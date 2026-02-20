@@ -464,17 +464,22 @@ public class MinimaxAI : IStatsPublisher
         // An open three becomes an open four on the next move, which has 2 winning squares.
         // We should block open threes BEFORE they become open fours.
         // This is critical for Caro rules where sandwiched wins are blocked.
+        // CHANGED: Don't immediately block - instead add to blocking candidates for search evaluation
+        // This allows the AI to consider whether its own threats might be more urgent
         var openThreeBlocks = FindOpenThreeBlocks(board, oppPlayer);
+
+        // If there are open threes but NO immediate winning threats, add them to candidates
+        // This ensures the search considers blocking open threes
         if (openThreeBlocks.Count > 0)
         {
-            // Block the first open three. Priority:
-            // 1. Open threes that would become open fours
-            // 2. The square that blocks both ends if possible, otherwise pick one end
-            _depthAchieved = 1;
-            _nodesSearched = openThreeBlocks.Count;
-            _lastAllocatedTimeMs = 0;
-            _moveType = MoveType.ImmediateBlock;
-            return openThreeBlocks[0];
+            // Add open three blocks to candidates if not already present
+            foreach (var block in openThreeBlocks)
+            {
+                if (!candidates.Contains(block))
+                {
+                    candidates.Insert(0, block); // Insert at beginning for high priority
+                }
+            }
         }
 
         // Error rate simulation: Lower difficulties make random/suboptimal moves
