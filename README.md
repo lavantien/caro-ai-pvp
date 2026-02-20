@@ -85,6 +85,7 @@ Based on 100-game matchups with alternating colors. Higher difficulty consistent
 | Matchup | Higher Level Win Rate | Sample Size | Status |
 |---------|----------------------|-------------|--------|
 | Grandmaster vs Braindead | 95% | 100 games | Verified v1.62.0 |
+| Grandmaster vs Braindead | 40% | 20 games | v1.64.0 (180+2, new time formula) |
 | Easy vs Braindead | 100% | - | Target |
 | Medium vs Braindead | 100% | - | Target |
 | Medium vs Easy | ~80%* | - | Estimated |
@@ -98,6 +99,11 @@ Based on 100-game matchups with alternating colors. Higher difficulty consistent
 - Braindead has 10% error rate and minimal search (1 thread, 5% time)
 - Medium+ has full-strength search with 3+ threads and 50%+ time
 - Any significant Braindead win rate against Medium+ indicates a regression that must be fixed
+
+**v1.64.0 Regression Warning:**
+- New time formula `(time/20 + increment*2)` shows Braindead winning 60% vs Grandmaster
+- Previous formula `3x increment` achieved 95% Grandmaster win rate
+- Time formula change may need reversion or further tuning
 
 **v1.62.0 Fix - Open Three Search-Based Blocking:**
 - Previous issue: Immediate block for open threes bypassed search, forcing defensive-only responses

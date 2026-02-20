@@ -1,79 +1,47 @@
-# Checkpoint: v1.63.0 Development
+# Checkpoint: v1.64.0 Development
 
 ## Summary
 
-Reduced board size from 32x32 to 16x16 and implemented SearchBoard with make/unmake pattern for 115x performance improvement in AI search.
+Bug fixes for time management and threat detection, plus new matchup data with updated time formula.
 
 ## Changes
 
-### Board Size Reduction (32x32 → 16x16)
+### Time Management Fix
 
-- Board.cs, BitBoard.cs, GameConstants.cs updated for 16x16 dimensions
-- BitBoard now uses 4 ulongs (256 bits) instead of 16 ulongs (1024 bits)
-- Center position changed from (16, 16) to (8, 8)
-- Search radius adjusted for smaller board
+Changed time allotment formula from `3x increment` to `(initial_time / 20) + (increment * 2)`:
 
-### SearchBoard Implementation
+| Time Control | Old Max | New Max | Formula |
+|--------------|---------|---------|---------|
+| 180+2 | 6s | 13s | 180/20 + 2*2 = 9 + 4 |
+| 300+3 | 9s | 21s | 300/20 + 3*2 = 15 + 6 |
+| 420+5 | 15s | 31s | 420/20 + 5*2 = 21 + 10 |
 
-Mutable board representation with make/unmake pattern:
+This allows more time per move in longer games while preventing clock burn.
 
-| Method | Description | Allocation |
-|--------|-------------|------------|
-| `MakeMove(x, y, player)` | Place stone, return undo info | Zero |
-| `UnmakeMove(undo)` | Restore board state | Zero |
-| `GetHash()` | Incrementally maintained hash | Zero |
-| `GetBitBoard(player)` | Get bitboard copy | BitBoard struct |
+### Threat Detection Fix
 
-### Performance Results
-
-```
-=== SearchBoard Performance Benchmark ===
-Iterations: 1000
-Depth: 4, Moves per depth: 10
-Immutable Board: 115ms (115.00μs/iter)
-Mutable SearchBoard: 1ms (1.00μs/iter)
-Speedup: 115.00x
-```
-
-### Files Created
-
-| File | Purpose |
-|------|---------|
-| `SearchBoard.cs` | Mutable board with make/unmake pattern |
-| `SearchBoardExtensions.cs` | Helper extension methods |
-| `SearchBoardTests.cs` | 19 unit tests |
-| `SearchBoardExtensionsTests.cs` | 12 unit tests |
-| `SearchBoardBenchmarks.cs` | Performance benchmark |
+Fixed crash when board is nearly full:
+- `ThreatDetector.IsWinningMove()` now checks if cell is empty before placing stone
+- Prevents `InvalidOperationException: Cell is already occupied` on full boards
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| `MinimaxAI.cs` | Added MinimaxCore/QuiesceCore with SearchBoard; helper method overloads |
-| `BitBoardEvaluator.cs` | Added SearchBoard overload |
-| `BoardEvaluator.cs` | Added SearchBoard overload |
-| `Board.cs` | Updated for 16x16 board |
-| `BitBoard.cs` | Updated for 4-ulong layout |
-| `GameConstants.cs` | BoardSize=16, CenterPosition=8 |
+| `AdaptiveTimeManager.cs` | Updated time allotment formula |
+| `ThreatDetector.cs` | Added empty cell check in IsWinningMove |
 
-## Design Insights
+### Matchup Results (180+2, 20 games)
 
-### Why Make/Unmake is Faster
+Braindead vs Grandmaster with new time formula:
+- **Braindead: 12 wins (60%)**
+- **Grandmaster: 8 wins (40%)**
+- Average moves: 50.1
+- Average time: 170.4s/game
 
-- Immutable Board.PlaceStone copies 256 cells on every move
-- SearchBoard.MakeMove modifies in-place, returns 16-byte undo struct
-- No heap allocations during search
-- Hash incrementally maintained (XOR is its own inverse)
-
-### Hash Compatibility
-
-SearchBoard uses same hash formula as Board for TT compatibility:
-```
-pieceKey = (x << 8) | y) ^ (player-specific mask)
-hash ^= pieceKey  // on make and unmake
-```
+Note: This is significantly worse than the v1.62.0 result (95% Grandmaster win rate). The new time formula may require further investigation.
 
 ## Version
 
-- Target: v1.63.0
-- Previous: v1.62.0
+- Target: v1.64.0
+- Previous: v1.63.0
