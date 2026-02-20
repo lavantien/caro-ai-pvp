@@ -359,7 +359,6 @@ public struct BitBoard
     {
         var result = new BitBoard();
         // Shift down: y increases, so bits move from lower index to higher index
-        const ulong mask48 = 0xFFFFFFFFFFFF0000UL;
         result._bits3 = (_bits3 << 16) | ((_bits2 >> 48) & 0xFFFF);
         result._bits2 = (_bits2 << 16) | ((_bits1 >> 48) & 0xFFFF);
         result._bits1 = (_bits1 << 16) | ((_bits0 >> 48) & 0xFFFF);
