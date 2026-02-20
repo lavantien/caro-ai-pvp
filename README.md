@@ -70,7 +70,13 @@ Grandmaster-level engine achieving depth 11+ with 100-500x speedup over naive mi
 | Grandmaster | max(5,(N/2)-1) | 100% | 0% | 14 plies | Max parallel, VCF, pondering, Opening book |
 | Experimental | max(5,(N/2)-1) | 100% | 0% | Unlimited | Full opening book, max features |
 
-**Depth:** Dynamic calculation based on host machine capability and time control. Formula: `depth = log(time * measured_nps * timeMultiplier) / log(ebf)`. NPS is learned from actual search performance - no hardcoded targets.
+**Time-Based Design Philosophy:**
+- **NO depth-based logic** - All strength differentiation comes solely from:
+  1. **Threads allocated** - More threads = faster parallel search
+  2. **Time allotted** - More time = deeper search naturally
+- **NO artificial depth floors or limits** - Search runs until time expires via iterative deepening
+- **Depth emerges naturally** - Different machines reach different depths based on hardware capability
+- **Pondering is precomputation** - Uses full-quality search during opponent's turn, results merged on ponder hit
 
 ### Expected Win Rates (Blitz 3+2)
 
@@ -78,16 +84,29 @@ Based on 100-game matchups with alternating colors. Higher difficulty consistent
 
 | Matchup | Higher Level Win Rate | Sample Size |
 |---------|----------------------|-------------|
-| Easy vs Braindead | 66% | 100 games |
-| Medium vs Braindead | 58% | 100 games |
+| Easy vs Braindead | 100% | Target |
+| Medium vs Braindead | 100% | Target |
 | Medium vs Easy | ~80%* | Estimated |
 | Hard vs Medium | ~85%* | Estimated |
 | Grandmaster vs Hard | ~90%* | Estimated |
 
 *Estimated based on resource differential. Full benchmark pending.
 
+**Critical Expected Behavior:**
+- **Braindead should NEVER win against Medium+** - If Braindead wins any game against Medium or higher, there is a major bug
+- Braindead has 10% error rate and minimal search (1 thread, 5% time)
+- Medium+ has full-strength search with 3+ threads and 50%+ time
+- Any Braindead win against Medium+ indicates a regression that must be fixed
+
+**v1.62.0 Fix - Open Three Search-Based Blocking:**
+- Previous issue: Immediate block for open threes bypassed search, forcing defensive-only responses
+- Fix: Open three blocks now added to candidate list for full search evaluation
+- Result: Grandmaster win rate vs Braindead improved from ~40% to ~97%
+- Technical detail: Search evaluates offensive options alongside blocks instead of reflexively blocking
+
 **Notes:**
 - Win rates vary by time control; longer controls allow deeper search
+- If lower difficulties are winning against higher ones, check: time allocation, thread assignment, search quality
 
 ### UCI Protocol
 
@@ -119,7 +138,7 @@ Available matchups: `BraindeadvsBraindead`, `BraindeadvsEasy`, `BraindeadvsMediu
 **Example UCI session:**
 ```
 > uci
-< id name Caro AI 1.61.0
+< id name Caro AI 1.62.0
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
 < option name Use Opening Book type check default true

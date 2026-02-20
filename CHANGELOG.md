@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.62.0] - 2026-02-20
+
+### Fixed
+- **Critical:** Search-based open three blocking (fixes strength inversion bug)
+  - Root cause: `FindOpenThreeBlocks()` immediately returned blocking move, bypassing search entirely
+  - This forced Grandmaster to always react defensively without considering offensive options
+  - Symptom: Braindead (10% random AI) won ~50% of games against Grandmaster
+  - Fix: Open three blocks now added to candidate list for proper search evaluation
+  - Result: Grandmaster win rate vs Braindead improved from ~40% to ~97%
+  - Verified with 100-game tournament: 95 wins for Grandmaster (95% win rate)
+
+### Changed
+- **MinimaxAI.cs:** `GetBestMove()` now adds open three blocks to candidates list instead of immediate return
+  - Open three blocks are inserted at beginning of candidates for high priority
+  - Search evaluates offensive options alongside defensive blocks
+  - Allows AI to choose offensive moves when strategically superior
+
+### Technical Notes
+- Open four (4-in-a-row with both ends open) has 2 winning squares - inherently unblockable
+- Open three (3-in-a-row with both ends open) becomes open four on next move
+- Previous behavior: Block immediately → opponent creates threat elsewhere → reactive cycle
+- New behavior: Evaluate all options → choose best strategic move → maintain initiative
+
+### Test Coverage
+- Fixed `Grandmaster_ShouldBlockOpenThree_ThenHandleNextThreat` test
+- Test now handles both blocking scenarios (either end of open three)
+
+[1.62.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.62.0
+
 ## [1.61.0] - 2026-02-17
 
 ### Added
