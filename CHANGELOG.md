@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.64.0] - 2026-02-20
+
+### Fixed
+- **Time allotment formula** changed from `3x increment` to `(initial_time / 20) + (increment * 2)`
+  - 180+2: 6s → 13s max per move
+  - 300+3: 9s → 21s max per move
+  - Prevents clock burn while allowing deeper search in longer games
+- **ThreatDetector crash** on nearly full boards
+  - `IsWinningMove()` now checks cell is empty before placing stone
+  - Prevents `InvalidOperationException: Cell is already occupied`
+
+### Changed
+- **AdaptiveTimeManager.cs** - Updated `timeAllotMaxMs` calculation
+
+### Tournament Results
+- Braindead vs Grandmaster (180+2, 20 games): Braindead 60% - Grandmaster 40%
+- Note: Significant regression from v1.62.0's 95% Grandmaster win rate
+- Further investigation of time formula impact recommended
+
+[1.64.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.64.0
+
 ## [1.63.0] - 2026-02-20
 
 ### Changed
