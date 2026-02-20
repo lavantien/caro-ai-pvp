@@ -984,15 +984,35 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 parallelSearchEnabled: true
             );
 
-            var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _, _, _)
+            var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _, _, _, searchScore)
                 = ai.GetSearchStatistics();
 
-            var evalBoard = candidateBoard.PlaceStone(bestX, bestY, opponent);
-            // Negate score: evaluation is from opponent's perspective, so negate to get player's perspective
-            // Positive = good for player, negative = bad for player
-            int score = -EvaluateBoard(evalBoard, opponent);
+            // CRITICAL FIX: Validate searchScore to reject sentinel values
+            // int.MinValue indicates search failure/cancellation
+            // Near int.MaxValue values (from negating int.MinValue) are also invalid
+            const int MaxValidScore = 1000000;  // 1M centipawns = 10,000 pawns (way beyond any real position)
+            const int MinValidScore = -1000000;
 
-            _logger.LogDebug("Candidate ({Cx}, {Cy}) evaluated: best response=({BestX},{BestY}), score={Score}", cx, cy, bestX, bestY, score);
+            if (searchScore == int.MinValue || searchScore <= int.MinValue + 1000)
+            {
+                _logger.LogWarning("Candidate ({Cx}, {Cy}) has invalid searchScore={SearchScore} (search failure), skipping", cx, cy, searchScore);
+                continue;
+            }
+
+            // Use the ACTUAL SEARCH SCORE from minimax, not static evaluation
+            // The search score is already from opponent's perspective after our candidate move,
+            // so we negate it to get the value from our (player's) perspective
+            // Positive = good for player, negative = bad for player
+            int score = -searchScore;
+
+            // Double-check after negation (catches int.MinValue overflow case)
+            if (score < MinValidScore || score > MaxValidScore)
+            {
+                _logger.LogWarning("Candidate ({Cx}, {Cy}) has out-of-range score={Score} (min={Min}, max={Max}), clamping", cx, cy, score, MinValidScore, MaxValidScore);
+                score = Math.Clamp(score, MinValidScore, MaxValidScore);
+            }
+
+            _logger.LogDebug("Candidate ({Cx}, {Cy}) evaluated: best response=({BestX},{BestY}), searchScore={SearchScore}, finalScore={Score}", cx, cy, bestX, bestY, searchScore, score);
 
             results.Add((cx, cy, score, nodesSearched, depthAchieved));
 
@@ -1018,6 +1038,11 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         _logger.LogDebug("Position at depth {CurrentDepth}: {CandidatesEvaluated} candidates -> {SortedResultsCount} results",
             currentDepth, candidatesToEvaluate.Count, sortedResults.Count);
 
+        // Find best score for verification threshold
+        // Only mark as verified if score is within reasonable range of best
+        int bestScore = sortedResults.Count > 0 ? sortedResults[0].score : 0;
+        const int verificationThreshold = -200;  // Accept moves within 200 cp of best
+
         // Convert to BookMove records
         // IMPORTANT: Transform coordinates to canonical space before storing
         // Moves are stored relative to the canonical position, not actual board
@@ -1032,6 +1057,21 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 ? _canonicalizer.ApplySymmetry(x, y, canonicalSymmetry)
                 : (x, y);
 
+            // IsVerified: Move must be within threshold of best AND have a reasonable score
+            // CRITICAL FIX: Also reject extreme scores that indicate data corruption
+            // Verified moves should be in a reasonable centipawn range
+            const int MaxVerifiedScore = 50000;   // 500 pawns advantage - reasonable upper bound
+            const int MinVerifiedScore = -50000;  // 500 pawns disadvantage - reasonable lower bound
+            bool isVerified = score >= (bestScore + verificationThreshold)
+                && score > -1000  // Not a clear blunder
+                && score >= MinVerifiedScore
+                && score <= MaxVerifiedScore;
+
+            // CRITICAL FIX: IsForcing should use bounded range to avoid false positives
+            // from corrupted extreme scores. Forcing means the move creates strong threats.
+            // Normal forcing range: 3000-50000 centipawns (3-500 pawns advantage)
+            bool isForcing = Math.Abs(score) > 3000 && Math.Abs(score) < MaxVerifiedScore;
+
             bookMoves.Add(new BookMove
             {
                 RelativeX = canonicalX,
@@ -1040,11 +1080,9 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 DepthAchieved = depth,
                 NodesSearched = nodes,
                 Score = score,
-                // Forcing if |score| > 3000 (roughly a strong open three or better)
-                // Scale: Open four = 10000, Open three = 1000-2000, Closed four = 1000
-                IsForcing = Math.Abs(score) > 3000,
+                IsForcing = isForcing,
                 Priority = priority--,
-                IsVerified = true
+                IsVerified = isVerified
             });
         }
 

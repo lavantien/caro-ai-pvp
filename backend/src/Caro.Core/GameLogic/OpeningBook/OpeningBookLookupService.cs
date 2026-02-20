@@ -213,12 +213,22 @@ public sealed class OpeningBookLookupService
         if (moves.Length == 0)
             return null;
 
+        // CRITICAL FIX: Filter out moves with invalid/corrupted scores
+        // Valid scores should be in a reasonable centipawn range
+        const int MaxValidScore = 100000;   // 1000 pawns - way beyond any real position
+        const int MinValidScore = -100000;
+        var validMoves = moves.Where(m => m.Score > MinValidScore && m.Score < MaxValidScore).ToArray();
+
+        // If all moves are invalid, return null (fall back to search)
+        if (validMoves.Length == 0)
+            return null;
+
         // Filter moves by max depth for this difficulty
         int maxDepth = GetMaxBookDepth(difficulty);
-        var depthFilteredMoves = moves.Where(m => m.DepthAchieved <= maxDepth).ToArray();
+        var depthFilteredMoves = validMoves.Where(m => m.DepthAchieved <= maxDepth).ToArray();
 
-        // If no moves pass depth filter, fall back to all moves
-        var candidateMoves = depthFilteredMoves.Length > 0 ? depthFilteredMoves : moves;
+        // If no moves pass depth filter, fall back to all valid moves
+        var candidateMoves = depthFilteredMoves.Length > 0 ? depthFilteredMoves : validMoves;
 
         // For Experimental: prioritize verified, forcing moves with highest priority
         if (difficulty == AIDifficulty.Experimental)
