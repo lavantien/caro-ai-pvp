@@ -334,6 +334,10 @@ public class ThreatDetector
     /// </summary>
     public bool IsWinningMove(Board board, int x, int y, Player player)
     {
+        // Check if cell is empty before placing stone
+        if (!board.GetCell(x, y).IsEmpty)
+            return false;
+
         var testBoard = board.PlaceStone(x, y, player);
         var winResult = _winDetector.CheckWin(testBoard);
         return winResult.HasWinner && winResult.Winner == player;
