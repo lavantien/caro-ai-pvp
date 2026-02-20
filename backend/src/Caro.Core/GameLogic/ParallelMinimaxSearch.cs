@@ -721,9 +721,22 @@ public sealed class ParallelMinimaxSearch
         AIDifficulty difficulty,
         CancellationToken cancellationToken)
     {
-        var bestMove = candidates[0];
+        // FIX 1+5: Pre-sort candidates by static evaluation before search loop
+        // This ensures we have a sensible fallback if search times out before completing any iteration
+        var evaluatedCandidates = candidates
+            .Select(c => (c, eval: Evaluate(board.PlaceStone(c.x, c.y, player), player)))
+            .OrderByDescending(x => x.eval)
+            .ToList();
+
+        // Initialize bestMove with the highest statically evaluated candidate
+        var bestMove = evaluatedCandidates.Count > 0 ? evaluatedCandidates[0].c : candidates[0];
         var bestScore = int.MinValue;
         int bestDepth = 1;
+
+        // FIX 1: Track best move from completed depth separately
+        // This is preserved even if current iteration aborts
+        int lastCompletedDepth = 0;
+        (int x, int y) bestMoveFromCompletedDepth = bestMove;
         int stableCount = 0;
         long lastIterationElapsedMs = 0;
         long iterationStartMs = 0;  // Track start time of current iteration
@@ -749,8 +762,18 @@ public sealed class ParallelMinimaxSearch
         // which is critical because D2 can see immediate threats that D1 cannot.
         int depthOffset = threadData.ThreadIndex % 2 == 1 ? 1 : 0;
         int currentDepth = 1 + depthOffset;
+        const int MaxSearchDepth = 200; // Prevent runaway depth from TT-accelerated iterations
         while (true)
         {
+            // MAX DEPTH CHECK: Prevent runaway depth values
+            // When TT hit rate is high, later iterations can complete very quickly,
+            // causing depth to increment thousands of times in milliseconds.
+            // Cap at reasonable maximum for Caro (games rarely exceed 100 moves).
+            if (currentDepth > MaxSearchDepth)
+            {
+                break;
+            }
+
             // Record iteration start time BEFORE any work
             iterationStartMs = _searchStopwatch?.ElapsedMilliseconds ?? 0;
 
@@ -823,21 +846,19 @@ public sealed class ParallelMinimaxSearch
             var elapsedNow = _searchStopwatch?.ElapsedMilliseconds ?? 0;
             lastIterationElapsedMs = elapsedNow - iterationStartMs;  // Time for THIS iteration only
 
-            // CRITICAL FIX: Only update bestMove/bestDepth if search actually happened
-            // SearchRoot may return early with (candidates[0], 0) if time is up
-            // We detect this by checking if any nodes were searched
+            // CRITICAL FIX: Detect if search was aborted (timeout/cancellation)
+            // 1. nodesSearchedThisIteration == 0: SearchRoot returned before calling Minimax
+            // 2. result.score == int.MinValue: SearchRoot/Minimax returned aborted result
+            // In either case, time has run out - break immediately
             long nodesSearchedThisIteration = threadData.LocalNodesSearched - nodesBeforeIteration;
-            if (nodesSearchedThisIteration == 0)
+            bool searchWasAborted = nodesSearchedThisIteration == 0 ||
+                                    result.score == int.MinValue;
+            if (searchWasAborted)
             {
-                // No actual search happened - SearchRoot returned early
-                // Don't update bestDepth, continue to next iteration or break
-                if (currentDepth > 2 && elapsedNow >= _hardTimeBoundMs * 0.8)
-                {
-                    // Running out of time and no search completed - stop trying deeper
-                    break;
-                }
-                currentDepth++;
-                continue;
+                // No complete search happened - break immediately
+                // The old logic allowed currentDepth to increment thousands of times,
+                // causing impossible depth values like D246845 for tiny time budgets.
+                break;
             }
 
             // CRITICAL FIX: Update bestMove/bestScore BEFORE checking cancellation
@@ -867,6 +888,10 @@ public sealed class ParallelMinimaxSearch
                     bestScore = result.score;
                     bestMove = (result.x, result.y);
                     bestDepth = currentDepth;
+
+                    // FIX 1: Track best move from completed depth
+                    lastCompletedDepth = currentDepth;
+                    bestMoveFromCompletedDepth = (result.x, result.y);
                 }
                 else if (bestMove == (-1, -1))
                 {
@@ -887,7 +912,12 @@ public sealed class ParallelMinimaxSearch
             currentDepth++;  // Increment depth for next iteration
         }
 
-        return (bestMove.x, bestMove.y, bestScore, bestDepth, threadData.LocalNodesSearched);
+        // FIX 1: Return preserved best from completed depth if available
+        // This ensures we don't return garbage from aborted iteration
+        var finalMove = lastCompletedDepth > 0 ? bestMoveFromCompletedDepth : (bestMove.x, bestMove.y);
+        var finalDepth = lastCompletedDepth > 0 ? lastCompletedDepth : bestDepth;
+
+        return (finalMove.x, finalMove.y, bestScore, finalDepth, threadData.LocalNodesSearched);
     }
 
     /// <summary>
@@ -1729,12 +1759,24 @@ public sealed class ParallelMinimaxSearch
             return standPat;  // Safe to return now - we already checked for immediate opponent wins
         }
 
+        // FIX 4: Filter candidates to only tactical moves (creates/blocks threats)
+        // This prevents branching explosion from exploring 30-40 non-tactical moves per node
+        var tacticalMoves = new List<(int x, int y)>();
+        foreach (var (cx, cy) in candidateMoves)
+        {
+            if (!board.GetCell(cx, cy).IsEmpty) continue;
+
+            // Only include tactical moves (creates forcing threats: Flex3+)
+            if (IsTacticalMoveInQuiesce(board, cx, cy, currentPlayer))
+                tacticalMoves.Add((cx, cy));
+        }
+
         // If no tactical moves, return static evaluation (already checked for opponent wins)
-        if (candidateMoves.Count == 0)
+        if (tacticalMoves.Count == 0)
             return standPat;
 
         // Order tactical moves for better pruning using staged move picker
-        var orderedMoves = OrderMovesStaged(candidateMoves, quiesceDepth, board, currentPlayer, null, threadData);
+        var orderedMoves = OrderMovesStaged(tacticalMoves, quiesceDepth, board, currentPlayer, null, threadData);
 
         // Search tactical moves (only empty cells)
         if (isMaximizing)
@@ -1780,6 +1822,25 @@ public sealed class ParallelMinimaxSearch
             }
             return minEval;
         }
+    }
+
+    /// <summary>
+    /// FIX 4: Check if a move is tactical (creates a forcing threat: Flex3 or better)
+    /// Used in quiescence search to filter non-tactical moves and prevent branching explosion
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsTacticalMoveInQuiesce(Board board, int x, int y, Player player)
+    {
+        // Quick check: is the cell empty?
+        if (!board.GetCell(x, y).IsEmpty)
+            return false;
+
+        // Simulate placing the stone
+        var testBoard = board.PlaceStone(x, y, player);
+
+        // Check if the move creates a forcing threat (Flex3+: open three or better)
+        var pattern = Pattern4Evaluator.EvaluatePosition(testBoard, x, y, player);
+        return Pattern4Evaluator.IsForcingThreat(pattern);
     }
 
     /// <summary>

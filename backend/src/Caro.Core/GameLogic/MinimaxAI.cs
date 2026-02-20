@@ -452,11 +452,23 @@ public class MinimaxAI : IStatsPublisher
             }
 
             // No single block can save us - multiple independent threats exist (e.g., open four)
-            // Block the first winning square anyway. This is NOT futile because:
-            // 1. It delays the opponent's win, giving us time to counter-attack
-            // 2. The opponent might not have time to play the other winning square
-            // 3. We might create our own threat that forces a response
-            // Falling through to normal search risks playing a non-blocking move.
+            // CRITICAL FIX: Before giving up, check if we have our own winning move
+            // If we can win immediately, that's better than blocking futilely
+            foreach (var (cx, cy) in candidates)
+            {
+                if (_threatDetector.IsWinningMove(board, cx, cy, player))
+                {
+                    _depthAchieved = 1;
+                    _nodesSearched = opponentWinningSquares.Count + 1;
+                    _lastAllocatedTimeMs = 0;
+                    _moveType = MoveType.ImmediateWin;
+                    return (cx, cy);
+                }
+            }
+
+            // No winning counter-attack available and no way to block all threats
+            // The game is effectively lost - block the first threat as a delaying action
+            // This at least prevents an embarrassing non-blocking move
             _depthAchieved = 1;
             _nodesSearched = opponentWinningSquares.Count;
             _lastAllocatedTimeMs = 0;
@@ -645,22 +657,39 @@ public class MinimaxAI : IStatsPublisher
                 }
             }
 
-            // For open fours with 2+ blocking squares, use ALL blocking squares as candidates
-            // The search will choose the best one based on evaluation
+            // FIX: Include our winning moves in candidate list, not just blocking moves
+            // When opponent has threats, we should still consider our own winning moves
+            // (e.g., if we can win immediately, that's better than blocking)
+            var ourWinningThreats = _threatDetector.DetectThreats(board, player);
+            var ourWinningSquares = ourWinningThreats
+                .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour)
+                .SelectMany(t => t.GainSquares)
+                .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
+                .ToList();
+
             var blockingSet = new HashSet<(int x, int y)>(blockingSquares);
-            var filteredCandidates = candidates.Where(c => blockingSet.Contains(c)).ToList();
+            var winningSet = new HashSet<(int x, int y)>(ourWinningSquares);
+
+            // Include both blocking squares AND our winning moves
+            var filteredCandidates = candidates
+                .Where(c => blockingSet.Contains(c) || winningSet.Contains(c))
+                .ToList();
 
             if (filteredCandidates.Count > 0)
             {
+                // Prioritize winning moves over blocking
+                filteredCandidates = filteredCandidates
+                    .OrderByDescending(c => winningSet.Contains(c) ? 1 : 0)
+                    .ToList();
                 candidates = filteredCandidates;
-                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Filtered to {CandidateCount} blocking move(s)",
-                    difficulty, player, candidates.Count);
+                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Filtered to {CandidateCount} move(s) ({WinningCount} winning, {BlockingCount} blocking)",
+                    difficulty, player, candidates.Count, winningSet.Count, blockingSet.Count);
             }
             else
             {
-                // Fallback: use the blocking squares directly as candidates
-                candidates = blockingSquares;
-                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Using blocking squares directly as candidates",
+                // Fallback: use blocking squares and winning squares directly as candidates
+                candidates = blockingSquares.Concat(ourWinningSquares).Distinct().ToList();
+                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Using blocking/winning squares directly as candidates",
                     difficulty, player);
             }
 
@@ -904,8 +933,17 @@ public class MinimaxAI : IStatsPublisher
         bestMove = candidates[0];
         int currentDepth = 1; // Start from depth 1
 
+        const int MaxSearchDepth = 200; // Prevent runaway depth from TT-accelerated iterations
         while (true)  // Time-based only - depth is incidental
         {
+            // MAX DEPTH CHECK: Prevent runaway depth values
+            // When TT hit rate is high, later iterations can complete very quickly,
+            // causing depth to increment thousands of times in milliseconds.
+            if (currentDepth > MaxSearchDepth)
+            {
+                break;
+            }
+
             // Depth cap for BookGeneration to prevent indefinite search
             if (difficulty == AIDifficulty.BookGeneration && currentDepth > 6)
             {
