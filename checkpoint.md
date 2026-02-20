@@ -1,69 +1,79 @@
-# Checkpoint: v1.61.0 Development
+# Checkpoint: v1.63.0 Development
 
 ## Summary
 
-Added comprehensive move type tracking to AI engine. Each move now reports how it was determined (search, book, immediate win/block, error rate). Improved tournament output format with compact stat lines.
+Reduced board size from 32x32 to 16x16 and implemented SearchBoard with make/unmake pattern for 115x performance improvement in AI search.
 
 ## Changes
 
-### Move Type Tracking
+### Board Size Reduction (32x32 → 16x16)
 
-Added `MoveType` enum to track move determination:
+- Board.cs, BitBoard.cs, GameConstants.cs updated for 16x16 dimensions
+- BitBoard now uses 4 ulongs (256 bits) instead of 16 ulongs (1024 bits)
+- Center position changed from (16, 16) to (8, 8)
+- Search radius adjusted for smaller board
 
-| Type | Code | Description |
-|------|------|-------------|
-| Normal | `-` | Full search performed |
-| Book | `Bk` | Opening book move (unvalidated) |
-| BookValidated | `Bv` | Book move validated by search |
-| ImmediateWin | `Wn` | Instant winning move (no search) |
-| ImmediateBlock | `Bl` | Forced block of opponent threat |
-| ErrorRate | `Er` | Random move (Braindead 10% error) |
-| CenterMove | `Ct` | Center opening move |
-| Emergency | `Em` | Emergency mode (low time) |
+### SearchBoard Implementation
 
-### Output Format Improvements
+Mutable board representation with make/unmake pattern:
 
-Before:
+| Method | Description | Allocation |
+|--------|-------------|------------|
+| `MakeMove(x, y, player)` | Place stone, return undo info | Zero |
+| `UnmakeMove(undo)` | Restore board state | Zero |
+| `GetHash()` | Incrementally maintained hash | Zero |
+| `GetBitBoard(player)` | Get bitboard copy | BitBoard struct |
+
+### Performance Results
+
 ```
-G1 M1 | R(16,16) by Easy | T: 69ms/0ms | B | Th: 3 | D1        | N:                    4 | NPS:                 71 | ...
+=== SearchBoard Performance Benchmark ===
+Iterations: 1000
+Depth: 4, Moves per depth: 10
+Immutable Board: 115ms (115.00μs/iter)
+Mutable SearchBoard: 1ms (1.00μs/iter)
+Speedup: 115.00x
 ```
 
-After:
-```
-G1 M1 | R(16,16) by Easy | T: 69ms/0ms | Bk | Th: 3 | D1 | N: 4        | NPS: 71       | ...
-```
+### Files Created
 
-- Replaced book-only column with move type column
-- Reduced depth column: 9 → 3 chars
-- Reduced nodes column: 20 → 8 chars
-- Reduced NPS column: 20 → 8 chars
+| File | Purpose |
+|------|---------|
+| `SearchBoard.cs` | Mutable board with make/unmake pattern |
+| `SearchBoardExtensions.cs` | Helper extension methods |
+| `SearchBoardTests.cs` | 19 unit tests |
+| `SearchBoardExtensionsTests.cs` | 12 unit tests |
+| `SearchBoardBenchmarks.cs` | Performance benchmark |
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| `StatsChannel.cs` | Added `MoveType` enum |
-| `TournamentState.cs` | Added `MoveType` to `MoveStats` record |
-| `MinimaxAI.cs` | Added `_moveType` tracking; set in all early exit paths |
-| `TournamentEngine.cs` | Pass move type when creating `MoveStats` |
-| `GameStatsFormatter.cs` | Display move type with short codes; compact columns |
-| `UCISearchController.cs` | Updated tuple deconstruction |
-| `OpeningBookGenerator.cs` | Updated tuple deconstruction |
+| `MinimaxAI.cs` | Added MinimaxCore/QuiesceCore with SearchBoard; helper method overloads |
+| `BitBoardEvaluator.cs` | Added SearchBoard overload |
+| `BoardEvaluator.cs` | Added SearchBoard overload |
+| `Board.cs` | Updated for 16x16 board |
+| `BitBoard.cs` | Updated for 4-ulong layout |
+| `GameConstants.cs` | BoardSize=16, CenterPosition=8 |
 
 ## Design Insights
 
-### Why Braindead Has Low Node Counts
+### Why Make/Unmake is Faster
 
-Braindead frequently shows 1-5 nodes because:
-1. **Immediate block detection** - If opponent has winning threat, block instantly (no search)
-2. **Error rate (10%)** - Random moves skip search entirely
-3. **Late game positions** - More likely to have immediate threats
+- Immutable Board.PlaceStone copies 256 cells on every move
+- SearchBoard.MakeMove modifies in-place, returns 16-byte undo struct
+- No heap allocations during search
+- Hash incrementally maintained (XOR is its own inverse)
 
-### 0ms Allocated Time
+### Hash Compatibility
 
-Early exit paths set `_lastAllocatedTimeMs = 0` because no search time was allocated - the move was determined instantly. The actual time shown is overhead of checking threats, not search time.
+SearchBoard uses same hash formula as Board for TT compatibility:
+```
+pieceKey = (x << 8) | y) ^ (player-specific mask)
+hash ^= pieceKey  // on make and unmake
+```
 
 ## Version
 
-- Target: v1.61.0
-- Previous: v1.60.0
+- Target: v1.63.0
+- Previous: v1.62.0
