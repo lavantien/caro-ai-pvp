@@ -19,18 +19,1098 @@ Total GamesPerMatchup: 20
 │ Time: 180+2 | Pondering:  ON | Parallel:  ON │
 └─────────────────────────────────────────────────────────────────────┘
 
-    G 1 M  1 | R(8,8) by Braindead    | T: 1.7s   /73ms   | -    | Th: 1 | D2  | N: 259      | NPS: 152      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
-    G 1 M  2 | B(8,7) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 13.1K    | NPS: 2.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
-    G 1 M  3 | R(10,0) by Braindead    | T: 10ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
-    G 1 M  4 | B(9,8) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 16.8K    | NPS: 2.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
-    G 1 M  5 | R(7,6) by Braindead    | T: 207ms  /90ms   | -    | Th: 1 | D1  | N: 237      | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
-    G 1 M  6 | B(10,9) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 10.6K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
-    G 1 M  7 | R(11,10) by Braindead    | T: 113ms  /88ms   | -    | Th: 1 | D1  | N: 249      | NPS: 2.4K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
-    G 1 M  8 | B(0,0) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 18.0K    | NPS: 2.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
-    G 1 M  9 | R(7,7) by Braindead    | T: 99ms   /88ms   | -    | Th: 1 | D1  | N: 1        | NPS: 10       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
-    G 1 M 10 | B(7,8) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 11.0K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
-    G 1 M 11 | R(6,6) by Braindead    | T: 170ms  /157ms  | -    | Th: 1 | D2  | N: 776      | NPS: 4.8K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
-    G 1 M 12 | B(9,9) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 19.1K    | NPS: 3.1K     | TT: 1.2%  | %M: 56.0% | HD: 2.0  | P: -                         | VCF: -
-    G 1 M 13 | R(5,5) by Braindead    | T: 175ms  /156ms  | -    | Th: 1 | D2  | N: 527      | NPS: 3.2K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
-    G 1 M 14 | B(4,4) by Grandmaster  | T: 60ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 16       | TT: 1.2%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
-    G 1 M 15 | R(5,6) by Braindead    | T: 127ms  /157ms  | -    | Th: 1 | D93 | N: 89.1K    | NPS: 742.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M  1 | R(8,8) by Braindead    | T: 1.7s   /73ms   | -    | Th: 1 | D2  | N: 259      | NPS: 149      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M  2 | B(8,7) by Grandmaster  | T: 7.4s   /7.1s   | -    | Th: 9 | D2  | N: 16.7K    | NPS: 2.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M  3 | R(5,8) by Braindead    | T: 170ms  /89ms   | -    | Th: 1 | D1  | N: 2        | NPS: 12       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M  4 | B(8,9) by Grandmaster  | T: 8.7s   /8.4s   | -    | Th: 9 | D2  | N: 21.3K    | NPS: 2.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M  5 | R(7,7) by Braindead    | T: 127ms  /88ms   | -    | Th: 1 | D1  | N: 4        | NPS: 33       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M  6 | B(9,9) by Grandmaster  | T: 9.5s   /9.2s   | -    | Th: 9 | D2  | N: 17.8K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M  7 | R(7,8) by Braindead    | T: 99ms   /87ms   | -    | Th: 1 | D1  | N: 252      | NPS: 2.7K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M  8 | B(10,9) by Grandmaster  | T: 9.6s   /9.6s   | -    | Th: 9 | D3  | N: 29.1K    | NPS: 3.0K     | TT: 0.5%  | %M: 0.0%  | HD: 2.5  | P: -                         | VCF: -
+    G 1 M  9 | R(7,9) by Braindead    | T: 104ms  /87ms   | -    | Th: 1 | D1  | N: 5        | NPS: 56       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 10 | B(7,10) by Grandmaster  | T: 10.0s  /9.7s   | -    | Th: 9 | D3  | N: 18.2K    | NPS: 1.8K     | TT: 5.8%  | %M: 0.0%  | HD: 2.5  | P: -                         | VCF: -
+    G 1 M 11 | R(1,9) by Braindead    | T: 9ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 111      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 12 | B(6,8) by Grandmaster  | T: 11.0s  /11.0s  | -    | Th: 9 | D3  | N: 40.9K    | NPS: 3.7K     | TT: 12.1% | %M: 0.0%  | HD: 3.0  | P: -                         | VCF: -
+    G 1 M 13 | R(11,9) by Braindead    | T: 178ms  /157ms  | -    | Th: 1 | D1  | N: 2        | NPS: 11       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 14 | B(7,6) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 16.8K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 15 | R(9,8) by Braindead    | T: 132ms  /157ms  | -    | Th: 1 | D1  | N: 485      | NPS: 3.9K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 16 | B(6,5) by Grandmaster  | T: 10.0s  /10.0s  | -    | Th: 9 | D3  | N: 23.8K    | NPS: 2.4K     | TT: 7.2%  | %M: 0.0%  | HD: 2.4  | P: -                         | VCF: -
+    G 1 M 17 | R(5,4) by Braindead    | T: 237ms  /157ms  | -    | Th: 1 | D1  | N: 242      | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 18 | B(11,8) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 14.7K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 19 | R(12,7) by Braindead    | T: 151ms  /158ms  | -    | Th: 1 | D1  | N: 477      | NPS: 3.4K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 20 | B(9,10) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 17.4K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 21 | R(8,11) by Braindead    | T: 197ms  /183ms  | -    | Th: 1 | D1  | N: 6        | NPS: 31       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 22 | B(6,11) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 13.0K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 23 | R(10,8) by Braindead    | T: 191ms  /184ms  | -    | Th: 1 | D1  | N: 471      | NPS: 2.6K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 24 | B(5,12) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 14.8K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 25 | R(4,13) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 26 | B(0,0) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 11.2K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 27 | R(9,7) by Braindead    | T: 407ms  /512ms  | -    | Th: 1 | D433 | N: 397.4K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 28 | B(8,6) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 19.1K    | NPS: 2.3K     | TT: 79.0% | %M: 11.0% | HD: 2.0  | P: -                         | VCF: -
+    G 1 M 29 | R(12,10) by Braindead    | T: 404ms  /515ms  | -    | Th: 1 | D227 | N: 206.1K   | NPS: 520.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 30 | B(13,11) by Grandmaster  | T: 66ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 79.0% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 31 | R(5,7) by Braindead    | T: 10ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 32 | B(6,10) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 16.7K    | NPS: 2.0K     | TT: 29.4% | %M: 2.0%  | HD: 2.0  | P: -                         | VCF: -
+    G 1 M 33 | R(10,6) by Braindead    | T: 410ms  /522ms  | -    | Th: 1 | D216 | N: 192.6K   | NPS: 479.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 34 | B(11,5) by Grandmaster  | T: 62ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 16       | TT: 29.4% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 35 | R(6,9) by Braindead    | T: 414ms  /526ms  | -    | Th: 1 | D474 | N: 420.0K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 36 | B(8,5) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 17.5K    | NPS: 2.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 37 | R(8,10) by Braindead    | T: 417ms  /529ms  | -    | Th: 1 | D223 | N: 195.4K   | NPS: 478.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 38 | B(8,4) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 8.0K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 39 | R(8,3) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 40 | B(6,7) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 11.4K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 41 | R(6,6) by Braindead    | T: 425ms  /537ms  | -    | Th: 1 | D246 | N: 211.7K   | NPS: 512.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 42 | B(9,4) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D1  | N: 8.5K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.0  | P: -                         | VCF: -
+    G 1 M 43 | R(10,3) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 44 | B(5,5) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 10.7K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 45 | R(7,5) by Braindead    | T: 434ms  /545ms  | -    | Th: 1 | D246 | N: 207.8K   | NPS: 494.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 46 | B(4,8) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 7.3K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 47 | R(5,9) by Braindead    | T: 563ms  /700ms  | -    | Th: 1 | D521 | N: 436.8K   | NPS: 795.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 48 | B(5,6) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D3  | N: 12.8K    | NPS: 2.1K     | TT: 89.5% | %M: 0.0%  | HD: 2.5  | P: -                         | VCF: -
+    G 1 M 49 | R(5,10) by Braindead    | T: 564ms  /718ms  | -    | Th: 1 | D349 | N: 289.5K   | NPS: 523.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 50 | B(5,11) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D3  | N: 8.0K     | NPS: 1.3K     | TT: 89.4% | %M: 67.0% | HD: 2.5  | P: -                         | VCF: -
+    G 1 M 51 | R(4,11) by Braindead    | T: 569ms  /723ms  | -    | Th: 1 | D667 | N: 548.8K   | NPS: 987.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 52 | B(3,12) by Grandmaster  | T: 8ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 125      | TT: 89.4% | %M: 0.0%  | HD: 0.0  | P: D1/18n/2.0Knps            | VCF: -
+    G 1 M 53 | R(8,15) by Braindead    | T: 8ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 125      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 54 | B(4,9) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 8.1K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 55 | R(4,12) by Braindead    | T: 580ms  /734ms  | -    | Th: 1 | D359 | N: 289.3K   | NPS: 512.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 56 | B(4,10) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 5.2K     | NPS: 976      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 57 | R(4,14) by Braindead    | T: 587ms  /739ms  | -    | Th: 1 | D712 | N: 568.8K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 58 | B(4,15) by Grandmaster  | T: 5.2s   /5.0s   | -    | Th: 9 | D2  | N: 7.5K     | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 59 | R(4,7) by Braindead    | T: 587ms  /743ms  | -    | Th: 1 | D366 | N: 289.1K   | NPS: 505.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 60 | B(3,6) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 6.8K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 61 | R(6,12) by Braindead    | T: 593ms  /748ms  | -    | Th: 1 | D745 | N: 583.3K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 62 | B(7,11) by Grandmaster  | T: 5.2s   /5.0s   | -    | Th: 9 | D2  | N: 7.9K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 63 | R(9,3) by Braindead    | T: 596ms  /752ms  | -    | Th: 1 | D380 | N: 294.1K   | NPS: 507.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 64 | B(7,3) by Grandmaster  | T: 5.1s   /5.0s   | -    | Th: 9 | D2  | N: 5.2K     | NPS: 1.0K     | TT: 25.8% | %M: 20.0% | HD: 2.0  | P: -                         | VCF: -
+    G 1 M 65 | R(11,3) by Braindead    | T: 599ms  /757ms  | -    | Th: 1 | D714 | N: 547.6K   | NPS: 940.9K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 66 | B(12,3) by Grandmaster  | T: 6ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 166      | TT: 25.8% | %M: 0.0%  | HD: 0.0  | P: D1/36n/1.8Knps            | VCF: -
+    G 1 M 67 | R(6,4) by Braindead    | T: 597ms  /761ms  | -    | Th: 1 | D424 | N: 321.5K   | NPS: 548.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 68 | B(9,6) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 4.9K     | NPS: 921      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 69 | R(10,7) by Braindead    | T: 606ms  /766ms  | -    | Th: 1 | D731 | N: 549.0K   | NPS: 932.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 70 | B(11,7) by Grandmaster  | T: 4.2s   /4.0s   | -    | Th: 9 | D2  | N: 6.2K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 71 | R(10,5) by Braindead    | T: 609ms  /771ms  | -    | Th: 1 | D395 | N: 293.1K   | NPS: 494.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 72 | B(11,6) by Grandmaster  | T: 4.3s   /4.0s   | -    | Th: 9 | D2  | N: 3.5K     | NPS: 817      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 73 | R(11,4) by Braindead    | T: 613ms  /775ms  | -    | Th: 1 | D163558 | N: 654.2K   | NPS: 1.1M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 74 | B(9,11) by Grandmaster  | T: 4.3s   /4.0s   | -    | Th: 9 | D2  | N: 5.1K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 75 | R(10,4) by Braindead    | T: 617ms  /780ms  | -    | Th: 1 | D403 | N: 292.7K   | NPS: 487.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 76 | B(8,12) by Grandmaster  | T: 4.2s   /4.0s   | -    | Th: 9 | D3  | N: 5.6K     | NPS: 1.3K     | TT: 17.2% | %M: 0.0%  | HD: 2.5  | P: -                         | VCF: -
+    G 1 M 77 | R(10,2) by Braindead    | T: 620ms  /784ms  | -    | Th: 1 | D764 | N: 549.4K   | NPS: 911.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 78 | B(9,5) by Grandmaster  | T: 4.1s   /4.0s   | -    | Th: 9 | D3  | N: 7.7K     | NPS: 1.9K     | TT: 23.3% | %M: 50.0% | HD: 2.4  | P: -                         | VCF: -
+    G 1 M 79 | R(10,1) by Braindead    | T: 625ms  /789ms  | -    | Th: 1 | D443 | N: 314.7K   | NPS: 517.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 80 | B(9,12) by Grandmaster  | T: 3.9s   /3.7s   | -    | Th: 9 | D3  | N: 5.7K     | NPS: 1.5K     | TT: 26.3% | %M: 0.0%  | HD: 2.4  | P: -                         | VCF: -
+    G 1 M 81 | R(9,13) by Braindead    | T: 16ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 62       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 82 | B(6,2) by Grandmaster  | T: 959ms  /900ms  | -    | Th: 9 | D2  | N: 1.8K     | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 83 | R(5,1) by Braindead    | T: 14ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 71       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 84 | B(10,10) by Grandmaster  | T: 3.6s   /3.3s   | -    | Th: 9 | D2  | N: 3.1K     | NPS: 853      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 85 | R(10,0) by Braindead    | T: 639ms  /806ms  | -    | Th: 1 | D902 | N: 619.9K   | NPS: 999.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 86 | B(7,13) by Grandmaster  | T: 942ms  /900ms  | -    | Th: 9 | D2  | N: 1.8K     | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 87 | R(6,14) by Braindead    | T: 16ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 62       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 88 | B(7,12) by Grandmaster  | T: 1.0s   /900ms  | -    | Th: 9 | D2  | N: 1.2K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 1 M 89 | R(7,14) by Braindead    | T: 16ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 62       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 90 | B(7,4) by Grandmaster  | T: 3.6s   /3.5s   | -    | Th: 9 | D3  | N: 7.2K     | NPS: 2.0K     | TT: 17.2% | %M: 60.0% | HD: 2.2  | P: -                         | VCF: -
+    G 1 M 91 | R(5,14) by Braindead    | T: 648ms  /823ms  | -    | Th: 1 | D499 | N: 330.7K   | NPS: 522.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 92 | B(3,14) by Grandmaster  | T: 65ms   /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 30       | TT: 17.2% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 1 M 93 | R(8,14) by Braindead    | T: 8ms    /0ms    | Wn   | Th: 1 | D1  | N: 1        | NPS: 142      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 1: Braindead (Red) wins on move 93 (282.0s)
+
+[PONDER Blue] Stop: 36 nodes, 169ms, depth 1
+    G 2 M  1 | R(8,8) by Grandmaster  | T: 3.0s   /2.7s   | -    | Th: 9 | D2  | N: 7.8K     | NPS: 2.6K     | TT: 0.0%  | %M: 0.0%  | HD: 2.0  | P: -                         | VCF: -
+    G 2 M  2 | B(8,7) by Braindead    | T: 292ms  /192ms  | -    | Th: 1 | D1  | N: 2        | NPS: 7        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M  3 | R(8,11) by Grandmaster  | T: 8.9s   /8.6s   | -    | Th: 9 | D2  | N: 15.0K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 2 M  4 | B(7,7) by Braindead    | T: 181ms  /164ms  | -    | Th: 1 | D1  | N: 4        | NPS: 22       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M  5 | R(9,7) by Grandmaster  | T: 9.6s   /9.3s   | -    | Th: 9 | D2  | N: 26.3K    | NPS: 2.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 2 M  6 | B(7,8) by Braindead    | T: 150ms  /143ms  | -    | Th: 1 | D1  | N: 8        | NPS: 55       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M  7 | R(10,8) by Grandmaster  | T: 9.9s   /9.7s   | -    | Th: 9 | D2  | N: 17.1K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 2 M  8 | B(7,9) by Braindead    | T: 146ms  /128ms  | -    | Th: 1 | D1  | N: 3        | NPS: 22       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M  9 | R(7,6) by Grandmaster  | T: 10.1s  /9.9s   | -    | Th: 9 | D2  | N: 28.7K    | NPS: 2.8K     | TT: 3.2%  | %M: 62.0% | HD: 2.0  | P: -                         | VCF: -
+    G 2 M 10 | B(7,10) by Braindead    | T: 141ms  /118ms  | -    | Th: 1 | D2  | N: 522      | NPS: 4.0K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M 11 | R(7,11) by Grandmaster  | T: 64ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 3.2%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M 12 | B(0,0) by Braindead    | T: 159ms  /196ms  | -    | Th: 1 | D83 | N: 80.4K    | NPS: 532.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M 13 | R(9,11) by Grandmaster  | T: 11.1s  /11.0s  | -    | Th: 9 | D2  | N: 25.2K    | NPS: 2.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 2 M 14 | B(10,11) by Braindead    | T: 153ms  /186ms  | -    | Th: 1 | D6234 | N: 49.9K    | NPS: 348.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M 15 | R(6,11) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 16.2K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 2 M 16 | B(5,11) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M 17 | R(6,8) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 22.3K    | NPS: 2.2K     | TT: 14.3% | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 2 M 18 | B(6,9) by Braindead    | T: 149ms  /180ms  | -    | Th: 1 | D75 | N: 71.2K    | NPS: 508.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M 19 | R(9,6) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 16.1K    | NPS: 1.6K     | TT: 5.2%  | %M: 45.0% | HD: 2.0  | P: -                         | VCF: -
+    G 2 M 20 | B(5,10) by Braindead    | T: 145ms  /175ms  | -    | Th: 1 | D124 | N: 117.1K   | NPS: 867.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M 21 | R(4,11) by Grandmaster  | T: 4ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 250      | TT: 5.2%  | %M: 0.0%  | HD: 0.0  | P: D1/18n/1.8Knps            | VCF: -
+    G 2 M 22 | B(5,9) by Braindead    | T: 160ms  /198ms  | -    | Th: 1 | D91 | N: 85.1K    | NPS: 556.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M 23 | R(8,9) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 19.9K    | NPS: 2.1K     | TT: 10.6% | %M: 80.0% | HD: 2.0  | P: -                         | VCF: -
+    G 2 M 24 | B(5,12) by Braindead    | T: 160ms  /196ms  | -    | Th: 1 | D86 | N: 79.7K    | NPS: 531.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M 25 | R(5,8) by Grandmaster  | T: 64ms   /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 31       | TT: 10.6% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 2 M 26 | B(5,13) by Braindead    | T: 3ms    /0ms    | Wn   | Th: 1 | D1  | N: 1        | NPS: 333      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 2: Braindead (Blue) wins on move 26 (95.0s)
+
+[PONDER Red] Stop: 9 nodes, 39ms, depth 1
+    G 3 M  1 | R(9,2) by Braindead    | T: 3ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 333      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M  2 | B(8,8) by Grandmaster  | T: 7.3s   /7.1s   | -    | Th: 9 | D2  | N: 11.9K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M  3 | R(7,8) by Braindead    | T: 262ms  /193ms  | -    | Th: 1 | D1  | N: 1        | NPS: 3        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M  4 | B(8,7) by Grandmaster  | T: 8.7s   /8.4s   | -    | Th: 9 | D2  | N: 13.6K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M  5 | R(8,9) by Braindead    | T: 198ms  /165ms  | -    | Th: 1 | D1  | N: 253      | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M  6 | B(8,10) by Grandmaster  | T: 9.4s   /9.2s   | -    | Th: 9 | D2  | N: 23.3K    | NPS: 2.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M  7 | R(6,7) by Braindead    | T: 127ms  /145ms  | -    | Th: 1 | D1  | N: 499      | NPS: 4.2K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M  8 | B(9,10) by Grandmaster  | T: 9.9s   /9.6s   | -    | Th: 9 | D3  | N: 17.0K    | NPS: 1.7K     | TT: 3.1%  | %M: 1.0%  | HD: 2.5  | P: -                         | VCF: -
+    G 3 M  9 | R(5,6) by Braindead    | T: 143ms  /130ms  | -    | Th: 1 | D2  | N: 544      | NPS: 4.1K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 10 | B(4,5) by Grandmaster  | T: 5ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 200      | TT: 3.1%  | %M: 0.0%  | HD: 0.0  | P: D1/16n/2.0Knps            | VCF: -
+    G 3 M 11 | R(0,0) by Braindead    | T: 173ms  /212ms  | -    | Th: 1 | D77 | N: 74.8K    | NPS: 453.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 12 | B(8,6) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 16.6K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 13 | R(8,5) by Braindead    | T: 162ms  /198ms  | -    | Th: 1 | D126 | N: 122.0K   | NPS: 802.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 14 | B(10,7) by Grandmaster  | T: 11.2s  /11.0s  | -    | Th: 9 | D2  | N: 24.1K    | NPS: 2.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 15 | R(7,6) by Braindead    | T: 154ms  /188ms  | -    | Th: 1 | D59 | N: 56.1K    | NPS: 387.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 16 | B(5,8) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 16.1K    | NPS: 1.6K     | TT: 5.2%  | %M: 96.0% | HD: 2.0  | P: -                         | VCF: -
+    G 3 M 17 | R(10,3) by Braindead    | T: 9ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 111      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 18 | B(9,4) by Grandmaster  | T: 5ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 250      | TT: 5.2%  | %M: 0.0%  | HD: 0.0  | P: D1/17n/1.9Knps            | VCF: -
+    G 3 M 19 | R(4,3) by Braindead    | T: 10ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 20 | B(7,10) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 19.5K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 21 | R(10,10) by Braindead    | T: 172ms  /212ms  | -    | Th: 1 | D9647 | N: 77.2K    | NPS: 473.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 22 | B(6,10) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 13.2K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 23 | R(5,10) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 24 | B(7,9) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 16.7K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 25 | R(9,7) by Braindead    | T: 169ms  /207ms  | -    | Th: 1 | D9247 | N: 74.0K    | NPS: 465.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 26 | B(5,11) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D1  | N: 12.4K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.0  | P: -                         | VCF: -
+    G 3 M 27 | R(4,12) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 28 | B(6,8) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 14.3K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 29 | R(9,11) by Braindead    | T: 443ms  /561ms  | -    | Th: 1 | D23096 | N: 184.8K   | NPS: 427.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 30 | B(7,7) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 10.4K    | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 31 | R(0,1) by Braindead    | T: 13ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 76       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 32 | B(9,9) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 18.9K    | NPS: 2.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: 0d/6n
+    G 3 M 33 | R(5,9) by Braindead    | T: 440ms  /558ms  | -    | Th: 1 | D24318 | N: 194.5K   | NPS: 453.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 34 | B(9,5) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 9.6K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 35 | R(10,4) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 76       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 36 | B(6,6) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 12.8K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 37 | R(5,5) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 38 | B(5,7) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 7.8K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 39 | R(4,6) by Braindead    | T: 14ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 71       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 40 | B(9,8) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 11.1K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 41 | R(10,5) by Braindead    | T: 446ms  /568ms  | -    | Th: 1 | D217 | N: 186.6K   | NPS: 428.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 42 | B(10,2) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 7.3K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 43 | R(11,9) by Braindead    | T: 450ms  /565ms  | -    | Th: 1 | D416 | N: 355.2K   | NPS: 818.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 44 | B(8,12) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D3  | N: 12.8K    | NPS: 2.1K     | TT: 5.8%  | %M: 95.0% | HD: 2.5  | P: -                         | VCF: -
+    G 3 M 45 | R(12,8) by Braindead    | T: 445ms  /564ms  | -    | Th: 1 | D228 | N: 192.5K   | NPS: 444.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 46 | B(13,7) by Grandmaster  | T: 68ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 14       | TT: 5.8%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 47 | R(11,4) by Braindead    | T: 566ms  /721ms  | -    | Th: 1 | D520 | N: 436.0K   | NPS: 785.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 48 | B(12,5) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 9.3K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 49 | R(8,1) by Braindead    | T: 571ms  /726ms  | -    | Th: 1 | D277 | N: 229.6K   | NPS: 411.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 50 | B(7,0) by Grandmaster  | T: 6.4s   /6.0s   | -    | Th: 9 | D2  | N: 5.9K     | NPS: 934      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 51 | R(11,6) by Braindead    | T: 577ms  /731ms  | -    | Th: 1 | D554 | N: 455.7K   | NPS: 810.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 52 | B(10,8) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 8.9K     | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 3 M 53 | R(0,5) by Braindead    | T: 13ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 76       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 54 | B(11,7) by Grandmaster  | T: 5.4s   /5.0s   | -    | Th: 9 | D2  | N: 5.8K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: 0d/6n
+    G 3 M 55 | R(7,11) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 2        | NPS: 153      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 3 M 56 | B(12,6) by Grandmaster  | T: 3ms    /0ms    | Wn   | Th: 9 | D1  | N: 1        | NPS: 333      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/27n/2.5Knps            | VCF: -
+    → Game 3: Grandmaster (Blue) wins on move 56 (203.0s)
+
+    G 4 M  1 | R(8,8) by Grandmaster  | T: 2.9s   /2.7s   | -    | Th: 9 | D2  | N: 7.7K     | NPS: 2.6K     | TT: 0.0%  | %M: 0.0%  | HD: 2.0  | P: -                         | VCF: -
+    G 4 M  2 | B(8,7) by Braindead    | T: 284ms  /192ms  | -    | Th: 1 | D1  | N: 2        | NPS: 7        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M  3 | R(8,11) by Grandmaster  | T: 8.9s   /8.6s   | -    | Th: 9 | D2  | N: 15.2K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 4 M  4 | B(7,7) by Braindead    | T: 182ms  /164ms  | -    | Th: 1 | D1  | N: 4        | NPS: 22       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M  5 | R(9,7) by Grandmaster  | T: 9.6s   /9.3s   | -    | Th: 9 | D2  | N: 26.3K    | NPS: 2.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 4 M  6 | B(7,8) by Braindead    | T: 150ms  /143ms  | -    | Th: 1 | D1  | N: 8        | NPS: 55       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M  7 | R(9,9) by Grandmaster  | T: 10.0s  /9.7s   | -    | Th: 9 | D2  | N: 17.4K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 4 M  8 | B(7,9) by Braindead    | T: 147ms  /128ms  | -    | Th: 1 | D1  | N: 3        | NPS: 21       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M  9 | R(7,6) by Grandmaster  | T: 10.1s  /9.9s   | -    | Th: 9 | D2  | N: 35.1K    | NPS: 3.5K     | TT: 2.4%  | %M: 6.0%  | HD: 2.0  | P: -                         | VCF: -
+    G 4 M 10 | B(7,10) by Braindead    | T: 136ms  /118ms  | -    | Th: 1 | D2  | N: 527      | NPS: 4.0K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 11 | R(7,11) by Grandmaster  | T: 67ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 14       | TT: 2.4%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 12 | B(0,0) by Braindead    | T: 157ms  /196ms  | -    | Th: 1 | D96 | N: 93.1K    | NPS: 612.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 13 | R(8,6) by Grandmaster  | T: 11.2s  /11.0s  | -    | Th: 9 | D2  | N: 25.1K    | NPS: 2.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 4 M 14 | B(9,6) by Braindead    | T: 152ms  /186ms  | -    | Th: 1 | D51 | N: 48.6K    | NPS: 337.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 15 | R(6,9) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 17.8K    | NPS: 1.6K     | TT: 3.2%  | %M: 93.0% | HD: 2.0  | P: -                         | VCF: -
+    G 4 M 16 | B(10,5) by Braindead    | T: 147ms  /179ms  | -    | Th: 1 | D88 | N: 83.9K    | NPS: 607.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 17 | R(11,4) by Grandmaster  | T: 4ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 250      | TT: 3.2%  | %M: 0.0%  | HD: 0.0  | P: D1/14n/1.8Knps            | VCF: -
+    G 4 M 18 | B(8,10) by Braindead    | T: 144ms  /174ms  | -    | Th: 1 | D53 | N: 49.7K    | NPS: 368.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 19 | R(10,6) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 17.3K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 4 M 20 | B(11,5) by Braindead    | T: 141ms  /170ms  | -    | Th: 1 | D48 | N: 44.6K    | NPS: 340.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 21 | R(10,8) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 15.5K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 4 M 22 | B(11,9) by Braindead    | T: 160ms  /194ms  | -    | Th: 1 | D12872 | N: 103.0K   | NPS: 691.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 23 | R(7,5) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 17.2K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 4 M 24 | B(6,4) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 25 | R(6,6) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 12.1K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 4 M 26 | B(5,6) by Braindead    | T: 421ms  /532ms  | -    | Th: 1 | D305 | N: 281.4K   | NPS: 687.9K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 27 | R(10,10) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 17.2K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 4 M 28 | B(11,11) by Braindead    | T: 421ms  /529ms  | -    | Th: 1 | D179 | N: 163.5K   | NPS: 399.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 29 | R(10,7) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 11.1K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 4 M 30 | B(10,9) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 31 | R(9,11) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 15.3K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 4 M 32 | B(6,11) by Braindead    | T: 420ms  /533ms  | -    | Th: 1 | D23760 | N: 190.1K   | NPS: 463.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 33 | R(9,10) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 11.7K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 4 M 34 | B(9,8) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 35 | R(8,12) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D3  | N: 17.7K    | NPS: 2.4K     | TT: 0.5%  | %M: 100.0% | HD: 2.5  | P: -                         | VCF: -
+    G 4 M 36 | B(11,10) by Braindead    | T: 423ms  /538ms  | -    | Th: 1 | D209 | N: 184.3K   | NPS: 445.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 37 | R(12,11) by Grandmaster  | T: 65ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 0.5%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 38 | B(11,12) by Braindead    | T: 426ms  /539ms  | -    | Th: 1 | D398 | N: 348.2K   | NPS: 841.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 4 M 39 | R(11,8) by Grandmaster  | T: 5ms    /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 400      | TT: 0.5%  | %M: 0.0%  | HD: 0.0  | P: D1/18n/1.8Knps            | VCF: -
+    G 4 M 40 | B(11,13) by Braindead    | T: 2ms    /0ms    | Wn   | Th: 1 | D1  | N: 1        | NPS: 500      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 4: Braindead (Blue) wins on move 40 (148.0s)
+
+[PONDER Red] Stop: 1 nodes, 550ms, depth 1
+    G 5 M  1 | R(8,8) by Braindead    | T: 2.5s   /73ms   | -    | Th: 1 | D2  | N: 259      | NPS: 102      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M  2 | B(8,7) by Grandmaster  | T: 7.3s   /7.1s   | -    | Th: 9 | D2  | N: 12.0K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M  3 | R(15,9) by Braindead    | T: 7ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 142      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M  4 | B(7,8) by Grandmaster  | T: 8.7s   /8.4s   | -    | Th: 9 | D2  | N: 14.0K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M  5 | R(6,9) by Braindead    | T: 171ms  /89ms   | -    | Th: 1 | D1  | N: 252      | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M  6 | B(9,6) by Grandmaster  | T: 9.4s   /9.2s   | -    | Th: 9 | D2  | N: 20.7K    | NPS: 2.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M  7 | R(11,10) by Braindead    | T: 8ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 125      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M  8 | B(10,5) by Grandmaster  | T: 9.9s   /9.6s   | -    | Th: 9 | D2  | N: 15.6K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M  9 | R(11,4) by Braindead    | T: 8ms    /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 125      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 10 | B(8,9) by Grandmaster  | T: 9.9s   /9.7s   | -    | Th: 9 | D2  | N: 21.6K    | NPS: 2.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 11 | R(9,10) by Braindead    | T: 135ms  /160ms  | -    | Th: 1 | D39 | N: 37.7K    | NPS: 299.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 12 | B(9,7) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 18.7K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 13 | R(10,10) by Braindead    | T: 132ms  /159ms  | -    | Th: 1 | D55 | N: 53.0K    | NPS: 434.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 14 | B(8,10) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 22.9K    | NPS: 2.2K     | TT: 1.9%  | %M: 38.0% | HD: 2.0  | P: -                         | VCF: -
+    G 5 M 15 | R(12,10) by Braindead    | T: 131ms  /159ms  | -    | Th: 1 | D42 | N: 39.5K    | NPS: 324.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 16 | B(13,10) by Grandmaster  | T: 58ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 17       | TT: 1.9%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 17 | R(9,9) by Braindead    | T: 129ms  /159ms  | -    | Th: 1 | D120 | N: 113.8K   | NPS: 932.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 18 | B(11,11) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D3  | N: 22.1K    | NPS: 2.2K     | TT: 8.6%  | %M: 91.0% | HD: 2.5  | P: -                         | VCF: -
+    G 5 M 19 | R(7,7) by Braindead    | T: 130ms  /159ms  | -    | Th: 1 | D74 | N: 69.2K    | NPS: 567.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 20 | B(6,6) by Grandmaster  | T: 62ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 16       | TT: 8.6%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 21 | R(0,0) by Braindead    | T: 149ms  /184ms  | -    | Th: 1 | D125 | N: 117.1K   | NPS: 830.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 22 | B(10,7) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 19.9K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 23 | R(11,7) by Braindead    | T: 154ms  /185ms  | -    | Th: 1 | D75 | N: 69.3K    | NPS: 481.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 24 | B(9,8) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 11.4K    | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 25 | R(7,10) by Braindead    | T: 154ms  /186ms  | -    | Th: 1 | D18237 | N: 145.9K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 26 | B(11,6) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 18.3K    | NPS: 2.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 27 | R(12,5) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 28 | B(10,6) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 12.7K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 29 | R(12,6) by Braindead    | T: 408ms  /516ms  | -    | Th: 1 | D25638 | N: 410.2K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 30 | B(11,8) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 16.4K    | NPS: 2.0K     | TT: 10.0% | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: 0d/7n
+    G 5 M 31 | R(12,9) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 32 | B(10,8) by Grandmaster  | T: 8.4s   /8.0s   | -    | Th: 9 | D2  | N: 11.1K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: 0d/10n
+    G 5 M 33 | R(10,4) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 2        | NPS: 153      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 34 | B(10,9) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 15.1K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: 0d/1n
+    G 5 M 35 | R(12,8) by Braindead    | T: 420ms  /528ms  | -    | Th: 1 | D224 | N: 198.0K   | NPS: 486.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 36 | B(12,11) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 9.6K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 37 | R(12,7) by Braindead    | T: 422ms  /531ms  | -    | Th: 1 | D487 | N: 427.7K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 38 | B(8,6) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 10.9K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 39 | R(11,9) by Braindead    | T: 424ms  /534ms  | -    | Th: 1 | D25756 | N: 206.0K   | NPS: 501.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 40 | B(9,11) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 6.8K     | NPS: 924      | TT: 40.0% | %M: 67.0% | HD: 2.0  | P: -                         | VCF: -
+    G 5 M 41 | R(12,4) by Braindead    | T: 429ms  /537ms  | -    | Th: 1 | D394 | N: 339.6K   | NPS: 822.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 42 | B(9,4) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D4  | N: 14.7K    | NPS: 2.4K     | TT: 30.7% | %M: 67.0% | HD: 3.0  | P: -                         | VCF: -
+    G 5 M 43 | R(9,5) by Braindead    | T: 9ms    /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 111      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 44 | B(7,5) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 8.7K     | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 45 | R(6,4) by Braindead    | T: 16ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 62       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 46 | B(8,11) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 10.6K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 47 | R(10,11) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 76       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 48 | B(13,8) by Grandmaster  | T: 6.1s   /6.0s   | -    | Th: 9 | D2  | N: 6.7K     | NPS: 1.1K     | TT: 33.3% | %M: 100.0% | HD: 2.0  | P: -                         | VCF: -
+    G 5 M 49 | R(12,3) by Braindead    | T: 569ms  /721ms  | -    | Th: 1 | D691 | N: 574.1K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 50 | B(8,5) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 9.5K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 51 | R(7,4) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 76       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 52 | B(8,4) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D1  | N: 6.2K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.0  | P: -                         | VCF: -
+    G 5 M 53 | R(8,3) by Braindead    | T: 15ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 66       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 54 | B(7,6) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 9.1K     | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: 0d/9n
+    G 5 M 55 | R(6,5) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 56 | B(5,6) by Grandmaster  | T: 5.8s   /5.0s   | -    | Th: 9 | D3  | N: 6.2K     | NPS: 1.1K     | TT: 21.7% | %M: 100.0% | HD: 2.5  | P: -                         | VCF: 0d/227n
+    G 5 M 57 | R(6,7) by Braindead    | T: 590ms  /745ms  | -    | Th: 1 | D36106 | N: 577.7K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 58 | B(4,8) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 8.1K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: 0d/9n
+    G 5 M 59 | R(5,7) by Braindead    | T: 16ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 62       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 60 | B(9,3) by Grandmaster  | T: 5.1s   /5.0s   | -    | Th: 9 | D2  | N: 6.6K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 61 | R(10,2) by Braindead    | T: 19ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 52       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 62 | B(8,13) by Grandmaster  | T: 4.3s   /4.0s   | -    | Th: 9 | D2  | N: 6.7K     | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 63 | R(8,12) by Braindead    | T: 16ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 66       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 64 | B(10,3) by Grandmaster  | T: 4.4s   /4.0s   | -    | Th: 9 | D1  | N: 4.2K     | NPS: 967      | TT: 0.0%  | %M: 0.0%  | HD: 1.0  | P: -                         | VCF: -
+    G 5 M 65 | R(11,2) by Braindead    | T: 18ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 55       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 66 | B(4,6) by Grandmaster  | T: 4.3s   /4.0s   | -    | Th: 9 | D2  | N: 6.2K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 67 | R(1,1) by Braindead    | T: 15ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 66       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 68 | B(7,9) by Grandmaster  | T: 4.3s   /4.0s   | -    | Th: 9 | D2  | N: 4.6K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 69 | R(10,12) by Braindead    | T: 620ms  /782ms  | -    | Th: 1 | D83212 | N: 665.7K   | NPS: 1.1M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 70 | B(14,9) by Grandmaster  | T: 4.0s   /4.0s   | -    | Th: 9 | D2  | N: 6.3K     | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 71 | R(11,12) by Braindead    | T: 620ms  /786ms  | -    | Th: 1 | D48288 | N: 386.3K   | NPS: 638.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 72 | B(9,12) by Grandmaster  | T: 4.1s   /4.0s   | -    | Th: 9 | D2  | N: 5.1K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 5 M 73 | R(12,2) by Braindead    | T: 629ms  /791ms  | -    | Th: 1 | D809 | N: 594.7K   | NPS: 978.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 74 | B(13,2) by Grandmaster  | T: 3.5s   /3.4s   | -    | Th: 9 | D3  | N: 5.8K     | NPS: 1.6K     | TT: 15.2% | %M: 0.0%  | HD: 2.5  | P: -                         | VCF: -
+    G 5 M 75 | R(9,2) by Braindead    | T: 627ms  /795ms  | -    | Th: 1 | D440 | N: 319.6K   | NPS: 522.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 76 | B(8,2) by Grandmaster  | T: 70ms   /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 28       | TT: 15.2% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 5 M 77 | R(10,1) by Braindead    | T: 6ms    /0ms    | Wn   | Th: 1 | D1  | N: 1        | NPS: 166      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 5: Braindead (Red) wins on move 77 (259.0s)
+
+[PONDER Blue] Stop: 45 nodes, 122ms, depth 1
+    G 6 M  1 | R(8,8) by Grandmaster  | T: 2.9s   /2.7s   | -    | Th: 9 | D2  | N: 7.6K     | NPS: 2.6K     | TT: 0.0%  | %M: 0.0%  | HD: 2.0  | P: -                         | VCF: -
+    G 6 M  2 | B(8,7) by Braindead    | T: 288ms  /192ms  | -    | Th: 1 | D1  | N: 2        | NPS: 7        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M  3 | R(8,11) by Grandmaster  | T: 8.9s   /8.6s   | -    | Th: 9 | D2  | N: 14.2K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M  4 | B(7,7) by Braindead    | T: 200ms  /164ms  | -    | Th: 1 | D1  | N: 4        | NPS: 20       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M  5 | R(9,7) by Grandmaster  | T: 9.6s   /9.3s   | -    | Th: 9 | D2  | N: 25.7K    | NPS: 2.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M  6 | B(12,9) by Braindead    | T: 7ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 142      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M  7 | R(7,9) by Grandmaster  | T: 10.0s  /9.7s   | -    | Th: 9 | D2  | N: 15.9K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M  8 | B(10,6) by Braindead    | T: 783ms  /145ms  | -    | Th: 1 | D3  | N: 1.3K     | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M  9 | R(6,8) by Grandmaster  | T: 10.1s  /9.9s   | -    | Th: 9 | D2  | N: 23.2K    | NPS: 2.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M 10 | B(6,10) by Braindead    | T: 138ms  /129ms  | -    | Th: 1 | D1  | N: 302      | NPS: 2.3K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 11 | R(7,8) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 16.8K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M 12 | B(9,8) by Braindead    | T: 753ms  /211ms  | -    | Th: 1 | D3  | N: 1.2K     | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 13 | R(5,7) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 23.1K    | NPS: 2.3K     | TT: 25.0% | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M 14 | B(4,6) by Braindead    | T: 2.0s   /197ms  | -    | Th: 1 | D3  | N: 1.3K     | NPS: 649      | TT: 0.8%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 15 | R(5,8) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 15.3K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M 16 | B(4,8) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.8%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 17 | R(5,9) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D1  | N: 19.9K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.0  | P: -                         | VCF: -
+    G 6 M 18 | B(5,10) by Braindead    | T: 147ms  /180ms  | -    | Th: 1 | D9460 | N: 75.7K    | NPS: 548.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 19 | R(8,10) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 12.3K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M 20 | B(9,11) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 21 | R(5,6) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 19.0K    | NPS: 2.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M 22 | B(5,5) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 23 | R(8,9) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 10.3K    | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M 24 | B(8,12) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 25 | R(9,10) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 21.5K    | NPS: 2.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M 26 | B(6,7) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 27 | R(9,9) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 14.0K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M 28 | B(6,9) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 29 | R(10,9) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 15.5K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.9  | P: -                         | VCF: -
+    G 6 M 30 | B(7,12) by Braindead    | T: 453ms  /574ms  | -    | Th: 1 | D18265 | N: 219.2K   | NPS: 497.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 31 | R(11,9) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 9.0K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: 0d/1n
+    G 6 M 32 | B(10,11) by Braindead    | T: 445ms  /561ms  | -    | Th: 1 | D459 | N: 412.6K   | NPS: 955.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 33 | R(10,8) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 12.2K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 6 M 34 | B(12,10) by Braindead    | T: 437ms  /553ms  | -    | Th: 1 | D14125 | N: 226.0K   | NPS: 531.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 35 | R(8,6) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 8.0K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: 0d/6n
+    G 6 M 36 | B(7,5) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 76       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 37 | R(7,11) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 11.3K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: 0d/6n
+    G 6 M 38 | B(6,12) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 2        | NPS: 166      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 6 M 39 | R(11,7) by Grandmaster  | T: 66ms   /0ms    | Wn   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 6: Grandmaster (Red) wins on move 39 (169.0s)
+
+    G 7 M  1 | R(8,8) by Braindead    | T: 3.6s   /73ms   | -    | Th: 1 | D2  | N: 260      | NPS: 71       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M  2 | B(8,7) by Grandmaster  | T: 7.3s   /7.1s   | -    | Th: 9 | D2  | N: 8.3K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 7 M  3 | R(5,8) by Braindead    | T: 105ms  /88ms   | -    | Th: 1 | D1  | N: 1        | NPS: 10       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M  4 | B(8,9) by Grandmaster  | T: 8.8s   /8.4s   | -    | Th: 9 | D2  | N: 9.4K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 7 M  5 | R(7,7) by Braindead    | T: 132ms  /87ms   | -    | Th: 1 | D1  | N: 4        | NPS: 32       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M  6 | B(9,9) by Grandmaster  | T: 9.4s   /9.2s   | -    | Th: 9 | D2  | N: 17.4K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 7 M  7 | R(7,8) by Braindead    | T: 125ms  /86ms   | -    | Th: 1 | D1  | N: 3        | NPS: 26       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M  8 | B(4,8) by Grandmaster  | T: 9.7s   /9.6s   | -    | Th: 9 | D2  | N: 17.0K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 7 M  9 | R(6,8) by Braindead    | T: 98ms   /86ms   | -    | Th: 1 | D2  | N: 32       | NPS: 359      | TT: 7.7%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M 10 | B(9,8) by Grandmaster  | T: 6ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 166      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/16n/1.8Knps            | VCF: -
+    G 7 M 11 | R(7,9) by Braindead    | T: 125ms  /154ms  | -    | Th: 1 | D59 | N: 57.1K    | NPS: 483.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M 12 | B(7,6) by Grandmaster  | T: 11.1s  /11.0s  | -    | Th: 9 | D2  | N: 24.1K    | NPS: 2.2K     | TT: 9.1%  | %M: 1.0%  | HD: 2.0  | P: -                         | VCF: -
+    G 7 M 13 | R(10,9) by Braindead    | T: 124ms  /154ms  | -    | Th: 1 | D9060 | N: 72.5K    | NPS: 609.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M 14 | B(7,10) by Grandmaster  | T: 11.1s  /11.0s  | -    | Th: 9 | D3  | N: 20.7K    | NPS: 1.9K     | TT: 23.0% | %M: 67.0% | HD: 2.5  | P: -                         | VCF: -
+    G 7 M 15 | R(0,8) by Braindead    | T: 10ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M 16 | B(8,10) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 25.7K    | NPS: 2.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: 0d/6n
+    G 7 M 17 | R(6,11) by Braindead    | T: 129ms  /156ms  | -    | Th: 1 | D7675 | N: 61.4K    | NPS: 511.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M 18 | B(10,7) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 14.4K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 7 M 19 | R(11,6) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M 20 | B(6,5) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 18.6K    | NPS: 2.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 7 M 21 | R(5,4) by Braindead    | T: 9ms    /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 111      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M 22 | B(9,10) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 11.8K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 7 M 23 | R(6,10) by Braindead    | T: 152ms  /184ms  | -    | Th: 1 | D8945 | N: 143.1K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M 24 | B(9,7) by Grandmaster  | T: 8.2s   /9.0s   | -    | Th: 9 | D42 | N: 29.8K    | NPS: 3.6K     | TT: 57.6% | %M: 3.0%  | HD: 30.2 | P: -                         | VCF: 0d/19n
+    G 7 M 25 | R(9,6) by Braindead    | T: 7ms    /0ms    | Bl   | Th: 1 | D1  | N: 2        | NPS: 285      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 7 M 26 | B(9,11) by Grandmaster  | T: 56ms   /0ms    | Wn   | Th: 9 | D1  | N: 1        | NPS: 17       | TT: 57.6% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 7: Grandmaster (Blue) wins on move 26 (109.0s)
+
+    G 8 M  1 | R(8,8) by Grandmaster  | T: 2.9s   /2.7s   | -    | Th: 9 | D2  | N: 5.2K     | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 2.0  | P: -                         | VCF: -
+    G 8 M  2 | B(7,8) by Braindead    | T: 211ms  /192ms  | -    | Th: 1 | D1  | N: 1        | NPS: 4        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M  3 | R(5,8) by Grandmaster  | T: 8.9s   /8.6s   | -    | Th: 9 | D2  | N: 9.8K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M  4 | B(8,7) by Braindead    | T: 237ms  /164ms  | -    | Th: 1 | D1  | N: 2        | NPS: 8        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M  5 | R(9,9) by Grandmaster  | T: 9.6s   /9.3s   | -    | Th: 9 | D2  | N: 18.1K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M  6 | B(6,9) by Braindead    | T: 130ms  /143ms  | -    | Th: 1 | D1  | N: 501      | NPS: 4.2K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M  7 | R(9,6) by Grandmaster  | T: 10.1s  /9.7s   | -    | Th: 9 | D4  | N: 14.8K    | NPS: 1.5K     | TT: 1.5%  | %M: 1.0%  | HD: 3.0  | P: -                         | VCF: -
+    G 8 M  8 | B(5,10) by Braindead    | T: 140ms  /128ms  | -    | Th: 1 | D2  | N: 523      | NPS: 4.1K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M  9 | R(4,11) by Grandmaster  | T: 8ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 125      | TT: 1.5%  | %M: 0.0%  | HD: 0.0  | P: D1/15n/1.2Knps            | VCF: -
+    G 8 M 10 | B(7,7) by Braindead    | T: 103ms  /118ms  | -    | Th: 1 | D21 | N: 19.7K    | NPS: 213.9K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 11 | R(8,6) by Grandmaster  | T: 11.4s  /11.0s  | -    | Th: 9 | D2  | N: 16.2K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 12 | B(7,6) by Braindead    | T: 165ms  /196ms  | -    | Th: 1 | D34 | N: 32.3K    | NPS: 212.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 13 | R(7,9) by Grandmaster  | T: 11.4s  /11.0s  | -    | Th: 9 | D2  | N: 15.9K    | NPS: 1.4K     | TT: 2.8%  | %M: 2.0%  | HD: 2.0  | P: -                         | VCF: -
+    G 8 M 14 | B(7,5) by Braindead    | T: 153ms  /186ms  | -    | Th: 1 | D68 | N: 65.1K    | NPS: 449.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 15 | R(7,4) by Grandmaster  | T: 6ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 166      | TT: 2.8%  | %M: 0.0%  | HD: 0.0  | P: D1/10n/1.7Knps            | VCF: -
+    G 8 M 16 | B(9,7) by Braindead    | T: 147ms  /179ms  | -    | Th: 1 | D53 | N: 50.1K    | NPS: 360.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 17 | R(6,7) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 22.1K    | NPS: 2.0K     | TT: 5.4%  | %M: 94.0% | HD: 1.6  | P: -                         | VCF: -
+    G 8 M 18 | B(10,7) by Braindead    | T: 143ms  /174ms  | -    | Th: 1 | D50 | N: 46.8K    | NPS: 349.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 19 | R(11,7) by Grandmaster  | T: 64ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 5.4%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 20 | B(0,0) by Braindead    | T: 140ms  /171ms  | -    | Th: 1 | D90 | N: 84.4K    | NPS: 644.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 21 | R(10,6) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 21.4K    | NPS: 2.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 22 | B(11,6) by Braindead    | T: 160ms  /194ms  | -    | Th: 1 | D61 | N: 56.4K    | NPS: 376.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 23 | R(12,8) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 14.0K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 24 | B(9,5) by Braindead    | T: 159ms  /193ms  | -    | Th: 1 | D13629 | N: 109.0K   | NPS: 736.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 25 | R(13,9) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 16.1K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 26 | B(14,10) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 27 | R(6,10) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 12.2K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 28 | B(5,11) by Braindead    | T: 422ms  /530ms  | -    | Th: 1 | D326 | N: 298.2K   | NPS: 729.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 29 | R(9,8) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 17.3K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 30 | B(5,12) by Braindead    | T: 418ms  /529ms  | -    | Th: 1 | D191 | N: 173.0K   | NPS: 425.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 31 | R(5,13) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D3  | N: 12.2K    | NPS: 1.5K     | TT: 15.2% | %M: 100.0% | HD: 2.5  | P: -                         | VCF: -
+    G 8 M 32 | B(8,5) by Braindead    | T: 419ms  /529ms  | -    | Th: 1 | D324 | N: 291.1K   | NPS: 715.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 33 | R(6,5) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 15.8K    | NPS: 1.9K     | TT: 5.3%  | %M: 98.0% | HD: 2.0  | P: -                         | VCF: -
+    G 8 M 34 | B(10,5) by Braindead    | T: 415ms  /531ms  | -    | Th: 1 | D218 | N: 194.0K   | NPS: 475.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 35 | R(11,5) by Grandmaster  | T: 72ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 13       | TT: 5.3%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 36 | B(9,4) by Braindead    | T: 420ms  /532ms  | -    | Th: 1 | D401 | N: 354.0K   | NPS: 865.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 37 | R(8,3) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 16.8K    | NPS: 2.0K     | TT: 12.4% | %M: 97.0% | HD: 2.0  | P: -                         | VCF: -
+    G 8 M 38 | B(5,6) by Braindead    | T: 420ms  /535ms  | -    | Th: 1 | D24123 | N: 193.0K   | NPS: 469.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 39 | R(14,9) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 9.3K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 40 | B(12,7) by Braindead    | T: 428ms  /537ms  | -    | Th: 1 | D302 | N: 261.7K   | NPS: 632.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 41 | R(13,8) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 14.9K    | NPS: 2.1K     | TT: 12.6% | %M: 97.0% | HD: 2.0  | P: -                         | VCF: -
+    G 8 M 42 | B(10,3) by Braindead    | T: 427ms  /540ms  | -    | Th: 1 | D221 | N: 189.6K   | NPS: 455.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 43 | R(11,2) by Grandmaster  | T: 65ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 12.6% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 44 | B(9,2) by Braindead    | T: 430ms  /543ms  | -    | Th: 1 | D346 | N: 294.4K   | NPS: 704.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 45 | R(9,3) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 11.9K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 46 | B(11,4) by Braindead    | T: 560ms  /700ms  | -    | Th: 1 | D262 | N: 220.7K   | NPS: 404.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 47 | R(12,5) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 7.9K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 48 | B(1,13) by Braindead    | T: 15ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 66       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 49 | R(8,9) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 10.2K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 50 | B(8,1) by Braindead    | T: 566ms  /720ms  | -    | Th: 1 | D291 | N: 240.5K   | NPS: 434.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 51 | R(7,0) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 6.3K     | NPS: 998      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 52 | B(10,9) by Braindead    | T: 572ms  /725ms  | -    | Th: 1 | D542 | N: 444.0K   | NPS: 797.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 53 | R(8,10) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 8.5K     | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 54 | B(10,8) by Braindead    | T: 577ms  /729ms  | -    | Th: 1 | D289 | N: 234.3K   | NPS: 416.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 55 | R(8,11) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 5.9K     | NPS: 928      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 56 | B(8,12) by Braindead    | T: 15ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 66       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 57 | R(6,8) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 9.2K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 58 | B(9,11) by Braindead    | T: 579ms  /740ms  | -    | Th: 1 | D39259 | N: 314.1K   | NPS: 552.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 59 | R(6,6) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 5.9K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 60 | B(6,4) by Braindead    | T: 14ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 71       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 61 | R(5,7) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 6.8K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 62 | B(4,6) by Braindead    | T: 14ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 71       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 63 | R(10,10) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 5.7K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 64 | B(11,11) by Braindead    | T: 600ms  /758ms  | -    | Th: 1 | D684 | N: 527.7K   | NPS: 905.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 65 | R(9,10) by Grandmaster  | T: 5.2s   /5.0s   | -    | Th: 9 | D2  | N: 6.7K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 66 | B(7,10) by Braindead    | T: 16ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 62       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 67 | R(11,10) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D1  | N: 4.9K     | NPS: 925      | TT: 0.0%  | %M: 0.0%  | HD: 1.0  | P: -                         | VCF: -
+    G 8 M 68 | B(12,10) by Braindead    | T: 15ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 66       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 69 | R(11,9) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 7.3K     | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 70 | B(12,9) by Braindead    | T: 612ms  /775ms  | -    | Th: 1 | D401 | N: 299.6K   | NPS: 501.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 71 | R(13,7) by Grandmaster  | T: 4.4s   /4.0s   | -    | Th: 9 | D2  | N: 3.8K     | NPS: 862      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 8 M 72 | B(14,6) by Braindead    | T: 14ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 71       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 73 | R(13,6) by Grandmaster  | T: 4.3s   /4.0s   | -    | Th: 9 | D1  | N: 5.8K     | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.0  | P: -                         | VCF: 0d/9n
+    G 8 M 74 | B(13,5) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 2        | NPS: 153      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 8 M 75 | R(13,10) by Grandmaster  | T: 65ms   /0ms    | Wn   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 8: Grandmaster (Red) wins on move 75 (250.0s)
+
+    G 9 M  1 | R(8,8) by Braindead    | T: 3.8s   /73ms   | -    | Th: 1 | D2  | N: 260      | NPS: 68       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M  2 | B(8,7) by Grandmaster  | T: 7.4s   /7.1s   | -    | Th: 9 | D2  | N: 7.8K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M  3 | R(5,8) by Braindead    | T: 105ms  /88ms   | -    | Th: 1 | D1  | N: 1        | NPS: 10       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M  4 | B(8,9) by Grandmaster  | T: 8.8s   /8.4s   | -    | Th: 9 | D2  | N: 8.9K     | NPS: 1.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M  5 | R(7,7) by Braindead    | T: 134ms  /87ms   | -    | Th: 1 | D1  | N: 4        | NPS: 32       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M  6 | B(9,9) by Grandmaster  | T: 9.4s   /9.2s   | -    | Th: 9 | D2  | N: 17.3K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M  7 | R(7,8) by Braindead    | T: 109ms  /86ms   | -    | Th: 1 | D1  | N: 2        | NPS: 21       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M  8 | B(6,8) by Grandmaster  | T: 10.0s  /9.6s   | -    | Th: 9 | D2  | N: 11.1K    | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M  9 | R(7,9) by Braindead    | T: 93ms   /86ms   | -    | Th: 1 | D1  | N: 497      | NPS: 6.1K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 10 | B(7,6) by Grandmaster  | T: 9.9s   /9.7s   | -    | Th: 9 | D2  | N: 17.9K    | NPS: 1.8K     | TT: 1.2%  | %M: 1.0%  | HD: 2.0  | P: -                         | VCF: -
+    G 9 M 11 | R(7,10) by Braindead    | T: 190ms  /154ms  | -    | Th: 1 | D2  | N: 516      | NPS: 2.9K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 12 | B(7,11) by Grandmaster  | T: 69ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 14       | TT: 1.2%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 13 | R(0,0) by Braindead    | T: 131ms  /154ms  | -    | Th: 1 | D60 | N: 57.6K    | NPS: 483.9K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 14 | B(10,9) by Grandmaster  | T: 11.2s  /11.0s  | -    | Th: 9 | D2  | N: 17.8K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M 15 | R(9,8) by Braindead    | T: 132ms  /155ms  | -    | Th: 1 | D39 | N: 36.8K    | NPS: 309.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 16 | B(10,8) by Grandmaster  | T: 10.4s  /10.0s  | -    | Th: 9 | D2  | N: 10.6K    | NPS: 1.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M 17 | R(11,9) by Braindead    | T: 132ms  /155ms  | -    | Th: 1 | D63 | N: 59.5K    | NPS: 496.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 18 | B(8,6) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 16.6K    | NPS: 1.6K     | TT: 16.0% | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M 19 | R(8,10) by Braindead    | T: 135ms  /156ms  | -    | Th: 1 | D45 | N: 41.9K    | NPS: 346.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 20 | B(8,5) by Grandmaster  | T: 10.4s  /10.0s  | -    | Th: 9 | D2  | N: 10.6K    | NPS: 1.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M 21 | R(8,4) by Braindead    | T: 151ms  /181ms  | -    | Th: 1 | D104 | N: 97.2K    | NPS: 694.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 22 | B(6,7) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 17.4K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M 23 | R(9,4) by Braindead    | T: 151ms  /183ms  | -    | Th: 1 | D70 | N: 64.6K    | NPS: 458.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 24 | B(9,6) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 12.9K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M 25 | R(6,6) by Braindead    | T: 150ms  /184ms  | -    | Th: 1 | D16233 | N: 129.9K   | NPS: 921.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 26 | B(10,6) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 15.6K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M 27 | R(11,6) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 28 | B(11,7) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 12.0K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M 29 | R(5,5) by Braindead    | T: 405ms  /511ms  | -    | Th: 1 | D397 | N: 361.2K   | NPS: 919.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 30 | B(4,4) by Grandmaster  | T: 5ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 200      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/17n/1.7Knps            | VCF: -
+    G 9 M 31 | R(12,6) by Braindead    | T: 9ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 111      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 32 | B(10,10) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 14.5K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M 33 | R(10,7) by Braindead    | T: 9ms    /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 111      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 34 | B(10,11) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 9.5K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M 35 | R(10,12) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 36 | B(9,7) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 13.7K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G 9 M 37 | R(12,5) by Braindead    | T: 418ms  /527ms  | -    | Th: 1 | D218 | N: 191.0K   | NPS: 469.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 38 | B(13,4) by Grandmaster  | T: 72ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 14       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 39 | R(9,11) by Braindead    | T: 421ms  /531ms  | -    | Th: 1 | D424 | N: 368.9K   | NPS: 904.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 40 | B(11,13) by Grandmaster  | T: 7ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 142      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/20n/1.4Knps            | VCF: -
+    G 9 M 41 | R(7,5) by Braindead    | T: 423ms  /534ms  | -    | Th: 1 | D223 | N: 191.8K   | NPS: 466.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 42 | B(5,7) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D3  | N: 8.5K     | NPS: 1.2K     | TT: 24.4% | %M: 0.0%  | HD: 2.5  | P: -                         | VCF: -
+    G 9 M 43 | R(9,3) by Braindead    | T: 423ms  /538ms  | -    | Th: 1 | D218 | N: 185.8K   | NPS: 449.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 44 | B(10,2) by Grandmaster  | T: 68ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 14       | TT: 24.4% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 45 | R(6,10) by Braindead    | T: 425ms  /541ms  | -    | Th: 1 | D365 | N: 308.7K   | NPS: 742.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 46 | B(5,10) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D4  | N: 13.5K    | NPS: 1.9K     | TT: 5.3%  | %M: 97.0% | HD: 2.0  | P: -                         | VCF: -
+    G 9 M 47 | R(5,11) by Braindead    | T: 558ms  /700ms  | -    | Th: 1 | D316 | N: 264.6K   | NPS: 484.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 48 | B(4,12) by Grandmaster  | T: 72ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 14       | TT: 5.3%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 49 | R(10,5) by Braindead    | T: 559ms  /700ms  | -    | Th: 1 | D619 | N: 514.2K   | NPS: 938.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 50 | B(8,3) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 13.3K    | NPS: 1.8K     | TT: 3.5%  | %M: 99.0% | HD: 2.0  | P: -                         | VCF: -
+    G 9 M 51 | R(12,7) by Braindead    | T: 566ms  /717ms  | -    | Th: 1 | D307 | N: 252.1K   | NPS: 456.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 52 | B(13,8) by Grandmaster  | T: 64ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 3.5%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 53 | R(12,8) by Braindead    | T: 570ms  /722ms  | -    | Th: 1 | D494 | N: 402.3K   | NPS: 724.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G 9 M 54 | B(12,4) by Grandmaster  | T: 6ms    /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 333      | TT: 3.5%  | %M: 0.0%  | HD: 0.0  | P: D1/27n/2.7Knps            | VCF: -
+    G 9 M 55 | R(12,9) by Braindead    | T: 4ms    /0ms    | Wn   | Th: 1 | D1  | N: 1        | NPS: 250      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 9: Braindead (Red) wins on move 55 (179.0s)
+
+[PONDER Blue] Stop: 1 nodes, 617ms, depth 1
+    G10 M  1 | R(8,8) by Grandmaster  | T: 2.9s   /2.7s   | -    | Th: 9 | D2  | N: 7.7K     | NPS: 2.6K     | TT: 0.0%  | %M: 0.0%  | HD: 2.0  | P: -                         | VCF: -
+    G10 M  2 | B(8,7) by Braindead    | T: 285ms  /192ms  | -    | Th: 1 | D1  | N: 2        | NPS: 7        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G10 M  3 | R(8,11) by Grandmaster  | T: 8.9s   /8.6s   | -    | Th: 9 | D2  | N: 14.7K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G10 M  4 | B(5,5) by Braindead    | T: 7ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 142      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G10 M  5 | R(0,0) by Grandmaster  | T: 9.6s   /9.3s   | -    | Th: 9 | D2  | N: 22.8K    | NPS: 2.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G10 M  6 | B(7,7) by Braindead    | T: 281ms  /165ms  | -    | Th: 1 | D1  | N: 4        | NPS: 14       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G10 M  7 | R(9,7) by Grandmaster  | T: 10.1s  /9.7s   | -    | Th: 9 | D2  | N: 17.1K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G10 M  8 | B(6,7) by Braindead    | T: 180ms  /145ms  | -    | Th: 1 | D1  | N: 255      | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G10 M  9 | R(8,9) by Grandmaster  | T: 9.9s   /9.9s   | -    | Th: 9 | D3  | N: 31.7K    | NPS: 3.2K     | TT: 2.2%  | %M: 0.0%  | HD: 2.5  | P: -                         | VCF: -
+    G10 M 10 | B(8,10) by Braindead    | T: 138ms  /129ms  | -    | Th: 1 | D1  | N: 248      | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G10 M 11 | R(10,6) by Grandmaster  | T: 11.1s  /11.0s  | -    | Th: 9 | D3  | N: 21.5K    | NPS: 1.9K     | TT: 3.9%  | %M: 0.0%  | HD: 2.5  | P: -                         | VCF: -
+    G10 M 12 | B(7,9) by Braindead    | T: 1.3s   /212ms  | -    | Th: 1 | D3  | N: 1.3K     | NPS: 1.0K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G10 M 13 | R(8,6) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D3  | N: 29.1K    | NPS: 2.8K     | TT: 1.8%  | %M: 0.0%  | HD: 2.4  | P: -                         | VCF: -
+    G10 M 14 | B(11,5) by Braindead    | T: 352ms  /197ms  | -    | Th: 1 | D1  | N: 245      | NPS: 714      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G10 M 15 | R(11,11) by Grandmaster  | T: 10.1s  /10.0s  | -    | Th: 9 | D2  | N: 17.4K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G10 M 16 | B(5,7) by Braindead    | T: 196ms  /186ms  | -    | Th: 1 | D2  | N: 560      | NPS: 3.0K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G10 M 17 | R(4,7) by Grandmaster  | T: 3ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 333      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/11n/1.6Knps            | VCF: -
+    G10 M 18 | B(6,8) by Braindead    | T: 147ms  /179ms  | -    | Th: 1 | D54 | N: 50.7K    | NPS: 364.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G10 M 19 | R(4,6) by Grandmaster  | T: 72ms   /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 27       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G10 M 20 | B(9,11) by Braindead    | T: 3ms    /0ms    | Wn   | Th: 1 | D1  | N: 1        | NPS: 333      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 10: Braindead (Blue) wins on move 20 (76.0s)
+
+[PONDER Red] Stop: 13 nodes, 41ms, depth 1
+    G11 M  1 | R(8,8) by Braindead    | T: 2.6s   /73ms   | -    | Th: 1 | D2  | N: 259      | NPS: 98       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M  2 | B(8,7) by Grandmaster  | T: 7.3s   /7.1s   | -    | Th: 9 | D2  | N: 12.7K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M  3 | R(5,8) by Braindead    | T: 167ms  /88ms   | -    | Th: 1 | D1  | N: 2        | NPS: 12       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M  4 | B(8,9) by Grandmaster  | T: 8.7s   /8.4s   | -    | Th: 9 | D2  | N: 14.5K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M  5 | R(7,7) by Braindead    | T: 133ms  /87ms   | -    | Th: 1 | D1  | N: 255      | NPS: 2.1K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M  6 | B(9,9) by Grandmaster  | T: 9.4s   /9.2s   | -    | Th: 9 | D2  | N: 24.6K    | NPS: 2.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M  7 | R(7,8) by Braindead    | T: 109ms  /87ms   | -    | Th: 1 | D1  | N: 3        | NPS: 29       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M  8 | B(4,8) by Grandmaster  | T: 9.7s   /9.6s   | -    | Th: 9 | D2  | N: 17.9K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M  9 | R(6,8) by Braindead    | T: 95ms   /86ms   | -    | Th: 1 | D2  | N: 32       | NPS: 367      | TT: 7.7%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 10 | B(9,8) by Grandmaster  | T: 3ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 333      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/9n/1.5Knps             | VCF: -
+    G11 M 11 | R(7,9) by Braindead    | T: 127ms  /155ms  | -    | Th: 1 | D69 | N: 66.9K    | NPS: 557.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 12 | B(7,10) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D3  | N: 23.9K    | NPS: 2.1K     | TT: 7.5%  | %M: 1.0%  | HD: 2.5  | P: -                         | VCF: -
+    G11 M 13 | R(6,11) by Braindead    | T: 127ms  /155ms  | -    | Th: 1 | D7878 | N: 63.0K    | NPS: 529.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 14 | B(9,7) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 17.7K    | NPS: 1.6K     | TT: 20.6% | %M: 25.0% | HD: 2.0  | P: -                         | VCF: -
+    G11 M 15 | R(9,10) by Braindead    | T: 130ms  /156ms  | -    | Th: 1 | D14076 | N: 112.6K   | NPS: 938.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 16 | B(10,9) by Grandmaster  | T: 10.0s  /10.0s  | -    | Th: 9 | D3  | N: 26.9K    | NPS: 2.7K     | TT: 7.9%  | %M: 0.0%  | HD: 2.5  | P: -                         | VCF: -
+    G11 M 17 | R(7,6) by Braindead    | T: 129ms  /156ms  | -    | Th: 1 | D8426 | N: 67.4K    | NPS: 561.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 18 | B(7,5) by Grandmaster  | T: 74ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 13       | TT: 7.9%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 19 | R(10,7) by Braindead    | T: 128ms  /157ms  | -    | Th: 1 | D119 | N: 112.3K   | NPS: 928.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 20 | B(11,10) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 20.4K    | NPS: 2.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 21 | R(12,11) by Braindead    | T: 8ms    /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 125      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 22 | B(11,9) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 14.8K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 23 | R(12,9) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 24 | B(8,6) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 17.6K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 25 | R(10,8) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 111      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 26 | B(9,6) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 11.5K    | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 27 | R(9,5) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 28 | B(6,4) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 13.9K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 29 | R(5,3) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 30 | B(11,8) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 9.4K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 31 | R(11,11) by Braindead    | T: 412ms  /520ms  | -    | Th: 1 | D53264 | N: 426.1K   | NPS: 1.1M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 32 | B(11,7) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 12.5K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 33 | R(11,6) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 34 | B(8,5) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 8.9K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 35 | R(7,1) by Braindead    | T: 12ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 36 | B(8,4) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 11.2K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 37 | R(8,3) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 38 | B(10,6) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 9.2K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 39 | R(8,10) by Braindead    | T: 12ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 40 | B(9,11) by Grandmaster  | T: 7.1s   /7.0s   | -    | Th: 9 | D7  | N: 14.6K    | NPS: 2.1K     | TT: 64.1% | %M: 21.0% | HD: 3.4  | P: -                         | VCF: -
+    G11 M 41 | R(5,7) by Braindead    | T: 424ms  /541ms  | -    | Th: 1 | D256 | N: 220.3K   | NPS: 529.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 42 | B(4,6) by Grandmaster  | T: 66ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 64.1% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 43 | R(12,10) by Braindead    | T: 431ms  /544ms  | -    | Th: 1 | D529 | N: 452.0K   | NPS: 1.1M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 44 | B(12,8) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 14.1K    | NPS: 1.9K     | TT: 31.6% | %M: 91.0% | HD: 2.0  | P: -                         | VCF: -
+    G11 M 45 | R(12,12) by Braindead    | T: 431ms  /547ms  | -    | Th: 1 | D274 | N: 231.5K   | NPS: 548.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 46 | B(12,13) by Grandmaster  | T: 72ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 13       | TT: 31.6% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 47 | R(13,9) by Braindead    | T: 564ms  /716ms  | -    | Th: 1 | D698 | N: 585.5K   | NPS: 1.1M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 48 | B(10,12) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 9.6K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 49 | R(14,8) by Braindead    | T: 567ms  /721ms  | -    | Th: 1 | D356 | N: 295.4K   | NPS: 533.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 50 | B(15,7) by Grandmaster  | T: 6.0s   /6.0s   | -    | Th: 9 | D2  | N: 6.1K     | NPS: 1.0K     | TT: 20.0% | %M: 100.0% | HD: 1.5  | P: -                         | VCF: -
+    G11 M 51 | R(10,10) by Braindead    | T: 573ms  /725ms  | -    | Th: 1 | D567 | N: 466.4K   | NPS: 835.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 52 | B(1,7) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 10.5K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 53 | R(13,13) by Braindead    | T: 577ms  /730ms  | -    | Th: 1 | D379 | N: 308.0K   | NPS: 548.1K   | TT: 0.1%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 54 | B(14,14) by Grandmaster  | T: 62ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 16       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 55 | R(13,11) by Braindead    | T: 580ms  /734ms  | -    | Th: 1 | D748 | N: 603.6K   | NPS: 1.1M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 56 | B(10,11) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 8.9K     | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 57 | R(14,11) by Braindead    | T: 582ms  /739ms  | -    | Th: 1 | D391 | N: 312.0K   | NPS: 549.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 58 | B(15,11) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 6.1K     | NPS: 965      | TT: 20.0% | %M: 0.0%  | HD: 1.6  | P: -                         | VCF: -
+    G11 M 59 | R(13,10) by Braindead    | T: 589ms  /744ms  | -    | Th: 1 | D718 | N: 567.9K   | NPS: 992.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 60 | B(13,12) by Grandmaster  | T: 6ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 200      | TT: 20.0% | %M: 0.0%  | HD: 0.0  | P: D1/32n/1.7Knps            | VCF: -
+    G11 M 61 | R(13,8) by Braindead    | T: 586ms  /748ms  | -    | Th: 1 | D437 | N: 341.8K   | NPS: 593.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 62 | B(13,7) by Grandmaster  | T: 69ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 14       | TT: 20.0% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 63 | R(14,6) by Braindead    | T: 591ms  /753ms  | -    | Th: 1 | D790 | N: 612.3K   | NPS: 1.1M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 64 | B(8,11) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 8.4K     | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 65 | R(2,0) by Braindead    | T: 14ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 71       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 66 | B(6,9) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 5.0K     | NPS: 944      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 67 | R(9,12) by Braindead    | T: 607ms  /764ms  | -    | Th: 1 | D683 | N: 518.3K   | NPS: 881.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 68 | B(6,6) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 7.0K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 69 | R(9,3) by Braindead    | T: 605ms  /768ms  | -    | Th: 1 | D443 | N: 332.4K   | NPS: 562.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 70 | B(7,11) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 4.9K     | NPS: 924      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 71 | R(14,9) by Braindead    | T: 613ms  /773ms  | -    | Th: 1 | D726 | N: 539.4K   | NPS: 906.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 72 | B(11,12) by Grandmaster  | T: 5.2s   /5.0s   | -    | Th: 9 | D2  | N: 10.0K    | NPS: 1.9K     | TT: 50.6% | %M: 0.0%  | HD: 2.0  | P: -                         | VCF: -
+    G11 M 73 | R(14,10) by Braindead    | T: 609ms  /777ms  | -    | Th: 1 | D453 | N: 332.7K   | NPS: 556.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 74 | B(14,12) by Grandmaster  | T: 65ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 50.6% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 75 | R(14,7) by Braindead    | T: 616ms  /782ms  | -    | Th: 1 | D921 | N: 605.1K   | NPS: 1.0M     | TT: 4.7%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 76 | B(11,13) by Grandmaster  | T: 5.2s   /5.0s   | -    | Th: 9 | D2  | N: 6.6K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 77 | R(14,5) by Braindead    | T: 620ms  /787ms  | -    | Th: 1 | D463 | N: 332.6K   | NPS: 549.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 78 | B(12,14) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 4.7K     | NPS: 886      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 79 | R(13,15) by Braindead    | T: 626ms  /791ms  | -    | Th: 1 | D235655 | N: 942.6K   | NPS: 1.6M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 80 | B(13,14) by Grandmaster  | T: 4.0s   /4.0s   | -    | Th: 9 | D2  | N: 6.0K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G11 M 81 | R(1,5) by Braindead    | T: 15ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 66       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 82 | B(15,14) by Grandmaster  | T: 4.5s   /4.0s   | -    | Th: 9 | D3  | N: 5.6K     | NPS: 1.3K     | TT: 17.2% | %M: 100.0% | HD: 2.5  | P: -                         | VCF: 0d/24n
+    G11 M 83 | R(11,14) by Braindead    | T: 20ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 52       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 84 | B(6,5) by Grandmaster  | T: 4.1s   /4.0s   | -    | Th: 9 | D3  | N: 7.6K     | NPS: 1.9K     | TT: 27.3% | %M: 0.0%  | HD: 2.5  | P: -                         | VCF: 0d/2n
+    G11 M 85 | R(6,7) by Braindead    | T: 638ms  /808ms  | -    | Th: 1 | D30289 | N: 363.5K   | NPS: 584.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 86 | B(6,3) by Grandmaster  | T: 4.4s   /4.0s   | -    | Th: 9 | D3  | N: 6.7K     | NPS: 1.5K     | TT: 17.2% | %M: 100.0% | HD: 2.0  | P: -                         | VCF: 0d/2n
+    G11 M 87 | R(6,2) by Braindead    | T: 16ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 66       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 88 | B(8,0) by Grandmaster  | T: 4.3s   /4.0s   | -    | Th: 9 | D2  | N: 7.7K     | NPS: 1.8K     | TT: 26.3% | %M: 0.0%  | HD: 2.0  | P: -                         | VCF: 0d/2n
+    G11 M 89 | R(14,15) by Braindead    | T: 640ms  /819ms  | -    | Th: 1 | D141395 | N: 565.6K   | NPS: 897.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 90 | B(7,4) by Grandmaster  | T: 4.3s   /4.0s   | -    | Th: 9 | D1  | N: 5.6K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.0  | P: -                         | VCF: -
+    G11 M 91 | R(5,2) by Braindead    | T: 17ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 58       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 92 | B(9,4) by Grandmaster  | T: 43ms   /4.0s   | -    | Th: 9 | D0  | N: 0        | NPS: 0        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/36n/1.9Knps            | VCF: 2d/17n
+    G11 M 93 | R(5,4) by Braindead    | T: 14ms   /0ms    | Bl   | Th: 1 | D1  | N: 2        | NPS: 142      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G11 M 94 | B(10,4) by Grandmaster  | T: 60ms   /0ms    | Wn   | Th: 9 | D1  | N: 1        | NPS: 16       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 11: Grandmaster (Blue) wins on move 94 (280.0s)
+
+    G12 M  1 | R(8,8) by Grandmaster  | T: 2.9s   /2.7s   | -    | Th: 9 | D2  | N: 5.9K     | NPS: 2.0K     | TT: 0.0%  | %M: 0.0%  | HD: 2.0  | P: -                         | VCF: -
+    G12 M  2 | B(8,7) by Braindead    | T: 255ms  /192ms  | -    | Th: 1 | D1  | N: 2        | NPS: 8        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M  3 | R(8,11) by Grandmaster  | T: 8.9s   /8.6s   | -    | Th: 9 | D2  | N: 15.5K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M  4 | B(7,7) by Braindead    | T: 183ms  /164ms  | -    | Th: 1 | D1  | N: 4        | NPS: 22       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M  5 | R(9,7) by Grandmaster  | T: 9.6s   /9.3s   | -    | Th: 9 | D2  | N: 27.9K    | NPS: 2.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M  6 | B(7,8) by Braindead    | T: 150ms  /143ms  | -    | Th: 1 | D1  | N: 8        | NPS: 55       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M  7 | R(9,9) by Grandmaster  | T: 10.1s  /9.7s   | -    | Th: 9 | D2  | N: 17.5K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M  8 | B(7,9) by Braindead    | T: 147ms  /128ms  | -    | Th: 1 | D1  | N: 3        | NPS: 21       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M  9 | R(7,6) by Grandmaster  | T: 10.1s  /9.9s   | -    | Th: 9 | D2  | N: 24.0K    | NPS: 2.4K     | TT: 3.0%  | %M: 1.0%  | HD: 2.0  | P: -                         | VCF: -
+    G12 M 10 | B(7,10) by Braindead    | T: 134ms  /118ms  | -    | Th: 1 | D2  | N: 527      | NPS: 4.1K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 11 | R(7,11) by Grandmaster  | T: 58ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 17       | TT: 3.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 12 | B(0,0) by Braindead    | T: 164ms  /196ms  | -    | Th: 1 | D83 | N: 80.4K    | NPS: 528.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 13 | R(10,10) by Grandmaster  | T: 11.2s  /11.0s  | -    | Th: 9 | D2  | N: 26.0K    | NPS: 2.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 14 | B(11,11) by Braindead    | T: 151ms  /186ms  | -    | Th: 1 | D56 | N: 53.5K    | NPS: 373.9K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 15 | R(9,11) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 18.1K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 16 | B(6,11) by Braindead    | T: 146ms  /179ms  | -    | Th: 1 | D10111 | N: 80.9K    | NPS: 590.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 17 | R(9,8) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 20.6K    | NPS: 2.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 18 | B(9,10) by Braindead    | T: 8ms    /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 125      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 19 | R(9,6) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 14.0K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 20 | B(9,5) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 21 | R(10,11) by Grandmaster  | T: 9.1s   /9.0s   | -    | Th: 9 | D2  | N: 18.1K    | NPS: 2.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 22 | B(8,6) by Braindead    | T: 167ms  /204ms  | -    | Th: 1 | D85 | N: 79.4K    | NPS: 502.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 23 | R(6,8) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 15.5K    | NPS: 1.7K     | TT: 4.9%  | %M: 6.0%  | HD: 2.0  | P: -                         | VCF: -
+    G12 M 24 | B(10,4) by Braindead    | T: 164ms  /200ms  | -    | Th: 1 | D134 | N: 124.4K   | NPS: 807.9K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 25 | R(11,3) by Grandmaster  | T: 6ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 166      | TT: 4.9%  | %M: 0.0%  | HD: 0.0  | P: D1/16n/2.0Knps            | VCF: -
+    G12 M 26 | B(8,10) by Braindead    | T: 424ms  /540ms  | -    | Th: 1 | D225 | N: 207.4K   | NPS: 498.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 27 | R(5,10) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 17.1K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 28 | B(4,2) by Braindead    | T: 10ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 29 | R(11,9) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 11.7K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 30 | B(12,8) by Braindead    | T: 426ms  /540ms  | -    | Th: 1 | D60474 | N: 483.8K   | NPS: 1.2M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 31 | R(10,8) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 16.1K    | NPS: 2.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 32 | B(10,9) by Braindead    | T: 426ms  /538ms  | -    | Th: 1 | D238 | N: 213.8K   | NPS: 516.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 33 | R(8,12) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 9.4K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 34 | B(7,13) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 35 | R(12,10) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 11.5K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 36 | B(13,11) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 37 | R(11,8) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 9.4K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 38 | B(6,10) by Braindead    | T: 431ms  /546ms  | -    | Th: 1 | D461 | N: 403.4K   | NPS: 960.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 39 | R(11,7) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 12.2K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 40 | B(11,10) by Braindead    | T: 432ms  /546ms  | -    | Th: 1 | D30337 | N: 242.7K   | NPS: 577.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 41 | R(11,6) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 7.8K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 42 | B(11,5) by Braindead    | T: 15ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 66       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 43 | R(12,6) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D3  | N: 13.5K    | NPS: 2.2K     | TT: 13.5% | %M: 100.0% | HD: 2.5  | P: -                         | VCF: -
+    G12 M 44 | B(13,5) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 45 | R(10,6) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 7.5K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 46 | B(13,6) by Braindead    | T: 15ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 66       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 47 | R(10,12) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 9.8K     | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 48 | B(10,13) by Braindead    | T: 570ms  /721ms  | -    | Th: 1 | D328 | N: 273.8K   | NPS: 493.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 49 | R(8,13) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 7.0K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 50 | B(8,14) by Braindead    | T: 573ms  /726ms  | -    | Th: 1 | D656 | N: 542.8K   | NPS: 972.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 51 | R(9,12) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 8.0K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 52 | B(11,12) by Braindead    | T: 575ms  /731ms  | -    | Th: 1 | D39326 | N: 314.6K   | NPS: 559.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 53 | R(10,7) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 5.0K     | NPS: 943      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 54 | B(12,5) by Braindead    | T: 581ms  /735ms  | -    | Th: 1 | D35186 | N: 563.0K   | NPS: 996.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 55 | R(10,5) by Grandmaster  | T: 7ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 142      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/36n/1.7Knps            | VCF: -
+    G12 M 56 | B(12,9) by Braindead    | T: 578ms  /740ms  | -    | Th: 1 | D41507 | N: 332.1K   | NPS: 583.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 57 | R(8,5) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 6.7K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 58 | B(7,4) by Braindead    | T: 14ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 71       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 59 | R(12,7) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 5.3K     | NPS: 989      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G12 M 60 | B(13,7) by Braindead    | T: 17ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 58       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 61 | R(9,4) by Grandmaster  | T: 52ms   /5.0s   | -    | Th: 9 | D0  | N: 0        | NPS: 0        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/27n/1.6Knps            | VCF: 2d/22n
+    G12 M 62 | B(8,3) by Braindead    | T: 14ms   /0ms    | Bl   | Th: 1 | D1  | N: 2        | NPS: 142      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G12 M 63 | R(13,8) by Grandmaster  | T: 66ms   /0ms    | Wn   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 12: Grandmaster (Red) wins on move 63 (219.0s)
+
+    G13 M  1 | R(8,8) by Braindead    | T: 3.3s   /73ms   | -    | Th: 1 | D2  | N: 259      | NPS: 78       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M  2 | B(8,7) by Grandmaster  | T: 7.3s   /7.1s   | -    | Th: 9 | D2  | N: 12.5K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M  3 | R(5,8) by Braindead    | T: 166ms  /88ms   | -    | Th: 1 | D1  | N: 2        | NPS: 12       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M  4 | B(8,9) by Grandmaster  | T: 8.7s   /8.4s   | -    | Th: 9 | D2  | N: 14.6K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M  5 | R(13,14) by Braindead    | T: 96ms   /87ms   | -    | Th: 1 | D1  | N: 211      | NPS: 2.4K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M  6 | B(9,8) by Grandmaster  | T: 9.4s   /9.2s   | -    | Th: 9 | D2  | N: 22.9K    | NPS: 2.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M  7 | R(7,8) by Braindead    | T: 98ms   /87ms   | -    | Th: 1 | D1  | N: 254      | NPS: 2.8K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M  8 | B(6,8) by Grandmaster  | T: 9.9s   /9.6s   | -    | Th: 9 | D2  | N: 16.4K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M  9 | R(7,10) by Braindead    | T: 113ms  /86ms   | -    | Th: 1 | D1  | N: 249      | NPS: 2.4K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 10 | B(10,8) by Grandmaster  | T: 9.9s   /9.7s   | -    | Th: 9 | D2  | N: 24.1K    | NPS: 2.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 11 | R(7,9) by Braindead    | T: 163ms  /154ms  | -    | Th: 1 | D1  | N: 247      | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 12 | B(7,7) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 18.4K    | NPS: 1.6K     | TT: 1.9%  | %M: 45.0% | HD: 2.0  | P: -                         | VCF: -
+    G13 M 13 | R(7,11) by Braindead    | T: 162ms  /154ms  | -    | Th: 1 | D2  | N: 542      | NPS: 3.5K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 14 | B(7,12) by Grandmaster  | T: 3ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 333      | TT: 1.9%  | %M: 0.0%  | HD: 0.0  | P: D1/14n/1.8Knps            | VCF: -
+    G13 M 15 | R(0,0) by Braindead    | T: 126ms  /155ms  | -    | Th: 1 | D65 | N: 62.0K    | NPS: 516.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 16 | B(10,9) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 18.8K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 17 | R(7,6) by Braindead    | T: 129ms  /156ms  | -    | Th: 1 | D7858 | N: 62.9K    | NPS: 523.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 18 | B(11,10) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 15.2K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 19 | R(12,11) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 20 | B(8,6) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 22.4K    | NPS: 2.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 21 | R(5,9) by Braindead    | T: 150ms  /182ms  | -    | Th: 1 | D10089 | N: 80.7K    | NPS: 576.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 22 | B(9,5) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 13.7K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 23 | R(10,4) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 24 | B(6,7) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 18.1K    | NPS: 2.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 25 | R(9,7) by Braindead    | T: 152ms  /185ms  | -    | Th: 1 | D9223 | N: 73.8K    | NPS: 519.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 26 | B(6,10) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 13.8K    | NPS: 1.7K     | TT: 7.2%  | %M: 2.0%  | HD: 2.0  | P: -                         | VCF: -
+    G13 M 27 | R(10,6) by Braindead    | T: 403ms  /509ms  | -    | Th: 1 | D404 | N: 370.8K   | NPS: 948.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 28 | B(11,5) by Grandmaster  | T: 5ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 200      | TT: 7.2%  | %M: 0.0%  | HD: 0.0  | P: D1/36n/1.9Knps            | VCF: -
+    G13 M 29 | R(6,9) by Braindead    | T: 403ms  /512ms  | -    | Th: 1 | D217 | N: 197.0K   | NPS: 500.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 30 | B(8,11) by Grandmaster  | T: 5.8s   /8.0s   | -    | Th: 9 | D2  | N: 10.8K    | NPS: 1.9K     | TT: 13.2% | %M: 60.0% | HD: 2.0  | P: -                         | VCF: -
+    G13 M 31 | R(4,9) by Braindead    | T: 408ms  /515ms  | -    | Th: 1 | D231 | N: 207.9K   | NPS: 523.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 32 | B(3,9) by Grandmaster  | T: 65ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 13.2% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 33 | R(4,7) by Braindead    | T: 410ms  /518ms  | -    | Th: 1 | D466 | N: 416.6K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 34 | B(3,6) by Grandmaster  | T: 5ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 200      | TT: 13.2% | %M: 0.0%  | HD: 0.0  | P: D1/18n/2.0Knps            | VCF: -
+    G13 M 35 | R(9,10) by Braindead    | T: 410ms  /522ms  | -    | Th: 1 | D253 | N: 223.8K   | NPS: 558.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 36 | B(9,9) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 11.7K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 37 | R(11,9) by Braindead    | T: 417ms  /525ms  | -    | Th: 1 | D234 | N: 205.0K   | NPS: 506.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 38 | B(8,5) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 10.6K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 39 | R(10,5) by Braindead    | T: 418ms  /529ms  | -    | Th: 1 | D477 | N: 415.1K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 40 | B(10,3) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 14.1K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 41 | R(8,4) by Braindead    | T: 423ms  /532ms  | -    | Th: 1 | D261 | N: 224.6K   | NPS: 549.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 42 | B(8,10) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 8.0K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 43 | R(12,4) by Braindead    | T: 12ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 44 | B(8,12) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 11.5K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 45 | R(8,13) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 76       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 46 | B(11,7) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 7.8K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 47 | R(12,6) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 76       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 48 | B(10,7) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 9.1K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 49 | R(11,6) by Braindead    | T: 564ms  /715ms  | -    | Th: 1 | D326 | N: 270.4K   | NPS: 491.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 50 | B(9,6) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 9.8K     | NPS: 1.6K     | TT: 11.1% | %M: 100.0% | HD: 2.0  | P: -                         | VCF: -
+    G13 M 51 | R(11,8) by Braindead    | T: 566ms  /719ms  | -    | Th: 1 | D76861 | N: 614.9K   | NPS: 1.1M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 52 | B(8,3) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 10.9K    | NPS: 1.8K     | TT: 6.2%  | %M: 100.0% | HD: 2.0  | P: -                         | VCF: -
+    G13 M 53 | R(13,6) by Braindead    | T: 566ms  /724ms  | -    | Th: 1 | D354 | N: 288.1K   | NPS: 517.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 54 | B(14,6) by Grandmaster  | T: 64ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 6.2%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 55 | R(3,11) by Braindead    | T: 14ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 71       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 56 | B(10,10) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 8.7K     | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 57 | R(10,11) by Braindead    | T: 15ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 66       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 58 | B(7,4) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 6.2K     | NPS: 982      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 59 | R(6,3) by Braindead    | T: 17ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 58       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 60 | B(6,6) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 8.2K     | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 61 | R(6,5) by Braindead    | T: 590ms  /748ms  | -    | Th: 1 | D399 | N: 312.0K   | NPS: 542.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 62 | B(5,7) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 6.1K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 63 | R(4,8) by Braindead    | T: 598ms  /752ms  | -    | Th: 1 | D762 | N: 590.5K   | NPS: 1.0M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 64 | B(4,6) by Grandmaster  | T: 5.2s   /5.0s   | -    | Th: 9 | D2  | N: 9.2K     | NPS: 1.8K     | TT: 12.9% | %M: 67.0% | HD: 2.0  | P: -                         | VCF: -
+    G13 M 65 | R(4,10) by Braindead    | T: 593ms  /757ms  | -    | Th: 1 | D395 | N: 302.6K   | NPS: 519.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 66 | B(4,11) by Grandmaster  | T: 63ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 12.9% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 67 | R(2,12) by Braindead    | T: 598ms  /762ms  | -    | Th: 1 | D826 | N: 627.0K   | NPS: 1.1M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 68 | B(1,13) by Grandmaster  | T: 8ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 125      | TT: 12.9% | %M: 0.0%  | HD: 0.0  | P: D1/21n/3.5Knps            | VCF: -
+    G13 M 69 | R(5,6) by Braindead    | T: 597ms  /766ms  | -    | Th: 1 | D464 | N: 348.2K   | NPS: 591.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 70 | B(3,5) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 7.3K     | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 71 | R(2,4) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 76       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 72 | B(2,9) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 6.9K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G13 M 73 | R(12,7) by Braindead    | T: 620ms  /777ms  | -    | Th: 1 | D766 | N: 563.0K   | NPS: 941.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 74 | B(9,4) by Grandmaster  | T: 5.2s   /5.0s   | -    | Th: 9 | D2  | N: 9.2K     | NPS: 1.8K     | TT: 11.1% | %M: 100.0% | HD: 2.0  | P: -                         | VCF: -
+    G13 M 75 | R(13,8) by Braindead    | T: 614ms  /782ms  | -    | Th: 1 | D434 | N: 315.2K   | NPS: 524.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 76 | B(14,9) by Grandmaster  | T: 73ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 13       | TT: 11.1% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 77 | R(12,5) by Braindead    | T: 618ms  /786ms  | -    | Th: 1 | D677 | N: 486.7K   | NPS: 804.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G13 M 78 | B(12,3) by Grandmaster  | T: 8ms    /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 250      | TT: 11.1% | %M: 0.0%  | HD: 0.0  | P: D1/18n/2.6Knps            | VCF: -
+    G13 M 79 | R(12,8) by Braindead    | T: 5ms    /0ms    | Wn   | Th: 1 | D1  | N: 1        | NPS: 200      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 13: Braindead (Red) wins on move 79 (245.0s)
+
+[PONDER Blue] Stop: 1 nodes, 649ms, depth 1
+    G14 M  1 | R(8,8) by Grandmaster  | T: 2.9s   /2.7s   | -    | Th: 9 | D2  | N: 7.7K     | NPS: 2.6K     | TT: 0.0%  | %M: 0.0%  | HD: 2.0  | P: -                         | VCF: -
+    G14 M  2 | B(8,7) by Braindead    | T: 297ms  /192ms  | -    | Th: 1 | D1  | N: 2        | NPS: 6        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M  3 | R(8,11) by Grandmaster  | T: 8.9s   /8.6s   | -    | Th: 9 | D2  | N: 15.3K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G14 M  4 | B(7,7) by Braindead    | T: 228ms  /164ms  | -    | Th: 1 | D1  | N: 4        | NPS: 18       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M  5 | R(9,7) by Grandmaster  | T: 9.6s   /9.3s   | -    | Th: 9 | D2  | N: 25.9K    | NPS: 2.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G14 M  6 | B(7,8) by Braindead    | T: 152ms  /143ms  | -    | Th: 1 | D1  | N: 7        | NPS: 48       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M  7 | R(9,9) by Grandmaster  | T: 10.1s  /9.7s   | -    | Th: 9 | D2  | N: 18.0K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G14 M  8 | B(7,9) by Braindead    | T: 149ms  /128ms  | -    | Th: 1 | D1  | N: 3        | NPS: 20       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M  9 | R(7,6) by Grandmaster  | T: 10.1s  /9.9s   | -    | Th: 9 | D2  | N: 25.1K    | NPS: 2.5K     | TT: 3.0%  | %M: 36.0% | HD: 2.0  | P: -                         | VCF: -
+    G14 M 10 | B(7,10) by Braindead    | T: 132ms  /118ms  | -    | Th: 1 | D2  | N: 524      | NPS: 4.1K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M 11 | R(7,11) by Grandmaster  | T: 59ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 16       | TT: 3.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M 12 | B(0,0) by Braindead    | T: 161ms  /196ms  | -    | Th: 1 | D106 | N: 102.9K   | NPS: 677.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M 13 | R(10,10) by Grandmaster  | T: 11.2s  /11.0s  | -    | Th: 9 | D2  | N: 26.8K    | NPS: 2.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G14 M 14 | B(1,9) by Braindead    | T: 8ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 125      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M 15 | R(11,11) by Grandmaster  | T: 11.1s  /11.0s  | -    | Th: 9 | D2  | N: 16.4K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.2  | P: -                         | VCF: -
+    G14 M 16 | B(12,12) by Braindead    | T: 9ms    /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 111      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M 17 | R(8,10) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 23.0K    | NPS: 2.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G14 M 18 | B(6,12) by Braindead    | T: 154ms  /189ms  | -    | Th: 1 | D8499 | N: 68.0K    | NPS: 468.9K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M 19 | R(8,9) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 13.4K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G14 M 20 | B(8,12) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M 21 | R(10,9) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 18.9K    | NPS: 2.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G14 M 22 | B(10,8) by Braindead    | T: 173ms  /212ms  | -    | Th: 1 | D87 | N: 81.3K    | NPS: 498.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M 23 | R(11,9) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 12.1K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G14 M 24 | B(12,9) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M 25 | R(9,11) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 19.0K    | NPS: 2.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G14 M 26 | B(10,11) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M 27 | R(9,10) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 9.8K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G14 M 28 | B(9,8) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M 29 | R(11,8) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 17.1K    | NPS: 2.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: 0d/6n
+    G14 M 30 | B(7,12) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 2        | NPS: 200      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G14 M 31 | R(12,7) by Grandmaster  | T: 68ms   /0ms    | Wn   | Th: 9 | D1  | N: 1        | NPS: 14       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 14: Grandmaster (Red) wins on move 31 (131.0s)
+
+    G15 M  1 | R(8,8) by Braindead    | T: 3.8s   /73ms   | -    | Th: 1 | D2  | N: 259      | NPS: 68       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M  2 | B(8,7) by Grandmaster  | T: 7.4s   /7.1s   | -    | Th: 9 | D2  | N: 7.7K     | NPS: 1.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G15 M  3 | R(5,8) by Braindead    | T: 105ms  /88ms   | -    | Th: 1 | D1  | N: 1        | NPS: 10       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M  4 | B(8,9) by Grandmaster  | T: 8.8s   /8.4s   | -    | Th: 9 | D2  | N: 8.8K     | NPS: 1.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G15 M  5 | R(2,4) by Braindead    | T: 8ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 125      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M  6 | B(0,0) by Grandmaster  | T: 9.4s   /9.2s   | -    | Th: 9 | D2  | N: 15.2K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G15 M  7 | R(7,7) by Braindead    | T: 194ms  /88ms   | -    | Th: 1 | D1  | N: 4        | NPS: 21       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M  8 | B(10,8) by Grandmaster  | T: 9.8s   /9.6s   | -    | Th: 9 | D2  | N: 11.1K    | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G15 M  9 | R(7,8) by Braindead    | T: 103ms  /87ms   | -    | Th: 1 | D1  | N: 250      | NPS: 2.8K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M 10 | B(6,8) by Grandmaster  | T: 9.9s   /9.7s   | -    | Th: 9 | D2  | N: 19.9K    | NPS: 2.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G15 M 11 | R(7,9) by Braindead    | T: 186ms  /155ms  | -    | Th: 1 | D2  | N: 768      | NPS: 4.3K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M 12 | B(7,6) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 18.1K    | NPS: 1.6K     | TT: 1.2%  | %M: 1.0%  | HD: 2.0  | P: -                         | VCF: -
+    G15 M 13 | R(7,10) by Braindead    | T: 165ms  /155ms  | -    | Th: 1 | D2  | N: 551      | NPS: 3.5K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M 14 | B(7,11) by Grandmaster  | T: 3ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 333      | TT: 1.2%  | %M: 0.0%  | HD: 0.0  | P: D1/13n/1.6Knps            | VCF: -
+    G15 M 15 | R(6,10) by Braindead    | T: 125ms  /155ms  | -    | Th: 1 | D68 | N: 64.9K    | NPS: 540.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M 16 | B(9,7) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 18.2K    | NPS: 1.8K     | TT: 2.0%  | %M: 93.0% | HD: 2.0  | P: -                         | VCF: -
+    G15 M 17 | R(5,11) by Braindead    | T: 128ms  /156ms  | -    | Th: 1 | D63 | N: 59.5K    | NPS: 496.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M 18 | B(4,12) by Grandmaster  | T: 62ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 16       | TT: 2.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M 19 | R(5,10) by Braindead    | T: 127ms  /157ms  | -    | Th: 1 | D112 | N: 105.7K   | NPS: 880.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M 20 | B(4,10) by Grandmaster  | T: 10.1s  /10.0s  | -    | Th: 9 | D5  | N: 34.8K    | NPS: 3.5K     | TT: 5.6%  | %M: 99.0% | HD: 4.0  | P: -                         | VCF: -
+    G15 M 21 | R(8,10) by Braindead    | T: 150ms  /182ms  | -    | Th: 1 | D72 | N: 67.0K    | NPS: 478.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M 22 | B(9,10) by Grandmaster  | T: 74ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 13       | TT: 5.6%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M 23 | R(5,9) by Braindead    | T: 148ms  /183ms  | -    | Th: 1 | D228 | N: 134.3K   | NPS: 952.6K   | TT: 24.3% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G15 M 24 | B(5,7) by Grandmaster  | T: 6ms    /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 333      | TT: 5.6%  | %M: 0.0%  | HD: 0.0  | P: D1/9n/2.2Knps             | VCF: -
+    G15 M 25 | R(5,12) by Braindead    | T: 1ms    /0ms    | Wn   | Th: 1 | D1  | N: 1        | NPS: 1.0K     | TT: 24.3% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 15: Braindead (Red) wins on move 25 (82.0s)
+
+[PONDER Blue] Stop: 1 nodes, 609ms, depth 1
+    G16 M  1 | R(8,8) by Grandmaster  | T: 2.9s   /2.7s   | -    | Th: 9 | D2  | N: 7.6K     | NPS: 2.6K     | TT: 0.0%  | %M: 0.0%  | HD: 2.0  | P: -                         | VCF: -
+    G16 M  2 | B(8,7) by Braindead    | T: 297ms  /192ms  | -    | Th: 1 | D1  | N: 2        | NPS: 6        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M  3 | R(8,11) by Grandmaster  | T: 8.9s   /8.6s   | -    | Th: 9 | D2  | N: 14.3K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G16 M  4 | B(7,7) by Braindead    | T: 236ms  /164ms  | -    | Th: 1 | D1  | N: 4        | NPS: 17       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M  5 | R(9,7) by Grandmaster  | T: 9.6s   /9.3s   | -    | Th: 9 | D2  | N: 26.2K    | NPS: 2.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G16 M  6 | B(7,8) by Braindead    | T: 151ms  /143ms  | -    | Th: 1 | D1  | N: 8        | NPS: 55       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M  7 | R(9,9) by Grandmaster  | T: 9.9s   /9.7s   | -    | Th: 9 | D2  | N: 17.0K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G16 M  8 | B(7,9) by Braindead    | T: 160ms  /128ms  | -    | Th: 1 | D1  | N: 3        | NPS: 19       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M  9 | R(7,6) by Grandmaster  | T: 10.1s  /9.9s   | -    | Th: 9 | D2  | N: 21.7K    | NPS: 2.2K     | TT: 3.0%  | %M: 23.0% | HD: 2.0  | P: -                         | VCF: -
+    G16 M 10 | B(7,10) by Braindead    | T: 139ms  /118ms  | -    | Th: 1 | D2  | N: 522      | NPS: 4.0K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M 11 | R(7,11) by Grandmaster  | T: 66ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 3.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M 12 | B(0,0) by Braindead    | T: 158ms  /196ms  | -    | Th: 1 | D94 | N: 91.1K    | NPS: 603.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M 13 | R(10,6) by Grandmaster  | T: 11.2s  /11.0s  | -    | Th: 9 | D2  | N: 24.8K    | NPS: 2.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G16 M 14 | B(11,5) by Braindead    | T: 152ms  /186ms  | -    | Th: 1 | D51 | N: 48.6K    | NPS: 337.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M 15 | R(9,11) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 17.5K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G16 M 16 | B(10,11) by Braindead    | T: 148ms  /179ms  | -    | Th: 1 | D9847 | N: 78.8K    | NPS: 575.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M 17 | R(9,8) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 21.2K    | NPS: 2.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G16 M 18 | B(9,10) by Braindead    | T: 9ms    /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 111      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M 19 | R(6,11) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D3  | N: 17.4K    | NPS: 1.7K     | TT: 10.2% | %M: 100.0% | HD: 2.5  | P: -                         | VCF: -
+    G16 M 20 | B(5,11) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M 21 | R(10,10) by Grandmaster  | T: 9.0s   /9.0s   | -    | Th: 9 | D3  | N: 25.0K    | NPS: 2.8K     | TT: 1.8%  | %M: 0.0%  | HD: 2.5  | P: -                         | VCF: -
+    G16 M 22 | B(8,9) by Braindead    | T: 167ms  /204ms  | -    | Th: 1 | D88 | N: 82.2K    | NPS: 523.9K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M 23 | R(6,7) by Grandmaster  | T: 73ms   /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 27       | TT: 1.8%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G16 M 24 | B(11,12) by Braindead    | T: 3ms    /0ms    | Wn   | Th: 1 | D1  | N: 1        | NPS: 333      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 16: Braindead (Blue) wins on move 24 (95.0s)
+
+[PONDER Red] Stop: 9 nodes, 33ms, depth 1
+    G17 M  1 | R(8,8) by Braindead    | T: 2.6s   /73ms   | -    | Th: 1 | D2  | N: 259      | NPS: 101      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M  2 | B(8,7) by Grandmaster  | T: 7.3s   /7.1s   | -    | Th: 9 | D2  | N: 12.0K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G17 M  3 | R(5,8) by Braindead    | T: 164ms  /88ms   | -    | Th: 1 | D1  | N: 2        | NPS: 12       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M  4 | B(8,9) by Grandmaster  | T: 8.7s   /8.4s   | -    | Th: 9 | D2  | N: 14.1K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G17 M  5 | R(7,8) by Braindead    | T: 97ms   /87ms   | -    | Th: 1 | D1  | N: 253      | NPS: 2.8K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M  6 | B(6,8) by Grandmaster  | T: 9.4s   /9.2s   | -    | Th: 9 | D2  | N: 22.9K    | NPS: 2.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G17 M  7 | R(9,8) by Braindead    | T: 88ms   /87ms   | -    | Th: 1 | D1  | N: 499      | NPS: 6.2K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M  8 | B(10,8) by Grandmaster  | T: 9.9s   /9.6s   | -    | Th: 9 | D2  | N: 16.1K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G17 M  9 | R(7,7) by Braindead    | T: 130ms  /87ms   | -    | Th: 1 | D1  | N: 249      | NPS: 2.0K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M 10 | B(9,6) by Grandmaster  | T: 9.9s   /9.7s   | -    | Th: 9 | D2  | N: 24.1K    | NPS: 2.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G17 M 11 | R(7,9) by Braindead    | T: 171ms  /155ms  | -    | Th: 1 | D2  | N: 752      | NPS: 4.6K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M 12 | B(7,6) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 19.3K    | NPS: 1.7K     | TT: 2.3%  | %M: 1.0%  | HD: 2.0  | P: -                         | VCF: -
+    G17 M 13 | R(7,10) by Braindead    | T: 167ms  /155ms  | -    | Th: 1 | D2  | N: 536      | NPS: 3.4K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M 14 | B(7,11) by Grandmaster  | T: 4ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 250      | TT: 2.3%  | %M: 0.0%  | HD: 0.0  | P: D1/11n/1.4Knps            | VCF: -
+    G17 M 15 | R(0,0) by Braindead    | T: 129ms  /156ms  | -    | Th: 1 | D61 | N: 58.1K    | NPS: 480.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M 16 | B(9,9) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 16.7K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G17 M 17 | R(8,10) by Braindead    | T: 129ms  /156ms  | -    | Th: 1 | D58 | N: 54.7K    | NPS: 452.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M 18 | B(9,7) by Grandmaster  | T: 10.1s  /10.0s  | -    | Th: 9 | D2  | N: 14.4K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G17 M 19 | R(6,10) by Braindead    | T: 131ms  /157ms  | -    | Th: 1 | D108 | N: 101.9K   | NPS: 835.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M 20 | B(9,10) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 29.5K    | NPS: 2.9K     | TT: 4.2%  | %M: 92.0% | HD: 2.0  | P: -                         | VCF: -
+    G17 M 21 | R(5,11) by Braindead    | T: 148ms  /182ms  | -    | Th: 1 | D82 | N: 76.5K    | NPS: 546.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M 22 | B(4,12) by Grandmaster  | T: 63ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 4.2%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M 23 | R(5,10) by Braindead    | T: 148ms  /184ms  | -    | Th: 1 | D139 | N: 129.2K   | NPS: 916.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M 24 | B(4,10) by Grandmaster  | T: 4ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 250      | TT: 4.2%  | %M: 0.0%  | HD: 0.0  | P: D1/9n/2.2Knps             | VCF: -
+    G17 M 25 | R(5,9) by Braindead    | T: 149ms  /185ms  | -    | Th: 1 | D98 | N: 90.0K    | NPS: 633.9K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M 26 | B(5,7) by Grandmaster  | T: 66ms   /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 30       | TT: 4.2%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G17 M 27 | R(5,12) by Braindead    | T: 2ms    /0ms    | Wn   | Th: 1 | D1  | N: 1        | NPS: 500      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 17: Braindead (Red) wins on move 27 (91.0s)
+
+[PONDER Blue] Stop: 13 nodes, 97ms, depth 1
+    G18 M  1 | R(8,8) by Grandmaster  | T: 2.9s   /2.7s   | -    | Th: 9 | D2  | N: 7.8K     | NPS: 2.7K     | TT: 0.0%  | %M: 0.0%  | HD: 2.0  | P: -                         | VCF: -
+    G18 M  2 | B(8,7) by Braindead    | T: 283ms  /192ms  | -    | Th: 1 | D1  | N: 2        | NPS: 7        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M  3 | R(8,11) by Grandmaster  | T: 8.9s   /8.6s   | -    | Th: 9 | D2  | N: 14.8K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G18 M  4 | B(7,7) by Braindead    | T: 222ms  /164ms  | -    | Th: 1 | D1  | N: 4        | NPS: 18       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M  5 | R(9,7) by Grandmaster  | T: 9.6s   /9.3s   | -    | Th: 9 | D2  | N: 26.7K    | NPS: 2.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G18 M  6 | B(7,8) by Braindead    | T: 151ms  /143ms  | -    | Th: 1 | D1  | N: 8        | NPS: 55       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M  7 | R(10,8) by Grandmaster  | T: 9.9s   /9.7s   | -    | Th: 9 | D2  | N: 16.6K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G18 M  8 | B(7,9) by Braindead    | T: 170ms  /128ms  | -    | Th: 1 | D1  | N: 3        | NPS: 18       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M  9 | R(7,6) by Grandmaster  | T: 10.1s  /9.9s   | -    | Th: 9 | D2  | N: 27.9K    | NPS: 2.8K     | TT: 2.9%  | %M: 29.0% | HD: 2.0  | P: -                         | VCF: -
+    G18 M 10 | B(7,10) by Braindead    | T: 128ms  /118ms  | -    | Th: 1 | D2  | N: 521      | NPS: 4.3K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M 11 | R(7,11) by Grandmaster  | T: 64ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 2.9%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M 12 | B(0,0) by Braindead    | T: 159ms  /196ms  | -    | Th: 1 | D99 | N: 96.0K    | NPS: 636.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M 13 | R(9,11) by Grandmaster  | T: 11.1s  /11.0s  | -    | Th: 9 | D2  | N: 25.3K    | NPS: 2.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G18 M 14 | B(10,11) by Braindead    | T: 152ms  /186ms  | -    | Th: 1 | D6758 | N: 54.1K    | NPS: 378.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M 15 | R(6,11) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 15.8K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G18 M 16 | B(5,11) by Braindead    | T: 8ms    /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 125      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M 17 | R(6,8) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 22.2K    | NPS: 2.2K     | TT: 14.3% | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G18 M 18 | B(6,9) by Braindead    | T: 160ms  /180ms  | -    | Th: 1 | D76 | N: 72.2K    | NPS: 515.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M 19 | R(9,6) by Grandmaster  | T: 10.3s  /10.0s  | -    | Th: 9 | D2  | N: 17.6K    | NPS: 1.7K     | TT: 4.8%  | %M: 16.0% | HD: 2.0  | P: -                         | VCF: -
+    G18 M 20 | B(5,10) by Braindead    | T: 145ms  /175ms  | -    | Th: 1 | D135 | N: 127.5K   | NPS: 944.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M 21 | R(4,11) by Grandmaster  | T: 5ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 200      | TT: 4.8%  | %M: 0.0%  | HD: 0.0  | P: D1/18n/2.0Knps            | VCF: -
+    G18 M 22 | B(5,9) by Braindead    | T: 160ms  /198ms  | -    | Th: 1 | D89 | N: 83.2K    | NPS: 547.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M 23 | R(8,9) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 20.4K    | NPS: 2.2K     | TT: 11.9% | %M: 100.0% | HD: 2.0  | P: -                         | VCF: -
+    G18 M 24 | B(5,8) by Braindead    | T: 158ms  /196ms  | -    | Th: 1 | D91 | N: 84.3K    | NPS: 562.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M 25 | R(5,7) by Grandmaster  | T: 67ms   /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 29       | TT: 11.9% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G18 M 26 | B(5,12) by Braindead    | T: 2ms    /0ms    | Wn   | Th: 1 | D1  | N: 1        | NPS: 500      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 18: Braindead (Blue) wins on move 26 (95.0s)
+
+[PONDER Red] Stop: 9 nodes, 28ms, depth 1
+    G19 M  1 | R(8,8) by Braindead    | T: 2.6s   /73ms   | -    | Th: 1 | D2  | N: 259      | NPS: 98       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M  2 | B(8,7) by Grandmaster  | T: 7.3s   /7.1s   | -    | Th: 9 | D2  | N: 11.5K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G19 M  3 | R(5,8) by Braindead    | T: 171ms  /88ms   | -    | Th: 1 | D1  | N: 2        | NPS: 12       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M  4 | B(8,9) by Grandmaster  | T: 8.7s   /8.4s   | -    | Th: 9 | D2  | N: 13.5K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G19 M  5 | R(7,7) by Braindead    | T: 132ms  /87ms   | -    | Th: 1 | D1  | N: 255      | NPS: 2.0K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M  6 | B(9,9) by Grandmaster  | T: 9.4s   /9.2s   | -    | Th: 9 | D2  | N: 24.1K    | NPS: 2.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G19 M  7 | R(7,8) by Braindead    | T: 123ms  /87ms   | -    | Th: 1 | D1  | N: 3        | NPS: 26       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M  8 | B(4,8) by Grandmaster  | T: 9.7s   /9.6s   | -    | Th: 9 | D2  | N: 17.9K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G19 M  9 | R(6,8) by Braindead    | T: 98ms   /86ms   | -    | Th: 1 | D2  | N: 38       | NPS: 436      | TT: 6.7%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 10 | B(9,8) by Grandmaster  | T: 3ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 333      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/18n/1.8Knps            | VCF: -
+    G19 M 11 | R(7,9) by Braindead    | T: 126ms  /155ms  | -    | Th: 1 | D68 | N: 65.9K    | NPS: 554.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 12 | B(7,6) by Grandmaster  | T: 11.0s  /11.0s  | -    | Th: 9 | D2  | N: 24.1K    | NPS: 2.2K     | TT: 8.6%  | %M: 1.0%  | HD: 2.0  | P: -                         | VCF: -
+    G19 M 13 | R(10,9) by Braindead    | T: 126ms  /155ms  | -    | Th: 1 | D9338 | N: 74.7K    | NPS: 627.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 14 | B(9,10) by Grandmaster  | T: 11.1s  /11.0s  | -    | Th: 9 | D3  | N: 20.2K    | NPS: 1.8K     | TT: 24.5% | %M: 100.0% | HD: 2.5  | P: -                         | VCF: -
+    G19 M 15 | R(9,7) by Braindead    | T: 128ms  /155ms  | -    | Th: 1 | D13500 | N: 108.0K   | NPS: 907.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 16 | B(6,10) by Grandmaster  | T: 9.5s   /10.0s  | -    | Th: 9 | D2  | N: 25.6K    | NPS: 2.7K     | TT: 29.0% | %M: 96.0% | HD: 2.0  | P: -                         | VCF: -
+    G19 M 17 | R(7,10) by Braindead    | T: 130ms  /156ms  | -    | Th: 1 | D65 | N: 61.4K    | NPS: 507.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 18 | B(7,11) by Grandmaster  | T: 63ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 29.0% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 19 | R(10,6) by Braindead    | T: 129ms  /157ms  | -    | Th: 1 | D122 | N: 115.2K   | NPS: 952.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 20 | B(11,5) by Grandmaster  | T: 5ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 250      | TT: 29.0% | %M: 0.0%  | HD: 0.0  | P: D1/9n/2.2Knps             | VCF: -
+    G19 M 21 | R(5,9) by Braindead    | T: 149ms  /182ms  | -    | Th: 1 | D86 | N: 80.2K    | NPS: 569.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 22 | B(4,10) by Grandmaster  | T: 10.1s  /10.0s  | -    | Th: 9 | D4  | N: 18.4K    | NPS: 1.8K     | TT: 1.4%  | %M: 52.0% | HD: 3.0  | P: -                         | VCF: -
+    G19 M 23 | R(8,6) by Braindead    | T: 151ms  /183ms  | -    | Th: 1 | D184 | N: 86.1K    | NPS: 610.7K   | TT: 39.6% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 24 | B(9,5) by Grandmaster  | T: 63ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 1.4%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 25 | R(9,11) by Braindead    | T: 151ms  /185ms  | -    | Th: 1 | D205 | N: 129.9K   | NPS: 908.5K   | TT: 19.4% | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 26 | B(10,5) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D3  | N: 25.0K    | NPS: 2.4K     | TT: 8.3%  | %M: 62.0% | HD: 2.5  | P: -                         | VCF: -
+    G19 M 27 | R(12,5) by Braindead    | T: 402ms  /509ms  | -    | Th: 1 | D29251 | N: 234.0K   | NPS: 598.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 28 | B(6,5) by Grandmaster  | T: 9.1s   /9.0s   | -    | Th: 9 | D2  | N: 13.3K    | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G19 M 29 | R(5,4) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 30 | B(8,5) by Grandmaster  | T: 8.7s   /9.0s   | -    | Th: 9 | D2  | N: 18.6K    | NPS: 2.1K     | TT: 0.5%  | %M: 100.0% | HD: 2.0  | P: -                         | VCF: -
+    G19 M 31 | R(8,10) by Braindead    | T: 405ms  /517ms  | -    | Th: 1 | D228 | N: 205.2K   | NPS: 516.9K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 32 | B(5,7) by Grandmaster  | T: 76ms   /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 26       | TT: 0.5%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G19 M 33 | R(10,12) by Braindead    | T: 3ms    /0ms    | Wn   | Th: 1 | D1  | N: 1        | NPS: 333      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    → Game 19: Braindead (Red) wins on move 33 (110.0s)
+
+[PONDER Blue] Stop: 15 nodes, 106ms, depth 1
+    G20 M  1 | R(8,8) by Grandmaster  | T: 2.9s   /2.7s   | -    | Th: 9 | D2  | N: 7.5K     | NPS: 2.6K     | TT: 0.0%  | %M: 0.0%  | HD: 2.0  | P: -                         | VCF: -
+    G20 M  2 | B(8,7) by Braindead    | T: 300ms  /192ms  | -    | Th: 1 | D1  | N: 2        | NPS: 6        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M  3 | R(8,11) by Grandmaster  | T: 8.9s   /8.6s   | -    | Th: 9 | D2  | N: 14.2K    | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M  4 | B(5,0) by Braindead    | T: 9ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 111      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M  5 | R(0,0) by Grandmaster  | T: 9.6s   /9.3s   | -    | Th: 9 | D2  | N: 22.3K    | NPS: 2.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M  6 | B(7,8) by Braindead    | T: 255ms  /165ms  | -    | Th: 1 | D1  | N: 2        | NPS: 8        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M  7 | R(7,9) by Grandmaster  | T: 10.1s  /9.7s   | -    | Th: 9 | D2  | N: 17.9K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M  8 | B(6,9) by Braindead    | T: 979ms  /145ms  | -    | Th: 1 | D2  | N: 1.2K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M  9 | R(9,6) by Grandmaster  | T: 10.1s  /9.9s   | -    | Th: 9 | D3  | N: 22.5K    | NPS: 2.2K     | TT: 2.1%  | %M: 2.0%  | HD: 2.5  | P: -                         | VCF: -
+    G20 M 10 | B(5,10) by Braindead    | T: 145ms  /129ms  | -    | Th: 1 | D2  | N: 518      | NPS: 3.8K     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 11 | R(4,11) by Grandmaster  | T: 60ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 16       | TT: 2.1%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 12 | B(3,4) by Braindead    | T: 7ms    /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 142      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 13 | R(9,7) by Grandmaster  | T: 11.2s  /11.0s  | -    | Th: 9 | D2  | N: 23.6K    | NPS: 2.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 14 | B(6,10) by Braindead    | T: 172ms  /213ms  | -    | Th: 1 | D6552 | N: 52.4K    | NPS: 319.6K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 15 | R(10,6) by Grandmaster  | T: 11.3s  /11.0s  | -    | Th: 9 | D2  | N: 16.1K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 16 | B(11,5) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 17 | R(11,6) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D2  | N: 21.7K    | NPS: 2.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 18 | B(8,6) by Braindead    | T: 163ms  /200ms  | -    | Th: 1 | D8330 | N: 66.6K    | NPS: 432.7K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 19 | R(9,5) by Grandmaster  | T: 10.2s  /10.0s  | -    | Th: 9 | D1  | N: 13.9K    | NPS: 1.4K     | TT: 0.0%  | %M: 0.0%  | HD: 1.0  | P: -                         | VCF: -
+    G20 M 20 | B(9,8) by Braindead    | T: 156ms  /190ms  | -    | Th: 1 | D13341 | N: 106.7K   | NPS: 731.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 21 | R(9,4) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 17.5K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 22 | B(9,3) by Braindead    | T: 8ms    /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 125      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 23 | R(12,6) by Grandmaster  | T: 9.3s   /9.0s   | -    | Th: 9 | D2  | N: 12.0K    | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 24 | B(13,6) by Braindead    | T: 10ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 25 | R(10,5) by Grandmaster  | T: 9.2s   /9.0s   | -    | Th: 9 | D2  | N: 17.4K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 26 | B(12,7) by Braindead    | T: 462ms  /586ms  | -    | Th: 1 | D32610 | N: 260.9K   | NPS: 578.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 27 | R(8,3) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 10.0K    | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 28 | B(7,2) by Braindead    | T: 11ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 29 | R(10,7) by Grandmaster  | T: 8.2s   /8.0s   | -    | Th: 9 | D2  | N: 15.0K    | NPS: 1.8K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 30 | B(10,4) by Braindead    | T: 453ms  /574ms  | -    | Th: 1 | D29394 | N: 235.1K   | NPS: 532.0K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 31 | R(10,9) by Grandmaster  | T: 8.3s   /8.0s   | -    | Th: 9 | D2  | N: 10.4K    | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 32 | B(10,8) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 76       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 33 | R(8,2) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 14.1K    | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 34 | B(8,4) by Braindead    | T: 450ms  /567ms  | -    | Th: 1 | D252 | N: 224.3K   | NPS: 513.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 35 | R(8,5) by Grandmaster  | T: 7.3s   /7.0s   | -    | Th: 9 | D2  | N: 8.0K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 36 | B(11,8) by Braindead    | T: 443ms  /559ms  | -    | Th: 1 | D60104 | N: 480.8K   | NPS: 1.1M     | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 37 | R(12,8) by Grandmaster  | T: 7.2s   /7.0s   | -    | Th: 9 | D2  | N: 12.4K    | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 38 | B(14,5) by Braindead    | T: 437ms  /555ms  | -    | Th: 1 | D256 | N: 223.8K   | NPS: 524.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 39 | R(15,4) by Grandmaster  | T: 5.9s   /6.0s   | -    | Th: 9 | D2  | N: 7.4K     | NPS: 1.3K     | TT: 33.3% | %M: 100.0% | HD: 1.6  | P: -                         | VCF: -
+    G20 M 40 | B(7,5) by Braindead    | T: 436ms  /552ms  | -    | Th: 1 | D473 | N: 410.1K   | NPS: 967.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 41 | R(6,6) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 14.1K    | NPS: 2.3K     | TT: 5.0%  | %M: 92.0% | HD: 2.0  | P: -                         | VCF: -
+    G20 M 42 | B(10,2) by Braindead    | T: 436ms  /551ms  | -    | Th: 1 | D259 | N: 222.3K   | NPS: 523.1K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 43 | R(11,1) by Grandmaster  | T: 63ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 15       | TT: 5.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 44 | B(2,8) by Braindead    | T: 11ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 90       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 45 | R(11,7) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 9.4K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 46 | B(13,9) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 76       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 47 | R(7,4) by Grandmaster  | T: 6.3s   /6.0s   | -    | Th: 9 | D2  | N: 6.6K     | NPS: 1.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 48 | B(6,3) by Braindead    | T: 12ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 49 | R(7,7) by Grandmaster  | T: 6.2s   /6.0s   | -    | Th: 9 | D2  | N: 9.4K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 50 | B(9,9) by Braindead    | T: 569ms  /723ms  | -    | Th: 1 | D42549 | N: 340.4K   | NPS: 612.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 51 | R(5,5) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 5.4K     | NPS: 1.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 52 | B(4,4) by Braindead    | T: 13ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 76       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 53 | R(6,5) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 8.8K     | NPS: 1.7K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 54 | B(9,2) by Braindead    | T: 580ms  /734ms  | -    | Th: 1 | D39678 | N: 317.4K   | NPS: 561.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 55 | R(5,6) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 5.3K     | NPS: 1.0K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 56 | B(4,7) by Braindead    | T: 14ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 71       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 57 | R(6,7) by Grandmaster  | T: 5.2s   /5.0s   | -    | Th: 9 | D2  | N: 8.4K     | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 58 | B(6,8) by Braindead    | T: 588ms  /745ms  | -    | Th: 1 | D41217 | N: 329.7K   | NPS: 575.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 59 | R(10,3) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 6.5K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 60 | B(7,6) by Braindead    | T: 17ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 62       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 61 | R(6,11) by Grandmaster  | T: 5.3s   /5.0s   | -    | Th: 9 | D2  | N: 8.2K     | NPS: 1.6K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 62 | B(11,2) by Braindead    | T: 598ms  /756ms  | -    | Th: 1 | D368 | N: 286.6K   | NPS: 492.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 63 | R(7,11) by Grandmaster  | T: 5.4s   /5.0s   | -    | Th: 9 | D2  | N: 6.1K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 64 | B(5,11) by Braindead    | T: 18ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 55       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 65 | R(9,11) by Grandmaster  | T: 4.3s   /4.0s   | -    | Th: 9 | D2  | N: 5.6K     | NPS: 1.3K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 66 | B(10,11) by Braindead    | T: 14ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 71       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 67 | R(7,10) by Grandmaster  | T: 4.3s   /4.0s   | -    | Th: 9 | D2  | N: 4.9K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 68 | B(12,2) by Braindead    | T: 609ms  /774ms  | -    | Th: 1 | D687 | N: 519.0K   | NPS: 872.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 69 | R(13,2) by Grandmaster  | T: 10ms   /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 100      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/26n/1.4Knps            | VCF: -
+    G20 M 70 | B(7,12) by Braindead    | T: 608ms  /778ms  | -    | Th: 1 | D427 | N: 319.0K   | NPS: 533.5K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 71 | R(8,10) by Grandmaster  | T: 4.3s   /4.0s   | -    | Th: 9 | D2  | N: 5.2K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 72 | B(8,9) by Braindead    | T: 617ms  /783ms  | -    | Th: 1 | D405 | N: 299.3K   | NPS: 497.2K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 73 | R(10,12) by Grandmaster  | T: 4.1s   /4.0s   | -    | Th: 9 | D2  | N: 3.6K     | NPS: 877      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 74 | B(11,13) by Braindead    | T: 18ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 55       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 75 | R(11,4) by Grandmaster  | T: 4.3s   /4.0s   | -    | Th: 9 | D2  | N: 6.5K     | NPS: 1.5K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 76 | B(12,3) by Braindead    | T: 14ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 71       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 77 | R(6,12) by Grandmaster  | T: 3.9s   /3.8s   | -    | Th: 9 | D2  | N: 4.3K     | NPS: 1.1K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 78 | B(9,10) by Braindead    | T: 634ms  /800ms  | -    | Th: 1 | D694 | N: 496.5K   | NPS: 807.4K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 79 | R(11,12) by Grandmaster  | T: 7ms    /0ms    | Bl   | Th: 9 | D1  | N: 1        | NPS: 142      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/36n/1.7Knps            | VCF: -
+    G20 M 80 | B(13,4) by Braindead    | T: 633ms  /804ms  | -    | Th: 1 | D448 | N: 316.8K   | NPS: 511.8K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 81 | R(10,1) by Grandmaster  | T: 68ms   /0ms    | Bl   | Th: 9 | D1  | N: 2        | NPS: 29       | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 82 | B(15,6) by Braindead    | T: 639ms  /809ms  | -    | Th: 1 | D804 | N: 562.5K   | NPS: 904.3K   | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 83 | R(8,12) by Grandmaster  | T: 4.1s   /4.0s   | -    | Th: 9 | D2  | N: 5.2K     | NPS: 1.3K     | TT: 35.7% | %M: 50.0% | HD: 1.5  | P: -                         | VCF: -
+    G20 M 84 | B(9,12) by Braindead    | T: 636ms  /813ms  | -    | Th: 1 | D480 | N: 331.3K   | NPS: 528.4K   | TT: 0.1%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 85 | R(8,13) by Grandmaster  | T: 3.9s   /3.8s   | -    | Th: 9 | D2  | N: 4.5K     | NPS: 1.2K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 86 | B(8,14) by Braindead    | T: 16ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 62       | TT: 0.1%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 87 | R(5,13) by Grandmaster  | T: 959ms  /900ms  | -    | Th: 9 | D2  | N: 1.8K     | NPS: 1.9K     | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 88 | B(4,14) by Braindead    | T: 16ms   /0ms    | Bl   | Th: 1 | D1  | N: 1        | NPS: 62       | TT: 0.1%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 89 | R(5,7) by Grandmaster  | T: 3.6s   /3.3s   | -    | Th: 9 | D2  | N: 3.4K     | NPS: 943      | TT: 0.0%  | %M: 0.0%  | HD: 1.5  | P: -                         | VCF: -
+    G20 M 90 | B(0,3) by Braindead    | T: 12ms   /0ms    | Er   | Th: 1 | D1  | N: 1        | NPS: 83       | TT: 0.1%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 91 | R(5,4) by Grandmaster  | T: 113ms  /3.3s   | -    | Th: 9 | D0  | N: 0        | NPS: 0        | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: 2d/7n
+    G20 M 92 | B(5,3) by Braindead    | T: 16ms   /0ms    | Bl   | Th: 1 | D1  | N: 2        | NPS: 125      | TT: 0.1%  | %M: 0.0%  | HD: 0.0  | P: -                         | VCF: -
+    G20 M 93 | R(5,8) by Grandmaster  | T: 2ms    /0ms    | Wn   | Th: 9 | D1  | N: 1        | NPS: 500      | TT: 0.0%  | %M: 0.0%  | HD: 0.0  | P: D1/63n/3.7Knps            | VCF: -
+    → Game 20: Grandmaster (Red) wins on move 93 (277.0s)
+
+  ───────────────────────────────────────────────────────────────────
+  SUMMARY: Grandmaster 8 - 12 Braindead - 0 draws
+  Win rates: Grandmaster 40.0% | Braindead 60.0%
+  Avg moves: 50.1 | Avg time: 170.0s/game
+
+
+
+═══════════════════════════════════════════════════════════════════
+  EXPERIMENTAL MATCHUPS
+═══════════════════════════════════════════════════════════════════
+
+
+═══════════════════════════════════════════════════════════════════
+  FINAL SUMMARY
+═══════════════════════════════════════════════════════════════════
+
+╔═══════════════════════════════════════════════════════════════════╗
+║                       MATCHUP RESULTS                             ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────┬──────┬──────┬──────┬────────┬────────┐
+│ Matchup                         │ 1st  │ 2nd  │ Draw │  Avg   │  Avg   │
+│                                 │ Wins │ Wins │      │ Moves  │ Time(s)│
+├─────────────────────────────────┼──────┼──────┼──────┼────────┼────────┤
+│ Grandmaster vs Braindead        │    8 │   12 │    0 │   50.1 │  170.4 │
+└─────────────────────────────────┴──────┴──────┴──────┴────────┴────────┘
+
+╔═══════════════════════════════════════════════════════════════════╗
+║                      PERFORMANCE BY DIFFICULTY                   ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+┌───────────────┬────────┬────────┬────────┬────────┐
+│ Difficulty    │  Wins  │ Losses │  Draws │  Win % │
+├───────────────┼────────┼────────┼────────┼────────┤
+│ Braindead     │     12 │      8 │      0 │  60.0% │
+│ Easy          │      0 │      0 │      0 │   0.0% │
+│ Medium        │      0 │      0 │      0 │   0.0% │
+│ Hard          │      0 │      0 │      0 │   0.0% │
+│ Grandmaster   │      8 │     12 │      0 │  40.0% │
+└───────────────┴────────┴────────┴────────┴────────┘
+
