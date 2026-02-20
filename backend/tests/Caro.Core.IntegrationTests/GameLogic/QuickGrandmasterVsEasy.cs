@@ -25,7 +25,7 @@ public class QuickGrandmasterVsEasy
 
         var ai = AITestHelper.CreateAI();
 
-        // Grandmaster (D10) should block at (2, 4)
+        // Grandmaster (D5) should block at (2, 4)
         var (gx, gy) = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
         gx.Should().Be(2, "Grandmaster should block Blue's four in a row");
         gy.Should().Be(4, "Grandmaster should block Blue's four in a row");

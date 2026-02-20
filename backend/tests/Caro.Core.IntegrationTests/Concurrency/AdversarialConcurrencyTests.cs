@@ -277,7 +277,7 @@ public class AdversarialConcurrencyTests
                 {
                     var ai = AITestHelper.CreateAI();
                     var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Easy);
-                    var (depth, _, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
+                    var (depth, _, _, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
                     results.Add((x, y, depth));
                 }
                 catch (Exception ex)

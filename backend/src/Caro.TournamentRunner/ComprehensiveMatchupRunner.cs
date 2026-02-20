@@ -464,7 +464,7 @@ public class ComprehensiveMatchupRunner
         LogWrite($"┌─────────────────────────────────────────────────────────────────────┐");
         LogWrite($"│ {config.Description,-71} │");
         LogWrite($"├─────────────────────────────────────────────────────────────────────┤");
-        LogWrite($"│ Time: {config.InitialTimeSeconds / 60}+{config.IncrementSeconds} | Pondering: {(config.EnablePondering ? "ON" : "OFF"),3} | Parallel: {(config.EnableParallel ? "ON" : "OFF"),3} │");
+        LogWrite($"│ Time: {config.InitialTimeSeconds}+{config.IncrementSeconds} | Pondering: {(config.EnablePondering ? "ON" : "OFF"),3} | Parallel: {(config.EnableParallel ? "ON" : "OFF"),3} │");
         LogWrite($"└─────────────────────────────────────────────────────────────────────┘");
         LogWrite();
 

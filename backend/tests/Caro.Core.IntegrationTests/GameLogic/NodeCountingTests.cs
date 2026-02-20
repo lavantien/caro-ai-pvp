@@ -35,7 +35,7 @@ public class NodeCountingTests
         {
             board = board.PlaceStone(testPositions[i].x, testPositions[i].y, Player.Red);
             var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard); // D4 uses parallel search
-            var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
+            var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
             results.Add(nodesSearched);
         }
 
@@ -60,7 +60,7 @@ public class NodeCountingTests
 
         var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Easy);
 
-        var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
+        var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // Should have searched actual nodes
         Assert.True(nodesSearched > 0, $"Sequential search should count nodes, got {nodesSearched}");
@@ -81,7 +81,7 @@ public class NodeCountingTests
 
         var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
 
-        var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
+        var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // Node count should be reasonable (not a mathematical constant like 1,739,501,775)
         // Real counts vary, but shouldn't be exact round numbers from estimation
@@ -167,7 +167,7 @@ public class NodeCountingTests
 
         var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);
 
-        var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
+        var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
 
         // All difficulties should report positive node counts
         Assert.True(nodesSearched > 0,
