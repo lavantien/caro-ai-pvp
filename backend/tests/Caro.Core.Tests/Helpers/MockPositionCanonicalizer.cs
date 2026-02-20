@@ -76,12 +76,12 @@ public sealed class MockPositionCanonicalizer : IPositionCanonicalizer
     public ulong ComputeCanonicalHash(BitBoard redBitBoard, BitBoard blueBitBoard, Player player)
     {
         // Simple hash for testing: combine red and blue board hashes
-        var (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15) = redBitBoard.GetRawValues();
-        var (b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15) = blueBitBoard.GetRawValues();
+        var (r0, r1, r2, r3) = redBitBoard.GetRawValues();
+        var (b0, b1, b2, b3) = blueBitBoard.GetRawValues();
 
         // Combine all values with XOR
-        ulong hash = r0 ^ r1 ^ r2 ^ r3 ^ r4 ^ r5 ^ r6 ^ r7 ^ r8 ^ r9 ^ r10 ^ r11 ^ r12 ^ r13 ^ r14 ^ r15;
-        hash ^= b0 ^ b1 ^ b2 ^ b3 ^ b4 ^ b5 ^ b6 ^ b7 ^ b8 ^ b9 ^ b10 ^ b11 ^ b12 ^ b13 ^ b14 ^ b15;
+        ulong hash = r0 ^ r1 ^ r2 ^ r3;
+        hash ^= b0 ^ b1 ^ b2 ^ b3;
         hash ^= (ulong)player;
 
         return hash;

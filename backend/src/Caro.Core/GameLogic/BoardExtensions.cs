@@ -52,9 +52,7 @@ public static class BoardExtensions
     public static BitBoard GetRedBitBoard(this Board board)
     {
         var bits = board.GetBitBoardBits(Player.Red);
-        return new BitBoard(bits[0], bits[1], bits[2], bits[3], bits[4], bits[5],
-                           bits[6], bits[7], bits[8], bits[9], bits[10], bits[11],
-                           bits[12], bits[13], bits[14], bits[15]);
+        return new BitBoard(bits[0], bits[1], bits[2], bits[3]);
     }
 
     /// <summary>
@@ -65,9 +63,7 @@ public static class BoardExtensions
     public static BitBoard GetBlueBitBoard(this Board board)
     {
         var bits = board.GetBitBoardBits(Player.Blue);
-        return new BitBoard(bits[0], bits[1], bits[2], bits[3], bits[4], bits[5],
-                           bits[6], bits[7], bits[8], bits[9], bits[10], bits[11],
-                           bits[12], bits[13], bits[14], bits[15]);
+        return new BitBoard(bits[0], bits[1], bits[2], bits[3]);
     }
 
     /// <summary>

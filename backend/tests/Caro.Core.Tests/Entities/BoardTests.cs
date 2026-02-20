@@ -14,9 +14,9 @@ public class BoardTests
         // Act
         var board = new Board();
 
-        // Assert
-        board.BoardSize.Should().Be(32);
-        board.Cells.Should().HaveCount(1024);
+        // Assert - 16x16 board = 256 cells
+        board.BoardSize.Should().Be(16);
+        board.Cells.Should().HaveCount(256);
     }
 
     [Fact]
@@ -36,8 +36,8 @@ public class BoardTests
     [Theory]
     [InlineData(-1, 0)]
     [InlineData(0, -1)]
-    [InlineData(32, 0)]
-    [InlineData(0, 32)]
+    [InlineData(16, 0)]
+    [InlineData(0, 16)]
     public void PlaceStone_InvalidPosition_ThrowsArgumentOutOfRangeException(int x, int y)
     {
         // Arrange

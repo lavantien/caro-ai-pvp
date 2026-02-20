@@ -329,8 +329,8 @@ public class BitBoardTests
         board.SetBit(14, 14);
 
         // Act
-        var (b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15) = board.GetRawValues();
-        var newBoard = BitBoard.FromRawValues(b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15);
+        var (b0, b1, b2, b3) = board.GetRawValues();
+        var newBoard = BitBoard.FromRawValues(b0, b1, b2, b3);
 
         // Assert
         newBoard.GetBit(0, 0).Should().BeTrue();
@@ -411,17 +411,17 @@ public class BitBoardTests
     [Fact]
     public void RowBoundary_ShiftRightWrapsAround()
     {
-        // Arrange - Bit at x=31 of each row (last column of 32x32 board)
+        // Arrange - Bit at x=15 of each row (last column of 16x16 board)
         var board = new BitBoard();
         for (int y = 0; y < BitBoard.Size; y++)
         {
-            board.SetBit(31, y);
+            board.SetBit(15, y);
         }
 
-        // Act - Shift right (bits at x=31 will move to x=30, some may wrap)
+        // Act - Shift right (bits at x=15 will move to x=14, some may wrap)
         var result = board.ShiftRight();
 
-        // Assert - For 32x32 board, most bits shift correctly but some may wrap incorrectly
+        // Assert - For 16x16 board, most bits shift correctly but some may wrap incorrectly
         // This tests the current behavior rather than ideal behavior
         result.CountBits().Should().Be(BitBoard.Size - 1); // One bit lost due to row boundary
     }
@@ -439,7 +439,7 @@ public class BitBoardTests
 
         // Assert
         str.Should().Contain("BitBoard");
-        str.Should().Contain("32x32");
+        str.Should().Contain("16x16");
     }
 
     [Theory]

@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Tests.Helpers;
@@ -103,9 +104,9 @@ public class OpeningBookSymmetryTests
 
         // The transformed coordinates should be valid (on board)
         actualX.Should().BeGreaterThanOrEqualTo(0);
-        actualX.Should().BeLessThan(32);
+        actualX.Should().BeLessThan(GameConstants.BoardSize);
         actualY.Should().BeGreaterThanOrEqualTo(0);
-        actualY.Should().BeLessThan(32);
+        actualY.Should().BeLessThan(GameConstants.BoardSize);
 
         // The cell should be empty (not already occupied)
         var cell = board1.GetCell(actualX, actualY);
@@ -308,9 +309,9 @@ public class OpeningBookSymmetryTests
 
         // Assert - The transformation should work correctly
         actualX.Should().BeGreaterThanOrEqualTo(0);
-        actualX.Should().BeLessThan(32);
+        actualX.Should().BeLessThan(GameConstants.BoardSize);
         actualY.Should().BeGreaterThanOrEqualTo(0);
-        actualY.Should().BeLessThan(32);
+        actualY.Should().BeLessThan(GameConstants.BoardSize);
 
         // Verify the cell is empty
         var cell = board.GetCell(actualX, actualY);
@@ -440,26 +441,27 @@ public class OpeningBookSymmetryTests
         var random = new Random(42);  // Fixed seed for reproducibility
 
         // Create board with occupied cells far from the test area
-        // Rotate180 transforms (x, y) to (18-x, 18-y)
+        // Rotate180 transforms (x, y) to (15-x, 15-y) for 16x16 board
         // We'll use canonical coordinates that transform to unoccupied area
         var board = new Board();
-        board = board.PlaceStone(9, 9, Player.Red);
-        board = board.PlaceStone(5, 5, Player.Blue);  // Far from test area
+        board = board.PlaceStone(8, 8, Player.Red);
+        board = board.PlaceStone(4, 4, Player.Blue);  // Far from test area
 
         var storedSymmetry = SymmetryType.Rotate180;
         var canonicalHash = 99999UL;
 
         // Create multiple moves in canonical space
         // Using coordinates that won't conflict after Rotate180 transform
-        // (7, 10) -> (11, 8), (8, 10) -> (10, 8), (9, 10) -> (9, 8), etc.
-        // These avoid (9, 9) Red and (5, 5) Blue
+        // For 16x16: (5, 7) -> (10, 8), (6, 7) -> (9, 8), (7, 7) -> (8, 8) [occupied!], etc.
+        // Let's use coordinates far from (8, 8) Red and (4, 4) Blue
+        // (2, 5) -> (13, 10), (3, 5) -> (12, 10), etc.
         var moves = new List<BookMove>();
         for (int i = 0; i < 5; i++)
         {
             moves.Add(new BookMove
             {
-                RelativeX = 7 + i,
-                RelativeY = 10,
+                RelativeX = 2 + i,
+                RelativeY = 5,
                 WinRate = 45 + i,
                 DepthAchieved = 10 + i,
                 NodesSearched = 1000 * (i + 1),
@@ -495,8 +497,8 @@ public class OpeningBookSymmetryTests
             );
 
             // Should be valid coordinates
-            actualX.Should().BeInRange(0, 31);
-            actualY.Should().BeInRange(0, 31);
+            actualX.Should().BeInRange(0, GameConstants.BoardSize - 1);
+            actualY.Should().BeInRange(0, GameConstants.BoardSize - 1);
 
             // Should be empty cells
             var cell = board.GetCell(actualX, actualY);
@@ -598,8 +600,8 @@ public class OpeningBookSymmetryTests
             );
 
             // Valid coordinates
-            actualX.Should().BeInRange(0, 31);
-            actualY.Should().BeInRange(0, 31);
+            actualX.Should().BeInRange(0, GameConstants.BoardSize - 1);
+            actualY.Should().BeInRange(0, GameConstants.BoardSize - 1);
 
             // Empty cells
             var cell = board.GetCell(actualX, actualY);

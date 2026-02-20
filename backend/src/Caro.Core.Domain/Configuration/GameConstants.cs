@@ -7,17 +7,17 @@ namespace Caro.Core.Domain.Configuration;
 public static class GameConstants
 {
     /// <summary>
-    /// Board size (32x32 grid)
+    /// Board size (16x16 grid)
     /// </summary>
-    public const int BoardSize = 32;
+    public const int BoardSize = 16;
 
     /// <summary>
-    /// Total number of cells on the board (32 * 32 = 1024)
+    /// Total number of cells on the board (16 * 16 = 256)
     /// </summary>
     public const int TotalCells = BoardSize * BoardSize;
 
     /// <summary>
-    /// Center position index (16 is center of 0-31 range)
+    /// Center position index (8 is center of 0-15 range)
     /// </summary>
     public const int CenterPosition = BoardSize / 2;
 
