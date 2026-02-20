@@ -384,6 +384,35 @@ if (threadIndex > 0) {
 // Master threads (threadIndex=0) can store any entry
 ```
 
+### Key Architectural Decisions
+
+**Search-Based Threat Handling:**
+- Threat blocks added to candidate list, not returned immediately
+- Search evaluates offensive vs defensive options together
+- Maintains strategic initiative instead of reactive blocking
+- Prevents "strength inversion" (weaker AI exploiting predictable behavior)
+
+**Opening Book Architecture:**
+- SQLite with 8-way symmetry reduction (~8x storage savings)
+- Compound key (CanonicalHash, DirectHash, Player) prevents collisions
+- Uniform beam: 4 moves/position up to ply 14
+- Search score evaluation (not static eval) for move ranking
+- Hard+ validates book moves with quick search before use
+
+**Ponder Hit Handling:**
+- Ponder runs during opponent's turn (free precomputation)
+- `HasPonderHitResult` checks for valid hit before new search
+- No waiting - ponder result available immediately if hit occurred
+- TT shared between ponder and main search for efficiency
+
+**Book Builder Design:**
+- Parallel worker pool (8 workers) with per-position AI instances
+- Smart candidate pruning: static eval filters 95%+ of candidates
+- TT preservation across positions for subtree reuse
+- Resume capability for incremental book generation
+
+**Detailed Technical Documentation:** See `ENGINE_FEATURES.md` for comprehensive coverage of search algorithms, transposition tables, move ordering, evaluation, and time management.
+
 ---
 
 ## Concurrency
