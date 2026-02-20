@@ -1,6 +1,6 @@
 # Caro AI Engine Features
 
-**Version:** 1.58.0
+**Version:** 1.62.0
 **Board:** 32x32 (1024 intersections)
 **Rule:** Caro (exactly-5 to win, open rule for red's second move)
 
@@ -401,6 +401,12 @@ Background search during opponent's turn.
 - TT stored for potential reuse
 - Interrupted on opponent move
 
+**Ponder Hit Handling:**
+- `HasPonderHitResult` property checks for valid ponder hit
+- `GetPonderHitResult()` retrieves result immediately (no waiting)
+- Ponder time is "free" precomputation - runs during opponent's turn
+- GetBestMove checks for ponder hit before starting new search
+
 ---
 
 ## 7. Domain-Specific Features
@@ -452,7 +458,8 @@ Precomputed opening positions for early game guidance.
 **Structure:**
 - SQLite database with symmetry reduction
 - 8-way transformations reduce storage ~8x
-- Tapered beam: 4→3→2→1 moves per depth tier
+- Uniform beam: 4 moves per position up to ply 14
+- Compound key storage: (CanonicalHash, DirectHash, Player) prevents hash collisions
 
 **Book Depth by Difficulty:**
 
@@ -470,6 +477,12 @@ Precomputed opening positions for early game guidance.
 - Prevents strength inversions from bad book moves
 - Falls back to full search if book move scores < -100 centipawns
 - Lower difficulties use book moves directly for speed
+
+**Book Generation Scoring:**
+- Uses actual minimax search score (not static evaluation)
+- Validates scores to reject sentinel values (int.MinValue = search failure)
+- Score clamping prevents overflow issues
+- Invalid/corrupted scores filtered during retrieval
 
 **Integration:**
 - TournamentEngineFactory creates engines with book pre-loaded
@@ -490,7 +503,32 @@ Caro rule requires exactly 5 stones (not 6+) to win.
 - Blocked fours can still win
 - Double threats prioritized
 
-### 7.5 Open Rule
+### 7.5 Threat Detection Philosophy
+
+The engine uses search-based threat evaluation rather than reflexive blocking.
+
+**Key Principle:**
+- Threat blocks are added to candidate list, not returned immediately
+- Search evaluates offensive options alongside defensive blocks
+- AI maintains strategic initiative instead of reactive blocking
+
+**Threat Categories:**
+- **Open Four** (4-in-a-row, both ends open): 2 winning squares - inherently unblockable
+- **Open Three** (3-in-a-row, both ends open): Becomes open four next move
+- **Broken Four** (4 with gap): Single winning square - can be blocked
+- **Double Threat**: Two independent threats - usually winning
+
+**Blocking Strategy:**
+- Open three blocks: Added to candidates, search chooses best move
+- Open four blocks: Mandatory (but often too late - prevention required)
+- Multiple threats: Search evaluates which to address
+
+**Design Rationale:**
+- Immediate blocking forces reactive play
+- Search-based evaluation maintains strategic flexibility
+- Prevents "strength inversion" where weaker AI exploits predictable blocking
+
+### 7.6 Open Rule
 
 Red's second move must be at least 3 intersections from first.
 
