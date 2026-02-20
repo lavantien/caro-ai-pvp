@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.63.0] - 2026-02-20
+
+### Changed
+- **Board size reduced from 32x32 to 16x16** for faster search and better opening book coverage
+  - Board.cs, BitBoard.cs, GameConstants.cs updated for 16x16 dimensions
+  - BitBoard now uses 4 ulongs (256 bits) instead of 16 ulongs (1024 bits)
+  - Center position changed from (16, 16) to (8, 8)
+  - Search radius adjusted for smaller board
+
+### Added
+- **SearchBoard class** - Mutable board representation with make/unmake pattern
+  - Zero-allocation move execution for AI search
+  - 115x speedup over immutable Board.PlaceStone (115ms → 1ms in benchmarks)
+  - Compatible hash with immutable Board for transposition table
+- **SearchBoardExtensions** - Helper methods for SearchBoard
+  - GetCandidateMoves, HasWin, IsWinningMove, StoneCount, GetOccupiedPositions
+- **MinimaxCore/QuiesceCore** - SearchBoard-based search methods
+  - Uses make/unmake pattern instead of copy-make
+  - All helper methods have SearchBoard overloads
+- **BitBoardEvaluator.SearchBoard overload** - High-performance evaluation path
+
+### Performance
+- **115x speedup** in board operations during search
+- Immutable Board.PlaceStone: 115μs/iteration
+- Mutable SearchBoard.MakeMove/UnmakeMove: 1μs/iteration
+- All 675 tests passing
+
+### Technical Notes
+- SearchBoard uses same hash formula as Board for TT compatibility
+- MakeMove returns MoveUndo struct (16 bytes) for O(1) unmake
+- Hash incrementally maintained during make/unmake
+- BitBoard operations (GetBit, SetBit, ClearBit) optimized for 4-ulong layout
+
+### Test Coverage
+- SearchBoardTests.cs - 19 tests covering make/unmake, hash, cloning
+- SearchBoardExtensionsTests.cs - 12 tests for extension methods
+- SearchBoardBenchmarks.cs - Performance benchmark
+
+[1.63.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.63.0
+
 ## [1.62.0] - 2026-02-20
 
 ### Fixed

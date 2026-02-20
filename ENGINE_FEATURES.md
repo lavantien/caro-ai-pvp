@@ -1,7 +1,7 @@
 # Caro AI Engine Features
 
-**Version:** 1.62.0
-**Board:** 32x32 (1024 intersections)
+**Version:** 1.63.0
+**Board:** 16x16 (256 intersections)
 **Rule:** Caro (exactly-5 to win, open rule for red's second move)
 
 ---
@@ -421,21 +421,21 @@ Immutable board design with pre-computed AI optimization data.
 - Pre-computed bitboards and hash updated incrementally
 
 **Performance Optimization:**
-- BitBoards: `ulong[16]` arrays (1024 bits for 32x32 board)
+- BitBoards: `ulong[4]` arrays (256 bits for 16x16 board)
 - Hash: Zobrist-style XOR updated on each move
 - O(1) access during AI search instead of O(n²) iteration
 
 **Memory Layout:**
 ```
-BitIndex = y * 32 + x
+BitIndex = y * 16 + x
 UlongIndex = BitIndex / 64
 BitOffset = BitIndex % 64
 ```
 
 **Trade-offs:**
-- PlaceStone copies 1024 cells + 128 bytes of bitboards
-- Acceptable for AI search depth (avoid repeated iteration)
-- NPS improved 10-50x over lazy computation
+- Immutable Board copies 256 cells on PlaceStone
+- SearchBoard uses make/unmake pattern (zero allocation)
+- NPS improved 100x+ with mutable SearchBoard
 
 ### 7.2 VCF Solver
 

@@ -19,7 +19,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 - Comprehensive test runners: 20 matchups, 10 games each, 3+2 time control
 
 **Game Rules (Caro/Gomoku variant):**
-- 32x32 board (1024 intersections)
+- 16x16 board (256 intersections)
 - Open Rule: Red's second move must be at least 3 intersections away from first
 - Win: Exactly 5 in a row (6+ or blocked ends don't count)
 - Time Control: 1+0 (Bullet), 3+2 (Blitz), 7+5 (Rapid), 15+10 (Classical)
@@ -313,7 +313,7 @@ graph TB
     end
 
     subgraph Domain["Domain Layer (Core)"]
-        Board["Board (32x32)"]
+        Board["Board (16x16)"]
         Player["Player Enum"]
         GameState["GameState"]
         AIDifficulty["AIDifficulty"]
