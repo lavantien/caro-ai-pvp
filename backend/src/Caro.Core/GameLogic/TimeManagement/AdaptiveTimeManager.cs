@@ -136,11 +136,10 @@ public sealed class AdaptiveTimeManager
         long maxAllocatableMs;
         long percentageBoundMs;
 
-        // CRITICAL FIX: Always cap at 3x increment to prevent clock burn
-        // This ensures we never use more than 3 moves worth of increment on a single move
-        // For 2s increment: max 6s per move (was unlimited before time scramble)
-        // For 5s increment: max 15s per move
-        var incrementBasedMaxMs = incrementMs * 3;
+        // Time allotment formula: (initial_time / 20) + (increment * 2)
+        // For 180+2: 180/20 + 2*2 = 9 + 4 = 13s max per move
+        // For 300+3: 300/20 + 3*2 = 15 + 6 = 21s max per move
+        var timeAllotMaxMs = ((initialTimeSeconds / 20) + (incrementSeconds * 2)) * 1000L;
 
         if (isInTimeScramble)
         {
@@ -157,9 +156,8 @@ public sealed class AdaptiveTimeManager
             maxAllocatableMs = Math.Max(0, timeRemainingMs - 1000);
             percentageBoundMs = (long)(timeRemainingMs * maxTimePercent);
 
-            // CRITICAL FIX: Always apply increment cap, not just in time scramble
-            // This prevents burning through the clock with a few long moves early
-            percentageBoundMs = Math.Min(percentageBoundMs, incrementBasedMaxMs);
+            // Apply time allot formula cap to prevent burning through the clock
+            percentageBoundMs = Math.Min(percentageBoundMs, timeAllotMaxMs);
         }
 
         // Soft bound: adjusted time, but respect percentage cap
@@ -175,8 +173,8 @@ public sealed class AdaptiveTimeManager
         }
         else
         {
-            // CRITICAL FIX: Cap hard bound at 3x increment even in normal mode
-            desiredHardBoundMs = Math.Min(desiredHardBoundMs, incrementBasedMaxMs);
+            // Cap hard bound at time allot formula
+            desiredHardBoundMs = Math.Min(desiredHardBoundMs, timeAllotMaxMs);
         }
         var hardBoundMs = Math.Min(desiredHardBoundMs, Math.Max(softBoundMs + 100, maxAllocatableMs));
 
