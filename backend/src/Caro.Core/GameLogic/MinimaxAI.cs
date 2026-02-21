@@ -1417,11 +1417,21 @@ public class MinimaxAI : IStatsPublisher
             // Check transposition table with current window
             _tableLookups++;
             var (found, cachedScore, cachedMove) = _transpositionTable.Lookup(boardHash, depth, alpha, beta);
-            if (found)
+            if (found && cachedMove.HasValue)
             {
-                _tableHits++;
-                if (cachedMove.HasValue)
-                    return (cachedMove.Value.x, cachedMove.Value.y, cachedScore);
+                // CRITICAL: Validate the cached move is actually legal
+                // TT entries may be from different positions due to hash collisions or stale data
+                var (cx, cy) = cachedMove.Value;
+                if (cx >= 0 && cx < BoardSize && cy >= 0 && cy < BoardSize)
+                {
+                    var cell = board.GetCell(cx, cy);
+                    if (cell.IsEmpty)
+                    {
+                        _tableHits++;
+                        return (cx, cy, cachedScore);
+                    }
+                }
+                // If cached move is invalid, fall through to normal search
             }
 
             // Reset best score for this attempt
