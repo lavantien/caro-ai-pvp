@@ -191,6 +191,9 @@ public sealed class ParallelMinimaxSearch
         var baseDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
         var candidates = GetCandidateMoves(board);
 
+        // SAFETY: Filter candidates to only empty cells to prevent "Cell is already occupied" errors
+        candidates = candidates.Where(c => board.GetCell(c.x, c.y).IsEmpty).ToList();
+
         // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections
         // away from the first red stone (5x5 exclusion zone centered on first move)
         if (player == Player.Red && moveNumber == 3)
@@ -235,21 +238,21 @@ public sealed class ParallelMinimaxSearch
             }
         }
 
-        // Check for opponent's immediate threats that must be blocked
-        // CRITICAL FIX: Do NOT return immediately. Filter candidates to ONLY blocking moves and let the engine search.
-        // This ensures if there are multiple blocks, we pick the best one (or the one that doesn't lead to a loss later).
+        // Check for opponent's CRITICAL threats that must be blocked
+        // CRITICAL FIX: Only filter for MUST-BLOCK threats (immediate wins, open/semi-open fours)
+        // Do NOT filter for BrokenFours - let search evaluate offensive vs defensive options
+        // This prevents Grandmaster from being forced into purely defensive play
         var opponent = player == Player.Red ? Player.Blue : Player.Red;
-        var opponentThreatMoves = GetOpponentThreatMoves(board, opponent);
-        if (opponentThreatMoves.Count > 0)
+        var criticalThreats = GetCriticalThreatMoves(board, opponent);
+        if (criticalThreats.Count > 0)
         {
-            //Console.WriteLine($"[AI] Threat detected! Considering {opponentThreatMoves.Count} blocking moves.");
-            // Filter candidates to only blocking moves
-            var forcingSet = new HashSet<(int x, int y)>(opponentThreatMoves);
+            // Filter candidates to only blocking moves for CRITICAL threats
+            var forcingSet = new HashSet<(int x, int y)>(criticalThreats);
             candidates = candidates.Where(c => forcingSet.Contains((c.x, c.y))).ToList();
 
             // If candidates ended up empty (edge case), fallback to original threat list
             if (candidates.Count == 0)
-                candidates = opponentThreatMoves;
+                candidates = criticalThreats;
         }
 
         // NPS is learned from actual search performance - no hardcoded targets
@@ -279,6 +282,10 @@ public sealed class ParallelMinimaxSearch
             throw new ArgumentException("Player cannot be None");
 
         candidates ??= GetCandidateMoves(board);
+
+        // SAFETY: Filter candidates to only empty cells to prevent "Cell is already occupied" errors
+        // This ensures robustness even if GetCandidateMoves or external callers provide occupied cells
+        candidates = candidates.Where(c => board.GetCell(c.x, c.y).IsEmpty).ToList();
 
         // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections
         // away from the first red stone (5x5 exclusion zone centered on first move)
@@ -313,19 +320,21 @@ public sealed class ParallelMinimaxSearch
             }
         }
 
-        // Check for opponent's immediate threats that must be blocked
-        // CRITICAL FIX: Do NOT return immediately. Filter candidates to ONLY blocking moves and let the engine search.
+        // Check for opponent's CRITICAL threats that must be blocked
+        // CRITICAL FIX: Only filter for MUST-BLOCK threats (immediate wins, open/semi-open fours)
+        // Do NOT filter for BrokenFours - let search evaluate offensive vs defensive options
+        // This prevents Grandmaster from being forced into purely defensive play
         var opponent = player == Player.Red ? Player.Blue : Player.Red;
-        var opponentThreatMoves = GetOpponentThreatMoves(board, opponent);
-        if (opponentThreatMoves.Count > 0)
+        var criticalThreats = GetCriticalThreatMoves(board, opponent);
+        if (criticalThreats.Count > 0)
         {
-            // Filter candidates to only blocking moves
-            var forcingSet = new HashSet<(int x, int y)>(opponentThreatMoves);
+            // Filter candidates to only blocking moves for CRITICAL threats
+            var forcingSet = new HashSet<(int x, int y)>(criticalThreats);
             candidates = candidates.Where(c => forcingSet.Contains((c.x, c.y))).ToList();
 
             // If candidates ended up empty (edge case), fallback to original threat list
             if (candidates.Count == 0)
-                candidates = opponentThreatMoves;
+                candidates = criticalThreats;
         }
 
         // NOTE: Error rate is handled in MinimaxAI.GetBestMove() - do not apply again here
@@ -723,7 +732,9 @@ public sealed class ParallelMinimaxSearch
     {
         // FIX 1+5: Pre-sort candidates by static evaluation before search loop
         // This ensures we have a sensible fallback if search times out before completing any iteration
+        // CRITICAL: Filter to empty cells only to prevent PlaceStone from throwing on occupied cells
         var evaluatedCandidates = candidates
+            .Where(c => board.GetCell(c.x, c.y).IsEmpty)
             .Select(c => (c, eval: Evaluate(board.PlaceStone(c.x, c.y, player), player)))
             .OrderByDescending(x => x.eval)
             .ToList();
@@ -762,7 +773,7 @@ public sealed class ParallelMinimaxSearch
         // which is critical because D2 can see immediate threats that D1 cannot.
         int depthOffset = threadData.ThreadIndex % 2 == 1 ? 1 : 0;
         int currentDepth = 1 + depthOffset;
-        const int MaxSearchDepth = 200; // Prevent runaway depth from TT-accelerated iterations
+        const int MaxSearchDepth = 50; // Realistic max for Caro - prevents bogus depth inflation from TT hits
         while (true)
         {
             // MAX DEPTH CHECK: Prevent runaway depth values
@@ -965,6 +976,13 @@ public sealed class ParallelMinimaxSearch
         int moveIndex = 0;
         foreach (var (x, y) in orderedMoves)
         {
+            // CRITICAL: Skip non-empty cells to prevent PlaceStone exception
+            // This can happen when board is nearly full and candidates include occupied cells
+            if (!board.GetCell(x, y).IsEmpty)
+            {
+                continue;
+            }
+
             // CRITICAL: Check time before each move evaluation
             // This catches timeout during long candidate loops
             if (_searchStopwatch != null && _hardTimeBoundMs > 0)
@@ -2088,6 +2106,67 @@ public sealed class ParallelMinimaxSearch
                 }
             }
         }
+
+        return threats;
+    }
+
+    /// <summary>
+    /// Find opponent's CRITICAL threat moves that MUST be blocked immediately.
+    /// Only returns threats where blocking is mandatory - does NOT include BrokenFours.
+    /// This allows the search to evaluate offensive vs defensive options for lower-priority threats.
+    /// Priority order:
+    /// 1. Five in row (immediate win)
+    /// 2. Straight four (open four or semi-open four)
+    /// </summary>
+    private List<(int x, int y)> GetCriticalThreatMoves(Board board, Player opponent)
+    {
+        var threats = new List<(int x, int y)>();
+
+        // Priority 1: Check for immediate winning moves (5-in-row completion)
+        for (int x = 0; x < BitBoard.Size; x++)
+        {
+            for (int y = 0; y < BitBoard.Size; y++)
+            {
+                if (!board.GetCell(x, y).IsEmpty)
+                    continue;
+
+                var testBoard = board.PlaceStone(x, y, opponent);
+                bool isWinningMove = _winDetector.CheckWin(testBoard).HasWinner;
+
+                if (isWinningMove)
+                {
+                    threats.Add((x, y));
+                }
+            }
+        }
+
+        // If we found winning squares, return immediately
+        if (threats.Count > 0)
+        {
+            return threats;
+        }
+
+        // Priority 2: Check for StraightFour (open four or semi-open four)
+        // These are CRITICAL - opponent can win on their next turn if not blocked
+        var detector = new ThreatDetector();
+        var opponentThreats = detector.DetectThreats(board, opponent);
+
+        foreach (var threat in opponentThreats)
+        {
+            if (threat.Type == ThreatType.StraightFour)
+            {
+                foreach (var gainSquare in threat.GainSquares)
+                {
+                    if (board.GetCell(gainSquare.x, gainSquare.y).IsEmpty && !threats.Contains(gainSquare))
+                    {
+                        threats.Add(gainSquare);
+                    }
+                }
+            }
+        }
+
+        // NOTE: We do NOT include BrokenFour here - let search evaluate those
+        // BrokenFours are lower-priority threats that don't require mandatory blocking
 
         return threats;
     }

@@ -933,7 +933,7 @@ public class MinimaxAI : IStatsPublisher
         bestMove = candidates[0];
         int currentDepth = 1; // Start from depth 1
 
-        const int MaxSearchDepth = 200; // Prevent runaway depth from TT-accelerated iterations
+        const int MaxSearchDepth = 50; // Realistic max for Caro - prevents bogus depth inflation from TT hits
         while (true)  // Time-based only - depth is incidental
         {
             // MAX DEPTH CHECK: Prevent runaway depth values
