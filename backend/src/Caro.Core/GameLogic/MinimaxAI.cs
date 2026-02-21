@@ -616,126 +616,126 @@ public class MinimaxAI : IStatsPublisher
             // The evaluation function will handle StraightThree through normal search
             hasImmediateThreats = threats.Any(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour);
 
-        if (hasOpponentThreats)
-        {
-            var straightFourCount = threats.Count(t => t.Type == ThreatType.StraightFour);
-            var straightThreeCount = threats.Count(t => t.Type == ThreatType.StraightThree);
-            var brokenFourCount = threats.Count(t => t.Type == ThreatType.BrokenFour);
-
-            blockingSquares = threats
-                .SelectMany(t => t.GainSquares)
-                .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
-                .ToList();
-
-            // Check for open four (StraightFour with exactly 2 blocking squares)
-            // This is a critical threat that requires special handling
-            foreach (var threat in threats.Where(t => t.Type == ThreatType.StraightFour))
+            if (hasOpponentThreats)
             {
-                if (threat.GainSquares.Count >= 2)
+                var straightFourCount = threats.Count(t => t.Type == ThreatType.StraightFour);
+                var straightThreeCount = threats.Count(t => t.Type == ThreatType.StraightThree);
+                var brokenFourCount = threats.Count(t => t.Type == ThreatType.BrokenFour);
+
+                blockingSquares = threats
+                    .SelectMany(t => t.GainSquares)
+                    .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
+                    .ToList();
+
+                // Check for open four (StraightFour with exactly 2 blocking squares)
+                // This is a critical threat that requires special handling
+                foreach (var threat in threats.Where(t => t.Type == ThreatType.StraightFour))
                 {
-                    hasOpenFour = true;
-                    // For open fours, prioritize blocking squares that also prevent other threats
-                    foreach (var square in threat.GainSquares)
+                    if (threat.GainSquares.Count >= 2)
                     {
-                        if (board.GetCell(square.x, square.y).IsEmpty)
-                            priorityBlockingSquares.Add(square);
-                    }
-                }
-            }
-
-            // CRITICAL FIX: BrokenFour also indicates critical threat (double attack potential)
-            if (brokenFourCount > 0)
-            {
-                hasOpenFour = true;  // Treat as critically as open four
-            }
-
-            // CRITICAL FIX: StraightThree (open three) should be blocked, BUT only if we don't have
-            // our own winning threats. If we can win immediately, that's better than blocking.
-            // An open three becomes an open four in 2 moves - we have time to counter-attack.
-            if (straightThreeCount > 0 && straightFourCount == 0 && difficulty >= AIDifficulty.Medium)
-            {
-                // First check if we have our own winning threats
-                var ourThreats = _threatDetector.DetectThreats(board, player);
-                var ourStraightFours = ourThreats.Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour).ToList();
-                var ourMultipleStraightThrees = ourThreats.Count(t => t.Type == ThreatType.StraightThree) >= 2;
-
-                // If we have a winning threat (open four or double open three), play it instead of blocking
-                if (ourStraightFours.Count > 0)
-                {
-                    // We have an open four - play our winning move
-                    var ourWinSquare = ourStraightFours
-                        .SelectMany(t => t.GainSquares)
-                        .FirstOrDefault(gs => board.GetCell(gs.x, gs.y).IsEmpty);
-
-                    if (ourWinSquare != default)
-                    {
-                        _depthAchieved = 1;
-                        _nodesSearched = 1;
-                        _lastAllocatedTimeMs = 0;
-                        _moveType = MoveType.ImmediateWin;
-                        _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) COUNTER-ATTACK with open four at ({WX},{WY}) instead of blocking",
-                            difficulty, player, ourWinSquare.x, ourWinSquare.y);
-                        return ourWinSquare;
+                        hasOpenFour = true;
+                        // For open fours, prioritize blocking squares that also prevent other threats
+                        foreach (var square in threat.GainSquares)
+                        {
+                            if (board.GetCell(square.x, square.y).IsEmpty)
+                                priorityBlockingSquares.Add(square);
+                        }
                     }
                 }
 
-                // If we have multiple open threes, we have a double attack - worth playing
-                if (ourMultipleStraightThrees)
+                // CRITICAL FIX: BrokenFour also indicates critical threat (double attack potential)
+                if (brokenFourCount > 0)
                 {
-                    // Let the search decide - we have strong counter-play
-                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Has double open three - allowing search to decide attack vs defense",
-                        difficulty, player);
+                    hasOpenFour = true;  // Treat as critically as open four
                 }
-                else
-                {
-                    // No winning counter-attack - block the open three
-                    var straightThreeBlocks = threats
-                        .Where(t => t.Type == ThreatType.StraightThree)
-                        .SelectMany(t => t.GainSquares)
-                        .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
-                        .ToList();
 
-                    if (straightThreeBlocks.Count > 0)
+                // CRITICAL FIX: StraightThree (open three) should be blocked, BUT only if we don't have
+                // our own winning threats. If we can win immediately, that's better than blocking.
+                // An open three becomes an open four in 2 moves - we have time to counter-attack.
+                if (straightThreeCount > 0 && straightFourCount == 0 && difficulty >= AIDifficulty.Medium)
+                {
+                    // First check if we have our own winning threats
+                    var ourThreats = _threatDetector.DetectThreats(board, player);
+                    var ourStraightFours = ourThreats.Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour).ToList();
+                    var ourMultipleStraightThrees = ourThreats.Count(t => t.Type == ThreatType.StraightThree) >= 2;
+
+                    // If we have a winning threat (open four or double open three), play it instead of blocking
+                    if (ourStraightFours.Count > 0)
                     {
-                        // Prefer blocking squares that are adjacent to more of our stones
-                        // (more likely to create our own threats while blocking)
-                        var bestBlock = straightThreeBlocks
-                            .OrderByDescending(bs =>
-                            {
-                                int adjacentOurs = 0;
-                                for (int dx = -1; dx <= 1; dx++)
+                        // We have an open four - play our winning move
+                        var ourWinSquare = ourStraightFours
+                            .SelectMany(t => t.GainSquares)
+                            .FirstOrDefault(gs => board.GetCell(gs.x, gs.y).IsEmpty);
+
+                        if (ourWinSquare != default)
+                        {
+                            _depthAchieved = 1;
+                            _nodesSearched = 1;
+                            _lastAllocatedTimeMs = 0;
+                            _moveType = MoveType.ImmediateWin;
+                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) COUNTER-ATTACK with open four at ({WX},{WY}) instead of blocking",
+                                difficulty, player, ourWinSquare.x, ourWinSquare.y);
+                            return ourWinSquare;
+                        }
+                    }
+
+                    // If we have multiple open threes, we have a double attack - worth playing
+                    if (ourMultipleStraightThrees)
+                    {
+                        // Let the search decide - we have strong counter-play
+                        _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Has double open three - allowing search to decide attack vs defense",
+                            difficulty, player);
+                    }
+                    else
+                    {
+                        // No winning counter-attack - block the open three
+                        var straightThreeBlocks = threats
+                            .Where(t => t.Type == ThreatType.StraightThree)
+                            .SelectMany(t => t.GainSquares)
+                            .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
+                            .ToList();
+
+                        if (straightThreeBlocks.Count > 0)
+                        {
+                            // Prefer blocking squares that are adjacent to more of our stones
+                            // (more likely to create our own threats while blocking)
+                            var bestBlock = straightThreeBlocks
+                                .OrderByDescending(bs =>
                                 {
-                                    for (int dy = -1; dy <= 1; dy++)
+                                    int adjacentOurs = 0;
+                                    for (int dx = -1; dx <= 1; dx++)
                                     {
-                                        if (dx == 0 && dy == 0) continue;
-                                        int nx = bs.x + dx, ny = bs.y + dy;
-                                        if (nx >= 0 && nx < BoardSize && ny >= 0 && ny < BoardSize)
+                                        for (int dy = -1; dy <= 1; dy++)
                                         {
-                                            if (board.GetCell(nx, ny).Player == player)
-                                                adjacentOurs++;
+                                            if (dx == 0 && dy == 0) continue;
+                                            int nx = bs.x + dx, ny = bs.y + dy;
+                                            if (nx >= 0 && nx < BoardSize && ny >= 0 && ny < BoardSize)
+                                            {
+                                                if (board.GetCell(nx, ny).Player == player)
+                                                    adjacentOurs++;
+                                            }
                                         }
                                     }
-                                }
-                                return adjacentOurs;
-                            })
-                            .First();
+                                    return adjacentOurs;
+                                })
+                                .First();
 
-                        _depthAchieved = 1;
-                        _nodesSearched = straightThreeBlocks.Count;
-                        _lastAllocatedTimeMs = 0;
-                        _moveType = MoveType.ImmediateBlock;
-                        _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) BLOCKING OPEN THREE at ({BX},{BY}) - no counter-attack available",
-                            difficulty, player, bestBlock.x, bestBlock.y);
-                        return bestBlock;
+                            _depthAchieved = 1;
+                            _nodesSearched = straightThreeBlocks.Count;
+                            _lastAllocatedTimeMs = 0;
+                            _moveType = MoveType.ImmediateBlock;
+                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) BLOCKING OPEN THREE at ({BX},{BY}) - no counter-attack available",
+                                difficulty, player, bestBlock.x, bestBlock.y);
+                            return bestBlock;
+                        }
                     }
                 }
-            }
 
-            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Opponent has {StraightFourCount} StraightFour, {StraightThreeCount} StraightThree, {BrokenFourCount} BrokenFour threat(s), blocking squares: {BlockingSquares}{OpenFourSuffix}",
-                difficulty, player, straightFourCount, straightThreeCount, brokenFourCount,
-                string.Join(", ", blockingSquares.Select(g => $"({g.x},{g.y})")),
-                hasOpenFour ? " [CRITICAL THREAT DETECTED]" : "");
-        }
+                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Opponent has {StraightFourCount} StraightFour, {StraightThreeCount} StraightThree, {BrokenFourCount} BrokenFour threat(s), blocking squares: {BlockingSquares}{OpenFourSuffix}",
+                    difficulty, player, straightFourCount, straightThreeCount, brokenFourCount,
+                    string.Join(", ", blockingSquares.Select(g => $"({g.x},{g.y})")),
+                    hasOpenFour ? " [CRITICAL THREAT DETECTED]" : "");
+            }
         } // End of difficulty >= Medium threat detection block
 
         // Emergency mode - use TT move at D3+ (Medium+) if available
@@ -754,6 +754,8 @@ public class MinimaxAI : IStatsPublisher
 
         // CRITICAL DEFENSE: Filter candidates to blocking/winning moves when opponent has threats
         // This includes StraightThree (developing threats) because they become StraightFour in 1 move
+        // Store original candidates in case filtering produces empty list
+        var originalCandidates = candidates.ToList();
         if (hasOpponentThreats)
         {
             // CRITICAL FIX: For open fours, reserve minimum time to respond properly
@@ -824,6 +826,16 @@ public class MinimaxAI : IStatsPublisher
                 candidates = blockingSquares.Concat(ourWinningSquares).Concat(ourDevelopingSquares).Distinct().ToList();
                 _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Using blocking/winning/developing squares directly as candidates",
                     difficulty, player);
+            }
+
+            // CRITICAL FIX: If threat filtering produced empty candidates, restore original candidates
+            // This can happen when threat detection finds threats but gain squares are already occupied
+            // or when our threat detection finds no counter-threats
+            if (candidates.Count == 0)
+            {
+                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Threat filtering produced empty candidates - restoring original {OriginalCount} candidates",
+                    difficulty, player, originalCandidates.Count);
+                candidates = originalCandidates.ToList();
             }
 
             // CRITICAL FIX: For open fours (StraightFour with 2+ blocking squares),
