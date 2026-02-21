@@ -403,7 +403,29 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // If opponent has immediate winning moves, we must block
+        // CRITICAL: Also check for opponent's OPEN FOURS (StraightFour)
+        // An open four is 4-in-a-row with an open end - opponent wins next turn if not blocked
+        // This is NOT caught by IsWinningMove since it's not yet 5-in-a-row
+        if (opponentWinningSquares.Count == 0)
+        {
+            var opponentThreats = _threatDetector.DetectThreats(board, oppPlayer);
+            foreach (var threat in opponentThreats)
+            {
+                if (threat.Type == ThreatType.StraightFour || threat.Type == ThreatType.BrokenFour)
+                {
+                    // Add all gain squares (the squares that complete the 5-in-a-row)
+                    foreach (var gain in threat.GainSquares)
+                    {
+                        if (board.GetCell(gain.x, gain.y).IsEmpty && !opponentWinningSquares.Contains(gain))
+                        {
+                            opponentWinningSquares.Add(gain);
+                        }
+                    }
+                }
+            }
+        }
+
+        // If opponent has immediate winning moves or open fours, we must block
         if (opponentWinningSquares.Count > 0)
         {
             // Single threat: block it directly
