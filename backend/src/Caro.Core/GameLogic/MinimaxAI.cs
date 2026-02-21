@@ -587,19 +587,34 @@ public class MinimaxAI : IStatsPublisher
                 : GetDefaultTimeAllocation(difficulty);
         }
 
-        // CRITICAL DEFENSE: Check for opponent threats BEFORE any early returns
-        // This ensures we don't skip blocking in emergency mode
-        // Note: oppPlayer is already defined above
-        // CRITICAL FIX: Include BrokenFour threats - they create double attacks that are as dangerous as open fours
-        var threats = _threatDetector.DetectThreats(board, oppPlayer)
-            .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.StraightThree || t.Type == ThreatType.BrokenFour)
-            .ToList();
-
-        bool hasOpponentThreats = threats.Count > 0;
-        bool hasOpenFour = false;  // Open four: 4 stones with 2 blocking squares
-
+        // CRITICAL FIX: Skip sophisticated threat shortcuts for Braindead and Easy.
+        // These difficulties must search for moves where:
+        // - Braindead's 10% error rate can apply
+        // - Time constraints limit search depth
+        // Without this fix, Braindead finds the same winning moves as Grandmaster
+        // because threat detection is instant and bypasses search entirely.
+        bool hasOpponentThreats = false;
+        bool hasImmediateThreats = false;  // Only StraightFour and BrokenFour - require immediate response
+        bool hasOpenFour = false;
         List<(int x, int y)> blockingSquares = new();
-        List<(int x, int y)> priorityBlockingSquares = new();  // For open fours
+        List<(int x, int y)> priorityBlockingSquares = new();
+
+        if (difficulty >= AIDifficulty.Medium)
+        {
+            // CRITICAL DEFENSE: Check for opponent threats BEFORE any early returns
+            // This ensures we don't skip blocking in emergency mode
+            // Note: oppPlayer is already defined above
+            // CRITICAL FIX: Include BrokenFour threats - they create double attacks that are as dangerous as open fours
+            var threats = _threatDetector.DetectThreats(board, oppPlayer)
+                .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.StraightThree || t.Type == ThreatType.BrokenFour)
+                .ToList();
+
+            hasOpponentThreats = threats.Count > 0;
+
+            // CRITICAL FIX: Only filter candidates for IMMEDIATE threats (StraightFour, BrokenFour)
+            // StraightThree is a developing threat that doesn't require immediate response
+            // The evaluation function will handle StraightThree through normal search
+            hasImmediateThreats = threats.Any(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour);
 
         if (hasOpponentThreats)
         {
@@ -721,6 +736,7 @@ public class MinimaxAI : IStatsPublisher
                 string.Join(", ", blockingSquares.Select(g => $"({g.x},{g.y})")),
                 hasOpenFour ? " [CRITICAL THREAT DETECTED]" : "");
         }
+        } // End of difficulty >= Medium threat detection block
 
         // Emergency mode - use TT move at D3+ (Medium+) if available
         // BUT: If opponent has threats, blocking takes priority
@@ -736,7 +752,8 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // CRITICAL DEFENSE: Filter candidates to only blocking moves when opponent has threats
+        // CRITICAL DEFENSE: Filter candidates to blocking/winning moves when opponent has threats
+        // This includes StraightThree (developing threats) because they become StraightFour in 1 move
         if (hasOpponentThreats)
         {
             // CRITICAL FIX: For open fours, reserve minimum time to respond properly
@@ -761,39 +778,51 @@ public class MinimaxAI : IStatsPublisher
                 }
             }
 
-            // FIX: Include our winning moves in candidate list, not just blocking moves
-            // When opponent has threats, we should still consider our own winning moves
-            // (e.g., if we can win immediately, that's better than blocking)
-            var ourWinningThreats = _threatDetector.DetectThreats(board, player);
-            var ourWinningSquares = ourWinningThreats
+            // FIX: Include our winning moves AND developing threats in candidate list
+            // When opponent has threats, we should consider:
+            // 1. Blocking their threats (blocking squares)
+            // 2. Our immediate wins (StraightFour, BrokenFour)
+            // 3. Our developing threats (StraightThree) - these can become winning threats
+            var ourThreats = _threatDetector.DetectThreats(board, player);
+
+            // Immediate winning squares
+            var ourWinningSquares = ourThreats
                 .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour)
+                .SelectMany(t => t.GainSquares)
+                .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
+                .ToList();
+
+            // Developing threat squares (StraightThree) - build our own threats
+            var ourDevelopingSquares = ourThreats
+                .Where(t => t.Type == ThreatType.StraightThree)
                 .SelectMany(t => t.GainSquares)
                 .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
                 .ToList();
 
             var blockingSet = new HashSet<(int x, int y)>(blockingSquares);
             var winningSet = new HashSet<(int x, int y)>(ourWinningSquares);
+            var developingSet = new HashSet<(int x, int y)>(ourDevelopingSquares);
 
-            // Include both blocking squares AND our winning moves
+            // Include blocking squares, winning moves, AND developing moves
             var filteredCandidates = candidates
-                .Where(c => blockingSet.Contains(c) || winningSet.Contains(c))
+                .Where(c => blockingSet.Contains(c) || winningSet.Contains(c) || developingSet.Contains(c))
                 .ToList();
 
             if (filteredCandidates.Count > 0)
             {
-                // Prioritize winning moves over blocking
+                // Prioritize: winning > blocking > developing
                 filteredCandidates = filteredCandidates
-                    .OrderByDescending(c => winningSet.Contains(c) ? 1 : 0)
+                    .OrderByDescending(c => winningSet.Contains(c) ? 2 : (blockingSet.Contains(c) ? 1 : 0))
                     .ToList();
                 candidates = filteredCandidates;
-                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Filtered to {CandidateCount} move(s) ({WinningCount} winning, {BlockingCount} blocking)",
-                    difficulty, player, candidates.Count, winningSet.Count, blockingSet.Count);
+                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Filtered to {CandidateCount} move(s) ({WinningCount} winning, {BlockingCount} blocking, {DevelopingCount} developing)",
+                    difficulty, player, candidates.Count, winningSet.Count, blockingSet.Count, developingSet.Count);
             }
             else
             {
-                // Fallback: use blocking squares and winning squares directly as candidates
-                candidates = blockingSquares.Concat(ourWinningSquares).Distinct().ToList();
-                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Using blocking/winning squares directly as candidates",
+                // Fallback: use blocking, winning, and developing squares directly as candidates
+                candidates = blockingSquares.Concat(ourWinningSquares).Concat(ourDevelopingSquares).Distinct().ToList();
+                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Using blocking/winning/developing squares directly as candidates",
                     difficulty, player);
             }
 
@@ -805,9 +834,9 @@ public class MinimaxAI : IStatsPublisher
                     difficulty, player);
 
                 // Check if we have counter-threats
-                var ourThreats = _threatDetector.DetectThreats(board, player);
-                var ourStraightFours = ourThreats.Count(t => t.Type == ThreatType.StraightFour);
-                var ourStraightThrees = ourThreats.Count(t => t.Type == ThreatType.StraightThree);
+                var counterThreats = _threatDetector.DetectThreats(board, player);
+                var ourStraightFours = counterThreats.Count(t => t.Type == ThreatType.StraightFour);
+                var ourStraightThrees = counterThreats.Count(t => t.Type == ThreatType.StraightThree);
 
                 if (ourStraightFours > 0)
                 {
@@ -868,16 +897,17 @@ public class MinimaxAI : IStatsPublisher
             }
 
             // VCF-FIRST MODE: In emergency mode, if VCF didn't find a win, check opponent threats
-            // CRITICAL: Don't skip blocking even in emergency mode
+            // CRITICAL: Don't skip blocking even in emergency mode - but only for IMMEDIATE threats
             if (timeAlloc.IsEmergency)
             {
-                // If opponent has threats, MUST block - don't use TT fallback
-                if (hasOpponentThreats && candidates.Count > 0)
+                // If opponent has IMMEDIATE threats (StraightFour, BrokenFour), MUST block
+                // For developing threats (StraightThree), let search decide
+                if (hasImmediateThreats && blockingSquares.Count > 0)
                 {
-                    // Candidates are already filtered to blocking squares from earlier threat detection
+                    // Return a blocking square immediately
                     _depthAchieved = 1;
                     _nodesSearched = 1;
-                    return candidates[0];
+                    return blockingSquares[0];
                 }
 
                 // No opponent threats - safe to use TT move
@@ -903,9 +933,10 @@ public class MinimaxAI : IStatsPublisher
         // NPS is learned from actual search performance - no hardcoded targets
 
         // PARALLEL SEARCH: Use Lazy SMP when enabled
-        // TournamentEngine already checks the config, so we just respect the flag here
-        // Thread counts are fetched from config via ThreadPoolConfig
-        if (parallelSearchEnabled)
+        // CRITICAL FIX: Check both the parameter AND the config setting.
+        // The config is the source of truth for per-difficulty settings.
+        // Braindead has ParallelSearchEnabled=false in config, so it must use sequential search.
+        if (parallelSearchEnabled && settings.ParallelSearchEnabled)
         {
             int threadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
             _lastThreadCount = threadCount;
@@ -1040,12 +1071,49 @@ public class MinimaxAI : IStatsPublisher
         const int MaxSearchDepth = 50; // Realistic max for Caro - prevents bogus depth inflation from TT hits
         const long MinNodesForValidIteration = 10; // Minimum nodes to consider an iteration "real" search
 
+        // CRITICAL FIX: Cap depth based on difficulty to prevent fast evaluation from inflating depth.
+        // Braindead with 5% time budget should not reach D50 - cap at D5.
+        // This ensures lower difficulties can't "see ahead" too far regardless of evaluation speed.
+        int difficultyMaxDepth = difficulty switch
+        {
+            AIDifficulty.Braindead => 5,       // D5 max - limited lookahead for 5% time budget
+            AIDifficulty.Easy => 10,           // D10 max
+            AIDifficulty.Medium => 20,         // D20 max
+            AIDifficulty.Hard => 35,           // D35 max
+            AIDifficulty.Grandmaster => 50,    // D50 - no artificial limit
+            AIDifficulty.Experimental => 50,   // D50 - no artificial limit
+            AIDifficulty.BookGeneration => 50, // D50 - no artificial limit
+            _ => 50
+        };
+
+        // Also cap based on allocated time (secondary check)
+        int timeBasedMaxDepth = Math.Max(1, (int)(adjustedHardBoundMs / 10));
+        int effectiveMaxDepth = Math.Min(difficultyMaxDepth, timeBasedMaxDepth);
+
+        // CRITICAL FIX: Difficulty-scaled minimum time per iteration
+        // This prevents lower difficulties from reaching unrealistic depths due to fast evaluation.
+        // Braindead with 5% time budget should not reach D50 in 150ms just because evaluation is fast.
+        // Formula: Higher difficulties can search faster, lower difficulties need more time per iteration.
+        // This ensures strength scales with time budget, not just evaluation speed.
+        long minTimePerIterationMs = difficulty switch
+        {
+            AIDifficulty.Braindead => 10,    // 10ms min per iteration (D50 = 500ms, matching 5% budget)
+            AIDifficulty.Easy => 5,          // 5ms min per iteration
+            AIDifficulty.Medium => 2,        // 2ms min per iteration
+            AIDifficulty.Hard => 1,          // 1ms min per iteration
+            AIDifficulty.Grandmaster => 1,   // 1ms min per iteration
+            AIDifficulty.Experimental => 1,  // 1ms min per iteration
+            AIDifficulty.BookGeneration => 1, // 1ms min per iteration
+            _ => 1
+        };
+
         while (true)  // Time-based only - depth is incidental
         {
             // MAX DEPTH CHECK: Prevent runaway depth values
-            // When TT hit rate is high, later iterations can complete very quickly,
-            // causing depth to increment thousands of times in milliseconds.
-            if (currentDepth > MaxSearchDepth)
+            // Uses effectiveMaxDepth which is capped based on time budget.
+            // This prevents lower difficulties with fast evaluation from reaching
+            // unrealistic depths just because they evaluate quickly.
+            if (currentDepth > effectiveMaxDepth)
             {
                 break;
             }
@@ -1082,11 +1150,15 @@ public class MinimaxAI : IStatsPublisher
             // Reset stopped flag for this depth
             _searchStopped = false;
 
-            // Track nodes before this iteration to detect TT cache hits
+            // Track nodes and time before this iteration to detect TT cache hits
             long nodesBeforeIteration = _nodesSearched;
+            long ticksBeforeIteration = _searchStopwatch.ElapsedTicks;
 
             var result = SearchWithDepth(board, player, currentDepth, candidates);
             long nodesSearchedThisIteration = _nodesSearched - nodesBeforeIteration;
+            // Use ticks for high-resolution timing (ms has ~15ms resolution on Windows)
+            long ticksThisIteration = _searchStopwatch.ElapsedTicks - ticksBeforeIteration;
+            long timeThisIterationMs = (long)(ticksThisIteration * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
 
             if (result.x != -1)
             {
@@ -1108,9 +1180,11 @@ public class MinimaxAI : IStatsPublisher
             }
 
             // CRITICAL FIX: Only increment depth if meaningful search occurred
-            // When SearchWithDepth gets a TT hit, it returns instantly with 0 nodes.
-            // Without this check, depth would inflate to MaxSearchDepth in milliseconds.
-            if (nodesSearchedThisIteration >= MinNodesForValidIteration)
+            // Two conditions must be met to prevent depth inflation:
+            // 1. At least MinNodesForValidIteration nodes searched (prevents TT cache hits)
+            // 2. At least minTimePerIterationMs elapsed (prevents fast evaluation from inflating depth)
+            // Without both checks, Braindead with few candidates could reach D50 in milliseconds.
+            if (nodesSearchedThisIteration >= MinNodesForValidIteration && timeThisIterationMs >= minTimePerIterationMs)
             {
                 currentDepth++;
             }

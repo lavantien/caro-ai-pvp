@@ -785,6 +785,24 @@ public sealed class ParallelMinimaxSearch
                 break;
             }
 
+            // CRITICAL: Pre-iteration check - Total nodes must scale with depth
+            // Real search depth is bounded by: nodes ≈ branching_factor^depth
+            // With aggressive pruning, effective branching factor is ~2-3
+            // So D20 requires at least 2^20 ≈ 1M nodes, D30 requires 1B nodes, etc.
+            // For practical purposes, require: total_nodes >= (depth-5)^2 * 200 for depth > 10
+            // D15: 20K nodes, D20: 45K nodes, D30: 125K nodes, D50: 405K nodes
+            // IMPORTANT: Only apply for depth > 10 to allow normal search to proceed
+            // This catches cases where TT hits allow depth to increment without real search
+            if (currentDepth > 10)
+            {
+                long minimumTotalNodesForDepth = (long)(currentDepth - 5) * (currentDepth - 5) * 200;
+                if (threadData.LocalNodesSearched < minimumTotalNodesForDepth)
+                {
+                    // Not enough total nodes to justify this depth - stop now
+                    break;
+                }
+            }
+
             // Record iteration start time BEFORE any work
             iterationStartMs = _searchStopwatch?.ElapsedMilliseconds ?? 0;
 
@@ -862,15 +880,21 @@ public sealed class ParallelMinimaxSearch
             // 2. result.score == int.MinValue: SearchRoot/Minimax returned aborted result
             // In either case, time has run out - break immediately
             long nodesSearchedThisIteration = threadData.LocalNodesSearched - nodesBeforeIteration;
-            bool searchWasAborted = nodesSearchedThisIteration == 0 ||
-                                    result.score == int.MinValue;
+
+            // Check for actual abort conditions (timeout/cancellation)
+            bool searchWasAborted = nodesSearchedThisIteration == 0 || result.score == int.MinValue;
             if (searchWasAborted)
             {
                 // No complete search happened - break immediately
-                // The old logic allowed currentDepth to increment thousands of times,
-                // causing impossible depth values like D246845 for tiny time budgets.
                 break;
             }
+
+            // Check for TT inflation (very low nodes searched at this depth)
+            // REMOVED: The post-iteration check was too aggressive with high TT hit rates
+            // We now rely on:
+            // 1. Pre-iteration check for depth > 10 (total nodes threshold)
+            // 2. Time-based termination
+            // 3. searchWasAborted check above for actual aborts
 
             // CRITICAL FIX: Update bestMove/bestScore BEFORE checking cancellation
             // If we completed the search, we should use the result even if cancellation is requested
@@ -920,7 +944,7 @@ public sealed class ParallelMinimaxSearch
             if (result.score >= 100000)
                 break;
 
-            currentDepth++;  // Increment depth for next iteration
+            currentDepth++;
         }
 
         // FIX 1: Return preserved best from completed depth if available
