@@ -634,6 +634,54 @@ public class MinimaxAI : IStatsPublisher
                 hasOpenFour = true;  // Treat as critically as open four
             }
 
+            // CRITICAL FIX: StraightThree (open three) MUST be blocked immediately
+            // An open three becomes an open four on the next move, which has 2 winning squares
+            // and is unstoppable. We must block BEFORE it becomes an open four.
+            if (straightThreeCount > 0 && straightFourCount == 0 && difficulty >= AIDifficulty.Medium)
+            {
+                // For open threes, block immediately - don't let search decide
+                // Pick the gain square that's most valuable (usually either end works)
+                var straightThreeBlocks = threats
+                    .Where(t => t.Type == ThreatType.StraightThree)
+                    .SelectMany(t => t.GainSquares)
+                    .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
+                    .ToList();
+
+                if (straightThreeBlocks.Count > 0)
+                {
+                    // Prefer blocking squares that are adjacent to more of our stones
+                    // (more likely to create our own threats while blocking)
+                    var bestBlock = straightThreeBlocks
+                        .OrderByDescending(bs =>
+                        {
+                            int adjacentOurs = 0;
+                            for (int dx = -1; dx <= 1; dx++)
+                            {
+                                for (int dy = -1; dy <= 1; dy++)
+                                {
+                                    if (dx == 0 && dy == 0) continue;
+                                    int nx = bs.x + dx, ny = bs.y + dy;
+                                    if (nx >= 0 && nx < BoardSize && ny >= 0 && ny < BoardSize)
+                                    {
+                                        if (board.GetCell(nx, ny).Player == player)
+                                            adjacentOurs++;
+                                    }
+                                }
+                            }
+                            return adjacentOurs;
+                        })
+                        .First();
+
+                    _depthAchieved = 1;
+                    _nodesSearched = straightThreeBlocks.Count;
+                    _lastAllocatedTimeMs = 0;
+                    _moveType = MoveType.ImmediateBlock;
+                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) BLOCKING OPEN THREE at ({BX},{BY}) - preventing open four",
+                        difficulty, player, bestBlock.x, bestBlock.y);
+                    return bestBlock;
+                }
+            }
+
             _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Opponent has {StraightFourCount} StraightFour, {StraightThreeCount} StraightThree, {BrokenFourCount} BrokenFour threat(s), blocking squares: {BlockingSquares}{OpenFourSuffix}",
                 difficulty, player, straightFourCount, straightThreeCount, brokenFourCount,
                 string.Join(", ", blockingSquares.Select(g => $"({g.x},{g.y})")),
