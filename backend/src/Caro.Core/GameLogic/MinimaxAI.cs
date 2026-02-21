@@ -934,6 +934,8 @@ public class MinimaxAI : IStatsPublisher
         int currentDepth = 1; // Start from depth 1
 
         const int MaxSearchDepth = 50; // Realistic max for Caro - prevents bogus depth inflation from TT hits
+        const long MinNodesForValidIteration = 10; // Minimum nodes to consider an iteration "real" search
+
         while (true)  // Time-based only - depth is incidental
         {
             // MAX DEPTH CHECK: Prevent runaway depth values
@@ -976,12 +978,23 @@ public class MinimaxAI : IStatsPublisher
             // Reset stopped flag for this depth
             _searchStopped = false;
 
+            // Track nodes before this iteration to detect TT cache hits
+            long nodesBeforeIteration = _nodesSearched;
+
             var result = SearchWithDepth(board, player, currentDepth, candidates);
+            long nodesSearchedThisIteration = _nodesSearched - nodesBeforeIteration;
+
             if (result.x != -1)
             {
                 bestMove = (result.x, result.y);
                 _lastSearchScore = result.score;  // Track score for book builder
-                _depthAchieved = currentDepth; // Track deepest completed search
+
+                // Only update depth if this was a real search (not just TT cache hit)
+                // TT hits return instantly with 0-1 nodes, which shouldn't count as "depth achieved"
+                if (nodesSearchedThisIteration >= MinNodesForValidIteration)
+                {
+                    _depthAchieved = currentDepth; // Track deepest completed search
+                }
             }
 
             // If search was stopped due to timeout, don't continue to next depth
@@ -990,7 +1003,19 @@ public class MinimaxAI : IStatsPublisher
                 break;
             }
 
-            currentDepth++;
+            // CRITICAL FIX: Only increment depth if meaningful search occurred
+            // When SearchWithDepth gets a TT hit, it returns instantly with 0 nodes.
+            // Without this check, depth would inflate to MaxSearchDepth in milliseconds.
+            if (nodesSearchedThisIteration >= MinNodesForValidIteration)
+            {
+                currentDepth++;
+            }
+            else
+            {
+                // TT cache hit or instant return - no point searching deeper with cached results
+                // Break to prevent depth inflation
+                break;
+            }
         }
 
         _searchStopwatch.Stop();
