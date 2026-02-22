@@ -1457,7 +1457,10 @@ public sealed class ParallelMinimaxSearch
     }
 
     /// <summary>
-    /// Order moves using staged move picker for better alpha-beta cutoff rates.
+    /// Order moves using fast zero-allocation scoring.
+    /// PERFORMANCE FIX: Previous MovePicker implementation scanned entire board (225 cells)
+    /// 3 times per call, causing 100x NPS slowdown vs sequential search.
+    /// This version only evaluates the candidate moves themselves.
     /// </summary>
     private List<(int x, int y)> OrderMovesStaged(
         List<(int x, int y)> candidates,
@@ -1467,20 +1470,185 @@ public sealed class ParallelMinimaxSearch
         (int x, int y)? cachedMove,
         ThreadData threadData)
     {
-        // Convert ThreadData to MovePicker.ThreadData
-        var pickerThreadData = ConvertToPickerThreadData(threadData);
+        int count = candidates.Count;
+        if (count <= 1) return candidates;
 
-        var picker = new MovePicker(
-            candidates,
-            board,
-            player,
-            depth,
-            cachedMove,
-            pickerThreadData,
-            _continuationHistory,
-            _counterMoveHistory);
+        // Use stack allocation for scores (zero heap allocation)
+        Span<int> scores = stackalloc int[count];
+        var historyTable = player == Player.Red ? threadData.HistoryRed : threadData.HistoryBlue;
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var playerBitBoard = board.GetBitBoard(player);
+        var opponentBitBoard = board.GetBitBoard(opponent);
 
-        return picker.GetRemainingMoves();
+        for (int i = 0; i < count; i++)
+        {
+            var (x, y) = candidates[i];
+            int score = 0;
+
+            // 1. TT Move (highest priority)
+            if (cachedMove.HasValue && cachedMove.Value == (x, y))
+            {
+                scores[i] = 10000000;
+                continue;
+            }
+
+            // 2. Tactical evaluation using BitBoard (fast)
+            score += EvaluateTacticalFast(board, x, y, player, playerBitBoard, opponentBitBoard);
+
+            // 3. Killer moves
+            if (depth >= 0 && depth < 20)
+            {
+                if (threadData.KillerMoves[depth, 0] == (x, y))
+                    score += 500000;
+                else if (threadData.KillerMoves[depth, 1] == (x, y))
+                    score += 400000;
+            }
+
+            // 4. History heuristic
+            score += Math.Min(historyTable[x, y] * 2, 20000);
+
+            // 5. Center preference
+            int center = board.BoardSize / 2;
+            int centerDist = Math.Abs(x - center) + Math.Abs(y - center);
+            score += ((board.BoardSize * 2 - 4) - centerDist) * 100;
+
+            // 6. Nearby stones bonus
+            score += GetProximityScore(x, y, board) * 10;
+
+            scores[i] = score;
+        }
+
+        // Insertion sort (fast for small arrays)
+        for (int i = 1; i < count; i++)
+        {
+            int j = i;
+            while (j > 0 && scores[j] > scores[j - 1])
+            {
+                // Swap moves
+                (candidates[j], candidates[j - 1]) = (candidates[j - 1], candidates[j]);
+                // Swap scores
+                (scores[j], scores[j - 1]) = (scores[j - 1], scores[j]);
+                j--;
+            }
+        }
+
+        return candidates;
+    }
+
+    /// <summary>
+    /// Fast tactical evaluation using BitBoard operations.
+    /// Only evaluates the specific move position, not the entire board.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int EvaluateTacticalFast(Board board, int x, int y, Player player, BitBoard playerBitBoard, BitBoard opponentBitBoard)
+    {
+        int score = 0;
+        var occupied = playerBitBoard | opponentBitBoard;
+
+        // Check all 4 directions
+        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
+
+        foreach (var (dx, dy) in directions)
+        {
+            // Count consecutive stones for player
+            int count = 1;
+            int openEnds = 0;
+
+            // Positive direction
+            for (int i = 1; i <= 4; i++)
+            {
+                int nx = x + dx * i;
+                int ny = y + dy * i;
+                if (nx < 0 || nx >= BitBoard.Size || ny < 0 || ny >= BitBoard.Size) break;
+
+                if (playerBitBoard.GetBit(nx, ny))
+                    count++;
+                else if (!occupied.GetBit(nx, ny))
+                {
+                    openEnds++;
+                    break;
+                }
+                else break;
+            }
+
+            // Negative direction
+            for (int i = 1; i <= 4; i++)
+            {
+                int nx = x - dx * i;
+                int ny = y - dy * i;
+                if (nx < 0 || nx >= BitBoard.Size || ny < 0 || ny >= BitBoard.Size) break;
+
+                if (playerBitBoard.GetBit(nx, ny))
+                    count++;
+                else if (!occupied.GetBit(nx, ny))
+                {
+                    openEnds++;
+                    break;
+                }
+                else break;
+            }
+
+            // Score based on pattern
+            if (count >= 5)
+                score += 100000; // Winning
+            else if (count == 4 && openEnds == 2)
+                score += 50000;  // Open four (almost winning)
+            else if (count == 4 && openEnds == 1)
+                score += 10000;  // Semi-open four
+            else if (count == 3 && openEnds == 2)
+                score += 5000;   // Open three
+            else if (count == 3 && openEnds == 1)
+                score += 1000;   // Semi-open three
+            else if (count == 2 && openEnds == 2)
+                score += 500;    // Open two
+        }
+
+        // Check opponent threats we might block
+        foreach (var (dx, dy) in directions)
+        {
+            int count = 1;
+            int openEnds = 0;
+
+            for (int i = 1; i <= 4; i++)
+            {
+                int nx = x + dx * i;
+                int ny = y + dy * i;
+                if (nx < 0 || nx >= BitBoard.Size || ny < 0 || ny >= BitBoard.Size) break;
+
+                if (opponentBitBoard.GetBit(nx, ny))
+                    count++;
+                else if (!occupied.GetBit(nx, ny))
+                {
+                    openEnds++;
+                    break;
+                }
+                else break;
+            }
+
+            for (int i = 1; i <= 4; i++)
+            {
+                int nx = x - dx * i;
+                int ny = y - dy * i;
+                if (nx < 0 || nx >= BitBoard.Size || ny < 0 || ny >= BitBoard.Size) break;
+
+                if (opponentBitBoard.GetBit(nx, ny))
+                    count++;
+                else if (!occupied.GetBit(nx, ny))
+                {
+                    openEnds++;
+                    break;
+                }
+                else break;
+            }
+
+            // Blocking opponent's threats
+            if (count >= 4)
+                score += 80000;  // Must block 4
+            else if (count == 3 && openEnds == 2)
+                score += 30000;  // Block open three
+        }
+
+        return score;
     }
 
     /// <summary>
@@ -1854,7 +2022,7 @@ public sealed class ParallelMinimaxSearch
     /// <summary>
     /// Quiescence search: extend search in tactical positions to get accurate evaluation
     /// Only considers moves near existing stones (tactical moves)
-    /// Prevents horizon effect by searching deeper when there are active threats
+    /// PERFORMANCE: Simplified to match sequential search - no expensive per-candidate loops
     /// </summary>
     private int Quiesce(Board board, int alpha, int beta, bool isMaximizing, Player aiPlayer, int quiesceDepth, ThreadData threadData, CancellationToken cancellationToken)
     {
@@ -1869,30 +2037,6 @@ public sealed class ParallelMinimaxSearch
 
         // Get stand-pat score (static evaluation)
         var standPat = Evaluate(board, aiPlayer);
-
-        // Determine players
-        var currentPlayer = isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red);
-        var opponent = isMaximizing ? (aiPlayer == Player.Red ? Player.Blue : Player.Red) : aiPlayer;
-
-        // Generate candidate moves (near existing stones) - used for both immediate win check and tactical search
-        var candidateMoves = GetCandidateMoves(board);
-
-        // CRITICAL FIX: Check for immediate opponent wins before any early returns
-        // This prevents the horizon effect where we return a "good" static evaluation
-        // when the opponent actually has a winning move available
-        // OPTIMIZATION: Only check candidate moves (near existing stones) since winning moves
-        // must be adjacent to existing pieces
-        foreach (var (x, y) in candidateMoves)
-        {
-            if (board.GetCell(x, y).IsEmpty)
-            {
-                var testBoard = board.PlaceStone(x, y, opponent);
-                if (_winDetector.CheckWin(testBoard).HasWinner)
-                {
-                    return -100000;  // Losing score - opponent wins next move
-                }
-            }
-        }
 
         // Beta cutoff (stand-pat is good enough for maximizing player)
         if (isMaximizing && standPat >= beta)
@@ -1919,26 +2063,19 @@ public sealed class ParallelMinimaxSearch
         const int maxQuiescenceDepth = 4;
         if (quiesceDepth > maxQuiescenceDepth)
         {
-            return standPat;  // Safe to return now - we already checked for immediate opponent wins
+            return standPat;
         }
 
-        // FIX 4: Filter candidates to only tactical moves (creates/blocks threats)
-        // This prevents branching explosion from exploring 30-40 non-tactical moves per node
-        var tacticalMoves = new List<(int x, int y)>();
-        foreach (var (cx, cy) in candidateMoves)
-        {
-            if (!board.GetCell(cx, cy).IsEmpty) continue;
+        // Generate candidate moves (near existing stones)
+        var tacticalMoves = GetCandidateMoves(board);
 
-            // Only include tactical moves (creates forcing threats: Flex3+)
-            if (IsTacticalMoveInQuiesce(board, cx, cy, currentPlayer))
-                tacticalMoves.Add((cx, cy));
-        }
-
-        // If no tactical moves, return static evaluation (already checked for opponent wins)
+        // If no tactical moves, return static evaluation
         if (tacticalMoves.Count == 0)
             return standPat;
 
-        // Order tactical moves for better pruning using staged move picker
+        var currentPlayer = isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red);
+
+        // Order moves for better pruning
         var orderedMoves = OrderMovesStaged(tacticalMoves, quiesceDepth, board, currentPlayer, null, threadData);
 
         // Search tactical moves (only empty cells)
