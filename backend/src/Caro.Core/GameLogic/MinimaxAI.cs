@@ -1195,7 +1195,7 @@ public class MinimaxAI : IStatsPublisher
         // SAFEGUARD: Absolute max depth to prevent runaway values from TT bugs
         // DESIGN: No difficulty-based depth caps - depth emerges naturally from time budget
         // See README: "NO artificial depth floors or limits - Search runs until time expires"
-        const int AbsoluteMaxDepth = 100; // Safeguard only, not a target
+        const int AbsoluteMaxDepth = 50; // Safeguard only, not a target - reduced from 100 to match parallel search
         const long MinNodesForValidIteration = 10; // Minimum nodes to consider an iteration "real" search
 
         while (true)  // Time-based only - depth is incidental
@@ -1205,6 +1205,25 @@ public class MinimaxAI : IStatsPublisher
             if (currentDepth > AbsoluteMaxDepth)
             {
                 break;
+            }
+
+            // CRITICAL: Pre-iteration check - Total nodes must scale with depth
+            // Real search depth is bounded by: nodes ≈ branching_factor^depth
+            // With aggressive pruning, effective branching factor is ~2-3
+            // So D20 requires at least 2^20 ≈ 1M nodes, D30 requires 1B nodes, etc.
+            // For practical purposes, require: total_nodes >= (depth-5)^2 * 200 for depth > 10
+            // D15: 20K nodes, D20: 45K nodes, D30: 125K nodes, D50: 405K nodes
+            // IMPORTANT: Only apply for depth > 10 to allow normal search to proceed
+            // This catches cases where TT hits allow depth to increment without real search
+            // MUST match the same formula used in ParallelMinimaxSearch.SearchWithIterationTimeAware
+            if (currentDepth > 10)
+            {
+                long minimumTotalNodesForDepth = (long)(currentDepth - 5) * (currentDepth - 5) * 200;
+                if (_nodesSearched < minimumTotalNodesForDepth)
+                {
+                    // Not enough total nodes to justify this depth - stop now
+                    break;
+                }
             }
 
             // Depth cap for BookGeneration to prevent indefinite search
