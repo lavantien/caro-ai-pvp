@@ -370,34 +370,42 @@ public class MinimaxAI : IStatsPublisher
 
         // CRITICAL OPTIMIZATION: Check for immediate winning moves BEFORE any expensive operations
         // This ensures we never waste time searching when a win is available in one move
-        // Applies to ALL difficulties - winning is winning
-        foreach (var (cx, cy) in candidates)
+        // BRAINDEAD EXCEPTION: Braindead does NOT get perfect win detection - must rely on limited search
+        if (difficulty > AIDifficulty.Braindead)
         {
-            if (_threatDetector.IsWinningMove(board, cx, cy, player))
+            foreach (var (cx, cy) in candidates)
             {
-                _depthAchieved = 1;
-                _nodesSearched = 1;
-                _lastAllocatedTimeMs = 0;
-                _moveType = MoveType.ImmediateWin;
-                return (cx, cy);
+                if (_threatDetector.IsWinningMove(board, cx, cy, player))
+                {
+                    _depthAchieved = 1;
+                    _nodesSearched = 1;
+                    _lastAllocatedTimeMs = 0;
+                    _moveType = MoveType.ImmediateWin;
+                    return (cx, cy);
+                }
             }
         }
 
         // CRITICAL DEFENSE: Check for opponent's immediate winning moves
         // Must scan full board since blocking square may be far from existing stones
         // This is O(n²) but necessary to prevent instant losses
+        // BRAINDEAD EXCEPTION: Braindead difficulty does NOT get perfect threat detection
+        // This is essential for making Braindead actually weak - it must rely on limited search
         var oppPlayer = player == Player.Red ? Player.Blue : Player.Red;
         var opponentWinningSquares = new List<(int x, int y)>();
 
-        for (int x = 0; x < BoardSize; x++)
+        if (difficulty > AIDifficulty.Braindead)
         {
-            for (int y = 0; y < BoardSize; y++)
+            for (int x = 0; x < BoardSize; x++)
             {
-                if (board.GetCell(x, y).Player == Player.None)
+                for (int y = 0; y < BoardSize; y++)
                 {
-                    if (_threatDetector.IsWinningMove(board, x, y, oppPlayer))
+                    if (board.GetCell(x, y).Player == Player.None)
                     {
-                        opponentWinningSquares.Add((x, y));
+                        if (_threatDetector.IsWinningMove(board, x, y, oppPlayer))
+                        {
+                            opponentWinningSquares.Add((x, y));
+                        }
                     }
                 }
             }
@@ -406,7 +414,8 @@ public class MinimaxAI : IStatsPublisher
         // CRITICAL: Also check for opponent's OPEN FOURS (StraightFour)
         // An open four is 4-in-a-row with an open end - opponent wins next turn if not blocked
         // This is NOT caught by IsWinningMove since it's not yet 5-in-a-row
-        if (opponentWinningSquares.Count == 0)
+        // BRAINDEAD EXCEPTION: Braindead does NOT detect open fours
+        if (opponentWinningSquares.Count == 0 && difficulty > AIDifficulty.Braindead)
         {
             var opponentThreats = _threatDetector.DetectThreats(board, oppPlayer);
             foreach (var threat in opponentThreats)
@@ -426,7 +435,10 @@ public class MinimaxAI : IStatsPublisher
         }
 
         // If opponent has immediate winning moves or open fours, we must block
-        if (opponentWinningSquares.Count > 0)
+        // CRITICAL FIX: For Grandmaster, don't short-circuit - do a proper search
+        // to find the BEST blocking move, not just any blocking move.
+        // Only use short-circuit for lower difficulties (faster, less precision needed).
+        if (opponentWinningSquares.Count > 0 && difficulty < AIDifficulty.Grandmaster)
         {
             // Single threat: block it directly
             if (opponentWinningSquares.Count == 1)
@@ -496,6 +508,39 @@ public class MinimaxAI : IStatsPublisher
             _lastAllocatedTimeMs = 0;
             _moveType = MoveType.ImmediateBlock;
             return opponentWinningSquares[0];
+        }
+
+        // CRITICAL FIX: For Grandmaster with immediate threats, ensure blocking moves are in candidates
+        // and search to find the BEST blocking move (not just any blocking move)
+        // This allows Grandmaster to consider counter-attacks and positional factors
+        if (opponentWinningSquares.Count > 0 && difficulty >= AIDifficulty.Grandmaster)
+        {
+            // Check if we have a winning counter-attack (always best)
+            foreach (var (cx, cy) in candidates)
+            {
+                if (_threatDetector.IsWinningMove(board, cx, cy, player))
+                {
+                    _depthAchieved = 1;
+                    _nodesSearched = opponentWinningSquares.Count + 1;
+                    _lastAllocatedTimeMs = 0;
+                    _moveType = MoveType.ImmediateWin;
+                    return (cx, cy);
+                }
+            }
+
+            // CRITICAL: Ensure ALL blocking squares are in candidates for search
+            // The opponent winning squares MUST be searched even if not in tactical candidates
+            foreach (var block in opponentWinningSquares)
+            {
+                if (!candidates.Contains(block))
+                {
+                    candidates.Insert(0, block);
+                }
+            }
+            // Filter to ONLY blocking moves - when opponent has winning threats, we MUST block
+            candidates = candidates.Where(c => opponentWinningSquares.Contains(c)).ToList();
+            _logger.LogDebug("[AI GRANDMASTER] Filtering to {Count} blocking move(s) for search evaluation", candidates.Count);
+            // Fall through to normal search with filtered candidates
         }
 
         // PROACTIVE DEFENSE: Check for opponent's open threes (3 in a row with both ends open)
@@ -686,9 +731,10 @@ public class MinimaxAI : IStatsPublisher
                         _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Has double open three - allowing search to decide attack vs defense",
                             difficulty, player);
                     }
-                    else
+                    else if (difficulty < AIDifficulty.Grandmaster)
                     {
                         // No winning counter-attack - block the open three
+                        // SHORT-CIRCUIT only for non-Grandmaster difficulties
                         var straightThreeBlocks = threats
                             .Where(t => t.Type == ThreatType.StraightThree)
                             .SelectMany(t => t.GainSquares)
@@ -727,6 +773,32 @@ public class MinimaxAI : IStatsPublisher
                             _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) BLOCKING OPEN THREE at ({BX},{BY}) - no counter-attack available",
                                 difficulty, player, bestBlock.x, bestBlock.y);
                             return bestBlock;
+                        }
+                    }
+                    else
+                    {
+                        // Grandmaster: Don't short-circuit - ensure blocking moves are in candidates
+                        var straightThreeBlocks = threats
+                            .Where(t => t.Type == ThreatType.StraightThree)
+                            .SelectMany(t => t.GainSquares)
+                            .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
+                            .ToList();
+
+                        if (straightThreeBlocks.Count > 0)
+                        {
+                            // CRITICAL: Ensure ALL blocking squares are in candidates
+                            foreach (var block in straightThreeBlocks)
+                            {
+                                if (!candidates.Contains(block))
+                                {
+                                    candidates.Insert(0, block);
+                                }
+                            }
+                            // Filter to ONLY blocking moves for this threat
+                            candidates = candidates.Where(c => straightThreeBlocks.Contains(c)).ToList();
+                            _logger.LogDebug("[AI GRANDMASTER] Filtering to {Count} open three blocking move(s) for search evaluation",
+                                candidates.Count);
+                            // Fall through to normal search with filtered candidates
                         }
                     }
                 }
@@ -2246,6 +2318,7 @@ public class MinimaxAI : IStatsPublisher
     {
         ClearHistory();
         _transpositionTable.Clear();
+        _parallelSearch.Clear();  // Also clear parallel search's TT
         ResetPondering();
 
         // Reset adaptive time manager state
