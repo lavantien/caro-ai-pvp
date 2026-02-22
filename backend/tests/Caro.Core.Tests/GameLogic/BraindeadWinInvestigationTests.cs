@@ -151,4 +151,97 @@ public class BraindeadWinInvestigationTests
         bool isWinBefore = threatDetector.IsWinningMove(board, 10, 10, Player.Red);
         isWinBefore.Should().BeTrue("Placing at (10,10) should be a winning move");
     }
+
+    /// <summary>
+    /// Reproduce game 2 scenario where Braindead won with vertical line in column 8.
+    /// Grandmaster failed to block at (9,8) despite having blocking logic.
+    /// </summary>
+    [Fact]
+    public void Game2Scenario_GrandmasterShouldBlockVerticalWin()
+    {
+        // Recreate the board state at move 17 (before Grandmaster's failed move 18)
+        // Red (Braindead) stones: (8,8), (5,8), (9,7), (7,9), (6,10), (6,9), (6,8), (6,7), (7,8)
+        // Blue (Grandmaster) stones: (7,7), (8,7), (14,7), (10,6), (5,11), (11,6), (6,11), (6,6)
+
+        var board = new Board();
+
+        // Place Red stones (Braindead)
+        board = board.PlaceStone(8, 8, Player.Red);
+        board = board.PlaceStone(5, 8, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        board = board.PlaceStone(7, 9, Player.Red);
+        board = board.PlaceStone(6, 10, Player.Red);
+        board = board.PlaceStone(6, 9, Player.Red);
+        board = board.PlaceStone(6, 8, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
+
+        // Place Blue stones (Grandmaster)
+        board = board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Blue);
+        board = board.PlaceStone(14, 7, Player.Blue);
+        board = board.PlaceStone(10, 6, Player.Blue);
+        board = board.PlaceStone(5, 11, Player.Blue);
+        board = board.PlaceStone(11, 6, Player.Blue);
+        board = board.PlaceStone(6, 11, Player.Blue);
+        board = board.PlaceStone(6, 6, Player.Blue);
+
+        var threatDetector = new ThreatDetector();
+
+        // Check if (9,8) is a winning move for Red
+        bool isWinningMove = threatDetector.IsWinningMove(board, 9, 8, Player.Red);
+        isWinningMove.Should().BeTrue("Red has 4 in column 8: (5,8), (6,8), (7,8), (8,8) - (9,8) completes the win");
+
+        // Now test what Grandmaster (Blue) would do
+        var ai = new MinimaxAI();
+        var move = ai.GetBestMove(board, Player.Blue, AIDifficulty.Grandmaster, timeRemainingMs: 30000, moveNumber: 18);
+
+        // Grandmaster should block at (9,8)
+        move.Should().Be((9, 8), "Grandmaster must block Red's winning move at (9,8)");
+    }
+
+    /// <summary>
+    /// Reproduce game 4 scenario where Braindead won with vertical line in column 4.
+    /// Braindead had an open four with 2 winning squares - Grandmaster only blocked one.
+    /// </summary>
+    [Fact]
+    public void Game4Scenario_GrandmasterShouldBlockAllWinningSquares()
+    {
+        // Recreate the board state at move 40 (Grandmaster's last move before losing)
+        // Red has open four in column 4: (4,8), (4,9), (4,10), (4,11)
+        // Red can win at (4,7) OR (4,12)
+        // Grandmaster played (4,7) but should have realized both squares need blocking
+
+        var board = new Board();
+
+        // Place Red's open four in column 4
+        board = board.PlaceStone(4, 8, Player.Red);
+        board = board.PlaceStone(4, 9, Player.Red);
+        board = board.PlaceStone(4, 10, Player.Red);
+        board = board.PlaceStone(4, 11, Player.Red);
+
+        // Place some Blue stones (not blocking column 4)
+        board = board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(6, 6, Player.Blue);
+
+        var threatDetector = new ThreatDetector();
+
+        // Check both winning squares
+        bool isWinningAt4_7 = threatDetector.IsWinningMove(board, 4, 7, Player.Red);
+        bool isWinningAt4_12 = threatDetector.IsWinningMove(board, 4, 12, Player.Red);
+
+        isWinningAt4_7.Should().BeTrue("Red can complete 5 in a row at (4,7)");
+        isWinningAt4_12.Should().BeTrue("Red can complete 5 in a row at (4,12)");
+
+        // When there are 2 winning squares, Grandmaster should recognize the position is lost
+        // unless there's a counter-attack. But at minimum, should block one.
+        var ai = new MinimaxAI();
+        var move = ai.GetBestMove(board, Player.Blue, AIDifficulty.Grandmaster, timeRemainingMs: 30000, moveNumber: 40);
+
+        // Grandmaster should at least block one of the winning squares
+        var validBlocks = new[] { (4, 7), (4, 12) };
+        validBlocks.Should().Contain((move.x, move.y),
+            "Grandmaster should block one of the two winning squares");
+    }
 }
