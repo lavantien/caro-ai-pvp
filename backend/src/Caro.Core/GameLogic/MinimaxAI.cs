@@ -815,7 +815,7 @@ public class MinimaxAI : IStatsPublisher
                     }
                     else
                     {
-                        // Grandmaster: Don't short-circuit - ensure blocking moves are in candidates
+                        // Grandmaster: Don't short-circuit - ensure blocking moves are prioritized in candidates
                         var straightThreeBlocks = threats
                             .Where(t => t.Type == ThreatType.StraightThree)
                             .SelectMany(t => t.GainSquares)
@@ -824,19 +824,18 @@ public class MinimaxAI : IStatsPublisher
 
                         if (straightThreeBlocks.Count > 0)
                         {
-                            // CRITICAL: Ensure ALL blocking squares are in candidates
+                            // CRITICAL: Ensure ALL blocking squares are at the FRONT of candidates
+                            // This prioritizes blocking while still allowing search to consider other moves
+                            // FIX: Do NOT filter to only blocking squares - this causes Depth=0 bug
+                            // when search completes too quickly with < MinNodesForValidIteration nodes
                             foreach (var block in straightThreeBlocks)
                             {
-                                if (!candidates.Contains(block))
-                                {
-                                    candidates.Insert(0, block);
-                                }
+                                candidates.Remove(block);  // Remove if present
+                                candidates.Insert(0, block);  // Insert at front for priority
                             }
-                            // Filter to ONLY blocking moves for this threat
-                            candidates = candidates.Where(c => straightThreeBlocks.Contains(c)).ToList();
-                            _logger.LogDebug("[AI GRANDMASTER] Filtering to {Count} open three blocking move(s) for search evaluation",
-                                candidates.Count);
-                            // Fall through to normal search with filtered candidates
+                            _logger.LogDebug("[AI GRANDMASTER] Prioritizing {Count} open three blocking move(s) in search candidates",
+                                straightThreeBlocks.Count);
+                            // Fall through to normal search with prioritized candidates
                         }
                     }
                 }
@@ -862,11 +861,12 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // CRITICAL DEFENSE: Filter candidates to blocking/winning moves when opponent has threats
-        // This includes StraightThree (developing threats) because they become StraightFour in 1 move
+        // CRITICAL DEFENSE: Filter candidates to blocking/winning moves when opponent has IMMEDIATE threats
+        // IMMEDIATE threats: StraightFour, BrokenFour (must be blocked now or lose)
+        // DEVELOPING threats: StraightThree (can wait, evaluation will handle it)
         // Store original candidates in case filtering produces empty list
         var originalCandidates = candidates.ToList();
-        if (hasOpponentThreats)
+        if (hasOpponentThreats && hasImmediateThreats)
         {
             // CRITICAL FIX: For open fours, reserve minimum time to respond properly
             // An open four is a game-ending threat that requires proper calculation
@@ -916,6 +916,8 @@ public class MinimaxAI : IStatsPublisher
             var developingSet = new HashSet<(int x, int y)>(ourDevelopingSquares);
 
             // Include blocking squares, winning moves, AND developing moves
+            // FIX: Only filter candidates when there are IMMEDIATE threats (StraightFour, BrokenFour)
+            // For developing threats (StraightThree only), skip filtering and let search decide
             var filteredCandidates = candidates
                 .Where(c => blockingSet.Contains(c) || winningSet.Contains(c) || developingSet.Contains(c))
                 .ToList();

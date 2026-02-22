@@ -254,6 +254,22 @@ public sealed class ParallelMinimaxSearch
             if (candidates.Count == 0)
                 candidates = criticalThreats;
         }
+        else
+        {
+            // No critical threats (StraightFour, immediate wins), but check for open threes
+            // Open threes (StraightThree) become open fours in ONE move
+            // We should prioritize blocking squares but NOT filter candidates
+            var openThreeBlocks = GetOpenThreeBlocks(board, opponent);
+            if (openThreeBlocks.Count > 0)
+            {
+                // Add blocking squares to the front of candidates (prioritize but don't filter)
+                foreach (var block in openThreeBlocks)
+                {
+                    candidates.Remove(block);
+                    candidates.Insert(0, block);
+                }
+            }
+        }
 
         // NPS is learned from actual search performance - no hardcoded targets
 
@@ -335,6 +351,22 @@ public sealed class ParallelMinimaxSearch
             // If candidates ended up empty (edge case), fallback to original threat list
             if (candidates.Count == 0)
                 candidates = criticalThreats;
+        }
+        else
+        {
+            // No critical threats (StraightFour, immediate wins), but check for open threes
+            // Open threes (StraightThree) become open fours in ONE move
+            // We should prioritize blocking squares but NOT filter candidates
+            var openThreeBlocks = GetOpenThreeBlocks(board, opponent);
+            if (openThreeBlocks.Count > 0)
+            {
+                // Add blocking squares to the front of candidates (prioritize but don't filter)
+                foreach (var block in openThreeBlocks)
+                {
+                    candidates.Remove(block);
+                    candidates.Insert(0, block);
+                }
+            }
         }
 
         // NOTE: Error rate is handled in MinimaxAI.GetBestMove() - do not apply again here
@@ -2189,10 +2221,39 @@ public sealed class ParallelMinimaxSearch
             }
         }
 
-        // NOTE: We do NOT include BrokenFour here - let search evaluate those
-        // BrokenFours are lower-priority threats that don't require mandatory blocking
+        // NOTE: We do NOT include BrokenFour or StraightThree here as critical threats.
+        // StraightThree blocking is handled separately in GetBestMoveWithStats to ensure
+        // blocking squares are prioritized but candidates are not filtered.
 
         return threats;
+    }
+
+    /// <summary>
+    /// Get open three blocking squares (StraightThree threats)
+    /// These are developing threats that should be prioritized but don't require
+    /// mandatory blocking like StraightFour.
+    /// </summary>
+    private List<(int x, int y)> GetOpenThreeBlocks(Board board, Player opponent)
+    {
+        var blocks = new List<(int x, int y)>();
+        var detector = new ThreatDetector();
+        var opponentThreats = detector.DetectThreats(board, opponent);
+
+        foreach (var threat in opponentThreats)
+        {
+            if (threat.Type == ThreatType.StraightThree)
+            {
+                foreach (var gainSquare in threat.GainSquares)
+                {
+                    if (board.GetCell(gainSquare.x, gainSquare.y).IsEmpty && !blocks.Contains(gainSquare))
+                    {
+                        blocks.Add(gainSquare);
+                    }
+                }
+            }
+        }
+
+        return blocks;
     }
 
     #region Pondering Support

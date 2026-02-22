@@ -99,7 +99,12 @@ public sealed class StatelessSearchEngineTests
         stats.NodesSearched.Should().BeGreaterThan(0);
         stats.DepthReached.Should().BeGreaterThan(0);
         stats.ElapsedMs.Should().BeGreaterOrEqualTo(0);
-        stats.NodesPerSecond.Should().BeGreaterThan(0);
+        // NodesPerSecond can be 0 if the search completes in < 1ms (elapsedMs = 0)
+        // This is expected behavior for very fast searches
+        if (stats.ElapsedMs > 0)
+        {
+            stats.NodesPerSecond.Should().BeGreaterThan(0);
+        }
         stats.TableLookups.Should().BeGreaterOrEqualTo(0);
         stats.TableHits.Should().BeGreaterOrEqualTo(0);
         stats.HitRate.Should().BeGreaterOrEqualTo(0);
