@@ -295,21 +295,70 @@ public class MinimaxAI : IStatsPublisher
                 {
                     // PONDER HIT - opponent played expected move!
                     // The ponder search was running during opponent's turn (free precomputation).
-                    // Use the result immediately - don't wait or count ponder time.
-                    var ponderResult = _ponderer.GetPonderHitResult();
+                    // CRITICAL FIX: Still check for immediate wins and threats before using ponder result.
+                    // The ponder search might not have prioritized tactical moves correctly.
 
-                    if (ponderResult.BestMove.HasValue && ponderResult.Depth > 0)
+                    // First, check if we have an immediate winning move
+                    if (difficulty > AIDifficulty.Braindead)
                     {
-                        var ponderMove = ponderResult.BestMove.Value;
-                        // Validate the ponder move is still valid on current board
-                        if (board.GetCell(ponderMove.x, ponderMove.y).IsEmpty)
+                        foreach (var (cx, cy) in candidates)
                         {
-                            _depthAchieved = ponderResult.Depth;
-                            _nodesSearched = ponderResult.NodesSearched;
-                            _lastAllocatedTimeMs = ponderResult.TimeSpentMs;
-                            _moveType = MoveType.Normal;
-                            Console.WriteLine($"[PONDER HIT] Used ponder result: depth={ponderResult.Depth}, nodes={ponderResult.NodesSearched:N0}, time={ponderResult.TimeSpentMs}ms");
-                            return ponderMove;
+                            if (_threatDetector.IsWinningMove(board, cx, cy, player))
+                            {
+                                _ponderer.StopPondering();
+                                _depthAchieved = 1;
+                                _nodesSearched = 1;
+                                _lastAllocatedTimeMs = 0;
+                                _moveType = MoveType.ImmediateWin;
+                                return (cx, cy);
+                            }
+                        }
+                    }
+
+                    // Second, check if opponent has an immediate winning threat we must block
+                    var ponderOppPlayer = player == Player.Red ? Player.Blue : Player.Red;
+                    var ponderOpponentWinningSquares = new List<(int x, int y)>();
+                    if (difficulty > AIDifficulty.Braindead)
+                    {
+                        for (int x = 0; x < BoardSize; x++)
+                        {
+                            for (int y = 0; y < BoardSize; y++)
+                            {
+                                if (board.GetCell(x, y).Player == Player.None)
+                                {
+                                    if (_threatDetector.IsWinningMove(board, x, y, ponderOppPlayer))
+                                    {
+                                        ponderOpponentWinningSquares.Add((x, y));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // If there are immediate threats, must block - don't use ponder result
+                    if (ponderOpponentWinningSquares.Count > 0)
+                    {
+                        // Fall through to normal blocking logic
+                        // Don't use ponder result when immediate blocking is needed
+                    }
+                    else
+                    {
+                        // No immediate threats - safe to use ponder result
+                        var ponderResult = _ponderer.GetPonderHitResult();
+
+                        if (ponderResult.BestMove.HasValue && ponderResult.Depth > 0)
+                        {
+                            var ponderMove = ponderResult.BestMove.Value;
+                            // Validate the ponder move is still valid on current board
+                            if (board.GetCell(ponderMove.x, ponderMove.y).IsEmpty)
+                            {
+                                _depthAchieved = ponderResult.Depth;
+                                _nodesSearched = ponderResult.NodesSearched;
+                                _lastAllocatedTimeMs = ponderResult.TimeSpentMs;
+                                _moveType = MoveType.Normal;
+                                //Console.WriteLine($"[PONDER HIT] Used ponder result: depth={ponderResult.Depth}, nodes={ponderResult.NodesSearched:N0}, time={ponderResult.TimeSpentMs}ms");
+                                return ponderMove;
+                            }
                         }
                     }
                 }
