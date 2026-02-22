@@ -106,9 +106,9 @@ public sealed class AIDifficultyConfig
                 PonderingEnabled = true,
                 VCFEnabled = true,
                 ErrorRate = 0.0,                // No intentional errors
-                Description = "Max parallel, VCF, pondering",
-                OpeningBookEnabled = true,      // Grandmaster uses opening book
-                MaxBookDepth = 14              // 14 plies = 7 moves per side
+                Description = "Parallel + VCF + pondering (no book)",
+                OpeningBookEnabled = false,     // Disable book - it suggests bad corner moves
+                MaxBookDepth = 0               // No opening book
             },
 
             AIDifficulty.Experimental => new AIDifficultySettings
