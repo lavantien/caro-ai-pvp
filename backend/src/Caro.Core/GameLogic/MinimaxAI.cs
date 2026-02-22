@@ -299,37 +299,33 @@ public class MinimaxAI : IStatsPublisher
                     // The ponder search might not have prioritized tactical moves correctly.
 
                     // First, check if we have an immediate winning move
-                    if (difficulty > AIDifficulty.Braindead)
+                    // DESIGN: All difficulties use same engine logic - strength comes from threads + time only
+                    foreach (var (cx, cy) in candidates)
                     {
-                        foreach (var (cx, cy) in candidates)
+                        if (_threatDetector.IsWinningMove(board, cx, cy, player))
                         {
-                            if (_threatDetector.IsWinningMove(board, cx, cy, player))
-                            {
-                                _ponderer.StopPondering();
-                                _depthAchieved = 1;
-                                _nodesSearched = 1;
-                                _lastAllocatedTimeMs = 0;
-                                _moveType = MoveType.ImmediateWin;
-                                return (cx, cy);
-                            }
+                            _ponderer.StopPondering();
+                            _depthAchieved = 1;
+                            _nodesSearched = 1;
+                            _lastAllocatedTimeMs = 0;
+                            _moveType = MoveType.ImmediateWin;
+                            return (cx, cy);
                         }
                     }
 
                     // Second, check if opponent has an immediate winning threat we must block
+                    // DESIGN: All difficulties use same engine logic - strength comes from threads + time only
                     var ponderOppPlayer = player == Player.Red ? Player.Blue : Player.Red;
                     var ponderOpponentWinningSquares = new List<(int x, int y)>();
-                    if (difficulty > AIDifficulty.Braindead)
+                    for (int x = 0; x < BoardSize; x++)
                     {
-                        for (int x = 0; x < BoardSize; x++)
+                        for (int y = 0; y < BoardSize; y++)
                         {
-                            for (int y = 0; y < BoardSize; y++)
+                            if (board.GetCell(x, y).Player == Player.None)
                             {
-                                if (board.GetCell(x, y).Player == Player.None)
+                                if (_threatDetector.IsWinningMove(board, x, y, ponderOppPlayer))
                                 {
-                                    if (_threatDetector.IsWinningMove(board, x, y, ponderOppPlayer))
-                                    {
-                                        ponderOpponentWinningSquares.Add((x, y));
-                                    }
+                                    ponderOpponentWinningSquares.Add((x, y));
                                 }
                             }
                         }
@@ -419,42 +415,35 @@ public class MinimaxAI : IStatsPublisher
 
         // CRITICAL OPTIMIZATION: Check for immediate winning moves BEFORE any expensive operations
         // This ensures we never waste time searching when a win is available in one move
-        // BRAINDEAD EXCEPTION: Braindead does NOT get perfect win detection - must rely on limited search
-        if (difficulty > AIDifficulty.Braindead)
+        // DESIGN: All difficulties use same engine logic - strength comes from threads + time only
+        foreach (var (cx, cy) in candidates)
         {
-            foreach (var (cx, cy) in candidates)
+            if (_threatDetector.IsWinningMove(board, cx, cy, player))
             {
-                if (_threatDetector.IsWinningMove(board, cx, cy, player))
-                {
-                    _depthAchieved = 1;
-                    _nodesSearched = 1;
-                    _lastAllocatedTimeMs = 0;
-                    _moveType = MoveType.ImmediateWin;
-                    return (cx, cy);
-                }
+                _depthAchieved = 1;
+                _nodesSearched = 1;
+                _lastAllocatedTimeMs = 0;
+                _moveType = MoveType.ImmediateWin;
+                return (cx, cy);
             }
         }
 
         // CRITICAL DEFENSE: Check for opponent's immediate winning moves
         // Must scan full board since blocking square may be far from existing stones
         // This is O(n²) but necessary to prevent instant losses
-        // BRAINDEAD EXCEPTION: Braindead difficulty does NOT get perfect threat detection
-        // This is essential for making Braindead actually weak - it must rely on limited search
+        // DESIGN: All difficulties use same engine logic - strength comes from threads + time only
         var oppPlayer = player == Player.Red ? Player.Blue : Player.Red;
         var opponentWinningSquares = new List<(int x, int y)>();
 
-        if (difficulty > AIDifficulty.Braindead)
+        for (int x = 0; x < BoardSize; x++)
         {
-            for (int x = 0; x < BoardSize; x++)
+            for (int y = 0; y < BoardSize; y++)
             {
-                for (int y = 0; y < BoardSize; y++)
+                if (board.GetCell(x, y).Player == Player.None)
                 {
-                    if (board.GetCell(x, y).Player == Player.None)
+                    if (_threatDetector.IsWinningMove(board, x, y, oppPlayer))
                     {
-                        if (_threatDetector.IsWinningMove(board, x, y, oppPlayer))
-                        {
-                            opponentWinningSquares.Add((x, y));
-                        }
+                        opponentWinningSquares.Add((x, y));
                     }
                 }
             }
@@ -463,8 +452,8 @@ public class MinimaxAI : IStatsPublisher
         // CRITICAL: Also check for opponent's OPEN FOURS (StraightFour)
         // An open four is 4-in-a-row with an open end - opponent wins next turn if not blocked
         // This is NOT caught by IsWinningMove since it's not yet 5-in-a-row
-        // BRAINDEAD EXCEPTION: Braindead does NOT detect open fours
-        if (opponentWinningSquares.Count == 0 && difficulty > AIDifficulty.Braindead)
+        // DESIGN: All difficulties use same engine logic - strength comes from threads + time only
+        if (opponentWinningSquares.Count == 0)
         {
             var opponentThreats = _threatDetector.DetectThreats(board, oppPlayer);
             foreach (var threat in opponentThreats)
@@ -1201,52 +1190,17 @@ public class MinimaxAI : IStatsPublisher
         bestMove = candidates[0];
         int currentDepth = 1; // Start from depth 1
 
-        const int MaxSearchDepth = 50; // Realistic max for Caro - prevents bogus depth inflation from TT hits
+        // SAFEGUARD: Absolute max depth to prevent runaway values from TT bugs
+        // DESIGN: No difficulty-based depth caps - depth emerges naturally from time budget
+        // See README: "NO artificial depth floors or limits - Search runs until time expires"
+        const int AbsoluteMaxDepth = 100; // Safeguard only, not a target
         const long MinNodesForValidIteration = 10; // Minimum nodes to consider an iteration "real" search
-
-        // CRITICAL FIX: Cap depth based on difficulty to prevent fast evaluation from inflating depth.
-        // Braindead with 5% time budget should not reach D50 - cap at D5.
-        // This ensures lower difficulties can't "see ahead" too far regardless of evaluation speed.
-        int difficultyMaxDepth = difficulty switch
-        {
-            AIDifficulty.Braindead => 5,       // D5 max - limited lookahead for 5% time budget
-            AIDifficulty.Easy => 10,           // D10 max
-            AIDifficulty.Medium => 20,         // D20 max
-            AIDifficulty.Hard => 35,           // D35 max
-            AIDifficulty.Grandmaster => 50,    // D50 - no artificial limit
-            AIDifficulty.Experimental => 50,   // D50 - no artificial limit
-            AIDifficulty.BookGeneration => 50, // D50 - no artificial limit
-            _ => 50
-        };
-
-        // Also cap based on allocated time (secondary check)
-        int timeBasedMaxDepth = Math.Max(1, (int)(adjustedHardBoundMs / 10));
-        int effectiveMaxDepth = Math.Min(difficultyMaxDepth, timeBasedMaxDepth);
-
-        // CRITICAL FIX: Difficulty-scaled minimum time per iteration
-        // This prevents lower difficulties from reaching unrealistic depths due to fast evaluation.
-        // Braindead with 5% time budget should not reach D50 in 150ms just because evaluation is fast.
-        // Formula: Higher difficulties can search faster, lower difficulties need more time per iteration.
-        // This ensures strength scales with time budget, not just evaluation speed.
-        long minTimePerIterationMs = difficulty switch
-        {
-            AIDifficulty.Braindead => 10,    // 10ms min per iteration (D50 = 500ms, matching 5% budget)
-            AIDifficulty.Easy => 5,          // 5ms min per iteration
-            AIDifficulty.Medium => 2,        // 2ms min per iteration
-            AIDifficulty.Hard => 1,          // 1ms min per iteration
-            AIDifficulty.Grandmaster => 1,   // 1ms min per iteration
-            AIDifficulty.Experimental => 1,  // 1ms min per iteration
-            AIDifficulty.BookGeneration => 1, // 1ms min per iteration
-            _ => 1
-        };
 
         while (true)  // Time-based only - depth is incidental
         {
-            // MAX DEPTH CHECK: Prevent runaway depth values
-            // Uses effectiveMaxDepth which is capped based on time budget.
-            // This prevents lower difficulties with fast evaluation from reaching
-            // unrealistic depths just because they evaluate quickly.
-            if (currentDepth > effectiveMaxDepth)
+            // SAFEGUARD: Absolute max depth check to prevent runaway values from TT bugs
+            // DESIGN: No difficulty-based depth caps - strength comes from threads + time only
+            if (currentDepth > AbsoluteMaxDepth)
             {
                 break;
             }
@@ -1312,12 +1266,10 @@ public class MinimaxAI : IStatsPublisher
                 break;
             }
 
-            // CRITICAL FIX: Only increment depth if meaningful search occurred
-            // Two conditions must be met to prevent depth inflation:
-            // 1. At least MinNodesForValidIteration nodes searched (prevents TT cache hits)
-            // 2. At least minTimePerIterationMs elapsed (prevents fast evaluation from inflating depth)
-            // Without both checks, Braindead with few candidates could reach D50 in milliseconds.
-            if (nodesSearchedThisIteration >= MinNodesForValidIteration && timeThisIterationMs >= minTimePerIterationMs)
+            // Only increment depth if meaningful search occurred
+            // This prevents depth inflation from TT cache hits
+            // DESIGN: No difficulty-based time restrictions - strength comes from threads + time only
+            if (nodesSearchedThisIteration >= MinNodesForValidIteration)
             {
                 currentDepth++;
             }
