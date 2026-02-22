@@ -258,15 +258,24 @@ public sealed class ParallelMinimaxSearch
         {
             // No critical threats (StraightFour, immediate wins), but check for open threes
             // Open threes (StraightThree) become open fours in ONE move
-            // We should prioritize blocking squares but NOT filter candidates
+            // CRITICAL FIX: If opponent has an open three, we MUST block it
+            // Filtering to only blocking squares is necessary because:
+            // 1. At depth 2-3, search cannot see far enough to recognize the threat
+            // 2. Evaluation may score offensive moves higher than blocking moves
+            // 3. Open threes lead to open fours which are unblockable (2 winning squares)
             var openThreeBlocks = GetOpenThreeBlocks(board, opponent);
             if (openThreeBlocks.Count > 0)
             {
-                // Add blocking squares to the front of candidates (prioritize but don't filter)
-                foreach (var block in openThreeBlocks)
+                // FILTER candidates to only blocking squares - this is critical!
+                // Prioritization alone doesn't work because search evaluates all moves
+                // and may pick a non-blocking move with higher score
+                var filteredCandidates = openThreeBlocks.Where(c => board.GetCell(c.x, c.y).IsEmpty).ToList();
+
+                // CRITICAL FIX: Only use filtered candidates if they're not empty
+                // If all blocking squares are somehow occupied, keep original candidates
+                if (filteredCandidates.Count > 0)
                 {
-                    candidates.Remove(block);
-                    candidates.Insert(0, block);
+                    candidates = filteredCandidates;
                 }
             }
         }
@@ -356,15 +365,24 @@ public sealed class ParallelMinimaxSearch
         {
             // No critical threats (StraightFour, immediate wins), but check for open threes
             // Open threes (StraightThree) become open fours in ONE move
-            // We should prioritize blocking squares but NOT filter candidates
+            // CRITICAL FIX: If opponent has an open three, we MUST block it
+            // Filtering to only blocking squares is necessary because:
+            // 1. At depth 2-3, search cannot see far enough to recognize the threat
+            // 2. Evaluation may score offensive moves higher than blocking moves
+            // 3. Open threes lead to open fours which are unblockable (2 winning squares)
             var openThreeBlocks = GetOpenThreeBlocks(board, opponent);
             if (openThreeBlocks.Count > 0)
             {
-                // Add blocking squares to the front of candidates (prioritize but don't filter)
-                foreach (var block in openThreeBlocks)
+                // FILTER candidates to only blocking squares - this is critical!
+                // Prioritization alone doesn't work because search evaluates all moves
+                // and may pick a non-blocking move with higher score
+                var filteredCandidates = openThreeBlocks.Where(c => board.GetCell(c.x, c.y).IsEmpty).ToList();
+
+                // CRITICAL FIX: Only use filtered candidates if they're not empty
+                // If all blocking squares are somehow occupied, keep original candidates
+                if (filteredCandidates.Count > 0)
                 {
-                    candidates.Remove(block);
-                    candidates.Insert(0, block);
+                    candidates = filteredCandidates;
                 }
             }
         }
@@ -723,6 +741,36 @@ public sealed class ParallelMinimaxSearch
 
         // DEFENSIVE: Validate the best move is actually in the candidates list and is empty
         // This catches any bugs where the search might return an invalid move
+
+        // CRITICAL FIX: Handle empty candidates list
+        if (candidates.Count == 0)
+        {
+            // No candidates available - find any empty cell on the board
+            int center = board.BoardSize / 2;
+            for (int radius = 0; radius < board.BoardSize; radius++)
+            {
+                for (int dx = -radius; dx <= radius; dx++)
+                {
+                    for (int dy = -radius; dy <= radius; dy++)
+                    {
+                        int nx = center + dx;
+                        int ny = center + dy;
+                        if (nx >= 0 && nx < board.BoardSize && ny >= 0 && ny < board.BoardSize)
+                        {
+                            if (board.GetCell(nx, ny).IsEmpty)
+                            {
+                                Console.WriteLine($"[SEARCH ERROR] Empty candidates - using fallback ({nx},{ny})");
+                                return new ParallelSearchResult(nx, ny, 1, totalNodesFinal, threadCount, diagnostics, _hardTimeBoundMs, totalTableHits, totalTableLookups, bestResult.score);
+                            }
+                        }
+                    }
+                }
+            }
+            // Board is completely full (shouldn't happen in a real game)
+            Console.WriteLine($"[SEARCH ERROR] Board is full - returning center");
+            return new ParallelSearchResult(center, center, 1, totalNodesFinal, threadCount, diagnostics, _hardTimeBoundMs, totalTableHits, totalTableLookups, bestResult.score);
+        }
+
         var bestMoveInCandidates = candidates.Any(c => c.x == bestResult.x && c.y == bestResult.y);
         if (!bestMoveInCandidates)
         {
@@ -762,17 +810,35 @@ public sealed class ParallelMinimaxSearch
         AIDifficulty difficulty,
         CancellationToken cancellationToken)
     {
-        // FIX 1+5: Pre-sort candidates by static evaluation before search loop
-        // This ensures we have a sensible fallback if search times out before completing any iteration
-        // CRITICAL: Filter to empty cells only to prevent PlaceStone from throwing on occupied cells
-        var evaluatedCandidates = candidates
+        // CRITICAL FIX: Preserve priority moves (blocking squares) at the front
+        // The caller may have already prioritized blocking squares for open threes
+        // Pre-sorting by evaluation would undo this prioritization
+        // Solution: Keep the first few candidates in their original order (they're priority moves)
+        // and only sort the rest by static evaluation
+
+        const int PriorityMoveCount = 4; // First 4 candidates are considered "priority" and not re-sorted
+
+        // Filter to empty cells only to prevent PlaceStone from throwing
+        var emptyCandidates = candidates
             .Where(c => board.GetCell(c.x, c.y).IsEmpty)
-            .Select(c => (c, eval: Evaluate(board.PlaceStone(c.x, c.y, player), player)))
-            .OrderByDescending(x => x.eval)
             .ToList();
 
-        // Initialize bestMove with the highest statically evaluated candidate
-        var bestMove = evaluatedCandidates.Count > 0 ? evaluatedCandidates[0].c : candidates[0];
+        // Separate priority moves (first N) from the rest
+        var priorityMoves = emptyCandidates.Take(PriorityMoveCount).ToList();
+        var remainingCandidates = emptyCandidates.Skip(PriorityMoveCount).ToList();
+
+        // Sort remaining candidates by static evaluation
+        var sortedRemaining = remainingCandidates
+            .Select(c => (c, eval: Evaluate(board.PlaceStone(c.x, c.y, player), player)))
+            .OrderByDescending(x => x.eval)
+            .Select(x => x.c)
+            .ToList();
+
+        // Combine: priority moves first, then sorted remaining
+        var evaluatedCandidates = priorityMoves.Concat(sortedRemaining).ToList();
+
+        // Initialize bestMove with the first candidate (highest priority - may be a blocking square)
+        var bestMove = evaluatedCandidates.Count > 0 ? evaluatedCandidates[0] : candidates[0];
         var bestScore = int.MinValue;
         int bestDepth = 1;
 
@@ -1027,7 +1093,21 @@ public sealed class ParallelMinimaxSearch
         var bestMove = candidates[0];
         var bestScore = int.MinValue;
 
-        var orderedMoves = OrderMovesStaged(candidates, depth, board, player, null, threadData);
+        // CRITICAL FIX: Preserve priority moves (blocking squares) at the front
+        // The caller may have already prioritized blocking squares for open threes
+        // OrderMovesStaged would undo this prioritization
+        // Solution: Keep the first few candidates in their original order (they're priority moves)
+        // and only reorder the rest
+        const int PriorityMoveCount = 4; // First 4 candidates are considered "priority" and not re-ordered
+
+        var priorityMoves = candidates.Take(PriorityMoveCount).ToList();
+        var remainingCandidates = candidates.Skip(PriorityMoveCount).ToList();
+
+        // Only reorder the remaining candidates
+        var orderedRemaining = OrderMovesStaged(remainingCandidates, depth, board, player, null, threadData);
+
+        // Combine: priority moves first, then ordered remaining
+        var orderedMoves = priorityMoves.Concat(orderedRemaining).ToList();
 
         int moveIndex = 0;
         foreach (var (x, y) in orderedMoves)
