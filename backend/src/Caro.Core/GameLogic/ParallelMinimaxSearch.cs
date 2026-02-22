@@ -1202,36 +1202,28 @@ public sealed class ParallelMinimaxSearch
         // All 9 threads incrementing shared counter on every node = severe bottleneck
         threadData.LocalNodesSearched++;
 
-        // Time management check - use CancellationToken for proper cancellation
-        // CRITICAL FIX: Return int.MinValue on cancellation to signal invalid result
-        // Returning 0 was corrupting results - score 0 looks valid but is meaningless
-        if (cancellationToken.IsCancellationRequested)
+        // PERFORMANCE: Only check cancellation/time every 16 nodes (like sequential search)
+        // Checking CancellationToken.IsCancellationRequested on every node is expensive
+        // because it involves a volatile read. The sequential search uses a simple bool.
+        if ((threadData.LocalNodesSearched & 15) == 0)
         {
-            // Return a value that won't be selected as "best" by either player
-            // For maximizing: int.MinValue is worst possible, won't be selected
-            // For minimizing: int.MinValue is best possible, but we handle this by
-            // checking if bestScore stayed at int.MinValue in the caller
-            return int.MinValue;
-        }
-
-        // Periodic time check - every 16 nodes to catch timeouts faster
-        // CRITICAL: Check both time AND cancellation token for immediate abort
-        if ((_searchStopwatch != null && _hardTimeBoundMs > 0 && (threadData.LocalNodesSearched & 15) == 0) ||
-            ((threadData.LocalNodesSearched & 15) == 0 && cancellationToken.IsCancellationRequested))
-        {
-            // Check cancellation token first for immediate abort
+            // Check cancellation first (fast volatile read)
             if (cancellationToken.IsCancellationRequested)
                 return int.MinValue;
 
-            var elapsed = _searchStopwatch!.ElapsedMilliseconds;
-            if (elapsed >= _hardTimeBoundMs)
+            // Time check
+            if (_searchStopwatch != null && _hardTimeBoundMs > 0)
             {
-                // Master thread triggers cancellation for all other threads
-                if (threadData.ThreadIndex == 0)
+                var elapsed = _searchStopwatch.ElapsedMilliseconds;
+                if (elapsed >= _hardTimeBoundMs)
                 {
-                    _searchCts?.Cancel();
+                    // Master thread triggers cancellation for all other threads
+                    if (threadData.ThreadIndex == 0)
+                    {
+                        _searchCts?.Cancel();
+                    }
+                    return int.MinValue;
                 }
-                return int.MinValue;
             }
         }
 

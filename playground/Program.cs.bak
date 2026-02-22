@@ -1,0 +1,62 @@
+using Caro.Core.Domain.Entities;
+using Caro.Core.GameLogic;
+using Caro.Core.GameLogic.TimeManagement;
+using System.Reflection;
+
+// Simple test - focus on whether the parallel search works with enough time
+
+Console.WriteLine("=== Simple Parallel Search Test ===\n");
+
+var board = new Board()
+    .PlaceStone(8, 8, Player.Red)
+    .PlaceStone(8, 7, Player.Blue)
+    .PlaceStone(5, 8, Player.Red)
+    .PlaceStone(7, 7, Player.Blue)
+    .PlaceStone(6, 8, Player.Red)
+    .PlaceStone(7, 8, Player.Blue)
+    .PlaceStone(9, 14, Player.Red)
+    .PlaceStone(6, 7, Player.Blue);
+
+// Test sequential search first
+Console.WriteLine("Sequential search (7 seconds):");
+var ai1 = new MinimaxAI();
+var sw1 = System.Diagnostics.Stopwatch.StartNew();
+var move1 = ai1.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster,
+    timeRemainingMs: 7000, moveNumber: 9, ponderingEnabled: false, parallelSearchEnabled: false);
+sw1.Stop();
+
+var depthField = typeof(MinimaxAI).GetField("_depthAchieved", BindingFlags.NonPublic | BindingFlags.Instance);
+var nodesField = typeof(MinimaxAI).GetField("_nodesSearched", BindingFlags.NonPublic | BindingFlags.Instance);
+
+Console.WriteLine($"  Move: ({move1.x},{move1.y})");
+Console.WriteLine($"  Depth: {depthField?.GetValue(ai1)}");
+Console.WriteLine($"  Nodes: {nodesField?.GetValue(ai1)}");
+Console.WriteLine($"  Time: {sw1.ElapsedMilliseconds}ms");
+bool seq_correct = (move1.x == 9 && move1.y == 7) || (move1.x == 5 && move1.y == 7);
+Console.WriteLine($"  Result: {(seq_correct ? "✓ BLOCKS" : "✗ FAILS")}");
+
+// Test parallel search with same time
+Console.WriteLine("\nParallel search (7 seconds):");
+var ai2 = new MinimaxAI();
+var sw2 = System.Diagnostics.Stopwatch.StartNew();
+var move2 = ai2.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster,
+    timeRemainingMs: 7000, moveNumber: 9, ponderingEnabled: false, parallelSearchEnabled: true);
+sw2.Stop();
+
+Console.WriteLine($"  Move: ({move2.x},{move2.y})");
+Console.WriteLine($"  Depth: {depthField?.GetValue(ai2)}");
+Console.WriteLine($"  Nodes: {nodesField?.GetValue(ai2)}");
+Console.WriteLine($"  Time: {sw2.ElapsedMilliseconds}ms");
+bool par_correct = (move2.x == 9 && move2.y == 7) || (move2.x == 5 && move2.y == 7);
+Console.WriteLine($"  Result: {(par_correct ? "✓ BLOCKS" : "✗ FAILS")}");
+
+// Summary
+Console.WriteLine("\n=== SUMMARY ===");
+Console.WriteLine($"Sequential: {(seq_correct ? "BLOCKS" : "FAILS")} at D{depthField?.GetValue(ai1)}");
+Console.WriteLine($"Parallel:   {(par_correct ? "BLOCKS" : "FAILS")} at D{depthField?.GetValue(ai2)}");
+
+if (!par_correct)
+{
+    Console.WriteLine("\nParallel search is broken - not blocking open threes correctly.");
+    Console.WriteLine("This is a known issue with how parallel search handles threat filtering.");
+}
