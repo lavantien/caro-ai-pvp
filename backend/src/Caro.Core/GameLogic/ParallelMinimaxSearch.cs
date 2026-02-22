@@ -891,10 +891,19 @@ public sealed class ParallelMinimaxSearch
             // D15: 20K nodes, D20: 45K nodes, D30: 125K nodes, D50: 405K nodes
             // IMPORTANT: Only apply for depth > 10 to allow normal search to proceed
             // This catches cases where TT hits allow depth to increment without real search
+            //
+            // PARALLEL FIX: Each thread searches a portion of total nodes.
+            // For N threads, each thread contributes ~total/N nodes.
+            // So the per-thread threshold should be total/N, not total.
+            // This ensures parallel search can reach the same depth as sequential search.
             if (currentDepth > 10)
             {
                 long minimumTotalNodesForDepth = (long)(currentDepth - 5) * (currentDepth - 5) * 200;
-                if (threadData.LocalNodesSearched < minimumTotalNodesForDepth)
+                // Get the thread count used in this search (passed via closure or member)
+                int threadCount = _maxThreads > 0 ? _maxThreads : 1;
+                // Per-thread minimum is total / threadCount
+                long perThreadMinimum = minimumTotalNodesForDepth / threadCount;
+                if (threadData.LocalNodesSearched < perThreadMinimum)
                 {
                     // Not enough total nodes to justify this depth - stop now
                     break;
