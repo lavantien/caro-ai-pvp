@@ -666,9 +666,11 @@ public class MinimaxAI : IStatsPublisher
                 // CRITICAL: A StraightThree becomes a StraightFour in ONE move, NOT two moves!
                 // We must block three-threats BEFORE they become unstoppable open fours.
                 // A BrokenThree becomes a StraightFour in 1 move if the gap is filled!
-                // IMPORTANT: Only handle three-threats if there are NO immediate threats (StraightFour/BrokenFour)
-                // Immediate threats take priority - they must be blocked NOW
-                if ((straightThreeCount > 0 || brokenThreeCount > 0) && straightFourCount == 0 && brokenFourCount == 0 && difficulty >= AIDifficulty.Grandmaster)
+                // FIX: Handle three-threats even when there ARE four-threats, because:
+                // 1. Three-threats in different directions can become additional four-threats
+                // 2. Blocking a three-threat gain square might also block a four-threat
+                // 3. We need to find the BEST block that addresses ALL threats
+                if ((straightThreeCount > 0 || brokenThreeCount > 0) && difficulty >= AIDifficulty.Grandmaster)
                 {
                     // First check if we have our own winning threats
                     var ourThreats = _threatDetector.DetectThreats(board, player);
@@ -702,13 +704,17 @@ public class MinimaxAI : IStatsPublisher
                     // not returned immediately. Search evaluates offensive vs defensive options together.
                     // This maintains strategic initiative instead of reactive blocking.
 
-                    // CRITICAL: A BrokenThree becomes a StraightFour in ONE move if the gap is filled!
-                    // We must block three-threats, but let search pick the best blocking move.
+                    // CRITICAL: Collect ALL gain squares from both three-threats AND four-threats
+                    // When both exist, we need to find a block that addresses ALL threats
                     var threeThreats = threats
                         .Where(t => t.Type == ThreatType.StraightThree || t.Type == ThreatType.BrokenThree)
                         .ToList();
 
-                    var allGainSquares = threeThreats
+                    var fourThreats = threats
+                        .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour)
+                        .ToList();
+
+                    var allGainSquares = threats  // Include ALL threats, not just three-threats
                         .SelectMany(t => t.GainSquares)
                         .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
                         .Distinct()
@@ -721,7 +727,7 @@ public class MinimaxAI : IStatsPublisher
                         // Returning immediately bypasses search, guaranteeing the block.
                         if (difficulty >= AIDifficulty.Grandmaster)
                         {
-                            // Find the best blocking square - prefer ones that also create our own threats
+                            // Find the best blocking square - prioritize eliminating immediate threats
                             var bestBlock = allGainSquares.First();
                             int bestScore = int.MinValue;
 
@@ -731,10 +737,30 @@ public class MinimaxAI : IStatsPublisher
                                 var ourThreatsAfter = _threatDetector.DetectThreats(testBoard, player);
                                 var theirThreatsAfter = _threatDetector.DetectThreats(testBoard, oppPlayer);
 
-                                // Score: prefer blocks that create our threats and eliminate their threats
-                                int score = ourThreatsAfter.Count * 100 - theirThreatsAfter.Count * 50;
+                                // Count threats by type for weighted scoring
+                                int theirFourThreats = theirThreatsAfter.Count(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour);
+                                int theirThreeThreats = theirThreatsAfter.Count(t => t.Type == ThreatType.StraightThree || t.Type == ThreatType.BrokenThree);
+                                int ourFourThreats = ourThreatsAfter.Count(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour);
 
-                                // Prefer central blocks
+                                // CRITICAL: Check for immediate winning squares after this block
+                                int theirWinningSquares = 0;
+                                for (int wx = 0; wx < BoardSize; wx++)
+                                {
+                                    for (int wy = 0; wy < BoardSize; wy++)
+                                    {
+                                        if (testBoard.GetCell(wx, wy).IsEmpty && _threatDetector.IsWinningMove(testBoard, wx, wy, oppPlayer))
+                                            theirWinningSquares++;
+                                    }
+                                }
+
+                                // Score: heavily penalize blocks that leave immediate threats
+                                // -10000 per winning square (CRITICAL - must block these!)
+                                // -5000 per four-threat (URGENT - becomes winning next move)
+                                // -500 per three-threat (important but not immediate)
+                                // +1000 per our four-threat (creates counter-attack)
+                                int score = -theirWinningSquares * 10000 - theirFourThreats * 5000 - theirThreeThreats * 500 + ourFourThreats * 1000;
+
+                                // Prefer central blocks as tiebreaker
                                 int distToCenter = Math.Abs(block.x - 7) + Math.Abs(block.y - 7);
                                 score -= distToCenter;
 
@@ -955,6 +981,81 @@ public class MinimaxAI : IStatsPublisher
                 candidates = blockingSquares.Concat(ourWinningSquares).Concat(ourDevelopingSquares).Distinct().ToList();
                 _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Using blocking/winning/developing squares directly as candidates",
                     difficulty, player);
+            }
+
+            // CRITICAL FIX FOR GRANDMASTER: Immediately return best blocking move for four-threats
+            // This bypasses search to guarantee we block correctly
+            if (difficulty >= AIDifficulty.Grandmaster && candidates.Count > 0)
+            {
+                // First check if we have an immediate winning move
+                foreach (var winSquare in ourWinningSquares)
+                {
+                    if (_threatDetector.IsWinningMove(board, winSquare.x, winSquare.y, player))
+                    {
+                        _depthAchieved = 1;
+                        _nodesSearched = 1;
+                        _lastAllocatedTimeMs = 0;
+                        _moveType = MoveType.ImmediateWin;
+                        _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) COUNTER-ATTACK with verified winning move at ({WX},{WY})",
+                            difficulty, player, winSquare.x, winSquare.y);
+                        return winSquare;
+                    }
+                }
+
+                // Find the best blocking square using the same scoring as three-threat blocking
+                var bestBlock = candidates.First();
+                int bestScore = int.MinValue;
+
+                foreach (var block in candidates)
+                {
+                    if (!board.GetCell(block.x, block.y).IsEmpty)
+                        continue;
+
+                    var testBoard = board.PlaceStone(block.x, block.y, player);
+                    var ourThreatsAfter = _threatDetector.DetectThreats(testBoard, player);
+                    var theirThreatsAfter = _threatDetector.DetectThreats(testBoard, oppPlayer);
+
+                    // Count threats by type for weighted scoring
+                    int theirFourThreats = theirThreatsAfter.Count(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour);
+                    int theirThreeThreats = theirThreatsAfter.Count(t => t.Type == ThreatType.StraightThree || t.Type == ThreatType.BrokenThree);
+                    int ourFourThreats = ourThreatsAfter.Count(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour);
+
+                    // CRITICAL: Check for immediate winning squares after this block
+                    int theirWinningSquares = 0;
+                    for (int wx = 0; wx < BoardSize; wx++)
+                    {
+                        for (int wy = 0; wy < BoardSize; wy++)
+                        {
+                            if (testBoard.GetCell(wx, wy).IsEmpty && _threatDetector.IsWinningMove(testBoard, wx, wy, oppPlayer))
+                                theirWinningSquares++;
+                        }
+                    }
+
+                    // Score: heavily penalize blocks that leave immediate threats
+                    int score = -theirWinningSquares * 10000 - theirFourThreats * 5000 - theirThreeThreats * 500 + ourFourThreats * 1000;
+
+                    // Prefer central blocks as tiebreaker
+                    int distToCenter = Math.Abs(block.x - 7) + Math.Abs(block.y - 7);
+                    score -= distToCenter;
+
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestBlock = block;
+                    }
+                }
+
+                // Only return immediately if the best block leaves no winning squares
+                if (bestScore >= -4000)  // No winning squares left (-10000 each)
+                {
+                    _depthAchieved = 1;
+                    _nodesSearched = candidates.Count;
+                    _lastAllocatedTimeMs = 0;
+                    _moveType = MoveType.ImmediateBlock;
+                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) IMMEDIATE four-threat block at ({BX},{BY}) - score {Score}",
+                        difficulty, player, bestBlock.x, bestBlock.y, bestScore);
+                    return ValidateAndReturnBlockingMove(board, player, bestBlock);
+                }
             }
 
             // CRITICAL FIX: If threat filtering produced empty candidates, restore original candidates
@@ -1537,11 +1638,38 @@ public class MinimaxAI : IStatsPublisher
             return ourWinningMove.Value;
         }
 
-        // No counter-attack available - block the first threat as delaying action
-        // This is a losing position but we play the best delaying move
-        _logger.LogDebug("[AI SAFEGUARD] No single block works - blocking first threat at ({BX},{BY})", opponentWinningSquares[0].x, opponentWinningSquares[0].y);
+        // CRITICAL FIX: Find the block that minimizes remaining winning squares
+        // For an open four with 2 winning squares, blocking one reduces winning squares to 1
+        // This gives us a chance if opponent makes a mistake, or time to create our own threat
+        var bestDelayingBlock = opponentWinningSquares[0];
+        int minRemainingWinningSquares = int.MaxValue;
+
+        foreach (var (bx, by) in opponentWinningSquares)
+        {
+            var blockTestBoard = board.PlaceStone(bx, by, player);
+            int remainingWinningSquares = 0;
+
+            // Count remaining winning squares after this block
+            for (int wx = 0; wx < BoardSize; wx++)
+            {
+                for (int wy = 0; wy < BoardSize; wy++)
+                {
+                    if (blockTestBoard.GetCell(wx, wy).IsEmpty && _threatDetector.IsWinningMove(blockTestBoard, wx, wy, oppPlayer))
+                        remainingWinningSquares++;
+                }
+            }
+
+            if (remainingWinningSquares < minRemainingWinningSquares)
+            {
+                minRemainingWinningSquares = remainingWinningSquares;
+                bestDelayingBlock = (bx, by);
+            }
+        }
+
+        _logger.LogDebug("[AI SAFEGUARD] No single block works - best delaying block at ({BX},{BY}) leaves {Count} winning squares",
+            bestDelayingBlock.x, bestDelayingBlock.y, minRemainingWinningSquares);
         _moveType = MoveType.ImmediateBlock;
-        return opponentWinningSquares[0];
+        return bestDelayingBlock;
     }
 
     /// <summary>
