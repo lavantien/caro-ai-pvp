@@ -413,10 +413,22 @@ public class ThreatDetector
                 int emptyIdx = empties.Count;
                 empties.Add((x, y));
 
-                // Check if there's a stone after this empty (gap)
+                // Check if there's a stone after this empty (potential gap)
                 int nx = x + dx, ny = y + dy;
                 if (IsValidPosition(nx, ny, BitBoard.Size) && board.GetCell(nx, ny).Player == player)
                 {
+                    // There's a stone after this empty - this is a gap
+                    // CRITICAL FIX: If we already have 4 consecutive stones (no gaps yet),
+                    // stop here to preserve the StraightFour pattern.
+                    // Example: XXXX_ X should detect XXXX as StraightFour, not skip it.
+                    // But if we have fewer than 4 stones, continue scanning for BrokenFour.
+                    if (stones.Count >= 4 && gaps.Count == 0)
+                    {
+                        // We have 4 consecutive stones - stop to preserve StraightFour
+                        // Don't add this as a gap since we're not including stones after
+                        break;
+                    }
+                    // Otherwise, add as a gap and continue scanning
                     gaps.Add(emptyIdx);
                 }
                 else
@@ -645,16 +657,43 @@ public class ThreatDetector
 
     private bool WouldCreateOverline(Threat threat, Board board)
     {
+        // CRITICAL FIX: A threat is only invalid if ALL gain squares create overlines.
+        // If at least ONE gain square creates exactly 5 (a valid win), the threat is valid.
+        // This handles cases like: XXXX_ X where:
+        // - Playing at the gap (after 4 stones) creates 6+ = overline
+        // - But playing at the other end creates exactly 5 = win
+        bool anyValidWin = false;
+
         foreach (var (gx, gy) in threat.GainSquares)
         {
             var testBoard = board.PlaceStone(gx, gy, threat.Owner);
 
             int count = CountInDirection(testBoard, gx, gy, threat.Direction, threat.Owner);
 
-            if (count > 5)
-                return true;
+            if (count == 5)
+            {
+                // This gain square creates exactly 5 = valid win
+                anyValidWin = true;
+            }
         }
-        return false;
+
+        // If no gain square creates exactly 5, check if all create overlines
+        if (!anyValidWin)
+        {
+            foreach (var (gx, gy) in threat.GainSquares)
+            {
+                var testBoard = board.PlaceStone(gx, gy, threat.Owner);
+                int count = CountInDirection(testBoard, gx, gy, threat.Direction, threat.Owner);
+                if (count <= 5)
+                {
+                    // At least one gain square doesn't create overline, so threat is valid
+                    return false;
+                }
+            }
+            return true; // All gain squares create overlines
+        }
+
+        return false; // At least one gain square creates a valid win
     }
 
     private bool IsSandwichedThreat(Threat threat, Board board)
