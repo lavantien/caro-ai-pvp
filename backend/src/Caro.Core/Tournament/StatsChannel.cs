@@ -50,5 +50,6 @@ public enum MoveType
     ImmediateBlock,   // Forced block of opponent's winning move
     ErrorRate,        // Random move due to error rate (Braindead)
     CenterMove,       // First move at center (opening)
-    Emergency         // Emergency mode (low time)
+    Emergency,        // Emergency mode (low time)
+    ThreatCreation    // Proactive threat creation (no opponent threats)
 }

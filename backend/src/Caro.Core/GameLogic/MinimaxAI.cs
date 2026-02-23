@@ -687,16 +687,16 @@ public class MinimaxAI : IStatsPublisher
             // CRITICAL DEFENSE: Check for opponent threats BEFORE any early returns
             // This ensures we don't skip blocking in emergency mode
             // Note: oppPlayer is already defined above
-            // CRITICAL FIX: Include BrokenFour threats - they create double attacks that are as dangerous as open fours
+            // CRITICAL FIX: Include BrokenThree threats - they become BrokenFour in one move!
             var threats = _threatDetector.DetectThreats(board, oppPlayer)
-                .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.StraightThree || t.Type == ThreatType.BrokenFour)
+                .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.StraightThree || t.Type == ThreatType.BrokenFour || t.Type == ThreatType.BrokenThree)
                 .ToList();
 
             hasOpponentThreats = threats.Count > 0;
 
             // CRITICAL FIX: Only filter candidates for IMMEDIATE threats (StraightFour, BrokenFour)
-            // StraightThree is a developing threat that doesn't require immediate response
-            // The evaluation function will handle StraightThree through normal search
+            // StraightThree and BrokenThree are developing threats that don't require immediate response
+            // The evaluation function will handle them through normal search
             hasImmediateThreats = threats.Any(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour);
 
             if (hasOpponentThreats)
@@ -704,6 +704,7 @@ public class MinimaxAI : IStatsPublisher
                 var straightFourCount = threats.Count(t => t.Type == ThreatType.StraightFour);
                 var straightThreeCount = threats.Count(t => t.Type == ThreatType.StraightThree);
                 var brokenFourCount = threats.Count(t => t.Type == ThreatType.BrokenFour);
+                var brokenThreeCount = threats.Count(t => t.Type == ThreatType.BrokenThree);
 
                 blockingSquares = threats
                     .SelectMany(t => t.GainSquares)
@@ -732,60 +733,90 @@ public class MinimaxAI : IStatsPublisher
                     hasOpenFour = true;  // Treat as critically as open four
                 }
 
-                // CRITICAL FIX: StraightThree (open three) should be blocked, BUT only if we don't have
+                // CRITICAL FIX: StraightThree and BrokenThree should be blocked, BUT only if we don't have
                 // our own winning threats. If we can win immediately, that's better than blocking.
                 // An open three becomes an open four in 2 moves - we have time to counter-attack.
-                if (straightThreeCount > 0 && straightFourCount == 0 && difficulty >= AIDifficulty.Medium)
+                // A BrokenThree becomes a StraightFour in 1 move if the gap is filled!
+                if ((straightThreeCount > 0 || brokenThreeCount > 0) && straightFourCount == 0 && difficulty >= AIDifficulty.Medium)
                 {
                     // First check if we have our own winning threats
                     var ourThreats = _threatDetector.DetectThreats(board, player);
                     var ourStraightFours = ourThreats.Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour).ToList();
-                    var ourMultipleStraightThrees = ourThreats.Count(t => t.Type == ThreatType.StraightThree) >= 2;
 
-                    // If we have a winning threat (open four or double open three), play it instead of blocking
+                    // If we have a winning threat (open four), play it instead of blocking
+                    // CRITICAL: Only counter-attack if we have a GUARANTEED win (StraightFour/BrokenFour)
+                    // OR if we have multiple StraightThrees (double threat - opponent can't block both!)
                     if (ourStraightFours.Count > 0)
                     {
-                        // We have an open four - play our winning move
-                        var ourWinSquare = ourStraightFours
-                            .SelectMany(t => t.GainSquares)
-                            .FirstOrDefault(gs => board.GetCell(gs.x, gs.y).IsEmpty);
-
-                        if (ourWinSquare != default)
+                        // We have an open four - find and verify our winning move
+                        foreach (var threat in ourStraightFours)
                         {
-                            _depthAchieved = 1;
-                            _nodesSearched = 1;
-                            _lastAllocatedTimeMs = 0;
-                            _moveType = MoveType.ImmediateWin;
-                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) COUNTER-ATTACK with open four at ({WX},{WY}) instead of blocking",
-                                difficulty, player, ourWinSquare.x, ourWinSquare.y);
-                            return ourWinSquare;
+                            foreach (var gs in threat.GainSquares)
+                            {
+                                if (board.GetCell(gs.x, gs.y).IsEmpty && _threatDetector.IsWinningMove(board, gs.x, gs.y, player))
+                                {
+                                    _depthAchieved = 1;
+                                    _nodesSearched = 1;
+                                    _lastAllocatedTimeMs = 0;
+                                    _moveType = MoveType.ImmediateWin;
+                                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) COUNTER-ATTACK with verified winning move at ({WX},{WY}) instead of blocking",
+                                        difficulty, player, gs.x, gs.y);
+                                    return gs;
+                                }
+                            }
                         }
                     }
 
-                    // If we have multiple open threes, we have a double attack - worth playing
-                    if (ourMultipleStraightThrees)
+                    // NEW: Check for double StraightThree threat (2+ open threes = unstoppable!)
+                    // If we extend one, opponent must block. Then we extend the other and win.
+                    // NOTE: This is NOT an immediate win - it takes 3 more moves to actually win
+                    var ourStraightThrees = ourThreats.Where(t => t.Type == ThreatType.StraightThree).ToList();
+                    if (ourStraightThrees.Count >= 2 && straightThreeCount == 0)
                     {
-                        // Let the search decide - we have strong counter-play
-                        _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Has double open three - allowing search to decide attack vs defense",
-                            difficulty, player);
+                        // We have 2+ open threes and opponent only has BrokenThree (must fill gap first)
+                        // Counter-attack by extending our most valuable StraightThree
+                        var bestThree = ourStraightThrees
+                            .OrderByDescending(t => t.GainSquares.Count)  // Prefer those with more extension options
+                            .First();
+                        var threeSquare = bestThree.GainSquares.FirstOrDefault(gs => board.GetCell(gs.x, gs.y).IsEmpty);
+
+                        if (threeSquare != default)
+                        {
+                            _depthAchieved = 1;
+                            _nodesSearched = ourStraightThrees.Count;
+                            _lastAllocatedTimeMs = 0;
+                            _moveType = MoveType.ThreatCreation;  // Not ImmediateWin - takes 3 moves to win
+                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) COUNTER-ATTACK with double open three at ({WX},{WY}) - opponent can't block both!",
+                                difficulty, player, threeSquare.x, threeSquare.y);
+                            return threeSquare;
+                        }
                     }
-                    else if (difficulty < AIDifficulty.Grandmaster)
+
+                    // No guaranteed winning counter-attack - MUST block the three threat
+                    // This applies to ALL difficulties including Grandmaster
+                    // A BrokenThree becomes a StraightFour in 1 move - too dangerous to ignore
                     {
-                        // No winning counter-attack - block the open three
-                        // SHORT-CIRCUIT only for non-Grandmaster difficulties
-                        var straightThreeBlocks = threats
-                            .Where(t => t.Type == ThreatType.StraightThree)
+                        var threeThreats = threats
+                            .Where(t => t.Type == ThreatType.StraightThree || t.Type == ThreatType.BrokenThree)
+                            .ToList();
+
+                        var allGainSquares = threeThreats
                             .SelectMany(t => t.GainSquares)
                             .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
                             .ToList();
 
-                        if (straightThreeBlocks.Count > 0)
+                        if (allGainSquares.Count > 0)
                         {
-                            // Prefer blocking squares that are adjacent to more of our stones
-                            // (more likely to create our own threats while blocking)
-                            var bestBlock = straightThreeBlocks
+                            // CRITICAL FIX: Find the best blocking square
+                            // Priority: squares that create our threats > squares that block multiple threats > adjacent to our stones
+                            var gainSquareCounts = allGainSquares
+                                .GroupBy(gs => gs)
+                                .ToDictionary(g => g.Key, g => g.Count());
+
+                            var bestBlock = allGainSquares
                                 .OrderByDescending(bs =>
                                 {
+                                    // Tertiary: squares adjacent to our stones
                                     int adjacentOurs = 0;
                                     for (int dx = -1; dx <= 1; dx++)
                                     {
@@ -800,48 +831,37 @@ public class MinimaxAI : IStatsPublisher
                                             }
                                         }
                                     }
-                                    return adjacentOurs;
+
+                                    // Primary: squares that also create our own threat (block AND counter!)
+                                    int ourThreatScore = 0;
+                                    var testBoard = board.PlaceStone(bs.x, bs.y, player);
+                                    var newThreats = _threatDetector.DetectThreats(testBoard, player);
+                                    ourThreatScore += newThreats.Count(t => t.Type == ThreatType.StraightFour) * 1000;
+                                    ourThreatScore += newThreats.Count(t => t.Type == ThreatType.BrokenFour) * 500;
+                                    ourThreatScore += newThreats.Count(t => t.Type == ThreatType.StraightThree) * 100;
+                                    ourThreatScore += newThreats.Count(t => t.Type == ThreatType.BrokenThree) * 50;
+
+                                    // Secondary: squares that block more threats
+                                    int threatCount = gainSquareCounts.GetValueOrDefault(bs, 1);
+
+                                    // Weight: our threat creation is worth the most, then threat count, then adjacency
+                                    return ourThreatScore * 10 + threatCount * 10 + adjacentOurs;
                                 })
                                 .First();
 
                             _depthAchieved = 1;
-                            _nodesSearched = straightThreeBlocks.Count;
+                            _nodesSearched = allGainSquares.Count;
                             _lastAllocatedTimeMs = 0;
                             _moveType = MoveType.ImmediateBlock;
-                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) BLOCKING OPEN THREE at ({BX},{BY}) - no counter-attack available",
-                                difficulty, player, bestBlock.x, bestBlock.y);
+                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) BLOCKING THREE THREAT at ({BX},{BY}) - blocks {ThreatCount} threat(s), no counter-attack available",
+                                difficulty, player, bestBlock.x, bestBlock.y, gainSquareCounts.GetValueOrDefault(bestBlock, 1));
                             return bestBlock;
-                        }
-                    }
-                    else
-                    {
-                        // Grandmaster: Don't short-circuit - ensure blocking moves are prioritized in candidates
-                        var straightThreeBlocks = threats
-                            .Where(t => t.Type == ThreatType.StraightThree)
-                            .SelectMany(t => t.GainSquares)
-                            .Where(gs => board.GetCell(gs.x, gs.y).IsEmpty)
-                            .ToList();
-
-                        if (straightThreeBlocks.Count > 0)
-                        {
-                            // CRITICAL: Ensure ALL blocking squares are at the FRONT of candidates
-                            // This prioritizes blocking while still allowing search to consider other moves
-                            // FIX: Do NOT filter to only blocking squares - this causes Depth=0 bug
-                            // when search completes too quickly with < MinNodesForValidIteration nodes
-                            foreach (var block in straightThreeBlocks)
-                            {
-                                candidates.Remove(block);  // Remove if present
-                                candidates.Insert(0, block);  // Insert at front for priority
-                            }
-                            _logger.LogDebug("[AI GRANDMASTER] Prioritizing {Count} open three blocking move(s) in search candidates",
-                                straightThreeBlocks.Count);
-                            // Fall through to normal search with prioritized candidates
                         }
                     }
                 }
 
-                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Opponent has {StraightFourCount} StraightFour, {StraightThreeCount} StraightThree, {BrokenFourCount} BrokenFour threat(s), blocking squares: {BlockingSquares}{OpenFourSuffix}",
-                    difficulty, player, straightFourCount, straightThreeCount, brokenFourCount,
+                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Opponent has {StraightFourCount} StraightFour, {StraightThreeCount} StraightThree, {BrokenFourCount} BrokenFour, {BrokenThreeCount} BrokenThree threat(s), blocking squares: {BlockingSquares}{OpenFourSuffix}",
+                    difficulty, player, straightFourCount, straightThreeCount, brokenFourCount, brokenThreeCount,
                     string.Join(", ", blockingSquares.Select(g => $"({g.x},{g.y})")),
                     hasOpenFour ? " [CRITICAL THREAT DETECTED]" : "");
             }
@@ -858,6 +878,91 @@ public class MinimaxAI : IStatsPublisher
                 _depthAchieved = 5;
                 _nodesSearched = 1;
                 return ttMove.Value;
+            }
+        }
+
+        // PROACTIVE ATTACK: When no opponent threats, create our own threats!
+        // This is critical for winning against weaker opponents - we must attack, not just defend
+        // Only for Grandmaster to preserve difficulty differentiation
+        if (!hasOpponentThreats && difficulty >= AIDifficulty.Grandmaster)
+        {
+            var ourThreats = _threatDetector.DetectThreats(board, player);
+
+            // Priority 1: Create StraightFour/BrokenFour (immediate win)
+            var ourFourThreats = ourThreats
+                .Where(t => t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour)
+                .ToList();
+
+            if (ourFourThreats.Count > 0)
+            {
+                // CRITICAL FIX: Verify the gain square actually wins using IsWinningMove
+                // A StraightFour/BrokenFour threat means we have 4 stones, but we must verify
+                // the gain square completes 5 in a row (not blocked, no overline, etc.)
+                foreach (var threat in ourFourThreats)
+                {
+                    foreach (var gs in threat.GainSquares)
+                    {
+                        if (board.GetCell(gs.x, gs.y).IsEmpty && _threatDetector.IsWinningMove(board, gs.x, gs.y, player))
+                        {
+                            _depthAchieved = 1;
+                            _nodesSearched = ourFourThreats.Count;
+                            _lastAllocatedTimeMs = 0;
+                            _moveType = MoveType.ImmediateWin;
+                            _logger.LogDebug("[AI ATTACK] {Difficulty} ({Player}) Playing verified winning move at ({WX},{WY})",
+                                difficulty, player, gs.x, gs.y);
+                            return gs;
+                        }
+                    }
+                }
+            }
+
+            // Priority 2: Extend existing StraightThree to create open four threat
+            var ourStraightThrees = ourThreats
+                .Where(t => t.Type == ThreatType.StraightThree)
+                .ToList();
+
+            if (ourStraightThrees.Count > 0)
+            {
+                // Find the best StraightThree to extend (most open ends)
+                var bestThree = ourStraightThrees
+                    .OrderByDescending(t => t.GainSquares.Count(gs => board.GetCell(gs.x, gs.y).IsEmpty))
+                    .First();
+
+                var extendSquare = bestThree.GainSquares
+                    .FirstOrDefault(gs => board.GetCell(gs.x, gs.y).IsEmpty);
+
+                if (extendSquare != default)
+                {
+                    _depthAchieved = 1;
+                    _nodesSearched = ourStraightThrees.Count;
+                    _lastAllocatedTimeMs = 0;
+                    _moveType = MoveType.ThreatCreation;
+                    _logger.LogDebug("[AI ATTACK] {Difficulty} ({Player}) Extending StraightThree at ({EX},{EY}) to create open four",
+                        difficulty, player, extendSquare.x, extendSquare.y);
+                    return extendSquare;
+                }
+            }
+
+            // Priority 3: Create new StraightThree by finding moves that create threats
+            foreach (var candidate in candidates.Take(20))
+            {
+                if (!board.GetCell(candidate.x, candidate.y).IsEmpty)
+                    continue;
+
+                var testBoard = board.PlaceStone(candidate.x, candidate.y, player);
+                var newThreats = _threatDetector.DetectThreats(testBoard, player);
+
+                // Prioritize moves that create StraightThree
+                if (newThreats.Any(t => t.Type == ThreatType.StraightThree))
+                {
+                    _depthAchieved = 1;
+                    _nodesSearched = 20;
+                    _lastAllocatedTimeMs = 0;
+                    _moveType = MoveType.ThreatCreation;
+                    _logger.LogDebug("[AI ATTACK] {Difficulty} ({Player}) Creating StraightThree at ({TX},{TY})",
+                        difficulty, player, candidate.x, candidate.y);
+                    return candidate;
+                }
             }
         }
 
@@ -3396,6 +3501,8 @@ public class MinimaxAI : IStatsPublisher
     /// <summary>
     /// Get candidate moves (empty cells near existing stones)
     /// Zero-allocation implementation using stackalloc for tracking
+    /// CRITICAL FIX: In early game, center moves come FIRST (before proximity moves)
+    /// This ensures proper strategic center control when opponent plays far from center
     /// </summary>
     private List<(int x, int y)> GetCandidateMoves(Board board)
     {
@@ -3408,6 +3515,85 @@ public class MinimaxAI : IStatsPublisher
         // Pre-allocate with reasonable capacity to avoid resizing
         var candidates = new List<(int x, int y)>(64);
 
+        // Count stones to determine game phase
+        int stoneCount = 0;
+        int sumX = 0, sumY = 0;
+        for (int x = 0; x < boardSize; x++)
+        {
+            for (int y = 0; y < boardSize; y++)
+            {
+                if (board.GetCell(x, y).Player != Player.None)
+                {
+                    stoneCount++;
+                    sumX += x;
+                    sumY += y;
+                }
+            }
+        }
+
+        // Empty board - return center-area moves for opening
+        if (stoneCount == 0)
+        {
+            int center = boardSize / 2;
+            for (int x = center - 1; x <= center + 1; x++)
+            {
+                for (int y = center - 1; y <= center + 1; y++)
+                {
+                    candidates.Add((x, y));
+                }
+            }
+            return candidates;
+        }
+
+        // CRITICAL FIX: Calculate center of mass of all stones
+        // This prevents being distracted by isolated opponent stones in corners
+        int centerX = sumX / stoneCount;
+        int centerY = sumY / stoneCount;
+        int centerPos = boardSize / 2;
+
+        // CRITICAL: Always add moves near center of mass FIRST
+        // This ensures the main area of play gets priority
+        const int CenterRadius = 3;
+        for (int dx = -CenterRadius; dx <= CenterRadius; dx++)
+        {
+            for (int dy = -CenterRadius; dy <= CenterRadius; dy++)
+            {
+                int x = centerX + dx;
+                int y = centerY + dy;
+                if (x >= 0 && x < boardSize && y >= 0 && y < boardSize)
+                {
+                    int idx = x * boardSize + y;
+                    if (!considered[idx] && board.GetCell(x, y).Player == Player.None)
+                    {
+                        candidates.Add((x, y));
+                        considered[idx] = true;
+                    }
+                }
+            }
+        }
+
+        // Add moves near center of board if not already included
+        for (int dx = -2; dx <= 2; dx++)
+        {
+            for (int dy = -2; dy <= 2; dy++)
+            {
+                int x = centerPos + dx;
+                int y = centerPos + dy;
+                if (x >= 0 && x < boardSize && y >= 0 && y < boardSize)
+                {
+                    int idx = x * boardSize + y;
+                    if (!considered[idx] && board.GetCell(x, y).Player == Player.None)
+                    {
+                        candidates.Add((x, y));
+                        considered[idx] = true;
+                    }
+                }
+            }
+        }
+
+        // Add moves near existing stones (lower priority)
+        // Use smaller radius to reduce noise from isolated stones
+        const int ReducedSearchRadius = 4;
         for (int x = 0; x < boardSize; x++)
         {
             for (int y = 0; y < boardSize; y++)
@@ -3415,10 +3601,9 @@ public class MinimaxAI : IStatsPublisher
                 var cell = board.GetCell(x, y);
                 if (cell.Player != Player.None)
                 {
-                    // Check neighboring cells
-                    for (int dx = -SearchRadius; dx <= SearchRadius; dx++)
+                    for (int dx = -ReducedSearchRadius; dx <= ReducedSearchRadius; dx++)
                     {
-                        for (int dy = -SearchRadius; dy <= SearchRadius; dy++)
+                        for (int dy = -ReducedSearchRadius; dy <= ReducedSearchRadius; dy++)
                         {
                             var nx = x + dx;
                             var ny = y + dy;
@@ -3441,19 +3626,13 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // If no candidates (empty board), return center
-        if (candidates.Count == 0)
-        {
-            int center = boardSize / 2;
-            candidates.Add((center, center));
-        }
-
         return candidates;
     }
 
     /// <summary>
     /// Get candidate moves for SearchBoard (high-performance path).
     /// Returns empty cells within SearchRadius of any existing stone.
+    /// CRITICAL FIX: Prioritizes moves near center of mass to avoid distraction from isolated stones
     /// </summary>
     private List<(int x, int y)> GetCandidateMoves(SearchBoard board)
     {
@@ -3466,13 +3645,65 @@ public class MinimaxAI : IStatsPublisher
         // Pre-allocate with reasonable capacity to avoid resizing
         var candidates = new List<(int x, int y)>(64);
 
+        // Count stones to determine game phase
+        int stoneCount = 0;
         for (int x = 0; x < boardSize; x++)
         {
             for (int y = 0; y < boardSize; y++)
             {
                 if (!board.IsEmpty(x, y))
                 {
-                    // Check neighboring cells
+                    stoneCount++;
+                }
+            }
+        }
+
+        // Empty board - return center-area moves for opening
+        if (stoneCount == 0)
+        {
+            int center = boardSize / 2;
+            for (int x = center - 1; x <= center + 1; x++)
+            {
+                for (int y = center - 1; y <= center + 1; y++)
+                {
+                    candidates.Add((x, y));
+                }
+            }
+            return candidates;
+        }
+
+        int centerPos = boardSize / 2;
+
+        // PRIORITY 1: Add moves near center of board FIRST
+        // This ensures we control the center regardless of opponent's random moves
+        const int CenterRadius = 4;
+        for (int dx = -CenterRadius; dx <= CenterRadius; dx++)
+        {
+            for (int dy = -CenterRadius; dy <= CenterRadius; dy++)
+            {
+                int x = centerPos + dx;
+                int y = centerPos + dy;
+                if (x >= 0 && x < boardSize && y >= 0 && y < boardSize)
+                {
+                    int idx = x * boardSize + y;
+                    if (!considered[idx] && board.IsEmpty(x, y))
+                    {
+                        candidates.Add((x, y));
+                        considered[idx] = true;
+                    }
+                }
+            }
+        }
+
+        // PRIORITY 2: Add moves near existing stones
+        // Use full search radius to ensure we don't miss tactical moves
+        const int SearchRadius = 7;
+        for (int x = 0; x < boardSize; x++)
+        {
+            for (int y = 0; y < boardSize; y++)
+            {
+                if (!board.IsEmpty(x, y))
+                {
                     for (int dx = -SearchRadius; dx <= SearchRadius; dx++)
                     {
                         for (int dy = -SearchRadius; dy <= SearchRadius; dy++)
@@ -3496,13 +3727,6 @@ public class MinimaxAI : IStatsPublisher
                     }
                 }
             }
-        }
-
-        // If no candidates (empty board), return center
-        if (candidates.Count == 0)
-        {
-            int center = boardSize / 2;
-            candidates.Add((center, center));
         }
 
         return candidates;
