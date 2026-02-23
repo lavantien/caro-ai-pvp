@@ -51,5 +51,6 @@ public enum MoveType
     ErrorRate,        // Random move due to error rate (Braindead)
     CenterMove,       // First move at center (opening)
     Emergency,        // Emergency mode (low time)
-    ThreatCreation    // Proactive threat creation (no opponent threats)
+    ThreatCreation,   // Proactive threat creation (no opponent threats)
+    CounterAttack     // Counter-attack when blocking is futile (double threat situation)
 }

@@ -82,6 +82,8 @@ public static class GameStatsFormatter
             MoveType.ErrorRate => "Er",     // Error rate random move
             MoveType.CenterMove => "Ct",    // Center opening move
             MoveType.Emergency => "Em",     // Emergency mode
+            MoveType.ThreatCreation => "Tc", // Proactive threat creation
+            MoveType.CounterAttack => "Ca", // Counter-attack when blocking futile
             _ => "-"
         };
     }

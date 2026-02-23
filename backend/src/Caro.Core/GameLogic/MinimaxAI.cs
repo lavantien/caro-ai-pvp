@@ -727,6 +727,59 @@ public class MinimaxAI : IStatsPublisher
                         // Returning immediately bypasses search, guaranteeing the block.
                         if (difficulty >= AIDifficulty.Grandmaster)
                         {
+                            // CRITICAL: Check if opponent has multiple independent three-threats
+                            // This is a "double threat" situation - blocking one leaves the other
+                            // which becomes a four-threat next turn. We MUST counter-attack.
+                            var distinctThreeThreats = threeThreats
+                                .Where(t => t.Type == ThreatType.StraightThree || t.Type == ThreatType.BrokenThree)
+                                .GroupBy(t => t.Direction)  // Group by direction to find parallel threats
+                                .Count(g => g.Any());
+
+                            bool hasMultipleIndependentThreats = threeThreats.Count >= 2 &&
+                                threeThreats.SelectMany(t => t.GainSquares).Distinct().Count() >= 3;
+
+                            // If opponent has 2+ independent threats, blocking is futile
+                            // We must create our own winning threat to counter
+                            if (hasMultipleIndependentThreats)
+                            {
+                                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) CRITICAL: Opponent has {Count} independent three-threats - blocking is futile, must counter-attack!",
+                                    difficulty, player, threeThreats.Count);
+
+                                // Try to find a move that creates our own winning threat
+                                for (int x = 0; x < BoardSize; x++)
+                                {
+                                    for (int y = 0; y < BoardSize; y++)
+                                    {
+                                        if (!board.GetCell(x, y).IsEmpty) continue;
+
+                                        var testBoard = board.PlaceStone(x, y, player);
+                                        var ourNewThreats = _threatDetector.DetectThreats(testBoard, player);
+                                        var ourNewFourThreats = ourNewThreats.Where(t =>
+                                            t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour).ToList();
+
+                                        // If we can create a four-threat (open four), that forces opponent to block
+                                        // This changes the dynamic - they have to respond to us
+                                        if (ourNewFourThreats.Count > 0)
+                                        {
+                                            // Check if this also blocks one of their threats (bonus!)
+                                            bool alsoBlocks = threeThreats.Any(t => t.GainSquares.Contains((x, y)));
+
+                                            _depthAchieved = 1;
+                                            _nodesSearched = (x + 1) * BoardSize + y + 1;
+                                            _lastAllocatedTimeMs = 0;
+                                            _moveType = alsoBlocks ? MoveType.ImmediateBlock : MoveType.CounterAttack;
+                                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) COUNTER-ATTACK at ({X},{Y}) creates {Count} four-threat(s){AlsoBlocks}",
+                                                difficulty, player, x, y, ourNewFourThreats.Count, alsoBlocks ? " and blocks!" : "");
+                                            return ValidateAndReturnBlockingMove(board, player, (x, y));
+                                        }
+                                    }
+                                }
+
+                                // No counter-attack available - fall through to best blocking strategy
+                                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) No counter-attack found - must block best threat",
+                                    difficulty, player);
+                            }
+
                             // Find the best blocking square - prioritize eliminating immediate threats
                             var bestBlock = allGainSquares.First();
                             int bestScore = int.MinValue;
@@ -758,7 +811,9 @@ public class MinimaxAI : IStatsPublisher
                                 // -5000 per four-threat (URGENT - becomes winning next move)
                                 // -500 per three-threat (important but not immediate)
                                 // +1000 per our four-threat (creates counter-attack)
-                                int score = -theirWinningSquares * 10000 - theirFourThreats * 5000 - theirThreeThreats * 500 + ourFourThreats * 1000;
+                                // -2000 BONUS penalty for multiple three-threats (can lead to double threat)
+                                int multipleThreePenalty = theirThreeThreats >= 2 ? -2000 : 0;
+                                int score = -theirWinningSquares * 10000 - theirFourThreats * 5000 - theirThreeThreats * 500 + ourFourThreats * 1000 + multipleThreePenalty;
 
                                 // Prefer central blocks as tiebreaker
                                 int distToCenter = Math.Abs(block.x - 7) + Math.Abs(block.y - 7);
