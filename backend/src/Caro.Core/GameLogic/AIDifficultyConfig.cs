@@ -102,13 +102,13 @@ public sealed class AIDifficultyConfig
                 PonderingThreadCount = GetGrandmasterPonderThreadCount(),
                 TimeMultiplier = 1.0,          // 100% of allocated time
                 TimeBudgetPercent = 1.0,     // 100% time budget
-                ParallelSearchEnabled = false,   // CRITICAL: Sequential search is 15-30x more efficient per node
+                ParallelSearchEnabled = true,    // Per README: "Max parallel"
                 PonderingEnabled = true,
                 VCFEnabled = true,
                 ErrorRate = 0.0,                // No intentional errors
-                Description = "Sequential + VCF + pondering (no book)",
-                OpeningBookEnabled = false,     // Disable book - it suggests bad corner moves
-                MaxBookDepth = 0               // No opening book
+                Description = "Max parallel + VCF + pondering + opening book",
+                OpeningBookEnabled = true,       // Per README: "14 plies"
+                MaxBookDepth = 14               // 14 plies = 7 moves per side
             },
 
             AIDifficulty.Experimental => new AIDifficultySettings
