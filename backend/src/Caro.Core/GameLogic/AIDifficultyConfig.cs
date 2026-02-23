@@ -98,15 +98,15 @@ public sealed class AIDifficultyConfig
             {
                 Difficulty = AIDifficulty.Grandmaster,
                 DisplayName = "Grandmaster",
-                ThreadCount = GetGrandmasterThreadCount(),
-                PonderingThreadCount = GetGrandmasterPonderThreadCount(),
+                ThreadCount = 1,  // Sequential search is 15-30x more efficient per node
+                PonderingThreadCount = 0,  // No pondering threads for sequential
                 TimeMultiplier = 1.0,          // 100% of allocated time
                 TimeBudgetPercent = 1.0,     // 100% time budget
-                ParallelSearchEnabled = true,    // Per README: "Max parallel"
-                PonderingEnabled = true,
+                ParallelSearchEnabled = false,   // CRITICAL: Sequential search is more reliable
+                PonderingEnabled = false,  // Disable pondering for sequential search
                 VCFEnabled = true,
                 ErrorRate = 0.0,                // No intentional errors
-                Description = "Max parallel + VCF + pondering + opening book",
+                Description = "Sequential + VCF (reliable blocking)",
                 OpeningBookEnabled = true,       // Per README: "14 plies"
                 MaxBookDepth = 14               // 14 plies = 7 moves per side
             },

@@ -1245,7 +1245,9 @@ public class MinimaxAI : IStatsPublisher
             }
 
             //Console.WriteLine($"[AI PARALLEL] Move: ({parallelResult.X}, {parallelResult.Y}), Depth: {_depthAchieved}, Nodes: {_nodesSearched:N0}, Threads: {parallelResult.ThreadCount}");
-            return (parallelResult.X, parallelResult.Y);
+
+            // CRITICAL SAFEGUARD for parallel search path
+            return ValidateAndReturnBlockingMove(board, player, (parallelResult.X, parallelResult.Y));
         }
 
         // TIME-BUDGET-BASED SEARCH: No hardcoded depths, scales with machine capability
@@ -1457,7 +1459,87 @@ public class MinimaxAI : IStatsPublisher
         // Publish search stats to channel
         PublishSearchStats(player, StatsType.MainSearch, _searchStopwatch.ElapsedMilliseconds);
 
-        return bestMove;
+        // CRITICAL SAFEGUARD: Final validation that the move blocks opponent's winning threats
+        return ValidateAndReturnBlockingMove(board, player, bestMove);
+    }
+
+    /// <summary>
+    /// SAFEGUARD: Final validation that the returned move blocks opponent's winning threats.
+    /// This catches any edge cases where the blocking logic might be bypassed.
+    /// </summary>
+    private (int x, int y) ValidateAndReturnBlockingMove(Board board, Player player, (int x, int y) proposedMove)
+    {
+        var oppPlayer = player == Player.Red ? Player.Blue : Player.Red;
+        var opponentWinningSquares = new List<(int x, int y)>();
+
+        // Re-scan the full board for opponent winning moves
+        for (int fx = 0; fx < BoardSize; fx++)
+        {
+            for (int fy = 0; fy < BoardSize; fy++)
+            {
+                if (board.GetCell(fx, fy).Player == Player.None)
+                {
+                    if (_threatDetector.IsWinningMove(board, fx, fy, oppPlayer))
+                    {
+                        opponentWinningSquares.Add((fx, fy));
+                    }
+                }
+            }
+        }
+
+        if (opponentWinningSquares.Count == 0)
+        {
+            // No opponent threats - return the proposed move
+            return proposedMove;
+        }
+
+        // Check if our proposed move blocks all threats
+        var testBoard = board.PlaceStone(proposedMove.x, proposedMove.y, player);
+        bool blocksAllThreats = true;
+        foreach (var (wx, wy) in opponentWinningSquares)
+        {
+            if (wx == proposedMove.x && wy == proposedMove.y)
+                continue; // This square is now occupied
+            if (_threatDetector.IsWinningMove(testBoard, wx, wy, oppPlayer))
+            {
+                blocksAllThreats = false;
+                break;
+            }
+        }
+
+        if (blocksAllThreats)
+        {
+            // Proposed move is valid - it blocks all threats
+            return proposedMove;
+        }
+
+        // Our move doesn't block all threats - find one that does
+        foreach (var (bx, by) in opponentWinningSquares)
+        {
+            var blockTestBoard = board.PlaceStone(bx, by, player);
+            bool thisBlockWorks = true;
+            foreach (var (wx, wy) in opponentWinningSquares)
+            {
+                if (wx == bx && wy == by)
+                    continue;
+                if (_threatDetector.IsWinningMove(blockTestBoard, wx, wy, oppPlayer))
+                {
+                    thisBlockWorks = false;
+                    break;
+                }
+            }
+            if (thisBlockWorks)
+            {
+                _logger.LogDebug("[AI SAFEGUARD] Forcing block at ({BX},{BY}) instead of ({X},{Y})", bx, by, proposedMove.x, proposedMove.y);
+                _moveType = MoveType.ImmediateBlock;
+                return (bx, by);
+            }
+        }
+
+        // No single block works - just block the first threat as delaying action
+        _logger.LogDebug("[AI SAFEGUARD] No single block works - blocking first threat at ({BX},{BY})", opponentWinningSquares[0].x, opponentWinningSquares[0].y);
+        _moveType = MoveType.ImmediateBlock;
+        return opponentWinningSquares[0];
     }
 
     /// <summary>
