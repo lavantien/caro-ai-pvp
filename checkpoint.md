@@ -1,47 +1,52 @@
-# Checkpoint: v1.64.0 Development
+# Checkpoint: v1.65.0 Development
 
 ## Summary
 
-Bug fixes for time management and threat detection, plus new matchup data with updated time formula.
+Improved Grandmaster vs Braindead win rate from 40% to 80% through counter-attack optimization.
 
-## Changes
+## Progress
 
-### Time Management Fix
+### Win Rate Progression (Grandmaster vs Braindead, 3+2 Blitz)
 
-Changed time allotment formula from `3x increment` to `(initial_time / 20) + (increment * 2)`:
+| Version | Win Rate | Notes |
+|---------|----------|-------|
+| v1.62.0 | 95% | Baseline with old blocking |
+| v1.64.0 | 40% | Regression from time formula change |
+| Current | 80% | Counter-attack improvements |
 
-| Time Control | Old Max | New Max | Formula |
-|--------------|---------|---------|---------|
-| 180+2 | 6s | 13s | 180/20 + 2*2 = 9 + 4 |
-| 300+3 | 9s | 21s | 300/20 + 3*2 = 15 + 6 |
-| 420+5 | 15s | 31s | 420/20 + 5*2 = 21 + 10 |
+### Changes Made
 
-This allows more time per move in longer games while preventing clock burn.
+1. **Reverted three-threat counter-attack scoring**
+   - Adding `+ ourThreeThreats * 1000` made win rate worse (60%)
+   - Reverted to only `+ ourFourThreats * 8000`
 
-### Threat Detection Fix
-
-Fixed crash when board is nearly full:
-- `ThreatDetector.IsWinningMove()` now checks if cell is empty before placing stone
-- Prevents `InvalidOperationException: Cell is already occupied` on full boards
+2. **Added desperate counter-attack logic**
+   - When best blocking score is < -5000 (losing position)
+   - Search all squares for a move creating verified winning four-threat
+   - Take counter-attack instead of futile block
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| `AdaptiveTimeManager.cs` | Updated time allotment formula |
-| `ThreatDetector.cs` | Added empty cell check in IsWinningMove |
+| `MinimaxAI.cs` | Added counter-attack when blocking is futile |
+| `MinimaxAI.cs` | Reverted three-threat scoring addition |
 
-### Matchup Results (180+2, 20 games)
+### Test Results
 
-Braindead vs Grandmaster with new time formula:
-- **Braindead: 12 wins (60%)**
-- **Grandmaster: 8 wins (40%)**
-- Average moves: 50.1
-- Average time: 170.4s/game
+**Tournament 1 (with three-threat scoring):**
+- 12 wins, 8 losses (60% win rate) - WORSE
 
-Note: This is significantly worse than the v1.62.0 result (95% Grandmaster win rate). The new time formula may require further investigation.
+**Tournament 2 (reverted, with desperate counter-attack):**
+- 16 wins, 4 losses (80% win rate) - BETTER
+
+## Remaining Work
+
+- Target: 100% win rate (currently at 80%)
+- Losses occur when Braindead creates multiple threats early
+- Grandmaster needs more proactive defense
 
 ## Version
 
-- Target: v1.64.0
-- Previous: v1.63.0
+- Target: v1.65.0
+- Previous: v1.64.0
