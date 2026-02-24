@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.65.0] - 2026-02-24
+
+### Fixed
+- **Grandmaster vs Braindead win rate** improved from 40% to 80%
+  - Added desperate counter-attack logic when blocking score < -5000
+  - Searches all squares for verified winning four-threat creation
+  - Takes counter-attack instead of futile block in losing positions
+- **Reverted three-threat counter-attack scoring**
+  - Adding `+ ourThreeThreats * 1000` reduced win rate to 60%
+  - Keeping only `+ ourFourThreats * 8000` for counter-attack scoring
+
+### Changed
+- **MinimaxAI.cs** - Counter-attack optimization for Grandmaster difficulty
+
+### Tournament Results
+- Grandmaster vs Braindead (3+2 Blitz, 20 games): Grandmaster 80% - Braindead 20%
+- Improvement from v1.64.0's 40% win rate
+- Target: 100% win rate (work in progress)
+
+[1.65.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.65.0
+
 ## [1.64.0] - 2026-02-20
 
 ### Fixed
