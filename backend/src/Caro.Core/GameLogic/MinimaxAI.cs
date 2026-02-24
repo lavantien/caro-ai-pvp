@@ -827,12 +827,57 @@ public class MinimaxAI : IStatsPublisher
                                 }
                             }
 
+                            // CRITICAL: If the best block still leaves us in a losing position,
+                            // try counter-attacking instead - creating our own winning threat
+                            // This is especially important when opponent has multiple developing threats
+                            if (bestScore < -5000) // Very negative = opponent still has winning squares
+                            {
+                                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Best block score is {Score} - trying counter-attack instead",
+                                    difficulty, player, bestScore);
+
+                                for (int x = 0; x < BoardSize; x++)
+                                {
+                                    for (int y = 0; y < BoardSize; y++)
+                                    {
+                                        if (!board.GetCell(x, y).IsEmpty) continue;
+
+                                        var testBoard = board.PlaceStone(x, y, player);
+                                        var ourNewThreats = _threatDetector.DetectThreats(testBoard, player);
+                                        var ourNewFourThreats = ourNewThreats.Where(t =>
+                                            t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour).ToList();
+
+                                        // If we can create a four-threat that is also a winning move, take it!
+                                        if (ourNewFourThreats.Count > 0)
+                                        {
+                                            foreach (var threat in ourNewFourThreats)
+                                            {
+                                                foreach (var gs in threat.GainSquares)
+                                                {
+                                                    if (testBoard.GetCell(gs.x, gs.y).IsEmpty &&
+                                                        _threatDetector.IsWinningMove(testBoard, gs.x, gs.y, player))
+                                                    {
+                                                        // This counter-attack creates a verified winning position!
+                                                        _depthAchieved = 1;
+                                                        _nodesSearched = (x + 1) * BoardSize + y + 1;
+                                                        _lastAllocatedTimeMs = 0;
+                                                        _moveType = MoveType.CounterAttack;
+                                                        _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) DESPERATE COUNTER-ATTACK at ({X},{Y}) creates verified winning threat",
+                                                            difficulty, player, x, y);
+                                                        return ValidateAndReturnBlockingMove(board, player, (x, y));
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             _depthAchieved = 1;
                             _nodesSearched = allGainSquares.Count;
                             _lastAllocatedTimeMs = 0;
                             _moveType = MoveType.ImmediateBlock;
-                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) IMMEDIATE three-threat block at ({BX},{BY}) - {Count} gain squares available",
-                                difficulty, player, bestBlock.x, bestBlock.y, allGainSquares.Count);
+                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) IMMEDIATE three-threat block at ({BX},{BY}) - {Count} gain squares available (score: {Score})",
+                                difficulty, player, bestBlock.x, bestBlock.y, allGainSquares.Count, bestScore);
                             return ValidateAndReturnBlockingMove(board, player, bestBlock);
                         }
 
@@ -1089,6 +1134,7 @@ public class MinimaxAI : IStatsPublisher
 
                     // Score: heavily penalize blocks that leave immediate threats
                     // Counter-attack is valuable even when blocking four-threats!
+                    // +8000 for four-threat counter-attack
                     int score = -theirWinningSquares * 10000 - theirFourThreats * 5000 - theirThreeThreats * 500 + ourFourThreats * 8000;
 
                     // Prefer central blocks as tiebreaker
@@ -1112,6 +1158,48 @@ public class MinimaxAI : IStatsPublisher
                     _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) IMMEDIATE four-threat block at ({BX},{BY}) - score {Score}",
                         difficulty, player, bestBlock.x, bestBlock.y, bestScore);
                     return ValidateAndReturnBlockingMove(board, player, bestBlock);
+                }
+
+                // CRITICAL: If the best block still leaves us in a losing position,
+                // try counter-attacking instead - creating our own winning threat
+                if (bestScore < -5000)
+                {
+                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Four-threat best block score is {Score} - trying counter-attack",
+                        difficulty, player, bestScore);
+
+                    for (int x = 0; x < BoardSize; x++)
+                    {
+                        for (int y = 0; y < BoardSize; y++)
+                        {
+                            if (!board.GetCell(x, y).IsEmpty) continue;
+
+                            var testBoard = board.PlaceStone(x, y, player);
+                            var ourNewThreats = _threatDetector.DetectThreats(testBoard, player);
+                            var ourNewFourThreats = ourNewThreats.Where(t =>
+                                t.Type == ThreatType.StraightFour || t.Type == ThreatType.BrokenFour).ToList();
+
+                            if (ourNewFourThreats.Count > 0)
+                            {
+                                foreach (var threat in ourNewFourThreats)
+                                {
+                                    foreach (var gs in threat.GainSquares)
+                                    {
+                                        if (testBoard.GetCell(gs.x, gs.y).IsEmpty &&
+                                            _threatDetector.IsWinningMove(testBoard, gs.x, gs.y, player))
+                                        {
+                                            _depthAchieved = 1;
+                                            _nodesSearched = (x + 1) * BoardSize + y + 1;
+                                            _lastAllocatedTimeMs = 0;
+                                            _moveType = MoveType.CounterAttack;
+                                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) DESPERATE COUNTER-ATTACK at ({X},{Y}) creates verified winning threat",
+                                                difficulty, player, x, y);
+                                            return ValidateAndReturnBlockingMove(board, player, (x, y));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
