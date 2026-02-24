@@ -1,62 +1,110 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
-using Caro.Core.GameLogic.TimeManagement;
-using System.Reflection;
+using Caro.Core.Domain.Configuration;
 
-// Simple test - focus on whether the parallel search works with enough time
+Console.WriteLine("=== Testing Grandmaster Threat Detection ===\n");
 
-Console.WriteLine("=== Simple Parallel Search Test ===\n");
+// Recreate Game 15 position where Grandmaster (Blue) failed to block (7,6)
+// Looking at the game log:
+// - Move 32: B(8,11) by Grandmaster (Blue) - Block
+// - Move 33: R(7,9) by Braindead (Red)
+// - Move 34: B(7,11) by Grandmaster (Blue) - FAILED to block (7,6)!
+// - Move 35: R(7,6) by Braindead (Red) - WIN
 
+// Let's recreate the board state BEFORE Grandmaster's move 34
+// I need to trace all the moves from the game
+
+// From the log, Blue (Grandmaster) stones and Red (Braindead) stones
+// Blue plays as Blue in Game 15 (odd game = no color swap)
+
+// Let's create a simple test: 4 in a row with open end that AI should block
 var board = new Board()
-    .PlaceStone(8, 8, Player.Red)
-    .PlaceStone(8, 7, Player.Blue)
-    .PlaceStone(5, 8, Player.Red)
-    .PlaceStone(7, 7, Player.Blue)
-    .PlaceStone(6, 8, Player.Red)
-    .PlaceStone(7, 8, Player.Blue)
-    .PlaceStone(9, 14, Player.Red)
-    .PlaceStone(6, 7, Player.Blue);
+    // Red has 4 in a row vertically at column 7, rows 5,6,7,8
+    .PlaceStone(7, 5, Player.Red)  // Part of the threat
+    .PlaceStone(7, 6, Player.Red)  // This would be the winning move
+    .PlaceStone(7, 7, Player.Red)  // Center
+    .PlaceStone(7, 8, Player.Red)  // Part of the threat
+    // Add some Blue stones to make it look like a real position
+    .PlaceStone(8, 8, Player.Blue)
+    .PlaceStone(9, 9, Player.Blue)
+    .PlaceStone(8, 7, Player.Blue);
 
-// Test sequential search first
-Console.WriteLine("Sequential search (7 seconds):");
-var ai1 = new MinimaxAI();
-var sw1 = System.Diagnostics.Stopwatch.StartNew();
-var move1 = ai1.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster,
-    timeRemainingMs: 7000, moveNumber: 9, ponderingEnabled: false, parallelSearchEnabled: false);
-sw1.Stop();
+Console.WriteLine("Test 1: Simple 4-in-a-row threat");
+var threatDetector = new ThreatDetector();
+Console.WriteLine($"  Red can win at (7,4): {threatDetector.IsWinningMove(board, 7, 4, Player.Red)}");
+Console.WriteLine($"  Red can win at (7,9): {threatDetector.IsWinningMove(board, 7, 9, Player.Red)}");
 
-var depthField = typeof(MinimaxAI).GetField("_depthAchieved", BindingFlags.NonPublic | BindingFlags.Instance);
-var nodesField = typeof(MinimaxAI).GetField("_nodesSearched", BindingFlags.NonPublic | BindingFlags.Instance);
+// Now let's test the AI
+var ai = new MinimaxAI();
+var move = ai.GetBestMove(
+    board,
+    Player.Blue,
+    AIDifficulty.Grandmaster,
+    timeRemainingMs: 30000,
+    moveNumber: 34,
+    ponderingEnabled: false,
+    parallelSearchEnabled: false
+);
 
-Console.WriteLine($"  Move: ({move1.x},{move1.y})");
-Console.WriteLine($"  Depth: {depthField?.GetValue(ai1)}");
-Console.WriteLine($"  Nodes: {nodesField?.GetValue(ai1)}");
-Console.WriteLine($"  Time: {sw1.ElapsedMilliseconds}ms");
-bool seq_correct = (move1.x == 9 && move1.y == 7) || (move1.x == 5 && move1.y == 7);
-Console.WriteLine($"  Result: {(seq_correct ? "✓ BLOCKS" : "✗ FAILS")}");
+Console.WriteLine($"  AI returned: ({move.x}, {move.y})");
+Console.WriteLine($"  Expected: (7,4) or (7,9) to block");
+Console.WriteLine();
 
-// Test parallel search with same time
-Console.WriteLine("\nParallel search (7 seconds):");
-var ai2 = new MinimaxAI();
-var sw2 = System.Diagnostics.Stopwatch.StartNew();
-var move2 = ai2.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster,
-    timeRemainingMs: 7000, moveNumber: 9, ponderingEnabled: false, parallelSearchEnabled: true);
-sw2.Stop();
+// Now let's test a more complex position
+// Game 15 actual position - let me reconstruct it from the log
+// Looking at the moves more carefully...
 
-Console.WriteLine($"  Move: ({move2.x},{move2.y})");
-Console.WriteLine($"  Depth: {depthField?.GetValue(ai2)}");
-Console.WriteLine($"  Nodes: {nodesField?.GetValue(ai2)}");
-Console.WriteLine($"  Time: {sw2.ElapsedMilliseconds}ms");
-bool par_correct = (move2.x == 9 && move2.y == 7) || (move2.x == 5 && move2.y == 7);
-Console.WriteLine($"  Result: {(par_correct ? "✓ BLOCKS" : "✗ FAILS")}");
+Console.WriteLine("Test 2: Board state from Game 15");
+// I need the actual board state. Let me check what moves were played.
+// The log shows the game but not the full position.
 
-// Summary
-Console.WriteLine("\n=== SUMMARY ===");
-Console.WriteLine($"Sequential: {(seq_correct ? "BLOCKS" : "FAILS")} at D{depthField?.GetValue(ai1)}");
-Console.WriteLine($"Parallel:   {(par_correct ? "BLOCKS" : "FAILS")} at D{depthField?.GetValue(ai2)}");
+// Let's create a position where Braindead has a winning move at (10,5)
+// from Game 16:
+// - Red stones form a line where (10,5) completes 5 in a row
 
-if (!par_correct)
+var board2 = new Board()
+    // Create a line where (10,5) wins for Blue
+    .PlaceStone(10, 6, Player.Blue)  // Adjacent
+    .PlaceStone(10, 7, Player.Blue)
+    .PlaceStone(10, 8, Player.Blue)
+    .PlaceStone(10, 9, Player.Blue)
+    // (10,5) would complete 5 in a row
+    // Red stones
+    .PlaceStone(7, 7, Player.Red)
+    .PlaceStone(8, 8, Player.Red);
+
+Console.WriteLine($"  Blue can win at (10,5): {threatDetector.IsWinningMove(board2, 10, 5, Player.Blue)}");
+Console.WriteLine($"  Blue can win at (10,10): {threatDetector.IsWinningMove(board2, 10, 10, Player.Blue)}");
+
+var move2 = ai.GetBestMove(
+    board2,
+    Player.Red,  // Red should block
+    AIDifficulty.Grandmaster,
+    timeRemainingMs: 30000,
+    moveNumber: 29,
+    ponderingEnabled: false,
+    parallelSearchEnabled: false
+);
+
+Console.WriteLine($"  AI (Red) returned: ({move2.x}, {move2.y})");
+Console.WriteLine($"  Expected: (10,5) or (10,10) to block");
+Console.WriteLine();
+
+// Test 3: Verify that the full board scan finds winning squares
+Console.WriteLine("Test 3: Full board scan for winning squares");
+var opponentWinningSquares = new List<(int x, int y)>();
+for (int x = 0; x < 16; x++)
 {
-    Console.WriteLine("\nParallel search is broken - not blocking open threes correctly.");
-    Console.WriteLine("This is a known issue with how parallel search handles threat filtering.");
+    for (int y = 0; y < 16; y++)
+    {
+        if (board2.GetCell(x, y).Player == Player.None)
+        {
+            if (threatDetector.IsWinningMove(board2, x, y, Player.Blue))
+            {
+                opponentWinningSquares.Add((x, y));
+                Console.WriteLine($"  Found winning square for Blue: ({x}, {y})");
+            }
+        }
+    }
 }
+Console.WriteLine($"  Total winning squares for Blue: {opponentWinningSquares.Count}");
