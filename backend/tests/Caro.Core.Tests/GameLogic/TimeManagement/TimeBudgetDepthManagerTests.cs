@@ -193,18 +193,18 @@ public sealed class TimeBudgetDepthManagerTests
     }
 
     [Fact]
-    public void CalculateMaxDepth_ClampsToMaximum()
+    public void CalculateMaxDepth_NoArtificialMaximum()
     {
         // Arrange
         var manager = new TimeBudgetDepthManager();
         // Set very high NPS to simulate very fast machine
         manager.UpdateNpsEstimate(nodesSearched: 10_000_000, elapsedSeconds: 1.0);
 
-        // Act - Even with huge time budget
+        // Act - With huge time budget, depth should be calculated naturally
         int depth = manager.CalculateMaxDepth(timeSeconds: 1000.0, AIDifficulty.Grandmaster);
 
-        // Assert - Should clamp to 15
-        depth.Should().Be(15, "Should clamp to maximum depth of 15");
+        // Assert - No artificial max of 15; depth scales with time/NPS (safeguard is AbsoluteMaxDepth=50 in MinimaxAI)
+        depth.Should().BeGreaterThan(15, "No artificial depth cap - depth scales with time and NPS");
     }
 
     [Fact]

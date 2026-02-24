@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ParallelismTest")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+95ea0b84b587a72f43c7f3eb4131ec790073c45c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c5696e74183b961eb766b446c4a92f79d981c62c")]
 [assembly: System.Reflection.AssemblyProductAttribute("ParallelismTest")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ParallelismTest")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

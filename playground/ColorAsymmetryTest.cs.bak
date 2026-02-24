@@ -1,0 +1,108 @@
+using Caro.Core.Domain.Entities;
+using Caro.Core.GameLogic;
+using Caro.Core.GameLogic.TimeManagement;
+using System.Reflection;
+
+// Test to check if there's asymmetry between Red and Blue play
+
+Console.WriteLine("=== Color Asymmetry Test ===\n");
+
+var ai = new MinimaxAI();
+var depthField = typeof(MinimaxAI).GetField("_depthAchieved", BindingFlags.NonPublic | BindingFlags.Instance);
+var nodesField = typeof(MinimaxAI).GetField("_nodesSearched", BindingFlags.NonPublic | BindingFlags.Instance);
+
+// Test 1: First move as Red vs first move as Blue (empty board)
+Console.WriteLine("Test 1: First move on empty board");
+Console.WriteLine("-----------------------------------");
+
+var emptyBoard = new Board();
+
+// Red's first move
+var redMove = ai.GetBestMove(emptyBoard, Player.Red, AIDifficulty.Grandmaster,
+    timeRemainingMs: 60000, moveNumber: 1, ponderingEnabled: false, parallelSearchEnabled: true);
+Console.WriteLine($"Red's first move: ({redMove.x},{redMove.y})");
+Console.WriteLine($"  Depth: {depthField?.GetValue(ai)}");
+Console.WriteLine($"  Nodes: {nodesField?.GetValue(ai)}");
+
+// Blue's first move (after Red plays at center)
+var boardAfterRed = emptyBoard.PlaceStone(redMove.x, redMove.y, Player.Red);
+var blueMove = ai.GetBestMove(boardAfterRed, Player.Blue, AIDifficulty.Grandmaster,
+    timeRemainingMs: 60000, moveNumber: 2, ponderingEnabled: false, parallelSearchEnabled: true);
+Console.WriteLine($"Blue's first move (after Red at ({redMove.x},{redMove.y})): ({blueMove.x},{blueMove.y})");
+Console.WriteLine($"  Depth: {depthField?.GetValue(ai)}");
+Console.WriteLine($"  Nodes: {nodesField?.GetValue(ai)}");
+
+// Test 2: Identical position, different colors to move
+Console.WriteLine("\nTest 2: Identical position, different colors to move");
+Console.WriteLine("-----------------------------------");
+
+// Create a symmetric position where it's each player's turn
+var symmetricBoard = new Board()
+    .PlaceStone(8, 8, Player.Red)    // Red center
+    .PlaceStone(8, 7, Player.Blue)   // Blue below center
+    .PlaceStone(7, 8, Player.Red)    // Red left of center
+    .PlaceStone(7, 7, Player.Blue);  // Blue diagonal
+
+Console.WriteLine("Position: Red=(8,8),(7,8) Blue=(8,7),(7,7)");
+
+// Red to move
+var redToMove = ai.GetBestMove(symmetricBoard, Player.Red, AIDifficulty.Grandmaster,
+    timeRemainingMs: 60000, moveNumber: 5, ponderingEnabled: false, parallelSearchEnabled: true);
+Console.WriteLine($"Red to move: ({redToMove.x},{redToMove.y})");
+Console.WriteLine($"  Depth: {depthField?.GetValue(ai)}");
+Console.WriteLine($"  Nodes: {nodesField?.GetValue(ai)}");
+
+// Blue to move (same position)
+var blueToMove = ai.GetBestMove(symmetricBoard, Player.Blue, AIDifficulty.Grandmaster,
+    timeRemainingMs: 60000, moveNumber: 5, ponderingEnabled: false, parallelSearchEnabled: true);
+Console.WriteLine($"Blue to move: ({blueToMove.x},{blueToMove.y})");
+Console.WriteLine($"  Depth: {depthField?.GetValue(ai)}");
+Console.WriteLine($"  Nodes: {nodesField?.GetValue(ai)}");
+
+// Test 3: Braindead vs Grandmaster from same position
+Console.WriteLine("\nTest 3: Braindead's moves (should have 10% error rate)");
+Console.WriteLine("-----------------------------------");
+
+var testBoard = new Board()
+    .PlaceStone(8, 8, Player.Red)
+    .PlaceStone(8, 7, Player.Blue)
+    .PlaceStone(7, 8, Player.Red);
+
+int errorMoves = 0;
+int totalMoves = 20;
+for (int i = 0; i < totalMoves; i++)
+{
+    var bdMove = ai.GetBestMove(testBoard, Player.Blue, AIDifficulty.Braindead,
+        timeRemainingMs: 30000, moveNumber: 4, ponderingEnabled: false, parallelSearchEnabled: false);
+    var moveTypeField = typeof(MinimaxAI).GetField("_moveType", BindingFlags.NonPublic | BindingFlags.Instance);
+    var moveType = moveTypeField?.GetValue(ai);
+    if (moveType?.ToString() == "ErrorRate")
+        errorMoves++;
+    Console.WriteLine($"  Trial {i+1}: ({bdMove.x},{bdMove.y}) - {moveType}");
+}
+Console.WriteLine($"Error moves: {errorMoves}/{totalMoves} ({100.0*errorMoves/totalMoves:F0}%)");
+Console.WriteLine($"Expected: ~10% (2/20)");
+
+// Test 4: Check if evaluation is symmetric
+Console.WriteLine("\nTest 4: Evaluation symmetry");
+Console.WriteLine("-----------------------------------");
+
+var evaluator = new BoardEvaluator();
+var evalMethod = typeof(BoardEvaluator).GetMethod("Evaluate",
+    BindingFlags.Public | BindingFlags.Instance);
+
+// Create mirrored positions
+var pos1 = new Board()
+    .PlaceStone(8, 8, Player.Red)
+    .PlaceStone(8, 7, Player.Blue);
+
+var pos2 = new Board()
+    .PlaceStone(8, 8, Player.Blue)  // Swap colors
+    .PlaceStone(8, 7, Player.Red);
+
+var eval1 = evaluator.Evaluate(pos1, Player.Red);
+var eval2 = evaluator.Evaluate(pos2, Player.Blue);
+
+Console.WriteLine($"Position 1 (Red at (8,8), Blue at (8,7)) - eval for Red: {eval1}");
+Console.WriteLine($"Position 2 (Blue at (8,8), Red at (8,7)) - eval for Blue: {eval2}");
+Console.WriteLine($"Should be negatives of each other (symmetric): {eval1 == -eval2}");

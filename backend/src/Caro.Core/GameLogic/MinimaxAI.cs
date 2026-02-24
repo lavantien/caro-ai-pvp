@@ -810,10 +810,11 @@ public class MinimaxAI : IStatsPublisher
                                 // -10000 per winning square (CRITICAL - must block these!)
                                 // -5000 per four-threat (URGENT - becomes winning next move)
                                 // -500 per three-threat (important but not immediate)
-                                // +1000 per our four-threat (creates counter-attack)
+                                // +8000 per our four-threat (STRONG COUNTER-ATTACK - forces opponent to respond!)
                                 // -2000 BONUS penalty for multiple three-threats (can lead to double threat)
+                                // CRITICAL: Counter-attacking is often better than just blocking!
                                 int multipleThreePenalty = theirThreeThreats >= 2 ? -2000 : 0;
-                                int score = -theirWinningSquares * 10000 - theirFourThreats * 5000 - theirThreeThreats * 500 + ourFourThreats * 1000 + multipleThreePenalty;
+                                int score = -theirWinningSquares * 10000 - theirFourThreats * 5000 - theirThreeThreats * 500 + ourFourThreats * 8000 + multipleThreePenalty;
 
                                 // Prefer central blocks as tiebreaker
                                 int distToCenter = Math.Abs(block.x - 7) + Math.Abs(block.y - 7);
@@ -1087,7 +1088,8 @@ public class MinimaxAI : IStatsPublisher
                     }
 
                     // Score: heavily penalize blocks that leave immediate threats
-                    int score = -theirWinningSquares * 10000 - theirFourThreats * 5000 - theirThreeThreats * 500 + ourFourThreats * 1000;
+                    // Counter-attack is valuable even when blocking four-threats!
+                    int score = -theirWinningSquares * 10000 - theirFourThreats * 5000 - theirThreeThreats * 500 + ourFourThreats * 8000;
 
                     // Prefer central blocks as tiebreaker
                     int distToCenter = Math.Abs(block.x - 7) + Math.Abs(block.y - 7);
