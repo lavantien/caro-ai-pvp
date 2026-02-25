@@ -50,10 +50,10 @@ public class OpeningBookMatchupTests : IAsyncLifetime
     {
         // Use temp file for testing to avoid hardcoded paths
         _dbPath = Path.Combine(Path.GetTempPath(), $"test_book_{Guid.NewGuid():N}.db");
-        
+
         // Check if opening_book.db exists in repo root for integration tests
-        var repoBookPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "..", "opening_book.db");
-        if (File.Exists(repoBookPath))
+        var repoBookPath = OpeningBookPathResolver.TryFindOpeningBookPath();
+        if (repoBookPath != null)
         {
             // Copy the existing book to temp location for testing
             File.Copy(repoBookPath, _dbPath, true);

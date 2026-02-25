@@ -49,9 +49,9 @@ public class GMBookDepthTest : IAsyncLifetime
     public void GM_vs_GM_Should_Get_16_Book_Moves()
     {
         // Check if opening_book.db exists in repo root for integration tests
-        var repoBookPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "..", "opening_book.db");
-        
-        if (File.Exists(repoBookPath))
+        var repoBookPath = OpeningBookPathResolver.TryFindOpeningBookPath();
+
+        if (repoBookPath != null)
         {
             // Use temp file copy to avoid locking the original
             _dbPath = Path.Combine(Path.GetTempPath(), $"test_book_{Guid.NewGuid():N}.db");

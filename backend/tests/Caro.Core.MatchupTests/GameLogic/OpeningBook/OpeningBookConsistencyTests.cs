@@ -26,10 +26,10 @@ public class OpeningBookConsistencyTests
     private static (MinimaxAI redAi, MinimaxAI blueAi, Caro.Core.GameLogic.OpeningBook book) CreateAIs(AIDifficulty redDifficulty, AIDifficulty blueDifficulty)
     {
         // Check if opening_book.db exists in repo root for integration tests
-        var repoBookPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "..", "opening_book.db");
+        var repoBookPath = OpeningBookPathResolver.TryFindOpeningBookPath();
         string dbPath;
-        
-        if (File.Exists(repoBookPath))
+
+        if (repoBookPath != null)
         {
             // Use temp file copy to avoid locking the original
             dbPath = Path.Combine(Path.GetTempPath(), $"test_book_{Guid.NewGuid():N}.db");

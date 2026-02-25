@@ -47,7 +47,7 @@ public class BoardMutationTests
         // Arrange
         var game = GameState.CreateInitial();
 
-        var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "..", "opening_book.db");
+        var dbPath = OpeningBookPathResolver.FindOpeningBookPath();
         var store = new SqliteOpeningBookStore(dbPath, NullLogger<SqliteOpeningBookStore>.Instance);
         store.Initialize();
 
