@@ -39,8 +39,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<TournamentManager>
 builder.Services.AddSingleton<SqliteOpeningBookStore>(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<SqliteOpeningBookStore>>();
-    // From bin/Debug/net10.0/, go up 6 levels to reach repo root
-    var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "..", "opening_book.db");
+    var dbPath = OpeningBookPathResolver.FindOpeningBookPath();
     return new SqliteOpeningBookStore(dbPath, logger);
 });
 
