@@ -28,33 +28,9 @@ class Program
 
         var logger = loggerFactory.CreateLogger<Program>();
 
-        // Initialize components - search for opening book in multiple locations
+        // Initialize components - use centralized path resolver for opening book
         OpeningBook? openingBook = null;
-        string[] dbPaths = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "..", "opening_book.db"), // From build output to repo root
-            Path.Combine(AppContext.BaseDirectory, "opening_book.db"), // Same directory
-            Path.Combine(Directory.GetCurrentDirectory(), "opening_book.db"), // Current working directory
-            "opening_book.db" // Let SQLite search
-        };
-
-        string? dbPath = null;
-        foreach (var path in dbPaths)
-        {
-            try
-            {
-                var resolvedPath = Path.GetFullPath(path);
-                if (File.Exists(resolvedPath))
-                {
-                    dbPath = resolvedPath;
-                    break;
-                }
-            }
-            catch
-            {
-                // Skip invalid paths
-            }
-        }
+        var dbPath = OpeningBookPathResolver.TryFindOpeningBookPath();
 
         if (dbPath != null)
         {
