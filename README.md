@@ -6,7 +6,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 
 ## Overview
 
-- **Grandmaster-level AI** - Lazy SMP parallel search reaching depth 11+
+- **Grandmaster-level AI** - Lazy SMP parallel search
 - **UCI Protocol Support** - Standalone engine compatible with UCI chess GUIs
 - **Clean Architecture** - Separated Domain, Application, and Infrastructure layers
 - **Real-time multiplayer** - WebSocket support via SignalR
@@ -30,7 +30,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 
 ### AI Engine
 
-Grandmaster-level engine achieving depth 11+ with 100-500x speedup over naive minimax:
+Grandmaster-level engine with 100-500x speedup over naive minimax:
 
 | Category | Feature | Description |
 |----------|---------|-------------|
@@ -82,15 +82,14 @@ Grandmaster-level engine achieving depth 11+ with 100-500x speedup over naive mi
 
 Based on 100-game matchups with alternating colors. Higher difficulty consistently beats lower difficulty:
 
-| Matchup | Higher Level Win Rate | Sample Size | Status |
-|---------|----------------------|-------------|--------|
-| Grandmaster vs Braindead | 80% | 20 games | v1.65.0 (in progress) |
-| Grandmaster vs Braindead | 95% | 100 games | Verified v1.62.0 |
-| Easy vs Braindead | 100% | - | Target |
-| Medium vs Braindead | 100% | - | Target |
-| Medium vs Easy | ~80%* | - | Estimated |
-| Hard vs Medium | ~85%* | - | Estimated |
-| Grandmaster vs Hard | ~90%* | - | Estimated |
+| Matchup | Higher Level Win Rate | Sample Size |
+|---------|----------------------|-------------|
+| Grandmaster vs Braindead | 95% | 100 games |
+| Easy vs Braindead | 100% | Target |
+| Medium vs Braindead | 100% | Target |
+| Medium vs Easy | ~80%* | Estimated |
+| Hard vs Medium | ~85%* | Estimated |
+| Grandmaster vs Hard | ~90%* | Estimated |
 
 *Estimated based on resource differential. Full benchmark pending.
 
@@ -99,18 +98,6 @@ Based on 100-game matchups with alternating colors. Higher difficulty consistent
 - Braindead has 10% error rate and minimal search (1 thread, 5% time)
 - Medium+ has full-strength search with 3+ threads and 50%+ time
 - Any significant Braindead win rate against Medium+ indicates a regression that must be fixed
-
-**v1.65.0 Progress:**
-- Win rate improved from 40% (v1.64.0) to 80% through counter-attack optimization
-- Added desperate counter-attack logic when blocking is futile
-- Target: 100% win rate vs Braindead
-
-**v1.62.0 Fix - Open Three Search-Based Blocking:**
-- Previous issue: Immediate block for open threes bypassed search, forcing defensive-only responses
-- Fix: Open three blocks now added to candidate list for full search evaluation
-- Result: Grandmaster win rate vs Braindead improved from ~40% to ~95%
-- Verified: 95 wins out of 100 games across multiple tournaments
-- Technical detail: Search evaluates offensive options alongside blocks instead of reflexively blocking
 
 **Notes:**
 - Win rates vary by time control; longer controls allow deeper search
@@ -146,7 +133,7 @@ Available matchups: `BraindeadvsBraindead`, `BraindeadvsEasy`, `BraindeadvsMediu
 **Example UCI session:**
 ```
 > uci
-< id name Caro AI 1.62.0
+< id name Caro AI
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
 < option name Use Opening Book type check default true
@@ -189,7 +176,7 @@ dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=open
 - Plies 0-14: 4 moves per position (covers Easy through Grandmaster)
 - No book beyond ply 14 (Experimental uses unlimited depth during play)
 
-**Book Builder Performance (v1.56.0):**
+**Book Builder Performance:**
 
 | Metric | Value |
 |--------|-------|
@@ -441,13 +428,13 @@ Production-grade concurrency following .NET 10 best practices:
 
 ## Performance
 
-| Difficulty | Threads | Time Budget | Depth (7+5 TC) |
-|------------|---------|-------------|----------------|
-| Braindead | 1 | 5% | ~1-3 |
-| Easy | max(2,(N/5)-1) | 20% | ~3-5 |
-| Medium | max(3,(N/4)-1) | 50% | ~5-7 |
-| Hard | max(4,(N/3)-1) | 75% | ~7-9 |
-| Grandmaster | max(5,(N/2)-1) | 100% | ~9-12+ |
+| Difficulty | Threads | Time Budget |
+|------------|---------|-------------|
+| Braindead | 1 | 5% |
+| Easy | max(2,(N/5)-1) | 20% |
+| Medium | max(3,(N/4)-1) | 50% |
+| Hard | max(4,(N/3)-1) | 75% |
+| Grandmaster | max(5,(N/2)-1) | 100% |
 
 **Depth varies by host machine** - calculated dynamically from NPS and time budget. Higher-spec machines achieve greater depth naturally.
 

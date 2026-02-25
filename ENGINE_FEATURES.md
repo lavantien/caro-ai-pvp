@@ -1,6 +1,5 @@
 # Caro AI Engine Features
 
-**Version:** 1.64.0
 **Board:** 16x16 (256 intersections)
 **Rule:** Caro (exactly-5 to win, open rule for red's second move)
 
@@ -19,7 +18,6 @@ The engine follows principles from state-of-the-art game-playing systems:
 
 ### Performance Target
 
-- **Depth:** 9-12+ ply on modern hardware
 - **Speedup:** 100-500x over naive minimax
 - **Parallelism:** Lazy SMP with N/2-1 helper threads
 
