@@ -10,8 +10,9 @@ public static class OpeningBookPathResolver
 
     /// <summary>
     /// Marker files/directories that indicate the repository root.
+    /// Only use .git directory as it's the only reliable marker - .gitignore and README.md can exist in subdirectories.
     /// </summary>
-    private static readonly string[] RepoRootMarkers = [".git", ".gitignore", "README.md"];
+    private static readonly string[] RepoRootMarkers = [".git"];
 
     /// <summary>
     /// Finds the opening book database at the repository root.
