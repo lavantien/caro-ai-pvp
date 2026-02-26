@@ -1221,10 +1221,10 @@ public sealed class ParallelMinimaxSearch
         // All 9 threads incrementing shared counter on every node = severe bottleneck
         threadData.LocalNodesSearched++;
 
-        // PERFORMANCE: Only check cancellation/time every 16 nodes (like sequential search)
+        // PERFORMANCE: Only check cancellation/time every 1024 nodes
         // Checking CancellationToken.IsCancellationRequested on every node is expensive
-        // because it involves a volatile read. The sequential search uses a simple bool.
-        if ((threadData.LocalNodesSearched & 15) == 0)
+        // because it involves a volatile read. Reduced from 16 to 1024 for better NPS.
+        if ((threadData.LocalNodesSearched & 1023) == 0)
         {
             // Check cancellation first (fast volatile read)
             if (cancellationToken.IsCancellationRequested)
@@ -1817,6 +1817,29 @@ public sealed class ParallelMinimaxSearch
             }
         }
         return moves;
+    }
+
+    /// <summary>
+    /// Zero-allocation in-place sort over spans using insertion sort.
+    /// Good for small arrays (typical candidate move counts), no GC pressure.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void OrderMovesSpan(Span<(int x, int y)> moves, Span<int> scores)
+    {
+        for (int i = 1; i < moves.Length; i++)
+        {
+            var keyMove = moves[i];
+            int keyScore = scores[i];
+            int j = i - 1;
+            while (j >= 0 && scores[j] < keyScore)
+            {
+                moves[j + 1] = moves[j];
+                scores[j + 1] = scores[j];
+                j--;
+            }
+            moves[j + 1] = keyMove;
+            scores[j + 1] = keyScore;
+        }
     }
 
     /// <summary>
