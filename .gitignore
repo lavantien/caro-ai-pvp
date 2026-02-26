@@ -35,3 +35,8 @@ test_tt.cs
 
 # Tournament output files
 matchup_results.txt
+
+# Baseline benchmark output (can be regenerated with --baseline-benchmark)
+# Summary is tracked for reference
+baseline_bullet_*.txt
+baseline_blitz_*.txt
