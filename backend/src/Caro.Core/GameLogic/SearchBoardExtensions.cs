@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using Caro.Core.Domain.Entities;
 
@@ -70,6 +71,77 @@ public static class SearchBoardExtensions
             }
         }
 
+        return count;
+    }
+
+    /// <summary>
+    /// Bitwise version: Get candidate moves using bitwise dilation and iteration.
+    /// Uses BitOperations.TrailingZeroCount for efficient iteration over set bits.
+    /// This is the most efficient version for 16x16 boards.
+    /// </summary>
+    /// <param name="board">The board to search</param>
+    /// <param name="buffer">Pre-allocated buffer (should be at least 256)</param>
+    /// <param name="radius">Dilation radius (default 2)</param>
+    /// <returns>Number of candidate moves written to buffer</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int GetCandidateMovesBitwise(this SearchBoard board, Span<(int x, int y)> buffer, int radius = 2)
+    {
+        var occupancy = board.GetOccupancy();
+        int size = board.BoardSize;
+        int count = 0;
+
+        // Dilate the occupancy bitboard by the radius
+        var dilated = DilateBitboard(occupancy, radius, size);
+
+        // Remove the original occupancy (we want empty cells only)
+        var candidates = dilated & ~occupancy;
+
+        // Get raw values and iterate over set bits
+        var (b0, b1, b2, b3) = candidates.GetRawValues();
+
+        count = ExtractBits(b0, 0, buffer, count);
+        count = ExtractBits(b1, 64, buffer, count);
+        count = ExtractBits(b2, 128, buffer, count);
+        count = ExtractBits(b3, 192, buffer, count);
+
+        return count;
+    }
+
+    /// <summary>
+    /// Dilate a bitboard by expanding around set bits.
+    /// Uses bitwise shift operations for O(1) dilation per direction.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static BitBoard DilateBitboard(BitBoard bits, int radius, int size)
+    {
+        var result = bits;
+
+        // Dilate in all 8 directions for each radius step
+        for (int r = 0; r < radius; r++)
+        {
+            var h1 = result.ShiftLeft() | result.ShiftRight();
+            var v1 = result.ShiftUp() | result.ShiftDown();
+            var d1 = result.ShiftUpLeft() | result.ShiftUpRight() | result.ShiftDownLeft() | result.ShiftDownRight();
+            result = result | h1 | v1 | d1;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Extract bit positions from a ulong and write to buffer as (x, y) coordinates.
+    /// Uses BitOperations.TrailingZeroCount for efficient iteration.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int ExtractBits(ulong bits, int offset, Span<(int x, int y)> buffer, int count)
+    {
+        while (bits != 0 && count < buffer.Length)
+        {
+            int bitIndex = BitOperations.TrailingZeroCount(bits);
+            int cellIndex = offset + bitIndex;
+            buffer[count++] = (cellIndex % 16, cellIndex / 16);
+            bits &= bits - 1; // Clear lowest set bit
+        }
         return count;
     }
 
