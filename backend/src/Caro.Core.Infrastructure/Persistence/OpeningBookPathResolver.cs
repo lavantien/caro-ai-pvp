@@ -3,10 +3,12 @@ namespace Caro.Core.Infrastructure.Persistence;
 /// <summary>
 /// Centralized resolver for opening book database path.
 /// All code should use this resolver to find the opening_book.db file at the repository root.
+/// Uses multi-strategy path resolution for reliability across different execution contexts.
 /// </summary>
 public static class OpeningBookPathResolver
 {
     private const string BookFileName = "opening_book.db";
+    private const string RepoRootEnvVar = "CARO_REPO_ROOT";
 
     /// <summary>
     /// Marker files/directories that indicate the repository root.
@@ -52,22 +54,55 @@ public static class OpeningBookPathResolver
     }
 
     /// <summary>
-    /// Finds the repository root by searching upward for marker files/directories.
+    /// Finds the repository root using multi-strategy path resolution.
+    /// Strategies (in order of priority):
+    /// 1. Environment variable override (CARO_REPO_ROOT)
+    /// 2. Assembly location (most reliable for compiled executables)
+    /// 3. Current directory (legacy fallback)
     /// </summary>
     /// <returns>Absolute path to repository root, or null if not found</returns>
     public static string? TryFindRepoRoot()
     {
-        // Start from current directory and search upward
-        var currentDir = Directory.GetCurrentDirectory();
+        // Strategy 1: Environment variable override (for containers/CI)
+        var envPath = Environment.GetEnvironmentVariable(RepoRootEnvVar);
+        if (!string.IsNullOrEmpty(envPath))
+        {
+            if (File.Exists(Path.Combine(envPath, BookFileName)))
+                return envPath;
+            if (IsRepoRoot(envPath))
+                return envPath;
+        }
+
+        // Strategy 2: Start from assembly location (most reliable)
+        var assemblyPath = typeof(OpeningBookPathResolver).Assembly.Location;
+        if (!string.IsNullOrEmpty(assemblyPath))
+        {
+            var assemblyDir = Path.GetDirectoryName(assemblyPath);
+            var result = SearchUpward(assemblyDir);
+            if (result != null)
+                return result;
+        }
+
+        // Strategy 3: Current directory (legacy fallback)
+        return SearchUpward(Directory.GetCurrentDirectory());
+    }
+
+    /// <summary>
+    /// Search upward from a starting directory for the repository root.
+    /// </summary>
+    private static string? SearchUpward(string? startDir)
+    {
+        var currentDir = startDir;
 
         while (currentDir != null)
         {
-            if (IsRepoRoot(currentDir))
-                return currentDir;
-
-            // Check if opening_book.db exists directly in this directory
+            // Check for opening_book.db first (fastest check)
             var bookPath = Path.Combine(currentDir, BookFileName);
             if (File.Exists(bookPath))
+                return currentDir;
+
+            // Check for repository markers
+            if (IsRepoRoot(currentDir))
                 return currentDir;
 
             currentDir = Directory.GetParent(currentDir)?.FullName;

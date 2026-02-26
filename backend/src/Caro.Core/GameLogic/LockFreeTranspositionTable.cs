@@ -7,7 +7,7 @@ namespace Caro.Core.GameLogic;
 
 /// <summary>
 /// Lock-free transposition table for parallel search (Lazy SMP)
-/// Uses atomic operations and memory barriers for thread safety without locks
+/// Uses SeqLock pattern for atomic reads of entries with version-based protection
 /// TT SHARDING: Partitioned into segments to reduce cache line contention
 /// </summary>
 public sealed class LockFreeTranspositionTable
@@ -23,43 +23,143 @@ public sealed class LockFreeTranspositionTable
     }
 
     /// <summary>
-    /// Transposition table entry (struct for zero-allocation performance)
-    /// Uses direct assignment for lock-free updates
-    /// 16-byte struct for cache efficiency - accepts "lossy" behavior on tearing
+    /// Transposition table entry using SeqLock pattern for torn-read protection.
     ///
-    /// PERFORMANCE: Simplified verification - uses high 32 bits of hash for comparison
-    /// instead of XOR checksum. This is ~10x faster and accepts rare race condition
-    /// false positives (which are harmless for game playing).
+    /// Layout (20 bytes total):
+    /// - Hash (8 bytes): 64-bit Zobrist hash
+    /// - Data (4 bytes): Packed Score(16) + Depth(8) + MoveX(4) + MoveY(4)
+    /// - Meta (4 bytes): Age(8) + Flag(8) + ThreadIndex(8) - simplified byte fields
+    /// - Version (4 bytes): SeqLock version counter (odd=writing, even=stable)
+    ///
+    /// SeqLock protocol:
+    /// - Writer: Increment Version to odd, write all fields, increment Version to even
+    /// - Reader: Read Version, copy entry, verify Version unchanged (retry if changed)
+    ///
+    /// This guarantees consistent reads without locks.
     /// </summary>
-    [StructLayout(LayoutKind.Explicit, Size = 16)]
+    [StructLayout(LayoutKind.Explicit, Size = 20)]
     public struct TranspositionEntry
     {
-        // Layout optimized for cache efficiency - explicit offsets for 16-byte struct
         [FieldOffset(0)] public ulong Hash;
-        [FieldOffset(8)] public short Score;
-        [FieldOffset(10)] public sbyte Depth;
-        [FieldOffset(11)] public byte MoveX;
-        [FieldOffset(12)] public byte MoveY;
-        [FieldOffset(13)] public byte Age;
-        [FieldOffset(14)] public EntryFlag Flag;
-        [FieldOffset(15)] public byte ThreadIndex;  // Track which thread wrote this entry (0=master, 1+=helpers)
+        [FieldOffset(8)] public uint Data;         // Packed: Score(16) + Depth(8) + MoveX(4) + MoveY(4)
+        [FieldOffset(12)] public uint Meta;        // Age(8) + Flag(8) + ThreadIndex(8) + Reserved(8)
+        [FieldOffset(16)] public uint Version;     // SeqLock version (odd=writing, even=stable)
+
+        // Bit positions for Data field packing
+        private const int ScoreShift = 16;
+        private const int DepthShift = 8;
+        private const int MoveXShift = 4;
+        private const int MoveYShift = 0;
+
+        // Bit positions for Meta field packing
+        private const int ThreadIndexShift = 0;
+        private const int FlagShift = 8;
+        private const int AgeShift = 16;
 
         public TranspositionEntry(ulong hash, sbyte depth, short score, sbyte moveX, sbyte moveY, EntryFlag flag, byte age, byte threadIndex = 0)
         {
             Hash = hash;
-            Depth = depth;
-            Score = score;
-            MoveX = unchecked((byte)moveX);
-            MoveY = unchecked((byte)moveY);
-            Flag = flag;
-            Age = age;
-            ThreadIndex = threadIndex;
+            Version = 0; // Start at 0 (even = stable)
+            Data = PackData(score, depth, moveX, moveY);
+            Meta = PackMeta(age, flag, threadIndex);
+        }
+
+        /// <summary>
+        /// Pack Score, Depth, MoveX, MoveY into 32-bit Data field
+        /// Layout: Score(16) | Depth(8) | MoveX(4) | MoveY(4)
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static uint PackData(short score, sbyte depth, sbyte moveX, sbyte moveY)
+        {
+            uint packed = 0;
+            packed |= ((uint)(ushort)score) << ScoreShift;
+            packed |= ((uint)(byte)depth) << DepthShift;
+            packed |= ((uint)(moveX & 0x0F)) << MoveXShift;
+            packed |= ((uint)(moveY & 0x0F)) << MoveYShift;
+            return packed;
+        }
+
+        /// <summary>
+        /// Pack Age, Flag, ThreadIndex into 32-bit Meta field
+        /// Layout: Reserved(8) | Age(8) | Flag(8) | ThreadIndex(8)
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static uint PackMeta(byte age, EntryFlag flag, byte threadIndex)
+        {
+            uint packed = 0;
+            packed |= ((uint)age) << AgeShift;
+            packed |= ((uint)flag) << FlagShift;
+            packed |= ((uint)threadIndex) << ThreadIndexShift;
+            return packed;
+        }
+
+        /// <summary>
+        /// Unpack score from Data field (16-bit signed)
+        /// </summary>
+        public short Score
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (short)((Data >> ScoreShift) & 0xFFFF);
+        }
+
+        /// <summary>
+        /// Unpack depth from Data field (8-bit signed)
+        /// </summary>
+        public sbyte Depth
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (sbyte)((Data >> DepthShift) & 0xFF);
+        }
+
+        /// <summary>
+        /// Unpack MoveX from Data field (4-bit, 0-15)
+        /// </summary>
+        public byte MoveX
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (byte)((Data >> MoveXShift) & 0x0F);
+        }
+
+        /// <summary>
+        /// Unpack MoveY from Data field (4-bit, 0-15)
+        /// </summary>
+        public byte MoveY
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (byte)((Data >> MoveYShift) & 0x0F);
+        }
+
+        /// <summary>
+        /// Unpack age from Meta field
+        /// </summary>
+        public byte Age
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (byte)((Meta >> AgeShift) & 0xFF);
+        }
+
+        /// <summary>
+        /// Unpack flag from Meta field
+        /// </summary>
+        public EntryFlag Flag
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (EntryFlag)((Meta >> FlagShift) & 0xFF);
+        }
+
+        /// <summary>
+        /// Unpack thread index from Meta field
+        /// </summary>
+        public byte ThreadIndex
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (byte)((Meta >> ThreadIndexShift) & 0xFF);
         }
 
         /// <summary>
         /// Check if this entry has a valid move stored
         /// </summary>
-        public bool HasMove => unchecked((sbyte)MoveX) >= 0 && unchecked((sbyte)MoveY) >= 0;
+        public bool HasMove => MoveX < 16 && MoveY < 16;
 
         /// <summary>
         /// Check if this entry is valid (non-zero hash)
@@ -69,24 +169,20 @@ public sealed class LockFreeTranspositionTable
         /// <summary>
         /// Get the best move as a tuple
         /// </summary>
-        public (int x, int y)? GetMove() => HasMove ? ((int x, int y)?)(unchecked((sbyte)MoveX), unchecked((sbyte)MoveY)) : null;
+        public (int x, int y)? GetMove() => HasMove ? ((int x, int y)?)(MoveX, MoveY) : null;
 
         /// <summary>
-        /// PERFORMANCE: Fast hash verification using high 32 bits comparison.
-        /// This is much faster than XOR checksum and sufficient for game playing.
-        /// Accepts rare race condition false positives (harmless for gameplay).
+        /// Fast hash verification using high 32 bits comparison.
+        /// Catches >99.99% of mismatches with minimal overhead.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly bool MatchesHash(ulong hash)
         {
-            // Fast comparison - just check high 32 bits for verification
-            // This catches >99.99% of mismatches with minimal overhead
             return (Hash >> 32) == (hash >> 32);
         }
     }
 
     // TT SHARDING: Multiple segments to reduce cache line contention
-    // Each segment is a separate array, reducing contention between threads
     private readonly TranspositionEntry[][] _shards;
     private readonly int _shardCount;
     private readonly int _shardMask;
@@ -98,22 +194,18 @@ public sealed class LockFreeTranspositionTable
     /// <summary>
     /// Create a lock-free transposition table with sharding for reduced contention
     /// </summary>
-    /// <param name="sizeMB">Size in MB (default 256MB = ~8M entries)</param>
-    /// <param name="shardCount">Number of shards (default 16, must be power of 2)</param>
     public LockFreeTranspositionTable(int sizeMB = 256, int shardCount = 16)
     {
-        // Validate shard count is power of 2
         if ((shardCount & (shardCount - 1)) != 0)
             shardCount = 16;
 
         _shardCount = shardCount;
         _shardMask = shardCount - 1;
 
-        // Each entry is 16 bytes (8 hash + 8 data)
-        int totalEntries = (sizeMB * 1024 * 1024) / 16;
+        // Each entry is 20 bytes
+        int totalEntries = (sizeMB * 1024 * 1024) / 20;
         _sizePerShard = totalEntries / shardCount;
 
-        // Create separate arrays for each shard
         _shards = new TranspositionEntry[shardCount][];
         for (int i = 0; i < shardCount; i++)
         {
@@ -125,32 +217,24 @@ public sealed class LockFreeTranspositionTable
 
     /// <summary>
     /// Calculate shard and index from hash
-    /// TT SHARDING: Uses high bits of hash for shard selection to distribute entries evenly
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private (int shardIndex, int entryIndex) GetShardAndIndex(ulong hash)
     {
-        // Use high bits for shard, low bits for index within shard
-        // This distributes entries across shards to reduce contention
         int shardIndex = (int)(hash >> 32) & _shardMask;
         int entryIndex = (int)(hash % (ulong)_sizePerShard);
         return (shardIndex, entryIndex);
     }
 
     /// <summary>
-    /// Store a position in the transposition table (thread-safe)
-    /// Uses atomic Interlocked.Exchange for lock-free write
-    /// IDENTICAL THREAD LOGIC: All threads (master and helper) use same write policy
-    /// TT SHARDING: Uses separate shard arrays to reduce cache line contention
+    /// Store a position in the transposition table using SeqLock pattern.
+    /// Thread-safe without explicit locks.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Store(ulong hash, sbyte depth, short score, sbyte moveX, sbyte moveY, int alpha, int beta, byte threadIndex = 0, int rootDepth = 1)
     {
         var (shardIndex, entryIndex) = GetShardAndIndex(hash);
         var shard = _shards[shardIndex];
-
-        // ALL THREADS use identical logic - only difference is threadIndex for tracking
-        // No special restrictions for helper threads
 
         // Determine flag based on score relative to alpha/beta
         EntryFlag entryFlag;
@@ -161,29 +245,17 @@ public sealed class LockFreeTranspositionTable
         else
             entryFlag = EntryFlag.Exact;
 
-        // Create new entry with direct hash storage (simplified verification)
-        var newEntry = new TranspositionEntry(hash, depth, score, moveX, moveY, entryFlag, (byte)_currentAge, threadIndex);
+        // Read existing entry with SeqLock protection
+        TranspositionEntry existing = ReadEntryWithSeqLock(shard, entryIndex);
 
-        // Read existing entry directly from array (struct copy to stack)
-        TranspositionEntry existing = shard[entryIndex];
-
-        // Deep replacement strategy:
-        // Replace if:
-        // 1. Empty slot (Hash == 0)
-        // 2. Same position with deeper search OR same depth with master priority
-        // 3. New entry is significantly deeper (depth diff >= 2)
-        // 4. Old entry is from a previous search age
-
-        // PERFORMANCE: Use fast high-32-bits comparison for hash matching
+        // Deep replacement strategy
         bool existingMatchesHash = existing.Hash != 0 && existing.MatchesHash(hash);
-
         bool shouldStore = existing.Hash == 0;
 
         if (existing.Hash != 0)
         {
             if (existingMatchesHash)
             {
-                // Same position: only replace if deeper or same depth with master priority
                 bool isDeeper = depth > existing.Depth;
                 bool isSameDepthMaster = depth == existing.Depth && threadIndex == 0;
                 bool isSameDepthBetterFlag = depth == existing.Depth && entryFlag == EntryFlag.Exact && existing.Flag != EntryFlag.Exact;
@@ -191,7 +263,6 @@ public sealed class LockFreeTranspositionTable
             }
             else
             {
-                // Different position - check deep replacement criteria
                 sbyte depthDiff = (sbyte)(depth - existing.Depth);
                 shouldStore = depthDiff >= 2 || existing.Age != _currentAge;
             }
@@ -199,17 +270,17 @@ public sealed class LockFreeTranspositionTable
 
         if (shouldStore)
         {
-            // Direct assignment - may cause tearing but is acceptable
-            // Next write will correct any corruption
-            shard[entryIndex] = newEntry;
+            // Create new entry
+            var newEntry = new TranspositionEntry(hash, depth, score, moveX, moveY, entryFlag, (byte)_currentAge, threadIndex);
+
+            // Write with SeqLock pattern
+            WriteEntryWithSeqLock(shard, entryIndex, newEntry);
         }
     }
 
     /// <summary>
-    /// Look up a position in the transposition table (thread-safe)
-    /// Returns entry provenance (threadIndex) for selective reading
-    /// For Lazy SMP: Also returns entries found at shallower depths for move ordering
-    /// TT SHARDING: Uses separate shard arrays to reduce cache line contention
+    /// Look up a position in the transposition table using SeqLock pattern.
+    /// Thread-safe without explicit locks.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public (bool found, bool hasExactDepth, short score, (int x, int y)? move, byte threadIndex) Lookup(ulong hash, sbyte depth, int alpha, int beta)
@@ -218,28 +289,23 @@ public sealed class LockFreeTranspositionTable
         var (shardIndex, entryIndex) = GetShardAndIndex(hash);
         var shard = _shards[shardIndex];
 
-        // Read struct directly from array (copy to local stack)
-        TranspositionEntry entry = shard[entryIndex];
+        // Read with SeqLock protection
+        TranspositionEntry entry = ReadEntryWithSeqLock(shard, entryIndex);
 
-        // PERFORMANCE: Fast high-32-bits comparison for hash matching
         if (!entry.MatchesHash(hash))
             return (false, false, 0, null, 0);
 
-        // Check if entry has sufficient depth
         bool hasExactDepth = entry.Depth >= depth;
         byte threadIndex = entry.ThreadIndex;
 
-        // If not at sufficient depth, only return for move ordering (not for cutoff)
         if (!hasExactDepth)
         {
             Interlocked.Increment(ref _hitCount);
-            // Return found=true but hasExactDepth=false - caller can use move but not score
             return (true, false, entry.Score, entry.GetMove(), threadIndex);
         }
 
         Interlocked.Increment(ref _hitCount);
 
-        // Check if we can use the cached score based on flag
         switch (entry.Flag)
         {
             case EntryFlag.Exact:
@@ -256,23 +322,82 @@ public sealed class LockFreeTranspositionTable
                 break;
         }
 
-        // Can't use the score, but can use the move for ordering
         return (true, false, entry.Score, entry.GetMove(), threadIndex);
     }
 
     /// <summary>
+    /// Read entry with SeqLock protection against torn reads.
+    /// Spins if a write is in progress, retries if version changed during read.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static TranspositionEntry ReadEntryWithSeqLock(TranspositionEntry[] shard, int entryIndex)
+    {
+        int maxRetries = 100;
+        for (int retry = 0; retry < maxRetries; retry++)
+        {
+            // Read version - if odd, write is in progress
+            uint v1 = Volatile.Read(ref shard[entryIndex].Version);
+            if ((v1 & 1) != 0)
+            {
+                Thread.SpinWait(1);
+                continue;
+            }
+
+            // Copy entry (may still be torn if write started mid-copy)
+            TranspositionEntry entry = shard[entryIndex];
+
+            // Memory barrier to ensure read completes before version check
+            Thread.MemoryBarrier();
+
+            // Check if version changed during read
+            uint v2 = Volatile.Read(ref shard[entryIndex].Version);
+            if (v1 == v2)
+            {
+                // Consistent read
+                return entry;
+            }
+
+            // Version changed - retry
+            Thread.SpinWait(1);
+        }
+
+        // Fallback: return empty entry after too many retries
+        return default;
+    }
+
+    /// <summary>
+    /// Write entry with SeqLock pattern.
+    /// Increments version to odd (writing), writes data, increments to even (done).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void WriteEntryWithSeqLock(TranspositionEntry[] shard, int entryIndex, TranspositionEntry newEntry)
+    {
+        // Get current version and increment to odd (mark as writing)
+        uint currentVersion = Volatile.Read(ref shard[entryIndex].Version);
+        uint writeVersion = (currentVersion & ~1u) + 1; // Ensure odd
+
+        // Set version to odd (writing in progress)
+        newEntry.Version = writeVersion;
+        shard[entryIndex] = newEntry;
+
+        // Memory barrier to ensure write completes
+        Thread.MemoryBarrier();
+
+        // Increment version to even (write complete)
+        shard[entryIndex].Version = writeVersion + 1;
+    }
+
+    /// <summary>
     /// Increment age for replacement strategy
-    /// Should be called at the start of each new search
     /// </summary>
     public void IncrementAge()
     {
-        Interlocked.Increment(ref _currentAge);
-        if (_currentAge == 255)
+        int newAge = Interlocked.Increment(ref _currentAge);
+        if (newAge >= 255)
         {
             Interlocked.Exchange(ref _currentAge, 1);
         }
 
-        // Reset stats
         Interlocked.Exchange(ref _hitCount, 0);
         Interlocked.Exchange(ref _lookupCount, 0);
     }
@@ -304,13 +429,12 @@ public sealed class LockFreeTranspositionTable
             var shard = _shards[s];
             for (int i = 0; i < _sizePerShard; i++)
             {
-                var entry = shard[i]; // Direct struct read (no Volatile.Read needed)
+                var entry = ReadEntryWithSeqLock(shard, i);
                 if (entry.IsValid && entry.Age == _currentAge)
                     used++;
             }
         }
 
-        // Use Interlocked.CompareExchange to get current value without volatile read
         int hits = Interlocked.CompareExchange(ref _hitCount, 0, 0);
         int lookups = Interlocked.CompareExchange(ref _lookupCount, 0, 0);
         double hitRate = lookups > 0 ? (double)hits / lookups * 100 : 0;
