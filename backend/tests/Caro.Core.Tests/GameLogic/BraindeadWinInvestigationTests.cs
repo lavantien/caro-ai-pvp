@@ -192,12 +192,18 @@ public class BraindeadWinInvestigationTests
         bool isWinningMove = threatDetector.IsWinningMove(board, 9, 8, Player.Red);
         isWinningMove.Should().BeTrue("Red has 4 in column 8: (5,8), (6,8), (7,8), (8,8) - (9,8) completes the win");
 
+        // Also check (4,8) is a winning move for Red (other end of the line)
+        bool isWinningMove4_8 = threatDetector.IsWinningMove(board, 4, 8, Player.Red);
+        isWinningMove4_8.Should().BeTrue("Red has 4 in column 8: (5,8), (6,8), (7,8), (8,8) - (4,8) completes the win from other end");
+
         // Now test what Grandmaster (Blue) would do
         var ai = new MinimaxAI();
         var move = ai.GetBestMove(board, Player.Blue, AIDifficulty.Grandmaster, timeRemainingMs: 30000, moveNumber: 18);
 
-        // Grandmaster should block at (9,8)
-        move.Should().Be((9, 8), "Grandmaster must block Red's winning move at (9,8)");
+        // Grandmaster should block at either (9,8) or (4,8) - both are valid blocks
+        var validBlocks = new[] { (4, 8), (9, 8) };
+        validBlocks.Should().Contain((move.x, move.y),
+            "Grandmaster must block Red's winning move at either end of the vertical line");
     }
 
     /// <summary>

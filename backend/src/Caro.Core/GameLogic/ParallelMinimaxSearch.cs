@@ -947,12 +947,37 @@ public sealed class ParallelMinimaxSearch
 
             // PRE-ITERATION TIME ESTIMATE
             // Estimate if the next iteration can complete in time.
-            // Each depth iteration typically takes 2-4x the previous iteration.
-            // Only apply for D3+ to ensure at least D2 is attempted.
-            if (currentDepth > 2 && lastIterationElapsedMs > 0 && remainingTimeMs < lastIterationElapsedMs * 2)
+            // Each depth iteration typically takes 2-4x the previous iteration in nodes,
+            // but can take 5-10x in time due to deeper search complexity.
+            // CRITICAL FIX: Apply for D2+ to prevent time overruns at blitz time controls.
+            // D1 is always allowed (completes quickly), but D2+ checks time budget.
+            // For D2, estimate based on D1 time * 5 (conservative for time complexity).
+            // For D3+, use actual last iteration time * 2.
+            if (currentDepth >= 2)
             {
-                // Not enough time to complete the next iteration - stop now
-                break;
+                long estimatedIterationTimeMs;
+                if (currentDepth == 2 && lastIterationElapsedMs > 0)
+                {
+                    // D2 estimate: D1 time * 5 (D2 time is often 5-10x D1 due to deeper complexity)
+                    // This is more conservative than the node-based EBF of 2.5
+                    estimatedIterationTimeMs = lastIterationElapsedMs * 5;
+                }
+                else if (currentDepth > 2 && lastIterationElapsedMs > 0)
+                {
+                    // D3+ estimate: last iteration * 2
+                    estimatedIterationTimeMs = lastIterationElapsedMs * 2;
+                }
+                else
+                {
+                    estimatedIterationTimeMs = 0; // No estimate available
+                }
+
+                // Only skip if we have an estimate and not enough time
+                if (estimatedIterationTimeMs > 0 && remainingTimeMs < estimatedIterationTimeMs)
+                {
+                    // Not enough time to complete the next iteration - stop now
+                    break;
+                }
             }
 
             // Check cancellation
@@ -1221,10 +1246,11 @@ public sealed class ParallelMinimaxSearch
         // All 9 threads incrementing shared counter on every node = severe bottleneck
         threadData.LocalNodesSearched++;
 
-        // PERFORMANCE: Only check cancellation/time every 1024 nodes
-        // Checking CancellationToken.IsCancellationRequested on every node is expensive
-        // because it involves a volatile read. Reduced from 16 to 1024 for better NPS.
-        if ((threadData.LocalNodesSearched & 1023) == 0)
+        // TIME CHECK: Check every 256 nodes (balance between NPS and time accuracy)
+        // At 100K NPS, this checks every 2.5ms - fast enough for blitz/bullet
+        // At 1M NPS, this checks every 0.25ms - minimal overhead
+        // Reduced from 1024 to 256 to catch time overruns faster
+        if ((threadData.LocalNodesSearched & 255) == 0)
         {
             // Check cancellation first (fast volatile read)
             if (cancellationToken.IsCancellationRequested)
@@ -1313,6 +1339,22 @@ public sealed class ParallelMinimaxSearch
 
         foreach (var (x, y) in orderedMoves)
         {
+            // TIME CHECK: Check time every 4 moves to catch overruns during iteration
+            // This is in addition to the node-based check in Minimax header
+            // Critical for preventing time overruns when iterating over many moves
+            // More frequent checking (every 4 moves vs 16) for better time accuracy
+            if ((moveIndex & 3) == 0 && _searchStopwatch != null && _hardTimeBoundMs > 0)
+            {
+                if (_searchStopwatch.ElapsedMilliseconds >= _hardTimeBoundMs)
+                {
+                    if (threadData.ThreadIndex == 0)
+                    {
+                        _searchCts?.Cancel();
+                    }
+                    return int.MinValue; // Time's up
+                }
+            }
+
             // MDAP: Move-Dependent Adaptive Pruning (Adaptive Late Move Reduction)
             // Apply dynamic depth reduction based on position characteristics
             int reducedDepth = depth;
