@@ -984,7 +984,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                 parallelSearchEnabled: true
             );
 
-            var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _, _, _, searchScore)
+            var (depthAchieved, nodesSearched, _, _, _, _, _, threadCount, _, _, _, _, _, _, searchScore, _, _)
                 = ai.GetSearchStatistics();
 
             // CRITICAL FIX: Validate searchScore to reject sentinel values
