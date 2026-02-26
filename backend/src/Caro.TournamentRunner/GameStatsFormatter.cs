@@ -52,6 +52,9 @@ public static class GameStatsFormatter
         var vcfNodes = stats?.VCFNodesSearched ?? 0;
         var vcfStr = (vcfDepth > 0 || vcfNodes > 0) ? $"{vcfDepth}d/{FormatLargeNumber(vcfNodes)}n" : "-";
 
+        var ebfStr = stats != null ? $"{stats.EffectiveBranchingFactor:F1}" : "-";
+        var fmcStr = stats != null ? $"{stats.FirstMoveCutoffPercent:F0}%" : "-";
+
         return
             $"    G{game,2} M{moveNumber,3} | {color}({x},{y}) by {difficulty,-12} | " +
             $"T: {timeStr,-7}/{allocStr,-6} | " +
@@ -63,6 +66,8 @@ public static class GameStatsFormatter
             $"TT: {ttStr,-5} | " +
             $"%M: {masterStr,-5} | " +
             $"HD: {helperStr,-4} | " +
+            $"EBF: {ebfStr,-4} | " +
+            $"FMC: {fmcStr,-4} | " +
             $"P: {ponderStr,-25} | " +
             $"VCF: {vcfStr}";
     }
