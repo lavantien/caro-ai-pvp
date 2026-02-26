@@ -33,6 +33,18 @@ class Program
             return;
         }
 
+        if (args.Contains("--baseline-benchmark"))
+        {
+            await BaselineBenchmarkRunner.RunAsync();
+            return;
+        }
+
+        if (args.Contains("--regenerate-summary"))
+        {
+            await BaselineSummaryRegenerator.RegenerateSummaryAsync();
+            return;
+        }
+
         if (args.Contains("--test-suite"))
         {
             var testSuiteArg = args.FirstOrDefault(a => a.StartsWith("--test-suite="));
@@ -58,6 +70,8 @@ class Program
         Console.WriteLine("Options:");
         Console.WriteLine("  --quick                          Run quick smoke test (5 matchups x 2 games)");
         Console.WriteLine("  --comprehensive                  Run full comprehensive test suite");
+        Console.WriteLine("  --baseline-benchmark             Run baseline benchmark (12 matchups, 32 games each)");
+        Console.WriteLine("  --regenerate-summary             Regenerate summary from existing matchup files");
         Console.WriteLine();
         Console.WriteLine("Comprehensive Test Options:");
         Console.WriteLine("  --matchups=<list>                Comma-separated list of matchups");
