@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.67.0] - 2026-02-26
+
+### Added
+- **Baseline benchmark runner** for standardized AI performance measurement
+  - 12 matchups (6 difficulty pairs × 2 time controls: Bullet 60+0, Blitz 180+2)
+  - 32 games per matchup for statistical significance
+  - Output files: `baseline_{bullet|blitz}_{diff1}_{diff2}.txt`
+  - Per-difficulty statistics aggregated across all matchups
+- **EBF (Effective Branching Factor) metric** - measures pruning efficiency (~2.5 typical)
+- **FMC% (First Move Cutoff %) metric** - measures move ordering quality (>85% excellent)
+- **BaselineSummaryRegenerator** - regenerates summary from existing files without re-running benchmark
+
+### Changed
+- **MoveStats** - added EffectiveBranchingFactor and FirstMoveCutoffPercent fields
+- **ParallelMinimaxSearch** - tracks FirstMoveCutoffs/TotalCutoffs for FMC% calculation
+- **GameStatsFormatter** - includes EBF and FMC% in tournament stat line
+- **README** - updated with actual baseline benchmark results and performance metrics
+
+### Baseline Benchmark Results (2026-02-25)
+| Matchup | Time | Higher Win | Draw | Lower Win |
+|---------|------|------------|------|-----------|
+| Grandmaster vs Braindead | Bullet | 25 | 0 | 7 |
+| Grandmaster vs Braindead | Blitz | 26 | 0 | 6 |
+| Grandmaster vs Medium | Bullet | 27 | 0 | 5 |
+| Grandmaster vs Hard | Bullet | 30 | 0 | 2 |
+| Easy vs Braindead | Bullet | 14 | 0 | 18 |
+| Hard vs Easy | Bullet | 18 | 0 | 14 |
+
+**Key Metrics:**
+- EBF: ~2.5 across all matchups (excellent pruning efficiency)
+- FMC%: 0-99% depending on difficulty (varies by search depth)
+- VCF Triggers: 216-550 per matchup
+
+[1.67.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.67.0
+
+## [1.66.0] - 2026-02-25
+
+### Added
+- **OpeningBookPathResolver** - centralized path resolution for opening book files
+  - Searches upward from assembly location to find .git as repo root marker
+  - Handles both development and published scenarios
+  - Used consistently across production and test code
+
+### Fixed
+- **Opening book path resolution** in CI/CD environments
+  - Tests now reliably find opening_book.db regardless of working directory
+  - Removed non-existent runsettings reference from csproj
+
+[1.66.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.66.0
+
 ## [1.65.0] - 2026-02-24
 
 ### Fixed
