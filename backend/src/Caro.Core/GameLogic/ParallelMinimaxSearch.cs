@@ -19,7 +19,9 @@ public record ParallelSearchResult(
     long AllocatedTimeMs = 0,
     int TableHits = 0,
     int TableLookups = 0,
-    int Score = 0
+    int Score = 0,
+    double FirstMoveCutoffPercent = 0,  // FMC%: % of beta-cutoffs on 1st move
+    double EffectiveBranchingFactor = 0  // EBF: average branching factor during search
 );
 
 /// <summary>
@@ -95,6 +97,10 @@ public sealed class ParallelMinimaxSearch
         // Counter-move history: tracks opponent's last move for response scoring
         // Updated on each move to enable counter-move heuristic
         public int LastOpponentCell = -1;
+
+        // FMC% tracking: First Move Cutoff percentage for move ordering quality
+        public long TotalCutoffs;      // Total beta cutoffs
+        public long FirstMoveCutoffs;  // Cutoffs on first move (index 0)
 
         public Random Random = new();
 
@@ -324,7 +330,7 @@ public sealed class ParallelMinimaxSearch
             // Empty board - return center move with depth 1 (not 0, which is misleading)
             // For empty board, center is the only reasonable move
             int center = board.BoardSize / 2;
-            return new ParallelSearchResult(center, center, 1, 1, 0, null, 0, 0, 0, 0);
+            return new ParallelSearchResult(center, center, 1, 1, 0, null, 0, 0, 0, 0, 0, 0);
         }
 
         // Use provided time allocation or create default
@@ -341,7 +347,7 @@ public sealed class ParallelMinimaxSearch
             if (vcfResult.IsSolved && vcfResult.IsWin && vcfResult.BestMove.HasValue)
             {
                 return new ParallelSearchResult(vcfResult.BestMove.Value.x, vcfResult.BestMove.Value.y,
-                    vcfResult.DepthAchieved, vcfResult.NodesSearched, 0, null, vcfTimeLimit, 0, 0, 100000);
+                    vcfResult.DepthAchieved, vcfResult.NodesSearched, 0, null, vcfTimeLimit, 0, 0, 100000, 0, 0);
             }
         }
 
@@ -461,7 +467,13 @@ public sealed class ParallelMinimaxSearch
             var threadData = new ThreadData { ThreadIndex = 0 };
             var (x, y, score, depth, nodes) = SearchWithIterationTimeAware(
                 board, player, candidates, threadData, timeAlloc, difficulty, _searchCts.Token);
-            return new ParallelSearchResult(x, y, depth, nodes, 1, null, _hardTimeBoundMs, 0, 0, score);
+
+            // Calculate FMC% for single-threaded search
+            double singleFmcPercent = threadData.TotalCutoffs > 0
+                ? (threadData.FirstMoveCutoffs * 100.0 / threadData.TotalCutoffs)
+                : 0;
+
+            return new ParallelSearchResult(x, y, depth, nodes, 1, null, _hardTimeBoundMs, 0, 0, score, singleFmcPercent, _depthManager.GetEstimatedEbf());
         }
 
         // Use thread-safe collections with Task-based parallelism
@@ -591,7 +603,8 @@ public sealed class ParallelMinimaxSearch
             var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
             var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
                 board, player, candidates, fallbackThreadData, fallbackTimeAlloc, difficulty, CancellationToken.None);
-            return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0, fscore);
+            double fmc = fallbackThreadData.TotalCutoffs > 0 ? (fallbackThreadData.FirstMoveCutoffs * 100.0 / fallbackThreadData.TotalCutoffs) : 0;
+            return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0, fscore, fmc, _depthManager.GetEstimatedEbf());
         }
 
         var maxDepth = results.Max(r => r.depth);
@@ -604,7 +617,8 @@ public sealed class ParallelMinimaxSearch
             var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
             var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
                 board, player, candidates, fallbackThreadData, fallbackTimeAlloc, difficulty, CancellationToken.None);
-            return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0, fscore);
+            double fmc = fallbackThreadData.TotalCutoffs > 0 ? (fallbackThreadData.FirstMoveCutoffs * 100.0 / fallbackThreadData.TotalCutoffs) : 0;
+            return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0, fscore, fmc, _depthManager.GetEstimatedEbf());
         }
 
         // CRITICAL FIX: Select the best valid result, avoiding int.MinValue scores
@@ -739,6 +753,11 @@ public sealed class ParallelMinimaxSearch
         int totalTableHits = diagnosticsList.Sum(d => d.TableHits);
         int totalTableLookups = diagnosticsList.Sum(d => d.TableLookups);
 
+        // Calculate FMC% (First Move Cutoff %) for move ordering quality
+        long totalCutoffs = diagnosticsList.Sum(d => d.TotalCutoffs);
+        long firstMoveCutoffs = diagnosticsList.Sum(d => d.FirstMoveCutoffs);
+        double fmcPercent = totalCutoffs > 0 ? (firstMoveCutoffs * 100.0 / totalCutoffs) : 0;
+
         // DEFENSIVE: Validate the best move is actually in the candidates list and is empty
         // This catches any bugs where the search might return an invalid move
 
@@ -760,7 +779,7 @@ public sealed class ParallelMinimaxSearch
                             if (board.GetCell(nx, ny).IsEmpty)
                             {
                                 Console.WriteLine($"[SEARCH ERROR] Empty candidates - using fallback ({nx},{ny})");
-                                return new ParallelSearchResult(nx, ny, 1, totalNodesFinal, threadCount, diagnostics, _hardTimeBoundMs, totalTableHits, totalTableLookups, bestResult.score);
+                                return new ParallelSearchResult(nx, ny, 1, totalNodesFinal, threadCount, diagnostics, _hardTimeBoundMs, totalTableHits, totalTableLookups, bestResult.score, fmcPercent, _depthManager.GetEstimatedEbf());
                             }
                         }
                     }
@@ -768,7 +787,7 @@ public sealed class ParallelMinimaxSearch
             }
             // Board is completely full (shouldn't happen in a real game)
             Console.WriteLine($"[SEARCH ERROR] Board is full - returning center");
-            return new ParallelSearchResult(center, center, 1, totalNodesFinal, threadCount, diagnostics, _hardTimeBoundMs, totalTableHits, totalTableLookups, bestResult.score);
+            return new ParallelSearchResult(center, center, 1, totalNodesFinal, threadCount, diagnostics, _hardTimeBoundMs, totalTableHits, totalTableLookups, bestResult.score, fmcPercent, _depthManager.GetEstimatedEbf());
         }
 
         var bestMoveInCandidates = candidates.Any(c => c.x == bestResult.x && c.y == bestResult.y);
@@ -788,7 +807,7 @@ public sealed class ParallelMinimaxSearch
             bestResult = (emptyCandidate.x, emptyCandidate.y, bestResult.score, bestResult.depth, bestResult.nodes, bestResult.threadIndex);
         }
 
-        return new ParallelSearchResult(bestResult.x, bestResult.y, bestResult.depth, totalNodesFinal, threadCount, diagnostics, _hardTimeBoundMs, totalTableHits, totalTableLookups, bestResult.score);
+        return new ParallelSearchResult(bestResult.x, bestResult.y, bestResult.depth, totalNodesFinal, threadCount, diagnostics, _hardTimeBoundMs, totalTableHits, totalTableLookups, bestResult.score, fmcPercent, _depthManager.GetEstimatedEbf());
     }
 
     /// <summary>
@@ -1390,6 +1409,14 @@ public sealed class ParallelMinimaxSearch
 
             if (beta <= alpha)
             {
+                // FMC% tracking: record cutoff statistics
+                threadData.TotalCutoffs++;
+                if (moveIndex == 1)
+                {
+                    // Cutoff on first move searched (best move ordering)
+                    threadData.FirstMoveCutoffs++;
+                }
+
                 // Cutoff
                 if (depth >= 2 && depth < 20)
                 {

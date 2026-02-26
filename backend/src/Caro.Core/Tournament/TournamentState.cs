@@ -168,7 +168,9 @@ public record MoveStats(
     double PonderNodesPerSecond = 0, // NPS during pondering
     int PonderDepth = 0,            // Depth achieved during pondering
     bool BookUsed = false,          // True if this move came from opening book
-    MoveType MoveType = MoveType.Normal  // How the move was determined
+    MoveType MoveType = MoveType.Normal,  // How the move was determined
+    double EffectiveBranchingFactor = 0,  // EBF: average branching factor during search (~2-3 typical)
+    double FirstMoveCutoffPercent = 0     // FMC%: % of beta-cutoffs on 1st move (>85% = excellent)
 );
 
 /// <summary>
