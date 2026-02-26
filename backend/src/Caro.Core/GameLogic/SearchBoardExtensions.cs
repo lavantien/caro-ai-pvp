@@ -38,6 +38,41 @@ public static class SearchBoardExtensions
         return candidates;
     }
 
+    /// <summary>
+    /// Zero-allocation version: Get candidate moves within a radius of existing stones.
+    /// Writes to a caller-provided buffer and returns the count.
+    /// This is the preferred API for hot paths to avoid GC pressure.
+    /// </summary>
+    /// <param name="board">The board to search</param>
+    /// <param name="buffer">Pre-allocated buffer to write moves to (should be at least 256 for 16x16 board)</param>
+    /// <param name="radius">Radius around occupied cells to consider</param>
+    /// <returns>Number of candidate moves written to buffer</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int GetCandidateMovesZeroAlloc(this SearchBoard board, Span<(int x, int y)> buffer, int radius = 2)
+    {
+        var occupancy = board.GetOccupancy();
+        int size = board.BoardSize;
+        int count = 0;
+
+        // Use bitboard to find occupied cells and expand around them
+        for (int x = 0; x < size && count < buffer.Length; x++)
+        {
+            for (int y = 0; y < size && count < buffer.Length; y++)
+            {
+                if (board.IsEmpty(x, y))
+                {
+                    // Check if within radius of any occupied cell
+                    if (IsNearOccupied(x, y, occupancy, radius, size))
+                    {
+                        buffer[count++] = (x, y);
+                    }
+                }
+            }
+        }
+
+        return count;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsNearOccupied(int x, int y, BitBoard occupancy, int radius, int size)
     {
