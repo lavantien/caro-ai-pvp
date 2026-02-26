@@ -86,6 +86,8 @@ public class MinimaxAI : IStatsPublisher
     private bool _bookUsed;  // True if last move came from opening book
     private MoveType _moveType;  // How the last move was determined
     private int _lastSearchScore;  // Score from last search (for book builder)
+    private double _lastFmcPercent;  // First Move Cutoff % from last search
+    private double _lastEbf;  // Effective Branching Factor from last search
 
     // Time control for search timeout
     private long _searchHardBoundMs;
@@ -1377,6 +1379,8 @@ public class MinimaxAI : IStatsPublisher
             _tableHits = parallelResult.TableHits;
             _tableLookups = parallelResult.TableLookups;
             _lastSearchScore = parallelResult.Score;
+            _lastFmcPercent = parallelResult.FirstMoveCutoffPercent;
+            _lastEbf = parallelResult.EffectiveBranchingFactor;
 
             // Store PV and board for pondering prediction
             _lastPV = PV.FromSingleMove(parallelResult.X, parallelResult.Y, _depthAchieved, 0);
@@ -4955,7 +4959,7 @@ public class MinimaxAI : IStatsPublisher
     /// <summary>
     /// Get search statistics for the last move
     /// </summary>
-    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched, int ThreadCount, string? ParallelDiagnostics, double MasterTTPercent, double HelperAvgDepth, long AllocatedTimeMs, bool BookUsed, MoveType MoveType, int SearchScore) GetSearchStatistics()
+    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched, int ThreadCount, string? ParallelDiagnostics, double MasterTTPercent, double HelperAvgDepth, long AllocatedTimeMs, bool BookUsed, MoveType MoveType, int SearchScore, double FmcPercent, double Ebf) GetSearchStatistics()
     {
         double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
         var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
@@ -4982,7 +4986,7 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs, _bookUsed, _moveType, _lastSearchScore);
+        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs, _bookUsed, _moveType, _lastSearchScore, _lastFmcPercent, _lastEbf);
     }
 
     /// <summary>
@@ -4991,7 +4995,7 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     public void PublishSearchStats(Player player, StatsType statsType, long moveTimeMs)
     {
-        var (depthAchieved, nodesSearched, nps, hitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, _, masterTTPercent, helperAvgDepth, allocatedTimeMs, bookUsed, moveType, _) = GetSearchStatistics();
+        var (depthAchieved, nodesSearched, nps, hitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, _, masterTTPercent, helperAvgDepth, allocatedTimeMs, bookUsed, moveType, _, _, _) = GetSearchStatistics();
 
         var statsEvent = new MoveStatsEvent
         {
