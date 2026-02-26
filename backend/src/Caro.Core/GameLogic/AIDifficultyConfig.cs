@@ -87,9 +87,9 @@ public sealed class AIDifficultyConfig
                 TimeBudgetPercent = 0.75,     // 75% time budget
                 ParallelSearchEnabled = true,
                 PonderingEnabled = true,
-                VCFEnabled = true,
+                VCFEnabled = false,            // DISABLED: VCF allocates heavily (HashSet, List, LINQ) causing NPS collapse
                 ErrorRate = 0.0,                // No intentional errors
-                Description = "Parallel + pondering + VCF",
+                Description = "Parallel + pondering (VCF disabled until zero-allocation)",
                 OpeningBookEnabled = true,      // Hard uses opening book
                 MaxBookDepth = 10              // 10 plies = 5 moves per side
             },
@@ -104,9 +104,9 @@ public sealed class AIDifficultyConfig
                 TimeBudgetPercent = 1.0,     // 100% time budget
                 ParallelSearchEnabled = true,    // Max parallel per README
                 PonderingEnabled = true,         // Pondering per README
-                VCFEnabled = true,
+                VCFEnabled = false,              // DISABLED: VCF allocates heavily (HashSet, List, LINQ) causing NPS collapse
                 ErrorRate = 0.0,                // No intentional errors
-                Description = "Max parallel + VCF + pondering + Opening book",
+                Description = "Max parallel + pondering + Opening book (VCF disabled until zero-allocation)",
                 OpeningBookEnabled = true,       // Per README: "14 plies"
                 MaxBookDepth = 14               // 14 plies = 7 moves per side
             },
