@@ -1237,14 +1237,8 @@ public sealed class ParallelMinimaxSearch
         // All 9 threads incrementing shared counter on every node = severe bottleneck
         threadData.LocalNodesSearched++;
 
-        // TIME CHECK: TimeMonitor handles timer-based cancellation (every 10ms)
-        // Just check the cancellation token periodically (every 256 nodes)
-        // This is purely for responsiveness - the TimeMonitor handles the actual timing
-        if ((threadData.LocalNodesSearched & 255) == 0)
-        {
-            if (cancellationToken.IsCancellationRequested)
-                return int.MinValue;
-        }
+        // No per-node time check needed - TimeMonitor handles cancellation via timer
+        // Iteration-level checks in SearchWithIterationTimeAware are sufficient
 
         // Terminal check
         var winner = CheckWinner(board);
@@ -1313,13 +1307,7 @@ public sealed class ParallelMinimaxSearch
 
         foreach (var (x, y) in orderedMoves)
         {
-            // TIME CHECK: TimeMonitor handles timer-based cancellation (every 10ms)
-            // Just check the cancellation token periodically (every 4 moves)
-            // This is for responsiveness - the TimeMonitor handles the actual timing
-            if ((moveIndex & 3) == 0 && cancellationToken.IsCancellationRequested)
-            {
-                return int.MinValue; // Time's up
-            }
+            // No per-move time check needed - TimeMonitor handles cancellation via timer
 
             // MDAP: Move-Dependent Adaptive Pruning (Adaptive Late Move Reduction)
             // Apply dynamic depth reduction based on position characteristics
