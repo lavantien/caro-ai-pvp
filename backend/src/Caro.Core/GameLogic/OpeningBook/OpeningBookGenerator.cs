@@ -606,7 +606,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                         {
                             // This should not happen with DirectHash-based storage
                             // If it does, it indicates a bug in the coordinate transformation
-                            _logger.LogWarning("Unexpected invalid move ({ActualX},{ActualY}) - cell occupied. " +
+                            _logger.LogDebug("Unexpected invalid move ({ActualX},{ActualY}) - cell occupied. " +
                                 "Canonical move: ({RelX},{RelY}), Symmetry={Sym}, Depth={Depth}",
                                 actualX, actualY, move.RelativeX, move.RelativeY, posData.symmetry, posData.depth);
                             continue;
@@ -685,7 +685,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                         {
                             // With DirectHash-based lookup, this should not happen
                             // If it does, it indicates a bug in coordinate transformation
-                            _logger.LogWarning("Unexpected invalid move ({ActualX},{ActualY}) from book - cell occupied. " +
+                            _logger.LogDebug("Unexpected invalid move ({ActualX},{ActualY}) from book - cell occupied. " +
                                 "Canonical move: ({RelX},{RelY}), Symmetry={Sym}, Depth={Depth}",
                                 actualX, actualY, move.RelativeX, move.RelativeY, posData.symmetry, posData.depth);
                             continue;
@@ -1013,7 +1013,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             // Double-check after negation (catches int.MinValue overflow case)
             if (score < MinValidScore || score > MaxValidScore)
             {
-                _logger.LogWarning("Candidate ({Cx}, {Cy}) has out-of-range score={Score} (min={Min}, max={Max}), clamping", cx, cy, score, MinValidScore, MaxValidScore);
+                _logger.LogDebug("Candidate ({Cx}, {Cy}) has out-of-range score={Score} (min={Min}, max={Max}), clamping", cx, cy, score, MinValidScore, MaxValidScore);
                 score = Math.Clamp(score, MinValidScore, MaxValidScore);
             }
 
