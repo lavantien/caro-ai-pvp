@@ -570,9 +570,26 @@ public class MinimaxAI : IStatsPublisher
             var inferredInitialMs = _inferredInitialTimeMs > 0 ? _inferredInitialTimeMs : timeRemainingMs.Value;
             var initialTimeSeconds = (int)(inferredInitialMs / 1000);
 
-            // Estimate increment based on common time control ratios
-            // 3+2: 2/180 = 1.1%, 7+5: 5/420 = 1.2%, 15+10: 10/900 = 1.1%
-            var incrementSeconds = Math.Max(2, (int)Math.Round(initialTimeSeconds / 90.0));
+            // FIX: Better increment estimation for different time controls
+            // Common time controls:
+            // - Bullet: 60+0 (1 min, no increment) - very common
+            // - Blitz: 180+2 (3 min + 2s)
+            // - Rapid: 600+5 (10 min + 5s)
+            // For short time controls (< 120s), assume SUDDEN DEATH (0 increment)
+            // This is critical for bullet time management
+            int incrementSeconds;
+            if (initialTimeSeconds <= 120)
+            {
+                // Short time control - assume sudden death (no increment)
+                // This is conservative and prevents timeouts in bullet games
+                incrementSeconds = 0;
+            }
+            else
+            {
+                // Longer time controls - estimate increment based on common ratios
+                // 3+2: 2/180 = 1.1%, 7+5: 5/420 = 1.2%, 15+10: 10/900 = 1.1%
+                incrementSeconds = Math.Max(2, (int)Math.Round(initialTimeSeconds / 90.0));
+            }
 
             // Use AdaptiveTimeManager with PID-like controller for better time management
             // Automatically adjusts to any time control without hardcoded multipliers

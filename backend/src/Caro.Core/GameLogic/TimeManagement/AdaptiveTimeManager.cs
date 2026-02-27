@@ -41,18 +41,35 @@ public sealed class AdaptiveTimeManager
     };
 
     // Maximum time per move (percentage of remaining time)
-    // Higher difficulties can spend more per move
-    // CRITICAL: Must allow enough time for parallel search to reach deeper depths
+    // These are SAFETY CAPS for time controls WITH increment
+    // For sudden death (no increment), we use much lower caps
+    // CRITICAL: These values are only used as upper bounds, not targets
     private static readonly double[] MaxTimePercentage = new double[]
     {
         0.10, // [0] unused
         0.05, // [1] Braindead: 5% max per move
-        0.10, // [2] Easy: 10%
-        0.15, // [3] Medium: 15%
-        0.25, // [4] Hard: 25%
-        0.40, // [5] Grandmaster: 40% - can use 40% of remaining time for one move
-        0.50, // [6] Experimental: 50%
-        0.50  // [7] BookGeneration: 50%
+        0.08, // [2] Easy: 8%
+        0.10, // [3] Medium: 10%
+        0.12, // [4] Hard: 12%
+        0.15, // [5] Grandmaster: 15% - reduced from 40% which was too aggressive
+        0.20, // [6] Experimental: 20%
+        0.20  // [7] BookGeneration: 20%
+    };
+
+    // Maximum time per move for SUDDEN DEATH (no increment) time controls
+    // Must be much more conservative since there's no time recovery
+    // For a 60s game with ~50 expected moves, each move should average ~1.2s
+    // So the max per move should be roughly 2% of remaining time
+    private static readonly double[] MaxTimePercentageSuddenDeath = new double[]
+    {
+        0.02, // [0] unused
+        0.01, // [1] Braindead: 1% max per move
+        0.015, // [2] Easy: 1.5%
+        0.02, // [3] Medium: 2%
+        0.025, // [4] Hard: 2.5%
+        0.03, // [5] Grandmaster: 3% - for 60s, this is ~1.8s max per move
+        0.04, // [6] Experimental: 4%
+        0.04  // [7] BookGeneration: 4%
     };
 
     /// <summary>
@@ -94,9 +111,22 @@ public sealed class AdaptiveTimeManager
         _timePressure = proportionalError * 0.6 + _integralError * 0.3 + derivative * 0.1;
         _timePressure = Math.Clamp(_timePressure, 0, 1);
 
+        // Detect sudden death early (needed for adaptive multiplier)
+        var incrementMs = incrementSeconds * 1000L;
+        var isSuddenDeath = incrementMs <= 0 || incrementSeconds <= 0;
+
         // === ADAPTIVE MULTIPLIER ===
         // Start with base aggressiveness for difficulty
         var baseAggressiveness = GetDifficultyValue(BaseAggressiveness, difficultyIndex);
+
+        // CRITICAL FIX: For sudden death, use much lower aggressiveness
+        // In sudden death, we cannot afford to be aggressive with time usage
+        if (isSuddenDeath)
+        {
+            // Reduce base aggressiveness significantly for sudden death
+            // Maximum of 1.0 for any difficulty to prevent time burn
+            baseAggressiveness = Math.Min(baseAggressiveness, 1.0);
+        }
 
         // Reduce multiplier as time pressure increases
         // This is the key adaptation: when running low on time, scale back
@@ -104,7 +134,11 @@ public sealed class AdaptiveTimeManager
 
         // Smooth multiplier changes to prevent oscillation
         _currentMultiplier = _currentMultiplier * 0.7 + adaptiveMultiplier * 0.3;
-        _currentMultiplier = Math.Clamp(_currentMultiplier, 0.2, 3.0);
+
+        // CRITICAL FIX: For sudden death, cap multiplier much more aggressively
+        // This prevents the multiplier from growing and burning through time
+        var maxMultiplier = isSuddenDeath ? 1.2 : 3.0;
+        _currentMultiplier = Math.Clamp(_currentMultiplier, 0.2, maxMultiplier);
 
         // === BASE TIME CALCULATION ===
         // Estimate moves remaining based on game phase
@@ -124,24 +158,43 @@ public sealed class AdaptiveTimeManager
         var adjustedTimeMs = baseTimeMs * complexity * phaseMultiplier * _currentMultiplier;
 
         // === HARD BOUND: Maximum percentage of remaining time ===
-        // CRITICAL FIX: ALWAYS cap based on increment to prevent timeout
-        // With increment time control, average move time MUST be < increment to avoid eventual timeout
-        // This is true even at the start of the game - we cannot "bank" time for later
-        var maxTimePercent = GetDifficultyValue(MaxTimePercentage, difficultyIndex);
-        var incrementMs = incrementSeconds * 1000L;
+        // (isSuddenDeath and incrementMs already calculated above)
 
-        // Time scramble detection: less than 3x increment OR less than 30 seconds remaining
-        var isInTimeScramble = timeRemainingMs < Math.Min(incrementMs * 3, 30000);
+        // Choose appropriate percentage cap based on time control type
+        var maxTimePercent = isSuddenDeath
+            ? GetDifficultyValue(MaxTimePercentageSuddenDeath, difficultyIndex)
+            : GetDifficultyValue(MaxTimePercentage, difficultyIndex);
+
+        // Time scramble detection: different logic for sudden death vs increment
+        // Sudden death: less than 20 seconds remaining is time scramble
+        // With increment: less than 3x increment OR less than 30 seconds remaining
+        var isInTimeScramble = isSuddenDeath
+            ? timeRemainingMs < 20000
+            : timeRemainingMs < Math.Min(incrementMs * 3, 30000);
 
         long maxAllocatableMs;
         long percentageBoundMs;
 
-        // FIX: Time allotment formula adjusted to be more conservative
-        // Old formula: (initial_time / 20) + (increment * 2) was too aggressive for blitz
-        // New formula: (initial_time / 25) + (increment * 1.5)
-        // For 180+2: 180/25 + 2*1.5 = 7.2 + 3 = 10.2s max per move (was 13s)
-        // For 300+3: 300/25 + 3*1.5 = 12 + 4.5 = 16.5s max per move (was 21s)
-        var baseTimeAllotMs = ((initialTimeSeconds / 25.0) + (incrementSeconds * 1.5)) * 1000.0;
+        // FIX: Time allotment formula - different for sudden death vs increment time controls
+        // Sudden death: Must budget evenly across expected moves (no time recovery)
+        // With increment: Can be more aggressive (time recovery each move)
+        double baseTimeAllotMs;
+        if (isSuddenDeath)
+        {
+            // SUDDEN DEATH FORMULA: remaining / expected_moves with safety factor
+            // Expected moves in Caro: ~40-50 depending on phase
+            // Use safety factor of 0.8 to ensure we don't run out
+            var safetyFactor = 0.8;
+            baseTimeAllotMs = (timeRemainingMs / (double)movesToEnd) * safetyFactor;
+        }
+        else
+        {
+            // INCREMENT FORMULA: More aggressive, can use more time per move
+            // (initial_time / 25) + (increment * 1.5)
+            // For 180+2: 180/25 + 2*1.5 = 7.2 + 3 = 10.2s max per move
+            // For 300+3: 300/25 + 3*1.5 = 12 + 4.5 = 16.5s max per move
+            baseTimeAllotMs = ((initialTimeSeconds / 25.0) + (incrementSeconds * 1.5)) * 1000.0;
+        }
 
         // Cap complexity multiplier to prevent excessive time usage
         var complexityCap = Math.Min(complexity, 1.5);
@@ -157,11 +210,20 @@ public sealed class AdaptiveTimeManager
 
         if (isInTimeScramble)
         {
-            // In time scramble: CRITICAL - we MUST spend less than increment per move
-            // Use 40% of increment as max (leaves 60% safety margin for communication overhead)
-            // For 2 second increment: max 800ms per move
-            // For 5 second increment: max 2000ms per move
-            maxAllocatableMs = Math.Max(incrementMs * 2 / 5, 300); // 40% of increment, min 300ms
+            // In time scramble: CRITICAL - use very conservative time allocation
+            if (isSuddenDeath)
+            {
+                // Sudden death time scramble: budget for 5 more moves minimum
+                maxAllocatableMs = Math.Max(timeRemainingMs / 6, 300); // ~17% of remaining, min 300ms
+            }
+            else
+            {
+                // With increment: spend less than increment per move
+                // Use 40% of increment as max (leaves 60% safety margin)
+                // For 2 second increment: max 800ms per move
+                // For 5 second increment: max 2000ms per move
+                maxAllocatableMs = Math.Max(incrementMs * 2 / 5, 300);
+            }
             percentageBoundMs = maxAllocatableMs;
         }
         else
@@ -179,11 +241,20 @@ public sealed class AdaptiveTimeManager
         var softBoundMs = (long)Math.Clamp(adjustedTimeMs, Math.Max(1, percentageBoundMs / 100), percentageBoundMs);
 
         // Hard bound: soft bound × 1.3, but never exceed percentage cap
-        // In time scramble, hard bound is STRICTLY capped at 50% of increment
+        // In time scramble, use very tight bounds
         var desiredHardBoundMs = (long)(softBoundMs * 1.3);
         if (isInTimeScramble)
         {
-            desiredHardBoundMs = Math.Min(desiredHardBoundMs, incrementMs / 2);
+            if (isSuddenDeath)
+            {
+                // Sudden death time scramble: cap at percentage of remaining
+                desiredHardBoundMs = Math.Min(desiredHardBoundMs, (long)(timeRemainingMs * 0.20));
+            }
+            else
+            {
+                // With increment: cap at 50% of increment
+                desiredHardBoundMs = Math.Min(desiredHardBoundMs, incrementMs / 2);
+            }
         }
         else
         {

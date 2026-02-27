@@ -1237,8 +1237,10 @@ public sealed class ParallelMinimaxSearch
         // All 9 threads incrementing shared counter on every node = severe bottleneck
         threadData.LocalNodesSearched++;
 
-        // No per-node time check needed - TimeMonitor handles cancellation via timer
-        // Iteration-level checks in SearchWithIterationTimeAware are sufficient
+        // Single cancellation check per Minimax call (not per-node)
+        // TimeMonitor cancels via timer, this ensures we respond within one call
+        if (cancellationToken.IsCancellationRequested)
+            return int.MinValue;
 
         // Terminal check
         var winner = CheckWinner(board);
