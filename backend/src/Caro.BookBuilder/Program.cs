@@ -22,12 +22,13 @@ class Program
             Console.WriteLine("Options:");
             Console.WriteLine("  --output <path>       Output database path (default: ../opening_book.db at repo root)");
             Console.WriteLine("  --depth <n>           Maximum book depth in plies (default: 16)");
+            Console.WriteLine("  --moves <n>           Moves per position to expand (default: 2)");
             Console.WriteLine("  --verify-only         Verify existing book without generation");
             Console.WriteLine("  --debug               Enable verbose logging (default: quiet mode)");
             Console.WriteLine("  --help, -h            Show this help message");
             Console.WriteLine();
             Console.WriteLine("Book Structure:");
-            Console.WriteLine("  Plies 0-14:   4 moves per position (covers Easy through Grandmaster)");
+            Console.WriteLine("  Configurable moves/position up to specified depth");
             Console.WriteLine();
             Console.WriteLine("Difficulty Coverage:");
             Console.WriteLine("  Easy:         depth 4  (2 moves per side)");
@@ -38,6 +39,7 @@ class Program
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  dotnet run --");
+            Console.WriteLine("  dotnet run -- --depth 20 --moves 3");
             Console.WriteLine("  dotnet run -- --output custom_book.db --debug");
             Console.WriteLine("  dotnet run -- --verify-only");
             return;
@@ -62,9 +64,10 @@ class Program
         Console.WriteLine("=========================");
         Console.WriteLine();
 
-        // Book structure: 4 moves/position up to specified depth (default 16 for extended coverage)
+        // Book structure: configurable moves/position up to specified depth
         // This covers Easy (4), Medium (6), Hard (10), Grandmaster (14), plus buffer
         int maxBookDepth = GetIntArgument(args, "--depth", 16);
+        int movesPerPosition = GetIntArgument(args, "--moves", 2);
         const int TargetSearchDepth = 12;
 
         // Parse remaining arguments
@@ -77,9 +80,9 @@ class Program
         ValidateArguments(args);
 
         Console.WriteLine($"Output: {outputPath}");
-        Console.WriteLine($"Book Structure: 4 moves/position up to ply {maxBookDepth}");
+        Console.WriteLine($"Book Structure: {movesPerPosition} moves/position up to ply {maxBookDepth}");
         Console.WriteLine();
-        Console.WriteLine($"  Plies 0-{maxBookDepth}:  4 moves/position (covers Easy through Grandmaster+)");
+        Console.WriteLine($"  Plies 0-{maxBookDepth}:  {movesPerPosition} moves/position (covers Easy through Grandmaster+)");
         Console.WriteLine();
 
         // Create store and generator (write mode - only place that modifies the database)
@@ -151,7 +154,7 @@ class Program
             };
             progressTimer.Start();
 
-            var result = await generator.GenerateAsync(maxBookDepth, TargetSearchDepth, cts.Token);
+            var result = await generator.GenerateAsync(maxBookDepth, TargetSearchDepth, movesPerPosition, cts.Token);
 
             progressTimer.Stop();
 
@@ -274,6 +277,7 @@ class Program
         {
             "--output",
             "--depth",
+            "--moves",
             "--verify-only",
             "--debug",
             "--help",
