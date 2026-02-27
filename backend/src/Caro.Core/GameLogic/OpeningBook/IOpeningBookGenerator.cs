@@ -14,11 +14,13 @@ public interface IOpeningBookGenerator
     /// </summary>
     /// <param name="maxDepth">Maximum ply depth to generate (e.g., 24 for 12 moves per side)</param>
     /// <param name="targetDepth">Search depth for each position evaluation (e.g., 22-26)</param>
+    /// <param name="movesPerPosition">Number of moves to expand per position (default: 2)</param>
     /// <param name="cancellationToken">Cancellation token for async operation</param>
     /// <returns>Generation result with statistics</returns>
     Task<BookGenerationResult> GenerateAsync(
         int maxDepth,
         int targetDepth,
+        int movesPerPosition = 2,
         CancellationToken cancellationToken = default);
 
     /// <summary>

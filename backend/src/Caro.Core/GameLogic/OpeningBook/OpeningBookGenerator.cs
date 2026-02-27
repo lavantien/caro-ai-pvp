@@ -47,6 +47,7 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     private readonly AsyncQueue<BookProgressEvent> _progressQueue;
     private CancellationTokenSource? _cts;
     private int _maxDepth = 16;  // Configurable max depth, set in GenerateAsync
+    private int _movesPerPosition = 2;  // Configurable moves per position to expand
 
     // Channel-based async write buffer fields
     private readonly Channel<OpeningBookEntry> _writeChannel;
@@ -412,9 +413,11 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     public async Task<BookGenerationResult> GenerateAsync(
         int maxDepth,
         int targetDepth,
+        int movesPerPosition = 2,
         CancellationToken cancellationToken = default)
     {
         _maxDepth = maxDepth;  // Store for use in GetMaxChildrenForDepth
+        _movesPerPosition = movesPerPosition;  // Store for use in GetMaxChildrenForDepth
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _progress.Reset(maxDepth);
         _progress.Status = GeneratorState.Running;
@@ -1513,14 +1516,14 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
 
     /// <summary>
     /// Get the maximum number of children to expand for a given depth.
-    /// Uses configurable _maxDepth instead of hardcoded limit.
+    /// Uses configurable _maxDepth and _movesPerPosition.
     /// </summary>
     private int GetMaxChildrenForDepth(int depth)
     {
         return depth switch
         {
-            var d when d < _maxDepth => 2,  // 2 moves/position up to max depth
-            _ => 0                          // No children at max depth
+            var d when d < _maxDepth => _movesPerPosition,  // Configurable moves/position up to max depth
+            _ => 0                                          // No children at max depth
         };
     }
 
