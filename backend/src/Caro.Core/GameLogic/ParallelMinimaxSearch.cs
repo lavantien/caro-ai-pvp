@@ -66,7 +66,7 @@ public sealed class ParallelMinimaxSearch
 
     // Time management - CancellationTokenSource for proper cross-thread cancellation
     private CancellationTokenSource? _searchCts;
-    private Stopwatch? _searchStopwatch;
+    private TimeMonitor? _timeMonitor;
     private long _hardTimeBoundMs;
 
     // Per-thread data (not shared between threads)
@@ -449,7 +449,14 @@ public sealed class ParallelMinimaxSearch
         // Set up time management with new CancellationTokenSource
         _searchCts?.Cancel(); // Cancel any previous search
         _searchCts = new CancellationTokenSource();
-        _searchStopwatch = Stopwatch.StartNew();
+
+        // Create timer-based time monitor (polls every 10ms)
+        // This is more accurate and less taxing than node-count-based checking
+        _timeMonitor?.Dispose();
+        _timeMonitor = new TimeMonitor(
+            hardTimeBoundMs: timeAlloc.HardBoundMs,
+            softTimeBoundMs: timeAlloc.SoftBoundMs,
+            cts: _searchCts);
         _hardTimeBoundMs = timeAlloc.HardBoundMs;
 
         // Thread count based on difficulty, not estimated depth
@@ -565,8 +572,6 @@ public sealed class ParallelMinimaxSearch
             // Tasks may throw on cancellation - ignore
         }
 
-        _searchStopwatch.Stop();
-
         // INTELLIGENT MERGING: Aggregate results from ALL threads
         // Lazy SMP works best when we consider all thread results, not just master
         // Master thread is more reliable (less cancellation), but helpers can find better moves
@@ -581,7 +586,7 @@ public sealed class ParallelMinimaxSearch
         // CRITICAL FIX: Calculate remaining time for fallback
         // Parallel search already used time waiting for tasks
         // Fallback should only use remaining time to avoid 2x time overrun
-        long elapsedMs = _searchStopwatch?.ElapsedMilliseconds ?? 0;
+        long elapsedMs = _timeMonitor?.ElapsedMs ?? 0;
         long remainingHardBoundMs = Math.Max(50, _hardTimeBoundMs - elapsedMs / 2);  // At least 50ms, account for parallel overhead
         var fallbackTimeAlloc = new TimeAllocation
         {
@@ -598,7 +603,8 @@ public sealed class ParallelMinimaxSearch
             // CRITICAL FIX: Parallel search failed - fall back to single-threaded search
             // Use remaining time allocation, not original
             if (DebugLogging) Console.WriteLine($"[PARALLEL] Falling back to single-threaded (no results) for {difficulty}");
-            _searchStopwatch?.Restart();
+            _timeMonitor?.Dispose();
+            _timeMonitor = new TimeMonitor(fallbackTimeAlloc.HardBoundMs, _searchCts!);
             _hardTimeBoundMs = fallbackTimeAlloc.HardBoundMs;  // Update hard bound for fallback
             var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
             var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
@@ -612,7 +618,8 @@ public sealed class ParallelMinimaxSearch
         {
             // CRITICAL FIX: Parallel search returned invalid depth - fall back to single-threaded
             if (DebugLogging) Console.WriteLine($"[PARALLEL] Falling back to single-threaded (invalid depth) for {difficulty}");
-            _searchStopwatch?.Restart();
+            _timeMonitor?.Dispose();
+            _timeMonitor = new TimeMonitor(fallbackTimeAlloc.HardBoundMs, _searchCts!);
             _hardTimeBoundMs = fallbackTimeAlloc.HardBoundMs;  // Update hard bound for fallback
             var fallbackThreadData = new ThreadData { ThreadIndex = 0 };
             var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
@@ -930,12 +937,12 @@ public sealed class ParallelMinimaxSearch
             }
 
             // Record iteration start time BEFORE any work
-            iterationStartMs = _searchStopwatch?.ElapsedMilliseconds ?? 0;
+            iterationStartMs = _timeMonitor?.ElapsedMs ?? 0;
 
             // TIME BOUND ENFORCEMENT
             // CRITICAL: Always check hard bound, even at D1-D2, to prevent massive time overruns
             // At blitz time controls, D2 can take 2+ seconds which exceeds the 900ms budget
-            var elapsedForCheck = _searchStopwatch?.ElapsedMilliseconds ?? 0;
+            var elapsedForCheck = _timeMonitor?.ElapsedMs ?? 0;
             long remainingTimeMs = _hardTimeBoundMs - elapsedForCheck;
 
             // Hard bound check - ALL threads must stop when time is up
@@ -1023,7 +1030,7 @@ public sealed class ParallelMinimaxSearch
 
             var result = SearchRoot(board, player, currentDepth, candidates, threadData, alpha, beta, cancellationToken);
 
-            var elapsedNow = _searchStopwatch?.ElapsedMilliseconds ?? 0;
+            var elapsedNow = _timeMonitor?.ElapsedMs ?? 0;
             lastIterationElapsedMs = elapsedNow - iterationStartMs;  // Time for THIS iteration only
 
             // CRITICAL FIX: Detect if search was aborted (timeout/cancellation)
@@ -1130,17 +1137,14 @@ public sealed class ParallelMinimaxSearch
         Board board, Player player, int depth, List<(int x, int y)> candidates,
         ThreadData threadData, int alpha, int beta, CancellationToken cancellationToken)
     {
-        // Quick time check before starting search at this depth
-        if (_searchStopwatch != null && _hardTimeBoundMs > 0)
+        // Quick cancellation check before starting search at this depth
+        // TimeMonitor handles timer-based cancellation automatically
+        if (cancellationToken.IsCancellationRequested)
         {
-            var elapsed = _searchStopwatch.ElapsedMilliseconds;
-            if (elapsed >= _hardTimeBoundMs)
-            {
-                // CRITICAL FIX: Return int.MinValue to indicate invalid/timeout result
-                // Score 0 was being picked by result merging as a "valid" result
-                // int.MinValue signals "this search did not complete"
-                return (candidates[0].x, candidates[0].y, int.MinValue);
-            }
+            // CRITICAL FIX: Return int.MinValue to indicate invalid/timeout result
+            // Score 0 was being picked by result merging as a "valid" result
+            // int.MinValue signals "this search did not complete"
+            return (candidates[0].x, candidates[0].y, int.MinValue);
         }
 
         var bestMove = candidates[0];
@@ -1172,15 +1176,10 @@ public sealed class ParallelMinimaxSearch
                 continue;
             }
 
-            // CRITICAL: Check time before each move evaluation
-            // This catches timeout during long candidate loops
-            if (_searchStopwatch != null && _hardTimeBoundMs > 0)
+            // TimeMonitor handles timer-based cancellation - just check the token
+            if (cancellationToken.IsCancellationRequested)
             {
-                if (_searchStopwatch.ElapsedMilliseconds >= _hardTimeBoundMs)
-                {
-                    if (threadData.ThreadIndex == 0) _searchCts?.Cancel();
-                    break;
-                }
+                break;
             }
 
             var newBoard = board.PlaceStone(x, y, player);
@@ -1208,15 +1207,7 @@ public sealed class ParallelMinimaxSearch
                 break;
             }
 
-            // Additional time check every 8 moves to catch timeout faster
-            if ((++moveIndex & 7) == 0 && _searchStopwatch != null && _hardTimeBoundMs > 0)
-            {
-                if (_searchStopwatch.ElapsedMilliseconds >= _hardTimeBoundMs)
-                {
-                    if (threadData.ThreadIndex == 0) _searchCts?.Cancel();
-                    break;
-                }
-            }
+            moveIndex++;
 
             alpha = Math.Max(alpha, score);
             if (beta <= alpha)
@@ -1246,30 +1237,13 @@ public sealed class ParallelMinimaxSearch
         // All 9 threads incrementing shared counter on every node = severe bottleneck
         threadData.LocalNodesSearched++;
 
-        // TIME CHECK: Check every 256 nodes (balance between NPS and time accuracy)
-        // At 100K NPS, this checks every 2.5ms - fast enough for blitz/bullet
-        // At 1M NPS, this checks every 0.25ms - minimal overhead
-        // Reduced from 1024 to 256 to catch time overruns faster
+        // TIME CHECK: TimeMonitor handles timer-based cancellation (every 10ms)
+        // Just check the cancellation token periodically (every 256 nodes)
+        // This is purely for responsiveness - the TimeMonitor handles the actual timing
         if ((threadData.LocalNodesSearched & 255) == 0)
         {
-            // Check cancellation first (fast volatile read)
             if (cancellationToken.IsCancellationRequested)
                 return int.MinValue;
-
-            // Time check
-            if (_searchStopwatch != null && _hardTimeBoundMs > 0)
-            {
-                var elapsed = _searchStopwatch.ElapsedMilliseconds;
-                if (elapsed >= _hardTimeBoundMs)
-                {
-                    // Master thread triggers cancellation for all other threads
-                    if (threadData.ThreadIndex == 0)
-                    {
-                        _searchCts?.Cancel();
-                    }
-                    return int.MinValue;
-                }
-            }
         }
 
         // Terminal check
@@ -1339,20 +1313,12 @@ public sealed class ParallelMinimaxSearch
 
         foreach (var (x, y) in orderedMoves)
         {
-            // TIME CHECK: Check time every 4 moves to catch overruns during iteration
-            // This is in addition to the node-based check in Minimax header
-            // Critical for preventing time overruns when iterating over many moves
-            // More frequent checking (every 4 moves vs 16) for better time accuracy
-            if ((moveIndex & 3) == 0 && _searchStopwatch != null && _hardTimeBoundMs > 0)
+            // TIME CHECK: TimeMonitor handles timer-based cancellation (every 10ms)
+            // Just check the cancellation token periodically (every 4 moves)
+            // This is for responsiveness - the TimeMonitor handles the actual timing
+            if ((moveIndex & 3) == 0 && cancellationToken.IsCancellationRequested)
             {
-                if (_searchStopwatch.ElapsedMilliseconds >= _hardTimeBoundMs)
-                {
-                    if (threadData.ThreadIndex == 0)
-                    {
-                        _searchCts?.Cancel();
-                    }
-                    return int.MinValue; // Time's up
-                }
+                return int.MinValue; // Time's up
             }
 
             // MDAP: Move-Dependent Adaptive Pruning (Adaptive Late Move Reduction)
@@ -2624,7 +2590,10 @@ public sealed class ParallelMinimaxSearch
         // Use the provided CancellationToken combined with our own for time-based cancellation
         _searchCts?.Cancel(); // Cancel any previous search
         _searchCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _searchStopwatch = Stopwatch.StartNew();
+
+        // Create timer-based time monitor for pondering
+        _timeMonitor?.Dispose();
+        _timeMonitor = new TimeMonitor(maxPonderTimeMs, _searchCts);
         _hardTimeBoundMs = maxPonderTimeMs;
 
         // Include threadIndex to distinguish master thread (0) from helper threads (1+)
@@ -2680,7 +2649,7 @@ public sealed class ParallelMinimaxSearch
             // Cancellation occurred - this is expected during pondering
         }
 
-        _searchStopwatch.Stop();
+        _timeMonitor?.Dispose();
         _searchCts?.Cancel();
 
         // INTELLIGENT MERGING for pondering: Aggregate ALL thread results
@@ -2742,7 +2711,7 @@ public sealed class ParallelMinimaxSearch
             if (cancellationToken.IsCancellationRequested)
                 break;
 
-            var elapsed = _searchStopwatch?.ElapsedMilliseconds ?? 0;
+            var elapsed = _timeMonitor?.ElapsedMs ?? 0;
 
             // Hard bound check - stop when time is up
             if (elapsed >= _hardTimeBoundMs)
@@ -2756,7 +2725,7 @@ public sealed class ParallelMinimaxSearch
             if (elapsed >= timeAlloc.SoftBoundMs && lastIterationElapsedMs > remainingTime * 0.25)
                 break;
 
-            var iterationStartTime = _searchStopwatch?.ElapsedMilliseconds ?? 0;
+            var iterationStartTime = _timeMonitor?.ElapsedMs ?? 0;
             iterationCount++;
 
             // Aspiration Windows - narrow window based on previous score
@@ -2771,7 +2740,7 @@ public sealed class ParallelMinimaxSearch
             var result = SearchRoot(board, player, currentDepth, candidates, threadData, alpha, beta, cancellationToken);
 
             // Track iteration time for smart continuation decisions
-            lastIterationElapsedMs = (_searchStopwatch?.ElapsedMilliseconds ?? 0) - iterationStartTime;
+            lastIterationElapsedMs = (_timeMonitor?.ElapsedMs ?? 0) - iterationStartTime;
 
             // If search was cancelled during this iteration, result is unreliable
             if (cancellationToken.IsCancellationRequested)
@@ -2836,7 +2805,7 @@ public sealed class ParallelMinimaxSearch
     /// <summary>
     /// Check if search is currently running
     /// </summary>
-    public bool IsSearching => _searchStopwatch != null && _searchStopwatch.IsRunning;
+    public bool IsSearching => _timeMonitor != null && !_timeMonitor.IsTimeUp;
 
     #endregion
 
