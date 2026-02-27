@@ -21,6 +21,7 @@ class Program
             Console.WriteLine();
             Console.WriteLine("Options:");
             Console.WriteLine("  --output <path>       Output database path (default: ../opening_book.db at repo root)");
+            Console.WriteLine("  --depth <n>           Maximum book depth in plies (default: 16)");
             Console.WriteLine("  --verify-only         Verify existing book without generation");
             Console.WriteLine("  --debug               Enable verbose logging (default: quiet mode)");
             Console.WriteLine("  --help, -h            Show this help message");
@@ -61,9 +62,9 @@ class Program
         Console.WriteLine("=========================");
         Console.WriteLine();
 
-        // Book structure: 4 moves/position up to ply 14 (Grandmaster level)
-        // This covers Easy (4), Medium (6), Hard (10), Grandmaster (14)
-        const int MaxBookDepth = 14;
+        // Book structure: 4 moves/position up to specified depth (default 16 for extended coverage)
+        // This covers Easy (4), Medium (6), Hard (10), Grandmaster (14), plus buffer
+        int maxBookDepth = GetIntArgument(args, "--depth", 16);
         const int TargetSearchDepth = 12;
 
         // Parse remaining arguments
@@ -76,9 +77,9 @@ class Program
         ValidateArguments(args);
 
         Console.WriteLine($"Output: {outputPath}");
-        Console.WriteLine("Book Structure: 4 moves/position up to ply 14");
+        Console.WriteLine($"Book Structure: 4 moves/position up to ply {maxBookDepth}");
         Console.WriteLine();
-        Console.WriteLine("  Plies 0-14:  4 moves/position (covers Easy through Grandmaster)");
+        Console.WriteLine($"  Plies 0-{maxBookDepth}:  4 moves/position (covers Easy through Grandmaster+)");
         Console.WriteLine();
 
         // Create store and generator (write mode - only place that modifies the database)
@@ -150,7 +151,7 @@ class Program
             };
             progressTimer.Start();
 
-            var result = await generator.GenerateAsync(MaxBookDepth, TargetSearchDepth, cts.Token);
+            var result = await generator.GenerateAsync(maxBookDepth, TargetSearchDepth, cts.Token);
 
             progressTimer.Stop();
 
@@ -252,11 +253,27 @@ class Program
         return defaultValue;
     }
 
+    static int GetIntArgument(string[] args, string name, int defaultValue)
+    {
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i].Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                if (int.TryParse(args[i + 1], out int value))
+                    return value;
+                Console.WriteLine($"Warning: Invalid value for {name}, using default {defaultValue}");
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+
     static void ValidateArguments(string[] args)
     {
         var validArguments = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "--output",
+            "--depth",
             "--verify-only",
             "--debug",
             "--help",
