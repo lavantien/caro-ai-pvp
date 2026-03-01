@@ -788,30 +788,6 @@ public class OpeningBookGeneratorEdgeCaseTests : IAsyncLifetime
             "Early positions should have lower adjustment than standard positions");
     }
 
-    /// <summary>
-    /// Verify that early positions (depth <= 5) get reduced time allocation.
-    /// This tests the early position time reduction.
-    /// </summary>
-    [Fact]
-    public void GenerateAsync_EarlyPositions_GetsLessTime()
-    {
-        // Early positions (ply <= 5) get 20% less time
-        const int earlyDepthAdjustment = -20;
-        const int baseTimePerPositionMs = 1000;
-
-        // Calculate adjusted time
-        int adjustedTime = baseTimePerPositionMs * (100 + earlyDepthAdjustment) / 100;
-
-        // Verify early positions get less time
-        adjustedTime.Should().BeLessThan(baseTimePerPositionMs,
-            "Early positions should get less time than base allocation");
-
-        // Verify the reduction is exactly 20%
-        double reductionRatio = (double)(baseTimePerPositionMs - adjustedTime) / baseTimePerPositionMs;
-        Math.Round(reductionRatio, 2).Should().Be(0.20,
-            "Early positions should get exactly 20% less time");
-    }
-
     #endregion
 
     #region Early Exit Tests
@@ -1182,7 +1158,7 @@ public class OpeningBookGeneratorEdgeCaseTests : IAsyncLifetime
             adjustedTime.Should().BeGreaterThan(0,
                 $"Adjusted time for {description} should be positive");
 
-            adjustedTime.Should().BeLessOrEqualTo(baseTimePerPositionMs,
+            adjustedTime.Should().BeLessThanOrEqualTo(baseTimePerPositionMs,
                 $"Adjusted time for {description} should not exceed base time");
 
             // Verify early positions get less time
@@ -1281,6 +1257,16 @@ internal class SlowOpeningBookStore : IOpeningBookStore
         return _innerStore.GetEntry(canonicalHash, player);
     }
 
+    public OpeningBookEntry? GetEntry(ulong canonicalHash, ulong directHash, Player player)
+    {
+        return _innerStore.GetEntry(canonicalHash, directHash, player);
+    }
+
+    public OpeningBookEntry[] GetAllEntriesForCanonicalHash(ulong canonicalHash, Player player)
+    {
+        return _innerStore.GetAllEntriesForCanonicalHash(canonicalHash, player);
+    }
+
     public void StoreEntry(OpeningBookEntry entry)
     {
         // Simulate slow storage
@@ -1303,6 +1289,11 @@ internal class SlowOpeningBookStore : IOpeningBookStore
     public bool ContainsEntry(ulong canonicalHash, Player player)
     {
         return _innerStore.ContainsEntry(canonicalHash, player);
+    }
+
+    public bool ContainsEntry(ulong canonicalHash, ulong directHash, Player player)
+    {
+        return _innerStore.ContainsEntry(canonicalHash, directHash, player);
     }
 
     public BookStatistics GetStatistics()
@@ -1338,5 +1329,30 @@ internal class SlowOpeningBookStore : IOpeningBookStore
     public OpeningBookEntry[] GetAllEntries()
     {
         return _innerStore.GetAllEntries();
+    }
+
+    public OpeningBookEntry[] GetEntriesAtDepth(int depth, int offset, int limit)
+    {
+        return _innerStore.GetEntriesAtDepth(depth, offset, limit);
+    }
+
+    public int GetEntryCountAtDepth(int depth)
+    {
+        return _innerStore.GetEntryCountAtDepth(depth);
+    }
+
+    public void SaveProgress(BookGenerationResumeState progress)
+    {
+        _innerStore.SaveProgress(progress);
+    }
+
+    public BookGenerationResumeState? LoadProgress()
+    {
+        return _innerStore.LoadProgress();
+    }
+
+    public void ClearProgress()
+    {
+        _innerStore.ClearProgress();
     }
 }

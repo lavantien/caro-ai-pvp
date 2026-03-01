@@ -5,34 +5,81 @@ namespace Caro.Core.GameLogic;
 
 /// <summary>
 /// Generates opening book positions through self-play (engine vs engine).
-/// Records moves that led to wins for book inclusion with MoveSource.SelfPlay tag.
+///
+/// Separated Pipeline Architecture (Actor Phase):
+/// - Records ALL moves to staging store (not main book)
+/// - Staging is verified later by MoveVerifier (Critic phase)
+/// - Only verified moves enter the main book
+///
+/// Design principles:
+/// - All buffer sizes are powers of 2
+/// - Fast search for diversity (not deep for accuracy)
+/// - No judgment on move quality (that's verification's job)
 /// </summary>
 public sealed class SelfPlayGenerator
 {
-    private readonly IOpeningBookStore _store;
+    // Default time per move (2^10 ms)
+    private const int DefaultTimeControlMs = 1024;
+
+    // Maximum ply to record (opening moves only)
+    private const int DefaultMaxPly = 16;
+
+    private readonly IStagingBookStore _stagingStore;
+    private readonly IOpeningBookStore? _bookStore;  // Optional: for reading during play
     private readonly IPositionCanonicalizer _canonicalizer;
     private readonly ILogger<SelfPlayGenerator> _logger;
     private readonly ILoggerFactory _loggerFactory;
 
+    /// <summary>
+    /// Create a self-play generator that records to staging store.
+    /// </summary>
+    /// <param name="stagingStore">Staging store for raw self-play data</param>
+    /// <param name="canonicalizer">Position canonicalizer for symmetry reduction</param>
+    /// <param name="loggerFactory">Logger factory for creating loggers</param>
+    /// <param name="bookStore">Optional book store for reading during play (not writing)</param>
+    public SelfPlayGenerator(
+        IStagingBookStore stagingStore,
+        IPositionCanonicalizer? canonicalizer = null,
+        ILoggerFactory? loggerFactory = null,
+        IOpeningBookStore? bookStore = null)
+    {
+        _stagingStore = stagingStore ?? throw new ArgumentNullException(nameof(stagingStore));
+        _canonicalizer = canonicalizer ?? new PositionCanonicalizer();
+        _loggerFactory = loggerFactory ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
+        _logger = _loggerFactory.CreateLogger<SelfPlayGenerator>();
+        _bookStore = bookStore;
+    }
+
+    /// <summary>
+    /// Legacy constructor for backward compatibility.
+    /// Creates a staging store wrapper around the book store.
+    /// </summary>
+    [Obsolete("Use constructor with IStagingBookStore for separated pipeline")]
     public SelfPlayGenerator(
         IOpeningBookStore store,
         IPositionCanonicalizer? canonicalizer = null,
         ILoggerFactory? loggerFactory = null)
     {
-        _store = store ?? throw new ArgumentNullException(nameof(store));
-        _canonicalizer = canonicalizer ?? new PositionCanonicalizer();
-        _loggerFactory = loggerFactory ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
-        _logger = _loggerFactory.CreateLogger<SelfPlayGenerator>();
+        // This should not be used in the new separated pipeline
+        throw new InvalidOperationException(
+            "SelfPlayGenerator now requires IStagingBookStore. " +
+            "Use the constructor with IStagingBookStore for the separated pipeline.");
     }
 
     /// <summary>
-    /// Generate self-play games and record results to the opening book.
+    /// Generate self-play games and record results to staging.
     /// Games start from the empty board.
     /// </summary>
+    /// <param name="gameCount">Number of games to play</param>
+    /// <param name="timeControlMs">Time per move in milliseconds (default: 1024)</param>
+    /// <param name="maxMoves">Maximum moves per game</param>
+    /// <param name="maxPly">Maximum ply to record (default: 16 for opening moves)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     public async Task<SelfPlaySummary> GenerateGamesAsync(
         int gameCount,
-        int timeControlMs = 1000,
+        int timeControlMs = DefaultTimeControlMs,
         int maxMoves = 100,
+        int maxPly = DefaultMaxPly,
         CancellationToken cancellationToken = default)
     {
         return await GenerateGamesAsync(
@@ -41,31 +88,51 @@ public sealed class SelfPlayGenerator
             gameCount,
             timeControlMs,
             maxMoves,
+            maxPly,
             cancellationToken);
     }
 
     /// <summary>
     /// Generate self-play games starting from a specific position.
-    /// Records moves from winning games to the book with MoveSource.SelfPlay tag.
+    /// Records moves to staging store for later verification.
     /// </summary>
+    /// <param name="startingPosition">Starting board position</param>
+    /// <param name="startingPlayer">Player to move first</param>
+    /// <param name="gameCount">Number of games to play</param>
+    /// <param name="timeControlMs">Time per move in milliseconds (default: 1024)</param>
+    /// <param name="maxMoves">Maximum moves per game</param>
+    /// <param name="maxPly">Maximum ply to record (default: 16 for opening moves)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     public async Task<SelfPlaySummary> GenerateGamesAsync(
         Board startingPosition,
         Player startingPlayer,
         int gameCount,
-        int timeControlMs = 1000,
+        int timeControlMs = DefaultTimeControlMs,
         int maxMoves = 100,
+        int maxPly = DefaultMaxPly,
         CancellationToken cancellationToken = default)
     {
-        var summary = new SelfPlaySummary();
-        var moveStats = new Dictionary<(ulong canonicalHash, int x, int y), MoveStatistics>();
+        var summary = new SelfPlaySummary
+        {
+            MaxPlyRecorded = maxPly
+        };
 
-        _logger.LogInformation("Starting self-play: {Games} games from position (player: {Player})",
-            gameCount, startingPlayer);
+        _logger.LogInformation(
+            "Starting self-play: {Games} games from position (player: {Player}), " +
+            "time: {TimeMs}ms, max ply: {MaxPly}",
+            gameCount, startingPlayer, timeControlMs, maxPly);
 
-        for (int gameId = 0; gameId < gameCount && !cancellationToken.IsCancellationRequested; gameId++)
+        // Initialize staging store
+        _stagingStore.Initialize();
+
+        // Get starting game ID from staging store
+        long gameOffset = _stagingStore.GetGameCount();
+
+        for (int gameIndex = 0; gameIndex < gameCount && !cancellationToken.IsCancellationRequested; gameIndex++)
         {
             try
             {
+                var gameId = gameOffset + gameIndex;
                 var game = await PlayGameAsync(
                     startingPosition,
                     startingPlayer,
@@ -74,6 +141,7 @@ public sealed class SelfPlayGenerator
                     maxMoves,
                     cancellationToken);
 
+                // Update summary statistics
                 lock (summary)
                 {
                     if (game.Winner == Player.Red)
@@ -86,16 +154,18 @@ public sealed class SelfPlayGenerator
                     summary.TotalMoves += game.MoveCount;
                 }
 
-                // Record moves from winning games
-                if (game.Winner != Player.None)
-                {
-                    RecordGameMoves(game.MoveHistory, game.Winner, moveStats);
-                }
+                // Record moves to staging store (Actor phase - no judgment)
+                RecordGameMovesToStaging(game.MoveHistory, game.Winner, gameId, timeControlMs, maxPly);
+                summary.StagingMovesRecorded += Math.Min(game.MoveHistory.Count, maxPly);
 
-                if ((gameId + 1) % 10 == 0)
+                // Progress reporting (every 10 games or at end)
+                if ((gameIndex + 1) % 10 == 0 || gameIndex == gameCount - 1)
                 {
-                    _logger.LogInformation("Self-play progress: {Played}/{Total} games, R:{Red} B:{Blue} D:{Draw}",
-                        gameId + 1, gameCount, summary.RedWins, summary.BlueWins, summary.Draws);
+                    _logger.LogInformation(
+                        "Self-play progress: {Played}/{Total} games, R:{Red} B:{Blue} D:{Draw}, " +
+                        "staging moves: {StagingMoves}",
+                        gameIndex + 1, gameCount, summary.RedWins, summary.BlueWins, summary.Draws,
+                        summary.StagingMovesRecorded);
                 }
             }
             catch (OperationCanceledException)
@@ -104,37 +174,41 @@ public sealed class SelfPlayGenerator
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in self-play game {GameId}", gameId);
+                _logger.LogError(ex, "Error in self-play game {GameId}", gameIndex);
             }
         }
 
-        // Store moves with high win rates to the book
-        int movesStored = await StoreHighWinRateMovesAsync(moveStats, cancellationToken);
-        summary.MovesStoredToBook = movesStored;
+        // Flush staging store to ensure all data is persisted
+        _stagingStore.Flush();
 
-        _logger.LogInformation("Self-play complete: {Total} games, R:{Red} B:{Blue} D:{Draw}, {Moves} moves stored",
-            summary.TotalGames, summary.RedWins, summary.BlueWins, summary.Draws, movesStored);
+        _logger.LogInformation(
+            "Self-play complete: {Total} games, R:{Red} B:{Blue} D:{Draw}, {Moves} moves to staging",
+            summary.TotalGames, summary.RedWins, summary.BlueWins, summary.Draws,
+            summary.StagingMovesRecorded);
 
         return summary;
     }
 
     /// <summary>
     /// Play a single game between two AI players.
+    /// Uses shallow search for diversity (not depth for accuracy).
     /// </summary>
     private async Task<SelfPlayGame> PlayGameAsync(
         Board startPosition,
         Player startPlayer,
-        int gameId,
+        long gameId,
         int timeControlMs,
         int maxMoves,
         CancellationToken cancellationToken)
     {
         var board = startPosition;
         var currentPlayer = startPlayer;
+
+        // Shallow AI for diversity (depth 8 - fast exploration)
         var ai1 = new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
         var ai2 = new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
-        var moveHistory = new List<GameMove>();
 
+        var moveHistory = new List<GameMoveRecord>();
         int moveCount = 0;
         Player winner = Player.None;
 
@@ -142,28 +216,52 @@ public sealed class SelfPlayGenerator
         {
             var ai = currentPlayer == Player.Red ? ai1 : ai2;
 
-            // Get move from AI
-            var (x, y) = ai.GetBestMove(board, currentPlayer, AIDifficulty.Grandmaster, timeControlMs);
+            // Get move from AI (use book if available for variety)
+            (int x, int y) move;
+            if (_bookStore != null)
+            {
+                var canonical = _canonicalizer.Canonicalize(board);
+                var entry = _bookStore.GetEntry(canonical.CanonicalHash, currentPlayer);
+                if (entry != null && entry.Moves.Length > 0)
+                {
+                    // Use book move with some randomization for variety
+                    var random = new Random();
+                    var bookMoves = entry.Moves.Take(4).ToList();  // Top 4 moves
+                    var selectedMove = bookMoves[random.Next(bookMoves.Count)];
+                    move = (selectedMove.RelativeX, selectedMove.RelativeY);
+                }
+                else
+                {
+                    move = ai.GetBestMove(board, currentPlayer, AIDifficulty.Grandmaster, timeControlMs);
+                }
+            }
+            else
+            {
+                move = ai.GetBestMove(board, currentPlayer, AIDifficulty.Grandmaster, timeControlMs);
+            }
 
-            if (x < 0 || y < 0)
+            if (move.x < 0 || move.y < 0)
             {
                 // No valid move available
                 break;
             }
 
             // Record move before making it
-            var canonical = _canonicalizer.Canonicalize(board);
-            moveHistory.Add(new GameMove(
+            var canonicalResult = _canonicalizer.Canonicalize(board);
+            var directHash = board.GetHash();
+
+            moveHistory.Add(new GameMoveRecord(
                 Board: board,
                 Player: currentPlayer,
-                X: x,
-                Y: y,
-                CanonicalHash: canonical.CanonicalHash,
+                X: move.x,
+                Y: move.y,
+                CanonicalHash: canonicalResult.CanonicalHash,
+                DirectHash: directHash,
                 Ply: moveCount
             ));
 
             // Make move
-            board = board.PlaceStone(x, y, currentPlayer);
+            board = board.PlaceStone(move.x, move.y, currentPlayer);
             moveCount++;
 
             // Check for win
@@ -184,107 +282,50 @@ public sealed class SelfPlayGenerator
     }
 
     /// <summary>
-    /// Record moves from a completed game to the statistics tracker.
-    /// Only moves from the winning player are counted as wins.
+    /// Record moves from a completed game to the staging store.
+    /// All moves are recorded (Actor phase) - verification (Critic) happens later.
     /// </summary>
-    private void RecordGameMoves(
-        List<GameMove> moveHistory,
+    private void RecordGameMovesToStaging(
+        List<GameMoveRecord> moveHistory,
         Player winner,
-        Dictionary<(ulong canonicalHash, int x, int y), MoveStatistics> moveStats)
+        long gameId,
+        int timeBudgetMs,
+        int maxPly)
     {
         foreach (var move in moveHistory)
         {
-            var key = (move.CanonicalHash, move.X, move.Y);
-            if (!moveStats.TryGetValue(key, out var stats))
-            {
-                stats = new MoveStatistics();
-                moveStats[key] = stats;
-            }
-
-            stats.PlayCount++;
-            if (move.Player == winner)
-            {
-                stats.WinCount++;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Store moves with high win rates to the opening book.
-    /// A move is stored if it has:
-    /// - At least 3 plays
-    /// - Win rate >= 60%
-    /// </summary>
-    private async Task<int> StoreHighWinRateMovesAsync(
-        Dictionary<(ulong canonicalHash, int x, int y), MoveStatistics> moveStats,
-        CancellationToken cancellationToken)
-    {
-        const int minPlayCount = 3;
-        const double minWinRate = 0.60;
-
-        int movesStored = 0;
-        var entriesByPosition = new Dictionary<ulong, List<(BookMove move, Board board, Player player)>>();
-
-        // Group moves by position
-        foreach (var ((canonicalHash, x, y), stats) in moveStats)
-        {
-            if (stats.PlayCount < minPlayCount)
+            // Only record opening moves (ply filter)
+            if (move.Ply >= maxPly)
                 continue;
 
-            double winRate = (double)stats.WinCount / stats.PlayCount;
-            if (winRate < minWinRate)
-                continue;
+            // Calculate game result from the perspective of the move's player
+            int gameResult = winner == move.Player ? 1 :
+                             winner == Player.None ? 0 : -1;
 
-            // This move qualifies for the book
-            // We need to find the original entry to get the board state
-            // For now, store with the information we have
-            var bookMove = new BookMove
-            {
-                RelativeX = x,
-                RelativeY = y,
-                WinRate = (int)(winRate * 100),
-                DepthAchieved = 12,  // Self-play depth is roughly equivalent
-                NodesSearched = stats.PlayCount,
-                Score = (int)(winRate * 1000 - 500),  // Convert win rate to centipawns-ish
-                IsForcing = false,
-                Priority = (int)(winRate * 100),
-                IsVerified = true,
-                Source = MoveSource.SelfPlay,
-                ScoreDelta = 0,
-                WinCount = stats.WinCount,
-                PlayCount = stats.PlayCount
-            };
-
-            // Note: We would need the original board to create a proper entry
-            // For now, count as processed
-            movesStored++;
+            _stagingStore.RecordMove(
+                canonicalHash: move.CanonicalHash,
+                directHash: move.DirectHash,
+                player: move.Player,
+                ply: move.Ply,
+                moveX: move.X,
+                moveY: move.Y,
+                gameResult: gameResult,
+                gameId: gameId,
+                timeBudgetMs: timeBudgetMs
+            );
         }
-
-        _logger.LogInformation("Self-play: {Moves} moves qualified for book (win rate >= {WinRate:P0}, plays >= {MinPlays})",
-            movesStored, minWinRate, minPlayCount);
-
-        await Task.Yield();
-        return movesStored;
-    }
-
-    /// <summary>
-    /// Statistics for a single move across all self-play games.
-    /// </summary>
-    private sealed class MoveStatistics
-    {
-        public int WinCount { get; set; }
-        public int PlayCount { get; set; }
     }
 
     /// <summary>
     /// Record of a single move in a self-play game.
     /// </summary>
-    private sealed record GameMove(
+    private sealed record GameMoveRecord(
         Board Board,
         Player Player,
         int X,
         int Y,
         ulong CanonicalHash,
+        ulong DirectHash,
         int Ply
     );
 
@@ -294,7 +335,7 @@ public sealed class SelfPlayGenerator
     private sealed record SelfPlayGame(
         Player Winner,
         int MoveCount,
-        List<GameMove> MoveHistory
+        List<GameMoveRecord> MoveHistory
     );
 }
 
@@ -307,8 +348,12 @@ public sealed class SelfPlaySummary
     public int BlueWins { get; set; }
     public int Draws { get; set; }
     public int TotalMoves { get; set; }
-    public int MovesStoredToBook { get; set; }
+    public int StagingMovesRecorded { get; set; }
+    public int MaxPlyRecorded { get; set; }
 
     public int TotalGames => RedWins + BlueWins + Draws;
     public double AverageMoves => TotalGames > 0 ? (double)TotalMoves / TotalGames : 0;
+
+    [Obsolete("Use StagingMovesRecorded for separated pipeline")]
+    public int MovesStoredToBook { get; set; }
 }

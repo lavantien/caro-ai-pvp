@@ -415,6 +415,181 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
         }
     }
 
+    /// <summary>
+    /// Integrate verified moves from the verification pipeline into the main book.
+    /// This is Phase 3 of the separated pipeline architecture.
+    ///
+    /// Design principles:
+    /// - All batch sizes are powers of 2 (default: 65536 = 2^16)
+    /// - Groups moves by position for efficient storage
+    /// - Applies score delta filtering (MaxScoreDelta = 512)
+    /// - Limits moves per position (MaxMovesPerPosition = 4)
+    /// - Uses transactions for atomic batch inserts
+    /// </summary>
+    /// <param name="verifiedMoves">Enumerable of verified moves to integrate</param>
+    /// <param name="batchSize">Number of entries per transaction (default: 65536)</param>
+    /// <returns>Integration summary with statistics</returns>
+    public IntegrationSummary IntegrateVerifiedMoves(
+        IEnumerable<VerifiedMove> verifiedMoves,
+        int batchSize = 65536)
+    {
+        // Validate batch size is power of 2
+        if (batchSize <= 0 || (batchSize & (batchSize - 1)) != 0)
+        {
+            throw new ArgumentException($"Batch size must be a power of 2, got {batchSize}", nameof(batchSize));
+        }
+
+        EnsureInitialized();
+
+        const int maxScoreDelta = 512;    // 2^9 cp - pruning threshold
+        const int maxMovesPerPosition = 4; // 2^2 - variety without bloat
+
+        var summary = new IntegrationSummary();
+        var entriesToInsert = new List<OpeningBookEntry>();
+
+        // Group moves by position
+        var byPosition = verifiedMoves
+            .GroupBy(m => (m.CanonicalHash, m.DirectHash, m.Player))
+            .ToList();
+
+        summary.TotalPositions = byPosition.Count;
+
+        foreach (var group in byPosition)
+        {
+            var moves = group.ToList();
+
+            // Filter by score delta
+            var bestScoreDelta = moves.Min(m => m.ScoreDelta);
+            var goodMoves = moves
+                .Where(m => m.ScoreDelta <= bestScoreDelta + maxScoreDelta)
+                .OrderBy(m => m.ScoreDelta)
+                .ThenByDescending(m => m.WinRate)
+                .Take(maxMovesPerPosition)
+                .ToList();
+
+            if (goodMoves.Count == 0)
+            {
+                summary.PositionsFiltered++;
+                continue;
+            }
+
+            // Create book moves
+            var bookMoves = goodMoves.Select(m => new BookMove
+            {
+                RelativeX = m.Move.X,
+                RelativeY = m.Move.Y,
+                WinRate = (int)(m.WinRate * 100),
+                DepthAchieved = m.Ply,
+                NodesSearched = m.PlayCount,
+                Score = m.Score,
+                IsForcing = m.Source == MoveSource.Solved,
+                Priority = m.Source == MoveSource.Solved ? 100 :
+                           m.Source == MoveSource.Learned ? 75 : 50,
+                IsVerified = m.IsVerified,
+                Source = m.Source,
+                ScoreDelta = m.ScoreDelta,
+                WinCount = (int)(m.WinRate * m.PlayCount),
+                PlayCount = m.PlayCount
+            }).ToArray();
+
+            var entry = new OpeningBookEntry
+            {
+                CanonicalHash = group.Key.CanonicalHash,
+                DirectHash = group.Key.DirectHash,
+                Depth = moves.Max(m => m.Ply),
+                Player = group.Key.Player,
+                Symmetry = SymmetryType.Identity,  // Will be set by canonicalizer if needed
+                IsNearEdge = false,  // Will be determined by position
+                Moves = bookMoves
+            };
+
+            entriesToInsert.Add(entry);
+            summary.MovesIntegrated += bookMoves.Length;
+
+            // Batch insert when buffer reaches batch size
+            if (entriesToInsert.Count >= batchSize)
+            {
+                InsertEntriesBatch(entriesToInsert);
+                summary.BatchesProcessed++;
+                entriesToInsert.Clear();
+            }
+        }
+
+        // Insert remaining entries
+        if (entriesToInsert.Count > 0)
+        {
+            InsertEntriesBatch(entriesToInsert);
+            summary.BatchesProcessed++;
+        }
+
+        summary.PositionsIntegrated = byPosition.Count - summary.PositionsFiltered;
+
+        _logger.LogInformation(
+            "Integration complete: {Positions} positions, {Moves} moves in {Batches} batches",
+            summary.PositionsIntegrated, summary.MovesIntegrated, summary.BatchesProcessed);
+
+        return summary;
+    }
+
+    /// <summary>
+    /// Insert a batch of entries in a single transaction.
+    /// </summary>
+    private void InsertEntriesBatch(List<OpeningBookEntry> entries)
+    {
+        lock (_lock)
+        {
+            using var transaction = Connection.BeginTransaction();
+            bool committed = false;
+
+            try
+            {
+                using var command = Connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = $@"
+                    INSERT OR REPLACE INTO {TableName}
+                    (CanonicalHash, DirectHash, Depth, Player, Symmetry, IsNearEdge, MovesData, TotalMoves, CreatedAt)
+                    VALUES ($canonicalHash, $directHash, $depth, $player, $symmetry, $nearEdge, $moves, $totalMoves, $createdAt);
+                ";
+
+                foreach (var entry in entries)
+                {
+                    command.Parameters.Clear();
+                    command.Parameters.AddWithValue("$canonicalHash", (long)entry.CanonicalHash);
+                    command.Parameters.AddWithValue("$directHash", (long)entry.DirectHash);
+                    command.Parameters.AddWithValue("$depth", entry.Depth);
+                    command.Parameters.AddWithValue("$player", (int)entry.Player);
+                    command.Parameters.AddWithValue("$symmetry", (int)entry.Symmetry);
+                    command.Parameters.AddWithValue("$nearEdge", entry.IsNearEdge ? 1 : 0);
+                    command.Parameters.AddWithValue("$moves", System.Text.Json.JsonSerializer.Serialize(entry.Moves));
+                    command.Parameters.AddWithValue("$totalMoves", entry.Moves.Length);
+                    command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("o"));
+
+                    command.ExecuteNonQuery();
+                }
+
+                transaction.Commit();
+                committed = true;
+                _logger.LogDebug("Inserted batch of {Count} entries", entries.Count);
+            }
+            catch (Exception ex)
+            {
+                if (!committed)
+                {
+                    try
+                    {
+                        transaction.Rollback();
+                    }
+                    catch (Exception rollbackEx)
+                    {
+                        _logger.LogWarning(rollbackEx, "Failed to rollback transaction after error");
+                    }
+                }
+                _logger.LogError(ex, "Failed to insert batch entries");
+                throw;
+            }
+        }
+    }
+
     public bool ContainsEntry(ulong canonicalHash)
     {
         EnsureInitialized();
@@ -836,4 +1011,35 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
             _connection = null;
         }
     }
+}
+
+/// <summary>
+/// Summary of a book integration operation.
+/// </summary>
+public sealed class IntegrationSummary
+{
+    /// <summary>
+    /// Total positions processed from verified moves.
+    /// </summary>
+    public int TotalPositions { get; set; }
+
+    /// <summary>
+    /// Positions that passed filters and were integrated.
+    /// </summary>
+    public int PositionsIntegrated { get; set; }
+
+    /// <summary>
+    /// Positions filtered out (score delta too high).
+    /// </summary>
+    public int PositionsFiltered { get; set; }
+
+    /// <summary>
+    /// Total moves integrated into the book.
+    /// </summary>
+    public int MovesIntegrated { get; set; }
+
+    /// <summary>
+    /// Number of batch inserts processed.
+    /// </summary>
+    public int BatchesProcessed { get; set; }
 }
