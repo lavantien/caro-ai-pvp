@@ -497,18 +497,45 @@ Precomputed opening positions for early game guidance with in-memory lookup.
 2. **VCF Solving** - Victory by Continuous Fours solver for early positions
 3. **Self-Play** - Engine vs engine games with time control
 
+**Separated Pipeline Architecture:**
+
+The opening book generation uses a three-phase separated pipeline (Actor-Critic pattern):
+
+| Phase | Component | Purpose | Output |
+|-------|-----------|---------|--------|
+| 1 | Self-Play (Actor) | Generate diverse raw games | staging.db |
+| 2 | Verification (Critic) | Deep search + VCF verification | verified.db |
+| 3 | Integration | Merge verified moves to main book | opening_book.db |
+
+**Key Thresholds (Powers of 2):**
+
+| Threshold | Value | Rationale |
+|-----------|-------|-----------|
+| Self-Play Time/Move | 1024ms (2^10) | Fast exploration |
+| Verification Time | 2048ms (2^11) | Deep analysis |
+| VCF Time Limit | 128ms (2^7) | Per VCF search |
+| Min Play Count | 512 (2^9) | Filters noise |
+| Win Rate Threshold | 62.5% (5/8) | Quality filter |
+
 **CLI Commands:**
 ```bash
-# Generate book with custom depth
+# Run full pipeline (all three phases unattended)
+dotnet run --project backend/src/Caro.BookBuilder -- --full-pipeline --games 8192 --threads 8
+
+# Individual phase commands:
+# Phase 1: Self-play generation
+dotnet run --project backend/src/Caro.BookBuilder -- --self-play 8192 --time 1024 --staging staging.db
+
+# Phase 2: Verification with deep search
+dotnet run --project backend/src/Caro.BookBuilder -- --verify-staging staging.db --time 2048 --output verified.db
+
+# Phase 3: Integrate into main book
+dotnet run --project backend/src/Caro.BookBuilder -- --integrate verified.db --book opening_book.db
+
+# Legacy commands:
 dotnet run --project backend/src/Caro.BookBuilder -- --depth 16 --moves 2
-
-# Resume interrupted generation
 dotnet run --project backend/src/Caro.BookBuilder -- --depth 16 --resume
-
-# Self-play learning
 dotnet run --project backend/src/Caro.BookBuilder -- --self-play 100 --time-control 1000
-
-# Verify existing book
 dotnet run --project backend/src/Caro.BookBuilder -- --verify-only
 ```
 

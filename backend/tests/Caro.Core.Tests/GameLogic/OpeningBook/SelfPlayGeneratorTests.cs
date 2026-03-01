@@ -12,13 +12,13 @@ namespace Caro.Core.Tests.GameLogic.OpeningBook;
 /// </summary>
 public sealed class SelfPlayGeneratorTests
 {
-    private readonly MockOpeningBookStore _store;
+    private readonly MockStagingBookStore _stagingStore;
     private readonly SelfPlayGenerator _generator;
 
     public SelfPlayGeneratorTests()
     {
-        _store = new MockOpeningBookStore();
-        _generator = new SelfPlayGenerator(_store);
+        _stagingStore = new MockStagingBookStore();
+        _generator = new SelfPlayGenerator(_stagingStore);
     }
 
     #region Constructor Tests
@@ -27,7 +27,7 @@ public sealed class SelfPlayGeneratorTests
     public void Constructor_InitializesCorrectly()
     {
         // Arrange & Act
-        var generator = new SelfPlayGenerator(_store);
+        var generator = new SelfPlayGenerator(_stagingStore);
 
         // Assert
         generator.Should().NotBeNull();
