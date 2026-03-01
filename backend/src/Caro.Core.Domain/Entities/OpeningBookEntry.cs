@@ -1,6 +1,30 @@
 namespace Caro.Core.Domain.Entities;
 
 /// <summary>
+/// Source of a book move - how it was determined.
+/// </summary>
+public enum MoveSource
+{
+    /// <summary>
+    /// Proven via VCF/VCT solver (mate-in-N).
+    /// Highest priority - tactical truth.
+    /// </summary>
+    Solved = 0,
+
+    /// <summary>
+    /// From deep search evaluation (minimax with alpha-beta).
+    /// Medium priority - heuristic evaluation.
+    /// </summary>
+    Learned = 1,
+
+    /// <summary>
+    /// From engine vs engine self-play games.
+    /// Lower priority - statistical evidence.
+    /// </summary>
+    SelfPlay = 2
+}
+
+/// <summary>
 /// Symmetry transformations for canonical position reduction.
 /// Used to map equivalent board positions to a single canonical form.
 /// </summary>
@@ -133,6 +157,32 @@ public sealed record BookMove
     /// Verified moves have been checked for tactical responses.
     /// </summary>
     public required bool IsVerified { get; init; }
+
+    /// <summary>
+    /// How this move was determined (solver, search, or self-play).
+    /// Solved moves have highest priority as they represent tactical truth.
+    /// </summary>
+    public MoveSource Source { get; init; } = MoveSource.Learned;
+
+    /// <summary>
+    /// Score difference from the best move in centipawns.
+    /// 0 = this is the best move, positive = worse by N centipawns.
+    /// Used for move selection when multiple candidates exist.
+    /// </summary>
+    public int ScoreDelta { get; init; } = 0;
+
+    /// <summary>
+    /// Number of times this move led to a win in self-play.
+    /// Only meaningful when Source == SelfPlay.
+    /// </summary>
+    public int WinCount { get; init; } = 0;
+
+    /// <summary>
+    /// Total times this move was played in self-play.
+    /// Only meaningful when Source == SelfPlay.
+    /// WinRate = WinCount / PlayCount * 100.
+    /// </summary>
+    public int PlayCount { get; init; } = 0;
 }
 
 /// <summary>
