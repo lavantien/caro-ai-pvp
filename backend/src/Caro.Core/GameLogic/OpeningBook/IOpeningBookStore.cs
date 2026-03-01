@@ -100,4 +100,88 @@ public interface IOpeningBookStore
     /// Used for response generation phase.
     /// </summary>
     OpeningBookEntry[] GetAllEntries();
+
+    /// <summary>
+    /// Get entries at a specific depth for batch streaming.
+    /// Used for memory-efficient iteration during book generation.
+    /// </summary>
+    /// <param name="depth">The ply depth to retrieve entries for</param>
+    /// <param name="offset">Number of entries to skip (for pagination)</param>
+    /// <param name="limit">Maximum number of entries to return</param>
+    /// <returns>Array of entries at the specified depth</returns>
+    OpeningBookEntry[] GetEntriesAtDepth(int depth, int offset, int limit);
+
+    /// <summary>
+    /// Get the total count of entries at a specific depth.
+    /// Used for progress tracking during batch processing.
+    /// </summary>
+    /// <param name="depth">The ply depth to count entries for</param>
+    /// <returns>Number of entries at the specified depth</returns>
+    int GetEntryCountAtDepth(int depth);
+
+    /// <summary>
+    /// Save generation progress for resume functionality.
+    /// Allows interrupted book generation to continue from where it left off.
+    /// </summary>
+    /// <param name="progress">The progress state to save</param>
+    void SaveProgress(BookGenerationResumeState progress);
+
+    /// <summary>
+    /// Load generation progress for resume functionality.
+    /// Returns null if no progress has been saved.
+    /// </summary>
+    /// <returns>The saved progress state, or null if not found</returns>
+    BookGenerationResumeState? LoadProgress();
+
+    /// <summary>
+    /// Clear saved generation progress.
+    /// Called after successful book generation completion.
+    /// </summary>
+    void ClearProgress();
+}
+
+/// <summary>
+/// Represents the resume state of book generation for continuation after interruption.
+/// </summary>
+public sealed record BookGenerationResumeState
+{
+    /// <summary>
+    /// Current depth being processed (ply number).
+    /// </summary>
+    public required int CurrentDepth { get; init; }
+
+    /// <summary>
+    /// Current batch index within the depth (0-based).
+    /// </summary>
+    public required int CurrentBatchIndex { get; init; }
+
+    /// <summary>
+    /// Current generation phase.
+    /// </summary>
+    public required GenerationPhase Phase { get; init; }
+
+    /// <summary>
+    /// When this progress was last updated.
+    /// </summary>
+    public required DateTime LastUpdatedAt { get; init; }
+
+    /// <summary>
+    /// Total positions processed so far.
+    /// </summary>
+    public required int TotalPositionsProcessed { get; init; }
+}
+
+/// <summary>
+/// Phases of opening book generation.
+/// </summary>
+public enum GenerationPhase
+{
+    /// <summary>VCF/VCT tactical solving (ply 0-8)</summary>
+    VcfSolving,
+
+    /// <summary>Deep search evaluation (ply 8-16)</summary>
+    DeepSearch,
+
+    /// <summary>Self-play game generation (ply 16+)</summary>
+    SelfPlay
 }
