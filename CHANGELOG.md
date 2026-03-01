@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.68.0] - 2026-03-01
+
+### Added
+- **Streaming batch processing** for memory-bounded book generation
+  - 65,536 batch size (power of 2)
+  - No more OOM at depth 10+
+  - Progress tracking with `BookGenerationResumeState`
+- **Variable depth search** based on game phase
+  - Plies 0-8: VCF solving (20-30 ply, 8 moves/position)
+  - Plies 8-16: Deep search (14-20 ply, 4 moves/position)
+  - Plies 16+: Self-play only
+- **MoveSource enum** for move classification
+  - `Solved` - Proven wins via VCF/VCT solver
+  - `Learned` - Deep search evaluation
+  - `SelfPlay` - Engine vs engine results
+- **InMemoryOpeningBook** for fast lookup
+  - 40K+ lookups/sec (~24μs per lookup)
+  - ConcurrentDictionary-based thread-safe access
+- **InMemoryBookStore** adapter implementing IOpeningBookStore
+- **SelfPlayGenerator** for engine vs engine learning
+  - Configurable time control and max moves
+  - Records moves from winning games
+- **MinimaxAI opening book integration**
+  - `LoadOpeningBook(IOpeningBookStore)` method
+  - `CheckOpeningBook(Board, Player)` method
+- **CLI enhancements for BookBuilder**
+  - `--resume` flag for continuation after interruption
+  - `--self-play <n>` for self-play game generation
+  - `--time-control <ms>` per move time limit
+  - `--max-moves <n>` max moves per game
+  - `--moves <n>` configurable moves per position
+
+### Changed
+- **OpeningBookGenerator** - Refactored for batch processing with DepthConfig
+- **SqliteOpeningBookStore** - Schema v3 with progress tracking table
+- **BookMove** - Added Source, WinCount, PlayCount fields
+- **README** - Updated opening book documentation with new features
+
+### Performance
+- In-memory lookup: 40,640 lookups/sec (~24μs)
+- Candidate prune rate: 90%+
+- Memory bounded: <1GB target, 8GB max
+
+### Tests
+- Added `InMemoryOpeningBookTests` (20+ tests)
+- Added `SelfPlayGeneratorTests` (7 tests)
+- Added `InMemoryBookPerformanceTests` (3 tests)
+- Total: 701 tests passing
+
+[1.68.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.68.0
+
 ## [1.67.0] - 2026-02-26
 
 ### Added
