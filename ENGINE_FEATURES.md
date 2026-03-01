@@ -451,13 +451,29 @@ Victory by Continuous Fours - tactical solver for forcing win sequences.
 
 ### 7.3 Opening Book
 
-Precomputed opening positions for early game guidance.
+Precomputed opening positions for early game guidance with in-memory lookup.
 
-**Structure:**
-- SQLite database with symmetry reduction
-- 8-way transformations reduce storage ~8x
-- Uniform beam: 4 moves per position up to ply 14
+**Architecture:**
+- SQLite persistence with schema v3
+- InMemoryOpeningBook for fast lookup (40K+ lookups/sec)
+- 8-way symmetry reduction (~8x storage savings)
 - Compound key storage: (CanonicalHash, DirectHash, Player) prevents hash collisions
+
+**Variable Depth Configuration:**
+
+| Ply Range | Search Depth | Moves/Position | Use VCF | Phase |
+|-----------|-------------|----------------|--------|-------|
+| 0-8 | 20-30 | 8 | Yes | Opening Theory |
+| 8-16 | 14-20 | 4 | No | Mid-game |
+| 16+ | Self-play only | - | - | End-game |
+
+**Move Classification (MoveSource):**
+
+| Source | Priority | Description |
+|--------|----------|-------------|
+| Solved | 1 (highest) | Proven wins via VCF/VCT solver |
+| Learned | 2 | Deep search evaluation |
+| SelfPlay | 3 | Engine vs engine game results |
 
 **Book Depth by Difficulty:**
 
@@ -476,15 +492,30 @@ Precomputed opening positions for early game guidance.
 - Falls back to full search if book move scores < -100 centipawns
 - Lower difficulties use book moves directly for speed
 
-**Book Generation Scoring:**
-- Uses actual minimax search score (not static evaluation)
-- Validates scores to reject sentinel values (int.MinValue = search failure)
-- Score clamping prevents overflow issues
-- Invalid/corrupted scores filtered during retrieval
+**Generation Methods:**
+1. **Deep Search** - Minimax with alpha-beta pruning
+2. **VCF Solving** - Victory by Continuous Fours solver for early positions
+3. **Self-Play** - Engine vs engine games with time control
+
+**CLI Commands:**
+```bash
+# Generate book with custom depth
+dotnet run --project backend/src/Caro.BookBuilder -- --depth 16 --moves 2
+
+# Resume interrupted generation
+dotnet run --project backend/src/Caro.BookBuilder -- --depth 16 --resume
+
+# Self-play learning
+dotnet run --project backend/src/Caro.BookBuilder -- --self-play 100 --time-control 1000
+
+# Verify existing book
+dotnet run --project backend/src/Caro.BookBuilder -- --verify-only
+```
 
 **Integration:**
 - TournamentEngineFactory creates engines with book pre-loaded
-- All tournament runners use factory to ensure book availability
+- MinimaxAI.LoadOpeningBook() for in-memory lookup
+- MinimaxAI.CheckOpeningBook() for move retrieval
 - Book path: `opening_book.db` at repository root
 
 ### 7.4 Exactly-5 Validation
