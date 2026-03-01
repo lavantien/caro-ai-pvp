@@ -23,6 +23,10 @@ class Program
             Console.WriteLine("  --output <path>       Output database path (default: ../opening_book.db at repo root)");
             Console.WriteLine("  --depth <n>           Maximum book depth in plies (default: 16)");
             Console.WriteLine("  --moves <n>           Moves per position to expand (default: 2)");
+            Console.WriteLine("  --self-play <n>       Run n self-play games (engine vs engine) for learning");
+            Console.WriteLine("  --time-control <ms>   Time control per move in milliseconds (default: 1000)");
+            Console.WriteLine("  --max-moves <n>       Maximum moves per self-play game (default: 100)");
+            Console.WriteLine("  --resume              Resume generation from saved progress after interruption");
             Console.WriteLine("  --verify-only         Verify existing book without generation");
             Console.WriteLine("  --debug               Enable verbose logging (default: quiet mode)");
             Console.WriteLine("  --help, -h            Show this help message");
@@ -75,6 +79,10 @@ class Program
         var defaultPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "..", "opening_book.db"));
         var outputPath = GetArgument(args, "--output", defaultPath);
         var verifyOnly = args.Contains("--verify-only");
+        var resumeGeneration = args.Contains("--resume");
+        var selfPlayGames = GetIntArgument(args, "--self-play", 0);
+        var timeControlMs = GetIntArgument(args, "--time-control", 1000);
+        var maxMoves = GetIntArgument(args, "--max-moves", 100);
 
         // Validate no unrecognized arguments
         ValidateArguments(args);
@@ -111,6 +119,50 @@ class Program
             return;
         }
 
+        // Self-play mode for learning from engine vs engine games
+        if (selfPlayGames > 0)
+        {
+            Console.WriteLine($"Running {selfPlayGames} self-play games...");
+            Console.WriteLine($"Time control: {timeControlMs}ms per move");
+            Console.WriteLine($"Max moves per game: {maxMoves}");
+            Console.WriteLine();
+
+            var selfPlayGenerator = new SelfPlayGenerator(store, loggerFactory);
+
+            var selfPlayCts = new CancellationTokenSource();
+            Console.CancelKeyPress += (s, e) =>
+            {
+                e.Cancel = true;
+                Console.WriteLine("\nCancellation requested...");
+                selfPlayCts.Cancel();
+            };
+
+            try
+            {
+                var summary = await selfPlayGenerator.GenerateGamesAsync(
+                    selfPlayGames,
+                    timeControlMs,
+                    maxMoves,
+                    selfPlayCts.Token);
+
+                Console.WriteLine();
+                Console.WriteLine("=== Self-Play Summary ===");
+                Console.WriteLine($"Total Games: {summary.TotalGames}");
+                Console.WriteLine($"Red Wins: {summary.RedWins} ({100.0 * summary.RedWins / summary.TotalGames:F1}%)");
+                Console.WriteLine($"Blue Wins: {summary.BlueWins} ({100.0 * summary.BlueWins / summary.TotalGames:F1}%)");
+                Console.WriteLine($"Draws: {summary.Draws} ({100.0 * summary.Draws / summary.TotalGames:F1}%)");
+                Console.WriteLine($"Average Moves/Game: {summary.AverageMoves:F1}");
+
+                store.Flush();
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine("\nSelf-play was cancelled.");
+            }
+
+            return;
+        }
+
         var canonicalizer = new PositionCanonicalizer();
         var validator = new OpeningBookValidator();
         var generator = new OpeningBookGenerator(
@@ -119,6 +171,26 @@ class Program
             validator,
             loggerFactory
         );
+
+        // Handle --resume flag to continue from saved progress
+        if (resumeGeneration)
+        {
+            var savedProgress = store.LoadProgress();
+            if (savedProgress != null)
+            {
+                Console.WriteLine($"Resuming from saved progress:");
+                Console.WriteLine($"  Last depth: {savedProgress.CurrentDepth}");
+                Console.WriteLine($"  Last batch: {savedProgress.CurrentBatchIndex}");
+                Console.WriteLine($"  Phase: {savedProgress.Phase}");
+                Console.WriteLine($"  Saved at: {savedProgress.LastUpdatedAt:yyyy-MM-dd HH:mm:ss}");
+                Console.WriteLine();
+            }
+            else
+            {
+                Console.WriteLine("No saved progress found. Starting fresh generation.");
+                Console.WriteLine();
+            }
+        }
 
         Console.WriteLine("Starting book generation...");
         Console.WriteLine("Press Ctrl+C to stop.");
@@ -278,6 +350,10 @@ class Program
             "--output",
             "--depth",
             "--moves",
+            "--self-play",
+            "--time-control",
+            "--max-moves",
+            "--resume",
             "--verify-only",
             "--debug",
             "--help",
