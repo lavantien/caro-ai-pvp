@@ -305,7 +305,7 @@ public class ThreatSpaceSearchTests
         var defenses = _vcf.GetDefenseMoves(board, Player.Red, Player.Blue);
 
         // Assert - Should limit to reasonable number (<=10 as per implementation)
-        defenses.Should().HaveCountLessOrEqualTo(10, "Should limit defense moves");
+        Assert.True(defenses.Count <= 10, "Should limit defense moves");
     }
 
     [Fact]
