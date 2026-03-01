@@ -52,7 +52,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `InMemoryOpeningBookTests` (20+ tests)
 - Added `SelfPlayGeneratorTests` (7 tests)
 - Added `InMemoryBookPerformanceTests` (3 tests)
+- Added `MockStagingBookStore` test helper for IStagingBookStore
 - Total: 701 tests passing
+
+### Documentation
+- **ENGINE_FEATURES.md** - Added separated pipeline architecture documentation
+  - Three-phase Actor-Critic pattern (Self-Play → Verification → Integration)
+  - `--full-pipeline` command for unattended book generation
+  - Key thresholds (powers of 2): 1024ms self-play, 2048ms verification, 512 min plays
 
 [1.68.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.68.0
 
