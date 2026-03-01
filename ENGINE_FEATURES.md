@@ -513,9 +513,11 @@ dotnet run --project backend/src/Caro.BookBuilder -- --verify-only
 ```
 
 **Integration:**
-- TournamentEngineFactory creates engines with book pre-loaded
-- MinimaxAI.LoadOpeningBook() for in-memory lookup
-- MinimaxAI.CheckOpeningBook() for move retrieval
+- Caro.Api Program.cs loads InMemoryBookStore at startup
+- InMemoryBookStore wraps SqliteOpeningBookStore for O(1) concurrent lookup
+- MinimaxAI.LoadOpeningBook(IOpeningBookStore) loads book for nanosecond lookup
+- MinimaxAI.CheckOpeningBook(Board, Player, AIDifficulty) retrieves move with depth filtering
+- Difficulty-based depth filtering: Easy=4, Medium=6, Hard=10, Grandmaster=14 plies
 - Book path: `opening_book.db` at repository root
 
 ### 7.4 Exactly-5 Validation

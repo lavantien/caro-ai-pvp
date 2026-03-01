@@ -66,6 +66,18 @@ public sealed class InMemoryOpeningBook : IDisposable
     /// </summary>
     public BookMove[]? Lookup(Board board, Player player)
     {
+        return Lookup(board, player, maxPly: null);
+    }
+
+    /// <summary>
+    /// Look up moves for a board position with difficulty-based depth filtering.
+    /// Returns null if position not in book or position is deeper than maxPly.
+    /// </summary>
+    /// <param name="board">Board position to look up</param>
+    /// <param name="player">Player to move</param>
+    /// <param name="maxPly">Maximum ply depth to include (null = no filter)</param>
+    public BookMove[]? Lookup(Board board, Player player, int? maxPly)
+    {
         if (_disposed)
             return null;
 
@@ -75,7 +87,46 @@ public sealed class InMemoryOpeningBook : IDisposable
         // First try exact match
         if (_entriesByExactKey.TryGetValue((canonical.CanonicalHash, board.GetHash(), player), out var exactEntry))
         {
+            // Filter by maxPly if specified
+            if (maxPly.HasValue && exactEntry.Depth > maxPly.Value)
+                return null;
             return exactEntry.Moves;
+        }
+
+        // Try canonical hash match
+        if (_entriesByCanonicalHash.TryGetValue(canonical.CanonicalHash, out var entry) && entry.Player == player)
+        {
+            // Filter by maxPly if specified
+            if (maxPly.HasValue && entry.Depth > maxPly.Value)
+                return null;
+
+            // Transform moves back to actual coordinates if symmetry was applied
+            if (canonical.SymmetryApplied != SymmetryType.Identity && !canonical.IsNearEdge)
+            {
+                return TransformMovesBack(entry.Moves, canonical.SymmetryApplied);
+            }
+            return entry.Moves;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Look up moves for a board position with full entry information.
+    /// Returns null if position not in book.
+    /// </summary>
+    public (OpeningBookEntry Entry, BookMove[] Moves)? LookupWithEntry(Board board, Player player)
+    {
+        if (_disposed)
+            return null;
+
+        // Canonicalize the position
+        var canonical = _canonicalizer.Canonicalize(board);
+
+        // First try exact match
+        if (_entriesByExactKey.TryGetValue((canonical.CanonicalHash, board.GetHash(), player), out var exactEntry))
+        {
+            return (exactEntry, exactEntry.Moves);
         }
 
         // Try canonical hash match
@@ -84,9 +135,9 @@ public sealed class InMemoryOpeningBook : IDisposable
             // Transform moves back to actual coordinates if symmetry was applied
             if (canonical.SymmetryApplied != SymmetryType.Identity && !canonical.IsNearEdge)
             {
-                return TransformMovesBack(entry.Moves, canonical.SymmetryApplied);
+                return (entry, TransformMovesBack(entry.Moves, canonical.SymmetryApplied));
             }
-            return entry.Moves;
+            return (entry, entry.Moves);
         }
 
         return null;
@@ -113,7 +164,18 @@ public sealed class InMemoryOpeningBook : IDisposable
     /// </summary>
     public BookMove? GetBestMove(Board board, Player player)
     {
-        var moves = Lookup(board, player);
+        return GetBestMove(board, player, maxPly: null);
+    }
+
+    /// <summary>
+    /// Get the best move for a position with difficulty-based depth filtering.
+    /// </summary>
+    /// <param name="board">Board position</param>
+    /// <param name="player">Player to move</param>
+    /// <param name="maxPly">Maximum ply depth for book usage (from AIDifficultyConfig.MaxBookDepth)</param>
+    public BookMove? GetBestMove(Board board, Player player, int? maxPly)
+    {
+        var moves = Lookup(board, player, maxPly);
         if (moves == null || moves.Length == 0)
             return null;
 
