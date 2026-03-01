@@ -43,23 +43,36 @@ builder.Services.AddSingleton<SqliteOpeningBookStore>(sp =>
     return new SqliteOpeningBookStore(dbPath, logger);
 });
 
-// Register OpeningBook with SQLite store
+// Register InMemoryBookStore for nanosecond-lookup opening book
+// This wraps SqliteOpeningBookStore and provides O(1) concurrent lookup
+builder.Services.AddSingleton<InMemoryBookStore>(sp =>
+{
+    var persistentStore = sp.GetRequiredService<SqliteOpeningBookStore>();
+    persistentStore.Initialize(); // Ensure tables exist
+    var canonicalizer = new PositionCanonicalizer();
+    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+    return new InMemoryBookStore(persistentStore, canonicalizer, loggerFactory);
+});
+
+// Register OpeningBook (legacy, for backwards compatibility)
 builder.Services.AddSingleton<OpeningBook>(sp =>
 {
     var store = sp.GetRequiredService<SqliteOpeningBookStore>();
-    store.Initialize(); // Ensure tables exist
     var canonicalizer = new PositionCanonicalizer();
     var validator = new OpeningBookValidator();
     var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
     return new OpeningBook(store, canonicalizer, lookupService);
 });
 
-// Register MinimaxAI with OpeningBook dependency
+// Register MinimaxAI with InMemoryBookStore for fast book lookup
 builder.Services.AddSingleton<MinimaxAI>(sp =>
 {
-    var openingBook = sp.GetRequiredService<OpeningBook>();
+    var inMemoryBookStore = sp.GetRequiredService<InMemoryBookStore>();
     var logger = sp.GetRequiredService<ILogger<MinimaxAI>>();
-    return new MinimaxAI(logger: logger, openingBook: openingBook);
+    var ai = new MinimaxAI(logger: logger);
+    // Load in-memory book for nanosecond lookup during search
+    ai.LoadOpeningBook(inMemoryBookStore);
+    return ai;
 });
 
 // Register UCIHandler for WebSocket UCI protocol

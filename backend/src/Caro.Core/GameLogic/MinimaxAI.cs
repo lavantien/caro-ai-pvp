@@ -161,17 +161,40 @@ public class MinimaxAI : IStatsPublisher
     /// <returns>Best book move coordinates, or null if not in book</returns>
     public (int x, int y)? CheckOpeningBook(Board board, Player player)
     {
-        var moves = _inMemoryBook?.Lookup(board, player);
+        return CheckOpeningBook(board, player, maxPly: null);
+    }
 
-        if (moves != null && moves.Length > 0)
+    /// <summary>
+    /// Check in-memory opening book for a move with difficulty-based depth filtering.
+    /// Returns best move if position is in book, null otherwise.
+    /// Prioritizes: solved > learned > self_play, then by score.
+    /// </summary>
+    /// <param name="board">Current board position</param>
+    /// <param name="player">Player to move</param>
+    /// <param name="difficulty">AI difficulty (used to determine max book depth)</param>
+    /// <returns>Best book move coordinates, or null if not in book</returns>
+    public (int x, int y)? CheckOpeningBook(Board board, Player player, AIDifficulty difficulty)
+    {
+        var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
+        return CheckOpeningBook(board, player, settings.MaxBookDepth);
+    }
+
+    /// <summary>
+    /// Check in-memory opening book for a move with explicit depth limit.
+    /// </summary>
+    /// <param name="board">Current board position</param>
+    /// <param name="player">Player to move</param>
+    /// <param name="maxPly">Maximum ply depth for book lookup (null = no limit)</param>
+    /// <returns>Best book move coordinates, or null if not in book</returns>
+    public (int x, int y)? CheckOpeningBook(Board board, Player player, int? maxPly)
+    {
+        var bestMove = _inMemoryBook?.GetBestMove(board, player, maxPly);
+
+        if (bestMove != null)
         {
-            // Prioritize: solved > learned > self_play
-            // Then by score (higher is better)
-            var bestMove = moves
-                .OrderByDescending(m => m.Source)
-                .ThenByDescending(m => m.Score)
-                .First();
-
+            _logger.LogDebug("Book hit at ply {Ply}: move ({X},{Y}) source={Source} score={Score}",
+                maxPly, bestMove.RelativeX, bestMove.RelativeY,
+                bestMove.Source, bestMove.Score);
             return (bestMove.RelativeX, bestMove.RelativeY);
         }
 
@@ -408,13 +431,13 @@ public class MinimaxAI : IStatsPublisher
         }
 
         // Opening book for Easy, Medium, Hard, Grandmaster, and Experimental difficulties
+        // Uses in-memory book (InMemoryOpeningBook) for nanosecond lookup.
         // Depth-filtered by difficulty (from AIDifficultyConfig):
         // - Easy: 4 plies, Medium: 6 plies, Hard: 10 plies
         // - Grandmaster: 14 plies, Experimental: unlimited
         // BOOK MOVE VALIDATION: Always validate book moves with a quick search (D3-D5)
         // to prevent book errors from causing strength inversions
-        var lastOpponentMove = GetLastOpponentMove(board, player);
-        var bookMove = _openingBook?.GetBookMove(board, player, difficulty, lastOpponentMove);
+        var bookMove = CheckOpeningBook(board, player, difficulty);
         if (bookMove.HasValue)
         {
             // DEFENSIVE: Verify the book move is actually valid before returning
@@ -422,7 +445,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 // Book returned an invalid move - this should not happen
                 // Fall through to normal search instead
-                Console.WriteLine($"[AI ERROR] Book returned occupied cell ({bookMove.Value.x},{bookMove.Value.y}) - falling through to search");
+                _logger.LogWarning("Book returned occupied cell ({X},{Y}) - falling through to search", bookMove.Value.x, bookMove.Value.y);
             }
             else
             {

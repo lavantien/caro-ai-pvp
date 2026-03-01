@@ -120,6 +120,7 @@ class Program
         }
 
         // Self-play mode for learning from engine vs engine games
+        var canonicalizer = new PositionCanonicalizer();
         if (selfPlayGames > 0)
         {
             Console.WriteLine($"Running {selfPlayGames} self-play games...");
@@ -127,7 +128,7 @@ class Program
             Console.WriteLine($"Max moves per game: {maxMoves}");
             Console.WriteLine();
 
-            var selfPlayGenerator = new SelfPlayGenerator(store, loggerFactory);
+            var selfPlayGenerator = new SelfPlayGenerator(store, canonicalizer, loggerFactory);
 
             var selfPlayCts = new CancellationTokenSource();
             Console.CancelKeyPress += (s, e) =>
@@ -163,7 +164,6 @@ class Program
             return;
         }
 
-        var canonicalizer = new PositionCanonicalizer();
         var validator = new OpeningBookValidator();
         var generator = new OpeningBookGenerator(
             store,

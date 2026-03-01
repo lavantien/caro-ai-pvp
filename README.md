@@ -250,10 +250,12 @@ Precomputed opening positions with SQLite persistence, in-memory lookup, and int
 - **Variable depth search** - VCF solving (20-30 ply) for early game, deep search (14-20 ply) for mid-game
 - **Move classification** - Solved (proven wins), Learned (deep search), SelfPlay (engine vs engine)
 - **In-memory lookup** - 40K+ lookups/sec (~24μs), orders of magnitude faster than SQLite
+- **Runtime integration** - InMemoryBookStore loaded at API startup for instant book access
+- **Difficulty-based filtering** - Book depth automatically filtered by AI difficulty level
 - **Symmetry reduction** - 8-way transformations reduce storage by ~8x
 - **Compound key storage** - Uses (CanonicalHash, DirectHash, Player) to avoid hash collision issues
 - **Streaming batch processing** - Memory-bounded generation with 65K batch size
-- **Self-play learning** - Engine vs engine games for empirical move evaluation
+- **Self-play learning** - Engine vs engine games for empirical move evaluation with win rate tracking
 
 **Generate book:**
 ```bash
