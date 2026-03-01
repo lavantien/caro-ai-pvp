@@ -28,6 +28,10 @@ public class MinimaxAI : IStatsPublisher
     private readonly VCFSolver _inTreeVCFSolver;  // In-tree VCF solver for Lazy SMP
     private readonly OpeningBook? _openingBook;
 
+    // In-memory opening book for nanosecond lookup (loaded from SQLite at startup)
+    private InMemoryOpeningBook? _inMemoryBook;
+    private IOpeningBookStore? _bookStore;  // Keep reference for disposal
+
     // Time management for 7+5 time control
     private readonly TimeManager _timeManager = new();
 
@@ -134,6 +138,44 @@ public class MinimaxAI : IStatsPublisher
         _parallelSearch = new ParallelMinimaxSearch(ttSizeMb);
 
         _inTreeVCFSolver = new VCFSolver(_vcfSolver);
+    }
+
+    /// <summary>
+    /// Load opening book from an IOpeningBookStore for nanosecond in-memory lookup.
+    /// This should be called once at startup. The store should already be initialized.
+    /// </summary>
+    /// <param name="store">The opening book store (e.g., SqliteOpeningBookStore)</param>
+    public void LoadOpeningBook(IOpeningBookStore store)
+    {
+        _bookStore = store ?? throw new ArgumentNullException(nameof(store));
+        _inMemoryBook = new InMemoryOpeningBook(store, new PositionCanonicalizer());
+    }
+
+    /// <summary>
+    /// Check in-memory opening book for a move.
+    /// Returns best move if position is in book, null otherwise.
+    /// Prioritizes: solved > learned > self_play, then by score.
+    /// </summary>
+    /// <param name="board">Current board position</param>
+    /// <param name="player">Player to move</param>
+    /// <returns>Best book move coordinates, or null if not in book</returns>
+    public (int x, int y)? CheckOpeningBook(Board board, Player player)
+    {
+        var moves = _inMemoryBook?.Lookup(board, player);
+
+        if (moves != null && moves.Length > 0)
+        {
+            // Prioritize: solved > learned > self_play
+            // Then by score (higher is better)
+            var bestMove = moves
+                .OrderByDescending(m => m.Source)
+                .ThenByDescending(m => m.Score)
+                .First();
+
+            return (bestMove.RelativeX, bestMove.RelativeY);
+        }
+
+        return null;
     }
 
     // Helper methods for random operations (uses injected Random or Random.Shared)
