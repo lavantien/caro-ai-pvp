@@ -244,50 +244,68 @@ Available matchups: `BraindeadvsBraindead`, `BraindeadvsEasy`, `BraindeadvsMediu
 
 ### Opening Book
 
-Precomputed opening positions with SQLite storage, symmetry reduction, and parallel generation:
+Precomputed opening positions with SQLite persistence, in-memory lookup, and intelligent generation:
 
 - **All levels except Braindead** - Easy: 4 plies, Medium: 6 plies, Hard: 10 plies, Grandmaster: 14 plies, Experimental: 14+ plies
-- **Uniform beam** - 4 moves per position up to ply 14 (covers all difficulty levels)
+- **Variable depth search** - VCF solving (20-30 ply) for early game, deep search (14-20 ply) for mid-game
+- **Move classification** - Solved (proven wins), Learned (deep search), SelfPlay (engine vs engine)
+- **In-memory lookup** - 40K+ lookups/sec (~24μs), orders of magnitude faster than SQLite
 - **Symmetry reduction** - 8-way transformations reduce storage by ~8x
 - **Compound key storage** - Uses (CanonicalHash, DirectHash, Player) to avoid hash collision issues
-- **Optimized generation** - 35-40 positions/minute with 8 parallel workers
-  - Smart candidate pruning: 4-7 candidates evaluated per position
-  - 2-second search cap with TT memoization for subtree reuse
-  - Resume capability - Incremental deepening of existing books
+- **Streaming batch processing** - Memory-bounded generation with 65K batch size
+- **Self-play learning** - Engine vs engine games for empirical move evaluation
 
 **Generate book:**
 ```bash
 dotnet run --project backend/src/Caro.BookBuilder
 ```
 
-**Custom output path:**
+**Custom configuration:**
 ```bash
-dotnet run --project backend/src/Caro.BookBuilder -- --output=custom_book.db
+dotnet run --project backend/src/Caro.BookBuilder -- --depth 16 --moves 2 --output=custom_book.db
+```
+
+**Resume interrupted generation:**
+```bash
+dotnet run --project backend/src/Caro.BookBuilder -- --depth 16 --resume
+```
+
+**Self-play learning:**
+```bash
+dotnet run --project backend/src/Caro.BookBuilder -- --self-play 100 --time-control 1000 --max-moves 100
 ```
 
 **Verify existing book:**
 ```bash
-dotnet run --project backend/src/Caro.BookBuilder -- --verify-only --output=opening_book.db
+dotnet run --project backend/src/Caro.BookBuilder -- --verify-only
 ```
 
-**Book Structure (simplified 4-move beam):**
-- Plies 0-14: 4 moves per position (covers Easy through Grandmaster)
-- No book beyond ply 14 (Experimental uses unlimited depth during play)
+**Book Structure (configurable depth with variable breadth):**
+- Plies 0-8: VCF solving, up to 8 moves/position, 50cp threshold (opening theory)
+- Plies 8-16: Deep search, up to 4 moves/position, 30cp threshold (mid-game)
+- Ply 16+: Self-play only (high win-rate moves from engine games)
+
+**Depth Configuration:**
+
+| Ply Range | Search Depth | Move Count | Score Threshold | Use VCF |
+|-----------|-------------|------------|-----------------|---------|
+| 0-8 | 20-30 | 8 | 50cp | Yes |
+| 8-16 | 14-20 | 4 | 30cp | No |
+| 16+ | Self-play only | - | - | No |
+
+**Move Sources (priority order):**
+1. **Solved** - Proven wins via VCF/VCT solver
+2. **Learned** - Deep search evaluation
+3. **SelfPlay** - Engine vs engine game results
 
 **Book Builder Performance:**
 
 | Metric | Value |
 |--------|-------|
-| Total time (depth 0-14) | 5h 55m 21s |
-| Positions generated | 7,986 |
-| Moves stored | 13,891 |
-| Average throughput | 22.5 positions/minute |
-| Peak throughput | 143.6 positions/minute (depth 5) |
-| Slowest depth | 12.0 positions/minute (depth 2) |
-| Total nodes searched | 1,723,499 |
-| Candidates evaluated | 23,621 |
-| Candidates pruned | 491,355 (95.4%) |
-| Write flushes | 178 (avg 78.0 entries/batch) |
+| Average throughput | 25-30 positions/minute |
+| Candidate prune rate | 90%+ |
+| In-memory lookup | 40K+/sec (~24μs) |
+| Batch size | 65,536 (power of 2) |
 
 **Throughput by depth:**
 

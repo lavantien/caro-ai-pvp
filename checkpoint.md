@@ -1,52 +1,83 @@
-# Checkpoint: v1.65.0 Development
+# Checkpoint: v1.68.0 Development
 
 ## Summary
 
-Improved Grandmaster vs Braindead win rate from 40% to 80% through counter-attack optimization.
+Opening Book Builder overhaul: memory management, variable depth search, VCF integration, self-play generation, and in-memory lookup.
 
 ## Progress
 
-### Win Rate Progression (Grandmaster vs Braindead, 3+2 Blitz)
+### Major Features Implemented
 
-| Version | Win Rate | Notes |
-|---------|----------|-------|
-| v1.62.0 | 95% | Baseline with old blocking |
-| v1.64.0 | 40% | Regression from time formula change |
-| Current | 80% | Counter-attack improvements |
+1. **Streaming Batch Processing**
+   - Batch size: 65,536 (power of 2)
+   - Memory-bounded generation (no more OOM at depth 10+)
+   - Incremental SQLite writes with progress tracking
 
-### Changes Made
+2. **Variable Depth Search**
+   - Plies 0-8: VCF solving (20-30 ply depth, 8 moves/position)
+   - Plies 8-16: Deep search (14-20 ply depth, 4 moves/position)
+   - Plies 16+: Self-play only (high win-rate moves)
 
-1. **Reverted three-threat counter-attack scoring**
-   - Adding `+ ourThreeThreats * 1000` made win rate worse (60%)
-   - Reverted to only `+ ourFourThreats * 8000`
+3. **Move Classification (MoveSource enum)**
+   - `Solved` - Proven wins via VCF/VCT solver
+   - `Learned` - Deep search evaluation
+   - `SelfPlay` - Engine vs engine game results
 
-2. **Added desperate counter-attack logic**
-   - When best blocking score is < -5000 (losing position)
-   - Search all squares for a move creating verified winning four-threat
-   - Take counter-attack instead of futile block
+4. **In-Memory Lookup**
+   - `InMemoryOpeningBook` - ConcurrentDictionary-based fast lookup
+   - `InMemoryBookStore` - Adapter implementing IOpeningBookStore
+   - Performance: 40K+ lookups/sec (~24μs per lookup)
+
+5. **Self-Play Generation**
+   - `SelfPlayGenerator` - Engine vs engine games
+   - CLI: `--self-play`, `--time-control`, `--max-moves`
+
+6. **MinimaxAI Integration**
+   - `LoadOpeningBook(IOpeningBookStore)` method
+   - `CheckOpeningBook(Board, Player)` method
+
+7. **CLI Enhancements**
+   - `--resume` flag for continuation after interruption
+   - `--depth`, `--moves` configurable parameters
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| `MinimaxAI.cs` | Added counter-attack when blocking is futile |
-| `MinimaxAI.cs` | Reverted three-threat scoring addition |
+| `OpeningBookGenerator.cs` | Streaming batches, variable depth, VCF integration |
+| `SqliteOpeningBookStore.cs` | Progress tracking, schema v3 |
+| `IOpeningBookStore.cs` | New method signatures |
+| `OpeningBookEntry.cs` | MoveSource enum, BookMove enhancements |
+| `MinimaxAI.cs` | LoadOpeningBook, CheckOpeningBook methods |
+| `Program.cs (BookBuilder)` | --resume, --self-play CLI flags |
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `InMemoryOpeningBook.cs` | Fast in-memory book lookup |
+| `InMemoryBookStore.cs` | Adapter for IOpeningBookStore |
+| `SelfPlayGenerator.cs` | Engine vs engine game generation |
+| `InMemoryOpeningBookTests.cs` | Unit tests for in-memory book |
+| `SelfPlayGeneratorTests.cs` | Unit tests for self-play |
+| `InMemoryBookPerformanceTests.cs` | Performance verification |
 
 ### Test Results
 
-**Tournament 1 (with three-threat scoring):**
-- 12 wins, 8 losses (60% win rate) - WORSE
+- **Total tests**: 701 (637 + 64)
+- **All passing**: Yes
+- **Performance tests**: 3 new tests for lookup speed
 
-**Tournament 2 (reverted, with desperate counter-attack):**
-- 16 wins, 4 losses (80% win rate) - BETTER
+### Verification Tests
 
-## Remaining Work
-
-- Target: 100% win rate (currently at 80%)
-- Losses occur when Braindead creates multiple threats early
-- Grandmaster needs more proactive defense
+| Test | Result | Details |
+|------|--------|---------|
+| Memory/Batch | PASS | Streaming batches, 90%+ prune rate |
+| Continuation | PASS | Progress saved/resumed correctly |
+| Self-Play | PASS | Engine vs engine games completed |
+| Performance | PASS | 40K+ lookups/sec (~24μs) |
 
 ## Version
 
-- Target: v1.65.0
-- Previous: v1.64.0
+- Target: v1.68.0
+- Previous: v1.67.0
