@@ -12,8 +12,9 @@ namespace Caro.Core.Infrastructure.Persistence;
 /// </summary>
 public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
 {
-    private const int CurrentVersion = 2;  // Bumped for DirectHash support
+    private const int CurrentVersion = 3;  // Bumped for MoveSource and stats columns
     private const string TableName = "OpeningBook";
+    private const string ProgressTableName = "BookGenerationResumeState";
 
     private readonly string _connectionString;
     private readonly ILogger<SqliteOpeningBookStore> _logger;
@@ -100,6 +101,15 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
                     CREATE TABLE IF NOT EXISTS BookMetadata (
                         Key TEXT PRIMARY KEY NOT NULL,
                         Value TEXT NOT NULL
+                    );
+
+                    CREATE TABLE IF NOT EXISTS {ProgressTableName} (
+                        Id INTEGER PRIMARY KEY CHECK (Id = 1),
+                        CurrentDepth INTEGER NOT NULL,
+                        CurrentBatchIndex INTEGER NOT NULL,
+                        Phase INTEGER NOT NULL,
+                        LastUpdatedAt TEXT NOT NULL,
+                        TotalPositionsProcessed INTEGER NOT NULL DEFAULT 0
                     );
                 ";
                 command.ExecuteNonQuery();
@@ -651,6 +661,149 @@ public sealed class SqliteOpeningBookStore : IOpeningBookStore, IDisposable
             IsNearEdge = isNearEdge,
             Moves = moves
         };
+    }
+
+    public OpeningBookEntry[] GetEntriesAtDepth(int depth, int offset, int limit)
+    {
+        EnsureInitialized();
+
+        try
+        {
+            var entries = new List<OpeningBookEntry>(limit);
+
+            using var command = Connection.CreateCommand();
+            command.CommandText = $@"
+                SELECT CanonicalHash, DirectHash, Depth, Player, Symmetry, IsNearEdge, MovesData
+                FROM {TableName}
+                WHERE Depth = $depth
+                ORDER BY CanonicalHash, DirectHash
+                LIMIT $limit OFFSET $offset;
+            ";
+            command.Parameters.AddWithValue("$depth", depth);
+            command.Parameters.AddWithValue("$limit", limit);
+            command.Parameters.AddWithValue("$offset", offset);
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                entries.Add(ReadEntry(reader));
+            }
+
+            return entries.ToArray();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get entries at depth {Depth} (offset={Offset}, limit={Limit})",
+                depth, offset, limit);
+            return Array.Empty<OpeningBookEntry>();
+        }
+    }
+
+    public int GetEntryCountAtDepth(int depth)
+    {
+        EnsureInitialized();
+
+        try
+        {
+            using var command = Connection.CreateCommand();
+            command.CommandText = $"SELECT COUNT(*) FROM {TableName} WHERE Depth = $depth;";
+            command.Parameters.AddWithValue("$depth", depth);
+
+            var result = command.ExecuteScalar();
+            return result != null ? Convert.ToInt32(result) : 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get entry count at depth {Depth}", depth);
+            return 0;
+        }
+    }
+
+    public void SaveProgress(BookGenerationResumeState progress)
+    {
+        EnsureInitialized();
+
+        lock (_lock)
+        {
+            try
+            {
+                using var command = Connection.CreateCommand();
+                command.CommandText = $@"
+                    INSERT OR REPLACE INTO {ProgressTableName}
+                    (Id, CurrentDepth, CurrentBatchIndex, Phase, LastUpdatedAt, TotalPositionsProcessed)
+                    VALUES (1, $depth, $batch, $phase, $updatedAt, $totalProcessed);
+                ";
+                command.Parameters.AddWithValue("$depth", progress.CurrentDepth);
+                command.Parameters.AddWithValue("$batch", progress.CurrentBatchIndex);
+                command.Parameters.AddWithValue("$phase", (int)progress.Phase);
+                command.Parameters.AddWithValue("$updatedAt", progress.LastUpdatedAt.ToString("o"));
+                command.Parameters.AddWithValue("$totalProcessed", progress.TotalPositionsProcessed);
+
+                command.ExecuteNonQuery();
+                _logger.LogDebug("Saved generation progress: depth={Depth}, batch={Batch}, phase={Phase}",
+                    progress.CurrentDepth, progress.CurrentBatchIndex, progress.Phase);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save generation progress");
+                throw;
+            }
+        }
+    }
+
+    public BookGenerationResumeState? LoadProgress()
+    {
+        EnsureInitialized();
+
+        try
+        {
+            using var command = Connection.CreateCommand();
+            command.CommandText = $@"
+                SELECT CurrentDepth, CurrentBatchIndex, Phase, LastUpdatedAt, TotalPositionsProcessed
+                FROM {ProgressTableName}
+                WHERE Id = 1;
+            ";
+
+            using var reader = command.ExecuteReader();
+            if (reader.Read())
+            {
+                return new BookGenerationResumeState
+                {
+                    CurrentDepth = reader.GetInt32(0),
+                    CurrentBatchIndex = reader.GetInt32(1),
+                    Phase = (GenerationPhase)reader.GetInt32(2),
+                    LastUpdatedAt = DateTime.Parse(reader.GetString(3)),
+                    TotalPositionsProcessed = reader.GetInt32(4)
+                };
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load generation progress, starting fresh");
+            return null;
+        }
+    }
+
+    public void ClearProgress()
+    {
+        EnsureInitialized();
+
+        lock (_lock)
+        {
+            try
+            {
+                using var command = Connection.CreateCommand();
+                command.CommandText = $"DELETE FROM {ProgressTableName} WHERE Id = 1;";
+                command.ExecuteNonQuery();
+                _logger.LogDebug("Cleared generation progress");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to clear generation progress");
+            }
+        }
     }
 
     private void EnsureInitialized()
