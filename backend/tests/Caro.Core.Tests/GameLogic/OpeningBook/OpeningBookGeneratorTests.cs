@@ -509,86 +509,84 @@ public class OpeningBookGeneratorTests
 
     #endregion
 
-    #region Tiered Branching Tests
+    #region Depth Configuration Tests
 
     /// <summary>
-    /// Test that GetMaxChildrenForDepth returns correct tier values
-    /// Uniform structure: 2 moves for depth 0-14, 0 beyond
+    /// Test that GetConfigForPly returns correct depth configuration for early game (ply 0-7)
+    /// VCF solving phase with deep search
     /// </summary>
     [Fact]
-    public void GetMaxChildrenForDepth_ReturnsCorrectTier()
+    public void GetConfigForPly_EarlyGame_UsesVcfSolver()
     {
-        // Plies 0-14: 2 children (covers Easy through Grandmaster)
-        for (int d = 0; d <= 14; d++)
+        // Ply 0-7: Should use VCF solver with deep search
+        for (int ply = 0; ply <= 7; ply++)
         {
-            int result = GetMaxChildrenForDepth_Private(d);
-            result.Should().Be(2, $"Depth {d} should return 2 children");
+            GetConfigProperty(ply, "UseVcfSolver").Should().Be(true, $"Ply {ply} should use VCF solver");
+            ((int)GetConfigProperty(ply, "MinSearchDepth")!).Should().BeGreaterThanOrEqualTo(20, $"Ply {ply} should have deep search");
+            GetConfigProperty(ply, "MoveCount").Should().Be(8, $"Ply {ply} should store 8 moves");
+            GetConfigProperty(ply, "ScoreThreshold").Should().Be(50, $"Ply {ply} should use 50 centipawn threshold");
         }
-
-        // Beyond 14: 0 children (book stops at Grandmaster level)
-        GetMaxChildrenForDepth_Private(15).Should().Be(0);
-        GetMaxChildrenForDepth_Private(20).Should().Be(0);
-        GetMaxChildrenForDepth_Private(50).Should().Be(0);
-        GetMaxChildrenForDepth_Private(100).Should().Be(0);
     }
 
     /// <summary>
-    /// Test that tiered branching covers all difficulty levels
-    /// Easy (4), Medium (6), Hard (10), Grandmaster (14) all have 2 responses
+    /// Test that GetConfigForPly returns correct configuration for mid-game (ply 8-15)
+    /// Deep search phase without VCF
     /// </summary>
     [Fact]
-    public void TieredBranching_CoversAllDifficultyLevels()
+    public void GetConfigForPly_MidGame_UsesDeepSearch()
     {
-        // Easy's max depth is 4 - should have 2 responses available
-        Assert.Equal(2, GetMaxChildrenForDepth_Private(4));
-
-        // Medium's max depth is 6 - should have 2 responses available
-        Assert.Equal(2, GetMaxChildrenForDepth_Private(6));
-
-        // Hard's max depth is 10 - should have 2 responses available
-        Assert.Equal(2, GetMaxChildrenForDepth_Private(10));
-
-        // GM's max depth is 14 - should have 2 responses available
-        Assert.Equal(2, GetMaxChildrenForDepth_Private(14));
-
-        // Beyond book depth - no responses
-        Assert.Equal(0, GetMaxChildrenForDepth_Private(15));
+        // Ply 8-15: Should use deep search without VCF
+        for (int ply = 8; ply <= 15; ply++)
+        {
+            GetConfigProperty(ply, "UseVcfSolver").Should().Be(false, $"Ply {ply} should not use VCF solver");
+            ((int)GetConfigProperty(ply, "MinSearchDepth")!).Should().BeGreaterThanOrEqualTo(14, $"Ply {ply} should have moderate search depth");
+            GetConfigProperty(ply, "MoveCount").Should().Be(4, $"Ply {ply} should store 4 moves");
+            GetConfigProperty(ply, "ScoreThreshold").Should().Be(30, $"Ply {ply} should use 30 centipawn threshold");
+        }
     }
 
     /// <summary>
-    /// Test tier boundaries are correct
-    /// Simplified: boundary at ply 14/15
+    /// Test that GetConfigForPly returns self-play configuration for late game (ply 16+)
     /// </summary>
     [Fact]
-    public void TieredBranching_BoundaryValues_Correct()
+    public void GetConfigForPly_LateGame_UsesSelfPlay()
     {
-        // Last book position at ply 14
-        Assert.Equal(2, GetMaxChildrenForDepth_Private(14));
-
-        // First non-book position at ply 15
-        Assert.Equal(0, GetMaxChildrenForDepth_Private(15));
-
-        // Verify middle of book
-        Assert.Equal(2, GetMaxChildrenForDepth_Private(7));
-        Assert.Equal(2, GetMaxChildrenForDepth_Private(10));
-
-        // Verify well beyond book
-        Assert.Equal(0, GetMaxChildrenForDepth_Private(40));
-        Assert.Equal(0, GetMaxChildrenForDepth_Private(100));
+        // Ply 16+: Self-play only (handled separately in generation)
+        for (int ply = 16; ply <= 24; ply++)
+        {
+            GetConfigProperty(ply, "MoveCount").Should().Be(2, $"Ply {ply} should have reduced moves for self-play");
+        }
     }
 
     /// <summary>
-    /// Helper to access private GetMaxChildrenForDepth method via reflection
+    /// Test configuration boundaries are correct
     /// </summary>
-    private static int GetMaxChildrenForDepth_Private(int depth)
+    [Fact]
+    public void GetConfigForPly_BoundaryValues_Correct()
+    {
+        // Boundary between VCF and deep search at ply 7/8
+        GetConfigProperty(7, "UseVcfSolver").Should().Be(true);
+        GetConfigProperty(8, "UseVcfSolver").Should().Be(false);
+
+        // Boundary between deep search and self-play at ply 15/16
+        GetConfigProperty(15, "UseVcfSolver").Should().Be(false);
+        GetConfigProperty(16, "UseVcfSolver").Should().Be(false);
+    }
+
+    /// <summary>
+    /// Helper to get a property value from DepthConfig via reflection
+    /// </summary>
+    private static object? GetConfigProperty(int ply, string propertyName)
     {
         var method = typeof(Caro.Core.GameLogic.OpeningBookGenerator)
-            .GetMethod("GetMaxChildrenForDepth", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            .GetMethod("GetConfigForPly", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
 
         if (method == null)
-            throw new InvalidOperationException("GetMaxChildrenForDepth method not found");
+            throw new InvalidOperationException("GetConfigForPly method not found");
 
-        return (int)method.Invoke(null, new object[] { depth })!;
+        var config = method.Invoke(null, new object[] { ply })!;
+        var property = config.GetType().GetProperty(propertyName);
+        return property?.GetValue(config);
     }
 
     #endregion

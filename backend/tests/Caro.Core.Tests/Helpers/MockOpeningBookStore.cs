@@ -165,4 +165,58 @@ public sealed class MockOpeningBookStore : IOpeningBookStore
     {
         return _entries.Values.ToArray();
     }
+
+    /// <inheritdoc/>
+    public OpeningBookEntry[] GetEntriesAtDepth(int depth, int offset, int limit)
+    {
+        return _entries.Values
+            .Where(e => e.Depth == depth)
+            .OrderBy(e => e.CanonicalHash)
+            .ThenBy(e => e.DirectHash)
+            .Skip(offset)
+            .Take(limit)
+            .ToArray();
+    }
+
+    /// <inheritdoc/>
+    public int GetEntryCountAtDepth(int depth)
+    {
+        return _entries.Values.Count(e => e.Depth == depth);
+    }
+
+    /// <inheritdoc/>
+    public void SaveProgress(BookGenerationResumeState progress)
+    {
+        _metadata["Progress_CurrentDepth"] = progress.CurrentDepth.ToString();
+        _metadata["Progress_CurrentBatchIndex"] = progress.CurrentBatchIndex.ToString();
+        _metadata["Progress_Phase"] = ((int)progress.Phase).ToString();
+        _metadata["Progress_LastUpdatedAt"] = progress.LastUpdatedAt.ToString("o");
+        _metadata["Progress_TotalPositionsProcessed"] = progress.TotalPositionsProcessed.ToString();
+    }
+
+    /// <inheritdoc/>
+    public BookGenerationResumeState? LoadProgress()
+    {
+        if (!_metadata.TryGetValue("Progress_CurrentDepth", out var depthStr))
+            return null;
+
+        return new BookGenerationResumeState
+        {
+            CurrentDepth = int.Parse(depthStr),
+            CurrentBatchIndex = int.Parse(_metadata["Progress_CurrentBatchIndex"]),
+            Phase = (GenerationPhase)int.Parse(_metadata["Progress_Phase"]),
+            LastUpdatedAt = DateTime.Parse(_metadata["Progress_LastUpdatedAt"]),
+            TotalPositionsProcessed = int.Parse(_metadata["Progress_TotalPositionsProcessed"])
+        };
+    }
+
+    /// <inheritdoc/>
+    public void ClearProgress()
+    {
+        _metadata.TryRemove("Progress_CurrentDepth", out _);
+        _metadata.TryRemove("Progress_CurrentBatchIndex", out _);
+        _metadata.TryRemove("Progress_Phase", out _);
+        _metadata.TryRemove("Progress_LastUpdatedAt", out _);
+        _metadata.TryRemove("Progress_TotalPositionsProcessed", out _);
+    }
 }
