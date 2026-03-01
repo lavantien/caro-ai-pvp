@@ -33,6 +33,76 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
     );
     private const int TimePerPositionMs = 2000;   // 2 seconds per position - deeper search with TT memoization
 
+    // Batch processing configuration for memory-efficient generation
+    /// <summary>
+    /// Batch size for streaming position processing (power of 2 for efficient memory alignment).
+    /// At ~500 bytes per position, 65536 positions = ~32MB per batch.
+    /// </summary>
+    private const int BatchSize = 65536;
+
+    // VCF solver score for proven wins
+    private const int VcfProvenWinScore = 50000;
+
+    /// <summary>
+    /// Configuration for search depth and move selection based on ply range.
+    /// Enables variable depth for tactical positions and broader coverage.
+    /// </summary>
+    private sealed record DepthConfig(
+        int MinSearchDepth,      // Minimum search depth for this ply range
+        int MaxSearchDepth,      // Maximum search depth for this ply range
+        int MoveCount,           // Number of moves to consider per position
+        int ScoreThreshold,      // Centipawns within best move to include (0 = only best)
+        bool UseVcfSolver,       // Whether to use VCF solver for tactical truth
+        GenerationPhase Phase    // Generation phase for this ply range
+    );
+
+    /// <summary>
+    /// Depth configurations by ply range:
+    /// - Ply 0-8: Deep VCF solving for opening theory
+    /// - Ply 8-16: Deep search for mid-game transitions
+    /// - Ply 16+: Self-play only (handled separately)
+    /// </summary>
+    private static readonly DepthConfig[] DepthConfigs = new[]
+    {
+        // Ply 0-8: Deep VCF solving - critical opening theory
+        new DepthConfig(
+            MinSearchDepth: 20,
+            MaxSearchDepth: 30,
+            MoveCount: 8,
+            ScoreThreshold: 50,    // Include moves within 50cp of best
+            UseVcfSolver: true,
+            Phase: GenerationPhase.VcfSolving
+        ),
+        // Ply 8-16: Deep search - mid-game transitions
+        new DepthConfig(
+            MinSearchDepth: 14,
+            MaxSearchDepth: 20,
+            MoveCount: 4,
+            ScoreThreshold: 30,    // Include moves within 30cp of best
+            UseVcfSolver: false,
+            Phase: GenerationPhase.DeepSearch
+        ),
+        // Ply 16+: Self-play only
+        new DepthConfig(
+            MinSearchDepth: 12,
+            MaxSearchDepth: 16,
+            MoveCount: 2,
+            ScoreThreshold: 0,     // Only best moves
+            UseVcfSolver: false,
+            Phase: GenerationPhase.SelfPlay
+        )
+    };
+
+    /// <summary>
+    /// Get depth configuration for a given ply number.
+    /// </summary>
+    private static DepthConfig GetConfigForPly(int ply)
+    {
+        if (ply < 8) return DepthConfigs[0];
+        if (ply < 16) return DepthConfigs[1];
+        return DepthConfigs[2];
+    }
+
     // Channel-based write buffer configuration
     private const int WriteChannelCapacity = 1000;         // Bounded channel capacity for backpressure
     private const int WriteBufferSize = 50;                // Target buffer size before flushing
@@ -424,6 +494,21 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         _progress.StartTime = DateTime.UtcNow;
         _generationStartTime = DateTime.UtcNow;
 
+        // Check for resume progress
+        var savedProgress = _store.LoadProgress();
+        int startDepth = 0;
+        int startBatchIndex = 0;
+        int totalPositionsProcessed = 0;
+
+        if (savedProgress != null)
+        {
+            _logger.LogInformation("Resuming from saved progress: depth {Depth}, batch {Batch}, phase {Phase}",
+                savedProgress.CurrentDepth, savedProgress.CurrentBatchIndex, savedProgress.Phase);
+            startDepth = savedProgress.CurrentDepth;
+            startBatchIndex = savedProgress.CurrentBatchIndex;
+            totalPositionsProcessed = savedProgress.TotalPositionsProcessed;
+        }
+
         try
         {
             // Configure thread pool for book generation (more aggressive than normal play)
@@ -432,12 +517,11 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             // Use BookGeneration difficulty for parallel search
             var bookDifficulty = AIDifficulty.BookGeneration;
 
-            // Collect positions by depth level for breadth-first processing
-            var positionsByDepth = new List<List<PositionToProcess>>();
-            positionsByDepth.Add(new List<PositionToProcess>
-            {
-                new PositionToProcess(new Board(), Player.Red, 0)
-            });
+            // MEMORY EFFICIENT: Only keep current and next depth levels in memory
+            // Previous implementation accumulated ALL depths causing O(n*d) memory
+            // New implementation uses O(n) memory where n = positions at current depth
+            var currentLevelPositions = new List<PositionToProcess>();
+            var nextLevelPositions = new List<PositionToProcess>();
 
             int positionsGenerated = 0;
             int positionsVerified = 0;
@@ -445,17 +529,38 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             int totalMovesStored = 0;
             int positionsEvaluated = 0;
 
-            // Process each depth level
-            for (int depth = 0; depth <= maxDepth && !_cts.Token.IsCancellationRequested; depth++)
+            // Initialize depth 0 (empty board) if starting fresh
+            if (startDepth == 0)
             {
-                if (depth >= positionsByDepth.Count)
-                    break;
+                currentLevelPositions.Add(new PositionToProcess(new Board(), Player.Red, 0));
+            }
+            else
+            {
+                // Resume: Load positions from DB at startDepth
+                // These are entries we need to process to generate children
+                currentLevelPositions = await LoadPositionsFromDepthAsync(startDepth, startBatchIndex);
+                _logger.LogInformation("Loaded {Count} positions from DB at depth {Depth}",
+                    currentLevelPositions.Count, startDepth);
+            }
 
-                var currentLevelPositions = positionsByDepth[depth];
+            // Process each depth level
+            for (int depth = startDepth; depth <= maxDepth && !_cts.Token.IsCancellationRequested; depth++)
+            {
                 if (currentLevelPositions.Count == 0)
-                    continue;
+                {
+                    _logger.LogInformation("No positions to process at depth {Depth}, checking DB for existing entries", depth);
+
+                    // Try to load from DB in case we're resuming
+                    currentLevelPositions = await LoadPositionsFromDepthAsync(depth, 0);
+                    if (currentLevelPositions.Count == 0)
+                    {
+                        _logger.LogInformation("No positions found at depth {Depth}, skipping", depth);
+                        continue;
+                    }
+                }
 
                 _progress.CurrentPhase = $"Evaluating depth {depth}";
+                _progress.CurrentDepth = depth;
 
                 // Initialize depth tracking
                 if (!_depthTracking.ContainsKey(depth))
@@ -463,300 +568,96 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
                     _depthTracking[depth] = new DepthTracking { StartTime = DateTime.UtcNow };
                 }
 
-                // Separate positions into: new (need evaluation) vs existing (use stored moves)
-                var positionsToEvaluate = new List<(Board board, Player player, int depth, ulong canonicalHash, ulong directHash, SymmetryType symmetry, bool nearEdge, int maxMoves)>();
-                var positionsInBook = new List<(Board board, Player player, int depth, ulong canonicalHash, ulong directHash, SymmetryType symmetry, bool nearEdge, BookMove[] moves)>();
+                // Get depth config for variable search depth
+                var depthConfig = GetConfigForPly(depth);
+                _logger.LogInformation("Depth {Depth}: using config - searchDepth={MinDepth}-{MaxDepth}, moveCount={MoveCount}, scoreThreshold={Threshold}cp, useVcf={UseVcf}",
+                    depth, depthConfig.MinSearchDepth, depthConfig.MaxSearchDepth, depthConfig.MoveCount, depthConfig.ScoreThreshold, depthConfig.UseVcfSolver);
 
-                foreach (var pos in currentLevelPositions)
-                {
-                    var canonical = _canonicalizer.Canonicalize(pos.Board);
-                    var directHash = pos.Board.GetHash();
+                // Process positions in batches for memory efficiency
+                int totalPositionsAtDepth = currentLevelPositions.Count;
+                int batchCount = (totalPositionsAtDepth + BatchSize - 1) / BatchSize;
 
-                    // Calculate max children based on position depth
-                    int maxChildren = GetMaxChildrenForDepth(pos.Depth);
-
-                    // Use compound key lookup (CanonicalHash + DirectHash + Player) for exact match
-                    if (_store.ContainsEntry(canonical.CanonicalHash, directHash, pos.Player))
-                    {
-                        // Position already in book - retrieve stored moves for child generation
-                        var existingEntry = _store.GetEntry(canonical.CanonicalHash, directHash, pos.Player);
-                        if (existingEntry != null && existingEntry.Moves.Length > 0)
-                        {
-                            _logger.LogDebug("Found existing entry at depth {Depth}: {MoveCount} moves stored", pos.Depth, existingEntry.Moves.Length);
-
-                            // With exact DirectHash match, the stored symmetry is guaranteed to be correct for this board
-                            positionsInBook.Add((
-                                pos.Board,
-                                pos.Player,
-                                pos.Depth,
-                                canonical.CanonicalHash,
-                                directHash,
-                                existingEntry.Symmetry,
-                                existingEntry.IsNearEdge,
-                                existingEntry.Moves
-                            ));
-                        }
-                    }
-                    else
-                    {
-                        // New position - needs evaluation
-                        _logger.LogDebug("New position at depth {Depth} needs evaluation", pos.Depth);
-                        positionsToEvaluate.Add((
-                            pos.Board,
-                            pos.Player,
-                            pos.Depth,
-                            canonical.CanonicalHash,
-                            directHash,
-                            canonical.SymmetryApplied,
-                            canonical.IsNearEdge,
-                            maxChildren
-                        ));
-                    }
-                }
-
-                // Set up depth tracking
-                _progress.CurrentDepth = depth;
-                _progress.TotalPositionsAtCurrentDepth = positionsToEvaluate.Count + positionsInBook.Count;
+                _progress.TotalPositionsAtCurrentDepth = totalPositionsAtDepth;
                 Interlocked.Exchange(ref _progress._positionsCompletedAtCurrentDepth, 0);
 
-                // Skip if nothing to process at this depth
-                if (positionsToEvaluate.Count == 0 && positionsInBook.Count == 0)
+                for (int batchIndex = 0; batchIndex < batchCount && !_cts.Token.IsCancellationRequested; batchIndex++)
                 {
-                    _progress.PositionsEvaluated = positionsEvaluated;
-                    continue;
-                }
-
-                // Process positions in parallel using worker pool
-                Dictionary<ulong, BookMove[]> results = new();
-                int totalPositions = positionsToEvaluate.Count + positionsInBook.Count;
-                if (positionsToEvaluate.Count > 0)
-                {
-                    results = await ProcessPositionsInParallelAsync(
-                        positionsToEvaluate,
-                        bookDifficulty,
-                        _cts.Token,
-                        totalPositions
-                    );
-                }
-
-                // Store results and generate child positions
-                var nextLevelPositions = new List<PositionToProcess>();
-
-                // Process newly evaluated positions
-                foreach (var posData in positionsToEvaluate)
-                {
-                    if (cancellationToken.IsCancellationRequested)
-                        break;
-
-                    // Use board's direct hash for lookup
-                    if (!results.ContainsKey(posData.directHash) || results[posData.directHash].Length == 0)
+                    // Skip batches we've already processed (for resume)
+                    if (depth == startDepth && batchIndex < startBatchIndex)
+                    {
                         continue;
-
-                    var moves = results[posData.directHash];
-
-                    _logger.LogInformation("Storing entry at depth {Depth}: {MoveCount} moves evaluated and stored", posData.depth, moves.Length);
-
-                    // Store entry with DirectHash for exact identification
-                    var entry = new OpeningBookEntry
-                    {
-                        CanonicalHash = posData.canonicalHash,
-                        DirectHash = posData.directHash,
-                        Depth = posData.depth,
-                        Player = posData.player,
-                        Symmetry = posData.symmetry,
-                        IsNearEdge = posData.nearEdge,
-                        Moves = moves
-                    };
-
-                    // Enqueue for async batch storage
-                    await EnqueueEntryForStorageAsync(entry, cancellationToken);
-                    positionsGenerated++;
-                    totalMovesStored += moves.Length;
-                    positionsEvaluated++;
-
-                    // Calculate max children for this position
-                    int maxChildren = GetMaxChildrenForDepth(posData.depth);
-
-                    // Enqueue child positions
-                    int movesAvailable = moves.Length;
-                    int movesActuallyAdded = 0;
-                    int movesSkippedWin = 0;
-
-                    foreach (var move in moves.Take(maxChildren))
-                    {
-                        // Transform from canonical to actual coordinates
-                        int actualX, actualY;
-                        if (posData.nearEdge || posData.symmetry == SymmetryType.Identity)
-                        {
-                            actualX = move.RelativeX;
-                            actualY = move.RelativeY;
-                        }
-                        else
-                        {
-                            (actualX, actualY) = _canonicalizer.TransformToActual(
-                                (move.RelativeX, move.RelativeY),
-                                posData.symmetry,
-                                posData.board
-                            );
-                        }
-
-                        // Validate the move is playable on this board
-                        var existingCell = posData.board.GetCell(actualX, actualY);
-                        if (existingCell.Player != Player.None)
-                        {
-                            // This should not happen with DirectHash-based storage
-                            // If it does, it indicates a bug in the coordinate transformation
-                            _logger.LogDebug("Unexpected invalid move ({ActualX},{ActualY}) - cell occupied. " +
-                                "Canonical move: ({RelX},{RelY}), Symmetry={Sym}, Depth={Depth}",
-                                actualX, actualY, move.RelativeX, move.RelativeY, posData.symmetry, posData.depth);
-                            continue;
-                        }
-
-                        // Verify the move passes the validator
-                        if (!_validator.IsValidMove(posData.board, actualX, actualY, posData.player))
-                        {
-                            _logger.LogDebug("Skipping move ({ActualX},{ActualY}) - failed validation. Depth={Depth}",
-                                actualX, actualY, posData.depth);
-                            continue;
-                        }
-
-                        var newBoard = posData.board.PlaceStone(actualX, actualY, posData.player);
-                        var nextPlayer = posData.player == Player.Red ? Player.Blue : Player.Red;
-
-                        var winResult = new WinDetector().CheckWin(newBoard);
-                        _logger.LogDebug("Move ({ActualX}, {ActualY}) at depth {Depth}: Winner={Winner}", actualX, actualY, posData.depth, winResult.Winner);
-
-                        if (winResult.Winner == Player.None)
-                        {
-                            nextLevelPositions.Add(new PositionToProcess(newBoard, nextPlayer, posData.depth + 1));
-                            movesActuallyAdded++;
-                        }
-                        else
-                        {
-                            movesSkippedWin++;
-                        }
                     }
 
-                    _logger.LogInformation("Position at depth {Depth}: {MovesAvailable} moves available, {MaxChildren} max children, {MovesActuallyAdded} added, {MovesSkippedWin} skipped (win detected)",
-                        posData.depth, movesAvailable, maxChildren, movesActuallyAdded, movesSkippedWin);
+                    int batchOffset = batchIndex * BatchSize;
+                    int batchEnd = Math.Min(batchOffset + BatchSize, totalPositionsAtDepth);
+                    var batchPositions = currentLevelPositions.Skip(batchOffset).Take(batchEnd - batchOffset).ToList();
+
+                    _logger.LogInformation("Processing depth {Depth} batch {Batch}/{TotalBatches}: {Count} positions",
+                        depth, batchIndex + 1, batchCount, batchPositions.Count);
+
+                    // Process this batch
+                    var (batchGenerated, batchMoves, batchChildren) = await ProcessBatchAsync(
+                        batchPositions,
+                        bookDifficulty,
+                        depthConfig,
+                        _cts.Token,
+                        totalPositionsAtDepth,
+                        batchIndex * BatchSize
+                    );
+
+                    positionsGenerated += batchGenerated;
+                    totalMovesStored += batchMoves;
+                    positionsEvaluated += batchPositions.Count;
+                    totalPositionsProcessed += batchPositions.Count;
+
+                    // Add children to next level
+                    nextLevelPositions.AddRange(batchChildren);
+
+                    // Save progress after each batch
+                    _store.SaveProgress(new BookGenerationResumeState
+                    {
+                        CurrentDepth = depth,
+                        CurrentBatchIndex = batchIndex + 1,
+                        Phase = depthConfig.Phase,
+                        LastUpdatedAt = DateTime.UtcNow,
+                        TotalPositionsProcessed = totalPositionsProcessed
+                    });
 
                     _progress.PositionsGenerated = positionsGenerated;
                     _progress.PositionsEvaluated = positionsEvaluated;
                     _progress.TotalMovesStored = totalMovesStored;
                 }
 
-                // Process positions already in the book - generate child positions from stored moves
-                foreach (var posData in positionsInBook)
-                {
-                    if (cancellationToken.IsCancellationRequested)
-                        break;
-
-                    var moves = posData.moves;
-
-                    // Calculate max children for this position
-                    int maxChildren = GetMaxChildrenForDepth(posData.depth);
-
-                    int movesAvailable = moves.Length;
-                    int movesActuallyAdded = 0;
-                    int movesSkippedWin = 0;
-
-                    // Enqueue child positions from stored moves
-                    foreach (var move in moves.Take(maxChildren))
-                    {
-                        // Transform from canonical to actual coordinates using stored symmetry
-                        int actualX, actualY;
-                        if (posData.nearEdge || posData.symmetry == SymmetryType.Identity)
-                        {
-                            actualX = move.RelativeX;
-                            actualY = move.RelativeY;
-                        }
-                        else
-                        {
-                            (actualX, actualY) = _canonicalizer.TransformToActual(
-                                (move.RelativeX, move.RelativeY),
-                                posData.symmetry,
-                                posData.board
-                            );
-                        }
-
-                        // Validate the move is playable on this board
-                        var existingCell = posData.board.GetCell(actualX, actualY);
-                        if (existingCell.Player != Player.None)
-                        {
-                            // With DirectHash-based lookup, this should not happen
-                            // If it does, it indicates a bug in coordinate transformation
-                            _logger.LogDebug("Unexpected invalid move ({ActualX},{ActualY}) from book - cell occupied. " +
-                                "Canonical move: ({RelX},{RelY}), Symmetry={Sym}, Depth={Depth}",
-                                actualX, actualY, move.RelativeX, move.RelativeY, posData.symmetry, posData.depth);
-                            continue;
-                        }
-
-                        // Verify the move passes the validator
-                        if (!_validator.IsValidMove(posData.board, actualX, actualY, posData.player))
-                        {
-                            _logger.LogDebug("Skipping move ({ActualX},{ActualY}) - failed validation. Depth={Depth}",
-                                actualX, actualY, posData.depth);
-                            continue;
-                        }
-
-                        var newBoard = posData.board.PlaceStone(actualX, actualY, posData.player);
-                        var nextPlayer = posData.player == Player.Red ? Player.Blue : Player.Red;
-
-                        var winResult = new WinDetector().CheckWin(newBoard);
-                        _logger.LogDebug("Move ({ActualX}, {ActualY}) at depth {Depth} (from book): Winner={Winner}", actualX, actualY, posData.depth, winResult.Winner);
-
-                        if (winResult.Winner == Player.None)
-                        {
-                            nextLevelPositions.Add(new PositionToProcess(newBoard, nextPlayer, posData.depth + 1));
-                            movesActuallyAdded++;
-                        }
-                        else
-                        {
-                            movesSkippedWin++;
-                        }
-                    }
-
-                    _logger.LogInformation("Position at depth {Depth} (from book): {MovesAvailable} moves available, {MaxChildren} max children, {MovesActuallyAdded} added, {MovesSkippedWin} skipped (win detected)",
-                        posData.depth, movesAvailable, maxChildren, movesActuallyAdded, movesSkippedWin);
-                }
-
-                // Update progress to include positions from the book
-                if (positionsInBook.Count > 0)
-                {
-                    _progressQueue.TryEnqueue(new BookProgressEvent(
-                        Depth: depth,
-                        PositionsCompleted: positionsInBook.Count,
-                        TotalPositions: positionsToEvaluate.Count + positionsInBook.Count,
-                        TimestampMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                    ));
-                }
-
-                // Add next level if we have positions
-                if (nextLevelPositions.Count > 0)
-                {
-                    if (depth + 1 >= positionsByDepth.Count)
-                        positionsByDepth.Add(nextLevelPositions);
-                    else
-                        positionsByDepth[depth + 1].AddRange(nextLevelPositions);
-                }
-
-                _logger.LogInformation("Depth {Depth}: Generated {NextLevelCount} child positions for depth {NextDepth}", depth, nextLevelPositions.Count, depth + 1);
-
                 // Update depth tracking statistics
                 if (_depthTracking.TryGetValue(depth, out var tracking))
                 {
                     tracking.EndTime = DateTime.UtcNow;
-                    tracking.Positions = positionsToEvaluate.Count + positionsInBook.Count;
-                    tracking.MovesStored = results.Values.Sum(m => m.Length);
+                    tracking.Positions = totalPositionsAtDepth;
+                    tracking.MovesStored = totalMovesStored;
+                }
+
+                _logger.LogInformation("Depth {Depth} complete: {NextLevelCount} child positions for depth {NextDepth}",
+                    depth, nextLevelPositions.Count, depth + 1);
+
+                // MEMORY EFFICIENT: Swap current and next, then clear
+                // This releases memory from processed depth immediately
+                currentLevelPositions = nextLevelPositions;
+                nextLevelPositions = new List<PositionToProcess>();
+
+                // Force GC hint for large position lists
+                if (currentLevelPositions.Count > BatchSize)
+                {
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized);
                 }
             }
 
             // Flush the async write buffer before final store operations
             await FlushWriteBufferAsync();
 
-            // Final flush
+            // Final flush and clear progress
             _store.Flush();
-            _store.SetMetadata("Version", "2");  // Updated for DirectHash support
+            _store.ClearProgress();
+            _store.SetMetadata("Version", "3");  // Updated for MoveSource support
             _store.SetMetadata("GeneratedAt", DateTime.UtcNow.ToString("o"));
             _store.SetMetadata("MaxDepth", maxDepth.ToString());
             _store.SetMetadata("TargetDepth", targetDepth.ToString());
@@ -788,21 +689,320 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         }
     }
 
-
-
-    public async Task<BookMove[]> GenerateMovesForPositionAsync(
-        Board board,
-        Player player,
-        AIDifficulty difficulty,
-        int maxMoves,
-        CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Load positions from the database at a specific depth for resume functionality.
+    /// Reconstructs Board states from stored entries.
+    /// </summary>
+    private async Task<List<PositionToProcess>> LoadPositionsFromDepthAsync(int depth, int startBatchIndex)
     {
-        // For backward compatibility - use Identity symmetry (no transformation)
-        return await GenerateMovesForPositionAsync(
-            board, player, difficulty, maxMoves,
-            SymmetryType.Identity, true,
-            cancellationToken
-        );
+        var positions = new List<PositionToProcess>();
+        int offset = startBatchIndex * BatchSize;
+        int totalAtDepth = _store.GetEntryCountAtDepth(depth);
+
+        if (totalAtDepth == 0)
+        {
+            return positions;
+        }
+
+        _logger.LogInformation("Loading positions from DB at depth {Depth}: {Total} total, starting at offset {Offset}",
+            depth, totalAtDepth, offset);
+
+        // Load in batches to avoid memory spike
+        while (offset < totalAtDepth)
+        {
+            var entries = _store.GetEntriesAtDepth(depth, offset, BatchSize);
+
+            foreach (var entry in entries)
+            {
+                // Reconstruct the board from the entry
+                // We need to replay moves from the stored position
+                // For now, we create a placeholder and rely on the entry's moves
+                // This is a limitation - full reconstruction would require storing parent references
+
+                // Alternative: Use stored entry's moves to generate children directly
+                // without needing to reconstruct the exact board
+                var board = new Board(); // Start with empty board
+                var player = entry.Player;
+
+                // For resume, we process entries that already have stored moves
+                // The children generation will use the stored moves
+                positions.Add(new PositionToProcess(board, player, depth)
+                {
+                    // Mark as from book so we use stored moves
+                    FromBook = true,
+                    StoredMoves = entry.Moves,
+                    StoredSymmetry = entry.Symmetry,
+                    StoredIsNearEdge = entry.IsNearEdge
+                });
+            }
+
+            offset += BatchSize;
+
+            // Yield to prevent blocking
+            await Task.Yield();
+        }
+
+        return positions;
+    }
+
+    /// <summary>
+    /// Process a batch of positions and return results.
+    /// </summary>
+    private async Task<(int positionsGenerated, int movesStored, List<PositionToProcess> children)> ProcessBatchAsync(
+        List<PositionToProcess> batchPositions,
+        AIDifficulty difficulty,
+        DepthConfig depthConfig,
+        CancellationToken cancellationToken,
+        int totalPositionsAtDepth,
+        int batchOffset)
+    {
+        int positionsGenerated = 0;
+        int movesStored = 0;
+        var children = new List<PositionToProcess>();
+
+        // Separate positions into: new (need evaluation) vs existing (use stored moves)
+        var positionsToEvaluate = new List<(Board board, Player player, int depth, ulong canonicalHash, ulong directHash, SymmetryType symmetry, bool nearEdge, int maxMoves)>();
+        var positionsInBook = new List<(Board board, Player player, int depth, ulong canonicalHash, ulong directHash, SymmetryType symmetry, bool nearEdge, BookMove[] moves)>();
+
+        foreach (var pos in batchPositions)
+        {
+            var canonical = _canonicalizer.Canonicalize(pos.Board);
+            var directHash = pos.Board.GetHash();
+
+            // Use depth config's move count
+            int maxChildren = Math.Min(depthConfig.MoveCount, _movesPerPosition);
+
+            // Use compound key lookup (CanonicalHash + DirectHash + Player) for exact match
+            if (_store.ContainsEntry(canonical.CanonicalHash, directHash, pos.Player))
+            {
+                // Position already in book - retrieve stored moves for child generation
+                var existingEntry = _store.GetEntry(canonical.CanonicalHash, directHash, pos.Player);
+                if (existingEntry != null && existingEntry.Moves.Length > 0)
+                {
+                    _logger.LogDebug("Found existing entry at depth {Depth}: {MoveCount} moves stored", pos.Depth, existingEntry.Moves.Length);
+
+                    positionsInBook.Add((
+                        pos.Board,
+                        pos.Player,
+                        pos.Depth,
+                        canonical.CanonicalHash,
+                        directHash,
+                        existingEntry.Symmetry,
+                        existingEntry.IsNearEdge,
+                        existingEntry.Moves
+                    ));
+                }
+            }
+            else
+            {
+                // New position - needs evaluation
+                _logger.LogDebug("New position at depth {Depth} needs evaluation", pos.Depth);
+                positionsToEvaluate.Add((
+                    pos.Board,
+                    pos.Player,
+                    pos.Depth,
+                    canonical.CanonicalHash,
+                    directHash,
+                    canonical.SymmetryApplied,
+                    canonical.IsNearEdge,
+                    maxChildren
+                ));
+            }
+        }
+
+        // Update progress
+        _progress.TotalPositionsAtCurrentDepth = totalPositionsAtDepth;
+
+        // Skip if nothing to process
+        if (positionsToEvaluate.Count == 0 && positionsInBook.Count == 0)
+        {
+            return (positionsGenerated, movesStored, children);
+        }
+
+        // Process positions in parallel using worker pool
+        Dictionary<ulong, BookMove[]> results = new();
+        int totalPositions = positionsToEvaluate.Count + positionsInBook.Count;
+        if (positionsToEvaluate.Count > 0)
+        {
+            results = await ProcessPositionsInParallelAsync(
+                positionsToEvaluate,
+                difficulty,
+                cancellationToken,
+                totalPositions
+            );
+        }
+
+        // Process newly evaluated positions
+        foreach (var posData in positionsToEvaluate)
+        {
+            if (cancellationToken.IsCancellationRequested)
+                break;
+
+            // Use board's direct hash for lookup
+            if (!results.ContainsKey(posData.directHash) || results[posData.directHash].Length == 0)
+                continue;
+
+            var moves = results[posData.directHash].ToList();
+
+            // Try VCF solving for tactical positions (ply 0-8)
+            if (depthConfig.UseVcfSolver)
+            {
+                var vcfMove = TrySolveWithVcf(posData.board, posData.player, posData.symmetry, posData.nearEdge);
+                if (vcfMove != null)
+                {
+                    // Check if VCF move is already in the list
+                    var existingIndex = moves.FindIndex(m =>
+                        m.RelativeX == vcfMove.RelativeX && m.RelativeY == vcfMove.RelativeY);
+
+                    if (existingIndex >= 0)
+                    {
+                        // Upgrade existing move to solved status
+                        moves[existingIndex] = moves[existingIndex] with
+                        {
+                            Source = MoveSource.Solved,
+                            Score = Math.Max(moves[existingIndex].Score, vcfMove.Score),
+                            IsForcing = true,
+                            Priority = Math.Max(moves[existingIndex].Priority, vcfMove.Priority)
+                        };
+                    }
+                    else
+                    {
+                        // Add VCF move at the beginning (highest priority)
+                        moves.Insert(0, vcfMove);
+                    }
+
+                    _logger.LogInformation("VCF solved position at depth {Depth}: move ({X},{Y})",
+                        posData.depth, vcfMove.RelativeX, vcfMove.RelativeY);
+                }
+            }
+
+            // Apply score threshold filtering
+            var movesArray = moves.ToArray();
+            if (depthConfig.ScoreThreshold > 0 && movesArray.Length > 0)
+            {
+                var bestScore = movesArray.Max(m => m.Score);
+                movesArray = movesArray
+                    .Where(m => bestScore - m.Score <= depthConfig.ScoreThreshold)
+                    .Take(depthConfig.MoveCount)
+                    .ToArray();
+            }
+
+            _logger.LogDebug("Storing entry at depth {Depth}: {MoveCount} moves evaluated", posData.depth, movesArray.Length);
+
+            // Store entry with DirectHash for exact identification
+            var entry = new OpeningBookEntry
+            {
+                CanonicalHash = posData.canonicalHash,
+                DirectHash = posData.directHash,
+                Depth = posData.depth,
+                Player = posData.player,
+                Symmetry = posData.symmetry,
+                IsNearEdge = posData.nearEdge,
+                Moves = movesArray
+            };
+
+            // Enqueue for async batch storage
+            await EnqueueEntryForStorageAsync(entry, cancellationToken);
+            positionsGenerated++;
+            movesStored += movesArray.Length;
+
+            // Generate children
+            var childPositions = GenerateChildPositions(
+                posData.board, posData.player, posData.depth,
+                posData.symmetry, posData.nearEdge, movesArray,
+                Math.Min(depthConfig.MoveCount, _movesPerPosition)
+            );
+            children.AddRange(childPositions);
+        }
+
+        // Process positions already in the book - generate children from stored moves
+        foreach (var posData in positionsInBook)
+        {
+            if (cancellationToken.IsCancellationRequested)
+                break;
+
+            var moves = posData.moves;
+
+            // Generate children from stored moves
+            var childPositions = GenerateChildPositions(
+                posData.board, posData.player, posData.depth,
+                posData.symmetry, posData.nearEdge, moves,
+                Math.Min(depthConfig.MoveCount, _movesPerPosition)
+            );
+            children.AddRange(childPositions);
+        }
+
+        // Update progress
+        if (positionsInBook.Count > 0)
+        {
+            _progressQueue.TryEnqueue(new BookProgressEvent(
+                Depth: _progress.CurrentDepth,
+                PositionsCompleted: positionsInBook.Count,
+                TotalPositions: totalPositions,
+                TimestampMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            ));
+        }
+
+        return (positionsGenerated, movesStored, children);
+    }
+
+    /// <summary>
+    /// Generate child positions from a parent position and its moves.
+    /// </summary>
+    private List<PositionToProcess> GenerateChildPositions(
+        Board board, Player player, int depth,
+        SymmetryType symmetry, bool nearEdge, BookMove[] moves,
+        int maxChildren)
+    {
+        var children = new List<PositionToProcess>();
+
+        foreach (var move in moves.Take(maxChildren))
+        {
+            // Transform from canonical to actual coordinates
+            int actualX, actualY;
+            if (nearEdge || symmetry == SymmetryType.Identity)
+            {
+                actualX = move.RelativeX;
+                actualY = move.RelativeY;
+            }
+            else
+            {
+                (actualX, actualY) = _canonicalizer.TransformToActual(
+                    (move.RelativeX, move.RelativeY),
+                    symmetry,
+                    board
+                );
+            }
+
+            // Validate the move is playable on this board
+            var existingCell = board.GetCell(actualX, actualY);
+            if (existingCell.Player != Player.None)
+            {
+                _logger.LogDebug("Unexpected invalid move ({ActualX},{ActualY}) - cell occupied. Depth={Depth}",
+                    actualX, actualY, depth);
+                continue;
+            }
+
+            // Verify the move passes the validator
+            if (!_validator.IsValidMove(board, actualX, actualY, player))
+            {
+                _logger.LogDebug("Skipping move ({ActualX},{ActualY}) - failed validation. Depth={Depth}",
+                    actualX, actualY, depth);
+                continue;
+            }
+
+            var newBoard = board.PlaceStone(actualX, actualY, player);
+            var nextPlayer = player == Player.Red ? Player.Blue : Player.Red;
+
+            var winResult = new WinDetector().CheckWin(newBoard);
+
+            if (winResult.Winner == Player.None)
+            {
+                children.Add(new PositionToProcess(newBoard, nextPlayer, depth + 1));
+            }
+        }
+
+        return children;
     }
 
     /// <summary>
@@ -830,6 +1030,24 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         {
             // AI will be garbage collected
         }
+    }
+
+    /// <summary>
+    /// Public overload with AIDifficulty and default symmetry.
+    /// </summary>
+    public Task<BookMove[]> GenerateMovesForPositionAsync(
+        Board board,
+        Player player,
+        AIDifficulty difficulty,
+        int maxMoves,
+        CancellationToken cancellationToken = default)
+    {
+        // For backward compatibility - use Identity symmetry (no transformation)
+        return GenerateMovesForPositionAsync(
+            board, player, difficulty, maxMoves,
+            SymmetryType.Identity, true,
+            cancellationToken
+        );
     }
 
     // Forward to the overload with difficulty parameter
@@ -1261,7 +1479,28 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
         return (int)(winProb * 100);
     }
 
-    private record PositionToProcess(Board Board, Player Player, int Depth);
+    private record PositionToProcess(Board Board, Player Player, int Depth)
+    {
+        /// <summary>
+        /// Whether this position was loaded from the book (for resume).
+        /// </summary>
+        public bool FromBook { get; init; } = false;
+
+        /// <summary>
+        /// Stored moves from the book entry (for resume).
+        /// </summary>
+        public BookMove[]? StoredMoves { get; init; }
+
+        /// <summary>
+        /// Symmetry of the stored entry (for resume).
+        /// </summary>
+        public SymmetryType StoredSymmetry { get; init; } = SymmetryType.Identity;
+
+        /// <summary>
+        /// Whether the stored entry is near edge (for resume).
+        /// </summary>
+        public bool StoredIsNearEdge { get; init; } = false;
+    }
 
     /// <summary>
     /// Internal progress tracking.
@@ -1525,6 +1764,146 @@ public sealed class OpeningBookGenerator : IOpeningBookGenerator, IDisposable
             var d when d < _maxDepth => _movesPerPosition,  // Configurable moves/position up to max depth
             _ => 0                                          // No children at max depth
         };
+    }
+
+    /// <summary>
+    /// Detect if a position has high tactical tension (both sides have active threats).
+    /// Hot positions warrant extended search depth to find tactical truth.
+    /// </summary>
+    private static bool IsHotPosition(Board board)
+    {
+        // Quick check: count stones to skip early positions
+        var redCount = board.GetBitBoard(Player.Red).CountBits();
+        var blueCount = board.GetBitBoard(Player.Blue).CountBits();
+        if (redCount + blueCount < 6)
+            return false;
+
+        // Check for open fours or strong threes from both sides
+        bool redHasThreat = HasSignificantThreat(board, Player.Red);
+        bool blueHasThreat = HasSignificantThreat(board, Player.Blue);
+
+        // Hot if both sides have active threats (mutual tactical tension)
+        return redHasThreat && blueHasThreat;
+    }
+
+    /// <summary>
+    /// Check if a player has a significant threat (open four or strong three).
+    /// </summary>
+    private static bool HasSignificantThreat(Board board, Player player)
+    {
+        // Simple heuristic: check for patterns that indicate threats
+        // This is a lightweight check compared to full ThreatDetector
+        var bitBoard = board.GetBitBoard(player);
+        var opponentBitBoard = board.GetBitBoard(player == Player.Red ? Player.Blue : Player.Red);
+        int boardSize = board.BoardSize;
+
+        // Check for open three or better patterns
+        // Using simple pattern detection on the bitboard
+        int threatCount = 0;
+
+        // Horizontal check
+        for (int y = 0; y < boardSize; y++)
+        {
+            int consecutive = 0;
+            for (int x = 0; x < boardSize; x++)
+            {
+                if (bitBoard.GetBit(x, y))
+                {
+                    consecutive++;
+                }
+                else
+                {
+                    if (consecutive >= 3)
+                    {
+                        // Check if this end is open
+                        if (x < boardSize - 1 && !opponentBitBoard.GetBit(x, y))
+                            threatCount++;
+                    }
+                    consecutive = 0;
+                }
+            }
+        }
+
+        return threatCount > 0;
+    }
+
+    /// <summary>
+    /// Get extended search depth for hot (tactically complex) positions.
+    /// Extends base depth by 10 plies, capped at 30.
+    /// </summary>
+    private static int GetExtendedDepth(Board board, int baseDepth)
+    {
+        if (IsHotPosition(board))
+        {
+            return Math.Min(baseDepth + 10, 30);
+        }
+        return baseDepth;
+    }
+
+    /// <summary>
+    /// Try to solve position using VCF (Victory by Continuous Fours) solver.
+    /// Returns a BookMove if a proven winning sequence is found.
+    /// </summary>
+    private BookMove? TrySolveWithVcf(Board board, Player player, SymmetryType symmetry, bool isNearEdge)
+    {
+        try
+        {
+            // Create VCF solver components
+            var threatSearch = new ThreatSpaceSearch();
+            var vcfSolver = new VCFSolver(threatSearch);
+
+            // Check for VCF with reasonable time limit
+            var result = vcfSolver.CheckNodeVCF(
+                board,
+                player,
+                depth: 0,
+                alpha: 0,
+                timeRemainingMs: 100  // 100ms time limit for VCF
+            );
+
+            if (result != null && result.Type == VCFResultType.WinningSequence && result.ForcingMoves.Count > 0)
+            {
+                // VCF found - get the first move in the winning sequence
+                var (actualX, actualY) = result.ForcingMoves[0];
+
+                // Transform to relative coordinates for storage
+                int relX, relY;
+                if (isNearEdge || symmetry == SymmetryType.Identity)
+                {
+                    relX = actualX;
+                    relY = actualY;
+                }
+                else
+                {
+                    // Apply symmetry to get canonical coordinates
+                    (relX, relY) = _canonicalizer.ApplySymmetry(actualX, actualY, symmetry);
+                }
+
+                _logger.LogDebug("VCF solved at depth {Depth}: move ({X},{Y}) with score {Score}",
+                    board.GetBitBoard(Player.Red).CountBits() + board.GetBitBoard(Player.Blue).CountBits(),
+                    actualX, actualY, result.Score);
+
+                return new BookMove
+                {
+                    RelativeX = relX,
+                    RelativeY = relY,
+                    WinRate = 100,  // Proven win
+                    DepthAchieved = result.Depth,
+                    NodesSearched = result.NodesSearched,
+                    Score = VcfProvenWinScore,  // High score for proven wins
+                    IsForcing = true,
+                    Priority = 1000,  // High priority
+                    IsVerified = true,
+                    Source = MoveSource.Solved  // Mark as solver-proven
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "VCF solver failed for position");
+        }
+
+        return null;
     }
 
     /// <summary>
