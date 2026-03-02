@@ -76,8 +76,9 @@ class Program
         Console.WriteLine("Phase 1: Self-Play Generation (Actor)");
         Console.WriteLine("  --staging <path>          Run self-play games to staging database");
         Console.WriteLine("  --games <n>               Number of games (default: 8192 = 2^13)");
-        Console.WriteLine("  --time <ms>               Time per move (default: 1024 = 2^10 ms)");
-        Console.WriteLine("  --threads <n>             Threads (default: max(1, cores/4))");
+        Console.WriteLine("  --base-time <ms>          Base time per player (default: 60000 = 1 min)");
+        Console.WriteLine("  --increment <ms>          Time increment per move (default: 0)");
+        Console.WriteLine("  --threads <n>             Parallel games (default: CPU cores)");
         Console.WriteLine("  --buffer <n>              Games before commit (default: 4096 = 2^12)");
         Console.WriteLine();
         Console.WriteLine("Phase 2: Verification (Critic)");
@@ -95,8 +96,10 @@ class Program
         Console.WriteLine("Convenience Command");
         Console.WriteLine("  --full-pipeline           Run all phases in sequence");
         Console.WriteLine("  --games <n>               Self-play games (default: 8192)");
+        Console.WriteLine("  --base-time <ms>          Self-play base time (default: 60000 = 1 min)");
+        Console.WriteLine("  --increment <ms>          Self-play increment (default: 0)");
         Console.WriteLine("  --verify-time <ms>        Verification time (default: 2048)");
-        Console.WriteLine("  --threads <n>             Thread count (default: cores/2)");
+        Console.WriteLine("  --threads <n>             Parallel games (default: CPU cores)");
         Console.WriteLine();
         Console.WriteLine("=== LEGACY MODE ===");
         Console.WriteLine();
@@ -153,9 +156,9 @@ class Program
     {
         var stagingPath = GetArgument(args, "--staging", "staging.db");
         var gameCount = GetIntArgument(args, "--games", 8192);  // 2^13
-        var baseTimeMs = GetIntArgument(args, "--base-time", 420000);  // 7 min default
-        var incrementMs = GetIntArgument(args, "--increment", 5000);   // 5 sec default
-        var threads = GetIntArgument(args, "--threads", Math.Max(1, Environment.ProcessorCount / 4));
+        var baseTimeMs = GetIntArgument(args, "--base-time", 60000);   // 1 min default
+        var incrementMs = GetIntArgument(args, "--increment", 0);      // No increment
+        var threads = GetIntArgument(args, "--threads", Environment.ProcessorCount);
         var buffer = GetIntArgument(args, "--buffer", 4096);     // 2^12
         var maxPly = GetIntArgument(args, "--max-ply", 16);
 
@@ -354,8 +357,10 @@ class Program
     static async Task RunFullPipelineAsync(string[] args, ILoggerFactory loggerFactory, ILogger<Program> logger)
     {
         var gameCount = GetIntArgument(args, "--games", 8192);
+        var baseTimeMs = GetIntArgument(args, "--base-time", 60000);    // 1 min for self-play
+        var incrementMs = GetIntArgument(args, "--increment", 0);       // No increment
         var verifyTimeMs = GetIntArgument(args, "--verify-time", 2048);
-        var threads = GetIntArgument(args, "--threads", Math.Max(4, Environment.ProcessorCount / 2));
+        var threads = GetIntArgument(args, "--threads", Environment.ProcessorCount);
         var bookPath = GetArgument(args, "--book", GetDefaultBookPath());
 
         var stagingPath = "staging.db";
@@ -363,6 +368,7 @@ class Program
 
         Console.WriteLine("=== Full Pipeline: All Phases ===");
         Console.WriteLine($"Games: {gameCount}");
+        Console.WriteLine($"Self-play time control: {baseTimeMs / 60000}+{incrementMs / 1000}");
         Console.WriteLine($"Verification time: {verifyTimeMs}ms");
         Console.WriteLine($"Threads: {threads}");
         Console.WriteLine($"Final book: {bookPath}");
@@ -390,10 +396,11 @@ class Program
 
                 var selfPlaySummary = await selfPlayGenerator.GenerateGamesAsync(
                     gameCount,
-                    baseTimeMs: 420000,  // 7 minutes
-                    incrementMs: 5000,   // 5 seconds
+                    baseTimeMs: baseTimeMs,
+                    incrementMs: incrementMs,
                     maxMoves: 200,
-                    maxPly: 16);
+                    maxPly: 16,
+                    workerCount: threads);
 
                 Console.WriteLine($"Phase 1 complete: {selfPlaySummary.StagingMovesRecorded} moves to staging");
             }
@@ -713,6 +720,8 @@ class Program
             "--full-pipeline",
             "--games",
             "--time",
+            "--base-time",
+            "--increment",
             "--threads",
             "--buffer",
             "--batch",
