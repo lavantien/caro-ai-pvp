@@ -2992,6 +2992,17 @@ public class MinimaxAI : IStatsPublisher
     }
 
     /// <summary>
+    /// Clear the transposition table to prevent position leakage between games.
+    /// Use this for self-play scenarios where you want to reset search state
+    /// without clearing all AI configuration.
+    /// </summary>
+    public void ClearTranspositionTable()
+    {
+        _transpositionTable.Clear();
+        _parallelSearch.Clear();  // Also clear parallel search's TT
+    }
+
+    /// <summary>
     /// Quiescence search: extend search in tactical positions to get accurate evaluation
     /// Only considers moves near existing stones (tactical moves)
     /// </summary>
@@ -5069,6 +5080,125 @@ public class MinimaxAI : IStatsPublisher
         }
 
         return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs, _bookUsed, _moveType, _lastSearchScore, _lastFmcPercent, _lastEbf);
+    }
+
+    /// <summary>
+    /// Get all candidate moves with scores for self-play sampling.
+    /// Used by temperature-based move selection for opening book generation.
+    /// </summary>
+    /// <param name="board">Current board state</param>
+    /// <param name="player">Player to move</param>
+    /// <param name="difficulty">AI difficulty for search depth</param>
+    /// <param name="timeMs">Time budget per move evaluation</param>
+    /// <returns>List of candidate moves with their scores</returns>
+    public List<MoveCandidate> GetCandidateMovesWithScores(Board board, Player player, AIDifficulty difficulty, int timeMs)
+    {
+        if (player == Player.None)
+            throw new ArgumentException("Player cannot be None");
+
+        var candidates = GetCandidateMoves(board);
+        var result = new List<MoveCandidate>();
+
+        // Use shallow depth for fast evaluation of all candidates
+        int evalDepth = Math.Max(4, AdaptiveDepthCalculator.GetDepth(difficulty, board) - 4);
+
+        foreach (var (x, y) in candidates)
+        {
+            // Make move and evaluate resulting position
+            var newBoard = board.PlaceStone(x, y, player);
+            var opponent = player == Player.Red ? Player.Blue : Player.Red;
+
+            // Quick evaluation
+            int score = -EvaluatePosition(newBoard, opponent, evalDepth);
+            result.Add(new MoveCandidate { X = x, Y = y, Score = score });
+        }
+
+        // Sort by score descending
+        result.Sort((a, b) => b.Score.CompareTo(a.Score));
+
+        // Limit to top candidates to avoid wasting time on blunders
+        int maxCandidates = Math.Min(20, result.Count);
+        if (result.Count > maxCandidates)
+        {
+            result.RemoveRange(maxCandidates, result.Count - maxCandidates);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Quick position evaluation for move scoring.
+    /// </summary>
+    private int EvaluatePosition(Board board, Player player, int depth)
+    {
+        // Check for immediate win/loss
+        var winResult = new WinDetector().CheckWin(board);
+        if (winResult.Winner != Player.None)
+        {
+            return winResult.Winner == player ? 100000 : -100000;
+        }
+
+        // Use iterative deepening for more accurate evaluation
+        int bestScore = -int.MaxValue;
+        var candidates = GetCandidateMoves(board);
+
+        if (candidates.Count == 0)
+            return 0;  // Draw
+
+        // Quick negamax search
+        for (int d = 1; d <= depth; d++)
+        {
+            int alpha = -int.MaxValue;
+            int beta = int.MaxValue;
+
+            foreach (var (x, y) in candidates)
+            {
+                var newBoard = board.PlaceStone(x, y, player);
+                var opponent = player == Player.Red ? Player.Blue : Player.Red;
+                int score = -NegamaxEval(newBoard, opponent, d - 1, -beta, -alpha);
+                bestScore = Math.Max(bestScore, score);
+                alpha = Math.Max(alpha, score);
+            }
+        }
+
+        return bestScore;
+    }
+
+    /// <summary>
+    /// Simple negamax evaluation for move scoring.
+    /// </summary>
+    private int NegamaxEval(Board board, Player player, int depth, int alpha, int beta)
+    {
+        // Check for terminal state
+        var winResult = new WinDetector().CheckWin(board);
+        if (winResult.Winner != Player.None)
+        {
+            return winResult.Winner == player ? 100000 - (10 - depth) : -100000 + (10 - depth);
+        }
+
+        if (depth <= 0)
+        {
+            // Use board evaluator for leaf nodes (static method)
+            return BitBoardEvaluator.Evaluate(board, player);
+        }
+
+        var candidates = GetCandidateMoves(board);
+        if (candidates.Count == 0)
+            return 0;  // Draw
+
+        int bestScore = -int.MaxValue;
+        foreach (var (x, y) in candidates)
+        {
+            var newBoard = board.PlaceStone(x, y, player);
+            var opponent = player == Player.Red ? Player.Blue : Player.Red;
+            int score = -NegamaxEval(newBoard, opponent, depth - 1, -beta, -alpha);
+            bestScore = Math.Max(bestScore, score);
+            alpha = Math.Max(alpha, score);
+            if (alpha >= beta)
+                break;
+        }
+
+        return bestScore;
     }
 
     /// <summary>
