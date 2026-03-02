@@ -5117,11 +5117,14 @@ public class MinimaxAI : IStatsPublisher
     /// <summary>
     /// Get all candidate moves with scores for self-play sampling.
     /// Used by temperature-based move selection for opening book generation.
+    ///
+    /// TIME-BASED DESIGN: Respects timeMs parameter - evaluates as many candidates
+    /// as possible within the time budget using iterative deepening.
     /// </summary>
     /// <param name="board">Current board state</param>
     /// <param name="player">Player to move</param>
-    /// <param name="difficulty">AI difficulty for search depth</param>
-    /// <param name="timeMs">Time budget per move evaluation</param>
+    /// <param name="difficulty">AI difficulty (unused - time-based only)</param>
+    /// <param name="timeMs">Total time budget for all candidate evaluations</param>
     /// <returns>List of candidate moves with their scores</returns>
     public List<MoveCandidate> GetCandidateMovesWithScores(Board board, Player player, AIDifficulty difficulty, int timeMs)
     {
@@ -5131,17 +5134,27 @@ public class MinimaxAI : IStatsPublisher
         var candidates = GetCandidateMoves(board);
         var result = new List<MoveCandidate>();
 
-        // Use shallow depth for fast evaluation of all candidates
-        int evalDepth = Math.Max(4, AdaptiveDepthCalculator.GetDepth(difficulty, board) - 4);
+        if (candidates.Count == 0)
+            return result;
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+
+        // Time per candidate with safety margin (80% of budget divided among candidates)
+        var timePerCandidateMs = Math.Max(1, (timeMs * 0.8) / candidates.Count);
 
         foreach (var (x, y) in candidates)
         {
-            // Make move and evaluate resulting position
-            var newBoard = board.PlaceStone(x, y, player);
-            var opponent = player == Player.Red ? Player.Blue : Player.Red;
+            // Check total time budget
+            if (stopwatch.ElapsedMilliseconds >= timeMs)
+                break;
 
-            // Quick evaluation
-            int score = -EvaluatePosition(newBoard, opponent, evalDepth);
+            // Make move and evaluate resulting position with time-bounded search
+            var newBoard = board.PlaceStone(x, y, player);
+            var remainingTimeMs = Math.Max(1, timeMs - (int)stopwatch.ElapsedMilliseconds);
+            var candidateTimeMs = Math.Min((int)timePerCandidateMs, remainingTimeMs);
+
+            int score = -EvaluatePositionTimeBounded(newBoard, opponent, candidateTimeMs, stopwatch);
             result.Add(new MoveCandidate { X = x, Y = y, Score = score });
         }
 
@@ -5159,7 +5172,107 @@ public class MinimaxAI : IStatsPublisher
     }
 
     /// <summary>
-    /// Quick position evaluation for move scoring.
+    /// Time-bounded position evaluation for self-play.
+    /// Uses iterative deepening until time expires.
+    /// </summary>
+    private int EvaluatePositionTimeBounded(Board board, Player player, int timeMs, System.Diagnostics.Stopwatch globalStopwatch)
+    {
+        // Check for immediate win/loss
+        var winResult = new WinDetector().CheckWin(board);
+        if (winResult.Winner != Player.None)
+        {
+            return winResult.Winner == player ? 100000 : -100000;
+        }
+
+        var candidates = GetCandidateMoves(board);
+        if (candidates.Count == 0)
+            return 0;  // Draw
+
+        int bestScore = -int.MaxValue;
+        int depth = 1;
+        var startTime = globalStopwatch.ElapsedMilliseconds;
+        var deadline = startTime + timeMs;
+
+        // Iterative deepening until time expires
+        while (globalStopwatch.ElapsedMilliseconds < deadline)
+        {
+            int alpha = -int.MaxValue;
+            int beta = int.MaxValue;
+            int currentBest = -int.MaxValue;
+
+            foreach (var (x, y) in candidates)
+            {
+                if (globalStopwatch.ElapsedMilliseconds >= deadline)
+                    break;
+
+                var newBoard = board.PlaceStone(x, y, player);
+                var opponent = player == Player.Red ? Player.Blue : Player.Red;
+                int score = -NegamaxEvalQuick(newBoard, opponent, depth - 1, -beta, -alpha, deadline, globalStopwatch);
+                currentBest = Math.Max(currentBest, score);
+                alpha = Math.Max(alpha, score);
+            }
+
+            // Only update best score if we completed the depth
+            if (globalStopwatch.ElapsedMilliseconds < deadline)
+                bestScore = currentBest;
+
+            depth++;
+
+            // Safety limit
+            if (depth > 8)
+                break;
+        }
+
+        return bestScore;
+    }
+
+    /// <summary>
+    /// Quick negamax evaluation with time limit for self-play.
+    /// </summary>
+    private int NegamaxEvalQuick(Board board, Player player, int depth, int alpha, int beta, long deadlineMs, System.Diagnostics.Stopwatch stopwatch)
+    {
+        // Time check
+        if (stopwatch.ElapsedMilliseconds >= deadlineMs)
+            return 0;
+
+        // Check for terminal state
+        var winResult = new WinDetector().CheckWin(board);
+        if (winResult.Winner != Player.None)
+        {
+            return winResult.Winner == player ? 100000 - (10 - depth) : -100000 + (10 - depth);
+        }
+
+        if (depth <= 0)
+        {
+            return BitBoardEvaluator.Evaluate(board, player);
+        }
+
+        var candidates = GetCandidateMoves(board);
+        if (candidates.Count == 0)
+            return 0;
+
+        int bestScore = -int.MaxValue;
+
+        foreach (var (x, y) in candidates)
+        {
+            if (stopwatch.ElapsedMilliseconds >= deadlineMs)
+                break;
+
+            var newBoard = board.PlaceStone(x, y, player);
+            var opponent = player == Player.Red ? Player.Blue : Player.Red;
+            int score = -NegamaxEvalQuick(newBoard, opponent, depth - 1, -beta, -alpha, deadlineMs, stopwatch);
+            bestScore = Math.Max(bestScore, score);
+            alpha = Math.Max(alpha, score);
+
+            if (alpha >= beta)
+                break;
+        }
+
+        return bestScore;
+    }
+
+    /// <summary>
+    /// Quick position evaluation for move scoring (depth-based, for legacy use).
     /// </summary>
     private int EvaluatePosition(Board board, Player player, int depth)
     {
