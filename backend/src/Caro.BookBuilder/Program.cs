@@ -153,7 +153,8 @@ class Program
     {
         var stagingPath = GetArgument(args, "--staging", "staging.db");
         var gameCount = GetIntArgument(args, "--games", 8192);  // 2^13
-        var timeMs = GetIntArgument(args, "--time", 1024);       // 2^10
+        var baseTimeMs = GetIntArgument(args, "--base-time", 420000);  // 7 min default
+        var incrementMs = GetIntArgument(args, "--increment", 5000);   // 5 sec default
         var threads = GetIntArgument(args, "--threads", Math.Max(1, Environment.ProcessorCount / 4));
         var buffer = GetIntArgument(args, "--buffer", 4096);     // 2^12
         var maxPly = GetIntArgument(args, "--max-ply", 16);
@@ -161,7 +162,7 @@ class Program
         Console.WriteLine("=== Phase 1: Self-Play Generation (Actor) ===");
         Console.WriteLine($"Staging database: {stagingPath}");
         Console.WriteLine($"Games: {gameCount}");
-        Console.WriteLine($"Time per move: {timeMs}ms");
+        Console.WriteLine($"Time control: {baseTimeMs / 60000}+{incrementMs / 1000}");
         Console.WriteLine($"Max ply to record: {maxPly}");
         Console.WriteLine($"Buffer size: {buffer}");
         Console.WriteLine();
@@ -191,9 +192,11 @@ class Program
         {
             var summary = await selfPlayGenerator.GenerateGamesAsync(
                 gameCount,
-                timeMs,
-                maxMoves: 100,
+                baseTimeMs: baseTimeMs,
+                incrementMs: incrementMs,
+                maxMoves: 200,
                 maxPly: maxPly,
+                workerCount: threads,
                 cancellationToken: cts.Token);
 
             Console.WriteLine();
@@ -387,8 +390,9 @@ class Program
 
                 var selfPlaySummary = await selfPlayGenerator.GenerateGamesAsync(
                     gameCount,
-                    timeControlMs: 1024,
-                    maxMoves: 100,
+                    baseTimeMs: 420000,  // 7 minutes
+                    incrementMs: 5000,   // 5 seconds
+                    maxMoves: 200,
                     maxPly: 16);
 
                 Console.WriteLine($"Phase 1 complete: {selfPlaySummary.StagingMovesRecorded} moves to staging");
@@ -552,10 +556,11 @@ class Program
             {
                 var summary = await selfPlayGenerator.GenerateGamesAsync(
                     selfPlayGames,
-                    timeControlMs,
-                    maxMoves,
+                    baseTimeMs: timeControlMs,  // Legacy: treat as base time
+                    incrementMs: 5000,
+                    maxMoves: maxMoves,
                     maxPly: 16,
-                    cts.Token);
+                    cancellationToken: cts.Token);
 
                 Console.WriteLine();
                 Console.WriteLine("=== Self-Play Summary ===");
