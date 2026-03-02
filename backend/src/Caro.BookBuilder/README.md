@@ -50,11 +50,11 @@ dotnet run -- --verify-staging <path> [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--verify-staging <path>` | (required) | Staging database to verify |
-| `--time <ms>` | 2048 | Time per position for deep search |
+| `--time <ms>` | 4096 | Time per position for deep search (quality-optimized) |
 | `--output <path>` | `verified.db` | Output verified database |
 | `--threads <n>` | cores/2 | Parallel verification threads |
 
-**Note:** Survival zone positions (ply 8-16) automatically get 4096ms (2x time).
+**Note:** Survival zone positions (ply 8-16) automatically get 8192ms (2x time).
 
 #### Phase 3: Integration
 ```bash
@@ -78,7 +78,7 @@ Runs all three phases in sequence. Options from all phases apply.
 |--------|---------|-------------|
 | `--games <n>` | 8192 | Self-play games |
 | `--base-time <ms>` | 60000 | Base time per player |
-| `--verify-time <ms>` | 2048 | Time per position for verification |
+| `--verify-time <ms>` | 4096 | Time per position for verification (quality-optimized) |
 | `--threads <n>` | CPU cores | Parallel threads |
 | `--book <path>` | `opening_book.db` | Final output book |
 | `--resume` | - | Continue Phase 1 from existing staging games |
