@@ -121,15 +121,19 @@ public class MinimaxAI : IStatsPublisher
     // Random source for tie-breaking and error rate simulation (injectable for deterministic tests)
     private readonly Random? _random;
 
+    // Optional parameter provider for SPSA tuning (null = use default constants)
+    private readonly IEvaluationParameterProvider? _parameterProvider;
+
     // Mutable SearchBoard for high-performance search (make/unmake pattern)
     // Reused across searches to avoid allocations
     private readonly SearchBoard _searchBoard = new();
 
-    public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null, OpeningBook? openingBook = null, Random? random = null)
+    public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null, OpeningBook? openingBook = null, Random? random = null, IEvaluationParameterProvider? parameterProvider = null)
     {
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<MinimaxAI>.Instance;
         _openingBook = openingBook;  // Can be null - engine will work without opening book
         _random = random;  // null means use Random.Shared (default behavior)
+        _parameterProvider = parameterProvider;  // null = use default evaluation constants
         _publisherId = Interlocked.Increment(ref _instanceCounter).ToString();
         _statsChannel = Channel.CreateUnbounded<MoveStatsEvent>();
 
@@ -138,6 +142,34 @@ public class MinimaxAI : IStatsPublisher
         _parallelSearch = new ParallelMinimaxSearch(ttSizeMb);
 
         _inTreeVCFSolver = new VCFSolver(_vcfSolver);
+    }
+
+    /// <summary>
+    /// Evaluate board position using custom parameters if provider is set.
+    /// Falls back to default evaluation if no parameter provider is configured.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int EvaluateBoard(SearchBoard board, Player player)
+    {
+        if (_parameterProvider != null)
+        {
+            return _evaluator.Evaluate(board, player, _parameterProvider.GetParameters());
+        }
+        return _evaluator.Evaluate(board, player);
+    }
+
+    /// <summary>
+    /// Evaluate immutable Board position using custom parameters if provider is set.
+    /// Falls back to default evaluation if no parameter provider is configured.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int EvaluateBoard(Board board, Player player)
+    {
+        if (_parameterProvider != null)
+        {
+            return _evaluator.Evaluate(board, player, _parameterProvider.GetParameters());
+        }
+        return _evaluator.Evaluate(board, player);
     }
 
     /// <summary>
@@ -3022,7 +3054,7 @@ public class MinimaxAI : IStatsPublisher
         }
 
         // Get stand-pat score (static evaluation)
-        var standPat = _evaluator.Evaluate(board, aiPlayer);
+        var standPat = EvaluateBoard(board, aiPlayer);
 
         // Beta cutoff (stand-pat is good enough for maximizing player)
         if (isMaximizing && standPat >= beta)
@@ -3571,7 +3603,7 @@ public class MinimaxAI : IStatsPublisher
         }
 
         // Get stand-pat score using SearchBoard evaluator
-        var standPat = _evaluator.Evaluate(board, aiPlayer);
+        var standPat = EvaluateBoard(board, aiPlayer);
 
         // Beta cutoff
         if (isMaximizing && standPat >= beta)
@@ -3961,7 +3993,7 @@ public class MinimaxAI : IStatsPublisher
 
         // Evaluate position from opponent's perspective (after our move)
         // A good book move should leave us with a reasonable position
-        int evaluation = _evaluator.Evaluate(boardAfterMove, player);
+        int evaluation = EvaluateBoard(boardAfterMove, player);
 
         // Quick minimax search to validate the move
         int searchScore = QuickValidateSearch(boardAfterMove, opponent, validationDepth, int.MinValue + 1, int.MaxValue - 1);
@@ -3986,7 +4018,7 @@ public class MinimaxAI : IStatsPublisher
     {
         if (depth <= 0)
         {
-            return _evaluator.Evaluate(board, player);
+            return EvaluateBoard(board, player);
         }
 
         // Check for win

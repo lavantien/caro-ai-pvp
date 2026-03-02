@@ -40,17 +40,22 @@ public sealed class SelfPlayGenerator
     private readonly ILoggerFactory _loggerFactory;
     private readonly Random _random = new();
 
+    // Optional parameter provider for SPSA tuning (null = use default constants)
+    private readonly IEvaluationParameterProvider? _parameterProvider;
+
     public SelfPlayGenerator(
         IStagingBookStore stagingStore,
         IPositionCanonicalizer? canonicalizer = null,
         ILoggerFactory? loggerFactory = null,
-        IOpeningBookStore? bookStore = null)
+        IOpeningBookStore? bookStore = null,
+        IEvaluationParameterProvider? parameterProvider = null)
     {
         _stagingStore = stagingStore ?? throw new ArgumentNullException(nameof(stagingStore));
         _canonicalizer = canonicalizer ?? new PositionCanonicalizer();
         _loggerFactory = loggerFactory ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
         _logger = _loggerFactory.CreateLogger<SelfPlayGenerator>();
         _bookStore = bookStore;
+        _parameterProvider = parameterProvider;
     }
 
     /// <summary>
@@ -243,7 +248,11 @@ public sealed class SelfPlayGenerator
         var moveList = new List<(int X, int Y)>();
 
         // Create AI with SelfPlay difficulty (Grandmaster-level but no book)
-        var ai = new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
+        // Pass parameter provider for SPSA tuning support
+        var ai = new MinimaxAI(
+            ttSizeMb: 64,
+            logger: _loggerFactory.CreateLogger<MinimaxAI>(),
+            parameterProvider: _parameterProvider);
 
         // Time tracking per player
         var redTime = baseTimeMs;

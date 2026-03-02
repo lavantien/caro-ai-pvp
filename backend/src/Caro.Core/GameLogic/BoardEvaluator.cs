@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -50,6 +51,28 @@ public class BoardEvaluator
             throw new ArgumentException("Player cannot be None");
 
         return BitBoardEvaluator.Evaluate(board, player);
+    }
+
+    /// <summary>
+    /// Evaluate with custom parameters (for SPSA tuning)
+    /// </summary>
+    public int Evaluate(Board board, Player player, TunableParameters parameters)
+    {
+        if (player == Player.None)
+            throw new ArgumentException("Player cannot be None");
+
+        return BitBoardEvaluator.EvaluateWithParameters(board, player, parameters);
+    }
+
+    /// <summary>
+    /// Evaluate SearchBoard with custom parameters (for SPSA tuning)
+    /// </summary>
+    public int Evaluate(SearchBoard board, Player player, TunableParameters parameters)
+    {
+        if (player == Player.None)
+            throw new ArgumentException("Player cannot be None");
+
+        return BitBoardEvaluator.EvaluateWithParameters(board, player, parameters);
     }
 
     /// <summary>
