@@ -38,6 +38,7 @@ dotnet run -- --staging <path> [options]
 | `--threads <n>` | CPU cores | Parallel game threads |
 | `--buffer <n>` | 4096 | Games before database commit |
 | `--max-ply <n>` | 16 | Maximum ply to record |
+| `--resume` | - | Continue from existing games in staging DB |
 
 #### Phase 2: Verification
 ```bash
@@ -70,6 +71,38 @@ dotnet run -- --full-pipeline [options]
 ```
 
 Runs all three phases in sequence. Options from all phases apply.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--games <n>` | 8192 | Self-play games |
+| `--base-time <ms>` | 60000 | Base time per player |
+| `--verify-time <ms>` | 2048 | Time per position for verification |
+| `--threads <n>` | CPU cores | Parallel threads |
+| `--book <path>` | `opening_book.db` | Final output book |
+| `--resume` | - | Continue Phase 1 from existing staging games |
+
+---
+
+### Resume Support
+
+The `--resume` flag allows interrupted self-play generation to continue from where it left off:
+
+```bash
+# Start generation
+dotnet run -- --staging staging.db --games 10000
+
+# If interrupted, resume (only generates remaining games)
+dotnet run -- --staging staging.db --games 10000 --resume
+
+# Also works with full pipeline
+dotnet run -- --full-pipeline --games 8192 --resume
+```
+
+**Behavior:**
+- Checks existing games in staging database
+- Calculates remaining games needed to reach target
+- Skips generation if target already reached
+- Without `--resume`: warns that new games will be added to existing
 
 ---
 
