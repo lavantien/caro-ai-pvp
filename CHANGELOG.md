@@ -5,6 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.71.0] - 2026-03-02
+
+### Added
+- **SPSA Parameter Tuning** - Full integration through AI evaluation pipeline
+  - `IEvaluationParameterProvider` interface for runtime parameter access
+  - `TunableParameters` class with 8 evaluation parameters (FiveInRowScore, OpenFourScore, etc.)
+  - `DefaultEvaluationParameterProvider` implementation with thread-safe get/set
+  - Parameter bounds enforcement with `ClampToBounds()` method
+  - SPSA presets: Default, Aggressive, Conservative
+
+- **BookBuilder CLI** - `--tune` command for SPSA optimization
+  - `--iterations <n>` - Number of SPSA iterations (default: 50)
+  - `--games-per-eval <n>` - Games per evaluation (default: 256)
+  - `--preset <name>` - SPSA preset selection
+  - `--base-time <ms>` - Base time per player
+  - `--output <path>` - Output JSON file for optimized parameters
+
+- **Parameterized Evaluation** - BitBoardEvaluator now supports custom parameters
+  - `EvaluateWithParameters(Board, Player, TunableParameters)` overload
+  - `EvaluateWithParameters(SearchBoard, Player, TunableParameters)` overload
+  - `EvaluateBitBoardWithParameters()` for BitBoard-level evaluation
+
+- **Documentation** - Comprehensive documentation restructure
+  - `backend/src/Caro.BookBuilder/README.md` - Complete CLI reference
+  - Documentation Guide in main README with documentation matrix
+  - Newcomer onboarding path (5 steps)
+
+### Changed
+- **MinimaxAI** - Accepts optional `IEvaluationParameterProvider`
+  - New constructor parameter: `parameterProvider`
+  - `EvaluateBoard()` helper uses parameterized evaluation when provider present
+
+- **SelfPlayGenerator** - Passes parameter provider to AI
+  - New constructor parameter: `parameterProvider`
+  - AI instances created with parameter provider for SPSA tuning
+
+- **SPSATuningService** - Full parameter injection (no longer simulated)
+  - `EvaluateWinRateWithParametersAsync()` creates isolated parameter providers
+  - Parameters now actually affect AI evaluation during self-play
+
+### Fixed
+- **FileStagingBookStore** - Thread-safety for concurrent game recording
+  - `WorkerBuffer.TryAddAndCheckFull()` now atomic (single lock)
+  - `WorkerBuffer.GetGamesSnapshot()` for safe commit access
+  - Fixed flaky test `ThreadSafety_ConcurrentGameRecording_DoesNotCorrupt`
+
+- **BookBuilder CLI** - Removed duplicate BINARY FORMAT section in --help
+
+### Documentation
+- Streamlined Opening Book section in README (references BookBuilder README)
+- Fixed incorrect CLI example in ENGINE_FEATURES.md
+- Added cross-references between documentation files
+- Removed redundant content, established single source of truth
+
+[1.70.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.70.0
+
 ## [1.70.0] - 2026-03-02
 
 ### Added
