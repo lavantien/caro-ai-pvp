@@ -100,8 +100,8 @@ class Program
         Console.WriteLine();
         Console.WriteLine("Phase 2: Verification (Critic)");
         Console.WriteLine("  --verify-staging <path>   Verify staging database with deep search");
-        Console.WriteLine("  --time <ms>               Time per position (default: 2048 = 2^11 ms)");
-        Console.WriteLine("                            Survival zone (ply 8-16) gets 4096ms");
+        Console.WriteLine("  --time <ms>               Time per position (default: 4096 = 2^12 ms, quality-optimized)");
+        Console.WriteLine("                            Survival zone (ply 8-16) gets 8192ms");
         Console.WriteLine("  --output <path>           Output verified database");
         Console.WriteLine("  --threads <n>             Parallel threads (default: cores/2)");
         Console.WriteLine();
@@ -115,7 +115,7 @@ class Program
         Console.WriteLine("  --games <n>               Self-play games (default: 8192)");
         Console.WriteLine("  --base-time <ms>          Self-play base time (default: 60000 = 1 min)");
         Console.WriteLine("  --increment <ms>          Self-play increment (default: 0)");
-        Console.WriteLine("  --verify-time <ms>        Verification time (default: 2048)");
+        Console.WriteLine("  --verify-time <ms>        Verification time (default: 4096, quality-optimized)");
         Console.WriteLine("  --threads <n>             Parallel games (default: CPU cores)");
         Console.WriteLine("  --resume                  Continue Phase 1 from existing staging games");
         Console.WriteLine();
@@ -303,7 +303,7 @@ class Program
     static async Task RunVerifyStagingAsync(string[] args, ILoggerFactory loggerFactory, ILogger<Program> logger)
     {
         var stagingPath = GetArgument(args, "--verify-staging", GetDefaultStagingPath());
-        var timeMs = GetIntArgument(args, "--time", 2048);       // 2^11
+        var timeMs = GetIntArgument(args, "--time", 4096);       // 2^12 (quality-optimized)
         var outputPath = GetArgument(args, "--output", GetDefaultVerifiedPath());
         var threads = GetIntArgument(args, "--threads", Math.Max(4, Environment.ProcessorCount / 2));
         var maxPly = GetIntArgument(args, "--max-ply", 16);
@@ -311,7 +311,7 @@ class Program
         Console.WriteLine("=== Phase 2: Verification (Critic) ===");
         Console.WriteLine($"Input staging: {stagingPath}");
         Console.WriteLine($"Output verified: {outputPath}");
-        Console.WriteLine($"Time per position: {timeMs}ms (survival zone: 4096ms)");
+        Console.WriteLine($"Time per position: {timeMs}ms (survival zone: 8192ms)");
         Console.WriteLine($"Max ply: {maxPly}");
         Console.WriteLine();
 
@@ -434,7 +434,7 @@ class Program
         var targetGameCount = GetIntArgument(args, "--games", 8192);
         var baseTimeMs = GetIntArgument(args, "--base-time", 60000);    // 1 min for self-play
         var incrementMs = GetIntArgument(args, "--increment", 0);       // No increment
-        var verifyTimeMs = GetIntArgument(args, "--verify-time", 2048);
+        var verifyTimeMs = GetIntArgument(args, "--verify-time", 4096);  // 2^12 (quality-optimized)
         var threads = GetIntArgument(args, "--threads", Environment.ProcessorCount);
         var bookPath = GetArgument(args, "--book", GetDefaultBookPath());
         var resume = args.Contains("--resume");
