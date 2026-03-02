@@ -12,6 +12,8 @@ The BookBuilder implements a three-phase separated pipeline (Actor-Critic patter
 | 2 | Verification (Critic) | Deep search + VCF verification | `verified.db` |
 | 3 | Integration | Merge verified moves to main book | `opening_book.db` |
 
+**All database files are stored in the repository root by default.**
+
 **Quick Start:**
 ```bash
 cd backend/src/Caro.BookBuilder
@@ -103,6 +105,27 @@ dotnet run -- --full-pipeline --games 8192 --resume
 - Calculates remaining games needed to reach target
 - Skips generation if target already reached
 - Without `--resume`: warns that new games will be added to existing
+
+---
+
+### File Locations
+
+All database files are stored in the **repository root** by default:
+
+| File | Purpose | Created By |
+|------|---------|------------|
+| `staging.db` | Raw self-play games | Phase 1 (Self-Play) |
+| `verified.db` | Verified moves | Phase 2 (Verification) |
+| `opening_book.db` | Final opening book | Phase 3 (Integration) |
+
+**Custom paths** can be specified with flags:
+```bash
+dotnet run -- --staging /custom/path/staging.db --games 8192
+dotnet run -- --verify-staging /custom/path/staging.db --output /custom/path/verified.db
+dotnet run -- --integrate /custom/path/verified.db --book /custom/path/opening_book.db
+```
+
+**Temporary files** (`staging.db`, `verified.db`) are automatically cleaned up after `--full-pipeline` completes.
 
 ---
 
