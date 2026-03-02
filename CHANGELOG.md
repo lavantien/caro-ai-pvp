@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.70.0] - 2026-03-02
+
+### Added
+- **ClearTranspositionTable()** method in MinimaxAI
+  - Clears both main and parallel search transposition tables
+  - Prevents position leakage between self-play games
+
+### Changed
+- **SelfPlayGenerator** - Removed position-level storage
+  - Now stores only game-level data (SGF format) during self-play
+  - Position data is reconstructed during Phase 2 verification by replaying SGF moves
+  - Calls `ClearTranspositionTable()` after each game to prevent hash leakage
+  - Removed `RecordPositionsToStaging()` method (30 lines deleted)
+
+- **MoveVerifier** - Implemented board reconstruction from games
+  - Added `BuildPositionStatisticsFromGames()` to reconstruct positions by replaying SGF move sequences
+  - Added `ReplayGameForStatistics()` helper for game replay logic
+  - Added `ReconstructedPositionData`, `PositionStatisticsInternal`, `MoveStatistics` internal classes
+  - Removed placeholder `ReconstructBoard()` method
+  - Updated `VerifyPositionAsync()` to work with reconstructed position data
+
+### Architecture
+- **Separated Pipeline** now fully implemented:
+  - Phase 1 (Actor): Self-play generates games → SGF format in selfplay_games table
+  - Phase 2 (Critic): Verification reads games → Reconstructs positions → Deep search
+  - Phase 3: Verified moves → Main opening book
+
+### Tests
+- Updated `MoveVerifierTests` to mock `GetGames()` instead of `GetPositionStatistics()`
+- Updated `MockStagingBookStore` with `GetGames()` method support
+
+[1.69.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.69.0
+
 ## [1.69.0] - 2026-03-01
 
 ### Added
