@@ -133,6 +133,12 @@ public sealed class SelfPlayGenerator
         var completedGames = 0;
         var lockObj = new object();
 
+        // Progress tracking
+        var progressInterval = Math.Max(1, gameCount / 100); // Report every 1%
+        var lastProgressReport = 0;
+        var startTime = DateTime.UtcNow;
+        var lastReportTime = startTime;
+
         for (int w = 0; w < workerCount; w++)
         {
             var workerGameCount = gamesPerWorker + (w < extraGames ? 1 : 0);
@@ -174,12 +180,37 @@ public sealed class SelfPlayGenerator
                             workerSummary.GamesPlayed++;
                             completedGames++;
 
-                            // Progress reporting
-                            if (completedGames % 10 == 0)
+                            // Progress reporting with ETA and rate
+                            if (completedGames - lastProgressReport >= progressInterval || completedGames == gameCount)
                             {
+                                var now = DateTime.UtcNow;
+                                var elapsed = now - startTime;
+                                var gamesPerSec = elapsed.TotalSeconds > 0
+                                    ? completedGames / elapsed.TotalSeconds
+                                    : 0;
+
+                                var remaining = gameCount - completedGames;
+                                var eta = gamesPerSec > 0
+                                    ? TimeSpan.FromSeconds(remaining / gamesPerSec)
+                                    : TimeSpan.Zero;
+
+                                var percent = (double)completedGames / gameCount * 100;
+
+                                // Format rate appropriately (show more precision for slow rates)
+                                var rateStr = gamesPerSec >= 1
+                                    ? $"{gamesPerSec:F1} games/s"
+                                    : $"{gamesPerSec * 60:F1} games/min";
+
                                 _logger.LogInformation(
-                                    "Self-play progress: {Completed}/{Total} games",
-                                    completedGames, gameCount);
+                                    "Self-play: {Completed}/{Total} ({Percent:F1}%) | " +
+                                    "{Rate} | ETA: {ETA} | Elapsed: {Elapsed}",
+                                    completedGames, gameCount, percent,
+                                    rateStr,
+                                    FormatTimeSpan(eta),
+                                    FormatTimeSpan(elapsed));
+
+                                lastProgressReport = completedGames;
+                                lastReportTime = now;
                             }
                         }
                     }
@@ -534,6 +565,23 @@ public sealed class SelfPlayGenerator
         public int BlueWins { get; set; }
         public int Draws { get; set; }
         public int TotalMoves { get; set; }
+    }
+
+    /// <summary>
+    /// Format a TimeSpan for human-readable display.
+    /// Shows hours only if > 1 hour, otherwise mm:ss.
+    /// </summary>
+    private static string FormatTimeSpan(TimeSpan ts)
+    {
+        if (ts.TotalHours >= 1)
+        {
+            return $"{(int)ts.TotalHours}h {ts.Minutes}m {ts.Seconds}s";
+        }
+        if (ts.TotalMinutes >= 1)
+        {
+            return $"{ts.Minutes}m {ts.Seconds}s";
+        }
+        return $"{ts.Seconds}s";
     }
 }
 
