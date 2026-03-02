@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.72.1] - 2026-03-03
+
+### Fixed
+- **Self-Play Progress Reporting** - Now prints after every game completion
+  - Previously reported every 1% (655 games for 65536), causing 87+ minute delays
+  - Now uses `Console.WriteLine` for immediate output instead of buffered logger
+
+- **Self-Play Move Evaluation** - `GetCandidateMovesWithScores` now respects time budget
+  - Previously ignored `timeMs` parameter and used hardcoded depth-4 minimax
+  - Now uses time-bounded iterative deepening that stops when time expires
+  - Added `EvaluatePositionTimeBounded()` and `NegamaxEvalQuick()` methods
+
+### Changed
+- **Self-Play Time Allocation** - Adaptive based on remaining time
+  - Uses 5% of remaining time per move (min 100ms, max 2000ms)
+  - Previously hardcoded to 500ms regardless of time control
+  - Aligns with project's time-based design philosophy
+
+### Chore
+- Added generated database files to `.gitignore` (`staging.db`, `verified.db`)
+
+[1.72.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.72.1
+
 ## [1.72.0] - 2026-03-03
 
 ### Added
