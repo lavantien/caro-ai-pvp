@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.Infrastructure.Persistence;
@@ -58,6 +59,18 @@ class Program
         {
             await RunStagingAsync(args, loggerFactory, logger);
         }
+        else if (args.Contains("--tune"))
+        {
+            await RunTuningAsync(args, loggerFactory, logger);
+        }
+        else if (args.Contains("--export-binary"))
+        {
+            RunExportBinary(args, loggerFactory, logger);
+        }
+        else if (args.Contains("--import-binary"))
+        {
+            RunImportBinary(args, loggerFactory, logger);
+        }
         else
         {
             // Legacy mode - traditional book generation or self-play
@@ -101,6 +114,29 @@ class Program
         Console.WriteLine("  --verify-time <ms>        Verification time (default: 2048)");
         Console.WriteLine("  --threads <n>             Parallel games (default: CPU cores)");
         Console.WriteLine();
+        Console.WriteLine("=== BINARY FORMAT ===");
+        Console.WriteLine();
+        Console.WriteLine("Export/Import:");
+        Console.WriteLine("  --export-binary <path>   Export book to binary format (.cobook)");
+        Console.WriteLine("  --import-binary <path>  Import book from binary format");
+        Console.WriteLine("  --output <path>         Output path (for import)");
+        Console.WriteLine("  --verify-only           Validate binary file only (with --import-binary)");
+        Console.WriteLine();
+        Console.WriteLine("=== SPSA PARAMETER TUNING ===");
+        Console.WriteLine();
+        Console.WriteLine("  --tune                     Run SPSA parameter tuning");
+        Console.WriteLine("  --iterations <n>           Number of SPSA iterations (default: 50)");
+        Console.WriteLine("  --games-per-eval <n>       Games per evaluation (default: 256)");
+        Console.WriteLine("  --preset <name>            SPSA preset: Default, Aggressive, Conservative");
+        Console.WriteLine("  --base-time <ms>           Base time per player (default: 10000)");
+        Console.WriteLine("  --output <path>            Output optimized parameters to JSON file");
+        Console.WriteLine();
+        Console.WriteLine("Binary format (.cobook):");
+        Console.WriteLine("  - ~4x smaller than SQLite");
+        Console.WriteLine("  - ~10x faster load time");
+        Console.WriteLine("  - Uses varint encoding for compactness");
+        Console.WriteLine("  - Includes checksum for integrity");
+        Console.WriteLine();
         Console.WriteLine("=== LEGACY MODE ===");
         Console.WriteLine();
         Console.WriteLine("Traditional Generation:");
@@ -118,6 +154,13 @@ class Program
         Console.WriteLine("  --verify-only             Verify existing book without generation");
         Console.WriteLine("  --debug                   Enable verbose logging");
         Console.WriteLine("  --help, -h                Show this help message");
+        Console.WriteLine();
+        Console.WriteLine("=== BINARY FORMAT ===");
+        Console.WriteLine();
+        Console.WriteLine("  --export-binary <path>   Export book to binary format (.cobook)");
+        Console.WriteLine("  --import-binary <path>   Import book from binary format");
+        Console.WriteLine("  --output <path>           Output path (for import)");
+        Console.WriteLine("  --verify-only             Validate binary file only (with --import-binary)");
         Console.WriteLine();
         Console.WriteLine("=== THRESHOLDS (All Powers of 2) ===");
         Console.WriteLine();
@@ -672,6 +715,216 @@ class Program
 
     #endregion
 
+    #region Binary Export/Import
+
+    /// <summary>
+    /// Export opening book to binary format (.cobook).
+    /// </summary>
+    static void RunExportBinary(string[] args, ILoggerFactory loggerFactory, ILogger<Program> logger)
+    {
+        var bookPath = GetArgument(args, "--export-binary", GetDefaultBookPath());
+        var outputPath = GetArgument(args, "--output", "book.cobook");
+
+        Console.WriteLine("=== Binary Export ===");
+        Console.WriteLine($"Input book: {bookPath}");
+        Console.WriteLine($"Output: {outputPath}");
+        Console.WriteLine();
+
+        if (!File.Exists(bookPath))
+        {
+            Console.WriteLine($"Error: Book file not found: {bookPath}");
+            Environment.Exit(1);
+        }
+
+        var store = new SqliteOpeningBookStore(
+            bookPath,
+            loggerFactory.CreateLogger<SqliteOpeningBookStore>(),
+            readOnly: true);
+
+        store.Initialize();
+
+        var entries = store.GetAllEntries().ToList();
+        var exporter = new BinaryBookExporter();
+        var result = exporter.Export(entries, outputPath);
+
+        Console.WriteLine();
+        Console.WriteLine("=== Export Summary ===");
+        Console.WriteLine($"Entries exported: {result.EntriesExported:N0}");
+        Console.WriteLine($"Total moves: {result.TotalMoves:N0}");
+        Console.WriteLine($"File size: {result.BytesWritten:N0} bytes ({result.BytesWritten / 1024.0:F1} KB)");
+        var bytesPerEntry = result.EntriesExported > 0 ? (double)result.BytesWritten / result.EntriesExported : 0;
+        var bytesPerMove = result.TotalMoves > 0 ? (double)result.BytesWritten / result.TotalMoves : 0;
+        Console.WriteLine($"Bytes per entry: {bytesPerEntry:F1}");
+        Console.WriteLine($"Bytes per move: {bytesPerMove:F1}");
+        Console.WriteLine($"Max depth: {result.MaxDepth}");
+        Console.WriteLine($"Duration: {result.Duration.TotalMilliseconds}ms");
+    }
+
+    /// <summary>
+    /// Import opening book from binary format (.cobook).
+    /// </summary>
+    static void RunImportBinary(string[] args, ILoggerFactory loggerFactory, ILogger<Program> logger)
+    {
+        var inputPath = GetArgument(args, "--import-binary", "book.cobook");
+        var outputPath = GetArgument(args, "--output", GetDefaultBookPath());
+        var verifyOnly = args.Contains("--verify-only");
+
+        Console.WriteLine("=== Binary Import ===");
+        Console.WriteLine($"Input: {inputPath}");
+        Console.WriteLine($"Output: {outputPath}");
+        Console.WriteLine();
+
+        var importer = new BinaryBookImporter();
+
+        if (verifyOnly)
+        {
+            var validationResult = importer.Validate(inputPath);
+            Console.WriteLine("=== Validation Result ===");
+            if (validationResult.IsValid)
+            {
+                Console.WriteLine("Status: Valid");
+                Console.WriteLine($"Entries: {validationResult.EntryCount:N0}");
+                Console.WriteLine($"Total moves: {validationResult.TotalMoves:N0}");
+            }
+            else
+            {
+                Console.WriteLine($"Status: Invalid");
+                Console.WriteLine($"Error: {validationResult.ErrorMessage}");
+                Environment.Exit(1);
+            }
+            return;
+        }
+
+        var importResult = importer.Import(inputPath, verifyChecksum: true);
+
+        var store = new SqliteOpeningBookStore(
+            outputPath,
+            loggerFactory.CreateLogger<SqliteOpeningBookStore>(),
+            readOnly: false);
+
+        store.Initialize();
+
+        // Batch insert for performance
+        store.StoreEntriesBatch(importResult.Entries);
+        store.Flush();
+
+        Console.WriteLine();
+        Console.WriteLine("=== Import Summary ===");
+        Console.WriteLine($"Entries imported: {importResult.Entries.Count:N0}");
+        Console.WriteLine($"Total moves: {importResult.TotalMoves:N0}");
+        Console.WriteLine($"Max depth: {importResult.MaxDepth}");
+        Console.WriteLine($"Duration: {importResult.Duration.TotalMilliseconds}ms");
+    }
+
+    #endregion
+
+    #region SPSA Tuning
+
+    /// <summary>
+    /// Run SPSA parameter tuning
+    /// </summary>
+    static async Task RunTuningAsync(string[] args, ILoggerFactory loggerFactory, ILogger<Program> logger)
+    {
+        var iterations = GetIntArgument(args, "--iterations", 50);
+        var gamesPerEval = GetIntArgument(args, "--games-per-eval", 256);
+        var baseTimeMs = GetIntArgument(args, "--base-time", 10000);
+        var preset = GetArgument(args, "--preset", "Default");
+        var outputPath = GetArgument(args, "--output", "");
+
+        Console.WriteLine("=== SPSA Parameter Tuning ===");
+        Console.WriteLine($"Iterations: {iterations}");
+        Console.WriteLine($"Games per evaluation: {gamesPerEval}");
+        Console.WriteLine($"Base time: {baseTimeMs}ms");
+        Console.WriteLine($"Preset: {preset}");
+        Console.WriteLine();
+
+        // Get SPSA parameters from preset
+        var spsaConfig = preset.ToLowerInvariant() switch
+        {
+            "aggressive" => SPSAParameters.Aggressive,
+            "conservative" => SPSAParameters.Conservative,
+            _ => SPSAParameters.Default
+        };
+
+        Console.WriteLine($"SPSA Config: A={spsaConfig.A}, C={spsaConfig.C}, " +
+                          $"alpha={spsaConfig.Alpha}, gamma={spsaConfig.Gamma}");
+        Console.WriteLine();
+
+        var tuningService = new SPSATuningService(loggerFactory);
+
+        var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (s, e) =>
+        {
+            e.Cancel = true;
+            Console.WriteLine("\nCancellation requested...");
+            cts.Cancel();
+        };
+
+        try
+        {
+            var result = await tuningService.RunTuningAsync(
+                iterations,
+                gamesPerEval,
+                spsaConfig,
+                baseTimeMs,
+                cts.Token);
+
+            Console.WriteLine();
+            Console.WriteLine("=== Tuning Summary ===");
+            Console.WriteLine($"Total iterations: {result.Iterations}");
+            Console.WriteLine($"Duration: {result.Duration:hh\\:mm\\:ss}");
+            Console.WriteLine($"Initial win rate: {result.InitialWinRate:P1}");
+            Console.WriteLine($"Final win rate: {result.FinalWinRate:P1}");
+            Console.WriteLine();
+
+            // Display final parameters
+            var finalParams = new TunableParameters();
+            finalParams.ApplyFromArray(result.FinalParameters);
+            Console.WriteLine("Final parameters:");
+            Console.WriteLine($"  FiveInRowScore: {finalParams.FiveInRowScore:F0}");
+            Console.WriteLine($"  OpenFourScore: {finalParams.OpenFourScore:F0}");
+            Console.WriteLine($"  ClosedFourScore: {finalParams.ClosedFourScore:F0}");
+            Console.WriteLine($"  OpenThreeScore: {finalParams.OpenThreeScore:F0}");
+            Console.WriteLine($"  ClosedThreeScore: {finalParams.ClosedThreeScore:F0}");
+            Console.WriteLine($"  OpenTwoScore: {finalParams.OpenTwoScore:F0}");
+            Console.WriteLine($"  CenterBonus: {finalParams.CenterBonus:F0}");
+            Console.WriteLine($"  DefenseMultiplier: {finalParams.DefenseMultiplier:F2}");
+
+            // Save to file if output specified
+            if (!string.IsNullOrEmpty(outputPath))
+            {
+                finalParams.Save(outputPath);
+                Console.WriteLine();
+                Console.WriteLine($"Parameters saved to: {outputPath}");
+            }
+
+            // Show parameter changes
+            Console.WriteLine();
+            Console.WriteLine("=== Parameter Changes ===");
+            var defaults = new TunableParameters();
+            Console.WriteLine($"FiveInRowScore: {EvaluationConstants.FiveInRowScore} -> {finalParams.FiveInRowScore:F0}");
+            Console.WriteLine($"OpenFourScore: {EvaluationConstants.OpenFourScore} -> {finalParams.OpenFourScore:F0}");
+            Console.WriteLine($"ClosedFourScore: {EvaluationConstants.ClosedFourScore} -> {finalParams.ClosedFourScore:F0}");
+            Console.WriteLine($"OpenThreeScore: {EvaluationConstants.OpenThreeScore} -> {finalParams.OpenThreeScore:F0}");
+            Console.WriteLine($"ClosedThreeScore: {EvaluationConstants.ClosedThreeScore} -> {finalParams.ClosedThreeScore:F0}");
+            Console.WriteLine($"OpenTwoScore: {EvaluationConstants.OpenTwoScore} -> {finalParams.OpenTwoScore:F0}");
+            Console.WriteLine($"CenterBonus: {EvaluationConstants.CenterBonus} -> {finalParams.CenterBonus:F0}");
+            var defMult = (double)EvaluationConstants.DefenseMultiplierNumerator / EvaluationConstants.DefenseMultiplierDenominator;
+            Console.WriteLine($"DefenseMultiplier: {defMult:F2} -> {finalParams.DefenseMultiplier:F2}");
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("\nTuning was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"\nError: {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    #endregion
+
     #region Helpers
 
     static string GetDefaultBookPath()
@@ -728,6 +981,15 @@ class Program
             "--verify-time",
             "--book",
             "--max-ply",
+            // SPSA tuning
+            "--tune",
+            "--iterations",
+            "--games-per-eval",
+            "--preset",
+            // Binary format
+            "--export-binary",
+            "--import-binary",
+            "--verify-only",
             // Legacy
             "--output",
             "--depth",
@@ -736,7 +998,6 @@ class Program
             "--time-control",
             "--max-moves",
             "--resume",
-            "--verify-only",
             // General
             "--debug",
             "--help",
