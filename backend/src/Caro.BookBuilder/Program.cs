@@ -84,6 +84,9 @@ class Program
         Console.WriteLine();
         Console.WriteLine("Usage: dotnet run -- [options]");
         Console.WriteLine();
+        Console.WriteLine("Note: All database files (staging.db, verified.db, opening_book.db) are");
+        Console.WriteLine("      stored in the repository root by default.");
+        Console.WriteLine();
         Console.WriteLine("=== SEPARATED PIPELINE (Recommended) ===");
         Console.WriteLine();
         Console.WriteLine("Phase 1: Self-Play Generation (Actor)");
@@ -194,7 +197,7 @@ class Program
     /// </summary>
     static async Task RunStagingAsync(string[] args, ILoggerFactory loggerFactory, ILogger<Program> logger)
     {
-        var stagingPath = GetArgument(args, "--staging", "staging.db");
+        var stagingPath = GetArgument(args, "--staging", GetDefaultStagingPath());
         var targetGameCount = GetIntArgument(args, "--games", 8192);  // 2^13
         var baseTimeMs = GetIntArgument(args, "--base-time", 60000);   // 1 min default
         var incrementMs = GetIntArgument(args, "--increment", 0);      // No increment
@@ -299,9 +302,9 @@ class Program
     /// </summary>
     static async Task RunVerifyStagingAsync(string[] args, ILoggerFactory loggerFactory, ILogger<Program> logger)
     {
-        var stagingPath = GetArgument(args, "--verify-staging", "staging.db");
+        var stagingPath = GetArgument(args, "--verify-staging", GetDefaultStagingPath());
         var timeMs = GetIntArgument(args, "--time", 2048);       // 2^11
-        var outputPath = GetArgument(args, "--output", "verified.db");
+        var outputPath = GetArgument(args, "--output", GetDefaultVerifiedPath());
         var threads = GetIntArgument(args, "--threads", Math.Max(4, Environment.ProcessorCount / 2));
         var maxPly = GetIntArgument(args, "--max-ply", 16);
 
@@ -436,8 +439,8 @@ class Program
         var bookPath = GetArgument(args, "--book", GetDefaultBookPath());
         var resume = args.Contains("--resume");
 
-        var stagingPath = "staging.db";
-        var verifiedPath = "verified.db";
+        var stagingPath = GetDefaultStagingPath();
+        var verifiedPath = GetDefaultVerifiedPath();
 
         Console.WriteLine("=== Full Pipeline: All Phases ===");
         Console.WriteLine($"Target games: {targetGameCount}");
@@ -990,12 +993,30 @@ class Program
 
     #region Helpers
 
-    static string GetDefaultBookPath()
+    /// <summary>
+    /// Get the repository root directory (6 levels up from BookBuilder bin).
+    /// All database files (opening_book.db, staging.db, verified.db) are stored here.
+    /// </summary>
+    static string GetRepoRootPath()
     {
         return Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
-            "..", "..", "..", "..", "..", "..",
-            "opening_book.db"));
+            "..", "..", "..", "..", "..", ".."));
+    }
+
+    static string GetDefaultBookPath()
+    {
+        return Path.Combine(GetRepoRootPath(), "opening_book.db");
+    }
+
+    static string GetDefaultStagingPath()
+    {
+        return Path.Combine(GetRepoRootPath(), "staging.db");
+    }
+
+    static string GetDefaultVerifiedPath()
+    {
+        return Path.Combine(GetRepoRootPath(), "verified.db");
     }
 
     static string GetArgument(string[] args, string name, string defaultValue)
