@@ -511,8 +511,9 @@ The opening book generation uses a three-phase separated pipeline (Actor-Critic 
 
 | Threshold | Value | Rationale |
 |-----------|-------|-----------|
-| Self-Play Time/Move | 1024ms (2^10) | Fast exploration |
-| Verification Time | 2048ms (2^11) | Deep analysis |
+| Self-Play Time/Move | 100-2000ms (dynamic) | Time control regulated |
+| Verification Time | 4096ms (2^12) | Quality-optimized deep analysis |
+| Survival Zone Time | 8192ms (2^13) | Critical positions (ply 8-16) |
 | VCF Time Limit | 128ms (2^7) | Per VCF search |
 | Min Play Count | 512 (2^9) | Filters noise |
 | Win Rate Threshold | 62.5% (5/8) | Quality filter |
@@ -526,8 +527,8 @@ dotnet run --project backend/src/Caro.BookBuilder -- --full-pipeline --games 819
 # Phase 1: Self-play generation (use --staging, not legacy --self-play)
 dotnet run --project backend/src/Caro.BookBuilder -- --staging staging.db --games 8192
 
-# Phase 2: Verification with deep search
-dotnet run --project backend/src/Caro.BookBuilder -- --verify-staging staging.db --time 2048 --output verified.db
+# Phase 2: Verification with deep search (quality-optimized: 4096ms default)
+dotnet run --project backend/src/Caro.BookBuilder -- --verify-staging staging.db --time 4096 --output verified.db
 
 # Phase 3: Integrate into main book
 dotnet run --project backend/src/Caro.BookBuilder -- --integrate verified.db --book opening_book.db
