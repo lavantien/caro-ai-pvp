@@ -196,7 +196,7 @@ public sealed class MoveVerifierTests : IDisposable
     public void DefaultVerificationTimeMs_IsPowerOfTwo()
     {
         var thresholds = MoveVerifier.GetThresholds();
-        Assert.Equal(2048, thresholds.DefaultVerificationTimeMs);  // 2^11 ms
+        Assert.Equal(4096, thresholds.DefaultVerificationTimeMs);  // 2^12 ms (quality-optimized)
         Assert.True(IsPowerOfTwo(thresholds.DefaultVerificationTimeMs));
     }
 
@@ -204,7 +204,7 @@ public sealed class MoveVerifierTests : IDisposable
     public void ExtendedVerificationTimeMs_IsPowerOfTwo()
     {
         var thresholds = MoveVerifier.GetThresholds();
-        Assert.Equal(4096, thresholds.ExtendedVerificationTimeMs);  // 2^12 ms (survival zone)
+        Assert.Equal(8192, thresholds.ExtendedVerificationTimeMs);  // 2^13 ms (survival zone, quality-optimized)
         Assert.True(IsPowerOfTwo(thresholds.ExtendedVerificationTimeMs));
     }
 
@@ -320,8 +320,8 @@ public sealed class MoveVerifierTests : IDisposable
         Assert.Equal(256, thresholds.InclusionScoreDelta);     // 2^8 cp
         Assert.Equal(4, thresholds.MaxMovesPerPosition);       // 2^2
         Assert.Equal(2, thresholds.VcfTriggerThreats);
-        Assert.Equal(2048, thresholds.DefaultVerificationTimeMs);  // 2^11 ms
-        Assert.Equal(4096, thresholds.ExtendedVerificationTimeMs); // 2^12 ms
+        Assert.Equal(4096, thresholds.DefaultVerificationTimeMs);  // 2^12 ms (quality-optimized)
+        Assert.Equal(8192, thresholds.ExtendedVerificationTimeMs); // 2^13 ms (survival zone)
         Assert.Equal(128, thresholds.VcfTimeLimitMs);          // 2^7 ms
     }
 

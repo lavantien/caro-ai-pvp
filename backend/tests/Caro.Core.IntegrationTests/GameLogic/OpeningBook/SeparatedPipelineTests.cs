@@ -283,8 +283,8 @@ public sealed class SeparatedPipelineTests : IDisposable
 
         // Assert - Extended time should be double the default
         Assert.Equal(thresholds.DefaultVerificationTimeMs * 2, thresholds.ExtendedVerificationTimeMs);
-        Assert.Equal(2048, thresholds.DefaultVerificationTimeMs);   // 2^11
-        Assert.Equal(4096, thresholds.ExtendedVerificationTimeMs);  // 2^12
+        Assert.Equal(4096, thresholds.DefaultVerificationTimeMs);   // 2^12 (quality-optimized)
+        Assert.Equal(8192, thresholds.ExtendedVerificationTimeMs);  // 2^13 (survival zone)
     }
 
     [Fact]
