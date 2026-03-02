@@ -78,12 +78,17 @@ public sealed class SelfPlayGeneratorTests
     {
         // Arrange
         var cts = new CancellationTokenSource();
-        cts.Cancel();
 
-        // Act
-        var summary = await _generator.GenerateGamesAsync(100, cancellationToken: cts.Token);
+        // Cancel after a short delay to allow some games to complete
+        cts.CancelAfter(TimeSpan.FromMilliseconds(500));
 
-        // Assert
+        // Act - run generator with cancellation token
+        var summary = await _generator.GenerateGamesAsync(
+            100,
+            cancellationToken: cts.Token);
+
+        // Assert - should complete without throwing, with fewer than 100 games
+        // due to cancellation (exact count depends on timing)
         summary.TotalGames.Should().BeLessThan(100);
     }
 
@@ -105,7 +110,7 @@ public sealed class SelfPlayGeneratorTests
 
         // Act & Assert
         summary.TotalGames.Should().Be(4);
-        summary.AverageMoves.Should().Be(37.5); // 150/4
+        summary.AverageMoves.Should().BeApproximately(37.5, 0.001); // 150/4
     }
 
     [Fact]

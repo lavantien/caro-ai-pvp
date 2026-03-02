@@ -9,8 +9,26 @@ namespace Caro.Core.Tests.Helpers;
 public sealed class MockStagingBookStore : IStagingBookStore
 {
     private readonly List<StagingPosition> _positions = new();
+    private readonly List<SelfPlayGameRecord> _games = new();
     private readonly Dictionary<(ulong CanonicalHash, ulong DirectHash, Player Player), PositionStatistics> _stats = new();
     private readonly Dictionary<(ulong CanonicalHash, ulong DirectHash, Player Player, int MoveX, int MoveY), int> _moveResults = new();
+    private long _nextGameId = 1;
+
+    public void RecordGame(SelfPlayGameRecord gameRecord)
+    {
+        gameRecord.GameId = _nextGameId++;
+        _games.Add(gameRecord);
+    }
+
+    public List<SelfPlayGameRecord> GetGames(int limit = 1000, int offset = 0)
+    {
+        return _games.Skip(offset).Take(limit).ToList();
+    }
+
+    public List<SelfPlayGameRecord> GetGamesByResult(int result, int limit = 1000)
+    {
+        return _games.Where(g => (int)g.Winner == result).Take(limit).ToList();
+    }
 
     public void RecordMove(
         ulong canonicalHash,
@@ -31,7 +49,8 @@ public sealed class MockStagingBookStore : IStagingBookStore
             Ply = ply,
             MoveX = moveX,
             MoveY = moveY,
-            TimeBudgetMs = timeBudgetMs
+            TimeBudgetMs = timeBudgetMs,
+            GameResult = gameResult
         });
 
         var posKey = (canonicalHash, directHash, player, moveX, moveY);
@@ -127,7 +146,7 @@ public sealed class MockStagingBookStore : IStagingBookStore
 
     public void Initialize() { }
     public long GetPositionCount() => _positions.Count;
-    public long GetGameCount() => _positions.Select(p => p.Ply).Distinct().Count();
+    public long GetGameCount() => _games.Count;
 
     public void Dispose() { }
 }
