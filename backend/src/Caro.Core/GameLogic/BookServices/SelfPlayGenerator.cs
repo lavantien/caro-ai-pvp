@@ -25,7 +25,7 @@ public sealed class SelfPlayGenerator
     private const int DefaultIncrementMs = 0;        // No increment
 
     // Sampling thresholds
-    private const int ScoreDeltaThreshold = 400;      // Prune moves >400cp worse
+    private const int ScoreDeltaThreshold = 150;      // Prune moves >150cp worse (per expert report)
     private const double DirichletEpsilon = 0.25;     // Noise weight
     private const double DirichletAlpha = 0.3;        // Noise concentration
 
@@ -375,17 +375,18 @@ public sealed class SelfPlayGenerator
 
     /// <summary>
     /// Get dynamic temperature based on game phase.
+    /// Per expert report: decay to 0 by move 12 (ply 24)
+    /// - Moves 1-6 (ply 0-11): High temp for variety
+    /// - Moves 7-12 (ply 12-23): Medium temp
+    /// - Move 13+ (ply 24+): No randomness - optimal play
     /// </summary>
     private static double GetTemperature(int ply)
     {
-        // Plies 0-8 (Opening): High temp 1.5-2.0 for diversity
-        // Plies 8-16 (Transition): Medium temp 0.8-1.2
-        // Plies 16+ (Midgame): No randomness - optimal play
         return ply switch
         {
-            < 8 => 1.8,
-            < 16 => 1.0,
-            _ => 0.0
+            < 12 => 1.8,   // Ply 0-11 (Moves 1-6): High exploration
+            < 24 => 1.0,   // Ply 12-23 (Moves 7-12): Medium exploration
+            _ => 0.0       // Ply 24+ (Move 13+): Optimal play
         };
     }
 
