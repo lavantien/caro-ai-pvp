@@ -523,21 +523,17 @@ The opening book generation uses a three-phase separated pipeline (Actor-Critic 
 dotnet run --project backend/src/Caro.BookBuilder -- --full-pipeline --games 8192 --threads 8
 
 # Individual phase commands:
-# Phase 1: Self-play generation
-dotnet run --project backend/src/Caro.BookBuilder -- --self-play 8192 --time 1024 --staging staging.db
+# Phase 1: Self-play generation (use --staging, not legacy --self-play)
+dotnet run --project backend/src/Caro.BookBuilder -- --staging staging.db --games 8192
 
 # Phase 2: Verification with deep search
 dotnet run --project backend/src/Caro.BookBuilder -- --verify-staging staging.db --time 2048 --output verified.db
 
 # Phase 3: Integrate into main book
 dotnet run --project backend/src/Caro.BookBuilder -- --integrate verified.db --book opening_book.db
-
-# Legacy commands:
-dotnet run --project backend/src/Caro.BookBuilder -- --depth 16 --moves 2
-dotnet run --project backend/src/Caro.BookBuilder -- --depth 16 --resume
-dotnet run --project backend/src/Caro.BookBuilder -- --self-play 100 --time-control 1000
-dotnet run --project backend/src/Caro.BookBuilder -- --verify-only
 ```
+
+See [backend/src/Caro.BookBuilder/README.md](backend/src/Caro.BookBuilder/README.md) for complete CLI reference including SPSA tuning and binary format.
 
 **Integration:**
 - Caro.Api Program.cs loads InMemoryBookStore at startup
@@ -627,56 +623,14 @@ cd backend/src/Caro.BookBuilder
 dotnet run -- --tune [options]
 ```
 
-**Available Options:**
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--iterations <n>` | 50 | Number of SPSA iterations |
-| `--games-per-eval <n>` | 256 | Games per evaluation |
-| `--preset <name>` | Default | SPSA preset: Default, Aggressive, Conservative |
-| `--base-time <ms>` | 10000 | Base time per player in milliseconds |
-| `--output <path>` | - | Output optimized parameters to JSON file |
-
-**Examples:**
-
-```bash
-# Quick test run (3 iterations, 32 games each)
-dotnet run -- --tune --iterations 3 --games-per-eval 32
-
-# Standard tuning run
-dotnet run -- --tune --iterations 50 --games-per-eval 256
-
-# Aggressive optimization with output
-dotnet run -- --tune --preset Aggressive --iterations 100 --output tuned-params.json
-
-# Conservative tuning with longer time control
-dotnet run -- --tune --preset Conservative --base-time 30000 --output params.json
-```
-
-**Output:**
-- Console logging of each iteration with Y+/Y- values
-- Final parameters printed at completion
-- Optional JSON file with optimized parameter values
-
-**Parameter Bounds:**
-
-| Parameter | Min | Max | Default |
-|-----------|-----|-----|---------|
-| FiveInRowScore | 50,000 | 200,000 | 100,000 |
-| OpenFourScore | 5,000 | 20,000 | 10,000 |
-| ClosedFourScore | 500 | 2,000 | 1,000 |
-| OpenThreeScore | 500 | 2,000 | 1,000 |
-| ClosedThreeScore | 50 | 200 | 100 |
-| OpenTwoScore | 50 | 200 | 100 |
-| CenterBonus | 25 | 100 | 50 |
-| DefenseMultiplier | 1.0 | 3.0 | 1.5 |
-
 **How It Works:**
 1. Creates two parameter sets with small perturbations (theta+ and theta-)
 2. Runs self-play games with each parameter set in parallel
 3. Compares win rates to estimate gradient direction
 4. Updates parameters using SPSA formula
 5. Repeats for specified iterations
+
+See [backend/src/Caro.BookBuilder/README.md](backend/src/Caro.BookBuilder/README.md) for CLI options, examples, and parameter bounds.
 
 ### 8.3 Self-Play Infrastructure
 

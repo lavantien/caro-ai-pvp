@@ -1,0 +1,207 @@
+# Caro Opening Book Builder
+
+Tool for generating, verifying, and optimizing Caro opening books through self-play and deep search.
+
+## Overview
+
+The BookBuilder implements a three-phase separated pipeline (Actor-Critic pattern):
+
+| Phase | Component | Purpose | Output |
+|-------|-----------|---------|--------|
+| 1 | Self-Play (Actor) | Generate diverse raw games | `staging.db` |
+| 2 | Verification (Critic) | Deep search + VCF verification | `verified.db` |
+| 3 | Integration | Merge verified moves to main book | `opening_book.db` |
+
+**Quick Start:**
+```bash
+cd backend/src/Caro.BookBuilder
+dotnet run -- --full-pipeline --games 8192 --threads 8
+```
+
+---
+
+## CLI Reference
+
+### Separated Pipeline (Recommended)
+
+#### Phase 1: Self-Play Generation
+```bash
+dotnet run -- --staging <path> [options]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--staging <path>` | `staging.db` | Output staging database path |
+| `--games <n>` | 8192 | Number of games to play |
+| `--base-time <ms>` | 60000 | Base time per player (1 min) |
+| `--increment <ms>` | 0 | Time increment per move |
+| `--threads <n>` | CPU cores | Parallel game threads |
+| `--buffer <n>` | 4096 | Games before database commit |
+| `--max-ply <n>` | 16 | Maximum ply to record |
+
+#### Phase 2: Verification
+```bash
+dotnet run -- --verify-staging <path> [options]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--verify-staging <path>` | (required) | Staging database to verify |
+| `--time <ms>` | 2048 | Time per position for deep search |
+| `--output <path>` | `verified.db` | Output verified database |
+| `--threads <n>` | cores/2 | Parallel verification threads |
+
+**Note:** Survival zone positions (ply 8-16) automatically get 4096ms (2x time).
+
+#### Phase 3: Integration
+```bash
+dotnet run -- --integrate <path> [options]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--integrate <path>` | (required) | Verified database to integrate |
+| `--book <path>` | `opening_book.db` | Main book to update |
+| `--batch <n>` | 65536 | Batch size for commits |
+
+#### Full Pipeline (Convenience)
+```bash
+dotnet run -- --full-pipeline [options]
+```
+
+Runs all three phases in sequence. Options from all phases apply.
+
+---
+
+### Binary Format
+
+Compact binary format for faster loading at startup.
+
+```bash
+# Export to binary
+dotnet run -- --export-binary book.cobook --book opening_book.db
+
+# Import from binary
+dotnet run -- --import-binary book.cobook --output imported_book.db
+
+# Validate only (no import)
+dotnet run -- --import-binary book.cobook --verify-only
+```
+
+**Benefits:**
+- ~4x smaller than SQLite
+- ~10x faster load time
+- Varint encoding for compactness
+- xxHash checksum for integrity
+
+---
+
+### SPSA Parameter Tuning
+
+Optimize AI evaluation parameters through self-play.
+
+```bash
+dotnet run -- --tune [options]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--iterations <n>` | 50 | SPSA iterations |
+| `--games-per-eval <n>` | 256 | Games per evaluation |
+| `--preset <name>` | Default | Preset: Default, Aggressive, Conservative |
+| `--base-time <ms>` | 10000 | Base time per player |
+| `--output <path>` | - | Output JSON file for parameters |
+
+**Examples:**
+```bash
+# Quick test
+dotnet run -- --tune --iterations 3 --games-per-eval 32 --debug
+
+# Standard tuning
+dotnet run -- --tune --iterations 50 --games-per-eval 256
+
+# With output file
+dotnet run -- --tune --preset Aggressive --output tuned.json
+```
+
+**Parameter Bounds:**
+
+| Parameter | Min | Max | Default |
+|-----------|-----|-----|---------|
+| FiveInRowScore | 50,000 | 200,000 | 100,000 |
+| OpenFourScore | 5,000 | 20,000 | 10,000 |
+| ClosedFourScore | 500 | 2,000 | 1,000 |
+| OpenThreeScore | 500 | 2,000 | 1,000 |
+| ClosedThreeScore | 50 | 200 | 100 |
+| OpenTwoScore | 50 | 200 | 100 |
+| CenterBonus | 25 | 100 | 50 |
+| DefenseMultiplier | 1.0 | 3.0 | 1.5 |
+
+---
+
+### Legacy Mode
+
+Traditional book generation (deprecated, use separated pipeline).
+
+```bash
+# Traditional generation
+dotnet run -- --output book.db --depth 16 --moves 2 [--resume]
+
+# Legacy self-play
+dotnet run -- --self-play 100 --time-control 1000 --max-moves 100
+
+# Verify existing book
+dotnet run -- --verify-only
+```
+
+---
+
+## Thresholds
+
+All thresholds are powers of 2 for statistical significance:
+
+| Threshold | Value | Purpose |
+|-----------|-------|---------|
+| MinPlayCount | 512 (2^9) | Filters fluke wins |
+| MinWinRate | 62.5% (5/8) | Winning line indicator |
+| MaxWinRateForLoss | 37.5% | Losing line indicator |
+| MinConsensusRate | 81.25% | Self-play vs deep search consensus |
+| MaxScoreDelta | 512 (2^9) | Pruning threshold |
+| InclusionScoreDelta | 256 | Inclusion range |
+| MaxMovesPerPosition | 4 | Variety without bloat |
+
+---
+
+## Examples
+
+```bash
+# Full pipeline with 8K games
+dotnet run -- --full-pipeline --games 8192 --threads 8
+
+# Individual phases
+dotnet run -- --staging staging.db --games 8192
+dotnet run -- --verify-staging staging.db --output verified.db
+dotnet run -- --integrate verified.db --book opening_book.db
+
+# Quick SPSA test
+dotnet run -- --tune --iterations 3 --games-per-eval 32 --debug
+
+# Export for production
+dotnet run -- --export-binary book.cobook
+```
+
+---
+
+## Architecture
+
+See [ENGINE_FEATURES.md](../../../ENGINE_FEATURES.md) for:
+- AI engine architecture (search, evaluation, move ordering)
+- BitKey pattern system
+- Transposition table design
+- Time management
+
+Book-specific architecture:
+- **SelfPlayGenerator**: Temperature-based move sampling with Dirichlet noise
+- **MoveVerifier**: Deep search verification with VCF solving
+- **StagingBookStore**: SQLite-based game recording with buffering
+- **InMemoryOpeningBook**: Fast lookup with 8-way symmetry reduction
