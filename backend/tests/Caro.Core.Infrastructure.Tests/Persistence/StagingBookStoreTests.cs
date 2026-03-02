@@ -75,9 +75,10 @@ public sealed class StagingBookStoreTests : IDisposable
         _store.RecordMove(canonicalHash, directHash, player, ply, moveX, moveY, gameResult, gameId, timeBudgetMs);
         _store.Flush();
 
-        // Assert
+        // Assert - RecordMove adds to positions table, not games table
         Assert.Equal(1, _store.GetPositionCount());
-        Assert.Equal(1, _store.GetGameCount());
+        // GetGameCount queries games table which requires RecordGame, not RecordMove
+        Assert.Equal(0, _store.GetGameCount());
     }
 
     [Fact]
