@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.72.2] - 2026-03-03
+
+### Added
+- **Self-Play Resume Support** - `--resume` flag for interrupted generation
+  - Checks existing games in staging database
+  - Calculates remaining games needed to reach target
+  - Skips generation if target already reached with helpful message
+  - Works with both `--staging` and `--full-pipeline` commands
+
+### Changed
+- **BookBuilder CLI** - Improved help text and examples
+  - Added `--resume` documentation to Phase 1 and Full Pipeline sections
+  - Updated examples to show resume usage
+  - Marked legacy traditional generation as "not recommended"
+
+### Documentation
+- Updated BookBuilder README with `--resume` option and usage examples
+
+[1.72.2]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.72.2
+
 ## [1.72.1] - 2026-03-03
 
 ### Fixed

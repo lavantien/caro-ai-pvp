@@ -93,6 +93,7 @@ class Program
         Console.WriteLine("  --increment <ms>          Time increment per move (default: 0)");
         Console.WriteLine("  --threads <n>             Parallel games (default: CPU cores)");
         Console.WriteLine("  --buffer <n>              Games before commit (default: 4096 = 2^12)");
+        Console.WriteLine("  --resume                  Continue from existing games in staging DB");
         Console.WriteLine();
         Console.WriteLine("Phase 2: Verification (Critic)");
         Console.WriteLine("  --verify-staging <path>   Verify staging database with deep search");
@@ -113,6 +114,7 @@ class Program
         Console.WriteLine("  --increment <ms>          Self-play increment (default: 0)");
         Console.WriteLine("  --verify-time <ms>        Verification time (default: 2048)");
         Console.WriteLine("  --threads <n>             Parallel games (default: CPU cores)");
+        Console.WriteLine("  --resume                  Continue Phase 1 from existing staging games");
         Console.WriteLine();
         Console.WriteLine("=== BINARY FORMAT ===");
         Console.WriteLine();
@@ -139,11 +141,10 @@ class Program
         Console.WriteLine();
         Console.WriteLine("=== LEGACY MODE ===");
         Console.WriteLine();
-        Console.WriteLine("Traditional Generation:");
+        Console.WriteLine("Traditional Generation (not recommended):");
         Console.WriteLine("  --output <path>           Output database path");
         Console.WriteLine("  --depth <n>               Maximum book depth in plies (default: 16)");
         Console.WriteLine("  --moves <n>               Moves per position to expand (default: 2)");
-        Console.WriteLine("  --resume                  Resume generation from saved progress");
         Console.WriteLine();
         Console.WriteLine("Legacy Self-Play:");
         Console.WriteLine("  --self-play <n>           Run n self-play games (legacy, use --staging)");
@@ -173,13 +174,15 @@ class Program
         Console.WriteLine();
         Console.WriteLine("  # Separated Pipeline (Recommended)");
         Console.WriteLine("  dotnet run -- --staging staging.db --games 8192");
+        Console.WriteLine("  dotnet run -- --staging staging.db --games 8192 --resume   # Continue if interrupted");
         Console.WriteLine("  dotnet run -- --verify-staging staging.db --output verified.db");
         Console.WriteLine("  dotnet run -- --integrate verified.db --book opening_book.db");
         Console.WriteLine();
         Console.WriteLine("  # Full Pipeline (All phases)");
         Console.WriteLine("  dotnet run -- --full-pipeline --games 8192 --threads 8");
+        Console.WriteLine("  dotnet run -- --full-pipeline --games 8192 --resume   # Resume Phase 1 if interrupted");
         Console.WriteLine();
-        Console.WriteLine("  # Legacy");
+        Console.WriteLine("  # Legacy (not recommended)");
         Console.WriteLine("  dotnet run -- --depth 20 --moves 3");
         Console.WriteLine("  dotnet run -- --verify-only");
     }
@@ -192,16 +195,17 @@ class Program
     static async Task RunStagingAsync(string[] args, ILoggerFactory loggerFactory, ILogger<Program> logger)
     {
         var stagingPath = GetArgument(args, "--staging", "staging.db");
-        var gameCount = GetIntArgument(args, "--games", 8192);  // 2^13
+        var targetGameCount = GetIntArgument(args, "--games", 8192);  // 2^13
         var baseTimeMs = GetIntArgument(args, "--base-time", 60000);   // 1 min default
         var incrementMs = GetIntArgument(args, "--increment", 0);      // No increment
         var threads = GetIntArgument(args, "--threads", Environment.ProcessorCount);
         var buffer = GetIntArgument(args, "--buffer", 4096);     // 2^12
         var maxPly = GetIntArgument(args, "--max-ply", 16);
+        var resume = args.Contains("--resume");
 
         Console.WriteLine("=== Phase 1: Self-Play Generation (Actor) ===");
         Console.WriteLine($"Staging database: {stagingPath}");
-        Console.WriteLine($"Games: {gameCount}");
+        Console.WriteLine($"Target games: {targetGameCount}");
         Console.WriteLine($"Time control: {baseTimeMs / 60000}+{incrementMs / 1000}");
         Console.WriteLine($"Max ply to record: {maxPly}");
         Console.WriteLine($"Buffer size: {buffer}");
@@ -213,6 +217,32 @@ class Program
             buffer);
 
         stagingStore.Initialize();
+
+        // Check for existing games if resuming
+        var existingGames = stagingStore.GetGameCount();
+        var gamesToGenerate = targetGameCount;
+
+        if (resume && existingGames > 0)
+        {
+            gamesToGenerate = Math.Max(0, targetGameCount - (int)existingGames);
+            Console.WriteLine($"[Resume] Found {existingGames} existing games in staging");
+            Console.WriteLine($"[Resume] Need to generate {gamesToGenerate} more games to reach target of {targetGameCount}");
+            Console.WriteLine();
+
+            if (gamesToGenerate == 0)
+            {
+                Console.WriteLine($"[Resume] Target already reached! No more games needed.");
+                Console.WriteLine($"[Resume] Use --games {existingGames + 1} or higher to generate more.");
+                return;
+            }
+        }
+        else if (existingGames > 0 && !resume)
+        {
+            Console.WriteLine($"Warning: Staging database already contains {existingGames} games.");
+            Console.WriteLine($"         New games will be ADDED (total will be {existingGames + targetGameCount}).");
+            Console.WriteLine($"         Use --resume to continue toward target instead.");
+            Console.WriteLine();
+        }
 
         var canonicalizer = new PositionCanonicalizer();
         var selfPlayGenerator = new SelfPlayGenerator(
@@ -231,7 +261,7 @@ class Program
         try
         {
             var summary = await selfPlayGenerator.GenerateGamesAsync(
-                gameCount,
+                gamesToGenerate,
                 baseTimeMs: baseTimeMs,
                 incrementMs: incrementMs,
                 maxMoves: 200,
@@ -241,7 +271,12 @@ class Program
 
             Console.WriteLine();
             Console.WriteLine("=== Self-Play Summary ===");
-            Console.WriteLine($"Total Games: {summary.TotalGames}");
+            Console.WriteLine($"Games Generated: {summary.TotalGames}");
+            if (resume && existingGames > 0)
+            {
+                var totalGames = existingGames + summary.TotalGames;
+                Console.WriteLine($"Total in Staging: {totalGames} (was {existingGames})");
+            }
             Console.WriteLine($"Red Wins: {summary.RedWins} ({100.0 * summary.RedWins / Math.Max(1, summary.TotalGames):F1}%)");
             Console.WriteLine($"Blue Wins: {summary.BlueWins} ({100.0 * summary.BlueWins / Math.Max(1, summary.TotalGames):F1}%)");
             Console.WriteLine($"Draws: {summary.Draws} ({100.0 * summary.Draws / Math.Max(1, summary.TotalGames):F1}%)");
@@ -393,22 +428,24 @@ class Program
     /// </summary>
     static async Task RunFullPipelineAsync(string[] args, ILoggerFactory loggerFactory, ILogger<Program> logger)
     {
-        var gameCount = GetIntArgument(args, "--games", 8192);
+        var targetGameCount = GetIntArgument(args, "--games", 8192);
         var baseTimeMs = GetIntArgument(args, "--base-time", 60000);    // 1 min for self-play
         var incrementMs = GetIntArgument(args, "--increment", 0);       // No increment
         var verifyTimeMs = GetIntArgument(args, "--verify-time", 2048);
         var threads = GetIntArgument(args, "--threads", Environment.ProcessorCount);
         var bookPath = GetArgument(args, "--book", GetDefaultBookPath());
+        var resume = args.Contains("--resume");
 
         var stagingPath = "staging.db";
         var verifiedPath = "verified.db";
 
         Console.WriteLine("=== Full Pipeline: All Phases ===");
-        Console.WriteLine($"Games: {gameCount}");
+        Console.WriteLine($"Target games: {targetGameCount}");
         Console.WriteLine($"Self-play time control: {baseTimeMs / 60000}+{incrementMs / 1000}");
         Console.WriteLine($"Verification time: {verifyTimeMs}ms");
         Console.WriteLine($"Threads: {threads}");
         Console.WriteLine($"Final book: {bookPath}");
+        if (resume) Console.WriteLine($"Resume: enabled (Phase 1 will check existing games)");
         Console.WriteLine();
 
         var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -426,20 +463,52 @@ class Program
             {
                 stagingStore.Initialize();
 
-                var selfPlayGenerator = new SelfPlayGenerator(
-                    stagingStore,
-                    new PositionCanonicalizer(),
-                    loggerFactory);
+                // Check for existing games if resuming
+                var existingGames = stagingStore.GetGameCount();
+                var gamesToGenerate = targetGameCount;
 
-                var selfPlaySummary = await selfPlayGenerator.GenerateGamesAsync(
-                    gameCount,
-                    baseTimeMs: baseTimeMs,
-                    incrementMs: incrementMs,
-                    maxMoves: 200,
-                    maxPly: 16,
-                    workerCount: threads);
+                if (resume && existingGames > 0)
+                {
+                    gamesToGenerate = Math.Max(0, targetGameCount - (int)existingGames);
+                    Console.WriteLine($"[Resume] Found {existingGames} existing games in staging");
+                    Console.WriteLine($"[Resume] Need to generate {gamesToGenerate} more games to reach target of {targetGameCount}");
+                    Console.WriteLine();
 
-                Console.WriteLine($"Phase 1 complete: {selfPlaySummary.StagingMovesRecorded} moves to staging");
+                    if (gamesToGenerate == 0)
+                    {
+                        Console.WriteLine($"[Resume] Target already reached! Skipping Phase 1.");
+                        Console.WriteLine();
+                    }
+                }
+                else if (existingGames > 0 && !resume)
+                {
+                    Console.WriteLine($"Note: Staging database already contains {existingGames} games.");
+                    Console.WriteLine($"      New games will be ADDED (total will be {existingGames + targetGameCount}).");
+                    Console.WriteLine();
+                }
+
+                if (gamesToGenerate > 0)
+                {
+                    var selfPlayGenerator = new SelfPlayGenerator(
+                        stagingStore,
+                        new PositionCanonicalizer(),
+                        loggerFactory);
+
+                    var selfPlaySummary = await selfPlayGenerator.GenerateGamesAsync(
+                        gamesToGenerate,
+                        baseTimeMs: baseTimeMs,
+                        incrementMs: incrementMs,
+                        maxMoves: 200,
+                        maxPly: 16,
+                        workerCount: threads);
+
+                    var totalInStaging = existingGames + selfPlaySummary.TotalGames;
+                    Console.WriteLine($"Phase 1 complete: {selfPlaySummary.TotalGames} games generated, {totalInStaging} total in staging");
+                }
+                else
+                {
+                    Console.WriteLine("Phase 1 skipped (target already reached)");
+                }
             }
 
             // Phase 2: Verification
