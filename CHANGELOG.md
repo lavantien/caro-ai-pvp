@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.73.0] - 2026-03-03
+
+### Changed
+- **Book Builder Verification Time** - Quality-optimized for deeper analysis
+  - Default verification: 2048ms → 4096ms (2x max self-play time)
+  - Survival zone (ply 8-16): 4096ms → 8192ms (4x max self-play time)
+  - Ensures verification is significantly stronger than self-play moves
+  - Catches tactical mistakes that would be missed at lower time budgets
+
+### Documentation
+- Updated ENGINE_FEATURES.md with new verification thresholds
+- Updated BookBuilder README with quality-optimized defaults
+- Added rationale for 2-4x time ratio between verification and self-play
+
+### Tests
+- Updated MoveVerifierTests for new threshold values (4096ms/8192ms)
+- Updated SeparatedPipelineTests for new threshold values
+
+[1.73.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.73.0
+
 ## [1.72.2] - 2026-03-03
 
 ### Added
