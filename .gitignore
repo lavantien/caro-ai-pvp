@@ -33,6 +33,13 @@ test_tt.cs
 *.db-shm
 *.db-wal
 
+# Generated database files (staging, verified)
+# Note: opening_book.db is tracked as a pre-generated asset
+staging.db
+verified.db
+*.staging.db
+*.verified.db
+
 # Tournament output files
 matchup_results.txt
 
