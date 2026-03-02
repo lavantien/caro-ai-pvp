@@ -134,10 +134,7 @@ public sealed class SelfPlayGenerator
         var lockObj = new object();
 
         // Progress tracking
-        var progressInterval = Math.Max(1, gameCount / 100); // Report every 1%
-        var lastProgressReport = 0;
         var startTime = DateTime.UtcNow;
-        var lastReportTime = startTime;
 
         for (int w = 0; w < workerCount; w++)
         {
@@ -180,8 +177,7 @@ public sealed class SelfPlayGenerator
                             workerSummary.GamesPlayed++;
                             completedGames++;
 
-                            // Progress reporting with ETA and rate
-                            if (completedGames - lastProgressReport >= progressInterval || completedGames == gameCount)
+                            // Progress reporting - every game for immediate feedback
                             {
                                 var now = DateTime.UtcNow;
                                 var elapsed = now - startTime;
@@ -201,16 +197,10 @@ public sealed class SelfPlayGenerator
                                     ? $"{gamesPerSec:F1} games/s"
                                     : $"{gamesPerSec * 60:F1} games/min";
 
-                                _logger.LogInformation(
-                                    "Self-play: {Completed}/{Total} ({Percent:F1}%) | " +
-                                    "{Rate} | ETA: {ETA} | Elapsed: {Elapsed}",
-                                    completedGames, gameCount, percent,
-                                    rateStr,
-                                    FormatTimeSpan(eta),
-                                    FormatTimeSpan(elapsed));
-
-                                lastProgressReport = completedGames;
-                                lastReportTime = now;
+                                // Use Console.WriteLine for immediate output (logger may buffer)
+                                Console.WriteLine(
+                                    $"Self-play: {completedGames}/{gameCount} ({percent:F1}%) | " +
+                                    $"{rateStr} | ETA: {FormatTimeSpan(eta)} | Elapsed: {FormatTimeSpan(elapsed)}");
                             }
                         }
                     }
@@ -296,12 +286,18 @@ public sealed class SelfPlayGenerator
         {
             var moveStartTime = DateTime.UtcNow;
 
+            // Calculate time for this move based on remaining time
+            // For self-play: use 5% of remaining time, min 100ms, max 2000ms
+            var availableTime = currentPlayer == Player.Red ? redTime : blueTime;
+            var moveTimeMs = Math.Max(100, Math.Min(2000, availableTime / 20));
+
             // Get move with temperature-based sampling
             var (x, y) = SelectMoveWithSampling(
                 board,
                 currentPlayer,
                 ai,
-                moveCount);  // ply = moveCount
+                moveCount,
+                moveTimeMs);  // ply = moveCount
 
             if (x < 0 || y < 0)
             {
@@ -368,11 +364,12 @@ public sealed class SelfPlayGenerator
         Board board,
         Player player,
         MinimaxAI ai,
-        int ply)
+        int ply,
+        int timeMs)
     {
-        // Get all candidate moves with scores using quick evaluation
+        // Get all candidate moves with scores using time-bounded evaluation
         var candidates = ai.GetCandidateMovesWithScores(
-            board, player, AIDifficulty.Grandmaster, timeMs: 500);
+            board, player, AIDifficulty.Grandmaster, timeMs);
 
         if (candidates.Count == 0)
         {
