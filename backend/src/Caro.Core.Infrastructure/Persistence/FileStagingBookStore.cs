@@ -105,12 +105,10 @@ public sealed class FileStagingBookStore : IStagingBookStore
         var workerId = (int)(gameRecord.GameId % Environment.ProcessorCount);
         var buffer = _workerBuffers.GetOrAdd(workerId, id => new WorkerBuffer(id, GamesPerBatch));
 
-        // Add game to buffer
-        buffer.AddGame(gameRecord);
-
-        // If buffer is full, commit it
-        if (buffer.IsFull)
+        // Add game to buffer (thread-safe)
+        if (buffer.TryAddAndCheckFull(gameRecord))
         {
+            // Buffer is full, commit it
             CommitBuffer(buffer);
             _workerBuffers.TryRemove(workerId, out _);
         }
@@ -443,6 +441,10 @@ public sealed class FileStagingBookStore : IStagingBookStore
     {
         if (buffer.GameCount == 0) return;
 
+        // Get snapshot of games to commit
+        var gamesToCommit = buffer.GetGamesSnapshot();
+        if (gamesToCommit.Count == 0) return;
+
         lock (_manifestLock)
         {
             // Determine batch index
@@ -451,7 +453,12 @@ public sealed class FileStagingBookStore : IStagingBookStore
 
             // Write committed file
             var committedPath = Path.Combine(_basePath, "committed", fileName);
-            File.WriteAllText(committedPath, buffer.GetSgfContent());
+            var sgfContent = new StringBuilder();
+            foreach (var game in gamesToCommit)
+            {
+                sgfContent.AppendLine(game.SgfMoves);
+            }
+            File.WriteAllText(committedPath, sgfContent.ToString());
 
             // Update manifest
             _manifest.Batches.Add(new SgfBatch
@@ -459,13 +466,13 @@ public sealed class FileStagingBookStore : IStagingBookStore
                 Index = batchIndex,
                 FileName = fileName,
                 Offset = _manifest.TotalGames,
-                Count = buffer.GameCount
+                Count = gamesToCommit.Count
             });
 
             // Update result index
-            for (int i = 0; i < buffer.Games.Count; i++)
+            for (int i = 0; i < gamesToCommit.Count; i++)
             {
-                var game = buffer.Games[i];
+                var game = gamesToCommit[i];
                 var gameIndex = _manifest.TotalGames + i;
 
                 if (game.Winner == Player.Red)
@@ -476,9 +483,9 @@ public sealed class FileStagingBookStore : IStagingBookStore
                     _manifest.ResultIndex.Draws.Add(gameIndex);
             }
 
-            _manifest.TotalGames += buffer.GameCount;
+            _manifest.TotalGames += gamesToCommit.Count;
 
-            _logger.LogDebug("Committed batch {Index} with {Count} games", batchIndex, buffer.GameCount);
+            _logger.LogDebug("Committed batch {Index} with {Count} games", batchIndex, gamesToCommit.Count);
         }
     }
 
@@ -567,10 +574,14 @@ public sealed class FileStagingBookStore : IStagingBookStore
 
     private sealed class WorkerBuffer
     {
+        private readonly object _lock = new();
         public int WorkerId { get; }
         public int Capacity { get; }
-        public List<SelfPlayGameRecord> Games { get; } = new();
-        public int GameCount => Games.Count;
+        private readonly List<SelfPlayGameRecord> _games = new();
+        public int GameCount
+        {
+            get { lock (_lock) return _games.Count; }
+        }
         public bool IsFull => GameCount >= Capacity;
 
         public WorkerBuffer(int workerId, int capacity)
@@ -579,19 +590,41 @@ public sealed class FileStagingBookStore : IStagingBookStore
             Capacity = capacity;
         }
 
-        public void AddGame(SelfPlayGameRecord game)
+        /// <summary>
+        /// Add a game and return true if buffer became full (caller should commit).
+        /// Thread-safe via locking.
+        /// </summary>
+        public bool TryAddAndCheckFull(SelfPlayGameRecord game)
         {
-            Games.Add(game);
+            lock (_lock)
+            {
+                _games.Add(game);
+                return _games.Count >= Capacity;
+            }
+        }
+
+        /// <summary>
+        /// Get a snapshot of games for committing.
+        /// </summary>
+        public List<SelfPlayGameRecord> GetGamesSnapshot()
+        {
+            lock (_lock)
+            {
+                return new List<SelfPlayGameRecord>(_games);
+            }
         }
 
         public string GetSgfContent()
         {
-            var sb = new StringBuilder();
-            foreach (var game in Games)
+            lock (_lock)
             {
-                sb.AppendLine(game.SgfMoves);
+                var sb = new StringBuilder();
+                foreach (var game in _games)
+                {
+                    sb.AppendLine(game.SgfMoves);
+                }
+                return sb.ToString();
             }
-            return sb.ToString();
         }
     }
 }
