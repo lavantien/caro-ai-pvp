@@ -250,79 +250,30 @@ Precomputed opening positions with SQLite persistence, in-memory lookup, and int
 - **Variable depth search** - VCF solving (20-30 ply) for early game, deep search (14-20 ply) for mid-game
 - **Move classification** - Solved (proven wins), Learned (deep search), SelfPlay (engine vs engine)
 - **In-memory lookup** - 40K+ lookups/sec (~24μs), orders of magnitude faster than SQLite
-- **Runtime integration** - InMemoryBookStore loaded at API startup for instant book access
-- **Difficulty-based filtering** - Book depth automatically filtered by AI difficulty level
 - **Symmetry reduction** - 8-way transformations reduce storage by ~8x
-- **Compound key storage** - Uses (CanonicalHash, DirectHash, Player) to avoid hash collision issues
-- **Streaming batch processing** - Memory-bounded generation with 65K batch size
-- **Self-play learning** - Engine vs engine games for empirical move evaluation with win rate tracking
 
-**Generate book:**
+**Quick Start:**
 ```bash
-dotnet run --project backend/src/Caro.BookBuilder
+# Full pipeline (recommended)
+dotnet run --project backend/src/Caro.BookBuilder -- --full-pipeline --games 8192 --threads 8
+
+# SPSA parameter tuning
+dotnet run --project backend/src/Caro.BookBuilder -- --tune --iterations 50
 ```
 
-**Custom configuration:**
-```bash
-dotnet run --project backend/src/Caro.BookBuilder -- --depth 16 --moves 2 --output=custom_book.db
-```
+See [backend/src/Caro.BookBuilder/README.md](backend/src/Caro.BookBuilder/README.md) for:
+- Separated pipeline (staging → verification → integration)
+- Binary format export/import
+- SPSA tuning CLI reference
+- All CLI options and examples
 
-**Resume interrupted generation:**
-```bash
-dotnet run --project backend/src/Caro.BookBuilder -- --depth 16 --resume
-```
+**Book Structure:**
 
-**Self-play learning:**
-```bash
-dotnet run --project backend/src/Caro.BookBuilder -- --self-play 100 --time-control 1000 --max-moves 100
-```
-
-**Verify existing book:**
-```bash
-dotnet run --project backend/src/Caro.BookBuilder -- --verify-only
-```
-
-**Book Structure (configurable depth with variable breadth):**
-- Plies 0-8: VCF solving, up to 8 moves/position, 50cp threshold (opening theory)
-- Plies 8-16: Deep search, up to 4 moves/position, 30cp threshold (mid-game)
-- Ply 16+: Self-play only (high win-rate moves from engine games)
-
-**Depth Configuration:**
-
-| Ply Range | Search Depth | Move Count | Score Threshold | Use VCF |
-|-----------|-------------|------------|-----------------|---------|
-| 0-8 | 20-30 | 8 | 50cp | Yes |
-| 8-16 | 14-20 | 4 | 30cp | No |
-| 16+ | Self-play only | - | - | No |
-
-**Move Sources (priority order):**
-1. **Solved** - Proven wins via VCF/VCT solver
-2. **Learned** - Deep search evaluation
-3. **SelfPlay** - Engine vs engine game results
-
-**Book Builder Performance:**
-
-| Metric | Value |
-|--------|-------|
-| Average throughput | 25-30 positions/minute |
-| Candidate prune rate | 90%+ |
-| In-memory lookup | 40K+/sec (~24μs) |
-| Batch size | 65,536 (power of 2) |
-
-**Throughput by depth:**
-
-| Depth | Positions | Moves | Time | Throughput |
-|-------|-----------|-------|------|------------|
-| 0-4 | 30 | 63 | 18s | 70-84 pos/min |
-| 5-7 | 112 | 224 | 58s | 103-144 pos/min |
-| 8-10 | 844 | 1,623 | 13m 42s | 58-76 pos/min |
-| 11-12 | 2,148 | 3,613 | 1h 21m | 21-40 pos/min |
-| 13-14 | 4,866 | 7,704 | 1h 19m | 18-20 pos/min |
-
-**Book statistics:**
-- Total entries: 7,442
-- Max depth: 14
-- Total moves: 13,035
+| Ply Range | Search Depth | Moves/Position | Use VCF | Phase |
+|-----------|-------------|----------------|--------|-------|
+| 0-8 | 20-30 | 8 | Yes | Opening Theory |
+| 8-16 | 14-20 | 4 | No | Mid-game |
+| 16+ | Self-play only | - | - | End-game |
 
 ### Tournament Mode
 
@@ -373,9 +324,47 @@ G1 M10 | B(16,17) by Easy | T: 1.1s/796ms | Bk | Th: 3 | D2 | N: 2.0K | NPS: 1.9
 
 **Note:** Early exit moves (book, win, block, error) show `0ms` allocated time because no search was performed - the move was determined instantly. The actual time shown is overhead of checking conditions.
 
-### Documentation
+### Documentation Guide
 
-**Engine Features:** `ENGINE_FEATURES.md` - Comprehensive technical reference covering theoretical structures, algorithms, and patterns used in the AI engine. Includes search optimizations, transposition tables, move ordering systems, evaluation techniques, and time management strategies.
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| **README.md** (this file) | Project overview, getting started, architecture summary | First - start here |
+| **ENGINE_FEATURES.md** | AI engine architecture (search, evaluation, TT, move ordering) | Understanding how the AI works |
+| **backend/src/Caro.BookBuilder/README.md** | Opening book CLI operations (generate, verify, tune) | Building/tuning opening books |
+| **backend/tests/README.md** | Test organization and running instructions | Running tests |
+| **CLAUDE.md** | Development protocols and coding standards | Contributing code |
+
+**Documentation Matrix:**
+
+```
+README.md (Entry Point)
+    ├── Getting Started → Quick start commands
+    ├── Architecture → Clean Architecture diagram
+    ├── Features → AI, Tournament, UCI, Opening Book
+    └── Testing → Test projects overview
+        │
+        └──→ ENGINE_FEATURES.md (Deep Dive)
+                ├── Search Architecture → PVS, LMR, Quiescence
+                ├── Transposition Table → Clusters, Lockless hashing
+                ├── Move Ordering → Stages, History, Killers
+                ├── Evaluation → BitKey, Pattern4, Scoring
+                ├── Time Management → PID controller
+                └── Opening Book → Pipeline, SPSA tuning
+                        │
+                        └──→ backend/src/Caro.BookBuilder/README.md
+                                ├── Separated Pipeline → Staging, Verify, Integrate
+                                ├── Binary Format → Export/Import
+                                ├── SPSA Tuning → CLI options, parameters
+                                └── Examples → Command reference
+```
+
+**Newcomer Onboarding Path:**
+
+1. **Start:** README.md → Getting Started (run the app)
+2. **Understand:** Architecture section + Features tables
+3. **Deep dive:** ENGINE_FEATURES.md for AI details
+4. **Operate:** BookBuilder README for book generation
+5. **Contribute:** CLAUDE.md for coding standards
 
 ### Test Projects
 
