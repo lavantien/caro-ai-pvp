@@ -12,26 +12,26 @@ namespace Caro.Core.GameLogic;
 /// - Only verified moves enter the main book
 ///
 /// Design principles:
-/// - Parallel game execution (8 workers by default)
+/// - Parallel game execution (1 thread per game for max throughput)
 /// - Temperature-based sampling with score delta threshold
 /// - Dirichlet noise for opening diversity
 /// - Store games in SGF format (one row per game)
-/// - Time control: 7+5 (7 minutes + 5 second increment)
+/// - Time control: 1+0 (1 minute + 0 second increment) - fast games for volume
 /// </summary>
 public sealed class SelfPlayGenerator
 {
-    // Time control defaults
-    private const int DefaultBaseTimeMs = 420000;    // 7 minutes = 420,000ms
-    private const int DefaultIncrementMs = 5000;      // 5 seconds = 5,000ms
+    // Time control defaults - fast games for high volume
+    private const int DefaultBaseTimeMs = 60000;     // 1 minute = 60,000ms
+    private const int DefaultIncrementMs = 0;        // No increment
 
     // Sampling thresholds
     private const int ScoreDeltaThreshold = 400;      // Prune moves >400cp worse
     private const double DirichletEpsilon = 0.25;     // Noise weight
     private const double DirichletAlpha = 0.3;        // Noise concentration
 
-    // Parallel execution
-    private const int DefaultWorkerCount = 8;
-    private const int ThreadsPerWorker = 2;
+    // Parallel execution - 1 thread per game maximizes CPU throughput
+    private const int DefaultWorkerCount = 16;  // Will be overridden by Environment.ProcessorCount
+    private const int ThreadsPerWorker = 1;     // Single thread per game avoids SMP overhead
 
     private readonly IStagingBookStore _stagingStore;
     private readonly IOpeningBookStore? _bookStore;
@@ -371,12 +371,12 @@ public sealed class SelfPlayGenerator
     {
         // Plies 0-8 (Opening): High temp 1.5-2.0 for diversity
         // Plies 8-16 (Transition): Medium temp 0.8-1.2
-        // Plies 16+ (Midgame): Low temp 0.1-0.5 for accuracy
+        // Plies 16+ (Midgame): No randomness - optimal play
         return ply switch
         {
             < 8 => 1.8,
             < 16 => 1.0,
-            _ => 0.3
+            _ => 0.0
         };
     }
 
