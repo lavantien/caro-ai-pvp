@@ -24,10 +24,10 @@ public sealed class SelfPlayGenerator
     private const int DefaultBaseTimeMs = 60000;     // 1 minute = 60,000ms
     private const int DefaultIncrementMs = 0;        // No increment
 
-    // Sampling thresholds
-    private const int ScoreDeltaThreshold = 150;      // Prune moves >150cp worse (per expert report)
-    private const double DirichletEpsilon = 0.25;     // Noise weight
-    private const double DirichletAlpha = 0.3;        // Noise concentration
+    // Sampling thresholds - internal for testability
+    internal const int ScoreDeltaThreshold = 150;      // Prune moves >150cp worse (per expert report)
+    internal const double DirichletEpsilon = 0.25;     // Noise weight
+    internal const double DirichletAlpha = 0.3;        // Noise concentration
 
     // Parallel execution - 1 thread per game maximizes CPU throughput
     private const int DefaultWorkerCount = 16;  // Will be overridden by Environment.ProcessorCount
@@ -380,7 +380,7 @@ public sealed class SelfPlayGenerator
     /// - Moves 7-12 (ply 12-23): Medium temp
     /// - Move 13+ (ply 24+): No randomness - optimal play
     /// </summary>
-    private static double GetTemperature(int ply)
+    internal static double GetTemperature(int ply)
     {
         return ply switch
         {
@@ -393,7 +393,7 @@ public sealed class SelfPlayGenerator
     /// <summary>
     /// Apply Dirichlet noise to move priors for exploration.
     /// </summary>
-    private void ApplyDirichletNoise(List<MoveCandidate> candidates)
+    internal void ApplyDirichletNoise(List<MoveCandidate> candidates)
     {
         if (candidates.Count == 0) return;
 
@@ -412,7 +412,7 @@ public sealed class SelfPlayGenerator
     /// <summary>
     /// Generate Dirichlet-distributed noise.
     /// </summary>
-    private double[] GenerateDirichletNoise(int count, double alpha)
+    internal double[] GenerateDirichletNoise(int count, double alpha)
     {
         var noise = new double[count];
         double sum = 0;
@@ -445,7 +445,7 @@ public sealed class SelfPlayGenerator
     /// <summary>
     /// Sample a move using softmax over scores.
     /// </summary>
-    private (int X, int Y) SampleMove(List<MoveCandidate> candidates, double temperature)
+    internal (int X, int Y) SampleMove(List<MoveCandidate> candidates, double temperature)
     {
         if (candidates.Count == 0)
         {
@@ -455,6 +455,13 @@ public sealed class SelfPlayGenerator
         if (candidates.Count == 1)
         {
             return (candidates[0].X, candidates[0].Y);
+        }
+
+        // Temperature 0 = deterministic selection of best move
+        if (temperature <= 0.0)
+        {
+            var best = candidates.OrderByDescending(c => c.Score).First();
+            return (best.X, best.Y);
         }
 
         // Compute softmax probabilities

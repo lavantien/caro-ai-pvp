@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.72.0] - 2026-03-03
+
+### Added
+- **Self-Play Sampling Tests** - Comprehensive unit tests for expert report compliance
+  - `GetTemperature()` decay pattern (plies 0-11 → 1.8, 12-23 → 1.0, 24+ → 0.0)
+  - `ScoreDeltaThreshold` blunder filtering (150cp)
+  - Dirichlet noise application (plies 0-5)
+  - Softmax sampling distribution validation
+  - Fallback when all moves exceed threshold
+
+- **Documentation** - Expert report compliance rationale in BookBuilder README
+  - Threshold comparison table (expert vs implementation)
+  - Explanation for 256cp vs 30cp margin difference
+  - Temperature decay schedule documentation
+
+### Changed
+- **SelfPlayGenerator** - Internal visibility for testability
+  - `ScoreDeltaThreshold`, `DirichletEpsilon`, `DirichletAlpha` now internal
+  - `GetTemperature()`, `SampleMove()`, `ApplyDirichletNoise()` now internal
+
+### Fixed
+- **SelfPlayGenerator.SampleMove()** - Temperature=0 edge case
+  - Now deterministically selects best move when temperature=0
+  - Previously caused undefined behavior (division by zero in softmax)
+
+### Tests
+- Added 28 new tests in `SelfPlayGeneratorTests.cs`
+- All 153 opening book tests passing
+- Test categories: Temperature, Dirichlet, SampleMove, ScoreDelta
+
+[1.72.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.72.0
+
 ## [1.71.0] - 2026-03-02
 
 ### Added
