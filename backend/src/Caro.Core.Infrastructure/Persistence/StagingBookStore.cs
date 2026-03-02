@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Microsoft.Data.Sqlite;
@@ -11,19 +10,21 @@ namespace Caro.Core.Infrastructure.Persistence;
 /// Provides temporary storage for raw self-play data before verification.
 ///
 /// Design principles:
+/// - Store games in SGF format (one row per game) for efficient Phase 1 writes
 /// - All buffer sizes are powers of 2 (default: 4096 = 2^12)
 /// - Thread-safe for concurrent self-play recording
 /// - Separate database from main opening_book.db
-/// - Schema optimized for bulk inserts and statistical queries
+/// - Phase 2 reconstructs positions by replaying SGF move sequences
 /// </summary>
 public sealed class StagingBookStore : IStagingBookStore
 {
     // All buffer sizes are powers of 2 for optimal performance
     private const int DefaultBufferSize = 4096;  // 2^12 games before commit
     private const int WriteBufferSize = 64;      // 2^6 entries before flush
+    private const int GameBufferSize = 256;      // 2^8 games before flush
 
-    private const string TableName = "staging_positions";
-    private const string GamesTableName = "staging_games";
+    private const string PositionsTable = "staging_positions";
+    private const string GamesTable = "selfplay_games";
 
     private readonly string _connectionString;
     private readonly ILogger<StagingBookStore> _logger;
@@ -33,8 +34,9 @@ public sealed class StagingBookStore : IStagingBookStore
     private bool _isInitialized;
     private bool _isDisposed;
 
-    // Buffer for batch inserts (powers of 2)
+    // Buffers for batch inserts (powers of 2)
     private readonly List<StagingMoveRecord> _writeBuffer = new(WriteBufferSize);
+    private readonly List<SelfPlayGameRecord> _gameBuffer = new(GameBufferSize);
     private long _currentGameId;
     private int _gamesInBuffer;
 
@@ -52,6 +54,16 @@ public sealed class StagingBookStore : IStagingBookStore
         _connectionString = $"Data Source={databasePath};Pooling=false";
         _logger = logger;
         _bufferSize = bufferSize;
+    }
+
+    /// <summary>
+    /// Create read-only instance for verification phase.
+    /// </summary>
+    public StagingBookStore(
+        string databasePath,
+        ILogger<StagingBookStore> logger)
+        : this(databasePath, logger, DefaultBufferSize)
+    {
     }
 
     private SqliteConnection Connection
@@ -93,7 +105,8 @@ public sealed class StagingBookStore : IStagingBookStore
                     PRAGMA cache_size=-64000;
                     PRAGMA busy_timeout=5000;
 
-                    CREATE TABLE IF NOT EXISTS {TableName} (
+                    -- Position-level table (for backward compatibility and verification)
+                    CREATE TABLE IF NOT EXISTS {PositionsTable} (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         canonical_hash INTEGER NOT NULL,
                         direct_hash INTEGER NOT NULL,
@@ -107,23 +120,32 @@ public sealed class StagingBookStore : IStagingBookStore
                         created_at TEXT DEFAULT CURRENT_TIMESTAMP
                     );
 
-                    CREATE INDEX IF NOT EXISTS idx_staging_hash ON {TableName}(canonical_hash, direct_hash);
-                    CREATE INDEX IF NOT EXISTS idx_staging_ply ON {TableName}(ply);
-                    CREATE INDEX IF NOT EXISTS idx_staging_game ON {TableName}(game_id);
-                    CREATE INDEX IF NOT EXISTS idx_staging_position ON {TableName}(canonical_hash, direct_hash, player);
+                    CREATE INDEX IF NOT EXISTS idx_staging_hash ON {PositionsTable}(canonical_hash, direct_hash);
+                    CREATE INDEX IF NOT EXISTS idx_staging_ply ON {PositionsTable}(ply);
+                    CREATE INDEX IF NOT EXISTS idx_staging_game ON {PositionsTable}(game_id);
+                    CREATE INDEX IF NOT EXISTS idx_staging_position ON {PositionsTable}(canonical_hash, direct_hash, player);
 
-                    CREATE TABLE IF NOT EXISTS {GamesTableName} (
-                        game_id INTEGER PRIMARY KEY,
-                        total_moves INTEGER NOT NULL,
+                    -- Game-level table (PRIMARY storage for Phase 1)
+                    -- One row per game with SGF format moves
+                    CREATE TABLE IF NOT EXISTS {GamesTable} (
+                        game_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        sgf_moves TEXT NOT NULL,
                         winner INTEGER NOT NULL,
+                        total_moves INTEGER NOT NULL,
+                        time_control TEXT,
+                        temperature REAL NOT NULL DEFAULT 1.0,
+                        difficulty INTEGER NOT NULL DEFAULT 5,
                         created_at TEXT DEFAULT CURRENT_TIMESTAMP
                     );
+
+                    CREATE INDEX IF NOT EXISTS idx_games_winner ON {GamesTable}(winner);
+                    CREATE INDEX IF NOT EXISTS idx_games_created ON {GamesTable}(created_at);
                 ";
                 command.ExecuteNonQuery();
 
                 // Get current max game id for continuation
                 using var maxIdCmd = Connection.CreateCommand();
-                maxIdCmd.CommandText = $"SELECT COALESCE(MAX(game_id), 0) FROM {TableName};";
+                maxIdCmd.CommandText = $"SELECT COALESCE(MAX(game_id), 0) FROM {GamesTable};";
                 _currentGameId = Convert.ToInt64(maxIdCmd.ExecuteScalar());
 
                 _isInitialized = true;
@@ -133,6 +155,33 @@ public sealed class StagingBookStore : IStagingBookStore
             {
                 _logger.LogError(ex, "Failed to initialize staging book");
                 throw;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Record a completed game in SGF format (PRIMARY method).
+    /// One row per game - efficient for Phase 1 writes.
+    /// </summary>
+    public void RecordGame(SelfPlayGameRecord gameRecord)
+    {
+        EnsureInitialized();
+
+        lock (_lock)
+        {
+            _gameBuffer.Add(gameRecord);
+            _gamesInBuffer++;
+
+            // Flush when game buffer reaches capacity
+            if (_gameBuffer.Count >= GameBufferSize)
+            {
+                FlushGameBuffer();
+            }
+
+            // Also flush based on total games count
+            if (_gamesInBuffer >= _bufferSize)
+            {
+                Flush();
             }
         }
     }
@@ -175,25 +224,82 @@ public sealed class StagingBookStore : IStagingBookStore
     }
 
     /// <summary>
-    /// Start a new game and return its ID.
+    /// Get all games for batch processing.
     /// </summary>
-    public long StartNewGame()
+    public List<SelfPlayGameRecord> GetGames(int limit = 1000, int offset = 0)
     {
         EnsureInitialized();
 
-        lock (_lock)
+        var games = new List<SelfPlayGameRecord>();
+
+        using var command = Connection.CreateCommand();
+        command.CommandText = $@"
+            SELECT game_id, sgf_moves, winner, total_moves, time_control, temperature, difficulty, created_at
+            FROM {GamesTable}
+            ORDER BY game_id
+            LIMIT $limit OFFSET $offset;
+        ";
+        command.Parameters.AddWithValue("$limit", limit);
+        command.Parameters.AddWithValue("$offset", offset);
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
         {
-            _currentGameId++;
-            _gamesInBuffer++;
-
-            // Check if we should flush based on games count
-            if (_gamesInBuffer >= _bufferSize)
+            games.Add(new SelfPlayGameRecord
             {
-                Flush();
-            }
-
-            return _currentGameId;
+                GameId = reader.GetInt64(0),
+                SgfMoves = reader.GetString(1),
+                Winner = (Player)reader.GetInt32(2),
+                TotalMoves = reader.GetInt32(3),
+                TimeControl = reader.IsDBNull(4) ? null : reader.GetString(4),
+                Temperature = reader.IsDBNull(5) ? 1.0 : reader.GetDouble(5),
+                Difficulty = reader.IsDBNull(6) ? AIDifficulty.Grandmaster : (AIDifficulty)reader.GetInt32(6),
+                CreatedAt = reader.IsDBNull(7) ? DateTime.UtcNow : DateTime.Parse(reader.GetString(7)),
+                MoveList = SelfPlayGameRecord.FromSgf(reader.GetString(1))
+            });
         }
+
+        return games;
+    }
+
+    /// <summary>
+    /// Get games filtered by result.
+    /// </summary>
+    public List<SelfPlayGameRecord> GetGamesByResult(int result, int limit = 1000)
+    {
+        EnsureInitialized();
+
+        var games = new List<SelfPlayGameRecord>();
+
+        using var command = Connection.CreateCommand();
+        command.CommandText = $@"
+            SELECT game_id, sgf_moves, winner, total_moves, time_control, temperature, difficulty, created_at
+            FROM {GamesTable}
+            WHERE winner = $result
+            ORDER BY game_id
+            LIMIT $limit;
+        ";
+        command.Parameters.AddWithValue("$result", result);
+        command.Parameters.AddWithValue("$limit", limit);
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            games.Add(new SelfPlayGameRecord
+            {
+                GameId = reader.GetInt64(0),
+                SgfMoves = reader.GetString(1),
+                Winner = (Player)reader.GetInt32(2),
+                TotalMoves = reader.GetInt32(3),
+                TimeControl = reader.IsDBNull(4) ? null : reader.GetString(4),
+                Temperature = reader.IsDBNull(5) ? 1.0 : reader.GetDouble(5),
+                Difficulty = reader.IsDBNull(6) ? AIDifficulty.Grandmaster : (AIDifficulty)reader.GetInt32(6),
+                CreatedAt = reader.IsDBNull(7) ? DateTime.UtcNow : DateTime.Parse(reader.GetString(7)),
+                MoveList = SelfPlayGameRecord.FromSgf(reader.GetString(1))
+            });
+        }
+
+        return games;
     }
 
     public IEnumerable<StagingPosition> GetPositionsForVerification(int maxPly = 16)
@@ -204,8 +310,8 @@ public sealed class StagingBookStore : IStagingBookStore
 
         using var command = Connection.CreateCommand();
         command.CommandText = $@"
-            SELECT DISTINCT canonical_hash, direct_hash, player, ply, move_x, move_y, time_budget_ms
-            FROM {TableName}
+            SELECT DISTINCT canonical_hash, direct_hash, player, ply, move_x, move_y, time_budget_ms, game_result
+            FROM {PositionsTable}
             WHERE ply <= $maxPly
             ORDER BY ply, canonical_hash, direct_hash;
         ";
@@ -222,7 +328,8 @@ public sealed class StagingBookStore : IStagingBookStore
                 Ply = reader.GetInt32(3),
                 MoveX = reader.GetInt32(4),
                 MoveY = reader.GetInt32(5),
-                TimeBudgetMs = reader.GetInt32(6)
+                TimeBudgetMs = reader.GetInt32(6),
+                GameResult = reader.GetInt32(7)
             });
         }
 
@@ -246,7 +353,7 @@ public sealed class StagingBookStore : IStagingBookStore
                 SUM(CASE WHEN game_result = 0 THEN 1 ELSE 0 END) as draw_count,
                 SUM(CASE WHEN game_result = -1 THEN 1 ELSE 0 END) as loss_count,
                 AVG(time_budget_ms) as avg_time_budget
-            FROM {TableName}
+            FROM {PositionsTable}
             GROUP BY canonical_hash, direct_hash, player;
         ";
 
@@ -293,7 +400,7 @@ public sealed class StagingBookStore : IStagingBookStore
                 game_result,
                 COUNT(*) as play_count,
                 AVG(CASE WHEN game_result = 1 THEN 1.0 ELSE 0.0 END) as win_rate
-            FROM {TableName}
+            FROM {PositionsTable}
             WHERE canonical_hash = $canonicalHash
               AND direct_hash = $directHash
               AND player = $player
@@ -328,6 +435,7 @@ public sealed class StagingBookStore : IStagingBookStore
         lock (_lock)
         {
             FlushWriteBuffer();
+            FlushGameBuffer();
             _gamesInBuffer = 0;
 
             // Execute checkpoint to optimize WAL
@@ -346,19 +454,24 @@ public sealed class StagingBookStore : IStagingBookStore
             try
             {
                 _writeBuffer.Clear();
+                _gameBuffer.Clear();
 
                 using var command = Connection.CreateCommand();
                 command.CommandText = $@"
-                    DELETE FROM {TableName};
-                    DELETE FROM {GamesTableName};
+                    DELETE FROM {PositionsTable};
+                    DELETE FROM {GamesTable};
                     DROP INDEX IF EXISTS idx_staging_hash;
                     DROP INDEX IF EXISTS idx_staging_ply;
                     DROP INDEX IF EXISTS idx_staging_game;
                     DROP INDEX IF EXISTS idx_staging_position;
-                    CREATE INDEX IF NOT EXISTS idx_staging_hash ON {TableName}(canonical_hash, direct_hash);
-                    CREATE INDEX IF NOT EXISTS idx_staging_ply ON {TableName}(ply);
-                    CREATE INDEX IF NOT EXISTS idx_staging_game ON {TableName}(game_id);
-                    CREATE INDEX IF NOT EXISTS idx_staging_position ON {TableName}(canonical_hash, direct_hash, player);
+                    DROP INDEX IF EXISTS idx_games_winner;
+                    DROP INDEX IF EXISTS idx_games_created;
+                    CREATE INDEX IF NOT EXISTS idx_staging_hash ON {PositionsTable}(canonical_hash, direct_hash);
+                    CREATE INDEX IF NOT EXISTS idx_staging_ply ON {PositionsTable}(ply);
+                    CREATE INDEX IF NOT EXISTS idx_staging_game ON {PositionsTable}(game_id);
+                    CREATE INDEX IF NOT EXISTS idx_staging_position ON {PositionsTable}(canonical_hash, direct_hash, player);
+                    CREATE INDEX IF NOT EXISTS idx_games_winner ON {GamesTable}(winner);
+                    CREATE INDEX IF NOT EXISTS idx_games_created ON {GamesTable}(created_at);
                 ";
                 command.ExecuteNonQuery();
 
@@ -379,7 +492,7 @@ public sealed class StagingBookStore : IStagingBookStore
         EnsureInitialized();
 
         using var command = Connection.CreateCommand();
-        command.CommandText = $"SELECT COUNT(*) FROM {TableName};";
+        command.CommandText = $"SELECT COUNT(*) FROM {PositionsTable};";
         return Convert.ToInt64(command.ExecuteScalar());
     }
 
@@ -388,7 +501,7 @@ public sealed class StagingBookStore : IStagingBookStore
         EnsureInitialized();
 
         using var command = Connection.CreateCommand();
-        command.CommandText = $"SELECT COUNT(DISTINCT game_id) FROM {TableName};";
+        command.CommandText = $"SELECT COUNT(*) FROM {GamesTable};";
         return Convert.ToInt64(command.ExecuteScalar());
     }
 
@@ -404,7 +517,7 @@ public sealed class StagingBookStore : IStagingBookStore
             using var command = Connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = $@"
-                INSERT INTO {TableName}
+                INSERT INTO {PositionsTable}
                 (canonical_hash, direct_hash, player, ply, move_x, move_y, game_result, game_id, time_budget_ms)
                 VALUES
                 ($canonicalHash, $directHash, $player, $ply, $moveX, $moveY, $gameResult, $gameId, $timeBudgetMs);
@@ -451,6 +564,62 @@ public sealed class StagingBookStore : IStagingBookStore
         }
     }
 
+    private void FlushGameBuffer()
+    {
+        if (_gameBuffer.Count == 0) return;
+
+        using var transaction = Connection.BeginTransaction();
+        bool committed = false;
+
+        try
+        {
+            using var command = Connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = $@"
+                INSERT INTO {GamesTable}
+                (sgf_moves, winner, total_moves, time_control, temperature, difficulty)
+                VALUES
+                ($sgfMoves, $winner, $totalMoves, $timeControl, $temperature, $difficulty);
+            ";
+
+            foreach (var game in _gameBuffer)
+            {
+                command.Parameters.Clear();
+                command.Parameters.AddWithValue("$sgfMoves", game.SgfMoves);
+                command.Parameters.AddWithValue("$winner", (int)game.Winner);
+                command.Parameters.AddWithValue("$totalMoves", game.TotalMoves);
+                command.Parameters.AddWithValue("$timeControl", game.TimeControl ?? (object)DBNull.Value);
+                command.Parameters.AddWithValue("$temperature", game.Temperature);
+                command.Parameters.AddWithValue("$difficulty", (int)game.Difficulty);
+
+                command.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+            committed = true;
+
+            int count = _gameBuffer.Count;
+            _gameBuffer.Clear();
+            _logger.LogDebug("Flushed {Count} game records", count);
+        }
+        catch (Exception ex)
+        {
+            if (!committed)
+            {
+                try
+                {
+                    transaction.Rollback();
+                }
+                catch (Exception rollbackEx)
+                {
+                    _logger.LogWarning(rollbackEx, "Failed to rollback transaction after error");
+                }
+            }
+            _logger.LogError(ex, "Failed to flush game buffer");
+            throw;
+        }
+    }
+
     private void EnsureInitialized()
     {
         if (!_isInitialized)
@@ -471,6 +640,10 @@ public sealed class StagingBookStore : IStagingBookStore
                 if (_writeBuffer.Count > 0)
                 {
                     FlushWriteBuffer();
+                }
+                if (_gameBuffer.Count > 0)
+                {
+                    FlushGameBuffer();
                 }
 
                 if (_connection != null)
@@ -508,7 +681,7 @@ public sealed class StagingBookStore : IStagingBookStore
     }
 
     /// <summary>
-    /// Internal record for buffering writes.
+    /// Internal record for buffering position writes.
     /// </summary>
     private sealed record StagingMoveRecord(
         ulong CanonicalHash,
