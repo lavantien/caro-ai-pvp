@@ -58,37 +58,33 @@ public sealed class MoveVerifierTests : IDisposable
     [Fact]
     public async Task VerifyStagingAsync_SkipsLowVisitPositions()
     {
-        // Arrange
+        // Arrange - Create games that will result in positions with low visit counts
         var thresholds = MoveVerifier.GetThresholds();
 
-        var stats = new Dictionary<(ulong, ulong, Player), PositionStatistics>
-        {
-            // Low play count - should be filtered
-            [(100UL, 200UL, Player.Red)] = new PositionStatistics
-            {
-                PlayCount = thresholds.MinPlayCount - 1,  // Below threshold
-                WinCount = thresholds.MinPlayCount - 1,
-                WinRate = 1.0,
-                AvgTimeBudgetMs = 1024,
-                DrawCount = 0,
-                LossCount = 0
-            },
-            // High play count - should pass
-            [(101UL, 201UL, Player.Red)] = new PositionStatistics
-            {
-                PlayCount = thresholds.MinPlayCount,
-                WinCount = thresholds.MinPlayCount,
-                WinRate = 1.0,  // Clear winner
-                AvgTimeBudgetMs = 1024,
-                DrawCount = 0,
-                LossCount = 0
-            }
-        };
+        // Create games with moves that all go to the same position
+        // Since MinPlayCount is 512, we need 512+ visits to pass
+        var games = new List<SelfPlayGameRecord>();
 
-        _stagingStoreMock.Setup(s => s.GetPositionStatistics())
-            .Returns(stats);
-        _stagingStoreMock.Setup(s => s.GetMovesForPosition(It.IsAny<ulong>(), It.IsAny<ulong>(), It.IsAny<Player>()))
-            .Returns(new List<StagingMove>());
+        // Create games with only 10 visits (below threshold of 512)
+        for (int i = 0; i < 10; i++)
+        {
+            games.Add(new SelfPlayGameRecord
+            {
+                SgfMoves = "B[ii];",
+                Winner = Player.Red,
+                TotalMoves = 1,
+                MoveList = new List<(int, int)> { (8, 8) }
+            });
+        }
+
+        _stagingStoreMock.Setup(s => s.GetGames(It.IsAny<int>(), It.IsAny<int>()))
+            .Returns(() =>
+            {
+                // Return games on first call, empty on subsequent calls
+                var result = games;
+                games = new List<SelfPlayGameRecord>();
+                return result;
+            });
 
         // Act
         var summary = await _verifier.VerifyStagingAsync(
@@ -96,44 +92,35 @@ public sealed class MoveVerifierTests : IDisposable
             maxPly: 16);
 
         // Assert
-        Assert.Equal(2, summary.TotalPositionsProcessed);
-        Assert.Equal(1, summary.FilteredLowPlayCount);  // One position filtered
+        Assert.Equal(1, summary.TotalPositionsProcessed);  // One unique position
+        Assert.Equal(1, summary.FilteredLowPlayCount);  // Filtered due to low visit count
     }
 
     [Fact]
     public async Task VerifyStagingAsync_SkipsUnclearResults()
     {
-        // Arrange
-        var thresholds = MoveVerifier.GetThresholds();
+        // Arrange - Create games that result in positions with unclear win rates (0.375-0.625)
+        var games = new List<SelfPlayGameRecord>();
 
-        var stats = new Dictionary<(ulong, ulong, Player), PositionStatistics>
+        // Create 600 games with 50% win rate (in the gray zone)
+        for (int i = 0; i < 600; i++)
         {
-            // Unclear result (win rate in gray zone 0.375-0.625) - should be filtered
-            [(100UL, 200UL, Player.Red)] = new PositionStatistics
+            games.Add(new SelfPlayGameRecord
             {
-                PlayCount = thresholds.MinPlayCount,
-                WinCount = thresholds.MinPlayCount / 2,  // 50% win rate
-                WinRate = 0.5,  // In gray zone
-                AvgTimeBudgetMs = 1024,
-                DrawCount = 0,
-                LossCount = thresholds.MinPlayCount / 2
-            },
-            // Clear winner - should pass
-            [(101UL, 201UL, Player.Red)] = new PositionStatistics
-            {
-                PlayCount = thresholds.MinPlayCount,
-                WinCount = (int)(thresholds.MinPlayCount * 0.8),  // 80% win rate
-                WinRate = 0.8,  // Above threshold
-                AvgTimeBudgetMs = 1024,
-                DrawCount = 0,
-                LossCount = (int)(thresholds.MinPlayCount * 0.2)
-            }
-        };
+                SgfMoves = "B[ii];",
+                Winner = i % 2 == 0 ? Player.Red : Player.Blue,  // 50% win rate
+                TotalMoves = 1,
+                MoveList = new List<(int, int)> { (8, 8) }
+            });
+        }
 
-        _stagingStoreMock.Setup(s => s.GetPositionStatistics())
-            .Returns(stats);
-        _stagingStoreMock.Setup(s => s.GetMovesForPosition(It.IsAny<ulong>(), It.IsAny<ulong>(), It.IsAny<Player>()))
-            .Returns(new List<StagingMove>());
+        _stagingStoreMock.Setup(s => s.GetGames(It.IsAny<int>(), It.IsAny<int>()))
+            .Returns(() =>
+            {
+                var result = games;
+                games = new List<SelfPlayGameRecord>();
+                return result;
+            });
 
         // Act
         var summary = await _verifier.VerifyStagingAsync(
@@ -141,6 +128,7 @@ public sealed class MoveVerifierTests : IDisposable
             maxPly: 16);
 
         // Assert
+        Assert.Equal(1, summary.TotalPositionsProcessed);
         Assert.Equal(1, summary.FilteredUnclearResult);  // Gray zone position filtered
     }
 
