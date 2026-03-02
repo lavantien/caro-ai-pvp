@@ -11,7 +11,7 @@ namespace Caro.Core.GameLogic;
 public static class BitBoardEvaluator
 {
     // Import scoring weights from centralized constants
-    // Local aliases for readability within this file
+    // Local aliases for readability within this file (used by default overloads)
     private const int FiveInRowScore = EvaluationConstants.FiveInRowScore;
     private const int OpenFourScore = EvaluationConstants.OpenFourScore;
     private const int ClosedFourScore = EvaluationConstants.ClosedFourScore;
@@ -112,6 +112,171 @@ public static class BitBoardEvaluator
 
         return score;
     }
+
+    #region Parameterized Evaluation (for SPSA tuning)
+
+    /// <summary>
+    /// Evaluate the board for a given player using custom parameters
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int EvaluateWithParameters(Board board, Player player, TunableParameters parameters)
+    {
+        if (player == Player.None)
+            throw new ArgumentException("Player cannot be None");
+
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var playerBoard = board.GetBitBoard(player);
+        var opponentBoard = board.GetBitBoard(opponent);
+
+        return EvaluateBitBoardWithParameters(playerBoard, opponentBoard, parameters);
+    }
+
+    /// <summary>
+    /// Evaluate the SearchBoard for a given player using custom parameters.
+    /// High-performance path for search that avoids immutable Board overhead.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int EvaluateWithParameters(SearchBoard board, Player player, TunableParameters parameters)
+    {
+        if (player == Player.None)
+            throw new ArgumentException("Player cannot be None");
+
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        var playerBoard = board.GetBitBoard(player);
+        var opponentBoard = board.GetBitBoard(opponent);
+
+        return EvaluateBitBoardWithParameters(playerBoard, opponentBoard, parameters);
+    }
+
+    /// <summary>
+    /// Evaluate using only BitBoard operations with custom parameters (for SPSA tuning)
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int EvaluateBitBoardWithParameters(BitBoard playerBoard, BitBoard opponentBoard, TunableParameters parameters)
+    {
+        var score = 0;
+        var occupied = playerBoard | opponentBoard;
+
+        // Extract parameters (convert to int for scoring)
+        var fiveInRow = (int)parameters.FiveInRowScore;
+        var openFour = (int)parameters.OpenFourScore;
+        var closedFour = (int)parameters.ClosedFourScore;
+        var openThree = (int)parameters.OpenThreeScore;
+        var closedThree = (int)parameters.ClosedThreeScore;
+        var openTwo = (int)parameters.OpenTwoScore;
+        var centerBonus = (int)parameters.CenterBonus;
+
+        // Defense multiplier as rational for integer math
+        var defMultNumer = (int)Math.Round(parameters.DefenseMultiplier * 100);
+        var defMultDenom = 100;
+
+        // Evaluate all directions
+        score += EvaluateDirectionWithParams(playerBoard, occupied, 1, 0, fiveInRow, openFour, closedFour, openThree, closedThree, openTwo);
+        score += EvaluateDirectionWithParams(playerBoard, occupied, 0, 1, fiveInRow, openFour, closedFour, openThree, closedThree, openTwo);
+        score += EvaluateDirectionWithParams(playerBoard, occupied, 1, 1, fiveInRow, openFour, closedFour, openThree, closedThree, openTwo);
+        score += EvaluateDirectionWithParams(playerBoard, occupied, 1, -1, fiveInRow, openFour, closedFour, openThree, closedThree, openTwo);
+
+        // Opponent's threats with defense multiplier
+        var oppHorizontal = EvaluateDirectionWithParams(opponentBoard, occupied, 1, 0, fiveInRow, openFour, closedFour, openThree, closedThree, openTwo);
+        var oppVertical = EvaluateDirectionWithParams(opponentBoard, occupied, 0, 1, fiveInRow, openFour, closedFour, openThree, closedThree, openTwo);
+        var oppDiagonal = EvaluateDirectionWithParams(opponentBoard, occupied, 1, 1, fiveInRow, openFour, closedFour, openThree, closedThree, openTwo);
+        var oppAntiDiagonal = EvaluateDirectionWithParams(opponentBoard, occupied, 1, -1, fiveInRow, openFour, closedFour, openThree, closedThree, openTwo);
+
+        score -= (oppHorizontal * defMultNumer) / defMultDenom;
+        score -= (oppVertical * defMultNumer) / defMultDenom;
+        score -= (oppDiagonal * defMultNumer) / defMultDenom;
+        score -= (oppAntiDiagonal * defMultNumer) / defMultDenom;
+
+        // Center control bonus
+        score += EvaluateCenterControlWithParams(playerBoard, centerBonus);
+
+        return score;
+    }
+
+    /// <summary>
+    /// Evaluate patterns in a specific direction with custom scoring parameters
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int EvaluateDirectionWithParams(BitBoard playerBoard, BitBoard occupied, int dx, int dy,
+        int fiveInRowScore, int openFourScore, int closedFourScore, int openThreeScore, int closedThreeScore, int openTwoScore)
+    {
+        var score = 0;
+        var counted = new bool[BitBoard.Size, BitBoard.Size];
+
+        for (int x = 0; x < BitBoard.Size; x++)
+        {
+            for (int y = 0; y < BitBoard.Size; y++)
+            {
+                if (!playerBoard.GetBit(x, y) || counted[x, y])
+                    continue;
+
+                var count = CountConsecutive(playerBoard, x, y, dx, dy);
+
+                var cx = x;
+                var cy = y;
+                for (int i = 0; i < count; i++)
+                {
+                    counted[cx, cy] = true;
+                    cx += dx;
+                    cy += dy;
+                }
+
+                var openEnds = CountOpenEnds(playerBoard, occupied, x, y, dx, dy, count);
+
+                if (count >= 5)
+                {
+                    score += fiveInRowScore;
+                }
+                else if (count == 4)
+                {
+                    if (openEnds >= 1)
+                        score += openFourScore;
+                    else
+                        score += closedFourScore;
+                }
+                else if (count == 3)
+                {
+                    if (openEnds == 2)
+                        score += openThreeScore * 2;
+                    else if (openEnds == 1)
+                        score += openThreeScore;
+                    else
+                        score += closedThreeScore;
+                }
+                else if (count == 2 && openEnds == 2)
+                {
+                    score += openTwoScore;
+                }
+            }
+        }
+
+        return score;
+    }
+
+    /// <summary>
+    /// Evaluate center control with custom bonus value
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int EvaluateCenterControlWithParams(BitBoard playerBoard, int centerBonus)
+    {
+        var score = 0;
+
+        for (int x = 5; x <= 9; x++)
+        {
+            for (int y = 5; y <= 9; y++)
+            {
+                if (playerBoard.GetBit(x, y))
+                {
+                    var distanceToCenter = Math.Abs(x - 7) + Math.Abs(y - 7);
+                    score += centerBonus - (distanceToCenter * 5);
+                }
+            }
+        }
+
+        return score;
+    }
+
+    #endregion
 
     /// <summary>
     /// Evaluate patterns in a specific direction using bit shifts

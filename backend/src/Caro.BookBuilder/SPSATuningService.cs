@@ -207,9 +207,6 @@ public sealed class SPSATuningService
     /// Evaluate two parameter configurations.
     /// Returns (objective for theta+, objective for theta-)
     /// SPSA minimizes the objective, so we return negative win rate.
-    ///
-    /// NOTE: Currently runs baseline games since parameter injection is not yet
-    /// implemented. Adds simulated perturbation effect for testing.
     /// </summary>
     private async Task<(double YPlus, double YMinus)> EvaluateWithPerturbationAsync(
         double[] thetaPlus,
@@ -218,28 +215,36 @@ public sealed class SPSATuningService
         int baseTimeMs,
         CancellationToken cancellationToken)
     {
-        // Run baseline evaluation
-        var winRate = await EvaluateWinRateAsync(gamesPerEvaluation, baseTimeMs, cancellationToken);
+        // Run evaluations in parallel for both parameter configurations
+        var taskPlus = EvaluateWinRateWithParametersAsync(thetaPlus, gamesPerEvaluation, baseTimeMs, cancellationToken);
+        var taskMinus = EvaluateWinRateWithParametersAsync(thetaMinus, gamesPerEvaluation, baseTimeMs, cancellationToken);
 
-        // Simulate perturbation effect for testing
-        // In production, this would run actual games with perturbed parameters
-        var random = new Random();
-        var noise = (random.NextDouble() - 0.5) * 0.1; // +/- 5% noise
+        await Task.WhenAll(taskPlus, taskMinus);
 
-        var yPlus = -winRate + noise;
-        var yMinus = -winRate - noise;
+        var winRatePlus = await taskPlus;
+        var winRateMinus = await taskMinus;
 
-        return (yPlus, yMinus);
+        // SPSA minimizes objective, so return negative win rate
+        return (-winRatePlus, -winRateMinus);
     }
 
     /// <summary>
-    /// Evaluate win rate using self-play with current parameters
+    /// Evaluate win rate using self-play with specific parameters
     /// </summary>
-    private async Task<double> EvaluateWinRateAsync(
+    private async Task<double> EvaluateWinRateWithParametersAsync(
+        double[] parameters,
         int games,
         int baseTimeMs,
         CancellationToken cancellationToken)
     {
+        // Create parameter provider with the specified parameters
+        var tunableParams = new TunableParameters();
+        tunableParams.ApplyFromArray(parameters);
+        tunableParams.ClampToBounds();
+
+        var parameterProvider = new DefaultEvaluationParameterProvider();
+        parameterProvider.SetParameters(tunableParams);
+
         // Create in-memory staging store for evaluation
         var stagingPath = Path.Combine(
             Path.GetTempPath(),
@@ -258,7 +263,8 @@ public sealed class SPSATuningService
             var generator = new SelfPlayGenerator(
                 stagingStore,
                 canonicalizer,
-                _loggerFactory);
+                _loggerFactory,
+                parameterProvider: parameterProvider);
 
             var summary = await generator.GenerateGamesAsync(
                 gameCount: games,
@@ -280,6 +286,18 @@ public sealed class SPSATuningService
             // Cleanup temp file
             TryDeleteFile(stagingPath);
         }
+    }
+
+    /// <summary>
+    /// Evaluate win rate using self-play with current parameters
+    /// </summary>
+    private async Task<double> EvaluateWinRateAsync(
+        int games,
+        int baseTimeMs,
+        CancellationToken cancellationToken)
+    {
+        // Use current parameters
+        return await EvaluateWinRateWithParametersAsync(_parameters.ToArray(), games, baseTimeMs, cancellationToken);
     }
 
     private static void TryDeleteFile(string path)

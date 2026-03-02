@@ -1,4 +1,5 @@
 using Caro.Core.Domain.Configuration;
+using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Xunit;
 
@@ -168,5 +169,82 @@ public sealed class TunableParametersTests
             Assert.True(min > 0, $"Bounds[{i}]: min should be positive (except DefenseMultiplier)");
             Assert.True(max > 0, $"Bounds[{i}]: max should be positive");
         }
+    }
+
+    [Fact]
+    public void BitBoardEvaluator_WithParameters_ProducesConsistentResults()
+    {
+        // Arrange
+        var board = new Board();
+        board = board.PlaceStone(9, 9, Player.Red);
+        board = board.PlaceStone(10, 10, Player.Blue);
+        board = board.PlaceStone(8, 8, Player.Red);
+
+        var defaultParams = TunableParameters.Default;
+        var customParams = new TunableParameters
+        {
+            FiveInRowScore = 150000,
+            OpenFourScore = 15000,
+            ClosedFourScore = 1500,
+            OpenThreeScore = 1500,
+            ClosedThreeScore = 150,
+            OpenTwoScore = 150,
+            CenterBonus = 75,
+            DefenseMultiplier = 1.5
+        };
+
+        // Act
+        var defaultScore = BitBoardEvaluator.EvaluateWithParameters(board, Player.Red, defaultParams);
+        var customScore = BitBoardEvaluator.EvaluateWithParameters(board, Player.Red, customParams);
+
+        // Assert - both should produce valid scores
+        Assert.True(defaultScore != 0, "Default evaluation should produce non-zero score");
+        Assert.True(customScore != 0, "Custom evaluation should produce non-zero score");
+
+        // Different parameters should produce different results in most cases
+        // (not guaranteed, but likely for this position)
+    }
+
+    [Fact]
+    public void BitBoardEvaluator_CustomParametersMatchDefault()
+    {
+        // Arrange
+        var board = new Board();
+        board = board.PlaceStone(9, 9, Player.Red);
+        board = board.PlaceStone(10, 10, Player.Blue);
+
+        var defaultParams = TunableParameters.Default;
+
+        // Act - evaluate with default static method and parameterized method
+        var staticScore = BitBoardEvaluator.Evaluate(board, Player.Red);
+        var paramScore = BitBoardEvaluator.EvaluateWithParameters(board, Player.Red, defaultParams);
+
+        // Assert - should produce identical results
+        Assert.Equal(staticScore, paramScore);
+    }
+
+    [Fact]
+    public void DefaultEvaluationParameterProvider_RoundTrip()
+    {
+        // Arrange
+        var original = new TunableParameters
+        {
+            FiveInRowScore = 123456,
+            DefenseMultiplier = 2.0
+        };
+
+        var provider = new DefaultEvaluationParameterProvider();
+
+        // Act
+        provider.SetParameters(original);
+        var retrieved = provider.GetParameters();
+
+        // Assert
+        Assert.Equal(original.FiveInRowScore, retrieved.FiveInRowScore);
+        Assert.Equal(original.DefenseMultiplier, retrieved.DefenseMultiplier);
+
+        // Modify original should not affect retrieved (clone)
+        original.FiveInRowScore = 999999;
+        Assert.NotEqual(original.FiveInRowScore, retrieved.FiveInRowScore);
     }
 }
