@@ -19,9 +19,10 @@ namespace Caro.Core.GameLogic;
 public sealed class MoveVerifier
 {
     // Time-based thresholds (powers of 2 in milliseconds)
-    private const int DefaultVerificationTimeMs = 2048;    // 2^11 ms per position
+    // Quality-optimized: Verification at 2x max self-play time (2000ms) for 1-2 ply deeper search
+    private const int DefaultVerificationTimeMs = 4096;    // 2^12 ms per position (4s)
     private const int VcfTimeLimitMs = 128;                 // 2^7 ms per VCF search
-    private const int ExtendedVerificationTimeMs = 4096;    // 2^12 ms for survival zone
+    private const int ExtendedVerificationTimeMs = 8192;    // 2^13 ms for survival zone (8s)
 
     // Statistical thresholds (powers of 2 or fractions)
     private const int MinPlayCount = 512;                   // 2^9 - filters fluke wins
