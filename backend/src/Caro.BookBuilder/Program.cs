@@ -116,6 +116,7 @@ class Program
         Console.WriteLine("  --base-time <ms>          Self-play base time (default: 60000 = 1 min)");
         Console.WriteLine("  --increment <ms>          Self-play increment (default: 0)");
         Console.WriteLine("  --verify-time <ms>        Verification time (default: 4096, quality-optimized)");
+        Console.WriteLine("  --min-play-count <n>      Min visits for position (default: 512, lower for debugging)");
         Console.WriteLine("  --threads <n>             Parallel games (default: CPU cores)");
         Console.WriteLine("  --resume                  Continue Phase 1 from existing staging games");
         Console.WriteLine();
@@ -267,7 +268,7 @@ class Program
                 gamesToGenerate,
                 baseTimeMs: baseTimeMs,
                 incrementMs: incrementMs,
-                maxMoves: 200,
+                maxMoves: GameConstants.MaxMovesPerGame,
                 maxPly: maxPly,
                 workerCount: threads,
                 cancellationToken: cts.Token);
@@ -307,12 +308,14 @@ class Program
         var outputPath = GetArgument(args, "--output", GetDefaultVerifiedPath());
         var threads = GetIntArgument(args, "--threads", Math.Max(4, Environment.ProcessorCount / 2));
         var maxPly = GetIntArgument(args, "--max-ply", 16);
+        var minPlayCount = GetIntArgument(args, "--min-play-count", 512);
 
         Console.WriteLine("=== Phase 2: Verification (Critic) ===");
         Console.WriteLine($"Input staging: {stagingPath}");
         Console.WriteLine($"Output verified: {outputPath}");
         Console.WriteLine($"Time per position: {timeMs}ms (survival zone: 8192ms)");
         Console.WriteLine($"Max ply: {maxPly}");
+        Console.WriteLine($"Min play count: {minPlayCount}");
         Console.WriteLine();
 
         // Read from staging (read-only)
@@ -341,6 +344,8 @@ class Program
             var summary = await verifier.VerifyStagingAsync(
                 timeMs,
                 maxPly,
+                minPlayCount,
+                threads,
                 cts.Token);
 
             Console.WriteLine();
@@ -435,6 +440,7 @@ class Program
         var baseTimeMs = GetIntArgument(args, "--base-time", 60000);    // 1 min for self-play
         var incrementMs = GetIntArgument(args, "--increment", 0);       // No increment
         var verifyTimeMs = GetIntArgument(args, "--verify-time", 4096);  // 2^12 (quality-optimized)
+        var minPlayCount = GetIntArgument(args, "--min-play-count", 512);  // 2^9 (use lower for debugging)
         var threads = GetIntArgument(args, "--threads", Environment.ProcessorCount);
         var bookPath = GetArgument(args, "--book", GetDefaultBookPath());
         var resume = args.Contains("--resume");
@@ -501,7 +507,7 @@ class Program
                         gamesToGenerate,
                         baseTimeMs: baseTimeMs,
                         incrementMs: incrementMs,
-                        maxMoves: 200,
+                        maxMoves: GameConstants.MaxMovesPerGame,
                         maxPly: 16,
                         workerCount: threads);
 
@@ -517,6 +523,7 @@ class Program
             // Phase 2: Verification
             Console.WriteLine();
             Console.WriteLine(">>> Phase 2: Verification <<<");
+            Console.WriteLine($"Using {threads} parallel threads with shared TT (256MB)");
             Console.WriteLine();
 
             using (var stagingStore = new StagingBookStore(
@@ -528,7 +535,7 @@ class Program
                     new PositionCanonicalizer(),
                     loggerFactory);
 
-                var verificationSummary = await verifier.VerifyStagingAsync(verifyTimeMs, 16);
+                var verificationSummary = await verifier.VerifyStagingAsync(verifyTimeMs, 16, minPlayCount, threads);
 
                 Console.WriteLine($"Phase 2 complete: {verificationSummary.TotalMovesVerified} moves verified");
                 Console.WriteLine($"VCF solved: {verificationSummary.VcfSolvedCount}");
@@ -1065,6 +1072,7 @@ class Program
             "--verify-time",
             "--book",
             "--max-ply",
+            "--min-play-count",
             // SPSA tuning
             "--tune",
             "--iterations",
