@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.74.2] - 2026-03-09
+
+### Documentation
+- Removed test counts from documentation (README.md, backend/tests/README.md)
+  - Test counts change frequently and become stale
+  - Testing tables now show project focus without specific counts
+
 ## [1.74.1] - 2026-03-09
 
 ### Added
