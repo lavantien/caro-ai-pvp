@@ -98,13 +98,13 @@ The `--resume` flag allows interrupted self-play generation to continue from whe
 
 ```bash
 # Start generation
-dotnet run -- --staging staging.db --games 10000
+dotnet run -- --staging staging.db --games 10000 --threads 16 --base-time 60000
 
 # If interrupted, resume (only generates remaining games)
-dotnet run -- --staging staging.db --games 10000 --resume
+dotnet run -- --staging staging.db --games 10000 --threads 16 --base-time 60000 --resume
 
 # Also works with full pipeline
-dotnet run -- --full-pipeline --games 8192 --resume
+dotnet run -- --full-pipeline --games 8192 --threads 8 --resume
 ```
 
 **Behavior:**
@@ -112,6 +112,8 @@ dotnet run -- --full-pipeline --games 8192 --resume
 - Calculates remaining games needed to reach target
 - Skips generation if target already reached
 - Without `--resume`: warns that new games will be added to existing
+
+**Important:** All options must be re-specified when resuming. The `--resume` flag only remembers the game count by checking the staging database - it does NOT store or retrieve other options like `--threads`, `--base-time`, `--increment`, or `--max-ply`. Using different options when resuming will result in a staging database with inconsistent data.
 
 ---
 
