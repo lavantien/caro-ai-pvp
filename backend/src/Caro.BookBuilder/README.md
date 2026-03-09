@@ -52,9 +52,13 @@ dotnet run -- --verify-staging <path> [options]
 | `--verify-staging <path>` | (required) | Staging database to verify |
 | `--time <ms>` | 4096 | Time per position for deep search (quality-optimized) |
 | `--output <path>` | `verified.db` | Output verified database |
-| `--threads <n>` | cores/2 | Parallel verification threads |
+| `--threads <n>` | cores/2 | Parallel verification threads with shared TT |
+| `--max-ply <n>` | 16 | Maximum ply to verify |
+| `--min-play-count <n>` | 512 | Minimum visits for position inclusion |
 
 **Note:** Survival zone positions (ply 8-16) automatically get 8192ms (2x time).
+
+**Architecture:** Uses a single multi-threaded engine with shared 256MB transposition table for all positions. This enables cross-position knowledge sharing and 40-60% TT hit rate for deeper, more accurate verification.
 
 #### Phase 3: Integration
 ```bash
@@ -79,7 +83,8 @@ Runs all three phases in sequence. Options from all phases apply.
 | `--games <n>` | 8192 | Self-play games |
 | `--base-time <ms>` | 60000 | Base time per player |
 | `--verify-time <ms>` | 4096 | Time per position for verification (quality-optimized) |
-| `--threads <n>` | CPU cores | Parallel threads |
+| `--threads <n>` | CPU cores | Parallel threads (self-play workers, verification with shared TT) |
+| `--min-play-count <n>` | 512 | Minimum visits for position inclusion (lower for debugging) |
 | `--book <path>` | `opening_book.db` | Final output book |
 | `--resume` | - | Continue Phase 1 from existing staging games |
 
@@ -292,7 +297,7 @@ See [ENGINE_FEATURES.md](../../../ENGINE_FEATURES.md) for:
 - Time management
 
 Book-specific architecture:
-- **SelfPlayGenerator**: Temperature-based move sampling with Dirichlet noise
-- **MoveVerifier**: Deep search verification with VCF solving
+- **SelfPlayGenerator**: Temperature-based move sampling with Dirichlet noise, parallel workers
+- **MoveVerifier**: Parallel deep search verification with shared TT and VCF solving
 - **StagingBookStore**: SQLite-based game recording with buffering
 - **InMemoryOpeningBook**: Fast lookup with 8-way symmetry reduction
