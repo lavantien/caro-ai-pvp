@@ -463,8 +463,8 @@ Precomputed opening positions for early game guidance with in-memory lookup.
 
 | Ply Range | Search Depth | Moves/Position | Use VCF | Phase |
 |-----------|-------------|----------------|--------|-------|
-| 0-8 | 20-30 | 8 | Yes | Opening Theory |
-| 8-16 | 14-20 | 4 | No | Mid-game |
+| 0-8 | 20-30 | 4 (configurable via `--max-moves`) | Yes | Opening Theory |
+| 8-16 | 14-20 | 4 (configurable via `--max-moves`) | No | Mid-game |
 | 16+ | Self-play only | - | - | End-game |
 
 **Move Classification (MoveSource):**
@@ -511,11 +511,13 @@ The opening book generation uses a three-phase separated pipeline (Actor-Critic 
 
 | Threshold | Value | Rationale |
 |-----------|-------|-----------|
-| Self-Play Time/Move | 100-2000ms (dynamic) | Time control regulated |
+| Self-Play Base Time | 60000ms (1 min/player) | Fischer time control |
+| Self-Play Increment | 0ms | No increment default |
 | Verification Time | 4096ms (2^12) | Quality-optimized deep analysis |
 | Survival Zone Time | 8192ms (2^13) | Critical positions (ply 8-16) |
 | VCF Time Limit | 128ms (2^7) | Per VCF search |
-| Min Play Count | 512 (2^9) | Filters noise |
+| Min Play Count | 512 (2^9, configurable) | Filters noise |
+| Max Moves/Position | 4 (configurable) | Variety without bloat |
 | Win Rate Threshold | 62.5% (5/8) | Quality filter |
 
 **CLI Commands:**
@@ -528,7 +530,7 @@ dotnet run --project backend/src/Caro.BookBuilder -- --full-pipeline --games 819
 dotnet run --project backend/src/Caro.BookBuilder -- --staging staging.db --games 8192
 
 # Phase 2: Verification with deep search (quality-optimized: 4096ms default)
-dotnet run --project backend/src/Caro.BookBuilder -- --verify-staging staging.db --time 4096 --output verified.db
+dotnet run --project backend/src/Caro.BookBuilder -- --verify-staging staging.db --time 4096 --threads 8 --output verified.db
 
 # Phase 3: Integrate into main book
 dotnet run --project backend/src/Caro.BookBuilder -- --integrate verified.db --book opening_book.db
