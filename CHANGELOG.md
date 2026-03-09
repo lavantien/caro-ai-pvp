@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.74.3] - 2026-03-09
+
+### Documentation
+- Moved benchmark results from README.md to STATS.md
+  - Statistics should be in a dedicated file for easier updates
+  - README now references STATS.md for performance metrics
+  - Kept brief "how to run benchmarks" section in README
+
 ## [1.74.2] - 2026-03-09
 
 ### Documentation
