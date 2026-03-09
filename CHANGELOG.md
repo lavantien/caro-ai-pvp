@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.74.0] - 2026-03-09
+
+### Added
+- **Parallel Verification with Shared TT** - Phase 2 now uses all CPU cores
+  - `Parallel.ForEachAsync` for parallel position processing
+  - Single shared 256MB transposition table (TT) across all positions
+  - 40-60% TT hit rate enables deeper, more accurate verification
+  - `--threads` parameter now properly applied to verification phase
+
+- **Zobrist Hashing** - Proper position hashing for opening book integrity
+  - SplitMix64 PRNG for high-quality random keys
+  - Replaces simple XOR hashing in Board and SearchBoard
+  - Prevents hash collisions that could corrupt book data
+
+- **Self-Play Draw Detection** - Handles board-full edge case
+  - Detects draws when all 256 cells are occupied
+  - Uses new `MaxMovesPerGame` constant (256)
+
+- **CLI Option** - `--min-play-count` for verification phase
+  - Default 512 for production use
+  - Lower values useful for debugging with small game counts
+  - Works with `--verify-staging` and `--full-pipeline`
+
+### Changed
+- Phase 2 threading: sequential → parallel with shared TT
+- Board hashing: simple XOR → proper Zobrist with unique keys per position
+- Self-play max moves: hardcoded 200 → `GameConstants.MaxMovesPerGame` (256)
+
+### Documentation
+- Updated BookBuilder README with parallel verification architecture
+- Added `--min-play-count` to CLI reference tables
+- Documented shared TT benefits (cross-position knowledge, deeper search)
+
+### Tests
+- Added BoardHashTests for Zobrist hashing verification
+- Tests for uniqueness, determinism, and bit distribution
+
+[1.74.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.74.0
+
 ## [1.73.0] - 2026-03-03
 
 ### Changed
