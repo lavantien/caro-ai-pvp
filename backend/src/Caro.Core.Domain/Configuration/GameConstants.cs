@@ -27,6 +27,12 @@ public static class GameConstants
     public const int WinLength = 5;
 
     /// <summary>
+    /// Maximum moves per game (board has 256 cells)
+    /// Games reaching this limit without a winner are draws.
+    /// </summary>
+    public const int MaxMovesPerGame = TotalCells;  // 256
+
+    /// <summary>
     /// ELO rating system K-factor (determines rating volatility)
     /// </summary>
     public const int EloKFactor = 32;
