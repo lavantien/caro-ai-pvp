@@ -58,10 +58,11 @@ public sealed class MoveVerifier
     /// Verify all staged positions and return verified moves.
     /// Reconstructs positions by replaying SGF move sequences from games.
     /// </summary>
-    /// <param name="verificationTimeMs">Time budget per position (default: 2048)</param>
+    /// <param name="verificationTimeMs">Time budget per position (default: 4096)</param>
     /// <param name="maxPly">Maximum ply to verify (default: 16)</param>
     /// <param name="minPlayCount">Minimum play count filter (default: 512). Lower values for debugging.</param>
     /// <param name="threadCount">Number of parallel threads for verification (default: 4)</param>
+    /// <param name="maxMovesPerPosition">Maximum moves to include per position (default: 4)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Verification summary with all verified moves</returns>
     public async Task<VerificationSummary> VerifyStagingAsync(
@@ -69,6 +70,7 @@ public sealed class MoveVerifier
         int maxPly = 16,
         int? minPlayCount = null,
         int threadCount = 4,
+        int maxMovesPerPosition = MaxMovesPerPosition,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
@@ -125,6 +127,7 @@ public sealed class MoveVerifier
                     player,
                     posData,
                     verificationTimeMs,
+                    maxMovesPerPosition,
                     ct);
 
                 foreach (var move in positionMoves)
@@ -305,6 +308,7 @@ public sealed class MoveVerifier
         Player player,
         ReconstructedPositionData posData,
         int verificationTimeMs,
+        int maxMovesPerPosition,
         CancellationToken cancellationToken)
     {
         var verifiedMoves = new List<VerifiedMove>();
@@ -384,7 +388,7 @@ public sealed class MoveVerifier
             .Where(m => m.ScoreDelta <= InclusionScoreDelta)
             .OrderBy(m => m.ScoreDelta)
             .ThenByDescending(m => m.WinRate)
-            .Take(MaxMovesPerPosition)
+            .Take(maxMovesPerPosition)
             .ToList();
     }
 

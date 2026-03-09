@@ -55,6 +55,7 @@ dotnet run -- --verify-staging <path> [options]
 | `--threads <n>` | cores/2 | Parallel verification threads with shared TT |
 | `--max-ply <n>` | 16 | Maximum ply to verify |
 | `--min-play-count <n>` | 512 | Minimum visits for position inclusion |
+| `--max-moves <n>` | 4 | Maximum moves per position |
 
 **Note:** Survival zone positions (ply 8-16) automatically get 8192ms (2x time).
 
@@ -85,6 +86,7 @@ Runs all three phases in sequence. Options from all phases apply.
 | `--verify-time <ms>` | 4096 | Time per position for verification (quality-optimized) |
 | `--threads <n>` | CPU cores | Parallel threads (self-play workers, verification with shared TT) |
 | `--min-play-count <n>` | 512 | Minimum visits for position inclusion (lower for debugging) |
+| `--max-moves <n>` | 4 | Maximum moves per position |
 | `--book <path>` | `opening_book.db` | Final output book |
 | `--resume` | - | Continue Phase 1 from existing staging games |
 

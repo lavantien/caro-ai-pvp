@@ -117,6 +117,7 @@ class Program
         Console.WriteLine("  --increment <ms>          Self-play increment (default: 0)");
         Console.WriteLine("  --verify-time <ms>        Verification time (default: 4096, quality-optimized)");
         Console.WriteLine("  --min-play-count <n>      Min visits for position (default: 512, lower for debugging)");
+        Console.WriteLine("  --max-moves <n>           Max moves per position (default: 4)");
         Console.WriteLine("  --threads <n>             Parallel games (default: CPU cores)");
         Console.WriteLine("  --resume                  Continue Phase 1 from existing staging games");
         Console.WriteLine();
@@ -309,6 +310,7 @@ class Program
         var threads = GetIntArgument(args, "--threads", Math.Max(4, Environment.ProcessorCount / 2));
         var maxPly = GetIntArgument(args, "--max-ply", 16);
         var minPlayCount = GetIntArgument(args, "--min-play-count", 512);
+        var maxMovesPerPosition = GetIntArgument(args, "--max-moves", 4);
 
         Console.WriteLine("=== Phase 2: Verification (Critic) ===");
         Console.WriteLine($"Input staging: {stagingPath}");
@@ -316,6 +318,7 @@ class Program
         Console.WriteLine($"Time per position: {timeMs}ms (survival zone: 8192ms)");
         Console.WriteLine($"Max ply: {maxPly}");
         Console.WriteLine($"Min play count: {minPlayCount}");
+        Console.WriteLine($"Max moves per position: {maxMovesPerPosition}");
         Console.WriteLine();
 
         // Read from staging (read-only)
@@ -346,6 +349,7 @@ class Program
                 maxPly,
                 minPlayCount,
                 threads,
+                maxMovesPerPosition,
                 cts.Token);
 
             Console.WriteLine();
@@ -441,6 +445,7 @@ class Program
         var incrementMs = GetIntArgument(args, "--increment", 0);       // No increment
         var verifyTimeMs = GetIntArgument(args, "--verify-time", 4096);  // 2^12 (quality-optimized)
         var minPlayCount = GetIntArgument(args, "--min-play-count", 512);  // 2^9 (use lower for debugging)
+        var maxMovesPerPosition = GetIntArgument(args, "--max-moves", 4);
         var threads = GetIntArgument(args, "--threads", Environment.ProcessorCount);
         var bookPath = GetArgument(args, "--book", GetDefaultBookPath());
         var resume = args.Contains("--resume");
@@ -452,6 +457,7 @@ class Program
         Console.WriteLine($"Target games: {targetGameCount}");
         Console.WriteLine($"Self-play time control: {baseTimeMs / 60000}+{incrementMs / 1000}");
         Console.WriteLine($"Verification time: {verifyTimeMs}ms");
+        Console.WriteLine($"Max moves per position: {maxMovesPerPosition}");
         Console.WriteLine($"Threads: {threads}");
         Console.WriteLine($"Final book: {bookPath}");
         if (resume) Console.WriteLine($"Resume: enabled (Phase 1 will check existing games)");
@@ -535,7 +541,7 @@ class Program
                     new PositionCanonicalizer(),
                     loggerFactory);
 
-                var verificationSummary = await verifier.VerifyStagingAsync(verifyTimeMs, 16, minPlayCount, threads);
+                var verificationSummary = await verifier.VerifyStagingAsync(verifyTimeMs, 16, minPlayCount, threads, maxMovesPerPosition);
 
                 Console.WriteLine($"Phase 2 complete: {verificationSummary.TotalMovesVerified} moves verified");
                 Console.WriteLine($"VCF solved: {verificationSummary.VcfSolvedCount}");
