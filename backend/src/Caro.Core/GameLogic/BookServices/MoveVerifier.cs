@@ -60,59 +60,77 @@ public sealed class MoveVerifier
     /// </summary>
     /// <param name="verificationTimeMs">Time budget per position (default: 2048)</param>
     /// <param name="maxPly">Maximum ply to verify (default: 16)</param>
+    /// <param name="minPlayCount">Minimum play count filter (default: 512). Lower values for debugging.</param>
+    /// <param name="threadCount">Number of parallel threads for verification (default: 4)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Verification summary with all verified moves</returns>
     public async Task<VerificationSummary> VerifyStagingAsync(
         int verificationTimeMs = DefaultVerificationTimeMs,
         int maxPly = 16,
+        int? minPlayCount = null,
+        int threadCount = 4,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
-            "Starting verification: time budget {TimeMs}ms, max ply {MaxPly}",
-            verificationTimeMs, maxPly);
+            "Starting verification: time budget {TimeMs}ms, max ply {MaxPly}, threads {ThreadCount}",
+            verificationTimeMs, maxPly, threadCount);
 
         var stopwatch = Stopwatch.StartNew();
-        var verifiedMoves = new List<VerifiedMove>();
-        var stats = new VerificationStats();
 
         // Build position statistics by replaying games
         var positionData = BuildPositionStatisticsFromGames(maxPly);
         _logger.LogInformation("Reconstructed {Count} unique positions from games", positionData.Count);
 
-        foreach (var ((canonicalHash, directHash, player), posData) in positionData)
-        {
-            if (cancellationToken.IsCancellationRequested)
-                break;
+        // Create ONE multi-threaded engine instance for all positions
+        // Shared TT provides 40-60% hit rate for deeper search
+        var sharedAi = new MinimaxAI(ttSizeMb: 256, logger: _loggerFactory.CreateLogger<MinimaxAI>());
 
-            stats.TotalPositions++;
+        var verifiedMoves = new System.Collections.Concurrent.ConcurrentBag<VerifiedMove>();
+        var stats = new VerificationStats();
+        var effectiveMinPlayCount = minPlayCount ?? MinPlayCount;
+
+        var options = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = threadCount,
+            CancellationToken = cancellationToken
+        };
+
+        await Parallel.ForEachAsync(positionData, options, async (kvp, ct) =>
+        {
+            var ((canonicalHash, directHash, player), posData) = kvp;
+
+            Interlocked.Increment(ref stats.TotalPositions);
 
             // Skip low-visit positions (noise filter)
-            if (posData.Statistics.PlayCount < MinPlayCount)
+            if (posData.Statistics.PlayCount < effectiveMinPlayCount)
             {
-                stats.FilteredLowPlayCount++;
-                continue;
+                Interlocked.Increment(ref stats.FilteredLowPlayCount);
+                return;
             }
 
             // Skip positions without clear results (win rate in gray zone)
             if (posData.Statistics.WinRate is >= MaxWinRateForLoss and <= MinWinRate)
             {
-                stats.FilteredUnclearResult++;
-                continue;
+                Interlocked.Increment(ref stats.FilteredUnclearResult);
+                return;
             }
 
             try
             {
-                // Verify this position
+                // Verify this position using shared AI instance
                 var positionMoves = await VerifyPositionAsync(
+                    sharedAi,
                     canonicalHash,
                     directHash,
                     player,
                     posData,
                     verificationTimeMs,
-                    cancellationToken);
+                    ct);
 
-                verifiedMoves.AddRange(positionMoves);
-                stats.TotalMovesVerified += positionMoves.Count;
+                foreach (var move in positionMoves)
+                    verifiedMoves.Add(move);
+
+                Interlocked.Add(ref stats.TotalMovesVerified, positionMoves.Count);
 
                 // Track consensus
                 if (posData.Moves.Count > 0 && positionMoves.Count > 0)
@@ -123,27 +141,32 @@ public sealed class MoveVerifier
                     if (topSelfPlayMove.Key.X == topVerifiedMove.Move.X &&
                         topSelfPlayMove.Key.Y == topVerifiedMove.Move.Y)
                     {
-                        stats.ConsensusCount++;
+                        Interlocked.Increment(ref stats.ConsensusCount);
                     }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during cancellation
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex,
                     "Error verifying position (canonical: {CanonicalHash}, direct: {DirectHash})",
                     canonicalHash, directHash);
-                stats.Errors++;
+                Interlocked.Increment(ref stats.Errors);
             }
-        }
+        });
 
         stopwatch.Stop();
 
+        var verifiedMovesList = verifiedMoves.ToList();
         var consensusRate = stats.TotalPositions > 0
             ? (double)stats.ConsensusCount / stats.TotalPositions
             : 0;
 
         var summary = new VerificationSummary(
-            verifiedMoves,
+            verifiedMovesList,
             stats.TotalPositions,
             stats.FilteredLowPlayCount,
             stats.FilteredUnclearResult,
@@ -256,6 +279,15 @@ public sealed class MoveVerifier
             moveStat.PlayCount++;
             if (gameResult == 1) moveStat.WinCount++;
 
+            // Validate move before placing
+            if (board.GetCell(x, y).Player != Player.None)
+            {
+                _logger.LogWarning(
+                    "Game {GameId} ply {Ply}: move ({X},{Y}) targets occupied cell. Skipping game.",
+                    game.GameId, ply, x, y);
+                return;
+            }
+
             // Advance to next position
             board = board.PlaceStone(x, y, currentPlayer);
             currentPlayer = currentPlayer == Player.Red ? Player.Blue : Player.Red;
@@ -264,8 +296,10 @@ public sealed class MoveVerifier
 
     /// <summary>
     /// Verify a single position and return verified moves.
+    /// Uses shared AI instance for TT sharing across positions.
     /// </summary>
     private async Task<List<VerifiedMove>> VerifyPositionAsync(
+        MinimaxAI sharedAi,
         ulong canonicalHash,
         ulong directHash,
         Player player,
@@ -299,14 +333,14 @@ public sealed class MoveVerifier
             return verifiedMoves;  // VCF solved - no need for further verification
         }
 
-        // Step 2: Time-based deep verification search
+        // Step 2: Time-based deep verification search using shared AI
         var deepResult = await GetDeepSearchResultAsync(
-            board, player, timeBudget, cancellationToken);
+            sharedAi, board, player, timeBudget, cancellationToken);
 
         if (deepResult == null)
             return verifiedMoves;
 
-        // Step 3: Verify all candidate moves with time budget
+        // Step 3: Verify all candidate moves with time budget using shared AI
         foreach (var (moveKey, moveStat) in posData.Moves)
         {
             var winRate = moveStat.PlayCount > 0
@@ -318,7 +352,7 @@ public sealed class MoveVerifier
                 continue;
 
             var moveScore = await EvaluateMoveAsync(
-                board, player, moveKey, timeBudget / 4, cancellationToken);
+                sharedAi, board, player, moveKey, timeBudget / 4, cancellationToken);
 
             var scoreDelta = moveScore - deepResult.Score;
 
@@ -410,18 +444,19 @@ public sealed class MoveVerifier
 
     /// <summary>
     /// Get deep search result for a position using time-based search.
+    /// Uses shared AI instance for TT sharing.
     /// </summary>
     private async Task<DeepSearchResult?> GetDeepSearchResultAsync(
+        MinimaxAI sharedAi,
         Board board,
         Player player,
         int timeBudgetMs,
         CancellationToken cancellationToken)
     {
-        var ai = new MinimaxAI(ttSizeMb: 128, logger: _loggerFactory.CreateLogger<MinimaxAI>());
         var stopwatch = Stopwatch.StartNew();
 
-        var (x, y) = ai.GetBestMove(board, player, AIDifficulty.Grandmaster, timeBudgetMs);
-        var score = ai.GetSearchStatistics().SearchScore;
+        var (x, y) = sharedAi.GetBestMove(board, player, AIDifficulty.Grandmaster, timeBudgetMs);
+        var score = sharedAi.GetSearchStatistics().SearchScore;
 
         stopwatch.Stop();
 
@@ -439,23 +474,33 @@ public sealed class MoveVerifier
 
     /// <summary>
     /// Evaluate a specific move with time-based search.
+    /// Uses shared AI instance for TT sharing.
     /// </summary>
     private async Task<int> EvaluateMoveAsync(
+        MinimaxAI sharedAi,
         Board board,
         Player player,
         (int X, int Y) move,
         int timeBudgetMs,
         CancellationToken cancellationToken)
     {
+        // Validate move is legal
+        if (board.GetCell(move.X, move.Y).Player != Player.None)
+        {
+            _logger.LogWarning(
+                "Move ({X},{Y}) targets occupied cell during evaluation. Returning min score.",
+                move.X, move.Y);
+            return int.MinValue;
+        }
+
         // Make the move and evaluate resulting position
         var newBoard = board.PlaceStone(move.X, move.Y, player);
         var opponent = player == Player.Red ? Player.Blue : Player.Red;
 
-        var ai = new MinimaxAI(ttSizeMb: 64, logger: _loggerFactory.CreateLogger<MinimaxAI>());
-        var (_, _) = ai.GetBestMove(newBoard, opponent, AIDifficulty.Grandmaster, timeBudgetMs);
+        var (_, _) = sharedAi.GetBestMove(newBoard, opponent, AIDifficulty.Grandmaster, timeBudgetMs);
 
         // Score from opponent's perspective, negate for our perspective
-        var score = -ai.GetSearchStatistics().SearchScore;
+        var score = -sharedAi.GetSearchStatistics().SearchScore;
 
         await Task.Yield();
         return score;
@@ -562,16 +607,17 @@ public sealed record VerificationSummary
 
 /// <summary>
 /// Internal statistics for verification session.
+/// Uses fields for thread-safe Interlocked operations.
 /// </summary>
 internal sealed class VerificationStats
 {
-    public int TotalPositions { get; set; }
-    public int FilteredLowPlayCount { get; set; }
-    public int FilteredUnclearResult { get; set; }
-    public int TotalMovesVerified { get; set; }
-    public int VcfSolvedCount { get; set; }
-    public int ConsensusCount { get; set; }
-    public int Errors { get; set; }
+    public int TotalPositions;
+    public int FilteredLowPlayCount;
+    public int FilteredUnclearResult;
+    public int TotalMovesVerified;
+    public int VcfSolvedCount;
+    public int ConsensusCount;
+    public int Errors;
 }
 
 /// <summary>
