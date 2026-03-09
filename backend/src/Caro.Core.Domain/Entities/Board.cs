@@ -109,9 +109,9 @@ public sealed class Board
         int bitOffset = bitIndex & 63;    // bitIndex % 64
         ulong bitMask = 1UL << bitOffset;
 
-        // Simple hash XOR (actual Zobrist handled by extension method for compatibility)
-        ulong pieceKey = (ulong)((x << 8) | y) ^ (player == Player.Red ? 0xAAAAAAAAAAAAAAAAUL : 0x5555555555555555UL);
-        ulong newHash = _hash ^ pieceKey;
+        // Zobrist hashing: XOR with position-specific random key
+        ulong zobristKey = Zobrist.GetKey(x, y, player);
+        ulong newHash = _hash ^ zobristKey;
 
         if (player == Player.Red)
             newRedBits[ulongIndex] |= bitMask;

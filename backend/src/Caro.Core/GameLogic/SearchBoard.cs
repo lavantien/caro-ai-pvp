@@ -30,10 +30,6 @@ public sealed class SearchBoard
     // Incrementally maintained hash (same formula as immutable Board for compatibility)
     private ulong _hash;
 
-    // Hash constants for piece keys (must match Board.PlaceStone)
-    private const ulong RedHashMask = 0xAAAAAAAAAAAAAAAAUL;
-    private const ulong BlueHashMask = 0x5555555555555555UL;
-
     /// <summary>
     /// Create an empty SearchBoard.
     /// </summary>
@@ -127,9 +123,8 @@ public sealed class SearchBoard
         else
             _blueBits.SetBit(x, y);
 
-        // Update hash incrementally (same formula as Board.PlaceStone)
-        ulong pieceKey = (ulong)((x << 8) | y) ^ (player == Player.Red ? RedHashMask : BlueHashMask);
-        _hash ^= pieceKey;
+        // Update hash incrementally using shared Zobrist table
+        _hash ^= Zobrist.GetKey(x, y, player);
 
         return undo;
     }
@@ -147,9 +142,8 @@ public sealed class SearchBoard
         else
             _blueBits.ClearBit(undo.X, undo.Y);
 
-        // Restore hash (XOR is its own inverse - same formula as make)
-        ulong pieceKey = (ulong)((undo.X << 8) | undo.Y) ^ (undo.Player == Player.Red ? RedHashMask : BlueHashMask);
-        _hash ^= pieceKey;
+        // Restore hash (XOR is its own inverse)
+        _hash ^= Zobrist.GetKey(undo.X, undo.Y, undo.Player);
     }
 
     /// <summary>
