@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.74.1] - 2026-03-09
+
+### Added
+- **CLI Option** - `--max-moves` for configurable moves per position
+  - Default 4 moves per position (previously hardcoded)
+  - Works with `--verify-staging` and `--full-pipeline`
+  - Allows wider or narrower book generation as needed
+
 ## [1.74.0] - 2026-03-09
 
 ### Added
@@ -42,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added BoardHashTests for Zobrist hashing verification
 - Tests for uniqueness, determinism, and bit distribution
 
+[1.74.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.74.1
 [1.74.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.74.0
 
 ## [1.73.0] - 2026-03-03
