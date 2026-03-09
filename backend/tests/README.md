@@ -9,7 +9,7 @@ This directory contains tests organized by category and type.
 # From backend root - shows each test name and result
 dotnet test --logger "console;verbosity=detailed"
 
-# Result: Caro.Core.Tests (574 tests) + Caro.Core.Infrastructure.Tests (64 tests)
+# Result: Caro.Core.Tests + Caro.Core.Infrastructure.Tests
 # Completes in ~2 minutes
 ```
 
@@ -34,23 +34,17 @@ dotnet test --no-build --logger "console;verbosity=detailed"
 
 | Project | Type | Default? | Description |
 |---------|------|----------|-------------|
-| `Caro.Core.Tests` | Unit | Yes | Core game logic (evaluation, detection, LUTs, threats) - 574 tests |
-| `Caro.Core.Infrastructure.Tests` | Unit | Yes | Infrastructure (persistence, time utilities) - 64 tests |
-| `Caro.Core.IntegrationTests` | Integration | No | AI search (VCF, DF-PN), stress tests, debug tests - 224 tests |
-| `Caro.Core.MatchupTests` | Matchup | No | Full game AI matchups and tournaments - 54 tests |
-| `Caro.Core.Domain.Tests` | Unit | Yes | Domain entities (Board, Cell, Player, GameState, Position) - 45 tests |
-| `Caro.Core.Application.Tests` | Unit | Yes | Application services (DTOs, mappers) - 14 tests |
+| `Caro.Core.Tests` | Unit | Yes | Core game logic (evaluation, detection, LUTs, threats) |
+| `Caro.Core.Infrastructure.Tests` | Unit | Yes | Infrastructure (persistence, time utilities) |
+| `Caro.Core.IntegrationTests` | Integration | No | AI search (VCF, DF-PN), stress tests, debug tests |
+| `Caro.Core.MatchupTests` | Matchup | No | Full game AI matchups and tournaments |
+| `Caro.Core.Domain.Tests` | Unit | Yes | Domain entities (Board, Cell, Player, GameState, Position) |
+| `Caro.Core.Application.Tests` | Unit | Yes | Application services (DTOs, mappers) |
 
 ## Test Organization Notes
 
 Projects with `<IsTestProject>false</IsTestProject>` are NOT run by default `dotnet test`:
-- `Caro.Core.IntegrationTests` - Slow AI search tests (224 tests)
-- `Caro.Core.MatchupTests` - Full AI matchups (54 tests)
+- `Caro.Core.IntegrationTests` - Slow AI search tests
+- `Caro.Core.MatchupTests` - Full AI matchups
 
 To run these, explicitly target the project file.
-
-## Test Counts
-
-- Unit tests (default): 697 tests (574 Core + 45 Domain + 14 Application + 64 Infrastructure) (~2 min)
-- Integration tests: 224 tests (opt-in)
-- Matchup tests: 54 tests (opt-in)

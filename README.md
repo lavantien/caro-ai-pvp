@@ -11,7 +11,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 - **Clean Architecture** - Separated Domain, Application, and Infrastructure layers
 - **Real-time multiplayer** - WebSocket support via SignalR
 - **Mobile-first UX** - Ghost stone positioning and haptic feedback
-- **900+ automated tests** - Including adversarial concurrency tests
+- **Comprehensive automated tests** - Including adversarial concurrency tests
 
 **Tournament & Testing:**
 - Frontend tournament mode with balanced round-robin and live ELO tracking
@@ -383,14 +383,14 @@ cd backend/tests/Caro.Core.IntegrationTests && dotnet test
 cd backend/tests/Caro.Core.MatchupTests && dotnet test
 ```
 
-| Project | Tests | Duration |
-|---------|-------|----------|
-| Caro.Core.Tests | 575 unit tests | ~3 sec |
-| Caro.Core.IntegrationTests | 224 | Opt-in, AI searches |
-| Caro.Core.MatchupTests | ~54 | Variable |
-| Caro.Core.Domain.Tests | 45 entity tests | ~1 sec |
-| Caro.Core.Application.Tests | 14 service tests | ~1 sec |
-| Caro.Core.Infrastructure.Tests | 64 tests | ~42 sec |
+| Project | Focus |
+|---------|-------|
+| Caro.Core.Tests | Unit tests (algorithms, evaluators, concurrency, immutable state) |
+| Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks) |
+| Caro.Core.MatchupTests | AI matchups, tournament, opening book verification |
+| Caro.Core.Domain.Tests | Entities (Board, Cell, Player, GameState, Position) |
+| Caro.Core.Application.Tests | Services, interfaces, DTOs, mappers |
+| Caro.Core.Infrastructure.Tests | AI algorithms, external concerns |
 
 **Note:** Run `dotnet test` in Caro.Core.Tests for fast unit test feedback. IntegrationTests are excluded from default test runs (marked as `<IsTestProject>false</IsTestProject>`).
 
@@ -561,30 +561,27 @@ Production-grade concurrency following .NET 10 best practices:
 
 ## Testing
 
-| Project | Tests | Focus |
-|---------|-------|-------|
-| Caro.Core.Tests | 575 | Unit tests (algorithms, evaluators, concurrency, immutable state, test helpers, AI improvements, symmetry) |
-| Caro.Core.IntegrationTests | 224 | AI search integration (full depth searches, performance benchmarks, opening book edge cases + performance tests) |
-| Caro.Core.MatchupTests | ~54 | AI matchups, integration, tournament, opening book verification |
-| Caro.Core.Domain.Tests | 45 | Entities (Board, Cell, Player, GameState, Position) |
-| Caro.Core.Application.Tests | 14 | Services, interfaces, DTOs, Mappers |
-| Caro.Core.Infrastructure.Tests | 64 | AI algorithms, external concerns |
-| Frontend Unit (Vitest) | 40 | Store logic, utility functions, game types |
-| Frontend E2E (Playwright) | 17 | End-to-end gameplay |
-| **TOTAL** | **1033** | |
+| Project | Focus |
+|---------|-------|
+| Caro.Core.Tests | Unit tests (algorithms, evaluators, concurrency, immutable state, test helpers, AI improvements, symmetry) |
+| Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks, opening book edge cases + performance tests) |
+| Caro.Core.MatchupTests | AI matchups, integration, tournament, opening book verification |
+| Caro.Core.Domain.Tests | Entities (Board, Cell, Player, GameState, Position) |
+| Caro.Core.Application.Tests | Services, interfaces, DTOs, Mappers |
+| Caro.Core.Infrastructure.Tests | AI algorithms, external concerns |
+| Frontend Unit (Vitest) | Store logic, utility functions, game types |
+| Frontend E2E (Playwright) | End-to-end gameplay |
 
 ### Frontend E2E Tests
 
 Playwright end-to-end tests covering core gameplay mechanics:
 
-| Feature | Tests |
-|---------|-------|
-| Basic Mechanics (move placement, open rule) | 4 |
-| Sound Effects (valid/invalid moves) | 3 |
-| Move History (tracking, display) | 3 |
-| Winning Line Animation | 2 |
-| Timer Functionality (Fisher time control) | 3 |
-| Regression Tests (edge cases) | 2 |
+- Basic Mechanics (move placement, open rule)
+- Sound Effects (valid/invalid moves)
+- Move History (tracking, display)
+- Winning Line Animation
+- Timer Functionality (Fisher time control)
+- Regression Tests (edge cases)
 
 Run E2E tests:
 ```bash
