@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Works with `--verify-staging` and `--full-pipeline`
   - Allows wider or narrower book generation as needed
 
+### Documentation
+- Fixed discrepancies between README, ENGINE_FEATURES, and BookBuilder README
+  - Book Structure: Moves/Position is now documented as configurable (default 4)
+  - Self-Play Time: Clarified as Fischer time control (60000ms base per player)
+  - Phase 2 --threads: Clarified as `max(4, cores/2)` minimum
+  - Full Pipeline --threads: Uses CPU cores for both phases
+  - Min Play Count: Documented as configurable via `--min-play-count`
+
 ## [1.74.0] - 2026-03-09
 
 ### Added

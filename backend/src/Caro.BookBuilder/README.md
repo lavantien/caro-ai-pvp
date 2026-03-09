@@ -52,7 +52,7 @@ dotnet run -- --verify-staging <path> [options]
 | `--verify-staging <path>` | (required) | Staging database to verify |
 | `--time <ms>` | 4096 | Time per position for deep search (quality-optimized) |
 | `--output <path>` | `verified.db` | Output verified database |
-| `--threads <n>` | cores/2 | Parallel verification threads with shared TT |
+| `--threads <n>` | max(4, cores/2) | Parallel verification threads with shared TT |
 | `--max-ply <n>` | 16 | Maximum ply to verify |
 | `--min-play-count <n>` | 512 | Minimum visits for position inclusion |
 | `--max-moves <n>` | 4 | Maximum moves per position |
@@ -84,7 +84,7 @@ Runs all three phases in sequence. Options from all phases apply.
 | `--games <n>` | 8192 | Self-play games |
 | `--base-time <ms>` | 60000 | Base time per player |
 | `--verify-time <ms>` | 4096 | Time per position for verification (quality-optimized) |
-| `--threads <n>` | CPU cores | Parallel threads (self-play workers, verification with shared TT) |
+| `--threads <n>` | CPU cores | Parallel threads for both self-play and verification |
 | `--min-play-count <n>` | 512 | Minimum visits for position inclusion (lower for debugging) |
 | `--max-moves <n>` | 4 | Maximum moves per position |
 | `--book <path>` | `opening_book.db` | Final output book |
@@ -225,13 +225,13 @@ All thresholds are powers of 2 for statistical significance:
 
 | Threshold | Value | Purpose |
 |-----------|-------|---------|
-| MinPlayCount | 512 (2^9) | Filters fluke wins |
+| MinPlayCount | 512 (2^9, configurable via `--min-play-count`) | Filters fluke wins |
 | MinWinRate | 62.5% (5/8) | Winning line indicator |
 | MaxWinRateForLoss | 37.5% | Losing line indicator |
 | MinConsensusRate | 81.25% | Self-play vs deep search consensus |
 | MaxScoreDelta | 512 (2^9) | Pruning threshold |
 | InclusionScoreDelta | 256 | Inclusion range |
-| MaxMovesPerPosition | 4 | Variety without bloat |
+| MaxMovesPerPosition | 4 (configurable via `--max-moves`) | Variety without bloat |
 
 ### Threshold Rationale: Expert Report Compliance
 

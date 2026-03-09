@@ -271,9 +271,11 @@ See [backend/src/Caro.BookBuilder/README.md](backend/src/Caro.BookBuilder/README
 
 | Ply Range | Search Depth | Moves/Position | Use VCF | Phase |
 |-----------|-------------|----------------|--------|-------|
-| 0-8 | 20-30 | 8 | Yes | Opening Theory |
-| 8-16 | 14-20 | 4 | No | Mid-game |
+| 0-8 | 20-30 | 4 (configurable) | Yes | Opening Theory |
+| 8-16 | 14-20 | 4 (configurable) | No | Mid-game |
 | 16+ | Self-play only | - | - | End-game |
+
+Use `--max-moves` to configure moves per position (default: 4).
 
 ### Tournament Mode
 
