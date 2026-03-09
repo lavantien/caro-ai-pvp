@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -80,7 +81,7 @@ public sealed class SelfPlayGenerator
         int gameCount,
         int baseTimeMs = DefaultBaseTimeMs,
         int incrementMs = DefaultIncrementMs,
-        int maxMoves = 200,
+        int maxMoves = GameConstants.MaxMovesPerGame,
         int maxPly = 16,
         int workerCount = DefaultWorkerCount,
         CancellationToken cancellationToken = default)
@@ -106,7 +107,7 @@ public sealed class SelfPlayGenerator
         int gameCount,
         int baseTimeMs = DefaultBaseTimeMs,
         int incrementMs = DefaultIncrementMs,
-        int maxMoves = 200,
+        int maxMoves = GameConstants.MaxMovesPerGame,
         int maxPly = 16,
         int workerCount = DefaultWorkerCount,
         CancellationToken cancellationToken = default)
@@ -342,6 +343,12 @@ public sealed class SelfPlayGenerator
             if (winResult.Winner != Player.None)
             {
                 winner = winResult.Winner;
+                break;
+            }
+
+            // Check for draw (board full)
+            if (board.IsFull())
+            {
                 break;
             }
 
