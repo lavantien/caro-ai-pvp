@@ -134,7 +134,7 @@ dotnet run -- --verify-staging /custom/path/staging.db --output /custom/path/ver
 dotnet run -- --integrate /custom/path/verified.db --book /custom/path/opening_book.db
 ```
 
-**Temporary files** (`staging.db`, `verified.db`) are automatically cleaned up after `--full-pipeline` completes.
+**Staging files** (`staging.db`, `verified.db`) are preserved after pipeline completion for resumability. Delete manually if a fresh start is needed.
 
 ---
 
