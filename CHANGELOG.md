@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.74.5] - 2026-03-11
+
+### Fixed
+- **MoveVerifier** - `--min-play-count` parameter now correctly applies to move-level filtering
+  - Previously ignored at line 355, always using hardcoded 512
+  - Caused extremely low yield (0.2%) when using lower thresholds like 32
+  - Move-level filter now uses the same parameter as position-level filter
+
+### Changed
+- **BookBuilder** - Staging database is no longer auto-deleted after pipeline completion
+  - Preserved for resumability across multiple runs
+  - Delete manually if a fresh start is needed
+
 ## [1.74.4] - 2026-03-09
 
 ### Documentation
