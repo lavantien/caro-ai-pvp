@@ -128,6 +128,7 @@ public sealed class MoveVerifier
                     posData,
                     verificationTimeMs,
                     maxMovesPerPosition,
+                    effectiveMinPlayCount,
                     ct);
 
                 foreach (var move in positionMoves)
@@ -309,6 +310,7 @@ public sealed class MoveVerifier
         ReconstructedPositionData posData,
         int verificationTimeMs,
         int maxMovesPerPosition,
+        int effectiveMinPlayCount,
         CancellationToken cancellationToken)
     {
         var verifiedMoves = new List<VerifiedMove>();
@@ -352,7 +354,7 @@ public sealed class MoveVerifier
                 : 0;
 
             // Skip moves with low win rate unless they have many plays
-            if (winRate < MinWinRate && moveStat.PlayCount < MinPlayCount)
+            if (winRate < MinWinRate && moveStat.PlayCount < effectiveMinPlayCount)
                 continue;
 
             var moveScore = await EvaluateMoveAsync(
