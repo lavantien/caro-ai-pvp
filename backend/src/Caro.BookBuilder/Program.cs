@@ -568,19 +568,11 @@ class Program
                 store.Flush();
             }
 
-            // Cleanup temporary databases
+            // Staging database is preserved for resumability and debugging
             Console.WriteLine();
-            Console.WriteLine(">>> Cleanup <<<");
-            try
-            {
-                if (File.Exists(stagingPath)) File.Delete(stagingPath);
-                if (File.Exists(verifiedPath)) File.Delete(verifiedPath);
-                Console.WriteLine("Temporary databases cleaned up.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Warning: Could not clean up temporary files: {ex.Message}");
-            }
+            Console.WriteLine(">>> Staging files preserved <<<");
+            Console.WriteLine($"Staging database: {stagingPath}");
+            Console.WriteLine("Delete manually if a fresh start is needed.");
 
             totalStopwatch.Stop();
 
