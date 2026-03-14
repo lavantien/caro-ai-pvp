@@ -126,54 +126,95 @@ public sealed class SelfPlayGeneratorTests
 
     #endregion
 
-    #region Temperature Decay Tests (Expert Report Compliance)
+    #region Temperature Decay Tests
 
     [Theory]
-    [InlineData(0, 1.8)]    // First move (Red's first ply)
-    [InlineData(5, 1.8)]    // Early game
-    [InlineData(11, 1.8)]   // Last ply of high exploration
-    [InlineData(12, 1.0)]   // First ply of medium exploration
-    [InlineData(18, 1.0)]   // Mid-game
-    [InlineData(23, 1.0)]   // Last ply of medium exploration
-    [InlineData(24, 0.0)]   // First ply of optimal play
-    [InlineData(30, 0.0)]   // Late game
-    [InlineData(100, 0.0)]  // Very late game
-    public void GetTemperature_ReturnsCorrectDecayPattern(int ply, double expectedTemp)
+    [InlineData(0, 1.2, 1.2)]    // Full temp for ply 0-7
+    [InlineData(7, 1.2, 1.2)]    // Last ply of full temp
+    [InlineData(8, 1.2, 1.08)]   // First decay step (1.2 * 0.9)
+    [InlineData(9, 1.2, 1.08)]   // Same step
+    [InlineData(10, 1.2, 0.96)]  // Second decay step (1.2 * 0.8)
+    [InlineData(14, 1.2, 0.72)]  // Fourth decay step (1.2 * 0.6)
+    [InlineData(20, 1.2, 0.36)]  // Seventh decay step (1.2 * 0.3)
+    [InlineData(24, 1.2, 0.12)]  // Ninth decay step (1.2 * 0.1)
+    [InlineData(26, 1.2, 0.0)]   // Tenth decay step (1.2 * 0.0)
+    [InlineData(30, 1.2, 0.0)]   // Clamped at 0
+    [InlineData(100, 1.2, 0.0)]  // Very late game
+    public void GetTemperature_ReturnsCorrectDecayPattern(int ply, double initialTemp, double expectedTemp)
     {
         // Act
-        var temp = SelfPlayGenerator.GetTemperature(ply);
+        var temp = SelfPlayGenerator.GetTemperature(ply, initialTemp);
 
         // Assert
-        temp.Should().Be(expectedTemp);
+        temp.Should().BeApproximately(expectedTemp, 0.001);
+    }
+
+    [Theory]
+    [InlineData(0, 1.0, 1.0)]    // Full temp
+    [InlineData(8, 1.0, 0.9)]    // First decay
+    [InlineData(10, 1.0, 0.8)]   // Second decay
+    [InlineData(12, 1.0, 0.7)]   // Third decay
+    [InlineData(14, 1.0, 0.6)]   // Fourth decay
+    [InlineData(16, 1.0, 0.5)]   // Fifth decay
+    [InlineData(18, 1.0, 0.4)]   // Sixth decay
+    [InlineData(20, 1.0, 0.3)]   // Seventh decay
+    [InlineData(22, 1.0, 0.2)]   // Eighth decay
+    [InlineData(24, 1.0, 0.1)]   // Ninth decay
+    [InlineData(26, 1.0, 0.0)]   // Tenth decay (clamped)
+    public void GetTemperature_WithInitialTemp1_CreatesTightGradient(int ply, double initialTemp, double expectedTemp)
+    {
+        // Act
+        var temp = SelfPlayGenerator.GetTemperature(ply, initialTemp);
+
+        // Assert
+        temp.Should().BeApproximately(expectedTemp, 0.001);
     }
 
     [Fact]
-    public void GetTemperature_HighExplorationForFirstSixMoves()
+    public void GetTemperature_FullTempForPly0To7()
     {
-        // Moves 1-6 correspond to plies 0-11 (each move = 2 plies)
-        for (int ply = 0; ply < 12; ply++)
+        // Ply 0-7 should always be full temperature
+        for (int ply = 0; ply < 8; ply++)
         {
-            SelfPlayGenerator.GetTemperature(ply).Should().Be(1.8);
+            SelfPlayGenerator.GetTemperature(ply, 1.0).Should().BeApproximately(1.0, 0.001);
         }
     }
 
     [Fact]
-    public void GetTemperature_MediumExplorationForMovesSevenToTwelve()
+    public void GetTemperature_DecaysBy10PercentEvery2Plies()
     {
-        // Moves 7-12 correspond to plies 12-23
-        for (int ply = 12; ply < 24; ply++)
+        const double initialTemp = 1.0;
+
+        // Starting at ply 8, decays by 10% of initial every 2 plies
+        for (int step = 0; step < 10; step++)
         {
-            SelfPlayGenerator.GetTemperature(ply).Should().Be(1.0);
+            var ply = 8 + step * 2;
+            var expectedTemp = initialTemp * (1.0 - (step + 1) * 0.1);
+            var clampedExpected = Math.Max(0.0, expectedTemp);
+
+            SelfPlayGenerator.GetTemperature(ply, initialTemp).Should().BeApproximately(clampedExpected, 0.001);
+            SelfPlayGenerator.GetTemperature(ply + 1, initialTemp).Should().BeApproximately(clampedExpected, 0.001);
         }
     }
 
     [Fact]
-    public void GetTemperature_OptimalPlayAfterMoveTwelve()
+    public void GetTemperature_Reaches0AtPly26()
     {
-        // Move 13+ corresponds to ply 24+
-        for (int ply = 24; ply < 50; ply++)
+        // With default initial temp 1.2, should reach 0 at ply 26
+        SelfPlayGenerator.GetTemperature(26, 1.2).Should().BeApproximately(0.0, 0.001);
+        SelfPlayGenerator.GetTemperature(27, 1.2).Should().BeApproximately(0.0, 0.001);
+
+        // With initial temp 1.0, also reaches 0 at ply 26
+        SelfPlayGenerator.GetTemperature(26, 1.0).Should().BeApproximately(0.0, 0.001);
+    }
+
+    [Fact]
+    public void GetTemperature_OptimalPlayAfterPly26()
+    {
+        // Ply 26+ should always be 0 (optimal play)
+        for (int ply = 26; ply < 50; ply++)
         {
-            SelfPlayGenerator.GetTemperature(ply).Should().Be(0.0);
+            SelfPlayGenerator.GetTemperature(ply, 1.0).Should().BeApproximately(0.0, 0.001);
         }
     }
 

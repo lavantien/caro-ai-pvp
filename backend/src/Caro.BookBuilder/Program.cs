@@ -94,6 +94,8 @@ class Program
         Console.WriteLine("  --games <n>               Number of games (default: 8192 = 2^13)");
         Console.WriteLine("  --base-time <ms>          Base time per player (default: 60000 = 1 min)");
         Console.WriteLine("  --increment <ms>          Time increment per move (default: 0)");
+        Console.WriteLine("  --temperature <t>         Initial temperature for sampling (default: 1.2)");
+        Console.WriteLine("                            Decays by 10% every 2 plies starting at ply 8");
         Console.WriteLine("  --threads <n>             Parallel games (default: CPU cores)");
         Console.WriteLine("  --buffer <n>              Games before commit (default: 4096 = 2^12)");
         Console.WriteLine("  --resume                  Continue from existing games in staging DB");
@@ -203,6 +205,7 @@ class Program
         var targetGameCount = GetIntArgument(args, "--games", 8192);  // 2^13
         var baseTimeMs = GetIntArgument(args, "--base-time", 60000);   // 1 min default
         var incrementMs = GetIntArgument(args, "--increment", 0);      // No increment
+        var temperature = GetDoubleArgument(args, "--temperature", 1.2);
         var threads = GetIntArgument(args, "--threads", Environment.ProcessorCount);
         var buffer = GetIntArgument(args, "--buffer", 4096);     // 2^12
         var maxPly = GetIntArgument(args, "--max-ply", 16);
@@ -212,6 +215,7 @@ class Program
         Console.WriteLine($"Staging database: {stagingPath}");
         Console.WriteLine($"Target games: {targetGameCount}");
         Console.WriteLine($"Time control: {baseTimeMs / 60000}+{incrementMs / 1000}");
+        Console.WriteLine($"Initial temperature: {temperature}");
         Console.WriteLine($"Max ply to record: {maxPly}");
         Console.WriteLine($"Buffer size: {buffer}");
         Console.WriteLine();
@@ -253,7 +257,8 @@ class Program
         var selfPlayGenerator = new SelfPlayGenerator(
             stagingStore,
             canonicalizer,
-            loggerFactory);
+            loggerFactory,
+            initialTemperature: temperature);
 
         var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (s, e) =>
@@ -1051,6 +1056,21 @@ class Program
         return defaultValue;
     }
 
+    static double GetDoubleArgument(string[] args, string name, double defaultValue)
+    {
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i].Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                if (double.TryParse(args[i + 1], out double value))
+                    return value;
+                Console.WriteLine($"Warning: Invalid value for {name}, using default {defaultValue}");
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+
     static void ValidateArguments(string[] args)
     {
         var validArguments = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -1064,6 +1084,7 @@ class Program
             "--time",
             "--base-time",
             "--increment",
+            "--temperature",
             "--threads",
             "--buffer",
             "--batch",
