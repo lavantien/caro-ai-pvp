@@ -78,10 +78,14 @@ public sealed class MoveVerifier
             verificationTimeMs, maxPly, threadCount);
 
         var stopwatch = Stopwatch.StartNew();
+        var effectiveMinPlayCount = minPlayCount ?? MinPlayCount;
 
         // Build position statistics by replaying games
         var positionData = BuildPositionStatisticsFromGames(maxPly);
         _logger.LogInformation("Reconstructed {Count} unique positions from games", positionData.Count);
+
+        // Log play count histogram for diagnosis
+        LogPlayCountHistogram(positionData, effectiveMinPlayCount);
 
         // Create ONE multi-threaded engine instance for all positions
         // Shared TT provides 40-60% hit rate for deeper search
@@ -89,7 +93,6 @@ public sealed class MoveVerifier
 
         var verifiedMoves = new System.Collections.Concurrent.ConcurrentBag<VerifiedMove>();
         var stats = new VerificationStats();
-        var effectiveMinPlayCount = minPlayCount ?? MinPlayCount;
 
         var options = new ParallelOptions
         {
@@ -534,6 +537,66 @@ public sealed class MoveVerifier
     {
         // This would be tracked during verification
         return new ConsensusStats(0, 0, 0.0);
+    }
+
+    /// <summary>
+    /// Log play count histogram to understand position distribution.
+    /// </summary>
+    private void LogPlayCountHistogram(
+        Dictionary<(ulong CanonicalHash, ulong DirectHash, Player Player), ReconstructedPositionData> positionData,
+        int minPlayCount)
+    {
+        var playCounts = positionData.Values
+            .Select(p => p.Statistics.PlayCount)
+            .OrderBy(c => c)
+            .ToList();
+
+        if (playCounts.Count == 0)
+            return;
+
+        var buckets = new Dictionary<string, int>
+        {
+            ["1"] = playCounts.Count(c => c == 1),
+            ["2-3"] = playCounts.Count(c => c is >= 2 and <= 3),
+            ["4-7"] = playCounts.Count(c => c is >= 4 and <= 7),
+            ["8-15"] = playCounts.Count(c => c is >= 8 and <= 15),
+            ["16-31"] = playCounts.Count(c => c is >= 16 and <= 31),
+            ["32-63"] = playCounts.Count(c => c is >= 32 and <= 63),
+            ["64-127"] = playCounts.Count(c => c is >= 64 and <= 127),
+            ["128-255"] = playCounts.Count(c => c is >= 128 and <= 255),
+            ["256-511"] = playCounts.Count(c => c is >= 256 and <= 511),
+            ["512+"] = playCounts.Count(c => c >= 512)
+        };
+
+        var total = playCounts.Count;
+        var aboveThreshold = playCounts.Count(c => c >= minPlayCount);
+        var avgPlayCount = playCounts.Average();
+        var maxPlayCount = playCounts.Max();
+        var p50 = playCounts[total / 2];
+        var p90 = playCounts[(int)(total * 0.9)];
+        var p99 = playCounts[(int)(total * 0.99)];
+
+        _logger.LogInformation(
+            "Play count distribution: avg={Avg:F1}, max={Max}, p50={P50}, p90={P90}, p99={P99}, " +
+            "above threshold ({Threshold})={Above}/{Total} ({Pct:F2}%)",
+            avgPlayCount, maxPlayCount, p50, p90, p99, minPlayCount, aboveThreshold, total,
+            100.0 * aboveThreshold / total);
+
+        _logger.LogInformation(
+            "Histogram: 1={C1} ({P1:F1}%), 2-3={C2} ({P2:F1}%), 4-7={C4} ({P4:F1}%), " +
+            "8-15={C8} ({P8:F1}%), 16-31={C16} ({P16:F1}%), 32-63={C32} ({P32:F1}%), " +
+            "64-127={C64} ({P64:F1}%), 128-255={C128} ({P128:F1}%), 256-511={C256} ({P256:F1}%), " +
+            "512+={C512} ({P512:F1}%)",
+            buckets["1"], 100.0 * buckets["1"] / total,
+            buckets["2-3"], 100.0 * buckets["2-3"] / total,
+            buckets["4-7"], 100.0 * buckets["4-7"] / total,
+            buckets["8-15"], 100.0 * buckets["8-15"] / total,
+            buckets["16-31"], 100.0 * buckets["16-31"] / total,
+            buckets["32-63"], 100.0 * buckets["32-63"] / total,
+            buckets["64-127"], 100.0 * buckets["64-127"] / total,
+            buckets["128-255"], 100.0 * buckets["128-255"] / total,
+            buckets["256-511"], 100.0 * buckets["256-511"] / total,
+            buckets["512+"], 100.0 * buckets["512+"] / total);
     }
 
     /// <summary>
