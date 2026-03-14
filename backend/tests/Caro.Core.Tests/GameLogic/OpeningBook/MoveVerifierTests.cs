@@ -39,20 +39,22 @@ public sealed class MoveVerifierTests : IDisposable
         // Act
         var thresholds = MoveVerifier.GetThresholds();
 
-        // Assert - All values should be powers of 2 or fractions based on powers of 2
+        // Assert - Core values should be powers of 2
         Assert.True(IsPowerOfTwo(thresholds.MinPlayCount), $"MinPlayCount {thresholds.MinPlayCount} is not power of 2");
-        Assert.True(IsPowerOfTwo(thresholds.MaxScoreDelta), $"MaxScoreDelta {thresholds.MaxScoreDelta} is not power of 2");
-        Assert.True(IsPowerOfTwo(thresholds.InclusionScoreDelta), $"InclusionScoreDelta {thresholds.InclusionScoreDelta} is not power of 2");
         Assert.True(IsPowerOfTwo(thresholds.MaxMovesPerPosition), $"MaxMovesPerPosition {thresholds.MaxMovesPerPosition} is not power of 2");
         Assert.True(IsPowerOfTwo(thresholds.VcfTriggerThreats), $"VcfTriggerThreats {thresholds.VcfTriggerThreats} is not power of 2");
         Assert.True(IsPowerOfTwo(thresholds.DefaultVerificationTimeMs), $"DefaultVerificationTimeMs {thresholds.DefaultVerificationTimeMs} is not power of 2");
         Assert.True(IsPowerOfTwo(thresholds.ExtendedVerificationTimeMs), $"ExtendedVerificationTimeMs {thresholds.ExtendedVerificationTimeMs} is not power of 2");
         Assert.True(IsPowerOfTwo(thresholds.VcfTimeLimitMs), $"VcfTimeLimitMs {thresholds.VcfTimeLimitMs} is not power of 2");
 
-        // Verify fraction-based thresholds
-        Assert.Equal(0.625, thresholds.MinWinRate);           // 5/8
-        Assert.Equal(0.375, thresholds.MaxWinRateForLoss);    // 3/8
-        Assert.Equal(0.8125, thresholds.MinConsensusRate);    // 13/16
+        // Score deltas are sums of powers of 2 (widened for yield optimization)
+        Assert.Equal(768, thresholds.MaxScoreDelta);           // 512 + 256 = 2^9 + 2^8
+        Assert.Equal(384, thresholds.InclusionScoreDelta);     // 256 + 128 = 2^8 + 2^7
+
+        // Verify fraction-based thresholds (widened for yield optimization)
+        Assert.Equal(0.70, thresholds.MinWinRate, 2);          // 70% (raised from 62.5%)
+        Assert.Equal(0.30, thresholds.MaxWinRateForLoss, 2);   // 30% (lowered from 37.5%)
+        Assert.Equal(0.8125, thresholds.MinConsensusRate);     // 13/16
     }
 
     [Fact]
@@ -141,17 +143,17 @@ public sealed class MoveVerifierTests : IDisposable
     }
 
     [Fact]
-    public void MinWinRate_IsFiveEighths()
+    public void MinWinRate_IsSeventyPercent()
     {
         var thresholds = MoveVerifier.GetThresholds();
-        Assert.Equal(0.625, thresholds.MinWinRate);  // 5/8
+        Assert.Equal(0.70, thresholds.MinWinRate);  // 70%
     }
 
     [Fact]
-    public void MaxWinRateForLoss_IsThreeEighths()
+    public void MaxWinRateForLoss_IsThirtyPercent()
     {
         var thresholds = MoveVerifier.GetThresholds();
-        Assert.Equal(0.375, thresholds.MaxWinRateForLoss);  // 3/8
+        Assert.Equal(0.30, thresholds.MaxWinRateForLoss);  // 30%
     }
 
     [Fact]
@@ -162,19 +164,17 @@ public sealed class MoveVerifierTests : IDisposable
     }
 
     [Fact]
-    public void MaxScoreDelta_IsPowerOfTwo()
+    public void MaxScoreDelta_IsSevenSixtyEight()
     {
         var thresholds = MoveVerifier.GetThresholds();
-        Assert.Equal(512, thresholds.MaxScoreDelta);  // 2^9 centipawns
-        Assert.True(IsPowerOfTwo(thresholds.MaxScoreDelta));
+        Assert.Equal(768, thresholds.MaxScoreDelta);  // 2^9 + 2^8 centipawns (widened for yield)
     }
 
     [Fact]
-    public void InclusionScoreDelta_IsPowerOfTwo()
+    public void InclusionScoreDelta_IsThreeEightyFour()
     {
         var thresholds = MoveVerifier.GetThresholds();
-        Assert.Equal(256, thresholds.InclusionScoreDelta);  // 2^8 centipawns
-        Assert.True(IsPowerOfTwo(thresholds.InclusionScoreDelta));
+        Assert.Equal(384, thresholds.InclusionScoreDelta);  // 2^8 + 2^7 centipawns (widened for yield)
     }
 
     [Fact]
@@ -186,10 +186,10 @@ public sealed class MoveVerifierTests : IDisposable
     }
 
     [Fact]
-    public void VcfTriggerThreats_IsTwo()
+    public void VcfTriggerThreats_IsOne()
     {
         var thresholds = MoveVerifier.GetThresholds();
-        Assert.Equal(2, thresholds.VcfTriggerThreats);
+        Assert.Equal(1, thresholds.VcfTriggerThreats);  // Lowered to catch more tactical positions
     }
 
     [Fact]
@@ -289,9 +289,15 @@ public sealed class MoveVerifierTests : IDisposable
             totalPositionsProcessed: 100,
             filteredLowPlayCount: 20,
             filteredUnclearResult: 15,
+            filteredMoveWinRate: 10,
+            filteredScoreDelta: 8,
             totalMovesVerified: 50,
+            consensusCount: 42,
+            consensusAttempted: 50,
+            vcfAttempted: 100,
+            vcfTriggered: 30,
             vcfSolvedCount: 5,
-            consensusRate: 0.85,
+            consensusRate: 0.84,
             duration: TimeSpan.FromMinutes(5));
 
         // Assert
@@ -299,9 +305,15 @@ public sealed class MoveVerifierTests : IDisposable
         Assert.Equal(100, summary.TotalPositionsProcessed);
         Assert.Equal(20, summary.FilteredLowPlayCount);
         Assert.Equal(15, summary.FilteredUnclearResult);
+        Assert.Equal(10, summary.FilteredMoveWinRate);
+        Assert.Equal(8, summary.FilteredScoreDelta);
         Assert.Equal(50, summary.TotalMovesVerified);
+        Assert.Equal(42, summary.ConsensusCount);
+        Assert.Equal(50, summary.ConsensusAttempted);
+        Assert.Equal(100, summary.VcfAttempted);
+        Assert.Equal(30, summary.VcfTriggered);
         Assert.Equal(5, summary.VcfSolvedCount);
-        Assert.Equal(0.85, summary.ConsensusRate);
+        Assert.Equal(0.84, summary.ConsensusRate);
         Assert.Equal(TimeSpan.FromMinutes(5), summary.Duration);
     }
 
@@ -311,15 +323,15 @@ public sealed class MoveVerifierTests : IDisposable
         // Act
         var thresholds = MoveVerifier.GetThresholds();
 
-        // Assert - Verify all expected values from the plan
+        // Assert - Verify all expected values (widened for yield optimization)
         Assert.Equal(512, thresholds.MinPlayCount);            // 2^9
-        Assert.Equal(0.625, thresholds.MinWinRate);            // 5/8
-        Assert.Equal(0.375, thresholds.MaxWinRateForLoss);     // 3/8
+        Assert.Equal(0.70, thresholds.MinWinRate, 2);          // 70% (raised from 62.5%)
+        Assert.Equal(0.30, thresholds.MaxWinRateForLoss, 2);   // 30% (lowered from 37.5%)
         Assert.Equal(0.8125, thresholds.MinConsensusRate);     // 13/16
-        Assert.Equal(512, thresholds.MaxScoreDelta);           // 2^9 cp
-        Assert.Equal(256, thresholds.InclusionScoreDelta);     // 2^8 cp
+        Assert.Equal(768, thresholds.MaxScoreDelta);           // 2^9 + 2^8 cp (widened)
+        Assert.Equal(384, thresholds.InclusionScoreDelta);     // 2^8 + 2^7 cp (widened)
         Assert.Equal(4, thresholds.MaxMovesPerPosition);       // 2^2
-        Assert.Equal(2, thresholds.VcfTriggerThreats);
+        Assert.Equal(1, thresholds.VcfTriggerThreats);         // Lowered from 2 to catch more
         Assert.Equal(4096, thresholds.DefaultVerificationTimeMs);  // 2^12 ms (quality-optimized)
         Assert.Equal(8192, thresholds.ExtendedVerificationTimeMs); // 2^13 ms (survival zone)
         Assert.Equal(128, thresholds.VcfTimeLimitMs);          // 2^7 ms
