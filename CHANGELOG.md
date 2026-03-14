@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.75.0] - 2026-03-15
+
+### Added
+- **CLI Option** - `--temperature` for configurable self-play sampling
+  - Default 1.2 (matches previous hardcoded value)
+  - Temperature decays by 10% of initial value every 2 plies starting at ply 8
+  - Reaches 0.0 at ply 26 for optimal play
+  - Example: `--temperature 1.0` for tighter gradient (1.0 → 0.9 → 0.8 → ... → 0.0)
+
+### Changed
+- **SelfPlayGenerator** - Temperature decay now uses configurable gradient
+  - Previous: 3 fixed tiers (1.2 for ply 0-11, 0.8 for ply 12-23, 0.0 for ply 24+)
+  - New: Smooth decay from ply 8, reaching 0 at ply 26
+  - Formula: `temp = initialTemp * (1 - step * 0.1)` where step = floor((ply-8)/2) + 1
+
+- **MoveVerifier** - Added play count histogram logging
+  - Shows distribution of position visit counts before filtering
+  - Helps diagnose yield issues with various `--min-play-count` thresholds
+  - Reports percentiles (p50, p90, p99) and bucket breakdown
+
 ## [1.74.5] - 2026-03-11
 
 ### Fixed
