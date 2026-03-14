@@ -44,12 +44,16 @@ public sealed class SelfPlayGenerator
     // Optional parameter provider for SPSA tuning (null = use default constants)
     private readonly IEvaluationParameterProvider? _parameterProvider;
 
+    // Temperature for move sampling
+    private readonly double _initialTemperature;
+
     public SelfPlayGenerator(
         IStagingBookStore stagingStore,
         IPositionCanonicalizer? canonicalizer = null,
         ILoggerFactory? loggerFactory = null,
         IOpeningBookStore? bookStore = null,
-        IEvaluationParameterProvider? parameterProvider = null)
+        IEvaluationParameterProvider? parameterProvider = null,
+        double initialTemperature = 1.2)
     {
         _stagingStore = stagingStore ?? throw new ArgumentNullException(nameof(stagingStore));
         _canonicalizer = canonicalizer ?? new PositionCanonicalizer();
@@ -57,6 +61,7 @@ public sealed class SelfPlayGenerator
         _logger = _loggerFactory.CreateLogger<SelfPlayGenerator>();
         _bookStore = bookStore;
         _parameterProvider = parameterProvider;
+        _initialTemperature = initialTemperature;
     }
 
     /// <summary>
@@ -288,9 +293,10 @@ public sealed class SelfPlayGenerator
             var moveStartTime = DateTime.UtcNow;
 
             // Calculate time for this move based on remaining time
-            // For self-play: use 5% of remaining time, min 100ms, max 2000ms
+            // For self-play: use 10% of remaining time, min 200ms, max 3000ms
+            // Increased for better alignment with verification depth
             var availableTime = currentPlayer == Player.Red ? redTime : blueTime;
-            var moveTimeMs = Math.Max(100, Math.Min(2000, availableTime / 20));
+            var moveTimeMs = Math.Max(200, Math.Min(3000, availableTime / 10));
 
             // Get move with temperature-based sampling
             var (x, y) = SelectMoveWithSampling(
@@ -402,27 +408,34 @@ public sealed class SelfPlayGenerator
         }
 
         // Step 3: Dynamic Temperature
-        double temperature = GetTemperature(ply);
+        double temperature = GetTemperature(ply, _initialTemperature);
 
         // Step 4: Softmax Sampling
         return SampleMove(safeCandidates, temperature);
     }
 
     /// <summary>
-    /// Get dynamic temperature based on game phase.
-    /// Per expert report: decay to 0 by move 12 (ply 24)
-    /// - Moves 1-6 (ply 0-11): High temp for variety
-    /// - Moves 7-12 (ply 12-23): Medium temp
-    /// - Move 13+ (ply 24+): No randomness - optimal play
+    /// Get dynamic temperature based on game phase with configurable initial temperature.
+    /// Decay starts at ply 8, decreasing by 10% of initialTemperature every 2 plies.
     /// </summary>
-    internal static double GetTemperature(int ply)
+    /// <param name="ply">Current ply (half-move) number</param>
+    /// <param name="initialTemperature">Starting temperature (default 1.2)</param>
+    /// <returns>Temperature for this ply</returns>
+    internal static double GetTemperature(int ply, double initialTemperature = 1.2)
     {
-        return ply switch
+        // Ply 0-7: Full temperature
+        if (ply < 8)
         {
-            < 12 => 1.8,   // Ply 0-11 (Moves 1-6): High exploration
-            < 24 => 1.0,   // Ply 12-23 (Moves 7-12): Medium exploration
-            _ => 0.0       // Ply 24+ (Move 13+): Optimal play
-        };
+            return initialTemperature;
+        }
+
+        // Ply 8+: Decay by 10% of initial temperature every 2 plies
+        // steps = 1 for ply 8-9, 2 for ply 10-11, etc.
+        var steps = ((ply - 8) / 2) + 1;
+        var temperature = initialTemperature * (1.0 - steps * 0.1);
+
+        // Clamp to 0
+        return Math.Max(0.0, temperature);
     }
 
     /// <summary>
@@ -536,7 +549,7 @@ public sealed class SelfPlayGenerator
             Winner = game.Winner,
             TotalMoves = game.TotalMoves,
             TimeControl = timeControl,
-            Temperature = 1.8,  // Default opening temperature
+            Temperature = _initialTemperature,
             Difficulty = AIDifficulty.Grandmaster,
             MoveList = game.MoveList
         };

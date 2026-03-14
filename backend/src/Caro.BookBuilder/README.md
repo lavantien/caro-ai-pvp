@@ -228,12 +228,13 @@ All thresholds are powers of 2 for statistical significance:
 | Threshold | Value | Purpose |
 |-----------|-------|---------|
 | MinPlayCount | 512 (2^9, configurable via `--min-play-count`) | Filters fluke wins |
-| MinWinRate | 62.5% (5/8) | Winning line indicator |
-| MaxWinRateForLoss | 37.5% | Losing line indicator |
+| MinWinRate | 70% | Winning line indicator |
+| MaxWinRateForLoss | 30% | Losing line indicator |
 | MinConsensusRate | 81.25% | Self-play vs deep search consensus |
-| MaxScoreDelta | 512 (2^9) | Pruning threshold |
-| InclusionScoreDelta | 256 | Inclusion range |
+| MaxScoreDelta | 768 (2^9 + 2^8) | Pruning threshold |
+| InclusionScoreDelta | 384 (2^8 + 2^7) | Inclusion range |
 | MaxMovesPerPosition | 4 (configurable via `--max-moves`) | Variety without bloat |
+| VcfTriggerThreats | 1 | Min threats for VCF search |
 
 ### Threshold Rationale: Expert Report Compliance
 
@@ -241,18 +242,18 @@ The implementation follows expert recommendations for chess opening books with C
 
 | Component | Expert Recommendation | Implementation | Status |
 |-----------|----------------------|----------------|--------|
-| Book Width | ~30cp margin | 256cp margin | ⚠️ Wider (acceptable) |
+| Book Width | ~30cp margin | 384cp margin | ⚠️ Wider (acceptable) |
 | Max Moves | 5 per position | 4 per position | ✅ More conservative |
 | Time Control | 1+0 or Fixed Nodes | 1+0 default | ✅ Compliant |
 | Threading | Parallel single-threaded | Parallel workers | ✅ Compliant |
 | Sampling | Softmax + Temperature decay | Softmax + Decay to 0 by ply 24 | ✅ Compliant |
 
-**Why 256cp vs 30cp?**
+**Why 384cp vs 30cp?**
 
 1. **Game Complexity**: Caro (Gomoku variant) has higher branching factor than chess (~225 vs ~35 legal moves), leading to greater score variance in self-play.
 
 2. **Pipeline Architecture**: The 3-phase Actor-Critic pipeline provides defense in depth:
-   - Phase 1 (Actor): Wide inclusion (256cp) captures candidate moves
+   - Phase 1 (Actor): Wide inclusion (384cp) captures candidate moves
    - Phase 2 (Critic): Deep search verification filters false positives
    - Phase 3 (Integration): Statistical consensus (81.25%) ensures quality
 
@@ -262,13 +263,23 @@ The implementation follows expert recommendations for chess opening books with C
 
 **Temperature Decay Schedule:**
 
-| Ply Range | Temperature | Phase |
-|-----------|-------------|-------|
-| 0-11 | 1.8 | High exploration (moves 1-6) |
-| 12-23 | 1.0 | Medium exploration (moves 7-12) |
-| 24+ | 0.0 | Optimal play (move 13+) |
+Use `--temperature <t>` to set the initial temperature (default: 1.2). The temperature decays by 10% of the initial value every 2 plies starting at ply 8:
 
-This matches the expert recommendation: "decay to 0 by move 12" (our ply 24 = move 13).
+| Ply Range | Temp (t=1.0) | Temp (t=1.2) | Phase |
+|-----------|-------------|---------------|-------|
+| 0-7 | 1.0 | 1.2 | Full exploration |
+| 8-9 | 0.9 | 1.08 | First decay |
+| 10-11 | 0.8 | 0.96 | |
+| 12-13 | 0.7 | 0.84 | |
+| 14-15 | 0.6 | 0.72 | |
+| 16-17 | 0.5 | 0.60 | |
+| 18-19 | 0.4 | 0.48 | |
+| 20-21 | 0.3 | 0.36 | |
+| 22-23 | 0.2 | 0.24 | |
+| 24-25 | 0.1 | 0.12 | |
+| 26+ | 0.0 | 0.0 | Optimal play |
+
+This provides tighter gradient decay compared to the previous schedule, reaching 0 at ply 26.
 
 ---
 
