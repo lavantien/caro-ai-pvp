@@ -94,18 +94,50 @@ public sealed class AIServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task StartPonderingAsync_DoesNotThrow()
+    public async Task StartPonderingAsync_StartsPondering()
     {
         var gameId = Guid.NewGuid();
         var state = GameStateFactory.CreateInitial();
 
-        var act = async () => await _service.StartPonderingAsync(gameId, state, "medium");
+        await _service.StartPonderingAsync(gameId, state, "medium");
 
-        await act.Should().NotThrowAsync();
+        _service.IsCalculating(gameId).Should().BeTrue();
+        _service.CleanupGame(gameId);
     }
 
     [Fact]
-    public async Task StopPonderingAsync_DoesNotThrow()
+    public async Task StartPonderingAsync_MultipleDifficulties_AllWork()
+    {
+        var difficulties = new[] { "easy", "medium", "hard", "grandmaster" };
+
+        foreach (var difficulty in difficulties)
+        {
+            var gameId = Guid.NewGuid();
+            var state = GameStateFactory.CreateInitial();
+
+            await _service.StartPonderingAsync(gameId, state, difficulty);
+
+            _service.IsCalculating(gameId).Should().BeTrue();
+            _service.CleanupGame(gameId);
+        }
+    }
+
+    [Fact]
+    public async Task StopPonderingAsync_StopsPondering()
+    {
+        var gameId = Guid.NewGuid();
+        var state = GameStateFactory.CreateInitial();
+
+        await _service.StartPonderingAsync(gameId, state, "medium");
+        _service.IsCalculating(gameId).Should().BeTrue();
+
+        await _service.StopPonderingAsync(gameId);
+
+        _service.IsCalculating(gameId).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task StopPonderingAsync_WithoutStart_DoesNotThrow()
     {
         var gameId = Guid.NewGuid();
 
@@ -115,9 +147,13 @@ public sealed class AIServiceTests : IDisposable
     }
 
     [Fact]
-    public void CleanupGame_RemovesAIState()
+    public async Task CleanupGame_RemovesAIState()
     {
         var gameId = Guid.NewGuid();
+        var state = GameStateFactory.CreateInitial();
+
+        await _service.StartPonderingAsync(gameId, state, "medium");
+        _service.IsCalculating(gameId).Should().BeTrue();
 
         _service.CleanupGame(gameId);
 
@@ -125,11 +161,22 @@ public sealed class AIServiceTests : IDisposable
     }
 
     [Fact]
-    public void CleanupAll_RemovesAllStates()
+    public async Task CleanupAll_RemovesAllStates()
     {
+        var game1 = Guid.NewGuid();
+        var game2 = Guid.NewGuid();
+        var state = GameStateFactory.CreateInitial();
+
+        await _service.StartPonderingAsync(game1, state, "easy");
+        _service.CleanupGame(game1);
+        await _service.StartPonderingAsync(game2, state, "medium");
+
+        _service.IsCalculating(game2).Should().BeTrue();
+
         _service.CleanupAll();
 
-        _service.IsCalculating(Guid.NewGuid()).Should().BeFalse();
+        _service.IsCalculating(game1).Should().BeFalse();
+        _service.IsCalculating(game2).Should().BeFalse();
     }
 
     private sealed class MockLogger<T> : ILogger<T>

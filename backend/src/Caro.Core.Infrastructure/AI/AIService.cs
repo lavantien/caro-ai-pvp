@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Caro.Core.Application.DTOs;
 using Caro.Core.Application.Interfaces;
 using Caro.Core.Domain.Entities;
@@ -13,7 +14,7 @@ public sealed class AIService : IAIService
 {
     private readonly MinimaxAI _ai;
     private readonly ILogger<AIService> _logger;
-    private readonly HashSet<Guid> _activeCalculations = new();
+    private readonly ConcurrentDictionary<Guid, Player> _activePondering = new();
 
     public AIService(MinimaxAI ai, ILogger<AIService> logger)
     {
@@ -36,7 +37,7 @@ public sealed class AIService : IAIService
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             var (x, y) = await Task.Run(() =>
-                _ai.GetBestMove(state.Board, state.CurrentPlayer, diff),
+                _ai.GetBestMove(state.Board, state.CurrentPlayer, diff, ponderingEnabled: true),
                 cancellationToken);
 
             stopwatch.Stop();
@@ -52,7 +53,7 @@ public sealed class AIService : IAIService
                 NodesPerSecond = nodesPerSecond,
                 TimeTakenMs = stopwatch.ElapsedMilliseconds,
                 Score = score,
-                PonderingActive = false
+                PonderingActive = !_activePondering.IsEmpty
             };
         }
         catch (OperationCanceledException)
@@ -73,25 +74,49 @@ public sealed class AIService : IAIService
         string difficulty,
         CancellationToken cancellationToken = default)
     {
-        _activeCalculations.Add(gameId);
+        if (!Enum.TryParse<AIDifficulty>(difficulty, true, out var diff))
+            diff = AIDifficulty.Medium;
+
+        var aiColor = state.CurrentPlayer.Opponent();
+
+        _logger.LogDebug(
+            "Starting pondering for game {GameId}, AI color {AIColor}, difficulty {Difficulty}",
+            gameId, aiColor, difficulty);
+
+        _ai.StartPonderingNow(state.Board, state.CurrentPlayer, diff, aiColor);
+        _activePondering[gameId] = aiColor;
+
         return Task.CompletedTask;
     }
 
     public Task StopPonderingAsync(Guid gameId, CancellationToken cancellationToken = default)
     {
-        _activeCalculations.Remove(gameId);
+        if (_activePondering.TryRemove(gameId, out var aiColor))
+        {
+            _logger.LogDebug("Stopping pondering for game {GameId}, AI color {AIColor}", gameId, aiColor);
+            _ai.StopPondering(aiColor);
+        }
+
         return Task.CompletedTask;
     }
 
-    public bool IsCalculating(Guid gameId) => _activeCalculations.Contains(gameId);
+    public bool IsCalculating(Guid gameId) => _activePondering.ContainsKey(gameId);
 
     public void CleanupGame(Guid gameId)
     {
-        StopPonderingAsync(gameId).GetAwaiter().GetResult();
+        if (_activePondering.TryRemove(gameId, out var aiColor))
+        {
+            _ai.StopPondering(aiColor);
+        }
     }
 
     public void CleanupAll()
     {
-        _activeCalculations.Clear();
+        foreach (var kvp in _activePondering)
+        {
+            _ai.StopPondering(kvp.Value);
+        }
+
+        _activePondering.Clear();
     }
 }
