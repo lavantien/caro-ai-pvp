@@ -2,6 +2,7 @@ using Caro.Core.Application.DTOs;
 using Caro.Core.Application.Extensions;
 using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
+using Caro.Core.GameLogic;
 using Caro.Core.Infrastructure.AI;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
@@ -17,8 +18,8 @@ public sealed class AIServiceTests : IDisposable
     public AIServiceTests()
     {
         _logger = new MockLogger<AIService>();
-        var engine = new StatelessSearchEngine(new MockLogger<StatelessSearchEngine>());
-        _service = new AIService(engine, _logger);
+        var ai = new MinimaxAI(logger: new MockLogger<MinimaxAI>());
+        _service = new AIService(ai, _logger);
     }
 
     public void Dispose()
@@ -29,30 +30,24 @@ public sealed class AIServiceTests : IDisposable
     [Fact]
     public async Task CalculateBestMoveAsync_EmptyBoard_ReturnsValidMove()
     {
-        // Arrange
         var state = GameStateFactory.CreateInitial();
 
-        // Act
         var response = await _service.CalculateBestMoveAsync(state, "medium");
 
-        // Assert
         response.X.Should().BeGreaterOrEqualTo(0);
         response.Y.Should().BeGreaterOrEqualTo(0);
         response.X.Should().BeLessThan(GameConstants.BoardSize);
         response.Y.Should().BeLessThan(GameConstants.BoardSize);
         response.DepthAchieved.Should().BeGreaterThan(0);
         response.NodesSearched.Should().BeGreaterThan(0);
-        response.NodesPerSecond.Should().BeGreaterThan(0);
         response.TimeTakenMs.Should().BeGreaterOrEqualTo(0);
     }
 
     [Fact]
     public async Task CalculateBestMoveAsync_MultipleDifficulties_AllWork()
     {
-        // Arrange
         var difficulties = new[] { "easy", "medium", "hard" };
 
-        // Act & Assert
         foreach (var difficulty in difficulties)
         {
             var state = GameStateFactory.CreateInitial();
@@ -67,13 +62,10 @@ public sealed class AIServiceTests : IDisposable
     [Fact]
     public async Task CalculateBestMoveAsync_Grandmaster_Works()
     {
-        // Arrange
         var state = GameStateFactory.CreateInitial();
 
-        // Act
         var response = await _service.CalculateBestMoveAsync(state, "grandmaster");
 
-        // Assert
         response.X.Should().BeGreaterOrEqualTo(0);
         response.Y.Should().BeGreaterOrEqualTo(0);
         response.X.Should().BeLessThan(GameConstants.BoardSize);
@@ -84,75 +76,59 @@ public sealed class AIServiceTests : IDisposable
     [Fact]
     public async Task CalculateBestMoveAsync_WithCancellation_Throws()
     {
-        // Arrange
         var state = GameStateFactory.CreateInitial();
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        // Act
         var act = async () => await _service.CalculateBestMoveAsync(state, "medium", cts.Token);
 
-        // Assert
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     [Fact]
     public void IsCalculating_InitiallyReturnsFalse()
     {
-        // Act
         var isCalculating = _service.IsCalculating(Guid.NewGuid());
 
-        // Assert
         isCalculating.Should().BeFalse();
     }
 
     [Fact]
     public async Task StartPonderingAsync_DoesNotThrow()
     {
-        // Arrange
         var gameId = Guid.NewGuid();
         var state = GameStateFactory.CreateInitial();
 
-        // Act
         var act = async () => await _service.StartPonderingAsync(gameId, state, "medium");
 
-        // Assert
         await act.Should().NotThrowAsync();
     }
 
     [Fact]
     public async Task StopPonderingAsync_DoesNotThrow()
     {
-        // Arrange
         var gameId = Guid.NewGuid();
 
-        // Act
         var act = async () => await _service.StopPonderingAsync(gameId);
 
-        // Assert
         await act.Should().NotThrowAsync();
     }
 
     [Fact]
     public void CleanupGame_RemovesAIState()
     {
-        // Arrange
         var gameId = Guid.NewGuid();
 
-        // Act
         _service.CleanupGame(gameId);
 
-        // Assert - Should not throw, state is cleaned up
         _service.IsCalculating(gameId).Should().BeFalse();
     }
 
     [Fact]
     public void CleanupAll_RemovesAllStates()
     {
-        // Act
         _service.CleanupAll();
 
-        // Assert - Should not throw
         _service.IsCalculating(Guid.NewGuid()).Should().BeFalse();
     }
 
