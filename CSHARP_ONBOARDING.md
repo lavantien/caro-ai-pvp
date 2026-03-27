@@ -439,9 +439,9 @@ This codebase follows Clean Architecture with three core layers:
 | Test Project | Source Project | Test Type | Count |
 |-------------|----------------|------------|--------|
 | Caro.Core.Domain.Tests | Caro.Core.Domain | Unit | 52 |
-| Caro.Core.Application.Tests | Caro.Core.Application | Unit | 14 |
-| Caro.Core.Infrastructure.Tests | Caro.Core.Infrastructure | Unit | 48 |
-| Caro.Core.Tests | Caro.Core (GameLogic/Tournament/Concurrency) | Unit | 566 |
+| Caro.Core.Application.Tests | Caro.Core.Application | Unit | 26 |
+| Caro.Core.Infrastructure.Tests | Caro.Core.Infrastructure | Unit | 42 |
+| Caro.Core.Tests | Caro.Core (GameLogic/Tournament/Concurrency) | Unit | 649 |
 | Caro.Core.IntegrationTests | Caro.Core (AI Search) | Integration | See project |
 | Caro.Core.MatchupTests | Caro.Core (Integration/Matchup) | Integration | See project |
 
@@ -453,10 +453,10 @@ This codebase follows Clean Architecture with three core layers:
 4. **Identify with-expression mutations** : Look for non-destructive state updates
 5. **Check Program.cs** : See how services are wired (Transient/Scoped/Singleton)
 6. **Run Tests** : Use `dotnet test` in backend/ or Test Explorer
-   - Caro.Core.Domain.Tests: 45 unit tests (no mocking needed)
-   - Caro.Core.Application.Tests: 14 unit tests (mock DTOs)
-   - Caro.Core.Infrastructure.Tests: 64 unit/integration tests
-   - Caro.Core.Tests: 574 unit tests (AI, tournament, concurrency)
+   - Caro.Core.Domain.Tests: 52 unit tests (no mocking needed)
+   - Caro.Core.Application.Tests: 26 unit tests (mock DTOs)
+   - Caro.Core.Infrastructure.Tests: 42 unit tests
+   - Caro.Core.Tests: 649 unit tests (AI, tournament, concurrency)
    - Caro.Core.IntegrationTests: 224 integration tests (opt-in, slower)
    - Caro.Core.MatchupTests: ~54 integration/matchup tests
 7. **When tests fail** : Check [Theory] inline data to see which input caused crash

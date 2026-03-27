@@ -569,7 +569,7 @@ Standard UCI commands for engine control:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| Skill Level | spin | 3 | 1-6 difficulty |
+| Skill Level | spin | 3 | 1-6 (1=Braindead, 2=Easy, 3=Medium, 4=Hard, 5=Grandmaster, 6=Experimental) |
 | Threads | spin | auto | Search threads |
 | Hash | spin | 256 | TT size (MB) |
 | Ponder | check | true | Enable pondering |
