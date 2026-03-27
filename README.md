@@ -276,13 +276,13 @@ graph TB
     end
 
     Presentation --> Application
-    Application --> Domain
     Presentation --> Core
     Core --> Domain
-    Core --> Application
-    Application --> Infrastructure
-    Infrastructure --> Domain
+    Application --> Core
+    Application --> Domain
+    Infrastructure --> Core
     Infrastructure --> Application
+    Infrastructure --> Domain
 ```
 
 **Clean Architecture Projects:**
@@ -290,9 +290,9 @@ graph TB
 | Project | Purpose | Dependencies |
 |---------|---------|--------------|
 | `Caro.Core.Domain` | Core entities, value objects | None |
-| `Caro.Core.Application` | Interfaces, application services | Domain |
-| `Caro.Core` | Game logic, AI engine, tournament, UCI protocol | Domain, Application |
-| `Caro.Core.Infrastructure` | Service implementations, external concerns | Domain, Application |
+| `Caro.Core.Application` | Interfaces, application services | Domain, Core |
+| `Caro.Core` | Game logic, AI engine, tournament, UCI protocol | Domain |
+| `Caro.Core.Infrastructure` | Service implementations, external concerns | Domain, Application, Core |
 
 **Immutable Domain Model:**
 
