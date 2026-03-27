@@ -449,104 +449,7 @@ Victory by Continuous Fours - tactical solver for forcing win sequences.
 - Results cached for reuse
 - Depth-limited for practical use
 
-### 7.3 Opening Book
-
-Precomputed opening positions for early game guidance with in-memory lookup.
-
-**Architecture:**
-- SQLite persistence with schema v3
-- InMemoryOpeningBook for fast lookup (40K+ lookups/sec)
-- 8-way symmetry reduction (~8x storage savings)
-- Compound key storage: (CanonicalHash, DirectHash, Player) prevents hash collisions
-
-**Variable Depth Configuration:**
-
-| Ply Range | Search Depth | Moves/Position | Use VCF | Phase |
-|-----------|-------------|----------------|--------|-------|
-| 0-8 | 20-30 | 4 (configurable via `--max-moves`) | Yes | Opening Theory |
-| 8-16 | 14-20 | 4 (configurable via `--max-moves`) | No | Mid-game |
-| 16+ | Self-play only | - | - | End-game |
-
-**Move Classification (MoveSource):**
-
-| Source | Priority | Description |
-|--------|----------|-------------|
-| Solved | 1 (highest) | Proven wins via VCF/VCT solver |
-| Learned | 2 | Deep search evaluation |
-| SelfPlay | 3 | Engine vs engine game results |
-
-**Book Depth by Difficulty:**
-
-| Difficulty | Book Depth |
-|------------|------------|
-| Braindead | None |
-| Easy | 4 plies |
-| Medium | 6 plies |
-| Hard | 10 plies |
-| Grandmaster | 14 plies |
-| Experimental | Unlimited |
-
-**Book Move Validation:**
-- Hard+ difficulties validate book moves with quick D3-D5 search
-- Prevents strength inversions from bad book moves
-- Falls back to full search if book move scores < -100 centipawns
-- Lower difficulties use book moves directly for speed
-
-**Generation Methods:**
-1. **Deep Search** - Minimax with alpha-beta pruning
-2. **VCF Solving** - Victory by Continuous Fours solver for early positions
-3. **Self-Play** - Engine vs engine games with time control
-
-**Separated Pipeline Architecture:**
-
-The opening book generation uses a three-phase separated pipeline (Actor-Critic pattern):
-
-| Phase | Component | Purpose | Output |
-|-------|-----------|---------|--------|
-| 1 | Self-Play (Actor) | Generate diverse raw games | staging.db |
-| 2 | Verification (Critic) | Deep search + VCF verification | verified.db |
-| 3 | Integration | Merge verified moves to main book | opening_book.db |
-
-**Key Thresholds (Powers of 2):**
-
-| Threshold | Value | Rationale |
-|-----------|-------|-----------|
-| Self-Play Base Time | 60000ms (1 min/player) | Fischer time control |
-| Self-Play Increment | 0ms | No increment default |
-| Verification Time | 4096ms (2^12) | Quality-optimized deep analysis |
-| Survival Zone Time | 8192ms (2^13) | Critical positions (ply 8-16) |
-| VCF Time Limit | 128ms (2^7) | Per VCF search |
-| Min Play Count | 512 (2^9, configurable) | Filters noise |
-| Max Moves/Position | 4 (configurable) | Variety without bloat |
-| Win Rate Threshold | 62.5% (5/8) | Quality filter |
-
-**CLI Commands:**
-```bash
-# Run full pipeline (all three phases unattended)
-dotnet run --project backend/src/Caro.BookBuilder -- --full-pipeline --games 8192 --threads 8
-
-# Individual phase commands:
-# Phase 1: Self-play generation (use --staging, not legacy --self-play)
-dotnet run --project backend/src/Caro.BookBuilder -- --staging staging.db --games 8192
-
-# Phase 2: Verification with deep search (quality-optimized: 4096ms default)
-dotnet run --project backend/src/Caro.BookBuilder -- --verify-staging staging.db --time 4096 --threads 8 --output verified.db
-
-# Phase 3: Integrate into main book
-dotnet run --project backend/src/Caro.BookBuilder -- --integrate verified.db --book opening_book.db
-```
-
-See [backend/src/Caro.BookBuilder/README.md](backend/src/Caro.BookBuilder/README.md) for complete CLI reference including SPSA tuning and binary format.
-
-**Integration:**
-- Caro.Api Program.cs loads InMemoryBookStore at startup
-- InMemoryBookStore wraps SqliteOpeningBookStore for O(1) concurrent lookup
-- MinimaxAI.LoadOpeningBook(IOpeningBookStore) loads book for nanosecond lookup
-- MinimaxAI.CheckOpeningBook(Board, Player, AIDifficulty) retrieves move with depth filtering
-- Difficulty-based depth filtering: Easy=4, Medium=6, Hard=10, Grandmaster=14 plies
-- Book path: `opening_book.db` at repository root
-
-### 7.4 Exactly-5 Validation
+### 7.3 Exactly-5 Validation
 
 Caro rule requires exactly 5 stones (not 6+) to win.
 
@@ -560,7 +463,7 @@ Caro rule requires exactly 5 stones (not 6+) to win.
 - Blocked fours can still win
 - Double threats prioritized
 
-### 7.5 Threat Detection Philosophy
+### 7.4 Threat Detection Philosophy
 
 The engine uses search-based threat evaluation rather than reflexive blocking.
 
@@ -585,71 +488,19 @@ The engine uses search-based threat evaluation rather than reflexive blocking.
 - Search-based evaluation maintains strategic flexibility
 - Prevents "strength inversion" where weaker AI exploits predictable blocking
 
-### 7.6 Open Rule
+### 7.5 Open Rule
 
 Red's second move must be at least 3 intersections from first.
 
 **Implementation:**
 - Enforced at game logic level
 - Move generation filters invalid moves
-- Opening book respects rule
 
 ---
 
-## 8. Automated Tuning
+## 8. Concurrency Model
 
-### 8.1 SPSA Optimizer
-
-Simultaneous Perturbation Stochastic Approximation for parameter optimization.
-
-**Algorithm:**
-- Gradient-free optimization
-- Simultaneous parameter perturbation
-- Works with noisy evaluations
-
-**Parameters:**
-- Alpha: 0.602 (default)
-- Gamma: 0.101 (default)
-- Multiple presets available
-
-**Tuning Targets:**
-- Evaluation weights
-- Move ordering thresholds
-- LMR reduction factors
-
-### 8.2 Running SPSA Tuning
-
-Use the BookBuilder CLI to run SPSA parameter tuning:
-
-```bash
-cd backend/src/Caro.BookBuilder
-dotnet run -- --tune [options]
-```
-
-**How It Works:**
-1. Creates two parameter sets with small perturbations (theta+ and theta-)
-2. Runs self-play games with each parameter set in parallel
-3. Compares win rates to estimate gradient direction
-4. Updates parameters using SPSA formula
-5. Repeats for specified iterations
-
-See [backend/src/Caro.BookBuilder/README.md](backend/src/Caro.BookBuilder/README.md) for CLI options, examples, and parameter bounds.
-
-### 8.3 Self-Play Infrastructure
-
-Engine supports automated self-play for tuning and testing.
-
-**Features:**
-- Engine vs engine matches
-- Multiple time controls
-- Statistical significance testing
-- ELO calculation
-
----
-
-## 9. Concurrency Model
-
-### 9.1 Thread Safety
+### 8.1 Thread Safety
 
 All shared data structures designed for concurrent access.
 
@@ -663,7 +514,7 @@ All shared data structures designed for concurrent access.
 - Channels for async communication
 - Independent history tables per thread
 
-### 9.2 Cancellation
+### 8.2 Cancellation
 
 Coordinated search cancellation via CancellationTokenSource.
 
@@ -672,7 +523,7 @@ Coordinated search cancellation via CancellationTokenSource.
 - Checked at regular intervals
 - Clean termination on timeout or stop command
 
-### 9.3 Statistics Publishing
+### 8.3 Statistics Publishing
 
 Publisher-subscriber pattern for AI telemetry.
 
@@ -683,9 +534,9 @@ Publisher-subscriber pattern for AI telemetry.
 
 ---
 
-## 10. UCI Protocol
+## 9. UCI Protocol
 
-### 10.1 Command Support
+### 9.1 Command Support
 
 Standard UCI commands for engine control:
 
@@ -700,27 +551,25 @@ Standard UCI commands for engine control:
 | quit | Exit engine |
 | setoption | Set engine option |
 
-### 10.2 Engine Options
+### 9.2 Engine Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | Skill Level | spin | 3 | 1-6 difficulty |
-| Use Opening Book | check | true | Enable book |
-| Book Depth Limit | spin | 14 | Max book ply (Grandmaster default) |
 | Threads | spin | auto | Search threads |
 | Hash | spin | 128 | TT size (MB) |
 | Ponder | check | true | Enable pondering |
 
-### 10.3 Move Notation
+### 9.3 Move Notation
 
 Algebraic notation for Caro:
-- Columns: a-af (1-32)
-- Rows: 1-32
+- Columns: aa-dd (0-15)
+- Rows: 1-16
 - Example: j10 = column 10, row 10
 
 ---
 
-## 11. References
+## 10. References
 
 ### Source Repositories
 - **Rapfi:** https://github.com/dhbloo/rapfi
@@ -740,5 +589,4 @@ Algebraic notation for Caro:
 ### Key Papers
 1. "History Heuristic" - J. Schaeffer
 2. "Late Move Reductions" - E.A. Heinz
-3. "SPSA for Noisy Optimization" - J. Spall
-4. "NNUE: Efficiently Updatable Neural Networks" - Y. Nasu
+3. "NNUE: Efficiently Updatable Neural Networks" - Y. Nasu

@@ -12,21 +12,19 @@ backend/
 │   ├── Caro.Core.Application/    # DTOs, mappers, interfaces
 │   ├── Caro.Core.Infrastructure/ # AI algorithms, persistence
 │   ├── Caro.Api/               # Web API + SignalR hub
-│   ├── Caro.BookBuilder/        # Opening book generation CLI
 │   └── Caro.TournamentRunner/   # AI strength validation tests
 └── tests/
-    ├── Caro.Core.Domain.Tests/     # 45 unit tests
-    ├── Caro.Core.Application.Tests/ # 14 unit tests
-    ├── Caro.Core.Infrastructure.Tests/ # 64 unit/integration tests
-    ├── Caro.Core.Tests/         # 574 unit tests (AI/tournament/concurrency)
-    └── Caro.Core.MatchupTests/  # ~54 integration/matchup tests
+    ├── Caro.Core.Domain.Tests/
+    ├── Caro.Core.Application.Tests/
+    ├── Caro.Core.Infrastructure.Tests/
+    ├── Caro.Core.Tests/
+    └── Caro.Core.MatchupTests/
 ```
 
 ### Key Technologies
 - .NET 10, C# 14
 - ASP.NET Core 10 + SignalR
 - xUnit 2.9.2, Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
-- 945 total tests (466 Core + 66 Domain + 14 Application + 64 Infrastructure + 224 Integration + 54 Matchup + 40 frontend unit + 17 frontend E2E)
 
 ### Architecture Principles
 This codebase follows **Clean Architecture** with a "Functional Core, Imperative Shell" approach:
@@ -153,7 +151,6 @@ When registering these in Program.cs, you define how long they live.
 var builder = WebApplication.CreateBuilder(args);
 
 // Register AI services
-builder.Services.AddScoped<IBookGenerator, OpeningBookGenerator>();
 builder.Services.AddSingleton<TournamentManager>();
 builder.Services.AddSignalR();
 

@@ -56,19 +56,18 @@ Grandmaster-level engine with 100-500x speedup over naive minimax:
 | | Pattern4 Classification | 4-direction combined threat detection |
 | | Contest Factor | Dynamic contempt (-200 to +200 cp) |
 | **Time Control** | PID Time Management | Control theory for allocation |
-| **Infrastructure** | SPSA Optimizer | Gradient-free parameter optimization |
 | | Structured Logging | Async file-based logging with rotation |
 
 ### Difficulty Levels
 
-| Level | Threads | Time Budget | Error | Book Depth | Features |
-|-------|---------|-------------|-------|------------|----------|
-| Braindead | 1 | 5% | 10% | 0 | Beginners |
-| Easy | max(2,(N/5)-1) | 20% | 0% | 4 plies | Parallel search + pondering + Opening book |
-| Medium | max(3,(N/4)-1) | 50% | 0% | 6 plies | Parallel + pondering + Opening book |
-| Hard | max(4,(N/3)-1) | 75% | 0% | 10 plies | Parallel + pondering + VCF + Opening book |
-| Grandmaster | max(5,(N/2)-1) | 100% | 0% | 14 plies | Max parallel, VCF, pondering, Opening book |
-| Experimental | max(5,(N/2)-1) | 100% | 0% | Unlimited | Full opening book, max features |
+| Level | Threads | Time Budget | Error | Features |
+|-------|---------|-------------|-------|----------|
+| Braindead | 1 | 5% | 10% | Beginners |
+| Easy | max(2,(N/5)-1) | 20% | 0% | Parallel search + pondering |
+| Medium | max(3,(N/4)-1) | 50% | 0% | Parallel + pondering |
+| Hard | max(4,(N/3)-1) | 75% | 0% | Parallel + pondering + VCF |
+| Grandmaster | max(5,(N/2)-1) | 100% | 0% | Max parallel, VCF, pondering |
+| Experimental | max(5,(N/2)-1) | 100% | 0% | Max features |
 
 **Time-Based Design Philosophy:**
 - **NO depth-based logic** - All strength differentiation comes solely from:
@@ -94,9 +93,9 @@ Universal Chess Interface (UCI) protocol compatibility for standalone engine usa
 
 - **Standalone console engine** - Run as separate process like Stockfish
 - **Standard UCI commands** - uci, isready, ucinewgame, position, go, stop, quit, setoption
-- **Engine options** - Skill Level, Use Opening Book, Book Depth Limit, Threads, Hash, Ponder
+- **Engine options** - Skill Level, Threads, Hash, Ponder
 - **WebSocket bridge** - Frontend can connect directly to UCI engine
-- **Algebraic notation** - Double-letter coordinates aa-hd (columns), 1-32 (rows)
+- **Algebraic notation** - Double-letter coordinates aa-dd (columns), 1-16 (rows)
 
 **Run standalone UCI engine:**
 ```bash
@@ -121,48 +120,12 @@ Available matchups: `BraindeadvsBraindead`, `BraindeadvsEasy`, `BraindeadvsMediu
 < id name Caro AI
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
-< option name Use Opening Book type check default true
 < uciok
 > position startpos moves ea17
 > go movetime 2000
 < info depth 2 nodes 13524 time 1590 pv ea18
 < bestmove ea18
 ```
-
-### Opening Book
-
-Precomputed opening positions with SQLite persistence, in-memory lookup, and intelligent generation:
-
-- **All levels except Braindead** - Easy: 4 plies, Medium: 6 plies, Hard: 10 plies, Grandmaster: 14 plies, Experimental: 14+ plies
-- **Variable depth search** - VCF solving (20-30 ply) for early game, deep search (14-20 ply) for mid-game
-- **Move classification** - Solved (proven wins), Learned (deep search), SelfPlay (engine vs engine)
-- **In-memory lookup** - 40K+ lookups/sec (~24μs), orders of magnitude faster than SQLite
-- **Symmetry reduction** - 8-way transformations reduce storage by ~8x
-
-**Quick Start:**
-```bash
-# Full pipeline (recommended)
-dotnet run --project backend/src/Caro.BookBuilder -- --full-pipeline --games 8192 --threads 8
-
-# SPSA parameter tuning
-dotnet run --project backend/src/Caro.BookBuilder -- --tune --iterations 50
-```
-
-See [backend/src/Caro.BookBuilder/README.md](backend/src/Caro.BookBuilder/README.md) for:
-- Separated pipeline (staging → verification → integration)
-- Binary format export/import
-- SPSA tuning CLI reference
-- All CLI options and examples
-
-**Book Structure:**
-
-| Ply Range | Search Depth | Moves/Position | Use VCF | Phase |
-|-----------|-------------|----------------|--------|-------|
-| 0-8 | 20-30 | 4 (configurable) | Yes | Opening Theory |
-| 8-16 | 14-20 | 4 (configurable) | No | Mid-game |
-| 16+ | Self-play only | - | - | End-game |
-
-Use `--max-moves` to configure moves per position (default: 4).
 
 ### Tournament Mode
 
@@ -203,15 +166,13 @@ G1 M10 | B(16,17) by Easy | T: 1.1s/796ms | Bk | Th: 3 | D2 | N: 2.0K | NPS: 1.9
 | Code | Type | Description |
 |------|------|-------------|
 | `-` | Normal | Full search performed |
-| `Bk` | Book | Opening book move (unvalidated) |
-| `Bv` | BookValidated | Book move validated by search |
 | `Wn` | ImmediateWin | Instant winning move (no search) |
 | `Bl` | ImmediateBlock | Forced block of opponent threat |
 | `Er` | ErrorRate | Random move (Braindead's 10% error) |
 | `Ct` | CenterMove | Center opening move |
 | `Em` | Emergency | Emergency mode (low time) |
 
-**Note:** Early exit moves (book, win, block, error) show `0ms` allocated time because no search was performed - the move was determined instantly. The actual time shown is overhead of checking conditions.
+**Note:** Early exit moves (win, block, error) show `0ms` allocated time because no search was performed - the move was determined instantly. The actual time shown is overhead of checking conditions.
 
 ### Documentation Guide
 
@@ -219,7 +180,6 @@ G1 M10 | B(16,17) by Easy | T: 1.1s/796ms | Bk | Th: 3 | D2 | N: 2.0K | NPS: 1.9
 |----------|---------|--------------|
 | **README.md** (this file) | Project overview, getting started, architecture summary | First - start here |
 | **ENGINE_FEATURES.md** | AI engine architecture (search, evaluation, TT, move ordering) | Understanding how the AI works |
-| **backend/src/Caro.BookBuilder/README.md** | Opening book CLI operations (generate, verify, tune) | Building/tuning opening books |
 | **backend/tests/README.md** | Test organization and running instructions | Running tests |
 | **AGENTS.md** | Development protocols and coding standards | Contributing code |
 
@@ -229,7 +189,7 @@ G1 M10 | B(16,17) by Easy | T: 1.1s/796ms | Bk | Th: 3 | D2 | N: 2.0K | NPS: 1.9
 README.md (Entry Point)
     ├── Getting Started → Quick start commands
     ├── Architecture → Clean Architecture diagram
-    ├── Features → AI, Tournament, UCI, Opening Book
+    ├── Features → AI, Tournament, UCI
     └── Testing → Test projects overview
         │
         └──→ ENGINE_FEATURES.md (Deep Dive)
@@ -237,14 +197,7 @@ README.md (Entry Point)
                 ├── Transposition Table → Clusters, Lockless hashing
                 ├── Move Ordering → Stages, History, Killers
                 ├── Evaluation → BitKey, Pattern4, Scoring
-                ├── Time Management → PID controller
-                └── Opening Book → Pipeline, SPSA tuning
-                        │
-                        └──→ backend/src/Caro.BookBuilder/README.md
-                                ├── Separated Pipeline → Staging, Verify, Integrate
-                                ├── Binary Format → Export/Import
-                                ├── SPSA Tuning → CLI options, parameters
-                                └── Examples → Command reference
+                └── Time Management → PID controller
 ```
 
 **Newcomer Onboarding Path:**
@@ -252,8 +205,7 @@ README.md (Entry Point)
 1. **Start:** README.md → Getting Started (run the app)
 2. **Understand:** Architecture section + Features tables
 3. **Deep dive:** ENGINE_FEATURES.md for AI details
-4. **Operate:** BookBuilder README for book generation
-5. **Contribute:** AGENTS.md for coding standards
+4. **Contribute:** AGENTS.md for coding standards
 
 ### Test Projects
 
@@ -274,7 +226,7 @@ cd backend/tests/Caro.Core.MatchupTests && dotnet test
 |---------|-------|
 | Caro.Core.Tests | Unit tests (algorithms, evaluators, concurrency, immutable state) |
 | Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks) |
-| Caro.Core.MatchupTests | AI matchups, tournament, opening book verification |
+| Caro.Core.MatchupTests | AI matchups, tournament integration |
 | Caro.Core.Domain.Tests | Entities (Board, Cell, Player, GameState, Position) |
 | Caro.Core.Application.Tests | Services, interfaces, DTOs, mappers |
 | Caro.Core.Infrastructure.Tests | AI algorithms, external concerns |
@@ -312,7 +264,6 @@ graph TB
         MinimaxAI["MinimaxAI"]
         VCFSolver["VCFSolver"]
         ParallelSearch["ParallelMinimaxSearch (Lazy SMP)"]
-        OpeningBook["OpeningBook"]
         Evaluator["BitBoardEvaluator"]
     end
 
@@ -343,7 +294,6 @@ All domain entities are fully immutable for thread safety:
 | Project | Purpose |
 |---------|---------|
 | `Caro.Api` | Web API, SignalR hub, WebSocket UCI bridge |
-| `Caro.BookBuilder` | CLI tool for offline book generation |
 | `Caro.UCI` | Standalone UCI console engine |
 | `Caro.UCIMockClient` | UCI protocol testing tool (engine vs engine) |
 
@@ -383,24 +333,11 @@ if (threadIndex > 0) {
 - Maintains strategic initiative instead of reactive blocking
 - Prevents "strength inversion" (weaker AI exploiting predictable behavior)
 
-**Opening Book Architecture:**
-- SQLite with 8-way symmetry reduction (~8x storage savings)
-- Compound key (CanonicalHash, DirectHash, Player) prevents collisions
-- Uniform beam: 4 moves/position up to ply 14
-- Search score evaluation (not static eval) for move ranking
-- Hard+ validates book moves with quick search before use
-
 **Ponder Hit Handling:**
 - Ponder runs during opponent's turn (free precomputation)
 - `HasPonderHitResult` checks for valid hit before new search
 - No waiting - ponder result available immediately if hit occurred
 - TT shared between ponder and main search for efficiency
-
-**Book Builder Design:**
-- Parallel worker pool (8 workers) with per-position AI instances
-- Smart candidate pruning: static eval filters 95%+ of candidates
-- TT preservation across positions for subtree reuse
-- Resume capability for incremental book generation
 
 **Detailed Technical Documentation:** See `ENGINE_FEATURES.md` for comprehensive coverage of search algorithms, transposition tables, move ordering, evaluation, and time management.
 
@@ -442,7 +379,7 @@ Production-grade concurrency following .NET 10 best practices:
 
 **Backend:** .NET 10, ASP.NET Core 10, SignalR, System.Threading.Channels, SQLite + FTS5, xUnit 2.9.2 with xUnit Runner 3.1.4, Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
 
-**AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP, Hash Move-first ordering, Opening book with symmetry reduction
+**AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP, Hash Move-first ordering
 
 ---
 
@@ -451,8 +388,8 @@ Production-grade concurrency following .NET 10 best practices:
 | Project | Focus |
 |---------|-------|
 | Caro.Core.Tests | Unit tests (algorithms, evaluators, concurrency, immutable state, test helpers, AI improvements, symmetry) |
-| Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks, opening book edge cases + performance tests) |
-| Caro.Core.MatchupTests | AI matchups, integration, tournament, opening book verification |
+| Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks) |
+| Caro.Core.MatchupTests | AI matchups, integration, tournament |
 | Caro.Core.Domain.Tests | Entities (Board, Cell, Player, GameState, Position) |
 | Caro.Core.Application.Tests | Services, interfaces, DTOs, Mappers |
 | Caro.Core.Infrastructure.Tests | AI algorithms, external concerns |
