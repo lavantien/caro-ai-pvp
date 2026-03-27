@@ -24,7 +24,7 @@ public class PositionTests
         {
             new Position(0, 0),
             new Position(9, 9),
-            new Position(18, 18)
+            new Position(15, 15)
         };
 
         // Act & Assert

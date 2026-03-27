@@ -243,13 +243,6 @@ export class UCIEngine {
 	}
 
 	/**
-	 * Enable or disable opening book.
-	 */
-	async setUseOpeningBook(enabled: boolean): Promise<UCIResponse> {
-		return this.setOption('Use Opening Book', enabled);
-	}
-
-	/**
 	 * Stop the current search.
 	 */
 	async stop(): Promise<UCIResponse> {

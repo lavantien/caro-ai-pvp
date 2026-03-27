@@ -6,12 +6,12 @@ namespace Caro.Core.GameLogic.UCI;
 /// Converts between UCI move notation and board coordinates.
 ///
 /// UCI notation: double lowercase letter (column) + number (row)
-/// - Columns: 'aa' through 'hd' (0-31 on a 32x32 board)
-/// - Rows: '1' through '32' (0-31 internally)
+/// - Columns: 'aa' through 'dd' (0-15 on a 16x16 board)
+/// - Rows: '1' through '16' (0-15 internally)
 ///
 /// Encoding: column = firstLetterIndex * 4 + secondLetterIndex
-/// - First letter: 'a'-'h' (0-7), Second letter: 'a'-'d' (0-3)
-/// Examples: "qg17" = center (16, 16), "aa1" = top-left (0, 0), "hd32" = bottom-right (31, 31)
+/// - First letter: 'a'-'d' (0-3), Second letter: 'a'-'d' (0-3)
+/// Examples: "bb9" = center (7, 8), "aa1" = top-left (0, 0), "dd16" = bottom-right (15, 15)
 /// </summary>
 public static class UCIMoveNotation
 {
@@ -20,15 +20,15 @@ public static class UCIMoveNotation
     /// <summary>
     /// Convert board coordinates to UCI notation.
     /// </summary>
-    /// <param name="x">X coordinate (0-31)</param>
-    /// <param name="y">Y coordinate (0-31)</param>
-    /// <returns>UCI notation string (e.g., "qg17")</returns>
+    /// <param name="x">X coordinate (0-15)</param>
+    /// <param name="y">Y coordinate (0-15)</param>
+    /// <returns>UCI notation string (e.g., "bb9")</returns>
     public static string ToUCI(int x, int y)
     {
         if (!IsValidCoordinate(x, y))
-            throw new ArgumentOutOfRangeException(nameof(x), $"Coordinates ({x}, {y}) are outside valid board bounds (0-31)");
+            throw new ArgumentOutOfRangeException(nameof(x), $"Coordinates ({x}, {y}) are outside valid board bounds (0-15)");
 
-        // Column: double letter grid format (aa-hd)
+        // Column: double letter grid format (aa-dd)
         // Encoding: column = firstLetterIndex * 4 + secondLetterIndex
         int firstLetter = x / 4;   // 0-7 maps to a-h
         int secondLetter = x % 4;  // 0-3 maps to a-d
@@ -56,23 +56,23 @@ public static class UCIMoveNotation
 
         move = move.ToLowerInvariant();
 
-        // Always expect double-letter column format (aa-hd)
+        // Always expect double-letter column format (aa-dd)
         char col1 = move[0];
         char col2 = move[1];
 
-        if (col1 < 'a' || col1 > 'h' || col2 < 'a' || col2 > 'd')
-            throw new ArgumentException($"Invalid column in UCI move: '{move}' (first letter a-h, second letter a-d)");
+        if (col1 < 'a' || col1 > 'd' || col2 < 'a' || col2 > 'd')
+            throw new ArgumentException($"Invalid column in UCI move: '{move}' (first letter a-d, second letter a-d)");
 
         int x = (col1 - 'a') * 4 + (col2 - 'a');
         string rowPart = move.Substring(2);
 
         if (!int.TryParse(rowPart, out int row))
-            throw new ArgumentException($"Invalid row in UCI move: '{move}' (must be 1-32)");
+            throw new ArgumentException($"Invalid row in UCI move: '{move}' (must be 1-16)");
 
         int y = row - 1;
 
         if (!IsValidCoordinate(x, y))
-            throw new ArgumentException($"UCI move out of bounds: '{move}' (board is 32x32, aa1-hd32)");
+            throw new ArgumentException($"UCI move out of bounds: '{move}' (board is 16x16, aa1-dd16)");
 
         return new Caro.Core.Domain.Entities.Position(x, y);
     }
