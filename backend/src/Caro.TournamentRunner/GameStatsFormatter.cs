@@ -29,7 +29,7 @@ public static class GameStatsFormatter
         var timeStr = FormatTime(stats?.MoveTimeMs ?? 0);
         var allocStr = FormatTime(stats?.AllocatedTimeMs ?? 0);
         var depthStr = stats != null ? $"D{stats.DepthAchieved}" : "D-";
-        var moveTypeStr = FormatMoveType(stats?.MoveType ?? MoveType.Normal, stats?.BookUsed ?? false);
+        var moveTypeStr = FormatMoveType(stats?.MoveType ?? MoveType.Normal);
 
         long mainNodes = stats?.NodesSearched ?? 0;
         double mainNps = stats?.NodesPerSecond ?? 0;
@@ -75,13 +75,11 @@ public static class GameStatsFormatter
     /// <summary>
     /// Format move type as a short code for display
     /// </summary>
-    private static string FormatMoveType(MoveType moveType, bool bookUsed)
+    private static string FormatMoveType(MoveType moveType)
     {
         return moveType switch
         {
             MoveType.Normal => "-",
-            MoveType.Book => "Bk",         // Book move (unvalidated)
-            MoveType.BookValidated => "Bv", // Book move validated by search
             MoveType.ImmediateWin => "Wn",  // Immediate winning move
             MoveType.ImmediateBlock => "Bl", // Forced block
             MoveType.ErrorRate => "Er",     // Error rate random move

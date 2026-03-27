@@ -12,7 +12,7 @@ public class DetailedVerificationRunner
 {
     public static async Task RunAsync(int initialSeconds = 420, int incrementSeconds = 5, int gamesPerMatchup = 10)
     {
-        var engine = TournamentEngineFactory.CreateWithOpeningBook();
+        var engine = TournamentEngineFactory.Create();
         var tcName = $"{initialSeconds / 60}+{incrementSeconds}";
 
         Console.WriteLine("╔═══════════════════════════════════════════════════════════════════╗");

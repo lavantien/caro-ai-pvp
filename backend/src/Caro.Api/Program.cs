@@ -5,7 +5,6 @@ using Caro.Api.Logging;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.TimeManagement;
-using Caro.Core.Infrastructure.Persistence;
 using Caro.Core.Tournament;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Concurrent;
@@ -35,44 +34,11 @@ builder.Services.AddSingleton<GameLogService>(sp =>
 builder.Services.AddSingleton<TournamentManager>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<TournamentManager>());
 
-// Register SqliteOpeningBookStore
-builder.Services.AddSingleton<SqliteOpeningBookStore>(sp =>
-{
-    var logger = sp.GetRequiredService<ILogger<SqliteOpeningBookStore>>();
-    var dbPath = OpeningBookPathResolver.FindOpeningBookPath();
-    return new SqliteOpeningBookStore(dbPath, logger);
-});
-
-// Register InMemoryBookStore for nanosecond-lookup opening book
-// This wraps SqliteOpeningBookStore and provides O(1) concurrent lookup
-builder.Services.AddSingleton<InMemoryBookStore>(sp =>
-{
-    var persistentStore = sp.GetRequiredService<SqliteOpeningBookStore>();
-    persistentStore.Initialize(); // Ensure tables exist
-    var canonicalizer = new PositionCanonicalizer();
-    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-    return new InMemoryBookStore(persistentStore, canonicalizer, loggerFactory);
-});
-
-// Register OpeningBook (legacy, for backwards compatibility)
-builder.Services.AddSingleton<OpeningBook>(sp =>
-{
-    var store = sp.GetRequiredService<SqliteOpeningBookStore>();
-    var canonicalizer = new PositionCanonicalizer();
-    var validator = new OpeningBookValidator();
-    var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
-    return new OpeningBook(store, canonicalizer, lookupService);
-});
-
-// Register MinimaxAI with InMemoryBookStore for fast book lookup
+// Register MinimaxAI
 builder.Services.AddSingleton<MinimaxAI>(sp =>
 {
-    var inMemoryBookStore = sp.GetRequiredService<InMemoryBookStore>();
     var logger = sp.GetRequiredService<ILogger<MinimaxAI>>();
-    var ai = new MinimaxAI(logger: logger);
-    // Load in-memory book for nanosecond lookup during search
-    ai.LoadOpeningBook(inMemoryBookStore);
-    return ai;
+    return new MinimaxAI(logger: logger);
 });
 
 // Register UCIHandler for WebSocket UCI protocol

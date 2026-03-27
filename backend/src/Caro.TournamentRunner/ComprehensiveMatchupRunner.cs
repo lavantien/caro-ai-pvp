@@ -81,7 +81,7 @@ public class ComprehensiveMatchupRunner
 
     private static async Task RunAsyncInternal(ComprehensiveOptions? options)
     {
-        var engine = TournamentEngineFactory.CreateWithOpeningBook();
+        var engine = TournamentEngineFactory.Create();
 
         // Use options or defaults
         var timeSeconds = options?.InitialTimeSeconds ?? TimeSeconds;

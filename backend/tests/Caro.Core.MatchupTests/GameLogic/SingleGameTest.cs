@@ -26,7 +26,7 @@ public class SingleGameTest
     [Fact]
     public void SingleGame_Grandmaster_vs_Easy_7Plus5_ShouldNotLose()
     {
-        var engine = TournamentEngineTestFactory.CreateWithOpeningBook();
+        var engine = TournamentEngineTestFactory.Create();
 
         var result = engine.RunGame(
             AIDifficulty.Grandmaster,  // Red: D5

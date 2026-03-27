@@ -7,31 +7,7 @@ namespace Caro.Core.Tests.GameLogic;
 public sealed class AIDifficultyConfigTests
 {
     [Fact]
-    public void BookGeneration_HasParallelSearchEnabled()
-    {
-        // Arrange & Act
-        var settings = AIDifficultyConfig.Instance.GetSettings(AIDifficulty.BookGeneration);
-
-        // Assert - BookGeneration MUST have parallel search enabled for performance
-        // This test guards against regression where parallel search was disabled
-        settings.ParallelSearchEnabled.Should().BeTrue(
-            "BookGeneration requires parallel search enabled to achieve high CPU utilization during book generation");
-    }
-
-    [Fact]
-    public void BookGeneration_UsesProcessorQuarterThreads()
-    {
-        // Arrange & Act
-        var settings = AIDifficultyConfig.Instance.GetSettings(AIDifficulty.BookGeneration);
-        int expectedThreadCount = Math.Max(5, Environment.ProcessorCount / 4);
-
-        // Assert - BookGeneration uses processorCount/4 threads for position-level parallelism
-        settings.ThreadCount.Should().Be(expectedThreadCount,
-            "BookGeneration should use processorCount/4 threads (min 5) for balanced parallelism");
-    }
-
-    [Fact]
-    public void AllDifficulties_ExceptBookGeneration_DependOnConfig()
+    public void AllDifficulties_DependOnConfig()
     {
         // Arrange & Act
         var allDifficulties = Enum.GetValues<AIDifficulty>();

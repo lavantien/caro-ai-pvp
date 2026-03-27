@@ -25,8 +25,8 @@ public sealed class AdaptiveTimeManager
     private double _timePressure = 0;       // 0 = relaxed, 1 = critical
 
     // Configuration for different difficulties
-    // Updated to match AIDifficulty enum values (1-7)
-    // Index: 0=unused, 1=Braindead, 2=Easy, 3=Medium, 4=Hard, 5=Grandmaster, 6=Experimental, 7=BookGeneration
+    // Updated to match AIDifficulty enum values (1-6)
+    // Index: 0=unused, 1=Braindead, 2=Easy, 3=Medium, 4=Hard, 5=Grandmaster, 6=Experimental
     // Higher difficulties are more aggressive with time allocation
     private static readonly double[] BaseAggressiveness = new double[]
     {
@@ -36,8 +36,7 @@ public sealed class AdaptiveTimeManager
         1.0,  // [3] Medium: standard aggressiveness
         1.5,  // [4] Hard: aggressive for parallel search
         2.5,  // [5] Grandmaster: very aggressive
-        3.0,  // [6] Experimental: maximum aggressiveness
-        3.0   // [7] BookGeneration: maximum aggressiveness
+        3.0   // [6] Experimental: maximum aggressiveness
     };
 
     // Maximum time per move (percentage of remaining time)
@@ -52,8 +51,7 @@ public sealed class AdaptiveTimeManager
         0.10, // [3] Medium: 10%
         0.12, // [4] Hard: 12%
         0.15, // [5] Grandmaster: 15% - reduced from 40% which was too aggressive
-        0.20, // [6] Experimental: 20%
-        0.20  // [7] BookGeneration: 20%
+        0.20  // [6] Experimental: 20%
     };
 
     // Maximum time per move for SUDDEN DEATH (no increment) time controls
@@ -68,8 +66,7 @@ public sealed class AdaptiveTimeManager
         0.02, // [3] Medium: 2%
         0.025, // [4] Hard: 2.5%
         0.03, // [5] Grandmaster: 3% - for 60s, this is ~1.8s max per move
-        0.04, // [6] Experimental: 4%
-        0.04  // [7] BookGeneration: 4%
+        0.04  // [6] Experimental: 4%
     };
 
     /// <summary>
@@ -384,7 +381,7 @@ public sealed class AdaptiveTimeManager
     private static double GetDifficultyValue(double[] array, int index)
     {
         // Arrays are indexed by AIDifficulty enum value directly
-        // Braindead=1, Easy=2, Medium=3, Hard=4, Grandmaster=5, Experimental=6, BookGeneration=7
+        // Braindead=1, Easy=2, Medium=3, Hard=4, Grandmaster=5, Experimental=6
         // Index 0 is unused
         return index >= 0 && index < array.Length ? array[index] : array[array.Length - 1];
     }

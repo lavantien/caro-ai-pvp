@@ -11,7 +11,7 @@ public class BaselineRunner
 {
     public static async Task RunAsync(int initialSeconds, int incrementSeconds, int gamesPerMatchup = 10)
     {
-        var engine = TournamentEngineFactory.CreateWithOpeningBook();
+        var engine = TournamentEngineFactory.Create();
         var tcName = $"{initialSeconds / 60}+{incrementSeconds}";
 
         Console.WriteLine($"╔═══════════════════════════════════════════════════════════════════╗");

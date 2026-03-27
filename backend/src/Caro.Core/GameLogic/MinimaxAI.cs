@@ -26,11 +26,6 @@ public class MinimaxAI : IStatsPublisher
     private readonly ThreatDetector _threatDetector = new();
     private readonly ThreatSpaceSearch _vcfSolver = new();
     private readonly VCFSolver _inTreeVCFSolver;  // In-tree VCF solver for Lazy SMP
-    private readonly OpeningBook? _openingBook;
-
-    // In-memory opening book for nanosecond lookup (loaded from SQLite at startup)
-    private InMemoryOpeningBook? _inMemoryBook;
-    private IOpeningBookStore? _bookStore;  // Keep reference for disposal
 
     // Time management for 7+5 time control
     private readonly TimeManager _timeManager = new();
@@ -87,9 +82,8 @@ public class MinimaxAI : IStatsPublisher
     private readonly Stopwatch _searchStopwatch = new();
     private long _lastAllocatedTimeMs;  // Track time allocated for last move
     private bool _lastPonderingEnabled;  // Track if pondering was enabled for last move
-    private bool _bookUsed;  // True if last move came from opening book
     private MoveType _moveType;  // How the last move was determined
-    private int _lastSearchScore;  // Score from last search (for book builder)
+    private int _lastSearchScore;  // Score from last search
     private double _lastFmcPercent;  // First Move Cutoff % from last search
     private double _lastEbf;  // Effective Branching Factor from last search
 
@@ -128,10 +122,9 @@ public class MinimaxAI : IStatsPublisher
     // Reused across searches to avoid allocations
     private readonly SearchBoard _searchBoard = new();
 
-    public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null, OpeningBook? openingBook = null, Random? random = null, IEvaluationParameterProvider? parameterProvider = null)
+    public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null, Random? random = null, IEvaluationParameterProvider? parameterProvider = null)
     {
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<MinimaxAI>.Instance;
-        _openingBook = openingBook;  // Can be null - engine will work without opening book
         _random = random;  // null means use Random.Shared (default behavior)
         _parameterProvider = parameterProvider;  // null = use default evaluation constants
         _publisherId = Interlocked.Increment(ref _instanceCounter).ToString();
@@ -170,67 +163,6 @@ public class MinimaxAI : IStatsPublisher
             return _evaluator.Evaluate(board, player, _parameterProvider.GetParameters());
         }
         return _evaluator.Evaluate(board, player);
-    }
-
-    /// <summary>
-    /// Load opening book from an IOpeningBookStore for nanosecond in-memory lookup.
-    /// This should be called once at startup. The store should already be initialized.
-    /// </summary>
-    /// <param name="store">The opening book store (e.g., SqliteOpeningBookStore)</param>
-    public void LoadOpeningBook(IOpeningBookStore store)
-    {
-        _bookStore = store ?? throw new ArgumentNullException(nameof(store));
-        _inMemoryBook = new InMemoryOpeningBook(store, new PositionCanonicalizer());
-    }
-
-    /// <summary>
-    /// Check in-memory opening book for a move.
-    /// Returns best move if position is in book, null otherwise.
-    /// Prioritizes: solved > learned > self_play, then by score.
-    /// </summary>
-    /// <param name="board">Current board position</param>
-    /// <param name="player">Player to move</param>
-    /// <returns>Best book move coordinates, or null if not in book</returns>
-    public (int x, int y)? CheckOpeningBook(Board board, Player player)
-    {
-        return CheckOpeningBook(board, player, maxPly: null);
-    }
-
-    /// <summary>
-    /// Check in-memory opening book for a move with difficulty-based depth filtering.
-    /// Returns best move if position is in book, null otherwise.
-    /// Prioritizes: solved > learned > self_play, then by score.
-    /// </summary>
-    /// <param name="board">Current board position</param>
-    /// <param name="player">Player to move</param>
-    /// <param name="difficulty">AI difficulty (used to determine max book depth)</param>
-    /// <returns>Best book move coordinates, or null if not in book</returns>
-    public (int x, int y)? CheckOpeningBook(Board board, Player player, AIDifficulty difficulty)
-    {
-        var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
-        return CheckOpeningBook(board, player, settings.MaxBookDepth);
-    }
-
-    /// <summary>
-    /// Check in-memory opening book for a move with explicit depth limit.
-    /// </summary>
-    /// <param name="board">Current board position</param>
-    /// <param name="player">Player to move</param>
-    /// <param name="maxPly">Maximum ply depth for book lookup (null = no limit)</param>
-    /// <returns>Best book move coordinates, or null if not in book</returns>
-    public (int x, int y)? CheckOpeningBook(Board board, Player player, int? maxPly)
-    {
-        var bestMove = _inMemoryBook?.GetBestMove(board, player, maxPly);
-
-        if (bestMove != null)
-        {
-            _logger.LogDebug("Book hit at ply {Ply}: move ({X},{Y}) source={Source} score={Score}",
-                maxPly, bestMove.RelativeX, bestMove.RelativeY,
-                bestMove.Source, bestMove.Score);
-            return (bestMove.RelativeX, bestMove.RelativeY);
-        }
-
-        return null;
     }
 
     // Helper methods for random operations (uses injected Random or Random.Shared)
@@ -283,7 +215,6 @@ public class MinimaxAI : IStatsPublisher
         _depthAchieved = 0;
         _vcfNodesSearched = 0;
         _vcfDepthAchieved = 0;
-        _bookUsed = false;
         _moveType = MoveType.Normal;  // Default, will be overridden by early exits
         _searchStopwatch.Restart();
 
@@ -462,56 +393,6 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // Opening book for Easy, Medium, Hard, Grandmaster, and Experimental difficulties
-        // Uses in-memory book (InMemoryOpeningBook) for nanosecond lookup.
-        // Depth-filtered by difficulty (from AIDifficultyConfig):
-        // - Easy: 4 plies, Medium: 6 plies, Hard: 10 plies
-        // - Grandmaster: 14 plies, Experimental: unlimited
-        // BOOK MOVE VALIDATION: Always validate book moves with a quick search (D3-D5)
-        // to prevent book errors from causing strength inversions
-        var bookMove = CheckOpeningBook(board, player, difficulty);
-        if (bookMove.HasValue)
-        {
-            // DEFENSIVE: Verify the book move is actually valid before returning
-            if (!board.GetCell(bookMove.Value.x, bookMove.Value.y).IsEmpty)
-            {
-                // Book returned an invalid move - this should not happen
-                // Fall through to normal search instead
-                _logger.LogWarning("Book returned occupied cell ({X},{Y}) - falling through to search", bookMove.Value.x, bookMove.Value.y);
-            }
-            else
-            {
-                // Validate book move with quick search (Grandmaster+ only for performance)
-                // This prevents book errors from causing losses against weaker opponents
-                if (difficulty >= AIDifficulty.Hard)
-                {
-                    var validationResult = ValidateBookMove(board, player, bookMove.Value, difficulty);
-                    if (validationResult.IsAcceptable)
-                    {
-                        // Book move passed validation - use it
-                        _depthAchieved = validationResult.ValidationDepth;
-                        _nodesSearched = validationResult.NodesSearched;
-                        _lastAllocatedTimeMs = validationResult.TimeMs;
-                        _bookUsed = true;
-                        _moveType = MoveType.BookValidated;
-                        return bookMove.Value;
-                    }
-                    // Book move failed validation - fall through to full search
-                    // This prevents bad book moves from causing losses
-                }
-                else
-                {
-                    // Lower difficulties use book moves directly without validation
-                    _depthAchieved = 0;
-                    _nodesSearched = 0;
-                    _lastAllocatedTimeMs = 0;
-                    _bookUsed = true;
-                    _moveType = MoveType.Book;
-                    return bookMove.Value;
-                }
-            }
-        }
-
         // CRITICAL OPTIMIZATION: Check for immediate winning moves BEFORE any expensive operations
         // This ensures we never waste time searching when a win is available in one move
         // DESIGN: All difficulties use same engine logic - strength comes from threads + time only
@@ -659,9 +540,9 @@ public class MinimaxAI : IStatsPublisher
         // Infer initial time and increment from the remaining time
         // This works for any time control: 3+2, 7+5, 15+10, etc.
         TimeAllocation timeAlloc;
-        // CRITICAL FIX: For BookGeneration, use direct time allocation without AdaptiveTimeManager
+        // CRITICAL FIX: For long time budgets, use direct time allocation without AdaptiveTimeManager
         // The adaptive manager is designed for tournament play and under-allocates for long time budgets
-        if (timeRemainingMs.HasValue && difficulty != AIDifficulty.BookGeneration)
+        if (timeRemainingMs.HasValue)
         {
             // Infer initial time from first few moves
             var inferredInitialMs = _inferredInitialTimeMs > 0 ? _inferredInitialTimeMs : timeRemainingMs.Value;
@@ -703,15 +584,7 @@ public class MinimaxAI : IStatsPublisher
         }
         else
         {
-            // For BookGeneration with timeRemainingMs, create a direct time allocation
-            timeAlloc = (difficulty == AIDifficulty.BookGeneration && timeRemainingMs.HasValue)
-                ? GetDefaultTimeAllocation(difficulty) with
-                {
-                    SoftBoundMs = Math.Max(50, timeRemainingMs.Value - Math.Min(1000, timeRemainingMs.Value / 10)),
-                    HardBoundMs = timeRemainingMs.Value,
-                    OptimalTimeMs = (long)(timeRemainingMs.Value * 0.8)
-                }
-                : GetDefaultTimeAllocation(difficulty);
+            timeAlloc = GetDefaultTimeAllocation(difficulty);
         }
 
         // CRITICAL FIX: Skip sophisticated threat shortcuts for Braindead and Easy.
@@ -1372,9 +1245,9 @@ public class MinimaxAI : IStatsPublisher
         // VCF finds forced win sequences through continuous four threats.
         // By restricting VCF to only Grandmaster, we ensure it's a unique differentiator.
         // Use centralized config to check VCF support for this difficulty.
-        // CRITICAL FIX: Skip VCF for BookGeneration - full search is sufficient and VCF consumes time budget
+        // CRITICAL FIX: Skip VCF for difficulties where full search is sufficient
         var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
-        if (settings.VCFEnabled && difficulty != AIDifficulty.BookGeneration)
+        if (settings.VCFEnabled)
         {
             var (vcfTimeLimit, vcfMaxDepth) = CalculateVCFTimeLimit(timeAlloc, difficulty);
 
@@ -1609,8 +1482,8 @@ public class MinimaxAI : IStatsPublisher
                 }
             }
 
-            // Depth cap for BookGeneration to prevent indefinite search
-            if (difficulty == AIDifficulty.BookGeneration && currentDepth > 6)
+            // Depth cap for time-limited searches to prevent indefinite search
+            if (timeRemainingMs.HasValue && currentDepth > 6)
             {
                 break;
             }
@@ -1654,7 +1527,7 @@ public class MinimaxAI : IStatsPublisher
             if (result.x != -1)
             {
                 bestMove = (result.x, result.y);
-                _lastSearchScore = result.score;  // Track score for book builder
+                _lastSearchScore = result.score;
 
                 // Only update depth if this was a real search (not just TT cache hit)
                 // TT hits return instantly with 0-1 nodes, which shouldn't count as "depth achieved"
@@ -2958,7 +2831,6 @@ public class MinimaxAI : IStatsPublisher
 
     /// <summary>
     /// Clear search state for new position while preserving transposition table.
-    /// Use for opening book generation where TT memoization across positions is beneficial.
     /// Clears: history tables, killer moves, pondering state.
     /// Preserves: transposition table entries (memoization), adaptive time state.
     /// </summary>
@@ -3969,89 +3841,6 @@ public class MinimaxAI : IStatsPublisher
     }
 
     /// <summary>
-    /// Validate a book move with a quick search to ensure it's not a blunder.
-    /// This prevents bad book moves from causing strength inversions.
-    /// Returns (IsAcceptable, ValidationDepth, NodesSearched, TimeMs)
-    /// </summary>
-    private (bool IsAcceptable, int ValidationDepth, long NodesSearched, long TimeMs) ValidateBookMove(
-        Board board, Player player, (int x, int y) bookMove, AIDifficulty difficulty)
-    {
-        var validationSw = System.Diagnostics.Stopwatch.StartNew();
-
-        // Quick validation search depth based on difficulty
-        int validationDepth = difficulty switch
-        {
-            AIDifficulty.Grandmaster => 5,
-            AIDifficulty.Experimental => 5,
-            AIDifficulty.Hard => 4,
-            _ => 3
-        };
-
-        // Make the book move and evaluate the resulting position
-        var boardAfterMove = board.PlaceStone(bookMove.x, bookMove.y, player);
-        var opponent = player == Player.Red ? Player.Blue : Player.Red;
-
-        // Evaluate position from opponent's perspective (after our move)
-        // A good book move should leave us with a reasonable position
-        int evaluation = EvaluateBoard(boardAfterMove, player);
-
-        // Quick minimax search to validate the move
-        int searchScore = QuickValidateSearch(boardAfterMove, opponent, validationDepth, int.MinValue + 1, int.MaxValue - 1);
-
-        // Negate score because we evaluated from opponent's perspective
-        int ourScore = -searchScore;
-
-        validationSw.Stop();
-
-        // Accept the book move if:
-        // 1. The evaluation is not terrible (>= -100 centipawns)
-        // 2. Or we're in a clearly winning/losing position anyway
-        bool isAcceptable = ourScore >= -100 || Math.Abs(evaluation) > 500;
-
-        return (isAcceptable, validationDepth, _nodesSearched, validationSw.ElapsedMilliseconds);
-    }
-
-    /// <summary>
-    /// Quick validation search for book moves - simplified minimax without full features
-    /// </summary>
-    private int QuickValidateSearch(Board board, Player player, int depth, int alpha, int beta)
-    {
-        if (depth <= 0)
-        {
-            return EvaluateBoard(board, player);
-        }
-
-        // Check for win
-        var winResult = _winDetector.CheckWin(board);
-        if (winResult.HasWinner)
-        {
-            // Return high score for win
-            return winResult.Winner == player ? 100000 : -100000;
-        }
-
-        var candidates = GetCandidateMoves(board);
-        if (candidates.Count == 0)
-            return 0; // Draw
-
-        int bestScore = int.MinValue + 1;
-        var opponent = player == Player.Red ? Player.Blue : Player.Red;
-
-        foreach (var (x, y) in candidates.Take(20)) // Limit candidates for speed
-        {
-            var newBoard = board.PlaceStone(x, y, player);
-            int score = -QuickValidateSearch(newBoard, opponent, depth - 1, -beta, -alpha);
-
-            if (score > bestScore)
-                bestScore = score;
-            if (score > alpha)
-                alpha = score;
-            if (alpha >= beta)
-                break;
-        }
-
-        return bestScore;
-    }
-
     /// <summary>
     /// Get candidate moves (empty cells near existing stones)
     /// Zero-allocation implementation using stackalloc for tracking
@@ -4737,14 +4526,12 @@ public class MinimaxAI : IStatsPublisher
 
     /// <summary>
     /// Get the last move made by the opponent
-    /// Used by opening book for intelligent responses
     /// </summary>
     private (int x, int y)? GetLastOpponentMove(Board board, Player currentPlayer)
     {
         var opponent = currentPlayer == Player.Red ? Player.Blue : Player.Red;
 
         // Find the most recent opponent move by checking all occupied cells
-        // We'll return any occupied opponent cell (for opening book, this is sufficient)
         for (int x = 0; x < BoardSize; x++)
         {
             for (int y = 0; y < BoardSize; y++)
@@ -5084,7 +4871,7 @@ public class MinimaxAI : IStatsPublisher
     /// <summary>
     /// Get search statistics for the last move
     /// </summary>
-    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched, int ThreadCount, string? ParallelDiagnostics, double MasterTTPercent, double HelperAvgDepth, long AllocatedTimeMs, bool BookUsed, MoveType MoveType, int SearchScore, double FmcPercent, double Ebf) GetSearchStatistics()
+    public (int DepthAchieved, long NodesSearched, double NodesPerSecond, double TableHitRate, bool PonderingActive, int VCFDepthAchieved, long VCFNodesSearched, int ThreadCount, string? ParallelDiagnostics, double MasterTTPercent, double HelperAvgDepth, long AllocatedTimeMs, MoveType MoveType, int SearchScore, double FmcPercent, double Ebf) GetSearchStatistics()
     {
         double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
         var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
@@ -5111,239 +4898,7 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs, _bookUsed, _moveType, _lastSearchScore, _lastFmcPercent, _lastEbf);
-    }
-
-    /// <summary>
-    /// Get all candidate moves with scores for self-play sampling.
-    /// Used by temperature-based move selection for opening book generation.
-    ///
-    /// TIME-BASED DESIGN: Respects timeMs parameter - evaluates as many candidates
-    /// as possible within the time budget using iterative deepening.
-    /// </summary>
-    /// <param name="board">Current board state</param>
-    /// <param name="player">Player to move</param>
-    /// <param name="difficulty">AI difficulty (unused - time-based only)</param>
-    /// <param name="timeMs">Total time budget for all candidate evaluations</param>
-    /// <returns>List of candidate moves with their scores</returns>
-    public List<MoveCandidate> GetCandidateMovesWithScores(Board board, Player player, AIDifficulty difficulty, int timeMs)
-    {
-        if (player == Player.None)
-            throw new ArgumentException("Player cannot be None");
-
-        var candidates = GetCandidateMoves(board);
-        var result = new List<MoveCandidate>();
-
-        if (candidates.Count == 0)
-            return result;
-
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var opponent = player == Player.Red ? Player.Blue : Player.Red;
-
-        // Time per candidate with safety margin (80% of budget divided among candidates)
-        var timePerCandidateMs = Math.Max(1, (timeMs * 0.8) / candidates.Count);
-
-        foreach (var (x, y) in candidates)
-        {
-            // Check total time budget
-            if (stopwatch.ElapsedMilliseconds >= timeMs)
-                break;
-
-            // Make move and evaluate resulting position with time-bounded search
-            var newBoard = board.PlaceStone(x, y, player);
-            var remainingTimeMs = Math.Max(1, timeMs - (int)stopwatch.ElapsedMilliseconds);
-            var candidateTimeMs = Math.Min((int)timePerCandidateMs, remainingTimeMs);
-
-            int score = -EvaluatePositionTimeBounded(newBoard, opponent, candidateTimeMs, stopwatch);
-            result.Add(new MoveCandidate { X = x, Y = y, Score = score });
-        }
-
-        // Sort by score descending
-        result.Sort((a, b) => b.Score.CompareTo(a.Score));
-
-        // Limit to top candidates to avoid wasting time on blunders
-        int maxCandidates = Math.Min(20, result.Count);
-        if (result.Count > maxCandidates)
-        {
-            result.RemoveRange(maxCandidates, result.Count - maxCandidates);
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Time-bounded position evaluation for self-play.
-    /// Uses iterative deepening until time expires.
-    /// </summary>
-    private int EvaluatePositionTimeBounded(Board board, Player player, int timeMs, System.Diagnostics.Stopwatch globalStopwatch)
-    {
-        // Check for immediate win/loss
-        var winResult = new WinDetector().CheckWin(board);
-        if (winResult.Winner != Player.None)
-        {
-            return winResult.Winner == player ? 100000 : -100000;
-        }
-
-        var candidates = GetCandidateMoves(board);
-        if (candidates.Count == 0)
-            return 0;  // Draw
-
-        int bestScore = -int.MaxValue;
-        int depth = 1;
-        var startTime = globalStopwatch.ElapsedMilliseconds;
-        var deadline = startTime + timeMs;
-
-        // Iterative deepening until time expires
-        while (globalStopwatch.ElapsedMilliseconds < deadline)
-        {
-            int alpha = -int.MaxValue;
-            int beta = int.MaxValue;
-            int currentBest = -int.MaxValue;
-
-            foreach (var (x, y) in candidates)
-            {
-                if (globalStopwatch.ElapsedMilliseconds >= deadline)
-                    break;
-
-                var newBoard = board.PlaceStone(x, y, player);
-                var opponent = player == Player.Red ? Player.Blue : Player.Red;
-                int score = -NegamaxEvalQuick(newBoard, opponent, depth - 1, -beta, -alpha, deadline, globalStopwatch);
-                currentBest = Math.Max(currentBest, score);
-                alpha = Math.Max(alpha, score);
-            }
-
-            // Only update best score if we completed the depth
-            if (globalStopwatch.ElapsedMilliseconds < deadline)
-                bestScore = currentBest;
-
-            depth++;
-
-            // Safety limit
-            if (depth > 8)
-                break;
-        }
-
-        return bestScore;
-    }
-
-    /// <summary>
-    /// Quick negamax evaluation with time limit for self-play.
-    /// </summary>
-    private int NegamaxEvalQuick(Board board, Player player, int depth, int alpha, int beta, long deadlineMs, System.Diagnostics.Stopwatch stopwatch)
-    {
-        // Time check
-        if (stopwatch.ElapsedMilliseconds >= deadlineMs)
-            return 0;
-
-        // Check for terminal state
-        var winResult = new WinDetector().CheckWin(board);
-        if (winResult.Winner != Player.None)
-        {
-            return winResult.Winner == player ? 100000 - (10 - depth) : -100000 + (10 - depth);
-        }
-
-        if (depth <= 0)
-        {
-            return BitBoardEvaluator.Evaluate(board, player);
-        }
-
-        var candidates = GetCandidateMoves(board);
-        if (candidates.Count == 0)
-            return 0;
-
-        int bestScore = -int.MaxValue;
-
-        foreach (var (x, y) in candidates)
-        {
-            if (stopwatch.ElapsedMilliseconds >= deadlineMs)
-                break;
-
-            var newBoard = board.PlaceStone(x, y, player);
-            var opponent = player == Player.Red ? Player.Blue : Player.Red;
-            int score = -NegamaxEvalQuick(newBoard, opponent, depth - 1, -beta, -alpha, deadlineMs, stopwatch);
-            bestScore = Math.Max(bestScore, score);
-            alpha = Math.Max(alpha, score);
-
-            if (alpha >= beta)
-                break;
-        }
-
-        return bestScore;
-    }
-
-    /// <summary>
-    /// Quick position evaluation for move scoring (depth-based, for legacy use).
-    /// </summary>
-    private int EvaluatePosition(Board board, Player player, int depth)
-    {
-        // Check for immediate win/loss
-        var winResult = new WinDetector().CheckWin(board);
-        if (winResult.Winner != Player.None)
-        {
-            return winResult.Winner == player ? 100000 : -100000;
-        }
-
-        // Use iterative deepening for more accurate evaluation
-        int bestScore = -int.MaxValue;
-        var candidates = GetCandidateMoves(board);
-
-        if (candidates.Count == 0)
-            return 0;  // Draw
-
-        // Quick negamax search
-        for (int d = 1; d <= depth; d++)
-        {
-            int alpha = -int.MaxValue;
-            int beta = int.MaxValue;
-
-            foreach (var (x, y) in candidates)
-            {
-                var newBoard = board.PlaceStone(x, y, player);
-                var opponent = player == Player.Red ? Player.Blue : Player.Red;
-                int score = -NegamaxEval(newBoard, opponent, d - 1, -beta, -alpha);
-                bestScore = Math.Max(bestScore, score);
-                alpha = Math.Max(alpha, score);
-            }
-        }
-
-        return bestScore;
-    }
-
-    /// <summary>
-    /// Simple negamax evaluation for move scoring.
-    /// </summary>
-    private int NegamaxEval(Board board, Player player, int depth, int alpha, int beta)
-    {
-        // Check for terminal state
-        var winResult = new WinDetector().CheckWin(board);
-        if (winResult.Winner != Player.None)
-        {
-            return winResult.Winner == player ? 100000 - (10 - depth) : -100000 + (10 - depth);
-        }
-
-        if (depth <= 0)
-        {
-            // Use board evaluator for leaf nodes (static method)
-            return BitBoardEvaluator.Evaluate(board, player);
-        }
-
-        var candidates = GetCandidateMoves(board);
-        if (candidates.Count == 0)
-            return 0;  // Draw
-
-        int bestScore = -int.MaxValue;
-        foreach (var (x, y) in candidates)
-        {
-            var newBoard = board.PlaceStone(x, y, player);
-            var opponent = player == Player.Red ? Player.Blue : Player.Red;
-            int score = -NegamaxEval(newBoard, opponent, depth - 1, -beta, -alpha);
-            bestScore = Math.Max(bestScore, score);
-            alpha = Math.Max(alpha, score);
-            if (alpha >= beta)
-                break;
-        }
-
-        return bestScore;
+        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs, _moveType, _lastSearchScore, _lastFmcPercent, _lastEbf);
     }
 
     /// <summary>
@@ -5352,7 +4907,7 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     public void PublishSearchStats(Player player, StatsType statsType, long moveTimeMs)
     {
-        var (depthAchieved, nodesSearched, nps, hitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, _, masterTTPercent, helperAvgDepth, allocatedTimeMs, bookUsed, moveType, _, _, _) = GetSearchStatistics();
+        var (depthAchieved, nodesSearched, nps, hitRate, ponderingActive, vcfDepthAchieved, vcfNodesSearched, threadCount, _, masterTTPercent, helperAvgDepth, allocatedTimeMs, moveType, _, _, _) = GetSearchStatistics();
 
         var statsEvent = new MoveStatsEvent
         {

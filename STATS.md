@@ -118,7 +118,7 @@ The benchmark generates:
 - **Discrete metrics** (Mode/Median/Mean): Move count, Master depth, First Move Cutoff % (FMC%)
 - **Continuous metrics** (Median/Mean): NPS, Helper depth, Time used/allocated, TT hit rate, Effective Branching Factor (EBF)
 - **VCF trigger details** (game/move, depth, nodes)
-- **Move type distribution** (Normal, Book, BookValidated, etc.)
+- **Move type distribution** (Normal, ImmediateWin, ImmediateBlock, etc.)
 - **Per-difficulty aggregates** for each time control
 
 **Key Metrics:**

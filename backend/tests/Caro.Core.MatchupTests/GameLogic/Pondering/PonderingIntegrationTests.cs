@@ -3,7 +3,6 @@ using FluentAssertions;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.Pondering;
-using Caro.Core.Infrastructure.Persistence;
 using Caro.Core.Tournament;
 using System.Diagnostics;
 
@@ -21,49 +20,14 @@ namespace Caro.Core.MatchupTests.GameLogic.Pondering;
 [Trait("Category", "Integration")]
 public class PonderingIntegrationTests
 {
-    /// <summary>
-    /// Helper method to create a TournamentEngine with MinimaxAI instances.
-    /// Uses SQLite in-memory database for tests that don't specifically test opening book functionality.
-    /// </summary>
     private static TournamentEngine CreateTournamentEngine()
     {
-        var logger = NullLogger<SqliteOpeningBookStore>.Instance;
-        var store = new SqliteOpeningBookStore(
-            "file::memory:?cache=shared",  // In-memory SQLite database
-            logger,
-            readOnly: false
-        );
-        store.Initialize();
-
-        var canonicalizer = new PositionCanonicalizer();
-        var validator = new OpeningBookValidator();
-        var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
-        var openingBook = new Caro.Core.GameLogic.OpeningBook(store, canonicalizer, lookupService);
-
-        var botA = new MinimaxAI(openingBook: openingBook);
-        var botB = new MinimaxAI(openingBook: openingBook);
-        return new TournamentEngine(botA, botB);
+        return new TournamentEngine(new MinimaxAI(), new MinimaxAI());
     }
 
-    /// <summary>
-    /// Helper method to create a MinimaxAI with opening book.
-    /// </summary>
     private static MinimaxAI CreateMinimaxAI()
     {
-        var logger = NullLogger<SqliteOpeningBookStore>.Instance;
-        var store = new SqliteOpeningBookStore(
-            "file::memory:?cache=shared",  // In-memory SQLite database
-            logger,
-            readOnly: false
-        );
-        store.Initialize();
-
-        var canonicalizer = new PositionCanonicalizer();
-        var validator = new OpeningBookValidator();
-        var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
-        var openingBook = new Caro.Core.GameLogic.OpeningBook(store, canonicalizer, lookupService);
-
-        return new MinimaxAI(openingBook: openingBook);
+        return new MinimaxAI();
     }
 
     [Fact]

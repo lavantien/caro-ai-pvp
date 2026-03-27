@@ -69,10 +69,6 @@ class Program
         botA.SetSkillLevel(4);    // Hard
         botB.SetSkillLevel(5);    // Grandmaster
 
-        // Configure opening book
-        botA.SetOpeningBook(true, 24);
-        botB.SetOpeningBook(true, 24);
-
         try
         {
             // Start both engines

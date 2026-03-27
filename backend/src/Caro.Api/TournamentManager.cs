@@ -21,8 +21,6 @@ public sealed class TournamentManager : BackgroundService
     private readonly IHubContext<TournamentHub, ITournamentClient> _hub;
     private readonly ILogger<TournamentManager> _logger;
     private readonly GameLogService _logService;
-    private readonly OpeningBook _openingBook;
-
     // ReaderWriterLockSlim allows multiple concurrent readers but exclusive writers
     // GetState() is read-heavy (called frequently by polling clients)
     private readonly ReaderWriterLockSlim _stateLock = new();
@@ -45,13 +43,11 @@ public sealed class TournamentManager : BackgroundService
     public TournamentManager(
         IHubContext<TournamentHub, ITournamentClient> hub,
         ILogger<TournamentManager> logger,
-        GameLogService logService,
-        OpeningBook openingBook)
+        GameLogService logService)
     {
         _hub = hub;
         _logger = logger;
         _logService = logService;
-        _openingBook = openingBook;
 
         // Create Channel-based queues for broadcasts
         // DropOldest mode prevents unbounded growth under high load
@@ -269,9 +265,9 @@ public sealed class TournamentManager : BackgroundService
     /// </summary>
     private async Task RunTournamentLoopAsync(CancellationToken ct)
     {
-        // Create AI instances with OpeningBook dependency
-        var botA = new MinimaxAI(openingBook: _openingBook);
-        var botB = new MinimaxAI(openingBook: _openingBook);
+        // Create AI instances
+        var botA = new MinimaxAI();
+        var botB = new MinimaxAI();
         var engine = new TournamentEngine(botA, botB);
 
         try

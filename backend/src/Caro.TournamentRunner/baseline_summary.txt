@@ -160,20 +160,20 @@
 
 ### Move Type Distribution (Per Matchup)
 
-| Matchup | Time | Normal | Book | BookValidated | ImmediateWin | ImmediateBlock | ErrorRate |
-|---------|------|--------|------|---------------|--------------|----------------|-----------|
-| Easy vs Braindead | bullet | 90.3% | 0.0% | 0.0% | 2.2% | 2.8% | 4.7% |
-| Medium vs Braindead | bullet | 89.2% | 0.0% | 0.0% | 2.1% | 2.4% | 6.3% |
-| Grandmaster vs Braindead | bullet | 62.2% | 0.0% | 0.0% | 1.8% | 17.0% | 5.5% |
-| Hard vs Easy | bullet | 92.7% | 0.0% | 0.0% | 3.2% | 4.0% | 0.0% |
-| Grandmaster vs Medium | bullet | 76.4% | 0.0% | 0.0% | 0.7% | 13.8% | 0.0% |
-| Grandmaster vs Hard | bullet | 76.6% | 0.0% | 0.0% | 1.1% | 12.4% | 0.0% |
-| Easy vs Braindead | blitz | 89.9% | 0.0% | 0.0% | 3.1% | 3.1% | 3.8% |
-| Medium vs Braindead | blitz | 91.3% | 0.0% | 0.0% | 2.2% | 2.0% | 4.5% |
-| Grandmaster vs Braindead | blitz | 58.8% | 0.0% | 0.0% | 4.2% | 17.1% | 7.9% |
-| Hard vs Easy | blitz | 91.9% | 0.0% | 0.0% | 3.8% | 4.3% | 0.0% |
-| Grandmaster vs Medium | blitz | 77.8% | 0.0% | 0.0% | 1.4% | 10.2% | 0.0% |
-| Grandmaster vs Hard | blitz | 74.5% | 0.0% | 0.0% | 2.2% | 14.2% | 0.0% |
+| Matchup | Time | Normal | ImmediateWin | ImmediateBlock | ErrorRate |
+|---------|------|--------|--------------|----------------|-----------|
+| Easy vs Braindead | bullet | 90.3% | 2.2% | 2.8% | 4.7% |
+| Medium vs Braindead | bullet | 89.2% | 2.1% | 2.4% | 6.3% |
+| Grandmaster vs Braindead | bullet | 62.2% | 1.8% | 17.0% | 5.5% |
+| Hard vs Easy | bullet | 92.7% | 3.2% | 4.0% | 0.0% |
+| Grandmaster vs Medium | bullet | 76.4% | 0.7% | 13.8% | 0.0% |
+| Grandmaster vs Hard | bullet | 76.6% | 1.1% | 12.4% | 0.0% |
+| Easy vs Braindead | blitz | 89.9% | 3.1% | 3.1% | 3.8% |
+| Medium vs Braindead | blitz | 91.3% | 2.2% | 2.0% | 4.5% |
+| Grandmaster vs Braindead | blitz | 58.8% | 4.2% | 17.1% | 7.9% |
+| Hard vs Easy | blitz | 91.9% | 3.8% | 4.3% | 0.0% |
+| Grandmaster vs Medium | blitz | 77.8% | 1.4% | 10.2% | 0.0% |
+| Grandmaster vs Hard | blitz | 74.5% | 2.2% | 14.2% | 0.0% |
 
 ## Per-Difficulty Statistics
 

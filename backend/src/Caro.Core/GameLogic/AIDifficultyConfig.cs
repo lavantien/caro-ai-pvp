@@ -38,9 +38,7 @@ public sealed class AIDifficultyConfig
                 PonderingEnabled = false,
                 VCFEnabled = false,
                 ErrorRate = 0.10,              // 10% error rate per README.md spec
-                Description = "10% error rate, absolute beginners",
-                OpeningBookEnabled = false,     // No opening book for beginner level
-                MaxBookDepth = 0               // No opening book
+                Description = "10% error rate, absolute beginners"
             },
 
             AIDifficulty.Easy => new AIDifficultySettings
@@ -55,9 +53,7 @@ public sealed class AIDifficultyConfig
                 PonderingEnabled = true,       // Enabled since using multiple threads
                 VCFEnabled = false,
                 ErrorRate = 0.0,                // No intentional errors
-                Description = "Parallel search + pondering",
-                OpeningBookEnabled = true,      // Easy uses opening book (4 plies)
-                MaxBookDepth = 4               // 4 plies = 2 moves per side
+                Description = "Parallel search + pondering"
             },
 
             AIDifficulty.Medium => new AIDifficultySettings
@@ -72,9 +68,7 @@ public sealed class AIDifficultyConfig
                 PonderingEnabled = true,
                 VCFEnabled = false,
                 ErrorRate = 0.0,                // No intentional errors
-                Description = "Parallel + pondering",
-                OpeningBookEnabled = true,      // Medium uses opening book (6 plies)
-                MaxBookDepth = 6               // 6 plies = 3 moves per side
+                Description = "Parallel + pondering"
             },
 
             AIDifficulty.Hard => new AIDifficultySettings
@@ -89,9 +83,7 @@ public sealed class AIDifficultyConfig
                 PonderingEnabled = true,
                 VCFEnabled = false,            // DISABLED: VCF allocates heavily (HashSet, List, LINQ) causing NPS collapse
                 ErrorRate = 0.0,                // No intentional errors
-                Description = "Parallel + pondering (VCF disabled until zero-allocation)",
-                OpeningBookEnabled = true,      // Hard uses opening book
-                MaxBookDepth = 10              // 10 plies = 5 moves per side
+                Description = "Parallel + pondering (VCF disabled until zero-allocation)"
             },
 
             AIDifficulty.Grandmaster => new AIDifficultySettings
@@ -106,9 +98,7 @@ public sealed class AIDifficultyConfig
                 PonderingEnabled = true,         // Pondering per README
                 VCFEnabled = false,              // DISABLED: VCF allocates heavily (HashSet, List, LINQ) causing NPS collapse
                 ErrorRate = 0.0,                // No intentional errors
-                Description = "Max parallel + pondering + Opening book (VCF disabled until zero-allocation)",
-                OpeningBookEnabled = true,       // Per README: "14 plies"
-                MaxBookDepth = 14               // 14 plies = 7 moves per side
+                Description = "Max parallel + pondering (VCF disabled until zero-allocation)"
             },
 
             AIDifficulty.Experimental => new AIDifficultySettings
@@ -123,29 +113,8 @@ public sealed class AIDifficultyConfig
                 PonderingEnabled = true,
                 VCFEnabled = true,
                 ErrorRate = 0.0,                // No intentional errors
-                Description = "Full opening book + max features for testing",
-                OpeningBookEnabled = true,      // Experimental uses full opening book
-                MaxBookDepth = int.MaxValue    // Experimental uses all available book depth
-            },
-
-            AIDifficulty.BookGeneration => new AIDifficultySettings
-            {
-                Difficulty = AIDifficulty.BookGeneration,
-                DisplayName = "BookGeneration",
-                ThreadCount = GetBookGenerationThreadCount(),
-                PonderingThreadCount = 0,
-                TimeMultiplier = 1.0,
-                TimeBudgetPercent = 1.0,
-                ParallelSearchEnabled = true,    // Enable parallel search for maximum throughput
-                PonderingEnabled = false,
-                VCFEnabled = true,
-                ErrorRate = 0.0,
-                Description = "Offline book generation with (N-4) threads",
-                OpeningBookEnabled = true,
-                MaxBookDepth = int.MaxValue
-            },
-
-            _ => throw new ArgumentException($"Unknown difficulty: {difficulty}")
+                Description = "Full features for testing"
+            }
         };
     }
 
@@ -177,18 +146,6 @@ public sealed class AIDifficultyConfig
     {
         int processorCount = Environment.ProcessorCount;
         return Math.Max(4, (processorCount / 3) - 1);
-    }
-
-    /// <summary>
-    /// Get book generation thread count for book generation.
-    /// Uses fewer threads per search to allow more parallel searches.
-    /// </summary>
-    private static int GetBookGenerationThreadCount()
-    {
-        // With position-level parallelism (4 outer workers) and sequential candidates,
-        // each search can use more threads for better core utilization
-        // 4 workers x 5 threads per search = 20 threads (optimal for 20-core machine)
-        return Math.Max(5, Environment.ProcessorCount / 4);
     }
 
     /// <summary>
@@ -231,8 +188,6 @@ public sealed record AIDifficultySettings
     public required bool VCFEnabled { get; init; }
     public required double ErrorRate { get; init; }
     public required string Description { get; init; }
-    public required bool OpeningBookEnabled { get; init; }  // Whether this difficulty uses opening book
-    public required int MaxBookDepth { get; init; }  // Maximum book depth in plies (0 = no book)
 
     /// <summary>
     /// Check if this difficulty supports pondering (Easy+)
@@ -248,9 +203,4 @@ public sealed record AIDifficultySettings
     /// Check if this difficulty supports VCF (Hard and above)
     /// </summary>
     public bool SupportsVCF => VCFEnabled;
-
-    /// <summary>
-    /// Check if this difficulty uses the opening book (Easy, Medium, Hard, Grandmaster, Experimental)
-    /// </summary>
-    public bool SupportsOpeningBook => OpeningBookEnabled;
 }

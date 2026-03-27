@@ -94,7 +94,7 @@ public static class BaselineBenchmarkRunner
             LowerDifficulty = first
         };
 
-        var engine = TournamentEngineFactory.CreateWithOpeningBook();
+        var engine = TournamentEngineFactory.Create();
 
         // Set up file output with console tee
         using var fileWriter = new StreamWriter(outputFileName, false, Encoding.UTF8);
@@ -370,17 +370,15 @@ public static class BaselineBenchmarkRunner
         // Move Type Distribution
         await writer.WriteLineAsync("### Move Type Distribution (Per Matchup)");
         await writer.WriteLineAsync();
-        await writer.WriteLineAsync("| Matchup | Time | Normal | Book | BookValidated | ImmediateWin | ImmediateBlock | ErrorRate |");
-        await writer.WriteLineAsync("|---------|------|--------|------|---------------|--------------|----------------|-----------|");
+        await writer.WriteLineAsync("| Matchup | Time | Normal | ImmediateWin | ImmediateBlock | ErrorRate |");
+        await writer.WriteLineAsync("|---------|------|--------|--------------|----------------|-----------|");
         foreach (var (_, stats, tc) in results)
         {
             var normal = stats.MoveTypeDistribution.GetValueOrDefault(MoveType.Normal, (0, 0.0)).Item2;
-            var book = stats.MoveTypeDistribution.GetValueOrDefault(MoveType.Book, (0, 0.0)).Item2;
-            var bookVal = stats.MoveTypeDistribution.GetValueOrDefault(MoveType.BookValidated, (0, 0.0)).Item2;
             var immWin = stats.MoveTypeDistribution.GetValueOrDefault(MoveType.ImmediateWin, (0, 0.0)).Item2;
             var immBlock = stats.MoveTypeDistribution.GetValueOrDefault(MoveType.ImmediateBlock, (0, 0.0)).Item2;
             var error = stats.MoveTypeDistribution.GetValueOrDefault(MoveType.ErrorRate, (0, 0.0)).Item2;
-            await writer.WriteLineAsync($"| {stats.HigherDifficulty} vs {stats.LowerDifficulty} | {tc} | {normal:F1}% | {book:F1}% | {bookVal:F1}% | {immWin:F1}% | {immBlock:F1}% | {error:F1}% |");
+            await writer.WriteLineAsync($"| {stats.HigherDifficulty} vs {stats.LowerDifficulty} | {tc} | {normal:F1}% | {immWin:F1}% | {immBlock:F1}% | {error:F1}% |");
         }
         await writer.WriteLineAsync();
 

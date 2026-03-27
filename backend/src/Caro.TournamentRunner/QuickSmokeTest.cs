@@ -22,7 +22,7 @@ public static class QuickSmokeTest
 
     public static void Run()
     {
-        var engine = TournamentEngineFactory.CreateWithOpeningBook();
+        var engine = TournamentEngineFactory.Create();
 
         var matchups = new[]
         {

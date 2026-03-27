@@ -1,9 +1,7 @@
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
-using Caro.Core.Infrastructure.Persistence;
 using Caro.Core.Tournament;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -34,30 +32,9 @@ public class TournamentIntegrationTests
         _output = output;
     }
 
-    /// <summary>
-    /// Helper method to create a TournamentEngine with MinimaxAI instances.
-    /// Uses SQLite in-memory database for tests that don't specifically test opening book functionality.
-    /// </summary>
     private static TournamentEngine CreateTournamentEngine()
     {
-        // Create SQLite in-memory opening book store for tests
-        var logger = NullLogger<SqliteOpeningBookStore>.Instance;
-        var store = new SqliteOpeningBookStore(
-            "file::memory:?cache=shared",  // In-memory SQLite database
-            logger,
-            readOnly: false
-        );
-        store.Initialize();
-
-        var canonicalizer = new PositionCanonicalizer();
-        var validator = new OpeningBookValidator();
-        var lookupService = new OpeningBookLookupService(store, canonicalizer, validator);
-        var openingBook = new OpeningBook(store, canonicalizer, lookupService);
-
-        // Create AI instances with OpeningBook dependency
-        var botA = new MinimaxAI(openingBook: openingBook);
-        var botB = new MinimaxAI(openingBook: openingBook);
-        return new TournamentEngine(botA, botB);
+        return new TournamentEngine(new MinimaxAI(), new MinimaxAI());
     }
 
     [Fact]

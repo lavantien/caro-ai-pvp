@@ -16,7 +16,7 @@ public class GrandmasterVsBraindeadRunner
 
     public static async Task RunAsync()
     {
-        var engine = TournamentEngineFactory.CreateWithOpeningBook();
+        var engine = TournamentEngineFactory.Create();
         const int initialTimeSeconds = 420;  // 7 minutes
         const int incrementSeconds = 5;      // +5 seconds per move
         const int gamesPerMatchup = 10;

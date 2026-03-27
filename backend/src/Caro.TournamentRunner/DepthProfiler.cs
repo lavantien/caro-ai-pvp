@@ -11,7 +11,7 @@ public class DepthProfiler
 {
     public static void Run(string[] args)
     {
-        var engine = TournamentEngineFactory.CreateWithOpeningBook();
+        var engine = TournamentEngineFactory.Create();
         var difficulties = new[]
         {
             AIDifficulty.Braindead,

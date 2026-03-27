@@ -13,17 +13,6 @@ public class UCIEngineOptions
     public int SkillLevel { get; set; } = 3;
 
     /// <summary>
-    /// Whether to use the opening book.
-    /// </summary>
-    public bool UseOpeningBook { get; set; } = true;
-
-    /// <summary>
-    /// Maximum book depth in plies (0-40).
-    /// Limits how deep the engine will follow opening book lines.
-    /// </summary>
-    public int BookDepthLimit { get; set; } = 24;
-
-    /// <summary>
     /// Number of threads to use for parallel search (1-32).
     /// </summary>
     public int Threads { get; set; } = 4;
@@ -97,25 +86,6 @@ public class UCIEngineOptions
                 }
                 return false;
 
-            case "use opening book":
-                if (bool.TryParse(value, out bool useBook))
-                {
-                    UseOpeningBook = useBook;
-                    return true;
-                }
-                return false;
-
-            case "book depth limit":
-                if (int.TryParse(value, out int bookDepth))
-                {
-                    if (bookDepth >= 0 && bookDepth <= 40)
-                    {
-                        BookDepthLimit = bookDepth;
-                        return true;
-                    }
-                }
-                return false;
-
             case "threads":
                 if (int.TryParse(value, out int threads))
                 {
@@ -159,8 +129,6 @@ public class UCIEngineOptions
         return new[]
         {
             "option name Skill Level type spin default 3 min 1 max 6",
-            "option name Use Opening Book type check default true",
-            "option name Book Depth Limit type spin default 24 min 0 max 40",
             "option name Threads type spin default 4 min 1 max 32",
             "option name Hash type spin default 256 min 32 max 4096",
             "option name Ponder type check default false"

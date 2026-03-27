@@ -44,8 +44,6 @@ public enum StatsType
 public enum MoveType
 {
     Normal,           // Full search performed
-    Book,             // Opening book move (unvalidated)
-    BookValidated,    // Book move validated by search
     ImmediateWin,     // Immediate winning move found
     ImmediateBlock,   // Forced block of opponent's winning move
     ErrorRate,        // Random move due to error rate (Braindead)

@@ -17,8 +17,6 @@ public sealed class UCIMockClient : IDisposable
     private readonly List<string> _moveHistory = new();
     private bool _isInitialized;
     private int _skillLevel = 3;
-    private bool _openingBookEnabled = true;
-    private int _bookDepthLimit = 24;
 
     /// <summary>
     /// Event raised when the engine sends info messages.
@@ -29,16 +27,6 @@ public sealed class UCIMockClient : IDisposable
     /// The skill level (1-6) configured for this engine.
     /// </summary>
     public int SkillLevel => _skillLevel;
-
-    /// <summary>
-    /// Whether the opening book is enabled.
-    /// </summary>
-    public bool OpeningBookEnabled => _openingBookEnabled;
-
-    /// <summary>
-    /// The opening book depth limit.
-    /// </summary>
-    public int BookDepthLimit => _bookDepthLimit;
 
     /// <summary>
     /// Create a new UCI client for the specified engine executable.
@@ -122,10 +110,6 @@ public sealed class UCIMockClient : IDisposable
         // Set skill level
         SendCommand($"setoption name Skill Level value {_skillLevel}");
 
-        // Set opening book options
-        SendCommand($"setoption name Use Opening Book value {_openingBookEnabled.ToString().ToLowerInvariant()}");
-        SendCommand($"setoption name Book Depth Limit value {_bookDepthLimit}");
-
         SendCommand("ucinewgame");
 
         _isInitialized = true;
@@ -143,21 +127,6 @@ public sealed class UCIMockClient : IDisposable
         if (_isInitialized)
         {
             SendCommand($"setoption name Skill Level value {_skillLevel}");
-        }
-    }
-
-    /// <summary>
-    /// Configure the opening book.
-    /// </summary>
-    public void SetOpeningBook(bool enabled, int depthLimit = 24)
-    {
-        _openingBookEnabled = enabled;
-        _bookDepthLimit = depthLimit;
-
-        if (_isInitialized)
-        {
-            SendCommand($"setoption name Use Opening Book value {_openingBookEnabled.ToString().ToLowerInvariant()}");
-            SendCommand($"setoption name Book Depth Limit value {_bookDepthLimit}");
         }
     }
 

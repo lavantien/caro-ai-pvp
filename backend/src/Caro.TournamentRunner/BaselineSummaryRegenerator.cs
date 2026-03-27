@@ -311,19 +311,17 @@ public static class BaselineSummaryRegenerator
         // Move Type Distribution
         await writer.WriteLineAsync("### Move Type Distribution (Per Matchup)");
         await writer.WriteLineAsync();
-        await writer.WriteLineAsync("| Matchup | Time | Normal | Book | BookValidated | ImmediateWin | ImmediateBlock | ErrorRate |");
-        await writer.WriteLineAsync("|---------|------|--------|------|---------------|--------------|----------------|-----------|");
+        await writer.WriteLineAsync("| Matchup | Time | Normal | ImmediateWin | ImmediateBlock | ErrorRate |");
+        await writer.WriteLineAsync("|---------|------|--------|--------------|----------------|-----------|");
         foreach (var r in results)
         {
             var total = r.MoveTypeCounts.Values.Sum();
             if (total == 0) total = 1;
             var normal = GetMoveTypePercent(r.MoveTypeCounts, "-", total);
-            var book = GetMoveTypePercent(r.MoveTypeCounts, "Bk", total);
-            var bookVal = GetMoveTypePercent(r.MoveTypeCounts, "Bv", total);
             var immWin = GetMoveTypePercent(r.MoveTypeCounts, "Wn", total);
             var immBlock = GetMoveTypePercent(r.MoveTypeCounts, "Bl", total);
             var error = GetMoveTypePercent(r.MoveTypeCounts, "Er", total);
-            await writer.WriteLineAsync($"| {r.HigherDifficulty} vs {r.LowerDifficulty} | {r.TimeControl} | {normal:F1}% | {book:F1}% | {bookVal:F1}% | {immWin:F1}% | {immBlock:F1}% | {error:F1}% |");
+            await writer.WriteLineAsync($"| {r.HigherDifficulty} vs {r.LowerDifficulty} | {r.TimeControl} | {normal:F1}% | {immWin:F1}% | {immBlock:F1}% | {error:F1}% |");
         }
         await writer.WriteLineAsync();
 

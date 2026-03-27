@@ -32,7 +32,7 @@ public class AIStrengthValidationSuite : IDisposable
     public AIStrengthValidationSuite(ITestOutputHelper output)
     {
         _output = output;
-        _engine = TournamentEngineTestFactory.CreateWithOpeningBook();
+        _engine = TournamentEngineTestFactory.Create();
     }
 
     public void Dispose()
