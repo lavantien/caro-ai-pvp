@@ -121,15 +121,15 @@ Available matchups: `BraindeadvsBraindead`, `BraindeadvsEasy`, `BraindeadvsMediu
 < id author Caro AI Project
 < option name Skill Level type spin default 3 min 1 max 6
 < uciok
-> position startpos moves ea17
+> position startpos moves bd8
 > go movetime 2000
-< info depth 2 nodes 13524 time 1590 pv ea18
-< bestmove ea18
+< info depth 2 nodes 13524 time 1590 pv ca9
+< bestmove ca9
 ```
 
 ### Tournament Mode
 
-- 5 AI levels in round-robin format
+- 6 AI levels in round-robin format
 - ELO tracking with standard rating calculation
 - Balanced scheduling (one game per bot per round)
 - SQLite logging with FTS5 full-text search
@@ -253,7 +253,16 @@ graph TB
         StatsPublisher["IStatsPublisher"]
     end
 
-    subgraph Domain["Domain Layer (Core)"]
+    subgraph Core["Core Layer (Caro.Core)"]
+        MinimaxAI["MinimaxAI"]
+        VCFSolver["VCFSolver"]
+        ParallelSearch["ParallelMinimaxSearch (Lazy SMP)"]
+        Evaluator["BitBoardEvaluator"]
+        TournamentManager["TournamentManager"]
+        UCIProtocol["UCI Protocol"]
+    end
+
+    subgraph Domain["Domain Layer"]
         Board["Board (16x16)"]
         Player["Player Enum"]
         GameState["GameState"]
@@ -261,16 +270,19 @@ graph TB
     end
 
     subgraph Infrastructure["Infrastructure Layer"]
-        MinimaxAI["MinimaxAI"]
-        VCFSolver["VCFSolver"]
-        ParallelSearch["ParallelMinimaxSearch (Lazy SMP)"]
-        Evaluator["BitBoardEvaluator"]
+        AIService["AIService"]
+        GameLogService["GameLogService"]
+        TimeManagementService["TimeManagementService"]
     end
 
     Presentation --> Application
     Application --> Domain
-    Domain --> Infrastructure
-    Presentation --> Infrastructure
+    Presentation --> Core
+    Core --> Domain
+    Core --> Application
+    Application --> Infrastructure
+    Infrastructure --> Domain
+    Infrastructure --> Application
 ```
 
 **Clean Architecture Projects:**
@@ -279,7 +291,8 @@ graph TB
 |---------|---------|--------------|
 | `Caro.Core.Domain` | Core entities, value objects | None |
 | `Caro.Core.Application` | Interfaces, application services | Domain |
-| `Caro.Core.Infrastructure` | AI algorithms, external concerns | Domain, Application |
+| `Caro.Core` | Game logic, AI engine, tournament, UCI protocol | Domain, Application |
+| `Caro.Core.Infrastructure` | Service implementations, external concerns | Domain, Application |
 
 **Immutable Domain Model:**
 
@@ -334,9 +347,9 @@ if (threadIndex > 0) {
 - Prevents "strength inversion" (weaker AI exploiting predictable behavior)
 
 **Ponder Hit Handling:**
-- Ponder runs during opponent's turn (free precomputation)
+- MinimaxAI supports pondering internally (enabled for Easy+ difficulty)
+- `AIService.StartPonderingAsync` wires through to MinimaxAI's pondering subsystem
 - `HasPonderHitResult` checks for valid hit before new search
-- No waiting - ponder result available immediately if hit occurred
 - TT shared between ponder and main search for efficiency
 
 **Detailed Technical Documentation:** See `ENGINE_FEATURES.md` for comprehensive coverage of search algorithms, transposition tables, move ordering, evaluation, and time management.
@@ -355,7 +368,7 @@ Production-grade concurrency following .NET 10 best practices:
 | TT sharding (16 segments) | Reduced cache contention |
 | Publisher-Subscriber | AI telemetry without callbacks |
 
-**Testing:** 32 adversarial concurrency tests validate thread-safety under high contention.
+**Testing:** 29 adversarial concurrency tests validate thread-safety under high contention.
 
 ---
 

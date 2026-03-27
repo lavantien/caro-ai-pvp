@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.78.0] - 2026-03-27
+
+### Added
+- **WinDetector.CheckWinFromMove** - Static method for efficient last-move win checking, extracting Caro win logic (exactly-5, overline rejection, both-ends-blocked) from GameService into the Core game logic layer
+- **IGameService.GetAIMoveAsync difficulty parameter** - Accepts optional difficulty string (defaults to "Medium") instead of hardcoding
+
+### Changed
+- **AIService pondering wired through** - `StartPonderingAsync` and `StopPonderingAsync` now delegate to MinimaxAI's internal pondering subsystem via `StartPonderingNow`/`StopPondering`; replaces previous no-op stubs; tracks game-to-color mapping in `ConcurrentDictionary<Guid, Player>`
+- **GameService refactor** - Replaced private `CheckForWin`/`IsBlocked`/`BuildWinningLine` (~140 lines) with `WinDetector.CheckWinFromMove`; `CalculateBestMoveAsync` passes `ponderingEnabled: true`
+
+### Removed
+- **StatelessSearchEngine** - Deleted (505 lines); redundant after AIService unified on MinimaxAI in v1.77.0
+- **StatelessSearchEngineTests** - Deleted (195 lines); tests for removed engine
+
+### Fixed
+- **ENGINE_FEATURES.md UCI notation** - Corrected column notation back to aa-dd (double-letter encoding); was mistakenly changed to aa-pp in v1.77.0
+
+### Documentation
+- **ENGINE_FEATURES.md** - Restructured TT section to distinguish Cluster-Based (MinimaxAI) vs LockFree (ParallelMinimaxSearch); added Helper Thread TT Write Policy section; corrected pondering difficulty to Easy+
+- **README.md** - Fixed architecture diagram (separated Core Layer from Infrastructure Layer); updated UCI examples to valid double-letter notation; updated pondering description; corrected concurrency test count (29)
+
+### Tests
+- **CheckWinFromMoveTests** - 11 new tests (horizontal, vertical, diagonal, overline, both-ends-blocked, one-end-blocked, board-edge, no-win, wrong-player)
+- **GameStateExtensionsTests** - New test class for GameState extension methods
+- **UCIMoveNotationTests** - New test class for UCI move notation conversion
+- **AIServiceTests** - Updated from no-op stubs to verify real pondering behavior (start, stop, multi-difficulty, cleanup)
+
 ## [1.77.0] - 2026-03-27
 
 ### Fixed

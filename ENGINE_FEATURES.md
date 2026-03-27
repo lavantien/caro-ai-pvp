@@ -109,13 +109,15 @@ LMR reduces search depth for moves that are statistically less likely to be best
 
 ## 3. Transposition Table System
 
-### 3.1 Multi-Entry Clusters
+The engine has two TT implementations, each serving a different search context:
 
-The TT uses cluster-based storage with multiple entries per hash bucket.
+### 3.1 Cluster-Based TranspositionTable (MinimaxAI)
+
+Used by `MinimaxAI` for single-threaded and main search.
 
 **Cluster Structure:**
 - 3 entries per cluster
-- 32-byte cache-line aligned
+- 10-byte TTEntry structs (compact storage)
 - Depth-age replacement scheme
 
 **Replacement Policy:**
@@ -123,7 +125,21 @@ The TT uses cluster-based storage with multiple entries per hash bucket.
 - Higher priority entries are kept
 - Age increments per search iteration
 
-### 3.2 Entry Structure
+### 3.2 LockFreeTranspositionTable (ParallelMinimaxSearch)
+
+Used by `ParallelMinimaxSearch` for Lazy SMP multi-threaded search.
+
+**Shard Distribution:**
+- 16 independent segments
+- Hash-based index calculation: `shardIndex = (hash >> 32) & shardMask`
+- Reduces cache coherency traffic
+
+**Thread Access:**
+- Each thread can access any shard
+- No locking required for read operations
+- Atomic operations for writes
+
+### 3.3 Entry Structure
 
 Each TT entry stores:
 - **Hash Key** - Position identification (truncated)
@@ -133,20 +149,6 @@ Each TT entry stores:
 - **Best Move** - Principal variation move
 - **Static Eval** - Cached static evaluation
 
-### 3.3 TT Sharding
-
-For parallel access efficiency, the TT is divided into independent segments.
-
-**Shard Distribution:**
-- 16 independent segments
-- Hash-based index calculation
-- Reduces cache coherency traffic
-
-**Thread Access:**
-- Each thread can access any shard
-- No locking required for read operations
-- Atomic operations for writes
-
 ### 3.4 Lockless Hashing
 
 XOR-based key verification enables parallel access without locks.
@@ -155,6 +157,18 @@ XOR-based key verification enables parallel access without locks.
 - Entry key XORed with stored data
 - Verification through reverse XOR
 - Detects torn reads/writes
+
+### 3.5 Helper Thread TT Write Policy
+
+Helper threads in Lazy SMP have restricted TT writes:
+
+```
+if (threadIndex > 0) {
+    if (depth < rootDepth / 2) return;  // Too shallow
+    if (flag != Exact) return;           // Misleading bounds
+}
+// Master threads (threadIndex=0) can store any entry
+```
 
 ---
 
@@ -394,7 +408,7 @@ Uses control theory principles for time allocation.
 Background search during opponent's turn.
 
 **Characteristics:**
-- Enabled for Medium+ difficulty
+- Enabled for Easy+ difficulty
 - Searches predicted opponent move
 - TT stored for potential reuse
 - Interrupted on opponent move
@@ -563,9 +577,9 @@ Standard UCI commands for engine control:
 ### 9.3 Move Notation
 
 Algebraic notation for Caro:
-- Columns: aa-pp (0-15)
+- Columns: aa-dd (double-letter encoding: column = firstIndex * 4 + secondIndex, each letter a-d)
 - Rows: 1-16
-- Example: k10 = column 10, row 10
+- Example: bd9 = column 7, row 9; dd16 = column 15, row 16
 
 ---
 
