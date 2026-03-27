@@ -19,6 +19,7 @@ public sealed class UCIProtocol
     private Board? _currentBoard;
     private Player _currentPlayer = Player.Red;
     private bool _isRunning = true;
+    private int _appliedHashSizeMb = 256;
 
     public UCIProtocol(MinimaxAI ai, ILogger logger)
     {
@@ -116,7 +117,7 @@ public sealed class UCIProtocol
     {
         var responses = new List<string>
         {
-            "id name Caro AI 1.61.0",
+            "id name Caro AI " + UCIEngineOptions.EngineVersion,
             "id author Caro AI Project"
         };
 
@@ -134,6 +135,13 @@ public sealed class UCIProtocol
 
     private string[] HandleUciNewGame()
     {
+        // Apply Hash option if changed
+        if (_options.Hash != _appliedHashSizeMb)
+        {
+            _ai.ResizeTranspositionTable(_options.Hash);
+            _appliedHashSizeMb = _options.Hash;
+        }
+
         // Reset for new game
         _currentBoard = new Board();
         _currentPlayer = Player.Red;
@@ -266,7 +274,6 @@ public sealed class UCIProtocol
 
     private void OnSearchInfo(SearchInfo info)
     {
-        // Emit info message to console
         var sb = new StringBuilder("info");
 
         if (info.Depth > 0)
@@ -277,6 +284,12 @@ public sealed class UCIProtocol
 
         if (info.TimeMs > 0)
             sb.Append($" time {info.TimeMs}");
+
+        if (info.Nps > 0)
+            sb.Append($" nps {info.Nps}");
+
+        if (info.TbHit > 0)
+            sb.Append($" tbhit {info.TbHit:F1}");
 
         if (info.Score != 0)
             sb.Append($" score cp {info.Score}");

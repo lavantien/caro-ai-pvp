@@ -19,6 +19,13 @@ public sealed class UCIHandler
     private readonly ILogger<UCIHandler> _logger;
     private Board? _currentBoard;
     private Player _currentPlayer = Player.Red;
+    private int _appliedHashSizeMb = 256;
+
+    /// <summary>
+    /// Callback to send unsolicited messages (search info, best move) to the WebSocket client.
+    /// Set per-connection, cleared on disconnect.
+    /// </summary>
+    public Func<string, Task>? SendToClient { get; set; }
 
     public UCIHandler(MinimaxAI ai, ILogger<UCIHandler> logger)
     {
@@ -88,7 +95,7 @@ public sealed class UCIHandler
     {
         return new UCIResponse
         {
-            Id = new[] { "Caro AI 1.30.0", "Caro AI Project" },
+            Id = new[] { "Caro AI " + UCIEngineOptions.EngineVersion, "Caro AI Project" },
             Options = UCIEngineOptions.GetOptionDeclarations(),
             UciOk = true
         };
@@ -101,6 +108,12 @@ public sealed class UCIHandler
 
     private object HandleUciNewGame()
     {
+        if (_options.Hash != _appliedHashSizeMb)
+        {
+            _ai.ResizeTranspositionTable(_options.Hash);
+            _appliedHashSizeMb = _options.Hash;
+        }
+
         _currentBoard = new Board();
         _currentPlayer = Player.Red;
         _ai.ClearAllState();
@@ -195,15 +208,32 @@ public sealed class UCIHandler
 
     private void OnSearchInfo(SearchInfo info)
     {
-        // Could emit via WebSocket to connected clients
         _logger.LogDebug("Search info: depth={Depth}, nodes={Nodes}, time={TimeMs}ms",
             info.Depth, info.Nodes, info.TimeMs);
+
+        if (SendToClient != null)
+        {
+            _ = SendToClient(JsonSerializer.Serialize(new SearchInfoDto
+            {
+                Depth = info.Depth,
+                Nodes = info.Nodes,
+                TimeMs = info.TimeMs,
+                Score = info.Score,
+                Nps = info.Nps,
+                TbHit = info.TbHit,
+                PV = info.PV
+            }));
+        }
     }
 
     private void OnBestMove((int x, int y) move)
     {
-        // Could emit via WebSocket to connected clients
         _logger.LogDebug("Best move: {Move}", UCIMoveNotation.ToUCI(move.x, move.y));
+
+        if (SendToClient != null)
+        {
+            _ = SendToClient(JsonSerializer.Serialize(new UCIResponse { BestMove = UCIMoveNotation.ToUCI(move.x, move.y) }));
+        }
     }
 }
 
@@ -256,6 +286,8 @@ public sealed record SearchInfoDto
     public long Nodes { get; init; }
     public long TimeMs { get; init; }
     public int Score { get; init; }
+    public long Nps { get; init; }
+    public double TbHit { get; init; }
     public string[] PV { get; init; } = Array.Empty<string>();
 }
 

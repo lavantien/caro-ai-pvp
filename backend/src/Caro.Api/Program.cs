@@ -74,36 +74,56 @@ app.Map("/ws/uci", async (HttpContext context, UCIHandler handler) =>
 
         logger.LogInformation("UCI WebSocket connection established");
 
-        while (webSocket.State == WebSocketState.Open)
+        handler.SendToClient = async msg =>
         {
-            var result = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
-
-            if (result.MessageType == WebSocketMessageType.Close)
+            if (webSocket.State == WebSocketState.Open)
             {
-                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-                break;
+                var bytes = Encoding.UTF8.GetBytes(msg);
+                await webSocket.SendAsync(
+                    new ArraySegment<byte>(bytes),
+                    WebSocketMessageType.Text,
+                    true,
+                    CancellationToken.None);
             }
+        };
 
-            if (result.MessageType == WebSocketMessageType.Text)
+        try
+        {
+            while (webSocket.State == WebSocketState.Open)
             {
-                var message = Encoding.UTF8.GetString(buffer, 0, result.Count).Trim();
-                if (!string.IsNullOrEmpty(message))
-                {
-                    logger.LogDebug("UCI command received: {Message}", message);
+                var result = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
 
-                    var response = await handler.HandleMessageAsync(message);
-                    if (!string.IsNullOrEmpty(response))
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                    break;
+                }
+
+                if (result.MessageType == WebSocketMessageType.Text)
+                {
+                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count).Trim();
+                    if (!string.IsNullOrEmpty(message))
                     {
-                        var responseBytes = Encoding.UTF8.GetBytes(response);
-                        await webSocket.SendAsync(
-                            new ArraySegment<byte>(responseBytes),
-                            WebSocketMessageType.Text,
-                            true,
-                            CancellationToken.None
-                        );
+                        logger.LogDebug("UCI command received: {Message}", message);
+
+                        var response = await handler.HandleMessageAsync(message);
+                        if (!string.IsNullOrEmpty(response))
+                        {
+                            var responseBytes = Encoding.UTF8.GetBytes(response);
+                            await webSocket.SendAsync(
+                                new ArraySegment<byte>(responseBytes),
+                                WebSocketMessageType.Text,
+                                true,
+                                CancellationToken.None
+                            );
+                        }
                     }
                 }
             }
+        }
+        finally
+        {
+            handler.SendToClient = null;
         }
 
         logger.LogInformation("UCI WebSocket connection closed");
