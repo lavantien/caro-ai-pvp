@@ -1,28 +1,36 @@
-# Checkpoint: v1.76.0
+# Checkpoint: v1.77.0
 
 ## Summary
 
-Removed the entire opening book system (~20K lines across all layers). The system was unfeasible — generation took too long with no reliable quality assurance.
+Fixed 12 UCI integration gaps where parsed options/parameters were stored but never forwarded to the core MinimaxAI engine. Unified AI engines by replacing StatelessSearchEngine with MinimaxAI in AIService. Removed dead abstraction layer.
 
 ## Changes
 
-### Opening Book Removal
-- Deleted BookBuilder project (SPSA tuning, self-play, verification)
-- Removed all BookServices (14 files: generation, lookup, validation, canonicalization, binary import/export)
-- Removed infrastructure persistence (SQLite, staging, file stores)
-- Removed MinimaxAI opening book integration
-- Removed UCI `Use Opening Book` option and frontend client method
-- Removed BookGeneration difficulty level
-- Removed ~130 test files and test helpers
+### UCI Integration Fixes
+- Fixed moveNumber (hardcoded 0 -> computed from board) so Open Rule fires via UCI
+- Forwarded increment (winc/binc) to MinimaxAI time management
+- Exposed real search score in UCI info output (was hardcoded 0)
+- Applied Hash option on `ucinewgame` (resize TT at runtime)
+- Unified version string to single UCIEngineOptions.EngineVersion constant
+- Forwarded Threads count to MinimaxAI (was used as boolean only)
+- Forwarded go depth/nodes/movetime search limits to MinimaxAI
+- Fixed Program.cs WebSocket handler brace mismatch
 
-### Bug Fixes
-- PositionTests: corrected board size assumption (18→15 for 16x16)
-- UCIMoveNotation: updated 32x32 references to 16x16
+### MinimaxAI Enhancements
+- Added optional parameters: incrementSeconds, threadCount, maxDepth, maxNodes, maxTimeMs
+- Added ResizeTranspositionTable method (clear and rebuild)
+- Removed arbitrary depth 6 cap in iterative deepening
+
+### AI Unification
+- Replaced StatelessSearchEngine with MinimaxAI in AIService
+- Updated AIServiceTests for new dependency
+- Deleted IUCIProtocolHandler dead interface
 
 ### Documentation
-- Removed SPSA and book references from README, ENGINE_FEATURES
-- Updated move notation from 32x32 to 16x16
-- Removed stale test counts from CSHARP_ONBOARDING
+- Fixed Hash default, column notation in ENGINE_FEATURES.md
+- Replaced StatelessSearchEngine example with MinimaxAI in CSHARP_ONBOARDING.md
+- Fixed board size refs (19->16) and test counts in CSHARP_ONBOARDING.md
+- Fixed UCIMoveNotation comment (0-7 -> 0-3)
 
 ## Verification
 
@@ -33,12 +41,8 @@ Removed the entire opening book system (~20K lines across all layers). The syste
 | Caro.Core.Domain.Tests (52) | Pass |
 | Caro.Core.Application.Tests (14) | Pass |
 | Caro.Core.Infrastructure.Tests (48) | Pass |
-| Caro.Core.IntegrationTests | Pass |
-| Caro.Core.MatchupTests | Pass |
-| Frontend build | Pass |
-| Grep for book references (non-CHANGELOG) | Zero |
 
 ## Version
 
-- Target: v1.76.0
-- Previous: v1.75.0
+- Target: v1.77.0
+- Previous: v1.76.0

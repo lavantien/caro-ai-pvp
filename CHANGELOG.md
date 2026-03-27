@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.77.0] - 2026-03-27
+
+### Fixed
+- **UCI Open Rule** - `moveNumber` was hardcoded to 0 in UCISearchController, so the Open Rule (Red's 2nd move must be 3+ intersections from 1st stone) never fired via UCI
+- **UCI Time Management** - Increment from `winc`/`binc` was parsed but never forwarded to MinimaxAI; engine estimated increment from total time, producing wrong allocations for bullet
+- **UCI Search Score** - Search info output hardcoded `Score = 0` instead of reporting the real evaluation score from GetSearchStatistics
+- **UCI Hash Option** - `setoption name Hash value N` was stored but never applied; TT size stayed at construction default
+- **UCI Version Mismatch** - UCIProtocol reported "1.61.0", UCIHandler reported "1.30.0"; unified to single `UCIEngineOptions.EngineVersion` constant
+- **UCI Threads Forwarding** - Thread count was used as a boolean flag instead of forwarding actual count to MinimaxAI
+- **UCI Search Limits** - `go depth`, `go nodes`, `go movetime` were parsed but never forwarded; search used only time-based cutoff
+- **WebSocket Handler** - Program.cs try/while brace mismatch caused missing closing brace
+- **UCIMoveNotation Comment** - Stated "0-7 maps to a-h" instead of "0-3 maps to a-d"
+
+### Added
+- **MinimaxAI Parameters** - `GetBestMove` now accepts optional `incrementSeconds`, `threadCount`, `maxDepth`, `maxNodes`, `maxTimeMs` for fine-grained UCI control
+- **ResizeTranspositionTable** - Runtime TT resize (clears and rebuilds with new size)
+- **UCI Info Enrichment** - Search info now reports NPS, TT hit rate, and real evaluation score
+
+### Changed
+- **AIService Unified** - Replaced StatelessSearchEngine dependency with MinimaxAI; AIService now delegates to the full-featured engine
+- **UCIHandler WebSocket** - Search info and best move now forwarded to WebSocket client via `SendToClient` callback
+
+### Removed
+- **IUCIProtocolHandler** - Dead interface (`IUCIProtocolHandler`, `UCIEngineState`, `UCIMessageType`, `UCIMessage`) deleted; the two actual handlers share UCISearchController/UCIEngineOptions but don't need a common interface
+
+### Documentation
+- Fixed Hash default (128 -> 256) and column notation (aa-dd -> aa-pp) in ENGINE_FEATURES.md
+- Replaced StatelessSearchEngine DI example with MinimaxAI in CSHARP_ONBOARDING.md
+- Fixed board size references (19x19 -> 16x16) and test counts in CSHARP_ONBOARDING.md
+
 ## [1.76.0] - 2026-03-27
 
 ### Removed
