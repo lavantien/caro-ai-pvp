@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.76.0] - 2026-03-27
+
+### Removed
+- **Opening Book System** - Entire opening book subsystem removed across all layers
+  - BookBuilder project (SPSA tuning, self-play generation, move verification)
+  - OpeningBook domain entities and all BookServices (generation, lookup, validation, storage)
+  - Infrastructure persistence (SQLite, staging, file stores)
+  - MinimaxAI opening book integration (check, load, validate)
+  - UCI `Use Opening Book` engine option
+  - Frontend `setUseOpeningBook()` method
+  - ~130 test files and test helpers
+  - BookGeneration difficulty level from AIDifficulty enum
+  - MoveType.Book and MoveType.BookValidated from StatsChannel
+
+### Fixed
+- **PositionTests** - InRange test used Position(18, 18) for 16x16 board (max valid: 15, 15)
+- **UCIMoveNotation** - Comments and error messages referenced 32x32 board (actual: 16x16)
+
+### Documentation
+- Removed SPSA Optimizer from README feature table
+- Updated algebraic notation references from 32x32 to 16x16
+- Removed stale test counts from CSHARP_ONBOARDING.md
+
 ## [1.75.0] - 2026-03-15
 
 ### Added
