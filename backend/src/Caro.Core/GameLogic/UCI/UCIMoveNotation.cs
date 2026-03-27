@@ -30,7 +30,7 @@ public static class UCIMoveNotation
 
         // Column: double letter grid format (aa-dd)
         // Encoding: column = firstLetterIndex * 4 + secondLetterIndex
-        int firstLetter = x / 4;   // 0-7 maps to a-h
+        int firstLetter = x / 4;   // 0-3 maps to a-d
         int secondLetter = x % 4;  // 0-3 maps to a-d
         string column = $"{(char)('a' + firstLetter)}{(char)('a' + secondLetter)}";
         int row = y + 1;

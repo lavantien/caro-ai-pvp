@@ -6,6 +6,8 @@ namespace Caro.Core.GameLogic.UCI;
 /// </summary>
 public class UCIEngineOptions
 {
+    public const string EngineVersion = "1.77.0";
+
     /// <summary>
     /// Skill level (1-6). Maps to AIDifficulty enum:
     /// 1 = Braindead, 2 = Easy, 3 = Medium, 4 = Hard, 5 = Grandmaster, 6 = Experimental

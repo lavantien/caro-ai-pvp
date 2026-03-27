@@ -21,7 +21,7 @@ namespace Caro.Core.GameLogic;
 public class MinimaxAI : IStatsPublisher
 {
     private readonly BoardEvaluator _evaluator = new();
-    private readonly TranspositionTable _transpositionTable;
+    private TranspositionTable _transpositionTable;
     private readonly WinDetector _winDetector = new();
     private readonly ThreatDetector _threatDetector = new();
     private readonly ThreatSpaceSearch _vcfSolver = new();
@@ -45,7 +45,7 @@ public class MinimaxAI : IStatsPublisher
 
     // Parallel search for high difficulties (D7+)
     // Lazy SMP provides 4-8x speedup on multi-core systems
-    private readonly ParallelMinimaxSearch _parallelSearch;
+    private ParallelMinimaxSearch _parallelSearch;
 
     // Search radius around existing stones (optimization)
     // Set to 7 to ensure safety checks detect all winning moves (5-in-a-row can have winning cells
@@ -200,8 +200,13 @@ public class MinimaxAI : IStatsPublisher
     /// <param name="moveNumber">Current move number (1-indexed, 0 if unknown)</param>
     /// <param name="ponderingEnabled">Enable pondering (thinking on opponent's time)</param>
     /// <param name="parallelSearchEnabled">Enable Lazy SMP parallel search</param>
+    /// <param name="incrementSeconds">Explicit increment in seconds (null to estimate from time remaining)</param>
+    /// <param name="threadCount">Explicit thread count override (null to use difficulty-based count)</param>
+    /// <param name="maxDepth">Maximum search depth (null for no depth limit)</param>
+    /// <param name="maxNodes">Maximum nodes to search (null for no node limit)</param>
+    /// <param name="maxTimeMs">Maximum time in ms (null to use time management)</param>
     /// <returns>Best move coordinates</returns>
-    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, long? timeRemainingMs, int moveNumber, bool ponderingEnabled = false, bool parallelSearchEnabled = false)
+    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, long? timeRemainingMs, int moveNumber, bool ponderingEnabled = false, bool parallelSearchEnabled = false, int? incrementSeconds = null, int? threadCount = null, int? maxDepth = null, long? maxNodes = null, int? maxTimeMs = null)
     {
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
@@ -219,7 +224,7 @@ public class MinimaxAI : IStatsPublisher
         _searchStopwatch.Restart();
 
         // Reset thread count and parallel diagnostics for this difficulty
-        _lastThreadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
+        _lastThreadCount = threadCount ?? ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
         _lastParallelDiagnostics = null;
 
         // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections away from first red stone
@@ -540,33 +545,40 @@ public class MinimaxAI : IStatsPublisher
         // Infer initial time and increment from the remaining time
         // This works for any time control: 3+2, 7+5, 15+10, etc.
         TimeAllocation timeAlloc;
+        // Handle maxTimeMs (from "go movetime N") - use as absolute time budget
+        if (maxTimeMs.HasValue)
+        {
+            timeRemainingMs = maxTimeMs.Value;
+            timeAlloc = new TimeAllocation
+            {
+                SoftBoundMs = (long)(maxTimeMs.Value * 0.8),
+                HardBoundMs = maxTimeMs.Value,
+                OptimalTimeMs = (long)(maxTimeMs.Value * 0.6)
+            };
+        }
         // CRITICAL FIX: For long time budgets, use direct time allocation without AdaptiveTimeManager
         // The adaptive manager is designed for tournament play and under-allocates for long time budgets
-        if (timeRemainingMs.HasValue)
+        else if (timeRemainingMs.HasValue)
         {
             // Infer initial time from first few moves
             var inferredInitialMs = _inferredInitialTimeMs > 0 ? _inferredInitialTimeMs : timeRemainingMs.Value;
             var initialTimeSeconds = (int)(inferredInitialMs / 1000);
 
-            // FIX: Better increment estimation for different time controls
-            // Common time controls:
-            // - Bullet: 60+0 (1 min, no increment) - very common
-            // - Blitz: 180+2 (3 min + 2s)
-            // - Rapid: 600+5 (10 min + 5s)
-            // For short time controls (< 120s), assume SUDDEN DEATH (0 increment)
-            // This is critical for bullet time management
-            int incrementSeconds;
-            if (initialTimeSeconds <= 120)
+            // Use explicit increment if provided, otherwise estimate
+            int effectiveIncrementSeconds;
+            if (incrementSeconds.HasValue)
+            {
+                effectiveIncrementSeconds = incrementSeconds.Value;
+            }
+            else if (initialTimeSeconds <= 120)
             {
                 // Short time control - assume sudden death (no increment)
-                // This is conservative and prevents timeouts in bullet games
-                incrementSeconds = 0;
+                effectiveIncrementSeconds = 0;
             }
             else
             {
                 // Longer time controls - estimate increment based on common ratios
-                // 3+2: 2/180 = 1.1%, 7+5: 5/420 = 1.2%, 15+10: 10/900 = 1.1%
-                incrementSeconds = Math.Max(2, (int)Math.Round(initialTimeSeconds / 90.0));
+                effectiveIncrementSeconds = Math.Max(2, (int)Math.Round(initialTimeSeconds / 90.0));
             }
 
             // Use AdaptiveTimeManager with PID-like controller for better time management
@@ -579,7 +591,7 @@ public class MinimaxAI : IStatsPublisher
                 player,
                 difficulty,
                 initialTimeSeconds,
-                incrementSeconds
+                effectiveIncrementSeconds
             );
         }
         else
@@ -1314,11 +1326,11 @@ public class MinimaxAI : IStatsPublisher
         // Braindead has ParallelSearchEnabled=false in config, so it must use sequential search.
         if (parallelSearchEnabled && settings.ParallelSearchEnabled)
         {
-            int threadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
-            _lastThreadCount = threadCount;
+            int effectiveThreadCount = threadCount ?? ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
+            _lastThreadCount = effectiveThreadCount;
             _tableHits = 0;
             _tableLookups = 0;
-            //Console.WriteLine($"[AI] Using parallel search (Lazy SMP) for {difficulty} with {threadCount} threads");
+            //Console.WriteLine($"[AI] Using parallel search (Lazy SMP) for {difficulty} with {effectiveThreadCount} threads");
 
             // CRITICAL: Apply time multiplier to time allocation for parallel search
             // Lower difficulties should use proportionally less time
@@ -1341,7 +1353,7 @@ public class MinimaxAI : IStatsPublisher
                 timeRemainingMs: timeRemainingMs,
                 timeAlloc: adjustedTimeAlloc,
                 moveNumber: moveNumber,
-                fixedThreadCount: threadCount,
+                fixedThreadCount: effectiveThreadCount,
                 candidates: candidates);
 
             // DEFENSIVE: Validate the returned move is actually a valid, empty cell
@@ -1482,8 +1494,14 @@ public class MinimaxAI : IStatsPublisher
                 }
             }
 
-            // Depth cap for time-limited searches to prevent indefinite search
-            if (timeRemainingMs.HasValue && currentDepth > 6)
+            // Max depth limit from "go depth N"
+            if (maxDepth.HasValue && currentDepth > maxDepth.Value)
+            {
+                break;
+            }
+
+            // Max nodes limit from "go nodes N"
+            if (maxNodes.HasValue && _nodesSearched >= maxNodes.Value)
             {
                 break;
             }
@@ -2904,6 +2922,15 @@ public class MinimaxAI : IStatsPublisher
     {
         _transpositionTable.Clear();
         _parallelSearch.Clear();  // Also clear parallel search's TT
+    }
+
+    /// <summary>
+    /// Resize transposition table. Clears and rebuilds both main and parallel search TTs.
+    /// </summary>
+    public void ResizeTranspositionTable(int newSizeMb)
+    {
+        _transpositionTable = new TranspositionTable(newSizeMb);
+        _parallelSearch = new ParallelMinimaxSearch(newSizeMb);
     }
 
     /// <summary>

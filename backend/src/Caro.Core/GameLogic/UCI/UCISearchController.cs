@@ -124,29 +124,31 @@ public sealed class UCISearchController
                 timeRemainingMs = goParams.BlackTimeMs.Value;
             }
 
-            // If time control provided, calculate remaining time after increment
-            if (timeRemainingMs.HasValue)
-            {
-                var incrementMs = (player == Player.Red ? goParams.WhiteIncrementMs : goParams.BlackIncrementMs) ?? 0;
-                // Don't add increment here - it will be added after move completes
-                timeRemainingMs = timeRemainingMs.Value;
-            }
+            // Extract increment for current player
+            int? incrementMs = player == Player.Red ? goParams.WhiteIncrementMs : goParams.BlackIncrementMs;
+            int? incrementSeconds = incrementMs.HasValue ? incrementMs.Value / 1000 : null;
 
             // Get best move from AI
+            int moveNumber = board.Cells.Count(c => !c.IsEmpty) + 1;
             var (x, y) = _ai.GetBestMove(
                 board,
                 player,
                 difficulty,
                 timeRemainingMs,
-                moveNumber: 0,
+                moveNumber: moveNumber,
                 ponderingEnabled: _options.Ponder,
-                parallelSearchEnabled: _options.Threads > 1
+                parallelSearchEnabled: _options.Threads > 1,
+                incrementSeconds: incrementSeconds,
+                threadCount: _options.Threads,
+                maxDepth: goParams.Depth,
+                maxNodes: goParams.Nodes,
+                maxTimeMs: goParams.MoveTimeMs
             );
 
             stopwatch.Stop();
 
             // Update final stats
-            var (depthAchieved, nodesSearched, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = _ai.GetSearchStatistics();
+            var (depthAchieved, nodesSearched, nodesPerSecond, tableHitRate, _, _, _, _, _, _, _, _, _, searchScore, _, _) = _ai.GetSearchStatistics();
             LastStats = new SearchStats
             {
                 Depth = depthAchieved,
@@ -161,7 +163,9 @@ public sealed class UCISearchController
                 Depth = LastStats.Depth,
                 Nodes = LastStats.Nodes,
                 TimeMs = LastStats.TimeMs,
-                Score = 0,  // Caro doesn't have centipawn scores
+                Score = searchScore,
+                Nps = (long)nodesPerSecond,
+                TbHit = tableHitRate,
                 PV = new[] { UCIMoveNotation.ToUCI(x, y) }
             });
 
@@ -294,5 +298,7 @@ public sealed class SearchInfo
     public long Nodes { get; init; }
     public long TimeMs { get; init; }
     public int Score { get; init; }
+    public long Nps { get; init; }
+    public double TbHit { get; init; }
     public string[] PV { get; init; } = Array.Empty<string>();
 }
