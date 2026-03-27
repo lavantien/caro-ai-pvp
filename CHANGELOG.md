@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.79.0] - 2026-03-27
+
+### Fixed
+- **README.md architecture diagram** - Corrected dependency arrows: Application depends on Core (not vice versa); Infrastructure depends on Core, Application, and Domain; updated project dependency table to match actual .csproj references
+- **CSHARP_ONBOARDING.md test counts** - Updated stale test counts in both table and summary sections (Application.Tests: 14→26, Infrastructure.Tests: 48/64→42, Core.Tests: 566/574→649)
+- **ENGINE_FEATURES.md Skill Level** - Added explicit difficulty name mapping (1=Braindead through 6=Experimental)
+
+### Documentation
+- **Alignment audit** - Verified documentation, implementation, and test alignment across 10 areas; confirmed game rules, Open Rule, API endpoints, tournament system, pondering, evaluation, UCI notation, concurrency tests, and AI difficulty philosophy are all aligned
+
 ## [1.78.0] - 2026-03-27
 
 ### Added
@@ -2022,6 +2032,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ELO rating tracking, SQLite logging with FTS5, SignalR broadcasts
 
 [1.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.0.0
+
+[1.79.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.79.0
+[1.78.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.78.0
 
 ## Early Development (0.x) - 2026-01-20 to 2026-01-29
 
