@@ -91,6 +91,104 @@ public class WinDetector
         return new WinResult { HasWinner = false };
     }
 
+    /// <summary>
+    /// Check for win from the last move position (efficient, no full board scan).
+    /// Returns the winning line positions, or empty array if no win.
+    /// </summary>
+    public static Position[] CheckWinFromMove(Board board, int lastX, int lastY, Player player)
+    {
+        var boardSize = board.BoardSize;
+
+        foreach (var (dx, dy) in Directions)
+        {
+            int count = 1;
+
+            int x = lastX + dx;
+            int y = lastY + dy;
+            while (x >= 0 && x < boardSize && y >= 0 && y < boardSize &&
+                   board.GetCell(x, y).Player == player)
+            {
+                count++;
+                x += dx;
+                y += dy;
+            }
+            int positiveEndX = x;
+            int positiveEndY = y;
+
+            x = lastX - dx;
+            y = lastY - dy;
+            while (x >= 0 && x < boardSize && y >= 0 && y < boardSize &&
+                   board.GetCell(x, y).Player == player)
+            {
+                count++;
+                x -= dx;
+                y -= dy;
+            }
+            int negativeEndX = x;
+            int negativeEndY = y;
+
+            if (count == GameConstants.WinLength)
+            {
+                bool hasPositiveExtension = positiveEndX >= 0 && positiveEndX < boardSize &&
+                                            positiveEndY >= 0 && positiveEndY < boardSize &&
+                                            board.GetCell(positiveEndX, positiveEndY).Player == player;
+                bool hasNegativeExtension = negativeEndX >= 0 && negativeEndX < boardSize &&
+                                            negativeEndY >= 0 && negativeEndY < boardSize &&
+                                            board.GetCell(negativeEndX, negativeEndY).Player == player;
+
+                if (hasPositiveExtension || hasNegativeExtension)
+                    continue;
+
+                bool positiveBlocked = IsBlockedAt(board, positiveEndX, positiveEndY, player);
+                bool negativeBlocked = IsBlockedAt(board, negativeEndX, negativeEndY, player);
+
+                if (positiveBlocked && negativeBlocked)
+                    continue;
+
+                return BuildLine(board, lastX, lastY, dx, dy, player, boardSize);
+            }
+        }
+
+        return Array.Empty<Position>();
+    }
+
+    private static bool IsBlockedAt(Board board, int x, int y, Player player)
+    {
+        if (x < 0 || x >= board.BoardSize || y < 0 || y >= board.BoardSize)
+            return true;
+
+        var cell = board.GetCell(x, y);
+        return !cell.IsEmpty && cell.Player != player;
+    }
+
+    private static Position[] BuildLine(Board board, int lastX, int lastY, int dx, int dy, Player player, int boardSize)
+    {
+        int startX = lastX;
+        int startY = lastY;
+        int prevX = startX - dx;
+        int prevY = startY - dy;
+        while (prevX >= 0 && prevX < boardSize && prevY >= 0 && prevY < boardSize &&
+               board.GetCell(prevX, prevY).Player == player)
+        {
+            startX = prevX;
+            startY = prevY;
+            prevX -= dx;
+            prevY -= dy;
+        }
+
+        var positions = new Position[GameConstants.WinLength];
+        int px = startX;
+        int py = startY;
+        for (int i = 0; i < GameConstants.WinLength; i++)
+        {
+            positions[i] = new Position(px, py);
+            px += dx;
+            py += dy;
+        }
+
+        return positions;
+    }
+
     private bool HasPlayerAt(Board board, int x, int y, Player player)
     {
         if (x < 0 || x >= board.BoardSize || y < 0 || y >= board.BoardSize)

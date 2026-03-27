@@ -35,7 +35,7 @@ public interface IGameService
     /// <summary>
     /// Request AI move calculation
     /// </summary>
-    Task<AIMoveResponse> GetAIMoveAsync(Guid gameId, CancellationToken cancellationToken = default);
+    Task<AIMoveResponse> GetAIMoveAsync(Guid gameId, string difficulty = "Medium", CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get list of active games
