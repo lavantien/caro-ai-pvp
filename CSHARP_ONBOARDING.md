@@ -116,25 +116,21 @@ public class GameStateService
 We declare dependencies directly in the class signature.
 
 ```csharp
-// The parameters 'logger' and 'store' are available throughout the class
-public class StatelessSearchEngine(ILogger<StatelessSearchEngine> logger) :
- IAIEngine
+// The 'logger' parameter is available throughout the class
+public class MinimaxAI(ILogger<MinimaxAI>? logger) : IAIEngine
 {
- private const int WinLength = 5;
-
- public (int x, int y, int score) FindBestMove(
- GameState state,
+ public (int x, int y) GetBestMove(
+ Board board,
+ Player player,
  AIDifficulty difficulty,
- CancellationToken ct = default)
+ long? timeRemainingMs = null,
+ int moveNumber = 1)
  {
- logger.LogDebug("Searching with difficulty {Difficulty}", difficulty);
- // Pure logic: State -> Options -> Best Move
-
- // Stateless design - no mutable instance variables
- var emptyCells = GetOrderedMoves(state, difficulty);
+ logger?.LogDebug("Searching with difficulty {Difficulty}", difficulty);
+ // Iterative deepening with alpha-beta pruning
  // ... search logic
 
- return (bestX, bestY, bestScore);
+ return (bestX, bestY);
  }
 }
 ```
@@ -192,7 +188,7 @@ Every test method should be visually split into these three sections.
 // Position.cs - Immutable record
 public record Position(int X, int Y)
 {
- public bool IsValid => X >= 0 && X < 19 && Y >= 0 && Y < 19;
+ public bool IsValid => X >= 0 && X < 16 && Y >= 0 && Y < 16;
 }
 ```
 
@@ -223,7 +219,7 @@ public class PositionTests
  {
  new Position(0, 0),
  new Position(9, 9),
- new Position(18, 18)
+ new Position(15, 15)
  };
 
  // Act & Assert
@@ -430,7 +426,7 @@ This codebase follows Clean Architecture with three core layers:
 - **Purpose**: External concerns, AI algorithms, persistence
 - **Dependencies**: Domain, Application layers
 - **Key Types**:
-  - AI Engine: `StatelessSearchEngine`, `MinimaxAI`
+  - AI Engine: `MinimaxAI`
   - Services: `AIService`, `TimeManagementService`
   - Persistence: `InMemoryGameRepository`
 
@@ -442,12 +438,12 @@ This codebase follows Clean Architecture with three core layers:
 
 | Test Project | Source Project | Test Type | Count |
 |-------------|----------------|------------|--------|
-| Caro.Core.Domain.Tests | Caro.Core.Domain | Unit | 66 |
+| Caro.Core.Domain.Tests | Caro.Core.Domain | Unit | 52 |
 | Caro.Core.Application.Tests | Caro.Core.Application | Unit | 14 |
-| Caro.Core.Infrastructure.Tests | Caro.Core.Infrastructure | Unit/Integration | 64 |
-| Caro.Core.Tests | Caro.Core (GameLogic/Tournament/Concurrency) | Unit | 466 |
-| Caro.Core.IntegrationTests | Caro.Core (AI Search) | Integration | 224 |
-| Caro.Core.MatchupTests | Caro.Core (Integration/Matchup) | Integration | ~54 |
+| Caro.Core.Infrastructure.Tests | Caro.Core.Infrastructure | Unit | 48 |
+| Caro.Core.Tests | Caro.Core (GameLogic/Tournament/Concurrency) | Unit | 566 |
+| Caro.Core.IntegrationTests | Caro.Core (AI Search) | Integration | See project |
+| Caro.Core.MatchupTests | Caro.Core (Integration/Matchup) | Integration | See project |
 
 ## Summary Checklist for your Onboarding
 

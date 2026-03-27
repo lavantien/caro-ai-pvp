@@ -557,15 +557,15 @@ Standard UCI commands for engine control:
 |--------|------|---------|-------------|
 | Skill Level | spin | 3 | 1-6 difficulty |
 | Threads | spin | auto | Search threads |
-| Hash | spin | 128 | TT size (MB) |
+| Hash | spin | 256 | TT size (MB) |
 | Ponder | check | true | Enable pondering |
 
 ### 9.3 Move Notation
 
 Algebraic notation for Caro:
-- Columns: aa-dd (0-15)
+- Columns: aa-pp (0-15)
 - Rows: 1-16
-- Example: j10 = column 10, row 10
+- Example: k10 = column 10, row 10
 
 ---
 
