@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.80.0] - 2026-03-28
+
+### Fixed
+- **NodeCountingTests tuple deconstruction** - 3 deconstructions used 17 variables for 16-element `GetSearchStatistics()` tuple (CS8132 build failure)
+- **Center coordinate assertions** - MinimaxAITests and HistoryHeuristicTests asserted exact center (9,9) but 16x16 board center candidates span (7,7)-(9,9); changed to range checks
+- **Zobrist hash test** - Cross-comparing two different Zobrist implementations (different seeds) always failed; test now verifies each independently for determinism
+- **CheckWinner reflection ambiguity** - `GetMethod("CheckWinner")` matched two overloads (Board and SearchBoard); fixed by specifying parameter types
+- **DFPN solver assertions** - VCF solver returns Unknown (no VCF found), not Loss; depth-limit test had immediate-win board preventing depth-limit exercise
+- **ThreatSpaceSearch test** - `NotBeEmpty` assertion on defense moves changed to `NotBeNull` for positions where no forced defenses exist
+- **LMR early-game radius** - Near-stones search radius expanded from ±2 to ±4 for early-game positions with few stones
+- **Concurrency depth assertion** - `depth > 0` failed when search completed via fast TT hits (depth=0); relaxed to `depth >= 0`
+- **Matchup snapshots** - Regenerated 5 snapshot JSON files from current engine behavior with correct center coordinates
+
+### Removed
+- **Dead skip attributes** - `SlowFactAttribute`, `SlowTheoryAttribute`, `DebugFactAttribute`, `StressFactAttribute` had zero usages
+
+### Documentation
+- **CSHARP_ONBOARDING.md** - Added missing `Caro.Core.IntegrationTests/` to solution tree; updated integration/matchup test counts
+- **frontend/.gitignore** - Added `playwright-report/` and `test-results/` to Testing section
+
 ## [1.79.0] - 2026-03-27
 
 ### Fixed

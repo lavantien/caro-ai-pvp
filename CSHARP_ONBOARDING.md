@@ -18,6 +18,7 @@ backend/
     ├── Caro.Core.Application.Tests/
     ├── Caro.Core.Infrastructure.Tests/
     ├── Caro.Core.Tests/
+    ├── Caro.Core.IntegrationTests/
     └── Caro.Core.MatchupTests/
 ```
 
@@ -457,8 +458,8 @@ This codebase follows Clean Architecture with three core layers:
    - Caro.Core.Application.Tests: 26 unit tests (mock DTOs)
    - Caro.Core.Infrastructure.Tests: 42 unit tests
    - Caro.Core.Tests: 649 unit tests (AI, tournament, concurrency)
-   - Caro.Core.IntegrationTests: 224 integration tests (opt-in, slower)
-   - Caro.Core.MatchupTests: ~54 integration/matchup tests
+   - Caro.Core.IntegrationTests: ~187 integration tests (opt-in, slower)
+   - Caro.Core.MatchupTests: ~44 integration/matchup tests
 7. **When tests fail** : Check [Theory] inline data to see which input caused crash
 8. **Mocking** : Use Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
 
