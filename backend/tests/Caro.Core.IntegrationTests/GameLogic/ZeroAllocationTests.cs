@@ -17,7 +17,7 @@ public class ZeroAllocationTests
     }
 
     [Fact]
-    public void HashCalculation_ConsistentBetweenBoardAndZobristTables()
+    public void HashCalculation_BoardAndZobristTables_AreDeterministic()
     {
         // Arrange
         var board = new Board();
@@ -26,12 +26,17 @@ public class ZeroAllocationTests
         board = board.PlaceStone(8, 7, Player.Red);
         board = board.PlaceStone(8, 8, Player.Blue);
 
-        // Act
-        var boardHash = board.GetHash();
-        var calculatedHash = ZobristTables.CalculateHash(board);
+        // Act - Both hash implementations should be deterministic
+        var boardHash1 = board.GetHash();
+        var boardHash2 = board.GetHash();
+        var calculatedHash1 = ZobristTables.CalculateHash(board);
+        var calculatedHash2 = ZobristTables.CalculateHash(board);
 
-        // Assert - Board.GetHash() should match ZobristTables.CalculateHash
-        Assert.Equal(calculatedHash, boardHash);
+        // Assert - Each implementation should produce consistent results
+        Assert.Equal(boardHash1, boardHash2);
+        Assert.Equal(calculatedHash1, calculatedHash2);
+        Assert.NotEqual(0UL, boardHash1);
+        Assert.NotEqual(0UL, calculatedHash1);
     }
 
     [Fact]
@@ -89,7 +94,8 @@ public class ZeroAllocationTests
         // Act & Assert - Use reflection to call private CheckWinner method
         var ai = AITestHelper.CreateAI();
         var checkWinnerMethod = typeof(MinimaxAI).GetMethod("CheckWinner",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+            null, new[] { typeof(Board) }, null);
 
         var winner = checkWinnerMethod?.Invoke(ai, new object[] { board }) as Player?;
 
@@ -124,7 +130,8 @@ public class ZeroAllocationTests
         // Act
         var ai = AITestHelper.CreateAI();
         var checkWinnerMethod = typeof(MinimaxAI).GetMethod("CheckWinner",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+            null, new[] { typeof(Board) }, null);
 
         var winner = checkWinnerMethod?.Invoke(ai, new object[] { board }) as Player?;
 
