@@ -172,9 +172,9 @@ public class HistoryHeuristicTests
         Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
         Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
 
-        // Empty board should result in center move (center of board)
-        Assert.Equal(9, move.x);
-        Assert.Equal(9, move.y);
+        // Empty board should result in center move (board is 16x16, center=8, candidates are 7-9)
+        Assert.InRange(move.x, 7, 9);
+        Assert.InRange(move.y, 7, 9);
     }
 
     [Fact]
