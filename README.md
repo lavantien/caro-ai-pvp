@@ -226,12 +226,12 @@ cd backend/tests/Caro.Core.MatchupTests && dotnet test
 |---------|-------|
 | Caro.Core.Tests | Unit tests (algorithms, evaluators, concurrency, immutable state) |
 | Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks) |
-| Caro.Core.MatchupTests | AI matchups, tournament integration |
+| Caro.Core.MatchupTests | Failsafe correctness, smoke, and statistical performance matchups |
 | Caro.Core.Domain.Tests | Entities (Board, Cell, Player, GameState, Position) |
 | Caro.Core.Application.Tests | Services, interfaces, DTOs, mappers |
 | Caro.Core.Infrastructure.Tests | AI algorithms, external concerns |
 
-**Note:** Run `dotnet test` in Caro.Core.Tests for fast unit test feedback. IntegrationTests are excluded from default test runs (marked as `<IsTestProject>false</IsTestProject>`).
+**Note:** Run `dotnet test` in Caro.Core.Tests for fast unit test feedback. IntegrationTests are excluded from default test runs (marked as `<IsTestProject>false</IsTestProject>`). MatchupTests run via `tests/run-tests.ps1` with `failsafe`, `smoke`, or `performance` commands.
 
 ---
 

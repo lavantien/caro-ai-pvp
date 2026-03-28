@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.81.0] - 2026-03-28
+
+### Added
+- **Three-tier matchup testing framework** - Failsafe (binary pass/fail), Smoke (quick sanity), and Integration (thorough statistical) test tiers in Caro.Core.MatchupTests
+- **Failsafe tests (25 tests)** - Move validity, win detection, overline rule, open rule, game termination, time limits, and Braindead error rate validation across all difficulties
+- **Smoke tests (3 tests)** - Quick adjacent-pair inversion check, extreme gap validation, and self-play symmetry
+- **Statistical performance tests (6 tests)** - Adjacent-pair SPRT, cross-level SPRT, self-play color advantage, transitive Elo ordering, and full round-robin diagnostics
+- **MatchupTestHelper** - Shared infrastructure with color-swap logic, statistical analysis, and SPRT early termination
+- **MatchupTestConfig** - Centralized constants for game counts, time controls, and SPRT thresholds
+- **run-tests.ps1 commands** - `failsafe`, `smoke`, and `performance` commands for tier-selective test execution
+
+### Changed
+- **MatchupTests csproj** - Enabled test discovery (`IsTestProject=true`) so `dotnet test` finds all matchup tests
+- **run-tests.ps1** - Added Caro.Core.MatchupTests to default unit test project list
+
+### Documentation
+- **README.md** - Updated MatchupTests description and test running guidance to reflect three-tier structure
+
 ## [1.80.0] - 2026-03-28
 
 ### Fixed
