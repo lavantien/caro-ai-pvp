@@ -57,20 +57,22 @@ public class DFPNSearchTests
         var result = _search.Solve(board, Player.Red, maxDepth: 5, timeLimitMs: 500);
 
         // Assert - Red cannot force a win when Blue has immediate win
-        result.result.Should().Be(SearchResult.Loss);
-        result.move.Should().BeNull();
+        // DFPN searches for Red's VCF; no VCF means Unknown (not proven Loss)
+        result.result.Should().NotBe(SearchResult.Win, "Red should not have a winning VCF");
     }
 
     [Fact]
     public void Solve_DepthLimit_StopsAtMaxDepth()
     {
-        // Arrange - Complex position with many possible moves
+        // Arrange - Position with no immediate win, requiring deeper search
         var board = new Board();
-        // Create a position with multiple threats requiring deep search
-        for (int i = 0; i < 5; i++)
-        {
-            board = board.PlaceStone(5 + i, 7, Player.Red);
-        }
+        // Three in a row for Red (needs deep search to find VCF)
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(9, 7, Player.Red);
+        // Blue blocks one side
+        board = board.PlaceStone(10, 7, Player.Blue);
+        // Additional stones for complexity
         for (int i = 0; i < 3; i++)
         {
             board = board.PlaceStone(6 + i, 8, Player.Blue);

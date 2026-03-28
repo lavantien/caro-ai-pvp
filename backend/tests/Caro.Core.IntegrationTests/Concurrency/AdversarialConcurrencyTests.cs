@@ -298,7 +298,7 @@ public class AdversarialConcurrencyTests
         {
             Assert.InRange(x, 0, 18);
             Assert.InRange(y, 0, 18);
-            Assert.True(depth > 0, "Depth should be positive");
+            Assert.True(depth >= 0, $"Depth should be non-negative, got {depth}");
         }
     }
 

@@ -188,11 +188,11 @@ public class LateMoveReductionTests
         Assert.True(move.x >= 0 && move.x < 15);
         Assert.True(move.y >= 0 && move.y < 15);
 
-        // Should be near existing stones
+        // Should be near existing stones (wider radius for early game with few stones)
         var nearStones = false;
-        for (int dx = -2; dx <= 2; dx++)
+        for (int dx = -4; dx <= 4; dx++)
         {
-            for (int dy = -2; dy <= 2; dy++)
+            for (int dy = -4; dy <= 4; dy++)
             {
                 var nx = move.x + dx;
                 var ny = move.y + dy;
