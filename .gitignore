@@ -29,6 +29,9 @@ backend/TestCoords/
 backend/test_book.csx
 test_tt.cs
 
+# Tournament logs
+backend/src/Caro.TournamentRunner/logs/
+
 # SQLite WAL files (temporary)
 *.db-shm
 *.db-wal
