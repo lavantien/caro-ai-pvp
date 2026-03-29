@@ -60,19 +60,20 @@ Grandmaster-level engine with 100-500x speedup over naive minimax:
 
 ### Difficulty Levels
 
-| Level | Threads | Time Budget | Error | Features |
-|-------|---------|-------------|-------|----------|
-| Braindead | 1 | 5% | 10% | Beginners |
-| Easy | max(2,(N/5)-1) | 20% | 0% | Parallel search + pondering |
-| Medium | max(3,(N/4)-1) | 50% | 0% | Parallel + pondering |
-| Hard | max(4,(N/3)-1) | 75% | 0% | Parallel + pondering + VCF |
-| Grandmaster | max(5,(N/2)-1) | 100% | 0% | Max parallel, VCF, pondering |
-| Experimental | max(5,(N/2)-1) | 100% | 0% | Max features |
+| Level | Threads | Time Budget | Radius | Error | Features |
+|-------|---------|-------------|--------|-------|----------|
+| Braindead | 1 | 5% | 3 | 10% | Beginners |
+| Easy | max(2,(N/5)-1) | 20% | 4 | 0% | Parallel search + pondering |
+| Medium | max(3,(N/4)-1) | 50% | 5 | 0% | Parallel + pondering |
+| Hard | max(4,(N/3)-1) | 75% | 6 | 0% | Parallel + pondering + VCF |
+| Grandmaster | max(5,(N/2)-1) | 100% | 7 | 0% | Max parallel, VCF, pondering |
+| Experimental | max(5,(N/2)-1) | 100% | 7 | 0% | Max features |
 
 **Time-Based Design Philosophy:**
 - **NO depth-based logic** - All strength differentiation comes solely from:
   1. **Threads allocated** - More threads = faster parallel search
   2. **Time allotted** - More time = deeper search naturally
+  3. **Search radius** - Larger radius = wider candidate pool = stronger tactics
 - **NO artificial depth floors or limits** - Search runs until time expires via iterative deepening
 - **Depth emerges naturally** - Different machines reach different depths based on hardware capability
 - **Pondering is precomputation** - Uses full-quality search during opponent's turn, results merged on ponder hit

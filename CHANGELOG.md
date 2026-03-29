@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.82.0] - 2026-03-29
+
+### Changed
+- **Difficulty-dependent search radius** - Candidate move radius now scales with difficulty: Braindead=3, Easy=4, Medium=5, Hard=6, Grandmaster/Experimental=7. Reduces branching factor for lower difficulties, enabling deeper search within their time budget
+- **Single-game test assertion** - Relaxed `RunSingleGame_BasicVsMedium` to non-deterministic winner check since individual games can have upsets (Braindead has 10% error rate). Statistical dominance is verified across all snapshots by `SavedLogVerifierTests`
+
+### Fixed
+- **TT depth inflation in pondering** - `SearchPonderIteration` could report absurd depths (3863, 4099) when TT hit rate was high and depth incremented without real search. Added MaxSearchDepth=50 cap, pre-iteration nodes threshold for depth>10, and post-iteration zero-nodes guard
+- **ParallelMinimaxSearch entry points** - Converted `GetBestMove`/`GetBestMoveWithStats` to use `SearchBoard` for zero-allocation candidate generation and cell checks at the boundary
+
+### Test
+- **Tournament snapshots regenerated** - All 5 snapshot JSON files updated with new search parameters reflecting difficulty-dependent radius changes
+
 ## [1.81.0] - 2026-03-28
 
 ### Added
@@ -2071,6 +2084,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.0.0
 
+[1.82.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.82.0
+[1.81.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.81.0
+[1.80.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.80.0
 [1.79.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.79.0
 [1.78.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.78.0
 
