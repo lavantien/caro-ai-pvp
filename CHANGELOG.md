@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.83.0] - 2026-03-29
+
+### Fixed
+- **Board-full draw detection** - Game loop now checks `board.IsFull()` before requesting AI move. Previously, when all 256 cells were occupied, the AI fell through fallback logic returning an occupied center cell, resulting in an illegal-move forfeit instead of a correct draw. The post-loop draw handler now correctly sets `IsDraw=true` and `Winner=None`
+
+### Test
+- **DrawDetectionFailsafeTests** - New failsafe test verifying board-full games end as draws (not illegal-move forfeits) and result coherence (IsDraw implies Winner=None)
+- **Braindead error rate floor test** - Asserts `Braindead.ErrorRate >= 0.10` as a spec compliance guard
+
 ## [1.82.0] - 2026-03-29
 
 ### Changed
@@ -2084,6 +2093,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.0.0
 
+[1.83.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.83.0
 [1.82.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.82.0
 [1.81.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.81.0
 [1.80.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.80.0
