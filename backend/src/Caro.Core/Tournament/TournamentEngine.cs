@@ -203,6 +203,12 @@ public class TournamentEngine
                 opponentAI.StartPonderingNow(board, currentPlayer, opponentSettings.Difficulty, opponentColor);
             }
 
+            // Check for draw by board-full before requesting AI move
+            if (board.IsFull())
+            {
+                break;
+            }
+
             // Time the AI move (opponent is pondering in background)
             // Pass playerPonderingEnabled so GetBestMove can check for ponder hit and use the result
             var moveStopwatch = Stopwatch.StartNew();
