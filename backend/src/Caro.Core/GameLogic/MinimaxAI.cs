@@ -48,9 +48,20 @@ public class MinimaxAI : IStatsPublisher
     private ParallelMinimaxSearch _parallelSearch;
 
     // Search radius around existing stones (optimization)
-    // Set to 7 to ensure safety checks detect all winning moves (5-in-a-row can have winning cells
-    // up to 4 squares from existing stones, plus margin for complex patterns)
-    private const int SearchRadius = 7;
+    // Difficulty-dependent: lower difficulties use smaller radius to reduce branching factor,
+    // allowing deeper search within their time budget.
+    private const int MaxSearchRadius = 7;
+
+    private static int GetSearchRadiusForDifficulty(AIDifficulty difficulty) => difficulty switch
+    {
+        AIDifficulty.Braindead => 3,
+        AIDifficulty.Easy => 4,
+        AIDifficulty.Medium => 5,
+        AIDifficulty.Hard => 6,
+        _ => MaxSearchRadius  // Grandmaster, Experimental
+    };
+
+    private int _currentSearchRadius = MaxSearchRadius;
 
     // Board size constant for array sizing and bounds checking
     private const int BoardSize = GameConstants.BoardSize;
@@ -212,7 +223,8 @@ public class MinimaxAI : IStatsPublisher
             throw new ArgumentException("Player cannot be None");
 
         var baseDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
-        var candidates = GetCandidateMoves(board);
+        _currentSearchRadius = GetSearchRadiusForDifficulty(difficulty);
+        var candidates = GetCandidateMoves(board, _currentSearchRadius);
 
         // Initialize search statistics BEFORE any early returns
         // This ensures stats are clean even for instant moves (error rate, critical defense, VCF, etc.)
@@ -2977,7 +2989,7 @@ public class MinimaxAI : IStatsPublisher
         }
 
         // Generate tactical moves (only near existing stones)
-        var tacticalMoves = GetCandidateMoves(board);
+        var tacticalMoves = GetCandidateMoves(board, _currentSearchRadius);
 
         // Limit quiescence search depth to avoid explosion
         const int maxQuiescenceDepth = 4;  // Search up to 4 ply beyond depth 0
@@ -3310,7 +3322,7 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        var candidates = GetCandidateMoves(board);
+        var candidates = GetCandidateMoves(board, _currentSearchRadius);
         if (candidates.Count == 0)
         {
             return 0;
@@ -3526,7 +3538,7 @@ public class MinimaxAI : IStatsPublisher
         }
 
         // Generate tactical moves
-        var tacticalMoves = GetCandidateMoves(board);
+        var tacticalMoves = GetCandidateMoves(board, _currentSearchRadius);
 
         // Limit quiescence depth
         const int maxQuiescenceDepth = 4;
@@ -3642,7 +3654,7 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        var candidates = GetCandidateMoves(board);
+        var candidates = GetCandidateMoves(board, _currentSearchRadius);
         if (candidates.Count == 0)
         {
             return 0; // Draw
@@ -3874,7 +3886,7 @@ public class MinimaxAI : IStatsPublisher
     /// CRITICAL FIX: In early game, center moves come FIRST (before proximity moves)
     /// This ensures proper strategic center control when opponent plays far from center
     /// </summary>
-    private List<(int x, int y)> GetCandidateMoves(Board board)
+    private List<(int x, int y)> GetCandidateMoves(Board board, int searchRadius = MaxSearchRadius)
     {
         const int boardSize = BoardSize;
         const int cellCount = boardSize * boardSize;
@@ -3962,8 +3974,7 @@ public class MinimaxAI : IStatsPublisher
         }
 
         // Add moves near existing stones (lower priority)
-        // Use smaller radius to reduce noise from isolated stones
-        const int ReducedSearchRadius = 4;
+        // Use difficulty-dependent search radius
         for (int x = 0; x < boardSize; x++)
         {
             for (int y = 0; y < boardSize; y++)
@@ -3971,9 +3982,9 @@ public class MinimaxAI : IStatsPublisher
                 var cell = board.GetCell(x, y);
                 if (cell.Player != Player.None)
                 {
-                    for (int dx = -ReducedSearchRadius; dx <= ReducedSearchRadius; dx++)
+                    for (int dx = -searchRadius; dx <= searchRadius; dx++)
                     {
-                        for (int dy = -ReducedSearchRadius; dy <= ReducedSearchRadius; dy++)
+                        for (int dy = -searchRadius; dy <= searchRadius; dy++)
                         {
                             var nx = x + dx;
                             var ny = y + dy;
@@ -4004,8 +4015,9 @@ public class MinimaxAI : IStatsPublisher
     /// Returns empty cells within SearchRadius of any existing stone.
     /// CRITICAL FIX: Prioritizes moves near center of mass to avoid distraction from isolated stones
     /// </summary>
-    private List<(int x, int y)> GetCandidateMoves(SearchBoard board)
+    private List<(int x, int y)> GetCandidateMoves(SearchBoard board, int searchRadius = MaxSearchRadius)
     {
+
         const int boardSize = BoardSize;
         const int cellCount = boardSize * boardSize;
 
@@ -4066,17 +4078,16 @@ public class MinimaxAI : IStatsPublisher
         }
 
         // PRIORITY 2: Add moves near existing stones
-        // Use full search radius to ensure we don't miss tactical moves
-        const int SearchRadius = 7;
+        // Use difficulty-dependent search radius
         for (int x = 0; x < boardSize; x++)
         {
             for (int y = 0; y < boardSize; y++)
             {
                 if (!board.IsEmpty(x, y))
                 {
-                    for (int dx = -SearchRadius; dx <= SearchRadius; dx++)
+                    for (int dx = -searchRadius; dx <= searchRadius; dx++)
                     {
-                        for (int dy = -SearchRadius; dy <= SearchRadius; dy++)
+                        for (int dy = -searchRadius; dy <= searchRadius; dy++)
                         {
                             var nx = x + dx;
                             var ny = y + dy;
