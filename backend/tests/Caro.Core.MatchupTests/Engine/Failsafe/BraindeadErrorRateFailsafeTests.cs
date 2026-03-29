@@ -78,4 +78,13 @@ public class BraindeadErrorRateFailsafeTests : IDisposable
 
         _output.WriteLine($"  OK: Grandmaster game completed with 0 error moves in {result.TotalMoves} moves");
     }
+
+    [Fact]
+    public void Braindead_ErrorRateAtLeast10Percent()
+    {
+        var settings = AIDifficultyConfig.Instance.GetSettings(AIDifficulty.Braindead);
+        Assert.True(settings.ErrorRate >= 0.10,
+            $"Braindead error rate should be at least 10%, got {settings.ErrorRate}");
+        _output.WriteLine($"  OK: Braindead error rate is {settings.ErrorRate:P0}%");
+    }
 }
