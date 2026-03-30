@@ -358,8 +358,8 @@ public sealed class GameSession
             var game = _game;
             return new
             {
-                board = from x in Enumerable.Range(0, 15)
-                        from y in Enumerable.Range(0, 15)
+                board = from x in Enumerable.Range(0, 16)
+                        from y in Enumerable.Range(0, 16)
                         let cell = game.Board.GetCell(x, y)
                         select new
                         {
