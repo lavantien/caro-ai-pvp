@@ -56,4 +56,10 @@ public static class MoveOrderingConstants
     /// Threshold for separating good vs bad quiet moves based on history score
     /// </summary>
     public const int GoodQuietThreshold = 500;
+
+    /// <summary>
+    /// Maximum score for history table entries (counter-move and continuation).
+    /// Prevents overflow in bounded update formula.
+    /// </summary>
+    public const int HistoryMaxScore = 30_000;
 }

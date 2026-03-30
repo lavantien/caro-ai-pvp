@@ -8,10 +8,6 @@ namespace Caro.Core.GameLogic.Pondering;
 /// Manages pondering (thinking during opponent's turn) with state machine approach
 /// Uses PV-based prediction with time merging on ponder hit
 /// Uses Lazy SMP (parallel search) for effective pondering on multi-core systems
-///
-/// CONSTANT PONDERING for D7+:
-/// - D7+ (VeryHard and above): Always ponders regardless of position
-/// - D1-D6: Only ponders when there are immediate threats (VCF pre-check enabled)
 /// </summary>
 public sealed class Ponderer : IDisposable
 {

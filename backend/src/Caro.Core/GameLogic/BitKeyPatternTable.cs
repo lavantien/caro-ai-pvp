@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -21,13 +22,13 @@ public static class BitKeyPatternTable
     private const int PatternBits = 24;  // 12 cells * 2 bits = 24 bits used
     private const int TableSize = 1 << PatternBits;  // 16M entries
 
-    // Scoring weights - aligned with BitBoardEvaluator
-    private const int FiveInRowScore = 100000;
-    private const int OpenFourScore = 10000;
-    private const int ClosedFourScore = 1000;
-    private const int OpenThreeScore = 1000;
-    private const int ClosedThreeScore = 100;
-    private const int OpenTwoScore = 100;
+    // Scoring weights from centralized EvaluationConstants
+    private const int FiveInRowScore = EvaluationConstants.FiveInRowScore;
+    private const int OpenFourScore = EvaluationConstants.OpenFourScore;
+    private const int ClosedFourScore = EvaluationConstants.ClosedFourScore;
+    private const int OpenThreeScore = EvaluationConstants.OpenThreeScore;
+    private const int ClosedThreeScore = EvaluationConstants.ClosedThreeScore;
+    private const int OpenTwoScore = EvaluationConstants.OpenTwoScore;
 
     // Pre-computed pattern tables (lazy initialization)
     private static readonly Lazy<PatternEntry[]> _patternTable = new(InitializePatternTable);

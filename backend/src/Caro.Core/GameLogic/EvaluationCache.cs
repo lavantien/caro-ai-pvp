@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -41,9 +42,9 @@ public sealed class EvaluationCache
     private int _hitCount;
     private int _missCount;
 
-    // Maximum/Minimum bounds for corrected evaluations
-    private const int MaxCorrectedEval = 200000;
-    private const int MinCorrectedEval = -200000;
+    // Maximum/Minimum bounds for corrected evaluations from centralized constants
+    private const int MaxCorrectedEval = EvaluationConstants.MaxCorrectedEval;
+    private const int MinCorrectedEval = EvaluationConstants.MinCorrectedEval;
 
     /// <summary>
     /// Create an evaluation cache with specified size in MB

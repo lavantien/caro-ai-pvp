@@ -51,4 +51,34 @@ public static class EvaluationConstants
     /// Defense multiplier denominator (DefenseMultiplier = 3/2 = 1.5)
     /// </summary>
     public const int DefenseMultiplierDenominator = 2;
+
+    /// <summary>
+    /// Score for four stones in a row (used in legacy BoardEvaluator)
+    /// </summary>
+    public const int FourInRowScore = 10_000;
+
+    /// <summary>
+    /// Score for three stones in a row (used in legacy BoardEvaluator)
+    /// </summary>
+    public const int ThreeInRowScore = 1_000;
+
+    /// <summary>
+    /// Score for two stones in a row (used in legacy BoardEvaluator)
+    /// </summary>
+    public const int TwoInRowScore = 100;
+
+    /// <summary>
+    /// Score for one stone (used in legacy BoardEvaluator)
+    /// </summary>
+    public const int OneInRowScore = 10;
+
+    /// <summary>
+    /// Maximum absolute evaluation score after correction clamping.
+    /// </summary>
+    public const int MaxCorrectedEval = 200_000;
+
+    /// <summary>
+    /// Minimum absolute evaluation score after correction clamping.
+    /// </summary>
+    public const int MinCorrectedEval = -200_000;
 }

@@ -51,7 +51,7 @@ public class NodeCountingTests
     [Fact]
     public void SequentialSearch_RealNodeCountShouldBePositive()
     {
-        // Low-depth search (D2) uses sequential search
+        // Low-depth search uses sequential search
         var ai = AITestHelper.CreateAI();
         var board = new Board();
 
@@ -69,7 +69,7 @@ public class NodeCountingTests
     [Fact]
     public void ParallelSearch_HardDifficulty_ShouldCountRealNodes()
     {
-        // D4 (Hard) uses Lazy SMP parallel search
+        // Parallel search uses Lazy SMP
         var ai = AITestHelper.CreateAI();
         var board = new Board();
 
@@ -149,32 +149,6 @@ public class NodeCountingTests
         // Just verify both are reasonable positive numbers
         Assert.True(nodesLow < 1_000_000_000, $"Low depth nodes seem too high: {nodesLow}");
         Assert.True(nodesHigh < 10_000_000_000, $"High depth nodes seem too high: {nodesHigh}");
-    }
-
-    [Theory]
-    [InlineData(AIDifficulty.Braindead)]  // D1
-    [InlineData(AIDifficulty.Easy)]       // D2
-    [InlineData(AIDifficulty.Medium)]     // D3
-    [InlineData(AIDifficulty.Hard)]       // D4
-    [InlineData(AIDifficulty.Grandmaster)] // D5
-    public void AllDifficulties_ShouldReportValidNodeCounts(AIDifficulty difficulty)
-    {
-        var ai = AITestHelper.CreateAI();
-        var board = new Board();
-
-        board = board.PlaceStone(7, 7, Player.Red);
-        board = board.PlaceStone(7, 8, Player.Blue);
-
-        var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);
-
-        var (_, nodesSearched, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
-
-        // All difficulties should report positive node counts
-        Assert.True(nodesSearched > 0,
-            $"{difficulty} should report positive node count, got {nodesSearched}");
-
-        // Should not be the suspicious estimated value
-        Assert.NotEqual(1_739_501_775L, nodesSearched);
     }
 
     [Fact]

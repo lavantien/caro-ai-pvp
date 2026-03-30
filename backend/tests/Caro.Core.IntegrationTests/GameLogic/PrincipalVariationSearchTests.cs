@@ -116,7 +116,7 @@ public class PrincipalVariationSearchTests
     }
 
     [Fact]
-    public void PVS_WorksWithAllDifficulties()
+    public void PVS_ProducesValidMoves()
     {
         // Arrange
         var board = new Board();

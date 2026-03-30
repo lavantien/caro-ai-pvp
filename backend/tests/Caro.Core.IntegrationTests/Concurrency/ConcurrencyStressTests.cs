@@ -5,7 +5,6 @@ using Xunit.Abstractions;
 using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.Pondering;
 using Caro.Core.Domain.Entities;
-using Caro.Core.Tournament;
 using Caro.Core.IntegrationTests.Helpers;
 
 #pragma warning disable xUnit1031 // Stress tests intentionally use blocking operations
@@ -101,7 +100,7 @@ public class ConcurrencyStressTests
                     board = board.PlaceStone(offsetX + 1, offsetY + 1, Player.Blue);
 
                     var result = search.GetBestMoveWithStats(
-                        board, Player.Red, AIDifficulty.Hard,
+                        board, Player.Red,
                         timeRemainingMs: 5000
                     );
                     results.Add((result.X, result.Y, result.DepthAchieved, result.NodesSearched));
@@ -156,7 +155,7 @@ public class ConcurrencyStressTests
                     // Each task uses a different predicted move to avoid collisions
                     ponderer.StartPondering(
                         board, Player.Blue, (7 + (i % 5), 8 + ((i / 5) % 5)),
-                        Player.Red, AIDifficulty.Hard, 1000
+                        Player.Red, 1000
                     );
 
                     // Small delay to ensure pondering starts

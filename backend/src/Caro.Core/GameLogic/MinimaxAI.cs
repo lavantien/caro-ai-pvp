@@ -13,9 +13,9 @@ namespace Caro.Core.GameLogic;
 /// <summary>
 /// AI opponent using Minimax algorithm with alpha-beta pruning and advanced optimizations
 /// Optimizations: Transposition Table, Killer Heuristic, History Heuristic, Improved Move Ordering, Iterative Deepening, VCF Solver
-/// Parallel Search: Lazy SMP for D7+ (VeryHard and above) with conservative thread count (processorCount/2)-1
+/// Parallel Search: Lazy SMP with conservative thread count (processorCount/2)-1
 /// Time management: Intelligent time allocation optimized for 7+5 time control
-/// Pondering: Constant pondering for D7+ during opponent's turn
+/// Pondering: Constant pondering during opponent's turn
 /// Stats: Publisher-subscriber pattern for real-time stats reporting
 /// </summary>
 public class MinimaxAI : IStatsPublisher
@@ -43,12 +43,11 @@ public class MinimaxAI : IStatsPublisher
     // Track parallel diagnostics from last search
     private string? _lastParallelDiagnostics = null;
 
-    // Parallel search for high difficulties (D7+)
-    // Lazy SMP provides 4-8x speedup on multi-core systems
+    // Parallel search (Lazy SMP provides 4-8x speedup on multi-core systems)
     private ParallelMinimaxSearch _parallelSearch;
 
-    // Search radius around existing stones (optimization)
-    private const int MaxSearchRadius = 7;
+    // Search radius around existing stones from centralized config
+    private const int MaxSearchRadius = SearchConstants.MaxSearchRadius;
 
     // Board size constant for array sizing and bounds checking
     private const int BoardSize = GameConstants.BoardSize;
@@ -79,7 +78,7 @@ public class MinimaxAI : IStatsPublisher
     // Check time more frequently to catch timeout earlier (power of 2 for efficient masking)
     // 4096 = check every ~4K nodes. At 1M nodes/sec, this checks every ~4ms
     // This is much more frequent than the old 100K interval which only checked every ~100ms
-    private const int TimeCheckInterval = 16;  // Check time every 16 nodes (was 4096 - too slow for short time controls)
+    private const int TimeCheckInterval = SearchConstants.TimeCheckInterval;
     private bool _searchStopped;
 
     // Pondering (thinking on opponent's time)
@@ -190,7 +189,6 @@ public class MinimaxAI : IStatsPublisher
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
 
-        var baseDepth = AdaptiveDepthCalculator.GetAdaptiveDepth(board);
         var candidates = CandidateGenerator.GetCandidateMoves(board, SearchConstants.MaxSearchRadius);
 
         // Initialize search statistics BEFORE any early returns
@@ -202,7 +200,7 @@ public class MinimaxAI : IStatsPublisher
         _moveType = MoveType.Normal;  // Default, will be overridden by early exits
         _searchStopwatch.Restart();
 
-        // Reset thread count and parallel diagnostics for this difficulty
+        // Reset thread count and parallel diagnostics
         _lastThreadCount = threadCount ?? Math.Max(5, (Environment.ProcessorCount / 2) - 1);
         _lastParallelDiagnostics = null;
 
@@ -836,7 +834,7 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // Emergency mode - use TT move at D3+ (Medium+) if available
+        // Emergency mode - use TT move if available
         // BUT: If opponent has threats, blocking takes priority
         if (timeAlloc.IsEmergency && !hasOpponentThreats)
         {
@@ -850,9 +848,8 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // PROACTIVE ATTACK: When no opponent threats, create our own threats!
-        // This is critical for winning against weaker opponents - we must attack, not just defend
-        // Only for Grandmaster to preserve difficulty differentiation
+        // PROACTIVE ATTACK: When no opponent threats, create our own threats
+        // This is critical for winning - we must attack, not just defend
         if (!hasOpponentThreats)
         {
             var ourThreats = _threatDetector.DetectThreats(board, player);
@@ -1230,8 +1227,6 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        const double timeMultiplier = 1.0;
-
         // NPS is learned from actual search performance - no hardcoded targets
 
         // PARALLEL SEARCH: Use Lazy SMP when enabled
@@ -1241,21 +1236,8 @@ public class MinimaxAI : IStatsPublisher
             _lastThreadCount = effectiveThreadCount;
             _tableHits = 0;
             _tableLookups = 0;
-            //Console.WriteLine($"[AI] Using parallel search (Lazy SMP) with {effectiveThreadCount} threads");
 
-            // CRITICAL: Apply time multiplier to time allocation for parallel search
-            // Lower difficulties should use proportionally less time
-            // BUT: Ensure minimum time for at least one search iteration (50ms)
-            // Without this, Easy with 20% multiplier can end up with 1ms which is too tight
-            const long minSearchTimeMs = 50;
-            var adjustedTimeAlloc = new TimeAllocation
-            {
-                SoftBoundMs = Math.Max(minSearchTimeMs, (long)(timeAlloc.SoftBoundMs * timeMultiplier)),
-                HardBoundMs = Math.Max(minSearchTimeMs, (long)(timeAlloc.HardBoundMs * timeMultiplier)),
-                OptimalTimeMs = Math.Max(minSearchTimeMs / 2, (long)(timeAlloc.OptimalTimeMs * timeMultiplier)),
-                IsEmergency = timeAlloc.IsEmergency,
-                Phase = timeAlloc.Phase
-            };
+            var adjustedTimeAlloc = timeAlloc;
 
             var parallelResult = _parallelSearch.GetBestMoveWithStats(
                 board,
@@ -1321,26 +1303,17 @@ public class MinimaxAI : IStatsPublisher
         }
 
         // TIME-BUDGET-BASED SEARCH: No hardcoded depths, scales with machine capability
-        // Each difficulty uses a time multiplier: Braindead 1%, Easy 10%, Medium 30%, Hard 70%, Grandmaster 100%
         // Faster machines reach deeper depths naturally, slower machines stop earlier
-        // This ensures strength ordering regardless of server performance
 
         // Track thread count for diagnostics (even if using sequential search)
         _lastThreadCount = Math.Max(5, (Environment.ProcessorCount / 2) - 1);
-        _lastParallelDiagnostics = null; // No parallel search in this path
+        _lastParallelDiagnostics = null;
         _lastPonderingEnabled = ponderingEnabled;
 
         // NPS is learned from actual search performance - no hardcoded targets
 
-        // Apply time multiplier to the soft bound - lower difficulties use less time
-        // BUT: Ensure minimum time for at least one search iteration (50ms)
-        const long minSequentialSearchTimeMs = 50;
-        long adjustedSoftBoundMs = Math.Max(minSequentialSearchTimeMs, (long)(timeAlloc.SoftBoundMs * timeMultiplier));
-
-        // CRITICAL FIX: Also apply time multiplier to hard bound!
-        // Without this, lower difficulties search until the original hard bound,
-        // which defeats the purpose of the time multiplier.
-        long adjustedHardBoundMs = Math.Max(adjustedSoftBoundMs, (long)(timeAlloc.HardBoundMs * timeMultiplier));
+        long adjustedSoftBoundMs = Math.Max(50, timeAlloc.SoftBoundMs);
+        long adjustedHardBoundMs = Math.Max(adjustedSoftBoundMs, timeAlloc.HardBoundMs);
 
         (int x, int y) bestMove;
         int depthAchieved;
@@ -1367,31 +1340,21 @@ public class MinimaxAI : IStatsPublisher
         // PURE TIME-BASED: No depth target - different machines reach different depths naturally
         // Always return best move from deepest completed iteration
         bestMove = candidates[0];
-        int currentDepth = 1; // Start from depth 1
+        int currentDepth = 1;
 
         // SAFEGUARD: Absolute max depth to prevent runaway values from TT bugs
-        // DESIGN: No difficulty-based depth caps - depth emerges naturally from time budget
-        // See README: "NO artificial depth floors or limits - Search runs until time expires"
-        const int AbsoluteMaxDepth = 50; // Safeguard only, not a target - reduced from 100 to match parallel search
-        const long MinNodesForValidIteration = 10; // Minimum nodes to consider an iteration "real" search
+        const int AbsoluteMaxDepth = SearchConstants.AbsoluteMaxDepth;
+        const long MinNodesForValidIteration = 10;
 
-        while (true)  // Time-based only - depth is incidental
+        while (true)
         {
-            // SAFEGUARD: Absolute max depth check to prevent runaway values from TT bugs
-            // DESIGN: No difficulty-based depth caps - strength comes from threads + time only
             if (currentDepth > AbsoluteMaxDepth)
             {
                 break;
             }
 
-            // CRITICAL: Pre-iteration check - Total nodes must scale with depth
-            // Real search depth is bounded by: nodes ≈ branching_factor^depth
-            // With aggressive pruning, effective branching factor is ~2-3
-            // So D20 requires at least 2^20 ≈ 1M nodes, D30 requires 1B nodes, etc.
-            // For practical purposes, require: total_nodes >= (depth-5)^2 * 200 for depth > 10
-            // D15: 20K nodes, D20: 45K nodes, D30: 125K nodes, D50: 405K nodes
-            // IMPORTANT: Only apply for depth > 10 to allow normal search to proceed
-            // This catches cases where TT hits allow depth to increment without real search
+            // Pre-iteration check: Total nodes must scale with depth
+            // Prevents depth inflation from TT cache hits without real search
             // MUST match the same formula used in ParallelMinimaxSearch.SearchWithIterationTimeAware
             if (currentDepth > 10)
             {
@@ -1472,7 +1435,6 @@ public class MinimaxAI : IStatsPublisher
 
             // Only increment depth if meaningful search occurred
             // This prevents depth inflation from TT cache hits
-            // DESIGN: No difficulty-based time restrictions - strength comes from threads + time only
             if (nodesSearchedThisIteration >= MinNodesForValidIteration)
             {
                 currentDepth++;
@@ -1499,7 +1461,7 @@ public class MinimaxAI : IStatsPublisher
 
 
         // Store PV for pondering
-        _lastPV = PV.FromSingleMove(bestMove.x, bestMove.y, baseDepth, 0);
+        _lastPV = PV.FromSingleMove(bestMove.x, bestMove.y, _depthAchieved, 0);
         _lastBoard = board;
         _lastPlayer = player;
 
@@ -1813,7 +1775,7 @@ public class MinimaxAI : IStatsPublisher
     /// This is essential for Grandmaster+ to prevent losing to VCF attacks
     ///
     /// OPTIMIZED: Uses fast threat detection + immediate defensive move selection
-    /// - VCF check time scales with difficulty (higher difficulties get more time)
+    /// - VCF check time scales with remaining time budget
     /// - Quick check: if opponent has no threats, skip VCF check entirely
     /// - Single VCF check (not nested) to detect opponent threats
     /// - Return first valid defensive move without re-checking VCF for each one

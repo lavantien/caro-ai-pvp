@@ -8,18 +8,14 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 
 /// <summary>
 /// Tests for defensive AI behavior, specifically blocking semi-open fours
-/// These tests ensure D4+ AI correctly identifies and blocks critical threats
 /// </summary>
 public class DefensivePlayTests
 {
     /// <summary>
-    /// Test that D4+ AI blocks semi-open four (XXXX_ pattern where one end is blocked)
-    /// This is the critical bug fix - the AI was not blocking this pattern consistently
+    /// Test that AI blocks semi-open four (XXXX_ pattern where one end is blocked)
     /// </summary>
-    [Theory]
-    [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Grandmaster)]
-    public void ParallelSearch_BlocksSemiOpenFour_Horizontal(AIDifficulty difficulty)
+    [Fact]
+    public void ParallelSearch_BlocksSemiOpenFour_Horizontal()
     {
         // Arrange: Create semi-open four for Red (XXXX_ pattern)
         // Red has stones at (7,7), (8,7), (9,7), (10,7)
@@ -35,17 +31,15 @@ public class DefensivePlayTests
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
         // Act: Get best move for Blue (must block at 11,7)
-        var result = ai.GetBestMove(board, Player.Blue, difficulty);
+        var result = ai.GetBestMove(board, Player.Blue);
 
         // Assert: Should block at (11, 7) to prevent Red from winning
         result.x.Should().Be(11, "Blue must block Red's semi-open four at (11, 7)");
         result.y.Should().Be(7, "Blue must block Red's semi-open four at (11, 7)");
     }
 
-    [Theory]
-    [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Grandmaster)]
-    public void ParallelSearch_BlocksSemiOpenFour_Vertical(AIDifficulty difficulty)
+    [Fact]
+    public void ParallelSearch_BlocksSemiOpenFour_Vertical()
     {
         // Arrange: Create vertical semi-open four
         var board = new Board();
@@ -58,17 +52,15 @@ public class DefensivePlayTests
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
         // Act
-        var result = ai.GetBestMove(board, Player.Blue, difficulty);
+        var result = ai.GetBestMove(board, Player.Blue);
 
         // Assert: Should block at (7, 11)
         result.x.Should().Be(7, "Blue must block Red's vertical semi-open four");
         result.y.Should().Be(11, "Blue must block Red's vertical semi-open four");
     }
 
-    [Theory]
-    [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Grandmaster)]
-    public void ParallelSearch_BlocksSemiOpenFour_Diagonal(AIDifficulty difficulty)
+    [Fact]
+    public void ParallelSearch_BlocksSemiOpenFour_Diagonal()
     {
         // Arrange: Create diagonal semi-open four
         var board = new Board();
@@ -81,7 +73,7 @@ public class DefensivePlayTests
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
         // Act
-        var result = ai.GetBestMove(board, Player.Blue, difficulty);
+        var result = ai.GetBestMove(board, Player.Blue);
 
         // Assert: Should block at (11, 11)
         result.x.Should().Be(11, "Blue must block Red's diagonal semi-open four");
@@ -90,12 +82,9 @@ public class DefensivePlayTests
 
     /// <summary>
     /// Test Lazy SMP consistency - defensive moves should be consistent across multiple runs
-    /// This addresses the non-determinism issue where different threads might vote differently
     /// </summary>
-    [Theory]
-    [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Grandmaster)]
-    public void LazyMP_ConsistentBlocking_SemiOpenFour(AIDifficulty difficulty)
+    [Fact]
+    public void LazyMP_ConsistentBlocking_SemiOpenFour()
     {
         // Arrange: Create semi-open four position
         var board = new Board();
@@ -111,13 +100,11 @@ public class DefensivePlayTests
         for (int i = 0; i < 10; i++)
         {
             var ai = new ParallelMinimaxSearch(sizeMB: 256);
-            var result = ai.GetBestMove(board, Player.Blue, difficulty);
+            var result = ai.GetBestMove(board, Player.Blue);
             moves.Add((result.x, result.y));
         }
 
         // Assert: All runs should produce the same defensive move
-        // (Note: Some non-determinism is acceptable in edge cases, but blocking a critical
-        // threat should be deterministic)
         var blockCount = moves.Count(m => m.x == 11 && m.y == 7);
         blockCount.Should().BeGreaterThanOrEqualTo(8,
             "At least 80% of runs should block the semi-open four consistently");
@@ -149,7 +136,7 @@ public class DefensivePlayTests
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
         // Act
-        var result = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard);
+        var result = ai.GetBestMove(board, Player.Blue);
 
         // Assert: Should block Red's threat at (11, 7) rather than extend Blue's attack
         result.x.Should().Be(11, "Should block opponent's threat first");
@@ -159,10 +146,8 @@ public class DefensivePlayTests
     /// <summary>
     /// Test blocking of broken four (XXX_X pattern)
     /// </summary>
-    [Theory]
-    [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Grandmaster)]
-    public void ParallelSearch_BlocksBrokenFour(AIDifficulty difficulty)
+    [Fact]
+    public void ParallelSearch_BlocksBrokenFour()
     {
         // Arrange: Create broken four (XXX_X) for Red
         // Red has stones at (7,7), (8,7), (9,7), (11,7) - gap at (10,7)
@@ -175,22 +160,18 @@ public class DefensivePlayTests
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
         // Act: Get best move for Blue
-        var result = ai.GetBestMove(board, Player.Blue, difficulty);
+        var result = ai.GetBestMove(board, Player.Blue);
 
         // Assert: Should block at (10, 7) or another critical position
-        // The gap position (10,7) is the most critical blocking move
         (result.x == 10 && result.y == 7 || result.x == 6 || result.x == 12)
             .Should().BeTrue("Blue should block Red's broken four threat");
     }
 
     /// <summary>
     /// Test MinimaxAI (not just ParallelMinimaxSearch) also blocks correctly
-    /// This ensures the fix works at the higher level where games are played
     /// </summary>
-    [Theory]
-    [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Grandmaster)]
-    public void MinimaxAI_BlocksSemiOpenFour(AIDifficulty difficulty)
+    [Fact]
+    public void MinimaxAI_BlocksSemiOpenFour()
     {
         // Arrange: Create semi-open four
         var board = new Board();
@@ -203,7 +184,7 @@ public class DefensivePlayTests
         var ai = AITestHelper.CreateAI();
 
         // Act
-        var (x, y) = ai.GetBestMove(board, Player.Blue, difficulty);
+        var (x, y) = ai.GetBestMove(board, Player.Blue, null);
 
         // Assert: Should block at (11, 7)
         x.Should().Be(11, "MinimaxAI should block semi-open four");
@@ -237,7 +218,7 @@ public class DefensivePlayTests
         var ai = new ParallelMinimaxSearch(sizeMB: 256);
 
         // Act: Blue to move
-        var result = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard);
+        var result = ai.GetBestMove(board, Player.Blue);
 
         // Assert: Blue should win at (10, 7) or (5, 7)
         (result.x == 10 || result.x == 5).Should().BeTrue("Blue should take winning move");
@@ -245,17 +226,12 @@ public class DefensivePlayTests
     }
 
     /// <summary>
-    /// Test for the critical bug where Grandmaster lost to Easy.
+    /// Test for the critical bug where the AI lost to a weaker opponent.
     /// Reproduces the exact game scenario: Blue has four in a row vertically at (3,4)-(6,4),
     /// Red blocked bottom at (7,4), so Red MUST block top at (2,4) or lose immediately.
-    /// This test should FAIL before the fix and PASS after.
     /// </summary>
-    [Theory]
-    [InlineData(AIDifficulty.Easy)]
-    [InlineData(AIDifficulty.Medium)]
-    [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Grandmaster)]
-    public void MinimaxAI_BlocksFourInARow_Vertical_BugScenario(AIDifficulty difficulty)
+    [Fact]
+    public void MinimaxAI_BlocksFourInARow_Vertical_BugScenario()
     {
         // Arrange: Exact scenario from the bug report
         // Blue has four in a row vertically at (3,4), (4,4), (5,4), (6,4)
@@ -271,7 +247,7 @@ public class DefensivePlayTests
         var ai = AITestHelper.CreateAI();
 
         // Act: Red to move - must block at (2, 4)
-        var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);
+        var (x, y) = ai.GetBestMove(board, Player.Red, null);
 
         // Assert: Must block at (2, 4) to prevent immediate loss
         x.Should().Be(2, "Red must block Blue's four in a row at the top end");
@@ -281,10 +257,8 @@ public class DefensivePlayTests
     /// <summary>
     /// Additional test: Block at bottom when top is blocked
     /// </summary>
-    [Theory]
-    [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Grandmaster)]
-    public void MinimaxAI_BlocksFourInARow_Vertical_BottomEnd(AIDifficulty difficulty)
+    [Fact]
+    public void MinimaxAI_BlocksFourInARow_Vertical_BottomEnd()
     {
         // Arrange: Blue has four in a row at (3,4)-(6,4), top blocked by Red
         var board = new Board();
@@ -297,7 +271,7 @@ public class DefensivePlayTests
         var ai = AITestHelper.CreateAI();
 
         // Act: Red to move - must block at (7, 4)
-        var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);
+        var (x, y) = ai.GetBestMove(board, Player.Red, null);
 
         // Assert: Must block at (7, 4)
         x.Should().Be(7, "Red must block Blue's four in a row at the bottom end");
@@ -306,15 +280,11 @@ public class DefensivePlayTests
 
     /// <summary>
     /// Test: Detect open three (three in a row with both ends open)
-    /// This is also critical as opponent can create four in a row
     /// </summary>
-    [Theory]
-    [InlineData(AIDifficulty.Hard)]
-    [InlineData(AIDifficulty.Grandmaster)]
-    public void MinimaxAI_BlocksOpenThree_Vertical(AIDifficulty difficulty)
+    [Fact]
+    public void MinimaxAI_BlocksOpenThree_Vertical()
     {
         // Arrange: Blue has three in a row at (4,4)-(6,4), both ends open
-        // This is an open three - very dangerous
         var board = new Board();
         board = board.PlaceStone(4, 4, Player.Blue);
         board = board.PlaceStone(5, 4, Player.Blue);
@@ -323,7 +293,7 @@ public class DefensivePlayTests
         var ai = AITestHelper.CreateAI();
 
         // Act: Red to move - should block at one end
-        var (x, y) = ai.GetBestMove(board, Player.Red, difficulty);
+        var (x, y) = ai.GetBestMove(board, Player.Red, null);
 
         // Assert: Should block at (3, 4) or (7, 4)
         ((x == 3 || x == 7) && y == 4).Should().BeTrue(

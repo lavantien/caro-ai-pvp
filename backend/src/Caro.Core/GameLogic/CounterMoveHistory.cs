@@ -21,7 +21,7 @@ public sealed class CounterMoveHistory
     /// Maximum score to prevent overflow in bounded updates.
     /// Matches ContinuationHistory limits for consistency.
     /// </summary>
-    public const int MaxScore = 30000;
+    public const int MaxScore = MoveOrderingConstants.HistoryMaxScore;
 
     /// <summary>
     /// Total cells on the board for array sizing.

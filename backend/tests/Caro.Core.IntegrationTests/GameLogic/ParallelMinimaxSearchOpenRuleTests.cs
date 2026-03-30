@@ -20,7 +20,7 @@ public class ParallelMinimaxSearchOpenRuleTests
         var search = new ParallelMinimaxSearch();
 
         // Act: Get move #3 (Red's second move, Open Rule applies)
-        var (x, y) = search.GetBestMove(board, Player.Red, AIDifficulty.Medium, null, null, moveNumber: 3);
+        var (x, y) = search.GetBestMove(board, Player.Red, null, null, moveNumber: 3);
 
         // Assert: AI should not select (7,4) or (7,5) or any position within 2 intersections of (7,6)
         // The exclusion zone is x in [5,9], y in [4,8] centered on first move (7,6)
@@ -44,7 +44,7 @@ public class ParallelMinimaxSearchOpenRuleTests
         var search = new ParallelMinimaxSearch();
 
         // Act: Get move #3
-        var (x, y) = search.GetBestMove(board, Player.Red, AIDifficulty.Medium, null, null, moveNumber: 3);
+        var (x, y) = search.GetBestMove(board, Player.Red, null, null, moveNumber: 3);
 
         // Assert: Distance from (3,3) must be >= 3
         var dx = System.Math.Abs(x - 3);
@@ -67,7 +67,7 @@ public class ParallelMinimaxSearchOpenRuleTests
         var search = new ParallelMinimaxSearch();
 
         // Act: Get move #3
-        var (x, y) = search.GetBestMove(board, Player.Red, AIDifficulty.Medium, null, null, moveNumber: 3);
+        var (x, y) = search.GetBestMove(board, Player.Red, null, null, moveNumber: 3);
 
         // Assert: Distance from (1,1) must be >= 3
         var dx = System.Math.Abs(x - 1);
@@ -89,7 +89,7 @@ public class ParallelMinimaxSearchOpenRuleTests
         var search = new ParallelMinimaxSearch();
 
         // Act: Get move #4 (Blue's turn, Open Rule doesn't apply)
-        var (x, y) = search.GetBestMove(board, Player.Blue, AIDifficulty.Medium, null, null, moveNumber: 4);
+        var (x, y) = search.GetBestMove(board, Player.Blue, null, null, moveNumber: 4);
 
         // Assert: Any valid position on board is acceptable
         Assert.True(board.GetCell(x, y).Player == Player.None, "Selected position should be empty");

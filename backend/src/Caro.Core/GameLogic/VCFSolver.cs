@@ -22,10 +22,10 @@ public sealed class VCFSolver
     // VCF result cache (thread-safe)
     private readonly ConcurrentDictionary<ulong, VCFCacheEntry> _vcfCache = new();
     private byte _currentAge = 1;
-    private const int MaxCacheEntries = 10000;
+    private const int MaxCacheEntries = SearchConstants.MaxVCFCacheEntries;
 
     // Configuration
-    private const int MaxVCFTimeMs = 100;      // Maximum time per VCF search
+    private const int MaxVCFTimeMs = SearchConstants.MaxVCFTimeMs;
     // Note: No depth caps - only time limits search, per algorithmic principles
 
     /// <summary>

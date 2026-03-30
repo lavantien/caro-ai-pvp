@@ -63,4 +63,19 @@ public static class SearchConstants
     /// Maximum depth for quiescence search beyond depth 0.
     /// </summary>
     public const int MaxQuiescenceDepth = 4;
+
+    /// <summary>
+    /// Maximum number of cache entries in VCF result cache.
+    /// </summary>
+    public const int MaxVCFCacheEntries = 10_000;
+
+    /// <summary>
+    /// Maximum time in milliseconds per VCF search.
+    /// </summary>
+    public const int MaxVCFTimeMs = 100;
+
+    /// <summary>
+    /// Number of previous plies tracked in continuation history.
+    /// </summary>
+    public const int ContinuationPlyCount = 6;
 }

@@ -19,13 +19,13 @@ public sealed class ContinuationHistory
     /// Maximum score to prevent overflow in bounded updates.
     /// Matches typical engine continuation history limits.
     /// </summary>
-    public const int MaxScore = 30000;
+    public const int MaxScore = MoveOrderingConstants.HistoryMaxScore;
 
     /// <summary>
     /// Number of plies of continuation history to track.
     /// Stockfish uses 6 plies (plies -1 through -6).
     /// </summary>
-    private const int PlyCount = 6;
+    private const int PlyCount = SearchConstants.ContinuationPlyCount;
 
     /// <summary>
     /// Total cells on the board for array sizing.

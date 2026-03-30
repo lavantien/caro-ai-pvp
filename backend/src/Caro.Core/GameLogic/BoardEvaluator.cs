@@ -4,19 +4,16 @@ using Caro.Core.Domain.Entities;
 namespace Caro.Core.GameLogic;
 
 /// <summary>
-/// Evaluates board positions for AI decision-making
-/// Automatically selects the fastest evaluator based on difficulty level
-/// - Low difficulty: BitBoardEvaluator (sufficient)
-/// - High difficulty (Professional+): SIMDBitBoardEvaluator (optimized)
+/// Evaluates board positions for AI decision-making.
 /// </summary>
 public class BoardEvaluator
 {
-    // Scoring weights
-    private const int FourInRowScore = 10000;
-    private const int ThreeInRowScore = 1000;
-    private const int TwoInRowScore = 100;
-    private const int OneInRowScore = 10;
-    private const int CenterBonus = 50;
+    // Scoring weights from centralized EvaluationConstants
+    private const int FourInRowScore = EvaluationConstants.FourInRowScore;
+    private const int ThreeInRowScore = EvaluationConstants.ThreeInRowScore;
+    private const int TwoInRowScore = EvaluationConstants.TwoInRowScore;
+    private const int OneInRowScore = EvaluationConstants.OneInRowScore;
+    private const int CenterBonus = EvaluationConstants.CenterBonus;
 
     // Direction vectors: horizontal, vertical, 2 diagonals
     private static readonly (int dx, int dy)[] Directions = new[]
