@@ -32,7 +32,7 @@ public class TranspositionTablePerformanceTests
 
         // Act - Run GetBestMove with Hard difficulty (uses TT)
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move = ai.GetBestMove(board, Player.Red, null);
         stopwatch.Stop();
 
         // Assert - Should complete reasonably quickly (< 5 seconds)
@@ -65,11 +65,11 @@ public class TranspositionTablePerformanceTests
         var ai = AITestHelper.CreateDeterministicAI();
 
         // First search (will populate transposition table)
-        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move1 = ai.GetBestMove(board, Player.Red, null);
 
         // Second search on same position (should benefit from TT)
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move2 = ai.GetBestMove(board, Player.Red, null);
         stopwatch.Stop();
 
         _output.WriteLine($"First move: ({move1.x}, {move1.y})");

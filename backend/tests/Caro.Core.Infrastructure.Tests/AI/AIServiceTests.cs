@@ -1,5 +1,3 @@
-using Caro.Core.Application.DTOs;
-using Caro.Core.Application.Extensions;
 using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
@@ -32,7 +30,7 @@ public sealed class AIServiceTests : IDisposable
     {
         var state = GameStateFactory.CreateInitial();
 
-        var response = await _service.CalculateBestMoveAsync(state, "medium");
+        var response = await _service.CalculateBestMoveAsync(state);
 
         response.X.Should().BeGreaterOrEqualTo(0);
         response.Y.Should().BeGreaterOrEqualTo(0);
@@ -44,43 +42,13 @@ public sealed class AIServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CalculateBestMoveAsync_MultipleDifficulties_AllWork()
-    {
-        var difficulties = new[] { "easy", "medium", "hard" };
-
-        foreach (var difficulty in difficulties)
-        {
-            var state = GameStateFactory.CreateInitial();
-            var response = await _service.CalculateBestMoveAsync(state, difficulty);
-            response.X.Should().BeGreaterOrEqualTo(0);
-            response.Y.Should().BeGreaterOrEqualTo(0);
-            response.X.Should().BeLessThan(GameConstants.BoardSize);
-            response.Y.Should().BeLessThan(GameConstants.BoardSize);
-        }
-    }
-
-    [Fact]
-    public async Task CalculateBestMoveAsync_Grandmaster_Works()
-    {
-        var state = GameStateFactory.CreateInitial();
-
-        var response = await _service.CalculateBestMoveAsync(state, "grandmaster");
-
-        response.X.Should().BeGreaterOrEqualTo(0);
-        response.Y.Should().BeGreaterOrEqualTo(0);
-        response.X.Should().BeLessThan(GameConstants.BoardSize);
-        response.Y.Should().BeLessThan(GameConstants.BoardSize);
-        response.DepthAchieved.Should().BeGreaterThan(0);
-    }
-
-    [Fact]
     public async Task CalculateBestMoveAsync_WithCancellation_Throws()
     {
         var state = GameStateFactory.CreateInitial();
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        var act = async () => await _service.CalculateBestMoveAsync(state, "medium", cts.Token);
+        var act = async () => await _service.CalculateBestMoveAsync(state, cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
@@ -99,27 +67,10 @@ public sealed class AIServiceTests : IDisposable
         var gameId = Guid.NewGuid();
         var state = GameStateFactory.CreateInitial();
 
-        await _service.StartPonderingAsync(gameId, state, "medium");
+        await _service.StartPonderingAsync(gameId, state);
 
         _service.IsCalculating(gameId).Should().BeTrue();
         _service.CleanupGame(gameId);
-    }
-
-    [Fact]
-    public async Task StartPonderingAsync_MultipleDifficulties_AllWork()
-    {
-        var difficulties = new[] { "easy", "medium", "hard", "grandmaster" };
-
-        foreach (var difficulty in difficulties)
-        {
-            var gameId = Guid.NewGuid();
-            var state = GameStateFactory.CreateInitial();
-
-            await _service.StartPonderingAsync(gameId, state, difficulty);
-
-            _service.IsCalculating(gameId).Should().BeTrue();
-            _service.CleanupGame(gameId);
-        }
     }
 
     [Fact]
@@ -128,7 +79,7 @@ public sealed class AIServiceTests : IDisposable
         var gameId = Guid.NewGuid();
         var state = GameStateFactory.CreateInitial();
 
-        await _service.StartPonderingAsync(gameId, state, "medium");
+        await _service.StartPonderingAsync(gameId, state);
         _service.IsCalculating(gameId).Should().BeTrue();
 
         await _service.StopPonderingAsync(gameId);
@@ -152,7 +103,7 @@ public sealed class AIServiceTests : IDisposable
         var gameId = Guid.NewGuid();
         var state = GameStateFactory.CreateInitial();
 
-        await _service.StartPonderingAsync(gameId, state, "medium");
+        await _service.StartPonderingAsync(gameId, state);
         _service.IsCalculating(gameId).Should().BeTrue();
 
         _service.CleanupGame(gameId);
@@ -167,9 +118,9 @@ public sealed class AIServiceTests : IDisposable
         var game2 = Guid.NewGuid();
         var state = GameStateFactory.CreateInitial();
 
-        await _service.StartPonderingAsync(game1, state, "easy");
+        await _service.StartPonderingAsync(game1, state);
         _service.CleanupGame(game1);
-        await _service.StartPonderingAsync(game2, state, "medium");
+        await _service.StartPonderingAsync(game2, state);
 
         _service.IsCalculating(game2).Should().BeTrue();
 

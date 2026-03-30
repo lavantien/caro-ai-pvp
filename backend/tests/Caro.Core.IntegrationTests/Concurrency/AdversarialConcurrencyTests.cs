@@ -186,7 +186,7 @@ public class AdversarialConcurrencyTests
                 for (int i = 0; i < iterations; i++)
                 {
                     // Use a simple predicted move (7, 8) - Ponderer will place it
-                    ponderer.StartPondering(board, Player.Blue, (7, 8), Player.Red, AIDifficulty.Medium, 100);
+                    ponderer.StartPondering(board, Player.Blue, (7, 8), Player.Red, 100);
                     Interlocked.Increment(ref stateChanges);
 
                     Thread.Sleep(1); // Small delay
@@ -276,7 +276,7 @@ public class AdversarialConcurrencyTests
                 try
                 {
                     var ai = AITestHelper.CreateAI();
-                    var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Easy);
+                    var (x, y) = ai.GetBestMove(board, Player.Red, null);
                     var (depth, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
                     results.Add((x, y, depth));
                 }

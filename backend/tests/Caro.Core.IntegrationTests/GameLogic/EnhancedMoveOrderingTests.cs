@@ -30,7 +30,7 @@ public class EnhancedMoveOrderingTests
 
         // Act - Enhanced move ordering should prioritize winning move
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should complete the winning line
         Assert.Equal(7, move.x);
@@ -51,7 +51,7 @@ public class EnhancedMoveOrderingTests
 
         // Act - Should block the threat
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should block at (7, 4) or (7, 8)
         Assert.Equal(7, move.x);
@@ -78,7 +78,7 @@ public class EnhancedMoveOrderingTests
 
         // Act - Should extend open 3
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should make a valid move
         Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
@@ -105,7 +105,7 @@ public class EnhancedMoveOrderingTests
 
         // Act - Should prioritize based on tactical importance
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should either extend own threat or block opponent
         var cell = board.GetCell(move.x, move.y);
@@ -133,7 +133,7 @@ public class EnhancedMoveOrderingTests
         // Act - Enhanced ordering should find good moves faster
         var ai = AITestHelper.CreateAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move = ai.GetBestMove(board, Player.Red, null);
         stopwatch.Stop();
 
         _output.WriteLine($"Move: ({move.x}, {move.y}), Time: {stopwatch.ElapsedMilliseconds}ms");
@@ -161,7 +161,7 @@ public class EnhancedMoveOrderingTests
 
         // Act - Should still play at the open end
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should play at (7, 4) or nearby
         Assert.InRange(move.x, 6, 8);
@@ -182,7 +182,7 @@ public class EnhancedMoveOrderingTests
 
         // Act - Should extend the open 3
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should extend at either end
         Assert.Equal(7, move.x);
@@ -208,7 +208,7 @@ public class EnhancedMoveOrderingTests
 
         // Act - Should find best tactical move
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should make a tactical move
         Assert.True(move.x >= 0 && move.x < 15);
@@ -236,9 +236,9 @@ public class EnhancedMoveOrderingTests
         // Note: Due to Random being consumed at different rates during search,
         // exact equality between calls is not guaranteed without full state reset.
         var ai = AITestHelper.CreateDeterministicAI();
-        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
-        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
-        var move3 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move1 = ai.GetBestMove(board, Player.Red, null);
+        var move2 = ai.GetBestMove(board, Player.Red, null);
+        var move3 = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - All moves should be valid and strategic
         Assert.InRange(move1.x, 5, 10);
@@ -269,7 +269,7 @@ public class EnhancedMoveOrderingTests
 
         // Act - Should handle mid-game position
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find valid move
         Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);

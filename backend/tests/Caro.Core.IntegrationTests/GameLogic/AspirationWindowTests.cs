@@ -30,8 +30,8 @@ public class AspirationWindowTests
 
         // Act - Search with aspiration windows (enabled by default in Hard+)
         var ai = AITestHelper.CreateAI();
-        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
-        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move1 = ai.GetBestMove(board, Player.Red, null);
+        var move2 = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Both moves should be valid
         Assert.True(move1.x >= 0 && move1.x < GameConstants.BoardSize && move1.y >= 0 && move1.y < GameConstants.BoardSize);
@@ -55,7 +55,7 @@ public class AspirationWindowTests
 
         // Act
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find a reasonable move
         Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
@@ -86,7 +86,7 @@ public class AspirationWindowTests
         // Act - Grandmaster (D5) uses iterative deepening with aspiration windows
         var ai = AITestHelper.CreateAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
+        var move = ai.GetBestMove(board, Player.Red, null);
         stopwatch.Stop();
 
         // Assert - Should complete in reasonable time
@@ -115,9 +115,9 @@ public class AspirationWindowTests
         // Note: Due to Random being consumed at different rates during search,
         // exact equality between calls is not guaranteed without full state reset.
         var ai = AITestHelper.CreateDeterministicAI();
-        var move1 = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard);
-        var move2 = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard);
-        var move3 = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard);
+        var move1 = ai.GetBestMove(board, Player.Blue, null);
+        var move2 = ai.GetBestMove(board, Player.Blue, null);
+        var move3 = ai.GetBestMove(board, Player.Blue, null);
 
         // Assert - All moves should be valid and strategic
         Assert.InRange(move1.x, 5, 10);
@@ -147,7 +147,7 @@ public class AspirationWindowTests
 
         // Act - Should find winning move for Red
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find move near the winning line
         Assert.InRange(move.x, 6, 8);
@@ -175,7 +175,7 @@ public class AspirationWindowTests
 
         // Act - Get best move
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Move should be strategic (near existing stones)
         Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);

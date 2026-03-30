@@ -19,7 +19,7 @@ public class MinimaxAITests
         var board = new Board();
 
         // Act
-        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
+        var (x, y) = ai.GetBestMove(board, Player.Red, null);
 
         // Assert
         // Should play center move (board is 16x16, center=8, candidates are 7-9)
@@ -41,7 +41,7 @@ public class MinimaxAITests
         board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
-        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
+        var (x, y) = ai.GetBestMove(board, Player.Red, null);
 
         // Assert
         // Should play at (11, 7) or (6, 7) to complete 5-in-row and win
@@ -66,7 +66,7 @@ public class MinimaxAITests
         board = board.PlaceStone(10, 7, Player.Blue);
 
         // Act - Red should block
-        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
+        var (x, y) = ai.GetBestMove(board, Player.Red, null);
 
         // Assert
         // For now, just verify it returns a valid move
@@ -87,7 +87,7 @@ public class MinimaxAITests
         board = board.PlaceStone(7, 7, Player.Red);
 
         // Act & Assert - only test Easy difficulty for unit tests
-        var (x, y) = ai.GetBestMove(board, Player.Blue, AIDifficulty.Braindead);
+        var (x, y) = ai.GetBestMove(board, Player.Blue, null);
 
         // Should return a valid position on the board
         x.Should().BeGreaterThanOrEqualTo(0);
@@ -110,7 +110,7 @@ public class MinimaxAITests
         board = board.PlaceStone(10, 7, Player.Red);
 
         // Act - Hard difficulty or above should use VCF
-        var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var (x, y) = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find winning move quickly (VCF should find it)
         // Winning move is either (11, 7) or (6, 7)

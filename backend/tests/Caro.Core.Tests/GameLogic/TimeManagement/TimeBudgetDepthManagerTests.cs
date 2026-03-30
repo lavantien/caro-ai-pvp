@@ -156,7 +156,7 @@ public sealed class TimeBudgetDepthManagerTests
         var manager = new TimeBudgetDepthManager();
 
         // Act - Zero time should return minimum depth
-        int depth = manager.CalculateMaxDepth(timeSeconds: 0, AIDifficulty.Easy);
+        int depth = manager.CalculateMaxDepth(timeSeconds: 0);
 
         // Assert
         depth.Should().Be(1, "Zero time should return depth 1");
@@ -169,7 +169,7 @@ public sealed class TimeBudgetDepthManagerTests
         var manager = new TimeBudgetDepthManager();
 
         // Act - Time < 0.001 should return depth 1
-        int depth = manager.CalculateMaxDepth(timeSeconds: 0.0005, AIDifficulty.Easy);
+        int depth = manager.CalculateMaxDepth(timeSeconds: 0.0005);
 
         // Assert
         depth.Should().Be(1, "Very small time should return depth 1");
@@ -185,7 +185,7 @@ public sealed class TimeBudgetDepthManagerTests
 
         // Act - 1 second with 100k NPS and EBF 2.5
         // depth = log(100000) / log(2.5) ~= 11.5 / 0.92 ~= 12.5
-        int depth = manager.CalculateMaxDepth(timeSeconds: 1.0, AIDifficulty.Hard);
+        int depth = manager.CalculateMaxDepth(timeSeconds: 1.0);
 
         // Assert - Should be clamped to [1, 15] range
         depth.Should().BeGreaterThan(1, "Should calculate reasonable depth");
@@ -201,7 +201,7 @@ public sealed class TimeBudgetDepthManagerTests
         manager.UpdateNpsEstimate(nodesSearched: 10_000_000, elapsedSeconds: 1.0);
 
         // Act - With huge time budget, depth should be calculated naturally
-        int depth = manager.CalculateMaxDepth(timeSeconds: 1000.0, AIDifficulty.Grandmaster);
+        int depth = manager.CalculateMaxDepth(timeSeconds: 1000.0);
 
         // Assert - Depth is clamped to max 15 as a safety bound in TimeBudgetDepthManager
         // The iterative deepening search in MinimaxAI has AbsoluteMaxDepth=50 as the ultimate safeguard
@@ -216,7 +216,7 @@ public sealed class TimeBudgetDepthManagerTests
         var manager = new TimeBudgetDepthManager();
 
         // Act - Tiny time budget
-        int depth = manager.CalculateMaxDepth(timeSeconds: 0.001, AIDifficulty.Braindead);
+        int depth = manager.CalculateMaxDepth(timeSeconds: 0.001);
 
         // Assert - Should clamp to minimum 1
         depth.Should().Be(1, "Should clamp to minimum depth of 1");

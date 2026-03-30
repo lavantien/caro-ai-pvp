@@ -28,24 +28,19 @@ public class GameStateTests
         const long initialTimeMs = 600_000;
         const int incrementSeconds = 3;
         const string gameMode = "pvai";
-        const string redAIDifficulty = "medium";
 
         // Act
         var state = GameState.CreateInitial(
             timeControl,
             initialTimeMs,
             incrementSeconds,
-            gameMode,
-            redAIDifficulty,
-            null);
+            gameMode);
 
         // Assert
         state.TimeControl.Should().Be(timeControl);
         state.InitialTimeMs.Should().Be(initialTimeMs);
         state.IncrementSeconds.Should().Be(incrementSeconds);
         state.GameMode.Should().Be(gameMode);
-        state.RedAIDifficulty.Should().Be(redAIDifficulty);
-        state.BlueAIDifficulty.Should().BeNull();
     }
 
     [Fact]

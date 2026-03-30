@@ -213,7 +213,7 @@ public class ConcurrencyStressTests
                 {
                     // Each AI gets its own instance
                     var ai = AITestHelper.CreateAI();
-                    var (x, y) = ai.GetBestMove(board, Player.Red, AIDifficulty.Easy);
+                    var (x, y) = ai.GetBestMove(board, Player.Red, null);
                     results.Add((x, y));
                 }
                 catch (Exception ex)

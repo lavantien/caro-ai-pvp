@@ -31,7 +31,7 @@ public class LateMoveReductionTests
 
         // Act - Get move with LMR (should use reduced depth for late moves)
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Move should be valid and strategic
         Assert.True(move.x >= 0 && move.x < 15);
@@ -73,7 +73,7 @@ public class LateMoveReductionTests
 
         // Act - Should use full depth in tactical position
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find good move near the threat
         Assert.InRange(move.x, 6, 8);
@@ -96,7 +96,7 @@ public class LateMoveReductionTests
         // Act - Search with Hard difficulty (uses LMR)
         var ai = AITestHelper.CreateAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move = ai.GetBestMove(board, Player.Red, null);
         stopwatch.Stop();
 
         _output.WriteLine($"Move: ({move.x}, {move.y}), Time: {stopwatch.ElapsedMilliseconds}ms");
@@ -125,8 +125,8 @@ public class LateMoveReductionTests
         // Note: Due to Random being consumed at different rates during search,
         // exact equality between calls is not guaranteed without full state reset.
         var ai = AITestHelper.CreateDeterministicAI();
-        var move1 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
-        var move2 = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move1 = ai.GetBestMove(board, Player.Red, null);
+        var move2 = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Moves should be valid and strategic (near existing stones)
         Assert.InRange(move1.x, 5, 10);
@@ -162,7 +162,7 @@ public class LateMoveReductionTests
 
         // Act - Should handle tactical position without LMR
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find reasonable move
         Assert.True(move.x >= 0 && move.x < 15);
@@ -182,7 +182,7 @@ public class LateMoveReductionTests
 
         // Act - LMR may not apply much with few candidate moves
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should still play near center
         Assert.True(move.x >= 0 && move.x < 15);
@@ -221,7 +221,7 @@ public class LateMoveReductionTests
 
         // Act - Should find winning move
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should complete the winning line
         Assert.Equal(7, move.x);
@@ -245,7 +245,7 @@ public class LateMoveReductionTests
         // Act - Multiple searches should work correctly
         for (int i = 0; i < 3; i++)
         {
-            var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+            var move = ai.GetBestMove(board, Player.Red, null);
 
             // Assert - Each move should be valid
             Assert.True(move.x >= 0 && move.x < 15);

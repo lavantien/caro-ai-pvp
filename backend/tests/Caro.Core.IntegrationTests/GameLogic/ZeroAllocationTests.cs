@@ -191,7 +191,7 @@ public class ZeroAllocationTests
         var timeRemainingMs = 300_000L;  // 5 minutes left
         var moveNumber = 30;              // LateMid game phase
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard, timeRemainingMs, moveNumber);
+        var move = ai.GetBestMove(board, Player.Red, timeRemainingMs, moveNumber);
         stopwatch.Stop();
 
         _output.WriteLine($"Move: ({move.x}, {move.y})");
@@ -237,7 +237,7 @@ public class ZeroAllocationTests
         var timeRemainingMs = 300_000L;  // 5 minutes left
         var moveNumber = 30;              // LateMid game phase
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster, timeRemainingMs, moveNumber);
+        var move = ai.GetBestMove(board, Player.Red, timeRemainingMs, moveNumber);
         stopwatch.Stop();
 
         _output.WriteLine($"Move: ({move.x}, {move.y})");

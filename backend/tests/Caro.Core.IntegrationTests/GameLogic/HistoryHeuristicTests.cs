@@ -17,14 +17,14 @@ public class HistoryHeuristicTests
         board = board.PlaceStone(7, 7, Player.Red);
 
         // Act - Make a move to populate some history
-        var move1 = ai.GetBestMove(board, Player.Blue, AIDifficulty.Medium);
+        var move1 = ai.GetBestMove(board, Player.Blue, null);
 
         // Clear history
         ai.ClearHistory();
 
         // Assert - History should be cleared (no easy way to verify directly, but method should not throw)
         // Make another move - should work fine
-        var move2 = ai.GetBestMove(board, Player.Blue, AIDifficulty.Medium);
+        var move2 = ai.GetBestMove(board, Player.Blue, null);
         Assert.True(move2.x >= 0 && move2.x < 15);
         Assert.True(move2.y >= 0 && move2.y < 15);
     }
@@ -44,7 +44,7 @@ public class HistoryHeuristicTests
 
         // Act - Get move with history heuristic enabled
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Hard);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find winning move (7, 9) or blocking move
         var cell = board.GetCell(move.x, move.y);
@@ -90,15 +90,15 @@ public class HistoryHeuristicTests
         var ai = AITestHelper.CreateAI();
 
         var stopwatch1 = System.Diagnostics.Stopwatch.StartNew();
-        var move1a = ai.GetBestMove(board1, Player.Blue, AIDifficulty.Medium);
+        var move1a = ai.GetBestMove(board1, Player.Blue, null);
         stopwatch1.Stop();
 
         var stopwatch2 = System.Diagnostics.Stopwatch.StartNew();
-        var move1b = ai.GetBestMove(board1, Player.Blue, AIDifficulty.Medium);
+        var move1b = ai.GetBestMove(board1, Player.Blue, null);
         stopwatch2.Stop();
 
         var stopwatch3 = System.Diagnostics.Stopwatch.StartNew();
-        var move2 = ai.GetBestMove(board2, Player.Red, AIDifficulty.Medium);
+        var move2 = ai.GetBestMove(board2, Player.Red, null);
         stopwatch3.Stop();
 
         // Assert - Moves should be reasonable
@@ -126,7 +126,7 @@ public class HistoryHeuristicTests
         // Act - Multiple searches should build up history
         for (int i = 0; i < 5; i++)
         {
-            var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Medium);
+            var move = ai.GetBestMove(board, Player.Red, null);
             Assert.True(move.x >= 0 && move.x < 15);
             Assert.True(move.y >= 0 && move.y < 15);
         }
@@ -148,8 +148,8 @@ public class HistoryHeuristicTests
 
         // Act - Search same position multiple times
         var ai = AITestHelper.CreateDeterministicAI();
-        var move1 = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard);
-        var move2 = ai.GetBestMove(board, Player.Blue, AIDifficulty.Hard);
+        var move1 = ai.GetBestMove(board, Player.Blue, null);
+        var move2 = ai.GetBestMove(board, Player.Blue, null);
 
         // Assert - Moves should be valid (near existing stones)
         Assert.InRange(move1.x, 5, 10);
@@ -166,7 +166,7 @@ public class HistoryHeuristicTests
         var board = new Board();
 
         // Act - Search on empty board
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Braindead);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should play center or near center
         Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
@@ -189,7 +189,7 @@ public class HistoryHeuristicTests
 
         // Act - Find winning move
         var ai = AITestHelper.CreateAI();
-        var move = ai.GetBestMove(board, Player.Red, AIDifficulty.Grandmaster);
+        var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find a move near the winning line
         // The winning move is at (7, 4) or (7, 9), but we just verify it's reasonable
