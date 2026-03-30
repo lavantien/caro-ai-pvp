@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
+using Caro.Core.GameLogic.Search;
 using Caro.Core.GameLogic.TimeManagement;
 
 namespace Caro.Core.GameLogic;
@@ -53,15 +55,10 @@ public sealed class ParallelMinimaxSearch
     private readonly TimeBudgetDepthManager _depthManager = new();
 
     // Search constants
-    // Maximum search radius - ensures detection of all winning moves
-    private const int MaxSearchRadius = 7;
-    private const int NullMoveMinDepth = 3;
-    private const int NullMoveDepthReduction = 3;
+    private const int MaxSearchRadius = SearchConstants.MaxSearchRadius;
+    private const int NullMoveMinDepth = SearchConstants.NullMoveMinDepth;
+    private const int NullMoveDepthReduction = SearchConstants.NullMoveDepthReduction;
 
-    // MDAP (Move-Dependent Adaptive Pruning) constants
-    private const int LMRMinDepth = 3;           // Minimum depth to apply LMR
-    private const int LMRFullDepthMoves = 4;     // Number of moves searched at full depth
-    private const int LMRBaseReduction = 1;      // Base depth reduction for late moves
 
     // Time management - CancellationTokenSource for proper cross-thread cancellation
     private CancellationTokenSource? _searchCts;
@@ -124,7 +121,7 @@ public sealed class ParallelMinimaxSearch
     /// </summary>
     /// <param name="sizeMB">Transposition table size in MB</param>
     /// <param name="maxThreads">Maximum threads to use (default: uses Lazy SMP formula (n/2)-1)</param>
-    public ParallelMinimaxSearch(int sizeMB = 256, int? maxThreads = null)
+    public ParallelMinimaxSearch(int sizeMB = SearchConstants.DefaultTTSizeMb, int? maxThreads = null)
     {
         _transpositionTable = new LockFreeTranspositionTable(sizeMB);
         _evaluator = new BoardEvaluator();
@@ -136,48 +133,6 @@ public sealed class ParallelMinimaxSearch
 
         // Configure thread pool for CPU-bound work
         ThreadPoolConfig.ConfigureForSearch();
-    }
-
-    /// <summary>
-    /// Check if a move is valid per the Open Rule for Red's second move (move #3)
-    /// The Open Rule requires Red's second move to be at least 3 intersections away
-    /// from the first red stone (Chebyshev distance >= 3)
-    /// </summary>
-    private bool IsValidPerOpenRule(Board board, int x, int y)
-    {
-        // Count stones to verify this is move #3 (2 stones on board)
-        int stoneCount = 0;
-        (int firstX, int firstY) firstRed = (-1, -1);
-
-        for (int bx = 0; bx < board.BoardSize; bx++)
-        {
-            for (int by = 0; by < board.BoardSize; by++)
-            {
-                var cell = board.GetCell(bx, by);
-                if (cell.Player != Player.None)
-                {
-                    stoneCount++;
-                    if (cell.Player == Player.Red && firstRed.firstX < 0)
-                    {
-                        firstRed = (bx, by);
-                    }
-                }
-            }
-        }
-
-        // Only applies to move #3 (exactly 2 stones on board)
-        if (stoneCount != 2)
-            return true;
-
-        // No first red found (shouldn't happen), allow move
-        if (firstRed.firstX < 0)
-            return true;
-
-        // Check if move is at least 3 intersections away from first red
-        // Chebyshev distance: max(|dx|, |dy|) >= 3
-        int dx = Math.Abs(x - firstRed.firstX);
-        int dy = Math.Abs(y - firstRed.firstY);
-        return Math.Max(dx, dy) >= 3;
     }
 
     /// <summary>
@@ -203,7 +158,7 @@ public sealed class ParallelMinimaxSearch
         // away from the first red stone (5x5 exclusion zone centered on first move)
         if (player == Player.Red && moveNumber == 3)
         {
-            candidates = candidates.Where(c => IsValidPerOpenRule(board, c.x, c.y)).ToList();
+            candidates = candidates.Where(c => ParallelThreatAnalyzer.IsValidPerOpenRule(board, c.x, c.y)).ToList();
         }
 
         if (candidates.Count == 0)
@@ -217,7 +172,7 @@ public sealed class ParallelMinimaxSearch
                 {
                     for (int y = 0; y < boardSize; y++)
                     {
-                        if (board.GetCell(x, y).Player == Player.None && IsValidPerOpenRule(board, x, y))
+                        if (board.GetCell(x, y).Player == Player.None && ParallelThreatAnalyzer.IsValidPerOpenRule(board, x, y))
                             return (x, y);
                     }
                 }
@@ -245,7 +200,7 @@ public sealed class ParallelMinimaxSearch
         // Do NOT filter for BrokenFours - let search evaluate offensive vs defensive options
         // This prevents Grandmaster from being forced into purely defensive play
         var opponent = player == Player.Red ? Player.Blue : Player.Red;
-        var criticalThreats = GetCriticalThreatMoves(board, opponent);
+        var criticalThreats = ParallelThreatAnalyzer.GetCriticalThreatMoves(board, opponent, _winDetector);
         if (criticalThreats.Count > 0)
         {
             // Filter candidates to only blocking moves for CRITICAL threats
@@ -265,7 +220,7 @@ public sealed class ParallelMinimaxSearch
             // 1. At depth 2-3, search cannot see far enough to recognize the threat
             // 2. Evaluation may score offensive moves higher than blocking moves
             // 3. Open threes lead to open fours which are unblockable (2 winning squares)
-            var openThreeBlocks = GetOpenThreeBlocks(board, opponent);
+            var openThreeBlocks = ParallelThreatAnalyzer.GetOpenThreeBlocks(board, opponent);
             if (openThreeBlocks.Count > 0)
             {
                 // FILTER candidates to only blocking squares - this is critical!
@@ -316,7 +271,7 @@ public sealed class ParallelMinimaxSearch
         // away from the first red stone (5x5 exclusion zone centered on first move)
         if (player == Player.Red && moveNumber == 3)
         {
-            candidates = candidates.Where(c => IsValidPerOpenRule(board, c.x, c.y)).ToList();
+            candidates = candidates.Where(c => ParallelThreatAnalyzer.IsValidPerOpenRule(board, c.x, c.y)).ToList();
         }
 
         if (candidates.Count == 0)
@@ -347,7 +302,7 @@ public sealed class ParallelMinimaxSearch
         // Do NOT filter for BrokenFours - let search evaluate offensive vs defensive options
         // This prevents Grandmaster from being forced into purely defensive play
         var opponent = player == Player.Red ? Player.Blue : Player.Red;
-        var criticalThreats = GetCriticalThreatMoves(board, opponent);
+        var criticalThreats = ParallelThreatAnalyzer.GetCriticalThreatMoves(board, opponent, _winDetector);
         if (criticalThreats.Count > 0)
         {
             // Filter candidates to only blocking moves for CRITICAL threats
@@ -367,7 +322,7 @@ public sealed class ParallelMinimaxSearch
             // 1. At depth 2-3, search cannot see far enough to recognize the threat
             // 2. Evaluation may score offensive moves higher than blocking moves
             // 3. Open threes lead to open fours which are unblockable (2 winning squares)
-            var openThreeBlocks = GetOpenThreeBlocks(board, opponent);
+            var openThreeBlocks = ParallelThreatAnalyzer.GetOpenThreeBlocks(board, opponent);
             if (openThreeBlocks.Count > 0)
             {
                 // FILTER candidates to only blocking squares - this is critical!
@@ -851,7 +806,7 @@ public sealed class ParallelMinimaxSearch
             .Select(c =>
             {
                 var undo = board.MakeMove(c.x, c.y, player);
-                int eval = Evaluate(board, player);
+                int eval = ParallelNodeEvaluator.Evaluate(board, player);
                 board.UnmakeMove(undo);
                 return (c, eval);
             })
@@ -1243,7 +1198,7 @@ public sealed class ParallelMinimaxSearch
             return int.MinValue;
 
         // Terminal check
-        var winner = CheckWinner(board);
+        var winner = ParallelNodeEvaluator.CheckWinner(board);
         if (winner != null)
         {
             return winner == aiPlayer ? 100000 : -100000;
@@ -1323,13 +1278,13 @@ public sealed class ParallelMinimaxSearch
             int historyScore = historyTable[x, y];
 
             // Determine move characteristics for adaptive LMR
-            bool isImproving = IsImproving(board, currentPlayer);
+            bool isImproving = ParallelNodeEvaluator.IsImproving(board, currentPlayer);
             bool isPvNode = beta - alpha <= 1;
             bool isCutNode = !isPvNode && beta - alpha > 1;
             bool isTTMove = cachedMove.HasValue && cachedMove.Value == (x, y);
 
             // Calculate adaptive reduction based on multiple factors
-            int adaptiveReduction = GetAdaptiveReduction(
+            int adaptiveReduction = ParallelNodeEvaluator.GetAdaptiveReduction(
                 depth, moveIndex, isImproving, isPvNode, isCutNode, isTTMove, historyScore);
 
             if (adaptiveReduction > 0)
@@ -1513,7 +1468,7 @@ public sealed class ParallelMinimaxSearch
             }
 
             // 2. Tactical evaluation using BitBoard (fast)
-            score += EvaluateTacticalFast(board, x, y, player, playerBitBoard, opponentBitBoard);
+            score += ParallelNodeEvaluator.EvaluateTacticalFast(board, x, y, player, playerBitBoard, opponentBitBoard);
 
             // 3. Killer moves
             if (depth >= 0 && depth < 20)
@@ -1586,7 +1541,7 @@ public sealed class ParallelMinimaxSearch
                 continue;
             }
 
-            score += EvaluateTacticalFast(board, x, y, player, playerBitBoard, opponentBitBoard);
+            score += ParallelNodeEvaluator.EvaluateTacticalFast(board, x, y, player, playerBitBoard, opponentBitBoard);
 
             if (depth >= 0 && depth < 20)
             {
@@ -1622,122 +1577,6 @@ public sealed class ParallelMinimaxSearch
             candidates[j + 1] = keyMove;
             scores[j + 1] = keyScore;
         }
-    }
-
-    /// <summary>
-    /// Fast tactical evaluation using BitBoard operations.
-    /// Only evaluates the specific move position, not the entire board.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int EvaluateTacticalFast(SearchBoard board, int x, int y, Player player, BitBoard playerBitBoard, BitBoard opponentBitBoard)
-    {
-        int score = 0;
-        var occupied = playerBitBoard | opponentBitBoard;
-
-        // Check all 4 directions
-        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
-
-        foreach (var (dx, dy) in directions)
-        {
-            // Count consecutive stones for player
-            int count = 1;
-            int openEnds = 0;
-
-            // Positive direction
-            for (int i = 1; i <= 4; i++)
-            {
-                int nx = x + dx * i;
-                int ny = y + dy * i;
-                if (nx < 0 || nx >= BitBoard.Size || ny < 0 || ny >= BitBoard.Size) break;
-
-                if (playerBitBoard.GetBit(nx, ny))
-                    count++;
-                else if (!occupied.GetBit(nx, ny))
-                {
-                    openEnds++;
-                    break;
-                }
-                else break;
-            }
-
-            // Negative direction
-            for (int i = 1; i <= 4; i++)
-            {
-                int nx = x - dx * i;
-                int ny = y - dy * i;
-                if (nx < 0 || nx >= BitBoard.Size || ny < 0 || ny >= BitBoard.Size) break;
-
-                if (playerBitBoard.GetBit(nx, ny))
-                    count++;
-                else if (!occupied.GetBit(nx, ny))
-                {
-                    openEnds++;
-                    break;
-                }
-                else break;
-            }
-
-            // Score based on pattern
-            if (count >= 5)
-                score += 100000; // Winning
-            else if (count == 4 && openEnds == 2)
-                score += 50000;  // Open four (almost winning)
-            else if (count == 4 && openEnds == 1)
-                score += 10000;  // Semi-open four
-            else if (count == 3 && openEnds == 2)
-                score += 5000;   // Open three
-            else if (count == 3 && openEnds == 1)
-                score += 1000;   // Semi-open three
-            else if (count == 2 && openEnds == 2)
-                score += 500;    // Open two
-        }
-
-        // Check opponent threats we might block
-        foreach (var (dx, dy) in directions)
-        {
-            int count = 1;
-            int openEnds = 0;
-
-            for (int i = 1; i <= 4; i++)
-            {
-                int nx = x + dx * i;
-                int ny = y + dy * i;
-                if (nx < 0 || nx >= BitBoard.Size || ny < 0 || ny >= BitBoard.Size) break;
-
-                if (opponentBitBoard.GetBit(nx, ny))
-                    count++;
-                else if (!occupied.GetBit(nx, ny))
-                {
-                    openEnds++;
-                    break;
-                }
-                else break;
-            }
-
-            for (int i = 1; i <= 4; i++)
-            {
-                int nx = x - dx * i;
-                int ny = y - dy * i;
-                if (nx < 0 || nx >= BitBoard.Size || ny < 0 || ny >= BitBoard.Size) break;
-
-                if (opponentBitBoard.GetBit(nx, ny))
-                    count++;
-                else if (!occupied.GetBit(nx, ny))
-                {
-                    openEnds++;
-                    break;
-                }
-                else break;
-            }
-
-            // Blocking opponent's threats
-            if (count >= 4)
-                score += 80000;  // Must block 4
-            else if (count == 3 && openEnds == 2)
-                score += 30000;  // Block open three
-        }
-
-        return score;
     }
 
     /// <summary>
@@ -1798,7 +1637,7 @@ public sealed class ParallelMinimaxSearch
         // Note: For Lazy SMP to work best, we should usually search ALL candidates,
         // but high priority moves must come first.
         var opponent = player == Player.Red ? Player.Blue : Player.Red;
-        var threatMoves = GetOpponentThreatMoves(board, opponent);
+        var threatMoves = ParallelThreatAnalyzer.GetOpponentThreatMoves(board, opponent, _winDetector);
 
         for (int i = 0; i < count; i++)
         {
@@ -2025,108 +1864,6 @@ public sealed class ParallelMinimaxSearch
     }
 
     /// <summary>
-    /// Calculate adaptive late move reduction based on position and move characteristics.
-    /// Uses multiple factors to determine optimal reduction:
-    /// - Depth: Deeper searches can reduce more
-    /// - Move count: Later moves get more reduction
-    /// - Improving: Positions with better static eval get less reduction
-    /// - PV node: Principal variation nodes get less reduction
-    /// - Cut node: Nodes that are likely to cutoff get more reduction
-    /// - TT move: Transposition table moves get no reduction
-    /// - History score: Moves with good history get less reduction
-    ///
-    /// Expected ELO gain: +25-40 through better search efficiency.
-    /// </summary>
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    private int GetAdaptiveReduction(
-        int depth,
-        int moveCount,
-        bool improving,
-        bool isPvNode,
-        bool isCutNode,
-        bool isTTMove,
-        int historyScore)
-    {
-        // Early moves get no reduction
-        if (moveCount < LMRFullDepthMoves)
-            return 0;
-
-        // Minimum depth must be met
-        if (depth < LMRMinDepth)
-            return 0;
-
-        int reduction = LMRBaseReduction;
-
-        // Depth-based adjustment: deeper searches can reduce more
-        // For each 3 plies beyond minimum, add 1 to reduction
-        reduction += (depth - LMRMinDepth) / 3;
-
-        // Move count adjustment: later moves get more reduction
-        // For every 4 moves beyond LMRFullDepthMoves, add 1 to reduction
-        reduction += (moveCount - LMRFullDepthMoves) / 4;
-
-        // Improving positions get less reduction (more valuable to search accurately)
-        if (improving)
-            reduction -= 1;
-
-        // PV nodes get less reduction (more important for accuracy)
-        if (isPvNode)
-            reduction -= 1;
-
-        // Cut nodes get more reduction (likely to cutoff anyway)
-        if (isCutNode)
-            reduction += 1;
-
-        // TT moves get no reduction (highest priority move)
-        if (isTTMove)
-            reduction = 0;
-
-        // High history scores get less reduction (these moves have been good)
-        // Scale: historyScore up to 30000, divide by 10000 = up to 3 reduction bonus
-        int historyBonus = Math.Min(3, historyScore / 10000);
-        reduction -= historyBonus;
-
-        // Ensure reduction is valid: non-negative and less than depth
-        reduction = Math.Max(0, reduction);
-        reduction = Math.Min(depth - 1, reduction);
-
-        return reduction;
-    }
-
-    /// <summary>
-    /// Check if a position is improving (better than previous evaluation).
-    /// This is a simplified check that uses material balance as a proxy.
-    /// In a full implementation, this would track the evaluation from previous plies.
-    /// </summary>
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    private bool IsImproving(SearchBoard board, Player player)
-    {
-        // Simplified: a position is "improving" if the current player has equal or more material
-        // This is a basic heuristic; a full implementation would track eval across plies
-        var redBitBoard = board.GetBitBoard(Player.Red);
-        var blueBitBoard = board.GetBitBoard(Player.Blue);
-
-        int redCount = redBitBoard.CountBits();
-        int blueCount = blueBitBoard.CountBits();
-
-        // Current player is improving if they have equal or more stones
-        if (player == Player.Red)
-            return redCount >= blueCount;
-        else
-            return blueCount >= redCount;
-    }
-
-    /// <summary>
-    /// Check for winner using bitwise five-in-a-row detection
-    /// </summary>
-    private Player? CheckWinner(SearchBoard board)
-    {
-        if (board.HasWin(Player.Red)) return Player.Red;
-        if (board.HasWin(Player.Blue)) return Player.Blue;
-        return null;
-    }
-
-    /// <summary>
     /// Quiescence search: extend search in tactical positions to get accurate evaluation
     /// Only considers moves near existing stones (tactical moves)
     /// PERFORMANCE: Simplified to match sequential search - no expensive per-candidate loops
@@ -2143,7 +1880,7 @@ public sealed class ParallelMinimaxSearch
         }
 
         // Get stand-pat score (static evaluation)
-        var standPat = Evaluate(board, aiPlayer);
+        var standPat = ParallelNodeEvaluator.Evaluate(board, aiPlayer);
 
         // Beta cutoff (stand-pat is good enough for maximizing player)
         if (isMaximizing && standPat >= beta)
@@ -2160,7 +1897,7 @@ public sealed class ParallelMinimaxSearch
             beta = Math.Min(beta, standPat);
 
         // Check for terminal states in quiescence
-        var winner = CheckWinner(board);
+        var winner = ParallelNodeEvaluator.CheckWinner(board);
         if (winner != null)
         {
             return winner == aiPlayer ? 100000 : -100000;
@@ -2233,37 +1970,6 @@ public sealed class ParallelMinimaxSearch
             }
             return minEval;
         }
-    }
-
-    /// <summary>
-    /// FIX 4: Check if a move is tactical (creates a forcing threat: Flex3 or better)
-    /// Used in quiescence search to filter non-tactical moves and prevent branching explosion
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool IsTacticalMoveInQuiesce(SearchBoard board, int x, int y, Player player)
-    {
-        // Quick check: is the cell empty?
-        if (!board.IsEmpty(x, y))
-            return false;
-
-        // Simulate placing the stone
-        var undo = board.MakeMove(x, y, player);
-
-        // Check if the move creates a forcing threat (Flex3+: open three or better)
-        var opponent = player == Player.Red ? Player.Blue : Player.Red;
-        var pattern = Pattern4Evaluator.EvaluatePositionBitBoard(
-            board.GetBitBoard(player), board.GetBitBoard(opponent), x, y);
-        board.UnmakeMove(undo);
-        return Pattern4Evaluator.IsForcingThreat(pattern);
-    }
-
-    /// <summary>
-    /// Evaluate board position using scalar evaluator for consistency
-    /// SIMD evaluator has potential bugs that cause AI strength inversion
-    /// </summary>
-    private int Evaluate(SearchBoard board, Player player)
-    {
-        return BitBoardEvaluator.Evaluate(board, player);
     }
 
     /// <summary>
@@ -2385,192 +2091,6 @@ public sealed class ParallelMinimaxSearch
     public (int used, double usagePercent, int hitCount, int lookupCount, double hitRate) GetStats()
     {
         return _transpositionTable.GetStats();
-    }
-
-    /// <summary>
-    /// Find opponent's critical threat moves that MUST be blocked
-    /// Priority order:
-    /// 1. Five in row (immediate win)
-    /// 2. Semi-open four (XXXX_ - one end blocked, must block now)
-    /// 3. Open four (XXXX - both ends open)
-    /// 4. Broken four (XXX_X - can create double threat)
-    /// </summary>
-    private List<(int x, int y)> GetOpponentThreatMoves(Board board, Player opponent)
-    {
-        var threats = new List<(int x, int y)>();
-
-        // Priority 1: Check for immediate winning moves (5-in-row completion)
-        // CRITICAL FIX: Use BitBoard.Size not hardcoded 15
-        for (int x = 0; x < BitBoard.Size; x++)
-        {
-            for (int y = 0; y < BitBoard.Size; y++)
-            {
-                if (!board.GetCell(x, y).IsEmpty)
-                    continue;
-
-                var testBoard = board.PlaceStone(x, y, opponent);
-                bool isWinningMove = _winDetector.CheckWin(testBoard).HasWinner;
-
-                if (isWinningMove)
-                {
-                    threats.Add((x, y));
-                    // CRITICAL FIX: Don't return immediately after finding just ONE!
-                    // Open fours have TWO winning squares - we must find ALL of them.
-                    // Returning after finding just one causes Grandmaster to block that one
-                    // while Braindead wins at the other (the strength inversion bug).
-                    // Continue scanning to find all winning squares.
-                }
-            }
-        }
-
-        // CRITICAL FIX: If we found winning squares, return them immediately.
-        // No need to check lower priority threats - winning moves are the highest priority.
-        // Multiple winning squares = open four = unblockable threat (but we still try).
-        if (threats.Count > 0)
-        {
-            return threats;
-        }
-
-        // Priority 2: Check for semi-open four using ThreatDetector
-        // Semi-open four = 4 consecutive stones with ONE open end (XXXX_)
-        // This is CRITICAL - opponent can win on their next turn if not blocked
-        var detector = new ThreatDetector();
-        var opponentThreats = detector.DetectThreats(board, opponent);
-
-        // Check for StraightFour (XXXX_ pattern) - semi-open four and open four
-        // GainSquares contains the blocking squares
-        // CRITICAL FIX: For open four (2 gain squares), both must be in candidates
-        // For semi-open four (1 gain square), only one blocking move exists
-        foreach (var threat in opponentThreats)
-        {
-            if (threat.Type == ThreatType.StraightFour)
-            {
-                // Add all gain squares (blocking moves) for this threat
-                foreach (var gainSquare in threat.GainSquares)
-                {
-                    if (board.GetCell(gainSquare.x, gainSquare.y).IsEmpty && !threats.Contains(gainSquare))
-                    {
-                        threats.Add(gainSquare);
-                    }
-                }
-
-                // CRITICAL FIX: For semi-open four (1 blocking move), return immediately
-                // For open four (2+ blocking moves), continue checking for other threats
-                // But if we have any threats, filter candidates to only blocking moves
-                if (threat.GainSquares.Count == 1 && threats.Count > 0)
-                {
-                    return threats; // Semi-open four - only one way to block
-                }
-            }
-        }
-
-        // Priority 3: BrokenFour (XXX_X pattern) - can create double threats
-        foreach (var threat in opponentThreats)
-        {
-            if (threat.Type == ThreatType.BrokenFour)
-            {
-                // Add gain squares that would complete the broken four
-                foreach (var gainSquare in threat.GainSquares)
-                {
-                    if (board.GetCell(gainSquare.x, gainSquare.y).IsEmpty && !threats.Contains(gainSquare))
-                    {
-                        threats.Add(gainSquare);
-                    }
-                }
-            }
-        }
-
-        return threats;
-    }
-
-    /// <summary>
-    /// Find opponent's CRITICAL threat moves that MUST be blocked immediately.
-    /// Only returns threats where blocking is mandatory - does NOT include BrokenFours.
-    /// This allows the search to evaluate offensive vs defensive options for lower-priority threats.
-    /// Priority order:
-    /// 1. Five in row (immediate win)
-    /// 2. Straight four (open four or semi-open four)
-    /// </summary>
-    private List<(int x, int y)> GetCriticalThreatMoves(Board board, Player opponent)
-    {
-        var threats = new List<(int x, int y)>();
-
-        // Priority 1: Check for immediate winning moves (5-in-row completion)
-        for (int x = 0; x < BitBoard.Size; x++)
-        {
-            for (int y = 0; y < BitBoard.Size; y++)
-            {
-                if (!board.GetCell(x, y).IsEmpty)
-                    continue;
-
-                var testBoard = board.PlaceStone(x, y, opponent);
-                bool isWinningMove = _winDetector.CheckWin(testBoard).HasWinner;
-
-                if (isWinningMove)
-                {
-                    threats.Add((x, y));
-                }
-            }
-        }
-
-        // If we found winning squares, return immediately
-        if (threats.Count > 0)
-        {
-            return threats;
-        }
-
-        // Priority 2: Check for StraightFour (open four or semi-open four)
-        // These are CRITICAL - opponent can win on their next turn if not blocked
-        var detector = new ThreatDetector();
-        var opponentThreats = detector.DetectThreats(board, opponent);
-
-        foreach (var threat in opponentThreats)
-        {
-            if (threat.Type == ThreatType.StraightFour)
-            {
-                foreach (var gainSquare in threat.GainSquares)
-                {
-                    if (board.GetCell(gainSquare.x, gainSquare.y).IsEmpty && !threats.Contains(gainSquare))
-                    {
-                        threats.Add(gainSquare);
-                    }
-                }
-            }
-        }
-
-        // NOTE: We do NOT include BrokenFour or StraightThree here as critical threats.
-        // StraightThree blocking is handled separately in GetBestMoveWithStats to ensure
-        // blocking squares are prioritized but candidates are not filtered.
-
-        return threats;
-    }
-
-    /// <summary>
-    /// Get open three blocking squares (StraightThree threats)
-    /// These are developing threats that should be prioritized but don't require
-    /// mandatory blocking like StraightFour.
-    /// </summary>
-    private List<(int x, int y)> GetOpenThreeBlocks(Board board, Player opponent)
-    {
-        var blocks = new List<(int x, int y)>();
-        var detector = new ThreatDetector();
-        var opponentThreats = detector.DetectThreats(board, opponent);
-
-        foreach (var threat in opponentThreats)
-        {
-            if (threat.Type == ThreatType.StraightThree)
-            {
-                foreach (var gainSquare in threat.GainSquares)
-                {
-                    if (board.GetCell(gainSquare.x, gainSquare.y).IsEmpty && !blocks.Contains(gainSquare))
-                    {
-                        blocks.Add(gainSquare);
-                    }
-                }
-            }
-        }
-
-        return blocks;
     }
 
     #region Pondering Support
