@@ -351,7 +351,6 @@ public sealed class GameService : IGameService
     /// </summary>
     public async Task<AIMoveResponse> GetAIMoveAsync(
         Guid gameId,
-        string difficulty = "Medium",
         CancellationToken cancellationToken = default)
     {
         try
@@ -362,7 +361,7 @@ public sealed class GameService : IGameService
                 throw new InvalidOperationException("Game not found");
             }
 
-            return await _aiService.CalculateBestMoveAsync(state, difficulty, cancellationToken);
+            return await _aiService.CalculateBestMoveAsync(state, cancellationToken);
         }
         catch (Exception ex)
         {

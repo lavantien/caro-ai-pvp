@@ -24,50 +24,14 @@ public sealed class AdaptiveTimeManager
     private double _currentMultiplier = 1.0;
     private double _timePressure = 0;       // 0 = relaxed, 1 = critical
 
-    // Configuration for different difficulties
-    // Updated to match AIDifficulty enum values (1-6)
-    // Index: 0=unused, 1=Braindead, 2=Easy, 3=Medium, 4=Hard, 5=Grandmaster, 6=Experimental
-    // Higher difficulties are more aggressive with time allocation
-    private static readonly double[] BaseAggressiveness = new double[]
-    {
-        1.0,  // [0] unused
-        0.3,  // [1] Braindead: very conservative
-        0.6,  // [2] Easy: moderate aggressiveness
-        1.0,  // [3] Medium: standard aggressiveness
-        1.5,  // [4] Hard: aggressive for parallel search
-        2.5,  // [5] Grandmaster: very aggressive
-        3.0   // [6] Experimental: maximum aggressiveness
-    };
+    // Fixed aggressiveness
+    private const double BaseAggressivenessValue = 2.5;
 
-    // Maximum time per move (percentage of remaining time)
-    // These are SAFETY CAPS for time controls WITH increment
-    // For sudden death (no increment), we use much lower caps
-    // CRITICAL: These values are only used as upper bounds, not targets
-    private static readonly double[] MaxTimePercentage = new double[]
-    {
-        0.10, // [0] unused
-        0.05, // [1] Braindead: 5% max per move
-        0.08, // [2] Easy: 8%
-        0.10, // [3] Medium: 10%
-        0.12, // [4] Hard: 12%
-        0.15, // [5] Grandmaster: 15% - reduced from 40% which was too aggressive
-        0.20  // [6] Experimental: 20%
-    };
+    // Maximum time per move (percentage of remaining time) for time controls WITH increment
+    private const double MaxTimePercentValue = 0.15;
 
     // Maximum time per move for SUDDEN DEATH (no increment) time controls
-    // Must be much more conservative since there's no time recovery
-    // For a 60s game with ~50 expected moves, each move should average ~1.2s
-    // So the max per move should be roughly 2% of remaining time
-    private static readonly double[] MaxTimePercentageSuddenDeath = new double[]
-    {
-        0.02, // [0] unused
-        0.01, // [1] Braindead: 1% max per move
-        0.015, // [2] Easy: 1.5%
-        0.02, // [3] Medium: 2%
-        0.025, // [4] Hard: 2.5%
-        0.03, // [5] Grandmaster: 3% - for 60s, this is ~1.8s max per move
-        0.04  // [6] Experimental: 4%
-    };
+    private const double MaxTimePercentSuddenDeathValue = 0.03;
 
     /// <summary>
     /// Calculate time allocation using adaptive PID-like controller
@@ -78,11 +42,9 @@ public sealed class AdaptiveTimeManager
         int candidateCount,
         Board board,
         Player player,
-        AIDifficulty difficulty,
         int initialTimeSeconds = 420,
         int incrementSeconds = 5)
     {
-        var difficultyIndex = (int)difficulty;
         var initialTimeMs = initialTimeSeconds * 1000L;
 
         // === PROPORTIONAL TERM: Current time pressure ===
@@ -114,7 +76,7 @@ public sealed class AdaptiveTimeManager
 
         // === ADAPTIVE MULTIPLIER ===
         // Start with base aggressiveness for difficulty
-        var baseAggressiveness = GetDifficultyValue(BaseAggressiveness, difficultyIndex);
+        var baseAggressiveness = BaseAggressivenessValue;
 
         // CRITICAL FIX: For sudden death, use much lower aggressiveness
         // In sudden death, we cannot afford to be aggressive with time usage
@@ -159,8 +121,8 @@ public sealed class AdaptiveTimeManager
 
         // Choose appropriate percentage cap based on time control type
         var maxTimePercent = isSuddenDeath
-            ? GetDifficultyValue(MaxTimePercentageSuddenDeath, difficultyIndex)
-            : GetDifficultyValue(MaxTimePercentage, difficultyIndex);
+            ? MaxTimePercentSuddenDeathValue
+            : MaxTimePercentValue;
 
         // Time scramble detection: different logic for sudden death vs increment
         // Sudden death: less than 20 seconds remaining is time scramble
@@ -376,13 +338,5 @@ public sealed class AdaptiveTimeManager
             score -= 0.2;
 
         return Math.Clamp(score, 0.5, 2.0);
-    }
-
-    private static double GetDifficultyValue(double[] array, int index)
-    {
-        // Arrays are indexed by AIDifficulty enum value directly
-        // Braindead=1, Easy=2, Medium=3, Hard=4, Grandmaster=5, Experimental=6
-        // Index 0 is unused
-        return index >= 0 && index < array.Length ? array[index] : array[array.Length - 1];
     }
 }

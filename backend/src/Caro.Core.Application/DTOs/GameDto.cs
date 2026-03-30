@@ -52,8 +52,6 @@ public sealed record CreateGameRequest
     public int IncrementSeconds { get; init; } = 5;
     public string RedPlayerType { get; init; } = null!;
     public string BluePlayerType { get; init; } = null!;
-    public string? RedAIDifficulty { get; init; }
-    public string? BlueAIDifficulty { get; init; }
 }
 
 /// <summary>

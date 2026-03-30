@@ -84,31 +84,4 @@ public static class ThreadPoolConfig
         return Math.Max(1, processorCount / 4);
     }
 
-    /// <summary>
-    /// Get thread count based on AI difficulty level
-    /// Delegates to AIDifficultyConfig for centralized configuration
-    /// </summary>
-    public static int GetThreadCountForDifficulty(AIDifficulty difficulty)
-    {
-        return AIDifficultyConfig.Instance.GetSettings(difficulty).ThreadCount;
-    }
-
-    /// <summary>
-    /// Get pondering thread count based on AI difficulty level
-    /// Delegates to AIDifficultyConfig for centralized configuration
-    /// </summary>
-    public static int GetPonderingThreadCountForDifficulty(AIDifficulty difficulty)
-    {
-        return AIDifficultyConfig.Instance.GetSettings(difficulty).PonderingThreadCount;
-    }
-
-    /// <summary>
-    /// Get grandmaster thread count using (processorCount/2)-1 formula
-    /// This is the maximum thread count, used for thinking and pondering
-    /// DEPRECATED: Use AIDifficultyConfig directly
-    /// </summary>
-    public static int GetGrandmasterThreadCount()
-    {
-        return AIDifficultyConfig.Instance.GetSettings(AIDifficulty.Grandmaster).ThreadCount;
-    }
 }

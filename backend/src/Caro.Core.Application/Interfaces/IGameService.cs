@@ -35,7 +35,7 @@ public interface IGameService
     /// <summary>
     /// Request AI move calculation
     /// </summary>
-    Task<AIMoveResponse> GetAIMoveAsync(Guid gameId, string difficulty = "Medium", CancellationToken cancellationToken = default);
+    Task<AIMoveResponse> GetAIMoveAsync(Guid gameId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get list of active games
@@ -89,26 +89,15 @@ public interface IAIService
     /// </summary>
     Task<AIMoveResponse> CalculateBestMoveAsync(
         Domain.Entities.GameState state,
-        string difficulty,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Start pondering (background search during opponent's turn)
-    /// </summary>
     Task StartPonderingAsync(
         Guid gameId,
         Domain.Entities.GameState state,
-        string difficulty,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Stop pondering
-    /// </summary>
     Task StopPonderingAsync(Guid gameId, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Check if AI is currently calculating
-    /// </summary>
     bool IsCalculating(Guid gameId);
 }
 

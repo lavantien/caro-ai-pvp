@@ -79,18 +79,12 @@ public class BoardEvaluator
     /// Evaluate with SIMD optimization for high difficulty levels
     /// Automatically falls back to scalar evaluation if SIMD is not beneficial
     /// </summary>
-    public int EvaluateOptimized(Board board, Player player, AIDifficulty difficulty)
+    public int EvaluateOptimized(Board board, Player player)
     {
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
 
-        // Use SIMD for Hard (D4) and above (Grandmaster)
-        if (difficulty >= AIDifficulty.Hard)
-        {
-            return SIMDBitBoardEvaluator.Evaluate(board, player);
-        }
-
-        return BitBoardEvaluator.Evaluate(board, player);
+        return SIMDBitBoardEvaluator.Evaluate(board, player);
     }
 
     /// <summary>

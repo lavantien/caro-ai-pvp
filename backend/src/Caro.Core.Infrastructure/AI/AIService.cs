@@ -24,20 +24,16 @@ public sealed class AIService : IAIService
 
     public async Task<AIMoveResponse> CalculateBestMoveAsync(
         GameState state,
-        string difficulty,
         CancellationToken cancellationToken = default)
     {
-        if (!Enum.TryParse<AIDifficulty>(difficulty, true, out var diff))
-            diff = AIDifficulty.Medium;
-
-        _logger.LogDebug("Starting AI calculation for difficulty {Difficulty}", difficulty);
+        _logger.LogDebug("Starting AI calculation");
 
         try
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             var (x, y) = await Task.Run(() =>
-                _ai.GetBestMove(state.Board, state.CurrentPlayer, diff, ponderingEnabled: true),
+                _ai.GetBestMove(state.Board, state.CurrentPlayer, null, true),
                 cancellationToken);
 
             stopwatch.Stop();
@@ -71,19 +67,15 @@ public sealed class AIService : IAIService
     public Task StartPonderingAsync(
         Guid gameId,
         GameState state,
-        string difficulty,
         CancellationToken cancellationToken = default)
     {
-        if (!Enum.TryParse<AIDifficulty>(difficulty, true, out var diff))
-            diff = AIDifficulty.Medium;
-
         var aiColor = state.CurrentPlayer.Opponent();
 
         _logger.LogDebug(
-            "Starting pondering for game {GameId}, AI color {AIColor}, difficulty {Difficulty}",
-            gameId, aiColor, difficulty);
+            "Starting pondering for game {GameId}, AI color {AIColor}",
+            gameId, aiColor);
 
-        _ai.StartPonderingNow(state.Board, state.CurrentPlayer, diff, aiColor);
+        _ai.StartPonderingNow(state.Board, state.CurrentPlayer, aiColor);
         _activePondering[gameId] = aiColor;
 
         return Task.CompletedTask;

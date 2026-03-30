@@ -20,16 +20,6 @@ public sealed class TimeBudgetDepthManager
     private double _effectiveBranchingFactor = 2.5; // Alpha-beta with good move ordering
 
     /// <summary>
-    /// Get the time multiplier for a difficulty level.
-    /// Delegates to AIDifficultyConfig for centralized configuration.
-    /// Higher difficulties use more of their allocated time.
-    /// </summary>
-    public static double GetTimeMultiplier(AIDifficulty difficulty)
-    {
-        return AIDifficultyConfig.Instance.GetSettings(difficulty).TimeMultiplier;
-    }
-
-    /// <summary>
     /// Update NPS estimate from actual search performance.
     /// Called after each search completes.
     /// </summary>
@@ -97,9 +87,8 @@ public sealed class TimeBudgetDepthManager
     ///
     /// PURE TIME-BASED: Returns depth achievable in given time.
     /// Different machines will naturally reach different depths based on their NPS.
-    /// The difficulty's time multiplier is the only differentiator (applied at call site).
     /// </summary>
-    public int CalculateMaxDepth(double timeSeconds, AIDifficulty difficulty)
+    public int CalculateMaxDepth(double timeSeconds)
     {
         if (timeSeconds <= 0.001)
             return 1;  // Minimum depth for non-zero time

@@ -53,7 +53,7 @@ public sealed class ParallelMinimaxSearch
     private readonly TimeBudgetDepthManager _depthManager = new();
 
     // Search constants
-    // Maximum radius for highest difficulties - ensures detection of all winning moves
+    // Maximum search radius - ensures detection of all winning moves
     private const int MaxSearchRadius = 7;
     private const int NullMoveMinDepth = 3;
     private const int NullMoveDepthReduction = 3;
@@ -62,21 +62,6 @@ public sealed class ParallelMinimaxSearch
     private const int LMRMinDepth = 3;           // Minimum depth to apply LMR
     private const int LMRFullDepthMoves = 4;     // Number of moves searched at full depth
     private const int LMRBaseReduction = 1;      // Base depth reduction for late moves
-
-    /// <summary>
-    /// Get candidate move search radius based on difficulty level.
-    /// Lower difficulties use smaller radius to reduce branching factor,
-    /// allowing deeper search within their time budget.
-    /// Radius 3 = 7x7 area (49 cells), Radius 4 = 9x9 (81 cells), etc.
-    /// </summary>
-    private static int GetSearchRadiusForDifficulty(AIDifficulty difficulty) => difficulty switch
-    {
-        AIDifficulty.Braindead => 3,
-        AIDifficulty.Easy => 4,
-        AIDifficulty.Medium => 5,
-        AIDifficulty.Hard => 6,
-        _ => MaxSearchRadius  // Grandmaster, Experimental
-    };
 
     // Time management - CancellationTokenSource for proper cross-thread cancellation
     private CancellationTokenSource? _searchCts;
@@ -87,7 +72,7 @@ public sealed class ParallelMinimaxSearch
     private sealed class ThreadData
     {
         public int ThreadIndex; // Identifies master (0) vs helper (1+) threads for diversity logic
-        public int SearchRadius; // Difficulty-dependent candidate generation radius
+        public int SearchRadius; // Candidate generation radius
         public (int x, int y)[,] KillerMoves = new (int x, int y)[20, 2];
         public int[,] HistoryRed = new int[BitBoard.Size, BitBoard.Size];
         public int[,] HistoryBlue = new int[BitBoard.Size, BitBoard.Size];
@@ -201,7 +186,6 @@ public sealed class ParallelMinimaxSearch
     public (int x, int y) GetBestMove(
         Board board,
         Player player,
-        AIDifficulty difficulty,
         long? timeRemainingMs = null,
         TimeAllocation? timeAlloc = null,
         int moveNumber = 0)
@@ -209,10 +193,8 @@ public sealed class ParallelMinimaxSearch
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
 
-        var baseDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
         var searchBoard = new SearchBoard(board);
-        var searchRadius = GetSearchRadiusForDifficulty(difficulty);
-        var candidates = GetCandidateMoves(searchBoard, searchRadius);
+        var candidates = GetCandidateMoves(searchBoard, MaxSearchRadius);
 
         // SAFETY: Filter candidates to only empty cells to prevent "Cell is already occupied" errors
         candidates = candidates.Where(c => searchBoard.IsEmpty(c.x, c.y)).ToList();
@@ -245,11 +227,9 @@ public sealed class ParallelMinimaxSearch
         }
 
         // Use provided time allocation or create default
-        var alloc = timeAlloc ?? GetDefaultTimeAllocation(difficulty, timeRemainingMs);
+        var alloc = timeAlloc ?? GetDefaultTimeAllocation(timeRemainingMs);
 
-        // Try VCF first for higher difficulties
-        var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
-        if (settings.VCFEnabled)
+        // Try VCF first
         {
             var vcfTimeLimit = CalculateVCFTimeLimit(alloc);
             var vcfResult = _vcfSolver.SolveVCF(board, player, vcfTimeLimit, maxDepth: 30);
@@ -304,10 +284,8 @@ public sealed class ParallelMinimaxSearch
 
         // NPS is learned from actual search performance - no hardcoded targets
 
-        // NOTE: Error rate is handled in MinimaxAI.GetBestMove() - do not apply again here
-
-        // Multi-threaded Lazy SMP - thread count is determined by difficulty internally
-        var parallelResult = SearchLazySMP(board, player, candidates, difficulty, alloc);
+        // Multi-threaded Lazy SMP
+        var parallelResult = SearchLazySMP(board, player, candidates, alloc);
         return (parallelResult.X, parallelResult.Y);
     }
 
@@ -318,7 +296,6 @@ public sealed class ParallelMinimaxSearch
     public ParallelSearchResult GetBestMoveWithStats(
         Board board,
         Player player,
-        AIDifficulty difficulty,
         long? timeRemainingMs = null,
         TimeAllocation? timeAlloc = null,
         int moveNumber = 0,
@@ -329,8 +306,7 @@ public sealed class ParallelMinimaxSearch
             throw new ArgumentException("Player cannot be None");
 
         var searchBoard = new SearchBoard(board);
-        var searchRadius = GetSearchRadiusForDifficulty(difficulty);
-        candidates ??= GetCandidateMoves(searchBoard, searchRadius);
+        candidates ??= GetCandidateMoves(searchBoard, MaxSearchRadius);
 
         // SAFETY: Filter candidates to only empty cells to prevent "Cell is already occupied" errors
         // This ensures robustness even if GetCandidateMoves or external callers provide occupied cells
@@ -352,11 +328,9 @@ public sealed class ParallelMinimaxSearch
         }
 
         // Use provided time allocation or create default
-        var alloc = timeAlloc ?? GetDefaultTimeAllocation(difficulty, timeRemainingMs);
+        var alloc = timeAlloc ?? GetDefaultTimeAllocation(timeRemainingMs);
 
-        // Try VCF first for higher difficulties
-        var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
-        if (settings.VCFEnabled)
+        // Try VCF first
         {
             var vcfTimeLimit = CalculateVCFTimeLimit(alloc);
             var vcfResult = _vcfSolver.SolveVCF(board, player, vcfTimeLimit, maxDepth: 30);
@@ -410,12 +384,8 @@ public sealed class ParallelMinimaxSearch
             }
         }
 
-        // NOTE: Error rate is handled in MinimaxAI.GetBestMove() - do not apply again here
-        // Duplicate error rate checks would effectively double the error rate
-
         // PURE TIME-BASED: Always use SearchLazySMP which will internally decide thread count
-        // based on difficulty. No depth-based decision making.
-        return SearchLazySMP(board, player, candidates, difficulty, alloc, fixedThreadCount);
+        return SearchLazySMP(board, player, candidates, alloc, fixedThreadCount);
     }
 
     /// <summary>
@@ -452,13 +422,12 @@ public sealed class ParallelMinimaxSearch
     /// Lazy SMP: Multiple threads search independently with shared TT
     /// Each thread has slight variation to explore different parts of tree
     /// PURE TIME-BASED: No depth caps - search continues until time runs out.
-    /// Thread count is based on difficulty, not estimated depth.
+    /// Thread count is based on processor count, not difficulty.
     /// </summary>
     private ParallelSearchResult SearchLazySMP(
         Board board,
         Player player,
         List<(int x, int y)> candidates,
-        AIDifficulty difficulty,
         TimeAllocation timeAlloc,
         int fixedThreadCount = -1)
     {
@@ -467,9 +436,6 @@ public sealed class ParallelMinimaxSearch
         // Set up time management with new CancellationTokenSource
         _searchCts?.Cancel(); // Cancel any previous search
         _searchCts = new CancellationTokenSource();
-
-        // Difficulty-dependent search radius for ThreadData
-        int searchRadius = GetSearchRadiusForDifficulty(difficulty);
 
         // Create timer-based time monitor (polls every 10ms)
         // This is more accurate and less taxing than node-count-based checking
@@ -480,11 +446,11 @@ public sealed class ParallelMinimaxSearch
             cts: _searchCts);
         _hardTimeBoundMs = timeAlloc.HardBoundMs;
 
-        // Thread count based on difficulty, not estimated depth
-        // fixedThreadCount = 0 means single-threaded, -1 means use difficulty-based
+        // Thread count based on processor count
+        // fixedThreadCount = 0 means single-threaded, -1 means use default
         int threadCount = fixedThreadCount >= 0
             ? fixedThreadCount  // 0 = single-threaded, >0 = use that many threads
-            : ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
+            : ThreadPoolConfig.GetLazySMPThreadCount();
 
         // If threadCount is 0 or 1, fall back to single-threaded search
         if (threadCount <= 1)
@@ -495,9 +461,9 @@ public sealed class ParallelMinimaxSearch
             var singleSearchBoard = new SearchBoard(board);
 
             // Use time-based single-threaded search (no depth cap)
-            var threadData = new ThreadData { ThreadIndex = 0, SearchRadius = searchRadius };
+            var threadData = new ThreadData { ThreadIndex = 0, SearchRadius = MaxSearchRadius };
             var (x, y, score, depth, nodes) = SearchWithIterationTimeAware(
-                singleSearchBoard, player, candidates, threadData, timeAlloc, difficulty, _searchCts.Token);
+                singleSearchBoard, player, candidates, threadData, timeAlloc, _searchCts.Token);
 
             // Calculate FMC% for single-threaded search
             double singleFmcPercent = threadData.TotalCutoffs > 0
@@ -539,7 +505,7 @@ public sealed class ParallelMinimaxSearch
                 var threadData = new ThreadData
                 {
                     ThreadIndex = threadId,
-                    SearchRadius = searchRadius,
+                    SearchRadius = MaxSearchRadius,
                     Random = new Random(threadId + (int)DateTime.UtcNow.Ticks)
                 };
 
@@ -547,7 +513,7 @@ public sealed class ParallelMinimaxSearch
                 {
                     var result = SearchWithIterationTimeAware(
                         boardsArray[threadId], player, candidatesArray[threadId],
-                        threadData, timeAlloc, difficulty, token);
+                        threadData, timeAlloc, token);
 
                     // Add threadIndex to identify master vs helper thread results
                     var (x, y, score, depthAchieved, nodes) = result;
@@ -628,14 +594,14 @@ public sealed class ParallelMinimaxSearch
         {
             // CRITICAL FIX: Parallel search failed - fall back to single-threaded search
             // Use remaining time allocation, not original
-            if (DebugLogging) Console.WriteLine($"[PARALLEL] Falling back to single-threaded (no results) for {difficulty}");
+            if (DebugLogging) Console.WriteLine("[PARALLEL] Falling back to single-threaded (no results)");
             _timeMonitor?.Dispose();
             _timeMonitor = new TimeMonitor(fallbackTimeAlloc.HardBoundMs, _searchCts!);
             _hardTimeBoundMs = fallbackTimeAlloc.HardBoundMs;  // Update hard bound for fallback
             var fallbackSearchBoard = rootSearchBoard.Clone();
-            var fallbackThreadData = new ThreadData { ThreadIndex = 0, SearchRadius = searchRadius };
+            var fallbackThreadData = new ThreadData { ThreadIndex = 0, SearchRadius = MaxSearchRadius };
             var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
-                fallbackSearchBoard, player, candidates, fallbackThreadData, fallbackTimeAlloc, difficulty, CancellationToken.None);
+                fallbackSearchBoard, player, candidates, fallbackThreadData, fallbackTimeAlloc, CancellationToken.None);
             double fmc = fallbackThreadData.TotalCutoffs > 0 ? (fallbackThreadData.FirstMoveCutoffs * 100.0 / fallbackThreadData.TotalCutoffs) : 0;
             return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0, fscore, fmc, _depthManager.GetEstimatedEbf());
         }
@@ -644,14 +610,14 @@ public sealed class ParallelMinimaxSearch
         if (maxDepth <= 0)
         {
             // CRITICAL FIX: Parallel search returned invalid depth - fall back to single-threaded
-            if (DebugLogging) Console.WriteLine($"[PARALLEL] Falling back to single-threaded (invalid depth) for {difficulty}");
+            if (DebugLogging) Console.WriteLine("[PARALLEL] Falling back to single-threaded (invalid depth)");
             _timeMonitor?.Dispose();
             _timeMonitor = new TimeMonitor(fallbackTimeAlloc.HardBoundMs, _searchCts!);
             _hardTimeBoundMs = fallbackTimeAlloc.HardBoundMs;  // Update hard bound for fallback
             var fallbackSearchBoard = rootSearchBoard.Clone();
-            var fallbackThreadData = new ThreadData { ThreadIndex = 0, SearchRadius = searchRadius };
+            var fallbackThreadData = new ThreadData { ThreadIndex = 0, SearchRadius = MaxSearchRadius };
             var (fx, fy, fscore, fdepth, fnodes) = SearchWithIterationTimeAware(
-                fallbackSearchBoard, player, candidates, fallbackThreadData, fallbackTimeAlloc, difficulty, CancellationToken.None);
+                fallbackSearchBoard, player, candidates, fallbackThreadData, fallbackTimeAlloc, CancellationToken.None);
             double fmc = fallbackThreadData.TotalCutoffs > 0 ? (fallbackThreadData.FirstMoveCutoffs * 100.0 / fallbackThreadData.TotalCutoffs) : 0;
             return new ParallelSearchResult(fx, fy, fdepth, fnodes, 1, null, _hardTimeBoundMs, 0, 0, fscore, fmc, _depthManager.GetEstimatedEbf());
         }
@@ -741,7 +707,7 @@ public sealed class ParallelMinimaxSearch
         // DEBUG: Log all thread results and selection
         if (DebugLogging)
         {
-            Console.WriteLine($"[PARALLEL DEBUG] Thread results for {difficulty}:");
+            Console.WriteLine("[PARALLEL DEBUG] Thread results:");
             foreach (var r in results.OrderByDescending(r => r.depth).ThenBy(r => r.threadIndex))
             {
                 Console.WriteLine($"  Thread {r.threadIndex}: move=({r.x},{r.y}), depth={r.depth}, score={r.score}, nodes={r.nodes}");
@@ -861,7 +827,6 @@ public sealed class ParallelMinimaxSearch
         List<(int x, int y)> candidates,
         ThreadData threadData,
         TimeAllocation timeAlloc,
-        AIDifficulty difficulty,
         CancellationToken cancellationToken)
     {
         // CRITICAL FIX: Preserve priority moves (blocking squares) at the front
@@ -2360,36 +2325,25 @@ public sealed class ParallelMinimaxSearch
 
     /// <summary>
     /// Get default time allocation when no time limit is specified
+    /// Uses full (Grandmaster-level) time budget
     /// </summary>
-    private static TimeAllocation GetDefaultTimeAllocation(AIDifficulty difficulty, long? timeRemainingMs)
+    private static TimeAllocation GetDefaultTimeAllocation(long? timeRemainingMs)
     {
         // If time remaining is provided but no TimeAllocation, create a simple one
         if (timeRemainingMs.HasValue)
         {
             var timeLeft = timeRemainingMs.Value;
 
-            // FIX: Use difficulty-based time allocation for short time controls
-            // Higher difficulties should use a larger percentage of remaining time
             long softBound;
             if (timeLeft < 60000) // Less than 60 seconds - short time control
             {
-                // CRITICAL FIX: Scale time allocation by difficulty
-                // Grandmaster uses up to 80% of remaining time, Braindead uses 20%
-                double timePercentage = difficulty switch
-                {
-                    AIDifficulty.Braindead => 0.20,   // 20% - barely thinks
-                    AIDifficulty.Easy => 0.30,        // 30%
-                    AIDifficulty.Medium => 0.50,      // 50%
-                    AIDifficulty.Hard => 0.65,        // 65%
-                    AIDifficulty.Grandmaster => 0.80, // 80% - uses most of the time
-                    _ => 0.50
-                };
+                // Use 80% of remaining time for maximum search depth
+                const double timePercentage = 0.80;
                 softBound = Math.Max(500, (long)(timeLeft * timePercentage));
             }
             else
             {
-                // CRITICAL FIX: For long time controls, use difficulty-based divisor
-                double divisor = 40.0;
+                const double divisor = 40.0;
                 softBound = Math.Max(500, (long)(timeLeft / divisor));
             }
             long hardBound = Math.Min(softBound * 2, timeLeft - 500);
@@ -2405,16 +2359,13 @@ public sealed class ParallelMinimaxSearch
             };
         }
 
-        // No time info - use difficulty defaults
-        return difficulty switch
+        // No time info - use full budget defaults
+        return new TimeAllocation
         {
-            AIDifficulty.Braindead => new() { SoftBoundMs = 50, HardBoundMs = 200, OptimalTimeMs = 40, IsEmergency = false },
-            AIDifficulty.Easy => new() { SoftBoundMs = 200, HardBoundMs = 1000, OptimalTimeMs = 160, IsEmergency = false },
-            AIDifficulty.Medium => new() { SoftBoundMs = 1000, HardBoundMs = 3000, OptimalTimeMs = 800, IsEmergency = false },
-            AIDifficulty.Hard => new() { SoftBoundMs = 3000, HardBoundMs = 10000, OptimalTimeMs = 2400, IsEmergency = false },
-            AIDifficulty.Grandmaster => new() { SoftBoundMs = 5000, HardBoundMs = 20000, OptimalTimeMs = 4000, IsEmergency = false },
-            AIDifficulty.Experimental => new() { SoftBoundMs = 5000, HardBoundMs = 20000, OptimalTimeMs = 4000, IsEmergency = false },
-            _ => TimeAllocation.Default
+            SoftBoundMs = 5000,
+            HardBoundMs = 20000,
+            OptimalTimeMs = 4000,
+            IsEmergency = false
         };
     }
 
@@ -2631,7 +2582,6 @@ public sealed class ParallelMinimaxSearch
     /// </summary>
     /// <param name="board">Board with predicted opponent move already made</param>
     /// <param name="player">Player to move (us, after opponent's predicted move)</param>
-    /// <param name="difficulty">AI difficulty level</param>
     /// <param name="maxPonderTimeMs">Maximum time to spend pondering</param>
     /// <param name="cancellationToken">Token to cancel pondering</param>
     /// <param name="progressCallback">Optional callback for progress updates</param>
@@ -2640,7 +2590,6 @@ public sealed class ParallelMinimaxSearch
     public ((int x, int y)? bestMove, int depth, int score, long nodesSearched) PonderLazySMP(
         Board board,
         Player player,
-        AIDifficulty difficulty,
         long maxPonderTimeMs,
         CancellationToken cancellationToken,
         Action<(int x, int y, int depth, int score)>? progressCallback = null,
@@ -2650,15 +2599,14 @@ public sealed class ParallelMinimaxSearch
             return (null, 0, 0, 0);
 
         var searchBoard = new SearchBoard(board);
-        var ponderSearchRadius = GetSearchRadiusForDifficulty(difficulty);
-        var candidates = GetCandidateMoves(searchBoard, ponderSearchRadius);
+        var candidates = GetCandidateMoves(searchBoard, MaxSearchRadius);
 
 
 
         if (candidates.Count == 0)
             return (null, 0, 0, 0);
 
-        // CRITICAL FIX: Use time-budget calculation for target depth, not fixed AdaptiveDepthCalculator
+        // Use time-budget calculation for pondering depth
         // This allows pondering to reach deeper depths when there's time and machine is fast
         var ponderTimeAlloc = new TimeAllocation
         {
@@ -2672,9 +2620,8 @@ public sealed class ParallelMinimaxSearch
 
         // NPS is learned from actual search performance - no hardcoded targets
 
-        // Use same thread count as main search for this difficulty
-        // This ensures pondering uses the same resources as thinking
-        int ponderThreadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
+        // Use same thread count as main search
+        int ponderThreadCount = ThreadPoolConfig.GetLazySMPThreadCount();
 
         // No depth-based thread capping - use the configured thread count directly
 
@@ -2713,7 +2660,7 @@ public sealed class ParallelMinimaxSearch
                 var threadData = new ThreadData
                 {
                     ThreadIndex = threadId,
-                    SearchRadius = ponderSearchRadius,
+                    SearchRadius = MaxSearchRadius,
                     Random = new Random(threadId + (int)DateTime.UtcNow.Ticks)
                 };
 

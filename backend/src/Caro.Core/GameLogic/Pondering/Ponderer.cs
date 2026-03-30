@@ -28,7 +28,7 @@ public sealed class Ponderer : IDisposable
     private (int x, int y)? _predictedMove;
     private Player _ponderingForPlayer;  // Player we're pondering FOR (not TO MOVE)
     private Player _playerToMove;         // Player who is to move in pondered position
-    private AIDifficulty _difficulty;
+    private int _maxSearchDepth = 20;
     private long _ponderStartTimeTicks;
     private long _maxPonderTimeMs;
 
@@ -110,14 +110,12 @@ public sealed class Ponderer : IDisposable
     /// <param name="opponentToMove">Player whose turn it is (opponent)</param>
     /// <param name="predictedOpponentMove">Predicted move from PV</param>
     /// <param name="ponderingForPlayer">Player who will move next (us)</param>
-    /// <param name="difficulty">AI difficulty level</param>
     /// <param name="maxPonderTimeMs">Maximum time to spend pondering</param>
     public void StartPondering(
         Board currentBoard,
         Player opponentToMove,
         (int x, int y)? predictedOpponentMove,
         Player ponderingForPlayer,
-        AIDifficulty difficulty,
         long maxPonderTimeMs)
     {
         lock (_stateLock)
@@ -131,30 +129,13 @@ public sealed class Ponderer : IDisposable
             _cts = new CancellationTokenSource();
             _shouldStop = false;
 
-            // CONSTANT PONDERING for Medium (D3) and above: Skip VCF pre-check for higher difficulties
-            // Medium+ always ponders regardless of position complexity
-            // Braindead-Easy only ponder when there are immediate threats to save CPU
-            bool isHighDifficulty = difficulty >= AIDifficulty.Medium;
-            if (!isHighDifficulty)
-            {
-                // VCF pre-check - skip pondering if no immediate threats
-                if (!_vcfPrecheck.IsOpeningPhase(currentBoard))
-                {
-                    var hasThreats = _vcfPrecheck.HasPotentialThreats(currentBoard, opponentToMove);
-                    if (!hasThreats && _vcfPrecheck.GetThreatUrgency(currentBoard, opponentToMove) < 20)
-                    {
-                        _state = PonderState.Idle;
-                        return;
-                    }
-                }
-            }
+            // Always ponder (formerly Medium+ behavior)
 
             // Set up pondering state
             _state = PonderState.Pondering;
             _playerToMove = opponentToMove;
             _ponderingForPlayer = ponderingForPlayer;
             _predictedMove = predictedOpponentMove;
-            _difficulty = difficulty;
             _ponderStartTimeTicks = Stopwatch.GetTimestamp();
             _maxPonderTimeMs = maxPonderTimeMs;
 
@@ -190,7 +171,7 @@ public sealed class Ponderer : IDisposable
     {
         var ponderBoard = _ponderBoard;
         var playerToMove = _playerToMove;
-        var difficulty = _difficulty;
+        var maxSearchDepth = _maxSearchDepth;
         var maxTime = _maxPonderTimeMs;
         var token = _cts?.Token ?? default;
 
@@ -210,7 +191,6 @@ public sealed class Ponderer : IDisposable
                 result = _parallelSearch.PonderLazySMP(
                     localPonderBoard,
                     playerToMove,
-                    difficulty,
                     maxTime,
                     token,
                     progressCallback: (move) =>

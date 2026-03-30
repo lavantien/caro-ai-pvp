@@ -9,12 +9,6 @@ public class UCIEngineOptions
     public const string EngineVersion = "1.77.0";
 
     /// <summary>
-    /// Skill level (1-6). Maps to AIDifficulty enum:
-    /// 1 = Braindead, 2 = Easy, 3 = Medium, 4 = Hard, 5 = Grandmaster, 6 = Experimental
-    /// </summary>
-    public int SkillLevel { get; set; } = 3;
-
-    /// <summary>
     /// Number of threads to use for parallel search (1-32).
     /// </summary>
     public int Threads { get; set; } = 4;
@@ -31,40 +25,6 @@ public class UCIEngineOptions
     public bool Ponder { get; set; } = false;
 
     /// <summary>
-    /// Get the AIDifficulty corresponding to the current Skill Level.
-    /// </summary>
-    public AIDifficulty GetDifficulty()
-    {
-        return SkillLevel switch
-        {
-            1 => AIDifficulty.Braindead,
-            2 => AIDifficulty.Easy,
-            3 => AIDifficulty.Medium,
-            4 => AIDifficulty.Hard,
-            5 => AIDifficulty.Grandmaster,
-            6 => AIDifficulty.Experimental,
-            _ => AIDifficulty.Medium
-        };
-    }
-
-    /// <summary>
-    /// Set difficulty from AIDifficulty enum.
-    /// </summary>
-    public void SetDifficulty(AIDifficulty difficulty)
-    {
-        SkillLevel = difficulty switch
-        {
-            AIDifficulty.Braindead => 1,
-            AIDifficulty.Easy => 2,
-            AIDifficulty.Medium => 3,
-            AIDifficulty.Hard => 4,
-            AIDifficulty.Grandmaster => 5,
-            AIDifficulty.Experimental => 6,
-            _ => 3
-        };
-    }
-
-    /// <summary>
     /// Parse and apply a UCI setoption command.
     /// Returns true if option was recognized and applied.
     /// </summary>
@@ -77,17 +37,6 @@ public class UCIEngineOptions
 
         switch (normalizedName)
         {
-            case "skill level":
-                if (int.TryParse(value, out int skillLevel))
-                {
-                    if (skillLevel >= 1 && skillLevel <= 6)
-                    {
-                        SkillLevel = skillLevel;
-                        return true;
-                    }
-                }
-                return false;
-
             case "threads":
                 if (int.TryParse(value, out int threads))
                 {
@@ -130,7 +79,6 @@ public class UCIEngineOptions
     {
         return new[]
         {
-            "option name Skill Level type spin default 3 min 1 max 6",
             "option name Threads type spin default 4 min 1 max 32",
             "option name Hash type spin default 256 min 32 max 4096",
             "option name Ponder type check default false"

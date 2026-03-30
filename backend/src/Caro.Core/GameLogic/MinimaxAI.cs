@@ -5,7 +5,6 @@ using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic.TimeManagement;
 using Caro.Core.GameLogic.Pondering;
-using Caro.Core.Tournament;
 using Microsoft.Extensions.Logging;
 
 namespace Caro.Core.GameLogic;
@@ -48,20 +47,7 @@ public class MinimaxAI : IStatsPublisher
     private ParallelMinimaxSearch _parallelSearch;
 
     // Search radius around existing stones (optimization)
-    // Difficulty-dependent: lower difficulties use smaller radius to reduce branching factor,
-    // allowing deeper search within their time budget.
     private const int MaxSearchRadius = 7;
-
-    private static int GetSearchRadiusForDifficulty(AIDifficulty difficulty) => difficulty switch
-    {
-        AIDifficulty.Braindead => 3,
-        AIDifficulty.Easy => 4,
-        AIDifficulty.Medium => 5,
-        AIDifficulty.Hard => 6,
-        _ => MaxSearchRadius  // Grandmaster, Experimental
-    };
-
-    private int _currentSearchRadius = MaxSearchRadius;
 
     // Board size constant for array sizing and bounds checking
     private const int BoardSize = GameConstants.BoardSize;
@@ -111,7 +97,6 @@ public class MinimaxAI : IStatsPublisher
     private PV _lastPV = PV.Empty;
     private Board? _lastBoard;
     private Player _lastPlayer;
-    private AIDifficulty _lastDifficulty;
 
     // Stats publisher-subscriber pattern
     private static int _instanceCounter = 0;
@@ -183,21 +168,14 @@ public class MinimaxAI : IStatsPublisher
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int NextRandomInt(int maxValue) => _random?.Next(maxValue) ?? Random.Shared.Next(maxValue);
 
-    /// <summary>
-    /// Get the best move for the AI player
-    /// </summary>
-    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, bool ponderingEnabled = false, bool parallelSearchEnabled = false)
-    {
-        return GetBestMove(board, player, difficulty, timeRemainingMs: null, moveNumber: 0, ponderingEnabled: ponderingEnabled, parallelSearchEnabled: parallelSearchEnabled);
-    }
 
     /// <summary>
     /// Get the best move for the AI player with time awareness
     /// Dynamically adjusts search depth based on remaining time
     /// </summary>
-    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, long? timeRemainingMs, bool ponderingEnabled = false, bool parallelSearchEnabled = false)
+    public (int x, int y) GetBestMove(Board board, Player player, long? timeRemainingMs, bool ponderingEnabled = true, bool parallelSearchEnabled = true)
     {
-        return GetBestMove(board, player, difficulty, timeRemainingMs, moveNumber: 0, ponderingEnabled: ponderingEnabled, parallelSearchEnabled: parallelSearchEnabled);
+        return GetBestMove(board, player, timeRemainingMs, moveNumber: 0, ponderingEnabled: ponderingEnabled, parallelSearchEnabled: parallelSearchEnabled);
     }
 
     /// <summary>
@@ -206,25 +184,23 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     /// <param name="board">Current board state</param>
     /// <param name="player">Player to move</param>
-    /// <param name="difficulty">AI difficulty level (D1-D7)</param>
     /// <param name="timeRemainingMs">Time remaining on clock in milliseconds (null for unlimited)</param>
     /// <param name="moveNumber">Current move number (1-indexed, 0 if unknown)</param>
     /// <param name="ponderingEnabled">Enable pondering (thinking on opponent's time)</param>
     /// <param name="parallelSearchEnabled">Enable Lazy SMP parallel search</param>
     /// <param name="incrementSeconds">Explicit increment in seconds (null to estimate from time remaining)</param>
-    /// <param name="threadCount">Explicit thread count override (null to use difficulty-based count)</param>
+    /// <param name="threadCount">Explicit thread count override (null to use default)</param>
     /// <param name="maxDepth">Maximum search depth (null for no depth limit)</param>
     /// <param name="maxNodes">Maximum nodes to search (null for no node limit)</param>
     /// <param name="maxTimeMs">Maximum time in ms (null to use time management)</param>
     /// <returns>Best move coordinates</returns>
-    public (int x, int y) GetBestMove(Board board, Player player, AIDifficulty difficulty, long? timeRemainingMs, int moveNumber, bool ponderingEnabled = false, bool parallelSearchEnabled = false, int? incrementSeconds = null, int? threadCount = null, int? maxDepth = null, long? maxNodes = null, int? maxTimeMs = null)
+    public (int x, int y) GetBestMove(Board board, Player player, long? timeRemainingMs, int moveNumber, bool ponderingEnabled = true, bool parallelSearchEnabled = true, int? incrementSeconds = null, int? threadCount = null, int? maxDepth = null, long? maxNodes = null, int? maxTimeMs = null)
     {
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
 
-        var baseDepth = AdaptiveDepthCalculator.GetDepth(difficulty, board);
-        _currentSearchRadius = GetSearchRadiusForDifficulty(difficulty);
-        var candidates = GetCandidateMoves(board, _currentSearchRadius);
+        var baseDepth = AdaptiveDepthCalculator.GetAdaptiveDepth(board);
+        var candidates = GetCandidateMoves(board, MaxSearchRadius);
 
         // Initialize search statistics BEFORE any early returns
         // This ensures stats are clean even for instant moves (error rate, critical defense, VCF, etc.)
@@ -236,7 +212,7 @@ public class MinimaxAI : IStatsPublisher
         _searchStopwatch.Restart();
 
         // Reset thread count and parallel diagnostics for this difficulty
-        _lastThreadCount = threadCount ?? ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
+        _lastThreadCount = threadCount ?? Math.Max(5, (Environment.ProcessorCount / 2) - 1);
         _lastParallelDiagnostics = null;
 
         // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections away from first red stone
@@ -501,8 +477,8 @@ public class MinimaxAI : IStatsPublisher
             // Filter to ONLY blocking moves - when opponent has winning threats, we MUST block
             // The search will find the best blocking move
             candidates = candidates.Where(c => opponentWinningSquares.Contains(c)).ToList();
-            _logger.LogDebug("[AI DEFENSE] {Difficulty} filtering to {Count} blocking move(s) for search evaluation",
-                difficulty, candidates.Count);
+            _logger.LogDebug("[AI DEFENSE] Filtering to {Count} blocking move(s) for search evaluation",
+                candidates.Count);
             // Fall through to normal search with filtered candidates
         }
 
@@ -525,31 +501,6 @@ public class MinimaxAI : IStatsPublisher
                 {
                     candidates.Insert(0, block); // Insert at beginning for high priority
                 }
-            }
-        }
-
-        // Error rate simulation: Lower difficulties make random/suboptimal moves
-        // Uses AdaptiveDepthCalculator.GetErrorRate() for consistent error rates
-        // - Braindead: 10%, all other difficulties: 0% (optimal play)
-        // IMPORTANT: Error moves are TRUE random - selected from ALL legal moves, not tactical moves
-        var errorRate = AdaptiveDepthCalculator.GetErrorRate(difficulty);
-        var randomValue = NextRandomDouble();
-        if (errorRate > 0 && randomValue < errorRate)
-        {
-            // Get ALL legal moves (every empty cell), not just tactical candidates
-            var allLegalMoves = GetAllLegalMoves(board);
-            if (allLegalMoves.Count > 0)
-            {
-                if (System.Diagnostics.Debugger.IsAttached)
-                    Console.WriteLine($"[ERROR RATE] {difficulty} playing random move (rolled {randomValue:F2} < {errorRate})");
-                // Play a random valid move instead of searching
-                // Report minimal stats to indicate instant move (not D0 which looks like a bug)
-                _depthAchieved = 1;
-                _nodesSearched = 1;
-                _lastAllocatedTimeMs = 0;
-                _moveType = MoveType.ErrorRate;
-                var randomIndex = NextRandomInt(allLegalMoves.Count);
-                return allLegalMoves[randomIndex];
             }
         }
 
@@ -601,29 +552,21 @@ public class MinimaxAI : IStatsPublisher
                 candidates.Count,
                 board,
                 player,
-                difficulty,
                 initialTimeSeconds,
                 effectiveIncrementSeconds
             );
         }
         else
         {
-            timeAlloc = GetDefaultTimeAllocation(difficulty);
+            timeAlloc = GetDefaultTimeAllocation();
         }
 
-        // CRITICAL FIX: Skip sophisticated threat shortcuts for Braindead and Easy.
-        // These difficulties must search for moves where:
-        // - Braindead's 10% error rate can apply
-        // - Time constraints limit search depth
-        // Without this fix, Braindead finds the same winning moves as Grandmaster
-        // because threat detection is instant and bypasses search entirely.
         bool hasOpponentThreats = false;
         bool hasImmediateThreats = false;  // Only StraightFour and BrokenFour - require immediate response
         bool hasOpenFour = false;
         List<(int x, int y)> blockingSquares = new();
         List<(int x, int y)> priorityBlockingSquares = new();
 
-        if (difficulty >= AIDifficulty.Medium)
         {
             // CRITICAL DEFENSE: Check for opponent threats BEFORE any early returns
             // This ensures we don't skip blocking in emergency mode
@@ -683,7 +626,7 @@ public class MinimaxAI : IStatsPublisher
                 // 1. Three-threats in different directions can become additional four-threats
                 // 2. Blocking a three-threat gain square might also block a four-threat
                 // 3. We need to find the BEST block that addresses ALL threats
-                if ((straightThreeCount > 0 || brokenThreeCount > 0) && difficulty >= AIDifficulty.Grandmaster)
+                if ((straightThreeCount > 0 || brokenThreeCount > 0))
                 {
                     // First check if we have our own winning threats
                     var ourThreats = _threatDetector.DetectThreats(board, player);
@@ -705,8 +648,8 @@ public class MinimaxAI : IStatsPublisher
                                     _nodesSearched = 1;
                                     _lastAllocatedTimeMs = 0;
                                     _moveType = MoveType.ImmediateWin;
-                                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) COUNTER-ATTACK with verified winning move at ({WX},{WY}) instead of blocking",
-                                        difficulty, player, gs.x, gs.y);
+                                    _logger.LogDebug("[AI DEFENSE] ({Player}) COUNTER-ATTACK with verified winning move at ({WX},{WY}) instead of blocking",
+                                        player, gs.x, gs.y);
                                     return gs;
                                 }
                             }
@@ -735,10 +678,9 @@ public class MinimaxAI : IStatsPublisher
 
                     if (allGainSquares.Count > 0)
                     {
-                        // CRITICAL FIX FOR GRANDMASTER: Immediately block three-threats
+                        // Immediately block three-threats
                         // A StraightThree becomes an open four in ONE move. We must block NOW.
                         // Returning immediately bypasses search, guaranteeing the block.
-                        if (difficulty >= AIDifficulty.Grandmaster)
                         {
                             // CRITICAL: Check if opponent has multiple independent three-threats
                             // This is a "double threat" situation - blocking one leaves the other
@@ -755,8 +697,8 @@ public class MinimaxAI : IStatsPublisher
                             // We must create our own winning threat to counter
                             if (hasMultipleIndependentThreats)
                             {
-                                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) CRITICAL: Opponent has {Count} independent three-threats - blocking is futile, must counter-attack!",
-                                    difficulty, player, threeThreats.Count);
+                                _logger.LogDebug("[AI DEFENSE] ({Player}) CRITICAL: Opponent has {Count} independent three-threats - blocking is futile, must counter-attack!",
+                                    player, threeThreats.Count);
 
                                 // Try to find a move that creates our own winning threat
                                 for (int x = 0; x < BoardSize; x++)
@@ -781,16 +723,16 @@ public class MinimaxAI : IStatsPublisher
                                             _nodesSearched = (x + 1) * BoardSize + y + 1;
                                             _lastAllocatedTimeMs = 0;
                                             _moveType = alsoBlocks ? MoveType.ImmediateBlock : MoveType.CounterAttack;
-                                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) COUNTER-ATTACK at ({X},{Y}) creates {Count} four-threat(s){AlsoBlocks}",
-                                                difficulty, player, x, y, ourNewFourThreats.Count, alsoBlocks ? " and blocks!" : "");
+                                            _logger.LogDebug("[AI DEFENSE] ({Player}) COUNTER-ATTACK at ({X},{Y}) creates {Count} four-threat(s){AlsoBlocks}",
+                                                player, x, y, ourNewFourThreats.Count, alsoBlocks ? " and blocks!" : "");
                                             return ValidateAndReturnBlockingMove(board, player, (x, y));
                                         }
                                     }
                                 }
 
                                 // No counter-attack available - fall through to best blocking strategy
-                                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) No counter-attack found - must block best threat",
-                                    difficulty, player);
+                                _logger.LogDebug("[AI DEFENSE] ({Player}) No counter-attack found - must block best threat",
+                                    player);
                             }
 
                             // Find the best blocking square - prioritize eliminating immediate threats
@@ -845,8 +787,8 @@ public class MinimaxAI : IStatsPublisher
                             // This is especially important when opponent has multiple developing threats
                             if (bestScore < -5000) // Very negative = opponent still has winning squares
                             {
-                                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Best block score is {Score} - trying counter-attack instead",
-                                    difficulty, player, bestScore);
+                                _logger.LogDebug("[AI DEFENSE] ({Player}) Best block score is {Score} - trying counter-attack instead",
+                                    player, bestScore);
 
                                 for (int x = 0; x < BoardSize; x++)
                                 {
@@ -874,8 +816,8 @@ public class MinimaxAI : IStatsPublisher
                                                         _nodesSearched = (x + 1) * BoardSize + y + 1;
                                                         _lastAllocatedTimeMs = 0;
                                                         _moveType = MoveType.CounterAttack;
-                                                        _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) DESPERATE COUNTER-ATTACK at ({X},{Y}) creates verified winning threat",
-                                                            difficulty, player, x, y);
+                                                        _logger.LogDebug("[AI DEFENSE] ({Player}) DESPERATE COUNTER-ATTACK at ({X},{Y}) creates verified winning threat",
+                                                            player, x, y);
                                                         return ValidateAndReturnBlockingMove(board, player, (x, y));
                                                     }
                                                 }
@@ -889,38 +831,23 @@ public class MinimaxAI : IStatsPublisher
                             _nodesSearched = allGainSquares.Count;
                             _lastAllocatedTimeMs = 0;
                             _moveType = MoveType.ImmediateBlock;
-                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) IMMEDIATE three-threat block at ({BX},{BY}) - {Count} gain squares available (score: {Score})",
-                                difficulty, player, bestBlock.x, bestBlock.y, allGainSquares.Count, bestScore);
+                            _logger.LogDebug("[AI DEFENSE] ({Player}) IMMEDIATE three-threat block at ({BX},{BY}) - {Count} gain squares available (score: {Score})",
+                                player, bestBlock.x, bestBlock.y, allGainSquares.Count, bestScore);
                             return ValidateAndReturnBlockingMove(board, player, bestBlock);
                         }
-
-                        // For other difficulties: Add blocking squares to candidates
-                        foreach (var block in allGainSquares)
-                        {
-                            if (!candidates.Contains(block))
-                            {
-                                candidates.Insert(0, block);
-                            }
-                        }
-
-                        // Filter to ONLY blocking moves - three-threats are urgent
-                        // A BrokenThree becomes a StraightFour in 1 move!
-                        candidates = candidates.Where(c => allGainSquares.Contains(c)).ToList();
-                        _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Filtering to {Count} three-threat blocking move(s) for search",
-                            difficulty, player, candidates.Count);
                     }
                 }
 
-                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Opponent has {StraightFourCount} StraightFour, {StraightThreeCount} StraightThree, {BrokenFourCount} BrokenFour, {BrokenThreeCount} BrokenThree threat(s), blocking squares: {BlockingSquares}{OpenFourSuffix}",
-                    difficulty, player, straightFourCount, straightThreeCount, brokenFourCount, brokenThreeCount,
+                _logger.LogDebug("[AI DEFENSE] ({Player}) Opponent has {StraightFourCount} StraightFour, {StraightThreeCount} StraightThree, {BrokenFourCount} BrokenFour, {BrokenThreeCount} BrokenThree threat(s), blocking squares: {BlockingSquares}{OpenFourSuffix}",
+                    player, straightFourCount, straightThreeCount, brokenFourCount, brokenThreeCount,
                     string.Join(", ", blockingSquares.Select(g => $"({g.x},{g.y})")),
                     hasOpenFour ? " [CRITICAL THREAT DETECTED]" : "");
             }
-        } // End of difficulty >= Medium threat detection block
+        }
 
         // Emergency mode - use TT move at D3+ (Medium+) if available
         // BUT: If opponent has threats, blocking takes priority
-        if (timeAlloc.IsEmergency && difficulty >= AIDifficulty.Medium && !hasOpponentThreats)
+        if (timeAlloc.IsEmergency && !hasOpponentThreats)
         {
             var ttMove = GetTranspositionTableMove(board, player, minDepth: 5);
             if (ttMove.HasValue)
@@ -935,7 +862,7 @@ public class MinimaxAI : IStatsPublisher
         // PROACTIVE ATTACK: When no opponent threats, create our own threats!
         // This is critical for winning against weaker opponents - we must attack, not just defend
         // Only for Grandmaster to preserve difficulty differentiation
-        if (!hasOpponentThreats && difficulty >= AIDifficulty.Grandmaster)
+        if (!hasOpponentThreats)
         {
             var ourThreats = _threatDetector.DetectThreats(board, player);
 
@@ -959,8 +886,8 @@ public class MinimaxAI : IStatsPublisher
                             _nodesSearched = ourFourThreats.Count;
                             _lastAllocatedTimeMs = 0;
                             _moveType = MoveType.ImmediateWin;
-                            _logger.LogDebug("[AI ATTACK] {Difficulty} ({Player}) Playing verified winning move at ({WX},{WY})",
-                                difficulty, player, gs.x, gs.y);
+                            _logger.LogDebug("[AI ATTACK] ({Player}) Playing verified winning move at ({WX},{WY})",
+                                player, gs.x, gs.y);
                             return gs;
                         }
                     }
@@ -989,8 +916,8 @@ public class MinimaxAI : IStatsPublisher
                     _nodesSearched = ourStraightThrees.Count;
                     _lastAllocatedTimeMs = 0;
                     _moveType = MoveType.ThreatCreation;
-                    _logger.LogDebug("[AI ATTACK] {Difficulty} ({Player}) Extending StraightThree at ({EX},{EY}) to create open four",
-                        difficulty, player, extendSquare.x, extendSquare.y);
+                    _logger.LogDebug("[AI ATTACK] ({Player}) Extending StraightThree at ({EX},{EY}) to create open four",
+                        player, extendSquare.x, extendSquare.y);
                     return ValidateAndReturnBlockingMove(board, player, extendSquare);
                 }
             }
@@ -1011,8 +938,8 @@ public class MinimaxAI : IStatsPublisher
                     _nodesSearched = 20;
                     _lastAllocatedTimeMs = 0;
                     _moveType = MoveType.ThreatCreation;
-                    _logger.LogDebug("[AI ATTACK] {Difficulty} ({Player}) Creating StraightThree at ({TX},{TY})",
-                        difficulty, player, candidate.x, candidate.y);
+                    _logger.LogDebug("[AI ATTACK] ({Player}) Creating StraightThree at ({TX},{TY})",
+                        player, candidate.x, candidate.y);
                     return ValidateAndReturnBlockingMove(board, player, candidate);
                 }
             }
@@ -1033,8 +960,8 @@ public class MinimaxAI : IStatsPublisher
 
                 if (timeAlloc.SoftBoundMs < minCriticalResponseTimeMs)
                 {
-                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) CRITICAL: Open four detected - reserving minimum time ({MinCriticalResponseTimeMs}ms)",
-                        difficulty, player, minCriticalResponseTimeMs);
+                    _logger.LogDebug("[AI DEFENSE] ({Player}) CRITICAL: Open four detected - reserving minimum time ({MinCriticalResponseTimeMs}ms)",
+                        player, minCriticalResponseTimeMs);
                     timeAlloc = new TimeAllocation
                     {
                         SoftBoundMs = Math.Max(minCriticalResponseTimeMs, timeAlloc.SoftBoundMs),
@@ -1086,20 +1013,20 @@ public class MinimaxAI : IStatsPublisher
                     .OrderByDescending(c => winningSet.Contains(c) ? 2 : (blockingSet.Contains(c) ? 1 : 0))
                     .ToList();
                 candidates = filteredCandidates;
-                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Filtered to {CandidateCount} move(s) ({WinningCount} winning, {BlockingCount} blocking, {DevelopingCount} developing)",
-                    difficulty, player, candidates.Count, winningSet.Count, blockingSet.Count, developingSet.Count);
+                _logger.LogDebug("[AI DEFENSE] ({Player}) Filtered to {CandidateCount} move(s) ({WinningCount} winning, {BlockingCount} blocking, {DevelopingCount} developing)",
+                    player, candidates.Count, winningSet.Count, blockingSet.Count, developingSet.Count);
             }
             else
             {
                 // Fallback: use blocking, winning, and developing squares directly as candidates
                 candidates = blockingSquares.Concat(ourWinningSquares).Concat(ourDevelopingSquares).Distinct().ToList();
-                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Using blocking/winning/developing squares directly as candidates",
-                    difficulty, player);
+                _logger.LogDebug("[AI DEFENSE] ({Player}) Using blocking/winning/developing squares directly as candidates",
+                    player);
             }
 
             // CRITICAL FIX FOR GRANDMASTER: Immediately return best blocking move for four-threats
             // This bypasses search to guarantee we block correctly
-            if (difficulty >= AIDifficulty.Grandmaster && candidates.Count > 0)
+            if (candidates.Count > 0)
             {
                 // First check if we have an immediate winning move
                 foreach (var winSquare in ourWinningSquares)
@@ -1110,8 +1037,8 @@ public class MinimaxAI : IStatsPublisher
                         _nodesSearched = 1;
                         _lastAllocatedTimeMs = 0;
                         _moveType = MoveType.ImmediateWin;
-                        _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) COUNTER-ATTACK with verified winning move at ({WX},{WY})",
-                            difficulty, player, winSquare.x, winSquare.y);
+                        _logger.LogDebug("[AI DEFENSE] ({Player}) COUNTER-ATTACK with verified winning move at ({WX},{WY})",
+                            player, winSquare.x, winSquare.y);
                         return winSquare;
                     }
                 }
@@ -1168,8 +1095,8 @@ public class MinimaxAI : IStatsPublisher
                     _nodesSearched = candidates.Count;
                     _lastAllocatedTimeMs = 0;
                     _moveType = MoveType.ImmediateBlock;
-                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) IMMEDIATE four-threat block at ({BX},{BY}) - score {Score}",
-                        difficulty, player, bestBlock.x, bestBlock.y, bestScore);
+                    _logger.LogDebug("[AI DEFENSE] ({Player}) IMMEDIATE four-threat block at ({BX},{BY}) - score {Score}",
+                        player, bestBlock.x, bestBlock.y, bestScore);
                     return ValidateAndReturnBlockingMove(board, player, bestBlock);
                 }
 
@@ -1177,8 +1104,8 @@ public class MinimaxAI : IStatsPublisher
                 // try counter-attacking instead - creating our own winning threat
                 if (bestScore < -5000)
                 {
-                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Four-threat best block score is {Score} - trying counter-attack",
-                        difficulty, player, bestScore);
+                    _logger.LogDebug("[AI DEFENSE] ({Player}) Four-threat best block score is {Score} - trying counter-attack",
+                        player, bestScore);
 
                     for (int x = 0; x < BoardSize; x++)
                     {
@@ -1204,8 +1131,8 @@ public class MinimaxAI : IStatsPublisher
                                             _nodesSearched = (x + 1) * BoardSize + y + 1;
                                             _lastAllocatedTimeMs = 0;
                                             _moveType = MoveType.CounterAttack;
-                                            _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) DESPERATE COUNTER-ATTACK at ({X},{Y}) creates verified winning threat",
-                                                difficulty, player, x, y);
+                                            _logger.LogDebug("[AI DEFENSE] ({Player}) DESPERATE COUNTER-ATTACK at ({X},{Y}) creates verified winning threat",
+                                                player, x, y);
                                             return ValidateAndReturnBlockingMove(board, player, (x, y));
                                         }
                                     }
@@ -1221,8 +1148,8 @@ public class MinimaxAI : IStatsPublisher
             // or when our threat detection finds no counter-threats
             if (candidates.Count == 0)
             {
-                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Threat filtering produced empty candidates - restoring original {OriginalCount} candidates",
-                    difficulty, player, originalCandidates.Count);
+                _logger.LogDebug("[AI DEFENSE] ({Player}) Threat filtering produced empty candidates - restoring original {OriginalCount} candidates",
+                    player, originalCandidates.Count);
                 candidates = originalCandidates.ToList();
             }
 
@@ -1230,8 +1157,8 @@ public class MinimaxAI : IStatsPublisher
             // we're in a lost position if we can't win immediately. Log this for debugging.
             if (hasOpenFour)
             {
-                _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) WARNING: Open four detected - opponent can win in 2 moves",
-                    difficulty, player);
+                _logger.LogDebug("[AI DEFENSE] ({Player}) WARNING: Open four detected - opponent can win in 2 moves",
+                    player);
 
                 // Check if we have counter-threats
                 var counterThreats = _threatDetector.DetectThreats(board, player);
@@ -1240,13 +1167,13 @@ public class MinimaxAI : IStatsPublisher
 
                 if (ourStraightFours > 0)
                 {
-                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) We have {OurStraightFours} StraightFour threat(s) - counter-attack instead of just blocking",
-                        difficulty, player, ourStraightFours);
+                    _logger.LogDebug("[AI DEFENSE] ({Player}) We have {OurStraightFours} StraightFour threat(s) - counter-attack instead of just blocking",
+                        player, ourStraightFours);
                 }
                 else if (ourStraightThrees > 1)
                 {
-                    _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) We have {OurStraightThrees} StraightThree threat(s) - creating counter-play",
-                        difficulty, player, ourStraightThrees);
+                    _logger.LogDebug("[AI DEFENSE] ({Player}) We have {OurStraightThrees} StraightThree threat(s) - creating counter-play",
+                        player, ourStraightThrees);
                 }
             }
         }
@@ -1254,33 +1181,19 @@ public class MinimaxAI : IStatsPublisher
         // instead of developing its own position. The evaluation function's defense
         // multiplier (2.2x for opponent threats) should be sufficient for defense.
         // Grandmaster's advantage comes from offensive VCF, not defensive VCF detection.
-        // if (difficulty >= AIDifficulty.Grandmaster)  // Only D5
-        // {
-        //     var vcfDefense = FindVCFDefense(board, player, timeAlloc, difficulty);
-        //     if (vcfDefense.HasValue)
-        //     {
-        //         var (defenseX, defenseY) = vcfDefense.Value;
-        //         Console.WriteLine($"[AI VCF] Opponent VCF detected, blocking at ({defenseX}, {defenseY})");
-        //         return (defenseX, defenseY);
-        //     }
-        // }
 
-        // Try VCF (Victory by Continuous Four) search - ONLY Grandmaster has this!
+        // Try VCF (Victory by Continuous Four) search
         // VCF finds forced win sequences through continuous four threats.
-        // By restricting VCF to only Grandmaster, we ensure it's a unique differentiator.
-        // Use centralized config to check VCF support for this difficulty.
-        // CRITICAL FIX: Skip VCF for difficulties where full search is sufficient
-        var settings = AIDifficultyConfig.Instance.GetSettings(difficulty);
-        if (settings.VCFEnabled)
+        // VCF always enabled
         {
-            var (vcfTimeLimit, vcfMaxDepth) = CalculateVCFTimeLimit(timeAlloc, difficulty);
+            var (vcfTimeLimit, vcfMaxDepth) = CalculateVCFTimeLimit(timeAlloc);
 
             // VCF-FIRST MODE: In emergency, use up to 80% of hard bound for VCF
             // CRITICAL: Even in emergency, VCF time scales with difficulty!
             // This prevents emergency mode from making all AIs equal
             if (timeAlloc.IsEmergency)
             {
-                var emergencyVcfCap = GetEmergencyVCFCap(difficulty);
+                const int emergencyVcfCap = 2500;
                 vcfTimeLimit = (int)Math.Min(timeAlloc.HardBoundMs * 0.8, emergencyVcfCap);
             }
 
@@ -1326,23 +1239,18 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        // Get time multiplier for this difficulty (applies to both parallel and sequential search)
-        // From AIDifficultyConfig: Braindead: 5%, Easy: 20%, Medium: 50%, Hard: 75%, Grandmaster: 100%
-        double timeMultiplier = AdaptiveDepthCalculator.GetTimeMultiplier(difficulty);
+        const double timeMultiplier = 1.0;
 
         // NPS is learned from actual search performance - no hardcoded targets
 
         // PARALLEL SEARCH: Use Lazy SMP when enabled
-        // CRITICAL FIX: Check both the parameter AND the config setting.
-        // The config is the source of truth for per-difficulty settings.
-        // Braindead has ParallelSearchEnabled=false in config, so it must use sequential search.
-        if (parallelSearchEnabled && settings.ParallelSearchEnabled)
+        if (parallelSearchEnabled)
         {
-            int effectiveThreadCount = threadCount ?? ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
+            int effectiveThreadCount = threadCount ?? Math.Max(5, (Environment.ProcessorCount / 2) - 1);
             _lastThreadCount = effectiveThreadCount;
             _tableHits = 0;
             _tableLookups = 0;
-            //Console.WriteLine($"[AI] Using parallel search (Lazy SMP) for {difficulty} with {effectiveThreadCount} threads");
+            //Console.WriteLine($"[AI] Using parallel search (Lazy SMP) with {effectiveThreadCount} threads");
 
             // CRITICAL: Apply time multiplier to time allocation for parallel search
             // Lower difficulties should use proportionally less time
@@ -1361,7 +1269,6 @@ public class MinimaxAI : IStatsPublisher
             var parallelResult = _parallelSearch.GetBestMoveWithStats(
                 board,
                 player,
-                difficulty,
                 timeRemainingMs: timeRemainingMs,
                 timeAlloc: adjustedTimeAlloc,
                 moveNumber: moveNumber,
@@ -1402,7 +1309,7 @@ public class MinimaxAI : IStatsPublisher
             {
                 var opponent = player == Player.Red ? Player.Blue : Player.Red;
                 var predictedOpponentMove = _lastPV.GetPredictedOpponentMove();
-                var ponderTimeMs = CalculatePonderTime(timeRemainingMs, difficulty);
+                var ponderTimeMs = CalculatePonderTime(timeRemainingMs);
 
                 if (ponderTimeMs > 0)
                 {
@@ -1411,7 +1318,6 @@ public class MinimaxAI : IStatsPublisher
                         opponent,
                         predictedOpponentMove,
                         player,
-                        difficulty,
                         ponderTimeMs
                     );
                 }
@@ -1429,7 +1335,7 @@ public class MinimaxAI : IStatsPublisher
         // This ensures strength ordering regardless of server performance
 
         // Track thread count for diagnostics (even if using sequential search)
-        _lastThreadCount = ThreadPoolConfig.GetThreadCountForDifficulty(difficulty);
+        _lastThreadCount = Math.Max(5, (Environment.ProcessorCount / 2) - 1);
         _lastParallelDiagnostics = null; // No parallel search in this path
         _lastPonderingEnabled = ponderingEnabled;
 
@@ -1600,27 +1506,18 @@ public class MinimaxAI : IStatsPublisher
             _adaptiveTimeManager.ReportTimeUsed(actualTimeMs, timeAlloc.SoftBoundMs, timedOut);
         }
 
-        // Print transposition table statistics for debugging
-        if (difficulty == AIDifficulty.Hard || difficulty == AIDifficulty.Grandmaster)
-        {
-            double hitRate = _tableLookups > 0 ? (double)_tableHits / _tableLookups * 100 : 0;
-            var (used, usage) = _transpositionTable.GetStats();
-            var elapsedMs = _searchStopwatch.ElapsedMilliseconds;
-            var nps = elapsedMs > 0 ? nodesSearched * 1000 / elapsedMs : 0;
-        }
 
         // Store PV for pondering
         _lastPV = PV.FromSingleMove(bestMove.x, bestMove.y, baseDepth, 0);
         _lastBoard = board;
         _lastPlayer = player;
-        _lastDifficulty = difficulty;
 
         // Start pondering for opponent's response
         if (ponderingEnabled)
         {
             var opponent = player == Player.Red ? Player.Blue : Player.Red;
             var predictedOpponentMove = _lastPV.GetPredictedOpponentMove();
-            var ponderTimeMs = CalculatePonderTime(timeRemainingMs, difficulty);
+            var ponderTimeMs = CalculatePonderTime(timeRemainingMs);
 
             if (ponderTimeMs > 0)
             {
@@ -1629,7 +1526,6 @@ public class MinimaxAI : IStatsPublisher
                     opponent,
                     predictedOpponentMove,
                     player,  // Pondering for us (next to move after opponent)
-                    difficulty,
                     ponderTimeMs
                 );
             }
@@ -1944,103 +1840,35 @@ public class MinimaxAI : IStatsPublisher
     }
 
     /// <summary>
-    /// Calculate appropriate time limit for VCF search based on time allocation and difficulty
-    ///
-    /// CRITICAL: VCF must scale with difficulty for proper AI strength ordering!
-    /// Higher difficulties should have:
-    /// - More time for VCF search (find deeper tactical sequences)
-    /// - Higher maxDepth (look further ahead for forcing moves)
-    /// - Better defensive VCF (find moves that break opponent's VCF)
-    ///
-    /// Without proper scaling, VCF becomes an "equalizer" where lower difficulties
-    /// can beat higher ones through tactical brilliance alone.
+    /// Calculate appropriate time limit for VCF search based on time allocation
     /// </summary>
-    private (int timeLimitMs, int maxDepth) CalculateVCFTimeLimit(TimeAllocation timeAlloc, AIDifficulty difficulty)
+    private (int timeLimitMs, int maxDepth) CalculateVCFTimeLimit(TimeAllocation timeAlloc)
     {
-        // Emergency mode - very quick VCF check for all difficulties
         if (timeAlloc.IsEmergency)
-        {
-            return (50, 15); // Very quick check, shallow depth
-        }
-
-        // Base VCF time from soft bound
+            return (50, 15);
         var baseVcfTime = Math.Max(50, timeAlloc.SoftBoundMs / 10);
-
-        // Difficulty-based multipliers for VCF time and depth
-        // Higher difficulties spend MORE time on VCF because it's their primary tactical weapon
-        var (timeMultiplier, depthBonus) = difficulty switch
-        {
-            AIDifficulty.Grandmaster => (2.5, 10),   // D5: 2.5x time, depth 40
-            AIDifficulty.Hard => (1.5, 5),            // D4: 1.5x time, depth 35
-            AIDifficulty.Medium => (1.0, 0),          // D3: 1x time, depth 30
-            _ => (0.5, 0)                             // D2 and below: 0.5x time
-        };
-
-        var vcfTime = (int)(baseVcfTime * timeMultiplier);
-        var maxDepth = 30 + depthBonus;
-
-        // Scale caps based on difficulty
-        var maxCap = difficulty switch
-        {
-            AIDifficulty.Grandmaster => 2000,  // D5: up to 2 seconds for VCF
-            AIDifficulty.Hard => 1000,         // D4: up to 1 second
-            _ => 500                           // D3 and below: up to 500ms
-        };
-
-        var finalVcfTime = (int)Math.Clamp(vcfTime, 50, maxCap);
-
+        var vcfTime = (int)(baseVcfTime * 2.5);
+        var maxDepth = 40;
+        var finalVcfTime = (int)Math.Clamp(vcfTime, 50, 2000);
         return (finalVcfTime, maxDepth);
     }
 
     // REMOVED: GetCriticalDefenseLevel - no longer used, threats handled by evaluation function
 
     /// <summary>
-    /// <summary>
-    /// Get emergency VCF time cap based on difficulty
-    /// CRITICAL: In time scramble, use the available increment time for VCF
-    /// Higher difficulties get more VCF time to find tactical solutions
-    /// </summary>
-    private static int GetEmergencyVCFCap(AIDifficulty difficulty) => difficulty switch
-    {
-        AIDifficulty.Grandmaster => 2500,  // D5: up to 2.5s (50% of 5s increment)
-        AIDifficulty.Hard => 2000,         // D4: up to 2s (40% of 5s increment)
-        AIDifficulty.Medium => 1500,       // D3: up to 1.5s (30% of 5s increment)
-        _ => 1000                          // D2 and below: up to 1s
-    };
-
-    /// <summary>
-    /// Calculate pondering time based on remaining time and difficulty
+    /// Calculate pondering time based on remaining time
     /// Pondering uses a portion of the opponent's thinking time
     /// </summary>
-    private long CalculatePonderTime(long? timeRemainingMs, AIDifficulty difficulty)
+    private long CalculatePonderTime(long? timeRemainingMs)
     {
-        // Proportional time allocation based on difficulty
         var baseTimeMs = timeRemainingMs ?? 5000;
-
-        return difficulty switch
-        {
-            AIDifficulty.Braindead => baseTimeMs / 20,   // 5% of time
-            AIDifficulty.Easy => baseTimeMs / 10,         // 10%
-            AIDifficulty.Medium => baseTimeMs / 3,        // 33% (pondering enabled)
-            AIDifficulty.Hard => baseTimeMs / 2,          // 50% (pondering enabled)
-            AIDifficulty.Grandmaster => baseTimeMs / 2,   // 50% (pondering enabled)
-            _ => baseTimeMs / 20                          // Default: minimal
-        };
+        return baseTimeMs / 2;  // 50% of time
     }
 
     /// <summary>
     /// Get default time allocation when no time limit is specified
-    /// Provides reasonable time targets for each difficulty level
     /// </summary>
-    private static TimeAllocation GetDefaultTimeAllocation(AIDifficulty difficulty) => difficulty switch
-    {
-        AIDifficulty.Braindead => new() { SoftBoundMs = 50, HardBoundMs = 200, OptimalTimeMs = 40, IsEmergency = false },
-        AIDifficulty.Easy => new() { SoftBoundMs = 200, HardBoundMs = 1000, OptimalTimeMs = 160, IsEmergency = false },
-        AIDifficulty.Medium => new() { SoftBoundMs = 1000, HardBoundMs = 3000, OptimalTimeMs = 800, IsEmergency = false },
-        AIDifficulty.Hard => new() { SoftBoundMs = 3000, HardBoundMs = 10000, OptimalTimeMs = 2400, IsEmergency = false },
-        AIDifficulty.Grandmaster => new() { SoftBoundMs = 5000, HardBoundMs = 20000, OptimalTimeMs = 4000, IsEmergency = false },
-        _ => TimeAllocation.Default
-    };
+    private static TimeAllocation GetDefaultTimeAllocation() => new() { SoftBoundMs = 5000, HardBoundMs = 20000, OptimalTimeMs = 4000, IsEmergency = false };
 
     /// <summary>
     /// Get a move from the transposition table if available at sufficient depth
@@ -2090,7 +1918,7 @@ public class MinimaxAI : IStatsPublisher
     /// - Return first valid defensive move without re-checking VCF for each one
     /// - Skip VCF defense in emergency mode (prioritize speed over accuracy)
     /// </summary>
-    private (int x, int y)? FindVCFDefense(Board board, Player player, TimeAllocation timeAlloc, AIDifficulty difficulty)
+    private (int x, int y)? FindVCFDefense(Board board, Player player, TimeAllocation timeAlloc)
     {
         // Skip VCF defense in emergency mode - we need to move quickly
         // In emergency, the VCF-first mode already handles defensive prioritization
@@ -2112,7 +1940,7 @@ public class MinimaxAI : IStatsPublisher
 
         // Use scaled VCF time based on difficulty for defensive checking
         // Higher difficulties get more time to find defensive moves
-        var (vcfCheckTime, vcfMaxDepth) = CalculateVCFTimeLimit(timeAlloc, difficulty);
+        var (vcfCheckTime, vcfMaxDepth) = CalculateVCFTimeLimit(timeAlloc);
 
         // For defensive VCF, use 50% of the offensive VCF time (we need to be efficient)
         vcfCheckTime = vcfCheckTime / 2;
@@ -2168,8 +1996,8 @@ public class MinimaxAI : IStatsPublisher
 
                     if (winResult.HasWinner && winResult.Winner == opponent)
                     {
-                        _logger.LogDebug("[AI DEFENSE] {Difficulty} ({Player}) Opponent has immediate win at ({X}, {Y}) - blocking!",
-                            difficulty, player, x, y);
+                        _logger.LogDebug("[AI DEFENSE] ({Player}) Opponent has immediate win at ({X}, {Y}) - blocking!",
+                            player, x, y);
                         return (x, y);
                     }
                 }
@@ -2989,7 +2817,7 @@ public class MinimaxAI : IStatsPublisher
         }
 
         // Generate tactical moves (only near existing stones)
-        var tacticalMoves = GetCandidateMoves(board, _currentSearchRadius);
+        var tacticalMoves = GetCandidateMoves(board, MaxSearchRadius);
 
         // Limit quiescence search depth to avoid explosion
         const int maxQuiescenceDepth = 4;  // Search up to 4 ply beyond depth 0
@@ -3322,7 +3150,7 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        var candidates = GetCandidateMoves(board, _currentSearchRadius);
+        var candidates = GetCandidateMoves(board, MaxSearchRadius);
         if (candidates.Count == 0)
         {
             return 0;
@@ -3538,7 +3366,7 @@ public class MinimaxAI : IStatsPublisher
         }
 
         // Generate tactical moves
-        var tacticalMoves = GetCandidateMoves(board, _currentSearchRadius);
+        var tacticalMoves = GetCandidateMoves(board, MaxSearchRadius);
 
         // Limit quiescence depth
         const int maxQuiescenceDepth = 4;
@@ -3654,7 +3482,7 @@ public class MinimaxAI : IStatsPublisher
             }
         }
 
-        var candidates = GetCandidateMoves(board, _currentSearchRadius);
+        var candidates = GetCandidateMoves(board, MaxSearchRadius);
         if (candidates.Count == 0)
         {
             return 0; // Draw
@@ -4845,34 +4673,27 @@ public class MinimaxAI : IStatsPublisher
     /// <summary>
     /// Start pondering immediately (at start of opponent's turn, without waiting for prediction)
     /// </summary>
-    public void StartPonderingNow(Board board, Player currentPlayerToMove, AIDifficulty difficulty, Player thisAIColor)
+    public void StartPonderingNow(Board board, Player currentPlayerToMove, Player thisAIColor)
     {
-        // The AI owning this method will ponder during currentPlayerToMove's turn
-        // We want to analyze the position where currentPlayerToMove is to move
-        var ponderTimeMs = CalculatePonderTime(null, difficulty);
+        var ponderTimeMs = CalculatePonderTime(null);
         if (ponderTimeMs > 0)
         {
-            // Ponder the position where the current player is to move
-            // thisAIColor explicitly tells this AI which color it is playing as
-            _ponderer.StartPondering(board, currentPlayerToMove, null, thisAIColor, difficulty, ponderTimeMs);
+            _ponderer.StartPondering(board, currentPlayerToMove, null, thisAIColor, ponderTimeMs);
         }
     }
 
     /// <summary>
     /// Start pondering after making a move (for opponent's response)
-    /// </summary>
-    /// <summary>
-    /// Start pondering after making a move (for opponent's response)
     /// This is a stateless version - all parameters passed explicitly
     /// </summary>
-    public void StartPonderingAfterMove(Board board, Player opponentToMove, Player thisAIColor, AIDifficulty difficulty, PV? lastPV = null)
+    public void StartPonderingAfterMove(Board board, Player opponentToMove, Player thisAIColor, PV? lastPV = null)
     {
         var predictedOpponentMove = lastPV?.GetPredictedOpponentMove() ?? _lastPV.GetPredictedOpponentMove();
 
-        var ponderTimeMs = CalculatePonderTime(null, difficulty);
+        var ponderTimeMs = CalculatePonderTime(null);
         if (ponderTimeMs > 0)
         {
-            _ponderer.StartPondering(board, opponentToMove, predictedOpponentMove, thisAIColor, difficulty, ponderTimeMs);
+            _ponderer.StartPondering(board, opponentToMove, predictedOpponentMove, thisAIColor, ponderTimeMs);
         }
     }
 

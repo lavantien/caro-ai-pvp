@@ -108,7 +108,6 @@ public sealed class UCISearchController
     private (int x, int y) ExecuteSearch(Board board, Player player, UCIGoParameters goParams, CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
-        var difficulty = _options.GetDifficulty();
 
         try
         {
@@ -133,7 +132,6 @@ public sealed class UCISearchController
             var (x, y) = _ai.GetBestMove(
                 board,
                 player,
-                difficulty,
                 timeRemainingMs,
                 moveNumber: moveNumber,
                 ponderingEnabled: _options.Ponder,

@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using Caro.Core.Domain.Entities;
 
-namespace Caro.Core.Tournament;
+namespace Caro.Core.GameLogic;
 
 public interface IStatsPublisher
 {
@@ -46,7 +46,7 @@ public enum MoveType
     Normal,           // Full search performed
     ImmediateWin,     // Immediate winning move found
     ImmediateBlock,   // Forced block of opponent's winning move
-    ErrorRate,        // Random move due to error rate (Braindead)
+    ErrorRate,        // Random move (unused, kept for stats compatibility)
     CenterMove,       // First move at center (opening)
     Emergency,        // Emergency mode (low time)
     ThreatCreation,   // Proactive threat creation (no opponent threats)

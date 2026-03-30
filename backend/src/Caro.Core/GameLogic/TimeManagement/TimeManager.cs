@@ -20,33 +20,21 @@ public sealed class TimeManager
     // Track initial time for adaptive thresholds
     private long _inferredInitialTimeMs = 420000;  // Default to 7 minutes (7+5)
 
-    // CRITICAL: Time multipliers for difficulty differentiation
-    // Must be carefully balanced to avoid timeouts while creating separation
-    // Grandmaster gets more time but not so much that it timeouts
-    private static readonly Dictionary<AIDifficulty, double> DifficultyTimeMultipliers = new()
-    {
-        { AIDifficulty.Grandmaster, 1.3 }, // D5: 1.3x - maximum time
-        { AIDifficulty.Hard, 1.0 },         // D4: 1.0x - baseline
-        { AIDifficulty.Medium, 0.8 },       // D3: 0.8x
-        { AIDifficulty.Easy, 0.6 },         // D2: 0.6x
-        { AIDifficulty.Braindead, 0.4 },    // D1: 0.4x
-    };
+    // Fixed time multiplier (1.3x)
+    private const double TimeMultiplier = 1.3;
 
     /// <summary>
-    /// Get adaptive difficulty multiplier based on time control
-    /// The base multipliers are now conservative enough that we don't need aggressive reduction
+    /// Get adaptive time multiplier based on time control
     /// </summary>
-    private static double GetAdaptiveDifficultyMultiplier(AIDifficulty difficulty, long initialTimeMs)
+    private static double GetAdaptiveTimeMultiplier(long initialTimeMs)
     {
-        double baseMultiplier = DifficultyTimeMultipliers.GetValueOrDefault(difficulty, 1.0);
-
         // For very short time controls (< 3 minutes), use a modest reduction
         if (initialTimeMs < 180_000) // Less than 3 minutes
         {
-            return baseMultiplier * 0.8;
+            return TimeMultiplier * 0.8;
         }
 
-        return baseMultiplier;
+        return TimeMultiplier;
     }
 
     /// <summary>
@@ -57,7 +45,7 @@ public sealed class TimeManager
     /// <param name="candidateCount">Number of candidate moves to consider</param>
     /// <param name="board">Current board position</param>
     /// <param name="player">Player to move</param>
-    /// <param name="difficulty">AI difficulty level (affects time allocation)</param>
+    /// <param name="initialTimeSeconds">Initial time in seconds</param>
     /// <param name="initialTimeSeconds">Initial time control in seconds (for adaptive thresholds)</param>
     /// <param name="incrementSeconds">Time increment per move in seconds</param>
     /// <returns>Time allocation with soft/hard bounds and game phase info</returns>
@@ -67,7 +55,6 @@ public sealed class TimeManager
         int candidateCount,
         Board board,
         Player player,
-        AIDifficulty difficulty = AIDifficulty.Medium,
         int initialTimeSeconds = 420,  // Default to 7+5, but tests may use different time controls
         int incrementSeconds = 5)       // Default increment for 7+5
     {
@@ -106,11 +93,10 @@ public sealed class TimeManager
         // Apply phase modifier
         double phaseMultiplier = GetPhaseModifier(phase);
 
-        // Apply difficulty multiplier for higher difficulties to reach full depth
-        // Use adaptive multiplier based on time control to prevent timeouts in short TC
-        double difficultyMultiplier = GetAdaptiveDifficultyMultiplier(difficulty, _inferredInitialTimeMs);
+        // Apply time multiplier based on time control to prevent timeouts in short TC
+        double timeMultiplier = GetAdaptiveTimeMultiplier(_inferredInitialTimeMs);
 
-        double adjustedTimeMs = baseTimeMs * complexity * phaseMultiplier * difficultyMultiplier;
+        double adjustedTimeMs = baseTimeMs * complexity * phaseMultiplier * timeMultiplier;
 
         // Calculate bounds with 1s minimum reserve
         long maxAllocatableMs = Math.Max(0, timeRemainingMs - TimeControl.MinimumReserveMs);
