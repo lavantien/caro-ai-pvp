@@ -5,15 +5,11 @@ using Caro.Api.Logging;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.TimeManagement;
-using Caro.Core.Tournament;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Add SignalR
-builder.Services.AddSignalR();
 
 // Register GameLogService with lazy async initialization
 builder.Services.AddSingleton<GameLogService>(sp =>
@@ -29,10 +25,6 @@ builder.Services.AddSingleton<GameLogService>(sp =>
 
     return task.Result;
 });
-
-// Register TournamentManager as both a singleton (for injection) and hosted service
-builder.Services.AddSingleton<TournamentManager>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<TournamentManager>());
 
 // Register MinimaxAI
 builder.Services.AddSingleton<MinimaxAI>(sp =>
@@ -59,9 +51,6 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 app.UseCors();
 app.UseWebSockets();
-
-// Map SignalR hub
-app.MapHub<TournamentHub>("/hubs/tournament");
 
 // WebSocket endpoint for UCI protocol
 app.Map("/ws/uci", async (HttpContext context, UCIHandler handler) =>
@@ -155,32 +144,11 @@ app.MapPost("/api/game/new", (CreateGameRequest? request) =>
     // Parse game mode (default to PvP)
     var gameMode = request?.GameMode ?? "pvp";
 
-    // Determine AI difficulties based on game mode
-    string? redAIDifficulty = null;
-    string? blueAIDifficulty = null;
-
-    switch (gameMode)
-    {
-        case "pvai":
-            // Player vs AI - AI plays blue by default (unless specified)
-            var aiDifficulty = request?.BlueAIDifficulty ?? request?.RedAIDifficulty ?? "Medium";
-            blueAIDifficulty = aiDifficulty;
-            break;
-        case "aivai":
-            // AI vs AI - both sides are AI
-            redAIDifficulty = request?.RedAIDifficulty ?? "Hard";
-            blueAIDifficulty = request?.BlueAIDifficulty ?? "Hard";
-            break;
-    }
-
     var session = new GameSession(
         timeControl.Name,
         timeControl.InitialTimeMs,
         timeControl.IncrementSeconds,
-        gameMode,
-        redAIDifficulty,
-        blueAIDifficulty
-    );
+        gameMode);
     games[gameId] = session;
 
     return Results.Ok(new { gameId, state = session.GetResponse() });
@@ -254,7 +222,6 @@ app.MapPost("/api/game/{id}/undo", (string id) =>
 // This prevents blocking other game requests during AI thinking time
 app.MapPost("/api/game/{id}/ai-move", (
     string id,
-    AIMoveRequest request,
     [FromServices] MinimaxAI ai) =>
 {
     if (!games.TryGetValue(id, out var session))
@@ -266,16 +233,10 @@ app.MapPost("/api/game/{id}/ai-move", (
     if (isGameOver)
         return Results.BadRequest("Game is over");
 
-    // Step 2: Parse difficulty
-    if (!Enum.TryParse<AIDifficulty>(request.Difficulty, true, out var difficulty))
-    {
-        return Results.BadRequest("Invalid difficulty. Use: Easy, Medium, Hard, or Expert");
-    }
+    // Step 2: AI calculation OUTSIDE lock (can take seconds without blocking other games)
+    var (x, y) = ai.GetBestMove(boardClone, currentPlayer, null);
 
-    // Step 3: AI calculation OUTSIDE lock (can take seconds without blocking other games)
-    var (x, y) = ai.GetBestMove(boardClone, currentPlayer, difficulty);
-
-    // Step 4: Validate and apply the move under lock
+    // Step 3: Validate and apply the move under lock
     return session.ExecuteUnderLock(game =>
     {
         // Double-check game didn't end while we were calculating
@@ -321,41 +282,6 @@ app.MapGet("/api/game/{id}", (string id) =>
     return Results.Ok(new { state = session.GetResponse() });
 });
 
-// ==================== Tournament API Endpoints ====================
-
-// GET /api/tournament/state - Get current tournament state
-app.MapGet("/api/tournament/state", ([FromServices] TournamentManager manager) =>
-{
-    return Results.Ok(manager.GetState());
-});
-
-// POST /api/tournament/start - Start the tournament
-app.MapPost("/api/tournament/start", async ([FromServices] TournamentManager manager) =>
-{
-    var started = await manager.StartTournamentAsync();
-    return started
-        ? Results.Ok(new { message = "Tournament started", state = manager.GetState() })
-        : Results.BadRequest(new { message = "Tournament already running" });
-});
-
-// POST /api/tournament/pause - Pause the tournament
-app.MapPost("/api/tournament/pause", async ([FromServices] TournamentManager manager) =>
-{
-    var paused = await manager.PauseTournamentAsync();
-    return paused
-        ? Results.Ok(new { message = "Tournament paused", state = manager.GetState() })
-        : Results.BadRequest(new { message = "Cannot pause - tournament not running" });
-});
-
-// POST /api/tournament/resume - Resume the tournament
-app.MapPost("/api/tournament/resume", async ([FromServices] TournamentManager manager) =>
-{
-    var resumed = await manager.ResumeTournamentAsync();
-    return resumed
-        ? Results.Ok(new { message = "Tournament resumed", state = manager.GetState() })
-        : Results.BadRequest(new { message = "Cannot resume - tournament not paused" });
-});
-
 app.Run();
 
 /// <summary>
@@ -375,17 +301,13 @@ public sealed class GameSession
         string timeControl = "7+5",
         long initialTimeMs = 420_000,
         int incrementSeconds = 5,
-        string gameMode = "pvp",
-        string? redAIDifficulty = null,
-        string? blueAIDifficulty = null)
+        string gameMode = "pvp")
     {
         _game = GameState.CreateInitial(
             timeControl: timeControl,
             initialTimeMs: initialTimeMs,
             incrementSeconds: incrementSeconds,
-            gameMode: gameMode,
-            redAIDifficulty: redAIDifficulty,
-            blueAIDifficulty: blueAIDifficulty
+            gameMode: gameMode
         );
     }
 
@@ -455,14 +377,11 @@ public sealed class GameSession
                 timeControl = game.TimeControl,
                 initialTime = game.InitialTimeMs / 1000,
                 increment = game.IncrementSeconds,
-                gameMode = game.GameMode,
-                redAIDifficulty = game.RedAIDifficulty,
-                blueAIDifficulty = game.BlueAIDifficulty
+                gameMode = game.GameMode
             };
         }
     }
 }
 
-record CreateGameRequest(string? TimeControl, string? GameMode, string? RedAIDifficulty, string? BlueAIDifficulty);
+record CreateGameRequest(string? TimeControl, string? GameMode);
 record MoveRequest(int X, int Y);
-record AIMoveRequest(string Difficulty);
