@@ -54,8 +54,8 @@ class Program
         // Display match configuration
         Console.WriteLine("Match Configuration");
         Console.WriteLine("-------------------");
-        Console.WriteLine($"Bot A: Hard (Skill Level 4)");
-        Console.WriteLine($"Bot B: Grandmaster (Skill Level 5)");
+        Console.WriteLine($"Bot A: Engine A (full strength)");
+        Console.WriteLine($"Bot B: Engine B (full strength)");
         Console.WriteLine($"Time Control: {initialTimeSeconds / 60}+{incrementSeconds}");
         Console.WriteLine($"Games: {totalGames} (alternating colors)");
         Console.WriteLine($"Opening Book: Enabled (depth 24)");
@@ -64,10 +64,6 @@ class Program
         // Create two engine instances
         using var botA = new UCIMockClient(exePath);
         using var botB = new UCIMockClient(exePath);
-
-        // Configure skill levels
-        botA.SetSkillLevel(4);    // Hard
-        botB.SetSkillLevel(5);    // Grandmaster
 
         try
         {
@@ -88,8 +84,8 @@ class Program
             var results = await GameManager.RunMatchAsync(
                 botA,
                 botB,
-                "Hard",
-                "Grandmaster",
+                "Engine A",
+                "Engine B",
                 totalGames,
                 progress: result => DisplayGameResult(result),
                 logInfo: info => Console.WriteLine(info)
@@ -211,14 +207,14 @@ class Program
         Console.WriteLine("===============================");
         Console.WriteLine();
 
-        var hardWins = results.Count(r => r.Winner == Player.Red && r.RedBotName == "Hard") +
-                       results.Count(r => r.Winner == Player.Blue && r.BlueBotName == "Hard");
-        var grandmasterWins = results.Count(r => r.Winner == Player.Red && r.RedBotName == "Grandmaster") +
-                              results.Count(r => r.Winner == Player.Blue && r.BlueBotName == "Grandmaster");
+        var engineAWins = results.Count(r => r.Winner == Player.Red && r.RedBotName == "Engine A") +
+                       results.Count(r => r.Winner == Player.Blue && r.BlueBotName == "Engine A");
+        var engineBWins = results.Count(r => r.Winner == Player.Red && r.RedBotName == "Engine B") +
+                              results.Count(r => r.Winner == Player.Blue && r.BlueBotName == "Engine B");
         var draws = results.Count(r => r.Winner == Player.None);
 
-        Console.WriteLine($"Grandmaster: {grandmasterWins} win{(grandmasterWins != 1 ? "s" : "")}");
-        Console.WriteLine($"Hard: {hardWins} win{(hardWins != 1 ? "s" : "")}");
+        Console.WriteLine($"Engine B: {engineBWins} win{(engineBWins != 1 ? "s" : "")}");
+        Console.WriteLine($"Engine A: {engineAWins} win{(engineAWins != 1 ? "s" : "")}");
         if (draws > 0)
         {
             Console.WriteLine($"Draws: {draws}");

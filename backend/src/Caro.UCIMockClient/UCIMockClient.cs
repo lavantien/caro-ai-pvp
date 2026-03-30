@@ -16,17 +16,12 @@ public sealed class UCIMockClient : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly List<string> _moveHistory = new();
     private bool _isInitialized;
-    private int _skillLevel = 3;
+
 
     /// <summary>
     /// Event raised when the engine sends info messages.
     /// </summary>
     public event Action<string>? OnInfo;
-
-    /// <summary>
-    /// The skill level (1-6) configured for this engine.
-    /// </summary>
-    public int SkillLevel => _skillLevel;
 
     /// <summary>
     /// Create a new UCI client for the specified engine executable.
@@ -107,27 +102,9 @@ public sealed class UCIMockClient : IDisposable
         SendCommand("uci");
         await WaitForResponseAsync("uciok", TimeSpan.FromSeconds(5));
 
-        // Set skill level
-        SendCommand($"setoption name Skill Level value {_skillLevel}");
-
         SendCommand("ucinewgame");
 
         _isInitialized = true;
-    }
-
-    /// <summary>
-    /// Set the skill level for this engine (1-6).
-    /// </summary>
-    public void SetSkillLevel(int level)
-    {
-        if (level < 1 || level > 6)
-            throw new ArgumentOutOfRangeException(nameof(level), "Skill level must be between 1 and 6");
-
-        _skillLevel = level;
-        if (_isInitialized)
-        {
-            SendCommand($"setoption name Skill Level value {_skillLevel}");
-        }
     }
 
     /// <summary>

@@ -214,7 +214,7 @@ public sealed class UCIProtocol
     private string[] HandleSetOption(string[] args)
     {
         // Parse: setoption name <name> [value <value>]
-        // Names can have spaces (e.g., "Skill Level", "Use Opening Book")
+        // Names can have spaces (e.g., "Threads", "Hash")
         if (args.Length < 2)
             return new[] { "Error: setoption requires name" };
 
