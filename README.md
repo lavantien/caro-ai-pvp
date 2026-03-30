@@ -169,9 +169,9 @@ cd backend/tests/Caro.Core.MatchupTests && dotnet test
 
 | Project | Focus |
 |---------|-------|
-| Caro.Core.Tests | Unit tests (algorithms, evaluators, concurrency, immutable state) |
-| Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks) |
-| Caro.Core.MatchupTests | Failsafe correctness and smoke matchups |
+| Caro.Core.Tests | Unit tests (algorithms, evaluators, immutable state) |
+| Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks, concurrency stress) |
+| Caro.Core.MatchupTests | Failsafe correctness and smoke matchups (scaffolded) |
 | Caro.Core.Domain.Tests | Entities (Board, Cell, Player, GameState, Position) |
 | Caro.Core.Application.Tests | Services, interfaces, DTOs, mappers |
 | Caro.Core.Infrastructure.Tests | AI algorithms, external concerns |
@@ -304,7 +304,7 @@ Production-grade concurrency following .NET 10 best practices:
 | TT sharding (16 segments) | Reduced cache contention |
 | Publisher-Subscriber | AI telemetry without callbacks |
 
-**Testing:** 29 adversarial concurrency tests validate thread-safety under high contention.
+**Testing:** 29 adversarial concurrency tests in Caro.Core.IntegrationTests validate thread-safety under high contention.
 
 ---
 
@@ -333,9 +333,9 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Project | Focus |
 |---------|-------|
-| Caro.Core.Tests | Unit tests (algorithms, evaluators, concurrency, immutable state, test helpers, AI improvements, symmetry) |
-| Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks) |
-| Caro.Core.MatchupTests | AI matchups and integration |
+| Caro.Core.Tests | Unit tests (algorithms, evaluators, immutable state, test helpers, AI improvements, symmetry) |
+| Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks, 29 concurrency stress tests) |
+| Caro.Core.MatchupTests | AI matchups and integration (scaffolded) |
 | Caro.Core.Domain.Tests | Entities (Board, Cell, Player, GameState, Position) |
 | Caro.Core.Application.Tests | Services, interfaces, DTOs, Mappers |
 | Caro.Core.Infrastructure.Tests | AI algorithms, external concerns |

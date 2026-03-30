@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-03-30
+
+### Fixed
+- **API board serialization off-by-one** - `Program.cs` used `Enumerable.Range(0, 15)` instead of `Range(0, 16)`, omitting column/row index 15 from API responses on the 16x16 board
+- **Position.cs stale comments** - Comments referenced 32x32 board and 0-31 coordinate range (leftover from pre-v1.63.0 board resize); corrected to 16x16 and 0-15
+- **Board.cs stale comment** - "Board size (always 32 for Caro)" corrected to "always 16"
+- **BinaryBookFormat.cs misleading comment** - Clarified MaxBoardSize=19 is an upper bound for binary format, not the actual game board size (16x16)
+- **ThreadPoolConfig thread count minimum** - `GetLazySMPThreadCount()` used `Math.Max(1, ...)` instead of `Math.Max(5, ...)` matching MinimaxAI and documentation
+
+### Changed
+- **README.md test tables** - Moved "concurrency" label from Caro.Core.Tests to Caro.Core.IntegrationTests where the 29 concurrency tests actually reside; marked Caro.Core.MatchupTests as scaffolded (empty directories, no test files)
+
 ## [2.1.0] - 2026-03-30
 
 ### Changed
@@ -2125,6 +2137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.0.0
 
+[2.1.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.1.1
 [2.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.0.0
 [1.83.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.83.0
 [1.82.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.82.0
