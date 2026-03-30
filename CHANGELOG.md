@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-03-30
+
+### Changed
+- **Engine source decomposition** - Extracted search logic from MinimaxAI.cs (~4,826 lines) and ParallelMinimaxSearch.cs (~3,098 lines) into 8 cohesive modules under `GameLogic/Search/`, reducing the main files to ~3,100 and ~2,600 lines respectively
+- **Centralized search constants** - Consolidated duplicated and hardcoded constants into `SearchConstants.cs` and `PruningConstants.cs` under `Caro.Core.Domain/Configuration/`
+
+### Added
+- `Search/TacticalEvaluator.cs` - Tactical pattern detection (threats, futility, null-move safety)
+- `Search/CandidateGenerator.cs` - Candidate move generation with center-of-mass ordering
+- `Search/SearchHeuristics.cs` - Killer moves, history tables, butterfly tables
+- `Search/MoveOrderer.cs` - Staged move ordering with TT/killer/continuation scoring
+- `Search/QuickWinChecker.cs` - Pre-search tactical shortcuts (winning moves, forced blocks)
+- `Search/TimeBudgetCalculator.cs` - VCF time limits, ponder time, default allocation
+- `Search/ParallelThreatAnalyzer.cs` - Opponent threat detection for parallel search path
+- `Search/ParallelNodeEvaluator.cs` - Per-node tactical eval, adaptive LMR, winner checks
+- `Configuration/SearchConstants.cs` - MaxSearchRadius, TT size, null-move thresholds, aspiration window, killer/history limits
+- `Configuration/PruningConstants.cs` - Futility margins, LMR parameters, PVS depth threshold
+
+### Fixed
+- **ENGINE_FEATURES.md line counts** - Corrected stale line count estimates in Section 10.3 to reflect actual post-extraction sizes
+
 ## [2.0.0] - 2026-03-30
 
 ### Removed

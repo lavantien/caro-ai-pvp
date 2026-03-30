@@ -124,7 +124,7 @@ cd backend/src/Caro.UCIMockClient && dotnet run -- --games 4 --time 180 --inc 2
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
 | **README.md** (this file) | Project overview, getting started, architecture summary | First - start here |
-| **ENGINE_FEATURES.md** | AI engine architecture (search, evaluation, TT, move ordering) | Understanding how the AI works |
+| **ENGINE_FEATURES.md** | AI engine architecture (search, evaluation, TT, move ordering, source layout) | Understanding how the AI works |
 | **backend/tests/README.md** | Test organization and running instructions | Running tests |
 | **AGENTS.md** | Development protocols and coding standards | Contributing code |
 
@@ -202,6 +202,7 @@ graph TB
         ParallelSearch["ParallelMinimaxSearch (Lazy SMP)"]
         Evaluator["BitBoardEvaluator"]
         UCIProtocol["UCI Protocol"]
+        SearchModule["Search/ (8 modules)"]
     end
 
     subgraph Domain["Domain Layer"]
@@ -324,7 +325,7 @@ Production-grade concurrency following .NET 10 best practices:
 
 **Backend:** .NET 10, ASP.NET Core 10, SignalR, System.Threading.Channels, SQLite + FTS5, xUnit 2.9.2 with xUnit Runner 3.1.4, Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
 
-**AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP, Hash Move-first ordering
+**AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP, Hash Move-first ordering. Search code decomposed into `GameLogic/Search/` modules with centralized constants in `Configuration/`.
 
 ---
 

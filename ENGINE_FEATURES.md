@@ -582,7 +582,43 @@ Algebraic notation for Caro:
 
 ---
 
-## 10. References
+## 10. Source Code Organization
+
+### 10.1 Search Module (`GameLogic/Search/`)
+
+Extracted from the main search classes for cohesion and maintainability:
+
+| File | Responsibility |
+|------|---------------|
+| `TacticalEvaluator.cs` | Tactical pattern detection (threats, futility, null-move safety) |
+| `CandidateGenerator.cs` | Candidate move generation with center-of-mass ordering |
+| `SearchHeuristics.cs` | Killer moves, history tables, butterfly tables |
+| `MoveOrderer.cs` | Staged move ordering with TT/killer/continuation scoring |
+| `QuickWinChecker.cs` | Pre-search tactical shortcuts (winning moves, forced blocks) |
+| `TimeBudgetCalculator.cs` | VCF time limits, ponder time, default allocation |
+| `ParallelThreatAnalyzer.cs` | Opponent threat detection for parallel search path |
+| `ParallelNodeEvaluator.cs` | Per-node tactical eval, adaptive LMR, winner checks |
+
+### 10.2 Centralized Constants (`Caro.Core.Domain/Configuration/`)
+
+| File | Constants |
+|------|-----------|
+| `SearchConstants.cs` | MaxSearchRadius, TT size, null-move thresholds, aspiration window, killer/history limits |
+| `PruningConstants.cs` | Futility margins, LMR parameters, PVS depth threshold |
+| `MoveOrderingConstants.cs` | Staged picker score thresholds |
+| `EvaluationConstants.cs` | Pattern scores, defense multipliers |
+
+### 10.3 Main Search Classes
+
+| File | Lines (approx.) | Role |
+|------|-----------------|------|
+| `MinimaxAI.cs` | ~3,100 | Sequential search orchestration, iterative deepening, PVS, pondering |
+| `ParallelMinimaxSearch.cs` | ~2,600 | Lazy SMP parallel search, thread coordination, WorkerPool |
+| `IterativeDeepeningSearch.cs` | - | Iterative deepening driver for sequential path |
+
+---
+
+## 11. References
 
 ### Source Repositories
 - **Rapfi:** https://github.com/dhbloo/rapfi
