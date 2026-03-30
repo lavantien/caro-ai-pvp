@@ -31,7 +31,7 @@ public static class BinaryBookFormat
     // Footer size is fixed at 20 bytes
     public const int FooterSize = 20;
 
-    // Maximum supported board size (19x19 for Caro)
+    // Maximum supported board size (upper bound for binary format, actual game is 16x16)
     public const int MaxBoardSize = 19;
 
     // Maximum moves per position

@@ -47,7 +47,7 @@ public sealed class Board
     }
 
     /// <summary>
-    /// Board size (always 32 for Caro).
+    /// Board size (always 16 for Caro).
     /// </summary>
     public int BoardSize => Size;
 

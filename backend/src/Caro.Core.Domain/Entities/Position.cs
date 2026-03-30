@@ -6,17 +6,17 @@ namespace Caro.Core.Domain.Entities;
 /// Represents a position on the game board using X, Y coordinates.
 /// Value object - immutable and identified by its values.
 /// </summary>
-/// <param name="X">X coordinate (0-31)</param>
-/// <param name="Y">Y coordinate (0-31)</param>
+/// <param name="X">X coordinate (0-15)</param>
+/// <param name="Y">Y coordinate (0-15)</param>
 public readonly record struct Position(int X, int Y)
 {
     /// <summary>
-    /// Board size constant (32x32).
+    /// Board size constant (16x16).
     /// </summary>
     public static readonly int BoardSize = GameConstants.BoardSize;
 
     /// <summary>
-    /// Check if this position is within valid board bounds (0-18).
+    /// Check if this position is within valid board bounds (0-15).
     /// </summary>
     public readonly bool IsValid => X >= 0 && X < BoardSize && Y >= 0 && Y < BoardSize;
 
