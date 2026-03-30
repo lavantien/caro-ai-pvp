@@ -29,11 +29,9 @@
 	// Game mode: PvP, PvAI, or AIvAI
 	type GameMode = 'pvp' | 'pvai' | 'aivai';
 	type TimeControl = '1+0' | '3+2' | '7+5' | '15+10';
-	type AIDifficulty = 'Braindead' | 'Easy' | 'Medium' | 'Hard' | 'Grandmaster' | 'Experimental';
 
 	let gameMode = $state<GameMode>('pvp');
 	let timeControl = $state<TimeControl>('7+5');
-	let aiDifficulty = $state<AIDifficulty>('Medium');
 	let aiSide = $state<'red' | 'blue'>('blue');  // For PvAI, which side is human?
 	let isAiThinking = $state(false);
 
@@ -94,37 +92,12 @@
 		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
 
 		try {
-			// Determine AI difficulties based on game mode
-			let redAIDifficulty: string | undefined;
-			let blueAIDifficulty: string | undefined;
-
-			switch (gameMode) {
-				case 'pvai':
-					// Player vs AI - human plays red by default (AI goes first)
-					if (aiSide === 'blue') {
-						// Human plays blue, AI plays red
-						redAIDifficulty = aiDifficulty;
-					} else {
-						// Human plays red, AI plays blue (default)
-						blueAIDifficulty = aiDifficulty;
-					}
-					break;
-				case 'aivai':
-					// AI vs AI - both sides are AI
-					redAIDifficulty = aiDifficulty;
-					blueAIDifficulty = aiDifficulty;
-					break;
-			}
-
-			// Create new game on backend
 			const response = await fetch(`${apiUrl}/api/game/new`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					timeControl: timeControl,
-					gameMode: gameMode,
-					redAIDifficulty: redAIDifficulty,
-					blueAIDifficulty: blueAIDifficulty
+					gameMode: gameMode
 				})
 			});
 
@@ -293,7 +266,7 @@
 					const response = await fetch(`${apiUrl}/api/game/${gameId}/ai-move`, {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ difficulty: aiDifficulty })
+						body: JSON.stringify({})
 					});
 					if (!response.ok) {
 						const errorText = await response.text();
@@ -315,7 +288,7 @@
 				const response = await fetch(`${apiUrl}/api/game/${gameId}/ai-move`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ difficulty: aiDifficulty })
+					body: JSON.stringify({})
 				});
 
 				if (!response.ok) {
@@ -526,24 +499,6 @@
 						</select>
 					</div>
 
-					{#if gameMode === 'pvai' || gameMode === 'aivai'}
-						<div class="flex items-center gap-2">
-							<label for="ai-difficulty" class="text-sm font-medium text-gray-700">AI Difficulty:</label>
-							<select
-								id="ai-difficulty"
-								bind:value={aiDifficulty}
-								class="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-								disabled={store.moveNumber > 0}
-							>
-								<option value="Braindead">Braindead</option>
-								<option value="Easy">Easy</option>
-								<option value="Medium">Medium</option>
-								<option value="Hard">Hard</option>
-								<option value="Grandmaster">Grandmaster</option>
-								<option value="Experimental">Experimental</option>
-							</select>
-						</div>
-					{/if}
 
 					{#if gameMode === 'pvai'}
 						<div class="flex items-center gap-2">

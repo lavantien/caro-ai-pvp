@@ -235,12 +235,6 @@ export class UCIEngine {
 		});
 	}
 
-	/**
-	 * Set skill level (1-6).
-	 */
-	async setSkillLevel(level: number): Promise<UCIResponse> {
-		return this.setOption('Skill Level', level);
-	}
 
 	/**
 	 * Stop the current search.
