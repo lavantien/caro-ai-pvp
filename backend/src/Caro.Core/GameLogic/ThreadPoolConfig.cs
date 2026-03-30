@@ -69,7 +69,7 @@ public static class ThreadPoolConfig
         // Formula: (total threads/2) - 1
         // Minimum 1 thread, maximum processorCount - 2
         int halfCount = processorCount / 2;
-        return Math.Max(1, halfCount - 1);
+        return Math.Max(5, halfCount - 1);
     }
 
     /// <summary>
