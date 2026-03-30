@@ -53,7 +53,6 @@ Full-strength engine with 100-500x speedup over naive minimax:
 | | Butterfly History | Long-term move statistics |
 | **Evaluation** | BitKey Pattern System | O(1) pattern lookup with bit rotation |
 | | Pattern4 Classification | 4-direction combined threat detection |
-| | Contest Factor | Dynamic contempt (-200 to +200 cp) |
 | **Time Control** | PID Time Management | Control theory for allocation |
 | | Structured Logging | Async file-based logging with rotation |
 

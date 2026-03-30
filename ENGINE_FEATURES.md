@@ -360,17 +360,6 @@ Position evaluation combines multiple factors:
 - Defense valued at 3/2 of offense
 - Prevents opponent threats prioritized
 
-### 5.5 Contest Factor (Contempt)
-
-Dynamic adjustment for draw-ish vs. sharp positions.
-
-**Range:** -200 to +200 centipawns
-
-**Position Awareness:**
-- Positive: Avoid draws, play aggressively
-- Negative: Accept draws, play solidly
-- Adjusts based on game phase and score
-
 ---
 
 ## 6. Time Management

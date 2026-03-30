@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-03-30
+
+### Removed
+- **Variable strength engine configuration** - Deleted AdaptiveDepthCalculator, ContestManager, BinaryBookFormat, and all difficulty-dependent code paths. Engine is singular and all optimizations are always enabled
+- **Opening book format spec** - Removed BinaryBookFormat.cs (was format spec only, never implemented)
+
+### Changed
+- **Centralized configuration hub** - All engine constants consolidated into `Caro.Core.Domain/Configuration/` (SearchConstants, EvaluationConstants, MoveOrderingConstants, PruningConstants). No hardcoded magic numbers in game logic
+- **Documentation cleanup** - Removed stale Contest Factor / difficulty-level references from README.md and ENGINE_FEATURES.md; updated test files to use singular engine API
+
 ## [2.1.1] - 2026-03-30
 
 ### Fixed
