@@ -35,7 +35,7 @@ Lazy SMP is a parallel search paradigm where multiple threads explore the game t
 - Hash move priority enables cross-thread work distribution
 
 **Thread Distribution:**
-- Thread count: `(logical_cores / 2) - 1` for Grandmaster difficulty
+- Thread count: `max(5, (logical_cores / 2) - 1)`
 - Each thread maintains independent killer moves and history tables
 - TT writes from helpers are filtered (shallow depths, exact bounds only)
 
@@ -408,7 +408,7 @@ Uses control theory principles for time allocation.
 Background search during opponent's turn.
 
 **Characteristics:**
-- Enabled for Easy+ difficulty
+- Enabled by default
 - Searches predicted opponent move
 - TT stored for potential reuse
 - Interrupted on opponent move
@@ -569,7 +569,6 @@ Standard UCI commands for engine control:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| Skill Level | spin | 3 | 1-6 (1=Braindead, 2=Easy, 3=Medium, 4=Hard, 5=Grandmaster, 6=Experimental) |
 | Threads | spin | auto | Search threads |
 | Hash | spin | 256 | TT size (MB) |
 | Ponder | check | true | Enable pondering |

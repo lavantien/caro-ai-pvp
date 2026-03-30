@@ -22,25 +22,11 @@ backend/src/Caro.Diagnostic/
 backend/test_config.txt
 backend/test_diagnostic.txt
 **/test_output.txt
-**/tournament_results.txt
-**/comprehensive_output.txt
 *.host.*-*/
 backend/TestCoords/
 backend/test_book.csx
 test_tt.cs
 
-# Tournament logs
-backend/src/Caro.TournamentRunner/logs/
-
 # SQLite WAL files (temporary)
 *.db-shm
 *.db-wal
-
-
-# Tournament output files
-matchup_results.txt
-
-# Baseline benchmark output (can be regenerated with --baseline-benchmark)
-# Summary is tracked for reference
-baseline_bullet_*.txt
-baseline_blitz_*.txt

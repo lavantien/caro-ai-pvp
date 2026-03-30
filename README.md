@@ -1,22 +1,21 @@
 # Caro AI PvP
 
-A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built with .NET 10, SvelteKit 2.49+ with Svelte 5 Runes.
+A full-strength Caro (Gomoku variant) AI, built with .NET 10, SvelteKit 2.49+ with Svelte 5 Runes.
 
 ---
 
 ## Overview
 
-- **Grandmaster-level AI** - Lazy SMP parallel search
+- **Full-strength AI** - Lazy SMP parallel search at maximum strength
 - **UCI Protocol Support** - Standalone engine compatible with UCI chess GUIs
 - **Clean Architecture** - Separated Domain, Application, and Infrastructure layers
 - **Real-time multiplayer** - WebSocket support via SignalR
 - **Mobile-first UX** - Ghost stone positioning and haptic feedback
 - **Comprehensive automated tests** - Including adversarial concurrency tests
 
-**Tournament & Testing:**
-- Frontend tournament mode with balanced round-robin and live ELO tracking
-- Matchup suites for AI strength validation (statistical analysis with color-swapping)
-- Comprehensive test runners: 20 matchups, 10 games each, 3+2 time control
+**Testing:**
+- Self-play validation with statistical analysis and color-swapping
+- Comprehensive test runners with configurable time controls
 
 **Game Rules (Caro/Gomoku variant):**
 - 16x16 board (256 intersections)
@@ -30,7 +29,7 @@ A tournament-strength Caro (Gomoku variant) with grandmaster-level AI, built wit
 
 ### AI Engine
 
-Grandmaster-level engine with 100-500x speedup over naive minimax:
+Full-strength engine with 100-500x speedup over naive minimax:
 
 | Category | Feature | Description |
 |----------|---------|-------------|
@@ -58,34 +57,31 @@ Grandmaster-level engine with 100-500x speedup over naive minimax:
 | **Time Control** | PID Time Management | Control theory for allocation |
 | | Structured Logging | Async file-based logging with rotation |
 
-### Difficulty Levels
+### Engine Configuration
 
-| Level | Threads | Time Budget | Radius | Error | Features |
-|-------|---------|-------------|--------|-------|----------|
-| Braindead | 1 | 5% | 3 | 10% | Beginners |
-| Easy | max(2,(N/5)-1) | 20% | 4 | 0% | Parallel search + pondering |
-| Medium | max(3,(N/4)-1) | 50% | 5 | 0% | Parallel + pondering |
-| Hard | max(4,(N/3)-1) | 75% | 6 | 0% | Parallel + pondering + VCF |
-| Grandmaster | max(5,(N/2)-1) | 100% | 7 | 0% | Max parallel, VCF, pondering |
-| Experimental | max(5,(N/2)-1) | 100% | 7 | 0% | Max features |
+The engine runs at full strength with all optimizations enabled:
 
-**Time-Based Design Philosophy:**
-- **NO depth-based logic** - All strength differentiation comes solely from:
-  1. **Threads allocated** - More threads = faster parallel search
-  2. **Time allotted** - More time = deeper search naturally
-  3. **Search radius** - Larger radius = wider candidate pool = stronger tactics
-- **NO artificial depth floors or limits** - Search runs until time expires via iterative deepening
-- **Depth emerges naturally** - Different machines reach different depths based on hardware capability
-- **Pondering is precomputation** - Uses full-quality search during opponent's turn, results merged on ponder hit
+| Parameter | Value |
+|-----------|-------|
+| Threads | max(5, (logical_cores / 2) - 1) |
+| Time Budget | 100% |
+| Search Radius | 7 (15x15 area) |
+| Error Rate | 0% |
+| Parallel Search | Enabled (Lazy SMP) |
+| Pondering | Enabled |
+| VCF Solver | Enabled |
+
+- No depth-based logic -- search runs until time expires via iterative deepening
+- Depth emerges naturally from hardware capability and time budget
+- Pondering provides free precomputation during opponent's turn
 
 ### Performance Statistics
 
-See [STATS.md](STATS.md) for baseline benchmark results and performance metrics.
+See [STATS.md](STATS.md) for performance metrics.
 
 To run your own benchmarks:
 ```bash
-cd backend/src/Caro.TournamentRunner
-dotnet run -- --baseline-benchmark
+cd backend/src/Caro.UCIMockClient && dotnet run -- --games 4 --time 180 --inc 2
 ```
 
 ### UCI Protocol
@@ -94,7 +90,7 @@ Universal Chess Interface (UCI) protocol compatibility for standalone engine usa
 
 - **Standalone console engine** - Run as separate process like Stockfish
 - **Standard UCI commands** - uci, isready, ucinewgame, position, go, stop, quit, setoption
-- **Engine options** - Skill Level, Threads, Hash, Ponder
+- **Engine options** - Threads, Hash, Ponder
 - **WebSocket bridge** - Frontend can connect directly to UCI engine
 - **Algebraic notation** - Double-letter coordinates aa-dd (columns), 1-16 (rows)
 
@@ -108,72 +104,20 @@ dotnet run --project backend/src/Caro.UCI
 cd backend/src/Caro.UCIMockClient && dotnet run -- --games 4 --time 180 --inc 2
 ```
 
-**Run Comprehensive Tournament (AI vs AI matchups):**
-```bash
-cd backend/src/Caro.TournamentRunner && dotnet run -- --comprehensive --matchups=BraindeadvsBraindead,BraindeadvsEasy,BraindeadvsMedium,BraindeadvsHard,BraindeadvsGrandmaster,BraindeadvsExperimental --time=180+2 --games=10
-```
-
-Available matchups: `BraindeadvsBraindead`, `BraindeadvsEasy`, `BraindeadvsMedium`, `BraindeadvsHard`, `BraindeadvsGrandmaster`, `BraindeadvsExperimental`, `EasyvsMedium`, `EasyvsHard`, `EasyvsGrandmaster`, `EasyvsExperimental`, `MediumvsHard`, `MediumvsGrandmaster`, `MediumvsExperimental`, `HardvsGrandmaster`, `HardvsExperimental`, `GrandmastervsExperimental`
-
 **Example UCI session:**
 ```
 > uci
 < id name Caro AI
 < id author Caro AI Project
-< option name Skill Level type spin default 3 min 1 max 6
+< option name Threads type spin default auto min 1 max 32
+< option name Hash type spin default 256 min 32 max 4096
+< option name Ponder type check default true
 < uciok
 > position startpos moves bd8
 > go movetime 2000
 < info depth 2 nodes 13524 time 1590 pv ca9
 < bestmove ca9
 ```
-
-### Tournament Mode
-
-- 6 AI levels in round-robin format
-- ELO tracking with standard rating calculation
-- Balanced scheduling (one game per bot per round)
-- SQLite logging with FTS5 full-text search
-- SignalR broadcasts via async queues
-
-### Tournament Stat Line Format
-
-Each move in tournament output shows detailed engine statistics:
-
-```
-G1 M10 | B(16,17) by Easy | T: 1.1s/796ms | Bk | Th: 3 | D2 | N: 2.0K | NPS: 1.9K | TT: 0.0% | %M: 0.0% | HD: 1.5 | P: - | VCF: -
-```
-
-| Column | Description |
-|--------|-------------|
-| `G#` | Game number |
-| `M#` | Move number |
-| `R/B(x,y)` | Player color and move coordinates |
-| `by Difficulty` | AI difficulty level |
-| `T: time/alloc` | Time spent / time allocated |
-| `Type` | Move type code (see below) |
-| `Th: #` | Thread count |
-| `D#` | Search depth achieved |
-| `N: #` | Nodes searched |
-| `NPS: #` | Nodes per second |
-| `TT: #%` | Transposition table hit rate |
-| `%M: #%` | Master thread TT usage |
-| `HD: #` | Helper thread average depth |
-| `P: info` | Pondering stats (if active) |
-| `VCF: info` | VCF solver stats (if active) |
-
-**Move Type Codes:**
-
-| Code | Type | Description |
-|------|------|-------------|
-| `-` | Normal | Full search performed |
-| `Wn` | ImmediateWin | Instant winning move (no search) |
-| `Bl` | ImmediateBlock | Forced block of opponent threat |
-| `Er` | ErrorRate | Random move (Braindead's 10% error) |
-| `Ct` | CenterMove | Center opening move |
-| `Em` | Emergency | Emergency mode (low time) |
-
-**Note:** Early exit moves (win, block, error) show `0ms` allocated time because no search was performed - the move was determined instantly. The actual time shown is overhead of checking conditions.
 
 ### Documentation Guide
 
@@ -190,7 +134,7 @@ G1 M10 | B(16,17) by Easy | T: 1.1s/796ms | Bk | Th: 3 | D2 | N: 2.0K | NPS: 1.9
 README.md (Entry Point)
     ├── Getting Started → Quick start commands
     ├── Architecture → Clean Architecture diagram
-    ├── Features → AI, Tournament, UCI
+    ├── Features → AI, UCI
     └── Testing → Test projects overview
         │
         └──→ ENGINE_FEATURES.md (Deep Dive)
@@ -227,7 +171,7 @@ cd backend/tests/Caro.Core.MatchupTests && dotnet test
 |---------|-------|
 | Caro.Core.Tests | Unit tests (algorithms, evaluators, concurrency, immutable state) |
 | Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks) |
-| Caro.Core.MatchupTests | Failsafe correctness, smoke, and statistical performance matchups |
+| Caro.Core.MatchupTests | Failsafe correctness and smoke matchups |
 | Caro.Core.Domain.Tests | Entities (Board, Cell, Player, GameState, Position) |
 | Caro.Core.Application.Tests | Services, interfaces, DTOs, mappers |
 | Caro.Core.Infrastructure.Tests | AI algorithms, external concerns |
@@ -249,9 +193,7 @@ graph TB
     end
 
     subgraph Application["Application Layer"]
-        TournamentEngine["TournamentEngine"]
-        MatchScheduler["MatchScheduler"]
-        StatsPublisher["IStatsPublisher"]
+        GameService["GameService"]
     end
 
     subgraph Core["Core Layer (Caro.Core)"]
@@ -259,7 +201,6 @@ graph TB
         VCFSolver["VCFSolver"]
         ParallelSearch["ParallelMinimaxSearch (Lazy SMP)"]
         Evaluator["BitBoardEvaluator"]
-        TournamentManager["TournamentManager"]
         UCIProtocol["UCI Protocol"]
     end
 
@@ -267,7 +208,6 @@ graph TB
         Board["Board (16x16)"]
         Player["Player Enum"]
         GameState["GameState"]
-        AIDifficulty["AIDifficulty"]
     end
 
     subgraph Infrastructure["Infrastructure Layer"]
@@ -292,7 +232,7 @@ graph TB
 |---------|---------|--------------|
 | `Caro.Core.Domain` | Core entities, value objects | None |
 | `Caro.Core.Application` | Interfaces, application services | Domain, Core |
-| `Caro.Core` | Game logic, AI engine, tournament, UCI protocol | Domain |
+| `Caro.Core` | Game logic, AI engine, UCI protocol | Domain |
 | `Caro.Core.Infrastructure` | Service implementations, external concerns | Domain, Application, Core |
 
 **Immutable Domain Model:**
@@ -314,16 +254,10 @@ All domain entities are fully immutable for thread safety:
 ### Component Flow
 
 **Move Request Flow:**
-1. Frontend sends move via SignalR → TournamentHub
-2. TournamentEngine calls `MinimaxAI.GetBestMove()`
-3. Parallel search spawns N threads (based on difficulty)
+1. Frontend sends move via SignalR → GameHub
+2. GameService calls `MinimaxAI.GetBestMove()`
+3. Parallel search spawns N threads (based on logical core count)
 4. Master thread selects best result, helpers explore with TT sharing
-
-**Stats Pub-Sub Flow:**
-1. MinimaxAI implements `IStatsPublisher` with `Channel<MoveStatsEvent>`
-2. After each move, stats published to channel (MainSearch, Pondering, VCFSearch)
-3. TournamentEngine runs async subscriber tasks for both AIs
-4. Ponder stats cached separately for post-move reporting
 
 **Transposition Table Sharding:**
 - 16 segments with independent hash-based distribution
@@ -348,7 +282,7 @@ if (threadIndex > 0) {
 - Prevents "strength inversion" (weaker AI exploiting predictable behavior)
 
 **Ponder Hit Handling:**
-- MinimaxAI supports pondering internally (enabled for Easy+ difficulty)
+- MinimaxAI supports pondering internally (enabled by default)
 - `AIService.StartPonderingAsync` wires through to MinimaxAI's pondering subsystem
 - `HasPonderHitResult` checks for valid hit before new search
 - TT shared between ponder and main search for efficiency
@@ -375,13 +309,10 @@ Production-grade concurrency following .NET 10 best practices:
 
 ## Performance
 
-| Difficulty | Threads | Time Budget |
-|------------|---------|-------------|
-| Braindead | 1 | 5% |
-| Easy | max(2,(N/5)-1) | 20% |
-| Medium | max(3,(N/4)-1) | 50% |
-| Hard | max(4,(N/3)-1) | 75% |
-| Grandmaster | max(5,(N/2)-1) | 100% |
+| Parameter | Value |
+|-----------|-------|
+| Threads | max(5, (N/2)-1) where N = logical cores |
+| Time Budget | 100% |
 
 **Depth varies by host machine** - calculated dynamically from NPS and time budget. Higher-spec machines achieve greater depth naturally.
 
@@ -403,7 +334,7 @@ Production-grade concurrency following .NET 10 best practices:
 |---------|-------|
 | Caro.Core.Tests | Unit tests (algorithms, evaluators, concurrency, immutable state, test helpers, AI improvements, symmetry) |
 | Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks) |
-| Caro.Core.MatchupTests | AI matchups, integration, tournament |
+| Caro.Core.MatchupTests | AI matchups and integration |
 | Caro.Core.Domain.Tests | Entities (Board, Cell, Player, GameState, Position) |
 | Caro.Core.Application.Tests | Services, interfaces, DTOs, Mappers |
 | Caro.Core.Infrastructure.Tests | AI algorithms, external concerns |

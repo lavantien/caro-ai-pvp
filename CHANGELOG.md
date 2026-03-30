@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-03-30
+
+### Removed
+- **Multi-difficulty bot system** - Removed AIDifficulty enum (Braindead/Easy/Medium/Hard/Grandmaster/Experimental), AIDifficultyConfig, and all difficulty-specific parameters. The engine now runs at full strength only
+- **Tournament mode** - Removed TournamentRunner project, TournamentEngine, MatchScheduler, TournamentManager, TournamentHub (SignalR), and tournament API endpoints
+- **UCI Skill Level option** - Removed `setoption name Skill Level` from UCI protocol
+- **Difficulty-dependent search radius** - Search radius fixed at 7 (15x15 area) for full-strength play
+
+### Changed
+- **CSHARP_ONBOARDING.md** - Updated code examples to reflect single-strength engine API (no AIDifficulty parameter)
+
 ## [1.83.0] - 2026-03-29
 
 ### Fixed
@@ -2093,6 +2104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.0.0
 
+[2.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.0.0
 [1.83.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.83.0
 [1.82.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.82.0
 [1.81.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.81.0

@@ -11,8 +11,7 @@ backend/
 │   ├── Caro.Core.Domain/         # Pure C# entities (no dependencies)
 │   ├── Caro.Core.Application/    # DTOs, mappers, interfaces
 │   ├── Caro.Core.Infrastructure/ # AI algorithms, persistence
-│   ├── Caro.Api/               # Web API + SignalR hub
-│   └── Caro.TournamentRunner/   # AI strength validation tests
+│   └── Caro.Api/               # Web API + SignalR hub
 └── tests/
     ├── Caro.Core.Domain.Tests/
     ├── Caro.Core.Application.Tests/
@@ -123,11 +122,10 @@ public class MinimaxAI(ILogger<MinimaxAI>? logger) : IAIEngine
  public (int x, int y) GetBestMove(
  Board board,
  Player player,
- AIDifficulty difficulty,
  long? timeRemainingMs = null,
  int moveNumber = 1)
  {
- logger?.LogDebug("Searching with difficulty {Difficulty}", difficulty);
+ logger?.LogDebug("Searching at full strength");
  // Iterative deepening with alpha-beta pruning
  // ... search logic
 
@@ -148,7 +146,6 @@ When registering these in Program.cs, you define how long they live.
 var builder = WebApplication.CreateBuilder(args);
 
 // Register AI services
-builder.Services.AddSingleton<TournamentManager>();
 builder.Services.AddSignalR();
 
 // Register repositories
@@ -348,21 +345,18 @@ public void BitBoard_SetBit_UpdatesCorrectly()
 #### Testing AI Algorithms
 
 ```csharp
-[Theory]
-[InlineData(AIDifficulty.Easy, 3)]
-[InlineData(AIDifficulty.Medium, 5)]
-[InlineData(AIDifficulty.Hard, 7)]
-public void SearchDepth_CorrelatesWithDifficulty(AIDifficulty difficulty, int expectedDepth)
+[Fact]
+public void SearchDepth_ReachesMinimumDepth()
 {
  // Arrange
  var state = GameState.CreateInitial();
  var ai = new MinimaxAI();
 
  // Act
- var (x, y, depth) = ai.GetBestMove(state, difficulty);
+ var (x, y, depth) = ai.GetBestMove(state.Board, Player.Red, timeRemainingMs: 2000);
 
  // Assert
- depth.Should().BeGreaterOrEqualTo(expectedDepth);
+ depth.Should().BeGreaterOrEqualTo(1);
 }
 ```
 
@@ -442,7 +436,7 @@ This codebase follows Clean Architecture with three core layers:
 | Caro.Core.Domain.Tests | Caro.Core.Domain | Unit | 52 |
 | Caro.Core.Application.Tests | Caro.Core.Application | Unit | 26 |
 | Caro.Core.Infrastructure.Tests | Caro.Core.Infrastructure | Unit | 42 |
-| Caro.Core.Tests | Caro.Core (GameLogic/Tournament/Concurrency) | Unit | 649 |
+| Caro.Core.Tests | Caro.Core (GameLogic/Concurrency) | Unit | See project |
 | Caro.Core.IntegrationTests | Caro.Core (AI Search) | Integration | See project |
 | Caro.Core.MatchupTests | Caro.Core (Integration/Matchup) | Integration | See project |
 
@@ -457,7 +451,7 @@ This codebase follows Clean Architecture with three core layers:
    - Caro.Core.Domain.Tests: 52 unit tests (no mocking needed)
    - Caro.Core.Application.Tests: 26 unit tests (mock DTOs)
    - Caro.Core.Infrastructure.Tests: 42 unit tests
-   - Caro.Core.Tests: 649 unit tests (AI, tournament, concurrency)
+   - Caro.Core.Tests: See project (AI, concurrency)
    - Caro.Core.IntegrationTests: ~187 integration tests (opt-in, slower)
    - Caro.Core.MatchupTests: ~44 integration/matchup tests
 7. **When tests fail** : Check [Theory] inline data to see which input caused crash
