@@ -264,14 +264,10 @@ All domain entities are fully immutable for thread safety:
 - `shardIndex = (hash >> 32) & shardMask`
 - Reduces cache coherency traffic for parallel threads
 
-**Helper Thread TT Write Policy:**
-```
-if (threadIndex > 0) {
-    if (depth < rootDepth / 2) return;  // Too shallow
-    if (flag != Exact) return;           // Misleading bounds
-}
-// Master threads (threadIndex=0) can store any entry
-```
+**Uniform TT Write Policy:**
+- All threads (master and helpers) share identical write logic
+- Depth-age replacement strategy handles entry quality naturally
+- Helper threads populate TT from different tree regions for master to reuse
 
 ### Key Architectural Decisions
 

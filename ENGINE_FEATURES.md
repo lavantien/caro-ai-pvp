@@ -158,17 +158,12 @@ XOR-based key verification enables parallel access without locks.
 - Verification through reverse XOR
 - Detects torn reads/writes
 
-### 3.5 Helper Thread TT Write Policy
+### 3.5 Uniform TT Write Policy
 
-Helper threads in Lazy SMP have restricted TT writes:
-
-```
-if (threadIndex > 0) {
-    if (depth < rootDepth / 2) return;  // Too shallow
-    if (flag != Exact) return;           // Misleading bounds
-}
-// Master threads (threadIndex=0) can store any entry
-```
+All threads (master and helper) in Lazy SMP use identical TT write logic.
+No helper thread restrictions -- the depth-age replacement strategy handles
+entry quality naturally, so helper threads can populate the TT with results
+from different parts of the search tree for the master thread to benefit from.
 
 ---
 
