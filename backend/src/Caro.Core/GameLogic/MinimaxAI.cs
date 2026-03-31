@@ -75,9 +75,9 @@ public class MinimaxAI : IStatsPublisher
 
     // Time control for search timeout
     private long _searchHardBoundMs;
-    // Check time more frequently to catch timeout earlier (power of 2 for efficient masking)
-    // 4096 = check every ~4K nodes. At 1M nodes/sec, this checks every ~4ms
-    // This is much more frequent than the old 100K interval which only checked every ~100ms
+    // Check time at regular intervals (power of 2 for efficient masking)
+    // 16 = check every ~16 nodes. At 1M nodes/sec, this checks every ~16us
+    // Frequent checking allows fine-grained timeout control
     private const int TimeCheckInterval = SearchConstants.TimeCheckInterval;
     private bool _searchStopped;
 
@@ -1686,12 +1686,6 @@ public class MinimaxAI : IStatsPublisher
         _moveType = MoveType.ImmediateBlock;
         return bestDelayingBlock;
     }
-
-    /// <summary>
-    /// Find a move that creates an immediate winning threat for us.
-    /// Used by safeguard when opponent has multiple independent threats that can't all be blocked.
-    /// If we can create our own winning threat, opponent must respond and we gain a tempo.
-    /// </summary>
 
     /// <summary>
     /// Calculate appropriate search depth based on time allocation.

@@ -8,22 +8,6 @@ namespace Caro.Core.GameLogic;
 /// </summary>
 public class BoardEvaluator
 {
-    // Scoring weights from centralized EvaluationConstants
-    private const int FourInRowScore = EvaluationConstants.FourInRowScore;
-    private const int ThreeInRowScore = EvaluationConstants.ThreeInRowScore;
-    private const int TwoInRowScore = EvaluationConstants.TwoInRowScore;
-    private const int OneInRowScore = EvaluationConstants.OneInRowScore;
-    private const int CenterBonus = EvaluationConstants.CenterBonus;
-
-    // Direction vectors: horizontal, vertical, 2 diagonals
-    private static readonly (int dx, int dy)[] Directions = new[]
-    {
-        (1, 0),   // Horizontal
-        (0, 1),   // Vertical
-        (1, 1),   // Diagonal down-right
-        (1, -1)   // Diagonal down-left
-    };
-
     /// <summary>
     /// Evaluate the board for a given player using the default evaluator
     /// Positive score = good for player
