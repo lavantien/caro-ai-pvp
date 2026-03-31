@@ -12,7 +12,7 @@ namespace Caro.Core.GameLogic;
 /// - Handles sandwiched wins (OXXXXXO) automatically
 /// - Fits entirely in CPU L2 cache
 ///
-/// Based on tournament-winning Gomoku AI research by Tomek Czajka (CodeCup 2020)
+/// Based on Gomoku AI research by Tomek Czajka (CodeCup 2020)
 /// </summary>
 public sealed class DirectionalThreatLUT
 {

@@ -5,7 +5,7 @@ namespace Caro.Core.Domain.Tests.Entities;
 
 /// <summary>
 /// Tests for Zobrist hashing - ensures unique hashes for different positions.
-/// Critical for opening book integrity: hash collisions cause position data corruption.
+/// Critical for transposition table integrity: hash collisions cause position data corruption.
 /// </summary>
 public class BoardHashTests
 {
@@ -93,7 +93,7 @@ public class BoardHashTests
         var hash1 = board1.GetHash();
         var hash2 = board2.GetHash();
 
-        // Assert - MUST be different to prevent opening book corruption
+        // Assert - MUST be different to prevent transposition table corruption
         hash1.Should().NotBe(hash2,
             "positions with different stone placements must have different hashes");
     }

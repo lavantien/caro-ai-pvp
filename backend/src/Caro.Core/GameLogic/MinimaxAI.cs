@@ -509,7 +509,7 @@ public class MinimaxAI : IStatsPublisher
             };
         }
         // CRITICAL FIX: For long time budgets, use direct time allocation without AdaptiveTimeManager
-        // The adaptive manager is designed for tournament play and under-allocates for long time budgets
+        // The adaptive manager under-allocates for long time budgets
         else if (timeRemainingMs.HasValue)
         {
             // Infer initial time from first few moves
@@ -2926,7 +2926,7 @@ public class MinimaxAI : IStatsPublisher
     #region Pondering Support
 
     /// <summary>
-    /// Get the ponderer instance for external access (e.g., TournamentEngine)
+    /// Get the ponderer instance for external access
     /// </summary>
     public Ponderer GetPonderer() => _ponderer;
 

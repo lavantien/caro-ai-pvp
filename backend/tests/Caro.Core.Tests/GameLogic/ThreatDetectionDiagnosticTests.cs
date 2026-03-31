@@ -13,7 +13,7 @@ namespace Caro.Core.Tests.GameLogic;
 public class ThreatDetectionDiagnosticTests
 {
     /// <summary>
-    /// Simulate Game 4 from the 5-game tournament where Braindead won.
+    /// Simulate a game where a weaker AI won against a stronger one.
     /// Braindead (Blue) won with (10,11) on move 44.
     /// Grandmaster (Red) blocked at (10,6) on move 43.
     ///

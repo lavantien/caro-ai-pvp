@@ -363,7 +363,7 @@ public class AdversarialConcurrencyTests
     [Fact]
     public async Task Channel_BasicProducerConsumer_NoDataLoss()
     {
-        // Test that System.Threading.Channels works correctly (for TournamentManager fix)
+        // Test that System.Threading.Channels works correctly under concurrent access
         var channel = Channel.CreateBounded<int>(new BoundedChannelOptions(100)
         {
             FullMode = BoundedChannelFullMode.Wait

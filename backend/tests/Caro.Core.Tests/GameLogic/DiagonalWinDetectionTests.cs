@@ -6,7 +6,7 @@ using Xunit;
 namespace Caro.Core.Tests.GameLogic;
 
 /// <summary>
-/// Tests to diagnose the diagonal win detection issue found in tournament games.
+/// Tests to diagnose diagonal win detection edge cases.
 /// Tests are adjusted for 16x16 board.
 /// </summary>
 public class DiagonalWinDetectionTests

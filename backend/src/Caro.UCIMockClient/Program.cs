@@ -58,7 +58,7 @@ class Program
         Console.WriteLine($"Bot B: Engine B (full strength)");
         Console.WriteLine($"Time Control: {initialTimeSeconds / 60}+{incrementSeconds}");
         Console.WriteLine($"Games: {totalGames} (alternating colors)");
-        Console.WriteLine($"Opening Book: Enabled (depth 24)");
+        Console.WriteLine();
         Console.WriteLine();
 
         // Create two engine instances

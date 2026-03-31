@@ -24,9 +24,9 @@ public class DeadlockDetectionTests
     }
 
     [Fact]
-    public async Task TournamentManager_SimulatedConcurrentAccess_NoDeadlock()
+    public async Task SimulatedConcurrentAccess_NoDeadlock()
     {
-        // Simulates the TournamentManager pattern with its lock structure
+        // Simulates concurrent access with lock structure
         var stateLock = new object();
         var state = new { Status = "Idle", GamesCompleted = 0, CurrentGame = "None" };
         var tasks = new List<Task>();
@@ -41,7 +41,7 @@ public class DeadlockDetectionTests
                 {
                     lock (stateLock)
                     {
-                        // Simulate work (deep copy in real TournamentManager)
+                        // Simulate work (deep copy in real usage)
                         Thread.Sleep(5);
                         state = new { Status = "Running", GamesCompleted = i, CurrentGame = $"Game{i}" };
                     }
