@@ -127,7 +127,7 @@ public sealed class ParallelMinimaxSearch
         _evaluator = new BoardEvaluator();
         _winDetector = new WinDetector();
         _vcfSolver = new ThreatSpaceSearch();
-        _random = new Random();
+        _random = Random.Shared;
         // Use Lazy SMP formula (processorCount/2)-1 by default for better stability
         _maxThreads = maxThreads ?? ThreadPoolConfig.GetLazySMPThreadCount();
 
@@ -461,7 +461,7 @@ public sealed class ParallelMinimaxSearch
                 {
                     ThreadIndex = threadId,
                     SearchRadius = MaxSearchRadius,
-                    Random = new Random(threadId + (int)DateTime.UtcNow.Ticks)
+                    Random = new Random((int)(Environment.TickCount64 + (long)threadId * 0x9E3779B9L))
                 };
 
                 try
@@ -1463,7 +1463,7 @@ public sealed class ParallelMinimaxSearch
             // 1. TT Move (highest priority)
             if (cachedMove.HasValue && cachedMove.Value == (x, y))
             {
-                scores[i] = 10000000;
+                scores[i] = MoveOrderingConstants.TtMoveScore * 10;
                 continue;
             }
 
@@ -1474,13 +1474,13 @@ public sealed class ParallelMinimaxSearch
             if (depth >= 0 && depth < 20)
             {
                 if (threadData.KillerMoves[depth, 0] == (x, y))
-                    score += 500000;
+                    score += MoveOrderingConstants.KillerScore1;
                 else if (threadData.KillerMoves[depth, 1] == (x, y))
-                    score += 400000;
+                    score += MoveOrderingConstants.KillerScore2;
             }
 
             // 4. History heuristic
-            score += Math.Min(historyTable[x, y] * 2, 20000);
+            score += Math.Min(historyTable[x, y] * 2, MoveOrderingConstants.HistoryScoreMax);
 
             // 5. Center preference
             int center = board.BoardSize / 2;
@@ -1537,7 +1537,7 @@ public sealed class ParallelMinimaxSearch
 
             if (cachedMove.HasValue && cachedMove.Value == (x, y))
             {
-                scores[i] = 10000000;
+                scores[i] = MoveOrderingConstants.TtMoveScore * 10;
                 continue;
             }
 
@@ -1546,12 +1546,12 @@ public sealed class ParallelMinimaxSearch
             if (depth >= 0 && depth < 20)
             {
                 if (threadData.KillerMoves[depth, 0] == (x, y))
-                    score += 500000;
+                    score += MoveOrderingConstants.KillerScore1;
                 else if (threadData.KillerMoves[depth, 1] == (x, y))
-                    score += 400000;
+                    score += MoveOrderingConstants.KillerScore2;
             }
 
-            score += Math.Min(historyTable[x, y] * 2, 20000);
+            score += Math.Min(historyTable[x, y] * 2, MoveOrderingConstants.HistoryScoreMax);
 
             int center = board.BoardSize / 2;
             int centerDist = Math.Abs(x - center) + Math.Abs(y - center);
@@ -1682,7 +1682,7 @@ public sealed class ParallelMinimaxSearch
             }
 
             // 6. History Heuristic (weighted 2x as part of composite score)
-            score += Math.Min(historyTable[x, y] * 2, 20000);
+            score += Math.Min(historyTable[x, y] * 2, MoveOrderingConstants.HistoryScoreMax);
 
             // 7. Center Preference & Proximity
             int center = board.BoardSize / 2;
@@ -2181,7 +2181,7 @@ public sealed class ParallelMinimaxSearch
                 {
                     ThreadIndex = threadId,
                     SearchRadius = MaxSearchRadius,
-                    Random = new Random(threadId + (int)DateTime.UtcNow.Ticks)
+                    Random = new Random((int)(Environment.TickCount64 + (long)threadId * 0x9E3779B9L))
                 };
 
                 var result = SearchPonderIteration(

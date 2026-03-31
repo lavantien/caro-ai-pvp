@@ -31,7 +31,7 @@ public sealed class SPSAOptimizer
     public SPSAOptimizer(SPSAParameters parameters, int? seed = null)
     {
         _parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
-        _random = seed.HasValue ? new Random(seed.Value) : new Random();
+        _random = seed.HasValue ? new Random(seed.Value) : Random.Shared;
         _iteration = 0;
     }
 
