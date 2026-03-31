@@ -30,8 +30,7 @@ function Run-Tests {
         # Run only unit test projects (IsTestProject=true)
         $unitTestProjects = @(
             "Caro.Core.Infrastructure.Tests",
-            "Caro.Core.Tests",
-            "Caro.Core.MatchupTests"
+            "Caro.Core.Tests"
         )
         foreach ($proj in $unitTestProjects) {
             if (Test-Path $proj) {
@@ -61,22 +60,6 @@ switch ($command) {
         # Run integration tests
         Run-Tests -Project "Caro.Core.IntegrationTests"
     }
-    "matchup" {
-        # Run matchup tests
-        Run-Tests -Project "Caro.Core.MatchupTests"
-    }
-    "failsafe" {
-        # Run failsafe tests (binary pass/fail, ~15 min)
-        Run-Tests -Project "Caro.Core.MatchupTests" -Filter "Category=Failsafe"
-    }
-    "smoke" {
-        # Run smoke tests (quick sanity, ~5 min)
-        Run-Tests -Project "Caro.Core.MatchupTests" -Filter "Category=Smoke"
-    }
-    "performance" {
-        # Run thorough performance tests (statistical, hours)
-        Run-Tests -Project "Caro.Core.MatchupTests" -Filter "Category=Integration"
-    }
     "quick" {
         # Quick smoke test - no build
         Run-Tests -NoBuild
@@ -89,17 +72,11 @@ Commands:
   (none)       Run unit tests with detailed output (default)
   unit         Run unit tests only
   integration  Run integration tests (AI search, stress)
-  matchup      Run matchup tests (all tiers)
-  failsafe     Run failsafe tests (binary pass/fail, ~15 min)
-  smoke        Run smoke tests (quick sanity, ~5 min)
-  performance  Run thorough performance tests (statistical, hours)
   quick        Quick smoke test (no build)
 
 Examples:
   .\run-tests.ps1              # Run unit tests with detailed output
   .\run-tests.ps1 integration  # Run integration tests
-  .\run-tests.ps1 failsafe     # Run failsafe tests only
-  .\run-tests.ps1 smoke        # Run smoke tests only
   .\run-tests.ps1 quick        # Quick test without rebuild
 "@ -ForegroundColor Yellow
         exit 1

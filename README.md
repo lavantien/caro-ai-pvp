@@ -156,26 +156,22 @@ README.md (Entry Point)
 Separate test projects for focused testing:
 
 ```bash
-# Unit tests (fast, no integration/matchup tests)
+# Unit tests (fast, no integration tests)
 cd backend/tests/Caro.Core.Tests && dotnet test
 
 # Integration tests (opt-in, full AI searches - slower)
 cd backend/tests/Caro.Core.IntegrationTests && dotnet test
-
-# Matchup/integration tests (slower, AI vs AI matchups)
-cd backend/tests/Caro.Core.MatchupTests && dotnet test
 ```
 
 | Project | Focus |
 |---------|-------|
 | Caro.Core.Tests | Unit tests (algorithms, evaluators, immutable state) |
 | Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks, concurrency stress) |
-| Caro.Core.MatchupTests | Failsafe correctness and smoke matchups (scaffolded) |
 | Caro.Core.Domain.Tests | Entities (Board, Cell, Player, GameState, Position) |
 | Caro.Core.Application.Tests | Services, interfaces, DTOs, mappers |
 | Caro.Core.Infrastructure.Tests | AI algorithms, external concerns |
 
-**Note:** Run `dotnet test` in Caro.Core.Tests for fast unit test feedback. IntegrationTests are excluded from default test runs (marked as `<IsTestProject>false</IsTestProject>`). MatchupTests run via `tests/run-tests.ps1` with `failsafe`, `smoke`, or `performance` commands.
+**Note:** Run `dotnet test` in Caro.Core.Tests for fast unit test feedback. IntegrationTests are excluded from default test runs (marked as `<IsTestProject>false</IsTestProject>`).
 
 ---
 
@@ -330,7 +326,6 @@ Production-grade concurrency following .NET 10 best practices:
 |---------|-------|
 | Caro.Core.Tests | Unit tests (algorithms, evaluators, immutable state, test helpers, AI improvements, symmetry) |
 | Caro.Core.IntegrationTests | AI search integration (full depth searches, performance benchmarks, 29 concurrency stress tests) |
-| Caro.Core.MatchupTests | AI matchups and integration (scaffolded) |
 | Caro.Core.Domain.Tests | Entities (Board, Cell, Player, GameState, Position) |
 | Caro.Core.Application.Tests | Services, interfaces, DTOs, Mappers |
 | Caro.Core.Infrastructure.Tests | AI algorithms, external concerns |

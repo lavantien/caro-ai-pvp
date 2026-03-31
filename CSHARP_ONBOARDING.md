@@ -17,8 +17,7 @@ backend/
     ├── Caro.Core.Application.Tests/
     ├── Caro.Core.Infrastructure.Tests/
     ├── Caro.Core.Tests/
-    ├── Caro.Core.IntegrationTests/
-    └── Caro.Core.MatchupTests/
+    └── Caro.Core.IntegrationTests/
 ```
 
 ### Key Technologies
@@ -438,7 +437,6 @@ This codebase follows Clean Architecture with three core layers:
 | Caro.Core.Infrastructure.Tests | Caro.Core.Infrastructure | Unit | 42 |
 | Caro.Core.Tests | Caro.Core (GameLogic/Concurrency) | Unit | See project |
 | Caro.Core.IntegrationTests | Caro.Core (AI Search) | Integration | See project |
-| Caro.Core.MatchupTests | Caro.Core (Integration/Matchup) | Integration | See project |
 
 ## Summary Checklist for your Onboarding
 
@@ -453,7 +451,6 @@ This codebase follows Clean Architecture with three core layers:
    - Caro.Core.Infrastructure.Tests: 42 unit tests
    - Caro.Core.Tests: See project (AI, concurrency)
    - Caro.Core.IntegrationTests: ~187 integration tests (opt-in, slower)
-   - Caro.Core.MatchupTests: ~44 integration/matchup tests
 7. **When tests fail** : Check [Theory] inline data to see which input caused crash
 8. **Mocking** : Use Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
 
