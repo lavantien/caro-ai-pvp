@@ -24,13 +24,6 @@
 					: 'text-slate-300 hover:bg-slate-800'}">
 				Play Game
 			</a>
-			<a
-				href="/tournament"
-				class="px-3 py-2 rounded-lg transition-colors {$page.url.pathname === '/tournament'
-					? 'bg-purple-600 text-white'
-					: 'text-slate-300 hover:bg-slate-800'}">
-				Tournament
-			</a>
 		</div>
 	</div>
 </nav>

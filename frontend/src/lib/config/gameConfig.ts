@@ -49,13 +49,3 @@ export const EvaluationConfig = {
 	centerBonus: 50
 } as const;
 
-/**
- * Network configuration for API endpoints
- */
-export const NetworkConfig = {
-	/** Base URL for API calls */
-	apiBase: 'http://localhost:5207/api/tournament',
-
-	/** URL for SignalR hub */
-	hubUrl: 'http://localhost:5207/hubs/tournament'
-} as const;
