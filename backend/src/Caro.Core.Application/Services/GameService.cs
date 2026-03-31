@@ -261,8 +261,7 @@ public sealed class GameService : IGameService
                 };
             }
 
-            currentState.UndoMove();
-            var undoneState = currentState;
+            var undoneState = currentState.UndoMove();
             await _gameRepository.SaveAsync(gameId, undoneState, cancellationToken);
 
             return new GameResponse
