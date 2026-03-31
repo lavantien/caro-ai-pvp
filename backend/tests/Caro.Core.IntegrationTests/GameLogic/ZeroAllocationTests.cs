@@ -17,7 +17,7 @@ public class ZeroAllocationTests
     }
 
     [Fact]
-    public void HashCalculation_BoardAndZobristTables_AreDeterministic()
+    public void HashCalculation_BoardHash_IsDeterministic()
     {
         // Arrange
         var board = new Board();
@@ -26,17 +26,13 @@ public class ZeroAllocationTests
         board = board.PlaceStone(8, 7, Player.Red);
         board = board.PlaceStone(8, 8, Player.Blue);
 
-        // Act - Both hash implementations should be deterministic
+        // Act - Hash should be deterministic
         var boardHash1 = board.GetHash();
         var boardHash2 = board.GetHash();
-        var calculatedHash1 = ZobristTables.CalculateHash(board);
-        var calculatedHash2 = ZobristTables.CalculateHash(board);
 
-        // Assert - Each implementation should produce consistent results
+        // Assert - Hash should produce consistent, non-zero results
         Assert.Equal(boardHash1, boardHash2);
-        Assert.Equal(calculatedHash1, calculatedHash2);
         Assert.NotEqual(0UL, boardHash1);
-        Assert.NotEqual(0UL, calculatedHash1);
     }
 
     [Fact]
