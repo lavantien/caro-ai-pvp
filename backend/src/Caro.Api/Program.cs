@@ -18,12 +18,10 @@ builder.Services.AddSingleton<GameLogService>(sp =>
     // Use GetDataPath to store logs in a consistent location
     var dbPath = Path.Combine(AppContext.BaseDirectory, "Data", "GameLogs.db");
 
-    // Block on initialization since we're in the DI container setup
-    // This runs once at app startup
-    var task = GameLogService.CreateAsync(dbPath, logger);
-    task.Wait(); // Safe here since we're not in async context yet
-
-    return task.Result;
+    // GetAwaiter().GetResult() preferred over .Wait()/.Result:
+    // unwraps AggregateException into the actual exception for cleaner diagnostics.
+    // Safe in ASP.NET Core startup (no SynchronizationContext).
+    return GameLogService.CreateAsync(dbPath, logger).GetAwaiter().GetResult();
 });
 
 // Register MinimaxAI
