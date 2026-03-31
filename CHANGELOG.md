@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-03-31
+
+### Fixed
+- **GameService.UndoMoveAsync return value discarded** - `currentState.UndoMove()` returned a new immutable state but the return value was ignored; the repository saved the old unchanged state instead
+- **GameState.UndoMove player-switching** - After undo, CurrentPlayer was kept the same instead of switching to `CurrentPlayer.Opponent()`, causing incorrect turn assignment after undoing non-initial moves
+- **ParallelThreatAnalyzer missing BrokenFour** - `GetCriticalThreatMoves` only included StraightFour threats; added BrokenFour so parallel search blocks the same threats as sequential search
+- **ENGINE_FEATURES.md TT write policy** - Documentation described helper thread TT write restrictions that no longer exist; updated to reflect uniform write policy
+- **README.md TT helper policy** - Removed stale helper thread write policy section, updated to note all threads share identical logic
+- **BoardEvaluator dead constants** - Removed unused scoring constants and Directions array that duplicated centralized EvaluationConstants
+- **MinimaxAI stale comment** - Updated TimeCheckInterval comment from "4096" to reflect actual value (16)
+
 ## [2.2.0] - 2026-03-30
 
 ### Removed
