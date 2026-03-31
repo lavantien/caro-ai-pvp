@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] - 2026-03-31
+
+### Removed
+- **Matchup test project** - Deleted `Caro.Core.MatchupTests` (legacy, no source files)
+- **Tournament test snapshots** - Deleted `Caro.Core.Tests/Tournament/` directory
+- **Tournament nav link** - Removed from frontend layout
+- **Tournament network config** - Removed dead `NetworkConfig` export pointing to removed tournament endpoints
+
+### Fixed
+- **Stale comments** - Cleaned up references to TournamentManager, opening book, and tournament play in MinimaxAI, DirectionalThreatLUT, test files, and UCIMockClient
+- **Documentation sync** - Removed matchup/tournament/opening-book traces from README.md, ENGINE_FEATURES.md, CSHARP_ONBOARDING.md, backend/tests/README.md, run-tests.ps1, STATS.md
+
 ## [2.2.1] - 2026-03-31
 
 ### Fixed
