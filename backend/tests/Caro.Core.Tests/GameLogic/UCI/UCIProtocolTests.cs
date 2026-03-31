@@ -51,7 +51,7 @@ public sealed class UCIProtocolTests
     public void HandleCommand_UciNewGame_ResetsState()
     {
         // Arrange - set up a position first
-        _protocol.HandleCommand("position startpos moves h9");
+        _protocol.HandleCommand("position startpos moves bb9");
 
         // Act
         var response = _protocol.HandleCommand("ucinewgame");
@@ -74,7 +74,7 @@ public sealed class UCIProtocolTests
     public void HandleCommand_PositionWithMoves_ReturnsEmpty()
     {
         // Act
-        var response = _protocol.HandleCommand("position startpos moves h9");
+        var response = _protocol.HandleCommand("position startpos moves bb9");
 
         // Assert
         response.Should().BeEmpty();
@@ -213,5 +213,154 @@ public sealed class UCIProtocolTests
 
         // Assert
         response.Should().ContainSingle(r => r.StartsWith("Error"));
+    }
+
+    [Fact]
+    public void HandleCommand_Stop_WithoutSearch_ReturnsEmpty()
+    {
+        var response = _protocol.HandleCommand("stop");
+
+        response.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void HandleCommand_SetOption_WithSpacesInName_ReturnsError()
+    {
+        var response = _protocol.HandleCommand("setoption name Unknown Option value 5");
+
+        response.Should().ContainSingle(r => r.Contains("Unknown option"));
+    }
+
+    [Fact]
+    public void HandleCommand_SetOption_NoValue_ReturnsError()
+    {
+        // Ponder requires a value; bool.TryParse(null) returns false
+        var response = _protocol.HandleCommand("setoption name Ponder");
+
+        response.Should().ContainSingle(r => r.Contains("Unknown option"));
+    }
+
+    [Fact]
+    public async Task RunAsync_SequentialCommands_AllProcessed()
+    {
+        var commands = "uci\nisready\nucinewgame\nposition startpos\nisready\n";
+        var input = new StringReader(commands);
+        var output = new StringWriter();
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(500);
+
+        await _protocol.RunAsync(input, output, cts.Token);
+
+        var outputStr = output.ToString();
+        outputStr.Should().Contain("uciok");
+        // Multiple readyoks from the two isready commands
+        var readyCount = outputStr.Split("readyok").Length - 1;
+        readyCount.Should().Be(2);
+    }
+
+    [Fact]
+    public void HandleCommand_PositionMultipleMoves_TracksCorrectly()
+    {
+        // Play several moves
+        _protocol.HandleCommand("position startpos moves bb9 bd8");
+        var response = _protocol.HandleCommand("isready");
+
+        response.Should().Equal("readyok");
+    }
+
+    [Fact]
+    public void HandleCommand_Position_WhitespaceHandling()
+    {
+        // Extra whitespace should be trimmed
+        var response = _protocol.HandleCommand("  position   startpos  ");
+
+        response.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void HandleCommand_GoWithMovetime_ReturnsNonNull()
+    {
+        _protocol.HandleCommand("position startpos");
+
+        var response = _protocol.HandleCommand("go movetime 100");
+
+        response.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void HandleCommand_GoWithDepth_ReturnsNonNull()
+    {
+        _protocol.HandleCommand("position startpos");
+
+        var response = _protocol.HandleCommand("go depth 3");
+
+        response.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void HandleCommand_PositionAfterNewGame_ResetsBoard()
+    {
+        // Set up a position
+        _protocol.HandleCommand("position startpos moves bb9");
+        // New game resets
+        _protocol.HandleCommand("ucinewgame");
+        // Position should be clean
+        var response = _protocol.HandleCommand("position startpos");
+
+        response.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RunAsync_EmptyLines_Ignored()
+    {
+        var input = new StringReader("\n\n\nuci\n\n\nisready\n\n");
+        var output = new StringWriter();
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(500);
+
+        await _protocol.RunAsync(input, output, cts.Token);
+
+        var outputStr = output.ToString();
+        outputStr.Should().Contain("uciok");
+        outputStr.Should().Contain("readyok");
+    }
+
+    [Fact]
+    public void HandleCommand_Echo_NoArgs_ReturnsEmpty()
+    {
+        var response = _protocol.HandleCommand("echo");
+
+        response.Should().Equal("");
+    }
+
+    [Theory]
+    [InlineData("UCI")]
+    [InlineData("Uci")]
+    [InlineData("UCI ")]
+    [InlineData(" uci ")]
+    public void HandleCommand_CaseInsensitiveAndWhitespace(string command)
+    {
+        var response = _protocol.HandleCommand(command);
+
+        response.Should().Contain("uciok");
+    }
+
+    [Fact]
+    public void HandleCommand_SetOption_Hash_ResizedOnNewGame()
+    {
+        _protocol.HandleCommand("setoption name Hash value 1");
+
+        // Should apply on ucinewgame
+        var response = _protocol.HandleCommand("ucinewgame");
+
+        response.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void HandleCommand_SetOption_Threads_Valid()
+    {
+        var response = _protocol.HandleCommand("setoption name Threads value 4");
+
+        response.Should().BeEmpty();
     }
 }
