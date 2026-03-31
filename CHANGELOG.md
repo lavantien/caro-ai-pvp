@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-03-31
+
+### Removed
+- **Dead code: FastThreatDetector, LineExtractor, DirectionalThreatLUT** - Never instantiated or referenced; contained hardcoded board size 15 and single-ulong bitboard incompatible with 16x16 (256 cells)
+- **Dead Zobrist hash** - BoardTechnicalState.Hash was computed but never read externally; ZobristTables duplicated Domain-layer Zobrist with different PRNG
+- **BoardTechnicalState wrapper** - Simplified BoardExtensions to use Domain-layer Zobrist directly
+
+### Fixed
+- **MoveOrderer.ScoreCandidatesForTiebreak center distance** - Used center at (16,16) for "32x32 board" instead of GameConstants.CenterPosition (8) for 16x16; edge moves were incorrectly preferred over center moves
+- **MoveOrderer magic numbers** - Replaced hardcoded score values (10000, 5000, 1000, 5) with named constants
+- **Async blocking in DI registration** - Replaced `.Wait()`/`.Result` with `GetAwaiter().GetResult()` in GameLogService factory (unwraps AggregateException)
+- **Random seeding in parallel search** - Replaced correlated `DateTime.UtcNow.Ticks` seeding with `Environment.TickCount64 + threadId * 0x9E3779B9` (golden ratio hash) for better thread diversity
+- **SPSAOptimizer Random fallback** - Replaced `new Random()` with `Random.Shared`
+
 ## [2.2.2] - 2026-03-31
 
 ### Removed
