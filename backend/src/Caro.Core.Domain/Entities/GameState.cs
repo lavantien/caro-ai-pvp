@@ -82,10 +82,11 @@ public sealed record GameState(
 
         // Determine the new current player after undo
         // Special case: when undoing to MoveNumber 0, reset to Red (first player)
-        // Otherwise, keep the same player (undo typically removes the opponent's last move)
+        // Otherwise, switch to opponent (undo reverts the last move, giving the turn back
+        // to the player who made that move)
         Player newCurrentPlayer = (MoveNumber - 1) == 0
             ? Player.Red
-            : CurrentPlayer;
+            : CurrentPlayer.Opponent();
 
         return this with
         {

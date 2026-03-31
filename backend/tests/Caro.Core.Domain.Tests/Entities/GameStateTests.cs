@@ -155,8 +155,8 @@ public class GameStateTests
         undone.MoveNumber.Should().Be(1);
         undone.Board.GetCell(9, 9).Player.Should().Be(Player.Red);
         undone.Board.GetCell(10, 10).Player.Should().Be(Player.None);
-        // After undoing move 2 (Blue's move), CurrentPlayer stays Red (the player whose turn it was)
-        undone.CurrentPlayer.Should().Be(Player.Red);
+        // After undoing move 2 (Blue's move), it's Blue's turn again
+        undone.CurrentPlayer.Should().Be(Player.Blue);
     }
 
     [Fact]

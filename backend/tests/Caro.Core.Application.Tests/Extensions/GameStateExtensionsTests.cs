@@ -165,8 +165,8 @@ public sealed class GameStateExtensionsTests
         var undone = state.UndoMoveAndReturn();
 
         undone.MoveNumber.Should().Be(1);
-        // After 2 moves (Red, Blue), CurrentPlayer is Red. Undo keeps same player since MoveNumber-1 != 0.
-        undone.CurrentPlayer.Should().Be(Player.Red);
+        // After undoing Blue's (8,8), it's Blue's turn again
+        undone.CurrentPlayer.Should().Be(Player.Blue);
         undone.Board.GetCell(7, 7).Player.Should().Be(Player.Red);
         undone.Board.GetCell(8, 8).IsEmpty.Should().BeTrue();
     }

@@ -12,20 +12,21 @@ public class GameStateUndoTests
         // Arrange
         var game = GameState.CreateInitial();
 
-        // Make 3 moves - now GameState manages its own Board
+        // Make 3 moves: Red(7,7), Blue(7,8), Red(8,8)
+        // State: MoveNumber=3, CurrentPlayer=Blue
         game = game.WithMove(7, 7); // Red
         game = game.WithMove(7, 8); // Blue
         game = game.WithMove(8, 8); // Red
 
         var initialMoveNumber = game.MoveNumber;
-        var initialPlayer = game.CurrentPlayer;
 
-        // Act
+        // Act - undo Red's last move at (8,8)
         var undoneGame = game.UndoMove();
 
         // Assert
         undoneGame.MoveNumber.Should().Be(initialMoveNumber - 1);
-        undoneGame.CurrentPlayer.Should().Be(initialPlayer);
+        // After undoing Red's move, it's Red's turn again
+        undoneGame.CurrentPlayer.Should().Be(Player.Red);
 
         // Last move should be removed
         undoneGame.Board.GetCell(8, 8).Player.Should().Be(Player.None);
@@ -124,22 +125,27 @@ public class GameStateUndoTests
     [Fact]
     public void UndoMove_MultipleTimes_RevertsToInitialState()
     {
-        // Arrange
+        // Arrange: Red(7,7), Blue(7,8), Red(8,8) -> MoveNumber=3, CurrentPlayer=Blue
         var game = GameState.CreateInitial();
 
         game = game.WithMove(7, 7); // Red
         game = game.WithMove(7, 8); // Blue
         game = game.WithMove(8, 8); // Red
 
-        // Act - Undo twice
+        // Act - Undo Red's (8,8)
         var undoneOnce = game.UndoMove();
+        // Assert intermediate: MoveNumber=2, Red's turn again
+        undoneOnce.MoveNumber.Should().Be(2);
+        undoneOnce.CurrentPlayer.Should().Be(Player.Red);
+        undoneOnce.Board.GetCell(8, 8).Player.Should().Be(Player.None);
+
+        // Act - Undo Blue's (7,8)
         var undoneTwice = undoneOnce.UndoMove();
 
-        // Assert
+        // Assert: MoveNumber=1, Blue's turn again
         undoneTwice.MoveNumber.Should().Be(1);
         undoneTwice.CurrentPlayer.Should().Be(Player.Blue);
-        undoneTwice.Board.GetCell(8, 8).Player.Should().Be(Player.None);
-        undoneTwice.Board.GetCell(7, 8).Player.Should().Be(Player.None); // After 2 undos from 3 moves, only move 1 remains
+        undoneTwice.Board.GetCell(7, 8).Player.Should().Be(Player.None);
         undoneTwice.Board.GetCell(7, 7).Player.Should().Be(Player.Red);
     }
 }
