@@ -56,6 +56,50 @@ Full-strength engine with 100-500x speedup over naive minimax:
 | **Time Control** | PID Time Management | Control theory for allocation |
 | | Structured Logging | Async file-based logging with rotation |
 
+### Game Modes
+
+Three game modes selectable before the first move:
+
+| Mode | Description |
+|------|-------------|
+| **Player vs Player** | Two humans on the same device |
+| **Player vs AI** | Human vs engine (choose which side AI plays) |
+| **AI vs AI** | Engine plays both sides (spectator mode) |
+
+### Time Controls
+
+Fisher time controls with increment:
+
+| Control | Initial Time | Increment |
+|---------|-------------|-----------|
+| Bullet | 1 min | 0 sec |
+| Blitz | 3 min | 2 sec |
+| Rapid | 7 min | 5 sec |
+| Classical | 15 min | 10 sec |
+
+### ELO Rating System
+
+Local ELO rating with persistent leaderboard:
+
+- Default rating: 1500 (K-factor: 32)
+- Player registration with name entry
+- Top-10 leaderboard with win/loss tracking and win rate
+- Ratings persisted in `localStorage`
+
+### UX Features
+
+| Feature | Description |
+|---------|-------------|
+| **Move History** | Scrollable move log with player highlighting |
+| **Undo** | Server-side undo support via `POST /api/game/{id}/undo` |
+| **Sound Effects** | Synthesized stone placement (A4/C5 tones) and victory arpeggios via Web Audio API |
+| **Sound Toggle** | Mute/unmute button; muted by default (browser autoplay policy) |
+| **Haptic Feedback** | Vibration on valid (10ms) and invalid (30-50-30ms) moves |
+| **Ghost Stone** | Touch-device positioning preview |
+| **Winning Line** | Animated highlight on game-winning five-in-a-row |
+| **AI Thinking Indicator** | Spinner displayed while engine computes |
+| **Timer Display** | Per-player countdown timers with timeout handling |
+
 ### Engine Configuration
 
 The engine runs at full strength with all optimizations enabled:

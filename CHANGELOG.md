@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [2.4.0] - 2026-03-31
+
+### Fixed
+- Frontend board size mismatch: config (32x32), grid (15x15), and UCI coordinates now match backend 16x16
+- Landing page rules updated with correct time controls (Bullet/Blitz/Rapid/Classical)
+
+### Added
+- LockFreeTranspositionTable tests: concurrent read/write, shard distribution, depth-age replacement, ABA prevention
+- SIMDBitBoardEvaluator tests: pattern evaluation, defense multiplier, symmetry, batch evaluation, hardware detection
+- TacticalEvaluator tests: tactical patterns, emergency defense, critical moves, null-move safety, futility pruning
+- SearchHeuristics tests: killer moves, history tables, butterfly tables
+- AdaptiveTimeManager tests: phase detection, sudden death, time scramble, PID multiplier adjustment
+- UCI protocol test expansion: case-insensitive commands, whitespace handling, sequential flow, setoption edge cases
+- Frontend haptics unit tests: valid/invalid vibration patterns
+- Frontend UCI coordinate round-trip tests: all 256 positions, boundary values
+
+### Changed
+- README: documented game modes, time controls, ELO rating system, UX features table
+
 ## [2.3.1] - 2026-03-31
 
 ### Added
