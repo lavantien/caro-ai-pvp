@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [2.4.1] - 2026-04-01
+
+### Changed
+- Test magic numbers replaced with named `private const` fields across 21 test files (integration + unit)
+- Board boundary assertions: `< 15` replaced with `< GameConstants.BoardSize` across 5 files (39 occurrences)
+
+### Fixed
+- Boundary bug: position 15 is valid on 16x16 board but was excluded by `< 15` checks
+
 ## [2.4.0] - 2026-03-31
 
 ### Fixed
@@ -632,6 +641,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[2.4.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.4.1
+[2.4.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.4.0
 [2.3.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.3.1
 [2.3.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.3.0
 [2.2.2]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.2.2
