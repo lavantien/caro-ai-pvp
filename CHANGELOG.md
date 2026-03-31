@@ -5,2197 +5,607 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+<!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
+
+## [2.3.1] - 2026-03-31
+
+### Added
+- UCI protocol tests: engine options, go parameters, position converter, protocol commands
+- VCFSolver full test coverage
+- Pattern4Evaluator classification tests (52 tests, all 13 CaroPattern4 enum values)
+- Lazy SMP parallel search integration tests
+
+### Fixed
+- SignalR dependency removed from frontend; README/ENGINE_FEATURES updated for WebSocket UCI bridge
+- Stale ZobristTables reference removed from ZeroAllocationTests
+
+### Changed
+- CHANGELOG condensed to concise one-line format
+
 ## [2.3.0] - 2026-03-31
 
 ### Removed
-- **Dead code: FastThreatDetector, LineExtractor, DirectionalThreatLUT** - Never instantiated or referenced; contained hardcoded board size 15 and single-ulong bitboard incompatible with 16x16 (256 cells)
-- **Dead Zobrist hash** - BoardTechnicalState.Hash was computed but never read externally; ZobristTables duplicated Domain-layer Zobrist with different PRNG
-- **BoardTechnicalState wrapper** - Simplified BoardExtensions to use Domain-layer Zobrist directly
+- Dead code: FastThreatDetector, LineExtractor, DirectionalThreatLUT (hardcoded board size 15, incompatible with 16x16)
+- Dead Zobrist hash: BoardTechnicalState.Hash computed but never read; ZobristTables duplicated Domain-layer Zobrist
+- BoardTechnicalState wrapper: BoardExtensions now uses Domain-layer Zobrist directly
 
 ### Fixed
-- **MoveOrderer.ScoreCandidatesForTiebreak center distance** - Used center at (16,16) for "32x32 board" instead of GameConstants.CenterPosition (8) for 16x16; edge moves were incorrectly preferred over center moves
-- **MoveOrderer magic numbers** - Replaced hardcoded score values (10000, 5000, 1000, 5) with named constants
-- **Async blocking in DI registration** - Replaced `.Wait()`/`.Result` with `GetAwaiter().GetResult()` in GameLogService factory (unwraps AggregateException)
-- **Random seeding in parallel search** - Replaced correlated `DateTime.UtcNow.Ticks` seeding with `Environment.TickCount64 + threadId * 0x9E3779B9` (golden ratio hash) for better thread diversity
-- **SPSAOptimizer Random fallback** - Replaced `new Random()` with `Random.Shared`
+- MoveOrderer center distance used (16,16) for 32x32 instead of GameConstants.CenterPosition (8) for 16x16
+- MoveOrderer magic numbers replaced with named constants
+- Async blocking in DI: `.Wait()`/`.Result` replaced with `GetAwaiter().GetResult()`
+- Random seeding in parallel search: correlated DateTime ticks replaced with golden-ratio hash
+- SPSAOptimizer fallback Random replaced with Random.Shared
 
 ## [2.2.2] - 2026-03-31
 
 ### Removed
-- **Matchup test project** - Deleted `Caro.Core.MatchupTests` (legacy, no source files)
-- **Tournament test snapshots** - Deleted `Caro.Core.Tests/Tournament/` directory
-- **Tournament nav link** - Removed from frontend layout
-- **Tournament network config** - Removed dead `NetworkConfig` export pointing to removed tournament endpoints
+- Matchup test project, tournament test snapshots, tournament nav link, dead NetworkConfig export
 
 ### Fixed
-- **Stale comments** - Cleaned up references to TournamentManager, opening book, and tournament play in MinimaxAI, DirectionalThreatLUT, test files, and UCIMockClient
-- **Documentation sync** - Removed matchup/tournament/opening-book traces from README.md, ENGINE_FEATURES.md, CSHARP_ONBOARDING.md, backend/tests/README.md, run-tests.ps1, STATS.md
+- Stale comments referencing TournamentManager, opening book, tournament play
+- Documentation sync: removed matchup/tournament/opening-book traces across README, ENGINE_FEATURES, CSHARP_ONBOARDING, test docs
 
 ## [2.2.1] - 2026-03-31
 
 ### Fixed
-- **GameService.UndoMoveAsync return value discarded** - `currentState.UndoMove()` returned a new immutable state but the return value was ignored; the repository saved the old unchanged state instead
-- **GameState.UndoMove player-switching** - After undo, CurrentPlayer was kept the same instead of switching to `CurrentPlayer.Opponent()`, causing incorrect turn assignment after undoing non-initial moves
-- **ParallelThreatAnalyzer missing BrokenFour** - `GetCriticalThreatMoves` only included StraightFour threats; added BrokenFour so parallel search blocks the same threats as sequential search
-- **ENGINE_FEATURES.md TT write policy** - Documentation described helper thread TT write restrictions that no longer exist; updated to reflect uniform write policy
-- **README.md TT helper policy** - Removed stale helper thread write policy section, updated to note all threads share identical logic
-- **BoardEvaluator dead constants** - Removed unused scoring constants and Directions array that duplicated centralized EvaluationConstants
-- **MinimaxAI stale comment** - Updated TimeCheckInterval comment from "4096" to reflect actual value (16)
+- GameService.UndoMoveAsync discarded return value (saved old unchanged state)
+- GameState.UndoMove player-switching: kept same player instead of switching to Opponent()
+- ParallelThreatAnalyzer missing BrokenFour in GetCriticalThreatMoves
+- ENGINE_FEATURES/README stale TT write policy docs
+- BoardEvaluator dead constants duplicating centralized EvaluationConstants
+- MinimaxAI stale TimeCheckInterval comment
 
 ## [2.2.0] - 2026-03-30
 
 ### Removed
-- **Variable strength engine configuration** - Deleted AdaptiveDepthCalculator, ContestManager, BinaryBookFormat, and all difficulty-dependent code paths. Engine is singular and all optimizations are always enabled
-- **Opening book format spec** - Removed BinaryBookFormat.cs (was format spec only, never implemented)
+- Variable strength engine config: AdaptiveDepthCalculator, ContestManager, BinaryBookFormat, difficulty-dependent code paths. Engine is singular, all optimizations always on.
 
 ### Changed
-- **Centralized configuration hub** - All engine constants consolidated into `Caro.Core.Domain/Configuration/` (SearchConstants, EvaluationConstants, MoveOrderingConstants, PruningConstants). No hardcoded magic numbers in game logic
-- **Documentation cleanup** - Removed stale Contest Factor / difficulty-level references from README.md and ENGINE_FEATURES.md; updated test files to use singular engine API
+- All engine constants consolidated into `Caro.Core.Domain/Configuration/` (SearchConstants, EvaluationConstants, MoveOrderingConstants, PruningConstants)
 
 ## [2.1.1] - 2026-03-30
 
 ### Fixed
-- **API board serialization off-by-one** - `Program.cs` used `Enumerable.Range(0, 15)` instead of `Range(0, 16)`, omitting column/row index 15 from API responses on the 16x16 board
-- **Position.cs stale comments** - Comments referenced 32x32 board and 0-31 coordinate range (leftover from pre-v1.63.0 board resize); corrected to 16x16 and 0-15
-- **Board.cs stale comment** - "Board size (always 32 for Caro)" corrected to "always 16"
-- **BinaryBookFormat.cs misleading comment** - Clarified MaxBoardSize=19 is an upper bound for binary format, not the actual game board size (16x16)
-- **ThreadPoolConfig thread count minimum** - `GetLazySMPThreadCount()` used `Math.Max(1, ...)` instead of `Math.Max(5, ...)` matching MinimaxAI and documentation
-
-### Changed
-- **README.md test tables** - Moved "concurrency" label from Caro.Core.Tests to Caro.Core.IntegrationTests where the 29 concurrency tests actually reside; marked Caro.Core.MatchupTests as scaffolded (empty directories, no test files)
+- API board serialization off-by-one: `Range(0, 15)` → `Range(0, 16)` for 16x16 board
+- Position/Board stale comments referencing 32x32 instead of 16x16
+- ThreadPoolConfig thread count minimum: `Math.Max(1,...)` → `Math.Max(5,...)`
 
 ## [2.1.0] - 2026-03-30
 
 ### Changed
-- **Engine source decomposition** - Extracted search logic from MinimaxAI.cs (~4,826 lines) and ParallelMinimaxSearch.cs (~3,098 lines) into 8 cohesive modules under `GameLogic/Search/`, reducing the main files to ~3,100 and ~2,600 lines respectively
-- **Centralized search constants** - Consolidated duplicated and hardcoded constants into `SearchConstants.cs` and `PruningConstants.cs` under `Caro.Core.Domain/Configuration/`
+- Engine source decomposition: extracted MinimaxAI/ParallelMinimaxSearch into 8 modules under `GameLogic/Search/`
 
 ### Added
-- `Search/TacticalEvaluator.cs` - Tactical pattern detection (threats, futility, null-move safety)
-- `Search/CandidateGenerator.cs` - Candidate move generation with center-of-mass ordering
-- `Search/SearchHeuristics.cs` - Killer moves, history tables, butterfly tables
-- `Search/MoveOrderer.cs` - Staged move ordering with TT/killer/continuation scoring
-- `Search/QuickWinChecker.cs` - Pre-search tactical shortcuts (winning moves, forced blocks)
-- `Search/TimeBudgetCalculator.cs` - VCF time limits, ponder time, default allocation
-- `Search/ParallelThreatAnalyzer.cs` - Opponent threat detection for parallel search path
-- `Search/ParallelNodeEvaluator.cs` - Per-node tactical eval, adaptive LMR, winner checks
-- `Configuration/SearchConstants.cs` - MaxSearchRadius, TT size, null-move thresholds, aspiration window, killer/history limits
-- `Configuration/PruningConstants.cs` - Futility margins, LMR parameters, PVS depth threshold
-
-### Fixed
-- **ENGINE_FEATURES.md line counts** - Corrected stale line count estimates in Section 10.3 to reflect actual post-extraction sizes
+- Search modules: TacticalEvaluator, CandidateGenerator, SearchHeuristics, MoveOrderer, QuickWinChecker, TimeBudgetCalculator, ParallelThreatAnalyzer, ParallelNodeEvaluator
+- Configuration: SearchConstants.cs, PruningConstants.cs
 
 ## [2.0.0] - 2026-03-30
 
 ### Removed
-- **Multi-difficulty bot system** - Removed AIDifficulty enum (Braindead/Easy/Medium/Hard/Grandmaster/Experimental), AIDifficultyConfig, and all difficulty-specific parameters. The engine now runs at full strength only
-- **Tournament mode** - Removed TournamentRunner project, TournamentEngine, MatchScheduler, TournamentManager, TournamentHub (SignalR), and tournament API endpoints
-- **UCI Skill Level option** - Removed `setoption name Skill Level` from UCI protocol
-- **Difficulty-dependent search radius** - Search radius fixed at 7 (15x15 area) for full-strength play
-
-### Changed
-- **CSHARP_ONBOARDING.md** - Updated code examples to reflect single-strength engine API (no AIDifficulty parameter)
+- Multi-difficulty bot system: AIDifficulty enum, AIDifficultyConfig, difficulty-specific parameters. Engine runs at full strength only.
+- Tournament mode: TournamentRunner, TournamentEngine, MatchScheduler, TournamentManager, TournamentHub (SignalR), tournament API endpoints
+- UCI Skill Level option, difficulty-dependent search radius (now fixed at 7)
 
 ## [1.83.0] - 2026-03-29
 
 ### Fixed
-- **Board-full draw detection** - Game loop now checks `board.IsFull()` before requesting AI move. Previously, when all 256 cells were occupied, the AI fell through fallback logic returning an occupied center cell, resulting in an illegal-move forfeit instead of a correct draw. The post-loop draw handler now correctly sets `IsDraw=true` and `Winner=None`
-
-### Test
-- **DrawDetectionFailsafeTests** - New failsafe test verifying board-full games end as draws (not illegal-move forfeits) and result coherence (IsDraw implies Winner=None)
-- **Braindead error rate floor test** - Asserts `Braindead.ErrorRate >= 0.10` as a spec compliance guard
+- Board-full draw detection: game loop now checks `board.IsFull()` before requesting AI move, preventing illegal-move forfeit on full boards
 
 ## [1.82.0] - 2026-03-29
 
 ### Changed
-- **Difficulty-dependent search radius** - Candidate move radius now scales with difficulty: Braindead=3, Easy=4, Medium=5, Hard=6, Grandmaster/Experimental=7. Reduces branching factor for lower difficulties, enabling deeper search within their time budget
-- **Single-game test assertion** - Relaxed `RunSingleGame_BasicVsMedium` to non-deterministic winner check since individual games can have upsets (Braindead has 10% error rate). Statistical dominance is verified across all snapshots by `SavedLogVerifierTests`
+- Difficulty-dependent search radius: scales Braindead=3 through Grandmaster=7
 
 ### Fixed
-- **TT depth inflation in pondering** - `SearchPonderIteration` could report absurd depths (3863, 4099) when TT hit rate was high and depth incremented without real search. Added MaxSearchDepth=50 cap, pre-iteration nodes threshold for depth>10, and post-iteration zero-nodes guard
-- **ParallelMinimaxSearch entry points** - Converted `GetBestMove`/`GetBestMoveWithStats` to use `SearchBoard` for zero-allocation candidate generation and cell checks at the boundary
-
-### Test
-- **Tournament snapshots regenerated** - All 5 snapshot JSON files updated with new search parameters reflecting difficulty-dependent radius changes
+- TT depth inflation in pondering: added MaxSearchDepth=50 cap and zero-nodes guard
+- ParallelMinimaxSearch entry points converted to zero-allocation SearchBoard
 
 ## [1.81.0] - 2026-03-28
 
 ### Added
-- **Three-tier matchup testing framework** - Failsafe (binary pass/fail), Smoke (quick sanity), and Integration (thorough statistical) test tiers in Caro.Core.MatchupTests
-- **Failsafe tests (25 tests)** - Move validity, win detection, overline rule, open rule, game termination, time limits, and Braindead error rate validation across all difficulties
-- **Smoke tests (3 tests)** - Quick adjacent-pair inversion check, extreme gap validation, and self-play symmetry
-- **Statistical performance tests (6 tests)** - Adjacent-pair SPRT, cross-level SPRT, self-play color advantage, transitive Elo ordering, and full round-robin diagnostics
-- **MatchupTestHelper** - Shared infrastructure with color-swap logic, statistical analysis, and SPRT early termination
-- **MatchupTestConfig** - Centralized constants for game counts, time controls, and SPRT thresholds
-- **run-tests.ps1 commands** - `failsafe`, `smoke`, and `performance` commands for tier-selective test execution
-
-### Changed
-- **MatchupTests csproj** - Enabled test discovery (`IsTestProject=true`) so `dotnet test` finds all matchup tests
-- **run-tests.ps1** - Added Caro.Core.MatchupTests to default unit test project list
-
-### Documentation
-- **README.md** - Updated MatchupTests description and test running guidance to reflect three-tier structure
+- Three-tier matchup testing framework: Failsafe, Smoke, Integration
 
 ## [1.80.0] - 2026-03-28
 
 ### Fixed
-- **NodeCountingTests tuple deconstruction** - 3 deconstructions used 17 variables for 16-element `GetSearchStatistics()` tuple (CS8132 build failure)
-- **Center coordinate assertions** - MinimaxAITests and HistoryHeuristicTests asserted exact center (9,9) but 16x16 board center candidates span (7,7)-(9,9); changed to range checks
-- **Zobrist hash test** - Cross-comparing two different Zobrist implementations (different seeds) always failed; test now verifies each independently for determinism
-- **CheckWinner reflection ambiguity** - `GetMethod("CheckWinner")` matched two overloads (Board and SearchBoard); fixed by specifying parameter types
-- **DFPN solver assertions** - VCF solver returns Unknown (no VCF found), not Loss; depth-limit test had immediate-win board preventing depth-limit exercise
-- **ThreatSpaceSearch test** - `NotBeEmpty` assertion on defense moves changed to `NotBeNull` for positions where no forced defenses exist
-- **LMR early-game radius** - Near-stones search radius expanded from ±2 to ±4 for early-game positions with few stones
-- **Concurrency depth assertion** - `depth > 0` failed when search completed via fast TT hits (depth=0); relaxed to `depth >= 0`
-- **Matchup snapshots** - Regenerated 5 snapshot JSON files from current engine behavior with correct center coordinates
+- 10+ test fixes: tuple deconstruction, center coordinate assertions, Zobrist cross-compare, CheckWinner reflection ambiguity, DFPN solver assertions, LMR early-game radius, concurrency depth assertion, matchup snapshots
 
 ### Removed
-- **Dead skip attributes** - `SlowFactAttribute`, `SlowTheoryAttribute`, `DebugFactAttribute`, `StressFactAttribute` had zero usages
-
-### Documentation
-- **CSHARP_ONBOARDING.md** - Added missing `Caro.Core.IntegrationTests/` to solution tree; updated integration/matchup test counts
-- **frontend/.gitignore** - Added `playwright-report/` and `test-results/` to Testing section
+- Dead skip attributes: SlowFact, SlowTheory, DebugFact, StressFact (zero usages)
 
 ## [1.79.0] - 2026-03-27
 
 ### Fixed
-- **README.md architecture diagram** - Corrected dependency arrows: Application depends on Core (not vice versa); Infrastructure depends on Core, Application, and Domain; updated project dependency table to match actual .csproj references
-- **CSHARP_ONBOARDING.md test counts** - Updated stale test counts in both table and summary sections (Application.Tests: 14→26, Infrastructure.Tests: 48/64→42, Core.Tests: 566/574→649)
-- **ENGINE_FEATURES.md Skill Level** - Added explicit difficulty name mapping (1=Braindead through 6=Experimental)
-
-### Documentation
-- **Alignment audit** - Verified documentation, implementation, and test alignment across 10 areas; confirmed game rules, Open Rule, API endpoints, tournament system, pondering, evaluation, UCI notation, concurrency tests, and AI difficulty philosophy are all aligned
+- README architecture diagram arrows, CSHARP_ONBOARDING test counts, ENGINE_FEATURES difficulty mapping
 
 ## [1.78.0] - 2026-03-27
 
 ### Added
-- **WinDetector.CheckWinFromMove** - Static method for efficient last-move win checking, extracting Caro win logic (exactly-5, overline rejection, both-ends-blocked) from GameService into the Core game logic layer
-- **IGameService.GetAIMoveAsync difficulty parameter** - Accepts optional difficulty string (defaults to "Medium") instead of hardcoding
+- WinDetector.CheckWinFromMove: static method extracting Caro win logic into Core game logic layer
+- AIService pondering wired through MinimaxAI subsystem
 
 ### Changed
-- **AIService pondering wired through** - `StartPonderingAsync` and `StopPonderingAsync` now delegate to MinimaxAI's internal pondering subsystem via `StartPonderingNow`/`StopPondering`; replaces previous no-op stubs; tracks game-to-color mapping in `ConcurrentDictionary<Guid, Player>`
-- **GameService refactor** - Replaced private `CheckForWin`/`IsBlocked`/`BuildWinningLine` (~140 lines) with `WinDetector.CheckWinFromMove`; `CalculateBestMoveAsync` passes `ponderingEnabled: true`
+- GameService replaced private CheckForWin/IsBlocked/BuildWinningLine (~140 lines) with WinDetector.CheckWinFromMove
 
 ### Removed
-- **StatelessSearchEngine** - Deleted (505 lines); redundant after AIService unified on MinimaxAI in v1.77.0
-- **StatelessSearchEngineTests** - Deleted (195 lines); tests for removed engine
-
-### Fixed
-- **ENGINE_FEATURES.md UCI notation** - Corrected column notation back to aa-dd (double-letter encoding); was mistakenly changed to aa-pp in v1.77.0
-
-### Documentation
-- **ENGINE_FEATURES.md** - Restructured TT section to distinguish Cluster-Based (MinimaxAI) vs LockFree (ParallelMinimaxSearch); added Helper Thread TT Write Policy section; corrected pondering difficulty to Easy+
-- **README.md** - Fixed architecture diagram (separated Core Layer from Infrastructure Layer); updated UCI examples to valid double-letter notation; updated pondering description; corrected concurrency test count (29)
-
-### Tests
-- **CheckWinFromMoveTests** - 11 new tests (horizontal, vertical, diagonal, overline, both-ends-blocked, one-end-blocked, board-edge, no-win, wrong-player)
-- **GameStateExtensionsTests** - New test class for GameState extension methods
-- **UCIMoveNotationTests** - New test class for UCI move notation conversion
-- **AIServiceTests** - Updated from no-op stubs to verify real pondering behavior (start, stop, multi-difficulty, cleanup)
+- StatelessSearchEngine and tests (redundant after AIService unified on MinimaxAI in v1.77.0)
 
 ## [1.77.0] - 2026-03-27
 
 ### Fixed
-- **UCI Open Rule** - `moveNumber` was hardcoded to 0 in UCISearchController, so the Open Rule (Red's 2nd move must be 3+ intersections from 1st stone) never fired via UCI
-- **UCI Time Management** - Increment from `winc`/`binc` was parsed but never forwarded to MinimaxAI; engine estimated increment from total time, producing wrong allocations for bullet
-- **UCI Search Score** - Search info output hardcoded `Score = 0` instead of reporting the real evaluation score from GetSearchStatistics
-- **UCI Hash Option** - `setoption name Hash value N` was stored but never applied; TT size stayed at construction default
-- **UCI Version Mismatch** - UCIProtocol reported "1.61.0", UCIHandler reported "1.30.0"; unified to single `UCIEngineOptions.EngineVersion` constant
-- **UCI Threads Forwarding** - Thread count was used as a boolean flag instead of forwarding actual count to MinimaxAI
-- **UCI Search Limits** - `go depth`, `go nodes`, `go movetime` were parsed but never forwarded; search used only time-based cutoff
-- **WebSocket Handler** - Program.cs try/while brace mismatch caused missing closing brace
-- **UCIMoveNotation Comment** - Stated "0-7 maps to a-h" instead of "0-3 maps to a-d"
+- UCI Open Rule moveNumber hardcoded to 0
+- UCI increment parsed but never forwarded to MinimaxAI
+- UCI search score hardcoded to 0
+- UCI Hash option stored but never applied
+- UCI version mismatch (1.61.0 vs 1.30.0)
+- UCI Threads used as boolean instead of actual count
+- UCI go depth/nodes/movetime parsed but never forwarded
+- WebSocket handler brace mismatch
 
 ### Added
-- **MinimaxAI Parameters** - `GetBestMove` now accepts optional `incrementSeconds`, `threadCount`, `maxDepth`, `maxNodes`, `maxTimeMs` for fine-grained UCI control
-- **ResizeTranspositionTable** - Runtime TT resize (clears and rebuilds with new size)
-- **UCI Info Enrichment** - Search info now reports NPS, TT hit rate, and real evaluation score
+- MinimaxAI parameters: increment, threadCount, maxDepth, maxNodes, maxTimeMs
+- ResizeTranspositionTable for runtime TT resize
+- UCI info enrichment: NPS, TT hit rate, real eval score
 
 ### Changed
-- **AIService Unified** - Replaced StatelessSearchEngine dependency with MinimaxAI; AIService now delegates to the full-featured engine
-- **UCIHandler WebSocket** - Search info and best move now forwarded to WebSocket client via `SendToClient` callback
+- AIService unified on MinimaxAI (replaced StatelessSearchEngine dependency)
 
 ### Removed
-- **IUCIProtocolHandler** - Dead interface (`IUCIProtocolHandler`, `UCIEngineState`, `UCIMessageType`, `UCIMessage`) deleted; the two actual handlers share UCISearchController/UCIEngineOptions but don't need a common interface
-
-### Documentation
-- Fixed Hash default (128 -> 256) and column notation (aa-dd -> aa-pp) in ENGINE_FEATURES.md
-- Replaced StatelessSearchEngine DI example with MinimaxAI in CSHARP_ONBOARDING.md
-- Fixed board size references (19x19 -> 16x16) and test counts in CSHARP_ONBOARDING.md
+- Dead IUCIProtocolHandler interface and related types
 
 ## [1.76.0] - 2026-03-27
 
 ### Removed
-- **Opening Book System** - Entire opening book subsystem removed across all layers
-  - BookBuilder project (SPSA tuning, self-play generation, move verification)
-  - OpeningBook domain entities and all BookServices (generation, lookup, validation, storage)
-  - Infrastructure persistence (SQLite, staging, file stores)
-  - MinimaxAI opening book integration (check, load, validate)
-  - UCI `Use Opening Book` engine option
-  - Frontend `setUseOpeningBook()` method
-  - ~130 test files and test helpers
-  - BookGeneration difficulty level from AIDifficulty enum
-  - MoveType.Book and MoveType.BookValidated from StatsChannel
+- Opening book system removed across all layers: BookBuilder, OpeningBook entities, BookServices, SQLite persistence, MinimaxAI integration, UCI option, frontend method, ~130 test files, MoveType.Book/BookValidated
 
 ### Fixed
-- **PositionTests** - InRange test used Position(18, 18) for 16x16 board (max valid: 15, 15)
-- **UCIMoveNotation** - Comments and error messages referenced 32x32 board (actual: 16x16)
-
-### Documentation
-- Removed SPSA Optimizer from README feature table
-- Updated algebraic notation references from 32x32 to 16x16
-- Removed stale test counts from CSHARP_ONBOARDING.md
+- PositionTests used invalid coordinates for 16x16 board; UCIMoveNotation comments referenced 32x32
 
 ## [1.75.0] - 2026-03-15
 
 ### Added
-- **CLI Option** - `--temperature` for configurable self-play sampling
-  - Default 1.2 (matches previous hardcoded value)
-  - Temperature decays by 10% of initial value every 2 plies starting at ply 8
-  - Reaches 0.0 at ply 26 for optimal play
-  - Example: `--temperature 1.0` for tighter gradient (1.0 → 0.9 → 0.8 → ... → 0.0)
+- `--temperature` CLI option for configurable self-play sampling with smooth decay
 
 ### Changed
-- **SelfPlayGenerator** - Temperature decay now uses configurable gradient
-  - Previous: 3 fixed tiers (1.2 for ply 0-11, 0.8 for ply 12-23, 0.0 for ply 24+)
-  - New: Smooth decay from ply 8, reaching 0 at ply 26
-  - Formula: `temp = initialTemp * (1 - step * 0.1)` where step = floor((ply-8)/2) + 1
-
-- **MoveVerifier** - Added play count histogram logging
-  - Shows distribution of position visit counts before filtering
-  - Helps diagnose yield issues with various `--min-play-count` thresholds
-  - Reports percentiles (p50, p90, p99) and bucket breakdown
+- SelfPlayGenerator: fixed-tier temperature → smooth decay from ply 8 to 0 at ply 26
+- MoveVerifier: added play count histogram logging
 
 ## [1.74.5] - 2026-03-11
 
 ### Fixed
-- **MoveVerifier** - `--min-play-count` parameter now correctly applies to move-level filtering
-  - Previously ignored at line 355, always using hardcoded 512
-  - Caused extremely low yield (0.2%) when using lower thresholds like 32
-  - Move-level filter now uses the same parameter as position-level filter
-
-### Changed
-- **BookBuilder** - Staging database is no longer auto-deleted after pipeline completion
-  - Preserved for resumability across multiple runs
-  - Delete manually if a fresh start is needed
+- MoveVerifier `--min-play-count` ignored at move level (hardcoded 512); now applies correctly
 
 ## [1.74.4] - 2026-03-09
-
 ### Documentation
-- Clarified that `--resume` requires re-specifying all CLI options
-  - Only game count is remembered (via staging database check)
-  - Options like `--threads`, `--base-time`, `--max-ply` must be re-specified
+- Clarified `--resume` requires re-specifying all CLI options
 
 ## [1.74.3] - 2026-03-09
-
 ### Documentation
-- Moved benchmark results from README.md to STATS.md
-  - Statistics should be in a dedicated file for easier updates
-  - README now references STATS.md for performance metrics
-  - Kept brief "how to run benchmarks" section in README
+- Moved benchmark results from README to STATS.md
 
 ## [1.74.2] - 2026-03-09
-
 ### Documentation
-- Removed test counts from documentation (README.md, backend/tests/README.md)
-  - Test counts change frequently and become stale
-  - Testing tables now show project focus without specific counts
+- Removed stale test counts from README and backend/tests/README
 
 ## [1.74.1] - 2026-03-09
 
 ### Added
-- **CLI Option** - `--max-moves` for configurable moves per position
-  - Default 4 moves per position (previously hardcoded)
-  - Works with `--verify-staging` and `--full-pipeline`
-  - Allows wider or narrower book generation as needed
-
-### Documentation
-- Fixed discrepancies between README, ENGINE_FEATURES, and BookBuilder README
-  - Book Structure: Moves/Position is now documented as configurable (default 4)
-  - Self-Play Time: Clarified as Fischer time control (60000ms base per player)
-  - Phase 2 --threads: Clarified as `max(4, cores/2)` minimum
-  - Full Pipeline --threads: Uses CPU cores for both phases
-  - Min Play Count: Documented as configurable via `--min-play-count`
+- `--max-moves` CLI option for configurable moves per position
 
 ## [1.74.0] - 2026-03-09
 
 ### Added
-- **Parallel Verification with Shared TT** - Phase 2 now uses all CPU cores
-  - `Parallel.ForEachAsync` for parallel position processing
-  - Single shared 256MB transposition table (TT) across all positions
-  - 40-60% TT hit rate enables deeper, more accurate verification
-  - `--threads` parameter now properly applied to verification phase
-
-- **Zobrist Hashing** - Proper position hashing for opening book integrity
-  - SplitMix64 PRNG for high-quality random keys
-  - Replaces simple XOR hashing in Board and SearchBoard
-  - Prevents hash collisions that could corrupt book data
-
-- **Self-Play Draw Detection** - Handles board-full edge case
-  - Detects draws when all 256 cells are occupied
-  - Uses new `MaxMovesPerGame` constant (256)
-
-- **CLI Option** - `--min-play-count` for verification phase
-  - Default 512 for production use
-  - Lower values useful for debugging with small game counts
-  - Works with `--verify-staging` and `--full-pipeline`
-
-### Changed
-- Phase 2 threading: sequential → parallel with shared TT
-- Board hashing: simple XOR → proper Zobrist with unique keys per position
-- Self-play max moves: hardcoded 200 → `GameConstants.MaxMovesPerGame` (256)
-
-### Documentation
-- Updated BookBuilder README with parallel verification architecture
-- Added `--min-play-count` to CLI reference tables
-- Documented shared TT benefits (cross-position knowledge, deeper search)
-
-### Tests
-- Added BoardHashTests for Zobrist hashing verification
-- Tests for uniqueness, determinism, and bit distribution
-
-[1.74.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.74.1
-[1.74.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.74.0
+- Parallel verification with shared TT (Phase 2 uses all CPU cores)
+- Zobrist hashing (SplitMix64) replacing simple XOR
+- `--min-play-count` CLI option
 
 ## [1.73.0] - 2026-03-03
 
 ### Changed
-- **Book Builder Verification Time** - Quality-optimized for deeper analysis
-  - Default verification: 2048ms → 4096ms (2x max self-play time)
-  - Survival zone (ply 8-16): 4096ms → 8192ms (4x max self-play time)
-  - Ensures verification is significantly stronger than self-play moves
-  - Catches tactical mistakes that would be missed at lower time budgets
-
-### Documentation
-- Updated ENGINE_FEATURES.md with new verification thresholds
-- Updated BookBuilder README with quality-optimized defaults
-- Added rationale for 2-4x time ratio between verification and self-play
-
-### Tests
-- Updated MoveVerifierTests for new threshold values (4096ms/8192ms)
-- Updated SeparatedPipelineTests for new threshold values
-
-[1.73.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.73.0
+- Book builder verification time doubled: 2048ms→4096ms default, 4096ms→8192ms survival zone
 
 ## [1.72.2] - 2026-03-03
 
 ### Added
-- **Self-Play Resume Support** - `--resume` flag for interrupted generation
-  - Checks existing games in staging database
-  - Calculates remaining games needed to reach target
-  - Skips generation if target already reached with helpful message
-  - Works with both `--staging` and `--full-pipeline` commands
-
-### Changed
-- **BookBuilder CLI** - Improved help text and examples
-  - Added `--resume` documentation to Phase 1 and Full Pipeline sections
-  - Updated examples to show resume usage
-  - Marked legacy traditional generation as "not recommended"
-
-### Documentation
-- Updated BookBuilder README with `--resume` option and usage examples
-
-[1.72.2]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.72.2
+- `--resume` flag for interrupted self-play generation
 
 ## [1.72.1] - 2026-03-03
 
 ### Fixed
-- **Self-Play Progress Reporting** - Now prints after every game completion
-  - Previously reported every 1% (655 games for 65536), causing 87+ minute delays
-  - Now uses `Console.WriteLine` for immediate output instead of buffered logger
-
-- **Self-Play Move Evaluation** - `GetCandidateMovesWithScores` now respects time budget
-  - Previously ignored `timeMs` parameter and used hardcoded depth-4 minimax
-  - Now uses time-bounded iterative deepening that stops when time expires
-  - Added `EvaluatePositionTimeBounded()` and `NegamaxEvalQuick()` methods
-
-### Changed
-- **Self-Play Time Allocation** - Adaptive based on remaining time
-  - Uses 5% of remaining time per move (min 100ms, max 2000ms)
-  - Previously hardcoded to 500ms regardless of time control
-  - Aligns with project's time-based design philosophy
-
-### Chore
-- Added generated database files to `.gitignore` (`staging.db`, `verified.db`)
-
-[1.72.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.72.1
+- Self-play progress reporting: now prints per-game instead of per-percent
+- Self-play move evaluation now respects time budget
+- Self-play time allocation: adaptive (5% remaining, 100ms-2000ms) instead of hardcoded 500ms
 
 ## [1.72.0] - 2026-03-03
 
 ### Added
-- **Self-Play Sampling Tests** - Comprehensive unit tests for expert report compliance
-  - `GetTemperature()` decay pattern (plies 0-11 → 1.8, 12-23 → 1.0, 24+ → 0.0)
-  - `ScoreDeltaThreshold` blunder filtering (150cp)
-  - Dirichlet noise application (plies 0-5)
-  - Softmax sampling distribution validation
-  - Fallback when all moves exceed threshold
-
-- **Documentation** - Expert report compliance rationale in BookBuilder README
-  - Threshold comparison table (expert vs implementation)
-  - Explanation for 256cp vs 30cp margin difference
-  - Temperature decay schedule documentation
-
-### Changed
-- **SelfPlayGenerator** - Internal visibility for testability
-  - `ScoreDeltaThreshold`, `DirichletEpsilon`, `DirichletAlpha` now internal
-  - `GetTemperature()`, `SampleMove()`, `ApplyDirichletNoise()` now internal
+- Self-play sampling tests for expert report compliance
 
 ### Fixed
-- **SelfPlayGenerator.SampleMove()** - Temperature=0 edge case
-  - Now deterministically selects best move when temperature=0
-  - Previously caused undefined behavior (division by zero in softmax)
-
-### Tests
-- Added 28 new tests in `SelfPlayGeneratorTests.cs`
-- All 153 opening book tests passing
-- Test categories: Temperature, Dirichlet, SampleMove, ScoreDelta
-
-[1.72.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.72.0
+- SelfPlayGenerator.SampleMove temperature=0 division by zero
 
 ## [1.71.0] - 2026-03-02
 
 ### Added
-- **SPSA Parameter Tuning** - Full integration through AI evaluation pipeline
-  - `IEvaluationParameterProvider` interface for runtime parameter access
-  - `TunableParameters` class with 8 evaluation parameters (FiveInRowScore, OpenFourScore, etc.)
-  - `DefaultEvaluationParameterProvider` implementation with thread-safe get/set
-  - Parameter bounds enforcement with `ClampToBounds()` method
-  - SPSA presets: Default, Aggressive, Conservative
-
-- **BookBuilder CLI** - `--tune` command for SPSA optimization
-  - `--iterations <n>` - Number of SPSA iterations (default: 50)
-  - `--games-per-eval <n>` - Games per evaluation (default: 256)
-  - `--preset <name>` - SPSA preset selection
-  - `--base-time <ms>` - Base time per player
-  - `--output <path>` - Output JSON file for optimized parameters
-
-- **Parameterized Evaluation** - BitBoardEvaluator now supports custom parameters
-  - `EvaluateWithParameters(Board, Player, TunableParameters)` overload
-  - `EvaluateWithParameters(SearchBoard, Player, TunableParameters)` overload
-  - `EvaluateBitBoardWithParameters()` for BitBoard-level evaluation
-
-- **Documentation** - Comprehensive documentation restructure
-  - `backend/src/Caro.BookBuilder/README.md` - Complete CLI reference
-  - Documentation Guide in main README with documentation matrix
-  - Newcomer onboarding path (5 steps)
-
-### Changed
-- **MinimaxAI** - Accepts optional `IEvaluationParameterProvider`
-  - New constructor parameter: `parameterProvider`
-  - `EvaluateBoard()` helper uses parameterized evaluation when provider present
-
-- **SelfPlayGenerator** - Passes parameter provider to AI
-  - New constructor parameter: `parameterProvider`
-  - AI instances created with parameter provider for SPSA tuning
-
-- **SPSATuningService** - Full parameter injection (no longer simulated)
-  - `EvaluateWinRateWithParametersAsync()` creates isolated parameter providers
-  - Parameters now actually affect AI evaluation during self-play
+- SPSA parameter tuning: IEvaluationParameterProvider, TunableParameters (8 params), `--tune` CLI command
+- Parameterized evaluation: BitBoardEvaluator supports custom parameters
+- BookBuilder CLI documentation restructure
 
 ### Fixed
-- **FileStagingBookStore** - Thread-safety for concurrent game recording
-  - `WorkerBuffer.TryAddAndCheckFull()` now atomic (single lock)
-  - `WorkerBuffer.GetGamesSnapshot()` for safe commit access
-  - Fixed flaky test `ThreadSafety_ConcurrentGameRecording_DoesNotCorrupt`
-
-- **BookBuilder CLI** - Removed duplicate BINARY FORMAT section in --help
-
-### Documentation
-- Streamlined Opening Book section in README (references BookBuilder README)
-- Fixed incorrect CLI example in ENGINE_FEATURES.md
-- Added cross-references between documentation files
-- Removed redundant content, established single source of truth
-
-[1.70.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.70.0
+- FileStagingBookStore thread-safety for concurrent game recording
 
 ## [1.70.0] - 2026-03-02
 
-### Added
-- **ClearTranspositionTable()** method in MinimaxAI
-  - Clears both main and parallel search transposition tables
-  - Prevents position leakage between self-play games
-
 ### Changed
-- **SelfPlayGenerator** - Removed position-level storage
-  - Now stores only game-level data (SGF format) during self-play
-  - Position data is reconstructed during Phase 2 verification by replaying SGF moves
-  - Calls `ClearTranspositionTable()` after each game to prevent hash leakage
-  - Removed `RecordPositionsToStaging()` method (30 lines deleted)
-
-- **MoveVerifier** - Implemented board reconstruction from games
-  - Added `BuildPositionStatisticsFromGames()` to reconstruct positions by replaying SGF move sequences
-  - Added `ReplayGameForStatistics()` helper for game replay logic
-  - Added `ReconstructedPositionData`, `PositionStatisticsInternal`, `MoveStatistics` internal classes
-  - Removed placeholder `ReconstructBoard()` method
-  - Updated `VerifyPositionAsync()` to work with reconstructed position data
-
-### Architecture
-- **Separated Pipeline** now fully implemented:
-  - Phase 1 (Actor): Self-play generates games → SGF format in selfplay_games table
-  - Phase 2 (Critic): Verification reads games → Reconstructs positions → Deep search
-  - Phase 3: Verified moves → Main opening book
-
-### Tests
-- Updated `MoveVerifierTests` to mock `GetGames()` instead of `GetPositionStatistics()`
-- Updated `MockStagingBookStore` with `GetGames()` method support
-
-[1.69.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.69.0
+- SelfPlayGenerator: game-level SGF storage instead of position-level; TT cleared between games
+- MoveVerifier: board reconstruction from games by replaying SGF moves
 
 ## [1.69.0] - 2026-03-01
 
 ### Added
-- **Streaming batch processing** for memory-bounded book generation
-  - 65,536 batch size (power of 2)
-  - No more OOM at depth 10+
-  - Progress tracking with `BookGenerationResumeState`
-- **Variable depth search** based on game phase
-  - Plies 0-8: VCF solving (20-30 ply, 8 moves/position)
-  - Plies 8-16: Deep search (14-20 ply, 4 moves/position)
-  - Plies 16+: Self-play only
-- **MoveSource enum** for move classification
-  - `Solved` - Proven wins via VCF/VCT solver
-  - `Learned` - Deep search evaluation
-  - `SelfPlay` - Engine vs engine results
-- **InMemoryOpeningBook** for fast lookup
-  - 40K+ lookups/sec (~24μs per lookup)
-  - ConcurrentDictionary-based thread-safe access
-- **InMemoryBookStore** adapter implementing IOpeningBookStore
-- **SelfPlayGenerator** for engine vs engine learning
-  - Configurable time control and max moves
-  - Records moves from winning games
-- **MinimaxAI opening book integration**
-  - `LoadOpeningBook(IOpeningBookStore)` method
-  - `CheckOpeningBook(Board, Player)` method
-- **CLI enhancements for BookBuilder**
-  - `--resume` flag for continuation after interruption
-  - `--self-play <n>` for self-play game generation
-  - `--time-control <ms>` per move time limit
-  - `--max-moves <n>` max moves per game
-  - `--moves <n>` configurable moves per position
+- Streaming batch processing, variable depth search, InMemoryOpeningBook (40K+ lookups/sec), SelfPlayGenerator
 
-### Changed
-- **OpeningBookGenerator** - Refactored for batch processing with DepthConfig
-- **SqliteOpeningBookStore** - Schema v3 with progress tracking table
-- **BookMove** - Added Source, WinCount, PlayCount fields
-- **README** - Updated opening book documentation with new features
-
-### Performance
-- In-memory lookup: 40,640 lookups/sec (~24μs)
-- Candidate prune rate: 90%+
-- Memory bounded: <1GB target, 8GB max
-
-### Tests
-- Added `InMemoryOpeningBookTests` (20+ tests)
-- Added `SelfPlayGeneratorTests` (7 tests)
-- Added `InMemoryBookPerformanceTests` (3 tests)
-- Added `MockStagingBookStore` test helper for IStagingBookStore
-- Total: 701 tests passing
-
-### Documentation
-- **ENGINE_FEATURES.md** - Added separated pipeline architecture documentation
-  - Three-phase Actor-Critic pattern (Self-Play → Verification → Integration)
-  - `--full-pipeline` command for unattended book generation
-  - Key thresholds (powers of 2): 1024ms self-play, 2048ms verification, 512 min plays
-
-[1.68.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.68.0
-
-## [1.67.0] - 2026-02-26
+## [1.68.0] - 2026-02-26
 
 ### Added
-- **Baseline benchmark runner** for standardized AI performance measurement
-  - 12 matchups (6 difficulty pairs × 2 time controls: Bullet 60+0, Blitz 180+2)
-  - 32 games per matchup for statistical significance
-  - Output files: `baseline_{bullet|blitz}_{diff1}_{diff2}.txt`
-  - Per-difficulty statistics aggregated across all matchups
-- **EBF (Effective Branching Factor) metric** - measures pruning efficiency (~2.5 typical)
-- **FMC% (First Move Cutoff %) metric** - measures move ordering quality (>85% excellent)
-- **BaselineSummaryRegenerator** - regenerates summary from existing files without re-running benchmark
+- Baseline benchmark runner (12 matchups, EBF/FMC% metrics), BaselineSummaryRegenerator
 
-### Changed
-- **MoveStats** - added EffectiveBranchingFactor and FirstMoveCutoffPercent fields
-- **ParallelMinimaxSearch** - tracks FirstMoveCutoffs/TotalCutoffs for FMC% calculation
-- **GameStatsFormatter** - includes EBF and FMC% in tournament stat line
-- **README** - updated with actual baseline benchmark results and performance metrics
-
-### Baseline Benchmark Results (2026-02-25)
-| Matchup | Time | Higher Win | Draw | Lower Win |
-|---------|------|------------|------|-----------|
-| Grandmaster vs Braindead | Bullet | 25 | 0 | 7 |
-| Grandmaster vs Braindead | Blitz | 26 | 0 | 6 |
-| Grandmaster vs Medium | Bullet | 27 | 0 | 5 |
-| Grandmaster vs Hard | Bullet | 30 | 0 | 2 |
-| Easy vs Braindead | Bullet | 14 | 0 | 18 |
-| Hard vs Easy | Bullet | 18 | 0 | 14 |
-
-**Key Metrics:**
-- EBF: ~2.5 across all matchups (excellent pruning efficiency)
-- FMC%: 0-99% depending on difficulty (varies by search depth)
-- VCF Triggers: 216-550 per matchup
-
-[1.67.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.67.0
-
-## [1.66.0] - 2026-02-25
+## [1.67.0] - 2026-02-25
 
 ### Added
-- **OpeningBookPathResolver** - centralized path resolution for opening book files
-  - Searches upward from assembly location to find .git as repo root marker
-  - Handles both development and published scenarios
-  - Used consistently across production and test code
+- OpeningBookPathResolver: centralized path resolution searching upward to repo root
+
+## [1.66.0] - 2026-02-24
 
 ### Fixed
-- **Opening book path resolution** in CI/CD environments
-  - Tests now reliably find opening_book.db regardless of working directory
-  - Removed non-existent runsettings reference from csproj
+- Grandmaster vs Braindead win rate 40%→80%: added desperate counter-attack logic for losing positions
 
-[1.66.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.66.0
-
-## [1.65.0] - 2026-02-24
+## [1.65.0] - 2026-02-20
 
 ### Fixed
-- **Grandmaster vs Braindead win rate** improved from 40% to 80%
-  - Added desperate counter-attack logic when blocking score < -5000
-  - Searches all squares for verified winning four-threat creation
-  - Takes counter-attack instead of futile block in losing positions
-- **Reverted three-threat counter-attack scoring**
-  - Adding `+ ourThreeThreats * 1000` reduced win rate to 60%
-  - Keeping only `+ ourFourThreats * 8000` for counter-attack scoring
-
-### Changed
-- **MinimaxAI.cs** - Counter-attack optimization for Grandmaster difficulty
-
-### Tournament Results
-- Grandmaster vs Braindead (3+2 Blitz, 20 games): Grandmaster 80% - Braindead 20%
-- Improvement from v1.64.0's 40% win rate
-- Target: 100% win rate (work in progress)
-
-[1.65.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.65.0
+- Time allotment formula: `3x increment` → `(initial_time/20) + (increment*2)`
+- ThreatDetector crash on nearly full boards (cell occupancy check before placing stone)
 
 ## [1.64.0] - 2026-02-20
 
-### Fixed
-- **Time allotment formula** changed from `3x increment` to `(initial_time / 20) + (increment * 2)`
-  - 180+2: 6s → 13s max per move
-  - 300+3: 9s → 21s max per move
-  - Prevents clock burn while allowing deeper search in longer games
-- **ThreatDetector crash** on nearly full boards
-  - `IsWinningMove()` now checks cell is empty before placing stone
-  - Prevents `InvalidOperationException: Cell is already occupied`
-
 ### Changed
-- **AdaptiveTimeManager.cs** - Updated `timeAllotMaxMs` calculation
+- Board size reduced from 32x32 to 16x16; BitBoard 16 ulongs→4 ulongs; center (16,16)→(8,8)
 
-### Tournament Results
-- Braindead vs Grandmaster (180+2, 20 games): Braindead 60% - Grandmaster 40%
-- Note: Significant regression from v1.62.0's 95% Grandmaster win rate
-- Further investigation of time formula impact recommended
-
-[1.64.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.64.0
+### Added
+- SearchBoard class: mutable board with make/unmake (115x speedup over immutable Board.PlaceStone)
+- MinimaxCore/QuiesceCore SearchBoard-based search methods
 
 ## [1.63.0] - 2026-02-20
 
-### Changed
-- **Board size reduced from 32x32 to 16x16** for faster search and better opening book coverage
-  - Board.cs, BitBoard.cs, GameConstants.cs updated for 16x16 dimensions
-  - BitBoard now uses 4 ulongs (256 bits) instead of 16 ulongs (1024 bits)
-  - Center position changed from (16, 16) to (8, 8)
-  - Search radius adjusted for smaller board
+### Fixed
+- Critical open-three blocking bypassed search entirely, causing Grandmaster strength inversion (~40% win vs Braindead). Open three blocks now added to candidates for proper evaluation. Win rate recovered to ~97%.
+
+## [1.62.0] - 2026-02-17
 
 ### Added
-- **SearchBoard class** - Mutable board representation with make/unmake pattern
-  - Zero-allocation move execution for AI search
-  - 115x speedup over immutable Board.PlaceStone (115ms → 1ms in benchmarks)
-  - Compatible hash with immutable Board for transposition table
-- **SearchBoardExtensions** - Helper methods for SearchBoard
-  - GetCandidateMoves, HasWin, IsWinningMove, StoneCount, GetOccupiedPositions
-- **MinimaxCore/QuiesceCore** - SearchBoard-based search methods
-  - Uses make/unmake pattern instead of copy-make
-  - All helper methods have SearchBoard overloads
-- **BitBoardEvaluator.SearchBoard overload** - High-performance evaluation path
-
-### Performance
-- **115x speedup** in board operations during search
-- Immutable Board.PlaceStone: 115μs/iteration
-- Mutable SearchBoard.MakeMove/UnmakeMove: 1μs/iteration
-- All 675 tests passing
-
-### Technical Notes
-- SearchBoard uses same hash formula as Board for TT compatibility
-- MakeMove returns MoveUndo struct (16 bytes) for O(1) unmake
-- Hash incrementally maintained during make/unmake
-- BitBoard operations (GetBit, SetBit, ClearBit) optimized for 4-ulong layout
-
-### Test Coverage
-- SearchBoardTests.cs - 19 tests covering make/unmake, hash, cloning
-- SearchBoardExtensionsTests.cs - 12 tests for extension methods
-- SearchBoardBenchmarks.cs - Performance benchmark
-
-[1.63.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.63.0
-
-## [1.62.0] - 2026-02-20
-
-### Fixed
-- **Critical:** Search-based open three blocking (fixes strength inversion bug)
-  - Root cause: `FindOpenThreeBlocks()` immediately returned blocking move, bypassing search entirely
-  - This forced Grandmaster to always react defensively without considering offensive options
-  - Symptom: Braindead (10% random AI) won ~50% of games against Grandmaster
-  - Fix: Open three blocks now added to candidate list for proper search evaluation
-  - Result: Grandmaster win rate vs Braindead improved from ~40% to ~97%
-  - Verified with 100-game tournament: 95 wins for Grandmaster (95% win rate)
-
-### Changed
-- **MinimaxAI.cs:** `GetBestMove()` now adds open three blocks to candidates list instead of immediate return
-  - Open three blocks are inserted at beginning of candidates for high priority
-  - Search evaluates offensive options alongside defensive blocks
-  - Allows AI to choose offensive moves when strategically superior
-
-### Technical Notes
-- Open four (4-in-a-row with both ends open) has 2 winning squares - inherently unblockable
-- Open three (3-in-a-row with both ends open) becomes open four on next move
-- Previous behavior: Block immediately → opponent creates threat elsewhere → reactive cycle
-- New behavior: Evaluate all options → choose best strategic move → maintain initiative
-
-### Test Coverage
-- Fixed `Grandmaster_ShouldBlockOpenThree_ThenHandleNextThreat` test
-- Test now handles both blocking scenarios (either end of open three)
-
-[1.62.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.62.0
+- Move type tracking: Normal, Book, BookValidated, ImmediateWin, ImmediateBlock, ErrorRate, CenterMove, Emergency
+- Improved tournament output format with move type codes
 
 ## [1.61.0] - 2026-02-17
 
-### Added
-- **Move type tracking:** AI now tracks and reports how each move was determined
-  - `Normal` - Full search performed
-  - `Book` - Opening book move (unvalidated)
-  - `BookValidated` - Book move validated by search (Hard+)
-  - `ImmediateWin` - Instant winning move found (no search needed)
-  - `ImmediateBlock` - Forced block of opponent's winning threat
-  - `ErrorRate` - Random move due to Braindead's 10% error rate
-  - `CenterMove` - Center opening move
-  - `Emergency` - Emergency mode (low time)
-- **Improved tournament output format:** Compact stat lines with move type codes
-  - Move type column shows: `-` (normal), `Bk` (book), `Bv` (validated book), `Wn` (win), `Bl` (block), `Er` (error rate)
-  - Reduced column widths for depth (3 chars), nodes (8 chars), NPS (8 chars)
-  - Better readability without losing information
-
 ### Changed
-- **GameStatsFormatter:** Replaced book-only column with comprehensive move type column
-- **MinimaxAI:** Added `_moveType` tracking field, set in all early exit paths
+- Removed artificial depth/speed handicaps (MinDepth, TargetNps); depth purely from time budget and machine capability
 
-### Technical Notes
-- Move type helps diagnose AI behavior - especially useful for understanding why Braindead has low node counts (immediate blocks and error rate moves skip search)
-- Early exit paths (immediate win/block, book moves, error rate) now set `_lastAllocatedTimeMs = 0` consistently
-
-## [1.60.0] - 2026-02-17
-
-### Changed
-- **Difficulty configuration refactored:** Removed all artificial depth/speed handicaps
-  - Removed `MinDepth` - depth is now purely determined by time budget and machine capability
-  - Removed `TargetNps` - NPS is learned from actual search performance, not hardcoded targets
-  - `PonderingThreadCount` now equals `ThreadCount` for all difficulties (was hardcoded 1-3)
-  - Easy difficulty now has pondering enabled (uses multiple threads)
-- **Design principle:** All depth/speed is determined by machine capability and time allotted
-  - Thread count varies by difficulty (parallelism)
-  - Time budget percentage varies (5% to 100%)
-  - Feature flags vary (VCF, opening book depth)
-  - No hardcoded minimum depths or NPS targets
+## [1.60.0] - 2026-02-16
 
 ### Fixed
-- **CS0162 compiler warnings:** Changed `DebugLogging` from `const bool` to `static readonly bool`
-  - Previous: `const bool = false` caused unreachable code warnings
-  - Fix: `static readonly bool = false` allows compiler to emit the code
-
-### Baseline Test Results
-- Easy vs Braindead: 66% win rate (100 games, blitz 3+2)
-- Medium vs Braindead: 58% win rate (100 games, blitz 3+2)
-- Lower win rates at blitz expected due to shallow depths (D1-D2) limiting evaluation differentiation
-
-### Test Coverage
-- All 564 backend tests passing
-
-[1.60.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.60.0
+- Parallel search fallback: broken fallback when no results returned
+- Parallel search time management: 2x time usage from Task.WaitAll + fallback
+- Immediate win detection and blocking for all difficulty levels
 
 ## [1.59.0] - 2026-02-16
 
 ### Fixed
-- **Parallel search fallback:** Fixed broken fallback when parallel search returns no results
-  - Previous code returned `candidates[0]` with 0 nodes searched - no actual search performed
-  - Fix: Added proper single-threaded fallback search when parallel results are empty
-- **Parallel search time management:** Fixed timeout handling causing 2x time usage
-  - Previous: `Task.WaitAll` with `HardBoundMs + 1000` timeout, then fallback used full allocation again
-  - Fix: Cancel parallel tasks before fallback, calculate remaining time for fallback search
-- **Search depth for Easy:** Improved depth calculation to reach D2 minimum
-  - Increased soft bound threshold from 0.25 to 0.5 for more aggressive depth progression
-  - Ensures Easy can see at least one ply of opponent responses
+- Parallel search iteration time tracking: cumulative→per-iteration, causing premature termination
+- Thread allocation updated to scaled formulas per difficulty
+
+## [1.58.0] - 2026-02-15
 
 ### Added
-- **Immediate win detection:** AI instantly takes winning moves without search
-  - Checks all candidate moves for 5-in-a-row completion
-  - Applies to all difficulty levels - winning is winning
-- **Immediate win blocking:** AI blocks opponent's single-square winning threats
-  - Full board scan for opponent's immediate 5-in-a-row moves
-  - Returns blocking move instantly without search
-  - Note: Cannot block open fours (2 winning squares) - position already lost
-
-### Changed
-- **Documentation:** Updated UCI version to 1.59.0, test counts to 575
-
-### Technical Notes
-- Games between Easy and Braindead now last 25-50 moves (was 15-25)
-- Both difficulties reach D1-D2 depth; evaluation at shallow depth limits tactical vision
-- Open four (4-in-a-row with both ends open) is unblockable - prevention requires deeper search
-
-### Test Coverage
-- All 575 backend tests passing
-
-[1.59.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.59.0
-
-## [1.58.0] - 2026-02-16
-
-### Fixed
-- **Critical:** Parallel search iteration time tracking bug causing premature search termination
-  - Previous formula incorrectly calculated iteration time as cumulative instead of per-iteration
-  - Fix: Track `iterationStartMs` at each depth loop start, compute delta at iteration end
-  - Changed search start depth from 2 to 1 for complete depth coverage
-  - Wrapped time checks inside `if (currentDepth > 1)` to ensure depth 1 always completes
-- **Minimum search time:** Added 50ms floor for all AI searches to prevent ultra-short book move lookups
-- **Test diagnostics:** Enhanced QuickSmokeTest output with game numbering, move counts, and timing
-
-### Changed
-- **Thread allocation:** Updated to scaled formulas for better resource utilization
-  - Easy: `(N/5)-1` threads (minimum 2)
-  - Medium: `(N/4)-1` threads (minimum 3)
-  - Hard: `(N/3)-1` threads (minimum 4)
-  - Grandmaster: `(N/2)-1` threads (minimum 5)
-  - Provides clearer progression between difficulty levels
-- Re-enabled parallel search for Grandmaster difficulty after fixing iteration time tracking
-- Updated README.md difficulty table to show dynamic thread formulas
-
-### Test Coverage
-- All 575 backend tests passing
-
-[1.58.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.58.0
+- Opening book database: 7,986 positions, 13,035 move recommendations
 
 ## [1.57.0] - 2026-02-15
 
-### Added
-- **Opening Book Database** - Pre-generated opening book with 7,986 positions:
-  - 7,442 entries covering depths 0-14
-  - 13,035 move recommendations
-  - Generated with 95.4% candidate pruning efficiency
-
-### Changed
-- Updated Book Builder performance documentation with v1.56.0 run statistics
-- Opening book now tracked in repository (removed from .gitignore)
-
-[1.57.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.57.0
-[1.56.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.56.0
+### Removed
+- Dead code: ISearchEngine, ITimeManager, BitBoard (Domain duplicate), corresponding tests
+- Hardcoded board size 19→GameConstants.BoardSize across all test files
+- GameMapper placeholder hash → board.GetHash()
 
 ## [1.56.0] - 2026-02-15
 
-### Removed
-- **Dead Code** - Removed unused interfaces and implementations:
-  - `ISearchEngine.cs` - Unused interface with duplicate AIDifficulty enum
-  - `ITimeManager.cs` - Unused interface with outdated 5-level AIDifficulty (missing Experimental, BookGeneration)
-  - `BitBoard.cs` (Domain.ValueObjects) - Unused duplicate BitBoard with buggy shift implementations
-  - `BitBoardTests.cs` (Domain.Tests) - Tests for unused BitBoard
-
 ### Fixed
-- **Flaky Tests** - Removed timing-dependent assertions that failed under system load:
-  - TimeManagementServiceTests: Removed upper bound timing assertions (< 100ms)
-  - StatelessSearchEngineTests: Renamed cancellation test, removed assertion that could fail under timing
-- **Hardcoded Board Size** - All test files now use `GameConstants.BoardSize` instead of hardcoded `19`:
-  - Domain.Tests: PositionTests.cs, BoardTests.cs
-  - Core.Tests: ContinuationHistoryTests, CounterMoveHistoryTests, MovePickerTests, etc.
-  - Infrastructure.Tests: AIServiceTests, StatelessSearchEngineTests
-  - IntegrationTests: AdversarialConcurrencyTests, AspirationWindowTests, EnhancedMoveOrderingTests, etc.
-  - MatchupTests: SavedLogVerifierTests
-- **GameMapper** - Implemented proper board hash instead of placeholder:
-  - `Hash = 0` → `Hash = board.GetHash()`
+- Documentation/code alignment across ENGINE_FEATURES, MinimaxAI, OpeningBook, CSHARP_ONBOARDING, README
+- Unified configuration: TimeBudgetDepthManager delegates to AIDifficultyConfig (single source of truth)
 
-### Changed
-- All test files now reference centralized `GameConstants.BoardSize` (32) instead of hardcoded 19x19
-- Test counts updated in documentation to reflect actual counts
-- Updated Book Builder performance metrics in README.md with v1.56.0 run statistics
-
-### Test Coverage
-- Backend: 697 unit tests passing (574 Core + 64 Infrastructure + 45 Domain + 14 Application)
-- Total: 945 tests across all projects
-
-[1.56.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.56.0
+### Removed
+- Dead AdaptiveDepthCalculator.GetThreadCount() and obsolete tests
 
 ## [1.55.0] - 2026-02-15
 
-### Fixed
-- **Documentation Consistency** - Comprehensive documentation/code alignment:
-  - ENGINE_FEATURES.md: Version corrected (1.52.0 → 1.54.0), book depths corrected
-  - MinimaxAI.cs: Fixed outdated comments for error rates, time multipliers, book depths
-  - OpeningBook.cs: Updated comments to reflect actual book usage (Easy+ use book)
-  - CSHARP_ONBOARDING.md: Corrected test counts (948 total, not 759+)
-  - README.md: Corrected test counts (469 Core tests, not 579)
-  - backend/tests/README.md: Updated test counts and removed "outdated" labels
-
-- **Code Consistency** - Unified configuration sources:
-  - TimeBudgetDepthManager now delegates to AIDifficultyConfig (single source of truth)
-  - OpeningBook.DifficultyUsesBook now includes Easy and Medium (consistent with lookup service)
-
-- **Flaky Test** - Fixed timing-sensitive test in IterativeDeepeningSearchTests:
-  - `Search_HardBoundStopsImmediately_DoesNotExceedHardBound` now uses realistic timing
+### Added
+- Test infrastructure: BoardBuilder, TestPositions, AdaptiveDepthCalculatorTests, IterativeDeepeningSearchTests
 
 ### Removed
-- **Dead Code** - Removed unused `AdaptiveDepthCalculator.GetThreadCount()`:
-  - Method returned incorrect values that contradicted AIDifficultyConfig
-  - Actual code uses `ThreadPoolConfig.GetThreadCountForDifficulty()` instead
-- **Obsolete Tests** - Removed 3 tests for deleted `GetThreadCount()` method
-
-### Changed
-- All difficulty-related parameters now flow from single source: `AIDifficultyConfig`
-- Book depth configuration: Easy=4, Medium=6, Hard=10, Grandmaster=14, Experimental=unlimited
-
-### Test Coverage
-- Backend: 574 unit tests passing (Caro.Core.Tests)
-- Total: 948 tests across all projects
-
-[1.55.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.55.0
+- Debug test files: SIMDDebugTest, SimdDebugTest2, ThreatDetectorDebugTest, AdaptiveLMRTests
 
 ## [1.54.0] - 2026-02-15
 
 ### Added
-- **Test Infrastructure** - New test helpers and utilities:
-  - `GlobalUsings.cs` - Centralized global usings for test project
-  - `BoardBuilder.cs` - Fluent builder for test board construction
-  - `TestPositions.cs` - Reusable test position constants
-- **New Test Coverage** - Comprehensive tests for core algorithms:
-  - `AdaptiveDepthCalculatorTests.cs` - 10 tests for difficulty-based depth/time parameters
-  - `IterativeDeepeningSearchTests.cs` - 16 tests for iterative deepening behavior
-  - `TimeBudgetDepthManagerTests.cs` - Tests for time budget management
-  - `OpenRuleValidatorTests.cs` - Enhanced with 85 additional lines of test coverage
-
-### Changed
-- **AdaptiveDepthCalculator Cleanup** - Removed deprecated/unused code (4 lines)
-
-### Removed
-- **Debug Test Files** - Removed 4 additional debug/redundant test files:
-  - `SimdPrecisionDebug.cs` - Debug-only SIMD precision testing
-  - `VerticalOpenThreeDebug.cs` - Debug-only vertical pattern testing
-  - `ExactFailingBoardTest.cs` - Debug-only board state testing
-  - `SIMDPerspectiveTest.cs` - Debug-only SIMD perspective testing
-
-### Fixed
-- **Compiler Warnings** - Resolved 2 warnings in IterativeDeepeningSearchTests:
-  - CS8629: Added null-forgiving operator for nullable value type access
-  - CS0219: Removed unused variable `hardBoundReached`
-
-### Documentation
-- Updated README.md test counts (579 unit tests, 990+ total)
-
-### Test Coverage
-- Backend: 579 unit tests passing (Caro.Core.Tests) - up from 505
-- Total: 990+ tests across all projects
-
-[1.54.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.54.0
+- Frontend test coverage: gameStore tests, boardUtils tests
 
 ## [1.53.0] - 2026-02-15
 
-### Removed
-- **Debug Test Files** - Removed 4 unnecessary debug test files:
-  - `SIMDDebugTest.cs` - Debug-only SIMD testing
-  - `SimdDebugTest2.cs` - Debug-only SIMD testing
-  - `ThreatDetectorDebugTest.cs` - Debug-only threat detection testing
-  - `AdaptiveLMRTests.cs` - Redundant LMR tests (covered elsewhere)
-
-### Added
-- **Frontend Test Coverage** - New comprehensive tests for game logic:
-  - `gameStore.test.ts` - Tests for game store types, board utilities, win detection patterns, open rule validation, timer logic
-  - `boardUtils.test.ts` - Enhanced with additional edge case tests
-  - Tests cover: move history types, cell types, board dimensions, cell indexing, win patterns (horizontal, vertical, diagonal, anti-diagonal), open rule validation, time formatting
-
-### Changed
-- Updated README.md test counts to reflect current state (505 backend unit tests, 40 frontend tests)
-- Cleaned up test organization for better maintainability
-
-### Test Coverage
-- Backend: 505 unit tests passing (Caro.Core.Tests)
-- Frontend: 40 tests passing (Vitest)
-- Removed 594 lines of debug/redundant test code
-- Added 116 lines of useful test coverage
-
-[1.53.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.53.0
+### Fixed
+- Win detection: GameService used Gomoku rules (5+) instead of Caro rules (exactly 5, overline=no win, both-ends-blocked=no win)
 
 ## [1.52.0] - 2026-02-15
 
-### Fixed
-- **Critical:** Win detection inconsistency between GameService and WinDetector
-  - GameService previously used Gomoku rules (5+ in a row wins)
-  - Now correctly uses Caro rules matching WinDetector and AI evaluation:
-    - Exactly 5 in a row wins (not 6+ which is an overline)
-    - Both ends blocked by opponent = no win
-    - Overline (extension beyond 5) = no win
-  - Removes unused `GetLine` method, adds `IsBlocked` and `BuildWinningLine` helpers
-- **Minor:** Stale comment in BitBoardEvaluator (11/5 -> 3/2)
-
-### Added
-- Comprehensive tests for GameService win detection (6 new tests)
-
-### Test Coverage
-- All 579 backend tests passing (515 Core + 64 Infrastructure)
-- All 11 WinDetector tests passing (unchanged)
-
-[1.52.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.52.0
+### Changed
+- Book builder performance: 8 workers, more candidates, relaxed static eval pruning
 
 ## [1.51.0] - 2026-02-15
 
 ### Changed
-- **Opening Book Generator Performance Optimizations**
-  - Increased parallel workers from 4 to 8 (2x position-level parallelism)
-  - Increased candidates per position: 4 normal, 7 in survival zone (was 3/5)
-  - Relaxed static eval pruning: 400 threshold, keep top 3 (was 300, top 2)
-  - More time for complex positions: +20% for depth > 5 (was -20% for depth <= 5)
-
-### Performance Impact
-- Full book generation (depth 0-14) completes in ~12 minutes (was 20+ minutes)
-- Peak throughput: 144 pos/min at early depths
-- Average throughput: 35-40 pos/min
-- Early exit rate: 82% (best move dominates quickly)
-- Candidate pruning: 95% (static eval filtering working well)
-
-### Test Coverage
-- All 57 OpeningBook tests passing
-- All 515 unit tests passing
-
-[1.51.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.51.0
+- Opening book depth: generation stops at depth 14; tiered difficulty access (Easy=4, Medium=6, Hard=10, GM=14)
 
 ## [1.50.0] - 2026-02-15
 
 ### Changed
-- **Opening Book Depth Scaling** - Simplified structure for faster generation
-  - Book generation now stops at depth 14 (Grandmaster level)
-  - All depths 0-14 use 4 moves/position (removed tiered 4-3-2-1 structure)
-  - Easy+ difficulties now have book access with scaled depths:
-    - Easy: depth 4 (2 moves per side)
-    - Medium: depth 6 (3 moves per side)
-    - Hard: depth 10 (5 moves per side)
-    - Grandmaster: depth 14 (7 moves per side)
-    - Experimental: unlimited (uses all available book depth)
-  - Braindead: no book access (unchanged)
-
-### Performance Impact
-- Book generation time reduced significantly (depth 14 vs depth 40)
-- Smaller book file size with focused coverage
-- Easy and Medium now benefit from opening book
-
-### Test Coverage
-- All 515 unit tests passing
-- All 64 infrastructure tests passing
-
-[1.50.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.50.0
+- Book generator TT memoization: ClearSearchState preserves TT between searches for subtree reuse
 
 ## [1.49.0] - 2026-02-14
 
-### Changed
-- **Opening Book Generator** - Transposition table memoization optimization
-  - Added `MinimaxAI.ClearSearchState()` method that preserves TT between searches
-  - Book generator now uses `ClearSearchState()` instead of `ClearAllState()`
-  - TT entries are preserved across candidates and positions, enabling subtree reuse
-  - Expected 2-5x speedup at deep depths where positions share common subtrees
-
-### Technical Details
-- Previous behavior: TT cleared before each candidate, losing all memoization
-- New behavior: Only history tables and killer moves cleared, TT preserved
-- TT uses age-based replacement; old entries naturally replaced during search
-- No correctness impact - same move quality, just faster convergence
-
-### Test Coverage
-- All 515 unit tests passing
-- All 64 infrastructure tests passing
-
-[1.49.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.49.0
+### Fixed
+- Opening book hash collision: added DirectHash field for unique board identification with compound key
 
 ## [1.48.0] - 2026-02-13
 
-### Fixed
-- **Critical:** Opening book hash collision bug causing "cell occupied" errors during generation
-  - Root cause: Different boards can share the same canonical hash due to hash collisions
-  - Fix: Added `DirectHash` field to `OpeningBookEntry` for unique board identification
-  - Storage now uses compound key `(CanonicalHash, DirectHash, Player)` for exact matching
-  - SQLite schema updated with new primary key constraint
-  - Automatic migration drops old entries (unreliable without DirectHash)
-
 ### Changed
-- **Opening Book Storage Schema** - Breaking change requiring book regeneration
-  - `OpeningBookEntry` now requires `DirectHash` property
-  - `IOpeningBookStore` interface extended with compound-key methods:
-    - `GetEntry(ulong canonicalHash, ulong directHash, Player player)`
-    - `GetAllEntriesForCanonicalHash(ulong canonicalHash, Player player)`
-    - `ContainsEntry(ulong canonicalHash, ulong directHash, Player player)`
-  - `SqliteOpeningBookStore` primary key changed from `(CanonicalHash, Player)` to `(CanonicalHash, DirectHash, Player)`
-- **Book Builder Progress Reporting** - Enhanced visibility during generation
-  - Progress interval reduced from 60s to 15s
-  - Added throughput metrics (positions/minute, nodes/sec)
-  - Added candidate evaluation statistics (evaluated, pruned, early exits)
-  - Added write buffer utilization (flushes, peak size)
-
-### Added
-- `OpeningBookEntryBuilder.WithDirectHash()` and `WithSameHash()` fluent methods for testing
-- `MockOpeningBookStore` updated with compound-key storage support
-
-### Test Coverage
-- All 515 unit tests passing
-- All 64 infrastructure tests passing
-- Book builder verified: 10-minute run with zero "cell occupied" errors
-
-[1.48.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.48.0
+- UCI notation: base-26 → grid-based double-letter format (aa through hd)
+- Opening book access extended to Easy/Medium; tournament time control 7+5→3+2
 
 ## [1.47.0] - 2026-02-13
 
 ### Changed
-- **UCI Notation System** - Changed from base-26 to grid-based double-letter format
-  - All 32 columns now use double letters: `aa` through `hd`
-  - Encoding formula: `column = firstLetterIndex * 4 + secondLetterIndex`
-  - First letter: `a-h` (0-7), Second letter: `a-d` (0-3)
-  - Examples: `aa`=0, `ea`=16 (center), `hd`=31
-  - Updated both backend `UCIMoveNotation.cs` and frontend `uciEngine.ts`
-- **Opening Book Access** - Extended to Easy and Medium difficulties
-  - Easy: 8 plies (4 moves per side)
-  - Medium: 16 plies (8 moves per side)
-  - Previously only Hard+ had book access
-- **Tournament Time Control** - ComprehensiveMatchupRunner changed from 7+5 to 3+2
-  - Faster games for quicker matchup validation
-  - Initial time: 420s → 180s (7 min → 3 min)
-  - Increment: 5s → 2s
+- OpeningBookGenerator code quality: consolidated duplicated overloads (~170 lines eliminated)
 
-### Fixed
-- Frontend UCI bounds validation updated from 0-18 to 0-31 for 32x32 board consistency
-
-### Documentation
-- Updated README.md with new UCI notation format, difficulty table, and time control
-- Updated ENGINE_FEATURES.md version to 1.47.0
-- Updated UCI engine protocol version to 1.47.0
-
-### Test Coverage
-- All 579 backend tests passing (515 Core + 64 Infrastructure)
-- All 19 frontend tests passing
-
-[1.47.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.47.0
+### Removed
+- Dead code in OpeningBookGenerator: unused constants, methods, records, AtomicBoolean
 
 ## [1.46.0] - 2026-02-13
 
-### Changed
-- **OpeningBookGenerator Code Quality Improvements**
-  - Consolidated duplicated `GenerateMovesForPositionAsync` overloads (~170 lines eliminated)
-  - Public method now delegates to private overload that accepts MinimaxAI instance
-  - Fixed incorrect TimePerPositionMs comment ("15 seconds" → "1 second")
-
-### Removed
-- **Dead Code Cleanup in OpeningBookGenerator:**
-  - Removed unused constants: MaxBookMoves, MaxCandidatesPerPosition
-  - Removed disabled opponent response generation block
-  - Removed unused `GenerateOpponentResponsesAsync` method
-  - Removed unused records: PositionToSearch, ResponseGenerationStats
-  - Removed unused AtomicBoolean class
-
-### Fixed
-- **SqliteOpeningBookStore:** Increased coverageByDepth array from int[25] to int[41] for deeper plies
-- **Tests:** Updated OpeningBookGeneratorEdgeCaseTests to match current implementation
-  - Candidate count expectations: 10/6 → 5/3
-  - Time allocation test: Updated for two-tier system (<=5: -20%, else: 0%)
-
-### Test Coverage
-- All 579 backend tests passing (515 Core + 64 Infrastructure)
-
-[1.46.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.46.0
-
-## [1.45.0] - 2026-02-13
-
 ### Added
-- **Centralized Configuration System** - Single source of truth for game constants
-  - `GameConstants.cs` - BoardSize (32), WinLength (5), EloKFactor (32), DefaultEloRating (1500)
-  - `EvaluationConstants.cs` - AI evaluation scores (FiveInRowScore, OpenFourScore, etc.)
-  - `MoveOrderingConstants.cs` - Move picker scoring constants (MustBlockScore, TtMoveScore, etc.)
-  - `frontend/src/lib/config/gameConfig.ts` - Frontend mirror of backend constants
-  - All 25+ files across Domain, GameLogic, Application, Infrastructure, and Frontend now reference centralized constants
+- Centralized configuration: GameConstants, EvaluationConstants, MoveOrderingConstants; frontend mirror gameConfig.ts
+- Counter-Move History, Staged Move Picker, Pattern4 Evaluation, BitKey Pattern System
 
 ### Changed
-- Updated outdated comments referencing 19x19 board to 32x32
-- Simplified `OrderMovesStaged` method by removing dead feature flag code path
-- Renamed legacy `OrderMoves` to `OrderMovesLegacyForTesting` (kept only for test compatibility)
-
-### Removed
-- **Legacy/Dead Code Cleanup:**
-  - `GameState.cs`: Removed 3 `[Obsolete]` methods (RecordMove overloads, EndGame)
-  - `MinimaxAI.cs`: Removed 2 `[Obsolete]` methods (parameterless StopPondering, StartPonderingForOpponent)
-  - `TimeControl.cs`: Removed entire `LegacyTimeControl` static class
-  - `ParallelMinimaxSearch.cs`: Removed `UseStagedMovePicker` feature flag (was always true)
-  - Removed all `#pragma warning disable` directives for unreachable code
-  - Removed unused variables `redCount` and `blueCount` from BitKeyPatternTable.cs
-
-### Fixed
-- All compiler warnings eliminated (0 warnings, 0 errors)
-- Removed outdated "CRITICAL FIX" and "19x19 board" comments
-
-### Test Coverage
-- All 579 backend tests passing (515 Core + 64 Infrastructure)
-- No test changes required - all modifications were backward compatible
-
-[1.45.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.45.0
+- Board size 19x19→32x32; BitBoard ShiftUp/ShiftDown fixed for 32-bit row boundaries
 
 ## [1.44.0] - 2026-02-13
 
-### Added
-- **Counter-Move History** - Move-response patterns for opponent replies
-  - `CounterMoveHistory.cs` with `[player, opponentCell, ourCell]` score table
-  - Bounded update formula matching ContinuationHistory pattern
-  - Integration with ParallelMinimaxSearch move ordering
-- **Staged Move Picker** - Prioritized move generation for better alpha-beta cutoffs
-  - `MovePicker.cs` with explicit stage state machine
-  - Stages: TT_MOVE, THREAT_MOVES, KILLERS, COUNTER_MOVES, GOOD_QUIET, BAD_QUIET
-  - Partial insertion sort with depth-based threshold
-- **Pattern4 Evaluation** - 4-direction combined threat classification
-  - `Pattern4Evaluator.cs` with CaroPattern4 enum
-  - Pattern types: None, Flex1-4, Block1-4, DoubleFlex3, Flex4Flex3, Exactly5, Overline
-  - Double-threat detection for winning combinations
-- **BitKey Pattern System** - O(1) pattern lookup using 64-bit keys
-  - `BitKeyBoard.cs` - 32x32 representation with 4 directional bitkeys
-  - `BitKeyPatternTable.cs` - Pre-computed pattern lookup table (16M entries)
-  - 2 bits per cell encoding with bit rotation for pattern alignment
-  - Integration with ThreatDetector for fast pattern evaluation
-
 ### Changed
-- **Board Size Expansion** - Increased from 19x19 to 32x32
-  - Board.cs, BitBoard.cs, Position.cs updated for 32x32 dimensions
-  - SIMDBitBoardEvaluator.cs updated for 16-ulong representation
-  - WinDetector.cs updated for new board bounds
-  - ZobristTables.cs expanded hash tables
-  - All tests updated for new coordinate ranges (0-31 instead of 0-18)
-- **ShiftUp/ShiftDown** - Fixed for 32-bit row boundaries in BitBoard
-  - Previous implementation shifted by 2 ulongs (64-bit boundary)
-  - New implementation shifts by 32 bits (row boundary) with proper bit masking
-- **IMPROVEMENT_RESEARCH.md** - Updated with implementation status
-  - Counter-Move History, Staged Move Picker, Pattern4, BitKey marked as implemented
-  - Updated to reflect 32x32 board size
-
-### Test Coverage
-- Caro.Core.Tests: 515 tests (+59 from v1.43.0)
-- New test files: CounterMoveHistoryTests.cs, MovePickerTests.cs, BitKeyBoardTests.cs
-- All existing tests updated for 32x32 board coordinates
-
-[1.44.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.44.0
+- IMPROVEMENT_RESEARCH.md: 1400→450 lines, removed speculative ELO estimates, restructured as technical reference
 
 ## [1.43.0] - 2026-02-12
 
-### Changed
-- **IMPROVEMENT_RESEARCH.md** - Major refactoring for accuracy and actionability:
-  - Removed all speculative ELO estimates and development time predictions
-  - Added clear "Currently Implemented Techniques" section with file references
-  - Consolidated redundant Part 9 content into main body
-  - Restructured as technical reference: Overview, Implemented, Research Candidates, References
-  - Reduced from ~1,400 lines to ~450 lines (68% reduction)
-  - Each research candidate now includes: Description, Source code, C# adaptation, Considerations, Files to modify
-- **README.md** - Removed ELO estimates from AI optimization tables
-
-[1.43.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.43.0
-
-## [1.42.1] - 2026-02-12
-
 ### Fixed
-- **Flaky test:** SearchLoggerTests now properly wait for async writes before reading log files
-  - Tests were reading files before background task processed channel entries
-  - Fixed by disposing logger (which waits for writes) before reading file content
-  - Added `FlushAsync()` method to SearchLogger for explicit flush control
-
-[1.42.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.42.1
+- Flaky SearchLoggerTests: proper async flush before reading log files
 
 ## [1.42.0] - 2026-02-12
 
 ### Added
-- **Extended Research Findings** - Part 9 in IMPROVEMENT_RESEARCH.md with 8 new subsections:
-  - 9.1 Rapfi BitKey System for O(1) pattern lookup with rotation-based encoding
-  - 9.2 Pattern4 System for combined 4-direction threat categorization
-  - 9.3 Stockfish Move Picker Architecture with staged generation
-  - 9.4 NNUE Concepts adapted for Gomoku incremental evaluation
-  - 9.5 Transposition Table Advanced Techniques (lockless hashing, bucket indexing)
-  - 9.6 VCF (Victory by Continuous Four) for Caro tactical solver
-  - 9.7 Caro-Specific Opening Book Enhancements with opening rule validation
-  - 9.8 Prioritized implementation summary table with effort estimates
-
-### Changed
-- **Executive Summary** - Updated ELO potential estimates to 600-1000+ (from 340-660)
-- **Conclusion** - Enhanced Top 10 Recommendations with implementation priorities
-- **Appendix B** - Added additional references (minimax.dev, Stockfish wiki)
-
-### Documentation
-- Research now covers: Rapfi, minimax.dev, Stockfish 18, Chess Programming Wiki, Stockfish wiki
-- Code examples adapted for Caro's "exactly 5" rule and opening constraints
-- Implementation complexity ratings for each optimization technique
-
-[1.42.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.42.0
+- Extended research findings in IMPROVEMENT_RESEARCH.md (Part 9: BitKey, Pattern4, Stockfish Move Picker, NNUE, TT techniques, VCF, contempt)
 
 ## [1.41.0] - 2026-02-12
 
 ### Fixed
-- **Critical:** Opening book IsNearEdge transformation bug causing "position occupied" crash at depth 20
-  - Root cause: During retrieval, code used current board's symmetry instead of stored entry's IsNearEdge flag
-  - When moves were stored with IsNearEdge=true (coordinates stored as-is), retrieval incorrectly inverse-transformed them using current board's symmetry
-  - Fix: Check stored entry's IsNearEdge flag before deciding to transform coordinates during retrieval
-  - Applied fix to both OpeningBookGenerator.cs (lines 463-489, 532-573) and OpeningBookLookupService.cs (lines 63-79, 103-125)
-  - Added defensive checks with detailed error logging including NearEdge info
-
-### Added
-- **Opening Book Symmetry Integrity Tests** - 12 new unit tests for IsNearEdge transformation logic
-  - Edge position storage behavior verification
-  - Center position storage behavior verification
-  - Retrieval with correct transformation logic based on stored IsNearEdge
-  - Symmetry round-trip verification for all 8 symmetry types
-  - IsNearEdge detection tests for edge and center positions
-
-### Changed
-- SymmetryTransformationBugTests.cs: Fixed incorrect stone count expectation (was 6/6, now 5/6)
-
-### Test Coverage
-- Caro.Core.Tests: 456 tests (+18 from v1.40.0: +12 symmetry integrity, +1 fixed test count, +5 from previous)
-- All 520+ backend tests passing (Core + Infrastructure)
-
-[1.41.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.41.0
+- Opening book IsNearEdge transformation bug causing "position occupied" crash at depth 20
+- Added 12 symmetry integrity tests
 
 ## [1.40.0] - 2026-02-11
 
 ### Fixed
-- **Critical:** Opening book symmetry transformation bug
-  - Fixed line 346 in OpeningBookGenerator.cs where `canonical.SymmetryApplied` was used instead of `existingEntry.Symmetry`
-  - When retrieving positions from the book, the code now uses the symmetry stored when the entry was originally created
-  - This fixes "Cell is already occupied" errors that occurred when stored moves were transformed using incorrect symmetry
-  - Also fixed line 347 to use `existingEntry.IsNearEdge` for consistency
-
-### Added
-- **Opening Book Symmetry Tests** - 24 new unit tests for symmetry transformation
-  - Tests verify that stored positions use the correct symmetry when retrieving and transforming moves
-  - Coverage includes all 8 symmetry types (Identity, Rotate90, Rotate180, Rotate270, FlipHorizontal, FlipVertical, DiagonalA, DiagonalB)
-  - Edge position handling tests (absolute coordinates, no symmetry transformation)
-  - Symmetry transformation mathematical consistency validation
-  - Integration test with actual OpeningBookGenerator
-
-### Test Coverage
-- Caro.Core.Tests: 438 tests (+24 symmetry tests)
-- New test file: OpeningBookSymmetryTests.cs
-
-### Verified
-- Book builder runs without "INTERNAL ERROR" messages
-- All 24 symmetry tests pass
-- Integration test passed (90+ seconds of book generation)
-
-[1.40.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.40.0
+- Opening book symmetry transformation: used wrong symmetry on retrieval, causing "Cell already occupied"
 
 ## [1.39.0] - 2026-02-10
 
-### Added
-- **Opening Book Generation Performance Optimization** - 12-15x speedup for book generation
-  - Reduced `TimePerPositionMs` from 15000ms to 1000ms (15x reduction)
-  - Reduced per-candidate time floor from 5000ms to 100ms (50x reduction)
-  - Removed survival zone time bonus (+50% adjustment eliminated)
-  - Fixed time allocation math with proportional buffer instead of fixed 1000ms
-  - Depth cap for BookGeneration reduced from unlimited to depth 6
-  - TargetSearchDepth reduced from 32 to 12 for faster generation
-  - Candidate count reduced: survival zone 10→5, other zones 6→3
-  - Smart candidate pruning: filter out candidates >300 points worse than best (always keep top 2)
-
-### Performance
-- **Opening Book Generation Speed**
-  - Before: ~4-5 positions/minute
-  - After: ~60-67 positions/minute
-  - Total speedup: 12-15x improvement
-- **Smart Pruning Impact**
-  - Most positions reduced to 2-3 candidates after static evaluation filtering
-  - Maximum of 5 candidates in survival zone (often pruned further)
-  - Estimated completion time: 1-2 days (down from weeks/months)
-
 ### Changed
-- `OpeningBookGenerator.cs`: Optimized time allocation, candidate selection, and pruning
-- `MinimaxAI.cs`: Added depth cap for BookGeneration, fixed time allocation math
-- `Program.cs`: Reduced TargetSearchDepth from 32 to 12
-
-### Notes
-- Book structure (4-3-2-1 tapered beam) remains unchanged
-- Full book regeneration recommended for consistent move quality
-- Hybrid approach possible: old evaluations at shallow depths, new at deeper depths
-
-[1.39.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.39.0
+- Opening book generation: 12-15x speedup (15000ms→1000ms per position, smart candidate pruning)
 
 ## [1.38.0] - 2026-02-09
 
 ### Added
-- **Multi-Entry Transposition Table** - Cluster-based design with 3 entries per cluster (32-byte cache-line aligned)
-  - 10-byte TTEntry struct with Key16, Value, Depth8, BoundAndAge, Move16, Eval16
-  - Depth-age replacement formula: `value = depth - 8 * age`
-  - Expected ELO gain: +30-50 through improved hit rate (40% -> 60% target)
-- **Continuation History** - Move pair statistics for enhanced move ordering
-  - 6-ply history tracking with `short[,,]` for `[player, prevCell, currentCell]`
-  - Bounded update formula: `newValue = current + bonus - abs(current * bonus) / MaxScore`
-  - Expected ELO gain: +15-25 through better move ordering
-- **Evaluation Cache** - Position evaluation correction caching
-  - Cache correction values for repeated position evaluations
-  - Update formula based on search result vs static eval difference
-  - Expected ELO gain: +10-20 through faster evaluation
-- **Adaptive Late Move Reduction (LMR)** - Dynamic reduction based on position factors
-  - Factors: improving flag, depth, move count, delta, node types (PV/Cut/All)
-  - Formula: `reduction = baseReduction + pvAdjust + cutNodeAdjust - ttMoveBonus + capturePenalty - historyBonus`
-  - Bound reduction to `depth - 1` minimum
-  - Expected ELO gain: +25-40 through more efficient search
-- **PID Time Manager** - Dynamic time allocation using Proportional-Integral-Derivative control
-  - Kp=1.0, Ki=0.1, Kd=0.5 with integral windup clamping
-  - Formula: `adjustment = Kp*error + Ki*integral + Kd*derivative`
-  - Auto-adjusts time budget based on remaining time vs expected time
-  - Expected ELO gain: +20-50 through better time management
-- **Contest Manager (Contempt Factor)** - Position-aware playstyle adjustment
-  - Range: -200 to +200 centipawns
-  - Positive contempt (losing): play aggressively to complicate
-  - Negative contempt (winning): play conservatively to consolidate
-  - Difficulty adjustment for opponent strength
-  - Expected ELO gain: +5-20 through better playstyle adaptation
-- **SPSA Tuner** - Gradient-free parameter optimization engine
-  - Simultaneous Perturbation Stochastic Approximation algorithm
-  - Default (α=0.602, γ=0.101), Aggressive, Conservative presets
-  - Parameter bounds clamping for stability
-  - Reproducible results with optional random seed
-  - Expected ELO gain: +20-40 through optimized evaluation weights
-- **Structured Logging Infrastructure** - Async search operation logging
-  - Channel-based producer/consumer pattern (following StatsChannel design)
-  - JSON line format for machine parsing
-  - File rotation by size (100MB) and time (24h)
-  - Entry types: SearchComplete, Iteration, TTProbe, TTStore, Cutoff, TimeDecision
-
-### Test Coverage
-- 62 new tests added for AI improvements (414 total in Caro.Core.Tests)
-- TranspositionTableTests: 12 tests for cluster alignment, depth-age replacement, multi-entry probe
-- ContinuationHistoryTests: 10 tests for initialization, bounds checking, multiple updates
-- EvaluationCacheTests: 6 tests for cache hit/miss, update, bounds checking
-- AdaptiveLMRTests: 5 tests for reduction calculation, bounds, history bonus
-- PIDTimeManagerTests: 8 tests for on-track, behind, ahead scenarios, integral windup
-- ContestManagerTests: 12 tests for position-based contempt, difficulty adjustment, bounds
-- SPSATests: 8 tests for perturbation, parameter update, convergence
-- SearchLoggerTests: 7 tests for file creation, logging, rotation, disposal
-
-### Changed
-- README.md updated with AI improvements table and latest test counts
-- Test counts: Caro.Core.Tests 414 (+62), Total 750+ tests
-
-### Expected ELO Gain
-- Total from Phase 1 & 2 improvements: +125 to +245 ELO
-- Individual components: +30-50 +15-25 +10-20 +25-40 +20-50 +5-20 +20-40
-
-[1.38.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.38.0
+- Multi-Entry TT (cluster-based, 3 entries/cluster), Continuation History, Evaluation Cache, Adaptive LMR, PID Time Manager, Contest Manager (contempt), SPSA Tuner, Structured Search Logger
 
 ## [1.37.0] - 2026-02-09
 
 ### Added
-- **AI Improvement Research** - Comprehensive research report (`IMPROVEMENT_RESEARCH.md`) analyzing optimization techniques from:
-  - Rapfi Gomoku/Renju engine (board representation, pattern system, move ordering)
-  - Stockfish 18 (continuation history, adaptive LMR, multi-entry TT, evaluation caching)
-  - Chess Programming Wiki (search optimizations, pruning techniques)
-  - Advanced optimization methods (CLOP, SPSA/RSPSA, TD Learning, PID time management, contempt factor)
-- **Prioritized roadmap** with 3 implementation phases targeting 340-660 ELO improvement
-- **Specific recommendations** for Caro AI including TD Learning for continuous evaluation improvement
-
-### Documentation
-- Added reference to IMPROVEMENT_RESEARCH.md in README.md
-- Research covers techniques with potential gains: TD Learning (+100-200 ELO), Multi-Entry TT (+30-50 ELO), SPSA/RSPSA (+30-60 ELO)
-
-[1.37.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.37.0
+- AI improvement research report (IMPROVEMENT_RESEARCH.md): Rapfi, Stockfish 18, Chess Programming Wiki analysis
 
 ## [1.36.0] - 2026-02-09
-
 ### Changed
-- Remove trailing whitespace from test helpers (dotnet formatter cleanup)
-
-[1.36.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.36.0
+- Trailing whitespace cleanup
 
 ## [1.35.0] - 2026-02-09
 
 ### Added
-- **Test Helper Infrastructure** - New test helpers in `Caro.Core.Tests/Helpers/`:
-  - `MockOpeningBookStore.cs` - In-memory IOpeningBookStore with thread-safe ConcurrentDictionary
-  - `MockPositionCanonicalizer.cs` - Identity symmetry implementation for predictable tests
-  - `MockOpeningBookValidator.cs` - Basic validation logic for testing
-  - `OpeningBookEntryBuilder.cs` - Fluent builder for OpeningBookEntry test data
-  - `BookMoveBuilder.cs` - Fluent builder for BookMove test data
-  - `OpeningBookTestSetup.cs` - Shared setup utilities for creating generators with mock/real stores
-- **Performance Optimization Tests** - 15+ new tests in `OpeningBookGeneratorEdgeCaseTests.cs`:
-  - Survival zone tests (plies 6-13: extra time, more candidates)
-  - Early exit tests (score gap thresholds: 150 at depth 6+, 200 otherwise)
-  - Adaptive time allocation tests (-30% early, +50% survival zone, +20% late)
-  - Depth-weighted progress tests (survival zone has higher weights)
-  - Thread worker pool tests (min(4, positionCount) formula)
-  - Progress event tests (atomic Interlocked operations)
-
-### Changed
-- **Test Architecture Migration** - Migrated opening book tests to new architecture:
-  - `SqliteOpeningBookStoreTests.cs` - Replaced custom MockLogger with NullLogger<T>
-  - `OpeningBookMatchupTests.cs` - Uses IAsyncLifetime, temp files, NullLogger
-  - `OpeningBookConsistencyTests.cs` - Uses temp file pattern with proper cleanup
-  - `GMBookDepthTest.cs` - Uses temp file pattern with proper cleanup
-  - All tests now use `Path.GetTempPath()` instead of hardcoded relative paths
-  - Added `[Trait("Category", "SkipOnCI")]` for tests requiring external book file
-
-### Performance
-- **Major:** Opening book generation now achieves 70%+ CPU utilization across all cores
-  - Enabled parallel search for BookGeneration difficulty (was disabled)
-  - Optimized thread allocation: 4 outer workers x 5 threads per search = 20 threads
-  - Reduced memory footprint from 7-8GB to ~1GB through AI instance reuse
-  - Reduced MinimaxAI TT size from 64MB to 16MB for candidate evaluation
-  - Reduced TimePerPositionMs from 30s to 15s for faster generation
-- **Server GC enabled** for Caro.BookBuilder for better multi-threaded memory management
-
-### Changed
-- AIDifficultyConfig.GetBookGenerationThreadCount(): processorCount/4 (was 256 fixed)
-- OpeningBookGenerator: Reverted to sequential candidate evaluation (was parallel)
-  - Each position reuses one AI instance across 6 candidates
-  - Outer loop (4 workers) provides position-level parallelism
-  - Parallel search enabled within each candidate (processorCount/4 threads)
-- OpeningBookGeneratorEdgeCaseTests moved to IntegrationTests project (opt-in, slow tests)
-- Updated OpeningBookGeneratorTests to verify new architecture configuration
-- Removed debug Console.WriteLine statements from MinimaxAI for BookGeneration difficulty
-
-### Fixed
-- Nested parallelism causing thread oversubscription and low CPU utilization
-- Memory blowup from creating 24 concurrent MinimaxAI instances (276MB each)
-- Slow book generation progress (depth 3 in 2 minutes → depth 7-8 in 2 minutes)
-
-### Added
-- AIDifficultyConfigTests.cs with 7 tests for difficulty configuration validation
-- SqliteOpeningBookStoreTests.cs: 12 comprehensive infrastructure tests
-- OpeningBookGeneratorTests.cs: Edge case and behavior tests
-
-### Removed
-- Unused channel-based write loop code (replaced with direct batch storage)
-- AtomicBoolean helper class (no longer needed after reverting to sequential candidates)
-
-### Test Counts
-- Caro.Core.Tests: 344 unit tests (+6 helpers, +7 AIDifficultyConfigTests, -5 OpeningBookGeneratorEdgeCaseTests moved)
-- Caro.Core.IntegrationTests: 153 tests (+5 OpeningBookGeneratorEdgeCaseTests moved, +15 performance tests)
-- Caro.Core.MatchupTests: 57 tests
-- Caro.Core.Domain.Tests: 67 tests
-- Caro.Core.Application.Tests: 8 tests
-- Caro.Core.Infrastructure.Tests: 72 tests (+12 SqliteOpeningBookStoreTests)
-- Total: 700+ backend tests passing
-
-[1.35.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.35.0
+- Test helpers: MockOpeningBookStore, MockPositionCanonicalizer, OpeningBookEntryBuilder, BookMoveBuilder
+- Performance: opening book 70%+ CPU utilization, Server GC enabled, 8GB→1GB memory
 
 ## [1.34.0] - 2026-02-08
 
 ### Fixed
-- **Critical:** SQLite transaction error in opening book batch storage
-  - Added `command.Transaction = transaction;` in `SqliteOpeningBookStore.StoreEntriesBatch`
-  - Microsoft.Data.Sqlite requires explicit transaction association when commands execute within transactions
-  - Error: "Execute requires the command to have a transaction object when the connection assigned to the command is in a pending local transaction"
-- SqliteOpeningBookStore.Dispose() NullReferenceException during cancellation
-  - Added try-catch protection for connection disposal in invalid states
-  - Gracefully handles cleanup when worker threads are cancelled mid-operation
-
-### Added
-- SqliteOpeningBookStoreTests.cs with comprehensive test coverage:
-  - StoreEntriesBatch_TransactionIsCommittedCorrectly - validates transaction handling
-  - StoreEntriesBatch_LargeBatch_DoesNotThrowTransactionError - stress test with 100 entries
-  - Basic CRUD operations, statistics, metadata, and edge case tests
-  - 12 new tests for Infrastructure.Tests project
-
-### Performance
-- OpeningBookGenerator: Dedicated Thread worker swarm replaces Parallel.ForEachAsync
-  - Bypasses ThreadPool hill-climbing for CPU-bound AI workloads
-  - Each worker thread owns its own MinimaxAI instance (64MB TT per thread)
-  - Utilizes all CPU cores on high-thread-count systems (i7-12700F: ~20 threads)
-  - Removed AI instance pooling (_aiPool, RentAI, ReturnAI) - no longer needed
+- SQLite transaction error in batch storage (missing Transaction assignment)
+- NullReferenceException during cancellation disposal
 
 ### Changed
-- OpeningBookGenerator.ProcessPositionsInParallelAsync implementation:
-  - Uses ConcurrentQueue for work distribution and Thread.Join() for synchronization
-  - WorkerThreadLoop method with per-thread MinimaxAI lifecycle
-  - GenerateMovesForPositionAsync overload accepting AI instance (DI pattern)
-
-### Removed
-- InMemoryOpeningBookStore.cs - consolidated to SqliteOpeningBookStore
-
-### Test Counts
-- Caro.Core.Tests: 330 unit tests
-- Caro.Core.IntegrationTests: 143 tests (opt-in)
-- Caro.Core.MatchupTests: 57 tests
-- Caro.Core.Domain.Tests: 67 tests
-- Caro.Core.Application.Tests: 8 tests
-- Caro.Core.Infrastructure.Tests: 60 tests (+12 new SqliteOpeningBookStoreTests)
-- Total: 665+ backend tests passing
-
-[1.34.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.34.0
+- OpeningBookGenerator: dedicated Thread worker swarm replacing Parallel.ForEachAsync
 
 ## [1.33.0] - 2026-02-07
 
 ### Fixed
-- Domain and Application test projects updated to match current simplified domain API
-- BoardTests.cs rewritten to test `new Board()` constructor instead of `Board.CreateEmpty()`
-- GameStateTests.cs updated to use `WithMove()` and `WithGameOver()` record methods
-- PositionTests.cs updated to test current Position struct API (BoardSize, IsValid, Offset, ToTuple, FromTuple)
-- GameMapperTests.cs updated to use `WithMove()` instead of obsolete `RecordMove()`
-- GameMapper.ToBoardDto() no longer calls non-existent `board.GetHash()` - uses placeholder value
-
-### Changed
-- Domain tests now properly test the simplified immutable domain design
-- Removed tests for non-existent APIs: Hash, TotalStones, RemoveStone, CountStones, GetBitBoard, GetEmptyCells, GetOccupiedCells, ApplyMoves
-- Removed tests for Position.Index, FromIndex, GetAdjacentPositions, GetNeighbors
-- GameState equality tests updated to compare properties (Board is a class, not a record)
-
-### Test Counts
-- Caro.Core.Domain.Tests: 67 passed (updated for current API)
-- Caro.Core.Application.Tests: 8 passed
-- Total backend tests: 453+ passing
-
-[1.33.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.33.0
+- Domain/Application test projects updated for current simplified API
 
 ## [1.32.0] - 2026-02-07
 
-### Added
-- Detailed test output: `dotnet test --logger "console;verbosity=detailed"` now shows each test name and result
-- Test documentation updated to recommend verbose logging as default approach
-
 ### Changed
-- Test runner script (`run-tests.ps1`) now uses detailed logger by default
-- Simplified test script: removed obsolete stress/verification filter commands
-- Test README reorganized with clearer quick reference section
-
-### Removed
-- Obsolete test files moved from Caro.Core.Tests to Caro.Core.IntegrationTests:
-  - DFPNSearchTests, ThreatSpaceSearchTests, ParallelMinimaxSearchOpenRuleTests
-  - EnhancedMoveOrderingTests, MinimaxAITests, PondererTests
-  - SIMDDebugTest, SimdDebugTest2, SimdPrecisionDebug, VerticalOpenThreeDebug
-  - Concurrency stress tests (ConcurrencyStressTests, AdversarialConcurrencyTests, DeadlockDetectionTests)
-- Slow AI search tests no longer run with default `dotnet test`
-
-### Fixed
-- Default `dotnet test` now completes in ~30 seconds (was 10+ minutes with hanging AI tests)
-- Test organization: slow tests properly isolated to IntegrationTests project
-
-### Test Counts
-- Unit tests (default): 378 tests (~30s)
-  - Caro.Core.Tests: 330 tests
-  - Caro.Core.Infrastructure.Tests: 48 tests
-- Integration tests (opt-in): 100+ tests
-- Matchup tests (opt-in): 50+ tests
-
-[1.32.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.32.0
+- Slow AI tests moved to IntegrationTests project; default `dotnet test` ~30s
 
 ## [1.31.0] - 2026-02-07
 
 ### Performance
-- Opening book generation: MinimaxAI object pooling eliminates 8GB rapid allocations
-  - Fixed memory churn where each candidate evaluation created new 64MB TT instance
-  - Reuse pooled AI instances per position instead of per candidate
-  - Reduced GC pressure from continuous Gen2 collections
-- TranspositionTable: Zero-allocation hot path with struct-based entries
-  - Converted TranspositionEntry from class to 16-byte struct
-  - Eliminated heap allocations for every TT store operation
-  - Accepts "lossy" atomicity (hash verification validates integrity post-read)
-- SQLite batch writes for opening book storage
-  - Added StoreEntriesBatch() to IOpeningBookStore interface
-  - Transactions group 500-1000 entries for reduced lock contention
-  - Background actor model prevents worker threads blocking on I/O
+- MinimaxAI object pooling (8GB→reusable instances), TT struct-based zero-allocation hot path, SQLite batch writes
 
 ### Fixed
-- Nested parallelism in opening book generation
-  - Removed Task.WhenAll for candidate evaluation within position threads
-  - Process candidates sequentially per thread (outer loop provides parallelism)
-  - Eliminated thread oversubscription (96 threads fighting for 12 cores)
-- Opening book generator now flattens concurrency for proper CPU utilization
-  - One AI instance rented per position, not per candidate
-  - try/finally ensures AI returns to pool even on exceptions
+- Nested parallelism in opening book generation (96 threads→sequential per worker)
 
 ### Changed
-- OpeningBookGenerator: Added RentAI(), ReturnAI(), and _aiPool field
-- LockFreeTranspositionTable: TranspositionEntry now a struct with explicit layout
-- IOpeningBookStore: Added StoreEntriesBatch(IEnumerable<OpeningBookEntry>) method
-- SqliteOpeningBookStore: Batch INSERT OR REPLACE within transactions
-- InMemoryOpeningBookStore: Implemented batch storage for consistency
-
-### Test Organization
 - Created Caro.Core.IntegrationTests project for slow AI search tests
-  - Marked with <IsTestProject>false</IsTestProject> to exclude from default runs
-  - Tests run only with explicit project targeting
-- Moved 13 integration test files from Caro.Core.Tests:
-  - DefensivePlayTests, MasterDifficultyTests, QuickGrandmasterVsEasy
-  - TranspositionTablePerformanceTests, NodeCountingTests
-  - DiagonalThreatTest, ThreatDetectorDebugTest, ZeroAllocationTests
-  - AspirationWindowTests, HistoryHeuristicTests, LateMoveReductionTests
-  - PrincipalVariationSearchTests, QuiescenceSearchTests
-- Separated concerns: Unit tests (fast), IntegrationTests (AI searches), MatchupTests (full matchups)
-
-### Build Quality
-- Backend: 0 warnings, 0 errors
-- Frontend: 0 errors, 0 warnings (svelte-check)
-
-### Test Counts
-- Caro.Core.Tests: 431 passed (removed slow integration tests)
-- Caro.Core.IntegrationTests: 143 passed (opt-in, excluded from default)
-- Caro.Core.Infrastructure.Tests: 48 passed
-- Caro.Core.MatchupTests: 57 passed
-- Frontend Unit (Vitest): 19 passed
-- Total: 698 tests passing
-
-[1.31.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.31.0
 
 ## [1.30.0] - 2026-02-07
 
 ### Changed
-- Opening book builder: Removed misleading `--max-depth` and `--target-depth` CLI arguments
-  - Book structure is now hardcoded as a 4-3-2-1 tapered beam up to ply 40
-  - Plies 0-14: 4 moves/position (early game + survival zone)
-  - Plies 15-24: 3 moves/position (Hard difficulty)
-  - Plies 25-32: 2 moves/position (Grandmaster)
-  - Plies 33-40: 1 move/position (Experimental - main line)
-  - Arguments were misleading since the actual tiered structure is determined by GetMaxChildrenForDepth()
-- Added ValidateArguments() method to reject unrecognized CLI arguments with clear error messages
-
-### Fixed
-- Opening book builder: Default output path now correctly resolves to repository root
-  - Previously created book at backend/src/Caro.BookBuilder/ (project directory)
-  - Now uses AppContext.BaseDirectory with relative path navigation to repo root
-  - Ensures consistency with Caro.Api, Caro.UCI, and test projects' book location expectations
-- README.md book builder examples now reflect hardcoded structure (removed --max-depth references)
-
-### Documentation
-- Updated book builder help text to document the hardcoded tiered beam structure
-- Console output now displays "4-3-2-1 tapered beam up to ply 40" instead of configurable depths
-
-### Build Quality
-- Backend: 0 warnings, 0 errors
-- Frontend: 0 errors, 0 warnings (svelte-check)
-
-### Test Counts
-- Caro.Core.Tests: 525 passed, 1 skipped
-- Caro.Core.Infrastructure.Tests: 48 passed
-- Frontend Unit (Vitest): 19 passed
-- Total: 592 tests passing
-
-[1.30.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.30.0
+- Book builder: hardcoded 4-3-2-1 tapered beam structure; removed misleading --max-depth/--target-depth CLI args
 
 ## [1.29.0] - 2026-02-07
 
 ### Fixed
-- Removed redundant System.Collections.Immutable package reference in .NET 10 (NU1510 warning)
-  - Package is built into .NET 10 runtime, explicit reference was unnecessary
-- Svelte 5 reactivity warning in Timer.svelte
-  - Changed $state initialization from prop capture to explicit sync in $effect
-- Flaky AsyncQueueTests.EnqueueAsync_ItemGetsProcessed test
-  - Added processingStarted signal to ensure background processor starts before enqueuing
-  - Removed Task.WhenAny timeout pattern for deterministic behavior
-
-### Build Quality
-- Backend: 0 warnings, 0 errors
-- Frontend: 0 errors, 0 warnings (svelte-check)
-
-### Test Counts
-- Caro.Core.Tests: 525 passed, 1 skipped
-- Caro.Core.Infrastructure.Tests: 48 passed
-- Frontend Unit (Vitest): 19 passed
-- Total: 592 tests passing
-
-[1.29.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.29.0
+- NU1510 warning (built-in Immutable package), Svelte 5 reactivity, flaky AsyncQueue test
 
 ## [1.28.0] - 2026-02-07
 
 ### Added
-- UCI Mock Client console application for testing UCI protocol layer
-  - Runs matches between two UCI engine instances via stdin/stdout
-  - Full time control support with increment handling
-  - Proper engine state synchronization across both engines
-  - Configurable game count, time control, and skill levels
-  - Detailed match statistics and move-by-move reporting
+- UCI Mock Client for engine vs engine testing
 
 ### Fixed
-- **Critical:** Time scramble timeout bug - engine now uses increment-based allocation when low on time
-  - When remaining time < 3× increment, allocates 40% of increment as max time budget
-  - Prevents timeouts in long games (tested up to 361 moves / 25 minutes)
-  - Ensures all games end by win/loss/draw, never by timeout
-- Infinite recursion in OpeningBookLookupService.NextRandomInt() (was calling itself)
-- Engine state synchronization issue in mock client (both engines now track same move history)
-- Windows Process.Start() native DLL loading issue (disabled stderr redirect)
-- UCI engine now gracefully handles missing opening book database
-- ObjectDisposedException in UCIMockClient cleanup (proper disposal order)
-
-### Changed
-- AdaptiveTimeManager time scramble detection threshold (3× increment or 30 seconds)
-- UCIMockClient prefers .csproj files for 'dotnet run' (better cross-platform compatibility)
-- OpeningBook fields nullable for graceful degradation without database
-
-### Documentation
-- README.md updated with test counts and feature descriptions
-
-### Test Counts
-- Caro.Core.Tests: 525 passed
-- Caro.Core.Infrastructure.Tests: 48 passed
-- Total: 573 backend tests (unchanged)
-
-[1.28.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.28.0
+- Time scramble timeout: increment-based allocation when remaining < 3x increment
+- Infinite recursion in OpeningBookLookupService.NextRandomInt()
 
 ## [1.27.0] - 2026-02-07
 
 ### Added
-- UCI (Universal Chess Interface) protocol support for standalone engine usage
-  - Caro.UCI console application for standard UCI compliance
-  - UCI protocol library in Caro.Core.GameLogic.UCI namespace
-  - UCIMoveNotation for algebraic coordinate conversion (a-s, 1-19)
-  - UCIPositionConverter for parsing position commands
-  - UCIEngineOptions for runtime configuration (Skill Level, Opening Book, Threads, Hash, Ponder)
-  - UCISearchController bridging UCI go parameters to MinimaxAI
-- API WebSocket UCI bridge at /ws/uci endpoint
-- Frontend UCI engine client (uciEngine.ts) with promise-based API
-- Frontend UCI integration in gameStore (connectUCI, disconnectUCI, getAIMoveUCI)
-- UCI connection status indicator and toggle in game page
-- Engine options exposed as UCI setoption commands:
-  - Skill Level (1-6): Maps to AIDifficulty enum
-  - Use Opening Book (true/false)
-  - Book Depth Limit (0-40 plies)
-  - Threads (1-32)
-  - Hash (32-4096 MB)
-  - Ponder (true/false)
-
-### Changed
-- Caro.Api.sln includes Caro.UCI project
-- Program.cs registers UCIHandler as singleton and adds /ws/uci WebSocket endpoint
-
-### Fixed
-- Console output buffering in UCI engine (added explicit Console.Out.Flush)
-- UCI quit command now waits for ongoing search to complete before exiting
-- Multi-word option name parsing (e.g., "Skill Level", "Use Opening Book")
-
-### Test Counts
-- Caro.Core.Tests: 525 passed
-- Caro.Core.Infrastructure.Tests: 48 passed
-- Total: 573 backend tests (unchanged)
-
-### Documentation
-- README.md updated with UCI protocol section and standalone engine usage
-
-[1.27.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.27.0
+- UCI protocol support: Caro.UCI console app, UCI protocol library, WebSocket bridge, frontend client
+- Engine options: Skill Level, Opening Book, Threads, Hash, Ponder
 
 ## [1.26.0] - 2026-02-07
 
 ### Added
-- Tiered opening book continuation system for better coverage
-  - Plies 0-14: 4 responses (early game + survival zone)
-  - Plies 15-24: 3 responses (Hard coverage)
-  - Plies 25-32: 2 responses (GM coverage)
-  - Plies 33-40: 1 response (Exp coverage)
-  - Ensures GM/Exp always have responses to opponent deviations
-  - GetMaxChildrenForDepth helper method for centralized branching logic
-  - 3 tiered branching unit tests
-
-### Changed
-- Experimental max book depth capped at 40 plies (was unlimited)
-- Opening book generation now uses tiered response counts at all depths
-- Opponent response generation uses depth-based tiered strategy
-
-### Fixed
-- Flaky TranspositionTable_HitRateIsMeasurable performance test (removed timing assertion)
-- Move equality assertion now sufficient to verify TT functionality
-
-### Test Counts
-- Caro.Core.Tests: 525 passed (+3 from v1.25.0)
-- Caro.Core.Infrastructure.Tests: 48 passed
-- Total: 573 backend tests
-
-[1.26.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.26.0
+- Tiered opening book continuation system (4-3-2-1 by depth range)
 
 ## [1.25.0] - 2026-02-06
 
 ### Added
-- Four time control options: Bullet (1+0), Blitz (3+2), Rapid (7+5), Classical (15+10)
-- Unified game creation API for PvP, PvAI, and AIvAI modes
-- Frontend time control selector and AIvAI mode support
-- Configurable opening book depth per difficulty (Hard: 24, Grandmaster: 32, Experimental: unlimited)
-
-### Changed
-- Opening book first move no longer hardcoded to center
-- OpeningBookLookupService uses AIDifficultyConfig for depth limits
-- GameState added time control and game mode properties
-- GameSession constructor accepts time control and game mode parameters
-
-### Fixed
-- Opening book correctly disabled for Easy/Medium difficulties
-- AI now calculates natural first move when opening book disabled
-
-[1.25.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.25.0
+- Four time controls (Bullet/Blitz/Rapid/Classical), unified game creation API, AIvAI frontend mode
 
 ## [1.24.0] - 2026-02-06
 
 ### Changed
-- Fully immutable domain model: Cell as readonly record struct, GameState as sealed record
-- AI code updated for immutable pattern (removed SetPlayerUnsafe throughout)
-- Service and tournament layers use new immutable pattern
-
-### Fixed
-- ThreatSpaceSearch board parameter bug (was using wrong board for GetDefenseMoves)
-- GameState.UndoMove() implementation fixed for ImmutableStack
-- UndoMove CurrentPlayer logic special case for MoveNumber=0
-
-### Added
-- System.Collections.Immutable package for history tracking
-
-### Removed
-- Cell.SetPlayerUnsafe(), Cell.GetPlayerUnsafe(), Board.Clone(), Board.MutableBoard
-
-[1.24.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.24.0
+- Fully immutable domain model: Cell readonly record struct, GameState sealed record
 
 ## [1.23.0] - 2026-02-06
 
 ### Fixed
-- AI code now uses board.BoardSize instead of hardcoded 15
-- Center positions calculated correctly for 19x19 boards
-- Board.Clone() shallow copy bug (deep copies Cell objects now)
-
-### Added
-- Domain layer entities: Board, GameState, Position, factories
-- BoardExtensions for AI technical concerns (BitBoard conversion, hash, CloneWithState)
-
-[1.23.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.23.0
+- AI hardcoded board size 15→board.BoardSize; Board.Clone shallow copy bug
 
 ## [1.22.0] - 2026-02-06
-
 ### Changed
-- Removed singleton pattern from OpeningBook (constructor injection only)
-- OpeningBook types moved to Caro.Core.Domain.Entities namespace
-- Updated namespace references from Caro.Core.Entities to Caro.Core.Domain.Entities
-
-[1.22.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.22.0
+- Opening book: removed singleton, moved types to Domain.Entities namespace
 
 ## [1.21.0] - 2026-02-06
-
 ### Added
-- Opponent response generation for opening book (stores top 4 responses per move)
-- GM vs GM book depth verification test
-- Opening book consistency and matchup tests
-
-[1.21.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.21.0
+- Opponent response generation for opening book
 
 ## [1.20.0] - 2026-02-05
-
 ### Added
-- SQLite opening book integration with ASP.NET Core DI
-- Depth-based opening book filtering by difficulty (Hard: depth 24, GM/Experimental: depth 32)
-
-[1.20.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.20.0
+- SQLite opening book DI integration, depth-based filtering by difficulty
 
 ## [1.19.0] - 2026-02-05
-
 ### Fixed
-- Opening book depth range off-by-one error (loop condition `depth <= maxDepth`)
-- Progress percentage stalled at 99% (made GetDepthWeight calculate dynamic weights)
-
-[1.19.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.19.0
+- Opening book depth off-by-one; progress stalled at 99%
 
 ## [1.18.0] - 2026-02-05
-
 ### Fixed
-- Added diagnostic logging for corrupted book data during generation
-
-### Added
-- 4 integration tests for "from book" move application scenario
-
-[1.18.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.18.0
+- Diagnostic logging for corrupted book data
 
 ## [1.17.0] - 2026-02-05
-
 ### Fixed
-- "Cell is already occupied" error during opening book generation
-- Root cause: CloneBoard method instead of proper Board.Clone()
-
-### Added
-- 13 new tests for Board.Clone() and OpeningBookGenerator
-
-[1.17.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.17.0
+- "Cell occupied" during book generation: CloneBoard→Board.Clone()
 
 ## [1.16.0] - 2026-02-05
-
 ### Changed
-- Created Caro.Core.MatchupTests project for integration tests
-- Unit tests now run faster without integration overhead
-
-### Removed
-- 5 failing/flaky test files moved to MatchupTests
-- 5 flaky performance test methods removed entirely
-
-[1.16.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.16.0
+- Created Caro.Core.MatchupTests; moved failing/flaky tests from unit tests
 
 ## [1.15.0] - 2026-02-05
-
 ### Changed
-- Default book generation depths increased (max-depth: 12→32, target-depth: 24→32)
-- Survival zone enhancements (plies 6-13): increased branching to 4, +50% time allocation, 10 candidates
-
-[1.15.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.15.0
+- Increased default book generation depths; enhanced survival zone (plies 6-13)
 
 ## [1.14.0] - 2026-02-05
-
 ### Added
-- `--debug` flag for opening book builder (verbose logging)
-- `--help` / `-h` flag for usage information
-
-### Changed
-- Default logging level changed from Debug to Warning
-- AI defense logging now uses ILogger instead of Console.WriteLine
-
-[1.14.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.14.0
+- `--debug` and `--help` flags for book builder
 
 ## [1.13.0] - 2026-02-05
-
 ### Fixed
-- Opening book generation stopping prematurely at depth 1
-- Root cause: candidate selection ranked BEFORE Open Rule validation
-
-### Added
-- ILogger<OpeningBookGenerator> for diagnostic logging
-
-[1.13.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.13.0
+- Book generation stopping at depth 1: candidate selection before Open Rule validation
 
 ## [1.12.0] - 2026-02-05
-
 ### Changed
-- README.md comprehensive accuracy refresh (versions, test counts)
-- CSHARP_ONBOARDING.md comprehensive overhaul (fixed typos, added architecture context)
-
-[1.12.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.12.0
+- README and CSHARP_ONBOARDING accuracy refresh
 
 ## [1.11.0] - 2026-02-04
-
 ### Fixed
-- Thread oversubscription in opening book generation (disabled parallel search per position)
-- Thread safety issue with shared MinimaxAI instance (now creates local instances per task)
-
-### Changed
-- MinimaxAI constructor accepts optional ttSizeMb parameter
-- Candidate pruning uses static evaluation for pre-sorting (reduced to top 6 candidates)
-
-[1.11.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.11.0
+- Thread oversubscription in book generation; thread safety with shared MinimaxAI
 
 ## [1.10.0] - 2026-02-04
-
 ### Fixed
-- Canonical coordinate storage bug (moves now transformed to canonical space before storing)
-- Progress display stuck at 95% (rebalanced depth weights)
-
-[1.10.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.10.0
+- Canonical coordinate storage bug; progress display stuck at 95%
 
 ## [1.9.0] - 2026-02-04
-
 ### Added
-- AsyncQueue-based progress tracking for opening book generation
-- Resume functionality for existing books
-- Configurable max-depth via CLI parameter
-
-### Removed
-- 1000 position safety limit
-
-[1.9.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.9.0
+- AsyncQueue progress tracking, resume functionality, configurable max-depth
 
 ## [1.8.0] - 2026-02-02
-
 ### Added
-- Worker pool architecture for opening book generation (30x throughput improvement)
-- Parallel candidate evaluation, tapered beam width, dynamic early exit
-- SQLite WAL mode for concurrent writes
-
-[1.8.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.8.0
+- Worker pool architecture for book generation (30x throughput); SQLite WAL mode
 
 ## [1.7.0] - 2026-02-02
-
 ### Added
-- Opening book system (SQLite-backed storage, 8-way symmetry reduction)
-- AIDifficulty.BookGeneration for offline book generation
-- Caro.BookBuilder CLI tool
-
-[1.7.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.7.0
+- Opening book system (SQLite, 8-way symmetry), Caro.BookBuilder CLI tool
 
 ## [1.6.0] - 2026-02-01
-
 ### Changed
-- Move ordering refactored: Hash Move now unconditional #1 priority for Lazy SMP
-- VCF architecture redesigned: separate VCFSolver runs before alpha-beta search
-
-### Added
-- VCFSolver class, VCFNodeResult, IsEmergencyDefense() method
-- Percentage-based VCF time threshold
-
-[1.6.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.6.0
+- Move ordering: Hash Move #1 priority for Lazy SMP; VCF architecture redesigned as separate pre-search
 
 ## [1.5.0] - 2026-02-01
-
 ### Added
-- Clean Architecture refactoring (Domain, Application, Infrastructure layers)
-- New test projects aligned with Clean Architecture layers
-
-### Changed
-- Board size increased from 15x15 to 19x19
-- Integration tests separated with [Trait("Category", "Integration")]
-
-[1.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.5.0
+- Clean Architecture (Domain, Application, Infrastructure layers); board 15x15→19x19
 
 ## [1.4.0] - 2026-02-01
-
 ### Changed
-- Stateless AI architecture: player color passed explicitly to pondering methods
-- TournamentEngine now uses bot-instance-based architecture
-
-[1.4.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.4.0
+- Stateless AI architecture; bot-instance-based TournamentEngine
 
 ## [1.3.0] - 2026-02-01
-
 ### Added
 - Centralized testing framework for AI difficulty validation
-- 7 test suites with win rate thresholds
-
-### Changed
-- AI difficulty configurations rebalanced
-- Owner tags to all AI debug logs
-
-[1.3.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.3.0
 
 ## [1.2.0] - 2026-01-31
-
 ### Fixed
-- Transposition table master thread priority for same-position entries
-- Tournament runner output path changed to tournament_results.txt
-
-### Added
-- DepthVsRandomTest, DiagonalThreatTest, GrandmasterVsBraindeadTest validation
-
-[1.2.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.2.0
+- TT master thread priority; tournament output path
 
 ## [1.1.0] - 2026-01-29
-
 ### Added
-- Time-budget AI depth system with dynamic depth calculation
-- Centralized AI difficulty configuration (AIDifficultyConfig)
-- Dynamic Open Rule enforcement for AI
-
-### Fixed
-- Critical Open Rule violation bug (illegal moves)
-- Pondering timing issues
-
-[1.1.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.1.0
+- Time-budget AI depth system, AIDifficultyConfig, dynamic Open Rule enforcement
 
 ## [1.0.0] - 2026-01-29
-
 ### Added
-- Comprehensive AI tournament system with round-robin matchups
-- ELO rating tracking, SQLite logging with FTS5, SignalR broadcasts
-
-[1.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.0.0
-
-[2.1.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.1.1
-[2.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.0.0
-[1.83.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.83.0
-[1.82.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.82.0
-[1.81.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.81.0
-[1.80.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.80.0
-[1.79.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.79.0
-[1.78.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.78.0
+- AI tournament system (round-robin, ELO tracking, SQLite + FTS5, SignalR broadcasts)
 
 ## Early Development (0.x) - 2026-01-20 to 2026-01-29
 
-Major milestones:
 - VCF (Victory by Continuous Four) tactical solver
 - AI Strength Validation Test Suite with statistical analysis
 - Stats publisher-subscriber architecture
@@ -2203,5 +613,105 @@ Major milestones:
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[2.3.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.3.1
+[2.3.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.3.0
+[2.2.2]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.2.2
+[2.2.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.2.1
+[2.2.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.2.0
+[2.1.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.1.1
+[2.1.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.1.0
+[2.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.0.0
+[1.83.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.83.0
+[1.82.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.82.0
+[1.81.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.81.0
+[1.80.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.80.0
+[1.79.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.79.0
+[1.78.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.78.0
+[1.77.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.77.0
+[1.76.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.76.0
+[1.75.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.75.0
+[1.74.5]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.74.5
+[1.74.4]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.74.4
+[1.74.3]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.74.3
+[1.74.2]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.74.2
+[1.74.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.74.1
+[1.74.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.74.0
+[1.73.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.73.0
+[1.72.2]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.72.2
+[1.72.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.72.1
+[1.72.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.72.0
+[1.71.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.71.0
+[1.70.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.70.0
+[1.69.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.69.0
+[1.68.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.68.0
+[1.67.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.67.0
+[1.66.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.66.0
+[1.65.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.65.0
+[1.64.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.64.0
+[1.63.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.63.0
+[1.62.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.62.0
+[1.61.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.61.0
+[1.60.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.60.0
+[1.59.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.59.0
+[1.58.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.58.0
+[1.57.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.57.0
+[1.56.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.56.0
+[1.55.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.55.0
+[1.54.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.54.0
+[1.53.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.53.0
+[1.52.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.52.0
+[1.51.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.51.0
+[1.50.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.50.0
+[1.49.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.49.0
+[1.48.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.48.0
+[1.47.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.47.0
+[1.46.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.46.0
+[1.45.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.45.0
+[1.44.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.44.0
+[1.43.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.43.0
+[1.42.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.42.1
+[1.42.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.42.0
+[1.41.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.41.0
+[1.40.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.40.0
+[1.39.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.39.0
+[1.38.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.38.0
+[1.37.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.37.0
+[1.36.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.36.0
+[1.35.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.35.0
+[1.34.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.34.0
+[1.33.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.33.0
+[1.32.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.32.0
+[1.31.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.31.0
+[1.30.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.30.0
+[1.29.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.29.0
+[1.28.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.28.0
+[1.27.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.27.0
+[1.26.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.26.0
+[1.25.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.25.0
+[1.24.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.24.0
+[1.23.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.23.0
+[1.22.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.22.0
+[1.21.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.21.0
+[1.20.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.20.0
+[1.19.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.19.0
+[1.18.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.18.0
+[1.17.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.17.0
+[1.16.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.16.0
+[1.15.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.15.0
+[1.14.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.14.0
+[1.13.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.13.0
+[1.12.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.12.0
+[1.11.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.11.0
+[1.10.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.10.0
+[1.9.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.9.0
+[1.8.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.8.0
+[1.7.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.7.0
+[1.6.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.6.0
+[1.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.5.0
+[1.4.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.4.0
+[1.3.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.3.0
+[1.2.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.2.0
+[1.1.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.1.0
+[1.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v1.0.0
 [0.4.2]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v0.4.2
 [0.0.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v0.0.1
