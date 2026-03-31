@@ -8,6 +8,7 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 [Trait("Category", "Integration")]
 public class ParallelMinimaxSearchOpenRuleTests
 {
+    private const int OpenRuleDistance = 3;
     [Fact]
     public void GetBestMove_Move3_RedRespectsDynamicOpenRule()
     {
@@ -29,7 +30,7 @@ public class ParallelMinimaxSearchOpenRuleTests
         var dy = System.Math.Abs(y - 6);
         var distance = System.Math.Max(dx, dy);
 
-        Assert.True(distance >= 3, $"AI selected ({x},{y}) which is only {distance} intersections from first move (7,6). Minimum required is 3.");
+        Assert.True(distance >= OpenRuleDistance, $"AI selected ({x},{y}) which is only {distance} intersections from first move (7,6). Minimum required is {OpenRuleDistance}.");
     }
 
     [Fact]
@@ -51,7 +52,7 @@ public class ParallelMinimaxSearchOpenRuleTests
         var dy = System.Math.Abs(y - 3);
         var distance = System.Math.Max(dx, dy);
 
-        Assert.True(distance >= 3, $"AI selected ({x},{y}) which is only {distance} intersections from first move (3,3). Minimum required is 3.");
+        Assert.True(distance >= OpenRuleDistance, $"AI selected ({x},{y}) which is only {distance} intersections from first move (3,3). Minimum required is {OpenRuleDistance}.");
     }
 
     [Fact]
@@ -74,7 +75,7 @@ public class ParallelMinimaxSearchOpenRuleTests
         var dy = System.Math.Abs(y - 1);
         var distance = System.Math.Max(dx, dy);
 
-        Assert.True(distance >= 3, $"AI selected ({x},{y}) which is only {distance} intersections from first move (1,1). Minimum required is 3.");
+        Assert.True(distance >= OpenRuleDistance, $"AI selected ({x},{y}) which is only {distance} intersections from first move (1,1). Minimum required is {OpenRuleDistance}.");
     }
 
     [Fact]

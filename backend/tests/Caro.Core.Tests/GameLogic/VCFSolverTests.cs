@@ -5,6 +5,12 @@ namespace Caro.Core.Tests.GameLogic;
 
 public sealed class VCFSolverTests
 {
+    private const int DefaultMaxDepth = 10;
+    private const int StandardTimeoutMs = 1000;
+    private const int MinimalTimeoutMs = 5;
+    private const int GenerousTimeoutMs = 5000;
+    private const int AgeIncrementIterations = 300;
+
     private readonly VCFSolver _solver;
 
     public VCFSolverTests()
@@ -68,7 +74,7 @@ public sealed class VCFSolverTests
     public void CheckNodeVCF_EmptyBoard_ReturnsNull()
     {
         var board = new Board();
-        var result = _solver.CheckNodeVCF(board, Player.Red, 10, 0, 1000);
+        var result = _solver.CheckNodeVCF(board, Player.Red, DefaultMaxDepth, 0, StandardTimeoutMs);
         result.Should().BeNull();
     }
 
@@ -76,7 +82,7 @@ public sealed class VCFSolverTests
     public void CheckNodeVCF_InsufficientTime_ReturnsNull()
     {
         var board = new Board();
-        var result = _solver.CheckNodeVCF(board, Player.Red, 10, 0, 5);
+        var result = _solver.CheckNodeVCF(board, Player.Red, DefaultMaxDepth, 0, MinimalTimeoutMs);
         result.Should().BeNull();
     }
 
@@ -93,7 +99,7 @@ public sealed class VCFSolverTests
         board = board.PlaceStone(0, 0, Player.Blue);
         board = board.PlaceStone(1, 0, Player.Blue);
 
-        var result = _solver.CheckNodeVCF(board, Player.Red, 10, 0, 5000);
+        var result = _solver.CheckNodeVCF(board, Player.Red, DefaultMaxDepth, 0, GenerousTimeoutMs);
         // Open four should be detected as winning or at least have VCF potential
         // Result depends on implementation, but should not crash
         if (result != null)

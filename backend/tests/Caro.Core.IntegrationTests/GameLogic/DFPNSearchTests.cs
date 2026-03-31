@@ -9,6 +9,20 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 [Trait("Category", "Integration")]
 public class DFPNSearchTests
 {
+    private const int StandardMaxDepth = 10;
+    private const int ShallowMaxDepth = 5;
+    private const int MinimalMaxDepth = 2;
+    private const int DeepMaxDepth = 30;
+    private const int SingleMaxDepth = 1;
+    private const int ThreeMaxDepth = 3;
+    private const int ShortTimeoutMs = 100;
+    private const int MediumTimeoutMs = 500;
+    private const int GenerousTimeoutMs = 5_000;
+    private const int StandardTimeoutMs = 1_000;
+    private const int MinimalTimeoutMs = 1;
+    private const int BriefTimeoutMs = 10;
+    private const int ProofNumberThreshold = 10;
+
     private readonly DFPNSearch _search = new();
     private readonly WinDetector _winDetector = new();
 
@@ -19,7 +33,7 @@ public class DFPNSearchTests
         var board = new Board();
 
         // Act
-        var result = _search.Solve(board, Player.Red, maxDepth: 10, timeLimitMs: 100);
+        var result = _search.Solve(board, Player.Red, maxDepth: StandardMaxDepth, timeLimitMs: ShortTimeoutMs);
 
         // Assert - Empty board has no VCF sequence
         result.result.Should().Be(SearchResult.Unknown);
@@ -35,7 +49,7 @@ public class DFPNSearchTests
         var board = new Board();
 
         // Act
-        var result = _search.Solve(board, player, maxDepth: 10, timeLimitMs: 100);
+        var result = _search.Solve(board, player, maxDepth: StandardMaxDepth, timeLimitMs: ShortTimeoutMs);
 
         // Assert
         result.result.Should().Be(SearchResult.Unknown);
@@ -54,7 +68,7 @@ public class DFPNSearchTests
         board = board.PlaceStone(5, 5, Player.Red);
 
         // Act
-        var result = _search.Solve(board, Player.Red, maxDepth: 5, timeLimitMs: 500);
+        var result = _search.Solve(board, Player.Red, maxDepth: ShallowMaxDepth, timeLimitMs: MediumTimeoutMs);
 
         // Assert - Red cannot force a win when Blue has immediate win
         // DFPN searches for Red's VCF; no VCF means Unknown (not proven Loss)
@@ -79,7 +93,7 @@ public class DFPNSearchTests
         }
 
         // Act - Very shallow depth limit
-        var result = _search.Solve(board, Player.Red, maxDepth: 2, timeLimitMs: 5000);
+        var result = _search.Solve(board, Player.Red, maxDepth: MinimalMaxDepth, timeLimitMs: GenerousTimeoutMs);
 
         // Assert - Should return Unknown or not complete due to depth limit
         // With depth 2, DFPN won't find deep VCF sequences
@@ -97,7 +111,7 @@ public class DFPNSearchTests
         board = board.PlaceStone(8, 8, Player.Blue);
 
         // Act - Very short time limit
-        var result = _search.Solve(board, Player.Red, maxDepth: 30, timeLimitMs: 1);
+        var result = _search.Solve(board, Player.Red, maxDepth: DeepMaxDepth, timeLimitMs: MinimalTimeoutMs);
 
         // Assert - Should return unknown due to time limit
         result.result.Should().Be(SearchResult.Unknown);
@@ -153,8 +167,8 @@ public class DFPNSearchTests
         board = board.PlaceStone(9, 7, Player.Red);
 
         // Act - Run search multiple times with same position
-        var result1 = _search.Solve(board, Player.Red, maxDepth: 5, timeLimitMs: 500);
-        var result2 = _search.Solve(board, Player.Red, maxDepth: 5, timeLimitMs: 500);
+        var result1 = _search.Solve(board, Player.Red, maxDepth: ShallowMaxDepth, timeLimitMs: MediumTimeoutMs);
+        var result2 = _search.Solve(board, Player.Red, maxDepth: ShallowMaxDepth, timeLimitMs: MediumTimeoutMs);
 
         // Assert - Results should be consistent (transposition table helps)
         result1.result.Should().Be(result2.result, "Results should be consistent across runs");
@@ -177,8 +191,8 @@ public class DFPNSearchTests
         board2 = board2.PlaceStone(9, 7, Player.Red);
 
         // Act - Search from both orders
-        var result1 = _search.Solve(board1, Player.Red, maxDepth: 5, timeLimitMs: 500);
-        var result2 = _search.Solve(board2, Player.Red, maxDepth: 5, timeLimitMs: 500);
+        var result1 = _search.Solve(board1, Player.Red, maxDepth: ShallowMaxDepth, timeLimitMs: MediumTimeoutMs);
+        var result2 = _search.Solve(board2, Player.Red, maxDepth: ShallowMaxDepth, timeLimitMs: MediumTimeoutMs);
 
         // Assert - Same position should give same result
         result1.result.Should().Be(result2.result, "Same position should yield same result regardless of move order");
@@ -195,7 +209,7 @@ public class DFPNSearchTests
         board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
-        var result = _search.Solve(board, Player.Red, maxDepth: 5, timeLimitMs: 1000);
+        var result = _search.Solve(board, Player.Red, maxDepth: ShallowMaxDepth, timeLimitMs: StandardTimeoutMs);
 
         // Assert - If move is returned, it should actually win
         if (result.result == SearchResult.Win && result.move.HasValue)
@@ -223,7 +237,7 @@ public class DFPNSearchTests
         var (proof, disproof) = _search.GetProofNumbers(board, Player.Red);
 
         // Assert - Should have low proof number (close to win)
-        proof.Should().BeLessThan(10, "Proof number should be small for winning position");
+        proof.Should().BeLessThan(ProofNumberThreshold, "Proof number should be small for winning position");
     }
 
     [Fact]
@@ -238,7 +252,7 @@ public class DFPNSearchTests
         // Positions 6,7 and 11,7 are empty - both are winning moves
 
         // Act
-        var result = _search.Solve(board, Player.Red, maxDepth: 5, timeLimitMs: 1000);
+        var result = _search.Solve(board, Player.Red, maxDepth: ShallowMaxDepth, timeLimitMs: StandardTimeoutMs);
 
         // Assert - Should find immediate winning move (either side)
         result.result.Should().Be(SearchResult.Win);
@@ -272,7 +286,7 @@ public class DFPNSearchTests
         // Position 7,9 creates second threat
 
         // Act
-        var result = _search.Solve(board, Player.Red, maxDepth: 10, timeLimitMs: 1000);
+        var result = _search.Solve(board, Player.Red, maxDepth: StandardMaxDepth, timeLimitMs: StandardTimeoutMs);
 
         // Assert - Should find VCF sequence or indicate unknown
         // If Red has double threat, Blue cannot defend both
@@ -294,7 +308,7 @@ public class DFPNSearchTests
         board = board.PlaceStone(6, 6, Player.Red);
 
         // Act
-        var result = _search.Solve(board, Player.Red, maxDepth: 3, timeLimitMs: 500);
+        var result = _search.Solve(board, Player.Red, maxDepth: ThreeMaxDepth, timeLimitMs: MediumTimeoutMs);
 
         // Assert - Red cannot force a win (returns Unknown or Loss)
         // VCF solver should indicate Red can't force win against Blue's immediate threat
@@ -314,7 +328,7 @@ public class DFPNSearchTests
         board = board.PlaceStone(8, 8, Player.Blue);
 
         // Act - Very shallow depth limit with short time
-        var result = _search.Solve(board, Player.Red, maxDepth: 1, timeLimitMs: 10);
+        var result = _search.Solve(board, Player.Red, maxDepth: SingleMaxDepth, timeLimitMs: BriefTimeoutMs);
 
         // Assert - Should return unknown (no immediate win, no time to search deep)
         result.result.Should().Be(SearchResult.Unknown);

@@ -11,6 +11,10 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 /// </summary>
 public class NodeCountingTests
 {
+    private const long BuggyNodeCount = 1_739_501_775L;
+    private const double ConsistencyRatioThreshold = 10.0;
+    private const long MaxNodesOneBillion = 1_000_000_000L;
+    private const long MaxNodesTenBillion = 10_000_000_000L;
     [Fact]
     public async Task ParallelSearch_RealNodeCountShouldVaryBetweenMoves()
     {
@@ -89,7 +93,7 @@ public class NodeCountingTests
 
         // Should not be an obviously "estimated" number (like a perfect power)
         // The bug was that same depth + same candidates always gave 1,739,501,775
-        Assert.NotEqual(1_739_501_775L, nodesSearched);
+        Assert.NotEqual(BuggyNodeCount, nodesSearched);
     }
 
     [Fact]
@@ -119,7 +123,7 @@ public class NodeCountingTests
         // They should be in the same order of magnitude (within 10x of each other)
         // This allows for threading variance while catching estimation bugs
         var ratio = Math.Max(nodes1, nodes2) / (double)Math.Min(nodes1, nodes2);
-        Assert.True(ratio < 10.0,
+        Assert.True(ratio < ConsistencyRatioThreshold,
             $"Node counts should be consistent: {nodes1} vs {nodes2}, ratio={ratio:F2}");
     }
 
@@ -147,8 +151,8 @@ public class NodeCountingTests
         Assert.True(nodesLow > 0);
 
         // Just verify both are reasonable positive numbers
-        Assert.True(nodesLow < 1_000_000_000, $"Low depth nodes seem too high: {nodesLow}");
-        Assert.True(nodesHigh < 10_000_000_000, $"High depth nodes seem too high: {nodesHigh}");
+        Assert.True(nodesLow < MaxNodesOneBillion, $"Low depth nodes seem too high: {nodesLow}");
+        Assert.True(nodesHigh < MaxNodesTenBillion, $"High depth nodes seem too high: {nodesHigh}");
     }
 
     [Fact]

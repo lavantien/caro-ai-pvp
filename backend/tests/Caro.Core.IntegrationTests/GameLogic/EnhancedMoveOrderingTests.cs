@@ -11,6 +11,8 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 [Trait("Category", "Integration")]
 public class EnhancedMoveOrderingTests
 {
+    private const int StandardTimeoutMs = 15_000;
+
     private readonly ITestOutputHelper _output;
 
     public EnhancedMoveOrderingTests(ITestOutputHelper output)
@@ -140,8 +142,8 @@ public class EnhancedMoveOrderingTests
 
         // Assert - Should complete quickly due to better move ordering
         // Parallel search has some overhead, so we allow more time
-        Assert.True(stopwatch.ElapsedMilliseconds < 15000,
-            $"Search took {stopwatch.ElapsedMilliseconds}ms, expected < 15000ms with enhanced ordering");
+        Assert.True(stopwatch.ElapsedMilliseconds < StandardTimeoutMs,
+            $"Search took {stopwatch.ElapsedMilliseconds}ms, expected < {StandardTimeoutMs}ms with enhanced ordering");
 
         // Move should be valid and strategic
         Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
@@ -211,8 +213,8 @@ public class EnhancedMoveOrderingTests
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should make a tactical move
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
 
         var cell = board.GetCell(move.x, move.y);
         Assert.True(cell.IsEmpty, "Move should be on an empty cell");

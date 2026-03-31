@@ -11,6 +11,8 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 [Trait("Category", "Integration")]
 public class MinimaxAITests
 {
+    private const int FirstMoveLowerBound = 7;
+    private const int FirstMoveUpperBound = 9;
     [Fact]
     public void GetBestMove_EmptyBoard_ReturnsCenterMove()
     {
@@ -23,8 +25,8 @@ public class MinimaxAITests
 
         // Assert
         // Should play center move (board is 16x16, center=8, candidates are 7-9)
-        x.Should().BeInRange(7, 9);
-        y.Should().BeInRange(7, 9);
+        x.Should().BeInRange(FirstMoveLowerBound, FirstMoveUpperBound);
+        y.Should().BeInRange(FirstMoveLowerBound, FirstMoveUpperBound);
     }
 
     [Fact]

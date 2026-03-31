@@ -7,6 +7,20 @@ namespace Caro.Core.Tests.GameLogic;
 
 public class IterativeDeepeningSearchTests
 {
+    // Time budgets (seconds)
+    private const double ShortSoftBudget = 0.05;
+    private const double ShortHardBudget = 0.15;
+    private const double MediumSoftBudget = 0.1;
+    private const double MediumHardBudget = 0.2;
+    private const double GenerousSoftBudget = 1.0;
+    private const double GenerousHardBudget = 2.0;
+    private const double HalfSecondBudget = 0.5;
+
+    // Sleep durations
+    private const int ShortSleepMs = 10;
+    private const int MediumSleepMs = 20;
+    private const int LongSleepMs = 50;
+
     private readonly List<(int x, int y)> _emptyCandidates = new();
     private readonly List<(int x, int y)> _singleCandidate = new() { (7, 7) };
     private readonly List<(int x, int y)> _multipleCandidates = new()
@@ -28,7 +42,7 @@ public class IterativeDeepeningSearchTests
 
         // Assert
         Assert.Throws<ArgumentException>(() =>
-            search.Search(board, Player.Red, candidates, 1, 5, 1.0, 2.0)
+            search.Search(board, Player.Red, candidates, 1, 5, GenerousSoftBudget, GenerousHardBudget)
         );
     }
 
@@ -44,7 +58,7 @@ public class IterativeDeepeningSearchTests
 
         // Act
         var exception = Assert.Throws<ArgumentException>(() =>
-            search.Search(board, Player.Red, candidates, 1, 5, 1.0, 2.0)
+            search.Search(board, Player.Red, candidates, 1, 5, GenerousSoftBudget, GenerousHardBudget)
         );
 
         // Assert
@@ -62,7 +76,7 @@ public class IterativeDeepeningSearchTests
             (board, player, depth, alpha, beta, nullMove, rootPlayer, currentDepth) =>
             {
                 // Simulate time-consuming search
-                Thread.Sleep(50);
+                Thread.Sleep(LongSleepMs);
                 return (0, 100);
             },
             onIterationComplete: (depth, nodes) =>
@@ -76,7 +90,7 @@ public class IterativeDeepeningSearchTests
         var candidates = _multipleCandidates;
 
         // Act - Very short time budget (100ms soft, 150ms hard)
-        var result = search.Search(board, Player.Red, candidates, 1, 10, 0.1, 0.15);
+        var result = search.Search(board, Player.Red, candidates, 1, 10, MediumSoftBudget, ShortHardBudget);
 
         // Assert
         result.Should().NotBe(default);
@@ -108,7 +122,7 @@ public class IterativeDeepeningSearchTests
         var candidates = _multipleCandidates;
 
         // Act - Short time budget
-        var result = search.Search(board, Player.Red, candidates, 1, 10, 0.05, 0.2);
+        var result = search.Search(board, Player.Red, candidates, 1, 10, ShortSoftBudget, MediumHardBudget);
 
         // Assert
         completedDepths.Should().NotBeEmpty();
@@ -128,7 +142,7 @@ public class IterativeDeepeningSearchTests
             (board, player, depth, alpha, beta, nullMove, rootPlayer, currentDepth) =>
             {
                 // Simulate search work - 20ms per candidate
-                Thread.Sleep(20);
+                Thread.Sleep(MediumSleepMs);
                 return (0, 10);
             }
         );
@@ -143,7 +157,7 @@ public class IterativeDeepeningSearchTests
         // - Second candidate starts at ~20ms, completes at ~40ms
         // - Third candidate starts at ~40ms, completes at ~60ms (exceeds hard bound)
         // - Search should stop after checking hard bound before 4th candidate
-        var result = search.Search(board, Player.Red, candidates, 1, 5, 0.1, 0.05);
+        var result = search.Search(board, Player.Red, candidates, 1, 5, MediumSoftBudget, ShortSoftBudget);
 
         // Assert
         // Should complete in ~60ms (3 candidates @ 20ms each) plus overhead
@@ -175,7 +189,7 @@ public class IterativeDeepeningSearchTests
         var candidates = _multipleCandidates;
 
         // Act - Sufficient time for multiple depths
-        var result = search.Search(board, Player.Red, candidates, 1, 3, 1.0, 2.0);
+        var result = search.Search(board, Player.Red, candidates, 1, 3, GenerousSoftBudget, GenerousHardBudget);
 
         // Assert
         callbackDepths.Should().NotBeEmpty();
@@ -207,7 +221,7 @@ public class IterativeDeepeningSearchTests
         var candidates = _singleCandidate;
 
         // Act
-        search.Search(board, Player.Red, candidates, 2, 4, 1.0, 2.0);
+        search.Search(board, Player.Red, candidates, 2, 4, GenerousSoftBudget, GenerousHardBudget);
 
         // Assert
         lastCallback.HasValue.Should().BeTrue();
@@ -228,7 +242,7 @@ public class IterativeDeepeningSearchTests
         var candidates = _singleCandidate;
 
         // Act
-        var result = search.Search(board, Player.Red, candidates, 1, 3, 1.0, 2.0);
+        var result = search.Search(board, Player.Red, candidates, 1, 3, GenerousSoftBudget, GenerousHardBudget);
 
         // Assert
         result.X.Should().Be(7);
@@ -258,7 +272,7 @@ public class IterativeDeepeningSearchTests
         var candidates = _multipleCandidates;
 
         // Act - Enough time for several iterations
-        var result = search.Search(board, Player.Red, candidates, 1, 5, 0.5, 1.0);
+        var result = search.Search(board, Player.Red, candidates, 1, 5, HalfSecondBudget, GenerousSoftBudget);
 
         bestDepthReported = result.DepthAchieved;
         bestScoreReported = result.Score;
@@ -277,7 +291,7 @@ public class IterativeDeepeningSearchTests
             (board, player, depth, alpha, beta, nullMove, rootPlayer, currentDepth) =>
             {
                 // Simulate iterative search that takes measurable time
-                Thread.Sleep(10);
+                Thread.Sleep(ShortSleepMs);
                 return (0, 50);
             }
         );
@@ -287,7 +301,7 @@ public class IterativeDeepeningSearchTests
 
         // Act - Set soft bound at 0.1s, hard at 0.5s
         // Should stop near soft bound (0.09s = 90% of soft bound)
-        var result = search.Search(board, Player.Red, candidates, 1, 10, 0.1, 0.5);
+        var result = search.Search(board, Player.Red, candidates, 1, 10, MediumSoftBudget, HalfSecondBudget);
 
         // Assert
         // Should stop well before hard bound
@@ -317,7 +331,7 @@ public class IterativeDeepeningSearchTests
         // Act
         // Search uses the ordered candidates internally
         // We can't directly access OrderCandidatesByProximity, but we can observe behavior
-        var result = search.Search(board, Player.Red, candidates, 1, 2, 1.0, 2.0);
+        var result = search.Search(board, Player.Red, candidates, 1, 2, GenerousSoftBudget, GenerousHardBudget);
 
         // Assert - Result should be valid (from one of the candidates)
         candidates.Should().Contain((result.X, result.Y));
@@ -341,7 +355,7 @@ public class IterativeDeepeningSearchTests
         };
 
         // Act
-        var result = search.Search(board, Player.Red, candidates, 1, 2, 1.0, 2.0);
+        var result = search.Search(board, Player.Red, candidates, 1, 2, GenerousSoftBudget, GenerousHardBudget);
 
         // Assert - Should prefer center-proximate candidates
         result.X.Should().BeGreaterThanOrEqualTo(5);
@@ -362,7 +376,7 @@ public class IterativeDeepeningSearchTests
 
         // Act & Assert - Should not throw
         var exception = Record.Exception(() =>
-            search.Search(board, Player.Red, candidates, 1, 3, 1.0, 2.0)
+            search.Search(board, Player.Red, candidates, 1, 3, GenerousSoftBudget, GenerousHardBudget)
         );
 
         exception.Should().BeNull();

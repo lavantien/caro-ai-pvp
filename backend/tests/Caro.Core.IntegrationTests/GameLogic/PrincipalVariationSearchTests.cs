@@ -9,6 +9,11 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 
 public class PrincipalVariationSearchTests
 {
+    private const int StandardTimeoutMs = 30_000;
+    private const int QuietPositionTimeoutMs = 5_000;
+    private const int CenterMoveLowerBound = 5;
+    private const int CenterMoveUpperBound = 10;
+
     private readonly ITestOutputHelper _output;
 
     public PrincipalVariationSearchTests(ITestOutputHelper output)
@@ -60,12 +65,12 @@ public class PrincipalVariationSearchTests
 
         // Assert - Should complete quickly
         // Parallel search has some overhead, so we allow more time
-        Assert.True(stopwatch.ElapsedMilliseconds < 30000,
-            $"PVS search took {stopwatch.ElapsedMilliseconds}ms, expected < 30000ms");
+        Assert.True(stopwatch.ElapsedMilliseconds < StandardTimeoutMs,
+            $"PVS search took {stopwatch.ElapsedMilliseconds}ms, expected < {StandardTimeoutMs}ms");
 
         // Move should be valid
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
     }
 
     [Fact]
@@ -87,12 +92,12 @@ public class PrincipalVariationSearchTests
         var move3 = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - All moves should be valid and strategic
-        Assert.InRange(move1.x, 5, 10);
-        Assert.InRange(move1.y, 5, 10);
-        Assert.InRange(move2.x, 5, 10);
-        Assert.InRange(move2.y, 5, 10);
-        Assert.InRange(move3.x, 5, 10);
-        Assert.InRange(move3.y, 5, 10);
+        Assert.InRange(move1.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move1.y, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.y, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move3.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move3.y, CenterMoveLowerBound, CenterMoveUpperBound);
     }
 
     [Fact]
@@ -127,16 +132,16 @@ public class PrincipalVariationSearchTests
 
         // Act & Assert - All difficulty levels should work
         var easyMove = ai.GetBestMove(board, Player.Red, null);
-        Assert.True(easyMove.x >= 0 && easyMove.x < 15);
+        Assert.True(easyMove.x >= 0 && easyMove.x < GameConstants.BoardSize);
 
         var mediumMove = ai.GetBestMove(board, Player.Red, null);
-        Assert.True(mediumMove.x >= 0 && mediumMove.x < 15);
+        Assert.True(mediumMove.x >= 0 && mediumMove.x < GameConstants.BoardSize);
 
         var hardMove = ai.GetBestMove(board, Player.Red, null);
-        Assert.True(hardMove.x >= 0 && hardMove.x < 15);
+        Assert.True(hardMove.x >= 0 && hardMove.x < GameConstants.BoardSize);
 
         var grandmasterMove = ai.GetBestMove(board, Player.Red, null);
-        Assert.True(grandmasterMove.x >= 0 && grandmasterMove.x < 15);
+        Assert.True(grandmasterMove.x >= 0 && grandmasterMove.x < GameConstants.BoardSize);
     }
 
     [Fact]
@@ -191,8 +196,8 @@ public class PrincipalVariationSearchTests
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find reasonable move
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
 
         var cell = board.GetCell(move.x, move.y);
         Assert.True(cell.IsEmpty, "Move should be on an empty cell");
@@ -216,12 +221,12 @@ public class PrincipalVariationSearchTests
 
         // Assert - Should be fast with PVS (null window searches are efficient)
         // Allow more time for JIT compilation and system variations
-        Assert.True(stopwatch.ElapsedMilliseconds < 5000,
-            $"Quiet position took {stopwatch.ElapsedMilliseconds}ms, expected < 5000ms");
+        Assert.True(stopwatch.ElapsedMilliseconds < QuietPositionTimeoutMs,
+            $"Quiet position took {stopwatch.ElapsedMilliseconds}ms, expected < {QuietPositionTimeoutMs}ms");
 
         // Move should be valid
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
     }
 
     [Fact]
@@ -248,10 +253,10 @@ public class PrincipalVariationSearchTests
 
         // Assert - Moves should be valid
         // Note: Due to Random consumption pattern, exact equality is not guaranteed
-        Assert.InRange(move1.x, 5, 10);
-        Assert.InRange(move1.y, 5, 10);
-        Assert.InRange(move2.x, 5, 10);
-        Assert.InRange(move2.y, 5, 10);
+        Assert.InRange(move1.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move1.y, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.y, CenterMoveLowerBound, CenterMoveUpperBound);
 
         // Both searches should complete (first may be slower without TT warmup)
         _output.WriteLine($"First search: {time1.ElapsedMilliseconds}ms");
@@ -302,9 +307,9 @@ public class PrincipalVariationSearchTests
             var move = ai.GetBestMove(board, Player.Red, null);
 
             // Assert - Should be valid
-            Assert.True(move.x >= 0 && move.x < 15,
+            Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize,
                 $"Move x={move.x} is out of bounds");
-            Assert.True(move.y >= 0 && move.y < 15,
+            Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize,
                 $"Move y={move.y} is out of bounds");
         }
     }

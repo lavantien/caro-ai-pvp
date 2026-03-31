@@ -11,17 +11,28 @@ namespace Caro.Core.Tests.GameLogic;
 /// </summary>
 public class SPSATests
 {
+    // SPSA algorithm parameters
+    private const double AlphaExponent = 0.602;
+    private const double GammaExponent = 0.101;
+    private const int StepSizeDecayA = 50;
+    private const int StepSizeDecayC = 10;
+    private const int StandardDecayA = 100;
+
+    // Testing
+    private const int ConvergenceIterations = 100;
+    private const int RandomSeed = 42;
+
     [Fact]
     public void PerturbationVector_CorrectRange()
     {
         // Arrange
         var parameters = new SPSAParameters(
-            alpha: 0.602,
-            gamma: 0.101,
+            alpha: AlphaExponent,
+            gamma: GammaExponent,
             a: 1.0,
             c: 0.1,
-            a_decay: 100,
-            c_decay: 10);
+            a_decay: StandardDecayA,
+            c_decay: StepSizeDecayC);
 
         var optimizer = new SPSAOptimizer(parameters);
 
@@ -42,12 +53,12 @@ public class SPSATests
     {
         // Arrange
         var parameters = new SPSAParameters(
-            alpha: 0.602,
-            gamma: 0.101,
+            alpha: AlphaExponent,
+            gamma: GammaExponent,
             a: 1.0,
             c: 0.1,
-            a_decay: 100,
-            c_decay: 10);
+            a_decay: StandardDecayA,
+            c_decay: StepSizeDecayC);
 
         var optimizer = new SPSAOptimizer(parameters);
         double[] theta = new double[2] { 5.0, 10.0 };
@@ -73,17 +84,17 @@ public class SPSATests
     {
         // Arrange
         var parameters = new SPSAParameters(
-            alpha: 0.602,
-            gamma: 0.101,
+            alpha: AlphaExponent,
+            gamma: GammaExponent,
             a: 1.0,      // Smaller A for more stable updates
             c: 0.5,      // Smaller C for smaller perturbations
-            a_decay: 50,
-            c_decay: 10,
+            a_decay: StepSizeDecayA,
+            c_decay: StepSizeDecayC,
             minValues: new double[] { -20, -20 },
             maxValues: new double[] { 20, 20 });
 
         // Use a fixed seed for reproducibility
-        var optimizer = new SPSAOptimizer(parameters, seed: 42);
+        var optimizer = new SPSAOptimizer(parameters, seed: RandomSeed);
 
         // Objective: minimize f(x,y) = (x-5)^2 + (y-10)^2
         // Optimal at x=5, y=10 with score 0
@@ -91,7 +102,7 @@ public class SPSATests
         double[] theta = new double[2] { 0.0, 0.0 }; // Start far from optimum
 
         // Act - Run several iterations
-        for (int i = 0; i < 100; i++)
+        for (int i = 0; i < ConvergenceIterations; i++)
         {
             double[] delta = optimizer.GeneratePerturbation(2);
             // Use C at iteration (k+1) since UpdateParameters will increment
@@ -129,12 +140,12 @@ public class SPSATests
     {
         // Arrange
         var parameters = new SPSAParameters(
-            alpha: 0.602,
-            gamma: 0.101,
+            alpha: AlphaExponent,
+            gamma: GammaExponent,
             a: 100.0,
             c: 1.0,
-            a_decay: 50,
-            c_decay: 10);
+            a_decay: StepSizeDecayA,
+            c_decay: StepSizeDecayC);
 
         var optimizer = new SPSAOptimizer(parameters);
 
@@ -153,12 +164,12 @@ public class SPSATests
     {
         // Arrange
         var parameters = new SPSAParameters(
-            alpha: 0.602,
-            gamma: 0.101,
+            alpha: AlphaExponent,
+            gamma: GammaExponent,
             a: 100.0,
             c: 1.0,
-            a_decay: 50,
-            c_decay: 10);
+            a_decay: StepSizeDecayA,
+            c_decay: StepSizeDecayC);
 
         var optimizer = new SPSAOptimizer(parameters);
 
@@ -177,12 +188,12 @@ public class SPSATests
     {
         // Arrange
         var parameters = new SPSAParameters(
-            alpha: 0.602,
-            gamma: 0.101,
+            alpha: AlphaExponent,
+            gamma: GammaExponent,
             a: 100.0,
             c: 1.0,
-            a_decay: 50,
-            c_decay: 10);
+            a_decay: StepSizeDecayA,
+            c_decay: StepSizeDecayC);
 
         var optimizer = new SPSAOptimizer(parameters);
 
@@ -207,8 +218,8 @@ public class SPSATests
     {
         // Arrange
         var parameters = new SPSAParameters(
-            alpha: 0.602,
-            gamma: 0.101,
+            alpha: AlphaExponent,
+            gamma: GammaExponent,
             a: 1.0,
             c: 0.1,
             a_decay: 100,
@@ -236,12 +247,12 @@ public class SPSATests
     {
         // Arrange
         var parameters = new SPSAParameters(
-            alpha: 0.602,
-            gamma: 0.101,
+            alpha: AlphaExponent,
+            gamma: GammaExponent,
             a: 100.0,
             c: 1.0,
-            a_decay: 50,
-            c_decay: 10);
+            a_decay: StepSizeDecayA,
+            c_decay: StepSizeDecayC);
 
         var optimizer = new SPSAOptimizer(parameters);
 

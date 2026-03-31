@@ -8,6 +8,10 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 
 public class TranspositionTablePerformanceTests
 {
+    private const int StandardTimeoutMs = 30_000;
+    private const int CenterMoveLowerBound = 5;
+    private const int CenterMoveUpperBound = 10;
+
     private readonly ITestOutputHelper _output;
 
     public TranspositionTablePerformanceTests(ITestOutputHelper output)
@@ -39,8 +43,8 @@ public class TranspositionTablePerformanceTests
         _output.WriteLine($"Move: ({move.x}, {move.y})");
         _output.WriteLine($"Time: {stopwatch.ElapsedMilliseconds}ms");
 
-        Assert.True(stopwatch.ElapsedMilliseconds < 30000,
-            $"Move calculation took {stopwatch.ElapsedMilliseconds}ms, expected < 30000ms");
+        Assert.True(stopwatch.ElapsedMilliseconds < StandardTimeoutMs,
+            $"Move calculation took {stopwatch.ElapsedMilliseconds}ms, expected < {StandardTimeoutMs}ms");
 
         // Move should be valid
         var cell = board.GetCell(move.x, move.y);
@@ -81,8 +85,8 @@ public class TranspositionTablePerformanceTests
         Assert.Equal(move1, move2);
 
         // Moves should be valid (near existing stones)
-        Assert.InRange(move1.x, 5, 10);
-        Assert.InRange(move1.y, 5, 10);
+        Assert.InRange(move1.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move1.y, CenterMoveLowerBound, CenterMoveUpperBound);
 
         // Note: Removed timing assertion as it's flaky due to system load variations
         // The move equality assertion above is sufficient to verify TT is working

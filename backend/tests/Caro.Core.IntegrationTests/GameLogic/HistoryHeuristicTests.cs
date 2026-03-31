@@ -8,6 +8,12 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 
 public class HistoryHeuristicTests
 {
+    private const int CenterMoveLowerBound = 5;
+    private const int CenterMoveUpperBound = 10;
+    private const int FirstMoveLowerBound = 7;
+    private const int FirstMoveUpperBound = 9;
+    private const int NeighborRadius = 2;
+
     [Fact]
     public void ClearHistory_ResetsAllHistoryScores()
     {
@@ -25,8 +31,8 @@ public class HistoryHeuristicTests
         // Assert - History should be cleared (no easy way to verify directly, but method should not throw)
         // Make another move - should work fine
         var move2 = ai.GetBestMove(board, Player.Blue, null);
-        Assert.True(move2.x >= 0 && move2.x < 15);
-        Assert.True(move2.y >= 0 && move2.y < 15);
+        Assert.True(move2.x >= 0 && move2.x < GameConstants.BoardSize);
+        Assert.True(move2.y >= 0 && move2.y < GameConstants.BoardSize);
     }
 
     [Fact]
@@ -52,14 +58,14 @@ public class HistoryHeuristicTests
 
         // Move should be near existing stones
         var hasNeighbor = false;
-        for (int dx = -2; dx <= 2; dx++)
+        for (int dx = -NeighborRadius; dx <= NeighborRadius; dx++)
         {
-            for (int dy = -2; dy <= 2; dy++)
+            for (int dy = -NeighborRadius; dy <= NeighborRadius; dy++)
             {
                 if (dx == 0 && dy == 0) continue;
                 var nx = move.x + dx;
                 var ny = move.y + dy;
-                if (nx >= 0 && nx < 15 && ny >= 0 && ny < 15)
+                if (nx >= 0 && nx < GameConstants.BoardSize && ny >= 0 && ny < GameConstants.BoardSize)
                 {
                     var neighbor = board.GetCell(nx, ny);
                     if (neighbor.Player != Player.None)
@@ -102,9 +108,9 @@ public class HistoryHeuristicTests
         stopwatch3.Stop();
 
         // Assert - Moves should be reasonable
-        Assert.True(move1a.x >= 0 && move1a.x < 15);
-        Assert.True(move1b.x >= 0 && move1b.x < 15);
-        Assert.True(move2.x >= 0 && move2.x < 15);
+        Assert.True(move1a.x >= 0 && move1a.x < GameConstants.BoardSize);
+        Assert.True(move1b.x >= 0 && move1b.x < GameConstants.BoardSize);
+        Assert.True(move2.x >= 0 && move2.x < GameConstants.BoardSize);
 
         // History heuristic should help with repeated searches
         // (this is hard to test directly without exposing internals)
@@ -127,8 +133,8 @@ public class HistoryHeuristicTests
         for (int i = 0; i < 5; i++)
         {
             var move = ai.GetBestMove(board, Player.Red, null);
-            Assert.True(move.x >= 0 && move.x < 15);
-            Assert.True(move.y >= 0 && move.y < 15);
+            Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+            Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
         }
 
         // Assert - All searches should complete successfully
@@ -152,10 +158,10 @@ public class HistoryHeuristicTests
         var move2 = ai.GetBestMove(board, Player.Blue, null);
 
         // Assert - Moves should be valid (near existing stones)
-        Assert.InRange(move1.x, 5, 10);
-        Assert.InRange(move1.y, 5, 10);
-        Assert.InRange(move2.x, 5, 10);
-        Assert.InRange(move2.y, 5, 10);
+        Assert.InRange(move1.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move1.y, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.y, CenterMoveLowerBound, CenterMoveUpperBound);
     }
 
     [Fact]
@@ -173,8 +179,8 @@ public class HistoryHeuristicTests
         Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
 
         // Empty board should result in center move (board is 16x16, center=8, candidates are 7-9)
-        Assert.InRange(move.x, 7, 9);
-        Assert.InRange(move.y, 7, 9);
+        Assert.InRange(move.x, FirstMoveLowerBound, FirstMoveUpperBound);
+        Assert.InRange(move.y, FirstMoveLowerBound, FirstMoveUpperBound);
     }
 
     [Fact]

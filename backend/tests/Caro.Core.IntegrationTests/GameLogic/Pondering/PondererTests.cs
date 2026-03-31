@@ -11,6 +11,12 @@ namespace Caro.Core.IntegrationTests.GameLogic.Pondering;
 [Trait("Category", "Integration")]
 public class PondererTests : IDisposable
 {
+    private const int PonderTimeoutMs = 5_000;
+    private const int ShortSleepMs = 50;
+    private const int LongSleepMs = 100;
+    private const double ExpectedHitRate = 0.666;
+    private const double HitRateTolerance = 0.01;
+
     private readonly Ponderer _ponderer;
 
     public PondererTests()
@@ -44,7 +50,7 @@ public class PondererTests : IDisposable
             Player.Blue,
             (8, 8),
             Player.Red,
-            5000
+            PonderTimeoutMs
         );
 
         // Assert
@@ -58,10 +64,10 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act - Try to start pondering again
-        _ponderer.StartPondering(board, Player.Blue, (9, 9), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (9, 9), Player.Red, PonderTimeoutMs);
 
         // Assert - Should keep original predicted move
         _ponderer.PredictedMove.Should().Be((8, 8));
@@ -80,7 +86,7 @@ public class PondererTests : IDisposable
             Player.Blue,
             (8, 8),
             Player.Red,
-            5000
+            PonderTimeoutMs
         );
 
         // Assert
@@ -96,7 +102,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act
         _ponderer.StopPondering();
@@ -124,7 +130,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act - Opponent plays predicted move
         var (state, result) = _ponderer.HandleOpponentMove(8, 8);
@@ -141,7 +147,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act - Opponent plays different move
         var (state, result) = _ponderer.HandleOpponentMove(9, 9);
@@ -172,7 +178,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act
         _ponderer.HandleOpponentMove(8, 8);
@@ -188,7 +194,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act
         _ponderer.HandleOpponentMove(9, 9);
@@ -204,7 +210,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act
         _ponderer.UpdatePonderResult((10, 10), 5, 100, 1000);
@@ -244,7 +250,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act
         _ponderer.StopPondering();
@@ -259,7 +265,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act & Assert
         _ponderer.IsPondering.Should().BeTrue();
@@ -278,7 +284,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act & Assert
         _ponderer.GetPlayerToMove().Should().Be(Player.Blue);
@@ -290,10 +296,10 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act
-        Thread.Sleep(100); // Small delay
+        Thread.Sleep(LongSleepMs); // Small delay
         _ponderer.HandleOpponentMove(8, 8);
         var timeToMerge = _ponderer.GetPonderTimeToMerge();
 
@@ -308,7 +314,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act
         _ponderer.Reset();
@@ -327,22 +333,22 @@ public class PondererTests : IDisposable
         board = board.PlaceStone(7, 7, Player.Red);
 
         // Act - 2 hits, 1 miss
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
         _ponderer.HandleOpponentMove(8, 8); // Hit
         _ponderer.Reset();
 
-        _ponderer.StartPondering(board, Player.Blue, (9, 9), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (9, 9), Player.Red, PonderTimeoutMs);
         _ponderer.HandleOpponentMove(10, 10); // Miss
         _ponderer.Reset();
 
-        _ponderer.StartPondering(board, Player.Blue, (11, 11), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (11, 11), Player.Red, PonderTimeoutMs);
         _ponderer.HandleOpponentMove(11, 11); // Hit
         _ponderer.Reset();
 
         // Assert
         _ponderer.TotalPonderHits.Should().Be(2);
         _ponderer.TotalPonderMisses.Should().Be(1);
-        _ponderer.PonderHitRate.Should().BeApproximately(0.666, 0.01);
+        _ponderer.PonderHitRate.Should().BeApproximately(ExpectedHitRate, HitRateTolerance);
     }
 
     [Fact]
@@ -360,14 +366,14 @@ public class PondererTests : IDisposable
         board = board.PlaceStone(7, 7, Player.Red);
 
         // Act - Multiple pondering sessions
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
-        Thread.Sleep(50);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
+        Thread.Sleep(ShortSleepMs);
         _ponderer.HandleOpponentMove(8, 8);
         var firstTime = _ponderer.TotalPonderTimeMs;
 
         _ponderer.Reset();
-        _ponderer.StartPondering(board, Player.Blue, (9, 9), Player.Red, 5000);
-        Thread.Sleep(50);
+        _ponderer.StartPondering(board, Player.Blue, (9, 9), Player.Red, PonderTimeoutMs);
+        Thread.Sleep(ShortSleepMs);
         _ponderer.HandleOpponentMove(9, 9);
         var secondTime = _ponderer.TotalPonderTimeMs;
 
@@ -382,7 +388,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
         _ponderer.HandleOpponentMove(8, 8);
 
         // Act
@@ -407,7 +413,7 @@ public class PondererTests : IDisposable
             Player.Blue,
             null,
             Player.Red,
-            5000
+            PonderTimeoutMs
         );
 
         // Assert
@@ -425,7 +431,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, null, Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, null, Player.Red, PonderTimeoutMs);
 
         // Act
         var (state, result) = _ponderer.HandleOpponentMove(8, 8);
@@ -447,7 +453,7 @@ public class PondererTests : IDisposable
         for (int i = 0; i < 3; i++)
         {
             var (px, py) = (8 + i, 8 + i);
-            _ponderer.StartPondering(board, Player.Blue, (px, py), Player.Red, 5000);
+            _ponderer.StartPondering(board, Player.Blue, (px, py), Player.Red, PonderTimeoutMs);
             _ponderer.HandleOpponentMove(px, py); // All hits
             _ponderer.Reset();
         }
@@ -464,7 +470,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act
         var token = _ponderer.GetCancellationToken();
@@ -479,7 +485,7 @@ public class PondererTests : IDisposable
         // Arrange
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
-        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, 5000);
+        _ponderer.StartPondering(board, Player.Blue, (8, 8), Player.Red, PonderTimeoutMs);
 
         // Act - Should not throw
         _ponderer.Dispose();

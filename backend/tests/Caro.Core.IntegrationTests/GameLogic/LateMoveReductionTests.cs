@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.IntegrationTests.Helpers;
@@ -8,6 +9,12 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 
 public class LateMoveReductionTests
 {
+    private const int StandardTimeoutMs = 15_000;
+    private const int CenterMoveLowerBound = 5;
+    private const int CenterMoveUpperBound = 10;
+    private const int NearNeighborRadius = 2;
+    private const int FarNeighborRadius = 4;
+
     private readonly ITestOutputHelper _output;
 
     public LateMoveReductionTests(ITestOutputHelper output)
@@ -34,21 +41,21 @@ public class LateMoveReductionTests
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Move should be valid and strategic
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
 
         var cell = board.GetCell(move.x, move.y);
         Assert.True(cell.IsEmpty, "Move should be on an empty cell");
 
         // Move should be near existing stones (not random)
         var nearStones = false;
-        for (int dx = -2; dx <= 2; dx++)
+        for (int dx = -NearNeighborRadius; dx <= NearNeighborRadius; dx++)
         {
-            for (int dy = -2; dy <= 2; dy++)
+            for (int dy = -NearNeighborRadius; dy <= NearNeighborRadius; dy++)
             {
                 var nx = move.x + dx;
                 var ny = move.y + dy;
-                if (nx >= 0 && nx < 15 && ny >= 0 && ny < 15)
+                if (nx >= 0 && nx < GameConstants.BoardSize && ny >= 0 && ny < GameConstants.BoardSize)
                 {
                     var neighbor = board.GetCell(nx, ny);
                     if (neighbor.Player != Player.None)
@@ -103,12 +110,12 @@ public class LateMoveReductionTests
 
         // Assert - Should complete quickly with LMR
         // Parallel search has some overhead, so we allow more time
-        Assert.True(stopwatch.ElapsedMilliseconds < 15000,
-            $"LMR search took {stopwatch.ElapsedMilliseconds}ms, expected < 15000ms");
+        Assert.True(stopwatch.ElapsedMilliseconds < StandardTimeoutMs,
+            $"LMR search took {stopwatch.ElapsedMilliseconds}ms, expected < {StandardTimeoutMs}ms");
 
         // Move should be valid
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
     }
 
     [Fact]
@@ -129,13 +136,13 @@ public class LateMoveReductionTests
         var move2 = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Moves should be valid and strategic (near existing stones)
-        Assert.InRange(move1.x, 5, 10);
-        Assert.InRange(move1.y, 5, 10);
+        Assert.InRange(move1.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move1.y, CenterMoveLowerBound, CenterMoveUpperBound);
         var cell1 = board.GetCell(move1.x, move1.y);
         Assert.True(cell1.IsEmpty, "Move should be on an empty cell");
 
-        Assert.InRange(move2.x, 5, 10);
-        Assert.InRange(move2.y, 5, 10);
+        Assert.InRange(move2.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.y, CenterMoveLowerBound, CenterMoveUpperBound);
         var cell2 = board.GetCell(move2.x, move2.y);
         Assert.True(cell2.IsEmpty, "Move should be on an empty cell");
     }
@@ -165,8 +172,8 @@ public class LateMoveReductionTests
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find reasonable move
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
 
         var cell = board.GetCell(move.x, move.y);
         Assert.True(cell.IsEmpty, "Move should be on an empty cell");
@@ -185,18 +192,18 @@ public class LateMoveReductionTests
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should still play near center
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
 
         // Should be near existing stones (wider radius for early game with few stones)
         var nearStones = false;
-        for (int dx = -4; dx <= 4; dx++)
+        for (int dx = -FarNeighborRadius; dx <= FarNeighborRadius; dx++)
         {
-            for (int dy = -4; dy <= 4; dy++)
+            for (int dy = -FarNeighborRadius; dy <= FarNeighborRadius; dy++)
             {
                 var nx = move.x + dx;
                 var ny = move.y + dy;
-                if (nx >= 0 && nx < 15 && ny >= 0 && ny < 15)
+                if (nx >= 0 && nx < GameConstants.BoardSize && ny >= 0 && ny < GameConstants.BoardSize)
                 {
                     var neighbor = board.GetCell(nx, ny);
                     if (neighbor.Player != Player.None)
@@ -248,8 +255,8 @@ public class LateMoveReductionTests
             var move = ai.GetBestMove(board, Player.Red, null);
 
             // Assert - Each move should be valid
-            Assert.True(move.x >= 0 && move.x < 15);
-            Assert.True(move.y >= 0 && move.y < 15);
+            Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+            Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
         }
 
         // Assert - All searches should complete successfully

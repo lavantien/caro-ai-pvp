@@ -9,6 +9,13 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 [Trait("Category", "Benchmark")]
 public class ZeroAllocationTests
 {
+    private const int TTEntrySizeBytes = 32;
+    private const int DefaultTTSizeMb = 256;
+    private const long FiveMinutesMs = 300_000L;
+    private const int D4TimeoutMs = 45_000;
+    private const int D5TimeoutMs = 65_000;
+    private const int LateMidGameMoveNumber = 30;
+
     private readonly ITestOutputHelper _output;
 
     public ZeroAllocationTests(ITestOutputHelper output)
@@ -146,7 +153,7 @@ public class ZeroAllocationTests
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
         var size = sizeField?.GetValue(tt) as int?;
-        var expectedEntries = (256 * 1024 * 1024) / 32; // ~8M entries
+        var expectedEntries = (DefaultTTSizeMb * 1024 * 1024) / TTEntrySizeBytes; // ~8M entries
 
         Assert.Equal(expectedEntries, size);
     }
@@ -184,8 +191,8 @@ public class ZeroAllocationTests
         // Act - Test D4 (Hard difficulty) with 7+5 time control
         // Simulating mid-game (move 30) with 5 minutes remaining
         var ai = AITestHelper.CreateAI();
-        var timeRemainingMs = 300_000L;  // 5 minutes left
-        var moveNumber = 30;              // LateMid game phase
+        var timeRemainingMs = FiveMinutesMs;  // 5 minutes left
+        var moveNumber = LateMidGameMoveNumber;              // LateMid game phase
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, timeRemainingMs, moveNumber);
         stopwatch.Stop();
@@ -195,8 +202,8 @@ public class ZeroAllocationTests
 
         // Assert - D4 with time-aware search should complete within the hard bound
         // With ~150 candidates, TimeManager allocates ~25-30 seconds soft, ~35-40 seconds hard
-        Assert.True(stopwatch.ElapsedMilliseconds < 45000,
-            $"D4 took {stopwatch.ElapsedMilliseconds}ms, expected < 45000ms (time-aware hard bound)");
+        Assert.True(stopwatch.ElapsedMilliseconds < D4TimeoutMs,
+            $"D4 took {stopwatch.ElapsedMilliseconds}ms, expected < {D4TimeoutMs}ms (time-aware hard bound)");
 
         // Move should be valid
         var cell = board.GetCell(move.x, move.y);
@@ -230,8 +237,8 @@ public class ZeroAllocationTests
 
         // Act - Test D5 (Grandmaster difficulty) with 7+5 time control
         var ai = AITestHelper.CreateAI();
-        var timeRemainingMs = 300_000L;  // 5 minutes left
-        var moveNumber = 30;              // LateMid game phase
+        var timeRemainingMs = FiveMinutesMs;  // 5 minutes left
+        var moveNumber = LateMidGameMoveNumber;              // LateMid game phase
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, timeRemainingMs, moveNumber);
         stopwatch.Stop();
@@ -241,8 +248,8 @@ public class ZeroAllocationTests
 
         // Assert - D5 with time-aware search should complete within hard bound
         // With ~140 candidates and adaptive depth, TimeManager allocates ~30-40s soft, ~45-60s hard
-        Assert.True(stopwatch.ElapsedMilliseconds < 65000,
-            $"D5 took {stopwatch.ElapsedMilliseconds}ms, expected < 65000ms (time-aware hard bound)");
+        Assert.True(stopwatch.ElapsedMilliseconds < D5TimeoutMs,
+            $"D5 took {stopwatch.ElapsedMilliseconds}ms, expected < {D5TimeoutMs}ms (time-aware hard bound)");
 
         // Move should be valid
         var cell = board.GetCell(move.x, move.y);

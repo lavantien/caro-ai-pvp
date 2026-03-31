@@ -9,6 +9,11 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 
 public class AspirationWindowTests
 {
+    private const int StandardTimeoutMs = 30_000;
+    private const int CenterMoveLowerBound = 5;
+    private const int CenterMoveUpperBound = 10;
+    private const int NeighborRadius = 2;
+
     private readonly ITestOutputHelper _output;
 
     public AspirationWindowTests(ITestOutputHelper output)
@@ -92,8 +97,8 @@ public class AspirationWindowTests
         // Assert - Should complete in reasonable time
         // Grandmaster (D5) with adaptive depth
         _output.WriteLine($"Move: ({move.x}, {move.y}), Time: {stopwatch.ElapsedMilliseconds}ms");
-        Assert.True(stopwatch.ElapsedMilliseconds < 30000,
-            $"Grandmaster search took {stopwatch.ElapsedMilliseconds}ms, expected < 30000ms");
+        Assert.True(stopwatch.ElapsedMilliseconds < StandardTimeoutMs,
+            $"Grandmaster search took {stopwatch.ElapsedMilliseconds}ms, expected < {StandardTimeoutMs}ms");
 
         // Move should be valid
         var cell = board.GetCell(move.x, move.y);
@@ -120,12 +125,12 @@ public class AspirationWindowTests
         var move3 = ai.GetBestMove(board, Player.Blue, null);
 
         // Assert - All moves should be valid and strategic
-        Assert.InRange(move1.x, 5, 10);
-        Assert.InRange(move1.y, 5, 10);
-        Assert.InRange(move2.x, 5, 10);
-        Assert.InRange(move2.y, 5, 10);
-        Assert.InRange(move3.x, 5, 10);
-        Assert.InRange(move3.y, 5, 10);
+        Assert.InRange(move1.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move1.y, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.y, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move3.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move3.y, CenterMoveLowerBound, CenterMoveUpperBound);
     }
 
     [Fact]
@@ -183,9 +188,9 @@ public class AspirationWindowTests
 
         // Check move is near existing stones (not random corner)
         var nearStones = false;
-        for (int dx = -2; dx <= 2; dx++)
+        for (int dx = -NeighborRadius; dx <= NeighborRadius; dx++)
         {
-            for (int dy = -2; dy <= 2; dy++)
+            for (int dy = -NeighborRadius; dy <= NeighborRadius; dy++)
             {
                 var nx = move.x + dx;
                 var ny = move.y + dy;

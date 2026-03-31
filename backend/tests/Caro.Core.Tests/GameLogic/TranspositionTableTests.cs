@@ -6,6 +6,20 @@ namespace Caro.Core.Tests.GameLogic;
 
 public class TranspositionTableTests
 {
+    // Test hash values
+    private const ulong TestHash = 12345ul;
+
+    // Score values
+    private const int HighScore = 500;
+    private const int VeryLowScore = -500;
+
+    // Alpha/Beta bounds
+    private const int NegativeBound = -1000;
+    private const int PositiveBound = 1000;
+
+    // Cluster size
+    private const int ClusterSizeBytes = 32;
+
     [Fact]
     public void CalculateHash_EmptyBoard_ReturnsZero()
     {
@@ -82,12 +96,12 @@ public class TranspositionTableTests
     {
         // Arrange
         var table = new TranspositionTable();
-        var hash = 12345ul;
+        var hash = TestHash;
         int depth = 3;
         int score = 100;
         var bestMove = (7, 7);
-        int alpha = -1000;
-        int beta = 1000;
+        int alpha = NegativeBound;
+        int beta = PositiveBound;
 
         // Act
         table.Store(hash, depth, score, bestMove, alpha, beta);
@@ -104,11 +118,11 @@ public class TranspositionTableTests
     {
         // Arrange
         var table = new TranspositionTable();
-        var hash = 12345ul;
+        var hash = TestHash;
         int depth = 3;
-        int score = 500; // High score (beta cutoff)
+        int score = HighScore; // High score (beta cutoff)
         var bestMove = (7, 7);
-        int alpha = -1000;
+        int alpha = NegativeBound;
         int beta = 400; // score > beta = LowerBound
 
         // Act
@@ -128,12 +142,12 @@ public class TranspositionTableTests
     {
         // Arrange
         var table = new TranspositionTable();
-        var hash = 12345ul;
+        var hash = TestHash;
         int depth = 3;
-        int score = -500; // Low score (alpha cutoff)
+        int score = VeryLowScore; // Low score (alpha cutoff)
         var bestMove = (7, 7);
         int alpha = -400; // score <= alpha = UpperBound
-        int beta = 1000;
+        int beta = PositiveBound;
 
         // Act
         table.Store(hash, depth, score, bestMove, alpha, beta);
@@ -152,10 +166,10 @@ public class TranspositionTableTests
     {
         // Arrange
         var table = new TranspositionTable();
-        table.Store(12345ul, 3, 100, (7, 7), -1000, 1000);
+        table.Store(TestHash, 3, 100, (7, 7), NegativeBound, PositiveBound);
 
         // Act
-        var (found, _, _) = table.Lookup(54321ul, 3, -1000, 1000);
+        var (found, _, _) = table.Lookup(54321ul, 3, NegativeBound, PositiveBound);
 
         // Assert
         Assert.False(found);
@@ -166,13 +180,13 @@ public class TranspositionTableTests
     {
         // Arrange
         var table = new TranspositionTable();
-        var hash = 12345ul;
+        var hash = TestHash;
 
         // Store at depth 2
-        table.Store(hash, 2, 100, (7, 7), -1000, 1000);
+        table.Store(hash, 2, 100, (7, 7), NegativeBound, PositiveBound);
 
         // Lookup at depth 3 (deeper than stored)
-        var (found, _, _) = table.Lookup(hash, 3, -1000, 1000);
+        var (found, _, _) = table.Lookup(hash, 3, NegativeBound, PositiveBound);
 
         // Assert - should not use shallow cache for deep search
         Assert.False(found);
@@ -183,13 +197,13 @@ public class TranspositionTableTests
     {
         // Arrange
         var table = new TranspositionTable();
-        var hash = 12345ul;
+        var hash = TestHash;
 
         // Store at depth 5
-        table.Store(hash, 5, 100, (7, 7), -1000, 1000);
+        table.Store(hash, 5, 100, (7, 7), NegativeBound, PositiveBound);
 
         // Lookup at depth 3 (shallower than stored)
-        var (found, score, move) = table.Lookup(hash, 3, -1000, 1000);
+        var (found, score, move) = table.Lookup(hash, 3, NegativeBound, PositiveBound);
 
         // Assert - can use deep cache for shallow search
         Assert.True(found);
@@ -201,16 +215,16 @@ public class TranspositionTableTests
     {
         // Arrange
         var table = new TranspositionTable();
-        var hash = 12345ul;
+        var hash = TestHash;
 
         // Store at depth 2
-        table.Store(hash, 2, 50, (5, 5), -1000, 1000);
+        table.Store(hash, 2, 50, (5, 5), NegativeBound, PositiveBound);
 
         // Store at depth 4 (should overwrite)
-        table.Store(hash, 4, 100, (7, 7), -1000, 1000);
+        table.Store(hash, 4, 100, (7, 7), NegativeBound, PositiveBound);
 
         // Lookup should return deeper entry
-        var (found, score, move) = table.Lookup(hash, 3, -1000, 1000);
+        var (found, score, move) = table.Lookup(hash, 3, NegativeBound, PositiveBound);
 
         Assert.True(found);
         Assert.Equal(100, score); // Deeper entry's score
@@ -222,13 +236,13 @@ public class TranspositionTableTests
     {
         // Arrange
         var table = new TranspositionTable();
-        table.Store(12345ul, 3, 100, (7, 7), -1000, 1000);
+        table.Store(TestHash, 3, 100, (7, 7), NegativeBound, PositiveBound);
 
         // Act
         table.Clear();
 
         // Assert
-        var (found, _, _) = table.Lookup(12345ul, 3, -1000, 1000);
+        var (found, _, _) = table.Lookup(TestHash, 3, NegativeBound, PositiveBound);
         Assert.False(found);
 
         var (used, usage) = table.GetStats();
@@ -243,8 +257,8 @@ public class TranspositionTableTests
         var table = new TranspositionTable();
 
         // Act
-        table.Store(12345ul, 3, 100, (7, 7), -1000, 1000);
-        table.Store(23456ul, 3, 200, (8, 8), -1000, 1000);
+        table.Store(TestHash, 3, 100, (7, 7), NegativeBound, PositiveBound);
+        table.Store(23456ul, 3, 200, (8, 8), NegativeBound, PositiveBound);
 
         // Assert
         var (used, usage) = table.GetStats();
@@ -257,15 +271,15 @@ public class TranspositionTableTests
     {
         // Arrange
         var table = new TranspositionTable();
-        var hash = 12345ul;
+        var hash = TestHash;
 
         table.IncrementAge();
-        table.Store(hash, 3, 100, (7, 7), -1000, 1000);
+        table.Store(hash, 3, 100, (7, 7), NegativeBound, PositiveBound);
 
         table.IncrementAge();
 
         // Store different entry with hash collision - should replace old age
-        table.Store(hash + (ulong)table.GetHashCode(), 3, 200, (8, 8), -1000, 1000);
+        table.Store(hash + (ulong)table.GetHashCode(), 3, 200, (8, 8), NegativeBound, PositiveBound);
 
         // Old entry should be replaced (different age)
         var stats = table.GetStats();
@@ -300,9 +314,9 @@ public class TranspositionTableTests
     {
         // Arrange
         var table = new TranspositionTable();
-        var hash = 12345ul;
-        int score = 500; // LowerBound
-        int alpha = -1000;
+        var hash = TestHash;
+        int score = HighScore; // LowerBound
+        int alpha = NegativeBound;
         int beta = 400; // score > beta
         var bestMove = (7, 7);
 
@@ -326,7 +340,7 @@ public class TranspositionTableTests
         unsafe
         {
             var clusterSize = sizeof(TranspositionTable.Cluster);
-            Assert.Equal(32, clusterSize);
+            Assert.Equal(ClusterSizeBytes, clusterSize);
         }
     }
 
@@ -335,10 +349,10 @@ public class TranspositionTableTests
     {
         // Arrange
         var table = new TranspositionTable();
-        var hash = 12345ul;
+        var hash = TestHash;
 
         // Store entry at current age, depth 5
-        table.Store(hash, 5, 100, (7, 7), -1000, 1000);
+        table.Store(hash, 5, 100, (7, 7), NegativeBound, PositiveBound);
 
         // Increment age (make entry older)
         table.IncrementAge();
@@ -348,12 +362,12 @@ public class TranspositionTableTests
         // Old entry: 5 - 8*1 = -3
         // New entry: 3 - 8*0 = 3
         // Newer shallow entry should be preferred
-        table.Store(hash + (ulong)table.GetHashCode(), 3, 200, (8, 8), -1000, 1000);
+        table.Store(hash + (ulong)table.GetHashCode(), 3, 200, (8, 8), NegativeBound, PositiveBound);
 
         // The older deep entry should be replaced by newer shallow entry
         // when probing the same cluster
-        var (found1, _, _) = table.Lookup(hash, 5, -1000, 1000);
-        var (found2, _, _) = table.Lookup(hash + (ulong)table.GetHashCode(), 3, -1000, 1000);
+        var (found1, _, _) = table.Lookup(hash, 5, NegativeBound, PositiveBound);
+        var (found2, _, _) = table.Lookup(hash + (ulong)table.GetHashCode(), 3, NegativeBound, PositiveBound);
 
         // At least one should be found (replacement occurred)
         Assert.True(found1 || found2);
@@ -369,12 +383,12 @@ public class TranspositionTableTests
         var hash2 = 2000ul;
 
         // Store three entries at same cluster location (collision)
-        table.Store(hash1, 2, 50, (1, 1), -1000, 1000);  // Shallow
-        table.Store(hash2, 4, 100, (5, 5), -1000, 1000); // Deeper
-        table.Store(hash1, 6, 150, (7, 7), -1000, 1000); // Deepest for hash1
+        table.Store(hash1, 2, 50, (1, 1), NegativeBound, PositiveBound);  // Shallow
+        table.Store(hash2, 4, 100, (5, 5), NegativeBound, PositiveBound); // Deeper
+        table.Store(hash1, 6, 150, (7, 7), NegativeBound, PositiveBound); // Deepest for hash1
 
         // Looking up hash1 should return the deepest entry (depth 6)
-        var (found, score, move) = table.Lookup(hash1, 3, -1000, 1000);
+        var (found, score, move) = table.Lookup(hash1, 3, NegativeBound, PositiveBound);
 
         Assert.True(found);
         Assert.Equal(150, score);
@@ -391,22 +405,22 @@ public class TranspositionTableTests
         var baseHash = 5000ul;
 
         // Fill cluster with 3 entries
-        table.Store(baseHash, 5, 100, (1, 1), -1000, 1000);           // value = 5
-        table.Store(baseHash + 1, 3, 100, (2, 2), -1000, 1000);        // value = 3 (lowest)
-        table.Store(baseHash + 2, 4, 100, (3, 3), -1000, 1000);        // value = 4
+        table.Store(baseHash, 5, 100, (1, 1), NegativeBound, PositiveBound);           // value = 5
+        table.Store(baseHash + 1, 3, 100, (2, 2), NegativeBound, PositiveBound);        // value = 3 (lowest)
+        table.Store(baseHash + 2, 4, 100, (3, 3), NegativeBound, PositiveBound);        // value = 4
 
         // Increment age to reduce values of existing entries
         table.IncrementAge();
 
         // Add 4th entry - should replace the entry with value = 3 - 8*1 = -5 (lowest)
-        table.Store(baseHash + 3, 2, 200, (4, 4), -1000, 1000);        // value = 2 - 8*1 = -6
+        table.Store(baseHash + 3, 2, 200, (4, 4), NegativeBound, PositiveBound);        // value = 2 - 8*1 = -6
 
         // The entry with lowest value should have been replaced
         // This is verified by checking that we can still lookup entries with higher values
-        var (found1, _, _) = table.Lookup(baseHash, 5, -1000, 1000);
-        var (found2, _, _) = table.Lookup(baseHash + 1, 3, -1000, 1000);
-        var (found3, _, _) = table.Lookup(baseHash + 2, 4, -1000, 1000);
-        var (found4, _, _) = table.Lookup(baseHash + 3, 2, -1000, 1000);
+        var (found1, _, _) = table.Lookup(baseHash, 5, NegativeBound, PositiveBound);
+        var (found2, _, _) = table.Lookup(baseHash + 1, 3, NegativeBound, PositiveBound);
+        var (found3, _, _) = table.Lookup(baseHash + 2, 4, NegativeBound, PositiveBound);
+        var (found4, _, _) = table.Lookup(baseHash + 3, 2, NegativeBound, PositiveBound);
 
         // At least 3 of 4 should be found (one was replaced)
         int foundCount = (found1 ? 1 : 0) + (found2 ? 1 : 0) + (found3 ? 1 : 0) + (found4 ? 1 : 0);

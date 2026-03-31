@@ -9,6 +9,8 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 
 public class QuiescenceSearchTests
 {
+    private const int StandardTimeoutMs = 15_000;
+
     private readonly ITestOutputHelper _output;
 
     public QuiescenceSearchTests(ITestOutputHelper output)
@@ -145,8 +147,8 @@ public class QuiescenceSearchTests
 
         // Assert - Should complete in reasonable time (quiescence limited to depth 4)
         _output.WriteLine($"Complex tactical position time: {stopwatch.ElapsedMilliseconds}ms");
-        Assert.True(stopwatch.ElapsedMilliseconds < 15000,
-            $"Quiescence search took {stopwatch.ElapsedMilliseconds}ms, expected < 15000ms");
+        Assert.True(stopwatch.ElapsedMilliseconds < StandardTimeoutMs,
+            $"Quiescence search took {stopwatch.ElapsedMilliseconds}ms, expected < {StandardTimeoutMs}ms");
 
         Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
         Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);

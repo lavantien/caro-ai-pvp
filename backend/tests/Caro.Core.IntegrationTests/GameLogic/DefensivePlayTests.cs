@@ -11,6 +11,9 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 /// </summary>
 public class DefensivePlayTests
 {
+    private const int DefaultTTSizeMb = 256;
+    private const int ConsistencyRunCount = 10;
+    private const int ConsistencyThreshold = 8;
     /// <summary>
     /// Test that AI blocks semi-open four (XXXX_ pattern where one end is blocked)
     /// </summary>
@@ -28,7 +31,7 @@ public class DefensivePlayTests
         board = board.PlaceStone(10, 7, Player.Red);
         board = board.PlaceStone(6, 7, Player.Blue); // Blocks one end
 
-        var ai = new ParallelMinimaxSearch(sizeMB: 256);
+        var ai = new ParallelMinimaxSearch(sizeMB: DefaultTTSizeMb);
 
         // Act: Get best move for Blue (must block at 11,7)
         var result = ai.GetBestMove(board, Player.Blue);
@@ -49,7 +52,7 @@ public class DefensivePlayTests
         board = board.PlaceStone(7, 10, Player.Red);
         board = board.PlaceStone(7, 6, Player.Blue); // Blocks one end
 
-        var ai = new ParallelMinimaxSearch(sizeMB: 256);
+        var ai = new ParallelMinimaxSearch(sizeMB: DefaultTTSizeMb);
 
         // Act
         var result = ai.GetBestMove(board, Player.Blue);
@@ -70,7 +73,7 @@ public class DefensivePlayTests
         board = board.PlaceStone(10, 10, Player.Red);
         board = board.PlaceStone(6, 6, Player.Blue); // Blocks one end
 
-        var ai = new ParallelMinimaxSearch(sizeMB: 256);
+        var ai = new ParallelMinimaxSearch(sizeMB: DefaultTTSizeMb);
 
         // Act
         var result = ai.GetBestMove(board, Player.Blue);
@@ -97,16 +100,16 @@ public class DefensivePlayTests
         var moves = new List<(int x, int y)>();
 
         // Act: Run 10 times to test consistency
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < ConsistencyRunCount; i++)
         {
-            var ai = new ParallelMinimaxSearch(sizeMB: 256);
+            var ai = new ParallelMinimaxSearch(sizeMB: DefaultTTSizeMb);
             var result = ai.GetBestMove(board, Player.Blue);
             moves.Add((result.x, result.y));
         }
 
         // Assert: All runs should produce the same defensive move
         var blockCount = moves.Count(m => m.x == 11 && m.y == 7);
-        blockCount.Should().BeGreaterThanOrEqualTo(8,
+        blockCount.Should().BeGreaterThanOrEqualTo(ConsistencyThreshold,
             "At least 80% of runs should block the semi-open four consistently");
     }
 
@@ -133,7 +136,7 @@ public class DefensivePlayTests
         board = board.PlaceStone(6, 5, Player.Blue);
         board = board.PlaceStone(7, 5, Player.Blue);
 
-        var ai = new ParallelMinimaxSearch(sizeMB: 256);
+        var ai = new ParallelMinimaxSearch(sizeMB: DefaultTTSizeMb);
 
         // Act
         var result = ai.GetBestMove(board, Player.Blue);
@@ -157,7 +160,7 @@ public class DefensivePlayTests
         board = board.PlaceStone(9, 7, Player.Red);
         board = board.PlaceStone(11, 7, Player.Red);
 
-        var ai = new ParallelMinimaxSearch(sizeMB: 256);
+        var ai = new ParallelMinimaxSearch(sizeMB: DefaultTTSizeMb);
 
         // Act: Get best move for Blue
         var result = ai.GetBestMove(board, Player.Blue);
@@ -215,7 +218,7 @@ public class DefensivePlayTests
         board = board.PlaceStone(13, 7, Player.Red);
         board = board.PlaceStone(14, 7, Player.Red);
 
-        var ai = new ParallelMinimaxSearch(sizeMB: 256);
+        var ai = new ParallelMinimaxSearch(sizeMB: DefaultTTSizeMb);
 
         // Act: Blue to move
         var result = ai.GetBestMove(board, Player.Blue);

@@ -8,48 +8,58 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 [Trait("Category", "Integration")]
 public class LazySMPTests
 {
+    private const int SmallTTSizeMb = 1;
+    private const int DefaultTTSizeMb = 256;
+    private const int SingleThread = 1;
+    private const int TwoThreads = 2;
+    private const int FourThreads = 4;
+    private const int ShortTimeoutMs = 500;
+    private const int MediumTimeoutMs = 1000;
+    private const int StandardTimeoutMs = 2000;
+    private const int CenterMoveLowerBound = 6;
+    private const int CenterMoveUpperBound = 10;
     [Fact]
     public void GetBestMoveWithStats_EmptyBoard_ReturnsCenterMove()
     {
-        var search = new ParallelMinimaxSearch(sizeMB: 1, maxThreads: 2);
+        var search = new ParallelMinimaxSearch(sizeMB: SmallTTSizeMb, maxThreads: TwoThreads);
         var board = new Board();
 
         var result = search.GetBestMoveWithStats(
-            board, Player.Red, timeRemainingMs: 2000, fixedThreadCount: 2);
+            board, Player.Red, timeRemainingMs: StandardTimeoutMs, fixedThreadCount: TwoThreads);
 
-        result.X.Should().BeInRange(6, 10);
-        result.Y.Should().BeInRange(6, 10);
-        result.ThreadCount.Should().Be(2);
+        result.X.Should().BeInRange(CenterMoveLowerBound, CenterMoveUpperBound);
+        result.Y.Should().BeInRange(CenterMoveLowerBound, CenterMoveUpperBound);
+        result.ThreadCount.Should().Be(TwoThreads);
     }
 
     [Fact]
     public void GetBestMoveWithStats_FixedSingleThread_ThreadCountIsOne()
     {
-        var search = new ParallelMinimaxSearch(sizeMB: 1, maxThreads: 1);
+        var search = new ParallelMinimaxSearch(sizeMB: SmallTTSizeMb, maxThreads: SingleThread);
         var board = new Board();
 
         var result = search.GetBestMoveWithStats(
-            board, Player.Red, timeRemainingMs: 1000, fixedThreadCount: 1);
+            board, Player.Red, timeRemainingMs: MediumTimeoutMs, fixedThreadCount: SingleThread);
 
-        result.ThreadCount.Should().Be(1);
+        result.ThreadCount.Should().Be(SingleThread);
     }
 
     [Fact]
     public void GetBestMoveWithStats_MultiThread_ThreadCountMatchesRequested()
     {
-        var search = new ParallelMinimaxSearch(sizeMB: 1, maxThreads: 4);
+        var search = new ParallelMinimaxSearch(sizeMB: SmallTTSizeMb, maxThreads: FourThreads);
         var board = new Board();
 
         var result = search.GetBestMoveWithStats(
-            board, Player.Red, timeRemainingMs: 2000, fixedThreadCount: 4);
+            board, Player.Red, timeRemainingMs: StandardTimeoutMs, fixedThreadCount: FourThreads);
 
-        result.ThreadCount.Should().Be(4);
+        result.ThreadCount.Should().Be(FourThreads);
     }
 
     [Fact]
     public void GetBestMoveWithStats_WinningPosition_FindsWinningMove()
     {
-        var search = new ParallelMinimaxSearch(sizeMB: 1, maxThreads: 2);
+        var search = new ParallelMinimaxSearch(sizeMB: SmallTTSizeMb, maxThreads: TwoThreads);
         var board = new Board();
         // 4 in a row, can win with 5th
         board = board.PlaceStone(7, 7, Player.Red);
@@ -62,7 +72,7 @@ public class LazySMPTests
         board = board.PlaceStone(2, 0, Player.Blue);
 
         var result = search.GetBestMoveWithStats(
-            board, Player.Red, timeRemainingMs: 2000, fixedThreadCount: 2);
+            board, Player.Red, timeRemainingMs: StandardTimeoutMs, fixedThreadCount: TwoThreads);
 
         // Should find the winning move
         var isWinningMove = (result.X == 6 && result.Y == 7) ||
@@ -73,11 +83,11 @@ public class LazySMPTests
     [Fact]
     public void GetBestMoveWithStats_ReturnsValidStatistics()
     {
-        var search = new ParallelMinimaxSearch(sizeMB: 1, maxThreads: 2);
+        var search = new ParallelMinimaxSearch(sizeMB: SmallTTSizeMb, maxThreads: TwoThreads);
         var board = new Board();
 
         var result = search.GetBestMoveWithStats(
-            board, Player.Red, timeRemainingMs: 2000, fixedThreadCount: 2);
+            board, Player.Red, timeRemainingMs: StandardTimeoutMs, fixedThreadCount: TwoThreads);
 
         result.DepthAchieved.Should().BeGreaterThan(0);
         result.NodesSearched.Should().BeGreaterThan(0);
@@ -87,12 +97,12 @@ public class LazySMPTests
     [Fact]
     public void GetBestMoveWithStats_RespectsTimeLimit()
     {
-        var search = new ParallelMinimaxSearch(sizeMB: 1, maxThreads: 2);
+        var search = new ParallelMinimaxSearch(sizeMB: SmallTTSizeMb, maxThreads: TwoThreads);
         var board = new Board();
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
         var result = search.GetBestMoveWithStats(
-            board, Player.Red, timeRemainingMs: 500, fixedThreadCount: 2);
+            board, Player.Red, timeRemainingMs: ShortTimeoutMs, fixedThreadCount: TwoThreads);
 
         sw.Stop();
         // Should not exceed hard time bound by much
@@ -102,7 +112,7 @@ public class LazySMPTests
     [Fact]
     public void GetBestMoveWithStats_MidGamePosition_ReturnsValidMove()
     {
-        var search = new ParallelMinimaxSearch(sizeMB: 1, maxThreads: 2);
+        var search = new ParallelMinimaxSearch(sizeMB: SmallTTSizeMb, maxThreads: TwoThreads);
         var board = new Board();
         board = board.PlaceStone(8, 8, Player.Red);
         board = board.PlaceStone(9, 9, Player.Blue);
@@ -111,7 +121,7 @@ public class LazySMPTests
         board = board.PlaceStone(6, 6, Player.Red);
 
         var result = search.GetBestMoveWithStats(
-            board, Player.Blue, timeRemainingMs: 2000, fixedThreadCount: 2);
+            board, Player.Blue, timeRemainingMs: StandardTimeoutMs, fixedThreadCount: TwoThreads);
 
         result.X.Should().BeInRange(0, 15);
         result.Y.Should().BeInRange(0, 15);
@@ -120,11 +130,11 @@ public class LazySMPTests
     [Fact]
     public void GetBestMoveWithStats_DefaultThreads_UsesLazySMPFormula()
     {
-        var search = new ParallelMinimaxSearch(sizeMB: 1);
+        var search = new ParallelMinimaxSearch(sizeMB: SmallTTSizeMb);
         var board = new Board();
 
         var result = search.GetBestMoveWithStats(
-            board, Player.Red, timeRemainingMs: 2000);
+            board, Player.Red, timeRemainingMs: StandardTimeoutMs);
 
         // Should use default Lazy SMP formula
         result.ThreadCount.Should().BeGreaterThan(0);

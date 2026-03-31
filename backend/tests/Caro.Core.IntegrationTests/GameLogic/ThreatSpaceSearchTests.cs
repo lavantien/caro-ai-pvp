@@ -9,6 +9,13 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 [Trait("Category", "Integration")]
 public class ThreatSpaceSearchTests
 {
+    private const int DefaultVCFTimeMs = 100;
+    private const int ExtendedVCFTimeMs = 500;
+    private const int GenerousVCFTimeMs = 2_000;
+    private const int MinimalVCFTimeMs = 5;
+    private const int DefaultMaxDepth = 3;
+    private const int MaxDefenseMoves = 10;
+
     private readonly ThreatSpaceSearch _vcf = new();
 
     [Fact]
@@ -18,7 +25,7 @@ public class ThreatSpaceSearchTests
         var board = new Board();
 
         // Act
-        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 100);
+        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: DefaultVCFTimeMs);
 
         // Assert
         result.IsSolved.Should().BeFalse("Empty board has no VCF");
@@ -38,7 +45,7 @@ public class ThreatSpaceSearchTests
         board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
-        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 500);
+        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: ExtendedVCFTimeMs);
 
         // Assert
         result.IsSolved.Should().BeTrue("Should find immediate win");
@@ -62,7 +69,7 @@ public class ThreatSpaceSearchTests
         board = board.PlaceStone(4, 6, Player.Blue);
 
         // Act
-        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 2000);
+        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: GenerousVCFTimeMs);
 
         // Assert - VCF should find winning sequence
         result.BestMove.Should().NotBeNull("Should find at least one move");
@@ -79,7 +86,7 @@ public class ThreatSpaceSearchTests
         board = board.PlaceStone(10, 7, Player.Blue);
 
         // Act
-        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 500);
+        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: ExtendedVCFTimeMs);
 
         // Assert - Red cannot win (Blue wins next)
         result.IsWin.Should().BeFalse("Red cannot force win");
@@ -106,7 +113,7 @@ public class ThreatSpaceSearchTests
         board = board.PlaceStone(11, 8, Player.Blue);
 
         // Act - Very short time limit (not enough for deep VCF)
-        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 5);
+        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: MinimalVCFTimeMs);
 
         // Assert - Should not crash, may return unknown or partial result
         // With extremely short time, VCF likely won't complete full search
@@ -124,7 +131,7 @@ public class ThreatSpaceSearchTests
         board = board.PlaceStone(9, 9, Player.Blue);
 
         // Act
-        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 500);
+        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: ExtendedVCFTimeMs);
 
         // Assert - No forcing sequence found
         result.IsSolved.Should().BeFalse("No forcing sequence available");
@@ -142,7 +149,7 @@ public class ThreatSpaceSearchTests
         board = board.PlaceStone(6, 7, Player.Red);
 
         // Act
-        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 500);
+        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: ExtendedVCFTimeMs);
 
         // Assert - If move returned, it should be valid
         if (result.BestMove.HasValue)
@@ -164,7 +171,7 @@ public class ThreatSpaceSearchTests
         var board = new Board();
 
         // Act
-        var result = _vcf.SolveVCF(board, player, timeLimitMs: 100);
+        var result = _vcf.SolveVCF(board, player, timeLimitMs: DefaultVCFTimeMs);
 
         // Assert
         result.IsSolved.Should().BeFalse();
@@ -181,7 +188,7 @@ public class ThreatSpaceSearchTests
         board = board.PlaceStone(8, 7, Player.Blue);
 
         // Act - Very shallow depth
-        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: 500, maxDepth: 3);
+        var result = _vcf.SolveVCF(board, Player.Red, timeLimitMs: ExtendedVCFTimeMs, maxDepth: DefaultMaxDepth);
 
         // Assert - Should complete quickly with shallow depth
         result.IsSolved.Should().BeFalse("Shallow depth limits VCF");
@@ -305,7 +312,7 @@ public class ThreatSpaceSearchTests
         var defenses = _vcf.GetDefenseMoves(board, Player.Red, Player.Blue);
 
         // Assert - Should limit to reasonable number (<=10 as per implementation)
-        Assert.True(defenses.Count <= 10, "Should limit defense moves");
+        Assert.True(defenses.Count <= MaxDefenseMoves, "Should limit defense moves");
     }
 
     [Fact]

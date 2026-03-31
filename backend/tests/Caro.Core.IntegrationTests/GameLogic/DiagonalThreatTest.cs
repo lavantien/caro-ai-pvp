@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.IntegrationTests.Helpers;
@@ -8,6 +9,8 @@ namespace Caro.Core.IntegrationTests.GameLogic;
 
 public class DiagonalThreatTest
 {
+    private const int ThreatDisplayCount = 10;
+
     private readonly ITestOutputHelper _output;
 
     public DiagonalThreatTest(ITestOutputHelper output)
@@ -56,7 +59,7 @@ public class DiagonalThreatTest
         var threatDetector = new ThreatDetector();
         var threats = threatDetector.DetectThreats(board, Player.Red);
         _output.WriteLine($"ThreatDetector found {threats.Count} threats for Red:");
-        foreach (var threat in threats.Take(10))
+        foreach (var threat in threats.Take(ThreatDisplayCount))
         {
             _output.WriteLine($"  Threat Type={threat.Type}, Stones={threat.StonePositions.Count}, Direction={threat.Direction}");
             if (threat.GainSquares.Count > 0)
@@ -116,7 +119,7 @@ public class DiagonalThreatTest
         _output.WriteLine($"Blocked the threat: {blocked}");
 
         // For now, let's see what it actually plays
-        Assert.True(move.x >= 0 && move.x < 15);
-        Assert.True(move.y >= 0 && move.y < 15);
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
     }
 }
