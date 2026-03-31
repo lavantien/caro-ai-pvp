@@ -153,7 +153,7 @@ public static class ParallelThreatAnalyzer
 
         foreach (var threat in opponentThreats)
         {
-            if (threat.Type == ThreatType.StraightFour)
+            if (threat.Type == ThreatType.StraightFour || threat.Type == ThreatType.BrokenFour)
             {
                 foreach (var gainSquare in threat.GainSquares)
                 {
