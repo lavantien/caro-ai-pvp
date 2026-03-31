@@ -11,7 +11,10 @@ backend/
 │   ├── Caro.Core.Domain/         # Pure C# entities (no dependencies)
 │   ├── Caro.Core.Application/    # DTOs, mappers, interfaces
 │   ├── Caro.Core.Infrastructure/ # AI algorithms, persistence
-│   └── Caro.Api/               # Web API + SignalR hub
+│   ├── Caro.Core/                # Game logic, search modules, UCI integration
+│   ├── Caro.UCI/                 # Standalone UCI console engine
+│   ├── Caro.UCIMockClient/       # Engine vs engine testing tool
+│   └── Caro.Api/                 # Web API
 └── tests/
     ├── Caro.Core.Domain.Tests/
     ├── Caro.Core.Application.Tests/
@@ -22,7 +25,7 @@ backend/
 
 ### Key Technologies
 - .NET 10, C# 14
-- ASP.NET Core 10 + SignalR
+- ASP.NET Core 10 + WebSocket
 - xUnit 2.9.2, Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
 
 ### Architecture Principles
@@ -145,7 +148,6 @@ When registering these in Program.cs, you define how long they live.
 var builder = WebApplication.CreateBuilder(args);
 
 // Register AI services
-builder.Services.AddSignalR();
 
 // Register repositories
 builder.Services.AddScoped<IGameRepository, InMemoryGameRepository>();
@@ -375,7 +377,7 @@ public async Task ConcurrentMoves_DoNotCauseRaceConditions()
  tasks.Add(Task.Run(() =>
  {
  // Each thread gets its own state copy
- var threadState = state.MakeMove(i % 19, i % 19);
+ var threadState = state.MakeMove(i % 16, i % 16);
  return threadState;
  }));
  }
@@ -430,13 +432,13 @@ This codebase follows Clean Architecture with three core layers:
 
 ### Test Project Organization
 
-| Test Project | Source Project | Test Type | Count |
-|-------------|----------------|------------|--------|
-| Caro.Core.Domain.Tests | Caro.Core.Domain | Unit | 52 |
-| Caro.Core.Application.Tests | Caro.Core.Application | Unit | 26 |
-| Caro.Core.Infrastructure.Tests | Caro.Core.Infrastructure | Unit | 42 |
-| Caro.Core.Tests | Caro.Core (GameLogic/Concurrency) | Unit | See project |
-| Caro.Core.IntegrationTests | Caro.Core (AI Search) | Integration | See project |
+| Test Project | Source Project | Test Type |
+|-------------|----------------|------------|
+| Caro.Core.Domain.Tests | Caro.Core.Domain | Unit |
+| Caro.Core.Application.Tests | Caro.Core.Application | Unit |
+| Caro.Core.Infrastructure.Tests | Caro.Core.Infrastructure | Unit |
+| Caro.Core.Tests | Caro.Core (GameLogic/UCI/Concurrency) | Unit |
+| Caro.Core.IntegrationTests | Caro.Core (AI Search) | Integration |
 
 ## Summary Checklist for your Onboarding
 
@@ -446,11 +448,11 @@ This codebase follows Clean Architecture with three core layers:
 4. **Identify with-expression mutations** : Look for non-destructive state updates
 5. **Check Program.cs** : See how services are wired (Transient/Scoped/Singleton)
 6. **Run Tests** : Use `dotnet test` in backend/ or Test Explorer
-   - Caro.Core.Domain.Tests: 52 unit tests (no mocking needed)
-   - Caro.Core.Application.Tests: 26 unit tests (mock DTOs)
-   - Caro.Core.Infrastructure.Tests: 42 unit tests
-   - Caro.Core.Tests: See project (AI, concurrency)
-   - Caro.Core.IntegrationTests: ~187 integration tests (opt-in, slower)
+   - Caro.Core.Domain.Tests: unit tests (no mocking needed)
+   - Caro.Core.Application.Tests: unit tests (mock DTOs)
+   - Caro.Core.Infrastructure.Tests: unit tests
+   - Caro.Core.Tests: unit tests (AI, UCI, concurrency)
+   - Caro.Core.IntegrationTests: integration tests (opt-in, slower)
 7. **When tests fail** : Check [Theory] inline data to see which input caused crash
 8. **Mocking** : Use Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
 
