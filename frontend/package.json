@@ -32,7 +32,6 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
-    "@microsoft/signalr": "^8.0.0",
     "tailwindcss": "^4.1.18"
   }
 }

@@ -48,9 +48,13 @@ Lazy SMP is a parallel search paradigm where multiple threads explore the game t
 
 PVS is an enhancement to alpha-beta search that uses null-window searches to prove moves are suboptimal quickly.
 
-**Algorithm Structure:**
+**Implementation Scope:**
+- Sequential path (MinimaxAI): Full PVS with null-window searches and re-searches
+- Parallel path (ParallelMinimaxSearch): Standard alpha-beta with aspiration windows; PVS not applied
+
+**Algorithm Structure (Sequential Path):**
 1. Search first move with full alpha-beta window
-2. For remaining moves, search with null-window (minimal bounds)
+2. For remaining moves, search with null-window (alpha, alpha+1) or (beta-1, beta)
 3. If null-window fails high, re-search with full window
 
 **Theoretical Basis:**
@@ -113,7 +117,7 @@ The engine has two TT implementations, each serving a different search context:
 
 ### 3.1 Cluster-Based TranspositionTable (MinimaxAI)
 
-Used by `MinimaxAI` for single-threaded and main search.
+Used by `MinimaxAI` for single-threaded (sequential) search path.
 
 **Cluster Structure:**
 - 3 entries per cluster
@@ -127,7 +131,7 @@ Used by `MinimaxAI` for single-threaded and main search.
 
 ### 3.2 LockFreeTranspositionTable (ParallelMinimaxSearch)
 
-Used by `ParallelMinimaxSearch` for Lazy SMP multi-threaded search.
+Primary TT used by `ParallelMinimaxSearch` for Lazy SMP multi-threaded search.
 
 **Shard Distribution:**
 - 16 independent segments
@@ -135,9 +139,10 @@ Used by `ParallelMinimaxSearch` for Lazy SMP multi-threaded search.
 - Reduces cache coherency traffic
 
 **Thread Access:**
+- SeqLock pattern with version counters for lockless reads
 - Each thread can access any shard
 - No locking required for read operations
-- Atomic operations for writes
+- Atomic version counter updates for writes
 
 ### 3.3 Entry Structure
 
@@ -149,14 +154,15 @@ Each TT entry stores:
 - **Best Move** - Principal variation move
 - **Static Eval** - Cached static evaluation
 
-### 3.4 Lockless Hashing
+### 3.4 Lockless Access (SeqLock)
 
-XOR-based key verification enables parallel access without locks.
+SeqLock pattern with version counters enables parallel access without locks.
 
 **Mechanism:**
-- Entry key XORed with stored data
-- Verification through reverse XOR
-- Detects torn reads/writes
+- Version counter incremented before and after writes
+- Readers verify version unchanged during read (no torn reads)
+- Retry on version mismatch
+- Detects concurrent modification without locks
 
 ### 3.5 Uniform TT Write Policy
 

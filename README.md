@@ -9,7 +9,7 @@ A full-strength Caro (Gomoku variant) AI, built with .NET 10, SvelteKit 2.49+ wi
 - **Full-strength AI** - Lazy SMP parallel search at maximum strength
 - **UCI Protocol Support** - Standalone engine compatible with UCI chess GUIs
 - **Clean Architecture** - Separated Domain, Application, and Infrastructure layers
-- **Real-time multiplayer** - WebSocket support via SignalR
+- **Real-time AI PvP** - WebSocket UCI bridge for engine communication
 - **Mobile-first UX** - Ghost stone positioning and haptic feedback
 - **Comprehensive automated tests** - Including adversarial concurrency tests
 
@@ -183,7 +183,7 @@ Clean Architecture with three core layers:
 graph TB
     subgraph Presentation["Presentation Layer"]
         SvelteKit["SvelteKit Frontend"]
-        SignalR["SignalR Hub"]
+        WSUCI["WebSocket UCI Bridge"]
         API["ASP.NET Core API"]
     end
 
@@ -243,14 +243,14 @@ All domain entities are fully immutable for thread safety:
 
 | Project | Purpose |
 |---------|---------|
-| `Caro.Api` | Web API, SignalR hub, WebSocket UCI bridge |
+| `Caro.Api` | Web API, WebSocket UCI bridge |
 | `Caro.UCI` | Standalone UCI console engine |
 | `Caro.UCIMockClient` | UCI protocol testing tool (engine vs engine) |
 
 ### Component Flow
 
 **Move Request Flow:**
-1. Frontend sends move via SignalR → GameHub
+1. Frontend sends move via REST API → GameService
 2. GameService calls `MinimaxAI.GetBestMove()`
 3. Parallel search spawns N threads (based on logical core count)
 4. Master thread selects best result, helpers explore with TT sharing
@@ -312,9 +312,9 @@ Production-grade concurrency following .NET 10 best practices:
 
 ## Tech Stack
 
-**Frontend:** SvelteKit 2.49+ with Svelte 5 Runes, TypeScript 5.9, TailwindCSS 4.1, SignalR (@microsoft/signalr 8.0), Vitest 4.0, Playwright 1.57
+**Frontend:** SvelteKit 2.49+ with Svelte 5 Runes, TypeScript 5.9, TailwindCSS 4.1, Vitest 4.0, Playwright 1.57
 
-**Backend:** .NET 10, ASP.NET Core 10, SignalR, System.Threading.Channels, SQLite + FTS5, xUnit 2.9.2 with xUnit Runner 3.1.4, Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
+**Backend:** .NET 10, ASP.NET Core 10, System.Threading.Channels, SQLite + FTS5, xUnit 2.9.2 with xUnit Runner 3.1.4, Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
 
 **AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP, Hash Move-first ordering. Search code decomposed into `GameLogic/Search/` modules with centralized constants in `Configuration/`.
 
@@ -367,6 +367,14 @@ npm run dev
 ```
 
 Backend: http://localhost:5207 | Frontend: http://localhost:5173
+
+---
+
+## Roadmap
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| SignalR Real-Time Multiplayer | Live game synchronization between human players via SignalR hub | Planned |
 
 ---
 
