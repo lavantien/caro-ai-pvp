@@ -16,6 +16,13 @@ namespace Caro.Core.GameLogic.Search;
 public class MoveOrderer
 {
     private const int BoardSize = GameConstants.BoardSize;
+
+    // Move scoring constants (compact scale for within-stage sorting)
+    private const int TtMovePriority = 10000;
+    private const int EmergencyDefenseScore = 5000;
+    private const int KillerMoveScore = 1000;
+    private const int NearbyStoneBonus = 5;
+
     private readonly SearchHeuristics _heuristics;
 
     public MoveOrderer(SearchHeuristics heuristics)
@@ -48,7 +55,7 @@ public class MoveOrderer
 
             // Killer moves get high priority
             if (_heuristics.IsKillerMove(depth, x, y))
-                score += 1000;
+                score += KillerMoveScore;
 
             // Butterfly heuristic
             var butterflyScore = _heuristics.GetButterflyScore(player, x, y);
@@ -61,9 +68,9 @@ public class MoveOrderer
             // Tactical pattern scoring
             score += TacticalEvaluator.EvaluateTacticalPattern(board, x, y, player);
 
-            // Prefer center (16,16) for 32x32 board
-            var distanceToCenter = Math.Abs(x - 16) + Math.Abs(y - 16);
-            score += (31 - distanceToCenter) * 10;
+            // Prefer center proximity for 16x16 board
+            var distanceToCenter = Math.Abs(x - GameConstants.CenterPosition) + Math.Abs(y - GameConstants.CenterPosition);
+            score += ((GameConstants.BoardSize - 2) - distanceToCenter) * 10;
 
             // Prefer moves near existing stones
             var nearby = 0;
@@ -78,7 +85,7 @@ public class MoveOrderer
                     {
                         var cell = board.GetCell(nx, ny);
                         if (cell.Player != Player.None)
-                            nearby += 5;
+                            nearby += NearbyStoneBonus;
                     }
                 }
             }
@@ -109,20 +116,20 @@ public class MoveOrderer
             // PRIORITY #1: Hash Move (TT Move)
             if (ttMove.HasValue && x == ttMove.Value.x && y == ttMove.Value.y)
             {
-                score = 10000;
+                score = TtMovePriority;
             }
             else
             {
                 // PRIORITY #2: Emergency Defense
                 if (TacticalEvaluator.IsEmergencyDefense(board, x, y, player))
-                    score += 5000;
+                    score += EmergencyDefenseScore;
 
                 // PRIORITY #3: Winning Threats
                 score += TacticalEvaluator.EvaluateTacticalPattern(board, x, y, player);
 
                 // PRIORITY #4: Killer Moves
                 if (_heuristics.IsKillerMove(depth, x, y))
-                    score += 1000;
+                    score += KillerMoveScore;
 
                 // PRIORITY #5: History/Butterfly Heuristic
                 var butterflyScore = _heuristics.GetButterflyScore(player, x, y);
@@ -147,7 +154,7 @@ public class MoveOrderer
                         {
                             var cell = board.GetCell(nx, ny);
                             if (cell.Player != Player.None)
-                                nearby += 5;
+                                nearby += NearbyStoneBonus;
                         }
                     }
                 }
@@ -197,20 +204,20 @@ public class MoveOrderer
             // PRIORITY #1: Hash Move (TT Move)
             if (ttMove.HasValue && x == ttMove.Value.x && y == ttMove.Value.y)
             {
-                score = 10000;
+                score = TtMovePriority;
             }
             else
             {
                 // PRIORITY #2: Emergency Defense
                 if (TacticalEvaluator.IsEmergencyDefense(board, x, y, player))
-                    score += 5000;
+                    score += EmergencyDefenseScore;
 
                 // PRIORITY #3: Winning Threats
                 score += TacticalEvaluator.EvaluateTacticalPattern(board, x, y, player);
 
                 // PRIORITY #4: Killer Moves
                 if (_heuristics.IsKillerMove(depth, x, y))
-                    score += 1000;
+                    score += KillerMoveScore;
 
                 // PRIORITY #5: History/Butterfly Heuristic
                 var butterflyScore = _heuristics.GetButterflyScore(player, x, y);
@@ -234,7 +241,7 @@ public class MoveOrderer
                         if (nx >= 0 && nx < BoardSize && ny >= 0 && ny < BoardSize)
                         {
                             if (!board.IsEmpty(nx, ny))
-                                nearby += 5;
+                                nearby += NearbyStoneBonus;
                         }
                     }
                 }
