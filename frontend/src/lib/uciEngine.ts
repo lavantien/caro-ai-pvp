@@ -297,16 +297,16 @@ export class UCIEngine {
 
 /**
  * Convert (x, y) coordinates to UCI notation.
- * x: 0-31 (column), y: 0-31 (row)
+ * x: 0-15 (column), y: 0-15 (row)
  * Uses double-letter grid format: column = firstLetterIndex * 4 + secondLetterIndex
- * - First letter: 'a'-'h' (0-7), Second letter: 'a'-'d' (0-3)
- * Returns UCI notation like "qg17" for center (16, 16).
+ * - First letter: 'a'-'d' (0-3), Second letter: 'a'-'d' (0-3)
+ * Returns UCI notation like "bb9" for center (7, 8).
  */
 export function toUCI(x: number, y: number): string {
-	if (x < 0 || x > 31 || y < 0 || y > 31) {
+	if (x < 0 || x > 15 || y < 0 || y > 15) {
 		throw new Error(`Coordinates out of bounds: (${x}, ${y})`);
 	}
-	const firstLetter = Math.floor(x / 4); // 0-7 maps to a-h
+	const firstLetter = Math.floor(x / 4); // 0-3 maps to a-d
 	const secondLetter = x % 4; // 0-3 maps to a-d
 	const column = String.fromCharCode(97 + firstLetter) + String.fromCharCode(97 + secondLetter);
 	const row = y + 1;
@@ -315,7 +315,7 @@ export function toUCI(x: number, y: number): string {
 
 /**
  * Convert UCI notation to (x, y) coordinates.
- * UCI notation like "qg17" becomes (16, 16).
+ * UCI notation like "bb9" becomes (7, 8).
  * Uses double-letter grid format: column = firstLetterIndex * 4 + secondLetterIndex
  */
 export function fromUCI(move: string): { x: number; y: number } {
@@ -328,12 +328,12 @@ export function fromUCI(move: string): { x: number; y: number } {
 	const col2 = move[1];
 	const rowPart = move.substring(2);
 
-	if (!/[a-h]/.test(col1) || !/[a-d]/.test(col2)) {
-		throw new Error(`Invalid column in UCI move: ${move} (first letter a-h, second letter a-d)`);
+	if (!/[a-d]/.test(col1) || !/[a-d]/.test(col2)) {
+		throw new Error(`Invalid column in UCI move: ${move} (first letter a-d, second letter a-d)`);
 	}
 
 	const row = parseInt(rowPart, 10);
-	if (isNaN(row) || row < 1 || row > 32) {
+	if (isNaN(row) || row < 1 || row > 16) {
 		throw new Error(`Invalid row in UCI move: ${move}`);
 	}
 

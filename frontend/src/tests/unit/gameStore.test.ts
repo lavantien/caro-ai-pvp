@@ -51,30 +51,29 @@ describe('GameStore Types', () => {
 
   describe('Board Utilities', () => {
     it('should have correct board dimensions', () => {
-      // Caro is played on a 15x15 board
-      const boardSize = 15;
+      const boardSize = 16;
       const totalCells = boardSize * boardSize;
 
-      expect(totalCells).toBe(225);
+      expect(totalCells).toBe(256);
     });
 
     it('should calculate cell index correctly', () => {
-      const getIndex = (x: number, y: number) => y * 15 + x;
+      const getIndex = (x: number, y: number) => y * 16 + x;
 
       expect(getIndex(0, 0)).toBe(0);
-      expect(getIndex(7, 7)).toBe(112);
-      expect(getIndex(14, 14)).toBe(224);
+      expect(getIndex(7, 8)).toBe(135);
+      expect(getIndex(15, 15)).toBe(255);
     });
 
     it('should calculate coordinates from index correctly', () => {
       const getCoords = (index: number) => ({
-        x: index % 15,
-        y: Math.floor(index / 15)
+        x: index % 16,
+        y: Math.floor(index / 16)
       });
 
       expect(getCoords(0)).toEqual({ x: 0, y: 0 });
-      expect(getCoords(112)).toEqual({ x: 7, y: 7 });
-      expect(getCoords(224)).toEqual({ x: 14, y: 14 });
+      expect(getCoords(135)).toEqual({ x: 7, y: 8 });
+      expect(getCoords(255)).toEqual({ x: 15, y: 15 });
     });
   });
 

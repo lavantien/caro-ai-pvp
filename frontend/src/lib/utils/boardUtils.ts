@@ -1,3 +1,5 @@
+import { GameConfig } from '$lib/config/gameConfig';
+
 export interface Point {
 	x: number;
 	y: number;
@@ -8,5 +10,5 @@ export function calculateGhostStonePosition(x: number, y: number): Point {
 }
 
 export function isValidCell(x: number, y: number): boolean {
-	return x >= 0 && x < 15 && y >= 0 && y < 15;
+	return x >= 0 && x < GameConfig.boardSize && y >= 0 && y < GameConfig.boardSize;
 }

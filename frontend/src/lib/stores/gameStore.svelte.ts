@@ -1,5 +1,6 @@
 import type { Cell, Player, GameState } from '$lib/types/game';
 import { UCIEngine, movesToUCI, fromUCI, toUCI } from '$lib/uciEngine';
+import { GameConfig } from '$lib/config/gameConfig';
 
 export interface MoveRecord {
 	moveNumber: number;
@@ -26,9 +27,9 @@ export class GameStore {
 	}
 
 	reset() {
-		this.board = Array.from({ length: 225 }, (_, i) => ({
-			x: i % 15,
-			y: Math.floor(i / 15),
+		this.board = Array.from({ length: GameConfig.totalCells }, (_, i) => ({
+			x: i % GameConfig.boardSize,
+			y: Math.floor(i / GameConfig.boardSize),
 			player: 'none' as Player
 		}));
 		this.currentPlayer = 'red';
@@ -113,9 +114,9 @@ export class GameStore {
 			// Convert back to coordinates
 			const move = fromUCI(uciMove);
 			
-			// Validate move is within 15x15 board
-			if (move.x >= 15 || move.y >= 15) {
-				console.warn('[GameStore] UCI move outside 15x15 board:', uciMove);
+			// Validate move is within board bounds
+			if (move.x >= GameConfig.boardSize || move.y >= GameConfig.boardSize) {
+				console.warn('[GameStore] UCI move outside board:', uciMove);
 				return null;
 			}
 

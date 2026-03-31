@@ -52,9 +52,9 @@ describe('boardUtils', () => {
     it('should return true for valid coordinates', () => {
       expect(isValidCell(0, 0)).toBe(true);
       expect(isValidCell(7, 7)).toBe(true);
-      expect(isValidCell(14, 14)).toBe(true);
-      expect(isValidCell(0, 14)).toBe(true);
-      expect(isValidCell(14, 0)).toBe(true);
+      expect(isValidCell(15, 15)).toBe(true);
+      expect(isValidCell(0, 15)).toBe(true);
+      expect(isValidCell(15, 0)).toBe(true);
       expect(isValidCell(5, 10)).toBe(true);
     });
 
@@ -64,10 +64,10 @@ describe('boardUtils', () => {
       expect(isValidCell(0, -1)).toBe(false);
       expect(isValidCell(-1, -1)).toBe(false);
 
-      // Coordinates beyond maximum (15 is the limit for 0-14 range)
-      expect(isValidCell(15, 0)).toBe(false);
-      expect(isValidCell(0, 15)).toBe(false);
-      expect(isValidCell(15, 15)).toBe(false);
+      // Coordinates beyond maximum (16 is the limit for 0-15 range)
+      expect(isValidCell(16, 0)).toBe(false);
+      expect(isValidCell(0, 16)).toBe(false);
+      expect(isValidCell(16, 16)).toBe(false);
       expect(isValidCell(20, 5)).toBe(false);
       expect(isValidCell(5, 20)).toBe(false);
     });
@@ -75,30 +75,30 @@ describe('boardUtils', () => {
     it('should handle edge cases correctly', () => {
       // Just inside bounds
       expect(isValidCell(0, 0)).toBe(true);
-      expect(isValidCell(14, 14)).toBe(true);
+      expect(isValidCell(15, 15)).toBe(true);
 
       // At bounds
-      expect(isValidCell(0, 15)).toBe(false);
-      expect(isValidCell(15, 0)).toBe(false);
+      expect(isValidCell(0, 16)).toBe(false);
+      expect(isValidCell(16, 0)).toBe(false);
 
       // Just outside bounds
       expect(isValidCell(-0.1, 0)).toBe(false);
       expect(isValidCell(0, -0.1)).toBe(false);
-      expect(isValidCell(14.1, 14)).toBe(true); // 14.1 < 15
-      expect(isValidCell(14, 14.1)).toBe(true); // 14.1 < 15
+      expect(isValidCell(15.1, 15)).toBe(true); // 15.1 < 16
+      expect(isValidCell(15, 15.1)).toBe(true); // 15.1 < 16
     });
 
     it('should handle floating point numbers correctly', () => {
       // Valid floating point coordinates within range
       expect(isValidCell(0.5, 0.5)).toBe(true);
       expect(isValidCell(7.3, 12.7)).toBe(true);
-      expect(isValidCell(14.9, 14.9)).toBe(true);
+      expect(isValidCell(15.9, 15.9)).toBe(true);
 
       // Invalid floating point coordinates
       expect(isValidCell(-0.5, 0)).toBe(false);
       expect(isValidCell(0, -0.5)).toBe(false);
-      expect(isValidCell(15.1, 0)).toBe(false);
-      expect(isValidCell(0, 15.1)).toBe(false);
+      expect(isValidCell(16.1, 0)).toBe(false);
+      expect(isValidCell(0, 16.1)).toBe(false);
     });
 
     it('should handle large numbers correctly', () => {
@@ -111,8 +111,8 @@ describe('boardUtils', () => {
 
     it('should handle zero correctly', () => {
       expect(isValidCell(0, 0)).toBe(true);
-      expect(isValidCell(0, 14)).toBe(true);
-      expect(isValidCell(14, 0)).toBe(true);
+      expect(isValidCell(0, 15)).toBe(true);
+      expect(isValidCell(15, 0)).toBe(true);
     });
   });
 });

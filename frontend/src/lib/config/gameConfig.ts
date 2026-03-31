@@ -4,14 +4,14 @@
  */
 
 export const GameConfig = {
-	/** Board size (32x32 grid) */
-	boardSize: 32,
+	/** Board size (16x16 grid) */
+	boardSize: 16,
 
-	/** Total number of cells on the board (32 * 32 = 1024) */
-	totalCells: 1024,
+	/** Total number of cells on the board (16 * 16 = 256) */
+	totalCells: 256,
 
-	/** Center position index (16 is center of 0-31 range) */
-	centerPosition: 16,
+	/** Center position index (8 is center of 0-15 range) */
+	centerPosition: 8,
 
 	/** Number of consecutive stones required to win */
 	winLength: 5,

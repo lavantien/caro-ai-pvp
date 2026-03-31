@@ -1,6 +1,6 @@
 <div class="container mx-auto p-8 text-center max-w-2xl">
 	<h1 class="text-4xl font-bold mb-4 text-gray-800">Caro (Gomoku Variant)</h1>
-	<p class="text-xl mb-4 text-gray-600">15x15 Board | Open Rule | Exact 5 to Win</p>
+	<p class="text-xl mb-4 text-gray-600">16x16 Board | Open Rule | Exact 5 to Win</p>
 
 	<div class="my-8 p-6 bg-amber-50 rounded-lg border border-amber-200">
 		<h2 class="text-2xl font-semibold mb-3 text-amber-800">Game Rules</h2>
@@ -9,7 +9,7 @@
 			<li>• Second 'O' cannot be placed in center 3x3 zone (Open Rule)</li>
 			<li>• Exactly 5 in a row to win (no overlines)</li>
 			<li>• Both ends blocked = no win</li>
-			<li>• 3 minutes + 2 seconds per move</li>
+			<li>• Fisher time controls: Bullet 1+0, Blitz 3+2, Rapid 7+5, Classical 15+10</li>
 		</ul>
 	</div>
 

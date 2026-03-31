@@ -4,6 +4,7 @@
 	import WinningLine from './WinningLine.svelte';
 	import { calculateGhostStonePosition, isValidCell } from '$lib/utils/boardUtils';
 	import { vibrateOnValidMove, vibrateOnInvalidMove } from '$lib/utils/haptics';
+	import { GameConfig } from '$lib/config/gameConfig';
 
 	interface Props {
 		board: Cell[];
@@ -48,7 +49,7 @@
 <div class="relative">
 	<div
 		class="grid gap-0 bg-amber-100 p-4 rounded-lg shadow-lg touch-none select-none"
-		style="display: grid; grid-template-columns: repeat(15, 64px); grid-template-rows: repeat(15, 64px); width: 992px; height: 992px;"
+		style="display: grid; grid-template-columns: repeat({GameConfig.boardSize}, 64px); grid-template-rows: repeat({GameConfig.boardSize}, 64px); width: {GameConfig.boardSize * 64}px; height: {GameConfig.boardSize * 64}px;"
 		ontouchmove={handleTouchMove}
 		ontouchend={() => (ghostPosition = null)}
 	>
@@ -62,7 +63,7 @@
 		{/each}
 	</div>
 
-	<WinningLine winningLine={winningLine} boardSize={15} cellSize={64} />
+	<WinningLine winningLine={winningLine} boardSize={GameConfig.boardSize} cellSize={64} />
 
 	{#if ghostPosition}
 		<div
