@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [2.7.0] - 2026-04-01
+
+### Added
+- GameMode enum replacing stringly-typed "pvp"/"pvai"/"aivai" literals across Domain and API layers
+- SearchOptions record encapsulating AI search parameters (replaces 11-parameter method overload)
+- GameConstants.CardinalDirections: single source of truth for direction vectors (eliminates 4 duplicates)
+- GameModeExtensions.ToLowerString() for backward-compatible API serialization
+
+### Changed
+- BitBoardEvaluator/SIMDBitBoardEvaluator: `new bool[Size,Size]` → `stackalloc` (256 bytes heap→stack per call)
+- ParallelMinimaxSearch: candidate scanning `new bool[,]` → `stackalloc` with 1D indexing
+- ParallelMinimaxSearch: `.Where().ToList()` → `RemoveAll()` in-place filtering (8 hot-path sites)
+- Defense multiplier constants deduplicated: local consts → EvaluationConstants fields
+- MinimaxAI: 4-param convenience overload creates SearchOptions and delegates
+- UCI search controller constructs SearchOptions object instead of positional args
+
 ## [2.6.0] - 2026-04-01
 
 ### Changed
@@ -676,6 +692,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[2.7.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.7.0
+[2.6.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.6.0
 [2.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.5.0
 [2.4.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.4.1
 [2.4.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.4.0
