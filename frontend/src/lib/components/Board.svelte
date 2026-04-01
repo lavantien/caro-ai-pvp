@@ -18,7 +18,7 @@
 	let ghostPosition = $state<{ x: number; y: number } | null>(null);
 
 	function handleCellClick(x: number, y: number) {
-		const cell = board.find((c) => c.x === x && c.y === y);
+		const cell = board[y * GameConfig.boardSize + x];
 		if (!cell || cell.player !== 'none') {
 			vibrateOnInvalidMove();
 			return;

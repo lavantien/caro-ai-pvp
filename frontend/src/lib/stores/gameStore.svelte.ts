@@ -44,7 +44,7 @@ export class GameStore {
 	makeMove(x: number, y: number): boolean {
 		if (this.isGameOver) return false;
 
-		const cell = this.board.find((c) => c.x === x && c.y === y);
+		const cell = this.board[y * GameConfig.boardSize + x];
 		if (!cell || cell.player !== 'none') return false;
 
 		// Record move to history before changing player

@@ -3,7 +3,7 @@
 	import Board from '$lib/components/Board.svelte';
 	import Timer from '$lib/components/Timer.svelte';
 	import SoundToggle from '$lib/components/SoundToggle.svelte';
- import MoveHistory from '$lib/components/MoveHistory.svelte';
+	import MoveHistory from '$lib/components/MoveHistory.svelte';
 	import Leaderboard from '$lib/components/Leaderboard.svelte';
 	import { GameStore } from '$lib/stores/gameStore.svelte';
 	import { ratingStore } from '$lib/stores/ratingStore.svelte';
@@ -11,7 +11,8 @@
 	import { ApiConfig } from '$lib/config/apiConfig';
 	import { GameConfig } from '$lib/config/gameConfig';
 	import { switchPlayer } from '$lib/types/game';
-	import type { GameState, Player } from '$lib/types/game';
+	import type { Player, Cell } from '$lib/types/game';
+	import type { GameMode, TimeControl, UCIConnectionStatus } from '$lib/types/game';
 
 	let store = new GameStore();
 	let gameId = $state<string>('');
@@ -19,28 +20,21 @@
 	let error = $state<string>('');
 	let winningLine = $state<Array<{ x: number; y: number }>>([]);
 
-	// Timer values from backend
 	let redTime = $state(180);
 	let blueTime = $state(180);
 
-	// Player registration
 	const DEFAULT_RATING = GameConfig.defaultEloRating;
 	let playerName = $state('');
 	let showNameInput = $state(false);
 	let currentPlayer = $state<{ name: string; rating: number } | null>(null);
 
-	// Game mode: PvP, PvAI, or AIvAI
-	type GameMode = 'pvp' | 'pvai' | 'aivai';
-	type TimeControl = '1+0' | '3+2' | '7+5' | '15+10';
-
 	let gameMode = $state<GameMode>('pvp');
 	let timeControl = $state<TimeControl>('7+5');
-	let aiSide = $state<'red' | 'blue'>('blue');  // For PvAI, which side is human?
+	let aiSide = $state<'red' | 'blue'>('blue');
 	let isAiThinking = $state(false);
 
-	// UCI integration
 	let useUCIForAI = $state(false);
-	let uciConnectionStatus = $state<'disconnected' | 'connecting' | 'connected'>('disconnected');
+	let uciConnectionStatus = $state<UCIConnectionStatus>('disconnected');
 
 	function handleRegisterPlayer() {
 		if (playerName.trim()) {
@@ -48,7 +42,6 @@
 		}
 	}
 
-	// Subscribe to rating store
 	ratingStore.subscribe((data) => {
 		if (data.currentPlayer) {
 			currentPlayer = {
@@ -59,7 +52,6 @@
 		}
 	});
 
-	// UCI connection management
 	async function connectUCI() {
 		uciConnectionStatus = 'connecting';
 		try {
@@ -87,6 +79,33 @@
 		}
 	}
 
+	function syncGameState(state: Record<string, any>) {
+		store.board = state.board;
+		store.currentPlayer = state.currentPlayer;
+		store.moveNumber = state.moveNumber;
+		store.isGameOver = state.isGameOver;
+		redTime = state.redTimeRemaining;
+		blueTime = state.blueTimeRemaining;
+		if (state.winningLine) {
+			winningLine = state.winningLine;
+		}
+	}
+
+	function handleGameEnd(winner: 'red' | 'blue') {
+		store.winner = winner;
+		soundManager.playWinSound(winner);
+		alert(`${winner.toUpperCase()} WINS!`);
+	}
+
+	function findNewMove(oldBoard: Cell[], newBoard: Cell[]): { x: number; y: number } {
+		for (let i = 0; i < oldBoard.length; i++) {
+			if (oldBoard[i].player === 'none' && newBoard[i].player !== 'none') {
+				return { x: newBoard[i].x, y: newBoard[i].y };
+			}
+		}
+		return { x: 0, y: 0 };
+	}
+
 	onMount(async () => {
 		await createNewGame();
 	});
@@ -107,13 +126,11 @@
 			const data = await response.json();
 			gameId = data.gameId;
 
-			// Initialize timer values from backend response
 			if (data.state.initialTime) {
 				redTime = data.state.initialTime;
 				blueTime = data.state.initialTime;
 			}
 
-			// Sync with backend state
 			await syncWithBackend();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Unknown error';
@@ -127,19 +144,9 @@
 
 		const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.game(gameId)}`);
 		const data = await response.json();
-
-		// Update local state with backend state
-		store.board = data.state.board;
-		store.currentPlayer = data.state.currentPlayer;
-		store.moveNumber = data.state.moveNumber;
-		store.isGameOver = data.state.isGameOver;
-		redTime = data.state.redTimeRemaining;
-		blueTime = data.state.blueTimeRemaining;
+		syncGameState(data.state);
 		if (data.state.winner) {
 			store.winner = data.state.winner;
-		}
-		if (data.state.winningLine) {
-			winningLine = data.state.winningLine;
 		}
 	}
 
@@ -147,16 +154,15 @@
 		if (store.isGameOver || !gameId) return;
 
 		// Optimistic board update only (not move history or state)
-		const cell = store.board.find((c) => c.x === x && c.y === y);
+		const cell = store.board[y * GameConfig.boardSize + x];
 		if (!cell || cell.player !== 'none') return;
 
 		const previousPlayer = store.currentPlayer;
 		cell.player = previousPlayer;
 
-		// Play stone placement sound (previousPlayer is always "red" or "blue" at this point)
-		soundManager.playStoneSound(previousPlayer as "red" | "blue");
+		soundManager.playStoneSound(previousPlayer as 'red' | 'blue');
 
-				try {
+		try {
 			const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.move(gameId)}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -165,7 +171,6 @@
 
 			if (!response.ok) {
 				const errorText = await response.text();
-				// Revert board cell on error
 				cell.player = 'none';
 				alert(errorText);
 				return;
@@ -173,50 +178,27 @@
 
 			const data = await response.json();
 
-			// Update local state with server response (authoritative)
-			store.board = data.state.board;
-			store.currentPlayer = data.state.currentPlayer;
-			store.moveNumber = data.state.moveNumber;
-			store.isGameOver = data.state.isGameOver;
-			redTime = data.state.redTimeRemaining;
-			blueTime = data.state.blueTimeRemaining;
+			syncGameState(data.state);
 
-			// Add to move history after successful move
-			store.moveHistory = [
-				...store.moveHistory,
-				{
-					moveNumber: data.state.moveNumber,
-					player: previousPlayer,
-					x,
-					y
-				}
-			];
-
-			if (data.state.winningLine) {
-				winningLine = data.state.winningLine;
-			}
+			store.moveHistory.push({
+				moveNumber: data.state.moveNumber,
+				player: previousPlayer,
+				x,
+				y
+			});
 
 			if (data.state.isGameOver && data.state.winner) {
-				store.winner = data.state.winner;
-				soundManager.playWinSound(data.state.winner);
-				alert(`${data.state.winner.toUpperCase()} WINS!`);
-
-				// Update player rating (for local PvP, both players get the same opponent rating)
+				handleGameEnd(data.state.winner);
 				if (currentPlayer) {
 					const playerWon = store.currentPlayer === data.state.winner;
 					ratingStore.updateRating(playerWon, DEFAULT_RATING);
 				}
 			}
 		} catch (err) {
-			// Revert board cell on error
 			cell.player = 'none';
 			alert('Failed to make move');
 		}
 
-		// If playing against AI and game not over, trigger AI move
-		// PvAI mode with human as red (default) - AI plays blue
-		// PvAI mode with human as blue - AI plays red
-		// AIvAI mode - both sides are AI (not fully implemented on frontend yet)
 		const aiPlayer = gameMode === 'pvai' && aiSide === 'red' ? 'red' : 'blue';
 		if ((gameMode === 'pvai' || gameMode === 'aivai') && !store.isGameOver && store.currentPlayer === aiPlayer) {
 			makeAiMove();
@@ -227,23 +209,19 @@
 		if (!gameId || store.isGameOver) return;
 
 		isAiThinking = true;
-		
 
-		// Store previous board to find AI's move
-		const previousBoard = [...store.board];
+		const previousBoard = store.board;
 		const currentPlayer = store.currentPlayer;
 
 		try {
 			let aiMove = { x: 0, y: 0 };
 			let data;
 
-			// Try UCI engine first if enabled
 			if (useUCIForAI && uciConnectionStatus === 'connected') {
 				try {
 					const move = await store.getAIMoveUCI();
 					if (move) {
 						aiMove = move;
-						// Make the move via API to update game state
 						const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.move(gameId)}`, {
 							method: 'POST',
 							headers: { 'Content-Type': 'application/json' },
@@ -254,35 +232,24 @@
 						}
 						data = await response.json();
 					} else {
-						// Fallback to API-based AI
-						useUCIForAI = false; // Disable UCI on failure
+						useUCIForAI = false;
 						throw new Error('UCI move failed');
 					}
 				} catch (uciError) {
 					console.warn('UCI move failed, falling back to API:', uciError);
-					// Fallback to API-based AI
 					const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.aiMove(gameId)}`, {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({})
 					});
 					if (!response.ok) {
-						const errorText = await response.text();
-						alert(errorText);
+						alert(await response.text());
 						return;
 					}
 					data = await response.json();
-
-					// Find which cell changed (AI's move)
-					for (let i = 0; i < store.board.length; i++) {
-						if (previousBoard[i].player === 'none' && data.state.board[i].player !== 'none') {
-							aiMove = { x: data.state.board[i].x, y: data.state.board[i].y };
-							break;
-						}
-					}
+					aiMove = findNewMove(previousBoard, data.state.board);
 				}
 			} else {
-				// Use API-based AI
 				const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.aiMove(gameId)}`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -290,51 +257,25 @@
 				});
 
 				if (!response.ok) {
-					const errorText = await response.text();
-					alert(errorText);
+					alert(await response.text());
 					return;
 				}
 
 				data = await response.json();
-
-				// Find which cell changed (AI's move)
-				for (let i = 0; i < store.board.length; i++) {
-					if (previousBoard[i].player === 'none' && data.state.board[i].player !== 'none') {
-						aiMove = { x: data.state.board[i].x, y: data.state.board[i].y };
-						break;
-					}
-				}
+				aiMove = findNewMove(previousBoard, data.state.board);
 			}
 
-			// Update local state with server response
-			store.board = data.state.board;
-			store.currentPlayer = data.state.currentPlayer;
-			store.moveNumber = data.state.moveNumber;
-			store.isGameOver = data.state.isGameOver;
-			redTime = data.state.redTimeRemaining;
-			blueTime = data.state.blueTimeRemaining;
+			syncGameState(data.state);
 
-			// Add AI move to history (use the actual player from the move)
-			store.moveHistory = [
-				...store.moveHistory,
-				{
-					moveNumber: data.state.moveNumber,
-					player: currentPlayer as 'red' | 'blue',
-					x: aiMove.x,
-					y: aiMove.y
-				}
-			];
-
-			if (data.state.winningLine) {
-				winningLine = data.state.winningLine;
-			}
+			store.moveHistory.push({
+				moveNumber: data.state.moveNumber,
+				player: currentPlayer as 'red' | 'blue',
+				x: aiMove.x,
+				y: aiMove.y
+			});
 
 			if (data.state.isGameOver && data.state.winner) {
-				store.winner = data.state.winner;
-				soundManager.playWinSound(data.state.winner);
-				alert(`${data.state.winner.toUpperCase()} WINS!`);
-
-				// Update player rating (AI always has DEFAULT_RATING)
+				handleGameEnd(data.state.winner);
 				if (currentPlayer) {
 					const playerWon = data.state.winner === 'red';
 					ratingStore.updateRating(playerWon, DEFAULT_RATING);
@@ -350,30 +291,18 @@
 	async function handleUndo() {
 		if (!gameId || store.isGameOver) return;
 
-		
-
 		try {
 			const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.undo(gameId)}`, {
 				method: 'POST'
 			});
 
 			if (!response.ok) {
-				const errorText = await response.text();
-				alert(errorText);
+				alert(await response.text());
 				return;
 			}
 
 			const data = await response.json();
-
-			// Update local state with server response
-			store.board = data.state.board;
-			store.currentPlayer = data.state.currentPlayer;
-			store.moveNumber = data.state.moveNumber;
-			store.isGameOver = data.state.isGameOver;
-			redTime = data.state.redTimeRemaining;
-			blueTime = data.state.blueTimeRemaining;
-
-			// Clear winning line if present
+			syncGameState(data.state);
 			winningLine = [];
 		} catch (err) {
 			alert('Failed to undo move');
@@ -411,23 +340,23 @@
 					<button
 						onclick={toggleUCI}
 						class="px-3 py-1 rounded text-sm font-medium transition-colors {
-							uciConnectionStatus === 'connected' 
-								? 'bg-green-600 text-white hover:bg-green-700' 
-								: uciConnectionStatus === 'connecting' 
-									? 'bg-yellow-500 text-white' 
+							uciConnectionStatus === 'connected'
+								? 'bg-green-600 text-white hover:bg-green-700'
+								: uciConnectionStatus === 'connecting'
+									? 'bg-yellow-500 text-white'
 									: 'bg-gray-400 text-white hover:bg-gray-500'
 						}"
 						disabled={uciConnectionStatus === 'connecting'}
 					>
-						{uciConnectionStatus === 'connected' ? 'Connected' : 
+						{uciConnectionStatus === 'connected' ? 'Connected' :
 						 uciConnectionStatus === 'connecting' ? 'Connecting...' : 'Connect'}
 					</button>
 					{#if uciConnectionStatus === 'connected'}
 						<button
 							onclick={() => useUCIForAI = !useUCIForAI}
 							class="px-3 py-1 rounded text-sm font-medium ml-1 transition-colors {
-								useUCIForAI 
-									? 'bg-blue-600 text-white hover:bg-blue-700' 
+								useUCIForAI
+									? 'bg-blue-600 text-white hover:bg-blue-700'
 									: 'bg-gray-300 text-gray-700 hover:bg-gray-400'
 							}"
 						>

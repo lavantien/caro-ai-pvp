@@ -8,7 +8,6 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<link rel="stylesheet" href={''} />
 </svelte:head>
 
 <nav class="bg-slate-900 border-b border-slate-700">

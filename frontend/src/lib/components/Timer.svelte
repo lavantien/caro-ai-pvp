@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { Player } from '$lib/types/game';
-	import { onMount, onDestroy } from 'svelte';
 	import { ApiConfig } from '$lib/config/apiConfig';
 	import { UIConfig } from '$lib/config/uiConfig';
 
@@ -14,28 +13,24 @@
 
 	let { player, isActive, onTimeOut, timeRemaining: propTimeRemaining, gameId }: Props = $props();
 
-	// Server time base and timestamp - used to calculate display time
 	let serverTimeBase = $state(0);
 	let serverTimeTimestamp = $state(Date.now());
+	let hasTriggeredTimeout = $state(false);
+	let tick = $state(0);
 
-	// Sync with prop value when it changes (after move, undo, etc.)
 	$effect(() => {
 		serverTimeBase = propTimeRemaining;
 		serverTimeTimestamp = Date.now();
+		hasTriggeredTimeout = false;
 	});
 
-	let displayInterval: ReturnType<typeof setInterval> | null = null;
-	let hasTriggeredTimeout = $state(false);
-
-	// Calculate display time based on elapsed time since last server sync
 	const displayTime = $derived(() => {
+		tick; // reactive dependency for timer updates
 		if (!isActive) return serverTimeBase;
 		const elapsed = (Date.now() - serverTimeTimestamp) / 1000;
-		const calculated = Math.max(0, Math.round(serverTimeBase - elapsed));
-		return calculated;
+		return Math.max(0, Math.round(serverTimeBase - elapsed));
 	});
 
-	// Trigger timeout when display time reaches 0
 	$effect(() => {
 		const current = displayTime();
 		if (current <= 0 && isActive && !hasTriggeredTimeout) {
@@ -44,27 +39,14 @@
 		}
 	});
 
-	// High-frequency update for smooth display (100ms)
 	$effect(() => {
 		if (isActive) {
-			displayInterval = setInterval(() => {
-				// Force reactivity by reading displayTime
-				const _ = displayTime();
-			}, UIConfig.timerUpdateIntervalMs);
-		} else {
-			if (displayInterval) {
-				clearInterval(displayInterval);
-				displayInterval = null;
-			}
+			const id = setInterval(() => tick++, UIConfig.timerUpdateIntervalMs);
+			return () => clearInterval(id);
 		}
-
-		return () => {
-			if (displayInterval) clearInterval(displayInterval);
-		};
 	});
 
-	// Optional: Periodic server sync if gameId is provided
-	// This keeps the timer in sync with server time
+	// Periodic server sync if gameId is provided
 	let syncInterval: ReturnType<typeof setInterval> | null = null;
 
 	$effect(() => {
@@ -81,7 +63,7 @@
 				} catch {
 					// Ignore sync errors - continue with local calculation
 				}
-			}, UIConfig.timerSyncIntervalMs); // Sync periodically
+			}, UIConfig.timerSyncIntervalMs);
 		} else {
 			if (syncInterval) {
 				clearInterval(syncInterval);

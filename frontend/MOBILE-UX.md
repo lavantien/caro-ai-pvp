@@ -39,7 +39,7 @@
 - **Implementation**:
   - `touch-none` class applied to board container
   - Allows browser's default pinch-to-zoom gesture
-  - Grid uses fixed pixel sizes (40px cells)
+  - Grid uses fixed pixel sizes from UIConfig (64px cells)
 
 **Manual Test**:
 

@@ -114,8 +114,7 @@ function createRatingStore() {
 	return {
 		subscribe,
 		createPlayer,
-		updateRating,
-		set
+		updateRating
 	};
 }
 

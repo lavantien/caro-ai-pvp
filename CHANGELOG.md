@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [2.8.0] - 2026-04-01
+
+### Changed
+- Frontend: extract syncGameState, handleGameEnd, findNewMove helpers in game page (eliminates 4x/2x/2x duplication)
+- Frontend: replace O(n) board.find() with O(1) index lookup in Board, gameStore, game page
+- Frontend: Timer.svelte force-reactivity hack replaced with clean tick-based $derived approach
+- Frontend: move history uses .push() instead of spread for Svelte 5 reactivity
+- Frontend: avoid unnecessary 256-cell shallow copy per AI move by reordering diff before syncGameState
+
+### Added
+- UCIConnectionStatus type in shared game types (replaces inline literal)
+
+### Removed
+- Redundant uciToMove/moveToUCI wrapper functions from uciEngine.ts (use fromUCI/toUCI directly)
+- Unused set export from ratingStore
+- Empty stylesheet link from root layout
+- Duplicate GameMode/TimeControl type declarations from game page (now imported from shared types)
+- Narrating comments from game page
+
 ## [2.7.0] - 2026-04-01
 
 ### Added
@@ -692,6 +711,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[2.8.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.8.0
 [2.7.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.7.0
 [2.6.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.6.0
 [2.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.5.0

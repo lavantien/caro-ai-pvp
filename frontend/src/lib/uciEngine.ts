@@ -347,20 +347,6 @@ export function fromUCI(move: string): { x: number; y: number } {
 }
 
 /**
- * Convert UCI move string to internal move format.
- */
-export function uciToMove(uciMove: string): { x: number; y: number } {
-	return fromUCI(uciMove);
-}
-
-/**
- * Convert internal move to UCI format.
- */
-export function moveToUCI(x: number, y: number): string {
-	return toUCI(x, y);
-}
-
-/**
  * Get a list of UCI moves from the game state.
  */
 export function movesToUCI(history: Array<{ x: number; y: number }>): string[] {

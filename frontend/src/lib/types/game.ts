@@ -7,6 +7,8 @@ export function switchPlayer(player: Player): Player {
 export type TimeControl = '1+0' | '3+2' | '7+5' | '15+10';
 export type GameMode = 'pvp' | 'pvai' | 'aivai';
 
+export type UCIConnectionStatus = 'disconnected' | 'connecting' | 'connected';
+
 export interface Cell {
 	x: number;
 	y: number;
