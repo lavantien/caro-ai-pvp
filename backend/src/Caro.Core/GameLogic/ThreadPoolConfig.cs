@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Threading;
 
 namespace Caro.Core.GameLogic;
@@ -58,18 +59,16 @@ public static class ThreadPoolConfig
     public static bool IsConfigured => _configured;
 
     /// <summary>
-    /// Get conservative thread count for Lazy SMP parallel search
-    /// Uses (processorCount / 2) - 1 to avoid hyperthreading contention
-    /// while leaving headroom for the main thread
-    /// Example: 8 cores -> (8/2)-1 = 3 helper threads
+    /// Get thread count for Lazy SMP parallel search.
+    /// Returns the largest power of 2 that does not exceed the processor count.
+    /// Aligns with CPU cache topology and TT shard distribution.
+    /// Example: 20 cores -> 16 threads, 8 cores -> 8 threads
     /// </summary>
     public static int GetLazySMPThreadCount()
     {
         int processorCount = Environment.ProcessorCount;
-        // Formula: (total threads/2) - 1
-        // Minimum 1 thread, maximum processorCount - 2
-        int halfCount = processorCount / 2;
-        return Math.Max(5, halfCount - 1);
+        int powerOf2 = 1 << (int)BitOperations.Log2((uint)processorCount);
+        return Math.Max(1, powerOf2);
     }
 
     /// <summary>

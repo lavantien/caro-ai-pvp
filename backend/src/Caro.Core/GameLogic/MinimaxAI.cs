@@ -202,7 +202,7 @@ public class MinimaxAI : IStatsPublisher
         _searchStopwatch.Restart();
 
         // Reset thread count and parallel diagnostics
-        _lastThreadCount = threadCount ?? Math.Max(SHC.MinThreadCount, (Environment.ProcessorCount / 2) - 1);
+        _lastThreadCount = threadCount ?? ThreadPoolConfig.GetLazySMPThreadCount();
         _lastParallelDiagnostics = null;
 
         // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections away from first red stone
@@ -1232,7 +1232,7 @@ public class MinimaxAI : IStatsPublisher
         // PARALLEL SEARCH: Use Lazy SMP when enabled
         if (parallelSearchEnabled)
         {
-            int effectiveThreadCount = threadCount ?? Math.Max(SHC.MinThreadCount, (Environment.ProcessorCount / 2) - 1);
+            int effectiveThreadCount = threadCount ?? ThreadPoolConfig.GetLazySMPThreadCount();
             _lastThreadCount = effectiveThreadCount;
             _tableHits = 0;
             _tableLookups = 0;
@@ -1306,7 +1306,7 @@ public class MinimaxAI : IStatsPublisher
         // Faster machines reach deeper depths naturally, slower machines stop earlier
 
         // Track thread count for diagnostics (even if using sequential search)
-        _lastThreadCount = Math.Max(SHC.MinThreadCount, (Environment.ProcessorCount / 2) - 1);
+        _lastThreadCount = ThreadPoolConfig.GetLazySMPThreadCount();
         _lastParallelDiagnostics = null;
         _lastPonderingEnabled = ponderingEnabled;
 

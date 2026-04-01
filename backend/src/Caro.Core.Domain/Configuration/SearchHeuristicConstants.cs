@@ -50,9 +50,6 @@ public static class SearchHeuristicConstants
     public const int IterationTimeEstimateAggressive = 5;
     public const int IterationTimeEstimateNormal = 2;
 
-    // Default thread count
-    public const int MinThreadCount = 5;
-
     // Effective increment estimation
     public const int MinEffectiveIncrementSeconds = 2;
     public const double InitialTimeToIncrementDivisor = 90.0;
