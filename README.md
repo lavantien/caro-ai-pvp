@@ -362,6 +362,8 @@ Production-grade concurrency following .NET 10 best practices:
 
 **AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP, Hash Move-first ordering. Search code decomposed into `GameLogic/Search/` modules with centralized constants in `Configuration/`.
 
+**Config:** Backend constants in `Caro.Core.Domain/Configuration/` (7 files). Frontend config in `src/lib/config/` (api, audio, e2e, game, haptic, rating, uci, ui).
+
 ---
 
 ## Testing

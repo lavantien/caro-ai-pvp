@@ -1,48 +1,50 @@
-# Checkpoint: v1.77.0
+# Checkpoint: v2.5.0
 
 ## Summary
 
-Fixed 12 UCI integration gaps where parsed options/parameters were stored but never forwarded to the core MinimaxAI engine. Unified AI engines by replacing StatelessSearchEngine with MinimaxAI in AIService. Removed dead abstraction layer.
+Extracted ~200 magic numbers from production code across 25 files into centralized config hubs. Backend uses 3 new static constant classes in `Caro.Core.Domain/Configuration/`. Frontend uses 7 new frozen-object config modules in `src/lib/config/`.
 
 ## Changes
 
-### UCI Integration Fixes
-- Fixed moveNumber (hardcoded 0 -> computed from board) so Open Rule fires via UCI
-- Forwarded increment (winc/binc) to MinimaxAI time management
-- Exposed real search score in UCI info output (was hardcoded 0)
-- Applied Hash option on `ucinewgame` (resize TT at runtime)
-- Unified version string to single UCIEngineOptions.EngineVersion constant
-- Forwarded Threads count to MinimaxAI (was used as boolean only)
-- Forwarded go depth/nodes/movetime search limits to MinimaxAI
-- Fixed Program.cs WebSocket handler brace mismatch
+### Backend - New Config Classes
+- `SearchHeuristicConstants.cs` - Threat scores, search bounds, depth controls, time ratios, VCF thresholds
+- `TimeConstants.cs` - TimeMonitor, AsyncQueue, UCIProtocol, SearchLogger, Ponderer, DFPN/TSS defaults, HardBound buffers
+- `TimeManagementConstants.cs` - Default time controls, PID controller weights, phase thresholds, adaptive scaling, emergency thresholds
 
-### MinimaxAI Enhancements
-- Added optional parameters: incrementSeconds, threadCount, maxDepth, maxNodes, maxTimeMs
-- Added ResizeTranspositionTable method (clear and rebuild)
-- Removed arbitrary depth 6 cap in iterative deepening
+### Backend - Updated Files (13)
+- MinimaxAI.cs - 30+ replacements (SHC alias)
+- ParallelMinimaxSearch.cs - 30+ replacements (SHC, TMC, TC aliases)
+- TimeManager.cs - 16+ replacements (TMC alias)
+- AdaptiveTimeManager.cs - 30+ replacements (TMC alias)
+- TimeBudgetDepthManager.cs - 9 replacements (TMC alias)
+- TimeMonitor.cs, AsyncQueue.cs, Ponderer.cs, DFPNSearch.cs, ThreatSpaceSearch.cs
+- SearchLogger.cs, UCIProtocol.cs, UCIMockClient.cs
 
-### AI Unification
-- Replaced StatelessSearchEngine with MinimaxAI in AIService
-- Updated AIServiceTests for new dependency
-- Deleted IUCIProtocolHandler dead interface
+### Frontend - New Config Modules (7)
+- apiConfig.ts, audioConfig.ts, e2eConfig.ts, hapticConfig.ts, ratingConfig.ts, uciConfig.ts, uiConfig.ts
 
-### Documentation
-- Fixed Hash default, column notation in ENGINE_FEATURES.md
-- Replaced StatelessSearchEngine example with MinimaxAI in CSHARP_ONBOARDING.md
-- Fixed board size refs (19->16) and test counts in CSHARP_ONBOARDING.md
-- Fixed UCIMoveNotation comment (0-7 -> 0-3)
+### Frontend - Updated Files (12)
+- +page.svelte - 6x URL fallbacks replaced with ApiConfig.baseUrl
+- Board.svelte, Cell.svelte, WinningLine.svelte - UI dimensions from uiConfig
+- Timer.svelte - URL, intervals, thresholds from config
+- gameStore.svelte.ts, ratingStore.svelte.ts, uciEngine.ts, boardUtils.ts, sound.ts, haptics.ts
+- e2e/game.spec.ts - All timeout constants from e2eConfig
+
+### Fixed
+- WinningLine.svelte: wrong default props (boardSize=15, cellSize=40) now use config values
 
 ## Verification
 
 | Check | Result |
 |-------|--------|
-| dotnet build (solution) | Pass |
-| Caro.Core.Tests (566) | Pass |
-| Caro.Core.Domain.Tests (52) | Pass |
-| Caro.Core.Application.Tests (14) | Pass |
-| Caro.Core.Infrastructure.Tests (48) | Pass |
+| dotnet build | Pass (0 errors, 0 warnings) |
+| dotnet test (229 tests) | Pass |
+| svelte-check | Pass (0 errors, 0 warnings) |
+| vitest (64 tests) | Pass |
+| grep localhost:5207 in src/ | 1 result (apiConfig.ts definition only) |
+| grep 64px in src/ | 0 results |
 
 ## Version
 
-- Target: v1.77.0
-- Previous: v1.76.0
+- Target: v2.5.0
+- Previous: v2.4.1

@@ -597,6 +597,9 @@ Extracted from the main search classes for cohesion and maintainability:
 | `PruningConstants.cs` | Futility margins, LMR parameters, PVS depth threshold |
 | `MoveOrderingConstants.cs` | Staged picker score thresholds |
 | `EvaluationConstants.cs` | Pattern scores, defense multipliers |
+| `SearchHeuristicConstants.cs` | Threat scoring weights, alpha-beta/aspiration bounds, depth controls, time allocation ratios, VCF time thresholds |
+| `TimeConstants.cs` | TimeMonitor intervals, AsyncQueue capacity, UCI timeouts, SearchLogger rotation, Ponderer limits, DFPN/TSS defaults, HardBound buffers |
+| `TimeManagementConstants.cs` | Default time controls, PID controller weights, phase thresholds, adaptive scaling, emergency thresholds, multiplier adjustments |
 
 ### 10.3 Main Search Classes
 

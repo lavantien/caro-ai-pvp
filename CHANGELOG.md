@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [2.5.0] - 2026-04-01
+
+### Changed
+- Production magic numbers replaced with named constants referencing centralized config hubs across 25 files (13 backend, 12 frontend)
+- Backend: 3 new config classes (`SearchHeuristicConstants`, `TimeConstants`, `TimeManagementConstants`) serving MinimaxAI, ParallelMinimaxSearch, TimeManager, AdaptiveTimeManager, TimeBudgetDepthManager, TimeMonitor, AsyncQueue, Ponderer, DFPNSearch, ThreatSpaceSearch, SearchLogger, UCIProtocol, UCIMockClient
+- Frontend: 7 new config modules (`apiConfig`, `audioConfig`, `e2eConfig`, `hapticConfig`, `ratingConfig`, `uciConfig`, `uiConfig`) serving +page, Board, Cell, Timer, WinningLine, gameStore, ratingStore, uciEngine, boardUtils, sound, haptics, e2e tests
+- WinningLine.svelte: fixed wrong default props (boardSize=15, cellSize=40) now use config values
+
+### Fixed
+- Frontend WinningLine.svelte hardcoded wrong defaults (15x15 board, 40px cells) instead of actual 16x16 board with 64px cells
+
 ## [2.4.1] - 2026-04-01
 
 ### Changed
@@ -642,6 +653,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[2.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.5.0
 [2.4.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.4.1
 [2.4.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.4.0
 [2.3.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.3.1
