@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic.Pondering;
 
@@ -7,6 +8,9 @@ namespace Caro.Core.Tests.GameLogic.Pondering;
 
 public class VCFPrecheckTests
 {
+    private const int BoardSize = GameConstants.BoardSize;
+    private const int MaxBoardIndex = BoardSize - 1;
+
     private readonly VCFPrecheck _precheck = new();
 
     [Fact]
@@ -118,8 +122,8 @@ public class VCFPrecheckTests
         // Create ~45 stones scattered
         for (int i = 0; i < 45; i++)
         {
-            var x = i % 15;
-            var y = (i / 15) % 15;
+            var x = i % MaxBoardIndex;
+            var y = (i / MaxBoardIndex) % MaxBoardIndex;
             var player = i % 2 == 0 ? Player.Red : Player.Blue;
             board = board.PlaceStone(x, y, player);
         }
@@ -143,8 +147,8 @@ public class VCFPrecheckTests
         // Create ~75 stones scattered
         for (int i = 0; i < 75; i++)
         {
-            var x = i % 15;
-            var y = (i / 15) % 15;
+            var x = i % MaxBoardIndex;
+            var y = (i / MaxBoardIndex) % MaxBoardIndex;
             var player = i % 2 == 0 ? Player.Red : Player.Blue;
             board = board.PlaceStone(x, y, player);
         }
@@ -354,7 +358,7 @@ public class VCFPrecheckTests
     {
         // Arrange - Board with >70% occupancy (more than 179 stones for 16x16 board = 256 cells)
         var board = new Board();
-        for (int x = 0; x < 16; x++)
+        for (int x = 0; x < BoardSize; x++)
         {
             for (int y = 0; y < 12; y++) // 12 * 16 = 192 stones (>70% of 256)
             {
@@ -374,7 +378,7 @@ public class VCFPrecheckTests
     {
         // Arrange - Board with ~50% occupancy (16x16 board)
         var board = new Board();
-        for (int x = 0; x < 16; x++)
+        for (int x = 0; x < BoardSize; x++)
         {
             for (int y = 0; y < 8; y++) // 8 * 16 = 128 stones (50% of 256)
             {
@@ -448,7 +452,7 @@ public class VCFPrecheckTests
     {
         // Arrange - Endgame position (>70% full for 16x16 board)
         var board = new Board();
-        for (int x = 0; x < 16; x++)
+        for (int x = 0; x < BoardSize; x++)
         {
             for (int y = 0; y < 12; y++) // 12 * 16 = 192 stones (>70% of 256)
             {

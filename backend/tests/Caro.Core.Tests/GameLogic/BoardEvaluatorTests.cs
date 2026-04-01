@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 
@@ -7,6 +8,10 @@ namespace Caro.Core.Tests.GameLogic;
 
 public class BoardEvaluatorTests
 {
+    private const int ThreeInRowScore = EvaluationConstants.ThreeInRowScore;
+    private const int FourInRowScore = EvaluationConstants.FourInRowScore;
+    private const int BlockedThreeThreshold = 500;
+
     [Fact]
     public void Evaluate_EmptyBoard_ReturnsZero()
     {
@@ -38,7 +43,7 @@ public class BoardEvaluatorTests
         var score = evaluator.Evaluate(board, Player.Red);
 
         // Assert
-        score.Should().BeGreaterThan(1000); // Very high score for almost winning
+        score.Should().BeGreaterThan(ThreeInRowScore); // Very high score for almost winning
     }
 
     [Fact]
@@ -58,7 +63,7 @@ public class BoardEvaluatorTests
         var score = evaluator.Evaluate(board, Player.Red);
 
         // Assert
-        score.Should().BeLessThan(-1000); // Very low score (opponent almost winning)
+        score.Should().BeLessThan(-ThreeInRowScore); // Very low score (opponent almost winning)
     }
 
     [Fact]
@@ -77,8 +82,8 @@ public class BoardEvaluatorTests
         var score = evaluator.Evaluate(board, Player.Red);
 
         // Assert
-        score.Should().BeGreaterThan(1000); // Positive for 3 in a row
-        score.Should().BeLessThan(10000); // But less than 4 in a row
+        score.Should().BeGreaterThan(ThreeInRowScore); // Positive for 3 in a row
+        score.Should().BeLessThan(FourInRowScore); // But less than 4 in a row
     }
 
     [Fact]
@@ -121,7 +126,7 @@ public class BoardEvaluatorTests
         var score = evaluator.Evaluate(board, Player.Red);
 
         // Assert
-        score.Should().BeLessThan(500); // Much lower than open-ended 3-in-row (~1000+)
+        score.Should().BeLessThan(BlockedThreeThreshold); // Much lower than open-ended 3-in-row (~1000+)
     }
 
     [Fact]

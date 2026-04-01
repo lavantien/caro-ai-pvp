@@ -1,18 +1,20 @@
 using Xunit;
 using FluentAssertions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.GameLogic;
 
 namespace Caro.Core.Tests.GameLogic;
 
 public class ELOCalculatorTests
 {
+    private const int DefaultRating = GameConstants.DefaultEloRating;
     [Fact]
     public void CalculateNewRating_WhenBothPlayersSameRating_Exchange16Points()
     {
         // Arrange
         var calculator = new ELOCalculator();
-        var playerRating = 1500;
-        var opponentRating = 1500;
+        var playerRating = DefaultRating;
+        var opponentRating = DefaultRating;
 
         // Act
         var newRating = calculator.CalculateNewRating(playerRating, opponentRating, won: true);
@@ -26,8 +28,8 @@ public class ELOCalculatorTests
     {
         // Arrange
         var calculator = new ELOCalculator();
-        var playerRating = 1500;
-        var opponentRating = 1500;
+        var playerRating = DefaultRating;
+        var opponentRating = DefaultRating;
 
         // Act
         var newRating = calculator.CalculateNewRating(playerRating, opponentRating, won: false);
@@ -71,8 +73,8 @@ public class ELOCalculatorTests
     {
         // Arrange
         var calculator = new ELOCalculator();
-        var playerRating = 1500;
-        var opponentRating = 1500;
+        var playerRating = DefaultRating;
+        var opponentRating = DefaultRating;
         double difficultyMultiplier = 2.0; // Expert difficulty
 
         // Act
@@ -92,8 +94,8 @@ public class ELOCalculatorTests
     {
         // Arrange
         var calculator = new ELOCalculator();
-        var playerRating = 1500;
-        var opponentRating = 1500;
+        var playerRating = DefaultRating;
+        var opponentRating = DefaultRating;
         double difficultyMultiplier = 1.5; // Hard difficulty
 
         // Act
@@ -129,7 +131,7 @@ public class ELOCalculatorTests
         var calculator = new ELOCalculator();
 
         // Act
-        var expectedScore = calculator.CalculateExpectedScore(1500, 1500);
+        var expectedScore = calculator.CalculateExpectedScore(DefaultRating, DefaultRating);
 
         // Assert
         expectedScore.Should().BeApproximately(0.5, 0.001);

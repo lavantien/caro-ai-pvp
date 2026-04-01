@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { GameConfig } from '$lib/config/gameConfig';
 
 describe('GameStore Types', () => {
   describe('Move History Types', () => {
@@ -51,14 +52,14 @@ describe('GameStore Types', () => {
 
   describe('Board Utilities', () => {
     it('should have correct board dimensions', () => {
-      const boardSize = 16;
+      const boardSize = GameConfig.boardSize;
       const totalCells = boardSize * boardSize;
 
-      expect(totalCells).toBe(256);
+      expect(totalCells).toBe(GameConfig.totalCells);
     });
 
     it('should calculate cell index correctly', () => {
-      const getIndex = (x: number, y: number) => y * 16 + x;
+      const getIndex = (x: number, y: number) => y * GameConfig.boardSize + x;
 
       expect(getIndex(0, 0)).toBe(0);
       expect(getIndex(7, 8)).toBe(135);
@@ -67,8 +68,8 @@ describe('GameStore Types', () => {
 
     it('should calculate coordinates from index correctly', () => {
       const getCoords = (index: number) => ({
-        x: index % 16,
-        y: Math.floor(index / 16)
+        x: index % GameConfig.boardSize,
+        y: Math.floor(index / GameConfig.boardSize)
       });
 
       expect(getCoords(0)).toEqual({ x: 0, y: 0 });

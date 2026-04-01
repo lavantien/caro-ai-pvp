@@ -12,6 +12,11 @@ namespace Caro.Core.Tests.GameLogic;
 /// </summary>
 public class EvaluatorComparisonTests
 {
+    private const int MaxAllowedScoreDiff = 500;
+    private const int StrictMaxScoreDiff = 200;
+    private const int ComplexPositionScoreDiff = 300;
+    private const int RandomPositionMaxDiff = 5000;
+
     private readonly ITestOutputHelper _output;
 
     public EvaluatorComparisonTests(ITestOutputHelper output)
@@ -44,7 +49,7 @@ public class EvaluatorComparisonTests
 
         // Allow for some difference between implementations
         int diff = Math.Abs(scalarScore - simdScore);
-        Assert.True(diff < 500, $"Score difference too large: {diff}");
+        Assert.True(diff < MaxAllowedScoreDiff, $"Score difference too large: {diff}");
     }
 
     [Fact]
@@ -64,7 +69,7 @@ public class EvaluatorComparisonTests
 
         // Allow for some difference between implementations
         int diff = Math.Abs(scalarScore - simdScore);
-        Assert.True(diff < 500, $"Score difference too large: {diff}");
+        Assert.True(diff < MaxAllowedScoreDiff, $"Score difference too large: {diff}");
     }
 
     [Fact]
@@ -85,7 +90,7 @@ public class EvaluatorComparisonTests
 
         // Allow for some difference between implementations
         int diff = Math.Abs(scalarScore - simdScore);
-        Assert.True(diff < 500, $"Score difference too large: {diff}");
+        Assert.True(diff < MaxAllowedScoreDiff, $"Score difference too large: {diff}");
     }
 
     [Fact]
@@ -110,7 +115,7 @@ public class EvaluatorComparisonTests
 
         // Scores should match within a margin of error (larger for 32x32 board)
         int diff = Math.Abs(scalarScore - simdScore);
-        Assert.True(diff < 200, $"Score difference too large: {diff}");
+        Assert.True(diff < StrictMaxScoreDiff, $"Score difference too large: {diff}");
     }
 
     [Fact]
@@ -135,7 +140,7 @@ public class EvaluatorComparisonTests
 
         // Scores should match within a margin of error (larger for 32x32 board)
         int diff = Math.Abs(scalarScore - simdScore);
-        Assert.True(diff < 300, $"Score difference too large: {diff}");
+        Assert.True(diff < ComplexPositionScoreDiff, $"Score difference too large: {diff}");
     }
 
     [Theory]
@@ -156,7 +161,7 @@ public class EvaluatorComparisonTests
 
         // Allow for some difference between implementations
         int diff = Math.Abs(scalarScore - simdScore);
-        Assert.True(diff < 500, $"Score difference too large: {diff}");
+        Assert.True(diff < MaxAllowedScoreDiff, $"Score difference too large: {diff}");
     }
 
     [Fact]
@@ -202,6 +207,6 @@ public class EvaluatorComparisonTests
         // SIMD implementation may differ from scalar - this is informational
         // Max diff can be up to OpenThreeScore * 2.2 = 2200 due to edge case detection differences
         // between RLE (SIMD) and counted[] array (scalar) approaches
-        Assert.True(maxDiff < 5000, $"Max difference {maxDiff} too large");
+        Assert.True(maxDiff < RandomPositionMaxDiff, $"Max difference {maxDiff} too large");
     }
 }

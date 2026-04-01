@@ -8,6 +8,8 @@ namespace Caro.Core.Tests.Entities;
 
 public class BoardTests
 {
+    private const int BoardSize = GameConstants.BoardSize;
+    private const int TotalCells = GameConstants.TotalCells;
     [Fact]
     public void Board_InitialState_HasCorrectDimensions()
     {
@@ -15,8 +17,8 @@ public class BoardTests
         var board = new Board();
 
         // Assert - 16x16 board = 256 cells
-        board.BoardSize.Should().Be(16);
-        board.Cells.Should().HaveCount(256);
+        board.BoardSize.Should().Be(BoardSize);
+        board.Cells.Should().HaveCount(TotalCells);
     }
 
     [Fact]
@@ -36,8 +38,8 @@ public class BoardTests
     [Theory]
     [InlineData(-1, 0)]
     [InlineData(0, -1)]
-    [InlineData(16, 0)]
-    [InlineData(0, 16)]
+    [InlineData(BoardSize, 0)]
+    [InlineData(0, BoardSize)]
     public void PlaceStone_InvalidPosition_ThrowsArgumentOutOfRangeException(int x, int y)
     {
         // Arrange

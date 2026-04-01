@@ -1,9 +1,12 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.GameLogic.UCI;
 
 namespace Caro.Core.Tests.GameLogic.UCI;
 
 public sealed class UCIEngineOptionsTests
 {
+    private const int DefaultTTSizeMb = SearchConstants.DefaultTTSizeMb;
+
     [Fact]
     public void GetOptionDeclarations_ReturnsAllOptions()
     {
@@ -43,8 +46,8 @@ public sealed class UCIEngineOptionsTests
     [Theory]
     [InlineData("Hash", "32", true, 32)]
     [InlineData("Hash", "4096", true, 4096)]
-    [InlineData("Hash", "31", false, 256)]
-    [InlineData("Hash", "4097", false, 256)]
+    [InlineData("Hash", "31", false, DefaultTTSizeMb)]
+    [InlineData("Hash", "4097", false, DefaultTTSizeMb)]
     public void SetOption_Hash_ValidatesRange(string name, string value, bool expectedSuccess, int expectedValue)
     {
         var options = new UCIEngineOptions();
@@ -95,7 +98,7 @@ public sealed class UCIEngineOptionsTests
     {
         var options = new UCIEngineOptions();
         options.Threads.Should().Be(4);
-        options.Hash.Should().Be(256);
+        options.Hash.Should().Be(DefaultTTSizeMb);
         options.Ponder.Should().BeFalse();
     }
 }

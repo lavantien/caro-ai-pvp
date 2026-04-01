@@ -1,11 +1,15 @@
 using Xunit;
 using FluentAssertions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.GameLogic.UCI;
 
 namespace Caro.Core.Tests.GameLogic.UCI;
 
 public sealed class UCIMoveNotationTests
 {
+    private const int BoardSize = GameConstants.BoardSize;
+    private const int MaxBoardIndex = BoardSize - 1;
+
     // --- ToUCI ---
 
     [Theory]
@@ -23,10 +27,10 @@ public sealed class UCIMoveNotationTests
     [Theory]
     [InlineData(-1, 0)]
     [InlineData(0, -1)]
-    [InlineData(16, 0)]
-    [InlineData(0, 16)]
+    [InlineData(BoardSize, 0)]
+    [InlineData(0, BoardSize)]
     [InlineData(-1, -1)]
-    [InlineData(16, 16)]
+    [InlineData(BoardSize, BoardSize)]
     public void ToUCI_OutOfBounds_ThrowsArgumentOutOfRangeException(int x, int y)
     {
         var act = () => UCIMoveNotation.ToUCI(x, y);
@@ -94,9 +98,9 @@ public sealed class UCIMoveNotationTests
     [Fact]
     public void ToUCI_FromUCI_RoundTripsAllPositions()
     {
-        for (int x = 0; x < 16; x++)
+        for (int x = 0; x < BoardSize; x++)
         {
-            for (int y = 0; y < 16; y++)
+            for (int y = 0; y < BoardSize; y++)
             {
                 var uci = UCIMoveNotation.ToUCI(x, y);
                 var pos = UCIMoveNotation.FromUCI(uci);
@@ -148,7 +152,7 @@ public sealed class UCIMoveNotationTests
     [Fact]
     public void ColumnDoubleChar_RoundTripsAll16Columns()
     {
-        for (int i = 0; i < 16; i++)
+        for (int i = 0; i < BoardSize; i++)
         {
             var str = UCIMoveNotation.ColumnToDoubleChar(i);
             var recovered = UCIMoveNotation.ColumnFromDoubleChar(str[0], str[1]);
@@ -164,8 +168,8 @@ public sealed class UCIMoveNotationTests
     [InlineData(7, 8, true)]
     [InlineData(-1, 0, false)]
     [InlineData(0, -1, false)]
-    [InlineData(16, 0, false)]
-    [InlineData(0, 16, false)]
+    [InlineData(BoardSize, 0, false)]
+    [InlineData(0, BoardSize, false)]
     public void IsValidCoordinate_BoundaryChecks(int x, int y, bool expected)
     {
         UCIMoveNotation.IsValidCoordinate(x, y).Should().Be(expected);

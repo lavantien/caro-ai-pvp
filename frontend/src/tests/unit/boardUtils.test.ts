@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { calculateGhostStonePosition, isValidCell } from '$lib/utils/boardUtils';
+import { GameConfig } from '$lib/config/gameConfig';
 
 describe('boardUtils', () => {
   describe('calculateGhostStonePosition', () => {
@@ -64,10 +65,10 @@ describe('boardUtils', () => {
       expect(isValidCell(0, -1)).toBe(false);
       expect(isValidCell(-1, -1)).toBe(false);
 
-      // Coordinates beyond maximum (16 is the limit for 0-15 range)
-      expect(isValidCell(16, 0)).toBe(false);
-      expect(isValidCell(0, 16)).toBe(false);
-      expect(isValidCell(16, 16)).toBe(false);
+      // Coordinates beyond maximum (boardSize is the limit for 0-15 range)
+      expect(isValidCell(GameConfig.boardSize, 0)).toBe(false);
+      expect(isValidCell(0, GameConfig.boardSize)).toBe(false);
+      expect(isValidCell(GameConfig.boardSize, GameConfig.boardSize)).toBe(false);
       expect(isValidCell(20, 5)).toBe(false);
       expect(isValidCell(5, 20)).toBe(false);
     });
@@ -78,14 +79,14 @@ describe('boardUtils', () => {
       expect(isValidCell(15, 15)).toBe(true);
 
       // At bounds
-      expect(isValidCell(0, 16)).toBe(false);
-      expect(isValidCell(16, 0)).toBe(false);
+      expect(isValidCell(0, GameConfig.boardSize)).toBe(false);
+      expect(isValidCell(GameConfig.boardSize, 0)).toBe(false);
 
       // Just outside bounds
       expect(isValidCell(-0.1, 0)).toBe(false);
       expect(isValidCell(0, -0.1)).toBe(false);
-      expect(isValidCell(15.1, 15)).toBe(true); // 15.1 < 16
-      expect(isValidCell(15, 15.1)).toBe(true); // 15.1 < 16
+      expect(isValidCell(15.1, 15)).toBe(true); // 15.1 < boardSize
+      expect(isValidCell(15, 15.1)).toBe(true); // 15.1 < boardSize
     });
 
     it('should handle floating point numbers correctly', () => {
@@ -97,8 +98,8 @@ describe('boardUtils', () => {
       // Invalid floating point coordinates
       expect(isValidCell(-0.5, 0)).toBe(false);
       expect(isValidCell(0, -0.5)).toBe(false);
-      expect(isValidCell(16.1, 0)).toBe(false);
-      expect(isValidCell(0, 16.1)).toBe(false);
+      expect(isValidCell(GameConfig.boardSize + 0.1, 0)).toBe(false);
+      expect(isValidCell(0, GameConfig.boardSize + 0.1)).toBe(false);
     });
 
     it('should handle large numbers correctly', () => {

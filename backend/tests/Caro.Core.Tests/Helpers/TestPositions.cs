@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.Tests.Helpers;
@@ -8,6 +9,11 @@ namespace Caro.Core.Tests.Helpers;
 /// </summary>
 public static class TestPositions
 {
+    private const int WinLength = GameConstants.WinLength;       // 5
+    private const int WinLengthMinus1 = WinLength - 1;           // 4
+    private const int WinLengthPlus1 = WinLength + 1;            // 6
+    private const int ThreeCount = 3;
+    private const int TwoCount = 2;
     /// <summary>
     /// Create a board with an open three in a row (XXX__) horizontally.
     /// Both ends are open, making it a forcing threat.
@@ -15,7 +21,7 @@ public static class TestPositions
     public static Board OpenThreeHorizontal(Player player)
     {
         return new BoardBuilder()
-            .PlaceLine(6, 7, 1, 0, 3, player)
+            .PlaceLine(6, 7, 1, 0, ThreeCount, player)
             .Build();
     }
 
@@ -26,7 +32,7 @@ public static class TestPositions
     public static Board OpenThreeHorizontal(Player player, int startX, int y)
     {
         return new BoardBuilder()
-            .PlaceLine(startX, y, 1, 0, 3, player)
+            .PlaceLine(startX, y, 1, 0, ThreeCount, player)
             .Build();
     }
 
@@ -36,7 +42,7 @@ public static class TestPositions
     public static Board OpenThreeVertical(Player player)
     {
         return new BoardBuilder()
-            .PlaceLine(7, 6, 0, 1, 3, player)
+            .PlaceLine(7, 6, 0, 1, ThreeCount, player)
             .Build();
     }
 
@@ -46,7 +52,7 @@ public static class TestPositions
     public static Board OpenThreeDiagonal(Player player)
     {
         return new BoardBuilder()
-            .PlaceLine(6, 6, 1, 1, 3, player)
+            .PlaceLine(6, 6, 1, 1, ThreeCount, player)
             .Build();
     }
 
@@ -57,7 +63,7 @@ public static class TestPositions
     public static Board OpenFourHorizontal(Player player)
     {
         return new BoardBuilder()
-            .PlaceLine(5, 7, 1, 0, 4, player)
+            .PlaceLine(5, 7, 1, 0, WinLengthMinus1, player)
             .Build();
     }
 
@@ -67,7 +73,7 @@ public static class TestPositions
     public static Board OpenFourHorizontal(Player player, int startX, int y)
     {
         return new BoardBuilder()
-            .PlaceLine(startX, y, 1, 0, 4, player)
+            .PlaceLine(startX, y, 1, 0, WinLengthMinus1, player)
             .Build();
     }
 
@@ -77,7 +83,7 @@ public static class TestPositions
     public static Board OpenFourVertical(Player player)
     {
         return new BoardBuilder()
-            .PlaceLine(7, 5, 0, 1, 4, player)
+            .PlaceLine(7, 5, 0, 1, WinLengthMinus1, player)
             .Build();
     }
 
@@ -87,7 +93,7 @@ public static class TestPositions
     public static Board OpenFourDiagonal(Player player)
     {
         return new BoardBuilder()
-            .PlaceLine(5, 5, 1, 1, 4, player)
+            .PlaceLine(5, 5, 1, 1, WinLengthMinus1, player)
             .Build();
     }
 
@@ -98,7 +104,7 @@ public static class TestPositions
     public static Board OpenFourBothEnds(Player player)
     {
         return new BoardBuilder()
-            .PlaceLine(6, 7, 1, 0, 4, player)
+            .PlaceLine(6, 7, 1, 0, WinLengthMinus1, player)
             .Build();
     }
 
@@ -109,7 +115,7 @@ public static class TestPositions
     public static Board BrokenFour(Player player)
     {
         return new BoardBuilder()
-            .PlaceLine(5, 7, 1, 0, 3, player)
+            .PlaceLine(5, 7, 1, 0, ThreeCount, player)
             .PlaceStone(9, 7, player)
             .Build();
     }
@@ -121,7 +127,7 @@ public static class TestPositions
     public static Board BrokenThree(Player player)
     {
         return new BoardBuilder()
-            .PlaceLine(5, 7, 1, 0, 2, player)
+            .PlaceLine(5, 7, 1, 0, TwoCount, player)
             .PlaceStone(8, 7, player)
             .Build();
     }
@@ -134,9 +140,9 @@ public static class TestPositions
     {
         return new BoardBuilder()
             // First S4 horizontal at y=5
-            .PlaceLine(5, 5, 1, 0, 4, player)
+            .PlaceLine(5, 5, 1, 0, WinLengthMinus1, player)
             // Second S4 vertical at x=3
-            .PlaceLine(3, 7, 0, 1, 4, player)
+            .PlaceLine(3, 7, 0, 1, WinLengthMinus1, player)
             .Build();
     }
 
@@ -149,8 +155,8 @@ public static class TestPositions
         int threat2X, int threat2Y, int threat2Dx, int threat2Dy)
     {
         return new BoardBuilder()
-            .PlaceLine(threat1X, threat1Y, threat1Dx, threat1Dy, 4, player)
-            .PlaceLine(threat2X, threat2Y, threat2Dx, threat2Dy, 4, player)
+            .PlaceLine(threat1X, threat1Y, threat1Dx, threat1Dy, WinLengthMinus1, player)
+            .PlaceLine(threat2X, threat2Y, threat2Dx, threat2Dy, WinLengthMinus1, player)
             .Build();
     }
 
@@ -163,9 +169,9 @@ public static class TestPositions
         // Classic VCF setup: forcing move creates double threat
         return new BoardBuilder()
             // Main threat line
-            .PlaceLine(5, 7, 1, 0, 3, Player.Red)
+            .PlaceLine(5, 7, 1, 0, ThreeCount, Player.Red)
             // Second threat line intersecting
-            .PlaceLine(7, 5, 0, 1, 3, Player.Red)
+            .PlaceLine(7, 5, 0, 1, ThreeCount, Player.Red)
             // One more stone to create the double threat opportunity
             .PlaceStone(7, 7, Player.Red)
             .Build();
@@ -179,9 +185,9 @@ public static class TestPositions
         var opponent = player == Player.Red ? Player.Blue : Player.Red;
         return new BoardBuilder()
             // Create a position with multiple S3 threats
-            .PlaceLine(5, 5, 1, 0, 3, player)
-            .PlaceLine(5, 7, 1, 0, 3, player)
-            .PlaceLine(7, 5, 0, 1, 3, player)
+            .PlaceLine(5, 5, 1, 0, ThreeCount, player)
+            .PlaceLine(5, 7, 1, 0, ThreeCount, player)
+            .PlaceLine(7, 5, 0, 1, ThreeCount, player)
             // Block some responses to simulate real game state
             .PlaceStone(9, 5, opponent)
             .PlaceStone(9, 7, opponent)
@@ -212,7 +218,7 @@ public static class TestPositions
     public static Board FiveInRow(Player player)
     {
         return new BoardBuilder()
-            .PlaceLine(5, 7, 1, 0, 5, player)
+            .PlaceLine(5, 7, 1, 0, WinLength, player)
             .Build();
     }
 
@@ -222,7 +228,7 @@ public static class TestPositions
     public static Board Overline(Player player)
     {
         return new BoardBuilder()
-            .PlaceLine(5, 7, 1, 0, 6, player)
+            .PlaceLine(5, 7, 1, 0, WinLengthPlus1, player)
             .Build();
     }
 
@@ -234,7 +240,7 @@ public static class TestPositions
     {
         return new BoardBuilder()
             .PlaceStone(4, 7, blocker)
-            .PlaceLine(5, 7, 1, 0, 4, attacker)
+            .PlaceLine(5, 7, 1, 0, WinLengthMinus1, attacker)
             .Build();
     }
 
@@ -246,7 +252,7 @@ public static class TestPositions
     {
         return new BoardBuilder()
             .PlaceStone(4, 7, blocker)
-            .PlaceLine(5, 7, 1, 0, 4, attacker)
+            .PlaceLine(5, 7, 1, 0, WinLengthMinus1, attacker)
             .PlaceStone(9, 7, blocker)
             .Build();
     }
@@ -257,7 +263,7 @@ public static class TestPositions
     public static Board EdgePosition(Player player)
     {
         return new BoardBuilder()
-            .PlaceLine(0, 7, 1, 0, 4, player)
+            .PlaceLine(0, 7, 1, 0, WinLengthMinus1, player)
             .Build();
     }
 
@@ -284,8 +290,8 @@ public static class TestPositions
     {
         return new BoardBuilder()
             // Red's attacks
-            .PlaceLine(10, 10, 1, 0, 3, Player.Red)
-            .PlaceLine(12, 12, 0, 1, 2, Player.Red)
+            .PlaceLine(10, 10, 1, 0, ThreeCount, Player.Red)
+            .PlaceLine(12, 12, 0, 1, TwoCount, Player.Red)
             // Blue's defenses
             .PlaceStone(14, 10, Player.Blue)
             .PlaceStone(12, 14, Player.Blue)

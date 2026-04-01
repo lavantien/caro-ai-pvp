@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Xunit;
@@ -6,6 +7,9 @@ namespace Caro.Core.Tests.GameLogic;
 
 public class EvaluationCacheTests
 {
+    private const int MaxCorrectedEval = EvaluationConstants.MaxCorrectedEval;
+    private const int MinCorrectedEval = EvaluationConstants.MinCorrectedEval;
+
     [Fact]
     public void MissReturnsStatic_ReturnsStaticEvaluationWhenCacheMiss()
     {
@@ -58,7 +62,7 @@ public class EvaluationCacheTests
         int corrected = cache.GetCorrectedEvaluation(board.GetHash(), staticEval, depth: 1);
 
         // Assert - Should be bounded to reasonable limits
-        Assert.InRange(corrected, -200000, 200000);
+        Assert.InRange(corrected, MinCorrectedEval, MaxCorrectedEval);
     }
 
     [Fact]

@@ -12,11 +12,13 @@ namespace Caro.Core.Tests.GameLogic;
 /// </summary>
 public class DirectionalThreatLUTTests
 {
+    private const int ExpectedLUTSize = 262144;
+
     [Fact]
     public void LUT_TableSize_Is262144()
     {
         var lut = new DirectionalThreatLUT();
-        Assert.Equal(262144, lut.TableSize);
+        Assert.Equal(ExpectedLUTSize, lut.TableSize);
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toUCI, fromUCI } from '$lib/uciEngine';
+import { GameConfig } from '$lib/config/gameConfig';
 
 describe('UCI Coordinate Conversion', () => {
   describe('toUCI', () => {
@@ -40,12 +41,12 @@ describe('UCI Coordinate Conversion', () => {
 
     it('should throw for x out of bounds', () => {
       expect(() => toUCI(-1, 0)).toThrow();
-      expect(() => toUCI(16, 0)).toThrow();
+      expect(() => toUCI(GameConfig.boardSize, 0)).toThrow();
     });
 
     it('should throw for y out of bounds', () => {
       expect(() => toUCI(0, -1)).toThrow();
-      expect(() => toUCI(0, 16)).toThrow();
+      expect(() => toUCI(0, GameConfig.boardSize)).toThrow();
     });
   });
 
@@ -93,9 +94,9 @@ describe('UCI Coordinate Conversion', () => {
   });
 
   describe('round-trip', () => {
-    it('should round-trip all 256 board positions', () => {
-      for (let x = 0; x < 16; x++) {
-        for (let y = 0; y < 16; y++) {
+    it(`should round-trip all ${GameConfig.totalCells} board positions`, () => {
+      for (let x = 0; x < GameConfig.boardSize; x++) {
+        for (let y = 0; y < GameConfig.boardSize; y++) {
           const uci = toUCI(x, y);
           const result = fromUCI(uci);
           expect(result).toEqual({ x, y });

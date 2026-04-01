@@ -33,7 +33,7 @@ public class CounterMoveHistoryTests
     {
         // Arrange
         var history = new CounterMoveHistory();
-        const int MaxScore = 30000;
+        const int MaxScore = MoveOrderingConstants.HistoryMaxScore;
 
         // Act - Update with positive bonus (should not exceed MaxScore)
         history.Update(Player.Red, 0, 1, MaxScore);
@@ -53,7 +53,7 @@ public class CounterMoveHistoryTests
     {
         // Arrange
         var history = new CounterMoveHistory();
-        const int MaxScore = 30000;
+        const int MaxScore = MoveOrderingConstants.HistoryMaxScore;
 
         // Act - Multiple updates that would overflow without bounding
         for (int i = 0; i < 10; i++)
@@ -176,7 +176,7 @@ public class CounterMoveHistoryTests
     {
         // Arrange
         var history = new CounterMoveHistory();
-        const int MaxScore = 30000;
+        const int MaxScore = MoveOrderingConstants.HistoryMaxScore;
 
         // Act - Set value near max, then add more
         history.Update(Player.Red, 0, 1, 25000);
@@ -193,7 +193,7 @@ public class CounterMoveHistoryTests
     {
         // Arrange
         var history = new CounterMoveHistory();
-        const int MaxScore = 30000;
+        const int MaxScore = MoveOrderingConstants.HistoryMaxScore;
 
         // Act - Set value near min, then subtract more
         history.Update(Player.Blue, 0, 1, -25000);
@@ -276,6 +276,6 @@ public class CounterMoveHistoryTests
     public void CounterMoveHistory_BoardCellCount_ReturnsCorrectValue()
     {
         // Assert - TotalCells is 16*16 = 256 for 16x16 board
-        Assert.Equal(256, CounterMoveHistory.BoardCellCount);
+        Assert.Equal(GameConstants.TotalCells, CounterMoveHistory.BoardCellCount);
     }
 }

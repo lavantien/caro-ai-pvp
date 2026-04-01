@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 
@@ -7,6 +8,11 @@ namespace Caro.Core.Tests.GameLogic;
 
 public class BitBoardEvaluatorTests
 {
+    private const int FiveInRowThreshold = EvaluationConstants.FiveInRowScore / 2;
+    private const int OpenFourScore = EvaluationConstants.OpenFourScore;
+    private const int OpenThreeScore = EvaluationConstants.OpenThreeScore;
+    private const int WinLengthPlus1 = GameConstants.WinLength + 1;
+
     [Fact]
     public void EvaluateLine_HorizontalFiveInRow_ReturnsMaxScore()
     {
@@ -22,7 +28,7 @@ public class BitBoardEvaluatorTests
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
 
         // Assert
-        score.Should().BeGreaterThan(50000, "5-in-row should have maximum score");
+        score.Should().BeGreaterThan(FiveInRowThreshold, "5-in-row should have maximum score");
     }
 
     [Fact]
@@ -40,7 +46,7 @@ public class BitBoardEvaluatorTests
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
 
         // Assert
-        score.Should().BeGreaterThan(50000);
+        score.Should().BeGreaterThan(FiveInRowThreshold);
     }
 
     [Fact]
@@ -58,7 +64,7 @@ public class BitBoardEvaluatorTests
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
 
         // Assert
-        score.Should().BeGreaterThan(50000);
+        score.Should().BeGreaterThan(FiveInRowThreshold);
     }
 
     [Fact]
@@ -76,7 +82,7 @@ public class BitBoardEvaluatorTests
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
 
         // Assert
-        score.Should().BeGreaterThan(50000);
+        score.Should().BeGreaterThan(FiveInRowThreshold);
     }
 
     [Fact]
@@ -94,7 +100,7 @@ public class BitBoardEvaluatorTests
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
 
         // Assert
-        score.Should().BeGreaterThan(10000, "Open 4 should have very high score");
+        score.Should().BeGreaterThan(OpenFourScore, "Open 4 should have very high score");
     }
 
     [Fact]
@@ -111,8 +117,8 @@ public class BitBoardEvaluatorTests
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
 
         // Assert
-        score.Should().BeGreaterThan(1000, "Open 3 should have good score");
-        score.Should().BeLessThan(10000, "Open 3 should score less than open 4");
+        score.Should().BeGreaterThan(OpenThreeScore, "Open 3 should have good score");
+        score.Should().BeLessThan(OpenFourScore, "Open 3 should score less than open 4");
     }
 
     [Fact]
@@ -132,8 +138,8 @@ public class BitBoardEvaluatorTests
         var score = BitBoardEvaluator.Evaluate(board, Player.Red);
 
         // Assert
-        score.Should().BeLessThan(10000, "Completely blocked 4 should score less than open 4");
-        score.Should().BeGreaterThanOrEqualTo(1000, "Should still score some points");
+        score.Should().BeLessThan(OpenFourScore, "Completely blocked 4 should score less than open 4");
+        score.Should().BeGreaterThanOrEqualTo(OpenThreeScore, "Should still score some points");
     }
 
     [Fact]
@@ -409,6 +415,6 @@ public class BitBoardEvaluatorTests
         var count = BitBoardEvaluator.CountConsecutiveBoth(redBoard, 6, 7, 1, 0);
 
         // Assert
-        count.Should().Be(6, "Should detect 6 consecutive stones");
+        count.Should().Be(WinLengthPlus1, "Should detect 6 consecutive stones");
     }
 }
