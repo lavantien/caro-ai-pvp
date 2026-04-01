@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.UCI;
@@ -19,7 +20,7 @@ public sealed class UCIProtocol
     private Board? _currentBoard;
     private Player _currentPlayer = Player.Red;
     private bool _isRunning = true;
-    private int _appliedHashSizeMb = 256;
+    private int _appliedHashSizeMb = TimeConstants.DefaultHashSizeMb;
 
     public UCIProtocol(MinimaxAI ai, ILogger logger)
     {
@@ -265,7 +266,7 @@ public sealed class UCIProtocol
                 }
                 Stop();
                 Environment.Exit(0);
-            }).Wait(TimeSpan.FromSeconds(30));
+            }).Wait(TimeSpan.FromSeconds(TimeConstants.UCICommandTimeoutSeconds));
         }
         Stop();
         Environment.Exit(0);

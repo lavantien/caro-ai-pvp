@@ -1,4 +1,6 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
+using TMC = Caro.Core.Domain.Configuration.TimeManagementConstants;
 
 namespace Caro.Core.GameLogic;
 
@@ -16,8 +18,8 @@ public sealed class TimeBudgetDepthManager
     private readonly CircularBuffer<long> _recentNodes = new(10);
 
     // Estimated nodes per second (updated from actual searches)
-    private double _estimatedNps = 100_000; // Conservative default
-    private double _effectiveBranchingFactor = 2.5; // Alpha-beta with good move ordering
+    private double _estimatedNps = TMC.DefaultEstimatedNps; // Conservative default
+    private double _effectiveBranchingFactor = TMC.DefaultEffectiveBranchingFactor; // Alpha-beta with good move ordering
 
     /// <summary>
     /// Update NPS estimate from actual search performance.
@@ -34,7 +36,7 @@ public sealed class TimeBudgetDepthManager
         {
             // FIX: Increased weight from 0.3 to 0.5 for faster adaptation
             // This helps the NPS estimate converge more quickly to actual machine performance
-            _estimatedNps = _estimatedNps * 0.5 + actualNps * 0.5;
+            _estimatedNps = _estimatedNps * TMC.NpsSmoothingOld + actualNps * TMC.NpsSmoothingNew;
         }
     }
 
@@ -52,10 +54,10 @@ public sealed class TimeBudgetDepthManager
         lock (_lock)
         {
             // Clamp EBF to reasonable bounds
-            ebf = Math.Clamp(ebf, 1.5, 5.0);
+            ebf = Math.Clamp(ebf, TMC.MinBranchingFactor, TMC.MaxBranchingFactor);
 
             // Exponential moving average
-            _effectiveBranchingFactor = _effectiveBranchingFactor * 0.8 + ebf * 0.2;
+            _effectiveBranchingFactor = _effectiveBranchingFactor * TMC.BranchingFactorSmoothingOld + ebf * TMC.BranchingFactorSmoothingNew;
         }
     }
 
@@ -100,7 +102,7 @@ public sealed class TimeBudgetDepthManager
             double effectiveTime = timeSeconds;
 
             // Minimum time to ensure at least depth 1
-            effectiveTime = Math.Max(effectiveTime, 0.01);
+            effectiveTime = Math.Max(effectiveTime, TMC.MinEffectiveTime);
 
             // Calculate max depth from formula
             // nodes = time * nps
@@ -113,7 +115,7 @@ public sealed class TimeBudgetDepthManager
             int calculatedDepth = Math.Max((int)maxDepth, 1);
 
             // Clamp to reasonable bounds (1-15) - purely safety bounds, not difficulty-based
-            return Math.Clamp(calculatedDepth, 1, 15);
+            return Math.Clamp(calculatedDepth, 1, TMC.MaxCalculatedDepth);
         }
     }
 
@@ -132,7 +134,7 @@ public sealed class TimeBudgetDepthManager
         double remainingTime = softBoundSeconds - elapsedSeconds;
 
         // Continue only if we have time for at least 80% of next iteration
-        return remainingTime >= timeForNextIteration * 0.8;
+        return remainingTime >= timeForNextIteration * TMC.TimeContinuationThreshold;
     }
 
     /// <summary>

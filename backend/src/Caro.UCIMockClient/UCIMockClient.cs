@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using System.Diagnostics;
 using System.Text;
 
@@ -100,7 +101,7 @@ public sealed class UCIMockClient : IDisposable
         }
 
         SendCommand("uci");
-        await WaitForResponseAsync("uciok", TimeSpan.FromSeconds(5));
+        await WaitForResponseAsync("uciok", TimeSpan.FromSeconds(TimeConstants.MockUCIInitTimeoutSeconds));
 
         SendCommand("ucinewgame");
 
@@ -167,7 +168,7 @@ public sealed class UCIMockClient : IDisposable
         SendCommand($"go wtime {wtime} btime {btime} winc {winc} binc {binc}");
 
         // Wait for bestmove response
-        var bestMove = await WaitForBestMoveAsync(TimeSpan.FromMinutes(5));
+        var bestMove = await WaitForBestMoveAsync(TimeSpan.FromMinutes(TimeConstants.MockBestMoveTimeoutMinutes));
 
         if (string.IsNullOrEmpty(bestMove))
             throw new InvalidOperationException("Engine did not return a move");
@@ -199,7 +200,7 @@ public sealed class UCIMockClient : IDisposable
         var startTime = DateTime.UtcNow;
         var infoLines = new List<string>();
 
-        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(TimeConstants.MockProcessPollIntervalMs));
 
         while (await timer.WaitForNextTickAsync(_cts.Token))
         {
@@ -317,7 +318,7 @@ public sealed class UCIMockClient : IDisposable
 
         try
         {
-            _process?.WaitForExit(1000);
+            _process?.WaitForExit(TimeConstants.MockProcessExitTimeoutMs);
         }
         catch
         {

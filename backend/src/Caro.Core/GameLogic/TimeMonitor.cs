@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Caro.Core.Domain.Configuration;
 
 namespace Caro.Core.GameLogic;
 
@@ -22,7 +23,7 @@ public sealed class TimeMonitor : IDisposable
     /// <summary>
     /// Time interval between checks (10ms - accurate enough for game timing)
     /// </summary>
-    private static readonly TimeSpan CheckInterval = TimeSpan.FromMilliseconds(10);
+    private static readonly TimeSpan CheckInterval = TimeSpan.FromMilliseconds(TimeConstants.MonitorCheckIntervalMs);
 
     /// <summary>
     /// Create a new time monitor.
@@ -118,7 +119,7 @@ public sealed class TimeMonitor : IDisposable
         // Wait for monitor task to complete (with timeout to avoid hanging)
         try
         {
-            _monitorTask.Wait(TimeSpan.FromMilliseconds(50));
+            _monitorTask.Wait(TimeSpan.FromMilliseconds(TimeConstants.MonitorDisposalTimeoutMs));
         }
         catch
         {

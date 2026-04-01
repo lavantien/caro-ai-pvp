@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic.Logging;
@@ -23,7 +24,7 @@ public sealed class SearchLogger : IDisposable
     /// <summary>
     /// Maximum log file size before rotation (100 MB default).
     /// </summary>
-    public const long MaxFileSizeBytes = 100 * 1024 * 1024;
+    public const long MaxFileSizeBytes = TimeConstants.MaxLogFileSizeMb * 1024 * 1024;
 
     /// <summary>
     /// Create a new search logger.
@@ -39,7 +40,7 @@ public sealed class SearchLogger : IDisposable
         _logDirectory = logDirectory ?? Path.Combine(
             Directory.GetCurrentDirectory(), "..", "..", "logs");
         _logFilePrefix = filePrefix;
-        _rotationInterval = rotationInterval ?? TimeSpan.FromHours(24);
+        _rotationInterval = rotationInterval ?? TimeSpan.FromHours(TimeConstants.LogRotationHours);
         _startDate = DateTime.UtcNow;
         _currentFileSize = 0;
         _cts = new CancellationTokenSource();
@@ -75,7 +76,7 @@ public sealed class SearchLogger : IDisposable
         while (!_logChannel.Writer.TryWrite(entryWithTimestamp))
         {
             // Channel is full, wait a bit
-            Thread.Sleep(1);
+            Thread.Sleep(TimeConstants.LogProcessingSleepMs);
         }
     }
 
@@ -246,7 +247,7 @@ public sealed class SearchLogger : IDisposable
     /// </summary>
     public async Task FlushAsync(TimeSpan? timeout = null)
     {
-        timeout ??= TimeSpan.FromSeconds(5);
+        timeout ??= TimeSpan.FromSeconds(TimeConstants.LogTimeoutSeconds);
 
         // Mark the channel as complete so the reader will drain it
         _logChannel.Writer.Complete();
@@ -276,7 +277,7 @@ public sealed class SearchLogger : IDisposable
 
         try
         {
-            _processingTask.Wait(TimeSpan.FromSeconds(5));
+            _processingTask.Wait(TimeSpan.FromSeconds(TimeConstants.LogTimeoutSeconds));
         }
         catch (OperationCanceledException)
         {

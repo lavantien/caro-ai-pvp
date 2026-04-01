@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Caro.Core.Domain.Configuration;
 
 namespace Caro.Core.Concurrency;
 
@@ -43,7 +44,7 @@ public sealed class AsyncQueue<T> : IDisposable where T : notnull
     /// <param name="dropOldest">Whether to drop oldest items when full (default: true)</param>
     public AsyncQueue(
         Func<T, ValueTask> processAsync,
-        int capacity = 100,
+        int capacity = TimeConstants.QueueDefaultCapacity,
         string queueName = "AsyncQueue",
         bool dropOldest = true)
     {
@@ -155,7 +156,7 @@ public sealed class AsyncQueue<T> : IDisposable where T : notnull
         _cts.Cancel();
 
         // Wait for processing to complete (with timeout)
-        if (!_processingTask.Wait(TimeSpan.FromSeconds(5)))
+        if (!_processingTask.Wait(TimeSpan.FromSeconds(TimeConstants.QueueDisposalTimeoutSeconds)))
         {
             // Timeout - force cleanup
         }

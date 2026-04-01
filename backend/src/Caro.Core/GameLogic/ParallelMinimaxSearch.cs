@@ -5,6 +5,9 @@ using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic.Search;
 using Caro.Core.GameLogic.TimeManagement;
+using TMC = Caro.Core.Domain.Configuration.TimeManagementConstants;
+using SHC = Caro.Core.Domain.Configuration.SearchHeuristicConstants;
+using TC = Caro.Core.Domain.Configuration.TimeConstants;
 
 namespace Caro.Core.GameLogic;
 
@@ -293,7 +296,7 @@ public sealed class ParallelMinimaxSearch
             if (vcfResult.IsSolved && vcfResult.IsWin && vcfResult.BestMove.HasValue)
             {
                 return new ParallelSearchResult(vcfResult.BestMove.Value.x, vcfResult.BestMove.Value.y,
-                    vcfResult.DepthAchieved, vcfResult.NodesSearched, 0, null, vcfTimeLimit, 0, 0, 100000, 0, 0);
+                    vcfResult.DepthAchieved, vcfResult.NodesSearched, 0, null, vcfTimeLimit, 0, 0, SHC.WinScore, 0, 0);
             }
         }
 
@@ -497,7 +500,7 @@ public sealed class ParallelMinimaxSearch
         // The old timeout caused 2x time overrun (wait + fallback both used full allocation)
         try
         {
-            Task.WaitAll(tasks, (int)(timeAlloc.HardBoundMs + 200));
+            Task.WaitAll(tasks, (int)(timeAlloc.HardBoundMs + TC.HardBoundBufferMs));
         }
         catch (AggregateException)
         {
@@ -534,12 +537,12 @@ public sealed class ParallelMinimaxSearch
         // Parallel search already used time waiting for tasks
         // Fallback should only use remaining time to avoid 2x time overrun
         long elapsedMs = _timeMonitor?.ElapsedMs ?? 0;
-        long remainingHardBoundMs = Math.Max(50, _hardTimeBoundMs - elapsedMs / 2);  // At least 50ms, account for parallel overhead
+        long remainingHardBoundMs = Math.Max(TC.MinRemainingHardBoundMs, _hardTimeBoundMs - elapsedMs / 2);  // At least 50ms, account for parallel overhead
         var fallbackTimeAlloc = new TimeAllocation
         {
-            SoftBoundMs = Math.Max(25, remainingHardBoundMs / 2),
+            SoftBoundMs = Math.Max(TC.MinSoftBoundFallbackMs, remainingHardBoundMs / 2),
             HardBoundMs = remainingHardBoundMs,
-            OptimalTimeMs = Math.Max(25, remainingHardBoundMs / 4),
+            OptimalTimeMs = Math.Max(TC.MinSoftBoundFallbackMs, remainingHardBoundMs / 4),
             IsEmergency = timeAlloc.IsEmergency,
             Phase = timeAlloc.Phase
         };
@@ -588,7 +591,7 @@ public sealed class ParallelMinimaxSearch
         // Score threshold: below this, consider the position "effectively lost"
         // int.MinValue + 1000000 = -2147482648, which is still a valid but terrible score
         // We want to fall back to lower depths if all scores at higher depths are this bad
-        const int ReasonableScoreThreshold = int.MinValue + 100000000;  // -2147383648
+        const int ReasonableScoreThreshold = (int)SHC.ReasonableScoreThreshold;  // -2147383648
 
         // First, try to find results at maxDepth with reasonable scores
         var reasonableAtMaxDepth = results
@@ -790,7 +793,7 @@ public sealed class ParallelMinimaxSearch
         // Solution: Keep the first few candidates in their original order (they're priority moves)
         // and only sort the rest by static evaluation
 
-        const int PriorityMoveCount = 4; // First 4 candidates are considered "priority" and not re-sorted
+        const int PriorityMoveCount = SHC.PriorityMoveCount; // First N candidates are considered "priority" and not re-sorted
 
         // Filter to empty cells only to prevent PlaceStone from throwing
         var emptyCandidates = candidates
@@ -851,7 +854,7 @@ public sealed class ParallelMinimaxSearch
         // which is critical because D2 can see immediate threats that D1 cannot.
         int depthOffset = threadData.ThreadIndex % 2 == 1 ? 1 : 0;
         int currentDepth = 1 + depthOffset;
-        const int MaxSearchDepth = 50; // Realistic max for Caro - prevents bogus depth inflation from TT hits
+        const int MaxSearchDepth = SHC.MaxSearchDepth; // Realistic max for Caro - prevents bogus depth inflation from TT hits
         while (true)
         {
             // MAX DEPTH CHECK: Prevent runaway depth values
@@ -878,7 +881,7 @@ public sealed class ParallelMinimaxSearch
             // This ensures parallel search can reach the same depth as sequential search.
             if (currentDepth > 10)
             {
-                long minimumTotalNodesForDepth = (long)(currentDepth - 5) * (currentDepth - 5) * 200;
+                long minimumTotalNodesForDepth = (long)(currentDepth - SHC.DepthEstimationBaseline) * (currentDepth - SHC.DepthEstimationBaseline) * SHC.DepthEstimationMultiplier;
                 // Get the thread count used in this search (passed via closure or member)
                 int threadCount = _maxThreads > 0 ? _maxThreads : 1;
                 // Per-thread minimum is total / threadCount
@@ -921,12 +924,12 @@ public sealed class ParallelMinimaxSearch
                 {
                     // D2 estimate: D1 time * 5 (D2 time is often 5-10x D1 due to deeper complexity)
                     // This is more conservative than the node-based EBF of 2.5
-                    estimatedIterationTimeMs = lastIterationElapsedMs * 5;
+                    estimatedIterationTimeMs = lastIterationElapsedMs * SHC.IterationTimeEstimateAggressive;
                 }
                 else if (currentDepth > 2 && lastIterationElapsedMs > 0)
                 {
                     // D3+ estimate: last iteration * 2
-                    estimatedIterationTimeMs = lastIterationElapsedMs * 2;
+                    estimatedIterationTimeMs = lastIterationElapsedMs * SHC.IterationTimeEstimateNormal;
                 }
                 else
                 {
@@ -949,7 +952,7 @@ public sealed class ParallelMinimaxSearch
             if (currentDepth > 2)
             {
                 // SOFT BOUND: Stop early if we're approaching time limit
-                if (elapsedForCheck >= _hardTimeBoundMs * 0.9)
+                if (elapsedForCheck >= _hardTimeBoundMs * SHC.HardTimeCheckRatio)
                 {
                     if (isMasterThread) _searchCts?.Cancel();
                     break;
@@ -958,25 +961,25 @@ public sealed class ParallelMinimaxSearch
                 // PURE TIME-BASED: Check if we should continue based on iteration time
                 if (isMasterThread && elapsedForCheck >= timeAlloc.SoftBoundMs)
                 {
-                    if (lastIterationElapsedMs > remainingTimeMs * 0.5)
+                    if (lastIterationElapsedMs > remainingTimeMs * SHC.IterationAbortRatio)
                         break;
                 }
 
                 // Optimal time check - very stable moves can stop earlier
                 if (isMasterThread && elapsedForCheck >= timeAlloc.OptimalTimeMs && stableCount >= 3)
                 {
-                    if (lastIterationElapsedMs > remainingTimeMs * 0.4)
+                    if (lastIterationElapsedMs > remainingTimeMs * SHC.IterationCautionRatio)
                         break;
                 }
             }
 
-            int alpha = int.MinValue + 1000;
-            int beta = int.MaxValue - 1000;
+            int alpha = int.MinValue + SHC.AlphaBetaMargin;
+            int beta = int.MaxValue - SHC.AlphaBetaMargin;
 
             if (bestScore > int.MinValue + 2000 && bestScore < int.MaxValue - 2000)
             {
-                alpha = Math.Max(int.MinValue + 1000, bestScore - 50);
-                beta = Math.Min(int.MaxValue - 1000, bestScore + 50);
+                alpha = Math.Max(int.MinValue + SHC.AlphaBetaMargin, bestScore - SHC.AspirationWindow);
+                beta = Math.Min(int.MaxValue - SHC.AlphaBetaMargin, bestScore + SHC.AspirationWindow);
             }
 
             // Track nodes before this iteration to detect if search actually happened
@@ -1053,7 +1056,7 @@ public sealed class ParallelMinimaxSearch
             if (cancellationToken.IsCancellationRequested)
                 break;
 
-            if (result.score >= 100000)
+            if (result.score >= SHC.WinScore)
                 break;
 
             currentDepth++;
@@ -1109,7 +1112,7 @@ public sealed class ParallelMinimaxSearch
         // OrderMovesStaged would undo this prioritization
         // Solution: Keep the first few candidates in their original order (they're priority moves)
         // and only reorder the rest
-        const int PriorityMoveCount = 4; // First 4 candidates are considered "priority" and not re-ordered
+        const int PriorityMoveCount = SHC.PriorityMoveCount; // First N candidates are considered "priority" and not re-ordered
 
         var priorityMoves = candidates.Take(PriorityMoveCount).ToList();
         var remainingCandidates = candidates.Skip(PriorityMoveCount).ToList();
@@ -1201,7 +1204,7 @@ public sealed class ParallelMinimaxSearch
         var winner = ParallelNodeEvaluator.CheckWinner(board);
         if (winner != null)
         {
-            return winner == aiPlayer ? 100000 : -100000;
+            return winner == aiPlayer ? SHC.WinScore : -SHC.WinScore;
         }
 
         if (depth == 0)
@@ -1382,7 +1385,7 @@ public sealed class ParallelMinimaxSearch
 
                 // Update continuation history for this successful move
                 // Use move history to update continuation scores
-                int bonus = depth * depth * 4;
+                int bonus = depth * depth * TMC.DepthBonusMultiplier;
                 for (int j = 1; j < threadData.MoveHistoryCount && j <= ContinuationHistory.TrackedPlyCount; j++)
                 {
                     int prevCell = threadData.MoveHistory[j];
@@ -1900,7 +1903,7 @@ public sealed class ParallelMinimaxSearch
         var winner = ParallelNodeEvaluator.CheckWinner(board);
         if (winner != null)
         {
-            return winner == aiPlayer ? 100000 : -100000;
+            return winner == aiPlayer ? SHC.WinScore : -SHC.WinScore;
         }
 
         // Limit quiescence search depth to avoid explosion
@@ -2265,7 +2268,7 @@ public sealed class ParallelMinimaxSearch
         int iterationCount = 0;  // DIAGNOSTIC: Track how many iterations actually ran
 
         // PURE TIME-BASED SEARCH with TT inflation guards
-        const int MaxSearchDepth = 50;
+        const int MaxSearchDepth = SHC.MaxSearchDepth;
         int currentDepth = 2;
         while (true)
         {
@@ -2278,7 +2281,7 @@ public sealed class ParallelMinimaxSearch
             // Require: total_nodes >= (depth-5)^2 * 200 for depth > 10
             if (currentDepth > 10)
             {
-                long minimumNodesForDepth = (long)(currentDepth - 5) * (currentDepth - 5) * 200;
+                long minimumNodesForDepth = (long)(currentDepth - SHC.DepthEstimationBaseline) * (currentDepth - SHC.DepthEstimationBaseline) * SHC.DepthEstimationMultiplier;
                 int threadCount = _maxThreads > 0 ? _maxThreads : 1;
                 long perThreadMinimum = minimumNodesForDepth / threadCount;
                 if (threadData.LocalNodesSearched < perThreadMinimum)
@@ -2304,12 +2307,12 @@ public sealed class ParallelMinimaxSearch
             long nodesBeforeIteration = threadData.LocalNodesSearched;
             iterationCount++;
 
-            int alpha = int.MinValue + 1000;
-            int beta = int.MaxValue - 1000;
+            int alpha = int.MinValue + SHC.AlphaBetaMargin;
+            int beta = int.MaxValue - SHC.AlphaBetaMargin;
             if (bestScore > int.MinValue + 2000 && bestScore < int.MaxValue - 2000)
             {
-                alpha = Math.Max(int.MinValue + 1000, bestScore - 50);
-                beta = Math.Min(int.MaxValue - 1000, bestScore + 50);
+                alpha = Math.Max(int.MinValue + SHC.AlphaBetaMargin, bestScore - SHC.AspirationWindow);
+                beta = Math.Min(int.MaxValue - SHC.AlphaBetaMargin, bestScore + SHC.AspirationWindow);
             }
 
             var result = SearchRoot(board, player, currentDepth, candidates, threadData, alpha, beta, cancellationToken);
@@ -2334,7 +2337,7 @@ public sealed class ParallelMinimaxSearch
 
             progressCallback?.Invoke((bestMove.x, bestMove.y, bestDepth, bestScore));
 
-            if (result.score >= 100000)
+            if (result.score >= SHC.WinScore)
                 break;
 
             currentDepth++;

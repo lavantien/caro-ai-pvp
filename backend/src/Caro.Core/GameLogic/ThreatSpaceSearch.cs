@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -55,8 +56,8 @@ public class ThreatSpaceSearch
     public VCFResult SolveVCF(
         Board board,
         Player attacker,
-        int timeLimitMs = 1000,
-        int maxDepth = 30)
+        int timeLimitMs = TimeConstants.DefaultTimeLimitMs,
+        int maxDepth = TimeConstants.DefaultSearchDepth)
     {
         var startTime = DateTime.UtcNow;
         int nodesSearched = 0;
@@ -328,7 +329,7 @@ public class ThreatSpaceSearch
         }
 
         // Limit to most important defenses if too many
-        if (defenses.Count > 10)
+        if (defenses.Count > TimeConstants.MaxDefensesPerThreat)
         {
             // Prioritize by threat priority
             var sortedDefenses = defenses.Take(10).ToList();
@@ -353,7 +354,7 @@ public class ThreatSpaceSearch
         seen.Clear();
 
         int count = 0;
-        const int maxMoves = 10; // Limit to prevent excessive branching
+        const int maxMoves = TimeConstants.MaxCandidateMoves;
 
         // Block attacker's threats
         var attackerThreats = _threatDetector.DetectThreats(board, attacker);

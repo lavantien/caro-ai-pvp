@@ -7,6 +7,7 @@ using Caro.Core.GameLogic.TimeManagement;
 using Caro.Core.GameLogic.Pondering;
 using Caro.Core.GameLogic.Search;
 using Microsoft.Extensions.Logging;
+using SHC = Caro.Core.Domain.Configuration.SearchHeuristicConstants;
 
 namespace Caro.Core.GameLogic;
 
@@ -107,7 +108,7 @@ public class MinimaxAI : IStatsPublisher
     // Reused across searches to avoid allocations
     private readonly SearchBoard _searchBoard = new();
 
-    public MinimaxAI(int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null, Random? random = null, IEvaluationParameterProvider? parameterProvider = null)
+    public MinimaxAI(int ttSizeMb = TimeConstants.DefaultHashSizeMb, ILogger<MinimaxAI>? logger = null, Random? random = null, IEvaluationParameterProvider? parameterProvider = null)
     {
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<MinimaxAI>.Instance;
         _random = random;  // null means use Random.Shared (default behavior)
@@ -201,7 +202,7 @@ public class MinimaxAI : IStatsPublisher
         _searchStopwatch.Restart();
 
         // Reset thread count and parallel diagnostics
-        _lastThreadCount = threadCount ?? Math.Max(5, (Environment.ProcessorCount / 2) - 1);
+        _lastThreadCount = threadCount ?? Math.Max(SHC.MinThreadCount, (Environment.ProcessorCount / 2) - 1);
         _lastParallelDiagnostics = null;
 
         // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections away from first red stone
@@ -232,7 +233,7 @@ public class MinimaxAI : IStatsPublisher
                 {
                     int dx = System.Math.Abs(c.x - fx);
                     int dy = System.Math.Abs(c.y - fy);
-                    return dx >= 3 || dy >= 3;  // Valid if at least 3 away in one direction
+                    return dx >= SHC.OpenRuleDistance || dy >= SHC.OpenRuleDistance;
                 }).ToList();
             }
         }
@@ -270,7 +271,7 @@ public class MinimaxAI : IStatsPublisher
                             {
                                 int dx = System.Math.Abs(x - firstRed.Value.firstX);
                                 int dy = System.Math.Abs(y - firstRed.Value.firstY);
-                                if (dx >= 3 || dy >= 3)
+                                if (dx >= SHC.OpenRuleDistance || dy >= SHC.OpenRuleDistance)
                                     return (x, y);
                             }
                             else
@@ -503,9 +504,9 @@ public class MinimaxAI : IStatsPublisher
             timeRemainingMs = maxTimeMs.Value;
             timeAlloc = new TimeAllocation
             {
-                SoftBoundMs = (long)(maxTimeMs.Value * 0.8),
+                SoftBoundMs = (long)(maxTimeMs.Value * SHC.SoftBoundRatio),
                 HardBoundMs = maxTimeMs.Value,
-                OptimalTimeMs = (long)(maxTimeMs.Value * 0.6)
+                OptimalTimeMs = (long)(maxTimeMs.Value * SHC.OptimalBoundRatio)
             };
         }
         // CRITICAL FIX: For long time budgets, use direct time allocation without AdaptiveTimeManager
@@ -530,7 +531,7 @@ public class MinimaxAI : IStatsPublisher
             else
             {
                 // Longer time controls - estimate increment based on common ratios
-                effectiveIncrementSeconds = Math.Max(2, (int)Math.Round(initialTimeSeconds / 90.0));
+                effectiveIncrementSeconds = Math.Max(SHC.MinEffectiveIncrementSeconds, (int)Math.Round(initialTimeSeconds / SHC.InitialTimeToIncrementDivisor));
             }
 
             // Use AdaptiveTimeManager with PID-like controller for better time management
@@ -757,11 +758,11 @@ public class MinimaxAI : IStatsPublisher
                                 // +8000 per our four-threat (STRONG COUNTER-ATTACK - forces opponent to respond!)
                                 // -2000 BONUS penalty for multiple three-threats (can lead to double threat)
                                 // CRITICAL: Counter-attacking is often better than just blocking!
-                                int multipleThreePenalty = theirThreeThreats >= 2 ? -2000 : 0;
-                                int score = -theirWinningSquares * 10000 - theirFourThreats * 5000 - theirThreeThreats * 500 + ourFourThreats * 8000 + multipleThreePenalty;
+                                int multipleThreePenalty = theirThreeThreats >= SHC.MultipleThreeThreshold ? -SHC.MultipleThreePenalty : 0;
+                                int score = -theirWinningSquares * SHC.WinningSquarePenalty - theirFourThreats * SHC.FourThreatPenalty - theirThreeThreats * SHC.ThreeThreatPenalty + ourFourThreats * SHC.FourThreatBonus + multipleThreePenalty;
 
                                 // Prefer central blocks as tiebreaker
-                                int distToCenter = Math.Abs(block.x - 7) + Math.Abs(block.y - 7);
+                                int distToCenter = Math.Abs(block.x - SHC.CenterIndex) + Math.Abs(block.y - SHC.CenterIndex);
                                 score -= distToCenter;
 
                                 if (score > bestScore)
@@ -774,7 +775,7 @@ public class MinimaxAI : IStatsPublisher
                             // CRITICAL: If the best block still leaves us in a losing position,
                             // try counter-attacking instead - creating our own winning threat
                             // This is especially important when opponent has multiple developing threats
-                            if (bestScore < -5000) // Very negative = opponent still has winning squares
+                            if (bestScore < -SHC.FourThreatPenalty) // Very negative = opponent still has winning squares
                             {
                                 _logger.LogDebug("[AI DEFENSE] ({Player}) Best block score is {Score} - trying counter-attack instead",
                                     player, bestScore);
@@ -1063,10 +1064,10 @@ public class MinimaxAI : IStatsPublisher
                     // Score: heavily penalize blocks that leave immediate threats
                     // Counter-attack is valuable even when blocking four-threats!
                     // +8000 for four-threat counter-attack
-                    int score = -theirWinningSquares * 10000 - theirFourThreats * 5000 - theirThreeThreats * 500 + ourFourThreats * 8000;
+                    int score = -theirWinningSquares * SHC.WinningSquarePenalty - theirFourThreats * SHC.FourThreatPenalty - theirThreeThreats * SHC.ThreeThreatPenalty + ourFourThreats * SHC.FourThreatBonus;
 
                     // Prefer central blocks as tiebreaker
-                    int distToCenter = Math.Abs(block.x - 7) + Math.Abs(block.y - 7);
+                    int distToCenter = Math.Abs(block.x - SHC.CenterIndex) + Math.Abs(block.y - SHC.CenterIndex);
                     score -= distToCenter;
 
                     if (score > bestScore)
@@ -1090,7 +1091,7 @@ public class MinimaxAI : IStatsPublisher
 
                 // CRITICAL: If the best block still leaves us in a losing position,
                 // try counter-attacking instead - creating our own winning threat
-                if (bestScore < -5000)
+                if (bestScore < -SHC.FourThreatPenalty)
                 {
                     _logger.LogDebug("[AI DEFENSE] ({Player}) Four-threat best block score is {Score} - trying counter-attack",
                         player, bestScore);
@@ -1181,8 +1182,7 @@ public class MinimaxAI : IStatsPublisher
             // This prevents emergency mode from making all AIs equal
             if (timeAlloc.IsEmergency)
             {
-                const int emergencyVcfCap = 2500;
-                vcfTimeLimit = (int)Math.Min(timeAlloc.HardBoundMs * 0.8, emergencyVcfCap);
+                vcfTimeLimit = (int)Math.Min(timeAlloc.HardBoundMs * SHC.SoftBoundRatio, SHC.EmergencyVcfCapMs);
             }
 
             var vcfResult = _vcfSolver.SolveVCF(board, player, timeLimitMs: vcfTimeLimit, maxDepth: vcfMaxDepth);
@@ -1232,7 +1232,7 @@ public class MinimaxAI : IStatsPublisher
         // PARALLEL SEARCH: Use Lazy SMP when enabled
         if (parallelSearchEnabled)
         {
-            int effectiveThreadCount = threadCount ?? Math.Max(5, (Environment.ProcessorCount / 2) - 1);
+            int effectiveThreadCount = threadCount ?? Math.Max(SHC.MinThreadCount, (Environment.ProcessorCount / 2) - 1);
             _lastThreadCount = effectiveThreadCount;
             _tableHits = 0;
             _tableLookups = 0;
@@ -1306,7 +1306,7 @@ public class MinimaxAI : IStatsPublisher
         // Faster machines reach deeper depths naturally, slower machines stop earlier
 
         // Track thread count for diagnostics (even if using sequential search)
-        _lastThreadCount = Math.Max(5, (Environment.ProcessorCount / 2) - 1);
+        _lastThreadCount = Math.Max(SHC.MinThreadCount, (Environment.ProcessorCount / 2) - 1);
         _lastParallelDiagnostics = null;
         _lastPonderingEnabled = ponderingEnabled;
 
@@ -1394,8 +1394,8 @@ public class MinimaxAI : IStatsPublisher
                 // Check if we should continue for one more iteration
                 // Only continue if we have significant time left and next iteration won't exceed hard bound
                 double remainingSeconds = (_searchHardBoundMs - elapsed) / 1000.0;
-                double estimatedNextTime = elapsed / 1000.0 * 2.5; // EBF ~2.5
-                if (remainingSeconds < estimatedNextTime * 0.8)
+                double estimatedNextTime = elapsed / 1000.0 * SHC.EffectiveBranchingFactorEstimate;
+                if (remainingSeconds < estimatedNextTime * SHC.SoftBoundRatio)
                 {
                     break;
                 }
@@ -1721,7 +1721,7 @@ public class MinimaxAI : IStatsPublisher
         // Return high max depth and let iterative deepening stop when time runs out
         // The search naturally completes as many depths as possible within the time budget
         // Different machines will reach different depths - this is expected and correct
-        return 64;
+        return SHC.MaxAIMaxDepth;
     }
 
     /// <summary>
@@ -1867,8 +1867,8 @@ public class MinimaxAI : IStatsPublisher
     private (int x, int y, int score) SearchWithDepth(Board board, Player player, int depth, List<(int x, int y)> candidates)
     {
         // Aspiration window: try narrow search first, then wider if needed
-        const int aspirationWindow = 50;  // Initial window size
-        const int maxAspirationAttempts = 3;  // Max re-searches with wider windows
+        const int aspirationWindow = SHC.AspirationWindow;
+        const int maxAspirationAttempts = SHC.MaxAspirationAttempts;
 
         var bestScore = int.MinValue;
         var bestMove = candidates[0];
@@ -2002,7 +2002,7 @@ public class MinimaxAI : IStatsPublisher
                 else if (score == bestScore)
                 {
                     var currentTiebreaker = orderedTiebreakScores[orderedIdx];
-                    var randomBonus = NextRandomInt(100);  // Small random factor (0-99)
+                    var randomBonus = NextRandomInt(SHC.RandomBonusRange);
 
                     // Prefer better tiebreaker score, or add randomness
                     if (currentTiebreaker + randomBonus > bestTiebreaker)
@@ -2189,7 +2189,7 @@ public class MinimaxAI : IStatsPublisher
         var winner = CheckWinner(board);
         if (winner != null)
         {
-            return winner == aiPlayer ? 100000 : -100000;
+            return winner == aiPlayer ? SHC.WinScore : -SHC.WinScore;
         }
 
         // Generate tactical moves (only near existing stones)
@@ -2281,7 +2281,7 @@ public class MinimaxAI : IStatsPublisher
         var winner = CheckWinner(board);
         if (winner != null)
         {
-            return winner == aiPlayer ? 100000 : -100000;
+            return winner == aiPlayer ? SHC.WinScore : -SHC.WinScore;
         }
 
         if (depth == 0)
@@ -2326,8 +2326,8 @@ public class MinimaxAI : IStatsPublisher
         var orderedMoves = _moveOrderer.OrderMoves(candidates, rootDepth - depth, board, currentPlayer, cachedMove);
 
         int score;
-        const int lmrFullDepthMoves = 4;
-        const int pvsEnabledDepth = 2;
+        const int lmrFullDepthMoves = SHC.LMRFullDepthMoves;
+        const int pvsEnabledDepth = SHC.PVSEnabledDepth;
 
         if (isMaximizing)
         {
@@ -2516,7 +2516,7 @@ public class MinimaxAI : IStatsPublisher
         var winner = CheckWinner(board);
         if (winner != null)
         {
-            return winner == aiPlayer ? 100000 : -100000;
+            return winner == aiPlayer ? SHC.WinScore : -SHC.WinScore;
         }
 
         // Generate tactical moves
@@ -2603,7 +2603,7 @@ public class MinimaxAI : IStatsPublisher
         var winner = CheckWinner(board);
         if (winner != null)
         {
-            return winner == aiPlayer ? 100000 : -100000;
+            return winner == aiPlayer ? SHC.WinScore : -SHC.WinScore;
         }
 
         if (depth == 0)
@@ -2663,9 +2663,9 @@ public class MinimaxAI : IStatsPublisher
 
         // Time scramble: < 10% time remaining - VCF is critical (find quick wins)
         // Normal time: use 5% of initial time as threshold
-        var vcfThresholdMs = timeRemainingPercent < 0.1
-            ? 1  // Always run in time scramble (minimal threshold)
-            : initialTime * 0.05;  // 5% of initial time in normal case
+        var vcfThresholdMs = timeRemainingPercent < SHC.VcfTimeRemainingThreshold
+            ? SHC.VcfMinimumTimeMs
+            : initialTime * SHC.VcfInitialTimeFraction;
 
         if (remainingTime > vcfThresholdMs)
         {
@@ -2687,8 +2687,8 @@ public class MinimaxAI : IStatsPublisher
         var orderedMoves = _moveOrderer.OrderMoves(candidates, rootDepth - depth, board, currentPlayer, cachedMove);
 
         int score;
-        const int lmrFullDepthMoves = 4;  // First 4 moves at full depth
-        const int pvsEnabledDepth = 2;  // Enable PVS at depth 2+
+        const int lmrFullDepthMoves = SHC.LMRFullDepthMoves;
+        const int pvsEnabledDepth = SHC.PVSEnabledDepth;
 
         if (isMaximizing)
         {
@@ -2915,7 +2915,7 @@ public class MinimaxAI : IStatsPublisher
 
         // Try shallow search at reduced depth
         int probCutDepth = depth / 2;
-        int probCutBeta = beta + 200; // More optimistic threshold
+        int probCutBeta = beta + SHC.ProbCutMargin;
 
         var score = Minimax(board, probCutDepth, probCutBeta - 1, probCutBeta, isMaximizing, aiPlayer, rootDepth);
 

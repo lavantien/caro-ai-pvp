@@ -1,5 +1,7 @@
 using Caro.Core.Domain.Entities;
 
+using TMC = Caro.Core.Domain.Configuration.TimeManagementConstants;
+
 namespace Caro.Core.GameLogic.TimeManagement;
 
 /// <summary>
@@ -25,7 +27,7 @@ public sealed class AdaptiveTimeManager
     private double _timePressure = 0;       // 0 = relaxed, 1 = critical
 
     // Fixed aggressiveness
-    private const double BaseAggressivenessValue = 2.5;
+    private const double BaseAggressivenessValue = TMC.DefaultEffectiveBranchingFactor;
 
     // Maximum time per move (percentage of remaining time) for time controls WITH increment
     private const double MaxTimePercentValue = 0.15;
@@ -42,8 +44,8 @@ public sealed class AdaptiveTimeManager
         int candidateCount,
         Board board,
         Player player,
-        int initialTimeSeconds = 420,
-        int incrementSeconds = 5)
+        int initialTimeSeconds = TMC.DefaultInitialTimeSeconds,
+        int incrementSeconds = TMC.DefaultIncrementSeconds)
     {
         var initialTimeMs = initialTimeSeconds * 1000L;
 
@@ -54,8 +56,8 @@ public sealed class AdaptiveTimeManager
 
         // === INTEGRAL TERM: Accumulated error over game ===
         // If we've been consistently over/under time, adjust future allocations
-        _integralError += proportionalError * 0.1; // Decay factor to prevent windup
-        _integralError = Math.Clamp(_integralError, -0.5, 0.5); // Anti-windup clamping
+        _integralError += proportionalError * TMC.IntegralGain;
+        _integralError = Math.Clamp(_integralError, -TMC.IntegralClampValue, TMC.IntegralClampValue);
 
         // === DERIVATIVE TERM: Rate of change ===
         // How quickly are we burning time?
@@ -67,7 +69,7 @@ public sealed class AdaptiveTimeManager
         // === TIME PRESSURE CALCULATION ===
         // Combines all three terms with weights
         // Higher weight on proportional (current state) for responsiveness
-        _timePressure = proportionalError * 0.6 + _integralError * 0.3 + derivative * 0.1;
+        _timePressure = proportionalError * TMC.ProportionalWeight + _integralError * TMC.IntegralWeight + derivative * TMC.DerivativeWeight;
         _timePressure = Math.Clamp(_timePressure, 0, 1);
 
         // Detect sudden death early (needed for adaptive multiplier)
@@ -89,23 +91,23 @@ public sealed class AdaptiveTimeManager
 
         // Reduce multiplier as time pressure increases
         // This is the key adaptation: when running low on time, scale back
-        var adaptiveMultiplier = baseAggressiveness * (1.0 - _timePressure * 0.7);
+        var adaptiveMultiplier = baseAggressiveness * (1.0 - _timePressure * TMC.TimePressureBlendFactor);
 
         // Smooth multiplier changes to prevent oscillation
-        _currentMultiplier = _currentMultiplier * 0.7 + adaptiveMultiplier * 0.3;
+        _currentMultiplier = _currentMultiplier * TMC.MultiplierSmoothingOld + adaptiveMultiplier * TMC.MultiplierSmoothingNew;
 
         // CRITICAL FIX: For sudden death, cap multiplier much more aggressively
         // This prevents the multiplier from growing and burning through time
-        var maxMultiplier = isSuddenDeath ? 1.2 : 3.0;
-        _currentMultiplier = Math.Clamp(_currentMultiplier, 0.2, maxMultiplier);
+        var maxMultiplier = isSuddenDeath ? TMC.MaxMultiplierSuddenDeath : TMC.MaxMultiplierNormal;
+        _currentMultiplier = Math.Clamp(_currentMultiplier, TMC.MinMultiplier, maxMultiplier);
 
         // === BASE TIME CALCULATION ===
         // Estimate moves remaining based on game phase
         var phase = DetermineGamePhase(moveNumber);
         var movesToEnd = GetMovesToGameEnd(phase, moveNumber);
 
-        // Base formula: remaining / moves_left + 60% of increment
-        var baseTimeMs = (timeRemainingMs / (double)movesToEnd) + (incrementSeconds * 1000 * 0.6);
+        // Base formula: remaining / moves_left + increment usage ratio of increment
+        var baseTimeMs = (timeRemainingMs / (double)movesToEnd) + (incrementSeconds * 1000 * TMC.IncrementUsageRatio);
 
         // === COMPLEXITY MULTIPLIER ===
         var complexity = CalculateComplexity(board, candidateCount, player, phase);
@@ -128,8 +130,8 @@ public sealed class AdaptiveTimeManager
         // Sudden death: less than 20 seconds remaining is time scramble
         // With increment: less than 3x increment OR less than 30 seconds remaining
         var isInTimeScramble = isSuddenDeath
-            ? timeRemainingMs < 20000
-            : timeRemainingMs < Math.Min(incrementMs * 3, 30000);
+            ? timeRemainingMs < TMC.SuddenDeathScrambleMs
+            : timeRemainingMs < Math.Min(incrementMs * TMC.IncrementScrambleMultiplier, TMC.NormalScrambleMs);
 
         long maxAllocatableMs;
         long percentageBoundMs;
@@ -143,7 +145,7 @@ public sealed class AdaptiveTimeManager
             // SUDDEN DEATH FORMULA: remaining / expected_moves with safety factor
             // Expected moves in Caro: ~40-50 depending on phase
             // Use safety factor of 0.8 to ensure we don't run out
-            var safetyFactor = 0.8;
+            var safetyFactor = TMC.SafetyFactor;
             baseTimeAllotMs = (timeRemainingMs / (double)movesToEnd) * safetyFactor;
         }
         else
@@ -152,11 +154,11 @@ public sealed class AdaptiveTimeManager
             // (initial_time / 25) + (increment * 1.5)
             // For 180+2: 180/25 + 2*1.5 = 7.2 + 3 = 10.2s max per move
             // For 300+3: 300/25 + 3*1.5 = 12 + 4.5 = 16.5s max per move
-            baseTimeAllotMs = ((initialTimeSeconds / 25.0) + (incrementSeconds * 1.5)) * 1000.0;
+            baseTimeAllotMs = ((initialTimeSeconds / TMC.InitialTimePhaseDivisor) + (incrementSeconds * TMC.IncrementScalingFactor)) * 1000.0;
         }
 
         // Cap complexity multiplier to prevent excessive time usage
-        var complexityCap = Math.Min(complexity, 1.5);
+        var complexityCap = Math.Min(complexity, TMC.ComplexityCap);
         var timeAllotMaxMs = (long)(baseTimeAllotMs * complexityCap);
 
         // FIX: Safety scaling - when remaining time is low, scale back time allotment
@@ -164,7 +166,7 @@ public sealed class AdaptiveTimeManager
         if (timeRemainingMs < timeAllotMaxMs * 2)
         {
             // When remaining time < 2x our planned allotment, use 40% of remaining
-            timeAllotMaxMs = (long)(timeRemainingMs * 0.4);
+            timeAllotMaxMs = (long)(timeRemainingMs * TMC.MaxTimePercentage);
         }
 
         if (isInTimeScramble)
@@ -173,7 +175,7 @@ public sealed class AdaptiveTimeManager
             if (isSuddenDeath)
             {
                 // Sudden death time scramble: budget for 5 more moves minimum
-                maxAllocatableMs = Math.Max(timeRemainingMs / 6, 300); // ~17% of remaining, min 300ms
+                maxAllocatableMs = Math.Max(timeRemainingMs / TMC.MaxAllocatableTimeDivisor, TMC.MinAllocatableMs);
             }
             else
             {
@@ -181,7 +183,7 @@ public sealed class AdaptiveTimeManager
                 // Use 40% of increment as max (leaves 60% safety margin)
                 // For 2 second increment: max 800ms per move
                 // For 5 second increment: max 2000ms per move
-                maxAllocatableMs = Math.Max(incrementMs * 2 / 5, 300);
+                maxAllocatableMs = Math.Max(incrementMs * 2 / 5, TMC.MinAllocatableMs);
             }
             percentageBoundMs = maxAllocatableMs;
         }
@@ -201,13 +203,13 @@ public sealed class AdaptiveTimeManager
 
         // Hard bound: soft bound × 1.3, but never exceed percentage cap
         // In time scramble, use very tight bounds
-        var desiredHardBoundMs = (long)(softBoundMs * 1.3);
+        var desiredHardBoundMs = (long)(softBoundMs * TMC.HardBoundMultiplier);
         if (isInTimeScramble)
         {
             if (isSuddenDeath)
             {
                 // Sudden death time scramble: cap at percentage of remaining
-                desiredHardBoundMs = Math.Min(desiredHardBoundMs, (long)(timeRemainingMs * 0.20));
+                desiredHardBoundMs = Math.Min(desiredHardBoundMs, (long)(timeRemainingMs * TMC.HardBoundSafetyRatio));
             }
             else
             {
@@ -220,16 +222,16 @@ public sealed class AdaptiveTimeManager
             // Cap hard bound at time allot formula
             desiredHardBoundMs = Math.Min(desiredHardBoundMs, timeAllotMaxMs);
         }
-        var hardBoundMs = Math.Min(desiredHardBoundMs, Math.Max(softBoundMs + 100, maxAllocatableMs));
+        var hardBoundMs = Math.Min(desiredHardBoundMs, Math.Max(softBoundMs + TMC.HardBoundBufferAbsoluteMs, maxAllocatableMs));
 
-        // Optimal: 80% of soft bound
-        var optimalTimeMs = softBoundMs * 8 / 10;
+        // Optimal: optimal ratio of soft bound
+        var optimalTimeMs = (long)(softBoundMs * TMC.OptimalTimeRatio);
 
         // === EMERGENCY DETECTION ===
         // Adaptive threshold based on time control - scales with initial time
         // Use 5% of initial time as minimum, but at least 2 seconds
         // This ensures emergency mode doesn't trigger too early in fast time controls
-        var emergencyThreshold = Math.Max(2000, initialTimeMs / 20);
+        var emergencyThreshold = Math.Max(TMC.EmergencyThresholdMinimumMs, initialTimeMs / TMC.EmergencyTimeDivisor);
         // Second condition: only trigger if we have less than 1 second per move remaining
         // But only apply this when we have very few moves left (last 5 moves of the game)
         var isEmergency = timeRemainingMs < emergencyThreshold ||
@@ -257,17 +259,17 @@ public sealed class AdaptiveTimeManager
         // If we timed out, drastically reduce multiplier
         if (timedOut)
         {
-            _currentMultiplier *= 0.5;
+            _currentMultiplier *= TMC.MultiplierResetFactor;
         }
         // If we used significantly less than allocated, we can be more aggressive
         else if (actualTimeMs < allocatedMs * 0.5)
         {
-            _currentMultiplier *= 1.05; // 5% increase
+            _currentMultiplier *= TMC.MultiplierBoostOnWin;
         }
         // If we used most of our allocation, reduce slightly
         else if (actualTimeMs > allocatedMs * 0.9)
         {
-            _currentMultiplier *= 0.95; // 5% decrease
+            _currentMultiplier *= TMC.MultiplierPenaltyOnLoss;
         }
     }
 

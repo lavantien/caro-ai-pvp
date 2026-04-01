@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -24,7 +25,7 @@ public sealed class Ponderer : IDisposable
     private (int x, int y)? _predictedMove;
     private Player _ponderingForPlayer;  // Player we're pondering FOR (not TO MOVE)
     private Player _playerToMove;         // Player who is to move in pondered position
-    private int _maxSearchDepth = 20;
+    private int _maxSearchDepth = TimeConstants.DefaultMaxPonderDepth;
     private long _ponderStartTimeTicks;
     private long _maxPonderTimeMs;
 
@@ -276,7 +277,7 @@ public sealed class Ponderer : IDisposable
         // Wait for task to complete (outside lock) - longer timeout to allow final results
         try
         {
-            _ponderTask?.Wait(TimeSpan.FromMilliseconds(500));
+            _ponderTask?.Wait(TimeSpan.FromMilliseconds(TimeConstants.PonderStopTimeoutMs));
         }
         catch (AggregateException)
         {
@@ -299,7 +300,7 @@ public sealed class Ponderer : IDisposable
             // PURE TIME-BASED: Report actual depth achieved, no artificial inflation
             // Different machines will reach different depths based on their performance
             // Only report at least 1 if search ran for any meaningful time
-            if (finalNodesSearched == 0 && elapsedMs > 10 && finalDepth == 0)
+            if (finalNodesSearched == 0 && elapsedMs > TimeConstants.PonderMinElapsedMs && finalDepth == 0)
             {
                 // Search ran but didn't report progress - report minimum to indicate activity
                 finalNodesSearched = 1;
@@ -346,7 +347,7 @@ public sealed class Ponderer : IDisposable
         {
             if (_ponderTask != null && !_ponderTask.IsCompleted)
             {
-                _ponderTask.Wait(TimeSpan.FromMilliseconds(50));
+                _ponderTask.Wait(TimeSpan.FromMilliseconds(TimeConstants.PonderDisposalTimeoutMs));
             }
         }
         catch (AggregateException)

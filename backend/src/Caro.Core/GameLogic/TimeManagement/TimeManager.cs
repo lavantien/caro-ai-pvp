@@ -1,4 +1,7 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
+
+using TMC = Caro.Core.Domain.Configuration.TimeManagementConstants;
 
 namespace Caro.Core.GameLogic.TimeManagement;
 
@@ -18,10 +21,10 @@ public sealed class TimeManager
     private readonly ThreatDetector _threatDetector = new();
 
     // Track initial time for adaptive thresholds
-    private long _inferredInitialTimeMs = 420000;  // Default to 7 minutes (7+5)
+    private long _inferredInitialTimeMs = TMC.DefaultInitialTimeMs;
 
-    // Fixed time multiplier (1.3x)
-    private const double TimeMultiplier = 1.3;
+    // Fixed time multiplier
+    private const double TimeMultiplier = TMC.TimeMultiplier;
 
     /// <summary>
     /// Get adaptive time multiplier based on time control
@@ -29,9 +32,9 @@ public sealed class TimeManager
     private static double GetAdaptiveTimeMultiplier(long initialTimeMs)
     {
         // For very short time controls (< 3 minutes), use a modest reduction
-        if (initialTimeMs < 180_000) // Less than 3 minutes
+        if (initialTimeMs < TMC.ShortTimeControlThresholdMs)
         {
-            return TimeMultiplier * 0.8;
+            return TimeMultiplier * TMC.ShortTimeMultiplier;
         }
 
         return TimeMultiplier;
@@ -55,8 +58,8 @@ public sealed class TimeManager
         int candidateCount,
         Board board,
         Player player,
-        int initialTimeSeconds = 420,  // Default to 7+5, but tests may use different time controls
-        int incrementSeconds = 5)       // Default increment for 7+5
+        int initialTimeSeconds = TMC.DefaultInitialTimeSeconds,
+        int incrementSeconds = TMC.DefaultIncrementSeconds)
     {
         // Validate inputs
         if (timeRemainingMs <= 0)
@@ -77,15 +80,15 @@ public sealed class TimeManager
 
         // Check for emergency mode FIRST (before any calculations)
         // Use adaptive threshold: 10% of initial time, or 10s minimum (for 7+5)
-        long adaptiveEmergencyThreshold = Math.Max(10000, _inferredInitialTimeMs / 10);
+        long adaptiveEmergencyThreshold = Math.Max(TMC.EmergencyThresholdMs, _inferredInitialTimeMs / 10);
         bool isEmergency = ShouldUsePanicMode(timeRemainingMs, movesToEnd, adaptiveEmergencyThreshold);
         if (isEmergency)
         {
             return GetEmergencyAllocation(timeRemainingMs, phase, incrementSeconds);
         }
 
-        // Base time: remaining / moves_left + 60% of increment
-        double baseTimeMs = (timeRemainingMs / (double)movesToEnd) + (incrementSeconds * 1000 * 0.6);
+        // Base time: remaining / moves_left + increment usage ratio of increment
+        double baseTimeMs = (timeRemainingMs / (double)movesToEnd) + (incrementSeconds * 1000 * TMC.IncrementUsageRatio);
 
         // Position complexity: 0.5x to 2.0x multiplier
         double complexity = CalculateComplexity(board, candidateCount, player);
@@ -100,12 +103,12 @@ public sealed class TimeManager
 
         // Calculate bounds with 1s minimum reserve
         long maxAllocatableMs = Math.Max(0, timeRemainingMs - TimeControl.MinimumReserveMs);
-        long softBoundMs = (long)Math.Clamp(adjustedTimeMs, 500, maxAllocatableMs);
+        long softBoundMs = (long)Math.Clamp(adjustedTimeMs, TMC.MinSoftBoundMs, maxAllocatableMs);
 
-        // Hard bound: soft bound × 1.5, but ensure min ≤ max to avoid Math.Clamp exception
+        // Hard bound: soft bound * hard bound multiplier, but ensure min <= max to avoid Math.Clamp exception
         // When time is tight (softBoundMs + 1000 would exceed max), we can't add the full 1s buffer
-        long minHardBoundMs = Math.Min(softBoundMs + 1000, maxAllocatableMs);
-        long desiredHardBoundMs = (long)(softBoundMs * 1.5);
+        long minHardBoundMs = Math.Min(softBoundMs + TMC.IncrementOnlySoftBoundMs, maxAllocatableMs);
+        long desiredHardBoundMs = (long)(softBoundMs * TMC.HardBoundMultiplier);
 
         // If min equals max (edge case: very low on time), use max directly
         long hardBoundMs;
@@ -118,8 +121,8 @@ public sealed class TimeManager
             hardBoundMs = (long)Math.Clamp(desiredHardBoundMs, minHardBoundMs, maxAllocatableMs);
         }
 
-        // Optimal time: 80% of soft bound
-        long optimalTimeMs = softBoundMs * 8 / 10;
+        // Optimal time: optimal ratio of soft bound
+        long optimalTimeMs = (long)(softBoundMs * TMC.OptimalTimeRatio);
 
         return new TimeAllocation
         {
@@ -137,28 +140,26 @@ public sealed class TimeManager
     /// In time scramble, use the increment time to ensure we can keep playing
     /// CRITICAL: Timeout must NEVER happen - only win/lose/draw should end games
     /// </summary>
-    private static TimeAllocation GetEmergencyAllocation(long timeRemainingMs, GamePhase phase = GamePhase.Endgame, int incrementSeconds = 5)
+    private static TimeAllocation GetEmergencyAllocation(long timeRemainingMs, GamePhase phase = GamePhase.Endgame, int incrementSeconds = TMC.DefaultIncrementSeconds)
     {
         long incrementMs = incrementSeconds * 1000;
 
         // In time scramble, we rely on VCF + heuristics to make quick moves
-        // Hard bound: 75% of increment (leaves 25% safety margin)
-        // For 7+5: 3750ms hard bound, 1250ms safety margin
-        long hardBoundMs = (long)(incrementMs * 0.75);
+        // Hard bound: hard bound increment ratio of increment
+        long hardBoundMs = (long)(incrementMs * TMC.HardBoundIncrementRatio);
 
-        // Soft bound: 50% of increment (encourages faster moves)
-        // For 7+5: 2500ms soft bound
-        long softBoundMs = (long)(incrementMs * 0.5);
+        // Soft bound: soft bound increment ratio of increment
+        long softBoundMs = (long)(incrementMs * TMC.SoftBoundIncrementRatio);
 
         // Minimum guarantees regardless of increment size
-        softBoundMs = Math.Max(softBoundMs, 1000);  // At least 1 second
-        hardBoundMs = Math.Max(hardBoundMs, 2000);  // At least 2 seconds
+        softBoundMs = Math.Max(softBoundMs, TMC.IncrementOnlySoftBoundMs);
+        hardBoundMs = Math.Max(hardBoundMs, TMC.IncrementOnlyHardBoundMs);
 
         return new TimeAllocation
         {
             SoftBoundMs = softBoundMs,
             HardBoundMs = hardBoundMs,
-            OptimalTimeMs = softBoundMs * 8 / 10,
+            OptimalTimeMs = (long)(softBoundMs * TMC.OptimalTimeRatio),
             IsEmergency = true,
             Phase = phase,
             ComplexityMultiplier = 0.5 // Lowest complexity in emergency

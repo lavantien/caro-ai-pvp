@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -39,7 +40,7 @@ public class DFPNSearch
     private readonly WinDetector _winDetector = new();
 
     // Infinity value for proof numbers (use large value, not actual infinity)
-    private const uint Infinity = 1_000_000;
+    private const uint Infinity = TimeConstants.DFPNInfinity;
 
     /// <summary>
     /// Solve for VCF sequence using df-pn search
@@ -52,8 +53,8 @@ public class DFPNSearch
     public (SearchResult result, (int x, int y)? move) Solve(
         Board board,
         Player attacker,
-        int maxDepth = 30,
-        int timeLimitMs = 1000)
+        int maxDepth = TimeConstants.DefaultSearchDepth,
+        int timeLimitMs = TimeConstants.DefaultTimeLimitMs)
     {
         var startTime = DateTime.UtcNow;
 
@@ -401,7 +402,7 @@ public class DFPNSearch
         int count = 0;
         foreach (var move in candidates)
         {
-            if (count++ >= 10) break;
+            if (count++ >= TimeConstants.MaxDefensesPerThreat) break;
             var child = new PNNode
             {
                 Move = move,
