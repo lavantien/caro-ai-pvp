@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [2.6.0] - 2026-04-01
+
+### Changed
+- MovePicker: GetWinningMoves and GetThreatCreateMoves scan only candidate moves instead of all 256 cells (hot-path)
+- MovePicker: SortByScore uses in-place insertion sort, eliminating 3 array + 1 list allocation per call (hot-path)
+- ParallelMinimaxSearch: OrderMovesStaged uses temp-variable swaps instead of tuple deconstruction (hot-path)
+- ThreatDetector: deduplication uses int-hash HashSet instead of string interpolation (hot-path)
+- WinDetector/SearchBoard/ThreatDetector: boundary checks consolidated through PositionExtensions.InBounds()
+- Player enum: added ToLowerString() extension, used in Program.cs SSE/API serialization
+- Frontend: +page.svelte uses ApiConfig.endpoints for all API paths
+- Frontend: centralized switchPlayer() helper in game.ts, used by gameStore and +page.svelte
+
+### Removed
+- Dead code: unused playSound() from SoundManager
+- Dead code: unused getTopPlayers() from ratingStore
+
 ## [2.5.1] - 2026-04-01
 
 ### Changed
