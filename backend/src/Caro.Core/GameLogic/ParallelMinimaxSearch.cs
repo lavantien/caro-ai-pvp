@@ -155,13 +155,13 @@ public sealed class ParallelMinimaxSearch
         var candidates = GetCandidateMoves(searchBoard, MaxSearchRadius);
 
         // SAFETY: Filter candidates to only empty cells to prevent "Cell is already occupied" errors
-        candidates = candidates.Where(c => searchBoard.IsEmpty(c.x, c.y)).ToList();
+        candidates.RemoveAll(c => !searchBoard.IsEmpty(c.x, c.y));
 
         // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections
         // away from the first red stone (5x5 exclusion zone centered on first move)
         if (player == Player.Red && moveNumber == 3)
         {
-            candidates = candidates.Where(c => ParallelThreatAnalyzer.IsValidPerOpenRule(board, c.x, c.y)).ToList();
+            candidates.RemoveAll(c => !ParallelThreatAnalyzer.IsValidPerOpenRule(board, c.x, c.y));
         }
 
         if (candidates.Count == 0)
@@ -208,7 +208,7 @@ public sealed class ParallelMinimaxSearch
         {
             // Filter candidates to only blocking moves for CRITICAL threats
             var forcingSet = new HashSet<(int x, int y)>(criticalThreats);
-            candidates = candidates.Where(c => forcingSet.Contains((c.x, c.y))).ToList();
+            candidates.RemoveAll(c => !forcingSet.Contains((c.x, c.y)));
 
             // If candidates ended up empty (edge case), fallback to original threat list
             if (candidates.Count == 0)
@@ -229,7 +229,10 @@ public sealed class ParallelMinimaxSearch
                 // FILTER candidates to only blocking squares - this is critical!
                 // Prioritization alone doesn't work because search evaluates all moves
                 // and may pick a non-blocking move with higher score
-                var filteredCandidates = openThreeBlocks.Where(c => searchBoard.IsEmpty(c.x, c.y)).ToList();
+                var filteredCandidates = new List<(int x, int y)>(openThreeBlocks.Count);
+                foreach (var c in openThreeBlocks)
+                    if (searchBoard.IsEmpty(c.x, c.y))
+                        filteredCandidates.Add(c);
 
                 // CRITICAL FIX: Only use filtered candidates if they're not empty
                 // If all blocking squares are somehow occupied, keep original candidates
@@ -268,13 +271,13 @@ public sealed class ParallelMinimaxSearch
 
         // SAFETY: Filter candidates to only empty cells to prevent "Cell is already occupied" errors
         // This ensures robustness even if GetCandidateMoves or external callers provide occupied cells
-        candidates = candidates.Where(c => searchBoard.IsEmpty(c.x, c.y)).ToList();
+        candidates.RemoveAll(c => !searchBoard.IsEmpty(c.x, c.y));
 
         // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections
         // away from the first red stone (5x5 exclusion zone centered on first move)
         if (player == Player.Red && moveNumber == 3)
         {
-            candidates = candidates.Where(c => ParallelThreatAnalyzer.IsValidPerOpenRule(board, c.x, c.y)).ToList();
+            candidates.RemoveAll(c => !ParallelThreatAnalyzer.IsValidPerOpenRule(board, c.x, c.y));
         }
 
         if (candidates.Count == 0)
@@ -310,7 +313,7 @@ public sealed class ParallelMinimaxSearch
         {
             // Filter candidates to only blocking moves for CRITICAL threats
             var forcingSet = new HashSet<(int x, int y)>(criticalThreats);
-            candidates = candidates.Where(c => forcingSet.Contains((c.x, c.y))).ToList();
+            candidates.RemoveAll(c => !forcingSet.Contains((c.x, c.y)));
 
             // If candidates ended up empty (edge case), fallback to original threat list
             if (candidates.Count == 0)
@@ -331,7 +334,10 @@ public sealed class ParallelMinimaxSearch
                 // FILTER candidates to only blocking squares - this is critical!
                 // Prioritization alone doesn't work because search evaluates all moves
                 // and may pick a non-blocking move with higher score
-                var filteredCandidates = openThreeBlocks.Where(c => searchBoard.IsEmpty(c.x, c.y)).ToList();
+                var filteredCandidates = new List<(int x, int y)>(openThreeBlocks.Count);
+                foreach (var c in openThreeBlocks)
+                    if (searchBoard.IsEmpty(c.x, c.y))
+                        filteredCandidates.Add(c);
 
                 // CRITICAL FIX: Only use filtered candidates if they're not empty
                 // If all blocking squares are somehow occupied, keep original candidates
@@ -1754,7 +1760,7 @@ public sealed class ParallelMinimaxSearch
     {
         var candidates = new List<(int x, int y)>(64);
         int boardSize = board.BoardSize;
-        var considered = new bool[boardSize, boardSize];
+        Span<bool> considered = stackalloc bool[boardSize * boardSize];
 
         var playerBitBoard = board.GetBitBoard(Player.Red);
         var opponentBitBoard = board.GetBitBoard(Player.Blue);
@@ -1801,10 +1807,10 @@ public sealed class ParallelMinimaxSearch
                             int nx = x + dx;
                             int ny = y + dy;
                             if (nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize &&
-                                !occupied.GetBit(nx, ny) && !considered[nx, ny])
+                                !occupied.GetBit(nx, ny) && !considered[nx * boardSize + ny])
                             {
                                 candidates.Add((nx, ny));
-                                considered[nx, ny] = true;
+                                considered[nx * boardSize + ny] = true;
                             }
                         }
                     }

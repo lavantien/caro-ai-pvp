@@ -76,21 +76,19 @@ public static class SIMDBitBoardEvaluator
 
         // Subtract opponent's score with DefenseMultiplier (asymmetric scoring)
         // In Caro, blocking opponent threats is MORE important than creating your own attacks
-        // Use integer math (multiply by 3, divide by 2) to avoid floating-point precision issues
-        // DefenseMultiplier of 1.5 = 3/2
-        const int DefenseMultiplierNumer = 3;
-        const int DefenseMultiplierDenom = 2;
+        // Use integer math to avoid floating-point precision issues
+        int defenseNumer = EvaluationConstants.DefenseMultiplierNumerator;
+        int defenseDenom = EvaluationConstants.DefenseMultiplierDenominator;
 
         var oppHorizontal = EvaluateHorizontalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3);
         var oppVertical = EvaluateVerticalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3);
         var oppDiagMain = EvaluateDiagonalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3, true);
         var oppDiagAnti = EvaluateDiagonalOptimized(o0, o1, o2, o3, occ0, occ1, occ2, occ3, false);
 
-        // Use integer math: opp * 11 / 5 for consistent results
-        score -= (oppHorizontal * DefenseMultiplierNumer) / DefenseMultiplierDenom;
-        score -= (oppVertical * DefenseMultiplierNumer) / DefenseMultiplierDenom;
-        score -= (oppDiagMain * DefenseMultiplierNumer) / DefenseMultiplierDenom;
-        score -= (oppDiagAnti * DefenseMultiplierNumer) / DefenseMultiplierDenom;
+        score -= (oppHorizontal * defenseNumer) / defenseDenom;
+        score -= (oppVertical * defenseNumer) / defenseDenom;
+        score -= (oppDiagMain * defenseNumer) / defenseDenom;
+        score -= (oppDiagAnti * defenseNumer) / defenseDenom;
 
         // Add center control bonus
         score += EvaluateCenterControlOptimized(p0, p1, p2, p3);
@@ -227,14 +225,14 @@ public static class SIMDBitBoardEvaluator
 
         // CRITICAL: Track counted stones to avoid counting the same run multiple times
         // Without this, a run of N stones would be counted N times, massively inflating scores
-        var counted = new bool[GameConstants.BoardSize, GameConstants.BoardSize];
+        Span<bool> counted = stackalloc bool[GameConstants.BoardSize * GameConstants.BoardSize];
 
         // Scan all starting positions
         for (int x = 0; x < GameConstants.BoardSize; x++)
         {
             for (int y = 0; y < GameConstants.BoardSize; y++)
             {
-                if (!playerBoard.GetBit(x, y) || counted[x, y]) continue;
+                if (!playerBoard.GetBit(x, y) || counted[x * GameConstants.BoardSize + y]) continue;
 
                 var count = BitBoardEvaluator.CountConsecutiveBoth(playerBoard, x, y, dx, dy);
                 if (count < 2) continue;
@@ -245,7 +243,7 @@ public static class SIMDBitBoardEvaluator
                 for (int i = 0; i < count; i++)
                 {
                     if (cx >= 0 && cx < GameConstants.BoardSize && cy >= 0 && cy < GameConstants.BoardSize)
-                        counted[cx, cy] = true;
+                        counted[cx * GameConstants.BoardSize + cy] = true;
                     cx += dx;
                     cy += dy;
                 }
