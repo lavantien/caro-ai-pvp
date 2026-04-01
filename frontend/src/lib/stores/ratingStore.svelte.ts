@@ -110,20 +110,11 @@ function createRatingStore() {
 		});
 	}
 
-	function getTopPlayers(count: number = RatingConfig.topPlayersLimit): PlayerRating[] {
-		let topPlayers: PlayerRating[] = [];
-		const unsubscribe = subscribe((data) => {
-			topPlayers = data.leaderboard.slice(0, count);
-		});
-		unsubscribe();
-		return topPlayers;
-	}
 
 	return {
 		subscribe,
 		createPlayer,
 		updateRating,
-		getTopPlayers,
 		set
 	};
 }

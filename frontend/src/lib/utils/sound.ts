@@ -105,17 +105,6 @@ export class SoundManager {
 		});
 	}
 
-	/**
-	 * Internal helper to play HTML5 Audio elements (if using audio files)
-	 * Currently unused (we use synthesized sounds instead)
-	 */
-	private playSound(audio: HTMLAudioElement): void {
-		if (this.muted) {
-			audio.volume = 0;
-		} else {
-			audio.volume = this.volume;
-		}
-	}
 }
 
 // Singleton instance

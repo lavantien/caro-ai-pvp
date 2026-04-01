@@ -1,4 +1,5 @@
 import type { Cell, Player, GameState } from '$lib/types/game';
+import { switchPlayer } from '$lib/types/game';
 import { UCIEngine, movesToUCI, fromUCI, toUCI } from '$lib/uciEngine';
 import { GameConfig } from '$lib/config/gameConfig';
 import { UCIConfig } from '$lib/config/uciConfig';
@@ -56,7 +57,7 @@ export class GameStore {
 
 		cell.player = this.currentPlayer;
 		this.moveNumber++;
-		this.currentPlayer = this.currentPlayer === 'red' ? 'blue' : 'red';
+		this.currentPlayer = switchPlayer(this.currentPlayer);
 
 		return true;
 	}

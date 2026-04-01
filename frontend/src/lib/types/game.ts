@@ -1,5 +1,9 @@
 export type Player = 'none' | 'red' | 'blue';
 
+export function switchPlayer(player: Player): Player {
+	return player === 'red' ? 'blue' : 'red';
+}
+
 export type TimeControl = '1+0' | '3+2' | '7+5' | '15+10';
 export type GameMode = 'pvp' | 'pvai' | 'aivai';
 

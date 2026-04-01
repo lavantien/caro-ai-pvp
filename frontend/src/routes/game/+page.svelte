@@ -10,7 +10,8 @@
 	import { soundManager } from '$lib/utils/sound';
 	import { ApiConfig } from '$lib/config/apiConfig';
 	import { GameConfig } from '$lib/config/gameConfig';
-	import type { GameState } from '$lib/types/game';
+	import { switchPlayer } from '$lib/types/game';
+	import type { GameState, Player } from '$lib/types/game';
 
 	let store = new GameStore();
 	let gameId = $state<string>('');
@@ -91,10 +92,8 @@
 	});
 
 	async function createNewGame() {
-		const apiUrl = ApiConfig.baseUrl;
-
 		try {
-			const response = await fetch(`${apiUrl}/api/game/new`, {
+			const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.newGame}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -126,8 +125,7 @@
 	async function syncWithBackend() {
 		if (!gameId) return;
 
-		const apiUrl = ApiConfig.baseUrl;
-		const response = await fetch(`${apiUrl}/api/game/${gameId}`);
+		const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.game(gameId)}`);
 		const data = await response.json();
 
 		// Update local state with backend state
@@ -158,10 +156,8 @@
 		// Play stone placement sound (previousPlayer is always "red" or "blue" at this point)
 		soundManager.playStoneSound(previousPlayer as "red" | "blue");
 
-		const apiUrl = ApiConfig.baseUrl;
-
-		try {
-			const response = await fetch(`${apiUrl}/api/game/${gameId}/move`, {
+				try {
+			const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.move(gameId)}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ x, y })
@@ -231,7 +227,7 @@
 		if (!gameId || store.isGameOver) return;
 
 		isAiThinking = true;
-		const apiUrl = ApiConfig.baseUrl;
+		
 
 		// Store previous board to find AI's move
 		const previousBoard = [...store.board];
@@ -248,7 +244,7 @@
 					if (move) {
 						aiMove = move;
 						// Make the move via API to update game state
-						const response = await fetch(`${apiUrl}/api/game/${gameId}/move`, {
+						const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.move(gameId)}`, {
 							method: 'POST',
 							headers: { 'Content-Type': 'application/json' },
 							body: JSON.stringify({ x: move.x, y: move.y })
@@ -265,7 +261,7 @@
 				} catch (uciError) {
 					console.warn('UCI move failed, falling back to API:', uciError);
 					// Fallback to API-based AI
-					const response = await fetch(`${apiUrl}/api/game/${gameId}/ai-move`, {
+					const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.aiMove(gameId)}`, {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({})
@@ -287,7 +283,7 @@
 				}
 			} else {
 				// Use API-based AI
-				const response = await fetch(`${apiUrl}/api/game/${gameId}/ai-move`, {
+				const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.aiMove(gameId)}`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({})
@@ -354,10 +350,10 @@
 	async function handleUndo() {
 		if (!gameId || store.isGameOver) return;
 
-		const apiUrl = ApiConfig.baseUrl;
+		
 
 		try {
-			const response = await fetch(`${apiUrl}/api/game/${gameId}/undo`, {
+			const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.undo(gameId)}`, {
 				method: 'POST'
 			});
 
@@ -388,7 +384,7 @@
 		if (store.isGameOver) return;
 
 		store.isGameOver = true;
-		const winner = player === 'red' ? 'blue' : 'red';
+		const winner = switchPlayer(player as Player);
 		store.winner = winner;
 		alert(`${winner.toUpperCase()} WINS! ${player.toUpperCase()} ran out of time.`);
 	}
