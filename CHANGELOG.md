@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.4.1] - 2026-04-01
 
 ### Changed
-- Test magic numbers replaced with named `private const` fields across 21 test files (integration + unit)
+- Test magic numbers replaced with named constants referencing centralized config (`GameConstants`, `EvaluationConstants`, `MoveOrderingConstants`, `SearchConstants`, `GameConfig`) across 17 backend + 3 frontend test files
 - Board boundary assertions: `< 15` replaced with `< GameConstants.BoardSize` across 5 files (39 occurrences)
+- Evaluation score thresholds, ELO defaults, TT size defaults now derive from single source of truth
 
 ### Fixed
 - Boundary bug: position 15 is valid on 16x16 board but was excluded by `< 15` checks
