@@ -19,7 +19,7 @@ public sealed record GameState(
     string TimeControl,                     // Time control name (e.g., "7+5")
     long InitialTimeMs,                     // Initial time per player in milliseconds
     int IncrementSeconds,                   // Time increment per move in seconds
-    string GameMode                         // "pvp", "pvai", "aivai"
+    GameMode GameMode
 )
 {
     /// <summary>
@@ -29,7 +29,7 @@ public sealed record GameState(
         string timeControl = "7+5",
         long initialTimeMs = 420_000,
         int incrementSeconds = 5,
-        string gameMode = "pvp") => new(
+        GameMode gameMode = GameMode.PvP) => new(
         new Board(),
         Player.Red,
         0,

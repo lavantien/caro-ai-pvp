@@ -140,7 +140,12 @@ app.MapPost("/api/game/new", (CreateGameRequest? request) =>
     };
 
     // Parse game mode (default to PvP)
-    var gameMode = request?.GameMode ?? "pvp";
+    var gameMode = request?.GameMode?.ToLowerInvariant() switch
+    {
+        "pvai" => GameMode.PvAI,
+        "aivai" => GameMode.AivAI,
+        _ => GameMode.PvP
+    };
 
     var session = new GameSession(
         timeControl.Name,
@@ -299,7 +304,7 @@ public sealed class GameSession
         string timeControl = "7+5",
         long initialTimeMs = 420_000,
         int incrementSeconds = 5,
-        string gameMode = "pvp")
+        GameMode gameMode = GameMode.PvP)
     {
         _game = GameState.CreateInitial(
             timeControl: timeControl,
@@ -375,7 +380,7 @@ public sealed class GameSession
                 timeControl = game.TimeControl,
                 initialTime = game.InitialTimeMs / 1000,
                 increment = game.IncrementSeconds,
-                gameMode = game.GameMode
+                gameMode = game.GameMode.ToLowerString()
             };
         }
     }
