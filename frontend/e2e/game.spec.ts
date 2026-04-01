@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { E2EConfig } from "../src/lib/config/e2eConfig";
 
 /**
  * E2E Tests for Caro Game
@@ -49,7 +50,7 @@ test.describe("Caro Game - Basic Mechanics", () => {
     await centerCell.click();
 
     // Wait for move to be registered
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(E2EConfig.apiMoveWaitMs);
 
     // Verify move was made (stone 'O' should be visible for red)
     await expect(centerCell).toContainText("O");
@@ -66,13 +67,13 @@ test.describe("Caro Game - Basic Mechanics", () => {
     // Place first stone
     const centerCell = page.locator('[data-x="7"][data-y="7"]');
     await centerCell.click();
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(E2EConfig.apiMoveWaitMs);
 
     await expect(centerCell).toContainText("O");
 
     // Try to place on same cell (should not work - move rejected)
     await centerCell.click();
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(E2EConfig.apiMoveWaitMs);
 
     // Player should still be blue (first move succeeded, second rejected)
     await expect(page.locator(".text-blue-600")).toBeVisible();
@@ -111,7 +112,7 @@ test.describe("Caro Game - Sound Effects", () => {
 
     // Click to unmute
     await soundButton.click();
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(E2EConfig.moveWaitMs);
 
     // Should now show mute button
     const newLabel = await soundButton.getAttribute("aria-label");
@@ -119,7 +120,7 @@ test.describe("Caro Game - Sound Effects", () => {
 
     // Click to mute again
     await soundButton.click();
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(E2EConfig.moveWaitMs);
 
     // Should show unmute button again
     const finalLabel = await soundButton.getAttribute("aria-label");
@@ -135,11 +136,11 @@ test.describe("Caro Game - Sound Effects", () => {
     // Unmute first
     const soundButton = page.locator('button[aria-label="Unmute"]');
     await soundButton.click();
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(E2EConfig.moveWaitMs);
 
     // Make a move - sound manager should be initialized
     await page.locator('[data-x="7"][data-y="7"]').click();
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(E2EConfig.apiMoveWaitMs);
 
     // Verify move was made (sound was triggered during move)
     await expect(page.locator(".text-blue-600")).toBeVisible();
@@ -162,14 +163,14 @@ test.describe("Caro Game - Move History", () => {
 
     // Make first move
     await page.locator('[data-x="7"][data-y="7"]').click();
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(E2EConfig.moveWaitMs);
 
     // Move history should show first move
     await expect(page.locator("text=/1\\. Red: \\(7, 7\\)/")).toBeVisible();
 
     // Make second move
     await page.locator('[data-x="7"][data-y="8"]').click();
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(E2EConfig.moveWaitMs);
 
     // Move history should show both moves
     await expect(page.locator("text=/1\\. Red: \\(7, 7\\)/")).toBeVisible();
@@ -182,7 +183,7 @@ test.describe("Caro Game - Move History", () => {
 
     // Make a move
     await page.locator('[data-x="7"][data-y="7"]').click();
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(E2EConfig.moveWaitMs);
 
     // Latest move should be highlighted - check move history container
     const moveHistoryContainer = page.locator(".max-h-64");
@@ -216,14 +217,14 @@ test.describe("Caro Game - Winning Line Animation", () => {
     // Make all moves
     for (const move of moves) {
       await page.locator(`[data-x="${move.x}"][data-y="${move.y}"]`).click();
-      await page.waitForTimeout(100);
+      await page.waitForTimeout(E2EConfig.moveWaitMs);
     }
 
     // Wait for win detection and alert
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(E2EConfig.winDetectionWaitMs);
 
     // Wait for winning line animation to complete (0.5s animation)
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(E2EConfig.animationWaitMs);
 
     // Check for winning line SVG element
     // Note: Line uses stroke-dashoffset animation, so we check existence and attributes
@@ -265,10 +266,10 @@ test.describe("Caro Game - Winning Line Animation", () => {
 
     for (const move of moves) {
       await page.locator(`[data-x="${move.x}"][data-y="${move.y}"]`).click();
-      await page.waitForTimeout(100);
+      await page.waitForTimeout(E2EConfig.moveWaitMs);
     }
 
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(E2EConfig.winDetectionWaitMs);
 
     // Game over banner should be visible
     await expect(page.locator(".bg-green-100")).toBeVisible();
@@ -294,7 +295,7 @@ test.describe("Caro Game - Timer Functionality", () => {
     const initialTime = await timeElements.first().textContent();
 
     // Wait 2 seconds
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(E2EConfig.timerCountdownWaitMs);
 
     // Time should have decreased
     const currentTime = await timeElements.first().textContent();
@@ -309,7 +310,7 @@ test.describe("Caro Game - Timer Functionality", () => {
     const timeElements = page.locator("text=/\\d:\\d\\d/");
     const blueTimeInitial = await timeElements.nth(1).textContent();
 
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(E2EConfig.timerCountdownWaitMs);
 
     const blueTimeCurrent = await timeElements.nth(1).textContent();
     expect(blueTimeCurrent).toBe(blueTimeInitial);
@@ -332,7 +333,7 @@ test.describe("Caro Game - Regression Tests", () => {
 
     for (const move of moves) {
       await page.locator(`[data-x="${move.x}"][data-y="${move.y}"]`).click();
-      await page.waitForTimeout(150);
+      await page.waitForTimeout(E2EConfig.regressionMoveWaitMs);
     }
 
     // Move number should be at least 3 (some moves may have failed due to timing)

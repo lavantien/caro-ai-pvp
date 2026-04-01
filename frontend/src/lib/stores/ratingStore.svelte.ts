@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
 import { GameConfig } from '$lib/config/gameConfig';
+import { RatingConfig } from '$lib/config/ratingConfig';
 
 interface PlayerRating {
 	name: string;
@@ -17,7 +18,7 @@ interface RatingData {
 }
 
 const DEFAULT_RATING = GameConfig.defaultEloRating;
-const STORAGE_KEY = 'caro-ratings';
+const STORAGE_KEY = RatingConfig.storageKey;
 
 function createRatingStore() {
 	const { subscribe, update, set } = writable<RatingData>({
@@ -79,7 +80,7 @@ function createRatingStore() {
 			// Simple ELO calculation
 			const K = GameConfig.eloKFactor;
 			const expectedScore =
-				1 / (1 + Math.pow(10, (opponentRating - data.currentPlayer.rating) / 400));
+				1 / (1 + Math.pow(10, (opponentRating - data.currentPlayer.rating) / RatingConfig.eloScaleFactor));
 			const actualScore = won ? 1 : 0;
 			const ratingChange = Math.round(K * (actualScore - expectedScore));
 
@@ -97,7 +98,7 @@ function createRatingStore() {
 				.filter((p) => p.name !== updatedPlayer.name)
 				.concat(updatedPlayer)
 				.sort((a, b) => b.rating - a.rating)
-				.slice(0, 10); // Keep top 10
+				.slice(0, RatingConfig.topPlayersLimit);
 
 			const newData: RatingData = {
 				currentPlayer: updatedPlayer,
@@ -109,7 +110,7 @@ function createRatingStore() {
 		});
 	}
 
-	function getTopPlayers(count: number = 10): PlayerRating[] {
+	function getTopPlayers(count: number = RatingConfig.topPlayersLimit): PlayerRating[] {
 		let topPlayers: PlayerRating[] = [];
 		const unsubscribe = subscribe((data) => {
 			topPlayers = data.leaderboard.slice(0, count);

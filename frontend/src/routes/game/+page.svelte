@@ -8,6 +8,8 @@
 	import { GameStore } from '$lib/stores/gameStore.svelte';
 	import { ratingStore } from '$lib/stores/ratingStore.svelte';
 	import { soundManager } from '$lib/utils/sound';
+	import { ApiConfig } from '$lib/config/apiConfig';
+	import { GameConfig } from '$lib/config/gameConfig';
 	import type { GameState } from '$lib/types/game';
 
 	let store = new GameStore();
@@ -21,7 +23,7 @@
 	let blueTime = $state(180);
 
 	// Player registration
-	const DEFAULT_RATING = 1500;
+	const DEFAULT_RATING = GameConfig.defaultEloRating;
 	let playerName = $state('');
 	let showNameInput = $state(false);
 	let currentPlayer = $state<{ name: string; rating: number } | null>(null);
@@ -89,7 +91,7 @@
 	});
 
 	async function createNewGame() {
-		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
+		const apiUrl = ApiConfig.baseUrl;
 
 		try {
 			const response = await fetch(`${apiUrl}/api/game/new`, {
@@ -124,7 +126,7 @@
 	async function syncWithBackend() {
 		if (!gameId) return;
 
-		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
+		const apiUrl = ApiConfig.baseUrl;
 		const response = await fetch(`${apiUrl}/api/game/${gameId}`);
 		const data = await response.json();
 
@@ -156,7 +158,7 @@
 		// Play stone placement sound (previousPlayer is always "red" or "blue" at this point)
 		soundManager.playStoneSound(previousPlayer as "red" | "blue");
 
-		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
+		const apiUrl = ApiConfig.baseUrl;
 
 		try {
 			const response = await fetch(`${apiUrl}/api/game/${gameId}/move`, {
@@ -229,7 +231,7 @@
 		if (!gameId || store.isGameOver) return;
 
 		isAiThinking = true;
-		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
+		const apiUrl = ApiConfig.baseUrl;
 
 		// Store previous board to find AI's move
 		const previousBoard = [...store.board];
@@ -352,7 +354,7 @@
 	async function handleUndo() {
 		if (!gameId || store.isGameOver) return;
 
-		const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
+		const apiUrl = ApiConfig.baseUrl;
 
 		try {
 			const response = await fetch(`${apiUrl}/api/game/${gameId}/undo`, {
@@ -399,8 +401,8 @@
 {:else if error}
 	<div class="container mx-auto p-8 text-center">
 		<p class="text-xl text-red-500">Error: {error}</p>
-		<p class="mt-4">Make sure the backend API is running on http://localhost:5207</p>
-		<p class="text-sm text-gray-500">API URL: {import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207'}</p>
+		<p class="mt-4">Make sure the backend API is running on {ApiConfig.baseUrl}</p>
+		<p class="text-sm text-gray-500">API URL: {ApiConfig.baseUrl}</p>
 	</div>
 {:else}
 	<div class="container mx-auto p-4 max-w-4xl">

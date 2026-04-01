@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Player } from '$lib/types/game';
+	import { UIConfig } from '$lib/config/uiConfig';
 
 	interface Props {
 		x: number;
@@ -15,11 +16,11 @@
 <button
 	onclick={onclick}
 	onkeydown={onkeydown}
-	class="w-10 h-10 text-2xl font-bold hover:bg-amber-200 active:bg-amber-300 transition-colors {player ===
+	class="w-16 h-16 text-2xl font-bold hover:bg-amber-200 active:bg-amber-300 transition-colors {player ===
 		'red'
 		? 'text-red-600'
 		: ''} {player === 'blue' ? 'text-blue-600' : ''}"
-	style="width: 40px; height: 40px; min-width: 40px; min-height: 40px; display: flex; align-items: center; justify-content: center;"
+	style="width: {UIConfig.cellSize}px; height: {UIConfig.cellSize}px; min-width: {UIConfig.cellSize}px; min-height: {UIConfig.cellSize}px; display: flex; align-items: center; justify-content: center;"
 	aria-label="Cell {x},{y}"
 	data-x={x}
 	data-y={y}

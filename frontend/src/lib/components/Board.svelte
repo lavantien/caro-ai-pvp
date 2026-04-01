@@ -5,6 +5,7 @@
 	import { calculateGhostStonePosition, isValidCell } from '$lib/utils/boardUtils';
 	import { vibrateOnValidMove, vibrateOnInvalidMove } from '$lib/utils/haptics';
 	import { GameConfig } from '$lib/config/gameConfig';
+	import { UIConfig } from '$lib/config/uiConfig';
 
 	interface Props {
 		board: Cell[];
@@ -49,7 +50,7 @@
 <div class="relative">
 	<div
 		class="grid gap-0 bg-amber-100 p-4 rounded-lg shadow-lg touch-none select-none"
-		style="display: grid; grid-template-columns: repeat({GameConfig.boardSize}, 64px); grid-template-rows: repeat({GameConfig.boardSize}, 64px); width: {GameConfig.boardSize * 64}px; height: {GameConfig.boardSize * 64}px;"
+		style="display: grid; grid-template-columns: repeat({GameConfig.boardSize}, {UIConfig.cellSize}px); grid-template-rows: repeat({GameConfig.boardSize}, {UIConfig.cellSize}px); width: {GameConfig.boardSize * UIConfig.cellSize}px; height: {GameConfig.boardSize * UIConfig.cellSize}px;"
 		ontouchmove={handleTouchMove}
 		ontouchend={() => (ghostPosition = null)}
 	>
@@ -63,12 +64,12 @@
 		{/each}
 	</div>
 
-	<WinningLine winningLine={winningLine} boardSize={GameConfig.boardSize} cellSize={64} />
+	<WinningLine winningLine={winningLine} boardSize={GameConfig.boardSize} cellSize={UIConfig.cellSize} />
 
 	{#if ghostPosition}
 		<div
 			class="fixed pointer-events-none w-16 h-16 rounded-full border-4 border-dashed border-gray-400 opacity-60"
-			style="left: {ghostPosition.x - 32}px; top: {ghostPosition.y - 32}px;"
+			style="left: {ghostPosition.x - UIConfig.halfCellSize}px; top: {ghostPosition.y - UIConfig.halfCellSize}px;"
 		>
 			<span class="flex items-center justify-center h-full text-2xl text-gray-400">?</span>
 		</div>

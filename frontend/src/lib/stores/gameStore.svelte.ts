@@ -1,6 +1,7 @@
 import type { Cell, Player, GameState } from '$lib/types/game';
 import { UCIEngine, movesToUCI, fromUCI, toUCI } from '$lib/uciEngine';
 import { GameConfig } from '$lib/config/gameConfig';
+import { UCIConfig } from '$lib/config/uciConfig';
 
 export interface MoveRecord {
 	moveNumber: number;
@@ -63,7 +64,7 @@ export class GameStore {
 	/**
 	 * Connect to the UCI engine.
 	 */
-	async connectUCI(url = 'ws://localhost:5207/ws/uci'): Promise<boolean> {
+	async connectUCI(url = UCIConfig.defaultWsUrl): Promise<boolean> {
 		if (this.uciEngine) {
 			this.uciEngine.disconnect();
 		}

@@ -1,3 +1,5 @@
+import { HapticConfig } from '$lib/config/hapticConfig';
+
 export function vibrate(duration: number | number[]): void {
 	if ('vibrate' in navigator) {
 		navigator.vibrate(duration);
@@ -5,9 +7,9 @@ export function vibrate(duration: number | number[]): void {
 }
 
 export function vibrateOnValidMove(): void {
-	vibrate(10); // Short, subtle vibration
+	vibrate(HapticConfig.validMoveDuration);
 }
 
 export function vibrateOnInvalidMove(): void {
-	vibrate([30, 50, 30]); // Error pattern
+	vibrate([...HapticConfig.invalidMovePattern]);
 }

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Player } from '$lib/types/game';
 	import { onMount, onDestroy } from 'svelte';
+	import { ApiConfig } from '$lib/config/apiConfig';
+	import { UIConfig } from '$lib/config/uiConfig';
 
 	interface Props {
 		player: Player;
@@ -48,7 +50,7 @@
 			displayInterval = setInterval(() => {
 				// Force reactivity by reading displayTime
 				const _ = displayTime();
-			}, 100);
+			}, UIConfig.timerUpdateIntervalMs);
 		} else {
 			if (displayInterval) {
 				clearInterval(displayInterval);
@@ -69,8 +71,7 @@
 		if (isActive && gameId) {
 			syncInterval = setInterval(async () => {
 				try {
-					const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5207';
-					const response = await fetch(`${apiUrl}/api/game/${gameId}`);
+					const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.game(gameId!)}`);
 					if (response.ok) {
 						const data = await response.json();
 						const serverTime = player === 'red' ? data.state.redTimeRemaining : data.state.blueTimeRemaining;
@@ -80,7 +81,7 @@
 				} catch {
 					// Ignore sync errors - continue with local calculation
 				}
-			}, 500); // Sync every 500ms
+			}, UIConfig.timerSyncIntervalMs); // Sync periodically
 		} else {
 			if (syncInterval) {
 				clearInterval(syncInterval);
@@ -100,7 +101,7 @@
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
 	}
 
-	const isLowTime = $derived(displayTime() < 60);
+	const isLowTime = $derived(displayTime() < UIConfig.lowTimeThresholdSeconds);
 </script>
 
 <div

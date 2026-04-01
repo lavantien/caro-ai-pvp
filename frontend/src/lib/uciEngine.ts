@@ -3,6 +3,8 @@
  * Implements the Universal Chess Interface protocol for Caro.
  */
 
+import { UCIConfig } from '$lib/config/uciConfig';
+
 export interface UCICommand {
 	command: string;
 	position?: string;
@@ -59,7 +61,7 @@ export class UCIEngine {
 	private commandId = 0;
 	private bestMoveCallback: ((move: string) => void) | null = null;
 
-	constructor(url: string = 'ws://localhost:5207/ws/uci') {
+	constructor(url: string = UCIConfig.defaultWsUrl) {
 		this.url = url;
 	}
 
@@ -159,10 +161,10 @@ export class UCIEngine {
 	 */
 	async getBestMove(
 		moves: string[] = [],
-		whiteTime = 180000,
-		blackTime = 180000,
-		whiteIncrement = 2000,
-		blackIncrement = 2000
+		whiteTime = UCIConfig.defaultTimeMs,
+		blackTime = UCIConfig.defaultTimeMs,
+		whiteIncrement = UCIConfig.defaultIncrementMs,
+		blackIncrement = UCIConfig.defaultIncrementMs
 	): Promise<string> {
 		// Set position first
 		await this.setPosition('startpos', moves);
@@ -189,10 +191,10 @@ export class UCIEngine {
 	 */
 	async getBestMoveAsync(
 		moves: string[] = [],
-		whiteTime = 180000,
-		blackTime = 180000,
-		whiteIncrement = 2000,
-		blackIncrement = 2000
+		whiteTime = UCIConfig.defaultTimeMs,
+		blackTime = UCIConfig.defaultTimeMs,
+		whiteIncrement = UCIConfig.defaultIncrementMs,
+		blackIncrement = UCIConfig.defaultIncrementMs
 	): Promise<string> {
 		// Set position first
 		await this.setPosition('startpos', moves);
@@ -205,7 +207,7 @@ export class UCIEngine {
 			const timeout = setTimeout(() => {
 				this.bestMoveCallback = null;
 				reject(new Error('Search timeout'));
-			}, 60000); // 60 second timeout
+			}, UCIConfig.searchTimeoutMs);
 
 			// Start search
 			this.sendCommand({
@@ -303,13 +305,14 @@ export class UCIEngine {
  * Returns UCI notation like "bb9" for center (7, 8).
  */
 export function toUCI(x: number, y: number): string {
-	if (x < 0 || x > 15 || y < 0 || y > 15) {
+	const maxIndex = UCIConfig.maxRow - 1;
+	if (x < 0 || x > maxIndex || y < 0 || y > maxIndex) {
 		throw new Error(`Coordinates out of bounds: (${x}, ${y})`);
 	}
-	const firstLetter = Math.floor(x / 4); // 0-3 maps to a-d
-	const secondLetter = x % 4; // 0-3 maps to a-d
-	const column = String.fromCharCode(97 + firstLetter) + String.fromCharCode(97 + secondLetter);
-	const row = y + 1;
+	const firstLetter = Math.floor(x / UCIConfig.letterGroupSize);
+	const secondLetter = x % UCIConfig.letterGroupSize;
+	const column = String.fromCharCode(UCIConfig.asciiLowerA + firstLetter) + String.fromCharCode(UCIConfig.asciiLowerA + secondLetter);
+	const row = y + UCIConfig.minRow;
 	return `${column}${row}`;
 }
 
@@ -319,26 +322,26 @@ export function toUCI(x: number, y: number): string {
  * Uses double-letter grid format: column = firstLetterIndex * 4 + secondLetterIndex
  */
 export function fromUCI(move: string): { x: number; y: number } {
-	if (!move || move.length < 3) {
+	if (!move || move.length < UCIConfig.minMoveLength) {
 		throw new Error(`Invalid UCI move: ${move} (expected double-letter column)`);
 	}
 
 	move = move.toLowerCase();
 	const col1 = move[0];
 	const col2 = move[1];
-	const rowPart = move.substring(2);
+	const rowPart = move.substring(UCIConfig.minMoveLength - 1);
 
 	if (!/[a-d]/.test(col1) || !/[a-d]/.test(col2)) {
 		throw new Error(`Invalid column in UCI move: ${move} (first letter a-d, second letter a-d)`);
 	}
 
 	const row = parseInt(rowPart, 10);
-	if (isNaN(row) || row < 1 || row > 16) {
+	if (isNaN(row) || row < UCIConfig.minRow || row > UCIConfig.maxRow) {
 		throw new Error(`Invalid row in UCI move: ${move}`);
 	}
 
-	const x = (col1.charCodeAt(0) - 97) * 4 + (col2.charCodeAt(0) - 97);
-	const y = row - 1;
+	const x = (col1.charCodeAt(0) - UCIConfig.asciiLowerA) * UCIConfig.letterGroupSize + (col2.charCodeAt(0) - UCIConfig.asciiLowerA);
+	const y = row - UCIConfig.minRow;
 
 	return { x, y };
 }
