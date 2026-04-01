@@ -166,29 +166,31 @@ public class MinimaxAI : IStatsPublisher
     /// </summary>
     public (int x, int y) GetBestMove(Board board, Player player, long? timeRemainingMs, bool ponderingEnabled = true, bool parallelSearchEnabled = true)
     {
-        return GetBestMove(board, player, timeRemainingMs, moveNumber: 0, ponderingEnabled: ponderingEnabled, parallelSearchEnabled: parallelSearchEnabled);
+        return GetBestMove(board, player, new SearchOptions
+        {
+            TimeRemainingMs = timeRemainingMs,
+            PonderingEnabled = ponderingEnabled,
+            ParallelSearchEnabled = parallelSearchEnabled,
+        });
     }
 
     /// <summary>
-    /// Get the best move for the AI player with full time awareness
-    /// Dynamically adjusts search depth based on remaining time and game phase
+    /// Get the best move for the AI player with full search configuration.
     /// </summary>
-    /// <param name="board">Current board state</param>
-    /// <param name="player">Player to move</param>
-    /// <param name="timeRemainingMs">Time remaining on clock in milliseconds (null for unlimited)</param>
-    /// <param name="moveNumber">Current move number (1-indexed, 0 if unknown)</param>
-    /// <param name="ponderingEnabled">Enable pondering (thinking on opponent's time)</param>
-    /// <param name="parallelSearchEnabled">Enable Lazy SMP parallel search</param>
-    /// <param name="incrementSeconds">Explicit increment in seconds (null to estimate from time remaining)</param>
-    /// <param name="threadCount">Explicit thread count override (null to use default)</param>
-    /// <param name="maxDepth">Maximum search depth (null for no depth limit)</param>
-    /// <param name="maxNodes">Maximum nodes to search (null for no node limit)</param>
-    /// <param name="maxTimeMs">Maximum time in ms (null to use time management)</param>
-    /// <returns>Best move coordinates</returns>
-    public (int x, int y) GetBestMove(Board board, Player player, long? timeRemainingMs, int moveNumber, bool ponderingEnabled = true, bool parallelSearchEnabled = true, int? incrementSeconds = null, int? threadCount = null, int? maxDepth = null, long? maxNodes = null, int? maxTimeMs = null)
+    public (int x, int y) GetBestMove(Board board, Player player, SearchOptions options)
     {
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
+
+        var timeRemainingMs = options.TimeRemainingMs;
+        var moveNumber = options.MoveNumber;
+        var ponderingEnabled = options.PonderingEnabled;
+        var parallelSearchEnabled = options.ParallelSearchEnabled;
+        var incrementSeconds = options.IncrementSeconds;
+        var threadCount = options.ThreadCount;
+        var maxDepth = options.MaxDepth;
+        var maxNodes = options.MaxNodes;
+        var maxTimeMs = options.MaxTimeMs;
 
         var candidates = CandidateGenerator.GetCandidateMoves(board, SearchConstants.MaxSearchRadius);
 

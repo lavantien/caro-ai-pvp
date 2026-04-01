@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic.TimeManagement;
 using System.Diagnostics;
@@ -132,15 +133,18 @@ public sealed class UCISearchController
             var (x, y) = _ai.GetBestMove(
                 board,
                 player,
-                timeRemainingMs,
-                moveNumber: moveNumber,
-                ponderingEnabled: _options.Ponder,
-                parallelSearchEnabled: _options.Threads > 1,
-                incrementSeconds: incrementSeconds,
-                threadCount: _options.Threads,
-                maxDepth: goParams.Depth,
-                maxNodes: goParams.Nodes,
-                maxTimeMs: goParams.MoveTimeMs
+                new SearchOptions
+                {
+                    TimeRemainingMs = timeRemainingMs,
+                    MoveNumber = moveNumber,
+                    PonderingEnabled = _options.Ponder,
+                    ParallelSearchEnabled = _options.Threads > 1,
+                    IncrementSeconds = incrementSeconds,
+                    ThreadCount = _options.Threads,
+                    MaxDepth = goParams.Depth,
+                    MaxNodes = goParams.Nodes,
+                    MaxTimeMs = goParams.MoveTimeMs,
+                }
             );
 
             stopwatch.Stop();
