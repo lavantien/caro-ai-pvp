@@ -354,25 +354,19 @@ public sealed class MovePicker
     {
         var winningMoves = new List<(int x, int y)>();
 
-        for (int x = 0; x < BitBoard.Size; x++)
+        for (int i = 0; i < _candidates.Count; i++)
         {
-            for (int y = 0; y < BitBoard.Size; y++)
+            var (x, y) = _candidates[i];
+
+            var testBoard = board.PlaceStone(x, y, player);
+            var pattern = Pattern4Evaluator.EvaluatePosition(testBoard, x, y, player);
+
+            if (pattern == Pattern4Evaluator.CaroPattern4.Flex4 ||
+                pattern == Pattern4Evaluator.CaroPattern4.DoubleFlex3 ||
+                pattern == Pattern4Evaluator.CaroPattern4.Flex4Flex3 ||
+                pattern == Pattern4Evaluator.CaroPattern4.Exactly5)
             {
-                if (!board.GetCell(x, y).IsEmpty)
-                    continue;
-
-                // Simulate placing a stone
-                var testBoard = board.PlaceStone(x, y, player);
-                var pattern = Pattern4Evaluator.EvaluatePosition(testBoard, x, y, player);
-
-                // Open four, double flex3, or flex4+flex3 are winning
-                if (pattern == Pattern4Evaluator.CaroPattern4.Flex4 ||
-                    pattern == Pattern4Evaluator.CaroPattern4.DoubleFlex3 ||
-                    pattern == Pattern4Evaluator.CaroPattern4.Flex4Flex3 ||
-                    pattern == Pattern4Evaluator.CaroPattern4.Exactly5)
-                {
-                    winningMoves.Add((x, y));
-                }
+                winningMoves.Add((x, y));
             }
         }
 
@@ -386,26 +380,20 @@ public sealed class MovePicker
     {
         var threatMoves = new List<(int x, int y)>();
 
-        for (int x = 0; x < BitBoard.Size; x++)
+        for (int i = 0; i < _candidates.Count; i++)
         {
-            for (int y = 0; y < BitBoard.Size; y++)
+            var (x, y) = _candidates[i];
+
+            var testBoard = board.PlaceStone(x, y, player);
+            var pattern = Pattern4Evaluator.EvaluatePosition(testBoard, x, y, player);
+
+            if (pattern >= Pattern4Evaluator.CaroPattern4.Flex3 &&
+                pattern != Pattern4Evaluator.CaroPattern4.Flex4 &&
+                pattern != Pattern4Evaluator.CaroPattern4.DoubleFlex3 &&
+                pattern != Pattern4Evaluator.CaroPattern4.Flex4Flex3 &&
+                pattern != Pattern4Evaluator.CaroPattern4.Exactly5)
             {
-                if (!board.GetCell(x, y).IsEmpty)
-                    continue;
-
-                // Simulate placing a stone
-                var testBoard = board.PlaceStone(x, y, player);
-                var pattern = Pattern4Evaluator.EvaluatePosition(testBoard, x, y, player);
-
-                // Open three or better (but not already in winning moves)
-                if (pattern >= Pattern4Evaluator.CaroPattern4.Flex3 &&
-                    pattern != Pattern4Evaluator.CaroPattern4.Flex4 &&
-                    pattern != Pattern4Evaluator.CaroPattern4.DoubleFlex3 &&
-                    pattern != Pattern4Evaluator.CaroPattern4.Flex4Flex3 &&
-                    pattern != Pattern4Evaluator.CaroPattern4.Exactly5)
-                {
-                    threatMoves.Add((x, y));
-                }
+                threatMoves.Add((x, y));
             }
         }
 
@@ -502,38 +490,25 @@ public sealed class MovePicker
     /// </summary>
     private void SortByScore()
     {
-        // Create index array for sorting
-        var indices = new int[_candidates.Count];
-        for (int i = 0; i < indices.Length; i++)
-            indices[i] = i;
+        int count = _candidates.Count;
 
-        // Sort by category first, then by score within category
-        Array.Sort(indices, (a, b) =>
+        // Insertion sort in-place by (category ascending, score descending)
+        for (int i = 1; i < count; i++)
         {
-            int catCompare = _categories[a].CompareTo(_categories[b]);
-            if (catCompare != 0) return catCompare;
+            int j = i;
+            while (j > 0)
+            {
+                int catCompare = _categories[j].CompareTo(_categories[j - 1]);
+                bool shouldSwap = catCompare < 0 ||
+                    (catCompare == 0 && _scores[j] > _scores[j - 1]);
 
-            return _scores[b].CompareTo(_scores[a]); // Descending by score
-        });
+                if (!shouldSwap) break;
 
-        // Reorder arrays based on sorted indices
-        var newCandidates = new List<(int x, int y)>(_candidates.Count);
-        var newScores = new int[_candidates.Count];
-        var newCategories = new MoveCategory[_candidates.Count];
-
-        for (int i = 0; i < indices.Length; i++)
-        {
-            newCandidates.Add(_candidates[indices[i]]);
-            newScores[i] = _scores[indices[i]];
-            newCategories[i] = _categories[indices[i]];
-        }
-
-        // Update arrays
-        for (int i = 0; i < _candidates.Count; i++)
-        {
-            _candidates[i] = newCandidates[i];
-            _scores[i] = newScores[i];
-            _categories[i] = newCategories[i];
+                (_candidates[j], _candidates[j - 1]) = (_candidates[j - 1], _candidates[j]);
+                (_scores[j], _scores[j - 1]) = (_scores[j - 1], _scores[j]);
+                (_categories[j], _categories[j - 1]) = (_categories[j - 1], _categories[j]);
+                j--;
+            }
         }
     }
 

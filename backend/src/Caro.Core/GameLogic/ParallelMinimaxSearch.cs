@@ -1502,10 +1502,8 @@ public sealed class ParallelMinimaxSearch
             int j = i;
             while (j > 0 && scores[j] > scores[j - 1])
             {
-                // Swap moves
-                (candidates[j], candidates[j - 1]) = (candidates[j - 1], candidates[j]);
-                // Swap scores
-                (scores[j], scores[j - 1]) = (scores[j - 1], scores[j]);
+                var tmpC = candidates[j]; candidates[j] = candidates[j - 1]; candidates[j - 1] = tmpC;
+                int tmpS = scores[j]; scores[j] = scores[j - 1]; scores[j - 1] = tmpS;
                 j--;
             }
         }

@@ -239,7 +239,7 @@ public class ThreatDetector
     public List<Threat> DetectThreats(Board board, Player player)
     {
         var threats = new List<Threat>();
-        var seen = new HashSet<string>();
+        var seen = new HashSet<int>();
 
         // Scan each cell as a potential starting point
         for (int x = 0; x < BitBoard.Size; x++)
@@ -761,12 +761,17 @@ public class ThreatDetector
 
     private bool IsValidPosition(int x, int y, int boardSize)
     {
-        return x >= 0 && x < boardSize && y >= 0 && y < boardSize;
+        return PositionExtensions.InBounds(x, y, boardSize);
     }
 
-    private string CreateThreatKey(Threat threat)
+    private int CreateThreatKey(Threat threat)
     {
-        return $"{threat.Type}:{string.Join(",", threat.StonePositions.Select(p => $"{p.x},{p.y}"))}";
+        int hash = (int)threat.Type * 397;
+        foreach (var (x, y) in threat.StonePositions)
+        {
+            hash = hash * 31 + x * 16 + y;
+        }
+        return hash;
     }
 
     #endregion
