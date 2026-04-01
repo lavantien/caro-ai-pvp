@@ -41,4 +41,16 @@ public static class GameConstants
     /// Default ELO rating for new players
     /// </summary>
     public const int DefaultEloRating = 1500;
+
+    /// <summary>
+    /// Cardinal direction vectors: horizontal, vertical, and two diagonals.
+    /// Single source of truth for all direction-based scanning.
+    /// </summary>
+    public static readonly (int dx, int dy)[] CardinalDirections =
+    [
+        (1, 0),   // Horizontal
+        (0, 1),   // Vertical
+        (1, 1),   // Diagonal down-right
+        (1, -1)   // Diagonal down-left
+    ];
 }

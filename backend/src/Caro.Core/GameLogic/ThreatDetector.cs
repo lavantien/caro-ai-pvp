@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -11,13 +12,7 @@ namespace Caro.Core.GameLogic;
 /// </summary>
 public class ThreatDetector
 {
-    private static readonly (int dx, int dy)[] Directions =
-    {
-        (1, 0),   // Horizontal
-        (0, 1),   // Vertical
-        (1, 1),   // Diagonal down-right
-        (1, -1)   // Diagonal down-left
-    };
+    private static readonly (int dx, int dy)[] Directions = GameConstants.CardinalDirections;
 
     private readonly WinDetector _winDetector = new();
 

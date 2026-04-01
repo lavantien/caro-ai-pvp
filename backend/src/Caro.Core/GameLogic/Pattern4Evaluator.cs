@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
 namespace Caro.Core.GameLogic;
@@ -14,14 +15,7 @@ namespace Caro.Core.GameLogic;
 /// </summary>
 public static class Pattern4Evaluator
 {
-    // Direction vectors: horizontal, vertical, 2 diagonals
-    private static readonly (int dx, int dy)[] Directions = new[]
-    {
-        (1, 0),   // Horizontal
-        (0, 1),   // Vertical
-        (1, 1),   // Diagonal down-right
-        (1, -1)   // Diagonal down-left
-    };
+    private static readonly (int dx, int dy)[] Directions = GameConstants.CardinalDirections;
 
     /// <summary>
     /// Combined pattern classification for a position.

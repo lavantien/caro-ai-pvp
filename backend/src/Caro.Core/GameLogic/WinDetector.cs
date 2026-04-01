@@ -44,13 +44,7 @@ public static class PositionExtensions
 
 public class WinDetector
 {
-    private static readonly (int dx, int dy)[] Directions =
-    {
-        (1, 0),   // Horizontal
-        (0, 1),   // Vertical
-        (1, 1),   // Diagonal down-right
-        (1, -1)   // Diagonal down-left
-    };
+    private static readonly (int dx, int dy)[] Directions = GameConstants.CardinalDirections;
 
     public WinResult CheckWin(Board board)
     {

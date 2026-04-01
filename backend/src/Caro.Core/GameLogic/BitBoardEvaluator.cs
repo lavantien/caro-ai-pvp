@@ -32,14 +32,8 @@ public static class BitBoardEvaluator
     /// </summary>
     private const float DefenseMultiplier = (float)EvaluationConstants.DefenseMultiplierNumerator / EvaluationConstants.DefenseMultiplierDenominator;
 
-    // Direction vectors: horizontal, vertical, 2 diagonals
-    private static readonly (int dx, int dy)[] Directions = new[]
-    {
-        (1, 0),   // Horizontal
-        (0, 1),   // Vertical
-        (1, 1),   // Diagonal down-right
-        (1, -1)   // Diagonal down-left
-    };
+    // Reuse centralized direction vectors
+    private static readonly (int dx, int dy)[] Directions = GameConstants.CardinalDirections;
 
     /// <summary>
     /// Evaluate the board for a given player using BitBoard operations
@@ -91,21 +85,19 @@ public static class BitBoardEvaluator
 
         // Subtract opponent's threats with DefenseMultiplier (asymmetric scoring)
         // In Caro, blocking opponent threats is MORE important than creating your own attacks
-        // Use integer math (multiply by 3, divide by 2) to avoid floating-point precision issues
-        // DefenseMultiplier of 1.5 = 3/2
-        const int DefenseMultiplierNumer = 3;
-        const int DefenseMultiplierDenom = 2;
+        // Use integer math to avoid floating-point precision issues
+        int defenseNumer = EvaluationConstants.DefenseMultiplierNumerator;
+        int defenseDenom = EvaluationConstants.DefenseMultiplierDenominator;
 
         var oppHorizontal = EvaluateDirection(opponentBoard, occupied, 1, 0);
         var oppVertical = EvaluateDirection(opponentBoard, occupied, 0, 1);
         var oppDiagonal = EvaluateDirection(opponentBoard, occupied, 1, 1);
         var oppAntiDiagonal = EvaluateDirection(opponentBoard, occupied, 1, -1);
 
-        // Use integer math: opp * 3 / 2 for consistent results
-        score -= (oppHorizontal * DefenseMultiplierNumer) / DefenseMultiplierDenom;
-        score -= (oppVertical * DefenseMultiplierNumer) / DefenseMultiplierDenom;
-        score -= (oppDiagonal * DefenseMultiplierNumer) / DefenseMultiplierDenom;
-        score -= (oppAntiDiagonal * DefenseMultiplierNumer) / DefenseMultiplierDenom;
+        score -= (oppHorizontal * defenseNumer) / defenseDenom;
+        score -= (oppVertical * defenseNumer) / defenseDenom;
+        score -= (oppDiagonal * defenseNumer) / defenseDenom;
+        score -= (oppAntiDiagonal * defenseNumer) / defenseDenom;
 
         // Add center control bonus
         score += EvaluateCenterControl(playerBoard);
@@ -201,13 +193,13 @@ public static class BitBoardEvaluator
         int fiveInRowScore, int openFourScore, int closedFourScore, int openThreeScore, int closedThreeScore, int openTwoScore)
     {
         var score = 0;
-        var counted = new bool[BitBoard.Size, BitBoard.Size];
+        Span<bool> counted = stackalloc bool[BitBoard.Size * BitBoard.Size];
 
         for (int x = 0; x < BitBoard.Size; x++)
         {
             for (int y = 0; y < BitBoard.Size; y++)
             {
-                if (!playerBoard.GetBit(x, y) || counted[x, y])
+                if (!playerBoard.GetBit(x, y) || counted[x * BitBoard.Size + y])
                     continue;
 
                 var count = CountConsecutive(playerBoard, x, y, dx, dy);
@@ -216,7 +208,7 @@ public static class BitBoardEvaluator
                 var cy = y;
                 for (int i = 0; i < count; i++)
                 {
-                    counted[cx, cy] = true;
+                    counted[cx * BitBoard.Size + cy] = true;
                     cx += dx;
                     cy += dy;
                 }
@@ -286,13 +278,13 @@ public static class BitBoardEvaluator
     private static int EvaluateDirection(BitBoard playerBoard, BitBoard occupied, int dx, int dy)
     {
         var score = 0;
-        var counted = new bool[BitBoard.Size, BitBoard.Size];
+        Span<bool> counted = stackalloc bool[BitBoard.Size * BitBoard.Size];
 
         for (int x = 0; x < BitBoard.Size; x++)
         {
             for (int y = 0; y < BitBoard.Size; y++)
             {
-                if (!playerBoard.GetBit(x, y) || counted[x, y])
+                if (!playerBoard.GetBit(x, y) || counted[x * BitBoard.Size + y])
                     continue;
 
                 // Count consecutive stones in this direction
@@ -303,7 +295,7 @@ public static class BitBoardEvaluator
                 var cy = y;
                 for (int i = 0; i < count; i++)
                 {
-                    counted[cx, cy] = true;
+                    counted[cx * BitBoard.Size + cy] = true;
                     cx += dx;
                     cy += dy;
                 }
