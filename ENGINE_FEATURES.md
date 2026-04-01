@@ -19,7 +19,7 @@ The engine follows principles from state-of-the-art game-playing systems:
 ### Performance Target
 
 - **Speedup:** 100-500x over naive minimax
-- **Parallelism:** Lazy SMP with N/2-1 helper threads
+- **Parallelism:** Lazy SMP with power-of-2 threads (largest power of 2 <= logical cores)
 
 ---
 
@@ -35,7 +35,7 @@ Lazy SMP is a parallel search paradigm where multiple threads explore the game t
 - Hash move priority enables cross-thread work distribution
 
 **Thread Distribution:**
-- Thread count: `max(5, (logical_cores / 2) - 1)`
+- Thread count: Largest power of 2 <= logical_cores (e.g., 20 cores -> 16 threads)
 - Each thread maintains independent killer moves and history tables
 - TT writes from helpers are filtered (shallow depths, exact bounds only)
 

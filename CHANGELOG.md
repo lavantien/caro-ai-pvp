@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [2.5.1] - 2026-04-01
+
+### Changed
+- Engine thread count now uses largest power of 2 <= logical core count (e.g., 20 cores -> 16 threads), replacing the previous `max(5, (N/2)-1)` formula
+- Thread count calculation centralized in `ThreadPoolConfig.GetLazySMPThreadCount()`, removing inline duplications from `MinimaxAI.cs`
+- Removed unused `MinThreadCount` constant from `SearchHeuristicConstants`
+
 ## [2.5.0] - 2026-04-01
 
 ### Changed

@@ -106,7 +106,7 @@ The engine runs at full strength with all optimizations enabled:
 
 | Parameter | Value |
 |-----------|-------|
-| Threads | max(5, (logical_cores / 2) - 1) |
+| Threads | Largest power of 2 <= logical_cores |
 | Time Budget | 100% |
 | Search Radius | 7 (15x15 area) |
 | Error Rate | 0% |
@@ -347,7 +347,7 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Parameter | Value |
 |-----------|-------|
-| Threads | max(5, (N/2)-1) where N = logical cores |
+| Threads | Largest power of 2 <= N where N = logical cores |
 | Time Budget | 100% |
 
 **Depth varies by host machine** - calculated dynamically from NPS and time budget. Higher-spec machines achieve greater depth naturally.
