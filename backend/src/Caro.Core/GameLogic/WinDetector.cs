@@ -1,5 +1,6 @@
 namespace Caro.Core.GameLogic;
 
+using System.Runtime.CompilerServices;
 using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 
@@ -16,6 +17,13 @@ public static class PositionExtensions
     public static bool IsValid(this Domain.Entities.Position position) =>
         position.X >= 0 && position.X < BoardSize &&
         position.Y >= 0 && position.Y < BoardSize;
+
+    /// <summary>
+    /// Check if raw coordinates are within board bounds
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool InBounds(int x, int y, int boardSize) =>
+        (uint)x < boardSize && (uint)y < boardSize;
 
     /// <summary>
     /// Check if board is full (all cells occupied)
@@ -105,7 +113,7 @@ public class WinDetector
 
             int x = lastX + dx;
             int y = lastY + dy;
-            while (x >= 0 && x < boardSize && y >= 0 && y < boardSize &&
+            while (PositionExtensions.InBounds(x, y, boardSize) &&
                    board.GetCell(x, y).Player == player)
             {
                 count++;
@@ -117,7 +125,7 @@ public class WinDetector
 
             x = lastX - dx;
             y = lastY - dy;
-            while (x >= 0 && x < boardSize && y >= 0 && y < boardSize &&
+            while (PositionExtensions.InBounds(x, y, boardSize) &&
                    board.GetCell(x, y).Player == player)
             {
                 count++;
@@ -129,11 +137,9 @@ public class WinDetector
 
             if (count == GameConstants.WinLength)
             {
-                bool hasPositiveExtension = positiveEndX >= 0 && positiveEndX < boardSize &&
-                                            positiveEndY >= 0 && positiveEndY < boardSize &&
+                bool hasPositiveExtension = PositionExtensions.InBounds(positiveEndX, positiveEndY, boardSize) &&
                                             board.GetCell(positiveEndX, positiveEndY).Player == player;
-                bool hasNegativeExtension = negativeEndX >= 0 && negativeEndX < boardSize &&
-                                            negativeEndY >= 0 && negativeEndY < boardSize &&
+                bool hasNegativeExtension = PositionExtensions.InBounds(negativeEndX, negativeEndY, boardSize) &&
                                             board.GetCell(negativeEndX, negativeEndY).Player == player;
 
                 if (hasPositiveExtension || hasNegativeExtension)
@@ -154,7 +160,7 @@ public class WinDetector
 
     private static bool IsBlockedAt(Board board, int x, int y, Player player)
     {
-        if (x < 0 || x >= board.BoardSize || y < 0 || y >= board.BoardSize)
+        if (!PositionExtensions.InBounds(x, y, board.BoardSize))
             return true;
 
         var cell = board.GetCell(x, y);
@@ -167,7 +173,7 @@ public class WinDetector
         int startY = lastY;
         int prevX = startX - dx;
         int prevY = startY - dy;
-        while (prevX >= 0 && prevX < boardSize && prevY >= 0 && prevY < boardSize &&
+        while (PositionExtensions.InBounds(prevX, prevY, boardSize) &&
                board.GetCell(prevX, prevY).Player == player)
         {
             startX = prevX;
@@ -191,7 +197,7 @@ public class WinDetector
 
     private bool HasPlayerAt(Board board, int x, int y, Player player)
     {
-        if (x < 0 || x >= board.BoardSize || y < 0 || y >= board.BoardSize)
+        if (!PositionExtensions.InBounds(x, y, board.BoardSize))
             return false;
 
         return board.GetCell(x, y).Player == player;
@@ -203,7 +209,7 @@ public class WinDetector
         var player = board.GetCell(startX, startY).Player;
         int x = startX, y = startY;
 
-        while (x >= 0 && x < board.BoardSize && y >= 0 && y < board.BoardSize)
+        while (PositionExtensions.InBounds(x, y, board.BoardSize))
         {
             if (board.GetCell(x, y).Player != player)
                 break;
@@ -217,8 +223,8 @@ public class WinDetector
 
     private bool IsPositionBlocked(Board board, int x, int y, Player player)
     {
-        if (x < 0 || x >= board.BoardSize || y < 0 || y >= board.BoardSize)
-            return true;  // Edge of board counts as blocked
+        if (!PositionExtensions.InBounds(x, y, board.BoardSize))
+            return true;
 
         var cell = board.GetCell(x, y);
         return !cell.IsEmpty && cell.Player != player;

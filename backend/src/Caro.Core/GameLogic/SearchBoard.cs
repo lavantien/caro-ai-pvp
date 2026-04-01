@@ -82,7 +82,7 @@ public sealed class SearchBoard
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsEmpty(int x, int y)
     {
-        if (x < 0 || x >= Size || y < 0 || y >= Size)
+        if (!PositionExtensions.InBounds(x, y, Size))
             return false;
         return !_redBits.GetBit(x, y) && !_blueBits.GetBit(x, y);
     }
@@ -93,7 +93,7 @@ public sealed class SearchBoard
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Player GetPlayerAt(int x, int y)
     {
-        if (x < 0 || x >= Size || y < 0 || y >= Size)
+        if (!PositionExtensions.InBounds(x, y, Size))
             return Player.None;
 
         if (_redBits.GetBit(x, y))

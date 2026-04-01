@@ -45,4 +45,14 @@ public static class PlayerExtensions
     /// Check if the player is Blue
     /// </summary>
     public static bool IsBlue(this Player player) => player == Player.Blue;
+
+    /// <summary>
+    /// Get lowercase string representation for API serialization
+    /// </summary>
+    public static string ToLowerString(this Player player) => player switch
+    {
+        Player.Red => "red",
+        Player.Blue => "blue",
+        _ => "none"
+    };
 }

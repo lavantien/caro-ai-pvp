@@ -363,12 +363,12 @@ public sealed class GameSession
                         {
                             x,
                             y,
-                            player = cell.Player.ToString().ToLower()
+                            player = cell.Player.ToLowerString()
                         },
-                currentPlayer = game.CurrentPlayer.ToString().ToLower(),
+                currentPlayer = game.CurrentPlayer.ToLowerString(),
                 moveNumber = game.MoveNumber,
                 isGameOver = game.IsGameOver,
-                winner = game.Winner.ToString().ToLower(),
+                winner = game.Winner.ToLowerString(),
                 winningLine = game.WinningLine.Select(p => new { x = p.X, y = p.Y }),
                 redTimeRemaining = 0.0,  // Time tracking moved to application layer
                 blueTimeRemaining = 0.0,
