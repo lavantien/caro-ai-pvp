@@ -1,3 +1,4 @@
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.IntegrationTests.Helpers;
@@ -194,7 +195,7 @@ public class ZeroAllocationTests
         var timeRemainingMs = FiveMinutesMs;  // 5 minutes left
         var moveNumber = LateMidGameMoveNumber;              // LateMid game phase
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, timeRemainingMs, moveNumber);
+        var move = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = timeRemainingMs, MoveNumber = moveNumber });
         stopwatch.Stop();
 
         _output.WriteLine($"Move: ({move.x}, {move.y})");
@@ -240,7 +241,7 @@ public class ZeroAllocationTests
         var timeRemainingMs = FiveMinutesMs;  // 5 minutes left
         var moveNumber = LateMidGameMoveNumber;              // LateMid game phase
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, timeRemainingMs, moveNumber);
+        var move = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = timeRemainingMs, MoveNumber = moveNumber });
         stopwatch.Stop();
 
         _output.WriteLine($"Move: ({move.x}, {move.y})");

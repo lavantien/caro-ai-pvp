@@ -27,7 +27,7 @@ public class GameStateTests
         const string timeControl = "10+3";
         const long initialTimeMs = 600_000;
         const int incrementSeconds = 3;
-        const string gameMode = "pvai";
+        const GameMode gameMode = GameMode.PvAI;
 
         // Act
         var state = GameState.CreateInitial(
