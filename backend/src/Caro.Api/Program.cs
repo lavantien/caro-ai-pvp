@@ -2,6 +2,7 @@ using System.Net.WebSockets;
 using System.Text;
 using Caro.Api;
 using Caro.Api.Logging;
+using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.TimeManagement;
@@ -237,7 +238,7 @@ app.MapPost("/api/game/{id}/ai-move", (
         return Results.BadRequest("Game is over");
 
     // Step 2: AI calculation OUTSIDE lock (can take seconds without blocking other games)
-    var (x, y) = ai.GetBestMove(boardClone, currentPlayer, null);
+    var (x, y) = ai.GetBestMove(boardClone, currentPlayer, SearchOptions.Default);
 
     // Step 3: Validate and apply the move under lock
     return session.MutateUnderLock(game =>
