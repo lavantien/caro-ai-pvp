@@ -37,7 +37,7 @@ Lazy SMP is a parallel search paradigm where multiple threads explore the game t
 **Thread Distribution:**
 - Thread count: Largest power of 2 <= logical_cores (e.g., 20 cores -> 16 threads)
 - Each thread maintains independent killer moves and history tables
-- TT writes from helpers are filtered (shallow depths, exact bounds only)
+- TT writes from helpers filtered to depth >= 3 (depth-age replacement handles entry quality)
 
 **Advantages:**
 - Simple implementation with good scaling
@@ -164,12 +164,12 @@ SeqLock pattern with version counters enables parallel access without locks.
 - Retry on version mismatch
 - Detects concurrent modification without locks
 
-### 3.5 Uniform TT Write Policy
+### 3.5 TT Write Policy
 
-All threads (master and helper) in Lazy SMP use identical TT write logic.
-No helper thread restrictions -- the depth-age replacement strategy handles
-entry quality naturally, so helper threads can populate the TT with results
-from different parts of the search tree for the master thread to benefit from.
+Helper threads in Lazy SMP are filtered to only write TT entries at depth >= 3,
+preventing shallow/noisy entries from polluting the table. The master thread
+writes at all depths. The depth-age replacement strategy handles entry quality
+naturally for entries that pass the filter.
 
 ---
 
@@ -193,8 +193,12 @@ Move ordering is critical for alpha-beta efficiency. The engine uses staged gene
 
 Moves are generated and scored in stages, allowing early termination on cutoffs.
 
-**Stage Sequence:**
-1. **TT_MOVE** - Single move from transposition table (2M score)
+**Two ordering systems:**
+- `MovePicker` (parallel path): Large absolute scores from `MoveOrderingConstants` for strict priority separation
+- `MoveOrderer` (sequential path): Compact scale (TT=10K, EmergencyDefense=5K, Killer=1K) for tiebreaking within stages
+
+**Stage Sequence (MovePicker - parallel path):**
+1. **TT_MOVE** - Single move from transposition table (1M score)
 2. **MUST_BLOCK** - Mandatory blocks against opponent's winning threats (2M score)
 3. **WINNING_MOVE** - Creates open four or double threat (1.5M score)
 4. **THREAT_CREATE** - Creates open three or broken four (800K score)
@@ -202,7 +206,7 @@ Moves are generated and scored in stages, allowing early termination on cutoffs.
 6. **GOOD_QUIET** - Quiet moves with continuation + butterfly history > 500
 7. **BAD_QUIET** - Remaining quiet moves
 
-**Score Constants:**
+**Score Constants (MoveOrderingConstants):**
 | Category | Score |
 |----------|-------|
 | Must Block | 2,000,000 |
@@ -213,7 +217,7 @@ Moves are generated and scored in stages, allowing early termination on cutoffs.
 | Killer 2 | 400,000 |
 | Counter Move | 150,000 |
 | Continuation Max | 300,000 |
-| History Max | 20,000 |
+| History Max | 30,000 |
 | Good Quiet Threshold | 500 |
 
 ### 4.3 Continuation History
@@ -370,9 +374,9 @@ Position evaluation combines multiple factors:
 Uses control theory principles for time allocation.
 
 **Components:**
-- **Proportional (Kp=1.0):** React to current error
-- **Integral (Ki=0.1):** Account for accumulated error
-- **Derivative (Kd=0.5):** Predict future error
+- **Proportional (weight=0.6):** React to current error
+- **Integral (weight=0.3, gain=0.1):** Account for accumulated error, clamped at 0.5
+- **Derivative (weight=0.1):** Predict future error
 
 **Mechanism:**
 - Target: optimal time per move
