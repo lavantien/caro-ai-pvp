@@ -31,7 +31,7 @@ Lazy SMP is a parallel search paradigm where multiple threads explore the game t
 
 **Core Principle:**
 - Master thread performs full search with all pruning
-- Helper threads search at reduced depth with TT sharing
+- Helper threads use parity-based depth offset (odd-indexed start at depth 2, even-indexed at depth 1) with TT sharing
 - Hash move priority enables cross-thread work distribution
 
 **Thread Distribution:**
@@ -50,7 +50,7 @@ PVS is an enhancement to alpha-beta search that uses null-window searches to pro
 
 **Implementation Scope:**
 - Sequential path (MinimaxAI): Full PVS with null-window searches and re-searches
-- Parallel path (ParallelMinimaxSearch): Standard alpha-beta with aspiration windows; PVS not applied
+- Parallel path (ParallelMinimaxSearch): Alpha-beta with Move-Dependent Adaptive Pruning (MDAP/LMR) and aspiration windows; traditional PVS not applied
 
 **Algorithm Structure (Sequential Path):**
 1. Search first move with full alpha-beta window
@@ -563,9 +563,9 @@ Standard UCI commands for engine control:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| Threads | spin | auto | Search threads |
+| Threads | spin | 4 | Search threads (1-32; internal parallel search auto-detects from CPU count) |
 | Hash | spin | 256 | TT size (MB) |
-| Ponder | check | true | Enable pondering |
+| Ponder | check | false | Enable pondering |
 
 ### 9.3 Move Notation
 
