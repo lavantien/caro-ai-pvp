@@ -126,4 +126,25 @@ public class MinimaxAITests
         result.HasWinner.Should().BeTrue("The suggested move should actually win");
         result.Winner.Should().Be(Player.Red);
     }
+
+    [Fact]
+    public void GetBestMove_FullBoard_ReturnsSentinel()
+    {
+        var ai = AITestHelper.CreateAI();
+        var board = new Board();
+        const int size = GameConstants.BoardSize;
+
+        for (int col = 0; col < size; col++)
+        {
+            for (int row = 0; row < size; row++)
+            {
+                var player = ((col * size + row) % 2 == 0) ? Player.Red : Player.Blue;
+                board = board.PlaceStone(col, row, player);
+            }
+        }
+
+        var (x, y) = ai.GetBestMove(board, Player.Red, new SearchOptions());
+        x.Should().Be(-1);
+        y.Should().Be(-1);
+    }
 }

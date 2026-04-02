@@ -37,6 +37,13 @@ public sealed class UCIProtocol
     private void OnBestMove((int x, int y) move)
     {
         var (x, y) = move;
+        if (x < 0 || y < 0)
+        {
+            // No valid moves (full board) - signal no move available
+            Console.Out.WriteLine("bestmove 0000");
+            Console.Out.Flush();
+            return;
+        }
         var moveStr = $"bestmove {UCIMoveNotation.ToUCI(x, y)}";
         Console.Out.WriteLine(moveStr);
         Console.Out.Flush();

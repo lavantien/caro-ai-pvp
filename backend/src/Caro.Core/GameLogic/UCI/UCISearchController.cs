@@ -203,7 +203,8 @@ public sealed class UCISearchController
             }
         }
 
-        return (center, center);
+        // Board is full - no valid moves
+        return (-1, -1);
     }
 }
 

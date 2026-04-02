@@ -156,6 +156,24 @@ public class GameManager
 
             var moveTimeMs = moveStopwatch.ElapsedMilliseconds;
 
+            // Check for "no move" response (full board)
+            if (uciMove == "0000")
+            {
+                stopwatch.Stop();
+                logInfo?.Invoke($"Game {gameNumber}: Draw - no valid moves at move {totalMoves + 1}");
+                return new GameResult
+                {
+                    GameNumber = gameNumber,
+                    RedBotName = redBotName,
+                    BlueBotName = blueBotName,
+                    Winner = Player.None,
+                    TotalMoves = totalMoves,
+                    DurationMs = stopwatch.ElapsedMilliseconds,
+                    EndedByTimeout = false,
+                    Moves = moves
+                };
+            }
+
             // Parse UCI move to coordinates
             Caro.Core.Domain.Entities.Position position;
             try
@@ -241,6 +259,24 @@ public class GameManager
                     RedBotName = redBotName,
                     BlueBotName = blueBotName,
                     Winner = result.Winner,
+                    TotalMoves = totalMoves + 1,
+                    DurationMs = stopwatch.ElapsedMilliseconds,
+                    EndedByTimeout = false,
+                    Moves = moves
+                };
+            }
+
+            // Check for full board (draw)
+            if (PositionExtensions.IsFull(board))
+            {
+                stopwatch.Stop();
+                logInfo?.Invoke($"Game {gameNumber}: Draw - board is full at move {totalMoves + 1}");
+                return new GameResult
+                {
+                    GameNumber = gameNumber,
+                    RedBotName = redBotName,
+                    BlueBotName = blueBotName,
+                    Winner = Player.None,
                     TotalMoves = totalMoves + 1,
                     DurationMs = stopwatch.ElapsedMilliseconds,
                     EndedByTimeout = false,

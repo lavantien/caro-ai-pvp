@@ -140,6 +140,59 @@ public class WinDetectorTests
     }
 
     [Fact]
+    public void IsFull_EmptyBoard_ReturnsFalse()
+    {
+        new Board().IsFull().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsFull_PartiallyFilledBoard_ReturnsFalse()
+    {
+        var board = new Board();
+        board = board.PlaceStone(0, 0, Player.Red);
+        board = board.PlaceStone(1, 0, Player.Blue);
+
+        board.IsFull().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsFull_CompletelyFilledBoard_ReturnsTrue()
+    {
+        var board = new Board();
+        const int size = GameConstants.BoardSize;
+
+        for (int x = 0; x < size; x++)
+        {
+            for (int y = 0; y < size; y++)
+            {
+                var player = ((x * size + y) % 2 == 0) ? Player.Red : Player.Blue;
+                board = board.PlaceStone(x, y, player);
+            }
+        }
+
+        board.IsFull().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsFull_AllButOneCellFilled_ReturnsFalse()
+    {
+        var board = new Board();
+        const int size = GameConstants.BoardSize;
+
+        for (int x = 0; x < size; x++)
+        {
+            for (int y = 0; y < size; y++)
+            {
+                if (x == size - 1 && y == size - 1) continue;
+                var player = ((x * size + y) % 2 == 0) ? Player.Red : Player.Blue;
+                board = board.PlaceStone(x, y, player);
+            }
+        }
+
+        board.IsFull().Should().BeFalse();
+    }
+
+    [Fact]
     public void CheckWin_HorizontalWin_ReturnsWinningLineCoordinates()
     {
         // Arrange

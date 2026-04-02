@@ -228,6 +228,16 @@ public sealed class UCIHandler
 
     private void OnBestMove((int x, int y) move)
     {
+        if (move.x < 0 || move.y < 0)
+        {
+            _logger.LogDebug("No valid moves available (full board)");
+            if (SendToClient != null)
+            {
+                _ = SendToClient(JsonSerializer.Serialize(new UCIResponse { BestMove = "0000" }));
+            }
+            return;
+        }
+
         _logger.LogDebug("Best move: {Move}", UCIMoveNotation.ToUCI(move.x, move.y));
 
         if (SendToClient != null)

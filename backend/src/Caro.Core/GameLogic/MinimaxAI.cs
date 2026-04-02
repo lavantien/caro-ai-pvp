@@ -289,9 +289,8 @@ public class MinimaxAI : IStatsPublisher
                     }
                 }
             }
-            // Fallback: play center
-            int center = board.BoardSize / 2;
-            return (center, center);
+            // Board is full - no valid moves. Return (-1, -1) as sentinel.
+            return (-1, -1);
         }
 
         // PONDER HIT HANDLING
