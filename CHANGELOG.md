@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [2.9.0] - 2026-04-02
+
+### Fixed
+- Frontend board indexing: x-major/y-major mismatch between frontend and backend causing misplaced stones
+- Frontend grid lines missing on game board cells
+- Rating update logic: use previousPlayer (captured before API call) instead of currentPlayer (already switched by syncGameState)
+- AI side selection labels: value/label mismatch for PvAI mode
+- Timer server sync: removed broken periodic sync (backend returns hardcoded 0s, could reset timer)
+- Open Rule description on landing page: corrected from "center 3x3 zone" to actual >=3 intersection rule
+- Landing page CSS: restored app.html and app.pcss that were clobbered to empty
+
+### Added
+- Last-move highlighting on game board cells (colored ring around most recent stone)
+- "New Game" button after game over
+- Inline error banner replacing alert() dialogs
+
+### Changed
+- Landing page: added "Start Playing" call-to-action linking to /game
+- Game page: moveInProgress guard prevents double-click race conditions
+- E2E tests: updated winning line tests and Open Rule test data for 16x16 board
+- API concurrency: ExecuteUnderLock renamed to MutateUnderLock for clarity
+
 ## [2.8.1] - 2026-04-02
 
 ### Fixed
@@ -722,6 +744,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[2.9.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.9.0
+[2.8.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.8.1
 [2.8.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.8.0
 [2.7.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.7.0
 [2.6.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.6.0

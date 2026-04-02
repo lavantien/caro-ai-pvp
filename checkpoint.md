@@ -1,50 +1,41 @@
-# Checkpoint: v2.5.0
+# Checkpoint: v2.9.0
 
 ## Summary
 
-Extracted ~200 magic numbers from production code across 25 files into centralized config hubs. Backend uses 3 new static constant classes in `Caro.Core.Domain/Configuration/`. Frontend uses 7 new frozen-object config modules in `src/lib/config/`.
+Frontend audit and alignment with backend after major backend changes (16x16 board, API changes, tournament removal). Fixed critical board indexing bug, added missing grid lines, corrected rating logic, and polished UX.
 
 ## Changes
 
-### Backend - New Config Classes
-- `SearchHeuristicConstants.cs` - Threat scores, search bounds, depth controls, time ratios, VCF thresholds
-- `TimeConstants.cs` - TimeMonitor, AsyncQueue, UCIProtocol, SearchLogger, Ponderer, DFPN/TSS defaults, HardBound buffers
-- `TimeManagementConstants.cs` - Default time controls, PID controller weights, phase thresholds, adaptive scaling, emergency thresholds
+### Bug Fixes
+- Board indexing: frontend used y-major (index = y * 16 + x), backend uses x-major (index = x * 16 + y)
+- Grid lines: cells had no visible borders, added `border border-amber-300`
+- Rating update: `previousPlayer` (captured pre-API) replaces `store.currentPlayer` (already switched)
+- AI side labels: value/label mismatch for PvAI mode
+- Timer sync: removed broken periodic server sync (backend returns hardcoded 0s)
+- Open Rule description: "center 3x3 zone" -> "at least 3 intersections away"
+- app.html/app.pcss: restored from clobbered-empty state
 
-### Backend - Updated Files (13)
-- MinimaxAI.cs - 30+ replacements (SHC alias)
-- ParallelMinimaxSearch.cs - 30+ replacements (SHC, TMC, TC aliases)
-- TimeManager.cs - 16+ replacements (TMC alias)
-- AdaptiveTimeManager.cs - 30+ replacements (TMC alias)
-- TimeBudgetDepthManager.cs - 9 replacements (TMC alias)
-- TimeMonitor.cs, AsyncQueue.cs, Ponderer.cs, DFPNSearch.cs, ThreatSpaceSearch.cs
-- SearchLogger.cs, UCIProtocol.cs, UCIMockClient.cs
+### UX Additions
+- Last-move highlighting (colored ring on most recent stone)
+- "New Game" button after game over
+- Inline error banner replacing alert() dialogs
+- "Start Playing" call-to-action on landing page
 
-### Frontend - New Config Modules (7)
-- apiConfig.ts, audioConfig.ts, e2eConfig.ts, hapticConfig.ts, ratingConfig.ts, uciConfig.ts, uiConfig.ts
-
-### Frontend - Updated Files (12)
-- +page.svelte - 6x URL fallbacks replaced with ApiConfig.baseUrl
-- Board.svelte, Cell.svelte, WinningLine.svelte - UI dimensions from uiConfig
-- Timer.svelte - URL, intervals, thresholds from config
-- gameStore.svelte.ts, ratingStore.svelte.ts, uciEngine.ts, boardUtils.ts, sound.ts, haptics.ts
-- e2e/game.spec.ts - All timeout constants from e2eConfig
-
-### Fixed
-- WinningLine.svelte: wrong default props (boardSize=15, cellSize=40) now use config values
+### Technical
+- moveInProgress guard prevents double-click race conditions
+- ExecuteUnderLock renamed to MutateUnderLock
+- E2E tests updated for 16x16 board
 
 ## Verification
 
 | Check | Result |
 |-------|--------|
-| dotnet build | Pass (0 errors, 0 warnings) |
-| dotnet test (229 tests) | Pass |
-| svelte-check | Pass (0 errors, 0 warnings) |
-| vitest (64 tests) | Pass |
-| grep localhost:5207 in src/ | 1 result (apiConfig.ts definition only) |
-| grep 64px in src/ | 0 results |
+| Frontend unit tests | Pass |
+| E2E tests (17 tests) | Pass |
+| svelte-check | Pass |
+| Visual board rendering | Verified |
 
 ## Version
 
-- Target: v2.5.0
-- Previous: v2.4.1
+- Target: v2.9.0
+- Previous: v2.8.1
