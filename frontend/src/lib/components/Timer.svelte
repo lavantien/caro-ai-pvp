@@ -1,17 +1,15 @@
 <script lang="ts">
 	import type { Player } from '$lib/types/game';
-	import { ApiConfig } from '$lib/config/apiConfig';
 	import { UIConfig } from '$lib/config/uiConfig';
 
 	interface Props {
 		player: Player;
-		timeRemaining: number; // seconds from server ( authoritative )
+		timeRemaining: number;
 		isActive: boolean;
 		onTimeOut?: () => void;
-		gameId?: string; // Optional: used for periodic server sync
 	}
 
-	let { player, isActive, onTimeOut, timeRemaining: propTimeRemaining, gameId }: Props = $props();
+	let { player, isActive, onTimeOut, timeRemaining: propTimeRemaining }: Props = $props();
 
 	let serverTimeBase = $state(0);
 	let serverTimeTimestamp = $state(Date.now());
@@ -25,7 +23,7 @@
 	});
 
 	const displayTime = $derived(() => {
-		tick; // reactive dependency for timer updates
+		tick;
 		if (!isActive) return serverTimeBase;
 		const elapsed = (Date.now() - serverTimeTimestamp) / 1000;
 		return Math.max(0, Math.round(serverTimeBase - elapsed));
@@ -44,36 +42,6 @@
 			const id = setInterval(() => tick++, UIConfig.timerUpdateIntervalMs);
 			return () => clearInterval(id);
 		}
-	});
-
-	// Periodic server sync if gameId is provided
-	let syncInterval: ReturnType<typeof setInterval> | null = null;
-
-	$effect(() => {
-		if (isActive && gameId) {
-			syncInterval = setInterval(async () => {
-				try {
-					const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.game(gameId!)}`);
-					if (response.ok) {
-						const data = await response.json();
-						const serverTime = player === 'red' ? data.state.redTimeRemaining : data.state.blueTimeRemaining;
-						serverTimeBase = serverTime;
-						serverTimeTimestamp = Date.now();
-					}
-				} catch {
-					// Ignore sync errors - continue with local calculation
-				}
-			}, UIConfig.timerSyncIntervalMs);
-		} else {
-			if (syncInterval) {
-				clearInterval(syncInterval);
-				syncInterval = null;
-			}
-		}
-
-		return () => {
-			if (syncInterval) clearInterval(syncInterval);
-		};
 	});
 
 	function formatTime(seconds: number): string {

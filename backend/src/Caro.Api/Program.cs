@@ -163,16 +163,16 @@ app.MapPost("/api/game/{id}/move", (string id, MoveRequest request) =>
     if (!games.TryGetValue(id, out var session))
         return Results.NotFound("Game not found");
 
-    return session.ExecuteUnderLock(game =>
+    return session.MutateUnderLock(game =>
     {
         if (game.IsGameOver)
-            return Results.BadRequest("Game is over");
+            return (game, Results.BadRequest("Game is over"));
 
         var board = game.Board;
         var validator = new OpenRuleValidator();
 
         if (!validator.IsValidSecondMove(board, request.X, request.Y))
-            return Results.BadRequest("Open Rule violation: Second 'O' cannot be in center 3x3 zone");
+            return (game, Results.BadRequest("Open Rule violation: Second 'O' cannot be in center 3x3 zone"));
 
         try
         {
@@ -186,15 +186,15 @@ app.MapPost("/api/game/{id}/move", (string id, MoveRequest request) =>
                 game = game.WithGameOver(result.Winner, result.WinningLine.ToImmutableArray());
             }
 
-            return Results.Ok(new { state = session.GetResponse() });
+            return (game, Results.Ok(new { state = GameSession.BuildResponse(game) }));
         }
         catch (ArgumentOutOfRangeException)
         {
-            return Results.BadRequest("Position out of bounds");
+            return (game, Results.BadRequest("Position out of bounds"));
         }
         catch (InvalidOperationException)
         {
-            return Results.BadRequest("Cell already occupied");
+            return (game, Results.BadRequest("Cell already occupied"));
         }
     });
 });
@@ -205,17 +205,17 @@ app.MapPost("/api/game/{id}/undo", (string id) =>
     if (!games.TryGetValue(id, out var session))
         return Results.NotFound("Game not found");
 
-    return session.ExecuteUnderLock(game =>
+    return session.MutateUnderLock(game =>
     {
         try
         {
             game = game.UndoMove();
 
-            return Results.Ok(new { state = session.GetResponse() });
+            return (game, Results.Ok(new { state = GameSession.BuildResponse(game) }));
         }
         catch (InvalidOperationException ex)
         {
-            return Results.BadRequest(ex.Message);
+            return (game, Results.BadRequest(ex.Message));
         }
     });
 });
@@ -240,16 +240,16 @@ app.MapPost("/api/game/{id}/ai-move", (
     var (x, y) = ai.GetBestMove(boardClone, currentPlayer, null);
 
     // Step 3: Validate and apply the move under lock
-    return session.ExecuteUnderLock(game =>
+    return session.MutateUnderLock(game =>
     {
         // Double-check game didn't end while we were calculating
         if (game.IsGameOver)
-            return Results.BadRequest("Game ended while AI was thinking");
+            return (game, Results.BadRequest("Game ended while AI was thinking"));
 
         var validator = new OpenRuleValidator();
 
         if (!validator.IsValidSecondMove(game.Board, x, y))
-            return Results.BadRequest("AI move violates Open Rule");
+            return (game, Results.BadRequest("AI move violates Open Rule"));
 
         try
         {
@@ -263,15 +263,15 @@ app.MapPost("/api/game/{id}/ai-move", (
                 game = game.WithGameOver(result.Winner, result.WinningLine.ToImmutableArray());
             }
 
-            return Results.Ok(new { state = session.GetResponse() });
+            return (game, Results.Ok(new { state = GameSession.BuildResponse(game) }));
         }
         catch (ArgumentOutOfRangeException)
         {
-            return Results.BadRequest("AI returned invalid position");
+            return (game, Results.BadRequest("AI returned invalid position"));
         }
         catch (InvalidOperationException)
         {
-            return Results.BadRequest("AI tried to occupy already occupied cell");
+            return (game, Results.BadRequest("AI tried to occupy already occupied cell"));
         }
     });
 });
@@ -327,6 +327,20 @@ public sealed class GameSession
     }
 
     /// <summary>
+    /// Executes a mutating action under the per-game lock.
+    /// The action returns the updated state and result; the updated state is saved.
+    /// </summary>
+    public TResult MutateUnderLock<TResult>(Func<GameState, (GameState updated, TResult result)> action)
+    {
+        lock (_lock)
+        {
+            var (updated, result) = action(_game);
+            _game = updated;
+            return result;
+        }
+    }
+
+    /// <summary>
     /// Executes an action under the per-game lock.
     /// </summary>
     public void ExecuteUnderLock(Action<GameState> action)
@@ -358,32 +372,33 @@ public sealed class GameSession
     {
         lock (_lock)
         {
-            var game = _game;
-            return new
-            {
-                board = from x in Enumerable.Range(0, 16)
-                        from y in Enumerable.Range(0, 16)
-                        let cell = game.Board.GetCell(x, y)
-                        select new
-                        {
-                            x,
-                            y,
-                            player = cell.Player.ToLowerString()
-                        },
-                currentPlayer = game.CurrentPlayer.ToLowerString(),
-                moveNumber = game.MoveNumber,
-                isGameOver = game.IsGameOver,
-                winner = game.Winner.ToLowerString(),
-                winningLine = game.WinningLine.Select(p => new { x = p.X, y = p.Y }),
-                redTimeRemaining = 0.0,  // Time tracking moved to application layer
-                blueTimeRemaining = 0.0,
-                timeControl = game.TimeControl,
-                initialTime = game.InitialTimeMs / 1000,
-                increment = game.IncrementSeconds,
-                gameMode = game.GameMode.ToLowerString()
-            };
+            return BuildResponse(_game);
         }
     }
+
+    public static object BuildResponse(GameState game) => new
+    {
+        board = from x in Enumerable.Range(0, 16)
+                from y in Enumerable.Range(0, 16)
+                let cell = game.Board.GetCell(x, y)
+                select new
+                {
+                    x,
+                    y,
+                    player = cell.Player.ToLowerString()
+                },
+        currentPlayer = game.CurrentPlayer.ToLowerString(),
+        moveNumber = game.MoveNumber,
+        isGameOver = game.IsGameOver,
+        winner = game.Winner.ToLowerString(),
+        winningLine = game.WinningLine.Select(p => new { x = p.X, y = p.Y }),
+        redTimeRemaining = 0.0,
+        blueTimeRemaining = 0.0,
+        timeControl = game.TimeControl,
+        initialTime = game.InitialTimeMs / 1000,
+        increment = game.IncrementSeconds,
+        gameMode = game.GameMode.ToLowerString()
+    };
 }
 
 record CreateGameRequest(string? TimeControl, string? GameMode);

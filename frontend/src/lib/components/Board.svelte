@@ -11,14 +11,15 @@
 		board: Cell[];
 		onMove: (x: number, y: number) => void;
 		winningLine?: Array<{ x: number; y: number }>;
+		lastMove?: { x: number; y: number } | null;
 	}
 
-	let { board, onMove, winningLine = [] }: Props = $props();
+	let { board, onMove, winningLine = [], lastMove = null }: Props = $props();
 
 	let ghostPosition = $state<{ x: number; y: number } | null>(null);
 
 	function handleCellClick(x: number, y: number) {
-		const cell = board[y * GameConfig.boardSize + x];
+		const cell = board[x * GameConfig.boardSize + y];
 		if (!cell || cell.player !== 'none') {
 			vibrateOnInvalidMove();
 			return;
@@ -59,6 +60,7 @@
 				x={cell.x}
 				y={cell.y}
 				player={cell.player}
+				isLastMove={lastMove !== null && cell.x === lastMove.x && cell.y === lastMove.y}
 				onclick={() => handleCellClick(cell.x, cell.y)}
 				onkeydown={(e) => e.key === 'Enter' && handleCellClick(cell.x, cell.y)} />
 		{/each}

@@ -18,7 +18,9 @@
 	let gameId = $state<string>('');
 	let loading = $state(true);
 	let error = $state<string>('');
+	let errorMessage = $state<string>('');
 	let winningLine = $state<Array<{ x: number; y: number }>>([]);
+	let lastMove = $state<{ x: number; y: number } | null>(null);
 
 	let redTime = $state(180);
 	let blueTime = $state(180);
@@ -32,9 +34,15 @@
 	let timeControl = $state<TimeControl>('7+5');
 	let aiSide = $state<'red' | 'blue'>('blue');
 	let isAiThinking = $state(false);
+	let moveInProgress = $state(false);
 
 	let useUCIForAI = $state(false);
 	let uciConnectionStatus = $state<UCIConnectionStatus>('disconnected');
+
+	function showError(msg: string) {
+		errorMessage = msg;
+		setTimeout(() => errorMessage = '', 5000);
+	}
 
 	function handleRegisterPlayer() {
 		if (playerName.trim()) {
@@ -84,8 +92,12 @@
 		store.currentPlayer = state.currentPlayer;
 		store.moveNumber = state.moveNumber;
 		store.isGameOver = state.isGameOver;
-		redTime = state.redTimeRemaining;
-		blueTime = state.blueTimeRemaining;
+		if (state.redTimeRemaining > 0) {
+			redTime = state.redTimeRemaining;
+		}
+		if (state.blueTimeRemaining > 0) {
+			blueTime = state.blueTimeRemaining;
+		}
 		if (state.winningLine) {
 			winningLine = state.winningLine;
 		}
@@ -94,7 +106,6 @@
 	function handleGameEnd(winner: 'red' | 'blue') {
 		store.winner = winner;
 		soundManager.playWinSound(winner);
-		alert(`${winner.toUpperCase()} WINS!`);
 	}
 
 	function findNewMove(oldBoard: Cell[], newBoard: Cell[]): { x: number; y: number } {
@@ -112,6 +123,11 @@
 
 	async function createNewGame() {
 		try {
+			store.reset();
+			winningLine = [];
+			lastMove = null;
+			isAiThinking = false;
+
 			const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.newGame}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -151,11 +167,12 @@
 	}
 
 	async function handleMove(x: number, y: number) {
-		if (store.isGameOver || !gameId) return;
+		if (store.isGameOver || !gameId || moveInProgress) return;
 
-		// Optimistic board update only (not move history or state)
-		const cell = store.board[y * GameConfig.boardSize + x];
+		const cell = store.board[x * GameConfig.boardSize + y];
 		if (!cell || cell.player !== 'none') return;
+
+		moveInProgress = true;
 
 		const previousPlayer = store.currentPlayer;
 		cell.player = previousPlayer;
@@ -172,7 +189,7 @@
 			if (!response.ok) {
 				const errorText = await response.text();
 				cell.player = 'none';
-				alert(errorText);
+				showError(errorText);
 				return;
 			}
 
@@ -187,16 +204,19 @@
 				y
 			});
 
+			lastMove = { x, y };
 			if (data.state.isGameOver && data.state.winner) {
 				handleGameEnd(data.state.winner);
 				if (currentPlayer) {
-					const playerWon = store.currentPlayer === data.state.winner;
+					const playerWon = previousPlayer === data.state.winner;
 					ratingStore.updateRating(playerWon, DEFAULT_RATING);
 				}
 			}
 		} catch (err) {
 			cell.player = 'none';
-			alert('Failed to make move');
+			showError('Failed to make move');
+		} finally {
+			moveInProgress = false;
 		}
 
 		const aiPlayer = gameMode === 'pvai' && aiSide === 'red' ? 'red' : 'blue';
@@ -211,7 +231,7 @@
 		isAiThinking = true;
 
 		const previousBoard = store.board;
-		const currentPlayer = store.currentPlayer;
+		const aiPlayer = store.currentPlayer;
 
 		try {
 			let aiMove = { x: 0, y: 0 };
@@ -243,7 +263,7 @@
 						body: JSON.stringify({})
 					});
 					if (!response.ok) {
-						alert(await response.text());
+						showError(await response.text());
 						return;
 					}
 					data = await response.json();
@@ -257,7 +277,7 @@
 				});
 
 				if (!response.ok) {
-					alert(await response.text());
+					showError(await response.text());
 					return;
 				}
 
@@ -269,20 +289,22 @@
 
 			store.moveHistory.push({
 				moveNumber: data.state.moveNumber,
-				player: currentPlayer as 'red' | 'blue',
+				player: aiPlayer as 'red' | 'blue',
 				x: aiMove.x,
 				y: aiMove.y
 			});
 
+			lastMove = { x: aiMove.x, y: aiMove.y };
 			if (data.state.isGameOver && data.state.winner) {
 				handleGameEnd(data.state.winner);
-				if (currentPlayer) {
-					const playerWon = data.state.winner === 'red';
+				if (currentPlayer && gameMode === 'pvai') {
+					const humanSide = aiSide === 'red' ? 'blue' : 'red';
+					const playerWon = data.state.winner === humanSide;
 					ratingStore.updateRating(playerWon, DEFAULT_RATING);
 				}
 			}
 		} catch (err) {
-			alert('Failed to make AI move');
+			showError('Failed to make AI move');
 		} finally {
 			isAiThinking = false;
 		}
@@ -297,15 +319,16 @@
 			});
 
 			if (!response.ok) {
-				alert(await response.text());
+				showError(await response.text());
 				return;
 			}
 
 			const data = await response.json();
 			syncGameState(data.state);
 			winningLine = [];
+			lastMove = null;
 		} catch (err) {
-			alert('Failed to undo move');
+			showError('Failed to undo move');
 		}
 	}
 
@@ -315,7 +338,6 @@
 		store.isGameOver = true;
 		const winner = switchPlayer(player as Player);
 		store.winner = winner;
-		alert(`${winner.toUpperCase()} WINS! ${player.toUpperCase()} ran out of time.`);
 	}
 </script>
 
@@ -331,6 +353,13 @@
 	</div>
 {:else}
 	<div class="container mx-auto p-4 max-w-4xl">
+		{#if errorMessage}
+			<div class="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg flex justify-between items-center">
+				<p class="text-red-700 text-sm">{errorMessage}</p>
+				<button onclick={() => errorMessage = ''} class="text-red-500 hover:text-red-700 ml-2">&times;</button>
+			</div>
+		{/if}
+
 		<div class="flex justify-between items-center mb-4">
 			<h1 class="text-2xl font-bold text-gray-800">Caro Game</h1>
 			<div class="flex gap-2 items-center">
@@ -426,7 +455,6 @@
 						</select>
 					</div>
 
-
 					{#if gameMode === 'pvai'}
 						<div class="flex items-center gap-2">
 							<label for="ai-side" class="text-sm font-medium text-gray-700">You play as:</label>
@@ -436,8 +464,8 @@
 								class="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
 								disabled={store.moveNumber > 0}
 							>
-								<option value="blue">Red (AI goes first)</option>
-								<option value="red">Blue (Human goes first)</option>
+								<option value="blue">Red (you go first)</option>
+								<option value="red">Blue (you go second)</option>
 							</select>
 						</div>
 					{/if}
@@ -469,14 +497,12 @@
 				player="red"
 				timeRemaining={redTime}
 				isActive={store.currentPlayer === 'red' && !store.isGameOver}
-				onTimeOut={() => handleTimeOut('red')}
-				gameId={gameId} />
+				onTimeOut={() => handleTimeOut('red')} />
 			<Timer
 				player="blue"
 				timeRemaining={blueTime}
 				isActive={store.currentPlayer === 'blue' && !store.isGameOver}
-				onTimeOut={() => handleTimeOut('blue')}
-				gameId={gameId} />
+				onTimeOut={() => handleTimeOut('blue')} />
 		</div>
 
 		<div class="mb-4 text-center">
@@ -489,7 +515,7 @@
 		</div>
 
 		<div class="flex justify-center">
-			<Board board={store.board} onMove={handleMove} winningLine={winningLine} />
+			<Board board={store.board} onMove={handleMove} winningLine={winningLine} lastMove={lastMove} />
 		</div>
 
 		<div class="mt-6">
@@ -537,6 +563,12 @@
 		{#if store.isGameOver}
 			<div class="mt-4 p-4 bg-green-100 rounded text-center">
 				<h2 class="text-2xl font-bold uppercase text-green-800">{store.winner} WINS!</h2>
+				<button
+					onclick={createNewGame}
+					class="mt-3 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+				>
+					New Game
+				</button>
 			</div>
 		{/if}
 	</div>

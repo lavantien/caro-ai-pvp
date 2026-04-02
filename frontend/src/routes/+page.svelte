@@ -6,7 +6,7 @@
 		<h2 class="text-2xl font-semibold mb-3 text-amber-800">Game Rules</h2>
 		<ul class="text-left space-y-2 text-gray-700">
 			<li>• Red 'O' vs Blue 'X'</li>
-			<li>• Second 'O' cannot be placed in center 3x3 zone (Open Rule)</li>
+			<li>• Red's second move must be at least 3 intersections away from first (Open Rule)</li>
 			<li>• Exactly 5 in a row to win (no overlines)</li>
 			<li>• Both ends blocked = no win</li>
 			<li>• Fisher time controls: Bullet 1+0, Blitz 3+2, Rapid 7+5, Classical 15+10</li>

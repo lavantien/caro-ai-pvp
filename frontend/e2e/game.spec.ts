@@ -37,8 +37,9 @@ test.describe("Caro Game - Basic Mechanics", () => {
     // Check move number
     await expect(page.locator("text=/Move #/")).toBeVisible();
 
-    // Check timers are visible (both show 3:00 initially)
-    await expect(page.locator("text=/3:00/")).toHaveCount(2);
+    // Check timers are visible (default 7+5 = 7:00 initially)
+    // Red is active and may already be counting down, so check for valid time patterns
+    await expect(page.locator("text=/\\d+:\\d{2}/")).toHaveCount(2);
   });
 
   test("should place stone on board click", async ({ page }) => {
@@ -197,76 +198,73 @@ test.describe("Caro Game - Winning Line Animation", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Handle alert dialog before it appears
-    page.on("dialog", (dialog) => dialog.accept());
-
     // Create a horizontal winning line for Red that respects Open Rule
-    // Move 3 (Red's second move) must be outside center 3x3 (6-8, 6-8)
+    // Red's second move (move #3) must satisfy |dx|>=3 or |dy|>=3 from first red stone
     const moves = [
-      { x: 0, y: 7 }, // Red - Move 1 (anywhere OK)
-      { x: 7, y: 8 }, // Blue - Move 2 (anywhere OK)
-      { x: 1, y: 7 }, // Red - Move 3 (must be outside center 3x3, x=1 is OK)
-      { x: 7, y: 6 }, // Blue - Move 4
-      { x: 2, y: 7 }, // Red - Move 5
-      { x: 8, y: 8 }, // Blue - Move 6
-      { x: 3, y: 7 }, // Red - Move 7
-      { x: 8, y: 6 }, // Blue - Move 8
-      { x: 4, y: 7 }, // Red - Move 9 (WINNING MOVE - horizontal line 0-4 at y=7)
+      { x: 0, y: 7, n: 1 }, // Red - Move 1 (anywhere OK)
+      { x: 7, y: 8, n: 2 }, // Blue - Move 2 (anywhere OK)
+      { x: 3, y: 7, n: 3 }, // Red - Move 3 (|dx|=3 from (0,7), satisfies Open Rule)
+      { x: 7, y: 6, n: 4 }, // Blue - Move 4
+      { x: 1, y: 7, n: 5 }, // Red - Move 5
+      { x: 8, y: 8, n: 6 }, // Blue - Move 6
+      { x: 2, y: 7, n: 7 }, // Red - Move 7
+      { x: 8, y: 6, n: 8 }, // Blue - Move 8
+      { x: 4, y: 7, n: 9 }, // Red - Move 9 (WINNING - horizontal line 0-4 at y=7)
     ];
 
-    // Make all moves
     for (const move of moves) {
       await page.locator(`[data-x="${move.x}"][data-y="${move.y}"]`).click();
-      await page.waitForTimeout(E2EConfig.moveWaitMs);
+      await expect(page.locator(`text=/Move #${move.n}/`)).toBeVisible({
+        timeout: 5000,
+      });
     }
 
-    // Wait for win detection and alert
+    // Wait for win detection
     await page.waitForTimeout(E2EConfig.winDetectionWaitMs);
 
     // Wait for winning line animation to complete (0.5s animation)
     await page.waitForTimeout(E2EConfig.animationWaitMs);
 
     // Check for winning line SVG element
-    // Note: Line uses stroke-dashoffset animation, so we check existence and attributes
     const lineElement = page.locator('line[stroke="#ef4444"]');
     await expect(lineElement).toHaveCount(1);
 
-    // Verify line has correct coordinates (horizontal line from x=0 to x=4 at y=7)
+    // Verify line has correct coordinates (cellSize=64)
+    // y=7: center at 7*64 + 32 = 480
+    // x=0: center at 0*64 + 32 = 32
+    // x=4: center at 4*64 + 32 = 288
     const x1 = await lineElement.getAttribute("x1");
     const x2 = await lineElement.getAttribute("x2");
     const y1 = await lineElement.getAttribute("y1");
 
-    // y=7 means center is at 7*40 + 20 = 300
-    expect(y1).toBe("300");
-    // x=0 to x=4 means centers at 20 and 180
-    expect(x1).toBe("20");
-    expect(x2).toBe("180");
+    expect(y1).toBe("480");
+    expect(x1).toBe("32");
+    expect(x2).toBe("288");
   });
 
   test("should show game over state with winner", async ({ page }) => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Handle alert dialog
-    page.on("dialog", (dialog) => dialog.accept());
-
     // Create a vertical winning line for Red that respects Open Rule
-    // Move 3 (Red's second move) must be outside center 3x3 (6-8, 6-8)
+    // Red's second move (move #3) must satisfy |dx|>=3 or |dy|>=3 from first red stone
     const moves = [
-      { x: 7, y: 0 }, // Red - Move 1 (anywhere OK)
-      { x: 8, y: 7 }, // Blue - Move 2 (anywhere OK)
-      { x: 7, y: 1 }, // Red - Move 3 (must be outside center 3x3, y=1 is OK)
-      { x: 8, y: 6 }, // Blue - Move 4
-      { x: 7, y: 2 }, // Red - Move 5
-      { x: 6, y: 8 }, // Blue - Move 6
-      { x: 7, y: 3 }, // Red - Move 7
-      { x: 6, y: 6 }, // Blue - Move 8
-      { x: 7, y: 4 }, // Red - Move 9 (WINNING MOVE - vertical line 0-4 at x=7)
+      { x: 7, y: 0, n: 1 }, // Red - Move 1 (anywhere OK)
+      { x: 8, y: 7, n: 2 }, // Blue - Move 2 (anywhere OK)
+      { x: 7, y: 3, n: 3 }, // Red - Move 3 (|dy|=3 from (7,0), satisfies Open Rule)
+      { x: 8, y: 6, n: 4 }, // Blue - Move 4
+      { x: 7, y: 1, n: 5 }, // Red - Move 5
+      { x: 6, y: 8, n: 6 }, // Blue - Move 6
+      { x: 7, y: 2, n: 7 }, // Red - Move 7
+      { x: 6, y: 6, n: 8 }, // Blue - Move 8
+      { x: 7, y: 4, n: 9 }, // Red - Move 9 (WINNING - vertical line 0-4 at x=7)
     ];
 
     for (const move of moves) {
       await page.locator(`[data-x="${move.x}"][data-y="${move.y}"]`).click();
-      await page.waitForTimeout(E2EConfig.moveWaitMs);
+      await expect(page.locator(`text=/Move #${move.n}/`)).toBeVisible({
+        timeout: 5000,
+      });
     }
 
     await page.waitForTimeout(E2EConfig.winDetectionWaitMs);
@@ -322,13 +320,14 @@ test.describe("Caro Game - Regression Tests", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Make 5 moves (avoiding Open Rule violations)
+    // Make 5 moves respecting Open Rule
+    // Red's second move (move #3) must have |dx|>=3 or |dy|>=3 from Red's first
     const moves = [
-      { x: 0, y: 0 },
-      { x: 1, y: 1 },
-      { x: 2, y: 2 },
-      { x: 3, y: 3 },
-      { x: 4, y: 4 },
+      { x: 0, y: 0 }, // Red move 1
+      { x: 1, y: 1 }, // Blue move 2
+      { x: 4, y: 0 }, // Red move 3 (|dx|=4 from (0,0), OK)
+      { x: 1, y: 3 }, // Blue move 4
+      { x: 2, y: 2 }, // Red move 5
     ];
 
     for (const move of moves) {
@@ -350,13 +349,13 @@ test.describe("Caro Game - Regression Tests", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Rapidly click multiple cells
+    // Rapidly click multiple cells respecting Open Rule
     const cells = [
       { x: 0, y: 0 },
       { x: 1, y: 1 },
+      { x: 4, y: 0 }, // Red's 2nd move: |dx|=4 from (0,0), OK
+      { x: 1, y: 3 },
       { x: 2, y: 2 },
-      { x: 3, y: 3 },
-      { x: 4, y: 4 },
     ];
 
     for (const cell of cells) {
