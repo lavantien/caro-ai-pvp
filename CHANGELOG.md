@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [3.0.0] - 2026-04-02
+
+### Fixed
+- AI move endpoint: pass SearchOptions.Default instead of null to GetBestMove (NullReferenceException on every AI turn)
+
+### Added
+- Screenshot capture script (scripts/capture-screenshot.mjs): E2E pipeline that builds backend+frontend, plays AI vs AI match, captures screenshot, inserts into README
+- Screenshot of AI vs AI match in README header
+
 ## [2.9.0] - 2026-04-02
 
 ### Fixed
@@ -744,6 +753,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[3.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v3.0.0
+[3.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v3.0.0
 [2.9.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.9.0
 [2.8.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.8.1
 [2.8.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.8.0
