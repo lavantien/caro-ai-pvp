@@ -12,7 +12,7 @@
 		cellSize: number;
 	}
 
-	let { winningLine, boardSize, cellSize = UIConfig.cellSize }: Props = $props();
+	let { winningLine, boardSize, cellSize }: Props = $props();
 
 	const svgWidth = $derived(boardSize * cellSize);
 	const svgHeight = $derived(boardSize * cellSize);

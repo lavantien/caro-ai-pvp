@@ -1,11 +1,11 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { Cell } from '$lib/types/game';
 	import CellComponent from './Cell.svelte';
 	import WinningLine from './WinningLine.svelte';
-	import { calculateGhostStonePosition, isValidCell } from '$lib/utils/boardUtils';
+	import { calculateGhostStonePosition, isValidCell, computeCellSize } from '$lib/utils/boardUtils';
 	import { vibrateOnValidMove, vibrateOnInvalidMove } from '$lib/utils/haptics';
 	import { GameConfig } from '$lib/config/gameConfig';
-	import { UIConfig } from '$lib/config/uiConfig';
 
 	interface Props {
 		board: Cell[];
@@ -17,6 +17,8 @@
 	let { board, onMove, winningLine = [], lastMove = null }: Props = $props();
 
 	let ghostPosition = $state<{ x: number; y: number } | null>(null);
+	let cellSize = $state(computeCellSize(typeof window !== 'undefined' ? window.innerWidth : 1024));
+	let boardEl: HTMLDivElement | undefined = $state();
 
 	function handleCellClick(x: number, y: number) {
 		const cell = board[x * GameConfig.boardSize + y];
@@ -41,39 +43,60 @@
 				const rect = element.getBoundingClientRect();
 				ghostPosition = calculateGhostStonePosition(
 					rect.left + rect.width / 2,
-					rect.top + rect.height / 2
+					rect.top + rect.height / 2,
+					cellSize * 0.78
 				);
 			}
 		}
 	}
+
+	onMount(() => {
+		const observer = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				const width = entry.contentRect.width;
+				if (width > 0) {
+					cellSize = computeCellSize(width);
+				}
+			}
+		});
+
+		if (boardEl) {
+			observer.observe(boardEl);
+		}
+
+		return () => observer.disconnect();
+	});
 </script>
 
-<div class="relative">
-	<div
-		class="grid gap-0 bg-amber-100 p-4 rounded-lg shadow-lg touch-none select-none"
-		style="display: grid; grid-template-columns: repeat({GameConfig.boardSize}, {UIConfig.cellSize}px); grid-template-rows: repeat({GameConfig.boardSize}, {UIConfig.cellSize}px); width: {GameConfig.boardSize * UIConfig.cellSize}px; height: {GameConfig.boardSize * UIConfig.cellSize}px;"
-		ontouchmove={handleTouchMove}
-		ontouchend={() => (ghostPosition = null)}
-	>
-		{#each board as cell}
-			<CellComponent
-				x={cell.x}
-				y={cell.y}
-				player={cell.player}
-				isLastMove={lastMove !== null && cell.x === lastMove.x && cell.y === lastMove.y}
-				onclick={() => handleCellClick(cell.x, cell.y)}
-				onkeydown={(e) => e.key === 'Enter' && handleCellClick(cell.x, cell.y)} />
-		{/each}
-	</div>
-
-	<WinningLine winningLine={winningLine} boardSize={GameConfig.boardSize} cellSize={UIConfig.cellSize} />
-
-	{#if ghostPosition}
+<div class="w-full max-w-[1024px] mx-auto" bind:this={boardEl}>
+	<div class="relative">
 		<div
-			class="fixed pointer-events-none w-16 h-16 rounded-full border-4 border-dashed border-gray-400 opacity-60"
-			style="left: {ghostPosition.x - UIConfig.halfCellSize}px; top: {ghostPosition.y - UIConfig.halfCellSize}px;"
+			class="grid gap-0 bg-amber-100 rounded-lg shadow-lg touch-none select-none"
+			style="display: grid; grid-template-columns: repeat({GameConfig.boardSize}, {cellSize}px); grid-template-rows: repeat({GameConfig.boardSize}, {cellSize}px); width: {GameConfig.boardSize * cellSize}px; height: {GameConfig.boardSize * cellSize}px;"
+			ontouchmove={handleTouchMove}
+			ontouchend={() => (ghostPosition = null)}
 		>
-			<span class="flex items-center justify-center h-full text-2xl text-gray-400">?</span>
+			{#each board as cell}
+				<CellComponent
+					x={cell.x}
+					y={cell.y}
+					player={cell.player}
+					isLastMove={lastMove !== null && cell.x === lastMove.x && cell.y === lastMove.y}
+					{cellSize}
+					onclick={() => handleCellClick(cell.x, cell.y)}
+					onkeydown={(e) => e.key === 'Enter' && handleCellClick(cell.x, cell.y)} />
+			{/each}
 		</div>
-	{/if}
+
+		<WinningLine winningLine={winningLine} boardSize={GameConfig.boardSize} {cellSize} />
+
+		{#if ghostPosition}
+			<div
+				class="fixed pointer-events-none rounded-full border-2 border-dashed border-gray-400 opacity-60"
+				style="width: {cellSize}px; height: {cellSize}px; left: {ghostPosition.x - cellSize / 2}px; top: {ghostPosition.y - cellSize / 2}px;"
+			>
+				<span class="flex items-center justify-center h-full text-gray-400" style="font-size: {cellSize * 0.4}px;">?</span>
+			</div>
+		{/if}
+	</div>
 </div>

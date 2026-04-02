@@ -1,26 +1,26 @@
 <script lang="ts">
 	import type { Player } from '$lib/types/game';
-	import { UIConfig } from '$lib/config/uiConfig';
 
 	interface Props {
 		x: number;
 		y: number;
 		player: Player;
 		isLastMove?: boolean;
+		cellSize: number;
 		onclick?: () => void;
 		onkeydown?: (e: KeyboardEvent) => void;
 	}
 
-	let { x, y, player, isLastMove = false, onclick, onkeydown }: Props = $props();
+	let { x, y, player, isLastMove = false, cellSize, onclick, onkeydown }: Props = $props();
 </script>
 
 <button
 	onclick={onclick}
 	onkeydown={onkeydown}
-	class="text-2xl font-bold hover:bg-amber-200 active:bg-amber-300 transition-colors border border-amber-300 {player === 'red'
+	class="font-bold hover:bg-amber-200 active:bg-amber-300 transition-colors border border-amber-300 {player === 'red'
 		? 'text-red-600'
 		: ''} {player === 'blue' ? 'text-blue-600' : ''} {isLastMove ? 'bg-amber-300' : ''}"
-	style="width: {UIConfig.cellSize}px; height: {UIConfig.cellSize}px; min-width: {UIConfig.cellSize}px; min-height: {UIConfig.cellSize}px; display: flex; align-items: center; justify-content: center; position: relative;"
+	style="width: {cellSize}px; height: {cellSize}px; min-width: {cellSize}px; min-height: {cellSize}px; font-size: {cellSize * 0.5}px; display: flex; align-items: center; justify-content: center; position: relative;"
 	aria-label="Cell {x},{y}"
 	data-x={x}
 	data-y={y}

@@ -1,22 +1,21 @@
-<div class="container mx-auto p-8 text-center max-w-2xl">
-	<h1 class="text-4xl font-bold mb-4 text-gray-800">Caro (Gomoku Variant)</h1>
-	<p class="text-xl mb-4 text-gray-600">16x16 Board | Open Rule | Exact 5 to Win</p>
+<div class="max-w-lg mx-auto px-4 py-6 sm:p-8 text-center">
+	<h1 class="text-3xl sm:text-4xl font-bold mb-3 text-gray-800">Caro</h1>
+	<p class="text-base sm:text-lg mb-4 text-gray-600">16&times;16 &middot; Open Rule &middot; Exact 5</p>
 
-	<div class="my-8 p-6 bg-amber-50 rounded-lg border border-amber-200">
-		<h2 class="text-2xl font-semibold mb-3 text-amber-800">Game Rules</h2>
-		<ul class="text-left space-y-2 text-gray-700">
-			<li>• Red 'O' vs Blue 'X'</li>
-			<li>• Red's second move must be at least 3 intersections away from first (Open Rule)</li>
-			<li>• Exactly 5 in a row to win (no overlines)</li>
-			<li>• Both ends blocked = no win</li>
-			<li>• Fisher time controls: Bullet 1+0, Blitz 3+2, Rapid 7+5, Classical 15+10</li>
+	<div class="my-6 p-4 sm:p-6 bg-amber-50 rounded-lg border border-amber-200 text-left">
+		<h2 class="text-xl font-semibold mb-2 text-amber-800">Rules</h2>
+		<ul class="space-y-1.5 text-gray-700 text-sm sm:text-base">
+			<li>Red O vs Blue X</li>
+			<li>Red's second move must be at least 3 intersections away</li>
+			<li>Exactly 5 in a row to win (no overlines)</li>
+			<li>Both ends blocked = no win</li>
 		</ul>
 	</div>
 
 	<a href="/game">
 		<button
-			class="px-8 py-4 bg-amber-500 hover:bg-amber-600 text-white text-xl font-bold rounded-lg shadow-lg transition-colors">
-			Start New Game
+			class="w-full sm:w-auto px-8 py-4 bg-amber-500 hover:bg-amber-600 text-white text-lg font-bold rounded-lg shadow-lg transition-colors">
+			Start Game
 		</button>
 	</a>
 </div>

@@ -55,15 +55,20 @@
 </script>
 
 <div
-	class="flex items-center gap-2 p-3 rounded {isActive ? 'bg-opacity-100' : 'bg-opacity-50'} {player === 'red'
-		? 'bg-red-100'
-		: 'bg-blue-100'}"
+	class="flex items-center gap-2 px-3 py-1.5 rounded-md w-full max-w-[1024px] mx-auto transition-colors {isActive
+		? player === 'red'
+			? 'bg-red-50 border border-red-200'
+			: 'bg-blue-50 border border-blue-200'
+		: 'bg-gray-50 border border-gray-200 opacity-60'}"
 >
-	<span class="font-semibold {player === 'red' ? 'text-red-700' : 'text-blue-700'}">
+	<span class="w-2.5 h-2.5 rounded-full shrink-0 {player === 'red' ? 'bg-red-500' : 'bg-blue-500'}"></span>
+	<span class="text-sm font-semibold {player === 'red' ? 'text-red-700' : 'text-blue-700'}">
 		{player === 'red' ? 'Red' : 'Blue'}
 	</span>
 	<span
-		class="text-xl font-mono {isLowTime && isActive ? 'text-red-500 animate-pulse' : 'text-gray-700'}"
+		class="text-lg font-mono font-bold ml-auto {isLowTime && isActive
+			? 'text-red-500 animate-pulse'
+			: 'text-gray-800'}"
 	>
 		{formatTime(displayTime())}
 	</span>
