@@ -2,6 +2,9 @@
 
 A full-strength Caro (Gomoku variant) AI, built with .NET 10, SvelteKit 2.49+ with Svelte 5 Runes.
 
+
+![Caro AI PvP - AI vs AI Match](screenshot.png)
+
 ---
 
 ## Overview
