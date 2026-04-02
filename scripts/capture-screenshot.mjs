@@ -41,13 +41,12 @@ function cleanup() {
 		try {
 			if (child.pid) {
 				if (process.platform === 'win32') {
-					// Tree kill on Windows to handle grandchild processes
 					spawn('taskkill', ['/T', '/F', '/PID', String(child.pid)], {
 						stdio: 'ignore',
 						shell: true,
 					});
 				} else {
-					process.kill(-child.pid); // kill process group
+					process.kill(-child.pid);
 				}
 			}
 		} catch { /* already dead */ }
@@ -60,10 +59,6 @@ process.on('SIGTERM', () => { cleanup(); process.exit(143); });
 
 /**
  * Run a command and wait for it to exit. Throws on non-zero exit.
- * @param {string} command
- * @param {string[]} args
- * @param {string} cwd
- * @param {string} label
  */
 function runCommand(command, args, cwd, label) {
 	return new Promise((resolve, reject) => {
@@ -89,10 +84,6 @@ function runCommand(command, args, cwd, label) {
 
 /**
  * Spawn a long-lived child process (daemon-like).
- * @param {string} command
- * @param {string[]} args
- * @param {string} cwd
- * @param {string} label
  */
 function spawnDaemon(command, args, cwd, label) {
 	const child = spawn(command, args, {
@@ -202,6 +193,23 @@ function findNewMove(oldBoard, newBoard) {
 	return null;
 }
 
+// --- UCI Coordinate Formatting ---
+
+const LETTER_GROUP_SIZE = 4;
+const ASCII_LOWER_A = 97;
+
+/**
+ * Format board coordinates to UCI notation (matches frontend's toUCI).
+ * x=0,y=0 -> "aa1", x=5,y=7 -> "bb8"
+ */
+function toUCI(x, y) {
+	const firstLetter = Math.floor(x / LETTER_GROUP_SIZE);
+	const secondLetter = x % LETTER_GROUP_SIZE;
+	const col = String.fromCharCode(ASCII_LOWER_A + firstLetter) + String.fromCharCode(ASCII_LOWER_A + secondLetter);
+	const row = y + 1;
+	return `${col}${row}`;
+}
+
 // --- Screenshot ---
 
 async function captureScreenshot(gameState, moveHistory) {
@@ -256,41 +264,41 @@ async function captureScreenshot(gameState, moveHistory) {
 		await page.goto(`${FRONTEND_URL}/game`, { waitUntil: 'networkidle' });
 		await page.waitForSelector('.grid.gap-0', { timeout: 10_000 });
 
-		// Inject move history (frontend builds it incrementally, not from API state)
-		await page.evaluate((moves) => {
-			// Find the Move History section by its heading (more reliable than class selector)
-			const headings = document.querySelectorAll('h3');
-			let historySection = null;
-			for (const h of headings) {
-				if (h.textContent?.includes('Move History')) {
-					historySection = h.parentElement;
-					break;
-				}
-			}
-			if (!historySection) return;
+		// Wait for Svelte to finish rendering game-over state
+		await page.waitForTimeout(2000);
 
-			// Remove "No moves yet" placeholder and any existing list
-			const noMovesText = historySection.querySelector('p.text-gray-500');
-			if (noMovesText) noMovesText.remove();
-			const existingList = historySection.querySelector('.overflow-y-auto.max-h-64');
-			if (existingList) existingList.remove();
+		// Inject move history into the MoveNotation component via data-testid
+		const injected = await page.evaluate((moves) => {
+			const wrapper = document.querySelector('[data-testid="move-notation"]');
+			if (!wrapper) return false;
 
-			// Build move list
 			const container = document.createElement('div');
-			container.className = 'border rounded-lg p-4 bg-white shadow-sm overflow-y-auto max-h-64';
+			container.className = 'flex items-center gap-1.5 overflow-x-auto py-2 px-2';
 			for (const move of moves) {
-				const row = document.createElement('div');
+				const uci = move.uci;
 				const isLatest = move.moveNumber === moves.length;
-				const bgClass = isLatest
-					? (move.player === 'red' ? 'bg-red-100' : 'bg-blue-100')
-					: '';
-				row.className = `flex justify-between items-center py-1 px-2 rounded ${bgClass}`;
-				const label = `${move.moveNumber}. ${move.player.charAt(0).toUpperCase() + move.player.slice(1)}: (${move.x}, ${move.y})`;
-				row.innerHTML = `<span class="text-sm font-medium text-gray-700">${label}</span>`;
-				container.appendChild(row);
+				const span = document.createElement('span');
+				span.className = `shrink-0 px-1.5 py-0.5 rounded text-xs font-mono ${
+					isLatest
+						? move.player === 'red'
+							? 'bg-red-100 text-red-700 font-bold'
+							: 'bg-blue-100 text-blue-700 font-bold'
+						: move.player === 'red'
+							? 'text-red-600'
+							: 'text-blue-600'
+				}`;
+				span.textContent = `${move.moveNumber}.${uci}`;
+				container.appendChild(span);
 			}
-			historySection.appendChild(container);
+
+			wrapper.innerHTML = '';
+			wrapper.appendChild(container);
+			return true;
 		}, moveHistory);
+
+		if (!injected) {
+			console.error('WARNING: Failed to inject move notation (element not found)');
+		}
 
 		// Wait for winning line animation
 		await page.waitForTimeout(800);
@@ -383,7 +391,8 @@ async function main() {
 
 	// Step 5: Capture screenshot
 	console.log('\nCapturing screenshot...');
-	await captureScreenshot(gameResult.state, gameResult.moveHistory);
+	const moveHistoryWithUci = gameResult.moveHistory.map(m => ({ ...m, uci: toUCI(m.x, m.y) }));
+	await captureScreenshot(gameResult.state, moveHistoryWithUci);
 
 	// Step 6: Update README
 	updateReadme();
