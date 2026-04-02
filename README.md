@@ -13,7 +13,7 @@ A full-strength Caro (Gomoku variant) AI, built with .NET 10, SvelteKit 2.49+ wi
 - **UCI Protocol Support** - Standalone engine compatible with UCI chess GUIs
 - **Clean Architecture** - Separated Domain, Application, and Infrastructure layers
 - **Real-time AI PvP** - WebSocket UCI bridge for engine communication
-- **Mobile-first UX** - Ghost stone positioning and haptic feedback
+- **Mobile-first UX** - Responsive board, compact timer strips, ghost stone positioning and haptic feedback
 - **Comprehensive automated tests** - Including adversarial concurrency tests
 
 **Testing:**
@@ -80,28 +80,21 @@ Fisher time controls with increment:
 | Rapid | 7 min | 5 sec |
 | Classical | 15 min | 10 sec |
 
-### ELO Rating System
-
-Local ELO rating with persistent leaderboard:
-
-- Default rating: 1500 (K-factor: 32)
-- Player registration with name entry
-- Top-10 leaderboard with win/loss tracking and win rate
-- Ratings persisted in `localStorage`
-
 ### UX Features
 
 | Feature | Description |
 |---------|-------------|
-| **Move History** | Scrollable move log with player highlighting |
+| **Move Notation** | Horizontal scrolling UCI coordinate codes (e.g. 1.bd8 2.ca9) |
 | **Undo** | Server-side undo support via `POST /api/game/{id}/undo` |
 | **Sound Effects** | Synthesized stone placement (A4/C5 tones) and victory arpeggios via Web Audio API |
-| **Sound Toggle** | Mute/unmute button; muted by default (browser autoplay policy) |
+| **Sound Toggle** | Mute/unmute button in nav bar; muted by default (browser autoplay policy) |
 | **Haptic Feedback** | Vibration on valid (10ms) and invalid (30-50-30ms) moves |
 | **Ghost Stone** | Touch-device positioning preview |
 | **Winning Line** | Animated highlight on game-winning five-in-a-row |
 | **AI Thinking Indicator** | Spinner displayed while engine computes |
-| **Timer Display** | Per-player countdown timers with timeout handling |
+| **Timer Strips** | Compact per-player countdown strips above and below board |
+| **Game Settings** | Collapsible settings panel (mode, time control, AI side) |
+| **Game Over Overlay** | Modal overlay announcing winner with new game button |
 
 ### Engine Configuration
 

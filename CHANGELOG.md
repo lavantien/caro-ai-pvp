@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [4.0.0] - 2026-04-02
+
+### Changed
+- Mobile-first responsive board: dynamic cell sizing via ResizeObserver, board fills viewport width (caps at 1024px)
+- Vertical stack layout: opponent timer > board > player timer > move notation (chess-app style)
+- Move notation: horizontal scrolling UCI coordinate codes replacing vertical move history
+- Timer: compact PlayerTimerStrip replacing full-height Timer component
+- Game settings: collapsible panel that auto-collapses after first move
+- Game over: modal overlay replacing inline message
+- Landing page: mobile-first responsive layout with full-width button
+- Nav bar: compact with integrated SoundToggle
+- Screenshot capture script: data-testid-based move injection (fixes Svelte style scoping issue)
+
+### Removed
+- Leaderboard component and ELO rating UI (rating config/stores preserved)
+- MoveHistory component (replaced by MoveNotation)
+- Timer component (replaced by PlayerTimerStrip)
+
 ## [3.0.0] - 2026-04-02
 
 ### Fixed
@@ -753,7 +771,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
-[3.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v3.0.0
+[4.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.0.0
 [3.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v3.0.0
 [2.9.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.9.0
 [2.8.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.8.1
