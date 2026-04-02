@@ -72,7 +72,7 @@ public class ThreatDetectionDiagnosticTests
 
         // But this IS an open three - both ends are open
         // The FindOpenThreeBlocks method should detect this
-        var ai = new MinimaxAI();
+        var ai = new MinimaxAI(ttSizeMb: 1);
         var move = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = 60000, MoveNumber = 1 });
 
         // AI should block at one end of the open three
@@ -174,7 +174,7 @@ public class ThreatDetectionDiagnosticTests
         board = board.PlaceStone(10, 10, Player.Blue);
 
         // Red's turn - Grandmaster should detect and try to block
-        var ai = new MinimaxAI();
+        var ai = new MinimaxAI(ttSizeMb: 1);
         var move = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = 60000, MoveNumber = 1 });
 
         // Grandmaster should block at one of the winning squares
@@ -224,7 +224,7 @@ public class ThreatDetectionDiagnosticTests
         board = board.PlaceStone(5, 8, Player.Blue);
         // Both (5,5) and (5,9) are open
 
-        var ai = new MinimaxAI();
+        var ai = new MinimaxAI(ttSizeMb: 1);
 
         // Grandmaster's turn - should block the open three
         var move1 = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = 60000, MoveNumber = 1 });

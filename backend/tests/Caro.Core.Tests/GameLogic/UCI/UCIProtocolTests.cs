@@ -8,7 +8,7 @@ using Moq;
 
 namespace Caro.Core.Tests.GameLogic.UCI;
 
-public sealed class UCIProtocolTests
+public sealed class UCIProtocolTests : IDisposable
 {
     private readonly MinimaxAI _ai;
     private readonly Mock<ILogger> _loggerMock;
@@ -19,6 +19,11 @@ public sealed class UCIProtocolTests
         _ai = AITestHelper.CreateAI(ttSizeMb: 1);
         _loggerMock = new Mock<ILogger>();
         _protocol = new UCIProtocol(_ai, _loggerMock.Object);
+    }
+
+    public void Dispose()
+    {
+        _protocol.Stop();
     }
 
     [Fact]
@@ -157,11 +162,13 @@ public sealed class UCIProtocolTests
     public async Task RunAsync_ReadsAndRespondsToCommands()
     {
         // Arrange
-        var input = new StringReader("uci\nisready\nquit\n");
+        var input = new StringReader("uci\nisready\n");
         var output = new StringWriter();
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(500);
 
         // Act
-        await _protocol.RunAsync(input, output, CancellationToken.None);
+        await _protocol.RunAsync(input, output, cts.Token);
 
         // Assert
         var outputStr = output.ToString();
@@ -203,6 +210,9 @@ public sealed class UCIProtocolTests
         var response = _protocol.HandleCommand("go movetime 100");
         // Should not crash - empty board is valid
         response.Should().NotBeNull();
+
+        Thread.Sleep(200);
+        _protocol.Stop();
     }
 
     [Fact]
@@ -285,6 +295,10 @@ public sealed class UCIProtocolTests
         var response = _protocol.HandleCommand("go movetime 100");
 
         response.Should().NotBeNull();
+
+        // Wait for search to complete to avoid background task outliving test host
+        Thread.Sleep(200);
+        _protocol.Stop();
     }
 
     [Fact]
@@ -295,6 +309,9 @@ public sealed class UCIProtocolTests
         var response = _protocol.HandleCommand("go depth 3");
 
         response.Should().NotBeNull();
+
+        Thread.Sleep(200);
+        _protocol.Stop();
     }
 
     [Fact]
