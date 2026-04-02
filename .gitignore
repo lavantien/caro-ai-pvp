@@ -30,3 +30,7 @@ test_tt.cs
 # SQLite WAL files (temporary)
 *.db-shm
 *.db-wal
+.playwright-mcp/
+backend/test-results/
+debug-*.png
+board-screenshot*.png
