@@ -152,9 +152,9 @@ cd backend/src/Caro.UCIMockClient && dotnet run -- --games 4 --time 180 --inc 2
 > uci
 < id name Caro AI
 < id author Caro AI Project
-< option name Threads type spin default auto min 1 max 32
+< option name Threads type spin default 4 min 1 max 32
 < option name Hash type spin default 256 min 32 max 4096
-< option name Ponder type check default true
+< option name Ponder type check default false
 < uciok
 > position startpos moves bd8
 > go movetime 2000
@@ -304,8 +304,9 @@ All domain entities are fully immutable for thread safety:
 - `shardIndex = (hash >> 32) & shardMask`
 - Reduces cache coherency traffic for parallel threads
 
-**Uniform TT Write Policy:**
-- All threads (master and helpers) share identical write logic
+**TT Write Policy:**
+- Master thread writes at all depths
+- Helper threads write only at depth >= 3 (quality filter)
 - Depth-age replacement strategy handles entry quality naturally
 - Helper threads populate TT from different tree regions for master to reuse
 

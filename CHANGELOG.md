@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [2.8.1] - 2026-04-02
+
+### Fixed
+- Handle full-board draw (256 moves, no winner) across all layers with sentinel value (-1,-1)
+- Resolve test host crash in Caro.Core.Tests from MinimaxAI disposal race
+
+### Changed
+- Sync ENGINE_FEATURES.md with actual implementation (TT write policy, move ordering scores, history bounds)
+- Sync README.md UCI example session with actual engine option defaults (Threads=4, Ponder=false)
+- Sync README.md TT write policy description (helpers filtered to depth >= 3)
+
 ## [2.8.0] - 2026-04-01
 
 ### Changed
