@@ -4,7 +4,7 @@
 	import PlayerTimerStrip from '$lib/components/PlayerTimerStrip.svelte';
 	import MoveNotation from '$lib/components/MoveNotation.svelte';
 	import GameSettings from '$lib/components/GameSettings.svelte';
-	import GameOverOverlay from '$lib/components/GameOverOverlay.svelte';
+	import GameResultBanner from '$lib/components/GameResultBanner.svelte';
 	import { GameStore } from '$lib/stores/gameStore.svelte';
 	import { soundManager } from '$lib/utils/sound';
 	import { ApiConfig } from '$lib/config/apiConfig';
@@ -126,6 +126,11 @@
 			}
 
 			await syncWithBackend();
+
+			// Trigger first AI move for AIvAI mode
+			if (gameMode === 'aivai' && !store.isGameOver) {
+				makeAiMove();
+			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Unknown error';
 		} finally {
@@ -272,6 +277,10 @@
 			if (data.state.isGameOver && data.state.winner) {
 				handleGameEnd(data.state.winner);
 			}
+			// Chain next AI move for AIvAI mode
+			if (gameMode === 'aivai' && !store.isGameOver) {
+				makeAiMove();
+			}
 		} catch (err) {
 			showError('Failed to make AI move');
 		} finally {
@@ -380,6 +389,6 @@
 	</div>
 
 	{#if store.isGameOver}
-		<GameOverOverlay winner={store.winner} onNewGame={createNewGame} />
+		<GameResultBanner winner={store.winner} onNewGame={createNewGame} />
 	{/if}
 {/if}

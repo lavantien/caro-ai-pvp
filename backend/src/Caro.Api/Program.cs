@@ -164,7 +164,7 @@ app.MapPost("/api/game/{id}/move", (string id, MoveRequest request) =>
     if (!games.TryGetValue(id, out var session))
         return Results.NotFound("Game not found");
 
-    return session.MutateUnderLock(game =>
+    return session.ExecuteMove(game =>
     {
         if (game.IsGameOver)
             return (game, Results.BadRequest("Game is over"));
@@ -187,7 +187,7 @@ app.MapPost("/api/game/{id}/move", (string id, MoveRequest request) =>
                 game = game.WithGameOver(result.Winner, result.WinningLine.ToImmutableArray());
             }
 
-            return (game, Results.Ok(new { state = GameSession.BuildResponse(game) }));
+            return (game, (IResult?)null);
         }
         catch (ArgumentOutOfRangeException)
         {
@@ -206,13 +206,12 @@ app.MapPost("/api/game/{id}/undo", (string id) =>
     if (!games.TryGetValue(id, out var session))
         return Results.NotFound("Game not found");
 
-    return session.MutateUnderLock(game =>
+    return session.ExecuteMove(game =>
     {
         try
         {
             game = game.UndoMove();
-
-            return (game, Results.Ok(new { state = GameSession.BuildResponse(game) }));
+            return (game, (IResult?)null);
         }
         catch (InvalidOperationException ex)
         {
@@ -241,7 +240,7 @@ app.MapPost("/api/game/{id}/ai-move", (
     var (x, y) = ai.GetBestMove(boardClone, currentPlayer, SearchOptions.Default);
 
     // Step 3: Validate and apply the move under lock
-    return session.MutateUnderLock(game =>
+    return session.ExecuteMove(game =>
     {
         // Double-check game didn't end while we were calculating
         if (game.IsGameOver)
@@ -264,7 +263,7 @@ app.MapPost("/api/game/{id}/ai-move", (
                 game = game.WithGameOver(result.Winner, result.WinningLine.ToImmutableArray());
             }
 
-            return (game, Results.Ok(new { state = GameSession.BuildResponse(game) }));
+            return (game, (IResult?)null);
         }
         catch (ArgumentOutOfRangeException)
         {
@@ -289,18 +288,17 @@ app.MapGet("/api/game/{id}", (string id) =>
 app.Run();
 
 /// <summary>
-/// Thread-safe game session with per-game locking.
+/// Thread-safe game session with per-game locking and time tracking.
 /// Each game has its own lock, allowing concurrent games to proceed independently.
-/// This eliminates the global lock bottleneck in the original implementation.
 /// </summary>
 public sealed class GameSession
 {
     private readonly object _lock = new();
     private GameState _game;
+    private long _redTimeRemainingMs;
+    private long _blueTimeRemainingMs;
+    private DateTime _lastMoveTimestamp;
 
-    /// <summary>
-    /// Create a new game session with specified parameters.
-    /// </summary>
     public GameSession(
         string timeControl = "7+5",
         long initialTimeMs = 420_000,
@@ -313,92 +311,87 @@ public sealed class GameSession
             incrementSeconds: incrementSeconds,
             gameMode: gameMode
         );
+        _redTimeRemainingMs = initialTimeMs;
+        _blueTimeRemainingMs = initialTimeMs;
+        _lastMoveTimestamp = DateTime.UtcNow;
     }
 
     /// <summary>
-    /// Executes an action under the per-game lock.
-    /// Returns the result of the action.
+    /// Executes a move under lock, automatically tracking player time.
+    /// Time is deducted from the moving player and increment is added.
+    /// Returns the error result if action returns one, otherwise success
+    /// with full game state response including timing.
     /// </summary>
-    public TResult ExecuteUnderLock<TResult>(Func<GameState, TResult> action)
+    public IResult ExecuteMove(Func<GameState, (GameState updated, IResult? error)> action)
     {
         lock (_lock)
         {
-            return action(_game);
-        }
-    }
+            var previousMoveNumber = _game.MoveNumber;
+            var movingPlayer = _game.CurrentPlayer;
+            var (updated, error) = action(_game);
 
-    /// <summary>
-    /// Executes a mutating action under the per-game lock.
-    /// The action returns the updated state and result; the updated state is saved.
-    /// </summary>
-    public TResult MutateUnderLock<TResult>(Func<GameState, (GameState updated, TResult result)> action)
-    {
-        lock (_lock)
-        {
-            var (updated, result) = action(_game);
+            if (error != null)
+                return error;
+
+            if (updated.MoveNumber > previousMoveNumber)
+            {
+                var now = DateTime.UtcNow;
+                var elapsedMs = (long)(now - _lastMoveTimestamp).TotalMilliseconds;
+                long inc = updated.IncrementSeconds * 1000L;
+                if (movingPlayer == Player.Red)
+                    _redTimeRemainingMs = Math.Max(0, _redTimeRemainingMs - elapsedMs + inc);
+                else
+                    _blueTimeRemainingMs = Math.Max(0, _blueTimeRemainingMs - elapsedMs + inc);
+                _lastMoveTimestamp = now;
+            }
+
             _game = updated;
-            return result;
-        }
-    }
-
-    /// <summary>
-    /// Executes an action under the per-game lock.
-    /// </summary>
-    public void ExecuteUnderLock(Action<GameState> action)
-    {
-        lock (_lock)
-        {
-            action(_game);
+            return Results.Ok(new { state = BuildResponse() });
         }
     }
 
     /// <summary>
     /// Extracts data needed for AI calculation WITHOUT holding the lock.
-    /// Returns the board so AI can compute without blocking other requests.
     /// Board is immutable, so no cloning is needed.
     /// </summary>
     public (Board BoardClone, Player CurrentPlayer, bool IsGameOver) ExtractForAI()
     {
         lock (_lock)
         {
-            // Board is immutable, so we can return it directly
             return (_game.Board, _game.CurrentPlayer, _game.IsGameOver);
         }
     }
 
-    /// <summary>
-    /// Gets the current game state as a response object (under lock)
-    /// </summary>
     public object GetResponse()
     {
         lock (_lock)
         {
-            return BuildResponse(_game);
+            return BuildResponse();
         }
     }
 
-    public static object BuildResponse(GameState game) => new
+    private object BuildResponse() => new
     {
         board = from x in Enumerable.Range(0, 16)
                 from y in Enumerable.Range(0, 16)
-                let cell = game.Board.GetCell(x, y)
+                let cell = _game.Board.GetCell(x, y)
                 select new
                 {
                     x,
                     y,
                     player = cell.Player.ToLowerString()
                 },
-        currentPlayer = game.CurrentPlayer.ToLowerString(),
-        moveNumber = game.MoveNumber,
-        isGameOver = game.IsGameOver,
-        winner = game.Winner.ToLowerString(),
-        winningLine = game.WinningLine.Select(p => new { x = p.X, y = p.Y }),
-        redTimeRemaining = 0.0,
-        blueTimeRemaining = 0.0,
-        timeControl = game.TimeControl,
-        initialTime = game.InitialTimeMs / 1000,
-        increment = game.IncrementSeconds,
-        gameMode = game.GameMode.ToLowerString()
+        currentPlayer = _game.CurrentPlayer.ToLowerString(),
+        moveNumber = _game.MoveNumber,
+        isGameOver = _game.IsGameOver,
+        winner = _game.Winner.ToLowerString(),
+        winningLine = _game.WinningLine.Select(p => new { x = p.X, y = p.Y }),
+        redTimeRemaining = _redTimeRemainingMs / 1000.0,
+        blueTimeRemaining = _blueTimeRemainingMs / 1000.0,
+        timeControl = _game.TimeControl,
+        initialTime = _game.InitialTimeMs / 1000,
+        increment = _game.IncrementSeconds,
+        gameMode = _game.GameMode.ToLowerString()
     };
 }
 

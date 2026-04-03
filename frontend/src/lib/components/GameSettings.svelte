@@ -157,14 +157,12 @@
 					</span>
 				{/if}
 
-				{#if moveNumber > 0}
-					<button
-						onclick={onNewGame}
-						class="ml-auto px-3 py-1.5 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 transition-colors"
-					>
-						New Game
-					</button>
-				{/if}
+				<button
+					onclick={onNewGame}
+					class="ml-auto px-3 py-1.5 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 transition-colors"
+				>
+					New Game
+				</button>
 			</div>
 		</div>
 	{/if}

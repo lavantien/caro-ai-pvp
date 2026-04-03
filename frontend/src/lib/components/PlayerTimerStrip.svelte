@@ -24,7 +24,7 @@
 
 	const displayTime = $derived(() => {
 		tick;
-		if (!isActive) return serverTimeBase;
+		if (!isActive) return Math.round(serverTimeBase);
 		const elapsed = (Date.now() - serverTimeTimestamp) / 1000;
 		return Math.max(0, Math.round(serverTimeBase - elapsed));
 	});
@@ -46,6 +46,7 @@
 
 	function formatTime(seconds: number): string {
 		if (seconds < 0) seconds = 0;
+		seconds = Math.round(seconds);
 		const mins = Math.floor(seconds / 60);
 		const secs = seconds % 60;
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
