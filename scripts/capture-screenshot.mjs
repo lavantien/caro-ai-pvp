@@ -3,8 +3,9 @@
 /**
  * E2E Screenshot Capture Script
  *
- * Runs the full pipeline (backend + frontend), plays an AI vs AI match,
- * captures a screenshot of the game-winning position, and inserts it into README.md.
+ * Runs the full pipeline (backend + frontend), plays an AI vs AI match
+ * through the real UI, captures a screenshot of the game-winning position,
+ * and inserts it into README.md.
  *
  * Usage: node scripts/capture-screenshot.mjs
  */
@@ -24,7 +25,6 @@ const README_PATH = resolve(ROOT, 'README.md');
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:5207';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const MAX_RETRIES = 3;
-const MAX_MOVES = 300;
 
 // Resolve playwright-core from frontend's node_modules
 const require = createRequire(resolve(FRONTEND_DIR, 'package.json'));
@@ -126,93 +126,9 @@ async function waitForUrl(url, timeoutMs = 30_000, intervalMs = 1000) {
 	throw new Error(`Timeout waiting for ${url} (${timeoutMs}ms)`);
 }
 
-// --- Game Logic ---
-
-async function playGame() {
-	const createResp = await fetch(`${API_BASE}/api/game/new`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ timeControl: '7+5', gameMode: 'aivai' }),
-	});
-	if (!createResp.ok) throw new Error(`Create game failed: ${createResp.status}`);
-	const { gameId, state: initialState } = await createResp.json();
-
-	/** @type {{ moveNumber: number; player: string; x: number; y: number }[]} */
-	const moveHistory = [];
-	let currentState = initialState;
-	let prevBoard = initialState.board;
-
-	console.log(`Game created: ${gameId}`);
-
-	for (let i = 0; i < MAX_MOVES; i++) {
-		const moveResp = await fetch(`${API_BASE}/api/game/${gameId}/ai-move`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({}),
-		});
-
-		if (!moveResp.ok) {
-			console.error(`AI move failed: ${moveResp.status} - ${await moveResp.text()}`);
-			break;
-		}
-
-		const { state } = await moveResp.json();
-		currentState = state;
-
-		const newMove = findNewMove(prevBoard, state.board);
-		if (newMove) {
-			moveHistory.push({
-				moveNumber: state.moveNumber,
-				player: state.currentPlayer === 'red' ? 'blue' : 'red',
-				x: newMove.x,
-				y: newMove.y,
-			});
-		}
-
-		prevBoard = state.board;
-
-		if (state.isGameOver) {
-			console.log(`Game over after ${moveHistory.length} moves. Winner: ${state.winner}`);
-			break;
-		}
-	}
-
-	if (!currentState.isGameOver) {
-		throw new Error('Game did not finish within move limit');
-	}
-
-	return { gameId, state: currentState, moveHistory };
-}
-
-function findNewMove(oldBoard, newBoard) {
-	for (let i = 0; i < oldBoard.length; i++) {
-		if (oldBoard[i].player === 'none' && newBoard[i].player !== 'none') {
-			return { x: newBoard[i].x, y: newBoard[i].y };
-		}
-	}
-	return null;
-}
-
-// --- UCI Coordinate Formatting ---
-
-const LETTER_GROUP_SIZE = 4;
-const ASCII_LOWER_A = 97;
-
-/**
- * Format board coordinates to UCI notation (matches frontend's toUCI).
- * x=0,y=0 -> "aa1", x=5,y=7 -> "bb8"
- */
-function toUCI(x, y) {
-	const firstLetter = Math.floor(x / LETTER_GROUP_SIZE);
-	const secondLetter = x % LETTER_GROUP_SIZE;
-	const col = String.fromCharCode(ASCII_LOWER_A + firstLetter) + String.fromCharCode(ASCII_LOWER_A + secondLetter);
-	const row = y + 1;
-	return `${col}${row}`;
-}
-
 // --- Screenshot ---
 
-async function captureScreenshot(gameState, moveHistory) {
+async function captureScreenshot() {
 	const browser = await chromium.launch({
 		executablePath: chromium.executablePath(),
 		headless: true,
@@ -227,77 +143,39 @@ async function captureScreenshot(gameState, moveHistory) {
 
 		const page = await context.newPage();
 
-		// Intercept API calls to inject our completed game state
-		await page.route('**/api/game/new', async (route) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({ gameId: 'screenshot-capture', state: gameState }),
-			});
-		});
-
-		await page.route('**/api/game/screenshot-capture', async (route) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({ state: gameState }),
-			});
-		});
-
-		// Block AI and regular move attempts
-		await page.route('**/api/game/*/ai-move', async (route) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({ state: gameState }),
-			});
-		});
-
-		await page.route('**/api/game/*/move', async (route) => {
-			await route.fulfill({
-				status: 400,
-				contentType: 'text/plain',
-				body: 'Game is over',
-			});
-		});
-
 		await page.goto(`${FRONTEND_URL}/game`, { waitUntil: 'networkidle' });
-		await page.waitForSelector('.grid.gap-0', { timeout: 10_000 });
 
-		// Wait for Svelte to finish rendering game-over state
-		await page.waitForTimeout(2000);
+		// Wait for settings panel to render
+		await page.waitForSelector('button:has-text("AI vs AI")', { timeout: 10_000 });
 
-		// Inject move history into the MoveNotation component via data-testid
-		const injected = await page.evaluate((moves) => {
-			const wrapper = document.querySelector('[data-testid="move-notation"]');
-			if (!wrapper) return false;
+		// Select AIvAI mode
+		await page.click('button:has-text("AI vs AI")');
 
-			const container = document.createElement('div');
-			container.className = 'flex items-center gap-1.5 overflow-x-auto py-2 px-2';
-			for (const move of moves) {
-				const uci = move.uci;
-				const isLatest = move.moveNumber === moves.length;
-				const span = document.createElement('span');
-				span.className = `shrink-0 px-1.5 py-0.5 rounded text-xs font-mono ${
-					isLatest
-						? move.player === 'red'
-							? 'bg-red-100 text-red-700 font-bold'
-							: 'bg-blue-100 text-blue-700 font-bold'
-						: move.player === 'red'
-							? 'text-red-600'
-							: 'text-blue-600'
-				}`;
-				span.textContent = `${move.moveNumber}.${uci}`;
-				container.appendChild(span);
+		// Click New Game to start with AIvAI mode
+		// The initial game created by onMount will be PvP; we need to restart with AIvAI
+		await page.click('button:has-text("New Game")');
+
+		// Wait for the game to complete (banner appears)
+		for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+			console.log(`Waiting for AI vs AI match to complete (attempt ${attempt}/${MAX_RETRIES})...`);
+
+			// Wait for the result banner to appear (indicates game over)
+			await page.waitForSelector('.animate-slide-down', { timeout: 300_000 });
+
+			// Check if there's a winner (banner contains "Wins!")
+			const bannerText = await page.textContent('.animate-slide-down');
+			if (bannerText && bannerText.includes('Wins!')) {
+				console.log(`Game complete: ${bannerText.trim()}`);
+				break;
 			}
 
-			wrapper.innerHTML = '';
-			wrapper.appendChild(container);
-			return true;
-		}, moveHistory);
+			if (attempt === MAX_RETRIES) {
+				throw new Error('Failed to get a winning game after max retries');
+			}
 
-		if (!injected) {
-			console.error('WARNING: Failed to inject move notation (element not found)');
+			// Draw - start a new game
+			console.log('Draw detected, starting new game...');
+			await page.click('button:has-text("New Game")');
 		}
 
 		// Wait for winning line animation
@@ -369,32 +247,11 @@ async function main() {
 	await waitForUrl(FRONTEND_URL, 30_000);
 	console.log('Frontend ready.\n');
 
-	// Step 4: Play AI vs AI match (retry on draw)
-	let gameResult;
-	for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-		console.log(`Playing AI vs AI match (attempt ${attempt}/${MAX_RETRIES})...`);
-		try {
-			gameResult = await playGame();
-			if (gameResult.state.winner && gameResult.state.winner !== 'none') {
-				break;
-			}
-			console.log('No winner, retrying...');
-		} catch (err) {
-			console.error(`Attempt ${attempt} failed: ${err.message}`);
-			if (attempt === MAX_RETRIES) throw err;
-		}
-	}
-
-	if (!gameResult) {
-		throw new Error('Failed to complete a game');
-	}
-
-	// Step 5: Capture screenshot
+	// Step 4: Capture screenshot via real UI
 	console.log('\nCapturing screenshot...');
-	const moveHistoryWithUci = gameResult.moveHistory.map(m => ({ ...m, uci: toUCI(m.x, m.y) }));
-	await captureScreenshot(gameResult.state, moveHistoryWithUci);
+	await captureScreenshot();
 
-	// Step 6: Update README
+	// Step 5: Update README
 	updateReadme();
 
 	console.log('\nDone!');

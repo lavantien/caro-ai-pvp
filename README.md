@@ -94,7 +94,7 @@ Fisher time controls with increment:
 | **AI Thinking Indicator** | Spinner displayed while engine computes |
 | **Timer Strips** | Compact per-player countdown strips above and below board |
 | **Game Settings** | Collapsible settings panel (mode, time control, AI side) |
-| **Game Over Overlay** | Modal overlay announcing winner with new game button |
+| **Game Result Banner** | Top slide-down banner announcing winner, board stays visible |
 
 ### Engine Configuration
 

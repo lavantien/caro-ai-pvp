@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [4.1.0] - 2026-04-03
+
+### Added
+- Backend time tracking: GameSession tracks per-player time with Fisher increment in ExecuteMove
+- AIvAI auto-chaining: makeAiMove() chains next move automatically, enabling full autonomous games
+- GameResultBanner: top slide-in banner replacing full-screen modal (board stays visible)
+
+### Changed
+- Backend: GameSession.ExecuteMove replaces MutateUnderLock with integrated time deduction and increment
+- Backend: BuildResponse now instance method with time remaining fields (previously hardcoded 0.0)
+- Screenshot script: simplified to UI-driven approach (no API mocking, real browser gameplay)
+- GameSettings: "New Game" button always visible (previously hidden until first move)
+
+### Fixed
+- Timer display: Math.round() on inactive branch prevents floating-point artifacts (e.g. 8:1.0459999)
+- Screenshot script: selector updated to match new GameResultBanner component
+
+### Removed
+- GameOverOverlay component (replaced by GameResultBanner)
+
 ## [4.0.0] - 2026-04-02
 
 ### Changed
@@ -771,6 +791,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[4.1.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.1.0
 [4.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.0.0
 [3.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v3.0.0
 [2.9.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v2.9.0
