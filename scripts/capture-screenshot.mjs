@@ -10,7 +10,7 @@
  * Usage: node scripts/capture-screenshot.mjs
  */
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -41,9 +41,11 @@ function cleanup() {
 		try {
 			if (child.pid) {
 				if (process.platform === 'win32') {
-					spawn('taskkill', ['/T', '/F', '/PID', String(child.pid)], {
+					// spawnSync required — async spawn won't complete before process.exit
+					// shell: false required — bash interprets /T and /F as paths
+					spawnSync('taskkill', ['/T', '/F', '/PID', String(child.pid)], {
 						stdio: 'ignore',
-						shell: true,
+						shell: false,
 					});
 				} else {
 					process.kill(-child.pid);
@@ -84,6 +86,7 @@ function runCommand(command, args, cwd, label) {
 
 /**
  * Spawn a long-lived child process (daemon-like).
+ * Pipes stdout+stderr to parent console for visibility.
  */
 function spawnDaemon(command, args, cwd, label) {
 	const child = spawn(command, args, {
@@ -94,8 +97,20 @@ function spawnDaemon(command, args, cwd, label) {
 
 	let stderrBuffer = '';
 	child.stderr?.on('data', (data) => {
-		stderrBuffer += data.toString();
+		const text = data.toString();
+		stderrBuffer += text;
 		if (stderrBuffer.length > 5000) stderrBuffer = stderrBuffer.slice(-2500);
+		// Pipe backend/frontend logs to parent console
+		for (const line of text.split('\n')) {
+			if (line.trim()) console.log(`[${label}] ${line}`);
+		}
+	});
+
+	child.stdout?.on('data', (data) => {
+		const text = data.toString();
+		for (const line of text.split('\n')) {
+			if (line.trim()) console.log(`[${label}] ${line}`);
+		}
 	});
 
 	child.on('error', (err) => console.error(`[${label}] Failed: ${err.message}`));
@@ -143,6 +158,13 @@ async function captureScreenshot() {
 
 		const page = await context.newPage();
 
+		// Log browser console messages
+		page.on('console', msg => {
+			if (msg.type() === 'error' || msg.type() === 'warning') {
+				console.log(`[browser:${msg.type()}] ${msg.text()}`);
+			}
+		});
+
 		await page.goto(`${FRONTEND_URL}/game`, { waitUntil: 'networkidle' });
 
 		// Wait for settings panel to render
@@ -151,8 +173,10 @@ async function captureScreenshot() {
 		// Select AIvAI mode
 		await page.click('button:has-text("AI vs AI")');
 
+		// Select Blitz (3+2) time control for a more interesting game
+		await page.selectOption('select', '3+2');
+
 		// Click New Game to start with AIvAI mode
-		// The initial game created by onMount will be PvP; we need to restart with AIvAI
 		await page.click('button:has-text("New Game")');
 
 		// Wait for the game to complete (banner appears)
