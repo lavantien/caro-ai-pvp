@@ -247,7 +247,9 @@ app.MapPost("/api/game/{id}/ai-move", (
         ParallelSearchEnabled = true,
     };
     var (x, y) = ai.GetBestMove(boardClone, currentPlayer, searchOptions);
+    var stats = ai.GetSearchStatistics();
     Console.WriteLine($"[AI] {currentPlayer} -> ({x},{y})");
+    Console.WriteLine($"[AI] stats depth={stats.DepthAchieved} nodes={stats.NodesSearched} nps={stats.NodesPerSecond:F0} score={stats.SearchScore} moveType={stats.MoveType} ttHit={stats.TableHitRate:F1}% time={stats.AllocatedTimeMs}ms threads={stats.ThreadCount}");
 
     // Step 3: Validate and apply the move under lock
     return session.ExecuteMove(game =>
