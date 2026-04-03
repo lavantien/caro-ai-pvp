@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [4.2.0] - 2026-04-03
+
+### Added
+- AI move endpoint passes time remaining and increment to SearchOptions (was using Default with 5s fallback)
+- Backend console logging for game creation and AI move decisions
+- Screenshot script: daemon stdout/stderr piped to parent console for visibility
+- Screenshot script: browser console error/warning logging
+- Screenshot script: Blitz (3+2) time control selection for more interesting games
+
+### Fixed
+- AI endpoint time management: engine now uses full time control budget instead of hardcoded 5s soft bound
+- Open Rule validator removed from AI endpoint: engine doesn't know the constraint, was rejecting valid AI moves (400 errors)
+- Screenshot script: spawnSync + shell:false for Windows process cleanup (async spawn won't complete before exit)
+- Screenshot script: fullPage:true for complete board capture
+
 ## [4.1.0] - 2026-04-03
 
 ### Added
@@ -791,6 +806,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[4.2.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.2.0
 [4.1.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.1.0
 [4.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.0.0
 [3.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v3.0.0
