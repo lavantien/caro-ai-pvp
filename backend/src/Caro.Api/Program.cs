@@ -155,6 +155,7 @@ app.MapPost("/api/game/new", (CreateGameRequest? request) =>
         gameMode);
     games[gameId] = session;
 
+    Console.WriteLine($"[GAME] Created {gameId}: mode={gameMode}, tc={timeControl.Name}");
     return Results.Ok(new { gameId, state = session.GetResponse() });
 });
 
@@ -231,13 +232,22 @@ app.MapPost("/api/game/{id}/ai-move", (
         return Results.NotFound("Game not found");
 
     // Step 1: Extract game data under lock (minimal lock time)
-    var (boardClone, currentPlayer, isGameOver) = session.ExtractForAI();
+    var (boardClone, currentPlayer, isGameOver, timeRemainingMs, incrementSeconds) = session.ExtractForAI();
 
     if (isGameOver)
         return Results.BadRequest("Game is over");
 
     // Step 2: AI calculation OUTSIDE lock (can take seconds without blocking other games)
-    var (x, y) = ai.GetBestMove(boardClone, currentPlayer, SearchOptions.Default);
+    Console.WriteLine($"[AI] {currentPlayer} thinking... (timeRemaining={timeRemainingMs}ms, increment={incrementSeconds}s)");
+    var searchOptions = new SearchOptions
+    {
+        TimeRemainingMs = timeRemainingMs,
+        IncrementSeconds = incrementSeconds,
+        PonderingEnabled = true,
+        ParallelSearchEnabled = true,
+    };
+    var (x, y) = ai.GetBestMove(boardClone, currentPlayer, searchOptions);
+    Console.WriteLine($"[AI] {currentPlayer} -> ({x},{y})");
 
     // Step 3: Validate and apply the move under lock
     return session.ExecuteMove(game =>
@@ -245,11 +255,6 @@ app.MapPost("/api/game/{id}/ai-move", (
         // Double-check game didn't end while we were calculating
         if (game.IsGameOver)
             return (game, Results.BadRequest("Game ended while AI was thinking"));
-
-        var validator = new OpenRuleValidator();
-
-        if (!validator.IsValidSecondMove(game.Board, x, y))
-            return (game, Results.BadRequest("AI move violates Open Rule"));
 
         try
         {
@@ -353,12 +358,16 @@ public sealed class GameSession
     /// <summary>
     /// Extracts data needed for AI calculation WITHOUT holding the lock.
     /// Board is immutable, so no cloning is needed.
+    /// Includes time remaining for the current player and increment for time-managed search.
     /// </summary>
-    public (Board BoardClone, Player CurrentPlayer, bool IsGameOver) ExtractForAI()
+    public (Board BoardClone, Player CurrentPlayer, bool IsGameOver, long TimeRemainingMs, int IncrementSeconds) ExtractForAI()
     {
         lock (_lock)
         {
-            return (_game.Board, _game.CurrentPlayer, _game.IsGameOver);
+            long timeRemaining = _game.CurrentPlayer == Player.Red
+                ? _redTimeRemainingMs
+                : _blueTimeRemainingMs;
+            return (_game.Board, _game.CurrentPlayer, _game.IsGameOver, timeRemaining, _game.IncrementSeconds);
         }
     }
 
