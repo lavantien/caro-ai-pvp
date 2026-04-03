@@ -37,3 +37,4 @@ board-screenshot*.png
 
 # Vite dev server cache
 .vite/
+/docs/superpowers/specs
