@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [4.3.0] - 2026-04-04
+
+### Changed
+- Decompose all GameLogic files exceeding 400 lines into sub-400-line partial class files (zero-risk, compiler-verified refactoring)
+- MinimaxAI split into 12 partial files (from ~3,100 lines)
+- ParallelMinimaxSearch split into 9 partial files (from ~2,600 lines)
+- TranspositionTable and LockFreeTranspositionTable each split into main + IO partials
+- Updated ENGINE_FEATURES.md source layout to reflect new file structure
+
 ## [4.2.0] - 2026-04-03
 
 ### Added
@@ -806,6 +815,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[4.3.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.3.0
 [4.2.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.2.0
 [4.1.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.1.0
 [4.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.0.0
