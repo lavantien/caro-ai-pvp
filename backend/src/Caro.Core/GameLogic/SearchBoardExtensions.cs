@@ -179,12 +179,13 @@ public static class SearchBoardExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool CheckFiveInRow(BitBoard bits)
     {
-        // Check horizontal
+        // Check horizontal (need 5 terms: shifts 0,1,2,3,4 for 5-in-a-row)
         var h1 = bits;
         var h2 = h1.ShiftRight();
         var h3 = h2.ShiftRight();
         var h4 = h3.ShiftRight();
-        if ((h1 & h2 & h3 & h4).IsEmpty == false)
+        var h5 = h4.ShiftRight();
+        if ((h1 & h2 & h3 & h4 & h5).IsEmpty == false)
             return true;
 
         // Check vertical
@@ -192,7 +193,8 @@ public static class SearchBoardExtensions
         var v2 = v1.ShiftDown();
         var v3 = v2.ShiftDown();
         var v4 = v3.ShiftDown();
-        if ((v1 & v2 & v3 & v4).IsEmpty == false)
+        var v5 = v4.ShiftDown();
+        if ((v1 & v2 & v3 & v4 & v5).IsEmpty == false)
             return true;
 
         // Check diagonal \
@@ -200,7 +202,8 @@ public static class SearchBoardExtensions
         var d2 = d1.ShiftDownRight();
         var d3 = d2.ShiftDownRight();
         var d4 = d3.ShiftDownRight();
-        if ((d1 & d2 & d3 & d4).IsEmpty == false)
+        var d5 = d4.ShiftDownRight();
+        if ((d1 & d2 & d3 & d4 & d5).IsEmpty == false)
             return true;
 
         // Check diagonal /
@@ -208,7 +211,8 @@ public static class SearchBoardExtensions
         var a2 = a1.ShiftDownLeft();
         var a3 = a2.ShiftDownLeft();
         var a4 = a3.ShiftDownLeft();
-        if ((a1 & a2 & a3 & a4).IsEmpty == false)
+        var a5 = a4.ShiftDownLeft();
+        if ((a1 & a2 & a3 & a4 & a5).IsEmpty == false)
             return true;
 
         return false;
