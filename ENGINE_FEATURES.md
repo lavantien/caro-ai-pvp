@@ -607,11 +607,41 @@ Extracted from the main search classes for cohesion and maintainability:
 
 ### 10.3 Main Search Classes
 
-| File | Lines (approx.) | Role |
-|------|-----------------|------|
-| `MinimaxAI.cs` | ~3,100 | Sequential search orchestration, iterative deepening, PVS, pondering |
-| `ParallelMinimaxSearch.cs` | ~2,600 | Lazy SMP parallel search, thread coordination, WorkerPool |
-| `IterativeDeepeningSearch.cs` | - | Iterative deepening driver for sequential path |
+Decomposed into partial class files (all ≤ 400 lines):
+
+**MinimaxAI** (sequential search):
+| File | Role |
+|------|------|
+| `MinimaxAI.cs` | Class definition, constructor, public API |
+| `MinimaxAI.Helpers.cs` | Shared utilities and helper methods |
+| `MinimaxAI.MoveSelection.cs` | Top-level move selection orchestration |
+| `MinimaxAI.MoveSelection.Attack.cs` | Winning/threat-creation attack moves |
+| `MinimaxAI.MoveSelection.Defense.cs` | Blocking and defensive moves |
+| `MinimaxAI.MoveSelection.PonderHit.cs` | Ponder hit detection and reuse |
+| `MinimaxAI.MoveSelection.SearchDispatch.cs` | Search invocation and result handling |
+| `MinimaxAI.MoveSelection.ThreatBlocking.cs` | Threat-based forced blocking |
+| `MinimaxAI.Search.cs` | Search orchestration, iterative deepening |
+| `MinimaxAI.Search.Core.cs` | Core PVS alpha-beta search |
+| `MinimaxAI.Search.Minimax.cs` | Full-width minimax with LMR |
+| `MinimaxAI.Stats.cs` | Statistics and telemetry |
+
+**ParallelMinimaxSearch** (Lazy SMP):
+| File | Role |
+|------|------|
+| `ParallelMinimaxSearch.cs` | Class definition, thread data, WorkerPool |
+| `ParallelMinimaxSearch.Orchestration.cs` | Entry points: GetBestMove, GetBestMoveWithStats |
+| `ParallelMinimaxSearch.Orchestration.SearchLazySMP.cs` | Lazy SMP thread coordination |
+| `ParallelMinimaxSearch.Orchestration.IterativeDeepening.cs` | Time-aware iterative deepening |
+| `ParallelMinimaxSearch.Search.cs` | Parallel alpha-beta with adaptive LMR |
+| `ParallelMinimaxSearch.Search.Quiesce.cs` | Quiescence search |
+| `ParallelMinimaxSearch.MoveOrdering.cs` | Move ordering with killer/history scoring |
+| `ParallelMinimaxSearch.MoveOrdering.Helpers.cs` | Candidate generation, legacy sort helpers |
+| `ParallelMinimaxSearch.Pondering.cs` | Ponder search and hit detection |
+
+**Other:**
+| File | Role |
+|------|------|
+| `IterativeDeepeningSearch.cs` | Iterative deepening driver for sequential path |
 
 ---
 
