@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic.TimeManagement;
 using SHC = Caro.Core.Domain.Configuration.SearchHeuristicConstants;
+using EC = Caro.Core.Domain.Configuration.EvaluationConstants;
 
 namespace Caro.Core.GameLogic;
 
@@ -251,7 +252,7 @@ public sealed partial class ParallelMinimaxSearch
 
             progressCallback?.Invoke((bestMove.x, bestMove.y, bestDepth, bestScore));
 
-            if (result.score >= SHC.WinScore)
+            if (result.score > EC.MaxCorrectedEval)
                 break;
 
             currentDepth++;

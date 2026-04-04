@@ -3,6 +3,7 @@ using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic.Search;
 using Caro.Core.GameLogic.TimeManagement;
 using SHC = Caro.Core.Domain.Configuration.SearchHeuristicConstants;
+using EC = Caro.Core.Domain.Configuration.EvaluationConstants;
 
 namespace Caro.Core.GameLogic;
 
@@ -222,7 +223,7 @@ public sealed partial class ParallelMinimaxSearch
             if (cancellationToken.IsCancellationRequested)
                 break;
 
-            if (result.score >= SHC.WinScore)
+            if (result.score > EC.MaxCorrectedEval)
                 break;
 
             currentDepth++;
@@ -321,7 +322,9 @@ public sealed partial class ParallelMinimaxSearch
         bool shouldStore = threadData.ThreadIndex == 0 || depth >= 3;
         if (shouldStore)
         {
-            _transpositionTable.Store(board.GetHash(), (sbyte)depth, (short)bestScore, (sbyte)bestMove.x, (sbyte)bestMove.y, alpha, beta, (byte)threadData.ThreadIndex, rootDepth: depth);
+            // At root, plyFromRoot = 0 so ScoreToTT is a no-op for mate scores.
+            // Still call it for consistency.
+            _transpositionTable.Store(board.GetHash(), (sbyte)depth, ScoreToTT(bestScore, 0), (sbyte)bestMove.x, (sbyte)bestMove.y, alpha, beta, (byte)threadData.ThreadIndex, rootDepth: depth);
         }
 
         return (bestMove.x, bestMove.y, bestScore);

@@ -220,8 +220,11 @@ public sealed partial class ParallelMinimaxSearch
         const int ReasonableScoreThreshold = (int)SHC.ReasonableScoreThreshold;  // -2147383648
 
         // First, try to find results at maxDepth with reasonable scores
+        // Reject int.MaxValue leaks (uninitialized minimizing nodes) and int.MinValue (search failures)
         var reasonableAtMaxDepth = results
-            .Where(r => r.depth == maxDepth && r.score > ReasonableScoreThreshold)
+            .Where(r => r.depth == maxDepth
+                && r.score > ReasonableScoreThreshold
+                && r.score < SHC.WinScore * 2)
             .ToList();
 
         if (reasonableAtMaxDepth.Count > 0)

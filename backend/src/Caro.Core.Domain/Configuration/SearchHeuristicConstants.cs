@@ -32,8 +32,8 @@ public static class SearchHeuristicConstants
     public const int RandomBonusRange = 100;
 
     // Score thresholds
-    public const int WinScore = 100000;
-    public const long ReasonableScoreThreshold = int.MinValue + 100000000;
+    public const int WinScore = 30_000;
+    public const long ReasonableScoreThreshold = -100_000;
 
     // Time allocation ratios (in MinimaxAI)
     public const double SoftBoundRatio = 0.8;

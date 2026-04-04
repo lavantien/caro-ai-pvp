@@ -10,7 +10,8 @@ namespace Caro.Core.GameLogic;
 public sealed partial class ParallelMinimaxSearch
 {
     /// Quiescence search: extend search in tactical positions to get accurate evaluation.
-    private int Quiesce(SearchBoard board, int alpha, int beta, bool isMaximizing, Player aiPlayer, int quiesceDepth, ThreadData threadData, CancellationToken cancellationToken)
+    /// plyFromRoot tracks total ply distance from root for mate-distance scoring.
+    private int Quiesce(SearchBoard board, int alpha, int beta, bool isMaximizing, Player aiPlayer, int plyFromRoot, ThreadData threadData, CancellationToken cancellationToken)
     {
         // Count quiescence node locally (no Interlocked contention)
         threadData.LocalNodesSearched++;
@@ -38,16 +39,18 @@ public sealed partial class ParallelMinimaxSearch
         else
             beta = Math.Min(beta, standPat);
 
-        // Check for terminal states in quiescence
+        // Check for terminal states in quiescence with mate-distance scoring
         var winner = ParallelNodeEvaluator.CheckWinner(board);
         if (winner != null)
         {
-            return winner == aiPlayer ? SHC.WinScore : -SHC.WinScore;
+            return winner == aiPlayer
+                ? SHC.WinScore - plyFromRoot
+                : -(SHC.WinScore - plyFromRoot);
         }
 
         // Limit quiescence search depth to avoid explosion
         const int maxQuiescenceDepth = 4;
-        if (quiesceDepth > maxQuiescenceDepth)
+        if (plyFromRoot > SHC.MaxSearchDepth + maxQuiescenceDepth)
         {
             return standPat;
         }
@@ -62,9 +65,24 @@ public sealed partial class ParallelMinimaxSearch
 
         var currentPlayer = isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red);
 
+        // Filter to only tactical moves (creates or blocks Flex3+ threats)
+        // Prevents branching explosion in quiescence -- only search forcing moves
+        for (int i = tacticalCount - 1; i >= 0; i--)
+        {
+            var (tx, ty) = tacticalBuf[i];
+            if (!ParallelNodeEvaluator.IsTacticalMoveInQuiesce(board, tx, ty, currentPlayer))
+            {
+                tacticalBuf[i] = tacticalBuf[tacticalCount - 1];
+                tacticalCount--;
+            }
+        }
+
+        if (tacticalCount == 0)
+            return standPat;
+
         // Order moves for better pruning
         var tacticalMoves = tacticalBuf.Slice(0, tacticalCount);
-        OrderMovesStagedSpan(tacticalMoves, quiesceDepth, board, currentPlayer, null, threadData);
+        OrderMovesStagedSpan(tacticalMoves, plyFromRoot, board, currentPlayer, null, threadData);
 
         // Search tactical moves (only empty cells)
         if (isMaximizing)
@@ -79,7 +97,7 @@ public sealed partial class ParallelMinimaxSearch
                 var undo = board.MakeMove(x, y, currentPlayer);
 
                 // Recursive quiescence search
-                var eval = Quiesce(board, alpha, beta, false, aiPlayer, quiesceDepth + 1, threadData, cancellationToken);
+                var eval = Quiesce(board, alpha, beta, false, aiPlayer, plyFromRoot + 1, threadData, cancellationToken);
                 board.UnmakeMove(undo);
 
                 maxEval = Math.Max(maxEval, eval);
@@ -101,7 +119,7 @@ public sealed partial class ParallelMinimaxSearch
 
                 var undo = board.MakeMove(x, y, currentPlayer);
 
-                var eval = Quiesce(board, alpha, beta, true, aiPlayer, quiesceDepth + 1, threadData, cancellationToken);
+                var eval = Quiesce(board, alpha, beta, true, aiPlayer, plyFromRoot + 1, threadData, cancellationToken);
                 board.UnmakeMove(undo);
 
                 minEval = Math.Min(minEval, eval);

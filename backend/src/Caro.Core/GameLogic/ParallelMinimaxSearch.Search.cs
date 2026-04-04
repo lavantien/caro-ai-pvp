@@ -1,14 +1,43 @@
+using System.Runtime.CompilerServices;
 using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic.Search;
 using Caro.Core.GameLogic.TimeManagement;
 using TMC = Caro.Core.Domain.Configuration.TimeManagementConstants;
 using SHC = Caro.Core.Domain.Configuration.SearchHeuristicConstants;
+using EC = Caro.Core.Domain.Configuration.EvaluationConstants;
 
 namespace Caro.Core.GameLogic;
 
 public sealed partial class ParallelMinimaxSearch
 {
+    // Mate scores are near WinScore. Adjust when storing/retrieving from TT
+    // so scores are position-relative, not root-relative.
+    private const int MateScoreThreshold = SHC.WinScore - SHC.MaxSearchDepth - SHC.MaxQuiescenceDepth;
+
+    /// Adjust a score for TT storage: convert root-relative mate scores to position-relative.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static short ScoreToTT(int score, int plyFromRoot)
+    {
+        if (score > MateScoreThreshold)
+            return (short)(score + plyFromRoot);
+        if (score < -MateScoreThreshold)
+            return (short)(score - plyFromRoot);
+        return (short)score;
+    }
+
+    /// Adjust a TT score for retrieval: convert position-relative back to root-relative.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int ScoreFromTT(short ttScore, int plyFromRoot)
+    {
+        int score = ttScore;
+        if (score > MateScoreThreshold)
+            return score - plyFromRoot;
+        if (score < -MateScoreThreshold)
+            return score + plyFromRoot;
+        return score;
+    }
+
     /// <summary>
     /// Minimax with alpha-beta pruning (thread-safe via per-thread data)
     /// </summary>
@@ -21,20 +50,24 @@ public sealed partial class ParallelMinimaxSearch
         // Single cancellation check per Minimax call (not per-node)
         // TimeMonitor cancels via timer, this ensures we respond within one call
         if (cancellationToken.IsCancellationRequested)
-            return int.MinValue;
+            return isMaximizing ? alpha : beta;
 
-        // Terminal check
+        // Terminal check with mate-distance scoring
         var winner = ParallelNodeEvaluator.CheckWinner(board);
         if (winner != null)
         {
-            return winner == aiPlayer ? SHC.WinScore : -SHC.WinScore;
+            int plyFromRoot = rootDepth - depth;
+            return winner == aiPlayer
+                ? SHC.WinScore - plyFromRoot
+                : -(SHC.WinScore - plyFromRoot);
         }
 
         if (depth == 0)
         {
             // Use quiescence search to resolve tactical positions
             // This extends search in positions with active threats to avoid horizon effect
-            return Quiesce(board, alpha, beta, isMaximizing, aiPlayer, rootDepth, threadData, cancellationToken);
+            int plyFromRoot = rootDepth - depth;
+            return Quiesce(board, alpha, beta, isMaximizing, aiPlayer, plyFromRoot, threadData, cancellationToken);
         }
 
         Span<(int x, int y)> candidateBuf = stackalloc (int x, int y)[256];
@@ -80,7 +113,8 @@ public sealed partial class ParallelMinimaxSearch
         {
             threadData.TableHits++;
             threadData.TTScoresUsed++;
-            return cachedScore;
+            int currentPly = rootDepth - depth;
+            return ScoreFromTT(cachedScore, currentPly);
         }
 
         var currentPlayer = isMaximizing ? aiPlayer : (aiPlayer == Player.Red ? Player.Blue : Player.Red);
@@ -167,7 +201,7 @@ public sealed partial class ParallelMinimaxSearch
             // Check if search was stopped during recursion
             if (cancellationToken.IsCancellationRequested)
             {
-                return bestScore; // Return best we found so far
+                return isMaximizing ? alpha : beta;
             }
 
             if (isMaximizing)
@@ -250,7 +284,8 @@ public sealed partial class ParallelMinimaxSearch
                 ? LockFreeTranspositionTable.EntryFlag.UpperBound
                 : (bestScore >= beta ? LockFreeTranspositionTable.EntryFlag.LowerBound : LockFreeTranspositionTable.EntryFlag.Exact);
 
-            _transpositionTable.Store(boardHash, (sbyte)depth, (short)bestScore,
+            int storePly = rootDepth - depth;
+            _transpositionTable.Store(boardHash, (sbyte)depth, ScoreToTT(bestScore, storePly),
                 (sbyte)bestMove.Value.x, (sbyte)bestMove.Value.y, alpha, beta, (byte)threadData.ThreadIndex, rootDepth);
         }
 
