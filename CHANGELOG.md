@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [4.4.0] - 2026-04-05
+
+### Fixed
+- Critical: CheckFiveInRow detected 4-in-a-row as wins (4 shift terms instead of 5), causing false forced-win scores from move 4 onward and nonsensical play
+- Evaluation scores unclamped: BitBoardEvaluator could return values exceeding WinScore, now clamped to ±20,000 (MaxCorrectedEval)
+- Overline scoring: count >= 5 changed to count == 5 in both evaluation paths (Caro exactly-5 rule)
+- FiveInRowScore (100,000) collided with WinScore; reduced to 50,000 with MaxCorrectedEval boundary at 20,000
+- WinScore reduced from 100,000 to 30,000 to fit TT's 16-bit short storage without overflow
+- Mate-distance scoring: terminal wins now scored as WinScore - plyFromRoot instead of flat WinScore
+- TT mate-distance adjustment: ScoreToTT/ScoreFromTT convert between root-relative and position-relative mate scores
+- Cancellation leak: minimizing nodes returned int.MaxValue on cancellation instead of alpha/beta bounds
+- Quiescence search searched all moves (branching explosion); now filters to tactical moves only via IsTacticalMoveInQuiesce
+- Forced-win break threshold: WinScore replaced with MaxCorrectedEval in iterative deepening and pondering
+- Result validation: SearchLazySMP rejects scores exceeding 2x WinScore (int.MaxValue leak protection)
+
 ## [4.3.0] - 2026-04-04
 
 ### Changed
@@ -815,6 +830,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[4.4.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.4.0
 [4.3.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.3.0
 [4.2.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.2.0
 [4.1.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.1.0

@@ -1,187 +1,309 @@
-[14:34:16.611] === Caro AI PvP - Screenshot Capture ===
+[16:07:37.701] === Caro AI PvP - Screenshot Capture ===
 
-[14:34:16.611] Building backend...
-[14:34:16.619] ERR (node:8348) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+[16:0(node:7856) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
 (Use `node --trace-deprecation ...` to show where the warning was created)
-[14:34:23.319] Backend built.
+Backend built.
 
-[14:34:23.319] Starting backend...
-[14:34:23.767] [backend] Using launch settings from backend\src\Caro.Api\Properties\launchSettings.json...
-[14:34:24.398] [backend] info: Microsoft.Hosting.Lifetime[14]
-[14:34:24.398] [backend]       Now listening on: http://localhost:5207
-[14:34:24.400] [backend] info: Microsoft.Hosting.Lifetime[0]
-[14:34:24.400] [backend]       Application started. Press Ctrl+C to shut down.
-[14:34:24.400] [backend] info: Microsoft.Hosting.Lifetime[0]
-[14:34:24.400] [backend]       Hosting environment: Development
-[14:34:24.400] [backend] info: Microsoft.Hosting.Lifetime[0]
-[14:34:24.400] [backend]       Content root path: C:\Users\lavantien\dev\github\caro-ai-pvp\backend\src\Caro.Api
-[14:34:25.421] Backend ready.
+Starting backend...
+[backend] Using launch settings from backend\src\Caro.Api\Properties\launchSettings.json...
+[backend] info: Microsoft.Hosting.Lifetime[14]
+[backend]       Now listening on: http://localhost:5207
+[backend] info: Microsoft.Hosting.Lifetime[0]
+[backend]       Application started. Press Ctrl+C to shut down.
+[backend] info: Microsoft.Hosting.Lifetime[0]
+[backend]       Hosting environment: Development
+[backend] info: Microsoft.Hosting.Lifetime[0]
+[backend]       Content root path: C:\Users\lavantien\dev\github\caro-ai-pvp\backend\src\Caro.Api
+Backend ready.
 
-[14:34:25.422] Starting frontend...
-[14:34:25.552] [frontend] > frontend@1.30.0 dev
-[14:34:25.552] [frontend] > vite dev
-[14:34:26.256] [frontend]   [32m[1mVITE[22m v7.3.0[39m  [2mready in [0m[1m653[22m[2m[0m ms[22m
-[14:34:26.256] [frontend]   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
-[14:34:26.256] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.22.128.1:[1m5173[22m/[39m
-[14:34:26.256] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.16.1:[1m5173[22m/[39m
-[14:34:26.256] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.9:[1m5173[22m/[39m
-[14:34:26.256] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.128:[1m5173[22m/[39m
-[14:34:27.293] Frontend ready.
+Starting frontend...
+[frontend] > frontend@1.30.0 dev
+[frontend] > vite dev
+[frontend]   [32m[1mVITE[22m v7.3.0[39m  [2mready in [0m[1m575[22m[2m[0m ms[22m
+[frontend]   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.22.128.1:[1m5173[22m/[39m
+[frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.16.1:[1m5173[22m/[39m
+[frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.9:[1m5173[22m/[39m
+[frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.128:[1m5173[22m/[39m
+Frontend ready.
 
-[14:34:27.294] 
+
 Capturing screenshot...
-[14:34:27.621] [frontend] [1;31m[404] GET /favicon.ico[0m
-[14:34:27.757] [browser:error] Failed to load resource: the server responded with a status of 404 (Not Found)
-[14:34:27.946] [backend] [GAME] Created 8c2b015c-bedf-4603-ba97-b8e487300162: mode=PvP, tc=7+5
-[14:34:28.559] [backend] [GAME] Created bf82a818-540f-4eb3-83b1-cb3d73cbdfca: mode=AivAI, tc=3+2
-[14:34:28.564] Waiting for AI vs AI match to complete (attempt 1/3)...
-[14:34:28.590] [backend] [AI] Red thinking... (timeRemaining=180000ms, increment=2s)
-[14:34:31.363] [backend] [AI] Red -> (7,7)
-[14:34:31.363] [backend] [AI] stats depth=2 nodes=1250865 nps=452720 score=195 moveType=Normal ttHit=0.0% time=2714ms threads=16
-[14:34:31.371] [backend] [AI] Blue thinking... (timeRemaining=180000ms, increment=2s)
-[14:34:40.082] [backend] [AI] Blue -> (4,0)
-[14:34:40.082] [backend] [AI] stats depth=2 nodes=3012550 nps=345912 score=2147483647 moveType=Normal ttHit=34.1% time=8590ms threads=16
-[14:34:40.087] [backend] [AI] Red thinking... (timeRemaining=179194ms, increment=2s)
-[14:34:49.765] [backend] [AI] Red -> (7,8)
-[14:34:49.765] [backend] [AI] stats depth=2 nodes=3906776 nps=403676 score=575 moveType=Normal ttHit=0.0% time=9630ms threads=16
-[14:34:49.769] [backend] [AI] Blue thinking... (timeRemaining=173284ms, increment=2s)
-[14:34:59.993] [backend] [AI] Blue -> (11,5)
-[14:34:59.993] [backend] [AI] stats depth=2 nodes=2466070 nps=241228 score=2147483647 moveType=Normal ttHit=14.1% time=10123ms threads=16
-[14:34:59.998] [backend] [AI] Red thinking... (timeRemaining=171511ms, increment=2s)
-[14:35:10.597] [backend] [AI] Red -> (4,5)
-[14:35:10.597] [backend] [AI] stats depth=4 nodes=4199340 nps=396239 score=2285 moveType=Normal ttHit=7.1% time=10553ms threads=16
-[14:35:10.606] [backend] [AI] Blue thinking... (timeRemaining=165057ms, increment=2s)
-[14:35:21.326] [backend] [AI] Blue -> (4,6)
-[14:35:21.326] [backend] [AI] stats depth=2 nodes=2658361 nps=248074 score=2147483647 moveType=Normal ttHit=15.4% time=10604ms threads=16
-[14:35:21.330] [backend] [AI] Red thinking... (timeRemaining=162907ms, increment=2s)
-[14:35:32.105] [backend] [AI] Red -> (3,4)
-[14:35:32.105] [backend] [AI] stats depth=4 nodes=4196701 nps=389521 score=2290 moveType=Normal ttHit=5.6% time=10741ms threads=16
-[14:35:32.114] [backend] [AI] Blue thinking... (timeRemaining=156330ms, increment=2s)
-[14:35:42.813] [backend] [AI] Blue -> (8,12)
-[14:35:42.813] [backend] [AI] stats depth=2 nodes=3032099 nps=283427 score=2147483647 moveType=Normal ttHit=7.6% time=10588ms threads=16
-[14:35:42.818] [backend] [AI] Red thinking... (timeRemaining=154128ms, increment=2s)
-[14:35:53.450] [backend] [AI] Red -> (7,9)
-[14:35:53.451] [backend] [AI] stats depth=3 nodes=3841936 nps=361390 score=100000 moveType=Normal ttHit=2.6% time=10592ms threads=16
-[14:35:53.455] [backend] [AI] Blue thinking... (timeRemaining=147622ms, increment=2s)
-[14:35:53.539] [backend] [AI] Blue -> (7,6)
-[14:35:53.540] [backend] [AI] stats depth=1 nodes=2 nps=24 score=100000 moveType=ImmediateBlock ttHit=2.6% time=0ms threads=16
-[14:35:53.543] [backend] [AI] Red thinking... (timeRemaining=145490ms, increment=2s)
-[14:35:57.553] [backend] [AI] Red -> (7,10)
-[14:35:57.554] [backend] [AI] stats depth=2 nodes=656643 nps=163751 score=100000 moveType=Normal ttHit=23.9% time=10294ms threads=16
-[14:35:57.557] [backend] [AI] Blue thinking... (timeRemaining=149534ms, increment=2s)
-[14:35:57.578] [backend] [AI] Blue -> (7,11)
-[14:35:57.578] [backend] [AI] stats depth=1 nodes=1 nps=50 score=100000 moveType=ImmediateBlock ttHit=23.9% time=0ms threads=16
-[14:35:57.580] [backend] [AI] Red thinking... (timeRemaining=143476ms, increment=2s)
-[14:35:57.616] [backend] [AI] Red -> (3,3)
-[14:35:57.616] [backend] [AI] stats depth=2 nodes=3904 nps=111543 score=100000 moveType=Normal ttHit=0.0% time=10255ms threads=16
-[14:35:57.618] [backend] [AI] Blue thinking... (timeRemaining=151510ms, increment=2s)
-[14:35:57.675] [backend] [AI] Blue -> (3,5)
-[14:35:57.676] [backend] [AI] stats depth=2 nodes=103032 nps=1839857 score=-100000 moveType=Normal ttHit=0.0% time=10679ms threads=16
-[14:35:57.678] [backend] [AI] Red thinking... (timeRemaining=145438ms, increment=2s)
-[14:35:57.685] [backend] [AI] Red -> (2,3)
-[14:35:57.685] [backend] [AI] stats depth=1 nodes=20 nps=2857 score=-100000 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
-[14:35:57.689] [backend] [AI] Blue thinking... (timeRemaining=153451ms, increment=2s)
-[14:35:57.702] [backend] [AI] Blue -> (5,6)
-[14:35:57.702] [backend] [AI] stats depth=1 nodes=2 nps=167 score=-100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:57.706] [backend] [AI] Red thinking... (timeRemaining=147429ms, increment=2s)
-[14:35:57.715] [backend] [AI] Red -> (6,6)
-[14:35:57.715] [backend] [AI] stats depth=1 nodes=1 nps=125 score=-100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:57.717] [backend] [AI] Blue thinking... (timeRemaining=155435ms, increment=2s)
-[14:35:57.725] [backend] [AI] Blue -> (2,4)
-[14:35:57.725] [backend] [AI] stats depth=1 nodes=20 nps=2500 score=-100000 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
-[14:35:57.728] [backend] [AI] Red thinking... (timeRemaining=149416ms, increment=2s)
-[14:35:57.738] [backend] [AI] Red -> (5,7)
-[14:35:57.738] [backend] [AI] stats depth=1 nodes=2 nps=200 score=-100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:57.740] [backend] [AI] Blue thinking... (timeRemaining=157425ms, increment=2s)
-[14:35:57.781] [backend] [AI] Blue -> (2,5)
-[14:35:57.781] [backend] [AI] stats depth=2 nodes=98592 nps=2404683 score=-100000 moveType=Normal ttHit=0.0% time=11017ms threads=16
-[14:35:57.783] [backend] [AI] Red thinking... (timeRemaining=151404ms, increment=2s)
-[14:35:57.791] [backend] [AI] Red -> (4,3)
-[14:35:57.791] [backend] [AI] stats depth=1 nodes=20 nps=2857 score=-100000 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
-[14:35:57.793] [backend] [AI] Blue thinking... (timeRemaining=159382ms, increment=2s)
-[14:35:57.806] [backend] [AI] Blue -> (1,3)
-[14:35:57.806] [backend] [AI] stats depth=1 nodes=2 nps=167 score=-100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:57.808] [backend] [AI] Red thinking... (timeRemaining=153395ms, increment=2s)
-[14:35:57.819] [backend] [AI] Red -> (0,2)
-[14:35:57.819] [backend] [AI] stats depth=1 nodes=1 nps=100 score=-100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:57.822] [backend] [AI] Blue thinking... (timeRemaining=161367ms, increment=2s)
-[14:35:57.866] [backend] [AI] Blue -> (1,2)
-[14:35:57.867] [backend] [AI] stats depth=2 nodes=96928 nps=2202909 score=-100000 moveType=Normal ttHit=0.0% time=12948ms threads=16
-[14:35:57.869] [backend] [AI] Red thinking... (timeRemaining=155383ms, increment=2s)
-[14:35:57.877] [backend] [AI] Red -> (4,8)
-[14:35:57.877] [backend] [AI] stats depth=1 nodes=20 nps=2500 score=-100000 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
-[14:35:57.880] [backend] [AI] Blue thinking... (timeRemaining=163320ms, increment=2s)
-[14:35:57.897] [backend] [AI] Blue -> (7,5)
-[14:35:57.898] [backend] [AI] stats depth=1 nodes=2 nps=118 score=-100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:57.900] [backend] [AI] Red thinking... (timeRemaining=157373ms, increment=2s)
-[14:35:57.940] [backend] [AI] Red -> (1,4)
-[14:35:57.940] [backend] [AI] stats depth=2 nodes=3680 nps=92000 score=100000 moveType=Normal ttHit=0.0% time=12715ms threads=16
-[14:35:57.943] [backend] [AI] Blue thinking... (timeRemaining=165300ms, increment=2s)
-[14:35:58.001] [backend] [AI] Blue -> (1,5)
-[14:35:58.001] [backend] [AI] stats depth=2 nodes=91600 nps=1579310 score=-100000 moveType=Normal ttHit=0.0% time=13179ms threads=16
-[14:35:58.003] [backend] [AI] Red thinking... (timeRemaining=159331ms, increment=2s)
-[14:35:58.014] [backend] [AI] Red -> (3,2)
-[14:35:58.014] [backend] [AI] stats depth=1 nodes=20 nps=2000 score=-100000 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
-[14:35:58.016] [backend] [AI] Blue thinking... (timeRemaining=167239ms, increment=2s)
-[14:35:58.030] [backend] [AI] Blue -> (0,5)
-[14:35:58.030] [backend] [AI] stats depth=1 nodes=2 nps=143 score=-100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:58.033] [backend] [AI] Red thinking... (timeRemaining=161319ms, increment=2s)
-[14:35:58.043] [backend] [AI] Red -> (5,4)
-[14:35:58.044] [backend] [AI] stats depth=1 nodes=20 nps=2000 score=-100000 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
-[14:35:58.046] [backend] [AI] Blue thinking... (timeRemaining=169223ms, increment=2s)
-[14:35:58.060] [backend] [AI] Blue -> (6,5)
-[14:35:58.060] [backend] [AI] stats depth=1 nodes=2 nps=154 score=-100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:58.062] [backend] [AI] Red thinking... (timeRemaining=163307ms, increment=2s)
-[14:35:58.069] [backend] [AI] Red -> (3,6)
-[14:35:58.069] [backend] [AI] stats depth=1 nodes=20 nps=2857 score=-100000 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
-[14:35:58.072] [backend] [AI] Blue thinking... (timeRemaining=171207ms, increment=2s)
-[14:35:58.085] [backend] [AI] Blue -> (2,7)
-[14:35:58.085] [backend] [AI] stats depth=1 nodes=2 nps=167 score=-100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:58.087] [backend] [AI] Red thinking... (timeRemaining=165298ms, increment=2s)
-[14:35:58.097] [backend] [AI] Red -> (2,6)
-[14:35:58.097] [backend] [AI] stats depth=1 nodes=1 nps=100 score=-100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:58.099] [backend] [AI] Blue thinking... (timeRemaining=173192ms, increment=2s)
-[14:35:58.106] [backend] [AI] Blue -> (4,7)
-[14:35:58.106] [backend] [AI] stats depth=1 nodes=20 nps=2857 score=-100000 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
-[14:35:58.108] [backend] [AI] Red thinking... (timeRemaining=167286ms, increment=2s)
-[14:35:58.122] [backend] [AI] Red -> (7,4)
-[14:35:58.122] [backend] [AI] stats depth=1 nodes=2 nps=154 score=-100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:58.124] [backend] [AI] Blue thinking... (timeRemaining=175183ms, increment=2s)
-[14:35:58.174] [backend] [AI] Blue -> (1,6)
-[14:35:58.174] [backend] [AI] stats depth=2 nodes=85848 nps=1752000 score=-100000 moveType=Normal ttHit=0.0% time=13757ms threads=16
-[14:35:58.176] [backend] [AI] Red thinking... (timeRemaining=169271ms, increment=2s)
-[14:35:58.222] [backend] [AI] Red -> (1,7)
-[14:35:58.222] [backend] [AI] stats depth=2 nodes=3488 nps=77511 score=100000 moveType=Normal ttHit=0.0% time=13412ms threads=16
-[14:35:58.224] [backend] [AI] Blue thinking... (timeRemaining=177132ms, increment=2s)
-[14:35:58.241] [backend] [AI] Blue -> (6,10)
-[14:35:58.241] [backend] [AI] stats depth=1 nodes=20 nps=1250 score=100000 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
-[14:35:58.243] [backend] [AI] Red thinking... (timeRemaining=171223ms, increment=2s)
-[14:35:58.261] [backend] [AI] Red -> (5,9)
-[14:35:58.261] [backend] [AI] stats depth=1 nodes=2 nps=118 score=100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:58.263] [backend] [AI] Blue thinking... (timeRemaining=179113ms, increment=2s)
-[14:35:58.274] [backend] [AI] Blue -> (3,7)
-[14:35:58.274] [backend] [AI] stats depth=1 nodes=1 nps=91 score=100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:58.276] [backend] [AI] Red thinking... (timeRemaining=173204ms, increment=2s)
-[14:35:58.285] [backend] [AI] Red -> (6,8)
-[14:35:58.285] [backend] [AI] stats depth=1 nodes=20 nps=2500 score=100000 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
-[14:35:58.288] [backend] [AI] Blue thinking... (timeRemaining=181100ms, increment=2s)
-[14:35:58.299] [backend] [AI] Blue -> (2,9)
-[14:35:58.299] [backend] [AI] stats depth=1 nodes=58 nps=5800 score=100000 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
-[14:35:58.301] [backend] [AI] Red thinking... (timeRemaining=175194ms, increment=2s)
-[14:35:58.319] [backend] [AI] Red -> (3,8)
-[14:35:58.319] [backend] [AI] stats depth=1 nodes=2 nps=118 score=100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:58.322] [backend] [AI] Blue thinking... (timeRemaining=183086ms, increment=2s)
-[14:35:58.349] [backend] [AI] Blue -> (5,8)
-[14:35:58.349] [backend] [AI] stats depth=1 nodes=5 nps=185 score=100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:58.351] [backend] [AI] Red thinking... (timeRemaining=177174ms, increment=2s)
-[14:35:58.362] [backend] [AI] Red -> (4,10)
-[14:35:58.362] [backend] [AI] stats depth=1 nodes=1 nps=100 score=100000 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
-[14:35:58.364] [backend] [AI] Blue thinking... (timeRemaining=185056ms, increment=2s)
-[14:35:58.395] [backend] [AI] Blue -> (3,11)
-[14:35:58.395] [backend] [AI] stats depth=1 nodes=174 nps=5613 score=100000 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
-[14:35:58.397] [backend] [AI] Red thinking... (timeRemaining=179162ms, increment=2s)
-[14:35:58.397] [backend] [AI] Red -> (8,6)
-[14:35:58.397] [backend] [AI] stats depth=1 nodes=1 nps=0 score=100000 moveType=ImmediateWin ttHit=0.0% time=0ms threads=16
-[14:35:58.556] Game complete: red Wins! New Game
-[14:35:59.591] Screenshot saved: C:\Users\lavantien\dev\github\caro-ai-pvp\screenshot.png
-[14:35:59.699] README.md updated
+[frontend] [1;31m[404] GET /favicon.ico[0m
+[browser:error] Failed to load resource: the server responded with a status of 404 (Not Found)
+[backend] [GAME] Created 8c1eecb7-5860-4a19-8ccd-690ab2c372a7: mode=PvP, tc=7+5
+[backend] [GAME] Created 196bf37d-78dd-46fb-a3c6-a35811c2b199: mode=AivAI, tc=3+2
+Waiting for AI vs AI match to complete (attempt 1/3)...
+[backend] [AI] Red thinking... (timeRemaining=180000ms, increment=2s)
+[backend] [AI] Red -> (7,7)
+[backend] [AI] stats depth=4 nodes=369346 nps=133724 score=240 moveType=Normal ttHit=1.2% time=2714ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=180000ms, increment=2s)
+[backend] [AI] Blue -> (7,11)
+[backend] [AI] stats depth=4 nodes=1114865 nps=128396 score=95 moveType=Normal ttHit=43.8% time=8590ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=179196ms, increment=2s)
+[backend] [AI] Red -> (8,7)
+[backend] [AI] stats depth=5 nodes=2082259 nps=215087 score=1235 moveType=Normal ttHit=5.3% time=9630ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=173305ms, increment=2s)
+[backend] [AI] Blue -> (0,0)
+[backend] [AI] stats depth=3 nodes=37783 nps=70098 score=29996 moveType=Normal ttHit=52.0% time=10124ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=171510ms, increment=2s)
+[backend] [AI] Red -> (9,7)
+[backend] [AI] stats depth=2 nodes=24820 nps=71322 score=29997 moveType=Normal ttHit=2.9% time=10553ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=174762ms, increment=2s)
+[backend] [AI] Blue -> (6,7)
+[backend] [AI] stats depth=1 nodes=2 nps=23 score=29997 moveType=ImmediateBlock ttHit=2.9% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=173159ms, increment=2s)
+[backend] [AI] Red -> (10,7)
+[backend] [AI] stats depth=2 nodes=12540 nps=50160 score=29999 moveType=Normal ttHit=44.9% time=11235ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=176673ms, increment=2s)
+[backend] [AI] Blue -> (11,7)
+[backend] [AI] stats depth=1 nodes=1 nps=53 score=29999 moveType=ImmediateBlock ttHit=44.9% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=174906ms, increment=2s)
+[backend] [AI] Red -> (4,3)
+[backend] [AI] stats depth=2 nodes=3952 nps=123500 score=29999 moveType=Normal ttHit=0.0% time=11620ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=178649ms, increment=2s)
+[backend] [AI] Blue -> (3,3)
+[backend] [AI] stats depth=2 nodes=106272 nps=1634954 score=-29999 moveType=Normal ttHit=0.0% time=11893ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=176871ms, increment=2s)
+[backend] [AI] Red -> (3,2)
+[backend] [AI] stats depth=2 nodes=3920 nps=93333 score=29999 moveType=Normal ttHit=0.0% time=11866ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=180581ms, increment=2s)
+[backend] [AI] Blue -> (3,4)
+[backend] [AI] stats depth=2 nodes=103456 nps=1783724 score=-29999 moveType=Normal ttHit=0.0% time=12095ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=178826ms, increment=2s)
+[backend] [AI] Red -> (5,4)
+[backend] [AI] stats depth=1 nodes=20 nps=1818 score=-29999 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=182520ms, increment=2s)
+[backend] [AI] Blue -> (6,5)
+[backend] [AI] stats depth=1 nodes=2 nps=133 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=180812ms, increment=2s)
+[backend] [AI] Red -> (2,2)
+[backend] [AI] stats depth=2 nodes=3856 nps=101474 score=29999 moveType=Normal ttHit=0.0% time=12173ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=184502ms, increment=2s)
+[backend] [AI] Blue -> (2,3)
+[backend] [AI] stats depth=2 nodes=99840 nps=1848889 score=-29999 moveType=Normal ttHit=0.0% time=12370ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=182770ms, increment=2s)
+[backend] [AI] Red -> (4,2)
+[backend] [AI] stats depth=1 nodes=20 nps=2000 score=-29999 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=186445ms, increment=2s)
+[backend] [AI] Blue -> (5,2)
+[backend] [AI] stats depth=1 nodes=2 nps=125 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=184758ms, increment=2s)
+[backend] [AI] Red -> (4,1)
+[backend] [AI] stats depth=1 nodes=20 nps=2500 score=-29999 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=188426ms, increment=2s)
+[backend] [AI] Blue -> (4,4)
+[backend] [AI] stats depth=1 nodes=2 nps=154 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=186747ms, increment=2s)
+[backend] [AI] Red -> (2,1)
+[backend] [AI] stats depth=2 nodes=3760 nps=121290 score=29999 moveType=Normal ttHit=0.0% time=14428ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=190411ms, increment=2s)
+[backend] [AI] Blue -> (1,0)
+[backend] [AI] stats depth=1 nodes=1 nps=56 score=29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=188714ms, increment=2s)
+[backend] [AI] Red -> (3,1)
+[backend] [AI] stats depth=1 nodes=20 nps=1818 score=29999 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=192391ms, increment=2s)
+[backend] [AI] Blue -> (5,1)
+[backend] [AI] stats depth=1 nodes=2 nps=118 score=29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=190700ms, increment=2s)
+[backend] [AI] Red -> (1,3)
+[backend] [AI] stats depth=1 nodes=20 nps=2857 score=29999 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=194371ms, increment=2s)
+[backend] [AI] Blue -> (0,4)
+[backend] [AI] stats depth=1 nodes=2 nps=143 score=29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=192691ms, increment=2s)
+[backend] [AI] Red -> (5,3)
+[backend] [AI] stats depth=1 nodes=20 nps=2857 score=29999 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=196355ms, increment=2s)
+[backend] [AI] Blue -> (6,4)
+[backend] [AI] stats depth=1 nodes=2 nps=167 score=29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=194682ms, increment=2s)
+[backend] [AI] Red -> (6,6)
+[backend] [AI] stats depth=1 nodes=1 nps=111 score=29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=198339ms, increment=2s)
+[backend] [AI] Blue -> (1,2)
+[backend] [AI] stats depth=1 nodes=20 nps=2500 score=29999 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=196670ms, increment=2s)
+[backend] [AI] Red -> (0,1)
+[backend] [AI] stats depth=1 nodes=2 nps=167 score=29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=200329ms, increment=2s)
+[backend] [AI] Blue -> (1,1)
+[backend] [AI] stats depth=1 nodes=1 nps=83 score=29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=198656ms, increment=2s)
+[backend] [AI] Red -> (1,4)
+[backend] [AI] stats depth=2 nodes=3568 nps=101943 score=29999 moveType=Normal ttHit=0.0% time=15130ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=202315ms, increment=2s)
+[backend] [AI] Blue -> (1,5)
+[backend] [AI] stats depth=2 nodes=88800 nps=1741176 score=-29999 moveType=Normal ttHit=0.0% time=15345ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=200618ms, increment=2s)
+[backend] [AI] Red -> (1,6)
+[backend] [AI] stats depth=2 nodes=3536 nps=88400 score=29999 moveType=Normal ttHit=0.0% time=15245ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=204261ms, increment=2s)
+[backend] [AI] Blue -> (0,2)
+[backend] [AI] stats depth=2 nodes=86240 nps=1627170 score=-29999 moveType=Normal ttHit=0.0% time=15458ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=202576ms, increment=2s)
+[backend] [AI] Red -> (0,3)
+[backend] [AI] stats depth=2 nodes=3504 nps=74553 score=29999 moveType=Normal ttHit=0.0% time=15359ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=206206ms, increment=2s)
+[backend] [AI] Blue -> (0,5)
+[backend] [AI] stats depth=2 nodes=85456 nps=1314708 score=-29999 moveType=Normal ttHit=0.0% time=15572ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=204526ms, increment=2s)
+[backend] [AI] Red -> (0,6)
+[backend] [AI] stats depth=2 nodes=3472 nps=80744 score=29999 moveType=Normal ttHit=0.0% time=15473ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=208138ms, increment=2s)
+[backend] [AI] Blue -> (2,0)
+[backend] [AI] stats depth=2 nodes=82944 nps=1626353 score=-29999 moveType=Normal ttHit=0.0% time=15685ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=206481ms, increment=2s)
+[backend] [AI] Red -> (2,4)
+[backend] [AI] stats depth=2 nodes=3440 nps=86000 score=29999 moveType=Normal ttHit=0.0% time=15588ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=210085ms, increment=2s)
+[backend] [AI] Blue -> (2,5)
+[backend] [AI] stats depth=2 nodes=82176 nps=1550491 score=-29999 moveType=Normal ttHit=0.0% time=15798ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=208438ms, increment=2s)
+[backend] [AI] Red -> (2,6)
+[backend] [AI] stats depth=2 nodes=3408 nps=61964 score=29999 moveType=Normal ttHit=0.0% time=15702ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=212030ms, increment=2s)
+[backend] [AI] Blue -> (3,0)
+[backend] [AI] stats depth=2 nodes=81408 nps=1379797 score=-29999 moveType=Normal ttHit=0.0% time=15913ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=210381ms, increment=2s)
+[backend] [AI] Red -> (4,0)
+[backend] [AI] stats depth=1 nodes=1 nps=71 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=213967ms, increment=2s)
+[backend] [AI] Blue -> (3,5)
+[backend] [AI] stats depth=2 nodes=80640 nps=1753043 score=-29999 moveType=Normal ttHit=0.0% time=16026ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=212364ms, increment=2s)
+[backend] [AI] Red -> (4,5)
+[backend] [AI] stats depth=1 nodes=1 nps=67 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=215918ms, increment=2s)
+[backend] [AI] Blue -> (3,6)
+[backend] [AI] stats depth=2 nodes=78208 nps=1564160 score=-29999 moveType=Normal ttHit=0.0% time=16140ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=214347ms, increment=2s)
+[backend] [AI] Red -> (3,7)
+[backend] [AI] stats depth=1 nodes=1 nps=53 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=217864ms, increment=2s)
+[backend] [AI] Blue -> (4,6)
+[backend] [AI] stats depth=2 nodes=77456 nps=1358877 score=-29999 moveType=Normal ttHit=0.0% time=16253ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=216326ms, increment=2s)
+[backend] [AI] Red -> (8,8)
+[backend] [AI] stats depth=1 nodes=20 nps=1333 score=-29999 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=219804ms, increment=2s)
+[backend] [AI] Blue -> (5,5)
+[backend] [AI] stats depth=1 nodes=2 nps=111 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=218308ms, increment=2s)
+[backend] [AI] Red -> (7,9)
+[backend] [AI] stats depth=1 nodes=20 nps=2222 score=-29999 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=221784ms, increment=2s)
+[backend] [AI] Blue -> (6,10)
+[backend] [AI] stats depth=1 nodes=2 nps=100 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=220297ms, increment=2s)
+[backend] [AI] Red -> (7,8)
+[backend] [AI] stats depth=1 nodes=20 nps=1667 score=-29999 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=223761ms, increment=2s)
+[backend] [AI] Blue -> (7,6)
+[backend] [AI] stats depth=1 nodes=2 nps=105 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=222283ms, increment=2s)
+[backend] [AI] Red -> (6,8)
+[backend] [AI] stats depth=1 nodes=20 nps=2000 score=-29999 moveType=ThreatCreation ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=225739ms, increment=2s)
+[backend] [AI] Blue -> (5,8)
+[backend] [AI] stats depth=1 nodes=2 nps=125 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=224271ms, increment=2s)
+[backend] [AI] Red -> (9,8)
+[backend] [AI] stats depth=1 nodes=169 nps=13000 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=227721ms, increment=2s)
+[backend] [AI] Blue -> (10,8)
+[backend] [AI] stats depth=1 nodes=1 nps=62 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=226256ms, increment=2s)
+[backend] [AI] Red -> (9,9)
+[backend] [AI] stats depth=1 nodes=170 nps=12143 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=229703ms, increment=2s)
+[backend] [AI] Blue -> (10,10)
+[backend] [AI] stats depth=1 nodes=3 nps=130 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=228240ms, increment=2s)
+[backend] [AI] Red -> (9,5)
+[backend] [AI] stats depth=1 nodes=166 nps=9765 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=231678ms, increment=2s)
+[backend] [AI] Blue -> (9,6)
+[backend] [AI] stats depth=1 nodes=4 nps=154 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=230221ms, increment=2s)
+[backend] [AI] Red -> (5,9)
+[backend] [AI] stats depth=1 nodes=106 nps=8833 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=233650ms, increment=2s)
+[backend] [AI] Blue -> (8,6)
+[backend] [AI] stats depth=1 nodes=4 nps=148 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=232207ms, increment=2s)
+[backend] [AI] Red -> (3,11)
+[backend] [AI] stats depth=1 nodes=76 nps=6333 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=235621ms, increment=2s)
+[backend] [AI] Blue -> (4,10)
+[backend] [AI] stats depth=1 nodes=3 nps=130 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=234192ms, increment=2s)
+[backend] [AI] Red -> (6,9)
+[backend] [AI] stats depth=1 nodes=122 nps=8714 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=237596ms, increment=2s)
+[backend] [AI] Blue -> (8,9)
+[backend] [AI] stats depth=1 nodes=4 nps=154 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=236176ms, increment=2s)
+[backend] [AI] Red -> (3,9)
+[backend] [AI] stats depth=1 nodes=74 nps=6167 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=239568ms, increment=2s)
+[backend] [AI] Blue -> (4,9)
+[backend] [AI] stats depth=1 nodes=3 nps=125 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Red thinking... (timeRemaining=238162ms, increment=2s)
+[backend] [AI] Red -> (3,10)
+[backend] [AI] stats depth=1 nodes=73 nps=1825 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[backend] [AI] Blue thinking... (timeRemaining=241541ms, increment=2s)
+[backend] [AI] Blue -> (8,5)
+[backend] [AI] stats depth=1 nodes=1 nps=1000 score=-29999 moveType=ImmediateWin ttHit=0.0% time=0ms threads=16
+Game complete: blue Wins! New Game
+Screenshot saved: C:\Users\lavantien\dev\github\caro-ai-pvp\screenshot.png
+README.md updated
+
+Done!
+ds=16
+[16:08:07.515] [backend] [AI] Red thinking... (timeRemaining=226256ms, increment=2s)
+[16:08:07.530] [backend] [AI] Red -> (9,9)
+[16:08:07.530] [backend] [AI] stats depth=1 nodes=170 nps=12143 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[16:08:07.531] [backend] [AI] Blue thinking... (timeRemaining=229703ms, increment=2s)
+[16:08:07.555] [backend] [AI] Blue -> (10,10)
+[16:08:07.555] [backend] [AI] stats depth=1 nodes=3 nps=130 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[16:08:07.557] [backend] [AI] Red thinking... (timeRemaining=228240ms, increment=2s)
+[16:08:07.574] [backend] [AI] Red -> (9,5)
+[16:08:07.574] [backend] [AI] stats depth=1 nodes=166 nps=9765 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[16:08:07.576] [backend] [AI] Blue thinking... (timeRemaining=231678ms, increment=2s)
+[16:08:07.602] [backend] [AI] Blue -> (9,6)
+[16:08:07.602] [backend] [AI] stats depth=1 nodes=4 nps=154 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[16:08:07.604] [backend] [AI] Red thinking... (timeRemaining=230221ms, increment=2s)
+[16:08:07.617] [backend] [AI] Red -> (5,9)
+[16:08:07.617] [backend] [AI] stats depth=1 nodes=106 nps=8833 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[16:08:07.619] [backend] [AI] Blue thinking... (timeRemaining=233650ms, increment=2s)
+[16:08:07.647] [backend] [AI] Blue -> (8,6)
+[16:08:07.647] [backend] [AI] stats depth=1 nodes=4 nps=148 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[16:08:07.649] [backend] [AI] Red thinking... (timeRemaining=232207ms, increment=2s)
+[16:08:07.662] [backend] [AI] Red -> (3,11)
+[16:08:07.662] [backend] [AI] stats depth=1 nodes=76 nps=6333 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[16:08:07.664] [backend] [AI] Blue thinking... (timeRemaining=235621ms, increment=2s)
+[16:08:07.688] [backend] [AI] Blue -> (4,10)
+[16:08:07.688] [backend] [AI] stats depth=1 nodes=3 nps=130 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[16:08:07.690] [backend] [AI] Red thinking... (timeRemaining=234192ms, increment=2s)
+[16:08:07.705] [backend] [AI] Red -> (6,9)
+[16:08:07.705] [backend] [AI] stats depth=1 nodes=122 nps=8714 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[16:08:07.706] [backend] [AI] Blue thinking... (timeRemaining=237596ms, increment=2s)
+[16:08:07.733] [backend] [AI] Blue -> (8,9)
+[16:08:07.733] [backend] [AI] stats depth=1 nodes=4 nps=154 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[16:08:07.735] [backend] [AI] Red thinking... (timeRemaining=236176ms, increment=2s)
+[16:08:07.748] [backend] [AI] Red -> (3,9)
+[16:08:07.748] [backend] [AI] stats depth=1 nodes=74 nps=6167 score=-29999 moveType=CounterAttack ttHit=0.0% time=0ms threads=16
+[16:08:07.750] [backend] [AI] Blue thinking... (timeRemaining=239568ms, increment=2s)
+[16:08:07.775] [backend] [AI] Blue -> (4,9)
+[16:08:07.775] [backend] [AI] stats depth=1 nodes=3 nps=125 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[16:08:07.777] [backend] [AI] Red thinking... (timeRemaining=238162ms, increment=2s)
+[16:08:07.818] [backend] [AI] Red -> (3,10)
+[16:08:07.818] [backend] [AI] stats depth=1 nodes=73 nps=1825 score=-29999 moveType=ImmediateBlock ttHit=0.0% time=0ms threads=16
+[16:08:07.821] [backend] [AI] Blue thinking... (timeRemaining=241541ms, increment=2s)
+[16:08:07.822] [backend] [AI] Blue -> (8,5)
+[16:08:07.822] [backend] [AI] stats depth=1 nodes=1 nps=1000 score=-29999 moveType=ImmediateWin ttHit=0.0% time=0ms threads=16
+[16:08:08.120] Game complete: blue Wins! New Game
+[16:08:09.139] Screenshot saved: C:\Users\lavantien\dev\github\caro-ai-pvp\screenshot.png
+[16:08:09.250] README.md updated

@@ -353,13 +353,18 @@ Position evaluation combines multiple factors:
 
 | Pattern | Score (centipawns) |
 |---------|-------------------|
-| Five in row | 100,000 (win) |
+| Five in row | 50,000 |
 | Open four | 10,000 |
 | Closed four | 1,000 |
 | Open three | 1,000 |
 | Closed three | 100 |
 | Open two | 100 |
 | Center bonus | 50 |
+
+**Score Boundaries:**
+- Evaluation scores clamped to ±20,000 (MaxCorrectedEval)
+- Terminal win score: 30,000 (WinScore), with mate-distance reduction per ply
+- FiveInRowScore (50,000) is separate from WinScore (30,000) to prevent eval/search score collision
 
 **Defense Multiplier:**
 - Defense valued at 3/2 of offense
