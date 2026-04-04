@@ -42,7 +42,8 @@ public static partial class BitBoardEvaluator
                 var openEnds = CountOpenEnds(playerBoard, occupied, x, y, dx, dy, count);
 
                 // Score based on pattern
-                if (count >= 5)
+                // Caro rule: exactly 5 wins; overlines (6+) do NOT score as winning
+                if (count == 5)
                 {
                     score += FiveInRowScore;
                 }
@@ -102,7 +103,8 @@ public static partial class BitBoardEvaluator
 
                 var openEnds = CountOpenEnds(playerBoard, occupied, x, y, dx, dy, count);
 
-                if (count >= 5)
+                // Caro rule: exactly 5 wins; overlines (6+) do NOT score as winning
+                if (count == 5)
                 {
                     score += fiveInRowScore;
                 }

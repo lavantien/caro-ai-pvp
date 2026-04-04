@@ -102,7 +102,7 @@ public static partial class BitBoardEvaluator
         // Add center control bonus
         score += EvaluateCenterControl(playerBoard);
 
-        return score;
+        return Math.Clamp(score, EvaluationConstants.MinCorrectedEval, EvaluationConstants.MaxCorrectedEval);
     }
 
     #region Parameterized Evaluation (for SPSA tuning)
@@ -182,7 +182,7 @@ public static partial class BitBoardEvaluator
         // Center control bonus
         score += EvaluateCenterControlWithParams(playerBoard, centerBonus);
 
-        return score;
+        return Math.Clamp(score, EvaluationConstants.MinCorrectedEval, EvaluationConstants.MaxCorrectedEval);
     }
 
     /// <summary>

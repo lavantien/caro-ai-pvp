@@ -9,7 +9,7 @@ public static class EvaluationConstants
     /// <summary>
     /// Score for five stones in a row (winning position)
     /// </summary>
-    public const int FiveInRowScore = 100_000;
+    public const int FiveInRowScore = 50_000;
 
     /// <summary>
     /// Score for an open four (four in a row with both ends open)
@@ -75,10 +75,10 @@ public static class EvaluationConstants
     /// <summary>
     /// Maximum absolute evaluation score after correction clamping.
     /// </summary>
-    public const int MaxCorrectedEval = 200_000;
+    public const int MaxCorrectedEval = 20_000;
 
     /// <summary>
     /// Minimum absolute evaluation score after correction clamping.
     /// </summary>
-    public const int MinCorrectedEval = -200_000;
+    public const int MinCorrectedEval = -20_000;
 }

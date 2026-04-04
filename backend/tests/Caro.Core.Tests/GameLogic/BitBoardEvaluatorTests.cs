@@ -8,7 +8,7 @@ namespace Caro.Core.Tests.GameLogic;
 
 public class BitBoardEvaluatorTests
 {
-    private const int FiveInRowThreshold = EvaluationConstants.FiveInRowScore / 2;
+    private const int FiveInRowThreshold = EvaluationConstants.MaxCorrectedEval / 2;
     private const int OpenFourScore = EvaluationConstants.OpenFourScore;
     private const int OpenThreeScore = EvaluationConstants.OpenThreeScore;
     private const int WinLengthPlus1 = GameConstants.WinLength + 1;
