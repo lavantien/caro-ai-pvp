@@ -12,7 +12,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, createWriteStream } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,6 +21,15 @@ const ROOT = resolve(__dirname, '..');
 const FRONTEND_DIR = resolve(ROOT, 'frontend');
 const SCREENSHOT_PATH = resolve(ROOT, 'screenshot.png');
 const README_PATH = resolve(ROOT, 'README.md');
+const LOG_PATH = resolve(ROOT, 'e2e.txt');
+
+// Tee all output to e2e.txt
+const logStream = createWriteStream(LOG_PATH, { flags: 'w' });
+const origLog = console.log;
+const origError = console.error;
+function ts() { return new Date().toISOString().slice(11, 23); }
+console.log = (...args) => { origLog(...args); logStream.write(`[${ts()}] ${args.join(' ')}\n`); };
+console.error = (...args) => { origError(...args); logStream.write(`[${ts()}] ERR ${args.join(' ')}\n`); };
 
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:5207';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
