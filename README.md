@@ -411,6 +411,13 @@ npm run dev
 
 Backend: http://localhost:5207 | Frontend: http://localhost:5173
 
+### Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `node scripts/dev.mjs` | Boot backend + frontend, open browser |
+| `node scripts/capture-screenshot.mjs` | Full E2E: AI vs AI match, screenshot, update README |
+
 ---
 
 ## Roadmap

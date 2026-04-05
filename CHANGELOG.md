@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [4.5.0] - 2026-04-05
+
+### Added
+- Dev bootstrap script (scripts/dev.mjs): builds backend, starts backend+frontend, opens browser
+
+### Changed
+- README: added Scripts section documenting dev.mjs and capture-screenshot.mjs
+- .gitignore: added e2e.txt (temp artifact from capture-screenshot.mjs)
+
+### Removed
+- Stale checkpoint.md (v2.9.0 snapshot, superseded by CHANGELOG)
+
 ## [4.4.0] - 2026-04-05
 
 ### Fixed
@@ -830,6 +842,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[4.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.5.0
 [4.4.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.4.0
 [4.3.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.3.0
 [4.2.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.2.0
