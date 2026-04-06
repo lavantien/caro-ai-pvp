@@ -39,6 +39,11 @@ Lazy SMP is a parallel search paradigm where multiple threads explore the game t
 - Each thread maintains independent killer moves and history tables
 - TT writes from helpers filtered to depth >= 3 (depth-age replacement handles entry quality)
 
+**Depth-Advantage Override:**
+- Helper threads reaching depth N+2 or deeper vs master's depth N preferred
+- Deeper search is more reliable even if score differs
+- Prevents shallow master result from overriding deeper helper discoveries
+
 **Advantages:**
 - Simple implementation with good scaling
 - No complex work distribution logic
@@ -72,8 +77,10 @@ Aspiration windows narrow the alpha-beta bounds around the expected score, reduc
 
 **Mechanism:**
 - Root search uses window centered on previous iteration's score
-- Window size typically ±25-50 centipawns
-- Failed searches expand window and re-search
+- Initial window size: ±AspirationWindow (from SearchHeuristicConstants)
+- Failed searches widen incrementally: delta doubles each attempt (up to 3 widenings)
+- Fail-high widens beta only; fail-low widens alpha only (single-direction)
+- Full-window fallback after max widenings
 
 **Benefits:**
 - More cutoffs in alpha-beta
@@ -90,9 +97,11 @@ Quiescence search extends the search at horizon positions to avoid tactical blun
 - Prevent horizon effect (bad moves hidden at depth limit)
 
 **Implementation Characteristics:**
-- Search only threat moves (captures/winning moves)
-- Stand-pat score for quiet positions
-- Depth limit to prevent explosion
+- Filters to only tactical (forcing) moves via TacticalEvaluator and Pattern4Evaluator
+- Stand-pat pruning skipped when opponent has forcing threats (forced response handling)
+- Separate qsPly tracking prevents depth confusion with rootDepth
+- Depth limit (4 quiescence plies) to prevent explosion
+- Span-based zero-allocation candidate generation in hot path
 
 ### 2.5 Adaptive Late Move Reduction (LMR)
 
@@ -136,6 +145,7 @@ Primary TT used by `ParallelMinimaxSearch` for Lazy SMP multi-threaded search.
 **Shard Distribution:**
 - 16 independent segments
 - Hash-based index calculation: `shardIndex = (hash >> 32) & shardMask`
+- 32-byte padded entries (cache-line fraction alignment, reduces false sharing)
 - Reduces cache coherency traffic
 
 **Thread Access:**

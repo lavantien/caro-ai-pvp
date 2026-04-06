@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [5.0.0] - 2026-04-06
+
+### Added
+- IGameStore abstraction and InMemoryGameStore (ConcurrentDictionary-backed) for swappable game session storage
+- Aspiration windows with incremental widening in both sequential (MinimaxAI) and parallel (Lazy SMP) search paths
+- Depth-advantage override in Lazy SMP: helper threads reaching depth+2 or deeper preferred over master thread result
+- Span-based zero-allocation candidate generation in MinimaxCore and QuiesceCore (stackalloc 128 entries)
+- Quiescence forced-response handling: stand-pat pruning skipped when opponent has forcing threats; non-tactical moves filtered
+- Separate qsPly tracking in quiescence search (was conflated with rootDepth)
+
+### Fixed
+- Open Rule off-by-one: moveNumber == 3 changed to moveNumber == 2 (MoveNumber counts stones on board, Red's 2nd move = MoveNumber 2)
+- UCIHandler DI: changed from Singleton to Transient (each WebSocket connection gets its own AI instance with 64MB TT)
+- WebSocket error handling: catch WebSocketException and OperationCanceledException on send/receive paths
+- CancellationToken propagation: WebSocket ReceiveAsync/SendAsync now respect context.RequestAborted
+- TT entry padding: 20 bytes -> 32 bytes (cache-line fraction alignment, eliminates false sharing)
+- Duplicate currentPlayer variable in QuiesceCore (CS0128 compiler error)
+
+### Changed
+- SearchWithDepth rewritten: aspiration uses previous iteration score (no pre-search), single-direction widening on fail-high/fail-low
+- MinimaxCore candidate generation: List -> Span with stackalloc, converted to List only for move ordering
+- QuiesceCore tactical filtering: uses TacticalEvaluator and Pattern4Evaluator to remove non-forcing moves before search
+- Lazy SMP result selection: depth-advantage override evaluated before max-depth selection
+- Parallel iterative deepening: 3 widening attempts with exponential delta doubling, full-window fallback
+
 ## [4.5.0] - 2026-04-05
 
 ### Added
@@ -842,6 +867,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time-budget depth system per difficulty
 - Pondering and both-pondering support
 
+[5.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v5.0.0
 [4.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.5.0
 [4.4.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.4.0
 [4.3.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v4.3.0
