@@ -12,7 +12,7 @@ public partial class MinimaxAI
     /// Quiescence search: extend search in tactical positions to get accurate evaluation
     /// Only considers moves near existing stones (tactical moves)
     /// </summary>
-    private int Quiesce(Board board, int alpha, int beta, bool isMaximizing, Player aiPlayer, int rootDepth)
+    private int Quiesce(Board board, int alpha, int beta, bool isMaximizing, Player aiPlayer, int rootDepth, int qsPly)
     {
         // Time control: check frequently (every 16 nodes) to avoid timeout
         // Use a different offset to stagger checks between Minimax and Quiesce
@@ -56,7 +56,7 @@ public partial class MinimaxAI
 
         // Limit quiescence search depth to avoid explosion
         const int maxQuiescenceDepth = 4;  // Search up to 4 ply beyond depth 0
-        if (rootDepth - 0 > maxQuiescenceDepth)
+        if (qsPly >= maxQuiescenceDepth)
         {
             return standPat;  // Stop quiescing, return static eval
         }
@@ -83,7 +83,7 @@ public partial class MinimaxAI
                 var qBoard = board.PlaceStone(x, y, currentPlayer);
 
                 // Recursive quiescence search (depth stays at 0, but we track via rootDepth)
-                var eval = Quiesce(qBoard, alpha, beta, false, aiPlayer, rootDepth + 1);
+                var eval = Quiesce(qBoard, alpha, beta, false, aiPlayer, rootDepth, qsPly + 1);
 
                 maxEval = Math.Max(maxEval, eval);
                 alpha = Math.Max(alpha, eval);
@@ -104,7 +104,7 @@ public partial class MinimaxAI
 
                 var qBoard = board.PlaceStone(x, y, currentPlayer);
 
-                var eval = Quiesce(qBoard, alpha, beta, true, aiPlayer, rootDepth + 1);
+                var eval = Quiesce(qBoard, alpha, beta, true, aiPlayer, rootDepth, qsPly + 1);
 
                 minEval = Math.Min(minEval, eval);
                 beta = Math.Min(beta, eval);
@@ -146,7 +146,7 @@ public partial class MinimaxAI
         if (depth == 0)
         {
             // Use quiescence search to resolve tactical positions
-            return Quiesce(board, alpha, beta, isMaximizing, aiPlayer, rootDepth);
+            return Quiesce(board, alpha, beta, isMaximizing, aiPlayer, rootDepth, qsPly: 0);
         }
 
         // NULL-MOVE PRUNING: Skip a move to verify position is already good

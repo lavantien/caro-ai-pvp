@@ -240,4 +240,91 @@ public static class CandidateGenerator
 
         return candidates;
     }
+
+    /// <summary>
+    /// Get candidate moves from a SearchBoard into a caller-provided Span (zero-allocation path).
+    /// Returns the number of candidates written.
+    /// </summary>
+    public static int GetCandidateMoves(SearchBoard board, Span<(int x, int y)> buffer, int searchRadius = SearchConstants.MaxSearchRadius)
+    {
+        const int boardSize = BoardSize;
+        const int cellCount = boardSize * boardSize;
+
+        Span<bool> considered = stackalloc bool[cellCount];
+        int count = 0;
+
+        // Count stones
+        int stoneCount = 0;
+        for (int x = 0; x < boardSize; x++)
+            for (int y = 0; y < boardSize; y++)
+                if (!board.IsEmpty(x, y))
+                    stoneCount++;
+
+        // Empty board - return center-area moves
+        if (stoneCount == 0)
+        {
+            int center = boardSize / 2;
+            for (int x = center - 1; x <= center + 1 && count < buffer.Length; x++)
+                for (int y = center - 1; y <= center + 1 && count < buffer.Length; y++)
+                    buffer[count++] = (x, y);
+            return count;
+        }
+
+        int centerPos = boardSize / 2;
+
+        // PRIORITY 1: Moves near center
+        const int CenterRadius = 4;
+        for (int dx = -CenterRadius; dx <= CenterRadius; dx++)
+        {
+            for (int dy = -CenterRadius; dy <= CenterRadius; dy++)
+            {
+                int x = centerPos + dx;
+                int y = centerPos + dy;
+                if (x >= 0 && x < boardSize && y >= 0 && y < boardSize)
+                {
+                    int idx = x * boardSize + y;
+                    if (!considered[idx] && board.IsEmpty(x, y))
+                    {
+                        if (count >= buffer.Length) return count;
+                        considered[idx] = true;
+                        buffer[count++] = (x, y);
+                    }
+                }
+            }
+        }
+
+        // PRIORITY 2: Moves near existing stones
+        for (int x = 0; x < boardSize; x++)
+        {
+            for (int y = 0; y < boardSize; y++)
+            {
+                if (!board.IsEmpty(x, y))
+                {
+                    for (int dx = -searchRadius; dx <= searchRadius; dx++)
+                    {
+                        for (int dy = -searchRadius; dy <= searchRadius; dy++)
+                        {
+                            var nx = x + dx;
+                            var ny = y + dy;
+                            if (nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize)
+                            {
+                                int idx = nx * boardSize + ny;
+                                if (!considered[idx])
+                                {
+                                    considered[idx] = true;
+                                    if (board.IsEmpty(nx, ny))
+                                    {
+                                        if (count >= buffer.Length) return count;
+                                        buffer[count++] = (nx, ny);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return count;
+    }
 }

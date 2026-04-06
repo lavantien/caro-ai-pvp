@@ -14,81 +14,32 @@ public partial class MinimaxAI
 {
     private (int x, int y, int score) SearchWithDepth(Board board, Player player, int depth, List<(int x, int y)> candidates)
     {
-        // Aspiration window: try narrow search first, then wider if needed
-        const int aspirationWindow = SHC.AspirationWindow;
-        const int maxAspirationAttempts = SHC.MaxAspirationAttempts;
-
         var bestScore = int.MinValue;
         var bestMove = candidates[0];
-        int bestTiebreaker = 0;  // Track tiebreaker score
+        int bestTiebreaker = 0;
 
-        // Calculate board hash for transposition table
         var boardHash = _transpositionTable.CalculateHash(board);
 
-        // Initialize SearchBoard from immutable Board for high-performance search
         _searchBoard.CopyFrom(new SearchBoard(board));
 
-        // First, do a quick search at depth-1 to get an estimate (if depth > 2)
-        int estimatedScore = 0;
-        if (depth > 2)
+        // Use previous ID iteration score as aspiration estimate (no pre-search)
+        int estimatedScore = _lastSearchScore;
+        int delta = SHC.AspirationWindow;
+        const int maxWidenings = 3;
+
+        // No aspiration for depth 1 (no previous score reliable) or if no prior estimate
+        bool useAspiration = depth > 1 && estimatedScore != 0;
+
+        var alpha = useAspiration ? estimatedScore - delta : int.MinValue;
+        var beta = useAspiration ? estimatedScore + delta : int.MaxValue;
+
+        for (int widening = 0; widening <= maxWidenings; widening++)
         {
-            // Quick search with wide window to get estimate
-            var searchAlpha = int.MinValue;
-            var searchBeta = int.MaxValue;
-
-            // Pre-score candidates for tiebreaking (use position heuristics)
-            var candidateScores = _moveOrderer.ScoreCandidatesForTiebreak(candidates, board, player, depth);
-
-            int idx = 0;
-            foreach (var (x, y) in candidates)
-            {
-                // CRITICAL: Check time before evaluating each move
-                if (_searchStopwatch.ElapsedMilliseconds >= _searchHardBoundMs)
-                {
-                    _searchStopped = true;
-                    return (bestMove.x, bestMove.y, bestScore);
-                }
-
-                // Make move on SearchBoard (in-place, zero allocation)
-                var undo = _searchBoard.MakeMove(x, y, player);
-                var score = MinimaxCore(_searchBoard, depth - 2, searchAlpha, searchBeta, false, player, depth);
-                _searchBoard.UnmakeMove(undo);
-
-                // If search was stopped during Minimax, return current best
-                if (_searchStopped)
-                {
-                    return (bestMove.x, bestMove.y, bestScore);
-                }
-
-                // Tie-breaking: higher score wins, or equal score with better tiebreaker
-                if (score > bestScore || (score == bestScore && candidateScores[idx] > bestTiebreaker))
-                {
-                    bestScore = score;
-                    bestMove = (x, y);
-                    bestTiebreaker = candidateScores[idx];
-                }
-
-                searchAlpha = Math.Max(searchAlpha, score);
-                if (searchBeta <= searchAlpha)
-                    break;
-                idx++;
-            }
-            estimatedScore = bestScore;
-        }
-
-        // Now search with aspiration window
-        var alpha = estimatedScore - aspirationWindow;
-        var beta = estimatedScore + aspirationWindow;
-
-        for (int attempt = 0; attempt < maxAspirationAttempts; attempt++)
-        {
-            // Check transposition table with current window
+            // TT lookup with current window
             _tableLookups++;
             var (found, cachedScore, cachedMove) = _transpositionTable.Lookup(boardHash, depth, alpha, beta);
             if (found && cachedMove.HasValue)
             {
-                // CRITICAL: Validate the cached move is actually legal
-                // TT entries may be from different positions due to hash collisions or stale data
                 var (cx, cy) = cachedMove.Value;
                 if (cx >= 0 && cx < BoardSize && cy >= 0 && cy < BoardSize)
                 {
@@ -99,48 +50,33 @@ public partial class MinimaxAI
                         return (cx, cy, cachedScore);
                     }
                 }
-                // If cached move is invalid, fall through to normal search
             }
 
-            // Reset best score for this attempt
             bestScore = int.MinValue;
             bestMove = candidates[0];
             bestTiebreaker = 0;
 
-            // Order moves: Hash > Emergency > Threats > Killers > History > Positional
             var orderedMoves = _moveOrderer.OrderMoves(candidates, depth, board, player, cachedMove);
-
-            // Pre-score ordered moves for tiebreaking
             var orderedTiebreakScores = _moveOrderer.ScoreCandidatesForTiebreak(orderedMoves, board, player, depth);
 
-            var aspirationFailed = false;
+            bool failHigh = false;
+            bool failLow = true; // Assume fail-low until a score > alpha
             int orderedIdx = 0;
             foreach (var (x, y) in orderedMoves)
             {
-                // CRITICAL: Check time before evaluating each move
-                // This catches timeout during long candidate loops
                 if (_searchStopwatch.ElapsedMilliseconds >= _searchHardBoundMs)
                 {
                     _searchStopped = true;
-                    return (bestMove.x, bestMove.y, bestScore);  // Return best move found so far
-                }
-
-                // Make move on SearchBoard (in-place, zero allocation)
-                var undo = _searchBoard.MakeMove(x, y, player);
-
-                // Evaluate using MinimaxCore
-                var score = MinimaxCore(_searchBoard, depth - 1, alpha, beta, false, player, depth);
-
-                // Unmake move (restore board state)
-                _searchBoard.UnmakeMove(undo);
-
-                // If search was stopped during Minimax, return current best
-                if (_searchStopped)
-                {
                     return (bestMove.x, bestMove.y, bestScore);
                 }
 
-                // Tie-breaking: higher score wins, or equal score with better tiebreaker + small random
+                var undo = _searchBoard.MakeMove(x, y, player);
+                var score = MinimaxCore(_searchBoard, depth - 1, alpha, beta, false, player, depth);
+                _searchBoard.UnmakeMove(undo);
+
+                if (_searchStopped)
+                    return (bestMove.x, bestMove.y, bestScore);
+
                 if (score > bestScore)
                 {
                     bestScore = score;
@@ -151,8 +87,6 @@ public partial class MinimaxAI
                 {
                     var currentTiebreaker = orderedTiebreakScores[orderedIdx];
                     var randomBonus = NextRandomInt(SHC.RandomBonusRange);
-
-                    // Prefer better tiebreaker score, or add randomness
                     if (currentTiebreaker + randomBonus > bestTiebreaker)
                     {
                         bestMove = (x, y);
@@ -160,43 +94,47 @@ public partial class MinimaxAI
                     }
                 }
 
-                alpha = Math.Max(alpha, score);
+                if (score > alpha)
+                {
+                    alpha = score;
+                    failLow = false;
+                }
+
                 if (beta <= alpha)
                 {
-                    // Beta cutoff - record killer move and history
                     RecordKillerMove(depth, x, y);
                     RecordHistoryMove(player, x, y, depth);
                     break;
                 }
 
-                // Check if score exceeds beta (aspiration window too low)
                 if (score >= beta)
                 {
-                    aspirationFailed = true;
+                    failHigh = true;
                     break;
                 }
                 orderedIdx++;
             }
 
-            // If aspiration didn't fail, we're done
-            if (!aspirationFailed && bestScore > alpha && bestScore < beta)
+            // Success: score is within window
+            if (!failHigh && !failLow)
             {
-                // Store result in transposition table
-                _transpositionTable.Store(boardHash, depth, bestScore, bestMove, estimatedScore - aspirationWindow, estimatedScore + aspirationWindow);
+                _transpositionTable.Store(boardHash, depth, bestScore, bestMove, alpha, beta);
                 return (bestMove.x, bestMove.y, bestScore);
             }
 
-            // Aspiration failed - widen window and try again
-            alpha = int.MinValue;
-            beta = int.MaxValue;
-
-            // On final attempt, just return the best we found
-            if (attempt == maxAspirationAttempts - 1)
+            // Widening failed after max attempts - return best found
+            if (widening == maxWidenings)
             {
-                // Store result with wide window
                 _transpositionTable.Store(boardHash, depth, bestScore, bestMove, int.MinValue, int.MaxValue);
                 return (bestMove.x, bestMove.y, bestScore);
             }
+
+            // Incremental widening: double delta, widen only the failed bound
+            delta *= 2;
+            if (failHigh)
+                beta = estimatedScore + delta;
+            else // failLow
+                alpha = estimatedScore - delta;
         }
 
         return (bestMove.x, bestMove.y, bestScore);
