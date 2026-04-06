@@ -62,7 +62,8 @@ public partial class MinimaxAI
 
         // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections away from first red stone
         // Rule: |x - firstX| >= 3 OR |y - firstY| >= 3 (outside 5x5 zone centered on first move)
-        if (player == Player.Red && moveNumber == 3)
+        // MoveNumber is the count of stones already on the board, so Red's 2nd move = MoveNumber 2
+        if (player == Player.Red && moveNumber == 2)
         {
             // Find first red stone
             (int firstX, int firstY)? firstRed = null;
@@ -104,7 +105,7 @@ public partial class MinimaxAI
                     if (board.GetCell(x, y).Player == Player.None)
                     {
                         // For move #3, check open rule
-                        if (player == Player.Red && moveNumber == 3)
+                        if (player == Player.Red && moveNumber == 2)
                         {
                             // Find first red stone and check distance
                             (int firstX, int firstY)? firstRed = null;
