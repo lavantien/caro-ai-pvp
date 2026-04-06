@@ -169,15 +169,50 @@ public sealed partial class ParallelMinimaxSearch
             int alpha = int.MinValue + SHC.AlphaBetaMargin;
             int beta = int.MaxValue - SHC.AlphaBetaMargin;
 
+            // Aspiration window with incremental widening
+            int aspirationDelta = SHC.AspirationWindow;
+            const int maxWidenings = 3;
+
             if (bestScore > int.MinValue + 2000 && bestScore < int.MaxValue - 2000)
             {
-                alpha = Math.Max(int.MinValue + SHC.AlphaBetaMargin, bestScore - SHC.AspirationWindow);
-                beta = Math.Min(int.MaxValue - SHC.AlphaBetaMargin, bestScore + SHC.AspirationWindow);
+                alpha = Math.Max(int.MinValue + SHC.AlphaBetaMargin, bestScore - aspirationDelta);
+                beta = Math.Min(int.MaxValue - SHC.AlphaBetaMargin, bestScore + aspirationDelta);
             }
 
             long nodesBeforeIteration = threadData.LocalNodesSearched;
 
             var result = SearchRoot(board, player, currentDepth, candidates, threadData, alpha, beta, cancellationToken);
+
+            // Incremental widening if aspiration fails
+            for (int w = 0; w < maxWidenings && result.score != int.MinValue; w++)
+            {
+                if (result.score <= alpha)
+                {
+                    // Fail-low: widen only alpha
+                    aspirationDelta *= 2;
+                    alpha = Math.Max(int.MinValue + SHC.AlphaBetaMargin, bestScore - aspirationDelta);
+                }
+                else if (result.score >= beta)
+                {
+                    // Fail-high: widen only beta
+                    aspirationDelta *= 2;
+                    beta = Math.Min(int.MaxValue - SHC.AlphaBetaMargin, bestScore + aspirationDelta);
+                }
+                else
+                {
+                    break; // Score within window
+                }
+
+                result = SearchRoot(board, player, currentDepth, candidates, threadData, alpha, beta, cancellationToken);
+            }
+
+            // Final fallback: full window if still outside bounds
+            if (result.score != int.MinValue && (result.score <= alpha || result.score >= beta))
+            {
+                alpha = int.MinValue + SHC.AlphaBetaMargin;
+                beta = int.MaxValue - SHC.AlphaBetaMargin;
+                result = SearchRoot(board, player, currentDepth, candidates, threadData, alpha, beta, cancellationToken);
+            }
 
             var elapsedNow = _timeMonitor?.ElapsedMs ?? 0;
             lastIterationElapsedMs = elapsedNow - iterationStartMs;

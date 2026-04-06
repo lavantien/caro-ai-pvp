@@ -219,6 +219,34 @@ public sealed partial class ParallelMinimaxSearch
         // Score threshold: below this, consider the position "effectively lost"
         const int ReasonableScoreThreshold = (int)SHC.ReasonableScoreThreshold;  // -2147383648
 
+        // DEPTH-ADVANTAGE OVERRIDE: If a helper thread reached depth N+2 or higher
+        // vs the master thread's depth N, prefer the helper's deeper result.
+        // Deeper search is more reliable even if score differs.
+        var masterResult = results.FirstOrDefault(r => r.threadIndex == 0);
+        if (masterResult.depth > 0)
+        {
+            const int DepthAdvantageThreshold = 2;
+            var deeperHelper = results
+                .Where(r => r.threadIndex != 0
+                    && r.depth >= masterResult.depth + DepthAdvantageThreshold
+                    && r.score != int.MinValue
+                    && r.score < SHC.WinScore * 2)
+                .OrderByDescending(r => r.depth)
+                .ThenByDescending(r => r.score)
+                .FirstOrDefault();
+
+            if (deeperHelper.depth > 0)
+            {
+                if (DebugLogging)
+                {
+                    Console.WriteLine($"[PARALLEL] Depth-advantage override: helper thread {deeperHelper.threadIndex} " +
+                        $"reached depth {deeperHelper.depth} vs master depth {masterResult.depth}");
+                }
+                bestResult = deeperHelper;
+                foundValidResult = true;
+            }
+        }
+
         // First, try to find results at maxDepth with reasonable scores
         // Reject int.MaxValue leaks (uninitialized minimizing nodes) and int.MinValue (search failures)
         var reasonableAtMaxDepth = results
@@ -279,7 +307,6 @@ public sealed partial class ParallelMinimaxSearch
         {
             // All threads returned int.MinValue - this should be extremely rare
             // Prefer master thread's result as it has the most reliable search
-            var masterResult = results.FirstOrDefault(r => r.threadIndex == 0);
             if (!masterResult.Equals(default))
             {
                 bestResult = masterResult;
