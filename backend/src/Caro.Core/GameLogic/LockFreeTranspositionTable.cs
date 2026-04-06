@@ -37,13 +37,14 @@ public sealed partial class LockFreeTranspositionTable
     ///
     /// This guarantees consistent reads without locks.
     /// </summary>
-    [StructLayout(LayoutKind.Explicit, Size = 20)]
+    [StructLayout(LayoutKind.Explicit, Size = 32)]
     public struct TranspositionEntry
     {
         [FieldOffset(0)] public ulong Hash;
         [FieldOffset(8)] public uint Data;         // Packed: Score(16) + Depth(8) + MoveX(4) + MoveY(4)
         [FieldOffset(12)] public uint Meta;        // Age(8) + Flag(8) + ThreadIndex(8) + Reserved(8)
         [FieldOffset(16)] public uint Version;     // SeqLock version (odd=writing, even=stable)
+        // Bytes 20-31: padding to 32 bytes (eliminates false sharing on most architectures)
 
         // Bit positions for Data field packing
         private const int ScoreShift = 16;
@@ -202,8 +203,8 @@ public sealed partial class LockFreeTranspositionTable
         _shardCount = shardCount;
         _shardMask = shardCount - 1;
 
-        // Each entry is 20 bytes
-        int totalEntries = (sizeMB * 1024 * 1024) / 20;
+        // Each entry is 32 bytes (padded to cache line fraction to avoid false sharing)
+        int totalEntries = (sizeMB * 1024 * 1024) / 32;
         _sizePerShard = totalEntries / shardCount;
 
         _shards = new TranspositionEntry[shardCount][];
