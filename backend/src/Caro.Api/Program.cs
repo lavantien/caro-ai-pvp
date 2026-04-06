@@ -32,8 +32,14 @@ builder.Services.AddSingleton<MinimaxAI>(sp =>
     return new MinimaxAI(logger: logger);
 });
 
-// Register UCIHandler for WebSocket UCI protocol
-builder.Services.AddSingleton<UCIHandler>();
+// Register UCIHandler for WebSocket UCI protocol (Transient: each connection gets its own AI)
+builder.Services.AddTransient<UCIHandler>(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<UCIHandler>>();
+    return new UCIHandler(logger);
+});
+
+builder.Services.AddSingleton<IGameStore, InMemoryGameStore>();
 
 // CORS for local development - allow any localhost port
 builder.Services.AddCors(options =>
@@ -64,22 +70,35 @@ app.Map("/ws/uci", async (HttpContext context, UCIHandler handler) =>
 
         handler.SendToClient = async msg =>
         {
-            if (webSocket.State == WebSocketState.Open)
+            try
             {
-                var bytes = Encoding.UTF8.GetBytes(msg);
-                await webSocket.SendAsync(
-                    new ArraySegment<byte>(bytes),
-                    WebSocketMessageType.Text,
-                    true,
-                    CancellationToken.None);
+                if (webSocket.State == WebSocketState.Open)
+                {
+                    var bytes = Encoding.UTF8.GetBytes(msg);
+                    await webSocket.SendAsync(
+                        new ArraySegment<byte>(bytes),
+                        WebSocketMessageType.Text,
+                        true,
+                        context.RequestAborted);
+                }
+            }
+            catch (WebSocketException ex)
+            {
+                logger.LogWarning(ex, "WebSocket send failed");
+            }
+            catch (OperationCanceledException)
+            {
+                // Client disconnected during send - expected
             }
         };
+
+        var ct = context.RequestAborted;
 
         try
         {
             while (webSocket.State == WebSocketState.Open)
             {
-                var result = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
+                var result = await webSocket.ReceiveAsync(buffer, ct);
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
@@ -102,12 +121,20 @@ app.Map("/ws/uci", async (HttpContext context, UCIHandler handler) =>
                                 new ArraySegment<byte>(responseBytes),
                                 WebSocketMessageType.Text,
                                 true,
-                                CancellationToken.None
+                                ct
                             );
                         }
                     }
                 }
             }
+        }
+        catch (WebSocketException ex)
+        {
+            logger.LogWarning(ex, "WebSocket connection error");
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("UCI WebSocket connection cancelled");
         }
         finally
         {
@@ -122,9 +149,8 @@ app.Map("/ws/uci", async (HttpContext context, UCIHandler handler) =>
     }
 });
 
-// In-memory game storage with per-game locks (concurrent-safe)
-// Using ConcurrentDictionary eliminates the need for a global lock
-var games = new ConcurrentDictionary<string, GameSession>();
+// Game storage (in-memory by default, swappable via DI)
+var games = app.Services.GetRequiredService<IGameStore>();
 
 // POST /api/game/new - Create new game
 app.MapPost("/api/game/new", (CreateGameRequest? request) =>
@@ -153,7 +179,7 @@ app.MapPost("/api/game/new", (CreateGameRequest? request) =>
         timeControl.InitialTimeMs,
         timeControl.IncrementSeconds,
         gameMode);
-    games[gameId] = session;
+    games.Set(gameId, session);
 
     Console.WriteLine($"[GAME] Created {gameId}: mode={gameMode}, tc={timeControl.Name}");
     return Results.Ok(new { gameId, state = session.GetResponse() });
@@ -232,7 +258,7 @@ app.MapPost("/api/game/{id}/ai-move", (
         return Results.NotFound("Game not found");
 
     // Step 1: Extract game data under lock (minimal lock time)
-    var (boardClone, currentPlayer, isGameOver, timeRemainingMs, incrementSeconds) = session.ExtractForAI();
+    var (boardClone, currentPlayer, isGameOver, timeRemainingMs, incrementSeconds, moveNumber) = session.ExtractForAI();
 
     if (isGameOver)
         return Results.BadRequest("Game is over");
@@ -243,6 +269,7 @@ app.MapPost("/api/game/{id}/ai-move", (
     {
         TimeRemainingMs = timeRemainingMs,
         IncrementSeconds = incrementSeconds,
+        MoveNumber = moveNumber,
         PonderingEnabled = true,
         ParallelSearchEnabled = true,
     };
@@ -362,14 +389,14 @@ public sealed class GameSession
     /// Board is immutable, so no cloning is needed.
     /// Includes time remaining for the current player and increment for time-managed search.
     /// </summary>
-    public (Board BoardClone, Player CurrentPlayer, bool IsGameOver, long TimeRemainingMs, int IncrementSeconds) ExtractForAI()
+    public (Board BoardClone, Player CurrentPlayer, bool IsGameOver, long TimeRemainingMs, int IncrementSeconds, int MoveNumber) ExtractForAI()
     {
         lock (_lock)
         {
             long timeRemaining = _game.CurrentPlayer == Player.Red
                 ? _redTimeRemainingMs
                 : _blueTimeRemainingMs;
-            return (_game.Board, _game.CurrentPlayer, _game.IsGameOver, timeRemaining, _game.IncrementSeconds);
+            return (_game.Board, _game.CurrentPlayer, _game.IsGameOver, timeRemaining, _game.IncrementSeconds, _game.MoveNumber);
         }
     }
 

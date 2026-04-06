@@ -27,12 +27,12 @@ public sealed class UCIHandler
     /// </summary>
     public Func<string, Task>? SendToClient { get; set; }
 
-    public UCIHandler(MinimaxAI ai, ILogger<UCIHandler> logger)
+    public UCIHandler(ILogger<UCIHandler> logger)
     {
-        _ai = ai ?? throw new ArgumentNullException(nameof(ai));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _ai = new MinimaxAI(ttSizeMb: 64);
         _options = new UCIEngineOptions();
-        _searchController = new UCISearchController(ai, _options);
+        _searchController = new UCISearchController(_ai, _options);
         _currentBoard = new Board();
 
         _searchController.OnSearchInfo += OnSearchInfo;
