@@ -9,6 +9,18 @@ export type GameMode = 'pvp' | 'pvai' | 'aivai';
 
 export type UCIConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 
+export type DifficultyLevel = 1 | 2 | 3 | 4 | 5;
+
+export function difficultyName(level: DifficultyLevel): string {
+    switch (level) {
+        case 1: return 'Novice';
+        case 2: return 'Beginner';
+        case 3: return 'Intermediate';
+        case 4: return 'Advanced';
+        case 5: return 'Grandmaster';
+    }
+}
+
 export interface Cell {
 	x: number;
 	y: number;
@@ -18,6 +30,9 @@ export interface Cell {
 export interface GameCreateRequest {
 	timeControl?: TimeControl;
 	gameMode?: GameMode;
+	difficulty?: number;
+	redDifficulty?: number;
+	blueDifficulty?: number;
 }
 
 export interface GameState {
@@ -32,6 +47,8 @@ export interface GameState {
 	initialTime?: number;
 	increment?: number;
 	gameMode?: GameMode;
+	redDifficulty?: number;
+	blueDifficulty?: number;
 }
 
 export interface MoveRequest {
