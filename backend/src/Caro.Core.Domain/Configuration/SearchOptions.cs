@@ -15,5 +15,17 @@ public sealed record SearchOptions
     public long? MaxNodes { get; init; }
     public int? MaxTimeMs { get; init; }
 
+    /// <summary>
+    /// Fraction of allocated time to use (0.0-1.0). Applied to TimeAllocation output post-PID.
+    /// Default 1.0 for backward compatibility.
+    /// </summary>
+    public double TimeFraction { get; init; } = 1.0;
+
+    /// <summary>
+    /// Whether to run dedicated pre-search VCF solver. Does NOT affect in-tree VCF.
+    /// Default true for backward compatibility.
+    /// </summary>
+    public bool UseVCF { get; init; } = true;
+
     public static SearchOptions Default { get; } = new();
 }
