@@ -1,44 +1,39 @@
-# AI assistant-specific
-.config/
+# Dependencies
+node_modules/
 
-# Temporary files
-nul
+# Build outputs
+.svelte-kit/
+build/
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Temporary files (debugging/screenshots)
+*.mjs
+*.png
+!src/lib/assets/favicon.svg
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
 
 # OS
 .DS_Store
 Thumbs.db
-backend/backend-lint-results.txt
-backend/backend-test-results.txt
-frontend/frontend-lint-results.txt
-frontend/frontend-test-results.txt
 
-# Serena MCP plugin data
-.serena/
-
-# Diagnostic tool
-backend/src/Caro.Diagnostic/
-
-# Test configuration and scripts
-backend/test_config.txt
-backend/test_diagnostic.txt
-**/test_output.txt
-*.host.*-*/
-backend/TestCoords/
-backend/test_book.csx
-test_tt.cs
-
-# SQLite WAL files (temporary)
-*.db-shm
-*.db-wal
-.playwright-mcp/
-e2e.txt
-backend/test-results/
-debug-*.png
-board-screenshot*.png
-
-# Vite dev server cache
-.vite/
-/docs/superpowers/specs
-
-# Worktrees
-.worktrees/
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
