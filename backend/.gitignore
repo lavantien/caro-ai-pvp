@@ -1,0 +1,36 @@
+# Build outputs
+bin/
+obj/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS
+.DS_Store
+Thumbs.db
+
+# .NET
+project.fragment.lock.json
+artifacts/
+
+# NuGet
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+
+# Testing
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Environment
+.env
+.env.*.local

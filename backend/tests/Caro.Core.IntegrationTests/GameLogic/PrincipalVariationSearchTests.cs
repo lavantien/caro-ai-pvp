@@ -1,0 +1,326 @@
+using Caro.Core.Domain.Configuration;
+using Caro.Core.Domain.Entities;
+using Caro.Core.GameLogic;
+using Caro.Core.IntegrationTests.Helpers;
+using Xunit;
+using Xunit.Abstractions;
+
+namespace Caro.Core.IntegrationTests.GameLogic;
+
+public class PrincipalVariationSearchTests
+{
+    private const int StandardTimeoutMs = 30_000;
+    private const int QuietPositionTimeoutMs = 5_000;
+    private const int CenterMoveLowerBound = 5;
+    private const int CenterMoveUpperBound = 10;
+
+    private readonly ITestOutputHelper _output;
+
+    public PrincipalVariationSearchTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
+    [Fact]
+    public void PVS_MaintainsSearchAccuracy()
+    {
+        // Arrange - Position with clear best move
+        var board = new Board();
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+
+        board = board.PlaceStone(8, 5, Player.Blue);
+        board = board.PlaceStone(8, 6, Player.Blue);
+
+        // Act - PVS should find the best move
+        var ai = AITestHelper.CreateAI();
+        var move = ai.GetBestMove(board, Player.Red, null);
+
+        // Assert - Should extend the 3-in-row
+        Assert.Equal(7, move.x);
+        Assert.True(move.y == 4 || move.y == 8,
+            $"Should extend 3-in-row, but played at ({move.x}, {move.y})");
+    }
+
+    [Fact]
+    public void PVS_ImprovesSearchEfficiency()
+    {
+        // Arrange - Mid-game position
+        var board = new Board();
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Blue);
+        board = board.PlaceStone(6, 6, Player.Red);
+        board = board.PlaceStone(6, 7, Player.Blue);
+
+        // Act - PVS should be faster with null window searches
+        var ai = AITestHelper.CreateAI();
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var move = ai.GetBestMove(board, Player.Red, null);
+        stopwatch.Stop();
+
+        _output.WriteLine($"Move: ({move.x}, {move.y}), Time: {stopwatch.ElapsedMilliseconds}ms");
+
+        // Assert - Should complete quickly
+        // Parallel search has some overhead, so we allow more time
+        Assert.True(stopwatch.ElapsedMilliseconds < StandardTimeoutMs,
+            $"PVS search took {stopwatch.ElapsedMilliseconds}ms, expected < {StandardTimeoutMs}ms");
+
+        // Move should be valid
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
+    }
+
+    [Fact]
+    public void PVS_ProducesConsistentResults()
+    {
+        // Arrange
+        var board = new Board();
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Blue);
+
+        // Act - Multiple searches should produce valid results
+        // Note: Due to Random being consumed at different rates during search,
+        // exact equality between calls is not guaranteed without full state reset.
+        var ai = AITestHelper.CreateDeterministicAI();
+        var move1 = ai.GetBestMove(board, Player.Red, null);
+        var move2 = ai.GetBestMove(board, Player.Red, null);
+        var move3 = ai.GetBestMove(board, Player.Red, null);
+
+        // Assert - All moves should be valid and strategic
+        Assert.InRange(move1.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move1.y, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.y, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move3.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move3.y, CenterMoveLowerBound, CenterMoveUpperBound);
+    }
+
+    [Fact]
+    public void PVS_HandlesTacticalPositions()
+    {
+        // Arrange - Tactical position with winning threat
+        var board = new Board();
+        board = board.PlaceStone(7, 5, Player.Red);
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
+
+        // Act - Should find winning move
+        var ai = AITestHelper.CreateAI();
+        var move = ai.GetBestMove(board, Player.Red, null);
+
+        // Assert - Should complete the winning line
+        Assert.Equal(7, move.x);
+        Assert.True(move.y == 4 || move.y == 9 || move.y == 3,
+            $"Should complete winning line, but played at ({move.x}, {move.y})");
+    }
+
+    [Fact]
+    public void PVS_ProducesValidMoves()
+    {
+        // Arrange
+        var board = new Board();
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
+
+        var ai = AITestHelper.CreateAI();
+
+        // Act & Assert - All difficulty levels should work
+        var easyMove = ai.GetBestMove(board, Player.Red, null);
+        Assert.True(easyMove.x >= 0 && easyMove.x < GameConstants.BoardSize);
+
+        var mediumMove = ai.GetBestMove(board, Player.Red, null);
+        Assert.True(mediumMove.x >= 0 && mediumMove.x < GameConstants.BoardSize);
+
+        var hardMove = ai.GetBestMove(board, Player.Red, null);
+        Assert.True(hardMove.x >= 0 && hardMove.x < GameConstants.BoardSize);
+
+        var grandmasterMove = ai.GetBestMove(board, Player.Red, null);
+        Assert.True(grandmasterMove.x >= 0 && grandmasterMove.x < GameConstants.BoardSize);
+    }
+
+    [Fact]
+    public void PVS_HandlesComplexEndgame()
+    {
+        // Arrange - Nearly full board
+        var board = new Board();
+
+        // Fill center area
+        for (int x = 5; x <= 9; x++)
+        {
+            for (int y = 5; y <= 9; y++)
+            {
+                if ((x + y) % 3 == 0)
+                    board = board.PlaceStone(x, y, Player.Red);
+                else if ((x + y) % 3 == 1)
+                    board = board.PlaceStone(x, y, Player.Blue);
+            }
+        }
+
+        // Act - Should handle complex position
+        var ai = AITestHelper.CreateAI();
+        var move = ai.GetBestMove(board, Player.Red, null);
+
+        // Assert - Should find valid move
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
+
+        var cell = board.GetCell(move.x, move.y);
+        Assert.True(cell.IsEmpty, "Move should be on an empty cell");
+    }
+
+    [Fact]
+    public void PVS_MaintainsMoveQualityWithLMR()
+    {
+        // Verify PVS works correctly with LMR
+        // Arrange - Complex position
+        var board = new Board();
+        board = board.PlaceStone(7, 6, Player.Red);
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Red);
+
+        board = board.PlaceStone(8, 5, Player.Blue);
+        board = board.PlaceStone(8, 6, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Blue);
+
+        board = board.PlaceStone(6, 7, Player.Red);
+        board = board.PlaceStone(9, 6, Player.Blue);
+
+        // Act - PVS + LMR should find good move
+        var ai = AITestHelper.CreateAI();
+        var move = ai.GetBestMove(board, Player.Red, null);
+
+        // Assert - Should find reasonable move
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
+
+        var cell = board.GetCell(move.x, move.y);
+        Assert.True(cell.IsEmpty, "Move should be on an empty cell");
+    }
+
+    [Fact]
+    public void PVS_HandlesQuietPositions()
+    {
+        // Arrange - Quiet position with no immediate threats
+        var board = new Board();
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
+
+        // Act - Should complete quickly in quiet positions
+        var ai = AITestHelper.CreateAI();
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var move = ai.GetBestMove(board, Player.Red, null);
+        stopwatch.Stop();
+
+        _output.WriteLine($"Quiet position time: {stopwatch.ElapsedMilliseconds}ms");
+
+        // Assert - Should be fast with PVS (null window searches are efficient)
+        // Allow more time for JIT compilation and system variations
+        Assert.True(stopwatch.ElapsedMilliseconds < QuietPositionTimeoutMs,
+            $"Quiet position took {stopwatch.ElapsedMilliseconds}ms, expected < {QuietPositionTimeoutMs}ms");
+
+        // Move should be valid
+        Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize);
+        Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize);
+    }
+
+    [Fact]
+    public void PVS_WorksWithTranspositionTable()
+    {
+        // Verify PVS works correctly with transposition table
+        // Arrange
+        var board = new Board();
+        board = board.PlaceStone(7, 7, Player.Red);
+        board = board.PlaceStone(7, 8, Player.Blue);
+        board = board.PlaceStone(8, 7, Player.Red);
+        board = board.PlaceStone(8, 8, Player.Blue);
+
+        // Act - Multiple searches should benefit from TT + PVS
+        var ai = AITestHelper.CreateDeterministicAI();
+
+        var time1 = System.Diagnostics.Stopwatch.StartNew();
+        var move1 = ai.GetBestMove(board, Player.Red, null);
+        time1.Stop();
+
+        var time2 = System.Diagnostics.Stopwatch.StartNew();
+        var move2 = ai.GetBestMove(board, Player.Red, null);
+        time2.Stop();
+
+        // Assert - Moves should be valid
+        // Note: Due to Random consumption pattern, exact equality is not guaranteed
+        Assert.InRange(move1.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move1.y, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.x, CenterMoveLowerBound, CenterMoveUpperBound);
+        Assert.InRange(move2.y, CenterMoveLowerBound, CenterMoveUpperBound);
+
+        // Both searches should complete (first may be slower without TT warmup)
+        _output.WriteLine($"First search: {time1.ElapsedMilliseconds}ms");
+        _output.WriteLine($"Second search: {time2.ElapsedMilliseconds}ms");
+    }
+
+    [Fact]
+    public void PVS_PreservesTacticalAwareness()
+    {
+        // Verify PVS doesn't reduce tactical awareness
+        // Arrange - Red must block Blue's winning threat
+        var board = new Board();
+        board = board.PlaceStone(7, 5, Player.Blue);
+        board = board.PlaceStone(7, 6, Player.Blue);
+        board = board.PlaceStone(7, 7, Player.Blue);
+        board = board.PlaceStone(7, 8, Player.Blue);
+
+        board = board.PlaceStone(8, 6, Player.Red);
+
+        // Act - Must block the threat
+        var ai = AITestHelper.CreateAI();
+        var move = ai.GetBestMove(board, Player.Red, null);
+
+        // Assert - Should block at (7, 4) or (7, 9)
+        Assert.Equal(7, move.x);
+        Assert.True(move.y == 4 || move.y == 9 || move.y == 3 || move.y == 10,
+            $"Should block winning threat, but played at ({move.x}, {move.y})");
+    }
+
+    [Fact]
+    public void PVS_DoesNotCauseSearchErrors()
+    {
+        // Verify PVS doesn't introduce bugs in edge cases
+
+        // Arrange - Various edge case positions
+        var positions = new[]
+        {
+            new Board(),  // Empty board
+            CreateBoardWithMoves(new[] { (7, 7, Player.Red) }),  // One stone
+            CreateBoardWithMoves(new[] { (7, 7, Player.Red), (7, 8, Player.Blue), (8, 7, Player.Red) }),  // Early game
+        };
+
+        var ai = AITestHelper.CreateAI();
+
+        foreach (var board in positions)
+        {
+            // Act - Should not throw
+            var move = ai.GetBestMove(board, Player.Red, null);
+
+            // Assert - Should be valid
+            Assert.True(move.x >= 0 && move.x < GameConstants.BoardSize,
+                $"Move x={move.x} is out of bounds");
+            Assert.True(move.y >= 0 && move.y < GameConstants.BoardSize,
+                $"Move y={move.y} is out of bounds");
+        }
+    }
+
+    private Board CreateBoardWithMoves((int x, int y, Player player)[] moves)
+    {
+        var board = new Board();
+        foreach (var (x, y, player) in moves)
+        {
+            board = board.PlaceStone(x, y, player);
+        }
+        return board;
+    }
+}

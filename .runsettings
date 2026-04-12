@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <!--
+    Caro AI-PVP Test Configuration
+
+    By default, Integration and LongRunning tests are EXCLUDED.
+    Use the wrapper scripts or explicit filters to include them.
+
+    USAGE:
+      ./test.ps1           # Run unit tests only (default)
+      ./test.ps1 Integration # Run integration tests
+      ./test.ps1 LongRunning # Run long-running tests
+      ./test.ps1 All       # Run ALL tests
+
+      Or manually:
+      dotnet test --filter "Category!=Integration&Category!=LongRunning"  # Unit only
+      dotnet test --filter "Category=Integration"                        # Integration only
+      dotnet test --filter "Category=LongRunning"                        # Long-running only
+  -->
+
+  <RunConfiguration>
+    <MaxCpuCount>0</MaxCpuCount>
+  </RunConfiguration>
+</RunSettings>

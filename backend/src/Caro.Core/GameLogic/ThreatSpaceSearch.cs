@@ -1,0 +1,349 @@
+using Caro.Core.Domain.Configuration;
+using Caro.Core.Domain.Entities;
+
+namespace Caro.Core.GameLogic;
+
+/// <summary>
+/// VCF (Victory by Continuous Four) solver using threat-space search
+/// Searches only forcing sequences (threats that require immediate response)
+/// Dramatically reduces branching factor from ~200 to 2-10 moves
+/// </summary>
+public partial class ThreatSpaceSearch
+{
+    private readonly ThreatDetector _threatDetector = new();
+    private readonly WinDetector _winDetector = new();
+    private readonly DFPNSearch _dfpn = new();
+
+    /// <summary>
+    /// Result of VCF search
+    /// </summary>
+    public class VCFResult
+    {
+        /// <summary>
+        /// True if the search found a definitive result (win or loss)
+        /// </summary>
+        public bool IsSolved { get; init; }
+
+        /// <summary>
+        /// True if the attacker can force a win
+        /// </summary>
+        public bool IsWin { get; init; }
+
+        /// <summary>
+        /// Best move found (may be null if no winning sequence)
+        /// </summary>
+        public (int x, int y)? BestMove { get; init; }
+
+        /// <summary>
+        /// Number of nodes searched
+        /// </summary>
+        public int NodesSearched { get; init; }
+
+        /// <summary>
+        /// Search depth achieved
+        /// </summary>
+        public int DepthAchieved { get; init; }
+    }
+
+    /// <summary>
+    /// Solve for VCF (Victory by Continuous Four) sequence
+    /// </summary>
+    /// <param name="board">Current board position</param>
+    /// <param name="attacker">Player trying to force win</param>
+    /// <param name="timeLimitMs">Time limit in milliseconds</param>
+    /// <param name="maxDepth">Maximum search depth</param>
+    /// <returns>VCF result with best move if found</returns>
+    public VCFResult SolveVCF(
+        Board board,
+        Player attacker,
+        int timeLimitMs = TimeConstants.DefaultTimeLimitMs,
+        int maxDepth = TimeConstants.DefaultSearchDepth)
+    {
+        var startTime = DateTime.UtcNow;
+        int nodesSearched = 0;
+
+        // Check for immediate win first
+        var immediateWin = FindImmediateWin(board, attacker);
+        if (immediateWin.HasValue)
+        {
+            return new VCFResult
+            {
+                IsSolved = true,
+                IsWin = true,
+                BestMove = immediateWin,
+                NodesSearched = 1,
+                DepthAchieved = 1
+            };
+        }
+
+        // Check for empty board
+        if (IsEmptyBoard(board))
+        {
+            return new VCFResult
+            {
+                IsSolved = false,
+                IsWin = false,
+                BestMove = null,
+                NodesSearched = 0,
+                DepthAchieved = 0
+            };
+        }
+
+        // Check if opponent has immediate win (loss for attacker)
+        var opponent = GetOpponent(attacker);
+        var opponentImmediateWin = FindImmediateWin(board, opponent);
+        if (opponentImmediateWin.HasValue)
+        {
+            // If opponent has an immediate win, we cannot execute a VCF
+            // because they will ignore our threat and just win
+            return new VCFResult
+            {
+                IsSolved = false,
+                IsWin = false,
+                BestMove = null,
+                NodesSearched = nodesSearched,
+                DepthAchieved = 0
+            };
+        }
+
+        // Generate threat moves for attacker
+        var threatMoves = GetThreatMoves(board, attacker);
+        if (threatMoves.Count == 0)
+        {
+            return new VCFResult
+            {
+                IsSolved = false,
+                IsWin = false,
+                BestMove = null,
+                NodesSearched = 0,
+                DepthAchieved = 0
+            };
+        }
+
+        // Try each threat move and check if any leads to win
+        foreach (var move in threatMoves)
+        {
+            // Check time limit
+            if ((DateTime.UtcNow - startTime).TotalMilliseconds > timeLimitMs)
+            {
+                break;
+            }
+
+            var attackBoard = board.PlaceStone(move.x, move.y, attacker);
+            nodesSearched++;
+
+            // Check if this move wins
+            var winResult = _winDetector.CheckWin(attackBoard);
+            if (winResult.HasWinner && winResult.Winner == attacker)
+            {
+                return new VCFResult
+                {
+                    IsSolved = true,
+                    IsWin = true,
+                    BestMove = move,
+                    NodesSearched = nodesSearched,
+                    DepthAchieved = 1
+                };
+            }
+
+            // Get defender's possible responses (using attackBoard since it has the attacker's move)
+            var defenses = GetDefenseMoves(attackBoard, attacker, opponent);
+
+            bool allDefensesLose = true;
+            bool atLeastOneDefense = false;
+
+            foreach (var defense in defenses)
+            {
+                if ((DateTime.UtcNow - startTime).TotalMilliseconds > timeLimitMs)
+                {
+                    break;
+                }
+
+                atLeastOneDefense = true;
+
+                var defenseBoard = attackBoard.PlaceStone(defense.x, defense.y, opponent);
+                nodesSearched++;
+
+                // Recursively check if attacker can still win
+                var subResult = SolveVCFRecursive(defenseBoard, attacker, 2, maxDepth, startTime, timeLimitMs, ref nodesSearched);
+
+                if (!subResult.IsWin)
+                {
+                    // Defender has a response that prevents win
+                    allDefensesLose = false;
+                    break;
+                }
+            }
+
+            if (allDefensesLose && atLeastOneDefense)
+            {
+                // All defender's responses lead to attacker win - VCF found!
+                return new VCFResult
+                {
+                    IsSolved = true,
+                    IsWin = true,
+                    BestMove = move,
+                    NodesSearched = nodesSearched,
+                    DepthAchieved = 2
+                };
+            }
+        }
+
+        // No VCF found
+        return new VCFResult
+        {
+            IsSolved = false,
+            IsWin = false,
+            BestMove = threatMoves.Count > 0 ? threatMoves[0] : null,
+            NodesSearched = nodesSearched,
+            DepthAchieved = 0
+        };
+    }
+
+    #region Private Methods
+
+    private VCFResult SolveVCFRecursive(
+        Board board,
+        Player attacker,
+        int depth,
+        int maxDepth,
+        DateTime startTime,
+        int timeLimitMs,
+        ref int nodesSearched)
+    {
+        // Check termination conditions
+        if (depth > maxDepth)
+        {
+            return new VCFResult
+            {
+                IsSolved = false,
+                IsWin = false,
+                NodesSearched = nodesSearched,
+                DepthAchieved = depth
+            };
+        }
+
+        if ((DateTime.UtcNow - startTime).TotalMilliseconds > timeLimitMs)
+        {
+            return new VCFResult
+            {
+                IsSolved = false,
+                IsWin = false,
+                NodesSearched = nodesSearched,
+                DepthAchieved = depth
+            };
+        }
+
+        var opponent = GetOpponent(attacker);
+
+        // Check for win
+        var winResult = _winDetector.CheckWin(board);
+        if (winResult.HasWinner)
+        {
+            return new VCFResult
+            {
+                IsSolved = true,
+                IsWin = winResult.Winner == attacker,
+                NodesSearched = nodesSearched,
+                DepthAchieved = depth
+            };
+        }
+
+        // Get threat moves
+        var threatMoves = GetThreatMoves(board, attacker);
+        if (threatMoves.Count == 0)
+        {
+            // No forcing moves - position not resolved
+            return new VCFResult
+            {
+                IsSolved = false,
+                IsWin = false,
+                NodesSearched = nodesSearched,
+                DepthAchieved = depth
+            };
+        }
+
+        // Try each threat move
+        foreach (var move in threatMoves)
+        {
+            var attackBoard = board.PlaceStone(move.x, move.y, attacker);
+            nodesSearched++;
+
+            var defenses = GetDefenseMoves(attackBoard, attacker, opponent);
+
+            bool allDefensesLose = true;
+            bool atLeastOneDefense = false;
+
+            foreach (var defense in defenses)
+            {
+                atLeastOneDefense = true;
+
+                var defenseBoard = attackBoard.PlaceStone(defense.x, defense.y, opponent);
+                nodesSearched++;
+
+                var subResult = SolveVCFRecursive(defenseBoard, attacker, depth + 1, maxDepth, startTime, timeLimitMs, ref nodesSearched);
+
+                if (!subResult.IsWin)
+                {
+                    allDefensesLose = false;
+                    break;
+                }
+            }
+
+            if (allDefensesLose && atLeastOneDefense)
+            {
+                return new VCFResult
+                {
+                    IsSolved = true,
+                    IsWin = true,
+                    BestMove = move,
+                    NodesSearched = nodesSearched,
+                    DepthAchieved = depth
+                };
+            }
+        }
+
+        return new VCFResult
+        {
+            IsSolved = false,
+            IsWin = false,
+            NodesSearched = nodesSearched,
+            DepthAchieved = depth
+        };
+    }
+
+    private (int x, int y)? FindImmediateWin(Board board, Player player)
+    {
+        for (int x = 0; x < board.BoardSize; x++)
+        {
+            for (int y = 0; y < board.BoardSize; y++)
+            {
+                if (board.GetCell(x, y).IsEmpty && _threatDetector.IsWinningMove(board, x, y, player))
+                {
+                    return (x, y);
+                }
+            }
+        }
+        return null;
+    }
+
+    private bool IsEmptyBoard(Board board)
+    {
+        for (int x = 0; x < board.BoardSize; x++)
+        {
+            for (int y = 0; y < board.BoardSize; y++)
+            {
+                if (!board.GetCell(x, y).IsEmpty)
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    private Player GetOpponent(Player player)
+    {
+        return player == Player.Red ? Player.Blue : Player.Red;
+    }
+
+    #endregion
+}
