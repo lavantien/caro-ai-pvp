@@ -1,10 +1,12 @@
 <script lang="ts">
-	import type { GameMode, TimeControl, UCIConnectionStatus } from '$lib/types/game';
+	import type { GameMode, TimeControl, UCIConnectionStatus, DifficultyLevel } from '$lib/types/game';
+	import { difficultyName } from '$lib/types/game';
 
 	interface Props {
 		gameMode: GameMode;
 		timeControl: TimeControl;
 		aiSide: 'red' | 'blue';
+		difficulty: DifficultyLevel;
 		moveNumber: number;
 		uciConnectionStatus: UCIConnectionStatus;
 		useUCIForAI: boolean;
@@ -18,6 +20,7 @@
 		gameMode = $bindable(),
 		timeControl = $bindable(),
 		aiSide = $bindable(),
+		difficulty = $bindable(),
 		moveNumber,
 		uciConnectionStatus,
 		useUCIForAI,
@@ -123,6 +126,21 @@
 					</select>
 				{/if}
 			</div>
+
+			{#if gameMode === 'pvai' || gameMode === 'aivai'}
+				<div class="flex items-center gap-2">
+					<label for="difficulty" class="text-xs text-gray-500 whitespace-nowrap">
+						AI: {difficultyName(difficulty)}
+					</label>
+					<input
+						id="difficulty"
+						type="range" min="1" max="5" step="1"
+						bind:value={difficulty}
+						disabled={moveNumber > 0}
+						class="flex-1 h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-blue-600"
+					/>
+				</div>
+			{/if}
 
 			<div class="flex items-center gap-2 flex-wrap">
 				<button

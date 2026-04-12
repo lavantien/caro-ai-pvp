@@ -25,6 +25,11 @@ public class UCIEngineOptions
     public bool Ponder { get; set; } = false;
 
     /// <summary>
+    /// Skill level (1-5). 1=Novice, 5=Grandmaster (default).
+    /// </summary>
+    public int SkillLevel { get; set; } = 5;
+
+    /// <summary>
     /// Parse and apply a UCI setoption command.
     /// Returns true if option was recognized and applied.
     /// </summary>
@@ -67,6 +72,14 @@ public class UCIEngineOptions
                 }
                 return false;
 
+            case "skill level":
+                if (int.TryParse(value, out int skill) && skill >= 1 && skill <= 5)
+                {
+                    SkillLevel = skill;
+                    return true;
+                }
+                return false;
+
             default:
                 return false;
         }
@@ -81,7 +94,8 @@ public class UCIEngineOptions
         {
             "option name Threads type spin default 4 min 1 max 32",
             "option name Hash type spin default 256 min 32 max 4096",
-            "option name Ponder type check default false"
+            "option name Ponder type check default false",
+            "option name Skill Level type spin default 5 min 1 max 5"
         };
     }
 }

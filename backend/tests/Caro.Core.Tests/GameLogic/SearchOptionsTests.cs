@@ -21,4 +21,25 @@ public sealed class SearchOptionsTests
         opts.TimeFraction.Should().BeApproximately(0.15, 0.001);
         opts.UseVCF.Should().BeFalse();
     }
+
+    [Fact]
+    public void SearchOptions_TimeFractionAboveOne_Throws()
+    {
+        ((Action)(() => new SearchOptions { TimeFraction = 1.5 })).Should()
+            .Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void SearchOptions_TimeFractionNegative_Throws()
+    {
+        ((Action)(() => new SearchOptions { TimeFraction = -0.1 })).Should()
+            .Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void SearchOptions_TimeFractionZero_IsAllowed()
+    {
+        var opts = new SearchOptions { TimeFraction = 0.0 };
+        opts.TimeFraction.Should().BeApproximately(0.0, 0.001);
+    }
 }

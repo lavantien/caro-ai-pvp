@@ -3,6 +3,8 @@ using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic.TimeManagement;
 using System.Diagnostics;
 
+using DifficultyProfile = Caro.Core.GameLogic.DifficultyProfile;
+
 namespace Caro.Core.GameLogic.UCI;
 
 /// <summary>
@@ -130,21 +132,36 @@ public sealed class UCISearchController
 
             // Get best move from AI
             int moveNumber = board.Cells.Count(c => !c.IsEmpty) + 1;
+            var searchOptions = new SearchOptions
+            {
+                TimeRemainingMs = timeRemainingMs,
+                MoveNumber = moveNumber,
+                PonderingEnabled = _options.Ponder,
+                ParallelSearchEnabled = _options.Threads > 1,
+                IncrementSeconds = incrementSeconds,
+                ThreadCount = _options.Threads,
+                MaxDepth = goParams.Depth,
+                MaxNodes = goParams.Nodes,
+                MaxTimeMs = goParams.MoveTimeMs,
+            };
+
+            if (_options.SkillLevel < 5)
+            {
+                var level = _options.SkillLevel;
+                searchOptions = searchOptions with
+                {
+                    ThreadCount = DifficultyProfile.GetThreadCount(level),
+                    PonderingEnabled = DifficultyProfile.GetPonderingEnabled(level),
+                    ParallelSearchEnabled = DifficultyProfile.GetParallelSearchEnabled(level),
+                    TimeFraction = DifficultyProfile.GetTimeFraction(level),
+                    UseVCF = DifficultyProfile.GetUseVCF(level),
+                };
+            }
+
             var (x, y) = _ai.GetBestMove(
                 board,
                 player,
-                new SearchOptions
-                {
-                    TimeRemainingMs = timeRemainingMs,
-                    MoveNumber = moveNumber,
-                    PonderingEnabled = _options.Ponder,
-                    ParallelSearchEnabled = _options.Threads > 1,
-                    IncrementSeconds = incrementSeconds,
-                    ThreadCount = _options.Threads,
-                    MaxDepth = goParams.Depth,
-                    MaxNodes = goParams.Nodes,
-                    MaxTimeMs = goParams.MoveTimeMs,
-                }
+                searchOptions
             );
 
             stopwatch.Stop();
@@ -175,7 +192,7 @@ public sealed class UCISearchController
         }
         catch (OperationCanceledException)
         {
-            // Search was stopped - return current best or center
+            Console.WriteLine("[UCI] Search cancelled, using fallback move");
             return GetFallbackMove(board);
         }
     }

@@ -15,11 +15,19 @@ public sealed record SearchOptions
     public long? MaxNodes { get; init; }
     public int? MaxTimeMs { get; init; }
 
+    private double _timeFraction = 1.0;
+
     /// <summary>
     /// Fraction of allocated time to use (0.0-1.0). Applied to TimeAllocation output post-PID.
     /// Default 1.0 for backward compatibility.
     /// </summary>
-    public double TimeFraction { get; init; } = 1.0;
+    public double TimeFraction
+    {
+        get => _timeFraction;
+        init => _timeFraction = value is < 0.0 or > 1.0
+            ? throw new ArgumentOutOfRangeException(nameof(value), $"Must be 0.0-1.0, got {value}")
+            : value;
+    }
 
     /// <summary>
     /// Whether to run dedicated pre-search VCF solver. Does NOT affect in-tree VCF.

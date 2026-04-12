@@ -174,11 +174,25 @@ app.MapPost("/api/game/new", (CreateGameRequest? request) =>
         _ => GameMode.PvP
     };
 
+    int? redDiff = request?.RedDifficulty;
+    int? blueDiff = request?.BlueDifficulty;
+    if (request?.Difficulty is int d)
+    {
+        redDiff ??= d;
+        blueDiff ??= d;
+    }
+    if (redDiff.HasValue && (redDiff.Value < 1 || redDiff.Value > 5))
+        return Results.BadRequest($"RedDifficulty must be 1-5, got {redDiff.Value}");
+    if (blueDiff.HasValue && (blueDiff.Value < 1 || blueDiff.Value > 5))
+        return Results.BadRequest($"BlueDifficulty must be 1-5, got {blueDiff.Value}");
+
     var session = new GameSession(
         timeControl.Name,
         timeControl.InitialTimeMs,
         timeControl.IncrementSeconds,
-        gameMode);
+        gameMode,
+        redDiff,
+        blueDiff);
     games.Set(gameId, session);
 
     Console.WriteLine($"[GAME] Created {gameId}: mode={gameMode}, tc={timeControl.Name}");
@@ -258,21 +272,41 @@ app.MapPost("/api/game/{id}/ai-move", (
         return Results.NotFound("Game not found");
 
     // Step 1: Extract game data under lock (minimal lock time)
-    var (boardClone, currentPlayer, isGameOver, timeRemainingMs, incrementSeconds, moveNumber) = session.ExtractForAI();
+    var (boardClone, currentPlayer, isGameOver, timeRemainingMs, incrementSeconds, moveNumber, currentDifficulty) = session.ExtractForAI();
 
     if (isGameOver)
         return Results.BadRequest("Game is over");
 
     // Step 2: AI calculation OUTSIDE lock (can take seconds without blocking other games)
-    Console.WriteLine($"[AI] {currentPlayer} thinking... (timeRemaining={timeRemainingMs}ms, increment={incrementSeconds}s)");
-    var searchOptions = new SearchOptions
+    Console.WriteLine($"[AI] {currentPlayer} thinking... (timeRemaining={timeRemainingMs}ms, increment={incrementSeconds}s, difficulty={currentDifficulty})");
+    SearchOptions searchOptions;
+    if (currentDifficulty is int level and >= 1 and <= 5)
     {
-        TimeRemainingMs = timeRemainingMs,
-        IncrementSeconds = incrementSeconds,
-        MoveNumber = moveNumber,
-        PonderingEnabled = true,
-        ParallelSearchEnabled = true,
-    };
+        searchOptions = new SearchOptions
+        {
+            TimeRemainingMs = timeRemainingMs,
+            IncrementSeconds = incrementSeconds,
+            MoveNumber = moveNumber,
+            ThreadCount = DifficultyProfile.GetThreadCount(level),
+            PonderingEnabled = DifficultyProfile.GetPonderingEnabled(level),
+            ParallelSearchEnabled = DifficultyProfile.GetParallelSearchEnabled(level),
+            TimeFraction = DifficultyProfile.GetTimeFraction(level),
+            UseVCF = DifficultyProfile.GetUseVCF(level),
+        };
+    }
+    else
+    {
+        if (currentDifficulty.HasValue)
+            Console.WriteLine($"[AI] WARNING: Invalid difficulty {currentDifficulty}, falling back to full strength");
+        searchOptions = new SearchOptions
+        {
+            TimeRemainingMs = timeRemainingMs,
+            IncrementSeconds = incrementSeconds,
+            MoveNumber = moveNumber,
+            PonderingEnabled = true,
+            ParallelSearchEnabled = true,
+        };
+    }
     var (x, y) = ai.GetBestMove(boardClone, currentPlayer, searchOptions);
     var stats = ai.GetSearchStatistics();
     Console.WriteLine($"[AI] {currentPlayer} -> ({x},{y})");
@@ -332,12 +366,16 @@ public sealed class GameSession
     private long _redTimeRemainingMs;
     private long _blueTimeRemainingMs;
     private DateTime _lastMoveTimestamp;
+    private readonly int? _redDifficulty;
+    private readonly int? _blueDifficulty;
 
     public GameSession(
         string timeControl = "7+5",
         long initialTimeMs = 420_000,
         int incrementSeconds = 5,
-        GameMode gameMode = GameMode.PvP)
+        GameMode gameMode = GameMode.PvP,
+        int? redDifficulty = null,
+        int? blueDifficulty = null)
     {
         _game = GameState.CreateInitial(
             timeControl: timeControl,
@@ -348,6 +386,8 @@ public sealed class GameSession
         _redTimeRemainingMs = initialTimeMs;
         _blueTimeRemainingMs = initialTimeMs;
         _lastMoveTimestamp = DateTime.UtcNow;
+        _redDifficulty = redDifficulty;
+        _blueDifficulty = blueDifficulty;
     }
 
     /// <summary>
@@ -389,14 +429,17 @@ public sealed class GameSession
     /// Board is immutable, so no cloning is needed.
     /// Includes time remaining for the current player and increment for time-managed search.
     /// </summary>
-    public (Board BoardClone, Player CurrentPlayer, bool IsGameOver, long TimeRemainingMs, int IncrementSeconds, int MoveNumber) ExtractForAI()
+    public (Board BoardClone, Player CurrentPlayer, bool IsGameOver, long TimeRemainingMs, int IncrementSeconds, int MoveNumber, int? CurrentDifficulty) ExtractForAI()
     {
         lock (_lock)
         {
             long timeRemaining = _game.CurrentPlayer == Player.Red
                 ? _redTimeRemainingMs
                 : _blueTimeRemainingMs;
-            return (_game.Board, _game.CurrentPlayer, _game.IsGameOver, timeRemaining, _game.IncrementSeconds, _game.MoveNumber);
+            int? currentDifficulty = _game.CurrentPlayer == Player.Red
+                ? _redDifficulty
+                : _blueDifficulty;
+            return (_game.Board, _game.CurrentPlayer, _game.IsGameOver, timeRemaining, _game.IncrementSeconds, _game.MoveNumber, currentDifficulty);
         }
     }
 
@@ -429,9 +472,11 @@ public sealed class GameSession
         timeControl = _game.TimeControl,
         initialTime = _game.InitialTimeMs / 1000,
         increment = _game.IncrementSeconds,
-        gameMode = _game.GameMode.ToLowerString()
+        gameMode = _game.GameMode.ToLowerString(),
+        redDifficulty = _redDifficulty,
+        blueDifficulty = _blueDifficulty
     };
 }
 
-record CreateGameRequest(string? TimeControl, string? GameMode);
+record CreateGameRequest(string? TimeControl, string? GameMode, int? Difficulty, int? RedDifficulty, int? BlueDifficulty);
 record MoveRequest(int X, int Y);

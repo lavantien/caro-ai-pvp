@@ -14,10 +14,11 @@ public sealed class UCIEngineOptionsTests
         var declarations = UCIEngineOptions.GetOptionDeclarations();
 
         // Assert
-        declarations.Should().HaveCount(3);
+        declarations.Should().HaveCount(4);
         declarations.Should().Contain(d => d.Contains("Threads"));
         declarations.Should().Contain(d => d.Contains("Hash"));
         declarations.Should().Contain(d => d.Contains("Ponder"));
+        declarations.Should().Contain(d => d.Contains("Skill Level"));
     }
 
     [Theory]

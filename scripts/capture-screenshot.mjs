@@ -185,6 +185,12 @@ async function captureScreenshot() {
 		// Select Blitz (3+2) time control for a more interesting game
 		await page.selectOption('select', '3+2');
 
+		// Set difficulty to L5 (Grandmaster) for max strength
+		const slider = await page.$('input#difficulty');
+		if (slider) {
+			await slider.fill('5');
+		}
+
 		// Click New Game to start with AIvAI mode
 		await page.click('button:has-text("New Game")');
 

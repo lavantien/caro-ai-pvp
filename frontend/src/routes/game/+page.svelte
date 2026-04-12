@@ -11,7 +11,7 @@
 	import { GameConfig } from '$lib/config/gameConfig';
 	import { switchPlayer } from '$lib/types/game';
 	import type { Player, Cell } from '$lib/types/game';
-	import type { GameMode, TimeControl, UCIConnectionStatus } from '$lib/types/game';
+	import type { GameMode, TimeControl, UCIConnectionStatus, DifficultyLevel } from '$lib/types/game';
 
 	let store = new GameStore();
 	let gameId = $state<string>('');
@@ -27,6 +27,7 @@
 	let gameMode = $state<GameMode>('pvp');
 	let timeControl = $state<TimeControl>('7+5');
 	let aiSide = $state<'red' | 'blue'>('blue');
+	let difficulty = $state<DifficultyLevel>(5);
 	let isAiThinking = $state(false);
 	let moveInProgress = $state(false);
 
@@ -111,7 +112,12 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					timeControl: timeControl,
-					gameMode: gameMode
+					gameMode: gameMode,
+					...(gameMode === 'pvai'
+						? { [aiSide === 'red' ? 'redDifficulty' : 'blueDifficulty']: difficulty }
+						: gameMode === 'aivai'
+						? { difficulty: difficulty }
+						: {})
 				})
 			});
 
@@ -236,6 +242,7 @@
 					}
 				} catch (uciError) {
 					console.warn('UCI move failed, falling back to API:', uciError);
+					showError('UCI engine failed, switching to built-in AI');
 					const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.aiMove(gameId)}`, {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
@@ -343,6 +350,7 @@
 			bind:gameMode
 			bind:timeControl
 			bind:aiSide
+			bind:difficulty
 			moveNumber={store.moveNumber}
 			{uciConnectionStatus}
 			{useUCIForAI}

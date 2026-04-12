@@ -35,6 +35,12 @@ public partial class MinimaxAI
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
 
+        // Defensive: stop any lingering pondering from previous search.
+        // Critical for mixed-difficulty games: L5 player may have started pondering,
+        // then L1 player calls GetBestMove. Without this, pondering continues
+        // in the background, polluting TT and VCF cache.
+        _ponderer.StopPondering();
+
         var timeRemainingMs = options.TimeRemainingMs;
         var moveNumber = options.MoveNumber;
         var ponderingEnabled = options.PonderingEnabled;
@@ -327,6 +333,19 @@ public partial class MinimaxAI
             timeAlloc = TimeBudgetCalculator.GetDefaultTimeAllocation();
         }
 
+        // Apply difficulty time fraction to PID controller output.
+        // Using 'with' on readonly struct preserves all other fields.
+        var timeFraction = options.TimeFraction;
+        if (timeFraction < 1.0)
+        {
+            timeAlloc = timeAlloc with
+            {
+                SoftBoundMs = Math.Max(1, (long)(timeAlloc.SoftBoundMs * timeFraction)),
+                HardBoundMs = Math.Max(1, (long)(timeAlloc.HardBoundMs * timeFraction)),
+                OptimalTimeMs = Math.Max(1, (long)(timeAlloc.OptimalTimeMs * timeFraction)),
+            };
+        }
+
         // Analyze opponent threats
         var threatInfo = AnalyzeOpponentThreats(board, oppPlayer);
         bool hasOpponentThreats = threatInfo.HasOpponentThreats;
@@ -375,9 +394,14 @@ public partial class MinimaxAI
         }
 
         // Try VCF (Victory by Continuous Four) search
-        var vcfMove = TryVCFSearch(board, player, ref candidates, timeAlloc, hasImmediateThreats, blockingSquares, timeRemainingMs);
-        if (vcfMove.HasValue)
-            return vcfMove.Value;
+        // Guarded by UseVCF: low difficulty levels skip pre-search VCF to save time.
+        // In-tree VCF during parallel search is lightweight and stays enabled.
+        if (options.UseVCF)
+        {
+            var vcfMove = TryVCFSearch(board, player, ref candidates, timeAlloc, hasImmediateThreats, blockingSquares, timeRemainingMs);
+            if (vcfMove.HasValue)
+                return vcfMove.Value;
+        }
 
         // PARALLEL SEARCH: Use Lazy SMP when enabled
         if (parallelSearchEnabled)
