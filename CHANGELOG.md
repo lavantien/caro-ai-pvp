@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [5.1.0] - 2026-04-12
+
+### Added
+- Hardware-agnostic difficulty levels (L1 Novice through L5 Grandmaster) via DifficultyProfile static helper
+- Per-player difficulty: `redDifficulty` and `blueDifficulty` parameters in game creation API
+- TimeFraction (0.0-1.0 validated backing field) and UseVCF (bool) on SearchOptions
+- UCI Skill Level option: `setoption name Skill Level value N` (1-5)
+- simulate-match.mjs script for AI vs AI matches with per-player difficulty via HTTP API
+- capture-screenshot.mjs updated to set difficulty slider before starting match
+
+### Changed
+- DifficultyProfile maps L1-L5 to search parameters: time fraction, thread count, VCF toggle, pondering, parallel search
+- UCISearchController applies DifficultyProfile when Skill Level < 5
+- MinimaxAI applies TimeFraction post-PID and respects UseVCF guard on VCF pre-search
+- Frontend game types: DifficultyLevel union type, difficultyName helper, per-player difficulty fields
+
 ## [5.0.0] - 2026-04-06
 
 ### Added

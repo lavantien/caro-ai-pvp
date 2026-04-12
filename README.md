@@ -2,6 +2,8 @@
 
 A full-strength Caro (Gomoku variant) AI, built with .NET 10, SvelteKit 2.49+ with Svelte 5 Runes.
 
+Features hardware-agnostic difficulty levels (L1 Novice through L5 Grandmaster) for balanced play across machines.
+
 
 ![Caro AI PvP - AI vs AI Match](screenshot.png)
 
@@ -98,21 +100,20 @@ Fisher time controls with increment:
 
 ### Engine Configuration
 
-The engine runs at full strength with all optimizations enabled:
+The engine supports 5 difficulty levels, hardware-agnostic via time fraction scaling:
 
-| Parameter | Value |
-|-----------|-------|
-| Threads | Largest power of 2 <= logical_cores |
-| Time Budget | 100% |
-| Search Radius | 7 (15x15 area) |
-| Error Rate | 0% |
-| Parallel Search | Enabled (Lazy SMP) |
-| Pondering | Enabled |
-| VCF Solver | Enabled |
+| Level | Name | Time Budget | Threads | VCF Solver | Pondering |
+|-------|------|-------------|---------|------------|-----------|
+| 1 | Novice | 5% | 1 | No | No |
+| 2 | Beginner | 15% | 1 | No | No |
+| 3 | Intermediate | 40% | 2 | Yes | No |
+| 4 | Advanced | 70% | N/2 | Yes | No |
+| 5 | Grandmaster | 100% | Pow2(N) | Yes | Yes |
 
-- No depth-based logic -- search runs until time expires via iterative deepening
-- Depth emerges naturally from hardware capability and time budget
-- Pondering provides free precomputation during opponent's turn
+- Time fraction scales search time (post-PID), making difficulty machine-independent
+- VCF solver and parallel search unlock at higher levels
+- Per-player difficulty: red and blue can play at different levels independently
+- Level 5 = full-strength engine with all optimizations
 
 ### Performance Statistics
 
@@ -129,7 +130,7 @@ Universal Chess Interface (UCI) protocol compatibility for standalone engine usa
 
 - **Standalone console engine** - Run as separate process like Stockfish
 - **Standard UCI commands** - uci, isready, ucinewgame, position, go, stop, quit, setoption
-- **Engine options** - Threads, Hash, Ponder
+- **Engine options** - Threads, Hash, Ponder, Skill Level
 - **WebSocket bridge** - Frontend can connect directly to UCI engine
 - **Algebraic notation** - Double-letter coordinates aa-dd (columns), 1-16 (rows)
 
@@ -151,6 +152,7 @@ cd backend/src/Caro.UCIMockClient && dotnet run -- --games 4 --time 180 --inc 2
 < option name Threads type spin default 4 min 1 max 32
 < option name Hash type spin default 256 min 32 max 4096
 < option name Ponder type check default false
+< option name Skill Level type spin default 5 min 1 max 5
 < uciok
 > position startpos moves bd8
 > go movetime 2000
@@ -345,9 +347,9 @@ Production-grade concurrency following .NET 10 best practices:
 | Parameter | Value |
 |-----------|-------|
 | Threads | Largest power of 2 <= N where N = logical cores |
-| Time Budget | 100% |
+| Time Budget | 100% (L5), scales down per difficulty level |
 
-**Depth varies by host machine** - calculated dynamically from NPS and time budget. Higher-spec machines achieve greater depth naturally.
+Depth varies by host machine -- calculated dynamically from NPS and time budget. Higher-spec machines achieve greater depth naturally.
 
 ---
 
@@ -417,6 +419,7 @@ Backend: http://localhost:5207 | Frontend: http://localhost:5173
 |--------|---------|
 | `node scripts/dev.mjs` | Boot backend + frontend, open browser |
 | `node scripts/capture-screenshot.mjs` | Full E2E: AI vs AI match, screenshot, update README |
+| `node scripts/simulate-match.mjs` | AI vs AI match via HTTP API with per-player difficulty (`--red N --blue N`) |
 
 ---
 

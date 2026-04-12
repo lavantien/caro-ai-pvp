@@ -581,8 +581,29 @@ Standard UCI commands for engine control:
 | Threads | spin | 4 | Search threads (1-32; internal parallel search auto-detects from CPU count) |
 | Hash | spin | 256 | TT size (MB) |
 | Ponder | check | false | Enable pondering |
+| Skill Level | spin | 5 | Difficulty 1-5 (1=Novice, 5=Grandmaster) |
 
-### 9.3 Move Notation
+### 9.3 Difficulty Levels (Skill Levels)
+
+Hardware-agnostic difficulty via `DifficultyProfile` -- search parameters scale independently of machine speed.
+
+| Level | Name | Time Fraction | Threads | Pondering | Parallel | VCF |
+|-------|------|---------------|---------|-----------|----------|-----|
+| 1 | Novice | 5% | 1 | No | No | No |
+| 2 | Beginner | 15% | 1 | No | No | No |
+| 3 | Intermediate | 40% | 2 | No | Yes | Yes |
+| 4 | Advanced | 70% | N/2 | No | Yes | Yes |
+| 5 | Grandmaster | 100% | Pow2(N-2) | Yes | Yes | Yes |
+
+**How it works:**
+- `TimeFraction` (0.0-1.0): Post-PID multiplier on allocated search time. Level 1 uses 5% of allocated time; level 5 uses full budget.
+- `UseVCF`: Disabling the pre-search VCF solver removes tactical precision at low levels.
+- Thread count scales with difficulty: level 1-2 single-threaded, level 3 dual-threaded, level 4-5 adaptive to hardware.
+- Level 5 = full-strength engine with all optimizations.
+
+**Per-player difficulty:** The HTTP API accepts `redDifficulty` and `blueDifficulty` independently, allowing asymmetric matches (e.g., L5 vs L1).
+
+### 9.4 Move Notation
 
 Algebraic notation for Caro:
 - Columns: aa-dd (double-letter encoding: column = firstIndex * 4 + secondIndex, each letter a-d)
@@ -619,6 +640,7 @@ Extracted from the main search classes for cohesion and maintainability:
 | `SearchHeuristicConstants.cs` | Threat scoring weights, alpha-beta/aspiration bounds, depth controls, time allocation ratios, VCF time thresholds |
 | `TimeConstants.cs` | TimeMonitor intervals, AsyncQueue capacity, UCI timeouts, SearchLogger rotation, Ponderer limits, DFPN/TSS defaults, HardBound buffers |
 | `TimeManagementConstants.cs` | Default time controls, PID controller weights, phase thresholds, adaptive scaling, emergency thresholds, multiplier adjustments |
+| `SearchOptions.cs` | Search parameter record: TimeFraction (0.0-1.0 with validation), UseVCF toggle |
 
 ### 10.3 Main Search Classes
 
@@ -656,7 +678,15 @@ Decomposed into partial class files (all ≤ 400 lines):
 **Other:**
 | File | Role |
 |------|------|
+| `DifficultyProfile.cs` | Hardware-agnostic L1-L5 difficulty mapping |
 | `IterativeDeepeningSearch.cs` | Iterative deepening driver for sequential path |
+
+**UCI Module** (`GameLogic/UCI/`):
+| File | Role |
+|------|------|
+| `UCIEngineOptions.cs` | Engine options including Skill Level |
+| `UCISearchController.cs` | Bridges UCI go params to MinimaxAI search |
+| `UCIMoveNotation.cs` | Double-letter coordinate encoding/decoding |
 
 ---
 
