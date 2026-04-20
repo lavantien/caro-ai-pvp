@@ -420,6 +420,7 @@ Backend: http://localhost:5207 | Frontend: http://localhost:5173
 | `node scripts/dev.mjs` | Boot backend + frontend, open browser |
 | `node scripts/capture-screenshot.mjs` | Full E2E: AI vs AI match, screenshot, update README |
 | `node scripts/simulate-match.mjs` | AI vs AI match via HTTP API with per-player difficulty (`--red N --blue N`) |
+| `node scripts/run-tournament.mjs` | Self-contained N-game tournament with color swap and aggregate stats (`--games N --red N --blue N --tc TIME`) |
 
 ---
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [5.2.0] - 2026-04-20
+
+### Added
+- run-tournament.mjs: self-contained tournament script that builds/starts backend, runs N matches with automatic color swapping, and reports per-game and aggregate statistics
+
 ## [5.1.0] - 2026-04-12
 
 ### Added
