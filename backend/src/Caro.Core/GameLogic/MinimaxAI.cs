@@ -19,7 +19,7 @@ namespace Caro.Core.GameLogic;
 /// Pondering: Constant pondering during opponent's turn
 /// Stats: Publisher-subscriber pattern for real-time stats reporting
 /// </summary>
-public partial class MinimaxAI : IStatsPublisher
+public partial class MinimaxAI : IStatsPublisher, IDisposable
 {
     private readonly BoardEvaluator _evaluator = new();
     private TranspositionTable _transpositionTable;

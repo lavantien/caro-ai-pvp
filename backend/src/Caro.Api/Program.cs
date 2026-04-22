@@ -353,6 +353,34 @@ app.MapGet("/api/game/{id}", (string id) =>
     return Results.Ok(new { state = session.GetResponse() });
 });
 
+// DELETE /api/game/{id} - Delete game and release resources
+app.MapDelete("/api/game/{id}", (string id) =>
+{
+    if (!games.TryGetValue(id, out var session))
+        return Results.NotFound("Game not found");
+
+    session.DisposeAI();
+    games.Remove(id);
+    return Results.Ok();
+});
+
+// Periodic cleanup of completed games
+var cleanupTimer = new PeriodicTimer(TimeSpan.FromMinutes(5));
+var gameStore = (InMemoryGameStore)games;
+_ = Task.Run(async () =>
+{
+    while (await cleanupTimer.WaitForNextTickAsync())
+    {
+        try
+        {
+            int removed = gameStore.CleanupCompleted();
+            if (removed > 0)
+                Console.WriteLine($"[CLEANUP] Removed {removed} completed game(s)");
+        }
+        catch { }
+    }
+});
+
 app.Run();
 
 /// <summary>
@@ -439,11 +467,10 @@ public sealed class GameSession
             _game = updated;
 
             // Release AI instances when game ends to reclaim TT memory
-            // Each instance holds ~256MB of transposition table
             if (updated.IsGameOver)
             {
-                _redAI = null;
-                _blueAI = null;
+                DisposeAIInstance(ref _redAI);
+                DisposeAIInstance(ref _blueAI);
             }
 
             return Results.Ok(new { state = BuildResponse() });
@@ -475,6 +502,26 @@ public sealed class GameSession
         {
             return BuildResponse();
         }
+    }
+
+    public bool IsGameOver
+    {
+        get { lock (_lock) { return _game.IsGameOver; } }
+    }
+
+    public void DisposeAI()
+    {
+        lock (_lock)
+        {
+            DisposeAIInstance(ref _redAI);
+            DisposeAIInstance(ref _blueAI);
+        }
+    }
+
+    private static void DisposeAIInstance(ref MinimaxAI? ai)
+    {
+        ai?.Dispose();
+        ai = null;
     }
 
     private object BuildResponse() => new

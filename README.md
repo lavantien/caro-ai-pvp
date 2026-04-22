@@ -88,6 +88,7 @@ Fisher time controls with increment:
 |---------|-------------|
 | **Move Notation** | Horizontal scrolling UCI coordinate codes (e.g. 1.bd8 2.ca9) |
 | **Undo** | Server-side undo support via `POST /api/game/{id}/undo` |
+| **Game Cleanup** | Explicit `DELETE /api/game/{id}` + automatic 5-min eviction of completed games |
 | **Sound Effects** | Synthesized stone placement (A4/C5 tones) and victory arpeggios via Web Audio API |
 | **Sound Toggle** | Mute/unmute button in nav bar; muted by default (browser autoplay policy) |
 | **Haptic Feedback** | Vibration on valid (10ms) and invalid (30-50-30ms) moves |

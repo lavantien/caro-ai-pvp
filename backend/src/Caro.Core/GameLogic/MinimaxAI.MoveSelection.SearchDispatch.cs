@@ -147,7 +147,7 @@ public partial class MinimaxAI
         var maxDepth = options.MaxDepth;
         var maxNodes = options.MaxNodes;
 
-        _lastThreadCount = ThreadPoolConfig.GetLazySMPThreadCount();
+        _lastThreadCount = options.ThreadCount ?? ThreadPoolConfig.GetLazySMPThreadCount();
         _lastParallelDiagnostics = null;
         _lastPonderingEnabled = ponderingEnabled;
 

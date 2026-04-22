@@ -181,6 +181,9 @@ async function playOneGame(redDiff, blueDiff, timeControl, maxMoves) {
 	if (!winner && moveCount >= maxMoves) reason = 'max-moves';
 	const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
+	// Delete game from server to free AI engine memory
+	await fetch(`${API_BASE}/api/game/${gameId}`, { method: 'DELETE' }).catch(() => {});
+
 	return { gameId, redDiff, blueDiff, moves: moveCount, winner: winner || 'none', reason, elapsedSeconds: parseFloat(elapsed) };
 }
 

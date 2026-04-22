@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [5.4.0] - 2026-04-22
+
+### Fixed
+- Memory leak: MinimaxAI now implements IDisposable; Ponderer background tasks and TT memory properly released on game end
+- Stats bug: sequential search (L1-L2) reported system thread count instead of configured ThreadCount
+- Stats bug: score sentinel values (int.MinValue/int.MaxValue) leaked to diagnostics output
+
+### Added
+- DELETE /api/game/{id} endpoint for explicit game cleanup
+- Periodic cleanup timer (5-min interval) evicts completed games from memory
+- InMemoryGameStore.CleanupCompleted() for batch eviction of finished sessions
+- Tournament script deletes games after each match to free AI engine memory
+
 ## [5.3.0] - 2026-04-22
 
 ### Changed

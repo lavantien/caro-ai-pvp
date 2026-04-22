@@ -120,7 +120,11 @@ public partial class MinimaxAI
             }
         }
 
-        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs, _moveType, _lastSearchScore, _lastFmcPercent, _lastEbf);
+        int displayScore = _lastSearchScore;
+        if (displayScore <= int.MinValue + 2000) displayScore = 0;
+        else if (displayScore >= int.MaxValue - 2000) displayScore = 100_000;
+
+        return (_depthAchieved, _nodesSearched, nps, hitRate, _lastPonderingEnabled, _vcfDepthAchieved, _vcfNodesSearched, _lastThreadCount, _lastParallelDiagnostics, masterTTPercent, helperAvgDepth, _lastAllocatedTimeMs, _moveType, displayScore, _lastFmcPercent, _lastEbf);
     }
 
     /// <summary>
