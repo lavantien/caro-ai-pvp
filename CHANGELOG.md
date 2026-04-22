@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [5.3.0] - 2026-04-22
+
+### Changed
+- Per-player isolated MinimaxAI instances: each player in a game gets its own engine with separate transposition table, heuristics, killer moves, and pondering state (no shared singleton)
+- AI instances released on game end to reclaim TT memory
+
 ## [5.2.0] - 2026-04-20
 
 ### Added

@@ -32,6 +32,7 @@ test_tt.cs
 *.db-wal
 .playwright-mcp/
 e2e.txt
+tournament.txt
 backend/test-results/
 debug-*.png
 board-screenshot*.png

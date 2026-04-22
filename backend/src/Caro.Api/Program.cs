@@ -25,12 +25,8 @@ builder.Services.AddSingleton<GameLogService>(sp =>
     return GameLogService.CreateAsync(dbPath, logger).GetAwaiter().GetResult();
 });
 
-// Register MinimaxAI
-builder.Services.AddSingleton<MinimaxAI>(sp =>
-{
-    var logger = sp.GetRequiredService<ILogger<MinimaxAI>>();
-    return new MinimaxAI(logger: logger);
-});
+// MinimaxAI instances are created per-player inside GameSession (not shared singleton)
+// UCIHandler creates its own instance per WebSocket connection
 
 // Register UCIHandler for WebSocket UCI protocol (Transient: each connection gets its own AI)
 builder.Services.AddTransient<UCIHandler>(sp =>
@@ -153,7 +149,7 @@ app.Map("/ws/uci", async (HttpContext context, UCIHandler handler) =>
 var games = app.Services.GetRequiredService<IGameStore>();
 
 // POST /api/game/new - Create new game
-app.MapPost("/api/game/new", (CreateGameRequest? request) =>
+app.MapPost("/api/game/new", (CreateGameRequest? request, ILogger<MinimaxAI> aiLogger) =>
 {
     var gameId = Guid.NewGuid().ToString();
 
@@ -192,7 +188,8 @@ app.MapPost("/api/game/new", (CreateGameRequest? request) =>
         timeControl.IncrementSeconds,
         gameMode,
         redDiff,
-        blueDiff);
+        blueDiff,
+        aiLogger);
     games.Set(gameId, session);
 
     Console.WriteLine($"[GAME] Created {gameId}: mode={gameMode}, tc={timeControl.Name}");
@@ -265,8 +262,7 @@ app.MapPost("/api/game/{id}/undo", (string id) =>
 // AI calculation is performed OUTSIDE the lock using a cloned board
 // This prevents blocking other game requests during AI thinking time
 app.MapPost("/api/game/{id}/ai-move", (
-    string id,
-    [FromServices] MinimaxAI ai) =>
+    string id) =>
 {
     if (!games.TryGetValue(id, out var session))
         return Results.NotFound("Game not found");
@@ -277,8 +273,12 @@ app.MapPost("/api/game/{id}/ai-move", (
     if (isGameOver)
         return Results.BadRequest("Game is over");
 
-    // Step 2: AI calculation OUTSIDE lock (can take seconds without blocking other games)
+    // Step 2: Get per-player AI instance (each player has isolated TT/heuristics/pondering)
+    var ai = session.GetOrCreateAI(currentPlayer);
+
+    // Step 3: AI calculation OUTSIDE lock (can take seconds without blocking other games)
     Console.WriteLine($"[AI] {currentPlayer} thinking... (timeRemaining={timeRemainingMs}ms, increment={incrementSeconds}s, difficulty={currentDifficulty})");
+
     SearchOptions searchOptions;
     if (currentDifficulty is int level and >= 1 and <= 5)
     {
@@ -312,7 +312,7 @@ app.MapPost("/api/game/{id}/ai-move", (
     Console.WriteLine($"[AI] {currentPlayer} -> ({x},{y})");
     Console.WriteLine($"[AI] stats depth={stats.DepthAchieved} nodes={stats.NodesSearched} nps={stats.NodesPerSecond:F0} score={stats.SearchScore} moveType={stats.MoveType} ttHit={stats.TableHitRate:F1}% time={stats.AllocatedTimeMs}ms threads={stats.ThreadCount}");
 
-    // Step 3: Validate and apply the move under lock
+    // Step 4: Validate and apply the move under lock
     return session.ExecuteMove(game =>
     {
         // Double-check game didn't end while we were calculating
@@ -368,6 +368,9 @@ public sealed class GameSession
     private DateTime _lastMoveTimestamp;
     private readonly int? _redDifficulty;
     private readonly int? _blueDifficulty;
+    private readonly ILogger<MinimaxAI> _aiLogger;
+    private MinimaxAI? _redAI;
+    private MinimaxAI? _blueAI;
 
     public GameSession(
         string timeControl = "7+5",
@@ -375,7 +378,8 @@ public sealed class GameSession
         int incrementSeconds = 5,
         GameMode gameMode = GameMode.PvP,
         int? redDifficulty = null,
-        int? blueDifficulty = null)
+        int? blueDifficulty = null,
+        ILogger<MinimaxAI>? aiLogger = null)
     {
         _game = GameState.CreateInitial(
             timeControl: timeControl,
@@ -388,6 +392,19 @@ public sealed class GameSession
         _lastMoveTimestamp = DateTime.UtcNow;
         _redDifficulty = redDifficulty;
         _blueDifficulty = blueDifficulty;
+        _aiLogger = aiLogger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<MinimaxAI>.Instance;
+    }
+
+    /// <summary>
+    /// Returns the isolated AI instance for the given player.
+    /// Each player gets its own MinimaxAI with separate TT, heuristics, and pondering state.
+    /// Created lazily on first AI move for that player.
+    /// </summary>
+    public MinimaxAI GetOrCreateAI(Player player)
+    {
+        if (player == Player.Red)
+            return _redAI ??= new MinimaxAI(logger: _aiLogger);
+        return _blueAI ??= new MinimaxAI(logger: _aiLogger);
     }
 
     /// <summary>
@@ -420,6 +437,15 @@ public sealed class GameSession
             }
 
             _game = updated;
+
+            // Release AI instances when game ends to reclaim TT memory
+            // Each instance holds ~256MB of transposition table
+            if (updated.IsGameOver)
+            {
+                _redAI = null;
+                _blueAI = null;
+            }
+
             return Results.Ok(new { state = BuildResponse() });
         }
     }
