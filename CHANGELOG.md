@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [5.5.0] - 2026-04-29
+
+### Changed
+- Persistent worker pool replaces Task.Run for Lazy SMP search and pondering: zero thread-startup overhead per move
+- Ponderer shares ParallelMinimaxSearch instance (and worker pool) with main search instead of creating its own
+- Thread count formula changed from Pow2(N) to Pow2(N/2): leaves half the cores for OS, GC, SignalR
+- New centralized `ThreadPoolConfig.MaxEngineThreads` property; all thread count decisions flow from it
+- Dynamic thread scaling: concurrent games divide MaxEngineThreads so total usage stays bounded
+- Default TT size reduced from 256MB to 64MB for multi-session web hosting (UCI can override via setoption)
+- UCI Threads/Hash defaults now auto-detected from ThreadPoolConfig/SearchConstants instead of hardcoded
+- CancellationToken from HTTP requests propagated through GetBestMove to search dispatch
+- ParallelNodeEvaluator.Evaluate switched from scalar BitBoardEvaluator to SIMD-accelerated evaluator
+- DifficultyProfile thread counts capped at MaxEngineThreads for all levels
+
+### Fixed
+- SIMDBitBoardEvaluator: `count >= 5` changed to `count == 5` (Caro exactly-5 rule, was counting overlines)
+- SIMDBitBoardEvaluator: off-by-one in horizontal/vertical run boundary check
+- ParallelMinimaxSearch now disposes worker pool on shutdown (was leaking persistent threads)
+- UCIHandler now disposes AI engine on WebSocket close
+
+### Added
+- `PersistentWorkerPool`: dedicated threads that wait for search tasks, eliminating OS thread creation per move
+- `ParallelMinimaxSearch.Dispose()` for proper resource cleanup
+- GC heap hard limit (2GB) to prevent runaway TT allocations
+- Max concurrent games limit (4) with 429 response when exceeded
+- Abandoned game eviction (30-minute inactivity timeout)
+- Graceful shutdown: disposes all remaining game sessions and compacts LOH
+- `GameConstants.CardinalDirections` constant replaces inline direction arrays across all evaluators
+- `InMemoryGameStore.CleanupAll()` for batch disposal during shutdown
+- `InMemoryGameStore.ActiveGameCount` property for load-aware thread scaling
+
 ## [5.4.0] - 2026-04-22
 
 ### Fixed

@@ -38,7 +38,7 @@ Full-strength engine with 100-500x speedup over naive minimax:
 
 | Category | Feature | Description |
 |----------|---------|-------------|
-| **Search** | Lazy SMP Parallel | Multi-threaded search with TT work sharing |
+| **Search** | Lazy SMP Parallel | Persistent worker pool with zero thread-startup overhead |
 | | Principal Variation Search | Alpha-beta with null-window searches |
 | | Aspiration Windows | Narrowed bounds near root |
 | | Quiescence Search | Prevents horizon blunders |
@@ -88,7 +88,7 @@ Fisher time controls with increment:
 |---------|-------------|
 | **Move Notation** | Horizontal scrolling UCI coordinate codes (e.g. 1.bd8 2.ca9) |
 | **Undo** | Server-side undo support via `POST /api/game/{id}/undo` |
-| **Game Cleanup** | Explicit `DELETE /api/game/{id}` + automatic 5-min eviction of completed games |
+| **Game Cleanup** | Explicit `DELETE /api/game/{id}` + automatic 5-min eviction + 30-min abandoned timeout + max 4 concurrent games |
 | **Sound Effects** | Synthesized stone placement (A4/C5 tones) and victory arpeggios via Web Audio API |
 | **Sound Toggle** | Mute/unmute button in nav bar; muted by default (browser autoplay policy) |
 | **Haptic Feedback** | Vibration on valid (10ms) and invalid (30-50-30ms) moves |
@@ -109,7 +109,7 @@ The engine supports 5 difficulty levels, hardware-agnostic via time fraction sca
 | 2 | Beginner | 15% | 1 | No | No |
 | 3 | Intermediate | 40% | 2 | Yes | No |
 | 4 | Advanced | 70% | N/2 | Yes | No |
-| 5 | Grandmaster | 100% | Pow2(N) | Yes | Yes |
+| 5 | Grandmaster | 100% | Pow2(N/2) | Yes | Yes |
 
 - Time fraction scales search time (post-PID), making difficulty machine-independent
 - VCF solver and parallel search unlock at higher levels
@@ -150,8 +150,8 @@ cd backend/src/Caro.UCIMockClient && dotnet run -- --games 4 --time 180 --inc 2
 > uci
 < id name Caro AI
 < id author Caro AI Project
-< option name Threads type spin default 4 min 1 max 32
-< option name Hash type spin default 256 min 32 max 4096
+< option name Threads type spin default 4 min 1 max 4
+< option name Hash type spin default 64 min 32 max 4096
 < option name Ponder type check default false
 < option name Skill Level type spin default 5 min 1 max 5
 < uciok
@@ -294,8 +294,8 @@ All domain entities are fully immutable for thread safety:
 
 **Move Request Flow:**
 1. Frontend sends move via REST API → GameService
-2. GameService calls `MinimaxAI.GetBestMove()`
-3. Parallel search spawns N threads (based on logical core count)
+2. GameService calls `MinimaxAI.GetBestMove()` with CancellationToken from HTTP request
+3. Parallel search dispatches to persistent worker pool (MaxEngineThreads = Pow2(N/2))
 4. Master thread selects best result, helpers explore with TT sharing
 
 **Transposition Table Sharding:**
@@ -321,7 +321,7 @@ All domain entities are fully immutable for thread safety:
 - MinimaxAI supports pondering internally (enabled by default)
 - `AIService.StartPonderingAsync` wires through to MinimaxAI's pondering subsystem
 - `HasPonderHitResult` checks for valid hit before new search
-- TT shared between ponder and main search for efficiency
+- TT shared between ponder and main search (single ParallelMinimaxSearch instance)
 
 **Detailed Technical Documentation:** See `ENGINE_FEATURES.md` for comprehensive coverage of search algorithms, transposition tables, move ordering, evaluation, and time management.
 
@@ -334,8 +334,9 @@ Production-grade concurrency following .NET 10 best practices:
 | Pattern | Purpose |
 |---------|---------|
 | Channel-based queues | No fire-and-forget exceptions |
-| Per-game locks | 100+ concurrent games |
-| CancellationTokenSource | Coordinated search cancellation |
+| Per-game locks | Up to 4 concurrent games |
+| CancellationToken propagation | HTTP request cancellation reaches AI search |
+| PersistentWorkerPool | Zero thread-startup overhead per move |
 | TT sharding (16 segments) | Reduced cache contention |
 | Publisher-Subscriber | AI telemetry without callbacks |
 
@@ -347,7 +348,7 @@ Production-grade concurrency following .NET 10 best practices:
 
 | Parameter | Value |
 |-----------|-------|
-| Threads | Largest power of 2 <= N where N = logical cores |
+| Threads | Largest power of 2 <= N/2 where N = logical cores (PersistentWorkerPool) |
 | Time Budget | 100% (L5), scales down per difficulty level |
 
 Depth varies by host machine -- calculated dynamically from NPS and time budget. Higher-spec machines achieve greater depth naturally.
@@ -360,7 +361,7 @@ Depth varies by host machine -- calculated dynamically from NPS and time budget.
 
 **Backend:** .NET 10, ASP.NET Core 10, System.Threading.Channels, SQLite + FTS5, xUnit 2.9.2 with xUnit Runner 3.1.4, Moq 4.20.72, FluentAssertions 7.0.0-8.8.0
 
-**AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP, Hash Move-first ordering. Search code decomposed into `GameLogic/Search/` modules with centralized constants in `Configuration/`.
+**AI:** Custom Minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP with PersistentWorkerPool, Hash Move-first ordering. Search code decomposed into `GameLogic/Search/` modules with centralized constants in `Configuration/`.
 
 **Config:** Backend constants in `Caro.Core.Domain/Configuration/` (7 files). Frontend config in `src/lib/config/` (api, audio, e2e, game, haptic, rating, uci, ui).
 

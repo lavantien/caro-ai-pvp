@@ -19,7 +19,7 @@ The engine follows principles from state-of-the-art game-playing systems:
 ### Performance Target
 
 - **Speedup:** 100-500x over naive minimax
-- **Parallelism:** Lazy SMP with power-of-2 threads (largest power of 2 <= logical cores)
+- **Parallelism:** Lazy SMP with power-of-2 threads (largest power of 2 <= logical_cores/2)
 
 ---
 
@@ -35,7 +35,8 @@ Lazy SMP is a parallel search paradigm where multiple threads explore the game t
 - Hash move priority enables cross-thread work distribution
 
 **Thread Distribution:**
-- Thread count: Largest power of 2 <= logical_cores (e.g., 20 cores -> 16 threads)
+- Thread count: Largest power of 2 <= logical_cores/2 (e.g., 20 cores -> 8 threads)
+- Dedicated worker pool (PersistentWorkerPool) eliminates thread-startup overhead
 - Each thread maintains independent killer moves and history tables
 - TT writes from helpers filtered to depth >= 3 (depth-age replacement handles entry quality)
 
@@ -45,7 +46,7 @@ Lazy SMP is a parallel search paradigm where multiple threads explore the game t
 - Prevents shallow master result from overriding deeper helper discoveries
 
 **Advantages:**
-- Simple implementation with good scaling
+- Persistent worker pool eliminates OS thread creation per move
 - No complex work distribution logic
 - TT naturally becomes shared knowledge base
 
@@ -418,6 +419,7 @@ Background search during opponent's turn.
 
 **Characteristics:**
 - Enabled by default
+- Shares the same ParallelMinimaxSearch instance (and worker pool) with main search
 - Searches predicted opponent move
 - TT stored for potential reuse
 - Interrupted on opponent move
@@ -542,9 +544,10 @@ All shared data structures designed for concurrent access.
 Coordinated search cancellation via CancellationTokenSource.
 
 **Mechanism:**
-- Single token for all search threads
-- Checked at regular intervals
-- Clean termination on timeout or stop command
+- HTTP request CancellationToken propagated through GetBestMove to search dispatch
+- Linked token combines external cancellation with internal time-monitor
+- PersistentWorkerPool respects timeout via blocking wait
+- Clean termination on timeout, stop command, or client disconnect
 
 ### 8.3 Statistics Publishing
 
@@ -578,8 +581,8 @@ Standard UCI commands for engine control:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| Threads | spin | 4 | Search threads (1-32; internal parallel search auto-detects from CPU count) |
-| Hash | spin | 256 | TT size (MB) |
+| Threads | spin | MaxEngineThreads | Search threads (1-MaxEngineThreads; defaults to largest power of 2 <= ProcessorCount/2) |
+| Hash | spin | 64 | TT size (MB) |
 | Ponder | check | false | Enable pondering |
 | Skill Level | spin | 5 | Difficulty 1-5 (1=Novice, 5=Grandmaster) |
 
@@ -593,12 +596,12 @@ Hardware-agnostic difficulty via `DifficultyProfile` -- search parameters scale 
 | 2 | Beginner | 15% | 1 | No | No | No |
 | 3 | Intermediate | 40% | 2 | No | Yes | Yes |
 | 4 | Advanced | 70% | N/2 | No | Yes | Yes |
-| 5 | Grandmaster | 100% | Pow2(N-2) | Yes | Yes | Yes |
+| 5 | Grandmaster | 100% | MaxEngineThreads | Yes | Yes | Yes |
 
 **How it works:**
 - `TimeFraction` (0.0-1.0): Post-PID multiplier on allocated search time. Level 1 uses 5% of allocated time; level 5 uses full budget.
 - `UseVCF`: Disabling the pre-search VCF solver removes tactical precision at low levels.
-- Thread count scales with difficulty: level 1-2 single-threaded, level 3 dual-threaded, level 4-5 adaptive to hardware.
+- Thread count scales with difficulty: level 1-2 single-threaded, level 3 dual-threaded, level 4-5 adaptive to hardware (all capped at MaxEngineThreads).
 - Level 5 = full-strength engine with all optimizations.
 
 **Per-player difficulty:** The HTTP API accepts `redDifficulty` and `blueDifficulty` independently, allowing asymmetric matches (e.g., L5 vs L1).
@@ -638,7 +641,7 @@ Extracted from the main search classes for cohesion and maintainability:
 | `MoveOrderingConstants.cs` | Staged picker score thresholds |
 | `EvaluationConstants.cs` | Pattern scores, defense multipliers |
 | `SearchHeuristicConstants.cs` | Threat scoring weights, alpha-beta/aspiration bounds, depth controls, time allocation ratios, VCF time thresholds |
-| `TimeConstants.cs` | TimeMonitor intervals, AsyncQueue capacity, UCI timeouts, SearchLogger rotation, Ponderer limits, DFPN/TSS defaults, HardBound buffers |
+| `TimeConstants.cs` | TimeMonitor intervals, AsyncQueue capacity, UCI timeouts, SearchLogger rotation, Ponderer limits, DFPN/TSS defaults, HardBound buffers, memory/concurrency limits |
 | `TimeManagementConstants.cs` | Default time controls, PID controller weights, phase thresholds, adaptive scaling, emergency thresholds, multiplier adjustments |
 | `SearchOptions.cs` | Search parameter record: TimeFraction (0.0-1.0 with validation), UseVCF toggle |
 
@@ -665,9 +668,9 @@ Decomposed into partial class files (all ≤ 400 lines):
 **ParallelMinimaxSearch** (Lazy SMP):
 | File | Role |
 |------|------|
-| `ParallelMinimaxSearch.cs` | Class definition, thread data, WorkerPool |
+| `ParallelMinimaxSearch.cs` | Class definition, thread data, PersistentWorkerPool, Dispose |
 | `ParallelMinimaxSearch.Orchestration.cs` | Entry points: GetBestMove, GetBestMoveWithStats |
-| `ParallelMinimaxSearch.Orchestration.SearchLazySMP.cs` | Lazy SMP thread coordination |
+| `ParallelMinimaxSearch.Orchestration.SearchLazySMP.cs` | Lazy SMP via PersistentWorkerPool dispatch |
 | `ParallelMinimaxSearch.Orchestration.IterativeDeepening.cs` | Time-aware iterative deepening |
 | `ParallelMinimaxSearch.Search.cs` | Parallel alpha-beta with adaptive LMR |
 | `ParallelMinimaxSearch.Search.Quiesce.cs` | Quiescence search |
@@ -678,7 +681,7 @@ Decomposed into partial class files (all ≤ 400 lines):
 **Other:**
 | File | Role |
 |------|------|
-| `DifficultyProfile.cs` | Hardware-agnostic L1-L5 difficulty mapping |
+| `DifficultyProfile.cs` | Hardware-agnostic L1-L5 difficulty mapping (thread counts capped at MaxEngineThreads) |
 | `IterativeDeepeningSearch.cs` | Iterative deepening driver for sequential path |
 
 **UCI Module** (`GameLogic/UCI/`):
