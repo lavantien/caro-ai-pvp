@@ -327,11 +327,11 @@ public sealed class UCIMockClient : IDisposable
 
         try
         {
-            _process?.Kill();
+            _process?.Kill(true);
         }
         catch
         {
-            // Ignore
+            try { _process?.Kill(); } catch { }
         }
 
         _process?.Dispose();
