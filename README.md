@@ -1,5 +1,6 @@
 # Caro AI PvP
 
+**Test Coverage:**
 ![Backend Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/lavantien/caro-ai-pvp/main/coverage/backend.json)
 ![Frontend Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/lavantien/caro-ai-pvp/main/coverage/frontend.json)
 
