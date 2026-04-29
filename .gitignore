@@ -48,8 +48,9 @@ board-with-moves.png
 
 # Vite dev server cache
 .vite/
-/docs/superpowers/specs
-/docs/superpowers/plans
+# Old remnants
+docs/
+.runsettings
 
 # Worktrees
 .worktrees/
