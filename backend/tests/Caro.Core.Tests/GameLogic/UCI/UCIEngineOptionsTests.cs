@@ -1,19 +1,18 @@
 using Caro.Core.Domain.Configuration;
+using Caro.Core.GameLogic;
 using Caro.Core.GameLogic.UCI;
 
 namespace Caro.Core.Tests.GameLogic.UCI;
 
 public sealed class UCIEngineOptionsTests
 {
-    private const int DefaultTTSizeMb = SearchConstants.DefaultTTSizeMb;
+    private const int DefaultTTSizeMb = SearchConstants.DefaultTTSizeMb; // 64
 
     [Fact]
     public void GetOptionDeclarations_ReturnsAllOptions()
     {
-        // Act
         var declarations = UCIEngineOptions.GetOptionDeclarations();
 
-        // Assert
         declarations.Should().HaveCount(4);
         declarations.Should().Contain(d => d.Contains("Threads"));
         declarations.Should().Contain(d => d.Contains("Hash"));
@@ -21,27 +20,47 @@ public sealed class UCIEngineOptionsTests
         declarations.Should().Contain(d => d.Contains("Skill Level"));
     }
 
-    [Theory]
-    [InlineData("Threads", "1", true, 1)]
-    [InlineData("Threads", "16", true, 16)]
-    [InlineData("Threads", "32", true, 32)]
-    [InlineData("Threads", "0", false, 4)]
-    [InlineData("Threads", "33", false, 4)]
-    [InlineData("threads", "8", true, 8)]
-    public void SetOption_Threads_ValidatesRange(string name, string value, bool expectedSuccess, int expectedValue)
+    [Fact]
+    public void SetOption_Threads_AcceptsMin()
     {
-        // Arrange
         var options = new UCIEngineOptions();
+        options.SetOption("Threads", "1").Should().BeTrue();
+        options.Threads.Should().Be(1);
+    }
 
-        // Act
-        var result = options.SetOption(name, value);
+    [Fact]
+    public void SetOption_Threads_AcceptsMax()
+    {
+        int max = ThreadPoolConfig.MaxEngineThreads;
+        var options = new UCIEngineOptions();
+        options.SetOption("Threads", max.ToString()).Should().BeTrue();
+        options.Threads.Should().Be(max);
+    }
 
-        // Assert
-        result.Should().Be(expectedSuccess);
-        if (expectedSuccess)
-            options.Threads.Should().Be(expectedValue);
-        else
-            options.Threads.Should().Be(expectedValue);
+    [Fact]
+    public void SetOption_Threads_RejectsZero()
+    {
+        int cap = ThreadPoolConfig.MaxEngineThreads;
+        var options = new UCIEngineOptions();
+        options.SetOption("Threads", "0").Should().BeFalse();
+        options.Threads.Should().Be(cap);
+    }
+
+    [Fact]
+    public void SetOption_Threads_RejectsAboveMax()
+    {
+        int cap = ThreadPoolConfig.MaxEngineThreads;
+        var options = new UCIEngineOptions();
+        options.SetOption("Threads", (cap + 1).ToString()).Should().BeFalse();
+        options.Threads.Should().Be(cap);
+    }
+
+    [Fact]
+    public void SetOption_Threads_CaseInsensitive()
+    {
+        var options = new UCIEngineOptions();
+        options.SetOption("threads", "2").Should().BeTrue();
+        options.Threads.Should().Be(2);
     }
 
     [Theory]
@@ -98,7 +117,7 @@ public sealed class UCIEngineOptionsTests
     public void DefaultValues_AreCorrect()
     {
         var options = new UCIEngineOptions();
-        options.Threads.Should().Be(4);
+        options.Threads.Should().Be(ThreadPoolConfig.MaxEngineThreads);
         options.Hash.Should().Be(DefaultTTSizeMb);
         options.Ponder.Should().BeFalse();
     }

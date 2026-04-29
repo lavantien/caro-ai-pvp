@@ -19,4 +19,16 @@ public static class AITestHelper
     {
         return CreateAI(new Random(seed), ttSizeMb, logger);
     }
+
+    public static void WithAI(Action<MinimaxAI> action, int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null)
+    {
+        using var ai = CreateAI(ttSizeMb, logger);
+        action(ai);
+    }
+
+    public static T WithAI<T>(Func<MinimaxAI, T> func, int ttSizeMb = 256, ILogger<MinimaxAI>? logger = null)
+    {
+        using var ai = CreateAI(ttSizeMb, logger);
+        return func(ai);
+    }
 }

@@ -168,7 +168,8 @@ public class AdversarialConcurrencyTests
     {
         // Test: Rapid state changes while reading state
         // This exposes issues with volatile/lock mixing
-        var ponderer = new Ponderer();
+        using var search = new ParallelMinimaxSearch();
+        var ponderer = new Ponderer(search);
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
         // Don't pre-place (7, 8) - Ponderer will place the predicted move internally
@@ -275,7 +276,7 @@ public class AdversarialConcurrencyTests
             {
                 try
                 {
-                    var ai = AITestHelper.CreateAI();
+                    using var ai = AITestHelper.CreateAI();
                     var (x, y) = ai.GetBestMove(board, Player.Red, null);
                     var (depth, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = ai.GetSearchStatistics();
                     results.Add((x, y, depth));

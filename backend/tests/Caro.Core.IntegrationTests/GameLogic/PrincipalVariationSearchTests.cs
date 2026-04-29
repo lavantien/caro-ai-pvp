@@ -34,7 +34,7 @@ public class PrincipalVariationSearchTests
         board = board.PlaceStone(8, 6, Player.Blue);
 
         // Act - PVS should find the best move
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should extend the 3-in-row
@@ -56,7 +56,7 @@ public class PrincipalVariationSearchTests
         board = board.PlaceStone(6, 7, Player.Blue);
 
         // Act - PVS should be faster with null window searches
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, null);
         stopwatch.Stop();
@@ -111,7 +111,7 @@ public class PrincipalVariationSearchTests
         board = board.PlaceStone(7, 8, Player.Red);
 
         // Act - Should find winning move
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should complete the winning line
@@ -128,7 +128,7 @@ public class PrincipalVariationSearchTests
         board = board.PlaceStone(7, 7, Player.Red);
         board = board.PlaceStone(7, 8, Player.Blue);
 
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
 
         // Act & Assert - All difficulty levels should work
         var easyMove = ai.GetBestMove(board, Player.Red, null);
@@ -163,7 +163,7 @@ public class PrincipalVariationSearchTests
         }
 
         // Act - Should handle complex position
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find valid move
@@ -192,7 +192,7 @@ public class PrincipalVariationSearchTests
         board = board.PlaceStone(9, 6, Player.Blue);
 
         // Act - PVS + LMR should find good move
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find reasonable move
@@ -212,7 +212,7 @@ public class PrincipalVariationSearchTests
         board = board.PlaceStone(7, 8, Player.Blue);
 
         // Act - Should complete quickly in quiet positions
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, null);
         stopwatch.Stop();
@@ -277,7 +277,7 @@ public class PrincipalVariationSearchTests
         board = board.PlaceStone(8, 6, Player.Red);
 
         // Act - Must block the threat
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should block at (7, 4) or (7, 9)
@@ -299,7 +299,7 @@ public class PrincipalVariationSearchTests
             CreateBoardWithMoves(new[] { (7, 7, Player.Red), (7, 8, Player.Blue), (8, 7, Player.Red) }),  // Early game
         };
 
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
 
         foreach (var board in positions)
         {

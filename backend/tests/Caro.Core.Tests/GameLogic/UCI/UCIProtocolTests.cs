@@ -24,6 +24,7 @@ public sealed class UCIProtocolTests : IDisposable
     public void Dispose()
     {
         _protocol.Stop();
+        _ai.Dispose();
     }
 
     [Fact]

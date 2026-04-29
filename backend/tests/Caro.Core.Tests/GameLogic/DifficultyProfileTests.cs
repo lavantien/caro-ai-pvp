@@ -33,9 +33,10 @@ public sealed class DifficultyProfileTests
     }
 
     [Fact]
-    public void GetThreadCount_L4_Max2HalfProcessors()
+    public void GetThreadCount_L4_CappedAtMaxEngineThreads()
     {
-        DifficultyProfile.GetThreadCount(4).Should().Be(Math.Max(2, Environment.ProcessorCount / 2));
+        int expected = Math.Min(Math.Max(2, Environment.ProcessorCount / 2), ThreadPoolConfig.MaxEngineThreads);
+        DifficultyProfile.GetThreadCount(4).Should().Be(expected);
     }
 
     [Fact]

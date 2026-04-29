@@ -34,7 +34,7 @@ public class AspirationWindowTests
         board = board.PlaceStone(6, 7, Player.Blue);
 
         // Act - Search with aspiration windows (enabled by default in Hard+)
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move1 = ai.GetBestMove(board, Player.Red, null);
         var move2 = ai.GetBestMove(board, Player.Red, null);
 
@@ -59,7 +59,7 @@ public class AspirationWindowTests
         board = board.PlaceStone(8, 8, Player.Blue);
 
         // Act
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find a reasonable move
@@ -89,7 +89,7 @@ public class AspirationWindowTests
         }
 
         // Act - Grandmaster (D5) uses iterative deepening with aspiration windows
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, null);
         stopwatch.Stop();
@@ -151,7 +151,7 @@ public class AspirationWindowTests
         board = board.PlaceStone(8, 7, Player.Blue);
 
         // Act - Should find winning move for Red
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find move near the winning line
@@ -179,7 +179,7 @@ public class AspirationWindowTests
         board = board.PlaceStone(9, 8, Player.Blue);
 
         // Act - Get best move
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Move should be strategic (near existing stones)

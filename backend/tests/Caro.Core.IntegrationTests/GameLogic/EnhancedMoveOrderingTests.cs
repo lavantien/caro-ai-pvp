@@ -31,7 +31,7 @@ public class EnhancedMoveOrderingTests
         board = board.PlaceStone(7, 8, Player.Red);
 
         // Act - Enhanced move ordering should prioritize winning move
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should complete the winning line
@@ -52,7 +52,7 @@ public class EnhancedMoveOrderingTests
         board = board.PlaceStone(8, 6, Player.Red);
 
         // Act - Should block the threat
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should block at (7, 4) or (7, 8)
@@ -79,7 +79,7 @@ public class EnhancedMoveOrderingTests
         board = board.PlaceStone(9, 5, Player.Blue);  // Blocks one end
 
         // Act - Should extend open 3
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should make a valid move
@@ -106,7 +106,7 @@ public class EnhancedMoveOrderingTests
         board = board.PlaceStone(8, 5, Player.Blue);
 
         // Act - Should prioritize based on tactical importance
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should either extend own threat or block opponent
@@ -133,7 +133,7 @@ public class EnhancedMoveOrderingTests
         board = board.PlaceStone(6, 7, Player.Blue);
 
         // Act - Enhanced ordering should find good moves faster
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, null);
         stopwatch.Stop();
@@ -162,7 +162,7 @@ public class EnhancedMoveOrderingTests
         board = board.PlaceStone(7, 9, Player.Blue);  // Blocked one end
 
         // Act - Should still play at the open end
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should play at (7, 4) or nearby
@@ -183,7 +183,7 @@ public class EnhancedMoveOrderingTests
         board = board.PlaceStone(7, 8, Player.Red);
 
         // Act - Should extend the open 3
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should extend at either end
@@ -209,7 +209,7 @@ public class EnhancedMoveOrderingTests
         board = board.PlaceStone(7, 8, Player.Blue);
 
         // Act - Should find best tactical move
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should make a tactical move
@@ -270,7 +270,7 @@ public class EnhancedMoveOrderingTests
         }
 
         // Act - Should handle mid-game position
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find valid move

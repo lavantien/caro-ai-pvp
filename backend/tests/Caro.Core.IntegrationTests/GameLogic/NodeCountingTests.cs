@@ -20,7 +20,7 @@ public class NodeCountingTests
     {
         // Run multiple searches and verify node counts are NOT identical
         // (identical counts would indicate estimation instead of real counting)
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Place a few stones to create different positions
@@ -56,7 +56,7 @@ public class NodeCountingTests
     public void SequentialSearch_RealNodeCountShouldBePositive()
     {
         // Low-depth search uses sequential search
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         board = board.PlaceStone(7, 7, Player.Red);
@@ -74,7 +74,7 @@ public class NodeCountingTests
     public void ParallelSearch_HardDifficulty_ShouldCountRealNodes()
     {
         // Parallel search uses Lazy SMP
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Create a mid-game position
@@ -101,7 +101,7 @@ public class NodeCountingTests
     {
         // Running the same search twice should give approximately the same node count
         // (within some variance due to threading and timing)
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         board = board.PlaceStone(7, 7, Player.Red);
@@ -131,7 +131,7 @@ public class NodeCountingTests
     public void ParallelSearch_DifferentDepths_NodesShouldIncreaseWithDepth()
     {
         // Higher depth should generally search more nodes
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         board = board.PlaceStone(7, 7, Player.Red);
@@ -159,7 +159,7 @@ public class NodeCountingTests
     public void NodeCount_ShouldNotBeIdenticalForDifferentPositions()
     {
         // This specifically tests the bug where same depth always returned same node count
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board1 = new Board();
         var board2 = new Board();
 

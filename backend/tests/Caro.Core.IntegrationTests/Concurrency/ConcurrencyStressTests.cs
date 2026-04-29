@@ -132,7 +132,7 @@ public class ConcurrencyStressTests
     {
         // Arrange
         var ponderers = Enumerable.Range(0, Math.Min(operations, 10))
-            .Select(_ => new Ponderer()).ToArray();
+            .Select(_ => new Ponderer(new ParallelMinimaxSearch())).ToArray();
 
         var exceptions = new ConcurrentBag<Exception>();
         var completedOperations = 0;
@@ -211,7 +211,7 @@ public class ConcurrencyStressTests
                 try
                 {
                     // Each AI gets its own instance
-                    var ai = AITestHelper.CreateAI();
+                    using var ai = AITestHelper.CreateAI();
                     var (x, y) = ai.GetBestMove(board, Player.Red, null);
                     results.Add((x, y));
                 }

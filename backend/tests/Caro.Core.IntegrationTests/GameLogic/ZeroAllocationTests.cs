@@ -96,7 +96,7 @@ public class ZeroAllocationTests
         board = board.PlaceStone(11, 7, Player.Blue);
 
         // Act & Assert - Use reflection to call private CheckWinner method
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var checkWinnerMethod = typeof(MinimaxAI).GetMethod("CheckWinner",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
             null, new[] { typeof(Board) }, null);
@@ -132,7 +132,7 @@ public class ZeroAllocationTests
         board = board.PlaceStone(10, 7, Player.Red);
 
         // Act
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var checkWinnerMethod = typeof(MinimaxAI).GetMethod("CheckWinner",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
             null, new[] { typeof(Board) }, null);
@@ -191,11 +191,11 @@ public class ZeroAllocationTests
 
         // Act - Test D4 (Hard difficulty) with 7+5 time control
         // Simulating mid-game (move 30) with 5 minutes remaining
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var timeRemainingMs = FiveMinutesMs;  // 5 minutes left
         var moveNumber = LateMidGameMoveNumber;              // LateMid game phase
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = timeRemainingMs, MoveNumber = moveNumber });
+        var move = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = timeRemainingMs, MoveNumber = moveNumber }, CancellationToken.None);
         stopwatch.Stop();
 
         _output.WriteLine($"Move: ({move.x}, {move.y})");
@@ -237,11 +237,11 @@ public class ZeroAllocationTests
         board = board.PlaceStone(8, 12, Player.Blue);
 
         // Act - Test D5 (Grandmaster difficulty) with 7+5 time control
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var timeRemainingMs = FiveMinutesMs;  // 5 minutes left
         var moveNumber = LateMidGameMoveNumber;              // LateMid game phase
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var move = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = timeRemainingMs, MoveNumber = moveNumber });
+        var move = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = timeRemainingMs, MoveNumber = moveNumber }, CancellationToken.None);
         stopwatch.Stop();
 
         _output.WriteLine($"Move: ({move.x}, {move.y})");

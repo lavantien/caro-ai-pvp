@@ -18,15 +18,18 @@ public class PondererTests : IDisposable
     private const double HitRateTolerance = 0.01;
 
     private readonly Ponderer _ponderer;
+    private readonly ParallelMinimaxSearch _parallelSearch;
 
     public PondererTests()
     {
-        _ponderer = new Ponderer();
+        _parallelSearch = new ParallelMinimaxSearch();
+        _ponderer = new Ponderer(_parallelSearch);
     }
 
     public void Dispose()
     {
         _ponderer.Dispose();
+        _parallelSearch.Dispose();
     }
 
     [Fact]

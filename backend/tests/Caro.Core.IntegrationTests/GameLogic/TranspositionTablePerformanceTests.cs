@@ -23,7 +23,7 @@ public class TranspositionTablePerformanceTests
     public void TranspositionTable_ProvidesSpeedup()
     {
         // Arrange
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Set up a mid-game position (some stones already placed)

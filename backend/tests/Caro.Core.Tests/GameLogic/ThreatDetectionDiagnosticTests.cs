@@ -72,8 +72,8 @@ public class ThreatDetectionDiagnosticTests
 
         // But this IS an open three - both ends are open
         // The FindOpenThreeBlocks method should detect this
-        var ai = new MinimaxAI(ttSizeMb: 1);
-        var move = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = 60000, MoveNumber = 1 });
+        using var ai = new MinimaxAI(ttSizeMb: 1);
+        var move = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = 60000, MoveNumber = 1 }, CancellationToken.None);
 
         // AI should block at one end of the open three
         var validBlocks = new[] { (10, 7), (10, 11) };
@@ -174,8 +174,8 @@ public class ThreatDetectionDiagnosticTests
         board = board.PlaceStone(10, 10, Player.Blue);
 
         // Red's turn - Grandmaster should detect and try to block
-        var ai = new MinimaxAI(ttSizeMb: 1);
-        var move = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = 60000, MoveNumber = 1 });
+        using var ai = new MinimaxAI(ttSizeMb: 1);
+        var move = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = 60000, MoveNumber = 1 }, CancellationToken.None);
 
         // Grandmaster should block at one of the winning squares
         var validBlocks = new[] { (5, 4), (5, 9), (6, 10), (11, 10) };
@@ -224,10 +224,10 @@ public class ThreatDetectionDiagnosticTests
         board = board.PlaceStone(5, 8, Player.Blue);
         // Both (5,5) and (5,9) are open
 
-        var ai = new MinimaxAI(ttSizeMb: 1);
+        using var ai = new MinimaxAI(ttSizeMb: 1);
 
         // Grandmaster's turn - should block the open three
-        var move1 = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = 60000, MoveNumber = 1 });
+        var move1 = ai.GetBestMove(board, Player.Red, new SearchOptions { TimeRemainingMs = 60000, MoveNumber = 1 }, CancellationToken.None);
         var validBlocks = new[] { (5, 5), (5, 9) };
         validBlocks.Should().Contain((move1.x, move1.y), "Grandmaster should block the open three");
 
@@ -259,7 +259,7 @@ public class ThreatDetectionDiagnosticTests
         isWinning.Should().BeTrue($"(5,{winningY}) should complete the semi-open four");
 
         // Grandmaster's turn again - should block the winning square
-        var move2 = ai.GetBestMove(board3, Player.Red, new SearchOptions { TimeRemainingMs = 60000, MoveNumber = 3 });
+        var move2 = ai.GetBestMove(board3, Player.Red, new SearchOptions { TimeRemainingMs = 60000, MoveNumber = 3 }, CancellationToken.None);
         move2.Should().Be((5, winningY), "Grandmaster should block the semi-open four");
     }
 

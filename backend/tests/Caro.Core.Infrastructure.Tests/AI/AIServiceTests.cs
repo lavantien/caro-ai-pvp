@@ -12,17 +12,19 @@ public sealed class AIServiceTests : IDisposable
 {
     private readonly AIService _service;
     private readonly MockLogger<AIService> _logger;
+    private readonly MinimaxAI _ai;
 
     public AIServiceTests()
     {
         _logger = new MockLogger<AIService>();
-        var ai = new MinimaxAI(logger: new MockLogger<MinimaxAI>());
-        _service = new AIService(ai, _logger);
+        _ai = new MinimaxAI(logger: new MockLogger<MinimaxAI>());
+        _service = new AIService(_ai, _logger);
     }
 
     public void Dispose()
     {
         _service.CleanupAll();
+        _ai.Dispose();
     }
 
     [Fact]

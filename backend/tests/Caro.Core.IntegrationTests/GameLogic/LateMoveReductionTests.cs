@@ -37,7 +37,7 @@ public class LateMoveReductionTests
         board = board.PlaceStone(9, 8, Player.Blue);
 
         // Act - Get move with LMR (should use reduced depth for late moves)
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Move should be valid and strategic
@@ -79,7 +79,7 @@ public class LateMoveReductionTests
         board = board.PlaceStone(8, 6, Player.Blue);
 
         // Act - Should use full depth in tactical position
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find good move near the threat
@@ -101,7 +101,7 @@ public class LateMoveReductionTests
         board = board.PlaceStone(8, 8, Player.Blue);
 
         // Act - Search with Hard difficulty (uses LMR)
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, null);
         stopwatch.Stop();
@@ -168,7 +168,7 @@ public class LateMoveReductionTests
         board = board.PlaceStone(9, 6, Player.Blue);
 
         // Act - Should handle tactical position without LMR
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find reasonable move
@@ -188,7 +188,7 @@ public class LateMoveReductionTests
         board = board.PlaceStone(7, 8, Player.Blue);
 
         // Act - LMR may not apply much with few candidate moves
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should still play near center
@@ -227,7 +227,7 @@ public class LateMoveReductionTests
         board = board.PlaceStone(7, 8, Player.Red);
 
         // Act - Should find winning move
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should complete the winning line
@@ -240,7 +240,7 @@ public class LateMoveReductionTests
     public void LMR_HandlesMultipleSearches()
     {
         // Arrange
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Create mid-game position

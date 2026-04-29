@@ -332,9 +332,9 @@ public class SIMDBitBoardEvaluatorTests
     }
 
     [Fact]
-    public void Evaluate_SixInRow_ShouldScoreAsFiveInRow()
+    public void Evaluate_SixInRow_ShouldNotScoreAsFiveInRow()
     {
-        // 6 in a row - should score as five in row (or higher, runs are scored individually)
+        // Caro rules: overlines (6+) do NOT win. Exactly 5 in a row is required.
         var board = CreateBoard(
             (4, 7, Player.Red), (5, 7, Player.Red), (6, 7, Player.Red),
             (7, 7, Player.Red), (8, 7, Player.Red), (9, 7, Player.Red)
@@ -342,6 +342,6 @@ public class SIMDBitBoardEvaluatorTests
 
         var score = SIMDBitBoardEvaluator.Evaluate(board, Player.Red);
 
-        score.Should().BeGreaterThanOrEqualTo(EvaluationConstants.FiveInRowScore);
+        score.Should().BeLessThan(EvaluationConstants.FiveInRowScore);
     }
 }

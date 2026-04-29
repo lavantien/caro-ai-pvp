@@ -17,7 +17,7 @@ public class MinimaxAITests
     public void GetBestMove_EmptyBoard_ReturnsCenterMove()
     {
         // Arrange
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Act
@@ -33,7 +33,7 @@ public class MinimaxAITests
     public void GetBestMove_CanWinInOneMove_TakesWinningMove()
     {
         // Arrange
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Create 4-in-row for Red, ready to win
@@ -58,7 +58,7 @@ public class MinimaxAITests
     public void GetBestMove_OponentCanWin_BlocksWinningMove()
     {
         // Arrange
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Blue has 4-in-row, ready to win
@@ -82,7 +82,7 @@ public class MinimaxAITests
     public void GetBestMove_AllDifficulties_ReturnsValidMove()
     {
         // Arrange
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Place one stone in center
@@ -102,7 +102,7 @@ public class MinimaxAITests
     public void GetBestMove_WithVCFPosition_FindsWinningMove()
     {
         // Arrange - Position where Red has immediate winning threat
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Red has XXXX_ - can win immediately
@@ -130,7 +130,7 @@ public class MinimaxAITests
     [Fact]
     public void GetBestMove_FullBoard_ReturnsSentinel()
     {
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
         const int size = GameConstants.BoardSize;
 
@@ -143,7 +143,7 @@ public class MinimaxAITests
             }
         }
 
-        var (x, y) = ai.GetBestMove(board, Player.Red, new SearchOptions());
+        var (x, y) = ai.GetBestMove(board, Player.Red, new SearchOptions(), CancellationToken.None);
         x.Should().Be(-1);
         y.Should().Be(-1);
     }

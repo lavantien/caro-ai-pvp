@@ -184,7 +184,7 @@ public class DefensivePlayTests
         board = board.PlaceStone(10, 7, Player.Red);
         board = board.PlaceStone(6, 7, Player.Blue);
 
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
 
         // Act
         var (x, y) = ai.GetBestMove(board, Player.Blue, null);
@@ -247,7 +247,7 @@ public class DefensivePlayTests
         board = board.PlaceStone(6, 4, Player.Blue);
         board = board.PlaceStone(7, 4, Player.Red); // Red's previous block - wrong end!
 
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
 
         // Act: Red to move - must block at (2, 4)
         var (x, y) = ai.GetBestMove(board, Player.Red, null);
@@ -271,7 +271,7 @@ public class DefensivePlayTests
         board = board.PlaceStone(6, 4, Player.Blue);
         board = board.PlaceStone(2, 4, Player.Red); // Red blocked top
 
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
 
         // Act: Red to move - must block at (7, 4)
         var (x, y) = ai.GetBestMove(board, Player.Red, null);
@@ -293,7 +293,7 @@ public class DefensivePlayTests
         board = board.PlaceStone(5, 4, Player.Blue);
         board = board.PlaceStone(6, 4, Player.Blue);
 
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
 
         // Act: Red to move - should block at one end
         var (x, y) = ai.GetBestMove(board, Player.Red, null);

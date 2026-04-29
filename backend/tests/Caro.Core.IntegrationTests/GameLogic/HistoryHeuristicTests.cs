@@ -18,7 +18,7 @@ public class HistoryHeuristicTests
     public void ClearHistory_ResetsAllHistoryScores()
     {
         // Arrange
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
         board = board.PlaceStone(7, 7, Player.Red);
 
@@ -49,7 +49,7 @@ public class HistoryHeuristicTests
         board = board.PlaceStone(8, 7, Player.Blue);
 
         // Act - Get move with history heuristic enabled
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find winning move (7, 9) or blocking move
@@ -93,7 +93,7 @@ public class HistoryHeuristicTests
         board2 = board2.PlaceStone(8, 7, Player.Red); // Slightly different position
 
         // Act - Search multiple similar positions to build history
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
 
         var stopwatch1 = System.Diagnostics.Stopwatch.StartNew();
         var move1a = ai.GetBestMove(board1, Player.Blue, null);
@@ -120,7 +120,7 @@ public class HistoryHeuristicTests
     public void HistoryHeuristic_PersistsAcrossMultipleSearches()
     {
         // Arrange
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Create mid-game positions
@@ -168,7 +168,7 @@ public class HistoryHeuristicTests
     public void HistoryHeuristic_HandlesEmptyBoard()
     {
         // Arrange
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var board = new Board();
 
         // Act - Search on empty board
@@ -194,7 +194,7 @@ public class HistoryHeuristicTests
         board = board.PlaceStone(7, 8, Player.Red);
 
         // Act - Find winning move
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should find a move near the winning line

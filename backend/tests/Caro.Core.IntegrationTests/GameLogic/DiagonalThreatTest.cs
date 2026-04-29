@@ -107,7 +107,7 @@ public class DiagonalThreatTest
         }
 
         // Act - Get Grandmaster's move
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Blue, null);
 
         var stats = ai.GetSearchStatistics();

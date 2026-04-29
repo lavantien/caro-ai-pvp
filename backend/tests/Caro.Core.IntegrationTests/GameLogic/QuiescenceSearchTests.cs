@@ -28,7 +28,7 @@ public class QuiescenceSearchTests
         board = board.PlaceStone(7, 7, Player.Red);  // 3 in a row
 
         // Act - With quiescence, AI should see the threat
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should extend the line (create 4 in a row)
@@ -47,7 +47,7 @@ public class QuiescenceSearchTests
         board = board.PlaceStone(7, 8, Player.Blue);  // Blue blocks
 
         // Act - Red should extend the other way or play nearby
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should play near the threat
@@ -70,7 +70,7 @@ public class QuiescenceSearchTests
         board = board.PlaceStone(7, 8, Player.Red);
 
         // Act - Red should find the winning move with quiescence
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should complete the 5-in-row or play very close
@@ -90,7 +90,7 @@ public class QuiescenceSearchTests
         board = board.PlaceStone(8, 6, Player.Red);  // Red has stones nearby
 
         // Act - Red should block the threat
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should block at (7, 4) or (7, 8)
@@ -115,7 +115,7 @@ public class QuiescenceSearchTests
         board = board.PlaceStone(8, 7, Player.Blue);
 
         // Act - Find best move
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var move = ai.GetBestMove(board, Player.Red, null);
 
         // Assert - Should either extend Red's threat or block Blue's
@@ -140,7 +140,7 @@ public class QuiescenceSearchTests
         }
 
         // Act - Should complete without excessive search
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var move = ai.GetBestMove(board, Player.Red, null);
         stopwatch.Stop();
@@ -170,7 +170,7 @@ public class QuiescenceSearchTests
             CreateBoardWithMoves(new[] { (7, 7, Player.Red), (7, 8, Player.Blue), (8, 7, Player.Red) }),
         };
 
-        var ai = AITestHelper.CreateAI();
+        using var ai = AITestHelper.CreateAI();
 
         foreach (var board in positions)
         {
