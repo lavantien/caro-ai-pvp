@@ -1,11 +1,11 @@
 package api
 
 type CreateGameRequest struct {
-	TimeControl    string `json:"time_control"`
-	GameMode       string `json:"game_mode"`
+	TimeControl    string `json:"timeControl"`
+	GameMode       string `json:"gameMode"`
 	Difficulty     *int   `json:"difficulty"`
-	RedDifficulty  *int   `json:"red_difficulty"`
-	BlueDifficulty *int   `json:"blue_difficulty"`
+	RedDifficulty  *int   `json:"redDifficulty"`
+	BlueDifficulty *int   `json:"blueDifficulty"`
 }
 
 type MoveRequest struct {
@@ -15,19 +15,19 @@ type MoveRequest struct {
 
 type GameResponse struct {
 	Board             []CellResponse     `json:"board"`
-	CurrentPlayer     string             `json:"current_player"`
-	MoveNumber        int                `json:"move_number"`
-	IsGameOver        bool               `json:"is_game_over"`
+	CurrentPlayer     string             `json:"currentPlayer"`
+	MoveNumber        int                `json:"moveNumber"`
+	IsGameOver        bool               `json:"isGameOver"`
 	Winner            string             `json:"winner"`
-	WinningLine       []PositionResponse `json:"winning_line"`
-	RedTimeRemaining  float64            `json:"red_time_remaining"`
-	BlueTimeRemaining float64            `json:"blue_time_remaining"`
-	TimeControl       string             `json:"time_control"`
-	InitialTime       int                `json:"initial_time"`
+	WinningLine       []PositionResponse `json:"winningLine"`
+	RedTimeRemaining  float64            `json:"redTimeRemaining"`
+	BlueTimeRemaining float64            `json:"blueTimeRemaining"`
+	TimeControl       string             `json:"timeControl"`
+	InitialTime       int                `json:"initialTime"`
 	Increment         int                `json:"increment"`
-	GameMode          string             `json:"game_mode"`
-	RedDifficulty     *int               `json:"red_difficulty"`
-	BlueDifficulty    *int               `json:"blue_difficulty"`
+	GameMode          string             `json:"gameMode"`
+	RedDifficulty     *int               `json:"redDifficulty"`
+	BlueDifficulty    *int               `json:"blueDifficulty"`
 }
 
 type CellResponse struct {

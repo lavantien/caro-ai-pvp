@@ -25,18 +25,18 @@ func TestServerCreateAndGetGame(t *testing.T) {
 	defer srv.Close()
 
 	// Create
-	resp, err := http.Post(srv.URL+"/api/games", "application/json", strings.NewReader(`{}`))
+	resp, err := http.Post(srv.URL+"/api/game/new", "application/json", strings.NewReader(`{}`))
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var created map[string]any
 	json.NewDecoder(resp.Body).Decode(&created)
-	gameID := created["game_id"].(string)
+	gameID := created["gameId"].(string)
 	assert.NotEmpty(t, gameID)
 
 	// Get
-	resp2, err := http.Get(srv.URL + "/api/games/" + gameID)
+	resp2, err := http.Get(srv.URL + "/api/game/" + gameID)
 	require.NoError(t, err)
 	defer resp2.Body.Close()
 	assert.Equal(t, http.StatusOK, resp2.StatusCode)
@@ -47,14 +47,14 @@ func TestServerMakeMove(t *testing.T) {
 	defer srv.Close()
 
 	// Create
-	resp, _ := http.Post(srv.URL+"/api/games", "application/json", strings.NewReader(`{}`))
+	resp, _ := http.Post(srv.URL+"/api/game/new", "application/json", strings.NewReader(`{}`))
 	defer resp.Body.Close()
 	var created map[string]any
 	json.NewDecoder(resp.Body).Decode(&created)
-	gameID := created["game_id"].(string)
+	gameID := created["gameId"].(string)
 
 	// Move
-	resp2, err := http.Post(srv.URL+"/api/games/"+gameID+"/moves", "application/json",
+	resp2, err := http.Post(srv.URL+"/api/game/"+gameID+"/move", "application/json",
 		strings.NewReader(`{"x":7,"y":7}`))
 	require.NoError(t, err)
 	defer resp2.Body.Close()
@@ -63,14 +63,14 @@ func TestServerMakeMove(t *testing.T) {
 	var moveResp map[string]any
 	json.NewDecoder(resp2.Body).Decode(&moveResp)
 	state := moveResp["state"].(map[string]any)
-	assert.Equal(t, 1.0, state["move_number"])
+	assert.Equal(t, 1.0, state["moveNumber"])
 }
 
 func TestServerCORS(t *testing.T) {
 	srv := newTestServer()
 	defer srv.Close()
 
-	req, _ := http.NewRequest(http.MethodOptions, srv.URL+"/api/games", nil)
+	req, _ := http.NewRequest(http.MethodOptions, srv.URL+"/api/game/new", nil)
 	req.Header.Set("Origin", "http://localhost:5173")
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -85,7 +85,7 @@ func TestServerNotFound(t *testing.T) {
 	srv := newTestServer()
 	defer srv.Close()
 
-	resp, err := http.Get(srv.URL + "/api/games/nonexistent")
+	resp, err := http.Get(srv.URL + "/api/game/nonexistent")
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)

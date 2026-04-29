@@ -158,7 +158,7 @@
 	async function handleMove(x: number, y: number) {
 		if (store.isGameOver || !gameId || moveInProgress) return;
 
-		const cell = store.board[x * GameConfig.boardSize + y];
+		const cell = store.board[y * GameConfig.boardSize + x];
 		if (!cell || cell.player !== 'none') return;
 
 		moveInProgress = true;

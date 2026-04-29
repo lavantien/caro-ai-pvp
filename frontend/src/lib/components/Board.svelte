@@ -21,7 +21,7 @@
 	let boardEl: HTMLDivElement | undefined = $state();
 
 	function handleCellClick(x: number, y: number) {
-		const cell = board[x * GameConfig.boardSize + y];
+		const cell = board[y * GameConfig.boardSize + x];
 		if (!cell || cell.player !== 'none') {
 			vibrateOnInvalidMove();
 			return;

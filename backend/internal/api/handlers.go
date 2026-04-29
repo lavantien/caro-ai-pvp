@@ -80,8 +80,8 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	h.store.Set(gameID, session)
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"game_id": gameID,
-		"state":   session.GetResponse(),
+		"gameId": gameID,
+		"state":  session.GetResponse(),
 	})
 }
 

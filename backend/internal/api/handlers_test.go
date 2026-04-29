@@ -35,17 +35,17 @@ func TestCreateGameDefault(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	resp := decodeResponse(t, w)
-	assert.NotEmpty(t, resp["game_id"])
+	assert.NotEmpty(t, resp["gameId"])
 	state, ok := resp["state"].(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, "red", state["current_player"])
-	assert.Equal(t, "7+5", state["time_control"])
+	assert.Equal(t, "red", state["currentPlayer"])
+	assert.Equal(t, "7+5", state["timeControl"])
 }
 
 func TestCreateGameBlitz(t *testing.T) {
 	h := testHandler()
 	req := httptest.NewRequest(http.MethodPost, "/api/games", bytes.NewReader(
-		[]byte(`{"time_control":"3+2","game_mode":"aivai","difficulty":3}`),
+		[]byte(`{"timeControl":"3+2","gameMode":"aivai","difficulty":3}`),
 	))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -54,8 +54,8 @@ func TestCreateGameBlitz(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	resp := decodeResponse(t, w)
 	state := resp["state"].(map[string]any)
-	assert.Equal(t, "3+2", state["time_control"])
-	assert.Equal(t, "aivai", state["game_mode"])
+	assert.Equal(t, "3+2", state["timeControl"])
+	assert.Equal(t, "aivai", state["gameMode"])
 }
 
 func TestCreateGameInvalidDifficulty(t *testing.T) {
@@ -108,7 +108,7 @@ func TestGetGameFound(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.CreateGame(w, req)
 	created := decodeResponse(t, w)
-	gameID := created["game_id"].(string)
+	gameID := created["gameId"].(string)
 
 	req2 := httptest.NewRequest(http.MethodGet, "/api/games/"+gameID, nil)
 	req2.SetPathValue("id", gameID)
@@ -138,7 +138,7 @@ func TestMakeMoveThenGet(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	h.CreateGame(w, req)
-	gameID := decodeResponse(t, w)["game_id"].(string)
+	gameID := decodeResponse(t, w)["gameId"].(string)
 
 	// Make move
 	req2 := httptest.NewRequest(http.MethodPost, "/api/games/"+gameID+"/move", bytes.NewReader(
@@ -151,7 +151,7 @@ func TestMakeMoveThenGet(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w2.Code)
 	resp := decodeResponse(t, w2)
 	state := resp["state"].(map[string]any)
-	assert.Equal(t, 1.0, state["move_number"])
+	assert.Equal(t, 1.0, state["moveNumber"])
 }
 
 func TestDeleteGame(t *testing.T) {
@@ -162,7 +162,7 @@ func TestDeleteGame(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	h.CreateGame(w, req)
-	gameID := decodeResponse(t, w)["game_id"].(string)
+	gameID := decodeResponse(t, w)["gameId"].(string)
 
 	req2 := httptest.NewRequest(http.MethodDelete, "/api/games/"+gameID, nil)
 	req2.SetPathValue("id", gameID)
@@ -186,7 +186,7 @@ func TestUndoMove(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	h.CreateGame(w, req)
-	gameID := decodeResponse(t, w)["game_id"].(string)
+	gameID := decodeResponse(t, w)["gameId"].(string)
 
 	// Make move
 	req2 := httptest.NewRequest(http.MethodPost, "/api/games/"+gameID+"/move", bytes.NewReader(
@@ -206,5 +206,5 @@ func TestUndoMove(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w3.Code)
 	resp := decodeResponse(t, w3)
 	state := resp["state"].(map[string]any)
-	assert.Equal(t, 0.0, state["move_number"])
+	assert.Equal(t, 0.0, state["moveNumber"])
 }
