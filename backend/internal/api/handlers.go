@@ -158,7 +158,7 @@ func (h *Handler) MakeAIMove(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	x, y := ai.GetBestMove(board, player, opts, r.Context())
+	x, y, _ := ai.GetBestMove(board, player, opts, r.Context())
 
 	resp, err := session.ApplyMove(x, y)
 	if err != nil {

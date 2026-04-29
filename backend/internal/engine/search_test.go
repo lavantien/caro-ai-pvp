@@ -23,9 +23,10 @@ func TestSearchFindsWinningMove(t *testing.T) {
 		Goroutines:  1,
 	}
 
-	x, y := SearchPosition(b, domain.PlayerRed, opts, tt, heuristics, context.Background())
+	x, y, stats := SearchPosition(b, domain.PlayerRed, opts, tt, heuristics, context.Background())
 	assert.True(t, x == 2 || x == 7, "should find winning move at end of line, got (%d,%d)", x, y)
 	assert.Equal(t, 5, y)
+	assert.Greater(t, stats.NodesSearched, int64(0))
 }
 
 func TestSearchFindsBlockingMove(t *testing.T) {
@@ -45,7 +46,8 @@ func TestSearchFindsBlockingMove(t *testing.T) {
 		Goroutines:  1,
 	}
 
-	x, y := SearchPosition(b, domain.PlayerRed, opts, tt, heuristics, context.Background())
+	x, y, stats := SearchPosition(b, domain.PlayerRed, opts, tt, heuristics, context.Background())
 	assert.True(t, x == 7 && y == 5,
 		"should block opponent's four at (7,5), got (%d,%d)", x, y)
+	assert.Greater(t, stats.DepthAchieved, 0)
 }

@@ -54,7 +54,7 @@ func (ai *MinimaxAI) GetBestMove(
 	player domain.Player,
 	opts SearchOptions,
 	ctx context.Context,
-) (int, int) {
+) (int, int, SearchStats) {
 	debug.SetMemoryLimit(domain.HeapHardLimitBytes)
 
 	timeAlloc := AllocateTime(opts.TimeRemainingMs, opts.IncrementMs, opts.MoveNumber)
@@ -76,13 +76,15 @@ func (ai *MinimaxAI) GetBestMove(
 	ai.tt.IncrementAge()
 
 	var x, y int
+	var stats SearchStats
 	if opts.ParallelEnabled && config.Goroutines > 1 {
-		x, y = ParallelSearch(b, player, config, ai.tt, ai.heuristics, ctx)
+		x, y, stats = ParallelSearch(b, player, config, ai.tt, ai.heuristics, ctx)
 	} else {
-		x, y = SearchPosition(b, player, config, ai.tt, ai.heuristics, ctx)
+		x, y, stats = SearchPosition(b, player, config, ai.tt, ai.heuristics, ctx)
 	}
 
-	return x, y
+	ai.stats = stats
+	return x, y, stats
 }
 
 func (ai *MinimaxAI) GetStats() SearchStats {

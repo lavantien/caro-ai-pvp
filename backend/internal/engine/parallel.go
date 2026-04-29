@@ -19,7 +19,7 @@ func ParallelSearch(
 	tt *TranspositionTable,
 	heuristics *SearchHeuristics,
 	ctx context.Context,
-) (int, int) {
+) (int, int, SearchStats) {
 	numWorkers := config.Goroutines
 	if numWorkers <= 1 {
 		return SearchPosition(b, player, config, tt, heuristics, ctx)
@@ -30,9 +30,9 @@ func ParallelSearch(
 	candidates = FilterOpenRule(candidates, &sb, player)
 	if len(candidates) <= 1 {
 		if len(candidates) == 1 {
-			return candidates[0].X, candidates[0].Y
+			return candidates[0].X, candidates[0].Y, SearchStats{}
 		}
-		return -1, -1
+		return -1, -1, SearchStats{}
 	}
 
 	monitor := NewTimeMonitor(ctx, config.TimeLimitMs)
@@ -95,5 +95,19 @@ func ParallelSearch(
 		}
 	}
 
-	return bestX, bestY
+	elapsed := monitor.ElapsedMs()
+	nodes := monitor.Nodes.Load()
+	var nps float64
+	if elapsed > 0 {
+		nps = float64(nodes) / float64(elapsed) * 1000
+	}
+
+	return bestX, bestY, SearchStats{
+		DepthAchieved:   bestDepth,
+		NodesSearched:   nodes,
+		NodesPerSecond:  nps,
+		SearchScore:     bestScore,
+		AllocatedTimeMs: config.TimeLimitMs,
+		ThreadCount:     numWorkers,
+	}
 }

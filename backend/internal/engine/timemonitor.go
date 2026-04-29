@@ -13,6 +13,7 @@ type TimeMonitor struct {
 	cancel      context.CancelFunc
 	stopped     atomic.Bool
 	mu          sync.Mutex
+	Nodes       atomic.Int64
 }
 
 func NewTimeMonitor(ctx context.Context, hardBoundMs int64) *TimeMonitor {

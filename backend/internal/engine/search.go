@@ -20,21 +20,25 @@ func SearchPosition(
 	tt *TranspositionTable,
 	heuristics *SearchHeuristics,
 	ctx context.Context,
-) (int, int) {
+) (int, int, SearchStats) {
 	sb := NewSearchBoard(b)
 	candidates := GetCandidates(&sb, domain.MaxSearchRadius)
 	candidates = FilterOpenRule(candidates, &sb, player)
 
 	if len(candidates) == 0 {
-		return -1, -1
+		return -1, -1, SearchStats{}
 	}
 	if len(candidates) == 1 {
-		return candidates[0].X, candidates[0].Y
+		return candidates[0].X, candidates[0].Y, SearchStats{}
 	}
 
 	bestX, bestY := candidates[0].X, candidates[0].Y
 	monitor := NewTimeMonitor(ctx, config.TimeLimitMs)
 	defer monitor.Stop()
+
+	tt.ResetStats()
+	bestScore := -domain.WinScore * 2
+	completedDepth := 0
 
 	for depth := 1; depth <= config.MaxDepth; depth++ {
 		if monitor.ShouldStop() {
@@ -44,13 +48,35 @@ func SearchPosition(
 		x, y, score := searchRoot(&sb, player, depth, tt, heuristics, candidates, monitor)
 		if x >= 0 {
 			bestX, bestY = x, y
+			bestScore = score
+			completedDepth = depth
 			if score >= domain.WinScore {
 				break
 			}
 		}
 	}
 
-	return bestX, bestY
+	elapsed := monitor.ElapsedMs()
+	probes, hits := tt.Stats()
+	nodes := monitor.Nodes.Load()
+	var hitRate float64
+	if probes > 0 {
+		hitRate = float64(hits) / float64(probes)
+	}
+	var nps float64
+	if elapsed > 0 {
+		nps = float64(nodes) / float64(elapsed) * 1000
+	}
+
+	return bestX, bestY, SearchStats{
+		DepthAchieved:   completedDepth,
+		NodesSearched:   nodes,
+		NodesPerSecond:  nps,
+		SearchScore:     bestScore,
+		TableHitRate:    hitRate,
+		AllocatedTimeMs: config.TimeLimitMs,
+		ThreadCount:     1,
+	}
 }
 
 func searchRoot(
@@ -62,6 +88,7 @@ func searchRoot(
 	candidates []domain.Position,
 	monitor *TimeMonitor,
 ) (int, int, int) {
+	monitor.Nodes.Add(1)
 	var ttMove *domain.Position
 	if entry, ok := tt.Lookup(sb.Hash()); ok {
 		ttMove = &domain.Position{X: int(entry.MoveX), Y: int(entry.MoveY)}
@@ -125,6 +152,7 @@ func alphaBeta(
 	heuristics *SearchHeuristics,
 	monitor *TimeMonitor,
 ) int {
+	monitor.Nodes.Add(1)
 	if monitor.ShouldStop() {
 		return 0
 	}
@@ -231,6 +259,7 @@ func quiesce(
 	heuristics *SearchHeuristics,
 	monitor *TimeMonitor,
 ) int {
+	monitor.Nodes.Add(1)
 	if monitor.ShouldStop() {
 		return 0
 	}

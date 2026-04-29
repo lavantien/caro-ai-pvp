@@ -116,7 +116,9 @@ func (h *UCIHandler) handleGo(args []string) {
 		}
 	}
 
-	x, y := h.ai.GetBestMove(h.board, h.player, opts, context.Background())
+	x, y, stats := h.ai.GetBestMove(h.board, h.player, opts, context.Background())
+	h.respond(fmt.Sprintf("info depth %d nodes %d nps %.0f score cp %d tt-hitrate %.2f threads %d",
+		stats.DepthAchieved, stats.NodesSearched, stats.NodesPerSecond, stats.SearchScore, stats.TableHitRate, stats.ThreadCount))
 	h.respond(fmt.Sprintf("bestmove %s", MoveToString(x, y)))
 }
 

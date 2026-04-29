@@ -23,9 +23,10 @@ func TestParallelSearchFindsWinningMove(t *testing.T) {
 		Goroutines:  2,
 	}
 
-	x, y := ParallelSearch(b, domain.PlayerRed, opts, tt, heuristics, context.Background())
+	x, y, stats := ParallelSearch(b, domain.PlayerRed, opts, tt, heuristics, context.Background())
 	assert.True(t, x == 2 || x == 7, "should find winning move, got (%d,%d)", x, y)
 	assert.Equal(t, 5, y)
+	assert.Greater(t, stats.NodesSearched, int64(0))
 }
 
 func TestParallelSearchFallsBackToSingleThread(t *testing.T) {
@@ -40,7 +41,7 @@ func TestParallelSearchFallsBackToSingleThread(t *testing.T) {
 		Goroutines:  1,
 	}
 
-	x, y := ParallelSearch(b, domain.PlayerBlue, opts, tt, heuristics, context.Background())
+	x, y, _ := ParallelSearch(b, domain.PlayerBlue, opts, tt, heuristics, context.Background())
 	assert.True(t, x >= 0 && x < domain.BoardSize, "x should be valid, got %d", x)
 	assert.True(t, y >= 0 && y < domain.BoardSize, "y should be valid, got %d", y)
 }

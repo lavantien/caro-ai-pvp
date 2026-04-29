@@ -43,6 +43,8 @@ type TranspositionTable struct {
 	shards [ttShardCount]ttShard
 	sizeMB int
 	age    atomic.Uint32
+	probes atomic.Int64
+	hits   atomic.Int64
 }
 
 func NewTranspositionTable(sizeMB int) *TranspositionTable {
@@ -83,6 +85,7 @@ func (tt *TranspositionTable) Store(entry TTEntry) {
 }
 
 func (tt *TranspositionTable) Lookup(hash uint64) (TTEntry, bool) {
+	tt.probes.Add(1)
 	si := tt.shardIndex(hash)
 	shard := &tt.shards[si]
 	idx := hash & shard.mask
@@ -109,6 +112,7 @@ func (tt *TranspositionTable) Lookup(hash uint64) (TTEntry, bool) {
 	if entry.Hash != hash {
 		return TTEntry{}, false
 	}
+	tt.hits.Add(1)
 	return entry, true
 }
 
@@ -122,4 +126,13 @@ func (tt *TranspositionTable) Clear() {
 
 func (tt *TranspositionTable) IncrementAge() {
 	tt.age.Add(1)
+}
+
+func (tt *TranspositionTable) Stats() (probes, hits int64) {
+	return tt.probes.Load(), tt.hits.Load()
+}
+
+func (tt *TranspositionTable) ResetStats() {
+	tt.probes.Store(0)
+	tt.hits.Store(0)
 }
