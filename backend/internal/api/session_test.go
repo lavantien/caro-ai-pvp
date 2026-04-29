@@ -60,13 +60,18 @@ func TestSessionApplyMoveOutOfBounds(t *testing.T) {
 
 func TestSessionApplyMoveAfterGameOver(t *testing.T) {
 	s := newTestSession()
-	for i := range 5 {
-		_, err := s.ApplyMove(i, 0)
+	// Red(0,0), Blue(0,2), Red(3,0) [Open Rule: dist=3], Blue(1,2),
+	// Red(1,0), Blue(2,2), Red(4,0), Blue(3,2), Red(2,0) -> wins
+	moves := []struct{ x, y int }{
+		{0, 0}, {0, 2}, // R, B
+		{3, 0}, {1, 2}, // R(dist=3), B
+		{1, 0}, {2, 2}, // R, B
+		{4, 0}, {3, 2}, // R, B
+		{2, 0},         // R wins: 0,1,2,3,4 at y=0
+	}
+	for _, m := range moves {
+		_, err := s.ApplyMove(m.x, m.y)
 		require.NoError(t, err)
-		if i < 4 {
-			_, err = s.ApplyMove(i, 1)
-			require.NoError(t, err)
-		}
 	}
 	assert.True(t, s.IsGameOver())
 	_, err := s.ApplyMove(5, 5)

@@ -152,12 +152,10 @@ func (s *GameSession) DisposeAI() {
 
 func (s *GameSession) buildResponse() GameResponse {
 	cells := make([]CellResponse, 0, domain.BoardSize*domain.BoardSize)
-	for x := range domain.BoardSize {
-		for y := range domain.BoardSize {
-			cell := s.game.Board.GetCell(x, y)
-			if !cell.IsEmpty() {
-				cells = append(cells, CellResponse{X: x, Y: y, Player: cell.Player.String()})
-			}
+	for y := range domain.BoardSize {
+		for x := range domain.BoardSize {
+			player := s.game.Board.GetPlayerAt(x, y)
+			cells = append(cells, CellResponse{X: x, Y: y, Player: player.String()})
 		}
 	}
 
