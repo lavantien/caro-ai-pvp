@@ -25,9 +25,7 @@ public static partial class TacticalEvaluator
         var score = 0;
 
         // Check all 4 directions for patterns
-        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
-
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             // Count consecutive stones in both directions (for player)
             var count = 1;
@@ -106,7 +104,7 @@ public static partial class TacticalEvaluator
         }
 
         // Check blocking value (how much this blocks opponent)
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             var count = 1;
             var openEnds = 0;
@@ -185,9 +183,7 @@ public static partial class TacticalEvaluator
         var occupied = playerBitBoard | opponentBitBoard;
         var score = 0;
 
-        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
-
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             // Count consecutive stones in both directions (for player)
             var count = 1;
@@ -309,9 +305,8 @@ public static partial class TacticalEvaluator
         var occupied = playerBitBoard | opponentBitBoard;
 
         int maxGain = 0;
-        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
 
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             // Count consecutive stones after placing this stone
             var count = 1;
@@ -347,7 +342,7 @@ public static partial class TacticalEvaluator
         }
 
         // Add blocking value
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             var count = 1;
 

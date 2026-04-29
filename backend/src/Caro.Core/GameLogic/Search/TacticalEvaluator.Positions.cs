@@ -100,9 +100,8 @@ public static partial class TacticalEvaluator
         var playerBitBoard = board.GetBitBoard(player);
         var opponentBitBoard = board.GetBitBoard(opponent);
         var occupied = playerBitBoard | opponentBitBoard;
-        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
 
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             // Check if this move creates threat for player
             var playerCount = 1;
@@ -177,9 +176,7 @@ public static partial class TacticalEvaluator
         var opponentBitBoard = board.GetBitBoard(opponent);
         var occupied = playerBitBoard | opponentBitBoard;
 
-        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
-
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             // Check if this move creates threats for current player
             var count = 1; // Include the placed stone

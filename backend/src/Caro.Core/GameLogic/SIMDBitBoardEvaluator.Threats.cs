@@ -15,9 +15,7 @@ public static partial class SIMDBitBoardEvaluator
     private static int CountNewThreats(int x, int y, BitBoard playerBoard, BitBoard occupied)
     {
         int threats = 0;
-        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
-
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             var count = BitBoardEvaluator.CountConsecutiveBoth(playerBoard, x, y, dx, dy);
             var openEnds = BitBoardEvaluator.CountOpenEnds(playerBoard, occupied, x, y, dx, dy, count);
@@ -37,9 +35,8 @@ public static partial class SIMDBitBoardEvaluator
     private static int CountBlockedThreats(int x, int y, BitBoard opponentBoard, BitBoard occupied)
     {
         int blocked = 0;
-        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
 
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             // Check if this position blocks an opponent threat
             var count = BitBoardEvaluator.CountConsecutiveBoth(opponentBoard, x, y, dx, dy);

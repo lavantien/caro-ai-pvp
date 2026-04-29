@@ -26,9 +26,8 @@ public static partial class TacticalEvaluator
         playerBitBoard.SetBit(x, y, true);
 
         // Check all 4 directions for blocking patterns
-        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
 
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             // Count opponent consecutive stones if we DON'T block
             var count = 1;
@@ -106,8 +105,7 @@ public static partial class TacticalEvaluator
         var opponentBits = board.GetBitBoard(opponent);
         var threatCount = 0;
 
-        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             var count = 1;
             var openEnds = 0;
@@ -214,7 +212,7 @@ public static partial class TacticalEvaluator
 
         // Check for immediate threats (4-in-row, open 3s)
         // If there are threats, null-move is unsafe (might miss tactical sequences)
-        foreach (var (dx, dy) in new[] { (1, 0), (0, 1), (1, 1), (1, -1) })
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             for (int x = 0; x < BoardSize; x++)
             {
@@ -250,7 +248,7 @@ public static partial class TacticalEvaluator
         if (totalStones < 10) return false;
 
         // Check for immediate threats
-        foreach (var (dx, dy) in new[] { (1, 0), (0, 1), (1, 1), (1, -1) })
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             for (int x = 0; x < BoardSize; x++)
             {

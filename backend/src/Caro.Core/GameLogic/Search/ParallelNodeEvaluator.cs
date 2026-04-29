@@ -22,9 +22,7 @@ public static class ParallelNodeEvaluator
         var occupied = playerBitBoard | opponentBitBoard;
 
         // Check all 4 directions
-        var directions = new[] { (1, 0), (0, 1), (1, 1), (1, -1) };
-
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             // Count consecutive stones for player
             int count = 1;
@@ -80,7 +78,7 @@ public static class ParallelNodeEvaluator
         }
 
         // Check opponent threats we might block
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in GameConstants.CardinalDirections)
         {
             int count = 1;
             int openEnds = 0;
@@ -252,11 +250,14 @@ public static class ParallelNodeEvaluator
     }
 
     /// <summary>
-    /// Evaluate board position using scalar evaluator for consistency
-    /// SIMD evaluator has potential bugs that cause AI strength inversion
+    /// Evaluate board position using SIMD-accelerated evaluator.
+    /// Uses hardware POPCNT and run-length encoding for fast pattern scoring.
     /// </summary>
     public static int Evaluate(SearchBoard board, Player player)
     {
-        return BitBoardEvaluator.Evaluate(board, player);
+        var opponent = player == Player.Red ? Player.Blue : Player.Red;
+        return SIMDBitBoardEvaluator.EvaluateOptimized(
+            board.GetBitBoard(player),
+            board.GetBitBoard(opponent));
     }
 }

@@ -105,7 +105,7 @@ public static class QuickWinChecker
     public static List<(int x, int y)> FindOpenThreeBlocks(Board board, Player opponent)
     {
         var blocks = new List<(int x, int y)>();
-        var directions = new (int dx, int dy)[] { (1, 0), (0, 1), (1, 1), (1, -1) };
+        var directions = GameConstants.CardinalDirections;
 
         // Scan for open threes in all 4 directions
         for (int x = 0; x < BoardSize; x++)

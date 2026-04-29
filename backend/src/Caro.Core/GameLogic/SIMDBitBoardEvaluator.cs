@@ -130,7 +130,7 @@ public static partial class SIMDBitBoardEvaluator
                     {
                         // Score this run
                         bool leftOpen = (runStart > 0) && !occupied.GetBit(runStart - 1, y);
-                        bool rightOpen = (x < GameConstants.BoardSize - 1) && !occupied.GetBit(x, y);
+                        bool rightOpen = (x < GameConstants.BoardSize) && !occupied.GetBit(x, y);
 
                         score += ScoreRun(runLength, leftOpen, rightOpen);
                         runStart = -1;
@@ -184,7 +184,7 @@ public static partial class SIMDBitBoardEvaluator
                     {
                         // Score this run
                         bool topOpen = (runStart > 0) && !occupied.GetBit(x, runStart - 1);
-                        bool bottomOpen = (y < GameConstants.BoardSize - 1) && !occupied.GetBit(x, y);
+                        bool bottomOpen = (y < GameConstants.BoardSize) && !occupied.GetBit(x, y);
 
                         score += ScoreRun(runLength, topOpen, bottomOpen);
                         runStart = -1;
@@ -250,7 +250,7 @@ public static partial class SIMDBitBoardEvaluator
 
                 var openEnds = BitBoardEvaluator.CountOpenEnds(playerBoard, occupied, x, y, dx, dy, count);
 
-                if (count >= 5)
+                if (count == 5)
                 {
                     // Check sandwich rule
                     if (!BitBoardEvaluator.IsSandwichedFive(playerBoard, occupied, x, y, dx, dy))
@@ -274,7 +274,7 @@ public static partial class SIMDBitBoardEvaluator
     {
         int openEnds = (topOpen ? 1 : 0) + (bottomOpen ? 1 : 0);
 
-        if (count >= 5) return FiveInRowScore;
+        if (count == 5) return FiveInRowScore;
         if (count == 4) return openEnds > 0 ? OpenFourScore : ClosedFourScore;
         if (count == 3)
         {
