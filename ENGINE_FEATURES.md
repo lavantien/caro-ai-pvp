@@ -19,7 +19,8 @@ The engine follows principles from state-of-the-art game-playing systems:
 ### Performance Target
 
 - **Speedup:** 100-500x over naive minimax
-- **Parallelism:** Lazy SMP with power-of-2 threads (largest power of 2 <= logical_cores/2)
+- **Parallelism:** Lazy SMP with power-of-2 goroutines (largest power of 2 <= (GOMAXPROCS-2)/2)
+- **Runtime:** Go 1.26 with Green Tea GC, context.Context cancellation, channel-based concurrency
 
 ---
 
@@ -27,28 +28,29 @@ The engine follows principles from state-of-the-art game-playing systems:
 
 ### 2.1 Lazy SMP Parallel Search
 
-Lazy SMP is a parallel search paradigm where multiple threads explore the game tree independently, sharing work through the transposition table.
+Lazy SMP is a parallel search paradigm where multiple goroutines explore the game tree independently, sharing work through the transposition table.
 
 **Core Principle:**
-- Master thread performs full search with all pruning
-- Helper threads use parity-based depth offset (odd-indexed start at depth 2, even-indexed at depth 1) with TT sharing
-- Hash move priority enables cross-thread work distribution
+- Master goroutine performs full search with all pruning
+- Helper goroutines use parity-based depth offset (odd-indexed start at depth 2, even-indexed at depth 1) with TT sharing
+- Hash move priority enables cross-goroutine work distribution
 
-**Thread Distribution:**
-- Thread count: Largest power of 2 <= logical_cores/2 (e.g., 20 cores -> 8 threads)
-- Dedicated worker pool (PersistentWorkerPool) eliminates thread-startup overhead
-- Each thread maintains independent killer moves and history tables
+**Goroutine Distribution:**
+- Goroutine count: Largest power of 2 <= (GOMAXPROCS-2)/2 (e.g., 20 cores -> 8 goroutines)
+- Channel-based worker pool dispatched per-search (goroutines have ~2us startup, no persistent pool needed)
+- Each goroutine maintains independent killer moves and history tables
 - TT writes from helpers filtered to depth >= 3 (depth-age replacement handles entry quality)
 
 **Depth-Advantage Override:**
-- Helper threads reaching depth N+2 or deeper vs master's depth N preferred
+- Helper goroutines reaching depth N+2 or deeper vs master's depth N preferred
 - Deeper search is more reliable even if score differs
 - Prevents shallow master result from overriding deeper helper discoveries
 
 **Advantages:**
-- Persistent worker pool eliminates OS thread creation per move
+- Channel-based dispatch eliminates complex synchronization
 - No complex work distribution logic
 - TT naturally becomes shared knowledge base
+- context.Context provides clean cancellation
 
 ### 2.2 Principal Variation Search (PVS)
 
@@ -56,7 +58,7 @@ PVS is an enhancement to alpha-beta search that uses null-window searches to pro
 
 **Implementation Scope:**
 - Sequential path (MinimaxAI): Full PVS with null-window searches and re-searches
-- Parallel path (ParallelMinimaxSearch): Alpha-beta with Move-Dependent Adaptive Pruning (MDAP/LMR) and aspiration windows; traditional PVS not applied
+- Parallel path: Alpha-beta with Move-Dependent Adaptive Pruning (MDAP/LMR) and aspiration windows; traditional PVS not applied
 
 **Algorithm Structure (Sequential Path):**
 1. Search first move with full alpha-beta window
@@ -145,15 +147,15 @@ Primary TT used by `ParallelMinimaxSearch` for Lazy SMP multi-threaded search.
 
 **Shard Distribution:**
 - 16 independent segments
-- Hash-based index calculation: `shardIndex = (hash >> 32) & shardMask`
-- 32-byte padded entries (cache-line fraction alignment, reduces false sharing)
+- Hash-based index calculation: `shardIndex = (hash >> 32) & 0xF`
+- SeqLock pattern with atomic.Uint32 version counters
 - Reduces cache coherency traffic
 
-**Thread Access:**
+**Goroutine Access:**
 - SeqLock pattern with version counters for lockless reads
-- Each thread can access any shard
+- Each goroutine can access any shard
 - No locking required for read operations
-- Atomic version counter updates for writes
+- Atomic version counter updates for writes via sync/atomic
 
 ### 3.3 Entry Structure
 
@@ -177,8 +179,8 @@ SeqLock pattern with version counters enables parallel access without locks.
 
 ### 3.5 TT Write Policy
 
-Helper threads in Lazy SMP are filtered to only write TT entries at depth >= 3,
-preventing shallow/noisy entries from polluting the table. The master thread
+Helper goroutines in Lazy SMP are filtered to only write TT entries at depth >= 3,
+preventing shallow/noisy entries from polluting the table. The master goroutine
 writes at all depths. The depth-age replacement strategy handles entry quality
 naturally for entries that pass the filter.
 
@@ -440,13 +442,14 @@ Immutable board design with pre-computed AI optimization data.
 
 **Architecture:**
 - Board is immutable - operations return new instances
-- Cell uses record struct for value semantics
+- Cell uses struct with Player field for value semantics
 - Pre-computed bitboards and hash updated incrementally
 
 **Performance Optimization:**
-- BitBoards: `ulong[4]` arrays (256 bits for 16x16 board)
+- BitBoards: `uint64[4]` arrays (256 bits for 16x16 board)
 - Hash: Zobrist-style XOR updated on each move
-- O(1) access during AI search instead of O(n²) iteration
+- O(1) access during AI search instead of O(n^2) iteration
+- SIMD evaluation path via experimental simd/archsimd (build tag: goexperiment.simd)
 
 **Memory Layout:**
 ```
@@ -535,18 +538,19 @@ All shared data structures designed for concurrent access.
 - No shared mutable state in game logic
 
 **Thread-Safe Structures:**
-- TT with sharding and lockless access
-- Channels for async communication
-- Independent history tables per thread
+- TT with sharding and SeqLock access (sync/atomic)
+- Go channels for async communication
+- Independent history tables per goroutine
+- sync.Pool for SearchBoard reuse
 
 ### 8.2 Cancellation
 
-Coordinated search cancellation via CancellationTokenSource.
+Coordinated search cancellation via context.Context.
 
 **Mechanism:**
-- HTTP request CancellationToken propagated through GetBestMove to search dispatch
-- Linked token combines external cancellation with internal time-monitor
-- PersistentWorkerPool respects timeout via blocking wait
+- HTTP request context propagated through GetBestMove to search dispatch
+- Derived context combines external cancellation with internal time-monitor
+- Channel-based worker pool respects context cancellation
 - Clean termination on timeout, stop command, or client disconnect
 
 ### 8.3 Statistics Publishing
@@ -554,9 +558,9 @@ Coordinated search cancellation via CancellationTokenSource.
 Publisher-subscriber pattern for AI telemetry.
 
 **Components:**
-- Channel-based event queue
-- Async subscriber tasks
-- Non-blocking to search threads
+- Channel-based event queue (Go channels)
+- Goroutine subscribers
+- Non-blocking to search goroutines
 
 ---
 
@@ -581,7 +585,7 @@ Standard UCI commands for engine control:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| Threads | spin | MaxEngineThreads | Search threads (1-MaxEngineThreads; defaults to largest power of 2 <= ProcessorCount/2) |
+| Threads | spin | Pow2((N-2)/2) | Search goroutines (1-Max; defaults to largest power of 2 <= (GOMAXPROCS-2)/2) |
 | Hash | spin | 64 | TT size (MB) |
 | Ponder | check | false | Enable pondering |
 | Skill Level | spin | 5 | Difficulty 1-5 (1=Novice, 5=Grandmaster) |
@@ -590,18 +594,19 @@ Standard UCI commands for engine control:
 
 Hardware-agnostic difficulty via `DifficultyProfile` -- search parameters scale independently of machine speed.
 
-| Level | Name | Time Fraction | Threads | Pondering | Parallel | VCF |
-|-------|------|---------------|---------|-----------|----------|-----|
+| Level | Name | Time Fraction | Goroutines | Pondering | Parallel | VCF |
+|-------|------|---------------|------------|-----------|----------|-----|
 | 1 | Novice | 5% | 1 | No | No | No |
 | 2 | Beginner | 15% | 1 | No | No | No |
 | 3 | Intermediate | 40% | 2 | No | Yes | Yes |
-| 4 | Advanced | 70% | N/2 | No | Yes | Yes |
-| 5 | Grandmaster | 100% | MaxEngineThreads | Yes | Yes | Yes |
+| 4 | Advanced | 70% | Pow2((N-2)/2)/2 | No | Yes | Yes |
+| 5 | Grandmaster | 100% | Pow2((N-2)/2) | Yes | Yes | Yes |
 
 **How it works:**
 - `TimeFraction` (0.0-1.0): Post-PID multiplier on allocated search time. Level 1 uses 5% of allocated time; level 5 uses full budget.
 - `UseVCF`: Disabling the pre-search VCF solver removes tactical precision at low levels.
-- Thread count scales with difficulty: level 1-2 single-threaded, level 3 dual-threaded, level 4-5 adaptive to hardware (all capped at MaxEngineThreads).
+- Goroutine count scales with difficulty: level 1-2 single-goroutine, level 3 dual-goroutine, level 4-5 adaptive to hardware.
+- Level 4 uses half of L5's goroutine count (next power of 2 down).
 - Level 5 = full-strength engine with all optimizations.
 
 **Per-player difficulty:** The HTTP API accepts `redDifficulty` and `blueDifficulty` independently, allowing asymmetric matches (e.g., L5 vs L1).
@@ -617,79 +622,57 @@ Algebraic notation for Caro:
 
 ## 10. Source Code Organization
 
-### 10.1 Search Module (`GameLogic/Search/`)
+### 10.1 Package Layout (`internal/`)
 
-Extracted from the main search classes for cohesion and maintainability:
+| Package | Files | Responsibility |
+|---------|-------|---------------|
+| `internal/domain` | board.go, game.go, player.go, position.go, zobrist.go, win.go, constants.go, errors.go | Domain entities, game rules, no dependencies |
+| `internal/engine` | minimax.go, search.go, parallel.go, evaluation.go, evaluation_simd.go, evaluation_scalar.go, transposition.go, movepicker.go, candidate.go, vcf.go, heuristics.go, timemanager.go, timemonitor.go, difficulty.go, searchboard.go, bitboard.go | AI engine, search algorithms |
+| `internal/uci` | handler.go, notation.go, position.go, options.go | UCI protocol handling |
+| `internal/api` | server.go, handlers.go, websocket.go, session.go, store.go, requests.go, middleware.go, errors.go | HTTP/WebSocket API |
+| `internal/persistence` | gamelog.go, schema.sql | SQLite game logs |
 
-| File | Responsibility |
-|------|---------------|
-| `TacticalEvaluator.cs` | Tactical pattern detection (threats, futility, null-move safety) |
-| `CandidateGenerator.cs` | Candidate move generation with center-of-mass ordering |
-| `SearchHeuristics.cs` | Killer moves, history tables, butterfly tables |
-| `MoveOrderer.cs` | Staged move ordering with TT/killer/continuation scoring |
-| `QuickWinChecker.cs` | Pre-search tactical shortcuts (winning moves, forced blocks) |
-| `TimeBudgetCalculator.cs` | VCF time limits, ponder time, default allocation |
-| `ParallelThreatAnalyzer.cs` | Opponent threat detection for parallel search path |
-| `ParallelNodeEvaluator.cs` | Per-node tactical eval, adaptive LMR, winner checks |
-
-### 10.2 Centralized Constants (`Caro.Core.Domain/Configuration/`)
+### 10.2 Centralized Constants
 
 | File | Constants |
 |------|-----------|
-| `SearchConstants.cs` | MaxSearchRadius, TT size, null-move thresholds, aspiration window, killer/history limits |
-| `PruningConstants.cs` | Futility margins, LMR parameters, PVS depth threshold |
-| `MoveOrderingConstants.cs` | Staged picker score thresholds |
-| `EvaluationConstants.cs` | Pattern scores, defense multipliers |
-| `SearchHeuristicConstants.cs` | Threat scoring weights, alpha-beta/aspiration bounds, depth controls, time allocation ratios, VCF time thresholds |
-| `TimeConstants.cs` | TimeMonitor intervals, AsyncQueue capacity, UCI timeouts, SearchLogger rotation, Ponderer limits, DFPN/TSS defaults, HardBound buffers, memory/concurrency limits |
-| `TimeManagementConstants.cs` | Default time controls, PID controller weights, phase thresholds, adaptive scaling, emergency thresholds, multiplier adjustments |
-| `SearchOptions.cs` | Search parameter record: TimeFraction (0.0-1.0 with validation), UseVCF toggle |
+| `internal/domain/constants.go` | BoardSize, WinLength, directions, cell counts |
+| `internal/engine/search.go` | MaxSearchRadius, TT size, null-move thresholds, aspiration window, killer/history limits |
+| `internal/engine/movepicker.go` | Staged picker score thresholds |
+| `internal/engine/evaluation.go` | Pattern scores, defense multipliers |
+| `internal/engine/timemanager.go` | Default time controls, PID controller weights, phase thresholds |
+| `internal/engine/difficulty.go` | L1-L5 difficulty profiles, goroutine counts |
 
-### 10.3 Main Search Classes
+### 10.3 Main Engine Files
 
-Decomposed into partial class files (all ≤ 400 lines):
+**internal/engine/** (all files <= 400 SLOC):
 
-**MinimaxAI** (sequential search):
 | File | Role |
 |------|------|
-| `MinimaxAI.cs` | Class definition, constructor, public API |
-| `MinimaxAI.Helpers.cs` | Shared utilities and helper methods |
-| `MinimaxAI.MoveSelection.cs` | Top-level move selection orchestration |
-| `MinimaxAI.MoveSelection.Attack.cs` | Winning/threat-creation attack moves |
-| `MinimaxAI.MoveSelection.Defense.cs` | Blocking and defensive moves |
-| `MinimaxAI.MoveSelection.PonderHit.cs` | Ponder hit detection and reuse |
-| `MinimaxAI.MoveSelection.SearchDispatch.cs` | Search invocation and result handling |
-| `MinimaxAI.MoveSelection.ThreatBlocking.cs` | Threat-based forced blocking |
-| `MinimaxAI.Search.cs` | Search orchestration, iterative deepening |
-| `MinimaxAI.Search.Core.cs` | Core PVS alpha-beta search |
-| `MinimaxAI.Search.Minimax.cs` | Full-width minimax with LMR |
-| `MinimaxAI.Stats.cs` | Statistics and telemetry |
+| `minimax.go` | MinimaxAI struct definition, constructor, public API, Dispose |
+| `search.go` | Iterative deepening, PVS alpha-beta, LMR, null-move pruning |
+| `parallel.go` | Lazy SMP goroutine pool dispatch, result aggregation |
+| `evaluation.go` | Evaluation interface, scoring system, Pattern4 |
+| `evaluation_simd.go` | SIMD vectorized eval (build tag: goexperiment.simd) |
+| `evaluation_scalar.go` | Scalar eval fallback (default) |
+| `transposition.go` | Sharded SeqLock TT with atomic.Uint32 version counters |
+| `movepicker.go` | Staged move ordering (7 stages) |
+| `candidate.go` | Candidate generation with center-of-mass ordering |
+| `vcf.go` | VCF solver (20% of allocated time, cached) |
+| `heuristics.go` | Killer moves, continuation/butterfly history |
+| `timemanager.go` | PID time management, phase-aware allocation |
+| `timemonitor.go` | context.Context-based search time monitoring |
+| `difficulty.go` | Hardware-agnostic L1-L5 difficulty profiles |
+| `searchboard.go` | Mutable board for search hot path (make/unmake, zero allocation) |
+| `bitboard.go` | BitBoard type with uint64 operations (math/bits) |
 
-**ParallelMinimaxSearch** (Lazy SMP):
+**UCI Package** (`internal/uci/`):
 | File | Role |
 |------|------|
-| `ParallelMinimaxSearch.cs` | Class definition, thread data, PersistentWorkerPool, Dispose |
-| `ParallelMinimaxSearch.Orchestration.cs` | Entry points: GetBestMove, GetBestMoveWithStats |
-| `ParallelMinimaxSearch.Orchestration.SearchLazySMP.cs` | Lazy SMP via PersistentWorkerPool dispatch |
-| `ParallelMinimaxSearch.Orchestration.IterativeDeepening.cs` | Time-aware iterative deepening |
-| `ParallelMinimaxSearch.Search.cs` | Parallel alpha-beta with adaptive LMR |
-| `ParallelMinimaxSearch.Search.Quiesce.cs` | Quiescence search |
-| `ParallelMinimaxSearch.MoveOrdering.cs` | Move ordering with killer/history scoring |
-| `ParallelMinimaxSearch.MoveOrdering.Helpers.cs` | Candidate generation, legacy sort helpers |
-| `ParallelMinimaxSearch.Pondering.cs` | Ponder search and hit detection |
-
-**Other:**
-| File | Role |
-|------|------|
-| `DifficultyProfile.cs` | Hardware-agnostic L1-L5 difficulty mapping (thread counts capped at MaxEngineThreads) |
-| `IterativeDeepeningSearch.cs` | Iterative deepening driver for sequential path |
-
-**UCI Module** (`GameLogic/UCI/`):
-| File | Role |
-|------|------|
-| `UCIEngineOptions.cs` | Engine options including Skill Level |
-| `UCISearchController.cs` | Bridges UCI go params to MinimaxAI search |
-| `UCIMoveNotation.cs` | Double-letter coordinate encoding/decoding |
+| `handler.go` | UCI command dispatcher, search controller |
+| `notation.go` | Double-letter coordinate encoding/decoding |
+| `position.go` | Position string parsing |
+| `options.go` | Engine options (Threads, Hash, Ponder, Skill Level) |
 
 ---
 
