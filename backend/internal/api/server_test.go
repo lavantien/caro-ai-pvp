@@ -15,7 +15,7 @@ import (
 
 func newTestServer() *httptest.Server {
 	store := NewInMemoryStore()
-	handler := NewHandler(store)
+	handler := NewHandler(store, nil)
 	srv := NewServer(handler, slog.New(slog.NewTextHandler(os.Stderr, nil)))
 	return httptest.NewServer(srv)
 }

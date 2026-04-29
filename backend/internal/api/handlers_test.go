@@ -13,7 +13,7 @@ import (
 )
 
 func testHandler() *Handler {
-	return NewHandler(NewInMemoryStore())
+	return NewHandler(NewInMemoryStore(), nil)
 }
 
 func decodeResponse(t *testing.T, w *httptest.ResponseRecorder) map[string]any {

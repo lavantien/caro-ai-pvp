@@ -2,12 +2,14 @@ package main
 
 import (
 	"caro-ai-pvp/internal/api"
+	"caro-ai-pvp/internal/persistence"
 	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/debug"
 	"syscall"
 	"time"
@@ -18,7 +20,18 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	store := api.NewInMemoryStore()
-	handler := api.NewHandler(store)
+
+	dbPath := filepath.Join(".", "data", "matches.db")
+	if v := os.Getenv("MATCH_DB_PATH"); v != "" {
+		dbPath = v
+	}
+	matchStore, err := persistence.NewMatchStore(dbPath)
+	if err != nil {
+		logger.Error("failed to open match database", "err", err, "path", dbPath)
+		os.Exit(1)
+	}
+
+	handler := api.NewHandler(store, matchStore)
 	server := api.NewServer(handler, logger)
 
 	httpServer := &http.Server{
@@ -61,6 +74,7 @@ func main() {
 	if remaining > 0 {
 		logger.Info("shutdown cleanup", "remaining", remaining)
 	}
+	matchStore.Close()
 
 	fmt.Println("Server stopped")
 }
