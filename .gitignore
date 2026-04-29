@@ -31,6 +31,13 @@ test_tt.cs
 *.db-shm
 *.db-wal
 
+# Coverage artifacts
+backend/coverage.out
+frontend/coverage/
+
+# Test output
+frontend/test-results.json
+
 # Match database
 backend/data/
 .playwright-mcp/

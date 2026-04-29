@@ -1,5 +1,8 @@
 # Caro AI PvP
 
+![Backend Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/lavantien/caro-ai-pvp/main/coverage/backend.json)
+![Frontend Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/lavantien/caro-ai-pvp/main/coverage/frontend.json)
+
 A full-strength Caro (Gomoku variant) AI, built with Go 1.26, SvelteKit 2.49+ with Svelte 5 Runes.
 
 Features hardware-agnostic difficulty levels (L1 Novice through L5 Grandmaster) for balanced play across machines.
@@ -204,7 +207,7 @@ README.md (Entry Point)
 
 ```bash
 # All tests with race detector
-cd backend && CGO_ENABLED=1 go test -tags "sqlite_fts5" -race ./...
+cd backend && CGO_ENABLED=1 go test -race ./...
 
 # Specific packages
 go test ./internal/domain/...
@@ -425,6 +428,14 @@ Backend: http://localhost:5207 | Frontend: http://localhost:5173
 | `node scripts/capture-screenshot.mjs` | Full E2E: AI vs AI match, screenshot, update README |
 | `node scripts/simulate-match.mjs` | AI vs AI match via HTTP API with per-player difficulty (`--red N --blue N`) |
 | `node scripts/run-tournament.mjs` | Self-contained N-game tournament with color swap and aggregate stats (`--games N --red N --blue N --tc TIME`) |
+
+### Coverage
+
+```bash
+make coverage           # Run both backend and frontend coverage, update badges
+make backend-coverage   # Backend only (Go test -coverprofile)
+make frontend-coverage  # Frontend only (Vitest v8 coverage)
+```
 
 ---
 

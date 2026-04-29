@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [6.3.0] - 2026-04-30
+
+### Added
+- Root Makefile with `backend-coverage`, `frontend-coverage`, and `coverage` targets
+- Coverage badges in README (shields.io endpoint badges reading from `coverage/*.json`)
+- `scripts/coverage-badge.sh` helper to generate shields.io endpoint JSON
+- `@vitest/coverage-v8` dev dependency for frontend coverage reporting
+- `json-summary` reporter in vitest config for total coverage extraction
+
+### Changed
+- Frontend package version aligned to project version (6.3.0)
+- Removed unnecessary `-tags "sqlite_fts5"` from test command (FTS5 is default in go-sqlite3)
+
+### Removed
+- Stale `nul` and `test_tt.cs` temp files from root
+- `frontend/test-results.json` from version control (added to .gitignore)
+
+[6.3.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.3.0
+
 ## [6.2.0] - 2026-04-29
 
 ### Added
@@ -61,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - GO_ONBOARDING.md: Go 1.26 idioms, project conventions, testing patterns
 - 80+ tests across 5 packages (domain 39, engine, uci 6, api 29, persistence 6) with race detector
-- FTS5 build tag requirement: `go test -tags "sqlite_fts5" -race ./...`
+- FTS5 full-text search via mattn/go-sqlite3 (CGO_ENABLED=1)
 
 [6.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.0.0
 
