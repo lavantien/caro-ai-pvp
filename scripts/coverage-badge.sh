@@ -8,7 +8,8 @@ pct="$2"
 outfile="$3"
 
 color=$(awk "BEGIN{
-	if($pct>=90)print \"#673ab7\";
+	if($pct>=100)print \"#673ab7\";
+	else if($pct>=90)print \"blue\";
 	else if($pct>=80)print \"#00bcd4\";
 	else if($pct>=70)print \"green\";
 	else if($pct>=60)print \"orange\";
