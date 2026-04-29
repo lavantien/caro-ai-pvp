@@ -298,49 +298,42 @@ export class UCIEngine {
 }
 
 /**
- * Convert (x, y) coordinates to UCI notation.
+ * Convert (x, y) coordinates to algebraic notation.
  * x: 0-15 (column), y: 0-15 (row)
- * Uses double-letter grid format: column = firstLetterIndex * 4 + secondLetterIndex
- * - First letter: 'a'-'d' (0-3), Second letter: 'a'-'d' (0-3)
- * Returns UCI notation like "bb9" for center (7, 8).
+ * Returns notation like "h8" for center (7, 7).
  */
 export function toUCI(x: number, y: number): string {
 	const maxIndex = UCIConfig.maxRow - 1;
 	if (x < 0 || x > maxIndex || y < 0 || y > maxIndex) {
 		throw new Error(`Coordinates out of bounds: (${x}, ${y})`);
 	}
-	const firstLetter = Math.floor(x / UCIConfig.letterGroupSize);
-	const secondLetter = x % UCIConfig.letterGroupSize;
-	const column = String.fromCharCode(UCIConfig.asciiLowerA + firstLetter) + String.fromCharCode(UCIConfig.asciiLowerA + secondLetter);
+	const column = String.fromCharCode(UCIConfig.asciiLowerA + x);
 	const row = y + UCIConfig.minRow;
 	return `${column}${row}`;
 }
 
 /**
- * Convert UCI notation to (x, y) coordinates.
- * UCI notation like "bb9" becomes (7, 8).
- * Uses double-letter grid format: column = firstLetterIndex * 4 + secondLetterIndex
+ * Convert algebraic notation to (x, y) coordinates.
+ * Notation like "h8" becomes (7, 7).
  */
 export function fromUCI(move: string): { x: number; y: number } {
-	if (!move || move.length < UCIConfig.minMoveLength) {
-		throw new Error(`Invalid UCI move: ${move} (expected double-letter column)`);
+	if (!move || move.length < 2) {
+		throw new Error(`Invalid move: ${move}`);
 	}
 
 	move = move.toLowerCase();
-	const col1 = move[0];
-	const col2 = move[1];
-	const rowPart = move.substring(UCIConfig.minMoveLength - 1);
+	const col = move[0];
 
-	if (!/[a-d]/.test(col1) || !/[a-d]/.test(col2)) {
-		throw new Error(`Invalid column in UCI move: ${move} (first letter a-d, second letter a-d)`);
+	if (!/[a-p]/.test(col)) {
+		throw new Error(`Invalid column in move: ${move} (expected a-p)`);
 	}
 
-	const row = parseInt(rowPart, 10);
+	const row = parseInt(move.substring(1), 10);
 	if (isNaN(row) || row < UCIConfig.minRow || row > UCIConfig.maxRow) {
-		throw new Error(`Invalid row in UCI move: ${move}`);
+		throw new Error(`Invalid row in move: ${move}`);
 	}
 
-	const x = (col1.charCodeAt(0) - UCIConfig.asciiLowerA) * UCIConfig.letterGroupSize + (col2.charCodeAt(0) - UCIConfig.asciiLowerA);
+	const x = col.charCodeAt(0) - UCIConfig.asciiLowerA;
 	const y = row - UCIConfig.minRow;
 
 	return { x, y };

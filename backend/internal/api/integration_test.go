@@ -56,7 +56,7 @@ func TestIntegrationFullGameFlow(t *testing.T) {
 	gameID := decodeGameID(t, body)
 
 	// 2. Make moves to create a winning line: Red plays (3,0)-(7,0), Blue plays (0,0)-(6,1)
-	// Open Rule: Red's second move (6,0) must be Manhattan distance >= 3 from first move (3,0)
+	// Open Rule: Red's second move (6,0) must be outside 5x5 zone from first move (3,0)
 	moves := []struct {
 		x, y int
 	}{

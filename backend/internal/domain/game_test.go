@@ -84,8 +84,8 @@ func TestGameStateOpenRuleViolation(t *testing.T) {
 	// Blue's first move
 	g3, err := g2.WithMove(0, 0)
 	require.NoError(t, err)
-	// Red's second move too close (Manhattan distance 2)
-	_, err = g3.WithMove(9, 9)
+	// Red's second move inside 5x5 zone (Chebyshev distance 2)
+	_, err = g3.WithMove(10, 9)
 	assert.ErrorIs(t, err, ErrOpenRule)
 }
 
@@ -97,8 +97,8 @@ func TestGameStateOpenRuleValid(t *testing.T) {
 	// Blue's first move
 	g3, err := g2.WithMove(0, 0)
 	require.NoError(t, err)
-	// Red's second move far enough (Manhattan distance 3)
-	g4, err := g3.WithMove(10, 9)
+	// Red's second move outside 5x5 zone (Chebyshev distance 3)
+	g4, err := g3.WithMove(11, 8)
 	require.NoError(t, err)
 	assert.Equal(t, PlayerBlue, g4.CurrentPlayer)
 }
@@ -109,9 +109,9 @@ func TestGameStateOpenRuleNotAppliedAfterMoreMoves(t *testing.T) {
 	g2, _ := g.WithMove(8, 8)
 	// Blue move 1
 	g3, _ := g2.WithMove(0, 0)
-	// Red move 2 (far enough)
-	g4, _ := g3.WithMove(10, 9)
+	// Red move 2 (outside 5x5 zone)
+	g4, _ := g3.WithMove(11, 8)
 	// Blue move 2 - close to red move 2 is fine
-	_, err := g4.WithMove(10, 10)
+	_, err := g4.WithMove(11, 9)
 	assert.NoError(t, err)
 }

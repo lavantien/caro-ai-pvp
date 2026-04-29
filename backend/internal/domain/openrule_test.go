@@ -13,9 +13,10 @@ func TestOpenRuleFirstMove(t *testing.T) {
 
 func TestOpenRuleSecondRedMove(t *testing.T) {
 	b := NewBoard().PlaceStone(8, 8, PlayerRed)
-	assert.False(t, IsValidSecondMove(b, 9, 9), "too close to first red move")
-	assert.True(t, IsValidSecondMove(b, 10, 9), "distance 3, valid")
-	assert.True(t, IsValidSecondMove(b, 11, 8), "distance 3, valid")
+	assert.False(t, IsValidSecondMove(b, 9, 9), "inside 5x5 zone")
+	assert.False(t, IsValidSecondMove(b, 10, 9), "inside 5x5 zone")
+	assert.True(t, IsValidSecondMove(b, 11, 8), "outside 5x5 zone")
+	assert.True(t, IsValidSecondMove(b, 8, 11), "outside 5x5 zone")
 	assert.True(t, IsValidSecondMove(b, 0, 0), "far away, valid")
 }
 
@@ -23,6 +24,7 @@ func TestOpenRuleAfterBlueMove(t *testing.T) {
 	b := NewBoard().
 		PlaceStone(8, 8, PlayerRed).
 		PlaceStone(0, 0, PlayerBlue)
-	assert.False(t, IsValidSecondMove(b, 9, 9), "open rule applies even after blue has played")
-	assert.True(t, IsValidSecondMove(b, 10, 9), "far enough after blue move is valid")
+	assert.False(t, IsValidSecondMove(b, 9, 9), "inside 5x5 zone even after blue has played")
+	assert.False(t, IsValidSecondMove(b, 10, 9), "inside 5x5 zone")
+	assert.True(t, IsValidSecondMove(b, 11, 8), "outside 5x5 zone after blue move is valid")
 }

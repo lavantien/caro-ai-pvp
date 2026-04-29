@@ -12,13 +12,19 @@
 		onMove: (x: number, y: number) => void;
 		winningLine?: Array<{ x: number; y: number }>;
 		lastMove?: { x: number; y: number } | null;
+		openRuleInvalid?: Set<string>;
 	}
 
-	let { board, onMove, winningLine = [], lastMove = null }: Props = $props();
+	let { board, onMove, winningLine = [], lastMove = null, openRuleInvalid = new Set<string>() }: Props = $props();
 
 	let ghostPosition = $state<{ x: number; y: number } | null>(null);
 	let cellSize = $state(computeCellSize(typeof window !== 'undefined' ? window.innerWidth : 1024));
 	let boardEl: HTMLDivElement | undefined = $state();
+
+	const labelSize = $derived(Math.max(cellSize * 0.55, 14));
+	const labelFont = $derived(`${labelSize * 0.75}px`);
+	const cols = $derived(Array.from({ length: GameConfig.boardSize }, (_, i) => String.fromCharCode(97 + i)));
+	const rows = $derived(Array.from({ length: GameConfig.boardSize }, (_, i) => i + 1));
 
 	function handleCellClick(x: number, y: number) {
 		const cell = board[y * GameConfig.boardSize + x];
@@ -69,26 +75,60 @@
 </script>
 
 <div class="w-full max-w-[1024px] mx-auto" bind:this={boardEl}>
-	<div class="relative">
+	<div class="relative inline-block">
+		<!-- Outer wrapper: labels + grid -->
 		<div
-			class="grid gap-0 bg-amber-100 rounded-lg shadow-lg touch-none select-none"
-			style="display: grid; grid-template-columns: repeat({GameConfig.boardSize}, {cellSize}px); grid-template-rows: repeat({GameConfig.boardSize}, {cellSize}px); width: {GameConfig.boardSize * cellSize}px; height: {GameConfig.boardSize * cellSize}px;"
-			ontouchmove={handleTouchMove}
-			ontouchend={() => (ghostPosition = null)}
+			class="grid gap-0 touch-none select-none"
+			style="display: grid; grid-template-columns: {labelSize}px repeat({GameConfig.boardSize}, {cellSize}px) {labelSize}px; grid-template-rows: {labelSize}px repeat({GameConfig.boardSize}, {cellSize}px) {labelSize}px;"
 		>
-			{#each board as cell}
-				<CellComponent
-					x={cell.x}
-					y={cell.y}
-					player={cell.player}
-					isLastMove={lastMove !== null && cell.x === lastMove.x && cell.y === lastMove.y}
-					{cellSize}
-					onclick={() => handleCellClick(cell.x, cell.y)}
-					onkeydown={(e) => e.key === 'Enter' && handleCellClick(cell.x, cell.y)} />
+			<!-- Top-left corner -->
+			<div></div>
+			<!-- Top column labels -->
+			{#each cols as col, i}
+				<div class="flex items-center justify-center text-gray-400 font-mono" style="font-size: {labelFont};">{col}</div>
 			{/each}
+			<!-- Top-right corner -->
+			<div></div>
+
+			<!-- Board rows with row labels -->
+			{#each rows as row, y}
+				<!-- Left row label -->
+				<div class="flex items-center justify-center text-gray-400 font-mono" style="font-size: {labelFont};">{row}</div>
+				<!-- Board cells for this row -->
+				{#each cols as _, x}
+					{@const cell = board[y * GameConfig.boardSize + x]}
+					{@const key = `${x},${y}`}
+					<CellComponent
+						x={x}
+						y={y}
+						player={cell.player}
+						isLastMove={lastMove !== null && x === lastMove.x && y === lastMove.y}
+						isOpenRuleInvalid={openRuleInvalid.has(key)}
+						{cellSize}
+						onclick={() => handleCellClick(x, y)}
+						onkeydown={(e) => e.key === 'Enter' && handleCellClick(x, y)} />
+				{/each}
+				<!-- Right row label -->
+				<div class="flex items-center justify-center text-gray-400 font-mono" style="font-size: {labelFont};">{row}</div>
+			{/each}
+
+			<!-- Bottom-left corner -->
+			<div></div>
+			<!-- Bottom column labels -->
+			{#each cols as col, i}
+				<div class="flex items-center justify-center text-gray-400 font-mono" style="font-size: {labelFont};">{col}</div>
+			{/each}
+			<!-- Bottom-right corner -->
+			<div></div>
 		</div>
 
-		<WinningLine winningLine={winningLine} boardSize={GameConfig.boardSize} {cellSize} />
+		<!-- Board background overlay for rounded corners and shadow -->
+		<div
+			class="absolute bg-amber-100 rounded-lg shadow-lg pointer-events-none -z-10"
+			style="left: {labelSize}px; top: {labelSize}px; width: {GameConfig.boardSize * cellSize}px; height: {GameConfig.boardSize * cellSize}px;"
+		></div>
+
+		<WinningLine winningLine={winningLine} boardSize={GameConfig.boardSize} {cellSize} {labelSize} />
 
 		{#if ghostPosition}
 			<div

@@ -3,12 +3,10 @@ import { GameConfig } from './gameConfig';
 
 /**
  * Centralized UCI protocol configuration - coordinate system and defaults.
+ * Uses simple algebraic notation: columns a-p, rows 1-16.
  */
 
 export const UCIConfig = {
-	/** Number of columns per letter group in double-letter notation */
-	letterGroupSize: 4,
-
 	/** ASCII code for lowercase 'a' (coordinate origin) */
 	asciiLowerA: 97,
 
@@ -17,9 +15,6 @@ export const UCIConfig = {
 
 	/** Maximum valid row number (1-based) */
 	maxRow: GameConfig.boardSize,
-
-	/** Minimum UCI move string length */
-	minMoveLength: 3,
 
 	/** Default time per player in milliseconds (3 minutes) */
 	defaultTimeMs: 180000,

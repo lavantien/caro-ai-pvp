@@ -32,5 +32,5 @@ func IsValidSecondMove(b Board, x, y int) bool {
 	if dy < 0 {
 		dy = -dy
 	}
-	return dx+dy >= OpenRuleMin
+	return dx >= OpenRuleMin || dy >= OpenRuleMin
 }

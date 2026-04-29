@@ -79,7 +79,7 @@ func FilterOpenRule(candidates []domain.Position, sb *SearchBoard, player domain
 		if dy < 0 {
 			dy = -dy
 		}
-		if dx+dy >= domain.OpenRuleMin {
+		if dx >= domain.OpenRuleMin || dy >= domain.OpenRuleMin {
 			filtered = append(filtered, c)
 		}
 	}

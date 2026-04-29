@@ -6,10 +6,11 @@
 		player: Player;
 		timeRemaining: number;
 		isActive: boolean;
+		label?: string;
 		onTimeOut?: () => void;
 	}
 
-	let { player, isActive, onTimeOut, timeRemaining: propTimeRemaining }: Props = $props();
+	let { player, isActive, onTimeOut, label = '', timeRemaining: propTimeRemaining }: Props = $props();
 
 	let serverTimeBase = $state(0);
 	let serverTimeTimestamp = $state(Date.now());
@@ -66,6 +67,9 @@
 	<span class="text-sm font-semibold {player === 'red' ? 'text-red-700' : 'text-blue-700'}">
 		{player === 'red' ? 'Red' : 'Blue'}
 	</span>
+	{#if label}
+		<span class="text-xs text-gray-500 font-medium">{label}</span>
+	{/if}
 	<span
 		class="text-lg font-mono font-bold ml-auto {isLowTime && isActive
 			? 'text-red-500 animate-pulse'

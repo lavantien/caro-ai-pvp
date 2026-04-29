@@ -10,16 +10,17 @@
 		winningLine: Position[];
 		boardSize: number;
 		cellSize: number;
+		labelSize?: number;
 	}
 
-	let { winningLine, boardSize, cellSize }: Props = $props();
+	let { winningLine, boardSize, cellSize, labelSize = 0 }: Props = $props();
 
 	const svgWidth = $derived(boardSize * cellSize);
 	const svgHeight = $derived(boardSize * cellSize);
 </script>
 
 {#if winningLine.length >= 2}
-	<div class="absolute inset-0 pointer-events-none" style="width: {svgWidth}px; height: {svgHeight}px;">
+	<div class="absolute pointer-events-none" style="left: {labelSize}px; top: {labelSize}px; width: {svgWidth}px; height: {svgHeight}px;">
 		<svg width={svgWidth} height={svgHeight} class="w-full h-full">
 			<line
 				x1={winningLine[0].x * cellSize + cellSize / 2}

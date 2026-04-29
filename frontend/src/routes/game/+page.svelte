@@ -12,6 +12,7 @@
 	import { switchPlayer } from '$lib/types/game';
 	import type { Player, Cell } from '$lib/types/game';
 	import type { GameMode, TimeControl, UCIConnectionStatus, DifficultyLevel } from '$lib/types/game';
+	import { difficultyName } from '$lib/types/game';
 
 	let store = new GameStore();
 	let gameId = $state<string>('');
@@ -33,6 +34,38 @@
 
 	let useUCIForAI = $state(false);
 	let uciConnectionStatus = $state<UCIConnectionStatus>('disconnected');
+
+	let redDifficulty = $state<number | null>(null);
+	let blueDifficulty = $state<number | null>(null);
+
+	const openRuleInvalid = $derived(() => {
+		if (store.currentPlayer !== 'red' || store.moveNumber !== 1) return new Set<string>();
+		let redCount = 0;
+		let blueCount = 0;
+		let firstRedX = 0, firstRedY = 0;
+		for (const cell of store.board) {
+			if (cell.player === 'red') { redCount++; firstRedX = cell.x; firstRedY = cell.y; }
+			else if (cell.player === 'blue') { blueCount++; }
+		}
+		if (redCount !== 1 || blueCount > 1) return new Set<string>();
+		const invalid = new Set<string>();
+		for (const cell of store.board) {
+			if (cell.player !== 'none') continue;
+			const dx = Math.abs(cell.x - firstRedX);
+			const dy = Math.abs(cell.y - firstRedY);
+			if (dx < 3 && dy < 3) invalid.add(`${cell.x},${cell.y}`);
+		}
+		return invalid;
+	});
+
+	function aiLabel(side: 'red' | 'blue'): string {
+		if (gameMode === 'pvp') return '';
+		const diff = side === 'red' ? redDifficulty : blueDifficulty;
+		if (diff == null) return '';
+		if (gameMode === 'aivai') return `AI (${difficultyName(diff as DifficultyLevel)})`;
+		if (gameMode === 'pvai' && aiSide === side) return `AI (${difficultyName(diff as DifficultyLevel)})`;
+		return '';
+	}
 
 	function showError(msg: string) {
 		errorMessage = msg;
@@ -80,6 +113,12 @@
 		if (state.winningLine) {
 			winningLine = state.winningLine;
 		}
+		if (state.redDifficulty != null) {
+			redDifficulty = state.redDifficulty;
+		}
+		if (state.blueDifficulty != null) {
+			blueDifficulty = state.blueDifficulty;
+		}
 	}
 
 	function handleGameEnd(winner: 'red' | 'blue') {
@@ -106,6 +145,8 @@
 			winningLine = [];
 			lastMove = null;
 			isAiThinking = false;
+			redDifficulty = null;
+			blueDifficulty = null;
 
 			const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.newGame}`, {
 				method: 'POST',
@@ -380,17 +421,19 @@
 			player="blue"
 			timeRemaining={blueTime}
 			isActive={store.currentPlayer === 'blue' && !store.isGameOver}
-			onTimeOut={() => handleTimeOut('blue')} />
+			onTimeOut={() => handleTimeOut('blue')}
+			label={aiLabel('blue')} />
 
 		<!-- Board -->
-		<Board board={store.board} onMove={handleMove} {winningLine} {lastMove} />
+		<Board board={store.board} onMove={handleMove} {winningLine} {lastMove} openRuleInvalid={openRuleInvalid()} />
 
 		<!-- Player timer (bottom) -->
 		<PlayerTimerStrip
 			player="red"
 			timeRemaining={redTime}
 			isActive={store.currentPlayer === 'red' && !store.isGameOver}
-			onTimeOut={() => handleTimeOut('red')} />
+			onTimeOut={() => handleTimeOut('red')}
+			label={aiLabel('red')} />
 
 		<!-- Move notation -->
 		<MoveNotation moves={store.moveHistory} currentMoveNumber={store.moveNumber} />
