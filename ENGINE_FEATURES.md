@@ -28,29 +28,30 @@ The engine follows principles from state-of-the-art game-playing systems:
 
 ### 2.1 Lazy SMP Parallel Search
 
-Lazy SMP is a parallel search paradigm where multiple goroutines explore the game tree independently, sharing work through the transposition table.
+Lazy SMP with all-equal goroutines — no master/slave split. Each worker pulls depth iterations from a shared channel and runs a full `searchRoot` independently.
 
 **Core Principle:**
-- Master goroutine performs full search with all pruning
-- Helper goroutines use parity-based depth offset (odd-indexed start at depth 2, even-indexed at depth 1) with TT sharing
-- Hash move priority enables cross-goroutine work distribution
+- All goroutines are identical: same search board, fresh local TT, fresh heuristics
+- A single job channel feeds depth iterations (1, 2, 3, ...) to workers
+- Workers pull the next depth and execute a complete search independently
+- Best move selected by deepest completed depth; ties broken by score
 
 **Goroutine Distribution:**
 - Goroutine count: Largest power of 2 <= (GOMAXPROCS-2)/2 (e.g., 20 cores -> 8 goroutines)
 - Channel-based worker pool dispatched per-search (goroutines have ~2us startup, no persistent pool needed)
-- Each goroutine maintains independent killer moves and history tables
-- TT writes from helpers filtered to depth >= 3 (depth-age replacement handles entry quality)
+- Each goroutine maintains independent TT, killer moves, and history tables
+- TT hit rate computed as (mean + median) / 2 across all workers' local TTs
 
-**Depth-Advantage Override:**
-- Helper goroutines reaching depth N+2 or deeper vs master's depth N preferred
-- Deeper search is more reliable even if score differs
-- Prevents shallow master result from overriding deeper helper discoveries
+**Result Selection:**
+- Deepest completed depth wins
+- Score breaks ties at same depth
+- Workers that complete more depths naturally contribute more results
 
 **Advantages:**
 - Channel-based dispatch eliminates complex synchronization
-- No complex work distribution logic
-- TT naturally becomes shared knowledge base
+- No master/slave coordination overhead
 - context.Context provides clean cancellation
+- Per-worker TT avoids false sharing between goroutines
 
 ### 2.2 Principal Variation Search (PVS)
 
@@ -141,9 +142,9 @@ Used by `MinimaxAI` for single-threaded (sequential) search path.
 - Higher priority entries are kept
 - Age increments per search iteration
 
-### 3.2 LockFreeTranspositionTable (ParallelMinimaxSearch)
+### 3.2 SeqLock Sharded TranspositionTable
 
-Primary TT used by `ParallelMinimaxSearch` for Lazy SMP multi-threaded search.
+Single TT implementation used by both sequential and parallel search paths. In parallel search, each worker uses its own local TT instance.
 
 **Shard Distribution:**
 - 16 independent segments
@@ -151,11 +152,10 @@ Primary TT used by `ParallelMinimaxSearch` for Lazy SMP multi-threaded search.
 - SeqLock pattern with atomic.Uint32 version counters
 - Reduces cache coherency traffic
 
-**Goroutine Access:**
-- SeqLock pattern with version counters for lockless reads
-- Each goroutine can access any shard
-- No locking required for read operations
-- Atomic version counter updates for writes via sync/atomic
+**Stats Tracking:**
+- `probes` and `hits` atomic counters for hit rate computation
+- Sequential path: single TT tracks probes/hits directly
+- Parallel path: each worker has independent TT; hit rate = (mean + median) / 2 across workers
 
 ### 3.3 Entry Structure
 
@@ -179,10 +179,9 @@ SeqLock pattern with version counters enables parallel access without locks.
 
 ### 3.5 TT Write Policy
 
-Helper goroutines in Lazy SMP are filtered to only write TT entries at depth >= 3,
-preventing shallow/noisy entries from polluting the table. The master goroutine
-writes at all depths. The depth-age replacement strategy handles entry quality
-naturally for entries that pass the filter.
+All workers in Lazy SMP maintain independent local TT instances, eliminating
+cross-goroutine write contention. Each worker writes at all depths to its own TT.
+The depth-age replacement strategy handles entry quality naturally.
 
 ---
 
@@ -554,14 +553,18 @@ Coordinated search cancellation via context.Context.
 - Channel-based worker pool respects context cancellation
 - Clean termination on timeout, stop command, or client disconnect
 
-### 8.3 Statistics Publishing
+### 8.3 Statistics Collection
 
-Publisher-subscriber pattern for AI telemetry.
+Atomic counters collect search telemetry without blocking hot paths.
 
-**Components:**
-- Channel-based event queue (Go channels)
-- Goroutine subscribers
-- Non-blocking to search goroutines
+**Counters:**
+- `TimeMonitor.Nodes` (`atomic.Int64`): incremented at entry of search nodes
+- `TranspositionTable.probes` / `hits` (`atomic.Int64`): TT lookup statistics
+- Elapsed time from `TimeMonitor.startTime`
+
+**Aggregation:**
+- Sequential search: direct counter reads
+- Parallel search: shared `Nodes` counter; per-worker TT stats aggregated as (mean + median) / 2
 
 ---
 
@@ -628,10 +631,10 @@ Two-character algebraic notation for Caro:
 | Package | Files | Responsibility |
 |---------|-------|---------------|
 | `internal/domain` | board.go, game.go, player.go, position.go, zobrist.go, win.go, constants.go, errors.go | Domain entities, game rules, no dependencies |
-| `internal/engine` | minimax.go, search.go, parallel.go, evaluation.go, evaluation_simd.go, evaluation_scalar.go, transposition.go, movepicker.go, candidate.go, vcf.go, heuristics.go, timemanager.go, timemonitor.go, difficulty.go, searchboard.go, bitboard.go | AI engine, search algorithms |
+| `internal/engine` | minimax.go, search.go, parallel.go, evaluation.go, transposition.go, movepicker.go, candidate.go, heuristics.go, timemanager.go, timemonitor.go, difficulty.go, searchboard.go, bitboard.go | AI engine, search algorithms |
 | `internal/uci` | handler.go, notation.go, position.go, options.go | UCI protocol handling |
 | `internal/api` | server.go, handlers.go, websocket.go, session.go, store.go, requests.go, middleware.go, errors.go | HTTP/WebSocket API |
-| `internal/persistence` | gamelog.go, schema.sql | SQLite game logs |
+| `internal/persistence` | matchstore.go | Structured match persistence (SQLite) |
 
 ### 10.2 Centralized Constants
 
@@ -654,12 +657,9 @@ Two-character algebraic notation for Caro:
 | `search.go` | Iterative deepening, PVS alpha-beta, LMR, null-move pruning |
 | `parallel.go` | Lazy SMP goroutine pool dispatch, result aggregation |
 | `evaluation.go` | Evaluation interface, scoring system, Pattern4 |
-| `evaluation_simd.go` | SIMD vectorized eval (build tag: goexperiment.simd) |
-| `evaluation_scalar.go` | Scalar eval fallback (default) |
 | `transposition.go` | Sharded SeqLock TT with atomic.Uint32 version counters |
 | `movepicker.go` | Staged move ordering (7 stages) |
 | `candidate.go` | Candidate generation with center-of-mass ordering |
-| `vcf.go` | VCF solver (20% of allocated time, cached) |
 | `heuristics.go` | Killer moves, continuation/butterfly history |
 | `timemanager.go` | PID time management, phase-aware allocation |
 | `timemonitor.go` | context.Context-based search time monitoring |

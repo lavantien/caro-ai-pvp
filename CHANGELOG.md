@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [6.2.0] - 2026-04-29
+
+### Added
+- Engine search stats: nodes searched, NPS, depth achieved, TT hit rate collected via atomic counters
+- Structured match persistence: games and moves tables in SQLite with per-move engine stats
+- TT hit rate for parallel search: (mean + median) / 2 of all workers' local TT hit rates
+
+### Changed
+- Parallel search: all-equal goroutines with local TTs (no master/helper split)
+- Persistence: generic event log replaced with structured MatchStore (games + moves tables)
+
+[6.2.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.2.0
+
 ## [6.1.0] - 2026-04-29
 
 ### Added

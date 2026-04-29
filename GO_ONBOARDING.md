@@ -15,7 +15,7 @@ backend/
 │   ├── engine/                    # AI engine (depends on domain)
 │   ├── uci/                       # UCI protocol handler
 │   ├── api/                       # HTTP/WebSocket API
-│   └── persistence/               # SQLite game logs
+│   └── persistence/               # Structured match persistence (SQLite)
 ├── go.mod
 └── Makefile
 ```
@@ -460,7 +460,7 @@ func TestMinimaxFindsWinningMove(t *testing.T) {
 ```go
 func TestCreateGame(t *testing.T) {
     store := api.NewInMemoryStore()
-    handler := api.NewHandler(store)
+    handler := api.NewHandler(store, nil)
 
     body := `{"time_control":"3+2","game_mode":"aivai","difficulty":5}`
     req := httptest.NewRequest(http.MethodPost, "/api/games", strings.NewReader(body))

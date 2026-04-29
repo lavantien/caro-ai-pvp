@@ -218,7 +218,7 @@ go test ./internal/api/...
 | internal/engine | AI search, evaluation, TT, VCF, move ordering, concurrency stress |
 | internal/uci | UCI command parsing, notation conversion |
 | internal/api | HTTP handlers, WebSocket, session management |
-| internal/persistence | SQLite game log CRUD |
+| internal/persistence | Structured match persistence (SQLite) |
 
 ---
 
@@ -261,7 +261,7 @@ graph TB
     end
 
     subgraph Persistence["internal/persistence"]
-        GameLog["GameLogService (SQLite)"]
+        MatchStore["MatchStore (SQLite)"]
     end
 
     Commands --> API
@@ -282,7 +282,7 @@ graph TB
 | `internal/engine` | AI engine, search, evaluation, TT | domain |
 | `internal/uci` | UCI protocol handler | engine, domain |
 | `internal/api` | HTTP/WebSocket API, game sessions | engine, domain, persistence |
-| `internal/persistence` | SQLite game log storage | domain |
+| `internal/persistence` | Structured match persistence (SQLite) | domain |
 
 **Immutable Domain Model:**
 
@@ -298,19 +298,8 @@ All domain entities are immutable for thread safety:
 1. Frontend sends move via REST API -> GameSession
 2. GameSession extracts immutable board snapshot under mutex
 3. MinimaxAI.GetBestMove() called outside mutex with context.Context
-4. Parallel search dispatches to goroutine pool (channel-based)
-5. Master goroutine selects best result, helpers explore with TT sharing
-
-**Transposition Table Sharding:**
-- 16 segments with independent hash-based distribution
-- `shardIndex = (hash >> 32) & 0xF`
-- SeqLock pattern with atomic version counters (no mutexes)
-- Reduces cache coherency traffic for parallel goroutines
-
-**TT Write Policy:**
-- Master goroutine writes at all depths
-- Helper goroutines write only at depth >= 3 (quality filter)
-- Depth-age replacement strategy handles entry quality naturally
+4. Parallel search dispatches to goroutine pool (channel-based, all-equal workers)
+5. Best result selected by deepest completed depth; ties broken by score
 
 ### Key Architectural Decisions
 
@@ -388,7 +377,7 @@ Depth varies by host machine -- calculated dynamically from NPS and time budget.
 | internal/engine | AI search integration, evaluation, TT, VCF, move ordering, concurrency stress |
 | internal/uci | UCI command parsing, move notation conversion |
 | internal/api | HTTP handlers, WebSocket, session management |
-| internal/persistence | SQLite game log CRUD |
+| internal/persistence | Structured match persistence (SQLite) |
 | Frontend Unit (Vitest) | Store logic, utility functions, game types |
 | Frontend E2E (Playwright) | End-to-end gameplay |
 
