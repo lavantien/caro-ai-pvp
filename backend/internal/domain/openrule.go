@@ -20,7 +20,7 @@ func IsValidSecondMove(b Board, x, y int) bool {
 		}
 	}
 
-	if redCount != 1 || blueCount >= 1 {
+	if redCount != 1 || blueCount > 1 {
 		return true
 	}
 

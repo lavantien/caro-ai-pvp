@@ -30,6 +30,9 @@ func (g GameState) WithMove(x, y int) (GameState, error) {
 	if g.IsGameOver {
 		return g, ErrGameOver
 	}
+	if g.CurrentPlayer == PlayerRed && !IsValidSecondMove(g.Board, x, y) {
+		return g, ErrOpenRule
+	}
 	newBoard, err := g.Board.PlaceStoneChecked(x, y, g.CurrentPlayer)
 	if err != nil {
 		return g, err

@@ -23,5 +23,6 @@ func TestOpenRuleAfterBlueMove(t *testing.T) {
 	b := NewBoard().
 		PlaceStone(8, 8, PlayerRed).
 		PlaceStone(0, 0, PlayerBlue)
-	assert.True(t, IsValidSecondMove(b, 9, 9), "open rule only applies to red's second move")
+	assert.False(t, IsValidSecondMove(b, 9, 9), "open rule applies even after blue has played")
+	assert.True(t, IsValidSecondMove(b, 10, 9), "far enough after blue move is valid")
 }

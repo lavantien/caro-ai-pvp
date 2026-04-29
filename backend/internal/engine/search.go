@@ -23,6 +23,7 @@ func SearchPosition(
 ) (int, int) {
 	sb := NewSearchBoard(b)
 	candidates := GetCandidates(&sb, domain.MaxSearchRadius)
+	candidates = FilterOpenRule(candidates, &sb, player)
 
 	if len(candidates) == 0 {
 		return -1, -1
