@@ -115,12 +115,12 @@ async function main() {
 
   // Build backend
   console.log('Building backend...');
-  await runCommand('dotnet', ['build', 'backend/src/Caro.Api'], ROOT, 'Build');
+  await runCommand('go', ['build', './...'], resolve(ROOT, 'backend'), 'Build');
   console.log('Backend built.\n');
 
   // Start backend
   console.log('Starting backend...');
-  spawnDaemon('dotnet', ['run', '--project', 'backend/src/Caro.Api', '--no-build'], ROOT, 'backend');
+  spawnDaemon('go', ['run', './cmd/server'], resolve(ROOT, 'backend'), 'backend');
   await waitForUrl(`${API_BASE}/`, 60_000);
   console.log('Backend ready.\n');
 
