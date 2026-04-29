@@ -613,10 +613,10 @@ Hardware-agnostic difficulty via `DifficultyProfile` -- search parameters scale 
 
 ### 9.4 Move Notation
 
-Algebraic notation for Caro:
-- Columns: aa-dd (double-letter encoding: column = firstIndex * 4 + secondIndex, each letter a-d)
-- Rows: 1-16
-- Example: bd9 = column 7, row 9; dd16 = column 15, row 16
+Two-character algebraic notation for Caro:
+- First character: row (y), a-p for 0-15
+- Second character: column (x), a-p for 0-15
+- Example: bd = row 1, column 3; pp = row 15, column 15
 
 ---
 

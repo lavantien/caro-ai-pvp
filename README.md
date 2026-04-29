@@ -87,7 +87,7 @@ Fisher time controls with increment:
 
 | Feature | Description |
 |---------|-------------|
-| **Move Notation** | Horizontal scrolling UCI coordinate codes (e.g. 1.bd8 2.ca9) |
+| **Move Notation** | Horizontal scrolling UCI coordinate codes (e.g. 1.ii 2.hi) |
 | **Undo** | Server-side undo support via `POST /api/games/{id}/undo` |
 | **Game Cleanup** | Explicit `DELETE /api/games/{id}` + automatic 5-min eviction + 30-min abandoned timeout + max 4 concurrent games |
 | **Sound Effects** | Synthesized stone placement (A4/C5 tones) and victory arpeggios via Web Audio API |
@@ -124,7 +124,7 @@ See [STATS.md](STATS.md) for performance metrics.
 
 To run your own benchmarks:
 ```bash
-cd backend && go run ./cmd/engine --games 4 --time 180 --inc 2
+node scripts/run-tournament.mjs --games 4 --red 5 --blue 5 --tc 3+2
 ```
 
 ### UCI Protocol
@@ -135,16 +135,11 @@ Universal Chess Interface (UCI) protocol compatibility for standalone engine usa
 - **Standard UCI commands** - uci, isready, ucinewgame, position, go, stop, quit, setoption
 - **Engine options** - Threads, Hash, Ponder, Skill Level
 - **WebSocket bridge** - Frontend can connect directly to UCI engine
-- **Algebraic notation** - Double-letter coordinates aa-dd (columns), 1-16 (rows)
+- **Algebraic notation** - Two-character coordinates (a-p for rows and columns, e.g., bd = row 1, col 3)
 
 **Run standalone UCI engine:**
 ```bash
 cd backend && go run ./cmd/engine
-```
-
-**Run engine vs engine testing:**
-```bash
-cd backend && go run ./cmd/engine --mode mock --games 4 --time 180 --inc 2
 ```
 
 **Example UCI session:**
@@ -152,15 +147,14 @@ cd backend && go run ./cmd/engine --mode mock --games 4 --time 180 --inc 2
 > uci
 < id name Caro AI
 < id author Caro AI Project
-< option name Threads type spin default 4 min 1 max 4
+< option name Threads type spin default 4 min 1 max 64
 < option name Hash type spin default 64 min 32 max 4096
 < option name Ponder type check default false
 < option name Skill Level type spin default 5 min 1 max 5
 < uciok
-> position startpos moves bd8
+> position startpos moves ii
 > go movetime 2000
-< info depth 2 nodes 13524 time 1590 pv ca9
-< bestmove ca9
+< bestmove hi
 ```
 
 ### Documentation Guide
@@ -206,7 +200,7 @@ README.md (Entry Point)
 
 ```bash
 # All tests with race detector
-cd backend && CGO_ENABLED=1 go test -race ./...
+cd backend && CGO_ENABLED=1 go test -tags "sqlite_fts5" -race ./...
 
 # Specific packages
 go test ./internal/domain/...
@@ -445,7 +439,7 @@ Backend: http://localhost:5207 | Frontend: http://localhost:5173
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| SignalR Real-Time Multiplayer | Live game synchronization between human players via SignalR hub | Planned |
+| WebSocket Real-Time Multiplayer | Live game synchronization between human players via WebSocket | Planned |
 
 ---
 

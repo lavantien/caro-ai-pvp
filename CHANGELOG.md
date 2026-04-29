@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [6.0.0] - 2026-04-29
+
+### Changed
+- Complete backend port from C# (.NET 9 / ASP.NET Core) to Go 1.26
+- Domain layer: immutable Board/GameState/Player types with value semantics, [4]uint64 BitBoard, Zobrist hashing (SplitMix64)
+- Engine: MinimaxAI with iterative deepening, PVS, alpha-beta pruning, quiescence search, adaptive LMR
+- Engine: Lazy SMP parallel search with channel-based goroutine pool, sharded SeqLock transposition table (16 segments, atomic version counters)
+- Engine: staged MovePicker (7 stages), killer moves, continuation/butterfly history, VCF solver
+- Engine: hardware-agnostic L1-L5 difficulty via DifficultyProfile with time fraction scaling
+- Engine: PID time management with aspiration windows and context.Context cancellation
+- UCI: full protocol handler with double-letter notation (aa-dd columns, 1-16 rows), WebSocket bridge
+- API: net/http ServeMux with method+pattern matching (Go 1.22+), CORS/logging/recovery middleware
+- API: GameSession with sync.Mutex, InMemoryStore with sync.RWMutex, max 4 concurrent games
+- API: per-player isolated MinimaxAI instances, REST endpoints (POST/GET/DELETE /api/games)
+- Persistence: SQLite + FTS5 via mattn/go-sqlite3, WAL mode, game event logging with full-text search
+- Server: graceful shutdown via os.Signal, 2GB heap limit (debug.SetMemoryLimit), 5-min cleanup ticker
+
+### Removed
+- C# backend (ASP.NET Core, Clean Architecture layers, SignalR, 140+ files, ~26.5K LOC)
+- CSHARP_ONBOARDING.md (replaced by GO_ONBOARDING.md)
+- Persistent worker pool (replaced by per-search channel-based goroutine dispatch)
+- ThreadPoolConfig / MaxEngineThreads singleton (replaced by goroutine count from GOMAXPROCS)
+
+### Added
+- GO_ONBOARDING.md: Go 1.26 idioms, project conventions, testing patterns
+- 80+ tests across 5 packages (domain 39, engine, uci 6, api 29, persistence 6) with race detector
+- FTS5 build tag requirement: `go test -tags "sqlite_fts5" -race ./...`
+
+[6.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.0.0
+
 ## [5.5.0] - 2026-04-29
 
 ### Changed
