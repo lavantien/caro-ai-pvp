@@ -87,7 +87,10 @@ Fisher time controls with increment:
 
 | Feature | Description |
 |---------|-------------|
-| **Move Notation** | Horizontal scrolling UCI coordinate codes (e.g. 1.ii 2.hi) |
+| **Board Coordinates** | Column labels (a-p) and row numbers (1-16) around the board edges |
+| **Move Notation** | Horizontal scrolling algebraic notation (e.g. 1.i9 2.h8) |
+| **Open Rule Highlight** | Dimmed overlay on invalid cells during Red's 2nd move (Chebyshev distance < 3) |
+| **Bot Difficulty Labels** | AI level shown in timer strips (e.g. "AI (Grandmaster)") |
 | **Undo** | Server-side undo support via `POST /api/games/{id}/undo` |
 | **Game Cleanup** | Explicit `DELETE /api/games/{id}` + automatic 5-min eviction + 30-min abandoned timeout + max 4 concurrent games |
 | **Sound Effects** | Synthesized stone placement (A4/C5 tones) and victory arpeggios via Web Audio API |
@@ -97,7 +100,7 @@ Fisher time controls with increment:
 | **Winning Line** | Animated highlight on game-winning five-in-a-row |
 | **AI Thinking Indicator** | Spinner displayed while engine computes |
 | **Timer Strips** | Compact per-player countdown strips above and below board |
-| **Game Settings** | Collapsible settings panel (mode, time control, AI side) |
+| **Game Settings** | Collapsible settings panel (mode, time control, AI side, difficulty) |
 | **Game Result Banner** | Top slide-down banner announcing winner, board stays visible |
 
 ### Engine Configuration
@@ -135,7 +138,8 @@ Universal Chess Interface (UCI) protocol compatibility for standalone engine usa
 - **Standard UCI commands** - uci, isready, ucinewgame, position, go, stop, quit, setoption
 - **Engine options** - Threads, Hash, Ponder, Skill Level
 - **WebSocket bridge** - Frontend can connect directly to UCI engine
-- **Algebraic notation** - Two-character coordinates (a-p for rows and columns, e.g., bd = row 1, col 3)
+- **Double-letter notation** - UCI engine format: two-character coordinates (a-p for row and column, e.g., bd = row 1, col 3)
+- **Display notation** - Frontend move history uses simple algebraic (column a-p + row 1-16, e.g., i9)
 
 **Run standalone UCI engine:**
 ```bash

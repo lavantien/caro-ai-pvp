@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [6.1.0] - 2026-04-29
+
+### Added
+- Board coordinate labels: column headers (a-p) above and below grid, row numbers (1-16) left and right
+- Open Rule visual highlight: dimmed overlay on invalid cells during Red's 2nd move
+- Bot difficulty labels: AI level shown in timer strips (e.g. "AI (Grandmaster)")
+- Display notation: move history uses simple algebraic format (column letter + row number, e.g. i9)
+- DOM verification script (scripts/verify-screenshot.mjs) for automated screenshot testing
+
+### Fixed
+- Open Rule: corrected from Manhattan distance to Chebyshev distance (5x5 zone exclusion, max(|dx|,|dy|) >= 3)
+- Frontend notation: replaced UCI double-letter format (aa-dd) with simple algebraic (a-p, 1-16)
+
+[6.1.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.1.0
+
 ## [6.0.0] - 2026-04-29
 
 ### Changed
@@ -17,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Engine: staged MovePicker (7 stages), killer moves, continuation/butterfly history, VCF solver
 - Engine: hardware-agnostic L1-L5 difficulty via DifficultyProfile with time fraction scaling
 - Engine: PID time management with aspiration windows and context.Context cancellation
-- UCI: full protocol handler with double-letter notation (aa-dd columns, 1-16 rows), WebSocket bridge
+- UCI: full protocol handler with double-letter notation (a-p for row and column), WebSocket bridge
 - API: net/http ServeMux with method+pattern matching (Go 1.22+), CORS/logging/recovery middleware
 - API: GameSession with sync.Mutex, InMemoryStore with sync.RWMutex, max 4 concurrent games
 - API: per-player isolated MinimaxAI instances, REST endpoints (POST/GET/DELETE /api/games)

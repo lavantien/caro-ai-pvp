@@ -36,10 +36,17 @@ tournament.txt
 backend/test-results/
 debug-*.png
 board-screenshot*.png
+screenshot-verify.png
+board-fixed.png
+board-with-moves.png
+
+# Temp build artifacts
+*.exe
 
 # Vite dev server cache
 .vite/
 /docs/superpowers/specs
+/docs/superpowers/plans
 
 # Worktrees
 .worktrees/

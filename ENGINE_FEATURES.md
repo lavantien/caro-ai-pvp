@@ -518,11 +518,12 @@ The engine uses search-based threat evaluation rather than reflexive blocking.
 
 ### 7.5 Open Rule
 
-Red's second move must be at least 3 intersections from first.
+Red's second move must be at Chebyshev distance >= 3 from first (outside 5x5 zone centered on first stone).
 
 **Implementation:**
-- Enforced at game logic level
+- Enforced at game logic level via Chebyshev distance: `max(|dx|, |dy|) >= 3`
 - Move generation filters invalid moves
+- Frontend highlights invalid cells during Red's 2nd move
 
 ---
 
