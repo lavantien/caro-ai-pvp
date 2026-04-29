@@ -14,7 +14,7 @@ public static class TimeConstants
     public const int QueueDisposalTimeoutSeconds = 5;
 
     // UCIProtocol
-    public const int DefaultHashSizeMb = 256;
+    public const int DefaultHashSizeMb = 64;
     public const int UCICommandTimeoutSeconds = 30;
 
     // SearchLogger
@@ -46,4 +46,9 @@ public static class TimeConstants
     public const int HardBoundBufferMs = 200;
     public const int MinRemainingHardBoundMs = 50;
     public const int MinSoftBoundFallbackMs = 25;
+
+    // Memory and concurrency limits
+    public const int MaxConcurrentGames = 4;
+    public const long HeapHardLimitBytes = 2L * 1024 * 1024 * 1024; // 2GB
+    public const int AbandonedTimeoutMinutes = 30;
 }

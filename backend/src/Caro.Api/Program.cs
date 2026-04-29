@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using System.Runtime;
 using System.Text;
 using Caro.Api;
 using Caro.Api.Logging;
@@ -9,6 +10,10 @@ using Caro.Core.GameLogic.TimeManagement;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+
+// Memory cap: prevent runaway TT allocations from exceeding 2GB
+AppContext.SetData("GCHeapHardLimit", TimeConstants.HeapHardLimitBytes);
+GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -134,7 +139,7 @@ app.Map("/ws/uci", async (HttpContext context, UCIHandler handler) =>
         }
         finally
         {
-            handler.SendToClient = null;
+            handler.Dispose();
         }
 
         logger.LogInformation("UCI WebSocket connection closed");
@@ -147,10 +152,17 @@ app.Map("/ws/uci", async (HttpContext context, UCIHandler handler) =>
 
 // Game storage (in-memory by default, swappable via DI)
 var games = app.Services.GetRequiredService<IGameStore>();
+var gameStore = (InMemoryGameStore)games;
 
 // POST /api/game/new - Create new game
 app.MapPost("/api/game/new", (CreateGameRequest? request, ILogger<MinimaxAI> aiLogger) =>
 {
+    if (gameStore.Count >= TimeConstants.MaxConcurrentGames)
+        return Results.Problem(
+            statusCode: 429,
+            title: "Too many concurrent games",
+            detail: $"Maximum {TimeConstants.MaxConcurrentGames} concurrent games allowed");
+
     var gameId = Guid.NewGuid().ToString();
 
     // Parse time control from request
@@ -189,7 +201,8 @@ app.MapPost("/api/game/new", (CreateGameRequest? request, ILogger<MinimaxAI> aiL
         gameMode,
         redDiff,
         blueDiff,
-        aiLogger);
+        aiLogger,
+        () => gameStore.ActiveGameCount);
     games.Set(gameId, session);
 
     Console.WriteLine($"[GAME] Created {gameId}: mode={gameMode}, tc={timeControl.Name}");
@@ -262,7 +275,8 @@ app.MapPost("/api/game/{id}/undo", (string id) =>
 // AI calculation is performed OUTSIDE the lock using a cloned board
 // This prevents blocking other game requests during AI thinking time
 app.MapPost("/api/game/{id}/ai-move", (
-    string id) =>
+    string id,
+    CancellationToken ct) =>
 {
     if (!games.TryGetValue(id, out var session))
         return Results.NotFound("Game not found");
@@ -307,7 +321,7 @@ app.MapPost("/api/game/{id}/ai-move", (
             ParallelSearchEnabled = true,
         };
     }
-    var (x, y) = ai.GetBestMove(boardClone, currentPlayer, searchOptions);
+    var (x, y) = ai.GetBestMove(boardClone, currentPlayer, searchOptions, ct);
     var stats = ai.GetSearchStatistics();
     Console.WriteLine($"[AI] {currentPlayer} -> ({x},{y})");
     Console.WriteLine($"[AI] stats depth={stats.DepthAchieved} nodes={stats.NodesSearched} nps={stats.NodesPerSecond:F0} score={stats.SearchScore} moveType={stats.MoveType} ttHit={stats.TableHitRate:F1}% time={stats.AllocatedTimeMs}ms threads={stats.ThreadCount}");
@@ -361,23 +375,40 @@ app.MapDelete("/api/game/{id}", (string id) =>
 
     session.DisposeAI();
     games.Remove(id);
+
+    // Immediately reclaim ~384MB of Large Object Heap arrays (TT allocations)
+    // Tournament games complete faster than the 5-min cleanup timer
+    GC.Collect(2, GCCollectionMode.Aggressive, blocking: false, compacting: true);
+
     return Results.Ok();
 });
 
-// Periodic cleanup of completed games
-var cleanupTimer = new PeriodicTimer(TimeSpan.FromMinutes(5));
-var gameStore = (InMemoryGameStore)games;
+// Periodic cleanup of completed/abandoned games + graceful shutdown
+using var cleanupTimer = new PeriodicTimer(TimeSpan.FromMinutes(5));
+var cleanupCts = CancellationTokenSource.CreateLinkedTokenSource(app.Lifetime.ApplicationStopping);
+
 _ = Task.Run(async () =>
 {
-    while (await cleanupTimer.WaitForNextTickAsync())
+    try
     {
-        try
+        while (await cleanupTimer.WaitForNextTickAsync(cleanupCts.Token))
         {
-            int removed = gameStore.CleanupCompleted();
-            if (removed > 0)
-                Console.WriteLine($"[CLEANUP] Removed {removed} completed game(s)");
+            try
+            {
+                int removed = gameStore.CleanupCompleted();
+                if (removed > 0)
+                    Console.WriteLine($"[CLEANUP] Removed {removed} completed/abandoned game(s)");
+            }
+            catch { }
         }
-        catch { }
+    }
+    catch (OperationCanceledException) { }
+    finally
+    {
+        // Graceful shutdown: dispose ALL remaining game sessions
+        int remaining = gameStore.CleanupAll();
+        if (remaining > 0)
+            Console.WriteLine($"[SHUTDOWN] Disposed {remaining} game(s)");
     }
 });
 
@@ -397,6 +428,7 @@ public sealed class GameSession
     private readonly int? _redDifficulty;
     private readonly int? _blueDifficulty;
     private readonly ILogger<MinimaxAI> _aiLogger;
+    private readonly Func<int> _getActiveGameCount;
     private MinimaxAI? _redAI;
     private MinimaxAI? _blueAI;
 
@@ -407,7 +439,8 @@ public sealed class GameSession
         GameMode gameMode = GameMode.PvP,
         int? redDifficulty = null,
         int? blueDifficulty = null,
-        ILogger<MinimaxAI>? aiLogger = null)
+        ILogger<MinimaxAI>? aiLogger = null,
+        Func<int>? getActiveGameCount = null)
     {
         _game = GameState.CreateInitial(
             timeControl: timeControl,
@@ -421,6 +454,7 @@ public sealed class GameSession
         _redDifficulty = redDifficulty;
         _blueDifficulty = blueDifficulty;
         _aiLogger = aiLogger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<MinimaxAI>.Instance;
+        _getActiveGameCount = getActiveGameCount ?? (() => 1);
     }
 
     /// <summary>
@@ -430,9 +464,10 @@ public sealed class GameSession
     /// </summary>
     public MinimaxAI GetOrCreateAI(Player player)
     {
+        var threads = ThreadPoolConfig.GetEngineThreadsForLoad(_getActiveGameCount());
         if (player == Player.Red)
-            return _redAI ??= new MinimaxAI(logger: _aiLogger);
-        return _blueAI ??= new MinimaxAI(logger: _aiLogger);
+            return _redAI ??= new MinimaxAI(logger: _aiLogger, maxThreads: threads);
+        return _blueAI ??= new MinimaxAI(logger: _aiLogger, maxThreads: threads);
     }
 
     /// <summary>
@@ -507,6 +542,11 @@ public sealed class GameSession
     public bool IsGameOver
     {
         get { lock (_lock) { return _game.IsGameOver; } }
+    }
+
+    public DateTime LastActivityAt
+    {
+        get { lock (_lock) { return _lastMoveTimestamp; } }
     }
 
     public void DisposeAI()

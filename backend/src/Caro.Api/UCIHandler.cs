@@ -11,7 +11,7 @@ namespace Caro.Api;
 /// WebSocket-based UCI protocol handler for API integration.
 /// Allows the frontend to communicate directly with the UCI engine.
 /// </summary>
-public sealed class UCIHandler
+public sealed class UCIHandler : IDisposable
 {
     private readonly MinimaxAI _ai;
     private readonly UCISearchController _searchController;
@@ -244,6 +244,13 @@ public sealed class UCIHandler
         {
             _ = SendToClient(JsonSerializer.Serialize(new UCIResponse { BestMove = UCIMoveNotation.ToUCI(move.x, move.y) }));
         }
+    }
+
+    public void Dispose()
+    {
+        _searchController.StopSearch();
+        _ai.Dispose();
+        SendToClient = null;
     }
 }
 

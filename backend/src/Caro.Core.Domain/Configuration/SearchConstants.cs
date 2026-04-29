@@ -46,8 +46,10 @@ public static class SearchConstants
 
     /// <summary>
     /// Default transposition table size in megabytes.
+    /// Multi-session web game: 64MB balances memory (~128MB per AI with parallel TT)
+    /// against search quality. Single-session UCI can override via "setoption Hash N".
     /// </summary>
-    public const int DefaultTTSizeMb = 256;
+    public const int DefaultTTSizeMb = 64;
 
     /// <summary>
     /// Minimum depth to apply null-move pruning.
