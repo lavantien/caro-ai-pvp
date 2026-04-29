@@ -65,7 +65,7 @@ public partial class MinimaxAI
     /// Execute parallel Lazy SMP search and return the best move with final validation.
     /// </summary>
     private (int x, int y) ExecuteParallelSearch(Board board, Player player, List<(int x, int y)> candidates,
-        TimeAllocation timeAlloc, SearchOptions options)
+        TimeAllocation timeAlloc, SearchOptions options, CancellationToken cancellationToken = default)
     {
         var timeRemainingMs = options.TimeRemainingMs;
         var moveNumber = options.MoveNumber;
@@ -73,7 +73,7 @@ public partial class MinimaxAI
         var threadCount = options.ThreadCount;
         var parallelSearchEnabled = options.ParallelSearchEnabled;
 
-        int effectiveThreadCount = threadCount ?? ThreadPoolConfig.GetLazySMPThreadCount();
+        int effectiveThreadCount = threadCount ?? ThreadPoolConfig.MaxEngineThreads;
         _lastThreadCount = effectiveThreadCount;
         _tableHits = 0;
         _tableLookups = 0;
@@ -87,7 +87,8 @@ public partial class MinimaxAI
             timeAlloc: adjustedTimeAlloc,
             moveNumber: moveNumber,
             fixedThreadCount: effectiveThreadCount,
-            candidates: candidates);
+            candidates: candidates,
+            cancellationToken: cancellationToken);
 
         // DEFENSIVE: Validate the returned move is actually a valid, empty cell
         var cell = board.GetCell(parallelResult.X, parallelResult.Y);
@@ -140,14 +141,14 @@ public partial class MinimaxAI
     /// Execute sequential iterative-deepening search with time management.
     /// </summary>
     private (int x, int y) ExecuteSequentialSearch(Board board, Player player, List<(int x, int y)> candidates,
-        TimeAllocation timeAlloc, SearchOptions options)
+        TimeAllocation timeAlloc, SearchOptions options, CancellationToken cancellationToken = default)
     {
         var timeRemainingMs = options.TimeRemainingMs;
         var ponderingEnabled = options.PonderingEnabled;
         var maxDepth = options.MaxDepth;
         var maxNodes = options.MaxNodes;
 
-        _lastThreadCount = options.ThreadCount ?? ThreadPoolConfig.GetLazySMPThreadCount();
+        _lastThreadCount = options.ThreadCount ?? ThreadPoolConfig.MaxEngineThreads;
         _lastParallelDiagnostics = null;
         _lastPonderingEnabled = ponderingEnabled;
 

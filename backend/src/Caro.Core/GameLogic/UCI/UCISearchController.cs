@@ -48,6 +48,7 @@ public sealed class UCISearchController
     {
         // Stop any ongoing search
         StopSearch();
+        _searchCts?.Dispose();
 
         _currentBoard = board;
         _currentPlayer = player;
@@ -161,7 +162,8 @@ public sealed class UCISearchController
             var (x, y) = _ai.GetBestMove(
                 board,
                 player,
-                searchOptions
+                searchOptions,
+                ct
             );
 
             stopwatch.Stop();

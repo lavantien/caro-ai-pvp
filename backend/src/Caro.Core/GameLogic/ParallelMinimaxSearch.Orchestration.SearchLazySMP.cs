@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using Caro.Core.Domain.Configuration;
 using Caro.Core.Domain.Entities;
@@ -17,13 +16,16 @@ public sealed partial class ParallelMinimaxSearch
         Player player,
         List<(int x, int y)> candidates,
         TimeAllocation timeAlloc,
-        int fixedThreadCount = -1)
+        int fixedThreadCount = -1,
+        CancellationToken externalCancellationToken = default)
     {
         _transpositionTable.IncrementAge();
 
         // Set up time management with new CancellationTokenSource
         _searchCts?.Cancel(); // Cancel any previous search
-        _searchCts = new CancellationTokenSource();
+        _searchCts = externalCancellationToken.CanBeCanceled
+            ? CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken)
+            : new CancellationTokenSource();
 
         // Create timer-based time monitor (polls every 10ms)
         // This is more accurate and less taxing than node-count-based checking
@@ -34,11 +36,10 @@ public sealed partial class ParallelMinimaxSearch
             cts: _searchCts);
         _hardTimeBoundMs = timeAlloc.HardBoundMs;
 
-        // Thread count based on processor count
-        // fixedThreadCount = 0 means single-threaded, -1 means use default
+        // Thread count: fixedThreadCount = 0 means single-threaded, -1 means use MaxEngineThreads
         int threadCount = fixedThreadCount >= 0
             ? fixedThreadCount  // 0 = single-threaded, >0 = use that many threads
-            : ThreadPoolConfig.GetLazySMPThreadCount();
+            : ThreadPoolConfig.MaxEngineThreads;
 
         // If threadCount is 0 or 1, fall back to single-threaded search
         if (threadCount <= 1)
@@ -61,96 +62,57 @@ public sealed partial class ParallelMinimaxSearch
             return new ParallelSearchResult(x, y, depth, nodes, 1, null, _hardTimeBoundMs, 0, 0, score, singleFmcPercent, _depthManager.GetEstimatedEbf());
         }
 
-        // Use thread-safe collections with Task-based parallelism
-        var results = new ConcurrentBag<(int x, int y, int score, int depth, long nodes, int threadIndex)>();
-        var diagnosticsList = new ConcurrentBag<ThreadData>();
-
         // Create thread-local copies of SearchBoard and candidates for each thread
         var rootSearchBoard = new SearchBoard(board);
         var boardsArray = new SearchBoard[threadCount];
         var candidatesArray = new List<(int x, int y)>[threadCount];
+        var diagnosticsArray = new ThreadData[threadCount];
         for (int i = 0; i < threadCount; i++)
         {
             boardsArray[i] = rootSearchBoard.Clone();
             candidatesArray[i] = new List<(int x, int y)>(candidates);
         }
 
-        // Launch parallel searches using Task.Run with LongRunning option for true parallelism
-        // This fixes the memory visibility issue with Thread+ConcurrentBag
         var token = _searchCts.Token;
-        var tasks = new Task[threadCount];
 
-        for (int i = 0; i < threadCount; i++)
+        // Dispatch search to persistent worker pool
+        var rawResults = _workerPool!.Search(threadId =>
         {
-            int threadId = i;
-
-            // Use Task.Factory.StartNew with LongRunning for dedicated threads
-            // This ensures true parallelism similar to the original Thread approach
-            tasks[i] = Task.Factory.StartNew(() =>
+            var threadData = new ThreadData
             {
-                // CRITICAL FIX: Create threadData OUTSIDE try block so it's available
-                // in finally block for diagnostics collection, even when cancelled
-                var threadData = new ThreadData
-                {
-                    ThreadIndex = threadId,
-                    SearchRadius = MaxSearchRadius,
-                    Random = new Random((int)(Environment.TickCount64 + (long)threadId * 0x9E3779B9L))
-                };
+                ThreadIndex = threadId,
+                SearchRadius = MaxSearchRadius,
+                Random = new Random((int)(Environment.TickCount64 + (long)threadId * 0x9E3779B9L))
+            };
 
-                try
-                {
-                    var result = SearchWithIterationTimeAware(
-                        boardsArray[threadId], player, candidatesArray[threadId],
-                        threadData, timeAlloc, token);
+            try
+            {
+                var result = SearchWithIterationTimeAware(
+                    boardsArray[threadId], player, candidatesArray[threadId],
+                    threadData, timeAlloc, token);
 
-                    // Add threadIndex to identify master vs helper thread results
-                    var (x, y, score, depthAchieved, nodes) = result;
-                    results.Add((x, y, score, depthAchieved, nodes, threadId));
-                }
-                catch (OperationCanceledException)
-                {
-                    // Expected when time runs out - not an error
-                }
-                catch (Exception)
-                {
-                    // Thread exception - search will continue with available results
-                }
-                finally
-                {
-                    // CRITICAL FIX: Always collect diagnostics, even when cancelled
-                    // This ensures node counts are available for the fallback calculation
-                    diagnosticsList.Add(threadData);
-                }
-            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-        }
+                diagnosticsArray[threadId] = threadData;
+                return result;
+            }
+            catch (OperationCanceledException)
+            {
+                diagnosticsArray[threadId] = threadData;
+                return default;
+            }
+        }, (int)(timeAlloc.HardBoundMs + TC.HardBoundBufferMs));
 
-        // Wait for all tasks to complete with proper synchronization
-        // Task.WhenAll ensures all results are visible to this thread
-        // CRITICAL FIX: Reduced timeout from HardBoundMs+1000 to HardBoundMs+200
-        // The old timeout caused 2x time overrun (wait + fallback both used full allocation)
-        try
-        {
-            Task.WaitAll(tasks, (int)(timeAlloc.HardBoundMs + TC.HardBoundBufferMs));
-        }
-        catch (AggregateException)
-        {
-            // Some tasks may have thrown - continue with available results
-        }
-
-        // CRITICAL FIX: Cancel parallel tasks before checking results
-        // Without this, timed-out tasks continue running and cause CPU contention
-        // with the fallback search, resulting in extremely slow NPS (300-400 vs 5000+)
+        // Cancel any remaining work
         _searchCts?.Cancel();
 
-        // Brief wait for tasks to acknowledge cancellation and release resources
-        try
+        // Convert raw results to the existing result-merging format
+        var results = new List<(int x, int y, int score, int depth, long nodes, int threadIndex)>();
+        for (int i = 0; i < rawResults.Length; i++)
         {
-            Task.WaitAll(tasks, 100);
+            var r = rawResults[i];
+            if (r.depth > 0 || r.nodes > 0)
+                results.Add((r.x, r.y, r.score, r.depth, r.nodes, i));
         }
-        catch (AggregateException)
-        {
-            // Tasks may throw on cancellation - ignore
-        }
+        var diagnosticsList = diagnosticsArray.Where(d => d != null).ToList()!;
 
         // INTELLIGENT MERGING: Aggregate results from ALL threads
         // Lazy SMP works best when we consider all thread results, not just master
@@ -176,7 +138,7 @@ public sealed partial class ParallelMinimaxSearch
         };
 
         // Group results by depth, then select best within each depth
-        if (results.IsEmpty)
+        if (results.Count == 0)
         {
             // CRITICAL FIX: Parallel search failed - fall back to single-threaded search
             // Use remaining time allocation, not original

@@ -15,7 +15,7 @@ public partial class MinimaxAI
 {
     /// <summary>
     /// Get the best move for the AI player with time awareness
-    /// Dynamically adjusts search depth based on remaining time
+    /// Convenience overload that creates SearchOptions internally
     /// </summary>
     public (int x, int y) GetBestMove(Board board, Player player, long? timeRemainingMs, bool ponderingEnabled = true, bool parallelSearchEnabled = true)
     {
@@ -24,13 +24,13 @@ public partial class MinimaxAI
             TimeRemainingMs = timeRemainingMs,
             PonderingEnabled = ponderingEnabled,
             ParallelSearchEnabled = parallelSearchEnabled,
-        });
+        }, CancellationToken.None);
     }
 
     /// <summary>
     /// Get the best move for the AI player with full search configuration.
 
-    public (int x, int y) GetBestMove(Board board, Player player, SearchOptions options)
+    public (int x, int y) GetBestMove(Board board, Player player, SearchOptions options, CancellationToken cancellationToken)
     {
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
@@ -63,7 +63,7 @@ public partial class MinimaxAI
         _searchStopwatch.Restart();
 
         // Reset thread count and parallel diagnostics
-        _lastThreadCount = threadCount ?? ThreadPoolConfig.GetLazySMPThreadCount();
+        _lastThreadCount = threadCount ?? ThreadPoolConfig.MaxEngineThreads;
         _lastParallelDiagnostics = null;
 
         // Apply Open Rule: Red's second move (move #3) must be at least 3 intersections away from first red stone
@@ -406,10 +406,10 @@ public partial class MinimaxAI
         // PARALLEL SEARCH: Use Lazy SMP when enabled
         if (parallelSearchEnabled)
         {
-            return ExecuteParallelSearch(board, player, candidates, timeAlloc, options);
+            return ExecuteParallelSearch(board, player, candidates, timeAlloc, options, cancellationToken);
         }
 
         // Sequential search fallback
-        return ExecuteSequentialSearch(board, player, candidates, timeAlloc, options);
+        return ExecuteSequentialSearch(board, player, candidates, timeAlloc, options, cancellationToken);
     }
 }

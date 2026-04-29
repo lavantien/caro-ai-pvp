@@ -83,7 +83,7 @@ public partial class MinimaxAI : IStatsPublisher, IDisposable
     private bool _searchStopped;
 
     // Pondering (thinking on opponent's time)
-    private readonly Ponderer _ponderer = new();
+    private readonly Ponderer _ponderer;
     private PV _lastPV = PV.Empty;
     private Board? _lastBoard;
     private Player _lastPlayer;
@@ -108,7 +108,7 @@ public partial class MinimaxAI : IStatsPublisher, IDisposable
     // Reused across searches to avoid allocations
     private readonly SearchBoard _searchBoard = new();
 
-    public MinimaxAI(int ttSizeMb = TimeConstants.DefaultHashSizeMb, ILogger<MinimaxAI>? logger = null, Random? random = null, IEvaluationParameterProvider? parameterProvider = null)
+    public MinimaxAI(int ttSizeMb = TimeConstants.DefaultHashSizeMb, ILogger<MinimaxAI>? logger = null, Random? random = null, IEvaluationParameterProvider? parameterProvider = null, int? maxThreads = null)
     {
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<MinimaxAI>.Instance;
         _random = random;  // null means use Random.Shared (default behavior)
@@ -118,10 +118,11 @@ public partial class MinimaxAI : IStatsPublisher, IDisposable
 
         // Initialize with passed size parameter
         _transpositionTable = new TranspositionTable(ttSizeMb);
-        _parallelSearch = new ParallelMinimaxSearch(ttSizeMb);
+        _parallelSearch = new ParallelMinimaxSearch(ttSizeMb, maxThreads);
 
         _inTreeVCFSolver = new VCFSolver(_vcfSolver);
         _moveOrderer = new MoveOrderer(_heuristics);
+        _ponderer = new Ponderer(_parallelSearch);
     }
 
     /// <summary>

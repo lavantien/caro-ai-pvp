@@ -1,3 +1,5 @@
+using Caro.Core.Domain.Configuration;
+
 namespace Caro.Core.GameLogic.UCI;
 
 /// <summary>
@@ -9,15 +11,16 @@ public class UCIEngineOptions
     public const string EngineVersion = "1.77.0";
 
     /// <summary>
-    /// Number of threads to use for parallel search (1-32).
+    /// Number of threads to use for parallel search (1-MaxEngineThreads).
+    /// Defaults to <see cref="ThreadPoolConfig.MaxEngineThreads"/>.
     /// </summary>
-    public int Threads { get; set; } = 4;
+    public int Threads { get; set; } = ThreadPoolConfig.MaxEngineThreads;
 
     /// <summary>
     /// Hash table size in MB (32-4096).
-    /// Controls transposition table memory allocation.
+    /// Defaults to <see cref="SearchConstants.DefaultTTSizeMb"/>.
     /// </summary>
-    public int Hash { get; set; } = 256;
+    public int Hash { get; set; } = SearchConstants.DefaultTTSizeMb;
 
     /// <summary>
     /// Whether to enable pondering (thinking on opponent's time).
@@ -45,7 +48,8 @@ public class UCIEngineOptions
             case "threads":
                 if (int.TryParse(value, out int threads))
                 {
-                    if (threads >= 1 && threads <= 32)
+                    int maxThreads = ThreadPoolConfig.MaxEngineThreads;
+                    if (threads >= 1 && threads <= maxThreads)
                     {
                         Threads = threads;
                         return true;
@@ -87,13 +91,15 @@ public class UCIEngineOptions
 
     /// <summary>
     /// Get all available options as UCI option declarations.
+    /// Thread max is set to <see cref="ThreadPoolConfig.MaxEngineThreads"/>.
     /// </summary>
     public static string[] GetOptionDeclarations()
     {
+        int maxThreads = ThreadPoolConfig.MaxEngineThreads;
         return new[]
         {
-            "option name Threads type spin default 4 min 1 max 32",
-            "option name Hash type spin default 256 min 32 max 4096",
+            $"option name Threads type spin default {maxThreads} min 1 max {maxThreads}",
+            $"option name Hash type spin default {SearchConstants.DefaultTTSizeMb} min 32 max 4096",
             "option name Ponder type check default false",
             "option name Skill Level type spin default 5 min 1 max 5"
         };

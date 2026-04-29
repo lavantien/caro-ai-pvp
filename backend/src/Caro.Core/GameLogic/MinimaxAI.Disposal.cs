@@ -8,7 +8,7 @@ public partial class MinimaxAI
     {
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
         _ponderer.Dispose();
-        _parallelSearch.StopSearch();
+        _parallelSearch.Dispose();
         _statsChannel.Writer.TryComplete();
     }
 }

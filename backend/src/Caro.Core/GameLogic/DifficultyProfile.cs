@@ -1,5 +1,3 @@
-using System.Numerics;
-
 namespace Caro.Core.GameLogic;
 
 public static class DifficultyProfile
@@ -14,16 +12,20 @@ public static class DifficultyProfile
         _ => throw new ArgumentOutOfRangeException(nameof(level), $"Must be 1-5, got {level}")
     };
 
+    /// <summary>
+    /// Get thread count for a given difficulty level.
+    /// All counts are capped at <see cref="ThreadPoolConfig.MaxEngineThreads"/>.
+    /// </summary>
     public static int GetThreadCount(int level)
     {
-        int n = Environment.ProcessorCount;
+        int cap = ThreadPoolConfig.MaxEngineThreads;
         return level switch
         {
             1 => 1,
             2 => 1,
-            3 => 2,
-            4 => Math.Max(2, n / 2),
-            5 => Math.Max(1, 1 << (int)BitOperations.Log2((uint)Math.Max(1, n - 2))),
+            3 => Math.Min(2, cap),
+            4 => Math.Min(Math.Max(2, Environment.ProcessorCount / 2), cap),
+            5 => cap,
             _ => throw new ArgumentOutOfRangeException(nameof(level), $"Must be 1-5, got {level}")
         };
     }

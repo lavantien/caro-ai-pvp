@@ -3,11 +3,11 @@ namespace Caro.Core.GameLogic;
 /// <summary>
 /// Persistent worker pool for Lazy SMP parallel search.
 /// Maintains dedicated threads that wait for search tasks, eliminating
-/// ThreadPool injection delays (5-20ms per move in Bullet games).
+/// ThreadPool injection delays and OS thread creation overhead per move.
 ///
 /// Usage:
 /// 1. Create pool once at engine initialization
-/// 2. Call SearchAsync for each move
+/// 2. Call Search for each move
 /// 3. Dispose when engine shuts down
 /// </summary>
 public sealed class PersistentWorkerPool : IDisposable
@@ -23,13 +23,11 @@ public sealed class PersistentWorkerPool : IDisposable
     private readonly (int x, int y, int score, int depth, long nodes)[] _results;
     private readonly Exception?[] _exceptions;
     private int _completedCount;
-    private CancellationToken _cancellationToken;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     /// <summary>
     /// Create a pool of persistent worker threads.
     /// </summary>
-    /// <param name="workerCount">Number of worker threads to create</param>
     public PersistentWorkerPool(int workerCount)
     {
         _workers = new Thread[workerCount];
@@ -50,14 +48,10 @@ public sealed class PersistentWorkerPool : IDisposable
 
     /// <summary>
     /// Execute a search task on all workers in parallel.
+    /// Blocks until all workers complete or timeout expires.
     /// </summary>
-    /// <param name="taskFunc">Function that takes threadId and returns search result</param>
-    /// <param name="cancellationToken">Cancellation token for the search</param>
-    /// <param name="timeoutMs">Maximum time to wait for completion</param>
-    /// <returns>Array of results from all workers</returns>
     public (int x, int y, int score, int depth, long nodes)[] Search(
         Func<int, (int x, int y, int score, int depth, long nodes)> taskFunc,
-        CancellationToken cancellationToken,
         int timeoutMs)
     {
         if (_disposed)
@@ -65,28 +59,21 @@ public sealed class PersistentWorkerPool : IDisposable
 
         lock (_lock)
         {
-            // Reset state
             _taskFunc = taskFunc;
             _taskCount = _workers.Length;
             _completedCount = 0;
-            _cancellationToken = cancellationToken;
             Array.Clear(_results, 0, _results.Length);
             Array.Clear(_exceptions, 0, _exceptions.Length);
 
-            // Signal workers to start
             _workComplete.Reset();
             _workAvailable.Set();
         }
 
-        // Wait for completion or timeout
-        bool completed = _workComplete.Wait(timeoutMs, cancellationToken);
+        _workComplete.Wait(timeoutMs);
 
         lock (_lock)
         {
-            // Signal workers to stop waiting for work
             _workAvailable.Reset();
-
-            // If not all completed, return what we have
             return ((int x, int y, int score, int depth, long nodes)[])_results.Clone();
         }
     }
@@ -97,24 +84,17 @@ public sealed class PersistentWorkerPool : IDisposable
 
         while (!_disposed)
         {
-            // Wait for work
             try
             {
-                _workAvailable.Wait(_cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
+                _workAvailable.Wait();
             }
             catch (ObjectDisposedException)
             {
                 break;
             }
 
-            if (_disposed || _cancellationToken.IsCancellationRequested)
-                break;
+            if (_disposed) break;
 
-            // Execute task
             try
             {
                 var taskFunc = _taskFunc;
@@ -125,14 +105,13 @@ public sealed class PersistentWorkerPool : IDisposable
             }
             catch (OperationCanceledException)
             {
-                // Expected when search is cancelled
+                // Search cancelled — expected, worker stays alive for next search
             }
             catch (Exception ex)
             {
                 _exceptions[threadId] = ex;
             }
 
-            // Signal completion
             lock (_lock)
             {
                 _completedCount++;
@@ -154,14 +133,12 @@ public sealed class PersistentWorkerPool : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (_disposed)
-            return;
+        if (_disposed) return;
 
         _disposed = true;
-        _workAvailable.Set(); // Wake up workers so they can exit
+        _workAvailable.Set();
         _workComplete.Set();
 
-        // Give workers time to exit gracefully
         foreach (var worker in _workers)
         {
             if (!worker.Join(100))

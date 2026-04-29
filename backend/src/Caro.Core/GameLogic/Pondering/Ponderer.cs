@@ -14,7 +14,7 @@ public sealed partial class Ponderer : IDisposable
 {
     // Dependencies
     private readonly VCFPrecheck _vcfPrecheck = new();
-    private readonly ParallelMinimaxSearch _parallelSearch = new();
+    private readonly ParallelMinimaxSearch _parallelSearch;
 
     // State management - use lock for all access (removed volatile)
     private PonderState _state = PonderState.Idle;
@@ -48,6 +48,11 @@ public sealed partial class Ponderer : IDisposable
     private long _totalPonderHits;
     private long _totalPonderMisses;
     private long _totalPonderTimeMsAll;
+
+    public Ponderer(ParallelMinimaxSearch sharedSearch)
+    {
+        _parallelSearch = sharedSearch ?? throw new ArgumentNullException(nameof(sharedSearch));
+    }
 
     /// <summary>
     /// Current pondering state (thread-safe with lock)
@@ -329,10 +334,7 @@ public sealed partial class Ponderer : IDisposable
     {
         StopPondering();
         _cts?.Dispose();
-        // Don't dispose the Task directly - it may still be running
-        // The GC will clean it up once it completes
         _ponderTask = null;
-        // Board is not disposable - just clear the reference
         _ponderBoard = null;
     }
 }

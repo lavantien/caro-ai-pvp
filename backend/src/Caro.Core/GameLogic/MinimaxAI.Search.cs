@@ -231,8 +231,10 @@ public partial class MinimaxAI
     /// </summary>
     public void ResizeTranspositionTable(int newSizeMb)
     {
+        var oldParallel = _parallelSearch;
         _transpositionTable = new TranspositionTable(newSizeMb);
         _parallelSearch = new ParallelMinimaxSearch(newSizeMb);
+        oldParallel?.Dispose();
     }
 
     /// <summary>

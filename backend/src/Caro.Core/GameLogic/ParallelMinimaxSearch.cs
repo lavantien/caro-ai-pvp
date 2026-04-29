@@ -30,13 +30,14 @@ public record ParallelSearchResult(
 );
 
 /// <summary>
-/// Parallel Minimax search using Lazy SMP (Shared Memory Parallelism)
-/// Multiple threads search independently with shared transposition table
-/// Provides 4-8× speedup on multi-core systems
-/// Time-aware iterative deepening with move stability detection
+/// Parallel Minimax search using Lazy SMP (Shared Memory Parallelism).
+/// Multiple threads search independently with shared transposition table.
+/// Provides 4-8x speedup on multi-core systems.
+/// Thread count is capped at <see cref="ThreadPoolConfig.MaxEngineThreads"/>
+/// (largest power of 2 &lt;= ProcessorCount/2) for both search and pondering.
 ///
 /// OPTIMIZATIONS:
-/// - Lazy SMP with conservative thread count (processorCount/2)-1
+/// - Lazy SMP with persistent worker pool (zero thread-startup overhead)
 /// - MDAP (Move-Dependent Adaptive Pruning) / Late Move Reduction
 /// - Iterative deepening with aspiration windows
 /// - Killer moves and history heuristic
@@ -56,6 +57,7 @@ public sealed partial class ParallelMinimaxSearch
     private readonly Random _random;
     private readonly int _maxThreads;
     private readonly TimeBudgetDepthManager _depthManager = new();
+    private readonly PersistentWorkerPool? _workerPool;
 
     // Search constants
     private const int MaxSearchRadius = SearchConstants.MaxSearchRadius;
@@ -120,10 +122,12 @@ public sealed partial class ParallelMinimaxSearch
     }
 
     /// <summary>
-    /// Create parallel search instance
+    /// Create parallel search instance.
     /// </summary>
     /// <param name="sizeMB">Transposition table size in MB</param>
-    /// <param name="maxThreads">Maximum threads to use (default: uses Lazy SMP formula (n/2)-1)</param>
+    /// <param name="maxThreads">
+    /// Maximum threads to use. Defaults to <see cref="ThreadPoolConfig.MaxEngineThreads"/>.
+    /// </param>
     public ParallelMinimaxSearch(int sizeMB = SearchConstants.DefaultTTSizeMb, int? maxThreads = null)
     {
         _transpositionTable = new LockFreeTranspositionTable(sizeMB);
@@ -131,8 +135,8 @@ public sealed partial class ParallelMinimaxSearch
         _winDetector = new WinDetector();
         _vcfSolver = new ThreatSpaceSearch();
         _random = Random.Shared;
-        // Use Lazy SMP formula (processorCount/2)-1 by default for better stability
-        _maxThreads = maxThreads ?? ThreadPoolConfig.GetLazySMPThreadCount();
+        _maxThreads = maxThreads ?? ThreadPoolConfig.MaxEngineThreads;
+        _workerPool = new PersistentWorkerPool(_maxThreads);
 
         // Configure thread pool for CPU-bound work
         ThreadPoolConfig.ConfigureForSearch();
@@ -235,6 +239,18 @@ public sealed partial class ParallelMinimaxSearch
     /// Stop any ongoing search (used when pondering needs to stop)
     /// </summary>
     public void StopSearch() => _searchCts?.Cancel();
+
+    /// <summary>
+    /// Release all resources including the worker pool.
+    /// Called when the engine is permanently shut down.
+    /// </summary>
+    public void Dispose()
+    {
+        _searchCts?.Cancel();
+        _timeMonitor?.Dispose();
+        _searchCts?.Dispose();
+        _workerPool?.Dispose();
+    }
 
     /// <summary>
     /// Check if search is currently running

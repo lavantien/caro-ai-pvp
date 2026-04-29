@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Caro.Core.Domain.Entities;
 using Caro.Core.GameLogic.TimeManagement;
 using SHC = Caro.Core.Domain.Configuration.SearchHeuristicConstants;
@@ -10,6 +9,7 @@ namespace Caro.Core.GameLogic;
 /// Pondering support for ParallelMinimaxSearch.
 /// Contains methods for background searching while the opponent is thinking.
 /// Results are stored in the shared transposition table for main search benefit.
+/// Uses the same <see cref="ThreadPoolConfig.MaxEngineThreads"/> cap as main search.
 /// </summary>
 public sealed partial class ParallelMinimaxSearch
 {
@@ -58,10 +58,8 @@ public sealed partial class ParallelMinimaxSearch
 
         // NPS is learned from actual search performance - no hardcoded targets
 
-        // Use same thread count as main search
-        int ponderThreadCount = ThreadPoolConfig.GetLazySMPThreadCount();
-
-        // No depth-based thread capping - use the configured thread count directly
+        // Use same thread count cap as main search (MaxEngineThreads)
+        int ponderThreadCount = ThreadPoolConfig.MaxEngineThreads;
 
         _transpositionTable.IncrementAge();
 
@@ -75,33 +73,30 @@ public sealed partial class ParallelMinimaxSearch
         _timeMonitor = new TimeMonitor(maxPonderTimeMs, _searchCts);
         _hardTimeBoundMs = maxPonderTimeMs;
 
-        // Include threadIndex to distinguish master thread (0) from helper threads (1+)
-        var results = new ConcurrentBag<(int x, int y, int score, int depth, long nodes, int threadIndex)>();
-
         // Create thread-local copies of SearchBoard and candidates for each thread
         var boardsArray = new SearchBoard[ponderThreadCount];
         var candidatesArray = new List<(int x, int y)>[ponderThreadCount];
+        var diagnosticsArray = new ThreadData[ponderThreadCount];
         for (int i = 0; i < ponderThreadCount; i++)
         {
             boardsArray[i] = searchBoard.Clone();
             candidatesArray[i] = new List<(int x, int y)>(candidates);
         }
 
-        // Launch parallel pondering searches
         var linkedToken = _searchCts.Token;
-        var tasks = new List<Task>();
-        for (int i = 0; i < ponderThreadCount; i++)
-        {
-            int threadId = i;
-            var task = Task.Run(() =>
-            {
-                var threadData = new ThreadData
-                {
-                    ThreadIndex = threadId,
-                    SearchRadius = MaxSearchRadius,
-                    Random = new Random((int)(Environment.TickCount64 + (long)threadId * 0x9E3779B9L))
-                };
 
+        // Dispatch pondering to persistent worker pool (zero thread-startup overhead)
+        var rawResults = _workerPool!.Search(threadId =>
+        {
+            var threadData = new ThreadData
+            {
+                ThreadIndex = threadId,
+                SearchRadius = MaxSearchRadius,
+                Random = new Random((int)(Environment.TickCount64 + (long)threadId * 0x9E3779B9L))
+            };
+
+            try
+            {
                 var result = SearchPonderIteration(
                     boardsArray[threadId],
                     player,
@@ -112,25 +107,26 @@ public sealed partial class ParallelMinimaxSearch
                     progressCallback,
                     ponderingFor);
 
-                // Add threadIndex to identify master vs helper thread results
-                var (x, y, score, depthAchieved, nodes) = result;
-                results.Add((x, y, score, depthAchieved, nodes, threadId));
-            }, linkedToken);
-            tasks.Add(task);
-        }
+                diagnosticsArray[threadId] = threadData;
+                return result;
+            }
+            catch (OperationCanceledException)
+            {
+                diagnosticsArray[threadId] = threadData;
+                return default;
+            }
+        }, (int)(maxPonderTimeMs + 1000));
 
-        // Wait for all threads or cancellation
-        try
-        {
-            Task.WaitAll(tasks.ToArray());
-        }
-        catch (AggregateException)
-        {
-            // Cancellation occurred - this is expected during pondering
-        }
-
-        _timeMonitor?.Dispose();
         _searchCts?.Cancel();
+
+        // Convert raw results to list for merging
+        var results = new List<(int x, int y, int score, int depth, long nodes, int threadIndex)>();
+        for (int i = 0; i < rawResults.Length; i++)
+        {
+            var r = rawResults[i];
+            if (r.depth > 0 || r.nodes > 0)
+                results.Add((r.x, r.y, r.score, r.depth, r.nodes, i));
+        }
 
         // INTELLIGENT MERGING for pondering: Aggregate ALL thread results
         // Pondering searched predicted opponent moves - those results are valuable

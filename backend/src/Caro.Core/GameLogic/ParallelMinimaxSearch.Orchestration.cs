@@ -108,7 +108,8 @@ public sealed partial class ParallelMinimaxSearch
         TimeAllocation? timeAlloc = null,
         int moveNumber = 0,
         int fixedThreadCount = -1,
-        List<(int x, int y)>? candidates = null)
+        List<(int x, int y)>? candidates = null,
+        CancellationToken cancellationToken = default)
     {
         if (player == Player.None)
             throw new ArgumentException("Player cannot be None");
@@ -173,7 +174,7 @@ public sealed partial class ParallelMinimaxSearch
             }
         }
 
-        return SearchLazySMP(board, player, candidates, alloc, fixedThreadCount);
+        return SearchLazySMP(board, player, candidates, alloc, fixedThreadCount, cancellationToken);
     }
 
     /// <summary>
