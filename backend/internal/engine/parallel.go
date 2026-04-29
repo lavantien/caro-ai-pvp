@@ -3,13 +3,16 @@ package engine
 import (
 	"caro-ai-pvp/internal/domain"
 	"context"
+	"sort"
 	"sync"
 )
 
 type parallelResult struct {
-	x, y  int
-	score int
-	depth int
+	x, y      int
+	score     int
+	depth     int
+	ttProbes  int64
+	ttHits    int64
 }
 
 func ParallelSearch(
@@ -47,6 +50,7 @@ func ParallelSearch(
 
 	var wg sync.WaitGroup
 
+	workerTTStats := make([]struct{ probes, hits int64 }, numWorkers)
 	for w := range numWorkers {
 		wg.Add(1)
 		go func(workerID int) {
@@ -62,6 +66,8 @@ func ParallelSearch(
 				x, y, score := searchRoot(&workerSB, player, job.depth, workerTT, workerH, candidates, monitor)
 
 				if x >= 0 && !monitor.ShouldStop() {
+					p, h := workerTT.Stats()
+					workerTTStats[workerID] = struct{ probes, hits int64 }{p, h}
 					results <- parallelResult{x: x, y: y, score: score, depth: job.depth}
 				}
 			}
@@ -102,11 +108,33 @@ func ParallelSearch(
 		nps = float64(nodes) / float64(elapsed) * 1000
 	}
 
+	var ttHitRate float64
+	var rates []float64
+	for _, s := range workerTTStats {
+		if s.probes > 0 {
+			rates = append(rates, float64(s.hits)/float64(s.probes))
+		}
+	}
+	if len(rates) > 0 {
+		sort.Float64s(rates)
+		var sum float64
+		for _, r := range rates {
+			sum += r
+		}
+		mean := sum / float64(len(rates))
+		median := rates[len(rates)/2]
+		if len(rates)%2 == 0 {
+			median = (rates[len(rates)/2-1] + rates[len(rates)/2]) / 2
+		}
+		ttHitRate = (mean + median) / 2
+	}
+
 	return bestX, bestY, SearchStats{
 		DepthAchieved:   bestDepth,
 		NodesSearched:   nodes,
 		NodesPerSecond:  nps,
 		SearchScore:     bestScore,
+		TableHitRate:    ttHitRate,
 		AllocatedTimeMs: config.TimeLimitMs,
 		ThreadCount:     numWorkers,
 	}
