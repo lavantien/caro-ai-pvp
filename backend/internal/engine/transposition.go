@@ -124,6 +124,13 @@ func (tt *TranspositionTable) Clear() {
 	}
 }
 
+func (tt *TranspositionTable) Dispose() {
+	for i := range tt.shards {
+		tt.shards[i].slots = nil
+		tt.shards[i].mask = 0
+	}
+}
+
 func (tt *TranspositionTable) IncrementAge() {
 	tt.age.Add(1)
 }

@@ -92,6 +92,6 @@ func (ai *MinimaxAI) GetStats() SearchStats {
 }
 
 func (ai *MinimaxAI) Dispose() {
-	ai.tt.Clear()
+	ai.tt.Dispose()
 	ai.heuristics.Clear()
 }

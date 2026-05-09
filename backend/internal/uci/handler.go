@@ -17,6 +17,7 @@ type UCIHandler struct {
 	player domain.Player
 	logger *slog.Logger
 	writer io.Writer
+	cancel context.CancelFunc
 }
 
 func NewUCIHandler(logger *slog.Logger, writer io.Writer) *UCIHandler {
@@ -55,6 +56,7 @@ func (h *UCIHandler) HandleCommand(cmd string) {
 	case "ucinewgame":
 		h.board = domain.NewBoard()
 		h.player = domain.PlayerRed
+		h.ai.Dispose()
 		h.ai = engine.NewMinimaxAI(h.logger, 4)
 
 	case "position":
@@ -64,6 +66,10 @@ func (h *UCIHandler) HandleCommand(cmd string) {
 		h.handleGo(fields[1:])
 
 	case "stop":
+		if h.cancel != nil {
+			h.cancel()
+			h.cancel = nil
+		}
 
 	case "quit":
 		h.ai.Dispose()
@@ -116,7 +122,14 @@ func (h *UCIHandler) handleGo(args []string) {
 		}
 	}
 
-	x, y, stats := h.ai.GetBestMove(h.board, h.player, opts, context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	h.cancel = cancel
+
+	x, y, stats := h.ai.GetBestMove(h.board, h.player, opts, ctx)
+
+	h.cancel = nil
+	cancel()
+
 	h.respond(fmt.Sprintf("info depth %d nodes %d nps %.0f score cp %d tt-hitrate %.2f threads %d",
 		stats.DepthAchieved, stats.NodesSearched, stats.NodesPerSecond, stats.SearchScore, stats.TableHitRate, stats.ThreadCount))
 	h.respond(fmt.Sprintf("bestmove %s", MoveToString(x, y)))
