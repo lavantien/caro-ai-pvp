@@ -82,11 +82,13 @@ process.on('exit', cleanup);
 process.on('SIGINT', () => { cleanup(); process.exit(130); });
 process.on('SIGTERM', () => { cleanup(); process.exit(143); });
 
+const needsShell = (cmd) => process.platform === 'win32' && (cmd === 'npm' || cmd === 'go');
+
 function runCommand(command, args, cwd, label) {
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
 			cwd,
-			shell: false,
+			shell: needsShell(command),
 			stdio: ['ignore', 'pipe', 'pipe'],
 		});
 
@@ -107,7 +109,7 @@ function runCommand(command, args, cwd, label) {
 function spawnDaemon(command, args, cwd, label) {
 	const child = spawn(command, args, {
 		cwd,
-		shell: false,
+		shell: needsShell(command),
 		stdio: ['ignore', 'pipe', 'pipe'],
 	});
 
