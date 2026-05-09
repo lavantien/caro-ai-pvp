@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [6.4.0] - 2026-05-10
+
+### Fixed
+- Server exits immediately on port bind failure instead of blocking forever as zombie process
+- Scripts build binary first (`go build -o`) and spawn directly with `shell: false`, eliminating unreliable `cmd.exe → go.exe → server.exe` process tree cleanup on Windows
+- Pre-startup port cleanup (`killPort`) kills stale processes on port 5207 before spawning new server
+- TT `Dispose()` releases 64 MB backing arrays immediately for GC; separate from `Clear()` which zeroes for reuse
+- UCI `ucinewgame` disposes old AI before creating new one (was leaking 64 MB TT per call)
+- UCI `stop` command cancels ongoing search via `context.CancelFunc`
+- `simulate-match.mjs` deletes game from server after completion
+
+### Changed
+- All scripts (`dev.mjs`, `run-tournament.mjs`, `capture-screenshot.mjs`) unified on build-then-spawn pattern with `shell: false`
+
+[6.4.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.4.0
+
 ## [6.3.0] - 2026-04-30
 
 ### Added
