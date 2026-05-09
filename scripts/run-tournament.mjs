@@ -65,6 +65,22 @@ function parseArgs() {
 
 const children = [];
 
+function killPort(port) {
+	if (process.platform === 'win32') {
+		const r = spawnSync('netstat', ['-ano'], { encoding: 'utf8', shell: false });
+		for (const line of r.stdout.split('\n')) {
+			if (line.includes(`:${port}`) && line.includes('LISTENING')) {
+				const pid = line.trim().split(/\s+/).pop();
+				if (pid && /^\d+$/.test(pid)) {
+					spawnSync('taskkill', ['/F', '/PID', pid], { stdio: 'ignore', shell: false });
+				}
+			}
+		}
+	} else {
+		spawnSync('sh', ['-c', `lsof -ti:${port} | xargs kill -9 2>/dev/null || true`], { stdio: 'ignore' });
+	}
+}
+
 function cleanup() {
 	for (const child of children) {
 		try {
@@ -85,7 +101,7 @@ process.on('SIGTERM', () => { cleanup(); process.exit(143); });
 
 function runCommand(command, args, cwd, label) {
 	return new Promise((resolve, reject) => {
-		const child = spawn(command, args, { cwd, shell: true, stdio: ['ignore', 'pipe', 'pipe'] });
+		const child = spawn(command, args, { cwd, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
 		let stderr = '';
 		child.stderr?.on('data', (d) => {
 			stderr += d.toString();
@@ -100,7 +116,7 @@ function runCommand(command, args, cwd, label) {
 }
 
 function spawnDaemon(command, args, cwd, label) {
-	const child = spawn(command, args, { cwd, shell: true, stdio: ['ignore', 'pipe', 'pipe'] });
+	const child = spawn(command, args, { cwd, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
 	let stderrBuffer = '';
 	child.stderr?.on('data', (data) => {
 		const text = data.toString();
@@ -202,12 +218,18 @@ async function main() {
 	}
 
 	// Step 1: Build and start backend
+	const serverBin = process.platform === 'win32' ? 'server.exe' : 'server';
+	const serverPath = resolve(ROOT, 'backend', serverBin);
+
 	console.log('Building backend...');
-	await runCommand('go', ['build', './...'], resolve(ROOT, 'backend'), 'Build');
+	await runCommand('go', ['build', '-o', serverBin, './cmd/server'], resolve(ROOT, 'backend'), 'Build');
 	console.log('Backend built.');
 
+	console.log('Killing stale processes on port 5207...');
+	killPort(5207);
+
 	console.log('Starting backend...');
-	spawnDaemon('go', ['run', './cmd/server'], resolve(ROOT, 'backend'), 'backend');
+	spawnDaemon(serverPath, [], resolve(ROOT, 'backend'), 'backend');
 	await waitForUrl(`${API_BASE}/`, 60_000);
 	console.log('Backend ready.\n');
 

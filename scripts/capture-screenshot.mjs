@@ -45,13 +45,27 @@ const chromium = pwCore.chromium;
 /** @type {import('node:child_process').ChildProcess[]} */
 const children = [];
 
+function killPort(port) {
+	if (process.platform === 'win32') {
+		const r = spawnSync('netstat', ['-ano'], { encoding: 'utf8', shell: false });
+		for (const line of r.stdout.split('\n')) {
+			if (line.includes(`:${port}`) && line.includes('LISTENING')) {
+				const pid = line.trim().split(/\s+/).pop();
+				if (pid && /^\d+$/.test(pid)) {
+					spawnSync('taskkill', ['/F', '/PID', pid], { stdio: 'ignore', shell: false });
+				}
+			}
+		}
+	} else {
+		spawnSync('sh', ['-c', `lsof -ti:${port} | xargs kill -9 2>/dev/null || true`], { stdio: 'ignore' });
+	}
+}
+
 function cleanup() {
 	for (const child of children) {
 		try {
 			if (child.pid) {
 				if (process.platform === 'win32') {
-					// spawnSync required — async spawn won't complete before process.exit
-					// shell: false required — bash interprets /T and /F as paths
 					spawnSync('taskkill', ['/T', '/F', '/PID', String(child.pid)], {
 						stdio: 'ignore',
 						shell: false,
@@ -68,14 +82,11 @@ process.on('exit', cleanup);
 process.on('SIGINT', () => { cleanup(); process.exit(130); });
 process.on('SIGTERM', () => { cleanup(); process.exit(143); });
 
-/**
- * Run a command and wait for it to exit. Throws on non-zero exit.
- */
 function runCommand(command, args, cwd, label) {
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
 			cwd,
-			shell: true,
+			shell: false,
 			stdio: ['ignore', 'pipe', 'pipe'],
 		});
 
@@ -93,14 +104,10 @@ function runCommand(command, args, cwd, label) {
 	});
 }
 
-/**
- * Spawn a long-lived child process (daemon-like).
- * Pipes stdout+stderr to parent console for visibility.
- */
 function spawnDaemon(command, args, cwd, label) {
 	const child = spawn(command, args, {
 		cwd,
-		shell: true,
+		shell: false,
 		stdio: ['ignore', 'pipe', 'pipe'],
 	});
 
@@ -109,7 +116,6 @@ function spawnDaemon(command, args, cwd, label) {
 		const text = data.toString();
 		stderrBuffer += text;
 		if (stderrBuffer.length > 5000) stderrBuffer = stderrBuffer.slice(-2500);
-		// Pipe backend/frontend logs to parent console
 		for (const line of text.split('\n')) {
 			if (line.trim()) console.log(`[${label}] ${line}`);
 		}
@@ -167,7 +173,6 @@ async function captureScreenshot() {
 
 		const page = await context.newPage();
 
-		// Log browser console messages
 		page.on('console', msg => {
 			if (msg.type() === 'error' || msg.type() === 'warning') {
 				console.log(`[browser:${msg.type()}] ${msg.text()}`);
@@ -176,32 +181,22 @@ async function captureScreenshot() {
 
 		await page.goto(`${FRONTEND_URL}/game`, { waitUntil: 'networkidle' });
 
-		// Wait for settings panel to render
 		await page.waitForSelector('button:has-text("AI vs AI")', { timeout: 10_000 });
-
-		// Select AIvAI mode
 		await page.click('button:has-text("AI vs AI")');
-
-		// Select Blitz (3+2) time control for a more interesting game
 		await page.selectOption('select', '3+2');
 
-		// Set difficulty to L5 (Grandmaster) for max strength
 		const slider = await page.$('input#difficulty');
 		if (slider) {
 			await slider.fill('5');
 		}
 
-		// Click New Game to start with AIvAI mode
 		await page.click('button:has-text("New Game")');
 
-		// Wait for the game to complete (banner appears)
 		for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
 			console.log(`Waiting for AI vs AI match to complete (attempt ${attempt}/${MAX_RETRIES})...`);
 
-			// Wait for the result banner to appear (indicates game over)
 			await page.waitForSelector('.animate-slide-down', { timeout: 300_000 });
 
-			// Check if there's a winner (banner contains "Wins!")
 			const bannerText = await page.textContent('.animate-slide-down');
 			if (bannerText && bannerText.includes('Wins!')) {
 				console.log(`Game complete: ${bannerText.trim()}`);
@@ -212,12 +207,10 @@ async function captureScreenshot() {
 				throw new Error('Failed to get a winning game after max retries');
 			}
 
-			// Draw - start a new game
 			console.log('Draw detected, starting new game...');
 			await page.click('button:has-text("New Game")');
 		}
 
-		// Wait for winning line animation
 		await page.waitForTimeout(800);
 
 		await page.screenshot({
@@ -240,19 +233,16 @@ function updateReadme() {
 	const content = readFileSync(README_PATH, 'utf-8');
 	const lines = content.split('\n');
 
-	// Find the first --- separator
 	const separatorIdx = lines.findIndex(l => l.startsWith('---'));
 	if (separatorIdx === -1) {
 		throw new Error('Could not find --- separator in README.md');
 	}
 
-	// Check if screenshot line already exists
 	const existingIdx = lines.findIndex(l => l.includes('screenshot.png'));
 
 	if (existingIdx !== -1) {
 		lines[existingIdx] = SCREENSHOT_LINE;
 	} else {
-		// Insert blank line + screenshot + blank line before ---
 		lines.splice(separatorIdx, 0, '', SCREENSHOT_LINE, '');
 	}
 
@@ -265,18 +255,20 @@ function updateReadme() {
 async function main() {
 	console.log('=== Caro AI PvP - Screenshot Capture ===\n');
 
+	const serverBin = process.platform === 'win32' ? 'server.exe' : 'server';
+	const serverPath = resolve(ROOT, 'backend', serverBin);
+
 	// Step 1: Build backend
 	console.log('Building backend...');
-	await runCommand('go', ['build', './...'], resolve(ROOT, 'backend'), 'Build');
+	await runCommand('go', ['build', '-o', serverBin, './cmd/server'], resolve(ROOT, 'backend'), 'Build');
 	console.log('Backend built.\n');
 
-	// Step 2: Start backend
+	// Step 2: Kill stale processes and start backend
+	console.log('Killing stale processes on port 5207...');
+	killPort(5207);
+
 	console.log('Starting backend...');
-	spawnDaemon(
-		'go', ['run', './cmd/server'],
-		resolve(ROOT, 'backend'),
-		'backend',
-	);
+	spawnDaemon(serverPath, [], resolve(ROOT, 'backend'), 'backend');
 	await waitForUrl(`${API_BASE}/`, 60_000);
 	console.log('Backend ready.\n');
 
