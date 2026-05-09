@@ -39,15 +39,16 @@ func main() {
 		Handler: server,
 	}
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
+	serverErr := make(chan error, 1)
 	go func() {
 		logger.Info("server starting", "addr", httpServer.Addr)
 		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
-			logger.Error("server error", "err", err)
+			serverErr <- err
 		}
 	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	cleanupTicker := time.NewTicker(5 * time.Minute)
 	go func() {
@@ -59,7 +60,15 @@ func main() {
 		}
 	}()
 
-	<-quit
+	select {
+	case err := <-serverErr:
+		logger.Error("server failed to start", "err", err)
+		matchStore.Close()
+		fmt.Fprintf(os.Stderr, "Fatal: %v\n", err)
+		os.Exit(1)
+	case <-quit:
+	}
+
 	logger.Info("shutting down")
 	cleanupTicker.Stop()
 
