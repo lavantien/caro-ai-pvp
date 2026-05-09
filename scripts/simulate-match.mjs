@@ -95,6 +95,9 @@ async function main() {
 	if (!winner && moveCount >= opts.maxMoves) reason = 'max-moves';
 	const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
+	// Clean up game from server to free AI engine memory
+	await fetch(`${API_BASE}/api/game/${gameId}`, { method: 'DELETE' }).catch(() => {});
+
 	if (opts.json) {
 		console.log(JSON.stringify({
 			gameId,
