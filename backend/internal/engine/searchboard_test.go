@@ -48,3 +48,45 @@ func TestSearchBoardFromDomain(t *testing.T) {
 	assert.Equal(t, domain.PlayerBlue, sb.PlayerAt(6, 6))
 	assert.Equal(t, b.Hash(), sb.Hash())
 }
+
+func TestSearchBoardPlayerAtBounds(t *testing.T) {
+	b := domain.NewBoard()
+	sb := NewSearchBoard(b)
+	assert.Equal(t, domain.PlayerNone, sb.PlayerAt(-1, 0))
+	assert.Equal(t, domain.PlayerNone, sb.PlayerAt(0, -1))
+	assert.Equal(t, domain.PlayerNone, sb.PlayerAt(domain.BoardSize, 0))
+}
+
+func TestSearchBoardIsEmptyBounds(t *testing.T) {
+	b := domain.NewBoard()
+	sb := NewSearchBoard(b)
+	assert.False(t, sb.IsEmpty(-1, 0))
+	assert.False(t, sb.IsEmpty(0, -1))
+	assert.False(t, sb.IsEmpty(domain.BoardSize, 0))
+	assert.True(t, sb.IsEmpty(7, 7))
+}
+
+func TestSearchBoardNullMove(t *testing.T) {
+	b := domain.NewBoard()
+	sb := NewSearchBoard(b)
+	hashBefore := sb.Hash()
+	sb.MakeNullMove()
+	assert.Equal(t, domain.PlayerNone, sb.PlayerAt(-1, -1))
+	sb.UnmakeNullMove()
+	assert.Equal(t, hashBefore, sb.Hash())
+}
+
+func TestSearchBoardBitBoardFor(t *testing.T) {
+	b := domain.NewBoard().PlaceStone(5, 5, domain.PlayerRed)
+	sb := NewSearchBoard(b)
+	assert.False(t, sb.BitBoardFor(domain.PlayerRed).IsZero())
+	assert.True(t, sb.BitBoardFor(domain.PlayerBlue).IsZero())
+}
+
+func TestSearchBoardOccupied(t *testing.T) {
+	b := domain.NewBoard()
+	sb := NewSearchBoard(b)
+	assert.True(t, sb.Occupied().IsZero())
+	sb.MakeMove(5, 5, domain.PlayerRed)
+	assert.False(t, sb.Occupied().IsZero())
+}

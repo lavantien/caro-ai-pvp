@@ -60,3 +60,42 @@ func TestBitBoardFromDomain(t *testing.T) {
 	assert.True(t, red.Get(3, 4))
 	assert.False(t, blue.Get(3, 4))
 }
+
+func TestBitBoardAnd(t *testing.T) {
+	var a, b BitBoard
+	a.Set(0, 0)
+	a.Set(1, 0)
+	b.Set(1, 0)
+	b.Set(2, 0)
+	c := a.And(b)
+	assert.False(t, c.Get(0, 0))
+	assert.True(t, c.Get(1, 0))
+	assert.False(t, c.Get(2, 0))
+}
+
+func TestBitBoardXor(t *testing.T) {
+	var a, b BitBoard
+	a.Set(0, 0)
+	a.Set(1, 0)
+	b.Set(1, 0)
+	b.Set(2, 0)
+	c := a.Xor(b)
+	assert.True(t, c.Get(0, 0))
+	assert.False(t, c.Get(1, 0))
+	assert.True(t, c.Get(2, 0))
+}
+
+func TestBitBoardNot(t *testing.T) {
+	var bb BitBoard
+	bb.Set(0, 0)
+	n := bb.Not()
+	assert.False(t, n.Get(0, 0))
+	assert.True(t, n.Get(1, 0))
+}
+
+func TestBitBoardIsZero(t *testing.T) {
+	var bb BitBoard
+	assert.True(t, bb.IsZero())
+	bb.Set(5, 5)
+	assert.False(t, bb.IsZero())
+}

@@ -30,7 +30,9 @@ func TestOrderMovesWinningMove(t *testing.T) {
 	candidates := GetCandidates(&sb, 2)
 	ordered := OrderMoves(candidates, &sb, domain.PlayerRed, 0, nil, h)
 
-	assert.Equal(t, domain.Position{X: 7, Y: 5}, ordered[0], "winning move should be first")
+	top := ordered[0]
+	assert.True(t, (top.X == 2 || top.X == 7) && top.Y == 5,
+		"winning move should be (2,5) or (7,5), got (%d,%d)", top.X, top.Y)
 }
 
 func TestOrderMovesBlocksThreat(t *testing.T) {

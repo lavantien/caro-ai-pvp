@@ -61,3 +61,52 @@ func TestHeuristicsClear(t *testing.T) {
 	assert.False(t, h.IsKiller(0, domain.Position{X: 1, Y: 1}))
 	assert.Equal(t, 0, h.HistoryScore(domain.PlayerRed, 5, 5))
 }
+
+func TestKillerMovesOutOfBounds(t *testing.T) {
+	h := NewSearchHeuristics()
+	h.RecordKiller(-1, domain.Position{X: 1, Y: 1})
+	h.RecordKiller(64, domain.Position{X: 1, Y: 1})
+	assert.False(t, h.IsKiller(-1, domain.Position{X: 1, Y: 1}))
+	assert.False(t, h.IsKiller(64, domain.Position{X: 1, Y: 1}))
+	assert.Equal(t, 0, h.KillerScore(-1, domain.Position{X: 1, Y: 1}))
+	assert.Equal(t, 0, h.KillerScore(64, domain.Position{X: 1, Y: 1}))
+}
+
+func TestHistoryScoreOutOfBounds(t *testing.T) {
+	h := NewSearchHeuristics()
+	h.RecordHistory(domain.PlayerRed, -1, 5, 4)
+	assert.Equal(t, 0, h.HistoryScore(domain.PlayerRed, -1, 5))
+	assert.Equal(t, 0, h.HistoryScore(domain.PlayerRed, 0, -1))
+}
+
+func TestContHistoryNegativeBounds(t *testing.T) {
+	h := NewSearchHeuristics()
+	h.RecordContHistory(domain.PlayerRed, -1, 0, 5, 5, 4)
+	h.RecordContHistory(domain.PlayerRed, 0, -1, 5, 5, 4)
+	h.RecordContHistory(domain.PlayerRed, 0, 0, -1, 5, 4)
+	h.RecordContHistory(domain.PlayerRed, 0, 0, 5, -1, 4)
+	assert.Equal(t, 0, h.ContHistoryScore(domain.PlayerRed, -1, 0, 5, 5))
+	assert.Equal(t, 0, h.ContHistoryScore(domain.PlayerRed, 0, -1, 5, 5))
+}
+
+func TestContHistoryClamp(t *testing.T) {
+	h := NewSearchHeuristics()
+	for range 200 {
+		h.RecordContHistory(domain.PlayerRed, 5, 5, 6, 6, 64)
+	}
+	assert.LessOrEqual(t, h.ContHistoryScore(domain.PlayerRed, 5, 5, 6, 6), 30_000)
+}
+
+func TestCounterMove(t *testing.T) {
+	h := NewSearchHeuristics()
+	h.RecordCounterMove(domain.PlayerRed, 5, 5, 7, 7)
+	pos := h.CounterMoveFor(domain.PlayerRed, 5, 5)
+	assert.Equal(t, domain.Position{X: 7, Y: 7}, pos)
+}
+
+func TestCounterMoveNegativeBounds(t *testing.T) {
+	h := NewSearchHeuristics()
+	h.RecordCounterMove(domain.PlayerRed, -1, 0, 5, 5)
+	pos := h.CounterMoveFor(domain.PlayerRed, -1, 0)
+	assert.Equal(t, domain.Position{X: -1, Y: -1}, pos)
+}

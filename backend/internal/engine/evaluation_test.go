@@ -26,14 +26,14 @@ func TestEvaluateFavorsFourInRow(t *testing.T) {
 
 func TestEvaluateDefenseMultiplier(t *testing.T) {
 	b := domain.NewBoard()
-	for x := 3; x < 7; x++ {
+	for x := 3; x < 6; x++ {
 		b = b.PlaceStone(x, 5, domain.PlayerRed)
 	}
 	sb := NewSearchBoard(b)
 
 	scoreRed := Evaluate(&sb, domain.PlayerRed)
 	scoreBlue := Evaluate(&sb, domain.PlayerBlue)
-	assert.Less(t, scoreBlue, 0, "opponent of 4-in-a-row player should have negative score")
+	assert.Less(t, scoreBlue, 0, "opponent of 3-in-a-row player should have negative score")
 	assert.Greater(t, -scoreBlue, scoreRed,
 		"defense multiplier should make opponent penalty larger than player advantage")
 }

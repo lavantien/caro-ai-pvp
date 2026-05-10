@@ -57,3 +57,20 @@ func TestAllocateTimeMinimum(t *testing.T) {
 	assert.Greater(t, alloc.OptimalMs, int64(0), "should have some allocation even with low time")
 	assert.LessOrEqual(t, alloc.OptimalMs, int64(200), "should not exceed remaining time")
 }
+
+func TestPow2Floor(t *testing.T) {
+	assert.Equal(t, 1, pow2Floor(0))
+	assert.Equal(t, 1, pow2Floor(-1))
+	assert.Equal(t, 1, pow2Floor(1))
+	assert.Equal(t, 2, pow2Floor(2))
+	assert.Equal(t, 4, pow2Floor(5))
+	assert.Equal(t, 8, pow2Floor(10))
+	assert.Equal(t, 16, pow2Floor(20))
+}
+
+func TestGetEngineThreadsForLoad(t *testing.T) {
+	n := runtime.GOMAXPROCS(0)
+	assert.Equal(t, n, GetEngineThreadsForLoad(1))
+	assert.Equal(t, n, GetEngineThreadsForLoad(0))
+	assert.Equal(t, n/2, GetEngineThreadsForLoad(2))
+}

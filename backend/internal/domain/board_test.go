@@ -107,3 +107,32 @@ func TestBoardPlaceStoneCheckedRequiresValid(t *testing.T) {
 	_, err = b.PlaceStoneChecked(-1, 5, PlayerRed)
 	require.ErrorIs(err, ErrPositionBounds)
 }
+
+func TestBoardGetCellOutOfBounds(t *testing.T) {
+	b := NewBoard()
+	cell := b.GetCell(-1, 0)
+	assert.Equal(t, PlayerNone, cell.Player)
+	cell = b.GetCell(0, -1)
+	assert.Equal(t, PlayerNone, cell.Player)
+	cell = b.GetCell(BoardSize, 0)
+	assert.Equal(t, PlayerNone, cell.Player)
+}
+
+func TestBoardPlaceStonePanicsOnOccupied(t *testing.T) {
+	b := NewBoard().PlaceStone(5, 5, PlayerRed)
+	assert.Panics(t, func() {
+		b.PlaceStone(5, 5, PlayerBlue)
+	})
+}
+
+func TestBoardPlaceStonePanicsOutOfBounds(t *testing.T) {
+	b := NewBoard()
+	assert.Panics(t, func() {
+		b.PlaceStone(-1, 0, PlayerRed)
+	})
+}
+
+func TestBoardIsEmptyWithStones(t *testing.T) {
+	b := NewBoard().PlaceStone(0, 0, PlayerRed)
+	assert.False(t, b.IsEmpty())
+}

@@ -135,3 +135,21 @@ func TestMatchStoreDirectoryCreation(t *testing.T) {
 	require.NoError(t, err)
 	svc.Close()
 }
+
+func TestNewMatchStoreInvalidPath(t *testing.T) {
+	_, err := NewMatchStore("/dev/null/impossible/path/test.db")
+	assert.Error(t, err)
+}
+
+func TestMatchStoreGetMovesEmpty(t *testing.T) {
+	dir := t.TempDir()
+	svc, err := NewMatchStore(filepath.Join(dir, "test.db"))
+	require.NoError(t, err)
+	defer svc.Close()
+
+	svc.CreateGame(GameRecord{ID: "g1", GameMode: "pvp", TimeControl: "1+0", RedType: "human", BlueType: "human"})
+
+	moves, err := svc.GetMoves("g1")
+	require.NoError(t, err)
+	assert.Empty(t, moves)
+}

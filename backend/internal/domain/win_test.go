@@ -92,3 +92,28 @@ func TestWinDetectorFromMove(t *testing.T) {
 	assert.True(t, result.HasWinner)
 	assert.Equal(t, PlayerRed, result.Winner)
 }
+
+func TestWinDetectorFromMoveEmpty(t *testing.T) {
+	b := NewBoard()
+	result := CheckWinFromMove(b, 5, 5)
+	assert.False(t, result.HasWinner)
+}
+
+func TestWinDetectorFourNotWin(t *testing.T) {
+	b := NewBoard()
+	for x := 3; x < 7; x++ {
+		b = b.PlaceStone(x, 5, PlayerRed)
+	}
+	result := CheckWin(b)
+	assert.False(t, result.HasWinner, "4 in a row should not win")
+}
+
+func TestWinDetectorAntiDiagonal(t *testing.T) {
+	b := NewBoard()
+	for i := range 5 {
+		b = b.PlaceStone(3+i, 7-i, PlayerBlue)
+	}
+	result := CheckWin(b)
+	assert.True(t, result.HasWinner)
+	assert.Equal(t, PlayerBlue, result.Winner)
+}
