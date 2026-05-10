@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -41,6 +42,11 @@ type MoveRecord struct {
 	ThreadsUsed     *int
 	AllocatedTimeMs *int64
 	MoveType        *string
+	MasterPct       *float64
+	SlaveDepth      *int
+	SlaveNodes      *int64
+	PonderDepth     *int
+	PonderNodes     *int64
 }
 
 type MatchStore struct {
@@ -103,7 +109,55 @@ func NewMatchStore(dbPath string) (*MatchStore, error) {
 		return nil, err
 	}
 
-	return &MatchStore{db: db}, nil
+	s := &MatchStore{db: db}
+	if err := s.migrate(); err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	return s, nil
+}
+
+func (s *MatchStore) migrate() error {
+	newCols := map[string]string{
+		"master_pct":   "REAL",
+		"slave_depth":  "INTEGER",
+		"slave_nodes":  "INTEGER",
+		"ponder_depth": "INTEGER",
+		"ponder_nodes": "INTEGER",
+	}
+
+	rows, err := s.db.Query("PRAGMA table_info(moves)")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	existing := map[string]bool{}
+	for rows.Next() {
+		var cid int
+		var name, colType string
+		var notNull int
+		var dfltValue any
+		var pk int
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			return err
+		}
+		existing[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for col, typ := range newCols {
+		if !existing[col] {
+			_, err := s.db.Exec(fmt.Sprintf("ALTER TABLE moves ADD COLUMN %s %s", col, typ))
+			if err != nil {
+				return fmt.Errorf("migrate add column %s: %w", col, err)
+			}
+		}
+	}
+	return nil
 }
 
 func (s *MatchStore) CreateGame(g GameRecord) error {
@@ -130,11 +184,13 @@ func (s *MatchStore) RecordMove(m MoveRecord) error {
 	_, err := s.db.Exec(
 		`INSERT INTO moves (game_id, move_number, player, pos_x, pos_y, is_bot, difficulty,
 		    think_time_ms, remaining_time_ms, search_depth, nodes_searched, nps, tt_hit_rate,
-		    search_score, threads_used, allocated_time_ms, move_type)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		    search_score, threads_used, allocated_time_ms, move_type,
+		    master_pct, slave_depth, slave_nodes, ponder_depth, ponder_nodes)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		m.GameID, m.MoveNumber, m.Player, m.PosX, m.PosY, m.IsBot, diff,
 		m.ThinkTimeMs, m.RemainingTimeMs, m.SearchDepth, m.NodesSearched, m.NPS, m.TTHitRate,
 		m.SearchScore, m.ThreadsUsed, m.AllocatedTimeMs, m.MoveType,
+		m.MasterPct, m.SlaveDepth, m.SlaveNodes, m.PonderDepth, m.PonderNodes,
 	)
 	return err
 }
@@ -182,7 +238,8 @@ func (s *MatchStore) GetMoves(gameID string) ([]MoveRecord, error) {
 	rows, err := s.db.Query(
 		`SELECT move_number, player, pos_x, pos_y, is_bot, difficulty,
 		        think_time_ms, remaining_time_ms, search_depth, nodes_searched,
-		        nps, tt_hit_rate, search_score, threads_used, allocated_time_ms, move_type
+		        nps, tt_hit_rate, search_score, threads_used, allocated_time_ms, move_type,
+		        master_pct, slave_depth, slave_nodes, ponder_depth, ponder_nodes
 		 FROM moves WHERE game_id = ? ORDER BY move_number`, gameID,
 	)
 	if err != nil {
@@ -199,10 +256,14 @@ func (s *MatchStore) GetMoves(gameID string) ([]MoveRecord, error) {
 		var nps, ttHitRate sql.NullFloat64
 		var searchScore sql.NullInt64
 		var moveType sql.NullString
+		var masterPct sql.NullFloat64
+		var slaveDepth, ponderDepth sql.NullInt64
+		var slaveNodes, ponderNodes sql.NullInt64
 
 		err := rows.Scan(&m.MoveNumber, &m.Player, &m.PosX, &m.PosY, &isBot, &diff,
 			&thinkTime, &remainingTime, &searchDepth, &nodesSearched,
-			&nps, &ttHitRate, &searchScore, &threadsUsed, &allocTime, &moveType)
+			&nps, &ttHitRate, &searchScore, &threadsUsed, &allocTime, &moveType,
+			&masterPct, &slaveDepth, &slaveNodes, &ponderDepth, &ponderNodes)
 		if err != nil {
 			return nil, err
 		}
@@ -245,6 +306,23 @@ func (s *MatchStore) GetMoves(gameID string) ([]MoveRecord, error) {
 		}
 		if moveType.Valid {
 			m.MoveType = &moveType.String
+		}
+		if masterPct.Valid {
+			m.MasterPct = &masterPct.Float64
+		}
+		if slaveDepth.Valid {
+			v := int(slaveDepth.Int64)
+			m.SlaveDepth = &v
+		}
+		if slaveNodes.Valid {
+			m.SlaveNodes = &slaveNodes.Int64
+		}
+		if ponderDepth.Valid {
+			v := int(ponderDepth.Int64)
+			m.PonderDepth = &v
+		}
+		if ponderNodes.Valid {
+			m.PonderNodes = &ponderNodes.Int64
 		}
 
 		moves = append(moves, m)
