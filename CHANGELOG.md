@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [6.6.0] - 2026-05-10
+
+### Added
+- Frontend UCIEngine unit tests: MockWebSocket with response queue, 23 test cases covering connect/disconnect, command lifecycle, best-move resolution, timeout rejection, error handling
+- Frontend game type tests: switchPlayer and difficultyName pure function validation (8 cases)
+- Frontend API config tests: endpoint function coverage and wsBaseUrl derivation (8 cases)
+- Frontend GameStore UCI integration tests: connect/disconnect, AI move flow, out-of-bounds handling, auto-connect on enable (11 cases)
+
+### Changed
+- Frontend unit test coverage: 45.24% -> 96.83% lines (100/221 -> 214/221)
+- Frontend coverage badge: red -> blue
+
 ## [6.5.0] - 2026-05-10
 
 ### Added
@@ -30,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend: AI vs AI mode sends redDifficulty/blueDifficulty explicitly instead of relying on backend fallback
 - Documentation: SIMD evaluation and pondering marked as planned; TT section corrected to match sharded SeqLock implementation
 
+[6.6.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.6.0
 [6.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.5.0
 
 ## [6.4.0] - 2026-05-10
