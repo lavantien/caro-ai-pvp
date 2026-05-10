@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [6.7.0] - 2026-05-11
+
+### Added
+- Pre-formatted statline in AI move API response (`lastMove.statline`): depth, nodes, NPS, TT hit rate, score, think time per move
+- `lastMove` object in `/api/game/{id}/ai-move` response with move detail (position, player, engine stats, timing)
+- Structured statline logging to backend stdout via `log/slog`
+- SQLite migration for 5 future engine stat columns (master_pct, slave_depth, slave_nodes, ponder_depth, ponder_nodes)
+- Per-move statline output in `simulate-match.mjs` and `run-tournament.mjs` scripts
+- `e2e.txt` and `tournament.txt` tracked in version control for reproducible match logs
+- Handler unit tests: formatStatlineNodes, formatStatlineNPS, buildMoveDetail, MakeAIMove returns lastMove
+- Persistence unit tests: migration adds columns, record future stats, migration from old schema
+
+### Changed
+- `NewHandler` accepts logger parameter for structured statline logging
+- STATS.md populated with actual L1 vs L5 benchmark results and per-level stat ranges
+
 ## [6.6.0] - 2026-05-10
 
 ### Added
@@ -42,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend: AI vs AI mode sends redDifficulty/blueDifficulty explicitly instead of relying on backend fallback
 - Documentation: SIMD evaluation and pondering marked as planned; TT section corrected to match sharded SeqLock implementation
 
+[6.7.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.7.0
 [6.6.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.6.0
 [6.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.5.0
 
