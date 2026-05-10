@@ -63,7 +63,7 @@ func ParallelSearch(
 					return
 				}
 
-				x, y, score := searchRoot(&workerSB, player, job.depth, workerTT, workerH, candidates, monitor)
+				x, y, score := searchRoot(&workerSB, player, job.depth, -domain.WinScore*2, domain.WinScore*2, workerTT, workerH, candidates, monitor)
 
 				if x >= 0 && !monitor.ShouldStop() {
 					p, h := workerTT.Stats()

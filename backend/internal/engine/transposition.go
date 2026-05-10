@@ -14,24 +14,26 @@ const (
 )
 
 type TTEntry struct {
-	Hash  uint64
-	Score int32
-	Depth uint8
-	MoveX int8
-	MoveY int8
-	Flag  uint8
-	Age   uint8
+	Hash       uint64
+	Score      int32
+	StaticEval int32
+	Depth      uint8
+	MoveX      int8
+	MoveY      int8
+	Flag       uint8
+	Age        uint8
 }
 
 type ttSlot struct {
-	hash    uint64
-	score   int32
-	depth   uint8
-	moveX   int8
-	moveY   int8
-	flag    uint8
-	age     uint8
-	version atomic.Uint32
+	hash       uint64
+	score      int32
+	staticEval int32
+	depth      uint8
+	moveX      int8
+	moveY      int8
+	flag       uint8
+	age        uint8
+	version    atomic.Uint32
 }
 
 type ttShard struct {
@@ -73,9 +75,18 @@ func (tt *TranspositionTable) Store(entry TTEntry) {
 	idx := entry.Hash & shard.mask
 	slot := &shard.slots[idx]
 
+	currentAge := uint8(tt.age.Load())
+	entryPrio := int(entry.Depth) - 8*int(currentAge-entry.Age)
+	existingPrio := int(slot.depth) - 8*int(currentAge-slot.age)
+
+	if slot.hash != 0 && slot.hash != entry.Hash && existingPrio >= entryPrio {
+		return
+	}
+
 	slot.version.Add(1)
 	slot.hash = entry.Hash
 	slot.score = entry.Score
+	slot.staticEval = entry.StaticEval
 	slot.depth = entry.Depth
 	slot.moveX = entry.MoveX
 	slot.moveY = entry.MoveY
@@ -97,13 +108,14 @@ func (tt *TranspositionTable) Lookup(hash uint64) (TTEntry, bool) {
 	}
 
 	entry := TTEntry{
-		Hash:  slot.hash,
-		Score: slot.score,
-		Depth: slot.depth,
-		MoveX: slot.moveX,
-		MoveY: slot.moveY,
-		Flag:  slot.flag,
-		Age:   slot.age,
+		Hash:       slot.hash,
+		Score:      slot.score,
+		StaticEval: slot.staticEval,
+		Depth:      slot.depth,
+		MoveX:      slot.moveX,
+		MoveY:      slot.moveY,
+		Flag:       slot.flag,
+		Age:        slot.age,
 	}
 
 	if slot.version.Load() != v1 {

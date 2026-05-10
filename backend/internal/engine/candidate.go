@@ -45,6 +45,144 @@ func GetCandidates(sb *SearchBoard, radius int) []domain.Position {
 	return candidates
 }
 
+func GetTacticalCandidates(sb *SearchBoard, player domain.Player) []domain.Position {
+	allCandidates := GetCandidates(sb, 2)
+	if len(allCandidates) == 0 {
+		return nil
+	}
+
+	opponent := player.Opponent()
+	tactical := make([]domain.Position, 0, len(allCandidates))
+
+	for _, c := range allCandidates {
+		if isTacticalMove(sb, c.X, c.Y, player, opponent) {
+			tactical = append(tactical, c)
+		}
+	}
+
+	return tactical
+}
+
+func isTacticalMove(sb *SearchBoard, x, y int, player, opponent domain.Player) bool {
+	// Win: creates exactly-5 (Caro-valid)
+	sb.MakeMove(x, y, player)
+	if wouldWin(sb, x, y, player) {
+		sb.UnmakeMove()
+		return true
+	}
+	sb.UnmakeMove()
+
+	// Block: opponent would win here
+	sb.MakeMove(x, y, opponent)
+	if wouldWin(sb, x, y, opponent) {
+		sb.UnmakeMove()
+		return true
+	}
+	sb.UnmakeMove()
+
+	// Creates open four or broken four (single move to five)
+	if createsOpenFour(sb, x, y, player) {
+		return true
+	}
+
+	// Blocks opponent's open four
+	if createsOpenFour(sb, x, y, opponent) {
+		return true
+	}
+
+	// Creates or blocks open three
+	if createsOpenThree(sb, x, y, player) {
+		return true
+	}
+	if createsOpenThree(sb, x, y, opponent) {
+		return true
+	}
+
+	return false
+}
+
+// createsOpenFour checks if placing player at (x,y) creates an open four
+// (4 in a row with at least one open end, not yet 5).
+func createsOpenFour(sb *SearchBoard, x, y int, player domain.Player) bool {
+	sb.MakeMove(x, y, player)
+	defer sb.UnmakeMove()
+
+	for _, dir := range [][2]int{{1, 0}, {0, 1}, {1, 1}, {1, -1}} {
+		dx, dy := dir[0], dir[1]
+		positive := 0
+		for i := 1; i <= 4; i++ {
+			nx, ny := x+dx*i, y+dy*i
+			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
+				break
+			}
+			positive++
+		}
+		negative := 0
+		for i := 1; i <= 4; i++ {
+			nx, ny := x-dx*i, y-dy*i
+			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
+				break
+			}
+			negative++
+		}
+
+		total := 1 + positive + negative
+		if total == 4 {
+			afterX, afterY := x+dx*(positive+1), y+dy*(positive+1)
+			beforeX, beforeY := x-dx*(negative+1), y-dy*(negative+1)
+
+			afterOpen := afterX >= 0 && afterX < domain.BoardSize && afterY >= 0 && afterY < domain.BoardSize && sb.IsEmpty(afterX, afterY)
+			beforeOpen := beforeX >= 0 && beforeX < domain.BoardSize && beforeY >= 0 && beforeY < domain.BoardSize && sb.IsEmpty(beforeX, beforeY)
+
+			if afterOpen || beforeOpen {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// createsOpenThree checks if placing player at (x,y) creates an open three
+// (3 in a row with both ends open).
+func createsOpenThree(sb *SearchBoard, x, y int, player domain.Player) bool {
+	sb.MakeMove(x, y, player)
+	defer sb.UnmakeMove()
+
+	for _, dir := range [][2]int{{1, 0}, {0, 1}, {1, 1}, {1, -1}} {
+		dx, dy := dir[0], dir[1]
+		positive := 0
+		for i := 1; i <= 3; i++ {
+			nx, ny := x+dx*i, y+dy*i
+			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
+				break
+			}
+			positive++
+		}
+		negative := 0
+		for i := 1; i <= 3; i++ {
+			nx, ny := x-dx*i, y-dy*i
+			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
+				break
+			}
+			negative++
+		}
+
+		total := 1 + positive + negative
+		if total == 3 {
+			afterX, afterY := x+dx*(positive+1), y+dy*(positive+1)
+			beforeX, beforeY := x-dx*(negative+1), y-dy*(negative+1)
+
+			afterOpen := afterX >= 0 && afterX < domain.BoardSize && afterY >= 0 && afterY < domain.BoardSize && sb.IsEmpty(afterX, afterY)
+			beforeOpen := beforeX >= 0 && beforeX < domain.BoardSize && beforeY >= 0 && beforeY < domain.BoardSize && sb.IsEmpty(beforeX, beforeY)
+
+			if afterOpen && beforeOpen {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func FilterOpenRule(candidates []domain.Position, sb *SearchBoard, player domain.Player) []domain.Position {
 	if player != domain.PlayerRed {
 		return candidates

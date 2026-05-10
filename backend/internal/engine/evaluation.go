@@ -4,98 +4,102 @@ import (
 	"caro-ai-pvp/internal/domain"
 )
 
-var scoreTable = [6][3]int{
-	{0, 0, 0},
-	{0, 1, 10},
-	{0, 10, 100},
-	{0, 100, 1000},
-	{0, 1000, 10000},
-	{100000, 100000, 100000},
-}
+const (
+	fiveScore       = 50_000
+	flex4WinBonus   = 15_000
+	doubleB4Bonus   = 14_000
+	b4f3Bonus       = 13_000
+	doubleF3Bonus   = 12_000
+	flex4Score      = 10_000
+	block4Score     = 5_000
+	flex3Score      = 1_000
+	block3Score     = 100
+	flex2Score      = 100
+	block2Score     = 30
+	flex1Score      = 10
 
-var evalDirections = [4][2]int{
-	{1, 0}, {0, 1}, {1, 1}, {1, -1},
-}
+	defenseMultiplier = 1.5
+	maxCorrectedEval  = 20_000
+)
 
 func Evaluate(sb *SearchBoard, player domain.Player) int {
-	var total int
-	opponent := player.Opponent()
+	playerScore := evaluateForPlayer(sb, player)
+	opponentScore := evaluateForPlayer(sb, player.Opponent())
 
-	for x := range domain.BoardSize {
-		for y := range domain.BoardSize {
-			if sb.PlayerAt(x, y) != player {
-				continue
-			}
-			for _, dir := range evalDirections {
-				dx, dy := dir[0], dir[1]
-				consecutive, openEnds := countLine(sb, x, y, dx, dy, player)
-				if consecutive > 0 && consecutive <= 5 {
-					total += scoreTable[consecutive][openEnds]
-				}
-			}
-		}
+	score := playerScore - int(float64(opponentScore)*defenseMultiplier)
+	score += centerBonus(sb, player)
+
+	if score > maxCorrectedEval {
+		score = maxCorrectedEval
 	}
-
-	var opponentTotal int
-	for x := range domain.BoardSize {
-		for y := range domain.BoardSize {
-			if sb.PlayerAt(x, y) != opponent {
-				continue
-			}
-			for _, dir := range evalDirections {
-				dx, dy := dir[0], dir[1]
-				consecutive, openEnds := countLine(sb, x, y, dx, dy, opponent)
-				if consecutive > 0 && consecutive <= 5 {
-					opponentTotal += scoreTable[consecutive][openEnds]
-				}
-			}
-		}
+	if score < -maxCorrectedEval {
+		score = -maxCorrectedEval
 	}
-
-	return total - int(float64(opponentTotal)*1.5) + centerBonus(sb, player)
+	return score
 }
 
-func countLine(sb *SearchBoard, x, y, dx, dy int, player domain.Player) (consecutive, openEnds int) {
-	px, py := x-dx, y-dy
-	if px >= 0 && px < domain.BoardSize && py >= 0 && py < domain.BoardSize {
-		if sb.PlayerAt(px, py) == player {
-			return 0, 0
+func evaluateForPlayer(sb *SearchBoard, player domain.Player) int {
+	pp := ClassifyBoard(sb, player)
+
+	if pp.Exactly5Count > 0 {
+		return fiveScore
+	}
+
+	if pp.Flex4Count > 0 {
+		score := flex4WinBonus
+		score += pp.Block4Count * block4Score
+		score += pp.Flex3Count * flex3Score
+		return score
+	}
+
+	if pp.Block4Count >= 2 {
+		score := doubleB4Bonus
+		score += pp.Block4Count * block4Score
+		score += pp.Flex3Count * flex3Score
+		return score
+	}
+
+	if pp.Flex3Count >= 2 {
+		score := doubleF3Bonus
+		score += pp.Block4Count * block4Score
+		score += pp.Flex3Count * flex3Score
+		return score
+	}
+
+	if pp.Block4Count >= 1 && pp.Flex3Count >= 1 {
+		score := b4f3Bonus
+		score += pp.Block4Count * block4Score
+		score += pp.Flex3Count * flex3Score
+		return score
+	}
+
+	score := 0
+	score += pp.Flex4Count * flex4Score
+	score += pp.Block4Count * block4Score
+	score += pp.Flex3Count * flex3Score
+	score += pp.Block3Count * block3Score
+	score += pp.Flex2Count * flex2Score
+	score += pp.Block2Count * block2Score
+
+	bits := sb.BitBoardFor(player)
+	for x := range domain.BoardSize {
+		for y := range domain.BoardSize {
+			if bits.Get(x, y) {
+				score += flex1Score
+			}
 		}
 	}
 
-	for i := range 6 {
-		nx, ny := x+dx*i, y+dy*i
-		if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize {
-			break
-		}
-		if sb.PlayerAt(nx, ny) != player {
-			break
-		}
-		consecutive++
-	}
-
-	endX, endY := x+dx*consecutive, y+dy*consecutive
-	if endX >= 0 && endX < domain.BoardSize && endY >= 0 && endY < domain.BoardSize {
-		if sb.IsEmpty(endX, endY) {
-			openEnds++
-		}
-	}
-	if px >= 0 && px < domain.BoardSize && py >= 0 && py < domain.BoardSize {
-		if sb.IsEmpty(px, py) {
-			openEnds++
-		}
-	}
-
-	return
+	return score
 }
 
 func centerBonus(sb *SearchBoard, player domain.Player) int {
 	center := domain.BoardSize / 2
 	bonus := 0
-	playerBits := sb.BitBoardFor(player)
+	bits := sb.BitBoardFor(player)
 	for x := range domain.BoardSize {
 		for y := range domain.BoardSize {
-			if playerBits.Get(x, y) {
+			if bits.Get(x, y) {
 				dist := abs(x-center) + abs(y-center)
 				bonus += (domain.BoardSize - dist) * 2
 			}

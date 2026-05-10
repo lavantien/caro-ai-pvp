@@ -157,7 +157,7 @@
 					...(gameMode === 'pvai'
 						? { [aiSide === 'red' ? 'redDifficulty' : 'blueDifficulty']: difficulty }
 						: gameMode === 'aivai'
-						? { difficulty: difficulty }
+						? { redDifficulty: difficulty, blueDifficulty: difficulty }
 						: {})
 				})
 			});

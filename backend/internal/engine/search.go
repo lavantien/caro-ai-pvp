@@ -39,14 +39,62 @@ func SearchPosition(
 	tt.ResetStats()
 	bestScore := -domain.WinScore * 2
 	completedDepth := 0
+	fullAlpha := -domain.WinScore * 2
+	fullBeta := domain.WinScore * 2
+
+	if config.UseVCF {
+		vcfTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction)
+		if vx, vy, found := SolveVCF(b, player, vcfTime, ctx); found {
+			return vx, vy, SearchStats{
+				DepthAchieved:   0,
+				SearchScore:     domain.WinScore,
+				AllocatedTimeMs: config.TimeLimitMs,
+				MoveType:        "vcf",
+			}
+		}
+	}
 
 	for depth := 1; depth <= config.MaxDepth; depth++ {
 		if monitor.ShouldStop() {
 			break
 		}
 
-		x, y, score := searchRoot(&sb, player, depth, tt, heuristics, candidates, monitor)
-		if x >= 0 {
+		delta := domain.AspirationWindowSize
+		a, b := fullAlpha, fullBeta
+		if depth > 1 {
+			a = max(bestScore-delta, fullAlpha)
+			b = min(bestScore+delta, fullBeta)
+		}
+
+		var x, y, score int
+		found := false
+		for range domain.MaxAspirationAttempts {
+			x, y, score = searchRoot(&sb, player, depth, a, b, tt, heuristics, candidates, monitor)
+			if x < 0 || monitor.ShouldStop() {
+				break
+			}
+			if score <= a && a > fullAlpha {
+				a = max(a-delta, fullAlpha)
+				delta *= 2
+				continue
+			}
+			if score >= b && b < fullBeta {
+				b = min(b+delta, fullBeta)
+				delta *= 2
+				continue
+			}
+			found = true
+			break
+		}
+
+		if !found && !monitor.ShouldStop() {
+			x, y, score = searchRoot(&sb, player, depth, fullAlpha, fullBeta, tt, heuristics, candidates, monitor)
+			if x >= 0 {
+				found = true
+			}
+		}
+
+		if found {
 			bestX, bestY = x, y
 			bestScore = score
 			completedDepth = depth
@@ -83,12 +131,14 @@ func searchRoot(
 	sb *SearchBoard,
 	player domain.Player,
 	depth int,
+	alpha, beta int,
 	tt *TranspositionTable,
 	heuristics *SearchHeuristics,
 	candidates []domain.Position,
 	monitor *TimeMonitor,
 ) (int, int, int) {
 	monitor.Nodes.Add(1)
+	staticEval := Evaluate(sb, player)
 	var ttMove *domain.Position
 	if entry, ok := tt.Lookup(sb.Hash()); ok {
 		ttMove = &domain.Position{X: int(entry.MoveX), Y: int(entry.MoveY)}
@@ -98,7 +148,6 @@ func searchRoot(
 
 	bestScore := -domain.WinScore * 2
 	bestX, bestY := -1, -1
-	alpha, beta := -domain.WinScore*2, domain.WinScore*2
 
 	for i, move := range ordered {
 		if monitor.ShouldStop() {
@@ -108,12 +157,14 @@ func searchRoot(
 		sb.MakeMove(move.X, move.Y, player)
 
 		var score int
-		if i == 0 {
-			score = -alphaBeta(sb, player.Opponent(), depth-1, -beta, -alpha, tt, heuristics, monitor)
+		if wouldWin(sb, move.X, move.Y, player) {
+			score = domain.WinScore
+		} else if i == 0 {
+			score = -alphaBeta(sb, player.Opponent(), depth-1, -beta, -alpha, tt, heuristics, monitor, move)
 		} else {
-			score = -alphaBeta(sb, player.Opponent(), depth-1, -alpha-1, -alpha, tt, heuristics, monitor)
+			score = -alphaBeta(sb, player.Opponent(), depth-1, -alpha-1, -alpha, tt, heuristics, monitor, move)
 			if score > alpha && score < beta {
-				score = -alphaBeta(sb, player.Opponent(), depth-1, -beta, -alpha, tt, heuristics, monitor)
+				score = -alphaBeta(sb, player.Opponent(), depth-1, -beta, -alpha, tt, heuristics, monitor, move)
 			}
 		}
 
@@ -130,12 +181,13 @@ func searchRoot(
 
 	if bestX >= 0 {
 		tt.Store(TTEntry{
-			Hash:  sb.Hash(),
-			Score: int32(bestScore),
-			Depth: uint8(depth),
-			MoveX: int8(bestX),
-			MoveY: int8(bestY),
-			Flag:  TTExact,
+			Hash:       sb.Hash(),
+			Score:      int32(bestScore),
+			StaticEval: int32(staticEval),
+			Depth:      uint8(depth),
+			MoveX:      int8(bestX),
+			MoveY:      int8(bestY),
+			Flag:       TTExact,
 		})
 		heuristics.RecordKiller(depth, domain.Position{X: bestX, Y: bestY})
 	}
@@ -151,6 +203,7 @@ func alphaBeta(
 	tt *TranspositionTable,
 	heuristics *SearchHeuristics,
 	monitor *TimeMonitor,
+	prevMove domain.Position,
 ) int {
 	monitor.Nodes.Add(1)
 	if monitor.ShouldStop() {
@@ -162,6 +215,19 @@ func alphaBeta(
 	}
 
 	origAlpha := alpha
+	staticEval := Evaluate(sb, player)
+
+	// Null-move pruning
+	if depth >= domain.NullMoveMinDepth && staticEval >= beta {
+		sb.MakeNullMove()
+		nullPrev := domain.Position{X: -1, Y: -1}
+		nullScore := -alphaBeta(sb, player.Opponent(), depth-1-domain.NullMoveReduction, -beta, -beta+1, tt, heuristics, monitor, nullPrev)
+		sb.UnmakeNullMove()
+		if nullScore >= beta && !monitor.ShouldStop() {
+			return nullScore
+		}
+	}
+
 	if entry, ok := tt.Lookup(sb.Hash()); ok && int(entry.Depth) >= depth {
 		switch entry.Flag {
 		case TTExact:
@@ -180,40 +246,63 @@ func alphaBeta(
 		}
 	}
 
-	candidates := GetCandidates(sb, 2)
+	candidates := GetCandidates(sb, domain.MaxSearchRadius)
 	var ttMove *domain.Position
 	if entry, ok := tt.Lookup(sb.Hash()); ok {
 		ttMove = &domain.Position{X: int(entry.MoveX), Y: int(entry.MoveY)}
 	}
-	ordered := OrderMoves(candidates, sb, player, depth, ttMove, heuristics)
+
+	picker := NewMovePicker(candidates, sb, player, depth, ttMove, heuristics, prevMove)
 
 	bestScore := -domain.WinScore * 2
 	bestMoveX, bestMoveY := -1, -1
+	moveIdx := 0
 
-	for i, move := range ordered {
+	for {
+		move, ok := picker.Next()
+		if !ok {
+			break
+		}
 		if monitor.ShouldStop() {
 			break
 		}
 
 		reduction := 0
-		if depth >= domain.LMRMinDepth && i >= domain.LMRFullDepthMoves {
+		if depth >= domain.LMRMinDepth && moveIdx >= domain.LMRFullDepthMoves {
 			reduction = 1
-			if i > 8 {
+			if moveIdx > 8 {
 				reduction = 2
 			}
+			histScore := heuristics.HistoryScore(player, move.X, move.Y)
+			if histScore < 0 {
+				reduction++
+			}
+			if reduction >= depth {
+				reduction = depth - 1
+			}
+		}
+
+		// Futility pruning
+		if depth <= domain.FutilityMinDepth && moveIdx > 0 &&
+			staticEval+domain.FutilityMarginBase+domain.FutilityMarginPerDepth*depth <= alpha {
+			moveIdx++
+			continue
 		}
 
 		sb.MakeMove(move.X, move.Y, player)
 
 		var score int
-		newDepth := depth - 1 - reduction
-
-		if i == 0 {
-			score = -alphaBeta(sb, player.Opponent(), newDepth, -beta, -alpha, tt, heuristics, monitor)
+		if wouldWin(sb, move.X, move.Y, player) {
+			score = domain.WinScore
 		} else {
-			score = -alphaBeta(sb, player.Opponent(), newDepth, -alpha-1, -alpha, tt, heuristics, monitor)
-			if score > alpha && score < beta {
-				score = -alphaBeta(sb, player.Opponent(), depth-1, -beta, -alpha, tt, heuristics, monitor)
+			newDepth := depth - 1 - reduction
+			if moveIdx == 0 {
+				score = -alphaBeta(sb, player.Opponent(), newDepth, -beta, -alpha, tt, heuristics, monitor, move)
+			} else {
+				score = -alphaBeta(sb, player.Opponent(), newDepth, -alpha-1, -alpha, tt, heuristics, monitor, move)
+				if score > alpha && score < beta {
+					score = -alphaBeta(sb, player.Opponent(), depth-1, -beta, -alpha, tt, heuristics, monitor, move)
+				}
 			}
 		}
 
@@ -229,8 +318,13 @@ func alphaBeta(
 		if alpha >= beta {
 			heuristics.RecordKiller(depth, move)
 			heuristics.RecordHistory(player, move.X, move.Y, depth)
+			heuristics.RecordContHistory(player, prevMove.X, prevMove.Y, move.X, move.Y, depth)
+			if prevMove.X >= 0 {
+				heuristics.RecordCounterMove(player, prevMove.X, prevMove.Y, move.X, move.Y)
+			}
 			break
 		}
+		moveIdx++
 	}
 
 	flag := TTExact
@@ -240,12 +334,13 @@ func alphaBeta(
 		flag = TTLowerBound
 	}
 	tt.Store(TTEntry{
-		Hash:  sb.Hash(),
-		Score: int32(bestScore),
-		Depth: uint8(depth),
-		MoveX: int8(bestMoveX),
-		MoveY: int8(bestMoveY),
-		Flag:  flag,
+		Hash:       sb.Hash(),
+		Score:      int32(bestScore),
+		StaticEval: int32(staticEval),
+		Depth:      uint8(depth),
+		MoveX:      int8(bestMoveX),
+		MoveY:      int8(bestMoveY),
+		Flag:       flag,
 	})
 
 	return bestScore
@@ -275,14 +370,19 @@ func quiesce(
 		return standPat
 	}
 
-	candidates := GetCandidates(sb, 1)
+	candidates := GetTacticalCandidates(sb, player)
 	for _, move := range candidates {
 		if monitor.ShouldStop() {
 			break
 		}
 
 		sb.MakeMove(move.X, move.Y, player)
-		score := -quiesce(sb, player.Opponent(), -beta, -alpha, maxPly-1, heuristics, monitor)
+		var score int
+		if wouldWin(sb, move.X, move.Y, player) {
+			score = domain.WinScore
+		} else {
+			score = -quiesce(sb, player.Opponent(), -beta, -alpha, maxPly-1, heuristics, monitor)
+		}
 		sb.UnmakeMove()
 
 		if score >= beta {

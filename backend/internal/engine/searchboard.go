@@ -92,3 +92,13 @@ func (sb *SearchBoard) UnmakeMove() {
 	sb.cells[entry.x*domain.BoardSize+entry.y] = entry.player
 	sb.hash = entry.hash
 }
+
+func (sb *SearchBoard) MakeNullMove() {
+	sb.undoStack = append(sb.undoStack, undoEntry{x: -1, y: -1, player: domain.PlayerNone, hash: sb.hash})
+}
+
+func (sb *SearchBoard) UnmakeNullMove() {
+	entry := sb.undoStack[len(sb.undoStack)-1]
+	sb.undoStack = sb.undoStack[:len(sb.undoStack)-1]
+	sb.hash = entry.hash
+}
