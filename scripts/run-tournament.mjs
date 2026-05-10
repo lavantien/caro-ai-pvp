@@ -189,6 +189,8 @@ async function playOneGame(redDiff, blueDiff, timeControl, maxMoves) {
 		const data = await moveResp.json();
 		moveCount++;
 
+		if (data.lastMove?.statline) console.log(data.lastMove.statline);
+
 		if (data.state.isGameOver) {
 			winner = data.state.winner;
 			reason = winner ? 'win' : 'draw';

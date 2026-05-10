@@ -82,6 +82,8 @@ async function main() {
 		const data = await moveResp.json();
 		moveCount++;
 
+		if (data.lastMove?.statline) console.log(data.lastMove.statline);
+
 		if (!opts.json && moveCount % 10 === 0) {
 			process.stdout.write(`Move ${moveCount}...\r`);
 		}
