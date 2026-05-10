@@ -197,7 +197,7 @@ async function captureScreenshot() {
 		for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
 			console.log(`Waiting for AI vs AI match to complete (attempt ${attempt}/${MAX_RETRIES})...`);
 
-			await page.waitForSelector('.animate-slide-down', { timeout: 300_000 });
+			await page.waitForSelector('.animate-slide-down', { timeout: 600_000 });
 
 			const bannerText = await page.textContent('.animate-slide-down');
 			if (bannerText && bannerText.includes('Wins!')) {

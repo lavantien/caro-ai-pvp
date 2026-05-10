@@ -126,25 +126,9 @@ LMR reduces search depth for moves that are statistically less likely to be best
 
 ## 3. Transposition Table System
 
-The engine has two TT implementations, each serving a different search context:
+Single sharded SeqLock transposition table used by both sequential and parallel search paths. In parallel search, each worker uses its own local TT instance.
 
-### 3.1 Cluster-Based TranspositionTable (MinimaxAI)
-
-Used by `MinimaxAI` for single-threaded (sequential) search path.
-
-**Cluster Structure:**
-- 3 entries per cluster
-- 10-byte TTEntry structs (compact storage)
-- Depth-age replacement scheme
-
-**Replacement Policy:**
-- Priority: depth - 8 * age
-- Higher priority entries are kept
-- Age increments per search iteration
-
-### 3.2 SeqLock Sharded TranspositionTable
-
-Single TT implementation used by both sequential and parallel search paths. In parallel search, each worker uses its own local TT instance.
+### 3.1 Sharded SeqLock Architecture
 
 **Shard Distribution:**
 - 16 independent segments
@@ -152,12 +136,17 @@ Single TT implementation used by both sequential and parallel search paths. In p
 - SeqLock pattern with atomic.Uint32 version counters
 - Reduces cache coherency traffic
 
+**Depth-Age Replacement:**
+- Priority formula: depth - 8 * age
+- Higher priority entries kept; lower priority entries overwritten
+- Age increments per search iteration via `IncrementAge()`
+
 **Stats Tracking:**
 - `probes` and `hits` atomic counters for hit rate computation
 - Sequential path: single TT tracks probes/hits directly
 - Parallel path: each worker has independent TT; hit rate = (mean + median) / 2 across workers
 
-### 3.3 Entry Structure
+### 3.2 Entry Structure
 
 Each TT entry stores:
 - **Hash Key** - Position identification (truncated)
@@ -167,7 +156,7 @@ Each TT entry stores:
 - **Best Move** - Principal variation move
 - **Static Eval** - Cached static evaluation
 
-### 3.4 Lockless Access (SeqLock)
+### 3.3 Lockless Access (SeqLock)
 
 SeqLock pattern with version counters enables parallel access without locks.
 
@@ -177,7 +166,7 @@ SeqLock pattern with version counters enables parallel access without locks.
 - Retry on version mismatch
 - Detects concurrent modification without locks
 
-### 3.5 TT Write Policy
+### 3.4 TT Write Policy
 
 All workers in Lazy SMP maintain independent local TT instances, eliminating
 cross-goroutine write contention. Each worker writes at all depths to its own TT.
@@ -416,20 +405,13 @@ Uses control theory principles for time allocation.
 
 ### 6.3 Pondering
 
-Background search during opponent's turn.
+Background search during opponent's turn (planned).
 
-**Characteristics:**
-- Enabled by default
-- Shares the same ParallelMinimaxSearch instance (and worker pool) with main search
-- Searches predicted opponent move
-- TT stored for potential reuse
-- Interrupted on opponent move
-
-**Ponder Hit Handling:**
-- `HasPonderHitResult` property checks for valid ponder hit
-- `GetPonderHitResult()` retrieves result immediately (no waiting)
-- Ponder time is "free" precomputation - runs during opponent's turn
-- GetBestMove checks for ponder hit before starting new search
+**Planned Characteristics:**
+- Enabled for L5 (Grandmaster) via DifficultyProfile
+- Shares TT between ponder and main search (single MinimaxAI instance)
+- Context cancellation terminates ponder cleanly
+- Ponder hit reuses pre-computed result
 
 ---
 
@@ -448,7 +430,7 @@ Immutable board design with pre-computed AI optimization data.
 - BitBoards: `uint64[4]` arrays (256 bits for 16x16 board)
 - Hash: Zobrist-style XOR updated on each move
 - O(1) access during AI search instead of O(n^2) iteration
-- SIMD evaluation path via experimental simd/archsimd (build tag: goexperiment.simd)
+- SIMD evaluation path via experimental simd/archsimd (build tag: goexperiment.simd; planned)
 
 **Memory Layout:**
 ```
@@ -604,7 +586,7 @@ Hardware-agnostic difficulty via `DifficultyProfile` -- search parameters scale 
 | 2 | Beginner | 15% | 1 | No | No | No |
 | 3 | Intermediate | 40% | 2 | No | Yes | Yes |
 | 4 | Advanced | 70% | Pow2((N-2)/2)/2 | No | Yes | Yes |
-| 5 | Grandmaster | 100% | Pow2((N-2)/2) | Yes | Yes | Yes |
+| 5 | Grandmaster | 100% | Pow2((N-2)/2) | Planned | Yes | Yes |
 
 **How it works:**
 - `TimeFraction` (0.0-1.0): Post-PID multiplier on allocated search time. Level 1 uses 5% of allocated time; level 5 uses full budget.
@@ -631,7 +613,7 @@ Two-character algebraic notation for Caro:
 | Package | Files | Responsibility |
 |---------|-------|---------------|
 | `internal/domain` | board.go, game.go, player.go, position.go, zobrist.go, win.go, constants.go, errors.go | Domain entities, game rules, no dependencies |
-| `internal/engine` | minimax.go, search.go, parallel.go, evaluation.go, transposition.go, movepicker.go, candidate.go, heuristics.go, timemanager.go, timemonitor.go, difficulty.go, searchboard.go, bitboard.go | AI engine, search algorithms |
+| `internal/engine` | minimax.go, search.go, parallel.go, evaluation.go, pattern4.go, vcf.go, transposition.go, movepicker.go, candidate.go, heuristics.go, timemanager.go, timemonitor.go, difficulty.go, searchboard.go, bitboard.go | AI engine, search algorithms |
 | `internal/uci` | handler.go, notation.go, position.go, options.go | UCI protocol handling |
 | `internal/api` | server.go, handlers.go, websocket.go, session.go, store.go, requests.go, middleware.go, errors.go | HTTP/WebSocket API |
 | `internal/persistence` | matchstore.go | Structured match persistence (SQLite) |
@@ -654,13 +636,15 @@ Two-character algebraic notation for Caro:
 | File | Role |
 |------|------|
 | `minimax.go` | MinimaxAI struct definition, constructor, public API, Dispose |
-| `search.go` | Iterative deepening, PVS alpha-beta, LMR, null-move pruning |
+| `search.go` | Iterative deepening, PVS alpha-beta, LMR, null-move pruning, aspiration windows |
 | `parallel.go` | Lazy SMP goroutine pool dispatch, result aggregation |
-| `evaluation.go` | Evaluation interface, scoring system, Pattern4 |
+| `evaluation.go` | Pattern4-based evaluation with defense multiplier and center bonus |
+| `pattern4.go` | 4-direction threat classification (Flex/Block/Broken patterns, combined threat detection) |
+| `vcf.go` | Victory by Continuous Fours pre-search solver |
 | `transposition.go` | Sharded SeqLock TT with atomic.Uint32 version counters |
-| `movepicker.go` | Staged move ordering (7 stages) |
-| `candidate.go` | Candidate generation with center-of-mass ordering |
-| `heuristics.go` | Killer moves, continuation/butterfly history |
+| `movepicker.go` | Staged move ordering (7 stages: TT -> Block -> Win -> Threat -> Killer/Counter -> Quiet) |
+| `candidate.go` | Candidate generation with center-of-mass ordering, tactical filtering |
+| `heuristics.go` | Killer moves, continuation/butterfly/counter-move history |
 | `timemanager.go` | PID time management, phase-aware allocation |
 | `timemonitor.go` | context.Context-based search time monitoring |
 | `difficulty.go` | Hardware-agnostic L1-L5 difficulty profiles |

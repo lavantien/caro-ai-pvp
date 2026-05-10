@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [6.5.0] - 2026-05-10
+
+### Added
+- Pattern4 classification system (pattern4.go): 4-direction combined threat detection with Flex/Block/Broken pattern categories
+- VCF solver (vcf.go): Victory by Continuous Fours pre-search running before alpha-beta (20% of allocated time)
+- Staged move picker: 7-stage generation (TT -> Block -> Win -> Threat -> Killer/Counter -> Quiet) with early cutoff
+- Tactical candidate generation: quiescence search filters to forcing moves only (open fours, open threes, blocks)
+- Aspiration windows: narrowed bounds near root with incremental widening (3 attempts, delta doubling)
+- Counter-move history: opponent-response pattern tracking in heuristics
+- Continuation history: 6-ply move pair scoring in heuristics
+- Depth-age replacement in transposition table: priority formula depth - 8*age
+- Static eval cache in TT entries for futility pruning and correction
+- ~30 new tests across 9 files for coverage improvement (89.6% → 91.6% with -race)
+
+### Changed
+- Evaluation rewritten using Pattern4-based scoring (replaced simple scoreTable)
+- Defense multiplier 1.5x applied to opponent threats via Pattern4 player evaluation
+- Move picker upgraded from flat scoring to staged generation with must-block and threat-create stages
+
+### Fixed
+- Frontend: AI vs AI mode sends redDifficulty/blueDifficulty explicitly instead of relying on backend fallback
+- Documentation: SIMD evaluation and pondering marked as planned; TT section corrected to match sharded SeqLock implementation
+
+[6.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.5.0
+
 ## [6.4.0] - 2026-05-10
 
 ### Fixed

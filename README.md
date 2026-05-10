@@ -62,7 +62,7 @@ Full-strength engine with 100-500x speedup over naive minimax:
 | | Butterfly History | Long-term move statistics |
 | **Evaluation** | BitKey Pattern System | O(1) pattern lookup with bit rotation |
 | | Pattern4 Classification | 4-direction combined threat detection |
-| | SIMD Evaluation | Vectorized pattern detection via experimental simd/archsimd |
+| | SIMD Evaluation | Vectorized pattern detection via experimental simd/archsimd (planned) |
 | **Time Control** | PID Time Management | Control theory for allocation |
 | | Structured Logging | log/slog with async file-based rotation |
 
@@ -117,7 +117,7 @@ The engine supports 5 difficulty levels, hardware-agnostic via time fraction sca
 | 2 | Beginner | 15% | 1 | No | No |
 | 3 | Intermediate | 40% | 2 | Yes | No |
 | 4 | Advanced | 70% | Pow2((N-2)/2)/2 | Yes | No |
-| 5 | Grandmaster | 100% | Pow2((N-2)/2) | Yes | Yes |
+| 5 | Grandmaster | 100% | Pow2((N-2)/2) | Yes | Planned |
 
 - Time fraction scales search time (post-PID), making difficulty machine-independent
 - VCF solver and parallel search unlock at higher levels
@@ -313,11 +313,10 @@ All domain entities are immutable for thread safety:
 - Maintains strategic initiative instead of reactive blocking
 - Prevents "strength inversion" (weaker AI exploiting predictable behavior)
 
-**Ponder Hit Handling:**
-- MinimaxAI supports pondering internally (enabled by default)
+**Ponder Hit Handling (planned):**
+- MinimaxAI will support pondering internally (planned for L5)
 - TT shared between ponder and main search (single MinimaxAI instance)
 - Context cancellation terminates ponder search cleanly
-- GetBestMove checks for ponder hit before starting new search
 
 **Per-Player AI Isolation:**
 - Each player in a game gets its own MinimaxAI instance
@@ -365,7 +364,7 @@ Depth varies by host machine -- calculated dynamically from NPS and time budget.
 
 **Backend:** Go 1.26, net/http (ServeMux with method matching), gorilla/websocket, log/slog, CGO_ENABLED=1 (SQLite), stretchr/testify
 
-**AI:** Custom minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP with channel-based goroutine pool, Hash Move-first ordering. SIMD evaluation via experimental simd/archsimd.
+**AI:** Custom minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP with channel-based goroutine pool, Hash Move-first ordering. SIMD evaluation via experimental simd/archsimd (planned).
 
 **Persistence:** SQLite + FTS5 via mattn/go-sqlite3
 

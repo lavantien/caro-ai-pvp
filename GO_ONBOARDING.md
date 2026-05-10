@@ -25,7 +25,7 @@ backend/
 - net/http ServeMux with method matching (Go 1.22+)
 - gorilla/websocket, mattn/go-sqlite3 (CGO_ENABLED=1)
 - stretchr/testify for assertions
-- experimental simd/archsimd for vectorized evaluation
+- experimental simd/archsimd for vectorized evaluation (planned)
 
 ### Architecture Principles
 
