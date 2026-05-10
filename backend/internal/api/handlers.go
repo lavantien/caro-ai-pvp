@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -19,8 +20,8 @@ type Handler struct {
 	}
 }
 
-func NewHandler(store *InMemoryStore, matches *persistence.MatchStore) *Handler {
-	return &Handler{store: store, matches: matches}
+func NewHandler(store *InMemoryStore, matches *persistence.MatchStore, logger interface{ Info(string, ...any) }) *Handler {
+	return &Handler{store: store, matches: matches, logger: logger}
 }
 
 func newGameID() string {
@@ -198,7 +199,11 @@ func (h *Handler) MakeAIMove(w http.ResponseWriter, r *http.Request) {
 		h.logAIMove(id, x, y, resp, difficulty, stats, thinkTime)
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"state": resp})
+	moveDetail := h.buildMoveDetail(resp, player.String(), x, y, stats, thinkTime)
+	if h.logger != nil {
+		h.logger.Info("move-statline", "gameId", id, "line", moveDetail.Statline)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"state": resp, "lastMove": moveDetail})
 }
 
 func (h *Handler) UndoMove(w http.ResponseWriter, r *http.Request) {
@@ -297,6 +302,71 @@ func (h *Handler) logAIMove(gameID string, x, y int, resp GameResponse, difficul
 	})
 	if resp.IsGameOver {
 		h.matches.CompleteGame(gameID, resp.Winner, resp.MoveNumber)
+	}
+}
+
+func formatStatlineNodes(n int64) string {
+	switch {
+	case n >= 1_000_000:
+		return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
+	case n >= 1_000:
+		return fmt.Sprintf("%.1fK", float64(n)/1_000)
+	default:
+		return fmt.Sprintf("%d", n)
+	}
+}
+
+func formatStatlineNPS(nps float64) string {
+	switch {
+	case nps >= 1_000_000:
+		return fmt.Sprintf("%.0fM", nps/1_000_000)
+	case nps >= 1_000:
+		return fmt.Sprintf("%.0fK", nps/1_000)
+	default:
+		return fmt.Sprintf("%.0f", nps)
+	}
+}
+
+func (h *Handler) buildMoveDetail(resp GameResponse, player string, x, y int, stats engine.SearchStats, thinkTimeMs int64) MoveDetailResponse {
+	moveNum := resp.MoveNumber - 1
+	pos := fmt.Sprintf("%c%d", rune('a'+x), y+1)
+	remainingMs := int64(resp.RedTimeRemaining * 1000)
+	if player == "blue" {
+		remainingMs = int64(resp.BlueTimeRemaining * 1000)
+	}
+
+	mt := "exact"
+	if stats.MoveType != "" {
+		mt = stats.MoveType
+	}
+
+	statline := fmt.Sprintf("M%2d %-4s %s  d=%-2d n=%-7s nps=%-5s tt=%3d%% s=%+d t=%.1fs",
+		moveNum, player, pos,
+		stats.DepthAchieved,
+		formatStatlineNodes(stats.NodesSearched),
+		formatStatlineNPS(stats.NodesPerSecond),
+		int(stats.TableHitRate*100),
+		stats.SearchScore,
+		float64(thinkTimeMs)/1000,
+	)
+
+	return MoveDetailResponse{
+		MoveNumber:      moveNum,
+		Player:          player,
+		Pos:             pos,
+		Statline:        statline,
+		ThinkTimeMs:     thinkTimeMs,
+		RemainingTimeMs: remainingMs,
+		EngineStats: EngineStatsResponse{
+			Depth:           stats.DepthAchieved,
+			Nodes:           stats.NodesSearched,
+			NPS:             stats.NodesPerSecond,
+			TTHitRate:       stats.TableHitRate,
+			Score:           stats.SearchScore,
+			Threads:         stats.ThreadCount,
+			AllocatedTimeMs: stats.AllocatedTimeMs,
+			MoveType:        mt,
+		},
 	}
 }
 

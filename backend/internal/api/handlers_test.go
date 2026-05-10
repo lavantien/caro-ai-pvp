@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"caro-ai-pvp/internal/domain"
+	"caro-ai-pvp/internal/engine"
 	"caro-ai-pvp/internal/persistence"
 	"encoding/json"
 	"net/http"
@@ -15,7 +16,7 @@ import (
 )
 
 func testHandler() *Handler {
-	return NewHandler(NewInMemoryStore(), nil)
+	return NewHandler(NewInMemoryStore(), nil, nil)
 }
 
 func decodeResponse(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
@@ -309,7 +310,7 @@ func TestMakeMoveInvalidJSON(t *testing.T) {
 
 func TestCleanupCompleted(t *testing.T) {
 	store := NewInMemoryStore()
-	h := NewHandler(store, nil)
+	h := NewHandler(store, nil, nil)
 
 	// Create a game
 	req := httptest.NewRequest(http.MethodPost, "/api/games", bytes.NewReader(
@@ -327,7 +328,7 @@ func TestCleanupCompleted(t *testing.T) {
 
 func TestCleanupAll(t *testing.T) {
 	store := NewInMemoryStore()
-	h := NewHandler(store, nil)
+	h := NewHandler(store, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/games", bytes.NewReader(
 		[]byte(`{}`),
@@ -395,7 +396,7 @@ func TestMakeMoveOccupied(t *testing.T) {
 
 func TestActiveGameCount(t *testing.T) {
 	store := NewInMemoryStore()
-	h := NewHandler(store, nil)
+	h := NewHandler(store, nil, nil)
 
 	assert.Equal(t, 0, store.ActiveGameCount())
 
@@ -415,7 +416,7 @@ func TestLogHumanMoveWithMatches(t *testing.T) {
 	defer ms.Close()
 
 	store := NewInMemoryStore()
-	h := NewHandler(store, ms)
+	h := NewHandler(store, ms, nil)
 
 	// Create PvP game
 	req := httptest.NewRequest(http.MethodPost, "/api/games", bytes.NewReader(
@@ -444,7 +445,7 @@ func TestLogAIMoveWithMatches(t *testing.T) {
 	defer ms.Close()
 
 	store := NewInMemoryStore()
-	h := NewHandler(store, ms)
+	h := NewHandler(store, ms, nil)
 
 	// Create PvAI game
 	req := httptest.NewRequest(http.MethodPost, "/api/games", bytes.NewReader(
@@ -480,7 +481,7 @@ func TestDeleteGameWithMatches(t *testing.T) {
 	defer ms.Close()
 
 	store := NewInMemoryStore()
-	h := NewHandler(store, ms)
+	h := NewHandler(store, ms, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/games", bytes.NewReader(
 		[]byte(`{}`),
@@ -501,4 +502,105 @@ func TestDeleteGameWithMatches(t *testing.T) {
 	record, err := ms.GetGame(gameID)
 	require.NoError(t, err)
 	assert.Equal(t, "abandoned", record.Winner)
+}
+
+func TestFormatStatlineNodes(t *testing.T) {
+	assert.Equal(t, "0", formatStatlineNodes(0))
+	assert.Equal(t, "42", formatStatlineNodes(42))
+	assert.Equal(t, "999", formatStatlineNodes(999))
+	assert.Equal(t, "1.5K", formatStatlineNodes(1500))
+	assert.Equal(t, "1.2M", formatStatlineNodes(1_200_000))
+	assert.Equal(t, "2.0M", formatStatlineNodes(2_000_000))
+}
+
+func TestFormatStatlineNPS(t *testing.T) {
+	assert.Equal(t, "500", formatStatlineNPS(500))
+	assert.Equal(t, "5K", formatStatlineNPS(5000))
+	assert.Equal(t, "142K", formatStatlineNPS(142000))
+	assert.Equal(t, "1M", formatStatlineNPS(1_000_000))
+}
+
+func TestBuildMoveDetail(t *testing.T) {
+	h := testHandler()
+	resp := GameResponse{
+		CurrentPlayer:     "red",
+		MoveNumber:        3,
+		RedTimeRemaining:  415.5,
+		BlueTimeRemaining: 300.2,
+	}
+	stats := engine.SearchStats{
+		DepthAchieved:   12,
+		NodesSearched:   1_200_000,
+		NodesPerSecond:  142000,
+		SearchScore:     340,
+		TableHitRate:    0.87,
+		AllocatedTimeMs: 12000,
+		ThreadCount:     4,
+	}
+
+	detail := h.buildMoveDetail(resp, "blue", 8, 8, stats, 10800)
+
+	assert.Equal(t, 2, detail.MoveNumber)
+	assert.Equal(t, "blue", detail.Player)
+	assert.Equal(t, "i9", detail.Pos)
+	assert.Equal(t, int64(10800), detail.ThinkTimeMs)
+	assert.Equal(t, int64(300200), detail.RemainingTimeMs)
+
+	assert.Contains(t, detail.Statline, "M 2")
+	assert.Contains(t, detail.Statline, "blue")
+	assert.Contains(t, detail.Statline, "i9")
+	assert.Contains(t, detail.Statline, "d=12")
+	assert.Contains(t, detail.Statline, "n=1.2M")
+	assert.Contains(t, detail.Statline, "nps=142K")
+	assert.Contains(t, detail.Statline, "tt= 87%")
+	assert.Contains(t, detail.Statline, "s=+340")
+	assert.Contains(t, detail.Statline, "t=10.8s")
+
+	assert.Equal(t, 12, detail.EngineStats.Depth)
+	assert.Equal(t, int64(1_200_000), detail.EngineStats.Nodes)
+	assert.InDelta(t, 142000, detail.EngineStats.NPS, 0.01)
+	assert.InDelta(t, 0.87, detail.EngineStats.TTHitRate, 0.01)
+	assert.Equal(t, 340, detail.EngineStats.Score)
+	assert.Equal(t, 4, detail.EngineStats.Threads)
+	assert.Equal(t, int64(12000), detail.EngineStats.AllocatedTimeMs)
+	assert.Equal(t, "exact", detail.EngineStats.MoveType)
+}
+
+func TestMakeAIMoveReturnsLastMove(t *testing.T) {
+	h := testHandler()
+	req := httptest.NewRequest(http.MethodPost, "/api/games", bytes.NewReader(
+		[]byte(`{"gameMode":"pvai","blueDifficulty":1}`),
+	))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.CreateGame(w, req)
+	gameID := decodeResponse(t, w)["gameId"].(string)
+
+	req2 := httptest.NewRequest(http.MethodPost, "/api/games/"+gameID+"/move", bytes.NewReader(
+		[]byte(`{"x":7,"y":7}`),
+	))
+	req2.SetPathValue("id", gameID)
+	req2.Header.Set("Content-Type", "application/json")
+	w2 := httptest.NewRecorder()
+	h.MakeMove(w2, req2)
+	require.Equal(t, http.StatusOK, w2.Code)
+
+	req3 := httptest.NewRequest(http.MethodPost, "/api/games/"+gameID+"/ai-move", nil)
+	req3.SetPathValue("id", gameID)
+	w3 := httptest.NewRecorder()
+	h.MakeAIMove(w3, req3)
+	assert.Equal(t, http.StatusOK, w3.Code)
+
+	resp := decodeResponse(t, w3)
+	lastMove, ok := resp["lastMove"].(map[string]any)
+	require.True(t, ok, "response should contain lastMove")
+
+	assert.Equal(t, 1.0, lastMove["moveNumber"])
+	assert.Equal(t, "blue", lastMove["player"])
+	assert.NotEmpty(t, lastMove["statline"])
+
+	es, ok := lastMove["engineStats"].(map[string]any)
+	require.True(t, ok, "lastMove should contain engineStats")
+	assert.NotNil(t, es["depth"])
+	assert.NotNil(t, es["nodes"])
 }

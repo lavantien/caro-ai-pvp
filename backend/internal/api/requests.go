@@ -41,6 +41,27 @@ type PositionResponse struct {
 	Y int `json:"y"`
 }
 
+type EngineStatsResponse struct {
+	Depth           int     `json:"depth"`
+	Nodes           int64   `json:"nodes"`
+	NPS             float64 `json:"nps"`
+	TTHitRate       float64 `json:"ttHitRate"`
+	Score           int     `json:"score"`
+	Threads         int     `json:"threads"`
+	AllocatedTimeMs int64   `json:"allocatedTimeMs"`
+	MoveType        string  `json:"moveType"`
+}
+
+type MoveDetailResponse struct {
+	MoveNumber      int                 `json:"moveNumber"`
+	Player          string              `json:"player"`
+	Pos             string              `json:"pos"`
+	Statline        string              `json:"statline"`
+	ThinkTimeMs     int64               `json:"thinkTimeMs"`
+	RemainingTimeMs int64               `json:"remainingTimeMs"`
+	EngineStats     EngineStatsResponse `json:"engineStats"`
+}
+
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message"`

@@ -31,7 +31,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	handler := api.NewHandler(store, matchStore)
+	handler := api.NewHandler(store, matchStore, logger)
 	server := api.NewServer(handler, logger)
 
 	httpServer := &http.Server{
