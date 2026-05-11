@@ -33,6 +33,7 @@ test_tt.cs
 
 # Coverage artifacts
 backend/coverage.out
+backend/coverage/
 frontend/coverage/
 
 # Test output
