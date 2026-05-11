@@ -156,7 +156,7 @@ cd backend && go run ./cmd/engine
 < id name Caro AI
 < id author Caro AI Project
 < option name Threads type spin default 4 min 1 max 64
-< option name Hash type spin default 64 min 32 max 4096
+< option name Hash type spin default 1024 min 32 max 4096
 < option name Ponder type check default false
 < option name Skill Level type spin default 5 min 1 max 5
 < uciok

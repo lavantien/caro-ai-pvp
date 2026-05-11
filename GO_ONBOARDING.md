@@ -446,7 +446,7 @@ func TestBoardPlaceStoneImmutable(t *testing.T) {
 ```go
 func TestMinimaxFindsWinningMove(t *testing.T) {
     board := setupBoardWithFourInRow() // 4 red stones in a row
-    ai := engine.NewMinimaxAI(engine.Config{MaxThreads: 1})
+    ai := engine.NewMinimaxAI(slog.Default(), 1)
 
     x, y := ai.GetBestMove(board, domain.PlayerRed, opts, context.Background())
 

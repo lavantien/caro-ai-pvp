@@ -571,8 +571,8 @@ Standard UCI commands for engine control:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| Threads | spin | Pow2((N-2)/2) | Search goroutines (1-Max; defaults to largest power of 2 <= (GOMAXPROCS-2)/2) |
-| Hash | spin | 64 | TT size (MB) |
+| Threads | spin | 4 | Search goroutines (1-Max); L4/L5 auto-scale to Pow2((N-2)/2) via difficulty profile |
+| Hash | spin | 1024 | TT size (MB) |
 | Ponder | check | false | Enable pondering |
 | Skill Level | spin | 5 | Difficulty 1-5 (1=Novice, 5=Grandmaster) |
 
