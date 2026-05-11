@@ -64,6 +64,12 @@ func (v *VCFSolver) search(depth int) bool {
 		allWin := true
 		for _, block := range blocks {
 			v.sb.MakeMove(block.X, block.Y, v.attacker.Opponent())
+
+			if wouldWin(v.sb, block.X, block.Y, v.attacker.Opponent()) {
+				allWin = false
+				v.sb.UnmakeMove()
+				break
+			}
 			if !v.search(depth - 1) {
 				allWin = false
 				v.sb.UnmakeMove()

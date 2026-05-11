@@ -134,7 +134,7 @@ func createsOpenFour(sb *SearchBoard, x, y int, player domain.Player) bool {
 			afterOpen := afterX >= 0 && afterX < domain.BoardSize && afterY >= 0 && afterY < domain.BoardSize && sb.IsEmpty(afterX, afterY)
 			beforeOpen := beforeX >= 0 && beforeX < domain.BoardSize && beforeY >= 0 && beforeY < domain.BoardSize && sb.IsEmpty(beforeX, beforeY)
 
-			if afterOpen || beforeOpen {
+			if afterOpen && beforeOpen {
 				return true
 			}
 		}

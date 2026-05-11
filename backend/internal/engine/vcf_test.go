@@ -113,3 +113,26 @@ func TestVCFSearchFindsWinViaContinuousFours(t *testing.T) {
 	assert.True(t, found, "should find VCF win via continuous fours")
 	assert.True(t, x >= 0 && y >= 0, "should return valid move, got (%d,%d)", x, y)
 }
+
+func TestVCFOpponentCounterWin(t *testing.T) {
+	// Red creates a four. Both block points complete Blue's five.
+	// VCF must return false since any block results in Blue winning.
+	b := domain.NewBoard().
+		// Red: 3 in a row at row 0
+		PlaceStone(5, 5, domain.PlayerRed).
+		PlaceStone(6, 5, domain.PlayerRed).
+		PlaceStone(7, 5, domain.PlayerRed).
+		// Blue: 4 in a row left and right of Red's line
+		PlaceStone(0, 5, domain.PlayerBlue).
+		PlaceStone(1, 5, domain.PlayerBlue).
+		PlaceStone(2, 5, domain.PlayerBlue).
+		PlaceStone(3, 5, domain.PlayerBlue).
+		PlaceStone(10, 5, domain.PlayerBlue).
+		PlaceStone(11, 5, domain.PlayerBlue).
+		PlaceStone(12, 5, domain.PlayerBlue).
+		PlaceStone(13, 5, domain.PlayerBlue).
+		PlaceStone(15, 15, domain.PlayerBlue)
+
+	_, _, found := SolveVCF(b, domain.PlayerRed, 5000, context.Background())
+	assert.False(t, found, "VCF should fail when all block points give opponent five-in-a-row")
+}
