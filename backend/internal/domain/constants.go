@@ -10,7 +10,7 @@ const (
 	HeapHardLimitBytes int64 = 2 * 1024 * 1024 * 1024
 	AbandonedTimeoutMinutes  = 30
 
-	DefaultTTSizeMB    = 64
+	DefaultTTSizeMB    = 1024
 	MaxVCFCacheEntries = 10_000
 	VCFTimeFraction    = 0.20
 

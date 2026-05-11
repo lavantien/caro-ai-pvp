@@ -45,7 +45,7 @@ func (h *UCIHandler) HandleCommand(cmd string) {
 		h.respond("id name Caro AI")
 		h.respond("id author Caro AI Project")
 		h.respond("option name Threads type spin default 4 min 1 max 64")
-		h.respond("option name Hash type spin default 64 min 32 max 4096")
+		h.respond("option name Hash type spin default 1024 min 32 max 4096")
 		h.respond("option name Ponder type check default false")
 		h.respond("option name Skill Level type spin default 5 min 1 max 5")
 		h.respond("uciok")
