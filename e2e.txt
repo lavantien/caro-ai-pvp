@@ -1,160 +1,102 @@
-[06:57:59.484] === Caro AI PvP - Screenshot Capture ===
+[17:33:06.137] === Caro AI PvP - Screenshot Capture ===
 
-[06:57:59.484] Building backend...
-[06:57:59.492] ERR (node:7860) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+[17:33:06.138] Building backend...
+[17:33:06.145] ERR (node:15816) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
 (Use `node --trace-deprecation ...` to show where the warning was created)
-[06:57:59.843] Backend built.
+[17:33:06.466] Backend built.
 
-[06:57:59.843] Killing stale processes on port 5207...
-[06:57:59.862] Starting backend...
-[06:57:59.884] [backend] {"time":"2026-05-11T13:57:59.8825183+07:00","level":"INFO","msg":"server starting","addr":":5207"}
-[06:57:59.888] [backend] {"time":"2026-05-11T13:57:59.8888666+07:00","level":"INFO","msg":"request","method":"GET","path":"/","duration":0}
-[06:57:59.891] Backend ready.
+[17:33:06.466] Killing stale processes on port 5207...
+[17:33:06.486] Starting backend...
+[17:33:06.508] [backend] {"time":"2026-05-12T00:33:06.5062775+07:00","level":"INFO","msg":"server starting","addr":":5207"}
+[17:33:06.512] [backend] {"time":"2026-05-12T00:33:06.5110376+07:00","level":"INFO","msg":"request","method":"GET","path":"/","duration":0}
+[17:33:06.515] Backend ready.
 
-[06:57:59.891] Starting frontend...
-[06:58:00.034] [frontend] > frontend@6.7.0 dev
-[06:58:00.034] [frontend] > vite dev
-[06:58:04.649] [frontend] (node:6276) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
-[06:58:04.649] [frontend] (Use `node --trace-deprecation ...` to show where the warning was created)
-[06:58:04.656] [frontend]   [32m[1mVITE[22m v7.3.0[39m  [2mready in [0m[1m4544[22m[2m[0m ms[22m
-[06:58:04.656] [frontend]   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
-[06:58:04.656] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.24.32.1:[1m5173[22m/[39m
-[06:58:04.656] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.16.1:[1m5173[22m/[39m
-[06:58:04.656] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.9:[1m5173[22m/[39m
-[06:58:06.506] Frontend ready.
+[17:33:06.515] Starting frontend...
+[17:33:08.518] [frontend] > frontend@6.7.0 dev
+[17:33:08.518] [frontend] > vite dev
+[17:33:26.528] [frontend] (node:32456) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[17:33:26.528] [frontend] (Use `node --trace-deprecation ...` to show where the warning was created)
+[17:33:26.622] [frontend]   [32m[1mVITE[22m v7.3.0[39m  [2mready in [0m[1m18018[22m[2m[0m ms[22m
+[17:33:26.623] [frontend]   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[17:33:26.623] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.24.32.1:[1m5173[22m/[39m
+[17:33:26.623] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.16.1:[1m5173[22m/[39m
+[17:33:26.623] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.9:[1m5173[22m/[39m
+[17:33:30.250] Frontend ready.
 
-[06:58:06.506] 
+[17:33:30.250] 
 Capturing screenshot...
-[06:58:06.922] [frontend] [1;31m[404] GET /favicon.png[0m
-[06:58:07.199] [browser:error] Failed to load resource: the server responded with a status of 404 (Not Found)
-[06:58:07.234] [backend] {"time":"2026-05-11T13:58:07.2353666+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/new","duration":0}
-[06:58:07.235] [backend] {"time":"2026-05-11T13:58:07.2358914+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":0}
-[06:58:07.245] [backend] {"time":"2026-05-11T13:58:07.2450273+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/39268a88bbbcaea4","duration":0}
-[06:58:07.859] [backend] {"time":"2026-05-11T13:58:07.8599286+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":504400}
-[06:58:07.862] Waiting for AI vs AI match to complete (attempt 1/3)...
-[06:58:07.873] [backend] {"time":"2026-05-11T13:58:07.8742657+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/98a07b390079ad72","duration":0}
-[06:58:07.877] [backend] {"time":"2026-05-11T13:58:07.8772972+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[06:58:20.601] [backend] {"time":"2026-05-11T13:58:20.6010517+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M 0 red  i10  d=4  n=11.2M   nps=884K  tt= 25% s=+22 t=12.7s"}
-[06:58:20.601] [backend] {"time":"2026-05-11T13:58:20.6015595+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":12724241900}
-[06:58:20.603] [backend] {"time":"2026-05-11T13:58:20.6041106+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[06:58:33.457] [backend] {"time":"2026-05-11T13:58:33.4577974+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M 1 blue j11  d=3  n=3.4M    nps=266K  tt=  6% s=-6 t=12.7s"}
-[06:58:33.459] [backend] {"time":"2026-05-11T13:58:33.4593811+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":12853075100}
-[06:58:33.461] [backend] {"time":"2026-05-11T13:58:33.4614404+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[06:58:45.519] [backend] {"time":"2026-05-11T13:58:45.5199474+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M 2 red  l10  d=3  n=3.3M    nps=278K  tt=  6% s=+50 t=12.1s"}
-[06:58:45.520] [backend] {"time":"2026-05-11T13:58:45.5204691+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":12058494400}
-[06:58:45.522] [backend] {"time":"2026-05-11T13:58:45.5215204+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[06:58:57.572] [backend] {"time":"2026-05-11T13:58:57.5720381+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M 3 blue j10  d=5  n=2.7M    nps=228K  tt=  9% s=+124 t=12.0s"}
-[06:58:57.572] [backend] {"time":"2026-05-11T13:58:57.572567+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":12048973300}
-[06:58:57.583] [backend] {"time":"2026-05-11T13:58:57.5839958+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[06:59:09.017] [backend] {"time":"2026-05-11T13:59:09.0173511+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M 4 red  j12  d=5  n=2.2M    nps=193K  tt=  0% s=+79 t=11.4s"}
-[06:59:09.018] [backend] {"time":"2026-05-11T13:59:09.0183977+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":11433827800}
-[06:59:09.021] [backend] {"time":"2026-05-11T13:59:09.0211212+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[06:59:20.444] [backend] {"time":"2026-05-11T13:59:20.4447694+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M 5 blue k11  d=5  n=2.2M    nps=191K  tt=  2% s=+301 t=11.4s"}
-[06:59:20.445] [backend] {"time":"2026-05-11T13:59:20.4453211+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":11423528300}
-[06:59:20.449] [backend] {"time":"2026-05-11T13:59:20.4493778+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[06:59:31.297] [backend] {"time":"2026-05-11T13:59:31.2974772+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M 6 red  i11  d=5  n=2.1M    nps=197K  tt=  5% s=-60 t=10.8s"}
-[06:59:31.297] [backend] {"time":"2026-05-11T13:59:31.2980158+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":10848079500}
-[06:59:31.300] [backend] {"time":"2026-05-11T13:59:31.3006475+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[06:59:42.140] [backend] {"time":"2026-05-11T13:59:42.1409224+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M 7 blue i9  d=5  n=2.1M    nps=193K  tt=  3% s=+393 t=10.8s"}
-[06:59:42.141] [backend] {"time":"2026-05-11T13:59:42.141444+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":10839740000}
-[06:59:42.143] [backend] {"time":"2026-05-11T13:59:42.1440759+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[06:59:52.443] [backend] {"time":"2026-05-11T13:59:52.4436653+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M 8 red  h8  d=5  n=1.9M    nps=187K  tt= 14% s=+2 t=10.3s"}
-[06:59:52.444] [backend] {"time":"2026-05-11T13:59:52.4447111+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":10299556400}
-[06:59:52.446] [backend] {"time":"2026-05-11T13:59:52.4467742+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:00:02.740] [backend] {"time":"2026-05-11T14:00:02.7400678+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M 9 blue h10  d=5  n=1.8M    nps=173K  tt= 10% s=+236 t=10.3s"}
-[07:00:02.741] [backend] {"time":"2026-05-11T14:00:02.7411157+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":10292654700}
-[07:00:02.743] [backend] {"time":"2026-05-11T14:00:02.7427883+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:00:12.526] [backend] {"time":"2026-05-11T14:00:12.5258234+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M10 red  j8  d=5  n=1.8M    nps=180K  tt= 16% s=-2 t=9.8s"}
-[07:00:12.526] [backend] {"time":"2026-05-11T14:00:12.5268704+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":9782408500}
-[07:00:12.529] [backend] {"time":"2026-05-11T14:00:12.5279566+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:00:22.310] [backend] {"time":"2026-05-11T14:00:22.3105682+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M11 blue l11  d=5  n=1.9M    nps=192K  tt= 11% s=+345 t=9.8s"}
-[07:00:22.311] [backend] {"time":"2026-05-11T14:00:22.3115998+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":9780463500}
-[07:00:22.315] [backend] {"time":"2026-05-11T14:00:22.3146477+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:00:31.616] [backend] {"time":"2026-05-11T14:00:31.6163776+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M12 red  i8  d=5  n=1.7M    nps=184K  tt= 15% s=+104 t=9.3s"}
-[07:00:31.617] [backend] {"time":"2026-05-11T14:00:31.6170765+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":9300781700}
-[07:00:31.620] [backend] {"time":"2026-05-11T14:00:31.6198689+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:00:40.916] [backend] {"time":"2026-05-11T14:00:40.9159717+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M13 blue l12  d=7  n=1.4M    nps=152K  tt=  1% s=+23 t=9.3s"}
-[07:00:40.916] [backend] {"time":"2026-05-11T14:00:40.9166218+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":9296230700}
-[07:00:40.919] [backend] {"time":"2026-05-11T14:00:40.9181641+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:00:49.768] [backend] {"time":"2026-05-11T14:00:49.7680488+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M14 red  m13  d=6  n=1.2M    nps=140K  tt=  3% s=-23 t=8.8s"}
-[07:00:49.769] [backend] {"time":"2026-05-11T14:00:49.7685993+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":8850421100}
-[07:00:49.771] [backend] {"time":"2026-05-11T14:00:49.771179+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:00:58.626] [backend] {"time":"2026-05-11T14:00:58.626239+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M15 blue m11  d=5  n=1.2M    nps=140K  tt=  3% s=+23 t=8.8s"}
-[07:00:58.627] [backend] {"time":"2026-05-11T14:00:58.6278424+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":8855035500}
-[07:00:58.630] [backend] {"time":"2026-05-11T14:00:58.6298873+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:01:07.053] [backend] {"time":"2026-05-11T14:01:07.0536467+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M16 red  n11  d=7  n=1.2M    nps=141K  tt=  5% s=+1137 t=8.4s"}
-[07:01:07.053] [backend] {"time":"2026-05-11T14:01:07.0536467+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":8423197200}
-[07:01:07.056] [backend] {"time":"2026-05-11T14:01:07.0561643+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:01:15.475] [backend] {"time":"2026-05-11T14:01:15.4750384+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M17 blue g8  d=5  n=1.2M    nps=144K  tt=  3% s=-257 t=8.4s"}
-[07:01:15.475] [backend] {"time":"2026-05-11T14:01:15.4750384+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":8417859200}
-[07:01:15.478] [backend] {"time":"2026-05-11T14:01:15.4772249+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:01:23.502] [backend] {"time":"2026-05-11T14:01:23.5024974+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M18 red  k8  d=5  n=1.1M    nps=135K  tt=  3% s=+1289 t=8.0s"}
-[07:01:23.503] [backend] {"time":"2026-05-11T14:01:23.5030573+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":8023333200}
-[07:01:23.505] [backend] {"time":"2026-05-11T14:01:23.5055654+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:01:31.528] [backend] {"time":"2026-05-11T14:01:31.5282913+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M19 blue l8  d=8  n=1.2M    nps=146K  tt=  3% s=-1359 t=8.0s"}
-[07:01:31.528] [backend] {"time":"2026-05-11T14:01:31.5288392+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":8022753400}
-[07:01:31.531] [backend] {"time":"2026-05-11T14:01:31.5311903+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:01:39.197] [backend] {"time":"2026-05-11T14:01:39.1972584+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M20 red  j9  d=7  n=1.2M    nps=157K  tt=  6% s=+1359 t=7.6s"}
-[07:01:39.199] [backend] {"time":"2026-05-11T14:01:39.198777+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":7666207700}
-[07:01:39.202] [backend] {"time":"2026-05-11T14:01:39.2017777+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:01:46.851] [backend] {"time":"2026-05-11T14:01:46.8509214+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M21 blue h11  d=5  n=1.0M    nps=133K  tt=  1% s=-350 t=7.6s"}
-[07:01:46.851] [backend] {"time":"2026-05-11T14:01:46.8514448+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":7649654800}
-[07:01:46.854] [backend] {"time":"2026-05-11T14:01:46.8545961+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:01:54.155] [backend] {"time":"2026-05-11T14:01:54.1558492+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M22 red  l7  d=5  n=1.1M    nps=148K  tt=  4% s=+1042 t=7.3s"}
-[07:01:54.156] [backend] {"time":"2026-05-11T14:01:54.1558492+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":7300736000}
-[07:01:54.158] [backend] {"time":"2026-05-11T14:01:54.1584108+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:02:01.454] [backend] {"time":"2026-05-11T14:02:01.4543331+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M23 blue m6  d=8  n=1.1M    nps=151K  tt=  3% s=-1153 t=7.3s"}
-[07:02:01.454] [backend] {"time":"2026-05-11T14:02:01.454844+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":7295902100}
-[07:02:01.457] [backend] {"time":"2026-05-11T14:02:01.4569019+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:02:08.429] [backend] {"time":"2026-05-11T14:02:08.4298524+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M24 red  h7  d=7  n=1.0M    nps=145K  tt=  3% s=+1153 t=7.0s"}
-[07:02:08.430] [backend] {"time":"2026-05-11T14:02:08.4308875+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":6973462300}
-[07:02:08.432] [backend] {"time":"2026-05-11T14:02:08.431948+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:02:15.402] [backend] {"time":"2026-05-11T14:02:15.4019715+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M25 blue g6  d=5  n=942.5K  nps=135K  tt=  1% s=-274 t=7.0s"}
-[07:02:15.402] [backend] {"time":"2026-05-11T14:02:15.402529+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":6969051100}
-[07:02:15.404] [backend] {"time":"2026-05-11T14:02:15.4035988+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:02:21.354] [backend] {"time":"2026-05-11T14:02:21.3536632+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M26 red  h6  d=5  n=810.9K  nps=136K  tt=  3% s=+1153 t=5.9s"}
-[07:02:21.355] [backend] {"time":"2026-05-11T14:02:21.3547838+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":5949663100}
-[07:02:21.357] [backend] {"time":"2026-05-11T14:02:21.3573858+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:02:27.307] [backend] {"time":"2026-05-11T14:02:27.3070295+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M27 blue h9  d=5  n=677.4K  nps=114K  tt=  1% s=-1151 t=5.9s"}
-[07:02:27.307] [backend] {"time":"2026-05-11T14:02:27.3070295+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":5948347800}
-[07:02:27.310] [backend] {"time":"2026-05-11T14:02:27.3096379+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:02:33.050] [backend] {"time":"2026-05-11T14:02:33.0508666+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M28 red  i7  d=5  n=792.7K  nps=138K  tt=  6% s=+1700 t=5.7s"}
-[07:02:33.052] [backend] {"time":"2026-05-11T14:02:33.052425+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":5741473500}
-[07:02:33.054] [backend] {"time":"2026-05-11T14:02:33.0534769+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:02:38.791] [backend] {"time":"2026-05-11T14:02:38.7910639+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M29 blue g5  d=6  n=757.7K  nps=132K  tt=  5% s=-1533 t=5.7s"}
-[07:02:38.792] [backend] {"time":"2026-05-11T14:02:38.7921028+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":5737104600}
-[07:02:38.803] [backend] {"time":"2026-05-11T14:02:38.8031494+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:02:44.343] [backend] {"time":"2026-05-11T14:02:44.3431146+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M30 red  j7  d=7  n=684.7K  nps=124K  tt=  3% s=+20000 t=5.5s"}
-[07:02:44.343] [backend] {"time":"2026-05-11T14:02:44.3436326+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":5539969600}
-[07:02:44.346] [backend] {"time":"2026-05-11T14:02:44.3466893+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:02:49.894] [backend] {"time":"2026-05-11T14:02:49.8939984+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M31 blue k7  d=6  n=645.4K  nps=116K  tt=  3% s=-20000 t=5.5s"}
-[07:02:49.894] [backend] {"time":"2026-05-11T14:02:49.8950315+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":5546780200}
-[07:02:49.897] [backend] {"time":"2026-05-11T14:02:49.8970514+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:02:55.256] [backend] {"time":"2026-05-11T14:02:55.2560361+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M32 red  g7  d=7  n=602.0K  nps=113K  tt=  2% s=+20000 t=5.3s"}
-[07:02:55.256] [backend] {"time":"2026-05-11T14:02:55.2565479+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":5358981100}
-[07:02:55.258] [backend] {"time":"2026-05-11T14:02:55.2585639+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:03:00.605] [backend] {"time":"2026-05-11T14:03:00.6054062+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M33 blue f7  d=8  n=606.0K  nps=113K  tt=  2% s=-20000 t=5.3s"}
-[07:03:00.606] [backend] {"time":"2026-05-11T14:03:00.6059242+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":5346847200}
-[07:03:00.608] [backend] {"time":"2026-05-11T14:03:00.6088343+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:03:05.779] [backend] {"time":"2026-05-11T14:03:05.7799788+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M34 red  j6  d=7  n=576.3K  nps=112K  tt=  1% s=+20000 t=5.2s"}
-[07:03:05.780] [backend] {"time":"2026-05-11T14:03:05.7799788+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":5170117000}
-[07:03:05.782] [backend] {"time":"2026-05-11T14:03:05.782036+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:03:10.949] [backend] {"time":"2026-05-11T14:03:10.9489211+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M35 blue j5  d=9  n=542.4K  nps=105K  tt=  3% s=-30000 t=5.2s"}
-[07:03:10.949] [backend] {"time":"2026-05-11T14:03:10.9494844+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":5166735600}
-[07:03:10.952] [backend] {"time":"2026-05-11T14:03:10.9518941+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:03:15.953] [backend] {"time":"2026-05-11T14:03:15.9530533+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M36 red  h5  d=8  n=630.9K  nps=126K  tt=  2% s=+30000 t=5.0s"}
-[07:03:15.954] [backend] {"time":"2026-05-11T14:03:15.9541079+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":5001582700}
-[07:03:15.956] [backend] {"time":"2026-05-11T14:03:15.9566578+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:03:20.958] [backend] {"time":"2026-05-11T14:03:20.9579081+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M37 blue h4  d=10 n=712.9K  nps=143K  tt=  4% s=-30000 t=5.0s"}
-[07:03:20.958] [backend] {"time":"2026-05-11T14:03:20.9584386+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":5001194400}
-[07:03:20.960] [backend] {"time":"2026-05-11T14:03:20.9599926+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:03:25.802] [backend] {"time":"2026-05-11T14:03:25.8024164+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M38 red  g9  d=8  n=1.1M    nps=229K  tt=  2% s=+30000 t=4.8s"}
-[07:03:25.803] [backend] {"time":"2026-05-11T14:03:25.8029377+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":4841448700}
-[07:03:30.644] [backend] {"time":"2026-05-11T14:03:30.6443362+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M39 blue f10  d=11 n=1.0M    nps=207K  tt=  4% s=-30000 t=4.8s"}
-[07:03:30.644] [backend] {"time":"2026-05-11T14:03:30.644855+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":4839857400}
-[07:03:30.647] [backend] {"time":"2026-05-11T14:03:30.6474075+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/98a07b390079ad72/ai-move","duration":0}
-[07:03:35.338] [backend] {"time":"2026-05-11T14:03:35.3381707+07:00","level":"INFO","msg":"move-statline","gameId":"98a07b390079ad72","line":"M40 red  k5  d=8  n=920.0K  nps=196K  tt=  1% s=+30000 t=4.7s"}
-[07:03:35.338] [backend] {"time":"2026-05-11T14:03:35.3386881+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/98a07b390079ad72/ai-move","duration":4690662900}
-[07:03:35.787] Game complete: red Wins! New Game
-[07:03:36.819] Screenshot saved: C:\Users\lavantien\dev\github\caro-ai-pvp\screenshot.png
-[07:03:36.922] README.md updated
+[17:33:30.660] [frontend] [1;31m[404] GET /favicon.png[0m
+[17:33:30.942] [browser:error] Failed to load resource: the server responded with a status of 404 (Not Found)
+[17:33:31.009] [backend] {"time":"2026-05-12T00:33:31.0102667+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/new","duration":0}
+[17:33:31.010] [backend] {"time":"2026-05-12T00:33:31.0108828+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":0}
+[17:33:31.020] [backend] {"time":"2026-05-12T00:33:31.0214509+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/4efbe8bb753c45f5","duration":0}
+[17:33:31.625] [backend] {"time":"2026-05-12T00:33:31.6269081+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":524400}
+[17:33:31.628] Waiting for AI vs AI match to complete (attempt 1/3)...
+[17:33:31.638] [backend] {"time":"2026-05-12T00:33:31.6395645+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/d957752a1ff635fe","duration":0}
+[17:33:31.642] [backend] {"time":"2026-05-12T00:33:31.6436176+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:33:44.367] [backend] {"time":"2026-05-12T00:33:44.3685836+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M 0 red  j8  d=6  n=10.4M   nps=819K  tt= 29% s=-26 thr=8 t=12.7s alloc=12.7s"}
+[17:33:44.367] [backend] {"time":"2026-05-12T00:33:44.3691012+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":12725106900}
+[17:33:44.370] [backend] {"time":"2026-05-12T00:33:44.371123+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:33:57.158] [backend] {"time":"2026-05-12T00:33:57.1603462+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M 1 blue h10  d=5  n=4.1M    nps=321K  tt= 43% s=+62 thr=8 t=12.7s alloc=12.7s"}
+[17:33:57.159] [backend] {"time":"2026-05-12T00:33:57.1614571+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":12789955600}
+[17:33:57.161] [backend] {"time":"2026-05-12T00:33:57.1636204+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:34:09.219] [backend] {"time":"2026-05-12T00:34:09.2190618+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M 2 red  g8  d=4  n=3.2M    nps=266K  tt= 53% s=-51 thr=8 t=12.1s alloc=12.1s"}
+[17:34:09.220] [backend] {"time":"2026-05-12T00:34:09.2201331+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":12055596300}
+[17:34:09.223] [backend] {"time":"2026-05-12T00:34:09.2232048+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:34:21.288] [backend] {"time":"2026-05-12T00:34:21.2885671+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M 3 blue g9  d=5  n=4.1M    nps=337K  tt= 52% s=+172 thr=8 t=12.1s alloc=12.1s"}
+[17:34:21.288] [backend] {"time":"2026-05-12T00:34:21.2890867+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":12064416000}
+[17:34:21.291] [backend] {"time":"2026-05-12T00:34:21.2911393+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:34:32.724] [backend] {"time":"2026-05-12T00:34:32.7248238+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M 4 red  f8  d=5  n=3.6M    nps=317K  tt= 45% s=+156 thr=8 t=11.4s alloc=11.4s"}
+[17:34:32.725] [backend] {"time":"2026-05-12T00:34:32.7253479+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":11433870200}
+[17:34:32.727] [backend] {"time":"2026-05-12T00:34:32.7280728+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:34:44.157] [backend] {"time":"2026-05-12T00:34:44.1580471+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M 5 blue h8  d=5  n=2.7M    nps=240K  tt= 45% s=+282 thr=8 t=11.4s alloc=11.4s"}
+[17:34:44.157] [backend] {"time":"2026-05-12T00:34:44.1580471+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":11429131100}
+[17:34:44.160] [backend] {"time":"2026-05-12T00:34:44.1618496+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:34:55.007] [backend] {"time":"2026-05-12T00:34:55.008652+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M 6 red  i7  d=5  n=2.5M    nps=232K  tt= 52% s=+88 thr=8 t=10.8s alloc=10.8s"}
+[17:34:55.007] [backend] {"time":"2026-05-12T00:34:55.008652+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":10845975600}
+[17:34:55.010] [backend] {"time":"2026-05-12T00:34:55.0117064+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:35:05.854] [backend] {"time":"2026-05-12T00:35:05.8561496+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M 7 blue h9  d=5  n=2.3M    nps=214K  tt= 59% s=+1203 thr=8 t=10.8s alloc=10.8s"}
+[17:35:05.855] [backend] {"time":"2026-05-12T00:35:05.8566733+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":10844122000}
+[17:35:05.859] [backend] {"time":"2026-05-12T00:35:05.8606084+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:35:16.159] [backend] {"time":"2026-05-12T00:35:16.1594999+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M 8 red  h7  d=5  n=1.8M    nps=175K  tt= 58% s=+42 thr=8 t=10.3s alloc=10.3s"}
+[17:35:16.159] [backend] {"time":"2026-05-12T00:35:16.1600448+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":10298047300}
+[17:35:16.162] [backend] {"time":"2026-05-12T00:35:16.162581+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:35:26.459] [backend] {"time":"2026-05-12T00:35:26.4600468+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M 9 blue h11  d=5  n=2.6M    nps=253K  tt= 48% s=+1543 thr=8 t=10.3s alloc=10.3s"}
+[17:35:26.460] [backend] {"time":"2026-05-12T00:35:26.4600468+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":10296442400}
+[17:35:26.462] [backend] {"time":"2026-05-12T00:35:26.4631608+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:35:36.247] [backend] {"time":"2026-05-12T00:35:36.2482916+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M10 red  h12  d=8  n=2.2M    nps=225K  tt= 59% s=-680 thr=8 t=9.8s alloc=9.8s"}
+[17:35:36.247] [backend] {"time":"2026-05-12T00:35:36.2482916+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":9783978300}
+[17:35:36.250] [backend] {"time":"2026-05-12T00:35:36.2508679+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:35:46.030] [backend] {"time":"2026-05-12T00:35:46.0316001+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M11 blue f9  d=5  n=2.4M    nps=246K  tt= 52% s=+729 thr=8 t=9.8s alloc=9.8s"}
+[17:35:46.031] [backend] {"time":"2026-05-12T00:35:46.032648+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":9779647100}
+[17:35:46.033] [backend] {"time":"2026-05-12T00:35:46.0350186+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:35:55.334] [backend] {"time":"2026-05-12T00:35:55.335928+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M12 red  e9  d=6  n=1.8M    nps=198K  tt= 70% s=-680 thr=8 t=9.3s alloc=9.3s"}
+[17:35:55.335] [backend] {"time":"2026-05-12T00:35:55.3370231+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":9301185900}
+[17:35:55.338] [backend] {"time":"2026-05-12T00:35:55.3396362+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:36:04.636] [backend] {"time":"2026-05-12T00:36:04.6371144+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M13 blue g10  d=6  n=2.0M    nps=211K  tt= 65% s=+772 thr=8 t=9.3s alloc=9.3s"}
+[17:36:04.637] [backend] {"time":"2026-05-12T00:36:04.6387874+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":9298352900}
+[17:36:04.640] [backend] {"time":"2026-05-12T00:36:04.6418534+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:36:13.489] [backend] {"time":"2026-05-12T00:36:13.4907566+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M14 red  e8  d=4  n=1.7M    nps=188K  tt= 88% s=-773 thr=8 t=8.8s alloc=8.8s"}
+[17:36:13.489] [backend] {"time":"2026-05-12T00:36:13.4907566+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":8848043900}
+[17:36:13.492] [backend] {"time":"2026-05-12T00:36:13.4940155+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:36:22.339] [backend] {"time":"2026-05-12T00:36:22.3385341+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M15 blue i10  d=5  n=2.1M    nps=234K  tt= 76% s=+564 thr=8 t=8.8s alloc=8.8s"}
+[17:36:22.339] [backend] {"time":"2026-05-12T00:36:22.3390635+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":8843730000}
+[17:36:22.341] [backend] {"time":"2026-05-12T00:36:22.3401244+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:36:30.765] [backend] {"time":"2026-05-12T00:36:30.7650117+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M16 red  f10  d=5  n=1.9M    nps=232K  tt= 61% s=-2063 thr=8 t=8.4s alloc=8.4s"}
+[17:36:30.765] [backend] {"time":"2026-05-12T00:36:30.7660679+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":8423636400}
+[17:36:30.768] [backend] {"time":"2026-05-12T00:36:30.7686328+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/d957752a1ff635fe/ai-move","duration":0}
+[17:36:30.774] [backend] {"time":"2026-05-12T00:36:30.7739467+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M17 blue i9  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=8.4s [VCF]"}
+[17:36:30.774] [backend] {"time":"2026-05-12T00:36:30.7750634+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":4893200}
+[17:36:30.779] [backend] {"time":"2026-05-12T00:36:30.7790377+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M18 red  d8  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=8.0s [VCF]"}
+[17:36:30.779] [backend] {"time":"2026-05-12T00:36:30.7795534+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":3098700}
+[17:36:30.788] [backend] {"time":"2026-05-12T00:36:30.7887775+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M19 blue i12  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=8.5s [VCF]"}
+[17:36:30.789] [backend] {"time":"2026-05-12T00:36:30.7893234+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":3302900}
+[17:36:30.793] [backend] {"time":"2026-05-12T00:36:30.7935234+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M20 red  c7  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=8.1s [VCF]"}
+[17:36:30.794] [backend] {"time":"2026-05-12T00:36:30.7945969+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":4248100}
+[17:36:30.798] [backend] {"time":"2026-05-12T00:36:30.7989681+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M21 blue i11  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=8.7s [VCF]"}
+[17:36:30.799] [backend] {"time":"2026-05-12T00:36:30.7995753+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":3226800}
+[17:36:30.804] [backend] {"time":"2026-05-12T00:36:30.8043028+07:00","level":"INFO","msg":"move-statline","gameId":"d957752a1ff635fe","line":"M22 red  b6  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=8.3s [VCF]"}
+[17:36:30.804] [backend] {"time":"2026-05-12T00:36:30.8048491+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/d957752a1ff635fe/ai-move","duration":3231600}
+[17:36:30.989] Game complete: red Wins! New Game
+[17:36:31.993] Screenshot saved: C:\Users\lavantien\dev\github\caro-ai-pvp\screenshot.png
+[17:36:32.091] README.md updated
