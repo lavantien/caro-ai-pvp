@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [6.8.0] - 2026-05-11
+
+### Changed
+- Default TT size increased from 64MB to 1GB for deeper search in bot vs bot matches
+- UCI Hash option default updated to 1024 MB (was 64 MB)
+
+### Fixed
+- ENGINE_FEATURES.md: Threads option default corrected from dynamic formula to actual UCI default (4); clarified L4/L5 auto-scaling
+- GO_ONBOARDING.md: engine constructor example updated to match actual `NewMinimaxAI(logger, threads)` signature
+- README.md: UCI example session Hash default updated to match implementation
+- .gitignore: added `backend/coverage/` to exclude coverage badge artifacts
+
 ## [6.7.0] - 2026-05-11
 
 ### Added
@@ -58,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend: AI vs AI mode sends redDifficulty/blueDifficulty explicitly instead of relying on backend fallback
 - Documentation: SIMD evaluation and pondering marked as planned; TT section corrected to match sharded SeqLock implementation
 
+[6.8.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.8.0
 [6.7.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.7.0
 [6.6.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.6.0
 [6.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.5.0
