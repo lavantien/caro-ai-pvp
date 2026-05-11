@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [6.9.0] - 2026-05-12
+
+### Changed
+- Parallel search rewritten: shared TT Lazy SMP with per-shard `sync.RWMutex` (replaced per-worker isolated TTs)
+- Aspiration window widened from 50 to 1500 with proper multi-attempt loop in parallel search
+- TT storage replaced SeqLock with `sync.RWMutex` for race-detector compatibility
+- Statline extended: added `thr` (thread count), `alloc` (allocated time), and `[VCF]` tag per move
+
+### Fixed
+- Score hierarchy harmonized: `Infinity (100k) > WinScore (30k) > MaxEval (25k) > fiveScore (WinScore)`
+- Mate-distance scoring: `WinScore - plyFromRoot` with TT ply adjustment for correct mate ordering
+- TT poisoning on search abort: TT stores skipped when `monitor.ShouldStop()` is true
+- `createsOpenFour` corrected from `||` (one-end) to `&&` (both-ends) for true open fours
+- VCF solver: opponent counter-win check added after opponent block move
+- Open Rule enforced inside alpha-beta search tree
+- `bestScore` initialization changed from `-WinScore*2` to `-Infinity` to prevent ghost scores
+- Go vet warnings: unused error returns in test files
+
 ## [6.8.0] - 2026-05-11
 
 ### Changed
@@ -70,6 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend: AI vs AI mode sends redDifficulty/blueDifficulty explicitly instead of relying on backend fallback
 - Documentation: SIMD evaluation and pondering marked as planned; TT section corrected to match sharded SeqLock implementation
 
+[6.9.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.9.0
 [6.8.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.8.0
 [6.7.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.7.0
 [6.6.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v6.6.0

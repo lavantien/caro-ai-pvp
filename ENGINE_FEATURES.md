@@ -28,19 +28,19 @@ The engine follows principles from state-of-the-art game-playing systems:
 
 ### 2.1 Lazy SMP Parallel Search
 
-Lazy SMP with all-equal goroutines — no master/slave split. Each worker pulls depth iterations from a shared channel and runs a full `searchRoot` independently.
+Lazy SMP with all-equal goroutines sharing a single sharded TT — no master/slave split. Each worker runs its own iterative deepening loop independently.
 
 **Core Principle:**
-- All goroutines are identical: same search board, fresh local TT, fresh heuristics
-- A single job channel feeds depth iterations (1, 2, 3, ...) to workers
-- Workers pull the next depth and execute a complete search independently
+- All goroutines are identical: fresh local search board, shared TT, fresh heuristics
+- Each worker runs iterative deepening from depth (1 + workerID % 2) to maxDepth
+- Workers cooperate via shared TT — standard Lazy SMP pattern
 - Best move selected by deepest completed depth; ties broken by score
 
 **Goroutine Distribution:**
 - Goroutine count: Largest power of 2 <= (GOMAXPROCS-2)/2 (e.g., 20 cores -> 8 goroutines)
-- Channel-based worker pool dispatched per-search (goroutines have ~2us startup, no persistent pool needed)
-- Each goroutine maintains independent TT, killer moves, and history tables
-- TT hit rate computed as (mean + median) / 2 across all workers' local TTs
+- Workers dispatched per-search via goroutine pool with result channel
+- Each goroutine maintains independent heuristics (killers, history)
+- Shared TT provides inter-worker cooperation via hash move hints
 
 **Result Selection:**
 - Deepest completed depth wins
@@ -48,10 +48,10 @@ Lazy SMP with all-equal goroutines — no master/slave split. Each worker pulls 
 - Workers that complete more depths naturally contribute more results
 
 **Advantages:**
-- Channel-based dispatch eliminates complex synchronization
+- Shared TT eliminates redundant search across workers
 - No master/slave coordination overhead
 - context.Context provides clean cancellation
-- Per-worker TT avoids false sharing between goroutines
+- Sharded RWMutex TT avoids false sharing between goroutines
 
 ### 2.2 Principal Variation Search (PVS)
 
@@ -126,15 +126,15 @@ LMR reduces search depth for moves that are statistically less likely to be best
 
 ## 3. Transposition Table System
 
-Single sharded SeqLock transposition table used by both sequential and parallel search paths. In parallel search, each worker uses its own local TT instance.
+Single sharded RWMutex transposition table shared across all search paths. In parallel search, all workers share the same TT instance via per-shard `sync.RWMutex`.
 
-### 3.1 Sharded SeqLock Architecture
+### 3.1 Sharded RWMutex Architecture
 
 **Shard Distribution:**
-- 16 independent segments
+- 16 independent segments, each protected by `sync.RWMutex`
 - Hash-based index calculation: `shardIndex = (hash >> 32) & 0xF`
-- SeqLock pattern with atomic.Uint32 version counters
-- Reduces cache coherency traffic
+- Reads use `RLock` (concurrent), writes use `Lock` (exclusive)
+- Race-detector compatible
 
 **Depth-Age Replacement:**
 - Priority formula: depth - 8 * age
@@ -143,8 +143,8 @@ Single sharded SeqLock transposition table used by both sequential and parallel 
 
 **Stats Tracking:**
 - `probes` and `hits` atomic counters for hit rate computation
-- Sequential path: single TT tracks probes/hits directly
-- Parallel path: each worker has independent TT; hit rate = (mean + median) / 2 across workers
+- Shared across all workers in parallel search
+- Hit rate = total hits / total probes from all workers
 
 ### 3.2 Entry Structure
 
@@ -156,20 +156,11 @@ Each TT entry stores:
 - **Best Move** - Principal variation move
 - **Static Eval** - Cached static evaluation
 
-### 3.3 Lockless Access (SeqLock)
+### 3.3 Shared TT Write Policy
 
-SeqLock pattern with version counters enables parallel access without locks.
-
-**Mechanism:**
-- Version counter incremented before and after writes
-- Readers verify version unchanged during read (no torn reads)
-- Retry on version mismatch
-- Detects concurrent modification without locks
-
-### 3.4 TT Write Policy
-
-All workers in Lazy SMP maintain independent local TT instances, eliminating
-cross-goroutine write contention. Each worker writes at all depths to its own TT.
+All workers in Lazy SMP share a single TT instance. Writes are coordinated via
+per-shard `sync.RWMutex` to prevent data races. Each worker writes at all depths
+to the shared TT, providing cross-worker move hints via hash moves.
 The depth-age replacement strategy handles entry quality naturally.
 
 ---
@@ -350,22 +341,19 @@ Stores static evaluation corrections for position reuse.
 
 Position evaluation combines multiple factors:
 
-**Pattern Scores:**
+**Score Hierarchy:**
 
-| Pattern | Score (centipawns) |
-|---------|-------------------|
-| Five in row | 50,000 |
-| Open four | 10,000 |
-| Closed four | 1,000 |
-| Open three | 1,000 |
-| Closed three | 100 |
-| Open two | 100 |
-| Center bonus | 50 |
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| Infinity | 100,000 | Initial alpha/beta bounds |
+| WinScore | 30,000 | Terminal win (mate-distance adjusted: WinScore - ply) |
+| MaxEval | 25,000 | Non-win evaluation clamp |
+| fiveScore | 30,000 (= WinScore) | Static eval for five-in-a-row |
 
 **Score Boundaries:**
-- Evaluation scores clamped to ±20,000 (MaxCorrectedEval)
-- Terminal win score: 30,000 (WinScore), with mate-distance reduction per ply
-- FiveInRowScore (50,000) is separate from WinScore (30,000) to prevent eval/search score collision
+- Evaluation scores clamped to ±25,000 (MaxEval)
+- Terminal win score: 30,000 (WinScore), reduced by ply from root for mate-distance preference
+- Mate scores stored in TT with ply adjustment to normalize across depths
 
 **Defense Multiplier:**
 - Defense valued at 3/2 of offense
@@ -520,7 +508,7 @@ All shared data structures designed for concurrent access.
 - No shared mutable state in game logic
 
 **Thread-Safe Structures:**
-- TT with sharding and SeqLock access (sync/atomic)
+- TT with 16 shards, each protected by `sync.RWMutex` (concurrent reads, exclusive writes)
 - Go channels for async communication
 - Independent history tables per goroutine
 - sync.Pool for SearchBoard reuse
@@ -546,7 +534,7 @@ Atomic counters collect search telemetry without blocking hot paths.
 
 **Aggregation:**
 - Sequential search: direct counter reads
-- Parallel search: shared `Nodes` counter; per-worker TT stats aggregated as (mean + median) / 2
+- Parallel search: shared `Nodes` counter and shared TT stats across all workers
 
 ---
 

@@ -49,7 +49,7 @@ Full-strength engine with 100-500x speedup over naive minimax:
 | | Adaptive LMR | Dynamic depth reduction by position factors |
 | | VCF Solver | Pre-search for forcing win sequences (20% of allocated time) |
 | | Threat Space Search | Tactical move generation |
-| **Transposition Table** | Sharded SeqLock | 16 segments with atomic version counters |
+| **Transposition Table** | Sharded RWMutex | 16 segments with per-shard sync.RWMutex |
 | | Depth-Age Replacement | Smart entry eviction formula |
 | | Evaluation Cache | Static eval stored with entries |
 | **Move Ordering** | Staged Picker | TT -> Block -> Win -> Threat -> Killer/Counter -> Quiet |
@@ -248,7 +248,7 @@ graph TB
         Minimax["MinimaxAI"]
         Search["Parallel Search (Lazy SMP)"]
         Evaluator["BitBoard Evaluator"]
-        TT["Transposition Table (SeqLock)"]
+        TT["Transposition Table (RWMutex)"]
         VCF["VCF Solver"]
     end
 
@@ -337,7 +337,7 @@ Go-native concurrency patterns:
 | Channel-based worker pool | Per-search goroutine dispatch with result collection |
 | Per-game sync.Mutex | Up to 4 concurrent games, independently locked |
 | context.Context propagation | HTTP request cancellation reaches AI search |
-| Sharded SeqLock TT (16 segments) | Lock-free parallel transposition table access |
+| Sharded RWMutex TT (16 segments) | Lock-free parallel transposition table access |
 | sync.Pool | SearchBoard instance reuse to reduce GC pressure |
 | Goroutine leak detection | Debug builds with GOEXPERIMENT=goroutineleakprofile |
 
