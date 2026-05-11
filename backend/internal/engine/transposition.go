@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"sync"
 	"sync/atomic"
 	"unsafe"
 )
@@ -33,10 +34,10 @@ type ttSlot struct {
 	moveY      int8
 	flag       uint8
 	age        uint8
-	version    atomic.Uint32
 }
 
 type ttShard struct {
+	mu    sync.RWMutex
 	slots []ttSlot
 	mask  uint64
 }
@@ -73,17 +74,25 @@ func (tt *TranspositionTable) Store(entry TTEntry) {
 	si := tt.shardIndex(entry.Hash)
 	shard := &tt.shards[si]
 	idx := entry.Hash & shard.mask
-	slot := &shard.slots[idx]
 
 	currentAge := uint8(tt.age.Load())
-	entryPrio := int(entry.Depth) - 8*int(currentAge-entry.Age)
-	existingPrio := int(slot.depth) - 8*int(currentAge-slot.age)
 
-	if slot.hash != 0 && slot.hash != entry.Hash && existingPrio >= entryPrio {
+	shard.mu.RLock()
+	slot := &shard.slots[idx]
+	existingHash := slot.hash
+	existingDepth := slot.depth
+	existingAge := slot.age
+	shard.mu.RUnlock()
+
+	entryPrio := int(entry.Depth) - 8*int(currentAge-entry.Age)
+	existingPrio := int(existingDepth) - 8*int(currentAge-existingAge)
+
+	if existingHash != 0 && existingHash != entry.Hash && existingPrio >= entryPrio {
 		return
 	}
 
-	slot.version.Add(1)
+	shard.mu.Lock()
+	slot = &shard.slots[idx]
 	slot.hash = entry.Hash
 	slot.score = entry.Score
 	slot.staticEval = entry.StaticEval
@@ -92,7 +101,7 @@ func (tt *TranspositionTable) Store(entry TTEntry) {
 	slot.moveY = entry.MoveY
 	slot.flag = entry.Flag
 	slot.age = entry.Age
-	slot.version.Add(1)
+	shard.mu.Unlock()
 }
 
 func (tt *TranspositionTable) Lookup(hash uint64) (TTEntry, bool) {
@@ -100,13 +109,9 @@ func (tt *TranspositionTable) Lookup(hash uint64) (TTEntry, bool) {
 	si := tt.shardIndex(hash)
 	shard := &tt.shards[si]
 	idx := hash & shard.mask
+
+	shard.mu.RLock()
 	slot := &shard.slots[idx]
-
-	v1 := slot.version.Load()
-	if v1%2 != 0 {
-		return TTEntry{}, false
-	}
-
 	entry := TTEntry{
 		Hash:       slot.hash,
 		Score:      slot.score,
@@ -117,10 +122,8 @@ func (tt *TranspositionTable) Lookup(hash uint64) (TTEntry, bool) {
 		Flag:       slot.flag,
 		Age:        slot.age,
 	}
+	shard.mu.RUnlock()
 
-	if slot.version.Load() != v1 {
-		return TTEntry{}, false
-	}
 	if entry.Hash != hash {
 		return TTEntry{}, false
 	}
@@ -130,9 +133,11 @@ func (tt *TranspositionTable) Lookup(hash uint64) (TTEntry, bool) {
 
 func (tt *TranspositionTable) Clear() {
 	for i := range tt.shards {
+		tt.shards[i].mu.Lock()
 		for j := range tt.shards[i].slots {
 			tt.shards[i].slots[j] = ttSlot{}
 		}
+		tt.shards[i].mu.Unlock()
 	}
 }
 

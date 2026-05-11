@@ -37,10 +37,10 @@ func SearchPosition(
 	defer monitor.Stop()
 
 	tt.ResetStats()
-	bestScore := -domain.WinScore * 2
+	bestScore := -domain.Infinity
 	completedDepth := 0
-	fullAlpha := -domain.WinScore * 2
-	fullBeta := domain.WinScore * 2
+	fullAlpha := -domain.Infinity
+	fullBeta := domain.Infinity
 
 	if config.UseVCF {
 		vcfTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction)
@@ -146,7 +146,7 @@ func searchRoot(
 
 	ordered := OrderMoves(candidates, sb, player, depth, ttMove, heuristics)
 
-	bestScore := -domain.WinScore * 2
+	bestScore := -domain.Infinity
 	bestX, bestY := -1, -1
 
 	for i, move := range ordered {
@@ -158,13 +158,13 @@ func searchRoot(
 
 		var score int
 		if wouldWin(sb, move.X, move.Y, player) {
-			score = domain.WinScore
+			score = domain.WinScore - 1
 		} else if i == 0 {
-			score = -alphaBeta(sb, player.Opponent(), depth-1, -beta, -alpha, tt, heuristics, monitor, move)
+			score = -alphaBeta(sb, player.Opponent(), depth-1, -beta, -alpha, tt, heuristics, monitor, move, 1)
 		} else {
-			score = -alphaBeta(sb, player.Opponent(), depth-1, -alpha-1, -alpha, tt, heuristics, monitor, move)
+			score = -alphaBeta(sb, player.Opponent(), depth-1, -alpha-1, -alpha, tt, heuristics, monitor, move, 1)
 			if score > alpha && score < beta {
-				score = -alphaBeta(sb, player.Opponent(), depth-1, -beta, -alpha, tt, heuristics, monitor, move)
+				score = -alphaBeta(sb, player.Opponent(), depth-1, -beta, -alpha, tt, heuristics, monitor, move, 1)
 			}
 		}
 
@@ -179,10 +179,10 @@ func searchRoot(
 		}
 	}
 
-	if bestX >= 0 {
+	if bestX >= 0 && !monitor.ShouldStop() {
 		tt.Store(TTEntry{
 			Hash:       sb.Hash(),
-			Score:      int32(bestScore),
+			Score:      int32(adjustMateScoreForStore(bestScore, 0)),
 			StaticEval: int32(staticEval),
 			Depth:      uint8(depth),
 			MoveX:      int8(bestX),
@@ -204,6 +204,7 @@ func alphaBeta(
 	heuristics *SearchHeuristics,
 	monitor *TimeMonitor,
 	prevMove domain.Position,
+	plyFromRoot int,
 ) int {
 	monitor.Nodes.Add(1)
 	if monitor.ShouldStop() {
@@ -211,7 +212,7 @@ func alphaBeta(
 	}
 
 	if depth <= 0 {
-		return quiesce(sb, player, alpha, beta, domain.MaxQuiescenceDepth, heuristics, monitor)
+		return quiesce(sb, player, alpha, beta, domain.MaxQuiescenceDepth, heuristics, monitor, plyFromRoot)
 	}
 
 	origAlpha := alpha
@@ -221,7 +222,7 @@ func alphaBeta(
 	if depth >= domain.NullMoveMinDepth && staticEval >= beta {
 		sb.MakeNullMove()
 		nullPrev := domain.Position{X: -1, Y: -1}
-		nullScore := -alphaBeta(sb, player.Opponent(), depth-1-domain.NullMoveReduction, -beta, -beta+1, tt, heuristics, monitor, nullPrev)
+		nullScore := -alphaBeta(sb, player.Opponent(), depth-1-domain.NullMoveReduction, -beta, -beta+1, tt, heuristics, monitor, nullPrev, plyFromRoot+1)
 		sb.UnmakeNullMove()
 		if nullScore >= beta && !monitor.ShouldStop() {
 			return nullScore
@@ -229,24 +230,26 @@ func alphaBeta(
 	}
 
 	if entry, ok := tt.Lookup(sb.Hash()); ok && int(entry.Depth) >= depth {
+		ttScore := adjustMateScoreForRetrieve(int(entry.Score), plyFromRoot)
 		switch entry.Flag {
 		case TTExact:
-			return int(entry.Score)
+			return ttScore
 		case TTLowerBound:
-			if int(entry.Score) > alpha {
-				alpha = int(entry.Score)
+			if ttScore > alpha {
+				alpha = ttScore
 			}
 		case TTUpperBound:
-			if int(entry.Score) < beta {
-				beta = int(entry.Score)
+			if ttScore < beta {
+				beta = ttScore
 			}
 		}
 		if alpha >= beta {
-			return int(entry.Score)
+			return ttScore
 		}
 	}
 
 	candidates := GetCandidates(sb, domain.MaxSearchRadius)
+	candidates = FilterOpenRule(candidates, sb, player)
 	var ttMove *domain.Position
 	if entry, ok := tt.Lookup(sb.Hash()); ok {
 		ttMove = &domain.Position{X: int(entry.MoveX), Y: int(entry.MoveY)}
@@ -254,7 +257,7 @@ func alphaBeta(
 
 	picker := NewMovePicker(candidates, sb, player, depth, ttMove, heuristics, prevMove)
 
-	bestScore := -domain.WinScore * 2
+	bestScore := -domain.Infinity
 	bestMoveX, bestMoveY := -1, -1
 	moveIdx := 0
 
@@ -293,15 +296,15 @@ func alphaBeta(
 
 		var score int
 		if wouldWin(sb, move.X, move.Y, player) {
-			score = domain.WinScore
+			score = domain.WinScore - plyFromRoot
 		} else {
 			newDepth := depth - 1 - reduction
 			if moveIdx == 0 {
-				score = -alphaBeta(sb, player.Opponent(), newDepth, -beta, -alpha, tt, heuristics, monitor, move)
+				score = -alphaBeta(sb, player.Opponent(), newDepth, -beta, -alpha, tt, heuristics, monitor, move, plyFromRoot+1)
 			} else {
-				score = -alphaBeta(sb, player.Opponent(), newDepth, -alpha-1, -alpha, tt, heuristics, monitor, move)
+				score = -alphaBeta(sb, player.Opponent(), newDepth, -alpha-1, -alpha, tt, heuristics, monitor, move, plyFromRoot+1)
 				if score > alpha && score < beta {
-					score = -alphaBeta(sb, player.Opponent(), depth-1, -beta, -alpha, tt, heuristics, monitor, move)
+					score = -alphaBeta(sb, player.Opponent(), depth-1, -beta, -alpha, tt, heuristics, monitor, move, plyFromRoot+1)
 				}
 			}
 		}
@@ -327,6 +330,7 @@ func alphaBeta(
 		moveIdx++
 	}
 
+		if !monitor.ShouldStop() {
 	flag := TTExact
 	if bestScore <= origAlpha {
 		flag = TTUpperBound
@@ -335,13 +339,14 @@ func alphaBeta(
 	}
 	tt.Store(TTEntry{
 		Hash:       sb.Hash(),
-		Score:      int32(bestScore),
+		Score:      int32(adjustMateScoreForStore(bestScore, plyFromRoot)),
 		StaticEval: int32(staticEval),
 		Depth:      uint8(depth),
 		MoveX:      int8(bestMoveX),
 		MoveY:      int8(bestMoveY),
 		Flag:       flag,
 	})
+		}
 
 	return bestScore
 }
@@ -353,6 +358,7 @@ func quiesce(
 	maxPly int,
 	heuristics *SearchHeuristics,
 	monitor *TimeMonitor,
+	plyFromRoot int,
 ) int {
 	monitor.Nodes.Add(1)
 	if monitor.ShouldStop() {
@@ -379,9 +385,9 @@ func quiesce(
 		sb.MakeMove(move.X, move.Y, player)
 		var score int
 		if wouldWin(sb, move.X, move.Y, player) {
-			score = domain.WinScore
+			score = domain.WinScore - plyFromRoot
 		} else {
-			score = -quiesce(sb, player.Opponent(), -beta, -alpha, maxPly-1, heuristics, monitor)
+			score = -quiesce(sb, player.Opponent(), -beta, -alpha, maxPly-1, heuristics, monitor, plyFromRoot+1)
 		}
 		sb.UnmakeMove()
 
@@ -394,4 +400,29 @@ func quiesce(
 	}
 
 	return alpha
+}
+
+func isMateScore(score int) bool {
+	return score > domain.WinScore-domain.AbsoluteMaxDepth ||
+		score < -domain.WinScore+domain.AbsoluteMaxDepth
+}
+
+func adjustMateScoreForStore(score int, plyFromRoot int) int {
+	if score > domain.WinScore-domain.AbsoluteMaxDepth {
+		return score + plyFromRoot
+	}
+	if score < -domain.WinScore+domain.AbsoluteMaxDepth {
+		return score - plyFromRoot
+	}
+	return score
+}
+
+func adjustMateScoreForRetrieve(storedScore int, plyFromRoot int) int {
+	if storedScore >= domain.WinScore-domain.AbsoluteMaxDepth+1 {
+		return storedScore - plyFromRoot
+	}
+	if storedScore <= -(domain.WinScore - domain.AbsoluteMaxDepth) - 1 {
+		return storedScore + plyFromRoot
+	}
+	return storedScore
 }

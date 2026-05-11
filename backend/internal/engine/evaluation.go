@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	fiveScore       = 50_000
+	fiveScore       = domain.WinScore
 	flex4WinBonus   = 15_000
 	doubleB4Bonus   = 14_000
 	b4f3Bonus       = 13_000
@@ -19,7 +19,7 @@ const (
 	flex1Score      = 10
 
 	defenseMultiplier = 1.5
-	maxCorrectedEval  = 20_000
+	maxCorrectedEval  = domain.MaxEval
 )
 
 func Evaluate(sb *SearchBoard, player domain.Player) int {
