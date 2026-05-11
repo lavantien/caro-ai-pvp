@@ -47,7 +47,8 @@ func TestServerMakeMove(t *testing.T) {
 	defer srv.Close()
 
 	// Create
-	resp, _ := http.Post(srv.URL+"/api/game/new", "application/json", strings.NewReader(`{}`))
+	resp, err := http.Post(srv.URL+"/api/game/new", "application/json", strings.NewReader(`{}`))
+	require.NoError(t, err)
 	defer resp.Body.Close()
 	var created map[string]any
 	json.NewDecoder(resp.Body).Decode(&created)

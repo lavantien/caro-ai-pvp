@@ -61,6 +61,23 @@ func TestCreateGameBlitz(t *testing.T) {
 	assert.Equal(t, "aivai", state["gameMode"])
 }
 
+func TestCreateGameThreeZero(t *testing.T) {
+	h := testHandler()
+	req := httptest.NewRequest(http.MethodPost, "/api/games", bytes.NewReader(
+		[]byte(`{"timeControl":"3+0","gameMode":"pvp"}`),
+	))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.CreateGame(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	resp := decodeResponse(t, w)
+	state := resp["state"].(map[string]any)
+	assert.Equal(t, "3+0", state["timeControl"])
+	assert.Equal(t, 180.0, state["initialTime"])
+	assert.Equal(t, 0.0, state["increment"])
+}
+
 func TestCreateGameInvalidDifficulty(t *testing.T) {
 	h := testHandler()
 	req := httptest.NewRequest(http.MethodPost, "/api/games", bytes.NewReader(

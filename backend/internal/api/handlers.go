@@ -50,6 +50,8 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		timeControl, initialTimeMs, incrementSeconds = "1+0", 60000, 0
 	case "3+2", "blitz":
 		timeControl, initialTimeMs, incrementSeconds = "3+2", 180000, 2
+	case "3+0":
+		timeControl, initialTimeMs, incrementSeconds = "3+0", 180000, 0
 	case "15+10", "classical":
 		timeControl, initialTimeMs, incrementSeconds = "15+10", 900000, 10
 	}
@@ -340,14 +342,22 @@ func (h *Handler) buildMoveDetail(resp GameResponse, player string, x, y int, st
 		mt = stats.MoveType
 	}
 
-	statline := fmt.Sprintf("M%2d %-4s %s  d=%-2d n=%-7s nps=%-5s tt=%3d%% s=%+d t=%.1fs",
+	vcfTag := ""
+	if mt == "vcf" {
+		vcfTag = " [VCF]"
+	}
+
+	statline := fmt.Sprintf("M%2d %-4s %s  d=%-2d n=%-7s nps=%-5s tt=%3d%% s=%+d thr=%d t=%.1fs alloc=%.1fs%s",
 		moveNum, player, pos,
 		stats.DepthAchieved,
 		formatStatlineNodes(stats.NodesSearched),
 		formatStatlineNPS(stats.NodesPerSecond),
 		int(stats.TableHitRate*100),
 		stats.SearchScore,
+		stats.ThreadCount,
 		float64(thinkTimeMs)/1000,
+		float64(stats.AllocatedTimeMs)/1000,
+		vcfTag,
 	)
 
 	return MoveDetailResponse{
