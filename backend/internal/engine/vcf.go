@@ -40,7 +40,7 @@ func (v *VCFSolver) search(depth int) bool {
 		return false
 	}
 
-	candidates := GetCandidates(v.sb, domain.MaxSearchRadius)
+	candidates := GetCandidates(v.sb, 2)
 
 	for _, c := range candidates {
 		if v.monitor.ShouldStop() {
@@ -57,6 +57,12 @@ func (v *VCFSolver) search(depth int) bool {
 
 		blocks := findFourBlocks(v.sb, c.X, c.Y, v.attacker)
 		if len(blocks) == 0 {
+			v.sb.UnmakeMove()
+			continue
+		}
+
+		// Opponent may have a winning response outside the blocking squares.
+		if opponentHasImmediateWin(v.sb, v.attacker.Opponent()) {
 			v.sb.UnmakeMove()
 			continue
 		}
@@ -86,6 +92,19 @@ func (v *VCFSolver) search(depth int) bool {
 		}
 	}
 
+	return false
+}
+
+func opponentHasImmediateWin(sb *SearchBoard, opponent domain.Player) bool {
+	candidates := GetCandidates(sb, 2)
+	for _, c := range candidates {
+		sb.MakeMove(c.X, c.Y, opponent)
+		wins := wouldWin(sb, c.X, c.Y, opponent)
+		sb.UnmakeMove()
+		if wins {
+			return true
+		}
+	}
 	return false
 }
 
@@ -124,10 +143,17 @@ func findFourBlocks(sb *SearchBoard, x, y int, attacker domain.Player) []domain.
 		beforeOpen := beforeX >= 0 && beforeX < domain.BoardSize && beforeY >= 0 && beforeY < domain.BoardSize && sb.IsEmpty(beforeX, beforeY)
 
 		if afterOpen {
-			blocks = append(blocks, domain.Position{X: afterX, Y: afterY})
+			// Check placing attacker here creates exactly 5, not 6+ (overline)
+			beyondX, beyondY := afterX+dx, afterY+dy
+			if beyondX < 0 || beyondX >= domain.BoardSize || beyondY < 0 || beyondY >= domain.BoardSize || sb.PlayerAt(beyondX, beyondY) != attacker {
+				blocks = append(blocks, domain.Position{X: afterX, Y: afterY})
+			}
 		}
 		if beforeOpen {
-			blocks = append(blocks, domain.Position{X: beforeX, Y: beforeY})
+			beyondX, beyondY := beforeX-dx, beforeY-dy
+			if beyondX < 0 || beyondX >= domain.BoardSize || beyondY < 0 || beyondY >= domain.BoardSize || sb.PlayerAt(beyondX, beyondY) != attacker {
+				blocks = append(blocks, domain.Position{X: beforeX, Y: beforeY})
+			}
 		}
 	}
 	return blocks

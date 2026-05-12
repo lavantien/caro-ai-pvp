@@ -39,8 +39,8 @@ type MovePicker struct {
 
 const (
 	stageTTMove = iota
-	stageMustBlock
 	stageWinning
+	stageMustBlock
 	stageThreat
 	stageKillerCounter
 	stageQuiet
@@ -72,7 +72,7 @@ func NewMovePicker(
 func (mp *MovePicker) Next() (domain.Position, bool) {
 	for {
 		if mp.stage == stageTTMove {
-			mp.stage = stageMustBlock
+			mp.stage = stageWinning
 			if mp.ttMove != nil {
 				for _, c := range mp.candidates {
 					if c == *mp.ttMove {
@@ -109,10 +109,10 @@ func (mp *MovePicker) Next() (domain.Position, bool) {
 
 func (mp *MovePicker) generateStage() []domain.Position {
 	switch mp.stage {
-	case stageMustBlock:
-		return mp.genMustBlock()
 	case stageWinning:
 		return mp.genWinning()
+	case stageMustBlock:
+		return mp.genMustBlock()
 	case stageThreat:
 		return mp.genThreats()
 	case stageKillerCounter:

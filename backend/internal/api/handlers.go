@@ -345,6 +345,8 @@ func (h *Handler) buildMoveDetail(resp GameResponse, player string, x, y int, st
 	vcfTag := ""
 	if mt == "vcf" {
 		vcfTag = " [VCF]"
+	} else if mt == "vcf-block" {
+		vcfTag = " [VCF-BLOCK]"
 	}
 
 	statline := fmt.Sprintf("M%2d %-4s %s  d=%-2d n=%-7s nps=%-5s tt=%3d%% s=%+d thr=%d t=%.1fs alloc=%.1fs%s",

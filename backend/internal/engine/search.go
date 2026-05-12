@@ -43,13 +43,34 @@ func SearchPosition(
 	fullBeta := domain.Infinity
 
 	if config.UseVCF {
-		vcfTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction)
-		if vx, vy, found := SolveVCF(b, player, vcfTime, ctx); found {
-			return vx, vy, SearchStats{
-				DepthAchieved:   0,
-				SearchScore:     domain.WinScore,
-				AllocatedTimeMs: config.TimeLimitMs,
-				MoveType:        "vcf",
+		oppSB := NewSearchBoard(b)
+		if !opponentHasImmediateWin(&oppSB, player.Opponent()) {
+			vcfTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction)
+			if vx, vy, found := SolveVCF(b, player, vcfTime, ctx); found {
+				return vx, vy, SearchStats{
+					DepthAchieved:   0,
+					SearchScore:     domain.WinScore,
+					AllocatedTimeMs: config.TimeLimitMs,
+					MoveType:        "vcf",
+				}
+			}
+		}
+	}
+
+	// Check if opponent has a VCF threat and block it
+	if config.UseVCF {
+		oppVcfTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction / 2)
+		if vx, vy, found := SolveVCF(b, player.Opponent(), oppVcfTime, ctx); found {
+			blocked := b.PlaceStone(vx, vy, player)
+			blockCheckTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction / 4)
+			if _, _, stillHas := SolveVCF(blocked, player.Opponent(), blockCheckTime, ctx); !stillHas {
+				return vx, vy, SearchStats{
+					DepthAchieved:   0,
+					SearchScore:     0,
+					AllocatedTimeMs: config.TimeLimitMs,
+					MoveType:        "vcf-block",
+					ThreadCount:     1,
+				}
 			}
 		}
 	}
@@ -283,13 +304,6 @@ func alphaBeta(
 			if reduction >= depth {
 				reduction = depth - 1
 			}
-		}
-
-		// Futility pruning
-		if depth <= domain.FutilityMinDepth && moveIdx > 0 &&
-			staticEval+domain.FutilityMarginBase+domain.FutilityMarginPerDepth*depth <= alpha {
-			moveIdx++
-			continue
 		}
 
 		sb.MakeMove(move.X, move.Y, player)

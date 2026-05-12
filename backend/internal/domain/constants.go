@@ -24,14 +24,11 @@ const (
 	AbsoluteMaxDepth      = 50
 	AspirationWindowSize  = 1_500
 	MaxAspirationAttempts = 3
-	NullMoveMinDepth      = 3
-	NullMoveReduction     = 3
+	NullMoveMinDepth      = 4
+	NullMoveReduction     = 2
 	MaxQuiescenceDepth    = 4
 	ContinuationPlyCount  = 6
 
-	FutilityMarginBase     = 300
-	FutilityMarginPerDepth = 100
-	FutilityMinDepth       = 3
 	LMRMinDepth            = 3
 	LMRFullDepthMoves      = 4
 	PVSEnabledDepth        = 2

@@ -18,16 +18,15 @@ const (
 	block2Score     = 30
 	flex1Score      = 10
 
-	defenseMultiplier = 1.5
-	maxCorrectedEval  = domain.MaxEval
+	maxCorrectedEval = domain.MaxEval
 )
 
 func Evaluate(sb *SearchBoard, player domain.Player) int {
 	playerScore := evaluateForPlayer(sb, player)
 	opponentScore := evaluateForPlayer(sb, player.Opponent())
 
-	score := playerScore - int(float64(opponentScore)*defenseMultiplier)
-	score += centerBonus(sb, player)
+	score := playerScore - opponentScore
+	score += centerBonus(sb, player) - centerBonus(sb, player.Opponent())
 
 	if score > maxCorrectedEval {
 		score = maxCorrectedEval
