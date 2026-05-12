@@ -1,139 +1,132 @@
-[02:58:06.871] === Caro AI PvP - Screenshot Capture ===
+[05:27:12.160] === Caro AI PvP - Screenshot Capture ===
 
-[02:58:06.871] Building backend...
-[02:58:06.880] ERR (node:26928) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+[05:27:12.161] Building backend...
+[05:27:12.169] ERR (node:21120) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
 (Use `node --trace-deprecation ...` to show where the warning was created)
-[02:58:07.195] Backend built.
+[05:27:14.620] Backend built.
 
-[02:58:07.195] Killing stale processes on port 5207...
-[02:58:07.215] Starting backend...
-[02:58:07.255] [backend] {"time":"2026-05-12T09:58:07.25077+07:00","level":"INFO","msg":"server starting","addr":":5207"}
-[02:58:07.260] [backend] {"time":"2026-05-12T09:58:07.2598787+07:00","level":"INFO","msg":"request","method":"GET","path":"/","duration":0}
-[02:58:07.263] Backend ready.
+[05:27:14.621] Killing stale processes on port 5207...
+[05:27:14.641] Starting backend...
+[05:27:15.511] [backend] {"time":"2026-05-12T12:27:15.5077795+07:00","level":"INFO","msg":"server starting","addr":":5207"}
+[05:27:15.514] [backend] {"time":"2026-05-12T12:27:15.5151295+07:00","level":"INFO","msg":"request","method":"GET","path":"/","duration":0}
+[05:27:15.518] Backend ready.
 
-[02:58:07.263] Starting frontend...
-[02:58:07.415] [frontend] > frontend@6.7.0 dev
-[02:58:07.415] [frontend] > vite dev
-[02:58:08.037] [frontend]   [32m[1mVITE[22m v7.3.0[39m  [2mready in [0m[1m568[22m[2m[0m ms[22m
-[02:58:08.037] [frontend]   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
-[02:58:08.037] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.24.32.1:[1m5173[22m/[39m
-[02:58:08.037] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.16.1:[1m5173[22m/[39m
-[02:58:08.037] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.9:[1m5173[22m/[39m
-[02:58:08.185] [frontend] (node:14784) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
-[02:58:08.185] [frontend] (Use `node --trace-deprecation ...` to show where the warning was created)
-[02:58:09.082] Frontend ready.
+[05:27:15.518] Starting frontend...
+[05:27:15.641] [frontend] > frontend@6.7.0 dev
+[05:27:15.641] [frontend] > vite dev
+[05:27:16.246] [frontend]   [32m[1mVITE[22m v7.3.0[39m  [2mready in [0m[1m548[22m[2m[0m ms[22m
+[05:27:16.247] [frontend]   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[05:27:16.247] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.24.32.1:[1m5173[22m/[39m
+[05:27:16.247] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.16.1:[1m5173[22m/[39m
+[05:27:16.247] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.9:[1m5173[22m/[39m
+[05:27:16.404] [frontend] (node:23912) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[05:27:16.404] [frontend] (Use `node --trace-deprecation ...` to show where the warning was created)
+[05:27:17.292] Frontend ready.
 
-[02:58:09.082] 
+[05:27:17.292] 
 Capturing screenshot...
-[02:58:09.365] [frontend] [1;31m[404] GET /favicon.png[0m
-[02:58:09.465] [browser:error] Failed to load resource: the server responded with a status of 404 (Not Found)
-[02:58:09.642] [backend] {"time":"2026-05-12T09:58:09.6431453+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/new","duration":0}
-[02:58:09.643] [backend] {"time":"2026-05-12T09:58:09.6436597+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":0}
-[02:58:09.658] [backend] {"time":"2026-05-12T09:58:09.6589749+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/52a797d127ffdd13","duration":0}
-[02:58:10.267] [backend] {"time":"2026-05-12T09:58:10.2674233+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":999300}
-[02:58:10.270] Waiting for AI vs AI match to complete (attempt 1/3)...
-[02:58:10.279] [backend] {"time":"2026-05-12T09:58:10.2799766+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/e04dbffb46b03df9","duration":0}
-[02:58:10.284] [backend] {"time":"2026-05-12T09:58:10.2845206+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[02:58:23.010] [backend] {"time":"2026-05-12T09:58:23.0111999+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M 0 red  i8  d=6  n=9.2M    nps=720K  tt= 35% s=+3 thr=8 t=12.7s alloc=12.7s"}
-[02:58:23.010] [backend] {"time":"2026-05-12T09:58:23.011705+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":12726050400}
-[02:58:23.013] [backend] {"time":"2026-05-12T09:58:23.0142167+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[02:58:35.795] [backend] {"time":"2026-05-12T09:58:35.7984386+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M 1 blue i9  d=5  n=3.4M    nps=268K  tt= 56% s=+36 thr=8 t=12.7s alloc=12.7s"}
-[02:58:35.796] [backend] {"time":"2026-05-12T09:58:35.7989804+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":12783624600}
-[02:58:35.799] [backend] {"time":"2026-05-12T09:58:35.8016989+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[02:58:47.856] [backend] {"time":"2026-05-12T09:58:47.8589392+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M 2 red  h11  d=3  n=2.8M    nps=230K  tt= 48% s=+32 thr=8 t=12.1s alloc=12.1s"}
-[02:58:47.857] [backend] {"time":"2026-05-12T09:58:47.8610574+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":12057218500}
-[02:58:47.860] [backend] {"time":"2026-05-12T09:58:47.8635979+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[02:58:59.921] [backend] {"time":"2026-05-12T09:58:59.926491+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M 3 blue j10  d=3  n=3.1M    nps=253K  tt= 38% s=+102 thr=8 t=12.1s alloc=12.1s"}
-[02:58:59.923] [backend] {"time":"2026-05-12T09:58:59.9275689+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":12052378000}
-[02:58:59.925] [backend] {"time":"2026-05-12T09:58:59.9299569+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[02:59:11.363] [backend] {"time":"2026-05-12T09:59:11.3627753+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M 4 red  h8  d=3  n=2.9M    nps=252K  tt= 37% s=+136 thr=8 t=11.4s alloc=11.4s"}
-[02:59:11.364] [backend] {"time":"2026-05-12T09:59:11.3632954+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":11431815000}
-[02:59:11.367] [backend] {"time":"2026-05-12T09:59:11.3673517+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[02:59:22.796] [backend] {"time":"2026-05-12T09:59:22.7973006+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M 5 blue j8  d=3  n=3.3M    nps=286K  tt= 38% s=+96 thr=8 t=11.4s alloc=11.4s"}
-[02:59:22.797] [backend] {"time":"2026-05-12T09:59:22.7978312+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":11428958100}
-[02:59:22.800] [backend] {"time":"2026-05-12T09:59:22.8014204+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[02:59:33.648] [backend] {"time":"2026-05-12T09:59:33.6501707+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M 6 red  h10  d=4  n=3.1M    nps=288K  tt= 53% s=-80 thr=8 t=10.8s alloc=10.8s"}
-[02:59:33.648] [backend] {"time":"2026-05-12T09:59:33.6501707+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":10847258300}
-[02:59:33.651] [backend] {"time":"2026-05-12T09:59:33.6531448+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[02:59:33.654] [backend] {"time":"2026-05-12T09:59:33.6558941+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M 7 blue h9  d=0  n=0       nps=0     tt=  0% s=+0 thr=8 t=0.0s alloc=10.8s [VCF-BLOCK]"}
-[02:59:33.655] [backend] {"time":"2026-05-12T09:59:33.6570116+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":2840600}
-[02:59:43.956] [backend] {"time":"2026-05-12T09:59:43.9593186+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M 8 red  j9  d=3  n=2.7M    nps=259K  tt= 51% s=+142 thr=8 t=10.3s alloc=10.3s"}
-[02:59:43.957] [backend] {"time":"2026-05-12T09:59:43.9604003+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":10298244600}
-[02:59:43.960] [backend] {"time":"2026-05-12T09:59:43.9624722+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[02:59:54.928] [backend] {"time":"2026-05-12T09:59:54.9317117+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M 9 blue k10  d=4  n=2.7M    nps=250K  tt= 55% s=-140 thr=8 t=11.0s alloc=11.0s"}
-[02:59:54.929] [backend] {"time":"2026-05-12T09:59:54.9327729+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":10967816700}
-[02:59:54.932] [backend] {"time":"2026-05-12T09:59:54.935883+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:00:04.716] [backend] {"time":"2026-05-12T10:00:04.7215133+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M10 red  g9  d=3  n=2.5M    nps=256K  tt= 46% s=+892 thr=8 t=9.8s alloc=9.8s"}
-[03:00:04.717] [backend] {"time":"2026-05-12T10:00:04.7220431+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":9783728300}
-[03:00:04.720] [backend] {"time":"2026-05-12T10:00:04.7241878+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:00:15.135] [backend] {"time":"2026-05-12T10:00:15.1353159+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M11 blue i10  d=3  n=2.9M    nps=283K  tt= 43% s=-36 thr=8 t=10.4s alloc=10.4s"}
-[03:00:15.137] [backend] {"time":"2026-05-12T10:00:15.137062+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":10411156800}
-[03:00:15.139] [backend] {"time":"2026-05-12T10:00:15.1396222+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:00:24.440] [backend] {"time":"2026-05-12T10:00:24.4414488+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M12 red  f8  d=3  n=2.6M    nps=278K  tt= 49% s=+1028 thr=8 t=9.3s alloc=9.3s"}
-[03:00:24.441] [backend] {"time":"2026-05-12T10:00:24.4419655+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":9300995000}
-[03:00:24.444] [backend] {"time":"2026-05-12T10:00:24.4450874+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:00:24.448] [backend] {"time":"2026-05-12T10:00:24.4488973+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M13 blue e7  d=0  n=0       nps=0     tt=  0% s=+0 thr=8 t=0.0s alloc=9.9s [VCF-BLOCK]"}
-[03:00:24.449] [backend] {"time":"2026-05-12T10:00:24.4499526+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":3750500}
-[03:00:33.300] [backend] {"time":"2026-05-12T10:00:33.301699+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M14 red  g8  d=3  n=2.4M    nps=268K  tt= 46% s=+1144 thr=8 t=8.8s alloc=8.8s"}
-[03:00:33.300] [backend] {"time":"2026-05-12T10:00:33.3022456+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":8849441800}
-[03:00:33.303] [backend] {"time":"2026-05-12T10:00:33.3048874+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:00:33.306] [backend] {"time":"2026-05-12T10:00:33.3075251+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M15 blue e8  d=0  n=0       nps=0     tt=  0% s=+0 thr=8 t=0.0s alloc=10.0s [VCF-BLOCK]"}
-[03:00:33.306] [backend] {"time":"2026-05-12T10:00:33.3085707+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":2621000}
-[03:00:41.733] [backend] {"time":"2026-05-12T10:00:41.7359429+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M16 red  g10  d=3  n=2.4M    nps=290K  tt= 43% s=+1208 thr=8 t=8.4s alloc=8.4s"}
-[03:00:41.734] [backend] {"time":"2026-05-12T10:00:41.7370074+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":8423142900}
-[03:00:41.736] [backend] {"time":"2026-05-12T10:00:41.7392249+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:00:51.876] [backend] {"time":"2026-05-12T10:00:51.880328+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M17 blue g11  d=5  n=2.9M    nps=284K  tt= 67% s=-240 thr=8 t=10.1s alloc=10.1s"}
-[03:00:51.877] [backend] {"time":"2026-05-12T10:00:51.8808967+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":10140258400}
-[03:00:51.880] [backend] {"time":"2026-05-12T10:00:51.8834382+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:00:59.904] [backend] {"time":"2026-05-12T10:00:59.9082476+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M18 red  f10  d=3  n=2.1M    nps=261K  tt= 42% s=+1278 thr=8 t=8.0s alloc=8.0s"}
-[03:00:59.904] [backend] {"time":"2026-05-12T10:00:59.9082476+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":8023021600}
-[03:00:59.907] [backend] {"time":"2026-05-12T10:00:59.9112958+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:01:09.538] [backend] {"time":"2026-05-12T10:01:09.5427412+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M19 blue l10  d=6  n=3.0M    nps=315K  tt= 80% s=-1772 thr=8 t=9.6s alloc=9.6s"}
-[03:01:09.538] [backend] {"time":"2026-05-12T10:01:09.543296+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":9630340800}
-[03:01:09.541] [backend] {"time":"2026-05-12T10:01:09.5459103+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:01:09.543] [backend] {"time":"2026-05-12T10:01:09.5484553+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M20 red  m10  d=0  n=0       nps=0     tt=  0% s=+0 thr=8 t=0.0s alloc=7.6s [VCF-BLOCK]"}
-[03:01:09.544] [backend] {"time":"2026-05-12T10:01:09.548982+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":1607400}
-[03:01:18.710] [backend] {"time":"2026-05-12T10:01:18.7102645+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M21 blue i7  d=4  n=3.8M    nps=411K  tt= 72% s=-5204 thr=8 t=9.2s alloc=9.2s"}
-[03:01:18.710] [backend] {"time":"2026-05-12T10:01:18.710796+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":9158433800}
-[03:01:18.713] [backend] {"time":"2026-05-12T10:01:18.7123501+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:01:18.724] [backend] {"time":"2026-05-12T10:01:18.7242572+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M22 red  k9  d=0  n=0       nps=0     tt=  0% s=+0 thr=8 t=0.0s alloc=7.8s [VCF-BLOCK]"}
-[03:01:18.725] [backend] {"time":"2026-05-12T10:01:18.725368+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":11512100}
-[03:01:27.443] [backend] {"time":"2026-05-12T10:01:27.4439243+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M23 blue f7  d=3  n=2.0M    nps=233K  tt= 49% s=-218 thr=8 t=8.7s alloc=8.7s"}
-[03:01:27.443] [backend] {"time":"2026-05-12T10:01:27.4444595+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":8715515700}
-[03:01:27.447] [backend] {"time":"2026-05-12T10:01:27.4477088+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:01:35.345] [backend] {"time":"2026-05-12T10:01:35.3462725+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M24 red  g6  d=2  n=2.3M    nps=289K  tt= 53% s=+218 thr=8 t=7.9s alloc=7.9s"}
-[03:01:35.346] [backend] {"time":"2026-05-12T10:01:35.3478799+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":7897904600}
-[03:01:35.348] [backend] {"time":"2026-05-12T10:01:35.3500224+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:01:43.647] [backend] {"time":"2026-05-12T10:01:43.6496937+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M25 blue g5  d=7  n=1.6M    nps=192K  tt= 59% s=+0 thr=8 t=8.3s alloc=8.3s"}
-[03:01:43.648] [backend] {"time":"2026-05-12T10:01:43.6502856+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":8298286400}
-[03:01:43.651] [backend] {"time":"2026-05-12T10:01:43.6532319+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:01:43.655] [backend] {"time":"2026-05-12T10:01:43.6577521+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M26 red  e10  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=6.7s [VCF]"}
-[03:01:43.656] [backend] {"time":"2026-05-12T10:01:43.6583323+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":3992200}
-[03:01:50.678] [backend] {"time":"2026-05-12T10:01:50.6813035+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M27 blue c10  d=6  n=2.4M    nps=346K  tt= 53% s=-29994 thr=8 t=7.0s alloc=7.0s"}
-[03:01:50.679] [backend] {"time":"2026-05-12T10:01:50.6819783+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":7020391200}
-[03:01:50.683] [backend] {"time":"2026-05-12T10:01:50.6859012+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:01:50.686] [backend] {"time":"2026-05-12T10:01:50.6892488+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M28 red  e11  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=6.8s [VCF]"}
-[03:01:50.687] [backend] {"time":"2026-05-12T10:01:50.6897817+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":2811600}
-[03:01:57.443] [backend] {"time":"2026-05-12T10:01:57.4469513+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M29 blue d12  d=6  n=2.4M    nps=353K  tt= 56% s=-25434 thr=8 t=6.8s alloc=6.8s"}
-[03:01:57.443] [backend] {"time":"2026-05-12T10:01:57.4474848+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":6753499100}
-[03:01:57.446] [backend] {"time":"2026-05-12T10:01:57.4500134+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:01:57.450] [backend] {"time":"2026-05-12T10:01:57.4532109+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M30 red  h7  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=6.9s [VCF]"}
-[03:01:57.450] [backend] {"time":"2026-05-12T10:01:57.4537635+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":2693600}
-[03:02:03.950] [backend] {"time":"2026-05-12T10:02:03.9539548+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M31 blue e4  d=6  n=2.1M    nps=326K  tt= 53% s=-29997 thr=8 t=6.5s alloc=6.5s"}
-[03:02:03.951] [backend] {"time":"2026-05-12T10:02:03.9550328+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":6497954300}
-[03:02:03.953] [backend] {"time":"2026-05-12T10:02:03.9575625+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:02:03.957] [backend] {"time":"2026-05-12T10:02:03.960828+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M32 red  f9  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=7.0s [VCF]"}
-[03:02:03.957] [backend] {"time":"2026-05-12T10:02:03.9613846+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":2788200}
-[03:02:10.219] [backend] {"time":"2026-05-12T10:02:10.2234032+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M33 blue d11  d=6  n=1.6M    nps=248K  tt= 45% s=-29999 thr=8 t=6.3s alloc=6.3s"}
-[03:02:10.219] [backend] {"time":"2026-05-12T10:02:10.2239169+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":6258458900}
-[03:02:10.222] [backend] {"time":"2026-05-12T10:02:10.2260451+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:02:10.225] [backend] {"time":"2026-05-12T10:02:10.2301345+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M34 red  f11  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=7.1s [VCF]"}
-[03:02:10.226] [backend] {"time":"2026-05-12T10:02:10.2307703+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":4724800}
-[03:02:16.260] [backend] {"time":"2026-05-12T10:02:16.2656673+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M35 blue f12  d=6  n=1.6M    nps=258K  tt= 46% s=-29999 thr=8 t=6.0s alloc=6.0s"}
-[03:02:16.262] [backend] {"time":"2026-05-12T10:02:16.2678017+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":6033309600}
-[03:02:16.265] [backend] {"time":"2026-05-12T10:02:16.270024+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/e04dbffb46b03df9/ai-move","duration":0}
-[03:02:16.268] [backend] {"time":"2026-05-12T10:02:16.2737653+07:00","level":"INFO","msg":"move-statline","gameId":"e04dbffb46b03df9","line":"M36 red  i6  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=7.2s [VCF]"}
-[03:02:16.269] [backend] {"time":"2026-05-12T10:02:16.2737653+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/e04dbffb46b03df9/ai-move","duration":2718300}
-[03:02:16.370] Game complete: red Wins! New Game
-[03:02:17.406] Screenshot saved: C:\Users\lavantien\dev\github\caro-ai-pvp\screenshot.png
-[03:02:17.513] README.md updated
+[05:27:17.565] [frontend] [1;31m[404] GET /favicon.png[0m
+[05:27:17.662] [browser:error] Failed to load resource: the server responded with a status of 404 (Not Found)
+[05:27:17.832] [backend] {"time":"2026-05-12T12:27:17.8329239+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/new","duration":0}
+[05:27:17.833] [backend] {"time":"2026-05-12T12:27:17.8341866+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":757700}
+[05:27:17.843] [backend] {"time":"2026-05-12T12:27:17.843783+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/6887c590d4eea468","duration":0}
+[05:27:18.452] [backend] {"time":"2026-05-12T12:27:18.4530165+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":0}
+[05:27:18.456] Waiting for AI vs AI match to complete (attempt 1/3)...
+[05:27:18.464] [backend] {"time":"2026-05-12T12:27:18.4640921+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/74b5ea4fac1fc165","duration":0}
+[05:27:18.467] [backend] {"time":"2026-05-12T12:27:18.4680215+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:27:31.192] [backend] {"time":"2026-05-12T12:27:31.1924859+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M 0 red  i10  d=7  n=13.2M   nps=1M    tt= 15% s=+34 thr=8 t=12.7s alloc=12.7s"}
+[05:27:31.192] [backend] {"time":"2026-05-12T12:27:31.1924859+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":12723844500}
+[05:27:31.194] [backend] {"time":"2026-05-12T12:27:31.1950091+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:27:43.964] [backend] {"time":"2026-05-12T12:27:43.9650552+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M 1 blue i9  d=5  n=5.8M    nps=458K  tt= 39% s=+0 thr=8 t=12.7s alloc=12.7s"}
+[05:27:43.965] [backend] {"time":"2026-05-12T12:27:43.9655699+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":12770449700}
+[05:27:43.968] [backend] {"time":"2026-05-12T12:27:43.9683849+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:27:56.024] [backend] {"time":"2026-05-12T12:27:56.0242982+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M 2 red  f9  d=4  n=3.9M    nps=326K  tt= 43% s=-64 thr=8 t=12.1s alloc=12.1s"}
+[05:27:56.024] [backend] {"time":"2026-05-12T12:27:56.0253957+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":12055558900}
+[05:27:56.026] [backend] {"time":"2026-05-12T12:27:56.0269163+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:28:08.092] [backend] {"time":"2026-05-12T12:28:08.0926934+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M 3 blue j10  d=5  n=4.4M    nps=366K  tt= 47% s=+98 thr=8 t=12.1s alloc=12.1s"}
+[05:28:08.092] [backend] {"time":"2026-05-12T12:28:08.0932181+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":12054106500}
+[05:28:08.095] [backend] {"time":"2026-05-12T12:28:08.0959334+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:28:19.528] [backend] {"time":"2026-05-12T12:28:19.528828+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M 4 red  j9  d=5  n=6.0M    nps=527K  tt= 48% s=+22 thr=8 t=11.4s alloc=11.4s"}
+[05:28:19.529] [backend] {"time":"2026-05-12T12:28:19.528828+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":11431661900}
+[05:28:19.531] [backend] {"time":"2026-05-12T12:28:19.5308946+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:28:30.961] [backend] {"time":"2026-05-12T12:28:30.9614123+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M 5 blue k11  d=5  n=6.3M    nps=547K  tt= 49% s=+64 thr=8 t=11.4s alloc=11.4s"}
+[05:28:30.961] [backend] {"time":"2026-05-12T12:28:30.9619238+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":11429424600}
+[05:28:30.964] [backend] {"time":"2026-05-12T12:28:30.9643292+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:28:30.966] [backend] {"time":"2026-05-12T12:28:30.9664028+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M 6 red  h8  d=0  n=0       nps=0     tt=  0% s=+0 thr=8 t=0.0s alloc=10.8s [VCF-BLOCK]"}
+[05:28:30.966] [backend] {"time":"2026-05-12T12:28:30.9664028+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":1569600}
+[05:28:41.812] [backend] {"time":"2026-05-12T12:28:41.8127572+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M 7 blue k8  d=5  n=5.2M    nps=481K  tt= 53% s=+94 thr=8 t=10.8s alloc=10.8s"}
+[05:28:41.813] [backend] {"time":"2026-05-12T12:28:41.8132739+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":10843638200}
+[05:28:41.815] [backend] {"time":"2026-05-12T12:28:41.8158181+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:28:52.785] [backend] {"time":"2026-05-12T12:28:52.7861157+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M 8 red  g8  d=3  n=2.9M    nps=260K  tt= 41% s=+138 thr=8 t=11.0s alloc=11.0s"}
+[05:28:52.786] [backend] {"time":"2026-05-12T12:28:52.7866314+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":10969918900}
+[05:28:52.790] [backend] {"time":"2026-05-12T12:28:52.7901792+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:29:03.087] [backend] {"time":"2026-05-12T12:29:03.0875395+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M 9 blue k10  d=3  n=3.6M    nps=348K  tt= 52% s=+24 thr=8 t=10.3s alloc=10.3s"}
+[05:29:03.088] [backend] {"time":"2026-05-12T12:29:03.088597+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":10297058700}
+[05:29:03.091] [backend] {"time":"2026-05-12T12:29:03.0911884+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:29:03.095] [backend] {"time":"2026-05-12T12:29:03.0953667+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M10 red  k9  d=0  n=0       nps=0     tt=  0% s=+0 thr=8 t=0.0s alloc=10.4s [VCF-BLOCK]"}
+[05:29:03.095] [backend] {"time":"2026-05-12T12:29:03.0965187+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":3797600}
+[05:29:12.878] [backend] {"time":"2026-05-12T12:29:12.8787988+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M11 blue j11  d=3  n=3.5M    nps=357K  tt= 45% s=+0 thr=8 t=9.8s alloc=9.8s"}
+[05:29:12.879] [backend] {"time":"2026-05-12T12:29:12.8798308+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":9781163500}
+[05:29:12.881] [backend] {"time":"2026-05-12T12:29:12.8816393+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:29:23.419] [backend] {"time":"2026-05-12T12:29:23.4187945+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M12 red  h7  d=3  n=3.4M    nps=326K  tt= 47% s=+1008 thr=8 t=10.5s alloc=10.5s"}
+[05:29:23.419] [backend] {"time":"2026-05-12T12:29:23.4193186+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":10537083100}
+[05:29:23.422] [backend] {"time":"2026-05-12T12:29:23.4225413+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:29:23.436] [backend] {"time":"2026-05-12T12:29:23.4363713+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M13 blue e10  d=0  n=0       nps=0     tt=  0% s=+0 thr=8 t=0.0s alloc=9.3s [VCF-BLOCK]"}
+[05:29:23.437] [backend] {"time":"2026-05-12T12:29:23.4368874+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":3269200}
+[05:29:33.446] [backend] {"time":"2026-05-12T12:29:33.445799+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M14 red  h9  d=3  n=3.1M    nps=312K  tt= 52% s=+1112 thr=8 t=10.0s alloc=10.0s"}
+[05:29:33.446] [backend] {"time":"2026-05-12T12:29:33.4463145+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":10008818900}
+[05:29:33.449] [backend] {"time":"2026-05-12T12:29:33.4488396+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:29:42.871] [backend] {"time":"2026-05-12T12:29:42.8711584+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M15 blue m13  d=6  n=5.0M    nps=535K  tt= 86% s=+3348 thr=8 t=9.4s alloc=9.4s"}
+[05:29:42.872] [backend] {"time":"2026-05-12T12:29:42.8717278+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":9422296900}
+[05:29:42.875] [backend] {"time":"2026-05-12T12:29:42.8755185+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:29:42.878] [backend] {"time":"2026-05-12T12:29:42.8781628+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M16 red  l12  d=0  n=0       nps=0     tt=  0% s=+0 thr=8 t=0.0s alloc=9.5s [VCF-BLOCK]"}
+[05:29:42.878] [backend] {"time":"2026-05-12T12:29:42.8781628+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":2644300}
+[05:29:51.842] [backend] {"time":"2026-05-12T12:29:51.8425308+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M17 blue h10  d=4  n=2.0M    nps=228K  tt= 69% s=-14450 thr=8 t=9.0s alloc=9.0s"}
+[05:29:51.843] [backend] {"time":"2026-05-12T12:29:51.8430862+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":8961338200}
+[05:29:51.845] [backend] {"time":"2026-05-12T12:29:51.8456315+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:30:01.481] [backend] {"time":"2026-05-12T12:30:01.4811129+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M18 red  f8  d=3  n=2.2M    nps=227K  tt= 79% s=+14450 thr=8 t=9.6s alloc=9.6s"}
+[05:30:01.481] [backend] {"time":"2026-05-12T12:30:01.4816291+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":9635246500}
+[05:30:01.484] [backend] {"time":"2026-05-12T12:30:01.4842341+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:30:10.013] [backend] {"time":"2026-05-12T12:30:10.0138514+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M19 blue f10  d=2  n=1.9M    nps=217K  tt= 71% s=-14450 thr=8 t=8.5s alloc=8.5s"}
+[05:30:10.014] [backend] {"time":"2026-05-12T12:30:10.0143633+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":8529550400}
+[05:30:10.017] [backend] {"time":"2026-05-12T12:30:10.0178391+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:30:10.020] [backend] {"time":"2026-05-12T12:30:10.0209452+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M20 red  e8  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=9.2s [VCF]"}
+[05:30:10.021] [backend] {"time":"2026-05-12T12:30:10.0214688+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":3109500}
+[05:30:18.150] [backend] {"time":"2026-05-12T12:30:18.1508016+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M21 blue d8  d=6  n=2.6M    nps=316K  tt= 46% s=-29999 thr=8 t=8.1s alloc=8.1s"}
+[05:30:18.151] [backend] {"time":"2026-05-12T12:30:18.1518406+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":8126729300}
+[05:30:18.154] [backend] {"time":"2026-05-12T12:30:18.1543714+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:30:18.158] [backend] {"time":"2026-05-12T12:30:18.1590264+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M22 red  f7  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=9.3s [VCF]"}
+[05:30:18.159] [backend] {"time":"2026-05-12T12:30:18.1595324+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":4120400}
+[05:30:25.906] [backend] {"time":"2026-05-12T12:30:25.9057113+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M23 blue e6  d=6  n=2.6M    nps=341K  tt= 46% s=-29999 thr=8 t=7.7s alloc=7.7s"}
+[05:30:25.907] [backend] {"time":"2026-05-12T12:30:25.9072952+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":7745266400}
+[05:30:25.909] [backend] {"time":"2026-05-12T12:30:25.9093528+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:30:25.913] [backend] {"time":"2026-05-12T12:30:25.9128411+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M24 red  f6  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=9.4s [VCF]"}
+[05:30:25.913] [backend] {"time":"2026-05-12T12:30:25.913388+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":3303700}
+[05:30:33.304] [backend] {"time":"2026-05-12T12:30:33.3042005+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M25 blue f5  d=6  n=2.5M    nps=345K  tt= 47% s=-29999 thr=8 t=7.4s alloc=7.4s"}
+[05:30:33.304] [backend] {"time":"2026-05-12T12:30:33.3042005+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":7388166600}
+[05:30:33.306] [backend] {"time":"2026-05-12T12:30:33.3062681+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:30:33.310] [backend] {"time":"2026-05-12T12:30:33.3098667+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M26 red  h6  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=8.4s [VCF]"}
+[05:30:33.310] [backend] {"time":"2026-05-12T12:30:33.310414+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":3147500}
+[05:30:39.608] [backend] {"time":"2026-05-12T12:30:39.6082895+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M27 blue h5  d=6  n=2.2M    nps=346K  tt= 44% s=-29999 thr=8 t=6.3s alloc=6.3s"}
+[05:30:39.609] [backend] {"time":"2026-05-12T12:30:39.6093421+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":6296814000}
+[05:30:39.611] [backend] {"time":"2026-05-12T12:30:39.6118987+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:30:39.615] [backend] {"time":"2026-05-12T12:30:39.6147031+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M28 red  i6  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=8.5s [VCF]"}
+[05:30:39.615] [backend] {"time":"2026-05-12T12:30:39.6152528+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":2834200}
+[05:30:45.677] [backend] {"time":"2026-05-12T12:30:45.677436+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M29 blue i8  d=6  n=2.1M    nps=351K  tt= 44% s=-29999 thr=8 t=6.1s alloc=6.1s"}
+[05:30:45.677] [backend] {"time":"2026-05-12T12:30:45.677436+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":6058564800}
+[05:30:45.681] [backend] {"time":"2026-05-12T12:30:45.6801294+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:30:45.683] [backend] {"time":"2026-05-12T12:30:45.6835771+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M30 red  g6  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=8.6s [VCF]"}
+[05:30:45.684] [backend] {"time":"2026-05-12T12:30:45.6846512+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":2132100}
+[05:30:51.527] [backend] {"time":"2026-05-12T12:30:51.5281271+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M31 blue j5  d=6  n=2.1M    nps=355K  tt= 44% s=-29999 thr=8 t=5.8s alloc=5.8s"}
+[05:30:51.528] [backend] {"time":"2026-05-12T12:30:51.528647+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":5840881300}
+[05:30:51.531] [backend] {"time":"2026-05-12T12:30:51.5318907+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:30:51.534] [backend] {"time":"2026-05-12T12:30:51.5341076+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M32 red  d9  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=8.7s [VCF]"}
+[05:30:51.534] [backend] {"time":"2026-05-12T12:30:51.5346373+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":2132000}
+[05:30:57.172] [backend] {"time":"2026-05-12T12:30:57.1725251+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M33 blue c10  d=6  n=1.9M    nps=343K  tt= 44% s=-29999 thr=8 t=5.6s alloc=5.6s"}
+[05:30:57.173] [backend] {"time":"2026-05-12T12:30:57.173113+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":5635866100}
+[05:30:57.175] [backend] {"time":"2026-05-12T12:30:57.1757216+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":0}
+[05:30:57.179] [backend] {"time":"2026-05-12T12:30:57.1793398+07:00","level":"INFO","msg":"move-statline","gameId":"74b5ea4fac1fc165","line":"M34 red  j6  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=8.8s [VCF]"}
+[05:30:57.179] [backend] {"time":"2026-05-12T12:30:57.1798685+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/74b5ea4fac1fc165/ai-move","duration":3334800}
+[05:30:57.446] Game complete: red Wins! New Game
+[05:30:58.468] Screenshot saved: C:\Users\lavantien\dev\github\caro-ai-pvp\screenshot.png
+[05:30:58.564] README.md updated
