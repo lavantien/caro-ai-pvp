@@ -174,8 +174,8 @@ Move ordering is critical for alpha-beta efficiency. The engine uses staged gene
 | Priority | Stage | Description |
 |----------|-------|-------------|
 | 1 | TT_MOVE | Transposition table move, searched unconditionally first |
-| 2 | MUST_BLOCK | Mandatory defense against opponent's open four or five threat |
-| 3 | WINNING_MOVE | Creates winning position (open four, double threat) |
+| 2 | WINNING_MOVE | Creates winning position (open four, double threat) |
+| 3 | MUST_BLOCK | Mandatory defense against opponent's open four or five threat |
 | 4 | THREAT_CREATE | Creates threats (open three, broken four) |
 | 5 | KILLER_COUNTER | Killer moves and counter-move responses combined |
 | 6 | GOOD_QUIET | Quiet moves with high history scores (>500) |
@@ -191,8 +191,8 @@ Moves are generated and scored in stages, allowing early termination on cutoffs.
 
 **Stage Sequence (MovePicker - parallel path):**
 1. **TT_MOVE** - Single move from transposition table (1M score)
-2. **MUST_BLOCK** - Mandatory blocks against opponent's winning threats (2M score)
-3. **WINNING_MOVE** - Creates open four or double threat (1.5M score)
+2. **WINNING_MOVE** - Creates open four or double threat (1.5M score)
+3. **MUST_BLOCK** - Mandatory blocks against opponent's winning threats (2M score)
 4. **THREAT_CREATE** - Creates open three or broken four (800K score)
 5. **KILLER_COUNTER** - Killer moves (400K-500K) + counter-move responses (150K)
 6. **GOOD_QUIET** - Quiet moves with continuation + butterfly history > 500
@@ -355,9 +355,10 @@ Position evaluation combines multiple factors:
 - Terminal win score: 30,000 (WinScore), reduced by ply from root for mate-distance preference
 - Mate scores stored in TT with ply adjustment to normalize across depths
 
-**Defense Multiplier:**
-- Defense valued at 3/2 of offense
-- Prevents opponent threats prioritized
+**Zero-Sum Property:**
+- Evaluation is strictly zero-sum: `Evaluate(board, Red) == -Evaluate(board, Blue)`
+- Score = `playerScore - opponentScore` + `centerBonus(player) - centerBonus(opponent)`
+- Removed asymmetric defense multiplier for correct alpha-beta bounds
 
 ---
 
@@ -443,7 +444,10 @@ Victory by Continuous Fours - tactical solver for forcing win sequences.
 
 **Integration:**
 - Runs before alpha-beta search
-- Results cached for reuse
+- Skipped when opponent has immediate win (flex4 or double block4)
+- VCF-BLOCK: detects opponent VCF threat and short-circuits to block move
+- Overline validation in `findFourBlocks`: checks cells beyond block squares for overline
+- Candidate radius reduced to 2 (fours are always adjacent)
 - Depth-limited for practical use
 
 ### 7.3 Exactly-5 Validation
@@ -613,7 +617,7 @@ Two-character algebraic notation for Caro:
 | `internal/domain/constants.go` | BoardSize, WinLength, directions, cell counts |
 | `internal/engine/search.go` | MaxSearchRadius, TT size, null-move thresholds, aspiration window, killer/history limits |
 | `internal/engine/movepicker.go` | Staged picker score thresholds |
-| `internal/engine/evaluation.go` | Pattern scores, defense multipliers |
+| `internal/engine/evaluation.go` | Pattern scores, center bonus weights |
 | `internal/engine/timemanager.go` | Default time controls, PID controller weights, phase thresholds |
 | `internal/engine/difficulty.go` | L1-L5 difficulty profiles, goroutine counts |
 
@@ -624,13 +628,13 @@ Two-character algebraic notation for Caro:
 | File | Role |
 |------|------|
 | `minimax.go` | MinimaxAI struct definition, constructor, public API, Dispose |
-| `search.go` | Iterative deepening, PVS alpha-beta, LMR, null-move pruning, aspiration windows |
+| `search.go` | Iterative deepening, PVS alpha-beta, LMR, null-move pruning (depth>=4, reduction=2), aspiration windows |
 | `parallel.go` | Lazy SMP goroutine pool dispatch, result aggregation |
-| `evaluation.go` | Pattern4-based evaluation with defense multiplier and center bonus |
+| `evaluation.go` | Zero-sum Pattern4-based evaluation with center bonus |
 | `pattern4.go` | 4-direction threat classification (Flex/Block/Broken patterns, combined threat detection) |
 | `vcf.go` | Victory by Continuous Fours pre-search solver |
-| `transposition.go` | Sharded SeqLock TT with atomic.Uint32 version counters |
-| `movepicker.go` | Staged move ordering (7 stages: TT -> Block -> Win -> Threat -> Killer/Counter -> Quiet) |
+| `transposition.go` | Sharded RWMutex TT with depth-age replacement |
+| `movepicker.go` | Staged move ordering (7 stages: TT -> Win -> Block -> Threat -> Killer/Counter -> Quiet) |
 | `candidate.go` | Candidate generation with center-of-mass ordering, tactical filtering |
 | `heuristics.go` | Killer moves, continuation/butterfly/counter-move history |
 | `timemanager.go` | PID time management, phase-aware allocation |

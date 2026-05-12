@@ -52,7 +52,7 @@ Full-strength engine with 100-500x speedup over naive minimax:
 | **Transposition Table** | Sharded RWMutex | 16 segments with per-shard sync.RWMutex |
 | | Depth-Age Replacement | Smart entry eviction formula |
 | | Evaluation Cache | Static eval stored with entries |
-| **Move Ordering** | Staged Picker | TT -> Block -> Win -> Threat -> Killer/Counter -> Quiet |
+| **Move Ordering** | Staged Picker | TT -> Win -> Block -> Threat -> Killer/Counter -> Quiet |
 | | Hash Move | TT move searched unconditionally first |
 | | Must Block | Mandatory defense against opponent's open four |
 | | Winning Moves | Creates open four or double threat |
@@ -172,7 +172,6 @@ cd backend && go run ./cmd/engine
 | **README.md** (this file) | Project overview, getting started, architecture summary | First - start here |
 | **ENGINE_FEATURES.md** | AI engine architecture (search, evaluation, TT, move ordering, source layout) | Understanding how the AI works |
 | **GO_ONBOARDING.md** | Go 1.26 idioms, project conventions, testing patterns | Contributing code |
-| **AGENTS.md** | Development protocols and coding standards | Contributing code |
 
 **Documentation Matrix:**
 
@@ -185,7 +184,7 @@ README.md (Entry Point)
         |
         +--> ENGINE_FEATURES.md (Deep Dive)
         |       |-- Search Architecture -> PVS, LMR, Quiescence
-        |       |-- Transposition Table -> Shards, SeqLock
+        |       |-- Transposition Table -> Shards, RWMutex
         |       |-- Move Ordering -> Stages, History, Killers
         |       |-- Evaluation -> BitKey, Pattern4, Scoring
         |       +-- Time Management -> PID controller
