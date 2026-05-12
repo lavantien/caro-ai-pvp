@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [7.0.0] - 2026-05-12
+
+### Changed
+- Evaluation rewritten as strictly zero-sum: `playerScore - opponentScore` + center bonus delta
+- Removed asymmetric defense multiplier (was 1.5x) that corrupted alpha-beta bounds
+- Move ordering: WINNING_MOVE now precedes MUST_BLOCK (win-first before defense)
+- Null-move pruning tightened: depth>=4 (was >=3), reduction=2 (was 3)
+- VCF solver candidate radius reduced from 7 to 2 (fours are always adjacent)
+
+### Fixed
+- VCF solver skips search when opponent has immediate win (flex4 or double block4)
+- VCF-BLOCK short-circuit: detects and blocks opponent VCF threats before alpha-beta
+- VCF `findFourBlocks` validates overline beyond block squares
+- Futility pruning removed (dropped tactical winning moves at shallow depths)
+- ENGINE_FEATURES.md: move ordering priorities, defense multiplier references, SeqLock→RWMutex
+- README.md: move ordering stage sequence, removed non-project AGENTS.md reference
+
 ## [6.9.0] - 2026-05-12
 
 ### Changed
