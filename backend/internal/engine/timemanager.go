@@ -1,5 +1,7 @@
 package engine
 
+import "caro-ai-pvp/internal/domain"
+
 type TimeAllocation struct {
 	SoftBoundMs int64
 	HardBoundMs int64
@@ -7,35 +9,35 @@ type TimeAllocation struct {
 }
 
 func AllocateTime(timeRemainingMs int64, incrementMs int64, moveNumber int) TimeAllocation {
-	var phaseDivisor float64 = 25.0
-	if moveNumber > 25 {
-		phaseDivisor = 30.0
+	phaseDivisor := domain.TimePhaseDivisorEarly
+	if moveNumber > domain.TimePhaseSwitchMove {
+		phaseDivisor = domain.TimePhaseDivisorLate
 	}
 
 	baseMs := float64(timeRemainingMs) / phaseDivisor
-	incContrib := float64(incrementMs) * 0.6
+	incContrib := float64(incrementMs) * domain.TimeIncContribFactor
 
 	optimal := int64(baseMs + incContrib)
-	if optimal < 300 {
-		optimal = 300
+	if optimal < domain.TimeMinOptimalMs {
+		optimal = domain.TimeMinOptimalMs
 	}
 
-	maxTime := int64(float64(timeRemainingMs) * 0.4)
+	maxTime := int64(float64(timeRemainingMs) * domain.TimeMaxFraction)
 	if optimal > maxTime {
 		optimal = maxTime
 	}
 
-	hardBound := int64(float64(optimal) * 1.3)
-	buffer := int64(float64(timeRemainingMs) * 0.01)
-	if buffer < 100 {
-		buffer = 100
+	hardBound := int64(float64(optimal) * domain.TimeHardBoundMultiplier)
+	buffer := int64(float64(timeRemainingMs) * domain.TimeBufferFraction)
+	if buffer < domain.TimeMinBufferMs {
+		buffer = domain.TimeMinBufferMs
 	}
 	hardBound += buffer
-	if hardBound > timeRemainingMs-50 {
-		hardBound = timeRemainingMs - 50
+	if hardBound > timeRemainingMs-domain.TimeReserveMs {
+		hardBound = timeRemainingMs - domain.TimeReserveMs
 	}
 
-	softBound := int64(float64(optimal) * 0.8)
+	softBound := int64(float64(optimal) * domain.TimeSoftBoundFraction)
 
 	return TimeAllocation{
 		SoftBoundMs: softBound,

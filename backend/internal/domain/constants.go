@@ -29,9 +29,28 @@ const (
 	MaxQuiescenceDepth    = 4
 	ContinuationPlyCount  = 6
 
-	LMRMinDepth            = 3
-	LMRFullDepthMoves      = 4
-	PVSEnabledDepth        = 2
+	LMRMinDepth       = 3
+	LMRFullDepthMoves = 4
+	PVSEnabledDepth   = 2
 
 	WinScore = 30_000
+
+	// TT configuration
+	TTShardCount = 16
+
+	// VCF solver
+	VCFSearchDepth = 12
+
+	// Time management
+	TimePhaseDivisorEarly   = 25.0
+	TimePhaseDivisorLate    = 30.0
+	TimePhaseSwitchMove     = 25
+	TimeIncContribFactor    = 0.6
+	TimeMinOptimalMs  int64 = 300
+	TimeMaxFraction         = 0.4
+	TimeHardBoundMultiplier = 1.3
+	TimeBufferFraction      = 0.01
+	TimeMinBufferMs   int64 = 100
+	TimeReserveMs     int64 = 50
+	TimeSoftBoundFraction   = 0.8
 )
