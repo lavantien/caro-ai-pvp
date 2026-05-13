@@ -1,130 +1,123 @@
-[07:08:58.204] === Caro AI PvP - Screenshot Capture ===
+[07:22:02.420] === Caro AI PvP - Screenshot Capture ===
 
-[07:08:58.205] Building backend...
-[07:08:58.212] ERR (node:20472) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+[07:22:02.420] Building backend...
+[07:22:02.428] ERR (node:34220) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
 (Use `node --trace-deprecation ...` to show where the warning was created)
-[07:09:00.687] Backend built.
+[07:22:04.854] Backend built.
 
-[07:09:00.687] Killing stale processes on port 5207...
-[07:09:00.704] Starting backend...
-[07:09:01.553] [backend] {"time":"2026-05-13T14:09:01.5518771+07:00","level":"INFO","msg":"server starting","addr":":5207"}
-[07:09:01.556] [backend] {"time":"2026-05-13T14:09:01.5573753+07:00","level":"INFO","msg":"request","method":"GET","path":"/","duration":0}
-[07:09:01.560] Backend ready.
+[07:22:04.854] Killing stale processes on port 5207...
+[07:22:04.869] Starting backend...
+[07:22:05.727] [backend] {"time":"2026-05-13T14:22:05.7266426+07:00","level":"INFO","msg":"server starting","addr":":5207"}
+[07:22:06.736] [backend] {"time":"2026-05-13T14:22:06.7368675+07:00","level":"INFO","msg":"request","method":"GET","path":"/","duration":0}
+[07:22:06.739] Backend ready.
 
-[07:09:01.560] Starting frontend...
-[07:09:01.711] [frontend] > frontend@7.0.0 dev
-[07:09:01.711] [frontend] > vite dev
-[07:09:02.535] [frontend]   [32m[1mVITE[22m v7.3.0[39m  [2mready in [0m[1m773[22m[2m[0m ms[22m
-[07:09:02.535] [frontend]   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
-[07:09:02.535] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.21.48.1:[1m5173[22m/[39m
-[07:09:02.535] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.9:[1m5173[22m/[39m
-[07:09:02.535] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.16.1:[1m5173[22m/[39m
-[07:09:02.901] [frontend] (node:31804) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
-[07:09:02.901] [frontend] (Use `node --trace-deprecation ...` to show where the warning was created)
-[07:09:03.794] Frontend ready.
+[07:22:06.739] Starting frontend...
+[07:22:06.861] [frontend] > frontend@7.0.0 dev
+[07:22:06.861] [frontend] > vite dev
+[07:22:07.412] [frontend]   [32m[1mVITE[22m v7.3.0[39m  [2mready in [0m[1m502[22m[2m[0m ms[22m
+[07:22:07.413] [frontend]   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[07:22:07.413] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.21.48.1:[1m5173[22m/[39m
+[07:22:07.413] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.9:[1m5173[22m/[39m
+[07:22:07.413] [frontend]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.16.1:[1m5173[22m/[39m
+[07:22:07.548] [frontend] (node:11284) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[07:22:07.548] [frontend] (Use `node --trace-deprecation ...` to show where the warning was created)
+[07:22:08.471] Frontend ready.
 
-[07:09:03.794] 
+[07:22:08.471] 
 Capturing screenshot...
-[07:09:04.137] [frontend] [1;31m[404] GET /favicon.png[0m
-[07:09:04.253] [browser:error] Failed to load resource: the server responded with a status of 404 (Not Found)
-[07:09:04.416] [backend] {"time":"2026-05-13T14:09:04.4166868+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/new","duration":0}
-[07:09:04.417] [backend] {"time":"2026-05-13T14:09:04.4177465+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":517100}
-[07:09:04.427] [backend] {"time":"2026-05-13T14:09:04.4277861+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/2d2eebd2ff9b22d5","duration":0}
-[07:09:05.034] [backend] {"time":"2026-05-13T14:09:05.0344592+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":0}
-[07:09:05.038] Waiting for AI vs AI match to complete (attempt 1/3)...
-[07:09:05.049] [backend] {"time":"2026-05-13T14:09:05.0495483+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/4f6af61c982e3e6c","duration":0}
-[07:09:05.052] [backend] {"time":"2026-05-13T14:09:05.0530603+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/4f6af61c982e3e6c/ai-move","duration":0}
-[07:09:17.777] [backend] {"time":"2026-05-13T14:09:17.7776976+07:00","level":"INFO","msg":"move-statline","gameId":"4f6af61c982e3e6c","line":"M 0 red  j8  d=6  n=9.5M    nps=746K  tt= 23% s=+0 thr=8 t=12.7s alloc=12.7s"}
-[07:09:17.777] [backend] {"time":"2026-05-13T14:09:17.7776976+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/4f6af61c982e3e6c/ai-move","duration":12723902200}
-[07:09:17.781] [backend] {"time":"2026-05-13T14:09:17.781579+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/4f6af61c982e3e6c/ai-move","duration":0}
-[07:09:30.553] [backend] {"time":"2026-05-13T14:09:30.5533884+07:00","level":"INFO","msg":"move-statline","gameId":"4f6af61c982e3e6c","line":"M 1 blue i8  d=5  n=4.0M    nps=316K  tt= 49% s=+36 thr=8 t=12.7s alloc=12.7s"}
-[07:09:30.553] [backend] {"time":"2026-05-13T14:09:30.5533884+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/4f6af61c982e3e6c/ai-move","duration":12771476500}
-[07:09:30.555] [backend] {"time":"2026-05-13T14:09:30.5554551+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/4f6af61c982e3e6c/ai-move","duration":0}
-[07:09:42.610] [backend] {"time":"2026-05-13T14:09:42.6109334+07:00","level":"INFO","msg":"move-statline","gameId":"4f6af61c982e3e6c","line":"M 2 red  m13  d=4  n=4.2M    nps=347K  tt= 51% s=-58 thr=8 t=12.1s alloc=12.1s"}
-[07:09:42.611] [backend] {"time":"2026-05-13T14:09:42.6109334+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/4f6af61c982e3e6c/ai-move","duration":12055017600}
-[07:09:42.613] [backend] {"time":"2026-05-13T14:09:42.6130023+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/4f6af61c982e3e6c/ai-move","duration":0}
-[07:09:54.667] [backend] {"time":"2026-05-13T14:09:54.6667485+07:00","level":"INFO","msg":"move-statline","gameId":"4f6af61c982e3e6c","line":"M 3 blue i9  d=4  n=3.6M    nps=303K  tt= 45% s=-22 thr=8 t=12.1s alloc=12.1s"}
-[07:09:54.667] [backend] {"time":"2026-05-13T14:09:54.6672754+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/4f6af61c982e3e6c/ai-move","duration":12053706900}
-[07:09:54.671] [backend] {"time":"2026-05-13T14:09:54.6710054+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/4f6af61c982e3e6c/ai-move","duration":653700}
-[07:10:06.104] [backend] {"time":"2026-05-13T14:10:06.1040702+07:00","level":"INFO","msg":"move-statline","gameId":"4f6af61c982e3e6c","line":"M 4 red  i7  d=4  n=4.8M    nps=420K  tt= 45% s=-180 thr=8 t=11.4s alloc=11.4s"}
-[07:10:06.104] [backend] {"time":"2026-05-13T14:10:06.1045827+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/4f6af61c982e3e6c/ai-move","duration":11432682100}
-[07:10:06.108] [backend] {"time":"2026-05-13T14:10:06.1081463+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/4f6af61c982e3e6c/ai-move","duration":0}
-[07:10:13.075] [frontend] [2m2:10:13 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
-[07:10:13.080] [frontend] [2m2:10:13 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
-[07:10:13.085] [frontend] [2m2:10:13 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
-[07:10:13.085] [frontend] [2m2:10:13 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
-[07:10:13.087] [frontend] [2m2:10:13 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/3.js[22m
-[07:10:13.092] [frontend] [2m2:10:13 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
-[07:10:13.093] [frontend] [2m2:10:13 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
-[07:10:13.093] [frontend] [2m2:10:13 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
-[07:10:13.112] [frontend] [2m2:10:13 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.svelte[22m
-[07:10:13.197] [backend] {"time":"2026-05-13T14:10:13.1961388+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/new","duration":0}
-[07:10:13.201] [backend] {"time":"2026-05-13T14:10:13.2015862+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":3032600}
-[07:10:13.203] [backend] {"time":"2026-05-13T14:10:13.2035873+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/9a9e8d27383e4ac4","duration":999800}
-[07:10:17.535] [backend] {"time":"2026-05-13T14:10:17.535681+07:00","level":"INFO","msg":"move-statline","gameId":"4f6af61c982e3e6c","line":"M 5 blue k9  d=5  n=4.0M    nps=353K  tt= 46% s=+222 thr=8 t=11.4s alloc=11.4s"}
-[07:10:17.537] [backend] {"time":"2026-05-13T14:10:17.5372398+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/4f6af61c982e3e6c/ai-move","duration":11428209700}
-[07:10:38.686] [frontend] [2m2:10:38 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
-[07:10:38.686] [frontend] [2m2:10:38 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
-[07:10:38.691] [frontend] [2m2:10:38 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
-[07:10:38.692] [frontend] [2m2:10:38 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/3.js[22m
-[07:10:38.695] [frontend] [2m2:10:38 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
-[07:10:38.696] [frontend] [2m2:10:38 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
-[07:10:38.698] [frontend] [2m2:10:38 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
-[07:10:38.698] [frontend] [2m2:10:38 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
-[07:10:38.710] [frontend] [2m2:10:38 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.svelte[22m
-[07:10:38.792] [backend] {"time":"2026-05-13T14:10:38.7917822+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/new","duration":0}
-[07:10:38.793] [backend] {"time":"2026-05-13T14:10:38.7933198+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":515300}
-[07:10:38.798] [backend] {"time":"2026-05-13T14:10:38.7977853+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/3a6edfc14c4d0200","duration":505200}
-[07:11:04.102] [frontend] [2m2:11:04 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
-[07:11:04.103] [frontend] [2m2:11:04 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
-[07:11:04.106] [frontend] [2m2:11:04 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
-[07:11:04.107] [frontend] [2m2:11:04 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/3.js[22m
-[07:11:04.112] [frontend] [2m2:11:04 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
-[07:11:04.113] [frontend] [2m2:11:04 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
-[07:11:04.115] [frontend] [2m2:11:04 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
-[07:11:04.115] [frontend] [2m2:11:04 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
-[07:11:04.125] [frontend] [2m2:11:04 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.svelte[22m
-[07:11:04.201] [backend] {"time":"2026-05-13T14:11:04.2009729+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/new","duration":0}
-[07:11:04.202] [backend] {"time":"2026-05-13T14:11:04.2020332+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":0}
-[07:11:04.204] [browser:error] Failed to load resource: the server responded with a status of 429 (Too Many Requests)
-[07:11:25.430] [frontend] [2m2:11:25 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
-[07:11:25.433] [frontend] [2m2:11:25 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
-[07:11:25.437] [frontend] [2m2:11:25 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
-[07:11:25.437] [frontend] [2m2:11:25 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
-[07:11:25.438] [frontend] [2m2:11:25 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/3.js[22m
-[07:11:25.441] [frontend] [2m2:11:25 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
-[07:11:25.444] [frontend] [2m2:11:25 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
-[07:11:25.444] [frontend] [2m2:11:25 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
-[07:11:25.452] [frontend] [2m2:11:25 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.svelte[22m
-[07:11:25.533] [backend] {"time":"2026-05-13T14:11:25.5329148+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/new","duration":0}
-[07:11:25.534] [backend] {"time":"2026-05-13T14:11:25.5339452+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":0}
-[07:11:25.536] [browser:error] Failed to load resource: the server responded with a status of 429 (Too Many Requests)
-[07:11:48.035] [frontend] [2m2:11:48 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
-[07:11:48.035] [frontend] [2m2:11:48 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
-[07:11:48.037] [frontend] [2m2:11:48 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/3.js[22m
-[07:11:48.040] [frontend] [2m2:11:48 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
-[07:11:48.040] [frontend] [2m2:11:48 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
-[07:11:48.043] [frontend] [2m2:11:48 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
-[07:11:48.045] [frontend] [2m2:11:48 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
-[07:11:48.045] [frontend] [2m2:11:48 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
-[07:11:48.058] [frontend] [2m2:11:48 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.svelte[22m
-[07:11:48.123] [backend] {"time":"2026-05-13T14:11:48.1231492+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/new","duration":0}
-[07:11:48.124] [backend] {"time":"2026-05-13T14:11:48.1238083+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":0}
-[07:11:48.128] [browser:error] Failed to load resource: the server responded with a status of 429 (Too Many Requests)
-[07:12:08.593] [frontend] [2m2:12:08 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
-[07:12:08.594] [frontend] [2m2:12:08 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
-[07:12:08.598] [frontend] [2m2:12:08 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
-[07:12:08.599] [frontend] [2m2:12:08 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/3.js[22m
-[07:12:08.601] [frontend] [2m2:12:08 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
-[07:12:08.602] [frontend] [2m2:12:08 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
-[07:12:08.604] [frontend] [2m2:12:08 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
-[07:12:08.604] [frontend] [2m2:12:08 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
-[07:12:08.613] [frontend] [2m2:12:08 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.svelte[22m
-[07:12:08.689] [backend] {"time":"2026-05-13T14:12:08.6891014+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/new","duration":0}
-[07:12:08.690] [backend] {"time":"2026-05-13T14:12:08.6901529+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":544600}
-[07:12:08.693] [browser:error] Failed to load resource: the server responded with a status of 429 (Too Many Requests)
-[07:19:01.589] [backend] {"time":"2026-05-13T14:19:01.5883557+07:00","level":"INFO","msg":"cleanup","removed":4}
-[07:19:05.150] ERR Fatal: page.waitForSelector: Timeout 600000ms exceeded.
-Call log:
-[2m  - waiting for locator('.animate-slide-down') to be visible[22m
-
+[07:22:08.708] [frontend] [1;31m[404] GET /favicon.png[0m
+[07:22:08.816] [browser:error] Failed to load resource: the server responded with a status of 404 (Not Found)
+[07:22:08.976] [backend] {"time":"2026-05-13T14:22:08.976386+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/new","duration":0}
+[07:22:08.977] [backend] {"time":"2026-05-13T14:22:08.9776999+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":671900}
+[07:22:08.987] [backend] {"time":"2026-05-13T14:22:08.9877639+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/981f8b0720c9fe49","duration":0}
+[07:22:09.594] [backend] {"time":"2026-05-13T14:22:09.5947276+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/new","duration":1005600}
+[07:22:09.597] Waiting for AI vs AI match to complete (attempt 1/3)...
+[07:22:09.608] [backend] {"time":"2026-05-13T14:22:09.6089311+07:00","level":"INFO","msg":"request","method":"GET","path":"/api/game/71a54ddce54e6f5f","duration":0}
+[07:22:09.612] [backend] {"time":"2026-05-13T14:22:09.6125359+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:22:22.336] [backend] {"time":"2026-05-13T14:22:22.336456+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M 0 red  i10  d=6  n=9.7M    nps=761K  tt= 30% s=+1 thr=8 t=12.7s alloc=12.7s"}
+[07:22:22.337] [backend] {"time":"2026-05-13T14:22:22.336456+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":12724041000}
+[07:22:22.340] [backend] {"time":"2026-05-13T14:22:22.3399804+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:22:35.112] [backend] {"time":"2026-05-13T14:22:35.1121886+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M 1 blue i9  d=5  n=4.6M    nps=361K  tt= 45% s=+30 thr=8 t=12.7s alloc=12.7s"}
+[07:22:35.113] [backend] {"time":"2026-05-13T14:22:35.1127095+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":12771843100}
+[07:22:35.116] [backend] {"time":"2026-05-13T14:22:35.1157509+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:22:47.172] [backend] {"time":"2026-05-13T14:22:47.1712614+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M 2 red  h7  d=5  n=4.6M    nps=383K  tt= 52% s=+74 thr=8 t=12.1s alloc=12.1s"}
+[07:22:47.172] [backend] {"time":"2026-05-13T14:22:47.1722726+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":12055121500}
+[07:22:47.175] [backend] {"time":"2026-05-13T14:22:47.1743077+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:22:59.230] [backend] {"time":"2026-05-13T14:22:59.2298845+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M 3 blue j8  d=3  n=3.7M    nps=308K  tt= 38% s=+102 thr=8 t=12.1s alloc=12.1s"}
+[07:22:59.231] [backend] {"time":"2026-05-13T14:22:59.2304121+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":12054708200}
+[07:22:59.233] [backend] {"time":"2026-05-13T14:22:59.2325135+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:23:10.663] [backend] {"time":"2026-05-13T14:23:10.6634915+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M 4 red  h10  d=5  n=4.5M    nps=396K  tt= 52% s=+132 thr=8 t=11.4s alloc=11.4s"}
+[07:23:10.663] [backend] {"time":"2026-05-13T14:23:10.6640022+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":11430795400}
+[07:23:10.666] [backend] {"time":"2026-05-13T14:23:10.6666927+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:23:22.095] [backend] {"time":"2026-05-13T14:23:22.0952506+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M 5 blue j10  d=3  n=3.2M    nps=282K  tt= 48% s=+96 thr=8 t=11.4s alloc=11.4s"}
+[07:23:22.095] [backend] {"time":"2026-05-13T14:23:22.0952506+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":11427636900}
+[07:23:22.098] [backend] {"time":"2026-05-13T14:23:22.0978273+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:23:32.946] [backend] {"time":"2026-05-13T14:23:32.9460738+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M 6 red  h8  d=4  n=3.1M    nps=284K  tt= 52% s=-102 thr=8 t=10.8s alloc=10.8s"}
+[07:23:32.947] [backend] {"time":"2026-05-13T14:23:32.9476368+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":10849213800}
+[07:23:32.950] [backend] {"time":"2026-05-13T14:23:32.9497114+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:23:43.796] [backend] {"time":"2026-05-13T14:23:43.7957099+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M 7 blue h9  d=6  n=4.9M    nps=452K  tt= 76% s=-936 thr=8 t=10.8s alloc=10.8s"}
+[07:23:43.797] [backend] {"time":"2026-05-13T14:23:43.7967583+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":10846134000}
+[07:23:43.799] [backend] {"time":"2026-05-13T14:23:43.7991416+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:23:54.098] [backend] {"time":"2026-05-13T14:23:54.0978282+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M 8 red  j9  d=4  n=2.9M    nps=285K  tt= 52% s=-60 thr=8 t=10.3s alloc=10.3s"}
+[07:23:54.099] [backend] {"time":"2026-05-13T14:23:54.0988688+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":10299321700}
+[07:23:54.102] [backend] {"time":"2026-05-13T14:23:54.1015032+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:24:04.399] [backend] {"time":"2026-05-13T14:24:04.3992591+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M 9 blue i8  d=4  n=2.7M    nps=260K  tt= 53% s=-43 thr=8 t=10.3s alloc=10.3s"}
+[07:24:04.400] [backend] {"time":"2026-05-13T14:24:04.4003183+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":10296860500}
+[07:24:04.402] [backend] {"time":"2026-05-13T14:24:04.4018429+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:24:14.186] [backend] {"time":"2026-05-13T14:24:14.1867677+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M10 red  g10  d=3  n=2.7M    nps=279K  tt= 49% s=+938 thr=8 t=9.8s alloc=9.8s"}
+[07:24:14.187] [backend] {"time":"2026-05-13T14:24:14.1882279+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":9784971600}
+[07:24:14.190] [backend] {"time":"2026-05-13T14:24:14.1908858+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:24:23.972] [backend] {"time":"2026-05-13T14:24:23.9726945+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M11 blue i7  d=5  n=4.3M    nps=441K  tt= 65% s=+34 thr=8 t=9.8s alloc=9.8s"}
+[07:24:23.973] [backend] {"time":"2026-05-13T14:24:23.9737341+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":9781898100}
+[07:24:23.974] [backend] {"time":"2026-05-13T14:24:23.9757227+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:24:33.277] [backend] {"time":"2026-05-13T14:24:33.2778552+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M12 red  h11  d=5  n=3.5M    nps=371K  tt= 66% s=+1002 thr=8 t=9.3s alloc=9.3s"}
+[07:24:33.277] [backend] {"time":"2026-05-13T14:24:33.2783685+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":9302230200}
+[07:24:33.280] [backend] {"time":"2026-05-13T14:24:33.2815802+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:24:42.579] [backend] {"time":"2026-05-13T14:24:42.5797752+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M13 blue g12  d=4  n=2.5M    nps=269K  tt= 65% s=-944 thr=8 t=9.3s alloc=9.3s"}
+[07:24:42.579] [backend] {"time":"2026-05-13T14:24:42.5797752+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":9297763300}
+[07:24:42.582] [backend] {"time":"2026-05-13T14:24:42.5822799+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:24:51.443] [backend] {"time":"2026-05-13T14:24:51.444104+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M14 red  f9  d=5  n=3.4M    nps=381K  tt= 68% s=+4976 thr=8 t=8.9s alloc=8.8s"}
+[07:24:51.443] [backend] {"time":"2026-05-13T14:24:51.444104+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":8860901000}
+[07:24:51.446] [backend] {"time":"2026-05-13T14:24:51.4464092+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:25:00.292] [backend] {"time":"2026-05-13T14:25:00.2926921+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M15 blue i6  d=5  n=3.6M    nps=410K  tt= 81% s=-270 thr=8 t=8.8s alloc=8.8s"}
+[07:25:00.293] [backend] {"time":"2026-05-13T14:25:00.2932012+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":8845852300}
+[07:25:00.295] [backend] {"time":"2026-05-13T14:25:00.2957846+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:25:08.716] [backend] {"time":"2026-05-13T14:25:08.7167387+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M16 red  i5  d=5  n=2.7M    nps=319K  tt= 61% s=+4138 thr=8 t=8.4s alloc=8.4s"}
+[07:25:08.716] [backend] {"time":"2026-05-13T14:25:08.7172542+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":8420895700}
+[07:25:08.719] [backend] {"time":"2026-05-13T14:25:08.719295+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:25:17.140] [backend] {"time":"2026-05-13T14:25:17.1401376+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M17 blue i12  d=4  n=2.8M    nps=327K  tt= 69% s=-4138 thr=8 t=8.4s alloc=8.4s"}
+[07:25:17.140] [backend] {"time":"2026-05-13T14:25:17.1406971+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":8420218100}
+[07:25:17.143] [backend] {"time":"2026-05-13T14:25:17.143203+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:25:25.166] [backend] {"time":"2026-05-13T14:25:25.1665195+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M18 red  f8  d=3  n=2.4M    nps=294K  tt= 50% s=+5066 thr=8 t=8.0s alloc=8.0s"}
+[07:25:25.167] [backend] {"time":"2026-05-13T14:25:25.1670477+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":8023415000}
+[07:25:25.169] [backend] {"time":"2026-05-13T14:25:25.1696214+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:25:33.194] [backend] {"time":"2026-05-13T14:25:33.1939802+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M19 blue f10  d=3  n=2.8M    nps=350K  tt= 85% s=-1068 thr=8 t=8.0s alloc=8.0s"}
+[07:25:33.200] [backend] {"time":"2026-05-13T14:25:33.19996+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":8023775000}
+[07:25:33.202] [backend] {"time":"2026-05-13T14:25:33.2021083+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:25:40.853] [backend] {"time":"2026-05-13T14:25:40.8531311+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M20 red  g8  d=3  n=2.2M    nps=289K  tt= 57% s=+13696 thr=8 t=7.7s alloc=7.6s"}
+[07:25:40.853] [backend] {"time":"2026-05-13T14:25:40.8536613+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":7651115100}
+[07:25:40.857] [backend] {"time":"2026-05-13T14:25:40.8566454+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:25:48.507] [backend] {"time":"2026-05-13T14:25:48.5071116+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M21 blue e8  d=4  n=2.0M    nps=256K  tt= 72% s=+100000 thr=8 t=7.6s alloc=7.6s"}
+[07:25:48.508] [backend] {"time":"2026-05-13T14:25:48.5081766+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":7650570700}
+[07:25:48.510] [backend] {"time":"2026-05-13T14:25:48.5104279+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:25:55.810] [backend] {"time":"2026-05-13T14:25:55.8099423+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M22 red  g9  d=3  n=2.5M    nps=337K  tt= 83% s=+14714 thr=8 t=7.3s alloc=7.3s"}
+[07:25:55.811] [backend] {"time":"2026-05-13T14:25:55.8116351+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":7300181800}
+[07:25:55.813] [backend] {"time":"2026-05-13T14:25:55.8131778+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:26:03.111] [backend] {"time":"2026-05-13T14:26:03.1115935+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M23 blue g7  d=2  n=1.4M    nps=194K  tt= 77% s=-14714 thr=8 t=7.3s alloc=7.3s"}
+[07:26:03.112] [backend] {"time":"2026-05-13T14:26:03.1121199+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":7298416200}
+[07:26:03.114] [backend] {"time":"2026-05-13T14:26:03.1136637+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:26:03.117] [backend] {"time":"2026-05-13T14:26:03.1167521+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M24 red  e7  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=7.0s [VCF]"}
+[07:26:03.117] [backend] {"time":"2026-05-13T14:26:03.1173593+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":2190000}
+[07:26:10.090] [backend] {"time":"2026-05-13T14:26:10.0894525+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M25 blue d6  d=6  n=1.6M    nps=225K  tt= 44% s=-29999 thr=8 t=7.0s alloc=7.0s"}
+[07:26:10.090] [backend] {"time":"2026-05-13T14:26:10.0899963+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":6969979400}
+[07:26:10.092] [backend] {"time":"2026-05-13T14:26:10.0921712+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:26:10.095] [backend] {"time":"2026-05-13T14:26:10.0955866+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M26 red  e10  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=6.3s [VCF]"}
+[07:26:10.096] [backend] {"time":"2026-05-13T14:26:10.0961152+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":3207100}
+[07:26:16.048] [backend] {"time":"2026-05-13T14:26:16.0482404+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M27 blue d11  d=6  n=1.4M    nps=230K  tt= 46% s=-29999 thr=8 t=5.9s alloc=5.9s"}
+[07:26:16.049] [backend] {"time":"2026-05-13T14:26:16.0487759+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":5951153100}
+[07:26:16.051] [backend] {"time":"2026-05-13T14:26:16.051363+07:00","level":"INFO","msg":"request","method":"OPTIONS","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":0}
+[07:26:16.055] [backend] {"time":"2026-05-13T14:26:16.0545011+07:00","level":"INFO","msg":"move-statline","gameId":"71a54ddce54e6f5f","line":"M28 red  i11  d=0  n=0       nps=0     tt=  0% s=+30000 thr=8 t=0.0s alloc=6.4s [VCF]"}
+[07:26:16.055] [backend] {"time":"2026-05-13T14:26:16.0550207+07:00","level":"INFO","msg":"request","method":"POST","path":"/api/game/71a54ddce54e6f5f/ai-move","duration":3152300}
+[07:26:16.379] Game complete: red Wins! New Game
+[07:26:17.405] Screenshot saved: C:\Users\lavantien\dev\github\caro-ai-pvp\screenshot.png
+[07:26:17.500] README.md updated
