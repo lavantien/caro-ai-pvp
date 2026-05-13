@@ -138,7 +138,8 @@ Single sharded RWMutex transposition table shared across all search paths. In pa
 
 **Depth-Age Replacement:**
 - Priority formula: depth - 8 * age
-- Higher priority entries kept; lower priority entries overwritten
+- Same-hash entries: deeper entry always kept (shallow overwrites rejected)
+- Different-hash entries: lower priority entry rejected
 - Age increments per search iteration via `IncrementAge()`
 
 **Stats Tracking:**
@@ -417,7 +418,7 @@ Immutable board design with pre-computed AI optimization data.
 
 **Performance Optimization:**
 - BitBoards: `uint64[4]` arrays (256 bits for 16x16 board)
-- Hash: Zobrist-style XOR updated on each move
+- Hash: Zobrist-style XOR updated on each move; dedicated null-move key prevents TT poisoning
 - O(1) access during AI search instead of O(n^2) iteration
 - SIMD evaluation path via experimental simd/archsimd (build tag: goexperiment.simd; planned)
 
@@ -442,10 +443,15 @@ Victory by Continuous Fours - tactical solver for forcing win sequences.
 - Search specifically for four-in-a-row sequences
 - Prune positions with known outcomes
 
+**Result Types:**
+- `VCFWin` - forced win sequence found
+- `VCFNoWin` - proven no forced win exists (exhaustive search)
+- `VCFTimeout` - search timed out before proving win or no-win
+
 **Integration:**
 - Runs before alpha-beta search
 - Skipped when opponent has immediate win (flex4 or double block4)
-- VCF-BLOCK: detects opponent VCF threat and short-circuits to block move
+- VCF-BLOCK: detects opponent VCF threat and passes block square as preferred move hint to alpha-beta (full search still runs; only trusted on `VCFNoWin` verification, not `VCFTimeout`)
 - Overline validation in `findFourBlocks`: checks cells beyond block squares for overline
 - Candidate radius reduced to 2 (fours are always adjacent)
 - Depth-limited for practical use
@@ -614,11 +620,10 @@ Two-character algebraic notation for Caro:
 
 | File | Constants |
 |------|-----------|
-| `internal/domain/constants.go` | BoardSize, WinLength, directions, cell counts |
-| `internal/engine/search.go` | MaxSearchRadius, TT size, null-move thresholds, aspiration window, killer/history limits |
+| `internal/domain/constants.go` | BoardSize, WinLength, Infinity, WinScore, MaxEval, search thresholds (LMR, null-move, aspiration, quiescence), TT shard count, VCF search depth, time management (phase divisors, soft/hard bounds, buffer), cell counts |
+| `internal/engine/search.go` | Search orchestration logic (constants moved to domain) |
 | `internal/engine/movepicker.go` | Staged picker score thresholds |
 | `internal/engine/evaluation.go` | Pattern scores, center bonus weights |
-| `internal/engine/timemanager.go` | Default time controls, PID controller weights, phase thresholds |
 | `internal/engine/difficulty.go` | L1-L5 difficulty profiles, goroutine counts |
 
 ### 10.3 Main Engine Files
@@ -628,7 +633,7 @@ Two-character algebraic notation for Caro:
 | File | Role |
 |------|------|
 | `minimax.go` | MinimaxAI struct definition, constructor, public API, Dispose |
-| `search.go` | Iterative deepening, PVS alpha-beta, LMR, null-move pruning (depth>=4, reduction=2), aspiration windows |
+| `search.go` | Iterative deepening, PVS alpha-beta, LMR, null-move pruning (depth>=4, reduction=2), aspiration windows, VCF preferred move hint |
 | `parallel.go` | Lazy SMP goroutine pool dispatch, result aggregation |
 | `evaluation.go` | Zero-sum Pattern4-based evaluation with center bonus |
 | `pattern4.go` | 4-direction threat classification (Flex/Block/Broken patterns, combined threat detection) |

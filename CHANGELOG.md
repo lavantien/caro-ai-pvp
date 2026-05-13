@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [8.0.0] - 2026-05-13
+
+### Changed
+- VCF solver returns tri-state result: `VCFWin`, `VCFNoWin`, `VCFTimeout` (was boolean)
+- VCF-BLOCK converted from short-circuit to preferred move hint: block square passed to alpha-beta as first move to search, full search still runs
+- VCF-BLOCK only trusted on `VCFNoWin` verification; `VCFTimeout` falls through to normal alpha-beta
+- Engine constants centralized in `domain/constants.go`: time management (phase divisors, soft/hard bounds, buffer), TT shard count, VCF search depth
+- TT depth protection: same-hash entries always keep the deeper result; shallow entries cannot overwrite deep ones
+- Null move uses dedicated Zobrist key (`zobristNullMoveKey`) to prevent TT hash collision with parent position
+- Tournament results: L5 vs L1 at 3+0 achieved 87.5% win rate (35/40 across two tournaments)
+
+### Fixed
+- Null-move TT poisoning: child node after null move no longer shares hash with parent, preventing opponent score corruption
+- TT depth trampling: depth-2 leaf can no longer destroy depth-6 entry at same hash
+- VCF-BLOCK fail-open on timeout: no longer short-circuits when block verification times out
+- ENGINE_FEATURES.md: VCF integration section, centralized constants table, TT depth protection, null-move Zobrist key
+
+[8.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v8.0.0
+
 ## [7.0.0] - 2026-05-12
 
 ### Changed
@@ -18,7 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - VCF solver skips search when opponent has immediate win (flex4 or double block4)
-- VCF-BLOCK short-circuit: detects and blocks opponent VCF threats before alpha-beta
 - VCF `findFourBlocks` validates overline beyond block squares
 - Futility pruning removed (dropped tactical winning moves at shallow depths)
 - ENGINE_FEATURES.md: move ordering priorities, defense multiplier references, SeqLock→RWMutex
