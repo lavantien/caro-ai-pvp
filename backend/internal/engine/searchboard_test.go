@@ -71,7 +71,7 @@ func TestSearchBoardNullMove(t *testing.T) {
 	sb := NewSearchBoard(b)
 	hashBefore := sb.Hash()
 	sb.MakeNullMove()
-	assert.Equal(t, domain.PlayerNone, sb.PlayerAt(-1, -1))
+	assert.NotEqual(t, hashBefore, sb.Hash(), "null move must change hash to prevent TT poisoning")
 	sb.UnmakeNullMove()
 	assert.Equal(t, hashBefore, sb.Hash())
 }
@@ -89,4 +89,62 @@ func TestSearchBoardOccupied(t *testing.T) {
 	assert.True(t, sb.Occupied().IsZero())
 	sb.MakeMove(5, 5, domain.PlayerRed)
 	assert.False(t, sb.Occupied().IsZero())
+}
+
+func TestSearchBoardNullMoveHashUnique(t *testing.T) {
+	b := domain.NewBoard()
+	sb := NewSearchBoard(b)
+	hashBefore := sb.Hash()
+	sb.MakeNullMove()
+	nullHash := sb.Hash()
+	assert.NotEqual(t, hashBefore, nullHash)
+	assert.NotEqual(t, domain.ZobristNullMove(), hashBefore, "null key itself should differ from base hash")
+	for x := range domain.BoardSize {
+		for y := range domain.BoardSize {
+			assert.NotEqual(t, nullHash, domain.ZobristKey(x, y, domain.PlayerRed),
+				"null hash must not collide with any Red key at (%d,%d)", x, y)
+			assert.NotEqual(t, nullHash, domain.ZobristKey(x, y, domain.PlayerBlue),
+				"null hash must not collide with any Blue key at (%d,%d)", x, y)
+		}
+	}
+}
+
+func TestSearchBoardNullMoveRoundTrip(t *testing.T) {
+	b := domain.NewBoard().PlaceStone(5, 5, domain.PlayerRed)
+	sb := NewSearchBoard(b)
+	hashBefore := sb.Hash()
+	sb.MakeMove(7, 7, domain.PlayerBlue)
+	hashAfterMove := sb.Hash()
+	sb.MakeNullMove()
+	hashAfterNull := sb.Hash()
+	assert.NotEqual(t, hashAfterMove, hashAfterNull)
+	sb.UnmakeNullMove()
+	assert.Equal(t, hashAfterMove, sb.Hash())
+	sb.UnmakeMove()
+	assert.Equal(t, hashBefore, sb.Hash())
+}
+
+func TestNullMoveTTDoesNotPoison(t *testing.T) {
+	b := domain.NewBoard()
+	sb := NewSearchBoard(b)
+	tt := NewTranspositionTable(1)
+
+	parentHash := sb.Hash()
+	tt.Store(TTEntry{
+		Hash:  parentHash,
+		Score: 5000,
+		Depth: 8,
+		Flag:  TTExact,
+	})
+
+	sb.MakeNullMove()
+	nullHash := sb.Hash()
+	assert.NotEqual(t, parentHash, nullHash, "null move must produce different hash")
+
+	entry, ok := tt.Lookup(parentHash)
+	assert.True(t, ok, "original entry must still be found")
+	assert.Equal(t, int32(5000), entry.Score, "original entry must not be overwritten")
+
+	_, ok = tt.Lookup(nullHash)
+	assert.False(t, ok, "null hash should not match parent entry")
 }

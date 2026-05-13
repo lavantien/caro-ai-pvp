@@ -95,6 +95,7 @@ func (sb *SearchBoard) UnmakeMove() {
 
 func (sb *SearchBoard) MakeNullMove() {
 	sb.undoStack = append(sb.undoStack, undoEntry{x: -1, y: -1, player: domain.PlayerNone, hash: sb.hash})
+	sb.hash ^= domain.ZobristNullMove()
 }
 
 func (sb *SearchBoard) UnmakeNullMove() {
