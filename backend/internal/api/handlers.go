@@ -52,6 +52,8 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		timeControl, initialTimeMs, incrementSeconds = "3+2", 180000, 2
 	case "3+0":
 		timeControl, initialTimeMs, incrementSeconds = "3+0", 180000, 0
+	case "10+0":
+		timeControl, initialTimeMs, incrementSeconds = "10+0", 600000, 0
 	case "15+10", "classical":
 		timeControl, initialTimeMs, incrementSeconds = "15+10", 900000, 10
 	}

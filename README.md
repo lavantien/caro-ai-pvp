@@ -83,8 +83,10 @@ Fisher time controls with increment:
 | Control | Initial Time | Increment |
 |---------|-------------|-----------|
 | Bullet | 1 min | 0 sec |
+| Blitz | 3 min | 0 sec |
 | Blitz | 3 min | 2 sec |
 | Rapid | 7 min | 5 sec |
+| Rapid | 10 min | 0 sec |
 | Classical | 15 min | 10 sec |
 
 ### UX Features

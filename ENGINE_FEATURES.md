@@ -389,8 +389,10 @@ Uses control theory principles for time allocation.
 | Control | Initial | Increment | Use Case |
 |---------|---------|-----------|----------|
 | Bullet | 1 min | 0 sec | Speed games |
+| Blitz | 3 min | 0 sec | Quick games |
 | Blitz | 3 min | 2 sec | Quick games |
 | Rapid | 7 min | 5 sec | Standard games |
+| Rapid | 10 min | 0 sec | Standard games |
 | Classical | 15 min | 10 sec | Long games |
 
 ### 6.3 Pondering

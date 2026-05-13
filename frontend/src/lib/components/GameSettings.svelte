@@ -49,8 +49,10 @@
 	function timeLabel(tc: TimeControl): string {
 		switch (tc) {
 			case '1+0': return '1+0 Bullet';
+			case '3+0': return '3+0 Blitz';
 			case '3+2': return '3+2 Blitz';
 			case '7+5': return '7+5 Rapid';
+			case '10+0': return '10+0 Rapid';
 			case '15+10': return '15+10 Classical';
 		}
 	}
@@ -110,8 +112,10 @@
 					disabled={moveNumber > 0}
 				>
 					<option value="1+0">1+0 Bullet</option>
+					<option value="3+0">3+0 Blitz</option>
 					<option value="3+2">3+2 Blitz</option>
 					<option value="7+5">7+5 Rapid</option>
+					<option value="10+0">10+0 Rapid</option>
 					<option value="15+10">15+10 Classical</option>
 				</select>
 
