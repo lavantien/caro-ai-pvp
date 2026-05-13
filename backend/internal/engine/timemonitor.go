@@ -12,6 +12,7 @@ type TimeMonitor struct {
 	startTime   time.Time
 	cancel      context.CancelFunc
 	stopped     atomic.Bool
+	ctxDone     <-chan struct{}
 	mu          sync.Mutex
 	Nodes       atomic.Int64
 }
@@ -22,6 +23,7 @@ func NewTimeMonitor(ctx context.Context, hardBoundMs int64) *TimeMonitor {
 		hardBoundMs: hardBoundMs,
 		startTime:   time.Now(),
 		cancel:      cancel,
+		ctxDone:     ctx.Done(),
 	}
 	go tm.watch(ctx)
 	return tm
@@ -34,6 +36,7 @@ func (tm *TimeMonitor) watch(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			tm.Stop()
 			return
 		case <-ticker.C:
 			if tm.ElapsedMs() >= tm.hardBoundMs {
@@ -49,7 +52,19 @@ func (tm *TimeMonitor) ElapsedMs() int64 {
 }
 
 func (tm *TimeMonitor) ShouldStop() bool {
-	return tm.stopped.Load() || tm.ElapsedMs() >= tm.hardBoundMs
+	if tm.stopped.Load() {
+		return true
+	}
+	if tm.ElapsedMs() >= tm.hardBoundMs {
+		return true
+	}
+	select {
+	case <-tm.ctxDone:
+		tm.Stop()
+		return true
+	default:
+		return false
+	}
 }
 
 func (tm *TimeMonitor) Stop() {

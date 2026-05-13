@@ -178,10 +178,14 @@ func (mp *MovePicker) threatScore(x, y int) int {
 	score := 0
 	if createsOpenFour(mp.sb, x, y, mp.player) {
 		score += 700_000
+	} else if createsFourType(mp.sb, x, y, mp.player) {
+		score += 400_000
 	}
 	opponent := mp.player.Opponent()
 	if createsOpenFour(mp.sb, x, y, opponent) {
 		score += 500_000
+	} else if createsFourType(mp.sb, x, y, opponent) {
+		score += 350_000
 	}
 	if createsOpenThree(mp.sb, x, y, mp.player) {
 		score += 300_000

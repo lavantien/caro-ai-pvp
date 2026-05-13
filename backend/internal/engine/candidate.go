@@ -80,13 +80,13 @@ func isTacticalMove(sb *SearchBoard, x, y int, player, opponent domain.Player) b
 	}
 	sb.UnmakeMove()
 
-	// Creates open four or broken four (single move to five)
-	if createsOpenFour(sb, x, y, player) {
+	// Creates open four or block four (forcing: opponent must respond)
+	if createsFourType(sb, x, y, player) {
 		return true
 	}
 
-	// Blocks opponent's open four
-	if createsOpenFour(sb, x, y, opponent) {
+	// Blocks opponent's open four or block four
+	if createsFourType(sb, x, y, opponent) {
 		return true
 	}
 
@@ -101,8 +101,50 @@ func isTacticalMove(sb *SearchBoard, x, y int, player, opponent domain.Player) b
 	return false
 }
 
+// createsFourType checks if placing player at (x,y) creates an open four or block four.
+// Open four = 4 consecutive with both ends open. Block four = 4 consecutive with one end open.
+// Both are forcing: opponent must block the open end or lose.
+func createsFourType(sb *SearchBoard, x, y int, player domain.Player) bool {
+	sb.MakeMove(x, y, player)
+	defer sb.UnmakeMove()
+
+	for _, dir := range [][2]int{{1, 0}, {0, 1}, {1, 1}, {1, -1}} {
+		dx, dy := dir[0], dir[1]
+		positive := 0
+		for i := 1; i <= 4; i++ {
+			nx, ny := x+dx*i, y+dy*i
+			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
+				break
+			}
+			positive++
+		}
+		negative := 0
+		for i := 1; i <= 4; i++ {
+			nx, ny := x-dx*i, y-dy*i
+			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
+				break
+			}
+			negative++
+		}
+
+		total := 1 + positive + negative
+		if total == 4 {
+			afterX, afterY := x+dx*(positive+1), y+dy*(positive+1)
+			beforeX, beforeY := x-dx*(negative+1), y-dy*(negative+1)
+
+			afterOpen := afterX >= 0 && afterX < domain.BoardSize && afterY >= 0 && afterY < domain.BoardSize && sb.IsEmpty(afterX, afterY)
+			beforeOpen := beforeX >= 0 && beforeX < domain.BoardSize && beforeY >= 0 && beforeY < domain.BoardSize && sb.IsEmpty(beforeX, beforeY)
+
+			if afterOpen || beforeOpen {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // createsOpenFour checks if placing player at (x,y) creates an open four
-// (4 in a row with at least one open end, not yet 5).
+// (4 in a row with both ends open).
 func createsOpenFour(sb *SearchBoard, x, y int, player domain.Player) bool {
 	sb.MakeMove(x, y, player)
 	defer sb.UnmakeMove()
