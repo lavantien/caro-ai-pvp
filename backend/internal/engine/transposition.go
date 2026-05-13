@@ -1,14 +1,13 @@
 package engine
 
 import (
+	"caro-ai-pvp/internal/domain"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 )
 
 const (
-	ttShardCount = 16
-
 	TTExact      uint8 = 0
 	TTLowerBound uint8 = 1
 	TTUpperBound uint8 = 2
@@ -43,7 +42,7 @@ type ttShard struct {
 }
 
 type TranspositionTable struct {
-	shards [ttShardCount]ttShard
+	shards [domain.TTShardCount]ttShard
 	sizeMB int
 	age    atomic.Uint32
 	probes atomic.Int64
@@ -52,7 +51,7 @@ type TranspositionTable struct {
 
 func NewTranspositionTable(sizeMB int) *TranspositionTable {
 	tt := &TranspositionTable{sizeMB: sizeMB}
-	entriesPerShard := (sizeMB * 1024 * 1024 / ttShardCount) / int(unsafe.Sizeof(ttSlot{}))
+	entriesPerShard := (sizeMB * 1024 * 1024 / domain.TTShardCount) / int(unsafe.Sizeof(ttSlot{}))
 	mask := uint64(1)
 	for mask < uint64(entriesPerShard) {
 		mask <<= 1
@@ -67,7 +66,7 @@ func NewTranspositionTable(sizeMB int) *TranspositionTable {
 }
 
 func (tt *TranspositionTable) shardIndex(hash uint64) int {
-	return int((hash >> 32) & (ttShardCount - 1))
+	return int((hash >> 32) & (domain.TTShardCount - 1))
 }
 
 func (tt *TranspositionTable) Store(entry TTEntry) {
@@ -77,22 +76,25 @@ func (tt *TranspositionTable) Store(entry TTEntry) {
 
 	currentAge := uint8(tt.age.Load())
 
-	shard.mu.RLock()
+	entryPrio := int(entry.Depth) - 8*int(currentAge-entry.Age)
+
+	shard.mu.Lock()
 	slot := &shard.slots[idx]
 	existingHash := slot.hash
 	existingDepth := slot.depth
 	existingAge := slot.age
-	shard.mu.RUnlock()
 
-	entryPrio := int(entry.Depth) - 8*int(currentAge-entry.Age)
 	existingPrio := int(existingDepth) - 8*int(currentAge-existingAge)
 
-	if existingHash != 0 && existingHash != entry.Hash && existingPrio >= entryPrio {
+	if existingHash == entry.Hash {
+		if existingDepth > entry.Depth {
+			shard.mu.Unlock()
+			return
+		}
+	} else if existingHash != 0 && existingPrio >= entryPrio {
+		shard.mu.Unlock()
 		return
 	}
-
-	shard.mu.Lock()
-	slot = &shard.slots[idx]
 	slot.hash = entry.Hash
 	slot.score = entry.Score
 	slot.staticEval = entry.StaticEval
