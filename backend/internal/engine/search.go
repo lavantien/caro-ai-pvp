@@ -46,7 +46,7 @@ func SearchPosition(
 		oppSB := NewSearchBoard(b)
 		if !opponentHasImmediateWin(&oppSB, player.Opponent()) {
 			vcfTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction)
-			if vx, vy, found := SolveVCF(b, player, vcfTime, ctx); found {
+			if vx, vy, result := SolveVCF(b, player, vcfTime, ctx); result == VCFWin {
 				return vx, vy, SearchStats{
 					DepthAchieved:   0,
 					SearchScore:     domain.WinScore,
@@ -57,20 +57,14 @@ func SearchPosition(
 		}
 	}
 
-	// Check if opponent has a VCF threat and block it
+	var vcfPreferred *domain.Position
 	if config.UseVCF {
 		oppVcfTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction / 2)
-		if vx, vy, found := SolveVCF(b, player.Opponent(), oppVcfTime, ctx); found {
+		if vx, vy, result := SolveVCF(b, player.Opponent(), oppVcfTime, ctx); result == VCFWin {
 			blocked := b.PlaceStone(vx, vy, player)
 			blockCheckTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction / 4)
-			if _, _, stillHas := SolveVCF(blocked, player.Opponent(), blockCheckTime, ctx); !stillHas {
-				return vx, vy, SearchStats{
-					DepthAchieved:   0,
-					SearchScore:     0,
-					AllocatedTimeMs: config.TimeLimitMs,
-					MoveType:        "vcf-block",
-					ThreadCount:     1,
-				}
+			if _, _, checkResult := SolveVCF(blocked, player.Opponent(), blockCheckTime, ctx); checkResult != VCFWin {
+				vcfPreferred = &domain.Position{X: vx, Y: vy}
 			}
 		}
 	}
@@ -90,7 +84,7 @@ func SearchPosition(
 		var x, y, score int
 		found := false
 		for range domain.MaxAspirationAttempts {
-			x, y, score = searchRoot(&sb, player, depth, a, b, tt, heuristics, candidates, monitor)
+			x, y, score = searchRoot(&sb, player, depth, a, b, tt, heuristics, candidates, monitor, vcfPreferred)
 			if x < 0 || monitor.ShouldStop() {
 				break
 			}
@@ -109,7 +103,7 @@ func SearchPosition(
 		}
 
 		if !found && !monitor.ShouldStop() {
-			x, y, score = searchRoot(&sb, player, depth, fullAlpha, fullBeta, tt, heuristics, candidates, monitor)
+			x, y, score = searchRoot(&sb, player, depth, fullAlpha, fullBeta, tt, heuristics, candidates, monitor, vcfPreferred)
 			if x >= 0 {
 				found = true
 			}
@@ -157,11 +151,14 @@ func searchRoot(
 	heuristics *SearchHeuristics,
 	candidates []domain.Position,
 	monitor *TimeMonitor,
+	preferredMove *domain.Position,
 ) (int, int, int) {
 	monitor.Nodes.Add(1)
 	staticEval := Evaluate(sb, player)
 	var ttMove *domain.Position
-	if entry, ok := tt.Lookup(sb.Hash()); ok {
+	if preferredMove != nil {
+		ttMove = preferredMove
+	} else if entry, ok := tt.Lookup(sb.Hash()); ok {
 		ttMove = &domain.Position{X: int(entry.MoveX), Y: int(entry.MoveY)}
 	}
 
@@ -344,23 +341,23 @@ func alphaBeta(
 		moveIdx++
 	}
 
-		if !monitor.ShouldStop() {
-	flag := TTExact
-	if bestScore <= origAlpha {
-		flag = TTUpperBound
-	} else if bestScore >= beta {
-		flag = TTLowerBound
-	}
-	tt.Store(TTEntry{
-		Hash:       sb.Hash(),
-		Score:      int32(adjustMateScoreForStore(bestScore, plyFromRoot)),
-		StaticEval: int32(staticEval),
-		Depth:      uint8(depth),
-		MoveX:      int8(bestMoveX),
-		MoveY:      int8(bestMoveY),
-		Flag:       flag,
-	})
+	if !monitor.ShouldStop() {
+		flag := TTExact
+		if bestScore <= origAlpha {
+			flag = TTUpperBound
+		} else if bestScore >= beta {
+			flag = TTLowerBound
 		}
+		tt.Store(TTEntry{
+			Hash:       sb.Hash(),
+			Score:      int32(adjustMateScoreForStore(bestScore, plyFromRoot)),
+			StaticEval: int32(staticEval),
+			Depth:      uint8(depth),
+			MoveX:      int8(bestMoveX),
+			MoveY:      int8(bestMoveY),
+			Flag:       flag,
+		})
+	}
 
 	return bestScore
 }

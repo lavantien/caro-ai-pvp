@@ -5,12 +5,21 @@ import (
 	"context"
 )
 
+type VCFResult int
+
+const (
+	VCFNoWin   VCFResult = iota
+	VCFWin
+	VCFTimeout
+)
+
 type VCFSolver struct {
 	sb       *SearchBoard
 	attacker domain.Player
 	monitor  *TimeMonitor
 	winX     int
 	winY     int
+	timedOut bool
 }
 
 func SolveVCF(
@@ -18,7 +27,7 @@ func SolveVCF(
 	player domain.Player,
 	allocatedMs int64,
 	ctx context.Context,
-) (int, int, bool) {
+) (int, int, VCFResult) {
 	sb := NewSearchBoard(b)
 	monitor := NewTimeMonitor(ctx, allocatedMs)
 	defer monitor.Stop()
@@ -29,14 +38,21 @@ func SolveVCF(
 		monitor:  monitor,
 	}
 
-	if v.search(12) {
-		return v.winX, v.winY, true
+	if v.search(domain.VCFSearchDepth) {
+		return v.winX, v.winY, VCFWin
 	}
-	return -1, -1, false
+	if v.timedOut {
+		return -1, -1, VCFTimeout
+	}
+	return -1, -1, VCFNoWin
 }
 
 func (v *VCFSolver) search(depth int) bool {
-	if depth <= 0 || v.monitor.ShouldStop() {
+	if v.monitor.ShouldStop() {
+		v.timedOut = true
+		return false
+	}
+	if depth <= 0 {
 		return false
 	}
 
@@ -44,6 +60,7 @@ func (v *VCFSolver) search(depth int) bool {
 
 	for _, c := range candidates {
 		if v.monitor.ShouldStop() {
+			v.timedOut = true
 			return false
 		}
 
@@ -85,6 +102,10 @@ func (v *VCFSolver) search(depth int) bool {
 		}
 
 		v.sb.UnmakeMove()
+
+		if v.timedOut {
+			return false
+		}
 
 		if allWin {
 			v.winX, v.winY = c.X, c.Y

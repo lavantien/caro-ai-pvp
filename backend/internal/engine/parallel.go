@@ -42,7 +42,7 @@ func ParallelSearch(
 		oppSB := NewSearchBoard(b)
 		if !opponentHasImmediateWin(&oppSB, player.Opponent()) {
 			vcfTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction)
-			if vx, vy, found := SolveVCF(b, player, vcfTime, ctx); found {
+			if vx, vy, result := SolveVCF(b, player, vcfTime, ctx); result == VCFWin {
 				return vx, vy, SearchStats{
 					DepthAchieved:   0,
 					SearchScore:     domain.WinScore,
@@ -54,20 +54,14 @@ func ParallelSearch(
 		}
 	}
 
-	// Check if opponent has a VCF threat and block it
+	var vcfPreferred *domain.Position
 	if config.UseVCF {
 		oppVcfTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction / 2)
-		if vx, vy, found := SolveVCF(b, player.Opponent(), oppVcfTime, ctx); found {
+		if vx, vy, result := SolveVCF(b, player.Opponent(), oppVcfTime, ctx); result == VCFWin {
 			blocked := b.PlaceStone(vx, vy, player)
 			blockCheckTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction / 4)
-			if _, _, stillHas := SolveVCF(blocked, player.Opponent(), blockCheckTime, ctx); !stillHas {
-				return vx, vy, SearchStats{
-					DepthAchieved:   0,
-					SearchScore:     0,
-					AllocatedTimeMs: config.TimeLimitMs,
-					ThreadCount:     numWorkers,
-					MoveType:        "vcf-block",
-				}
+			if _, _, checkResult := SolveVCF(blocked, player.Opponent(), blockCheckTime, ctx); checkResult != VCFWin {
+				vcfPreferred = &domain.Position{X: vx, Y: vy}
 			}
 		}
 	}
@@ -102,7 +96,7 @@ func ParallelSearch(
 				var x, y, score int
 				found := false
 				for range domain.MaxAspirationAttempts {
-					x, y, score = searchRoot(&workerSB, player, depth, a, bnd, tt, workerH, candidates, monitor)
+					x, y, score = searchRoot(&workerSB, player, depth, a, bnd, tt, workerH, candidates, monitor, vcfPreferred)
 					if x < 0 || monitor.ShouldStop() {
 						break
 					}
@@ -121,7 +115,7 @@ func ParallelSearch(
 				}
 
 				if !found && !monitor.ShouldStop() {
-					x, y, score = searchRoot(&workerSB, player, depth, -domain.Infinity, domain.Infinity, tt, workerH, candidates, monitor)
+					x, y, score = searchRoot(&workerSB, player, depth, -domain.Infinity, domain.Infinity, tt, workerH, candidates, monitor, vcfPreferred)
 					if x >= 0 {
 						found = true
 					}

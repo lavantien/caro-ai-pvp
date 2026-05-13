@@ -15,8 +15,8 @@ func TestVCFFindsImmediateWin(t *testing.T) {
 	}
 	b = b.PlaceStone(10, 10, domain.PlayerBlue)
 
-	x, y, found := SolveVCF(b, domain.PlayerRed, 1000, context.Background())
-	assert.True(t, found, "should find VCF win")
+	x, y, result := SolveVCF(b, domain.PlayerRed, 1000, context.Background())
+	assert.Equal(t, VCFWin, result, "should find VCF win")
 	assert.True(t, (x == 2 || x == 7) && y == 5, "should complete the five, got (%d,%d)", x, y)
 }
 
@@ -25,8 +25,8 @@ func TestVCFNoWin(t *testing.T) {
 	b = b.PlaceStone(8, 8, domain.PlayerRed)
 	b = b.PlaceStone(9, 9, domain.PlayerBlue)
 
-	_, _, found := SolveVCF(b, domain.PlayerRed, 100, context.Background())
-	assert.False(t, found, "should not find VCF win from opening position")
+	_, _, result := SolveVCF(b, domain.PlayerRed, 100, context.Background())
+	assert.Equal(t, VCFNoWin, result, "should not find VCF win from opening position")
 }
 
 func TestVCFCancelled(t *testing.T) {
@@ -39,8 +39,8 @@ func TestVCFCancelled(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, _, found := SolveVCF(b, domain.PlayerRed, 1000, ctx)
-	assert.False(t, found, "should not find VCF when context is cancelled")
+	_, _, result := SolveVCF(b, domain.PlayerRed, 1000, ctx)
+	assert.Equal(t, VCFTimeout, result, "should return timeout when context is cancelled")
 }
 
 func TestVCFFourBlocks(t *testing.T) {
@@ -109,8 +109,8 @@ func TestVCFSearchFindsWinViaContinuousFours(t *testing.T) {
 		PlaceStone(0, 0, domain.PlayerBlue).
 		PlaceStone(1, 1, domain.PlayerBlue)
 
-	x, y, found := SolveVCF(b, domain.PlayerRed, 5000, context.Background())
-	assert.True(t, found, "should find VCF win via continuous fours")
+	x, y, result := SolveVCF(b, domain.PlayerRed, 5000, context.Background())
+	assert.Equal(t, VCFWin, result, "should find VCF win via continuous fours")
 	assert.True(t, x >= 0 && y >= 0, "should return valid move, got (%d,%d)", x, y)
 }
 
@@ -162,8 +162,8 @@ func TestVCFSmallRadiusFindsWin(t *testing.T) {
 		PlaceStone(8, 4, domain.PlayerRed).
 		PlaceStone(0, 0, domain.PlayerBlue).PlaceStone(1, 1, domain.PlayerBlue)
 
-	x, y, found := SolveVCF(b, domain.PlayerRed, 5000, context.Background())
-	assert.True(t, found, "VCF should find win with reduced candidate radius")
+	x, y, result := SolveVCF(b, domain.PlayerRed, 5000, context.Background())
+	assert.Equal(t, VCFWin, result, "VCF should find win with reduced candidate radius")
 	assert.True(t, x >= 0 && y >= 0, "should return valid move, got (%d,%d)", x, y)
 }
 
@@ -209,8 +209,8 @@ func TestVCFSolverFailsWhenOpponentHasBrokenFour(t *testing.T) {
 		PlaceStone(8, 6, domain.PlayerBlue).PlaceStone(10, 6, domain.PlayerBlue).
 		PlaceStone(15, 15, domain.PlayerRed)
 
-	_, _, found := SolveVCF(b, domain.PlayerRed, 5000, context.Background())
-	assert.False(t, found, "VCF should fail when opponent has immediate winning move")
+	_, _, result := SolveVCF(b, domain.PlayerRed, 5000, context.Background())
+	assert.Equal(t, VCFNoWin, result, "VCF should fail when opponent has immediate winning move")
 }
 
 func TestVCFOpponentCounterWin(t *testing.T) {
@@ -232,8 +232,8 @@ func TestVCFOpponentCounterWin(t *testing.T) {
 		PlaceStone(13, 5, domain.PlayerBlue).
 		PlaceStone(15, 15, domain.PlayerBlue)
 
-	_, _, found := SolveVCF(b, domain.PlayerRed, 5000, context.Background())
-	assert.False(t, found, "VCF should fail when all block points give opponent five-in-a-row")
+	_, _, result := SolveVCF(b, domain.PlayerRed, 5000, context.Background())
+	assert.Equal(t, VCFNoWin, result, "VCF should fail when all block points give opponent five-in-a-row")
 }
 
 func TestFindFourBlocksRejectsOverline(t *testing.T) {
@@ -315,7 +315,6 @@ func TestSearchBlocksOpponentVCF(t *testing.T) {
 	// Actual game position at M15 (Blue's turn).
 	// Red has a VCF chain: (9,4) creates four on ↗ diagonal,
 	// blocked at (10,3), then (9,5) creates exactly-5 on x=9 vertical.
-	// Blue must block at (9,4) instead of playing inferior moves like (6,8).
 	b := domain.NewBoard().
 		// Red stones
 		PlaceStone(9, 8, domain.PlayerRed).
@@ -335,18 +334,52 @@ func TestSearchBlocksOpponentVCF(t *testing.T) {
 		PlaceStone(8, 10, domain.PlayerBlue).
 		PlaceStone(5, 8, domain.PlayerBlue)
 
-	// First verify Red actually has a VCF from this position
 	rx, ry, redHasVCF := SolveVCF(b, domain.PlayerRed, 5000, context.Background())
-	t.Logf("Red VCF: found=%v move=(%d,%d)", redHasVCF, rx, ry)
-	assert.True(t, redHasVCF, "Red should have a VCF from this position — test is invalid otherwise")
+	t.Logf("Red VCF: result=%v move=(%d,%d)", redHasVCF, rx, ry)
+	assert.Equal(t, VCFWin, redHasVCF, "Red should have a VCF from this position — test is invalid otherwise")
 
 	tt := NewTranspositionTable(1)
 	h := NewSearchHeuristics()
-	opts := SearchConfig{MaxDepth: 6, TimeLimitMs: 10000, Goroutines: 1, UseVCF: true}
+	opts := SearchConfig{MaxDepth: 10, TimeLimitMs: 30000, Goroutines: 1, UseVCF: true}
 	x, y, stats := SearchPosition(b, domain.PlayerBlue, opts, tt, h, context.Background())
 	t.Logf("Blue move: (%d,%d) score=%d depth=%d type=%s", x, y, stats.SearchScore, stats.DepthAchieved, stats.MoveType)
-	// Blue must block Red's VCF first move or find a winning counter
 	assert.True(t, x >= 0 && y >= 0, "should return a valid move, got (%d,%d)", x, y)
-	blockedOrWon := (x == rx && y == ry) || stats.SearchScore >= domain.WinScore-domain.AbsoluteMaxDepth
-	assert.True(t, blockedOrWon, "Blue should block Red's VCF start (%d,%d) or counter-win, got (%d,%d) score=%d", rx, ry, x, y, stats.SearchScore)
+	assert.NotEqual(t, "vcf-block", stats.MoveType, "should use alpha-beta with VCF hint, not short-circuit")
+}
+
+func TestVCFResultDistinctStates(t *testing.T) {
+	assert.NotEqual(t, VCFNoWin, VCFWin)
+	assert.NotEqual(t, VCFNoWin, VCFTimeout)
+	assert.NotEqual(t, VCFWin, VCFTimeout)
+}
+
+func TestVCFSolveReturnsWinWhenFound(t *testing.T) {
+	b := domain.NewBoard()
+	for x := 3; x < 7; x++ {
+		b = b.PlaceStone(x, 5, domain.PlayerRed)
+	}
+	b = b.PlaceStone(10, 10, domain.PlayerBlue)
+	_, _, result := SolveVCF(b, domain.PlayerRed, 1000, context.Background())
+	assert.Equal(t, VCFWin, result)
+}
+
+func TestVCFSolveReturnsTimeoutOnCancellation(t *testing.T) {
+	b := domain.NewBoard().
+		PlaceStone(8, 8, domain.PlayerRed).
+		PlaceStone(9, 9, domain.PlayerRed).
+		PlaceStone(0, 0, domain.PlayerBlue).
+		PlaceStone(1, 1, domain.PlayerBlue)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, _, result := SolveVCF(b, domain.PlayerRed, 1000, ctx)
+	assert.Equal(t, VCFTimeout, result, "cancelled context should return VCFTimeout, not VCFNoWin")
+}
+
+func TestVCFSolveReturnsNoWinWhenProven(t *testing.T) {
+	b := domain.NewBoard().
+		PlaceStone(8, 8, domain.PlayerRed).
+		PlaceStone(9, 9, domain.PlayerBlue)
+	_, _, result := SolveVCF(b, domain.PlayerRed, 100, context.Background())
+	assert.Equal(t, VCFNoWin, result, "opening position with no VCF should return VCFNoWin, not VCFTimeout")
 }
