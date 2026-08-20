@@ -11,4 +11,5 @@ var (
 	ErrTooManyGames   = errors.New("too many concurrent games")
 	ErrInvalidLevel   = errors.New("difficulty must be 1-5")
 	ErrNoMoves        = errors.New("no moves to undo")
+	ErrNotPlayerTurn  = errors.New("move rejected: it is not the human player's turn")
 )

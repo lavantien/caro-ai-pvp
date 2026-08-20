@@ -123,6 +123,30 @@ func (s *GameSession) GetOrCreateAI(player domain.Player) *engine.MinimaxAI {
 	return s.blueAI
 }
 
+// ApplyHumanMove validates that a human may move right now: spectators
+// cannot inject moves into AI-vs-AI games, and in player-vs-AI the human
+// cannot move on the engine's turn.
+func (s *GameSession) ApplyHumanMove(x, y int) (GameResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.checkTimeoutLocked()
+
+	if s.game.IsGameOver {
+		return GameResponse{}, domain.ErrGameOver
+	}
+	switch s.game.GameMode {
+	case domain.GameModeAivAI:
+		return GameResponse{}, domain.ErrNotPlayerTurn
+	case domain.GameModePvAI:
+		aiIsRed := s.redDifficulty != nil
+		if (aiIsRed && s.game.CurrentPlayer == domain.PlayerRed) ||
+			(!aiIsRed && s.game.CurrentPlayer == domain.PlayerBlue) {
+			return GameResponse{}, domain.ErrNotPlayerTurn
+		}
+	}
+	return s.applyMoveLocked(x, y)
+}
+
 func (s *GameSession) ApplyMove(x, y int) (GameResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -131,7 +155,11 @@ func (s *GameSession) ApplyMove(x, y int) (GameResponse, error) {
 	if s.game.IsGameOver {
 		return GameResponse{}, domain.ErrGameOver
 	}
+	return s.applyMoveLocked(x, y)
+}
 
+// applyMoveLocked applies a move for the current player. Requires s.mu.
+func (s *GameSession) applyMoveLocked(x, y int) (GameResponse, error) {
 	newGame, err := s.game.WithMove(x, y)
 	if err != nil {
 		return GameResponse{}, err

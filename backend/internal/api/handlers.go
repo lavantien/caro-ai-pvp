@@ -135,7 +135,7 @@ func (h *Handler) MakeMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := session.ApplyMove(req.X, req.Y)
+	resp, err := session.ApplyHumanMove(req.X, req.Y)
 	if err != nil {
 		writeError(w, err)
 		return

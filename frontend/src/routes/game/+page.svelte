@@ -9,8 +9,7 @@
 	import { soundManager } from '$lib/utils/sound';
 	import { ApiConfig } from '$lib/config/apiConfig';
 	import { GameConfig } from '$lib/config/gameConfig';
-	import { switchPlayer } from '$lib/types/game';
-	import type { Player, Cell } from '$lib/types/game';
+	import type { Cell } from '$lib/types/game';
 	import type { GameMode, TimeControl, UCIConnectionStatus, DifficultyLevel } from '$lib/types/game';
 	import { difficultyName } from '$lib/types/game';
 
@@ -104,10 +103,12 @@
 		store.currentPlayer = state.currentPlayer;
 		store.moveNumber = state.moveNumber;
 		store.isGameOver = state.isGameOver;
-		if (state.redTimeRemaining > 0) {
+		// Zero is a legitimate clock reading: it means the server has flagged
+		// a player. Only missing values keep the previous display.
+		if (state.redTimeRemaining != null) {
 			redTime = state.redTimeRemaining;
 		}
-		if (state.blueTimeRemaining > 0) {
+		if (state.blueTimeRemaining != null) {
 			blueTime = state.blueTimeRemaining;
 		}
 		if (state.winningLine) {
@@ -126,18 +127,24 @@
 		soundManager.playWinSound(winner);
 	}
 
-	function findNewMove(oldBoard: Cell[], newBoard: Cell[]): { x: number; y: number } {
+	function findNewMove(oldBoard: Cell[], newBoard: Cell[]): { x: number; y: number } | null {
 		for (let i = 0; i < oldBoard.length; i++) {
 			if (oldBoard[i].player === 'none' && newBoard[i].player !== 'none') {
 				return { x: newBoard[i].x, y: newBoard[i].y };
 			}
 		}
-		return { x: 0, y: 0 };
+		return null;
 	}
 
 	onMount(async () => {
 		await createNewGame();
 	});
+
+	function retry() {
+		error = '';
+		loading = true;
+		createNewGame();
+	}
 
 	async function createNewGame() {
 		try {
@@ -199,6 +206,14 @@
 	async function handleMove(x: number, y: number) {
 		if (store.isGameOver || !gameId || moveInProgress) return;
 
+		// Spectators cannot inject moves into an engine-vs-engine game, and in
+		// player-vs-AI the human may only move on their own turn.
+		if (gameMode === 'aivai') return;
+		if (gameMode === 'pvai') {
+			const aiPlayer = aiSide;
+			if (store.currentPlayer === aiPlayer) return;
+		}
+
 		const cell = store.board[y * GameConfig.boardSize + x];
 		if (!cell || cell.player !== 'none') return;
 
@@ -245,8 +260,8 @@
 			moveInProgress = false;
 		}
 
-		const aiPlayer = gameMode === 'pvai' && aiSide === 'red' ? 'red' : 'blue';
-		if ((gameMode === 'pvai' || gameMode === 'aivai') && !store.isGameOver && store.currentPlayer === aiPlayer) {
+		// After the human's move in player-vs-AI, the engine replies.
+		if (gameMode === 'pvai' && !store.isGameOver && store.currentPlayer === aiSide) {
 			makeAiMove();
 		}
 	}
@@ -255,79 +270,71 @@
 		if (!gameId || store.isGameOver) return;
 
 		isAiThinking = true;
-
-		const previousBoard = store.board;
-		const aiPlayer = store.currentPlayer;
-
 		try {
-			let aiMove = { x: 0, y: 0 };
-			let data;
+			// In AI-vs-AI the whole game runs as one loop; in player-vs-AI a
+			// single move is made for the AI side.
+			while (!store.isGameOver) {
+				const previousBoard = store.board;
+				const aiPlayer = store.currentPlayer;
+				let aiMove: { x: number; y: number } | null = null;
+				let data;
 
-			if (useUCIForAI && uciConnectionStatus === 'connected') {
-				try {
-					const move = await store.getAIMoveUCI();
-					if (move) {
-						aiMove = move;
-						const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.move(gameId)}`, {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ x: move.x, y: move.y })
-						});
-						if (!response.ok) {
-							throw new Error('Failed to apply UCI move');
+				if (useUCIForAI && uciConnectionStatus === 'connected') {
+					try {
+						const move = await store.getAIMoveUCI();
+						if (move) {
+							const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.move(gameId)}`, {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ x: move.x, y: move.y })
+							});
+							if (!response.ok) {
+								throw new Error('Failed to apply UCI move');
+							}
+							data = await response.json();
+							aiMove = move;
+						} else {
+							useUCIForAI = false;
+							throw new Error('UCI move failed');
 						}
-						data = await response.json();
-					} else {
-						useUCIForAI = false;
-						throw new Error('UCI move failed');
+					} catch (uciError) {
+						console.warn('UCI move failed, falling back to API:', uciError);
+						showError('UCI engine failed, switching to built-in AI');
 					}
-				} catch (uciError) {
-					console.warn('UCI move failed, falling back to API:', uciError);
-					showError('UCI engine failed, switching to built-in AI');
+				}
+
+				if (!aiMove) {
 					const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.aiMove(gameId)}`, {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({})
 					});
+
 					if (!response.ok) {
 						showError(await response.text());
 						return;
 					}
+
 					data = await response.json();
 					aiMove = findNewMove(previousBoard, data.state.board);
 				}
-			} else {
-				const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.aiMove(gameId)}`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({})
-				});
 
-				if (!response.ok) {
-					showError(await response.text());
-					return;
+				syncGameState(data.state);
+
+				if (aiMove) {
+					store.moveHistory.push({
+						moveNumber: data.state.moveNumber,
+						player: aiPlayer as 'red' | 'blue',
+						x: aiMove.x,
+						y: aiMove.y
+					});
+					lastMove = { x: aiMove.x, y: aiMove.y };
 				}
 
-				data = await response.json();
-				aiMove = findNewMove(previousBoard, data.state.board);
-			}
-
-			syncGameState(data.state);
-
-			store.moveHistory.push({
-				moveNumber: data.state.moveNumber,
-				player: aiPlayer as 'red' | 'blue',
-				x: aiMove.x,
-				y: aiMove.y
-			});
-
-			lastMove = { x: aiMove.x, y: aiMove.y };
-			if (data.state.isGameOver && data.state.winner) {
-				handleGameEnd(data.state.winner);
-			}
-			// Chain next AI move for AIvAI mode
-			if (gameMode === 'aivai' && !store.isGameOver) {
-				makeAiMove();
+				if (data.state.isGameOver && data.state.winner) {
+					handleGameEnd(data.state.winner);
+				}
+				if (gameMode !== 'aivai') break;
 			}
 		} catch (err) {
 			showError('Failed to make AI move');
@@ -352,18 +359,20 @@
 			const data = await response.json();
 			syncGameState(data.state);
 			winningLine = [];
-			lastMove = null;
+			// Keep notation in sync with the rolled-back board.
+			store.moveHistory.pop();
+			const last = store.moveHistory[store.moveHistory.length - 1];
+			lastMove = last ? { x: last.x, y: last.y } : null;
 		} catch (err) {
 			showError('Failed to undo move');
 		}
 	}
 
-	function handleTimeOut(player: string) {
+	// Local countdowns are display-only: the server owns adjudication, so a
+	// flag fall triggers a sync and the authoritative result comes back.
+	async function handleTimeOut() {
 		if (store.isGameOver) return;
-
-		store.isGameOver = true;
-		const winner = switchPlayer(player as Player);
-		store.winner = winner;
+		await syncWithBackend();
 	}
 </script>
 
@@ -376,6 +385,12 @@
 		<div class="text-center">
 			<p class="text-lg text-red-500">Error: {error}</p>
 			<p class="mt-2 text-sm text-gray-500">Make sure the backend API is running on {ApiConfig.baseUrl}</p>
+			<button
+				onclick={retry}
+				class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+			>
+				Retry
+			</button>
 		</div>
 	</div>
 {:else}
@@ -421,7 +436,7 @@
 			player="blue"
 			timeRemaining={blueTime}
 			isActive={store.currentPlayer === 'blue' && !store.isGameOver}
-			onTimeOut={() => handleTimeOut('blue')}
+			onTimeOut={handleTimeOut}
 			label={aiLabel('blue')} />
 
 		<!-- Board -->
@@ -432,7 +447,7 @@
 			player="red"
 			timeRemaining={redTime}
 			isActive={store.currentPlayer === 'red' && !store.isGameOver}
-			onTimeOut={() => handleTimeOut('red')}
+			onTimeOut={handleTimeOut}
 			label={aiLabel('red')} />
 
 		<!-- Move notation -->

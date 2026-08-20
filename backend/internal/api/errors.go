@@ -22,6 +22,8 @@ func writeError(w http.ResponseWriter, err error) {
 		err == domain.ErrGameOver, err == domain.ErrOpenRule,
 		err == domain.ErrInvalidLevel:
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "bad_request", Message: err.Error()})
+	case err == domain.ErrNotPlayerTurn:
+		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "not_your_turn", Message: err.Error()})
 	default:
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "internal", Message: "Internal server error"})
 	}
