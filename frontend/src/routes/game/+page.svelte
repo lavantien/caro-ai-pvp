@@ -173,6 +173,10 @@
 
 			const data = await response.json();
 			gameId = data.gameId;
+			// Debug hook so e2e tests can clean the game up afterwards.
+			if (import.meta.env.DEV) {
+				(window as any).__caroGameId = gameId;
+			}
 
 			if (data.state.initialTime) {
 				redTime = data.state.initialTime;

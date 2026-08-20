@@ -31,6 +31,9 @@ func newGameID() string {
 }
 
 func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
+	// Evict finished and idle sessions first so stale games never block new
+	// ones between the periodic sweeps.
+	h.store.CleanupCompleted()
 	if h.store.Count() >= domain.MaxConcurrentGames {
 		writeError(w, domain.ErrTooManyGames)
 		return

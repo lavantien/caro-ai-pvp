@@ -4,41 +4,77 @@ import { E2EConfig } from "../src/lib/config/e2eConfig";
 /**
  * E2E Tests for Caro Game
  *
- * Tests all implemented features:
+ * Tests all implemented features against the shipped page:
  * - Basic game mechanics (no regression)
  * - Sound effects toggle
- * - Move history display
+ * - Move history display (double-letter notation, e.g. "1.hh")
  * - Winning line animation
  * - Timer functionality
+ *
+ * Selectors target the real DOM: turn indicator (".text-sm.text-gray-600"),
+ * cells ([data-x][data-y]), notation ([data-testid="move-notation"]),
+ * timer strips (.bg-red-50 / .bg-blue-50 when active).
  */
+
+const turnIndicator = (page: import("@playwright/test").Page) =>
+  page.locator(".text-sm.text-gray-600");
+const redTurn = (page: import("@playwright/test").Page) =>
+  turnIndicator(page).locator(".text-red-600");
+const blueTurn = (page: import("@playwright/test").Page) =>
+  turnIndicator(page).locator(".text-blue-600");
+const notation = (page: import("@playwright/test").Page) =>
+  page.locator('[data-testid="move-notation"]');
+
+// Each test creates a game; delete it so the 4-slot concurrent-game cap
+// never rejects later tests. The page exposes the id in dev builds.
+test.afterEach(async ({ page }) => {
+  const gameId = await page
+    .evaluate(() => (window as any).__caroGameId)
+    .catch(() => null);
+  if (gameId) {
+    await page
+      .evaluate(
+        (id) =>
+          fetch(`http://localhost:5207/api/game/${id}`, { method: "DELETE" }),
+        gameId,
+      )
+      .catch(() => {});
+  }
+});
+
+/** Click a cell and wait until the turn indicator shows the move number. */
+async function playMove(
+  page: import("@playwright/test").Page,
+  x: number,
+  y: number,
+  moveNumber: number,
+) {
+  await page.locator(`[data-x="${x}"][data-y="${y}"]`).click();
+  await expect(turnIndicator(page)).toContainText(`Move ${moveNumber}`, {
+    timeout: 5000,
+  });
+}
 
 test.describe("Caro Game - Basic Mechanics", () => {
   test("should load game page successfully", async ({ page }) => {
     await page.goto("/game");
-
-    // Wait for page to load
     await page.waitForLoadState("networkidle");
 
-    // Check that game board is visible
-    await expect(page.locator('h1:has-text("Caro Game")')).toBeVisible();
-
-    // Check for board grid with specific styling
+    // Board grid with labels renders
     await expect(page.locator(".grid.gap-0")).toBeVisible();
+    // Turn indicator shows red to move at move 0
+    await expect(turnIndicator(page)).toContainText("Move 0");
+    await expect(redTurn(page)).toBeVisible();
   });
 
   test("should display initial state correctly", async ({ page }) => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Check current player display
-    await expect(page.locator("text=/Current Player:/")).toBeVisible();
-    await expect(page.locator(".text-red-600")).toBeVisible();
+    await expect(turnIndicator(page)).toContainText("Move 0");
+    await expect(redTurn(page)).toBeVisible();
 
-    // Check move number
-    await expect(page.locator("text=/Move #/")).toBeVisible();
-
-    // Check timers are visible (default 7+5 = 7:00 initially)
-    // Red is active and may already be counting down, so check for valid time patterns
+    // Both timer strips show the initial clock (default 7+5 = 7:00)
     await expect(page.locator("text=/\\d+:\\d{2}/")).toHaveCount(2);
   });
 
@@ -46,42 +82,29 @@ test.describe("Caro Game - Basic Mechanics", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Click on center cell
-    const centerCell = page.locator('[data-x="7"][data-y="7"]');
-    await centerCell.click();
+    await playMove(page, 7, 7, 1);
 
-    // Wait for move to be registered
-    await page.waitForTimeout(E2EConfig.apiMoveWaitMs);
+    // Red stone renders as 'O'
+    await expect(page.locator('[data-x="7"][data-y="7"]')).toContainText("O");
 
-    // Verify move was made (stone 'O' should be visible for red)
-    await expect(centerCell).toContainText("O");
-
-    // Current player should switch to blue
-    await expect(page.locator(".text-blue-600")).toBeVisible();
-    await expect(page.locator("text=/Move #1/")).toBeVisible();
+    // Turn switched to blue
+    await expect(blueTurn(page)).toBeVisible();
   });
 
   test("should prevent placing stone on occupied cell", async ({ page }) => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Place first stone
-    const centerCell = page.locator('[data-x="7"][data-y="7"]');
-    await centerCell.click();
+    await playMove(page, 7, 7, 1);
+    await expect(page.locator('[data-x="7"][data-y="7"]')).toContainText("O");
+
+    // Second click on the same cell is rejected by the board
+    await page.locator('[data-x="7"][data-y="7"]').click();
     await page.waitForTimeout(E2EConfig.apiMoveWaitMs);
 
-    await expect(centerCell).toContainText("O");
-
-    // Try to place on same cell (should not work - move rejected)
-    await centerCell.click();
-    await page.waitForTimeout(E2EConfig.apiMoveWaitMs);
-
-    // Player should still be blue (first move succeeded, second rejected)
-    await expect(page.locator(".text-blue-600")).toBeVisible();
-    await expect(page.locator("text=/Move #1/")).toBeVisible();
-
-    // Cell should still have 'O' (red stone)
-    await expect(centerCell).toContainText("O");
+    await expect(blueTurn(page)).toBeVisible();
+    await expect(turnIndicator(page)).toContainText("Move 1");
+    await expect(page.locator('[data-x="7"][data-y="7"]')).toContainText("O");
   });
 });
 
@@ -90,7 +113,6 @@ test.describe("Caro Game - Sound Effects", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Sound toggle button should be visible (muted by default)
     const soundButton = page.locator(
       'button[aria-label="Unmute"], button[aria-label="Mute"]',
     );
@@ -101,31 +123,20 @@ test.describe("Caro Game - Sound Effects", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Initial state: muted
     const soundButton = page.locator(
       'button[aria-label="Unmute"], button[aria-label="Mute"]',
     );
     await expect(soundButton).toBeVisible();
 
-    // Get initial aria-label
-    const initialLabel = await soundButton.getAttribute("aria-label");
-    expect(initialLabel).toBe("Unmute");
+    expect(await soundButton.getAttribute("aria-label")).toBe("Unmute");
 
-    // Click to unmute
     await soundButton.click();
     await page.waitForTimeout(E2EConfig.moveWaitMs);
+    expect(await soundButton.getAttribute("aria-label")).toBe("Mute");
 
-    // Should now show mute button
-    const newLabel = await soundButton.getAttribute("aria-label");
-    expect(newLabel).toBe("Mute");
-
-    // Click to mute again
     await soundButton.click();
     await page.waitForTimeout(E2EConfig.moveWaitMs);
-
-    // Should show unmute button again
-    const finalLabel = await soundButton.getAttribute("aria-label");
-    expect(finalLabel).toBe("Unmute");
+    expect(await soundButton.getAttribute("aria-label")).toBe("Unmute");
   });
 
   test("should play stone placement sound when making a move", async ({
@@ -134,17 +145,12 @@ test.describe("Caro Game - Sound Effects", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Unmute first
-    const soundButton = page.locator('button[aria-label="Unmute"]');
-    await soundButton.click();
+    // Unmute, then move: the move itself is the observable outcome
+    await page.locator('button[aria-label="Unmute"]').click();
     await page.waitForTimeout(E2EConfig.moveWaitMs);
 
-    // Make a move - sound manager should be initialized
-    await page.locator('[data-x="7"][data-y="7"]').click();
-    await page.waitForTimeout(E2EConfig.apiMoveWaitMs);
-
-    // Verify move was made (sound was triggered during move)
-    await expect(page.locator(".text-blue-600")).toBeVisible();
+    await playMove(page, 7, 7, 1);
+    await expect(blueTurn(page)).toBeVisible();
   });
 });
 
@@ -153,43 +159,33 @@ test.describe("Caro Game - Move History", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Move history should be visible
-    await expect(page.locator('h3:has-text("Move History")')).toBeVisible();
-    await expect(page.locator("text=/No moves yet/")).toBeVisible();
+    await expect(notation(page)).toBeVisible();
+    await expect(notation(page)).toContainText("No moves yet");
   });
 
   test("should record moves in history", async ({ page }) => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Make first move
-    await page.locator('[data-x="7"][data-y="7"]').click();
-    await page.waitForTimeout(E2EConfig.moveWaitMs);
+    // Double-letter notation: letter(y) then letter(x): (7,7)=hh, (7,8)=ih
+    await playMove(page, 7, 7, 1);
+    await expect(notation(page)).toContainText("1.hh");
 
-    // Move history should show first move
-    await expect(page.locator("text=/1\\. Red: \\(7, 7\\)/")).toBeVisible();
-
-    // Make second move
-    await page.locator('[data-x="7"][data-y="8"]').click();
-    await page.waitForTimeout(E2EConfig.moveWaitMs);
-
-    // Move history should show both moves
-    await expect(page.locator("text=/1\\. Red: \\(7, 7\\)/")).toBeVisible();
-    await expect(page.locator("text=/2\\. Blue: \\(7, 8\\)/")).toBeVisible();
+    await playMove(page, 7, 8, 2);
+    await expect(notation(page)).toContainText("1.hh");
+    await expect(notation(page)).toContainText("2.ih");
   });
 
   test("should highlight latest move in history", async ({ page }) => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Make a move
-    await page.locator('[data-x="7"][data-y="7"]').click();
-    await page.waitForTimeout(E2EConfig.moveWaitMs);
+    await playMove(page, 7, 7, 1);
 
-    // Latest move should be highlighted - check move history container
-    const moveHistoryContainer = page.locator(".max-h-64");
-    await expect(moveHistoryContainer).toBeVisible();
-    await expect(moveHistoryContainer).toContainText("1. Red: (7, 7)");
+    // The latest red move gets the highlighted background
+    const latest = notation(page).locator("span.bg-red-100");
+    await expect(latest).toHaveCount(1);
+    await expect(latest).toContainText("1.hh");
   });
 });
 
@@ -198,80 +194,62 @@ test.describe("Caro Game - Winning Line Animation", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Create a horizontal winning line for Red that respects Open Rule
-    // Red's second move (move #3) must satisfy |dx|>=3 or |dy|>=3 from first red stone
-    const moves = [
-      { x: 0, y: 7, n: 1 }, // Red - Move 1 (anywhere OK)
-      { x: 7, y: 8, n: 2 }, // Blue - Move 2 (anywhere OK)
-      { x: 3, y: 7, n: 3 }, // Red - Move 3 (|dx|=3 from (0,7), satisfies Open Rule)
-      { x: 7, y: 6, n: 4 }, // Blue - Move 4
-      { x: 1, y: 7, n: 5 }, // Red - Move 5
-      { x: 8, y: 8, n: 6 }, // Blue - Move 6
-      { x: 2, y: 7, n: 7 }, // Red - Move 7
-      { x: 8, y: 6, n: 8 }, // Blue - Move 8
-      { x: 4, y: 7, n: 9 }, // Red - Move 9 (WINNING - horizontal line 0-4 at y=7)
+    // Horizontal red line 0-4 at y=7, respecting the Open Rule for red's
+    // second move (|dx|>=3 from the first red stone).
+    const moves: Array<[number, number]> = [
+      [0, 7], // Red 1
+      [7, 8], // Blue 2
+      [3, 7], // Red 3 (|dx|=3, satisfies Open Rule)
+      [7, 6], // Blue 4
+      [1, 7], // Red 5
+      [8, 8], // Blue 6
+      [2, 7], // Red 7
+      [8, 6], // Blue 8
+      [4, 7], // Red 9 - winning five 0-4
     ];
-
-    for (const move of moves) {
-      await page.locator(`[data-x="${move.x}"][data-y="${move.y}"]`).click();
-      await expect(page.locator(`text=/Move #${move.n}/`)).toBeVisible({
-        timeout: 5000,
-      });
+    for (let i = 0; i < moves.length; i++) {
+      await playMove(page, moves[i][0], moves[i][1], i + 1);
     }
 
-    // Wait for win detection
     await page.waitForTimeout(E2EConfig.winDetectionWaitMs);
-
-    // Wait for winning line animation to complete (0.5s animation)
     await page.waitForTimeout(E2EConfig.animationWaitMs);
 
-    // Check for winning line SVG element
-    const lineElement = page.locator('line[stroke="#ef4444"]');
-    await expect(lineElement).toHaveCount(1);
-
-    // Verify line has correct coordinates (cellSize=64)
-    // y=7: center at 7*64 + 32 = 480
-    // x=0: center at 0*64 + 32 = 32
-    // x=4: center at 4*64 + 32 = 288
-    const x1 = await lineElement.getAttribute("x1");
-    const x2 = await lineElement.getAttribute("x2");
-    const y1 = await lineElement.getAttribute("y1");
-
-    expect(y1).toBe("480");
-    expect(x1).toBe("32");
-    expect(x2).toBe("288");
+    // Winning line drawn in red; geometry is relative (cell size is responsive)
+    const line = page.locator('line[stroke="#ef4444"]');
+    await expect(line).toHaveCount(1);
+    const x1 = Number(await line.getAttribute("x1"));
+    const x2 = Number(await line.getAttribute("x2"));
+    const y1 = Number(await line.getAttribute("y1"));
+    const y2 = Number(await line.getAttribute("y2"));
+    expect(x2).toBeGreaterThan(x1);
+    expect(y1).toBe(y2);
   });
 
   test("should show game over state with winner", async ({ page }) => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Create a vertical winning line for Red that respects Open Rule
-    // Red's second move (move #3) must satisfy |dx|>=3 or |dy|>=3 from first red stone
-    const moves = [
-      { x: 7, y: 0, n: 1 }, // Red - Move 1 (anywhere OK)
-      { x: 8, y: 7, n: 2 }, // Blue - Move 2 (anywhere OK)
-      { x: 7, y: 3, n: 3 }, // Red - Move 3 (|dy|=3 from (7,0), satisfies Open Rule)
-      { x: 8, y: 6, n: 4 }, // Blue - Move 4
-      { x: 7, y: 1, n: 5 }, // Red - Move 5
-      { x: 6, y: 8, n: 6 }, // Blue - Move 6
-      { x: 7, y: 2, n: 7 }, // Red - Move 7
-      { x: 6, y: 6, n: 8 }, // Blue - Move 8
-      { x: 7, y: 4, n: 9 }, // Red - Move 9 (WINNING - vertical line 0-4 at x=7)
+    // Vertical red line 0-4 at x=7, Open Rule respected at red's second move.
+    const moves: Array<[number, number]> = [
+      [7, 0], // Red 1
+      [8, 7], // Blue 2
+      [7, 3], // Red 3 (|dy|=3, satisfies Open Rule)
+      [8, 6], // Blue 4
+      [7, 1], // Red 5
+      [6, 8], // Blue 6
+      [7, 2], // Red 7
+      [6, 6], // Blue 8
+      [7, 4], // Red 9 - winning five
     ];
-
-    for (const move of moves) {
-      await page.locator(`[data-x="${move.x}"][data-y="${move.y}"]`).click();
-      await expect(page.locator(`text=/Move #${move.n}/`)).toBeVisible({
-        timeout: 5000,
-      });
+    for (let i = 0; i < moves.length; i++) {
+      await playMove(page, moves[i][0], moves[i][1], i + 1);
     }
 
     await page.waitForTimeout(E2EConfig.winDetectionWaitMs);
 
-    // Game over banner should be visible
-    await expect(page.locator(".bg-green-100")).toBeVisible();
-    await expect(page.locator("text=/WINS!/")).toBeVisible();
+    // Red's win banner slides down
+    await expect(page.locator(".bg-red-600")).toBeVisible();
+    await expect(page.locator(".bg-red-600 h2")).toContainText(/wins!/i);
   });
 });
 
@@ -280,23 +258,21 @@ test.describe("Caro Game - Timer Functionality", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Check both timers are visible - look for time display pattern
-    await expect(page.locator("text=/\\d:\\d\\d/")).toHaveCount(2);
+    await expect(page.locator("text=/\\d+:\\d{2}/")).toHaveCount(2);
   });
 
   test("should countdown active player timer", async ({ page }) => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Get initial time for Red (active player)
-    const timeElements = page.locator("text=/\\d:\\d\\d/");
-    const initialTime = await timeElements.first().textContent();
+    // Red moves first: the red strip is active (bg-red-50) and ticks down
+    const redClock = page.locator(".bg-red-50 .font-mono");
+    await expect(redClock).toBeVisible();
+    const initialTime = await redClock.textContent();
 
-    // Wait 2 seconds
     await page.waitForTimeout(E2EConfig.timerCountdownWaitMs);
 
-    // Time should have decreased
-    const currentTime = await timeElements.first().textContent();
+    const currentTime = await redClock.textContent();
     expect(currentTime).not.toBe(initialTime);
   });
 
@@ -304,14 +280,15 @@ test.describe("Caro Game - Timer Functionality", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Red is active, Blue timer should not change initially
-    const timeElements = page.locator("text=/\\d:\\d\\d/");
-    const blueTimeInitial = await timeElements.nth(1).textContent();
+    // Blue is inactive (gray strip): its clock stays put
+    const blueClock = page.locator(".opacity-60 .font-mono").first();
+    await expect(blueClock).toBeVisible();
+    const initialTime = await blueClock.textContent();
 
     await page.waitForTimeout(E2EConfig.timerCountdownWaitMs);
 
-    const blueTimeCurrent = await timeElements.nth(1).textContent();
-    expect(blueTimeCurrent).toBe(blueTimeInitial);
+    const currentTime = await blueClock.textContent();
+    expect(currentTime).toBe(initialTime);
   });
 });
 
@@ -320,55 +297,42 @@ test.describe("Caro Game - Regression Tests", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Make 5 moves respecting Open Rule
-    // Red's second move (move #3) must have |dx|>=3 or |dy|>=3 from Red's first
-    const moves = [
-      { x: 0, y: 0 }, // Red move 1
-      { x: 1, y: 1 }, // Blue move 2
-      { x: 4, y: 0 }, // Red move 3 (|dx|=4 from (0,0), OK)
-      { x: 1, y: 3 }, // Blue move 4
-      { x: 2, y: 2 }, // Red move 5
+    // Five moves respecting the Open Rule for red's second move
+    const moves: Array<[number, number]> = [
+      [0, 0], // Red 1
+      [1, 1], // Blue 2
+      [4, 0], // Red 3 (|dx|=4, OK)
+      [1, 3], // Blue 4
+      [2, 2], // Red 5
     ];
-
-    for (const move of moves) {
-      await page.locator(`[data-x="${move.x}"][data-y="${move.y}"]`).click();
-      await page.waitForTimeout(E2EConfig.regressionMoveWaitMs);
+    for (let i = 0; i < moves.length; i++) {
+      await playMove(page, moves[i][0], moves[i][1], i + 1);
     }
 
-    // Move number should be at least 3 (some moves may have failed due to timing)
-    const moveNumber = await page.locator("text=/Move #\\d+/").textContent();
-    const num = parseInt(moveNumber?.match(/#(\d+)/)?.[1] || "0");
-    expect(num).toBeGreaterThanOrEqual(3);
-
-    // Check that move history is populated
-    const moveHistory = page.locator(".max-h-64");
-    await expect(moveHistory).toBeVisible();
+    await expect(turnIndicator(page)).toContainText("Move 5");
+    await expect(notation(page).locator("span")).toHaveCount(5);
   });
 
   test("should handle rapid clicks correctly", async ({ page }) => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Rapidly click multiple cells respecting Open Rule
-    const cells = [
-      { x: 0, y: 0 },
-      { x: 1, y: 1 },
-      { x: 4, y: 0 }, // Red's 2nd move: |dx|=4 from (0,0), OK
-      { x: 1, y: 3 },
-      { x: 2, y: 2 },
+    const cells: Array<[number, number]> = [
+      [0, 0],
+      [1, 1],
+      [4, 0],
+      [1, 3],
+      [2, 2],
     ];
-
-    for (const cell of cells) {
-      await page.locator(`[data-x="${cell.x}"][data-y="${cell.y}"]`).click();
+    for (const [x, y] of cells) {
+      await page.locator(`[data-x="${x}"][data-y="${y}"]`).click();
     }
 
-    // Should have made some moves (not necessarily all due to API rate limiting)
-    const moveNumber = await page.locator("text=/Move #\\d+/").textContent();
-    const num = parseInt(moveNumber?.match(/#(\d+)/)?.[1] || "0");
-    expect(num).toBeGreaterThan(0);
+    // Give the optimistic UI and server sync a moment
+    await page.waitForTimeout(E2EConfig.apiMoveWaitMs * 5);
 
-    // Move history should reflect the moves made
-    const moveHistory = page.locator(".max-h-64");
-    await expect(moveHistory).toBeVisible();
+    const indicatorText = await turnIndicator(page).textContent();
+    const num = parseInt(indicatorText?.match(/Move (\d+)/)?.[1] || "0");
+    expect(num).toBeGreaterThan(0);
   });
 });
