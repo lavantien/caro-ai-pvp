@@ -298,43 +298,36 @@ export class UCIEngine {
 }
 
 /**
- * Convert (x, y) coordinates to algebraic notation.
- * x: 0-15 (column), y: 0-15 (row)
- * Returns notation like "h8" for center (7, 7).
+ * Convert (x, y) coordinates to the engine's double-letter UCI notation:
+ * first letter encodes the row (y), second the column (x). Matches the
+ * backend's uci.MoveToString, e.g. (7, 7) becomes "hh".
  */
 export function toUCI(x: number, y: number): string {
 	const maxIndex = UCIConfig.maxRow - 1;
 	if (x < 0 || x > maxIndex || y < 0 || y > maxIndex) {
 		throw new Error(`Coordinates out of bounds: (${x}, ${y})`);
 	}
-	const column = String.fromCharCode(UCIConfig.asciiLowerA + x);
-	const row = y + UCIConfig.minRow;
-	return `${column}${row}`;
+	const rowLetter = String.fromCharCode(UCIConfig.asciiLowerA + y);
+	const colLetter = String.fromCharCode(UCIConfig.asciiLowerA + x);
+	return `${rowLetter}${colLetter}`;
 }
 
 /**
- * Convert algebraic notation to (x, y) coordinates.
- * Notation like "h8" becomes (7, 7).
+ * Convert double-letter UCI notation to (x, y) coordinates.
+ * "hh" becomes (7, 7); first letter is the row, second the column.
  */
 export function fromUCI(move: string): { x: number; y: number } {
-	if (!move || move.length < 2) {
-		throw new Error(`Invalid move: ${move}`);
+	if (!move || move.length !== 2) {
+		throw new Error(`Invalid move: ${move} (expected two letters, e.g. hh)`);
 	}
 
 	move = move.toLowerCase();
-	const col = move[0];
-
-	if (!/[a-p]/.test(col)) {
-		throw new Error(`Invalid column in move: ${move} (expected a-p)`);
+	if (!/[a-p]/.test(move[0]) || !/[a-p]/.test(move[1])) {
+		throw new Error(`Invalid coordinates in move: ${move} (expected a-p for both letters)`);
 	}
 
-	const row = parseInt(move.substring(1), 10);
-	if (isNaN(row) || row < UCIConfig.minRow || row > UCIConfig.maxRow) {
-		throw new Error(`Invalid row in move: ${move}`);
-	}
-
-	const x = col.charCodeAt(0) - UCIConfig.asciiLowerA;
-	const y = row - UCIConfig.minRow;
+	const y = move.charCodeAt(0) - UCIConfig.asciiLowerA;
+	const x = move.charCodeAt(1) - UCIConfig.asciiLowerA;
 
 	return { x, y };
 }

@@ -3,7 +3,8 @@ import { GameConfig } from './gameConfig';
 
 /**
  * Centralized UCI protocol configuration - coordinate system and defaults.
- * Uses simple algebraic notation: columns a-p, rows 1-16.
+ * Engine wire format is double-letter notation: letter for the row (y)
+ * followed by a letter for the column (x), e.g. "hh" is the center.
  */
 
 export const UCIConfig = {

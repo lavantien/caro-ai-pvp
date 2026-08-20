@@ -2,7 +2,9 @@ package uci
 
 import (
 	"bytes"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -38,20 +40,33 @@ func TestUCIHandlerNewGame(t *testing.T) {
 	assert.Equal(t, "none", h.Board().GetPlayerAt(0, 0).String())
 }
 
+// waitForBestmove polls until the async search goroutine has answered.
+func waitForBestmove(t *testing.T, h *UCIHandler, buf *threadsafeBuffer) string {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if s := buf.String(); strings.Contains(s, "bestmove ") {
+			return s
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return buf.String()
+}
+
 func TestUCIHandlerGoMovetime(t *testing.T) {
-	var buf bytes.Buffer
-	h := NewUCIHandler(nil, &buf)
-	h.HandleCommand("go movetime 100")
-	output := buf.String()
+	buf := newThreadsafeBuffer()
+	h := NewUCIHandler(nil, buf)
+	h.HandleCommand("go movetime 2000")
+	output := waitForBestmove(t, h, buf)
 	assert.Contains(t, output, "bestmove ")
 	assert.Contains(t, output, "info ")
 }
 
 func TestUCIHandlerGoWtime(t *testing.T) {
-	var buf bytes.Buffer
-	h := NewUCIHandler(nil, &buf)
-	h.HandleCommand("go wtime 5000 btime 5000")
-	output := buf.String()
+	buf := newThreadsafeBuffer()
+	h := NewUCIHandler(nil, buf)
+	h.HandleCommand("go wtime 20000 btime 20000")
+	output := waitForBestmove(t, h, buf)
 	assert.Contains(t, output, "bestmove ")
 }
 
