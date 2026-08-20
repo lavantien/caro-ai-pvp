@@ -129,7 +129,7 @@ func ParallelSearch(
 				completedDepth = depth
 				results <- parallelResult{x: x, y: y, score: score, depth: depth}
 
-				if score >= domain.WinScore-domain.AbsoluteMaxDepth {
+				if isForcedWinScore(score) {
 					break
 				}
 			}
@@ -151,6 +151,17 @@ func ParallelSearch(
 			bestX, bestY = r.x, r.y
 			bestDepth = r.depth
 		}
+	}
+
+	if bestDepth == 0 {
+		// No worker finished a depth in time. Fall back to the best-ordered
+		// move, never the raw scan-order candidate list head.
+		sb := NewSearchBoard(b)
+		ordered := OrderMoves(candidates, &sb, player, 0, nil, heuristics)
+		if len(ordered) > 0 {
+			bestX, bestY = ordered[0].X, ordered[0].Y
+		}
+		bestScore = 0
 	}
 
 	elapsed := monitor.ElapsedMs()

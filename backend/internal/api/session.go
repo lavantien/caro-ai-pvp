@@ -78,14 +78,22 @@ func (s *GameSession) ExtractForAI() (domain.Board, domain.Player, bool, int64, 
 
 func (s *GameSession) GetOrCreateAI(player domain.Player) *engine.MinimaxAI {
 	threads := engine.GetEngineThreadsForLoad(s.activeGameCount())
+	diff := s.redDifficulty
+	if player == domain.PlayerBlue {
+		diff = s.blueDifficulty
+	}
+	ttSizeMB := engine.DefaultSessionTTSizeMB
+	if diff != nil && *diff >= 1 && *diff <= 5 {
+		ttSizeMB = engine.GetDifficultyProfile(*diff).TTSizeMB
+	}
 	if player == domain.PlayerRed {
 		if s.redAI == nil {
-			s.redAI = engine.NewMinimaxAI(s.logger, threads)
+			s.redAI = engine.NewMinimaxAI(s.logger, threads, ttSizeMB)
 		}
 		return s.redAI
 	}
 	if s.blueAI == nil {
-		s.blueAI = engine.NewMinimaxAI(s.logger, threads)
+		s.blueAI = engine.NewMinimaxAI(s.logger, threads, ttSizeMB)
 	}
 	return s.blueAI
 }

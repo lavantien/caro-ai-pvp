@@ -11,7 +11,7 @@ import (
 )
 
 func TestMinimaxAIFindsWinningMove(t *testing.T) {
-	ai := NewMinimaxAI(slog.Default(), 1)
+	ai := NewMinimaxAI(slog.Default(), 1, 64)
 	b := domain.NewBoard()
 	for x := 3; x < 7; x++ {
 		b = b.PlaceStone(x, 5, domain.PlayerRed)
@@ -36,22 +36,22 @@ func TestMinimaxAIFindsWinningMove(t *testing.T) {
 }
 
 func TestMinimaxAIDispose(t *testing.T) {
-	ai := NewMinimaxAI(slog.Default(), 2)
+	ai := NewMinimaxAI(slog.Default(), 2, 64)
 	assert.NotPanics(t, func() { ai.Dispose() })
 }
 
 func TestNewMinimaxAIMinThreads(t *testing.T) {
-	ai := NewMinimaxAI(slog.Default(), 0)
+	ai := NewMinimaxAI(slog.Default(), 0, 64)
 	assert.NotNil(t, ai)
 	ai.Dispose()
 
-	ai = NewMinimaxAI(slog.Default(), -1)
+	ai = NewMinimaxAI(slog.Default(), -1, 64)
 	assert.NotNil(t, ai)
 	ai.Dispose()
 }
 
 func TestMinimaxAIWithContextCancel(t *testing.T) {
-	ai := NewMinimaxAI(slog.Default(), 1)
+	ai := NewMinimaxAI(slog.Default(), 1, 64)
 	defer ai.Dispose()
 
 	b := domain.NewBoard().

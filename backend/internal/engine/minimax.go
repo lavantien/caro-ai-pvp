@@ -37,12 +37,15 @@ type MinimaxAI struct {
 	stats      SearchStats
 }
 
-func NewMinimaxAI(logger *slog.Logger, maxThreads int) *MinimaxAI {
+func NewMinimaxAI(logger *slog.Logger, maxThreads int, ttSizeMB int) *MinimaxAI {
 	if maxThreads < 1 {
 		maxThreads = 1
 	}
+	if ttSizeMB < 1 {
+		ttSizeMB = domain.DefaultTTSizeMB
+	}
 	return &MinimaxAI{
-		tt:         NewTranspositionTable(domain.DefaultTTSizeMB),
+		tt:         NewTranspositionTable(ttSizeMB),
 		heuristics: NewSearchHeuristics(),
 		logger:     logger,
 		maxThreads: maxThreads,

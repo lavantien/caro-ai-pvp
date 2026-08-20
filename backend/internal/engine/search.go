@@ -113,10 +113,20 @@ func SearchPosition(
 			bestX, bestY = x, y
 			bestScore = score
 			completedDepth = depth
-			if score >= domain.WinScore {
+			if isForcedWinScore(score) {
 				break
 			}
 		}
+	}
+
+	if completedDepth == 0 {
+		// No depth finished in time. Fall back to the best-ordered move,
+		// never the raw scan-order candidate list head.
+		ordered := OrderMoves(candidates, &sb, player, 0, nil, heuristics)
+		if len(ordered) > 0 {
+			bestX, bestY = ordered[0].X, ordered[0].Y
+		}
+		bestScore = 0
 	}
 
 	elapsed := monitor.ElapsedMs()
@@ -166,6 +176,7 @@ func searchRoot(
 
 	bestScore := -domain.Infinity
 	bestX, bestY := -1, -1
+	origAlpha := alpha
 
 	for i, move := range ordered {
 		if monitor.ShouldStop() {
@@ -198,6 +209,12 @@ func searchRoot(
 	}
 
 	if bestX >= 0 && !monitor.ShouldStop() {
+		flag := TTExact
+		if bestScore <= origAlpha {
+			flag = TTUpperBound
+		} else if bestScore >= beta {
+			flag = TTLowerBound
+		}
 		tt.Store(TTEntry{
 			Hash:       sb.Hash(),
 			Score:      int32(adjustMateScoreForStore(bestScore, 0)),
@@ -205,7 +222,7 @@ func searchRoot(
 			Depth:      uint8(depth),
 			MoveX:      int8(bestX),
 			MoveY:      int8(bestY),
-			Flag:       TTExact,
+			Flag:       flag,
 		})
 		heuristics.RecordKiller(depth, domain.Position{X: bestX, Y: bestY})
 	}
@@ -377,8 +394,9 @@ func quiesce(
 	}
 
 	standPat := Evaluate(sb, player)
+	best := standPat
 	if standPat >= beta {
-		return beta
+		return standPat
 	}
 	if standPat > alpha {
 		alpha = standPat
@@ -402,20 +420,22 @@ func quiesce(
 		}
 		sb.UnmakeMove()
 
+		if score > best {
+			best = score
+		}
 		if score >= beta {
-			return beta
+			return score
 		}
 		if score > alpha {
 			alpha = score
 		}
 	}
 
-	return alpha
+	return best
 }
 
-func isMateScore(score int) bool {
-	return score > domain.WinScore-domain.AbsoluteMaxDepth ||
-		score < -domain.WinScore+domain.AbsoluteMaxDepth
+func isForcedWinScore(score int) bool {
+	return score >= domain.WinScore-domain.AbsoluteMaxDepth
 }
 
 func adjustMateScoreForStore(score int, plyFromRoot int) int {

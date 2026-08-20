@@ -1,6 +1,9 @@
 package engine
 
-import "runtime"
+import (
+	"caro-ai-pvp/internal/domain"
+	"runtime"
+)
 
 type DifficultyProfile struct {
 	Name         string
@@ -8,6 +11,7 @@ type DifficultyProfile struct {
 	Goroutines   int
 	UseVCF       bool
 	Ponder       bool
+	TTSizeMB     int
 }
 
 func GetDifficultyProfile(level int) DifficultyProfile {
@@ -16,22 +20,22 @@ func GetDifficultyProfile(level int) DifficultyProfile {
 
 	switch level {
 	case 1:
-		return DifficultyProfile{"Novice", 0.05, 1, false, false}
+		return DifficultyProfile{"Novice", 0.05, 1, false, false, 64}
 	case 2:
-		return DifficultyProfile{"Beginner", 0.15, 1, false, false}
+		return DifficultyProfile{"Beginner", 0.15, 1, false, false, 64}
 	case 3:
-		return DifficultyProfile{"Intermediate", 0.40, 2, true, false}
+		return DifficultyProfile{"Intermediate", 0.40, 2, true, false, 256}
 	case 4:
 		l4 := pow2Floor(l5Goroutines / 2)
 		if l4 < 1 {
 			l4 = 1
 		}
-		return DifficultyProfile{"Advanced", 0.70, l4, true, false}
+		return DifficultyProfile{"Advanced", 0.70, l4, true, false, domain.DefaultTTSizeMB}
 	default:
 		if l5Goroutines < 1 {
 			l5Goroutines = 1
 		}
-		return DifficultyProfile{"Grandmaster", 1.0, l5Goroutines, true, true}
+		return DifficultyProfile{"Grandmaster", 1.0, l5Goroutines, true, true, domain.DefaultTTSizeMB}
 	}
 }
 
@@ -52,3 +56,6 @@ func GetEngineThreadsForLoad(activeGames int) int {
 	}
 	return runtime.GOMAXPROCS(0) / activeGames
 }
+
+// DefaultSessionTTSizeMB bounds the table used when no difficulty level is set.
+const DefaultSessionTTSizeMB = 256
