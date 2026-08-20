@@ -1,6 +1,6 @@
 # Performance Statistics
 
-The engine supports 5 difficulty levels (L1 Novice through L5 Grandmaster). L5 = full strength.
+The engine supports 5 difficulty levels (L1 Novice through L5 Grandmaster). Levels are strength-based: depth caps L1=2 .. L5=50, VCF solver from L3, parallel search from L4. Time fraction is a secondary cap.
 
 Per-move statlines are logged during AI vs AI matches:
 
@@ -14,45 +14,43 @@ Format: `M<move> <player> <pos> d=<depth> n=<nodes> nps=<nps> tt=<hit%> s=<score
 - `alloc`: time budget allocated by time manager (vs `t` which is actual elapsed)
 - `[VCF]`: present when move was found by VCF solver (pre-search)
 
-## Benchmark Commands
+## Benchmark commands
 
 ```bash
-node scripts/run-tournament.mjs --games 4 --red 5 --blue 5 --tc 3+2
+node scripts/run-tournament.mjs --games 20 --red 1 --blue 5 --tc 3+0 --seed 20260821
 node scripts/simulate-match.mjs --red 5 --blue 1 --tc 3+2 --json
 ```
 
-## L1 (Novice) vs L5 (Grandmaster), 3+0, 20 games (color-swapped)
+The tournament runner randomizes openings (seeded), swaps colors every game, reports per-color and per-reason breakdowns with a 95% Wilson score interval, and writes `tournament-summary.json`.
+
+## L1 (Novice) vs L5 (Grandmaster), 3+0, 20 games
+
+Command: `node scripts/run-tournament.mjs --games 20 --red 1 --blue 5 --tc 3+0 --seed 20260821`
+Source artifacts: `tournament.txt`, `tournament-summary.json` (2026-08-21)
 
 ```
-A (L1 Novice):       12/20 (60.0%)
-B (L5 Grandmaster):   8/20 (40.0%)
-Draws: 0
-Avg moves: 26.2
-Avg time: 294.2s
+A (L1 Novice):       4/20
+B (L5 Grandmaster): 16/20
+Draws: 0 | Errored: 0
+Red color wins: 12 | Blue color wins: 8
+End reasons: 20 x win (no timeouts at 3+0: the allocator scales with the remaining clock)
+A win rate (decisive games): 20.0% 95% CI [8.1%, 41.6%]
+Avg moves: 34.5
+Avg time: 96.3s
 ```
 
-Source: `tournament.txt`
+L5 wins the matchup decisively. Games are decided on the board across varied seeded openings; the previous artifact's contradiction (published 60% for L1 against an 89%-for-L5 log) is resolved: strength ordering and reported numbers now come from the same run.
 
-Note: L1 wins are largely due to time-pressure advantage (5% budget = fast moves, less clock pressure). L5 achieves deeper search but consumes more time per move. Score dominance comes from TT-sharing parallel search at L5.
+### Typical statlines from this run
 
-### L5 Per-Move Stats (typical mid-game)
+| Level | Depth | Nodes | Threads | Think time |
+|-------|-------|-------|---------|------------|
+| L5 mid-game | 4-14 | 0.4M-5M | 8 | 2-11s |
+| L5 endgame (VCF converting) | 0 (solver) | 0 | 8 | <0.1s |
+| L1 | 2 | 1K-150K | 1 | 0.05-0.6s |
 
-| Metric | Range |
-|--------|-------|
-| Depth | 4-14 |
-| Nodes | 1.6M - 21.4M |
-| NPS | 310K - 860K |
-| TT Hit Rate | 1% - 27% |
-| Threads | Pow2((N-2)/2) |
-| Think Time | 1.4s - 30.0s |
+### Interpretation notes
 
-### L1 Per-Move Stats (typical)
-
-| Metric | Range |
-|--------|-------|
-| Depth | 3-5 |
-| Nodes | 100K - 235K |
-| NPS | 100K - 155K |
-| TT Hit Rate | 50% - 64% (high due to shallow search reuse) |
-| Threads | 1 |
-| Think Time | 1.5s - 1.6s (capped by 5% time budget) |
+- Red's 12-8 color edge is the first-move advantage on a 16x16 board; color-swapped pairs cancel it in the A/B totals.
+- L1's 4 wins are upsets from sharp seeded openings where a depth-2 engine can still execute a forced win it can see.
+- At 3+0 neither level flags: the time allocator spends a bounded fraction of the remaining clock, so "3+0" here measures play under a tight but managed budget. Flag-fall adjudication exists and is exercised by the API tests.
