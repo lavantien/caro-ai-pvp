@@ -17,7 +17,7 @@ const (
 	MaxVCFCacheEntries = 10_000
 	VCFTimeFraction    = 0.20
 
-	MaxSearchRadius       = 7
+	MaxSearchRadius       = 2
 	MaxKillerMoves        = 2
 	MaxKillerDepth        = 512
 	TimeCheckInterval     = 16

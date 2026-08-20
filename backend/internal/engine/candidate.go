@@ -81,24 +81,16 @@ func isTacticalMove(sb *SearchBoard, x, y int, player, opponent domain.Player) b
 	}
 	sb.UnmakeMove()
 
-	// Creates open four or block four (forcing: opponent must respond)
-	if createsFourType(sb, x, y, player) {
-		return true
+	// Four for either side (creating or blocking). Quiescence extends only
+	// forcing moves: open threes are not forcing (the opponent may ignore
+	// them), so they stay visible to eval and move ordering but not here.
+	// Each direction's line is extracted once and negated for the opponent.
+	for _, dir := range evalDirs {
+		line := extractLine(sb, x, y, player, dir[0], dir[1])
+		if lineCompletions(line) >= 1 || lineCompletions(negateLine(line)) >= 1 {
+			return true
+		}
 	}
-
-	// Blocks opponent's open four or block four
-	if createsFourType(sb, x, y, opponent) {
-		return true
-	}
-
-	// Creates or blocks open three
-	if createsOpenThree(sb, x, y, player) {
-		return true
-	}
-	if createsOpenThree(sb, x, y, opponent) {
-		return true
-	}
-
 	return false
 }
 

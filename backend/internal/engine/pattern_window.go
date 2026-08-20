@@ -83,16 +83,9 @@ func spanIsFive(line [11]int8, lo, hi int) bool {
 	return !beforeBlocked || !afterBlocked
 }
 
-// isFiveInDir reports whether (x,y), which must hold player's stone, sits on
-// an exact five along (dx,dy).
-func isFiveInDir(sb *SearchBoard, x, y int, player domain.Player, dx, dy int) bool {
-	line := extractLine(sb, x, y, player, dx, dy)
-	lo, hi := spanThrough(line, -1)
-	return spanIsFive(line, lo, hi)
-}
-
-// lineCompletions counts empty cells within offsets -4..+4 whose fill makes
-// an exact five through the center. Mutates nothing.
+// lineCompletions counts empty cells whose fill makes an exact five through
+// the center. Only the cells adjacent to the center's maximal span can ever
+// complete it, so at most two candidates are tested. Mutates nothing.
 func lineCompletions(line [11]int8) int {
 	// A five through the center needs the center plus three more own stones
 	// already in the window (the fourth slot is the fill itself).
@@ -105,17 +98,32 @@ func lineCompletions(line [11]int8) int {
 	if own < domain.WinLength-1 {
 		return 0
 	}
+	lo, hi := spanThrough(line, -1)
 	comps := 0
-	for i := 1; i <= 9; i++ {
+	for i := max(lo-1, 1); i <= min(hi+1, 9); i++ {
 		if line[i] != lineEmpty {
 			continue
 		}
-		lo, hi := spanThrough(line, i)
-		if spanIsFive(line, lo, hi) {
+		l2, h2 := spanThrough(line, i)
+		if spanIsFive(line, l2, h2) {
 			comps++
 		}
 	}
 	return comps
+}
+
+// negateLine returns the same line from the opponent's perspective.
+func negateLine(line [11]int8) [11]int8 {
+	var out [11]int8
+	for i, v := range line {
+		switch v {
+		case lineOwn:
+			out[i] = lineOpp
+		case lineOpp:
+			out[i] = lineOwn
+		}
+	}
+	return out
 }
 
 // fiveCompletionsInDir assumes (x,y) holds player's stone and returns the
@@ -133,27 +141,6 @@ func fiveCompletionsInDir(sb *SearchBoard, x, y int, player domain.Player, dx, d
 		}
 	}
 	return out
-}
-
-// reachesFourInDir assumes (x,y) holds player's stone and reports whether
-// some line cell, when filled by player, yields at least wantComps winning
-// completions in this direction (i.e. the shape can become a four next move).
-func reachesFourInDir(sb *SearchBoard, x, y int, player domain.Player, dx, dy int, wantComps int) bool {
-	line := extractLine(sb, x, y, player, dx, dy)
-	for i := 1; i <= 9; i++ {
-		if line[i] != lineEmpty {
-			continue
-		}
-		if separatedByOpp(line, i) {
-			continue
-		}
-		filled := line
-		filled[i] = lineOwn
-		if lineCompletions(filled) >= wantComps {
-			return true
-		}
-	}
-	return false
 }
 
 // maxCompsAfterFill returns the largest completion count reachable by filling

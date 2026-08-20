@@ -38,29 +38,16 @@ type PlayerPattern4 struct {
 // along (dx,dy), gap-aware: split fours and broken threes count like their
 // straight equivalents.
 func classifyDirection(sb *SearchBoard, x, y, dx, dy int, player domain.Player) Pattern4 {
-	pos, neg := 0, 0
-	for i := 1; i <= domain.WinLength; i++ {
-		nx, ny := x+dx*i, y+dy*i
-		if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
-			break
-		}
-		pos++
-	}
-	for i := 1; i <= domain.WinLength; i++ {
-		nx, ny := x-dx*i, y-dy*i
-		if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
-			break
-		}
-		neg++
-	}
-	if 1+pos+neg > domain.WinLength {
+	line := extractLine(sb, x, y, player, dx, dy)
+
+	lo, hi := spanThrough(line, -1)
+	if hi-lo+1 > domain.WinLength {
 		return P4Overline
 	}
-
-	if isFiveInDir(sb, x, y, player, dx, dy) {
+	if spanIsFive(line, lo, hi) {
 		return P4Exactly5
 	}
-	line := extractLine(sb, x, y, player, dx, dy)
+
 	comps := lineCompletions(line)
 	switch comps {
 	case 0:
