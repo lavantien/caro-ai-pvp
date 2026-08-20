@@ -36,6 +36,14 @@ func AllocateTime(timeRemainingMs int64, incrementMs int64, moveNumber int) Time
 	if hardBound > timeRemainingMs-domain.TimeReserveMs {
 		hardBound = timeRemainingMs - domain.TimeReserveMs
 	}
+	// Any live clock still deserves a usable budget: a zero or negative hard
+	// bound makes the search abort instantly and fall back to move ordering.
+	if timeRemainingMs > 0 && hardBound < domain.TimeMinBufferMs {
+		hardBound = domain.TimeMinBufferMs
+	}
+	if hardBound < 0 {
+		hardBound = 0
+	}
 
 	softBound := int64(float64(optimal) * domain.TimeSoftBoundFraction)
 

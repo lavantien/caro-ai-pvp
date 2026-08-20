@@ -21,7 +21,8 @@ func TestDifficultyProfileLevels(t *testing.T) {
 		{2, "Beginner", 0.14, 0.16, 1, false, false},
 		{3, "Intermediate", 0.39, 0.41, 2, true, false},
 		{4, "Advanced", 0.69, 0.71, 1, true, false},
-		{5, "Grandmaster", 0.99, 1.01, 1, true, true},
+		// Pondering is unimplemented; the flag stays false until it exists.
+		{5, "Grandmaster", 0.99, 1.01, 1, true, false},
 	}
 
 	for _, tc := range profiles {

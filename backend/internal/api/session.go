@@ -46,13 +46,37 @@ func NewGameSession(
 func (s *GameSession) GetResponse() GameResponse {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.checkTimeoutLocked()
 	return s.buildResponse()
 }
 
 func (s *GameSession) IsGameOver() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.checkTimeoutLocked()
 	return s.game.IsGameOver
+}
+
+// checkTimeoutLocked adjudicates a flag fall: if the player on the clock has
+// let it run out since the last move, they lose on time. Requires s.mu.
+func (s *GameSession) checkTimeoutLocked() {
+	if s.game.IsGameOver {
+		return
+	}
+	elapsed := time.Since(s.lastMoveAt).Milliseconds()
+	clock := &s.redTimeMs
+	if s.game.CurrentPlayer == domain.PlayerBlue {
+		clock = &s.blueTimeMs
+	}
+	if elapsed >= *clock {
+		*clock = 0
+		winner := domain.PlayerBlue
+		if s.game.CurrentPlayer == domain.PlayerBlue {
+			winner = domain.PlayerRed
+		}
+		s.game = s.game.WithTimeout(winner)
+		s.DisposeAI()
+	}
 }
 
 func (s *GameSession) LastActivityAt() time.Time {
@@ -64,6 +88,7 @@ func (s *GameSession) LastActivityAt() time.Time {
 func (s *GameSession) ExtractForAI() (domain.Board, domain.Player, bool, int64, int, int, *int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.checkTimeoutLocked()
 
 	timeRemaining := s.redTimeMs
 	diff := s.redDifficulty
@@ -101,6 +126,7 @@ func (s *GameSession) GetOrCreateAI(player domain.Player) *engine.MinimaxAI {
 func (s *GameSession) ApplyMove(x, y int) (GameResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.checkTimeoutLocked()
 
 	if s.game.IsGameOver {
 		return GameResponse{}, domain.ErrGameOver
@@ -178,6 +204,7 @@ func (s *GameSession) buildResponse() GameResponse {
 		MoveNumber:        s.game.MoveNumber,
 		IsGameOver:        s.game.IsGameOver,
 		Winner:            s.game.Winner.String(),
+		EndReason:         s.game.EndReason,
 		WinningLine:       winningLine,
 		RedTimeRemaining:  float64(s.redTimeMs) / 1000.0,
 		BlueTimeRemaining: float64(s.blueTimeMs) / 1000.0,

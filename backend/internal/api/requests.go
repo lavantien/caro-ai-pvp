@@ -19,6 +19,7 @@ type GameResponse struct {
 	MoveNumber        int                `json:"moveNumber"`
 	IsGameOver        bool               `json:"isGameOver"`
 	Winner            string             `json:"winner"`
+	EndReason         string             `json:"endReason"`
 	WinningLine       []PositionResponse `json:"winningLine"`
 	RedTimeRemaining  float64            `json:"redTimeRemaining"`
 	BlueTimeRemaining float64            `json:"blueTimeRemaining"`

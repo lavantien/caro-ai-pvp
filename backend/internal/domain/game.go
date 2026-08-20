@@ -7,6 +7,7 @@ type GameState struct {
 	IsGameOver       bool
 	Winner           Player
 	WinningLine      []Position
+	EndReason        string
 	BoardHistory     []Board
 	MoveHistory      []Position
 	TimeControl      string
@@ -94,18 +95,19 @@ func (g GameState) CanUndo() bool {
 }
 
 func (g GameState) WithGameOver(winner Player, line []Position) GameState {
-	return GameState{
-		Board:            g.Board,
-		CurrentPlayer:    PlayerNone,
-		MoveNumber:       g.MoveNumber,
-		IsGameOver:       true,
-		Winner:           winner,
-		WinningLine:      line,
-		BoardHistory:     g.BoardHistory,
-		MoveHistory:      g.MoveHistory,
-		TimeControl:      g.TimeControl,
-		InitialTimeMs:    g.InitialTimeMs,
-		IncrementSeconds: g.IncrementSeconds,
-		GameMode:         g.GameMode,
-	}
+	g.CurrentPlayer = PlayerNone
+	g.IsGameOver = true
+	g.Winner = winner
+	g.WinningLine = line
+	g.EndReason = "win"
+	return g
+}
+
+// WithTimeout ends the game because player ran out of clock time.
+func (g GameState) WithTimeout(winner Player) GameState {
+	g.CurrentPlayer = PlayerNone
+	g.IsGameOver = true
+	g.Winner = winner
+	g.EndReason = "timeout"
+	return g
 }

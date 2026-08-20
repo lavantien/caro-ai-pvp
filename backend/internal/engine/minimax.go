@@ -27,6 +27,7 @@ type SearchOptions struct {
 	ParallelEnabled bool
 	TimeFraction    float64
 	UseVCF          bool
+	MaxDepth        int
 }
 
 type MinimaxAI struct {
@@ -62,9 +63,17 @@ func (ai *MinimaxAI) GetBestMove(
 
 	timeAlloc := AllocateTime(opts.TimeRemainingMs, opts.IncrementMs, opts.MoveNumber)
 	hardBound := int64(float64(timeAlloc.HardBoundMs) * opts.TimeFraction)
+	if hardBound < 0 {
+		hardBound = 0
+	}
+
+	maxDepth := opts.MaxDepth
+	if maxDepth <= 0 || maxDepth > domain.AbsoluteMaxDepth {
+		maxDepth = domain.AbsoluteMaxDepth
+	}
 
 	config := SearchConfig{
-		MaxDepth:     domain.AbsoluteMaxDepth,
+		MaxDepth:     maxDepth,
 		TimeLimitMs:  hardBound,
 		Goroutines:   min(opts.ThreadCount, ai.maxThreads),
 		UseVCF:       opts.UseVCF,
