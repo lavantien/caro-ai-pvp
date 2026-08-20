@@ -8,6 +8,7 @@ import (
 type SearchConfig struct {
 	MaxDepth     int
 	TimeLimitMs  int64
+	SoftLimitMs  int64 // stop starting new depths once elapsed passes this; 0 disables
 	Goroutines   int
 	UseVCF       bool
 	TimeFraction float64
@@ -71,6 +72,11 @@ func SearchPosition(
 
 	for depth := 1; depth <= config.MaxDepth; depth++ {
 		if monitor.ShouldStop() {
+			break
+		}
+		// Do not start an iteration that cannot finish inside the soft
+		// budget; the hard bound stays as the emergency stop.
+		if depth > 1 && config.SoftLimitMs > 0 && monitor.ElapsedMs() >= config.SoftLimitMs {
 			break
 		}
 
@@ -141,6 +147,10 @@ func SearchPosition(
 		nps = float64(nodes) / float64(elapsed) * 1000
 	}
 
+	moveType := ""
+	if completedDepth == 0 {
+		moveType = "timeout-fallback"
+	}
 	return bestX, bestY, SearchStats{
 		DepthAchieved:   completedDepth,
 		NodesSearched:   nodes,
@@ -149,6 +159,7 @@ func SearchPosition(
 		TableHitRate:    hitRate,
 		AllocatedTimeMs: config.TimeLimitMs,
 		ThreadCount:     1,
+		MoveType:        moveType,
 	}
 }
 

@@ -66,6 +66,10 @@ func (ai *MinimaxAI) GetBestMove(
 	if hardBound < 0 {
 		hardBound = 0
 	}
+	softBound := int64(float64(timeAlloc.SoftBoundMs) * opts.TimeFraction)
+	if softBound < 0 {
+		softBound = 0
+	}
 
 	maxDepth := opts.MaxDepth
 	if maxDepth <= 0 || maxDepth > domain.AbsoluteMaxDepth {
@@ -75,6 +79,7 @@ func (ai *MinimaxAI) GetBestMove(
 	config := SearchConfig{
 		MaxDepth:     maxDepth,
 		TimeLimitMs:  hardBound,
+		SoftLimitMs:  softBound,
 		Goroutines:   min(opts.ThreadCount, ai.maxThreads),
 		UseVCF:       opts.UseVCF,
 		TimeFraction: opts.TimeFraction,

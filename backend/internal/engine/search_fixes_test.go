@@ -4,6 +4,7 @@ import (
 	"caro-ai-pvp/internal/domain"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -37,11 +38,34 @@ func TestZeroTimeFallbackIsOrdered(t *testing.T) {
 	heuristics := NewSearchHeuristics()
 	opts := SearchConfig{MaxDepth: domain.AbsoluteMaxDepth, TimeLimitMs: 0, Goroutines: 1}
 
-	x, y, _ := SearchPosition(b, domain.PlayerRed, opts, tt, heuristics, context.Background())
+	x, y, stats := SearchPosition(b, domain.PlayerRed, opts, tt, heuristics, context.Background())
 
 	completes := (x == 2 || x == 7) && y == 5
 	assert.True(t, completes,
 		"with no time for any depth the fallback must be an ordered move (the winning completion), got (%d,%d)", x, y)
+	assert.Equal(t, "timeout-fallback", stats.MoveType,
+		"a move picked without any completed depth must be flagged in the stats")
+}
+
+func TestSoftLimitStopsBeforeHardBound(t *testing.T) {
+	b := domain.NewBoard().
+		PlaceStone(8, 8, domain.PlayerRed).
+		PlaceStone(9, 9, domain.PlayerBlue).
+		PlaceStone(7, 7, domain.PlayerRed).
+		PlaceStone(10, 10, domain.PlayerBlue).
+		PlaceStone(6, 8, domain.PlayerRed).
+		PlaceStone(9, 6, domain.PlayerBlue)
+	tt := NewTranspositionTable(1)
+	heuristics := NewSearchHeuristics()
+	opts := SearchConfig{MaxDepth: domain.AbsoluteMaxDepth, TimeLimitMs: 5000, SoftLimitMs: 500, Goroutines: 1}
+
+	start := time.Now()
+	_, _, stats := SearchPosition(b, domain.PlayerRed, opts, tt, heuristics, context.Background())
+	elapsed := time.Since(start)
+
+	assert.GreaterOrEqual(t, stats.DepthAchieved, 1)
+	assert.Less(t, elapsed.Milliseconds(), int64(2500),
+		"search must stop near the soft limit instead of burning to the hard bound (elapsed %dms)", elapsed.Milliseconds())
 }
 
 func TestRootSearchStoresBoundFlagOnFailLow(t *testing.T) {

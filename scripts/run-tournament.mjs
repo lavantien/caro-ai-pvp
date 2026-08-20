@@ -246,6 +246,9 @@ async function main() {
 		console.log(`A: L${redDifficulty} (${NAMES[redDifficulty]})`);
 		console.log(`B: L${blueDifficulty} (${NAMES[blueDifficulty]})`);
 		console.log(`Games: ${games} | TC: ${timeControl} | Color swap: every match | Seed: ${seed}`);
+		if (games % 2 !== 0) {
+			console.log('Warning: an odd game count gives A one extra game with a given color.');
+		}
 		console.log('');
 	}
 

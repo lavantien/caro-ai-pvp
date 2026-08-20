@@ -85,6 +85,11 @@ func ParallelSearch(
 				if monitor.ShouldStop() {
 					break
 				}
+				// Do not start an iteration that cannot finish inside the
+				// soft budget; the hard bound stays as the emergency stop.
+				if depth > 1 && config.SoftLimitMs > 0 && monitor.ElapsedMs() >= config.SoftLimitMs {
+					break
+				}
 
 				delta := domain.AspirationWindowSize
 				a, bnd := -domain.Infinity, domain.Infinity
@@ -153,6 +158,7 @@ func ParallelSearch(
 		}
 	}
 
+	moveType := ""
 	if bestDepth == 0 {
 		// No worker finished a depth in time. Fall back to the best-ordered
 		// move, never the raw scan-order candidate list head.
@@ -162,6 +168,7 @@ func ParallelSearch(
 			bestX, bestY = ordered[0].X, ordered[0].Y
 		}
 		bestScore = 0
+		moveType = "timeout-fallback"
 	}
 
 	elapsed := monitor.ElapsedMs()
@@ -184,5 +191,6 @@ func ParallelSearch(
 		TableHitRate:    ttHitRate,
 		AllocatedTimeMs: config.TimeLimitMs,
 		ThreadCount:     numWorkers,
+		MoveType:        moveType,
 	}
 }
