@@ -11,7 +11,14 @@ export function calculateGhostStonePosition(x: number, y: number, offset: number
 }
 
 export function isValidCell(x: number, y: number): boolean {
-	return x >= 0 && x < GameConfig.boardSize && y >= 0 && y < GameConfig.boardSize;
+	return (
+		Number.isInteger(x) &&
+		Number.isInteger(y) &&
+		x >= 0 &&
+		x < GameConfig.boardSize &&
+		y >= 0 &&
+		y < GameConfig.boardSize
+	);
 }
 
 export function computeCellSize(viewportWidth: number): number {

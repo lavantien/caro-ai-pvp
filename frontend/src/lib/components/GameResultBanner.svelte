@@ -12,10 +12,16 @@
 <div
 	class="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-2 shadow-lg animate-slide-down {winner === 'red'
 		? 'bg-red-600'
-		: 'bg-blue-600'}"
+		: winner === 'blue'
+			? 'bg-blue-600'
+			: 'bg-slate-600'}"
 >
 	<h2 class="text-lg font-bold uppercase tracking-wide text-white">
-		{winner} Wins!
+		{#if winner === 'red' || winner === 'blue'}
+			{winner} Wins!
+		{:else}
+			Draw
+		{/if}
 	</h2>
 	<button
 		onclick={onNewGame}

@@ -18,8 +18,6 @@ const (
 	VCFTimeFraction    = 0.20
 
 	MaxSearchRadius       = 2
-	MaxKillerMoves        = 2
-	MaxKillerDepth        = 512
 	TimeCheckInterval     = 16
 	AbsoluteMaxDepth      = 50
 	AspirationWindowSize  = 1_500
@@ -27,11 +25,9 @@ const (
 	NullMoveMinDepth      = 4
 	NullMoveReduction     = 2
 	MaxQuiescenceDepth    = 4
-	ContinuationPlyCount  = 6
 
 	LMRMinDepth       = 3
 	LMRFullDepthMoves = 4
-	PVSEnabledDepth   = 2
 
 	WinScore = 30_000
 

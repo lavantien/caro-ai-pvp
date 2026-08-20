@@ -1,6 +1,7 @@
 package api
 
 import (
+	"caro-ai-pvp/internal/domain"
 	"sync"
 	"time"
 )
@@ -60,7 +61,10 @@ func (s *InMemoryStore) CleanupCompleted() int {
 	removed := 0
 	now := time.Now()
 	for id, g := range s.games {
-		if g.IsGameOver() || now.Sub(g.LastActivityAt()) > 5*time.Minute {
+		// Finished games go immediately; a live game (e.g. a long think
+		// under a slow control) only goes after the abandoned-game window,
+		// never the short idle sweep.
+		if g.IsGameOver() || now.Sub(g.LastActivityAt()) > domain.AbandonedTimeoutMinutes*time.Minute {
 			g.DisposeAI()
 			delete(s.games, id)
 			removed++

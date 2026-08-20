@@ -16,7 +16,6 @@ const (
 	historyScoreCap  = 300_000
 	centerWeight     = 100
 	proximityWeight  = 10
-	goodQuietThreshold = 500
 )
 
 type ScoredMove struct {

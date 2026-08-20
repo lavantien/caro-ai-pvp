@@ -17,10 +17,14 @@ type Handler struct {
 	matches *persistence.MatchStore
 	logger  interface {
 		Info(msg string, args ...any)
+		Error(msg string, args ...any)
 	}
 }
 
-func NewHandler(store *InMemoryStore, matches *persistence.MatchStore, logger interface{ Info(string, ...any) }) *Handler {
+func NewHandler(store *InMemoryStore, matches *persistence.MatchStore, logger interface {
+	Info(string, ...any)
+	Error(string, ...any)
+}) *Handler {
 	return &Handler{store: store, matches: matches, logger: logger}
 }
 
@@ -104,11 +108,13 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 				blueType = "bot"
 			}
 		}
-		h.matches.CreateGame(persistence.GameRecord{
+		if err := h.matches.CreateGame(persistence.GameRecord{
 			ID: gameID, GameMode: gameMode.String(), TimeControl: timeControl,
 			RedType: redType, BlueType: blueType,
 			RedDifficulty: redDiff, BlueDifficulty: blueDiff,
-		})
+		}); err != nil && h.logger != nil {
+			h.logger.Error("match store create game", "gameId", gameID, "err", err)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -178,7 +184,6 @@ func (h *Handler) MakeAIMove(w http.ResponseWriter, r *http.Request) {
 			IncrementMs:     int64(incrementSeconds) * 1000,
 			MoveNumber:      moveNumber,
 			ThreadCount:     profile.Goroutines,
-			PonderEnabled:   profile.Ponder,
 			ParallelEnabled: profile.Goroutines > 1,
 			TimeFraction:    profile.TimeFraction,
 			UseVCF:          profile.UseVCF,
@@ -189,7 +194,6 @@ func (h *Handler) MakeAIMove(w http.ResponseWriter, r *http.Request) {
 			TimeRemainingMs: timeRemainingMs,
 			IncrementMs:     int64(incrementSeconds) * 1000,
 			MoveNumber:      moveNumber,
-			PonderEnabled:   true,
 			ParallelEnabled: true,
 			TimeFraction:    1.0,
 			UseVCF:          true,
@@ -200,7 +204,7 @@ func (h *Handler) MakeAIMove(w http.ResponseWriter, r *http.Request) {
 	x, y, stats := ai.GetBestMove(board, player, opts, r.Context())
 	thinkTime := time.Since(start).Milliseconds()
 
-	resp, err := session.ApplyMove(x, y)
+	resp, err := session.ApplyAIMove(x, y, player)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -246,7 +250,9 @@ func (h *Handler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 		if winner == "" || winner == "none" {
 			winner = "abandoned"
 		}
-		h.matches.CompleteGame(id, winner, resp.MoveNumber)
+		if err := h.matches.CompleteGame(id, winner, resp.MoveNumber); err != nil && h.logger != nil {
+			h.logger.Error("match store complete game", "gameId", id, "err", err)
+		}
 	}
 	h.store.Delete(id)
 	writeJSON(w, http.StatusOK, map[string]any{"deleted": true})
@@ -259,16 +265,20 @@ func (h *Handler) logHumanMove(gameID string, x, y int, resp GameResponse) {
 		moveNum--
 		player = opponentOf(player)
 	}
-	h.matches.RecordMove(persistence.MoveRecord{
+	if err := h.matches.RecordMove(persistence.MoveRecord{
 		GameID:     gameID,
 		MoveNumber: moveNum,
 		Player:     player,
 		PosX:       x,
 		PosY:       y,
 		IsBot:      false,
-	})
+	}); err != nil && h.logger != nil {
+		h.logger.Error("match store record move", "gameId", gameID, "err", err)
+	}
 	if resp.IsGameOver {
-		h.matches.CompleteGame(gameID, resp.Winner, resp.MoveNumber)
+		if err := h.matches.CompleteGame(gameID, resp.Winner, resp.MoveNumber); err != nil && h.logger != nil {
+			h.logger.Error("match store complete game", "gameId", gameID, "err", err)
+		}
 	}
 }
 
@@ -292,7 +302,7 @@ func (h *Handler) logAIMove(gameID string, x, y int, resp GameResponse, difficul
 	allocMs := stats.AllocatedTimeMs
 	mt := "exact"
 
-	h.matches.RecordMove(persistence.MoveRecord{
+	if err := h.matches.RecordMove(persistence.MoveRecord{
 		GameID:          gameID,
 		MoveNumber:      moveNum,
 		Player:          player,
@@ -310,9 +320,13 @@ func (h *Handler) logAIMove(gameID string, x, y int, resp GameResponse, difficul
 		ThreadsUsed:     &threads,
 		AllocatedTimeMs: &allocMs,
 		MoveType:        &mt,
-	})
+	}); err != nil && h.logger != nil {
+		h.logger.Error("match store record move", "gameId", gameID, "err", err)
+	}
 	if resp.IsGameOver {
-		h.matches.CompleteGame(gameID, resp.Winner, resp.MoveNumber)
+		if err := h.matches.CompleteGame(gameID, resp.Winner, resp.MoveNumber); err != nil && h.logger != nil {
+			h.logger.Error("match store complete game", "gameId", gameID, "err", err)
+		}
 	}
 }
 

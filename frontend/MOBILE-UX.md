@@ -38,7 +38,7 @@
 - **Location**: `src/lib/components/Board.svelte` (line 48)
 - **Implementation**:
   - `touch-none` class applied to board container
-  - Allows browser's default pinch-to-zoom gesture
+  - Blocks touch gestures on the board itself (touch-action:none); pinch-to-zoom still works outside the board area
   - Grid uses fixed pixel sizes from UIConfig (64px cells)
 
 **Manual Test**:

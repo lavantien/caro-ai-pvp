@@ -178,25 +178,21 @@ Move ordering is critical for alpha-beta efficiency. The engine uses staged gene
 | 3 | MUST_BLOCK | Mandatory defense against opponent's open four or five threat |
 | 4 | THREAT_CREATE | Creates threats (open three, broken four) |
 | 5 | KILLER_COUNTER | Killer moves and counter-move responses combined |
-| 6 | GOOD_QUIET | Quiet moves with high history scores (>500) |
-| 7 | BAD_QUIET | Remaining quiet moves |
+| 6 | QUIET | All remaining quiet moves, sorted by history/killer/continuation/center/proximity score |
 
 ### 4.2 Staged Move Picker
 
 Moves are generated and scored in stages, allowing early termination on cutoffs.
 
-**Two ordering systems:**
-- `MovePicker` (parallel path): Large absolute scores from `MoveOrderingConstants` for strict priority separation
-- `MoveOrderer` (sequential path): Compact scale (TT=10K, EmergencyDefense=5K, Killer=1K) for tiebreaking within stages
+**One picker:** `MovePicker` stages generation so cutoffs skip whole stages, and an exact-dedup bitmap prevents a move from yielding twice. `OrderMoves` is the all-at-once wrapper used at the root.
 
-**Stage Sequence (MovePicker - parallel path):**
-1. **TT_MOVE** - Single move from transposition table (1M score)
-2. **WINNING_MOVE** - Creates open four or double threat (1.5M score)
-3. **MUST_BLOCK** - Mandatory blocks against opponent's winning threats (2M score)
-4. **THREAT_CREATE** - Creates open three or broken four (800K score)
-5. **KILLER_COUNTER** - Killer moves (400K-500K) + counter-move responses (150K)
-6. **GOOD_QUIET** - Quiet moves with continuation + butterfly history > 500
-7. **BAD_QUIET** - Remaining quiet moves
+**Stage Sequence:**
+1. **TT_MOVE** - Single move from transposition table (10M score)
+2. **WINNING_MOVE** - Completes an exact five
+3. **MUST_BLOCK** - Opponent would complete a five here
+4. **THREAT_CREATE** - Four/three creation or denial, scored by the gap-aware threat analysis
+5. **KILLER_COUNTER** - Killer moves (400K-500K) + counter-move responses (350K)
+6. **QUIET** - History/killer/continuation score + center bias + proximity
 
 **Score Constants (MoveOrderingConstants):**
 | Category | Score |
@@ -276,25 +272,20 @@ General-purpose move ordering based on past performance.
 
 ## 5. Evaluation System
 
-### 5.1 BitKey Pattern System
+### 5.1 Line-Window Pattern Analysis
 
-O(1) pattern lookup using 64-bit keys with bit rotation for board alignment.
+`pattern_window.go` classifies threats from 11-cell line windows centered on a
+stone: any exact five through the center plus both end-check cells fits in the
+window. All analysis is allocation-free array work on the extracted line.
 
-**Principle:**
-- Board positions encoded as bit sequences
-- 2 bits per cell (empty, red, blue)
-- Rotation aligns patterns around position being evaluated
-
-**Directional Keys:**
-- Horizontal: Row-based bitkeys
-- Vertical: Column-based bitkeys
-- Diagonal: Index-sum based bitkeys
-- Anti-diagonal: Index-difference based bitkeys
-
-**Pattern Extraction:**
-- Rotate bitkey to center evaluation position
-- Extract relevant bits for pattern window
-- Lookup pattern classification in table
+**Primitives:**
+- `extractLine` - read the 11 cells relative to a player (own/empty/opponent)
+- `spanThrough` - maximal contiguous own run containing the center, with an
+  optional single fill cell (this is what makes split fours visible)
+- `lineCompletions` - empty cells adjacent to the span whose fill makes an
+  exact five through the center (at most two candidates exist)
+- `maxCompsAfterFill` - best completion count reachable by one more stone;
+  >=2 means the shape can become an open four (flex three class)
 
 ### 5.2 Pattern4 Classification
 
@@ -511,7 +502,6 @@ All shared data structures designed for concurrent access.
 - TT with 16 shards, each protected by `sync.RWMutex` (concurrent reads, exclusive writes)
 - Go channels for async communication
 - Independent history tables per goroutine
-- sync.Pool for SearchBoard reuse
 
 ### 8.2 Cancellation
 

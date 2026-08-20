@@ -1,25 +1,11 @@
 /**
  * UCI Engine client for WebSocket communication with the backend.
- * Implements the Universal Chess Interface protocol for Caro.
+ * Speaks plaintext UCI lines (the backend's uci package format):
+ * commands like "position startpos moves hh", replies like "uciok",
+ * "readyok", "bestmove hh". Double-letter notation: letter(y) + letter(x).
  */
 
 import { UCIConfig } from '$lib/config/uciConfig';
-
-export interface UCICommand {
-	command: string;
-	position?: string;
-	moves?: string[];
-	whiteTime?: number;
-	blackTime?: number;
-	whiteIncrement?: number;
-	blackIncrement?: number;
-	moveTime?: number;
-	depth?: number;
-	nodes?: number;
-	infinite?: boolean;
-	name?: string;
-	value?: string;
-}
 
 export interface UCIResponse {
 	id?: string[];
@@ -27,7 +13,6 @@ export interface UCIResponse {
 	uciOk?: boolean;
 	readyOk?: boolean;
 	ok?: boolean;
-	searching?: boolean;
 	stopped?: boolean;
 	bestMove?: string;
 	info?: UCIInfo;
@@ -42,24 +27,18 @@ export interface UCIInfo {
 	pv: string[];
 }
 
-export interface UCIMoveResult {
-	bestMove: string;
-	info?: UCIInfo;
+interface LineWaiter {
+	match: (line: string) => boolean;
+	resolve: (line: string) => void;
+	reject: (error: Error) => void;
+	timer: ReturnType<typeof setTimeout>;
 }
 
-/**
- * UCI Engine class for WebSocket-based UCI communication.
- */
 export class UCIEngine {
 	private ws: WebSocket | null = null;
 	private url: string;
-	private connected = $state(false);
-	private pendingCommands = new Map<string, {
-		resolve: (value: UCIResponse) => void;
-		reject: (error: Error) => void;
-	}>();
-	private commandId = 0;
-	private bestMoveCallback: ((move: string) => void) | null = null;
+	private connected = false;
+	private waiters: LineWaiter[] = [];
 
 	constructor(url: string = UCIConfig.defaultWsUrl) {
 		this.url = url;
@@ -78,24 +57,25 @@ export class UCIEngine {
 				this.ws = new WebSocket(this.url);
 
 				this.ws.onopen = () => {
-					console.log('[UCI] Connected to engine');
 					this.connected = true;
 					resolve(true);
 				};
 
 				this.ws.onmessage = (event) => {
-					this.handleMessage(event.data);
+					const data = typeof event.data === 'string' ? event.data : '';
+					for (const line of data.split('\n')) {
+						if (line.trim()) this.handleLine(line.trim());
+					}
 				};
 
-				this.ws.onerror = (error) => {
-					console.error('[UCI] WebSocket error:', error);
+				this.ws.onerror = () => {
 					this.connected = false;
 					reject(new Error('WebSocket connection failed'));
 				};
 
 				this.ws.onclose = () => {
-					console.log('[UCI] Connection closed');
 					this.connected = false;
+					this.failWaiters(new Error('UCI engine connection closed'));
 				};
 			} catch (error) {
 				reject(error);
@@ -112,6 +92,7 @@ export class UCIEngine {
 			this.ws = null;
 			this.connected = false;
 		}
+		this.failWaiters(new Error('UCI engine disconnected'));
 	}
 
 	/**
@@ -122,72 +103,45 @@ export class UCIEngine {
 	}
 
 	/**
-	 * Initialize UCI protocol.
+	 * Initialize the UCI protocol handshake.
 	 */
 	async initialize(): Promise<UCIResponse> {
-		const response = await this.sendCommand({ command: 'uci' });
-		if (response.uciOk) {
-			console.log('[UCI] Engine initialized');
-		}
-		return response;
+		this.send('uci');
+		await this.waitFor((l) => l === 'uciok', UCIConfig.searchTimeoutMs);
+		return { uciOk: true };
 	}
 
 	/**
-	 * Check if engine is ready.
+	 * Check if the engine is ready.
 	 */
 	async isReady(): Promise<boolean> {
-		const response = await this.sendCommand({ command: 'isready' });
-		return response.readyOk ?? false;
+		this.send('isready');
+		await this.waitFor((l) => l === 'readyok', UCIConfig.searchTimeoutMs);
+		return true;
 	}
 
 	/**
 	 * Start a new game.
 	 */
 	async newGame(): Promise<UCIResponse> {
-		const response = await this.sendCommand({ command: 'ucinewgame' });
-		return response;
+		this.send('ucinewgame');
+		return { ok: true };
 	}
 
 	/**
 	 * Set position and optionally apply moves.
 	 */
 	async setPosition(position: string = 'startpos', moves?: string[]): Promise<UCIResponse> {
-		return this.sendCommand({ command: 'position', position, moves });
-	}
-
-	/**
-	 * Get the best move for the current position.
-	 * Returns the move in UCI notation (e.g., "j10").
-	 */
-	async getBestMove(
-		moves: string[] = [],
-		whiteTime = UCIConfig.defaultTimeMs,
-		blackTime = UCIConfig.defaultTimeMs,
-		whiteIncrement = UCIConfig.defaultIncrementMs,
-		blackIncrement = UCIConfig.defaultIncrementMs
-	): Promise<string> {
-		// Set position first
-		await this.setPosition('startpos', moves);
-
-		// Start search
-		const response = await this.sendCommand({
-			command: 'go',
-			whiteTime,
-			blackTime,
-			whiteIncrement,
-			blackIncrement
-		});
-
-		if (response.bestMove) {
-			return response.bestMove;
+		const parts = ['position', position];
+		if (moves?.length) {
+			parts.push('moves', ...moves);
 		}
-
-		throw new Error('No best move returned');
+		this.send(parts.join(' '));
+		return { ok: true };
 	}
 
 	/**
-	 * Get the best move as a promise that resolves when the search completes.
-	 * This is useful for async/await patterns.
+	 * Get the best move for the given move history in double-letter notation.
 	 */
 	async getBestMoveAsync(
 		moves: string[] = [],
@@ -196,103 +150,76 @@ export class UCIEngine {
 		whiteIncrement = UCIConfig.defaultIncrementMs,
 		blackIncrement = UCIConfig.defaultIncrementMs
 	): Promise<string> {
-		// Set position first
 		await this.setPosition('startpos', moves);
-
-		// Register a callback for the best move
-		return new Promise((resolve, reject) => {
-			this.bestMoveCallback = resolve;
-
-			// Set up a timeout
-			const timeout = setTimeout(() => {
-				this.bestMoveCallback = null;
-				reject(new Error('Search timeout'));
-			}, UCIConfig.searchTimeoutMs);
-
-			// Start search
-			this.sendCommand({
-				command: 'go',
-				whiteTime,
-				blackTime,
-				whiteIncrement,
-				blackIncrement
-			}).then(() => {
-				clearTimeout(timeout);
-			}).catch((error) => {
-				clearTimeout(timeout);
-				this.bestMoveCallback = null;
-				reject(error);
-			});
-		});
+		this.send(
+			`go wtime ${whiteTime} btime ${blackTime} winc ${whiteIncrement} binc ${blackIncrement}`
+		);
+		const line = await this.waitFor(
+			(l) => l.startsWith('bestmove '),
+			UCIConfig.searchTimeoutMs
+		);
+		return line.slice('bestmove '.length).trim();
 	}
+
+	/** Alias kept for callers using the older name. */
+	getBestMove = this.getBestMoveAsync;
 
 	/**
 	 * Set an engine option.
 	 */
 	async setOption(name: string, value: string | number | boolean): Promise<UCIResponse> {
-		return this.sendCommand({
-			command: 'setoption',
-			name,
-			value: String(value)
-		});
+		this.send(`setoption name ${name} value ${String(value)}`);
+		return { ok: true };
 	}
 
-
 	/**
-	 * Stop the current search.
+	 * Stop the current search. The engine will still answer with bestmove.
 	 */
 	async stop(): Promise<UCIResponse> {
-		return this.sendCommand({ command: 'stop' });
+		this.send('stop');
+		return { stopped: true };
 	}
 
-	/**
-	 * Send a command and wait for response.
-	 */
-	private async sendCommand(command: UCICommand): Promise<UCIResponse> {
-		if (!this.isConnected()) {
+	private send(line: string) {
+		if (!this.isConnected() || !this.ws) {
 			throw new Error('Not connected to UCI engine');
 		}
+		this.ws.send(line);
+	}
 
-		const id = `cmd_${++this.commandId}`;
-
+	private waitFor(match: (line: string) => boolean, timeoutMs: number): Promise<string> {
 		return new Promise((resolve, reject) => {
-			this.pendingCommands.set(id, { resolve, reject });
-
-			try {
-				this.ws!.send(JSON.stringify(command));
-			} catch (error) {
-				this.pendingCommands.delete(id);
-				reject(error);
-			}
+			const waiter: LineWaiter = {
+				match,
+				resolve: (line) => {
+					clearTimeout(waiter.timer);
+					this.waiters = this.waiters.filter((w) => w !== waiter);
+					resolve(line);
+				},
+				reject: (error) => {
+					clearTimeout(waiter.timer);
+					this.waiters = this.waiters.filter((w) => w !== waiter);
+					reject(error);
+				},
+				timer: setTimeout(() => {
+					waiter.reject(new Error('Search timeout'));
+				}, timeoutMs)
+			};
+			this.waiters.push(waiter);
 		});
 	}
 
-	/**
-	 * Handle incoming WebSocket message.
-	 */
-	private handleMessage(data: string) {
-		try {
-			const response: UCIResponse = JSON.parse(data);
+	private failWaiters(error: Error) {
+		for (const w of this.waiters) {
+			w.reject(error);
+		}
+		this.waiters = [];
+	}
 
-			// Check if this is a best move notification
-			if (response.bestMove && this.bestMoveCallback) {
-				const callback = this.bestMoveCallback;
-				this.bestMoveCallback = null;
-				callback(response.bestMove);
-			}
-
-			// For commands that expect a response, resolve with the first response
-			// This is a simple implementation - in production, you might want more sophisticated matching
-			if (this.pendingCommands.size > 0) {
-				const firstEntry = this.pendingCommands.entries().next().value;
-				if (firstEntry) {
-					const [id, { resolve }] = firstEntry;
-					this.pendingCommands.delete(id);
-					resolve(response);
-				}
-			}
-		} catch (error) {
-			console.error('[UCI] Error parsing message:', error);
+	private handleLine(line: string) {
+		const waiter = this.waiters.find((w) => w.match(line));
+		if (waiter) {
+			waiter.resolve(line);
 		}
 	}
 }

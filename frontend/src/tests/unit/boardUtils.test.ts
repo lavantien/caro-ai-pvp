@@ -89,18 +89,14 @@ describe('boardUtils', () => {
       expect(isValidCell(GameConfig.boardSize, 0)).toBe(false);
       expect(isValidCell(-0.1, 0)).toBe(false);
       expect(isValidCell(0, -0.1)).toBe(false);
-      expect(isValidCell(15.1, 15)).toBe(true);
-      expect(isValidCell(15, 15.1)).toBe(true);
     });
 
-    it('should handle floating point numbers correctly', () => {
-      expect(isValidCell(0.5, 0.5)).toBe(true);
-      expect(isValidCell(7.3, 12.7)).toBe(true);
-      expect(isValidCell(15.9, 15.9)).toBe(true);
+    it('should reject fractional coordinates', () => {
+      // Cell indices are integers; a fractional index cannot address a cell.
+      expect(isValidCell(0.5, 0.5)).toBe(false);
+      expect(isValidCell(7.3, 12.7)).toBe(false);
+      expect(isValidCell(15.9, 15.9)).toBe(false);
       expect(isValidCell(-0.5, 0)).toBe(false);
-      expect(isValidCell(0, -0.5)).toBe(false);
-      expect(isValidCell(GameConfig.boardSize + 0.1, 0)).toBe(false);
-      expect(isValidCell(0, GameConfig.boardSize + 0.1)).toBe(false);
     });
 
     it('should handle large numbers correctly', () => {

@@ -226,9 +226,9 @@ func (s *MatchStore) GetGame(gameID string) (*GameRecord, error) {
 		v := int(blueDiff.Int64)
 		g.BlueDifficulty = &v
 	}
-	g.CreatedAt, _ = time.Parse("2006-01-02T15:04:05Z", createdAt)
+	g.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt) // SQLite CURRENT_TIMESTAMP layout
 	if completedAt.Valid {
-		t, _ := time.Parse("2006-01-02T15:04:05Z", completedAt.String)
+		t, _ := time.Parse("2006-01-02 15:04:05", completedAt.String)
 		g.CompletedAt = &t
 	}
 	return &g, nil

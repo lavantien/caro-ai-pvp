@@ -139,6 +139,9 @@ func (s *GameSession) ExtractForAI() (domain.Board, domain.Player, bool, int64, 
 }
 
 func (s *GameSession) GetOrCreateAI(player domain.Player) *engine.MinimaxAI {
+	// Compute the thread budget before taking s.mu: the callback locks the
+	// store, and the store's ActiveGameCount locks sessions, so locking in
+	// the other order would deadlock.
 	threads := engine.GetEngineThreadsForLoad(s.activeGameCount())
 	diff := s.redDifficulty
 	if player == domain.PlayerBlue {
@@ -148,6 +151,9 @@ func (s *GameSession) GetOrCreateAI(player domain.Player) *engine.MinimaxAI {
 	if diff != nil && *diff >= 1 && *diff <= 5 {
 		ttSizeMB = engine.GetDifficultyProfile(*diff).TTSizeMB
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if player == domain.PlayerRed {
 		if s.redAI == nil {
 			s.redAI = engine.NewMinimaxAI(s.logger, threads, ttSizeMB)
@@ -158,6 +164,24 @@ func (s *GameSession) GetOrCreateAI(player domain.Player) *engine.MinimaxAI {
 		s.blueAI = engine.NewMinimaxAI(s.logger, threads, ttSizeMB)
 	}
 	return s.blueAI
+}
+
+// ApplyAIMove applies a move the engine computed for expectedPlayer. The
+// search runs unlocked for seconds, so the turn is re-validated here: if
+// another move landed first, the stale result is rejected instead of being
+// played for the wrong color.
+func (s *GameSession) ApplyAIMove(x, y int, expectedPlayer domain.Player) (GameResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.checkTimeoutLocked()
+
+	if s.game.IsGameOver {
+		return GameResponse{}, domain.ErrGameOver
+	}
+	if s.game.CurrentPlayer != expectedPlayer {
+		return GameResponse{}, domain.ErrNotPlayerTurn
+	}
+	return s.applyMoveLocked(x, y)
 }
 
 // ApplyHumanMove validates that a human may move right now: spectators
@@ -205,6 +229,8 @@ func (s *GameSession) applyMoveLocked(x, y int) (GameResponse, error) {
 	result := domain.CheckWinFromMove(newGame.Board, x, y)
 	if result.HasWinner {
 		newGame = newGame.WithGameOver(result.Winner, result.WinningLine)
+	} else if newGame.MoveNumber >= domain.MaxMoves {
+		newGame = newGame.WithDraw()
 	}
 
 	now := time.Now()
@@ -235,7 +261,25 @@ func (s *GameSession) UndoLastMove() (GameResponse, error) {
 		return GameResponse{}, err
 	}
 	s.game = newGame
+
+	// In player-vs-AI a single ply of undo would hand the turn straight to
+	// the engine (its reply comes free). Take back a full turn so the human
+	// is on the move again.
+	if s.game.GameMode == domain.GameModePvAI && !s.game.IsGameOver && s.aiOwnsTurnLocked() && len(s.game.BoardHistory) > 0 {
+		if newGame, err := s.game.UndoMove(); err == nil {
+			s.game = newGame
+		}
+	}
 	return s.buildResponse(), nil
+}
+
+// aiOwnsTurnLocked reports whether the engine side is to move. Requires s.mu.
+func (s *GameSession) aiOwnsTurnLocked() bool {
+	aiIsRed := s.redDifficulty != nil
+	if aiIsRed {
+		return s.game.CurrentPlayer == domain.PlayerRed
+	}
+	return s.game.CurrentPlayer == domain.PlayerBlue
 }
 
 func (s *GameSession) DisposeAI() {
@@ -263,6 +307,18 @@ func (s *GameSession) buildResponse() GameResponse {
 		winningLine[i] = PositionResponse{X: p.X, Y: p.Y}
 	}
 
+	// Clocks display live: the player on the move has been burning time
+	// since the last move landed.
+	redTime, blueTime := s.redTimeMs, s.blueTimeMs
+	if !s.game.IsGameOver && s.game.MoveNumber >= 0 {
+		elapsed := time.Since(s.lastMoveAt).Milliseconds()
+		if s.game.CurrentPlayer == domain.PlayerRed {
+			redTime = max(0, redTime-elapsed)
+		} else if s.game.CurrentPlayer == domain.PlayerBlue {
+			blueTime = max(0, blueTime-elapsed)
+		}
+	}
+
 	return GameResponse{
 		Board:             cells,
 		CurrentPlayer:     s.game.CurrentPlayer.String(),
@@ -271,8 +327,8 @@ func (s *GameSession) buildResponse() GameResponse {
 		Winner:            s.game.Winner.String(),
 		EndReason:         s.game.EndReason,
 		WinningLine:       winningLine,
-		RedTimeRemaining:  float64(s.redTimeMs) / 1000.0,
-		BlueTimeRemaining: float64(s.blueTimeMs) / 1000.0,
+		RedTimeRemaining:  float64(redTime) / 1000.0,
+		BlueTimeRemaining: float64(blueTime) / 1000.0,
 		TimeControl:       s.game.TimeControl,
 		InitialTime:       int(s.game.InitialTimeMs / 1000),
 		Increment:         s.game.IncrementSeconds,

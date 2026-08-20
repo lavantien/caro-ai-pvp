@@ -111,3 +111,12 @@ func (g GameState) WithTimeout(winner Player) GameState {
 	g.EndReason = "timeout"
 	return g
 }
+
+// WithDraw ends the game without a winner (board full).
+func (g GameState) WithDraw() GameState {
+	g.CurrentPlayer = PlayerNone
+	g.IsGameOver = true
+	g.Winner = PlayerNone
+	g.EndReason = "draw"
+	return g
+}

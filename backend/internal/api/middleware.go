@@ -3,14 +3,26 @@ package api
 import (
 	"log/slog"
 	"net/http"
+	"net/url"
 	"runtime/debug"
 	"time"
 )
 
+// isLocalOrigin reports whether an Origin header points at a loopback host,
+// which is the only cross-origin caller this local game server expects.
+func isLocalOrigin(origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	host := u.Hostname()
+	return u.Scheme == "http" && (host == "localhost" || host == "127.0.0.1" || host == "::1")
+}
+
 func CORSMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if origin != "" {
+		if origin != "" && isLocalOrigin(origin) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")

@@ -68,6 +68,28 @@ func TestSoftLimitStopsBeforeHardBound(t *testing.T) {
 		"search must stop near the soft limit instead of burning to the hard bound (elapsed %dms)", elapsed.Milliseconds())
 }
 
+func TestTTStoreStampsCurrentAge(t *testing.T) {
+	tt := NewTranspositionTable(1)
+	// Two distinct hashes sharing one slot (offset by the table stride).
+	h1 := uint64(0xABCD)
+	h2 := h1 + uint64(len(tt.shards[0].slots))
+	tt.Store(TTEntry{Hash: h1, Score: 100, Depth: 10})
+
+	for range 3 {
+		tt.IncrementAge()
+	}
+	// A fresh shallow entry must outcompete the now-stale deep one for the
+	// slot (same-hash replacement stays depth-only by design).
+	tt.Store(TTEntry{Hash: h2, Score: 5, Depth: 2})
+
+	_, ok := tt.Lookup(h1)
+	assert.False(t, ok, "aged entry must lose the slot to the fresh write")
+	entry, ok := tt.Lookup(h2)
+	assert.True(t, ok)
+	assert.Equal(t, int32(5), entry.Score)
+	assert.Equal(t, uint8(3), entry.Age, "stored entries carry the current age")
+}
+
 func TestRootSearchStoresBoundFlagOnFailLow(t *testing.T) {
 	b := domain.NewBoard().
 		PlaceStone(7, 7, domain.PlayerRed).

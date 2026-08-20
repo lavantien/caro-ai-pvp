@@ -414,6 +414,7 @@ func quiesce(
 	}
 
 	candidates := GetTacticalCandidates(sb, player)
+	candidates = FilterOpenRule(candidates, sb, player)
 	for _, move := range candidates {
 		if monitor.ShouldStop() {
 			break

@@ -21,8 +21,8 @@
 	let winningLine = $state<Array<{ x: number; y: number }>>([]);
 	let lastMove = $state<{ x: number; y: number } | null>(null);
 
-	let redTime = $state(180);
-	let blueTime = $state(180);
+	let redTime = $state(420);
+	let blueTime = $state(420);
 
 	let gameMode = $state<GameMode>('pvp');
 	let timeControl = $state<TimeControl>('7+5');
@@ -37,8 +37,13 @@
 	let redDifficulty = $state<number | null>(null);
 	let blueDifficulty = $state<number | null>(null);
 
+	// Bumped whenever a new game is created or the page unmounts, so a
+	// stale AI-vs-AI loop stops instead of writing an old game over the
+	// fresh one.
+	let gameGeneration = 0;
+
 	const openRuleInvalid = $derived(() => {
-		if (store.currentPlayer !== 'red' || store.moveNumber !== 1) return new Set<string>();
+		if (store.currentPlayer !== 'red' || store.moveNumber !== 2) return new Set<string>();
 		let redCount = 0;
 		let blueCount = 0;
 		let firstRedX = 0, firstRedY = 0;
@@ -67,6 +72,12 @@
 	}
 
 	function showError(msg: string) {
+		try {
+			const parsed = JSON.parse(msg);
+			msg = parsed.message ?? msg;
+		} catch {
+			// not a backend JSON error body; show as-is
+		}
 		errorMessage = msg;
 		setTimeout(() => errorMessage = '', 5000);
 	}
@@ -76,9 +87,6 @@
 		try {
 			const connected = await store.connectUCI();
 			uciConnectionStatus = connected ? 'connected' : 'disconnected';
-			if (connected) {
-				store.reset();
-			}
 		} catch (err) {
 			console.error('Failed to connect to UCI:', err);
 			uciConnectionStatus = 'disconnected';
@@ -136,8 +144,13 @@
 		return null;
 	}
 
-	onMount(async () => {
-		await createNewGame();
+	onMount(() => {
+		void createNewGame();
+		// Leaving the page must stop the AI-vs-AI loop from driving the
+		// server any further.
+		return () => {
+			gameGeneration++;
+		};
 	});
 
 	function retry() {
@@ -147,6 +160,8 @@
 	}
 
 	async function createNewGame() {
+		// Invalidate any AI loop still running for a previous game.
+		gameGeneration++;
 		try {
 			store.reset();
 			winningLine = [];
@@ -202,8 +217,9 @@
 		const response = await fetch(`${ApiConfig.baseUrl}${ApiConfig.endpoints.game(gameId)}`);
 		const data = await response.json();
 		syncGameState(data.state);
-		if (data.state.winner) {
-			store.winner = data.state.winner;
+		if (data.state.isGameOver) {
+			store.winner =
+				data.state.winner === 'red' || data.state.winner === 'blue' ? data.state.winner : undefined;
 		}
 	}
 
@@ -254,8 +270,12 @@
 			});
 
 			lastMove = { x, y };
-			if (data.state.isGameOver && data.state.winner) {
-				handleGameEnd(data.state.winner);
+			if (data.state.isGameOver) {
+				if (data.state.winner && data.state.winner !== 'none') {
+					handleGameEnd(data.state.winner);
+				} else {
+					store.winner = undefined;
+				}
 			}
 		} catch (err) {
 			cell.player = 'none';
@@ -274,10 +294,12 @@
 		if (!gameId || store.isGameOver) return;
 
 		isAiThinking = true;
+		const generation = gameGeneration;
 		try {
 			// In AI-vs-AI the whole game runs as one loop; in player-vs-AI a
-			// single move is made for the AI side.
-			while (!store.isGameOver) {
+			// single move is made for the AI side. The loop stops when a new
+			// game replaces this one or the page unmounts.
+			while (!store.isGameOver && generation === gameGeneration) {
 				const previousBoard = store.board;
 				const aiPlayer = store.currentPlayer;
 				let aiMove: { x: number; y: number } | null = null;
@@ -323,6 +345,7 @@
 					aiMove = findNewMove(previousBoard, data.state.board);
 				}
 
+				if (generation !== gameGeneration) break;
 				syncGameState(data.state);
 
 				if (aiMove) {
@@ -333,17 +356,24 @@
 						y: aiMove.y
 					});
 					lastMove = { x: aiMove.x, y: aiMove.y };
+					soundManager.playStoneSound(aiPlayer as 'red' | 'blue');
 				}
 
-				if (data.state.isGameOver && data.state.winner) {
-					handleGameEnd(data.state.winner);
+				if (data.state.isGameOver) {
+					if (data.state.winner && data.state.winner !== 'none') {
+						handleGameEnd(data.state.winner);
+					} else {
+						store.winner = undefined;
+					}
 				}
 				if (gameMode !== 'aivai') break;
 			}
 		} catch (err) {
 			showError('Failed to make AI move');
 		} finally {
-			isAiThinking = false;
+			if (generation === gameGeneration) {
+				isAiThinking = false;
+			}
 		}
 	}
 

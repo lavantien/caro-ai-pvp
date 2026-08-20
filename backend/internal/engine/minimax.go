@@ -23,7 +23,6 @@ type SearchOptions struct {
 	IncrementMs     int64
 	MoveNumber      int
 	ThreadCount     int
-	PonderEnabled   bool
 	ParallelEnabled bool
 	TimeFraction    float64
 	UseVCF          bool

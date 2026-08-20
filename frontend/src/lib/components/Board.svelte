@@ -37,6 +37,10 @@
 		onMove(x, y);
 	}
 
+	function clearGhost() {
+		ghostPosition = null;
+	}
+
 	function handleTouchMove(event: TouchEvent) {
 		const touch = event.touches[0];
 		const element = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -75,7 +79,12 @@
 </script>
 
 <div class="w-full max-w-[1024px] mx-auto" bind:this={boardEl}>
-	<div class="relative inline-block">
+	<div
+		class="relative inline-block"
+		ontouchmove={handleTouchMove}
+		ontouchend={clearGhost}
+		ontouchcancel={clearGhost}
+	>
 		<!-- Outer wrapper: labels + grid -->
 		<div
 			class="grid gap-0 touch-none select-none"
@@ -105,8 +114,7 @@
 						isLastMove={lastMove !== null && x === lastMove.x && y === lastMove.y}
 						isOpenRuleInvalid={openRuleInvalid.has(key)}
 						{cellSize}
-						onclick={() => handleCellClick(x, y)}
-						onkeydown={(e) => e.key === 'Enter' && handleCellClick(x, y)} />
+						onclick={() => handleCellClick(x, y)} />
 				{/each}
 				<!-- Right row label -->
 				<div class="flex items-center justify-center text-gray-400 font-mono" style="font-size: {labelFont};">{row}</div>

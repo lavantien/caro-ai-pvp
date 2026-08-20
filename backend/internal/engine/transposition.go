@@ -73,6 +73,9 @@ func (tt *TranspositionTable) Store(entry TTEntry) {
 	idx := entry.Hash & shard.mask
 
 	currentAge := uint8(tt.age.Load())
+	// Stamp the write with the current age so the depth-age replacement
+	// policy can prefer fresh entries over stale ones.
+	entry.Age = currentAge
 
 	entryPrio := int(entry.Depth) - 8*int(currentAge-entry.Age)
 

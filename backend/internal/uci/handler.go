@@ -118,7 +118,16 @@ func (h *UCIHandler) handlePosition(args []string) {
 			moves = append(moves, domain.Position{X: x, Y: y})
 		}
 		for _, m := range moves {
-			h.board = h.board.PlaceStone(m.X, m.Y, h.player)
+			// PlaceStone panics on an occupied cell; a replayed game with a
+			// duplicate move must error instead of taking down the engine.
+			newBoard, err := h.board.PlaceStoneChecked(m.X, m.Y, h.player)
+			if err != nil {
+				h.respond(fmt.Sprintf("info string error move %s: %v; position not changed", MoveToString(m.X, m.Y), err))
+				h.board = domain.NewBoard()
+				h.player = domain.PlayerRed
+				return
+			}
+			h.board = newBoard
 			h.player = h.player.Opponent()
 		}
 	}
@@ -292,6 +301,14 @@ func (h *UCIHandler) currentThreads() int {
 
 func (h *UCIHandler) respond(msg string) {
 	fmt.Fprintln(h.writer, msg)
+}
+
+// Close stops any running search and releases the handler's engine.
+func (h *UCIHandler) Close() {
+	h.stopSearchAndWait()
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.ai.Dispose()
 }
 
 func RunUCILoop(handler *UCIHandler, reader io.Reader) {
