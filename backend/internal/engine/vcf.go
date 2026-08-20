@@ -130,50 +130,17 @@ func opponentHasImmediateWin(sb *SearchBoard, opponent domain.Player) bool {
 }
 
 // findFourBlocks returns the cells the opponent must play to block a four
-// created by placing attacker at (x,y). Returns empty if no four was created.
+// created by placing attacker at (x,y): every empty cell whose fill would
+// complete an exact five for the attacker, gapped or straight. Returns empty
+// if no four was created.
 func findFourBlocks(sb *SearchBoard, x, y int, attacker domain.Player) []domain.Position {
 	var blocks []domain.Position
-	for _, dir := range [][2]int{{1, 0}, {0, 1}, {1, 1}, {1, -1}} {
-		dx, dy := dir[0], dir[1]
-		positive := 0
-		for i := 1; i <= 4; i++ {
-			nx, ny := x+dx*i, y+dy*i
-			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != attacker {
-				break
-			}
-			positive++
-		}
-		negative := 0
-		for i := 1; i <= 4; i++ {
-			nx, ny := x-dx*i, y-dy*i
-			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != attacker {
-				break
-			}
-			negative++
-		}
-
-		count := 1 + positive + negative
-		if count != 4 {
-			continue
-		}
-
-		afterX, afterY := x+dx*(positive+1), y+dy*(positive+1)
-		beforeX, beforeY := x-dx*(negative+1), y-dy*(negative+1)
-
-		afterOpen := afterX >= 0 && afterX < domain.BoardSize && afterY >= 0 && afterY < domain.BoardSize && sb.IsEmpty(afterX, afterY)
-		beforeOpen := beforeX >= 0 && beforeX < domain.BoardSize && beforeY >= 0 && beforeY < domain.BoardSize && sb.IsEmpty(beforeX, beforeY)
-
-		if afterOpen {
-			// Check placing attacker here creates exactly 5, not 6+ (overline)
-			beyondX, beyondY := afterX+dx, afterY+dy
-			if beyondX < 0 || beyondX >= domain.BoardSize || beyondY < 0 || beyondY >= domain.BoardSize || sb.PlayerAt(beyondX, beyondY) != attacker {
-				blocks = append(blocks, domain.Position{X: afterX, Y: afterY})
-			}
-		}
-		if beforeOpen {
-			beyondX, beyondY := beforeX-dx, beforeY-dy
-			if beyondX < 0 || beyondX >= domain.BoardSize || beyondY < 0 || beyondY >= domain.BoardSize || sb.PlayerAt(beyondX, beyondY) != attacker {
-				blocks = append(blocks, domain.Position{X: beforeX, Y: beforeY})
+	seen := make(map[domain.Position]bool)
+	for _, dir := range evalDirs {
+		for _, c := range fiveCompletionsInDir(sb, x, y, attacker, dir[0], dir[1]) {
+			if !seen[c] {
+				seen[c] = true
+				blocks = append(blocks, c)
 			}
 		}
 	}

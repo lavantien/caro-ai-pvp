@@ -6,18 +6,20 @@ import (
 
 type Pattern4 int
 
+// Values must stay distinct: the previous enum aliased P4Flex3 with P4Block4
+// and P4Overline with P4None, which silently corrupted equality-based checks.
 const (
-	P4None       Pattern4 = 0
-	P4Flex1      Pattern4 = 1
-	P4Block1     Pattern4 = 1
-	P4Flex2      Pattern4 = 2
-	P4Block2     Pattern4 = 2
-	P4Flex3      Pattern4 = 4
-	P4Block3     Pattern4 = 3
-	P4Flex4      Pattern4 = 8
-	P4Block4     Pattern4 = 4
-	P4Exactly5   Pattern4 = 64
-	P4Overline   Pattern4 = 0
+	P4None     Pattern4 = 0
+	P4Flex1    Pattern4 = 1
+	P4Block1   Pattern4 = 2
+	P4Flex2    Pattern4 = 3
+	P4Block2   Pattern4 = 4
+	P4Flex3    Pattern4 = 5
+	P4Block3   Pattern4 = 6
+	P4Flex4    Pattern4 = 7
+	P4Block4   Pattern4 = 8
+	P4Exactly5 Pattern4 = 9
+	P4Overline Pattern4 = 10
 )
 
 var evalDirs = [4][2]int{{1, 0}, {0, 1}, {1, 1}, {1, -1}}
@@ -32,12 +34,53 @@ type PlayerPattern4 struct {
 	Block2Count   int
 }
 
-// classifyDirection classifies the pattern formed by player's stones in direction (dx,dy)
-// starting from the stone at (x,y).
+// classifyDirection classifies the pattern the stone at (x,y) participates in
+// along (dx,dy), gap-aware: split fours and broken threes count like their
+// straight equivalents.
 func classifyDirection(sb *SearchBoard, x, y, dx, dy int, player domain.Player) Pattern4 {
-	positive := 0
-	positiveOpen := false
-	for i := 1; i <= 5; i++ {
+	pos, neg := 0, 0
+	for i := 1; i <= domain.WinLength; i++ {
+		nx, ny := x+dx*i, y+dy*i
+		if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
+			break
+		}
+		pos++
+	}
+	for i := 1; i <= domain.WinLength; i++ {
+		nx, ny := x-dx*i, y-dy*i
+		if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
+			break
+		}
+		neg++
+	}
+	if 1+pos+neg > domain.WinLength {
+		return P4Overline
+	}
+
+	if isFiveInDir(sb, x, y, player, dx, dy) {
+		return P4Exactly5
+	}
+	line := extractLine(sb, x, y, player, dx, dy)
+	comps := lineCompletions(line)
+	switch comps {
+	case 0:
+	case 1:
+		return P4Block4
+	default:
+		return P4Flex4
+	}
+
+	switch maxCompsAfterFill(line) {
+	case 0:
+	case 1:
+		return P4Block3
+	default:
+		return P4Flex3
+	}
+
+	// Twos and singles: contiguous counting is sufficient.
+	positive, positiveOpen := 0, false
+	for i := 1; i <= 2; i++ {
 		nx, ny := x+dx*i, y+dy*i
 		if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize {
 			break
@@ -53,9 +96,8 @@ func classifyDirection(sb *SearchBoard, x, y, dx, dy int, player domain.Player) 
 		}
 	}
 
-	negative := 0
-	negativeOpen := false
-	for i := 1; i <= 5; i++ {
+	negative, negativeOpen := 0, false
+	for i := 1; i <= 2; i++ {
 		nx, ny := x-dx*i, y-dy*i
 		if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize {
 			break
@@ -72,6 +114,9 @@ func classifyDirection(sb *SearchBoard, x, y, dx, dy int, player domain.Player) 
 	}
 
 	count := 1 + positive + negative
+	if count >= 3 {
+		return P4None
+	}
 	openEnds := 0
 	if positiveOpen {
 		openEnds++
@@ -80,44 +125,7 @@ func classifyDirection(sb *SearchBoard, x, y, dx, dy int, player domain.Player) 
 		openEnds++
 	}
 
-	if count >= 6 {
-		return P4Overline
-	}
-
-	if count == 5 {
-		afterX, afterY := x+dx*(positive+1), y+dy*(positive+1)
-		beforeX, beforeY := x-dx*(negative+1), y-dy*(negative+1)
-
-		afterBlocked := afterX < 0 || afterX >= domain.BoardSize || afterY < 0 || afterY >= domain.BoardSize ||
-			(sb.PlayerAt(afterX, afterY) != domain.PlayerNone && sb.PlayerAt(afterX, afterY) != player)
-		beforeBlocked := beforeX < 0 || beforeX >= domain.BoardSize || beforeY < 0 || beforeY >= domain.BoardSize ||
-			(sb.PlayerAt(beforeX, beforeY) != domain.PlayerNone && sb.PlayerAt(beforeX, beforeY) != player)
-
-		if afterBlocked && beforeBlocked {
-			return P4None
-		}
-		return P4Exactly5
-	}
-
 	switch {
-	case count == 4:
-		switch openEnds {
-		case 2:
-			return P4Flex4
-		case 1:
-			return P4Block4
-		default:
-			return P4None
-		}
-	case count == 3:
-		switch openEnds {
-		case 2:
-			return P4Flex3
-		case 1:
-			return P4Block3
-		default:
-			return P4None
-		}
 	case count == 2:
 		switch openEnds {
 		case 2:
@@ -130,13 +138,14 @@ func classifyDirection(sb *SearchBoard, x, y, dx, dy int, player domain.Player) 
 	case count == 1:
 		return P4Flex1
 	}
-
 	return P4None
 }
 
 // ClassifyStone classifies all 4-direction patterns for a single stone.
 // Only processes each line once (from the starting stone) by skipping directions
-// where a same-color stone precedes the current one.
+// where a same-color stone precedes the current one. Shapes below four whose
+// cluster is anchored by a same-color stone two cells back are also skipped to
+// avoid double counting gapped clusters (XX.X anchors at its leftmost stone).
 func ClassifyStone(sb *SearchBoard, x, y int, player domain.Player) PlayerPattern4 {
 	var pp PlayerPattern4
 	for _, dir := range evalDirs {
@@ -149,94 +158,32 @@ func ClassifyStone(sb *SearchBoard, x, y int, player domain.Player) PlayerPatter
 			}
 		}
 
-		classifyAndAccumulate(sb, x, y, dx, dy, player, &pp)
-	}
-	return pp
-}
+		p2x, p2y := x-2*dx, y-2*dy
+		clusterAnchored := p2x >= 0 && p2x < domain.BoardSize && p2y >= 0 && p2y < domain.BoardSize &&
+			sb.PlayerAt(p2x, p2y) == player
 
-func classifyAndAccumulate(sb *SearchBoard, x, y, dx, dy int, player domain.Player, pp *PlayerPattern4) {
-	positive := 0
-	positiveOpen := false
-	for i := 1; i <= 5; i++ {
-		nx, ny := x+dx*i, y+dy*i
-		if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize {
-			break
+		class := classifyDirection(sb, x, y, dx, dy, player)
+		if clusterAnchored && class != P4Exactly5 && class != P4Flex4 {
+			continue
 		}
-		p := sb.PlayerAt(nx, ny)
-		if p == player {
-			positive++
-		} else if p == domain.PlayerNone {
-			positiveOpen = true
-			break
-		} else {
-			break
-		}
-	}
-
-	negative := 0
-	negativeOpen := false
-	for i := 1; i <= 5; i++ {
-		nx, ny := x-dx*i, y-dy*i
-		if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize {
-			break
-		}
-		p := sb.PlayerAt(nx, ny)
-		if p == player {
-			negative++
-		} else if p == domain.PlayerNone {
-			negativeOpen = true
-			break
-		} else {
-			break
-		}
-	}
-
-	count := 1 + positive + negative
-	openEnds := 0
-	if positiveOpen {
-		openEnds++
-	}
-	if negativeOpen {
-		openEnds++
-	}
-
-	if count >= 6 {
-		return
-	}
-	if count == 5 {
-		afterX, afterY := x+dx*(positive+1), y+dy*(positive+1)
-		beforeX, beforeY := x-dx*(negative+1), y-dy*(negative+1)
-		afterBlocked := afterX < 0 || afterX >= domain.BoardSize || afterY < 0 || afterY >= domain.BoardSize ||
-			(sb.PlayerAt(afterX, afterY) != domain.PlayerNone && sb.PlayerAt(afterX, afterY) != player)
-		beforeBlocked := beforeX < 0 || beforeX >= domain.BoardSize || beforeY < 0 || beforeY >= domain.BoardSize ||
-			(sb.PlayerAt(beforeX, beforeY) != domain.PlayerNone && sb.PlayerAt(beforeX, beforeY) != player)
-		if afterBlocked && beforeBlocked {
-			return
-		}
-		pp.Exactly5Count++
-		return
-	}
-
-	switch {
-	case count == 4:
-		if openEnds == 2 {
+		switch class {
+		case P4Exactly5:
+			pp.Exactly5Count++
+		case P4Flex4:
 			pp.Flex4Count++
-		} else if openEnds == 1 {
+		case P4Block4:
 			pp.Block4Count++
-		}
-	case count == 3:
-		if openEnds == 2 {
+		case P4Flex3:
 			pp.Flex3Count++
-		} else if openEnds == 1 {
+		case P4Block3:
 			pp.Block3Count++
-		}
-	case count == 2:
-		if openEnds == 2 {
+		case P4Flex2:
 			pp.Flex2Count++
-		} else if openEnds == 1 {
+		case P4Block2:
 			pp.Block2Count++
 		}
 	}
+	return pp
 }
 
 // ClassifyBoard classifies all patterns for a player across the entire board.

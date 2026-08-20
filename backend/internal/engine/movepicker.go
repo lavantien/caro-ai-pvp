@@ -35,6 +35,17 @@ type MovePicker struct {
 	stage      int
 	index      int
 	staged     []domain.Position
+	yielded    [4]uint64
+}
+
+func (mp *MovePicker) markYielded(p domain.Position) {
+	c := posToCell(p.X, p.Y)
+	mp.yielded[c/64] |= 1 << (c % 64)
+}
+
+func (mp *MovePicker) alreadyYielded(p domain.Position) bool {
+	c := posToCell(p.X, p.Y)
+	return mp.yielded[c/64]&(1<<(c%64)) != 0
 }
 
 const (
@@ -76,6 +87,7 @@ func (mp *MovePicker) Next() (domain.Position, bool) {
 			if mp.ttMove != nil {
 				for _, c := range mp.candidates {
 					if c == *mp.ttMove {
+						mp.markYielded(c)
 						return c, true
 					}
 				}
@@ -91,11 +103,10 @@ func (mp *MovePicker) Next() (domain.Position, bool) {
 		if mp.index < len(mp.staged) {
 			m := mp.staged[mp.index]
 			mp.index++
-			if mp.stage < stageQuiet {
-				if mp.ttMove != nil && m == *mp.ttMove {
-					continue
-				}
+			if mp.alreadyYielded(m) {
+				continue
 			}
+			mp.markYielded(m)
 			return m, true
 		}
 
@@ -175,22 +186,25 @@ func (mp *MovePicker) genThreats() []domain.Position {
 }
 
 func (mp *MovePicker) threatScore(x, y int) int {
+	own := analyzePlacement(mp.sb, x, y, mp.player)
 	score := 0
-	if createsOpenFour(mp.sb, x, y, mp.player) {
+	if own.openFour() {
 		score += 700_000
-	} else if createsFourType(mp.sb, x, y, mp.player) {
+	} else if own.four() {
 		score += 400_000
 	}
-	opponent := mp.player.Opponent()
-	if createsOpenFour(mp.sb, x, y, opponent) {
-		score += 500_000
-	} else if createsFourType(mp.sb, x, y, opponent) {
-		score += 350_000
-	}
-	if createsOpenThree(mp.sb, x, y, mp.player) {
+	if own.flex3 {
 		score += 300_000
 	}
-	if createsOpenThree(mp.sb, x, y, opponent) {
+
+	opponent := mp.player.Opponent()
+	theirs := analyzePlacement(mp.sb, x, y, opponent)
+	if theirs.openFour() {
+		score += 500_000
+	} else if theirs.four() {
+		score += 350_000
+	}
+	if theirs.flex3 {
 		score += 200_000
 	}
 	return score
@@ -206,40 +220,17 @@ func (mp *MovePicker) genKillerCounter() []domain.Position {
 		if k.X < 0 || k.X >= domain.BoardSize || k.Y < 0 || k.Y >= domain.BoardSize {
 			continue
 		}
-		if mp.ttMove != nil && k == *mp.ttMove {
-			continue
-		}
 		if !mp.sb.IsEmpty(k.X, k.Y) {
 			continue
 		}
-		found := false
-		for _, r := range result {
-			if r == k {
-				found = true
-				break
-			}
-		}
-		if !found {
-			result = append(result, k)
-		}
+		result = append(result, k)
 	}
 
 	if mp.prevMove.X >= 0 && mp.prevMove.Y >= 0 {
 		cm := mp.heuristics.CounterMoveFor(mp.player, mp.prevMove.X, mp.prevMove.Y)
 		if cm.X >= 0 && cm.X < domain.BoardSize && cm.Y >= 0 && cm.Y < domain.BoardSize {
-			if mp.ttMove == nil || cm != *mp.ttMove {
-				if mp.sb.IsEmpty(cm.X, cm.Y) {
-					found := false
-					for _, r := range result {
-						if r == cm {
-							found = true
-							break
-						}
-					}
-					if !found {
-						result = append(result, cm)
-					}
-				}
+			if mp.sb.IsEmpty(cm.X, cm.Y) {
+				result = append(result, cm)
 			}
 		}
 	}
@@ -248,17 +239,8 @@ func (mp *MovePicker) genKillerCounter() []domain.Position {
 }
 
 func (mp *MovePicker) genQuiet() []domain.Position {
-	seen := make(map[domain.Position]bool)
-	if mp.ttMove != nil {
-		seen[*mp.ttMove] = true
-	}
-
 	scored := make([]ScoredMove, 0, len(mp.candidates))
 	for _, c := range mp.candidates {
-		if seen[c] {
-			continue
-		}
-
 		score := mp.heuristics.HistoryScore(mp.player, c.X, c.Y) * 2
 		if score > historyScoreCap {
 			score = historyScoreCap

@@ -116,8 +116,11 @@ func TestSearchFindsBlockingMove(t *testing.T) {
 	}
 
 	x, y, stats := SearchPosition(b, domain.PlayerRed, opts, tt, heuristics, context.Background())
-	assert.True(t, x == 7 && y == 5,
-		"should block opponent's four at (7,5), got (%d,%d)", x, y)
+	// Either defense is valid under the Caro blocked-ends rule: occupying the
+	// completion (7,5), or double-blocking the would-be five from the right
+	// (8,5) - blue's five at 3-7 would then be blocked at both (2,5) and (8,5).
+	assert.True(t, y == 5 && (x == 7 || x == 8),
+		"should neutralize opponent's four at (7,5)/(8,5), got (%d,%d)", x, y)
 	assert.Greater(t, stats.DepthAchieved, 0)
 }
 

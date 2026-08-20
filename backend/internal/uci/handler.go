@@ -22,7 +22,7 @@ type UCIHandler struct {
 
 func NewUCIHandler(logger *slog.Logger, writer io.Writer) *UCIHandler {
 	return &UCIHandler{
-		ai:     engine.NewMinimaxAI(logger, 4),
+		ai:     engine.NewMinimaxAI(logger, 4, 256),
 		board:  domain.NewBoard(),
 		player: domain.PlayerRed,
 		logger: logger,
@@ -57,7 +57,7 @@ func (h *UCIHandler) HandleCommand(cmd string) {
 		h.board = domain.NewBoard()
 		h.player = domain.PlayerRed
 		h.ai.Dispose()
-		h.ai = engine.NewMinimaxAI(h.logger, 4)
+		h.ai = engine.NewMinimaxAI(h.logger, 4, 256)
 
 	case "position":
 		h.handlePosition(fields[1:])

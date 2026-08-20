@@ -14,25 +14,23 @@ const (
 )
 
 type TTEntry struct {
-	Hash       uint64
-	Score      int32
-	StaticEval int32
-	Depth      uint8
-	MoveX      int8
-	MoveY      int8
-	Flag       uint8
-	Age        uint8
+	Hash  uint64
+	Score int32
+	Depth uint8
+	MoveX int8
+	MoveY int8
+	Flag  uint8
+	Age   uint8
 }
 
 type ttSlot struct {
-	hash       uint64
-	score      int32
-	staticEval int32
-	depth      uint8
-	moveX      int8
-	moveY      int8
-	flag       uint8
-	age        uint8
+	hash  uint64
+	score int32
+	depth uint8
+	moveX int8
+	moveY int8
+	flag  uint8
+	age   uint8
 }
 
 type ttShard struct {
@@ -97,7 +95,6 @@ func (tt *TranspositionTable) Store(entry TTEntry) {
 	}
 	slot.hash = entry.Hash
 	slot.score = entry.Score
-	slot.staticEval = entry.StaticEval
 	slot.depth = entry.Depth
 	slot.moveX = entry.MoveX
 	slot.moveY = entry.MoveY
@@ -115,14 +112,13 @@ func (tt *TranspositionTable) Lookup(hash uint64) (TTEntry, bool) {
 	shard.mu.RLock()
 	slot := &shard.slots[idx]
 	entry := TTEntry{
-		Hash:       slot.hash,
-		Score:      slot.score,
-		StaticEval: slot.staticEval,
-		Depth:      slot.depth,
-		MoveX:      slot.moveX,
-		MoveY:      slot.moveY,
-		Flag:       slot.flag,
-		Age:        slot.age,
+		Hash:  slot.hash,
+		Score: slot.score,
+		Depth: slot.depth,
+		MoveX: slot.moveX,
+		MoveY: slot.moveY,
+		Flag:  slot.flag,
+		Age:   slot.age,
 	}
 	shard.mu.RUnlock()
 

@@ -15,6 +15,7 @@ type SearchBoard struct {
 	redBits   BitBoard
 	blueBits  BitBoard
 	hash      uint64
+	stones    int
 	undoStack []undoEntry
 }
 
@@ -28,12 +29,19 @@ func NewSearchBoard(b domain.Board) SearchBoard {
 
 	for x := range domain.BoardSize {
 		for y := range domain.BoardSize {
-			sb.cells[x*domain.BoardSize+y] = b.GetPlayerAt(x, y)
+			p := b.GetPlayerAt(x, y)
+			sb.cells[x*domain.BoardSize+y] = p
+			if p != domain.PlayerNone {
+				sb.stones++
+			}
 		}
 	}
 	sb.undoStack = make([]undoEntry, 0, 64)
 	return sb
 }
+
+// StoneCount returns the number of stones on the board.
+func (sb *SearchBoard) StoneCount() int { return sb.stones }
 
 func (sb *SearchBoard) Hash() uint64 { return sb.hash }
 
@@ -76,6 +84,7 @@ func (sb *SearchBoard) MakeMove(x, y int, player domain.Player) {
 		sb.blueBits.Set(x, y)
 	}
 	sb.hash ^= domain.ZobristKey(x, y, player)
+	sb.stones++
 }
 
 func (sb *SearchBoard) UnmakeMove() {
@@ -91,6 +100,7 @@ func (sb *SearchBoard) UnmakeMove() {
 
 	sb.cells[entry.x*domain.BoardSize+entry.y] = entry.player
 	sb.hash = entry.hash
+	sb.stones--
 }
 
 func (sb *SearchBoard) MakeNullMove() {

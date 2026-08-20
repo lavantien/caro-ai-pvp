@@ -164,7 +164,6 @@ func searchRoot(
 	preferredMove *domain.Position,
 ) (int, int, int) {
 	monitor.Nodes.Add(1)
-	staticEval := Evaluate(sb, player)
 	var ttMove *domain.Position
 	if preferredMove != nil {
 		ttMove = preferredMove
@@ -216,13 +215,12 @@ func searchRoot(
 			flag = TTLowerBound
 		}
 		tt.Store(TTEntry{
-			Hash:       sb.Hash(),
-			Score:      int32(adjustMateScoreForStore(bestScore, 0)),
-			StaticEval: int32(staticEval),
-			Depth:      uint8(depth),
-			MoveX:      int8(bestX),
-			MoveY:      int8(bestY),
-			Flag:       flag,
+			Hash:  sb.Hash(),
+			Score: int32(adjustMateScoreForStore(bestScore, 0)),
+			Depth: uint8(depth),
+			MoveX: int8(bestX),
+			MoveY: int8(bestY),
+			Flag:  flag,
 		})
 		heuristics.RecordKiller(depth, domain.Position{X: bestX, Y: bestY})
 	}
@@ -251,10 +249,10 @@ func alphaBeta(
 	}
 
 	origAlpha := alpha
-	staticEval := Evaluate(sb, player)
 
-	// Null-move pruning
-	if depth >= domain.NullMoveMinDepth && staticEval >= beta {
+	// Null-move pruning. The static eval is only needed on this path; most
+	// interior nodes skip it entirely.
+	if depth >= domain.NullMoveMinDepth && Evaluate(sb, player) >= beta {
 		sb.MakeNullMove()
 		nullPrev := domain.Position{X: -1, Y: -1}
 		nullScore := -alphaBeta(sb, player.Opponent(), depth-1-domain.NullMoveReduction, -beta, -beta+1, tt, heuristics, monitor, nullPrev, plyFromRoot+1)
@@ -366,13 +364,12 @@ func alphaBeta(
 			flag = TTLowerBound
 		}
 		tt.Store(TTEntry{
-			Hash:       sb.Hash(),
-			Score:      int32(adjustMateScoreForStore(bestScore, plyFromRoot)),
-			StaticEval: int32(staticEval),
-			Depth:      uint8(depth),
-			MoveX:      int8(bestMoveX),
-			MoveY:      int8(bestMoveY),
-			Flag:       flag,
+			Hash:  sb.Hash(),
+			Score: int32(adjustMateScoreForStore(bestScore, plyFromRoot)),
+			Depth: uint8(depth),
+			MoveX: int8(bestMoveX),
+			MoveY: int8(bestMoveY),
+			Flag:  flag,
 		})
 	}
 

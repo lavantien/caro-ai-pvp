@@ -17,7 +17,8 @@ func GetCandidates(sb *SearchBoard, radius int) []domain.Position {
 		return candidates
 	}
 
-	seen := make(map[int]bool)
+	// Stack-allocated dedup: a heap map per node dominated the profile.
+	var seen [domain.BoardSize * domain.BoardSize]bool
 	candidates := make([]domain.Position, 0, 64)
 
 	for x := range domain.BoardSize {
@@ -101,132 +102,15 @@ func isTacticalMove(sb *SearchBoard, x, y int, player, opponent domain.Player) b
 	return false
 }
 
-// createsFourType checks if placing player at (x,y) creates an open four or block four.
-// Open four = 4 consecutive with both ends open. Block four = 4 consecutive with one end open.
-// Both are forcing: opponent must block the open end or lose.
-func createsFourType(sb *SearchBoard, x, y int, player domain.Player) bool {
-	sb.MakeMove(x, y, player)
-	defer sb.UnmakeMove()
-
-	for _, dir := range [][2]int{{1, 0}, {0, 1}, {1, 1}, {1, -1}} {
-		dx, dy := dir[0], dir[1]
-		positive := 0
-		for i := 1; i <= 4; i++ {
-			nx, ny := x+dx*i, y+dy*i
-			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
-				break
-			}
-			positive++
-		}
-		negative := 0
-		for i := 1; i <= 4; i++ {
-			nx, ny := x-dx*i, y-dy*i
-			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
-				break
-			}
-			negative++
-		}
-
-		total := 1 + positive + negative
-		if total == 4 {
-			afterX, afterY := x+dx*(positive+1), y+dy*(positive+1)
-			beforeX, beforeY := x-dx*(negative+1), y-dy*(negative+1)
-
-			afterOpen := afterX >= 0 && afterX < domain.BoardSize && afterY >= 0 && afterY < domain.BoardSize && sb.IsEmpty(afterX, afterY)
-			beforeOpen := beforeX >= 0 && beforeX < domain.BoardSize && beforeY >= 0 && beforeY < domain.BoardSize && sb.IsEmpty(beforeX, beforeY)
-
-			if afterOpen || beforeOpen {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// createsOpenFour checks if placing player at (x,y) creates an open four
-// (4 in a row with both ends open).
-func createsOpenFour(sb *SearchBoard, x, y int, player domain.Player) bool {
-	sb.MakeMove(x, y, player)
-	defer sb.UnmakeMove()
-
-	for _, dir := range [][2]int{{1, 0}, {0, 1}, {1, 1}, {1, -1}} {
-		dx, dy := dir[0], dir[1]
-		positive := 0
-		for i := 1; i <= 4; i++ {
-			nx, ny := x+dx*i, y+dy*i
-			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
-				break
-			}
-			positive++
-		}
-		negative := 0
-		for i := 1; i <= 4; i++ {
-			nx, ny := x-dx*i, y-dy*i
-			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
-				break
-			}
-			negative++
-		}
-
-		total := 1 + positive + negative
-		if total == 4 {
-			afterX, afterY := x+dx*(positive+1), y+dy*(positive+1)
-			beforeX, beforeY := x-dx*(negative+1), y-dy*(negative+1)
-
-			afterOpen := afterX >= 0 && afterX < domain.BoardSize && afterY >= 0 && afterY < domain.BoardSize && sb.IsEmpty(afterX, afterY)
-			beforeOpen := beforeX >= 0 && beforeX < domain.BoardSize && beforeY >= 0 && beforeY < domain.BoardSize && sb.IsEmpty(beforeX, beforeY)
-
-			if afterOpen && beforeOpen {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// createsOpenThree checks if placing player at (x,y) creates an open three
-// (3 in a row with both ends open).
-func createsOpenThree(sb *SearchBoard, x, y int, player domain.Player) bool {
-	sb.MakeMove(x, y, player)
-	defer sb.UnmakeMove()
-
-	for _, dir := range [][2]int{{1, 0}, {0, 1}, {1, 1}, {1, -1}} {
-		dx, dy := dir[0], dir[1]
-		positive := 0
-		for i := 1; i <= 3; i++ {
-			nx, ny := x+dx*i, y+dy*i
-			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
-				break
-			}
-			positive++
-		}
-		negative := 0
-		for i := 1; i <= 3; i++ {
-			nx, ny := x-dx*i, y-dy*i
-			if nx < 0 || nx >= domain.BoardSize || ny < 0 || ny >= domain.BoardSize || sb.PlayerAt(nx, ny) != player {
-				break
-			}
-			negative++
-		}
-
-		total := 1 + positive + negative
-		if total == 3 {
-			afterX, afterY := x+dx*(positive+1), y+dy*(positive+1)
-			beforeX, beforeY := x-dx*(negative+1), y-dy*(negative+1)
-
-			afterOpen := afterX >= 0 && afterX < domain.BoardSize && afterY >= 0 && afterY < domain.BoardSize && sb.IsEmpty(afterX, afterY)
-			beforeOpen := beforeX >= 0 && beforeX < domain.BoardSize && beforeY >= 0 && beforeY < domain.BoardSize && sb.IsEmpty(beforeX, beforeY)
-
-			if afterOpen && beforeOpen {
-				return true
-			}
-		}
-	}
-	return false
-}
+// createsFourType, createsOpenFour and createsOpenThree live in pattern_window.go.
 
 func FilterOpenRule(candidates []domain.Position, sb *SearchBoard, player domain.Player) []domain.Position {
 	if player != domain.PlayerRed {
+		return candidates
+	}
+	// The rule only constrains red's second move: at most two stones exist
+	// then. Skip the full-board scan everywhere else.
+	if sb.StoneCount() > 2 {
 		return candidates
 	}
 
