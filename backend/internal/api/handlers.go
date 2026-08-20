@@ -85,6 +85,9 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	session := NewGameSession(timeControl, initialTimeMs, incrementSeconds, gameMode, redDiff, blueDiff, nil, func() int {
 		return h.store.ActiveGameCount()
 	})
+	if req.RandomOpening && gameMode == domain.GameModeAivAI {
+		session.applyRandomOpening(req.Seed)
+	}
 	h.store.Set(gameID, session)
 
 	if h.matches != nil {

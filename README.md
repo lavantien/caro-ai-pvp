@@ -23,14 +23,14 @@ Features hardware-agnostic difficulty levels (L1 Novice through L5 Grandmaster) 
 - **Comprehensive automated tests** - Including adversarial concurrency tests
 
 **Testing:**
-- Self-play validation with statistical analysis and color-swapping
-- Comprehensive test runners with configurable time controls
+- Self-play validation with seeded opening randomization, color-swapping, per-color and per-reason breakdowns, and 95% Wilson score intervals
+- Time controls are enforced: games can be lost on the clock
 
 **Game Rules (Caro/Gomoku variant):**
 - 16x16 board (256 intersections)
 - Open Rule: Red's second move must be at least 3 intersections away from first
 - Win: Exactly 5 in a row (6+ or blocked ends don't count)
-- Time Control: 1+0 (Bullet), 3+2 (Blitz), 7+5 (Rapid), 15+10 (Classical)
+- Time Control: 1+0, 3+0, 3+2, 7+5, 10+0, 15+10; running out of clock loses the game
 
 ---
 
@@ -38,32 +38,27 @@ Features hardware-agnostic difficulty levels (L1 Novice through L5 Grandmaster) 
 
 ### AI Engine
 
-Full-strength engine with 100-500x speedup over naive minimax:
-
 | Category | Feature | Description |
 |----------|---------|-------------|
 | **Search** | Lazy SMP Parallel | Channel-based goroutine pool with per-search dispatch |
 | | Principal Variation Search | Alpha-beta with null-window searches |
 | | Aspiration Windows | Narrowed bounds near root |
-| | Quiescence Search | Prevents horizon blunders |
+| | Quiescence Search | Four-forcing extensions only (threes are not forcing) |
 | | Adaptive LMR | Dynamic depth reduction by position factors |
 | | VCF Solver | Pre-search for forcing win sequences (20% of allocated time) |
-| | Threat Space Search | Tactical move generation |
 | **Transposition Table** | Sharded RWMutex | 16 segments with per-shard sync.RWMutex |
 | | Depth-Age Replacement | Smart entry eviction formula |
-| | Evaluation Cache | Static eval stored with entries |
 | **Move Ordering** | Staged Picker | TT -> Win -> Block -> Threat -> Killer/Counter -> Quiet |
 | | Hash Move | TT move searched unconditionally first |
-| | Must Block | Mandatory defense against opponent's open four |
+| | Must Block | Mandatory defense against opponent's five-completions |
 | | Winning Moves | Creates open four or double threat |
 | | Threat Create | Creates open three or broken four |
 | | Killer/Counter | Cutoff moves + opponent response patterns |
 | | Continuation History | 6-ply move pair scoring |
 | | Butterfly History | Long-term move statistics |
-| **Evaluation** | BitKey Pattern System | O(1) pattern lookup with bit rotation |
-| | Pattern4 Classification | 4-direction combined threat detection |
-| | SIMD Evaluation | Vectorized pattern detection via experimental simd/archsimd (planned) |
-| **Time Control** | PID Time Management | Control theory for allocation |
+| **Evaluation** | Gap-Aware Patterns | 11-cell line windows classify split fours (.XX.XX.) and broken threes like their straight equivalents |
+| **Time Control** | Phase-Aware Allocation | Divisor-based budget with clock safety floors |
+| | Flag Adjudication | Server-side loss on time |
 | | Structured Logging | log/slog with async file-based rotation |
 
 ### Game Modes
@@ -111,17 +106,17 @@ Fisher time controls with increment:
 
 ### Engine Configuration
 
-The engine supports 5 difficulty levels, hardware-agnostic via time fraction scaling:
+The engine supports 5 difficulty levels. Levels are strength-based first (depth caps, solver and parallel gating) with the time fraction as a secondary cap, so L(k) is stronger than L(k-1) on any host:
 
-| Level | Name | Time Budget | Goroutines | VCF Solver | Pondering |
-|-------|------|-------------|------------|------------|-----------|
-| 1 | Novice | 5% | 1 | No | No |
-| 2 | Beginner | 15% | 1 | No | No |
-| 3 | Intermediate | 40% | 2 | Yes | No |
-| 4 | Advanced | 70% | Pow2((N-2)/2)/2 | Yes | No |
-| 5 | Grandmaster | 100% | Pow2((N-2)/2) | Yes | Planned |
+| Level | Name | Depth Cap | Time Budget | Goroutines | VCF Solver | TT Size |
+|-------|------|-----------|-------------|------------|------------|---------|
+| 1 | Novice | 2 | 5% | 1 | No | 64MB |
+| 2 | Beginner | 4 | 15% | 1 | No | 64MB |
+| 3 | Intermediate | 6 | 40% | 2 | Yes | 256MB |
+| 4 | Advanced | 10 | 70% | Pow2((N-2)/2)/2 | Yes | 1GB |
+| 5 | Grandmaster | 50 | 100% | Pow2((N-2)/2) | Yes | 1GB |
 
-- Time fraction scales search time (post-PID), making difficulty machine-independent
+- Depth caps make level differences strength differences, not clock-management differences
 - VCF solver and parallel search unlock at higher levels
 - Per-player difficulty: red and blue can play at different levels independently
 - Level 5 = full-strength engine with all optimizations
@@ -142,7 +137,8 @@ Universal Chess Interface (UCI) protocol compatibility for standalone engine usa
 
 - **Standalone console engine** - Run as separate process like Stockfish
 - **Standard UCI commands** - uci, isready, ucinewgame, position, go, stop, quit, setoption
-- **Engine options** - Threads, Hash, Ponder, Skill Level
+- **Engine options** - Threads, Hash, Skill Level (mapped to the difficulty profiles)
+- **Non-blocking search** - `stop` interrupts the running search and `bestmove` follows immediately
 - **WebSocket bridge** - Frontend can connect directly to UCI engine
 - **Double-letter notation** - UCI engine format: two-character coordinates (a-p for row and column, e.g., bd = row 1, col 3)
 - **Display notation** - Frontend move history uses simple algebraic (column a-p + row 1-16, e.g., i9)
@@ -158,8 +154,7 @@ cd backend && go run ./cmd/engine
 < id name Caro AI
 < id author Caro AI Project
 < option name Threads type spin default 4 min 1 max 64
-< option name Hash type spin default 1024 min 32 max 4096
-< option name Ponder type check default false
+< option name Hash type spin default 256 min 32 max 4096
 < option name Skill Level type spin default 5 min 1 max 5
 < uciok
 > position startpos moves ii
@@ -189,7 +184,7 @@ README.md (Entry Point)
         |       |-- Transposition Table -> Shards, RWMutex
         |       |-- Move Ordering -> Stages, History, Killers
         |       |-- Evaluation -> BitKey, Pattern4, Scoring
-        |       +-- Time Management -> PID controller
+        |       +-- Time Management -> Phase-aware allocation
         |
         +--> GO_ONBOARDING.md (Contributing)
                 |-- Go 1.26 Features -> Green Tea GC, errors.AsType, simd
@@ -314,10 +309,8 @@ All domain entities are immutable for thread safety:
 - Maintains strategic initiative instead of reactive blocking
 - Prevents "strength inversion" (weaker AI exploiting predictable behavior)
 
-**Ponder Hit Handling (planned):**
-- MinimaxAI will support pondering internally (planned for L5)
-- TT shared between ponder and main search (single MinimaxAI instance)
-- Context cancellation terminates ponder search cleanly
+**Pondering (unimplemented roadmap):**
+- Pondering is not built; nothing advertises it until it exists
 
 **Per-Player AI Isolation:**
 - Each player in a game gets its own MinimaxAI instance

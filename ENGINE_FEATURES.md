@@ -18,7 +18,6 @@ The engine follows principles from state-of-the-art game-playing systems:
 
 ### Performance Target
 
-- **Speedup:** 100-500x over naive minimax
 - **Parallelism:** Lazy SMP with power-of-2 goroutines (largest power of 2 <= (GOMAXPROCS-2)/2)
 - **Runtime:** Go 1.26 with Green Tea GC, context.Context cancellation, channel-based concurrency
 
@@ -365,24 +364,19 @@ Position evaluation combines multiple factors:
 
 ## 6. Time Management
 
-### 6.1 PID Time Manager
+### 6.1 Phase-Aware Time Allocation
 
-Uses control theory principles for time allocation.
-
-**Components:**
-- **Proportional (weight=0.6):** React to current error
-- **Integral (weight=0.3, gain=0.1):** Account for accumulated error, clamped at 0.5
-- **Derivative (weight=0.1):** Predict future error
-
-**Mechanism:**
-- Target: optimal time per move
-- Feedback: actual time used vs. remaining
-- Output: time allocation for next move
+`AllocateTime` in `timemanager.go` divides the remaining clock by a phase
+divisor (25 early, 30 after move 25), adds a fraction of the increment, and
+caps the result at 40% of the remaining clock.
 
 **Safety Features:**
-- Integral windup clamping
-- Minimum time reserve
-- Emergency stop for low time
+- Hard bound never negative; any live clock gets at least a 100ms floor
+- Soft bound at 80% of optimal stops iterative deepening early when the
+  next depth will not finish
+- 50ms reserve always kept back from the hard bound
+- The server adjudicates flag fall, and the engine's per-move budget stays
+  under the remaining clock
 
 ### 6.2 Time Control Support
 
@@ -397,13 +391,7 @@ Uses control theory principles for time allocation.
 
 ### 6.3 Pondering
 
-Background search during opponent's turn (planned).
-
-**Planned Characteristics:**
-- Enabled for L5 (Grandmaster) via DifficultyProfile
-- Shares TT between ponder and main search (single MinimaxAI instance)
-- Context cancellation terminates ponder cleanly
-- Ponder hit reuses pre-computed result
+Not implemented. Nothing advertises a ponder option until it exists.
 
 ---
 
@@ -572,24 +560,25 @@ Standard UCI commands for engine control:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | Threads | spin | 4 | Search goroutines (1-Max); L4/L5 auto-scale to Pow2((N-2)/2) via difficulty profile |
-| Hash | spin | 1024 | TT size (MB) |
-| Ponder | check | false | Enable pondering |
+| Hash | spin | 256 | TT size (MB) |
 | Skill Level | spin | 5 | Difficulty 1-5 (1=Novice, 5=Grandmaster) |
 
 ### 9.3 Difficulty Levels (Skill Levels)
 
-Hardware-agnostic difficulty via `DifficultyProfile` -- search parameters scale independently of machine speed.
+Strength-based difficulty via `DifficultyProfile`: depth caps make level differences hold on any machine, with the time fraction as a secondary cap.
 
-| Level | Name | Time Fraction | Goroutines | Pondering | Parallel | VCF |
-|-------|------|---------------|------------|-----------|----------|-----|
-| 1 | Novice | 5% | 1 | No | No | No |
-| 2 | Beginner | 15% | 1 | No | No | No |
-| 3 | Intermediate | 40% | 2 | No | Yes | Yes |
-| 4 | Advanced | 70% | Pow2((N-2)/2)/2 | No | Yes | Yes |
-| 5 | Grandmaster | 100% | Pow2((N-2)/2) | Planned | Yes | Yes |
+| Level | Name | Depth Cap | Time Fraction | Goroutines | Parallel | VCF | TT Size |
+|-------|------|-----------|---------------|------------|----------|-----|---------|
+| 1 | Novice | 2 | 5% | 1 | No | No | 64MB |
+| 2 | Beginner | 4 | 15% | 1 | No | No | 64MB |
+| 3 | Intermediate | 6 | 40% | 2 | Yes | Yes | 256MB |
+| 4 | Advanced | 10 | 70% | Pow2((N-2)/2)/2 | Yes | Yes | 1GB |
+| 5 | Grandmaster | 50 | 100% | Pow2((N-2)/2) | Yes | Yes | 1GB |
 
 **How it works:**
-- `TimeFraction` (0.0-1.0): Post-PID multiplier on allocated search time. Level 1 uses 5% of allocated time; level 5 uses full budget.
+- `MaxDepth`: The primary strength knob. Each level searches strictly deeper
+  than the one below, so L(k) beats L(k-1) on any host.
+- `TimeFraction` (0.0-1.0): Secondary cap on the allocated search time.
 - `UseVCF`: Disabling the pre-search VCF solver removes tactical precision at low levels.
 - Goroutine count scales with difficulty: level 1-2 single-goroutine, level 3 dual-goroutine, level 4-5 adaptive to hardware.
 - Level 4 uses half of L5's goroutine count (next power of 2 down).
@@ -644,7 +633,7 @@ Two-character algebraic notation for Caro:
 | `movepicker.go` | Staged move ordering (7 stages: TT -> Win -> Block -> Threat -> Killer/Counter -> Quiet) |
 | `candidate.go` | Candidate generation with center-of-mass ordering, tactical filtering |
 | `heuristics.go` | Killer moves, continuation/butterfly/counter-move history |
-| `timemanager.go` | PID time management, phase-aware allocation |
+| `timemanager.go` | Phase-aware time allocation with clock safety floors |
 | `timemonitor.go` | context.Context-based search time monitoring |
 | `difficulty.go` | Hardware-agnostic L1-L5 difficulty profiles |
 | `searchboard.go` | Mutable board for search hot path (make/unmake, zero allocation) |
@@ -656,7 +645,7 @@ Two-character algebraic notation for Caro:
 | `handler.go` | UCI command dispatcher, search controller |
 | `notation.go` | Double-letter coordinate encoding/decoding |
 | `position.go` | Position string parsing |
-| `options.go` | Engine options (Threads, Hash, Ponder, Skill Level) |
+| `options.go` | Engine options (Threads, Hash, Skill Level) |
 
 ---
 

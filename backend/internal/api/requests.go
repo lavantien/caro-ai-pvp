@@ -6,6 +6,8 @@ type CreateGameRequest struct {
 	Difficulty     *int   `json:"difficulty"`
 	RedDifficulty  *int   `json:"redDifficulty"`
 	BlueDifficulty *int   `json:"blueDifficulty"`
+	RandomOpening  bool   `json:"randomOpening"`
+	Seed           int64  `json:"seed"`
 }
 
 type MoveRequest struct {

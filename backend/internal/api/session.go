@@ -43,6 +43,43 @@ func NewGameSession(
 	}
 }
 
+// applyRandomOpening plays a seeded two-stone opening (red from the center
+// region, blue replying locally) so engine-vs-engine samples are not all the
+// same game. Deterministic per seed.
+func (s *GameSession) applyRandomOpening(seed int64) {
+	rng := newOpeningRNG(seed)
+	low := domain.BoardSize/2 - 3
+	high := domain.BoardSize/2 + 2
+	rx := low + rng.next(high-low+1)
+	ry := low + rng.next(high-low+1)
+	s.game, _ = s.game.WithMove(rx, ry)
+
+	bx := rx - 3 + rng.next(7)
+	by := ry - 3 + rng.next(7)
+	bx = min(max(bx, 0), domain.BoardSize-1)
+	by = min(max(by, 0), domain.BoardSize-1)
+	if bx == rx && by == ry {
+		bx = (bx + 1) % domain.BoardSize
+	}
+	s.game, _ = s.game.WithMove(bx, by)
+}
+
+// openingRNG is a splitmix64 generator: small, deterministic, seedable.
+type openingRNG struct{ state uint64 }
+
+func newOpeningRNG(seed int64) *openingRNG {
+	return &openingRNG{state: uint64(seed)}
+}
+
+func (r *openingRNG) next(n int) int {
+	r.state += 0x9E3779B97F4A7C15
+	z := r.state
+	z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9
+	z = (z ^ (z >> 27)) * 0x94D049BB133111EB
+	z = z ^ (z >> 31)
+	return int(z % uint64(n))
+}
+
 func (s *GameSession) GetResponse() GameResponse {
 	s.mu.Lock()
 	defer s.mu.Unlock()
