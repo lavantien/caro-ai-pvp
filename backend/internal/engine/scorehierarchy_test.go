@@ -128,9 +128,13 @@ func TestAbortPreservesPreviousDepth(t *testing.T) {
 
 	tt := NewTranspositionTable(1)
 	heuristics := NewSearchHeuristics()
+	// Depth 1 scans every root candidate (~120 nodes); under the race
+	// detector plus coverage instrumentation that costs tens of ms, so the
+	// budget needs headroom for depth 1 to always finish while depth 2+
+	// (100x more nodes) always aborts.
 	opts := SearchConfig{
 		MaxDepth:    20,
-		TimeLimitMs: 5,
+		TimeLimitMs: 200,
 		Goroutines:  1,
 	}
 

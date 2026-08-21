@@ -1,6 +1,6 @@
 /**
  * Centralized game constants - single source of truth for game rules.
- * Mirror of backend GameConstants.cs for frontend consistency.
+ * Mirror of backend internal/domain/constants.go for frontend consistency.
  */
 
 export const GameConfig = {
