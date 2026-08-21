@@ -4,6 +4,8 @@ import (
 	"runtime"
 	"testing"
 
+	"caro-ai-pvp/internal/domain"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,12 +17,14 @@ func TestDifficultyProfileLevels(t *testing.T) {
 		maxFraction   float64
 		minGoroutines int
 		useVCF        bool
+		vcfDepth      int
+		maxDepth      int
 	}{
-		{1, "Novice", 0.04, 0.06, 1, false},
-		{2, "Beginner", 0.14, 0.16, 1, false},
-		{3, "Intermediate", 0.39, 0.41, 2, true},
-		{4, "Advanced", 0.69, 0.71, 1, true},
-		{5, "Grandmaster", 0.99, 1.01, 1, true},
+		{1, "Novice", 0.04, 0.06, 1, false, 0, 2},
+		{2, "Beginner", 0.14, 0.16, 1, false, 0, 4},
+		{3, "Intermediate", 0.39, 0.41, 2, true, 2, 4},
+		{4, "Advanced", 0.69, 0.71, 1, true, 4, 5},
+		{5, "Grandmaster", 0.99, 1.01, 1, true, domain.VCFSearchDepth, domain.AbsoluteMaxDepth},
 	}
 
 	for _, tc := range profiles {
@@ -31,7 +35,35 @@ func TestDifficultyProfileLevels(t *testing.T) {
 			assert.LessOrEqual(t, p.TimeFraction, tc.maxFraction)
 			assert.GreaterOrEqual(t, p.Goroutines, tc.minGoroutines)
 			assert.Equal(t, tc.useVCF, p.UseVCF)
+			assert.Equal(t, tc.vcfDepth, p.VCFDepth)
+			assert.Equal(t, tc.maxDepth, p.MaxDepth)
 		})
+	}
+}
+
+// Measured at bullet (1+0, 20-game duels): ID depth beyond ~6 buys no wins in
+// self-play, so L3/L4 keep their depth caps below the saturation plateau and
+// separate from L2 by VCF sight and time fraction instead.
+func TestDifficultyLadderOrdersStrengthAxes(t *testing.T) {
+	l3 := GetDifficultyProfile(3)
+	l4 := GetDifficultyProfile(4)
+	l5 := GetDifficultyProfile(5)
+	assert.LessOrEqual(t, l3.MaxDepth, 5, "L3 must sit below the bullet depth plateau")
+	assert.LessOrEqual(t, l4.MaxDepth, 5, "L4 must sit below the bullet depth plateau")
+	assert.Equal(t, domain.AbsoluteMaxDepth, l5.MaxDepth)
+
+	prev := GetDifficultyProfile(1)
+	for level := 2; level <= 5; level++ {
+		p := GetDifficultyProfile(level)
+		assert.GreaterOrEqual(t, p.MaxDepth, prev.MaxDepth,
+			"level %d depth cap must not fall below level %d", level, level-1)
+		if p.UseVCF && prev.UseVCF {
+			assert.Greater(t, p.VCFDepth, prev.VCFDepth,
+				"level %d VCF sight must exceed level %d", level, level-1)
+		}
+		assert.Greater(t, p.TimeFraction, prev.TimeFraction,
+			"level %d time fraction must exceed level %d", level, level-1)
+		prev = p
 	}
 }
 

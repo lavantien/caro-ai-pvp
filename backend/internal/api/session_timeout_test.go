@@ -49,12 +49,19 @@ func TestSessionNoTimeoutWhileClockRuns(t *testing.T) {
 	assert.Empty(t, resp.EndReason)
 }
 
+// Levels must be strictly stronger than their predecessor, but not on the
+// depth axis alone: measured at bullet, ID depth past ~6 stops buying
+// strength, so L3 shares L2's cap and separates by VCF sight and time
+// fraction instead (see TestDifficultyLadderOrdersStrengthAxes in engine).
 func TestDifficultyDepthCapsMonotone(t *testing.T) {
 	prev := 0
 	for level := 1; level <= 5; level++ {
 		p := engine.GetDifficultyProfile(level)
-		assert.Greater(t, p.MaxDepth, prev, "L%d must search deeper than L%d", level, level-1)
+		assert.GreaterOrEqual(t, p.MaxDepth, prev, "L%d cap must not fall below L%d", level, level-1)
 		assert.LessOrEqual(t, p.MaxDepth, domain.AbsoluteMaxDepth)
+		if level == 3 {
+			assert.True(t, p.UseVCF && p.VCFDepth > 0, "L3 must out-class L2 via VCF sight")
+		}
 		prev = p.MaxDepth
 	}
 }

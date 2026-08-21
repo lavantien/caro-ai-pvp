@@ -226,6 +226,7 @@ func (h *UCIHandler) skillSearchOptions() engine.SearchOptions {
 		ParallelEnabled: goroutines > 1,
 		TimeFraction:    profile.TimeFraction,
 		UseVCF:          profile.UseVCF,
+		VCFMaxDepth:     profile.VCFDepth,
 		MaxDepth:        profile.MaxDepth,
 	}
 }

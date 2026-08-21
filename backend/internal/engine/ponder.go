@@ -10,6 +10,7 @@ type PonderConfig struct {
 	Threads   int
 	MaxDepth  int
 	UseVCF    bool
+	VCFDepth  int
 	TimeCapMs int64
 }
 
@@ -145,7 +146,8 @@ func (ai *MinimaxAI) runPonder(ctx context.Context, b domain.Board, player domai
 		TimeLimitMs: cfg.TimeCapMs,
 		SoftLimitMs: 0,
 		Goroutines:  goroutines,
-		UseVCF:       cfg.UseVCF,
+		UseVCF:      cfg.UseVCF,
+		VCFMaxDepth: cfg.VCFDepth,
 	}, ai.tt, NewSearchHeuristics(), ctx)
 
 	return PonderOutcome{

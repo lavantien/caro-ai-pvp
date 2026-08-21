@@ -11,34 +11,38 @@ type DifficultyProfile struct {
 	MaxDepth     int
 	Goroutines   int
 	UseVCF       bool
+	VCFDepth     int
 	Ponder       bool
 	TTSizeMB     int
 }
 
-// Levels are strength-based first (depth caps, solver and parallel gating) and
-// time-fraction scaled second, so L(k) is stronger than L(k-1) on any host.
+// Levels are strength-based first (depth caps, solver sight and parallel
+// gating) and time-fraction scaled second, so L(k) is stronger than L(k-1) on
+// any host. L3/L4 caps stay at or below 5: measured at bullet, ID depth past
+// ~6 stops buying strength in self-play, so the ladder keeps those levels
+// below the plateau and scales VCF sight instead.
 func GetDifficultyProfile(level int) DifficultyProfile {
 	n := runtime.GOMAXPROCS(0)
 	l5Goroutines := pow2Floor((n - 2) / 2)
 
 	switch level {
 	case 1:
-		return DifficultyProfile{"Novice", 0.05, 2, 1, false, false, 64}
+		return DifficultyProfile{"Novice", 0.05, 2, 1, false, 0, false, 64}
 	case 2:
-		return DifficultyProfile{"Beginner", 0.15, 4, 1, false, false, 64}
+		return DifficultyProfile{"Beginner", 0.15, 4, 1, false, 0, false, 64}
 	case 3:
-		return DifficultyProfile{"Intermediate", 0.40, 6, 2, true, false, 256}
+		return DifficultyProfile{"Intermediate", 0.40, 4, 2, true, 2, false, 256}
 	case 4:
 		l4 := pow2Floor(l5Goroutines / 2)
 		if l4 < 1 {
 			l4 = 1
 		}
-		return DifficultyProfile{"Advanced", 0.70, 10, l4, true, false, domain.DefaultTTSizeMB}
+		return DifficultyProfile{"Advanced", 0.70, 5, l4, true, 4, false, domain.DefaultTTSizeMB}
 	default:
 		if l5Goroutines < 1 {
 			l5Goroutines = 1
 		}
-		return DifficultyProfile{"Grandmaster", 1.0, domain.AbsoluteMaxDepth, l5Goroutines, true, true, domain.DefaultTTSizeMB}
+		return DifficultyProfile{"Grandmaster", 1.0, domain.AbsoluteMaxDepth, l5Goroutines, true, domain.VCFSearchDepth, true, domain.DefaultTTSizeMB}
 	}
 }
 

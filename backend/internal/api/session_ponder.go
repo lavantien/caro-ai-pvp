@@ -145,6 +145,7 @@ func (s *GameSession) startPonderLocked(mover domain.Player) {
 		Threads:   profile.Goroutines,
 		MaxDepth:  profile.MaxDepth,
 		UseVCF:    profile.UseVCF,
+		VCFDepth:  profile.VCFDepth,
 		TimeCapMs: capMs,
 	}) {
 		return

@@ -193,6 +193,7 @@ func (h *Handler) MakeAIMove(w http.ResponseWriter, r *http.Request) {
 			ParallelEnabled: profile.Goroutines > 1,
 			TimeFraction:    profile.TimeFraction,
 			UseVCF:          profile.UseVCF,
+			VCFMaxDepth:     profile.VCFDepth,
 			MaxDepth:        profile.MaxDepth,
 		}
 	} else {
