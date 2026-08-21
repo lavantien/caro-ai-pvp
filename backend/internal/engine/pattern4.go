@@ -11,7 +11,6 @@ type Pattern4 int
 const (
 	P4None     Pattern4 = 0
 	P4Flex1    Pattern4 = 1
-	P4Block1   Pattern4 = 2
 	P4Flex2    Pattern4 = 3
 	P4Block2   Pattern4 = 4
 	P4Flex3    Pattern4 = 5

@@ -36,7 +36,9 @@ backend/
 
 ---
 
-## Part 1: Go 1.26 Features Used
+## Part 1: Go 1.26 Features
+
+The codebase itself relies on the default Green Tea GC (no configuration) and plain goroutines/channels/mutexes. `errors.AsType` and expression-based `new()` are shown below because they are available in this toolchain and useful to contributors; neither is currently used in the codebase. The simd package remains planned.
 
 ### 1.1 Green Tea GC
 
@@ -293,33 +295,28 @@ func (s *GameSession) MakeAIMove(ctx context.Context) (GameResponse, error) {
 }
 ```
 
-### 3.4 SeqLock Transposition Table
+### 3.4 Sharded RWMutex Transposition Table
 
-Lock-free reads with atomic version counters:
+The shared TT is split into 16 shards, each guarded by its own `sync.RWMutex` (concurrent reads, exclusive writes), so goroutines rarely contend on the same lock:
 
 ```go
-type TTEntry struct {
-    hash    uint64
-    data    uint32
-    meta    uint32
-    version atomic.Uint32 // odd=writing, even=stable
+type ttShard struct {
+    mu    sync.RWMutex
+    slots []ttSlot
+    mask  uint64
 }
 
-func (t *TranspositionTable) Store(entry TTEntry) {
-    v := entry.version
-    entry.version.Add(1)       // make odd (writing)
-    // write fields...
-    entry.version.Add(1)       // make even (stable)
+type TranspositionTable struct {
+    shards [16]ttShard
+    age    atomic.Uint32 // bumped per search iteration
 }
 
-func (t *TranspositionTable) Load(hash uint64) (TTEntry, bool) {
-    v1 := entry.version.Load()
-    if v1%2 != 0 { return TTEntry{}, false } // writing, retry
-    copied := entry // copy
-    if entry.version.Load() != v1 { return TTEntry{}, false } // changed during copy
-    return copied, true
+func (t *TranspositionTable) shardIndex(hash uint64) int {
+    return int((hash >> 32) & 0xF)
 }
 ```
+
+Replacement inside a shard is depth-age aware: a stored entry is stamped with the current age, and an incoming entry replaces it when it is deeper or the old entry has aged out (`depth - 8*age` priority).
 
 ### 3.5 sync.Pool for Reusable Objects
 
@@ -446,7 +443,7 @@ func TestBoardPlaceStoneImmutable(t *testing.T) {
 ```go
 func TestMinimaxFindsWinningMove(t *testing.T) {
     board := setupBoardWithFourInRow() // 4 red stones in a row
-    ai := engine.NewMinimaxAI(slog.Default(), 1)
+    ai := engine.NewMinimaxAI(slog.Default(), 1, 64) // logger, threads, TT MB
 
     x, y := ai.GetBestMove(board, domain.PlayerRed, opts, context.Background())
 
@@ -462,7 +459,7 @@ func TestCreateGame(t *testing.T) {
     store := api.NewInMemoryStore()
     handler := api.NewHandler(store, nil)
 
-    body := `{"time_control":"3+2","game_mode":"aivai","difficulty":5}`
+    body := `{"timeControl":"3+2","gameMode":"aivai","redDifficulty":5,"blueDifficulty":5}`
     req := httptest.NewRequest(http.MethodPost, "/api/games", strings.NewReader(body))
     req.Header.Set("Content-Type", "application/json")
     w := httptest.NewRecorder()

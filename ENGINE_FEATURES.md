@@ -100,7 +100,7 @@ Quiescence search extends the search at horizon positions to avoid tactical blun
 - Prevent horizon effect (bad moves hidden at depth limit)
 
 **Implementation Characteristics:**
-- Filters to only tactical (forcing) moves via TacticalEvaluator and Pattern4Evaluator
+- Filters to only four-forcing moves (creates or blocks a four) via `GetTacticalCandidates`
 - Stand-pat pruning skipped when opponent has forcing threats (forced response handling)
 - Separate qsPly tracking prevents depth confusion with rootDepth
 - Depth limit (4 quiescence plies) to prevent explosion
@@ -154,7 +154,7 @@ Each TT entry stores:
 - **Bound Type** - Exact, lower bound (beta cutoff), or upper bound (alpha cutoff)
 - **Score** - Position evaluation
 - **Best Move** - Principal variation move
-- **Static Eval** - Cached static evaluation
+- **Age** - Search generation, used by the depth-age replacement formula
 
 ### 3.3 Shared TT Write Policy
 
@@ -194,19 +194,18 @@ Moves are generated and scored in stages, allowing early termination on cutoffs.
 5. **KILLER_COUNTER** - Killer moves (400K-500K) + counter-move responses (350K)
 6. **QUIET** - History/killer/continuation score + center bias + proximity
 
-**Score Constants (MoveOrderingConstants):**
+**Score Constants (movepicker.go):**
 | Category | Score |
 |----------|-------|
-| Must Block | 2,000,000 |
-| Winning Move | 1,500,000 |
-| TT Move | 1,000,000 |
+| TT Move | 10,000,000 |
+| Must Block | 8,000,000 |
+| Winning Move | 5,000,000 |
 | Threat Create | 800,000 |
 | Killer 1 | 500,000 |
 | Killer 2 | 400,000 |
-| Counter Move | 150,000 |
-| Continuation Max | 300,000 |
-| History Max | 30,000 |
-| Good Quiet Threshold | 500 |
+| Counter Move | 350,000 |
+| History Cap | 1,000,000 |
+| Continuation Max | 30,000 |
 
 ### 4.3 Continuation History
 
@@ -214,18 +213,15 @@ Tracks move pairs across consecutive plies to identify good move sequences.
 
 **Structure:**
 - Dimensions: [player, previous_cell, current_cell]
-- Score range: -30,000 to +30,000
-- Update formula with overflow prevention
+- Score range: 0 to +30,000
+- Keyed on the immediately preceding move (move pairs, not longer sequences)
 
 **Update Mechanism:**
-- Bonus for moves causing cutoffs
-- Penalty for moves that didn't cause cutoffs
-- Bounded updates prevent overflow
+- Bonus for moves causing cutoffs: depth^2 * 3
+- Bounded updates prevent overflow (capped at 30,000)
 
-**Ply Span:**
-- Tracks 6 plies of history
-- Recent plies weighted more heavily
-- Contributes to quiet move scoring
+**Usage:**
+- Contributes to quiet move scoring in the move picker
 
 ### 4.4 Counter-Move History
 
@@ -260,13 +256,12 @@ General-purpose move ordering based on past performance.
 
 **Butterfly History:**
 - Tracks move performance globally
-- Dimensions: [player, from_cell, to_cell]
+- Dimensions: [player, x, y] (stones have no from-square, so cells are keyed directly)
 - Long-term statistics across game
 
 **Update Policy:**
-- Successful cutoffs: positive bonus
-- Failed moves: negative penalty
-- Gravity formula prevents extreme values
+- Successful cutoffs: depth^2 bonus
+- Values clamped to 1,000,000
 
 ---
 
@@ -289,44 +284,47 @@ window. All analysis is allocation-free array work on the extracted line.
 
 ### 5.2 Pattern4 Classification
 
-Combined 4-direction threat classification for each position.
+Combined 4-direction threat classification for each position. Enum values are
+distinct members of one `Pattern4` type in `pattern4.go`; each direction is
+classified independently and summed into `PlayerPattern4` counts.
 
 **Pattern Categories:**
 
-| Category | Threat Level | Description |
-|----------|--------------|-------------|
-| None | 0 | No significant pattern |
-| Flex1 | 1 | Single stone with potential |
-| Block1 | 1 | Single blocked stone |
-| Flex2 | 2 | Open two |
-| Block2 | 2 | Blocked two |
-| Flex3 | 4 | Open three (must defend) |
-| Block3 | 3 | Blocked three |
-| Flex4 | 8 | Open four (winning threat) |
-| Block4 | 4 | Blocked four |
-| DoubleFlex3 | 16 | Two open threes (winning) |
-| Flex4Flex3 | 32 | Open four + open three (winning) |
-| Exactly5 | 64 | Win condition |
-| Overline | 0 | Invalid (exactly-5 rule) |
+| Category | Value | Description |
+|----------|-------|-------------|
+| P4None | 0 | No significant pattern |
+| P4Flex1 | 1 | Single stone |
+| P4Flex2 | 3 | Open two (both ends empty) |
+| P4Block2 | 4 | Blocked two |
+| P4Flex3 | 5 | Three that can still become an open four (includes broken threes like .X.XX.) |
+| P4Block3 | 6 | Three with a single continuation |
+| P4Flex4 | 7 | Four with two completion squares (includes split fours like .XX.XX.) |
+| P4Block4 | 8 | Four with one completion square |
+| P4Exactly5 | 9 | Win condition |
+| P4Overline | 10 | Invalid (exactly-5 rule) |
 
 **Caro-Specific Rules:**
-- Overlines (6+) don't count as wins
+- Overlines (6+) don't count as wins (P4Overline)
 - Blocked fours can still win (opponent can't block both ends)
-- Double threats are winning
+- Double threats are not enum classes; they are derived from the counts during evaluation (see 5.3)
+- ClassifyStone skips directions anchored by a same-color stone so gapped clusters are counted once
 
-### 5.3 Evaluation Cache
+### 5.3 Combination Bonuses
 
-Stores static evaluation corrections for position reuse.
+Evaluation has no separate cache; threat combinations are read directly from the
+`PlayerPattern4` counts. The highest matching category wins (`evaluation.go`):
 
-**Purpose:**
-- Avoid redundant evaluation computation
-- Correction values improve accuracy
-- Integrated with TT storage
+| Combination | Bonus |
+|------------|-------|
+| Exactly5 | 30,000 (= WinScore) |
+| Flex4 present | 15,000 |
+| Double blocked four | 14,000 |
+| Blocked four + open three | 13,000 |
+| Double open three | 12,000 |
 
-**Mechanism:**
-- Static eval cached in TT entry
-- Correction applied on TT hit
-- Reduces evaluation calls
+Below those thresholds, patterns score linearly: Flex4 10,000, Block4 5,000,
+Flex3 1,000, Block3 100, Flex2 100, Block2 30, plus 10 per stone and a center
+bonus of 2 * (BoardSize - manhattan distance to center).
 
 ### 5.4 Scoring System
 
@@ -592,8 +590,8 @@ Two-character algebraic notation for Caro:
 | Package | Files | Responsibility |
 |---------|-------|---------------|
 | `internal/domain` | board.go, game.go, player.go, position.go, zobrist.go, win.go, constants.go, errors.go | Domain entities, game rules, no dependencies |
-| `internal/engine` | minimax.go, search.go, parallel.go, evaluation.go, pattern4.go, vcf.go, transposition.go, movepicker.go, candidate.go, heuristics.go, timemanager.go, timemonitor.go, difficulty.go, searchboard.go, bitboard.go | AI engine, search algorithms |
-| `internal/uci` | handler.go, notation.go, position.go, options.go | UCI protocol handling |
+| `internal/engine` | minimax.go, search.go, parallel.go, evaluation.go, pattern_window.go, pattern4.go, vcf.go, transposition.go, movepicker.go, candidate.go, heuristics.go, timemanager.go, timemonitor.go, difficulty.go, searchboard.go, bitboard.go | AI engine, search algorithms |
+| `internal/uci` | handler.go, notation.go | UCI protocol handling |
 | `internal/api` | server.go, handlers.go, websocket.go, session.go, store.go, requests.go, middleware.go, errors.go | HTTP/WebSocket API |
 | `internal/persistence` | matchstore.go | Structured match persistence (SQLite) |
 
@@ -616,11 +614,12 @@ Two-character algebraic notation for Caro:
 | `minimax.go` | MinimaxAI struct definition, constructor, public API, Dispose |
 | `search.go` | Iterative deepening, PVS alpha-beta, LMR, null-move pruning (depth>=4, reduction=2), aspiration windows, VCF preferred move hint |
 | `parallel.go` | Lazy SMP goroutine pool dispatch, result aggregation |
-| `evaluation.go` | Zero-sum Pattern4-based evaluation with center bonus |
-| `pattern4.go` | 4-direction threat classification (Flex/Block/Broken patterns, combined threat detection) |
+| `evaluation.go` | Zero-sum Pattern4-based evaluation with combination bonuses and center bonus |
+| `pattern_window.go` | 11-cell line-window primitives: extractLine, spanThrough, lineCompletions, placement analysis |
+| `pattern4.go` | 4-direction threat classification on window primitives (Flex/Block patterns, combined counts) |
 | `vcf.go` | Victory by Continuous Fours pre-search solver |
 | `transposition.go` | Sharded RWMutex TT with depth-age replacement |
-| `movepicker.go` | Staged move ordering (7 stages: TT -> Win -> Block -> Threat -> Killer/Counter -> Quiet) |
+| `movepicker.go` | Staged move ordering (6 stages: TT -> Win -> Block -> Threat -> Killer/Counter -> Quiet) |
 | `candidate.go` | Candidate generation with center-of-mass ordering, tactical filtering |
 | `heuristics.go` | Killer moves, continuation/butterfly/counter-move history |
 | `timemanager.go` | Phase-aware time allocation with clock safety floors |
@@ -632,10 +631,8 @@ Two-character algebraic notation for Caro:
 **UCI Package** (`internal/uci/`):
 | File | Role |
 |------|------|
-| `handler.go` | UCI command dispatcher, search controller |
-| `notation.go` | Double-letter coordinate encoding/decoding |
-| `position.go` | Position string parsing |
-| `options.go` | Engine options (Threads, Hash, Skill Level) |
+| `handler.go` | UCI command dispatcher, search controller, engine options (Threads, Hash, Skill Level) |
+| `notation.go` | Double-letter coordinate encoding/decoding, position parsing |
 
 ---
 

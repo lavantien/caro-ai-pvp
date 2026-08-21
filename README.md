@@ -54,7 +54,7 @@ Features hardware-agnostic difficulty levels (L1 Novice through L5 Grandmaster) 
 | | Winning Moves | Creates open four or double threat |
 | | Threat Create | Creates open three or broken four |
 | | Killer/Counter | Cutoff moves + opponent response patterns |
-| | Continuation History | 6-ply move pair scoring |
+| | Continuation History | Previous-move pair scoring |
 | | Butterfly History | Long-term move statistics |
 | **Evaluation** | Gap-Aware Patterns | 11-cell line windows classify split fours (.XX.XX.) and broken threes like their straight equivalents |
 | **Time Control** | Phase-Aware Allocation | Divisor-based budget with clock safety floors |
@@ -93,7 +93,7 @@ Fisher time controls with increment:
 | **Open Rule Highlight** | Dimmed overlay on invalid cells during Red's 2nd move (Chebyshev distance < 3) |
 | **Bot Difficulty Labels** | AI level shown in timer strips (e.g. "AI (Grandmaster)") |
 | **Undo** | Server-side undo support via `POST /api/games/{id}/undo` |
-| **Game Cleanup** | Explicit `DELETE /api/games/{id}` + automatic 5-min eviction + 30-min abandoned timeout + max 4 concurrent games |
+| **Game Cleanup** | Explicit `DELETE /api/games/{id}` + 5-min cleanup sweep of finished games + 30-min abandoned-game timeout + max 4 concurrent games |
 | **Sound Effects** | Synthesized stone placement (A4/C5 tones) and victory arpeggios via Web Audio API |
 | **Sound Toggle** | Mute/unmute button in nav bar; muted by default (browser autoplay policy) |
 | **Haptic Feedback** | Vibration on valid (10ms) and invalid (30-50-30ms) moves |
@@ -183,7 +183,7 @@ README.md (Entry Point)
         |       |-- Search Architecture -> PVS, LMR, Quiescence
         |       |-- Transposition Table -> Shards, RWMutex
         |       |-- Move Ordering -> Stages, History, Killers
-        |       |-- Evaluation -> BitKey, Pattern4, Scoring
+        |       |-- Evaluation -> Line windows, Pattern4, Scoring
         |       +-- Time Management -> Phase-aware allocation
         |
         +--> GO_ONBOARDING.md (Contributing)
