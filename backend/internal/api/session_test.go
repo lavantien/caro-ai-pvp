@@ -38,8 +38,10 @@ func TestNewGameSessionInitialState(t *testing.T) {
 	assert.Equal(t, 300, resp.InitialTime)
 	assert.Equal(t, 2, resp.Increment)
 	assert.Equal(t, "aivai", resp.GameMode)
-	assert.Equal(t, 300.0, resp.RedTimeRemaining)
-	assert.Equal(t, 300.0, resp.BlueTimeRemaining)
+	// The clock on the move ticks live, so a slow test binary can burn a
+	// millisecond before the response is built. Tolerance, not equality.
+	assert.InDelta(t, 300.0, resp.RedTimeRemaining, 0.01)
+	assert.InDelta(t, 300.0, resp.BlueTimeRemaining, 0.01)
 	assert.Equal(t, 3, *resp.RedDifficulty)
 	assert.Nil(t, resp.BlueDifficulty)
 }
