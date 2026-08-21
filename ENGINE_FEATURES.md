@@ -40,6 +40,8 @@ Lazy SMP with all-equal goroutines sharing a single sharded TT — no master/sla
 - Workers dispatched per-search via goroutine pool with result channel
 - Each goroutine maintains independent heuristics (killers, history)
 - Shared TT provides inter-worker cooperation via hash move hints
+- Ponder searches run the same machinery during the opponent's turn with
+  fresh heuristics and no soft limit (see 6.3)
 
 **Result Selection:**
 - Deepest completed depth wins
@@ -139,7 +141,8 @@ Single sharded RWMutex transposition table shared across all search paths. In pa
 - Priority formula: depth - 8 * age
 - Same-hash entries: deeper entry always kept (shallow overwrites rejected)
 - Different-hash entries: lower priority entry rejected
-- Age increments per search iteration via `IncrementAge()`
+- Age increments once per official move via `IncrementAge()`; ponder
+  searches write under the current age without bumping it
 
 **Stats Tracking:**
 - `probes` and `hits` atomic counters for hit rate computation
@@ -380,7 +383,48 @@ caps the result at 40% of the remaining clock.
 
 ### 6.3 Pondering
 
-Not implemented. Nothing advertises a ponder option until it exists.
+Grandmaster (L5) bots search on the opponent's clock. When an L5 move
+commits, the session reads the opponent's predicted reply from the TT entry
+the search just stored (`PredictReply`) and launches a background search on
+the resulting position (`StartPonder`, owned by the mover's `MinimaxAI`).
+
+**Mechanics:**
+- Shares the AI's TT, uses a fresh `SearchHeuristics`, never bumps the TT
+  age, and never touches the AI's official stats
+- `SoftLimitMs` disabled: iterative deepening runs until the wall-clock cap
+  (`PonderTimeCapMs`, 30s) or `MaxDepth`, bounding CPU while a slow
+  opponent thinks
+- The prediction comes from a searched PV node, so legality (including the
+  open rule) is inherent; entries without depth or pointing at occupied
+  cells are rejected, and turns without a prediction simply do not ponder
+
+**Hit handling:**
+- Hit = the opponent plays the predicted reply and the ponder completed at
+  least one depth (`PonderMinCompletedDepth`; a solver-verified VCF win
+  counts despite `DepthAchieved` 0). The next `ai-move` applies the
+  pondered move instantly: `MoveType` `ponder-hit`, `[PONDER]` statline
+  tag, `ponder_depth`/`ponder_nodes` persisted
+- Miss or incomplete ponder: a normal budgeted search runs over a TT warmed
+  by the ponder's writes
+- A staged hit is pinned to the pondered position hash; any state change in
+  between (undo, duplicate request) downgrades it to a miss
+
+**Lifecycle and teardown:**
+- At most one ponder per session (the latest mover); every applied move
+  stops the previous ponderer before starting the mover's
+- Joins under the session mutex are safe: the ponder goroutine takes no
+  session or store locks, and cancellation is node-granular (the ID loop,
+  alpha-beta, quiesce, and VCF all poll `ShouldStop`, which honors the
+  cancelled context inline)
+- Every teardown path (game over, flag fall, undo, delete, janitor sweep,
+  shutdown) funnels through `DisposeAI`, which joins the ponder before
+  `tt.Dispose` nils the shard slices — a straggler search would otherwise
+  panic
+- `CARO_DISABLE_PONDER=1` disables pondering process-wide
+
+**Trade-off:** in L5-vs-L5 games both sides can search at once (one
+pondering, one on the clock), contending for cores; wall-clock budgets
+absorb the contention.
 
 ---
 
@@ -510,6 +554,8 @@ Coordinated search cancellation via context.Context.
 - Derived context combines external cancellation with internal time-monitor
 - Channel-based worker pool respects context cancellation
 - Clean termination on timeout, stop command, or client disconnect
+- Ponder goroutines cancel the same way; `StopPonder` cancels and joins,
+  and `GetBestMove`/`Dispose` drain any running ponder first (see 6.3)
 
 ### 8.3 Statistics Collection
 
@@ -555,13 +601,13 @@ Standard UCI commands for engine control:
 
 Strength-based difficulty via `DifficultyProfile`: depth caps make level differences hold on any machine, with the time fraction as a secondary cap.
 
-| Level | Name | Depth Cap | Time Fraction | Goroutines | Parallel | VCF | TT Size |
-|-------|------|-----------|---------------|------------|----------|-----|---------|
-| 1 | Novice | 2 | 5% | 1 | No | No | 64MB |
-| 2 | Beginner | 4 | 15% | 1 | No | No | 64MB |
-| 3 | Intermediate | 6 | 40% | 2 | Yes | Yes | 256MB |
-| 4 | Advanced | 10 | 70% | Pow2((N-2)/2)/2 | Yes | Yes | 1GB |
-| 5 | Grandmaster | 50 | 100% | Pow2((N-2)/2) | Yes | Yes | 1GB |
+| Level | Name | Depth Cap | Time Fraction | Goroutines | Parallel | VCF | Ponder | TT Size |
+|-------|------|-----------|---------------|------------|----------|-----|--------|---------|
+| 1 | Novice | 2 | 5% | 1 | No | No | No | 64MB |
+| 2 | Beginner | 4 | 15% | 1 | No | No | No | 64MB |
+| 3 | Intermediate | 6 | 40% | 2 | Yes | Yes | No | 256MB |
+| 4 | Advanced | 10 | 70% | Pow2((N-2)/2)/2 | Yes | Yes | No | 1GB |
+| 5 | Grandmaster | 50 | 100% | Pow2((N-2)/2) | Yes | Yes | Yes | 1GB |
 
 **How it works:**
 - `MaxDepth`: The primary strength knob. Each level searches strictly deeper
@@ -570,6 +616,8 @@ Strength-based difficulty via `DifficultyProfile`: depth caps make level differe
 - `UseVCF`: Disabling the pre-search VCF solver removes tactical precision at low levels.
 - Goroutine count scales with difficulty: level 1-2 single-goroutine, level 3 dual-goroutine, level 4-5 adaptive to hardware.
 - Level 4 uses half of L5's goroutine count (next power of 2 down).
+- `Ponder`: L5 only; background search on the predicted reply during the
+  opponent's turn (see 6.3).
 - Level 5 = full-strength engine with all optimizations.
 
 **Per-player difficulty:** The HTTP API accepts `redDifficulty` and `blueDifficulty` independently, allowing asymmetric matches (e.g., L5 vs L1).

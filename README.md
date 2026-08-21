@@ -108,16 +108,17 @@ Fisher time controls with increment:
 
 The engine supports 5 difficulty levels. Levels are strength-based first (depth caps, solver and parallel gating) with the time fraction as a secondary cap, so L(k) is stronger than L(k-1) on any host:
 
-| Level | Name | Depth Cap | Time Budget | Goroutines | VCF Solver | TT Size |
-|-------|------|-----------|-------------|------------|------------|---------|
-| 1 | Novice | 2 | 5% | 1 | No | 64MB |
-| 2 | Beginner | 4 | 15% | 1 | No | 64MB |
-| 3 | Intermediate | 6 | 40% | 2 | Yes | 256MB |
-| 4 | Advanced | 10 | 70% | Pow2((N-2)/2)/2 | Yes | 1GB |
-| 5 | Grandmaster | 50 | 100% | Pow2((N-2)/2) | Yes | 1GB |
+| Level | Name | Depth Cap | Time Budget | Goroutines | VCF Solver | Pondering | TT Size |
+|-------|------|-----------|-------------|------------|------------|-----------|---------|
+| 1 | Novice | 2 | 5% | 1 | No | No | 64MB |
+| 2 | Beginner | 4 | 15% | 1 | No | No | 64MB |
+| 3 | Intermediate | 6 | 40% | 2 | Yes | No | 256MB |
+| 4 | Advanced | 10 | 70% | Pow2((N-2)/2)/2 | Yes | No | 1GB |
+| 5 | Grandmaster | 50 | 100% | Pow2((N-2)/2) | Yes | Yes | 1GB |
 
 - Depth caps make level differences strength differences, not clock-management differences
 - VCF solver and parallel search unlock at higher levels
+- Pondering (searching on the opponent's clock) is L5-only
 - Per-player difficulty: red and blue can play at different levels independently
 - Level 5 = full-strength engine with all optimizations
 - Goroutine count for L4 is half of L5 (next power of 2 down)
@@ -309,8 +310,12 @@ All domain entities are immutable for thread safety:
 - Maintains strategic initiative instead of reactive blocking
 - Prevents "strength inversion" (weaker AI exploiting predictable behavior)
 
-**Pondering (unimplemented roadmap):**
-- Pondering is not built; nothing advertises it until it exists
+**Pondering (L5):**
+- Grandmaster bots predict the opponent's reply from their own search and
+  ponder it in the background during the opponent's turn
+- A ponder hit plays instantly (`ponder-hit` move type, `[PONDER]` statline
+  tag); a miss falls back to a normal search over the warmed TT
+- 30s ponder cap; `CARO_DISABLE_PONDER=1` disables pondering process-wide
 
 **Per-Player AI Isolation:**
 - Each player in a game gets its own MinimaxAI instance

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [8.1.0] - 2026-08-21
+
+### Added
+- Grandmaster (L5) pondering: background search on the predicted opponent reply during the opponent's turn
+- Ponder hits play instantly (`ponder-hit` move type, `[PONDER]` statline tag); `ponder_depth`/`ponder_nodes` persisted on hits
+- `CARO_DISABLE_PONDER=1` kill switch disables pondering process-wide
+
+### Changed
+- `moves.move_type` records the real search move type (`vcf`, `timeout-fallback`, `ponder-hit`) instead of a hardcoded `exact`
+
+[8.1.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v8.1.0
+
 ## [8.0.0] - 2026-05-13
 
 ### Changed

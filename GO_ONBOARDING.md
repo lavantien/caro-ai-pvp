@@ -274,25 +274,25 @@ type GameSession struct {
 
 ### 3.3 Context Propagation
 
-Cancellation flows from HTTP request through AI search:
+Cancellation flows from the HTTP request through the AI search. The real
+flow lives in `Handler.MakeAIMove` (`api/handlers.go`); the session splits
+into snapshot, compute, and re-validate steps:
 
 ```go
-func (s *GameSession) MakeAIMove(ctx context.Context) (GameResponse, error) {
-    // Extract data under lock (minimal lock time)
-    s.mu.Lock()
-    board := s.game.Board
-    player := s.game.CurrentPlayer
-    s.mu.Unlock()
+board, player, _, timeMs, inc, moveNum, diff := session.ExtractForAI()
 
-    // AI computation outside lock (can take seconds)
-    ai := s.GetOrCreateAI(player)
-    x, y := ai.GetBestMove(board, player, opts, ctx) // ctx propagates cancellation
-
-    // Apply move under lock
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    // ... apply move, update time
+// A staged ponder hit answers without searching at all.
+if resp, x, y, stats, ok := session.TryPonderMove(player); ok {
+    // apply/log/respond; moveType "ponder-hit"
 }
+
+// Otherwise search on the request goroutine: a client disconnect
+// cancels via r.Context(), propagated through GetBestMove.
+x, y, stats := ai.GetBestMove(board, player, opts, r.Context())
+
+// The search ran unlocked for seconds, so re-validate the turn
+// before applying: stale results are rejected, never misapplied.
+resp, err := session.ApplyAIMove(x, y, player)
 ```
 
 ### 3.4 Sharded RWMutex Transposition Table
@@ -318,7 +318,25 @@ func (t *TranspositionTable) shardIndex(hash uint64) int {
 
 Replacement inside a shard is depth-age aware: a stored entry is stamped with the current age, and an incoming entry replaces it when it is deeper or the old entry has aged out (`depth - 8*age` priority).
 
-### 3.5 sync.Pool for Reusable Objects
+### 3.5 Background Ponderer (L5)
+
+Grandmaster sessions run one ponder goroutine between moves. The rules
+that keep it race-free:
+
+- **Start under `s.mu` is cheap**: `applyMoveLocked` stops the previous
+  ponderer, then spawns the mover's ponder (spawn only; the goroutine does
+  the prediction lookup and search on its own).
+- **Join under `s.mu` is allowed only for node-granular cancellable work**:
+  the ponder goroutine never takes session or store locks (no deadlock),
+  and the search polls `ShouldStop` at every node, so a cancel-join waits
+  microseconds.
+- **`DisposeAI` is the single teardown choke point**: it joins the ponder
+  before `MinimaxAI.Dispose` frees the TT, because a straggler search would
+  index the nilled shard slices and panic.
+- **State changes invalidate**: undo and any teardown clear the staged hit;
+  consumption re-validates the board hash under the lock.
+
+### 3.6 sync.Pool for Reusable Objects
 
 Reduce GC pressure in hot paths:
 
