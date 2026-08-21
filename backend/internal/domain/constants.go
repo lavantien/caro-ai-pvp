@@ -53,4 +53,5 @@ const (
 	// Pondering (L5 background search on the predicted reply)
 	PonderTimeCapMs         int64 = 30_000
 	PonderMinCompletedDepth int   = 1
+	PonderAdoptionFraction        = 0.5
 )

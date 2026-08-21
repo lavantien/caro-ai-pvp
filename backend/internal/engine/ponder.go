@@ -3,6 +3,7 @@ package engine
 import (
 	"caro-ai-pvp/internal/domain"
 	"context"
+	"time"
 )
 
 // PonderConfig shapes the background ponder search.
@@ -16,7 +17,9 @@ type PonderConfig struct {
 // PonderOutcome is the result of a ponder search: the position searched
 // (bot to move), the predicted reply that led to it, and the best move
 // found there. Completed reports whether at least one depth iteration
-// finished, the minimum bar for adopting the move on a ponder hit.
+// finished, the minimum bar for adopting the move on a ponder hit;
+// ElapsedMs is the wall time the ponder actually ran, which gates whether
+// a hit is deep enough to adopt instantly.
 type PonderOutcome struct {
 	Player         domain.Player
 	PredictedReply domain.Position
@@ -24,6 +27,7 @@ type PonderOutcome struct {
 	BestX, BestY   int
 	Stats          SearchStats
 	Completed      bool
+	ElapsedMs      int64
 }
 
 // PredictReply reads the TT entry the previous search stored for the
@@ -139,6 +143,7 @@ func (ai *MinimaxAI) runPonder(ctx context.Context, b domain.Board, player domai
 
 	// SoftLimitMs 0 disables the soft budget: ponder has no clock pressure,
 	// so the ID loop runs until the cap or MaxDepth.
+	start := time.Now()
 	x, y, stats := ParallelSearch(b, player, SearchConfig{
 		MaxDepth:    maxDepth,
 		TimeLimitMs: cfg.TimeCapMs,
@@ -155,6 +160,7 @@ func (ai *MinimaxAI) runPonder(ctx context.Context, b domain.Board, player domai
 		BestY:          y,
 		Stats:          stats,
 		Completed:      ponderCompleted(stats),
+		ElapsedMs:      time.Since(start).Milliseconds(),
 	}
 }
 

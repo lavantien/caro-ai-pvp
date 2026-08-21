@@ -108,10 +108,38 @@ func TestPonderHitDetectedOnPredictedReply(t *testing.T) {
 	require.Eventually(t, func() bool { return !s.redAI.PonderActive() },
 		2*time.Second, 10*time.Millisecond, "the short cap lets the ponder finish")
 
+	// Shrink red's clock so the 300ms ponder clears the adoption gate.
+	s.mu.Lock()
+	s.redTimeMs = 400
+	s.mu.Unlock()
+
 	_, err := s.ApplyAIMove(pred.X, pred.Y, domain.PlayerBlue)
 	require.NoError(t, err)
 	require.NotNil(t, s.pendingPonder)
 	assert.Equal(t, domain.PlayerRed, s.pendingPonder.player)
+}
+
+func TestPonderHitGatedByTimeBudget(t *testing.T) {
+	s := newPonderSession(domain.GameModeAivAI, intPtr(5), nil)
+	s.ponderTimeCapMs = 50 // far below the gate on a full 60s clock
+	playSearchedAIMove(t, s, domain.PlayerRed)
+	require.NotNil(t, s.activePonder)
+	pred := s.activePonder.predictedReply
+
+	require.Eventually(t, func() bool { return !s.redAI.PonderActive() },
+		2*time.Second, 5*time.Millisecond)
+
+	_, err := s.ApplyAIMove(pred.X, pred.Y, domain.PlayerBlue)
+	require.NoError(t, err)
+	assert.Nil(t, s.pendingPonder,
+		"a hit from a sub-second ponder window must not replace a full search")
+}
+
+func TestPonderGatePassed(t *testing.T) {
+	assert.True(t, ponderGatePassed(5000, 6720, "exact"))
+	assert.False(t, ponderGatePassed(400, 6720, "exact"))
+	assert.True(t, ponderGatePassed(1, 6720, "vcf"), "solver-verified wins are exempt")
+	assert.True(t, ponderGatePassed(10, 0, "exact"), "no budget left: adopt whatever was pondered")
 }
 
 func TestPonderMissDiscards(t *testing.T) {
@@ -157,6 +185,10 @@ func TestUndoInvalidatesPonder(t *testing.T) {
 	pred := s.activePonder.predictedReply
 	require.Eventually(t, func() bool { return !s.redAI.PonderActive() },
 		2*time.Second, 10*time.Millisecond)
+
+	s.mu.Lock()
+	s.redTimeMs = 400
+	s.mu.Unlock()
 
 	_, err := s.ApplyAIMove(pred.X, pred.Y, domain.PlayerBlue)
 	require.NoError(t, err)

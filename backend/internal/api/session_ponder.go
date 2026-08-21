@@ -67,9 +67,23 @@ func (s *GameSession) aiForPlayerLocked(p domain.Player) *engine.MinimaxAI {
 	return s.blueAI
 }
 
+// ponderGatePassed reports whether a completed ponder is deep enough to
+// adopt instantly: the ponder must have run at least
+// PonderAdoptionFraction of the soft budget a normal search would get, or
+// be a solver-verified VCF win (a forced win is valid at any depth). A
+// fast opponent shrinks the ponder window below the gate, and the hit
+// becomes a TT head start for the normal search instead.
+func ponderGatePassed(elapsedMs, softBudgetMs int64, moveType string) bool {
+	if moveType == "vcf" {
+		return true
+	}
+	return elapsedMs >= int64(float64(softBudgetMs)*domain.PonderAdoptionFraction)
+}
+
 // stopPonderLocked joins the active ponder, if any, and stages a pending
-// hit when the move just played matches the predicted reply and the ponder
-// completed at least one depth. Requires s.mu.
+// hit when the move just played matches the predicted reply, the ponder
+// completed at least one depth, and the ponder window was long enough to
+// be worth adopting. Requires s.mu.
 func (s *GameSession) stopPonderLocked(actualX, actualY int) {
 	active := s.activePonder
 	if active == nil {
@@ -88,6 +102,9 @@ func (s *GameSession) stopPonderLocked(actualX, actualY int) {
 	if outcome.PredictedReply != (domain.Position{X: actualX, Y: actualY}) {
 		return
 	}
+	if !ponderGatePassed(outcome.ElapsedMs, s.ponderSoftBudgetLocked(active.player), outcome.Stats.MoveType) {
+		return
+	}
 	s.pendingPonder = &ponderHit{
 		player:    active.player,
 		x:         outcome.BestX,
@@ -95,6 +112,23 @@ func (s *GameSession) stopPonderLocked(actualX, actualY int) {
 		boardHash: outcome.BoardHash,
 		stats:     outcome.Stats,
 	}
+}
+
+// ponderSoftBudgetLocked returns the soft time budget a normal search for
+// p would receive right now, mirroring GetBestMove's allocation math.
+// Requires s.mu.
+func (s *GameSession) ponderSoftBudgetLocked(p domain.Player) int64 {
+	remaining := s.redTimeMs
+	if p == domain.PlayerBlue {
+		remaining = s.blueTimeMs
+	}
+	incMs := int64(s.game.IncrementSeconds) * 1000
+	alloc := engine.AllocateTime(remaining, incMs, s.game.MoveNumber)
+	fraction := 1.0
+	if diff := s.difficultyForLocked(p); diff != nil {
+		fraction = engine.GetDifficultyProfile(*diff).TimeFraction
+	}
+	return int64(float64(alloc.SoftBoundMs) * fraction)
 }
 
 // startPonderLocked launches mover's ponder on the position after its own

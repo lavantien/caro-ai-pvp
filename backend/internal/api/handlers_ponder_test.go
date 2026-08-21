@@ -83,6 +83,11 @@ func stagePonderHit(t *testing.T, h *Handler, s *GameSession, gameID string) {
 	require.Eventually(t, func() bool { return !s.blueAI.PonderActive() },
 		2*time.Second, 10*time.Millisecond)
 
+	// Shrink blue's clock so the 300ms ponder clears the adoption gate.
+	s.mu.Lock()
+	s.blueTimeMs = 400
+	s.mu.Unlock()
+
 	w = postGameAction(t, h, gameID, "move", `{"x":`+strconv.Itoa(pred.X)+`,"y":`+strconv.Itoa(pred.Y)+`}`)
 	require.Equal(t, http.StatusOK, w.Code)
 	require.NotNil(t, s.pendingPonder, "playing the predicted reply must stage a hit")

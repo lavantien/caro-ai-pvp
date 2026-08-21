@@ -202,3 +202,19 @@ func TestPonderCompletedVCF(t *testing.T) {
 	assert.False(t, ponderCompleted(SearchStats{}))
 	assert.False(t, ponderCompleted(SearchStats{MoveType: "timeout-fallback"}))
 }
+
+func TestPonderOutcomeRecordsElapsed(t *testing.T) {
+	ai := NewMinimaxAI(slog.Default(), 1, 64)
+	defer ai.Dispose()
+
+	require.True(t, ai.StartPonder(ponderTestBoard(), domain.PlayerRed, domain.Position{X: 9, Y: 9}, PonderConfig{
+		Threads: 1, MaxDepth: 50, TimeCapMs: 80,
+	}))
+	require.Eventually(t, func() bool { return !ai.PonderActive() },
+		2*time.Second, 5*time.Millisecond, "the short cap ends the search")
+
+	outcome, ok := ai.StopPonder()
+	require.True(t, ok)
+	assert.Greater(t, outcome.ElapsedMs, int64(0))
+	assert.LessOrEqual(t, outcome.ElapsedMs, int64(2000), "elapsed should track the capped run")
+}
