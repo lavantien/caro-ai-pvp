@@ -97,7 +97,7 @@ func (ai *MinimaxAI) GetBestMove(
 		config.Goroutines = 1
 	}
 
-	ai.heuristics.Clear()
+	ai.heuristics.AgeForNewMove()
 	ai.tt.IncrementAge()
 
 	var x, y int

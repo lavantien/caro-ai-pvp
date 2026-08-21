@@ -69,17 +69,28 @@ func ParallelSearch(
 	tt.ResetStats()
 	results := make(chan parallelResult, numWorkers*config.MaxDepth)
 
+	// Worker 0 evolves the shared heuristics so ordering knowledge persists
+	// across moves; the other workers start from a pre-search snapshot. The
+	// snapshots must be taken before any goroutine runs: worker 0 writes while
+	// the clones are only read.
+	workerHeuristics := make([]*SearchHeuristics, numWorkers)
+	workerHeuristics[0] = heuristics
+	for w := 1; w < numWorkers; w++ {
+		workerHeuristics[w] = heuristics.Clone()
+	}
+
 	var wg sync.WaitGroup
 	for w := range numWorkers {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
 			workerSB := NewSearchBoard(b)
-			workerH := NewSearchHeuristics()
+			workerH := workerHeuristics[workerID]
 
 			prevScore := -domain.Infinity
 			completedDepth := 0
 			startDepth := 1 + workerID%2
+			var lastIterMs, prevIterMs int64
 
 			for depth := startDepth; depth <= config.MaxDepth; depth++ {
 				if monitor.ShouldStop() {
@@ -90,6 +101,10 @@ func ParallelSearch(
 				if depth > 1 && config.SoftLimitMs > 0 && monitor.ElapsedMs() >= config.SoftLimitMs {
 					break
 				}
+				if depth > 1 && !nextIterationFits(monitor.ElapsedMs(), lastIterMs, prevIterMs, config.SoftLimitMs) {
+					break
+				}
+				iterStart := monitor.ElapsedMs()
 
 				delta := domain.AspirationWindowSize
 				a, bnd := -domain.Infinity, domain.Infinity
@@ -132,6 +147,7 @@ func ParallelSearch(
 
 				prevScore = score
 				completedDepth = depth
+				prevIterMs, lastIterMs = lastIterMs, monitor.ElapsedMs()-iterStart
 				results <- parallelResult{x: x, y: y, score: score, depth: depth}
 
 				if isForcedWinScore(score) {

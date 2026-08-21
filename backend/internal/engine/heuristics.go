@@ -13,12 +13,12 @@ const (
 )
 
 type SearchHeuristics struct {
-	killerMoves    [maxKillerDepth][2]domain.Position
-	historyRed     [domain.BoardSize][domain.BoardSize]int
-	historyBlue    [domain.BoardSize][domain.BoardSize]int
-	contHistory    [2][boardCells][boardCells]int
-	counterMove    [2][boardCells]domain.Position
-	lastMoveCell   int
+	killerMoves  [maxKillerDepth][2]domain.Position
+	historyRed   [domain.BoardSize][domain.BoardSize]int
+	historyBlue  [domain.BoardSize][domain.BoardSize]int
+	contHistory  [2][boardCells][boardCells]int
+	counterMove  [2][boardCells]domain.Position
+	lastMoveCell int
 }
 
 func NewSearchHeuristics() *SearchHeuristics {
@@ -79,6 +79,33 @@ func (h *SearchHeuristics) HistoryScore(player domain.Player, x, y int) int {
 
 func (h *SearchHeuristics) Clear() {
 	*h = *NewSearchHeuristics()
+}
+
+// AgeForNewMove keeps game-level ordering knowledge across moves: history
+// tables halve so recent cutoffs dominate, while killers and counter moves
+// persist until naturally replaced. Positions evolve slowly in caro, so the
+// previous move's ordering is a strong prior for the next search.
+func (h *SearchHeuristics) AgeForNewMove() {
+	for x := range domain.BoardSize {
+		for y := range domain.BoardSize {
+			h.historyRed[x][y] /= 2
+			h.historyBlue[x][y] /= 2
+		}
+	}
+	for pi := range h.contHistory {
+		for prev := range h.contHistory[pi] {
+			for cell := range h.contHistory[pi][prev] {
+				h.contHistory[pi][prev][cell] /= 2
+			}
+		}
+	}
+}
+
+// Clone snapshots the heuristics for a search worker that must not write to
+// the shared instance.
+func (h *SearchHeuristics) Clone() *SearchHeuristics {
+	c := *h
+	return &c
 }
 
 func posToCell(x, y int) int {

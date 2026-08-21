@@ -24,17 +24,25 @@ type ScoredMove struct {
 }
 
 type MovePicker struct {
-	candidates []domain.Position
-	sb         *SearchBoard
-	player     domain.Player
-	depth      int
-	ttMove     *domain.Position
-	heuristics *SearchHeuristics
-	prevMove   domain.Position
-	stage      int
-	index      int
-	staged     []domain.Position
-	yielded    [4]uint64
+	candidates   []domain.Position
+	sb           *SearchBoard
+	player       domain.Player
+	depth        int
+	ttMove       *domain.Position
+	heuristics   *SearchHeuristics
+	prevMove     domain.Position
+	stage        int
+	index        int
+	staged       []domain.Position
+	yielded      [4]uint64
+	lastTactical bool
+}
+
+// LastMoveTactical reports whether the move from the most recent Next call
+// came from a forcing stage (winning, must-block, or threat). Reducing such
+// moves in LMR hides exactly the refutations the search must resolve.
+func (mp *MovePicker) LastMoveTactical() bool {
+	return mp.lastTactical
 }
 
 func (mp *MovePicker) markYielded(p domain.Position) {
@@ -87,6 +95,7 @@ func (mp *MovePicker) Next() (domain.Position, bool) {
 				for _, c := range mp.candidates {
 					if c == *mp.ttMove {
 						mp.markYielded(c)
+						mp.lastTactical = false
 						return c, true
 					}
 				}
@@ -106,6 +115,7 @@ func (mp *MovePicker) Next() (domain.Position, bool) {
 				continue
 			}
 			mp.markYielded(m)
+			mp.lastTactical = mp.stage >= stageWinning && mp.stage <= stageThreat
 			return m, true
 		}
 

@@ -70,6 +70,7 @@ func SearchPosition(
 		}
 	}
 
+	var lastIterMs, prevIterMs int64
 	for depth := 1; depth <= config.MaxDepth; depth++ {
 		if monitor.ShouldStop() {
 			break
@@ -79,6 +80,10 @@ func SearchPosition(
 		if depth > 1 && config.SoftLimitMs > 0 && monitor.ElapsedMs() >= config.SoftLimitMs {
 			break
 		}
+		if depth > 1 && !nextIterationFits(monitor.ElapsedMs(), lastIterMs, prevIterMs, config.SoftLimitMs) {
+			break
+		}
+		iterStart := monitor.ElapsedMs()
 
 		delta := domain.AspirationWindowSize
 		a, b := fullAlpha, fullBeta
@@ -119,6 +124,7 @@ func SearchPosition(
 			bestX, bestY = x, y
 			bestScore = score
 			completedDepth = depth
+			prevIterMs, lastIterMs = lastIterMs, monitor.ElapsedMs()-iterStart
 			if isForcedWinScore(score) {
 				break
 			}
@@ -239,6 +245,27 @@ func searchRoot(
 	return bestX, bestY, bestScore
 }
 
+// lmrReduction returns the late-move-reduction ply count for a move. Forcing
+// moves (winning completions, must-blocks, threats) are never reduced: a
+// reduced scout of a forcing move hides the refutation unless it happens to
+// beat alpha, which is exactly the blunder the guard exists to prevent.
+func lmrReduction(depth, moveIdx int, tactical bool, histScore int) int {
+	if tactical || depth < domain.LMRMinDepth || moveIdx < domain.LMRFullDepthMoves {
+		return 0
+	}
+	reduction := 1
+	if moveIdx > 8 {
+		reduction = 2
+	}
+	if histScore < 0 {
+		reduction++
+	}
+	if reduction >= depth {
+		reduction = depth - 1
+	}
+	return reduction
+}
+
 func alphaBeta(
 	sb *SearchBoard,
 	player domain.Player,
@@ -314,20 +341,7 @@ func alphaBeta(
 			break
 		}
 
-		reduction := 0
-		if depth >= domain.LMRMinDepth && moveIdx >= domain.LMRFullDepthMoves {
-			reduction = 1
-			if moveIdx > 8 {
-				reduction = 2
-			}
-			histScore := heuristics.HistoryScore(player, move.X, move.Y)
-			if histScore < 0 {
-				reduction++
-			}
-			if reduction >= depth {
-				reduction = depth - 1
-			}
-		}
+		reduction := lmrReduction(depth, moveIdx, picker.LastMoveTactical(), heuristics.HistoryScore(player, move.X, move.Y))
 
 		sb.MakeMove(move.X, move.Y, player)
 
@@ -461,7 +475,7 @@ func adjustMateScoreForRetrieve(storedScore int, plyFromRoot int) int {
 	if storedScore >= domain.WinScore-domain.AbsoluteMaxDepth+1 {
 		return storedScore - plyFromRoot
 	}
-	if storedScore <= -(domain.WinScore - domain.AbsoluteMaxDepth) - 1 {
+	if storedScore <= -(domain.WinScore-domain.AbsoluteMaxDepth)-1 {
 		return storedScore + plyFromRoot
 	}
 	return storedScore
