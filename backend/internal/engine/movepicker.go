@@ -35,7 +35,6 @@ type MovePicker struct {
 	index      int
 	staged     []domain.Position
 	yielded    [4]uint64
-	forced     bool
 }
 
 func (mp *MovePicker) markYielded(p domain.Position) {
@@ -111,12 +110,6 @@ func (mp *MovePicker) Next() (domain.Position, bool) {
 		}
 
 		mp.staged = nil
-		if mp.forced && mp.stage == stageMustBlock {
-			// The opponent threatens a five: every non-forcing reply loses
-			// on the spot, so the TT move, own wins (stageWinning), the
-			// blocks, and the flank defenses exhaust the sensible moves.
-			return domain.Position{}, false
-		}
 		mp.stage++
 		if mp.stage >= stageDone {
 			return domain.Position{}, false
@@ -129,9 +122,7 @@ func (mp *MovePicker) generateStage() []domain.Position {
 	case stageWinning:
 		return mp.genWinning()
 	case stageMustBlock:
-		out := mp.genMustBlock()
-		mp.forced = len(out) > 0
-		return out
+		return mp.genMustBlock()
 	case stageThreat:
 		return mp.genThreats()
 	case stageKillerCounter:
@@ -151,22 +142,10 @@ func (mp *MovePicker) genMustBlock() []domain.Position {
 			continue
 		}
 		mp.sb.MakeMove(c.X, c.Y, opponent)
-		wins := wouldWin(mp.sb, c.X, c.Y, opponent)
+		if wouldWin(mp.sb, c.X, c.Y, opponent) {
+			result = append(result, c)
+		}
 		mp.sb.UnmakeMove()
-		if !wins {
-			continue
-		}
-		result = append(result, c)
-
-		// Occupying a flank of the five this completion would create can
-		// leave it both-ends-blocked, which does not win in caro: those
-		// cells are real defenses and stay searchable.
-		before, after := winFlanks(mp.sb, c.X, c.Y, opponent)
-		for _, f := range [2]domain.Position{before, after} {
-			if f.IsValid() && mp.sb.IsEmpty(f.X, f.Y) {
-				result = append(result, f)
-			}
-		}
 	}
 	return result
 }
@@ -312,14 +291,6 @@ func OrderMoves(
 }
 
 func wouldWin(sb *SearchBoard, x, y int, player domain.Player) bool {
-	_, _, _, _, ok := winningFive(sb, x, y, player)
-	return ok
-}
-
-// winningFive finds the exact five placing player at (x,y) completes and
-// returns the cells flanking it. ok is false when the placement completes
-// no winning five (caro: overlines and both-ends-blocked fives do not win).
-func winningFive(sb *SearchBoard, x, y int, player domain.Player) (beforeX, beforeY, afterX, afterY int, ok bool) {
 	for _, dir := range [][2]int{{1, 0}, {0, 1}, {1, 1}, {1, -1}} {
 		dx, dy := dir[0], dir[1]
 		positive := 0
@@ -343,30 +314,20 @@ func winningFive(sb *SearchBoard, x, y int, player domain.Player) (beforeX, befo
 			continue
 		}
 
-		ax, ay := x+dx*(positive+1), y+dy*(positive+1)
-		bx, by := x-dx*(negative+1), y-dy*(negative+1)
+		afterX, afterY := x+dx*(positive+1), y+dy*(positive+1)
+		beforeX, beforeY := x-dx*(negative+1), y-dy*(negative+1)
 
-		afterBlocked := ax < 0 || ax >= domain.BoardSize || ay < 0 || ay >= domain.BoardSize ||
-			(sb.PlayerAt(ax, ay) != domain.PlayerNone && sb.PlayerAt(ax, ay) != player)
-		beforeBlocked := bx < 0 || bx >= domain.BoardSize || by < 0 || by >= domain.BoardSize ||
-			(sb.PlayerAt(bx, by) != domain.PlayerNone && sb.PlayerAt(bx, by) != player)
+		afterBlocked := afterX < 0 || afterX >= domain.BoardSize || afterY < 0 || afterY >= domain.BoardSize ||
+			(sb.PlayerAt(afterX, afterY) != domain.PlayerNone && sb.PlayerAt(afterX, afterY) != player)
+		beforeBlocked := beforeX < 0 || beforeX >= domain.BoardSize || beforeY < 0 || beforeY >= domain.BoardSize ||
+			(sb.PlayerAt(beforeX, beforeY) != domain.PlayerNone && sb.PlayerAt(beforeX, beforeY) != player)
 
 		if afterBlocked && beforeBlocked {
 			continue
 		}
-		return bx, by, ax, ay, true
+		return true
 	}
-	return 0, 0, 0, 0, false
-}
-
-// winFlanks returns the cells flanking the five that placing player at
-// (x,y) would complete; zero Positions when the placement does not win.
-func winFlanks(sb *SearchBoard, x, y int, player domain.Player) (domain.Position, domain.Position) {
-	bx, by, ax, ay, ok := winningFive(sb, x, y, player)
-	if !ok {
-		return domain.Position{}, domain.Position{}
-	}
-	return domain.Position{X: bx, Y: by}, domain.Position{X: ax, Y: ay}
+	return false
 }
 
 func proximityScore(sb *SearchBoard, x, y int) int {
