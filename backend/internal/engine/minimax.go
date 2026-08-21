@@ -5,6 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"runtime/debug"
+	"sync"
 )
 
 type SearchStats struct {
@@ -35,6 +36,11 @@ type MinimaxAI struct {
 	logger     *slog.Logger
 	maxThreads int
 	stats      SearchStats
+
+	ponderMu      sync.Mutex
+	ponderCancel  context.CancelFunc
+	ponderDone    chan struct{}
+	ponderOutcome *PonderOutcome
 }
 
 func NewMinimaxAI(logger *slog.Logger, maxThreads int, ttSizeMB int) *MinimaxAI {
@@ -58,6 +64,9 @@ func (ai *MinimaxAI) GetBestMove(
 	opts SearchOptions,
 	ctx context.Context,
 ) (int, int, SearchStats) {
+	// A ponder must never overlap the official search on the same AI.
+	ai.StopPonder()
+
 	debug.SetMemoryLimit(domain.HeapHardLimitBytes)
 
 	timeAlloc := AllocateTime(opts.TimeRemainingMs, opts.IncrementMs, opts.MoveNumber)
@@ -108,6 +117,9 @@ func (ai *MinimaxAI) GetStats() SearchStats {
 }
 
 func (ai *MinimaxAI) Dispose() {
+	// Join the ponder before freeing the table: a straggler search would
+	// index the nilled shard slices.
+	ai.StopPonder()
 	ai.tt.Dispose()
 	ai.heuristics.Clear()
 }
