@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Grandmaster (L5) pondering: background search on the predicted opponent reply during the opponent's turn
 - Ponder hits play instantly (`ponder-hit` move type, `[PONDER]` statline tag); `ponder_depth`/`ponder_nodes` persisted on hits
+- Hits are adopted instantly only when the ponder ran at least half the normal soft budget (VCF wins exempt), so fast opponents cannot shrink the window into shallow adoptions
 - `CARO_DISABLE_PONDER=1` kill switch disables pondering process-wide
 
 ### Changed
