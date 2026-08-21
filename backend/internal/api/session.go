@@ -20,6 +20,9 @@ type GameSession struct {
 	activeGameCount func() int
 	redAI           *engine.MinimaxAI
 	blueAI          *engine.MinimaxAI
+	activePonder    *activePonderState
+	pendingPonder   *ponderHit
+	ponderTimeCapMs int64
 }
 
 func NewGameSession(
@@ -40,6 +43,7 @@ func NewGameSession(
 		blueDifficulty:  blueDiff,
 		logger:          logger,
 		activeGameCount: activeGameCount,
+		ponderTimeCapMs: domain.PonderTimeCapMs,
 	}
 }
 
@@ -221,10 +225,12 @@ func (s *GameSession) ApplyMove(x, y int) (GameResponse, error) {
 
 // applyMoveLocked applies a move for the current player. Requires s.mu.
 func (s *GameSession) applyMoveLocked(x, y int) (GameResponse, error) {
+	mover := s.game.CurrentPlayer
 	newGame, err := s.game.WithMove(x, y)
 	if err != nil {
 		return GameResponse{}, err
 	}
+	s.stopPonderLocked(x, y)
 
 	result := domain.CheckWinFromMove(newGame.Board, x, y)
 	if result.HasWinner {
@@ -247,6 +253,8 @@ func (s *GameSession) applyMoveLocked(x, y int) (GameResponse, error) {
 
 	if newGame.IsGameOver {
 		s.DisposeAI()
+	} else {
+		s.startPonderLocked(mover)
 	}
 
 	return s.buildResponse(), nil
@@ -255,6 +263,10 @@ func (s *GameSession) applyMoveLocked(x, y int) (GameResponse, error) {
 func (s *GameSession) UndoLastMove() (GameResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	// Any ponder or staged hit refers to a position that is about to
+	// disappear; drop it all before taking moves back.
+	s.clearPonderStateLocked()
 
 	newGame, err := s.game.UndoMove()
 	if err != nil {
@@ -283,6 +295,7 @@ func (s *GameSession) aiOwnsTurnLocked() bool {
 }
 
 func (s *GameSession) DisposeAI() {
+	s.clearPonderStateLocked()
 	if s.redAI != nil {
 		s.redAI.Dispose()
 		s.redAI = nil
