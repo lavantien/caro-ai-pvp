@@ -42,7 +42,7 @@ func ParallelSearch(
 		oppSB := NewSearchBoard(b)
 		if !opponentHasImmediateWin(&oppSB, player.Opponent()) {
 			vcfTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction)
-			if vx, vy, result := SolveVCF(b, player, vcfTime, ctx); result == VCFWin {
+			if vx, vy, result := SolveVCFWithDepth(b, player, config.VCFMaxDepth, vcfTime, ctx); result == VCFWin {
 				return vx, vy, SearchStats{
 					DepthAchieved:   0,
 					SearchScore:     domain.WinScore,
@@ -57,10 +57,10 @@ func ParallelSearch(
 	var vcfPreferred *domain.Position
 	if config.UseVCF {
 		oppVcfTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction / 2)
-		if vx, vy, result := SolveVCF(b, player.Opponent(), oppVcfTime, ctx); result == VCFWin {
+		if vx, vy, result := SolveVCFWithDepth(b, player.Opponent(), config.VCFMaxDepth, oppVcfTime, ctx); result == VCFWin {
 			blocked := b.PlaceStone(vx, vy, player)
 			blockCheckTime := int64(float64(config.TimeLimitMs) * domain.VCFTimeFraction / 4)
-			if _, _, checkResult := SolveVCF(blocked, player.Opponent(), blockCheckTime, ctx); checkResult != VCFWin {
+			if _, _, checkResult := SolveVCFWithDepth(blocked, player.Opponent(), config.VCFMaxDepth, blockCheckTime, ctx); checkResult != VCFWin {
 				vcfPreferred = &domain.Position{X: vx, Y: vy}
 			}
 		}

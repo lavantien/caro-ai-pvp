@@ -8,7 +8,7 @@ import (
 type VCFResult int
 
 const (
-	VCFNoWin   VCFResult = iota
+	VCFNoWin VCFResult = iota
 	VCFWin
 	VCFTimeout
 )
@@ -28,6 +28,19 @@ func SolveVCF(
 	allocatedMs int64,
 	ctx context.Context,
 ) (int, int, VCFResult) {
+	return SolveVCFWithDepth(b, player, domain.VCFSearchDepth, allocatedMs, ctx)
+}
+
+// SolveVCFWithDepth bounds the forcing chain length: depth counts attacker
+// moves, so depth 1 sees only immediate fours. It is the per-level tactical
+// sight knob behind DifficultyProfile.VCFDepth.
+func SolveVCFWithDepth(
+	b domain.Board,
+	player domain.Player,
+	depth int,
+	allocatedMs int64,
+	ctx context.Context,
+) (int, int, VCFResult) {
 	sb := NewSearchBoard(b)
 	monitor := NewTimeMonitor(ctx, allocatedMs)
 	defer monitor.Stop()
@@ -38,7 +51,10 @@ func SolveVCF(
 		monitor:  monitor,
 	}
 
-	if v.search(domain.VCFSearchDepth) {
+	if depth <= 0 {
+		depth = domain.VCFSearchDepth
+	}
+	if v.search(depth) {
 		return v.winX, v.winY, VCFWin
 	}
 	if v.timedOut {

@@ -27,6 +27,7 @@ type SearchOptions struct {
 	ParallelEnabled bool
 	TimeFraction    float64
 	UseVCF          bool
+	VCFMaxDepth     int
 	MaxDepth        int
 }
 
@@ -90,6 +91,7 @@ func (ai *MinimaxAI) GetBestMove(
 		SoftLimitMs:  softBound,
 		Goroutines:   min(opts.ThreadCount, ai.maxThreads),
 		UseVCF:       opts.UseVCF,
+		VCFMaxDepth:  opts.VCFMaxDepth,
 		TimeFraction: opts.TimeFraction,
 	}
 
