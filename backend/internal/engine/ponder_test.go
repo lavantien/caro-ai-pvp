@@ -203,6 +203,54 @@ func TestPonderCompletedVCF(t *testing.T) {
 	assert.False(t, ponderCompleted(SearchStats{MoveType: "timeout-fallback"}))
 }
 
+func TestTTIsolationBetweenAIInstances(t *testing.T) {
+	red := NewMinimaxAI(slog.Default(), 1, 64)
+	defer red.Dispose()
+	blue := NewMinimaxAI(slog.Default(), 1, 64)
+	defer blue.Dispose()
+
+	b := ponderTestBoard()
+	x, y, _ := red.GetBestMove(b, domain.PlayerRed, SearchOptions{
+		TimeRemainingMs: 5000,
+		ThreadCount:     1,
+		TimeFraction:    1.0,
+		MaxDepth:        4,
+	}, context.Background())
+	require.GreaterOrEqual(t, x, 0)
+	searchRoot, err := b.PlaceStoneChecked(x, y, domain.PlayerRed)
+	require.NoError(t, err)
+
+	require.True(t, red.StartPonder(searchRoot, domain.PlayerRed, domain.Position{X: 9, Y: 9}, PonderConfig{
+		Threads: 1, MaxDepth: 4, TimeCapMs: 500,
+	}))
+	outcome, stopped := red.StopPonder()
+	require.True(t, stopped)
+
+	// Red searched and pondered; every position it touched must be absent
+	// from blue's table.
+	for _, hash := range []uint64{b.Hash(), searchRoot.Hash(), outcome.BoardHash} {
+		_, ok := blue.tt.Lookup(hash)
+		assert.False(t, ok, "red's work leaked into blue's table (hash %d)", hash)
+	}
+
+	// Symmetric: blue searches a position red never saw (the root hash is
+	// side-independent, so a shared root would be legitimate overlap, not
+	// contamination — use a distinct stone configuration).
+	b2 := b.PlaceStone(0, 0, domain.PlayerRed).PlaceStone(0, 1, domain.PlayerBlue)
+	bx, by, _ := blue.GetBestMove(b2, domain.PlayerBlue, SearchOptions{
+		TimeRemainingMs: 5000,
+		ThreadCount:     1,
+		TimeFraction:    1.0,
+		MaxDepth:        4,
+	}, context.Background())
+	require.GreaterOrEqual(t, bx, 0)
+	require.GreaterOrEqual(t, by, 0)
+	_, ok := blue.tt.Lookup(b2.Hash())
+	assert.True(t, ok, "blue's own search populated its table")
+	_, ok = red.tt.Lookup(b2.Hash())
+	assert.False(t, ok, "blue's search leaked into red's table")
+}
+
 func TestPonderOutcomeRecordsElapsed(t *testing.T) {
 	ai := NewMinimaxAI(slog.Default(), 1, 64)
 	defer ai.Dispose()
