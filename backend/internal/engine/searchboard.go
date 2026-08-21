@@ -17,6 +17,11 @@ type SearchBoard struct {
 	hash      uint64
 	stones    int
 	undoStack []undoEntry
+
+	// Incremental evaluation state, indexed by Player (slot 0 unused).
+	patternAgg [3]PlayerPattern4
+	centerSum  [3]int
+	stoneCount [3]int
 }
 
 func NewSearchBoard(b domain.Board) SearchBoard {
@@ -33,8 +38,13 @@ func NewSearchBoard(b domain.Board) SearchBoard {
 			sb.cells[x*domain.BoardSize+y] = p
 			if p != domain.PlayerNone {
 				sb.stones++
+				sb.stoneCount[p]++
 			}
 		}
+	}
+	for _, p := range []domain.Player{domain.PlayerRed, domain.PlayerBlue} {
+		sb.patternAgg[p] = ClassifyBoard(&sb, p)
+		sb.centerSum[p] = centerBonus(&sb, p)
 	}
 	sb.undoStack = make([]undoEntry, 0, 64)
 	return sb
@@ -71,6 +81,8 @@ func (sb *SearchBoard) IsEmpty(x, y int) bool {
 }
 
 func (sb *SearchBoard) MakeMove(x, y int, player domain.Player) {
+	sb.subtractPatternsAround(x, y)
+
 	sb.undoStack = append(sb.undoStack, undoEntry{
 		x: x, y: y,
 		player: sb.cells[x*domain.BoardSize+y],
@@ -85,10 +97,13 @@ func (sb *SearchBoard) MakeMove(x, y int, player domain.Player) {
 	}
 	sb.hash ^= domain.ZobristKey(x, y, player)
 	sb.stones++
+
+	sb.addPatternsAround(x, y)
 }
 
 func (sb *SearchBoard) UnmakeMove() {
 	entry := sb.undoStack[len(sb.undoStack)-1]
+	sb.subtractPatternsAround(entry.x, entry.y)
 	sb.undoStack = sb.undoStack[:len(sb.undoStack)-1]
 
 	currentPlayer := sb.cells[entry.x*domain.BoardSize+entry.y]
@@ -101,6 +116,8 @@ func (sb *SearchBoard) UnmakeMove() {
 	sb.cells[entry.x*domain.BoardSize+entry.y] = entry.player
 	sb.hash = entry.hash
 	sb.stones--
+
+	sb.addPatternsAround(entry.x, entry.y)
 }
 
 func (sb *SearchBoard) MakeNullMove() {
