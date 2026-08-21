@@ -81,17 +81,26 @@ func isTacticalMove(sb *SearchBoard, x, y int, player, opponent domain.Player) b
 	}
 	sb.UnmakeMove()
 
-	// Four for either side (creating or blocking). Quiescence extends only
-	// forcing moves: open threes are not forcing (the opponent may ignore
-	// them), so they stay visible to eval and move ordering but not here.
-	// Each direction's line is extracted once and negated for the opponent.
+	// Four for either side (creating or blocking), plus double threats: a
+	// move creating a four-or-open-three shape in two directions at once is
+	// forcing, because the opponent cannot answer both lines with one stone.
+	// A lone open three stays non-forcing (the opponent may convert or
+	// ignore it), so it stays visible to eval and move ordering only.
+	ownThreatDirs, oppThreatDirs := 0, 0
 	for _, dir := range evalDirs {
 		line := extractLine(sb, x, y, player, dir[0], dir[1])
-		if lineCompletions(line) >= 1 || lineCompletions(negateLine(line)) >= 1 {
+		oppLine := negateLine(line)
+		if lineCompletions(line) >= 1 || lineCompletions(oppLine) >= 1 {
 			return true
 		}
+		if maxCompsAfterFill(line) >= 2 {
+			ownThreatDirs++
+		}
+		if maxCompsAfterFill(oppLine) >= 2 {
+			oppThreatDirs++
+		}
 	}
-	return false
+	return ownThreatDirs >= 2 || oppThreatDirs >= 2
 }
 
 // createsFourType, createsOpenFour and createsOpenThree live in pattern_window.go.
