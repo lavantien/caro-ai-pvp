@@ -38,6 +38,9 @@ async function verify() {
     console.log('\n=== Starting AIvAI game ===');
     await page.waitForSelector('button:has-text("AI vs AI")', { timeout: 10000 });
     await page.click('button:has-text("AI vs AI")');
+    // 1+0 keeps per-move think time short so the first notation entry lands
+    // well inside the wait below (7+5's opening think can run ~30s alone).
+    await page.selectOption('select', '1+0');
     await page.click('button:has-text("New Game")');
     // Wait for AI moves to appear in notation
     await page.waitForFunction(
@@ -46,7 +49,7 @@ async function verify() {
         return el && el.textContent && !el.textContent.includes('No moves yet') && el.textContent.trim().length > 5;
       },
       '[data-testid="move-notation"]',
-      { timeout: 30000 }
+      { timeout: 60000 }
     );
 
     // --- Board coordinate labels ---
