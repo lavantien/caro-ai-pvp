@@ -21,28 +21,9 @@ const (
 	maxCorrectedEval = domain.MaxEval
 )
 
-// Evaluate reads the incremental pattern aggregates maintained by
-// MakeMove/UnmakeMove: O(1) per call.
 func Evaluate(sb *SearchBoard, player domain.Player) int {
-	opponent := player.Opponent()
-	score := scorePatterns(sb.patternAgg[player], sb.stoneCount[player]) -
-		scorePatterns(sb.patternAgg[opponent], sb.stoneCount[opponent])
-	score += sb.centerSum[player] - sb.centerSum[opponent]
-
-	if score > maxCorrectedEval {
-		score = maxCorrectedEval
-	}
-	if score < -maxCorrectedEval {
-		score = -maxCorrectedEval
-	}
-	return score
-}
-
-// evaluateSlow recomputes everything from scratch. It is the reference the
-// incremental differential test and the benchmark compare against.
-func evaluateSlow(sb *SearchBoard, player domain.Player) int {
-	playerScore := scorePatterns(ClassifyBoard(sb, player), countStonesFor(sb, player))
-	opponentScore := scorePatterns(ClassifyBoard(sb, player.Opponent()), countStonesFor(sb, player.Opponent()))
+	playerScore := evaluateForPlayer(sb, player)
+	opponentScore := evaluateForPlayer(sb, player.Opponent())
 
 	score := playerScore - opponentScore
 	score += centerBonus(sb, player) - centerBonus(sb, player.Opponent())
@@ -56,19 +37,9 @@ func evaluateSlow(sb *SearchBoard, player domain.Player) int {
 	return score
 }
 
-func countStonesFor(sb *SearchBoard, player domain.Player) int {
-	n := 0
-	for x := range domain.BoardSize {
-		for y := range domain.BoardSize {
-			if sb.PlayerAt(x, y) == player {
-				n++
-			}
-		}
-	}
-	return n
-}
+func evaluateForPlayer(sb *SearchBoard, player domain.Player) int {
+	pp := ClassifyBoard(sb, player)
 
-func scorePatterns(pp PlayerPattern4, stoneCount int) int {
 	if pp.Exactly5Count > 0 {
 		return fiveScore
 	}
@@ -108,7 +79,16 @@ func scorePatterns(pp PlayerPattern4, stoneCount int) int {
 	score += pp.Block3Count * block3Score
 	score += pp.Flex2Count * flex2Score
 	score += pp.Block2Count * block2Score
-	score += stoneCount * flex1Score
+
+	bits := sb.BitBoardFor(player)
+	for x := range domain.BoardSize {
+		for y := range domain.BoardSize {
+			if bits.Get(x, y) {
+				score += flex1Score
+			}
+		}
+	}
+
 	return score
 }
 

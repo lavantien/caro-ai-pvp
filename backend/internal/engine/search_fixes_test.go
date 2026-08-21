@@ -57,7 +57,7 @@ func TestSoftLimitStopsBeforeHardBound(t *testing.T) {
 		PlaceStone(9, 6, domain.PlayerBlue)
 	tt := NewTranspositionTable(1)
 	heuristics := NewSearchHeuristics()
-	opts := SearchConfig{MaxDepth: 10, TimeLimitMs: 120_000, SoftLimitMs: 2_000, Goroutines: 1}
+	opts := SearchConfig{MaxDepth: domain.AbsoluteMaxDepth, TimeLimitMs: 5000, SoftLimitMs: 500, Goroutines: 1}
 
 	start := time.Now()
 	_, _, stats := SearchPosition(b, domain.PlayerRed, opts, tt, heuristics, context.Background())
@@ -65,11 +65,10 @@ func TestSoftLimitStopsBeforeHardBound(t *testing.T) {
 
 	assert.GreaterOrEqual(t, stats.DepthAchieved, 1)
 	// The soft limit only gates starting new depths, so one straddling
-	// iteration may run past it; with the incremental eval that iteration
-	// can be seconds. The ceiling below still leaves an order of magnitude
-	// of headroom to the 120s hard bound, which a regression that ignores
-	// the soft limit would burn toward.
-	assert.Less(t, elapsed.Milliseconds(), int64(40_000),
+	// iteration may run long. Under -race with concurrent package binaries
+	// (full-suite runs) that stretch can exceed 2.5s; the property under
+	// test is stopping well short of the 5s hard bound.
+	assert.Less(t, elapsed.Milliseconds(), int64(4000),
 		"search must stop near the soft limit instead of burning to the hard bound (elapsed %dms)", elapsed.Milliseconds())
 }
 

@@ -33,17 +33,6 @@ type PlayerPattern4 struct {
 	Block2Count   int
 }
 
-// accumulate adds (or, with sign -1, subtracts) another count set.
-func (pp *PlayerPattern4) accumulate(other PlayerPattern4, sign int) {
-	pp.Exactly5Count += sign * other.Exactly5Count
-	pp.Flex4Count += sign * other.Flex4Count
-	pp.Block4Count += sign * other.Block4Count
-	pp.Flex3Count += sign * other.Flex3Count
-	pp.Block3Count += sign * other.Block3Count
-	pp.Flex2Count += sign * other.Flex2Count
-	pp.Block2Count += sign * other.Block2Count
-}
-
 // classifyDirection classifies the pattern the stone at (x,y) participates in
 // along (dx,dy), gap-aware: split fours and broken threes count like their
 // straight equivalents.
