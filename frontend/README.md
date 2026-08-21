@@ -1,13 +1,12 @@
 # Caro AI PvP - Frontend
 
-SvelteKit 5 frontend for the Caro AI PvP game.
+SvelteKit 2 frontend with Svelte 5 Runes for the Caro AI PvP game.
 
 ## Tech Stack
 
 - SvelteKit 2.49+ with Svelte 5 Runes
 - TypeScript 5.9
 - TailwindCSS 4.1
-- SignalR client (@microsoft/signalr 8.0)
 - Vitest 4.0 for unit tests
 - Playwright 1.57 for E2E tests
 
