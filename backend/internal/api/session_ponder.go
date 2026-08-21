@@ -140,3 +140,31 @@ func (s *GameSession) clearPonderStateLocked() {
 	}
 	s.pendingPonder = nil
 }
+
+// TryPonderMove consumes a pending ponder hit for expectedPlayer: under the
+// session mutex it re-validates flags, turn, and that the board still
+// matches the pondered position, then applies the pondered move through the
+// normal legality path. ok is true only when the move was actually played.
+func (s *GameSession) TryPonderMove(expectedPlayer domain.Player) (GameResponse, int, int, engine.SearchStats, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.checkTimeoutLocked()
+
+	if s.pendingPonder == nil || s.game.IsGameOver || s.game.CurrentPlayer != expectedPlayer {
+		return GameResponse{}, -1, -1, engine.SearchStats{}, false
+	}
+	hit := s.pendingPonder
+	if hit.player != expectedPlayer || hit.boardHash != s.game.Board.Hash() {
+		// The position changed since the ponder (undo or duplicate
+		// request): downgrade to a miss.
+		s.pendingPonder = nil
+		return GameResponse{}, -1, -1, engine.SearchStats{}, false
+	}
+	s.pendingPonder = nil
+
+	resp, err := s.applyMoveLocked(hit.x, hit.y)
+	if err != nil {
+		return GameResponse{}, -1, -1, engine.SearchStats{}, false
+	}
+	return resp, hit.x, hit.y, hit.stats, true
+}

@@ -174,6 +174,27 @@ func (h *Handler) MakeAIMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	start := time.Now()
+
+	// A staged ponder hit answers immediately: the position matches what
+	// the background search already searched.
+	if resp, px, py, pstats, ok := session.TryPonderMove(player); ok {
+		pstats.MoveType = "ponder-hit"
+		thinkTime := time.Since(start).Milliseconds()
+
+		pd := pstats.DepthAchieved
+		pn := pstats.NodesSearched
+		if h.matches != nil {
+			h.logAIMove(id, px, py, resp, difficulty, pstats, thinkTime, &pd, &pn)
+		}
+		moveDetail := h.buildMoveDetail(resp, player.String(), px, py, pstats, thinkTime)
+		if h.logger != nil {
+			h.logger.Info("move-statline", "gameId", id, "line", moveDetail.Statline)
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"state": resp, "lastMove": moveDetail})
+		return
+	}
+
 	ai := session.GetOrCreateAI(player)
 
 	var opts engine.SearchOptions
@@ -200,7 +221,6 @@ func (h *Handler) MakeAIMove(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	start := time.Now()
 	x, y, stats := ai.GetBestMove(board, player, opts, r.Context())
 	thinkTime := time.Since(start).Milliseconds()
 
@@ -211,7 +231,7 @@ func (h *Handler) MakeAIMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.matches != nil {
-		h.logAIMove(id, x, y, resp, difficulty, stats, thinkTime)
+		h.logAIMove(id, x, y, resp, difficulty, stats, thinkTime, nil, nil)
 	}
 
 	moveDetail := h.buildMoveDetail(resp, player.String(), x, y, stats, thinkTime)
@@ -282,7 +302,7 @@ func (h *Handler) logHumanMove(gameID string, x, y int, resp GameResponse) {
 	}
 }
 
-func (h *Handler) logAIMove(gameID string, x, y int, resp GameResponse, difficulty *int, stats engine.SearchStats, thinkTimeMs int64) {
+func (h *Handler) logAIMove(gameID string, x, y int, resp GameResponse, difficulty *int, stats engine.SearchStats, thinkTimeMs int64, ponderDepth *int, ponderNodes *int64) {
 	player := resp.CurrentPlayer
 	moveNum := resp.MoveNumber
 	if moveNum > 0 {
@@ -300,7 +320,10 @@ func (h *Handler) logAIMove(gameID string, x, y int, resp GameResponse, difficul
 	score := stats.SearchScore
 	threads := stats.ThreadCount
 	allocMs := stats.AllocatedTimeMs
-	mt := "exact"
+	mt := stats.MoveType
+	if mt == "" {
+		mt = "exact"
+	}
 
 	if err := h.matches.RecordMove(persistence.MoveRecord{
 		GameID:          gameID,
@@ -320,6 +343,8 @@ func (h *Handler) logAIMove(gameID string, x, y int, resp GameResponse, difficul
 		ThreadsUsed:     &threads,
 		AllocatedTimeMs: &allocMs,
 		MoveType:        &mt,
+		PonderDepth:     ponderDepth,
+		PonderNodes:     ponderNodes,
 	}); err != nil && h.logger != nil {
 		h.logger.Error("match store record move", "gameId", gameID, "err", err)
 	}
@@ -370,6 +395,8 @@ func (h *Handler) buildMoveDetail(resp GameResponse, player string, x, y int, st
 		vcfTag = " [VCF]"
 	} else if mt == "vcf-block" {
 		vcfTag = " [VCF-BLOCK]"
+	} else if mt == "ponder-hit" {
+		vcfTag = " [PONDER]"
 	}
 
 	statline := fmt.Sprintf("M%2d %-4s %s  d=%-2d n=%-7s nps=%-5s tt=%3d%% s=%+d thr=%d t=%.1fs alloc=%.1fs%s",
