@@ -49,4 +49,8 @@ const (
 	TimeMinBufferMs   int64 = 100
 	TimeReserveMs     int64 = 50
 	TimeSoftBoundFraction   = 0.8
+
+	// Pondering (L5 background search on the predicted reply)
+	PonderTimeCapMs         int64 = 30_000
+	PonderMinCompletedDepth int   = 1
 )

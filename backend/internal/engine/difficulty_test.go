@@ -35,6 +35,17 @@ func TestDifficultyProfileLevels(t *testing.T) {
 	}
 }
 
+func TestDifficultyProfilePonderOnlyL5(t *testing.T) {
+	for level := 1; level <= 6; level++ {
+		p := GetDifficultyProfile(level)
+		if level >= 5 {
+			assert.True(t, p.Ponder, "level %d should ponder", level)
+		} else {
+			assert.False(t, p.Ponder, "level %d should not ponder", level)
+		}
+	}
+}
+
 func TestDifficultyL5Goroutines(t *testing.T) {
 	n := runtime.GOMAXPROCS(0)
 	p := GetDifficultyProfile(5)
