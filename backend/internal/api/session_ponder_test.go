@@ -59,6 +59,29 @@ func legalAlternativeReply(t *testing.T, b domain.Board, predicted domain.Positi
 	return domain.Position{}
 }
 
+func TestPonderCapDerivedFromOpponentClock(t *testing.T) {
+	s := newPonderSession(domain.GameModeAivAI, intPtr(5), nil)
+	s.ponderTimeCapMs = 0 // auto: derive from the opponent's live clock
+	playSearchedAIMove(t, s, domain.PlayerRed)
+	require.NotNil(t, s.activePonder)
+
+	// Blue has the full 60s bullet clock minus the time elapsed since
+	// red's move landed.
+	assert.Greater(t, s.activePonder.timeCapMs, int64(55_000))
+	assert.LessOrEqual(t, s.activePonder.timeCapMs, int64(60_000))
+
+	// The cap scales with the opponent's clock, not a fixed constant.
+	s2 := newPonderSession(domain.GameModeAivAI, intPtr(5), nil)
+	s2.ponderTimeCapMs = 0
+	s2.mu.Lock()
+	s2.blueTimeMs = 5_000
+	s2.mu.Unlock()
+	playSearchedAIMove(t, s2, domain.PlayerRed)
+	require.NotNil(t, s2.activePonder)
+	assert.Greater(t, s2.activePonder.timeCapMs, int64(4_000))
+	assert.LessOrEqual(t, s2.activePonder.timeCapMs, int64(5_000))
+}
+
 func TestPonderStartsAfterAIMoveAivAI(t *testing.T) {
 	s := newPonderSession(domain.GameModeAivAI, intPtr(5), nil)
 	playSearchedAIMove(t, s, domain.PlayerRed)
@@ -157,7 +180,7 @@ func TestPonderMissDiscards(t *testing.T) {
 
 func TestPonderIncompleteIsMiss(t *testing.T) {
 	s := newPonderSession(domain.GameModeAivAI, intPtr(5), nil)
-	s.ponderTimeCapMs = 0 // zero budget: no depth can ever complete
+	s.ponderTimeCapMs = -1 // forced zero budget: no depth can ever complete
 	playSearchedAIMove(t, s, domain.PlayerRed)
 	require.NotNil(t, s.activePonder)
 	pred := s.activePonder.predictedReply

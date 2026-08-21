@@ -392,8 +392,9 @@ the resulting position (`StartPonder`, owned by the mover's `MinimaxAI`).
 - Shares the AI's TT, uses a fresh `SearchHeuristics`, never bumps the TT
   age, and never touches the AI's official stats
 - `SoftLimitMs` disabled: iterative deepening runs until the wall-clock cap
-  (`PonderTimeCapMs`, 30s) or `MaxDepth`, bounding CPU while a slow
-  opponent thinks
+  or `MaxDepth`. The cap is derived per move from the opponent's live
+  remaining clock (they must move or flag within it), so it scales with the
+  time control instead of a fixed constant
 - The prediction comes from a searched PV node, so legality (including the
   open rule) is inherent; entries without depth or pointing at occupied
   cells are rejected, and turns without a prediction simply do not ponder

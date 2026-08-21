@@ -5,6 +5,7 @@ import (
 	"caro-ai-pvp/internal/engine"
 	"os"
 	"strings"
+	"time"
 )
 
 // ponderEnvDisabled is the process-wide kill switch, read once at startup
@@ -20,10 +21,12 @@ func isPonderDisabledByEnv() bool {
 }
 
 // activePonderState records the ponder a player started after its own move:
-// the predicted opponent reply the background search is built on.
+// the predicted opponent reply the background search is built on, and the
+// time cap that search was launched with.
 type activePonderState struct {
 	player         domain.Player
 	predictedReply domain.Position
+	timeCapMs      int64
 }
 
 // ponderHit is a consumed ponder outcome whose predicted reply matched the
@@ -152,15 +155,40 @@ func (s *GameSession) startPonderLocked(mover domain.Player) {
 	}
 
 	profile := engine.GetDifficultyProfile(*s.difficultyForLocked(mover))
+	// ponderTimeCapMs: 0 derives the cap from the opponent's live clock
+	// (they must move or flag within it, so it scales with the time
+	// control); negative forces a zero budget, the deterministic
+	// incompleteness seam for tests.
+	capMs := s.ponderTimeCapMs
+	if capMs == 0 {
+		capMs = s.liveClockMsLocked(mover.Opponent())
+	}
+	if capMs < 0 {
+		capMs = 0
+	}
 	if !ai.StartPonder(pondered, mover, predicted, engine.PonderConfig{
 		Threads:   profile.Goroutines,
 		MaxDepth:  profile.MaxDepth,
 		UseVCF:    profile.UseVCF,
-		TimeCapMs: s.ponderTimeCapMs,
+		TimeCapMs: capMs,
 	}) {
 		return
 	}
-	s.activePonder = &activePonderState{player: mover, predictedReply: predicted}
+	s.activePonder = &activePonderState{player: mover, predictedReply: predicted, timeCapMs: capMs}
+}
+
+// liveClockMsLocked returns p's remaining time accounting for the clock
+// burning since the last move. Requires s.mu.
+func (s *GameSession) liveClockMsLocked(p domain.Player) int64 {
+	remaining := s.redTimeMs
+	if p == domain.PlayerBlue {
+		remaining = s.blueTimeMs
+	}
+	if s.game.IsGameOver {
+		return 0
+	}
+	elapsed := time.Since(s.lastMoveAt).Milliseconds()
+	return max(0, remaining-elapsed)
 }
 
 // clearPonderStateLocked joins any running ponder without hit detection and

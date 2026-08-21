@@ -43,7 +43,6 @@ func NewGameSession(
 		blueDifficulty:  blueDiff,
 		logger:          logger,
 		activeGameCount: activeGameCount,
-		ponderTimeCapMs: domain.PonderTimeCapMs,
 	}
 }
 

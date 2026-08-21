@@ -315,7 +315,9 @@ All domain entities are immutable for thread safety:
   ponder it in the background during the opponent's turn
 - A ponder hit plays instantly (`ponder-hit` move type, `[PONDER]` statline
   tag); a miss falls back to a normal search over the warmed TT
-- 30s ponder cap; `CARO_DISABLE_PONDER=1` disables pondering process-wide
+- The ponder window is capped by the opponent's remaining clock, so it
+  scales with the time control; `CARO_DISABLE_PONDER=1` disables pondering
+  process-wide
 
 **Per-Player AI Isolation:**
 - Each player in a game gets its own MinimaxAI instance
