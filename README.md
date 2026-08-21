@@ -313,8 +313,11 @@ All domain entities are immutable for thread safety:
 **Pondering (L5):**
 - Grandmaster bots predict the opponent's reply from their own search and
   ponder it in the background during the opponent's turn
-- A ponder hit plays instantly (`ponder-hit` move type, `[PONDER]` statline
-  tag); a miss falls back to a normal search over the warmed TT
+- The pondered move is never played directly: every move comes from a full
+  budgeted search over the TT the ponder warmed, so pondering adds depth
+  without trading search quality for time
+- Hits are recorded for stats (`[PONDER]` statline tag,
+  `ponder_depth`/`ponder_nodes` columns)
 - The ponder window is capped by the opponent's remaining clock, so it
   scales with the time control; `CARO_DISABLE_PONDER=1` disables pondering
   process-wide

@@ -176,24 +176,9 @@ func (h *Handler) MakeAIMove(w http.ResponseWriter, r *http.Request) {
 
 	start := time.Now()
 
-	// A staged ponder hit answers immediately: the position matches what
-	// the background search already searched.
-	if resp, px, py, pstats, ok := session.TryPonderMove(player); ok {
-		pstats.MoveType = "ponder-hit"
-		thinkTime := time.Since(start).Milliseconds()
-
-		pd := pstats.DepthAchieved
-		pn := pstats.NodesSearched
-		if h.matches != nil {
-			h.logAIMove(id, px, py, resp, difficulty, pstats, thinkTime, &pd, &pn)
-		}
-		moveDetail := h.buildMoveDetail(resp, player.String(), px, py, pstats, thinkTime)
-		if h.logger != nil {
-			h.logger.Info("move-statline", "gameId", id, "line", moveDetail.Statline)
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"state": resp, "lastMove": moveDetail})
-		return
-	}
+	// Whatever the ponder did, the real search decides the move; the info
+	// only annotates the statline and the persisted row.
+	ponderStats, ponderHit, hadPonder := session.TakePonderInfo(player)
 
 	ai := session.GetOrCreateAI(player)
 
@@ -230,11 +215,18 @@ func (h *Handler) MakeAIMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var ponderDepth *int
+	var ponderNodes *int64
+	if hadPonder {
+		pd := ponderStats.DepthAchieved
+		pn := ponderStats.NodesSearched
+		ponderDepth, ponderNodes = &pd, &pn
+	}
 	if h.matches != nil {
-		h.logAIMove(id, x, y, resp, difficulty, stats, thinkTime, nil, nil)
+		h.logAIMove(id, x, y, resp, difficulty, stats, thinkTime, ponderDepth, ponderNodes)
 	}
 
-	moveDetail := h.buildMoveDetail(resp, player.String(), x, y, stats, thinkTime)
+	moveDetail := h.buildMoveDetail(resp, player.String(), x, y, stats, thinkTime, ponderHit)
 	if h.logger != nil {
 		h.logger.Info("move-statline", "gameId", id, "line", moveDetail.Statline)
 	}
@@ -377,7 +369,7 @@ func formatStatlineNPS(nps float64) string {
 	}
 }
 
-func (h *Handler) buildMoveDetail(resp GameResponse, player string, x, y int, stats engine.SearchStats, thinkTimeMs int64) MoveDetailResponse {
+func (h *Handler) buildMoveDetail(resp GameResponse, player string, x, y int, stats engine.SearchStats, thinkTimeMs int64, ponderHit bool) MoveDetailResponse {
 	moveNum := resp.MoveNumber - 1
 	pos := fmt.Sprintf("%c%d", rune('a'+x), y+1)
 	remainingMs := int64(resp.RedTimeRemaining * 1000)
@@ -395,8 +387,9 @@ func (h *Handler) buildMoveDetail(resp GameResponse, player string, x, y int, st
 		vcfTag = " [VCF]"
 	} else if mt == "vcf-block" {
 		vcfTag = " [VCF-BLOCK]"
-	} else if mt == "ponder-hit" {
-		vcfTag = " [PONDER]"
+	}
+	if ponderHit {
+		vcfTag += " [PONDER]"
 	}
 
 	statline := fmt.Sprintf("M%2d %-4s %s  d=%-2d n=%-7s nps=%-5s tt=%3d%% s=%+d thr=%d t=%.1fs alloc=%.1fs%s",

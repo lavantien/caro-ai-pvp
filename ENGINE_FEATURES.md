@@ -399,21 +399,20 @@ the resulting position (`StartPonder`, owned by the mover's `MinimaxAI`).
   open rule) is inherent; entries without depth or pointing at occupied
   cells are rejected, and turns without a prediction simply do not ponder
 
-**Hit handling:**
-- Hit = the opponent plays the predicted reply, the ponder completed at
-  least one depth (`PonderMinCompletedDepth`; a solver-verified VCF win
-  counts despite `DepthAchieved` 0), and the ponder ran at least
-  `PonderAdoptionFraction` (50%) of the soft budget a normal search would
-  get — or is a VCF win, which is exempt. The time gate keeps fast
-  opponents from shrinking the ponder window into adopting shallow moves:
-  against them the hit becomes a TT head start for the full search instead.
-  A gated-in hit applies instantly on the next `ai-move`: `MoveType`
-  `ponder-hit`, `[PONDER]` statline tag, `ponder_depth`/`ponder_nodes`
-  persisted
-- Miss, incomplete ponder, or gated-out hit: a normal budgeted search runs
-  over a TT warmed by the ponder's writes
-- A staged hit is pinned to the pondered position hash; any state change in
-  between (undo, duplicate request) downgrades it to a miss
+**Hit handling (continuation search):**
+- The pondered move is never played directly. Whatever the opponent
+  replied, the next `ai-move` runs the normal budgeted search; pondering
+  pays off through the TT the background search warmed (hash moves,
+  cutoffs, deeper iterations inside the same budget)
+- A hit (the opponent played the predicted reply and the ponder completed
+  at least one depth) is recorded for stats only: `[PONDER]` statline tag
+  on the real search, `ponder_depth`/`ponder_nodes` persisted whenever a
+  ponder preceded the move, hit or miss
+- Instant-move adoption was tried and removed by measurement: against
+  mid-level opponents whose think time clears a time-based adoption gate,
+  L5 cashed in depth-4-5 pondered moves instead of its depth-6-8 searches
+  and lost the matchup (L3 13-7, L4 11-9 at 1+0). The warm-table approach
+  keeps full search strength on every move
 
 **Lifecycle and teardown:**
 - At most one ponder per session (the latest mover); every applied move

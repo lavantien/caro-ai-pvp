@@ -69,9 +69,9 @@ func lastMoveOf(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
 	return last
 }
 
-// stagePonderHit drives the game to a staged ponder hit for blue: blue's
-// searched move starts the ponder, the ponder completes, and the human
-// plays the exact predicted reply.
+// stagePonderHit drives the game to a ponder hit for blue: blue's searched
+// move starts the ponder, the ponder completes, and the human plays the
+// exact predicted reply.
 func stagePonderHit(t *testing.T, h *Handler, s *GameSession, gameID string) {
 	t.Helper()
 	w := postGameAction(t, h, gameID, "move", `{"x":7,"y":7}`)
@@ -83,14 +83,10 @@ func stagePonderHit(t *testing.T, h *Handler, s *GameSession, gameID string) {
 	require.Eventually(t, func() bool { return !s.blueAI.PonderActive() },
 		2*time.Second, 10*time.Millisecond)
 
-	// Shrink blue's clock so the 300ms ponder clears the adoption gate.
-	s.mu.Lock()
-	s.blueTimeMs = 400
-	s.mu.Unlock()
-
 	w = postGameAction(t, h, gameID, "move", `{"x":`+strconv.Itoa(pred.X)+`,"y":`+strconv.Itoa(pred.Y)+`}`)
 	require.Equal(t, http.StatusOK, w.Code)
-	require.NotNil(t, s.pendingPonder, "playing the predicted reply must stage a hit")
+	require.NotNil(t, s.pendingPonder, "playing the predicted reply must record the hit")
+	require.True(t, s.pendingPonder.hit)
 }
 
 func moveBody(x, y int) string {
@@ -101,15 +97,16 @@ func TestMakeAIMovePonderHit(t *testing.T) {
 	h, ms, s, gameID := newPonderHitFixture(t)
 	stagePonderHit(t, h, s, gameID)
 
-	start := time.Now()
+	// The ai-move must run a real search over the warmed TT: a normal move
+	// type, real think time, and the hit marked in the statline.
 	w := postGameAction(t, h, gameID, "ai-move", "")
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Less(t, time.Since(start), 2*time.Second, "a ponder hit must move near-instantly")
 
 	last := lastMoveOf(t, w)
 	engineStats := last["engineStats"].(map[string]any)
-	assert.Equal(t, "ponder-hit", engineStats["moveType"])
-	assert.Contains(t, last["statline"], "[PONDER]")
+	assert.Equal(t, "exact", engineStats["moveType"], "the real search decides the move")
+	assert.Contains(t, last["statline"], "[PONDER]", "hit positions are marked")
+	assert.Greater(t, last["thinkTimeMs"], float64(0), "the search ran")
 
 	moves, err := ms.GetMoves(gameID)
 	require.NoError(t, err)
@@ -118,11 +115,9 @@ func TestMakeAIMovePonderHit(t *testing.T) {
 		if m.IsBot && m.PonderDepth != nil {
 			found = true
 			require.NotNil(t, m.PonderNodes)
-			require.NotNil(t, m.MoveType)
-			assert.Equal(t, "ponder-hit", *m.MoveType)
 		}
 	}
-	assert.True(t, found, "the ponder hit must persist ponder stats")
+	assert.True(t, found, "the preceding ponder must persist its stats")
 }
 
 func TestMakeAIMovePonderMissFallsBack(t *testing.T) {
@@ -135,27 +130,30 @@ func TestMakeAIMovePonderMissFallsBack(t *testing.T) {
 	pred := s.activePonder.predictedReply
 	alt := legalAlternativeReply(t, s.game.Board, pred)
 
-	// Shrink blue's clock so the fallback normal search stays fast.
+	// Shrink blue's clock so the normal search stays fast.
 	s.mu.Lock()
 	s.blueTimeMs = 1500
 	s.mu.Unlock()
 
 	w = postGameAction(t, h, gameID, "move", moveBody(alt.X, alt.Y))
 	require.Equal(t, http.StatusOK, w.Code)
-	assert.Nil(t, s.pendingPonder, "a different reply is a miss")
+	require.NotNil(t, s.pendingPonder, "a miss is still recorded")
+	require.False(t, s.pendingPonder.hit)
 
 	w = postGameAction(t, h, gameID, "ai-move", "")
 	require.Equal(t, http.StatusOK, w.Code)
 	last := lastMoveOf(t, w)
-	engineStats := last["engineStats"].(map[string]any)
-	assert.NotEqual(t, "ponder-hit", engineStats["moveType"])
-	assert.NotContains(t, last["statline"], "[PONDER]")
+	assert.NotContains(t, last["statline"], "[PONDER]", "misses are not marked")
 
 	moves, err := ms.GetMoves(gameID)
 	require.NoError(t, err)
+	found := false
 	for _, m := range moves {
-		assert.Nil(t, m.PonderDepth, "no ponder columns without a hit")
+		if m.IsBot && m.PonderDepth != nil {
+			found = true
+		}
 	}
+	assert.True(t, found, "the preceding ponder is persisted on misses too")
 }
 
 func TestMakeAIMovePonderHitUndoFallback(t *testing.T) {

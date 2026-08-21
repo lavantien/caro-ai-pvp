@@ -21,7 +21,7 @@ type GameSession struct {
 	redAI           *engine.MinimaxAI
 	blueAI          *engine.MinimaxAI
 	activePonder    *activePonderState
-	pendingPonder   *ponderHit
+	pendingPonder   *ponderInfo
 	ponderTimeCapMs int64
 }
 

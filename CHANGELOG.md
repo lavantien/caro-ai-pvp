@@ -11,8 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Grandmaster (L5) pondering: background search on the predicted opponent reply during the opponent's turn, capped by the opponent's remaining clock (scales with the time control)
-- Ponder hits play instantly (`ponder-hit` move type, `[PONDER]` statline tag); `ponder_depth`/`ponder_nodes` persisted on hits
-- Hits are adopted instantly only when the ponder ran at least half the normal soft budget (VCF wins exempt), so fast opponents cannot shrink the window into shallow adoptions
+- Ponder outcomes recorded for stats: `[PONDER]` statline tag on hit positions, `ponder_depth`/`ponder_nodes` persisted whenever a ponder preceded the move; the move itself always comes from the full search over the warmed TT
 - Quiescence treats double threats (four-or-open-three in two directions) as forcing moves
 - `CARO_DISABLE_PONDER=1` kill switch disables pondering process-wide
 

@@ -51,6 +51,5 @@ const (
 	TimeSoftBoundFraction   = 0.8
 
 	// Pondering (L5 background search on the predicted reply)
-	PonderMinCompletedDepth int     = 1
-	PonderAdoptionFraction  float64 = 0.5
+	PonderMinCompletedDepth int = 1
 )

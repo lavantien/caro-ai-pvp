@@ -555,7 +555,7 @@ func TestBuildMoveDetail(t *testing.T) {
 		ThreadCount:     4,
 	}
 
-	detail := h.buildMoveDetail(resp, "blue", 8, 8, stats, 10800)
+	detail := h.buildMoveDetail(resp, "blue", 8, 8, stats, 10800, false)
 
 	assert.Equal(t, 2, detail.MoveNumber)
 	assert.Equal(t, "blue", detail.Player)
