@@ -17,7 +17,10 @@ public static class LocalOrigin
             return false;
         }
         string host = u.Host;
-        return u.Scheme == "http" && (host == "localhost" || host == "127.0.0.1" || host == "::1");
+        // Uri.Host keeps the brackets on IPv6 ("[::1]"); Go's Hostname()
+        // stripped them, so accept both spellings.
+        return u.Scheme == "http"
+            && (host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]");
     }
 }
 
