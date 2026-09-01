@@ -29,6 +29,8 @@ public sealed partial class MinimaxAI : IDisposable
 
     internal TranspositionTable TT => _tt;
 
+    internal SearchHeuristics Heuristics => _heuristics;
+
     public MinimaxAI(int maxThreads, int ttSizeMB)
     {
         if (maxThreads < 1)

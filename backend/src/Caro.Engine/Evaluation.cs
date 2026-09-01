@@ -4,20 +4,20 @@ namespace Caro.Engine;
 
 public static class Evaluation
 {
-    private const int FiveScore = Constants.WinScore;
-    private const int Flex4WinBonus = 15_000;
+    internal const int FiveScore = Constants.WinScore;
+    internal const int Flex4WinBonus = 15_000;
     private const int DoubleB4Bonus = 14_000;
     private const int B4F3Bonus = 13_000;
     private const int DoubleF3Bonus = 12_000;
     private const int Flex4Score = 10_000;
     private const int Block4Score = 5_000;
-    private const int Flex3Score = 1_000;
+    internal const int Flex3Score = 1_000;
     private const int Block3Score = 100;
     private const int Flex2Score = 100;
     private const int Block2Score = 30;
     private const int Flex1Score = 10;
 
-    private const int MaxCorrectedEval = Constants.MaxEval;
+    internal const int MaxCorrectedEval = Constants.MaxEval;
 
     public static int Evaluate(SearchBoard sb, Player player)
     {

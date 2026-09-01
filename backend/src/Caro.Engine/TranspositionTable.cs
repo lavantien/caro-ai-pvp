@@ -71,6 +71,8 @@ public sealed class TranspositionTable : IDisposable
         }
     }
 
+    internal TtShard[] Shards => _shards;
+
     private static int ShardIndex(ulong hash) => (int)((hash >> 32) & (Constants.TTShardCount - 1));
 
     public void Store(TTEntry entry)
