@@ -15,11 +15,15 @@ public struct SearchConfig
 
 public struct SearchStats
 {
+    public SearchStats()
+    {
+    }
+
     public int DepthAchieved { get; set; }
     public long NodesSearched { get; set; }
     public double NodesPerSecond { get; set; }
     public int SearchScore { get; set; }
-    public string MoveType { get; set; }
+    public string MoveType { get; set; } = "";
     public double TableHitRate { get; set; }
     public long AllocatedTimeMs { get; set; }
     public int ThreadCount { get; set; }

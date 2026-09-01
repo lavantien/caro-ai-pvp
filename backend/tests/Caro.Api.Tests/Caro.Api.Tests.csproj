@@ -14,4 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Caro.Api\Caro.Api.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.*" />
+  </ItemGroup>
 </Project>
