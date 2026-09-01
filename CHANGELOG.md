@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [9.1.0] - 2026-09-01
+
+### Fixed
+- WebSocket UCI bridge: a non-final frame fragment that exactly fills the 4096-byte read buffer no longer leaves a zero-capacity receive that hangs the connection
+- WebSocket reply writer survives transports that raise a bare `IOException` (instead of `WebSocketException`) when the peer vanishes mid-send
+- Local-origin check accepts bracketed IPv6 loopback origins (`http://[::1]`) again, matching the Go server
+
+### Changed
+- Backend coverage badge union-merges per-line hits across test projects (the previous per-report average double-counted uncovered lines) and excludes generated sources
+
+[9.1.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.1.0
+
 ## [9.0.0] - 2026-09-01
 
 ### Changed
