@@ -277,4 +277,70 @@ public class UciHandlerTests
         DifficultyProfile profile = Difficulty.GetDifficultyProfile(2);
         Assert.Equal(profile.MaxDepth, h.SkillSearchOptions().MaxDepth);
     }
+
+    [Fact]
+    public void PositionWithoutArgumentsIsIgnored()
+    {
+        CollectingLineWriter buf = new();
+        using UciHandler h = new(buf);
+        h.HandleCommand("position");
+        Assert.Equal(string.Empty, buf.Output());
+    }
+
+    [Fact]
+    public void PositionRejectsUnsupportedArgument()
+    {
+        CollectingLineWriter buf = new();
+        using UciHandler h = new(buf);
+        h.HandleCommand("position fen whatever");
+        Assert.Contains("info string error unsupported position argument", buf.Output());
+    }
+
+    [Fact]
+    public void PositionRejectsReplayOntoOccupiedCell()
+    {
+        CollectingLineWriter buf = new();
+        using UciHandler h = new(buf);
+        h.HandleCommand("position startpos moves aa bb aa");
+        Assert.Contains("info string error move", buf.Output());
+        // The whole replay is rejected: the board resets instead of keeping
+        // the partial prefix.
+        Assert.Equal("none", h.CurrentBoard().GetPlayerAt(0, 0).ToName());
+        Assert.Equal("none", h.CurrentBoard().GetPlayerAt(1, 1).ToName());
+    }
+
+    [Fact]
+    public void SetOptionWithoutValueIsIgnored()
+    {
+        CollectingLineWriter buf = new();
+        using UciHandler h = new(buf);
+        h.HandleCommand("setoption name Threads");
+        h.HandleCommand("setoption value 4");
+        Assert.Equal(string.Empty, buf.Output());
+        Assert.Equal(4, h.CurrentThreads());
+    }
+
+    [Fact]
+    public void SetOptionWithNonNumericValueIsIgnored()
+    {
+        CollectingLineWriter buf = new();
+        using UciHandler h = new(buf);
+        h.HandleCommand("setoption name Threads value fast");
+        Assert.Equal(string.Empty, buf.Output());
+        Assert.Equal(4, h.CurrentThreads());
+    }
+
+    [Fact]
+    public void SetOptionHashRebuildsEngine()
+    {
+        CollectingLineWriter buf = new();
+        using UciHandler h = new(buf);
+        h.HandleCommand("setoption name Hash value 512");
+        h.HandleCommand("isready");
+        Assert.Contains("readyok", buf.Output());
+
+        // Out of range: ignored silently.
+        h.HandleCommand("setoption name Hash value 8");
+        Assert.Equal("readyok", buf.Output());
+    }
 }
