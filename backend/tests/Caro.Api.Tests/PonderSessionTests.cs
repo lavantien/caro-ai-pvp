@@ -26,7 +26,11 @@ public class PonderSessionTests
 
         (int x, int y, _) = ai.GetBestMove(board, player, new SearchOptions
         {
-            TimeRemainingMs = timeMs,
+            // Generous absolute budget: the property under test is the ponder
+            // lifecycle, and the root search must always complete at least
+            // one depth (storing a TT prediction) even under coverage
+            // instrumentation.
+            TimeRemainingMs = 600_000,
             IncrementMs = inc * 1000L,
             MoveNumber = moveNum,
             ThreadCount = 1,

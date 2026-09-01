@@ -6,8 +6,7 @@ using Xunit;
 namespace Caro.Uci.Tests;
 
 /// <summary>
-/// Collects reply lines from any thread, mirroring the Go tests'
-/// threadsafe buffer.
+/// Collects reply lines from any thread.
 /// </summary>
 internal sealed class CollectingLineWriter : ILineWriter
 {

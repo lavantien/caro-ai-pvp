@@ -33,7 +33,7 @@ backend/
 | Language and runtime | C# 14 on .NET 10 (`net10.0`) |
 | HTTP | ASP.NET Core minimal APIs, Kestrel |
 | WebSocket | ASP.NET Core WebSockets (`/ws/uci`) |
-| Persistence | SQLite via `Microsoft.Data.Sqlite` (managed, no CGO) |
+| Persistence | SQLite via `Microsoft.Data.Sqlite` (fully managed) |
 | Tests | xUnit + coverlet |
 | Formatting and lint | `dotnet format` + repo `.editorconfig` |
 
