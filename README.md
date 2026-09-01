@@ -4,7 +4,7 @@
 ![Backend Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/lavantien/caro-ai-pvp/main/coverage/backend.json)
 ![Frontend Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/lavantien/caro-ai-pvp/main/coverage/frontend.json)
 
-A full-strength Caro (Gomoku variant) AI, built with Go 1.26, SvelteKit 2.49+ with Svelte 5 Runes.
+A full-strength Caro (Gomoku variant) AI, built with C# 14 / .NET 10, SvelteKit 2.49+ with Svelte 5 Runes.
 
 Features hardware-agnostic difficulty levels (L1 Novice through L5 Grandmaster) for balanced play across machines.
 
@@ -17,7 +17,7 @@ Features hardware-agnostic difficulty levels (L1 Novice through L5 Grandmaster) 
 
 - **Full-strength AI** - Lazy SMP parallel search at maximum strength
 - **UCI Protocol Support** - Standalone engine compatible with UCI chess GUIs
-- **Go-idiomatic Architecture** - `internal/` package layout with clear separation of concerns
+- **.NET solution architecture** - Project-per-concern layout (`Caro.Domain` through `Caro.Server`) with enforced dependency flow
 - **Real-time AI PvP** - WebSocket UCI bridge for engine communication
 - **Mobile-first UX** - Responsive board, compact timer strips, ghost stone positioning and haptic feedback
 - **Comprehensive automated tests** - Including adversarial concurrency tests
@@ -40,13 +40,13 @@ Features hardware-agnostic difficulty levels (L1 Novice through L5 Grandmaster) 
 
 | Category | Feature | Description |
 |----------|---------|-------------|
-| **Search** | Lazy SMP Parallel | Channel-based goroutine pool with per-search dispatch |
+| **Search** | Lazy SMP Parallel | Long-running worker tasks with per-search dispatch |
 | | Principal Variation Search | Alpha-beta with null-window searches |
 | | Aspiration Windows | Narrowed bounds near root |
 | | Quiescence Search | Four-forcing extensions only (threes are not forcing) |
 | | Adaptive LMR | Dynamic depth reduction by position factors |
 | | VCF Solver | Pre-search for forcing win sequences (20% of allocated time) |
-| **Transposition Table** | Sharded RWMutex | 16 segments with per-shard sync.RWMutex |
+| **Transposition Table** | Sharded locks | 16 segments with per-shard `ReaderWriterLockSlim` |
 | | Depth-Age Replacement | Smart entry eviction formula |
 | **Move Ordering** | Staged Picker | TT -> Win -> Block -> Threat -> Killer/Counter -> Quiet |
 | | Hash Move | TT move searched unconditionally first |
@@ -108,7 +108,7 @@ Fisher time controls with increment:
 
 The engine supports 5 difficulty levels. Levels are strength-based first (depth caps, solver and parallel gating) with the time fraction as a secondary cap, so L(k) is stronger than L(k-1) on any host:
 
-| Level | Name | Depth Cap | Time Budget | Goroutines | VCF Solver | Pondering | TT Size |
+| Level | Name | Depth Cap | Time Budget | Threads | VCF Solver | Pondering | TT Size |
 |-------|------|-----------|-------------|------------|------------|-----------|---------|
 | 1 | Novice | 2 | 5% | 1 | No | No | 64MB |
 | 2 | Beginner | 4 | 15% | 1 | No | No | 64MB |
@@ -121,7 +121,7 @@ The engine supports 5 difficulty levels. Levels are strength-based first (depth 
 - Pondering (searching on the opponent's clock) is L5-only
 - Per-player difficulty: red and blue can play at different levels independently
 - Level 5 = full-strength engine with all optimizations
-- Goroutine count for L4 is half of L5 (next power of 2 down)
+- Thread count for L4 is half of L5 (next power of 2 down)
 
 ### Performance Statistics
 
@@ -146,7 +146,7 @@ Universal Chess Interface (UCI) protocol compatibility for standalone engine usa
 
 **Run standalone UCI engine:**
 ```bash
-cd backend && go run ./cmd/engine
+dotnet run --project backend/src/Caro.UciEngine
 ```
 
 **Example UCI session:**
@@ -169,7 +169,8 @@ cd backend && go run ./cmd/engine
 |----------|---------|--------------|
 | **README.md** (this file) | Project overview, getting started, architecture summary | First - start here |
 | **ENGINE_FEATURES.md** | AI engine architecture (search, evaluation, TT, move ordering, source layout) | Understanding how the AI works |
-| **GO_ONBOARDING.md** | Go 1.26 idioms, project conventions, testing patterns | Contributing code |
+| **CSHARP_ONBOARDING.md** | C# 14 / .NET 10 idioms, project conventions, testing patterns | Contributing code |
+| **GO_ONBOARDING.md** | Archived onboarding guide for the Go 1.26 era | Historical reference |
 
 **Documentation Matrix:**
 
@@ -187,11 +188,11 @@ README.md (Entry Point)
         |       |-- Evaluation -> Line windows, Pattern4, Scoring
         |       +-- Time Management -> Phase-aware allocation
         |
-        +--> GO_ONBOARDING.md (Contributing)
-                |-- Go 1.26 Features -> Green Tea GC, errors.AsType, simd
-                |-- Project Structure -> internal/ packages
-                |-- Testing Patterns -> testing, testify, race detector
-                +-- Concurrency -> goroutines, channels, context
+        +--> CSHARP_ONBOARDING.md (Contributing)
+                |-- C# 14 Features -> primary constructors, records, spans
+                |-- Project Structure -> src/ projects
+                |-- Testing Patterns -> xUnit, Theory data, in-test server
+                +-- Concurrency -> tasks, locks, cancellation tokens
 ```
 
 **Newcomer Onboarding Path:**
@@ -199,97 +200,97 @@ README.md (Entry Point)
 1. **Start:** README.md -> Getting Started (run the app)
 2. **Understand:** Architecture section + Features tables
 3. **Deep dive:** ENGINE_FEATURES.md for AI details
-4. **Contribute:** GO_ONBOARDING.md for coding standards
+4. **Contribute:** CSHARP_ONBOARDING.md for coding standards
 
 ### Test Packages
 
 ```bash
-# All tests with race detector
-cd backend && CGO_ENABLED=1 go test -race ./...
+# All tests
+cd backend && dotnet test Caro.sln
 
-# Specific packages
-go test ./internal/domain/...
-go test ./internal/engine/...
-go test ./internal/api/...
+# Specific projects
+dotnet test tests/Caro.Domain.Tests
+dotnet test tests/Caro.Engine.Tests
+dotnet test tests/Caro.Api.Tests
 ```
 
-| Package | Focus |
+| Project | Focus |
 |---------|-------|
-| internal/domain | Domain entities (Board, GameState, Player, Position, WinDetector) |
-| internal/engine | AI search, evaluation, TT, VCF, move ordering, concurrency stress |
-| internal/uci | UCI command parsing, notation conversion |
-| internal/api | HTTP handlers, WebSocket, session management |
-| internal/persistence | Structured match persistence (SQLite) |
+| Caro.Domain.Tests | Domain entities (Board, GameState, Player, Position, WinDetector) |
+| Caro.Engine.Tests | AI search, evaluation, TT, VCF, move ordering, concurrency stress |
+| Caro.Uci.Tests | UCI command parsing, notation conversion |
+| Caro.Api.Tests | HTTP handlers, WebSocket wiring, session management |
+| Caro.Persistence.Tests | Structured match persistence (SQLite) |
 
 ---
 
 ## Architecture
 
-Go-idiomatic package layout with clear dependency flow:
+.NET solution layout with clear dependency flow:
 
 ```mermaid
 graph TB
-    subgraph Commands["cmd/"]
-        Server["cmd/server"]
-        Engine["cmd/engine"]
+    subgraph Hosts["Hosts"]
+        Server["Caro.Server (Kestrel :5207)"]
+        EngineCli["Caro.UciEngine"]
     end
 
-    subgraph API["internal/api"]
+    subgraph API["Caro.Api"]
         Handlers["HTTP Handlers"]
         WebSocket["WebSocket UCI Bridge"]
         Session["GameSession"]
-        Store["InMemoryStore"]
+        Store["GameStore"]
     end
 
-    subgraph Engine["internal/engine"]
+    subgraph EnginePkg["Caro.Engine"]
         Minimax["MinimaxAI"]
         Search["Parallel Search (Lazy SMP)"]
-        Evaluator["BitBoard Evaluator"]
-        TT["Transposition Table (RWMutex)"]
+        Evaluator["Evaluation"]
+        TT["Transposition Table (sharded)"]
         VCF["VCF Solver"]
     end
 
-    subgraph Domain["internal/domain"]
+    subgraph DomainPkg["Caro.Domain"]
         Board["Board (16x16)"]
         Game["GameState"]
         Player["Player"]
         Win["WinDetector"]
     end
 
-    subgraph UCI["internal/uci"]
+    subgraph UCIPkg["Caro.Uci"]
         UCIHandler["UCI Handler"]
         Notation["Move Notation"]
     end
 
-    subgraph Persistence["internal/persistence"]
+    subgraph PersistencePkg["Caro.Persistence"]
         MatchStore["MatchStore (SQLite)"]
     end
 
-    Commands --> API
-    Commands --> UCI
-    API --> Engine
-    API --> Domain
-    Engine --> Domain
-    UCI --> Engine
-    UCI --> Domain
-    API --> Persistence
+    Server --> API
+    EngineCli --> UCIPkg
+    API --> EnginePkg
+    API --> DomainPkg
+    EnginePkg --> DomainPkg
+    UCIPkg --> EnginePkg
+    UCIPkg --> DomainPkg
+    API --> PersistencePkg
 ```
 
-**Package Dependencies:**
+**Project Dependencies:**
 
-| Package | Purpose | Dependencies |
+| Project | Purpose | Dependencies |
 |---------|---------|--------------|
-| `internal/domain` | Core entities, value objects, game rules | None (stdlib only) |
-| `internal/engine` | AI engine, search, evaluation, TT | domain |
-| `internal/uci` | UCI protocol handler | engine, domain |
-| `internal/api` | HTTP/WebSocket API, game sessions | engine, domain, persistence |
-| `internal/persistence` | Structured match persistence (SQLite) | domain |
+| `Caro.Domain` | Core entities, value objects, game rules | None |
+| `Caro.Engine` | AI engine, search, evaluation, TT | Domain |
+| `Caro.Uci` | UCI protocol handler | Engine, Domain |
+| `Caro.Api` | HTTP/WebSocket API, game sessions | Engine, Domain, Uci, Persistence |
+| `Caro.Persistence` | Structured match persistence (SQLite) | Microsoft.Data.Sqlite only |
 
 **Immutable Domain Model:**
 
 All domain entities are immutable for thread safety:
-- `Cell` - struct with `Player` field
-- `GameState` - struct with slice-based undo history; all methods return new instances
+- `Cell` - readonly record struct with `Player` field
+- `GameState` - immutable class with array-based undo history; all methods return new instances
 - `Board` - Immutable via `PlaceStone()` returning new instances with O(1) bitboard/hash update
 - Operations return new state: `WithMove()`, `WithGameOver()`, `UndoMove()`
 
@@ -297,9 +298,9 @@ All domain entities are immutable for thread safety:
 
 **Move Request Flow:**
 1. Frontend sends move via REST API -> GameSession
-2. GameSession extracts immutable board snapshot under mutex
-3. MinimaxAI.GetBestMove() called outside mutex with context.Context
-4. Parallel search dispatches to goroutine pool (channel-based, all-equal workers)
+2. GameSession extracts immutable board snapshot under its lock
+3. MinimaxAI.GetBestMove() runs outside the lock with a CancellationToken
+4. Parallel search dispatches to long-running worker tasks (all-equal workers)
 5. Best result selected by deepest completed depth; ties broken by score
 
 ### Key Architectural Decisions
@@ -324,7 +325,7 @@ All domain entities are immutable for thread safety:
 
 **Per-Player AI Isolation:**
 - Each player in a game gets its own MinimaxAI instance
-- Separate TT, heuristics, VCF cache, and goroutine pool per AI
+- Separate TT, heuristics, VCF solver, and worker set per AI
 - Zero state sharing between red and blue AI instances
 - Ensures no cross-contamination in AI vs AI matches
 
@@ -334,18 +335,17 @@ All domain entities are immutable for thread safety:
 
 ## Concurrency
 
-Go-native concurrency patterns:
+Concurrency patterns (C#):
 
 | Pattern | Purpose |
 |---------|---------|
-| Channel-based worker pool | Per-search goroutine dispatch with result collection |
-| Per-game sync.Mutex | Up to 4 concurrent games, independently locked |
-| context.Context propagation | HTTP request cancellation reaches AI search |
-| Sharded RWMutex TT (16 segments) | Lock-free parallel transposition table access |
-| sync.Pool | SearchBoard instance reuse to reduce GC pressure |
-| Goroutine leak detection | Debug builds with GOEXPERIMENT=goroutineleakprofile |
+| Long-running worker tasks | Per-search dispatch with `ConcurrentBag` result collection |
+| Per-game lock | Up to 4 concurrent games, independently locked |
+| CancellationToken propagation | HTTP request cancellation reaches AI search |
+| Sharded TT (16 segments) | Parallel transposition table access under `ReaderWriterLockSlim` |
+| Interlocked counters | Node and TT statistics without locks |
 
-**Testing:** Adversarial concurrency tests in internal/engine validate thread-safety under high contention.
+**Testing:** Adversarial concurrency tests in Caro.Engine.Tests validate thread-safety under high contention.
 
 ---
 
@@ -353,10 +353,10 @@ Go-native concurrency patterns:
 
 | Parameter | Value |
 |-----------|-------|
-| Goroutines | Largest power of 2 <= (GOMAXPROCS-2)/2 for L5 |
+| Threads | Largest power of 2 <= (ProcessorCount-2)/2 for L5 |
 | Time Budget | 100% (L5), scales down per difficulty level |
-| GC | Green Tea GC (Go 1.26 default, 10-40% overhead reduction) |
-| Heap Limit | 2GB (debug.SetMemoryLimit) |
+| GC | Server GC |
+| Heap Limit | 2GB hard limit (runtimeconfig) |
 
 Depth varies by host machine -- calculated dynamically from NPS and time budget. Higher-spec machines achieve greater depth naturally.
 
@@ -366,25 +366,25 @@ Depth varies by host machine -- calculated dynamically from NPS and time budget.
 
 **Frontend:** SvelteKit 2.49+ with Svelte 5 Runes, TypeScript 5.9, TailwindCSS 4.1, Vitest 4.0, Playwright 1.57
 
-**Backend:** Go 1.26, net/http (ServeMux with method matching), gorilla/websocket, log/slog, CGO_ENABLED=1 (SQLite), stretchr/testify
+**Backend:** C# 14 / .NET 10, ASP.NET Core minimal APIs on Kestrel, ASP.NET Core WebSockets, Microsoft.Extensions.Logging, Microsoft.Data.Sqlite
 
-**AI:** Custom minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP with channel-based goroutine pool, Hash Move-first ordering. SIMD evaluation via experimental simd/archsimd (planned).
+**AI:** Custom minimax, alpha-beta pruning, Zobrist hashing, BitBoard, VCF pre-search solver, Lazy SMP with long-running worker tasks, Hash Move-first ordering.
 
-**Persistence:** SQLite + FTS5 via mattn/go-sqlite3
+**Persistence:** SQLite via Microsoft.Data.Sqlite (pure managed, no native dependencies)
 
-**Config:** Backend configuration in `internal/domain/constants.go` and `internal/engine/difficulty.go`. Frontend config in `src/lib/config/` (api, audio, e2e, game, haptic, rating, uci, ui).
+**Config:** Backend configuration in `Caro.Domain/Constants.cs` and `Caro.Engine/Difficulty.cs`. Frontend config in `src/lib/config/` (api, audio, e2e, game, haptic, rating, uci, ui).
 
 ---
 
 ## Testing
 
-| Package | Focus |
+| Project | Focus |
 |---------|-------|
-| internal/domain | Domain entities, value objects, win detection, Zobrist hashing |
-| internal/engine | AI search integration, evaluation, TT, VCF, move ordering, concurrency stress |
-| internal/uci | UCI command parsing, move notation conversion |
-| internal/api | HTTP handlers, WebSocket, session management |
-| internal/persistence | Structured match persistence (SQLite) |
+| Caro.Domain.Tests | Domain entities, value objects, win detection, Zobrist hashing |
+| Caro.Engine.Tests | AI search integration, evaluation, TT, VCF, move ordering, concurrency stress |
+| Caro.Uci.Tests | UCI command parsing, move notation conversion |
+| Caro.Api.Tests | HTTP handlers, WebSocket wiring, session management |
+| Caro.Persistence.Tests | Structured match persistence (SQLite) |
 | Frontend Unit (Vitest) | Store logic, utility functions, game types |
 | Frontend E2E (Playwright) | End-to-end gameplay |
 
@@ -413,9 +413,8 @@ cd frontend && npm run test:e2e
 git clone https://github.com/lavantien/caro-ai-pvp.git
 cd caro-ai-pvp
 
-# Backend (requires CGO for SQLite)
-cd backend && go build ./...
-go run ./cmd/server
+# Backend
+dotnet run --project backend/src/Caro.Server
 
 # Frontend (new terminal)
 cd frontend && npm install
@@ -437,7 +436,7 @@ Backend: http://localhost:5207 | Frontend: http://localhost:5173
 
 ```bash
 make coverage           # Run both backend and frontend coverage, update badges
-make backend-coverage   # Backend only (Go test -coverprofile)
+make backend-coverage   # Backend only (dotnet test + coverlet)
 make frontend-coverage  # Frontend only (Vitest v8 coverage)
 ```
 
@@ -457,4 +456,4 @@ MIT
 
 ---
 
-Built with SvelteKit + Go 1.26
+Built with SvelteKit + C# 14 / .NET 10

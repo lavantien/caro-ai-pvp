@@ -1,0 +1,10 @@
+# parity: single thread, hash 256, skill 5, fixed depth
+# position	depth	bestmove	scoreCp	nodes	nps	ttHitRate
+opening	4	ii	-98	7685	57782	0.23
+opening	8	hg	-64	3457027	46546	0.05
+midgame-quiet	4	ij	-238	21198	81846	0.23
+midgame-quiet	8	ij	-984	1313098	56168	0.25
+tactical-open-four	4	hf	29999	95	2639	0
+tactical-open-four	8	hf	29999	95	3393	0
+must-block	4	if	-1022	28158	73906	0.27
+must-block	8	ij	-1346	1805391	45989	0.17

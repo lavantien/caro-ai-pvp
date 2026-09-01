@@ -32,7 +32,7 @@ test_tt.cs
 *.db-wal
 
 # Coverage artifacts
-backend/coverage.out
+backend/tests/*/coverage/
 backend/coverage/
 frontend/coverage/
 
@@ -52,10 +52,15 @@ board-with-moves.png
 # Temp build artifacts
 *.exe
 
+# .NET build output
+**/bin/
+**/obj/
+
 # Vite dev server cache
 .vite/
 # Old remnants
-docs/
+docs/*
+!docs/artifacts/
 .runsettings
 
 # Worktrees

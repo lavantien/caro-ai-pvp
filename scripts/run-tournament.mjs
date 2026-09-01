@@ -115,7 +115,7 @@ process.on('exit', cleanup);
 process.on('SIGINT', () => { cleanup(); process.exit(130); });
 process.on('SIGTERM', () => { cleanup(); process.exit(143); });
 
-const needsShell = (cmd) => process.platform === 'win32' && (cmd === 'npm' || cmd === 'go');
+const needsShell = (cmd) => process.platform === 'win32' && cmd === 'npm';
 
 function runCommand(command, args, cwd, label) {
 	return new Promise((resolve, reject) => {
@@ -253,18 +253,18 @@ async function main() {
 	}
 
 	// Step 1: Build and start backend
-	const serverBin = process.platform === 'win32' ? 'server.exe' : 'server';
-	const serverPath = resolve(ROOT, 'backend', serverBin);
+	const serverProject = resolve(ROOT, 'backend', 'src', 'Caro.Server');
+	const serverDll = resolve(serverProject, 'bin', 'Debug', 'net10.0', 'Caro.Server.dll');
 
 	console.log('Building backend...');
-	await runCommand('go', ['build', '-o', serverBin, './cmd/server'], resolve(ROOT, 'backend'), 'Build');
+	await runCommand('dotnet', ['build', serverProject, '-c', 'Debug'], ROOT, 'Build');
 	console.log('Backend built.');
 
 	console.log('Killing stale processes on port 5207...');
 	killPort(5207);
 
 	console.log('Starting backend...');
-	spawnDaemon(serverPath, [], resolve(ROOT, 'backend'), 'backend');
+	spawnDaemon('dotnet', [serverDll], resolve(ROOT, 'backend'), 'backend');
 	await waitForUrl(`${API_BASE}/`, 60_000);
 	console.log('Backend ready.\n');
 

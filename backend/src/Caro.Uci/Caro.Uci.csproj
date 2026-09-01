@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <InternalsVisibleTo Include="Caro.Uci.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Caro.Domain\Caro.Domain.csproj" />
+    <ProjectReference Include="..\Caro.Engine\Caro.Engine.csproj" />
+  </ItemGroup>
+</Project>

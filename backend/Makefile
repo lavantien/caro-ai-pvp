@@ -1,19 +1,17 @@
-.PHONY: build test lint fmt vet clean
+.PHONY: build test fmt lint clean
 
 build:
-	go build ./...
+	dotnet build Caro.sln -c Release
 
 test:
-	CGO_ENABLED=1 go test -race ./...
-
-lint:
-	golangci-lint run ./...
+	dotnet test Caro.sln
 
 fmt:
-	gofmt -w .
+	dotnet format Caro.sln
 
-vet:
-	go vet ./...
+lint:
+	dotnet format Caro.sln --verify-no-changes
 
 clean:
-	go clean ./...
+	dotnet clean Caro.sln
+	rm -rf src/*/bin src/*/obj tests/*/bin tests/*/obj

@@ -18,8 +18,8 @@ The engine follows principles from state-of-the-art game-playing systems:
 
 ### Performance Target
 
-- **Parallelism:** Lazy SMP with power-of-2 goroutines (largest power of 2 <= (GOMAXPROCS-2)/2)
-- **Runtime:** Go 1.26 with Green Tea GC, context.Context cancellation, channel-based concurrency
+- **Parallelism:** Lazy SMP with power-of-2 worker threads (largest power of 2 <= (ProcessorCount-2)/2)
+- **Runtime:** .NET 10 with Server GC, CancellationToken cancellation, task-based concurrency
 
 ---
 
@@ -27,18 +27,18 @@ The engine follows principles from state-of-the-art game-playing systems:
 
 ### 2.1 Lazy SMP Parallel Search
 
-Lazy SMP with all-equal goroutines sharing a single sharded TT — no master/slave split. Each worker runs its own iterative deepening loop independently.
+Lazy SMP with all-equal workers sharing a single sharded TT — no master/slave split. Each worker runs its own iterative deepening loop independently.
 
 **Core Principle:**
-- All goroutines are identical: fresh local search board, shared TT, fresh heuristics
+- All workers are identical: fresh local search board, shared TT, fresh heuristics
 - Each worker runs iterative deepening from depth (1 + workerID % 2) to maxDepth
 - Workers cooperate via shared TT — standard Lazy SMP pattern
 - Best move selected by deepest completed depth; ties broken by score
 
-**Goroutine Distribution:**
-- Goroutine count: Largest power of 2 <= (GOMAXPROCS-2)/2 (e.g., 20 cores -> 8 goroutines)
-- Workers dispatched per-search via goroutine pool with result channel
-- Each goroutine maintains independent heuristics (killers, history)
+**Worker Distribution:**
+- Worker count: largest power of 2 <= (ProcessorCount-2)/2 (e.g., 20 cores -> 8 workers)
+- Workers dispatched per-search as long-running tasks with a concurrent result bag
+- Each worker maintains independent heuristics (killers, history)
 - Shared TT provides inter-worker cooperation via hash move hints
 - Ponder searches run the same machinery during the opponent's turn with
   fresh heuristics and no soft limit (see 6.3)
@@ -51,8 +51,8 @@ Lazy SMP with all-equal goroutines sharing a single sharded TT — no master/sla
 **Advantages:**
 - Shared TT eliminates redundant search across workers
 - No master/slave coordination overhead
-- context.Context provides clean cancellation
-- Sharded RWMutex TT avoids false sharing between goroutines
+- CancellationToken provides clean cancellation
+- Sharded TT avoids false sharing between workers
 
 ### 2.2 Principal Variation Search (PVS)
 
@@ -127,12 +127,12 @@ LMR reduces search depth for moves that are statistically less likely to be best
 
 ## 3. Transposition Table System
 
-Single sharded RWMutex transposition table shared across all search paths. In parallel search, all workers share the same TT instance via per-shard `sync.RWMutex`.
+Single sharded transposition table shared across all search paths. In parallel search, all workers share the same TT instance via per-shard `ReaderWriterLockSlim`.
 
-### 3.1 Sharded RWMutex Architecture
+### 3.1 Sharded Lock Architecture
 
 **Shard Distribution:**
-- 16 independent segments, each protected by `sync.RWMutex`
+- 16 independent segments, each protected by a `ReaderWriterLockSlim`
 - Hash-based index calculation: `shardIndex = (hash >> 32) & 0xF`
 - Reads use `RLock` (concurrent), writes use `Lock` (exclusive)
 - Race-detector compatible
@@ -162,7 +162,7 @@ Each TT entry stores:
 ### 3.3 Shared TT Write Policy
 
 All workers in Lazy SMP share a single TT instance. Writes are coordinated via
-per-shard `sync.RWMutex` to prevent data races. Each worker writes at all depths
+per-shard `ReaderWriterLockSlim` to prevent data races. Each worker writes at all depths
 to the shared TT, providing cross-worker move hints via hash moves.
 The depth-age replacement strategy handles entry quality naturally.
 
@@ -197,7 +197,7 @@ Moves are generated and scored in stages, allowing early termination on cutoffs.
 5. **KILLER_COUNTER** - Killer moves (400K-500K) + counter-move responses (350K)
 6. **QUIET** - History/killer/continuation score + center bias + proximity
 
-**Score Constants (movepicker.go):**
+**Score Constants (MovePicker.cs):**
 | Category | Score |
 |----------|-------|
 | TT Move | 10,000,000 |
@@ -272,7 +272,7 @@ General-purpose move ordering based on past performance.
 
 ### 5.1 Line-Window Pattern Analysis
 
-`pattern_window.go` classifies threats from 11-cell line windows centered on a
+`PatternWindow.cs` classifies threats from 11-cell line windows centered on a
 stone: any exact five through the center plus both end-check cells fits in the
 window. All analysis is allocation-free array work on the extracted line.
 
@@ -288,7 +288,7 @@ window. All analysis is allocation-free array work on the extracted line.
 ### 5.2 Pattern4 Classification
 
 Combined 4-direction threat classification for each position. Enum values are
-distinct members of one `Pattern4` type in `pattern4.go`; each direction is
+distinct members of one `Pattern4` type in `Pattern4.cs`; each direction is
 classified independently and summed into `PlayerPattern4` counts.
 
 **Pattern Categories:**
@@ -315,7 +315,7 @@ classified independently and summed into `PlayerPattern4` counts.
 ### 5.3 Combination Bonuses
 
 Evaluation has no separate cache; threat combinations are read directly from the
-`PlayerPattern4` counts. The highest matching category wins (`evaluation.go`):
+`PlayerPattern4` counts. The highest matching category wins (`Evaluation.cs`):
 
 | Combination | Bonus |
 |------------|-------|
@@ -358,7 +358,7 @@ Position evaluation combines multiple factors:
 
 ### 6.1 Phase-Aware Time Allocation
 
-`AllocateTime` in `timemanager.go` divides the remaining clock by a phase
+`AllocateTime` in `TimeManager.cs` divides the remaining clock by a phase
 divisor (25 early, 30 after move 25), adds a fraction of the increment, and
 caps the result at 40% of the remaining clock.
 
@@ -417,7 +417,7 @@ the resulting position (`StartPonder`, owned by the mover's `MinimaxAI`).
 **Lifecycle and teardown:**
 - At most one ponder per session (the latest mover); every applied move
   stops the previous ponderer before starting the mover's
-- Joins under the session mutex are safe: the ponder goroutine takes no
+- Joins under the session mutex are safe: the ponder task takes no
   session or store locks, and cancellation is node-granular (the ID loop,
   alpha-beta, quiesce, and VCF all poll `ShouldStop`, which honors the
   cancelled context inline)
@@ -546,20 +546,20 @@ All shared data structures designed for concurrent access.
 - No shared mutable state in game logic
 
 **Thread-Safe Structures:**
-- TT with 16 shards, each protected by `sync.RWMutex` (concurrent reads, exclusive writes)
+- TT with 16 shards, each protected by a `ReaderWriterLockSlim` (concurrent reads, exclusive writes)
 - Go channels for async communication
-- Independent history tables per goroutine
+- Independent history tables per worker
 
 ### 8.2 Cancellation
 
-Coordinated search cancellation via context.Context.
+Coordinated search cancellation via CancellationToken.
 
 **Mechanism:**
 - HTTP request context propagated through GetBestMove to search dispatch
 - Derived context combines external cancellation with internal time-monitor
 - Channel-based worker pool respects context cancellation
 - Clean termination on timeout, stop command, or client disconnect
-- Ponder goroutines cancel the same way; `StopPonder` cancels and joins,
+- Ponder tasks cancel the same way; `StopPonder` cancels and joins,
   and `GetBestMove`/`Dispose` drain any running ponder first (see 6.3)
 
 ### 8.3 Statistics Collection
@@ -598,7 +598,7 @@ Standard UCI commands for engine control:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| Threads | spin | 4 | Search goroutines (1-Max); L4/L5 auto-scale to Pow2((N-2)/2) via difficulty profile |
+| Threads | spin | 4 | Search workers (1-Max); L4/L5 auto-scale to Pow2((N-2)/2) via difficulty profile |
 | Hash | spin | 256 | TT size (MB) |
 | Skill Level | spin | 5 | Difficulty 1-5 (1=Novice, 5=Grandmaster) |
 
@@ -606,7 +606,7 @@ Standard UCI commands for engine control:
 
 Strength-based difficulty via `DifficultyProfile`: depth caps make level differences hold on any machine, with the time fraction as a secondary cap.
 
-| Level | Name | Depth Cap | Time Fraction | Goroutines | Parallel | VCF | Ponder | TT Size |
+| Level | Name | Depth Cap | Time Fraction | Threads | Parallel | VCF | Ponder | TT Size |
 |-------|------|-----------|---------------|------------|----------|-----|--------|---------|
 | 1 | Novice | 2 | 5% | 1 | No | No | No | 64MB |
 | 2 | Beginner | 4 | 15% | 1 | No | No | No | 64MB |
@@ -619,8 +619,8 @@ Strength-based difficulty via `DifficultyProfile`: depth caps make level differe
   than the one below, so L(k) beats L(k-1) on any host.
 - `TimeFraction` (0.0-1.0): Secondary cap on the allocated search time.
 - `UseVCF`: Disabling the pre-search VCF solver removes tactical precision at low levels.
-- Goroutine count scales with difficulty: level 1-2 single-goroutine, level 3 dual-goroutine, level 4-5 adaptive to hardware.
-- Level 4 uses half of L5's goroutine count (next power of 2 down).
+- Thread count scales with difficulty: level 1-2 single-threaded, level 3 dual-threaded, level 4-5 adaptive to hardware.
+- Level 4 uses half of L5's thread count (next power of 2 down).
 - `Ponder`: L5 only; background search on the predicted reply during the
   opponent's turn (see 6.3).
 - Level 5 = full-strength engine with all optimizations.
@@ -638,57 +638,58 @@ Two-character algebraic notation for Caro:
 
 ## 10. Source Code Organization
 
-### 10.1 Package Layout (`internal/`)
+### 10.1 Project Layout (`backend/`)
 
-| Package | Files | Responsibility |
+| Project | Files | Responsibility |
 |---------|-------|---------------|
-| `internal/domain` | board.go, game.go, player.go, position.go, zobrist.go, win.go, constants.go, errors.go | Domain entities, game rules, no dependencies |
-| `internal/engine` | minimax.go, search.go, parallel.go, evaluation.go, pattern_window.go, pattern4.go, vcf.go, transposition.go, movepicker.go, candidate.go, heuristics.go, timemanager.go, timemonitor.go, difficulty.go, searchboard.go, bitboard.go | AI engine, search algorithms |
-| `internal/uci` | handler.go, notation.go | UCI protocol handling |
-| `internal/api` | server.go, handlers.go, websocket.go, session.go, store.go, requests.go, middleware.go, errors.go | HTTP/WebSocket API |
-| `internal/persistence` | matchstore.go | Structured match persistence (SQLite) |
+| `Caro.Domain` | Board.cs, GameState.cs, Player.cs, Position.cs, Zobrist.cs, Win.cs, Constants.cs, CaroException.cs, GameMode.cs, OpenRule.cs | Domain entities, game rules, no dependencies |
+| `Caro.Engine` | MinimaxAI.cs, Search.cs, AlphaBeta.cs, Quiescence.cs, ParallelSearch.cs, Evaluation.cs, PatternWindow.cs, Pattern4.cs, Vcf.cs, TranspositionTable.cs, MovePicker.cs, Candidates.cs, SearchHeuristics.cs, TimeManager.cs, TimeMonitor.cs, Difficulty.cs, SearchBoard.cs, BitBoard.cs, Ponder.cs, SearchTypes.cs, IterationBudget.cs | AI engine, search algorithms |
+| `Caro.Uci` | UciHandler.cs, Notation.cs | UCI protocol handling |
+| `Caro.Api` | GameHandlers.cs, MovePersistence.cs, UciWebSocket.cs, GameSession.cs, GameSession.Ponder.cs, GameStore.cs, Contracts.cs, Middleware.cs, Statline.cs, EndpointRoutes.cs, ApiApp.cs, Log.cs, ResponseJson.cs | HTTP/WebSocket API |
+| `Caro.Persistence` | MatchStore.cs | Structured match persistence (SQLite) |
 
 ### 10.2 Centralized Constants
 
 | File | Constants |
 |------|-----------|
-| `internal/domain/constants.go` | BoardSize, WinLength, Infinity, WinScore, MaxEval, search thresholds (LMR, null-move, aspiration, quiescence), TT shard count, VCF search depth, time management (phase divisors, soft/hard bounds, buffer), cell counts |
-| `internal/engine/search.go` | Search orchestration logic (constants moved to domain) |
-| `internal/engine/movepicker.go` | Staged picker score thresholds |
-| `internal/engine/evaluation.go` | Pattern scores, center bonus weights |
-| `internal/engine/difficulty.go` | L1-L5 difficulty profiles, goroutine counts |
+| `Caro.Domain/Constants.cs` | BoardSize, WinLength, Infinity, WinScore, MaxEval, search thresholds (LMR, null-move, aspiration, quiescence), TT shard count, VCF search depth, time management (phase divisors, soft/hard bounds, buffer), cell counts |
+| `Caro.Engine/Search.cs` | Search orchestration logic (constants moved to domain) |
+| `Caro.Engine/MovePicker.cs` | Staged picker score thresholds |
+| `Caro.Engine/Evaluation.cs` | Pattern scores, center bonus weights |
+| `Caro.Engine/Difficulty.cs` | L1-L5 difficulty profiles, thread counts |
 
 ### 10.3 Main Engine Files
 
-**internal/engine/** (all files <= 400 SLOC):
+**Caro.Engine/** (all files <= 400 SLOC):
 
 | File | Role |
 |------|------|
-| `minimax.go` | MinimaxAI struct definition, constructor, public API, Dispose |
-| `search.go` | Iterative deepening, PVS alpha-beta, LMR, null-move pruning (depth>=4, reduction=2), aspiration windows, VCF preferred move hint |
-| `parallel.go` | Lazy SMP goroutine pool dispatch, result aggregation |
-| `evaluation.go` | Zero-sum Pattern4-based evaluation with combination bonuses and center bonus |
-| `pattern_window.go` | 11-cell line-window primitives: extractLine, spanThrough, lineCompletions, placement analysis |
-| `pattern4.go` | 4-direction threat classification on window primitives (Flex/Block patterns, combined counts) |
-| `vcf.go` | Victory by Continuous Fours pre-search solver |
-| `transposition.go` | Sharded RWMutex TT with depth-age replacement |
-| `movepicker.go` | Staged move ordering (6 stages: TT -> Win -> Block -> Threat -> Killer/Counter -> Quiet) |
-| `candidate.go` | Candidate generation with center-of-mass ordering, tactical filtering |
-| `heuristics.go` | Killer moves, continuation/butterfly/counter-move history |
-| `timemanager.go` | Phase-aware time allocation with clock safety floors |
-| `timemonitor.go` | context.Context-based search time monitoring |
-| `difficulty.go` | Hardware-agnostic L1-L5 difficulty profiles |
-| `searchboard.go` | Mutable board for search hot path (make/unmake, zero allocation) |
-| `bitboard.go` | BitBoard type with uint64 operations (math/bits) |
+| `MinimaxAI.cs` | MinimaxAI class definition, constructor, public API, Dispose |
+| `Search.cs` | Iterative deepening, aspiration windows, VCF preferred move hint |
+| `AlphaBeta.cs` | PVS alpha-beta, LMR (with tactical guard), null-move pruning (depth>=4, reduction=2), root search |
+| `Quiescence.cs` | Four-forcing quiescence, mate-score adjustment helpers |
+| `ParallelSearch.cs` | Lazy SMP worker dispatch, result aggregation |
+| `Evaluation.cs` | Zero-sum Pattern4-based evaluation with combination bonuses and center bonus |
+| `PatternWindow.cs` | 11-cell line-window primitives over Span<sbyte>: ExtractLine, SpanThrough, LineCompletions, placement analysis |
+| `Pattern4.cs` | 4-direction threat classification on window primitives (Flex/Block patterns, combined counts) |
+| `Vcf.cs` | Victory by Continuous Fours pre-search solver |
+| `TranspositionTable.cs` | Sharded TT (ReaderWriterLockSlim) with depth-age replacement |
+| `MovePicker.cs` | Staged move ordering (6 stages: TT -> Win -> Block -> Threat -> Killer/Counter -> Quiet) |
+| `Candidates.cs` | Candidate generation with center-of-mass ordering, tactical filtering |
+| `SearchHeuristics.cs` | Killer moves, continuation/butterfly/counter-move history |
+| `TimeManager.cs` | Phase-aware time allocation with clock safety floors |
+| `IterationBudget.cs` | Predicted iteration-cost gating against the soft budget |
+| `TimeMonitor.cs` | CancellationToken-aware search time monitoring with a 10ms watchdog |
+| `Difficulty.cs` | Hardware-agnostic L1-L5 difficulty profiles |
+| `SearchBoard.cs` | Mutable board for search hot path (make/unmake, zero allocation) |
+| `BitBoard.cs` | BitBoard struct with ulong operations (hardware PopCount) |
+| `Ponder.cs` | Background ponder lifecycle on MinimaxAI (predict, start, stop-and-consume) |
 
-**UCI Package** (`internal/uci/`):
+**UCI Project** (`Caro.Uci/`):
 | File | Role |
 |------|------|
-| `handler.go` | UCI command dispatcher, search controller, engine options (Threads, Hash, Skill Level) |
-| `notation.go` | Double-letter coordinate encoding/decoding, position parsing |
-
----
-
+| `UciHandler.cs` | UCI command dispatcher, search controller, engine options (Threads, Hash, Skill Level) |
+| `Notation.cs` | Double-letter coordinate encoding/decoding |
 ## 11. References
 
 ### Source Repositories
