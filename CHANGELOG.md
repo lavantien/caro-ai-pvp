@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [9.0.0] - 2026-09-01
+
+### Changed
+- Backend rewritten from Go 1.26 to C# 14 / .NET 10 (solution layout `Caro.Domain` through `Caro.Server`); the engine is a line-for-line transliteration of the Go code, all 131 Go-era engine changes included
+- SQLite access moved from `mattn/go-sqlite3` (CGO) to `Microsoft.Data.Sqlite` (managed); schema, WAL mode, and idempotent startup migration unchanged, existing `matches.db` files keep working
+- Lazy SMP workers, ponder search, and the UCI search task run as long-running tasks with `CancellationToken` cancellation instead of goroutines with `context.Context`
+- Scripts (`dev.mjs`, `run-tournament.mjs`, `capture-screenshot.mjs`) and the Makefiles build and run the backend through `dotnet`
+- 2GB memory cap via runtimeconfig GC hard limit (replaces `debug.SetMemoryLimit`)
+
+### Added
+- `CSHARP_ONBOARDING.md` for the .NET 10 codebase; `GO_ONBOARDING.md` kept as an archive of the Go era
+- `scripts/uci-probe.mjs` for deterministic fixed-position engine probes and speed measurement
+
+### Removed
+- Go toolchain, CGO requirement, gorilla/websocket, testify
+
+[9.0.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.0.0
+
 ## [8.1.0] - 2026-08-21
 
 ### Added
