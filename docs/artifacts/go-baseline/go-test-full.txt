@@ -1,0 +1,7 @@
+?   	caro-ai-pvp/cmd/engine	[no test files]
+?   	caro-ai-pvp/cmd/server	[no test files]
+ok  	caro-ai-pvp/internal/api	31.083s
+ok  	caro-ai-pvp/internal/domain	1.306s
+ok  	caro-ai-pvp/internal/engine	66.108s
+ok  	caro-ai-pvp/internal/persistence	1.771s
+ok  	caro-ai-pvp/internal/uci	4.869s

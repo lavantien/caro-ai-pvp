@@ -127,7 +127,11 @@ async function handshake(client) {
 async function probePosition(client, position, depth, timeoutMs) {
 	await client.command('ucinewgame', null);
 	await client.command(`position startpos moves ${position.moves.join(' ')}`, null);
-	await client.command(`go depth ${depth}`, null, timeoutMs);
+	// A bare "go depth N" leaves the clock at 0 and the search aborts
+	// instantly, so give the side to move a large fixed clock: depth is then
+	// the only binding limit and the search is deterministic.
+	const side = position.moves.length % 2 === 0 ? 'w' : 'b';
+	await client.command(`go depth ${depth} ${side}time 3600000`, null, timeoutMs);
 	const infoLine = await client.waitFor((l) => l.startsWith('info '), timeoutMs);
 	const bestMove = await client.waitFor((l) => l.startsWith('bestmove '), timeoutMs);
 	return { ...parseInfo(infoLine), bestmove: bestMove.split(' ')[1] };
@@ -149,14 +153,15 @@ async function runParity(client, positions) {
 
 async function runSpeed(client, positions) {
 	const position = positions.find((p) => p.speed) ?? positions[1] ?? positions[0];
-	console.log('# speed: single thread, movetime 3000ms');
+	console.log('# speed: single thread, full depth-9 search, nodes/nps from info line');
 	console.log('# position\trun\tnodes\tnps\tdepth');
+	const side = position.moves.length % 2 === 0 ? 'w' : 'b';
 	for (let run = 1; run <= 3; run++) {
 		await client.command('ucinewgame', null);
 		await client.command(`position startpos moves ${position.moves.join(' ')}`, null);
-		await client.command('go movetime 3000', null, 60_000);
-		const infoLine = await client.waitFor((l) => l.startsWith('info '), 60_000);
-		await client.waitFor((l) => l.startsWith('bestmove '), 60_000);
+		await client.command(`go depth 9 ${side}time 3600000`, null, 300_000);
+		const infoLine = await client.waitFor((l) => l.startsWith('info '), 300_000);
+		await client.waitFor((l) => l.startsWith('bestmove '), 300_000);
 		const result = parseInfo(infoLine);
 		console.log(`${position.name}\t${run}\t${result.nodes}\t${result.nps}\t${result.depth}`);
 	}

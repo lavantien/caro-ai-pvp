@@ -1,0 +1,5 @@
+# speed: single thread, full depth-9 search, nodes/nps from info line
+# position	run	nodes	nps	depth
+midgame-quiet	1	4119518	72871	9
+midgame-quiet	2	4119518	73495	9
+midgame-quiet	3	4119518	73360	9
