@@ -55,7 +55,8 @@ board-with-moves.png
 # Vite dev server cache
 .vite/
 # Old remnants
-docs/
+docs/*
+!docs/artifacts/
 .runsettings
 
 # Worktrees
