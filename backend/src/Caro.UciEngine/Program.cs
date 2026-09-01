@@ -1,7 +1,18 @@
-// The standalone UCI console host is wired in the server port phase.
-internal static class Program
+using Caro.Uci;
+
+ConsoleLineWriter writer = new();
+using UciHandler handler = new(writer);
+UciHandler.RunUciLoop(handler, Console.In);
+
+internal sealed class ConsoleLineWriter : ILineWriter
 {
-    internal static void Main()
+    private readonly object _gate = new();
+
+    public void WriteLine(string line)
     {
+        lock (_gate)
+        {
+            Console.Out.WriteLine(line);
+        }
     }
 }
