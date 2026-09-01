@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <InternalsVisibleTo Include="Caro.Api.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Caro.Domain\Caro.Domain.csproj" />
+    <ProjectReference Include="..\Caro.Engine\Caro.Engine.csproj" />
+    <ProjectReference Include="..\Caro.Uci\Caro.Uci.csproj" />
+    <ProjectReference Include="..\Caro.Persistence\Caro.Persistence.csproj" />
+  </ItemGroup>
+</Project>
