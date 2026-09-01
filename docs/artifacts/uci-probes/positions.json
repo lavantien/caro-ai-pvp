@@ -1,0 +1,29 @@
+{
+	"positions": [
+		{
+			"name": "opening",
+			"moves": ["hh"],
+			"depths": [4, 8],
+			"comment": "Single center stone, blue to move."
+		},
+		{
+			"name": "midgame-quiet",
+			"moves": ["hh", "ii", "hm", "ih", "hi", "ig"],
+			"depths": [4, 8],
+			"speed": true,
+			"comment": "6 stones, no immediate tactics, red to move. Red's second move hm is open-rule legal."
+		},
+		{
+			"name": "tactical-open-four",
+			"moves": ["hh", "ii", "hg", "ij", "hi", "ik", "hj", "il"],
+			"depths": [4, 8],
+			"comment": "Red holds an open four on row h (x=6..9, y=7), both ends empty; red to move converts immediately."
+		},
+		{
+			"name": "must-block",
+			"moves": ["hh", "ig", "hm", "ih", "mj", "ii"],
+			"depths": [4, 8],
+			"comment": "Blue holds an open three on row i (x=6..8, y=8); red to move must block or counter."
+		}
+	]
+}
