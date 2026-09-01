@@ -28,6 +28,11 @@ internal sealed class WebSocketLineWriter(WebSocket socket) : ILineWriter, IDisp
         {
             // Peer disconnected mid-reply; the receive loop notices next.
         }
+        catch (IOException)
+        {
+            // Some transports surface a bare I/O failure instead of a
+            // WebSocketException when the peer vanishes mid-send.
+        }
         catch (ObjectDisposedException)
         {
             // Socket torn down by the receive loop's finally block.
@@ -80,7 +85,10 @@ public static class UciWebSocket
                             new ArraySegment<byte>(buffer, received, buffer.Length - received),
                             CancellationToken.None);
                         received += result.Count;
-                        if (received > ReadLimit)
+                        // A fragment that exactly fills the buffer without
+                        // ending the message would leave a zero-capacity
+                        // receive that can never drain: treat it as oversized.
+                        if (received > ReadLimit || (!result.EndOfMessage && received == ReadLimit))
                         {
                             await socket.CloseAsync(WebSocketCloseStatus.MessageTooBig,
                                 "frame exceeds 4096 bytes", CancellationToken.None);
