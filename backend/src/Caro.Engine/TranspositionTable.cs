@@ -32,18 +32,14 @@ internal struct TtSlot
     public byte Age { get; set; }
 }
 
-internal sealed class TtShard : IDisposable
+// The critical sections are a handful of instructions, so a plain monitor
+// beats a reader-writer lock: RWLS bookkeeping costs more than the exclusive
+// section itself, and readers barely block each other in practice.
+internal sealed class TtShard
 {
-    private readonly ReaderWriterLockSlim _lock = new();
+    public readonly object Gate = new();
     public TtSlot[] Slots { get; set; } = [];
     public ulong Mask { get; set; }
-
-    public void EnterWrite() => _lock.EnterWriteLock();
-    public void ExitWrite() => _lock.ExitWriteLock();
-    public void EnterRead() => _lock.EnterReadLock();
-    public void ExitRead() => _lock.ExitReadLock();
-
-    public void Dispose() => _lock.Dispose();
 }
 
 public sealed class TranspositionTable : IDisposable
@@ -71,8 +67,6 @@ public sealed class TranspositionTable : IDisposable
         }
     }
 
-    internal TtShard[] Shards => _shards;
-
     private static int ShardIndex(ulong hash) => (int)((hash >> 32) & (Constants.TTShardCount - 1));
 
     public void Store(TTEntry entry)
@@ -87,8 +81,7 @@ public sealed class TranspositionTable : IDisposable
 
         int entryPrio = entry.Depth - 8 * (currentAge - entry.Age);
 
-        shard.EnterWrite();
-        try
+        lock (shard.Gate)
         {
             ref TtSlot slot = ref shard.Slots[idx];
             ulong existingHash = slot.Hash;
@@ -116,10 +109,6 @@ public sealed class TranspositionTable : IDisposable
             slot.Type = (byte)entry.Type;
             slot.Age = entry.Age;
         }
-        finally
-        {
-            shard.ExitWrite();
-        }
     }
 
     public bool Lookup(ulong hash, out TTEntry entry)
@@ -128,18 +117,20 @@ public sealed class TranspositionTable : IDisposable
         TtShard shard = _shards[ShardIndex(hash)];
         ulong idx = hash & shard.Mask;
 
-        shard.EnterRead();
-        TTEntry found = new()
+        TTEntry found;
+        lock (shard.Gate)
         {
-            Hash = shard.Slots[idx].Hash,
-            Score = shard.Slots[idx].Score,
-            Depth = shard.Slots[idx].Depth,
-            MoveX = shard.Slots[idx].MoveX,
-            MoveY = shard.Slots[idx].MoveY,
-            Type = (TTEntryType)shard.Slots[idx].Type,
-            Age = shard.Slots[idx].Age,
-        };
-        shard.ExitRead();
+            found = new TTEntry
+            {
+                Hash = shard.Slots[idx].Hash,
+                Score = shard.Slots[idx].Score,
+                Depth = shard.Slots[idx].Depth,
+                MoveX = shard.Slots[idx].MoveX,
+                MoveY = shard.Slots[idx].MoveY,
+                Type = (TTEntryType)shard.Slots[idx].Type,
+                Age = shard.Slots[idx].Age,
+            };
+        }
 
         if (found.Hash != hash)
         {
@@ -155,9 +146,10 @@ public sealed class TranspositionTable : IDisposable
     {
         foreach (TtShard shard in _shards)
         {
-            shard.EnterWrite();
-            Array.Clear(shard.Slots);
-            shard.ExitWrite();
+            lock (shard.Gate)
+            {
+                Array.Clear(shard.Slots);
+            }
         }
     }
 
@@ -167,11 +159,12 @@ public sealed class TranspositionTable : IDisposable
         {
             shard.Slots = [];
             shard.Mask = 0;
-            shard.Dispose();
         }
     }
 
     public void IncrementAge() => Interlocked.Increment(ref _age);
+
+    internal ulong ShardStrideForTest() => (ulong)_shards[0].Slots.Length;
 
     public (long Probes, long Hits) Stats() => (Volatile.Read(ref _probes), Volatile.Read(ref _hits));
 

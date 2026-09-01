@@ -83,7 +83,7 @@ public class SearchFixesTests
         using TranspositionTable tt = new(1);
         // Two distinct hashes sharing one slot (offset by the table stride).
         ulong h1 = 0xABCD;
-        ulong h2 = h1 + (ulong)tt.Shards[0].Slots.Length;
+        ulong h2 = h1 + tt.ShardStrideForTest();
         tt.Store(new TTEntry { Hash = h1, Score = 100, Depth = 10 });
 
         for (int i = 0; i < 3; i++)
