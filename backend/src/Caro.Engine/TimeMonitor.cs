@@ -24,7 +24,10 @@ public sealed class TimeMonitor : IDisposable
         _cts = new CancellationTokenSource();
         _linked = CancellationTokenSource.CreateLinkedTokenSource(externalToken, _cts.Token);
         CancellationToken token = _linked.Token;
-        _watchTask = Task.Factory.StartNew(() => WatchLoop(token), token,
+        // The token is passed to the loop, not to StartNew: a task created
+        // with an already-cancelled token would transition to Canceled and
+        // make the Dispose join throw instead of returning promptly.
+        _watchTask = Task.Factory.StartNew(() => WatchLoop(token), CancellationToken.None,
             TaskCreationOptions.LongRunning, TaskScheduler.Default);
     }
 
@@ -81,7 +84,15 @@ public sealed class TimeMonitor : IDisposable
     public void Dispose()
     {
         Stop();
-        _watchTask.Wait(500);
+        try
+        {
+            _watchTask.Wait(500);
+        }
+        catch (AggregateException)
+        {
+            // The watch loop may have observed cancellation first; the join
+            // only exists to bound the thread's lifetime.
+        }
         _cts.Dispose();
         _linked.Dispose();
     }
