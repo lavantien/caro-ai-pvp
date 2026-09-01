@@ -108,4 +108,12 @@ public class GameStoreTests
             }
         });
     }
+
+    [Fact]
+    public void StoreDisposeReleasesLock()
+    {
+        GameStore s = new();
+        s.Dispose();
+        s.Dispose();
+    }
 }

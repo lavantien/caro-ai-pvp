@@ -263,4 +263,84 @@ public class PonderSessionTests
         store.Delete("g1");
         Assert.False(ai.PonderActive());
     }
+
+    [Fact]
+    public void BlueAIAndRedClockSeamsReachable()
+    {
+        GameSession s = NewPonderSession(GameMode.PvAI, null, 5);
+        Assert.NotNull(s.GetOrCreateAI(Player.Blue));
+        Assert.NotNull(s.BlueAIFromTest);
+
+        s.SetClockForTest(Player.Red, 12_345);
+        s.SetClockForTest(Player.Blue, 999);
+        (Board _, Player player, _, long timeMs, _, _, _) = s.ExtractForAI();
+        Assert.Equal(Player.Red, player);
+        Assert.Equal(12_345, timeMs);
+    }
+
+    [Fact]
+    public void TakePonderInfoConsumesOnceAndFiltersPlayer()
+    {
+        GameSession s = NewPonderSession(GameMode.AivAI, 5, null);
+        PlaySearchedAIMove(s, Player.Red);
+        Position alt = LegalAlternativeReply(s.GameForTest.Board, s.ActivePonderForTest!.PredictedReply);
+        s.ApplyAIMove(alt.X, alt.Y, Player.Blue);
+        Assert.NotNull(s.PendingPonderForTest);
+
+        // Right player: consumed exactly once.
+        (SearchStats stats, bool hit, bool had) = s.TakePonderInfo(Player.Red);
+        Assert.True(had);
+        Assert.False(hit);
+        Assert.True(stats.NodesSearched >= 0);
+        (_, _, had) = s.TakePonderInfo(Player.Red);
+        Assert.False(had);
+    }
+
+    [Fact]
+    public void TakePonderInfoForWrongPlayerStillConsumes()
+    {
+        GameSession s = NewPonderSession(GameMode.AivAI, 5, null);
+        PlaySearchedAIMove(s, Player.Red);
+        Position alt = LegalAlternativeReply(s.GameForTest.Board, s.ActivePonderForTest!.PredictedReply);
+        s.ApplyAIMove(alt.X, alt.Y, Player.Blue);
+        Assert.NotNull(s.PendingPonderForTest);
+
+        // Consume-once holds for any caller: a wrong-player take yields
+        // nothing and drops the staged info.
+        (SearchStats _, bool _, bool had) = s.TakePonderInfo(Player.Blue);
+        Assert.False(had);
+        Assert.Null(s.PendingPonderForTest);
+    }
+
+    [Fact]
+    public async Task HandlerAnnotatesAIMoveWithPonderInfo()
+    {
+        await using TestApi api = TestHostFactory.Create();
+        var (_, created) = await api.Client.PostJsonAsync("/api/game/new",
+            """{"timeControl":"1+0","gameMode":"pvai","blueDifficulty":5}""");
+        string gameID = created.GameId();
+        Assert.True(api.Store.TryGet(gameID, out GameSession session));
+        session.SetPonderTimeCapForTest(300);
+
+        // Human opens; the engine answers and starts pondering on the reply.
+        var (openStatus, _) = await api.Client.PostJsonAsync($"/api/game/{gameID}/move",
+            """{"x":7,"y":7}""");
+        Assert.Equal(200, openStatus);
+
+        var (firstAI, _) = await api.Client.PostJsonAsync($"/api/game/{gameID}/ai-move", "{}");
+        Assert.Equal(200, firstAI);
+        Assert.True(Eventually(() => session.ActivePonderForTest != null), "ponder starts after the engine move");
+
+        // Human moves again: the ponder stops and stages its info.
+        var (replyStatus, _) = await api.Client.PostJsonAsync($"/api/game/{gameID}/move",
+            """{"x":0,"y":0}""");
+        Assert.Equal(200, replyStatus);
+        Assert.NotNull(session.PendingPonderForTest);
+
+        // The next ai-move consumes the ponder info for its statline row.
+        var (secondAI, body) = await api.Client.PostJsonAsync($"/api/game/{gameID}/ai-move", "{}");
+        Assert.Equal(200, secondAI);
+        Assert.Equal(4, body.State().Num("moveNumber"));
+        Assert.Null(session.PendingPonderForTest);
+    }
 }
