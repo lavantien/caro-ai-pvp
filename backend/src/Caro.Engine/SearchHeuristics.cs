@@ -36,6 +36,15 @@ public sealed class SearchHeuristics
         return _killerMoves[depth, 0] == pos || _killerMoves[depth, 1] == pos;
     }
 
+    internal Position KillerAt(int depth, int slot)
+    {
+        if (depth < 0 || depth >= MaxKillerDepth)
+        {
+            return new Position(-1, -1);
+        }
+        return _killerMoves[depth, slot];
+    }
+
     public int KillerScore(int depth, Position pos)
     {
         if (depth < 0 || depth >= MaxKillerDepth)
