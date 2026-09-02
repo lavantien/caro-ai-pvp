@@ -1,10 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const E2E_BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:5173";
+const WEB_SERVER_TIMEOUT_MS = 120_000;
+
 /**
  * Playwright E2E Test Configuration
  *
- * Tests run against http://localhost:5173 (dev server)
- * Backend API should run on http://localhost:5207
+ * Tests run against E2E_BASE_URL (dev server; set FRONTEND_PORT to move it).
+ * Backend API should run on API_BASE_URL / CARO_HTTP_PORT (default 5207).
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -17,7 +20,7 @@ export default defineConfig({
   reporter: "html",
 
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: E2E_BASE_URL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
@@ -33,8 +36,8 @@ export default defineConfig({
   // Start dev server before running tests
   webServer: {
     command: "npm run dev",
-    url: "http://localhost:5173",
+    url: E2E_BASE_URL,
     reuseExistingServer: !process.env.CI,
-    timeout: 120000,
+    timeout: WEB_SERVER_TIMEOUT_MS,
   },
 });
