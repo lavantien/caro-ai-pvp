@@ -47,7 +47,7 @@ public static class Pattern4Classifier
     /// </summary>
     internal static Pattern4 ClassifyDirection(SearchBoard sb, int x, int y, int dx, int dy, Player player)
     {
-        Span<sbyte> line = stackalloc sbyte[11];
+        Span<sbyte> line = stackalloc sbyte[Constants.LineLength];
         PatternWindow.ExtractLine(sb, x, y, player, dx, dy, line);
 
         PatternWindow.SpanThrough(line, -1, out int lo, out int hi);

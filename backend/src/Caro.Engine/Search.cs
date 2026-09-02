@@ -49,7 +49,7 @@ public static partial class SearchEngine
                         DepthAchieved = 0,
                         SearchScore = Constants.WinScore,
                         AllocatedTimeMs = config.TimeLimitMs,
-                        MoveType = "vcf",
+                        MoveType = MoveTypes.Vcf,
                     });
                 }
             }
@@ -58,12 +58,12 @@ public static partial class SearchEngine
         Position? vcfPreferred = null;
         if (config.UseVCF)
         {
-            long oppVcfTime = (long)(config.TimeLimitMs * Constants.VCFTimeFraction / 2);
+            long oppVcfTime = (long)(config.TimeLimitMs * Constants.VCFBlockFraction);
             (int vx, int vy, VCFResult result) = Vcf.SolveVCFWithDepth(b, player.Opponent(), config.VCFMaxDepth, oppVcfTime, ctx);
             if (result == VCFResult.Win)
             {
                 Board blocked = b.PlaceStone(vx, vy, player);
-                long blockCheckTime = (long)(config.TimeLimitMs * Constants.VCFTimeFraction / 4);
+                long blockCheckTime = (long)(config.TimeLimitMs * Constants.VCFBlockCheckFraction);
                 (_, _, VCFResult checkResult) = Vcf.SolveVCFWithDepth(blocked, player.Opponent(), config.VCFMaxDepth, blockCheckTime, ctx);
                 if (checkResult != VCFResult.Win)
                 {
@@ -182,7 +182,7 @@ public static partial class SearchEngine
         string moveType = "";
         if (completedDepth == 0)
         {
-            moveType = "timeout-fallback";
+            moveType = MoveTypes.TimeoutFallback;
         }
         return (bestX, bestY, new SearchStats
         {

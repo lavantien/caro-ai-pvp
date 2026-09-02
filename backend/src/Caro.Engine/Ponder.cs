@@ -188,6 +188,6 @@ public sealed partial class MinimaxAI
     internal static bool PonderCompleted(SearchStats stats)
     {
         // VCF results report DepthAchieved 0 but are solver-verified wins.
-        return stats.DepthAchieved >= Constants.PonderMinCompletedDepth || stats.MoveType == "vcf";
+        return stats.DepthAchieved >= Constants.PonderMinCompletedDepth || stats.MoveType == MoveTypes.Vcf;
     }
 }

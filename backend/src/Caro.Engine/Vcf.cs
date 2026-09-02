@@ -20,7 +20,7 @@ internal sealed class VCFSolver(SearchBoard sb, Player attacker, TimeMonitor mon
             return false;
         }
 
-        List<Position> candidates = Candidates.GetCandidates(sb, 2);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
 
         foreach (Position c in candidates)
         {
@@ -143,7 +143,7 @@ public static class Vcf
 
     internal static bool OpponentHasImmediateWin(SearchBoard sb, Player opponent)
     {
-        List<Position> candidates = Candidates.GetCandidates(sb, 2);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
         foreach (Position c in candidates)
         {
             sb.MakeMove(c.X, c.Y, opponent);

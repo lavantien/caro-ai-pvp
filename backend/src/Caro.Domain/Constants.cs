@@ -4,6 +4,7 @@ public static class Constants
 {
     public const int BoardSize = 16;
     public const int WinLength = 5;
+    public const int LineLength = 2 * WinLength + 1;
     public const int MaxMoves = BoardSize * BoardSize;
     public const int OpenRuleMin = 3;
 
@@ -18,6 +19,8 @@ public static class Constants
 
     public const int DefaultTTSizeMB = 1024;
     public const double VCFTimeFraction = 0.20;
+    public const double VCFBlockFraction = VCFTimeFraction / 2;
+    public const double VCFBlockCheckFraction = VCFTimeFraction / 4;
 
     public const int MaxSearchRadius = 2;
     public const int AbsoluteMaxDepth = 50;

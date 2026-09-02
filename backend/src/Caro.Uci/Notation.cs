@@ -1,3 +1,5 @@
+using Caro.Domain;
+
 namespace Caro.Uci;
 
 public static class Notation
@@ -15,7 +17,7 @@ public static class Notation
         }
         y = s[0] - 'a';
         x = s[1] - 'a';
-        if (x < 0 || x >= 16 || y < 0 || y >= 16)
+        if (x < 0 || x >= Constants.BoardSize || y < 0 || y >= Constants.BoardSize)
         {
             x = 0;
             y = 0;

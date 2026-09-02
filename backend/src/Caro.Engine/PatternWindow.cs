@@ -11,14 +11,19 @@ namespace Caro.Engine;
 /// </summary>
 internal static class PatternWindow
 {
-    // lineState encodes one cell of an 11-cell line segment relative to a
-    // player. The window spans offsets -5..+5 so any exact-five through the
-    // center plus both of its end-check cells is fully visible.
+    // lineState encodes one cell of the line segment relative to a player.
     public const sbyte LineOpp = -1;
     public const sbyte LineEmpty = 0;
     public const sbyte LineOwn = 1;
 
-    public const int LineCenter = 5;
+    // The window spans offsets -WinLength..+WinLength so any exact-five
+    // through the center plus both of its end-check cells is fully visible.
+    public const int LineCenter = Constants.WinLength;
+    public const int LineLastIndex = Constants.LineLength - 1;
+    // A completion cell must share a five with the center, so it can never
+    // sit at the window's outermost cells.
+    public const int LineFirstPlayable = LineCenter - (Constants.WinLength - 1);
+    public const int LineLastPlayable = LineCenter + (Constants.WinLength - 1);
 
     /// <summary>
     /// Reads the 11 cells centered on (x,y) along (dx,dy) into the caller's
@@ -27,7 +32,7 @@ internal static class PatternWindow
     /// </summary>
     public static void ExtractLine(SearchBoard sb, int x, int y, Player player, int dx, int dy, Span<sbyte> line)
     {
-        for (int off = -5; off <= 5; off++)
+        for (int off = -LineCenter; off <= LineCenter; off++)
         {
             int i = off + LineCenter;
             if (off == 0)
@@ -78,7 +83,7 @@ internal static class PatternWindow
                 break;
             }
         }
-        while (hi < 10)
+        while (hi < LineLastIndex)
         {
             sbyte c = line[hi + 1];
             if (c == LineOwn || (hi + 1 == fillIdx && c == LineEmpty))
@@ -103,7 +108,7 @@ internal static class PatternWindow
             return false;
         }
         bool beforeBlocked = lo == 0 || line[lo - 1] == LineOpp;
-        bool afterBlocked = hi == 10 || line[hi + 1] == LineOpp;
+        bool afterBlocked = hi == LineLastIndex || line[hi + 1] == LineOpp;
         return !beforeBlocked || !afterBlocked;
     }
 
@@ -130,7 +135,7 @@ internal static class PatternWindow
         }
         SpanThrough(line, -1, out int lo, out int hi);
         int comps = 0;
-        for (int i = Math.Max(lo - 1, 1); i <= Math.Min(hi + 1, 9); i++)
+        for (int i = Math.Max(lo - 1, LineFirstPlayable); i <= Math.Min(hi + 1, LineLastPlayable); i++)
         {
             if (line[i] != LineEmpty)
             {
@@ -172,9 +177,9 @@ internal static class PatternWindow
     /// </summary>
     public static void FiveCompletionsInDir(SearchBoard sb, int x, int y, Player player, int dx, int dy, List<Position> output)
     {
-        Span<sbyte> line = stackalloc sbyte[11];
+        Span<sbyte> line = stackalloc sbyte[Constants.LineLength];
         ExtractLine(sb, x, y, player, dx, dy, line);
-        for (int i = 1; i <= 9; i++)
+        for (int i = LineFirstPlayable; i <= LineLastPlayable; i++)
         {
             if (line[i] != LineEmpty)
             {
@@ -207,8 +212,8 @@ internal static class PatternWindow
             return 0;
         }
         int best = 0;
-        Span<sbyte> filled = stackalloc sbyte[11];
-        for (int i = 1; i <= 9; i++)
+        Span<sbyte> filled = stackalloc sbyte[Constants.LineLength];
+        for (int i = LineFirstPlayable; i <= LineLastPlayable; i++)
         {
             if (line[i] != LineEmpty)
             {
@@ -278,7 +283,7 @@ internal static class PlacementAnalysis
     /// <summary>Computes only the per-direction completion counts. Cheap: no flex-three reachability scan.</summary>
     public static void PlacementComps(SearchBoard sb, int x, int y, Player player, Span<int> comps)
     {
-        Span<sbyte> line = stackalloc sbyte[11];
+        Span<sbyte> line = stackalloc sbyte[Constants.LineLength];
         for (int i = 0; i < Pattern4Classifier.EvalDirs.Length; i++)
         {
             (int dx, int dy) = Pattern4Classifier.EvalDirs[i];
@@ -299,7 +304,7 @@ internal static class PlacementAnalysis
             Comp2 = comps[2],
             Comp3 = comps[3],
         };
-        Span<sbyte> line = stackalloc sbyte[11];
+        Span<sbyte> line = stackalloc sbyte[Constants.LineLength];
         for (int i = 0; i < Pattern4Classifier.EvalDirs.Length; i++)
         {
             if (comps[i] == 0 && !pt.Flex3)
@@ -341,7 +346,7 @@ internal static class PlacementAnalysis
     /// </summary>
     public static bool CreatesOpenThree(SearchBoard sb, int x, int y, Player player)
     {
-        Span<sbyte> line = stackalloc sbyte[11];
+        Span<sbyte> line = stackalloc sbyte[Constants.LineLength];
         foreach ((int dx, int dy) in Pattern4Classifier.EvalDirs)
         {
             PatternWindow.ExtractLine(sb, x, y, player, dx, dy, line);

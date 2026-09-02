@@ -61,7 +61,7 @@ public static class Candidates
 
     public static List<Position> GetTacticalCandidates(SearchBoard sb, Player player)
     {
-        List<Position> allCandidates = GetCandidates(sb, 2);
+        List<Position> allCandidates = GetCandidates(sb, Constants.MaxSearchRadius);
         if (allCandidates.Count == 0)
         {
             return [];
@@ -106,8 +106,8 @@ public static class Candidates
         // forcing, because the opponent cannot answer both lines with one stone.
         // A lone open three stays non-forcing (the opponent may convert or
         // ignore it), so it stays visible to eval and move ordering only.
-        Span<sbyte> line = stackalloc sbyte[11];
-        Span<sbyte> oppLine = stackalloc sbyte[11];
+        Span<sbyte> line = stackalloc sbyte[Constants.LineLength];
+        Span<sbyte> oppLine = stackalloc sbyte[Constants.LineLength];
         int ownThreatDirs = 0;
         int oppThreatDirs = 0;
         foreach ((int dx, int dy) in Pattern4Classifier.EvalDirs)

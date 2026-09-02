@@ -335,7 +335,7 @@ public static class MoveOrdering
             int dx = dirs[d * 2];
             int dy = dirs[d * 2 + 1];
             int positive = 0;
-            for (int i = 1; i <= 5; i++)
+            for (int i = 1; i <= Constants.WinLength; i++)
             {
                 int nx = x + dx * i;
                 int ny = y + dy * i;
@@ -346,7 +346,7 @@ public static class MoveOrdering
                 positive++;
             }
             int negative = 0;
-            for (int i = 1; i <= 5; i++)
+            for (int i = 1; i <= Constants.WinLength; i++)
             {
                 int nx = x - dx * i;
                 int ny = y - dy * i;
