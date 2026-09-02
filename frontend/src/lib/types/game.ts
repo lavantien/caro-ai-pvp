@@ -4,7 +4,9 @@ export function switchPlayer(player: Player): Player {
 	return player === 'red' ? 'blue' : 'red';
 }
 
-export type TimeControl = '1+0' | '3+0' | '3+2' | '7+5' | '10+0' | '15+10';
+import type { TimeControl } from '$lib/config/timeControlConfig';
+
+export type { TimeControl };
 export type GameMode = 'pvp' | 'pvai' | 'aivai';
 
 export type UCIConnectionStatus = 'disconnected' | 'connecting' | 'connected';
