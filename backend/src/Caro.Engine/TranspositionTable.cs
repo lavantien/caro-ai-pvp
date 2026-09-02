@@ -44,6 +44,8 @@ internal sealed class TtShard
 
 public sealed class TranspositionTable : IDisposable
 {
+    private const int AgeDecayPerGeneration = 8;
+
     private readonly TtShard[] _shards = new TtShard[Constants.TTShardCount];
     private readonly int _sizeMB;
     private int _age;
@@ -79,7 +81,7 @@ public sealed class TranspositionTable : IDisposable
         // policy can prefer fresh entries over stale ones.
         entry.Age = currentAge;
 
-        int entryPrio = entry.Depth - 8 * (currentAge - entry.Age);
+        int entryPrio = entry.Depth - AgeDecayPerGeneration * (currentAge - entry.Age);
 
         lock (shard.Gate)
         {
@@ -88,7 +90,7 @@ public sealed class TranspositionTable : IDisposable
             byte existingDepth = slot.Depth;
             byte existingAge = slot.Age;
 
-            int existingPrio = existingDepth - 8 * (currentAge - existingAge);
+            int existingPrio = existingDepth - AgeDecayPerGeneration * (currentAge - existingAge);
 
             if (existingHash == entry.Hash)
             {

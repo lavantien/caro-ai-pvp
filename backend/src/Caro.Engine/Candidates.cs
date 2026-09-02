@@ -4,18 +4,24 @@ namespace Caro.Engine;
 
 public static class Candidates
 {
+    // Seed block for the empty board: a square spanning this many cells per
+    // side around the center.
+    private const int EmptyBoardSeedSpan = 3;
+    private const int DefaultCandidateCapacity = 64;
+
     public static List<Position> GetCandidates(SearchBoard sb, int radius)
     {
         BitBoard occupied = sb.Occupied();
         if (occupied.IsZero())
         {
             int center = Constants.BoardSize / 2;
-            List<Position> seed = new(9);
-            for (int dx = 0; dx < 3; dx++)
+            int halfSpan = EmptyBoardSeedSpan / 2;
+            List<Position> seed = new(EmptyBoardSeedSpan * EmptyBoardSeedSpan);
+            for (int dx = 0; dx < EmptyBoardSeedSpan; dx++)
             {
-                for (int dy = 0; dy < 3; dy++)
+                for (int dy = 0; dy < EmptyBoardSeedSpan; dy++)
                 {
-                    seed.Add(new Position(center + dx - 1, center + dy - 1));
+                    seed.Add(new Position(center + dx - halfSpan, center + dy - halfSpan));
                 }
             }
             return seed;
@@ -24,7 +30,7 @@ public static class Candidates
         // Stack-allocated dedup: a heap map per node dominated the profile.
         Span<bool> seen = stackalloc bool[Constants.BoardSize * Constants.BoardSize];
         seen.Clear();
-        List<Position> result = new(64);
+        List<Position> result = new(DefaultCandidateCapacity);
 
         for (int x = 0; x < Constants.BoardSize; x++)
         {

@@ -8,12 +8,14 @@ namespace Caro.Engine;
 /// </summary>
 public sealed class SearchBoard
 {
+    private const int InitialUndoCapacity = 64;
+
     private readonly Player[] _cells = new Player[Constants.BoardSize * Constants.BoardSize];
     private BitBoard _redBits;
     private BitBoard _blueBits;
     private ulong _hash;
     private int _stones;
-    private UndoEntry[] _undoStack = new UndoEntry[64];
+    private UndoEntry[] _undoStack = new UndoEntry[InitialUndoCapacity];
     private int _undoCount;
 
     private struct UndoEntry(int x, int y, Player player, ulong hash)

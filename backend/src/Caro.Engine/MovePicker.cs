@@ -16,8 +16,16 @@ internal struct ScoredMove(Position pos, int score)
 public sealed class MovePicker
 {
     private const int HistoryScoreCap = 300_000;
+    private const int HistoryMultiplier = 2;
     private const int CenterWeight = 100;
     private const int ProximityWeight = 10;
+
+    private const int OwnOpenFourScore = 700_000;
+    private const int OwnFourScore = 400_000;
+    private const int OwnFlex3Score = 300_000;
+    private const int OppOpenFourScore = 500_000;
+    private const int OppFourScore = 350_000;
+    private const int OppFlex3Score = 200_000;
 
     private const int StageTTMove = 0;
     private const int StageWinning = 1;
@@ -205,30 +213,30 @@ public sealed class MovePicker
         int score = 0;
         if (own.OpenFour())
         {
-            score += 700_000;
+            score += OwnOpenFourScore;
         }
         else if (own.Four())
         {
-            score += 400_000;
+            score += OwnFourScore;
         }
         if (own.Flex3)
         {
-            score += 300_000;
+            score += OwnFlex3Score;
         }
 
         Player opponent = _player.Opponent();
         PlacementThreats theirs = PlacementAnalysis.AnalyzePlacement(_sb, x, y, opponent);
         if (theirs.OpenFour())
         {
-            score += 500_000;
+            score += OppOpenFourScore;
         }
         else if (theirs.Four())
         {
-            score += 350_000;
+            score += OppFourScore;
         }
         if (theirs.Flex3)
         {
-            score += 200_000;
+            score += OppFlex3Score;
         }
         return score;
     }
@@ -238,7 +246,7 @@ public sealed class MovePicker
         List<Position> result = [];
         for (int slot = 0; slot < 2; slot++)
         {
-            if (_depth < 0 || _depth >= 64)
+            if (_depth < 0 || _depth >= SearchHeuristics.MaxKillerDepth)
             {
                 continue;
             }
@@ -274,7 +282,7 @@ public sealed class MovePicker
         List<ScoredMove> scored = new(_candidates.Count);
         foreach (Position c in _candidates)
         {
-            int score = _heuristics.HistoryScore(_player, c.X, c.Y) * 2;
+            int score = _heuristics.HistoryScore(_player, c.X, c.Y) * HistoryMultiplier;
             if (score > HistoryScoreCap)
             {
                 score = HistoryScoreCap;
@@ -304,6 +312,8 @@ public sealed class MovePicker
 
 public static class MoveOrdering
 {
+    private const int NeighborStoneScore = 3;
+
     /// <summary>All-at-once fallback ordering for the root search.</summary>
     public static List<Position> OrderMoves(
         List<Position> candidates,
@@ -384,9 +394,9 @@ public static class MoveOrdering
     internal static int ProximityScore(SearchBoard sb, int x, int y)
     {
         int score = 0;
-        for (int dx = -2; dx <= 2; dx++)
+        for (int dx = -Constants.MaxSearchRadius; dx <= Constants.MaxSearchRadius; dx++)
         {
-            for (int dy = -2; dy <= 2; dy++)
+            for (int dy = -Constants.MaxSearchRadius; dy <= Constants.MaxSearchRadius; dy++)
             {
                 int nx = x + dx;
                 int ny = y + dy;
@@ -395,7 +405,7 @@ public static class MoveOrdering
                     Player p = sb.PlayerAt(nx, ny);
                     if (p == Player.Red || p == Player.Blue)
                     {
-                        score += 3;
+                        score += NeighborStoneScore;
                     }
                 }
             }

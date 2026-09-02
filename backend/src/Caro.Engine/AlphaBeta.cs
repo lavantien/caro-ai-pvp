@@ -120,7 +120,7 @@ public static partial class SearchEngine
             return 0;
         }
         int reduction = 1;
-        if (moveIdx > 8)
+        if (moveIdx > Constants.LMRDeepMoveThreshold)
         {
             reduction = 2;
         }

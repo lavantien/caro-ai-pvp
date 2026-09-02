@@ -32,6 +32,11 @@ public struct PlayerPattern4
 
 public static class Pattern4Classifier
 {
+    // Twos and singles only need a short contiguous look; gapped shapes at
+    // threat level and above are handled by the gap-aware window analysis.
+    private const int TwosScanRadius = 2;
+    private const int ClusterAnchorDistance = 2;
+
     internal static readonly (int Dx, int Dy)[] EvalDirs =
     [
         (1, 0),
@@ -83,7 +88,7 @@ public static class Pattern4Classifier
         // Twos and singles: contiguous counting is sufficient.
         int positive = 0;
         bool positiveOpen = false;
-        for (int i = 1; i <= 2; i++)
+        for (int i = 1; i <= TwosScanRadius; i++)
         {
             int nx = x + dx * i;
             int ny = y + dy * i;
@@ -109,7 +114,7 @@ public static class Pattern4Classifier
 
         int negative = 0;
         bool negativeOpen = false;
-        for (int i = 1; i <= 2; i++)
+        for (int i = 1; i <= TwosScanRadius; i++)
         {
             int nx = x - dx * i;
             int ny = y - dy * i;
@@ -185,8 +190,8 @@ public static class Pattern4Classifier
                 continue;
             }
 
-            int p2x = x - 2 * dx;
-            int p2y = y - 2 * dy;
+            int p2x = x - ClusterAnchorDistance * dx;
+            int p2y = y - ClusterAnchorDistance * dy;
             bool clusterAnchored = p2x >= 0 && p2x < Constants.BoardSize && p2y >= 0 && p2y < Constants.BoardSize
                 && sb.PlayerAt(p2x, p2y) == player;
 

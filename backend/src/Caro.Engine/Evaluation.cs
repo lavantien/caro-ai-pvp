@@ -16,6 +16,7 @@ public static class Evaluation
     private const int Flex2Score = 100;
     private const int Block2Score = 30;
     private const int Flex1Score = 10;
+    private const int CenterBonusWeight = 2;
 
     internal const int MaxCorrectedEval = Constants.MaxEval;
 
@@ -117,7 +118,7 @@ public static class Evaluation
                 if (bits.Get(x, y))
                 {
                     int dist = EngineMath.Abs(x - center) + EngineMath.Abs(y - center);
-                    bonus += (Constants.BoardSize - dist) * 2;
+                    bonus += (Constants.BoardSize - dist) * CenterBonusWeight;
                 }
             }
         }

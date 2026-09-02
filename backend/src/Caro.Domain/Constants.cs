@@ -32,6 +32,7 @@ public static class Constants
 
     public const int LMRMinDepth = 3;
     public const int LMRFullDepthMoves = 4;
+    public const int LMRDeepMoveThreshold = 8;
 
     public const int WinScore = 30_000;
 

@@ -4,7 +4,9 @@ namespace Caro.Engine;
 
 public sealed class SearchHeuristics
 {
-    private const int MaxKillerDepth = 64;
+    internal const int MaxKillerDepth = 64;
+    private const int KillerPrimaryScore = 500_000;
+    private const int KillerSecondaryScore = 400_000;
     private const int HistoryMax = 1_000_000;
     private const int ContHistMax = 30_000;
     private const int BoardCells = Constants.BoardSize * Constants.BoardSize;
@@ -53,11 +55,11 @@ public sealed class SearchHeuristics
         }
         if (_killerMoves[depth, 0] == pos)
         {
-            return 500_000;
+            return KillerPrimaryScore;
         }
         if (_killerMoves[depth, 1] == pos)
         {
-            return 400_000;
+            return KillerSecondaryScore;
         }
         return 0;
     }
