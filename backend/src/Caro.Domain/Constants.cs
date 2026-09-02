@@ -11,15 +11,15 @@ public static class Constants
     public const int MaxEval = 25_000;
 
     public const int MaxConcurrentGames = 4;
+    // Mirrored by hand in Caro.Server.runtimeconfig.template.json
+    // (System.GC.HeapHardLimitBytes); update both together.
     public const long HeapHardLimitBytes = 2L * 1024 * 1024 * 1024;
     public const int AbandonedTimeoutMinutes = 30;
 
     public const int DefaultTTSizeMB = 1024;
-    public const int MaxVCFCacheEntries = 10_000;
     public const double VCFTimeFraction = 0.20;
 
     public const int MaxSearchRadius = 2;
-    public const int TimeCheckInterval = 16;
     public const int AbsoluteMaxDepth = 50;
     public const int AspirationWindowSize = 1_500;
     public const int MaxAspirationAttempts = 3;
