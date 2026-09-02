@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [9.2.0] - 2026-09-02
+
+### Fixed
+- Evaluation combination cascade ranks block4+flex3 (13,000) above double flex3 (12,000) per the documented highest-matching-category rule; the Go engine carried the same inverted order, so this is a deliberate post-port conformance fix
+
+### Changed
+- Dead `vcf-block` statline tag removed; no producer ever existed in the Go engine or the port
+- Unused constants `MaxVCFCacheEntries` and `TimeCheckInterval` removed; `HeapHardLimitBytes` annotated with its runtimeconfig mirror
+- Engine, API, and onboarding docs realigned with the C# code: per-shard monitor TT locks, actual MovePicker additive scoring, L3/L4 depth caps with the VCF depth ladder, Go-era residue removed, singular API routes, UCI claim scoped to the implemented subset
+- Frontend `EvaluationConfig` (unused, mirrored nothing) removed
+
+[9.2.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.2.0
+
 ## [9.1.0] - 2026-09-01
 
 ### Fixed
