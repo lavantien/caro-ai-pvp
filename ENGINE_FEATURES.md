@@ -135,7 +135,7 @@ Single sharded transposition table shared across all search paths. In parallel s
 - Hash-based index calculation: `shardIndex = (hash >> 32) & 0xF`
 - The port benchmarked `ReaderWriterLockSlim` against the monitor and kept the
   monitor: the per-slot critical sections are short enough that reader-writer
-  bookkeeping cost more than the exclusivity it saved (see STATS.md)
+  bookkeeping cost more than the exclusivity it saved
 
 **Depth-Age Replacement:**
 - Priority formula: depth - 8 * age
