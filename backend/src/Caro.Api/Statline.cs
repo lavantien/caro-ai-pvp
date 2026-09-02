@@ -55,10 +55,6 @@ internal static class Statline
         {
             vcfTag = " [VCF]";
         }
-        else if (mt == "vcf-block")
-        {
-            vcfTag = " [VCF-BLOCK]";
-        }
         if (ponderHit)
         {
             vcfTag += " [PONDER]";

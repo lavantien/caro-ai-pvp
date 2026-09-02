@@ -314,7 +314,8 @@ public class VcfTests
         SearchConfig opts = new() { MaxDepth = 10, TimeLimitMs = 30000, Threads = 1, UseVCF = true };
         (int x, int y, SearchStats stats) = SearchEngine.SearchPosition(b, Player.Blue, opts, tt, h, CancellationToken.None);
         Assert.True(x >= 0 && y >= 0);
-        Assert.NotEqual("vcf-block", stats.MoveType);
+        Assert.True(stats.MoveType is "" or "timeout-fallback",
+            "full alpha-beta must run; only the VCF solver short-circuits");
     }
 
     [Fact]

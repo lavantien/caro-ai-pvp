@@ -95,7 +95,8 @@ public class SearchTests
 
         Assert.True(x >= 0 && y >= 0, $"should return valid move, got ({x},{y})");
         Assert.True(stats.DepthAchieved > 0, "should search through alpha-beta, not short-circuit");
-        Assert.NotEqual("vcf-block", stats.MoveType);
+        Assert.True(stats.MoveType is "" or "timeout-fallback",
+            "full alpha-beta must run; only the VCF solver short-circuits");
     }
 
     [Fact]
@@ -138,7 +139,8 @@ public class SearchTests
         SearchConfig opts = new() { MaxDepth = 4, TimeLimitMs = 10000, Threads = 1, UseVCF = true };
         (int x, int y, SearchStats stats) = SearchEngine.SearchPosition(b, Player.Red, opts, tt, h, CancellationToken.None);
         Assert.True(x >= 0 && y >= 0, $"should return valid move, got ({x},{y})");
-        Assert.NotEqual("vcf-block", stats.MoveType);
+        Assert.True(stats.MoveType is "" or "timeout-fallback",
+            "full alpha-beta must run; only the VCF solver short-circuits");
     }
 
     [Fact]

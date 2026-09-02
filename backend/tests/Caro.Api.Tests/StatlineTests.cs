@@ -42,14 +42,6 @@ public class StatlineTagsTests
     }
 
     [Fact]
-    public void VCFBlockTag()
-    {
-        MoveDetailResponse detail = Build("vcf-block", ponderHit: false);
-        Assert.EndsWith(" [VCF-BLOCK]", detail.Statline);
-        Assert.Equal("vcf-block", detail.EngineStats.MoveType);
-    }
-
-    [Fact]
     public void PonderTag()
     {
         MoveDetailResponse detail = Build("exact", ponderHit: true);
