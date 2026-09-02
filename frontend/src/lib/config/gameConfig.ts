@@ -1,6 +1,6 @@
 /**
  * Centralized game constants - single source of truth for game rules.
- * Mirror of backend internal/domain/constants.go for frontend consistency.
+ * Mirror of backend Caro.Domain/Constants.cs for frontend consistency.
  */
 
 export const GameConfig = {
@@ -21,31 +21,5 @@ export const GameConfig = {
 
 	/** Default ELO rating for new players */
 	defaultEloRating: 1500
-} as const;
-
-/**
- * AI evaluation scoring constants
- */
-export const EvaluationConfig = {
-	/** Score for five stones in a row (winning position) */
-	fiveInRowScore: 100_000,
-
-	/** Score for an open four */
-	openFourScore: 10_000,
-
-	/** Score for a closed four */
-	closedFourScore: 1_000,
-
-	/** Score for an open three */
-	openThreeScore: 1_000,
-
-	/** Score for a closed three */
-	closedThreeScore: 100,
-
-	/** Score for an open two */
-	openTwoScore: 100,
-
-	/** Bonus score for center control */
-	centerBonus: 50
 } as const;
 
