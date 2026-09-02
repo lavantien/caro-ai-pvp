@@ -1,22 +1,27 @@
 import { createRequire } from 'node:module';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {
+	ARTIFACTS,
+	BOARD,
+	BROWSER,
+	FRONTEND_DIR,
+	FRONTEND_URL,
+	SELECTORS,
+	timeControl
+} from './lib.mjs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const FRONTEND_DIR = resolve(__dirname, '..', 'frontend');
-const require = createRequire(resolve(FRONTEND_DIR, 'package.json'));
-const pwCore = require('playwright-core');
-const chromium = pwCore.chromium;
-
-const FRONTEND_URL = 'http://localhost:5173';
+const require = createRequire(FRONTEND_DIR + '/package.json');
+const chromium = require('playwright-core').chromium;
 
 async function verify() {
   const browser = await chromium.launch({
     executablePath: chromium.executablePath(),
     headless: true,
-    args: ['--disable-gpu', '--no-sandbox'],
+    args: BROWSER.launchArgs,
   });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 1024 }, deviceScaleFactor: 2 });
+  const page = await browser.newPage({
+    viewport: { width: BROWSER.viewportWidth, height: BROWSER.viewportHeight },
+    deviceScaleFactor: BROWSER.deviceScaleFactor
+  });
 
   const results = { passed: [], failed: [] };
 
@@ -36,19 +41,19 @@ async function verify() {
     await page.waitForTimeout(1000);
 
     console.log('\n=== Starting AIvAI game ===');
-    await page.waitForSelector('button:has-text("AI vs AI")', { timeout: 10000 });
-    await page.click('button:has-text("AI vs AI")');
+    await page.waitForSelector(SELECTORS.aiVsAiButton, { timeout: 10000 });
+    await page.click(SELECTORS.aiVsAiButton);
     // 1+0 keeps per-move think time short so the first notation entry lands
     // well inside the wait below (7+5's opening think can run ~30s alone).
-    await page.selectOption('select', '1+0');
-    await page.click('button:has-text("New Game")');
+    await page.selectOption('select', timeControl('1+0').value);
+    await page.click(SELECTORS.newGameButton);
     // Wait for AI moves to appear in notation
     await page.waitForFunction(
       (sel) => {
         const el = document.querySelector(sel);
         return el && el.textContent && !el.textContent.includes('No moves yet') && el.textContent.trim().length > 5;
       },
-      '[data-testid="move-notation"]',
+      SELECTORS.moveNotation,
       { timeout: 60000 }
     );
 
@@ -63,8 +68,8 @@ async function verify() {
       labelTexts.push((await allLabelDivs.nth(i).textContent()).trim());
     }
 
-    const expectedCols = 'abcdefghijklmnop'.split('');
-    const expectedRows = Array.from({ length: 16 }, (_, i) => String(i + 1));
+    const expectedCols = BOARD.columnLabels.split('');
+    const expectedRows = Array.from({ length: BOARD.size }, (_, i) => String(i + 1));
 
     // Column labels appear top and bottom (2x)
     for (const col of expectedCols) {
@@ -81,7 +86,7 @@ async function verify() {
     console.log('\n=== Board Grid ===');
     const cellButtons = page.locator('button[data-x][data-y]');
     const cellCount = await cellButtons.count();
-    check(`Board has 256 cells`, cellCount === 256, `found ${cellCount}`);
+    check(`Board has ${BOARD.totalCells} cells`, cellCount === BOARD.totalCells, `found ${cellCount}`);
 
     // --- AI labels in timer strips ---
     console.log('\n=== AI Difficulty Labels ===');
@@ -100,7 +105,7 @@ async function verify() {
 
     // --- Move notation ---
     console.log('\n=== Move Notation ===');
-    const moveNotationEl = page.locator('[data-testid="move-notation"]');
+    const moveNotationEl = page.locator(SELECTORS.moveNotation);
     if (await moveNotationEl.count() > 0) {
       const notationText = await moveNotationEl.textContent();
       check('Move notation has moves', notationText && notationText.trim().length > 0, `text: "${notationText?.substring(0, 80)}"`);
@@ -112,8 +117,7 @@ async function verify() {
 
     // --- Take verification screenshot ---
     console.log('\n=== Verification Screenshot ===');
-    const screenshotPath = resolve(__dirname, '..', 'screenshot-verify.png');
-    await page.screenshot({ path: screenshotPath, fullPage: true });
+    await page.screenshot({ path: ARTIFACTS.screenshotVerify, fullPage: true });
     check('Screenshot saved', true);
 
     // --- Summary ---

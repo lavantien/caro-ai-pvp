@@ -13,27 +13,22 @@
  *   node scripts/run-tournament.mjs --games 4 --red 3 --blue 4 --tc 7+5
  */
 
-import { spawn, spawnSync } from 'node:child_process';
 import { createWriteStream, writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {
+	API_BASE_URL,
+	ARTIFACTS,
+	DIFFICULTY_NAMES,
+	GAME_MODE_AIVAI,
+	createProcessManager,
+	startBackend,
+	teeConsole,
+	timeControl
+} from './lib.mjs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(__dirname, '..');
+const logStream = createWriteStream(ARTIFACTS.tournamentLog, { flags: 'w' });
+teeConsole(logStream);
 
-const LOG_PATH = resolve(ROOT, 'tournament.txt');
-const SUMMARY_PATH = resolve(ROOT, 'tournament-summary.json');
-const API_BASE = process.env.API_BASE_URL || 'http://localhost:5207';
-const NAMES = ['', 'Novice', 'Beginner', 'Intermediate', 'Advanced', 'Grandmaster'];
-
-// --- Logging ---
-
-const logStream = createWriteStream(LOG_PATH, { flags: 'w' });
-const origLog = console.log;
-const origError = console.error;
-function ts() { return new Date().toISOString().slice(11, 23); }
-console.log = (...args) => { origLog(...args); logStream.write(`[${ts()}] ${args.join(' ')}\n`); };
-console.error = (...args) => { origLog(...args); logStream.write(`[${ts()}] ERR ${args.join(' ')}\n`); };
+const mgr = createProcessManager();
 
 // --- CLI ---
 
@@ -77,101 +72,6 @@ function wilsonInterval(wins, n) {
 	return { low: Math.max(0, center - half), high: Math.min(1, center + half) };
 }
 
-// --- Process Management ---
-
-const children = [];
-
-function killPort(port) {
-	if (process.platform === 'win32') {
-		const r = spawnSync('netstat', ['-ano'], { encoding: 'utf8', shell: false });
-		for (const line of r.stdout.split('\n')) {
-			if (line.includes(`:${port}`) && line.includes('LISTENING')) {
-				const pid = line.trim().split(/\s+/).pop();
-				if (pid && /^\d+$/.test(pid)) {
-					spawnSync('taskkill', ['/F', '/PID', pid], { stdio: 'ignore', shell: false });
-				}
-			}
-		}
-	} else {
-		spawnSync('sh', ['-c', `lsof -ti:${port} | xargs kill -9 2>/dev/null || true`], { stdio: 'ignore' });
-	}
-}
-
-function cleanup() {
-	for (const child of children) {
-		try {
-			if (child.pid) {
-				if (process.platform === 'win32') {
-					spawnSync('taskkill', ['/T', '/F', '/PID', String(child.pid)], { stdio: 'ignore', shell: false });
-				} else {
-					process.kill(-child.pid);
-				}
-			}
-		} catch { /* already dead */ }
-	}
-}
-
-process.on('exit', cleanup);
-process.on('SIGINT', () => { cleanup(); process.exit(130); });
-process.on('SIGTERM', () => { cleanup(); process.exit(143); });
-
-const needsShell = (cmd) => process.platform === 'win32' && cmd === 'npm';
-
-function runCommand(command, args, cwd, label) {
-	return new Promise((resolve, reject) => {
-		const child = spawn(command, args, { cwd, shell: needsShell(command), stdio: ['ignore', 'pipe', 'pipe'] });
-		let stderr = '';
-		child.stderr?.on('data', (d) => {
-			stderr += d.toString();
-			if (stderr.length > 10000) stderr = stderr.slice(-5000);
-		});
-		child.on('error', reject);
-		child.on('exit', (code) => {
-			if (code === 0) resolve(undefined);
-			else reject(new Error(`${label} failed (code ${code}): ${stderr.slice(-500)}`));
-		});
-	});
-}
-
-function spawnDaemon(command, args, cwd, label) {
-	const child = spawn(command, args, { cwd, shell: needsShell(command), stdio: ['ignore', 'pipe', 'pipe'] });
-	let stderrBuffer = '';
-	child.stderr?.on('data', (data) => {
-		const text = data.toString();
-		stderrBuffer += text;
-		if (stderrBuffer.length > 5000) stderrBuffer = stderrBuffer.slice(-2500);
-		for (const line of text.split('\n')) {
-			if (line.trim()) console.log(`[${label}] ${line}`);
-		}
-	});
-	child.stdout?.on('data', (data) => {
-		for (const line of data.toString().split('\n')) {
-			if (line.trim()) console.log(`[${label}] ${line}`);
-		}
-	});
-	child.on('error', (err) => console.error(`[${label}] Failed: ${err.message}`));
-	child.on('exit', (code) => {
-		if (code && code !== 0) {
-			console.error(`[${label}] Exited with code ${code}`);
-			if (stderrBuffer.trim()) console.error(`[${label}] stderr:\n${stderrBuffer.slice(-1000)}`);
-		}
-	});
-	children.push(child);
-	return child;
-}
-
-async function waitForUrl(url, timeoutMs = 30_000, intervalMs = 1000) {
-	const start = Date.now();
-	while (Date.now() - start < timeoutMs) {
-		try {
-			const resp = await fetch(url);
-			if (resp.ok || resp.status === 404) return;
-		} catch { /* not ready */ }
-		await new Promise(r => setTimeout(r, intervalMs));
-	}
-	throw new Error(`Timeout waiting for ${url} (${timeoutMs}ms)`);
-}
-
 /** One transient-failure-tolerant JSON POST. Throws after one retry. */
 async function postJson(url, body) {
 	let lastErr;
@@ -193,10 +93,10 @@ async function postJson(url, body) {
 
 // --- Game Logic ---
 
-async function playOneGame(redDiff, blueDiff, timeControl, maxMoves, seed) {
-	const { gameId } = await postJson(`${API_BASE}/api/game/new`, {
-		timeControl,
-		gameMode: 'aivai',
+async function playOneGame(redDiff, blueDiff, timeControlValue, maxMoves, seed) {
+	const { gameId } = await postJson(`${API_BASE_URL}/api/game/new`, {
+		timeControl: timeControlValue,
+		gameMode: GAME_MODE_AIVAI,
 		redDifficulty: redDiff,
 		blueDifficulty: blueDiff,
 		randomOpening: true,
@@ -210,7 +110,7 @@ async function playOneGame(redDiff, blueDiff, timeControl, maxMoves, seed) {
 
 	try {
 		while (moveCount < maxMoves) {
-			const data = await postJson(`${API_BASE}/api/game/${gameId}/ai-move`);
+			const data = await postJson(`${API_BASE_URL}/api/game/${gameId}/ai-move`);
 			moveCount++;
 
 			if (data.lastMove?.statline) console.log(data.lastMove.statline);
@@ -223,7 +123,7 @@ async function playOneGame(redDiff, blueDiff, timeControl, maxMoves, seed) {
 		}
 	} finally {
 		// Free engine memory regardless of outcome.
-		await fetch(`${API_BASE}/api/game/${gameId}`, { method: 'DELETE' }).catch(() => {});
+		await fetch(`${API_BASE_URL}/api/game/${gameId}`, { method: 'DELETE' }).catch(() => {});
 	}
 
 	if (!winner && moveCount >= maxMoves) {
@@ -239,13 +139,14 @@ async function playOneGame(redDiff, blueDiff, timeControl, maxMoves, seed) {
 
 async function main() {
 	const opts = parseArgs();
-	const { games, redDifficulty, blueDifficulty, timeControl, seed, maxMoves, json } = opts;
+	const { games, redDifficulty, blueDifficulty, timeControl: tc, seed, maxMoves, json } = opts;
+	timeControl(tc);
 
 	if (!json) {
 		console.log('=== Caro AI PvP - Tournament ===');
-		console.log(`A: L${redDifficulty} (${NAMES[redDifficulty]})`);
-		console.log(`B: L${blueDifficulty} (${NAMES[blueDifficulty]})`);
-		console.log(`Games: ${games} | TC: ${timeControl} | Color swap: every match | Seed: ${seed}`);
+		console.log(`A: L${redDifficulty} (${DIFFICULTY_NAMES[redDifficulty]})`);
+		console.log(`B: L${blueDifficulty} (${DIFFICULTY_NAMES[blueDifficulty]})`);
+		console.log(`Games: ${games} | TC: ${tc} | Color swap: every match | Seed: ${seed}`);
 		if (games % 2 !== 0) {
 			console.log('Warning: an odd game count gives A one extra game with a given color.');
 		}
@@ -253,20 +154,7 @@ async function main() {
 	}
 
 	// Step 1: Build and start backend
-	const serverProject = resolve(ROOT, 'backend', 'src', 'Caro.Server');
-	const serverDll = resolve(serverProject, 'bin', 'Debug', 'net10.0', 'Caro.Server.dll');
-
-	console.log('Building backend...');
-	await runCommand('dotnet', ['build', serverProject, '-c', 'Debug'], ROOT, 'Build');
-	console.log('Backend built.');
-
-	console.log('Killing stale processes on port 5207...');
-	killPort(5207);
-
-	console.log('Starting backend...');
-	spawnDaemon('dotnet', [serverDll], resolve(ROOT, 'backend'), 'backend');
-	await waitForUrl(`${API_BASE}/`, 60_000);
-	console.log('Backend ready.\n');
+	await startBackend(mgr);
 
 	// Step 2: Run matches with color swapping and per-game opening seeds
 	const results = [];
@@ -282,7 +170,7 @@ async function main() {
 
 		let result;
 		try {
-			result = await playOneGame(redDiff, blueDiff, timeControl, maxMoves, seed + i);
+			result = await playOneGame(redDiff, blueDiff, tc, maxMoves, seed + i);
 			result.errored = false;
 		} catch (err) {
 			console.error(`  -> ERRORED: ${err.message}`);
@@ -321,7 +209,7 @@ async function main() {
 	const ci = wilsonInterval(aWins, decisive);
 
 	const summary = {
-		config: { games, redDifficulty, blueDifficulty, timeControl, seed, maxMoves },
+		config: { games, redDifficulty, blueDifficulty, timeControl: tc, seed, maxMoves },
 		summary: {
 			aWins, bWins, draws, errored,
 			redWins, blueWins,
@@ -333,14 +221,14 @@ async function main() {
 		},
 		results
 	};
-	writeFileSync(SUMMARY_PATH, JSON.stringify(summary, null, 2));
+	writeFileSync(ARTIFACTS.tournamentSummary, JSON.stringify(summary, null, 2));
 
 	if (json) {
 		console.log(JSON.stringify(summary, null, 2));
 	} else {
 		console.log('\n=== Summary ===');
-		console.log(`A (L${redDifficulty} ${NAMES[redDifficulty]}): ${aWins}/${games}`);
-		console.log(`B (L${blueDifficulty} ${NAMES[blueDifficulty]}): ${bWins}/${games}`);
+		console.log(`A (L${redDifficulty} ${DIFFICULTY_NAMES[redDifficulty]}): ${aWins}/${games}`);
+		console.log(`B (L${blueDifficulty} ${DIFFICULTY_NAMES[blueDifficulty]}): ${bWins}/${games}`);
 		console.log(`Draws: ${draws} | Errored: ${errored}`);
 		console.log(`Red color wins: ${redWins} | Blue color wins: ${blueWins}`);
 		console.log(`End reasons: ${JSON.stringify(reasons)}`);
@@ -350,15 +238,15 @@ async function main() {
 		}
 		console.log(`Avg moves: ${(totalMoves / Math.max(played.length, 1)).toFixed(1)}`);
 		console.log(`Avg time: ${(totalTime / Math.max(played.length, 1)).toFixed(1)}s`);
-		console.log(`Summary artifact: ${SUMMARY_PATH}`);
+		console.log('Summary artifact: tournament-summary.json (repo root)');
 	}
 
-	cleanup();
+	mgr.cleanup();
 	process.exit(0);
 }
 
 main().catch((err) => {
 	console.error(`Fatal: ${err.message}`);
-	cleanup();
+	mgr.cleanup();
 	process.exit(1);
 });

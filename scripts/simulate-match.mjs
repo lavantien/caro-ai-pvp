@@ -10,7 +10,7 @@
  *   node scripts/simulate-match.mjs --red 5 --blue 3     # GM vs Intermediate
  */
 
-const API_BASE = process.env.API_BASE_URL || 'http://localhost:5207';
+import { API_BASE_URL, DIFFICULTY_NAMES, GAME_MODE_AIVAI, timeControl } from './lib.mjs';
 
 function parseArgs() {
 	const args = process.argv.slice(2);
@@ -37,25 +37,24 @@ function parseArgs() {
 	return opts;
 }
 
-const NAMES = ['', 'Novice', 'Beginner', 'Intermediate', 'Advanced', 'Grandmaster'];
-
 async function main() {
 	const opts = parseArgs();
+	timeControl(opts.timeControl);
 	if (!opts.json) {
 		console.log(`=== Caro AI PvP - Simulate Match ===`);
-		console.log(`Red:  L${opts.redDifficulty} (${NAMES[opts.redDifficulty]})`);
-		console.log(`Blue: L${opts.blueDifficulty} (${NAMES[opts.blueDifficulty]})`);
+		console.log(`Red:  L${opts.redDifficulty} (${DIFFICULTY_NAMES[opts.redDifficulty]})`);
+		console.log(`Blue: L${opts.blueDifficulty} (${DIFFICULTY_NAMES[opts.blueDifficulty]})`);
 		console.log(`TC: ${opts.timeControl}`);
 		console.log();
 	}
 
 	// Create game with per-player difficulty
-	const createResp = await fetch(`${API_BASE}/api/game/new`, {
+	const createResp = await fetch(`${API_BASE_URL}/api/game/new`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({
 			timeControl: opts.timeControl,
-			gameMode: 'aivai',
+			gameMode: GAME_MODE_AIVAI,
 			redDifficulty: opts.redDifficulty,
 			blueDifficulty: opts.blueDifficulty
 		})
@@ -71,7 +70,7 @@ async function main() {
 	let reason = '';
 
 	while (moveCount < opts.maxMoves) {
-		const moveResp = await fetch(`${API_BASE}/api/game/${gameId}/ai-move`, {
+		const moveResp = await fetch(`${API_BASE_URL}/api/game/${gameId}/ai-move`, {
 			method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
 		});
 		if (!moveResp.ok) {
@@ -98,7 +97,7 @@ async function main() {
 	const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
 	// Clean up game from server to free AI engine memory
-	await fetch(`${API_BASE}/api/game/${gameId}`, { method: 'DELETE' }).catch(() => {});
+	await fetch(`${API_BASE_URL}/api/game/${gameId}`, { method: 'DELETE' }).catch(() => {});
 
 	if (opts.json) {
 		console.log(JSON.stringify({
