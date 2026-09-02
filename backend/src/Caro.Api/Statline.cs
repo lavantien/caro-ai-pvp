@@ -1,4 +1,5 @@
 using System.Globalization;
+using Caro.Domain;
 using Caro.Engine;
 
 namespace Caro.Api;
@@ -39,19 +40,19 @@ internal static class Statline
         int moveNum = resp.MoveNumber - 1;
         string pos = $"{(char)('a' + x)}{y + 1}";
         long remainingMs = (long)(resp.RedTimeRemaining * 1000);
-        if (player == "blue")
+        if (player == Player.Blue.ToName())
         {
             remainingMs = (long)(resp.BlueTimeRemaining * 1000);
         }
 
-        string mt = "exact";
+        string mt = MoveTypes.Exact;
         if (stats.MoveType.Length != 0)
         {
             mt = stats.MoveType;
         }
 
         string vcfTag = "";
-        if (mt == "vcf")
+        if (mt == MoveTypes.Vcf)
         {
             vcfTag = " [VCF]";
         }
@@ -85,5 +86,6 @@ internal static class Statline
         };
     }
 
-    internal static string OpponentOf(string currentPlayer) => currentPlayer == "red" ? "blue" : "red";
+    internal static string OpponentOf(string currentPlayer) =>
+        currentPlayer == Player.Red.ToName() ? Player.Blue.ToName() : Player.Red.ToName();
 }

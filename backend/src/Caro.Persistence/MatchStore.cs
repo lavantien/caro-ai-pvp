@@ -94,6 +94,8 @@ public sealed class MatchStore : IDisposable
         CREATE INDEX IF NOT EXISTS idx_games_created_at ON games(created_at);
         """;
 
+    private const int DefaultTimeoutSeconds = 5;
+
     public MatchStore(string dbPath)
     {
         string? dir = Path.GetDirectoryName(dbPath);
@@ -102,7 +104,7 @@ public sealed class MatchStore : IDisposable
             Directory.CreateDirectory(dir);
         }
 
-        _db = new SqliteConnection($"Data Source={dbPath};Default Timeout=5");
+        _db = new SqliteConnection($"Data Source={dbPath};Default Timeout={DefaultTimeoutSeconds}");
         _db.Open();
 
         Exec("PRAGMA journal_mode=WAL;");

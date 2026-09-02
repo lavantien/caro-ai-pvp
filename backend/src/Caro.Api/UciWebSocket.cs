@@ -91,7 +91,7 @@ public static class UciWebSocket
                         if (received > ReadLimit || (!result.EndOfMessage && received == ReadLimit))
                         {
                             await socket.CloseAsync(WebSocketCloseStatus.MessageTooBig,
-                                "frame exceeds 4096 bytes", CancellationToken.None);
+                                $"frame exceeds {ReadLimit} bytes", CancellationToken.None);
                             return;
                         }
                     }

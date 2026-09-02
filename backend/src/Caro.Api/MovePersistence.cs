@@ -1,3 +1,4 @@
+using Caro.Domain;
 using Caro.Engine;
 using Caro.Persistence;
 using Microsoft.Extensions.Logging;
@@ -56,11 +57,11 @@ public sealed partial class GameHandlers
             player = Statline.OpponentOf(player);
         }
         long remainingMs = (long)(resp.RedTimeRemaining * 1000);
-        if (player == "blue")
+        if (player == Player.Blue.ToName())
         {
             remainingMs = (long)(resp.BlueTimeRemaining * 1000);
         }
-        string mt = stats.MoveType.Length == 0 ? "exact" : stats.MoveType;
+        string mt = stats.MoveType.Length == 0 ? MoveTypes.Exact : stats.MoveType;
 
         try
         {

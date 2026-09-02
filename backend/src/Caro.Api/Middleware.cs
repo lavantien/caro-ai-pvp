@@ -6,6 +6,12 @@ namespace Caro.Api;
 
 public static class LocalOrigin
 {
+    private const string LoopbackScheme = "http";
+
+    // Uri.Host keeps the brackets on IPv6 ("[::1]"); Go's Hostname()
+    // stripped them, so both spellings are accepted.
+    private static readonly string[] LoopbackHosts = ["localhost", "127.0.0.1", "::1", "[::1]"];
+
     /// <summary>
     /// Reports whether an Origin header points at a loopback host, which is
     /// the only cross-origin caller this local game server expects.
@@ -16,11 +22,7 @@ public static class LocalOrigin
         {
             return false;
         }
-        string host = u.Host;
-        // Uri.Host keeps the brackets on IPv6 ("[::1]"); Go's Hostname()
-        // stripped them, so accept both spellings.
-        return u.Scheme == "http"
-            && (host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]");
+        return u.Scheme == LoopbackScheme && LoopbackHosts.Contains(u.Host);
     }
 }
 

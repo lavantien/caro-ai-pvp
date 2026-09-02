@@ -11,8 +11,10 @@ namespace Caro.Api;
 
 public sealed partial class GameHandlers(GameStore store, MatchStore? matches = null, ILogger? logger = null)
 {
+    private const int GameIdByteLength = 8;
+
     private static string NewGameId() =>
-        Convert.ToHexString(RandomNumberGenerator.GetBytes(8)).ToLowerInvariant();
+        Convert.ToHexString(RandomNumberGenerator.GetBytes(GameIdByteLength)).ToLowerInvariant();
 
     public async Task CreateGameAsync(HttpContext http)
     {
@@ -259,7 +261,7 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
         {
             GameResponse resp = session.GetResponse();
             string winner = resp.Winner;
-            if (winner == "" || winner == "none")
+            if (winner.Length == 0 || winner == Player.None.ToName())
             {
                 winner = "abandoned";
             }
