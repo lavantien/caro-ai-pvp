@@ -39,6 +39,9 @@ public sealed partial class GameSession
         _activeGameCount = activeGameCount;
     }
 
+    /// <summary>Half-width of the seeded opening scatter around the center.</summary>
+    private const int OpeningSpreadRadius = 3;
+
     /// <summary>
     /// Plays a seeded two-stone opening (red from the center region, blue
     /// replying locally) so engine-vs-engine samples are not all the same
@@ -47,14 +50,14 @@ public sealed partial class GameSession
     internal void ApplyRandomOpening(long seed)
     {
         OpeningRng rng = new(seed);
-        int low = Constants.BoardSize / 2 - 3;
-        int high = Constants.BoardSize / 2 + 2;
+        int low = Constants.BoardSize / 2 - OpeningSpreadRadius;
+        int high = Constants.BoardSize / 2 + OpeningSpreadRadius - 1;
         int rx = low + rng.Next(high - low + 1);
         int ry = low + rng.Next(high - low + 1);
         _game = _game.WithMove(rx, ry);
 
-        int bx = rx - 3 + rng.Next(7);
-        int by = ry - 3 + rng.Next(7);
+        int bx = rx - OpeningSpreadRadius + rng.Next(2 * OpeningSpreadRadius + 1);
+        int by = ry - OpeningSpreadRadius + rng.Next(2 * OpeningSpreadRadius + 1);
         bx = Math.Clamp(bx, 0, Constants.BoardSize - 1);
         by = Math.Clamp(by, 0, Constants.BoardSize - 1);
         if (bx == rx && by == ry)
@@ -71,12 +74,8 @@ public sealed partial class GameSession
 
         public int Next(int n)
         {
-            _state += 0x9E3779B97F4A7C15;
-            ulong z = _state;
-            z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
-            z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-            z ^= z >> 31;
-            return (int)(z % (ulong)n);
+            _state += SplitMix64.GoldenGamma;
+            return (int)(SplitMix64.Mix(_state) % (ulong)n);
         }
     }
 

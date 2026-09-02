@@ -10,17 +10,11 @@ public static class Zobrist
         ulong state = 0x58A2C43F5A3B7E91;
         for (int i = 0; i < Table.Length; i++)
         {
-            state += 0x9E3779B97F4A7C15;
-            ulong z = state;
-            z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
-            z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-            Table[i] = z ^ (z >> 31);
+            state += SplitMix64.GoldenGamma;
+            Table[i] = SplitMix64.Mix(state);
         }
-        state += 0x9E3779B97F4A7C15;
-        ulong zn = state;
-        zn = (zn ^ (zn >> 30)) * 0xBF58476D1CE4E5B9;
-        zn = (zn ^ (zn >> 27)) * 0x94D049BB133111EB;
-        NullMoveKey = zn ^ (zn >> 31);
+        state += SplitMix64.GoldenGamma;
+        NullMoveKey = SplitMix64.Mix(state);
     }
 
     public static ulong ZobristKey(int x, int y, Player player)
