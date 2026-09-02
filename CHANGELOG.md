@@ -96,7 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - VCF `findFourBlocks` validates overline beyond block squares
 - Futility pruning removed (dropped tactical winning moves at shallow depths)
 - ENGINE_FEATURES.md: move ordering priorities, defense multiplier references, SeqLock→RWMutex
-- README.md: move ordering stage sequence, removed non-project AGENTS.md reference
+- README.md: move ordering stage sequence
 
 ## [6.9.0] - 2026-05-12
 
