@@ -38,30 +38,7 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
             return;
         }
 
-        string timeControl = "7+5";
-        long initialTimeMs = 420_000;
-        int incrementSeconds = 5;
-        switch (req.TimeControl)
-        {
-            case "1+0":
-            case "bullet":
-                (timeControl, initialTimeMs, incrementSeconds) = ("1+0", 60_000, 0);
-                break;
-            case "3+2":
-            case "blitz":
-                (timeControl, initialTimeMs, incrementSeconds) = ("3+2", 180_000, 2);
-                break;
-            case "3+0":
-                (timeControl, initialTimeMs, incrementSeconds) = ("3+0", 180_000, 0);
-                break;
-            case "10+0":
-                (timeControl, initialTimeMs, incrementSeconds) = ("10+0", 600_000, 0);
-                break;
-            case "15+10":
-            case "classical":
-                (timeControl, initialTimeMs, incrementSeconds) = ("15+10", 900_000, 10);
-                break;
-        }
+        (string timeControl, long initialTimeMs, int incrementSeconds) = TimeControls.Resolve(req.TimeControl);
 
         GameMode gameMode = GameModes.Parse(req.GameMode);
         int? redDiff = req.RedDifficulty;
