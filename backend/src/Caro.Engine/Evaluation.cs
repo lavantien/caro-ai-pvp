@@ -63,17 +63,20 @@ public static class Evaluation
             return score;
         }
 
-        if (pp.Flex3Count >= 2)
+        // Cascade is strictly descending per ENGINE_FEATURES 5.3: flex4 15k,
+        // double block4 14k, block4+flex3 13k, double flex3 12k. A position
+        // with both a block4 and two flex3s is the higher B4+F3 category.
+        if (pp.Block4Count >= 1 && pp.Flex3Count >= 1)
         {
-            int score = DoubleF3Bonus;
+            int score = B4F3Bonus;
             score += pp.Block4Count * Block4Score;
             score += pp.Flex3Count * Flex3Score;
             return score;
         }
 
-        if (pp.Block4Count >= 1 && pp.Flex3Count >= 1)
+        if (pp.Flex3Count >= 2)
         {
-            int score = B4F3Bonus;
+            int score = DoubleF3Bonus;
             score += pp.Block4Count * Block4Score;
             score += pp.Flex3Count * Flex3Score;
             return score;
