@@ -15,15 +15,27 @@ public interface ILineWriter
 
 public sealed class UciHandler(ILineWriter writer) : IDisposable
 {
+    // Advertised and enforced UCI option ranges; the handshake and the
+    // setoption validation must agree, so both read these.
+    private const int DefaultThreads = 4;
+    private const int MinThreads = 1;
+    private const int MaxThreads = 64;
+    private const int DefaultHashMB = 256;
+    private const int MinHashMB = 32;
+    private const int MaxHashMB = 4096;
+    private const int DefaultSkillLevel = 5;
+    private const int MinSkillLevel = 1;
+    private const int MaxSkillLevel = 5;
+
     private readonly object _gate = new();
-    private MinimaxAI _ai = new(4, 256);
+    private MinimaxAI _ai = new(DefaultThreads, DefaultHashMB);
     private Board _board = Board.NewBoard();
     private Player _player = Player.Red;
     private CancellationTokenSource? _searchCts;
     private Task? _searchTask;
-    private int _threads = 4;
-    private int _hashMB = 256;
-    private int _skillLevel = 5;
+    private int _threads = DefaultThreads;
+    private int _hashMB = DefaultHashMB;
+    private int _skillLevel = DefaultSkillLevel;
 
     public Board CurrentBoard()
     {
@@ -62,9 +74,9 @@ public sealed class UciHandler(ILineWriter writer) : IDisposable
             case "uci":
                 Respond("id name Caro AI");
                 Respond("id author Caro AI Project");
-                Respond($"option name Threads type spin default {CurrentThreads()} min 1 max 64");
-                Respond("option name Hash type spin default 256 min 32 max 4096");
-                Respond("option name Skill Level type spin default 5 min 1 max 5");
+                Respond($"option name Threads type spin default {CurrentThreads()} min {MinThreads} max {MaxThreads}");
+                Respond($"option name Hash type spin default {DefaultHashMB} min {MinHashMB} max {MaxHashMB}");
+                Respond($"option name Skill Level type spin default {DefaultSkillLevel} min {MinSkillLevel} max {MaxSkillLevel}");
                 Respond("uciok");
                 break;
 
@@ -224,21 +236,21 @@ public sealed class UciHandler(ILineWriter writer) : IDisposable
             switch (name)
             {
                 case "Threads":
-                    if (n >= 1 && n <= 64)
+                    if (n >= MinThreads && n <= MaxThreads)
                     {
                         _threads = n;
                         RebuildAI();
                     }
                     break;
                 case "Hash":
-                    if (n >= 32 && n <= 4096)
+                    if (n >= MinHashMB && n <= MaxHashMB)
                     {
                         _hashMB = n;
                         RebuildAI();
                     }
                     break;
                 case "Skill Level":
-                    if (n >= 1 && n <= 5)
+                    if (n >= MinSkillLevel && n <= MaxSkillLevel)
                     {
                         _skillLevel = n;
                     }
@@ -262,9 +274,9 @@ public sealed class UciHandler(ILineWriter writer) : IDisposable
         int skill = _skillLevel;
         int threads = _threads;
 
-        if (skill < 1 || skill > 5)
+        if (skill < MinSkillLevel || skill > MaxSkillLevel)
         {
-            skill = 5;
+            skill = DefaultSkillLevel;
         }
         DifficultyProfile profile = Difficulty.GetDifficultyProfile(skill);
         int engineThreads = Math.Min(threads, profile.Threads);
