@@ -9,6 +9,9 @@
 	import { soundManager } from '$lib/utils/sound';
 	import { ApiConfig } from '$lib/config/apiConfig';
 	import { GameConfig } from '$lib/config/gameConfig';
+	import { UIConfig } from '$lib/config/uiConfig';
+	import { E2EConfig } from '$lib/config/e2eConfig';
+	import { DEFAULT_TIME_CONTROL, timeControlOption } from '$lib/config/timeControlConfig';
 	import type { Cell } from '$lib/types/game';
 	import type { GameMode, TimeControl, UCIConnectionStatus, DifficultyLevel } from '$lib/types/game';
 	import { difficultyName } from '$lib/types/game';
@@ -21,13 +24,15 @@
 	let winningLine = $state<Array<{ x: number; y: number }>>([]);
 	let lastMove = $state<{ x: number; y: number } | null>(null);
 
-	let redTime = $state(420);
-	let blueTime = $state(420);
+	const defaultTimeControl = timeControlOption(DEFAULT_TIME_CONTROL)!;
 
-	let gameMode = $state<GameMode>('pvp');
-	let timeControl = $state<TimeControl>('7+5');
-	let aiSide = $state<'red' | 'blue'>('blue');
-	let difficulty = $state<DifficultyLevel>(5);
+	let redTime = $state(defaultTimeControl.initialTimeMs / 1000);
+	let blueTime = $state(defaultTimeControl.initialTimeMs / 1000);
+
+	let gameMode = $state<GameMode>(GameConfig.defaultGameSetup.gameMode);
+	let timeControl = $state<TimeControl>(GameConfig.defaultGameSetup.timeControl);
+	let aiSide = $state<'red' | 'blue'>(GameConfig.defaultGameSetup.aiSide);
+	let difficulty = $state<DifficultyLevel>(GameConfig.defaultGameSetup.difficulty);
 	let isAiThinking = $state(false);
 	let moveInProgress = $state(false);
 
@@ -43,7 +48,9 @@
 	let gameGeneration = 0;
 
 	const openRuleInvalid = $derived(() => {
-		if (store.currentPlayer !== 'red' || store.moveNumber !== 2) return new Set<string>();
+		if (store.currentPlayer !== 'red' || store.moveNumber !== GameConfig.openRuleSecondMoveNumber) {
+			return new Set<string>();
+		}
 		let redCount = 0;
 		let blueCount = 0;
 		let firstRedX = 0, firstRedY = 0;
@@ -57,7 +64,9 @@
 			if (cell.player !== 'none') continue;
 			const dx = Math.abs(cell.x - firstRedX);
 			const dy = Math.abs(cell.y - firstRedY);
-			if (dx < 3 && dy < 3) invalid.add(`${cell.x},${cell.y}`);
+			if (dx < GameConfig.openRuleMinDistance && dy < GameConfig.openRuleMinDistance) {
+				invalid.add(`${cell.x},${cell.y}`);
+			}
 		}
 		return invalid;
 	});
@@ -79,7 +88,7 @@
 			// not a backend JSON error body; show as-is
 		}
 		errorMessage = msg;
-		setTimeout(() => errorMessage = '', 5000);
+		setTimeout(() => errorMessage = '', UIConfig.errorMessageDismissMs);
 	}
 
 	async function connectUCI() {
@@ -190,7 +199,7 @@
 			gameId = data.gameId;
 			// Debug hook so e2e tests can clean the game up afterwards.
 			if (import.meta.env.DEV) {
-				(window as any).__caroGameId = gameId;
+				(window as any)[E2EConfig.gameIdHookKey] = gameId;
 			}
 
 			if (data.state.initialTime) {
@@ -430,7 +439,10 @@
 {:else}
 	<div class="flex flex-col items-center min-h-screen px-1 sm:px-4 py-2 gap-2">
 		{#if errorMessage}
-			<div class="w-full max-w-[1024px] p-2 bg-red-100 border border-red-300 rounded-lg flex justify-between items-center">
+			<div
+				class="w-full p-2 bg-red-100 border border-red-300 rounded-lg flex justify-between items-center"
+				style="max-width: {UIConfig.maxContentWidthPx}px;"
+			>
 				<p class="text-red-700 text-sm">{errorMessage}</p>
 				<button onclick={() => errorMessage = ''} class="text-red-500 hover:text-red-700 ml-2 text-lg">&times;</button>
 			</div>

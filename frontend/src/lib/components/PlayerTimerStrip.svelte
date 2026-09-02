@@ -57,7 +57,8 @@
 </script>
 
 <div
-	class="flex items-center gap-2 px-3 py-1.5 rounded-md w-full max-w-[1024px] mx-auto transition-colors {isActive
+	style="max-width: {UIConfig.maxContentWidthPx}px;"
+	class="flex items-center gap-2 px-3 py-1.5 rounded-md w-full mx-auto transition-colors {isActive
 		? player === 'red'
 			? 'bg-red-50 border border-red-200'
 			: 'bg-blue-50 border border-blue-200'

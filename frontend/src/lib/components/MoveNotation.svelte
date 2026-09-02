@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { MoveRecord } from '$lib/stores/gameStore.svelte';
 	import { toUCI } from '$lib/uciEngine';
+	import { UIConfig } from '$lib/config/uiConfig';
 
 	interface Props {
 		moves: MoveRecord[];
@@ -26,7 +27,7 @@
 	});
 </script>
 
-<div class="w-full max-w-[1024px] mx-auto px-1" data-testid="move-notation">
+<div class="w-full mx-auto px-1" style="max-width: {UIConfig.maxContentWidthPx}px;" data-testid="move-notation">
 	{#if moves.length > 0}
 		<div
 			bind:this={scrollContainer}

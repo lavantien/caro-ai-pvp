@@ -17,6 +17,12 @@
 
 	const svgWidth = $derived(boardSize * cellSize);
 	const svgHeight = $derived(boardSize * cellSize);
+	const lineLengthPx = $derived(
+		Math.hypot(
+			(winningLine[winningLine.length - 1].x - winningLine[0].x) * cellSize,
+			(winningLine[winningLine.length - 1].y - winningLine[0].y) * cellSize
+		)
+	);
 </script>
 
 {#if winningLine.length >= 2}
@@ -31,7 +37,7 @@
 				stroke-width={UIConfig.winningLineStrokeWidth}
 				stroke-linecap="round"
 				class="winning-line"
-				style="stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: drawLine {UIConfig.winningLineAnimationMs}ms ease-out forwards;"
+				style="stroke-dasharray: {lineLengthPx}; stroke-dashoffset: {lineLengthPx}; animation: drawLine {UIConfig.winningLineAnimationMs}ms ease-out forwards;"
 			/>
 		</svg>
 	</div>

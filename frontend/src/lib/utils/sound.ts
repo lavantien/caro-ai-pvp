@@ -62,7 +62,7 @@ export class SoundManager {
 
 		// Volume envelope (short, pleasant click)
 		gainNode.gain.setValueAtTime(this.volume, this.audioContext.currentTime);
-		gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + AudioConfig.durations.envelope);
+		gainNode.gain.exponentialRampToValueAtTime(AudioConfig.envelopeFloor, this.audioContext.currentTime + AudioConfig.durations.envelope);
 
 		// Connect and play
 		oscillator.connect(gainNode);
@@ -95,7 +95,7 @@ export class SoundManager {
 			const duration = AudioConfig.durations.winNote;
 
 			gainNode.gain.setValueAtTime(this.volume, startTime);
-			gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+			gainNode.gain.exponentialRampToValueAtTime(AudioConfig.envelopeFloor, startTime + duration);
 
 			oscillator.connect(gainNode);
 			gainNode.connect(this.audioContext!.destination);

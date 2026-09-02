@@ -31,5 +31,23 @@ export const UIConfig = {
 	timerSyncIntervalMs: 500,
 
 	/** Seconds remaining to trigger low-time warning */
-	lowTimeThresholdSeconds: 60
+	lowTimeThresholdSeconds: 60,
+
+	/** App content max width in pixels */
+	maxContentWidthPx: 1024,
+
+	/** Viewport width assumed for SSR cell sizing before the client measures */
+	ssrViewportFallbackWidthPx: 1024,
+
+	/** Coordinate label size as a fraction of cell size */
+	labelSizeFraction: 0.55,
+
+	/** Minimum coordinate label size in pixels */
+	labelMinSizePx: 14,
+
+	/** Ghost stone diameter as a fraction of cell size */
+	ghostStoneScale: 0.78,
+
+	/** Error banner auto-dismiss delay in milliseconds */
+	errorMessageDismissMs: 5000
 } as const;

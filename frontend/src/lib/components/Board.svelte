@@ -6,6 +6,8 @@
 	import { calculateGhostStonePosition, isValidCell, computeCellSize } from '$lib/utils/boardUtils';
 	import { vibrateOnValidMove, vibrateOnInvalidMove } from '$lib/utils/haptics';
 	import { GameConfig } from '$lib/config/gameConfig';
+	import { UCIConfig } from '$lib/config/uciConfig';
+	import { UIConfig } from '$lib/config/uiConfig';
 
 	interface Props {
 		board: Cell[];
@@ -18,12 +20,18 @@
 	let { board, onMove, winningLine = [], lastMove = null, openRuleInvalid = new Set<string>() }: Props = $props();
 
 	let ghostPosition = $state<{ x: number; y: number } | null>(null);
-	let cellSize = $state(computeCellSize(typeof window !== 'undefined' ? window.innerWidth : 1024));
+	let cellSize = $state(
+		computeCellSize(typeof window !== 'undefined' ? window.innerWidth : UIConfig.ssrViewportFallbackWidthPx)
+	);
 	let boardEl: HTMLDivElement | undefined = $state();
 
-	const labelSize = $derived(Math.max(cellSize * 0.55, 14));
+	const labelSize = $derived(
+		Math.max(cellSize * UIConfig.labelSizeFraction, UIConfig.labelMinSizePx)
+	);
 	const labelFont = $derived(`${labelSize * 0.75}px`);
-	const cols = $derived(Array.from({ length: GameConfig.boardSize }, (_, i) => String.fromCharCode(97 + i)));
+	const cols = $derived(
+		Array.from({ length: GameConfig.boardSize }, (_, i) => String.fromCharCode(UCIConfig.asciiLowerA + i))
+	);
 	const rows = $derived(Array.from({ length: GameConfig.boardSize }, (_, i) => i + 1));
 
 	function handleCellClick(x: number, y: number) {
@@ -54,7 +62,7 @@
 				ghostPosition = calculateGhostStonePosition(
 					rect.left + rect.width / 2,
 					rect.top + rect.height / 2,
-					cellSize * 0.78
+					cellSize * UIConfig.ghostStoneScale
 				);
 			}
 		}
@@ -78,7 +86,7 @@
 	});
 </script>
 
-<div class="w-full max-w-[1024px] mx-auto" bind:this={boardEl}>
+<div class="w-full mx-auto" style="max-width: {UIConfig.maxContentWidthPx}px;" bind:this={boardEl}>
 	<div
 		class="relative inline-block"
 		ontouchmove={handleTouchMove}

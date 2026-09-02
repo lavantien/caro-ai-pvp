@@ -1,6 +1,9 @@
 <script lang="ts">
 	import type { GameMode, TimeControl, UCIConnectionStatus, DifficultyLevel } from '$lib/types/game';
 	import { difficultyName } from '$lib/types/game';
+	import { GameConfig } from '$lib/config/gameConfig';
+	import { UIConfig } from '$lib/config/uiConfig';
+	import { TIME_CONTROLS, timeControlLabel } from '$lib/config/timeControlConfig';
 
 	interface Props {
 		gameMode: GameMode;
@@ -45,26 +48,15 @@
 			case 'aivai': return 'AI vs AI';
 		}
 	}
-
-	function timeLabel(tc: TimeControl): string {
-		switch (tc) {
-			case '1+0': return '1+0 Bullet';
-			case '3+0': return '3+0 Blitz';
-			case '3+2': return '3+2 Blitz';
-			case '7+5': return '7+5 Rapid';
-			case '10+0': return '10+0 Rapid';
-			case '15+10': return '15+10 Classical';
-		}
-	}
 </script>
 
-<div class="w-full max-w-[1024px] mx-auto px-1">
+<div class="w-full mx-auto px-1" style="max-width: {UIConfig.maxContentWidthPx}px;">
 	<button
 		onclick={() => isOpen = !isOpen}
 		class="flex items-center justify-between w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-sm"
 	>
 		<span class="text-gray-600">
-			{modeLabel(gameMode)} &middot; {timeLabel(timeControl)}
+			{modeLabel(gameMode)} &middot; {timeControlLabel(timeControl)}
 		</span>
 		<svg
 			class="w-4 h-4 text-gray-500 transition-transform {isOpen ? 'rotate-180' : ''}"
@@ -111,12 +103,9 @@
 					class="px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
 					disabled={moveNumber > 0}
 				>
-					<option value="1+0">1+0 Bullet</option>
-					<option value="3+0">3+0 Blitz</option>
-					<option value="3+2">3+2 Blitz</option>
-					<option value="7+5">7+5 Rapid</option>
-					<option value="10+0">10+0 Rapid</option>
-					<option value="15+10">15+10 Classical</option>
+					{#each TIME_CONTROLS as tc (tc.value)}
+						<option value={tc.value}>{tc.label}</option>
+					{/each}
 				</select>
 
 				{#if gameMode === 'pvai'}
@@ -138,7 +127,7 @@
 					</label>
 					<input
 						id="difficulty"
-						type="range" min="1" max="5" step="1"
+						type="range" min={GameConfig.minDifficulty} max={GameConfig.maxDifficulty} step="1"
 						bind:value={difficulty}
 						disabled={moveNumber > 0}
 						class="flex-1 h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-blue-600"

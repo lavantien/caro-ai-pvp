@@ -7,6 +7,12 @@
 
 import { UCIConfig } from '$lib/config/uciConfig';
 
+// Valid coordinate letters span 'a' through the board width (a-p on 16
+// columns); derived so a board-size change cannot desync the parser.
+const firstCoordLetter = String.fromCharCode(UCIConfig.asciiLowerA);
+const lastCoordLetter = String.fromCharCode(UCIConfig.asciiLowerA + UCIConfig.maxRow - 1);
+const coordLetterPattern = new RegExp(`[${firstCoordLetter}-${lastCoordLetter}]`);
+
 export interface UCIResponse {
 	id?: string[];
 	options?: string[];
@@ -249,8 +255,10 @@ export function fromUCI(move: string): { x: number; y: number } {
 	}
 
 	move = move.toLowerCase();
-	if (!/[a-p]/.test(move[0]) || !/[a-p]/.test(move[1])) {
-		throw new Error(`Invalid coordinates in move: ${move} (expected a-p for both letters)`);
+	if (!coordLetterPattern.test(move[0]) || !coordLetterPattern.test(move[1])) {
+		throw new Error(
+			`Invalid coordinates in move: ${move} (expected ${firstCoordLetter}-${lastCoordLetter} for both letters)`
+		);
 	}
 
 	const y = move.charCodeAt(0) - UCIConfig.asciiLowerA;

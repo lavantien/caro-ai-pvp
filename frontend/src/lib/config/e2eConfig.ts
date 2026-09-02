@@ -19,5 +19,8 @@ export const E2EConfig = {
 	timerCountdownWaitMs: 2000,
 
 	/** Wait for regression test moves (ms) */
-	regressionMoveWaitMs: 150
+	regressionMoveWaitMs: 150,
+
+	/** Window key exposing the current game id for e2e cleanup */
+	gameIdHookKey: '__caroGameId'
 } as const;

@@ -6,6 +6,9 @@ export const AudioConfig = {
 	/** Master volume level (0.0 - 1.0) */
 	volume: 0.5,
 
+	/** Gain floor exponential ramps decay to (0 is inaudible but invalid) */
+	envelopeFloor: 0.01,
+
 	frequencies: {
 		/** Red stone placement tone (A4) */
 		redStone: 440,
