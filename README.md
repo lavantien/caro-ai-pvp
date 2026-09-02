@@ -125,7 +125,7 @@ The engine supports 5 difficulty levels. Levels are strength-based first (depth 
 
 ### Performance Statistics
 
-See [STATS.md](STATS.md) for performance metrics.
+See [STATS.md](STATS.md) for the statline reference and benchmark commands.
 
 To run your own benchmarks:
 ```bash
