@@ -26,23 +26,6 @@ node scripts/uci-probe.mjs --mode speed    # single-thread NPS on a fixed positi
 
 The tournament runner randomizes openings (seeded), swaps colors every game, reports per-color and per-reason breakdowns with a 95% Wilson score interval, and writes `tournament-summary.json`.
 
-## Post-port engine changes (v9.2.0, 2026-09-02)
-
-The v9.2.0 eval conformance fix (block4+flex3 ranked above double flex3) was
-re-verified against the port baseline:
-
-- UCI parity probes: all 8 fixed-position/depth pairs keep the identical
-  bestmove and score (tactical mate 29,999 unchanged); node counts drift
-  <= 0.03%
-- Depth-9 speed probe: 4,148,884 nodes vs 4,148,684 (+0.005%); single-thread
-  NPS ~55K, same as the port baseline
-- L1-vs-L5 tournament (same command and seed as below): L5 14/20, 0 errored,
-  identical to the port baseline outcome; L4-vs-L3 gate run: L4 7/10, 0 errored
-
-The mis-ranked combination (a blocked four plus two open threes) is rare
-enough at these positions that no probe root move flipped; the fix is a
-correctness alignment, not a strength change.
-
 ## C#/.NET 10 port baseline (v9.0.0, 2026-09-01)
 
 Command: `node scripts/run-tournament.mjs --games 20 --red 1 --blue 5 --tc 3+2 --seed 20260821`
