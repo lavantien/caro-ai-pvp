@@ -421,7 +421,29 @@ cd frontend && npm install
 npm run dev
 ```
 
-Backend: http://localhost:5207 | Frontend: http://localhost:5173
+Backend: http://localhost:5207 | Frontend: http://localhost:5173 (see the environment overrides below to move either)
+
+### Environment overrides
+
+All defaults live in one place per runtime: `backend/src/Caro.Domain/Constants.cs` and `Caro.Server`'s `ServerConfig` (backend), `frontend/src/lib/config/*.ts` (frontend), `scripts/lib.mjs` (tooling). The variables below override them:
+
+| Variable | Affects | Default |
+|----------|---------|---------|
+| `CARO_HTTP_PORT` | Backend HTTP listen port | `5207` |
+| `API_BASE_URL` | Backend URL used by scripts and `killPort` | `http://localhost:5207` |
+| `CARO_WS_URL` | UCI WebSocket URL used by `uci-probe.mjs` | derived from `API_BASE_URL` |
+| `MATCH_DB_PATH` | SQLite match database path | `data/matches.db` |
+| `CARO_DISABLE_PONDER` | Disables background pondering when set | unset |
+| `FRONTEND_URL` | Frontend URL used by scripts | `http://localhost:5173` |
+| `FRONTEND_PORT` | Vite dev server port | `5173` |
+| `E2E_BASE_URL` | Playwright `baseURL` and web server URL | `http://localhost:5173` |
+| `VITE_API_BASE_URL` | Frontend API base URL | `http://localhost:5207` |
+| `CARO_TFM` | Target framework used to locate the server DLL in scripts | `net10.0` |
+| `CARO_BACKEND_TIMEOUT_MS` / `CARO_FRONTEND_TIMEOUT_MS` | Script readiness timeouts | `60000` / `30000` |
+| `CARO_SCREENSHOT_RETRIES` / `CARO_BANNER_TIMEOUT_MS` / `CARO_SCREENSHOT_SETTLE_MS` | Screenshot capture knobs | `3` / `600000` / `800` |
+| `CARO_PROBE_THREADS` / `CARO_PROBE_HASH_MB` / `CARO_PROBE_SKILL` / `CARO_PROBE_SPEED_DEPTH` / `CARO_PROBE_CLOCK_MS` / `CARO_PROBE_PARITY_TIMEOUT_MS` / `CARO_PROBE_SPEED_TIMEOUT_MS` | UCI probe settings | `1` / `256` / `5` / `9` / `3600000` / `180000` / `300000` |
+
+Setting `API_BASE_URL` (and `FRONTEND_URL`/`E2E_BASE_URL` for the frontend) moves the whole stack: the bootstrap scripts derive the killed port and the backend's `CARO_HTTP_PORT` from it.
 
 ### Scripts
 
@@ -431,6 +453,8 @@ Backend: http://localhost:5207 | Frontend: http://localhost:5173
 | `node scripts/capture-screenshot.mjs` | Full E2E: AI vs AI match, screenshot, update README |
 | `node scripts/simulate-match.mjs` | AI vs AI match via HTTP API with per-player difficulty (`--red N --blue N`) |
 | `node scripts/run-tournament.mjs` | Self-contained N-game tournament with color swap and aggregate stats (`--games N --red N --blue N --tc TIME`) |
+| `node scripts/uci-probe.mjs` | Deterministic engine probes over the UCI WebSocket (`--mode parity` / `--mode speed`) |
+| `node scripts/verify-screenshot.mjs` | UI verification checks against a running stack |
 
 ### Coverage
 
