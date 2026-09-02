@@ -4,13 +4,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+int httpPort = ServerConfig.HttpPort;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-builder.WebHost.ConfigureKestrel(o => o.ListenAnyIP(5207));
-builder.WebHost.UseShutdownTimeout(TimeSpan.FromSeconds(10));
+builder.WebHost.ConfigureKestrel(o => o.ListenAnyIP(httpPort));
+builder.WebHost.UseShutdownTimeout(TimeSpan.FromSeconds(ServerConfig.ShutdownTimeoutSeconds));
 
 string dbPath = Environment.GetEnvironmentVariable("MATCH_DB_PATH") is { Length: > 0 } env
     ? env
-    : Path.Combine("data", "matches.db");
+    : ServerConfig.DefaultDbPath;
 MatchStore matches = new(dbPath);
 builder.Services.AddCaroApi(matches);
 builder.Services.AddHostedService<CleanupService>();
@@ -18,7 +19,8 @@ builder.Services.AddHostedService<CleanupService>();
 WebApplication app = builder.Build();
 app.UseCaroPipeline();
 
-app.Logger.ServerStarting("http://+:5207");
+string listenAddr = $"http://+:{httpPort}";
+app.Logger.ServerStarting(listenAddr);
 
 app.Lifetime.ApplicationStopping.Register(() =>
 {
@@ -37,7 +39,7 @@ internal sealed class CleanupService(GameStore store, ILogger<CleanupService> lo
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using PeriodicTimer timer = new(TimeSpan.FromMinutes(5));
+        using PeriodicTimer timer = new(TimeSpan.FromMinutes(ServerConfig.CleanupSweepMinutes));
         try
         {
             while (await timer.WaitForNextTickAsync(stoppingToken))
@@ -54,6 +56,23 @@ internal sealed class CleanupService(GameStore store, ILogger<CleanupService> lo
             // Shutdown.
         }
     }
+}
+
+/// <summary>
+/// Host knobs for the local server: named defaults with a CARO_HTTP_PORT
+/// override, matching the MATCH_DB_PATH pattern (no appsettings.json).
+/// </summary>
+internal static class ServerConfig
+{
+    public const int DefaultPort = 5207;
+    public const int ShutdownTimeoutSeconds = 10;
+    public const int CleanupSweepMinutes = 5;
+    public const string DefaultDbPath = "data/matches.db";
+
+    public static int HttpPort =>
+        int.TryParse(Environment.GetEnvironmentVariable("CARO_HTTP_PORT"), out int port) && port is > 0 and < 65536
+            ? port
+            : DefaultPort;
 }
 
 internal static partial class ServerLog
