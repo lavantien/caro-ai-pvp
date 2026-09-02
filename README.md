@@ -16,7 +16,7 @@ Features hardware-agnostic difficulty levels (L1 Novice through L5 Grandmaster) 
 ## Overview
 
 - **Full-strength AI** - Lazy SMP parallel search at maximum strength
-- **UCI Protocol Support** - Standalone engine compatible with UCI chess GUIs
+- **UCI Protocol Support** - Standalone engine speaking a UCI-style command subset (core commands plus `tt-hitrate`/`threads` info extensions; no `position fen` or `go ponder`)
 - **.NET solution architecture** - Project-per-concern layout (`Caro.Domain` through `Caro.Server`) with enforced dependency flow
 - **Real-time AI PvP** - WebSocket UCI bridge for engine communication
 - **Mobile-first UX** - Responsive board, compact timer strips, ghost stone positioning and haptic feedback
@@ -46,7 +46,7 @@ Features hardware-agnostic difficulty levels (L1 Novice through L5 Grandmaster) 
 | | Quiescence Search | Four-forcing extensions only (threes are not forcing) |
 | | Adaptive LMR | Dynamic depth reduction by position factors |
 | | VCF Solver | Pre-search for forcing win sequences (20% of allocated time) |
-| **Transposition Table** | Sharded locks | 16 segments with per-shard `ReaderWriterLockSlim` |
+| **Transposition Table** | Sharded locks | 16 segments with per-shard monitor locks |
 | | Depth-Age Replacement | Smart entry eviction formula |
 | **Move Ordering** | Staged Picker | TT -> Win -> Block -> Threat -> Killer/Counter -> Quiet |
 | | Hash Move | TT move searched unconditionally first |
@@ -59,7 +59,7 @@ Features hardware-agnostic difficulty levels (L1 Novice through L5 Grandmaster) 
 | **Evaluation** | Gap-Aware Patterns | 11-cell line windows classify split fours (.XX.XX.) and broken threes like their straight equivalents |
 | **Time Control** | Phase-Aware Allocation | Divisor-based budget with clock safety floors |
 | | Flag Adjudication | Server-side loss on time |
-| | Structured Logging | log/slog with async file-based rotation |
+| | Structured Logging | `Microsoft.Extensions.Logging` with source-generated `LoggerMessage` entries |
 
 ### Game Modes
 
@@ -92,8 +92,8 @@ Fisher time controls with increment:
 | **Move Notation** | Horizontal scrolling algebraic notation (e.g. 1.i9 2.h8) |
 | **Open Rule Highlight** | Dimmed overlay on invalid cells during Red's 2nd move (Chebyshev distance < 3) |
 | **Bot Difficulty Labels** | AI level shown in timer strips (e.g. "AI (Grandmaster)") |
-| **Undo** | Server-side undo support via `POST /api/games/{id}/undo` |
-| **Game Cleanup** | Explicit `DELETE /api/games/{id}` + 5-min cleanup sweep of finished games + 30-min abandoned-game timeout + max 4 concurrent games |
+| **Undo** | Server-side undo support via `POST /api/game/{id}/undo` |
+| **Game Cleanup** | Explicit `DELETE /api/game/{id}` + 5-min cleanup sweep of finished games + 30-min abandoned-game timeout + max 4 concurrent games |
 | **Sound Effects** | Synthesized stone placement (A4/C5 tones) and victory arpeggios via Web Audio API |
 | **Sound Toggle** | Mute/unmute button in nav bar; muted by default (browser autoplay policy) |
 | **Haptic Feedback** | Vibration on valid (10ms) and invalid (30-50-30ms) moves |
@@ -108,16 +108,16 @@ Fisher time controls with increment:
 
 The engine supports 5 difficulty levels. Levels are strength-based first (depth caps, solver and parallel gating) with the time fraction as a secondary cap, so L(k) is stronger than L(k-1) on any host:
 
-| Level | Name | Depth Cap | Time Budget | Threads | VCF Solver | Pondering | TT Size |
-|-------|------|-----------|-------------|------------|------------|-----------|---------|
-| 1 | Novice | 2 | 5% | 1 | No | No | 64MB |
-| 2 | Beginner | 4 | 15% | 1 | No | No | 64MB |
-| 3 | Intermediate | 6 | 40% | 2 | Yes | No | 256MB |
-| 4 | Advanced | 10 | 70% | Pow2((N-2)/2)/2 | Yes | No | 1GB |
-| 5 | Grandmaster | 50 | 100% | Pow2((N-2)/2) | Yes | Yes | 1GB |
+| Level | Name | Depth Cap | Time Budget | Threads | VCF Solver | VCF Depth | Pondering | TT Size |
+|-------|------|-----------|-------------|------------|------------|-----------|-----------|---------|
+| 1 | Novice | 2 | 5% | 1 | No | 0 | No | 64MB |
+| 2 | Beginner | 4 | 15% | 1 | No | 0 | No | 64MB |
+| 3 | Intermediate | 4 | 40% | 2 | Yes | 2 | No | 256MB |
+| 4 | Advanced | 5 | 70% | Pow2((N-2)/2)/2 | Yes | 4 | No | 1GB |
+| 5 | Grandmaster | 50 | 100% | Pow2((N-2)/2) | Yes | 12 | Yes | 1GB |
 
 - Depth caps make level differences strength differences, not clock-management differences
-- VCF solver and parallel search unlock at higher levels
+- VCF solver unlocks at L3 with a growing solver-depth ladder (2/4/12); parallel search unlocks at L3 (2 threads)
 - Pondering (searching on the opponent's clock) is L5-only
 - Per-player difficulty: red and blue can play at different levels independently
 - Level 5 = full-strength engine with all optimizations
@@ -134,7 +134,7 @@ node scripts/run-tournament.mjs --games 4 --red 5 --blue 5 --tc 3+2
 
 ### UCI Protocol
 
-Universal Chess Interface (UCI) protocol compatibility for standalone engine usage:
+UCI-style protocol subset for standalone engine usage:
 
 - **Standalone console engine** - Run as separate process like Stockfish
 - **Standard UCI commands** - uci, isready, ucinewgame, position, go, stop, quit, setoption
@@ -183,7 +183,7 @@ README.md (Entry Point)
         |
         +--> ENGINE_FEATURES.md (Deep Dive)
         |       |-- Search Architecture -> PVS, LMR, Quiescence
-        |       |-- Transposition Table -> Shards, RWMutex
+        |       |-- Transposition Table -> Shards, monitor locks
         |       |-- Move Ordering -> Stages, History, Killers
         |       |-- Evaluation -> Line windows, Pattern4, Scoring
         |       +-- Time Management -> Phase-aware allocation
@@ -342,7 +342,7 @@ Concurrency patterns (C#):
 | Long-running worker tasks | Per-search dispatch with `ConcurrentBag` result collection |
 | Per-game lock | Up to 4 concurrent games, independently locked |
 | CancellationToken propagation | HTTP request cancellation reaches AI search |
-| Sharded TT (16 segments) | Parallel transposition table access under `ReaderWriterLockSlim` |
+| Sharded TT (16 segments) | Parallel transposition table access under per-shard monitor locks |
 | Interlocked counters | Node and TT statistics without locks |
 
 **Testing:** Adversarial concurrency tests in Caro.Engine.Tests validate thread-safety under high contention.

@@ -159,9 +159,10 @@ The thread budget is computed BEFORE taking the session lock
 
 ### 3.3 Sharded transposition table
 
-16 shards, each a `TtSlot[]` under a `ReaderWriterLockSlim`; writes use the
-depth-age replacement priority stamped at `IncrementAge`. Counters are
-`Interlocked`.
+16 shards, each a `TtSlot[]` under a plain monitor (`lock (shard.Gate)`) — the
+critical sections are a handful of instructions, so a reader-writer lock's
+bookkeeping costs more than the exclusivity saves. Writes use the depth-age
+replacement priority stamped at `IncrementAge`. Counters are `Interlocked`.
 
 ### 3.4 The L5 background ponderer
 

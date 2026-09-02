@@ -59,8 +59,7 @@ Lazy SMP with all-equal workers sharing a single sharded TT — no master/slave 
 PVS is an enhancement to alpha-beta search that uses null-window searches to prove moves are suboptimal quickly.
 
 **Implementation Scope:**
-- Sequential path (MinimaxAI): Full PVS with null-window searches and re-searches
-- Parallel path: Alpha-beta with Move-Dependent Adaptive Pruning (MDAP/LMR) and aspiration windows; traditional PVS not applied
+- Both paths (sequential `SearchPosition` and parallel Lazy SMP workers) share the same `SearchRoot`/`AlphaBeta` core with null-window searches and re-searches
 
 **Algorithm Structure (Sequential Path):**
 1. Search first move with full alpha-beta window
@@ -127,15 +126,16 @@ LMR reduces search depth for moves that are statistically less likely to be best
 
 ## 3. Transposition Table System
 
-Single sharded transposition table shared across all search paths. In parallel search, all workers share the same TT instance via per-shard `ReaderWriterLockSlim`.
+Single sharded transposition table shared across all search paths. In parallel search, all workers share the same TT instance via a per-shard monitor lock.
 
 ### 3.1 Sharded Lock Architecture
 
 **Shard Distribution:**
-- 16 independent segments, each protected by a `ReaderWriterLockSlim`
+- 16 independent segments, each protected by a plain monitor (`lock (shard.Gate)`)
 - Hash-based index calculation: `shardIndex = (hash >> 32) & 0xF`
-- Reads use `RLock` (concurrent), writes use `Lock` (exclusive)
-- Race-detector compatible
+- The port benchmarked `ReaderWriterLockSlim` against the monitor and kept the
+  monitor: the per-slot critical sections are short enough that reader-writer
+  bookkeeping cost more than the exclusivity it saved (see STATS.md)
 
 **Depth-Age Replacement:**
 - Priority formula: depth - 8 * age
@@ -162,7 +162,7 @@ Each TT entry stores:
 ### 3.3 Shared TT Write Policy
 
 All workers in Lazy SMP share a single TT instance. Writes are coordinated via
-per-shard `ReaderWriterLockSlim` to prevent data races. Each worker writes at all depths
+per-shard monitor locks to prevent data races. Each worker writes at all depths
 to the shared TT, providing cross-worker move hints via hash moves.
 The depth-age replacement strategy handles entry quality naturally.
 
@@ -190,25 +190,35 @@ Moves are generated and scored in stages, allowing early termination on cutoffs.
 **One picker:** `MovePicker` stages generation so cutoffs skip whole stages, and an exact-dedup bitmap prevents a move from yielding twice. `OrderMoves` is the all-at-once wrapper used at the root.
 
 **Stage Sequence:**
-1. **TT_MOVE** - Single move from transposition table (10M score)
+1. **TT_MOVE** - Single move from the transposition table, yielded first
 2. **WINNING_MOVE** - Completes an exact five
 3. **MUST_BLOCK** - Opponent would complete a five here
-4. **THREAT_CREATE** - Four/three creation or denial, scored by the gap-aware threat analysis
-5. **KILLER_COUNTER** - Killer moves (400K-500K) + counter-move responses (350K)
+4. **THREAT_CREATE** - Four/three creation or denial, sorted by additive sub-scores below
+5. **KILLER_COUNTER** - Killer moves and the counter-move response, in that order
 6. **QUIET** - History/killer/continuation score + center bias + proximity
 
-**Score Constants (MovePicker.cs):**
-| Category | Score |
-|----------|-------|
-| TT Move | 10,000,000 |
-| Must Block | 8,000,000 |
-| Winning Move | 5,000,000 |
-| Threat Create | 800,000 |
-| Killer 1 | 500,000 |
-| Killer 2 | 400,000 |
-| Counter Move | 350,000 |
-| History Cap | 1,000,000 |
-| Continuation Max | 30,000 |
+An exact-dedup bitmap prevents a move from yielding twice across stages.
+
+**Scoring (`MovePicker.cs`):** the threat stage scores each placement with
+additive sub-scores for own and opponent shapes; the quiet stage sums history,
+killer, continuation, center, and proximity terms:
+
+| Term | Score |
+|------|-------|
+| Own open four | +700,000 |
+| Own four | +400,000 |
+| Own flex three | +300,000 |
+| Opponent open four | +500,000 |
+| Opponent four | +350,000 |
+| Opponent flex three | +200,000 |
+| Killer 1 / Killer 2 (quiet stage) | +500,000 / +400,000 |
+| Quiet history | 2x butterfly history, capped at 300,000 |
+| Continuation history | up to +30,000 |
+| Quiet center bias | (28 - manhattan distance to center) x 100 |
+| Quiet proximity | 10 x occupied cells in the 5x5 neighborhood |
+
+Stage order, not the numeric scores, is what separates winning/must-block from
+threats: the threat stage only sees moves that survived the earlier stages.
 
 ### 4.3 Continuation History
 
@@ -448,7 +458,6 @@ Immutable board design with pre-computed AI optimization data.
 - BitBoards: `uint64[4]` arrays (256 bits for 16x16 board)
 - Hash: Zobrist-style XOR updated on each move; dedicated null-move key prevents TT poisoning
 - O(1) access during AI search instead of O(n^2) iteration
-- SIMD evaluation path via experimental simd/archsimd (build tag: goexperiment.simd; planned)
 
 **Memory Layout:**
 ```
@@ -478,11 +487,11 @@ Victory by Continuous Fours - tactical solver for forcing win sequences.
 
 **Integration:**
 - Runs before alpha-beta search
-- Skipped when opponent has immediate win (flex4 or double block4)
-- VCF-BLOCK: detects opponent VCF threat and passes block square as preferred move hint to alpha-beta (full search still runs; only trusted on `VCFNoWin` verification, not `VCFTimeout`)
+- Own-side solve is skipped when the opponent has an immediate win (flex4 or double block4) - the pre-solve would waste time on a lost race (this guard is part of the VCF pre-solve, not null-move pruning)
+- Block hint: when the opponent has a proven VCF, the re-solved block square is passed to alpha-beta as the preferred first root move (full search still runs; the hint is only trusted on `VCFNoWin` verification, not `VCFTimeout`)
 - Overline validation in `findFourBlocks`: checks cells beyond block squares for overline
 - Candidate radius reduced to 2 (fours are always adjacent)
-- Depth-limited for practical use
+- Depth-limited for practical use (per-level caps in 9.3)
 
 ### 7.3 Exactly-5 Validation
 
@@ -546,8 +555,8 @@ All shared data structures designed for concurrent access.
 - No shared mutable state in game logic
 
 **Thread-Safe Structures:**
-- TT with 16 shards, each protected by a `ReaderWriterLockSlim` (concurrent reads, exclusive writes)
-- Go channels for async communication
+- TT with 16 shards, each protected by a monitor lock
+- Search workers as long-running tasks with a concurrent result bag
 - Independent history tables per worker
 
 ### 8.2 Cancellation
@@ -557,7 +566,7 @@ Coordinated search cancellation via CancellationToken.
 **Mechanism:**
 - HTTP request context propagated through GetBestMove to search dispatch
 - Derived context combines external cancellation with internal time-monitor
-- Channel-based worker pool respects context cancellation
+- Long-running task workers respect context cancellation
 - Clean termination on timeout, stop command, or client disconnect
 - Ponder tasks cancel the same way; `StopPonder` cancels and joins,
   and `GetBestMove`/`Dispose` drain any running ponder first (see 6.3)
@@ -567,8 +576,8 @@ Coordinated search cancellation via CancellationToken.
 Atomic counters collect search telemetry without blocking hot paths.
 
 **Counters:**
-- `TimeMonitor.Nodes` (`atomic.Int64`): incremented at entry of search nodes
-- `TranspositionTable.probes` / `hits` (`atomic.Int64`): TT lookup statistics
+- `TimeMonitor.Nodes`: `Interlocked.Increment` at entry of search nodes
+- `TranspositionTable.probes` / `hits`: `Interlocked` TT lookup statistics
 - Elapsed time from `TimeMonitor.startTime`
 
 **Aggregation:**
@@ -606,19 +615,22 @@ Standard UCI commands for engine control:
 
 Strength-based difficulty via `DifficultyProfile`: depth caps make level differences hold on any machine, with the time fraction as a secondary cap.
 
-| Level | Name | Depth Cap | Time Fraction | Threads | Parallel | VCF | Ponder | TT Size |
-|-------|------|-----------|---------------|------------|----------|-----|--------|---------|
-| 1 | Novice | 2 | 5% | 1 | No | No | No | 64MB |
-| 2 | Beginner | 4 | 15% | 1 | No | No | No | 64MB |
-| 3 | Intermediate | 6 | 40% | 2 | Yes | Yes | No | 256MB |
-| 4 | Advanced | 10 | 70% | Pow2((N-2)/2)/2 | Yes | Yes | No | 1GB |
-| 5 | Grandmaster | 50 | 100% | Pow2((N-2)/2) | Yes | Yes | Yes | 1GB |
+| Level | Name | Depth Cap | Time Fraction | Threads | Parallel | VCF | VCF Depth | Ponder | TT Size |
+|-------|------|-----------|---------------|------------|----------|-----|-----------|--------|---------|
+| 1 | Novice | 2 | 5% | 1 | No | No | 0 | No | 64MB |
+| 2 | Beginner | 4 | 15% | 1 | No | No | 0 | No | 64MB |
+| 3 | Intermediate | 4 | 40% | 2 | Yes | Yes | 2 | No | 256MB |
+| 4 | Advanced | 5 | 70% | Pow2((N-2)/2)/2 | Yes | Yes | 4 | No | 1GB |
+| 5 | Grandmaster | 50 | 100% | Pow2((N-2)/2) | Yes | Yes | 12 | Yes | 1GB |
 
 **How it works:**
-- `MaxDepth`: The primary strength knob. Each level searches strictly deeper
-  than the one below, so L(k) beats L(k-1) on any host.
+- `MaxDepth`: The primary strength knob up to the measured plateau: past depth ~6
+  at bullet time controls, extra ID depth stops buying strength in self-play, so
+  L3/L4 caps stay at 4/5 and the ladder scales `VCFDepth` (solver sight) instead.
 - `TimeFraction` (0.0-1.0): Secondary cap on the allocated search time.
-- `UseVCF`: Disabling the pre-search VCF solver removes tactical precision at low levels.
+- `UseVCF` / `VCFDepth`: Disabling the pre-search VCF solver removes tactical
+  precision at low levels; mid levels see the opponent's forced-four threats
+  only to a shallow solver depth.
 - Thread count scales with difficulty: level 1-2 single-threaded, level 3 dual-threaded, level 4-5 adaptive to hardware.
 - Level 4 uses half of L5's thread count (next power of 2 down).
 - `Ponder`: L5 only; background search on the predicted reply during the
@@ -673,9 +685,9 @@ Two-character algebraic notation for Caro:
 | `PatternWindow.cs` | 11-cell line-window primitives over Span<sbyte>: ExtractLine, SpanThrough, LineCompletions, placement analysis |
 | `Pattern4.cs` | 4-direction threat classification on window primitives (Flex/Block patterns, combined counts) |
 | `Vcf.cs` | Victory by Continuous Fours pre-search solver |
-| `TranspositionTable.cs` | Sharded TT (ReaderWriterLockSlim) with depth-age replacement |
+| `TranspositionTable.cs` | Sharded TT (per-shard monitor) with depth-age replacement |
 | `MovePicker.cs` | Staged move ordering (6 stages: TT -> Win -> Block -> Threat -> Killer/Counter -> Quiet) |
-| `Candidates.cs` | Candidate generation with center-of-mass ordering, tactical filtering |
+| `Candidates.cs` | Radius-2 neighborhood candidate generation (3x3 center seed on empty board), four-forcing tactical filter, open-rule filter |
 | `SearchHeuristics.cs` | Killer moves, continuation/butterfly/counter-move history |
 | `TimeManager.cs` | Phase-aware time allocation with clock safety floors |
 | `IterationBudget.cs` | Predicted iteration-cost gating against the soft budget |
