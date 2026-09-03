@@ -6,7 +6,7 @@ namespace Caro.Engine.Tests;
 
 public class VcfTests
 {
-    private static Board M15VCFBoard() =>
+    internal static Board M15VCFBoard() =>
         Board.NewBoard()
             // Red stones
             .PlaceStone(9, 8, Player.Red)
@@ -388,14 +388,14 @@ public class VcfTests
     {
         Board b = M15VCFBoard();
 
-        (_, _, VCFResult result) = Vcf.SolveVCFWithDepth(b, Player.Red, 1, 5000, CancellationToken.None);
-        Assert.Equal(VCFResult.NoWin, result);
-
-        (_, _, result) = Vcf.SolveVCFWithDepth(b, Player.Red, 2, 5000, CancellationToken.None);
+        (_, _, VCFResult result) = Vcf.SolveVCF(b, Player.Red, 5000, CancellationToken.None);
         Assert.Equal(VCFResult.Win, result);
 
-        (_, _, result) = Vcf.SolveVCF(b, Player.Red, 5000, CancellationToken.None);
-        Assert.Equal(VCFResult.Win, result);
+        VcfSearchResult d1 = Vcf.SolveVCFWithDepth(b, Player.Red, 1, 5000, CancellationToken.None);
+        Assert.Equal(VCFResult.NoWin, d1.Result);
+
+        VcfSearchResult d2 = Vcf.SolveVCFWithDepth(b, Player.Red, 2, 5000, CancellationToken.None);
+        Assert.Equal(VCFResult.Win, d2.Result);
     }
 
     [Fact]

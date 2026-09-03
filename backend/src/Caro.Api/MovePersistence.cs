@@ -86,6 +86,8 @@ public sealed partial class GameHandlers
                 MoveType = mt,
                 PonderDepth = ponderDepth,
                 PonderNodes = ponderNodes,
+                VcfDepth = stats.VcfDepth,
+                VcfNodes = stats.VcfNodes,
             });
         }
         catch (Exception e)

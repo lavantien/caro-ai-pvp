@@ -42,6 +42,8 @@ public sealed class MoveRecord
     public long? SlaveNodes { get; set; }
     public int? PonderDepth { get; set; }
     public long? PonderNodes { get; set; }
+    public int? VcfDepth { get; set; }
+    public long? VcfNodes { get; set; }
 }
 
 /// <summary>
@@ -127,6 +129,8 @@ public sealed class MatchStore : IDisposable
             ("slave_nodes", "INTEGER"),
             ("ponder_depth", "INTEGER"),
             ("ponder_nodes", "INTEGER"),
+            ("vcf_depth", "INTEGER"),
+            ("vcf_nodes", "INTEGER"),
         ];
 
         HashSet<string> existing = [];
@@ -174,11 +178,11 @@ public sealed class MatchStore : IDisposable
             INSERT INTO moves (game_id, move_number, player, pos_x, pos_y, is_bot, difficulty,
                 think_time_ms, remaining_time_ms, search_depth, nodes_searched, nps, tt_hit_rate,
                 search_score, threads_used, allocated_time_ms, move_type,
-                master_pct, slave_depth, slave_nodes, ponder_depth, ponder_nodes)
+                master_pct, slave_depth, slave_nodes, ponder_depth, ponder_nodes, vcf_depth, vcf_nodes)
             VALUES (@gid, @mn, @pl, @px, @py, @ib, @di,
                 @tt, @rt, @sd, @ns, @nps, @ttu,
                 @ss, @th, @at, @mt,
-                @mp, @sld, @sln, @pd, @pn)
+                @mp, @sld, @sln, @pd, @pn, @vd, @vn)
             """;
         lock (_gate)
         {
@@ -205,6 +209,8 @@ public sealed class MatchStore : IDisposable
             cmd.Parameters.AddWithValue("@sln", Param(m.SlaveNodes));
             cmd.Parameters.AddWithValue("@pd", Param(m.PonderDepth));
             cmd.Parameters.AddWithValue("@pn", Param(m.PonderNodes));
+            cmd.Parameters.AddWithValue("@vd", Param(m.VcfDepth));
+            cmd.Parameters.AddWithValue("@vn", Param(m.VcfNodes));
             cmd.ExecuteNonQuery();
         }
     }
@@ -264,7 +270,8 @@ public sealed class MatchStore : IDisposable
             SELECT move_number, player, pos_x, pos_y, is_bot, difficulty,
                    think_time_ms, remaining_time_ms, search_depth, nodes_searched,
                    nps, tt_hit_rate, search_score, threads_used, allocated_time_ms, move_type,
-                   master_pct, slave_depth, slave_nodes, ponder_depth, ponder_nodes
+                   master_pct, slave_depth, slave_nodes, ponder_depth, ponder_nodes,
+                   vcf_depth, vcf_nodes
             FROM moves WHERE game_id = @id ORDER BY move_number
             """;
         lock (_gate)
@@ -300,6 +307,8 @@ public sealed class MatchStore : IDisposable
                     SlaveNodes = NullableLong(reader, 18),
                     PonderDepth = NullableInt(reader, 19),
                     PonderNodes = NullableLong(reader, 20),
+                    VcfDepth = NullableInt(reader, 21),
+                    VcfNodes = NullableLong(reader, 22),
                 });
             }
             return moves;

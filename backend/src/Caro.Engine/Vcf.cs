@@ -2,11 +2,13 @@ using Caro.Domain;
 
 namespace Caro.Engine;
 
-internal sealed class VCFSolver(SearchBoard sb, Player attacker, TimeMonitor monitor)
+internal sealed class VCFSolver(SearchBoard sb, Player attacker, TimeMonitor monitor, int startDepth)
 {
     private int _winX;
     private int _winY;
     private bool _timedOut;
+    private long _nodes;
+    private int _chainDepth;
 
     public bool Search(int depth)
     {
@@ -31,12 +33,14 @@ internal sealed class VCFSolver(SearchBoard sb, Player attacker, TimeMonitor mon
             }
 
             sb.MakeMove(c.X, c.Y, attacker);
+            _nodes++;
 
             if (MoveOrdering.WouldWin(sb, c.X, c.Y, attacker))
             {
                 sb.UnmakeMove();
                 _winX = c.X;
                 _winY = c.Y;
+                _chainDepth = startDepth - depth + 1;
                 return true;
             }
 
@@ -83,6 +87,8 @@ internal sealed class VCFSolver(SearchBoard sb, Player attacker, TimeMonitor mon
 
             if (allWin)
             {
+                // _chainDepth already counts the full forced chain from the
+                // winning recursion; only the move itself is decided here.
                 _winX = c.X;
                 _winY = c.Y;
                 return true;
@@ -95,6 +101,10 @@ internal sealed class VCFSolver(SearchBoard sb, Player attacker, TimeMonitor mon
     public (int X, int Y) WinMove => (_winX, _winY);
 
     public bool TimedOut => _timedOut;
+
+    public long NodesSearched => _nodes;
+
+    public int ChainDepth => _chainDepth;
 }
 
 public static class Vcf
@@ -105,7 +115,8 @@ public static class Vcf
         long allocatedMs,
         CancellationToken ctx)
     {
-        return SolveVCFWithDepth(b, player, Constants.Vcf.SearchDepth, allocatedMs, ctx);
+        VcfSearchResult r = SolveVCFWithDepth(b, player, Constants.Vcf.SearchDepth, allocatedMs, ctx);
+        return (r.X, r.Y, r.Result);
     }
 
     /// <summary>
@@ -113,7 +124,7 @@ public static class Vcf
     /// depth 1 sees only immediate fours. It is the per-level tactical sight
     /// knob behind DifficultyProfile.VCFDepth.
     /// </summary>
-    public static (int X, int Y, VCFResult Result) SolveVCFWithDepth(
+    public static VcfSearchResult SolveVCFWithDepth(
         Board b,
         Player player,
         int depth,
@@ -123,22 +134,22 @@ public static class Vcf
         SearchBoard sb = new(b);
         using TimeMonitor monitor = new(allocatedMs, ctx);
 
-        VCFSolver v = new(sb, player, monitor);
-
         if (depth <= 0)
         {
             depth = Constants.Vcf.SearchDepth;
         }
+        VCFSolver v = new(sb, player, monitor, depth);
+
         if (v.Search(depth))
         {
             (int x, int y) = v.WinMove;
-            return (x, y, VCFResult.Win);
+            return new VcfSearchResult(x, y, VCFResult.Win, v.NodesSearched, v.ChainDepth);
         }
         if (v.TimedOut)
         {
-            return (-1, -1, VCFResult.Timeout);
+            return new VcfSearchResult(-1, -1, VCFResult.Timeout, v.NodesSearched, v.ChainDepth);
         }
-        return (-1, -1, VCFResult.NoWin);
+        return new VcfSearchResult(-1, -1, VCFResult.NoWin, v.NodesSearched, v.ChainDepth);
     }
 
     internal static bool OpponentHasImmediateWin(SearchBoard sb, Player opponent)

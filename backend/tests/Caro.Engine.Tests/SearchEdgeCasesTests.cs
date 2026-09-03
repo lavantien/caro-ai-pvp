@@ -181,7 +181,7 @@ public class SearchEdgeCasesTests
             .PlaceStone(0, 0, Player.Blue)
             .PlaceStone(1, 1, Player.Blue);
 
-        (_, _, VCFResult result) = Vcf.SolveVCFWithDepth(b, Player.Red, 9, 0, CancellationToken.None);
-        Assert.Equal(VCFResult.Timeout, result);
+        VcfSearchResult r = Vcf.SolveVCFWithDepth(b, Player.Red, 9, 0, CancellationToken.None);
+        Assert.Equal(VCFResult.Timeout, r.Result);
     }
 }

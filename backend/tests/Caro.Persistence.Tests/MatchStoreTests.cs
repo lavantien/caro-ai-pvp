@@ -229,6 +229,8 @@ public class MatchStoreTests
         Assert.Null(moves[0].SlaveNodes);
         Assert.Null(moves[0].PonderDepth);
         Assert.Null(moves[0].PonderNodes);
+        Assert.Null(moves[0].VcfDepth);
+        Assert.Null(moves[0].VcfNodes);
     }
 
     [Fact]
@@ -260,6 +262,8 @@ public class MatchStoreTests
             SlaveNodes = 500_000,
             PonderDepth = 8,
             PonderNodes = 300_000,
+            VcfDepth = 3,
+            VcfNodes = 120_000,
         });
 
         List<MoveRecord> moves = svc.GetMoves("g1");
@@ -269,6 +273,8 @@ public class MatchStoreTests
         Assert.Equal(500_000L, moves[0].SlaveNodes);
         Assert.Equal(8, moves[0].PonderDepth);
         Assert.Equal(300_000L, moves[0].PonderNodes);
+        Assert.Equal(3, moves[0].VcfDepth);
+        Assert.Equal(120_000L, moves[0].VcfNodes);
     }
 
     [Fact]

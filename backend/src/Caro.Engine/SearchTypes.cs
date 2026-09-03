@@ -27,6 +27,8 @@ public struct SearchStats
     public double TableHitRate { get; set; }
     public long AllocatedTimeMs { get; set; }
     public int ThreadCount { get; set; }
+    public int? VcfDepth { get; set; }
+    public long? VcfNodes { get; set; }
 }
 
 public enum VCFResult
@@ -35,3 +37,15 @@ public enum VCFResult
     Win = 1,
     Timeout = 2,
 }
+
+/// <summary>
+/// Solver outcome with observability counters: one node per attacker
+/// placement tried, ChainDepth = attacker moves in the winning forced
+/// chain (0 when no win).
+/// </summary>
+public readonly record struct VcfSearchResult(
+    int X,
+    int Y,
+    VCFResult Result,
+    long NodesSearched,
+    int ChainDepth);

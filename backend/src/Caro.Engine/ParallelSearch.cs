@@ -47,16 +47,18 @@ public static class ParallelSearch
             if (!Vcf.OpponentHasImmediateWin(oppSB, player.Opponent()))
             {
                 long vcfTime = (long)(config.TimeLimitMs * Constants.Vcf.TimeFraction);
-                (int vx, int vy, VCFResult result) = Vcf.SolveVCFWithDepth(b, player, config.VCFMaxDepth, vcfTime, ctx);
-                if (result == VCFResult.Win)
+                VcfSearchResult vcf = Vcf.SolveVCFWithDepth(b, player, config.VCFMaxDepth, vcfTime, ctx);
+                if (vcf.Result == VCFResult.Win)
                 {
-                    return (vx, vy, new SearchStats
+                    return (vcf.X, vcf.Y, new SearchStats
                     {
                         DepthAchieved = 0,
                         SearchScore = Constants.Score.WinScore,
                         AllocatedTimeMs = config.TimeLimitMs,
                         ThreadCount = numWorkers,
                         MoveType = MoveTypes.Vcf,
+                        VcfDepth = vcf.ChainDepth,
+                        VcfNodes = vcf.NodesSearched,
                     });
                 }
             }
@@ -66,15 +68,15 @@ public static class ParallelSearch
         if (config.UseVCF)
         {
             long oppVcfTime = (long)(config.TimeLimitMs * Constants.Vcf.BlockFraction);
-            (int vx, int vy, VCFResult result) = Vcf.SolveVCFWithDepth(b, player.Opponent(), config.VCFMaxDepth, oppVcfTime, ctx);
-            if (result == VCFResult.Win)
+            VcfSearchResult opp = Vcf.SolveVCFWithDepth(b, player.Opponent(), config.VCFMaxDepth, oppVcfTime, ctx);
+            if (opp.Result == VCFResult.Win)
             {
-                Board blocked = b.PlaceStone(vx, vy, player);
+                Board blocked = b.PlaceStone(opp.X, opp.Y, player);
                 long blockCheckTime = (long)(config.TimeLimitMs * Constants.Vcf.BlockCheckFraction);
-                (_, _, VCFResult checkResult) = Vcf.SolveVCFWithDepth(blocked, player.Opponent(), config.VCFMaxDepth, blockCheckTime, ctx);
-                if (checkResult != VCFResult.Win)
+                VcfSearchResult check = Vcf.SolveVCFWithDepth(blocked, player.Opponent(), config.VCFMaxDepth, blockCheckTime, ctx);
+                if (check.Result != VCFResult.Win)
                 {
-                    vcfPreferred = new Position(vx, vy);
+                    vcfPreferred = new Position(opp.X, opp.Y);
                 }
             }
         }
