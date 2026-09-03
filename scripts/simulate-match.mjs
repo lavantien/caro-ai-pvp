@@ -10,7 +10,7 @@
  *   node scripts/simulate-match.mjs --red 5 --blue 3     # GM vs Intermediate
  */
 
-import { API_BASE_URL, DIFFICULTY_NAMES, GAME_MODE_AIVAI, timeControl } from './lib.mjs';
+import { API_BASE_URL, DIFFICULTY_NAMES, ENDPOINTS, GAME_MODE_AIVAI, timeControl } from './lib.mjs';
 
 function parseArgs() {
 	const args = process.argv.slice(2);
@@ -49,7 +49,7 @@ async function main() {
 	}
 
 	// Create game with per-player difficulty
-	const createResp = await fetch(`${API_BASE_URL}/api/game/new`, {
+	const createResp = await fetch(`${API_BASE_URL}${ENDPOINTS.newGame}`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({
@@ -70,7 +70,7 @@ async function main() {
 	let reason = '';
 
 	while (moveCount < opts.maxMoves) {
-		const moveResp = await fetch(`${API_BASE_URL}/api/game/${gameId}/ai-move`, {
+		const moveResp = await fetch(`${API_BASE_URL}${ENDPOINTS.aiMove(gameId)}`, {
 			method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
 		});
 		if (!moveResp.ok) {
@@ -97,7 +97,7 @@ async function main() {
 	const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
 	// Clean up game from server to free AI engine memory
-	await fetch(`${API_BASE_URL}/api/game/${gameId}`, { method: 'DELETE' }).catch(() => {});
+	await fetch(`${API_BASE_URL}${ENDPOINTS.delete(gameId)}`, { method: 'DELETE' }).catch(() => {});
 
 	if (opts.json) {
 		console.log(JSON.stringify({

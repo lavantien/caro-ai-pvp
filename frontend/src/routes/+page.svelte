@@ -13,7 +13,7 @@
 		<ul class="space-y-1.5 text-gray-700 text-sm sm:text-base">
 			<li>Red O vs Blue X</li>
 			<li>Red's second move must be at least {GameConfig.openRuleMinDistance} intersections away</li>
-			<li>Exactly 5 in a row to win (no overlines)</li>
+			<li>Exactly {GameConfig.winLength} in a row to win (no overlines)</li>
 			<li>Both ends blocked = no win</li>
 		</ul>
 	</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { UIConfig } from '$lib/config';
 	import type { Player } from '$lib/types/game';
 
 	interface Props {
@@ -15,6 +16,7 @@
 		: winner === 'blue'
 			? 'bg-blue-600'
 			: 'bg-slate-600'}"
+	style="animation: slide-down {UIConfig.resultBannerAnimationMs}ms ease-out forwards"
 >
 	<h2 class="text-lg font-bold uppercase tracking-wide text-white">
 		{#if winner === 'red' || winner === 'blue'}
@@ -39,9 +41,5 @@
 		to {
 			transform: translateY(0);
 		}
-	}
-
-	.animate-slide-down {
-		animation: slide-down 0.3s ease-out forwards;
 	}
 </style>

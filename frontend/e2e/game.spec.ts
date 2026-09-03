@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { E2EConfig } from "../src/lib/config";
+import { E2EConfig, UIConfig } from "../src/lib/config";
 
 /**
  * E2E Tests for Caro Game
@@ -29,7 +29,7 @@ const notation = (page: import("@playwright/test").Page) =>
 // never rejects later tests. The page exposes the id in dev builds.
 test.afterEach(async ({ page }) => {
   const gameId = await page
-    .evaluate(() => (window as any).__caroGameId)
+    .evaluate((key) => (window as any)[key], E2EConfig.gameIdHookKey)
     .catch(() => null);
   if (gameId) {
     await page
@@ -215,7 +215,7 @@ test.describe("Caro Game - Winning Line Animation", () => {
     await page.waitForTimeout(E2EConfig.animationWaitMs);
 
     // Winning line drawn in red; geometry is relative (cell size is responsive)
-    const line = page.locator('line[stroke="#ef4444"]');
+    const line = page.locator(`line[stroke="${UIConfig.winningLineColor}"]`);
     await expect(line).toHaveCount(1);
     const x1 = Number(await line.getAttribute("x1"));
     const x2 = Number(await line.getAttribute("x2"));

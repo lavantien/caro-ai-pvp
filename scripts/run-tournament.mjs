@@ -18,6 +18,7 @@ import {
 	API_BASE_URL,
 	ARTIFACTS,
 	DIFFICULTY_NAMES,
+	ENDPOINTS,
 	GAME_MODE_AIVAI,
 	createProcessManager,
 	startBackend,
@@ -94,7 +95,7 @@ async function postJson(url, body) {
 // --- Game Logic ---
 
 async function playOneGame(redDiff, blueDiff, timeControlValue, maxMoves, seed) {
-	const { gameId } = await postJson(`${API_BASE_URL}/api/game/new`, {
+	const { gameId } = await postJson(`${API_BASE_URL}${ENDPOINTS.newGame}`, {
 		timeControl: timeControlValue,
 		gameMode: GAME_MODE_AIVAI,
 		redDifficulty: redDiff,
@@ -110,7 +111,7 @@ async function playOneGame(redDiff, blueDiff, timeControlValue, maxMoves, seed) 
 
 	try {
 		while (moveCount < maxMoves) {
-			const data = await postJson(`${API_BASE_URL}/api/game/${gameId}/ai-move`);
+			const data = await postJson(`${API_BASE_URL}${ENDPOINTS.aiMove(gameId)}`);
 			moveCount++;
 
 			if (data.lastMove?.statline) console.log(data.lastMove.statline);
@@ -123,7 +124,7 @@ async function playOneGame(redDiff, blueDiff, timeControlValue, maxMoves, seed) 
 		}
 	} finally {
 		// Free engine memory regardless of outcome.
-		await fetch(`${API_BASE_URL}/api/game/${gameId}`, { method: 'DELETE' }).catch(() => {});
+		await fetch(`${API_BASE_URL}${ENDPOINTS.delete(gameId)}`, { method: 'DELETE' }).catch(() => {});
 	}
 
 	if (!winner && moveCount >= maxMoves) {

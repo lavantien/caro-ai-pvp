@@ -28,6 +28,14 @@ export const WS_UCI_URL =
 export const FRONTEND_URL =
 	process.env.FRONTEND_URL ?? `http://localhost:${DEFAULT_FRONTEND_PORT}`;
 
+// --- API endpoint paths (mirrors frontend ApiConfig.endpoints) ---
+
+export const ENDPOINTS = Object.freeze({
+	newGame: '/api/game/new',
+	aiMove: (id) => `/api/game/${id}/ai-move`,
+	delete: (id) => `/api/game/${id}`
+});
+
 // --- Build paths ---
 
 export const ROOT = resolve(__dirname, '..');

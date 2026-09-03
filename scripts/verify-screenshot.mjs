@@ -5,6 +5,7 @@ import {
 	BROWSER,
 	FRONTEND_DIR,
 	FRONTEND_URL,
+	SCREENSHOT,
 	SELECTORS,
 	timeControl
 } from './lib.mjs';
@@ -38,10 +39,10 @@ async function verify() {
   try {
     console.log('\n=== Loading game page ===');
     await page.goto(`${FRONTEND_URL}/game`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(SCREENSHOT.settleMs);
 
     console.log('\n=== Starting AIvAI game ===');
-    await page.waitForSelector(SELECTORS.aiVsAiButton, { timeout: 10000 });
+    await page.waitForSelector(SELECTORS.aiVsAiButton, { timeout: SCREENSHOT.uiReadyTimeoutMs });
     await page.click(SELECTORS.aiVsAiButton);
     // 1+0 keeps per-move think time short so the first notation entry lands
     // well inside the wait below (7+5's opening think can run ~30s alone).

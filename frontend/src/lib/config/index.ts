@@ -23,7 +23,8 @@ export interface TimeControlOption {
 
 // Optional chaining keeps the module importable outside Vite (Playwright
 // loads the e2e timing section in plain Node, where import.meta.env is
-// undefined).
+// undefined). Port 5207 mirrors Caro.Server Program.cs ServerConfig.DefaultPort
+// and scripts/lib.mjs DEFAULT_API_PORT; update together.
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5207';
 const WS_BASE_URL = API_BASE_URL.replace(/^http/, 'ws');
 
@@ -155,8 +156,8 @@ export const UIConfig = {
 	/** Timer display update interval in milliseconds */
 	timerUpdateIntervalMs: 100,
 
-	/** Timer server sync interval in milliseconds */
-	timerSyncIntervalMs: 500,
+	/** Result banner slide-in animation duration in milliseconds */
+	resultBannerAnimationMs: 300,
 
 	/** Seconds remaining to trigger low-time warning */
 	lowTimeThresholdSeconds: 60,
@@ -241,9 +242,6 @@ export const E2EConfig = {
 	/** Wait for timer countdown to be observable (ms) */
 	timerCountdownWaitMs: 2000,
 
-	/** Wait for regression test moves (ms) */
-	regressionMoveWaitMs: 150,
-
 	/** Window key exposing the current game id for e2e cleanup */
 	gameIdHookKey: '__caroGameId'
 } as const;
@@ -262,11 +260,9 @@ export const UCIConfig = {
 	/** Maximum valid row number (1-based) */
 	maxRow: GameConfig.boardSize,
 
-	/** Default time per player in milliseconds (3 minutes) */
-	defaultTimeMs: 180000,
-
-	/** Default increment per move in milliseconds (2 seconds) */
-	defaultIncrementMs: 2000,
+	/** Default clock for UCI play: the 3+2 table entry */
+	defaultTimeMs: timeControlOption('3+2')!.initialTimeMs,
+	defaultIncrementMs: timeControlOption('3+2')!.incrementSeconds * 1000,
 
 	/** Search timeout in milliseconds (60 seconds) */
 	searchTimeoutMs: 60000,
