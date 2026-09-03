@@ -457,6 +457,7 @@ All defaults live in one place per runtime: `backend/src/Caro.Domain/Constants.c
 | `VITE_API_BASE_URL` | Frontend API base URL | `http://localhost:5207` |
 | `CARO_TFM` | Target framework used to locate the server DLL in scripts | `net10.0` |
 | `CARO_BACKEND_TIMEOUT_MS` / `CARO_FRONTEND_TIMEOUT_MS` | Script readiness timeouts | `60000` / `30000` |
+| `CARO_WEBSERVER_TIMEOUT_MS` | Playwright web-server startup timeout | `120000` |
 | `CARO_SCREENSHOT_RETRIES` / `CARO_BANNER_TIMEOUT_MS` / `CARO_SCREENSHOT_SETTLE_MS` | Screenshot capture knobs | `3` / `600000` / `800` |
 | `CARO_PROBE_THREADS` / `CARO_PROBE_HASH_MB` / `CARO_PROBE_SKILL` / `CARO_PROBE_SPEED_DEPTH` / `CARO_PROBE_CLOCK_MS` / `CARO_PROBE_PARITY_TIMEOUT_MS` / `CARO_PROBE_SPEED_TIMEOUT_MS` | UCI probe settings | `1` / `256` / `5` / `9` / `3600000` / `180000` / `300000` |
 

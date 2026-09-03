@@ -174,7 +174,7 @@ export const UIConfig = {
 	/** Minimum coordinate label size in pixels */
 	labelMinSizePx: 14,
 
-	/** Ghost stone diameter as a fraction of cell size */
+	/** Ghost stone vertical offset above the touch point, as a fraction of cell size */
 	ghostStoneScale: 0.78,
 
 	/** Error banner auto-dismiss delay in milliseconds */

@@ -4,10 +4,10 @@
  * UCI probe — deterministic engine probes over the /ws/uci WebSocket bridge.
  *
  * Modes:
- *   parity — fixed positions at fixed depths, single thread, fixed hash.
- *            bestmove and score cp must match across engines; nodes are
- *            recorded for drift reference.
- *   speed  — movetime run on the midgame position, reports nodes/nps.
+ *   parity — fixed positions at fixed depths, single thread, fixed hash;
+ *            outputs are recorded for cross-engine comparison.
+ *   speed  — full depth-N search on the midgame position under a large
+ *            fixed clock, reports nodes/nps.
  *
  * Usage:
  *   node scripts/uci-probe.mjs --mode parity
