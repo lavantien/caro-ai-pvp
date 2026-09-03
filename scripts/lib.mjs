@@ -17,6 +17,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Canonical: Caro.Server Program.cs ServerConfig.DefaultPort; mirrored by
 // frontend/src/lib/config ApiConfig.baseUrl. Update together.
 export const DEFAULT_API_PORT = 5207;
+// Mirrored by frontend/vite.config.ts (commented literal; importing this
+// module there breaks svelte-check). Update together.
 export const DEFAULT_FRONTEND_PORT = 5173;
 
 export const API_BASE_URL = process.env.API_BASE_URL ?? `http://localhost:${DEFAULT_API_PORT}`;
@@ -61,6 +63,9 @@ function envInt(name, dflt) {
 export const TIMEOUTS = Object.freeze({
 	backendReadyMs: envInt('CARO_BACKEND_TIMEOUT_MS', 60_000),
 	frontendReadyMs: envInt('CARO_FRONTEND_TIMEOUT_MS', 30_000),
+	// Playwright's budget for booting the dev web server (npm run dev),
+	// deliberately larger than frontendReadyMs to cover cold starts.
+	webServerTimeoutMs: envInt('CARO_WEBSERVER_TIMEOUT_MS', 120_000),
 	defaultReadyMs: 30_000,
 	pollIntervalMs: 1_000
 });

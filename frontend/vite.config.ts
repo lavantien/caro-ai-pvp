@@ -9,6 +9,8 @@ export default defineConfig(({ mode }) => {
 	return {
 		plugins: [sveltekit()],
 		server: {
+			// 5173 mirrors scripts/lib.mjs DEFAULT_FRONTEND_PORT; importing
+			// lib.mjs here would drag node builtins into svelte-check.
 			port: Number(env.FRONTEND_PORT ?? 5173),
 			strictPort: true, // Fail if port is in use instead of trying next port
 			host: true

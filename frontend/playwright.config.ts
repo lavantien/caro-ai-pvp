@@ -1,7 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
+import { DEFAULT_FRONTEND_PORT, TIMEOUTS } from "../scripts/lib.mjs";
 
-const E2E_BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:5173";
-const WEB_SERVER_TIMEOUT_MS = 120_000;
+const E2E_BASE_URL =
+  process.env.E2E_BASE_URL ??
+  `http://localhost:${process.env.FRONTEND_PORT ?? DEFAULT_FRONTEND_PORT}`;
 
 /**
  * Playwright E2E Test Configuration
@@ -38,6 +40,6 @@ export default defineConfig({
     command: "npm run dev",
     url: E2E_BASE_URL,
     reuseExistingServer: !process.env.CI,
-    timeout: WEB_SERVER_TIMEOUT_MS,
+    timeout: TIMEOUTS.webServerTimeoutMs,
   },
 });
