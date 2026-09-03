@@ -16,6 +16,7 @@ public sealed class CaroConfig
     public int OpeningSpreadRadius { get; init; } = Constants.Opening.SpreadRadius;
 
     public TimeControlOptions TimeControl { get; init; } = new();
+    public UciOptions Uci { get; init; } = new();
 
     // Keyed by level so partial config binds merge into the seeded entries
     // instead of replacing the whole ladder (a positional list cannot be
@@ -82,6 +83,18 @@ public sealed class CaroConfig
                     $"Caro:DifficultyProfiles must contain level {level}");
             }
             profile.Validate();
+        }
+
+        Uci.Validate();
+        if (DefaultTTSizeMB > Uci.HashMB.Max)
+        {
+            throw new InvalidOperationException(
+                $"Caro:DefaultTTSizeMB must be <= Caro:Uci:HashMB:Max ({Uci.HashMB.Max})");
+        }
+        if (DefaultSessionTTSizeMB > Uci.HashMB.Max)
+        {
+            throw new InvalidOperationException(
+                $"Caro:DefaultSessionTTSizeMB must be <= Caro:Uci:HashMB:Max ({Uci.HashMB.Max})");
         }
     }
 }
@@ -171,6 +184,61 @@ public sealed class DifficultyProfileOptions
         if (TTSizeMB < 1)
         {
             throw new InvalidOperationException($"{key}:TTSizeMB must be >= 1");
+        }
+    }
+}
+
+/// <summary>
+/// UCI option defaults and enforced ranges; the handshake advertisement and
+/// the setoption validation read the same values.
+/// </summary>
+public sealed class UciOptions
+{
+    public UciBoundOptions Threads { get; } = new()
+    {
+        Default = Constants.Uci.DefaultThreads,
+        Min = Constants.Uci.MinThreads,
+        Max = Constants.Uci.MaxThreads,
+    };
+    public UciBoundOptions HashMB { get; } = new()
+    {
+        Default = Constants.Uci.DefaultHashMB,
+        Min = Constants.Uci.MinHashMB,
+        Max = Constants.Uci.MaxHashMB,
+    };
+    public UciBoundOptions SkillLevel { get; } = new()
+    {
+        Default = Constants.Uci.DefaultSkillLevel,
+        Min = Constants.Uci.MinSkillLevel,
+        Max = Constants.Uci.MaxSkillLevel,
+    };
+
+    public void Validate()
+    {
+        Threads.Validate("Caro:Uci:Threads");
+        HashMB.Validate("Caro:Uci:HashMB");
+        SkillLevel.Validate("Caro:Uci:SkillLevel");
+        if (SkillLevel.Min < Constants.Difficulty.MinLevel || SkillLevel.Max > Constants.Difficulty.MaxLevel)
+        {
+            throw new InvalidOperationException(
+                $"Caro:Uci:SkillLevel bounds must stay within "
+                + $"{Constants.Difficulty.MinLevel}..{Constants.Difficulty.MaxLevel}");
+        }
+    }
+}
+
+public sealed class UciBoundOptions
+{
+    public int Default { get; set; }
+    public int Min { get; set; }
+    public int Max { get; set; }
+
+    public void Validate(string key)
+    {
+        if (Min < 1 || Min > Default || Default > Max)
+        {
+            throw new InvalidOperationException(
+                $"{key} must satisfy 1 <= Min <= Default <= Max");
         }
     }
 }

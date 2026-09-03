@@ -182,4 +182,17 @@ public static partial class Constants
         public const long DefaultInitialTimeMs = 420_000;
         public const int DefaultIncrementSeconds = 5;
     }
+
+    public static class Uci
+    {
+        public const int DefaultThreads = 4;
+        public const int MinThreads = 1;
+        public const int MaxThreads = 64;
+        public const int DefaultHashMB = 256;
+        public const int MinHashMB = 32;
+        public const int MaxHashMB = 4096;
+        public const int DefaultSkillLevel = 5;
+        public const int MinSkillLevel = 1;
+        public const int MaxSkillLevel = 5;
+    }
 }

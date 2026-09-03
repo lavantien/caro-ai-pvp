@@ -13,29 +13,20 @@ public interface ILineWriter
     void WriteLine(string line);
 }
 
-public sealed class UciHandler(ILineWriter writer) : IDisposable
+public sealed class UciHandler(ILineWriter writer, CaroConfig? config = null) : IDisposable
 {
-    // Advertised and enforced UCI option ranges; the handshake and the
-    // setoption validation must agree, so both read these.
-    private const int DefaultThreads = 4;
-    private const int MinThreads = 1;
-    private const int MaxThreads = 64;
-    private const int DefaultHashMB = 256;
-    private const int MinHashMB = 32;
-    private const int MaxHashMB = 4096;
-    private const int DefaultSkillLevel = 5;
-    private const int MinSkillLevel = 1;
-    private const int MaxSkillLevel = 5;
+    private static CaroConfig ConfigOf(CaroConfig? c) => c ?? CaroConfig.Default;
 
+    private readonly CaroConfig _config = ConfigOf(config);
     private readonly object _gate = new();
-    private MinimaxAI _ai = new(DefaultThreads, DefaultHashMB);
+    private MinimaxAI _ai = new(ConfigOf(config).Uci.Threads.Default, ConfigOf(config).Uci.HashMB.Default);
     private Board _board = Board.NewBoard();
     private Player _player = Player.Red;
     private CancellationTokenSource? _searchCts;
     private Task? _searchTask;
-    private int _threads = DefaultThreads;
-    private int _hashMB = DefaultHashMB;
-    private int _skillLevel = DefaultSkillLevel;
+    private int _threads = ConfigOf(config).Uci.Threads.Default;
+    private int _hashMB = ConfigOf(config).Uci.HashMB.Default;
+    private int _skillLevel = ConfigOf(config).Uci.SkillLevel.Default;
 
     public Board CurrentBoard()
     {
@@ -74,9 +65,9 @@ public sealed class UciHandler(ILineWriter writer) : IDisposable
             case "uci":
                 Respond("id name Caro AI");
                 Respond("id author Caro AI Project");
-                Respond($"option name Threads type spin default {CurrentThreads()} min {MinThreads} max {MaxThreads}");
-                Respond($"option name Hash type spin default {DefaultHashMB} min {MinHashMB} max {MaxHashMB}");
-                Respond($"option name Skill Level type spin default {DefaultSkillLevel} min {MinSkillLevel} max {MaxSkillLevel}");
+                Respond($"option name Threads type spin default {CurrentThreads()} min {_config.Uci.Threads.Min} max {_config.Uci.Threads.Max}");
+                Respond($"option name Hash type spin default {_config.Uci.HashMB.Default} min {_config.Uci.HashMB.Min} max {_config.Uci.HashMB.Max}");
+                Respond($"option name Skill Level type spin default {_config.Uci.SkillLevel.Default} min {_config.Uci.SkillLevel.Min} max {_config.Uci.SkillLevel.Max}");
                 Respond("uciok");
                 break;
 
@@ -236,21 +227,21 @@ public sealed class UciHandler(ILineWriter writer) : IDisposable
             switch (name)
             {
                 case "Threads":
-                    if (n >= MinThreads && n <= MaxThreads)
+                    if (n >= _config.Uci.Threads.Min && n <= _config.Uci.Threads.Max)
                     {
                         _threads = n;
                         RebuildAI();
                     }
                     break;
                 case "Hash":
-                    if (n >= MinHashMB && n <= MaxHashMB)
+                    if (n >= _config.Uci.HashMB.Min && n <= _config.Uci.HashMB.Max)
                     {
                         _hashMB = n;
                         RebuildAI();
                     }
                     break;
                 case "Skill Level":
-                    if (n >= MinSkillLevel && n <= MaxSkillLevel)
+                    if (n >= _config.Uci.SkillLevel.Min && n <= _config.Uci.SkillLevel.Max)
                     {
                         _skillLevel = n;
                     }
@@ -274,11 +265,11 @@ public sealed class UciHandler(ILineWriter writer) : IDisposable
         int skill = _skillLevel;
         int threads = _threads;
 
-        if (skill < MinSkillLevel || skill > MaxSkillLevel)
+        if (skill < _config.Uci.SkillLevel.Min || skill > _config.Uci.SkillLevel.Max)
         {
-            skill = DefaultSkillLevel;
+            skill = _config.Uci.SkillLevel.Default;
         }
-        DifficultyProfile profile = Difficulty.GetDifficultyProfile(skill);
+        DifficultyProfile profile = Difficulty.GetDifficultyProfile(skill, _config);
         int engineThreads = Math.Min(threads, profile.Threads);
         return new SearchOptions
         {

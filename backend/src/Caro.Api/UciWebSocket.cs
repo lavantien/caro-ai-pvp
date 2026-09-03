@@ -1,9 +1,11 @@
 using System.Net.WebSockets;
 using System.Text;
+using Caro.Domain;
 using Caro.Uci;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Caro.Api;
 
@@ -70,7 +72,7 @@ public static class UciWebSocket
             WebSocket socket = await http.WebSockets.AcceptWebSocketAsync();
 
             WebSocketLineWriter writer = new(socket);
-            using UciHandler handler = new(writer);
+            using UciHandler handler = new(writer, http.RequestServices.GetRequiredService<CaroConfig>());
             try
             {
                 // Bound incoming frame size; commands are short text lines.
