@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [9.4.3] - 2026-09-04
+
+### Added
+- Round-robin benchmark evidence under `docs/artifacts/tournaments/`: complete 60-game `initial-5` run and a 100-game L1 vs L5 probe at 3+2
+
+[9.4.3]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.4.3
+
 ## [9.4.2] - 2026-09-03
 
 ### Added
