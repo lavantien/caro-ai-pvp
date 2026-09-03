@@ -14,9 +14,9 @@ public class SearchEdgeCasesTests
     private static Board NearFullBoard(int emptyCells)
     {
         Board b = Board.NewBoard();
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 if (x < emptyCells && y == 0)
                 {
@@ -114,8 +114,8 @@ public class SearchEdgeCasesTests
         (int x, int y, _) = SearchEngine.SearchPosition(b, Player.Blue,
             new SearchConfig { MaxDepth = 6, TimeLimitMs = 10_000, Threads = 1, UseVCF = true },
             tt, new SearchHeuristics(), CancellationToken.None);
-        Assert.True(x >= 0 && x < Constants.BoardSize);
-        Assert.True(y >= 0 && y < Constants.BoardSize);
+        Assert.True(x >= 0 && x < Constants.Board.Size);
+        Assert.True(y >= 0 && y < Constants.Board.Size);
     }
 
     [Fact]
@@ -138,8 +138,8 @@ public class SearchEdgeCasesTests
         (int x, int y, SearchStats stats) = ParallelSearch.Run(b, Player.Blue,
             new SearchConfig { MaxDepth = 4, TimeLimitMs = 10_000, Threads = 2, UseVCF = true },
             tt, new SearchHeuristics(), CancellationToken.None);
-        Assert.True(x >= 0 && x < Constants.BoardSize);
-        Assert.True(y >= 0 && y < Constants.BoardSize);
+        Assert.True(x >= 0 && x < Constants.Board.Size);
+        Assert.True(y >= 0 && y < Constants.Board.Size);
         Assert.Equal(2, stats.ThreadCount);
     }
 
@@ -168,8 +168,8 @@ public class SearchEdgeCasesTests
         (int x, int y, _) = SearchEngine.SearchPosition(b, Player.Red,
             new SearchConfig { MaxDepth = 6, TimeLimitMs = 20_000, Threads = 1 },
             tt, new SearchHeuristics(), CancellationToken.None);
-        Assert.True(x >= 0 && x < Constants.BoardSize);
-        Assert.True(y >= 0 && y < Constants.BoardSize);
+        Assert.True(x >= 0 && x < Constants.Board.Size);
+        Assert.True(y >= 0 && y < Constants.Board.Size);
     }
 
     [Fact]

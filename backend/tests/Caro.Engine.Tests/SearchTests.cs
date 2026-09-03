@@ -60,7 +60,7 @@ public class SearchTests
         SearchConfig opts = new() { MaxDepth = 5, TimeLimitMs = 5000, Threads = 1 };
         (int x, int y, SearchStats stats) = SearchEngine.SearchPosition(b, Player.Red, opts, tt, h, CancellationToken.None);
         bool blockOrWin = (x == 4 && y == 5) || (x == 8 && y == 5);
-        if (stats.SearchScore >= Constants.WinScore - Constants.AbsoluteMaxDepth)
+        if (stats.SearchScore >= Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth)
         {
             blockOrWin = true;
         }
@@ -171,7 +171,7 @@ public class SearchTests
             .PlaceStone(9, 6, Player.Blue);
         using TranspositionTable tt = new(1);
         SearchHeuristics heuristics = new();
-        SearchConfig opts = new() { MaxDepth = Constants.AbsoluteMaxDepth, TimeLimitMs = 5000, SoftLimitMs = 500, Threads = 1 };
+        SearchConfig opts = new() { MaxDepth = Constants.Search.AbsoluteMaxDepth, TimeLimitMs = 5000, SoftLimitMs = 500, Threads = 1 };
 
         System.Diagnostics.Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
         (_, _, SearchStats stats) = SearchEngine.SearchPosition(b, Player.Red, opts, tt, heuristics, CancellationToken.None);

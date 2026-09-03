@@ -59,9 +59,9 @@ public class NotationTests
     [Fact]
     public void NotationRoundTripAllCells()
     {
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 string s = Notation.MoveToString(x, y);
                 Assert.True(Notation.TryParseMove(s, out int px, out int py), $"ParseMove({s}) failed");

@@ -21,15 +21,15 @@ public sealed class Board
     public ulong Hash { get; }
 
     public static Board NewBoard() =>
-        new(new Player[Constants.BoardSize * Constants.BoardSize], new ulong[4], new ulong[4], 0);
+        new(new Player[Constants.Board.Size * Constants.Board.Size], new ulong[4], new ulong[4], 0);
 
     public Cell GetCell(int x, int y)
     {
-        if (x < 0 || x >= Constants.BoardSize || y < 0 || y >= Constants.BoardSize)
+        if (x < 0 || x >= Constants.Board.Size || y < 0 || y >= Constants.Board.Size)
         {
             return new Cell(x, y, Player.None);
         }
-        return new Cell(x, y, _cells[x * Constants.BoardSize + y]);
+        return new Cell(x, y, _cells[x * Constants.Board.Size + y]);
     }
 
     public bool IsEmpty()
@@ -46,20 +46,20 @@ public sealed class Board
 
     public bool IsEmptyAt(int x, int y)
     {
-        if (x < 0 || x >= Constants.BoardSize || y < 0 || y >= Constants.BoardSize)
+        if (x < 0 || x >= Constants.Board.Size || y < 0 || y >= Constants.Board.Size)
         {
             return false;
         }
-        return _cells[x * Constants.BoardSize + y] == Player.None;
+        return _cells[x * Constants.Board.Size + y] == Player.None;
     }
 
     public Player GetPlayerAt(int x, int y)
     {
-        if (x < 0 || x >= Constants.BoardSize || y < 0 || y >= Constants.BoardSize)
+        if (x < 0 || x >= Constants.Board.Size || y < 0 || y >= Constants.Board.Size)
         {
             return Player.None;
         }
-        return _cells[x * Constants.BoardSize + y];
+        return _cells[x * Constants.Board.Size + y];
     }
 
     public ulong[] BitBoardBits(Player player)
@@ -75,22 +75,22 @@ public sealed class Board
     /// </summary>
     public Board PlaceStone(int x, int y, Player player)
     {
-        if (x < 0 || x >= Constants.BoardSize || y < 0 || y >= Constants.BoardSize)
+        if (x < 0 || x >= Constants.Board.Size || y < 0 || y >= Constants.Board.Size)
         {
             throw new PositionBoundsException();
         }
-        if (_cells[x * Constants.BoardSize + y] != Player.None)
+        if (_cells[x * Constants.Board.Size + y] != Player.None)
         {
             throw new CellOccupiedException();
         }
 
         Player[] cells = (Player[])_cells.Clone();
-        cells[x * Constants.BoardSize + y] = player;
+        cells[x * Constants.Board.Size + y] = player;
 
         ulong[] redBits = (ulong[])_redBits.Clone();
         ulong[] blueBits = (ulong[])_blueBits.Clone();
 
-        int bitIndex = y * Constants.BoardSize + x;
+        int bitIndex = y * Constants.Board.Size + x;
         int ulongIndex = bitIndex >> 6;
         int bitOffset = bitIndex & 63;
         ulong bitMask = 1UL << bitOffset;

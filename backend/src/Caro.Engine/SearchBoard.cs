@@ -10,7 +10,7 @@ public sealed class SearchBoard
 {
     private const int InitialUndoCapacity = 64;
 
-    private readonly Player[] _cells = new Player[Constants.BoardSize * Constants.BoardSize];
+    private readonly Player[] _cells = new Player[Constants.Board.Size * Constants.Board.Size];
     private BitBoard _redBits;
     private BitBoard _blueBits;
     private ulong _hash;
@@ -31,12 +31,12 @@ public sealed class SearchBoard
         (_redBits, _blueBits) = BitBoard.BitBoardsFromDomain(b);
         _hash = b.Hash;
 
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 Player p = b.GetPlayerAt(x, y);
-                _cells[x * Constants.BoardSize + y] = p;
+                _cells[x * Constants.Board.Size + y] = p;
                 if (p != Player.None)
                 {
                     _stones++;
@@ -52,11 +52,11 @@ public sealed class SearchBoard
 
     public Player PlayerAt(int x, int y)
     {
-        if (x < 0 || x >= Constants.BoardSize || y < 0 || y >= Constants.BoardSize)
+        if (x < 0 || x >= Constants.Board.Size || y < 0 || y >= Constants.Board.Size)
         {
             return Player.None;
         }
-        return _cells[x * Constants.BoardSize + y];
+        return _cells[x * Constants.Board.Size + y];
     }
 
     public BitBoard BitBoardFor(Player player) => player == Player.Red ? _redBits : _blueBits;
@@ -65,11 +65,11 @@ public sealed class SearchBoard
 
     public bool IsEmpty(int x, int y)
     {
-        if (x < 0 || x >= Constants.BoardSize || y < 0 || y >= Constants.BoardSize)
+        if (x < 0 || x >= Constants.Board.Size || y < 0 || y >= Constants.Board.Size)
         {
             return false;
         }
-        return _cells[x * Constants.BoardSize + y] == Player.None;
+        return _cells[x * Constants.Board.Size + y] == Player.None;
     }
 
     public void MakeMove(int x, int y, Player player)
@@ -78,9 +78,9 @@ public sealed class SearchBoard
         {
             Array.Resize(ref _undoStack, _undoStack.Length * 2);
         }
-        _undoStack[_undoCount++] = new UndoEntry(x, y, _cells[x * Constants.BoardSize + y], _hash);
+        _undoStack[_undoCount++] = new UndoEntry(x, y, _cells[x * Constants.Board.Size + y], _hash);
 
-        _cells[x * Constants.BoardSize + y] = player;
+        _cells[x * Constants.Board.Size + y] = player;
         if (player == Player.Red)
         {
             _redBits.Set(x, y);
@@ -97,7 +97,7 @@ public sealed class SearchBoard
     {
         UndoEntry entry = _undoStack[--_undoCount];
 
-        Player currentPlayer = _cells[entry.X * Constants.BoardSize + entry.Y];
+        Player currentPlayer = _cells[entry.X * Constants.Board.Size + entry.Y];
         if (currentPlayer == Player.Red)
         {
             _redBits.Clear(entry.X, entry.Y);
@@ -107,7 +107,7 @@ public sealed class SearchBoard
             _blueBits.Clear(entry.X, entry.Y);
         }
 
-        _cells[entry.X * Constants.BoardSize + entry.Y] = entry.Player;
+        _cells[entry.X * Constants.Board.Size + entry.Y] = entry.Player;
         _hash = entry.Hash;
         _stones--;
     }

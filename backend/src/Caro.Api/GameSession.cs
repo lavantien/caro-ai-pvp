@@ -50,19 +50,19 @@ public sealed partial class GameSession
     internal void ApplyRandomOpening(long seed)
     {
         OpeningRng rng = new(seed);
-        int low = Constants.BoardSize / 2 - OpeningSpreadRadius;
-        int high = Constants.BoardSize / 2 + OpeningSpreadRadius - 1;
+        int low = Constants.Board.Size / 2 - OpeningSpreadRadius;
+        int high = Constants.Board.Size / 2 + OpeningSpreadRadius - 1;
         int rx = low + rng.Next(high - low + 1);
         int ry = low + rng.Next(high - low + 1);
         _game = _game.WithMove(rx, ry);
 
         int bx = rx - OpeningSpreadRadius + rng.Next(2 * OpeningSpreadRadius + 1);
         int by = ry - OpeningSpreadRadius + rng.Next(2 * OpeningSpreadRadius + 1);
-        bx = Math.Clamp(bx, 0, Constants.BoardSize - 1);
-        by = Math.Clamp(by, 0, Constants.BoardSize - 1);
+        bx = Math.Clamp(bx, 0, Constants.Board.Size - 1);
+        by = Math.Clamp(by, 0, Constants.Board.Size - 1);
         if (bx == rx && by == ry)
         {
-            bx = (bx + 1) % Constants.BoardSize;
+            bx = (bx + 1) % Constants.Board.Size;
         }
         _game = _game.WithMove(bx, by);
     }
@@ -277,7 +277,7 @@ public sealed partial class GameSession
         {
             newGame = newGame.WithGameOver(result.Winner, result.WinningLine);
         }
-        else if (newGame.MoveNumber >= Constants.MaxMoves)
+        else if (newGame.MoveNumber >= Constants.Board.MaxMoves)
         {
             newGame = newGame.WithDraw();
         }
@@ -352,10 +352,10 @@ public sealed partial class GameSession
 
     private GameResponse BuildResponse()
     {
-        List<CellResponse> cells = new(Constants.BoardSize * Constants.BoardSize);
-        for (int y = 0; y < Constants.BoardSize; y++)
+        List<CellResponse> cells = new(Constants.Board.Size * Constants.Board.Size);
+        for (int y = 0; y < Constants.Board.Size; y++)
         {
-            for (int x = 0; x < Constants.BoardSize; x++)
+            for (int x = 0; x < Constants.Board.Size; x++)
             {
                 Player player = _game.Board.GetPlayerAt(x, y);
                 cells.Add(new CellResponse(x, y, player.ToName()));

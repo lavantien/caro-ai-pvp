@@ -169,11 +169,11 @@ public class GameSessionTests
         // diagonals alternate, so no exactly-five can exist for either side.
         Board board = Board.NewBoard();
         int k = 0;
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
-                if (x == Constants.BoardSize - 1 && y == Constants.BoardSize - 1)
+                if (x == Constants.Board.Size - 1 && y == Constants.Board.Size - 1)
                 {
                     continue;
                 }
@@ -182,9 +182,9 @@ public class GameSessionTests
                 k++;
             }
         }
-        s.InstallBoardForTest(board, Constants.MaxMoves - 1, Player.Red);
+        s.InstallBoardForTest(board, Constants.Board.MaxMoves - 1, Player.Red);
 
-        GameResponse resp = s.ApplyHumanMove(Constants.BoardSize - 1, Constants.BoardSize - 1);
+        GameResponse resp = s.ApplyHumanMove(Constants.Board.Size - 1, Constants.Board.Size - 1);
         Assert.True(resp.IsGameOver, "a full board must end the game");
         Assert.Equal("draw", resp.EndReason);
         Assert.Equal("none", resp.Winner);
@@ -271,7 +271,7 @@ public class GameSessionTests
         {
             DifficultyProfile p = Difficulty.GetDifficultyProfile(level);
             Assert.True(p.MaxDepth >= prev);
-            Assert.True(p.MaxDepth <= Constants.AbsoluteMaxDepth);
+            Assert.True(p.MaxDepth <= Constants.Search.AbsoluteMaxDepth);
             if (level == 3)
             {
                 Assert.True(p.UseVCF && p.VCFDepth > 0);
@@ -298,9 +298,9 @@ public class SessionOpeningTests
     private static (int RedX, int RedY, int BlueX, int BlueY) OpeningStones(GameSession s)
     {
         int redX = -1, redY = -1, blueX = -1, blueY = -1;
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 switch (s.GameForTest.Board.GetPlayerAt(x, y))
                 {
@@ -349,7 +349,7 @@ public class SessionOpeningTests
             GameSession s = new("3+0", 180_000, 0, GameMode.AivAI, null, null, () => 1);
             s.ApplyRandomOpening(seed);
             (int rx, int ry, _, _) = OpeningStones(s);
-            seen.Add(ry * Constants.BoardSize + rx);
+            seen.Add(ry * Constants.Board.Size + rx);
         }
         Assert.True(seen.Count > 10, "40 seeds must produce a varied set of openings");
     }

@@ -97,7 +97,7 @@ public sealed class GameStore : IDisposable
                 // Finished games go immediately; a live game (e.g. a long
                 // think under a slow control) only goes after the
                 // abandoned-game window, never the short idle sweep.
-                if (g.IsGameOver() || now - g.LastActivityAt() > TimeSpan.FromMinutes(Constants.AbandonedTimeoutMinutes))
+                if (g.IsGameOver() || now - g.LastActivityAt() > TimeSpan.FromMinutes(Constants.Limits.AbandonedTimeoutMinutes))
                 {
                     g.DisposeAI();
                     _games.Remove(id);

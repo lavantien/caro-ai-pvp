@@ -47,8 +47,8 @@ public class ParallelSearchTests
         };
 
         (int x, int y, _) = ParallelSearch.Run(b, Player.Blue, opts, tt, heuristics, CancellationToken.None);
-        Assert.True(x >= 0 && x < Constants.BoardSize);
-        Assert.True(y >= 0 && y < Constants.BoardSize);
+        Assert.True(x >= 0 && x < Constants.Board.Size);
+        Assert.True(y >= 0 && y < Constants.Board.Size);
     }
 
     [Fact]

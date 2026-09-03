@@ -36,8 +36,8 @@ public class EngineDetailsTests
             ParallelEnabled = false,
             TimeFraction = -0.5,
         }, CancellationToken.None);
-        Assert.True(x >= 0 && x < Constants.BoardSize);
-        Assert.True(y >= 0 && y < Constants.BoardSize);
+        Assert.True(x >= 0 && x < Constants.Board.Size);
+        Assert.True(y >= 0 && y < Constants.Board.Size);
         Assert.True(stats.NodesSearched >= 0);
     }
 
@@ -75,7 +75,7 @@ public class EngineDetailsTests
         SearchBoard sb = new(Board.NewBoard());
         for (int i = 0; i < 100; i++)
         {
-            sb.MakeMove(i % Constants.BoardSize, i / Constants.BoardSize, i % 2 == 0 ? Player.Red : Player.Blue);
+            sb.MakeMove(i % Constants.Board.Size, i / Constants.Board.Size, i % 2 == 0 ? Player.Red : Player.Blue);
         }
         Assert.Equal(100, sb.StoneCount());
         for (int i = 0; i < 100; i++)
@@ -152,7 +152,7 @@ public class EngineDetailsTests
         SearchHeuristics h = new();
         h.RecordKiller(2, new Position(-1, -1));
 
-        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.Board.MaxSearchRadius);
         Assert.True(candidates.Count > 1);
 
         // The killer stage may append out-of-candidate squares (a fresh
@@ -181,7 +181,7 @@ public class EngineDetailsTests
         }
         Assert.True(h.HistoryScore(Player.Red, 7, 8) * 2 > 300_000, "history must saturate the picker cap");
 
-        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.Board.MaxSearchRadius);
         List<Position> ordered = MoveOrdering.OrderMoves(candidates, sb, Player.Red, 1, null, h);
         Assert.True(ordered.Count >= candidates.Count);
     }

@@ -30,12 +30,12 @@ public class SearchFixesTests
         Board b = RedHasOpenFour();
         using TranspositionTable tt = new(1);
         SearchHeuristics heuristics = new();
-        SearchConfig opts = new() { MaxDepth = Constants.AbsoluteMaxDepth, TimeLimitMs = 10_000, Threads = 1 };
+        SearchConfig opts = new() { MaxDepth = Constants.Search.AbsoluteMaxDepth, TimeLimitMs = 10_000, Threads = 1 };
 
         (_, _, SearchStats stats) = SearchEngine.SearchPosition(b, Player.Red, opts, tt, heuristics, CancellationToken.None);
 
         Assert.Equal(1, stats.DepthAchieved);
-        Assert.True(stats.SearchScore >= Constants.WinScore - Constants.AbsoluteMaxDepth);
+        Assert.True(stats.SearchScore >= Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth);
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public class SearchFixesTests
         Board b = RedHasOpenFour();
         using TranspositionTable tt = new(1);
         SearchHeuristics heuristics = new();
-        SearchConfig opts = new() { MaxDepth = Constants.AbsoluteMaxDepth, TimeLimitMs = 0, Threads = 1 };
+        SearchConfig opts = new() { MaxDepth = Constants.Search.AbsoluteMaxDepth, TimeLimitMs = 0, Threads = 1 };
 
         (int x, int y, SearchStats stats) = SearchEngine.SearchPosition(b, Player.Red, opts, tt, heuristics, CancellationToken.None);
 
@@ -66,7 +66,7 @@ public class SearchFixesTests
             .PlaceStone(9, 6, Player.Blue);
         using TranspositionTable tt = new(1);
         SearchHeuristics heuristics = new();
-        SearchConfig opts = new() { MaxDepth = Constants.AbsoluteMaxDepth, TimeLimitMs = 5000, SoftLimitMs = 500, Threads = 1 };
+        SearchConfig opts = new() { MaxDepth = Constants.Search.AbsoluteMaxDepth, TimeLimitMs = 5000, SoftLimitMs = 500, Threads = 1 };
 
         System.Diagnostics.Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
         (_, _, SearchStats stats) = SearchEngine.SearchPosition(b, Player.Red, opts, tt, heuristics, CancellationToken.None);
@@ -105,7 +105,7 @@ public class SearchFixesTests
             .PlaceStone(7, 7, Player.Red)
             .PlaceStone(8, 8, Player.Blue);
         SearchBoard sb = new(b);
-        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.Board.MaxSearchRadius);
         using TranspositionTable tt = new(1);
         SearchHeuristics heuristics = new();
         using TimeMonitor monitor = new(5000, CancellationToken.None);
@@ -129,7 +129,7 @@ public class SearchFixesTests
         int standPat = Evaluation.Evaluate(sb, Player.Red);
         Assert.True(standPat > 200, "precondition: stand-pat must exceed beta");
 
-        int score = SearchEngine.Quiesce(sb, Player.Red, 100, 200, Constants.MaxQuiescenceDepth, heuristics, monitor, 0);
+        int score = SearchEngine.Quiesce(sb, Player.Red, 100, 200, Constants.Search.MaxQuiescenceDepth, heuristics, monitor, 0);
         Assert.Equal(standPat, score);
     }
 
@@ -161,7 +161,7 @@ public class LmrGuardTests
     {
         Board b = SearchFixesTests.RedHasOpenFour();
         SearchBoard sb = new(b);
-        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.Board.MaxSearchRadius);
 
         MovePicker picker = new(candidates, sb, Player.Red, 6, null, new SearchHeuristics(), new Position(-1, -1));
         bool sawTactical = false;
@@ -193,7 +193,7 @@ public class LmrGuardTests
         }
         b = b.PlaceStone(10, 10, Player.Red);
         SearchBoard sb = new(b);
-        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.Board.MaxSearchRadius);
 
         MovePicker picker = new(candidates, sb, Player.Red, 6, null, new SearchHeuristics(), new Position(-1, -1));
         bool sawBlockTactical = false;
@@ -214,33 +214,33 @@ public class ScoreHierarchyTests
     [Fact]
     public void ScoreHierarchyOrdering()
     {
-        Assert.True(Constants.Infinity > Constants.WinScore);
-        Assert.True(Constants.WinScore > Constants.MaxEval);
-        Assert.True(Constants.MaxEval > Evaluation.Flex4WinBonus);
+        Assert.True(Constants.Score.Infinity > Constants.Score.WinScore);
+        Assert.True(Constants.Score.WinScore > Constants.Score.MaxEval);
+        Assert.True(Constants.Score.MaxEval > Evaluation.Flex4WinBonus);
     }
 
     [Fact]
     public void AspirationWindowGomokuScale()
     {
-        Assert.True(Constants.AspirationWindowSize >= Evaluation.Flex3Score);
+        Assert.True(Constants.Search.AspirationWindowSize >= Evaluation.Flex3Score);
     }
 
     [Fact]
     public void FiveScoreEqualsWinScore()
     {
-        Assert.Equal(Constants.WinScore, Evaluation.FiveScore);
+        Assert.Equal(Constants.Score.WinScore, Evaluation.FiveScore);
     }
 
     [Fact]
     public void MaxCorrectedEvalEqualsMaxEval()
     {
-        Assert.Equal(Constants.MaxEval, Evaluation.MaxCorrectedEval);
+        Assert.Equal(Constants.Score.MaxEval, Evaluation.MaxCorrectedEval);
     }
 
     [Fact]
     public void FiveScoreBoundedByWinScore()
     {
-        Assert.True(Evaluation.FiveScore <= Constants.WinScore);
+        Assert.True(Evaluation.FiveScore <= Constants.Score.WinScore);
     }
 
     [Fact]
@@ -253,7 +253,7 @@ public class ScoreHierarchyTests
         }
         SearchBoard sb = new(b);
         int score = Evaluation.Evaluate(sb, Player.Red);
-        Assert.True(score < Constants.WinScore);
+        Assert.True(score < Constants.Score.WinScore);
     }
 
     [Fact]
@@ -290,26 +290,26 @@ public class ScoreHierarchyTests
         SearchConfig opts = new() { MaxDepth = 4, TimeLimitMs = 5000, Threads = 1 };
 
         (_, _, SearchStats stats) = SearchEngine.SearchPosition(b, Player.Red, opts, tt, heuristics, CancellationToken.None);
-        Assert.True(stats.SearchScore >= Constants.WinScore - Constants.AbsoluteMaxDepth);
-        Assert.True(stats.SearchScore < Constants.WinScore);
+        Assert.True(stats.SearchScore >= Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth);
+        Assert.True(stats.SearchScore < Constants.Score.WinScore);
     }
 
     [Fact]
     public void TTMateScoreRoundTrip()
     {
         int plyStored = 3;
-        int mateScore = Constants.WinScore - plyStored;
+        int mateScore = Constants.Score.WinScore - plyStored;
 
         int stored = MateScore.AdjustForStore(mateScore, plyStored);
-        Assert.True(stored >= Constants.WinScore);
+        Assert.True(stored >= Constants.Score.WinScore);
 
         int plyRetrieve = 5;
         int retrieved = MateScore.AdjustForRetrieve(stored, plyRetrieve);
-        Assert.Equal(Constants.WinScore - plyRetrieve, retrieved);
+        Assert.Equal(Constants.Score.WinScore - plyRetrieve, retrieved);
 
         int retrievedEarly = MateScore.AdjustForRetrieve(stored, 1);
         Assert.True(retrievedEarly > retrieved);
-        Assert.Equal(Constants.WinScore - 1, retrievedEarly);
+        Assert.Equal(Constants.Score.WinScore - 1, retrievedEarly);
     }
 
     [Fact]
@@ -336,7 +336,7 @@ public class ScoreHierarchyTests
 
         (_, _, SearchStats stats) = SearchEngine.SearchPosition(b, Player.Red, opts, tt, heuristics, CancellationToken.None);
         Assert.True(stats.DepthAchieved > 0);
-        Assert.True(stats.SearchScore < Constants.WinScore);
+        Assert.True(stats.SearchScore < Constants.Score.WinScore);
     }
 
     [Fact]
@@ -355,7 +355,7 @@ public class ScoreHierarchyTests
         SearchConfig opts2 = new() { MaxDepth = 6, TimeLimitMs = 5000, Threads = 1 };
         tt.ResetStats();
         (_, _, SearchStats stats2) = SearchEngine.SearchPosition(b, Player.Red, opts2, tt, heuristics, CancellationToken.None);
-        Assert.True(stats2.SearchScore > -Constants.WinScore);
+        Assert.True(stats2.SearchScore > -Constants.Score.WinScore);
     }
 }
 

@@ -13,7 +13,7 @@ public static partial class SearchEngine
         CancellationToken ctx)
     {
         SearchBoard sb = new(b);
-        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.Board.MaxSearchRadius);
         candidates = Candidates.FilterOpenRule(candidates, sb, player);
 
         if (candidates.Count == 0)
@@ -30,24 +30,24 @@ public static partial class SearchEngine
         using TimeMonitor monitor = new(config.TimeLimitMs, ctx);
 
         tt.ResetStats();
-        int bestScore = -Constants.Infinity;
+        int bestScore = -Constants.Score.Infinity;
         int completedDepth = 0;
-        int fullAlpha = -Constants.Infinity;
-        int fullBeta = Constants.Infinity;
+        int fullAlpha = -Constants.Score.Infinity;
+        int fullBeta = Constants.Score.Infinity;
 
         if (config.UseVCF)
         {
             SearchBoard oppSB = new(b);
             if (!Vcf.OpponentHasImmediateWin(oppSB, player.Opponent()))
             {
-                long vcfTime = (long)(config.TimeLimitMs * Constants.VCFTimeFraction);
+                long vcfTime = (long)(config.TimeLimitMs * Constants.Vcf.TimeFraction);
                 (int vx, int vy, VCFResult result) = Vcf.SolveVCFWithDepth(b, player, config.VCFMaxDepth, vcfTime, ctx);
                 if (result == VCFResult.Win)
                 {
                     return (vx, vy, new SearchStats
                     {
                         DepthAchieved = 0,
-                        SearchScore = Constants.WinScore,
+                        SearchScore = Constants.Score.WinScore,
                         AllocatedTimeMs = config.TimeLimitMs,
                         MoveType = MoveTypes.Vcf,
                     });
@@ -58,12 +58,12 @@ public static partial class SearchEngine
         Position? vcfPreferred = null;
         if (config.UseVCF)
         {
-            long oppVcfTime = (long)(config.TimeLimitMs * Constants.VCFBlockFraction);
+            long oppVcfTime = (long)(config.TimeLimitMs * Constants.Vcf.BlockFraction);
             (int vx, int vy, VCFResult result) = Vcf.SolveVCFWithDepth(b, player.Opponent(), config.VCFMaxDepth, oppVcfTime, ctx);
             if (result == VCFResult.Win)
             {
                 Board blocked = b.PlaceStone(vx, vy, player);
-                long blockCheckTime = (long)(config.TimeLimitMs * Constants.VCFBlockCheckFraction);
+                long blockCheckTime = (long)(config.TimeLimitMs * Constants.Vcf.BlockCheckFraction);
                 (_, _, VCFResult checkResult) = Vcf.SolveVCFWithDepth(blocked, player.Opponent(), config.VCFMaxDepth, blockCheckTime, ctx);
                 if (checkResult != VCFResult.Win)
                 {
@@ -92,7 +92,7 @@ public static partial class SearchEngine
             }
             long iterStart = monitor.ElapsedMs();
 
-            int delta = Constants.AspirationWindowSize;
+            int delta = Constants.Search.AspirationWindowSize;
             int a = fullAlpha;
             int betaBound = fullBeta;
             if (depth > 1)
@@ -105,7 +105,7 @@ public static partial class SearchEngine
             int y = 0;
             int score = 0;
             bool found = false;
-            for (int attempt = 0; attempt < Constants.MaxAspirationAttempts; attempt++)
+            for (int attempt = 0; attempt < Constants.Search.MaxAspirationAttempts; attempt++)
             {
                 (x, y, score) = SearchRoot(sb, player, depth, a, betaBound, tt, heuristics, candidates, monitor, vcfPreferred);
                 if (x < 0 || monitor.ShouldStop())

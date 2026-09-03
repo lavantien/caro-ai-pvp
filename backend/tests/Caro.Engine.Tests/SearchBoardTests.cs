@@ -58,7 +58,7 @@ public class SearchBoardTests
         SearchBoard sb = new(Board.NewBoard());
         Assert.Equal(Player.None, sb.PlayerAt(-1, 0));
         Assert.Equal(Player.None, sb.PlayerAt(0, -1));
-        Assert.Equal(Player.None, sb.PlayerAt(Constants.BoardSize, 0));
+        Assert.Equal(Player.None, sb.PlayerAt(Constants.Board.Size, 0));
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class SearchBoardTests
         SearchBoard sb = new(Board.NewBoard());
         Assert.False(sb.IsEmpty(-1, 0));
         Assert.False(sb.IsEmpty(0, -1));
-        Assert.False(sb.IsEmpty(Constants.BoardSize, 0));
+        Assert.False(sb.IsEmpty(Constants.Board.Size, 0));
         Assert.True(sb.IsEmpty(7, 7));
     }
 
@@ -108,9 +108,9 @@ public class SearchBoardTests
         ulong nullHash = sb.Hash();
         Assert.NotEqual(hashBefore, nullHash);
         Assert.NotEqual(Zobrist.ZobristNullMove(), hashBefore);
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 Assert.NotEqual(nullHash, Zobrist.ZobristKey(x, y, Player.Red));
                 Assert.NotEqual(nullHash, Zobrist.ZobristKey(x, y, Player.Blue));

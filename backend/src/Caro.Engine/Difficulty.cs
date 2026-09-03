@@ -41,14 +41,14 @@ public static class Difficulty
                 {
                     l4 = 1;
                 }
-                return new DifficultyProfile("Advanced", 0.70, 5, l4, true, 4, false, Constants.DefaultTTSizeMB);
+                return new DifficultyProfile("Advanced", 0.70, 5, l4, true, 4, false, Constants.Transposition.DefaultSizeMB);
             default:
                 if (l5Threads < 1)
                 {
                     l5Threads = 1;
                 }
-                return new DifficultyProfile("Grandmaster", 1.0, Constants.AbsoluteMaxDepth, l5Threads,
-                    true, Constants.VCFSearchDepth, true, Constants.DefaultTTSizeMB);
+                return new DifficultyProfile("Grandmaster", 1.0, Constants.Search.AbsoluteMaxDepth, l5Threads,
+                    true, Constants.Vcf.SearchDepth, true, Constants.Transposition.DefaultSizeMB);
         }
     }
 

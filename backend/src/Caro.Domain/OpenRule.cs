@@ -13,9 +13,9 @@ public static class OpenRule
         int blueCount = 0;
         int firstRedX = 0;
         int firstRedY = 0;
-        for (int bx = 0; bx < Constants.BoardSize; bx++)
+        for (int bx = 0; bx < Constants.Board.Size; bx++)
         {
-            for (int by = 0; by < Constants.BoardSize; by++)
+            for (int by = 0; by < Constants.Board.Size; by++)
             {
                 Player p = b.GetPlayerAt(bx, by);
                 if (p == Player.Red)
@@ -46,6 +46,6 @@ public static class OpenRule
         {
             dy = -dy;
         }
-        return dx >= Constants.OpenRuleMin || dy >= Constants.OpenRuleMin;
+        return dx >= Constants.Board.OpenRuleMin || dy >= Constants.Board.OpenRuleMin;
     }
 }

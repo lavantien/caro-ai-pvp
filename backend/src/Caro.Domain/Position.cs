@@ -3,7 +3,7 @@ namespace Caro.Domain;
 public readonly record struct Position(int X, int Y)
 {
     public bool IsValid() =>
-        X >= 0 && X < Constants.BoardSize && Y >= 0 && Y < Constants.BoardSize;
+        X >= 0 && X < Constants.Board.Size && Y >= 0 && Y < Constants.Board.Size;
 
     public Position Offset(int dx, int dy) => new(X + dx, Y + dy);
 }

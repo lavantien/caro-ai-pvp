@@ -46,9 +46,9 @@ public class PonderSessionTests
     // rule and differs from the predicted reply.
     private static Position LegalAlternativeReply(Board b, Position predicted)
     {
-        for (int y = 0; y < Constants.BoardSize; y++)
+        for (int y = 0; y < Constants.Board.Size; y++)
         {
-            for (int x = 0; x < Constants.BoardSize; x++)
+            for (int x = 0; x < Constants.Board.Size; x++)
             {
                 Position p = new(x, y);
                 if (p == predicted || !b.IsEmptyAt(x, y))

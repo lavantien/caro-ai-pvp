@@ -21,7 +21,7 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
         // Evict finished and idle sessions first so stale games never block
         // new ones between the periodic sweeps.
         store.CleanupCompleted();
-        if (store.Count() >= Constants.MaxConcurrentGames)
+        if (store.Count() >= Constants.Limits.MaxConcurrentGames)
         {
             throw new TooManyGamesException();
         }

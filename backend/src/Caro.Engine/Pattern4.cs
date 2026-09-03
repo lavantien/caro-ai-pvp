@@ -52,11 +52,11 @@ public static class Pattern4Classifier
     /// </summary>
     internal static Pattern4 ClassifyDirection(SearchBoard sb, int x, int y, int dx, int dy, Player player)
     {
-        Span<sbyte> line = stackalloc sbyte[Constants.LineLength];
+        Span<sbyte> line = stackalloc sbyte[Constants.Board.LineLength];
         PatternWindow.ExtractLine(sb, x, y, player, dx, dy, line);
 
         PatternWindow.SpanThrough(line, -1, out int lo, out int hi);
-        if (hi - lo + 1 > Constants.WinLength)
+        if (hi - lo + 1 > Constants.Board.WinLength)
         {
             return Pattern4.Overline;
         }
@@ -92,7 +92,7 @@ public static class Pattern4Classifier
         {
             int nx = x + dx * i;
             int ny = y + dy * i;
-            if (nx < 0 || nx >= Constants.BoardSize || ny < 0 || ny >= Constants.BoardSize)
+            if (nx < 0 || nx >= Constants.Board.Size || ny < 0 || ny >= Constants.Board.Size)
             {
                 break;
             }
@@ -118,7 +118,7 @@ public static class Pattern4Classifier
         {
             int nx = x - dx * i;
             int ny = y - dy * i;
-            if (nx < 0 || nx >= Constants.BoardSize || ny < 0 || ny >= Constants.BoardSize)
+            if (nx < 0 || nx >= Constants.Board.Size || ny < 0 || ny >= Constants.Board.Size)
             {
                 break;
             }
@@ -184,7 +184,7 @@ public static class Pattern4Classifier
         {
             int px = x - dx;
             int py = y - dy;
-            if (px >= 0 && px < Constants.BoardSize && py >= 0 && py < Constants.BoardSize
+            if (px >= 0 && px < Constants.Board.Size && py >= 0 && py < Constants.Board.Size
                 && sb.PlayerAt(px, py) == player)
             {
                 continue;
@@ -192,7 +192,7 @@ public static class Pattern4Classifier
 
             int p2x = x - ClusterAnchorDistance * dx;
             int p2y = y - ClusterAnchorDistance * dy;
-            bool clusterAnchored = p2x >= 0 && p2x < Constants.BoardSize && p2y >= 0 && p2y < Constants.BoardSize
+            bool clusterAnchored = p2x >= 0 && p2x < Constants.Board.Size && p2y >= 0 && p2y < Constants.Board.Size
                 && sb.PlayerAt(p2x, p2y) == player;
 
             Pattern4 @class = ClassifyDirection(sb, x, y, dx, dy, player);
@@ -218,9 +218,9 @@ public static class Pattern4Classifier
     public static PlayerPattern4 ClassifyBoard(SearchBoard sb, Player player)
     {
         PlayerPattern4 total = default;
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 if (sb.PlayerAt(x, y) != player)
                 {

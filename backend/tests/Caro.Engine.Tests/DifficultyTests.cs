@@ -12,7 +12,7 @@ public class DifficultyTests
         { 2, "Beginner", 0.14, 0.16, 1, false, 0, 4 },
         { 3, "Intermediate", 0.39, 0.41, 2, true, 2, 4 },
         { 4, "Advanced", 0.69, 0.71, 1, true, 4, 5 },
-        { 5, "Grandmaster", 0.99, 1.01, 1, true, Constants.VCFSearchDepth, Constants.AbsoluteMaxDepth },
+        { 5, "Grandmaster", 0.99, 1.01, 1, true, Constants.Vcf.SearchDepth, Constants.Search.AbsoluteMaxDepth },
     };
 
     [Theory]
@@ -44,7 +44,7 @@ public class DifficultyTests
         DifficultyProfile l5 = Difficulty.GetDifficultyProfile(5);
         Assert.True(l3.MaxDepth <= 5);
         Assert.True(l4.MaxDepth <= 5);
-        Assert.Equal(Constants.AbsoluteMaxDepth, l5.MaxDepth);
+        Assert.Equal(Constants.Search.AbsoluteMaxDepth, l5.MaxDepth);
 
         DifficultyProfile prev = Difficulty.GetDifficultyProfile(1);
         for (int level = 2; level <= 5; level++)

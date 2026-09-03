@@ -48,7 +48,7 @@ public static partial class SearchEngine
             int score;
             if (MoveOrdering.WouldWin(sb, move.X, move.Y, player))
             {
-                score = Constants.WinScore - plyFromRoot;
+                score = Constants.Score.WinScore - plyFromRoot;
             }
             else
             {
@@ -77,15 +77,15 @@ public static partial class SearchEngine
 internal static class MateScore
 {
     internal static bool IsForcedWinScore(int score) =>
-        score >= Constants.WinScore - Constants.AbsoluteMaxDepth;
+        score >= Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth;
 
     internal static int AdjustForStore(int score, int plyFromRoot)
     {
-        if (score > Constants.WinScore - Constants.AbsoluteMaxDepth)
+        if (score > Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth)
         {
             return score + plyFromRoot;
         }
-        if (score < -Constants.WinScore + Constants.AbsoluteMaxDepth)
+        if (score < -Constants.Score.WinScore + Constants.Search.AbsoluteMaxDepth)
         {
             return score - plyFromRoot;
         }
@@ -94,11 +94,11 @@ internal static class MateScore
 
     internal static int AdjustForRetrieve(int storedScore, int plyFromRoot)
     {
-        if (storedScore >= Constants.WinScore - Constants.AbsoluteMaxDepth + 1)
+        if (storedScore >= Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth + 1)
         {
             return storedScore - plyFromRoot;
         }
-        if (storedScore <= -(Constants.WinScore - Constants.AbsoluteMaxDepth) - 1)
+        if (storedScore <= -(Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth) - 1)
         {
             return storedScore + plyFromRoot;
         }

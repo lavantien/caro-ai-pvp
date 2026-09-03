@@ -21,9 +21,9 @@ public static class WinDetector
 
     public static WinResult CheckWin(Board b)
     {
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 Player p = b.GetPlayerAt(x, y);
                 if (p == Player.None)
@@ -55,11 +55,11 @@ public static class WinDetector
         foreach ((int dx, int dy) in WinDirections)
         {
             int positive = 0;
-            for (int i = 1; i <= Constants.WinLength; i++)
+            for (int i = 1; i <= Constants.Board.WinLength; i++)
             {
                 int nx = x + dx * i;
                 int ny = y + dy * i;
-                if (nx < 0 || nx >= Constants.BoardSize || ny < 0 || ny >= Constants.BoardSize)
+                if (nx < 0 || nx >= Constants.Board.Size || ny < 0 || ny >= Constants.Board.Size)
                 {
                     break;
                 }
@@ -71,11 +71,11 @@ public static class WinDetector
             }
 
             int negative = 0;
-            for (int i = 1; i <= Constants.WinLength; i++)
+            for (int i = 1; i <= Constants.Board.WinLength; i++)
             {
                 int nx = x - dx * i;
                 int ny = y - dy * i;
-                if (nx < 0 || nx >= Constants.BoardSize || ny < 0 || ny >= Constants.BoardSize)
+                if (nx < 0 || nx >= Constants.Board.Size || ny < 0 || ny >= Constants.Board.Size)
                 {
                     break;
                 }
@@ -87,7 +87,7 @@ public static class WinDetector
             }
 
             int total = 1 + positive + negative;
-            if (total != Constants.WinLength)
+            if (total != Constants.Board.WinLength)
             {
                 continue;
             }
@@ -98,11 +98,11 @@ public static class WinDetector
             int beforeX = x - dx * (negative + 1);
             int beforeY = y - dy * (negative + 1);
 
-            bool afterBlocked = afterX < 0 || afterX >= Constants.BoardSize
-                || afterY < 0 || afterY >= Constants.BoardSize
+            bool afterBlocked = afterX < 0 || afterX >= Constants.Board.Size
+                || afterY < 0 || afterY >= Constants.Board.Size
                 || b.GetPlayerAt(afterX, afterY) != Player.None;
-            bool beforeBlocked = beforeX < 0 || beforeX >= Constants.BoardSize
-                || beforeY < 0 || beforeY >= Constants.BoardSize
+            bool beforeBlocked = beforeX < 0 || beforeX >= Constants.Board.Size
+                || beforeY < 0 || beforeY >= Constants.Board.Size
                 || b.GetPlayerAt(beforeX, beforeY) != Player.None;
 
             if (afterBlocked && beforeBlocked)
@@ -112,8 +112,8 @@ public static class WinDetector
 
             int startX = x - dx * negative;
             int startY = y - dy * negative;
-            Position[] line = new Position[Constants.WinLength];
-            for (int i = 0; i < Constants.WinLength; i++)
+            Position[] line = new Position[Constants.Board.WinLength];
+            for (int i = 0; i < Constants.Board.WinLength; i++)
             {
                 line[i] = new Position(startX + dx * i, startY + dy * i);
             }

@@ -33,7 +33,7 @@ public static partial class SearchEngine
 
         List<Position> ordered = MoveOrdering.OrderMoves(candidates, sb, player, depth, ttMove, heuristics);
 
-        int bestScore = -Constants.Infinity;
+        int bestScore = -Constants.Score.Infinity;
         int bestX = -1;
         int bestY = -1;
         int origAlpha = alpha;
@@ -51,7 +51,7 @@ public static partial class SearchEngine
             int score;
             if (MoveOrdering.WouldWin(sb, move.X, move.Y, player))
             {
-                score = Constants.WinScore - 1;
+                score = Constants.Score.WinScore - 1;
             }
             else if (i == 0)
             {
@@ -115,12 +115,12 @@ public static partial class SearchEngine
     /// </summary>
     internal static int LmrReduction(int depth, int moveIdx, bool tactical, int histScore)
     {
-        if (tactical || depth < Constants.LMRMinDepth || moveIdx < Constants.LMRFullDepthMoves)
+        if (tactical || depth < Constants.Search.LMRMinDepth || moveIdx < Constants.Search.LMRFullDepthMoves)
         {
             return 0;
         }
         int reduction = 1;
-        if (moveIdx > Constants.LMRDeepMoveThreshold)
+        if (moveIdx > Constants.Search.LMRDeepMoveThreshold)
         {
             reduction = 2;
         }
@@ -155,18 +155,18 @@ public static partial class SearchEngine
 
         if (depth <= 0)
         {
-            return Quiesce(sb, player, alpha, beta, Constants.MaxQuiescenceDepth, heuristics, monitor, plyFromRoot);
+            return Quiesce(sb, player, alpha, beta, Constants.Search.MaxQuiescenceDepth, heuristics, monitor, plyFromRoot);
         }
 
         int origAlpha = alpha;
 
         // Null-move pruning. The static eval is only needed on this path;
         // most interior nodes skip it entirely.
-        if (depth >= Constants.NullMoveMinDepth && Evaluation.Evaluate(sb, player) >= beta)
+        if (depth >= Constants.Search.NullMoveMinDepth && Evaluation.Evaluate(sb, player) >= beta)
         {
             sb.MakeNullMove();
             Position nullPrev = new(-1, -1);
-            int nullScore = -AlphaBeta(sb, player.Opponent(), depth - 1 - Constants.NullMoveReduction,
+            int nullScore = -AlphaBeta(sb, player.Opponent(), depth - 1 - Constants.Search.NullMoveReduction,
                 -beta, -beta + 1, tt, heuristics, monitor, nullPrev, plyFromRoot + 1);
             sb.UnmakeNullMove();
             if (nullScore >= beta && !monitor.ShouldStop())
@@ -201,7 +201,7 @@ public static partial class SearchEngine
             }
         }
 
-        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.Board.MaxSearchRadius);
         candidates = Candidates.FilterOpenRule(candidates, sb, player);
         Position? ttMove = null;
         if (tt.Lookup(sb.Hash(), out TTEntry ttEntry))
@@ -211,7 +211,7 @@ public static partial class SearchEngine
 
         MovePicker picker = new(candidates, sb, player, depth, ttMove, heuristics, prevMove);
 
-        int bestScore = -Constants.Infinity;
+        int bestScore = -Constants.Score.Infinity;
         int bestMoveX = -1;
         int bestMoveY = -1;
         int moveIdx = 0;
@@ -231,7 +231,7 @@ public static partial class SearchEngine
             int score;
             if (MoveOrdering.WouldWin(sb, move.X, move.Y, player))
             {
-                score = Constants.WinScore - plyFromRoot;
+                score = Constants.Score.WinScore - plyFromRoot;
             }
             else
             {

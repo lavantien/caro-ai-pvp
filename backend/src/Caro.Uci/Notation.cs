@@ -17,7 +17,7 @@ public static class Notation
         }
         y = s[0] - 'a';
         x = s[1] - 'a';
-        if (x < 0 || x >= Constants.BoardSize || y < 0 || y >= Constants.BoardSize)
+        if (x < 0 || x >= Constants.Board.Size || y < 0 || y >= Constants.Board.Size)
         {
             x = 0;
             y = 0;

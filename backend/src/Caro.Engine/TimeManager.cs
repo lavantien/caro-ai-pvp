@@ -8,51 +8,51 @@ public static class TimeManager
 {
     public static TimeAllocation AllocateTime(long timeRemainingMs, long incrementMs, int moveNumber)
     {
-        double phaseDivisor = Constants.TimePhaseDivisorEarly;
-        if (moveNumber > Constants.TimePhaseSwitchMove)
+        double phaseDivisor = Constants.TimeManagement.PhaseDivisorEarly;
+        if (moveNumber > Constants.TimeManagement.PhaseSwitchMove)
         {
-            phaseDivisor = Constants.TimePhaseDivisorLate;
+            phaseDivisor = Constants.TimeManagement.PhaseDivisorLate;
         }
 
         double baseMs = timeRemainingMs / phaseDivisor;
-        double incContrib = incrementMs * Constants.TimeIncContribFactor;
+        double incContrib = incrementMs * Constants.TimeManagement.IncContribFactor;
 
         long optimal = (long)(baseMs + incContrib);
-        if (optimal < Constants.TimeMinOptimalMs)
+        if (optimal < Constants.TimeManagement.MinOptimalMs)
         {
-            optimal = Constants.TimeMinOptimalMs;
+            optimal = Constants.TimeManagement.MinOptimalMs;
         }
 
-        long maxTime = (long)(timeRemainingMs * Constants.TimeMaxFraction);
+        long maxTime = (long)(timeRemainingMs * Constants.TimeManagement.MaxFraction);
         if (optimal > maxTime)
         {
             optimal = maxTime;
         }
 
-        long hardBound = (long)(optimal * Constants.TimeHardBoundMultiplier);
-        long buffer = (long)(timeRemainingMs * Constants.TimeBufferFraction);
-        if (buffer < Constants.TimeMinBufferMs)
+        long hardBound = (long)(optimal * Constants.TimeManagement.HardBoundMultiplier);
+        long buffer = (long)(timeRemainingMs * Constants.TimeManagement.BufferFraction);
+        if (buffer < Constants.TimeManagement.MinBufferMs)
         {
-            buffer = Constants.TimeMinBufferMs;
+            buffer = Constants.TimeManagement.MinBufferMs;
         }
         hardBound += buffer;
-        if (hardBound > timeRemainingMs - Constants.TimeReserveMs)
+        if (hardBound > timeRemainingMs - Constants.TimeManagement.ReserveMs)
         {
-            hardBound = timeRemainingMs - Constants.TimeReserveMs;
+            hardBound = timeRemainingMs - Constants.TimeManagement.ReserveMs;
         }
         // Any live clock still deserves a usable budget: a zero or negative
         // hard bound makes the search abort instantly and fall back to move
         // ordering.
-        if (timeRemainingMs > 0 && hardBound < Constants.TimeMinBufferMs)
+        if (timeRemainingMs > 0 && hardBound < Constants.TimeManagement.MinBufferMs)
         {
-            hardBound = Constants.TimeMinBufferMs;
+            hardBound = Constants.TimeManagement.MinBufferMs;
         }
         if (hardBound < 0)
         {
             hardBound = 0;
         }
 
-        long softBound = (long)(optimal * Constants.TimeSoftBoundFraction);
+        long softBound = (long)(optimal * Constants.TimeManagement.SoftBoundFraction);
 
         return new TimeAllocation(softBound, hardBound, optimal);
     }

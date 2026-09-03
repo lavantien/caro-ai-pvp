@@ -8,9 +8,9 @@ public class ZobristTests
     [Fact]
     public void ZobristKeysAreNonZero()
     {
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 Assert.NotEqual(0UL, Zobrist.ZobristKey(x, y, Player.Red));
                 Assert.NotEqual(0UL, Zobrist.ZobristKey(x, y, Player.Blue));
@@ -22,9 +22,9 @@ public class ZobristTests
     public void ZobristKeysAreDistinct()
     {
         Dictionary<ulong, string> seen = [];
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 ulong kr = Zobrist.ZobristKey(x, y, Player.Red);
                 Assert.False(seen.ContainsKey(kr), $"duplicate key with {x},{y} red (also {seen.GetValueOrDefault(kr)})");

@@ -10,9 +10,9 @@ public class BoardTests
     {
         Board b = Board.NewBoard();
         Assert.True(b.IsEmpty());
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 Assert.Equal(Player.None, b.GetCell(x, y).Player);
             }
@@ -129,7 +129,7 @@ public class BoardTests
         Board b = Board.NewBoard();
         Assert.Equal(Player.None, b.GetCell(-1, 0).Player);
         Assert.Equal(Player.None, b.GetCell(0, -1).Player);
-        Assert.Equal(Player.None, b.GetCell(Constants.BoardSize, 0).Player);
+        Assert.Equal(Player.None, b.GetCell(Constants.Board.Size, 0).Player);
     }
 
     [Fact]

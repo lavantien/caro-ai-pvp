@@ -53,7 +53,7 @@ public class MovePickerTests
             .PlaceStone(10, 10, Player.Red);
 
         SearchBoard sb = new(b);
-        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.Board.MaxSearchRadius);
         MovePicker picker = new(candidates, sb, Player.Red, 4, null, new SearchHeuristics(), new Position(-1, -1));
 
         Assert.True(picker.Next(out Position first), "should yield at least one move");

@@ -204,7 +204,7 @@ public class VcfTests
         SearchConfig opts = new() { MaxDepth = 6, TimeLimitMs = 10000, Threads = 1, UseVCF = true };
         (int x, int y, SearchStats stats) = SearchEngine.SearchPosition(b, Player.Blue, opts, tt, h, CancellationToken.None);
         Assert.NotEqual("vcf", stats.MoveType);
-        bool blockedOrWon = (x == 9 && y == 6) || stats.SearchScore >= Constants.WinScore - Constants.AbsoluteMaxDepth;
+        bool blockedOrWon = (x == 9 && y == 6) || stats.SearchScore >= Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth;
         Assert.True(blockedOrWon, $"should block Red's broken four at (9,6) or counter-win, got ({x},{y}) score={stats.SearchScore}");
     }
 

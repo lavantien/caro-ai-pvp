@@ -251,7 +251,7 @@ public sealed class MovePicker
                 continue;
             }
             Position k = _heuristics.KillerAt(_depth, slot);
-            if (k.X < 0 || k.X >= Constants.BoardSize || k.Y < 0 || k.Y >= Constants.BoardSize)
+            if (k.X < 0 || k.X >= Constants.Board.Size || k.Y < 0 || k.Y >= Constants.Board.Size)
             {
                 continue;
             }
@@ -265,7 +265,7 @@ public sealed class MovePicker
         if (_prevMove.X >= 0 && _prevMove.Y >= 0)
         {
             Position cm = _heuristics.CounterMoveFor(_player, _prevMove.X, _prevMove.Y);
-            if (cm.X >= 0 && cm.X < Constants.BoardSize && cm.Y >= 0 && cm.Y < Constants.BoardSize)
+            if (cm.X >= 0 && cm.X < Constants.Board.Size && cm.Y >= 0 && cm.Y < Constants.Board.Size)
             {
                 if (_sb.IsEmpty(cm.X, cm.Y))
                 {
@@ -290,9 +290,9 @@ public sealed class MovePicker
             score += _heuristics.KillerScore(_depth, c);
             score += _heuristics.ContHistoryScore(_player, _prevMove.X, _prevMove.Y, c.X, c.Y);
 
-            int center = Constants.BoardSize / 2;
+            int center = Constants.Board.Size / 2;
             int dist = EngineMath.Abs(c.X - center) + EngineMath.Abs(c.Y - center);
-            score += (Constants.BoardSize * 2 - 4 - dist) * CenterWeight;
+            score += (Constants.Board.Size * 2 - 4 - dist) * CenterWeight;
 
             score += MoveOrdering.ProximityScore(_sb, c.X, c.Y) * ProximityWeight;
 
@@ -345,29 +345,29 @@ public static class MoveOrdering
             int dx = dirs[d * 2];
             int dy = dirs[d * 2 + 1];
             int positive = 0;
-            for (int i = 1; i <= Constants.WinLength; i++)
+            for (int i = 1; i <= Constants.Board.WinLength; i++)
             {
                 int nx = x + dx * i;
                 int ny = y + dy * i;
-                if (nx < 0 || nx >= Constants.BoardSize || ny < 0 || ny >= Constants.BoardSize || sb.PlayerAt(nx, ny) != player)
+                if (nx < 0 || nx >= Constants.Board.Size || ny < 0 || ny >= Constants.Board.Size || sb.PlayerAt(nx, ny) != player)
                 {
                     break;
                 }
                 positive++;
             }
             int negative = 0;
-            for (int i = 1; i <= Constants.WinLength; i++)
+            for (int i = 1; i <= Constants.Board.WinLength; i++)
             {
                 int nx = x - dx * i;
                 int ny = y - dy * i;
-                if (nx < 0 || nx >= Constants.BoardSize || ny < 0 || ny >= Constants.BoardSize || sb.PlayerAt(nx, ny) != player)
+                if (nx < 0 || nx >= Constants.Board.Size || ny < 0 || ny >= Constants.Board.Size || sb.PlayerAt(nx, ny) != player)
                 {
                     break;
                 }
                 negative++;
             }
 
-            if (1 + positive + negative != Constants.WinLength)
+            if (1 + positive + negative != Constants.Board.WinLength)
             {
                 continue;
             }
@@ -377,9 +377,9 @@ public static class MoveOrdering
             int beforeX = x - dx * (negative + 1);
             int beforeY = y - dy * (negative + 1);
 
-            bool afterBlocked = afterX < 0 || afterX >= Constants.BoardSize || afterY < 0 || afterY >= Constants.BoardSize ||
+            bool afterBlocked = afterX < 0 || afterX >= Constants.Board.Size || afterY < 0 || afterY >= Constants.Board.Size ||
                 (sb.PlayerAt(afterX, afterY) != Player.None && sb.PlayerAt(afterX, afterY) != player);
-            bool beforeBlocked = beforeX < 0 || beforeX >= Constants.BoardSize || beforeY < 0 || beforeY >= Constants.BoardSize ||
+            bool beforeBlocked = beforeX < 0 || beforeX >= Constants.Board.Size || beforeY < 0 || beforeY >= Constants.Board.Size ||
                 (sb.PlayerAt(beforeX, beforeY) != Player.None && sb.PlayerAt(beforeX, beforeY) != player);
 
             if (afterBlocked && beforeBlocked)
@@ -394,13 +394,13 @@ public static class MoveOrdering
     internal static int ProximityScore(SearchBoard sb, int x, int y)
     {
         int score = 0;
-        for (int dx = -Constants.MaxSearchRadius; dx <= Constants.MaxSearchRadius; dx++)
+        for (int dx = -Constants.Board.MaxSearchRadius; dx <= Constants.Board.MaxSearchRadius; dx++)
         {
-            for (int dy = -Constants.MaxSearchRadius; dy <= Constants.MaxSearchRadius; dy++)
+            for (int dy = -Constants.Board.MaxSearchRadius; dy <= Constants.Board.MaxSearchRadius; dy++)
             {
                 int nx = x + dx;
                 int ny = y + dy;
-                if (nx >= 0 && nx < Constants.BoardSize && ny >= 0 && ny < Constants.BoardSize)
+                if (nx >= 0 && nx < Constants.Board.Size && ny >= 0 && ny < Constants.Board.Size)
                 {
                     Player p = sb.PlayerAt(nx, ny);
                     if (p == Player.Red || p == Player.Blue)

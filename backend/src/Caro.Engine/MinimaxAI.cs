@@ -39,7 +39,7 @@ public sealed partial class MinimaxAI : IDisposable
         }
         if (ttSizeMB < 1)
         {
-            ttSizeMB = Constants.DefaultTTSizeMB;
+            ttSizeMB = Constants.Transposition.DefaultSizeMB;
         }
         _tt = new TranspositionTable(ttSizeMB);
         _heuristics = new SearchHeuristics();
@@ -68,9 +68,9 @@ public sealed partial class MinimaxAI : IDisposable
         }
 
         int maxDepth = opts.MaxDepth;
-        if (maxDepth <= 0 || maxDepth > Constants.AbsoluteMaxDepth)
+        if (maxDepth <= 0 || maxDepth > Constants.Search.AbsoluteMaxDepth)
         {
-            maxDepth = Constants.AbsoluteMaxDepth;
+            maxDepth = Constants.Search.AbsoluteMaxDepth;
         }
 
         SearchConfig config = new()

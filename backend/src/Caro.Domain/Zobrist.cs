@@ -2,7 +2,7 @@ namespace Caro.Domain;
 
 public static class Zobrist
 {
-    private static readonly ulong[] Table = new ulong[Constants.BoardSize * Constants.BoardSize * 2];
+    private static readonly ulong[] Table = new ulong[Constants.Board.Size * Constants.Board.Size * 2];
     private static readonly ulong NullMoveKey;
 
     static Zobrist()
@@ -24,7 +24,7 @@ public static class Zobrist
         {
             playerIndex = 1;
         }
-        return Table[x * Constants.BoardSize * 2 + y * 2 + playerIndex];
+        return Table[x * Constants.Board.Size * 2 + y * 2 + playerIndex];
     }
 
     public static ulong ZobristNullMove() => NullMoveKey;

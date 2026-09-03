@@ -9,12 +9,12 @@ public sealed class SearchHeuristics
     private const int KillerSecondaryScore = 400_000;
     private const int HistoryMax = 1_000_000;
     private const int ContHistMax = 30_000;
-    private const int BoardCells = Constants.BoardSize * Constants.BoardSize;
+    private const int BoardCells = Constants.Board.Size * Constants.Board.Size;
     private const int ContHistBonusScale = 300;
 
     private readonly Position[,] _killerMoves = new Position[MaxKillerDepth, 2];
-    private readonly int[,] _historyRed = new int[Constants.BoardSize, Constants.BoardSize];
-    private readonly int[,] _historyBlue = new int[Constants.BoardSize, Constants.BoardSize];
+    private readonly int[,] _historyRed = new int[Constants.Board.Size, Constants.Board.Size];
+    private readonly int[,] _historyBlue = new int[Constants.Board.Size, Constants.Board.Size];
     // Flattened continuation history [2][256][256]: one array copy per Clone.
     private readonly int[] _contHistory = new int[2 * BoardCells * BoardCells];
     private readonly Position[] _counterMove = new Position[2 * BoardCells];
@@ -66,7 +66,7 @@ public sealed class SearchHeuristics
 
     public void RecordHistory(Player player, int x, int y, int depth)
     {
-        if (x < 0 || x >= Constants.BoardSize || y < 0 || y >= Constants.BoardSize)
+        if (x < 0 || x >= Constants.Board.Size || y < 0 || y >= Constants.Board.Size)
         {
             return;
         }
@@ -80,7 +80,7 @@ public sealed class SearchHeuristics
 
     public int HistoryScore(Player player, int x, int y)
     {
-        if (x < 0 || x >= Constants.BoardSize || y < 0 || y >= Constants.BoardSize)
+        if (x < 0 || x >= Constants.Board.Size || y < 0 || y >= Constants.Board.Size)
         {
             return 0;
         }
@@ -104,9 +104,9 @@ public sealed class SearchHeuristics
     /// </summary>
     public void AgeForNewMove()
     {
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 _historyRed[x, y] /= 2;
                 _historyBlue[x, y] /= 2;
@@ -187,7 +187,7 @@ public sealed class SearchHeuristics
 
 internal static class EngineMath
 {
-    public static int PosToCell(int x, int y) => y * Constants.BoardSize + x;
+    public static int PosToCell(int x, int y) => y * Constants.Board.Size + x;
 
     public static int PlayerIdx(Player p) => p == Player.Blue ? 1 : 0;
 

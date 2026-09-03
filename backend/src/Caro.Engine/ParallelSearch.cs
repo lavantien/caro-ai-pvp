@@ -32,7 +32,7 @@ public static class ParallelSearch
         }
 
         SearchBoard sb = new(b);
-        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.Board.MaxSearchRadius);
         candidates = Candidates.FilterOpenRule(candidates, sb, player);
         if (candidates.Count <= 1)
         {
@@ -50,14 +50,14 @@ public static class ParallelSearch
             SearchBoard oppSB = new(b);
             if (!Vcf.OpponentHasImmediateWin(oppSB, player.Opponent()))
             {
-                long vcfTime = (long)(config.TimeLimitMs * Constants.VCFTimeFraction);
+                long vcfTime = (long)(config.TimeLimitMs * Constants.Vcf.TimeFraction);
                 (int vx, int vy, VCFResult result) = Vcf.SolveVCFWithDepth(b, player, config.VCFMaxDepth, vcfTime, ctx);
                 if (result == VCFResult.Win)
                 {
                     return (vx, vy, new SearchStats
                     {
                         DepthAchieved = 0,
-                        SearchScore = Constants.WinScore,
+                        SearchScore = Constants.Score.WinScore,
                         AllocatedTimeMs = config.TimeLimitMs,
                         ThreadCount = numWorkers,
                         MoveType = MoveTypes.Vcf,
@@ -69,12 +69,12 @@ public static class ParallelSearch
         Position? vcfPreferred = null;
         if (config.UseVCF)
         {
-            long oppVcfTime = (long)(config.TimeLimitMs * Constants.VCFBlockFraction);
+            long oppVcfTime = (long)(config.TimeLimitMs * Constants.Vcf.BlockFraction);
             (int vx, int vy, VCFResult result) = Vcf.SolveVCFWithDepth(b, player.Opponent(), config.VCFMaxDepth, oppVcfTime, ctx);
             if (result == VCFResult.Win)
             {
                 Board blocked = b.PlaceStone(vx, vy, player);
-                long blockCheckTime = (long)(config.TimeLimitMs * Constants.VCFBlockCheckFraction);
+                long blockCheckTime = (long)(config.TimeLimitMs * Constants.Vcf.BlockCheckFraction);
                 (_, _, VCFResult checkResult) = Vcf.SolveVCFWithDepth(blocked, player.Opponent(), config.VCFMaxDepth, blockCheckTime, ctx);
                 if (checkResult != VCFResult.Win)
                 {
@@ -106,7 +106,7 @@ public static class ParallelSearch
                 SearchBoard workerSB = new(b);
                 SearchHeuristics workerH = workerHeuristics[workerID];
 
-                int prevScore = -Constants.Infinity;
+                int prevScore = -Constants.Score.Infinity;
                 int completedDepth = 0;
                 int startDepth = 1 + workerID % StartDepthStagger;
                 long lastIterMs = 0;
@@ -130,35 +130,35 @@ public static class ParallelSearch
                     }
                     long iterStart = monitor.ElapsedMs();
 
-                    int delta = Constants.AspirationWindowSize;
-                    int a = -Constants.Infinity;
-                    int bnd = Constants.Infinity;
+                    int delta = Constants.Search.AspirationWindowSize;
+                    int a = -Constants.Score.Infinity;
+                    int bnd = Constants.Score.Infinity;
                     if (completedDepth > 0)
                     {
-                        a = Math.Max(prevScore - delta, -Constants.Infinity);
-                        bnd = Math.Min(prevScore + delta, Constants.Infinity);
+                        a = Math.Max(prevScore - delta, -Constants.Score.Infinity);
+                        bnd = Math.Min(prevScore + delta, Constants.Score.Infinity);
                     }
 
                     int x = 0;
                     int y = 0;
                     int score = 0;
                     bool found = false;
-                    for (int attempt = 0; attempt < Constants.MaxAspirationAttempts; attempt++)
+                    for (int attempt = 0; attempt < Constants.Search.MaxAspirationAttempts; attempt++)
                     {
                         (x, y, score) = SearchEngine.SearchRoot(workerSB, player, depth, a, bnd, tt, workerH, candidates, monitor, vcfPreferred);
                         if (x < 0 || monitor.ShouldStop())
                         {
                             break;
                         }
-                        if (score <= a && a > -Constants.Infinity)
+                        if (score <= a && a > -Constants.Score.Infinity)
                         {
-                            a = Math.Max(a - delta, -Constants.Infinity);
+                            a = Math.Max(a - delta, -Constants.Score.Infinity);
                             delta *= 2;
                             continue;
                         }
-                        if (score >= bnd && bnd < Constants.Infinity)
+                        if (score >= bnd && bnd < Constants.Score.Infinity)
                         {
-                            bnd = Math.Min(bnd + delta, Constants.Infinity);
+                            bnd = Math.Min(bnd + delta, Constants.Score.Infinity);
                             delta *= 2;
                             continue;
                         }
@@ -169,7 +169,7 @@ public static class ParallelSearch
                     if (!found && !monitor.ShouldStop())
                     {
                         (x, y, score) = SearchEngine.SearchRoot(workerSB, player, depth,
-                            -Constants.Infinity, Constants.Infinity, tt, workerH, candidates, monitor, vcfPreferred);
+                            -Constants.Score.Infinity, Constants.Score.Infinity, tt, workerH, candidates, monitor, vcfPreferred);
                         if (x >= 0)
                         {
                             found = true;
@@ -199,7 +199,7 @@ public static class ParallelSearch
 
         int bestX = candidates[0].X;
         int bestY = candidates[0].Y;
-        int bestScore = -Constants.Infinity;
+        int bestScore = -Constants.Score.Infinity;
         int bestDepth = 0;
 
         foreach (ParallelResult r in results)

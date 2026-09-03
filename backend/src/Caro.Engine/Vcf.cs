@@ -20,7 +20,7 @@ internal sealed class VCFSolver(SearchBoard sb, Player attacker, TimeMonitor mon
             return false;
         }
 
-        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.Board.MaxSearchRadius);
 
         foreach (Position c in candidates)
         {
@@ -105,7 +105,7 @@ public static class Vcf
         long allocatedMs,
         CancellationToken ctx)
     {
-        return SolveVCFWithDepth(b, player, Constants.VCFSearchDepth, allocatedMs, ctx);
+        return SolveVCFWithDepth(b, player, Constants.Vcf.SearchDepth, allocatedMs, ctx);
     }
 
     /// <summary>
@@ -127,7 +127,7 @@ public static class Vcf
 
         if (depth <= 0)
         {
-            depth = Constants.VCFSearchDepth;
+            depth = Constants.Vcf.SearchDepth;
         }
         if (v.Search(depth))
         {
@@ -143,7 +143,7 @@ public static class Vcf
 
     internal static bool OpponentHasImmediateWin(SearchBoard sb, Player opponent)
     {
-        List<Position> candidates = Candidates.GetCandidates(sb, Constants.MaxSearchRadius);
+        List<Position> candidates = Candidates.GetCandidates(sb, Constants.Board.MaxSearchRadius);
         foreach (Position c in candidates)
         {
             sb.MakeMove(c.X, c.Y, opponent);

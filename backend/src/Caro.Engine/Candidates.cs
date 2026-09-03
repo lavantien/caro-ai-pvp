@@ -14,7 +14,7 @@ public static class Candidates
         BitBoard occupied = sb.Occupied();
         if (occupied.IsZero())
         {
-            int center = Constants.BoardSize / 2;
+            int center = Constants.Board.Size / 2;
             int halfSpan = EmptyBoardSeedSpan / 2;
             List<Position> seed = new(EmptyBoardSeedSpan * EmptyBoardSeedSpan);
             for (int dx = 0; dx < EmptyBoardSeedSpan; dx++)
@@ -28,13 +28,13 @@ public static class Candidates
         }
 
         // Stack-allocated dedup: a heap map per node dominated the profile.
-        Span<bool> seen = stackalloc bool[Constants.BoardSize * Constants.BoardSize];
+        Span<bool> seen = stackalloc bool[Constants.Board.Size * Constants.Board.Size];
         seen.Clear();
         List<Position> result = new(DefaultCandidateCapacity);
 
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 if (!occupied.Get(x, y))
                 {
@@ -46,11 +46,11 @@ public static class Candidates
                     {
                         int nx = x + dx;
                         int ny = y + dy;
-                        if (nx < 0 || nx >= Constants.BoardSize || ny < 0 || ny >= Constants.BoardSize)
+                        if (nx < 0 || nx >= Constants.Board.Size || ny < 0 || ny >= Constants.Board.Size)
                         {
                             continue;
                         }
-                        int idx = ny * Constants.BoardSize + nx;
+                        int idx = ny * Constants.Board.Size + nx;
                         if (seen[idx] || !sb.IsEmpty(nx, ny))
                         {
                             continue;
@@ -67,7 +67,7 @@ public static class Candidates
 
     public static List<Position> GetTacticalCandidates(SearchBoard sb, Player player)
     {
-        List<Position> allCandidates = GetCandidates(sb, Constants.MaxSearchRadius);
+        List<Position> allCandidates = GetCandidates(sb, Constants.Board.MaxSearchRadius);
         if (allCandidates.Count == 0)
         {
             return [];
@@ -112,8 +112,8 @@ public static class Candidates
         // forcing, because the opponent cannot answer both lines with one stone.
         // A lone open three stays non-forcing (the opponent may convert or
         // ignore it), so it stays visible to eval and move ordering only.
-        Span<sbyte> line = stackalloc sbyte[Constants.LineLength];
-        Span<sbyte> oppLine = stackalloc sbyte[Constants.LineLength];
+        Span<sbyte> line = stackalloc sbyte[Constants.Board.LineLength];
+        Span<sbyte> oppLine = stackalloc sbyte[Constants.Board.LineLength];
         int ownThreatDirs = 0;
         int oppThreatDirs = 0;
         foreach ((int dx, int dy) in Pattern4Classifier.EvalDirs)
@@ -153,9 +153,9 @@ public static class Candidates
         int blueCount = 0;
         int firstRedX = 0;
         int firstRedY = 0;
-        for (int bx = 0; bx < Constants.BoardSize; bx++)
+        for (int bx = 0; bx < Constants.Board.Size; bx++)
         {
-            for (int by = 0; by < Constants.BoardSize; by++)
+            for (int by = 0; by < Constants.Board.Size; by++)
             {
                 Player p = sb.PlayerAt(bx, by);
                 if (p == Player.Red)
@@ -189,7 +189,7 @@ public static class Candidates
             {
                 dy = -dy;
             }
-            if (dx >= Constants.OpenRuleMin || dy >= Constants.OpenRuleMin)
+            if (dx >= Constants.Board.OpenRuleMin || dy >= Constants.Board.OpenRuleMin)
             {
                 filtered.Add(c);
             }

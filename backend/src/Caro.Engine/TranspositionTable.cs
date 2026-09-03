@@ -46,7 +46,7 @@ public sealed class TranspositionTable : IDisposable
 {
     private const int AgeDecayPerGeneration = 8;
 
-    private readonly TtShard[] _shards = new TtShard[Constants.TTShardCount];
+    private readonly TtShard[] _shards = new TtShard[Constants.Transposition.ShardCount];
     private readonly int _sizeMB;
     private int _age;
     private long _probes;
@@ -55,7 +55,7 @@ public sealed class TranspositionTable : IDisposable
     public TranspositionTable(int sizeMB)
     {
         _sizeMB = sizeMB;
-        int entriesPerShard = (sizeMB * 1024 * 1024 / Constants.TTShardCount) / Unsafe.SizeOf<TtSlot>();
+        int entriesPerShard = (sizeMB * 1024 * 1024 / Constants.Transposition.ShardCount) / Unsafe.SizeOf<TtSlot>();
         ulong mask = 1;
         while (mask < (ulong)entriesPerShard)
         {
@@ -69,7 +69,7 @@ public sealed class TranspositionTable : IDisposable
         }
     }
 
-    private static int ShardIndex(ulong hash) => (int)((hash >> 32) & (Constants.TTShardCount - 1));
+    private static int ShardIndex(ulong hash) => (int)((hash >> 32) & (Constants.Transposition.ShardCount - 1));
 
     public void Store(TTEntry entry)
     {

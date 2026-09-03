@@ -151,9 +151,9 @@ public sealed partial class MinimaxAI
     private PonderOutcome RunPonder(Board b, Player player, Position predictedReply, PonderConfig cfg, CancellationToken ctx)
     {
         int maxDepth = cfg.MaxDepth;
-        if (maxDepth <= 0 || maxDepth > Constants.AbsoluteMaxDepth)
+        if (maxDepth <= 0 || maxDepth > Constants.Search.AbsoluteMaxDepth)
         {
-            maxDepth = Constants.AbsoluteMaxDepth;
+            maxDepth = Constants.Search.AbsoluteMaxDepth;
         }
         int threads = Math.Min(cfg.Threads, _maxThreads);
         if (threads < 1)
@@ -188,6 +188,6 @@ public sealed partial class MinimaxAI
     internal static bool PonderCompleted(SearchStats stats)
     {
         // VCF results report DepthAchieved 0 but are solver-verified wins.
-        return stats.DepthAchieved >= Constants.PonderMinCompletedDepth || stats.MoveType == MoveTypes.Vcf;
+        return stats.DepthAchieved >= Constants.Ponder.MinCompletedDepth || stats.MoveType == MoveTypes.Vcf;
     }
 }

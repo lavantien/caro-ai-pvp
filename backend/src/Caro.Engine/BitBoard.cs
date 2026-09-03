@@ -34,7 +34,7 @@ public struct BitBoard
 
     internal static (int Word, int Offset) BitIndex(int x, int y)
     {
-        int idx = y * Constants.BoardSize + x;
+        int idx = y * Constants.Board.Size + x;
         return (idx >> 6, idx & 63);
     }
 
@@ -95,7 +95,7 @@ public struct BitBoard
 
     public readonly BitBoard Dilate()
     {
-        const int W = Constants.BoardSize;
+        const int W = Constants.Board.Size;
         BitBoard result = default;
 
         // Iterate over all 256 bits, for each set bit set all 8 neighbors

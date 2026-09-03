@@ -56,7 +56,7 @@ public class HandlerTests
     public async Task CreateGameTooMany()
     {
         await using TestApi api = TestHostFactory.Create();
-        for (int i = 0; i < Constants.MaxConcurrentGames; i++)
+        for (int i = 0; i < Constants.Limits.MaxConcurrentGames; i++)
         {
             var (status, _) = await api.Client.PostJsonAsync("/api/game/new", "{}");
             Assert.Equal(200, status);

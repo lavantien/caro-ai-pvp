@@ -4,7 +4,7 @@ namespace Caro.Engine;
 
 public static class Evaluation
 {
-    internal const int FiveScore = Constants.WinScore;
+    internal const int FiveScore = Constants.Score.WinScore;
     internal const int Flex4WinBonus = 15_000;
     private const int DoubleB4Bonus = 14_000;
     private const int B4F3Bonus = 13_000;
@@ -18,7 +18,7 @@ public static class Evaluation
     private const int Flex1Score = 10;
     private const int CenterBonusWeight = 2;
 
-    internal const int MaxCorrectedEval = Constants.MaxEval;
+    internal const int MaxCorrectedEval = Constants.Score.MaxEval;
 
     public static int Evaluate(SearchBoard sb, Player player)
     {
@@ -92,9 +92,9 @@ public static class Evaluation
         result += pp.Block2Count * Block2Score;
 
         BitBoard bits = sb.BitBoardFor(player);
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 if (bits.Get(x, y))
                 {
@@ -108,17 +108,17 @@ public static class Evaluation
 
     private static int CenterBonus(SearchBoard sb, Player player)
     {
-        int center = Constants.BoardSize / 2;
+        int center = Constants.Board.Size / 2;
         int bonus = 0;
         BitBoard bits = sb.BitBoardFor(player);
-        for (int x = 0; x < Constants.BoardSize; x++)
+        for (int x = 0; x < Constants.Board.Size; x++)
         {
-            for (int y = 0; y < Constants.BoardSize; y++)
+            for (int y = 0; y < Constants.Board.Size; y++)
             {
                 if (bits.Get(x, y))
                 {
                     int dist = EngineMath.Abs(x - center) + EngineMath.Abs(y - center);
-                    bonus += (Constants.BoardSize - dist) * CenterBonusWeight;
+                    bonus += (Constants.Board.Size - dist) * CenterBonusWeight;
                 }
             }
         }
