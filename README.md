@@ -425,7 +425,7 @@ Backend: http://localhost:5207 | Frontend: http://localhost:5173 (see the enviro
 
 ### Environment overrides
 
-All defaults live in one place per runtime: `backend/src/Caro.Domain/Constants.cs` and `Caro.Server`'s `ServerConfig` (backend), `frontend/src/lib/config/*.ts` (frontend), `scripts/lib.mjs` (tooling). The variables below override them:
+All defaults live in one place per runtime: `backend/src/Caro.Domain/Constants.cs` (plus `Constants.Tables.cs` and `CaroConfig.cs`) and `Caro.Server`'s `ServerConfig` (backend), `frontend/src/lib/config/index.ts` (frontend), `scripts/lib.mjs` (tooling). The variables below override them:
 
 | Variable | Affects | Default |
 |----------|---------|---------|
@@ -444,6 +444,32 @@ All defaults live in one place per runtime: `backend/src/Caro.Domain/Constants.c
 | `CARO_PROBE_THREADS` / `CARO_PROBE_HASH_MB` / `CARO_PROBE_SKILL` / `CARO_PROBE_SPEED_DEPTH` / `CARO_PROBE_CLOCK_MS` / `CARO_PROBE_PARITY_TIMEOUT_MS` / `CARO_PROBE_SPEED_TIMEOUT_MS` | UCI probe settings | `1` / `256` / `5` / `9` / `3600000` / `180000` / `300000` |
 
 Setting `API_BASE_URL` (and `FRONTEND_URL`/`E2E_BASE_URL` for the frontend) moves the whole stack: the bootstrap scripts derive the killed port and the backend's `CARO_HTTP_PORT` from it.
+
+### Runtime configuration (backend)
+
+Startup-tunable values load from the `Caro` section of `backend/src/Caro.Server/appsettings.json` (empty by default, so compiled defaults apply) and can also be set through environment variables using the `Caro__` prefix (`Caro__MaxConcurrentGames=8`). Everything not listed stays at its compiled default, which lives in `Caro.Domain/Constants.cs`. The config is validated once at startup and invalid values fail the boot with the offending key name.
+
+```json
+{
+  "Caro": {
+    "MaxConcurrentGames": 8,
+    "AbandonedTimeoutMinutes": 45,
+    "OpeningSpreadRadius": 2,
+    "DefaultTTSizeMB": 2048,
+    "TimeControl": { "Default": "10+0", "DefaultInitialTimeMs": 600000, "DefaultIncrementSeconds": 0 },
+    "DifficultyProfiles": {
+      "1": { "TimeFraction": 0.08 }
+    },
+    "Uci": { "Threads": { "Default": 2, "Min": 1, "Max": 8 } }
+  }
+}
+```
+
+Overridable: concurrent-game cap, abandoned-game window, TT size defaults, opening spread, the time-control table and default, per-level difficulty profiles (time fraction, depth cap, thread mode, VCF sight, ponder, TT size), UCI option bounds, and the eleven time-management knobs (`Caro:TimeManagement`). Fixed by design: board geometry, eval and ordering score ladders, search thresholds (LMR, aspiration, quiescence, null move), killer/history scales, pattern thresholds, TT shard count, difficulty level bounds 1..5, and identity constants (Zobrist seed, protocol words). Values feeding `stackalloc` buffers or fixed array dimensions must stay compile-time.
+
+The time-control and difficulty tables are mirrored three ways: `Caro.Domain/Constants.Tables.cs`, `frontend/src/lib/config/index.ts`, and `scripts/lib.mjs`. Change all three together.
+
+`Caro.Api.Tests`' `TestHostFactory` builds its host with `WebApplication.CreateBuilder()`, so an `appsettings.json` dropped into that test project's content root would be auto-loaded. There is none today; keep it that way and configure test hosts through `TestHostFactory.Create(config: ...)`.
 
 ### Scripts
 

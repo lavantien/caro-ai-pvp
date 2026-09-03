@@ -280,6 +280,28 @@ kills pondering process-wide.
 The csproj graph enforces this; a violation is a build error, not a review
 comment.
 
+### Constants and startup configuration
+
+Business-logic constants live in one place: `Caro.Domain/Constants.cs`
+(nested groups) and `Constants.Tables.cs` (direction, difficulty, and
+time-control data). Values that size fixed arrays or `stackalloc` buffers,
+or that encode cross-system contracts (board geometry, score ladders,
+search thresholds, level bounds 1..5), stay `const`. Everything
+game-tunable flows through `CaroConfig` (`Caro.Domain/CaroConfig.cs`):
+a POCO whose properties are pre-seeded from `Constants`, bound from the
+appsettings `Caro` section in `Caro.Server`'s `Program.cs`, validated
+once, and injected as a singleton via `AddCaroApi`. Consumers take it as
+a constructor parameter (nullable, defaulting to `CaroConfig.Default`),
+never through an ambient static.
+
+Two traps: `Caro.Api.Tests`' `TestHostFactory` uses
+`WebApplication.CreateBuilder()`, so an `appsettings.json` dropped into
+that test project would be auto-loaded (there is none today; pass configs
+through `TestHostFactory.Create(config: ...)`). And difficulty profiles
+bind as a level-keyed dictionary precisely because the configuration
+binder merges overrides into existing dictionary entries in place; a
+positional list cannot be partially overridden.
+
 ## Sanctioned deviations from the Go engine
 
 The port is a transliteration; these differences are known and accepted:

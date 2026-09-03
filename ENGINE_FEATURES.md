@@ -662,13 +662,15 @@ Two-character algebraic notation for Caro:
 
 ### 10.2 Centralized Constants
 
-| File | Constants |
-|------|-----------|
-| `Caro.Domain/Constants.cs` | BoardSize, WinLength, Infinity, WinScore, MaxEval, search thresholds (LMR, null-move, aspiration, quiescence), TT shard count, VCF search depth, time management (phase divisors, soft/hard bounds, buffer), cell counts |
-| `Caro.Engine/Search.cs` | Search orchestration logic (constants moved to domain) |
-| `Caro.Engine/MovePicker.cs` | Staged picker score thresholds |
-| `Caro.Engine/Evaluation.cs` | Pattern scores, center bonus weights |
-| `Caro.Engine/Difficulty.cs` | L1-L5 difficulty profiles, thread counts |
+All engine and game constants live in one nested-class tree in `Caro.Domain`, split across two files, with a third file adding the startup-loadable layer:
+
+| File | Contents |
+|------|----------|
+| `Caro.Domain/Constants.cs` | Scalar groups: `Board`, `Score`, `Eval`, `Search`, `Vcf`, `TimeManagement`, `Ponder`, `History`, `Ordering`, `Pattern`, `Iteration`, `Transposition`, `Watchdog`, `Capacity`, `Limits`, `Opening`, `Difficulty`, `TimeControl`, `Uci` |
+| `Caro.Domain/Constants.Tables.cs` | Data tables: `Directions` (shared 4-direction scans), `DifficultyProfiles` (L1-L5 ladder with `ProfileThreads` host-adaptation modes), `TimeControls` (canonical keys plus legacy aliases) |
+| `Caro.Domain/CaroConfig.cs` | `CaroConfig` startup overrides bound from the appsettings `Caro` section; every property is pre-seeded from `Constants`, so partial config leaves the rest at compiled defaults |
+
+Boundary between compile-time and startup-tunable: board geometry, the eval and ordering score ladders, search thresholds (LMR, aspiration, quiescence, null move), killer/history scales, pattern thresholds, `Transposition.ShardCount`, `History.MaxKillerDepth`, and the difficulty level bounds 1..5 stay `const` because they size fixed arrays and `stackalloc` buffers or encode cross-system contracts. The game limits, TT sizes, opening spread, time-control table, difficulty profiles, UCI bounds, and the eleven time-management knobs flow through `CaroConfig` instead (see the README's runtime configuration section). Behavior classes stay thin: `Difficulty.GetDifficultyProfile` maps the table plus host thread adaptation, and `Caro.Api/TimeControls.Resolve` reads the central table.
 
 ### 10.3 Main Engine Files
 
