@@ -13,4 +13,9 @@ internal static class TimeControls
         requested is not null && Constants.TimeControls.TryGetValue(requested, out Constants.TimeControlData entry)
             ? (entry.Canonical, entry.InitialTimeMs, entry.IncrementSeconds)
             : (Constants.TimeControl.Default, Constants.TimeControl.DefaultInitialTimeMs, Constants.TimeControl.DefaultIncrementSeconds);
+
+    public static (string Canonical, long InitialTimeMs, int IncrementSeconds) Resolve(string? requested, TimeControlOptions options) =>
+        requested is not null && options.Entries.TryGetValue(requested, out Constants.TimeControlData entry)
+            ? (entry.Canonical, entry.InitialTimeMs, entry.IncrementSeconds)
+            : (options.Default, options.DefaultInitialTimeMs, options.DefaultIncrementSeconds);
 }

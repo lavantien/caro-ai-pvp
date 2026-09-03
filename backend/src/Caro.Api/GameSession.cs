@@ -18,6 +18,7 @@ public sealed partial class GameSession
     private readonly int? _redDifficulty;
     private readonly int? _blueDifficulty;
     private readonly Func<int> _activeGameCount;
+    private readonly CaroConfig _config;
     private MinimaxAI? _redAI;
     private MinimaxAI? _blueAI;
 
@@ -28,7 +29,8 @@ public sealed partial class GameSession
         GameMode mode,
         int? redDiff,
         int? blueDiff,
-        Func<int> activeGameCount)
+        Func<int> activeGameCount,
+        CaroConfig? config = null)
     {
         _game = GameState.NewGameState(mode, timeControl, initialTimeMs, incrementSeconds);
         _redTimeMs = initialTimeMs;
@@ -37,6 +39,7 @@ public sealed partial class GameSession
         _redDifficulty = redDiff;
         _blueDifficulty = blueDiff;
         _activeGameCount = activeGameCount;
+        _config = config ?? CaroConfig.Default;
     }
 
     /// <summary>
@@ -47,14 +50,14 @@ public sealed partial class GameSession
     internal void ApplyRandomOpening(long seed)
     {
         OpeningRng rng = new(seed);
-        int low = Constants.Board.Size / 2 - Constants.Opening.SpreadRadius;
-        int high = Constants.Board.Size / 2 + Constants.Opening.SpreadRadius - 1;
+        int low = Constants.Board.Size / 2 - _config.OpeningSpreadRadius;
+        int high = Constants.Board.Size / 2 + _config.OpeningSpreadRadius - 1;
         int rx = low + rng.Next(high - low + 1);
         int ry = low + rng.Next(high - low + 1);
         _game = _game.WithMove(rx, ry);
 
-        int bx = rx - Constants.Opening.SpreadRadius + rng.Next(2 * Constants.Opening.SpreadRadius + 1);
-        int by = ry - Constants.Opening.SpreadRadius + rng.Next(2 * Constants.Opening.SpreadRadius + 1);
+        int bx = rx - _config.OpeningSpreadRadius + rng.Next(2 * _config.OpeningSpreadRadius + 1);
+        int by = ry - _config.OpeningSpreadRadius + rng.Next(2 * _config.OpeningSpreadRadius + 1);
         bx = Math.Clamp(bx, 0, Constants.Board.Size - 1);
         by = Math.Clamp(by, 0, Constants.Board.Size - 1);
         if (bx == rx && by == ry)
@@ -176,10 +179,10 @@ public sealed partial class GameSession
         // sessions, so locking in the other order would deadlock.
         int threads = Difficulty.GetEngineThreadsForLoad(_activeGameCount());
         int? diff = player == Player.Blue ? _blueDifficulty : _redDifficulty;
-        int ttSizeMB = Constants.Transposition.DefaultSessionSizeMB;
+        int ttSizeMB = _config.DefaultSessionTTSizeMB;
         if (diff is >= Constants.Difficulty.MinLevel and <= Constants.Difficulty.MaxLevel)
         {
-            ttSizeMB = Difficulty.GetDifficultyProfile(diff.Value).TTSizeMB;
+            ttSizeMB = Difficulty.GetDifficultyProfile(diff.Value, _config).TTSizeMB;
         }
 
         lock (_mu)

@@ -76,7 +76,7 @@ public sealed partial class GameSession
         }
         int? diff = DifficultyForLocked(p);
         return diff is >= Constants.Difficulty.MinLevel and <= Constants.Difficulty.MaxLevel
-            && Difficulty.GetDifficultyProfile(diff.Value).Ponder;
+            && Difficulty.GetDifficultyProfile(diff.Value, _config).Ponder;
     }
 
     private int? DifficultyForLocked(Player p) => p == Player.Blue ? _blueDifficulty : _redDifficulty;

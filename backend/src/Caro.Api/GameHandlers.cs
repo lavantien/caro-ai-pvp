@@ -9,19 +9,32 @@ using Microsoft.Extensions.Logging;
 
 namespace Caro.Api;
 
-public sealed partial class GameHandlers(GameStore store, MatchStore? matches = null, ILogger? logger = null)
+public sealed partial class GameHandlers(GameStore store, MatchStore? matches = null, ILogger? logger = null, CaroConfig? config = null)
 {
     private const int GameIdByteLength = 8;
 
+    private readonly CaroConfig _config = config ?? CaroConfig.Default;
+
     private static string NewGameId() =>
         Convert.ToHexString(RandomNumberGenerator.GetBytes(GameIdByteLength)).ToLowerInvariant();
+
+    /// <summary>Search options for engines without a difficulty level set.</summary>
+    private static SearchOptions DefaultSearchOptions(long timeRemainingMs, int incrementSeconds, int moveNumber) => new()
+    {
+        TimeRemainingMs = timeRemainingMs,
+        IncrementMs = incrementSeconds * 1000L,
+        MoveNumber = moveNumber,
+        ParallelEnabled = true,
+        TimeFraction = 1.0,
+        UseVCF = true,
+    };
 
     public async Task CreateGameAsync(HttpContext http)
     {
         // Evict finished and idle sessions first so stale games never block
         // new ones between the periodic sweeps.
         store.CleanupCompleted();
-        if (store.Count() >= Constants.Limits.MaxConcurrentGames)
+        if (store.Count() >= _config.MaxConcurrentGames)
         {
             throw new TooManyGamesException();
         }
@@ -38,7 +51,7 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
             return;
         }
 
-        (string timeControl, long initialTimeMs, int incrementSeconds) = TimeControls.Resolve(req.TimeControl);
+        (string timeControl, long initialTimeMs, int incrementSeconds) = TimeControls.Resolve(req.TimeControl, _config.TimeControl);
 
         GameMode gameMode = GameModes.Parse(req.GameMode);
         int? redDiff = req.RedDifficulty;
@@ -57,7 +70,7 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
 
         string gameId = NewGameId();
         GameSession session = new(timeControl, initialTimeMs, incrementSeconds, gameMode,
-            redDiff, blueDiff, store.ActiveGameCount);
+            redDiff, blueDiff, store.ActiveGameCount, _config);
         if (req.RandomOpening && gameMode == GameMode.AivAI)
         {
             session.ApplyRandomOpening(req.Seed);
@@ -169,7 +182,7 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
         SearchOptions opts;
         if (difficulty is >= Constants.Difficulty.MinLevel and <= Constants.Difficulty.MaxLevel)
         {
-            DifficultyProfile profile = Difficulty.GetDifficultyProfile(difficulty.Value);
+            DifficultyProfile profile = Difficulty.GetDifficultyProfile(difficulty.Value, _config);
             opts = new SearchOptions
             {
                 TimeRemainingMs = timeRemainingMs,
@@ -185,15 +198,7 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
         }
         else
         {
-            opts = new SearchOptions
-            {
-                TimeRemainingMs = timeRemainingMs,
-                IncrementMs = incrementSeconds * 1000L,
-                MoveNumber = moveNumber,
-                ParallelEnabled = true,
-                TimeFraction = 1.0,
-                UseVCF = true,
-            };
+            opts = DefaultSearchOptions(timeRemainingMs, incrementSeconds, moveNumber);
         }
 
         CancellationToken ctx = http.RequestAborted;

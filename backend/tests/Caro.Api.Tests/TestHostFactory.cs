@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Caro.Api;
+using Caro.Domain;
 using Caro.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -34,13 +35,13 @@ internal sealed class TestApi : IAsyncDisposable
 
 internal static class TestHostFactory
 {
-    public static TestApi Create(MatchStore? matches = null, GameStore? store = null)
+    public static TestApi Create(MatchStore? matches = null, GameStore? store = null, CaroConfig? config = null)
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseTestServer();
-        store ??= new GameStore();
-        builder.Services.AddCaroApi(matches, store);
+        store ??= new GameStore(config);
+        builder.Services.AddCaroApi(matches, store, config);
 
         WebApplication app = builder.Build();
         app.UseCaroPipeline();

@@ -23,32 +23,41 @@ public static class Difficulty
     /// Constants.DifficultyProfiles; levels outside MinLevel..MaxLevel play
     /// the top profile.
     /// </summary>
-    public static DifficultyProfile GetDifficultyProfile(int level)
+    public static DifficultyProfile GetDifficultyProfile(int level) => GetDifficultyProfile(level, null);
+
+    /// <summary>
+    /// Same mapping against a CaroConfig's (validated) profile overrides;
+    /// a null config reads the compiled table.
+    /// </summary>
+    public static DifficultyProfile GetDifficultyProfile(int level, CaroConfig? config)
     {
         int n = Environment.ProcessorCount;
         int l5Threads = Pow2Floor((n - ReservedCores) / 2);
 
-        Constants.DifficultyProfileData data = Constants.DifficultyProfiles[^1];
-        foreach (Constants.DifficultyProfileData candidate in Constants.DifficultyProfiles)
+        if (config is not null
+            && level >= Constants.Difficulty.MinLevel && level <= Constants.Difficulty.MaxLevel
+            && config.DifficultyProfiles.TryGetValue(level, out DifficultyProfileOptions? o))
         {
-            if (candidate.Level == level)
-            {
-                data = candidate;
-                break;
-            }
+            return new DifficultyProfile(o.Name, o.TimeFraction, o.MaxDepth, ThreadsFor(o.ThreadsMode, l5Threads),
+                o.UseVCF, o.VCFDepth, o.Ponder, o.TTSizeMB);
         }
 
-        int threads = data.Threads switch
+        Constants.DifficultyProfileData data = Constants.DifficultyProfiles.FirstOrDefault(p => p.Level == level);
+        if (data.Level < Constants.Difficulty.MinLevel)
         {
-            Constants.ProfileThreads.One => 1,
-            Constants.ProfileThreads.Two => 2,
-            Constants.ProfileThreads.HalfL5 => Math.Max(Pow2Floor(l5Threads / 2), 1),
-            _ => Math.Max(l5Threads, 1),
-        };
-
-        return new DifficultyProfile(data.Name, data.TimeFraction, data.MaxDepth, threads,
+            data = Constants.DifficultyProfiles[^1];
+        }
+        return new DifficultyProfile(data.Name, data.TimeFraction, data.MaxDepth, ThreadsFor(data.Threads.ToString(), l5Threads),
             data.UseVCF, data.VCFDepth, data.Ponder, data.TTSizeMB);
     }
+
+    private static int ThreadsFor(string mode, int l5Threads) => mode switch
+    {
+        nameof(Constants.ProfileThreads.One) => 1,
+        nameof(Constants.ProfileThreads.Two) => 2,
+        nameof(Constants.ProfileThreads.HalfL5) => Math.Max(Pow2Floor(l5Threads / 2), 1),
+        _ => Math.Max(l5Threads, 1),
+    };
 
     internal static int Pow2Floor(int n)
     {

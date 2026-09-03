@@ -6,6 +6,12 @@ public sealed class GameStore : IDisposable
 {
     private readonly ReaderWriterLockSlim _lock = new();
     private readonly Dictionary<string, GameSession> _games = [];
+    private readonly CaroConfig _config;
+
+    public GameStore(CaroConfig? config = null)
+    {
+        _config = config ?? CaroConfig.Default;
+    }
 
     public void Set(string id, GameSession session)
     {
@@ -97,7 +103,7 @@ public sealed class GameStore : IDisposable
                 // Finished games go immediately; a live game (e.g. a long
                 // think under a slow control) only goes after the
                 // abandoned-game window, never the short idle sweep.
-                if (g.IsGameOver() || now - g.LastActivityAt() > TimeSpan.FromMinutes(Constants.Limits.AbandonedTimeoutMinutes))
+                if (g.IsGameOver() || now - g.LastActivityAt() > TimeSpan.FromMinutes(_config.AbandonedTimeoutMinutes))
                 {
                     g.DisposeAI();
                     _games.Remove(id);
