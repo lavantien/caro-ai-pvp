@@ -80,8 +80,12 @@ public class VcfTests
         sb.MakeMove(8, 5, Player.Red);
         List<Position> blocks = Vcf.FindFourBlocks(sb, 8, 5, Player.Red);
         sb.UnmakeMove();
-        Assert.Single(blocks);
-        Assert.Equal(4, blocks[0].X);
+        // The completion cell (4,5) plus the end-block defense (3,5): with
+        // (9,5) already blue, red taking (3,5) leaves the would-be five
+        // both-ends-blocked, which is dead under Caro rules.
+        Assert.Equal(2, blocks.Count);
+        Assert.Contains(new Position(4, 5), blocks);
+        Assert.Contains(new Position(3, 5), blocks);
     }
 
     [Fact]

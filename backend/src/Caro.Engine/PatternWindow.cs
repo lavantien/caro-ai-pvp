@@ -172,28 +172,6 @@ internal static class PatternWindow
     }
 
     /// <summary>
-    /// Assumes (x,y) holds player's stone and appends the empty cells on the
-    /// line whose fill makes an exact five through (x,y).
-    /// </summary>
-    public static void FiveCompletionsInDir(SearchBoard sb, int x, int y, Player player, int dx, int dy, List<Position> output)
-    {
-        Span<sbyte> line = stackalloc sbyte[Constants.Board.LineLength];
-        ExtractLine(sb, x, y, player, dx, dy, line);
-        for (int i = LineFirstPlayable; i <= LineLastPlayable; i++)
-        {
-            if (line[i] != LineEmpty)
-            {
-                continue;
-            }
-            SpanThrough(line, i, out int lo, out int hi);
-            if (SpanIsFive(line, lo, hi))
-            {
-                output.Add(new Position(x + dx * (i - LineCenter), y + dy * (i - LineCenter)));
-            }
-        }
-    }
-
-    /// <summary>
     /// Returns the largest completion count reachable by filling a single
     /// empty cell on the line.
     /// </summary>

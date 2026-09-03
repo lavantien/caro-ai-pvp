@@ -169,28 +169,57 @@ public static class Vcf
     }
 
     /// <summary>
-    /// Returns the cells the opponent must play to block a four created by
-    /// placing attacker at (x,y): every empty cell whose fill would complete
-    /// an exact five for the attacker, gapped or straight. Returns empty if
-    /// no four was created.
+    /// Returns every opponent reply that survives the four created by
+    /// placing attacker at (x,y): the completion cells, plus the end-block
+    /// cells. Under Caro rules a five with both ends blocked is dead, so
+    /// when one end of a would-be five is already blocked the defender can
+    /// kill it by taking the remaining open end instead of the completion
+    /// cell. Missing those replies made the solver claim forced wins the
+    /// opponent refutes by end-blocking (docs/artifacts/tournaments/
+    /// ANOMALIES.md, finding 1). Returns empty if no four was created.
     /// </summary>
     internal static List<Position> FindFourBlocks(SearchBoard sb, int x, int y, Player attacker)
     {
         List<Position> blocks = [];
         HashSet<Position> seen = [];
+        Span<sbyte> line = stackalloc sbyte[Constants.Board.LineLength];
         foreach ((int dx, int dy) in Constants.Directions)
         {
-            PatternWindow.FiveCompletionsInDir(sb, x, y, attacker, dx, dy, blocks);
-        }
-        // Dedup after collection; FiveCompletionsInDir appends per direction.
-        List<Position> deduped = [];
-        foreach (Position c in blocks)
-        {
-            if (seen.Add(c))
+            PatternWindow.ExtractLine(sb, x, y, attacker, dx, dy, line);
+            for (int i = PatternWindow.LineFirstPlayable; i <= PatternWindow.LineLastPlayable; i++)
             {
-                deduped.Add(c);
+                if (line[i] != PatternWindow.LineEmpty)
+                {
+                    continue;
+                }
+                PatternWindow.SpanThrough(line, i, out int lo, out int hi);
+                if (!PatternWindow.SpanIsFive(line, lo, hi))
+                {
+                    continue;
+                }
+
+                Add(dx, dy, i);
+                bool beforeBlocked = lo == 0 || line[lo - 1] == PatternWindow.LineOpp;
+                bool afterBlocked = hi == PatternWindow.LineLastIndex || line[hi + 1] == PatternWindow.LineOpp;
+                if (beforeBlocked && !afterBlocked)
+                {
+                    Add(dx, dy, hi + 1);
+                }
+                else if (afterBlocked && !beforeBlocked)
+                {
+                    Add(dx, dy, lo - 1);
+                }
             }
         }
-        return deduped;
+        return blocks;
+
+        void Add(int dx, int dy, int lineIdx)
+        {
+            Position p = new(x + dx * (lineIdx - PatternWindow.LineCenter), y + dy * (lineIdx - PatternWindow.LineCenter));
+            if (seen.Add(p))
+            {
+                blocks.Add(p);
+            }
+        }
     }
 }
