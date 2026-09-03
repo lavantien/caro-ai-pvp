@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [9.3.0] - 2026-09-03
+
+### Added
+- Startup configuration: `CaroConfig` binds the appsettings `Caro` section (or `Caro__*` environment variables), validates once at boot with the offending key named, and overrides the compiled defaults for game limits, abandoned-game window, TT sizes, opening spread, the time-control table, per-level difficulty profiles, UCI option bounds, and the eleven time-management knobs
+- README section documenting runtime configuration, the overridable-vs-compile-time boundary, and the three-way mirror of the time-control and difficulty tables (backend tables, frontend config index, `scripts/lib.mjs`)
+
+### Changed
+- All business-logic constants centralized in `Caro.Domain`: `Constants.cs` holds nineteen nested scalar groups, `Constants.Tables.cs` holds the shared direction table, the L1-L5 difficulty ladder, and the canonical time-control table; nothing but sanctioned infra lives elsewhere
+- Previously unnamed inline values now carry names: aspiration widen factor, LMR base and deep reductions, worker start-depth stagger, quiet-ordering center scale, and the twos and tactical-move thresholds
+- `Difficulty.GetDifficultyProfile` is table-driven with a `ProfileThreads` host-adaptation enum replacing per-case thread math; UCI handshake and `setoption` validation share the configured bounds
+- Frontend's nine config modules merged into a single `src/lib/config/index.ts` (value-domain unions defined there); scripts share `scripts/lib.mjs` with environment overrides for ports, URLs, and probe settings
+- Three pre-existing tautological alias assertions removed (their subjects were already const aliases); the surviving cross-constant invariants are unchanged
+
+[9.3.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.3.0
+
 ## [9.2.0] - 2026-09-02
 
 ### Fixed
