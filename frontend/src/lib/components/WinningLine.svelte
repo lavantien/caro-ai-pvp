@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { UIConfig } from '$lib/config/uiConfig';
+	import { UIConfig } from '$lib/config';
 
 	interface Position {
 		x: number;

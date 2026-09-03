@@ -1,5 +1,4 @@
-import { GameConfig } from '$lib/config/gameConfig';
-import { UIConfig } from '$lib/config/uiConfig';
+import { GameConfig, UIConfig } from '$lib/config';
 
 export interface Point {
 	x: number;

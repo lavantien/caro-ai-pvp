@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { MoveRecord } from '$lib/stores/gameStore.svelte';
 	import { toUCI } from '$lib/uciEngine';
-	import { UIConfig } from '$lib/config/uiConfig';
+	import { UIConfig } from '$lib/config';
 
 	interface Props {
 		moves: MoveRecord[];

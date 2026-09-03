@@ -1,9 +1,7 @@
 <script lang="ts">
 	import type { GameMode, TimeControl, UCIConnectionStatus, DifficultyLevel } from '$lib/types/game';
 	import { difficultyName } from '$lib/types/game';
-	import { GameConfig } from '$lib/config/gameConfig';
-	import { UIConfig } from '$lib/config/uiConfig';
-	import { TIME_CONTROLS, timeControlLabel } from '$lib/config/timeControlConfig';
+	import { GameConfig, UIConfig, TIME_CONTROLS, timeControlLabel } from '$lib/config';
 
 	interface Props {
 		gameMode: GameMode;

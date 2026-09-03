@@ -1,7 +1,6 @@
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
-import { GameConfig } from '$lib/config/gameConfig';
-import { RatingConfig } from '$lib/config/ratingConfig';
+import { GameConfig, RatingConfig } from '$lib/config';
 
 interface PlayerRating {
 	name: string;

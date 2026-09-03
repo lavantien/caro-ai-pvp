@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { GameConfig } from '$lib/config/gameConfig';
+	import { GameConfig } from '$lib/config';
 </script>
 
 <div class="max-w-lg mx-auto px-4 py-6 sm:p-8 text-center">

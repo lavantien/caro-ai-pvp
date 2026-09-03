@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { E2EConfig } from "../src/lib/config/e2eConfig";
+import { E2EConfig } from "../src/lib/config";
 
 /**
  * E2E Tests for Caro Game

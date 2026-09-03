@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toUCI, fromUCI } from '$lib/uciEngine';
-import { GameConfig } from '$lib/config/gameConfig';
+import { GameConfig } from '$lib/config';
 
 // The engine's UCI wire format is double-letter: letter(y) + letter(x),
 // matching backend uci.MoveToString / uci.ParseMove.

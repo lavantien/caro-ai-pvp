@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Player } from '$lib/types/game';
-	import { UIConfig } from '$lib/config/uiConfig';
+	import { UIConfig } from '$lib/config';
 
 	interface Props {
 		player: Player;

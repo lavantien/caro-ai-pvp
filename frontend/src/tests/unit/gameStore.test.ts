@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { GameConfig } from '$lib/config/gameConfig';
+import { GameConfig } from '$lib/config';
 
 describe('GameStore Types', () => {
   describe('Move History Types', () => {

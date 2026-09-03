@@ -1,17 +1,14 @@
+import type { DifficultyLevel, GameMode, TimeControl } from '$lib/config';
+
+export type { DifficultyLevel, GameMode, TimeControl };
+
 export type Player = 'none' | 'red' | 'blue';
 
 export function switchPlayer(player: Player): Player {
 	return player === 'red' ? 'blue' : 'red';
 }
 
-import type { TimeControl } from '$lib/config/timeControlConfig';
-
-export type { TimeControl };
-export type GameMode = 'pvp' | 'pvai' | 'aivai';
-
 export type UCIConnectionStatus = 'disconnected' | 'connecting' | 'connected';
-
-export type DifficultyLevel = 1 | 2 | 3 | 4 | 5;
 
 export function difficultyName(level: DifficultyLevel): string {
     switch (level) {

@@ -5,9 +5,7 @@
 	import WinningLine from './WinningLine.svelte';
 	import { calculateGhostStonePosition, isValidCell, computeCellSize } from '$lib/utils/boardUtils';
 	import { vibrateOnValidMove, vibrateOnInvalidMove } from '$lib/utils/haptics';
-	import { GameConfig } from '$lib/config/gameConfig';
-	import { UCIConfig } from '$lib/config/uciConfig';
-	import { UIConfig } from '$lib/config/uiConfig';
+	import { GameConfig, UCIConfig, UIConfig } from '$lib/config';
 
 	interface Props {
 		board: Cell[];

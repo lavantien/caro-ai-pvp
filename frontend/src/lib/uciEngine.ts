@@ -5,7 +5,7 @@
  * "readyok", "bestmove hh". Double-letter notation: letter(y) + letter(x).
  */
 
-import { UCIConfig } from '$lib/config/uciConfig';
+import { UCIConfig } from '$lib/config';
 
 // Valid coordinate letters span 'a' through the board width (a-p on 16
 // columns); derived so a board-size change cannot desync the parser.

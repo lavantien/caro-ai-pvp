@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	DEFAULT_TIME_CONTROL,
-	TIME_CONTROLS,
-	timeControlLabel,
-	timeControlOption
-} from '$lib/config/timeControlConfig';
-import type { TimeControl } from '$lib/config/timeControlConfig';
+import { TIME_CONTROLS, DEFAULT_TIME_CONTROL, timeControlOption, timeControlLabel, type TimeControl } from '$lib/config';
 
 describe('timeControlConfig', () => {
 	it('defines the six controls with value, label, clock, and increment', () => {

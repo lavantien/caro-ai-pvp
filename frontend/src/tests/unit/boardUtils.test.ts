@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { calculateGhostStonePosition, isValidCell, computeCellSize } from '$lib/utils/boardUtils';
-import { GameConfig } from '$lib/config/gameConfig';
+import { GameConfig } from '$lib/config';
 
 describe('boardUtils', () => {
   describe('calculateGhostStonePosition', () => {

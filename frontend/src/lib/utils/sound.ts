@@ -5,7 +5,7 @@
  * Uses synthesized sounds via Web Audio API to avoid external asset dependencies.
  */
 
-import { AudioConfig } from '$lib/config/audioConfig';
+import { AudioConfig } from '$lib/config';
 
 export class SoundManager {
 	private muted: boolean = true; // Muted by default (browser autoplay policy)

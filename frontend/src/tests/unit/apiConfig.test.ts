@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ApiConfig } from '$lib/config/apiConfig';
+import { ApiConfig } from '$lib/config';
 
 describe('ApiConfig', () => {
 	it('has baseUrl as a string starting with http', () => {

@@ -7,11 +7,7 @@
 	import GameResultBanner from '$lib/components/GameResultBanner.svelte';
 	import { GameStore } from '$lib/stores/gameStore.svelte';
 	import { soundManager } from '$lib/utils/sound';
-	import { ApiConfig } from '$lib/config/apiConfig';
-	import { GameConfig } from '$lib/config/gameConfig';
-	import { UIConfig } from '$lib/config/uiConfig';
-	import { E2EConfig } from '$lib/config/e2eConfig';
-	import { DEFAULT_TIME_CONTROL, timeControlOption } from '$lib/config/timeControlConfig';
+	import { ApiConfig, GameConfig, UIConfig, E2EConfig, DEFAULT_TIME_CONTROL, timeControlOption } from '$lib/config';
 	import type { Cell } from '$lib/types/game';
 	import type { GameMode, TimeControl, UCIConnectionStatus, DifficultyLevel } from '$lib/types/game';
 	import { difficultyName } from '$lib/types/game';

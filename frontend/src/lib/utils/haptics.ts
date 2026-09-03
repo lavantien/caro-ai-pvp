@@ -1,4 +1,4 @@
-import { HapticConfig } from '$lib/config/hapticConfig';
+import { HapticConfig } from '$lib/config';
 
 export function vibrate(duration: number | number[]): void {
 	if ('vibrate' in navigator) {
