@@ -85,6 +85,15 @@ export function renderReportMarkdown(summary) {
 
 	out.push('', '## Anomalies', '');
 	out.push(`- timeout-fallback moves: ${anomalies.timeoutFallbackMoves}`);
+	const fallbackByLevel = {};
+	for (const p of summary.pairings) {
+		for (const [level, side] of Object.entries(p.sides)) {
+			const n = side.moveTypeCounts['timeout-fallback'] ?? 0;
+			if (n > 0) fallbackByLevel[level] = (fallbackByLevel[level] ?? 0) + n;
+		}
+	}
+	const fallbackEntries = Object.entries(fallbackByLevel).map(([l, n]) => `L${l}=${n}`).join(', ');
+	if (fallbackEntries) out.push(`- timeout-fallback by level: ${fallbackEntries}`);
 	out.push(`- games hitting the move cap: ${anomalies.maxMoveGames}`);
 	out.push(`- errored games: ${anomalies.erroredGames}`);
 	out.push('- L1vL1 and L5vL5 are calibration pairings: near-balanced results are expected there, decisive skew in cross pairings.');
