@@ -17,6 +17,7 @@ public sealed class CaroConfig
 
     public TimeControlOptions TimeControl { get; init; } = new();
     public UciOptions Uci { get; init; } = new();
+    public TimeManagementOptions TimeManagement { get; init; } = new();
 
     // Keyed by level so partial config binds merge into the seeded entries
     // instead of replacing the whole ladder (a positional list cannot be
@@ -96,6 +97,8 @@ public sealed class CaroConfig
             throw new InvalidOperationException(
                 $"Caro:DefaultSessionTTSizeMB must be <= Caro:Uci:HashMB:Max ({Uci.HashMB.Max})");
         }
+
+        TimeManagement.Validate();
     }
 }
 
@@ -239,6 +242,60 @@ public sealed class UciBoundOptions
         {
             throw new InvalidOperationException(
                 $"{key} must satisfy 1 <= Min <= Default <= Max");
+        }
+    }
+}
+
+/// <summary>
+/// Per-move clock allocation knobs (defaults mirror
+/// Constants.TimeManagement). The soft/hard bounds shape every search, so
+/// overrides apply process-wide at startup only.
+/// </summary>
+public sealed class TimeManagementOptions
+{
+    public double PhaseDivisorEarly { get; set; } = Constants.TimeManagement.PhaseDivisorEarly;
+    public double PhaseDivisorLate { get; set; } = Constants.TimeManagement.PhaseDivisorLate;
+    public int PhaseSwitchMove { get; set; } = Constants.TimeManagement.PhaseSwitchMove;
+    public double IncContribFactor { get; set; } = Constants.TimeManagement.IncContribFactor;
+    public long MinOptimalMs { get; set; } = Constants.TimeManagement.MinOptimalMs;
+    public double MaxFraction { get; set; } = Constants.TimeManagement.MaxFraction;
+    public double HardBoundMultiplier { get; set; } = Constants.TimeManagement.HardBoundMultiplier;
+    public double BufferFraction { get; set; } = Constants.TimeManagement.BufferFraction;
+    public long MinBufferMs { get; set; } = Constants.TimeManagement.MinBufferMs;
+    public long ReserveMs { get; set; } = Constants.TimeManagement.ReserveMs;
+    public double SoftBoundFraction { get; set; } = Constants.TimeManagement.SoftBoundFraction;
+
+    public void Validate()
+    {
+        if (PhaseDivisorEarly <= 0 || PhaseDivisorLate <= 0)
+        {
+            throw new InvalidOperationException("Caro:TimeManagement:PhaseDivisor* must be > 0");
+        }
+        if (PhaseSwitchMove < 0)
+        {
+            throw new InvalidOperationException("Caro:TimeManagement:PhaseSwitchMove must be >= 0");
+        }
+        if (IncContribFactor <= 0 || BufferFraction <= 0)
+        {
+            throw new InvalidOperationException("Caro:TimeManagement:IncContribFactor and BufferFraction must be > 0");
+        }
+        if (MinOptimalMs < 1 || MinBufferMs < 1)
+        {
+            throw new InvalidOperationException("Caro:TimeManagement:MinOptimalMs and MinBufferMs must be >= 1");
+        }
+        if (ReserveMs < 0)
+        {
+            throw new InvalidOperationException("Caro:TimeManagement:ReserveMs must be >= 0");
+        }
+        if (MaxFraction is <= 0 or > 1 || SoftBoundFraction is <= 0 or > 1)
+        {
+            throw new InvalidOperationException(
+                "Caro:TimeManagement:MaxFraction and SoftBoundFraction must be in (0, 1]");
+        }
+        if (HardBoundMultiplier <= SoftBoundFraction)
+        {
+            throw new InvalidOperationException(
+                "Caro:TimeManagement:HardBoundMultiplier must exceed SoftBoundFraction");
         }
     }
 }

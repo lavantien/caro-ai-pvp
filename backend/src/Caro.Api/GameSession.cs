@@ -189,9 +189,9 @@ public sealed partial class GameSession
         {
             if (player == Player.Red)
             {
-                return _redAI ??= new MinimaxAI(threads, ttSizeMB);
+                return _redAI ??= new MinimaxAI(threads, ttSizeMB, _config.TimeManagement);
             }
-            return _blueAI ??= new MinimaxAI(threads, ttSizeMB);
+            return _blueAI ??= new MinimaxAI(threads, ttSizeMB, _config.TimeManagement);
         }
     }
 

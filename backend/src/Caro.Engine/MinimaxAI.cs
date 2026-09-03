@@ -25,13 +25,14 @@ public sealed partial class MinimaxAI : IDisposable
     private readonly TranspositionTable _tt;
     private readonly SearchHeuristics _heuristics;
     private readonly int _maxThreads;
+    private readonly TimeManagementOptions? _timeManagement;
     private SearchStats _stats;
 
     internal TranspositionTable TT => _tt;
 
     internal SearchHeuristics Heuristics => _heuristics;
 
-    public MinimaxAI(int maxThreads, int ttSizeMB)
+    public MinimaxAI(int maxThreads, int ttSizeMB, TimeManagementOptions? timeManagement = null)
     {
         if (maxThreads < 1)
         {
@@ -44,6 +45,7 @@ public sealed partial class MinimaxAI : IDisposable
         _tt = new TranspositionTable(ttSizeMB);
         _heuristics = new SearchHeuristics();
         _maxThreads = maxThreads;
+        _timeManagement = timeManagement;
     }
 
     public (int X, int Y, SearchStats Stats) GetBestMove(
@@ -55,7 +57,7 @@ public sealed partial class MinimaxAI : IDisposable
         // A ponder must never overlap the official search on the same AI.
         StopPonder();
 
-        TimeAllocation timeAlloc = TimeManager.AllocateTime(opts.TimeRemainingMs, opts.IncrementMs, opts.MoveNumber);
+        TimeAllocation timeAlloc = TimeManager.AllocateTime(opts.TimeRemainingMs, opts.IncrementMs, opts.MoveNumber, _timeManagement);
         long hardBound = (long)(timeAlloc.HardBoundMs * opts.TimeFraction);
         if (hardBound < 0)
         {

@@ -6,53 +6,56 @@ public readonly record struct TimeAllocation(long SoftBoundMs, long HardBoundMs,
 
 public static class TimeManager
 {
-    public static TimeAllocation AllocateTime(long timeRemainingMs, long incrementMs, int moveNumber)
+    public static TimeAllocation AllocateTime(long timeRemainingMs, long incrementMs, int moveNumber,
+        TimeManagementOptions? options = null)
     {
-        double phaseDivisor = Constants.TimeManagement.PhaseDivisorEarly;
-        if (moveNumber > Constants.TimeManagement.PhaseSwitchMove)
+        TimeManagementOptions o = options ?? CaroConfig.Default.TimeManagement;
+
+        double phaseDivisor = o.PhaseDivisorEarly;
+        if (moveNumber > o.PhaseSwitchMove)
         {
-            phaseDivisor = Constants.TimeManagement.PhaseDivisorLate;
+            phaseDivisor = o.PhaseDivisorLate;
         }
 
         double baseMs = timeRemainingMs / phaseDivisor;
-        double incContrib = incrementMs * Constants.TimeManagement.IncContribFactor;
+        double incContrib = incrementMs * o.IncContribFactor;
 
         long optimal = (long)(baseMs + incContrib);
-        if (optimal < Constants.TimeManagement.MinOptimalMs)
+        if (optimal < o.MinOptimalMs)
         {
-            optimal = Constants.TimeManagement.MinOptimalMs;
+            optimal = o.MinOptimalMs;
         }
 
-        long maxTime = (long)(timeRemainingMs * Constants.TimeManagement.MaxFraction);
+        long maxTime = (long)(timeRemainingMs * o.MaxFraction);
         if (optimal > maxTime)
         {
             optimal = maxTime;
         }
 
-        long hardBound = (long)(optimal * Constants.TimeManagement.HardBoundMultiplier);
-        long buffer = (long)(timeRemainingMs * Constants.TimeManagement.BufferFraction);
-        if (buffer < Constants.TimeManagement.MinBufferMs)
+        long hardBound = (long)(optimal * o.HardBoundMultiplier);
+        long buffer = (long)(timeRemainingMs * o.BufferFraction);
+        if (buffer < o.MinBufferMs)
         {
-            buffer = Constants.TimeManagement.MinBufferMs;
+            buffer = o.MinBufferMs;
         }
         hardBound += buffer;
-        if (hardBound > timeRemainingMs - Constants.TimeManagement.ReserveMs)
+        if (hardBound > timeRemainingMs - o.ReserveMs)
         {
-            hardBound = timeRemainingMs - Constants.TimeManagement.ReserveMs;
+            hardBound = timeRemainingMs - o.ReserveMs;
         }
         // Any live clock still deserves a usable budget: a zero or negative
         // hard bound makes the search abort instantly and fall back to move
         // ordering.
-        if (timeRemainingMs > 0 && hardBound < Constants.TimeManagement.MinBufferMs)
+        if (timeRemainingMs > 0 && hardBound < o.MinBufferMs)
         {
-            hardBound = Constants.TimeManagement.MinBufferMs;
+            hardBound = o.MinBufferMs;
         }
         if (hardBound < 0)
         {
             hardBound = 0;
         }
 
-        long softBound = (long)(optimal * Constants.TimeManagement.SoftBoundFraction);
+        long softBound = (long)(optimal * o.SoftBoundFraction);
 
         return new TimeAllocation(softBound, hardBound, optimal);
     }

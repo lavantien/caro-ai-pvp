@@ -19,7 +19,7 @@ public sealed class UciHandler(ILineWriter writer, CaroConfig? config = null) : 
 
     private readonly CaroConfig _config = ConfigOf(config);
     private readonly object _gate = new();
-    private MinimaxAI _ai = new(ConfigOf(config).Uci.Threads.Default, ConfigOf(config).Uci.HashMB.Default);
+    private MinimaxAI _ai = new(ConfigOf(config).Uci.Threads.Default, ConfigOf(config).Uci.HashMB.Default, ConfigOf(config).TimeManagement);
     private Board _board = Board.NewBoard();
     private Player _player = Player.Red;
     private CancellationTokenSource? _searchCts;
@@ -255,7 +255,7 @@ public sealed class UciHandler(ILineWriter writer, CaroConfig? config = null) : 
     private void RebuildAI()
     {
         _ai.Dispose();
-        _ai = new MinimaxAI(_threads, _hashMB);
+        _ai = new MinimaxAI(_threads, _hashMB, _config.TimeManagement);
     }
 
     // SkillSearchOptions maps the configured skill level onto the engine's
