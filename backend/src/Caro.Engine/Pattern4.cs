@@ -32,11 +32,6 @@ public struct PlayerPattern4
 
 public static class Pattern4Classifier
 {
-    // Twos and singles only need a short contiguous look; gapped shapes at
-    // threat level and above are handled by the gap-aware window analysis.
-    private const int TwosScanRadius = 2;
-    private const int ClusterAnchorDistance = 2;
-
     internal static readonly (int Dx, int Dy)[] EvalDirs =
     [
         (1, 0),
@@ -88,7 +83,7 @@ public static class Pattern4Classifier
         // Twos and singles: contiguous counting is sufficient.
         int positive = 0;
         bool positiveOpen = false;
-        for (int i = 1; i <= TwosScanRadius; i++)
+        for (int i = 1; i <= Constants.Pattern.TwosScanRadius; i++)
         {
             int nx = x + dx * i;
             int ny = y + dy * i;
@@ -114,7 +109,7 @@ public static class Pattern4Classifier
 
         int negative = 0;
         bool negativeOpen = false;
-        for (int i = 1; i <= TwosScanRadius; i++)
+        for (int i = 1; i <= Constants.Pattern.TwosScanRadius; i++)
         {
             int nx = x - dx * i;
             int ny = y - dy * i;
@@ -139,7 +134,7 @@ public static class Pattern4Classifier
         }
 
         int count = 1 + positive + negative;
-        if (count >= 3)
+        if (count >= Constants.Pattern.TwosMinNoneCount)
         {
             return Pattern4.None;
         }
@@ -153,7 +148,7 @@ public static class Pattern4Classifier
             openEnds++;
         }
 
-        if (count == 2)
+        if (count == Constants.Pattern.TwosCount)
         {
             return openEnds switch
             {
@@ -162,7 +157,7 @@ public static class Pattern4Classifier
                 _ => Pattern4.None,
             };
         }
-        if (count == 1)
+        if (count == Constants.Pattern.SinglesCount)
         {
             return Pattern4.Flex1;
         }
@@ -190,8 +185,8 @@ public static class Pattern4Classifier
                 continue;
             }
 
-            int p2x = x - ClusterAnchorDistance * dx;
-            int p2y = y - ClusterAnchorDistance * dy;
+            int p2x = x - Constants.Pattern.ClusterAnchorDistance * dx;
+            int p2y = y - Constants.Pattern.ClusterAnchorDistance * dy;
             bool clusterAnchored = p2x >= 0 && p2x < Constants.Board.Size && p2y >= 0 && p2y < Constants.Board.Size
                 && sb.PlayerAt(p2x, p2y) == player;
 

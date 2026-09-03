@@ -128,8 +128,8 @@ public class EngineDetailsTests
             .PlaceStone(11, 11, Player.Blue);
         SearchBoard sb = new(b);
 
-        Assert.Equal(Evaluation.MaxCorrectedEval, Evaluation.Evaluate(sb, Player.Red));
-        Assert.Equal(-Evaluation.MaxCorrectedEval, Evaluation.Evaluate(sb, Player.Blue));
+        Assert.Equal(Constants.Score.MaxCorrectedEval, Evaluation.Evaluate(sb, Player.Red));
+        Assert.Equal(-Constants.Score.MaxCorrectedEval, Evaluation.Evaluate(sb, Player.Blue));
     }
 
     [Fact]

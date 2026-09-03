@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Caro.Domain;
 
 namespace Caro.Engine;
 
@@ -8,9 +9,6 @@ namespace Caro.Engine;
 /// </summary>
 public sealed class TimeMonitor : IDisposable
 {
-    private const int PollIntervalMs = 10;
-    private const int WatchJoinTimeoutMs = 500;
-
     private readonly long _hardBoundMs;
     private readonly long _startTimeStamp;
     private readonly CancellationTokenSource _cts;
@@ -38,7 +36,7 @@ public sealed class TimeMonitor : IDisposable
     {
         while (!token.IsCancellationRequested)
         {
-            Thread.Sleep(PollIntervalMs);
+            Thread.Sleep(Constants.Watchdog.PollIntervalMs);
             if (ElapsedMs() >= _hardBoundMs)
             {
                 Stop();
@@ -89,7 +87,7 @@ public sealed class TimeMonitor : IDisposable
         Stop();
         try
         {
-            _watchTask.Wait(WatchJoinTimeoutMs);
+            _watchTask.Wait(Constants.Watchdog.WatchJoinTimeoutMs);
         }
         catch (AggregateException)
         {

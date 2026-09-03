@@ -1,3 +1,5 @@
+using Caro.Domain;
+
 namespace Caro.Engine;
 
 /// <summary>
@@ -8,10 +10,6 @@ namespace Caro.Engine;
 /// </summary>
 internal static class IterationBudget
 {
-    private const double IterGrowthMin = 1.5;
-    private const double IterGrowthMax = 6.0;
-    private const double IterGrowthDefault = 4.0;
-
     /// <summary>
     /// Estimates how much costlier the next depth is than the last completed
     /// one. A warm TT can make an iteration cheaper, but predictions never
@@ -21,10 +19,10 @@ internal static class IterationBudget
     {
         if (lastMs <= 0 || prevMs <= 0)
         {
-            return IterGrowthDefault;
+            return Constants.Iteration.GrowthDefault;
         }
         double ratio = (double)lastMs / prevMs;
-        return Math.Min(Math.Max(ratio, IterGrowthMin), IterGrowthMax);
+        return Math.Min(Math.Max(ratio, Constants.Iteration.GrowthMin), Constants.Iteration.GrowthMax);
     }
 
     /// <summary>

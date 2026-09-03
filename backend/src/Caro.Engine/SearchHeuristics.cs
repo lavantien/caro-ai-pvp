@@ -4,24 +4,16 @@ namespace Caro.Engine;
 
 public sealed class SearchHeuristics
 {
-    internal const int MaxKillerDepth = 64;
-    private const int KillerPrimaryScore = 500_000;
-    private const int KillerSecondaryScore = 400_000;
-    private const int HistoryMax = 1_000_000;
-    private const int ContHistMax = 30_000;
-    private const int BoardCells = Constants.Board.Size * Constants.Board.Size;
-    private const int ContHistBonusScale = 300;
-
-    private readonly Position[,] _killerMoves = new Position[MaxKillerDepth, 2];
+    private readonly Position[,] _killerMoves = new Position[Constants.History.MaxKillerDepth, 2];
     private readonly int[,] _historyRed = new int[Constants.Board.Size, Constants.Board.Size];
     private readonly int[,] _historyBlue = new int[Constants.Board.Size, Constants.Board.Size];
     // Flattened continuation history [2][256][256]: one array copy per Clone.
-    private readonly int[] _contHistory = new int[2 * BoardCells * BoardCells];
-    private readonly Position[] _counterMove = new Position[2 * BoardCells];
+    private readonly int[] _contHistory = new int[2 * Constants.History.BoardCells * Constants.History.BoardCells];
+    private readonly Position[] _counterMove = new Position[2 * Constants.History.BoardCells];
 
     public void RecordKiller(int depth, Position pos)
     {
-        if (depth < 0 || depth >= MaxKillerDepth)
+        if (depth < 0 || depth >= Constants.History.MaxKillerDepth)
         {
             return;
         }
@@ -31,7 +23,7 @@ public sealed class SearchHeuristics
 
     public bool IsKiller(int depth, Position pos)
     {
-        if (depth < 0 || depth >= MaxKillerDepth)
+        if (depth < 0 || depth >= Constants.History.MaxKillerDepth)
         {
             return false;
         }
@@ -40,7 +32,7 @@ public sealed class SearchHeuristics
 
     internal Position KillerAt(int depth, int slot)
     {
-        if (depth < 0 || depth >= MaxKillerDepth)
+        if (depth < 0 || depth >= Constants.History.MaxKillerDepth)
         {
             return new Position(-1, -1);
         }
@@ -49,17 +41,17 @@ public sealed class SearchHeuristics
 
     public int KillerScore(int depth, Position pos)
     {
-        if (depth < 0 || depth >= MaxKillerDepth)
+        if (depth < 0 || depth >= Constants.History.MaxKillerDepth)
         {
             return 0;
         }
         if (_killerMoves[depth, 0] == pos)
         {
-            return KillerPrimaryScore;
+            return Constants.History.KillerPrimaryScore;
         }
         if (_killerMoves[depth, 1] == pos)
         {
-            return KillerSecondaryScore;
+            return Constants.History.KillerSecondaryScore;
         }
         return 0;
     }
@@ -72,9 +64,9 @@ public sealed class SearchHeuristics
         }
         int[,] table = player == Player.Blue ? _historyBlue : _historyRed;
         table[x, y] += depth * depth;
-        if (table[x, y] > HistoryMax)
+        if (table[x, y] > Constants.History.HistoryMax)
         {
-            table[x, y] = HistoryMax;
+            table[x, y] = Constants.History.HistoryMax;
         }
     }
 
@@ -142,12 +134,12 @@ public sealed class SearchHeuristics
         int pi = EngineMath.PlayerIdx(player);
         int prevCell = EngineMath.PosToCell(prevX, prevY);
         int cell = EngineMath.PosToCell(x, y);
-        int bonus = depth * depth * ContHistBonusScale / 100;
+        int bonus = depth * depth * Constants.History.ContHistBonusScale / 100;
         int idx = ContIndex(pi, prevCell, cell);
         _contHistory[idx] += bonus;
-        if (_contHistory[idx] > ContHistMax)
+        if (_contHistory[idx] > Constants.History.ContHistMax)
         {
-            _contHistory[idx] = ContHistMax;
+            _contHistory[idx] = Constants.History.ContHistMax;
         }
     }
 
@@ -168,7 +160,7 @@ public sealed class SearchHeuristics
             return;
         }
         int pi = EngineMath.PlayerIdx(player);
-        _counterMove[pi * BoardCells + EngineMath.PosToCell(oppX, oppY)] = new Position(x, y);
+        _counterMove[pi * Constants.History.BoardCells + EngineMath.PosToCell(oppX, oppY)] = new Position(x, y);
     }
 
     public Position CounterMoveFor(Player player, int oppX, int oppY)
@@ -178,11 +170,11 @@ public sealed class SearchHeuristics
             return new Position(-1, -1);
         }
         int pi = EngineMath.PlayerIdx(player);
-        return _counterMove[pi * BoardCells + EngineMath.PosToCell(oppX, oppY)];
+        return _counterMove[pi * Constants.History.BoardCells + EngineMath.PosToCell(oppX, oppY)];
     }
 
     private static int ContIndex(int playerIdx, int prevCell, int cell) =>
-        playerIdx * BoardCells * BoardCells + prevCell * BoardCells + cell;
+        playerIdx * Constants.History.BoardCells * Constants.History.BoardCells + prevCell * Constants.History.BoardCells + cell;
 }
 
 internal static class EngineMath

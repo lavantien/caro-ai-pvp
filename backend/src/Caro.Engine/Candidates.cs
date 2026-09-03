@@ -4,22 +4,17 @@ namespace Caro.Engine;
 
 public static class Candidates
 {
-    // Seed block for the empty board: a square spanning this many cells per
-    // side around the center.
-    private const int EmptyBoardSeedSpan = 3;
-    private const int DefaultCandidateCapacity = 64;
-
     public static List<Position> GetCandidates(SearchBoard sb, int radius)
     {
         BitBoard occupied = sb.Occupied();
         if (occupied.IsZero())
         {
             int center = Constants.Board.Size / 2;
-            int halfSpan = EmptyBoardSeedSpan / 2;
-            List<Position> seed = new(EmptyBoardSeedSpan * EmptyBoardSeedSpan);
-            for (int dx = 0; dx < EmptyBoardSeedSpan; dx++)
+            int halfSpan = Constants.Capacity.EmptyBoardSeedSpan / 2;
+            List<Position> seed = new(Constants.Capacity.EmptyBoardSeedSpan * Constants.Capacity.EmptyBoardSeedSpan);
+            for (int dx = 0; dx < Constants.Capacity.EmptyBoardSeedSpan; dx++)
             {
-                for (int dy = 0; dy < EmptyBoardSeedSpan; dy++)
+                for (int dy = 0; dy < Constants.Capacity.EmptyBoardSeedSpan; dy++)
                 {
                     seed.Add(new Position(center + dx - halfSpan, center + dy - halfSpan));
                 }
@@ -30,7 +25,7 @@ public static class Candidates
         // Stack-allocated dedup: a heap map per node dominated the profile.
         Span<bool> seen = stackalloc bool[Constants.Board.Size * Constants.Board.Size];
         seen.Clear();
-        List<Position> result = new(DefaultCandidateCapacity);
+        List<Position> result = new(Constants.Capacity.DefaultCandidateCapacity);
 
         for (int x = 0; x < Constants.Board.Size; x++)
         {
@@ -120,20 +115,22 @@ public static class Candidates
         {
             PatternWindow.ExtractLine(sb, x, y, player, dx, dy, line);
             PatternWindow.NegateLine(line, oppLine);
-            if (PatternWindow.LineCompletions(line) >= 1 || PatternWindow.LineCompletions(oppLine) >= 1)
+            if (PatternWindow.LineCompletions(line) >= Constants.Pattern.TacticalMinCompletions
+                || PatternWindow.LineCompletions(oppLine) >= Constants.Pattern.TacticalMinCompletions)
             {
                 return true;
             }
-            if (PatternWindow.MaxCompsAfterFill(line) >= 2)
+            if (PatternWindow.MaxCompsAfterFill(line) >= Constants.Pattern.TacticalDoubleThreatDirs)
             {
                 ownThreatDirs++;
             }
-            if (PatternWindow.MaxCompsAfterFill(oppLine) >= 2)
+            if (PatternWindow.MaxCompsAfterFill(oppLine) >= Constants.Pattern.TacticalDoubleThreatDirs)
             {
                 oppThreatDirs++;
             }
         }
-        return ownThreatDirs >= 2 || oppThreatDirs >= 2;
+        return ownThreatDirs >= Constants.Pattern.TacticalDoubleThreatDirs
+            || oppThreatDirs >= Constants.Pattern.TacticalDoubleThreatDirs;
     }
 
     public static List<Position> FilterOpenRule(List<Position> candidates, SearchBoard sb, Player player)

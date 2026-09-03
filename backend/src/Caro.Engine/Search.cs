@@ -115,13 +115,13 @@ public static partial class SearchEngine
                 if (score <= a && a > fullAlpha)
                 {
                     a = Math.Max(a - delta, fullAlpha);
-                    delta *= 2;
+                    delta *= Constants.Search.AspirationWidenFactor;
                     continue;
                 }
                 if (score >= betaBound && betaBound < fullBeta)
                 {
                     betaBound = Math.Min(betaBound + delta, fullBeta);
-                    delta *= 2;
+                    delta *= Constants.Search.AspirationWidenFactor;
                     continue;
                 }
                 found = true;

@@ -15,18 +15,6 @@ internal struct ScoredMove(Position pos, int score)
 /// </summary>
 public sealed class MovePicker
 {
-    private const int HistoryScoreCap = 300_000;
-    private const int HistoryMultiplier = 2;
-    private const int CenterWeight = 100;
-    private const int ProximityWeight = 10;
-
-    private const int OwnOpenFourScore = 700_000;
-    private const int OwnFourScore = 400_000;
-    private const int OwnFlex3Score = 300_000;
-    private const int OppOpenFourScore = 500_000;
-    private const int OppFourScore = 350_000;
-    private const int OppFlex3Score = 200_000;
-
     private const int StageTTMove = 0;
     private const int StageWinning = 1;
     private const int StageMustBlock = 2;
@@ -213,30 +201,30 @@ public sealed class MovePicker
         int score = 0;
         if (own.OpenFour())
         {
-            score += OwnOpenFourScore;
+            score += Constants.Ordering.OwnOpenFourScore;
         }
         else if (own.Four())
         {
-            score += OwnFourScore;
+            score += Constants.Ordering.OwnFourScore;
         }
         if (own.Flex3)
         {
-            score += OwnFlex3Score;
+            score += Constants.Ordering.OwnFlex3Score;
         }
 
         Player opponent = _player.Opponent();
         PlacementThreats theirs = PlacementAnalysis.AnalyzePlacement(_sb, x, y, opponent);
         if (theirs.OpenFour())
         {
-            score += OppOpenFourScore;
+            score += Constants.Ordering.OppOpenFourScore;
         }
         else if (theirs.Four())
         {
-            score += OppFourScore;
+            score += Constants.Ordering.OppFourScore;
         }
         if (theirs.Flex3)
         {
-            score += OppFlex3Score;
+            score += Constants.Ordering.OppFlex3Score;
         }
         return score;
     }
@@ -246,7 +234,7 @@ public sealed class MovePicker
         List<Position> result = [];
         for (int slot = 0; slot < 2; slot++)
         {
-            if (_depth < 0 || _depth >= SearchHeuristics.MaxKillerDepth)
+            if (_depth < 0 || _depth >= Constants.History.MaxKillerDepth)
             {
                 continue;
             }
@@ -282,19 +270,19 @@ public sealed class MovePicker
         List<ScoredMove> scored = new(_candidates.Count);
         foreach (Position c in _candidates)
         {
-            int score = _heuristics.HistoryScore(_player, c.X, c.Y) * HistoryMultiplier;
-            if (score > HistoryScoreCap)
+            int score = _heuristics.HistoryScore(_player, c.X, c.Y) * Constants.Ordering.HistoryMultiplier;
+            if (score > Constants.Ordering.HistoryScoreCap)
             {
-                score = HistoryScoreCap;
+                score = Constants.Ordering.HistoryScoreCap;
             }
             score += _heuristics.KillerScore(_depth, c);
             score += _heuristics.ContHistoryScore(_player, _prevMove.X, _prevMove.Y, c.X, c.Y);
 
             int center = Constants.Board.Size / 2;
             int dist = EngineMath.Abs(c.X - center) + EngineMath.Abs(c.Y - center);
-            score += (Constants.Board.Size * 2 - 4 - dist) * CenterWeight;
+            score += (Constants.Ordering.CenterDistScaleBase - dist) * Constants.Ordering.CenterWeight;
 
-            score += MoveOrdering.ProximityScore(_sb, c.X, c.Y) * ProximityWeight;
+            score += MoveOrdering.ProximityScore(_sb, c.X, c.Y) * Constants.Ordering.ProximityWeight;
 
             scored.Add(new ScoredMove(c, score));
         }
@@ -312,8 +300,6 @@ public sealed class MovePicker
 
 public static class MoveOrdering
 {
-    private const int NeighborStoneScore = 3;
-
     /// <summary>All-at-once fallback ordering for the root search.</summary>
     public static List<Position> OrderMoves(
         List<Position> candidates,
@@ -405,7 +391,7 @@ public static class MoveOrdering
                     Player p = sb.PlayerAt(nx, ny);
                     if (p == Player.Red || p == Player.Blue)
                     {
-                        score += NeighborStoneScore;
+                        score += Constants.Ordering.NeighborStoneScore;
                     }
                 }
             }

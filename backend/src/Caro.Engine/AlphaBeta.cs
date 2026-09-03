@@ -119,10 +119,10 @@ public static partial class SearchEngine
         {
             return 0;
         }
-        int reduction = 1;
+        int reduction = Constants.Search.LmrBaseReduction;
         if (moveIdx > Constants.Search.LMRDeepMoveThreshold)
         {
-            reduction = 2;
+            reduction = Constants.Search.LmrDeepReduction;
         }
         if (histScore < 0)
         {

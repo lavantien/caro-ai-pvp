@@ -216,31 +216,13 @@ public class ScoreHierarchyTests
     {
         Assert.True(Constants.Score.Infinity > Constants.Score.WinScore);
         Assert.True(Constants.Score.WinScore > Constants.Score.MaxEval);
-        Assert.True(Constants.Score.MaxEval > Evaluation.Flex4WinBonus);
+        Assert.True(Constants.Score.MaxEval > Constants.Eval.Flex4WinBonus);
     }
 
     [Fact]
     public void AspirationWindowGomokuScale()
     {
-        Assert.True(Constants.Search.AspirationWindowSize >= Evaluation.Flex3Score);
-    }
-
-    [Fact]
-    public void FiveScoreEqualsWinScore()
-    {
-        Assert.Equal(Constants.Score.WinScore, Evaluation.FiveScore);
-    }
-
-    [Fact]
-    public void MaxCorrectedEvalEqualsMaxEval()
-    {
-        Assert.Equal(Constants.Score.MaxEval, Evaluation.MaxCorrectedEval);
-    }
-
-    [Fact]
-    public void FiveScoreBoundedByWinScore()
-    {
-        Assert.True(Evaluation.FiveScore <= Constants.Score.WinScore);
+        Assert.True(Constants.Search.AspirationWindowSize >= Constants.Eval.Flex3Score);
     }
 
     [Fact]

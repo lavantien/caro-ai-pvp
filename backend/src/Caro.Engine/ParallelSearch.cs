@@ -13,10 +13,6 @@ internal readonly struct ParallelResult(int x, int y, int score, int depth)
 
 public static class ParallelSearch
 {
-    // Odd workers start one ply deeper so iterations interleave and the
-    // lazy SMP majority vote sees more distinct depths.
-    private const int StartDepthStagger = 2;
-
     public static (int X, int Y, SearchStats Stats) Run(
         Board b,
         Player player,
@@ -108,7 +104,9 @@ public static class ParallelSearch
 
                 int prevScore = -Constants.Score.Infinity;
                 int completedDepth = 0;
-                int startDepth = 1 + workerID % StartDepthStagger;
+                // Odd workers start one ply deeper so iterations interleave
+                // and the lazy SMP majority vote sees more distinct depths.
+                int startDepth = 1 + workerID % Constants.Search.StartDepthStagger;
                 long lastIterMs = 0;
                 long prevIterMs = 0;
 
@@ -153,13 +151,13 @@ public static class ParallelSearch
                         if (score <= a && a > -Constants.Score.Infinity)
                         {
                             a = Math.Max(a - delta, -Constants.Score.Infinity);
-                            delta *= 2;
+                            delta *= Constants.Search.AspirationWidenFactor;
                             continue;
                         }
                         if (score >= bnd && bnd < Constants.Score.Infinity)
                         {
                             bnd = Math.Min(bnd + delta, Constants.Score.Infinity);
-                            delta *= 2;
+                            delta *= Constants.Search.AspirationWidenFactor;
                             continue;
                         }
                         found = true;
