@@ -223,7 +223,8 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
         }
         LogAIMove(id, x, y, resp, difficulty, stats, thinkTime, ponderDepth, ponderNodes);
 
-        MoveDetailResponse moveDetail = Statline.BuildMoveDetail(resp, player.ToName(), x, y, stats, thinkTime, ponderHit);
+        MoveDetailResponse moveDetail = Statline.BuildMoveDetail(resp, player.ToName(), x, y, stats, thinkTime,
+            hadPonder ? ponderHit : null, ponderDepth, ponderNodes);
         logger?.MoveStatline(id, moveDetail.Statline);
         await ResponseJson.Write(http, 200, new MoveResponse(resp, moveDetail));
     }

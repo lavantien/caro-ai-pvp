@@ -35,7 +35,8 @@ internal static class Statline
         v.ToString("+#;-#;+0", CultureInfo.InvariantCulture);
 
     internal static MoveDetailResponse BuildMoveDetail(
-        GameResponse resp, string player, int x, int y, SearchStats stats, long thinkTimeMs, bool ponderHit)
+        GameResponse resp, string player, int x, int y, SearchStats stats, long thinkTimeMs,
+        bool? ponderHit, int? ponderDepth = null, long? ponderNodes = null)
     {
         int moveNum = resp.MoveNumber - 1;
         string pos = $"{(char)('a' + x)}{y + 1}";
@@ -56,7 +57,7 @@ internal static class Statline
         {
             vcfTag = " [VCF]";
         }
-        if (ponderHit)
+        if (ponderHit == true)
         {
             vcfTag += " [PONDER]";
         }
@@ -72,6 +73,7 @@ internal static class Statline
             Statline = statline,
             ThinkTimeMs = thinkTimeMs,
             RemainingTimeMs = remainingMs,
+            PonderHit = ponderHit,
             EngineStats = new EngineStatsResponse
             {
                 Depth = stats.DepthAchieved,
@@ -82,6 +84,10 @@ internal static class Statline
                 Threads = stats.ThreadCount,
                 AllocatedTimeMs = stats.AllocatedTimeMs,
                 MoveType = mt,
+                PonderDepth = ponderDepth,
+                PonderNodes = ponderNodes,
+                VcfDepth = stats.VcfDepth,
+                VcfNodes = stats.VcfNodes,
             },
         };
     }

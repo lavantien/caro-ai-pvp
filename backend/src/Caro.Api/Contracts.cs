@@ -117,6 +117,20 @@ public sealed class EngineStatsResponse
 
     [JsonPropertyName("moveType")]
     public string MoveType { get; set; } = "";
+
+    /// <summary>Null when no ponder search preceded the move (L5-only feature).</summary>
+    [JsonPropertyName("ponderDepth")]
+    public int? PonderDepth { get; set; }
+
+    [JsonPropertyName("ponderNodes")]
+    public long? PonderNodes { get; set; }
+
+    /// <summary>Forced-chain length and solver nodes when the move came from the VCF solver.</summary>
+    [JsonPropertyName("vcfDepth")]
+    public int? VcfDepth { get; set; }
+
+    [JsonPropertyName("vcfNodes")]
+    public long? VcfNodes { get; set; }
 }
 
 public sealed class MoveDetailResponse
@@ -138,6 +152,10 @@ public sealed class MoveDetailResponse
 
     [JsonPropertyName("remainingTimeMs")]
     public long RemainingTimeMs { get; set; }
+
+    /// <summary>Null when no ponder search preceded the move; false = pondered and missed.</summary>
+    [JsonPropertyName("ponderHit")]
+    public bool? PonderHit { get; set; }
 
     [JsonPropertyName("engineStats")]
     public EngineStatsResponse EngineStats { get; set; } = new();
