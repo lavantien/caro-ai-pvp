@@ -56,10 +56,10 @@ public sealed partial class GameHandlers
             moveNum--;
             player = Statline.OpponentOf(player);
         }
-        long remainingMs = (long)(resp.RedTimeRemaining * 1000);
+        long remainingMs = (long)(resp.RedTimeRemaining * Constants.Time.MsPerSecond);
         if (player == Player.Blue.ToName())
         {
-            remainingMs = (long)(resp.BlueTimeRemaining * 1000);
+            remainingMs = (long)(resp.BlueTimeRemaining * Constants.Time.MsPerSecond);
         }
         string mt = stats.MoveType.Length == 0 ? MoveTypes.Exact : stats.MoveType;
 

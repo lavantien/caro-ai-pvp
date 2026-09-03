@@ -69,6 +69,8 @@ internal sealed class CleanupService(GameStore store, ILogger<CleanupService> lo
 /// </summary>
 internal static class ServerConfig
 {
+    // Mirrored by frontend/src/lib/config ApiConfig.baseUrl and
+    // scripts/lib.mjs DEFAULT_API_PORT; update together.
     public const int DefaultPort = 5207;
     public const int ShutdownTimeoutSeconds = 10;
     public const int CleanupSweepMinutes = 5;

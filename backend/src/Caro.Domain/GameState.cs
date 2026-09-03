@@ -102,14 +102,14 @@ public sealed class GameState
     public GameState WithGameOver(Player winner, Position[]? line)
     {
         return new GameState(Board, Player.None, MoveNumber, isGameOver: true, winner, line,
-            endReason: "win", BoardHistory, MoveHistory, TimeControl, InitialTimeMs, IncrementSeconds, GameMode);
+            endReason: EndReasons.Win, BoardHistory, MoveHistory, TimeControl, InitialTimeMs, IncrementSeconds, GameMode);
     }
 
     /// <summary>Ends the game because a player ran out of clock time.</summary>
     public GameState WithTimeout(Player winner)
     {
         return new GameState(Board, Player.None, MoveNumber, isGameOver: true, winner,
-            winningLine: null, endReason: "timeout",
+            winningLine: null, endReason: EndReasons.Timeout,
             BoardHistory, MoveHistory, TimeControl, InitialTimeMs, IncrementSeconds, GameMode);
     }
 
@@ -117,7 +117,7 @@ public sealed class GameState
     public GameState WithDraw()
     {
         return new GameState(Board, Player.None, MoveNumber, isGameOver: true, Player.None,
-            winningLine: null, endReason: "draw",
+            winningLine: null, endReason: EndReasons.Draw,
             BoardHistory, MoveHistory, TimeControl, InitialTimeMs, IncrementSeconds, GameMode);
     }
 }

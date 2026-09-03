@@ -233,7 +233,7 @@ public static class ParallelSearch
         double nps = 0;
         if (elapsed > 0)
         {
-            nps = (double)nodes / elapsed * 1000;
+            nps = (double)nodes / elapsed * Constants.Time.MsPerSecond;
         }
         double ttHitRate = 0;
         if (probes > 0)

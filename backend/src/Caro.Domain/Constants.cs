@@ -65,6 +65,11 @@ public static partial class Constants
         public const double BlockCheckFraction = TimeFraction / 4;
     }
 
+    public static class Time
+    {
+        public const double MsPerSecond = 1000;
+    }
+
     public static class TimeManagement
     {
         public const double PhaseDivisorEarly = 25.0;

@@ -18,16 +18,23 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
     private static string NewGameId() =>
         Convert.ToHexString(RandomNumberGenerator.GetBytes(GameIdByteLength)).ToLowerInvariant();
 
-    /// <summary>Search options for engines without a difficulty level set.</summary>
-    private static SearchOptions DefaultSearchOptions(long timeRemainingMs, int incrementSeconds, int moveNumber) => new()
+    /// <summary>
+    /// Search options for engines without a difficulty level set: the top
+    /// ladder profile's strength knobs at full parallelism.
+    /// </summary>
+    private static SearchOptions DefaultSearchOptions(long timeRemainingMs, int incrementSeconds, int moveNumber)
     {
-        TimeRemainingMs = timeRemainingMs,
-        IncrementMs = incrementSeconds * 1000L,
-        MoveNumber = moveNumber,
-        ParallelEnabled = true,
-        TimeFraction = 1.0,
-        UseVCF = true,
-    };
+        Constants.DifficultyProfileData top = Constants.DifficultyProfiles[^1];
+        return new SearchOptions
+        {
+            TimeRemainingMs = timeRemainingMs,
+            IncrementMs = (long)(incrementSeconds * Constants.Time.MsPerSecond),
+            MoveNumber = moveNumber,
+            ParallelEnabled = true,
+            TimeFraction = top.TimeFraction,
+            UseVCF = top.UseVCF,
+        };
+    }
 
     public async Task CreateGameAsync(HttpContext http)
     {
@@ -186,7 +193,7 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
             opts = new SearchOptions
             {
                 TimeRemainingMs = timeRemainingMs,
-                IncrementMs = incrementSeconds * 1000L,
+                IncrementMs = (long)(incrementSeconds * Constants.Time.MsPerSecond),
                 MoveNumber = moveNumber,
                 ThreadCount = profile.Threads,
                 ParallelEnabled = profile.Threads > 1,
@@ -246,7 +253,7 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
             string winner = resp.Winner;
             if (winner.Length == 0 || winner == Player.None.ToName())
             {
-                winner = "abandoned";
+                winner = EndReasons.Abandoned;
             }
             try
             {

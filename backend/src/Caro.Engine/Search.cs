@@ -176,7 +176,7 @@ public static partial class SearchEngine
         double nps = 0;
         if (elapsed > 0)
         {
-            nps = (double)nodes / elapsed * 1000;
+            nps = (double)nodes / elapsed * Constants.Time.MsPerSecond;
         }
 
         string moveType = "";

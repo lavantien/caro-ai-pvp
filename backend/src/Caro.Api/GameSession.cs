@@ -284,7 +284,7 @@ public sealed partial class GameSession
 
         DateTime now = DateTime.UtcNow;
         long elapsed = (long)(now - _lastMoveAt).TotalMilliseconds;
-        long inc = newGame.IncrementSeconds * 1000L;
+        long inc = (long)(newGame.IncrementSeconds * Constants.Time.MsPerSecond);
         if (_game.CurrentPlayer == Player.Red)
         {
             _redTimeMs = Math.Max(0, _redTimeMs - elapsed + inc);
@@ -398,10 +398,10 @@ public sealed partial class GameSession
             Winner = _game.Winner.ToName(),
             EndReason = _game.EndReason,
             WinningLine = winningLine,
-            RedTimeRemaining = redTime / 1000.0,
-            BlueTimeRemaining = blueTime / 1000.0,
+            RedTimeRemaining = redTime / Constants.Time.MsPerSecond,
+            BlueTimeRemaining = blueTime / Constants.Time.MsPerSecond,
             TimeControl = _game.TimeControl,
-            InitialTime = (int)(_game.InitialTimeMs / 1000),
+            InitialTime = (int)(_game.InitialTimeMs / Constants.Time.MsPerSecond),
             Increment = _game.IncrementSeconds,
             GameMode = _game.GameMode.ToName(),
             RedDifficulty = _redDifficulty,

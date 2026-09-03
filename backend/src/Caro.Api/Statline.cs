@@ -39,10 +39,10 @@ internal static class Statline
     {
         int moveNum = resp.MoveNumber - 1;
         string pos = $"{(char)('a' + x)}{y + 1}";
-        long remainingMs = (long)(resp.RedTimeRemaining * 1000);
+        long remainingMs = (long)(resp.RedTimeRemaining * Constants.Time.MsPerSecond);
         if (player == Player.Blue.ToName())
         {
-            remainingMs = (long)(resp.BlueTimeRemaining * 1000);
+            remainingMs = (long)(resp.BlueTimeRemaining * Constants.Time.MsPerSecond);
         }
 
         string mt = MoveTypes.Exact;
@@ -62,7 +62,7 @@ internal static class Statline
         }
 
         string statline = string.Create(CultureInfo.InvariantCulture,
-            $"M{moveNum,2} {player,-4} {pos}  d={stats.DepthAchieved,-2} n={FormatStatlineNodes(stats.NodesSearched),-7} nps={FormatStatlineNps(stats.NodesPerSecond),-5} tt={(int)(stats.TableHitRate * 100),3}% s={FormatSigned(stats.SearchScore)} thr={stats.ThreadCount} t={thinkTimeMs / 1000.0:F1}s alloc={stats.AllocatedTimeMs / 1000.0:F1}s{vcfTag}");
+            $"M{moveNum,2} {player,-4} {pos}  d={stats.DepthAchieved,-2} n={FormatStatlineNodes(stats.NodesSearched),-7} nps={FormatStatlineNps(stats.NodesPerSecond),-5} tt={(int)(stats.TableHitRate * 100),3}% s={FormatSigned(stats.SearchScore)} thr={stats.ThreadCount} t={thinkTimeMs / Constants.Time.MsPerSecond:F1}s alloc={stats.AllocatedTimeMs / Constants.Time.MsPerSecond:F1}s{vcfTag}");
 
         return new MoveDetailResponse
         {

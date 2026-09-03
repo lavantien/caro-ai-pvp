@@ -14,6 +14,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // --- URLs and ports ---
 
+// Canonical: Caro.Server Program.cs ServerConfig.DefaultPort; mirrored by
+// frontend/src/lib/config ApiConfig.baseUrl. Update together.
 export const DEFAULT_API_PORT = 5207;
 export const DEFAULT_FRONTEND_PORT = 5173;
 

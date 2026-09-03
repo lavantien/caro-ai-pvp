@@ -21,7 +21,7 @@ public sealed class TooManyGamesException()
     : CaroException("too many concurrent games");
 
 public sealed class InvalidLevelException()
-    : CaroException("difficulty must be 1-5");
+    : CaroException($"difficulty must be {Constants.Difficulty.MinLevel}-{Constants.Difficulty.MaxLevel}");
 
 public sealed class NoMovesException()
     : CaroException("no moves to undo");
