@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [9.4.4] - 2026-09-04
+
+### Added
+- Tournament anomaly analysis at `docs/artifacts/tournaments/ANOMALIES.md`, with recorded-game replay fixtures (`TournamentReplay`) that regenerate openings from the archived seeds and drive the regression tests below
+- Seeded opening placement shared as `Caro.Domain.Opening.SeededPlacements` (was private to `GameSession`)
+
+### Fixed
+- VCF solver explores Caro end-block defenses (a both-ends-blocked five is dead), so it no longer claims forced wins the opponent refutes by taking the remaining open end of a half-blocked four (six archived games show score-30000 VCF chains by the eventual loser)
+- Search scores can no longer escape the mate band: window bounds are never ply-shifted and a no-reply node scores as the draw it is, removing the above-`Score.Infinity` corruption that stopped L5's deepening in all three archived draw games
+- `matches.db` records the true mover on game-ending moves (blue's winning move was logged as red in every blue-winner game) and finished draws keep `winner=none` instead of being relabeled `abandoned` on delete
+- Round-robin report attributes timeout-fallback moves by level (all 15 in `l1v5-100` were L1's, which the run-level total had hidden)
+
+[9.4.4]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.4.4
+
 ## [9.4.3] - 2026-09-04
 
 ### Added
