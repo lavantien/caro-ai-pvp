@@ -130,6 +130,7 @@ See [STATS.md](STATS.md) for the statline reference and benchmark commands.
 To run your own benchmarks:
 ```bash
 node scripts/run-tournament.mjs --games 4 --red 5 --blue 5 --tc 3+2
+node scripts/run-round-robin.mjs          # all pairings, per-run evidence in docs/artifacts/tournaments/
 ```
 
 ### UCI Protocol
@@ -497,6 +498,7 @@ The time-control and difficulty tables are mirrored three ways: `Caro.Domain/Con
 | `node scripts/capture-screenshot.mjs` | Full E2E: AI vs AI match, screenshot, update README |
 | `node scripts/simulate-match.mjs` | AI vs AI match via HTTP API with per-player difficulty (`--red N --blue N`) |
 | `node scripts/run-tournament.mjs` | Self-contained N-game tournament with color swap and aggregate stats (`--games N --red N --blue N --tc TIME`) |
+| `node scripts/run-round-robin.mjs` | Round-robin benchmark across all difficulty pairings with per-run artifacts under `docs/artifacts/tournaments/` (`--pairings 1v1,3v4 --games-per-pairing N`) |
 | `node scripts/uci-probe.mjs` | Deterministic engine probes over the UCI WebSocket (`--mode parity` / `--mode speed`) |
 | `node scripts/verify-screenshot.mjs` | UI verification checks against a running stack |
 

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [9.5.0] - 2026-09-03
+
+### Added
+- VCF solver observability: node count and forced-chain length surface in `SearchStats`, the `ai-move` response (`vcfDepth`/`vcfNodes`), and `matches.db` (`vcf_depth`/`vcf_nodes` columns)
+- Ponder probe fields in the `ai-move` response: `ponderDepth`, `ponderNodes`, and `ponderHit` (null when no ponder ran, false when it ran and missed); statline bytes unchanged
+- Round-robin benchmark runner `scripts/run-round-robin.mjs`: fixed 12-pairing schedule (1v1 fail-fast first, 5v5 calibration last), sequential games with seeded openings, per-run artifacts (`run.log`/`summary.json`/`report.md` committed under `docs/artifacts/tournaments/`, `matches.db` local), ladder with adjacent-level monotonicity verdict, incremental atomic summary rewrites, abort-on-error with partial evidence kept
+- STATS.md round-robin section: commands, artifact layout, fail-fast contract, anomaly policy, determinism statement
+
+### Fixed
+- `move-statline` log lines reach backend stdout in the real host (`GameHandlers` now takes `ILogger<GameHandlers>`; the untyped `ILogger` never resolved from DI)
+- `startBackend` kills the port before building so a running server cannot lock its dlls
+
+[9.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.5.0
+
 ## [9.4.1] - 2026-09-03
 
 ### Fixed
