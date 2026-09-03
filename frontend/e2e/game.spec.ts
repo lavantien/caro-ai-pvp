@@ -7,7 +7,7 @@ import { E2EConfig, UIConfig } from "../src/lib/config";
  * Tests all implemented features against the shipped page:
  * - Basic game mechanics (no regression)
  * - Sound effects toggle
- * - Move history display (double-letter notation, e.g. "1.hh")
+ * - Move history display (algebraic notation, e.g. "1.h8")
  * - Winning line animation
  * - Timer functionality
  *
@@ -167,13 +167,13 @@ test.describe("Caro Game - Move History", () => {
     await page.goto("/game");
     await page.waitForLoadState("networkidle");
 
-    // Double-letter notation: letter(y) then letter(x): (7,7)=hh, (7,8)=ih
+    // Algebraic notation: column letter + row number: (7,7)=h8, (7,8)=h9
     await playMove(page, 7, 7, 1);
-    await expect(notation(page)).toContainText("1.hh");
+    await expect(notation(page)).toContainText("1.h8");
 
     await playMove(page, 7, 8, 2);
-    await expect(notation(page)).toContainText("1.hh");
-    await expect(notation(page)).toContainText("2.ih");
+    await expect(notation(page)).toContainText("1.h8");
+    await expect(notation(page)).toContainText("2.h9");
   });
 
   test("should highlight latest move in history", async ({ page }) => {
@@ -185,7 +185,7 @@ test.describe("Caro Game - Move History", () => {
     // The latest red move gets the highlighted background
     const latest = notation(page).locator("span.bg-red-100");
     await expect(latest).toHaveCount(1);
-    await expect(latest).toContainText("1.hh");
+    await expect(latest).toContainText("1.h8");
   });
 });
 

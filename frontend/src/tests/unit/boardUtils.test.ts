@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { calculateGhostStonePosition, isValidCell, computeCellSize } from '$lib/utils/boardUtils';
+import { calculateGhostStonePosition, isValidCell, computeCellSize, toAlgebraic } from '$lib/utils/boardUtils';
 import { GameConfig } from '$lib/config';
 
 describe('boardUtils', () => {
@@ -108,6 +108,32 @@ describe('boardUtils', () => {
       expect(isValidCell(0, 0)).toBe(true);
       expect(isValidCell(0, 15)).toBe(true);
       expect(isValidCell(15, 0)).toBe(true);
+    });
+  });
+
+  describe('toAlgebraic', () => {
+    it('should format corners as column letter plus row number', () => {
+      expect(toAlgebraic(0, 0)).toBe('a1');
+      expect(toAlgebraic(15, 0)).toBe('p1');
+      expect(toAlgebraic(0, 15)).toBe('a16');
+      expect(toAlgebraic(15, 15)).toBe('p16');
+    });
+
+    it('should format center cells', () => {
+      expect(toAlgebraic(7, 7)).toBe('h8');
+      expect(toAlgebraic(8, 8)).toBe('i9');
+    });
+
+    it('should use the column letter from x and the row number from y', () => {
+      expect(toAlgebraic(2, 5)).toBe('c6');
+      expect(toAlgebraic(5, 2)).toBe('f3');
+    });
+
+    it('should throw on out-of-bounds coordinates', () => {
+      expect(() => toAlgebraic(-1, 0)).toThrow();
+      expect(() => toAlgebraic(0, -1)).toThrow();
+      expect(() => toAlgebraic(GameConfig.boardSize, 0)).toThrow();
+      expect(() => toAlgebraic(0, GameConfig.boardSize)).toThrow();
     });
   });
 

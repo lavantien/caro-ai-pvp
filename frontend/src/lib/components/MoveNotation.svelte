@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { MoveRecord } from '$lib/stores/gameStore.svelte';
-	import { toUCI } from '$lib/uciEngine';
+	import { toAlgebraic } from '$lib/utils/boardUtils';
 	import { UIConfig } from '$lib/config';
 
 	interface Props {
@@ -13,7 +13,7 @@
 	let scrollContainer: HTMLDivElement | undefined = $state();
 
 	function formatMove(move: MoveRecord): string {
-		return `${move.moveNumber}.${toUCI(move.x, move.y)}`;
+		return `${move.moveNumber}.${toAlgebraic(move.x, move.y)}`;
 	}
 
 	function isLatestMove(move: MoveRecord): boolean {
