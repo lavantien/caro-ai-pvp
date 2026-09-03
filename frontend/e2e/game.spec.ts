@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { E2EConfig, UIConfig } from "../src/lib/config";
+import { ApiConfig, E2EConfig, UIConfig } from "../src/lib/config";
 
 /**
  * E2E Tests for Caro Game
@@ -33,11 +33,9 @@ test.afterEach(async ({ page }) => {
     .catch(() => null);
   if (gameId) {
     await page
-      .evaluate(
-        (id) =>
-          fetch(`http://localhost:5207/api/game/${id}`, { method: "DELETE" }),
-        gameId,
-      )
+      .evaluate(({ url }) => fetch(url, { method: "DELETE" }), {
+        url: `${ApiConfig.baseUrl}${ApiConfig.endpoints.game(gameId)}`,
+      })
       .catch(() => {});
   }
 });
