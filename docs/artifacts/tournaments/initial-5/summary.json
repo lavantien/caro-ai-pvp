@@ -1,0 +1,1921 @@
+{
+  "schemaVersion": 1,
+  "status": "aborted",
+  "run": {
+    "git": {
+      "commit": "9307987a04e0886605d2f9abe3b1e0f1f7b53d03",
+      "dirty": false
+    },
+    "host": {
+      "node": "v26.3.0",
+      "cpus": 20,
+      "platform": "win32"
+    },
+    "buildConfig": "Release",
+    "argv": [
+      "--games-per-pairing",
+      "5",
+      "--label",
+      "initial-5"
+    ],
+    "startedAt": "2026-09-03T11:48:03.444Z",
+    "determinism": {
+      "openings": "splitmix64 seeded, per-game seed = base + global game index",
+      "order": "fixed pairing order, sequential games, color swap every second game",
+      "evidence": "t/nps columns and soft-budget depth are wall-clock evidence, not oracle"
+    }
+  },
+  "config": {
+    "label": "initial-5",
+    "gamesPerPairing": 5,
+    "timeControl": "3+2",
+    "baseSeed": 20260821,
+    "maxMoves": 256,
+    "build": "Release",
+    "pairings": [
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        5
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        5
+      ],
+      [
+        2,
+        4
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        3,
+        5
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        4,
+        5
+      ],
+      [
+        5,
+        5
+      ]
+    ],
+    "totalGames": 60,
+    "seedFirst": 20260822,
+    "seedLast": 20260881
+  },
+  "pairings": [
+    {
+      "red": 1,
+      "blue": 1,
+      "label": "L1vL1",
+      "games": [
+        {
+          "index": 1,
+          "seed": 20260822,
+          "redDiff": 1,
+          "blueDiff": 1,
+          "swap": false,
+          "winner": "none",
+          "levelWinner": null,
+          "reason": "draw",
+          "movesPlayed": 253,
+          "elapsedSeconds": 48.2,
+          "timeoutFallbackMoves": 0,
+          "gameId": "340f6773fc0a1640"
+        },
+        {
+          "index": 2,
+          "seed": 20260823,
+          "redDiff": 1,
+          "blueDiff": 1,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 1,
+          "reason": "win",
+          "movesPlayed": 27,
+          "elapsedSeconds": 3.5,
+          "timeoutFallbackMoves": 0,
+          "gameId": "5d2d7ec6bf4892c5"
+        },
+        {
+          "index": 3,
+          "seed": 20260824,
+          "redDiff": 1,
+          "blueDiff": 1,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 1,
+          "reason": "win",
+          "movesPlayed": 29,
+          "elapsedSeconds": 4.6,
+          "timeoutFallbackMoves": 0,
+          "gameId": "9678b42fe73d5c91"
+        },
+        {
+          "index": 4,
+          "seed": 20260825,
+          "redDiff": 1,
+          "blueDiff": 1,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 1,
+          "reason": "win",
+          "movesPlayed": 37,
+          "elapsedSeconds": 5.5,
+          "timeoutFallbackMoves": 0,
+          "gameId": "268acc39954c94a7"
+        },
+        {
+          "index": 5,
+          "seed": 20260826,
+          "redDiff": 1,
+          "blueDiff": 1,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 1,
+          "reason": "win",
+          "movesPlayed": 31,
+          "elapsedSeconds": 3.5,
+          "timeoutFallbackMoves": 0,
+          "gameId": "b1f21c28704134f5"
+        }
+      ],
+      "summary": {
+        "games": 5,
+        "wins": {
+          "1": 4
+        },
+        "draws": 1,
+        "reasons": {
+          "draw": 1,
+          "win": 4
+        },
+        "avgMoves": 75.4,
+        "avgSeconds": 13.1,
+        "redWinRateDecisive": 1,
+        "redWinRate95CI": {
+          "low": 0.5101,
+          "high": 1
+        }
+      },
+      "sides": {
+        "1": {
+          "moveCount": 377,
+          "meanDepth": 1.72,
+          "medianDepth": 2,
+          "meanNodes": 2221.26,
+          "meanNps": 24900.87,
+          "meanTtHit": 0.0546,
+          "meanThinkMs": 167.71,
+          "meanAllocMs": 795.95,
+          "thinkOverAlloc": 0.2218,
+          "moveTypeCounts": {
+            "exact": 377
+          },
+          "vcf": {
+            "moves": 0,
+            "meanChainDepth": 0,
+            "meanNodes": 0
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        }
+      }
+    },
+    {
+      "red": 1,
+      "blue": 5,
+      "label": "L1vL5",
+      "games": [
+        {
+          "index": 6,
+          "seed": 20260827,
+          "redDiff": 1,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 1,
+          "reason": "win",
+          "movesPlayed": 51,
+          "elapsedSeconds": 126.5,
+          "timeoutFallbackMoves": 0,
+          "gameId": "a1a1bb7033b03a23"
+        },
+        {
+          "index": 7,
+          "seed": 20260828,
+          "redDiff": 5,
+          "blueDiff": 1,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 29,
+          "elapsedSeconds": 29.7,
+          "timeoutFallbackMoves": 0,
+          "gameId": "a177f0e22f321a42"
+        },
+        {
+          "index": 8,
+          "seed": 20260829,
+          "redDiff": 1,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 38,
+          "elapsedSeconds": 61.8,
+          "timeoutFallbackMoves": 0,
+          "gameId": "43b51bad4233f074"
+        },
+        {
+          "index": 9,
+          "seed": 20260830,
+          "redDiff": 5,
+          "blueDiff": 1,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 31,
+          "elapsedSeconds": 57.5,
+          "timeoutFallbackMoves": 0,
+          "gameId": "3ee5f4870ec174b6"
+        },
+        {
+          "index": 10,
+          "seed": 20260831,
+          "redDiff": 1,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 32,
+          "elapsedSeconds": 52.1,
+          "timeoutFallbackMoves": 0,
+          "gameId": "a7c52edac0084f09"
+        }
+      ],
+      "summary": {
+        "games": 5,
+        "wins": {
+          "1": 1,
+          "5": 4
+        },
+        "draws": 0,
+        "reasons": {
+          "win": 5
+        },
+        "avgMoves": 36.2,
+        "avgSeconds": 65.5,
+        "redWinRateDecisive": 0.6,
+        "redWinRate95CI": {
+          "low": 0.2307,
+          "high": 0.8824
+        }
+      },
+      "sides": {
+        "1": {
+          "moveCount": 90,
+          "meanDepth": 1.82,
+          "medianDepth": 2,
+          "meanNodes": 2158.99,
+          "meanNps": 46558.25,
+          "meanTtHit": 0.1177,
+          "meanThinkMs": 108.59,
+          "meanAllocMs": 658.14,
+          "thinkOverAlloc": 0.1644,
+          "moveTypeCounts": {
+            "exact": 90
+          },
+          "vcf": {
+            "moves": 0,
+            "meanChainDepth": 0,
+            "meanNodes": 0
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        },
+        "5": {
+          "moveCount": 91,
+          "meanDepth": 4.59,
+          "medianDepth": 4,
+          "meanNodes": 924136.21,
+          "meanNps": 221402.85,
+          "meanTtHit": 0.4651,
+          "meanThinkMs": 4440.14,
+          "meanAllocMs": 11137.34,
+          "thinkOverAlloc": 0.4053,
+          "moveTypeCounts": {
+            "exact": 71,
+            "vcf": 20
+          },
+          "vcf": {
+            "moves": 20,
+            "meanChainDepth": 3.75,
+            "meanNodes": 1859.25
+          },
+          "ponder": {
+            "withPonder": 72,
+            "hits": 25,
+            "meanDepth": 1.63,
+            "meanNodes": 21447.08
+          }
+        }
+      }
+    },
+    {
+      "red": 1,
+      "blue": 4,
+      "label": "L1vL4",
+      "games": [
+        {
+          "index": 11,
+          "seed": 20260832,
+          "redDiff": 1,
+          "blueDiff": 4,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 4,
+          "reason": "win",
+          "movesPlayed": 54,
+          "elapsedSeconds": 65.4,
+          "timeoutFallbackMoves": 0,
+          "gameId": "129765f0fe88fea7"
+        },
+        {
+          "index": 12,
+          "seed": 20260833,
+          "redDiff": 4,
+          "blueDiff": 1,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 4,
+          "reason": "win",
+          "movesPlayed": 155,
+          "elapsedSeconds": 203.3,
+          "timeoutFallbackMoves": 0,
+          "gameId": "bde49ac897c3f970"
+        },
+        {
+          "index": 13,
+          "seed": 20260834,
+          "redDiff": 1,
+          "blueDiff": 4,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 4,
+          "reason": "win",
+          "movesPlayed": 42,
+          "elapsedSeconds": 49.8,
+          "timeoutFallbackMoves": 0,
+          "gameId": "8ee7abf8f8b081a2"
+        },
+        {
+          "index": 14,
+          "seed": 20260835,
+          "redDiff": 4,
+          "blueDiff": 1,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 4,
+          "reason": "win",
+          "movesPlayed": 29,
+          "elapsedSeconds": 24,
+          "timeoutFallbackMoves": 0,
+          "gameId": "b76ea963e78b9c42"
+        },
+        {
+          "index": 15,
+          "seed": 20260836,
+          "redDiff": 1,
+          "blueDiff": 4,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 4,
+          "reason": "win",
+          "movesPlayed": 28,
+          "elapsedSeconds": 37.7,
+          "timeoutFallbackMoves": 0,
+          "gameId": "653c09721292b83b"
+        }
+      ],
+      "summary": {
+        "games": 5,
+        "wins": {
+          "4": 5
+        },
+        "draws": 0,
+        "reasons": {
+          "win": 5
+        },
+        "avgMoves": 61.6,
+        "avgSeconds": 76,
+        "redWinRateDecisive": 0.4,
+        "redWinRate95CI": {
+          "low": 0.1176,
+          "high": 0.7693
+        }
+      },
+      "sides": {
+        "1": {
+          "moveCount": 153,
+          "meanDepth": 1.73,
+          "medianDepth": 2,
+          "meanNodes": 2707.73,
+          "meanNps": 27125.07,
+          "meanTtHit": 0.0957,
+          "meanThinkMs": 201.09,
+          "meanAllocMs": 704.07,
+          "thinkOverAlloc": 0.2791,
+          "moveTypeCounts": {
+            "exact": 153
+          },
+          "vcf": {
+            "moves": 0,
+            "meanChainDepth": 0,
+            "meanNodes": 0
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        },
+        "4": {
+          "moveCount": 155,
+          "meanDepth": 3.5,
+          "medianDepth": 3,
+          "meanNodes": 208950.19,
+          "meanNps": 92842.68,
+          "meanTtHit": 0.3779,
+          "meanThinkMs": 2571.41,
+          "meanAllocMs": 7844.59,
+          "thinkOverAlloc": 0.3321,
+          "moveTypeCounts": {
+            "exact": 135,
+            "vcf": 20
+          },
+          "vcf": {
+            "moves": 20,
+            "meanChainDepth": 2.75,
+            "meanNodes": 835
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        }
+      }
+    },
+    {
+      "red": 1,
+      "blue": 3,
+      "label": "L1vL3",
+      "games": [
+        {
+          "index": 16,
+          "seed": 20260837,
+          "redDiff": 1,
+          "blueDiff": 3,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 3,
+          "reason": "win",
+          "movesPlayed": 22,
+          "elapsedSeconds": 7.7,
+          "timeoutFallbackMoves": 0,
+          "gameId": "2d41470ef9bcb757"
+        },
+        {
+          "index": 17,
+          "seed": 20260838,
+          "redDiff": 3,
+          "blueDiff": 1,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 3,
+          "reason": "win",
+          "movesPlayed": 37,
+          "elapsedSeconds": 16.2,
+          "timeoutFallbackMoves": 0,
+          "gameId": "abda3594a2173630"
+        },
+        {
+          "index": 18,
+          "seed": 20260839,
+          "redDiff": 1,
+          "blueDiff": 3,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 3,
+          "reason": "win",
+          "movesPlayed": 34,
+          "elapsedSeconds": 19,
+          "timeoutFallbackMoves": 0,
+          "gameId": "d6ca7e6ce30d56c9"
+        },
+        {
+          "index": 19,
+          "seed": 20260840,
+          "redDiff": 3,
+          "blueDiff": 1,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 3,
+          "reason": "win",
+          "movesPlayed": 29,
+          "elapsedSeconds": 14.7,
+          "timeoutFallbackMoves": 0,
+          "gameId": "41a3833ce447a5cc"
+        },
+        {
+          "index": 20,
+          "seed": 20260841,
+          "redDiff": 1,
+          "blueDiff": 3,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 3,
+          "reason": "win",
+          "movesPlayed": 20,
+          "elapsedSeconds": 9.7,
+          "timeoutFallbackMoves": 0,
+          "gameId": "3151cd92a16bb313"
+        }
+      ],
+      "summary": {
+        "games": 5,
+        "wins": {
+          "3": 5
+        },
+        "draws": 0,
+        "reasons": {
+          "win": 5
+        },
+        "avgMoves": 28.4,
+        "avgSeconds": 13.5,
+        "redWinRateDecisive": 0.4,
+        "redWinRate95CI": {
+          "low": 0.1176,
+          "high": 0.7693
+        }
+      },
+      "sides": {
+        "1": {
+          "moveCount": 70,
+          "meanDepth": 1.91,
+          "medianDepth": 2,
+          "meanNodes": 1969.37,
+          "meanNps": 48947.45,
+          "meanTtHit": 0.0818,
+          "meanThinkMs": 77.49,
+          "meanAllocMs": 660.03,
+          "thinkOverAlloc": 0.1165,
+          "moveTypeCounts": {
+            "exact": 70
+          },
+          "vcf": {
+            "moves": 0,
+            "meanChainDepth": 0,
+            "meanNodes": 0
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        },
+        "3": {
+          "moveCount": 72,
+          "meanDepth": 3.73,
+          "medianDepth": 4,
+          "meanNodes": 75969.41,
+          "meanNps": 83168.69,
+          "meanTtHit": 0.3207,
+          "meanThinkMs": 1085,
+          "meanAllocMs": 5181.96,
+          "thinkOverAlloc": 0.2084,
+          "moveTypeCounts": {
+            "exact": 56,
+            "vcf": 16
+          },
+          "vcf": {
+            "moves": 16,
+            "meanChainDepth": 1.69,
+            "meanNodes": 144.38
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        }
+      }
+    },
+    {
+      "red": 1,
+      "blue": 2,
+      "label": "L1vL2",
+      "games": [
+        {
+          "index": 21,
+          "seed": 20260842,
+          "redDiff": 1,
+          "blueDiff": 2,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 1,
+          "reason": "win",
+          "movesPlayed": 35,
+          "elapsedSeconds": 15.9,
+          "timeoutFallbackMoves": 0,
+          "gameId": "31f407dc4e8b796f"
+        },
+        {
+          "index": 22,
+          "seed": 20260843,
+          "redDiff": 2,
+          "blueDiff": 1,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 2,
+          "reason": "win",
+          "movesPlayed": 17,
+          "elapsedSeconds": 6.1,
+          "timeoutFallbackMoves": 0,
+          "gameId": "08a59e03c3995185"
+        },
+        {
+          "index": 23,
+          "seed": 20260844,
+          "redDiff": 1,
+          "blueDiff": 2,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 2,
+          "reason": "win",
+          "movesPlayed": 18,
+          "elapsedSeconds": 6.8,
+          "timeoutFallbackMoves": 0,
+          "gameId": "3923e3ec77ece39a"
+        },
+        {
+          "index": 24,
+          "seed": 20260845,
+          "redDiff": 2,
+          "blueDiff": 1,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 2,
+          "reason": "win",
+          "movesPlayed": 25,
+          "elapsedSeconds": 7.8,
+          "timeoutFallbackMoves": 0,
+          "gameId": "7697fcf150d59a58"
+        },
+        {
+          "index": 25,
+          "seed": 20260846,
+          "redDiff": 1,
+          "blueDiff": 2,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 1,
+          "reason": "win",
+          "movesPlayed": 35,
+          "elapsedSeconds": 12.1,
+          "timeoutFallbackMoves": 0,
+          "gameId": "a852c87f76d907af"
+        }
+      ],
+      "summary": {
+        "games": 5,
+        "wins": {
+          "1": 2,
+          "2": 3
+        },
+        "draws": 0,
+        "reasons": {
+          "win": 5
+        },
+        "avgMoves": 26,
+        "avgSeconds": 9.7,
+        "redWinRateDecisive": 0.8,
+        "redWinRate95CI": {
+          "low": 0.3755,
+          "high": 0.9638
+        }
+      },
+      "sides": {
+        "1": {
+          "moveCount": 65,
+          "meanDepth": 1.89,
+          "medianDepth": 2,
+          "meanNodes": 2786.45,
+          "meanNps": 52441.3,
+          "meanTtHit": 0.123,
+          "meanThinkMs": 119.98,
+          "meanAllocMs": 658.54,
+          "thinkOverAlloc": 0.1835,
+          "moveTypeCounts": {
+            "exact": 65
+          },
+          "vcf": {
+            "moves": 0,
+            "meanChainDepth": 0,
+            "meanNodes": 0
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        },
+        "2": {
+          "moveCount": 65,
+          "meanDepth": 3.31,
+          "medianDepth": 4,
+          "meanNodes": 24692.43,
+          "meanNps": 46053.2,
+          "meanTtHit": 0.3149,
+          "meanThinkMs": 618.54,
+          "meanAllocMs": 1942.55,
+          "thinkOverAlloc": 0.3194,
+          "moveTypeCounts": {
+            "exact": 65
+          },
+          "vcf": {
+            "moves": 0,
+            "meanChainDepth": 0,
+            "meanNodes": 0
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        }
+      }
+    },
+    {
+      "red": 2,
+      "blue": 5,
+      "label": "L2vL5",
+      "games": [
+        {
+          "index": 26,
+          "seed": 20260847,
+          "redDiff": 2,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 24,
+          "elapsedSeconds": 39.8,
+          "timeoutFallbackMoves": 0,
+          "gameId": "50cf362f011f54f6"
+        },
+        {
+          "index": 27,
+          "seed": 20260848,
+          "redDiff": 5,
+          "blueDiff": 2,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 35,
+          "elapsedSeconds": 82,
+          "timeoutFallbackMoves": 0,
+          "gameId": "23246f532ef3133c"
+        },
+        {
+          "index": 28,
+          "seed": 20260849,
+          "redDiff": 2,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 44,
+          "elapsedSeconds": 83.1,
+          "timeoutFallbackMoves": 0,
+          "gameId": "1a9df1063c5f792d"
+        },
+        {
+          "index": 29,
+          "seed": 20260850,
+          "redDiff": 5,
+          "blueDiff": 2,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 25,
+          "elapsedSeconds": 52.8,
+          "timeoutFallbackMoves": 0,
+          "gameId": "880a974a995fdb07"
+        },
+        {
+          "index": 30,
+          "seed": 20260851,
+          "redDiff": 2,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 32,
+          "elapsedSeconds": 39.5,
+          "timeoutFallbackMoves": 0,
+          "gameId": "51f4605ea075dff0"
+        }
+      ],
+      "summary": {
+        "games": 5,
+        "wins": {
+          "5": 5
+        },
+        "draws": 0,
+        "reasons": {
+          "win": 5
+        },
+        "avgMoves": 32,
+        "avgSeconds": 59.4,
+        "redWinRateDecisive": 0.4,
+        "redWinRate95CI": {
+          "low": 0.1176,
+          "high": 0.7693
+        }
+      },
+      "sides": {
+        "2": {
+          "moveCount": 79,
+          "meanDepth": 3.14,
+          "medianDepth": 3,
+          "meanNodes": 17571.01,
+          "meanNps": 40284.15,
+          "meanTtHit": 0.3679,
+          "meanThinkMs": 636.39,
+          "meanAllocMs": 1937.32,
+          "thinkOverAlloc": 0.3315,
+          "moveTypeCounts": {
+            "exact": 79
+          },
+          "vcf": {
+            "moves": 0,
+            "meanChainDepth": 0,
+            "meanNodes": 0
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        },
+        "5": {
+          "moveCount": 81,
+          "meanDepth": 4.6,
+          "medianDepth": 4,
+          "meanNodes": 939504.07,
+          "meanNps": 223868.14,
+          "meanTtHit": 0.4579,
+          "meanThinkMs": 4287.23,
+          "meanAllocMs": 11850.09,
+          "thinkOverAlloc": 0.3638,
+          "moveTypeCounts": {
+            "exact": 57,
+            "vcf": 24
+          },
+          "vcf": {
+            "moves": 24,
+            "meanChainDepth": 3.13,
+            "meanNodes": 1086.92
+          },
+          "ponder": {
+            "withPonder": 57,
+            "hits": 30,
+            "meanDepth": 2.75,
+            "meanNodes": 145821.46
+          }
+        }
+      }
+    },
+    {
+      "red": 2,
+      "blue": 4,
+      "label": "L2vL4",
+      "games": [
+        {
+          "index": 31,
+          "seed": 20260852,
+          "redDiff": 2,
+          "blueDiff": 4,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 4,
+          "reason": "win",
+          "movesPlayed": 34,
+          "elapsedSeconds": 52.8,
+          "timeoutFallbackMoves": 0,
+          "gameId": "11ede30afc406895"
+        },
+        {
+          "index": 32,
+          "seed": 20260853,
+          "redDiff": 4,
+          "blueDiff": 2,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 4,
+          "reason": "win",
+          "movesPlayed": 35,
+          "elapsedSeconds": 47.6,
+          "timeoutFallbackMoves": 0,
+          "gameId": "70819c65410b8941"
+        },
+        {
+          "index": 33,
+          "seed": 20260854,
+          "redDiff": 2,
+          "blueDiff": 4,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 4,
+          "reason": "win",
+          "movesPlayed": 38,
+          "elapsedSeconds": 60.8,
+          "timeoutFallbackMoves": 0,
+          "gameId": "a6836488fade7485"
+        },
+        {
+          "index": 34,
+          "seed": 20260855,
+          "redDiff": 4,
+          "blueDiff": 2,
+          "swap": true,
+          "winner": "blue",
+          "levelWinner": 2,
+          "reason": "win",
+          "movesPlayed": 34,
+          "elapsedSeconds": 51.3,
+          "timeoutFallbackMoves": 0,
+          "gameId": "b2e900b7ab734c20"
+        },
+        {
+          "index": 35,
+          "seed": 20260856,
+          "redDiff": 2,
+          "blueDiff": 4,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 2,
+          "reason": "win",
+          "movesPlayed": 33,
+          "elapsedSeconds": 52.5,
+          "timeoutFallbackMoves": 0,
+          "gameId": "778a399956b98e36"
+        }
+      ],
+      "summary": {
+        "games": 5,
+        "wins": {
+          "2": 2,
+          "4": 3
+        },
+        "draws": 0,
+        "reasons": {
+          "win": 5
+        },
+        "avgMoves": 34.8,
+        "avgSeconds": 53,
+        "redWinRateDecisive": 0.4,
+        "redWinRate95CI": {
+          "low": 0.1176,
+          "high": 0.7693
+        }
+      },
+      "sides": {
+        "2": {
+          "moveCount": 87,
+          "meanDepth": 3.05,
+          "medianDepth": 3,
+          "meanNodes": 22831.89,
+          "meanNps": 46068,
+          "meanTtHit": 0.3855,
+          "meanThinkMs": 629.68,
+          "meanAllocMs": 1925.24,
+          "thinkOverAlloc": 0.324,
+          "moveTypeCounts": {
+            "exact": 87
+          },
+          "vcf": {
+            "moves": 0,
+            "meanChainDepth": 0,
+            "meanNodes": 0
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        },
+        "4": {
+          "moveCount": 87,
+          "meanDepth": 4.14,
+          "medianDepth": 4,
+          "meanNodes": 326180.28,
+          "meanNps": 126338.25,
+          "meanTtHit": 0.3791,
+          "meanThinkMs": 2901.1,
+          "meanAllocMs": 8558.63,
+          "thinkOverAlloc": 0.3414,
+          "moveTypeCounts": {
+            "exact": 72,
+            "vcf": 15
+          },
+          "vcf": {
+            "moves": 15,
+            "meanChainDepth": 2.67,
+            "meanNodes": 1292.93
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        }
+      }
+    },
+    {
+      "red": 2,
+      "blue": 3,
+      "label": "L2vL3",
+      "games": [
+        {
+          "index": 36,
+          "seed": 20260857,
+          "redDiff": 2,
+          "blueDiff": 3,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 2,
+          "reason": "win",
+          "movesPlayed": 25,
+          "elapsedSeconds": 15.9,
+          "timeoutFallbackMoves": 0,
+          "gameId": "8658c708c2d97926"
+        },
+        {
+          "index": 37,
+          "seed": 20260858,
+          "redDiff": 3,
+          "blueDiff": 2,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 3,
+          "reason": "win",
+          "movesPlayed": 23,
+          "elapsedSeconds": 16.9,
+          "timeoutFallbackMoves": 0,
+          "gameId": "41a5257249ad7be0"
+        },
+        {
+          "index": 38,
+          "seed": 20260859,
+          "redDiff": 2,
+          "blueDiff": 3,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 2,
+          "reason": "win",
+          "movesPlayed": 17,
+          "elapsedSeconds": 16,
+          "timeoutFallbackMoves": 0,
+          "gameId": "f4d26bf234b56da4"
+        },
+        {
+          "index": 39,
+          "seed": 20260860,
+          "redDiff": 3,
+          "blueDiff": 2,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 3,
+          "reason": "win",
+          "movesPlayed": 43,
+          "elapsedSeconds": 50.7,
+          "timeoutFallbackMoves": 0,
+          "gameId": "176f5d961aa54a3c"
+        },
+        {
+          "index": 40,
+          "seed": 20260861,
+          "redDiff": 2,
+          "blueDiff": 3,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 2,
+          "reason": "win",
+          "movesPlayed": 31,
+          "elapsedSeconds": 15.2,
+          "timeoutFallbackMoves": 0,
+          "gameId": "ccb72ec845ffc9fd"
+        }
+      ],
+      "summary": {
+        "games": 5,
+        "wins": {
+          "2": 3,
+          "3": 2
+        },
+        "draws": 0,
+        "reasons": {
+          "win": 5
+        },
+        "avgMoves": 27.8,
+        "avgSeconds": 22.9,
+        "redWinRateDecisive": 1,
+        "redWinRate95CI": {
+          "low": 0.5655,
+          "high": 1
+        }
+      },
+      "sides": {
+        "2": {
+          "moveCount": 70,
+          "meanDepth": 3.04,
+          "medianDepth": 3,
+          "meanNodes": 19424.49,
+          "meanNps": 45267.89,
+          "meanTtHit": 0.3559,
+          "meanThinkMs": 529.81,
+          "meanAllocMs": 1948.74,
+          "thinkOverAlloc": 0.2722,
+          "moveTypeCounts": {
+            "exact": 70
+          },
+          "vcf": {
+            "moves": 0,
+            "meanChainDepth": 0,
+            "meanNodes": 0
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        },
+        "3": {
+          "moveCount": 69,
+          "meanDepth": 3.72,
+          "medianDepth": 4,
+          "meanNodes": 76164.97,
+          "meanNps": 81347.66,
+          "meanTtHit": 0.3554,
+          "meanThinkMs": 1179.57,
+          "meanAllocMs": 5107.42,
+          "thinkOverAlloc": 0.2334,
+          "moveTypeCounts": {
+            "exact": 65,
+            "vcf": 4
+          },
+          "vcf": {
+            "moves": 4,
+            "meanChainDepth": 1.5,
+            "meanNodes": 98.75
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        }
+      }
+    },
+    {
+      "red": 3,
+      "blue": 5,
+      "label": "L3vL5",
+      "games": [
+        {
+          "index": 41,
+          "seed": 20260862,
+          "redDiff": 3,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 3,
+          "reason": "win",
+          "movesPlayed": 61,
+          "elapsedSeconds": 209.3,
+          "timeoutFallbackMoves": 0,
+          "gameId": "9c4d9a8b95fdcd45"
+        },
+        {
+          "index": 42,
+          "seed": 20260863,
+          "redDiff": 5,
+          "blueDiff": 3,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 37,
+          "elapsedSeconds": 88.5,
+          "timeoutFallbackMoves": 0,
+          "gameId": "bdbf26badd37fc58"
+        },
+        {
+          "index": 43,
+          "seed": 20260864,
+          "redDiff": 3,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 3,
+          "reason": "win",
+          "movesPlayed": 85,
+          "elapsedSeconds": 260,
+          "timeoutFallbackMoves": 0,
+          "gameId": "c74e1a7944793c4d"
+        },
+        {
+          "index": 44,
+          "seed": 20260865,
+          "redDiff": 5,
+          "blueDiff": 3,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 91,
+          "elapsedSeconds": 223.9,
+          "timeoutFallbackMoves": 0,
+          "gameId": "7b010eebe078bfbf"
+        },
+        {
+          "index": 45,
+          "seed": 20260866,
+          "redDiff": 3,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 56,
+          "elapsedSeconds": 175.3,
+          "timeoutFallbackMoves": 0,
+          "gameId": "2cc26d743978f33b"
+        }
+      ],
+      "summary": {
+        "games": 5,
+        "wins": {
+          "3": 2,
+          "5": 3
+        },
+        "draws": 0,
+        "reasons": {
+          "win": 5
+        },
+        "avgMoves": 66,
+        "avgSeconds": 191.4,
+        "redWinRateDecisive": 0.8,
+        "redWinRate95CI": {
+          "low": 0.3755,
+          "high": 0.9638
+        }
+      },
+      "sides": {
+        "3": {
+          "moveCount": 165,
+          "meanDepth": 3.03,
+          "medianDepth": 3,
+          "meanNodes": 53855.87,
+          "meanNps": 38828.79,
+          "meanTtHit": 0.4026,
+          "meanThinkMs": 1848.22,
+          "meanAllocMs": 4755.83,
+          "thinkOverAlloc": 0.3932,
+          "moveTypeCounts": {
+            "exact": 157,
+            "vcf": 8
+          },
+          "vcf": {
+            "moves": 8,
+            "meanChainDepth": 1.88,
+            "meanNodes": 191.25
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        },
+        "5": {
+          "moveCount": 165,
+          "meanDepth": 4.17,
+          "medianDepth": 4,
+          "meanNodes": 692881.91,
+          "meanNps": 158871.28,
+          "meanTtHit": 0.5294,
+          "meanThinkMs": 4693.58,
+          "meanAllocMs": 9475.57,
+          "thinkOverAlloc": 0.5066,
+          "moveTypeCounts": {
+            "exact": 141,
+            "vcf": 24
+          },
+          "vcf": {
+            "moves": 24,
+            "meanChainDepth": 3.79,
+            "meanNodes": 1514.63
+          },
+          "ponder": {
+            "withPonder": 140,
+            "hits": 96,
+            "meanDepth": 2.83,
+            "meanNodes": 235712.02
+          }
+        }
+      }
+    },
+    {
+      "red": 3,
+      "blue": 4,
+      "label": "L3vL4",
+      "games": [
+        {
+          "index": 46,
+          "seed": 20260867,
+          "redDiff": 3,
+          "blueDiff": 4,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 3,
+          "reason": "win",
+          "movesPlayed": 27,
+          "elapsedSeconds": 29.9,
+          "timeoutFallbackMoves": 0,
+          "gameId": "5535d4c14f9626db"
+        },
+        {
+          "index": 47,
+          "seed": 20260868,
+          "redDiff": 4,
+          "blueDiff": 3,
+          "swap": true,
+          "winner": "blue",
+          "levelWinner": 3,
+          "reason": "win",
+          "movesPlayed": 34,
+          "elapsedSeconds": 50.9,
+          "timeoutFallbackMoves": 0,
+          "gameId": "ea05f164947ca082"
+        },
+        {
+          "index": 48,
+          "seed": 20260869,
+          "redDiff": 3,
+          "blueDiff": 4,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 3,
+          "reason": "win",
+          "movesPlayed": 33,
+          "elapsedSeconds": 67.3,
+          "timeoutFallbackMoves": 0,
+          "gameId": "b1f426065d98214e"
+        },
+        {
+          "index": 49,
+          "seed": 20260870,
+          "redDiff": 4,
+          "blueDiff": 3,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 4,
+          "reason": "win",
+          "movesPlayed": 47,
+          "elapsedSeconds": 118,
+          "timeoutFallbackMoves": 0,
+          "gameId": "d307ed4a8d3e4fcc"
+        },
+        {
+          "index": 50,
+          "seed": 20260871,
+          "redDiff": 3,
+          "blueDiff": 4,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 4,
+          "reason": "win",
+          "movesPlayed": 36,
+          "elapsedSeconds": 58.6,
+          "timeoutFallbackMoves": 0,
+          "gameId": "caf1e3a91abbd429"
+        }
+      ],
+      "summary": {
+        "games": 5,
+        "wins": {
+          "3": 3,
+          "4": 2
+        },
+        "draws": 0,
+        "reasons": {
+          "win": 5
+        },
+        "avgMoves": 35.4,
+        "avgSeconds": 64.9,
+        "redWinRateDecisive": 0.6,
+        "redWinRate95CI": {
+          "low": 0.2307,
+          "high": 0.8824
+        }
+      },
+      "sides": {
+        "3": {
+          "moveCount": 89,
+          "meanDepth": 3.29,
+          "medianDepth": 3,
+          "meanNodes": 72696.8,
+          "meanNps": 56232.15,
+          "meanTtHit": 0.4042,
+          "meanThinkMs": 1524.82,
+          "meanAllocMs": 4977.2,
+          "thinkOverAlloc": 0.3093,
+          "moveTypeCounts": {
+            "exact": 79,
+            "vcf": 10
+          },
+          "vcf": {
+            "moves": 10,
+            "meanChainDepth": 1.9,
+            "meanNodes": 221.6
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        },
+        "4": {
+          "moveCount": 88,
+          "meanDepth": 3.95,
+          "medianDepth": 4,
+          "meanNodes": 242198.95,
+          "meanNps": 106242.65,
+          "meanTtHit": 0.4357,
+          "meanThinkMs": 2561.81,
+          "meanAllocMs": 8436.62,
+          "thinkOverAlloc": 0.3079,
+          "moveTypeCounts": {
+            "exact": 79,
+            "vcf": 9
+          },
+          "vcf": {
+            "moves": 9,
+            "meanChainDepth": 2.67,
+            "meanNodes": 266.56
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        }
+      }
+    },
+    {
+      "red": 4,
+      "blue": 5,
+      "label": "L4vL5",
+      "games": [
+        {
+          "index": 51,
+          "seed": 20260872,
+          "redDiff": 4,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 36,
+          "elapsedSeconds": 121.4,
+          "timeoutFallbackMoves": 0,
+          "gameId": "bb083e2ab1e9badb"
+        },
+        {
+          "index": 52,
+          "seed": 20260873,
+          "redDiff": 5,
+          "blueDiff": 4,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 23,
+          "elapsedSeconds": 74.4,
+          "timeoutFallbackMoves": 0,
+          "gameId": "ab26315248a7ea36"
+        },
+        {
+          "index": 53,
+          "seed": 20260874,
+          "redDiff": 4,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 30,
+          "elapsedSeconds": 90.3,
+          "timeoutFallbackMoves": 0,
+          "gameId": "a8ac52c190ef7e20"
+        },
+        {
+          "index": 54,
+          "seed": 20260875,
+          "redDiff": 5,
+          "blueDiff": 4,
+          "swap": true,
+          "winner": "red",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 27,
+          "elapsedSeconds": 69.6,
+          "timeoutFallbackMoves": 0,
+          "gameId": "b46e4c527e9b08e2"
+        },
+        {
+          "index": 55,
+          "seed": 20260876,
+          "redDiff": 4,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "red",
+          "levelWinner": 4,
+          "reason": "win",
+          "movesPlayed": 55,
+          "elapsedSeconds": 189.8,
+          "timeoutFallbackMoves": 0,
+          "gameId": "8a371951e7e1fcbc"
+        }
+      ],
+      "summary": {
+        "games": 5,
+        "wins": {
+          "4": 1,
+          "5": 4
+        },
+        "draws": 0,
+        "reasons": {
+          "win": 5
+        },
+        "avgMoves": 34.2,
+        "avgSeconds": 109.1,
+        "redWinRateDecisive": 0.6,
+        "redWinRate95CI": {
+          "low": 0.2307,
+          "high": 0.8824
+        }
+      },
+      "sides": {
+        "4": {
+          "moveCount": 85,
+          "meanDepth": 3.95,
+          "medianDepth": 4,
+          "meanNodes": 211350.8,
+          "meanNps": 85276.21,
+          "meanTtHit": 0.3963,
+          "meanThinkMs": 2887.78,
+          "meanAllocMs": 8351.04,
+          "thinkOverAlloc": 0.3487,
+          "moveTypeCounts": {
+            "exact": 79,
+            "vcf": 6
+          },
+          "vcf": {
+            "moves": 6,
+            "meanChainDepth": 3,
+            "meanNodes": 1104.17
+          },
+          "ponder": {
+            "withPonder": 0,
+            "hits": 0,
+            "meanDepth": 0,
+            "meanNodes": 0
+          }
+        },
+        "5": {
+          "moveCount": 86,
+          "meanDepth": 4.61,
+          "medianDepth": 5,
+          "meanNodes": 775076.85,
+          "meanNps": 178012.15,
+          "meanTtHit": 0.4974,
+          "meanThinkMs": 4693.46,
+          "meanAllocMs": 11088.39,
+          "thinkOverAlloc": 0.4252,
+          "moveTypeCounts": {
+            "exact": 67,
+            "vcf": 19
+          },
+          "vcf": {
+            "moves": 19,
+            "meanChainDepth": 2.79,
+            "meanNodes": 3633
+          },
+          "ponder": {
+            "withPonder": 70,
+            "hits": 44,
+            "meanDepth": 3.16,
+            "meanNodes": 395957.53
+          }
+        }
+      }
+    }
+  ],
+  "ladder": {
+    "rows": [
+      {
+        "label": "L1vL1",
+        "red": 1,
+        "blue": 1,
+        "games": 5,
+        "wins": {
+          "1": 4
+        },
+        "draws": 1,
+        "decisive": 4,
+        "higher": 1,
+        "higherWinRateDecisive": 1,
+        "higherWinRate95CI": {
+          "low": 0.5101,
+          "high": 1
+        }
+      },
+      {
+        "label": "L1vL5",
+        "red": 1,
+        "blue": 5,
+        "games": 5,
+        "wins": {
+          "1": 1,
+          "5": 4
+        },
+        "draws": 0,
+        "decisive": 5,
+        "higher": 5,
+        "higherWinRateDecisive": 0.8,
+        "higherWinRate95CI": {
+          "low": 0.3755,
+          "high": 0.9638
+        }
+      },
+      {
+        "label": "L1vL4",
+        "red": 1,
+        "blue": 4,
+        "games": 5,
+        "wins": {
+          "4": 5
+        },
+        "draws": 0,
+        "decisive": 5,
+        "higher": 4,
+        "higherWinRateDecisive": 1,
+        "higherWinRate95CI": {
+          "low": 0.5655,
+          "high": 1
+        }
+      },
+      {
+        "label": "L1vL3",
+        "red": 1,
+        "blue": 3,
+        "games": 5,
+        "wins": {
+          "3": 5
+        },
+        "draws": 0,
+        "decisive": 5,
+        "higher": 3,
+        "higherWinRateDecisive": 1,
+        "higherWinRate95CI": {
+          "low": 0.5655,
+          "high": 1
+        }
+      },
+      {
+        "label": "L1vL2",
+        "red": 1,
+        "blue": 2,
+        "games": 5,
+        "wins": {
+          "1": 2,
+          "2": 3
+        },
+        "draws": 0,
+        "decisive": 5,
+        "higher": 2,
+        "higherWinRateDecisive": 0.6,
+        "higherWinRate95CI": {
+          "low": 0.2307,
+          "high": 0.8824
+        }
+      },
+      {
+        "label": "L2vL5",
+        "red": 2,
+        "blue": 5,
+        "games": 5,
+        "wins": {
+          "5": 5
+        },
+        "draws": 0,
+        "decisive": 5,
+        "higher": 5,
+        "higherWinRateDecisive": 1,
+        "higherWinRate95CI": {
+          "low": 0.5655,
+          "high": 1
+        }
+      },
+      {
+        "label": "L2vL4",
+        "red": 2,
+        "blue": 4,
+        "games": 5,
+        "wins": {
+          "2": 2,
+          "4": 3
+        },
+        "draws": 0,
+        "decisive": 5,
+        "higher": 4,
+        "higherWinRateDecisive": 0.6,
+        "higherWinRate95CI": {
+          "low": 0.2307,
+          "high": 0.8824
+        }
+      },
+      {
+        "label": "L2vL3",
+        "red": 2,
+        "blue": 3,
+        "games": 5,
+        "wins": {
+          "2": 3,
+          "3": 2
+        },
+        "draws": 0,
+        "decisive": 5,
+        "higher": 3,
+        "higherWinRateDecisive": 0.4,
+        "higherWinRate95CI": {
+          "low": 0.1176,
+          "high": 0.7693
+        }
+      },
+      {
+        "label": "L3vL5",
+        "red": 3,
+        "blue": 5,
+        "games": 5,
+        "wins": {
+          "3": 2,
+          "5": 3
+        },
+        "draws": 0,
+        "decisive": 5,
+        "higher": 5,
+        "higherWinRateDecisive": 0.6,
+        "higherWinRate95CI": {
+          "low": 0.2307,
+          "high": 0.8824
+        }
+      },
+      {
+        "label": "L3vL4",
+        "red": 3,
+        "blue": 4,
+        "games": 5,
+        "wins": {
+          "3": 3,
+          "4": 2
+        },
+        "draws": 0,
+        "decisive": 5,
+        "higher": 4,
+        "higherWinRateDecisive": 0.4,
+        "higherWinRate95CI": {
+          "low": 0.1176,
+          "high": 0.7693
+        }
+      },
+      {
+        "label": "L4vL5",
+        "red": 4,
+        "blue": 5,
+        "games": 5,
+        "wins": {
+          "4": 1,
+          "5": 4
+        },
+        "draws": 0,
+        "decisive": 5,
+        "higher": 5,
+        "higherWinRateDecisive": 0.8,
+        "higherWinRate95CI": {
+          "low": 0.3755,
+          "high": 0.9638
+        }
+      }
+    ],
+    "adjacent": [
+      {
+        "step": "L1vL2",
+        "higherWinRateDecisive": 0.6
+      },
+      {
+        "step": "L2vL3",
+        "higherWinRateDecisive": 0.4
+      },
+      {
+        "step": "L3vL4",
+        "higherWinRateDecisive": 0.4
+      },
+      {
+        "step": "L4vL5",
+        "higherWinRateDecisive": 0.8
+      }
+    ],
+    "monotonicVerdict": "non-monotonic (some adjacent step favors the lower level)"
+  },
+  "totals": {
+    "planned": 60,
+    "played": 55,
+    "movesPlayed": 2289,
+    "elapsedSeconds": 3393.352
+  },
+  "anomalies": {
+    "timeoutFallbackMoves": 0,
+    "maxMoveGames": 0,
+    "erroredGames": 0
+  },
+  "error": "game 56 (L5vL5): run killed externally mid-game (55/60 games persisted)"
+}
