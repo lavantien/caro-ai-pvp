@@ -147,5 +147,82 @@ public class PersistenceLoggingTests
         Assert.NotNull(record);
         Assert.Equal("blue", record!.Winner);
         Assert.Equal(7, record.MoveCount);
+
+        // Blue made the winning move; the persisted row must say so. The
+        // derivation from the post-move CurrentPlayer inverted blue's
+        // game-ending moves in every archived blue-winner game
+        // (docs/artifacts/tournaments/ANOMALIES.md, finding 6).
+        List<MoveRecord> moves = ms.GetMoves(gameID);
+        Assert.Equal("blue", moves[^1].Player);
+    }
+
+    [Fact]
+    public async Task FinishedDrawDeleteKeepsNoneWinner()
+    {
+        using MatchStore ms = new(TempDbPath());
+        await using TestApi api = TestHostFactory.Create(matches: ms);
+        var (_, created) = await api.Client.PostJsonAsync("/api/game/new",
+            """{"timeControl":"1+0","gameMode":"pvp"}""");
+        string gameID = created.GameId();
+        Assert.True(api.Store.TryGet(gameID, out GameSession session));
+
+        // 2x2-block checkerboard: same-color runs stay far below five in
+        // every direction, so filling the last cell is a board-full draw.
+        Board staged = Board.NewBoard();
+        for (int x = 0; x < Constants.Board.Size; x++)
+        {
+            for (int y = 0; y < Constants.Board.Size; y++)
+            {
+                if (x == Constants.Board.Size - 1 && y == Constants.Board.Size - 1)
+                {
+                    continue;
+                }
+                Player color = (x / 2 + y / 2) % 2 == 0 ? Player.Red : Player.Blue;
+                staged = staged.PlaceStone(x, y, color);
+            }
+        }
+        Assert.False(WinDetector.CheckWin(staged).HasWinner);
+        Player lastCellSafeFor = WinDetector.CheckWin(
+            staged.PlaceStone(Constants.Board.Size - 1, Constants.Board.Size - 1, Player.Red)).HasWinner
+            ? Player.Blue
+            : Player.Red;
+        Assert.False(WinDetector.CheckWin(
+            staged.PlaceStone(Constants.Board.Size - 1, Constants.Board.Size - 1, lastCellSafeFor)).HasWinner);
+        session.InstallBoardForTest(staged, 255, lastCellSafeFor);
+
+        var (moveStatus, body) = await api.Client.PostJsonAsync($"/api/game/{gameID}/move",
+            $$"""{"x":{{Constants.Board.Size - 1}},"y":{{Constants.Board.Size - 1}}}""");
+        Assert.Equal(200, moveStatus);
+        Assert.True(body.State().Bool("isGameOver"));
+        Assert.Equal("none", body.State()["winner"]!.ToString());
+
+        GameRecord? drawn = ms.GetGame(gameID);
+        Assert.NotNull(drawn);
+        Assert.Equal("none", drawn!.Winner);
+
+        // Deleting a finished game must not relabel the draw as abandoned.
+        var (deleteStatus, _) = await api.Client.DeleteJsonAsync("/api/game/" + gameID);
+        Assert.Equal(200, deleteStatus);
+        Assert.Equal("none", ms.GetGame(gameID)!.Winner);
+    }
+
+    [Fact]
+    public async Task LiveGameDeleteRecordsAbandoned()
+    {
+        using MatchStore ms = new(TempDbPath());
+        await using TestApi api = TestHostFactory.Create(matches: ms);
+        var (_, created) = await api.Client.PostJsonAsync("/api/game/new",
+            """{"timeControl":"1+0","gameMode":"pvp"}""");
+        string gameID = created.GameId();
+        var (moveStatus, _) = await api.Client.PostJsonAsync($"/api/game/{gameID}/move",
+            """{"x":7,"y":7}""");
+        Assert.Equal(200, moveStatus);
+
+        var (deleteStatus, _) = await api.Client.DeleteJsonAsync("/api/game/" + gameID);
+        Assert.Equal(200, deleteStatus);
+
+        GameRecord? record = ms.GetGame(gameID);
+        Assert.NotNull(record);
+        Assert.Equal("abandoned", record!.Winner);
     }
 }

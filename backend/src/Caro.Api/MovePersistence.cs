@@ -7,18 +7,16 @@ namespace Caro.Api;
 
 public sealed partial class GameHandlers
 {
-    private void LogHumanMove(string gameId, int x, int y, GameResponse resp)
+    private void LogHumanMove(string gameId, int x, int y, string mover, GameResponse resp)
     {
         if (matches == null)
         {
             return;
         }
-        string player = resp.CurrentPlayer;
         int moveNum = resp.MoveNumber;
         if (moveNum > 0)
         {
             moveNum--;
-            player = Statline.OpponentOf(player);
         }
         try
         {
@@ -26,7 +24,7 @@ public sealed partial class GameHandlers
             {
                 GameID = gameId,
                 MoveNumber = moveNum,
-                Player = player,
+                Player = mover,
                 PosX = x,
                 PosY = y,
                 IsBot = false,
@@ -42,22 +40,20 @@ public sealed partial class GameHandlers
         }
     }
 
-    private void LogAIMove(string gameId, int x, int y, GameResponse resp, int? difficulty,
+    private void LogAIMove(string gameId, int x, int y, string mover, GameResponse resp, int? difficulty,
         SearchStats stats, long thinkTimeMs, int? ponderDepth, long? ponderNodes)
     {
         if (matches == null)
         {
             return;
         }
-        string player = resp.CurrentPlayer;
         int moveNum = resp.MoveNumber;
         if (moveNum > 0)
         {
             moveNum--;
-            player = Statline.OpponentOf(player);
         }
         long remainingMs = (long)(resp.RedTimeRemaining * Constants.Time.MsPerSecond);
-        if (player == Player.Blue.ToName())
+        if (mover == Player.Blue.ToName())
         {
             remainingMs = (long)(resp.BlueTimeRemaining * Constants.Time.MsPerSecond);
         }
@@ -69,7 +65,7 @@ public sealed partial class GameHandlers
             {
                 GameID = gameId,
                 MoveNumber = moveNum,
-                Player = player,
+                Player = mover,
                 PosX = x,
                 PosY = y,
                 IsBot = true,

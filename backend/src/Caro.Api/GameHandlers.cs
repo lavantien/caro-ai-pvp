@@ -156,9 +156,12 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
             return;
         }
 
+        // Capture the mover before the move: deriving it from the
+        // post-move CurrentPlayer inverts on game-ending moves.
+        string mover = session.GetResponse().CurrentPlayer;
         GameResponse resp = session.ApplyHumanMove(req.X, req.Y);
 
-        LogHumanMove(id, req.X, req.Y, resp);
+        LogHumanMove(id, req.X, req.Y, mover, resp);
 
         await ResponseJson.Write(http, 200, new StateResponse(resp));
     }
@@ -221,7 +224,7 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
             ponderDepth = ponderStats.DepthAchieved;
             ponderNodes = ponderStats.NodesSearched;
         }
-        LogAIMove(id, x, y, resp, difficulty, stats, thinkTime, ponderDepth, ponderNodes);
+        LogAIMove(id, x, y, player.ToName(), resp, difficulty, stats, thinkTime, ponderDepth, ponderNodes);
 
         MoveDetailResponse moveDetail = Statline.BuildMoveDetail(resp, player.ToName(), x, y, stats, thinkTime,
             hadPonder ? ponderHit : null, ponderDepth, ponderNodes);
@@ -251,18 +254,19 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
         if (matches != null)
         {
             GameResponse resp = session.GetResponse();
-            string winner = resp.Winner;
-            if (winner.Length == 0 || winner == Player.None.ToName())
+            if (!resp.IsGameOver)
             {
-                winner = EndReasons.Abandoned;
-            }
-            try
-            {
-                matches.CompleteGame(id, winner, resp.MoveNumber);
-            }
-            catch (Exception e)
-            {
-                logger?.StoreFailure(e, "complete game", id);
+                // Only unfinished games need a completion here; finished
+                // games were completed when the final move landed, and
+                // rewriting a finished draw used to relabel it abandoned.
+                try
+                {
+                    matches.CompleteGame(id, EndReasons.Abandoned, resp.MoveNumber);
+                }
+                catch (Exception e)
+                {
+                    logger?.StoreFailure(e, "complete game", id);
+                }
             }
         }
         store.Delete(id);
