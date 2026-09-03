@@ -93,8 +93,8 @@ mirrored by hand: the time-control and difficulty tables
    copy. A mirror without a pointer is a bug.
 2. All copies change in the same commit.
 3. Mirrors are a last resort; if a shared source is technically possible,
-   prefer it (the frontend e2e spec imports `lib.mjs`; the config index
-   derives from its own tables).
+   prefer it (the Playwright config imports `lib.mjs`; the e2e spec and the
+   config index derive from their own homes).
 
 ## Tests pin, they don't define
 
@@ -103,6 +103,16 @@ fails when the contract changes is the point. Production code never reads
 test values, and a pin lives in a test, never in `src`. A new test either
 pins the contract on purpose or references the hub; it never creates a
 third production copy of a value.
+
+## Measurements live in artifacts, not docs
+
+Performance, strength, and parity numbers (win-rate gates, score-match
+rates, node-count bands, nps ratios, acceptance thresholds) never go into
+prose docs. A doc may say how to run a measurement (`STATS.md` benchmark
+commands); it never states what number counts as pass. Run outputs belong
+in the generated artifacts (`docs/artifacts/`, `tournament-summary.json`),
+which are regenerated per run. Written thresholds rot as the engine
+evolves and turn the docs into false acceptance criteria.
 
 ## Review checklist
 

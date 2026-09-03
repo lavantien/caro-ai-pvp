@@ -171,6 +171,7 @@ dotnet run --project backend/src/Caro.UciEngine
 | **ENGINE_FEATURES.md** | AI engine architecture (search, evaluation, TT, move ordering, source layout) | Understanding how the AI works |
 | **CSHARP_ONBOARDING.md** | C# 14 / .NET 10 idioms, project conventions, testing patterns | Contributing code |
 | **DEVELOPMENT.md** | Value discipline: single-home constants, derivation, proportionality, mirrors | Before introducing any number or string |
+| **STATS.md** | Statline reference and benchmark commands | Reading engine stats, running measurements |
 | **GO_ONBOARDING.md** | Archived onboarding guide for the Go 1.26 era | Historical reference |
 
 **Documentation Matrix:**
@@ -200,6 +201,10 @@ README.md (Entry Point)
                 |-- Derive, Don't Restate -> seeded defaults, unit factors
                 |-- Proportionality -> clock/host/board-relative values
                 +-- Mirrors -> three-way tables, cross-reference comments
+
+        +--> STATS.md (Measurements)
+                |-- Statline Reference -> per-move engine stats format
+                +-- Benchmark Commands -> tournament, match, UCI probes
 ```
 
 **Newcomer Onboarding Path:**
@@ -380,7 +385,7 @@ Depth varies by host machine -- calculated dynamically from NPS and time budget.
 
 **Persistence:** SQLite via Microsoft.Data.Sqlite (pure managed, no native dependencies)
 
-**Config:** Backend configuration in `Caro.Domain/Constants.cs` and `Caro.Engine/Difficulty.cs`. Frontend config in `src/lib/config/` (api, audio, e2e, game, haptic, rating, uci, ui).
+**Config:** Backend configuration in `Caro.Domain/Constants.cs` and `Caro.Engine/Difficulty.cs`. Frontend config in a single module, `src/lib/config/index.ts`.
 
 ---
 
@@ -409,6 +414,10 @@ Playwright end-to-end tests covering core gameplay mechanics:
 
 Run E2E tests:
 ```bash
+# Backend must already be running (default http://localhost:5207);
+# Playwright only starts the frontend dev server.
+dotnet run --project backend/src/Caro.Server
+
 cd frontend && npm run test:e2e
 ```
 

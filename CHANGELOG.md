@@ -12,12 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - The canonical time-control table contains the default `7+5` entry (seeded from the `TimeControl` defaults), so overriding `Caro:TimeControl:Default` no longer decouples the frontend's `7+5` selection from a 7+5 clock
 - Playwright's base URL honors `FRONTEND_PORT` as its config comment promised; the default port and the web-server timeout come from `scripts/lib.mjs` (`CARO_WEBSERVER_TIMEOUT_MS`)
+- Frontend move notation displays the documented algebraic format (column letter + row number, e.g. `1.h8`) via a new `toAlgebraic` helper; double-letter stays the UCI wire format only
+- E2E per-test game cleanup derives its URL from `ApiConfig` instead of a hardcoded `http://localhost:5207`
 
 ### Changed
 - Residual hardcoded values centralized: `Constants.Time.MsPerSecond` replaces eleven bare ms/second conversions, a new `Caro.Domain` `EndReasons` contract class covers the end-reason strings, the difficulty error message and the no-difficulty search defaults derive from central tables
 - Scripts share an `ENDPOINTS` block instead of re-inlining API paths; the e2e spec reads the game-id hook key and winning-line color from config; `verify-screenshot` reuses `SCREENSHOT` timeouts; port-5207 definitions cross-reference each other like the heap-limit mirror
 - Dead config exports removed (`UIConfig.timerSyncIntervalMs`, `E2EConfig.regressionMoveWaitMs`); the UCI default clock derives from the 3+2 table entry; the result banner animation duration moved to `UIConfig`; the landing page interpolates the configured win length; dangling `app.html` favicon reference removed
 - New DEVELOPMENT.md codifying value discipline: every introduced number or string goes through the central hub and is wired to consumers, derivations over restatements, string contracts get constants classes, logic scales by clock/host/board ratios instead of absolute values, mirrors carry cross-reference comments; README documentation guide links it
+- Docs audited against the implementation: parity and strength metrics removed from prose (go-baseline README is a historical record, onboarding no longer asserts probe outcomes) and DEVELOPMENT.md gains a "measurements live in artifacts, not docs" rule
+- README realigned: frontend config is the single `src/lib/config/index.ts`, the e2e section states the backend prerequisite, STATS.md joined the documentation guide, GO_ONBOARDING carries an archive banner, and DEVELOPMENT's mirror example names the Playwright config
+- Housekeeping: `frontend/test-results.json` untracked again (its 6.3.0 removal had regressed), frontend package version realigned to 9.4.0, dead .gitignore entries for removed backend tooling pruned, orphan `.claude/worktrees/difficulty-levels` skeleton deleted
 
 [9.4.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.4.0
 

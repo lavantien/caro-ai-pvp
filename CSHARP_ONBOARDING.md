@@ -307,8 +307,7 @@ positional list cannot be partially overridden.
 The port is a transliteration; these differences are known and accepted:
 
 1. Sort tie order (unstable `List.Sort` vs Go's pdqsort) can reorder equal
-   moves, so node counts and scores may drift slightly; fixed-depth parity
-   probes show bestmoves matching.
+   moves, so node counts and scores may drift slightly.
 2. Thread scheduling nondeterminism in Lazy SMP (true in Go as well).
 3. Exceptions instead of sentinel error returns.
 4. The soft time budget gates iteration starts on measured wall-clock, so a

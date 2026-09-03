@@ -1,5 +1,9 @@
 # Go 1.26 Onboarding Guide
 
+> **Archived.** The Go backend was removed in 9.0.0; this guide documents a
+> codebase that no longer exists and is kept for historical reference only.
+> For the current C# 14 / .NET 10 stack, read `CSHARP_ONBOARDING.md`.
+
 Welcome to the **Caro AI PvP** codebase! This is a grandmaster-level Caro (Gomoku variant) AI built with Go 1.26 and Go-idiomatic package layout.
 
 ## Quick Project Overview
