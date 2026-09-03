@@ -12,17 +12,8 @@ frontend/frontend-test-results.txt
 # Serena MCP plugin data
 .serena/
 
-# Diagnostic tool
-backend/src/Caro.Diagnostic/
-
-# Test configuration and scripts
-backend/test_config.txt
-backend/test_diagnostic.txt
+# Test output
 **/test_output.txt
-*.host.*-*/
-backend/TestCoords/
-backend/test_book.csx
-test_tt.cs
 
 # SQLite WAL files (temporary)
 *.db-shm
