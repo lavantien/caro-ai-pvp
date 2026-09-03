@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Caro.Api;
 
-public sealed partial class GameHandlers(GameStore store, MatchStore? matches = null, ILogger? logger = null, CaroConfig? config = null)
+public sealed partial class GameHandlers(GameStore store, MatchStore? matches = null, ILogger<GameHandlers>? logger = null, CaroConfig? config = null)
 {
     private const int GameIdByteLength = 8;
 
