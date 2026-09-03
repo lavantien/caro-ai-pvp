@@ -447,7 +447,7 @@ Setting `API_BASE_URL` (and `FRONTEND_URL`/`E2E_BASE_URL` for the frontend) move
 
 ### Runtime configuration (backend)
 
-Startup-tunable values load from the `Caro` section of `backend/src/Caro.Server/appsettings.json` (empty by default, so compiled defaults apply) and can also be set through environment variables using the `Caro__` prefix (`Caro__MaxConcurrentGames=8`). Everything not listed stays at its compiled default, which lives in `Caro.Domain/Constants.cs`. The config is validated once at startup and invalid values fail the boot with the offending key name.
+Startup-tunable values load from the `Caro` section of `backend/src/Caro.Server/appsettings.json` (empty by default, so compiled defaults apply) and can also be set through environment variables using the `Caro__` prefix (`Caro__MaxConcurrentGames=8`). Everything not listed stays at its compiled default, which lives in `Caro.Domain/Constants.cs` (plus a few file-local identity constants such as the Zobrist seed in `Zobrist.cs`). The config is validated once at startup and invalid values fail the boot with the offending key name.
 
 ```json
 {
@@ -465,7 +465,7 @@ Startup-tunable values load from the `Caro` section of `backend/src/Caro.Server/
 }
 ```
 
-Overridable: concurrent-game cap, abandoned-game window, TT size defaults, opening spread, the time-control table and default, per-level difficulty profiles (time fraction, depth cap, thread mode, VCF sight, ponder, TT size), UCI option bounds, and the eleven time-management knobs (`Caro:TimeManagement`). Fixed by design: board geometry, eval and ordering score ladders, search thresholds (LMR, aspiration, quiescence, null move), killer/history scales, pattern thresholds, TT shard count, difficulty level bounds 1..5, and identity constants (Zobrist seed, protocol words). Values feeding `stackalloc` buffers or fixed array dimensions must stay compile-time.
+Overridable: concurrent-game cap, abandoned-game window, TT size defaults, opening spread, the time-control table and default, per-level difficulty profiles (time fraction, depth cap, thread mode, VCF sight, ponder, TT size, display name), UCI option bounds, and the eleven time-management knobs (`Caro:TimeManagement`). Fixed by design: board geometry, eval and ordering score ladders, search thresholds (LMR, aspiration, quiescence, null move), killer/history scales, pattern thresholds, TT shard count, difficulty level bounds 1..5, and identity constants (the Zobrist seed in `Zobrist.cs`, protocol words). Values feeding `stackalloc` buffers or fixed array dimensions must stay compile-time.
 
 The time-control and difficulty tables are mirrored three ways: `Caro.Domain/Constants.Tables.cs`, `frontend/src/lib/config/index.ts`, and `scripts/lib.mjs`. Change all three together.
 

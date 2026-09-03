@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
+## [9.3.1] - 2026-09-03
+
+### Fixed
+- The canonical time-control table contains the default `7+5` entry (seeded from the `TimeControl` defaults), so overriding `Caro:TimeControl:Default` no longer decouples the frontend's `7+5` selection from a 7+5 clock
+- Playwright's base URL honors `FRONTEND_PORT` as its config comment promised; the default port and the web-server timeout come from `scripts/lib.mjs` (`CARO_WEBSERVER_TIMEOUT_MS`)
+
+### Changed
+- Residual hardcoded values centralized: `Constants.Time.MsPerSecond` replaces eleven bare ms/second conversions, a new `Caro.Domain` `EndReasons` contract class covers the end-reason strings, the difficulty error message and the no-difficulty search defaults derive from central tables
+- Scripts share an `ENDPOINTS` block instead of re-inlining API paths; the e2e spec reads the game-id hook key and winning-line color from config; `verify-screenshot` reuses `SCREENSHOT` timeouts; port-5207 definitions cross-reference each other like the heap-limit mirror
+- Dead config exports removed (`UIConfig.timerSyncIntervalMs`, `E2EConfig.regressionMoveWaitMs`); the UCI default clock derives from the 3+2 table entry; the result banner animation duration moved to `UIConfig`; the landing page interpolates the configured win length; dangling `app.html` favicon reference removed
+
+[9.3.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.3.1
+
 ## [9.3.0] - 2026-09-03
 
 ### Added
