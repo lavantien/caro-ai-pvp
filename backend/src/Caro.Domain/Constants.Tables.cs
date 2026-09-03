@@ -68,6 +68,9 @@ public static partial class Constants
         ["3+2"] = new("3+2", 180_000, 2),
         ["blitz"] = new("3+2", 180_000, 2),
         ["3+0"] = new("3+0", 180_000, 0),
+        // Seeded from the TimeControl defaults so the default clock is a
+        // real table entry and the two cannot drift apart.
+        ["7+5"] = new(TimeControl.Default, TimeControl.DefaultInitialTimeMs, TimeControl.DefaultIncrementSeconds),
         ["10+0"] = new("10+0", 600_000, 0),
         ["15+10"] = new("15+10", 900_000, 10),
         ["classical"] = new("15+10", 900_000, 10),
