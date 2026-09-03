@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
-## [9.5.0] - 2026-09-03
+## [9.4.2] - 2026-09-03
 
 ### Added
 - VCF solver observability: node count and forced-chain length surface in `SearchStats`, the `ai-move` response (`vcfDepth`/`vcfNodes`), and `matches.db` (`vcf_depth`/`vcf_nodes` columns)
@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `move-statline` log lines reach backend stdout in the real host (`GameHandlers` now takes `ILogger<GameHandlers>`; the untyped `ILogger` never resolved from DI)
 - `startBackend` kills the port before building so a running server cannot lock its dlls
 
-[9.5.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.5.0
+[9.4.2]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.4.2
 
 ## [9.4.1] - 2026-09-03
 
