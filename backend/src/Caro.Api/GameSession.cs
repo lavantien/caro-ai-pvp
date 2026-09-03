@@ -49,34 +49,9 @@ public sealed partial class GameSession
     /// </summary>
     internal void ApplyRandomOpening(long seed)
     {
-        OpeningRng rng = new(seed);
-        int low = Constants.Board.Size / 2 - _config.OpeningSpreadRadius;
-        int high = Constants.Board.Size / 2 + _config.OpeningSpreadRadius - 1;
-        int rx = low + rng.Next(high - low + 1);
-        int ry = low + rng.Next(high - low + 1);
+        ((int rx, int ry), (int bx, int by)) = Opening.SeededPlacements(seed, _config.OpeningSpreadRadius);
         _game = _game.WithMove(rx, ry);
-
-        int bx = rx - _config.OpeningSpreadRadius + rng.Next(2 * _config.OpeningSpreadRadius + 1);
-        int by = ry - _config.OpeningSpreadRadius + rng.Next(2 * _config.OpeningSpreadRadius + 1);
-        bx = Math.Clamp(bx, 0, Constants.Board.Size - 1);
-        by = Math.Clamp(by, 0, Constants.Board.Size - 1);
-        if (bx == rx && by == ry)
-        {
-            bx = (bx + 1) % Constants.Board.Size;
-        }
         _game = _game.WithMove(bx, by);
-    }
-
-    // openingRNG is a splitmix64 generator: small, deterministic, seedable.
-    private sealed class OpeningRng(long seed)
-    {
-        private ulong _state = (ulong)seed;
-
-        public int Next(int n)
-        {
-            _state += SplitMix64.GoldenGamma;
-            return (int)(SplitMix64.Mix(_state) % (ulong)n);
-        }
     }
 
     private long ElapsedSinceLastMoveMs() => (long)(DateTime.UtcNow - _lastMoveAt).TotalMilliseconds;

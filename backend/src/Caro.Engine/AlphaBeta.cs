@@ -276,6 +276,14 @@ public static partial class SearchEngine
             moveIdx++;
         }
 
+        if (bestMoveX == -1)
+        {
+            // No reply exists (board effectively full): a draw under the
+            // rules. Returning the -Infinity sentinel here used to leak the
+            // window bound into scores and the TT (ANOMALIES.md, finding 2).
+            return 0;
+        }
+
         if (!monitor.ShouldStop())
         {
             TTEntryType flag = TTEntryType.Exact;

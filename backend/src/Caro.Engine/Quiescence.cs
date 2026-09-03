@@ -76,16 +76,29 @@ public static partial class SearchEngine
 
 internal static class MateScore
 {
+    // Genuine mate scores live inside (+-WinScore +- AbsoluteMaxDepth);
+    // storing adds plyFromRoot, so stored mates may sit a little beyond
+    // WinScore. Anything further out is a window bound (+-Score.Infinity)
+    // and must never be ply-shifted: the drift used to surface as scores
+    // above Score.Infinity in recorded games (docs/artifacts/tournaments/
+    // ANOMALIES.md, finding 2).
+    private const int MateFloor = Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth;
+    private const int MateCeiling = Constants.Score.WinScore + Constants.Search.AbsoluteMaxDepth;
+
     internal static bool IsForcedWinScore(int score) =>
-        score >= Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth;
+        score >= MateFloor && score <= MateCeiling;
 
     internal static int AdjustForStore(int score, int plyFromRoot)
     {
-        if (score > Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth)
+        if (score > MateCeiling || score < -MateCeiling)
+        {
+            return score;
+        }
+        if (score > MateFloor)
         {
             return score + plyFromRoot;
         }
-        if (score < -Constants.Score.WinScore + Constants.Search.AbsoluteMaxDepth)
+        if (score < -MateFloor)
         {
             return score - plyFromRoot;
         }
@@ -94,11 +107,15 @@ internal static class MateScore
 
     internal static int AdjustForRetrieve(int storedScore, int plyFromRoot)
     {
-        if (storedScore >= Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth + 1)
+        if (storedScore > MateCeiling || storedScore < -MateCeiling)
+        {
+            return storedScore;
+        }
+        if (storedScore >= MateFloor + 1)
         {
             return storedScore - plyFromRoot;
         }
-        if (storedScore <= -(Constants.Score.WinScore - Constants.Search.AbsoluteMaxDepth) - 1)
+        if (storedScore <= -MateFloor - 1)
         {
             return storedScore + plyFromRoot;
         }
