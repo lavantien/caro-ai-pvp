@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Residual hardcoded values centralized: `Constants.Time.MsPerSecond` replaces eleven bare ms/second conversions, a new `Caro.Domain` `EndReasons` contract class covers the end-reason strings, the difficulty error message and the no-difficulty search defaults derive from central tables
 - Scripts share an `ENDPOINTS` block instead of re-inlining API paths; the e2e spec reads the game-id hook key and winning-line color from config; `verify-screenshot` reuses `SCREENSHOT` timeouts; port-5207 definitions cross-reference each other like the heap-limit mirror
 - Dead config exports removed (`UIConfig.timerSyncIntervalMs`, `E2EConfig.regressionMoveWaitMs`); the UCI default clock derives from the 3+2 table entry; the result banner animation duration moved to `UIConfig`; the landing page interpolates the configured win length; dangling `app.html` favicon reference removed
+- New DEVELOPMENT.md codifying value discipline: every introduced number or string goes through the central hub and is wired to consumers, derivations over restatements, string contracts get constants classes, logic scales by clock/host/board ratios instead of absolute values, mirrors carry cross-reference comments; README documentation guide links it
 
 [9.3.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.3.1
 

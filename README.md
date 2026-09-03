@@ -170,6 +170,7 @@ dotnet run --project backend/src/Caro.UciEngine
 | **README.md** (this file) | Project overview, getting started, architecture summary | First - start here |
 | **ENGINE_FEATURES.md** | AI engine architecture (search, evaluation, TT, move ordering, source layout) | Understanding how the AI works |
 | **CSHARP_ONBOARDING.md** | C# 14 / .NET 10 idioms, project conventions, testing patterns | Contributing code |
+| **DEVELOPMENT.md** | Value discipline: single-home constants, derivation, proportionality, mirrors | Before introducing any number or string |
 | **GO_ONBOARDING.md** | Archived onboarding guide for the Go 1.26 era | Historical reference |
 
 **Documentation Matrix:**
@@ -193,6 +194,12 @@ README.md (Entry Point)
                 |-- Project Structure -> src/ projects
                 |-- Testing Patterns -> xUnit, Theory data, in-test server
                 +-- Concurrency -> tasks, locks, cancellation tokens
+
+        +--> DEVELOPMENT.md (Value Discipline)
+                |-- Single-Home Rule -> hubs, wiring, no inline literals
+                |-- Derive, Don't Restate -> seeded defaults, unit factors
+                |-- Proportionality -> clock/host/board-relative values
+                +-- Mirrors -> three-way tables, cross-reference comments
 ```
 
 **Newcomer Onboarding Path:**
@@ -201,6 +208,7 @@ README.md (Entry Point)
 2. **Understand:** Architecture section + Features tables
 3. **Deep dive:** ENGINE_FEATURES.md for AI details
 4. **Contribute:** CSHARP_ONBOARDING.md for coding standards
+5. **Add values:** DEVELOPMENT.md before introducing any number or string
 
 ### Test Packages
 
