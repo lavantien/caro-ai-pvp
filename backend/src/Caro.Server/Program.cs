@@ -1,4 +1,5 @@
 using Caro.Api;
+using Caro.Domain;
 using Caro.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -9,11 +10,14 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(o => o.ListenAnyIP(httpPort));
 builder.WebHost.UseShutdownTimeout(TimeSpan.FromSeconds(ServerConfig.ShutdownTimeoutSeconds));
 
+CaroConfig caroConfig = builder.Configuration.GetSection("Caro").Get<CaroConfig>() ?? new CaroConfig();
+caroConfig.Validate();
+
 string dbPath = Environment.GetEnvironmentVariable("MATCH_DB_PATH") is { Length: > 0 } env
     ? env
     : ServerConfig.DefaultDbPath;
 MatchStore matches = new(dbPath);
-builder.Services.AddCaroApi(matches);
+builder.Services.AddCaroApi(matches, config: caroConfig);
 builder.Services.AddHostedService<CleanupService>();
 
 WebApplication app = builder.Build();
@@ -60,7 +64,8 @@ internal sealed class CleanupService(GameStore store, ILogger<CleanupService> lo
 
 /// <summary>
 /// Host knobs for the local server: named defaults with a CARO_HTTP_PORT
-/// override, matching the MATCH_DB_PATH pattern (no appsettings.json).
+/// override, matching the MATCH_DB_PATH pattern. Game-tuning values load
+/// from the "Caro" section of appsettings.json instead (see CaroConfig).
 /// </summary>
 internal static class ServerConfig
 {

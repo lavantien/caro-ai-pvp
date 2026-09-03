@@ -1,3 +1,4 @@
+using Caro.Domain;
 using Caro.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -11,13 +12,14 @@ namespace Caro.Api;
 /// </summary>
 public static class CaroApp
 {
-    public static IServiceCollection AddCaroApi(this IServiceCollection services, MatchStore? matches = null, GameStore? store = null)
+    public static IServiceCollection AddCaroApi(this IServiceCollection services, MatchStore? matches = null, GameStore? store = null, CaroConfig? config = null)
     {
         services.AddCors(o => o.AddPolicy("loopback", p => p
             .SetIsOriginAllowed(origin => LocalOrigin.IsLocalOrigin(origin))
             .AllowCredentials()
             .WithMethods("GET", "POST", "DELETE", "OPTIONS")
             .WithHeaders("Content-Type")));
+        services.AddSingleton(config ?? CaroConfig.Default);
         if (store != null)
         {
             services.AddSingleton(store);
