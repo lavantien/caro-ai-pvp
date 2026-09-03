@@ -14,42 +14,40 @@ public readonly record struct DifficultyProfile(
 
 public static class Difficulty
 {
+    // Cores kept away from the L4/L5 thread formulas for the host and the
+    // API layer.
+    private const int ReservedCores = 2;
+
     /// <summary>
-    /// Levels are strength-based first (depth caps, solver sight and
-    /// parallel gating) and time-fraction scaled second, so L(k) is stronger
-    /// than L(k-1) on any host. L3/L4 caps stay at or below 5: measured at
-    /// bullet, ID depth past ~6 stops buying strength in self-play, so the
-    /// ladder keeps those levels below the plateau and scales VCF sight
-    /// instead.
+    /// Maps a level onto the central profile table in
+    /// Constants.DifficultyProfiles; levels outside MinLevel..MaxLevel play
+    /// the top profile.
     /// </summary>
     public static DifficultyProfile GetDifficultyProfile(int level)
     {
         int n = Environment.ProcessorCount;
-        int l5Threads = Pow2Floor((n - 2) / 2);
+        int l5Threads = Pow2Floor((n - ReservedCores) / 2);
 
-        switch (level)
+        Constants.DifficultyProfileData data = Constants.DifficultyProfiles[^1];
+        foreach (Constants.DifficultyProfileData candidate in Constants.DifficultyProfiles)
         {
-            case 1:
-                return new DifficultyProfile("Novice", 0.05, 2, 1, false, 0, false, 64);
-            case 2:
-                return new DifficultyProfile("Beginner", 0.15, 4, 1, false, 0, false, 64);
-            case 3:
-                return new DifficultyProfile("Intermediate", 0.40, 4, 2, true, 2, false, 256);
-            case 4:
-                int l4 = Pow2Floor(l5Threads / 2);
-                if (l4 < 1)
-                {
-                    l4 = 1;
-                }
-                return new DifficultyProfile("Advanced", 0.70, 5, l4, true, 4, false, Constants.Transposition.DefaultSizeMB);
-            default:
-                if (l5Threads < 1)
-                {
-                    l5Threads = 1;
-                }
-                return new DifficultyProfile("Grandmaster", 1.0, Constants.Search.AbsoluteMaxDepth, l5Threads,
-                    true, Constants.Vcf.SearchDepth, true, Constants.Transposition.DefaultSizeMB);
+            if (candidate.Level == level)
+            {
+                data = candidate;
+                break;
+            }
         }
+
+        int threads = data.Threads switch
+        {
+            Constants.ProfileThreads.One => 1,
+            Constants.ProfileThreads.Two => 2,
+            Constants.ProfileThreads.HalfL5 => Math.Max(Pow2Floor(l5Threads / 2), 1),
+            _ => Math.Max(l5Threads, 1),
+        };
+
+        return new DifficultyProfile(data.Name, data.TimeFraction, data.MaxDepth, threads,
+            data.UseVCF, data.VCFDepth, data.Ponder, data.TTSizeMB);
     }
 
     internal static int Pow2Floor(int n)
@@ -74,7 +72,4 @@ public static class Difficulty
         }
         return Environment.ProcessorCount / activeGames;
     }
-
-    /// <summary>Bounds the table used when no difficulty level is set.</summary>
-    public const int DefaultSessionTTSizeMB = 256;
 }

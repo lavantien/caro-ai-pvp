@@ -134,6 +134,7 @@ public static partial class Constants
     {
         public const int ShardCount = 16;
         public const int DefaultSizeMB = 1024;
+        public const int DefaultSessionSizeMB = 256;
         public const int AgeDecayPerGeneration = 8;
     }
 
@@ -161,5 +162,24 @@ public static partial class Constants
         public const long HeapHardLimitBytes = 2L * 1024 * 1024 * 1024;
 
         public const int AbandonedTimeoutMinutes = 30;
+    }
+
+    public static class Opening
+    {
+        // Half-width of the seeded opening scatter around the center.
+        public const int SpreadRadius = 3;
+    }
+
+    public static class Difficulty
+    {
+        public const int MinLevel = 1;
+        public const int MaxLevel = 5;
+    }
+
+    public static class TimeControl
+    {
+        public const string Default = "7+5";
+        public const long DefaultInitialTimeMs = 420_000;
+        public const int DefaultIncrementSeconds = 5;
     }
 }

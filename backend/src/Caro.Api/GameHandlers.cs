@@ -49,7 +49,8 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
             blueDiff ??= req.Difficulty;
         }
 
-        if (redDiff is < 1 or > 5 || blueDiff is < 1 or > 5)
+        if (redDiff is < Constants.Difficulty.MinLevel or > Constants.Difficulty.MaxLevel
+            || blueDiff is < Constants.Difficulty.MinLevel or > Constants.Difficulty.MaxLevel)
         {
             throw new InvalidLevelException();
         }
@@ -166,7 +167,7 @@ public sealed partial class GameHandlers(GameStore store, MatchStore? matches = 
         MinimaxAI ai = session.GetOrCreateAI(player);
 
         SearchOptions opts;
-        if (difficulty is >= 1 and <= 5)
+        if (difficulty is >= Constants.Difficulty.MinLevel and <= Constants.Difficulty.MaxLevel)
         {
             DifficultyProfile profile = Difficulty.GetDifficultyProfile(difficulty.Value);
             opts = new SearchOptions

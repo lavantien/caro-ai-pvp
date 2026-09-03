@@ -39,9 +39,6 @@ public sealed partial class GameSession
         _activeGameCount = activeGameCount;
     }
 
-    /// <summary>Half-width of the seeded opening scatter around the center.</summary>
-    private const int OpeningSpreadRadius = 3;
-
     /// <summary>
     /// Plays a seeded two-stone opening (red from the center region, blue
     /// replying locally) so engine-vs-engine samples are not all the same
@@ -50,14 +47,14 @@ public sealed partial class GameSession
     internal void ApplyRandomOpening(long seed)
     {
         OpeningRng rng = new(seed);
-        int low = Constants.Board.Size / 2 - OpeningSpreadRadius;
-        int high = Constants.Board.Size / 2 + OpeningSpreadRadius - 1;
+        int low = Constants.Board.Size / 2 - Constants.Opening.SpreadRadius;
+        int high = Constants.Board.Size / 2 + Constants.Opening.SpreadRadius - 1;
         int rx = low + rng.Next(high - low + 1);
         int ry = low + rng.Next(high - low + 1);
         _game = _game.WithMove(rx, ry);
 
-        int bx = rx - OpeningSpreadRadius + rng.Next(2 * OpeningSpreadRadius + 1);
-        int by = ry - OpeningSpreadRadius + rng.Next(2 * OpeningSpreadRadius + 1);
+        int bx = rx - Constants.Opening.SpreadRadius + rng.Next(2 * Constants.Opening.SpreadRadius + 1);
+        int by = ry - Constants.Opening.SpreadRadius + rng.Next(2 * Constants.Opening.SpreadRadius + 1);
         bx = Math.Clamp(bx, 0, Constants.Board.Size - 1);
         by = Math.Clamp(by, 0, Constants.Board.Size - 1);
         if (bx == rx && by == ry)
@@ -179,8 +176,8 @@ public sealed partial class GameSession
         // sessions, so locking in the other order would deadlock.
         int threads = Difficulty.GetEngineThreadsForLoad(_activeGameCount());
         int? diff = player == Player.Blue ? _blueDifficulty : _redDifficulty;
-        int ttSizeMB = Difficulty.DefaultSessionTTSizeMB;
-        if (diff is >= 1 and <= 5)
+        int ttSizeMB = Constants.Transposition.DefaultSessionSizeMB;
+        if (diff is >= Constants.Difficulty.MinLevel and <= Constants.Difficulty.MaxLevel)
         {
             ttSizeMB = Difficulty.GetDifficultyProfile(diff.Value).TTSizeMB;
         }

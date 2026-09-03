@@ -111,7 +111,7 @@ public static class Candidates
         Span<sbyte> oppLine = stackalloc sbyte[Constants.Board.LineLength];
         int ownThreatDirs = 0;
         int oppThreatDirs = 0;
-        foreach ((int dx, int dy) in Pattern4Classifier.EvalDirs)
+        foreach ((int dx, int dy) in Constants.Directions)
         {
             PatternWindow.ExtractLine(sb, x, y, player, dx, dy, line);
             PatternWindow.NegateLine(line, oppLine);

@@ -31,13 +31,13 @@ public class OpeningCollisionTests
     private static (int Rx, int Ry, int Bx, int By) PredictOpening(long seed)
     {
         SplitMix64 rng = new(seed);
-        int low = Constants.Board.Size / 2 - 3;
-        int high = Constants.Board.Size / 2 + 2;
+        int low = Constants.Board.Size / 2 - Constants.Opening.SpreadRadius;
+        int high = Constants.Board.Size / 2 + Constants.Opening.SpreadRadius - 1;
         int rx = low + rng.Next(high - low + 1);
         int ry = low + rng.Next(high - low + 1);
 
-        int bx = Math.Clamp(rx - 3 + rng.Next(7), 0, Constants.Board.Size - 1);
-        int by = Math.Clamp(ry - 3 + rng.Next(7), 0, Constants.Board.Size - 1);
+        int bx = Math.Clamp(rx - Constants.Opening.SpreadRadius + rng.Next(2 * Constants.Opening.SpreadRadius + 1), 0, Constants.Board.Size - 1);
+        int by = Math.Clamp(ry - Constants.Opening.SpreadRadius + rng.Next(2 * Constants.Opening.SpreadRadius + 1), 0, Constants.Board.Size - 1);
         if (bx == rx && by == ry)
         {
             bx = (bx + 1) % Constants.Board.Size;
@@ -50,12 +50,12 @@ public class OpeningCollisionTests
         for (long seed = 1; seed <= 200_000; seed++)
         {
             SplitMix64 rng = new(seed);
-            int low = Constants.Board.Size / 2 - 3;
-            int high = Constants.Board.Size / 2 + 2;
+            int low = Constants.Board.Size / 2 - Constants.Opening.SpreadRadius;
+            int high = Constants.Board.Size / 2 + Constants.Opening.SpreadRadius - 1;
             int rx = low + rng.Next(high - low + 1);
             int ry = low + rng.Next(high - low + 1);
-            int bx = Math.Clamp(rx - 3 + rng.Next(7), 0, Constants.Board.Size - 1);
-            int by = Math.Clamp(ry - 3 + rng.Next(7), 0, Constants.Board.Size - 1);
+            int bx = Math.Clamp(rx - Constants.Opening.SpreadRadius + rng.Next(2 * Constants.Opening.SpreadRadius + 1), 0, Constants.Board.Size - 1);
+            int by = Math.Clamp(ry - Constants.Opening.SpreadRadius + rng.Next(2 * Constants.Opening.SpreadRadius + 1), 0, Constants.Board.Size - 1);
             if (bx == rx && by == ry)
             {
                 return seed;

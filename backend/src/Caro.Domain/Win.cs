@@ -11,14 +11,6 @@ public readonly struct WinResult
 
 public static class WinDetector
 {
-    private static readonly (int Dx, int Dy)[] WinDirections =
-    [
-        (1, 0),
-        (0, 1),
-        (1, 1),
-        (1, -1),
-    ];
-
     public static WinResult CheckWin(Board b)
     {
         for (int x = 0; x < Constants.Board.Size; x++)
@@ -52,7 +44,7 @@ public static class WinDetector
 
     private static WinResult CheckWinFrom(Board b, int x, int y, Player player)
     {
-        foreach ((int dx, int dy) in WinDirections)
+        foreach ((int dx, int dy) in Constants.Directions)
         {
             int positive = 0;
             for (int i = 1; i <= Constants.Board.WinLength; i++)

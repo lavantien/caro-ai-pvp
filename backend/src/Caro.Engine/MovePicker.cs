@@ -325,11 +325,8 @@ public static class MoveOrdering
 
     internal static bool WouldWin(SearchBoard sb, int x, int y, Player player)
     {
-        int[] dirs = [1, 0, 0, 1, 1, 1, 1, -1];
-        for (int d = 0; d < 4; d++)
+        foreach ((int dx, int dy) in Constants.Directions)
         {
-            int dx = dirs[d * 2];
-            int dy = dirs[d * 2 + 1];
             int positive = 0;
             for (int i = 1; i <= Constants.Board.WinLength; i++)
             {

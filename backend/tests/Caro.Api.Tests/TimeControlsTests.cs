@@ -1,4 +1,5 @@
 using Caro.Api;
+using Caro.Domain;
 using Xunit;
 
 namespace Caro.Api.Tests;
@@ -45,8 +46,8 @@ public class TimeControlsTests
     public void UnknownFallsBackToDefault(string? requested)
     {
         (string c, long ms, int inc) = TimeControls.Resolve(requested);
-        Assert.Equal(TimeControls.Default, c);
-        Assert.Equal(TimeControls.DefaultInitialTimeMs, ms);
-        Assert.Equal(TimeControls.DefaultIncrementSeconds, inc);
+        Assert.Equal(Constants.TimeControl.Default, c);
+        Assert.Equal(Constants.TimeControl.DefaultInitialTimeMs, ms);
+        Assert.Equal(Constants.TimeControl.DefaultIncrementSeconds, inc);
     }
 }

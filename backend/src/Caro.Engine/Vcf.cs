@@ -167,7 +167,7 @@ public static class Vcf
     {
         List<Position> blocks = [];
         HashSet<Position> seen = [];
-        foreach ((int dx, int dy) in Pattern4Classifier.EvalDirs)
+        foreach ((int dx, int dy) in Constants.Directions)
         {
             PatternWindow.FiveCompletionsInDir(sb, x, y, attacker, dx, dy, blocks);
         }

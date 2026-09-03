@@ -32,14 +32,6 @@ public struct PlayerPattern4
 
 public static class Pattern4Classifier
 {
-    internal static readonly (int Dx, int Dy)[] EvalDirs =
-    [
-        (1, 0),
-        (0, 1),
-        (1, 1),
-        (1, -1),
-    ];
-
     /// <summary>
     /// Classifies the pattern the stone at (x,y) participates in along
     /// (dx,dy), gap-aware: split fours and broken threes count like their
@@ -175,7 +167,7 @@ public static class Pattern4Classifier
     public static PlayerPattern4 ClassifyStone(SearchBoard sb, int x, int y, Player player)
     {
         PlayerPattern4 pp = default;
-        foreach ((int dx, int dy) in EvalDirs)
+        foreach ((int dx, int dy) in Constants.Directions)
         {
             int px = x - dx;
             int py = y - dy;
@@ -241,7 +233,7 @@ public static class Pattern4Classifier
         try
         {
             int flex3Count = 0;
-            foreach ((int dx, int dy) in EvalDirs)
+            foreach ((int dx, int dy) in Constants.Directions)
             {
                 if (ClassifyDirection(sb, x, y, dx, dy, player) == Pattern4.Flex3)
                 {
@@ -264,7 +256,7 @@ public static class Pattern4Classifier
         {
             bool flex4 = false;
             bool flex3 = false;
-            foreach ((int dx, int dy) in EvalDirs)
+            foreach ((int dx, int dy) in Constants.Directions)
             {
                 Pattern4 p = ClassifyDirection(sb, x, y, dx, dy, player);
                 if (p == Pattern4.Flex4)

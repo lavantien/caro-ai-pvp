@@ -284,9 +284,9 @@ internal static class PlacementAnalysis
     public static void PlacementComps(SearchBoard sb, int x, int y, Player player, Span<int> comps)
     {
         Span<sbyte> line = stackalloc sbyte[Constants.Board.LineLength];
-        for (int i = 0; i < Pattern4Classifier.EvalDirs.Length; i++)
+        for (int i = 0; i < Constants.Directions.Length; i++)
         {
-            (int dx, int dy) = Pattern4Classifier.EvalDirs[i];
+            (int dx, int dy) = Constants.Directions[i];
             PatternWindow.ExtractLine(sb, x, y, player, dx, dy, line);
             comps[i] = PatternWindow.LineCompletions(line);
         }
@@ -305,11 +305,11 @@ internal static class PlacementAnalysis
             Comp3 = comps[3],
         };
         Span<sbyte> line = stackalloc sbyte[Constants.Board.LineLength];
-        for (int i = 0; i < Pattern4Classifier.EvalDirs.Length; i++)
+        for (int i = 0; i < Constants.Directions.Length; i++)
         {
             if (comps[i] == 0 && !pt.Flex3)
             {
-                (int dx, int dy) = Pattern4Classifier.EvalDirs[i];
+                (int dx, int dy) = Constants.Directions[i];
                 PatternWindow.ExtractLine(sb, x, y, player, dx, dy, line);
                 pt.Flex3 = PatternWindow.MaxCompsAfterFill(line) >= 2;
             }
@@ -347,7 +347,7 @@ internal static class PlacementAnalysis
     public static bool CreatesOpenThree(SearchBoard sb, int x, int y, Player player)
     {
         Span<sbyte> line = stackalloc sbyte[Constants.Board.LineLength];
-        foreach ((int dx, int dy) in Pattern4Classifier.EvalDirs)
+        foreach ((int dx, int dy) in Constants.Directions)
         {
             PatternWindow.ExtractLine(sb, x, y, player, dx, dy, line);
             if (PatternWindow.MaxCompsAfterFill(line) >= 2)
