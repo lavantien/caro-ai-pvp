@@ -1,0 +1,1162 @@
+[11:29:15.259] === Caro AI PvP - round-robin benchmark ===
+[11:29:15.259] Run dir: C:\Users\lavantien\dev\github\caro-ai-pvp\docs\artifacts\tournaments\smoke-l1v1
+[11:29:15.259] Pairings: L1vL1
+[11:29:15.259] Games per pairing: 2 | TC: 1+0 | Build: Release | Base seed: 20260821
+[11:29:15.259] Total games: 2
+[11:29:15.260] 
+[11:29:15.260] Killing stale processes on port 5207...
+[11:29:15.284] Building backend (Release)...
+[11:29:17.070] Backend built.
+
+[11:29:17.071] Starting backend...
+[11:29:17.311] [backend] info: Caro.Server[822977482]
+[11:29:17.311] [backend]       server starting http://+:5207
+[11:29:17.344] [backend] info: Microsoft.Hosting.Lifetime[14]
+[11:29:17.344] [backend]       Now listening on: http://[::]:5207
+[11:29:17.345] [backend] info: Microsoft.Hosting.Lifetime[0]
+[11:29:17.345] [backend]       Application started. Press Ctrl+C to shut down.
+[11:29:17.345] [backend] info: Microsoft.Hosting.Lifetime[0]
+[11:29:17.345] [backend]       Hosting environment: Production
+[11:29:17.345] [backend] info: Microsoft.Hosting.Lifetime[0]
+[11:29:17.345] [backend]       Content root path: C:\Users\lavantien\dev\github\caro-ai-pvp\backend
+[11:29:18.144] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:18.144] [backend]       Request starting HTTP/1.1 GET http://localhost:5207/ - - -
+[11:29:18.166] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:18.166] [backend]       request GET / 0.2669
+[11:29:18.171] Backend ready.
+
+[11:29:18.174] --- Pairing L1vL1 (Novice vs Novice) ---
+[11:29:18.174] Game 1/2: L1vL1 #1 red=L1 blue=L1 seed=20260822
+[11:29:18.176] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:18.176] [backend]       Request finished HTTP/1.1 GET http://localhost:5207/ - 404 0 - 24.5850ms
+[11:29:18.176] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[16]
+[11:29:18.176] [backend]       Request reached the end of the middleware pipeline without being handled by application code. Request path: GET http://localhost:5207/, Response status code: 404
+[11:29:18.180] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:18.180] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/new - application/json 114
+[11:29:18.182] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:18.182] [backend]       Executing endpoint 'HTTP: POST /api/game/new'
+[11:29:18.235] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:18.235] [backend]       Executed endpoint 'HTTP: POST /api/game/new'
+[11:29:18.235] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:18.235] [backend]       request POST /api/game/new 53.7128
+[11:29:18.235] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:18.235] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/new - 200 - application/json 55.2009ms
+[11:29:18.239] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:18.239] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:18.240] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:18.240] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.299] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:18.299] [backend]       move-statline d2f04a9b659fc59e M 2 red  i13  d=2  n=183     nps=10K   tt=  4% s=-100 thr=1 t=0.0s alloc=0.2s
+[11:29:18.308] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:18.308] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.308] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:18.308] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 67.2701
+[11:29:18.308] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:18.308] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 68.6983ms
+[11:29:18.308] M 2 red  i13  d=2  n=183     nps=10K   tt=  4% s=-100 thr=1 t=0.0s alloc=0.2s
+[11:29:18.309] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:18.309] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:18.310] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:18.310] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.340] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:18.340] [backend]       move-statline d2f04a9b659fc59e M 3 blue i11  d=2  n=322     nps=19K   tt=  1% s=-42 thr=1 t=0.0s alloc=0.2s
+[11:29:18.340] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:18.340] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.340] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:18.340] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 30.0749
+[11:29:18.340] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:18.340] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 30.7088ms
+[11:29:18.341] M 3 blue i11  d=2  n=322     nps=19K   tt=  1% s=-42 thr=1 t=0.0s alloc=0.2s
+[11:29:18.341] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:18.341] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:18.341] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:18.342] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.542] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:18.542] [backend]       move-statline d2f04a9b659fc59e M 4 red  i9  d=1  n=1.6K    nps=9K    tt=  1% s=+42 thr=1 t=0.2s alloc=0.2s
+[11:29:18.543] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:18.543] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.543] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:18.543] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 201.4355
+[11:29:18.543] M 4 red  i9  d=1  n=1.6K    nps=9K    tt=  1% s=+42 thr=1 t=0.2s alloc=0.2s
+[11:29:18.544] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:18.544] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 201.5184ms
+[11:29:18.544] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:18.544] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:18.544] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:18.544] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.697] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:18.697] [backend]       move-statline d2f04a9b659fc59e M 5 blue j10  d=2  n=1.4K    nps=10K   tt=  3% s=-42 thr=1 t=0.1s alloc=0.2s
+[11:29:18.697] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:18.697] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.697] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:18.697] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 153.0886
+[11:29:18.698] M 5 blue j10  d=2  n=1.4K    nps=10K   tt=  3% s=-42 thr=1 t=0.1s alloc=0.2s
+[11:29:18.698] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:18.698] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 153.1867ms
+[11:29:18.698] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:18.698] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:18.698] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:18.698] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.759] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:18.759] [backend]       move-statline d2f04a9b659fc59e M 6 red  k9  d=2  n=648     nps=14K   tt=  0% s=-64 thr=1 t=0.1s alloc=0.2s
+[11:29:18.759] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:18.759] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.759] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:18.759] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 60.7137
+[11:29:18.759] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:18.759] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 60.8015ms
+[11:29:18.760] M 6 red  k9  d=2  n=648     nps=14K   tt=  0% s=-64 thr=1 t=0.1s alloc=0.2s
+[11:29:18.761] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:18.761] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:18.761] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:18.761] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.899] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:18.899] [backend]       move-statline d2f04a9b659fc59e M 7 blue g13  d=2  n=1.6K    nps=12K   tt=  4% s=-138 thr=1 t=0.1s alloc=0.2s
+[11:29:18.899] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:18.899] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.899] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:18.899] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 138.254
+[11:29:18.900] M 7 blue g13  d=2  n=1.6K    nps=12K   tt=  4% s=-138 thr=1 t=0.1s alloc=0.2s
+[11:29:18.900] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:18.900] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 138.3945ms
+[11:29:18.901] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:18.901] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:18.901] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:18.901] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.930] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:18.930] [backend]       move-statline d2f04a9b659fc59e M 8 red  f14  d=2  n=355     nps=59K   tt=  0% s=-98 thr=1 t=0.0s alloc=0.2s
+[11:29:18.930] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:18.930] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:18.930] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:18.930] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 29.4338
+[11:29:18.930] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:18.930] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 29.5577ms
+[11:29:18.931] M 8 red  f14  d=2  n=355     nps=59K   tt=  0% s=-98 thr=1 t=0.0s alloc=0.2s
+[11:29:18.931] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:18.932] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:18.932] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:18.932] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.131] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:19.131] [backend]       move-statline d2f04a9b659fc59e M 9 blue j11  d=1  n=2.2K    nps=12K   tt= 10% s=+98 thr=1 t=0.2s alloc=0.2s
+[11:29:19.131] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:19.131] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.131] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:19.131] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 199.4025
+[11:29:19.132] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:19.132] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 199.5959ms
+[11:29:19.132] M 9 blue j11  d=1  n=2.2K    nps=12K   tt= 10% s=+98 thr=1 t=0.2s alloc=0.2s
+[11:29:19.133] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:19.133] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:19.133] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:19.133] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.161] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:19.161] [backend]       move-statline d2f04a9b659fc59e M10 red  j8  d=1  n=200     nps=8K    tt=  0% s=+810 thr=1 t=0.0s alloc=0.2s
+[11:29:19.161] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:19.162] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.162] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:19.162] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 28.9391
+[11:29:19.162] M10 red  j8  d=1  n=200     nps=8K    tt=  0% s=+810 thr=1 t=0.0s alloc=0.2s
+[11:29:19.162] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:19.162] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 29.0927ms
+[11:29:19.162] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:19.163] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:19.163] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:19.163] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.240] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:19.240] [backend]       move-statline d2f04a9b659fc59e M11 blue g11  d=2  n=813     nps=12K   tt=  0% s=-12 thr=1 t=0.1s alloc=0.2s
+[11:29:19.240] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:19.240] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.240] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:19.240] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 77.4353
+[11:29:19.241] M11 blue g11  d=2  n=813     nps=12K   tt=  0% s=-12 thr=1 t=0.1s alloc=0.2s
+[11:29:19.241] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:19.241] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 77.5492ms
+[11:29:19.241] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:19.241] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:19.241] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:19.241] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.380] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:19.380] [backend]       move-statline d2f04a9b659fc59e M12 red  h11  d=2  n=1.4K    nps=10K   tt=  0% s=-990 thr=1 t=0.1s alloc=0.2s
+[11:29:19.381] M12 red  h11  d=2  n=1.4K    nps=10K   tt=  0% s=-990 thr=1 t=0.1s alloc=0.2s
+[11:29:19.381] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:19.381] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.381] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:19.381] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 139.1337
+[11:29:19.381] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:19.381] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 139.2391ms
+[11:29:19.381] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:19.381] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:19.382] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:19.382] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.442] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:19.442] [backend]       move-statline d2f04a9b659fc59e M13 blue g12  d=2  n=1.3K    nps=28K   tt=  0% s=+762 thr=1 t=0.1s alloc=0.2s
+[11:29:19.443] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:19.443] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.443] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:19.443] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 60.8971
+[11:29:19.443] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:19.443] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 61.0320ms
+[11:29:19.443] M13 blue g12  d=2  n=1.3K    nps=28K   tt=  0% s=+762 thr=1 t=0.1s alloc=0.2s
+[11:29:19.444] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:19.444] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:19.445] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:19.445] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.504] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:19.504] [backend]       move-statline d2f04a9b659fc59e M14 red  k7  d=2  n=1.5K    nps=28K   tt=  0% s=-1086 thr=1 t=0.1s alloc=0.2s
+[11:29:19.504] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:19.504] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.505] M14 red  k7  d=2  n=1.5K    nps=28K   tt=  0% s=-1086 thr=1 t=0.1s alloc=0.2s
+[11:29:19.505] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:19.505] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 59.6622
+[11:29:19.506] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:19.506] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 59.7745ms
+[11:29:19.506] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:19.506] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:19.506] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:19.506] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.705] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:19.705] [backend]       move-statline d2f04a9b659fc59e M15 blue l6  d=1  n=3.8K    nps=21K   tt= 35% s=+1086 thr=1 t=0.2s alloc=0.2s
+[11:29:19.705] M15 blue l6  d=1  n=3.8K    nps=21K   tt= 35% s=+1086 thr=1 t=0.2s alloc=0.2s
+[11:29:19.706] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:19.706] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.706] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:19.706] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 198.9093
+[11:29:19.706] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:19.706] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 199.0794ms
+[11:29:19.706] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:19.706] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:19.706] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:19.706] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.752] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:19.752] [backend]       move-statline d2f04a9b659fc59e M16 red  g10  d=1  n=732     nps=20K   tt=  0% s=-4786 thr=1 t=0.0s alloc=0.2s
+[11:29:19.752] M16 red  g10  d=1  n=732     nps=20K   tt=  0% s=-4786 thr=1 t=0.0s alloc=0.2s
+[11:29:19.753] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:19.753] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.753] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:19.753] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 45.6878
+[11:29:19.753] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:19.753] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 45.8142ms
+[11:29:19.753] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:19.753] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:19.753] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:19.753] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.890] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:19.890] [backend]       move-statline d2f04a9b659fc59e M17 blue g15  d=2  n=3.9K    nps=32K   tt= 62% s=+4584 thr=1 t=0.1s alloc=0.2s
+[11:29:19.890] M17 blue g15  d=2  n=3.9K    nps=32K   tt= 62% s=+4584 thr=1 t=0.1s alloc=0.2s
+[11:29:19.891] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:19.891] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.891] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:19.891] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 136.906
+[11:29:19.891] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:19.891] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 136.9985ms
+[11:29:19.892] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:19.892] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:19.892] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:19.892] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.921] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:19.921] [backend]       move-statline d2f04a9b659fc59e M18 red  g14  d=2  n=855     nps=61K   tt= 60% s=-13452 thr=1 t=0.0s alloc=0.2s
+[11:29:19.922] M18 red  g14  d=2  n=855     nps=61K   tt= 60% s=-13452 thr=1 t=0.0s alloc=0.2s
+[11:29:19.922] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:19.922] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:19.922] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:19.922] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 29.7367
+[11:29:19.922] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:19.922] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 29.8375ms
+[11:29:19.922] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:19.922] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:19.922] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:19.922] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.107] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:20.107] [backend]       move-statline d2f04a9b659fc59e M19 blue i12  d=2  n=4.0K    nps=23K   tt= 67% s=-188 thr=1 t=0.2s alloc=0.2s
+[11:29:20.107] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:20.107] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.107] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:20.107] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 184.9135
+[11:29:20.108] M19 blue i12  d=2  n=4.0K    nps=23K   tt= 67% s=-188 thr=1 t=0.2s alloc=0.2s
+[11:29:20.108] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:20.108] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 185.0510ms
+[11:29:20.108] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:20.109] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:20.109] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:20.109] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.153] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:20.153] [backend]       move-statline d2f04a9b659fc59e M20 red  j12  d=2  n=1.1K    nps=31K   tt=  0% s=-120 thr=1 t=0.0s alloc=0.2s
+[11:29:20.153] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:20.153] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.153] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:20.153] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 44.4667
+[11:29:20.153] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:20.153] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 44.5929ms
+[11:29:20.153] M20 red  j12  d=2  n=1.1K    nps=31K   tt=  0% s=-120 thr=1 t=0.0s alloc=0.2s
+[11:29:20.154] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:20.154] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:20.154] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:20.154] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.277] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:20.277] [backend]       move-statline d2f04a9b659fc59e M21 blue f12  d=2  n=2.3K    nps=20K   tt=  2% s=-188 thr=1 t=0.1s alloc=0.2s
+[11:29:20.277] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:20.277] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.277] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:20.277] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 122.9146
+[11:29:20.277] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:20.277] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 123.0284ms
+[11:29:20.277] M21 blue f12  d=2  n=2.3K    nps=20K   tt=  2% s=-188 thr=1 t=0.1s alloc=0.2s
+[11:29:20.278] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:20.278] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:20.278] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:20.278] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.308] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:20.308] [backend]       move-statline d2f04a9b659fc59e M22 red  e12  d=2  n=599     nps=43K   tt=  0% s=-120 thr=1 t=0.0s alloc=0.2s
+[11:29:20.308] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:20.308] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.308] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:20.308] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 29.7147
+[11:29:20.308] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:20.308] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 29.8432ms
+[11:29:20.308] M22 red  e12  d=2  n=599     nps=43K   tt=  0% s=-120 thr=1 t=0.0s alloc=0.2s
+[11:29:20.309] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:20.309] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:20.309] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:20.309] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.385] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:20.385] [backend]       move-statline d2f04a9b659fc59e M23 blue h14  d=2  n=1.6K    nps=24K   tt=  1% s=-218 thr=1 t=0.1s alloc=0.2s
+[11:29:20.385] M23 blue h14  d=2  n=1.6K    nps=24K   tt=  1% s=-218 thr=1 t=0.1s alloc=0.2s
+[11:29:20.386] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:20.386] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.386] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:20.386] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 75.8281
+[11:29:20.386] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:20.386] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 75.9757ms
+[11:29:20.386] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:20.386] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:20.386] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:20.386] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.509] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:20.509] [backend]       move-statline d2f04a9b659fc59e M24 red  e11  d=2  n=2.2K    nps=21K   tt=  0% s=+86 thr=1 t=0.1s alloc=0.2s
+[11:29:20.509] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:20.510] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.510] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:20.510] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 123.4147
+[11:29:20.510] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:20.510] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 123.5250ms
+[11:29:20.510] M24 red  e11  d=2  n=2.2K    nps=21K   tt=  0% s=+86 thr=1 t=0.1s alloc=0.2s
+[11:29:20.511] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:20.511] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:20.511] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:20.511] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.571] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:20.571] [backend]       move-statline d2f04a9b659fc59e M25 blue l7  d=1  n=1.1K    nps=21K   tt=  0% s=-86 thr=1 t=0.1s alloc=0.2s
+[11:29:20.571] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:20.571] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.571] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:20.571] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 59.8447
+[11:29:20.571] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:20.571] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 59.9967ms
+[11:29:20.571] M25 blue l7  d=1  n=1.1K    nps=21K   tt=  0% s=-86 thr=1 t=0.1s alloc=0.2s
+[11:29:20.572] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:20.572] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:20.572] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:20.572] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.602] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:20.602] [backend]       move-statline d2f04a9b659fc59e M26 red  e10  d=1  n=594     nps=28K   tt=  0% s=+12640 thr=1 t=0.0s alloc=0.2s
+[11:29:20.602] M26 red  e10  d=1  n=594     nps=28K   tt=  0% s=+12640 thr=1 t=0.0s alloc=0.2s
+[11:29:20.602] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:20.602] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.602] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:20.602] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 29.7564
+[11:29:20.602] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:20.602] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 29.8273ms
+[11:29:20.603] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:20.603] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:20.603] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:20.603] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.648] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:20.648] [backend]       move-statline d2f04a9b659fc59e M27 blue e9  d=1  n=646     nps=22K   tt=  0% s=-914 thr=1 t=0.0s alloc=0.2s
+[11:29:20.649] M27 blue e9  d=1  n=646     nps=22K   tt=  0% s=-914 thr=1 t=0.0s alloc=0.2s
+[11:29:20.649] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:20.649] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.649] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:20.649] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 45.8158
+[11:29:20.649] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:20.649] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 45.9182ms
+[11:29:20.649] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:20.649] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:20.649] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:20.649] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.680] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:20.680] [backend]       move-statline d2f04a9b659fc59e M28 red  e14  d=1  n=419     nps=25K   tt=  0% s=+14588 thr=1 t=0.0s alloc=0.2s
+[11:29:20.680] M28 red  e14  d=1  n=419     nps=25K   tt=  0% s=+14588 thr=1 t=0.0s alloc=0.2s
+[11:29:20.681] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:20.681] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.681] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:20.681] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 30.4342
+[11:29:20.681] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:20.681] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 30.5106ms
+[11:29:20.681] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:20.681] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:20.681] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:20.681] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.789] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:20.789] [backend]       move-statline d2f04a9b659fc59e M29 blue e13  d=2  n=2.6K    nps=28K   tt= 60% s=-13488 thr=1 t=0.1s alloc=0.2s
+[11:29:20.790] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:20.790] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.790] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:20.790] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 108.6058
+[11:29:20.790] M29 blue e13  d=2  n=2.6K    nps=28K   tt= 60% s=-13488 thr=1 t=0.1s alloc=0.2s
+[11:29:20.791] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:20.791] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 108.7068ms
+[11:29:20.791] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:20.791] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:20.791] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:20.791] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.960] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:20.960] [backend]       move-statline d2f04a9b659fc59e M30 red  d14  d=1  n=3.1K    nps=20K   tt= 55% s=+13488 thr=1 t=0.2s alloc=0.2s
+[11:29:20.960] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:20.960] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:20.960] M30 red  d14  d=1  n=3.1K    nps=20K   tt= 55% s=+13488 thr=1 t=0.2s alloc=0.2s
+[11:29:20.961] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:20.961] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 169.058
+[11:29:20.961] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:20.961] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 169.1771ms
+[11:29:20.961] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:20.961] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:20.961] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:20.961] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.022] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.022] [backend]       move-statline d2f04a9b659fc59e M31 blue c14  d=2  n=1.3K    nps=29K   tt= 50% s=-6050 thr=1 t=0.1s alloc=0.2s
+[11:29:21.023] M31 blue c14  d=2  n=1.3K    nps=29K   tt= 50% s=-6050 thr=1 t=0.1s alloc=0.2s
+[11:29:21.023] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.023] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.023] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.023] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 61.2211
+[11:29:21.023] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.023] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 61.3371ms
+[11:29:21.023] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.023] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.023] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.023] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.070] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.070] [backend]       move-statline d2f04a9b659fc59e M32 red  f10  d=1  n=645     nps=22K   tt=  0% s=+6050 thr=1 t=0.0s alloc=0.2s
+[11:29:21.070] M32 red  f10  d=1  n=645     nps=22K   tt=  0% s=+6050 thr=1 t=0.0s alloc=0.2s
+[11:29:21.071] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.071] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.071] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.071] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 46.1681
+[11:29:21.071] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.071] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 46.2695ms
+[11:29:21.071] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.071] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.071] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.071] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.100] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.100] [backend]       move-statline d2f04a9b659fc59e M33 blue d10  d=2  n=1.1K    nps=51K   tt= 60% s=-6050 thr=1 t=0.0s alloc=0.2s
+[11:29:21.101] M33 blue d10  d=2  n=1.1K    nps=51K   tt= 60% s=-6050 thr=1 t=0.0s alloc=0.2s
+[11:29:21.101] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.101] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.101] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.101] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 29.7978
+[11:29:21.101] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.101] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 29.8891ms
+[11:29:21.101] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.101] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.101] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.101] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.271] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.271] [backend]       move-statline d2f04a9b659fc59e M34 red  h9  d=1  n=2.2K    nps=14K   tt= 37% s=+6050 thr=1 t=0.2s alloc=0.2s
+[11:29:21.271] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.271] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.271] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.271] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 169.613
+[11:29:21.271] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.271] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 169.6800ms
+[11:29:21.271] M34 red  h9  d=1  n=2.2K    nps=14K   tt= 37% s=+6050 thr=1 t=0.2s alloc=0.2s
+[11:29:21.272] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.272] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.272] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.272] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.333] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.333] [backend]       move-statline d2f04a9b659fc59e M35 blue g9  d=1  n=1.1K    nps=19K   tt=  0% s=-1020 thr=1 t=0.1s alloc=0.2s
+[11:29:21.333] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.333] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.333] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.333] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 60.8401
+[11:29:21.333] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.333] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 60.9208ms
+[11:29:21.333] M35 blue g9  d=1  n=1.1K    nps=19K   tt=  0% s=-1020 thr=1 t=0.1s alloc=0.2s
+[11:29:21.334] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.334] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.334] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.334] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.364] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.364] [backend]       move-statline d2f04a9b659fc59e M36 red  l9  d=1  n=410     nps=23K   tt=  0% s=+18476 thr=1 t=0.0s alloc=0.2s
+[11:29:21.364] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.364] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.365] M36 red  l9  d=1  n=410     nps=23K   tt=  0% s=+18476 thr=1 t=0.0s alloc=0.2s
+[11:29:21.365] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.365] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 30.5148
+[11:29:21.365] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.365] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 30.6537ms
+[11:29:21.365] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.365] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.365] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.365] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.395] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.395] [backend]       move-statline d2f04a9b659fc59e M37 blue m9  d=1  n=400     nps=22K   tt=  0% s=-1172 thr=1 t=0.0s alloc=0.2s
+[11:29:21.395] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.395] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.395] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.395] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 29.5027
+[11:29:21.395] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.395] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 29.5854ms
+[11:29:21.395] M37 blue m9  d=1  n=400     nps=22K   tt=  0% s=-1172 thr=1 t=0.0s alloc=0.2s
+[11:29:21.396] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.396] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.396] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.396] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.426] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.426] [backend]       move-statline d2f04a9b659fc59e M38 red  h8  d=1  n=404     nps=21K   tt=  0% s=+15398 thr=1 t=0.0s alloc=0.2s
+[11:29:21.426] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.426] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.426] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.426] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 30.0532
+[11:29:21.426] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.426] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 30.1814ms
+[11:29:21.426] M38 red  h8  d=1  n=404     nps=21K   tt=  0% s=+15398 thr=1 t=0.0s alloc=0.2s
+[11:29:21.427] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.427] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.427] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.427] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.456] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.456] [backend]       move-statline d2f04a9b659fc59e M39 blue h6  d=1  n=392     nps=24K   tt=  0% s=-10436 thr=1 t=0.0s alloc=0.2s
+[11:29:21.456] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.456] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.456] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.456] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 29.1338
+[11:29:21.456] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.456] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 29.2565ms
+[11:29:21.457] M39 blue h6  d=1  n=392     nps=24K   tt=  0% s=-10436 thr=1 t=0.0s alloc=0.2s
+[11:29:21.458] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.458] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.458] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.458] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.626] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.626] [backend]       move-statline d2f04a9b659fc59e M40 red  i8  d=1  n=2.4K    nps=15K   tt=  0% s=+15300 thr=1 t=0.2s alloc=0.2s
+[11:29:21.626] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.626] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.626] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.626] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 168.3154
+[11:29:21.626] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.626] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 168.4078ms
+[11:29:21.627] M40 red  i8  d=1  n=2.4K    nps=15K   tt=  0% s=+15300 thr=1 t=0.2s alloc=0.2s
+[11:29:21.627] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.628] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.628] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.628] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.657] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.657] [backend]       move-statline d2f04a9b659fc59e M41 blue f11  d=2  n=656     nps=35K   tt=  0% s=-15300 thr=1 t=0.0s alloc=0.2s
+[11:29:21.657] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.657] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.657] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.657] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 29.3409
+[11:29:21.657] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.657] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 29.4287ms
+[11:29:21.657] M41 blue f11  d=2  n=656     nps=35K   tt=  0% s=-15300 thr=1 t=0.0s alloc=0.2s
+[11:29:21.658] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.658] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.658] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.658] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.782] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.782] [backend]       move-statline d2f04a9b659fc59e M42 red  g8  d=2  n=2.4K    nps=23K   tt= 60% s=+29998 thr=1 t=0.1s alloc=0.2s
+[11:29:21.782] M42 red  g8  d=2  n=2.4K    nps=23K   tt= 60% s=+29998 thr=1 t=0.1s alloc=0.2s
+[11:29:21.783] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.783] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.783] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.783] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 123.8357
+[11:29:21.783] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.783] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 123.9013ms
+[11:29:21.783] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.783] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.783] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.783] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.843] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.843] [backend]       move-statline d2f04a9b659fc59e M43 blue f8  d=1  n=587     nps=11K   tt=  0% s=-29999 thr=1 t=0.1s alloc=0.2s
+[11:29:21.844] M43 blue f8  d=1  n=587     nps=11K   tt=  0% s=-29999 thr=1 t=0.1s alloc=0.2s
+[11:29:21.844] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.844] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.844] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.844] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 60.4207
+[11:29:21.844] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.844] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 60.5232ms
+[11:29:21.844] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.844] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - application/json 2
+[11:29:21.844] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.844] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.879] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.879] [backend]       move-statline d2f04a9b659fc59e M44 red  k8  d=1  n=221     nps=221K  tt=  0% s=+29999 thr=1 t=0.0s alloc=0.2s
+[11:29:21.880] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.880] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.880] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.880] [backend]       request POST /api/game/d2f04a9b659fc59e/ai-move 36.0303
+[11:29:21.881] M44 red  k8  d=1  n=221     nps=221K  tt=  0% s=+29999 thr=1 t=0.0s alloc=0.2s
+[11:29:21.881] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.881] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/d2f04a9b659fc59e/ai-move - 200 - application/json 36.1027ms
+[11:29:21.881] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.881] [backend]       Request starting HTTP/1.1 DELETE http://localhost:5207/api/game/d2f04a9b659fc59e - - -
+[11:29:21.881] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.881] [backend]       Executing endpoint 'HTTP: DELETE /api/game/{id}'
+[11:29:21.885] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.885] [backend]       Executed endpoint 'HTTP: DELETE /api/game/{id}'
+[11:29:21.885] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.885] [backend]       request DELETE /api/game/d2f04a9b659fc59e 3.3489
+[11:29:21.885] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.885] [backend]       Request finished HTTP/1.1 DELETE http://localhost:5207/api/game/d2f04a9b659fc59e - 200 - application/json 3.4640ms
+[11:29:21.885]   -> red (L1) by win | 43 moves | 3.6s
+[11:29:21.885] Game 2/2: L1vL1 #2 red=L1 blue=L1 (swapped) seed=20260823
+[11:29:21.886] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.886] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/new - application/json 114
+[11:29:21.886] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.886] [backend]       Executing endpoint 'HTTP: POST /api/game/new'
+[11:29:21.890] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.890] [backend]       Executed endpoint 'HTTP: POST /api/game/new'
+[11:29:21.890] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.890] [backend]       request POST /api/game/new 4.0652
+[11:29:21.890] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.890] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/new - 200 - application/json 4.1507ms
+[11:29:21.891] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.891] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:21.891] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.891] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.921] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.921] [backend]       move-statline a24abd7e850d1a07 M 2 red  i12  d=2  n=260     nps=260K  tt=  8% s=-100 thr=1 t=0.0s alloc=0.2s
+[11:29:21.922] M 2 red  i12  d=2  n=260     nps=260K  tt=  8% s=-100 thr=1 t=0.0s alloc=0.2s
+[11:29:21.922] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.922] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.922] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.922] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 30.5092
+[11:29:21.922] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.922] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 30.5799ms
+[11:29:21.922] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.922] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:21.922] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.922] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.982] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:21.982] [backend]       move-statline a24abd7e850d1a07 M 3 blue h12  d=2  n=450     nps=150K  tt=  3% s=-46 thr=1 t=0.1s alloc=0.2s
+[11:29:21.983] M 3 blue h12  d=2  n=450     nps=150K  tt=  3% s=-46 thr=1 t=0.1s alloc=0.2s
+[11:29:21.983] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:21.983] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:21.983] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:21.983] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 60.1244
+[11:29:21.983] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:21.983] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 60.2263ms
+[11:29:21.983] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:21.983] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:21.983] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:21.983] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.044] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.044] [backend]       move-statline a24abd7e850d1a07 M 4 red  h11  d=2  n=2.0K    nps=35K   tt=  3% s=-98 thr=1 t=0.1s alloc=0.2s
+[11:29:22.044] M 4 red  h11  d=2  n=2.0K    nps=35K   tt=  3% s=-98 thr=1 t=0.1s alloc=0.2s
+[11:29:22.045] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.045] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.045] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.045] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 60.4955
+[11:29:22.045] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.045] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 60.5504ms
+[11:29:22.045] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.045] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.045] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.045] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.106] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.106] [backend]       move-statline a24abd7e850d1a07 M 5 blue j10  d=2  n=1.6K    nps=33K   tt=  3% s=-40 thr=1 t=0.1s alloc=0.2s
+[11:29:22.106] M 5 blue j10  d=2  n=1.6K    nps=33K   tt=  3% s=-40 thr=1 t=0.1s alloc=0.2s
+[11:29:22.107] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.107] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.107] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.107] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 60.9761
+[11:29:22.107] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.107] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 61.0445ms
+[11:29:22.107] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.107] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.107] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.107] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.136] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.136] [backend]       move-statline a24abd7e850d1a07 M 6 red  k9  d=2  n=617     nps=56K   tt=  0% s=+0 thr=1 t=0.0s alloc=0.2s
+[11:29:22.136] M 6 red  k9  d=2  n=617     nps=56K   tt=  0% s=+0 thr=1 t=0.0s alloc=0.2s
+[11:29:22.136] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.136] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.136] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.136] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 28.4586
+[11:29:22.136] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.136] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 28.5184ms
+[11:29:22.137] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.137] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.137] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.137] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.198] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.198] [backend]       move-statline a24abd7e850d1a07 M 7 blue i10  d=2  n=1.6K    nps=37K   tt=  0% s=-110 thr=1 t=0.1s alloc=0.2s
+[11:29:22.198] M 7 blue i10  d=2  n=1.6K    nps=37K   tt=  0% s=-110 thr=1 t=0.1s alloc=0.2s
+[11:29:22.199] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.199] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.199] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.199] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 61.3395
+[11:29:22.199] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.199] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 61.3902ms
+[11:29:22.199] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.199] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.199] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.199] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.245] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.245] [backend]       move-statline a24abd7e850d1a07 M 8 red  k10  d=2  n=1.5K    nps=42K   tt=  4% s=-60 thr=1 t=0.0s alloc=0.2s
+[11:29:22.245] M 8 red  k10  d=2  n=1.5K    nps=42K   tt=  4% s=-60 thr=1 t=0.0s alloc=0.2s
+[11:29:22.245] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.245] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.245] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.245] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 45.7859
+[11:29:22.245] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.245] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 45.8407ms
+[11:29:22.245] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.245] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.246] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.246] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.353] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.353] [backend]       move-statline a24abd7e850d1a07 M 9 blue g13  d=2  n=2.8K    nps=30K   tt=  2% s=-172 thr=1 t=0.1s alloc=0.2s
+[11:29:22.354] M 9 blue g13  d=2  n=2.8K    nps=30K   tt=  2% s=-172 thr=1 t=0.1s alloc=0.2s
+[11:29:22.355] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.355] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.355] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.355] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 107.5961
+[11:29:22.355] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.355] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 107.7017ms
+[11:29:22.355] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.355] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.356] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.356] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.385] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.385] [backend]       move-statline a24abd7e850d1a07 M10 red  f14  d=2  n=342     nps=171K  tt=  0% s=-94 thr=1 t=0.0s alloc=0.2s
+[11:29:22.385] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.385] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.385] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.385] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 29.1501
+[11:29:22.385] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.385] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 29.2364ms
+[11:29:22.385] M10 red  f14  d=2  n=342     nps=171K  tt=  0% s=-94 thr=1 t=0.0s alloc=0.2s
+[11:29:22.386] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.386] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.386] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.386] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.585] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.585] [backend]       move-statline a24abd7e850d1a07 M11 blue j11  d=2  n=3.4K    nps=18K   tt=  0% s=-840 thr=1 t=0.2s alloc=0.2s
+[11:29:22.586] M11 blue j11  d=2  n=3.4K    nps=18K   tt=  0% s=-840 thr=1 t=0.2s alloc=0.2s
+[11:29:22.586] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.586] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.586] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.586] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 199.5479
+[11:29:22.586] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.586] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 199.6095ms
+[11:29:22.586] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.586] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.586] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.586] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.663] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.663] [backend]       move-statline a24abd7e850d1a07 M12 red  j9  d=2  n=1.8K    nps=31K   tt=  2% s=+206 thr=1 t=0.1s alloc=0.2s
+[11:29:22.663] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.663] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.663] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.663] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 76.4026
+[11:29:22.663] M12 red  j9  d=2  n=1.8K    nps=31K   tt=  2% s=+206 thr=1 t=0.1s alloc=0.2s
+[11:29:22.664] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.664] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 76.4484ms
+[11:29:22.664] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.664] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.664] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.664] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.709] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.709] [backend]       move-statline a24abd7e850d1a07 M13 blue l11  d=2  n=1.2K    nps=44K   tt=  2% s=-1150 thr=1 t=0.0s alloc=0.2s
+[11:29:22.710] M13 blue l11  d=2  n=1.2K    nps=44K   tt=  2% s=-1150 thr=1 t=0.0s alloc=0.2s
+[11:29:22.710] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.710] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.710] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.710] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 45.7861
+[11:29:22.710] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.710] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 45.8367ms
+[11:29:22.710] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.710] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.710] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.710] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.834] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.834] [backend]       move-statline a24abd7e850d1a07 M14 red  g10  d=2  n=3.2K    nps=27K   tt=  1% s=+976 thr=1 t=0.1s alloc=0.2s
+[11:29:22.834] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.834] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.834] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.834] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 123.3481
+[11:29:22.834] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.834] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 123.4017ms
+[11:29:22.834] M14 red  g10  d=2  n=3.2K    nps=27K   tt=  1% s=+976 thr=1 t=0.1s alloc=0.2s
+[11:29:22.836] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.836] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.836] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.836] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.880] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.880] [backend]       move-statline a24abd7e850d1a07 M15 blue k11  d=1  n=1.1K    nps=28K   tt=  0% s=-976 thr=1 t=0.0s alloc=0.2s
+[11:29:22.880] M15 blue k11  d=1  n=1.1K    nps=28K   tt=  0% s=-976 thr=1 t=0.0s alloc=0.2s
+[11:29:22.881] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.881] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.881] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.881] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 45.0748
+[11:29:22.881] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.881] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 45.1262ms
+[11:29:22.881] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.881] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.881] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.881] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.926] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:22.926] [backend]       move-statline a24abd7e850d1a07 M16 red  m11  d=1  n=724     nps=24K   tt=  0% s=+976 thr=1 t=0.0s alloc=0.2s
+[11:29:22.927] M16 red  m11  d=1  n=724     nps=24K   tt=  0% s=+976 thr=1 t=0.0s alloc=0.2s
+[11:29:22.927] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:22.927] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:22.927] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:22.927] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 45.6123
+[11:29:22.927] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:22.927] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 45.6849ms
+[11:29:22.927] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:22.927] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:22.927] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:22.927] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.020] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:23.020] [backend]       move-statline a24abd7e850d1a07 M17 blue f9  d=1  n=1.6K    nps=21K   tt=  0% s=-1018 thr=1 t=0.1s alloc=0.2s
+[11:29:23.021] M17 blue f9  d=1  n=1.6K    nps=21K   tt=  0% s=-1018 thr=1 t=0.1s alloc=0.2s
+[11:29:23.021] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:23.021] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.021] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:23.021] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 92.9989
+[11:29:23.021] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:23.021] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 93.0567ms
+[11:29:23.021] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:23.021] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:23.021] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:23.021] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.222] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:23.222] [backend]       move-statline a24abd7e850d1a07 M18 red  h9  d=2  n=4.3K    nps=23K   tt= 53% s=+1118 thr=1 t=0.2s alloc=0.2s
+[11:29:23.222] M18 red  h9  d=2  n=4.3K    nps=23K   tt= 53% s=+1118 thr=1 t=0.2s alloc=0.2s
+[11:29:23.222] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:23.222] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.222] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:23.222] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 200.0966
+[11:29:23.223] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:23.223] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 200.1816ms
+[11:29:23.223] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:23.223] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:23.223] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:23.223] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.285] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:23.285] [backend]       move-statline a24abd7e850d1a07 M19 blue j7  d=1  n=1.1K    nps=22K   tt=  0% s=-1118 thr=1 t=0.1s alloc=0.2s
+[11:29:23.285] M19 blue j7  d=1  n=1.1K    nps=22K   tt=  0% s=-1118 thr=1 t=0.1s alloc=0.2s
+[11:29:23.286] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:23.286] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.286] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:23.286] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 62.0853
+[11:29:23.286] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:23.286] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 62.1786ms
+[11:29:23.286] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:23.286] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:23.286] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:23.286] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.486] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:23.486] [backend]       move-statline a24abd7e850d1a07 M20 red  f11  d=1  n=4.2K    nps=23K   tt= 39% s=+18704 thr=1 t=0.2s alloc=0.2s
+[11:29:23.487] M20 red  f11  d=1  n=4.2K    nps=23K   tt= 39% s=+18704 thr=1 t=0.2s alloc=0.2s
+[11:29:23.487] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:23.487] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.487] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:23.487] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 200.4671
+[11:29:23.487] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:23.487] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 200.5158ms
+[11:29:23.487] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:23.487] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:23.487] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:23.487] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.532] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:23.532] [backend]       move-statline a24abd7e850d1a07 M21 blue e12  d=2  n=1.2K    nps=38K   tt= 60% s=-18698 thr=1 t=0.0s alloc=0.2s
+[11:29:23.533] M21 blue e12  d=2  n=1.2K    nps=38K   tt= 60% s=-18698 thr=1 t=0.0s alloc=0.2s
+[11:29:23.533] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:23.533] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.533] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:23.533] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 45.1864
+[11:29:23.533] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:23.533] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 45.2537ms
+[11:29:23.533] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:23.533] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:23.533] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:23.533] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.735] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:23.735] [backend]       move-statline a24abd7e850d1a07 M22 red  j13  d=1  n=4.1K    nps=22K   tt= 39% s=+18698 thr=1 t=0.2s alloc=0.2s
+[11:29:23.735] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:23.735] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.736] M22 red  j13  d=1  n=4.1K    nps=22K   tt= 39% s=+18698 thr=1 t=0.2s alloc=0.2s
+[11:29:23.736] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:23.736] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 202.1511
+[11:29:23.736] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:23.736] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 202.2437ms
+[11:29:23.736] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:23.736] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:23.736] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:23.736] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.766] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:23.766] [backend]       move-statline a24abd7e850d1a07 M23 blue k14  d=2  n=1.0K    nps=50K   tt= 60% s=-14848 thr=1 t=0.0s alloc=0.2s
+[11:29:23.766] M23 blue k14  d=2  n=1.0K    nps=50K   tt= 60% s=-14848 thr=1 t=0.0s alloc=0.2s
+[11:29:23.767] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:23.767] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.767] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:23.767] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 29.7643
+[11:29:23.767] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:23.767] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 29.8265ms
+[11:29:23.767] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:23.767] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:23.767] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:23.767] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.953] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:23.953] [backend]       move-statline a24abd7e850d1a07 M24 red  h7  d=1  n=3.9K    nps=22K   tt=  2% s=+14848 thr=1 t=0.2s alloc=0.2s
+[11:29:23.953] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:23.953] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:23.954] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:23.954] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 186.3916
+[11:29:23.954] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:23.954] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 186.4579ms
+[11:29:23.954] M24 red  h7  d=1  n=3.9K    nps=22K   tt=  2% s=+14848 thr=1 t=0.2s alloc=0.2s
+[11:29:23.954] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:23.954] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:23.954] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:23.954] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.000] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:24.000] [backend]       move-statline a24abd7e850d1a07 M25 blue g6  d=2  n=800     nps=30K   tt=  0% s=-14588 thr=1 t=0.0s alloc=0.2s
+[11:29:24.000] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:24.000] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.000] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:24.000] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 45.8075
+[11:29:24.001] M25 blue g6  d=2  n=800     nps=30K   tt=  0% s=-14588 thr=1 t=0.0s alloc=0.2s
+[11:29:24.001] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:24.001] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 45.8437ms
+[11:29:24.001] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:24.001] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:24.001] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:24.001] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.125] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:24.125] [backend]       move-statline a24abd7e850d1a07 M26 red  h8  d=2  n=2.2K    nps=20K   tt=  0% s=+13354 thr=1 t=0.1s alloc=0.2s
+[11:29:24.126] M26 red  h8  d=2  n=2.2K    nps=20K   tt=  0% s=+13354 thr=1 t=0.1s alloc=0.2s
+[11:29:24.126] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:24.126] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.126] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:24.126] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 124.2584
+[11:29:24.126] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:24.126] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 124.3010ms
+[11:29:24.126] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:24.126] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:24.126] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:24.126] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.155] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:24.155] [backend]       move-statline a24abd7e850d1a07 M27 blue h6  d=1  n=521     nps=27K   tt=  0% s=-13354 thr=1 t=0.0s alloc=0.2s
+[11:29:24.155] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:24.155] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.155] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:24.155] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 28.9201
+[11:29:24.155] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:24.155] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 28.9625ms
+[11:29:24.156] M27 blue h6  d=1  n=521     nps=27K   tt=  0% s=-13354 thr=1 t=0.0s alloc=0.2s
+[11:29:24.156] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:24.156] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:24.156] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:24.156] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.326] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:24.326] [backend]       move-statline a24abd7e850d1a07 M28 red  j8  d=1  n=2.5K    nps=16K   tt=  0% s=+14588 thr=1 t=0.2s alloc=0.2s
+[11:29:24.326] M28 red  j8  d=1  n=2.5K    nps=16K   tt=  0% s=+14588 thr=1 t=0.2s alloc=0.2s
+[11:29:24.327] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:24.327] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.327] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:24.327] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 169.3342
+[11:29:24.327] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:24.327] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 169.3767ms
+[11:29:24.327] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:24.327] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:24.327] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:24.327] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.387] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:24.387] [backend]       move-statline a24abd7e850d1a07 M29 blue k8  d=1  n=875     nps=17K   tt=  0% s=-13452 thr=1 t=0.1s alloc=0.2s
+[11:29:24.387] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:24.387] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.387] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:24.387] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 60.4092
+[11:29:24.387] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:24.387] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 60.4744ms
+[11:29:24.388] M29 blue k8  d=1  n=875     nps=17K   tt=  0% s=-13452 thr=1 t=0.1s alloc=0.2s
+[11:29:24.388] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:24.388] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:24.388] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:24.388] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.434] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:24.434] [backend]       move-statline a24abd7e850d1a07 M30 red  g8  d=1  n=663     nps=20K   tt=  0% s=+19372 thr=1 t=0.0s alloc=0.2s
+[11:29:24.434] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:24.434] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.434] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:24.434] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 45.4344
+[11:29:24.434] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:24.434] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 45.5089ms
+[11:29:24.434] M30 red  g8  d=1  n=663     nps=20K   tt=  0% s=+19372 thr=1 t=0.0s alloc=0.2s
+[11:29:24.434] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:24.434] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:24.434] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:24.435] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.528] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:24.529] [backend]       move-statline a24abd7e850d1a07 M31 blue f8  d=2  n=2.1K    nps=25K   tt= 50% s=-18278 thr=1 t=0.1s alloc=0.2s
+[11:29:24.529] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:24.529] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.529] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:24.529] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 94.1226
+[11:29:24.529] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:24.529] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 94.1886ms
+[11:29:24.529] M31 blue f8  d=2  n=2.1K    nps=25K   tt= 50% s=-18278 thr=1 t=0.1s alloc=0.2s
+[11:29:24.529] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:24.529] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:24.529] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:24.529] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.595] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:24.595] [backend]       move-statline a24abd7e850d1a07 M32 red  g9  d=1  n=812     nps=19K   tt=  0% s=+18278 thr=1 t=0.1s alloc=0.2s
+[11:29:24.595] M32 red  g9  d=1  n=812     nps=19K   tt=  0% s=+18278 thr=1 t=0.1s alloc=0.2s
+[11:29:24.595] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:24.596] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.596] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:24.596] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 65.2446
+[11:29:24.596] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:24.596] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 65.2901ms
+[11:29:24.596] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:24.596] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:24.596] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:24.596] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.653] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:24.653] [backend]       move-statline a24abd7e850d1a07 M33 blue l9  d=1  n=1.0K    nps=21K   tt=  0% s=-12436 thr=1 t=0.1s alloc=0.2s
+[11:29:24.654] M33 blue l9  d=1  n=1.0K    nps=21K   tt=  0% s=-12436 thr=1 t=0.1s alloc=0.2s
+[11:29:24.654] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:24.654] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.654] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:24.654] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 57.6461
+[11:29:24.654] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:24.654] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 57.6844ms
+[11:29:24.654] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:24.654] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:24.654] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:24.654] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.826] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:24.826] [backend]       move-statline a24abd7e850d1a07 M34 red  l10  d=0  n=2.4K    nps=15K   tt=  0% s=+0 thr=1 t=0.2s alloc=0.2s
+[11:29:24.826] M34 red  l10  d=0  n=2.4K    nps=15K   tt=  0% s=+0 thr=1 t=0.2s alloc=0.2s
+[11:29:24.827] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:24.827] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.827] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:24.827] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 171.8814
+[11:29:24.827] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:24.827] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 171.9261ms
+[11:29:24.827] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:24.827] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:24.827] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:24.827] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.920] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:24.920] [backend]       move-statline a24abd7e850d1a07 M35 blue n12  d=2  n=1.5K    nps=20K   tt=  0% s=-1060 thr=1 t=0.1s alloc=0.2s
+[11:29:24.920] M35 blue n12  d=2  n=1.5K    nps=20K   tt=  0% s=-1060 thr=1 t=0.1s alloc=0.2s
+[11:29:24.921] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:24.921] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:24.921] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:24.921] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 92.974
+[11:29:24.921] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:24.921] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 93.0424ms
+[11:29:24.921] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:24.921] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:24.922] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:24.922] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.013] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:25.013] [backend]       move-statline a24abd7e850d1a07 M36 red  g11  d=1  n=1.1K    nps=16K   tt=  0% s=+1060 thr=1 t=0.1s alloc=0.2s
+[11:29:25.014] M36 red  g11  d=1  n=1.1K    nps=16K   tt=  0% s=+1060 thr=1 t=0.1s alloc=0.2s
+[11:29:25.014] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:25.014] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.014] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:25.014] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 92.2517
+[11:29:25.014] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:25.014] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 92.3115ms
+[11:29:25.014] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:25.014] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:25.014] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:25.014] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.044] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:25.044] [backend]       move-statline a24abd7e850d1a07 M37 blue g7  d=1  n=509     nps=21K   tt=  0% s=+8308 thr=1 t=0.0s alloc=0.2s
+[11:29:25.044] M37 blue g7  d=1  n=509     nps=21K   tt=  0% s=+8308 thr=1 t=0.0s alloc=0.2s
+[11:29:25.045] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:25.045] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.045] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:25.045] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 29.7292
+[11:29:25.045] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:25.045] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 29.7692ms
+[11:29:25.045] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:25.045] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:25.045] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:25.045] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.075] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:25.075] [backend]       move-statline a24abd7e850d1a07 M38 red  e11  d=1  n=395     nps=25K   tt=  0% s=+1060 thr=1 t=0.0s alloc=0.2s
+[11:29:25.076] M38 red  e11  d=1  n=395     nps=25K   tt=  0% s=+1060 thr=1 t=0.0s alloc=0.2s
+[11:29:25.076] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:25.076] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.076] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:25.076] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 30.1207
+[11:29:25.076] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:25.076] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 30.1603ms
+[11:29:25.076] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:25.076] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:25.076] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:25.076] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.106] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:25.106] [backend]       move-statline a24abd7e850d1a07 M39 blue d11  d=1  n=438     nps=23K   tt=  0% s=-1060 thr=1 t=0.0s alloc=0.2s
+[11:29:25.107] M39 blue d11  d=1  n=438     nps=23K   tt=  0% s=-1060 thr=1 t=0.0s alloc=0.2s
+[11:29:25.107] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:25.107] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.107] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:25.107] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 29.8699
+[11:29:25.107] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:25.107] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 29.9274ms
+[11:29:25.107] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:25.107] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:25.107] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:25.107] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.138] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:25.138] [backend]       move-statline a24abd7e850d1a07 M40 red  f10  d=1  n=479     nps=19K   tt=  0% s=+1060 thr=1 t=0.0s alloc=0.2s
+[11:29:25.138] M40 red  f10  d=1  n=479     nps=19K   tt=  0% s=+1060 thr=1 t=0.0s alloc=0.2s
+[11:29:25.138] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:25.138] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.138] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:25.138] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 30.332
+[11:29:25.138] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:25.138] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 30.3640ms
+[11:29:25.138] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:25.138] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:25.138] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:25.138] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.217] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:25.217] [backend]       move-statline a24abd7e850d1a07 M41 blue d12  d=1  n=861     nps=13K   tt=  0% s=-29999 thr=1 t=0.1s alloc=0.2s
+[11:29:25.217] M41 blue d12  d=1  n=861     nps=13K   tt=  0% s=-29999 thr=1 t=0.1s alloc=0.2s
+[11:29:25.218] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:25.218] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.218] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:25.218] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 78.3102
+[11:29:25.218] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:25.218] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 78.3453ms
+[11:29:25.218] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:25.218] [backend]       Request starting HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - application/json 2
+[11:29:25.218] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:25.218] [backend]       Executing endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.235] [backend] info: Caro.Api.GameHandlers[326516412]
+[11:29:25.235] [backend]       move-statline a24abd7e850d1a07 M42 red  i7  d=1  n=225     nps=225K  tt=  0% s=+29999 thr=1 t=0.0s alloc=0.2s
+[11:29:25.236] M42 red  i7  d=1  n=225     nps=225K  tt=  0% s=+29999 thr=1 t=0.0s alloc=0.2s
+[11:29:25.236] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+[11:29:25.236] [backend]       Executed endpoint 'HTTP: POST /api/game/{id}/ai-move'
+[11:29:25.236] [backend] info: Caro.Api.RequestLoggingMiddleware[2109390510]
+[11:29:25.236] [backend]       request POST /api/game/a24abd7e850d1a07/ai-move 17.9172
+[11:29:25.236] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+[11:29:25.236] [backend]       Request finished HTTP/1.1 POST http://localhost:5207/api/game/a24abd7e850d1a07/ai-move - 200 - application/json 17.9529ms
+[11:29:25.236] [backend] info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+[11:29:25.236] [backend]       Request starting HTTP/1.1 DELETE http://localhost:5207/api/game/a24abd7e850d1a07 - - -
+[11:29:25.237] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+[11:29:25.237] [backend]       Executing endpoint 'HTTP: DELETE /api/game/{id}'
+[11:29:25.237] [backend] info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]

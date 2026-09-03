@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "run": {
+    "git": {
+      "commit": "2dc311a341d245b0e04e9d77521905e79694f71d",
+      "dirty": true
+    },
+    "host": {
+      "node": "v26.3.0",
+      "cpus": 20,
+      "platform": "win32"
+    },
+    "buildConfig": "Release",
+    "argv": [
+      "--pairings",
+      "5v5",
+      "--games-per-pairing",
+      "1",
+      "--tc",
+      "1+0",
+      "--label",
+      "smoke-l5v5"
+    ],
+    "startedAt": "2026-09-03T11:29:41.342Z",
+    "determinism": {
+      "openings": "splitmix64 seeded, per-game seed = base + global game index",
+      "order": "fixed pairing order, sequential games, color swap every second game",
+      "evidence": "t/nps columns and soft-budget depth are wall-clock evidence, not oracle"
+    }
+  },
+  "config": {
+    "label": "smoke-l5v5",
+    "gamesPerPairing": 1,
+    "timeControl": "1+0",
+    "baseSeed": 20260821,
+    "maxMoves": 256,
+    "build": "Release",
+    "pairings": [
+      [
+        5,
+        5
+      ]
+    ],
+    "totalGames": 1,
+    "seedFirst": 20260822,
+    "seedLast": 20260822
+  },
+  "pairings": [
+    {
+      "red": 5,
+      "blue": 5,
+      "label": "L5vL5",
+      "games": [
+        {
+          "index": 1,
+          "seed": 20260822,
+          "redDiff": 5,
+          "blueDiff": 5,
+          "swap": false,
+          "winner": "blue",
+          "levelWinner": 5,
+          "reason": "win",
+          "movesPlayed": 42,
+          "elapsedSeconds": 58.8,
+          "timeoutFallbackMoves": 0,
+          "gameId": "5031fbbaa342ff0b"
+        }
+      ],
+      "summary": {
+        "games": 1,
+        "wins": {
+          "5": 1
+        },
+        "draws": 0,
+        "reasons": {
+          "win": 1
+        },
+        "avgMoves": 42,
+        "avgSeconds": 58.8,
+        "redWinRateDecisive": 0,
+        "redWinRate95CI": {
+          "low": 0,
+          "high": 0.7935
+        }
+      },
+      "sides": {
+        "5": {
+          "moveCount": 42,
+          "meanDepth": 3.06,
+          "medianDepth": 3,
+          "meanNodes": 179005.17,
+          "meanNps": 114382.96,
+          "meanTtHit": 0.5715,
+          "meanThinkMs": 1650.77,
+          "meanAllocMs": 2750.69,
+          "thinkOverAlloc": 0.6248,
+          "moveTypeCounts": {
+            "exact": 35,
+            "vcf": 7
+          },
+          "vcf": {
+            "moves": 7,
+            "meanChainDepth": 5,
+            "meanNodes": 6712.57
+          },
+          "ponder": {
+            "withPonder": 34,
+            "hits": 17,
+            "meanDepth": 2.15,
+            "meanNodes": 170874.47
+          }
+        }
+      }
+    }
+  ],
+  "ladder": {
+    "rows": [
+      {
+        "label": "L5vL5",
+        "red": 5,
+        "blue": 5,
+        "games": 1,
+        "wins": {
+          "5": 1
+        },
+        "draws": 0,
+        "decisive": 1,
+        "higher": 5,
+        "higherWinRateDecisive": 1,
+        "higherWinRate95CI": {
+          "low": 0.2065,
+          "high": 1
+        }
+      }
+    ],
+    "adjacent": [],
+    "monotonicVerdict": "inconclusive (fewer than 3 adjacent steps measured)"
+  },
+  "totals": {
+    "planned": 1,
+    "played": 1,
+    "movesPlayed": 42,
+    "elapsedSeconds": 58.897
+  },
+  "anomalies": {
+    "timeoutFallbackMoves": 0,
+    "maxMoveGames": 0,
+    "erroredGames": 0
+  },
+  "error": null
+}

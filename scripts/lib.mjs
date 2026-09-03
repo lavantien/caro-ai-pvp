@@ -32,6 +32,7 @@ export const FRONTEND_URL =
 
 export const ENDPOINTS = Object.freeze({
 	newGame: '/api/game/new',
+	get: (id) => `/api/game/${id}`,
 	aiMove: (id) => `/api/game/${id}/ai-move`,
 	delete: (id) => `/api/game/${id}`
 });
@@ -45,8 +46,8 @@ export const SERVER_PROJECT = resolve(ROOT, 'backend', 'src', 'Caro.Server');
 /** Mirrors backend/Directory.Build.props. */
 export const TFM = process.env.CARO_TFM ?? 'net10.0';
 
-export function serverDll(tfm = TFM) {
-	return resolve(SERVER_PROJECT, 'bin', 'Debug', tfm, 'Caro.Server.dll');
+export function serverDll(tfm = TFM, config = 'Debug') {
+	return resolve(SERVER_PROJECT, 'bin', config, tfm, 'Caro.Server.dll');
 }
 
 // --- Artifact path contracts (filenames also referenced by README/.gitignore) ---
@@ -99,6 +100,45 @@ export const TIME_CONTROLS = [
 ];
 
 export const DEFAULT_TIME_CONTROL = '7+5';
+
+// --- Round-robin benchmark defaults (canonical: scripts/run-round-robin.mjs) ---
+
+// Fixed order: 1v1 smoke first (fail fast), then cross pairings strong-vs-weak
+// first, 5v5 calibration last. Mirrors the default tournament spec in STATS.md.
+export const ROUND_ROBIN_PAIRINGS = Object.freeze([
+	[1, 1], [1, 5], [1, 4], [1, 3], [1, 2],
+	[2, 5], [2, 4], [2, 3], [3, 5], [3, 4], [4, 5], [5, 5]
+]);
+export const GAMES_PER_PAIRING_DEFAULT = 20;
+export const TOURNAMENT_BASE_SEED = 20260821;
+export const ROUND_ROBIN_TIME_CONTROL = '3+2';
+// Debug is ~4x slower and gates soft-budget iterations one depth earlier;
+// probing compares wall-clock evidence, so the default build is Release.
+export const ROUND_ROBIN_BUILD_CONFIG = 'Release';
+
+/** Per-run artifact directory: docs/artifacts/tournaments/<label>/ */
+export function tournamentDir(label) {
+	return resolve(ROOT, 'docs', 'artifacts', 'tournaments', label);
+}
+
+/** One transient-failure-tolerant JSON POST. Throws after `retries` retries. */
+export async function postJson(url, body, { retries = 1 } = {}) {
+	let lastErr;
+	for (let attempt = 0; attempt <= retries; attempt++) {
+		try {
+			const resp = await fetch(url, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body ?? {})
+			});
+			if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
+			return await resp.json();
+		} catch (err) {
+			lastErr = err;
+		}
+	}
+	throw lastErr;
+}
 
 /** Throws on unknown values so UI-option drift fails loudly instead of silently. */
 export function timeControl(value) {
@@ -253,18 +293,22 @@ export function createProcessManager() {
 	return { children, cleanup, killPort, runCommand, spawnDaemon };
 }
 
-/** Spawns the backend daemon on API_PORT (via CARO_HTTP_PORT) and resolves when it answers. */
-export async function startBackend(mgr, { log = console.log } = {}) {
-	log('Building backend...');
-	await mgr.runCommand('dotnet', ['build', SERVER_PROJECT, '-c', 'Debug'], ROOT, 'Build');
-	log('Backend built.\n');
-
+/**
+ * Spawns the backend daemon on API_PORT (via CARO_HTTP_PORT) and resolves
+ * when it answers. Kills the port before building so a running server
+ * cannot lock its dlls; `env` entries override the defaults (caller wins).
+ */
+export async function startBackend(mgr, { log = console.log, buildConfig = 'Debug', env = {} } = {}) {
 	log(`Killing stale processes on port ${API_PORT}...`);
 	mgr.killPort(API_PORT);
 
+	log(`Building backend (${buildConfig})...`);
+	await mgr.runCommand('dotnet', ['build', SERVER_PROJECT, '-c', buildConfig], ROOT, 'Build');
+	log('Backend built.\n');
+
 	log('Starting backend...');
-	mgr.spawnDaemon('dotnet', [serverDll()], resolve(ROOT, 'backend'), 'backend', {
-		env: { ...process.env, CARO_HTTP_PORT: String(API_PORT) }
+	mgr.spawnDaemon('dotnet', [serverDll(TFM, buildConfig)], resolve(ROOT, 'backend'), 'backend', {
+		env: { ...process.env, CARO_HTTP_PORT: String(API_PORT), ...env }
 	});
 	await waitForUrl(`${API_BASE_URL}/`, TIMEOUTS.backendReadyMs);
 	log('Backend ready.\n');

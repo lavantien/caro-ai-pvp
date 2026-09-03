@@ -21,6 +21,7 @@ import {
 	ENDPOINTS,
 	GAME_MODE_AIVAI,
 	createProcessManager,
+	postJson,
 	startBackend,
 	teeConsole,
 	timeControl
@@ -71,25 +72,6 @@ function wilsonInterval(wins, n) {
 	const center = (p + (z * z) / (2 * n)) / denom;
 	const half = (z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))) / denom;
 	return { low: Math.max(0, center - half), high: Math.min(1, center + half) };
-}
-
-/** One transient-failure-tolerant JSON POST. Throws after one retry. */
-async function postJson(url, body) {
-	let lastErr;
-	for (let attempt = 0; attempt < 2; attempt++) {
-		try {
-			const resp = await fetch(url, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(body ?? {})
-			});
-			if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
-			return await resp.json();
-		} catch (err) {
-			lastErr = err;
-		}
-	}
-	throw lastErr;
 }
 
 // --- Game Logic ---

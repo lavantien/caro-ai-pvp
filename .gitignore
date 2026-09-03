@@ -29,6 +29,8 @@ frontend/test-results.json
 
 # Match database
 backend/data/
+# Tournament run databases (run.log/summary.json/report.md stay tracked)
+docs/artifacts/tournaments/**/*.db
 .playwright-mcp/
 backend/test-results/
 debug-*.png
