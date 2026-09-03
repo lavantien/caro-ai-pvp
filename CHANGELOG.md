@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Editing guideline: Keep entries concise. One-line summaries per change. No test counts, no performance tables, no documentation-only sub-sections. -->
 
-## [9.3.1] - 2026-09-03
+## [9.4.0] - 2026-09-03
 
 ### Fixed
 - The canonical time-control table contains the default `7+5` entry (seeded from the `TimeControl` defaults), so overriding `Caro:TimeControl:Default` no longer decouples the frontend's `7+5` selection from a 7+5 clock
@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dead config exports removed (`UIConfig.timerSyncIntervalMs`, `E2EConfig.regressionMoveWaitMs`); the UCI default clock derives from the 3+2 table entry; the result banner animation duration moved to `UIConfig`; the landing page interpolates the configured win length; dangling `app.html` favicon reference removed
 - New DEVELOPMENT.md codifying value discipline: every introduced number or string goes through the central hub and is wired to consumers, derivations over restatements, string contracts get constants classes, logic scales by clock/host/board ratios instead of absolute values, mirrors carry cross-reference comments; README documentation guide links it
 
-[9.3.1]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.3.1
+[9.4.0]: https://github.com/lavantien/caro-ai-pvp/releases/tag/v9.4.0
 
 ## [9.3.0] - 2026-09-03
 
