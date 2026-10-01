@@ -170,8 +170,8 @@ func TestSearchGenerationWraps(t *testing.T) {
 			t.Fatalf("generation wrap search returned illegal move %d", mv)
 		}
 	}
-	if e.gen == 0 || e.gen > 63 {
-		t.Errorf("generation = %d, want in [1, 63] after wrapping", e.gen)
+	if e.tt.gen == 0 || e.tt.gen > 63 {
+		t.Errorf("generation = %d, want in [1, 63] after wrapping", e.tt.gen)
 	}
 }
 

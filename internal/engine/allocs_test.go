@@ -72,13 +72,12 @@ func TestZeroAllocsGenerate(t *testing.T) {
 }
 
 func TestZeroAllocsTT(t *testing.T) {
-	var tb ttTable
-	tb.init(1 << 12)
+	tb := newTT(1 << 12)
 	if n := testing.AllocsPerRun(100, func() {
-		tb.store(99, 15, 3, 6, ttBoundExact, 2, 1)
+		tb.store(99, 15, 3, 6, ttBoundExact, 2)
 		_, _, _ = tb.probe(99, 6, -1000, 1000, 2)
 		_ = tb.move(99)
-		_ = tb.hashFullPermille(1)
+		_ = tb.hashFullPermille()
 	}); n != 0 {
 		t.Fatalf("tt round trip: %v allocs, want 0", n)
 	}

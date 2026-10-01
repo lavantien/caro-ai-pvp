@@ -175,3 +175,30 @@ const (
 	SearchOrderKiller1 = 1 << 29
 	SearchOrderKiller2 = 1<<29 - 1
 )
+
+const (
+	// SolverMaxPly bounds one VCF/VCT recursion: the deepest forced line the
+	// solver can certify. It sizes the per-ply stacks and the PV.
+	SolverMaxPly = SearchMaxPly
+	// SolverNodeCheckInterval is the deadline poll cadence of both solvers.
+	SolverNodeCheckInterval = SearchNodeCheckInterval
+	// SolverTTBits sizes one solver's direct-mapped proof memo,
+	// 1 << SolverTTBits entries of a uint64 key plus a uint8 verdict.
+	SolverTTBits = 18
+	// SolverCandidateRadius is the Chebyshev dilation around a side's stones
+	// bounding every cell that can complete or block a five: any completing
+	// stone shares its five with four stones at line distance at most
+	// WinLength-1.
+	SolverCandidateRadius = 4
+	// SolverNodeBudget is the default per-Solve node budget for engine
+	// wiring; callers stay free to pass smaller budgets.
+	SolverNodeBudget = 1 << 20
+)
+
+const (
+	// SearchWorkerParkDelayMs is how long an idle SMP worker spins with
+	// yields before parking on the wake channel: back-to-back searches
+	// (benchmarks, later ponder) keep workers hot at zero allocation, while
+	// idle instances park and stop burning a core.
+	SearchWorkerParkDelayMs = 5
+)

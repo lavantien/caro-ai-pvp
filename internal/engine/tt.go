@@ -3,6 +3,7 @@ package engine
 import (
 	"math"
 	"math/bits"
+	"sync/atomic"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
@@ -21,8 +22,8 @@ const (
 // the config hub, never a second literal.
 const evalMateScoreMin = config.EvalMateMax - config.SearchMaxPly*config.EvalMateScoreStep
 
-// ttMaxDepth keeps the stored depth inside int8 even if a caller passes a
-// maxDepth beyond SearchMaxPly through the exported SearchDepth.
+// ttMaxDepth keeps the stored depth inside its byte even if a caller passes
+// a maxDepth beyond SearchMaxPly through the exported SearchDepth.
 const ttMaxDepth = math.MaxInt8
 
 // scoreToTT and scoreFromTT are the single encode/decode pair every stored
@@ -51,55 +52,77 @@ func scoreFromTT(score int, ply int) int {
 	return score
 }
 
-// ttEntry packs into 16 bytes: full zobrist key, node-relative score, best
-// move, searched depth, and a gen byte holding the bound in the low 2 bits
-// and the search generation in the upper 6.
-type ttEntry struct {
-	key   uint64
-	score int32
-	move  uint16
-	depth int8
-	gen   uint8
-}
-
-// ttTable is direct mapped, single threaded here, atomically shared once the
-// SMP layer lands. Replacement is depth preferred inside the current
-// generation and always replaces entries of older generations; the 6-bit
-// generation wraps after 63 searches, which can only skew replacement
-// priority, never correctness, since the full 64-bit key still gates every
-// hit. Stones only accumulate in this game and no repetition draw exists,
-// so entries stay sound across searches of the same instance.
+// ttTable is the lockless direct-mapped table shared by every worker of one
+// instance. One slot is two uint64 words, 16 bytes: the data word and the
+// signature word. The data word packs the node-relative score in bits 0..31,
+// the best move in 32..47, the searched depth in 48..55, and the gen byte
+// (bound in the low 2 bits, generation in the upper 6) in 56..63. The
+// signature word holds key ^ data.
+//
+// Consistency argument, the Hyatt-Mann lockless scheme: a reader loads both
+// words with atomic loads and accepts the entry only when signature ^ data
+// equals its key. An all-old or all-new pair satisfies that check and is a
+// coherent entry. A pair torn by a concurrent writer mixes old signature
+// with new data, and oldSig ^ newData can only reproduce the key when
+// oldKey ^ oldData ^ newData == newKey ^ newData, that is on a 64-bit key
+// collision between the two occupants, the same residual risk any
+// zobrist-gated table already accepts. A torn read is therefore seen as a
+// miss, never as a wrong hit, without any lock. Writers store data then
+// signature; a writer losing a race merely decides which coherent entry
+// lands in the slot. Replacement stays depth preferred inside the current
+// generation and always replaces older generations; the 6-bit generation
+// wraps after 63 searches, which can only skew replacement priority, never
+// correctness, since the signature still gates every hit. Stones only
+// accumulate in this game and no repetition draw exists, so entries stay
+// sound across searches of the same instance. The table belongs to one
+// instance and one board kind: the zobrist key does not encode the region.
 type ttTable struct {
-	entries []ttEntry
+	entries []uint64
 	mask    uint64
+	gen     uint8
 }
 
-func (t *ttTable) init(bytes int64) {
+func newTT(bytes int64) *ttTable {
+	t := &ttTable{}
 	if bytes < ttEntryBytes {
-		return
+		return t
 	}
 	n := uint64(bytes) / ttEntryBytes
 	n = 1 << (bits.Len64(n) - 1)
-	t.entries = make([]ttEntry, n)
+	t.entries = make([]uint64, 2*n)
 	t.mask = n - 1
+	return t
 }
 
 func (t *ttTable) enabled() bool { return t.entries != nil }
+
+// bumpGen advances the replacement generation once per search, called before
+// workers start so no worker ever races it.
+func (t *ttTable) bumpGen() {
+	t.gen++
+	if t.gen > 63 {
+		t.gen = 1
+	}
+}
+
+func ttScore(data uint64) int { return int(int32(uint32(data))) }
 
 func (t *ttTable) probe(hash uint64, depth int, alpha, beta int, ply int) (int, int, bool) {
 	if !t.enabled() {
 		return 0, -1, false
 	}
-	e := &t.entries[hash&t.mask]
-	move := -1
-	if e.key == hash && e.move != uint16(moveNone) {
-		move = int(e.move)
+	i := (hash & t.mask) * 2
+	data := atomic.LoadUint64(&t.entries[i])
+	sig := atomic.LoadUint64(&t.entries[i+1])
+	if sig^data != hash {
+		return 0, -1, false
 	}
-	if e.key != hash || e.depth < int8(depth) {
+	move := int(uint16(data >> 32))
+	if int(uint8(data>>48)) < depth {
 		return 0, move, false
 	}
-	score := scoreFromTT(int(e.score), ply)
-	switch e.gen & 3 {
+	score := scoreFromTT(ttScore(data), ply)
+	switch uint8(data>>56) & 3 {
 	case ttBoundExact:
 		return score, move, true
 	case ttBoundLower:
@@ -118,45 +141,50 @@ func (t *ttTable) move(hash uint64) rules.Move {
 	if !t.enabled() {
 		return moveNone
 	}
-	e := &t.entries[hash&t.mask]
-	if e.key != hash || e.move == uint16(moveNone) {
+	i := (hash & t.mask) * 2
+	data := atomic.LoadUint64(&t.entries[i])
+	sig := atomic.LoadUint64(&t.entries[i+1])
+	if sig^data != hash {
 		return moveNone
 	}
-	return rules.Move(e.move)
+	return rules.Move(uint16(data >> 32))
 }
 
-func (t *ttTable) store(hash uint64, score int, move rules.Move, depth int, bound uint8, ply int, gen uint8) {
+func (t *ttTable) store(hash uint64, score int, move rules.Move, depth int, bound uint8, ply int) {
 	if !t.enabled() || hash == 0 {
 		return
 	}
 	if depth > ttMaxDepth {
 		depth = ttMaxDepth
 	}
-	e := &t.entries[hash&t.mask]
-	if e.key != 0 && e.gen>>2 == gen && e.depth > int8(depth) {
+	i := (hash & t.mask) * 2
+	cur := atomic.LoadUint64(&t.entries[i])
+	if cur != 0 && uint8(cur>>56)>>2 == t.gen && int(uint8(cur>>48)) > depth {
 		return
 	}
-	e.key = hash
-	e.score = int32(scoreToTT(score, ply))
-	e.move = uint16(move)
-	e.depth = int8(depth)
-	e.gen = gen<<2 | bound
+	data := uint64(uint32(scoreToTT(score, ply))) |
+		uint64(move)<<32 |
+		uint64(uint8(depth))<<48 |
+		uint64(t.gen<<2|bound)<<56
+	atomic.StoreUint64(&t.entries[i], data)
+	atomic.StoreUint64(&t.entries[i+1], hash^data)
 }
 
 // hashFullPermille samples SearchHashFullSample evenly spaced slots and
 // reports the share holding current generation data.
-func (t *ttTable) hashFullPermille(gen uint8) int {
+func (t *ttTable) hashFullPermille() int {
 	if !t.enabled() {
 		return 0
 	}
-	n := len(t.entries)
+	slots := len(t.entries) / 2
+	n := slots
 	if n > config.SearchHashFullSample {
 		n = config.SearchHashFullSample
 	}
 	used := 0
 	for i := range n {
-		e := &t.entries[i*len(t.entries)/n]
-		if e.key != 0 && e.gen>>2 == gen {
+		data := atomic.LoadUint64(&t.entries[2*(i*slots/n)])
+		if data != 0 && uint8(data>>56)>>2 == t.gen {
 			used++
 		}
 	}

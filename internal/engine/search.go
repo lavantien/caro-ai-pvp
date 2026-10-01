@@ -17,7 +17,7 @@ const moveNone = rules.Move(config.BoardCells)
 // instance must serve one board kind only: cross-check runs against the 8x8
 // region get their own instance.
 type Engine struct {
-	tt        ttTable
+	tt        *ttTable
 	radius    int
 	moves     [config.SearchMaxPly][config.SearchMaxMovesPerPly]rules.Move
 	scores    [config.SearchMaxPly][config.SearchMaxMovesPerPly]int
@@ -32,7 +32,6 @@ type Engine struct {
 	cutNodes  uint64
 	cutFirst  uint64
 	nodeCheck int
-	gen       uint8
 	stopped   bool
 	noOrder   bool
 }
@@ -41,9 +40,14 @@ type Engine struct {
 // tier budget rounded down to a power of two entries. bytes below one entry
 // disables the table, which is the easy tier configuration.
 func New(ttBytes int64) *Engine {
-	e := &Engine{radius: config.SearchRingRadius}
-	e.tt.init(ttBytes)
-	return e
+	return newEngineShared(newTT(ttBytes))
+}
+
+// newEngineShared builds a worker engine over an existing table: the SMP
+// layer shares one lockless table across its workers, everything else in an
+// Engine stays worker private.
+func newEngineShared(tt *ttTable) *Engine {
+	return &Engine{radius: config.SearchRingRadius, tt: tt}
 }
 
 func mateWin(ply int) int {
@@ -51,10 +55,14 @@ func mateWin(ply int) int {
 }
 
 func (e *Engine) beginSearch(b *rules.Board) {
-	e.gen++
-	if e.gen > 63 {
-		e.gen = 1
-	}
+	e.tt.bumpGen()
+	e.resetForSearch(b)
+}
+
+// resetForSearch clears every per-search worker state. The table generation
+// is bumped separately so a shared table advances once per search, not once
+// per worker.
+func (e *Engine) resetForSearch(b *rules.Board) {
 	clear(e.history[:])
 	for ply := range e.killers {
 		e.killers[ply][0], e.killers[ply][1] = moveNone, moveNone
@@ -129,7 +137,7 @@ func (e *Engine) finishStats(stats *SearchStats, score int, depth int, start tim
 	if e.ttProbes > 0 {
 		stats.TTHitPermille = int(e.ttHits * 1000 / e.ttProbes)
 	}
-	stats.HashFullPermille = e.tt.hashFullPermille(e.gen)
+	stats.HashFullPermille = e.tt.hashFullPermille()
 	if e.cutNodes > 0 {
 		stats.FirstMoveFailHighPermille = int(e.cutFirst * 1000 / e.cutNodes)
 	}
@@ -177,7 +185,7 @@ func (e *Engine) searchRoot(b *rules.Board, depth int, dl Deadline) (int, rules.
 			}
 		}
 	}
-	e.tt.store(b.Hash, best, bestMove, depth, ttBoundExact, 0, e.gen)
+	e.tt.store(b.Hash, best, bestMove, depth, ttBoundExact, 0)
 	return best, bestMove
 }
 
@@ -280,6 +288,6 @@ func (e *Engine) negamax(b *rules.Board, depth int, alpha, beta int, ply int, ex
 	} else if best <= a0 {
 		bound = ttBoundUpper
 	}
-	e.tt.store(b.Hash, best, bestMove, depth, bound, ply, e.gen)
+	e.tt.store(b.Hash, best, bestMove, depth, bound, ply)
 	return best
 }
