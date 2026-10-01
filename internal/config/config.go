@@ -97,3 +97,41 @@ const (
 	MutateMinTimeoutMs     = 2_000
 	MutateTestTimeoutSlack = 1_000
 )
+
+const (
+	PatternWindowLen      = 2*WinLength - 1
+	PatternCellBits       = 2
+	PatternTableIndexBits = PatternCellBits * PatternWindowLen
+	PatternTableEntries   = 1 << PatternTableIndexBits
+	PatternDirections     = 4
+	PatternClassCount     = 6
+)
+
+const (
+	PatternStateEmpty uint8 = iota
+	PatternStateOwn
+	PatternStateOpp
+	PatternStateOff
+)
+
+const (
+	PatternClassNone uint8 = iota
+	PatternClassOpenTwo
+	PatternClassBrokenThree
+	PatternClassThree
+	PatternClassFour
+	PatternClassOpenFour
+)
+
+var PatternDirs = [PatternDirections][2]int{{0, 1}, {1, 0}, {1, 1}, {1, -1}}
+
+const (
+	PatternWeightNone        = 0
+	PatternWeightOpenTwo     = 0
+	PatternWeightBrokenThree = 0
+	PatternWeightThree       = 0
+	PatternWeightFour        = 0
+	PatternWeightOpenFour    = 0
+)
+
+var PatternClassWeights = [PatternClassCount]int{PatternWeightNone, PatternWeightOpenTwo, PatternWeightBrokenThree, PatternWeightThree, PatternWeightFour, PatternWeightOpenFour}
