@@ -70,5 +70,28 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 }
 
 func main() {
-	os.Exit(runCLI(os.Args[1:], os.Stdout, os.Stderr, "."))
+	before, err := treeHash(".")
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "mutate:", err)
+		os.Exit(1)
+	}
+	iso, err := isolateModule(".")
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "mutate:", err)
+		os.Exit(1)
+	}
+	defer func() { _ = os.RemoveAll(iso) }()
+	code := runCLI(os.Args[1:], os.Stdout, os.Stderr, iso)
+	after, err := treeHash(".")
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "mutate: live tree check failed:", err)
+		os.Exit(1)
+	}
+	for path, sum := range before {
+		if after[path] != sum {
+			_, _ = fmt.Fprintln(os.Stderr, "mutate: live tree modified during run:", path)
+			os.Exit(1)
+		}
+	}
+	os.Exit(code)
 }
