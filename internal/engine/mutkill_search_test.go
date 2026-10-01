@@ -512,3 +512,42 @@ func TestMutKillScoutWindowBoundary(t *testing.T) {
 		t.Errorf("interior scout craft: nodes=%d rv=%d, want 1181 0", e.nodes, rv)
 	}
 }
+
+// kills 159:12 (1 -> 0 and 1 -> 2): the root win case must clear the child
+// pv row before the improvement copy reads it, so a stale pvLen[1] left by
+// any earlier context cannot extend the winning line past length 1.
+func TestMutKillRootWinClearsChildRow(t *testing.T) {
+	b := mate1Board(t)
+	e := New(0)
+	e.beginSearch(b)
+	e.pvLen[1] = 2
+	e.pv[1][0] = rules.Move(mustCell(t, "A1"))
+	e.pv[1][1] = rules.Move(mustCell(t, "A2"))
+	sc, mv := e.searchRoot(b, 2, NewFixedBudget(time.Second))
+	if mv != rules.Move(mustCell(t, "I9")) || sc != config.EvalMateMax-config.EvalMateScoreStep {
+		t.Fatalf("root win craft: mv=%d score=%d, want I9 and mate in 1", mv, sc)
+	}
+	if e.pvLen[0] != 1 || e.pv[0][0] != mv {
+		t.Fatalf("winning pv len=%d head=%d, want 1 and the move: a stale child row leaked", e.pvLen[0], e.pv[0][0])
+	}
+}
+
+// kills 246:16 (1 -> 2): inside a narrow mate window the interior win is an
+// improvement, not a cutoff, so the parent's pv copy reads the row the win
+// case must have cleared at ply+1.
+func TestMutKillInteriorWinClearsChildRow(t *testing.T) {
+	m := config.EvalMateMax
+	b := mate1Board(t)
+	e := New(0)
+	e.beginSearch(b)
+	e.pvLen[2] = 2
+	e.pv[2][0] = rules.Move(mustCell(t, "A1"))
+	e.pv[2][1] = rules.Move(mustCell(t, "A2"))
+	rv := e.negamax(b, 2, m-3*config.EvalMateScoreStep, m, 1, config.SearchExtensionMaxPly, NewFixedBudget(time.Second))
+	if rv != m-2*config.EvalMateScoreStep {
+		t.Fatalf("interior win craft: rv=%d, want mateWin(1)", rv)
+	}
+	if e.pvLen[1] != 1 || e.pv[1][0] != rules.Move(mustCell(t, "I9")) {
+		t.Fatalf("interior win pv len=%d head=%d, want 1 and I9: a stale child row leaked", e.pvLen[1], e.pv[1][0])
+	}
+}
