@@ -54,7 +54,7 @@ fuzz:
 	else echo "fuzz: no targets yet, internal/rules lands at M1"; fi
 
 mutate:
-	@echo "mutate: not implemented until M1 (in-house stdlib mutation pipeline)"
+	CGO_ENABLED=1 go run ./cmd/mutate
 
 run:
 	CGO_ENABLED=1 go run ./cmd/caro $(or $(ARGS),ports)
