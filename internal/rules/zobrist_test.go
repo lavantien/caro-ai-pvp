@@ -18,8 +18,8 @@ func TestZobristKeysDistinctNonzero(t *testing.T) {
 		}
 		seen[k] = struct{}{}
 	}
-	for color := 0; color < colorCount; color++ {
-		for cell := 0; cell < config.BoardCells; cell++ {
+	for color := range colorCount {
+		for cell := range config.BoardCells {
 			add(zobristPieces[color][cell])
 		}
 	}
@@ -28,7 +28,7 @@ func TestZobristKeysDistinctNonzero(t *testing.T) {
 
 func TestZobristManualExpected(t *testing.T) {
 	rng := rand.New(rand.NewPCG(0x5EED_5EED, 1))
-	for game := 0; game < 50; game++ {
+	for game := range 50 {
 		b := NewBoard()
 		want := uint64(0)
 		n := rng.IntN(config.BoardCells)
@@ -49,7 +49,7 @@ func TestZobristManualExpected(t *testing.T) {
 
 func TestZobristUnmakeRestoresHash(t *testing.T) {
 	rng := rand.New(rand.NewPCG(7, 11))
-	for iter := 0; iter < 100; iter++ {
+	for range 100 {
 		b := NewBoard()
 		for m := rng.IntN(64); m > 0; m-- {
 			cell := Cell(rng.IntN(config.BoardCells))
@@ -71,7 +71,7 @@ func TestZobristUnmakeRestoresHash(t *testing.T) {
 
 func TestZobristOrderIndependence(t *testing.T) {
 	rng := rand.New(rand.NewPCG(13, 17))
-	for iter := 0; iter < 100; iter++ {
+	for range 100 {
 		red := rng.IntN(30) + 1
 		perm := rng.Perm(config.BoardCells)
 		redCells := perm[:red]
@@ -97,7 +97,7 @@ func TestZobristOrderIndependence(t *testing.T) {
 		rng.Shuffle(len(blueCells), func(i, j int) { blueCells[i], blueCells[j] = blueCells[j], blueCells[i] })
 		h2, s2, m2 := play()
 		if h1 != h2 || s1 != s2 || m1 != m2 {
-			t.Fatalf("iter %d: same position must hash identically: %016x vs %016x", iter, h1, h2)
+			t.Fatalf("same position must hash identically: %016x vs %016x", h1, h2)
 		}
 	}
 }

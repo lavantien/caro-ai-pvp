@@ -9,10 +9,10 @@ import (
 
 func TestPropMakeUnmakeRoundTrip(t *testing.T) {
 	rng := rand.New(rand.NewPCG(101, 102))
-	for iter := 0; iter < 300; iter++ {
+	for range 300 {
 		b, _, _ := randomPosition(rng.Uint64())
 		before := snapshot(b)
-		for tries := 0; tries < config.BoardCells; tries++ {
+		for range config.BoardCells {
 			cell := Cell(rng.IntN(config.BoardCells))
 			if !b.inRegion(cell) || b.Occupied(cell) {
 				continue
@@ -28,7 +28,7 @@ func TestPropMakeUnmakeRoundTrip(t *testing.T) {
 func TestPropRandomLegalPlayTerminates(t *testing.T) {
 	rng := rand.New(rand.NewPCG(42, 43))
 	buf := make([]Move, config.BoardCells)
-	for game := 0; game < 40; game++ {
+	for game := range 40 {
 		b := NewBoard()
 		if game%2 == 1 {
 			b = NewCrossCheck()
@@ -90,16 +90,16 @@ func TestPropFastLastMoveWinCoversWins(t *testing.T) {
 func TestPropLegalMovesMatchIsLegal(t *testing.T) {
 	rng := rand.New(rand.NewPCG(55, 56))
 	buf := make([]Move, config.BoardCells)
-	for iter := 0; iter < 100; iter++ {
+	for range 100 {
 		b, _, _ := randomPosition(rng.Uint64())
 		b.Side = Color(rng.IntN(colorCount))
 		n := b.LegalMoves(buf)
 		for _, m := range buf[:n] {
 			if !b.IsLegal(Cell(m)) {
-				t.Fatalf("iter %d: LegalMoves yielded %d which IsLegal rejects", iter, m)
+				t.Fatalf("LegalMoves yielded %d which IsLegal rejects", m)
 			}
 		}
-		for cell := 0; cell < config.BoardCells; cell++ {
+		for cell := range config.BoardCells {
 			if b.IsLegal(Cell(cell)) {
 				found := false
 				for _, m := range buf[:n] {
@@ -109,7 +109,7 @@ func TestPropLegalMovesMatchIsLegal(t *testing.T) {
 					}
 				}
 				if !found {
-					t.Fatalf("iter %d: IsLegal accepts %d but LegalMoves omitted it", iter, cell)
+					t.Fatalf("IsLegal accepts %d but LegalMoves omitted it", cell)
 				}
 			}
 		}

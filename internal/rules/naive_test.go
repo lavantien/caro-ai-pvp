@@ -6,7 +6,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-func cellsOf(t *testing.T, names ...string) []Cell {
+func cellsOf(t testing.TB, names ...string) []Cell {
 	t.Helper()
 	out := make([]Cell, len(names))
 	for i, name := range names {
@@ -19,14 +19,14 @@ func cellsOf(t *testing.T, names ...string) []Cell {
 	return out
 }
 
-func setAll(t *testing.T, nb *NaiveBoard, color Color, names ...string) {
+func setAll(t testing.TB, nb *NaiveBoard, color Color, names ...string) {
 	t.Helper()
 	for _, c := range cellsOf(t, names...) {
 		nb.Set(c, color)
 	}
 }
 
-func naiveFull(t *testing.T, red, blue []string) *NaiveBoard {
+func naiveFull(t testing.TB, red, blue []string) *NaiveBoard {
 	t.Helper()
 	nb := NewNaiveBoard()
 	setAll(t, nb, Red, red...)
@@ -34,7 +34,7 @@ func naiveFull(t *testing.T, red, blue []string) *NaiveBoard {
 	return nb
 }
 
-func naiveCross(t *testing.T, red, blue []string) *NaiveBoard {
+func naiveCross(t testing.TB, red, blue []string) *NaiveBoard {
 	t.Helper()
 	nb := NewNaiveCrossCheck()
 	setAll(t, nb, Red, red...)
@@ -125,7 +125,7 @@ func TestNaiveWinsThrough(t *testing.T) {
 	}
 }
 
-func oneCell(t *testing.T, name string) Cell {
+func oneCell(t testing.TB, name string) Cell {
 	t.Helper()
 	return cellsOf(t, name)[0]
 }

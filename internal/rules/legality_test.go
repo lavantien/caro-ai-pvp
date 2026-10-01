@@ -108,7 +108,7 @@ func TestLegalMovesEmptyBoard(t *testing.T) {
 	for _, m := range buf[:n] {
 		seen[m] = true
 	}
-	for cell := 0; cell < config.BoardCells; cell++ {
+	for cell := range config.BoardCells {
 		if !seen[Move(cell)] {
 			t.Fatalf("cell %d missing from legal moves", cell)
 		}
@@ -120,7 +120,7 @@ func TestLegalMovesOpeningConstraint(t *testing.T) {
 	b, _ := constrainedBoard(t)
 	n := b.LegalMoves(buf)
 	want := 0
-	for cell := 0; cell < config.BoardCells; cell++ {
+	for cell := range config.BoardCells {
 		dr := absInt(cell/config.BoardStride - 7)
 		dc := absInt(cell%config.BoardStride - 7)
 		if max(dr, dc) >= config.OpeningChebyshevMin && !b.Occupied(Cell(cell)) {
@@ -151,7 +151,7 @@ func TestLegalMovesOpeningConstraint(t *testing.T) {
 	cb.Make(oneCell(t, "A1"))
 	n = cb.LegalMoves(buf)
 	want = 0
-	for cell := 0; cell < config.BoardCells; cell++ {
+	for cell := range config.BoardCells {
 		if !cb.inRegion(Cell(cell)) || cb.Occupied(Cell(cell)) {
 			continue
 		}

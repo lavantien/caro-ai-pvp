@@ -31,7 +31,7 @@ func TestCellNameKnown(t *testing.T) {
 }
 
 func TestCellNameRoundTrip(t *testing.T) {
-	for cell := 0; cell < config.BoardCells; cell++ {
+	for cell := range config.BoardCells {
 		name, err := CellName(Cell(cell))
 		if err != nil {
 			t.Fatalf("CellName(%d): %v", cell, err)

@@ -11,7 +11,7 @@ var (
 )
 
 func init() {
-	for col := 0; col < wordBits/config.BoardStride; col++ {
+	for col := range wordBits / config.BoardStride {
 		fileMask0 |= 1 << (uint(col) * config.BoardStride)
 		fileMaskF |= 1 << (uint(col)*config.BoardStride + config.BoardStride - 1)
 	}
@@ -48,7 +48,7 @@ func shiftFwd(s bb, step uint, clear uint64) bb {
 
 func shiftBwd(s bb, step uint, clear uint64) bb {
 	var r bb
-	for w := 0; w < config.BoardWordsPerColor; w++ {
+	for w := range config.BoardWordsPerColor {
 		r[w] = s[w] >> step
 		if w < config.BoardWordsPerColor-1 {
 			r[w] |= s[w+1] << (wordBits - step)
@@ -96,7 +96,7 @@ func winsDir(s, o bb, d int) bool {
 	step, fc, bc := dirStep[d], dirFwdClr[d], dirBwdClr[d]
 	five := s
 	cur := s
-	for k := 1; k < config.WinLength; k++ {
+	for range config.WinLength - 1 {
 		cur = shiftBwd(cur, step, bc)
 		five = andBB(five, cur)
 	}
@@ -110,7 +110,7 @@ func winsDir(s, o bb, d int) bool {
 		return false
 	}
 	oppShift := o
-	for k := 0; k < config.WinLength; k++ {
+	for range config.WinLength {
 		oppShift = shiftBwd(oppShift, step, bc)
 	}
 	blocked := andBB(shiftFwd(o, step, fc), oppShift)

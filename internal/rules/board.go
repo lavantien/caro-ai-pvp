@@ -49,8 +49,8 @@ type Board struct {
 
 func regionBB(rows, cols int) bb {
 	var r bb
-	for row := 0; row < rows; row++ {
-		for col := 0; col < cols; col++ {
+	for row := range rows {
+		for col := range cols {
 			cell := row*config.BoardStride + col
 			r[cell/wordBits] |= 1 << (uint(cell) % wordBits)
 		}

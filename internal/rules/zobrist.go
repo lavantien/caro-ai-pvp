@@ -26,8 +26,8 @@ func splitmix64(state uint64) uint64 {
 
 func init() {
 	state := config.ZobristSeed
-	for color := 0; color < colorCount; color++ {
-		for cell := 0; cell < config.BoardCells; cell++ {
+	for color := range colorCount {
+		for cell := range config.BoardCells {
 			state = splitmix64(state)
 			zobristPieces[color][cell] = state
 		}

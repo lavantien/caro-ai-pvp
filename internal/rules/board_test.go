@@ -135,7 +135,7 @@ func TestIsFullAfterFillingRegion(t *testing.T) {
 		if b.IsFull() {
 			t.Fatal("empty region cannot be full")
 		}
-		for cell := 0; cell < config.BoardCells; cell++ {
+		for cell := range config.BoardCells {
 			c := Cell(cell)
 			if b.inRegion(c) && !b.Occupied(c) {
 				b.Make(c)

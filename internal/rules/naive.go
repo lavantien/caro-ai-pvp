@@ -17,8 +17,8 @@ type NaiveBoard struct {
 
 func newNaiveRegion(size int) *NaiveBoard {
 	nb := &NaiveBoard{}
-	for r := 0; r < size; r++ {
-		for c := 0; c < size; c++ {
+	for r := range size {
+		for c := range size {
 			nb.region[r*config.BoardStride+c] = true
 		}
 	}
@@ -53,7 +53,7 @@ func (nb *NaiveBoard) blocks(r, c int, opp naiveColor) bool {
 func (nb *NaiveBoard) Wins(color Color) bool {
 	me := naiveOf(color)
 	opp := naiveOf(color.Opponent())
-	for cell := 0; cell < config.BoardCells; cell++ {
+	for cell := range config.BoardCells {
 		if nb.cells[cell] != me {
 			continue
 		}
@@ -73,7 +73,9 @@ func (nb *NaiveBoard) Wins(color Color) bool {
 			if length != config.WinLength {
 				continue
 			}
-			if !(nb.blocks(r-dr, c-dc, opp) && nb.blocks(rr, cc, opp)) {
+			beforeBlocked := nb.blocks(r-dr, c-dc, opp)
+			afterBlocked := nb.blocks(rr, cc, opp)
+			if !beforeBlocked || !afterBlocked {
 				return true
 			}
 		}
@@ -107,7 +109,9 @@ func (nb *NaiveBoard) WinsThrough(color Color, cell Cell) bool {
 		if back+fwd+1 != config.WinLength {
 			continue
 		}
-		if !(nb.blocks(br, bc, opp) && nb.blocks(fr, fc, opp)) {
+		beforeBlocked := nb.blocks(br, bc, opp)
+		afterBlocked := nb.blocks(fr, fc, opp)
+		if !beforeBlocked || !afterBlocked {
 			return true
 		}
 	}

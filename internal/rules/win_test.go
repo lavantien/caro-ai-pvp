@@ -149,22 +149,22 @@ func TestWinDirectionThroughSameStone(t *testing.T) {
 func TestShiftImage(t *testing.T) {
 	patterns := make(map[string]bb)
 	var full bb
-	for cell := 0; cell < config.BoardCells; cell++ {
+	for cell := range config.BoardCells {
 		w, m := bitOf(Cell(cell))
 		full[w] |= m
 	}
 	patterns["full"] = full
-	for row := 0; row < config.BoardSize; row++ {
+	for row := range config.BoardSize {
 		var r bb
-		for col := 0; col < config.BoardSize; col++ {
+		for col := range config.BoardSize {
 			w, m := bitOf(Cell(row*config.BoardStride + col))
 			r[w] |= m
 		}
 		patterns[fmt.Sprintf("row%d", row)] = r
 	}
-	for col := 0; col < config.BoardSize; col++ {
+	for col := range config.BoardSize {
 		var c bb
-		for row := 0; row < config.BoardSize; row++ {
+		for row := range config.BoardSize {
 			w, m := bitOf(Cell(row*config.BoardStride + col))
 			c[w] |= m
 		}
@@ -177,7 +177,7 @@ func TestShiftImage(t *testing.T) {
 			dr, dc = -dr, -dc
 		}
 		var out bb
-		for cell := 0; cell < config.BoardCells; cell++ {
+		for cell := range config.BoardCells {
 			w, m := bitOf(Cell(cell))
 			if p[w]&m == 0 {
 				continue

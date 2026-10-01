@@ -90,21 +90,27 @@ func sweepWindow(t *testing.T, b *Board, nb *NaiveBoard, slots []Cell) {
 	for range slots {
 		total *= 3
 	}
-	for idx := 1; idx < total; idx++ {
-		i := 0
-		for i < len(slots) {
-			if s.trits[i] != 0 {
-				s.clear(i)
-			}
-			s.trits[i]++
-			if s.trits[i] < 3 {
+	stride := 1
+	if testing.Short() {
+		stride = 97
+	}
+	for idx := stride; idx < total; idx += stride {
+		for range stride {
+			i := 0
+			for i < len(slots) {
 				if s.trits[i] != 0 {
-					s.place(i)
+					s.clear(i)
 				}
-				break
+				s.trits[i]++
+				if s.trits[i] < 3 {
+					if s.trits[i] != 0 {
+						s.place(i)
+					}
+					break
+				}
+				s.trits[i] = 0
+				i++
 			}
-			s.trits[i] = 0
-			i++
 		}
 		s.check()
 	}
@@ -143,7 +149,7 @@ func TestExhaustiveWindowSweep(t *testing.T) {
 				for r0 := -(window - 1); r0 < size; r0++ {
 					for c0 := -(window - 1); c0 < size; c0++ {
 						slots = slots[:0]
-						for i := 0; i < window; i++ {
+						for i := range window {
 							r, c := r0+i*dr, c0+i*dc
 							if r >= 0 && r < size && c >= 0 && c < size {
 								slots = append(slots, Cell(r*config.BoardStride+c))
