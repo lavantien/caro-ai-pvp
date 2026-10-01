@@ -4,8 +4,10 @@
 
 - M0a done: scaffold, config hub, covergate, firewall, CI chain, Makefile (2026-10-01)
 - M0b done: ref/chessprog (21 pages), ref/gomocup (docs + 8 papers) (2026-10-01)
-- M1 done: internal/rules at 100.0% statements, race clean, zero-alloc pinned (Make+Unmake 3.7 ns, FastLastMoveWin 13.4 ns), 24M fuzz execs clean, in-house mutation pipeline cmd/mutate landed with isolated-copy execution (2026-10-01)
-- Pending this run: M1 mutation gate + adversarial review in flight, then M2 pattern tables, M3a search, M3b SMP, M4 VCF/VCT
+- M1 done incl gates: internal/rules at 100.0% statements, race clean, zero-alloc pinned (Make+Unmake 3.7 ns, FastLastMoveWin 13.4 ns), 24M fuzz execs clean, adversarial pair review findings fixed, mutation gate 497/497 with 0 survivors and 21 proven-equivalent allows (2026-10-01)
+- M2 done incl adversarial pair review: internal/pattern tables generated from rules predicates, init 51.7 ms, Lookup 0.26 ns, 100.0% coverage, both reviewers verified all 44272 realizable entries per direction against independent oracles with zero divergences, findings fixed (2026-10-01)
+- In flight: M3a single-threaded zero-alloc search core
+- Pending this run: M3b SMP, M4 VCF/VCT
 
 ## Context
 
