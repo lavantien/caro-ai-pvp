@@ -90,3 +90,10 @@ const (
 	QualityCoverageOverallMin = 95.0
 	QualityCoverageCoreMin    = 100.0
 )
+
+const (
+	MutatePackages         = "internal/rules,internal/engine"
+	MutateTimeoutMs        = 30_000
+	MutateMinTimeoutMs     = 2_000
+	MutateTestTimeoutSlack = 1_000
+)
