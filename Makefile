@@ -54,7 +54,7 @@ fuzz:
 	else echo "fuzz: no targets yet, internal/rules lands at M1"; fi
 
 mutate:
-	CGO_ENABLED=1 go run ./cmd/mutate
+	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow
 
 run:
 	CGO_ENABLED=1 go run ./cmd/caro $(or $(ARGS),ports)

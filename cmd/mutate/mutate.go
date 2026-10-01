@@ -46,6 +46,12 @@ type mutation struct {
 	edits []edit
 }
 
+// key formats the mutant identity exactly like a report line up to but
+// excluding the verdict, which is also the allowlist entry format.
+func (m mutation) key(workDir string) string {
+	return fmt.Sprintf("%s:%d:%d %s", displayPath(workDir, m.file), m.line, m.col, m.desc)
+}
+
 func collect(filename string, src []byte) ([]mutation, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, filename, src, parser.ParseComments|parser.SkipObjectResolution)

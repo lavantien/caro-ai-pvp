@@ -187,6 +187,10 @@ func TestCollectNonMutableNodesUntouched(t *testing.T) {
 	if ms := collectSource(t, "u.go", src); len(ms) != 0 {
 		t.Errorf("non-mutable source yielded %d mutants, want 0: %s", len(ms), descs(ms))
 	}
+	src = "package p\n\nfunc f() {\n\tgoto end\nend:\n}\n"
+	if ms := collectSource(t, "g.go", src); len(ms) != 0 {
+		t.Errorf("goto yielded %d mutants, want 0: %s", len(ms), descs(ms))
+	}
 }
 
 func TestApplyEdits(t *testing.T) {

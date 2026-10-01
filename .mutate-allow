@@ -1,0 +1,25 @@
+# Mutation equivalence allowlist: one entry per line, formatted exactly like
+# the report line before the verdict, followed by " # <one-line proof>".
+# Entries only suppress the gate failure; unused entries fail the run, so
+# prune them when a mutant gets killed or the source moves.
+internal/rules/legality.go:12:8 replace < with <= # equivalent: guard differs only at dr==0 and -0==0, chebyshev returns the identical value for every cell pair
+internal/rules/legality.go:12:10 replace 0 with 1 # equivalent: dr<1 vs dr<0 differ only at dr==0 where negation is identity, output identical for every input
+internal/rules/legality.go:15:8 replace < with <= # equivalent: guard differs only at dc==0 and -0==0, chebyshev returns the identical value for every cell pair
+internal/rules/legality.go:15:10 replace 0 with 1 # equivalent: dc<1 vs dc<0 differ only at dc==0 where negation is identity, output identical for every input
+internal/rules/legality.go:18:8 replace < with <= # equivalent: at dr==dc both branches of the max return the same number, output identical for every input
+internal/rules/naive.go:129:13 replace 1 with 0 # equivalent: anchor initializer is dead, redStones!=1 returns before any read and redStones==1 implies the scan overwrote it
+internal/rules/naive.go:129:13 replace 1 with 2 # equivalent: anchor initializer is dead, redStones!=1 returns before any read and redStones==1 implies the scan overwrote it
+internal/rules/naive.go:141:8 replace < with <= # equivalent: negating dr==0 is identity, the dr>=OpeningChebyshevMin verdict is unchanged for every input
+internal/rules/naive.go:141:10 replace 0 with -1 # equivalent: dr=-1 unnegated returns dc instead of max(1,dc), differing only at dc==0 (1 vs 0), both below the OpeningChebyshevMin=3 verdict threshold
+internal/rules/naive.go:141:10 replace 0 with 1 # equivalent: dr<1 vs dr<0 differ only at dr==0 where negation is identity, verdict unchanged for every input
+internal/rules/naive.go:144:8 replace < with <= # equivalent: negating dc==0 is identity, the dr>=OpeningChebyshevMin verdict is unchanged for every input
+internal/rules/naive.go:144:10 replace 0 with -1 # equivalent: dc=-1 unnegated returns dr instead of max(dr,1), differing only at dr==0 (1 vs 0), both below the OpeningChebyshevMin=3 verdict threshold
+internal/rules/naive.go:144:10 replace 0 with 1 # equivalent: dc<1 vs dc<0 differ only at dc==0 where negation is identity, verdict unchanged for every input
+internal/rules/naive.go:147:8 replace < with <= # equivalent: equal operands make both branches of the max assign the same value, verdict unchanged for every input
+internal/rules/win.go:14:28 replace / with * # equivalent: widening the col range 4 to 1024 only adds shifts of a uint64 by >=64, which Go defines as 0, so fileMask0 and fileMaskF are bit-identical
+internal/rules/win.go:42:15 replace 0 with 1 # equivalent: clear is only 0, fileMask0, or fileMaskF, never 1 (both masks are multi-bit), and r[w] &^= 0 is an identity anyway
+internal/rules/win.go:56:15 replace 0 with 1 # equivalent: clear is only 0, fileMask0, or fileMaskF, never 1 (both masks are multi-bit), and r[w] &^= 0 is an identity anyway
+internal/rules/win.go:143:12 replace 0 with -1 # equivalent: the extra back step only applies to runs of 6+ stones where back+fwd+1>=6 never equals WinLength=5, so the sum filter rejects before the walked coordinates are read
+internal/rules/win.go:143:17 replace < with <= # equivalent: the wider k bound only extends the walk on runs of 6+ stones, all rejected by the back+fwd+1==WinLength sum filter before the walked coordinates are read
+internal/rules/win.go:150:12 replace 0 with -1 # equivalent: the extra forward step only applies to runs of 6+ stones where back+fwd+1>=6 never equals WinLength=5, so the sum filter rejects before the walked coordinates are read
+internal/rules/win.go:150:17 replace < with <= # equivalent: the wider k bound only extends the walk on runs of 6+ stones, all rejected by the back+fwd+1==WinLength sum filter before the walked coordinates are read

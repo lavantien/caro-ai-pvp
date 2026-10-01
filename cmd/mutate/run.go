@@ -104,6 +104,7 @@ func (s *fileStore) restoreAll() error {
 type result struct {
 	killed   int
 	survived int
+	allowed  int
 	run      int
 	total    int
 }
@@ -116,8 +117,9 @@ func displayPath(workDir, path string) string {
 	return filepath.ToSlash(rel)
 }
 
-func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mutation, store *fileStore, r runner) (res result, err error) {
+func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mutation, store *fileStore, r runner, allows allowlist) (res result, err error) {
 	res.total = len(ms)
+	pending := allows.clone()
 	defer func() {
 		if rerr := store.restoreAll(); rerr != nil && err == nil {
 			err = rerr
@@ -143,17 +145,26 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 		if ctx.Err() != nil {
 			return res, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
 		}
-		if testErr == nil {
-			res.survived++
-		} else {
+		key := m.key(workDir)
+		if verdict := classify(testErr); verdict == verdictKilled {
 			res.killed++
+			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdict)
+		} else if reason, ok := allows[key]; ok {
+			res.allowed++
+			delete(pending, key)
+			_, _ = fmt.Fprintf(out, "%s ALLOWED # %s\n", key, reason)
+		} else {
+			res.survived++
+			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdict)
 		}
-		_, _ = fmt.Fprintf(out, "%s:%d:%d %s %s\n", displayPath(workDir, m.file), m.line, m.col, m.desc, classify(testErr))
+	}
+	if uerr := unusedAllowError(pending); uerr != nil {
+		return res, uerr
 	}
 	return res, nil
 }
 
-func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, r runner) (result, error) {
+func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, r runner, allows allowlist) (result, error) {
 	present := patterns[:0]
 	for _, p := range patterns {
 		if strings.HasPrefix(p, "./") {
@@ -195,5 +206,5 @@ func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []
 	if err := store.snapshot(paths); err != nil {
 		return result{}, err
 	}
-	return executeMutants(ctx, out, workDir, ms, store, r)
+	return executeMutants(ctx, out, workDir, ms, store, r, allows)
 }

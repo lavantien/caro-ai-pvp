@@ -11,6 +11,7 @@ func writeTree(t *testing.T, root string) {
 	mustWrite(t, filepath.Join(root, "go.mod"), "module example.com/isolated\n\ngo 1.27.1\n")
 	mustWrite(t, filepath.Join(root, "internal", "rules", "a.go"), "package rules\n\nfunc A() int { return 1 }\n")
 	mustWrite(t, filepath.Join(root, "internal", "rules", "a_test.go"), "package rules\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) { if A() != 1 { t.Fatal() } }\n")
+	mustWrite(t, filepath.Join(root, "internal", "notes.txt"), "not Go source, must be skipped\n")
 	mustWrite(t, filepath.Join(root, "cmd", "x", "main.go"), "package main\n\nfunc main() {}\n")
 	mustWrite(t, filepath.Join(root, "ref", "ignore.txt"), "must not be copied\n")
 }
@@ -47,6 +48,9 @@ func TestIsolateModule(t *testing.T) {
 	if _, serr := os.Stat(filepath.Join(dst, "ref")); !os.IsNotExist(serr) {
 		t.Errorf("isolate copied excluded dir ref")
 	}
+	if _, serr := os.Stat(filepath.Join(dst, "internal", "notes.txt")); !os.IsNotExist(serr) {
+		t.Errorf("isolate copied non-Go file notes.txt")
+	}
 }
 
 func TestTreeHashDetectsDrift(t *testing.T) {
@@ -68,5 +72,36 @@ func TestTreeHashDetectsDrift(t *testing.T) {
 	}
 	if before[target] == after[target] {
 		t.Fatal("treeHash did not detect mutation")
+	}
+}
+
+func TestIsolateModuleWithoutMutableDirs(t *testing.T) {
+	t.Parallel()
+	src := t.TempDir()
+	mustWrite(t, filepath.Join(src, "go.mod"), "module example.com/bare\n\ngo 1.27.1\n")
+	dst, err := isolateModule(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dst) })
+	if _, serr := os.Stat(filepath.Join(dst, "go.mod")); serr != nil {
+		t.Errorf("isolate missing go.mod: %v", serr)
+	}
+}
+
+func TestIsolateModuleUnreadableGoMod(t *testing.T) {
+	t.Parallel()
+	src := t.TempDir()
+	if err := os.Mkdir(filepath.Join(src, "go.mod"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := isolateModule(src); err == nil {
+		t.Error("isolateModule(go.mod as directory) err = nil, want read error")
+	}
+}
+
+func TestFileHashUnreadable(t *testing.T) {
+	if _, err := fileHash(t.TempDir()); err == nil {
+		t.Error("fileHash(directory) err = nil, want read error")
 	}
 }

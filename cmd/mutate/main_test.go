@@ -27,6 +27,7 @@ func TestExitCode(t *testing.T) {
 		want int
 	}{
 		{name: "all killed", res: result{killed: 4, survived: 0, run: 4, total: 4}, want: 0},
+		{name: "allowed survivor", res: result{killed: 3, allowed: 1, run: 4, total: 4}, want: 0},
 		{name: "survivor", res: result{killed: 3, survived: 1, run: 4, total: 4}, want: 1},
 		{name: "run error", err: errors.New("boom"), want: 1},
 		{name: "no mutants", res: result{}, want: 1},

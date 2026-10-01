@@ -125,7 +125,7 @@ func TestExecuteMutantsClassifiesAndRestores(t *testing.T) {
 	}
 	r := &fakeRunner{failPkg: map[string]bool{"pa": true}}
 	var out strings.Builder
-	res, err := executeMutants(context.Background(), &out, dir, ms, store, r)
+	res, err := executeMutants(context.Background(), &out, dir, ms, store, r, nil)
 	if err != nil {
 		t.Fatalf("executeMutants err = %v", err)
 	}
@@ -175,7 +175,7 @@ func TestExecuteMutantsInterruptedBeforeStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	r := &fakeRunner{}
-	res, err := executeMutants(ctx, &strings.Builder{}, dir, ms, store, r)
+	res, err := executeMutants(ctx, &strings.Builder{}, dir, ms, store, r, nil)
 	if err == nil || !strings.Contains(err.Error(), "interrupted") {
 		t.Errorf("err = %v, want interrupted", err)
 	}
@@ -201,6 +201,90 @@ func TestDisplayPath(t *testing.T) {
 	}
 }
 
+func TestExecuteMutantsBadEditsFail(t *testing.T) {
+	dir := t.TempDir()
+	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	ms[0].edits = []edit{{start: 99, end: 100, repl: "x"}}
+	store := newFileStore()
+	if err := store.snapshot([]string{path}); err != nil {
+		t.Fatalf("snapshot err = %v", err)
+	}
+	res, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, &fakeRunner{}, nil)
+	if err == nil {
+		t.Fatal("executeMutants(bad edits) err = nil, want error")
+	}
+	if res.run != 0 {
+		t.Errorf("run = %d, want 0 (mutant never reached the test runner)", res.run)
+	}
+}
+
+func TestExecuteMutantsMutantWriteFails(t *testing.T) {
+	dir := t.TempDir()
+	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	store := newFileStore()
+	if err := store.snapshot([]string{path}); err != nil {
+		t.Fatalf("snapshot err = %v", err)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatalf("Remove err = %v", err)
+	}
+	if err := os.Mkdir(path, 0o755); err != nil {
+		t.Fatalf("Mkdir err = %v", err)
+	}
+	res, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, &fakeRunner{}, nil)
+	if err == nil {
+		t.Fatal("executeMutants(unwritable target) err = nil, want write error")
+	}
+	if res.run != 0 {
+		t.Errorf("run = %d, want 0", res.run)
+	}
+}
+
+func TestExecuteMutantsRestoreWriteFails(t *testing.T) {
+	dir := t.TempDir()
+	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	store := newFileStore()
+	if err := store.snapshot([]string{path}); err != nil {
+		t.Fatalf("snapshot err = %v", err)
+	}
+	r := &fakeRunner{onCall: func(context.Context) {
+		if err := os.Remove(path); err != nil {
+			t.Errorf("Remove err = %v", err)
+		}
+		if err := os.Mkdir(path, 0o755); err != nil {
+			t.Errorf("Mkdir err = %v", err)
+		}
+	}}
+	res, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, r, nil)
+	if err == nil {
+		t.Fatal("executeMutants(restore unwritable) err = nil, want write error")
+	}
+	if res.run != 1 {
+		t.Errorf("run = %d, want 1 (failure strikes between mutant write and restore)", res.run)
+	}
+}
+
+func TestFileStoreRestoreWriteFails(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "x.go")
+	if err := os.WriteFile(path, []byte("package p\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile err = %v", err)
+	}
+	store := newFileStore()
+	if err := store.snapshot([]string{path}); err != nil {
+		t.Fatalf("snapshot err = %v", err)
+	}
+	if err := os.WriteFile(path, []byte("package q\n"), 0o644); err != nil {
+		t.Fatalf("drift err = %v", err)
+	}
+	if err := os.Chmod(path, 0o444); err != nil {
+		t.Fatalf("Chmod err = %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
+	if err := store.restoreAll(); err == nil {
+		t.Error("restoreAll(read-only target) err = nil, want write error")
+	}
+}
+
 func TestExecRunnerCommandShape(t *testing.T) {
 	r := execRunner{dir: t.TempDir(), timeout: 5 * time.Second}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -223,7 +307,7 @@ func TestExecuteMutantsInterruptMidRun(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &fakeRunner{onCall: func(context.Context) { cancel() }}
-	res, err := executeMutants(ctx, &strings.Builder{}, dir, ms, store, r)
+	res, err := executeMutants(ctx, &strings.Builder{}, dir, ms, store, r, nil)
 	if err == nil || !strings.Contains(err.Error(), "interrupted") {
 		t.Errorf("err = %v, want interrupted", err)
 	}
@@ -254,6 +338,11 @@ func TestDiscoverErrors(t *testing.T) {
 	dir = writeModule(t, map[string]string{"go.mod": "module probe\nbroken {\n"})
 	if _, err := discover(context.Background(), dir, []string{"."}); err == nil || !strings.Contains(err.Error(), "go list") {
 		t.Errorf("discover(broken go.mod) err = %v, want go list error", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := discover(ctx, dir, []string{"."}); err == nil || strings.Contains(err.Error(), "go list") {
+		t.Errorf("discover(canceled ctx) err = %v, want raw exec error", err)
 	}
 }
 
