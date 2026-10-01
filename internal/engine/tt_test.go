@@ -92,8 +92,11 @@ func TestTTMateScorePlyAdjustment(t *testing.T) {
 	if !cutoff {
 		t.Fatal("mate entry must cut")
 	}
-	if want := mate + (7 - 2); score != want {
+	if want := mate + (7-2)*config.EvalMateScoreStep; score != want {
 		t.Errorf("probe at ply 2 = %d, want root-relative %d", score, want)
+	}
+	if score%config.EvalMateScoreStep != config.EvalMateMax%config.EvalMateScoreStep {
+		t.Errorf("decoded mate %d fell off the mateWin lattice", score)
 	}
 	if _, _, cutoff := tb.probe(777, 10, -config.EvalMateMax, config.EvalMateMax, 7); !cutoff {
 		t.Fatal("mate entry must cut at store ply")
@@ -103,8 +106,40 @@ func TestTTMateScorePlyAdjustment(t *testing.T) {
 	}
 	mated := -mateWin(1)
 	tb.store(778, mated, 6, 9, ttBoundExact, 1, 1)
-	if s, _, _ := tb.probe(778, 9, -config.EvalMateMax, config.EvalMateMax, 4); s != mated+3 {
-		t.Errorf("mated probe = %d, want %d", s, mated+3)
+	if s, _, _ := tb.probe(778, 9, -config.EvalMateMax, config.EvalMateMax, 4); s != mated+3*config.EvalMateScoreStep {
+		t.Errorf("mated probe = %d, want %d", s, mated+3*config.EvalMateScoreStep)
+	}
+}
+
+// Regression for the mate-distance unit defect: probing a mate entry stored
+// by an earlier search of the same engine must stay on the mateWin lattice
+// and match what a fresh engine reports from the advanced root.
+func TestTTCrossSearchMateDistance(t *testing.T) {
+	b := mate3Board(t)
+	warm := New(testTTBytes)
+	dl := NewFixedBudget(time.Second)
+	_, first := warm.SearchDepth(b, dl, 5)
+	b.Make(rules.Cell(first.PV[0]))
+	b.Make(mustCell(t, "I9"))
+	_, advanced := warm.SearchDepth(b, dl, 3)
+	fresh := New(testTTBytes)
+	_, reference := fresh.SearchDepth(b, dl, 3)
+	if advanced.Score != reference.Score {
+		t.Fatalf("warm TT score %d diverged from fresh %d after re-rooting", advanced.Score, reference.Score)
+	}
+	if advanced.Score >= evalMateScoreMin || advanced.Score <= -evalMateScoreMin {
+		if (advanced.Score-config.EvalMateMax)%config.EvalMateScoreStep != 0 {
+			t.Errorf("decoded mate %d fell off the mateWin lattice", advanced.Score)
+		}
+	}
+}
+
+func TestTTStoreClampsDepthToInt8(t *testing.T) {
+	var tb ttTable
+	tb.init(1 << 10)
+	tb.store(999, 10, 1, 200, ttBoundExact, 0, 1)
+	if d := int(tb.entries[999&tb.mask].depth); d != ttMaxDepth {
+		t.Errorf("stored depth = %d, want clamp %d", d, ttMaxDepth)
 	}
 }
 

@@ -256,6 +256,9 @@ func TestEngineSearchConstants(t *testing.T) {
 	if SearchExtensionMaxPly < 1 || SearchMaxPly+SearchExtensionMaxPly > 120 {
 		t.Errorf("SearchExtensionMaxPly = %d leaves depth out of int8 tt range", SearchExtensionMaxPly)
 	}
+	if OpeningChebyshevMin > SearchRingRadius+1 {
+		t.Errorf("OpeningChebyshevMin %d exceeds SearchRingRadius+1 %d: the opening filter can empty the candidate ring", OpeningChebyshevMin, SearchRingRadius+1)
+	}
 	if SearchHistoryMax >= SearchOrderKiller2 {
 		t.Errorf("SearchHistoryMax %d must sit below SearchOrderKiller2 %d", SearchHistoryMax, SearchOrderKiller2)
 	}

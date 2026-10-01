@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"math"
 	"math/bits"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -20,26 +21,32 @@ const (
 // the config hub, never a second literal.
 const evalMateScoreMin = config.EvalMateMax - config.SearchMaxPly*config.EvalMateScoreStep
 
+// ttMaxDepth keeps the stored depth inside int8 even if a caller passes a
+// maxDepth beyond SearchMaxPly through the exported SearchDepth.
+const ttMaxDepth = math.MaxInt8
+
 // scoreToTT and scoreFromTT are the single encode/decode pair every stored
 // and probed score passes through. In-search mate scores count plies from
 // the root, stored scores count plies from the node, so any transposition
-// path can reuse the entry.
+// path can reuse the entry. Mate scores step EvalMateScoreStep per ply, so
+// the ply adjustment scales by the same step, keeping every stored and
+// decoded mate value on the mateWin lattice.
 func scoreToTT(score int, ply int) int {
 	if score >= evalMateScoreMin {
-		return score + ply
+		return score + ply*config.EvalMateScoreStep
 	}
 	if score <= -evalMateScoreMin {
-		return score - ply
+		return score - ply*config.EvalMateScoreStep
 	}
 	return score
 }
 
 func scoreFromTT(score int, ply int) int {
 	if score >= evalMateScoreMin {
-		return score - ply
+		return score - ply*config.EvalMateScoreStep
 	}
 	if score <= -evalMateScoreMin {
-		return score + ply
+		return score + ply*config.EvalMateScoreStep
 	}
 	return score
 }
@@ -121,6 +128,9 @@ func (t *ttTable) move(hash uint64) rules.Move {
 func (t *ttTable) store(hash uint64, score int, move rules.Move, depth int, bound uint8, ply int, gen uint8) {
 	if !t.enabled() || hash == 0 {
 		return
+	}
+	if depth > ttMaxDepth {
+		depth = ttMaxDepth
 	}
 	e := &t.entries[hash&t.mask]
 	if e.key != 0 && e.gen>>2 == gen && e.depth > int8(depth) {
