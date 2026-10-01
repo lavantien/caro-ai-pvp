@@ -53,3 +53,16 @@ internal/engine/stats.go:40:15 replace < with <= # elapsedNs==1 clamps to 1 (bod
 internal/engine/stats.go:40:17 replace 1 with 2 # elapsedNs==1 now enters the clamp which assigns 1, a no-op; <=0 still floors to 1
 internal/engine/stats.go:55:25 replace 1 with 2 # both mid rules probe only (lo,hi] with strict progress on the monotone geoSum predicate, so the search converges to the same fixed point (no divergence over nodes 2..2^40 x depth 1..64)
 internal/engine/stats.go:73:11 replace > with >= # boundary term==floor(2^62/bm) never occurs: exhaustive scan over bm in [1000,32000] x 400 rounds found zero hits
+internal/engine/smp.go:99:13 replace < with <= # equivalent: the wider guard only fires at workers==1 where the clamp assigns the value already held, worker count identical for every input
+internal/engine/smp.go:99:15 replace 1 with 2 # equivalent: workers<2 additionally fires at workers==1 where the clamp re-assigns 1, the value already held
+internal/engine/smp.go:256:14 replace 0 with 1 # equivalent: the arrival counter is consumed only by strict comparisons between completions, a uniform +1 shift preserves every order
+internal/engine/smp.go:271:11 replace 1 with 2 # equivalent: -2 is as negative as -1, the sentinel is only read through best<0 and best>=0 before the first assignment overwrites it
+internal/engine/smp.go:288:76 replace < with <= # equivalent: seq values come from one atomic Add per completion so equality never holds between distinct workers, <= agrees with < everywhere
+internal/engine/smp.go:326:4 replace break with continue # equivalent: w.stopped is latched for the whole runWorker call, the next loop-top guard breaks on it with res untouched by either path
+internal/engine/smp.go:328:23 replace 1 with 2 # equivalent: stride 2 keeps arrival values pairwise distinct and order-preserving, and only strict comparisons consume them
+internal/engine/smp.go:336:4 replace break with continue # equivalent: the just-stored halt flag is read back through haltDL.Exceeded at the next loop-top, which breaks with res identical
+internal/engine/smp.go:381:24 replace 0 with -1 # equivalent: GOMAXPROCS with a non-positive argument is a pure query, -1 behaves exactly like 0
+internal/engine/smp.go:381:27 replace < with <= # equivalent: at GOMAXPROCS==want the branch assigns the value already current, the raise is a no-op
+internal/engine/tt.go:157:11 replace > with >= # equivalent: at depth==ttMaxDepth the clamp assigns ttMaxDepth, the value already held
+internal/engine/tt.go:162:12 replace 0 with 1 # equivalent: divergence needs a data word of exactly 1 (impossible, the gen-bound byte is always >=1) or an empty slot at gen 0 with a negative store depth (every caller stores depth >= 1, tests depth >= 0)
+internal/engine/tt.go:181:7 replace > with >= # equivalent: slots are powers of two, at n==SearchHashFullSample the clamp assigns the value already held
