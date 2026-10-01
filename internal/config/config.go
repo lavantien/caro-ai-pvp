@@ -70,6 +70,28 @@ const (
 	EvalMateScoreStep = 16
 )
 
+// EvalTempo is the side-to-move bonus in milliunits: one unblocked tempo,
+// the anchor that fixes the meaning of the 1.0 base unit.
+const EvalTempo = 1000
+
+// Pattern class weights in milliunits. Forcing classes price the forcing
+// depth from the pattern taxonomy: each class converts into the next one
+// with a single own move, so values step up steeply and trading structure
+// for a forcing threat always nets positive under search. OpenTwo is quiet
+// shape worth a tenth of a tempo, BrokenThree forces a reply within two
+// moves, Three forces one now, Four costs the opponent the whole move that
+// blocks it, OpenFour wins on the spot. Bound check: PatternDirections *
+// BoardCells * PatternWeightOpenFour stays two orders below the mate band,
+// so a leaf score can never masquerade as a mate score.
+const (
+	PatternWeightNone        = 0
+	PatternWeightOpenTwo     = 100
+	PatternWeightBrokenThree = 500
+	PatternWeightThree       = 1200
+	PatternWeightFour        = 4000
+	PatternWeightOpenFour    = 15000
+)
+
 const (
 	SearchMaxPly            = 64
 	SearchMaxMovesPerPly    = BoardCells
@@ -125,13 +147,31 @@ const (
 
 var PatternDirs = [PatternDirections][2]int{{0, 1}, {1, 0}, {1, 1}, {1, -1}}
 
+var PatternClassWeights = [PatternClassCount]int{PatternWeightNone, PatternWeightOpenTwo, PatternWeightBrokenThree, PatternWeightThree, PatternWeightFour, PatternWeightOpenFour}
+
 const (
-	PatternWeightNone        = 0
-	PatternWeightOpenTwo     = 0
-	PatternWeightBrokenThree = 0
-	PatternWeightThree       = 0
-	PatternWeightFour        = 0
-	PatternWeightOpenFour    = 0
+	// SearchRingRadius bounds candidate cells to the Chebyshev neighborhood of
+	// existing stones. Radius 1 already contains every win-in-1 cell of either
+	// color (any completing stone of an exact 5 sits on the line adjacent to a
+	// stone of that run), radius 2 additionally keeps quiet developing moves.
+	SearchRingRadius = 2
+	// SearchExtensionMaxPly caps threat extensions along one root-to-leaf path.
+	SearchExtensionMaxPly = 16
+	// SearchHistoryMax caps history heuristic entries; on overflow all entries
+	// halve. It sits far below the killer ordering layer.
+	SearchHistoryMax = 1 << 20
+	// SearchHashFullSample is the slot sample size behind the hash-full
+	// permille statistic of direct-mapped tables.
+	SearchHashFullSample = 1024
+	// SearchEmptyBoardCell is the played cell when the board has no stones:
+	// all first moves are symmetric, the center dominates every other cell.
+	SearchEmptyBoardCell = BoardStride*(BoardSize/2-1) + BoardSize/2 - 1
 )
 
-var PatternClassWeights = [PatternClassCount]int{PatternWeightNone, PatternWeightOpenTwo, PatternWeightBrokenThree, PatternWeightThree, PatternWeightFour, PatternWeightOpenFour}
+const (
+	// Move ordering layers, strictly ordered: TT move, then killers, then the
+	// static threat plus history score which stays below SearchOrderKiller2.
+	SearchOrderTT      = 1<<31 - 1
+	SearchOrderKiller1 = 1 << 29
+	SearchOrderKiller2 = 1<<29 - 1
+)
