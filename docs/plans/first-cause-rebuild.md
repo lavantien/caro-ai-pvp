@@ -1,5 +1,12 @@
 # Caro AI PvP first-cause rebuild plan
 
+## Progress
+
+- M0a done: scaffold, config hub, covergate, firewall, CI chain, Makefile (2026-10-01)
+- M0b done: ref/chessprog (21 pages), ref/gomocup (docs + 8 papers) (2026-10-01)
+- M1 done: internal/rules at 100.0% statements, race clean, zero-alloc pinned (Make+Unmake 3.7 ns, FastLastMoveWin 13.4 ns), 24M fuzz execs clean, in-house mutation pipeline cmd/mutate landed with isolated-copy execution (2026-10-01)
+- Pending this run: M1 mutation gate + adversarial review in flight, then M2 pattern tables, M3a search, M3b SMP, M4 VCF/VCT
+
 ## Context
 
 Repo nuked (commits `2e339c3`, `8e3a9b0`), tracked files are only `first-cause.md` and `typos.toml`, tree clean on main, remote `github.com/lavantien/caro-ai-pvp`. Everything rebuilds bottom up: rules core, engine, solvers, then (next run) server, UI, tournaments. No archival, prior-codebase memories invalidated.
@@ -81,6 +88,7 @@ M3a single-threaded search core, internal/engine
 
 M3b SMP + tiers, internal/engine/smp
 - Lazy SMP: GOMAXPROCS(N) + LockOSThread workers, shared lockless TT, every access through sync/atomic on packed words (key^signature + data), TT strictly per instance, never shared across instances. -race in CI and every later smoke run.
+- Adversarial note: zobrist does not hash the region, identical stones+side hash identically across full and 8x8 boards. Never share or reuse a TT across board kinds (cross-check runs get fresh instances only).
 - Tier wiring from config: Easy, Medium, Hard. Ponder interface stub present.
 
 M4 VCF/VCT solvers, internal/vcf
