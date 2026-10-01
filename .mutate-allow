@@ -23,3 +23,33 @@ internal/rules/win.go:143:12 replace 0 with -1 # equivalent: the extra back step
 internal/rules/win.go:143:17 replace < with <= # equivalent: the wider k bound only extends the walk on runs of 6+ stones, all rejected by the back+fwd+1==WinLength sum filter before the walked coordinates are read
 internal/rules/win.go:150:12 replace 0 with -1 # equivalent: the extra forward step only applies to runs of 6+ stones where back+fwd+1>=6 never equals WinLength=5, so the sum filter rejects before the walked coordinates are read
 internal/rules/win.go:150:17 replace < with <= # equivalent: the wider k bound only extends the walk on runs of 6+ stones, all rejected by the back+fwd+1==WinLength sum filter before the walked coordinates are read
+internal/engine/bitboard.go:63:8 replace < with <= # dr==0 branch assigns dr=-dr=0, a no-op; dr<0 negates as before
+internal/engine/bitboard.go:63:10 replace 0 with 1 # dr<1 admits dr==0 where -dr==0 is a no-op; negatives unchanged
+internal/engine/bitboard.go:66:8 replace < with <= # dc==0 branch assigns dc=-dc=0, a no-op
+internal/engine/bitboard.go:66:10 replace 0 with 1 # dc<1 admits dc==0 where -dc==0 is a no-op; negatives unchanged
+internal/engine/bitboard.go:69:8 replace < with <= # at dr==dc both arms return the same value, the tie flips nothing
+internal/engine/bitboard.go:79:10 replace 0 with 1 # paired bool is false and the sole caller (movegen.go:29) reads anchor only under constrained && short-circuit
+internal/engine/bitboard.go:81:23 replace 0 with -1 # anchor init: overwritten before the stones==1 return, otherwise paired with constrained=false, unread
+internal/engine/bitboard.go:81:23 replace 0 with 1 # anchor init: overwritten before the stones==1 return, otherwise paired with constrained=false, unread
+internal/engine/bitboard.go:85:16 replace 1 with 2 # returned bool stones==1 unchanged for every board; the divergent stones==2 path returns (stale anchor, false), anchor unread
+internal/engine/bitboard.go:86:12 replace 0 with 1 # reached only with stones>=2, paired with constrained=false whose anchor value no caller reads
+internal/engine/eval.go:18:25 replace 0 with 1 # pattern tables direction independent: Class equal for dirs 0 and 1 on all 262144 entries (pinned by TestClassPairsMatchAllDirections, verified exhaustively)
+internal/engine/eval.go:19:26 replace 0 with 1 # same direction independence: Lookup(1, idx).Class == Lookup(0, idx).Class for every index
+internal/engine/eval.go:26:47 replace 1 with 0 # (9-1)/2 == 9/2 == 4 for the always-odd PatternWindowLen = 2*WinLength-1
+internal/engine/eval.go:46:9 replace 2 with 3 # index domain is {0,1} (rules.Red/rules.Blue, side^1); nothing len()s or ranges ev.score
+internal/engine/eval.go:47:9 replace 2 with 3 # same {0,1} color index domain; nothing len()s or ranges ev.cell
+internal/engine/eval.go:48:9 replace 2 with 3 # same {0,1} color index domain; nothing len()s or ranges ev.fours
+internal/engine/eval.go:70:12 replace 7 with 6 # for any byte v: v&7>=4 iff bit2 set iff v&6>=4, identical for all inputs
+internal/engine/eval.go:87:17 replace 0 with -1 # redDelta is a difference of two PatternClassWeights, all multiples of 100: -1 unreachable, the extra delta==0 branch adds 0
+internal/engine/eval.go:91:18 replace 0 with -1 # blueDelta is a weight difference, multiples of 100: -1 unreachable, delta==0 branch adds 0
+internal/engine/eval.go:91:18 replace 0 with 1 # blueDelta is a weight difference, multiples of 100: 1 unreachable, delta==0 branch adds 0
+internal/engine/eval.go:95:26 replace 7 with 6 # same bit-2 identity as line 70: beforePair&7>=4 iff beforePair&6>=4 for any byte
+internal/engine/eval.go:95:66 replace 7 with 6 # same bit-2 identity: afterPair&7>=4 iff afterPair&6>=4 for any byte
+internal/engine/movegen.go:25:17 replace 0 with 1 # dead write: the branch returns n==1 and pickMax reads no score slot when n==1; searchRoot/negamax read scores only through pickMax
+internal/engine/movegen.go:25:22 replace 0 with -1 # dead write: with n==1 pickMax compares nothing and no other code reads scores[ply][0]
+internal/engine/movegen.go:25:22 replace 0 with 1 # dead write: with n==1 pickMax compares nothing and no other code reads scores[ply][0]
+internal/engine/movegen.go:86:15 replace 1 with 0 # j==i compares scores[i] > scores[best==i]; strict > on the incumbent never moves best
+internal/engine/stats.go:40:15 replace < with <= # elapsedNs==1 clamps to 1 (body assigns 1), a no-op; other values unchanged
+internal/engine/stats.go:40:17 replace 1 with 2 # elapsedNs==1 now enters the clamp which assigns 1, a no-op; <=0 still floors to 1
+internal/engine/stats.go:55:25 replace 1 with 2 # both mid rules probe only (lo,hi] with strict progress on the monotone geoSum predicate, so the search converges to the same fixed point (no divergence over nodes 2..2^40 x depth 1..64)
+internal/engine/stats.go:73:11 replace > with >= # boundary term==floor(2^62/bm) never occurs: exhaustive scan over bm in [1000,32000] x 400 rounds found zero hits
