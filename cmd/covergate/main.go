@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -122,12 +123,11 @@ func gate(files map[string]fileCov) error {
 }
 
 func check(path string) error {
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	files, err := parseProfile(f)
+	files, err := parseProfile(bytes.NewReader(data))
 	if err != nil {
 		return err
 	}
