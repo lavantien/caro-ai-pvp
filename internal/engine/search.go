@@ -130,9 +130,7 @@ func (e *Engine) finishStats(stats *SearchStats, score int, depth int, start tim
 	stats.Nodes = e.nodes
 	stats.Score = score
 	stats.ElapsedNs = int64(time.Since(start))
-	if stats.ElapsedNs > 0 {
-		stats.Nps = e.nodes * uint64(time.Second) / uint64(stats.ElapsedNs)
-	}
+	stats.Nps = npsReport(stats.Nodes, stats.ElapsedNs)
 	stats.EBFMilli = ebfMilli(e.nodes, depth)
 	if e.ttProbes > 0 {
 		stats.TTHitPermille = int(e.ttHits * 1000 / e.ttProbes)

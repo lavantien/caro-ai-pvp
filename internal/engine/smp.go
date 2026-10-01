@@ -59,8 +59,9 @@ func (h *haltDeadline) Stop() { h.inner.Stop() }
 //
 // Workers are a persistent pool: locked to their threads once and parked on
 // a wake channel between searches, so a search itself allocates nothing.
-// The pool starts lazily on the first search and Close releases it. Search
-// and Close must not run concurrently; Search after Close panics.
+// The pool starts lazily on the first search and Close releases it. Close
+// joins an in-flight Search instead of racing it; Search after Close and
+// concurrent Searches on one instance both panic loudly.
 type SMP struct {
 	tt      *ttTable
 	workers []*Engine
@@ -70,14 +71,22 @@ type SMP struct {
 	halt    atomic.Bool
 	haltDL  haltDeadline
 
-	jobDL       Deadline
 	jobMaxDepth int
 	wake        chan struct{}
 	quit        chan struct{}
 	runWG       sync.WaitGroup
 	exitWG      sync.WaitGroup
-	started     bool
-	closed      bool
+
+	// mu serializes the lifecycle: pool start, job dispatch, and close.
+	// Holding it across the dispatch handshake makes Close racing a
+	// starting search deterministic instead of a data race: either Close
+	// wins and dispatch panics before any token is counted, or dispatch
+	// wins and every token is queued before quit closes, which the
+	// workers drain on their way out.
+	mu        sync.Mutex
+	started   bool
+	closed    bool
+	searching bool
 }
 
 // NewTiered sizes an instance from a config tier: worker count from Cores,
@@ -111,18 +120,29 @@ func (s *SMP) StopPonder() {}
 var _ Ponderer = (*SMP)(nil)
 
 // Close stops the worker pool and waits for every worker to leave its
-// thread. Idempotent. No allocation.
+// thread. Idempotent. No allocation. An in-flight Search is joined: its
+// workers serve their dispatched jobs and the driver returns before the
+// last worker exits.
 func (s *SMP) Close() {
+	s.mu.Lock()
 	if s.closed {
+		s.mu.Unlock()
 		return
 	}
 	s.closed = true
 	if s.started {
 		close(s.quit)
+		s.mu.Unlock()
 		s.exitWG.Wait()
+		return
 	}
+	s.mu.Unlock()
 }
 
+// startPool launches the persistent workers exactly once. The caller holds
+// mu: closed is only written under mu and dispatch checks it before calling
+// this, so a Close arriving later is guaranteed to see started and join,
+// and the pool can never leak.
 func (s *SMP) startPool() {
 	if s.started {
 		return
@@ -149,12 +169,34 @@ func (s *SMP) worker(w *Engine, b *rules.Board, res *workerResult) {
 		}
 		select {
 		case <-s.wake:
-			s.runWorker(w, b, res)
-			s.runWG.Done()
+			s.serveJob(w, b, res)
 		case <-s.quit:
-			return
+			if !s.serveQueuedJob(w, b, res) {
+				return
+			}
 		}
 	}
+}
+
+// serveQueuedJob serves a dispatched job that is still queued when its
+// worker sees quit. The driver counts every wake token in runWG before any
+// worker can observe quit, since dispatch and close serialize on mu, so
+// leaving one unserved would hang SearchDepth on runWG.Wait.
+func (s *SMP) serveQueuedJob(w *Engine, b *rules.Board, res *workerResult) bool {
+	select {
+	case <-s.wake:
+		s.serveJob(w, b, res)
+		return true
+	default:
+		return false
+	}
+}
+
+// serveJob runs one dispatched search and releases its runWG slot, deferred
+// so even a panicking search cannot hang the driver's Wait.
+func (s *SMP) serveJob(w *Engine, b *rules.Board, res *workerResult) {
+	defer s.runWG.Done()
+	s.runWorker(w, b, res)
 }
 
 // serveHot spins over the non-blocking wake check for the park delay
@@ -168,8 +210,7 @@ func (s *SMP) serveHot(w *Engine, b *rules.Board, res *workerResult) bool {
 	for {
 		select {
 		case <-s.wake:
-			s.runWorker(w, b, res)
-			s.runWG.Done()
+			s.serveJob(w, b, res)
 			return true
 		default:
 		}
@@ -194,18 +235,26 @@ func (s *SMP) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.Move
 	if bg, ok := dl.(Budgeter); ok {
 		stats.AllocNs = int64(bg.Budget())
 	}
-	if s.closed {
-		panic("engine: Search on a closed SMP instance")
-	}
 	if b.IsFull() {
 		stats.ElapsedNs = int64(time.Since(start))
 		return moveNone, stats
 	}
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		panic("engine: Search on a closed SMP instance")
+	}
+	if s.searching {
+		s.mu.Unlock()
+		panic("engine: concurrent Search on one SMP instance")
+	}
+	s.searching = true
+	s.mu.Unlock()
+	defer s.clearSearching()
 	s.tt.bumpGen()
 	s.halt.Store(false)
 	s.seq.Store(0)
 	s.haltDL.inner = dl
-	s.jobDL = dl
 	s.jobMaxDepth = maxDepth
 	for i := range s.workers {
 		// Each worker searches its own value copy of the root: Make and
@@ -216,11 +265,7 @@ func (s *SMP) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.Move
 	}
 	fallback := s.workers[0].fallbackMove(&s.boards[0])
 	s.ensureProcs()
-	s.startPool()
-	s.runWG.Add(len(s.workers))
-	for range s.workers {
-		s.wake <- struct{}{}
-	}
+	s.dispatch()
 	s.runWG.Wait()
 
 	best := -1
@@ -254,9 +299,7 @@ func (s *SMP) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.Move
 		bestMove = r.move
 	}
 	stats.ElapsedNs = int64(time.Since(start))
-	if stats.ElapsedNs > 0 {
-		stats.Nps = stats.Nodes * uint64(time.Second) / uint64(stats.ElapsedNs)
-	}
+	stats.Nps = npsReport(stats.Nodes, stats.ElapsedNs)
 	stats.EBFMilli = ebfMilli(stats.Nodes, stats.Depth)
 	if ttProbes > 0 {
 		stats.TTHitPermille = int(ttHits * 1000 / ttProbes)
@@ -298,6 +341,32 @@ func (s *SMP) runWorker(w *Engine, b *rules.Board, res *workerResult) {
 	res.ttHits = w.ttHits
 	res.cutNodes = w.cutNodes
 	res.cutFirst = w.cutFirst
+}
+
+// clearSearching releases the single-search latch on every exit path of
+// SearchDepth, including panics from the dispatch handshakes.
+func (s *SMP) clearSearching() {
+	s.mu.Lock()
+	s.searching = false
+	s.mu.Unlock()
+}
+
+// dispatch hands every worker one wake token under mu. The closed recheck
+// is what makes Close racing a starting search loud: a Close that slipped
+// in since the entry check is caught here, before any token is counted, so
+// the pool never spawns into an instance nobody will join.
+func (s *SMP) dispatch() {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		panic("engine: Search raced Close on an SMP instance")
+	}
+	s.startPool()
+	s.runWG.Add(len(s.workers))
+	for range s.workers {
+		s.wake <- struct{}{}
+	}
+	s.mu.Unlock()
 }
 
 // ensureProcs gives the locked workers and the driver room to run in

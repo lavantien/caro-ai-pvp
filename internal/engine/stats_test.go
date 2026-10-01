@@ -3,9 +3,29 @@ package engine
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
+
+func TestNpsReport(t *testing.T) {
+	cases := [...]struct {
+		nodes     uint64
+		elapsedNs int64
+		want      uint64
+	}{
+		{0, 0, 0},
+		{0, 5000, 0},
+		{1000, 0, 1000 * uint64(time.Second)},
+		{1000, 1, 1000 * uint64(time.Second)},
+		{1, int64(time.Second), 1},
+	}
+	for _, c := range cases {
+		if got := npsReport(c.nodes, c.elapsedNs); got != c.want {
+			t.Errorf("npsReport(%d, %d) = %d, want %d", c.nodes, c.elapsedNs, got, c.want)
+		}
+	}
+}
 
 func TestEBFMilli(t *testing.T) {
 	cases := [...]struct {

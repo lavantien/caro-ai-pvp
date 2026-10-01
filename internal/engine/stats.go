@@ -2,6 +2,7 @@ package engine
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
@@ -27,6 +28,19 @@ type SearchStats struct {
 	AllocNs                   int64
 	PVLen                     int
 	PV                        [config.SearchMaxPly]rules.Move
+}
+
+// npsReport converts a node count and elapsed nanoseconds into nodes per
+// second, flooring a sub-nanosecond elapsed to 1ns so an instant search
+// still reports a rate instead of a zero from clock granularity.
+func npsReport(nodes uint64, elapsedNs int64) uint64 {
+	if nodes == 0 {
+		return 0
+	}
+	if elapsedNs < 1 {
+		elapsedNs = 1
+	}
+	return nodes * uint64(time.Second) / uint64(elapsedNs)
 }
 
 // ebfMilli estimates the effective branching factor as the integer b, in

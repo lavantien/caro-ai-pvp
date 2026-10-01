@@ -2,6 +2,7 @@ package engine
 
 import (
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -252,6 +253,114 @@ func TestSMPSearchAfterClosePanics(t *testing.T) {
 		}
 	}()
 	_, _ = s.Search(midgameBoard(t), NewFixedBudget(time.Microsecond))
+}
+
+// TestSMPDispatchAfterClosePanics drives the dispatch handshake itself into
+// a Close that slipped past the entry check: the pool must never spawn into
+// an instance nobody will join.
+func TestSMPDispatchAfterClosePanics(t *testing.T) {
+	s := newSMP(2, testTTBytes)
+	s.closed = true
+	defer func() {
+		if recover() == nil {
+			t.Fatal("dispatch after Close must panic loudly")
+		}
+		if s.started {
+			t.Error("dispatch spawned the pool despite Close")
+		}
+	}()
+	s.dispatch()
+}
+
+// TestSMPCloseJoinsInFlightSearch is the Close-versus-search race: every
+// interleaving must leave no worker behind and hang nothing, with the
+// in-flight driver either finishing its jobs or failing loudly at entry.
+func TestSMPCloseJoinsInFlightSearch(t *testing.T) {
+	before := runtime.NumGoroutine()
+	for i := range 12 {
+		s := newSMP(2, testTTBytes)
+		b := midgameBoard(t)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			defer func() { _ = recover() }()
+			_, _ = s.Search(b, NewFixedBudget(60*time.Millisecond))
+		}()
+		time.Sleep(time.Duration(i%9) * time.Millisecond)
+		s.Close()
+		s.Close() // idempotent under the join
+		<-done
+	}
+	for range 200 {
+		if runtime.NumGoroutine() <= before {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("goroutines leaked by Close racing searches: %d now vs %d before", runtime.NumGoroutine(), before)
+}
+
+func TestSMPConcurrentSearchPanicsLoudly(t *testing.T) {
+	s := newSMP(2, testTTBytes)
+	b := midgameBoard(t)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	var panicked atomic.Int32
+	for range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			defer func() {
+				if recover() != nil {
+					panicked.Add(1)
+				}
+			}()
+			_, _ = s.Search(b, NewFixedBudget(80*time.Millisecond))
+		}()
+	}
+	close(start)
+	wg.Wait()
+	if panicked.Load() == 0 {
+		t.Fatal("concurrent Search on one instance must fail loudly")
+	}
+	s.Close()
+}
+
+// TestSMPQuitBranchServesQueuedJob covers the drain that keeps
+// SearchDepth's runWG.Wait hang-proof when Close lands between the token
+// send and a worker's parked receive.
+func TestSMPQuitBranchServesQueuedJob(t *testing.T) {
+	s := newSMP(1, testTTBytes)
+	w, b, res := s.workers[0], &s.boards[0], &s.results[0]
+	*b = *midgameBoard(t)
+	w.resetForSearch(b)
+	s.jobMaxDepth = 2
+	s.halt.Store(false)
+	s.haltDL.inner = NewFixedBudget(50 * time.Millisecond)
+	s.runWG.Add(1)
+	s.wake <- struct{}{}
+	if !s.serveQueuedJob(w, b, res) {
+		t.Fatal("queued job not served on the quit path")
+	}
+	s.runWG.Wait()
+	if res.completed == 0 {
+		t.Error("queued job left no completed iteration")
+	}
+	if s.serveQueuedJob(w, b, res) {
+		t.Fatal("empty wake channel reported a queued job")
+	}
+}
+
+func TestSMPInstantWinStatsReportNps(t *testing.T) {
+	s := newSMP(2, testTTBytes)
+	_, stats := s.Search(mate1Board(t), NewFixedBudget(time.Second))
+	if stats.Nodes == 0 {
+		t.Fatal("setup: no nodes searched")
+	}
+	if stats.Nps == 0 {
+		t.Errorf("nps 0 on an instant win: nodes %d elapsed %d", stats.Nodes, stats.ElapsedNs)
+	}
 }
 
 func TestSMPRaceHammer(t *testing.T) {
