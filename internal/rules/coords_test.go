@@ -82,10 +82,38 @@ func TestParseCellInvalid(t *testing.T) {
 		"Q1", "Z16", "a1", "p1", "@1",
 		"A1b", "A-1", "A 1", "A+1",
 		"A0", "A00", "A01", "P00",
-		"A17", "P17", "A99",
+		"A17", "P17", "A99", "A:",
 	} {
 		if _, err := ParseCell(name); err == nil {
 			t.Fatalf("ParseCell(%q): want error", name)
+		}
+	}
+}
+
+// Golden pins: each error path returns the zero Cell and its exact message,
+// including the derived range text (A..P, 1..16) spelled out literally so
+// mutations of the message arguments cannot survive.
+func TestParseCellErrorContract(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		want string
+	}{
+		{"A", `rules: cell name "A": want 2 or 3 characters`},
+		{"A123", `rules: cell name "A123": want 2 or 3 characters`},
+		{"Q1", `rules: cell name "Q1": column out of A..P`},
+		{"A:", `rules: cell name "A:": stray character ':'`},
+		{"A01", `rules: cell name "A01": leading zero`},
+		{"A17", `rules: cell name "A17": row out of 1..16`},
+	} {
+		got, err := ParseCell(tc.name)
+		if err == nil {
+			t.Fatalf("ParseCell(%q): want error", tc.name)
+		}
+		if got != 0 {
+			t.Errorf("ParseCell(%q) cell = %d, want 0 on error", tc.name, got)
+		}
+		if err.Error() != tc.want {
+			t.Errorf("ParseCell(%q) err = %q, want %q", tc.name, err.Error(), tc.want)
 		}
 	}
 }
@@ -95,5 +123,18 @@ func TestCellNameInvalid(t *testing.T) {
 		if _, err := CellName(cell); err == nil {
 			t.Fatalf("CellName(%d): want error", cell)
 		}
+	}
+}
+
+func TestCellNameErrorContract(t *testing.T) {
+	got, err := CellName(config.BoardCells)
+	if err == nil {
+		t.Fatal("CellName(BoardCells): want error")
+	}
+	if got != "" {
+		t.Errorf("CellName(BoardCells) name = %q, want empty on error", got)
+	}
+	if want := "rules: cell 256 out of 0..255"; err.Error() != want {
+		t.Errorf("CellName(BoardCells) err = %q, want %q", err.Error(), want)
 	}
 }

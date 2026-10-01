@@ -38,6 +38,19 @@ func snapshot(b *Board) boardSnap {
 	return boardSnap{b.Red, b.Blue, b.Region, b.Full, b.Side, b.MoveCount, b.Hash}
 }
 
+// assertPanicMessage fails unless fn panics with exactly the want message:
+// bounds survivors swap the documented panic for a runtime index fault.
+func assertPanicMessage(t *testing.T, name string, fn func(), want string) {
+	t.Helper()
+	defer func() {
+		got, _ := recover().(string)
+		if got != want {
+			t.Errorf("%s: panic %q, want %q", name, got, want)
+		}
+	}()
+	fn()
+}
+
 func assertSnapEq(t *testing.T, got, want boardSnap) {
 	t.Helper()
 	if got != want {
@@ -149,6 +162,27 @@ func TestUnmakePanics(t *testing.T) {
 		}
 	}()
 	NewBoard().Unmake()
+}
+
+func TestBoundsPanicMessages(t *testing.T) {
+	out := Cell(config.BoardCells)
+	b := NewBoard()
+	for _, tc := range []struct {
+		name string
+		call func()
+		want string
+	}{
+		{"At out of range", func() { b.At(out) }, "rules: At cell out of range"},
+		{"Occupied out of range", func() { b.Occupied(out) }, "rules: Occupied cell out of range"},
+		{"inRegion out of range", func() { b.inRegion(out) }, "rules: inRegion cell out of range"},
+		{"Make out of bounds", func() { b.Make(out) }, "rules: Make out of bounds"},
+	} {
+		assertPanicMessage(t, tc.name, tc.call, tc.want)
+	}
+}
+
+func TestUnmakeEmptyStackPanicMessage(t *testing.T) {
+	assertPanicMessage(t, "Unmake on empty stack", func() { NewBoard().Unmake() }, "rules: Unmake on empty stack")
 }
 
 func TestIsFullAfterFillingRegion(t *testing.T) {

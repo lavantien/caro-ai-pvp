@@ -198,3 +198,45 @@ func TestNaiveSetPanics(t *testing.T) {
 		}()
 	}
 }
+
+func TestNaiveSetPanicMessage(t *testing.T) {
+	nb := naiveFull(t, []string{"A1"}, nil)
+	nc := NewNaiveCrossCheck()
+	for _, tc := range []struct {
+		name string
+		call func()
+	}{
+		{"occupied", func() { nb.Set(0, Blue) }},
+		{"out of region", func() { nc.Set(config.CrossCheckSize*config.BoardStride, Red) }},
+		{"out of bounds", func() { nb.Set(Cell(config.BoardCells), Red) }},
+	} {
+		assertPanicMessage(t, "Set "+tc.name, tc.call, "rules: naive Set on unusable cell")
+	}
+}
+
+func TestNaiveWinsThroughOutOfRangeCell(t *testing.T) {
+	nb := naiveFull(t, []string{"A1"}, nil)
+	if nb.WinsThrough(Red, Cell(config.BoardCells)) {
+		t.Fatal("WinsThrough on out-of-range cell: want false")
+	}
+	if nb.WinsThrough(Blue, Cell(config.BoardCells)) {
+		t.Fatal("WinsThrough on out-of-range cell for blue: want false")
+	}
+}
+
+// The region guard in blocks is only observable when a stone sits outside the
+// region, which Set forbids, so plant one directly like the sweep harness does.
+func TestNaiveBlocksRegionGuard(t *testing.T) {
+	nc := NewNaiveCrossCheck()
+	nc.cells[config.CrossCheckSize*config.BoardStride] = naiveRed
+	if nc.blocks(config.CrossCheckSize, 0, naiveRed) {
+		t.Fatal("cell outside the region must never block, even holding the queried color")
+	}
+	nb := naiveFull(t, nil, []string{"B1"})
+	if !nb.blocks(0, 1, naiveBlue) {
+		t.Fatal("in-region opponent stone must block")
+	}
+	if nb.blocks(0, 2, naiveBlue) {
+		t.Fatal("empty cell must not block")
+	}
+}

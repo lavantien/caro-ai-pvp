@@ -183,3 +183,72 @@ func TestLegalMovesConstraintExpires(t *testing.T) {
 		t.Fatal("I8 must be legal once constraint expired")
 	}
 }
+
+func cellAt(row, col int) Cell { return Cell(row*config.BoardStride + col) }
+
+// Pin the exact max-norm for pairs covering every sign and dominance branch,
+// including the magnitude-1 axes where a broken negation guard would return 0.
+func TestChebyshevExactValues(t *testing.T) {
+	for _, tc := range []struct {
+		a, b Cell
+		want int
+	}{
+		{cellAt(0, 0), cellAt(1, 0), 1},
+		{cellAt(1, 0), cellAt(0, 0), 1},
+		{cellAt(0, 0), cellAt(0, 1), 1},
+		{cellAt(0, 1), cellAt(0, 0), 1},
+		{cellAt(0, 0), cellAt(0, 0), 0},
+		{cellAt(5, 5), cellAt(3, 3), 2},
+		{cellAt(0, 0), cellAt(3, 4), 4},
+		{cellAt(3, 4), cellAt(0, 0), 4},
+		{cellAt(0, 0), cellAt(4, 3), 4},
+		{cellAt(4, 3), cellAt(0, 0), 4},
+		{cellAt(0, 0), cellAt(2, 7), 7},
+		{cellAt(0, 0), cellAt(7, 2), 7},
+		{cellAt(2, 7), cellAt(7, 2), 5},
+		{cellAt(7, 2), cellAt(2, 7), 5},
+		{cellAt(1, 2), cellAt(2, 1), 1},
+	} {
+		if got := chebyshev(tc.a, tc.b); got != tc.want {
+			t.Errorf("chebyshev(%d, %d) = %d, want %d", tc.a, tc.b, got, tc.want)
+		}
+	}
+}
+
+func TestOpeningAnchorDirect(t *testing.T) {
+	b := NewBoard()
+	if _, constrained := b.openingAnchor(); constrained {
+		t.Fatal("fresh board: zero red stones, no anchor")
+	}
+	h8 := oneCell(t, "H8")
+	b.Make(h8)
+	if anchor, constrained := b.openingAnchor(); constrained || anchor != 0 {
+		t.Fatalf("blue to move: openingAnchor = (%d, %v), want (0, false)", anchor, constrained)
+	}
+	b.Make(oneCell(t, "A1"))
+	if anchor, constrained := b.openingAnchor(); !constrained || anchor != h8 {
+		t.Fatalf("red with one stone: openingAnchor = (%d, %v), want (%d, true)", anchor, constrained, h8)
+	}
+	b.Make(oneCell(t, "P16"))
+	b.Make(oneCell(t, "B2"))
+	if _, constrained := b.openingAnchor(); constrained {
+		t.Fatal("red with two stones: constraint must be absent")
+	}
+}
+
+func TestLegalMovesBlueToMoveUnconstrained(t *testing.T) {
+	buf := make([]Move, config.BoardCells)
+	b := NewBoard()
+	b.Make(oneCell(t, "H8"))
+	n := b.LegalMoves(buf)
+	if n != config.BoardCells-1 {
+		t.Fatalf("blue to move: %d legal moves, want every free cell (%d)", n, config.BoardCells-1)
+	}
+	seen := make(map[Move]bool)
+	for _, m := range buf[:n] {
+		seen[m] = true
+	}
+	if !seen[Move(oneCell(t, "I8"))] || !seen[Move(oneCell(t, "A1"))] {
+		t.Fatal("blue moves adjacent to the red anchor must stay legal")
+	}
+}

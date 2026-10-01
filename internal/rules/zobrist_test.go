@@ -26,6 +26,49 @@ func TestZobristKeysDistinctNonzero(t *testing.T) {
 	add(zobristSide)
 }
 
+// Golden pins derived once from the pinned splitmix64 constants and
+// config.ZobristSeed: any mixer, seed-chain, or colorCount mutation changes
+// at least one of these exact values.
+func TestZobristGoldenPins(t *testing.T) {
+	if len(zobristPieces) != 2 {
+		t.Fatalf("len(zobristPieces) = %d, want 2 (red and blue keys only)", len(zobristPieces))
+	}
+	golden := []struct {
+		name string
+		got  uint64
+		want uint64
+	}{
+		{"zobristPieces[Red][0]", zobristPieces[Red][0], 0x6e789e6aa1b965f4},
+		{"zobristPieces[Red][1]", zobristPieces[Red][1], 0x46b73e79f0c37c00},
+		{"zobristPieces[Blue][0]", zobristPieces[Blue][0], 0xeaeb6be0867a5fcc},
+		{"zobristSide", zobristSide, 0x6e091eb2c7957492},
+	}
+	for _, g := range golden {
+		if g.got != g.want {
+			t.Errorf("%s = %#016x, want %#016x", g.name, g.got, g.want)
+		}
+	}
+	if got := NewBoard().Hash; got != 0 {
+		t.Errorf("empty board hash = %#016x, want 0", got)
+	}
+	b := NewBoard()
+	b.Make(oneCell(t, "A1"))
+	if got := b.Hash; got != 0x007180d8662c1166 {
+		t.Errorf("hash after Make(A1) = %#016x, want 0x007180d8662c1166", got)
+	}
+	b.Make(oneCell(t, "P16"))
+	if got := b.Hash; got != 0xf63fcb26f01f7430 {
+		t.Errorf("hash after Make(A1),Make(P16) = %#016x, want 0xf63fcb26f01f7430", got)
+	}
+	b2 := NewBoard()
+	for _, name := range []string{"H8", "A1", "P16"} {
+		b2.Make(oneCell(t, name))
+	}
+	if got := b2.Hash; got != 0xdd88e0135ff27c4b {
+		t.Errorf("hash after H8,A1,P16 = %#016x, want 0xdd88e0135ff27c4b", got)
+	}
+}
+
 func TestZobristManualExpected(t *testing.T) {
 	rng := rand.New(rand.NewPCG(0x5EED_5EED, 1))
 	for game := range 50 {

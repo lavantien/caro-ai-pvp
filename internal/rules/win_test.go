@@ -88,6 +88,8 @@ func winCases() []winCase {
 		{"cross region vertical wall end win", true, []string{"A1", "A2", "A3", "A4", "A5"}, nil, true, false},
 		{"cross region diag blocked both ends dead", true, []string{"C3", "D4", "E5", "F6", "G7"}, []string{"B2", "H8"}, false, false},
 		{"cross region diag win", true, []string{"A2", "B3", "C4", "D5", "E6"}, nil, true, false},
+		{"blocked both ends one direction winning diagonal through shared stone", false,
+			[]string{"D8", "E8", "F8", "G8", "H8", "I9", "J10", "K11", "L12"}, []string{"C8", "I8"}, true, false},
 	}
 }
 
@@ -134,6 +136,52 @@ func TestWinSpecCases(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestDirectionTablesShape(t *testing.T) {
+	// Spec: exactly four line directions, each a (dr, dc) pair, and every
+	// derived table must stay indexed in lockstep with lineDirs.
+	if len(lineDirs) != 4 {
+		t.Fatalf("len(lineDirs) = %d, want 4", len(lineDirs))
+	}
+	for _, d := range lineDirs {
+		if len(d) != 2 {
+			t.Fatalf("direction %v has %d components, want 2", d, len(d))
+		}
+	}
+	if len(dirStep) != len(lineDirs) || len(dirFwdClr) != len(lineDirs) || len(dirBwdClr) != len(lineDirs) {
+		t.Fatalf("derived tables %d/%d/%d, want all len %d", len(dirStep), len(dirFwdClr), len(dirBwdClr), len(lineDirs))
+	}
+}
+
+// The horizontal exact five through H8 is dead with both ends blocked, and a
+// winning diagonal five leaves H8 in the other direction: skipping past the
+// blocked direction (not abandoning the scan) is what makes the win visible.
+func TestFastLastMoveWinBlockedThenWinningDirection(t *testing.T) {
+	b, nb := NewBoard(), NewNaiveBoard()
+	for _, name := range []string{"D8", "E8", "F8", "G8", "H8", "I9", "J10", "K11", "L12"} {
+		c := oneCell(t, name)
+		setStone(b, c, Red)
+		nb.Set(c, Red)
+	}
+	for _, name := range []string{"C8", "I8"} {
+		c := oneCell(t, name)
+		setStone(b, c, Blue)
+		nb.Set(c, Blue)
+	}
+	h8 := oneCell(t, "H8")
+	if !b.Wins(Red) {
+		t.Fatal("diagonal exact five with open ends must win")
+	}
+	if !b.FastLastMoveWin(Red, h8) {
+		t.Fatal("H8 must win through the diagonal despite the blocked horizontal five")
+	}
+	if !nb.WinsThrough(Red, h8) {
+		t.Fatal("naive WinsThrough must agree on H8")
+	}
+	if b.Wins(Blue) || nb.Wins(Blue) {
+		t.Fatal("blue cannot win with two stones")
 	}
 }
 
