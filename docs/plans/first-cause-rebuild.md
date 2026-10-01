@@ -6,8 +6,8 @@
 - M0b done: ref/chessprog (21 pages), ref/gomocup (docs + 8 papers) (2026-10-01)
 - M1 done incl gates: internal/rules at 100.0% statements, race clean, zero-alloc pinned (Make+Unmake 3.7 ns, FastLastMoveWin 13.4 ns), 24M fuzz execs clean, adversarial pair review findings fixed, mutation gate 497/497 with 0 survivors and 21 proven-equivalent allows (2026-10-01)
 - M2 done incl adversarial pair review: internal/pattern tables generated from rules predicates, init 51.7 ms, Lookup 0.26 ns, 100.0% coverage, both reviewers verified all 44272 realizable entries per direction against independent oracles with zero divergences, findings fixed (2026-10-01)
-- In flight: M3a single-threaded zero-alloc search core
-- Pending this run: M3b SMP, M4 VCF/VCT
+- M3a done incl adversarial pair review: internal/engine PVS+ID+TT at 100.0% statements, race clean, Search() 0 B/op 0 allocs/op (1s bench: depth 5, 1.63 Mnps, ebf 17, fh1 94). Both reviewers converged on one real defect (TT mate ply adjust used bare ply instead of EvalMateScoreStep units, live across searches sharing a TT) plus latent guards, all fixed in ae28190. Deviation: threat extension triggers on forced four-blocks only, open-3 extension deferred to M7 strength tuning as an explosion risk (2026-10-01)
+- In flight: M3b SMP + tiers, M4 VCF/VCT solvers
 
 ## Context
 
