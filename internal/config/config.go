@@ -177,6 +177,14 @@ const (
 )
 
 const (
+	// SearchWorkerParkDelayMs is how long an idle SMP worker spins with
+	// yields before parking on the wake channel: back-to-back searches
+	// (benchmarks, later ponder) keep workers hot at zero allocation, while
+	// idle instances park and stop burning a core.
+	SearchWorkerParkDelayMs = 5
+)
+
+const (
 	// SolverMaxPly bounds one VCF/VCT recursion: the deepest forced line the
 	// solver can certify. It sizes the per-ply stacks and the PV.
 	SolverMaxPly = SearchMaxPly
@@ -193,12 +201,4 @@ const (
 	// SolverNodeBudget is the default per-Solve node budget for engine
 	// wiring; callers stay free to pass smaller budgets.
 	SolverNodeBudget = 1 << 20
-)
-
-const (
-	// SearchWorkerParkDelayMs is how long an idle SMP worker spins with
-	// yields before parking on the wake channel: back-to-back searches
-	// (benchmarks, later ponder) keep workers hot at zero allocation, while
-	// idle instances park and stop burning a core.
-	SearchWorkerParkDelayMs = 5
 )
