@@ -133,6 +133,9 @@ func (b *Board) FastLastMoveWin(color Color, cell Cell) bool {
 	o := b.stones(color.Opponent())
 	r := int(cell) / config.BoardStride
 	c := int(cell) % config.BoardStride
+	if !b.bitAt(s, r, c) {
+		return false
+	}
 	for d := range lineDirs {
 		dr, dc := lineDirs[d][0], lineDirs[d][1]
 		back := 0

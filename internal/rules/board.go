@@ -86,6 +86,9 @@ func (b *Board) stones(color Color) bb {
 }
 
 func (b *Board) At(cell Cell) Color {
+	if int(cell) >= config.BoardCells {
+		panic("rules: At cell out of range")
+	}
 	w, m := bitOf(cell)
 	if b.Red[w]&m != 0 {
 		return Red
@@ -97,11 +100,17 @@ func (b *Board) At(cell Cell) Color {
 }
 
 func (b *Board) Occupied(cell Cell) bool {
+	if int(cell) >= config.BoardCells {
+		panic("rules: Occupied cell out of range")
+	}
 	w, m := bitOf(cell)
 	return b.Full[w]&m != 0
 }
 
 func (b *Board) inRegion(cell Cell) bool {
+	if int(cell) >= config.BoardCells {
+		panic("rules: inRegion cell out of range")
+	}
 	w, m := bitOf(cell)
 	return b.Region[w]&m != 0
 }

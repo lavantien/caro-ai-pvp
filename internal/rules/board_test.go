@@ -13,6 +13,27 @@ type boardSnap struct {
 	hash                    uint64
 }
 
+func TestAccessorsBoundsPanics(t *testing.T) {
+	b := NewBoard()
+	for _, tc := range []struct {
+		name string
+		call func()
+	}{
+		{"At", func() { b.At(config.BoardCells) }},
+		{"Occupied", func() { b.Occupied(config.BoardCells) }},
+		{"inRegion", func() { b.inRegion(config.BoardCells) }},
+	} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("%s: want panic", tc.name)
+				}
+			}()
+			tc.call()
+		}()
+	}
+}
+
 func snapshot(b *Board) boardSnap {
 	return boardSnap{b.Red, b.Blue, b.Region, b.Full, b.Side, b.MoveCount, b.Hash}
 }

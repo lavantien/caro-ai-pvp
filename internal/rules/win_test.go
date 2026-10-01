@@ -8,6 +8,9 @@ import (
 )
 
 func setStone(b *Board, cell Cell, color Color) {
+	if !b.inRegion(cell) || b.Occupied(cell) {
+		panic("rules: setStone on unusable cell")
+	}
 	w, m := bitOf(cell)
 	if color == Red {
 		b.Red[w] |= m
@@ -18,6 +21,9 @@ func setStone(b *Board, cell Cell, color Color) {
 }
 
 func unsetStone(b *Board, cell Cell, color Color) {
+	if b.At(cell) != color {
+		panic("rules: unsetStone on cell not holding that color")
+	}
 	w, m := bitOf(cell)
 	if color == Red {
 		b.Red[w] &^= m
@@ -25,6 +31,30 @@ func unsetStone(b *Board, cell Cell, color Color) {
 		b.Blue[w] &^= m
 	}
 	b.Full[w] &^= m
+}
+
+func TestSetStoneMisusePanics(t *testing.T) {
+	b := NewBoard()
+	setStone(b, oneCell(t, "A1"), Red)
+	cross := NewCrossCheck()
+	for _, tc := range []struct {
+		name string
+		call func()
+	}{
+		{"setStone occupied", func() { setStone(b, oneCell(t, "A1"), Blue) }},
+		{"setStone out of region", func() { setStone(cross, Cell(8*config.BoardStride), Red) }},
+		{"unsetStone wrong color", func() { unsetStone(b, oneCell(t, "A1"), Blue) }},
+		{"unsetStone empty", func() { unsetStone(b, oneCell(t, "P16"), Red) }},
+	} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("%s: want panic", tc.name)
+				}
+			}()
+			tc.call()
+		}()
+	}
 }
 
 type winCase struct {
@@ -103,6 +133,42 @@ func TestWinSpecCases(t *testing.T) {
 					t.Fatalf("%s: FastLastMoveWin(%v, %s) = %v, naive %v", tc.name, color, name, got, nb.WinsThrough(color, c))
 				}
 			}
+		}
+	}
+}
+
+func TestFastLastMoveWinOwnershipGuard(t *testing.T) {
+	enemyNeighbor := []struct {
+		name string
+		red  []string
+		blue []string
+		cell string
+	}{
+		{"enemy stone completing", []string{"A1"}, []string{"B1", "C1", "D1", "E1"}, "A1"},
+		{"empty cell completing", []string{"D5", "E5", "G5", "H5"}, nil, "F5"},
+	}
+	for _, tc := range enemyNeighbor {
+		b, nb := NewBoard(), NewNaiveBoard()
+		for _, name := range tc.red {
+			c := oneCell(t, name)
+			setStone(b, c, Red)
+			nb.Set(c, Red)
+		}
+		for _, name := range tc.blue {
+			c := oneCell(t, name)
+			setStone(b, c, Blue)
+			nb.Set(c, Blue)
+		}
+		c := oneCell(t, tc.cell)
+		color := Blue
+		if len(tc.red) > 0 && tc.blue == nil {
+			color = Red
+		}
+		if b.FastLastMoveWin(color, c) {
+			t.Fatalf("%s: FastLastMoveWin(%v, %s) must be false, cell is not that color's stone", tc.name, color, tc.cell)
+		}
+		if got, want := b.FastLastMoveWin(color, c), nb.WinsThrough(color, c); got != want {
+			t.Fatalf("%s: FastLastMoveWin = %v, naive %v", tc.name, got, want)
 		}
 	}
 }

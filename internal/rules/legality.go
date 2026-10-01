@@ -50,6 +50,8 @@ func (b *Board) IsLegal(cell Cell) bool {
 	return true
 }
 
+// LegalMoves fills buf with legal moves for the side to move and returns the
+// count. buf must hold at least config.BoardCells entries.
 func (b *Board) LegalMoves(buf []Move) int {
 	anchor, constrained := b.openingAnchor()
 	n := 0
