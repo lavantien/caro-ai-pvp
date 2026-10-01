@@ -228,6 +228,52 @@ func TestSearchConstants(t *testing.T) {
 	}
 }
 
+func TestEngineEvalConstants(t *testing.T) {
+	if EvalTempo != EvalMilliUnit {
+		t.Errorf("EvalTempo = %d, want %d: one unblocked tempo is the 1.0 anchor", EvalTempo, EvalMilliUnit)
+	}
+	w := PatternClassWeights
+	for i := 1; i < PatternClassCount; i++ {
+		if w[i] <= w[i-1] {
+			t.Errorf("PatternClassWeights[%d] = %d must exceed %d: forcing depth strictly ascends", i, w[i], w[i-1])
+		}
+	}
+	if w[0] != 0 {
+		t.Errorf("PatternWeightNone = %d, want 0", w[0])
+	}
+	mateFloor := int64(EvalMateMax) - int64(SearchMaxPly)*int64(EvalMateScoreStep)
+	maxWindowSum := int64(PatternDirections) * int64(BoardCells) * int64(PatternWeightOpenFour)
+	if maxWindowSum*2 >= mateFloor {
+		t.Errorf("max leaf score %d collides with the mate band below %d", maxWindowSum*2, mateFloor)
+	}
+}
+
+func TestEngineSearchConstants(t *testing.T) {
+	windowHalf := (PatternWindowLen - 1) / 2
+	if SearchRingRadius < 1 || SearchRingRadius > windowHalf {
+		t.Errorf("SearchRingRadius = %d, want in [1, %d]", SearchRingRadius, windowHalf)
+	}
+	if SearchExtensionMaxPly < 1 || SearchMaxPly+SearchExtensionMaxPly > 120 {
+		t.Errorf("SearchExtensionMaxPly = %d leaves depth out of int8 tt range", SearchExtensionMaxPly)
+	}
+	if SearchHistoryMax >= SearchOrderKiller2 {
+		t.Errorf("SearchHistoryMax %d must sit below SearchOrderKiller2 %d", SearchHistoryMax, SearchOrderKiller2)
+	}
+	if PatternWeightOpenFour*2*PatternDirections+SearchHistoryMax >= SearchOrderKiller2 {
+		t.Errorf("static ordering score plus history can pass the killer layer")
+	}
+	if SearchOrderTT != math.MaxInt32 || SearchOrderKiller1 != SearchOrderKiller2+1 {
+		t.Errorf("ordering layers must be strictly ordered with TT on top")
+	}
+	if SearchHashFullSample < 1 {
+		t.Errorf("SearchHashFullSample = %d, must be positive", SearchHashFullSample)
+	}
+	want := BoardStride*(BoardSize/2-1) + BoardSize/2 - 1
+	if SearchEmptyBoardCell != want {
+		t.Errorf("SearchEmptyBoardCell = %d, want center cell %d", SearchEmptyBoardCell, want)
+	}
+}
+
 func TestBotLogFormatMatchesImplication15(t *testing.T) {
 	cases := []struct {
 		name string
