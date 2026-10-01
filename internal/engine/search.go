@@ -269,8 +269,6 @@ func (e *Engine) negamax(b *rules.Board, depth int, alpha, beta int, ply int, ex
 				e.cutFirst++
 			}
 			e.recordCutoff(m, side, ply, depth)
-			e.pv[ply][0] = m
-			e.pvLen[ply] = 1
 			break
 		}
 		if s > alpha {
