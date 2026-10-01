@@ -7,8 +7,8 @@ import (
 )
 
 func TestSplitPkgs(t *testing.T) {
-	got := splitPkgs(" a , internal/rules,,internal/engine ")
-	want := "a|internal/rules|internal/engine"
+	got := splitPkgs(" a , internal/rules,,./internal/engine ")
+	want := "./a|./internal/rules|./internal/engine"
 	parts := make([]string, 0, len(got))
 	parts = append(parts, got...)
 	if strings.Join(parts, "|") != want {

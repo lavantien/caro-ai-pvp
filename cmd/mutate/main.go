@@ -19,6 +19,9 @@ func splitPkgs(s string) []string {
 	var out []string
 	for _, p := range strings.Split(s, ",") {
 		if p = strings.TrimSpace(p); p != "" {
+			if !strings.HasPrefix(p, ".") {
+				p = "./" + p
+			}
 			out = append(out, p)
 		}
 	}

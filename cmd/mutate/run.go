@@ -42,7 +42,7 @@ func goEnv() []string {
 func (r execRunner) runTest(ctx context.Context, pkg string) error {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "go", "test", "-count=1", "-timeout", (r.timeout - time.Duration(config.MutateTestTimeoutSlack)*time.Millisecond).String(), pkg)
+	cmd := exec.CommandContext(ctx, "go", "test", "-count=1", "-short", "-timeout", (r.timeout - time.Duration(config.MutateTestTimeoutSlack)*time.Millisecond).String(), pkg)
 	cmd.Dir = r.dir
 	cmd.Env = goEnv()
 	cmd.Stdout = io.Discard
@@ -154,7 +154,17 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 }
 
 func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, r runner) (result, error) {
-	targets, err := discover(ctx, workDir, patterns)
+	present := patterns[:0]
+	for _, p := range patterns {
+		if strings.HasPrefix(p, "./") {
+			if _, serr := os.Stat(filepath.Join(workDir, filepath.FromSlash(p))); serr != nil {
+				_, _ = fmt.Fprintf(out, "mutate: skip missing target %s\n", p)
+				continue
+			}
+		}
+		present = append(present, p)
+	}
+	targets, err := discover(ctx, workDir, present)
 	if err != nil {
 		return result{}, err
 	}
