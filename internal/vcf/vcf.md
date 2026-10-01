@@ -66,13 +66,17 @@ At a defender node with live attacker win cells, the four case:
 - If the defender has any win in 1 cell, the line fails: the defender
   fives first.
 - Otherwise the defender's replies are exactly the defusing set: each
-  attacker win cell, plus the far end of every winning line whose other end
-  already holds a defender stone. Every other defender move is dominated:
-  it cannot create a five (W_D was empty) and cannot defuse (only the win
-  cell and the far end change a completion's blockedness, and defender
-  stones never extend attacker runs into overlines), so the attacker
-  answers by completing at a live win cell. This part of the model is
-  exact, the proof is airtight for this ruleset.
+  attacker win cell, plus the far end of every live winning frame whose
+  other end already holds a defender stone, enumerated over all exact-five
+  frames through each win cell. A win cell can complete fives in several
+  directions at once; a frame with both ends already defender stones is
+  dead, never the win witness, and contributes nothing. Every other
+  defender move is dominated: it cannot create a five (W_D was empty) and
+  cannot defuse (only the win cell and a live frame's far end change a
+  completion's blockedness, and defender stones never extend attacker runs
+  into overlines), so the attacker answers by completing at a live win
+  cell. This part of the model is exact, and the enumeration of frames is
+  exhaustive per direction.
 
 At a defender node with no live attacker win cells, the three case, VCT
 only:

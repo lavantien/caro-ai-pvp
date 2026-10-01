@@ -488,15 +488,16 @@ func TestDefendDefenderWinsInOne(t *testing.T) {
 }
 
 func TestDefusingSkipsNonWinCells(t *testing.T) {
-	// White box: defusing trusts its win cell list, walkFive reports no
-	// exact five for a plain stone, and the loop skips it.
+	// White box: defusing trusts its win cell list, fiveFrames reports no
+	// exact five for a plain stone, and the loop adds the cell alone.
 	b := buildAt(t, false, 8, 4, rules.Red, specQuiet)
 	s := New(KindVCF)
 	s.winA[0] = cellOf(8, 4)
 	if n := s.defusing(b, rules.Red, 1, 0); n != 1 {
 		t.Fatalf("defusing: n=%d want the win cell alone", n)
 	}
-	if _, _, _, _, ok := walkFive(b, rules.Red, cellOf(8, 4)); ok {
-		t.Fatalf("walkFive: quiet stone must not report a five")
+	var frames [config.PatternDirections]fiveFrame
+	if n := fiveFrames(b, rules.Red, cellOf(8, 4), frames[:]); n != 0 {
+		t.Fatalf("fiveFrames: quiet stone reported %d fives", n)
 	}
 }

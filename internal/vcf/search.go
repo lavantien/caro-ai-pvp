@@ -45,17 +45,22 @@ func (s *Solver) attack(b *rules.Board, ply int) result {
 // already holds an attacker stone, with a threat move of the solver's
 // kind, else the defender fives first.
 func (s *Solver) forcedBlock(b *rules.Board, attacker rules.Color, u rules.Cell, ply int) result {
-	cands := [2]rules.Cell{u, u}
+	// The forced square itself, plus the far end of every live defender
+	// frame through it whose other end already holds an attacker stone.
+	// One win cell can complete fives in several directions, so every
+	// frame's far end is a try, deduped by addCell.
+	var cands [1 + config.PatternDirections]rules.Cell
+	cands[0] = u
 	n := 1
 	defender := attacker.Opponent()
-	if br, bc, fr, fc, ok := walkFive(b, defender, u); ok {
+	var frames [config.PatternDirections]fiveFrame
+	for j, nf := 0, fiveFrames(b, defender, u, frames[:]); j < nf; j++ {
+		f := frames[j]
 		switch {
-		case cellAt(b, br, bc, attacker) && playable(b, fr, fc):
-			cands[1] = cellOf(fr, fc)
-			n = 2
-		case cellAt(b, fr, fc, attacker) && playable(b, br, bc):
-			cands[1] = cellOf(br, bc)
-			n = 2
+		case cellAt(b, f.br, f.bc, attacker) && playable(b, f.fr, f.fc):
+			n = addCell(cands[:], n, cellOf(f.fr, f.fc))
+		case cellAt(b, f.fr, f.fc, attacker) && playable(b, f.br, f.bc):
+			n = addCell(cands[:], n, cellOf(f.br, f.bc))
 		}
 	}
 	reach := dirReach(b, attacker)

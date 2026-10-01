@@ -67,12 +67,11 @@ const (
 )
 
 // Win cells at a defend node all arise through the attacker's single last
-// move, at most five five-frames per direction, so the buffers below have
-// generous margin: winA holds every win cell plus far ends with room.
-const (
-	maxWinCells    = 48
-	maxDefendCells = 96
-)
+// move, so winA's margin holds every win cell. Reply sets are subsets of
+// the empty cells, so defends sized by BoardCells can never overflow:
+// truncating a defender reply set would drop a refutation and turn
+// resource limits into false wins.
+const maxWinCells = 48
 
 // Solver is one threat space search instance with preallocated per-ply
 // stacks and its own proof memo, nothing shared at runtime. The zobrist
@@ -84,7 +83,7 @@ type Solver struct {
 	plyCap     int
 	moves      [config.SolverMaxPly][config.BoardCells]rules.Move
 	ranks      [config.SolverMaxPly][config.BoardCells]uint8
-	defends    [config.SolverMaxPly][maxDefendCells]rules.Cell
+	defends    [config.SolverMaxPly][config.BoardCells]rules.Cell
 	line       [config.SolverMaxPly]rules.Move
 	winA       [maxWinCells]rules.Cell
 	ttKeys     [1 << config.SolverTTBits]uint64

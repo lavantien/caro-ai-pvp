@@ -241,12 +241,19 @@ func windowCell(cell rules.Cell, dir, i int) rules.Cell {
 	return cellOf(r, c)
 }
 
-// walkFive walks the maximal contiguous run of color stones through the
-// empty cell in every direction and reports the end cells of the one run of
-// exactly WinLength. The before and after pairs are the cells one step past
-// that run on each side.
-func walkFive(b *rules.Board, color rules.Color, cell rules.Cell) (br, bc, fr, fc int, ok bool) {
+// fiveFrame holds the two neighbor cells one step past an exact five run:
+// before (br,bc) behind the run, after (fr,fc) past its front.
+type fiveFrame struct{ br, bc, fr, fc int }
+
+// fiveFrames reports every direction whose maximal contiguous run of color
+// stones through the empty cell is exactly WinLength, at most one frame per
+// direction, writing into out and returning the real count. A frame with
+// both neighbors holding the opponent's stones is dead and never a win
+// witness, so callers reading far ends only ever see frames whose one
+// defender end leaves the other end playable.
+func fiveFrames(b *rules.Board, color rules.Color, cell rules.Cell, out []fiveFrame) int {
 	r, c := int(cell)/config.BoardStride, int(cell)%config.BoardStride
+	n := 0
 	for d := range config.PatternDirs {
 		dr, dc := config.PatternDirs[d][0], config.PatternDirs[d][1]
 		back := 0
@@ -264,34 +271,39 @@ func walkFive(b *rules.Board, color rules.Color, cell rules.Cell) (br, bc, fr, f
 			yc += dc
 		}
 		if back+fwd+1 == config.WinLength {
-			return xr, xc, yr, yc, true
+			if n < len(out) {
+				out[n] = fiveFrame{xr, xc, yr, yc}
+			}
+			n++
 		}
 	}
-	return 0, 0, 0, 0, false
+	return n
 }
 
 // defusing fills the defender's exact defusing set for the attacker win
 // cells s.winA[:nA]: each win cell itself, plus the opposite end of every
-// winning line whose one end already holds a defender stone. Under the
-// exact-5 both-ends rule that far end closes the five, a defense gomoku
-// does not have. Every other defender move is dominated: it cannot five
-// (W_D was empty) and cannot defuse, so the attacker completes at a live
-// win cell.
+// winning line whose one end already holds a defender stone. One win cell
+// can complete exact fives in several directions at once, so every frame
+// through it contributes; dead frames (both ends defender stones) pass
+// neither playability test and add nothing. Under the exact-5 both-ends
+// rule that far end closes the five, a defense gomoku does not have. Every
+// other defender move is dominated: it cannot five (W_D was empty) and
+// cannot defuse, so the attacker completes at a live win cell.
 func (s *Solver) defusing(b *rules.Board, attacker rules.Color, nA, ply int) int {
 	defender := attacker.Opponent()
 	n := 0
+	var frames [config.PatternDirections]fiveFrame
 	for i := 0; i < nA; i++ {
 		w := s.winA[i]
 		n = addCell(s.defends[ply][:], n, w)
-		br, bc, fr, fc, ok := walkFive(b, attacker, w)
-		if !ok {
-			continue
-		}
-		if cellAt(b, br, bc, defender) && playable(b, fr, fc) {
-			n = addCell(s.defends[ply][:], n, cellOf(fr, fc))
-		}
-		if cellAt(b, fr, fc, defender) && playable(b, br, bc) {
-			n = addCell(s.defends[ply][:], n, cellOf(br, bc))
+		for j, nf := 0, fiveFrames(b, attacker, w, frames[:]); j < nf; j++ {
+			f := frames[j]
+			if cellAt(b, f.br, f.bc, defender) && playable(b, f.fr, f.fc) {
+				n = addCell(s.defends[ply][:], n, cellOf(f.fr, f.fc))
+			}
+			if cellAt(b, f.fr, f.fc, defender) && playable(b, f.br, f.bc) {
+				n = addCell(s.defends[ply][:], n, cellOf(f.br, f.bc))
+			}
 		}
 	}
 	return n
