@@ -80,11 +80,10 @@ func pvEquals(stats *SearchStats, want ...rules.Cell) bool {
 }
 
 func TestMutKillPVArraysSizedForMaxPly(t *testing.T) {
-	e := New(0)
-	if got := len(e.pv); got != config.SearchMaxPly+1 {
+	if got := len(New(0).pv); got != config.SearchMaxPly+1 {
 		t.Errorf("len(pv) = %d, want SearchMaxPly+1", got)
 	}
-	if got := len(e.pvLen); got != config.SearchMaxPly+1 {
+	if got := len(New(0).pvLen); got != config.SearchMaxPly+1 {
 		t.Errorf("len(pvLen) = %d, want SearchMaxPly+1", got)
 	}
 }
