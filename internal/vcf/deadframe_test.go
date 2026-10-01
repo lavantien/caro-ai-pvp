@@ -105,6 +105,32 @@ func TestDefusingCoversLiveFrameFarEnd(t *testing.T) {
 	}
 }
 
+// TestThreatRepliesDenseCounterFoursHold is the adversarial panic repro:
+// 144 defender stones leave 110 counter-four cells at one defend node, past
+// the old hand-picked 96 entry buffer that used to index out of range. The
+// BoardCells-sized defends stack must hold every reply, since dropping one
+// would hide a refutation and turn limits into false wins.
+func TestThreatRepliesDenseCounterFoursHold(t *testing.T) {
+	var stones []absStone
+	for r := range config.BoardSize {
+		for _, c := range [...]int{1, 2, 3, 7, 8, 9, 13, 14, 15} {
+			stones = append(stones, absStone{r, c, false})
+		}
+	}
+	stones = append(stones, absStone{6, 0, true}, absStone{7, 0, true})
+	b, _ := buildAbs(t, stones, rules.Red)
+	s := New(KindVCT)
+	s.nodes, s.budget, s.check, s.aborted = 0, config.SolverNodeBudget, config.SolverNodeCheckInterval, false
+	s.plyCap = config.SolverMaxPly
+	n := s.threatReplies(b, rules.Red, cellOf(5, 0), 0)
+	if n <= 96 || n > len(s.defends[0]) {
+		t.Fatalf("counter-four replies = %d, want the repro shape >96 inside the %d stack", n, len(s.defends[0]))
+	}
+	var stats SolverStats
+	s2 := New(KindVCT)
+	s2.Solve(b, config.SolverNodeBudget, nil, &stats) // must not panic
+}
+
 // TestDeadFrameFirstIsNoForcedWin is the end to end soundness regression:
 // the full width oracle proves Blue holds within 5 plies (saving with
 // (8,8) after the forced Red (6,8)), so neither kind may claim a win.

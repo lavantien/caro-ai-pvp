@@ -28,7 +28,26 @@ const (
 	// every claim inside what the oracle can decide. The production
 	// solvers stay unbounded.
 	oracleClaimPlyMax = 5
+	// oracleCutTwoMaxDepth is the deepest claim for which oracle cut (2),
+	// collapsing inert ring-5 defender replies, stays exact: every
+	// completing frame holds an existing stone only while each side gets
+	// fewer than 5 fresh placements in the horizon, and a side needs
+	// ceil(d/2) moves to build an all-fresh five, breaking at d = 9.
+	// Deeper clips must revisit the cut before use, else the oracle can
+	// confirm false claims by skipping real refutations.
+	oracleCutTwoMaxDepth = 8
 )
+
+// TestOracleClaimPlyCapStaysWithinCutBounds pins the tie between the claim
+// clip and cut (2): raising oracleClaimPlyMax past oracleCutTwoMaxDepth
+// without re-proving the cut would let the oracle produce false
+// confirmations, the dangerous direction for a soundness oracle.
+func TestOracleClaimPlyCapStaysWithinCutBounds(t *testing.T) {
+	if oracleClaimPlyMax > oracleCutTwoMaxDepth {
+		t.Fatalf("oracleClaimPlyMax = %d exceeds the depth where cut (2) stays exact, %d",
+			oracleClaimPlyMax, oracleCutTwoMaxDepth)
+	}
+}
 
 type opos struct {
 	nb     rules.NaiveBoard
