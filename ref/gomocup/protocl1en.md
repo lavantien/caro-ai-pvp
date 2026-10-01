@@ -1,0 +1,88 @@
+source: https://plastovicka.github.io/protocl1en.htm
+
+# Old gomoku AI protocol
+
+
+[Back to information](https://gomocup.org/detail-information/)
+
+### This protocol is obsolete. If you create a new brain, you should use the new protocol.
+
+The brain (artificial intelligence) communicates with the manager (a program which manages the Gomoku tournament) via files. File PLOCHA.DAT contains information about the board. File TAH.DAT has two forms. It can either tell the brain whether to play with circles or crosses or it can contain a response from the brain - the coordinates of the move. File TIMEOUTS.DAT contains information about time limits. The brain may optionally use files MSG.DAT and INFO.DAT.
+
+1. The manager creates files PLOCHA.DAT, TAH.DAT, INFO.DAT, TIMEOUTS.DAT and empty file MSG.DAT.
+2. The manager starts the brain and then waits (the manager calls function WaitForSingleObject).
+3. The brain reads the files and thinks.
+4. The brain writes its move coordinates to TAH.DAT and optionally writes a message to MSG.DAT.
+5. The brain ends.
+6. The manager reads MSG.DAT. If it is not empty, the manager displays messages to some log window or log file.
+7. The manager reads TAH.DAT and performs the move.
+8. Then everything is repeated for the second brain etc.
+9. The manager should remove all these files when it finishes.
+
+Working directory is set by the manager. It doesn't have to be the directory where the brain's executable file is saved. The brain must specify full path to all data files which it uses. It can obtain the path from function GetModuleFileName or it can look at the beginning of its command line which can be discovered from the main function parameters. The manager must put name of brain's exe file on the command line in such a form so that the brain can open the file.
+
+The brain can create a folder in a current directory to store its temporary files. The name of the folder must be the same as the name of the brain. The maximal allowed size of the folder will be announced on Gomocup web page (it is now 20MB). The manager can delete all temporary files when the manager exits or after a tournament finished. File INFO.DAT is used to determine folder where persistent files can be saved.
+
+PLOCHA.DAT:
+
+The file plocha.dat contains the data record of playing area (the board). The number of non-blank lines and the number of characters on each line is equal to the size of the board. A brain should autodetect the size. Empty squares are represented by - (dash,minus). Squares occupied by the first player are represented by x (lowercase letter x). Squares occupied by the second player are represented by o (lowercase letter o). If option continuous is on, some squares can be blocked by winning lines and those squares are represented by # (hash).
+
+An example of PLOCHA.DAT for a 20x20 board:
+
+```
+
+---x-x--------------
+----x-o---x---------
+-----xxoooox--------
+-----#x-o-----------
+-----#xoooxo--------
+-----#--x-x---------
+-----#--------------
+-----#-----#-------x
+------o---#xoo-----o
+----xooo-#----------
+------xo#-----------
+-------#o-----------
+------#oxx----------
+-----o--------------
+--------------------
+ooox----------------
+---x----------------
+-x-x----------xoo-x-
+--------------------
+--------------------
+```
+
+TAH.DAT:
+
+The manager writes into file TAH.DAT one of the characters (x,o) representing the player who is moving. When the brain thinks out its move, it writes (rewrites) into file TAH.DAT coordinate to move in format x,y (column number, comma, row number). Attention! The coordinate of the top-left corner is [0,0].
+
+TIMEOUTS.DAT:
+
+This file has two lines. There is the time limit in seconds per move on the first line and the remaining time for the match in milliseconds on the second line. Turn limit equal to zero means that the brain should play as fast as possibble (eg count only a static evaluation and don't search possibble moves). The remaining time can be negative when the brain runs out of time. Remaining time is equal to 2147483647 if the time for a whole match is unlimited.
+
+MSG.DAT:
+
+You may use this file to let the brain send text messages to the manager that will log them (eg for debug). The manager creates empty file MSG.DAT before the brain is started. It is recommended to send only one line messages because some managers do not support multiline messages.
+
+INFO.DAT:
+
+```
+timeout_turn  - time limit for each move (milliseconds, 0=play as fast as possible)
+timeout_match - time limit of a whole match (milliseconds, 0=no limit)
+max_memory    - memory limit (bytes, 0=no limit)
+time_left     - remaining time limit of a whole match (milliseconds)
+game_type     - 0=opponent is human, 1=opponent is brain, 2=tournament, 3=network tournament
+rule          - bitmask or sum of 1=exactly five in a row win, 2=continuous game, 4=renju, 8=caro
+folder        - folder for persistent files
+```
+
+```
+max_memory 83886080
+timeout_match 180000
+timeout_turn 2500
+game_type 0
+rule 3
+time_left 148150
+folder C:\Documents and Settings\All Users\Application data
+```
