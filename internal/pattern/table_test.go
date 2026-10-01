@@ -123,18 +123,37 @@ func TestOverlineExclusion(t *testing.T) {
 }
 
 func TestRealizableCount(t *testing.T) {
-	want := 0
+	// Independent contiguity scan: no Off may sit between two non-Off cells.
+	independent := func(w *[config.PatternWindowLen]uint8) bool {
+		inRun, afterOff := false, false
+		for _, s := range w {
+			if s == config.PatternStateOff {
+				if inRun {
+					afterOff = true
+				}
+				continue
+			}
+			if afterOff {
+				return false
+			}
+			inRun = true
+		}
+		return true
+	}
+	// 1 all-Off window plus sum over L=1..9 of (10-L)*3^L interval windows.
+	const want = 44272
+	scan, live := 0, 0
 	for idx := range config.PatternTableEntries {
 		w := Unpack(uint32(idx))
-		if isRealizable(&w) {
-			want++
+		if independent(&w) {
+			scan++
 		}
-	}
-	live := 0
-	for idx := range config.PatternTableEntries {
 		if flagsScratch[idx]&flagRealizable != 0 {
 			live++
 		}
+	}
+	if scan != want {
+		t.Fatalf("independent realizable count = %d want %d", scan, want)
 	}
 	if live != want {
 		t.Fatalf("generated realizable entries = %d want %d", live, want)
