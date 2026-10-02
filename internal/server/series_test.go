@@ -496,10 +496,13 @@ func TestSeriesConcurrentDrive(t *testing.T) {
 	if s.State() != SeriesFinished {
 		t.Fatalf("state = %v, want SeriesFinished", s.State())
 	}
-	if s.GamesPlayed() != boLen {
-		t.Errorf("games played = %d, want %d", s.GamesPlayed(), boLen)
-	}
+	// A majority finish legitimately plays fewer than boLen games: the
+	// hammer's outcome mix reaches 2-0 in bo3 about half the time.
 	hostWins, guestWins := s.Score()
+	majority := hostWins >= s.WinsNeeded() || guestWins >= s.WinsNeeded()
+	if played := s.GamesPlayed(); played > boLen || (played < boLen && !majority) {
+		t.Errorf("games played = %d (score %d-%d of %d), want majority short of boLen or full schedule", played, hostWins, guestWins, boLen)
+	}
 	if hostWins+guestWins > boLen || hostWins > s.WinsNeeded() || guestWins > s.WinsNeeded() {
 		t.Errorf("natural finish bounds broken: %d-%d of %d", hostWins, guestWins, boLen)
 	}
