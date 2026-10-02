@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -68,6 +69,12 @@ func (p *RoomPages) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	view, err := p.roomViewOf(r, room)
 	if err != nil {
+		// The room may retire between the liveness resolve above and the
+		// view's own read; that race is the 404 page, never a 500.
+		if errors.Is(err, ErrRoomNotFound) {
+			writePageNotFound(w)
+			return
+		}
 		http.Error(w, "room page read failed", http.StatusInternalServerError)
 		return
 	}
@@ -206,7 +213,10 @@ type playbackView struct {
 // session's user when a live session cookie rides the request, the guest
 // view otherwise; a dead session is a guest, never an error page.
 func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
-	info, _ := room.Info()
+	info, live := room.Info()
+	if !live {
+		return roomView{}, ErrRoomNotFound
+	}
 	view := roomView{
 		RoomID: info.ID, State: info.State.String(), TCLabel: tcLabel(info.TCIdx),
 		BOLen: info.BOLen, VsBotTier: info.VsBotTier,
@@ -420,6 +430,41 @@ function tapSelect(sel, cell) {
 	return { select: cell, confirm: false };
 }
 ` + tapSelectJSEnd
+
+// uiMLine hides the Implication 1.5 fields the spec bars from the UI ("on
+// UI, ebf, hf, fh1 are hidden"): the wire line stays verbatim for the
+// analytics pipeline, the room page's bot log drops those three tokens.
+func uiMLine(line string) string {
+	fields := strings.Split(line, ", ")
+	kept := fields[:0]
+	for _, f := range fields {
+		if strings.HasPrefix(f, "ebf=") || strings.HasPrefix(f, "hf=") || strings.HasPrefix(f, "fh1=") {
+			continue
+		}
+		kept = append(kept, f)
+	}
+	return strings.Join(kept, ", ")
+}
+
+// The uiMLine twin markers inside web/static/room.js.
+const (
+	uiMLineJSBegin = "/* caro-ui-mline:begin */"
+	uiMLineJSEnd   = "/* caro-ui-mline:end */"
+)
+
+// uiMLineJS is uiMLine's browser twin, pinned like tapSelect's.
+const uiMLineJS = uiMLineJSBegin + `
+function uiMLine(line) {
+	var fields = line.split(', ');
+	var kept = [];
+	for (var i = 0; i < fields.length; i++) {
+		var f = fields[i];
+		if (f.indexOf('ebf=') === 0 || f.indexOf('hf=') === 0 || f.indexOf('fh1=') === 0) { continue; }
+		kept.push(f);
+	}
+	return kept.join(', ');
+}
+` + uiMLineJSEnd
 
 // formatClockMs renders one clock bank as mm:ss.t; a negative reading
 // (impossible under the clock law) clamps to zero.

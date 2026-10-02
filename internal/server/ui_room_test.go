@@ -403,6 +403,113 @@ func TestTCLabelPinnedToConfig(t *testing.T) {
 	}
 }
 
+// TestRoomViewOfRetiredRoomIsNotFound pins the retirement race fix: a
+// room retiring between the liveness resolve and the view's own read maps
+// onto ErrRoomNotFound, so the handler answers the 404 page, never a 500
+// off the zero RoomInfo.
+func TestRoomViewOfRetiredRoomIsNotFound(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	r.Close()
+	p := NewRoomPages(s.rm, s.store)
+	req := httptest.NewRequest(http.MethodGet, "/rooms/"+r.ID(), nil)
+	if _, err := p.roomViewOf(req, r); !errors.Is(err, ErrRoomNotFound) {
+		t.Errorf("retired room view err = %v, want ErrRoomNotFound", err)
+	}
+}
+
+// TestPlaybackPageForfeitSweptGames covers the sweep rows playback also
+// serves: the first game keeps its partial blob, the booked games carry an
+// empty one, and no synthetic game owns a won-by tag.
+func TestPlaybackPageForfeitSweptGames(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, hostWinsRed[:3])
+	if err := r.Forfeit(alice.ID); err != nil {
+		t.Fatalf("forfeit: %v", err)
+	}
+
+	ids := gameIDs(t, s)
+	if len(ids) != 3 {
+		t.Fatalf("persisted games = %d, want the bo3 sweep's 3", len(ids))
+	}
+	ta := mintSession(t, s.store, alice)
+
+	status, body := getRoomPage(t, srv, "/rooms/history/"+fmt.Sprint(ids[0]), ta)
+	if status != http.StatusOK {
+		t.Fatalf("live-game playback status = %d, want 200", status)
+	}
+	wantBoard(t, body)
+	if got := strings.Count(body, `class="stone `); got != 3 {
+		t.Errorf("live game stone count = %d, want the 3 played", got)
+	}
+	if strings.Contains(body, `id="won-by"`) {
+		t.Error("forfeit sweep game carries a won-by tag")
+	}
+
+	status, body = getRoomPage(t, srv, "/rooms/history/"+fmt.Sprint(ids[1]), ta)
+	if status != http.StatusOK {
+		t.Fatalf("booked game playback status = %d, want 200", status)
+	}
+	wantBoard(t, body)
+	if strings.Contains(body, `class="stone `) {
+		t.Error("booked game renders stones from an empty blob")
+	}
+	if strings.Contains(body, `id="won-by"`) {
+		t.Error("booked game carries a won-by tag")
+	}
+	for _, want := range []string{`>0 / 0<`, `id="pb-first"`, `id="pb-play"`, `src="/static/playback.js"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("booked game body misses %q", want)
+		}
+	}
+}
+
+// TestUIMLineHidesSpecHiddenFields drops exactly the three tokens
+// Implication 1.5 bars from the UI, using the spec's own goldens.
+func TestUIMLineHidesSpecHiddenFields(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{
+			"M24, Red, J9, d=14, n=6.25m, nps=2.5m, ebf=2.1, tt=38%, hf=45%, fh1=93%, s=+150, thr=4, t=2.50, alloc=2.50, pv=J9 K10 K9 L9 M8 L8",
+			"M24, Red, J9, d=14, n=6.25m, nps=2.5m, tt=38%, s=+150, thr=4, t=2.50, alloc=2.50, pv=J9 K10 K9 L9 M8 L8",
+		},
+		{
+			"M31, Blue, G7, d=9, n=45k, nps=1.2m, ebf=1.4, tt=18%, hf=60%, fh1=88%, s=M9, thr=4, t=0.03, alloc=3.00, [VCT], pv=G7 H7 G8 G6 G9 G10 F8 E9 I8",
+			"M31, Blue, G7, d=9, n=45k, nps=1.2m, tt=18%, s=M9, thr=4, t=0.03, alloc=3.00, [VCT], pv=G7 H7 G8 G6 G9 G10 F8 E9 I8",
+		},
+		{"M12, Red, H10, pv=H10", "M12, Red, H10, pv=H10"},
+	} {
+		if got := uiMLine(tc.in); got != tc.want {
+			t.Errorf("uiMLine(%q)\n got: %q\nwant: %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// TestRoomJSUIMLineTwinIsPinned pins uiMLine's browser twin byte-exact, and
+// the terminal-on-404 detail poll that ends the page when eviction (not the
+// series frame) closed the stream.
+func TestRoomJSUIMLineTwinIsPinned(t *testing.T) {
+	src, err := fs.ReadFile(staticFS, "room.js")
+	if err != nil {
+		t.Fatalf("read room.js: %v", err)
+	}
+	begin, end := uiMLineJSBegin+"\n", "\n"+uiMLineJSEnd
+	i := strings.Index(string(src), begin)
+	j := strings.Index(string(src), end)
+	if i < 0 || j < 0 || j < i {
+		t.Fatal("room.js misses the pinned uiMLine block markers")
+	}
+	if got := string(src)[i : j+len(end)]; got != uiMLineJS {
+		t.Errorf("pinned uiMLine block drifted:\n got: %q\nwant: %q", got, uiMLineJS)
+	}
+	if !strings.Contains(string(src), "r.status === 404 || r.status === 409") {
+		t.Error("room.js detail poll no longer treats eviction's 404 as terminal")
+	}
+}
+
 // TestRoomJSCarriesSeatRotationSync pins the page driver's seat-rotation
 // sync: the clock labels and the mover's ghost color follow every new
 // game's redUserId (the decisive loser takes red), which the load-time

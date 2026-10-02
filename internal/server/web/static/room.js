@@ -14,6 +14,19 @@ function tapSelect(sel, cell) {
 }
 /* caro-tap-select:end */
 
+/* caro-ui-mline:begin */
+function uiMLine(line) {
+	var fields = line.split(', ');
+	var kept = [];
+	for (var i = 0; i < fields.length; i++) {
+		var f = fields[i];
+		if (f.indexOf('ebf=') === 0 || f.indexOf('hf=') === 0 || f.indexOf('fh1=') === 0) { continue; }
+		kept.push(f);
+	}
+	return kept.join(', ');
+}
+/* caro-ui-mline:end */
+
 function $(id) { return document.getElementById(id); }
 var root = $('room-root');
 var detailURL = '/api/rooms/' + root.dataset.room;
@@ -132,7 +145,10 @@ function renderDetail(d) {
 
 function sync() {
 	fetch(detailURL).then(function (r) {
-		if (r.status === 409) { onTerminal('room closed'); return null; }
+		// A retired room answers 409 room_closed while still mapped and
+		// 404 room_not_found once evicted; both end the page, so a missed
+		// series frame never parks it on an endless poll.
+		if (r.status === 404 || r.status === 409) { onTerminal('room closed'); return null; }
 		if (!r.ok) { return null; }
 		return r.json();
 	}).then(function (d) {
@@ -172,7 +188,7 @@ function onMLine(line) {
 		ul.textContent = '';
 	}
 	var li = document.createElement('li');
-	li.textContent = line;
+	li.textContent = uiMLine(line);
 	ul.appendChild(li);
 	ul.scrollTop = ul.scrollHeight;
 }
@@ -201,9 +217,21 @@ var rejectWords = {
 	illegal_move: 'illegal move',
 	not_ready: 'both players must ready first',
 	room_closed: 'room closed',
+	room_not_found: 'room closed',
 	series_finished: 'series finished',
 	unauthorized: 'login required'
 };
+
+// reject renders one refused acting call through the wire's error codes;
+// every handler failure a player can provoke lands as words, not a status.
+function reject(r, what) {
+	if (r.status === 401 || r.status === 404 || r.status === 409) {
+		return r.json().then(function (e) {
+			status(rejectWords[e.error] || ('rejected: ' + e.error));
+		}, function () { status(what + ' failed (' + r.status + ')'); });
+	}
+	status(what + ' failed (' + r.status + ')');
+}
 
 function clearGhost() {
 	selected = '';
@@ -219,12 +247,7 @@ function confirmMove(name) {
 		body: JSON.stringify({ cell: name })
 	}).then(function (r) {
 		if (r.ok) { return; }
-		if (r.status === 401 || r.status === 409) {
-			return r.json().then(function (e) {
-				status(rejectWords[e.error] || ('rejected: ' + e.error));
-			});
-		}
-		status('move failed (' + r.status + ')');
+		return reject(r, 'move');
 	}).catch(function () { status('move failed'); });
 }
 
@@ -249,7 +272,7 @@ if (readyBtn) {
 	readyBtn.addEventListener('click', function () {
 		fetch(detailURL + '/ready', { method: 'POST' }).then(function (r) {
 			if (r.ok) { location.reload(); return; }
-			status('ready failed (' + r.status + ')');
+			return reject(r, 'ready');
 		}).catch(function () { status('ready failed'); });
 	});
 }
@@ -274,7 +297,7 @@ if (forfeitBtn) {
 		clearTimeout(armTimer);
 		fetch(detailURL + '/forfeit', { method: 'POST' }).then(function (r) {
 			if (r.ok) { return; } // the series event ends the page cleanly
-			status('forfeit failed (' + r.status + ')');
+			return reject(r, 'forfeit');
 		}).catch(function () { status('forfeit failed'); });
 	});
 }
