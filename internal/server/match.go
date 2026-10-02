@@ -183,7 +183,7 @@ func (r *Room) completeGameLocked(winner rules.Color, lastCell rules.Cell) error
 		// The tag reads the position at move n-1: lift the winning stone,
 		// classify, restore.
 		r.board.Unmake()
-		tag := wonByTag(r.board, winner)
+		tag := WonByTag(r.board, winner)
 		r.board.Make(lastCell)
 		wonBy = &tag
 	}
@@ -386,11 +386,14 @@ func DecodeMoves(blob []byte) ([]rules.Move, error) {
 	return moves, nil
 }
 
-// wonByTag classifies how the winner won: open-four window presence from
+// WonByTag classifies how the winner won: open-four window presence from
 // the pattern tables, then the count of distinct win-in-1 cells from the
 // rules win predicate. Both are structure-identity free, which is what is
-// honestly derivable before the formal definitions land.
-func wonByTag(pre *rules.Board, winner rules.Color) string {
+// honestly derivable before the formal definitions land. Exported for the
+// tournament conductor, which derives the same tag for bot games by
+// replaying the recorded moves, so the classification law stays
+// single-sourced here.
+func WonByTag(pre *rules.Board, winner rules.Color) string {
 	if hasOpenFourWindow(pre, winner) {
 		return WonByOpenFour
 	}

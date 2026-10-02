@@ -783,8 +783,8 @@ func TestWonByTagClassification(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			b := placeStones(t, tc.board)
 			b.Side = rules.Blue // the probe must survive any side-to-move
-			if got := wonByTag(b, rules.Red); got != tc.want {
-				t.Errorf("wonByTag = %q, want %q", got, tc.want)
+			if got := WonByTag(b, rules.Red); got != tc.want {
+				t.Errorf("WonByTag = %q, want %q", got, tc.want)
 			}
 			if b.Side != rules.Blue {
 				t.Error("wonByTag leaked a side-to-move mutation")
