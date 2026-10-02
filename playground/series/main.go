@@ -295,14 +295,21 @@ func main() {
 	var over overrunLog
 	draws, caps := 0, 0
 	redIdx := 0
+	lastWinner := -1
 	for g := 1; g <= *bo; g++ {
+		if lastWinner >= 0 && redIdx != 1-lastWinner {
+			fail("game %d: red is seat %d, the loser of game %d (seat %d) must take red", g, redIdx, g-1, 1-lastWinner)
+		}
 		winner, reason := playGame(g, seats, redIdx, *tc, *movcap, &over)
 		if winner >= 0 {
 			seats[winner].wins++
+			lastWinner = winner
 		} else if reason == reasonCap {
 			caps++
+			lastWinner = -1
 		} else {
 			draws++
+			lastWinner = -1
 		}
 		wtag := "none"
 		if winner >= 0 {
@@ -313,7 +320,7 @@ func main() {
 			seats[0].moves, seats[1].moves,
 			seats[0].clock.Remaining(), seats[1].clock.Remaining())
 		if winner >= 0 {
-			redIdx = winner
+			redIdx = 1 - winner // the loser takes red next game per the spec
 		} else {
 			redIdx = 1 - redIdx
 		}
