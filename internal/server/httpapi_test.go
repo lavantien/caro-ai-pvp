@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -749,6 +750,115 @@ func TestHTTPHistoryPreviewAndPlaybackBlob(t *testing.T) {
 	}
 	if short.WonBy != nil {
 		t.Errorf("short row wonBy = %q, want nil", *short.WonBy)
+	}
+}
+
+// driveSeriesHTTP plays one full bo3 over the wire and reports the first
+// failure as an error, so it can run on its own goroutine.
+func driveSeriesHTTP(srv *httptest.Server, roomID, hostTok, guestTok string) error {
+	post := func(path, tok string, body map[string]string) error {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return err
+		}
+		req, err := http.NewRequest(http.MethodPost, srv.URL+path, bytes.NewReader(b))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Cookie", sessionCookieName+"="+tok)
+		resp, err := srv.Client().Do(req)
+		if err != nil {
+			return err
+		}
+		out, err := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode != http.StatusNoContent {
+			return fmt.Errorf("%s %s: status %d body %s", http.MethodPost, path, resp.StatusCode, out)
+		}
+		return nil
+	}
+	for _, tok := range []string{hostTok, guestTok} {
+		if err := post("/api/rooms/"+roomID+"/ready", tok, nil); err != nil {
+			return err
+		}
+	}
+	for _, script := range []struct {
+		names    []string
+		redFirst bool
+	}{{hostWinsRed, true}, {guestRedLosesToBlue, false}} {
+		tok := guestTok
+		if script.redFirst {
+			tok = hostTok
+		}
+		for i, name := range script.names {
+			if err := post("/api/rooms/"+roomID+"/move", tok, map[string]string{"cell": name}); err != nil {
+				return fmt.Errorf("move %d %s: %w", i+1, name, err)
+			}
+			if tok == hostTok {
+				tok = guestTok
+			} else {
+				tok = hostTok
+			}
+		}
+	}
+	return nil
+}
+
+func TestHTTPParallelRoomsSmoke(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	c := srv.Client()
+
+	pairs := [2][2]string{{"alice", "bob"}, {"carol", "dan"}}
+	tokens := [2][2]string{}
+	for i, pair := range pairs {
+		for j, name := range pair {
+			tokens[i][j] = mintSession(t, s.store, seedUser(t, s.store, name))
+		}
+	}
+	rooms := [2]string{}
+	for i := range pairs {
+		got := doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", tokens[i][0],
+			map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+		var rs roomSummary
+		wantStatus(t, got, http.StatusCreated, &rs)
+		rooms[i] = rs.ID
+		got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms/"+rs.ID+"/join", tokens[i][1], nil)
+		wantStatus(t, got, http.StatusNoContent, nil)
+	}
+
+	// Two full series through the same server, store, and write queue at
+	// once; the race detector rides every exchange.
+	done := make(chan error, len(pairs))
+	for i := range pairs {
+		go func(i int) {
+			done <- driveSeriesHTTP(srv, rooms[i], tokens[i][0], tokens[i][1])
+		}(i)
+	}
+	for range pairs {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got := doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms", "", nil)
+	var grid []roomSummary
+	wantStatus(t, got, http.StatusOK, &grid)
+	if len(grid) != 0 {
+		t.Fatalf("grid after both series = %d rooms, want empty", len(grid))
+	}
+	for i, pair := range pairs {
+		got = doJSON(t, c, http.MethodGet, srv.URL+"/api/history", tokens[i][0], nil)
+		var rows []historyEntry
+		wantStatus(t, got, http.StatusOK, &rows)
+		if len(rows) != 2 {
+			t.Fatalf("%s history rows = %d, want both swept games (body %s)", pair[0], len(rows), got.body)
+		}
 	}
 }
 
