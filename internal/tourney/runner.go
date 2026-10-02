@@ -42,7 +42,11 @@ type SeriesStream interface {
 type RoomSource struct{ RM *server.RoomManager }
 
 // StartSeries opens the bot-vs-bot room and subscribes before returning the
-// stream. A failed subscribe retires the room it opened.
+// stream, then rechecks liveness exactly like the SSE handler: a room that
+// already retired published its terminal event before this subscription
+// registered, so waiting would park forever. That is a missed-event gap and
+// a hard error, never a silent partial record. A failed subscribe or the
+// liveness rejection retires the room it opened.
 func (s RoomSource) StartSeries(host, guest *config.Tier, tcIdx, boLen int) (SeriesStream, error) {
 	room, err := s.RM.CreateBotVsBot(host, guest, tcIdx, boLen)
 	if err != nil {
@@ -52,6 +56,11 @@ func (s RoomSource) StartSeries(host, guest *config.Tier, tcIdx, boLen int) (Ser
 	if err != nil {
 		room.Close()
 		return nil, err
+	}
+	if _, live := room.Info(); !live {
+		sub.Unsubscribe()
+		room.Close()
+		return nil, errors.New("tourney: the room retired before the subscription registered, the series was missed")
 	}
 	return roomStream{room: room, sub: sub}, nil
 }
