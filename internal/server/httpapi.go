@@ -344,6 +344,13 @@ func (a *apiServer) handleRoomEvents(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// A room caught mid-retirement (still in the manager map, already over)
+	// would otherwise stream keepalives forever: its series event happened
+	// before this subscription existed.
+	if _, live := room.Info(); !live {
+		writeError(w, http.StatusConflict, codeRoomClosed, ErrRoomClosed.Error())
+		return
+	}
 	sub, err := room.Subscribe()
 	if err != nil {
 		writeDomainError(w, err)

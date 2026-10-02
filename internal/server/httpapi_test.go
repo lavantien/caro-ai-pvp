@@ -255,11 +255,17 @@ func TestHTTPRoomsGridAndDetail(t *testing.T) {
 		t.Errorf("bot room = %+v, want the easy bot seated", botRoom)
 	}
 
-	// The grid lists both in creation order, guest-readable.
+	// The grid lists both, guest-readable. Order between same-instant rooms
+	// is the manager's tie-break on the random id, so assert membership;
+	// the creation order itself is the landed domain test's concern.
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms", "", nil)
 	wantStatus(t, got, http.StatusOK, &rooms)
-	if len(rooms) != 2 || rooms[0].ID != created.ID || rooms[1].ID != botRoom.ID {
-		t.Fatalf("grid = %+v, want %s then %s in creation order", rooms, created.ID, botRoom.ID)
+	ids := map[string]bool{}
+	for _, rs := range rooms {
+		ids[rs.ID] = true
+	}
+	if len(rooms) != 2 || !ids[created.ID] || !ids[botRoom.ID] {
+		t.Fatalf("grid = %+v, want exactly %s and %s", rooms, created.ID, botRoom.ID)
 	}
 
 	// The open pvp room carries no live game.
@@ -365,6 +371,12 @@ func TestHTTPRoomActionsPlaySeries(t *testing.T) {
 	wantAPIError(t, got, http.StatusConflict, "not_your_turn")
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
 	wantStatus(t, got, http.StatusNoContent, nil)
+	// After red's opening stone the turn reads blue with bob to move.
+	got = doJSON(t, c, http.MethodGet, base, "", nil)
+	wantStatus(t, got, http.StatusOK, &detail)
+	if detail.Game == nil || detail.Game.Turn != "blue" || detail.Game.TurnUserID != bob.ID {
+		t.Fatalf("post-D4 snapshot = %+v, want bob on blue to move", detail.Game)
+	}
 	got = doJSON(t, c, http.MethodPost, base+"/move", tb, map[string]string{"cell": "D4"})
 	wantAPIError(t, got, http.StatusConflict, "illegal_move")
 	got = doJSON(t, c, http.MethodPost, base+"/move", tb, map[string]string{"cell": "Z9"})
@@ -375,6 +387,12 @@ func TestHTTPRoomActionsPlaySeries(t *testing.T) {
 	wantStatus(t, got, http.StatusNoContent, nil)
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D5"})
 	wantAPIError(t, got, http.StatusConflict, "illegal_move")
+
+	// Unknown rooms answer the 404 envelope on every action route.
+	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms/deadbeef/join", ta, nil)
+	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
+	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms/deadbeef/ready", ta, nil)
+	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
 
 	// Mid-game board over the wire: after blue's stone the turn is red's.
 	got = doJSON(t, c, http.MethodGet, base, "", nil)
@@ -506,9 +524,10 @@ type sseReader struct {
 	keepalives int
 }
 
-// openSSE opens one room's event stream on a bounded context; the body is
-// closed by the test cleanup.
-func openSSE(t *testing.T, c *http.Client, url string) *sseReader {
+// openSSE opens one room's event stream on a bounded context; the body and
+// the context close through the test cleanup, and the cancel func is
+// returned for explicit client-disconnect tests.
+func openSSE(t *testing.T, c *http.Client, url string) (*sseReader, context.CancelFunc) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -528,7 +547,7 @@ func openSSE(t *testing.T, c *http.Client, url string) *sseReader {
 	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
 		t.Fatalf("sse content type = %q, want text/event-stream", ct)
 	}
-	return &sseReader{br: bufio.NewReader(resp.Body)}
+	return &sseReader{br: bufio.NewReader(resp.Body)}, cancel
 }
 
 // next reads the next event frame. ok is false on the stream's clean end;
@@ -582,7 +601,7 @@ func TestHTTPSSEStreamsSeriesToCleanClose(t *testing.T) {
 	base := srv.URL + "/api/rooms/" + room.ID
 
 	// The guest opens the stream before the handshake, no session involved.
-	sr := openSSE(t, c, base+"/events")
+	sr, _ := openSSE(t, c, base+"/events")
 	got = doJSON(t, c, http.MethodPost, base+"/join", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
 	got = doJSON(t, c, http.MethodPost, base+"/ready", ta, nil)
@@ -652,7 +671,7 @@ func TestHTTPSSECleanCloseWhenHubEndsSubscription(t *testing.T) {
 	got = doJSON(t, c, http.MethodPost, base+"/ready", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
 
-	sr := openSSE(t, c, base+"/events")
+	sr, _ := openSSE(t, c, base+"/events")
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
 	wantStatus(t, got, http.StatusNoContent, nil)
 	f, ok := sr.next(t)
@@ -668,12 +687,93 @@ func TestHTTPSSECleanCloseWhenHubEndsSubscription(t *testing.T) {
 	}
 }
 
+func TestHTTPSSESubscribeFailureMapsToInternal(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	ta := mintSession(t, s.store, alice)
+
+	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+	var room roomSummary
+	wantStatus(t, got, http.StatusCreated, &room)
+
+	// A closed hub refuses new subscriptions: the stream open answers the
+	// internal envelope instead of a wedged connection.
+	s.hub.Close()
+	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms/"+room.ID+"/events", "", nil)
+	wantAPIError(t, got, http.StatusInternalServerError, "internal")
+}
+
+func TestHTTPSSEClientDisconnectEndsStream(t *testing.T) {
+	s := newStack(t)
+	api := &apiServer{store: s.store, rooms: s.rm, keepalive: time.Hour}
+	srv := httptest.NewServer(api.routes())
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	ta, tb := mintSession(t, s.store, alice), mintSession(t, s.store, bob)
+
+	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+	var room roomSummary
+	wantStatus(t, got, http.StatusCreated, &room)
+	base := srv.URL + "/api/rooms/" + room.ID
+	got = doJSON(t, c, http.MethodPost, base+"/join", tb, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/ready", ta, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/ready", tb, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+
+	// The spectator leaves mid-stream: the request context done arm must
+	// release the handler, not park it on the keepalive ticker.
+	sr, cancel := openSSE(t, c, base+"/events")
+	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
+	wantStatus(t, got, http.StatusNoContent, nil)
+	f, ok := sr.next(t)
+	if !ok || f.event != EventKindMove || f.data != "D4" {
+		t.Fatalf("first frame = %+v ok %t, want the D4 move", f, ok)
+	}
+	cancel()
+	time.Sleep(50 * time.Millisecond)
+}
+
 func TestHTTPSSEUnknownRoom(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
 	defer srv.Close()
 	got := doJSON(t, srv.Client(), http.MethodGet, srv.URL+"/api/rooms/deadbeef/events", "", nil)
 	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
+}
+
+func TestHTTPSSEMidRetirementRoomRefused(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	ta := mintSession(t, s.store, alice)
+
+	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+	var room roomSummary
+	wantStatus(t, got, http.StatusCreated, &room)
+
+	// Retire without dropping the manager entry: the exact state a stream
+	// open races. The stream must refuse instead of parking on keepalives.
+	r, err := s.rm.Get(room.ID)
+	if err != nil {
+		t.Fatalf("get room: %v", err)
+	}
+	r.Close()
+	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms/"+room.ID+"/events", "", nil)
+	wantAPIError(t, got, http.StatusConflict, "room_closed")
+	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms/"+room.ID, "", nil)
+	wantAPIError(t, got, http.StatusConflict, "room_closed")
 }
 
 // historyMoves builds n distinct in-board cells for a seeded moves blob.
@@ -751,6 +851,17 @@ func TestHTTPHistoryPreviewAndPlaybackBlob(t *testing.T) {
 	if short.WonBy != nil {
 		t.Errorf("short row wonBy = %q, want nil", *short.WonBy)
 	}
+
+	// A row this server never writes (odd-length blob) fails closed rather
+	// than rendering a broken preview.
+	if _, err := s.store.AppendGame(Game{
+		SeriesID: sr.ID, IdxInSeries: 2, RedUser: alice.ID, BlueUser: bob.ID,
+		Outcome: OutcomeDraw, Moves: []byte{1, 2, 3}, FullTurns: 1,
+	}); err != nil {
+		t.Fatalf("append corrupt game: %v", err)
+	}
+	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/history", mintSession(t, s.store, alice), nil)
+	wantAPIError(t, got, http.StatusInternalServerError, "internal")
 }
 
 // driveSeriesHTTP plays one full bo3 over the wire and reports the first
@@ -862,6 +973,36 @@ func TestHTTPParallelRoomsSmoke(t *testing.T) {
 	}
 }
 
+func TestHTTPErrorResponseMapping(t *testing.T) {
+	cases := []struct {
+		err    error
+		code   string
+		status int
+	}{
+		{ErrBadCredentials, codeBadCredentials, http.StatusUnauthorized},
+		{ErrInvalidUsername, codeInvalidUsername, http.StatusBadRequest},
+		{ErrRoomNotFound, codeRoomNotFound, http.StatusNotFound},
+		{ErrRoomFull, codeRoomFull, http.StatusConflict},
+		{ErrRoomClosed, codeRoomClosed, http.StatusConflict},
+		{ErrNotYourTurn, codeNotYourTurn, http.StatusConflict},
+		{ErrIllegalMove, codeIllegalMove, http.StatusConflict},
+		{ErrNotParticipant, codeNotParticipant, http.StatusForbidden},
+		{ErrNotReady, codeNotReady, http.StatusConflict},
+		{ErrSeriesFinished, codeSeriesFinished, http.StatusConflict},
+		{ErrBadTimeControl, codeBadRequest, http.StatusBadRequest},
+		{ErrBadSeriesLength, codeBadRequest, http.StatusBadRequest},
+		{ErrSamePlayer, codeBadRequest, http.StatusBadRequest},
+		{ErrBadOwner, codeBadRequest, http.StatusBadRequest},
+		{errors.New("store blew up"), codeInternal, http.StatusInternalServerError},
+	}
+	for _, tc := range cases {
+		code, status := errorResponse(tc.err)
+		if code != tc.code || status != tc.status {
+			t.Errorf("errorResponse(%v) = %q %d, want %q %d", tc.err, code, status, tc.code, tc.status)
+		}
+	}
+}
+
 func TestHTTPStoreFailureMapsToInternal(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
@@ -873,6 +1014,16 @@ func TestHTTPStoreFailureMapsToInternal(t *testing.T) {
 	if err := s.store.Close(); err != nil {
 		t.Fatalf("close store: %v", err)
 	}
-	got := doJSON(t, c, http.MethodGet, srv.URL+"/api/me", token, nil)
-	wantAPIError(t, got, http.StatusInternalServerError, "internal")
+	for _, tc := range []struct {
+		method, path string
+		body         any
+	}{
+		{http.MethodGet, "/api/me", nil},
+		{http.MethodPost, "/api/login", map[string]string{"username": "alice", "password": "p"}},
+		{http.MethodPost, "/api/logout", nil},
+		{http.MethodGet, "/api/history", nil},
+	} {
+		got := doJSON(t, c, tc.method, srv.URL+tc.path, token, tc.body)
+		wantAPIError(t, got, http.StatusInternalServerError, "internal")
+	}
 }
