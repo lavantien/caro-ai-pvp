@@ -1,0 +1,30 @@
+{{define "board-css"}}
+<style>
+#board { display: grid; width: min(100%, 44rem); aspect-ratio: 1; margin: 0 auto;
+	touch-action: manipulation; user-select: none; border: 2px solid }
+.cell { position: relative; border: 1px solid GrayText }
+.stone { position: absolute; inset: 8%; border-radius: 50%; display: flex;
+	align-items: center; justify-content: center; font-size: 1rem; font-weight: 700 }
+.stone.red { background: #c62828; color: #fff }
+.stone.blue { background: #1565c0; color: #fff }
+.stone.latest { box-shadow: 0 0 0 3px #ff9800 }
+.stone.hidden { display: none }
+.board.live[data-my-color="red"] { --ghost: rgba(198, 40, 40, .45) }
+.board.live[data-my-color="blue"] { --ghost: rgba(21, 101, 192, .45) }
+.board.live .cell:not(.occ) { cursor: pointer }
+.board.live .cell.ghost::after { content: ""; position: absolute; inset: 8%;
+	border-radius: 50%; background: var(--ghost) }
+@media (pointer: fine) {
+	.board.live .cell:not(.occ):hover::after { content: ""; position: absolute; inset: 8%;
+		border-radius: 50%; background: var(--ghost) }
+}
+</style>
+{{end}}
+
+{{define "board-grid"}}
+<div{{if .Live}} class="board live"{{else}} class="board"{{end}} id="board"{{if .MyColor}} data-my-color="{{.MyColor}}"{{end}} style="grid-template-columns:repeat({{.BoardSize}},1fr)">
+{{- range .Cells}}
+<div class="cell{{if .Stone}} occ{{end}}" id="c-{{.Name}}" data-cell="{{.Name}}">{{if .Stone}}<span class="stone {{.Stone}}{{if .Latest}} latest{{end}}" data-i="{{.Idx}}">{{.Glyph}}</span>{{end}}</div>
+{{- end}}
+</div>
+{{end}}

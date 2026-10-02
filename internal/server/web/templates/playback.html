@@ -1,0 +1,49 @@
+{{define "playback.html"}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>caro playback {{.GameID}}</title>
+{{template "board-css"}}
+<style>
+:root { color-scheme: light dark }
+body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 48rem; padding: .5rem }
+h1 { font-size: 1.2rem; margin: .2rem 0 }
+#pb-controls { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; justify-content: center; margin: .6rem 0 }
+#pb-controls button { font: inherit; font-size: 1.1rem; padding: .4rem 1rem }
+#pb-counter { font-family: ui-monospace, monospace; font-size: 1.2rem;
+	font-variant-numeric: tabular-nums; margin-left: .5rem }
+#pb-outcome, #won-by { font-weight: 700 }
+#won-by { color: #c62828 }
+#pb-moves { display: flex; flex-wrap: wrap; gap: .25rem .6rem; list-style: none;
+	padding: 0; margin: 0; font-family: ui-monospace, monospace; font-size: 1rem }
+#pb-moves li.latest { font-weight: 700; text-decoration: underline }
+</style>
+</head>
+<body>
+<div id="playback-root" data-total="{{len .Moves}}">
+<h1>game playback #{{.GameID}}</h1>
+<p>red {{.RedName}} vs blue {{.BlueName}} / <span id="pb-outcome">{{.Outcome}}</span>{{if .WonBy}} / <span id="won-by">won by {{.WonBy}}</span>{{end}}</p>
+
+{{template "board-grid" .}}
+
+<div id="pb-controls">
+<button id="pb-first" aria-label="first move">|&lt;</button>
+<button id="pb-prev" aria-label="previous move">&lt;</button>
+<button id="pb-play">play</button>
+<button id="pb-next" aria-label="next move">&gt;</button>
+<button id="pb-last" aria-label="last move">&gt;|</button>
+<span id="pb-counter">{{len .Moves}} / {{len .Moves}}</span>
+</div>
+
+<ol id="pb-moves">
+{{- range .Moves}}
+<li>{{.}}</li>
+{{- end}}
+</ol>
+
+<script src="/static/playback.js"></script>
+</body>
+</html>
+{{end}}
