@@ -193,9 +193,10 @@ func startSession(store authStore, userID, now int64) (Session, error) {
 	return sess, nil
 }
 
-// Authenticate resolves a live session token to its user. Missing and
-// expired tokens both map onto ErrBadCredentials, so token probing learns
-// nothing but failure; other store failures pass through untouched.
+// Authenticate resolves a live session token to its user. Missing tokens,
+// expired tokens, and tokens whose user row vanished all map onto
+// ErrBadCredentials, so token probing learns nothing but failure; other
+// store failures pass through untouched.
 func Authenticate(store *Store, token []byte, now int64) (User, error) {
 	sess, err := store.SessionByToken(token, now)
 	if err != nil {
@@ -204,7 +205,11 @@ func Authenticate(store *Store, token []byte, now int64) (User, error) {
 		}
 		return User{}, err
 	}
-	return userByID(store, sess.UserID)
+	u, err := userByID(store, sess.UserID)
+	if errors.Is(err, ErrNotFound) {
+		return User{}, ErrBadCredentials
+	}
+	return u, err
 }
 
 // Logout drops the token. Deleting a missing token is not an error because

@@ -172,6 +172,24 @@ func TestErrBadCredentialsIsTyped(t *testing.T) {
 	}
 }
 
+func TestHashPasswordFeedsVerifyPassword(t *testing.T) {
+	salt := NewSalt()
+	u := User{
+		Username:          "alice",
+		Argon2Time:        config.Argon2Time,
+		Argon2MemoryKiB:   config.Argon2MemoryKiB,
+		Argon2Parallelism: config.Argon2Parallelism,
+		Salt:              salt,
+		Hash:              HashPassword("hunter2", salt),
+	}
+	if !VerifyPassword(u, "hunter2") {
+		t.Error("VerifyPassword rejected the exact HashPassword output at config params")
+	}
+	if VerifyPassword(u, "anything-else") {
+		t.Error("VerifyPassword accepted a wrong password")
+	}
+}
+
 func TestLoginOrCreateRealArgon2RoundTrip(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
@@ -363,6 +381,28 @@ func TestLogoutInvalidates(t *testing.T) {
 	}
 }
 
+func TestAuthenticateVanishedUserRowFailsClosed(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	f := &fakeKDF{}
+	now := int64(1_700_000_000)
+
+	u, sess, err := loginOrCreate(s, "alice", "hunter2", now, f.derive)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// The FK blocks this through normal flows; force it to check the glue.
+	if _, err := s.db.Exec("PRAGMA foreign_keys = off"); err != nil {
+		t.Fatalf("drop fk guard: %v", err)
+	}
+	if _, err := s.db.Exec("DELETE FROM users WHERE id = ?", u.ID); err != nil {
+		t.Fatalf("delete user: %v", err)
+	}
+	if _, err := Authenticate(s, sess.Token, now); !errors.Is(err, ErrBadCredentials) {
+		t.Errorf("authenticate with vanished user row = %v, want ErrBadCredentials", err)
+	}
+}
+
 func TestLoginOrCreateTamperedRowFailsClosed(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
@@ -415,6 +455,53 @@ func (r *racingStore) UserByUsername(username string) (User, error) {
 		return User{}, ErrNotFound
 	}
 	return r.Store.UserByUsername(username)
+}
+
+func TestLoginOrCreatePassesStoreErrorsThrough(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	if err := s.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	if _, _, err := LoginOrCreate(s, "alice", "hunter2", 0); err == nil || errors.Is(err, ErrBadCredentials) || errors.Is(err, ErrNotFound) {
+		t.Errorf("login on closed store = %v, want the raw store failure", err)
+	}
+	if _, err := Authenticate(s, []byte("token"), 0); err == nil || errors.Is(err, ErrBadCredentials) {
+		t.Errorf("authenticate on closed store = %v, want the raw store failure", err)
+	}
+}
+
+// failingSessions wraps the store so every session insert errors, pinning
+// the branch where the user row is fine but persistence of the token fails.
+type failingSessions struct {
+	*Store
+}
+
+func (failingSessions) InsertSession(Session) error {
+	return errors.New("server: simulated insert failure")
+}
+
+func TestSessionInsertFailureSurfaces(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	f := &fakeKDF{}
+	now := int64(1_700_000_000)
+	broken := failingSessions{Store: s}
+
+	if u, sess, err := loginOrCreate(broken, "alice", "hunter2", now, f.derive); err == nil || !strings.Contains(err.Error(), "simulated insert failure") {
+		t.Errorf("create with failing session insert = (%d, %+v, %v), want the insert failure", u.ID, sess, err)
+	}
+	// The account row commits before the session insert; a retry logs in.
+	if _, err := s.UserByUsername("alice"); err != nil {
+		t.Errorf("user row after failed session insert = %v, want it kept for retry", err)
+	}
+
+	if _, _, err := loginOrCreate(s, "bob", "hunter2", now, f.derive); err != nil {
+		t.Fatalf("seed bob: %v", err)
+	}
+	if _, _, err := loginOrCreate(broken, "bob", "hunter2", now+1, f.derive); err == nil || !strings.Contains(err.Error(), "simulated insert failure") {
+		t.Errorf("verify with failing session insert = %v, want the insert failure", err)
+	}
 }
 
 func TestLoginOrCreateRegistrationRaceVerifies(t *testing.T) {
