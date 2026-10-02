@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
+	"fmt"
+	"time"
 
 	"golang.org/x/crypto/argon2"
 
@@ -82,4 +84,147 @@ func verifyPassword(stored User, password string, kdf argon2KDF) bool {
 		parallelism: stored.Argon2Parallelism,
 	}.derive(kdf, password, stored.Salt)
 	return subtle.ConstantTimeCompare(got, stored.Hash) == 1
+}
+
+// ErrInvalidUsername rejects a syntactically unusable username before any
+// store access: empty, past usernameMaxBytes, or carrying a control byte.
+var ErrInvalidUsername = errors.New("server: invalid username")
+
+// usernameMaxBytes is the login form's username ceiling. It belongs in the
+// config hub alongside the argon2 block once that file's ownership opens up.
+const usernameMaxBytes = 32
+
+func validateUsername(username string) error {
+	if username == "" || len(username) > usernameMaxBytes {
+		return ErrInvalidUsername
+	}
+	for i := 0; i < len(username); i++ {
+		if c := username[i]; c < 0x20 || c == 0x7f {
+			return ErrInvalidUsername
+		}
+	}
+	return nil
+}
+
+// sessionTTLSec is the expiry horizon in the store's unix-second domain,
+// derived from the config hub's hours so no raw second count lives here.
+const sessionTTLSec = int64(config.SessionTTLHours) * int64(time.Hour/time.Second)
+
+// NewSession mints one opaque token of config.SessionTokenBytes random bytes
+// for userID, expiring sessionTTLSec past now. The store compares
+// expires_at > now exclusively, so the deadline instant is already expired.
+func NewSession(userID, now int64) Session {
+	token := make([]byte, config.SessionTokenBytes)
+	_, _ = rand.Read(token)
+	return Session{Token: token, UserID: userID, ExpiresAt: now + sessionTTLSec}
+}
+
+// authStore is the store surface the login flow touches. An interface keeps
+// the registration-race branch deterministically testable.
+type authStore interface {
+	UserByUsername(username string) (User, error)
+	CreateUserIfAbsent(username string, salt, hash []byte) (User, bool, error)
+	InsertSession(sess Session) error
+}
+
+// LoginOrCreate implements the one-form auth of first-cause.md Scenario 1:
+// an unknown username registers the account and logs in, a known one
+// verifies the password and logs in.
+//
+// Timing shape, the property the KDF-call-count test pins: every
+// store-touching path performs exactly one argon2id derivation, with the
+// same parameter set on both legs (config params on creation, the row's
+// stored params on verification, and every row this server writes carries
+// the config params). The derivation dominates wall clock at these costs,
+// so wrong-password failure and unknown-username creation are the same
+// shape and no dummy burn is needed. Failures all report the one opaque
+// ErrBadCredentials. Username rejection is purely syntactic, runs before
+// any store access, and burns nothing. The single two-derivation path is
+// the registration race below.
+//
+// The session inserts are plain store calls for now: the integration layer
+// routes every write through WriteQueue later.
+func LoginOrCreate(store *Store, username, password string, now int64) (User, Session, error) {
+	return loginOrCreate(store, username, password, now, argon2.IDKey)
+}
+
+func loginOrCreate(store authStore, username, password string, now int64, kdf argon2KDF) (User, Session, error) {
+	if err := validateUsername(username); err != nil {
+		return User{}, Session{}, err
+	}
+	u, err := store.UserByUsername(username)
+	if errors.Is(err, ErrNotFound) {
+		salt := NewSalt()
+		hash := currentArgon2Params().derive(kdf, password, salt)
+		var created bool
+		u, created, err = store.CreateUserIfAbsent(username, salt, hash)
+		if err != nil {
+			return User{}, Session{}, err
+		}
+		if created {
+			sess, err := startSession(store, u.ID, now)
+			if err != nil {
+				return User{}, Session{}, err
+			}
+			return u, sess, nil
+		}
+		// Registration race lost: the row landed between the lookup and the
+		// insert, so the stored row wins and this request verifies against
+		// it like any known user. The only path that burns a second
+		// derivation, and reaching it requires creating the account first.
+	} else if err != nil {
+		return User{}, Session{}, err
+	}
+	if !verifyPassword(u, password, kdf) {
+		return User{}, Session{}, ErrBadCredentials
+	}
+	sess, err := startSession(store, u.ID, now)
+	if err != nil {
+		return User{}, Session{}, err
+	}
+	return u, sess, nil
+}
+
+func startSession(store authStore, userID, now int64) (Session, error) {
+	sess := NewSession(userID, now)
+	if err := store.InsertSession(sess); err != nil {
+		return Session{}, err
+	}
+	return sess, nil
+}
+
+// Authenticate resolves a live session token to its user. Missing and
+// expired tokens both map onto ErrBadCredentials, so token probing learns
+// nothing but failure; other store failures pass through untouched.
+func Authenticate(store *Store, token []byte, now int64) (User, error) {
+	sess, err := store.SessionByToken(token, now)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return User{}, ErrBadCredentials
+		}
+		return User{}, err
+	}
+	return userByID(store, sess.UserID)
+}
+
+// Logout drops the token. Deleting a missing token is not an error because
+// logout races natural expiry. Plain store call for now, WriteQueue-routed
+// by the integration layer later.
+func Logout(store *Store, token []byte) error {
+	return store.DeleteSession(token)
+}
+
+// userByID is session glue pending a typed store accessor: it mirrors
+// UserByUsername's column list because Authenticate holds only the session's
+// user id. Store CRUD gap, reported to the store owner.
+func userByID(s *Store, id int64) (User, error) {
+	var u User
+	err := notFound(s.db.QueryRow(
+		`SELECT id, username, argon2_time, argon2_memory, argon2_parallelism, salt, hash, created_at
+		FROM users WHERE id = ?`, id,
+	).Scan(&u.ID, &u.Username, &u.Argon2Time, &u.Argon2MemoryKiB, &u.Argon2Parallelism, &u.Salt, &u.Hash, &u.CreatedAt))
+	if err != nil {
+		return User{}, fmt.Errorf("server: fetch user %d: %w", id, err)
+	}
+	return u, nil
 }
