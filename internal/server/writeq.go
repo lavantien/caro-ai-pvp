@@ -13,7 +13,9 @@ import (
 // Mutation is one unit of persistent state change. The queue worker calls
 // it serially under a fresh context carrying WriteQueue.ApplyTimeout as the
 // deadline, so one wedged write is cut off instead of stalling every later
-// mutation behind it.
+// mutation behind it. The ceiling only bites when the mutation threads the
+// context into its store calls: every store write reached from here rides
+// the Context driver variants for exactly that reason.
 type Mutation func(ctx context.Context) error
 
 // ErrQueueClosed rejects a mutation the queue can no longer serve: the Close

@@ -102,7 +102,7 @@ func TestAccessorsFailCleanlyAfterClose(t *testing.T) {
 		"insert session": func() error { return s.InsertSession(Session{Token: []byte("t")}) },
 		"fetch session":  func() error { _, err := s.SessionByToken([]byte("t"), 0); return err },
 		"delete session": func() error { return s.DeleteSession([]byte("t")) },
-		"create series":  func() error { _, err := s.CreateSeries(0, 3, 1, 2); return err },
+		"create series":  func() error { _, err := s.CreateSeries(context.Background(), 0, 3, 1, 2); return err },
 		"fetch series":   func() error { _, err := s.SeriesByID(1); return err },
 		"update series":  func() error { return s.UpdateSeries(1, SeriesStateFinished, nil, nil) },
 		"append game":    func() error { _, err := s.AppendGame(Game{Moves: []byte{1}}); return err },

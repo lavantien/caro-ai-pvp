@@ -219,8 +219,8 @@ func (r *Room) persistGameLocked(redUser, blueUser int64, outcome Outcome, wonBy
 			SeriesID: seriesID, Winner: r.seriesWinnerUser(), FinishedAt: time.Now().Unix(),
 		}
 	}
-	return r.wq.Send(func(_ context.Context) error {
-		return r.store.ApplyCompletion(unit)
+	return r.wq.Send(func(ctx context.Context) error {
+		return r.store.ApplyCompletion(ctx, unit)
 	})
 }
 
@@ -283,8 +283,8 @@ func (r *Room) persistForfeitLocked(liveMoves []rules.Move) error {
 	unit.Finish = &SeriesFinish{
 		SeriesID: seriesID, Winner: r.seriesWinnerUser(), FinishedAt: time.Now().Unix(),
 	}
-	return r.wq.Send(func(_ context.Context) error {
-		return r.store.ApplyCompletion(unit)
+	return r.wq.Send(func(ctx context.Context) error {
+		return r.store.ApplyCompletion(ctx, unit)
 	})
 }
 

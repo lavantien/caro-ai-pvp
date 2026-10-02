@@ -144,9 +144,9 @@ func (r *Room) join(userID int64) error {
 		return err
 	}
 	var row SeriesRow
-	err = r.wq.Send(func(_ context.Context) error {
+	err = r.wq.Send(func(ctx context.Context) error {
 		var perr error
-		row, perr = r.store.CreateSeries(r.tcIdx, r.boLen, series.HostUserID(), series.GuestUserID())
+		row, perr = r.store.CreateSeries(ctx, r.tcIdx, r.boLen, series.HostUserID(), series.GuestUserID())
 		return perr
 	})
 	if err != nil {

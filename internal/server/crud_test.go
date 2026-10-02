@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"runtime"
 	"strings"
@@ -24,7 +25,7 @@ func seedUser(t *testing.T, s *Store, name string) User {
 
 func seedSeries(t *testing.T, s *Store, red, blue User) SeriesRow {
 	t.Helper()
-	sr, err := s.CreateSeries(1, config.SeriesBO3, red.ID, blue.ID)
+	sr, err := s.CreateSeries(context.Background(), 1, config.SeriesBO3, red.ID, blue.ID)
 	if err != nil {
 		t.Fatalf("seed series: %v", err)
 	}
@@ -128,7 +129,7 @@ func TestSeriesLifecycle(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	red, blue := seedUser(t, s, "alice"), seedUser(t, s, "bob")
-	sr, err := s.CreateSeries(2, config.SeriesBO5, red.ID, blue.ID)
+	sr, err := s.CreateSeries(context.Background(), 2, config.SeriesBO5, red.ID, blue.ID)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -186,7 +187,7 @@ func TestInsertsEnforceForeignKeys(t *testing.T) {
 	if err := s.InsertSession(Session{Token: []byte("t"), UserID: 999999, ExpiresAt: 1}); err == nil || !strings.Contains(err.Error(), "FOREIGN KEY") {
 		t.Errorf("session with bogus user = %v, want FOREIGN KEY constraint failure", err)
 	}
-	if _, err := s.CreateSeries(0, config.SeriesBO3, red.ID, 999999); err == nil || !strings.Contains(err.Error(), "FOREIGN KEY") {
+	if _, err := s.CreateSeries(context.Background(), 0, config.SeriesBO3, red.ID, 999999); err == nil || !strings.Contains(err.Error(), "FOREIGN KEY") {
 		t.Errorf("series with bogus blue user = %v, want FOREIGN KEY constraint failure", err)
 	}
 	if _, err := s.AppendRatingEvent(RatingEvent{GameID: 999999, UserID: red.ID}); err == nil || !strings.Contains(err.Error(), "FOREIGN KEY") {
@@ -435,6 +436,49 @@ func TestMatchHistoryScoreCountsParticipantsNotColors(t *testing.T) {
 		if r.RedWins != wantFixed[i][0] || r.BlueWins != wantFixed[i][1] {
 			t.Errorf("fixed row %d score = %d-%d, want %d-%d", i, r.RedWins, r.BlueWins, wantFixed[i][0], wantFixed[i][1])
 		}
+	}
+}
+
+// TestStoreMutationsHonorCanceledContext pins the wedged-write ceiling of
+// the write queue: the store mutations that run under the queue's apply
+// context (CreateSeries on join, ApplyCompletion on every game end) thread
+// that context into the driver, so a context already done fails the write
+// instead of hanging past the deadline the queue believed it enforced.
+func TestStoreMutationsHonorCanceledContext(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+
+	alice, bob := seedUser(t, s, "alice"), seedUser(t, s, "bob")
+	sr := seedSeries(t, s, alice, bob)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if _, err := s.CreateSeries(ctx, 0, config.SeriesBO3, alice.ID, bob.ID); !errors.Is(err, context.Canceled) {
+		t.Errorf("create series under a canceled ctx = %v, want context.Canceled", err)
+	}
+	err := s.ApplyCompletion(ctx, Completion{
+		Games: []Game{{
+			SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+			Outcome: OutcomeRed, Moves: []byte{1},
+		}},
+		Finish: &SeriesFinish{SeriesID: sr.ID, Winner: &alice.ID, FinishedAt: time.Now().Unix()},
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("apply completion under a canceled ctx = %v, want context.Canceled", err)
+	}
+
+	var games, ratings int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM games`).Scan(&games); err != nil {
+		t.Fatalf("count games: %v", err)
+	}
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM rating_events`).Scan(&ratings); err != nil {
+		t.Fatalf("count ratings: %v", err)
+	}
+	if games != 0 || ratings != 0 {
+		t.Errorf("canceled mutations left %d games and %d ratings, want none", games, ratings)
+	}
+	if got, err := s.SeriesByID(sr.ID); err != nil || got.State != SeriesStateOngoing {
+		t.Errorf("series after canceled mutations = %+v err %v, want untouched ongoing", got, err)
 	}
 }
 

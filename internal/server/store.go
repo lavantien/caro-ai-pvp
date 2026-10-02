@@ -4,6 +4,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -24,10 +25,11 @@ var ErrNotFound = errors.New("server: record not found")
 
 // sqlRunner is the statement surface the pool and an open transaction share,
 // so single-shot writes and the completion unit's statements run identical
-// SQL.
+// SQL. Everything rides the Context variants, so the write queue's apply
+// deadline reaches the driver instead of going unheard.
 type sqlRunner interface {
-	Exec(query string, args ...any) (sql.Result, error)
-	QueryRow(query string, args ...any) *sql.Row
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
 // Store owns the embedded SQLite database. Every pragma rides the DSN so
@@ -234,9 +236,9 @@ type SeriesRow struct {
 	FinishedAt *int64
 }
 
-func (s *Store) CreateSeries(tcIdx, boLen int, redUser, blueUser int64) (SeriesRow, error) {
+func (s *Store) CreateSeries(ctx context.Context, tcIdx, boLen int, redUser, blueUser int64) (SeriesRow, error) {
 	var sr SeriesRow
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(ctx,
 		`INSERT INTO series (tc_idx, bo_len, red_user, blue_user, state)
 		VALUES (?, ?, ?, ?, ?) RETURNING id, created_at`,
 		tcIdx, boLen, redUser, blueUser, SeriesStateOngoing,
@@ -265,11 +267,11 @@ func (s *Store) SeriesByID(id int64) (SeriesRow, error) {
 // UpdateSeries rewrites the mutable columns: state plus the optional winner
 // and finish time, NULL while undecided. A missing id maps to ErrNotFound.
 func (s *Store) UpdateSeries(id int64, state string, winner, finishedAt *int64) error {
-	return updateSeriesRow(s.db, id, state, winner, finishedAt)
+	return updateSeriesRow(context.Background(), s.db, id, state, winner, finishedAt)
 }
 
-func updateSeriesRow(run sqlRunner, id int64, state string, winner, finishedAt *int64) error {
-	res, err := run.Exec(
+func updateSeriesRow(ctx context.Context, run sqlRunner, id int64, state string, winner, finishedAt *int64) error {
+	res, err := run.ExecContext(ctx,
 		`UPDATE series SET state = ?, winner = ?, finished_at = ? WHERE id = ?`,
 		state, sqlArg(winner), sqlArg(finishedAt), id,
 	)
@@ -305,11 +307,11 @@ type Game struct {
 // AppendGame persists one game and returns it with the assigned id and
 // played_at stamped by the database.
 func (s *Store) AppendGame(g Game) (Game, error) {
-	return insertGameRow(s.db, g)
+	return insertGameRow(context.Background(), s.db, g)
 }
 
-func insertGameRow(run sqlRunner, g Game) (Game, error) {
-	err := run.QueryRow(
+func insertGameRow(ctx context.Context, run sqlRunner, g Game) (Game, error) {
+	err := run.QueryRowContext(ctx,
 		`INSERT INTO games (series_id, idx_in_series, red_user, blue_user, outcome, moves, full_turns, won_by)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, played_at`,
 		g.SeriesID, g.IdxInSeries, g.RedUser, g.BlueUser, g.Outcome, g.Moves, g.FullTurns, sqlArg(g.WonBy),
@@ -332,11 +334,11 @@ type RatingEvent struct {
 }
 
 func (s *Store) AppendRatingEvent(e RatingEvent) (RatingEvent, error) {
-	return insertRatingEventRow(s.db, e)
+	return insertRatingEventRow(context.Background(), s.db, e)
 }
 
-func insertRatingEventRow(run sqlRunner, e RatingEvent) (RatingEvent, error) {
-	err := run.QueryRow(
+func insertRatingEventRow(ctx context.Context, run sqlRunner, e RatingEvent) (RatingEvent, error) {
+	err := run.QueryRowContext(ctx,
 		`INSERT INTO rating_events (game_id, user_id, delta, rating_after)
 		VALUES (?, ?, ?, ?) RETURNING id, created_at`,
 		e.GameID, e.UserID, e.Delta, e.RatingAfter,
@@ -368,23 +370,23 @@ type SeriesFinish struct {
 // event, and no series change behind, so the zero-sum rating law can never
 // tear on disk. The write queue serializes callers, so the transaction adds
 // no contention.
-func (s *Store) ApplyCompletion(c Completion) error {
-	tx, err := s.db.Begin()
+func (s *Store) ApplyCompletion(ctx context.Context, c Completion) error {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("server: begin completion: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 	for _, g := range c.Games {
-		row, err := insertGameRow(tx, g)
+		row, err := insertGameRow(ctx, tx, g)
 		if err != nil {
 			return err
 		}
-		if err := applyRatingPair(tx, row.ID, g.RedUser, g.BlueUser, g.Outcome); err != nil {
+		if err := applyRatingPair(ctx, tx, row.ID, g.RedUser, g.BlueUser, g.Outcome); err != nil {
 			return err
 		}
 	}
 	if c.Finish != nil {
-		if err := updateSeriesRow(tx, c.Finish.SeriesID, SeriesStateFinished, c.Finish.Winner, &c.Finish.FinishedAt); err != nil {
+		if err := updateSeriesRow(ctx, tx, c.Finish.SeriesID, SeriesStateFinished, c.Finish.Winner, &c.Finish.FinishedAt); err != nil {
 			return err
 		}
 	}
@@ -397,15 +399,15 @@ func (s *Store) ApplyCompletion(c Completion) error {
 // applyRatingPair prices one game on the two players' CURRENT ratings (the
 // last rating event's RatingAfter, RatingStart before any) and appends the
 // zero-sum pair. Draws carry no rating move.
-func applyRatingPair(run sqlRunner, gameID, redUser, blueUser int64, outcome string) error {
+func applyRatingPair(ctx context.Context, run sqlRunner, gameID, redUser, blueUser int64, outcome string) error {
 	var dRed, dBlue, afterRed, afterBlue int
 	switch outcome {
 	case OutcomeRed, OutcomeBlue:
-		rRed, err := currentRatingOn(run, redUser)
+		rRed, err := currentRatingOn(ctx, run, redUser)
 		if err != nil {
 			return err
 		}
-		rBlue, err := currentRatingOn(run, blueUser)
+		rBlue, err := currentRatingOn(ctx, run, blueUser)
 		if err != nil {
 			return err
 		}
@@ -423,7 +425,7 @@ func applyRatingPair(run sqlRunner, gameID, redUser, blueUser int64, outcome str
 		{GameID: gameID, UserID: redUser, Delta: dRed, RatingAfter: afterRed},
 		{GameID: gameID, UserID: blueUser, Delta: dBlue, RatingAfter: afterBlue},
 	} {
-		if _, err := insertRatingEventRow(run, e); err != nil {
+		if _, err := insertRatingEventRow(ctx, run, e); err != nil {
 			return err
 		}
 	}
@@ -433,15 +435,15 @@ func applyRatingPair(run sqlRunner, gameID, redUser, blueUser int64, outcome str
 // currentRating reads one user's latest rating, RatingStart before any
 // event.
 func currentRating(st *Store, userID int64) (int, error) {
-	return currentRatingOn(st.db, userID)
+	return currentRatingOn(context.Background(), st.db, userID)
 }
 
 // currentRatingOn reads one user's latest rating, RatingStart before any
 // event. Inside a completion unit the same transaction sees the pair just
 // written, so multi-game units chain exactly like sequential commits.
-func currentRatingOn(run sqlRunner, userID int64) (int, error) {
+func currentRatingOn(ctx context.Context, run sqlRunner, userID int64) (int, error) {
 	var r int
-	err := run.QueryRow(
+	err := run.QueryRowContext(ctx,
 		`SELECT rating_after FROM rating_events WHERE user_id = ? ORDER BY id DESC LIMIT 1`, userID,
 	).Scan(&r)
 	if errors.Is(err, sql.ErrNoRows) {
