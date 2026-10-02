@@ -6,3 +6,4 @@ dist/
 coverage.out
 *.prof
 *.log
+.playwright-mcp/
