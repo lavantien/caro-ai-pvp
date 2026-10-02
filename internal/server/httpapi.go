@@ -206,6 +206,8 @@ func (a *apiServer) routes() http.Handler {
 	mux.HandleFunc("POST /api/rooms/{id}/ready", a.requireSession(a.handleReady))
 	mux.HandleFunc("POST /api/rooms/{id}/move", a.requireSession(a.handleMove))
 	mux.HandleFunc("POST /api/rooms/{id}/forfeit", a.requireSession(a.handleForfeit))
+	mux.HandleFunc("GET /static/", a.handleStatic)
+	mux.HandleFunc("GET /spike", a.handleSpike)
 	return mux
 }
 
