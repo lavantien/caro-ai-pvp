@@ -117,24 +117,49 @@ func NewConductor(source MatchSource) *Conductor {
 // at a time each, at the roster's largest tier core count) must fit
 // config.MachineCores; both refuse before anything persists. The schedule
 // lands in CreateRun, every pairing runs under the semaphore, and the run
-// finishes with the standings snapshot. The first series error aborts the
-// run: pending pairings stop at the semaphore, live streams retire through
-// their Close, the run row stays ongoing for the post-mortem, and the error
-// surfaces. Cancelling ctx is the same abort with the context's error.
+// finishes with the standings snapshot.
 func (c *Conductor) Run(ctx context.Context, store *Store, roster []Participant,
 	tcIdx, boLen, startRating, parallel int) (RunResult, error) {
 
-	tiers, err := tiersOfRoster(roster)
+	run, tiers, err := c.startRun(ctx, store, roster, tcIdx, boLen, startRating, parallel)
 	if err != nil {
 		return RunResult{}, err
 	}
+	return c.drive(ctx, store, run, roster, tiers, parallel)
+}
+
+// startRun is the synchronous half of a run: resolve the roster tiers, refuse
+// a core budget the machine cannot book, and persist the run. It returns
+// once the run row exists, before any series starts, so the UI manager can
+// hand the id out for a redirect. Split from Run as the M7 service seam; the
+// conductor's behavior is unchanged.
+func (c *Conductor) startRun(ctx context.Context, store *Store, roster []Participant,
+	tcIdx, boLen, startRating, parallel int) (Run, []*config.Tier, error) {
+
+	tiers, err := tiersOfRoster(roster)
+	if err != nil {
+		return Run{}, nil, err
+	}
 	if err := checkCoreBudget(parallel, tiers); err != nil {
-		return RunResult{}, err
+		return Run{}, nil, err
 	}
 	run, err := store.CreateRun(ctx, tcIdx, boLen, startRating, roster)
 	if err != nil {
-		return RunResult{}, err
+		return Run{}, nil, err
 	}
+	return run, tiers, nil
+}
+
+// drive executes one already-persisted run: read back the schedule and
+// cross-check it against the pairing plan, run every pairing under the
+// semaphore, close the run, and read the final leaderboard. The first series
+// error aborts the run: pending pairings stop at the semaphore, live streams
+// retire through their Close, the run row stays ongoing for the post-mortem,
+// and the error surfaces. Cancelling ctx is the same abort with the
+// context's error.
+func (c *Conductor) drive(ctx context.Context, store *Store, run Run, roster []Participant,
+	tiers []*config.Tier, parallel int) (RunResult, error) {
+
 	schedule, err := store.Schedule(ctx, run.ID)
 	if err != nil {
 		return RunResult{}, err
