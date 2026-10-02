@@ -363,7 +363,9 @@ func (r *Room) Subscribe() (*Subscription, error) {
 // recently finished game: the stones the room itself applied, in play
 // order, copied under the lock. It stays readable into the next game (the
 // tournament conductor reconciles its delivered stream against it at the
-// game-end event) and is nil before any completion.
+// game-end event) and is nil before any completion. A consumer that trails
+// a full game behind reads the newer game's list; its reconciliation then
+// fails the run loudly, never persists a stale record.
 func (r *Room) LastGameMoves() []rules.Move {
 	r.mu.Lock()
 	defer r.mu.Unlock()
