@@ -93,6 +93,11 @@ func NewShellPages(store *Store, rooms *RoomManager) http.Handler {
 	mux.HandleFunc("POST /logout", p.handleLogout)
 	mux.HandleFunc("GET /history", p.handleHistory)
 	mux.HandleFunc("GET /partials/rooms", p.handleRoomsPartial)
+	// The collection URL is the home grid: only the form POST lives here,
+	// so a typed GET lands on home instead of a bare 405.
+	mux.HandleFunc("GET /rooms", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	})
 	mux.HandleFunc("POST /rooms", p.handleCreateRoom)
 	mux.HandleFunc("GET /shell.css", p.handleShellCSS)
 	return mux

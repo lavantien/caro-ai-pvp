@@ -651,6 +651,50 @@ func TestGameByIDReadsAndMisses(t *testing.T) {
 	}
 }
 
+// TestRoomAndPlaybackBrokenStoreAnswers500 pins the outage posture the shell
+// pages already carry: a present session over a broken store surfaces the
+// failure, never a silent guest view or a masquerading 404. A cookie-less
+// request stays a 404 guest page.
+func TestRoomAndPlaybackBrokenStoreAnswers500(t *testing.T) {
+	dead := mustOpen(t, dbPath(t))
+	if err := dead.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	live, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	mux := http.NewServeMux()
+	NewRoomPages(s.rm, dead).Mount(mux)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	// A valid-shaped token over the closed pool must read as an outage.
+	token := strings.Repeat("0", 2*config.SessionTokenBytes)
+	for _, path := range []string{"/rooms/" + live.ID(), "/rooms/history/1"} {
+		req, err := http.NewRequest(http.MethodGet, srv.URL+path, nil)
+		if err != nil {
+			t.Fatalf("new request %s: %v", path, err)
+		}
+		req.Header.Set("Cookie", sessionCookieName+"="+token)
+		resp, err := srv.Client().Do(req)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusInternalServerError {
+			t.Errorf("GET %s with a session over a broken store = %d, want 500", path, resp.StatusCode)
+		}
+	}
+	// No cookie: the anonymous view stays the guest page, 404 for playback.
+	status, _ := getRoomPage(t, srv, "/rooms/history/1", "")
+	if status != http.StatusNotFound {
+		t.Errorf("anonymous playback over a broken store = %d, want 404", status)
+	}
+}
+
 // TestRoomPagesComposeWithJSONAPI mounts the pages beside the JSON mux the
 // way the serve command does: page routes win on /rooms, everything else
 // falls through to the API untouched.

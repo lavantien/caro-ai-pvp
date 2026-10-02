@@ -273,6 +273,12 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 	if status != http.StatusSeeOther || h.Get("Location") != "/login" {
 		t.Errorf("guest /history = %d %q, want 303 /login", status, h.Get("Location"))
 	}
+
+	// The rooms collection URL is the home grid, never a 405 dead end.
+	status, h, _ = doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/rooms", "", nil)
+	if status != http.StatusSeeOther || h.Get("Location") != "/" {
+		t.Errorf("GET /rooms = %d %q, want 303 /", status, h.Get("Location"))
+	}
 }
 
 func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {

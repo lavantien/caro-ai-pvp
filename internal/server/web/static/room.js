@@ -36,9 +36,14 @@ var hostID = Number(root.dataset.hostId || 0);
 var guestID = Number(root.dataset.guestId || 0);
 var hostName = root.dataset.hostName;
 var guestName = root.dataset.guestName;
+// Seat names freeze at render: a page opened while the guest seat was open
+// (host or spectator) must reload once the seat fills, the only render that
+// carries the seated name and the participant handshake.
+var seatedAtLoad = guestID !== 0;
 var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 var selected = '';
 var terminal = false;
+var awaitingNewGame = false;
 var es = null;
 var pollTimer = null;
 var tickTimer = null;
@@ -64,13 +69,14 @@ function fmtClock(ms) {
 
 function applyStone(name, color, idx) {
 	var cell = $('c-' + name);
-	if (!cell || cell.classList.contains('occ')) { return; }
+	if (!cell || cell.classList.contains('occ')) { return null; }
 	var s = document.createElement('span');
 	s.className = 'stone ' + color;
 	if (typeof idx === 'number') { s.setAttribute('data-i', String(idx)); }
 	s.textContent = glyphOf(color);
 	cell.appendChild(s);
 	cell.classList.add('occ');
+	return s;
 }
 
 function rebuildBoard(names) {
@@ -116,11 +122,10 @@ function paintClocks() {
 // after a reload-safe event gap, both banks, the turn, and the score line.
 function renderDetail(d) {
 	detail = d;
-	// The handshake section renders server-side at load: a participant
-	// whose page predates the opponent's join never gains the ready
-	// button, so the seat filling in trades one reload for live controls.
-	// Spectators lack the flag and never reload here.
-	if (participant && !d.game && Number(d.guestUserId) !== 0 && !$('ready-btn')) {
+	// The handshake section and the seat names render server-side at load:
+	// a page opened while the guest seat was open trades one reload for
+	// the seated render, whatever the viewer's role.
+	if (!d.game && Number(d.guestUserId) !== 0 && !seatedAtLoad) {
 		location.reload();
 		return;
 	}
@@ -174,10 +179,25 @@ function tick() {
 
 function onMove(name) {
 	if (terminal || !name) { return; }
+	// A move after a gameend opens the next game: the board resets in the
+	// same server critical section as the completion, so the SSE stream
+	// never carries an explicit reset frame.
+	if (awaitingNewGame) {
+		awaitingNewGame = false;
+		rebuildBoard([]);
+		turn = '';
+	}
 	var cell = $('c-' + name);
 	if (!cell || cell.classList.contains('occ')) { return; }
 	var i = stoneCount();
-	applyStone(name, i % 2 === 0 ? 'red' : 'blue', i);
+	var stone = applyStone(name, i % 2 === 0 ? 'red' : 'blue', i);
+	// The latest ring tracks the stream, not just the one-second poll, so
+	// the winning stone stays highlighted on the terminal page.
+	if (stone) {
+		var prevStone = $('board').querySelector('.stone.latest');
+		if (prevStone) { prevStone.classList.remove('latest'); }
+		stone.classList.add('latest');
+	}
 	var ol = $('move-history');
 	var prev = ol.querySelector('li.latest');
 	if (prev) { prev.classList.remove('latest'); }
@@ -202,6 +222,7 @@ function onMLine(line) {
 }
 
 function onGameEnd(outcome) {
+	awaitingNewGame = true;
 	status('game over: ' + outcome);
 	// The room either retires (a series event follows) or resets for the
 	// next game with the loser on red; one detail sync paints either.

@@ -92,13 +92,25 @@ func (p *RoomPages) HandlePlayback(w http.ResponseWriter, r *http.Request) {
 		writePageNotFound(w)
 		return
 	}
-	viewer, ok := p.viewerOf(r)
+	viewer, ok, err := p.viewerOf(r)
+	if err != nil {
+		http.Error(w, "playback read failed", http.StatusInternalServerError)
+		return
+	}
 	if !ok {
 		writePageNotFound(w)
 		return
 	}
 	g, err := p.store.gameByID(id)
-	if err != nil || (viewer.ID != g.RedUser && viewer.ID != g.BlueUser) {
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			writePageNotFound(w)
+			return
+		}
+		http.Error(w, "playback read failed", http.StatusInternalServerError)
+		return
+	}
+	if viewer.ID != g.RedUser && viewer.ID != g.BlueUser {
 		writePageNotFound(w)
 		return
 	}
@@ -233,7 +245,10 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 	view.HostName = hostName
 	view.GuestName = p.guestName(info)
 
-	viewer, ok := p.viewerOf(r)
+	viewer, ok, err := p.viewerOf(r)
+	if err != nil {
+		return view, err
+	}
 	view.IsParticipant = ok && (viewer.ID == info.HostUserID || viewer.ID == info.GuestUserID)
 	if !view.IsParticipant {
 		view.CanForfeit = false
@@ -280,17 +295,22 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 	return view, nil
 }
 
-// viewerOf resolves the session's user; every failure means the guest view.
-func (p *RoomPages) viewerOf(r *http.Request) (User, bool) {
+// viewerOf resolves the session's user. A missing cookie and a dead session
+// are the guest view; a live-shaped session over a failing store is an
+// outage the caller must surface, not a silent guest render.
+func (p *RoomPages) viewerOf(r *http.Request) (User, bool, error) {
 	token, err := sessionToken(r)
 	if err != nil {
-		return User{}, false
+		return User{}, false, nil
 	}
 	u, err := Authenticate(p.store, token, time.Now().Unix())
 	if err != nil {
-		return User{}, false
+		if errors.Is(err, ErrNotFound) {
+			return User{}, false, nil
+		}
+		return User{}, false, err
 	}
-	return u, true
+	return u, true, nil
 }
 
 // userName resolves one user id to its display name.
