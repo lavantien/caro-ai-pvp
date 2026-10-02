@@ -53,13 +53,16 @@ fuzz:
 		CGO_ENABLED=1 go test -run='^$$' -fuzz=. -fuzztime=60s ./internal/rules; \
 	else echo "fuzz: no targets yet, internal/rules lands at M1"; fi
 
+# mutate [PARALLEL=1] [CHALLENGE=1]: mutation gate over the core packages.
+# CHALLENGE=1 runs the suite under allowlisted mutants too, auditing every
+# equivalence proof (milestone-closing runs should set it).
 mutate:
-	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),1)
+	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),1) $(if $(CHALLENGE),-challenge)
 
 # mutate-resume LOG=prior-run.log continues a gate after a host failure:
 # prior KILLED verdicts are replayed, everything else is re-decided fresh.
 mutate-resume:
-	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),1) -resume "$(LOG)"
+	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),1) $(if $(CHALLENGE),-challenge) -resume "$(LOG)"
 
 run:
 	CGO_ENABLED=1 go run ./cmd/caro $(or $(ARGS),ports)
