@@ -116,6 +116,14 @@ function paintClocks() {
 // after a reload-safe event gap, both banks, the turn, and the score line.
 function renderDetail(d) {
 	detail = d;
+	// The handshake section renders server-side at load: a participant
+	// whose page predates the opponent's join never gains the ready
+	// button, so the seat filling in trades one reload for live controls.
+	// Spectators lack the flag and never reload here.
+	if (participant && !d.game && Number(d.guestUserId) !== 0 && !$('ready-btn')) {
+		location.reload();
+		return;
+	}
 	if (!d.game) {
 		turn = '';
 		remMs.red = 0;
