@@ -269,6 +269,197 @@ func TestHTTPRoomsGridAndDetail(t *testing.T) {
 	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
 }
 
+// playHTTPScript alternates move posts, names[0] by the mover the redFirst
+// flag names, then alternating: every post must answer 204.
+func playHTTPScript(t *testing.T, srv *httptest.Server, roomID, redTok, blueTok string, names []string, redFirst bool) {
+	t.Helper()
+	tok := blueTok
+	if redFirst {
+		tok = redTok
+	}
+	for i, name := range names {
+		got := doJSON(t, srv.Client(), http.MethodPost,
+			srv.URL+"/api/rooms/"+roomID+"/move", tok, map[string]string{"cell": name})
+		if got.status != http.StatusNoContent {
+			t.Fatalf("move %d %s: status %d body %s, want 204", i+1, name, got.status, got.body)
+		}
+		if tok == redTok {
+			tok = blueTok
+		} else {
+			tok = redTok
+		}
+	}
+}
+
+func TestHTTPRoomActionsPlaySeries(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	carol := seedUser(t, s.store, "carol")
+	ta, tb, tcTok := mintSession(t, s.store, alice), mintSession(t, s.store, bob), mintSession(t, s.store, carol)
+
+	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+	var room roomSummary
+	wantStatus(t, got, http.StatusCreated, &room)
+	base := srv.URL + "/api/rooms/" + room.ID
+
+	// Acting on a room needs a session.
+	got = doJSON(t, c, http.MethodPost, base+"/join", "", nil)
+	wantAPIError(t, got, http.StatusUnauthorized, "unauthorized")
+
+	// The host cannot join its own seat.
+	got = doJSON(t, c, http.MethodPost, base+"/join", ta, nil)
+	wantAPIError(t, got, http.StatusBadRequest, "bad_request")
+
+	// Bob joins, the third player bounces off the taken seat.
+	got = doJSON(t, c, http.MethodPost, base+"/join", tb, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/join", tcTok, nil)
+	wantAPIError(t, got, http.StatusConflict, "room_full")
+
+	// Handshake surface: stranger refused, moves before both ready refused.
+	got = doJSON(t, c, http.MethodPost, base+"/ready", tcTok, nil)
+	wantAPIError(t, got, http.StatusForbidden, "not_participant")
+	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
+	wantAPIError(t, got, http.StatusConflict, "not_ready")
+
+	// Ready handshake, idempotent on retry.
+	got = doJSON(t, c, http.MethodPost, base+"/ready", ta, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/ready", ta, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/ready", tb, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+
+	// Game 1 is live with the host on red per the spec.
+	got = doJSON(t, c, http.MethodGet, base, "", nil)
+	var detail roomDetail
+	wantStatus(t, got, http.StatusOK, &detail)
+	if detail.Game == nil || detail.Game.Turn != "red" || detail.Game.TurnUserID != alice.ID ||
+		detail.Game.RedUserID != alice.ID || len(detail.Game.Moves) != 0 {
+		t.Fatalf("game 1 snapshot = %+v, want the host on red with an empty board", detail.Game)
+	}
+	max := int64(config.TimeControls[0].InitialSec * 1000)
+	for i, ms := range detail.Game.ClockMs {
+		if ms <= 0 || ms > max {
+			t.Errorf("game 1 clock[%d] = %dms, want inside (0, %d]", i, ms, max)
+		}
+	}
+
+	// A guest cannot act on the live room.
+	got = doJSON(t, c, http.MethodPost, base+"/move", "", map[string]string{"cell": "D4"})
+	wantAPIError(t, got, http.StatusUnauthorized, "unauthorized")
+
+	// Turn and rules rejections over the wire.
+	got = doJSON(t, c, http.MethodPost, base+"/move", tb, map[string]string{"cell": "D4"})
+	wantAPIError(t, got, http.StatusConflict, "not_your_turn")
+	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/move", tb, map[string]string{"cell": "D4"})
+	wantAPIError(t, got, http.StatusConflict, "illegal_move")
+	got = doJSON(t, c, http.MethodPost, base+"/move", tb, map[string]string{"cell": "Z9"})
+	wantAPIError(t, got, http.StatusBadRequest, "bad_request")
+	got = doJSON(t, c, http.MethodPost, base+"/move", tb, json.RawMessage(`{"cell": 7}`))
+	wantAPIError(t, got, http.StatusBadRequest, "bad_request")
+	got = doJSON(t, c, http.MethodPost, base+"/move", tb, map[string]string{"cell": "P16"})
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D5"})
+	wantAPIError(t, got, http.StatusConflict, "illegal_move")
+
+	// Mid-game board over the wire: after blue's stone the turn is red's.
+	got = doJSON(t, c, http.MethodGet, base, "", nil)
+	wantStatus(t, got, http.StatusOK, &detail)
+	if detail.Game == nil || detail.Game.Turn != "red" || detail.Game.TurnUserID != alice.ID {
+		t.Fatalf("mid-game snapshot = %+v, want alice on red to move", detail.Game)
+	}
+	if want := []string{"D4", "P16"}; len(detail.Game.Moves) != 2 ||
+		detail.Game.Moves[0] != want[0] || detail.Game.Moves[1] != want[1] {
+		t.Fatalf("mid-game moves = %v, want %v", detail.Game.Moves, want)
+	}
+
+	// Game 1 lands on the scripted host win (opening legality holds from H8).
+	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "H8"})
+	wantStatus(t, got, http.StatusNoContent, nil)
+	playHTTPScript(t, srv, room.ID, ta, tb, hostWinsRed[3:], false)
+
+	// Game 2 is live with the loser rotation: bob holds red, alice swept the
+	// first point.
+	got = doJSON(t, c, http.MethodGet, base, "", nil)
+	wantStatus(t, got, http.StatusOK, &detail)
+	if detail.State != "in-game" || detail.HostWins != 1 || detail.GuestWins != 0 {
+		t.Fatalf("mid-series line = %s %d-%d, want in-game 1-0", detail.State, detail.HostWins, detail.GuestWins)
+	}
+	if detail.Game == nil || detail.Game.RedUserID != bob.ID || detail.Game.TurnUserID != bob.ID ||
+		len(detail.Game.Moves) != 0 {
+		t.Fatalf("game 2 snapshot = %+v, want bob on red fresh", detail.Game)
+	}
+
+	// Game 2 lands on the scripted blue win: the host sweeps, the room
+	// retires, and every further access answers 404.
+	playHTTPScript(t, srv, room.ID, ta, tb, guestRedLosesToBlue, false)
+	got = doJSON(t, c, http.MethodGet, base, "", nil)
+	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
+	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
+	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
+	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms", "", nil)
+	var rooms []roomSummary
+	wantStatus(t, got, http.StatusOK, &rooms)
+	if len(rooms) != 0 {
+		t.Fatalf("grid after series = %+v, want empty", rooms)
+	}
+}
+
+func TestHTTPForfeitRetiresRoom(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	carol := seedUser(t, s.store, "carol")
+	ta, tb, tcTok := mintSession(t, s.store, alice), mintSession(t, s.store, bob), mintSession(t, s.store, carol)
+
+	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+	var room roomSummary
+	wantStatus(t, got, http.StatusCreated, &room)
+	base := srv.URL + "/api/rooms/" + room.ID
+
+	// Abandoning an open room costs nothing: the host forfeit retires it.
+	got = doJSON(t, c, http.MethodPost, base+"/forfeit", ta, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodGet, base, "", nil)
+	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
+
+	// A live series: the stranger is refused, the guest forfeit sweeps and
+	// retires.
+	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+	wantStatus(t, got, http.StatusCreated, &room)
+	base = srv.URL + "/api/rooms/" + room.ID
+	got = doJSON(t, c, http.MethodPost, base+"/join", tb, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/ready", ta, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/ready", tb, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	// One stone in: the quit is mid-game. (A forfeit before any stone hits a
+	// landed-domain defect: the first synthetic game binds a nil moves blob
+	// into the NOT NULL column; reported to the lead with this milestone.)
+	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/forfeit", tcTok, nil)
+	wantAPIError(t, got, http.StatusForbidden, "not_participant")
+	got = doJSON(t, c, http.MethodPost, base+"/forfeit", tb, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/forfeit", tb, nil)
+	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
+}
+
 func TestHTTPStoreFailureMapsToInternal(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))

@@ -184,7 +184,75 @@ func NewHTTPAPI(store *Store, rooms *RoomManager) http.Handler {
 	mux.HandleFunc("GET /api/rooms", a.handleListRooms)
 	mux.HandleFunc("POST /api/rooms", a.requireSession(a.handleCreateRoom))
 	mux.HandleFunc("GET /api/rooms/{id}", a.handleRoomDetail)
+	mux.HandleFunc("POST /api/rooms/{id}/join", a.requireSession(a.handleJoin))
+	mux.HandleFunc("POST /api/rooms/{id}/ready", a.requireSession(a.handleReady))
+	mux.HandleFunc("POST /api/rooms/{id}/move", a.requireSession(a.handleMove))
+	mux.HandleFunc("POST /api/rooms/{id}/forfeit", a.requireSession(a.handleForfeit))
 	return mux
+}
+
+// handleJoin seats the session's user as the open room's opponent.
+func (a *apiServer) handleJoin(w http.ResponseWriter, r *http.Request, u User) {
+	room, ok := a.roomFromRequest(w, r)
+	if !ok {
+		return
+	}
+	if err := a.rooms.Join(room.ID(), u.ID); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleReady marks one participant's handshake.
+func (a *apiServer) handleReady(w http.ResponseWriter, r *http.Request, u User) {
+	room, ok := a.roomFromRequest(w, r)
+	if !ok {
+		return
+	}
+	if err := room.Ready(u.ID); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleMove lands one stone by coordinate name through the rules codec.
+func (a *apiServer) handleMove(w http.ResponseWriter, r *http.Request, u User) {
+	room, ok := a.roomFromRequest(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		Cell string `json:"cell"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, codeBadRequest, "malformed move body")
+		return
+	}
+	cell, err := rules.ParseCell(req.Cell)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, codeBadRequest, err.Error())
+		return
+	}
+	if err := room.PlayMove(u.ID, cell); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleForfeit bills a mid-series quit or retires an open room.
+func (a *apiServer) handleForfeit(w http.ResponseWriter, r *http.Request, u User) {
+	room, ok := a.roomFromRequest(w, r)
+	if !ok {
+		return
+	}
+	if err := room.Forfeit(u.ID); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleListRooms answers the rooms grid; public, no session needed.
