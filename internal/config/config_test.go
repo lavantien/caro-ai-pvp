@@ -396,6 +396,9 @@ func TestServerConstants(t *testing.T) {
 	if SQLiteJournalWAL != "wal" || SQLiteSyncNormal != "normal" {
 		t.Errorf("sqlite modes = %q/%q, want wal/normal", SQLiteJournalWAL, SQLiteSyncNormal)
 	}
+	if SQLiteTxLockImmediate != "immediate" {
+		t.Errorf("SQLiteTxLockImmediate = %q, want immediate", SQLiteTxLockImmediate)
+	}
 	if WriteQueueDepth < 1 {
 		t.Errorf("WriteQueueDepth = %d, must be positive", WriteQueueDepth)
 	}

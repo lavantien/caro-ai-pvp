@@ -104,6 +104,17 @@ func TestLogsSanitizeKeepsNamesInsideTheDir(t *testing.T) {
 	}
 }
 
+func TestLogsHeaderRejectsBadTimeControl(t *testing.T) {
+	overrideLogDir(t)
+	g := NewLogs()
+	t.Cleanup(func() { _ = g.Close() })
+	err := g.WriteSeriesHeader(1, 1, len(config.TimeControls), config.SeriesBO3,
+		Participant{Name: "a", Tier: "easy"}, Participant{Name: "b", Tier: "easy"})
+	if err == nil {
+		t.Fatalf("header with tc out of range accepted, want rejection")
+	}
+}
+
 func TestLogsSurfacesDirFailures(t *testing.T) {
 	blocker := filepath.Join(t.TempDir(), "blocker")
 	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {

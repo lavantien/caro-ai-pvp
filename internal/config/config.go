@@ -292,6 +292,10 @@ const (
 	SQLiteBusyTimeoutMs = 5000
 	SQLiteJournalWAL    = "wal"
 	SQLiteSyncNormal    = "normal"
+	// SQLiteTxLockImmediate is the begin mode of every transaction: the
+	// write lock is taken up front so concurrent read-then-write units wait
+	// on the busy timeout instead of failing the snapshot upgrade.
+	SQLiteTxLockImmediate = "immediate"
 
 	// WriteQueueDepth bounds the pending mutation queue. Every write
 	// persists: the queue blocks producers rather than dropping, so the

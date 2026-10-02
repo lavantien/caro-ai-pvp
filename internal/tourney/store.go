@@ -103,6 +103,9 @@ func sqlArg[T any](p *T) any {
 // participant row per roster entry, and one series row per Pairings()
 // schedule entry. Roster slots must equal their slice positions.
 func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, roster []Participant) (Run, error) {
+	if len(roster) < 2 {
+		return Run{}, fmt.Errorf("tourney: roster holds %d participants, a pairing needs at least 2", len(roster))
+	}
 	if tcIdx < 0 || tcIdx >= len(config.TimeControls) {
 		return Run{}, fmt.Errorf("tourney: tc_idx %d outside the %d configured time controls", tcIdx, len(config.TimeControls))
 	}

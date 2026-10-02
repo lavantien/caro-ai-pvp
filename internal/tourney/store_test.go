@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -122,6 +123,7 @@ func TestCreateRunValidation(t *testing.T) {
 		tc, bo int
 		roster []Participant
 	}{
+		{"roster too small", 0, config.SeriesBO3, roster(1)},
 		{"tc above range", len(config.TimeControls), config.SeriesBO3, roster(2)},
 		{"tc negative", -1, config.SeriesBO3, roster(2)},
 		{"bo not configured", 0, 4, roster(2)},
@@ -401,6 +403,44 @@ func TestRunCompletionSnapshot(t *testing.T) {
 	}
 	if status != RunStateFinished || !finishedAt.Valid || finishedAt.Int64 != 456 {
 		t.Errorf("run after close = %s at %v, want finished at 456", status, finishedAt)
+	}
+}
+
+// TestAppendGameConcurrentUnits drives every series of a 6-bot run to
+// completion in parallel, the harshest shape of the conductor's parallel
+// matches: all units must land exactly once with no lock failures, courtesy
+// of the immediate transaction begin.
+func TestAppendGameConcurrentUnits(t *testing.T) {
+	ts, srv := newTestStore(t)
+	ctx := context.Background()
+	run, err := ts.CreateRun(ctx, 1, config.SeriesBO3, config.TournamentStartRating, roster(6))
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	schedule := mustSchedule(t, srv, run.ID)
+
+	var wg sync.WaitGroup
+	errs := make(chan error, len(schedule))
+	for _, s := range schedule {
+		wg.Add(1)
+		go func(s Series) {
+			defer wg.Done()
+			for i := 0; i < config.SeriesBO3; i++ {
+				if _, err := ts.AppendGame(ctx, gameOf(run.ID, s.ID, i,
+					s.RedFirstSlot, s.BlueFirstSlot, server.Outcome(i%3))); err != nil {
+					errs <- err
+					return
+				}
+			}
+		}(s)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Errorf("concurrent append: %v", err)
+	}
+	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_games WHERE run_id = ?`, run.ID); n != 30*config.SeriesBO3 {
+		t.Errorf("games = %d, want 30 series x %d games", n, config.SeriesBO3)
 	}
 }
 

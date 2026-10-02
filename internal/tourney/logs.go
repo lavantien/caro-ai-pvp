@@ -50,6 +50,9 @@ func sanitizeName(name string) string {
 func (g *Logs) WriteSeriesHeader(run, series int64, tcIdx, boLen int, red, blue Participant) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	if tcIdx < 0 || tcIdx >= len(config.TimeControls) {
+		return fmt.Errorf("tourney: tc_idx %d outside the %d configured time controls", tcIdx, len(config.TimeControls))
+	}
 	tc := config.TimeControls[tcIdx]
 	lines := []string{
 		fmt.Sprintf("run %d series %d", run, series),

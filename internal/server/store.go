@@ -104,6 +104,13 @@ func dsn(path string) string {
 	q.Set("_synchronous", config.SQLiteSyncNormal)
 	q.Set("_busy_timeout", strconv.Itoa(config.SQLiteBusyTimeoutMs))
 	q.Set("_foreign_keys", "on")
+	// Every transaction takes the write lock up front: read-then-write units
+	// (ApplyCompletion, tourney appends) would otherwise upgrade a deferred
+	// read snapshot that a concurrent committer already invalidated, the
+	// unretryable BUSY_SNAPSHOT. With BEGIN IMMEDIATE the lock wait rides
+	// the busy timeout instead, so concurrent writers queue rather than
+	// error.
+	q.Set("_txlock", config.SQLiteTxLockImmediate)
 	return filepath.ToSlash(path) + "?" + q.Encode()
 }
 
