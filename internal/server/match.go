@@ -441,9 +441,13 @@ func countWinIn1(pre *rules.Board, winner rules.Color) int {
 // with no human caller. Leak freedom: the worker parks on the wake channel
 // and leaves when quit closes at retire; Close joins it through the
 // WaitGroup, so no goroutine and no engine instance outlives the room.
-// Searches run OUTSIDE the room lock on a private board copy, and the
-// apply revalidates under the lock, so a forfeit or shutdown during a
-// search discards the stale answer instead of racing it.
+// Engine ownership sits with the worker alone: retire signals quit and the
+// worker closes the engines on its way out, so no retirement can close an
+// engine underneath an entered or pending Search (the engine contract
+// panics on Search after Close). Searches run OUTSIDE the room lock on a
+// private board copy, and the apply revalidates under the lock, so a
+// forfeit or shutdown during a search discards the stale answer instead of
+// racing it.
 
 // searcher is the per-game bot engine surface the room drives: one Search
 // per turn under a budget deadline, closed at game end.
@@ -472,6 +476,12 @@ func newBotSearcher(t config.Tier) searcher {
 	return singleSearcher{e: engine.New(t.TTBytes)}
 }
 
+// closeEnginesLocked releases the per-game engines. Two callers, both safe
+// by ownership: the bot worker at exit (retire only signaled quit, and no
+// further Search can be entered once this goroutine leaves), and the
+// game-reset path, which runs inside the completion critical section on the
+// goroutine that just ended a game the bot held no turn in, so no search of
+// the old engines is in flight or pending entry.
 func (r *Room) closeEnginesLocked() {
 	for i := range r.engines {
 		if r.engines[i] != nil {
@@ -499,6 +509,10 @@ func (r *Room) startBotWorker() {
 
 func (r *Room) botLoop() {
 	defer r.wg.Done()
+	// The ownership handoff of the engines: this goroutine is the only
+	// Search caller, so it is the only engine closer at retirement, and it
+	// runs before wg.Done so Room.Close returns with every engine released.
+	defer r.closeEnginesAtExit()
 	for {
 		if r.runBotTurn() {
 			// A bot-won series ends on this goroutine: drive the same
@@ -512,6 +526,17 @@ func (r *Room) botLoop() {
 			return
 		}
 	}
+}
+
+// closeEnginesAtExit releases the engines when the worker leaves. retire
+// only signals quit and never closes an engine itself: a retirement racing
+// the window between the worker's unlock and its Search entry would close
+// the engine underneath it, and the engine contract panics on Search after
+// Close, killing the process.
+func (r *Room) closeEnginesAtExit() {
+	r.mu.Lock()
+	r.closeEnginesLocked()
+	r.mu.Unlock()
 }
 
 // wakeBotLocked drops a coalescing token when the side to move is a bot.
@@ -556,7 +581,14 @@ func (r *Room) runBotTurn() bool {
 		budget = r.budgetCap
 	}
 	board, moveCount, eng := *r.board, r.board.MoveCount, r.engines[side]
+	entry := r.searchEntry
 	r.mu.Unlock()
+
+	// The test seam for the window between the unlock and Search entry, the
+	// exact gap a concurrent retire used to close the engine in.
+	if entry != nil {
+		entry()
+	}
 
 	mv, st := eng.Search(&board, engine.NewFixedBudget(budget))
 

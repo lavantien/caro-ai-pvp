@@ -266,9 +266,12 @@ type Room struct {
 	// budgetCap is a test hook capping the granted bot search budget so
 	// time-boxed tests run the real engine at a few milliseconds per move;
 	// zero means the clock law alone. makeSearcher is the engine factory
-	// seam, overridable per room for deterministic bot tests.
+	// seam, overridable per room for deterministic bot tests. searchEntry,
+	// when set, runs between the worker releasing the room lock and entering
+	// Search, the window a concurrent retirement races.
 	budgetCap    time.Duration
 	makeSearcher func(config.Tier) searcher
+	searchEntry  func()
 
 	wake      chan struct{}
 	quit      chan struct{}
@@ -330,15 +333,17 @@ func (r *Room) Close() {
 }
 
 // retire ends the room for good: over flips under the lock so in-flight
-// callers fail fast, quit closes so the worker and any outstanding wake
-// tokens drain, and the per-game bot engines release. Idempotent, safe from
-// any goroutine, and never called while holding r.mu.
+// callers fail fast, and quit closes so the worker and any outstanding wake
+// tokens drain. Retire never touches the engines: the engine contract
+// panics on Search after Close, so an engine may only be closed by the bot
+// worker goroutine that calls Search, and the worker releases them on its
+// way out once quit closes. Idempotent, safe from any goroutine, and never
+// called while holding r.mu.
 func (r *Room) retire() {
 	r.closeOnce.Do(func() {
 		close(r.quit)
 		r.mu.Lock()
 		r.over = true
-		r.closeEnginesLocked()
 		r.mu.Unlock()
 	})
 }

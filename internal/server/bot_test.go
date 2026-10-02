@@ -132,6 +132,147 @@ func (g *gatedBot) isClosed() bool {
 	return g.closed
 }
 
+// contractBot enforces the engine lifecycle contract the room must uphold:
+// the real SMP instance panics on Search after Close (smp.go), so a
+// retirement closing an engine the worker is about to use kills the process.
+type contractBot struct {
+	mu     sync.Mutex
+	closed bool
+}
+
+func (b *contractBot) Search(bd *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats) {
+	b.mu.Lock()
+	closed := b.closed
+	b.mu.Unlock()
+	if closed {
+		panic("engine contract: Search on a closed instance")
+	}
+	var buf [config.BoardCells]rules.Move
+	if bd.LegalMoves(buf[:]) == 0 {
+		panic("bot test: no legal move for the contract bot")
+	}
+	return buf[0], engine.SearchStats{}
+}
+
+func (b *contractBot) Close() {
+	b.mu.Lock()
+	b.closed = true
+	b.mu.Unlock()
+}
+
+func (b *contractBot) isClosed() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.closed
+}
+
+// blockAtSearchEntry parks the worker between the room-lock release and the
+// Search call, the exact entry gap a concurrent retirement races, and hands
+// the test the entered and release channels.
+func blockAtSearchEntry(t *testing.T, r *Room) (entered, release chan struct{}) {
+	t.Helper()
+	entered, release = make(chan struct{}), make(chan struct{})
+	r.mu.Lock()
+	r.searchEntry = func() {
+		select {
+		case entered <- struct{}{}:
+		default:
+		}
+		<-release
+	}
+	r.mu.Unlock()
+	return entered, release
+}
+
+// TestForfeitInSearchEntryGapSurvives pins the process against a forfeit
+// landing while the worker sits between the room-lock release and the Search
+// call: the engine must still be open when Search enters, the stale answer
+// still discards, and the worker alone releases the engine on quit.
+func TestForfeitInSearchEntryGapSurvives(t *testing.T) {
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierEasy)
+	bot := &contractBot{}
+	r.mu.Lock()
+	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.mu.Unlock()
+	entered, release := blockAtSearchEntry(t, r)
+
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	<-entered
+	if err := r.Forfeit(alice.ID); err != nil {
+		t.Fatalf("forfeit inside the search entry gap: %v", err)
+	}
+	close(release)
+
+	// Survival is the regression: closing the engine from the forfeit path
+	// made the worker's Search entry panic with no recover in sight.
+	waitFor(t, func() bool {
+		_, ok := r.Info()
+		return !ok
+	})
+	waitFor(t, bot.isClosed)
+	r.mu.Lock()
+	stones := r.board.MoveCount
+	r.mu.Unlock()
+	if stones != 1 {
+		t.Errorf("stones after the discarded gap search = %d, want only the human move", stones)
+	}
+	if err := r.Forfeit(alice.ID); !errors.Is(err, ErrRoomClosed) {
+		t.Errorf("double forfeit = %v, want ErrRoomClosed", err)
+	}
+}
+
+// TestShutdownInSearchEntryGapSurvives covers the same window for the
+// shutdown path: manager Shutdown closes the room while the worker parks in
+// the entry gap, and the process must survive the worker's Search entry.
+func TestShutdownInSearchEntryGapSurvives(t *testing.T) {
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierEasy)
+	bot := &contractBot{}
+	r.mu.Lock()
+	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.mu.Unlock()
+	entered, release := blockAtSearchEntry(t, r)
+
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	<-entered
+	shut := make(chan struct{})
+	go func() {
+		defer close(shut)
+		s.rm.Shutdown()
+	}()
+	// Retire decided (over flipped) before the gap opens: the shutdown is
+	// now irreversibly past the point where HEAD closed the engine.
+	waitFor(t, func() bool {
+		_, ok := r.Info()
+		return !ok
+	})
+	close(release)
+
+	select {
+	case <-shut:
+	case <-time.After(10 * time.Second):
+		t.Fatal("shutdown did not join the bot worker within the bound")
+	}
+	waitFor(t, bot.isClosed)
+	r.mu.Lock()
+	stones := r.board.MoveCount
+	r.mu.Unlock()
+	if stones != 1 {
+		t.Errorf("stones after shutdown in the gap = %d, want only the human move", stones)
+	}
+}
+
 func waitFor(t *testing.T, cond func() bool) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
@@ -204,15 +345,15 @@ func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 		return !ok
 	})
 
-	// Engine ephemerality: one fresh instance per game, both closed.
+	// Engine ephemerality: one fresh instance per game, both closed. The
+	// last game's engine is released by the worker at its exit, which lags
+	// the room's retirement by one loop iteration.
 	instances := bots()
 	if len(instances) != 2 {
 		t.Fatalf("engine instances = %d, want one per game", len(instances))
 	}
 	for i, b := range instances {
-		if !b.isClosed() {
-			t.Errorf("engine %d not closed", i)
-		}
+		waitFor(t, b.isClosed)
 		if b.searchCount() != len(botWinMoves) {
 			t.Errorf("engine %d searches = %d, want %d", i, b.searchCount(), len(botWinMoves))
 		}
