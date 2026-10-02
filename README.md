@@ -9,8 +9,9 @@ Mobile-first web arena for a custom 16x16 caro variant: exact continuous five wi
 1. [grounding](#grounding)
 2. [status](#status)
 3. [build and verify](#build-and-verify)
-4. [repository layout](#repository-layout)
-5. [diagrams](#diagrams)
+4. [implemented design](#implemented-design)
+5. [repository layout](#repository-layout)
+6. [diagrams](#diagrams)
 
 ## grounding
 
@@ -23,11 +24,29 @@ Mobile-first web arena for a custom 16x16 caro variant: exact continuous five wi
 Requires go 1.27.1+, gcc, GNU make, with CGO enabled.
 
 ```
-make doctor   # toolchain check: go >= 1.27.1, CGO, gcc
-make ci       # fmt-check, vet, build, race tests, coverage gates
+make doctor          # toolchain check: go >= 1.27.1, CGO, gcc
+make ci              # fmt-check, vet, build, race tests, coverage gates
+make mutate          # in-house mutation gate over the core packages
+make mutate-resume LOG=prior-run.log PARALLEL=8 CHALLENGE=1
+make bench           # engine, clock, rules benchmarks with allocs
+make fuzz            # rules differential fuzz target
 ```
 
 Coverage gates: 95% overall, 100% on internal/rules, internal/engine, and internal/clock.
+
+## implemented design
+
+Rules run on bitboards, 4x uint64 per color over 256 cells, with zobrist keys from a splitmix64 stream and an independent naive oracle transcribed from the spec sentence; the differential harnesses swept every 9-cell window per direction in both board regions and the committed fuzz corpus has millions of clean executions. Make and Unmake cost 3.7 ns, win detection on the last move 13.4 ns, zero allocations anywhere in the package.
+
+The pattern tables are computed at process start from the rules package's own win predicate, 4^9 entries per direction in about 52 ms, so the tables cannot drift from the rules; lookups cost 0.26 ns. The threat taxonomy (win-in-1, four, open four, three) is derived mechanically from win-in-1 counts because folk renju patterns do not transfer to exact-5-with-overline-nullified rules.
+
+The engine is fail-soft PVS with iterative deepening, a lockless direct-mapped transposition table with mate-score ply adjustment, killer and history ordering, and a forced-four defense extension; no quiescence, no LMR, no null move, and the hot path allocates nothing (0 B/op searches at 1, 2, and 4 workers). Lazy SMP keeps one persistent locked-thread worker per core parked between searches over the shared table, roughly 5 to 6 Mnps at 4 workers. Tiers are resource-only: easy 1 core with no table and no solvers, medium 2 cores with 256 MiB and VCF, hard 4 cores with 1 GiB and VCF plus VCT. The VCF/VCT solvers search threat moves only, from the pattern tables, and a test-only brute-force alpha-beta oracle over the naive board verifies every claimed win; that soundness fuzz runs in CI permanently.
+
+The time manager grants per-move budgets as feedforward (spendable remainder over expected moves left plus an increment share) steered by one PID gain set per time control against the planned drain trajectory, clamped so the floor always funds a minimum move: a fully drained 1+0 clock still moves forever and a timeout can never decide a game. The soft stop refuses new iterations past 65% of the grant, treating a zero clock reading as one 16 ms Windows tick.
+
+The server persists to embedded SQLite in WAL mode through a single-writer mutation queue (writes block, never drop) behind forward-only startup migrations, hashes passwords with argon2id at 64 MiB and 2 passes with per-user parameters and timing-flat login-or-create, rates every match at +30*K and -30*K with K = 10^((R_loser-R_winner)/D) and D = 3000 on an upset or 500+2.5*R_loser clamped otherwise, and runs each best-of series (bo3/5/7/11 over 1+0, 2+1, 3+2) as an explicit state machine: host takes red first, the loser takes red next, a draw retains red, and quitting books a loss for every remaining game. Bot telemetry rides a room-keyed pub-sub hub as zero-alloc M-lines.
+
+The mutation gate is in-house, go/parser and AST rewrites only: parallel workers over isolated module copies with serial confirmation of every survivor, resume that replays prior kills after host failures, an equivalence allowlist whose every entry is challenge-audited by running the suite under the allowlisted mutant, and a self-pruning unused-entry alarm. Current state: 1573/1573 mutants over rules, engine, and clock with 0 survivors and 79 proven allowances.
 
 ## status
 
