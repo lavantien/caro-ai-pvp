@@ -198,9 +198,10 @@ func (s *Store) DeleteSession(token []byte) error {
 	return nil
 }
 
-// Series is one best-of pairing. Ongoing series carry NULL winner and
-// finished_at; a draw finish keeps the winner NULL.
-type Series struct {
+// SeriesRow is one best-of pairing's persisted record. Ongoing series carry
+// NULL winner and finished_at; a draw finish keeps the winner NULL. The
+// in-memory lifecycle lives in the Series state machine type.
+type SeriesRow struct {
 	ID         int64
 	TCIdx      int
 	BOLen      int
@@ -212,29 +213,29 @@ type Series struct {
 	FinishedAt *int64
 }
 
-func (s *Store) CreateSeries(tcIdx, boLen int, redUser, blueUser int64) (Series, error) {
-	var sr Series
+func (s *Store) CreateSeries(tcIdx, boLen int, redUser, blueUser int64) (SeriesRow, error) {
+	var sr SeriesRow
 	err := s.db.QueryRow(
 		`INSERT INTO series (tc_idx, bo_len, red_user, blue_user, state)
 		VALUES (?, ?, ?, ?, ?) RETURNING id, created_at`,
 		tcIdx, boLen, redUser, blueUser, SeriesStateOngoing,
 	).Scan(&sr.ID, &sr.CreatedAt)
 	if err != nil {
-		return Series{}, fmt.Errorf("server: create series: %w", err)
+		return SeriesRow{}, fmt.Errorf("server: create series: %w", err)
 	}
 	sr.TCIdx, sr.BOLen, sr.RedUser, sr.BlueUser, sr.State = tcIdx, boLen, redUser, blueUser, SeriesStateOngoing
 	return sr, nil
 }
 
-func (s *Store) SeriesByID(id int64) (Series, error) {
-	var sr Series
+func (s *Store) SeriesByID(id int64) (SeriesRow, error) {
+	var sr SeriesRow
 	var winner, finished sql.NullInt64
 	err := notFound(s.db.QueryRow(
 		`SELECT id, tc_idx, bo_len, red_user, blue_user, state, winner, created_at, finished_at
 		FROM series WHERE id = ?`, id,
 	).Scan(&sr.ID, &sr.TCIdx, &sr.BOLen, &sr.RedUser, &sr.BlueUser, &sr.State, &winner, &sr.CreatedAt, &finished))
 	if err != nil {
-		return Series{}, fmt.Errorf("server: fetch series %d: %w", id, err)
+		return SeriesRow{}, fmt.Errorf("server: fetch series %d: %w", id, err)
 	}
 	sr.Winner, sr.FinishedAt = nullInt64(winner), nullInt64(finished)
 	return sr, nil

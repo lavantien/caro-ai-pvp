@@ -22,7 +22,7 @@ func seedUser(t *testing.T, s *Store, name string) User {
 	return u
 }
 
-func seedSeries(t *testing.T, s *Store, red, blue User) Series {
+func seedSeries(t *testing.T, s *Store, red, blue User) SeriesRow {
 	t.Helper()
 	sr, err := s.CreateSeries(1, config.SeriesBO3, red.ID, blue.ID)
 	if err != nil {
@@ -241,7 +241,7 @@ func TestRatingHistoryByUser(t *testing.T) {
 	}
 }
 
-func seedFinishedSeries(t *testing.T, s *Store, tcIdx int, red, blue User, outcomes []string, winner *int64) Series {
+func seedFinishedSeries(t *testing.T, s *Store, tcIdx int, red, blue User, outcomes []string, winner *int64) SeriesRow {
 	t.Helper()
 	sr := seedSeries(t, s, red, blue)
 	for i, outcome := range outcomes {
