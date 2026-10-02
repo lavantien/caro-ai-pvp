@@ -72,6 +72,7 @@ type SMP struct {
 	haltDL  haltDeadline
 
 	jobMaxDepth int
+	jobSoft     bool
 	wake        chan struct{}
 	quit        chan struct{}
 	runWG       sync.WaitGroup
@@ -221,14 +222,19 @@ func (s *SMP) serveHot(w *Engine, b *rules.Board, res *workerResult) bool {
 }
 
 func (s *SMP) Search(b *rules.Board, dl Deadline) (rules.Move, SearchStats) {
-	return s.SearchDepth(b, dl, config.SearchMaxPly)
+	return s.searchDepth(b, dl, config.SearchMaxPly, true)
 }
 
 // SearchDepth is the capped SMP driver behind Search, mirroring the single
 // threaded Engine.SearchDepth contract: only completed iterations count, a
-// legal fallback covers budgets too small for one iteration. Zero
-// allocation once the pool runs.
+// legal fallback covers budgets too small for one iteration, and no soft
+// stop, so a fixed target depth is reached unless the hard deadline fires.
+// Zero allocation once the pool runs.
 func (s *SMP) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.Move, SearchStats) {
+	return s.searchDepth(b, dl, maxDepth, false)
+}
+
+func (s *SMP) searchDepth(b *rules.Board, dl Deadline, maxDepth int, soft bool) (rules.Move, SearchStats) {
 	start := time.Now()
 	var stats SearchStats
 	stats.Threads = len(s.workers)
@@ -256,6 +262,7 @@ func (s *SMP) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.Move
 	s.seq.Store(0)
 	s.haltDL.inner = dl
 	s.jobMaxDepth = maxDepth
+	s.jobSoft = soft
 	for i := range s.workers {
 		// Each worker searches its own value copy of the root: Make and
 		// Unmake mutate the board, only the table is shared.
@@ -313,12 +320,25 @@ func (s *SMP) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.Move
 
 // runWorker is one locked-thread lazy SMP solve: plain iterative deepening
 // against the shared table, reporting every completed iteration into the
-// worker's slot. Zero allocation by construction, same code path as the
-// single threaded driver.
+// worker's slot. Soft jobs consult the same soft stop rule as the single
+// threaded driver, against the grant carried by the wrapped inner deadline
+// and this worker's own banked depth. Zero allocation by construction, same
+// code path as the single threaded driver.
 func (s *SMP) runWorker(w *Engine, b *rules.Board, res *workerResult) {
 	dl := Deadline(&s.haltDL)
+	start := time.Now()
+	var budget time.Duration
+	hasBudget := false
+	if bg, ok := s.haltDL.inner.(Budgeter); ok {
+		budget = bg.Budget()
+		hasBudget = true
+	}
+	completed := 0
 	for depth := 1; depth <= s.jobMaxDepth; depth++ {
 		if w.stopped || dl.Exceeded() {
+			break
+		}
+		if s.jobSoft && hasBudget && softStop(time.Since(start), budget, completed) {
 			break
 		}
 		score, move := w.searchRoot(b, depth, dl)
@@ -331,6 +351,7 @@ func (s *SMP) runWorker(w *Engine, b *rules.Board, res *workerResult) {
 		res.move = move
 		res.pv = w.pv[0]
 		res.pvLen = w.pvLen[0]
+		completed = depth
 		if score >= config.EvalMateMax-config.EvalMateScoreStep {
 			s.halt.Store(true)
 			break

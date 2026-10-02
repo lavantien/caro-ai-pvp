@@ -78,19 +78,41 @@ func (e *Engine) resetForSearch(b *rules.Board) {
 // returns the best move of the last completed iteration, or the precomputed
 // legal fallback when no iteration completes. Only completed iterations are
 // candidates, so a stop mid-iteration never leaks a partial root choice.
+// Once one iteration is banked, the soft stop consult at each iteration
+// head refuses to open an iteration the remaining budget tail cannot
+// realistically finish, so the grant is not burned on a partial result the
+// caller never reads.
 func (e *Engine) Search(b *rules.Board, dl Deadline) (rules.Move, SearchStats) {
-	return e.SearchDepth(b, dl, config.SearchMaxPly)
+	return e.search(b, dl, config.SearchMaxPly, true)
 }
 
 // SearchDepth is the capped driver behind Search; a fixed depth cap also
-// serves the solver cross-check oracles.
+// serves the solver cross-check oracles. No soft stop here: the contract is
+// to reach the target depth unless the hard deadline fires.
 func (e *Engine) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.Move, SearchStats) {
+	return e.search(b, dl, maxDepth, false)
+}
+
+// softStop reports whether a new iteration must not start: one iteration is
+// already banked, so a legal move exists beyond the fallback, and elapsed
+// time is strictly past the soft fraction of the granted budget. Exactly at
+// the limit the iteration still starts. Pure and allocation free; consulted
+// at iteration heads only.
+func softStop(elapsed, budget time.Duration, completed int) bool {
+	return completed >= 1 && elapsed > time.Duration(config.SearchSoftStopFraction*float64(budget))
+}
+
+func (e *Engine) search(b *rules.Board, dl Deadline, maxDepth int, soft bool) (rules.Move, SearchStats) {
 	start := time.Now()
 	e.beginSearch(b)
 	var stats SearchStats
 	stats.Threads = 1
+	var budget time.Duration
+	hasBudget := false
 	if bg, ok := dl.(Budgeter); ok {
-		stats.AllocNs = int64(bg.Budget())
+		budget = bg.Budget()
+		stats.AllocNs = int64(budget)
+		hasBudget = true
 	}
 	if b.IsFull() {
 		stats.ElapsedNs = int64(time.Since(start))
@@ -99,6 +121,9 @@ func (e *Engine) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.M
 	best, bestMove, completed := 0, e.fallbackMove(b), 0
 	for depth := 1; depth <= maxDepth; depth++ {
 		if e.stopped || dl.Exceeded() {
+			break
+		}
+		if soft && hasBudget && softStop(time.Since(start), budget, completed) {
 			break
 		}
 		score, move := e.searchRoot(b, depth, dl)
