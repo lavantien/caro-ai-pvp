@@ -81,12 +81,13 @@ func midgameBoard(t testing.TB) *rules.Board {
 func TestSearchReturnsLegalMove(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
-	mv, stats := e.Search(b, NewFixedBudget(50*time.Millisecond))
+	budget := scaledBudget(50 * time.Millisecond)
+	mv, stats := e.Search(b, NewFixedBudget(budget))
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("search returned illegal move %d", mv)
 	}
 	if stats.Depth < 2 {
-		t.Errorf("depth = %d, want at least 2 in 50ms", stats.Depth)
+		t.Errorf("depth = %d, want at least 2 in %v", stats.Depth, budget)
 	}
 	if stats.Nodes == 0 || stats.Nps == 0 {
 		t.Errorf("nodes %d nps %d, both must be positive", stats.Nodes, stats.Nps)
@@ -97,14 +98,14 @@ func TestSearchReturnsLegalMove(t *testing.T) {
 	if stats.PVLen == 0 || stats.PV[0] != mv {
 		t.Errorf("pv must start with the best move, got pv0 %d move %d len %d", stats.PV[0], mv, stats.PVLen)
 	}
-	if stats.AllocNs != int64(50*time.Millisecond) {
-		t.Errorf("alloc budget = %d, want %d", stats.AllocNs, 50*time.Millisecond)
+	if stats.AllocNs != int64(budget) {
+		t.Errorf("alloc budget = %d, want %d", stats.AllocNs, budget)
 	}
 }
 
 func TestSearchEmptyBoardPlaysCenter(t *testing.T) {
 	e := New(testTTBytes)
-	mv, stats := e.Search(rules.NewBoard(), NewFixedBudget(20*time.Millisecond))
+	mv, stats := e.Search(rules.NewBoard(), NewFixedBudget(scaledBudget(20*time.Millisecond)))
 	if mv != rules.Move(config.SearchEmptyBoardCell) {
 		t.Errorf("empty board move = %d, want center %d", mv, config.SearchEmptyBoardCell)
 	}

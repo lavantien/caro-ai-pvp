@@ -50,7 +50,8 @@ func TestNewTieredMapsConfig(t *testing.T) {
 func TestSMPSearchReturnsLegalMove(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(4, testTTBytes)
-	mv, stats := s.Search(b, NewFixedBudget(80*time.Millisecond))
+	budget := scaledBudget(80 * time.Millisecond)
+	mv, stats := s.Search(b, NewFixedBudget(budget))
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("smp move %d illegal", mv)
 	}
@@ -61,7 +62,7 @@ func TestSMPSearchReturnsLegalMove(t *testing.T) {
 		t.Errorf("nodes %d nps %d, both must be positive", stats.Nodes, stats.Nps)
 	}
 	if stats.Depth < 2 {
-		t.Errorf("depth = %d, want at least 2 in 80ms across 4 workers", stats.Depth)
+		t.Errorf("depth = %d, want at least 2 in %v across 4 workers", stats.Depth, budget)
 	}
 	if stats.PVLen == 0 || stats.PV[0] != mv {
 		t.Errorf("pv head %d len %d, want the reported move %d", stats.PV[0], stats.PVLen, mv)
@@ -72,8 +73,8 @@ func TestSMPSingleWorkerMatchesEngine(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(1, 1<<20)
 	e := New(1 << 20)
-	mvA, statsA := s.SearchDepth(b, NewFixedBudget(time.Second), 4)
-	mvB, statsB := e.SearchDepth(b, NewFixedBudget(time.Second), 4)
+	mvA, statsA := s.SearchDepth(b, NewFixedBudget(scaledBudget(time.Second)), 4)
+	mvB, statsB := e.SearchDepth(b, NewFixedBudget(scaledBudget(time.Second)), 4)
 	if mvA != mvB || statsA.Score != statsB.Score || statsA.Nodes != statsB.Nodes || statsA.Depth != statsB.Depth {
 		t.Errorf("1 worker diverged from the engine: %d/%d/%d/%d vs %d/%d/%d/%d",
 			mvA, statsA.Score, statsA.Nodes, statsA.Depth, mvB, statsB.Score, statsB.Nodes, statsB.Depth)
@@ -86,7 +87,7 @@ func TestSMPSingleWorkerMatchesEngine(t *testing.T) {
 func TestSMPStatsAggregateAcrossWorkers(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(4, testTTBytes)
-	mv, stats := s.SearchDepth(b, NewFixedBudget(120*time.Millisecond), 64)
+	mv, stats := s.SearchDepth(b, NewFixedBudget(scaledBudget(120*time.Millisecond)), 64)
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("move %d illegal", mv)
 	}
@@ -114,7 +115,7 @@ func TestSMPFindsForcedMateInOne(t *testing.T) {
 	b := mate1Board(t)
 	s := newSMP(2, testTTBytes)
 	start := time.Now()
-	mv, stats := s.Search(b, NewFixedBudget(2*time.Second))
+	mv, stats := s.Search(b, NewFixedBudget(scaledBudget(2*time.Second)))
 	if mv != rules.Move(mustCell(t, "I9")) {
 		t.Fatalf("smp mate in 1 move %d, want I9", mv)
 	}
@@ -129,7 +130,7 @@ func TestSMPFindsForcedMateInOne(t *testing.T) {
 func TestSMPFindsForcedMateInTwoAndThree(t *testing.T) {
 	b2 := mate2Board(t)
 	s2 := newSMP(2, testTTBytes)
-	mv2, stats2 := s2.SearchDepth(b2, NewFixedBudget(time.Second), 6)
+	mv2, stats2 := s2.SearchDepth(b2, NewFixedBudget(scaledBudget(time.Second)), 6)
 	if !b2.IsLegal(rules.Cell(mv2)) {
 		t.Fatalf("mate in 2 move %d illegal", mv2)
 	}
@@ -138,7 +139,7 @@ func TestSMPFindsForcedMateInTwoAndThree(t *testing.T) {
 	}
 	b3 := mate3Board(t)
 	s3 := newSMP(4, testTTBytes)
-	mv3, stats3 := s3.SearchDepth(b3, NewFixedBudget(2*time.Second), 8)
+	mv3, stats3 := s3.SearchDepth(b3, NewFixedBudget(scaledBudget(2*time.Second)), 8)
 	if mv3 != rules.Move(mustCell(t, "H9")) {
 		t.Fatalf("smp mate in 3 move %d, want the cross point H9", mv3)
 	}
@@ -150,7 +151,7 @@ func TestSMPFindsForcedMateInTwoAndThree(t *testing.T) {
 func TestSMPDeclinesOverlineTrap(t *testing.T) {
 	b := overlineTrapBoard(t)
 	s := newSMP(2, testTTBytes)
-	mv, stats := s.SearchDepth(b, NewFixedBudget(time.Second), 4)
+	mv, stats := s.SearchDepth(b, NewFixedBudget(scaledBudget(time.Second)), 4)
 	if mv != rules.Move(mustCell(t, "E9")) {
 		t.Fatalf("smp trap move %d, want E9", mv)
 	}

@@ -18,7 +18,7 @@ func TestZeroAllocsSearch(t *testing.T) {
 	var sinkMove rules.Move
 	var sinkStats SearchStats
 	if n := testing.AllocsPerRun(20, func() {
-		dl.Reset(time.Millisecond)
+		dl.Reset(scaledBudget(time.Millisecond))
 		mv, stats := e.Search(b, dl)
 		sinkMove, sinkStats = mv, stats
 	}); n != 0 {
