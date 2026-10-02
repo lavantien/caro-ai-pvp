@@ -78,8 +78,9 @@ func copyDir(src, dst string) error {
 	})
 }
 
-// treeHash fingerprints every .go file under the mutable dirs of root. The
-// mutator snapshots this before and after a run: the live tree must be
+// treeHash fingerprints every .go file under the mutable dirs of root plus
+// the root level, mirroring what isolateModule copies. The mutator
+// snapshots this before and after a run: the live tree must be
 // byte-identical when a mutation session ends.
 func treeHash(root string) (map[string]string, error) {
 	out := map[string]string{}
@@ -106,7 +107,32 @@ func treeHash(root string) (map[string]string, error) {
 			return nil, werr
 		}
 	}
+	rootGo, gerr := filepath.Glob(filepath.Join(root, "*.go"))
+	if gerr != nil {
+		return nil, gerr
+	}
+	for _, p := range rootGo {
+		sum, herr := fileHash(p)
+		if herr != nil {
+			return nil, herr
+		}
+		out[p] = sum
+	}
 	return out, nil
+}
+
+// sweepStaleIsolates removes leftover caro-mutate-* temp copies from runs
+// that died too hard for their deferred cleanup (TerminateProcess skips
+// defers). Safe at gate start: the exclusive-machine rule means no sibling
+// gate owns a live copy.
+func sweepStaleIsolates() {
+	stale, err := filepath.Glob(filepath.Join(os.TempDir(), "caro-mutate-*"))
+	if err != nil {
+		return
+	}
+	for _, p := range stale {
+		_ = os.RemoveAll(p)
+	}
 }
 
 func fileHash(path string) (string, error) {

@@ -121,6 +121,7 @@ func main() {
 	// The exit defer runs last, after the cleanup defers registered below
 	// it, so isolated copies are removed even on error paths.
 	defer func() { os.Exit(code) }()
+	sweepStaleIsolates()
 	before, err := treeHash(".")
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "mutate:", err)

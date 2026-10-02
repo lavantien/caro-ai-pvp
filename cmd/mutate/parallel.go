@@ -44,7 +44,14 @@ func rewriteMutants(ms []mutation, from, to string) []mutation {
 // finish together. After the workers join, every survivor and every
 // challenge-flagged allowance is re-verified once serially on dirs[0]:
 // concurrent load can lose kills, and a load-induced verdict must never be
-// the final word on an equivalence proof.
+// the final word on a reported survivor or an equivalence proof. The
+// converse asymmetry is deliberate and accepted: worker-phase kills are
+// load-trusted and never re-verified, because re-running every kill would
+// double the suite cost and erase the parallel win; measured flip rate at
+// parallel 8 under ambient load was zero, the cap is 16, and milestone
+// gates should keep -parallel modest. Survivor-heavy populations pay a
+// double-run premium (worker pass plus confirm) that can make parallel
+// slower than serial; kill-dominated populations win roughly linearly.
 func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patterns []string, newRunner func(dir string) runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (result, error) {
 	ms, paths, err := discoverMutants(ctx, out, dirs[0], patterns)
 	if err != nil {
