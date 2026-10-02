@@ -396,8 +396,12 @@ func cellName(cell rules.Cell) string {
 // The moves blob is one little-endian uint16 per stone in play order, the
 // cell index row*BoardStride+col of the rules codec: two bytes per move,
 // fixed stride, no length prefix, decodable by the playback board straight
-// from the column.
+// from the column. The result is never nil: the games.moves column is NOT
+// NULL, and a forfeit before the first stone writes a zero-length blob.
 func encodeMoves(dst []byte, moves []rules.Move) []byte {
+	if dst == nil {
+		dst = []byte{}
+	}
 	for _, m := range moves {
 		dst = append(dst, byte(m), byte(m>>8))
 	}

@@ -498,9 +498,9 @@ func TestHTTPForfeitRetiresRoom(t *testing.T) {
 	wantStatus(t, got, http.StatusNoContent, nil)
 	got = doJSON(t, c, http.MethodPost, base+"/ready", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
-	// One stone in: the quit is mid-game. (A forfeit before any stone hits a
-	// landed-domain defect: the first synthetic game binds a nil moves blob
-	// into the NOT NULL column; reported to the lead with this milestone.)
+	// One stone in: the quit is mid-game. (A forfeit before any stone now
+	// persists a zero-length blob too; the room-level regression is pinned
+	// in TestForfeitBeforeFirstStonePersistsZeroLengthBlob.)
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
 	wantStatus(t, got, http.StatusNoContent, nil)
 	got = doJSON(t, c, http.MethodPost, base+"/forfeit", tcTok, nil)

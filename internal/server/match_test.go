@@ -398,6 +398,32 @@ func TestFullBoardDrawKeepsRedAndPersistsNoTag(t *testing.T) {
 	}
 }
 
+func TestForfeitBeforeFirstStonePersistsZeroLengthBlob(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+
+	// Game 1 is live but no stone has landed: the forfeit sweep writes the
+	// live game with a zero-length blob, which must satisfy the NOT NULL
+	// moves column instead of failing the whole persistence chain.
+	if err := r.Forfeit(bob.ID); err != nil {
+		t.Fatalf("forfeit: %v", err)
+	}
+
+	rows, err := s.store.MatchHistory(alice.ID)
+	if err != nil || len(rows) != 3 {
+		t.Fatalf("history = %d rows err %v, want the swept bo3", len(rows), err)
+	}
+	for i, row := range rows {
+		if row.Moves == nil || len(row.Moves) != 0 {
+			t.Errorf("game %d moves = %#v, want non-nil zero-length blob", 3-i, row.Moves)
+		}
+		if row.FullTurns != 0 {
+			t.Errorf("game %d turns = %d, want 0", 3-i, row.FullTurns)
+		}
+	}
+}
+
 func TestForfeitMidSeriesBillsRemainingGames(t *testing.T) {
 	s := newStack(t)
 	alice, bob, r := newPvPRoom(t, s)
