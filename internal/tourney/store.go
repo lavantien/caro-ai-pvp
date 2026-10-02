@@ -299,6 +299,33 @@ func (t *Store) FinishRun(ctx context.Context, runID int64, finishedAt int64) er
 	})
 }
 
+// Schedule reads one run's series rows in pairing order: the conductor's map
+// from Pairings slots onto the persisted series ids CreateRun laid down.
+func (t *Store) Schedule(ctx context.Context, runID int64) ([]Series, error) {
+	var out []Series
+	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, `
+		SELECT id, pairing_slot, red_first_slot, blue_first_slot
+		FROM tournament_series WHERE run_id = ? ORDER BY pairing_slot`, runID)
+		if err != nil {
+			return fmt.Errorf("tourney: read schedule of run %d: %w", runID, err)
+		}
+		defer func() { _ = rows.Close() }()
+		for rows.Next() {
+			var s Series
+			if err := rows.Scan(&s.ID, &s.PairingSlot, &s.RedFirstSlot, &s.BlueFirstSlot); err != nil {
+				return fmt.Errorf("tourney: scan schedule row of run %d: %w", runID, err)
+			}
+			out = append(out, s)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Leaderboard derives the ordered standings of a run straight from the
 // persisted games: the rating law replays in play order from the run's
 // start rating, W-L-D counts per game, one series won per decided series.

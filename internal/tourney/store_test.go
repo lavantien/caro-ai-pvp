@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -27,13 +26,7 @@ func newTestStore(t *testing.T) (*Store, *server.Store) {
 
 // rosterSix builds the Implication 2.4 roster: two instances of each tier.
 func rosterSix() []Participant {
-	var out []Participant
-	for _, tier := range config.Tiers {
-		for i := 1; i <= 2; i++ {
-			out = append(out, Participant{Slot: len(out), Name: fmt.Sprintf("%s-%d", tier.Name, i), Tier: tier.Name})
-		}
-	}
-	return out
+	return twoPerTierRoster()
 }
 
 // mustSchedule reads a run's series rows in pairing order for assertions.
