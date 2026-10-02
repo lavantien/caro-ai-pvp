@@ -197,6 +197,7 @@ func (a *apiServer) routes() http.Handler {
 	mux.HandleFunc("POST /api/login", a.handleLogin)
 	mux.HandleFunc("POST /api/logout", a.handleLogout)
 	mux.HandleFunc("GET /api/me", a.requireSession(a.handleMe))
+	mux.HandleFunc("GET /api/history", a.requireSession(a.handleHistory))
 	mux.HandleFunc("GET /api/rooms", a.handleListRooms)
 	mux.HandleFunc("POST /api/rooms", a.requireSession(a.handleCreateRoom))
 	mux.HandleFunc("GET /api/rooms/{id}", a.handleRoomDetail)
@@ -509,6 +510,64 @@ func (a *apiServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 // handleMe answers the session's own summary line.
 func (a *apiServer) handleMe(w http.ResponseWriter, _ *http.Request, u User) {
 	a.writeUserSummary(w, http.StatusOK, u)
+}
+
+// handleHistory answers the session's match history, newest first, with
+// the move preview trimmed server-side and the full blob kept for the
+// playback board.
+func (a *apiServer) handleHistory(w http.ResponseWriter, _ *http.Request, u User) {
+	rows, err := a.store.MatchHistory(u.ID)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	out := make([]historyEntry, 0, len(rows))
+	for _, row := range rows {
+		e, err := historyEntryOf(row)
+		if err != nil {
+			writeDomainError(w, err)
+			return
+		}
+		out = append(out, e)
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// historyEntry is one match-history line: the grid fields plus the trimmed
+// coordinate preview, the ellipsis flag, and the full moves blob.
+type historyEntry struct {
+	PlayedAt  int64    `json:"playedAt"`
+	Red       string   `json:"red"`
+	Blue      string   `json:"blue"`
+	RedWins   int      `json:"redWins"`
+	BlueWins  int      `json:"blueWins"`
+	FullTurns int      `json:"fullTurns"`
+	WonBy     *string  `json:"wonBy"`
+	Preview   []string `json:"preview"`
+	Truncated bool     `json:"truncated"`
+	Moves     []byte   `json:"moves"`
+}
+
+// historyEntryOf renders one row: the first config.HistoryPreviewTurns full
+// turns of coordinate names (a full turn is red's stone plus blue's), the
+// truncation flag when more followed, and the untouched blob.
+func historyEntryOf(row MatchHistoryRow) (historyEntry, error) {
+	moves, err := decodeMoves(row.Moves)
+	if err != nil {
+		return historyEntry{}, err
+	}
+	limit := min(2*config.HistoryPreviewTurns, len(moves))
+	preview := make([]string, 0, limit)
+	for _, m := range moves[:limit] {
+		preview = append(preview, cellName(rules.Cell(m)))
+	}
+	return historyEntry{
+		PlayedAt: row.PlayedAt, Red: row.Red, Blue: row.Blue,
+		RedWins: row.RedWins, BlueWins: row.BlueWins,
+		FullTurns: row.FullTurns, WonBy: row.WonBy,
+		Preview: preview, Truncated: len(moves) > limit,
+		Moves: row.Moves,
+	}, nil
 }
 
 // writeUserSummary reads the rating chain tail and the W-L-D plus level

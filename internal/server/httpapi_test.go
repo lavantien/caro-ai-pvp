@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
 // The HTTP transport tests drive the landed stack (temp-file store, write
@@ -415,6 +416,33 @@ func TestHTTPRoomActionsPlaySeries(t *testing.T) {
 	if len(rooms) != 0 {
 		t.Fatalf("grid after series = %+v, want empty", rooms)
 	}
+
+	// The played series lands on the profile and the history tab: alice
+	// swept 2-0, the rating chain priced both games at 0 vs 0 then 30 vs
+	// -30, and the history lists the two games newest first.
+	_, _, _, afterOne := RatingDeltas(0, 0, RedWins)
+	_, _, _, afterTwo := RatingDeltas(afterOne, -afterOne, BlueWins)
+	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/me", ta, nil)
+	var me userSummary
+	wantStatus(t, got, http.StatusOK, &me)
+	if me.Username != "alice" || me.Rating != afterTwo || me.Wins != 2 ||
+		me.Losses != 0 || me.Draws != 0 || me.Level != 1 {
+		t.Errorf("post-series me = %+v, want alice at rating %d with 2-0-0 and level 1", me, afterTwo)
+	}
+	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/history", ta, nil)
+	var rows []historyEntry
+	wantStatus(t, got, http.StatusOK, &rows)
+	if len(rows) != 2 {
+		t.Fatalf("history rows = %d, want the two played games", len(rows))
+	}
+	if rows[0].FullTurns != len(guestRedLosesToBlue)/2 || rows[1].FullTurns != len(hostWinsRed)/2 {
+		t.Errorf("history turns = %d and %d, want %d and %d",
+			rows[0].FullTurns, rows[1].FullTurns, len(guestRedLosesToBlue)/2, len(hostWinsRed)/2)
+	}
+	if rows[0].Truncated || rows[1].Truncated || rows[0].WonBy == nil || rows[1].WonBy == nil {
+		t.Errorf("history rows truncated %t/%t wonBy %v/%v, want full previews with win tags",
+			rows[0].Truncated, rows[1].Truncated, rows[0].WonBy, rows[1].WonBy)
+	}
 }
 
 func TestHTTPForfeitRetiresRoom(t *testing.T) {
@@ -645,6 +673,83 @@ func TestHTTPSSEUnknownRoom(t *testing.T) {
 	defer srv.Close()
 	got := doJSON(t, srv.Client(), http.MethodGet, srv.URL+"/api/rooms/deadbeef/events", "", nil)
 	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
+}
+
+// historyMoves builds n distinct in-board cells for a seeded moves blob.
+func historyMoves(t *testing.T, n int) []rules.Move {
+	t.Helper()
+	if n*5+3 > config.BoardCells {
+		t.Fatalf("historyMoves: %d moves run off the board", n)
+	}
+	out := make([]rules.Move, 0, n)
+	for i := range n {
+		out = append(out, rules.Move(i*5+3))
+	}
+	return out
+}
+
+func TestHTTPHistoryPreviewAndPlaybackBlob(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+
+	// Private surface: a guest gets the 401 envelope.
+	got := doJSON(t, c, http.MethodGet, srv.URL+"/api/history", "", nil)
+	wantAPIError(t, got, http.StatusUnauthorized, "unauthorized")
+
+	// Two rows straight into the store: the transport only renders. The
+	// long game runs past the preview window, the short one inside it.
+	sr := seedSeries(t, s.store, alice, bob)
+	longBlob := encodeMoves(nil, historyMoves(t, 40))
+	wonBy := WonByFour
+	if _, err := s.store.AppendGame(Game{
+		SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+		Outcome: OutcomeRed, Moves: longBlob, FullTurns: 20, WonBy: &wonBy,
+	}); err != nil {
+		t.Fatalf("append long game: %v", err)
+	}
+	shortBlob := encodeMoves(nil, historyMoves(t, 6))
+	if _, err := s.store.AppendGame(Game{
+		SeriesID: sr.ID, IdxInSeries: 1, RedUser: alice.ID, BlueUser: bob.ID,
+		Outcome: OutcomeBlue, Moves: shortBlob, FullTurns: 3,
+	}); err != nil {
+		t.Fatalf("append short game: %v", err)
+	}
+
+	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/history", mintSession(t, s.store, alice), nil)
+	var rows []historyEntry
+	wantStatus(t, got, http.StatusOK, &rows)
+	if len(rows) != 2 {
+		t.Fatalf("history rows = %d, want 2 (body %s)", len(rows), got.body)
+	}
+	// Newest first: the second append lands on top.
+	long, short := rows[1], rows[0]
+	if len(short.Preview) != 6 || short.Truncated || !bytes.Equal(short.Moves, shortBlob) {
+		t.Errorf("short row = preview %v truncated %t, want the full 6 names", short.Preview, short.Truncated)
+	}
+	if len(long.Preview) != 2*config.HistoryPreviewTurns || !long.Truncated {
+		t.Errorf("long row preview = %d names truncated %t, want %d and the ellipsis flag",
+			len(long.Preview), long.Truncated, 2*config.HistoryPreviewTurns)
+	}
+	for i, name := range long.Preview {
+		if want := cellName(rules.Cell(historyMoves(t, 40)[i])); name != want {
+			t.Errorf("long preview[%d] = %q, want %q", i, name, want)
+			break
+		}
+	}
+	if long.FullTurns != 20 || long.Red != "alice" || long.Blue != "bob" ||
+		long.RedWins != 1 || long.BlueWins != 0 || long.WonBy == nil || *long.WonBy != WonByFour {
+		t.Errorf("long row = %+v, want the alice red win line", long)
+	}
+	if !bytes.Equal(long.Moves, longBlob) {
+		t.Error("long row moves blob altered, want the full blob for the playback board")
+	}
+	if short.WonBy != nil {
+		t.Errorf("short row wonBy = %q, want nil", *short.WonBy)
+	}
 }
 
 func TestHTTPStoreFailureMapsToInternal(t *testing.T) {
