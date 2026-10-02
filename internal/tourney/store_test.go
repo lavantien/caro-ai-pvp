@@ -219,7 +219,9 @@ func TestAppendGameSettlesSeriesFromGames(t *testing.T) {
 func TestAppendGameRejects(t *testing.T) {
 	ts, srv := newTestStore(t)
 	ctx := context.Background()
-	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2))
+	// A 3-seat roster so a game can seat a legal participant that is still
+	// not part of series 0's pair.
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(3))
 	if err != nil {
 		t.Fatalf("create run: %v", err)
 	}
@@ -239,6 +241,7 @@ func TestAppendGameRejects(t *testing.T) {
 		{"series of another run", gameOf(run.ID, foreign.ID, 0, 0, 1, server.RedWins), "not found"},
 		{"slot outside roster", gameOf(run.ID, first.ID, 0, 5, 1, server.RedWins), "not a participant"},
 		{"same red and blue", gameOf(run.ID, first.ID, 0, 0, 0, server.RedWins), "both 0"},
+		{"seats not the series pair", gameOf(run.ID, first.ID, 0, 0, 2, server.RedWins), "not the series' pair"},
 		{"idx out of order", gameOf(run.ID, first.ID, 1, 0, 1, server.RedWins), "append in order"},
 		{"outcome outside enum", gameOf(run.ID, first.ID, 0, 0, 1, server.Outcome(7)), "not a server outcome"},
 	}

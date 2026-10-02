@@ -91,6 +91,10 @@ func notFound(err error, what string) error {
 	return fmt.Errorf("tourney: %s: %w", what, err)
 }
 
+// ErrNotSeriesPair rejects a game whose seats, whatever their orientation
+// (red rotates across games), are not the series row's own pair.
+var ErrNotSeriesPair = errors.New("tourney: game seats are not the series' pair")
+
 // sqlArg binds an optional column: nil pointer to SQL NULL, value otherwise.
 func sqlArg[T any](p *T) any {
 	if p == nil {
@@ -155,7 +159,9 @@ func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, ro
 
 // AppendGame persists one game completion as the all-or-nothing unit: the
 // game row plus the series aggregates recomputed from the series' own games
-// (score line, winner, finish) in one transaction. The recompute is the
+// (score line, winner, finish) in one transaction. Both seats must be run
+// participants and the series row's own pair, either orientation (red
+// rotates across games). The recompute is the
 // single source of truth: the score columns summarize the game rows, never
 // a parallel tally, so they cannot drift. Games append in idx order up to
 // the run's bo_len, the cap the forfeit billing of a quit fills to.
@@ -192,6 +198,11 @@ func (t *Store) AppendGame(ctx context.Context, g Game) (Game, error) {
 			).Scan(new(int)); err != nil {
 				return fmt.Errorf("tourney: slot %d is not a participant of run %d: %w", slot, g.RunID, err)
 			}
+		}
+		if (g.RedSlot != redFirst || g.BlueSlot != blueFirst) &&
+			(g.RedSlot != blueFirst || g.BlueSlot != redFirst) {
+			return fmt.Errorf("tourney: series %d pairs %d with %d, game seats (%d, %d): %w",
+				g.SeriesID, redFirst, blueFirst, g.RedSlot, g.BlueSlot, ErrNotSeriesPair)
 		}
 		var played int
 		if err := tx.QueryRowContext(ctx,
