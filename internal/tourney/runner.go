@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -20,12 +21,18 @@ type MatchSource interface {
 }
 
 // SeriesStream is one live bot-vs-bot series from the conductor's view: the
-// ordered event stream ending at the series event, plus retirement.
+// ordered event stream ending at the series event, the room-authoritative
+// move list behind it, plus retirement.
 type SeriesStream interface {
 	// Events delivers the room's events in publish order. The channel
 	// closes when the subscription ends; a close before the series event is
 	// a missed-event gap and fails the run.
 	Events() <-chan server.Event
+	// TruthMoves returns the room-authoritative move list of the game that
+	// just ended: the stones the room itself applied, in play order. The
+	// runner reconciles its delivered accumulation against it at every
+	// game end, because a lost even-length prefix replays clean.
+	TruthMoves() []rules.Move
 	// Err explains why Events ended: server.ErrSlowConsumer after an
 	// eviction, server.ErrHubClosed after a hub close.
 	Err() error
@@ -36,9 +43,12 @@ type SeriesStream interface {
 // RoomSource adapts the room manager onto MatchSource. CreateBotVsBot
 // returns with game 1 already live, so the subscription registers on the
 // very next statement (the SSE handler's subscribe-before-liveness
-// discipline); the residual window inside the create is closed by the
-// per-game replay validation, which fails any series whose delivered moves
-// do not replay onto the room's own terminal position.
+// discipline). The residual window inside the create is closed by the
+// per-game truth reconciliation, not the replay validation: an even-length
+// lost prefix (one red and one blue leading move) preserves replay parity,
+// so a truncated stream replays clean whenever the dropped stones sit
+// outside the winning five; comparing the delivered list against the
+// room's own record fails the series before anything persists.
 type RoomSource struct{ RM *server.RoomManager }
 
 // StartSeries opens the bot-vs-bot room and subscribes before returning the
@@ -73,6 +83,9 @@ type roomStream struct {
 
 func (s roomStream) Events() <-chan server.Event { return s.sub.Events() }
 func (s roomStream) Err() error                  { return s.sub.Err() }
+
+// TruthMoves is the room's own record of the game that just ended.
+func (s roomStream) TruthMoves() []rules.Move { return s.room.LastGameMoves() }
 
 // Close drops the subscription first, then retires the room and joins its
 // bot worker, so no engine instance outlives the series.
@@ -312,9 +325,10 @@ func checkCoreBudget(parallel int, tiers []*config.Tier) error {
 // the match surface with the red-first participant as host, persist every
 // game as it ends, and close the series record against the room's own
 // verdict. Every deviation from the room contract (an unparsable event, a
-// move list that does not replay onto the verdict, a stream that ends
-// before the series event, a verdict that disagrees with the billed line)
-// fails the series and with it the run.
+// delivered move list that diverges from the room's own record, a move
+// list that does not replay onto the verdict, a stream that ends before
+// the series event, a verdict that disagrees with the billed line) fails
+// the series and with it the run.
 func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Run,
 	row Series, pair Pairing, tiers []*config.Tier) (line SeriesResult, err error) {
 
@@ -370,7 +384,18 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 			if !ok {
 				return line, fmt.Errorf("game %d end %q: not a room outcome", games+1, ev.Payload)
 			}
-			wonBy, rerr := replayGame(moves, outcome)
+			// The truth reconciliation: the room's own list is the record's
+			// authority, compared before anything persists. The replay net
+			// below is the second check, not the first: an even-length lost
+			// prefix preserves parity and replays clean whenever the dropped
+			// stones sit outside the winning five, so a delivery gap of that
+			// shape would otherwise persist a silently corrupted game.
+			truth := stream.TruthMoves()
+			if len(truth) != len(moves) || !slices.Equal(truth, moves) {
+				return line, fmt.Errorf("game %d delivered %d moves against the room's %d, the stream dropped or corrupted stones",
+					games+1, len(moves), len(truth))
+			}
+			wonBy, rerr := replayGame(truth, outcome)
 			if rerr != nil {
 				return line, fmt.Errorf("game %d: %w", games+1, rerr)
 			}
@@ -381,7 +406,7 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 			if _, aerr := store.AppendGame(ctx, Game{
 				RunID: run.ID, SeriesID: row.ID, IdxInSeries: games,
 				RedSlot: redSlot, BlueSlot: blueSlot, Outcome: outcome,
-				WonBy: wonBy, FullTurns: len(moves) / 2, Moves: moves,
+				WonBy: wonBy, FullTurns: len(truth) / 2, Moves: truth,
 			}); aerr != nil {
 				return line, fmt.Errorf("persist game %d: %w", games+1, aerr)
 			}
@@ -443,13 +468,14 @@ func (c *Conductor) closeSeries(logs *Logs, run Run, row Series, line SeriesResu
 	return line, nil
 }
 
-// replayGame validates one finished game's delivered moves and derives the
-// won-by tag. The replay is the conductor's missed-event net: a prefix lost
-// to a subscription gap replays onto the wrong board, and the terminal
-// predicate (the winner's exact five on the final stone, or a full board
-// for a draw) then fails the series instead of persisting corrupt state.
-// The tag reuses server.WonByTag on the position at move n-1, the same
-// classification the room's completion path writes for PvP games.
+// replayGame validates one finished game's move list and derives the won-by
+// tag. The replay is the conductor's second net, behind the truth
+// reconciliation: it replays the stones onto a fresh board and demands the
+// terminal predicate (the winner's exact five on the final stone, or a full
+// board for a draw), catching whatever corruption keeps list lengths and
+// elements aligned. The tag reuses server.WonByTag on the position at move
+// n-1, the same classification the room's completion path writes for PvP
+// games.
 func replayGame(moves []rules.Move, outcome server.Outcome) (*string, error) {
 	if len(moves) == 0 {
 		return nil, fmt.Errorf("%s verdict on an empty board", outcome)

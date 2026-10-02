@@ -172,6 +172,10 @@ func (r *Room) applyMoveLocked(side rules.Color, cell rules.Cell) {
 // game is the live truth, and the lost unit surfaces as the returned error
 // instead of a playable finished position.
 func (r *Room) completeGameLocked(winner rules.Color, lastCell rules.Cell) error {
+	// Capture the finished game's authoritative list before the Series
+	// machine books anything and before startGameLocked recycles the moves
+	// buffer: consumers reconcile their delivered streams against it.
+	r.lastMoves = append(r.lastMoves[:0], r.moves...)
 	redUser, blueUser := r.seatByColorLocked(rules.Red).userID, r.seatByColorLocked(rules.Blue).userID
 	outcome := Draw
 	var wonBy *string

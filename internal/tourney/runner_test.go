@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
 
@@ -76,16 +77,30 @@ func easySweeps(host, guest string) []server.Event {
 // fakeStream is one scripted series' event stream. Unbuffered channel: each
 // event is consumed before the next delivers, so scripts stay in order. The
 // feeder parks after the script unless closeEarly ends the channel without
-// the series event, the slow-consumer eviction shape.
+// the series event, the slow-consumer eviction shape. Truth derives from
+// the script's own move events, the room's guarantee for a clean stream;
+// the source's dropLeadMoves knob withholds delivered moves from the
+// consumer only, scripting a subscription gap.
 type fakeStream struct {
 	src       *fakeSource
 	ch        chan server.Event
 	done      chan struct{}
 	closeOnce sync.Once
+
+	mu    sync.Mutex
+	truth []rules.Move
 }
 
 func (f *fakeStream) Events() <-chan server.Event { return f.ch }
 func (f *fakeStream) Err() error                  { return f.src.streamErr }
+
+// TruthMoves is the scripted room's authoritative list for the game that
+// just ended.
+func (f *fakeStream) TruthMoves() []rules.Move {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.truth
+}
 
 func (f *fakeStream) Close() {
 	f.closeOnce.Do(func() {
@@ -95,7 +110,26 @@ func (f *fakeStream) Close() {
 }
 
 func (f *fakeStream) feed(events []server.Event) {
+	dropped := 0
+	var game []rules.Move
 	for _, ev := range events {
+		switch ev.Kind {
+		case server.EventKindMove:
+			cell, err := rules.ParseCell(ev.Payload)
+			if err != nil {
+				panic("tourney test: scripted move " + ev.Payload + " is not a cell")
+			}
+			game = append(game, rules.Move(cell))
+			if dropped < f.src.dropLeadMoves {
+				dropped++
+				continue
+			}
+		case server.EventKindGameEnd:
+			f.mu.Lock()
+			f.truth = game
+			f.mu.Unlock()
+			game, dropped = nil, 0
+		}
 		select {
 		case f.ch <- ev:
 		case <-f.done:
@@ -109,12 +143,15 @@ func (f *fakeStream) feed(events []server.Event) {
 
 // fakeSource scripts MatchSource without engines: every StartSeries records
 // the tier order it was called with, runs the optional gate (overlap and
-// cancel hooks), and feeds the script on a goroutine.
+// cancel hooks), and feeds the script on a goroutine. dropLeadMoves
+// withholds each game's first k move events from delivery while truth keeps
+// them, the create-to-subscribe gap's lost prefix.
 type fakeSource struct {
-	script     func(host, guest string) []server.Event
-	onStart    func(*fakeStream) error
-	closeEarly bool
-	streamErr  error
+	script        func(host, guest string) []server.Event
+	onStart       func(*fakeStream) error
+	closeEarly    bool
+	streamErr     error
+	dropLeadMoves int
 
 	mu      sync.Mutex
 	starts  [][2]string
@@ -374,6 +411,56 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 	}
 }
 
+// gapRedMoves is the even-gap sweep: the leading pair (one red, one blue
+// stone) sits far from the E-file five, so dropping it leaves a delivery
+// that replays clean onto the same terminal position, the exact corruption
+// the replay net cannot catch and the truth reconciliation exists for.
+var gapRedMoves = []string{"A1", "A15", "P16", "H8", "E5", "N16", "E6", "M4", "E4", "L2", "E7", "G10", "E3"}
+
+// TestConductorFailsOnTruncatedDelivery pins the truth reconciliation: a
+// stream that lost an even-length move prefix while the room holds the full
+// list fails the run before anything persists, though the truncated game
+// replays clean.
+func TestConductorFailsOnTruncatedDelivery(t *testing.T) {
+	// Pin the premise first: without the truth net the corrupted delivery
+	// passes the replay validator on its own.
+	delivered := make([]rules.Move, 0, len(gapRedMoves)-2)
+	for _, name := range gapRedMoves[2:] {
+		cell, err := rules.ParseCell(name)
+		if err != nil {
+			t.Fatalf("parse %s: %v", name, err)
+		}
+		delivered = append(delivered, rules.Move(cell))
+	}
+	if wonBy, rerr := replayGame(delivered, server.RedWins); rerr != nil || wonBy == nil {
+		t.Fatalf("truncated replay = (%v, %v), want it clean without the truth net", wonBy, rerr)
+	}
+
+	ts, srv := newTestStore(t)
+	pointLogsAt(t)
+	src := &fakeSource{
+		script: func(host, guest string) []server.Event {
+			return scriptedSeries([]scriptedGame{{moves: gapRedMoves, outcome: server.OutcomeRed}},
+				server.SideHost.String())
+		},
+		dropLeadMoves: 2,
+	}
+
+	_, err := NewConductor(src).Run(context.Background(), ts, rosterTwo(),
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1)
+	if err == nil || !strings.Contains(err.Error(), "11 moves against the room's 13") {
+		t.Fatalf("run error = %v, want the truth reconciliation naming both counts", err)
+	}
+	// The corrupted game never lands and the run row stays ongoing for the
+	// post-mortem, every series error's failure contract.
+	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_games`); n != 0 {
+		t.Errorf("games after the truncated delivery = %d, want 0", n)
+	}
+	if status := runStatus(t, ts, 1); status != RunStateOngoing {
+		t.Errorf("run status = %q, want %q after the failure", status, RunStateOngoing)
+	}
+}
+
 func TestConductorOverlapsUpToParallel(t *testing.T) {
 	ts, _ := newTestStore(t)
 	pointLogsAt(t)
@@ -530,9 +617,16 @@ func TestConductorDisqualifiesMissedEvents(t *testing.T) {
 		want   string
 	}{
 		{
-			// The first move never reaches the conductor: the replayed board
-			// misassigns colors and the terminal predicate fails.
-			"dropped first move",
+			// The subscription missed the first stone, an odd lost prefix:
+			// the truth reconciliation fires before the replay.
+			"lost first move",
+			&fakeSource{script: easySweeps, dropLeadMoves: 1},
+			"10 moves against the room's 11",
+		},
+		{
+			// The room's own record is the corrupt one: truth matches the
+			// delivery but the game does not replay, the second net's catch.
+			"unreplayable record",
 			&fakeSource{script: func(host, guest string) []server.Event {
 				ev := easySweeps(host, guest)
 				return append(ev[:0], ev[2:]...) // drop move 1 and its M-line

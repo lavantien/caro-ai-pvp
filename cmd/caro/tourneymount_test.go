@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 	"github.com/lavantien/caro-ai-pvp/internal/tourney"
 )
@@ -49,22 +50,48 @@ func hostSweep() []server.Event {
 }
 
 // cmdStream is one scripted series over the exported tourney seam: the
-// feeder parks once the script drains, Close ends it.
+// feeder parks once the script drains, Close ends it. Truth derives from
+// the script's own move events, the room's guarantee for a clean stream.
 type cmdStream struct {
 	ch   chan server.Event
 	done chan struct{}
 	once sync.Once
+
+	mu    sync.Mutex
+	truth []rules.Move
 }
 
 func (s *cmdStream) Events() <-chan server.Event { return s.ch }
 func (s *cmdStream) Err() error                  { return nil }
+
+// TruthMoves is the scripted room's authoritative list for the game that
+// just ended.
+func (s *cmdStream) TruthMoves() []rules.Move {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.truth
+}
 
 func (s *cmdStream) Close() {
 	s.once.Do(func() { close(s.done) })
 }
 
 func (s *cmdStream) feed(events []server.Event) {
+	var game []rules.Move
 	for _, ev := range events {
+		switch ev.Kind {
+		case server.EventKindMove:
+			cell, err := rules.ParseCell(ev.Payload)
+			if err != nil {
+				panic("cmd test: scripted move " + ev.Payload + " is not a cell")
+			}
+			game = append(game, rules.Move(cell))
+		case server.EventKindGameEnd:
+			s.mu.Lock()
+			s.truth = game
+			s.mu.Unlock()
+			game = nil
+		}
 		select {
 		case s.ch <- ev:
 		case <-s.done:

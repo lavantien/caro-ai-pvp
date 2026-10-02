@@ -314,9 +314,12 @@ type Room struct {
 
 	// Live game state, all under mu. board is nil until the handshake
 	// completes and between-terminal games never happens: the completion
-	// path resets in the same critical section.
+	// path resets in the same critical section. lastMoves is the finished
+	// game's authoritative list, captured at each completion and held until
+	// the next game completes (LastGameMoves).
 	board     *rules.Board
 	moves     []rules.Move
+	lastMoves []rules.Move
 	clock     [2]*clock.GameClock
 	turnStart time.Time
 	engines   [2]searcher
@@ -354,6 +357,17 @@ func (r *Room) SeriesID() int64 {
 // room's key: move events, bot M-lines, game and series ends.
 func (r *Room) Subscribe() (*Subscription, error) {
 	return r.hub.Subscribe(r.id)
+}
+
+// LastGameMoves returns the authoritative move list of the room's most
+// recently finished game: the stones the room itself applied, in play
+// order, copied under the lock. It stays readable into the next game (the
+// tournament conductor reconciles its delivered stream against it at the
+// game-end event) and is nil before any completion.
+func (r *Room) LastGameMoves() []rules.Move {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]rules.Move(nil), r.lastMoves...)
 }
 
 // Info snapshots the grid line. ok is false once the room retired.

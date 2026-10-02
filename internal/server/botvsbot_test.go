@@ -10,8 +10,10 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -227,6 +229,61 @@ func TestBotVsBotSeriesScriptedToMajority(t *testing.T) {
 	}
 	if got := seq[len(seq)-1]; got != EventKindSeries+" "+SideHost.String() {
 		t.Errorf("series end = %q, want host", got)
+	}
+}
+
+// TestRoomLastGameMoves pins the room's authoritative record of the game
+// that just ended: nil before any completion, the finished game's played
+// cells readable into the next game, and the next completion overwriting
+// it. The tournament conductor reconciles its delivered stream against this
+// list, so the accessor must mirror exactly what the room applied.
+func TestRoomLastGameMoves(t *testing.T) {
+	s := newStack(t)
+
+	// Before any completion the accessor is nil: game 1 is live, nothing
+	// has finished.
+	parked := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	s.rm.makeSearcher = func(config.Tier) searcher { return parked }
+	fresh, err := s.rm.CreateBotVsBot(&config.TierEasy, &config.TierMedium, 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create bot vs bot: %v", err)
+	}
+	<-parked.seen
+	if got := fresh.LastGameMoves(); got != nil {
+		t.Errorf("last game moves before any completion = %v, want nil", got)
+	}
+	close(parked.release)
+	waitFor(t, func() bool { _, ok := fresh.Info(); return !ok })
+
+	// Game 1's list equals the played cells and survives into game 2, which
+	// parks mid-search; game 2's completion overwrites it.
+	var hostEngines atomic.Int32
+	game2 := make(chan struct{})
+	s.rm.makeSearcher = func(tier config.Tier) searcher {
+		script := movesOf(t, botVsBotHostLine)
+		if tier.Name != config.TierEasy.Name {
+			script = movesOf(t, botVsBotGuestLine)
+		} else if hostEngines.Add(1) == 2 {
+			return &startGatedBot{gate: game2,
+				inner: &scriptedBot{script: script, stats: fakeStats()}}
+		}
+		return &scriptedBot{script: script, stats: fakeStats()}
+	}
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, &config.TierMedium, 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create bot vs bot: %v", err)
+	}
+	waitFor(t, func() bool {
+		info, ok := r.Info()
+		return ok && info.HostWins == 1
+	})
+	if got, want := r.LastGameMoves(), movesOf(t, hostWinsRed); !slices.Equal(got, want) {
+		t.Errorf("last game moves while game 2 parks = %v, want game 1's %v", got, want)
+	}
+	close(game2)
+	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
+	if got, want := r.LastGameMoves(), movesOf(t, botVsBotGame2); !slices.Equal(got, want) {
+		t.Errorf("last game moves after game 2 = %v, want game 2's %v", got, want)
 	}
 }
 
