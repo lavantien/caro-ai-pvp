@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
 
@@ -62,8 +64,8 @@ func HashPassword(password string, salt []byte) []byte {
 
 // VerifyPassword recomputes stored's key from the row's persisted per-user
 // parameters and compares in constant time. Degenerate rows (salt or key
-// length off, cost parameters argon2 cannot take) fail closed without
-// reaching the KDF and never panic.
+// length off, cost parameters outside the accepted envelope) fail closed
+// without reaching the KDF and never panic.
 func VerifyPassword(stored User, password string) bool {
 	return verifyPassword(stored, password, argon2.IDKey)
 }
@@ -72,10 +74,17 @@ func verifyPassword(stored User, password string, kdf argon2KDF) bool {
 	if len(stored.Salt) != config.Argon2SaltBytes || len(stored.Hash) != config.Argon2KeyBytes {
 		return false
 	}
-	// argon2.IDKey panics below one round or thread and converts a negative
-	// memory into a near-4-TiB allocation; sub-floor memory is degenerate the
-	// same way, since the floor is 8*parallelism.
-	if stored.Argon2Time < 1 || stored.Argon2Parallelism < 1 || stored.Argon2MemoryKiB < 8*stored.Argon2Parallelism {
+	// Cost envelope, era rule: rows are stamped at the config parameters of
+	// their day, so anything above today's config set is tampered or corrupt
+	// and fails closed, while weaker legacy rows (a parameter bump's
+	// predecessors) stay verifiable until a rehash migrates them. The bounds
+	// also keep the int-to-uint32/uint8 narrowing lossless: below one round
+	// or thread argon2.IDKey panics, a parallelism of 256 wraps to uint8
+	// zero, and an oversized memory would drive the derivation toward a huge
+	// allocation instead of failing.
+	if stored.Argon2Time < 1 || stored.Argon2Time > config.Argon2Time ||
+		stored.Argon2Parallelism < 1 || stored.Argon2Parallelism > config.Argon2Parallelism ||
+		stored.Argon2MemoryKiB < 8*stored.Argon2Parallelism || stored.Argon2MemoryKiB > config.Argon2MemoryKiB {
 		return false
 	}
 	got := argon2Params{
@@ -87,7 +96,8 @@ func verifyPassword(stored User, password string, kdf argon2KDF) bool {
 }
 
 // ErrInvalidUsername rejects a syntactically unusable username before any
-// store access: empty, past usernameMaxBytes, or carrying a control byte.
+// store access: empty, past usernameMaxBytes, invalid UTF-8, or carrying a
+// control or invisible format rune.
 var ErrInvalidUsername = errors.New("server: invalid username")
 
 // usernameMaxBytes is the login form's username ceiling. It belongs in the
@@ -95,11 +105,13 @@ var ErrInvalidUsername = errors.New("server: invalid username")
 const usernameMaxBytes = 32
 
 func validateUsername(username string) error {
-	if username == "" || len(username) > usernameMaxBytes {
+	if username == "" || len(username) > usernameMaxBytes || !utf8.ValidString(username) {
 		return ErrInvalidUsername
 	}
-	for i := 0; i < len(username); i++ {
-		if c := username[i]; c < 0x20 || c == 0x7f {
+	for _, r := range username {
+		// Cc covers the C0 and C1 controls; Cf the invisible format runes
+		// (bidi overrides, joiners) that spoof rendered names.
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
 			return ErrInvalidUsername
 		}
 	}

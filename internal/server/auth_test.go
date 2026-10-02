@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -69,14 +70,16 @@ func TestHashPasswordDeterministicAndSaltSensitive(t *testing.T) {
 
 func TestVerifyPasswordUsesStoredPerUserParams(t *testing.T) {
 	f := &fakeKDF{}
+	// A weaker legacy row: every cost at or below today's config set, so the
+	// era guard accepts it, yet distinct from config on time and memory.
 	u := User{
 		Username:          "alice",
-		Argon2Time:        3,
-		Argon2MemoryKiB:   2048,
-		Argon2Parallelism: 2,
+		Argon2Time:        1,
+		Argon2MemoryKiB:   8192,
+		Argon2Parallelism: config.Argon2Parallelism,
 		Salt:              []byte("0123456789abcdef"),
 	}
-	u.Hash = f.derive([]byte("hunter2"), u.Salt, 3, 2048, 2, config.Argon2KeyBytes)
+	u.Hash = f.derive([]byte("hunter2"), u.Salt, 1, 8192, config.Argon2Parallelism, config.Argon2KeyBytes)
 	f.calls = 0
 
 	if !verifyPassword(u, "hunter2", f.derive) {
@@ -85,8 +88,8 @@ func TestVerifyPasswordUsesStoredPerUserParams(t *testing.T) {
 	if f.calls != 1 {
 		t.Errorf("verify derivations = %d, want 1", f.calls)
 	}
-	if f.lastTime != 3 || f.lastMemory != 2048 || f.lastThreads != 2 {
-		t.Errorf("derive params = time %d memory %d threads %d, want the user's stored 3/2048/2", f.lastTime, f.lastMemory, f.lastThreads)
+	if f.lastTime != 1 || f.lastMemory != 8192 || f.lastThreads != config.Argon2Parallelism {
+		t.Errorf("derive params = time %d memory %d threads %d, want the user's stored 1/8192/%d", f.lastTime, f.lastMemory, f.lastThreads, config.Argon2Parallelism)
 	}
 	if f.lastKeyLen != uint32(config.Argon2KeyBytes) {
 		t.Errorf("derive keyLen = %d, want %d", f.lastKeyLen, config.Argon2KeyBytes)
@@ -111,20 +114,25 @@ func TestVerifyPasswordFailsClosed(t *testing.T) {
 	tampered.Hash = bytes.Clone(u.Hash)
 	tampered.Hash[0] ^= 0xff
 
-	wrongParams := u
-	wrongParams.Argon2Time = u.Argon2Time + 1
-
 	badSaltLen := u
 	badSaltLen.Salt = bytes.Clone(u.Salt[:len(u.Salt)-1])
 
 	badHashLen := u
 	badHashLen.Hash = bytes.Clone(u.Hash[:len(u.Hash)-1])
 
-	zeroTime := u
-	zeroTime.Argon2Time = 0
-
-	zeroThreads := u
-	zeroThreads.Argon2Parallelism = 0
+	// Cost shapes the guard must stop before the KDF: narrowing wraps (time
+	// 1<<32 to uint32 0, parallelism 256 to uint8 0, both argon2 panics) and
+	// oversized memory would drive the derivation toward a huge allocation.
+	wrapTime := u
+	wrapTime.Argon2Time = 1 << 32
+	wrapThreads := u
+	wrapThreads.Argon2Parallelism = 256
+	hugeMemory := u
+	hugeMemory.Argon2MemoryKiB = 1 << 31
+	pastConfigTime := u
+	pastConfigTime.Argon2Time = config.Argon2Time + 1
+	pastConfigMemory := u
+	pastConfigMemory.Argon2MemoryKiB = config.Argon2MemoryKiB * 2
 
 	cases := []struct {
 		name     string
@@ -136,13 +144,17 @@ func TestVerifyPasswordFailsClosed(t *testing.T) {
 	}{
 		{"wrong password", u, "wrong-password", false, true},
 		{"tampered hash byte", tampered, "hunter2", false, true},
-		{"params drifted from stored", wrongParams, "hunter2", false, true},
 		{"salt one byte short", badSaltLen, "hunter2", false, false},
 		{"hash one byte short", badHashLen, "hunter2", false, false},
 		{"empty salt", User{Hash: u.Hash, Argon2Time: 1, Argon2Parallelism: 1}, "hunter2", false, false},
 		{"empty hash", User{Salt: u.Salt, Argon2Time: 1, Argon2Parallelism: 1}, "hunter2", false, false},
-		{"zero time param", zeroTime, "hunter2", false, false},
-		{"zero parallelism param", zeroThreads, "hunter2", false, false},
+		{"zero time param", User{Salt: u.Salt, Hash: u.Hash, Argon2Time: 0, Argon2Parallelism: 1}, "hunter2", false, false},
+		{"zero parallelism param", User{Salt: u.Salt, Hash: u.Hash, Argon2Time: 1, Argon2Parallelism: 0}, "hunter2", false, false},
+		{"time narrows to uint32 zero", wrapTime, "hunter2", false, false},
+		{"parallelism narrows to uint8 zero", wrapThreads, "hunter2", false, false},
+		{"memory past config ceiling", pastConfigMemory, "hunter2", false, false},
+		{"memory near 2 TiB", hugeMemory, "hunter2", false, false},
+		{"time past config ceiling", pastConfigTime, "hunter2", false, false},
 	}
 	for _, tc := range cases {
 		f.calls = 0
@@ -222,8 +234,8 @@ func TestLoginOrCreateRealArgon2RoundTrip(t *testing.T) {
 	if bytes.Equal(sess1.Token, sess2.Token) {
 		t.Error("relogin reused the previous session token")
 	}
-	if _, err := Authenticate(s, sess2.Token, now+1); err != nil {
-		t.Errorf("authenticate fresh token: %v", err)
+	if got, err := Authenticate(s, sess2.Token, now+1); err != nil || got.ID != created.ID || got.Username != "alice" {
+		t.Errorf("authenticate fresh token = user %+v err %v, want alice", got, err)
 	}
 
 	u, sess, err := LoginOrCreate(s, "alice", "wrong-password", now+2)
@@ -286,6 +298,9 @@ func TestLoginOrCreateUsernameValidation(t *testing.T) {
 		{"embedded newline", "a\nb", true},
 		{"nul byte", "a\x00b", true},
 		{"del 0x7f", "a\x7fb", true},
+		{"invalid utf-8", "a\xffb", true},
+		{"rtl override format char", "a" + string(rune(0x202E)) + "b", true},
+		{"c1 control nel", "a" + string(rune(0x85)) + "b", true},
 		{"32 bytes", strings.Repeat("a", 32), false},
 		{"32 bytes of utf-8", strings.Repeat("é", 16), false},
 	}
@@ -392,10 +407,18 @@ func TestAuthenticateVanishedUserRowFailsClosed(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 	// The FK blocks this through normal flows; force it to check the glue.
-	if _, err := s.db.Exec("PRAGMA foreign_keys = off"); err != nil {
+	// Both statements ride one pinned connection so the PRAGMA cannot land
+	// on a different pooled conn than the DELETE.
+	ctx := context.Background()
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		t.Fatalf("pin conn: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = off"); err != nil {
 		t.Fatalf("drop fk guard: %v", err)
 	}
-	if _, err := s.db.Exec("DELETE FROM users WHERE id = ?", u.ID); err != nil {
+	if _, err := conn.ExecContext(ctx, "DELETE FROM users WHERE id = ?", u.ID); err != nil {
 		t.Fatalf("delete user: %v", err)
 	}
 	if _, err := Authenticate(s, sess.Token, now); !errors.Is(err, ErrBadCredentials) {
