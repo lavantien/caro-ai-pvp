@@ -163,14 +163,14 @@ func (r *Room) applyMoveLocked(side rules.Color, cell rules.Cell) {
 
 // completeGameLocked is the one completion path: rules decided the outcome
 // (last mover's five or full board), the Series machine books it, the
-// write queue persists the game, the rating pair, and the series finish in
-// order, then the room either resets for the next game with the rotation
-// the Series machine chose, or retires. Holding the room lock across the
-// blocking Send serializes per-room writes: game n+1 cannot persist before
-// game n, and the rating reads inside the mutation see every earlier event.
-// The room advances even when a write fails: the in-memory game is the
-// live truth, and the lost row surfaces as the returned error instead of a
-// playable finished position.
+// write queue persists the game, the rating pair, and the series finish as
+// one all-or-nothing unit, then the room either resets for the next game
+// with the rotation the Series machine chose, or retires. Holding the room
+// lock across the blocking Send serializes per-room writes: game n+1 cannot
+// persist before game n, and the rating reads inside the unit see every
+// earlier event. The room advances even when a write fails: the in-memory
+// game is the live truth, and the lost unit surfaces as the returned error
+// instead of a playable finished position.
 func (r *Room) completeGameLocked(winner rules.Color, lastCell rules.Cell) error {
 	redUser, blueUser := r.seatByColorLocked(rules.Red).userID, r.seatByColorLocked(rules.Blue).userID
 	outcome := Draw
@@ -201,34 +201,26 @@ func (r *Room) completeGameLocked(winner rules.Color, lastCell rules.Cell) error
 	return perr
 }
 
-// persistGameLocked writes one finished game and everything it implies.
-// Bot rooms (seriesID 0) persist nothing: Scenario 2 keeps bot records in
-// the tournament's separate space.
+// persistGameLocked writes one finished game and everything it implies as a
+// single completion unit. Bot rooms (seriesID 0) persist nothing: Scenario 2
+// keeps bot records in the tournament's separate space.
 func (r *Room) persistGameLocked(redUser, blueUser int64, outcome Outcome, wonBy *string) error {
 	if r.seriesID == 0 {
 		return nil
 	}
 	seriesID, idx := r.seriesID, r.series.GamesPlayed()-1
 	blob, fullTurns := encodeMoves(nil, r.moves), len(r.moves)/2
-	finished := r.series.State() == SeriesFinished
-	winner, finAt := r.seriesWinnerUser(), time.Now().Unix()
+	unit := Completion{Games: []Game{{
+		SeriesID: seriesID, IdxInSeries: idx, RedUser: redUser, BlueUser: blueUser,
+		Outcome: outcome.String(), Moves: blob, FullTurns: fullTurns, WonBy: wonBy,
+	}}}
+	if r.series.State() == SeriesFinished {
+		unit.Finish = &SeriesFinish{
+			SeriesID: seriesID, Winner: r.seriesWinnerUser(), FinishedAt: time.Now().Unix(),
+		}
+	}
 	return r.wq.Send(func(_ context.Context) error {
-		g, err := r.store.AppendGame(Game{
-			SeriesID: seriesID, IdxInSeries: idx, RedUser: redUser, BlueUser: blueUser,
-			Outcome: outcome.String(), Moves: blob, FullTurns: fullTurns, WonBy: wonBy,
-		})
-		if err != nil {
-			return err
-		}
-		if outcome != Draw {
-			if err := r.applyRatingDeltas(g.ID, redUser, blueUser, outcome); err != nil {
-				return err
-			}
-		}
-		if finished {
-			return r.store.UpdateSeries(seriesID, SeriesStateFinished, winner, &finAt)
-		}
-		return nil
+		return r.store.ApplyCompletion(unit)
 	})
 }
 
@@ -265,9 +257,10 @@ func (r *Room) Forfeit(userID int64) error {
 	return err
 }
 
-// persistForfeitLocked writes the synthetic games in game order, each with
-// its rating pair, then the finished series row. The first synthetic game
-// is the live one: its blob keeps the partial move history actually played.
+// persistForfeitLocked writes the whole sweep, the synthetic games in game
+// order with their rating pairs and the finished series row, as one
+// completion unit. The first synthetic game is the live one: its blob keeps
+// the partial move history actually played.
 func (r *Room) persistForfeitLocked(liveMoves []rules.Move) error {
 	if r.seriesID == 0 {
 		return nil
@@ -275,64 +268,24 @@ func (r *Room) persistForfeitLocked(liveMoves []rules.Move) error {
 	seriesID := r.seriesID
 	synth := r.series.SyntheticGames()
 	firstLive := r.series.GamesPlayed() - len(synth) + 1
-	winner, finAt := r.seriesWinnerUser(), time.Now().Unix()
+	unit := Completion{Games: make([]Game, 0, len(synth))}
+	for _, g := range synth {
+		blob, turns := []byte{}, 0
+		if g.GameNo == firstLive {
+			blob, turns = encodeMoves(nil, liveMoves), len(liveMoves)/2
+		}
+		unit.Games = append(unit.Games, Game{
+			SeriesID: seriesID, IdxInSeries: g.GameNo - 1,
+			RedUser: g.RedUserID, BlueUser: g.BlueUserID,
+			Outcome: g.Outcome.String(), Moves: blob, FullTurns: turns,
+		})
+	}
+	unit.Finish = &SeriesFinish{
+		SeriesID: seriesID, Winner: r.seriesWinnerUser(), FinishedAt: time.Now().Unix(),
+	}
 	return r.wq.Send(func(_ context.Context) error {
-		for _, g := range synth {
-			blob, turns := []byte{}, 0
-			if g.GameNo == firstLive {
-				blob, turns = encodeMoves(nil, liveMoves), len(liveMoves)/2
-			}
-			row, err := r.store.AppendGame(Game{
-				SeriesID: seriesID, IdxInSeries: g.GameNo - 1,
-				RedUser: g.RedUserID, BlueUser: g.BlueUserID,
-				Outcome: g.Outcome.String(), Moves: blob, FullTurns: turns,
-			})
-			if err != nil {
-				return err
-			}
-			if err := r.applyRatingDeltas(row.ID, g.RedUserID, g.BlueUserID, g.Outcome); err != nil {
-				return err
-			}
-		}
-		return r.store.UpdateSeries(seriesID, SeriesStateFinished, winner, &finAt)
+		return r.store.ApplyCompletion(unit)
 	})
-}
-
-// applyRatingDeltas prices one game on the two players' CURRENT stored
-// ratings (the last rating event's RatingAfter, RatingStart before any)
-// and appends the zero-sum pair. Runs on the write queue worker, so games
-// of the same series see each other's events in order.
-func (r *Room) applyRatingDeltas(gameID, redUser, blueUser int64, outcome Outcome) error {
-	rRed, err := currentRating(r.store, redUser)
-	if err != nil {
-		return err
-	}
-	rBlue, err := currentRating(r.store, blueUser)
-	if err != nil {
-		return err
-	}
-	dRed, dBlue, afterRed, afterBlue := RatingDeltas(rRed, rBlue, outcome)
-	pair := [2]RatingEvent{
-		{GameID: gameID, UserID: redUser, Delta: dRed, RatingAfter: afterRed},
-		{GameID: gameID, UserID: blueUser, Delta: dBlue, RatingAfter: afterBlue},
-	}
-	for _, e := range pair {
-		if _, err := r.store.AppendRatingEvent(e); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func currentRating(st *Store, userID int64) (int, error) {
-	hist, err := st.RatingHistoryByUser(userID)
-	if err != nil {
-		return 0, err
-	}
-	if len(hist) == 0 {
-		return config.RatingStart, nil
-	}
-	return hist[len(hist)-1].RatingAfter, nil
 }
 
 // seriesWinnerUser resolves the machine's side to a stored user id, nil

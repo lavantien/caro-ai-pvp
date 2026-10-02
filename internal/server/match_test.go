@@ -541,6 +541,129 @@ func TestPlayMoveSurvivesWriteQueueClose(t *testing.T) {
 	}
 }
 
+// injectRatingAbort raises an SQLite ABORT on every rating_events insert, so
+// a completion unit fails mid-way at the exact statement a disk error or a
+// busy-timeout expiry would hit. The returned func drops the trigger.
+func injectRatingAbort(t *testing.T, s *stack) func() {
+	t.Helper()
+	if _, err := s.store.db.Exec(
+		`CREATE TRIGGER boom_rating BEFORE INSERT ON rating_events
+		BEGIN SELECT RAISE(ABORT, 'injected rating failure'); END`); err != nil {
+		t.Fatalf("inject rating abort: %v", err)
+	}
+	return func() {
+		if _, err := s.store.db.Exec(`DROP TRIGGER boom_rating`); err != nil {
+			t.Fatalf("drop rating abort: %v", err)
+		}
+	}
+}
+
+// diskState snapshots the tables a completion unit touches.
+type diskState struct {
+	games   int
+	ratings int
+	series  SeriesRow
+}
+
+func readDiskState(t *testing.T, s *stack, seriesID int64) diskState {
+	t.Helper()
+	var d diskState
+	if err := s.store.db.QueryRow(`SELECT COUNT(*) FROM games WHERE series_id = ?`, seriesID).Scan(&d.games); err != nil {
+		t.Fatalf("count games: %v", err)
+	}
+	if err := s.store.db.QueryRow(`SELECT COUNT(*) FROM rating_events`).Scan(&d.ratings); err != nil {
+		t.Fatalf("count rating events: %v", err)
+	}
+	sr, err := s.store.SeriesByID(seriesID)
+	if err != nil {
+		t.Fatalf("series row: %v", err)
+	}
+	d.series = sr
+	return d
+}
+
+// TestGameCompletionUnitAtomicOnFailedStatement pins the all-or-nothing law
+// of one finished game: a statement failing mid-unit (here the first rating
+// insert) must leave zero game rows, zero rating events, and the series row
+// untouched, never a persisted game with a missing or half-applied rating
+// pair.
+func TestGameCompletionUnitAtomicOnFailedStatement(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+
+	drop := injectRatingAbort(t, s)
+	names := hostWinsRed
+	for i := 0; i < len(names)-1; i++ {
+		mover := alice.ID
+		if i%2 == 1 {
+			mover = bob.ID
+		}
+		if err := r.PlayMove(mover, mustCellT(t, names[i])); err != nil {
+			t.Fatalf("move %d: %v", i+1, err)
+		}
+	}
+	last := len(names) - 1
+	if err := r.PlayMove(alice.ID, mustCellT(t, names[last])); err == nil {
+		t.Fatal("winning move over an aborted rating insert: want the persistence error surfaced")
+	}
+
+	d := readDiskState(t, s, r.SeriesID())
+	if d.games != 0 {
+		t.Errorf("games after failed unit = %d, want 0 (the game row must not outlive its rating pair)", d.games)
+	}
+	if d.ratings != 0 {
+		t.Errorf("rating events after failed unit = %d, want 0", d.ratings)
+	}
+	if d.series.State != SeriesStateOngoing || d.series.Winner != nil || d.series.FinishedAt != nil {
+		t.Errorf("series row after failed unit = %+v, want untouched ongoing", d.series)
+	}
+
+	// The room advances on failure: the in-memory game stays the live truth.
+	if _, ok := r.Info(); !ok {
+		t.Error("room retired after a failed write, want it live per the advance-on-failure policy")
+	}
+
+	// With the fault gone the next completion persists whole again: game 2's
+	// unit lands, so the disk holds exactly that game and its pair.
+	drop()
+	playScript(t, r, bob.ID, alice.ID, guestRedLosesToBlue)
+	d = readDiskState(t, s, r.SeriesID())
+	if d.games != 1 || d.ratings != 2 {
+		t.Errorf("recovered disk = %d games %d ratings, want 1 and 2", d.games, d.ratings)
+	}
+	if d.series.State != SeriesStateFinished || d.series.Winner == nil || *d.series.Winner != alice.ID {
+		t.Errorf("recovered series row = %+v, want finished with host winner", d.series)
+	}
+}
+
+// TestForfeitCompletionUnitAtomicOnFailedStatement pins the same law on the
+// forfeit sweep: an injected failure mid-sweep leaves no partial schedule.
+func TestForfeitCompletionUnitAtomicOnFailedStatement(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, hostWinsRed)
+	playScript(t, r, bob.ID, alice.ID, []string{"D4", "P16", "H8"})
+
+	drop := injectRatingAbort(t, s)
+	defer drop()
+	if err := r.Forfeit(bob.ID); err == nil {
+		t.Fatal("forfeit over an aborted rating insert: want the persistence error surfaced")
+	}
+
+	d := readDiskState(t, s, r.SeriesID())
+	if d.games != 1 {
+		t.Errorf("games after failed sweep = %d, want 1 (only the honestly played game, no synthetic rows)", d.games)
+	}
+	if d.ratings != 2 {
+		t.Errorf("rating events after failed sweep = %d, want 2 (only the played game's pair)", d.ratings)
+	}
+	if d.series.State != SeriesStateOngoing || d.series.Winner != nil || d.series.FinishedAt != nil {
+		t.Errorf("series row after failed sweep = %+v, want untouched ongoing", d.series)
+	}
+}
+
 func mustCellT(t *testing.T, name string) rules.Cell {
 	t.Helper()
 	cell, err := rules.ParseCell(name)

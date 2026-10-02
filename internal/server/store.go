@@ -22,6 +22,14 @@ import (
 // query matched nothing, including sessions filtered out by expiry.
 var ErrNotFound = errors.New("server: record not found")
 
+// sqlRunner is the statement surface the pool and an open transaction share,
+// so single-shot writes and the completion unit's statements run identical
+// SQL.
+type sqlRunner interface {
+	Exec(query string, args ...any) (sql.Result, error)
+	QueryRow(query string, args ...any) *sql.Row
+}
+
 // Store owns the embedded SQLite database. Every pragma rides the DSN so
 // each pooled connection applies it, and the pool sizes to the host so the
 // one serialized writer (the mutation queue built above this package) never
@@ -257,7 +265,11 @@ func (s *Store) SeriesByID(id int64) (SeriesRow, error) {
 // UpdateSeries rewrites the mutable columns: state plus the optional winner
 // and finish time, NULL while undecided. A missing id maps to ErrNotFound.
 func (s *Store) UpdateSeries(id int64, state string, winner, finishedAt *int64) error {
-	res, err := s.db.Exec(
+	return updateSeriesRow(s.db, id, state, winner, finishedAt)
+}
+
+func updateSeriesRow(run sqlRunner, id int64, state string, winner, finishedAt *int64) error {
+	res, err := run.Exec(
 		`UPDATE series SET state = ?, winner = ?, finished_at = ? WHERE id = ?`,
 		state, sqlArg(winner), sqlArg(finishedAt), id,
 	)
@@ -293,7 +305,11 @@ type Game struct {
 // AppendGame persists one game and returns it with the assigned id and
 // played_at stamped by the database.
 func (s *Store) AppendGame(g Game) (Game, error) {
-	err := s.db.QueryRow(
+	return insertGameRow(s.db, g)
+}
+
+func insertGameRow(run sqlRunner, g Game) (Game, error) {
+	err := run.QueryRow(
 		`INSERT INTO games (series_id, idx_in_series, red_user, blue_user, outcome, moves, full_turns, won_by)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, played_at`,
 		g.SeriesID, g.IdxInSeries, g.RedUser, g.BlueUser, g.Outcome, g.Moves, g.FullTurns, sqlArg(g.WonBy),
@@ -316,7 +332,11 @@ type RatingEvent struct {
 }
 
 func (s *Store) AppendRatingEvent(e RatingEvent) (RatingEvent, error) {
-	err := s.db.QueryRow(
+	return insertRatingEventRow(s.db, e)
+}
+
+func insertRatingEventRow(run sqlRunner, e RatingEvent) (RatingEvent, error) {
+	err := run.QueryRow(
 		`INSERT INTO rating_events (game_id, user_id, delta, rating_after)
 		VALUES (?, ?, ?, ?) RETURNING id, created_at`,
 		e.GameID, e.UserID, e.Delta, e.RatingAfter,
@@ -325,6 +345,112 @@ func (s *Store) AppendRatingEvent(e RatingEvent) (RatingEvent, error) {
 		return RatingEvent{}, fmt.Errorf("server: append rating event: %w", err)
 	}
 	return e, nil
+}
+
+// Completion is one all-or-nothing persistence unit: the finished games of a
+// series boundary in game order, each decisive game priced with its zero-sum
+// rating pair chained on the ratings as of this unit (draws move nothing),
+// and the series finish when the boundary closed the series.
+type Completion struct {
+	Games  []Game
+	Finish *SeriesFinish // nil while the series stays ongoing
+}
+
+// SeriesFinish is the terminal series update of a completion unit.
+type SeriesFinish struct {
+	SeriesID   int64
+	Winner     *int64 // nil for a drawn series
+	FinishedAt int64
+}
+
+// ApplyCompletion persists one completion unit inside a single transaction:
+// a statement failing anywhere in the unit leaves no game row, no rating
+// event, and no series change behind, so the zero-sum rating law can never
+// tear on disk. The write queue serializes callers, so the transaction adds
+// no contention.
+func (s *Store) ApplyCompletion(c Completion) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("server: begin completion: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	for _, g := range c.Games {
+		row, err := insertGameRow(tx, g)
+		if err != nil {
+			return err
+		}
+		if err := applyRatingPair(tx, row.ID, g.RedUser, g.BlueUser, g.Outcome); err != nil {
+			return err
+		}
+	}
+	if c.Finish != nil {
+		if err := updateSeriesRow(tx, c.Finish.SeriesID, SeriesStateFinished, c.Finish.Winner, &c.Finish.FinishedAt); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("server: commit completion: %w", err)
+	}
+	return nil
+}
+
+// applyRatingPair prices one game on the two players' CURRENT ratings (the
+// last rating event's RatingAfter, RatingStart before any) and appends the
+// zero-sum pair. Draws carry no rating move.
+func applyRatingPair(run sqlRunner, gameID, redUser, blueUser int64, outcome string) error {
+	var dRed, dBlue, afterRed, afterBlue int
+	switch outcome {
+	case OutcomeRed, OutcomeBlue:
+		rRed, err := currentRatingOn(run, redUser)
+		if err != nil {
+			return err
+		}
+		rBlue, err := currentRatingOn(run, blueUser)
+		if err != nil {
+			return err
+		}
+		if outcome == OutcomeRed {
+			dRed, dBlue, afterRed, afterBlue = RatingDeltas(rRed, rBlue, RedWins)
+		} else {
+			dRed, dBlue, afterRed, afterBlue = RatingDeltas(rRed, rBlue, BlueWins)
+		}
+	case OutcomeDraw:
+		return nil
+	default:
+		return fmt.Errorf("server: rating pair for outcome %q: %w", outcome, ErrInvalidOutcome)
+	}
+	for _, e := range [2]RatingEvent{
+		{GameID: gameID, UserID: redUser, Delta: dRed, RatingAfter: afterRed},
+		{GameID: gameID, UserID: blueUser, Delta: dBlue, RatingAfter: afterBlue},
+	} {
+		if _, err := insertRatingEventRow(run, e); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// currentRating reads one user's latest rating, RatingStart before any
+// event.
+func currentRating(st *Store, userID int64) (int, error) {
+	return currentRatingOn(st.db, userID)
+}
+
+// currentRatingOn reads one user's latest rating, RatingStart before any
+// event. Inside a completion unit the same transaction sees the pair just
+// written, so multi-game units chain exactly like sequential commits.
+func currentRatingOn(run sqlRunner, userID int64) (int, error) {
+	var r int
+	err := run.QueryRow(
+		`SELECT rating_after FROM rating_events WHERE user_id = ? ORDER BY id DESC LIMIT 1`, userID,
+	).Scan(&r)
+	if errors.Is(err, sql.ErrNoRows) {
+		return config.RatingStart, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("server: current rating %d: %w", userID, err)
+	}
+	return r, nil
 }
 
 // RatingHistoryByUser returns one user's events in append order.
