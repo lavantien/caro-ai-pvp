@@ -80,8 +80,15 @@ CREATE INDEX IF NOT EXISTS idx_series_red ON series (red_user);
 CREATE INDEX IF NOT EXISTS idx_series_blue ON series (blue_user);
 `
 
+// schemaV2 indexes the games player columns: MatchHistory and UserStats
+// filter on red_user/blue_user, which full-scanned games before this.
+const schemaV2 = `
+CREATE INDEX IF NOT EXISTS idx_games_red_user ON games (red_user);
+CREATE INDEX IF NOT EXISTS idx_games_blue_user ON games (blue_user);
+`
+
 // migrations holds one SQL script per schema version: index i upgrades
 // version i to version i+1. Its length must equal config.SQLiteSchemaVersion
 // so the constants hub stays authoritative; migrate enforces that at
 // startup. New versions only ever append, never edit a landed script.
-var migrations = []string{schemaV1}
+var migrations = []string{schemaV1, schemaV2}

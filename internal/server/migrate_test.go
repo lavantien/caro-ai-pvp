@@ -50,9 +50,10 @@ func TestMigrateFreshAppliesAll(t *testing.T) {
 	if tables != 6 {
 		t.Errorf("known tables found = %d, want 6", tables)
 	}
-	indexes := schemaCount(t, s, "index", "'idx_games_series','idx_rating_events_user','idx_series_red','idx_series_blue'")
-	if indexes != 4 {
-		t.Errorf("known indexes found = %d, want 4", indexes)
+	indexes := schemaCount(t, s, "index",
+		"'idx_games_series','idx_rating_events_user','idx_series_red','idx_series_blue','idx_games_red_user','idx_games_blue_user'")
+	if indexes != 6 {
+		t.Errorf("known indexes found = %d, want 6", indexes)
 	}
 }
 
@@ -129,11 +130,11 @@ func TestFailedMigrationRollsBackAndStays(t *testing.T) {
 	defer func() { _ = db.Close() }()
 	s := &Store{db: db}
 
-	// Swap in a same-count broken script so the hub guard passes and the
-	// failure lands in the script application itself.
+	// Swap in a same-count broken script set so the hub guard passes and
+	// the failure lands in the script application itself.
 	saved := migrations
 	defer func() { migrations = saved }()
-	migrations = []string{"CREATE TABLE boom (;\nCREATE TABLE never (x)"}
+	migrations = []string{"CREATE TABLE boom (;\nCREATE TABLE never (x)", "CREATE TABLE never2 (y)"}
 	err = s.migrate()
 	if err == nil || !strings.Contains(err.Error(), "apply migration 1") {
 		t.Fatalf("migrate with broken script = %v, want apply migration 1 failure", err)
@@ -153,6 +154,82 @@ func TestFailedMigrationRollsBackAndStays(t *testing.T) {
 	}
 	if _, max = schemaVersionRows(t, s); max != config.SQLiteSchemaVersion {
 		t.Errorf("version after clean retry = %d, want %d", max, config.SQLiteSchemaVersion)
+	}
+}
+
+// explainDetail returns one query's EXPLAIN QUERY PLAN detail lines joined,
+// so index usage asserts read the planner's own words.
+func explainDetail(t *testing.T, s *Store, query string, args ...any) string {
+	t.Helper()
+	rows, err := s.db.Query("EXPLAIN QUERY PLAN "+query, args...)
+	if err != nil {
+		t.Fatalf("explain %q: %v", query, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var b strings.Builder
+	for rows.Next() {
+		var id, parent, notused int
+		var detail string
+		if err := rows.Scan(&id, &parent, &notused, &detail); err != nil {
+			t.Fatalf("explain scan %q: %v", query, err)
+		}
+		b.WriteString(detail + "; ")
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("explain rows %q: %v", query, err)
+	}
+	return b.String()
+}
+
+// TestSchemaV2IndexesGamesPlayerColumns pins the player-column indexes of
+// the games table: without them every MatchHistory and UserStats lookup
+// full-scans games.
+func TestSchemaV2IndexesGamesPlayerColumns(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+
+	if n := schemaCount(t, s, "index", "'idx_games_red_user','idx_games_blue_user'"); n != 2 {
+		t.Errorf("games player indexes found = %d, want 2 (idx_games_red_user, idx_games_blue_user)", n)
+	}
+	for _, tc := range []struct{ idx, query string }{
+		{"idx_games_red_user", `SELECT COUNT(*) FROM games WHERE red_user = ?`},
+		{"idx_games_blue_user", `SELECT COUNT(*) FROM games WHERE blue_user = ?`},
+	} {
+		plan := explainDetail(t, s, tc.query, int64(1))
+		// The planner may pick the index as covering or not; either way the
+		// scan of games must be gone.
+		if !strings.Contains(plan, tc.idx) || strings.Contains(plan, "SCAN games") {
+			t.Errorf("plan for %q = %q, want it to ride %s", tc.query, plan, tc.idx)
+		}
+	}
+}
+
+// TestMigrateV1DatabaseUpgradesToV2 pins the forward-only upgrade: a
+// database holding only version 1 gains the v2 indexes on reopen, without
+// re-running v1 or touching data.
+func TestMigrateV1DatabaseUpgradesToV2(t *testing.T) {
+	path := dbPath(t)
+	s := mustOpen(t, path)
+	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version = 2`); err != nil {
+		t.Fatalf("roll ledger back to v1: %v", err)
+	}
+	for _, idx := range []string{"idx_games_red_user", "idx_games_blue_user"} {
+		if _, err := s.db.Exec(`DROP INDEX ` + idx); err != nil {
+			t.Fatalf("drop %s: %v", idx, err)
+		}
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	again := mustOpen(t, path)
+	defer func() { _ = again.Close() }()
+	count, max := schemaVersionRows(t, again)
+	if count != 2 || max != 2 {
+		t.Errorf("after upgrade: schema_version rows = %d max = %d, want 2 and 2", count, max)
+	}
+	if n := schemaCount(t, again, "index", "'idx_games_series','idx_games_red_user','idx_games_blue_user'"); n != 3 {
+		t.Errorf("indexes after upgrade = %d, want 3 (v1 pair kept, v2 pair added)", n)
 	}
 }
 
