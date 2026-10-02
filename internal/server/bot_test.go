@@ -63,6 +63,18 @@ func (b *scriptedBot) Close() {
 	b.mu.Unlock()
 }
 
+func (b *scriptedBot) isClosed() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.closed
+}
+
+func (b *scriptedBot) searchCount() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.searches
+}
+
 // injectScriptedBot replaces the room's engine factory with the scripted
 // fake and returns the live collector of created instances, one per game.
 func injectScriptedBot(t *testing.T, r *Room, script []rules.Move) func() []*scriptedBot {
@@ -198,11 +210,11 @@ func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 		t.Fatalf("engine instances = %d, want one per game", len(instances))
 	}
 	for i, b := range instances {
-		if !b.closed {
+		if !b.isClosed() {
 			t.Errorf("engine %d not closed", i)
 		}
-		if b.searches != len(botWinMoves) {
-			t.Errorf("engine %d searches = %d, want %d", i, b.searches, len(botWinMoves))
+		if b.searchCount() != len(botWinMoves) {
+			t.Errorf("engine %d searches = %d, want %d", i, b.searchCount(), len(botWinMoves))
 		}
 	}
 
