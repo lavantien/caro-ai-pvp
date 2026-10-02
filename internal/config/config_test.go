@@ -90,6 +90,9 @@ func TestClockLawConstants(t *testing.T) {
 	if SearchMinMoveTimeMs >= SearchClockQuantumMs {
 		t.Errorf("floor %d must sit under one clock quantum %d so the minimum grant keeps soft-stop protection", SearchMinMoveTimeMs, SearchClockQuantumMs)
 	}
+	if MutateMaxParallel < 1 || MutateMaxParallel > 64 {
+		t.Errorf("MutateMaxParallel = %d, want a sane bound in [1, 64]", MutateMaxParallel)
+	}
 }
 
 func TestSeriesMatchSpec(t *testing.T) {

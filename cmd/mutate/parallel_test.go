@@ -84,7 +84,7 @@ func TestParallelSerialConfirmFlipsLoadLostKills(t *testing.T) {
 		return &scriptedRunner{}
 	}
 	var out strings.Builder
-	res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, newRunner, allows, nil)
+	res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, newRunner, allows, nil, false)
 	if err != nil {
 		t.Fatalf("runMutationParallel err = %v\noutput:\n%s", err, out.String())
 	}
@@ -112,7 +112,7 @@ func TestParallelResumeReplaysWithoutRunning(t *testing.T) {
 		return &suiteNeverRunner{t: t}
 	}
 	var out strings.Builder
-	res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, newRunner, nil, resume)
+	res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, newRunner, nil, resume, false)
 	if err != nil {
 		t.Fatalf("runMutationParallel err = %v", err)
 	}
@@ -139,7 +139,7 @@ func TestParallelEndToEndMatchesSerial(t *testing.T) {
 	writeAll(serialDir)
 	var serialOut strings.Builder
 	serialRes, serr := runMutation(context.Background(), &serialOut, serialDir, []string{"."},
-		execRunner{dir: serialDir, timeout: 60 * time.Second}, nil, nil)
+		execRunner{dir: serialDir, timeout: 60 * time.Second}, nil, nil, false)
 	if serr != nil {
 		t.Fatalf("serial err = %v", serr)
 	}
@@ -152,7 +152,7 @@ func TestParallelEndToEndMatchesSerial(t *testing.T) {
 	}
 	var parallelOut strings.Builder
 	parallelRes, perr := runMutationParallel(context.Background(), &parallelOut, dirs, []string{"."},
-		func(dir string) runner { return execRunner{dir: dir, timeout: 60 * time.Second} }, nil, nil)
+		func(dir string) runner { return execRunner{dir: dir, timeout: 60 * time.Second} }, nil, nil, false)
 	if perr != nil {
 		t.Fatalf("parallel err = %v\n%s", perr, parallelOut.String())
 	}
@@ -161,5 +161,123 @@ func TestParallelEndToEndMatchesSerial(t *testing.T) {
 	}
 	if got := mustRead(t, filepath.Join(dirs[0], "arith.go")); got != files["arith.go"] {
 		t.Error("parallel run left arith.go mutated")
+	}
+}
+
+func TestChallengeDemotesKilledAllowance(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module fixture\n\ngo 1.27\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(go.mod) err = %v", err)
+	}
+	src := "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n"
+	_, ms := writePkgFile(t, dir, "a.go", "p", src)
+	allows := allowlist{ms[0].key(dir): "proof that no longer holds"}
+	var out strings.Builder
+	res, err := runMutation(context.Background(), &out, dir, []string{"./..."},
+		&fakeRunner{failPkg: map[string]bool{"fixture": true}}, allows, nil, true)
+	if err == nil || !strings.Contains(err.Error(), "no longer equivalent") {
+		t.Fatalf("err = %v, want a demotion failure\n%s", err, out.String())
+	}
+	if strings.Contains(out.String(), " ALLOWED ") {
+		t.Errorf("demoted entry must not be allowed:\n%s", out.String())
+	}
+	if res.allowed != 0 {
+		t.Errorf("allowed = %d, want 0", res.allowed)
+	}
+}
+
+func TestChallengeSurvivesConsumesAllowance(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module fixture\n\ngo 1.27\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(go.mod) err = %v", err)
+	}
+	src := "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n"
+	_, ms := writePkgFile(t, dir, "a.go", "p", src)
+	allows := allowlist{ms[0].key(dir): "sound proof"}
+	var out strings.Builder
+	res, err := runMutation(context.Background(), &out, dir, []string{"./..."}, &fakeRunner{}, allows, nil, true)
+	if err != nil {
+		t.Fatalf("err = %v\n%s", err, out.String())
+	}
+	if res.allowed != 1 || res.survived != len(ms)-1 {
+		t.Errorf("allowed/survived = %d/%d, want 1/%d", res.allowed, res.survived, len(ms)-1)
+	}
+	if !strings.Contains(out.String(), " ALLOWED # sound proof\n") {
+		t.Errorf("missing allowed line:\n%s", out.String())
+	}
+}
+
+func TestParallelChallengeSerialResolution(t *testing.T) {
+	src := "package pa\n\nfunc F(a int) int {\n\treturn a + 1\n}\n"
+	for _, tc := range []struct {
+		name       string
+		resolveErr error
+		wantErr    string
+	}{
+		{"serial survive consumes the allowance", nil, ""},
+		{"serial kill demotes the allowance", errors.New("suite failed alone"), "no longer equivalent"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dirs, ms := parallelFixture(t, 2, src)
+			allows := allowlist{ms[0].key(dirs[0]): "proof under test"}
+			var mu sync.Mutex
+			invocations := map[string]int{}
+			newRunner := func(dir string) runner {
+				mu.Lock()
+				invocations[dir]++
+				n := invocations[dir]
+				mu.Unlock()
+				// Workers kill everything, so the allowlisted mutant is
+				// CHALLENGED; the third dirs[0] runner is the resolver.
+				if dir == dirs[0] && n >= 3 {
+					return &scriptedRunner{err: tc.resolveErr}
+				}
+				return &scriptedRunner{err: errors.New("suite failed under load")}
+			}
+			var out strings.Builder
+			res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, newRunner, allows, nil, true)
+			if !strings.Contains(out.String(), " CHALLENGED\n") {
+				t.Fatalf("missing challenged verdict:\n%s", out.String())
+			}
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("err = %v, want clean resolution\n%s", err, out.String())
+				}
+				if res.allowed != 1 {
+					t.Errorf("allowed = %d, want 1\n%s", res.allowed, out.String())
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("err = %v, want demotion after serial kill\n%s", err, out.String())
+			}
+		})
+	}
+}
+
+func TestConfirmInterruptIsNotAKill(t *testing.T) {
+	src := "package pa\n\nfunc F(a int) int {\n\treturn a + 1\n}\n"
+	dirs, _ := parallelFixture(t, 2, src)
+	ctx, cancel := context.WithCancel(context.Background())
+	var mu sync.Mutex
+	invocations := map[string]int{}
+	newRunner := func(dir string) runner {
+		mu.Lock()
+		invocations[dir]++
+		n := invocations[dir]
+		mu.Unlock()
+		if dir == dirs[0] && n >= 2 {
+			cancel()
+			return &scriptedRunner{err: context.Canceled}
+		}
+		return &scriptedRunner{}
+	}
+	var out strings.Builder
+	res, err := runMutationParallel(ctx, &out, dirs, []string{"./..."}, newRunner, nil, nil, false)
+	if err == nil {
+		t.Fatalf("interrupted confirm must surface an error, got clean result %+v\n%s", res, out.String())
+	}
+	if strings.Contains(out.String(), " KILLED\n") {
+		t.Errorf("canceled confirm suite classified as killed:\n%s", out.String())
 	}
 }

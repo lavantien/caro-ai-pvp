@@ -110,7 +110,7 @@ func TestExecuteMutantsAllowSurvivor(t *testing.T) {
 	}
 	r := &fakeRunner{failPkg: map[string]bool{"pa": true}}
 	var out strings.Builder
-	res, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, allows, nil)
+	res, _, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, allows, nil, false)
 	if err != nil {
 		t.Fatalf("executeMutants err = %v", err)
 	}
@@ -149,7 +149,7 @@ func TestRunMutationUnusedAllowEntryFails(t *testing.T) {
 	}
 	allows := allowlist{"a.go:99:9 replace 9 with 8": "stale proof"}
 	var out strings.Builder
-	res, err := runMutation(context.Background(), &out, dir, []string{"./..."}, &fakeRunner{failPkg: map[string]bool{"fixture": true}}, allows, nil)
+	res, err := runMutation(context.Background(), &out, dir, []string{"./..."}, &fakeRunner{failPkg: map[string]bool{"fixture": true}}, allows, nil, false)
 	if err == nil || !strings.Contains(err.Error(), "unused allow entries") {
 		t.Fatalf("err = %v, want unused allow entries failure", err)
 	}

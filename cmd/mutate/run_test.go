@@ -125,7 +125,7 @@ func TestExecuteMutantsClassifiesAndRestores(t *testing.T) {
 	}
 	r := &fakeRunner{failPkg: map[string]bool{"pa": true}}
 	var out strings.Builder
-	res, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, nil, nil)
+	res, _, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, nil, nil, false)
 	if err != nil {
 		t.Fatalf("executeMutants err = %v", err)
 	}
@@ -175,7 +175,7 @@ func TestExecuteMutantsInterruptedBeforeStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	r := &fakeRunner{}
-	res, _, _, err := executeMutants(ctx, &strings.Builder{}, dir, ms, store, r, nil, nil)
+	res, _, _, _, err := executeMutants(ctx, &strings.Builder{}, dir, ms, store, r, nil, nil, false)
 	if err == nil || !strings.Contains(err.Error(), "interrupted") {
 		t.Errorf("err = %v, want interrupted", err)
 	}
@@ -223,7 +223,7 @@ func TestExecuteMutantsResumesKilledOnly(t *testing.T) {
 	}
 	r := &fakeRunner{}
 	var out strings.Builder
-	res, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, nil, map[string]bool{ms[1].key(dir): true})
+	res, _, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, nil, map[string]bool{ms[1].key(dir): true}, false)
 	if err != nil {
 		t.Fatalf("executeMutants err = %v", err)
 	}
@@ -260,7 +260,7 @@ func TestExecuteMutantsBadEditsFail(t *testing.T) {
 	if err := store.snapshot([]string{path}); err != nil {
 		t.Fatalf("snapshot err = %v", err)
 	}
-	res, _, _, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, &fakeRunner{}, nil, nil)
+	res, _, _, _, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, &fakeRunner{}, nil, nil, false)
 	if err == nil {
 		t.Fatal("executeMutants(bad edits) err = nil, want error")
 	}
@@ -282,7 +282,7 @@ func TestExecuteMutantsMutantWriteFails(t *testing.T) {
 	if err := os.Mkdir(path, 0o755); err != nil {
 		t.Fatalf("Mkdir err = %v", err)
 	}
-	res, _, _, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, &fakeRunner{}, nil, nil)
+	res, _, _, _, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, &fakeRunner{}, nil, nil, false)
 	if err == nil {
 		t.Fatal("executeMutants(unwritable target) err = nil, want write error")
 	}
@@ -306,7 +306,7 @@ func TestExecuteMutantsRestoreWriteFails(t *testing.T) {
 			t.Errorf("Mkdir err = %v", err)
 		}
 	}}
-	res, _, _, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, r, nil, nil)
+	res, _, _, _, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, r, nil, nil, false)
 	if err == nil {
 		t.Fatal("executeMutants(restore unwritable) err = nil, want write error")
 	}
@@ -358,7 +358,7 @@ func TestExecuteMutantsInterruptMidRun(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &fakeRunner{onCall: func(context.Context) { cancel() }}
-	res, _, _, err := executeMutants(ctx, &strings.Builder{}, dir, ms, store, r, nil, nil)
+	res, _, _, _, err := executeMutants(ctx, &strings.Builder{}, dir, ms, store, r, nil, nil, false)
 	if err == nil || !strings.Contains(err.Error(), "interrupted") {
 		t.Errorf("err = %v, want interrupted", err)
 	}

@@ -4,11 +4,15 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,9 +20,15 @@ import (
 )
 
 const (
-	verdictKilled   = "KILLED"
-	verdictSurvived = "SURVIVED"
+	verdictKilled     = "KILLED"
+	verdictSurvived   = "SURVIVED"
+	verdictChallenged = "CHALLENGED"
 )
+
+// errInterrupted marks a run stopped by context cancellation before a
+// verdict could be classified; callers translate it into their own
+// progress messages.
+var errInterrupted = errors.New("interrupted")
 
 type runner interface {
 	runTest(ctx context.Context, pkg string) error
@@ -48,7 +58,13 @@ func (r execRunner) runTest(ctx context.Context, pkg string) error {
 	cmd.Env = goEnv()
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
-	return cmd.Run()
+	err := cmd.Run()
+	// CommandContext kills only the direct child; the compiled test binary
+	// is its grandchild and survives on Windows, pinning the module copy.
+	if ctx.Err() != nil && runtime.GOOS == "windows" && cmd.Process != nil {
+		_ = exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
+	}
+	return err
 }
 
 func classify(err error) string {
@@ -135,13 +151,17 @@ func loadResumeLog(r io.Reader) map[string]bool {
 	return resumed
 }
 
-// executeMutants runs every mutant in ms against r inside workDir and
-// returns the verdict counts plus the set of allowlist keys it consumed. An
-// allowlisted mutant is classified without running the suite: the entry
-// asserts a proven equivalence, so the suite verdict under it is noise and
-// the run is skipped. Callers aggregate consumed sets across parallel
-// workers and fail on unconsumed entries.
-func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mutation, store *fileStore, r runner, allows allowlist, resumeKilled map[string]bool) (res result, consumed allowlist, survived []mutation, err error) {
+// executeMutants runs every mutant in ms against r inside workDir. Without
+// challenge mode an allowlisted mutant is classified without running the
+// suite: the entry asserts a proven equivalence, so the suite verdict under
+// it is noise and the run is skipped. With challenge mode the suite runs
+// under allowlisted mutants too, and a suite kill marks the entry
+// CHALLENGED: callers re-verify challenged entries serially, a confirmed
+// kill demotes the entry and fails the gate, a survive consumes it. The
+// return carries verdict counts, consumed allow keys, surviving mutants,
+// and challenge-flagged mutants; callers aggregate across parallel workers
+// and fail on unconsumed entries.
+func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mutation, store *fileStore, r runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (res result, consumed allowlist, survived []mutation, challenged []mutation, err error) {
 	res.total = len(ms)
 	consumed = allowlist{}
 	defer func() {
@@ -151,7 +171,7 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 	}()
 	for _, m := range ms {
 		if ctx.Err() != nil {
-			return res, consumed, survived, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
+			return res, consumed, survived, challenged, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
 		}
 		key := m.key(workDir)
 		if resumeKilled[key] {
@@ -160,7 +180,8 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdictKilled)
 			continue
 		}
-		if reason, ok := allows[key]; ok {
+		reason, isAllowed := allows[key]
+		if isAllowed && !challenge {
 			res.run++
 			res.allowed++
 			consumed[key] = reason
@@ -170,32 +191,47 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 		orig := store.orig[m.file]
 		mutated, aerr := applyEdits(orig, m.edits)
 		if aerr != nil {
-			return res, consumed, survived, aerr
+			return res, consumed, survived, challenged, aerr
 		}
 		if werr := os.WriteFile(m.file, mutated, 0o644); werr != nil {
-			return res, consumed, survived, werr
+			return res, consumed, survived, challenged, werr
 		}
 		testErr := r.runTest(ctx, m.pkg)
 		res.run++
 		if werr := os.WriteFile(m.file, orig, 0o644); werr != nil {
-			return res, consumed, survived, werr
+			return res, consumed, survived, challenged, werr
 		}
 		if ctx.Err() != nil {
-			return res, consumed, survived, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
+			return res, consumed, survived, challenged, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
 		}
-		if verdict := classify(testErr); verdict == verdictKilled {
+		switch {
+		case classify(testErr) == verdictKilled && isAllowed:
+			challenged = append(challenged, m)
+			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdictChallenged)
+		case classify(testErr) == verdictKilled:
 			res.killed++
-			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdict)
-		} else {
+			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdictKilled)
+		case isAllowed:
+			res.allowed++
+			consumed[key] = reason
+			_, _ = fmt.Fprintf(out, "%s ALLOWED # %s\n", key, reason)
+		default:
 			res.survived++
 			survived = append(survived, m)
-			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdict)
+			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdictSurvived)
 		}
 	}
-	return res, consumed, survived, nil
+	return res, consumed, survived, challenged, nil
 }
 
-func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, r runner, allows allowlist, resumeKilled map[string]bool) (result, error) {
+// demotedError fails the gate for allow entries whose mutants were killed
+// under challenge: the equivalence proof no longer holds.
+func demotedError(keys []string) error {
+	sort.Strings(keys)
+	return fmt.Errorf("%d allow entries no longer equivalent (suite killed the mutant; prune or re-prove): %s", len(keys), strings.Join(keys, "; "))
+}
+
+func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, r runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (result, error) {
 	ms, paths, err := discoverMutants(ctx, out, workDir, patterns)
 	if err != nil {
 		return result{}, err
@@ -204,9 +240,17 @@ func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []
 	if err := store.snapshot(paths); err != nil {
 		return result{}, err
 	}
-	res, consumed, _, err := executeMutants(ctx, out, workDir, ms, store, r, allows, resumeKilled)
+	res, consumed, _, challenged, err := executeMutants(ctx, out, workDir, ms, store, r, allows, resumeKilled, challenge)
 	if err != nil {
 		return res, err
+	}
+	// Serial mode has no load: a challenge kill is already a serial verdict.
+	if len(challenged) > 0 {
+		keys := make([]string, 0, len(challenged))
+		for _, m := range challenged {
+			keys = append(keys, m.key(workDir))
+		}
+		return res, demotedError(keys)
 	}
 	if uerr := unusedAllowError(unconsumed(allows, consumed)); uerr != nil {
 		return res, uerr

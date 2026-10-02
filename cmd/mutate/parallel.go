@@ -41,10 +41,11 @@ func rewriteMutants(ms []mutation, from, to string) []mutation {
 // runMutationParallel spreads the mutant population round-robin over the
 // isolated module copies in dirs, each driven by its own runner from
 // newRunner(dir). Round-robin mixes files and cost profiles so workers
-// finish together. After the workers join, every survivor is re-verified
-// once serially on dirs[0]: concurrent load can lose kills, and a survivor
-// the serial pass kills is counted as killed with a fresh verdict line.
-func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patterns []string, newRunner func(dir string) runner, allows allowlist, resumeKilled map[string]bool) (result, error) {
+// finish together. After the workers join, every survivor and every
+// challenge-flagged allowance is re-verified once serially on dirs[0]:
+// concurrent load can lose kills, and a load-induced verdict must never be
+// the final word on an equivalence proof.
+func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patterns []string, newRunner func(dir string) runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (result, error) {
 	ms, paths, err := discoverMutants(ctx, out, dirs[0], patterns)
 	if err != nil {
 		return result{}, err
@@ -58,10 +59,11 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	type workerOut struct {
-		res      result
-		consumed allowlist
-		survived []mutation
-		err      error
+		res        result
+		consumed   allowlist
+		survived   []mutation
+		challenged []mutation
+		err        error
 	}
 	results := make([]workerOut, len(dirs))
 	var wg sync.WaitGroup
@@ -89,8 +91,8 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 				cancel()
 				return
 			}
-			res, consumed, survived, rerr := executeMutants(ctx, log, dirs[w], mine, store, newRunner(dirs[w]), allows, resumeKilled)
-			wo.res, wo.consumed, wo.survived, wo.err = res, consumed, survived, rerr
+			res, consumed, survived, challenged, rerr := executeMutants(ctx, log, dirs[w], mine, store, newRunner(dirs[w]), allows, resumeKilled, challenge)
+			wo.res, wo.consumed, wo.survived, wo.challenged, wo.err = res, consumed, survived, challenged, rerr
 			if rerr != nil {
 				cancel()
 			}
@@ -100,7 +102,7 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 
 	var res result
 	consumedUnion := allowlist{}
-	var survivors []mutation
+	var survivors, challengedAll []mutation
 	var firstErr error
 	for w := range results {
 		wo := &results[w]
@@ -119,6 +121,11 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 				survivors = append(survivors, orig)
 			}
 		}
+		for _, m := range wo.challenged {
+			if orig, ok := byKey[m.key(dirs[w])]; ok {
+				challengedAll = append(challengedAll, orig)
+			}
+		}
 	}
 	res.total = len(ms)
 	if firstErr != nil {
@@ -127,22 +134,69 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 	if serr := confirmSurvivorsSerially(ctx, out, dirs[0], survivors, newRunner(dirs[0]), &res); serr != nil {
 		return res, serr
 	}
+	if cerr := resolveChallengedSerially(ctx, out, dirs[0], challengedAll, newRunner(dirs[0]), allows, &res, consumedUnion); cerr != nil {
+		return res, cerr
+	}
 	if uerr := unusedAllowError(unconsumed(allows, consumedUnion)); uerr != nil {
 		return res, uerr
 	}
 	return res, nil
 }
 
+// resolveChallengedSerially re-runs challenge-flagged allowances alone: a
+// serial kill demotes the entry and fails the gate, a survive consumes it.
+func resolveChallengedSerially(ctx context.Context, out io.Writer, dir string, challenged []mutation, r runner, allows allowlist, res *result, consumed allowlist) error {
+	if len(challenged) == 0 {
+		return nil
+	}
+	demoted := map[string]bool{}
+	if rerr := reverifySerially(ctx, dir, challenged, r, func(m mutation) {
+		demoted[m.key(dir)] = true
+	}); rerr != nil {
+		return rerr
+	}
+	for _, m := range challenged {
+		key := m.key(dir)
+		if demoted[key] {
+			continue
+		}
+		res.allowed++
+		consumed[key] = allows[key]
+		_, _ = fmt.Fprintf(out, "%s ALLOWED # %s\n", key, allows[key])
+	}
+	if len(demoted) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(demoted))
+	for k := range demoted {
+		keys = append(keys, k)
+	}
+	return demotedError(keys)
+}
+
 // confirmSurvivorsSerially re-runs every survivor alone on one copy and
 // flips load-lost kills back: the gate's promise is that a reported
-// survivor truly survives without concurrent siblings.
+// survivor truly survives without concurrent siblings. A canceled suite is
+// never classified: an interrupt here must not forge a kill verdict.
 func confirmSurvivorsSerially(ctx context.Context, out io.Writer, dir string, survivors []mutation, r runner, res *result) error {
-	if len(survivors) == 0 {
+	onKilled := func(m mutation) {
+		res.survived--
+		res.killed++
+		_, _ = fmt.Fprintf(out, "%s %s\n", m.key(dir), verdictKilled)
+	}
+	return reverifySerially(ctx, dir, survivors, r, onKilled)
+}
+
+// reverifySerially runs each mutant alone on one copy, restoring files as
+// it goes, and calls onKilled for every suite failure. Canceled suites are
+// not classified: ctx cancellation surfaces as an interrupted error.
+func reverifySerially(ctx context.Context, dir string, ms []mutation, r runner, onKilled func(m mutation)) error {
+	if len(ms) == 0 {
 		return nil
 	}
 	seen := map[string]bool{}
 	var paths []string
-	for _, m := range survivors {
+	for _, m := range ms {
 		if !seen[m.file] {
 			seen[m.file] = true
 			paths = append(paths, m.file)
@@ -153,9 +207,9 @@ func confirmSurvivorsSerially(ctx context.Context, out io.Writer, dir string, su
 		return err
 	}
 	defer func() { _ = store.restoreAll() }()
-	for _, m := range survivors {
+	for _, m := range ms {
 		if ctx.Err() != nil {
-			return fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
+			return errInterrupted
 		}
 		mutated, aerr := applyEdits(store.orig[m.file], m.edits)
 		if aerr != nil {
@@ -168,10 +222,11 @@ func confirmSurvivorsSerially(ctx context.Context, out io.Writer, dir string, su
 		if werr := os.WriteFile(m.file, store.orig[m.file], 0o644); werr != nil {
 			return werr
 		}
+		if ctx.Err() != nil {
+			return errInterrupted
+		}
 		if classify(testErr) == verdictKilled {
-			res.survived--
-			res.killed++
-			_, _ = fmt.Fprintf(out, "%s %s\n", m.key(dir), verdictKilled)
+			onKilled(m)
 		}
 	}
 	return nil

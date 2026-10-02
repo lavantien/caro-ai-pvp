@@ -45,16 +45,7 @@ func loadAllowlist(path string) (allowlist, error) {
 	return out, nil
 }
 
-func (a allowlist) clone() allowlist {
-	out := make(allowlist, len(a))
-	for k, v := range a {
-		out[k] = v
-	}
-	return out
-}
-
-// unconsumed returns the allowlist entries no executed mutant matched, so a
-// killed, moved, or stale allowance surfaces instead of rotting silently.
+// unconsumed returns the allowlist entries no executed mutant matched.
 func unconsumed(allows, consumed allowlist) allowlist {
 	pending := allowlist{}
 	for k, v := range allows {
@@ -65,8 +56,11 @@ func unconsumed(allows, consumed allowlist) allowlist {
 	return pending
 }
 
-// unusedAllowError reports entries that matched no surviving mutant, so a
-// killed or stale allowance fails the gate instead of rotting silently.
+// unusedAllowError reports entries that matched no executed mutant, so a
+// stale or moved allowance fails the gate instead of rotting silently. In
+// challenge mode a killed allowance is demoted explicitly before this
+// check; without challenge, an entry is consumed on match and only moved
+// or vanished mutants leave it unconsumed.
 func unusedAllowError(pending allowlist) error {
 	if len(pending) == 0 {
 		return nil

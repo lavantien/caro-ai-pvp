@@ -13,7 +13,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-const usage = "usage: mutate [-pkgs comma,separated,patterns] [-timeout 30s] [-allow file] [-resume prior-run.log] [-parallel 1]"
+const usage = "usage: mutate [-pkgs comma,separated,patterns] [-timeout 30s] [-allow file] [-resume prior-run.log] [-parallel 1] [-challenge false]"
 
 func splitPkgs(s string) []string {
 	var out []string
@@ -48,7 +48,8 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 	allowPath := fs.String("allow", "", "equivalence allowlist, one 'file:line:col descriptor # proof' entry per line; empty or missing file means no allowances")
 	resumePath := fs.String("resume", "", "prior run log whose KILLED verdicts are replayed instead of re-run, for continuing a gate after a host failure")
 	parallel := fs.Int("parallel", 1, "worker count: mutants run concurrently in isolated module copies, survivors re-verified serially")
-	if err := fs.Parse(args); err != nil || fs.NArg() > 0 || *parallel < 1 {
+	challenge := fs.Bool("challenge", false, "run the suite under allowlisted mutants too; a serially confirmed kill demotes the entry and fails the gate")
+	if err := fs.Parse(args); err != nil || fs.NArg() > 0 || *parallel < 1 || *parallel > config.MutateMaxParallel {
 		_, _ = fmt.Fprintln(stderr, usage)
 		return 2
 	}
@@ -79,13 +80,18 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 	var err error
 	if *parallel > 1 {
 		dirs := []string{workDir}
-		for range *parallel - 1 {
+		done := false
+		for !done {
 			extra, ierr := isolateModule(workDir)
 			if ierr != nil {
 				_, _ = fmt.Fprintln(stderr, "mutate:", ierr)
+				for _, d := range dirs[1:] {
+					_ = os.RemoveAll(d)
+				}
 				return 2
 			}
 			dirs = append(dirs, extra)
+			done = len(dirs) == *parallel
 		}
 		defer func() {
 			for _, d := range dirs[1:] {
@@ -94,9 +100,9 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 		}()
 		res, err = runMutationParallel(ctx, stdout, dirs, patterns, func(dir string) runner {
 			return execRunner{dir: dir, timeout: *timeout}
-		}, allows, resumeKilled)
+		}, allows, resumeKilled, *challenge)
 	} else {
-		res, err = runMutation(ctx, stdout, workDir, patterns, execRunner{dir: workDir, timeout: *timeout}, allows, resumeKilled)
+		res, err = runMutation(ctx, stdout, workDir, patterns, execRunner{dir: workDir, timeout: *timeout}, allows, resumeKilled, *challenge)
 	}
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "mutate:", err)
@@ -111,28 +117,35 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 }
 
 func main() {
+	code := 0
+	// The exit defer runs last, after the cleanup defers registered below
+	// it, so isolated copies are removed even on error paths.
+	defer func() { os.Exit(code) }()
 	before, err := treeHash(".")
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "mutate:", err)
-		os.Exit(1)
+		code = 1
+		return
 	}
 	iso, err := isolateModule(".")
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "mutate:", err)
-		os.Exit(1)
+		code = 1
+		return
 	}
 	defer func() { _ = os.RemoveAll(iso) }()
-	code := runCLI(os.Args[1:], os.Stdout, os.Stderr, iso)
+	code = runCLI(os.Args[1:], os.Stdout, os.Stderr, iso)
 	after, err := treeHash(".")
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "mutate: live tree check failed:", err)
-		os.Exit(1)
+		code = 1
+		return
 	}
 	for path, sum := range before {
 		if after[path] != sum {
 			_, _ = fmt.Fprintln(os.Stderr, "mutate: live tree modified during run:", path)
-			os.Exit(1)
+			code = 1
+			return
 		}
 	}
-	os.Exit(code)
 }

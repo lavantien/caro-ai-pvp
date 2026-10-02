@@ -162,6 +162,10 @@ const (
 	MutateTimeoutMs        = 30_000
 	MutateMinTimeoutMs     = 2_000
 	MutateTestTimeoutSlack = 1_000
+	// MutateMaxParallel bounds -parallel: every worker owns a full module
+	// copy, and worker counts far past the core count only multiply temp
+	// copies while suites thrash.
+	MutateMaxParallel = 16
 )
 
 const (
