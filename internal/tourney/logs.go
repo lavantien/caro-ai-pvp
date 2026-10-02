@@ -72,7 +72,8 @@ func (g *Logs) WriteSeriesLine(run, series int64, line string) error {
 }
 
 // writeLines appends lines to the series' open file, opening it on first
-// use when the header carries the display names.
+// use when the header carries the display names. A second header on an
+// open series is rejected: it would silently duplicate the header block.
 func (g *Logs) writeLines(k seriesKey, redName, blueName string, lines []string) error {
 	f, ok := g.open[k]
 	if !ok {
@@ -84,6 +85,8 @@ func (g *Logs) writeLines(k seriesKey, redName, blueName string, lines []string)
 		if err != nil {
 			return err
 		}
+	} else if redName != "" {
+		return fmt.Errorf("tourney: series log run %d series %d already has a header", k.run, k.series)
 	}
 	for _, line := range lines {
 		if _, err := fmt.Fprintln(f, line); err != nil {

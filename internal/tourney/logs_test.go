@@ -62,6 +62,15 @@ func TestLogsLifecycle(t *testing.T) {
 	if err := g.CloseSeries(7, 3); err == nil {
 		t.Errorf("double close accepted, want the not-open error")
 	}
+
+	fresh := NewLogs()
+	t.Cleanup(func() { _ = fresh.Close() })
+	if err := fresh.WriteSeriesHeader(8, 1, 0, config.SeriesBO3, red, blue); err != nil {
+		t.Fatalf("second header setup: %v", err)
+	}
+	if err := fresh.WriteSeriesHeader(8, 1, 0, config.SeriesBO3, red, blue); err == nil {
+		t.Errorf("duplicate header accepted, want the already-has-a-header error")
+	}
 }
 
 func TestLogsCloseDrainsEverySeries(t *testing.T) {
