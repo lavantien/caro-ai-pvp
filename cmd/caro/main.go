@@ -44,7 +44,7 @@ func runFirewall(args []string) error {
 
 func run(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "subcommands: ports, firewall")
+		fmt.Fprintln(os.Stderr, "subcommands: ports, firewall, serve, migrate")
 		return 2
 	}
 	switch args[0] {
@@ -57,6 +57,10 @@ func run(args []string) int {
 			return 1
 		}
 		return 0
+	case "serve":
+		return runServe(args[1:])
+	case "migrate":
+		return runMigrate(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "caro: unknown subcommand %q\n", args[0])
 		return 2

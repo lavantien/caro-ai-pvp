@@ -1,7 +1,7 @@
 BINARY := bin/caro
 COVERPROFILE := coverage.out
 
-.PHONY: all doctor fmt fmt-check lint vet build test test-race cover bench fuzz mutate mutate-resume run migrate firewall tidy ci
+.PHONY: all doctor fmt fmt-check lint vet build test test-race cover bench fuzz mutate mutate-resume run serve migrate firewall tidy ci
 
 all: build
 
@@ -73,7 +73,10 @@ run:
 	CGO_ENABLED=1 go run ./cmd/caro $(or $(ARGS),ports)
 
 migrate:
-	@echo "migrate: not implemented until M6 (startup self-migration lands with the server)"
+	CGO_ENABLED=1 go run ./cmd/caro migrate
+
+serve:
+	CGO_ENABLED=1 go run ./cmd/caro serve
 
 firewall:
 	CGO_ENABLED=1 go run ./cmd/caro firewall
