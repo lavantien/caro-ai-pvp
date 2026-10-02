@@ -62,6 +62,7 @@ section { margin: .8rem 0 }
 {{if .CanForfeit}}<button id="forfeit-btn">forfeit</button>{{end}}
 </section>
 {{end}}
+{{if .CanJoin}}<section id="join-section"><button id="join-btn">join</button></section>{{end}}
 
 <section id="board-section">
 {{template "board-grid" .}}

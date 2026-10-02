@@ -228,6 +228,62 @@ func TestRoomPagePreMatchReadyHandshake(t *testing.T) {
 	}
 }
 
+// TestRoomPageJoinButtonGating pins the seat-taking affordance: only a
+// logged-in stranger facing a created human room with an open guest seat
+// gets the join button. Anonymous visitors, participants, seated rooms,
+// bot rooms, and started rooms render none.
+func TestRoomPageJoinButtonGating(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice := seedUser(t, s.store, "alice")
+	carol := seedUser(t, s.store, "carol")
+	tc := mintSession(t, s.store, carol)
+
+	// Open human room: the stranger sees the join button, the host and
+	// anonymous visitors do not.
+	open, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	joinBtn := `id="join-btn"`
+	hasJoin := func(token string) bool {
+		status, body := getRoomPage(t, srv, "/rooms/"+open.ID(), token)
+		if status != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body %s)", status, body)
+		}
+		return strings.Contains(body, joinBtn)
+	}
+	if !hasJoin(tc) {
+		t.Error("stranger on an open human room misses the join button")
+	}
+	if hasJoin(mintSession(t, s.store, alice)) {
+		t.Error("host sees a join button on their own room")
+	}
+	if hasJoin("") {
+		t.Error("anonymous visitor sees a join button")
+	}
+
+	// Seat taken: the join button disappears for everyone.
+	bob := seedUser(t, s.store, "bob")
+	if err := s.rm.Join(open.ID(), bob.ID); err != nil {
+		t.Fatalf("join: %v", err)
+	}
+	if hasJoin(tc) {
+		t.Error("stranger sees a join button on a seated room")
+	}
+
+	// Bot room: the seat is never open to humans.
+	hard := config.Tiers[len(config.Tiers)-1]
+	bot, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &hard)
+	if err != nil {
+		t.Fatalf("create bot room: %v", err)
+	}
+	status, body := getRoomPage(t, srv, "/rooms/"+bot.ID(), tc)
+	if status != http.StatusOK || strings.Contains(body, joinBtn) {
+		t.Errorf("bot room page: status %d, join button present", status)
+	}
+}
+
 func TestRoomPageBadOrRetiredRoomIs404(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)

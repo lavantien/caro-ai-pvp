@@ -182,6 +182,7 @@ type roomView struct {
 	GuestReady    string
 	CanReady      bool
 	CanForfeit    bool
+	CanJoin       bool // a logged-in stranger may take the open guest seat
 	ViewerID      int64
 	ViewerName    string
 	IsParticipant bool
@@ -236,6 +237,10 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 	view.IsParticipant = ok && (viewer.ID == info.HostUserID || viewer.ID == info.GuestUserID)
 	if !view.IsParticipant {
 		view.CanForfeit = false
+		// The seat-taking affordance: a logged-in stranger on a created
+		// human room whose guest seat is still open.
+		view.CanJoin = ok && info.State == SeriesCreated &&
+			info.VsBotTier == "" && info.GuestUserID == 0
 	} else {
 		view.ViewerID, view.ViewerName = viewer.ID, viewer.Username
 	}

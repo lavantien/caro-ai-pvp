@@ -277,6 +277,18 @@ if (readyBtn) {
 	});
 }
 
+// Taking the open seat flips the viewer into a participant; the reload
+// re-renders the handshake section server-side.
+var joinBtn = $('join-btn');
+if (joinBtn) {
+	joinBtn.addEventListener('click', function () {
+		fetch(detailURL + '/join', { method: 'POST' }).then(function (r) {
+			if (r.ok) { location.reload(); return; }
+			return reject(r, 'join');
+		}).catch(function () { status('join failed'); });
+	});
+}
+
 var forfeitBtn = $('forfeit-btn');
 if (forfeitBtn) {
 	var armed = false;
