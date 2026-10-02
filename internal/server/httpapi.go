@@ -499,8 +499,10 @@ func colorName(c rules.Color) string {
 }
 
 // handleLogin is the one-form auth of the spec: an unknown username creates
-// the account, a known one verifies. Success sets the HttpOnly session
-// cookie and returns the summary line.
+// the account, a known one verifies. The full success response is built
+// before the session cookie is set, so a failing summary read answers the
+// 500 without leaving a live cookie aimed at a half-logged-in client (the
+// orphan session row expires on its own).
 func (a *apiServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username"`
@@ -515,6 +517,11 @@ func (a *apiServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeDomainError(w, err)
 		return
 	}
+	sum, err := a.userSummaryOf(u)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    hex.EncodeToString(sess.Token),
@@ -523,7 +530,7 @@ func (a *apiServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
-	a.writeUserSummary(w, http.StatusOK, u)
+	writeJSON(w, http.StatusOK, sum)
 }
 
 // handleLogout drops the token behind the cookie and expires the cookie.
@@ -606,23 +613,33 @@ func historyEntryOf(row MatchHistoryRow) (historyEntry, error) {
 	}, nil
 }
 
-// writeUserSummary reads the rating chain tail and the W-L-D plus level
-// totals of one user and writes the line.
-func (a *apiServer) writeUserSummary(w http.ResponseWriter, status int, u User) {
+// userSummaryOf reads the rating chain tail and the W-L-D plus level
+// totals of one user into the wire line, split from the write so login can
+// build the whole response before any cookie exists.
+func (a *apiServer) userSummaryOf(u User) (userSummary, error) {
 	rating, err := currentRating(a.store, u.ID)
 	if err != nil {
-		writeDomainError(w, err)
-		return
+		return userSummary{}, err
 	}
 	stats, err := a.store.UserStats(u.ID)
 	if err != nil {
+		return userSummary{}, err
+	}
+	return userSummary{
+		Username: u.Username, Rating: rating,
+		Wins: stats.Wins, Losses: stats.Losses, Draws: stats.Draws, Level: stats.SeriesWon,
+	}, nil
+}
+
+// writeUserSummary renders the summary line, mapping read failures onto
+// the error envelope.
+func (a *apiServer) writeUserSummary(w http.ResponseWriter, status int, u User) {
+	sum, err := a.userSummaryOf(u)
+	if err != nil {
 		writeDomainError(w, err)
 		return
 	}
-	writeJSON(w, status, userSummary{
-		Username: u.Username, Rating: rating,
-		Wins: stats.Wins, Losses: stats.Losses, Draws: stats.Draws, Level: stats.SeriesWon,
-	})
+	writeJSON(w, status, sum)
 }
 
 // requireSession is the middleware of acting routes: parse the cookie,

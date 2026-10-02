@@ -167,6 +167,37 @@ func TestHTTPLoginCreateAndSessionCookie(t *testing.T) {
 	wantAPIError(t, got, http.StatusBadRequest, "bad_request")
 }
 
+// TestHTTPLoginSummaryFailureSetsNoCookie pins the response ordering of
+// handleLogin: when the summary read fails after the login itself
+// succeeded, the response must carry no session cookie. Dropping the
+// rating-events table from inside the package is the injection seam: only
+// the summary reads it, the login leg touches users and sessions alone.
+func TestHTTPLoginSummaryFailureSetsNoCookie(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	c := srv.Client()
+
+	// A real registration: the stored argon2 hash must verify for the
+	// login leg to pass (seedUser rows cannot).
+	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/login", "",
+		map[string]string{"username": "alice", "password": "hunter2"})
+	wantStatus(t, got, http.StatusOK, nil)
+
+	if _, err := s.store.db.Exec(`DROP TABLE rating_events`); err != nil {
+		t.Fatalf("drop rating_events: %v", err)
+	}
+
+	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/login", "",
+		map[string]string{"username": "alice", "password": "hunter2"})
+	wantAPIError(t, got, http.StatusInternalServerError, "internal")
+	for _, ck := range got.cookies {
+		if ck.Name == sessionCookieName {
+			t.Fatalf("cookie %+v set on the failed summary, want none", ck)
+		}
+	}
+}
+
 func TestHTTPLogoutInvalidatesSession(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
