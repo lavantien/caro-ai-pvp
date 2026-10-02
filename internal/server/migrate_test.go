@@ -40,7 +40,7 @@ func schemaVersionRows(t *testing.T, s *Store) (count, max int) {
 
 func TestMigrateFreshAppliesAll(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	count, max := schemaVersionRows(t, s)
 	if count != config.SQLiteSchemaVersion || max != config.SQLiteSchemaVersion {
@@ -109,7 +109,7 @@ func TestMigrateRejectsDatabaseFromTheFuture(t *testing.T) {
 
 func TestMigrateGuardRejectsScriptCountMismatch(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	saved := migrations
 	migrations = saved[:0]

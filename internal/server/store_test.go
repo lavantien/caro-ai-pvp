@@ -19,7 +19,7 @@ func TestOpenAppliesConfiguredPragmas(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	var mode string
 	if err := s.db.QueryRow("PRAGMA journal_mode").Scan(&mode); err != nil {
@@ -50,7 +50,7 @@ func TestForeignKeysHoldOnEveryPooledConn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	ctx := context.Background()
 	held, err := s.db.Conn(ctx)
