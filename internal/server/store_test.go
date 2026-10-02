@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -83,5 +84,39 @@ func TestCloseIsIdempotentPerStore(t *testing.T) {
 	// busy loop: sql.DB.Close is documented safe to call repeatedly.
 	if err := s.Close(); err != nil {
 		t.Errorf("second close: %v", err)
+	}
+}
+
+func TestAccessorsFailCleanlyAfterClose(t *testing.T) {
+	s, err := Open(dbPath(t))
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	calls := map[string]func() error{
+		"create user":    func() error { _, _, err := s.CreateUserIfAbsent("x", []byte("s"), []byte("h")); return err },
+		"fetch user":     func() error { _, err := s.UserByUsername("x"); return err },
+		"insert session": func() error { return s.InsertSession(Session{Token: []byte("t")}) },
+		"fetch session":  func() error { _, err := s.SessionByToken([]byte("t"), 0); return err },
+		"delete session": func() error { return s.DeleteSession([]byte("t")) },
+		"create series":  func() error { _, err := s.CreateSeries(0, 3, 1, 2); return err },
+		"fetch series":   func() error { _, err := s.SeriesByID(1); return err },
+		"update series":  func() error { return s.UpdateSeries(1, SeriesStateFinished, nil, nil) },
+		"append game":    func() error { _, err := s.AppendGame(Game{Moves: []byte{1}}); return err },
+		"append rating":  func() error { _, err := s.AppendRatingEvent(RatingEvent{}); return err },
+		"rating history": func() error { _, err := s.RatingHistoryByUser(1); return err },
+		"user stats":     func() error { _, err := s.UserStats(1); return err },
+		"match history":  func() error { _, err := s.MatchHistory(1); return err },
+		"migrate":        s.migrate,
+	}
+	for name, call := range calls {
+		if err := call(); err == nil {
+			t.Errorf("%s after close: want error, got nil", name)
+		} else if errors.Is(err, ErrNotFound) {
+			t.Errorf("%s after close = ErrNotFound, want the closed-pool error", name)
+		}
 	}
 }

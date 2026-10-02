@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"os"
 	"strings"
 	"testing"
@@ -103,6 +104,55 @@ func TestMigrateRejectsDatabaseFromTheFuture(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "newer") {
 		t.Errorf("error = %q, want it to flag the newer schema version", err)
+	}
+}
+
+func TestMigrateGuardRejectsScriptCountMismatch(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer s.Close()
+
+	saved := migrations
+	migrations = saved[:0]
+	defer func() { migrations = saved }()
+	err := s.migrate()
+	if err == nil || !strings.Contains(err.Error(), "config.SQLiteSchemaVersion") {
+		t.Fatalf("migrate with truncated scripts = %v, want the hub-count guard error", err)
+	}
+}
+
+func TestFailedMigrationRollsBackAndStays(t *testing.T) {
+	path := dbPath(t)
+	db, err := sql.Open("sqlite", dsn(path))
+	if err != nil {
+		t.Fatalf("raw open: %v", err)
+	}
+	defer db.Close()
+	s := &Store{db: db}
+
+	// Swap in a same-count broken script so the hub guard passes and the
+	// failure lands in the script application itself.
+	saved := migrations
+	defer func() { migrations = saved }()
+	migrations = []string{"CREATE TABLE boom (;\nCREATE TABLE never (x)"}
+	err = s.migrate()
+	if err == nil || !strings.Contains(err.Error(), "apply migration 1") {
+		t.Fatalf("migrate with broken script = %v, want apply migration 1 failure", err)
+	}
+	_, max := schemaVersionRows(t, s)
+	if max != 0 {
+		t.Errorf("version after failed migration = %d, want 0 (no partial recording)", max)
+	}
+	if n := schemaCount(t, s, "table", "'boom','never'"); n != 0 {
+		t.Errorf("partial tables = %d, want 0 (transaction rolled back)", n)
+	}
+
+	// With the real scripts restored, the same database migrates cleanly.
+	migrations = saved
+	if err := s.migrate(); err != nil {
+		t.Fatalf("migrate after rollback: %v", err)
+	}
+	if _, max = schemaVersionRows(t, s); max != config.SQLiteSchemaVersion {
+		t.Errorf("version after clean retry = %d, want %d", max, config.SQLiteSchemaVersion)
 	}
 }
 
