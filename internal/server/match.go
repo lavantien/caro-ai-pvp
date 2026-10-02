@@ -8,6 +8,7 @@ import (
 
 	"github.com/lavantien/caro-ai-pvp/internal/clock"
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/engine"
 	"github.com/lavantien/caro-ai-pvp/internal/pattern"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
@@ -20,13 +21,21 @@ import (
 // games end by win or by full board only.
 
 // Hub event kinds of the room layer. move payloads carry the cell name in
-// the rules codec, gameend the outcome (red/blue/draw), series the winning
-// series side (host/guest/none).
+// the rules codec, mline the Implication 1.5 bot-log line, gameend the
+// outcome (red/blue/draw), series the winning series side
+// (host/guest/none).
 const (
 	EventKindMove    = "move"
+	EventKindMLine   = "mline"
 	EventKindGameEnd = "gameend"
 	EventKindSeries  = "series"
 )
+
+// mLineTag is the Implication 1.5 solver tag of an emitted bot line. The
+// engine's SearchStats carries no VCF/VCT provenance yet, so every line
+// ships untagged; when the drivers expose solver-found wins, feed
+// config.BotLogTagVCF and config.BotLogTagVCT here.
+const mLineTag = ""
 
 // WonBy vocabulary derivable today, read off the position at the winner's
 // last move (move n-1 per Scenario 1): "open 4" the winner held a window
@@ -67,14 +76,23 @@ func (r *Room) Ready(userID int64) error {
 }
 
 // startGameLocked resets every per-game surface: fresh board, fresh clocks
-// under the series time control, emptied move buffer, turn clock running
-// on red. The Series state machine owns who red is.
+// under the series time control, emptied move buffer, a fresh engine
+// instance per bot seat (the ephemerality rule: nothing carries across
+// games), turn clock running on red. The Series state machine owns who red
+// is.
 func (r *Room) startGameLocked() {
+	r.closeEnginesLocked()
 	r.board = rules.NewBoard()
 	r.moves = r.moves[:0]
 	r.clock[rules.Red] = clock.NewGameClock(r.tcIdx)
 	r.clock[rules.Blue] = clock.NewGameClock(r.tcIdx)
+	for _, c := range [2]rules.Color{rules.Red, rules.Blue} {
+		if seat := r.seatByColorLocked(c); seat.bot != nil {
+			r.engines[c] = r.makeSearcher(*seat.bot)
+		}
+	}
 	r.turnStart = time.Now()
+	r.wakeBotLocked()
 }
 
 // PlayMove applies a human move: participant, turn, and rules legality
@@ -128,6 +146,7 @@ func (r *Room) playMove(userID int64, cell rules.Cell) error {
 		return r.completeGameLocked(rules.Empty, cell)
 	}
 	r.turnStart = time.Now()
+	r.wakeBotLocked()
 	return nil
 }
 
@@ -447,4 +466,170 @@ func countWinIn1(pre *rules.Board, winner rules.Color) int {
 		pre.Unmake()
 	}
 	return n
+}
+
+// Bot turn concurrency model: one worker goroutine per room that seats a
+// bot, started when the room is created and the only writer of bot moves.
+// A worker rather than the caller's goroutine because PlayMove must return
+// as soon as the human's stone lands (the bot's reply arrives through the
+// hub as an event, which is exactly the M6b push model), and because
+// Scenario 2's bot-vs-bot matchups reuse this surface and need a driver
+// with no human caller. Leak freedom: the worker parks on the wake channel
+// and leaves when quit closes at retire; Close joins it through the
+// WaitGroup, so no goroutine and no engine instance outlives the room.
+// Searches run OUTSIDE the room lock on a private board copy, and the
+// apply revalidates under the lock, so a forfeit or shutdown during a
+// search discards the stale answer instead of racing it.
+
+// searcher is the per-game bot engine surface the room drives: one Search
+// per turn under a budget deadline, closed at game end.
+type searcher interface {
+	Search(b *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats)
+	Close()
+}
+
+// singleSearcher adapts the single-threaded Engine (the easy tier: one
+// core, no table), whose lifetime needs no teardown, to the same surface
+// as the tiered SMP instance.
+type singleSearcher struct{ e *engine.Engine }
+
+func (s singleSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats) {
+	return s.e.Search(b, dl)
+}
+
+func (singleSearcher) Close() {}
+
+// newBotSearcher sizes a bot from its tier: the SMP pool over a shared
+// lockless table for Cores > 1, the plain engine otherwise.
+func newBotSearcher(t config.Tier) searcher {
+	if t.Cores > 1 {
+		return engine.NewTiered(t)
+	}
+	return singleSearcher{e: engine.New(t.TTBytes)}
+}
+
+func (r *Room) closeEnginesLocked() {
+	for i := range r.engines {
+		if r.engines[i] != nil {
+			r.engines[i].Close()
+			r.engines[i] = nil
+		}
+	}
+}
+
+// mLineRecord carries the raw inputs of the last emitted bot line so the
+// hub payload stays byte-checkable against the canonical renderer.
+type mLineRecord struct {
+	moveNumber int
+	side       rules.Color
+	move       rules.Move
+	stats      engine.SearchStats
+}
+
+// startBotWorker launches the room's bot driver. Called once, before the
+// room enters the manager map, so a published room always has its worker.
+func (r *Room) startBotWorker() {
+	r.wg.Add(1)
+	go r.botLoop()
+}
+
+func (r *Room) botLoop() {
+	defer r.wg.Done()
+	for {
+		if r.runBotTurn() {
+			// A bot-won series ends on this goroutine: drive the same
+			// lifecycle finish the human path drives.
+			r.maybeFinish()
+			continue
+		}
+		select {
+		case <-r.wake:
+		case <-r.quit:
+			return
+		}
+	}
+}
+
+// wakeBotLocked drops a coalescing token when the side to move is a bot.
+// A token lost to a turn already being driven is harmless: the driver
+// rechecks the turn after every move.
+func (r *Room) wakeBotLocked() {
+	if _, ok := r.botTurnLocked(); ok {
+		select {
+		case r.wake <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// botTurnLocked reports the color to move when it belongs to a bot.
+func (r *Room) botTurnLocked() (rules.Color, bool) {
+	if r.over || r.board == nil {
+		return 0, false
+	}
+	side := r.board.Side
+	if r.seatByColorLocked(side).bot == nil {
+		return 0, false
+	}
+	return side, true
+}
+
+// runBotTurn drives one bot move. The search budget comes from the side's
+// GameClock.Budget() under the clock law, wrapped in a FixedBudget
+// deadline; the floor grants a legal move at any drain level, so the bot
+// answers even with an empty bank and a timeout can never decide the game.
+// Returns whether a move landed, so the loop keeps driving while
+// consecutive bot turns are pending.
+func (r *Room) runBotTurn() bool {
+	r.mu.Lock()
+	side, ok := r.botTurnLocked()
+	if !ok {
+		r.mu.Unlock()
+		return false
+	}
+	budget := r.clock[side].Budget()
+	if r.budgetCap > 0 && budget > r.budgetCap {
+		budget = r.budgetCap
+	}
+	board, moveCount, eng := *r.board, r.board.MoveCount, r.engines[side]
+	r.mu.Unlock()
+
+	mv, st := eng.Search(&board, engine.NewFixedBudget(budget))
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	// Discard a stale answer: the room retired or the turn moved on while
+	// the search ran.
+	if r.over || r.board == nil || r.board.MoveCount != moveCount || r.board.Side != side {
+		return false
+	}
+	if !r.board.IsLegal(rules.Cell(mv)) {
+		// The engine contract guarantees legality; this is the safety net.
+		mv = r.firstLegalLocked()
+	}
+	cell := rules.Cell(mv)
+	r.applyMoveLocked(side, cell)
+	r.lastM = mLineRecord{moveNumber: r.board.MoveCount, side: side, move: mv, stats: st}
+	r.publishLocked(Event{Kind: EventKindMLine, Payload: MLine(r.lastM.moveNumber, side, mv, &st, mLineTag)})
+	// The worker has no caller to surface a persistence error to; bot
+	// rooms persist nothing today, so the completion path cannot fail here.
+	if r.board.FastLastMoveWin(side, cell) {
+		_ = r.completeGameLocked(side, cell)
+		return true
+	}
+	if r.board.IsFull() {
+		_ = r.completeGameLocked(rules.Empty, cell)
+		return true
+	}
+	r.turnStart = time.Now()
+	r.wakeBotLocked()
+	return true
+}
+
+func (r *Room) firstLegalLocked() rules.Move {
+	n := r.board.LegalMoves(r.legalBuf[:])
+	if n == 0 {
+		panic("server: bot turn on a board with no legal move")
+	}
+	return r.legalBuf[0]
 }

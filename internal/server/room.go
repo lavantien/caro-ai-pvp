@@ -97,7 +97,8 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 		id: newRoomID(), hub: rm.hub, store: rm.store, wq: rm.wq, manager: rm,
 		tcIdx: tcIdx, boLen: boLen, createdAt: time.Now(),
 		host: seat{userID: ownerUserID}, guest: guest,
-		wake: make(chan struct{}, 1), quit: make(chan struct{}),
+		makeSearcher: newBotSearcher,
+		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
 	}
 	if vsBot != nil {
 		// The bot's handshake is immediate, so only the host ready gates
@@ -106,6 +107,7 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 			return nil, err
 		}
 		r.series = series
+		r.startBotWorker()
 	}
 	rm.mu.Lock()
 	rm.rooms[r.id] = r
@@ -257,6 +259,16 @@ type Room struct {
 	moves     []rules.Move
 	clock     [2]*clock.GameClock
 	turnStart time.Time
+	engines   [2]searcher
+	legalBuf  [config.BoardCells]rules.Move
+	lastM     mLineRecord
+
+	// budgetCap is a test hook capping the granted bot search budget so
+	// time-boxed tests run the real engine at a few milliseconds per move;
+	// zero means the clock law alone. makeSearcher is the engine factory
+	// seam, overridable per room for deterministic bot tests.
+	budgetCap    time.Duration
+	makeSearcher func(config.Tier) searcher
 
 	wake      chan struct{}
 	quit      chan struct{}
@@ -326,6 +338,7 @@ func (r *Room) retire() {
 		close(r.quit)
 		r.mu.Lock()
 		r.over = true
+		r.closeEnginesLocked()
 		r.mu.Unlock()
 	})
 }
