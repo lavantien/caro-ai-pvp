@@ -108,19 +108,34 @@ type TourneyRunSummary struct {
 	Leader string
 }
 
+// TourneyBlockedError names the ongoing run holding the machine-wide run
+// gate; the setup form renders the blocking id inline instead of a bare
+// outage.
+type TourneyBlockedError struct{ RunID int64 }
+
+func (e *TourneyBlockedError) Error() string {
+	return "run " + strconv.FormatInt(e.RunID, 10) +
+		" is still in progress, close it before starting another"
+}
+
 // TourneyService is the tournament UI's one seam onto the M7 conductor. The
 // serve composition wires the tourney manager over it; page tests wire a
 // script.
 type TourneyService interface {
 	// StartRun validates, persists, and begins driving one tournament. It
 	// returns once the run row exists, so the caller can redirect onto the
-	// run's live page.
+	// run's live page, and refuses with TourneyBlockedError while another
+	// run holds the machine-wide gate.
 	StartRun(ctx context.Context, setup TourneySetup) (int64, error)
 	// RunSnapshot reads one run's whole render state; an unknown run maps
 	// onto ErrNotFound.
 	RunSnapshot(ctx context.Context, runID int64) (TourneySnapshot, error)
 	// Runs lists run headers newest first with their rosters and leaders.
 	Runs(ctx context.Context) ([]TourneyRunSummary, error)
+	// CloseStalledRun closes a stalled run's row, an ongoing run no live
+	// drive owns. It refuses an unknown run with ErrNotFound and a live
+	// drive or an already-closed run with an error the page renders inline.
+	CloseStalledRun(ctx context.Context, runID int64) error
 }
 
 // TournamentPages serves the Scenario 2 setup, run, and leaderboard pages
@@ -142,11 +157,13 @@ func NewTournamentPages(store *Store, tourney TourneyService) *TournamentPages {
 //	POST /tourney                 validate and start, redirect to the run page
 //	GET  /tourney/run/{id}        the run page (public, like the rooms grid)
 //	GET  /tourney/run/{id}/board  the polled leaderboard fragment
+//	POST /tourney/run/{id}/close  close a stalled run's row (guests bounce)
 func (p *TournamentPages) Mount(mux *http.ServeMux) {
 	mux.HandleFunc("GET /tourney", p.handleSetup)
 	mux.HandleFunc("POST /tourney", p.handleStart)
 	mux.HandleFunc("GET /tourney/run/{id}", p.handleRun)
 	mux.HandleFunc("GET /tourney/run/{id}/board", p.handleBoard)
+	mux.HandleFunc("POST /tourney/run/{id}/close", p.handleCloseRun)
 }
 
 // tourneyRowView is one roster-builder row: the index behind the form field
@@ -392,6 +409,13 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 		Seats: seats, TCIdx: tcIdx, BOLen: boLen, StartRating: rating, Parallel: parallel,
 	})
 	if err != nil {
+		// The machine-wide run gate is an answer, not an outage: the form
+		// re-renders with the blocking run's id inline.
+		var blocked *TourneyBlockedError
+		if errors.As(err, &blocked) {
+			p.renderSetup(w, http.StatusConflict, me, state, blocked.Error(), p.bestEffortRuns(r))
+			return
+		}
 		http.Error(w, "tournament start failed", http.StatusInternalServerError)
 		return
 	}
@@ -456,13 +480,16 @@ type tourneyRunHeaderView struct {
 	Failure     string
 }
 
-// tourneyRunView is the run page's whole render state.
+// tourneyRunView is the run page's whole render state: the board plus, on
+// a stalled run, the close form and its inline refusal.
 type tourneyRunView struct {
-	Me     *shellViewer
-	Header tourneyRunHeaderView
-	RunID  int64
-	PollMs int64
-	Board  tourneyBoardView
+	Me         *shellViewer
+	Header     tourneyRunHeaderView
+	RunID      int64
+	PollMs     int64
+	Board      tourneyBoardView
+	CanClose   bool
+	CloseError string
 }
 
 // handleRun renders one run's live page: public like the rooms grid, the
@@ -481,11 +508,54 @@ func (p *TournamentPages) handleRun(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "tournament read failed", http.StatusInternalServerError)
 		return
 	}
+	p.renderRun(w, http.StatusOK, me, runID, snap, "")
+}
+
+// renderRun paints the run page around the board fragment, optionally with
+// the close form's inline refusal.
+func (p *TournamentPages) renderRun(w http.ResponseWriter, status int, me *shellViewer,
+	runID int64, snap TourneySnapshot, closeErr string) {
+
 	header := runHeaderOf(snap)
-	renderShell(w, http.StatusOK, tourneyRunTmpl, "base", tourneyRunView{
+	renderShell(w, status, tourneyRunTmpl, "base", tourneyRunView{
 		Me: me, Header: header, RunID: runID,
 		PollMs: int64(config.PagePollMs), Board: boardViewOf(snap),
+		CanClose:   header.State == runStateStalled && me != nil,
+		CloseError: closeErr,
 	})
+}
+
+// handleCloseRun is the stalled-run close form POST: session-gated like
+// every acting route. The close resolves a run row no live drive owns; a
+// refusal re-renders the run page with the reason inline, an unknown run
+// stays the 404 page.
+func (p *TournamentPages) handleCloseRun(w http.ResponseWriter, r *http.Request) {
+	runID, ok := tourneyRunID(w, r)
+	if !ok {
+		return
+	}
+	me, err := resolveViewer(p.store, r)
+	if err != nil {
+		http.Error(w, "tournament read failed", http.StatusInternalServerError)
+		return
+	}
+	if me == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if err := p.tourney.CloseStalledRun(r.Context(), runID); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			writePageNotFound(w)
+			return
+		}
+		snap, ok := p.snapshot(w, r, runID)
+		if !ok {
+			return
+		}
+		p.renderRun(w, http.StatusConflict, me, runID, snap, err.Error())
+		return
+	}
+	http.Redirect(w, r, "/tourney/run/"+strconv.FormatInt(runID, 10), http.StatusSeeOther)
 }
 
 // handleBoard serves the polled fragment of one run's page.
@@ -527,6 +597,10 @@ func (p *TournamentPages) snapshot(w http.ResponseWriter, r *http.Request, runID
 	return snap, true
 }
 
+// runStateStalled names the display state an ongoing row no process drives
+// takes; the run page hands that state its close form.
+const runStateStalled = "stalled"
+
 // runStateOf names the run's display state: a terminal drive failure wins,
 // then the run row's finish, then the manager's liveness; an ongoing row no
 // process drives is stalled (a previous lifetime's abort left it open).
@@ -539,7 +613,7 @@ func runStateOf(run TourneyRunInfo) string {
 	case run.Running:
 		return "running"
 	}
-	return "stalled"
+	return runStateStalled
 }
 
 // runHeaderOf shapes one run's summary line.

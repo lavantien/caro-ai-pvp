@@ -13,8 +13,15 @@ package tourney
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
+	"time"
 )
+
+// ErrDriveLive refuses closing a run this manager still drives: the drive's
+// own FinishRun, not a hand close, owns the row.
+var ErrDriveLive = errors.New("tourney: the run's drive is still live")
 
 // Manager starts tournament runs in the background and reads their state.
 type Manager struct {
@@ -45,18 +52,22 @@ func NewManager(store *Store, source MatchSource) *Manager {
 // StartRun validates and persists one tournament synchronously, then drives
 // it in the background. The returned Run exists the moment StartRun returns,
 // so a page can redirect onto the run's live board before the first series
-// starts. ctx bounds only the persisting half; the drive runs under the
-// manager's own context and dies with the process (a graceful shutdown
-// retires the rooms, the streams fail, and the drive aborts on its own).
+// starts. The manager lock spans the persisting half: two in-process starts
+// serialize on it, so the second reads the first's ongoing row through the
+// run gate and refuses instead of oversubscribing the machine; the drive
+// itself runs outside the lock. ctx bounds only the persisting half; the
+// drive runs under the manager's own context and dies with the process (a
+// graceful shutdown retires the rooms, the streams fail, and the drive
+// aborts on its own).
 func (m *Manager) StartRun(ctx context.Context, spec RunSpec, parallel int) (Run, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	run, tiers, err := m.conductor.startRun(ctx, m.store, spec.Roster, spec.TCIdx, spec.BOLen, spec.StartRating, parallel)
 	if err != nil {
 		return Run{}, err
 	}
 	st := &driveState{done: make(chan struct{})}
-	m.mu.Lock()
 	m.drives[run.ID] = st
-	m.mu.Unlock()
 	go func() {
 		_, err := m.conductor.drive(context.Background(), m.store, run, spec.Roster, tiers, parallel)
 		m.mu.Lock()
@@ -110,6 +121,26 @@ func (m *Manager) Detail(ctx context.Context, runID int64) (Detail, error) {
 // Runs lists run headers newest first, the setup page's past-runs section.
 func (m *Manager) Runs(ctx context.Context) ([]Run, error) {
 	return m.store.Runs(ctx)
+}
+
+// CloseStalled closes a stalled run's row: an ongoing run no live drive of
+// this manager owns (a previous process's crash left it, the run page
+// already renders it stalled). A live drive refuses with ErrDriveLive, an
+// unknown run with server.ErrNotFound, and an already-closed run with its
+// own refusal. The close writes no standings snapshot: the live leaderboard
+// keeps deriving from the games, the snapshot stays a clean-finish artifact.
+func (m *Manager) CloseStalled(ctx context.Context, runID int64) error {
+	if running, _ := m.driveState(runID); running {
+		return fmt.Errorf("tourney: run %d: %w", runID, ErrDriveLive)
+	}
+	run, err := m.store.Run(ctx, runID)
+	if err != nil {
+		return err
+	}
+	if run.Status != RunStateOngoing {
+		return fmt.Errorf("tourney: run %d is already %s", runID, run.Status)
+	}
+	return m.store.CloseStalledRun(ctx, runID, time.Now().Unix())
 }
 
 // driveState reads one run's tracked drive under the manager lock.

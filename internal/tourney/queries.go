@@ -7,6 +7,7 @@ package tourney
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 )
 
@@ -121,6 +122,23 @@ func (t *Store) SeriesAll(ctx context.Context, runID int64) ([]Series, error) {
 		return nil, fmt.Errorf("tourney: series of run %d: %w", runID, err)
 	}
 	return out, nil
+}
+
+// OngoingRunID reports the oldest ongoing run row, the machine-wide run
+// gate's holder; held is false when no run is ongoing.
+func (t *Store) OngoingRunID(ctx context.Context) (id int64, held bool, err error) {
+	err = t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx,
+			`SELECT id FROM tournament_runs WHERE status = ? ORDER BY id LIMIT 1`,
+			RunStateOngoing).Scan(&id)
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, fmt.Errorf("tourney: read the ongoing run: %w", err)
+	}
+	return id, true, nil
 }
 
 // nullInt64Ptr maps a nullable column onto the run and series rows' optional

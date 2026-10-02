@@ -6,11 +6,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/server"
 	"github.com/lavantien/caro-ai-pvp/internal/tourney"
 )
 
@@ -51,6 +53,32 @@ func TestRunTourneyParallelOverBudgetIsRefused(t *testing.T) {
 		if code := run(args); code != 1 {
 			t.Errorf("%v: exit = %d, want 1", args, code)
 		}
+	}
+}
+
+// TestRunTourneyRefusesWhileRunOngoing pins the run gate's CLI arm: with an
+// ongoing row in the db (a previous process's crash), the driver refuses
+// before any engine starts.
+func TestRunTourneyRefusesWhileRunOngoing(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "caro.sqlite")
+	srv, err := server.Open(db)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	roster := []tourney.Participant{
+		{Slot: 0, Name: "easy-1", Tier: config.TierEasy.Name},
+		{Slot: 1, Name: "medium-1", Tier: config.TierMedium.Name},
+	}
+	if _, err := tourney.NewStore(srv).CreateRun(context.Background(), 1,
+		config.SeriesBO3, config.TournamentStartRating, roster); err != nil {
+		t.Fatalf("plant ongoing run: %v", err)
+	}
+	if err := srv.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	if code := run([]string{"tourney", "--db", db, "smoke10"}); code != 1 {
+		t.Errorf("driver against an ongoing run = exit %d, want 1", code)
 	}
 }
 

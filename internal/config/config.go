@@ -95,10 +95,12 @@ const (
 	MaxCoresPerInstance       = 8
 	MaxRAMPerInstanceBytes    = 16 << 30
 	TournamentParallelMatches = 2
-	// MachineCores is the core budget one tournament run may book for live
-	// searches: TournamentParallelMatches rooms, one search at a time each
-	// (bot turns alternate), at the largest tier core count. The spec offers
-	// 8x2 cores in theory but pins the conductor to less, so the run refuses
+	// MachineCores is the machine-wide core budget for live searches, not a
+	// per-run allowance: one run books TournamentParallelMatches rooms, one
+	// search at a time each (bot turns alternate), at the largest tier core
+	// count, and the per-run budget check plus the run gate (one ongoing run
+	// at a time) hold the whole budget together. The spec offers 8x2 cores
+	// in theory but pins the conductor to less, so a run refuses
 	// parallelism whose worst case exceeds this.
 	MachineCores = 8
 )

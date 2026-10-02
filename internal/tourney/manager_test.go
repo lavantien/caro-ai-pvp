@@ -169,6 +169,130 @@ func TestManagerFailedDriveMarksDetail(t *testing.T) {
 	}
 }
 
+// gatedSource parks every StartSeries until released, holding a run's drive
+// live without spinning.
+func gatedSource(release chan struct{}) *fakeSource {
+	return &fakeSource{script: easySweeps, onStart: func(*fakeStream) error {
+		<-release
+		return nil
+	}}
+}
+
+func TestManagerRefusesSecondConcurrentRun(t *testing.T) {
+	ts, _ := newTestStore(t)
+	pointLogsAt(t)
+	release := make(chan struct{})
+	m := NewManager(ts, gatedSource(release))
+	spec := RunSpec{Roster: rosterTwo(), TCIdx: mustTC(1, 0),
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating}
+
+	// Posts racing in-process serialize on the manager's lock: exactly one
+	// wins the run gate, every other reads its ongoing row and refuses.
+	const posts = 8
+	errs := make(chan error, posts)
+	for range posts {
+		go func() {
+			_, err := m.StartRun(context.Background(), spec, 1)
+			errs <- err
+		}()
+	}
+	refused := 0
+	for range posts {
+		err := <-errs
+		if err == nil {
+			continue
+		}
+		var gate *RunInProgressError
+		if !errors.As(err, &gate) {
+			t.Fatalf("racing post = %v, want the RunInProgressError refusal", err)
+		}
+		refused++
+	}
+	if refused != posts-1 {
+		t.Fatalf("refused = %d of %d posts, want exactly one winner", refused, posts)
+	}
+	if n := countRows(t, ts.srv, `SELECT COUNT(*) FROM tournament_runs`); n != 1 {
+		t.Errorf("runs after the race = %d, want the one winner", n)
+	}
+
+	// The winner still finishes cleanly once its gate opens.
+	runs, err := m.Runs(context.Background())
+	if err != nil || len(runs) != 1 {
+		t.Fatalf("runs after the race = %v (%v), want the one ongoing row", runs, err)
+	}
+	close(release)
+	waitDetail(t, m, runs[0].ID, func(d Detail) bool { return d.Run.Status == RunStateFinished })
+}
+
+func TestManagerCloseStalled(t *testing.T) {
+	ts, srv := newTestStore(t)
+	pointLogsAt(t)
+	ctx := context.Background()
+	spec := RunSpec{Roster: rosterTwo(), TCIdx: mustTC(1, 0),
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating}
+
+	if err := NewManager(ts, &fakeSource{script: easySweeps}).CloseStalled(ctx, 999); !errors.Is(err, server.ErrNotFound) {
+		t.Fatalf("close of an unknown run = %v, want server.ErrNotFound", err)
+	}
+
+	// A live drive owns the row and refuses the close.
+	release := make(chan struct{})
+	m := NewManager(ts, gatedSource(release))
+	run, err := m.StartRun(ctx, spec, 1)
+	if err != nil {
+		t.Fatalf("start run: %v", err)
+	}
+	if err := m.CloseStalled(ctx, run.ID); !errors.Is(err, ErrDriveLive) {
+		t.Fatalf("close of a live drive = %v, want ErrDriveLive", err)
+	}
+	if status := runStatus(t, ts, run.ID); status != RunStateOngoing {
+		t.Errorf("status after the refused close = %q, want %q", status, RunStateOngoing)
+	}
+	close(release)
+	waitDetail(t, m, run.ID, func(d Detail) bool { return d.Run.Status == RunStateFinished })
+	if err := m.CloseStalled(ctx, run.ID); err == nil || !strings.Contains(err.Error(), "already") {
+		t.Fatalf("close of a finished run = %v, want the already-finished refusal", err)
+	}
+
+	// A stalled row no process drives closes without a standings snapshot;
+	// the leaderboard keeps deriving from the games.
+	stalled, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, rosterTwo())
+	if err != nil {
+		t.Fatalf("create stalled run: %v", err)
+	}
+	if err := m.CloseStalled(ctx, stalled.ID); err != nil {
+		t.Fatalf("close stalled run: %v", err)
+	}
+	d, err := m.Detail(ctx, stalled.ID)
+	if err != nil {
+		t.Fatalf("detail of the closed run: %v", err)
+	}
+	if d.Run.Status != RunStateFinished || d.Run.FinishedAt == nil || d.Running || d.Failure != nil {
+		t.Errorf("closed run detail = %+v, want finished, stamped, not running, unfailed", d.Run)
+	}
+	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_standings WHERE run_id = ?`, stalled.ID); n != 0 {
+		t.Errorf("standings after a stalled close = %d, want 0", n)
+	}
+
+	// A failed drive leaves the row ongoing for the post-mortem; with the
+	// drive dead the close resolves it.
+	failM := NewManager(ts, &fakeSource{script: func(host, guest string) []server.Event {
+		ev := easySweeps(host, guest)
+		return ev[:len(ev)-1]
+	}, closeEarly: true, streamErr: server.ErrSlowConsumer})
+	failed, err := failM.StartRun(ctx, spec, 1)
+	if err != nil {
+		t.Fatalf("start failed-drive run: %v", err)
+	}
+	waitDetail(t, failM, failed.ID, func(d Detail) bool { return d.Failure != nil })
+	if err := failM.CloseStalled(ctx, failed.ID); err != nil {
+		t.Fatalf("close of a failed drive's run: %v", err)
+	}
+	if status := runStatus(t, ts, failed.ID); status != RunStateFinished {
+		t.Errorf("status after closing the failed run = %q, want %q", status, RunStateFinished)
+	}
+}
+
 func TestManagerDetailUnknownAndUndrivenRuns(t *testing.T) {
 	ts, _ := newTestStore(t)
 	m := NewManager(ts, &fakeSource{script: easySweeps})

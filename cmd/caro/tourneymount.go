@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"errors"
 
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 	"github.com/lavantien/caro-ai-pvp/internal/tourney"
@@ -24,7 +25,8 @@ func newTourneyService(m *tourney.Manager) tourneyService {
 }
 
 // StartRun hands the page's validated setup to the manager: the run id comes
-// back the moment the row persists.
+// back the moment the row persists. The manager's run-gate refusal crosses
+// the seam as the page sentinel naming the blocking run, not a bare outage.
 func (s tourneyService) StartRun(ctx context.Context, setup server.TourneySetup) (int64, error) {
 	roster := make([]tourney.Participant, len(setup.Seats))
 	for i, seat := range setup.Seats {
@@ -35,9 +37,19 @@ func (s tourneyService) StartRun(ctx context.Context, setup server.TourneySetup)
 		StartRating: setup.StartRating,
 	}, setup.Parallel)
 	if err != nil {
+		var gate *tourney.RunInProgressError
+		if errors.As(err, &gate) {
+			return 0, &server.TourneyBlockedError{RunID: gate.RunID}
+		}
 		return 0, err
 	}
 	return run.ID, nil
+}
+
+// CloseStalledRun hands the stalled close to the manager verbatim: its
+// refusals are answers the run page renders inline.
+func (s tourneyService) CloseStalledRun(ctx context.Context, runID int64) error {
+	return s.m.CloseStalled(ctx, runID)
 }
 
 // RunSnapshot maps one run's whole detail onto the page shapes.

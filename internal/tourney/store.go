@@ -299,6 +299,31 @@ func (t *Store) FinishRun(ctx context.Context, runID int64, finishedAt int64) er
 	})
 }
 
+// CloseStalledRun flips one ongoing run row to finished without the
+// standings snapshot: the resolution path for a run whose drive died with
+// the process that owned it. The leaderboard keeps deriving live from the
+// games; the snapshot stays the artifact of a clean FinishRun. Zero rows
+// affected means the row stopped being ongoing between the caller's read
+// and this update, reported as already closed.
+func (t *Store) CloseStalledRun(ctx context.Context, runID int64, finishedAt int64) error {
+	return t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx,
+			`UPDATE tournament_runs SET status = ?, finished_at = ? WHERE id = ? AND status = ?`,
+			RunStateFinished, finishedAt, runID, RunStateOngoing)
+		if err != nil {
+			return fmt.Errorf("tourney: close stalled run %d: %w", runID, err)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("tourney: close stalled run %d: %w", runID, err)
+		}
+		if n == 0 {
+			return fmt.Errorf("tourney: run %d is no longer ongoing", runID)
+		}
+		return nil
+	})
+}
+
 // Schedule reads one run's series rows in pairing order: the conductor's map
 // from Pairings slots onto the persisted series ids CreateRun laid down.
 func (t *Store) Schedule(ctx context.Context, runID int64) ([]Series, error) {

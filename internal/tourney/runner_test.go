@@ -493,6 +493,36 @@ func TestConductorRunRefusals(t *testing.T) {
 	}
 }
 
+// TestConductorRefusesSecondOngoingRun pins the machine-wide run gate: with
+// any ongoing row in the store, a new run refuses with ErrRunInProgress
+// naming the holder before anything persists or any series starts.
+func TestConductorRefusesSecondOngoingRun(t *testing.T) {
+	ts, _ := newTestStore(t)
+	pointLogsAt(t)
+	src := &fakeSource{script: easySweeps}
+	ctx := context.Background()
+	held, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, rosterTwo())
+	if err != nil {
+		t.Fatalf("plant ongoing run: %v", err)
+	}
+
+	_, err = NewConductor(src).Run(ctx, ts, rosterTwo(),
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1)
+	var gate *RunInProgressError
+	if !errors.As(err, &gate) || gate.RunID != held.ID {
+		t.Fatalf("run error = %v, want RunInProgressError naming run %d", err, held.ID)
+	}
+	if !errors.Is(err, ErrRunInProgress) {
+		t.Errorf("run error = %v, want it to match ErrRunInProgress", err)
+	}
+	if n := countRows(t, ts.srv, `SELECT COUNT(*) FROM tournament_runs`); n != 1 {
+		t.Errorf("runs after the refusal = %d, want only the planted one", n)
+	}
+	if starts, _, _ := src.snapshot(); len(starts) != 0 {
+		t.Errorf("started = %d series after the refusal, want 0", len(starts))
+	}
+}
+
 func TestConductorDisqualifiesMissedEvents(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

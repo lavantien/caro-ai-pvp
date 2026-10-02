@@ -81,6 +81,22 @@ func (s roomStream) Close() {
 	s.room.Close()
 }
 
+// ErrRunInProgress refuses a second concurrent run: MachineCores budgets the
+// machine as a whole, so the first ongoing run holds the start gate until it
+// finishes or its stalled row is closed by hand.
+var ErrRunInProgress = errors.New("tourney: another run is in progress")
+
+// RunInProgressError names the ongoing run holding the gate; it matches
+// ErrRunInProgress under errors.Is while carrying the blocking run id for the
+// surfaces that render it.
+type RunInProgressError struct{ RunID int64 }
+
+func (e *RunInProgressError) Error() string {
+	return fmt.Sprintf("tourney: run %d is still ongoing, one run holds the machine at a time", e.RunID)
+}
+
+func (e *RunInProgressError) Unwrap() error { return ErrRunInProgress }
+
 // SeriesResult is one pairing's completed line of the RunResult.
 type SeriesResult struct {
 	PairingSlot   int
@@ -129,7 +145,8 @@ func (c *Conductor) Run(ctx context.Context, store *Store, roster []Participant,
 }
 
 // startRun is the synchronous half of a run: resolve the roster tiers, refuse
-// a core budget the machine cannot book, and persist the run. It returns
+// a core budget the machine cannot book, refuse while any run row is still
+// ongoing (the machine-wide run gate), and persist the run. It returns
 // once the run row exists, before any series starts, so the UI manager can
 // hand the id out for a redirect. Split from Run as the M7 service seam; the
 // conductor's behavior is unchanged.
@@ -142,6 +159,18 @@ func (c *Conductor) startRun(ctx context.Context, store *Store, roster []Partici
 	}
 	if err := checkCoreBudget(parallel, tiers); err != nil {
 		return Run{}, nil, err
+	}
+	// The machine-wide run gate: checkCoreBudget books against the whole
+	// machine per run, so two concurrent runs would silently double the
+	// booking. The gate reads the store immediately before the persist;
+	// two PROCESSES starting at the same instant can still both pass it (the
+	// status CHECK admits any number of ongoing rows and no schema change
+	// may fence that here), while two starts inside one process serialize
+	// on the manager's mutex and the second reads the first's row.
+	if id, held, err := store.OngoingRunID(ctx); err != nil {
+		return Run{}, nil, err
+	} else if held {
+		return Run{}, nil, &RunInProgressError{RunID: id}
 	}
 	run, err := store.CreateRun(ctx, tcIdx, boLen, startRating, roster)
 	if err != nil {

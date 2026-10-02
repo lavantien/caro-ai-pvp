@@ -202,6 +202,63 @@ func TestTourneyServiceAdapterDrivesAndMaps(t *testing.T) {
 	}
 }
 
+// TestTourneyServiceStartMapsRunGate pins the adapter's gate mapping: the
+// manager's refusal crosses the seam as the page sentinel naming the
+// blocking run, not a bare outage.
+func TestTourneyServiceStartMapsRunGate(t *testing.T) {
+	s := newTourneyStack(t, func(string, string) []server.Event { return hostSweep() })
+
+	// A planted ongoing row holds the machine-wide gate with no drive at
+	// all, the stalled shape a previous process leaves behind.
+	_, err := tourney.NewStore(s.store).CreateRun(context.Background(), 1,
+		config.SeriesBO3, config.TournamentStartRating, []tourney.Participant{
+			{Slot: 0, Name: "alpha", Tier: config.TierEasy.Name},
+			{Slot: 1, Name: "beta", Tier: config.TierEasy.Name},
+		})
+	if err != nil {
+		t.Fatalf("plant ongoing run: %v", err)
+	}
+
+	_, err = s.svc.StartRun(context.Background(), server.TourneySetup{
+		Seats: []server.TourneySeat{
+			{Slot: 0, Name: "alpha", Tier: config.TierEasy.Name},
+			{Slot: 1, Name: "beta", Tier: config.TierEasy.Name},
+		},
+		TCIdx: 1, BOLen: config.SeriesBO3,
+		StartRating: config.TournamentStartRating, Parallel: 1,
+	})
+	var blocked *server.TourneyBlockedError
+	if !errors.As(err, &blocked) || blocked.RunID != 1 {
+		t.Fatalf("start = %v, want TourneyBlockedError naming run 1", err)
+	}
+}
+
+// TestTourneyServiceCloseStalled drives the stalled close across the
+// adapter: a planted ongoing row this process never drove closes, and the
+// row reads back finished.
+func TestTourneyServiceCloseStalled(t *testing.T) {
+	s := newTourneyStack(t, func(string, string) []server.Event { return hostSweep() })
+	ctx := context.Background()
+	stalled, err := tourney.NewStore(s.store).CreateRun(ctx, 1,
+		config.SeriesBO3, config.TournamentStartRating, []tourney.Participant{
+			{Slot: 0, Name: "alpha", Tier: config.TierEasy.Name},
+			{Slot: 1, Name: "beta", Tier: config.TierEasy.Name},
+		})
+	if err != nil {
+		t.Fatalf("plant stalled run: %v", err)
+	}
+	if err := s.svc.CloseStalledRun(ctx, stalled.ID); err != nil {
+		t.Fatalf("close stalled run: %v", err)
+	}
+	snap, err := s.svc.RunSnapshot(ctx, stalled.ID)
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	if !snap.Run.Finished {
+		t.Errorf("run after the close = %+v, want finished", snap.Run)
+	}
+}
+
 func TestServeRootMuxMountsTournamentPages(t *testing.T) {
 	s := newTourneyStack(t, func(string, string) []server.Event { return hostSweep() })
 	muxSrv := httptest.NewServer(newRootMux(s.store, s.rooms, s.svc))

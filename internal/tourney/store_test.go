@@ -437,6 +437,57 @@ func TestAppendGameConcurrentUnits(t *testing.T) {
 	}
 }
 
+// TestOngoingRunIDAndCloseStalledRun pins the run gate's store half: the
+// oldest ongoing row is the gate's holder, and the stalled close flips one
+// ongoing row to finished without a standings snapshot, refusing whatever
+// is no longer ongoing.
+func TestOngoingRunIDAndCloseStalledRun(t *testing.T) {
+	ts, srv := newTestStore(t)
+	ctx := context.Background()
+
+	if id, held, err := ts.OngoingRunID(ctx); err != nil || held || id != 0 {
+		t.Fatalf("ongoing over a fresh store = (%d, %t, %v), want (0, false, nil)", id, held, err)
+	}
+	first, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2))
+	if err != nil {
+		t.Fatalf("create first: %v", err)
+	}
+	second, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2))
+	if err != nil {
+		t.Fatalf("create second: %v", err)
+	}
+	if id, held, err := ts.OngoingRunID(ctx); err != nil || !held || id != first.ID {
+		t.Fatalf("ongoing = (%d, %t, %v), want the oldest run %d", id, held, err, first.ID)
+	}
+
+	if err := ts.CloseStalledRun(ctx, 999, 1); err == nil {
+		t.Error("close of an unknown run succeeded, want refusal")
+	}
+	if err := ts.CloseStalledRun(ctx, first.ID, 111); err != nil {
+		t.Fatalf("close stalled run %d: %v", first.ID, err)
+	}
+	if err := ts.CloseStalledRun(ctx, first.ID, 222); err == nil {
+		t.Error("second close succeeded, want refusal")
+	}
+	var status string
+	var finishedAt sql.NullInt64
+	if err := srv.WithinTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx,
+			`SELECT status, finished_at FROM tournament_runs WHERE id = ?`, first.ID).Scan(&status, &finishedAt)
+	}); err != nil {
+		t.Fatalf("read closed run: %v", err)
+	}
+	if status != RunStateFinished || !finishedAt.Valid || finishedAt.Int64 != 111 {
+		t.Errorf("closed run = %s at %v, want finished at 111", status, finishedAt)
+	}
+	if id, held, err := ts.OngoingRunID(ctx); err != nil || !held || id != second.ID {
+		t.Fatalf("ongoing after the close = (%d, %t, %v), want run %d", id, held, err, second.ID)
+	}
+	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_standings`); n != 0 {
+		t.Errorf("standings after a stalled close = %d, want 0 (the snapshot stays a clean-finish artifact)", n)
+	}
+}
+
 func TestLeaderboardUnknownRun(t *testing.T) {
 	ts, _ := newTestStore(t)
 	if _, err := ts.Leaderboard(context.Background(), 999); !errors.Is(err, server.ErrNotFound) {

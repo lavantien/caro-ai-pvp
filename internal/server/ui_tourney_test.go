@@ -22,7 +22,7 @@ import (
 )
 
 // fakeTourney scripts TourneyService: the setups StartRun saw, the id it
-// hands back, and the reads the pages render.
+// hands back, the reads the pages render, and the stalled closes.
 type fakeTourney struct {
 	startErr     error
 	startID      int64
@@ -31,6 +31,8 @@ type fakeTourney struct {
 	snapErr      error
 	runSummaries []TourneyRunSummary
 	runsErr      error
+	closeErr     error
+	closed       []int64
 }
 
 func (f *fakeTourney) StartRun(_ context.Context, setup TourneySetup) (int64, error) {
@@ -39,6 +41,11 @@ func (f *fakeTourney) StartRun(_ context.Context, setup TourneySetup) (int64, er
 		return 0, f.startErr
 	}
 	return f.startID, nil
+}
+
+func (f *fakeTourney) CloseStalledRun(_ context.Context, runID int64) error {
+	f.closed = append(f.closed, runID)
+	return f.closeErr
 }
 
 func (f *fakeTourney) RunSnapshot(_ context.Context, runID int64) (TourneySnapshot, error) {
@@ -320,6 +327,112 @@ func TestTourneyRunStatesAndNotFound(t *testing.T) {
 	status, _, _ = doShell(t, c, http.MethodGet, errSrv.URL+"/tourney/run/7", "", nil)
 	if status != http.StatusInternalServerError {
 		t.Errorf("snapshot failure = %d, want 500", status)
+	}
+}
+
+// TestTourneyStartBlockedByOngoingRun pins the run gate's page shape: the
+// start handler renders the blocking run's id inline instead of a bare
+// outage.
+func TestTourneyStartBlockedByOngoingRun(t *testing.T) {
+	fake := &fakeTourney{startErr: &TourneyBlockedError{RunID: 4}}
+	srv, token := tourneySrv(t, fake)
+
+	status, _, body := doShell(t, noRedirectClient(srv), http.MethodPost, srv.URL+"/tourney", token, url.Values{
+		"tc": {"0"}, "bo": {strconv.Itoa(config.SeriesBO3)},
+		"rating":   {strconv.Itoa(config.TournamentStartRating)},
+		"parallel": {"1"}, "count": {"2"},
+		"name0": {"a"}, "tier0": {config.TierEasy.Name},
+		"name1": {"b"}, "tier1": {config.TierEasy.Name},
+	})
+	if status != http.StatusConflict {
+		t.Fatalf("blocked start = %d, want 409 (body %s)", status, body)
+	}
+	if !strings.Contains(body, `class="error"`) || !strings.Contains(body, "run 4") {
+		t.Errorf("blocked start body misses the blocking run id inline (body %s)", body)
+	}
+	if len(fake.started) != 1 {
+		t.Errorf("start calls = %d, want 1", len(fake.started))
+	}
+}
+
+// stalledSnapshot is a run no process drives: ongoing row, no drive, no
+// failure, one settled pairing.
+func stalledSnapshot() TourneySnapshot {
+	snap := liveSnapshot()
+	winner := 0
+	snap.Run.Running, snap.Run.Failure = false, ""
+	snap.Series = []TourneySeriesLine{
+		{PairingSlot: 0, RedFirstSlot: 0, BlueFirstSlot: 1, RedFirstWins: 2, BlueFirstWins: 0, WinnerSlot: &winner, Finished: true},
+		{PairingSlot: 1, RedFirstSlot: 1, BlueFirstSlot: 0},
+	}
+	return snap
+}
+
+// TestTourneyRunCloseForm pins the stalled state's close surface: the form
+// renders on the stalled page for members only, the POST is session-gated,
+// success bounces back onto the run page, and a refusal renders inline.
+func TestTourneyRunCloseForm(t *testing.T) {
+	fake := &fakeTourney{snapshot: stalledSnapshot()}
+	srv, token := tourneySrv(t, fake)
+	c := noRedirectClient(srv)
+	form := url.Values{}
+
+	// The form rides the stalled page for a member, not for a guest, and
+	// not on the other run states.
+	status, _, body := doShell(t, c, http.MethodGet, srv.URL+"/tourney/run/7", token, nil)
+	if status != http.StatusOK {
+		t.Fatalf("stalled run page: status = %d", status)
+	}
+	wantShellBody(t, body, `action="/tourney/run/7/close"`, ">stalled<")
+	status, _, body = doShell(t, c, http.MethodGet, srv.URL+"/tourney/run/7", "", nil)
+	if strings.Contains(body, "/close") {
+		t.Error("guest page carries the close form, want members only")
+	}
+	live := &fakeTourney{snapshot: liveSnapshot()}
+	liveSrv, _ := tourneySrv(t, live)
+	status, _, body = doShell(t, c, http.MethodGet, liveSrv.URL+"/tourney/run/7", token, nil)
+	if status != http.StatusOK || strings.Contains(body, "/close") {
+		t.Errorf("running run page carries the close form (status %d)", status)
+	}
+
+	// The POST bounces guests like every acting route.
+	status, h, _ := doShell(t, c, http.MethodPost, srv.URL+"/tourney/run/7/close", "", form)
+	if status != http.StatusSeeOther || h.Get("Location") != "/login" {
+		t.Errorf("guest close = %d %q, want 303 /login", status, h.Get("Location"))
+	}
+	if len(fake.closed) != 0 {
+		t.Fatalf("guest close reached the service %d times, want 0", len(fake.closed))
+	}
+
+	// A member's close lands and bounces back onto the run page.
+	status, h, _ = doShell(t, c, http.MethodPost, srv.URL+"/tourney/run/7/close", token, form)
+	if status != http.StatusSeeOther || h.Get("Location") != "/tourney/run/7" {
+		t.Errorf("member close = %d %q, want 303 back onto the run page", status, h.Get("Location"))
+	}
+	if len(fake.closed) != 1 || fake.closed[0] != 7 {
+		t.Errorf("closed = %v, want [7]", fake.closed)
+	}
+
+	// A refusal renders the reason inline on the run page.
+	fake.closeErr = errors.New("tourney: run 7: the run's drive is still live")
+	status, _, body = doShell(t, c, http.MethodPost, srv.URL+"/tourney/run/7/close", token, form)
+	if status != http.StatusConflict {
+		t.Fatalf("refused close = %d, want 409 (body %s)", status, body)
+	}
+	wantShellBody(t, body, `class="error"`, "still live")
+
+	// An unknown run stays the 404 page.
+	fake.closeErr = fmt.Errorf("tourney: run 7: %w", ErrNotFound)
+	status, _, _ = doShell(t, c, http.MethodPost, srv.URL+"/tourney/run/7/close", token, form)
+	if status != http.StatusNotFound {
+		t.Errorf("close of an unknown run = %d, want 404", status)
+	}
+	// A garbage id never reaches the service.
+	if code := func() int {
+		status, _, _ = doShell(t, c, http.MethodPost, srv.URL+"/tourney/run/abc/close", token, form)
+		return status
+	}(); code != http.StatusNotFound {
+		t.Errorf("close of a garbage id = %d, want 404", code)
 	}
 }
 

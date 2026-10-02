@@ -4,6 +4,16 @@
 <h2>tournament {{.Header.ID}} <span class="runstate">{{.Header.State}}</span></h2>
 <p class="meta"><span>{{.Header.When}}</span><span>{{.Header.TC}}</span><span>{{.Header.BO}}</span><span>start {{.Header.StartRating}}</span></p>
 {{if .Header.Failure}}<p class="error" role="alert">run failed: {{.Header.Failure}}</p>{{end}}
+{{if .CanClose}}
+<form class="tourneyform" method="post" action="/tourney/run/{{.RunID}}/close">
+<fieldset>
+<legend>stalled run</legend>
+<p class="meta">no process drives this run. closing its record keeps the leaderboard live from the games played; no finish snapshot is written.</p>
+<button>close run</button>
+</fieldset>
+</form>
+{{end}}
+{{if .CloseError}}<p class="error" role="alert">{{.CloseError}}</p>{{end}}
 <div id="tourboard" hx-get="/tourney/run/{{.RunID}}/board" hx-trigger="every {{.PollMs}}ms" hx-swap="innerHTML">
 {{template "tourboard" .Board}}
 </div>
