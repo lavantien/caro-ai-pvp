@@ -20,10 +20,10 @@ doctor:
 	echo "doctor: ok"
 
 fmt:
-	gofmt -w .
+	@gofmt -w $$(git ls-files '*.go')
 
 fmt-check:
-	@out=$$(gofmt -l .); \
+	@out=$$(gofmt -l $$(git ls-files '*.go')); \
 	if [ -n "$$out" ]; then printf '%s\n' "$$out"; echo "fmt-check: run make fmt"; exit 1; fi
 
 lint:
