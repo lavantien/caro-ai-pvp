@@ -168,6 +168,28 @@ func TestResourceCapsMatchHardwareBudget(t *testing.T) {
 	if TournamentParallelMatches*TierHard.TTBytes > 32<<30 {
 		t.Errorf("%d parallel hard matches need %d bytes, machine has 32GiB", TournamentParallelMatches, TournamentParallelMatches*TierHard.TTBytes)
 	}
+	if MachineCores != 8 {
+		t.Errorf("MachineCores = %d, want 8 (the run's live-search budget)", MachineCores)
+	}
+	if TournamentParallelMatches*TierHard.Cores > MachineCores {
+		t.Errorf("%d parallel rooms at %d live-search cores each need %d, MachineCores is %d",
+			TournamentParallelMatches, TierHard.Cores, TournamentParallelMatches*TierHard.Cores, MachineCores)
+	}
+}
+
+func TestTCIndexResolvesClockShape(t *testing.T) {
+	for i, tc := range TimeControls {
+		got, ok := TCIndex(tc.InitialSec, tc.IncrementSec)
+		if !ok || got != i {
+			t.Errorf("TCIndex(%d, %d) = %d, %t, want %d, true", tc.InitialSec, tc.IncrementSec, got, ok, i)
+		}
+	}
+	if _, ok := TCIndex(5, 3); ok {
+		t.Error("TCIndex(5, 3) resolved an unconfigured time control")
+	}
+	if _, ok := TCIndex(3, 0); ok {
+		t.Error("TCIndex(3, 0) resolved a mismatched increment")
+	}
 }
 
 func TestTournamentConstants(t *testing.T) {

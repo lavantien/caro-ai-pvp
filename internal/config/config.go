@@ -19,6 +19,17 @@ type TimeControl struct {
 
 var TimeControls = [...]TimeControl{{InitialSec: 1}, {InitialSec: 2, IncrementSec: 1}, {InitialSec: 3, IncrementSec: 2}}
 
+// TCIndex resolves a time control by its clock shape, so callers name "3+2"
+// instead of hardcoding table positions.
+func TCIndex(initialSec, incrementSec int) (int, bool) {
+	for i := range TimeControls {
+		if TimeControls[i].InitialSec == initialSec && TimeControls[i].IncrementSec == incrementSec {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
 // Clock law constants, all consumed by internal/clock. The budget for the
 // next move spreads the spendable remainder over the expected moves left,
 // adds a share of the increment, and lets a PID controller shape the result
@@ -82,6 +93,12 @@ const (
 	MaxCoresPerInstance       = 8
 	MaxRAMPerInstanceBytes    = 16 << 30
 	TournamentParallelMatches = 2
+	// MachineCores is the core budget one tournament run may book for live
+	// searches: TournamentParallelMatches rooms, one search at a time each
+	// (bot turns alternate), at the largest tier core count. The spec offers
+	// 8x2 cores in theory but pins the conductor to less, so the run refuses
+	// parallelism whose worst case exceeds this.
+	MachineCores = 8
 )
 
 // Tournament constants, all consumed by internal/tourney.
