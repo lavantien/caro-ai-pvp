@@ -82,3 +82,4 @@ internal/engine/search.go:249:16 replace 1 with 0 # equivalent: an IsFull draw n
 internal/engine/search.go:249:16 replace 1 with 2 # equivalent: ply+2 entries are impossible on a board that fills at ply p, so pvLen[ply+2] is 0 and the write is the same no-op
 internal/engine/search.go:261:11 replace 0 with -1 # equivalent: the stopped return is discarded, parents guard s with !e.stopped at 254 and return their own 0 before any store or update
 internal/engine/search.go:261:11 replace 0 with 1 # equivalent: same discard proof as the negamax stopped return at every call site
+internal/engine/eval.go:87:17 replace 0 with 1 # equivalent: weights are multiples of 100 so a delta of 1 is unreachable, and the delta==0 case the wider guard admits adds zero to both accumulators

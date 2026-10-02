@@ -13,7 +13,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-const usage = "usage: mutate [-pkgs comma,separated,patterns] [-timeout 30s] [-allow file]"
+const usage = "usage: mutate [-pkgs comma,separated,patterns] [-timeout 30s] [-allow file] [-resume prior-run.log]"
 
 func splitPkgs(s string) []string {
 	var out []string
@@ -46,9 +46,21 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 	pkgs := fs.String("pkgs", config.MutatePackages, "comma-separated package patterns to mutate")
 	timeout := fs.Duration("timeout", time.Duration(config.MutateTimeoutMs)*time.Millisecond, "per-mutant test timeout")
 	allowPath := fs.String("allow", "", "equivalence allowlist, one 'file:line:col descriptor # proof' entry per line; empty or missing file means no allowances")
+	resumePath := fs.String("resume", "", "prior run log whose KILLED verdicts are replayed instead of re-run, for continuing a gate after a host failure")
 	if err := fs.Parse(args); err != nil || fs.NArg() > 0 {
 		_, _ = fmt.Fprintln(stderr, usage)
 		return 2
+	}
+	resumeKilled := map[string]bool{}
+	if *resumePath != "" {
+		rf, rerr := os.Open(*resumePath)
+		if rerr != nil {
+			_, _ = fmt.Fprintln(stderr, "mutate:", rerr)
+			return 2
+		}
+		resumeKilled = loadResumeLog(rf)
+		_ = rf.Close()
+		_, _ = fmt.Fprintf(stdout, "mutate: resuming, %d prior kills replayed\n", len(resumeKilled))
 	}
 	patterns := splitPkgs(*pkgs)
 	if len(patterns) == 0 || *timeout < time.Duration(config.MutateMinTimeoutMs)*time.Millisecond {
@@ -62,7 +74,7 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	res, err := runMutation(ctx, stdout, workDir, patterns, execRunner{dir: workDir, timeout: *timeout}, allows)
+	res, err := runMutation(ctx, stdout, workDir, patterns, execRunner{dir: workDir, timeout: *timeout}, allows, resumeKilled)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "mutate:", err)
 	}

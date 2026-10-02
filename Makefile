@@ -1,7 +1,7 @@
 BINARY := bin/caro
 COVERPROFILE := coverage.out
 
-.PHONY: all doctor fmt fmt-check lint vet build test test-race cover bench fuzz mutate run migrate firewall tidy ci
+.PHONY: all doctor fmt fmt-check lint vet build test test-race cover bench fuzz mutate mutate-resume run migrate firewall tidy ci
 
 all: build
 
@@ -55,6 +55,11 @@ fuzz:
 
 mutate:
 	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow
+
+# mutate-resume LOG=prior-run.log continues a gate after a host failure:
+# prior KILLED verdicts are replayed, everything else is re-decided fresh.
+mutate-resume:
+	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -resume $(LOG)
 
 run:
 	CGO_ENABLED=1 go run ./cmd/caro $(or $(ARGS),ports)

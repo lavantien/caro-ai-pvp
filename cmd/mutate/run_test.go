@@ -125,7 +125,7 @@ func TestExecuteMutantsClassifiesAndRestores(t *testing.T) {
 	}
 	r := &fakeRunner{failPkg: map[string]bool{"pa": true}}
 	var out strings.Builder
-	res, err := executeMutants(context.Background(), &out, dir, ms, store, r, nil)
+	res, err := executeMutants(context.Background(), &out, dir, ms, store, r, nil, nil)
 	if err != nil {
 		t.Fatalf("executeMutants err = %v", err)
 	}
@@ -175,7 +175,7 @@ func TestExecuteMutantsInterruptedBeforeStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	r := &fakeRunner{}
-	res, err := executeMutants(ctx, &strings.Builder{}, dir, ms, store, r, nil)
+	res, err := executeMutants(ctx, &strings.Builder{}, dir, ms, store, r, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "interrupted") {
 		t.Errorf("err = %v, want interrupted", err)
 	}
@@ -188,6 +188,57 @@ func TestExecuteMutantsInterruptedBeforeStart(t *testing.T) {
 	got, rerr := os.ReadFile(path)
 	if rerr != nil || !strings.Contains(string(got), "package p") {
 		t.Errorf("file mutated despite interrupt: %q, err %v", got, rerr)
+	}
+}
+
+func TestLoadResumeLog(t *testing.T) {
+	log := "" +
+		"CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow\n" +
+		"internal/engine/tt.go:118:10 replace 0 with -1 KILLED\n" +
+		"internal/engine/tt.go:118:10 replace 0 with 1 SURVIVED\n" +
+		"internal/engine/bitboard.go:63:8 replace < with <= ALLOWED # proof text\n" +
+		"mutate: 1483/1483 run, 1410 killed, 4 survived, 69 allowed\n" +
+		"garbage line without verdict\n"
+	got := loadResumeLog(strings.NewReader(log))
+	want := map[string]bool{"internal/engine/tt.go:118:10 replace 0 with -1": true}
+	if len(got) != len(want) {
+		t.Fatalf("loadResumeLog = %v, want only the killed key %v", got, want)
+	}
+	for k := range want {
+		if !got[k] {
+			t.Errorf("killed key %q missing from resume set", k)
+		}
+	}
+}
+
+func TestExecuteMutantsResumesKilledOnly(t *testing.T) {
+	dir := t.TempDir()
+	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	if len(ms) < 2 {
+		t.Fatalf("need >= 2 mutants, got %d", len(ms))
+	}
+	store := newFileStore()
+	if err := store.snapshot([]string{path}); err != nil {
+		t.Fatalf("snapshot err = %v", err)
+	}
+	r := &fakeRunner{}
+	var out strings.Builder
+	res, err := executeMutants(context.Background(), &out, dir, ms, store, r, nil, map[string]bool{ms[1].key(dir): true})
+	if err != nil {
+		t.Fatalf("executeMutants err = %v", err)
+	}
+	if res.total != len(ms) || res.run != len(ms) {
+		t.Errorf("total/run = %d/%d, want %d/%d", res.total, res.run, len(ms), len(ms))
+	}
+	if res.killed != 1 || res.survived != len(ms)-1 {
+		t.Errorf("killed/survived = %d/%d, want 1/%d", res.killed, res.survived, len(ms)-1)
+	}
+	if len(r.calls) != len(ms)-1 {
+		t.Errorf("runner calls = %d, want %d: resumed keys must not re-run", len(r.calls), len(ms)-1)
+	}
+	s := out.String()
+	if !strings.Contains(s, ms[1].key(dir)+" KILLED\n") {
+		t.Errorf("output missing replayed killed line:\n%s", s)
 	}
 }
 
@@ -209,7 +260,7 @@ func TestExecuteMutantsBadEditsFail(t *testing.T) {
 	if err := store.snapshot([]string{path}); err != nil {
 		t.Fatalf("snapshot err = %v", err)
 	}
-	res, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, &fakeRunner{}, nil)
+	res, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, &fakeRunner{}, nil, nil)
 	if err == nil {
 		t.Fatal("executeMutants(bad edits) err = nil, want error")
 	}
@@ -231,7 +282,7 @@ func TestExecuteMutantsMutantWriteFails(t *testing.T) {
 	if err := os.Mkdir(path, 0o755); err != nil {
 		t.Fatalf("Mkdir err = %v", err)
 	}
-	res, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, &fakeRunner{}, nil)
+	res, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, &fakeRunner{}, nil, nil)
 	if err == nil {
 		t.Fatal("executeMutants(unwritable target) err = nil, want write error")
 	}
@@ -255,7 +306,7 @@ func TestExecuteMutantsRestoreWriteFails(t *testing.T) {
 			t.Errorf("Mkdir err = %v", err)
 		}
 	}}
-	res, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, r, nil)
+	res, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, r, nil, nil)
 	if err == nil {
 		t.Fatal("executeMutants(restore unwritable) err = nil, want write error")
 	}
@@ -307,7 +358,7 @@ func TestExecuteMutantsInterruptMidRun(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &fakeRunner{onCall: func(context.Context) { cancel() }}
-	res, err := executeMutants(ctx, &strings.Builder{}, dir, ms, store, r, nil)
+	res, err := executeMutants(ctx, &strings.Builder{}, dir, ms, store, r, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "interrupted") {
 		t.Errorf("err = %v, want interrupted", err)
 	}

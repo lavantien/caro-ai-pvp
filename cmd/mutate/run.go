@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -117,7 +118,24 @@ func displayPath(workDir, path string) string {
 	return filepath.ToSlash(rel)
 }
 
-func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mutation, store *fileStore, r runner, allows allowlist) (res result, err error) {
+// loadResumeLog reads a prior run log and collects the keys that ended as
+// KILLED. Those verdicts are replayed verbatim on a resume: the tree is
+// unchanged between segments, and the suite only ever grows, so a killed
+// mutant stays killed. Survivors and allows are re-decided fresh by the
+// current suite and allowlist.
+func loadResumeLog(r io.Reader) map[string]bool {
+	resumed := map[string]bool{}
+	sc := bufio.NewScanner(r)
+	for sc.Scan() {
+		line := sc.Text()
+		if key, ok := strings.CutSuffix(line, " KILLED"); ok && key != line {
+			resumed[key] = true
+		}
+	}
+	return resumed
+}
+
+func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mutation, store *fileStore, r runner, allows allowlist, resumeKilled map[string]bool) (res result, err error) {
 	res.total = len(ms)
 	pending := allows.clone()
 	defer func() {
@@ -128,6 +146,13 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 	for _, m := range ms {
 		if ctx.Err() != nil {
 			return res, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
+		}
+		key := m.key(workDir)
+		if resumeKilled[key] {
+			res.run++
+			res.killed++
+			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdictKilled)
+			continue
 		}
 		orig := store.orig[m.file]
 		mutated, aerr := applyEdits(orig, m.edits)
@@ -145,7 +170,6 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 		if ctx.Err() != nil {
 			return res, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
 		}
-		key := m.key(workDir)
 		if verdict := classify(testErr); verdict == verdictKilled {
 			res.killed++
 			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdict)
@@ -164,7 +188,7 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 	return res, nil
 }
 
-func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, r runner, allows allowlist) (result, error) {
+func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, r runner, allows allowlist, resumeKilled map[string]bool) (result, error) {
 	present := patterns[:0]
 	for _, p := range patterns {
 		if strings.HasPrefix(p, "./") {
@@ -206,5 +230,5 @@ func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []
 	if err := store.snapshot(paths); err != nil {
 		return result{}, err
 	}
-	return executeMutants(ctx, out, workDir, ms, store, r, allows)
+	return executeMutants(ctx, out, workDir, ms, store, r, allows, resumeKilled)
 }
