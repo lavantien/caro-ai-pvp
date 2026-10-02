@@ -238,7 +238,14 @@ func (p *shellPages) roomViews() []roomCardView {
 		v := roomCardView{
 			ID: info.ID, ShortID: info.ID[:8],
 			TC: tcLabel(info.TCIdx), BO: "bo" + strconv.Itoa(info.BOLen),
-			State: info.State.String(), Host: p.seatName(info.HostUserID),
+			State: info.State.String(),
+		}
+		// A bot host renders by tier like a bot guest; seatName's numeric
+		// fallback must never leak a synthetic seat id.
+		if info.HostBotTier != "" {
+			v.Host = "AI " + info.HostBotTier
+		} else {
+			v.Host = p.seatName(info.HostUserID)
 		}
 		switch {
 		case info.VsBotTier != "":

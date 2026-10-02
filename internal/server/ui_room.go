@@ -238,11 +238,18 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 		CanForfeit: true, BoardSize: config.BoardSize,
 		KindsCSV: strings.Join(spikeEventKinds, ","),
 	}
-	hostName, err := p.userName(info.HostUserID)
-	if err != nil {
-		return roomView{}, err
+	// A bot host has no user row: the tier is the name, and a store lookup
+	// of the synthetic id would read as a missing account and fail the
+	// page. Bot guests render the same way through guestName.
+	if info.HostBotTier != "" {
+		view.HostName = "AI " + info.HostBotTier
+	} else {
+		hostName, err := p.userName(info.HostUserID)
+		if err != nil {
+			return roomView{}, err
+		}
+		view.HostName = hostName
 	}
-	view.HostName = hostName
 	view.GuestName = p.guestName(info)
 
 	viewer, ok, err := p.viewerOf(r)

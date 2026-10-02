@@ -40,6 +40,8 @@ var (
 	// ErrBadOwner rejects room creation for a non-positive user id: SQLite
 	// ids start at 1 and 0 doubles as "guest seat still open".
 	ErrBadOwner = errors.New("server: room owner must be a positive user id")
+	// ErrBadTier rejects a bot-vs-bot create without both tiers seated.
+	ErrBadTier = errors.New("server: bot-vs-bot needs both tiers")
 )
 
 // roomIDBytes sizes the crypto/rand room id: 128 bits hex-encoded, long
@@ -47,12 +49,16 @@ var (
 // resolved.
 const roomIDBytes = 16
 
-// botGuestUserID is the synthetic seat id of a bot guest. The Series machine
-// demands two distinct int64 sides and SQLite user ids are positive, so a
-// negative constant can never collide with a real account. Bot rooms persist
-// nothing (Scenario 2 keeps a separate tournament rating space and record
-// ownership), so the id never reaches a foreign key.
-const botGuestUserID int64 = -2
+// The synthetic seat ids of bots: the guest and, for Scenario 2's
+// bot-vs-bot matchups, the host. The Series machine demands two distinct
+// int64 sides and SQLite user ids are positive, so two distinct negative
+// constants can never collide with a real account. Bot rooms persist nothing
+// (Scenario 2 keeps a separate tournament rating space and record
+// ownership), so the ids never reach a foreign key.
+const (
+	botGuestUserID int64 = -2
+	botHostUserID  int64 = -3
+)
 
 // seat is one side of a room: a real user id, or a bot tier when bot is set.
 type seat struct {
@@ -69,10 +75,18 @@ type RoomManager struct {
 	hub   *Hub
 	store *Store
 	wq    *WriteQueue
+	// makeSearcher is the engine factory every new room starts from. A
+	// manager-level seam rather than a per-room one because a bot-vs-bot
+	// game 1 starts inside CreateBotVsBot, before any per-room override
+	// could land; set before the first room exists.
+	makeSearcher func(config.Tier) searcher
 }
 
 func NewRoomManager(hub *Hub, store *Store, wq *WriteQueue) *RoomManager {
-	return &RoomManager{rooms: make(map[string]*Room), hub: hub, store: store, wq: wq}
+	return &RoomManager{
+		rooms: make(map[string]*Room), hub: hub, store: store, wq: wq,
+		makeSearcher: newBotSearcher,
+	}
 }
 
 // Create opens a room owned by ownerUserID under the given settings, with a
@@ -97,7 +111,7 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 		id: newRoomID(), hub: rm.hub, store: rm.store, wq: rm.wq, manager: rm,
 		tcIdx: tcIdx, boLen: boLen, createdAt: time.Now(),
 		host: seat{userID: ownerUserID}, guest: guest,
-		makeSearcher: newBotSearcher,
+		makeSearcher: rm.makeSearcher,
 		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
 	}
 	if vsBot != nil {
@@ -112,6 +126,51 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 	rm.mu.Lock()
 	rm.rooms[r.id] = r
 	rm.mu.Unlock()
+	return r, nil
+}
+
+// CreateBotVsBot opens the Scenario 2 tournament surface: a live room whose
+// host seat is a bot too, game 1 running the moment the room publishes. Bot
+// handshakes are instant, so both seats ready here and the second one walks
+// Room.Ready's own Created-to-Ready transition, the exact path a human room
+// drives. The settings validate through NewSeries like Create, the room
+// persists nothing (seriesID stays 0), and no player rating is touched.
+func (rm *RoomManager) CreateBotVsBot(hostTier, guestTier *config.Tier, tcIdx, boLen int) (*Room, error) {
+	if hostTier == nil || guestTier == nil {
+		return nil, ErrBadTier
+	}
+	series, err := NewSeries(botHostUserID, botGuestUserID, tcIdx, boLen)
+	if err != nil {
+		return nil, err
+	}
+	r := &Room{
+		id: newRoomID(), hub: rm.hub, store: rm.store, wq: rm.wq, manager: rm,
+		tcIdx: tcIdx, boLen: boLen, createdAt: time.Now(),
+		host:         seat{userID: botHostUserID, bot: hostTier},
+		guest:        seat{userID: botGuestUserID, bot: guestTier},
+		makeSearcher: rm.makeSearcher,
+		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
+	}
+	r.mu.Lock()
+	r.series = series
+	r.mu.Unlock()
+	// Ready cannot fail on a fresh series: both ids seat here and no
+	// terminal state exists yet.
+	if err := r.Ready(botHostUserID); err != nil {
+		return nil, err
+	}
+	if err := r.Ready(botGuestUserID); err != nil {
+		return nil, err
+	}
+	// Published before the worker starts, the reverse of Create's order:
+	// game 1 is already live, so a scripted sweep could retire within
+	// microseconds and a retirement ahead of registration would resurrect
+	// a dead room on the grid. Create is safe either way only because its
+	// game cannot start until the human host readies.
+	rm.mu.Lock()
+	rm.rooms[r.id] = r
+	rm.mu.Unlock()
+	r.startBotWorker()
 	return r, nil
 }
 
@@ -177,6 +236,7 @@ type RoomInfo struct {
 	TCIdx       int
 	BOLen       int
 	State       SeriesState
+	HostBotTier string
 	VsBotTier   string
 	HostWins    int
 	GuestWins   int
@@ -306,7 +366,7 @@ func (r *Room) Info() (RoomInfo, bool) {
 	info := RoomInfo{
 		ID: r.id, HostUserID: r.host.userID, GuestUserID: r.guest.userID,
 		TCIdx: r.tcIdx, BOLen: r.boLen, CreatedAt: r.createdAt,
-		VsBotTier: botTierName(r.guest.bot),
+		HostBotTier: botTierName(r.host.bot), VsBotTier: botTierName(r.guest.bot),
 	}
 	if r.series == nil {
 		info.State = SeriesCreated

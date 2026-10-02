@@ -55,6 +55,7 @@ const (
 //	ErrBadTimeControl        bad_request       400  settings the config hubs reject
 //	ErrBadSeriesLength       bad_request       400
 //	ErrSamePlayer            bad_request       400  the host joining its own room
+//	ErrBadTier               bad_request       400  nil tier on a bot-vs-bot create
 //	malformed body or cell   bad_request       400  decode and rules.ParseCell failures
 //	ErrNotParticipant        not_participant   403
 //	ErrRoomNotFound          room_not_found    404
@@ -90,7 +91,8 @@ func errorResponse(err error) (code string, status int) {
 	case errors.Is(err, ErrBadTimeControl),
 		errors.Is(err, ErrBadSeriesLength),
 		errors.Is(err, ErrSamePlayer),
-		errors.Is(err, ErrBadOwner):
+		errors.Is(err, ErrBadOwner),
+		errors.Is(err, ErrBadTier):
 		return codeBadRequest, http.StatusBadRequest
 	default:
 		return codeInternal, http.StatusInternalServerError
@@ -146,6 +148,7 @@ type roomSummary struct {
 	TCIdx       int    `json:"tcIdx"`
 	BOLen       int    `json:"boLen"`
 	State       string `json:"state"`
+	HostBotTier string `json:"hostBotTier,omitempty"`
 	VsBotTier   string `json:"vsBotTier,omitempty"`
 	HostWins    int    `json:"hostWins"`
 	GuestWins   int    `json:"guestWins"`
@@ -451,7 +454,8 @@ func roomSummaryOf(info RoomInfo) roomSummary {
 	return roomSummary{
 		ID: info.ID, HostUserID: info.HostUserID, GuestUserID: info.GuestUserID,
 		TCIdx: info.TCIdx, BOLen: info.BOLen, State: info.State.String(),
-		VsBotTier: info.VsBotTier, HostWins: info.HostWins, GuestWins: info.GuestWins,
+		HostBotTier: info.HostBotTier, VsBotTier: info.VsBotTier,
+		HostWins: info.HostWins, GuestWins: info.GuestWins,
 		CreatedAt: info.CreatedAt.Unix(),
 	}
 }
