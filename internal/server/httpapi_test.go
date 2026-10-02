@@ -524,12 +524,12 @@ type sseReader struct {
 	keepalives int
 }
 
-// openSSE opens one room's event stream on a bounded context; the body and
-// the context close through the test cleanup, and the cancel func is
-// returned for explicit client-disconnect tests.
-func openSSE(t *testing.T, c *http.Client, url string) (*sseReader, context.CancelFunc) {
+// openSSE opens one room's event stream on a context bounded by timeout;
+// the body and the context close through the test cleanup, and the cancel
+// func is returned for explicit client-disconnect tests.
+func openSSE(t *testing.T, c *http.Client, url string, timeout time.Duration) (*sseReader, context.CancelFunc) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		cancel()
@@ -601,7 +601,7 @@ func TestHTTPSSEStreamsSeriesToCleanClose(t *testing.T) {
 	base := srv.URL + "/api/rooms/" + room.ID
 
 	// The guest opens the stream before the handshake, no session involved.
-	sr, _ := openSSE(t, c, base+"/events")
+	sr, _ := openSSE(t, c, base+"/events", 15*time.Second)
 	got = doJSON(t, c, http.MethodPost, base+"/join", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
 	got = doJSON(t, c, http.MethodPost, base+"/ready", ta, nil)
@@ -671,7 +671,7 @@ func TestHTTPSSECleanCloseWhenHubEndsSubscription(t *testing.T) {
 	got = doJSON(t, c, http.MethodPost, base+"/ready", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
 
-	sr, _ := openSSE(t, c, base+"/events")
+	sr, _ := openSSE(t, c, base+"/events", 15*time.Second)
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
 	wantStatus(t, got, http.StatusNoContent, nil)
 	f, ok := sr.next(t)
@@ -731,7 +731,7 @@ func TestHTTPSSEClientDisconnectEndsStream(t *testing.T) {
 
 	// The spectator leaves mid-stream: the request context done arm must
 	// release the handler, not park it on the keepalive ticker.
-	sr, cancel := openSSE(t, c, base+"/events")
+	sr, cancel := openSSE(t, c, base+"/events", 15*time.Second)
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
 	wantStatus(t, got, http.StatusNoContent, nil)
 	f, ok := sr.next(t)
@@ -774,6 +774,44 @@ func TestHTTPSSEMidRetirementRoomRefused(t *testing.T) {
 	wantAPIError(t, got, http.StatusConflict, "room_closed")
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms/"+room.ID, "", nil)
 	wantAPIError(t, got, http.StatusConflict, "room_closed")
+}
+
+// TestHTTPSSEStreamEndsWhenRoomRetiresMidStream pins the subscribe-before-
+// liveness ordering: a room retired after the stream is established (here
+// through Room.Close, which publishes no event, the exact state an
+// eventless retirement leaves) must end the stream, not park it on
+// keepalive frames forever.
+func TestHTTPSSEStreamEndsWhenRoomRetiresMidStream(t *testing.T) {
+	s := newStack(t)
+	api := &apiServer{store: s.store, rooms: s.rm, keepalive: 20 * time.Millisecond}
+	srv := httptest.NewServer(api.routes())
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	ta := mintSession(t, s.store, alice)
+
+	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+	var room roomSummary
+	wantStatus(t, got, http.StatusCreated, &room)
+
+	// Headers back means the handler is inside the stream loop already.
+	sr, _ := openSSE(t, c, srv.URL+"/api/rooms/"+room.ID+"/events", 5*time.Second)
+
+	// Retire the room out from under the live stream without any hub event.
+	r, err := s.rm.Get(room.ID)
+	if err != nil {
+		t.Fatalf("get room: %v", err)
+	}
+	r.Close()
+
+	// The stream must end on its own (plain EOF) well inside the request
+	// deadline; a handler parked on keepalives only ends when the context
+	// cuts it, which the next read reports as an error instead.
+	f, ok := sr.next(t)
+	if ok {
+		t.Fatalf("frame %+v after the retirement, want the plain stream end", f)
+	}
 }
 
 // historyMoves builds n distinct in-board cells for a seeded moves blob.

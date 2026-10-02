@@ -339,16 +339,20 @@ func (a *apiServer) handleRoomDetail(w http.ResponseWriter, r *http.Request) {
 // the hub ends the subscription (eviction or hub close), or when the client
 // goes away. A spectator of a retired room reconnects and re-syncs from
 // GET /api/rooms, which is why an eviction needs no error frame.
+//
+// The subscription is registered before the room's liveness is checked: a
+// completion landing between the manager lookup and the register retires
+// the room after its terminal event was published, so checking first would
+// miss the event and park the stream on keepalives forever. A room already
+// over at the recheck answers the 409 envelope; one that retires later
+// without this stream seeing the terminal event (an out-of-band close, or
+// a retirement whose event predates the register) is caught by the
+// liveness probe riding the keepalive tick, which delivers whatever is
+// still buffered below the terminal frame and then ends the stream with a
+// plain EOF.
 func (a *apiServer) handleRoomEvents(w http.ResponseWriter, r *http.Request) {
 	room, ok := a.roomFromRequest(w, r)
 	if !ok {
-		return
-	}
-	// A room caught mid-retirement (still in the manager map, already over)
-	// would otherwise stream keepalives forever: its series event happened
-	// before this subscription existed.
-	if _, live := room.Info(); !live {
-		writeError(w, http.StatusConflict, codeRoomClosed, ErrRoomClosed.Error())
 		return
 	}
 	sub, err := room.Subscribe()
@@ -357,6 +361,10 @@ func (a *apiServer) handleRoomEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer sub.Unsubscribe()
+	if _, live := room.Info(); !live {
+		writeError(w, http.StatusConflict, codeRoomClosed, ErrRoomClosed.Error())
+		return
+	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.WriteHeader(http.StatusOK)
@@ -364,24 +372,43 @@ func (a *apiServer) handleRoomEvents(w http.ResponseWriter, r *http.Request) {
 	_ = rc.Flush()
 	ticker := time.NewTicker(a.keepalive)
 	defer ticker.Stop()
+	// deliver writes one event frame and reports whether the stream is
+	// done: hub end, a client that stopped reading, or the series frame.
+	deliver := func(ev Event, open bool) bool {
+		if !open || !writeSSEFrame(w, ev) {
+			return true
+		}
+		_ = rc.Flush()
+		return ev.Kind == EventKindSeries
+	}
 	for {
 		select {
 		case ev, open := <-sub.Events():
-			if !open {
-				return
-			}
-			if !writeSSEFrame(w, ev) {
-				return
-			}
-			_ = rc.Flush()
-			if ev.Kind == EventKindSeries {
+			if deliver(ev, open) {
 				return
 			}
 		case <-ticker.C:
-			if _, err := io.WriteString(w, sseKeepaliveComment); err != nil {
-				return
+			if _, live := room.Info(); live {
+				if _, err := io.WriteString(w, sseKeepaliveComment); err != nil {
+					return
+				}
+				_ = rc.Flush()
+				continue
 			}
-			_ = rc.Flush()
+			// The room retired without a terminal frame reaching this
+			// stream. Events published before the retirement flag flipped
+			// may still sit in the buffer: deliver them (returning on the
+			// series frame), then end with the plain EOF of an eviction.
+			for {
+				select {
+				case ev, open := <-sub.Events():
+					if deliver(ev, open) {
+						return
+					}
+				default:
+					return
+				}
+			}
 		case <-r.Context().Done():
 			return
 		}
