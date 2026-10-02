@@ -84,6 +84,12 @@ func TestClockLawConstants(t *testing.T) {
 	if SearchMinMoveTimeMs <= 0 || SearchSafetyMarginMs <= 0 {
 		t.Errorf("floor %d and reserve %d must both be positive", SearchMinMoveTimeMs, SearchSafetyMarginMs)
 	}
+	if SearchClockQuantumMs < 15 || SearchClockQuantumMs > 17 {
+		t.Errorf("SearchClockQuantumMs = %d, want the 64 Hz Windows tick ceiling 16", SearchClockQuantumMs)
+	}
+	if SearchMinMoveTimeMs >= SearchClockQuantumMs {
+		t.Errorf("floor %d must sit under one clock quantum %d so the minimum grant keeps soft-stop protection", SearchMinMoveTimeMs, SearchClockQuantumMs)
+	}
 }
 
 func TestSeriesMatchSpec(t *testing.T) {

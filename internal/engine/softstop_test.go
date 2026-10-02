@@ -19,6 +19,7 @@ func softLimit(budget time.Duration) time.Duration {
 // kill every comparison operator and comparison-target mutant.
 func TestSoftStopRule(t *testing.T) {
 	big := 10 * time.Millisecond
+	huge := 100 * time.Millisecond
 	cases := [...]struct {
 		name      string
 		elapsed   time.Duration
@@ -32,9 +33,13 @@ func TestSoftStopRule(t *testing.T) {
 		{"nothing banked never stops at the budget", big, big, 0, false},
 		{"nothing banked never stops past the budget", 2 * big, big, 0, false},
 		{"zero budget stops once banked", 1, 0, 1, true},
-		{"zero budget at zero elapsed starts", 0, 0, 1, false},
+		{"zero budget at zero elapsed stops too", 0, 0, 1, true},
 		{"zero budget nothing banked never stops", 1, 0, 0, false},
 		{"deep progress past the limit stops", 2 * big, big, 9, true},
+		{"zero elapsed stops when one quantum blows the limit", 0, big, 1, true},
+		{"negative elapsed is treated as one quantum", -1, big, 1, true},
+		{"zero elapsed starts when the limit holds a full quantum", 0, huge, 1, false},
+		{"nothing banked never stops at zero elapsed", 0, big, 0, false},
 	}
 	for _, tc := range cases {
 		if got := softStop(tc.elapsed, tc.budget, tc.completed); got != tc.want {
@@ -179,14 +184,58 @@ func TestSMPWorkerSoftStopStopsAtHead(t *testing.T) {
 	s.halt.Store(false)
 	s.haltDL.inner = newBudgetDeadline(scaledBudget(500*time.Millisecond), time.Nanosecond)
 	s.runWorker(w, b, res)
-	if res.completed < 1 {
-		t.Fatalf("completed = %d, want at least the immune depth 1", res.completed)
-	}
-	if res.completed >= config.SearchMaxPly {
-		t.Errorf("completed = %d, the ladder must stop at an iteration head, not run to the cap", res.completed)
+	if res.completed != 1 {
+		t.Fatalf("completed = %d, want exactly 1: a nanosecond grant refuses the head after the first banked iteration on every clock, quantized or not", res.completed)
 	}
 	if w.stopped {
 		t.Error("hard deadline aborted a partial iteration inside a window it never reached")
+	}
+}
+
+// TestSoftStopQuantumGuardHoldsSingleThread is the clock-quantum killer: on
+// the 64 Hz Windows timer a zero time.Since reading can hide a whole tick,
+// which once let the consult open iterations past a nanosecond grant until
+// the hard window burned. With the quantum rule the search returns after the
+// first banked iteration no matter what the clock reads.
+func TestSoftStopQuantumGuardHoldsSingleThread(t *testing.T) {
+	b := midgameBoard(t)
+	window := scaledBudget(250 * time.Millisecond)
+	e := New(testTTBytes)
+	start := time.Now()
+	mv, stats := e.Search(b, newBudgetDeadline(window, time.Nanosecond))
+	elapsed := time.Since(start)
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("quantum-guarded search returned illegal move %d", mv)
+	}
+	if stats.Depth != 1 {
+		t.Errorf("depth = %d, want exactly 1: the head after the first banked iteration must be refused on every clock", stats.Depth)
+	}
+	if elapsed >= window/2 {
+		t.Errorf("elapsed %v burned toward the %v hard window: the quantum guard must hold it", elapsed, window)
+	}
+}
+
+// TestSoftStopQuantumGuardHoldsSMP repeats the killer across the pool: no
+// worker may open a second iteration under a nanosecond grant, so the job
+// returns in the depth 1 cost range, never near the hard window.
+func TestSoftStopQuantumGuardHoldsSMP(t *testing.T) {
+	b := midgameBoard(t)
+	window := scaledBudget(250 * time.Millisecond)
+	s := newSMP(4, testTTBytes)
+	defer s.Close()
+	for job := range 8 {
+		start := time.Now()
+		mv, stats := s.Search(b, newBudgetDeadline(window, time.Nanosecond))
+		elapsed := time.Since(start)
+		if !b.IsLegal(rules.Cell(mv)) {
+			t.Fatalf("job %d returned illegal move %d", job, mv)
+		}
+		if stats.Depth > 2 {
+			t.Errorf("job %d depth = %d, want at most 2 banked iterations under a nanosecond grant", job, stats.Depth)
+		}
+		if elapsed >= window/2 {
+			t.Errorf("job %d elapsed %v burned toward the %v hard window: the quantum guard must hold it", job, elapsed, window)
+		}
 	}
 }
 

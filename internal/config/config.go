@@ -134,6 +134,10 @@ const (
 	SearchSoftStopFraction  = 0.65
 	SearchSafetyMarginMs    = 120
 	SearchMinMoveTimeMs     = 10
+	// SearchClockQuantumMs is the ceiling of one monotonic-clock tick on
+	// the coarsest supported host (the 64 Hz Windows default timer): a
+	// zero time.Since reading can hide up to this much real elapsed time.
+	SearchClockQuantumMs = 16
 )
 
 const (

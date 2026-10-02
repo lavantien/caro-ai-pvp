@@ -96,10 +96,19 @@ func (e *Engine) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.M
 // softStop reports whether a new iteration must not start: one iteration is
 // already banked, so a legal move exists beyond the fallback, and elapsed
 // time is strictly past the soft fraction of the granted budget. Exactly at
-// the limit the iteration still starts. Pure and allocation free; consulted
-// at iteration heads only.
+// the limit the iteration still starts. A zero elapsed reading after a
+// completed iteration proves nothing on a quantized monotonic clock (Windows
+// ticks can span the whole minimum grant), so it counts as one full quantum:
+// when even one quantum blows the soft limit the head is refused. Pure and
+// allocation free; consulted at iteration heads only.
 func softStop(elapsed, budget time.Duration, completed int) bool {
-	return completed >= 1 && elapsed > time.Duration(config.SearchSoftStopFraction*float64(budget))
+	if completed < 1 {
+		return false
+	}
+	if elapsed <= 0 {
+		elapsed = time.Duration(config.SearchClockQuantumMs) * time.Millisecond
+	}
+	return elapsed > time.Duration(config.SearchSoftStopFraction*float64(budget))
 }
 
 func (e *Engine) search(b *rules.Board, dl Deadline, maxDepth int, soft bool) (rules.Move, SearchStats) {
