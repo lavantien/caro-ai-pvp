@@ -57,7 +57,7 @@ func TestForeignKeysHoldOnEveryPooledConn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pin conn: %v", err)
 	}
-	defer held.Close()
+	defer func() { _ = held.Close() }()
 	var heldFK int
 	if err := held.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&heldFK); err != nil {
 		t.Fatalf("pinned foreign_keys: %v", err)

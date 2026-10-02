@@ -44,7 +44,7 @@ func Open(path string) (*Store, error) {
 	db.SetMaxIdleConns(runtime.NumCPU())
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, err
 	}
 	return s, nil
@@ -323,7 +323,7 @@ func (s *Store) RatingHistoryByUser(userID int64) ([]RatingEvent, error) {
 	if err != nil {
 		return nil, fmt.Errorf("server: rating history %d: %w", userID, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []RatingEvent
 	for rows.Next() {
 		var e RatingEvent
@@ -398,7 +398,7 @@ ORDER BY g.played_at DESC, g.id DESC`,
 	if err != nil {
 		return nil, fmt.Errorf("server: match history %d: %w", userID, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []MatchHistoryRow
 	for rows.Next() {
 		var r MatchHistoryRow

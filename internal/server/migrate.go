@@ -46,7 +46,7 @@ func (s *Store) applyMigration(version int, script string) error {
 	if err != nil {
 		return fmt.Errorf("server: begin migration %d: %w", version, err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.Exec(script); err != nil {
 		return fmt.Errorf("server: apply migration %d: %w", version, err)
 	}

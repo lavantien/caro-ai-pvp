@@ -33,7 +33,7 @@ func seedSeries(t *testing.T, s *Store, red, blue User) SeriesRow {
 
 func TestUserCreateIfAbsentAndFetch(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	u, created, err := s.CreateUserIfAbsent("alice", []byte("salt-a"), []byte("hash-a"))
 	if err != nil {
@@ -67,7 +67,7 @@ func TestUserCreateIfAbsentAndFetch(t *testing.T) {
 
 func TestUserCreateIfAbsentCollisionKeepsFirstRow(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	first, created, err := s.CreateUserIfAbsent("alice", []byte("salt-a"), []byte("hash-a"))
 	if err != nil || !created {
@@ -87,7 +87,7 @@ func TestUserCreateIfAbsentCollisionKeepsFirstRow(t *testing.T) {
 
 func TestSessionLifecycle(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	u := seedUser(t, s, "alice")
 	now := time.Now().Unix()
@@ -125,7 +125,7 @@ func TestSessionLifecycle(t *testing.T) {
 
 func TestSeriesLifecycle(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	red, blue := seedUser(t, s, "alice"), seedUser(t, s, "bob")
 	sr, err := s.CreateSeries(2, config.SeriesBO5, red.ID, blue.ID)
@@ -166,7 +166,7 @@ func TestSeriesLifecycle(t *testing.T) {
 
 func TestAppendGameEnforcesForeignKeys(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	red, blue := seedUser(t, s, "alice"), seedUser(t, s, "bob")
 	_, err := s.AppendGame(Game{
@@ -180,7 +180,7 @@ func TestAppendGameEnforcesForeignKeys(t *testing.T) {
 
 func TestInsertsEnforceForeignKeys(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	red := seedUser(t, s, "alice")
 	if err := s.InsertSession(Session{Token: []byte("t"), UserID: 999999, ExpiresAt: 1}); err == nil || !strings.Contains(err.Error(), "FOREIGN KEY") {
@@ -196,7 +196,7 @@ func TestInsertsEnforceForeignKeys(t *testing.T) {
 
 func TestRatingHistoryByUser(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	alice, bob := seedUser(t, s, "alice"), seedUser(t, s, "bob")
 	sr := seedSeries(t, s, alice, bob)
@@ -265,7 +265,7 @@ func seedFinishedSeries(t *testing.T, s *Store, tcIdx int, red, blue User, outco
 
 func TestUserStats(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	alice, bob, carol := seedUser(t, s, "alice"), seedUser(t, s, "bob"), seedUser(t, s, "carol")
 	// Alice red: wins g0, loses g1, draws g2, takes the series.
@@ -298,7 +298,7 @@ func TestUserStats(t *testing.T) {
 
 func TestMatchHistory(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	alice, bob, carol := seedUser(t, s, "alice"), seedUser(t, s, "bob"), seedUser(t, s, "carol")
 	seedFinishedSeries(t, s, 0, alice, bob, []string{OutcomeRed, OutcomeBlue, OutcomeRed}, &alice.ID)
@@ -357,14 +357,14 @@ func TestMatchHistory(t *testing.T) {
 
 func TestConcurrentReadersWhileWriterHolds(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	alice := seedUser(t, s, "alice")
 	tx, err := s.db.Begin()
 	if err != nil {
 		t.Fatalf("begin writer tx: %v", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.Exec(
 		"INSERT INTO users (username, argon2_time, argon2_memory, argon2_parallelism, salt, hash) VALUES (?, ?, ?, ?, ?, ?)",
 		"bob", config.Argon2Time, config.Argon2MemoryKiB, config.Argon2Parallelism, []byte("s"), []byte("h"),

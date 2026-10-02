@@ -70,7 +70,7 @@ func TestMigrateIdempotentAcrossReopen(t *testing.T) {
 	}
 
 	again := mustOpen(t, path)
-	defer again.Close()
+	defer func() { _ = again.Close() }()
 	// A second migration pass that re-applied v1 would violate the
 	// schema_version primary key, so survival plus an unchanged row count
 	// proves the up-to-date database applied zero scripts.
@@ -126,7 +126,7 @@ func TestFailedMigrationRollsBackAndStays(t *testing.T) {
 	if err != nil {
 		t.Fatalf("raw open: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	s := &Store{db: db}
 
 	// Swap in a same-count broken script so the hub guard passes and the
@@ -174,7 +174,7 @@ func TestCloseCheckpointsWAL(t *testing.T) {
 	}
 
 	again := mustOpen(t, path)
-	defer again.Close()
+	defer func() { _ = again.Close() }()
 	var n int
 	if err := again.db.QueryRow("SELECT COUNT(*) FROM users WHERE username = ?", "probe").Scan(&n); err != nil {
 		t.Fatalf("reread user: %v", err)
