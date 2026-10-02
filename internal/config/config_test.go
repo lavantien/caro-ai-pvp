@@ -355,3 +355,36 @@ func TestQualityGates(t *testing.T) {
 		t.Errorf("core gate %v below overall gate %v", QualityCoverageCoreMin, QualityCoverageOverallMin)
 	}
 }
+
+func TestServerConstants(t *testing.T) {
+	if Argon2Time < 1 || Argon2MemoryKiB < 19456 || Argon2Parallelism < 1 {
+		t.Errorf("argon2 profile t=%d m=%dKiB p=%d below the OWASP floor", Argon2Time, Argon2MemoryKiB, Argon2Parallelism)
+	}
+	if Argon2SaltBytes < 16 || Argon2KeyBytes < 32 {
+		t.Errorf("argon2 salt %d or key %d too short", Argon2SaltBytes, Argon2KeyBytes)
+	}
+	if SessionTokenBytes < 32 {
+		t.Errorf("SessionTokenBytes = %d, want >= 32 for an opaque token", SessionTokenBytes)
+	}
+	if SessionTTLHours < 1 {
+		t.Errorf("SessionTTLHours = %d, must be positive", SessionTTLHours)
+	}
+	if SQLiteSchemaVersion < 1 {
+		t.Errorf("SQLiteSchemaVersion = %d, must be positive", SQLiteSchemaVersion)
+	}
+	if SQLiteBusyTimeoutMs < 1000 || SQLiteBusyTimeoutMs > 60000 {
+		t.Errorf("SQLiteBusyTimeoutMs = %d, want in [1000, 60000]", SQLiteBusyTimeoutMs)
+	}
+	if SQLiteJournalWAL != "wal" || SQLiteSyncNormal != "normal" {
+		t.Errorf("sqlite modes = %q/%q, want wal/normal", SQLiteJournalWAL, SQLiteSyncNormal)
+	}
+	if WriteQueueDepth < 1 {
+		t.Errorf("WriteQueueDepth = %d, must be positive", WriteQueueDepth)
+	}
+	if HubSubscriberBuffer < 1 {
+		t.Errorf("HubSubscriberBuffer = %d, must be positive", HubSubscriberBuffer)
+	}
+	if HistoryPreviewTurns != 8 {
+		t.Errorf("HistoryPreviewTurns = %d, want 8 per the spec's move-history preview", HistoryPreviewTurns)
+	}
+}

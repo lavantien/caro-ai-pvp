@@ -250,3 +250,38 @@ const (
 	// wiring; callers stay free to pass smaller budgets.
 	SolverNodeBudget = 1 << 20
 )
+
+// Server constants, all consumed by internal/server. Storage is embedded
+// SQLite in WAL mode behind the single-writer message queue; auth is
+// server-side argon2id with opaque random session tokens; the stats hub
+// fans every room's bot-log lines out to subscribers in publish order.
+const (
+	// Argon2 parameters per the OWASP password storage cheat sheet profile
+	// for a laptop-class host: 64 MiB, 2 passes, parallelism 1, 16-byte
+	// salt, 32-byte derived key.
+	Argon2Time        = 2
+	Argon2MemoryKiB   = 64 * 1024
+	Argon2Parallelism = 1
+	Argon2SaltBytes   = 16
+	Argon2KeyBytes    = 32
+
+	SessionTokenBytes = 32
+	SessionTTLHours   = 24 * 30
+
+	SQLiteSchemaVersion = 1
+	SQLiteBusyTimeoutMs = 5000
+	SQLiteJournalWAL    = "wal"
+	SQLiteSyncNormal    = "normal"
+
+	// WriteQueueDepth bounds the pending mutation queue. Every write
+	// persists: the queue blocks producers rather than dropping, so the
+	// depth only controls how far gameplay may run ahead of the disk.
+	WriteQueueDepth = 256
+	// HubSubscriberBuffer is the per-subscriber event slot count of the
+	// stats pipeline; a consumer this far behind is too slow to watch live.
+	HubSubscriberBuffer = 64
+
+	// HistoryPreviewTurns is the move-history preview length before the
+	// ellipsis in the match history tab.
+	HistoryPreviewTurns = 8
+)
