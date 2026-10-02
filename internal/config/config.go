@@ -268,6 +268,9 @@ const (
 	SessionTokenBytes = 32
 	SessionTTLHours   = 24 * 30
 
+	// UsernameMaxBytes is the login form's username ceiling.
+	UsernameMaxBytes = 32
+
 	SQLiteSchemaVersion = 1
 	SQLiteBusyTimeoutMs = 5000
 	SQLiteJournalWAL    = "wal"

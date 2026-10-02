@@ -369,6 +369,9 @@ func TestServerConstants(t *testing.T) {
 	if SessionTTLHours < 1 {
 		t.Errorf("SessionTTLHours = %d, must be positive", SessionTTLHours)
 	}
+	if UsernameMaxBytes < 1 || UsernameMaxBytes > 64 {
+		t.Errorf("UsernameMaxBytes = %d, want in [1, 64]", UsernameMaxBytes)
+	}
 	if SQLiteSchemaVersion < 1 {
 		t.Errorf("SQLiteSchemaVersion = %d, must be positive", SQLiteSchemaVersion)
 	}

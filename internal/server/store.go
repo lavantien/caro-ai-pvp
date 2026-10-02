@@ -145,6 +145,19 @@ func (s *Store) CreateUserIfAbsent(username string, salt, hash []byte) (User, bo
 	return u, inserted == 1, nil
 }
 
+// UserByID fetches one user row; a missing id maps to ErrNotFound.
+func (s *Store) UserByID(id int64) (User, error) {
+	var u User
+	err := notFound(s.db.QueryRow(
+		`SELECT id, username, argon2_time, argon2_memory, argon2_parallelism, salt, hash, created_at
+		FROM users WHERE id = ?`, id,
+	).Scan(&u.ID, &u.Username, &u.Argon2Time, &u.Argon2MemoryKiB, &u.Argon2Parallelism, &u.Salt, &u.Hash, &u.CreatedAt))
+	if err != nil {
+		return User{}, fmt.Errorf("server: fetch user %d: %w", id, err)
+	}
+	return u, nil
+}
+
 func (s *Store) UserByUsername(username string) (User, error) {
 	var u User
 	err := notFound(s.db.QueryRow(

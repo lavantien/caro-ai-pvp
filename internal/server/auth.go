@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
-	"fmt"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -96,16 +95,12 @@ func verifyPassword(stored User, password string, kdf argon2KDF) bool {
 }
 
 // ErrInvalidUsername rejects a syntactically unusable username before any
-// store access: empty, past usernameMaxBytes, invalid UTF-8, or carrying a
-// control or invisible format rune.
+// store access: empty, past config.UsernameMaxBytes, invalid UTF-8, or
+// carrying a control or invisible format rune.
 var ErrInvalidUsername = errors.New("server: invalid username")
 
-// usernameMaxBytes is the login form's username ceiling. It belongs in the
-// config hub alongside the argon2 block once that file's ownership opens up.
-const usernameMaxBytes = 32
-
 func validateUsername(username string) error {
-	if username == "" || len(username) > usernameMaxBytes || !utf8.ValidString(username) {
+	if username == "" || len(username) > config.UsernameMaxBytes || !utf8.ValidString(username) {
 		return ErrInvalidUsername
 	}
 	for _, r := range username {
@@ -217,7 +212,7 @@ func Authenticate(store *Store, token []byte, now int64) (User, error) {
 		}
 		return User{}, err
 	}
-	u, err := userByID(store, sess.UserID)
+	u, err := store.UserByID(sess.UserID)
 	if errors.Is(err, ErrNotFound) {
 		return User{}, ErrBadCredentials
 	}
@@ -229,19 +224,4 @@ func Authenticate(store *Store, token []byte, now int64) (User, error) {
 // by the integration layer later.
 func Logout(store *Store, token []byte) error {
 	return store.DeleteSession(token)
-}
-
-// userByID is session glue pending a typed store accessor: it mirrors
-// UserByUsername's column list because Authenticate holds only the session's
-// user id. Store CRUD gap, reported to the store owner.
-func userByID(s *Store, id int64) (User, error) {
-	var u User
-	err := notFound(s.db.QueryRow(
-		`SELECT id, username, argon2_time, argon2_memory, argon2_parallelism, salt, hash, created_at
-		FROM users WHERE id = ?`, id,
-	).Scan(&u.ID, &u.Username, &u.Argon2Time, &u.Argon2MemoryKiB, &u.Argon2Parallelism, &u.Salt, &u.Hash, &u.CreatedAt))
-	if err != nil {
-		return User{}, fmt.Errorf("server: fetch user %d: %w", id, err)
-	}
-	return u, nil
 }
