@@ -46,14 +46,15 @@ func TestMigrateFreshAppliesAll(t *testing.T) {
 	if count != config.SQLiteSchemaVersion || max != config.SQLiteSchemaVersion {
 		t.Errorf("schema_version rows = %d, max = %d, want %d and %d", count, max, config.SQLiteSchemaVersion, config.SQLiteSchemaVersion)
 	}
-	tables := schemaCount(t, s, "table", "'schema_version','users','sessions','series','games','rating_events'")
-	if tables != 6 {
-		t.Errorf("known tables found = %d, want 6", tables)
+	tables := schemaCount(t, s, "table",
+		"'schema_version','users','sessions','series','games','rating_events','tournament_runs','tournament_participants','tournament_series','tournament_games','tournament_standings'")
+	if tables != 11 {
+		t.Errorf("known tables found = %d, want 11", tables)
 	}
 	indexes := schemaCount(t, s, "index",
-		"'idx_games_series','idx_rating_events_user','idx_series_red','idx_series_blue','idx_games_red_user','idx_games_blue_user'")
-	if indexes != 6 {
-		t.Errorf("known indexes found = %d, want 6", indexes)
+		"'idx_games_series','idx_rating_events_user','idx_series_red','idx_series_blue','idx_games_red_user','idx_games_blue_user','idx_tournament_games_series','idx_tournament_games_run','idx_tournament_series_run'")
+	if indexes != 9 {
+		t.Errorf("known indexes found = %d, want 9", indexes)
 	}
 }
 
@@ -134,7 +135,11 @@ func TestFailedMigrationRollsBackAndStays(t *testing.T) {
 	// the failure lands in the script application itself.
 	saved := migrations
 	defer func() { migrations = saved }()
-	migrations = []string{"CREATE TABLE boom (;\nCREATE TABLE never (x)", "CREATE TABLE never2 (y)"}
+	migrations = []string{
+		"CREATE TABLE boom (;\nCREATE TABLE never (x)",
+		"CREATE TABLE never2 (y)",
+		"CREATE TABLE never3 (z)",
+	}
 	err = s.migrate()
 	if err == nil || !strings.Contains(err.Error(), "apply migration 1") {
 		t.Fatalf("migrate with broken script = %v, want apply migration 1 failure", err)
@@ -206,11 +211,12 @@ func TestSchemaV2IndexesGamesPlayerColumns(t *testing.T) {
 
 // TestMigrateV1DatabaseUpgradesToV2 pins the forward-only upgrade: a
 // database holding only version 1 gains the v2 indexes on reopen, without
-// re-running v1 or touching data.
+// re-running v1 or touching data. With v3 landed the reopen continues to 3,
+// so the assertion also proves the tournament tables ride along.
 func TestMigrateV1DatabaseUpgradesToV2(t *testing.T) {
 	path := dbPath(t)
 	s := mustOpen(t, path)
-	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version = 2`); err != nil {
+	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 2`); err != nil {
 		t.Fatalf("roll ledger back to v1: %v", err)
 	}
 	for _, idx := range []string{"idx_games_red_user", "idx_games_blue_user"} {
@@ -225,11 +231,58 @@ func TestMigrateV1DatabaseUpgradesToV2(t *testing.T) {
 	again := mustOpen(t, path)
 	defer func() { _ = again.Close() }()
 	count, max := schemaVersionRows(t, again)
-	if count != 2 || max != 2 {
-		t.Errorf("after upgrade: schema_version rows = %d max = %d, want 2 and 2", count, max)
+	if count != 3 || max != 3 {
+		t.Errorf("after upgrade: schema_version rows = %d max = %d, want 3 and 3", count, max)
 	}
 	if n := schemaCount(t, again, "index", "'idx_games_series','idx_games_red_user','idx_games_blue_user'"); n != 3 {
 		t.Errorf("indexes after upgrade = %d, want 3 (v1 pair kept, v2 pair added)", n)
+	}
+	if n := schemaCount(t, again, "table",
+		"'tournament_runs','tournament_participants','tournament_series','tournament_games','tournament_standings'"); n != 5 {
+		t.Errorf("tournament tables after upgrade = %d, want 5 (v3 applied after v2)", n)
+	}
+}
+
+// TestMigrateV2DatabaseUpgradesToV3 pins the forward-only upgrade: a
+// database holding only version 2 gains the tournament tables on reopen,
+// without re-running v1/v2 or touching the v2-era data.
+func TestMigrateV2DatabaseUpgradesToV3(t *testing.T) {
+	path := dbPath(t)
+	s := mustOpen(t, path)
+	if _, err := s.db.Exec(
+		"INSERT INTO users (username, argon2_time, argon2_memory, argon2_parallelism, salt, hash) VALUES (?, ?, ?, ?, ?, ?)",
+		"veteran", config.Argon2Time, config.Argon2MemoryKiB, config.Argon2Parallelism, []byte("s"), []byte("h"),
+	); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version = 3`); err != nil {
+		t.Fatalf("roll ledger back to v2: %v", err)
+	}
+	for _, table := range []string{"tournament_standings", "tournament_games", "tournament_series", "tournament_participants", "tournament_runs"} {
+		if _, err := s.db.Exec(`DROP TABLE ` + table); err != nil {
+			t.Fatalf("drop %s: %v", table, err)
+		}
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	again := mustOpen(t, path)
+	defer func() { _ = again.Close() }()
+	count, max := schemaVersionRows(t, again)
+	if count != 3 || max != 3 {
+		t.Errorf("after upgrade: schema_version rows = %d max = %d, want 3 and 3", count, max)
+	}
+	if n := schemaCount(t, again, "table",
+		"'tournament_runs','tournament_participants','tournament_series','tournament_games','tournament_standings'"); n != 5 {
+		t.Errorf("tournament tables after upgrade = %d, want 5", n)
+	}
+	var users int
+	if err := again.db.QueryRow("SELECT COUNT(*) FROM users WHERE username = ?", "veteran").Scan(&users); err != nil {
+		t.Fatalf("reread user: %v", err)
+	}
+	if users != 1 {
+		t.Errorf("v2-era user count after upgrade = %d, want 1 (no data loss)", users)
 	}
 }
 

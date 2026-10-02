@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -84,6 +85,45 @@ func TestCloseIsIdempotentPerStore(t *testing.T) {
 	// busy loop: sql.DB.Close is documented safe to call repeatedly.
 	if err := s.Close(); err != nil {
 		t.Errorf("second close: %v", err)
+	}
+}
+
+// TestWithinTxCommitsAndRollsBack pins the cross-package persistence
+// surface: a returning fn commits and its writes are visible, an erroring fn
+// leaves nothing behind.
+func TestWithinTxCommitsAndRollsBack(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+
+	ctx := context.Background()
+	if err := s.WithinTx(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `CREATE TABLE withintx_probe (x INTEGER)`)
+		return err
+	}); err != nil {
+		t.Fatalf("commit unit: %v", err)
+	}
+	var n int
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM withintx_probe").Scan(&n); err != nil {
+		t.Fatalf("read committed unit: %v", err)
+	}
+	if n != 0 {
+		t.Errorf("probe rows = %d, want 0", n)
+	}
+
+	sentinel := errors.New("boom")
+	if err := s.WithinTx(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO withintx_probe VALUES (1)"); err != nil {
+			return err
+		}
+		return sentinel
+	}); !errors.Is(err, sentinel) {
+		t.Fatalf("failing unit = %v, want the sentinel", err)
+	}
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM withintx_probe").Scan(&n); err != nil {
+		t.Fatalf("reread after rollback: %v", err)
+	}
+	if n != 0 {
+		t.Errorf("probe rows after rollback = %d, want 0", n)
 	}
 }
 

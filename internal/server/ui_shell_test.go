@@ -401,7 +401,7 @@ func TestShellHistoryPreviewBoundaryAndPlaybackLink(t *testing.T) {
 	won := WonByOpenFour
 	short, err := s.store.AppendGame(Game{
 		SeriesID: sr.ID, IdxInSeries: 1, RedUser: alice.ID, BlueUser: bob.ID,
-		Outcome: OutcomeRed, Moves: encodeMoves(nil, shortMoves),
+		Outcome: OutcomeRed, Moves: EncodeMoves(nil, shortMoves),
 		FullTurns: len(shortMoves) / 2, WonBy: &won,
 	})
 	if err != nil {
@@ -409,7 +409,7 @@ func TestShellHistoryPreviewBoundaryAndPlaybackLink(t *testing.T) {
 	}
 	long, err := s.store.AppendGame(Game{
 		SeriesID: sr.ID, IdxInSeries: 2, RedUser: alice.ID, BlueUser: bob.ID,
-		Outcome: OutcomeRed, Moves: encodeMoves(nil, longMoves),
+		Outcome: OutcomeRed, Moves: EncodeMoves(nil, longMoves),
 		FullTurns: len(longMoves) / 2,
 	})
 	if err != nil {

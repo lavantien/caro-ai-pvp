@@ -220,7 +220,7 @@ func TestPvPBO3SeriesDrivenThroughPlayMove(t *testing.T) {
 		m MatchHistoryRow
 		n []string
 	}{{g1, hostWinsRed}, {g2, guestRedLosesToBlue}} {
-		moves, err := decodeMoves(row.m.Moves)
+		moves, err := DecodeMoves(row.m.Moves)
 		if err != nil {
 			t.Fatalf("decode moves: %v", err)
 		}
@@ -416,7 +416,7 @@ func TestForfeitBeforeFirstStonePersistsZeroLengthBlob(t *testing.T) {
 		t.Fatalf("history = %d rows err %v, want the swept bo3", len(rows), err)
 	}
 	for i, row := range rows {
-		// The write boundary guarantees a non-nil blob (encodeMoves), but a
+		// The write boundary guarantees a non-nil blob (EncodeMoves), but a
 		// zero-length blob scans back as Go nil: only the length is
 		// observable after the SQL round trip.
 		if len(row.Moves) != 0 {
@@ -469,8 +469,8 @@ func TestForfeitMidSeriesBillsRemainingGames(t *testing.T) {
 	// Newest first: the two synthetic games above the played one.
 	wantMoves := [][]byte{
 		{}, // game 3 never started
-		encodeMoves(nil, movesOf(t, []string{"D4", "P16", "H8"})),
-		encodeMoves(nil, movesOf(t, hostWinsRed)),
+		EncodeMoves(nil, movesOf(t, []string{"D4", "P16", "H8"})),
+		EncodeMoves(nil, movesOf(t, hostWinsRed)),
 	}
 	wantTurns := []int{0, 1, len(hostWinsRed) / 2}
 	for i, row := range rows {
@@ -721,11 +721,11 @@ func movesOf(t *testing.T, names []string) []rules.Move {
 
 func TestMovesBlobRoundTrip(t *testing.T) {
 	moves := movesOf(t, []string{"A1", "P16", "H8", "D3"})
-	blob := encodeMoves(nil, moves)
+	blob := EncodeMoves(nil, moves)
 	if len(blob) != 2*len(moves) {
 		t.Fatalf("blob = %d bytes for %d moves, want 2 per move", len(blob), len(moves))
 	}
-	got, err := decodeMoves(blob)
+	got, err := DecodeMoves(blob)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -737,10 +737,10 @@ func TestMovesBlobRoundTrip(t *testing.T) {
 			t.Errorf("move %d = %d, want %d", i, got[i], moves[i])
 		}
 	}
-	if _, err := decodeMoves([]byte{1}); err == nil {
+	if _, err := DecodeMoves([]byte{1}); err == nil {
 		t.Error("odd blob decoded, want error")
 	}
-	if _, err := decodeMoves([]byte{0x01, 0x01}); err == nil {
+	if _, err := DecodeMoves([]byte{0x01, 0x01}); err == nil {
 		t.Error("out-of-board cell decoded, want error")
 	}
 }

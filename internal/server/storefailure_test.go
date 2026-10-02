@@ -62,7 +62,7 @@ func TestApplyCompletionFinishOfMissingSeriesRollsBackTheUnit(t *testing.T) {
 	err := s.ApplyCompletion(context.Background(), Completion{
 		Games: []Game{{
 			SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
-			Outcome: OutcomeRed, Moves: encodeMoves(nil, movesOf(t, []string{"D4", "P16"})),
+			Outcome: OutcomeRed, Moves: EncodeMoves(nil, movesOf(t, []string{"D4", "P16"})),
 			FullTurns: 1, WonBy: &wonBy,
 		}},
 		Finish: &SeriesFinish{SeriesID: missing, FinishedAt: 1_700_000_000},

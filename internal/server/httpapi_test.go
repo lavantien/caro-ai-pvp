@@ -873,7 +873,7 @@ func TestHTTPHistoryPreviewAndPlaybackBlob(t *testing.T) {
 	// Two rows straight into the store: the transport only renders. The
 	// long game runs past the preview window, the short one inside it.
 	sr := seedSeries(t, s.store, alice, bob)
-	longBlob := encodeMoves(nil, historyMoves(t, 40))
+	longBlob := EncodeMoves(nil, historyMoves(t, 40))
 	wonBy := WonByFour
 	if _, err := s.store.AppendGame(Game{
 		SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
@@ -881,7 +881,7 @@ func TestHTTPHistoryPreviewAndPlaybackBlob(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("append long game: %v", err)
 	}
-	shortBlob := encodeMoves(nil, historyMoves(t, 6))
+	shortBlob := EncodeMoves(nil, historyMoves(t, 6))
 	if _, err := s.store.AppendGame(Game{
 		SeriesID: sr.ID, IdxInSeries: 1, RedUser: alice.ID, BlueUser: bob.ID,
 		Outcome: OutcomeBlue, Moves: shortBlob, FullTurns: 3,
@@ -951,7 +951,7 @@ func TestHTTPHistoryCorruptBlobSkippedNotListingFatal(t *testing.T) {
 	bob := seedUser(t, s.store, "bob")
 
 	sr := seedSeries(t, s.store, alice, bob)
-	goodBlob := encodeMoves(nil, historyMoves(t, 6))
+	goodBlob := EncodeMoves(nil, historyMoves(t, 6))
 	if _, err := s.store.AppendGame(Game{
 		SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
 		Outcome: OutcomeRed, Moves: goodBlob, FullTurns: 3,

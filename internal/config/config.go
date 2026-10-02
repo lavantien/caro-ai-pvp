@@ -84,6 +84,21 @@ const (
 	TournamentParallelMatches = 2
 )
 
+// Tournament constants, all consumed by internal/tourney.
+// TournamentStartRating is the per-run seed rating of Scenario 2: the setup
+// lets the operator pick it, the full run of Implication 2.4 pins 1000.
+// TournamentSeriesLogFormat names one series' txt log file under
+// TournamentLogDir: run id, series id, then the two display names.
+const (
+	TournamentStartRating     = 1000
+	TournamentSeriesLogFormat = "run%d_s%d_%s-vs-%s.txt"
+)
+
+// TournamentLogDir is the directory holding the per-series txt run logs of
+// Scenario 2. A package var like TimeControls so tests point it at a
+// t.TempDir without touching the process working directory.
+var TournamentLogDir = "tourney-logs"
+
 const (
 	HTTPPort  = 38063
 	DebugPort = 38069
@@ -273,7 +288,7 @@ const (
 
 	// SQLiteSchemaVersion is the number of landed migration scripts; the
 	// server package enforces the equality at startup.
-	SQLiteSchemaVersion = 2
+	SQLiteSchemaVersion = 3
 	SQLiteBusyTimeoutMs = 5000
 	SQLiteJournalWAL    = "wal"
 	SQLiteSyncNormal    = "normal"

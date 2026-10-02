@@ -170,6 +170,21 @@ func TestResourceCapsMatchHardwareBudget(t *testing.T) {
 	}
 }
 
+func TestTournamentConstants(t *testing.T) {
+	if TournamentStartRating != 1000 {
+		t.Errorf("TournamentStartRating = %d, want 1000 per the Implication 2.4 full run", TournamentStartRating)
+	}
+	if TournamentLogDir != "tourney-logs" {
+		t.Errorf("TournamentLogDir = %q, want %q", TournamentLogDir, "tourney-logs")
+	}
+	// The format must carry run id, series id, and both display names in
+	// order, and end in .txt so the artifact stays greppable.
+	name := fmt.Sprintf(TournamentSeriesLogFormat, 7, 3, "hard-1", "easy-2")
+	if name != "run7_s3_hard-1-vs-easy-2.txt" {
+		t.Errorf("TournamentSeriesLogFormat renders %q", name)
+	}
+}
+
 func TestPortsSpec(t *testing.T) {
 	for name, p := range map[string]int{"HTTPPort": HTTPPort, "DebugPort": DebugPort} {
 		if p <= 10000 || p > 65535 {
@@ -372,8 +387,8 @@ func TestServerConstants(t *testing.T) {
 	if UsernameMaxBytes < 1 || UsernameMaxBytes > 64 {
 		t.Errorf("UsernameMaxBytes = %d, want in [1, 64]", UsernameMaxBytes)
 	}
-	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 2 {
-		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 2]: raise the ceiling with the next migration", SQLiteSchemaVersion)
+	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 3 {
+		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 3]: raise the ceiling with the next migration", SQLiteSchemaVersion)
 	}
 	if SQLiteBusyTimeoutMs < 1000 || SQLiteBusyTimeoutMs > 60000 {
 		t.Errorf("SQLiteBusyTimeoutMs = %d, want in [1000, 60000]", SQLiteBusyTimeoutMs)

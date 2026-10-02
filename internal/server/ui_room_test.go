@@ -633,7 +633,7 @@ func TestGameByIDReadsAndMisses(t *testing.T) {
 	red, blue := seedUser(t, s.store, "red"), seedUser(t, s.store, "blue")
 	sr := seedSeries(t, s.store, red, blue)
 	tag := "open 4"
-	blob := encodeMoves(nil, movesOf(t, hostWinsRed))
+	blob := EncodeMoves(nil, movesOf(t, hostWinsRed))
 	if _, err := s.store.AppendGame(Game{SeriesID: sr.ID, IdxInSeries: 0,
 		RedUser: red.ID, BlueUser: blue.ID, Outcome: OutcomeRed,
 		Moves: blob, FullTurns: len(hostWinsRed) / 2, WonBy: &tag}); err != nil {

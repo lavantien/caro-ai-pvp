@@ -209,7 +209,7 @@ func (r *Room) persistGameLocked(redUser, blueUser int64, outcome Outcome, wonBy
 		return nil
 	}
 	seriesID, idx := r.seriesID, r.series.GamesPlayed()-1
-	blob, fullTurns := encodeMoves(nil, r.moves), len(r.moves)/2
+	blob, fullTurns := EncodeMoves(nil, r.moves), len(r.moves)/2
 	unit := Completion{Games: []Game{{
 		SeriesID: seriesID, IdxInSeries: idx, RedUser: redUser, BlueUser: blueUser,
 		Outcome: outcome.String(), Moves: blob, FullTurns: fullTurns, WonBy: wonBy,
@@ -278,7 +278,7 @@ func (r *Room) persistForfeitLocked(liveMoves []rules.Move) error {
 	for _, g := range synth {
 		blob, turns := []byte{}, 0
 		if g.GameNo == firstLive {
-			blob, turns = encodeMoves(nil, liveMoves), len(liveMoves)/2
+			blob, turns = EncodeMoves(nil, liveMoves), len(liveMoves)/2
 		}
 		unit.Games = append(unit.Games, Game{
 			SeriesID: seriesID, IdxInSeries: g.GameNo - 1,
@@ -352,12 +352,14 @@ func cellName(cell rules.Cell) string {
 	return string(appendCellName(nil, rules.Move(cell)))
 }
 
-// The moves blob is one little-endian uint16 per stone in play order, the
-// cell index row*BoardStride+col of the rules codec: two bytes per move,
-// fixed stride, no length prefix, decodable by the playback board straight
-// from the column. The result is never nil: the games.moves column is NOT
-// NULL, and a forfeit before the first stone writes a zero-length blob.
-func encodeMoves(dst []byte, moves []rules.Move) []byte {
+// EncodeMoves appends the moves blob: one little-endian uint16 per stone in
+// play order, the cell index row*BoardStride+col of the rules codec. Two
+// bytes per move, fixed stride, no length prefix, decodable by the playback
+// board straight from the column. The result is never nil: the moves
+// columns are NOT NULL, and a forfeit before the first stone writes a
+// zero-length blob. Exported so internal/tournament persistence writes the
+// same blob bytes as the games table.
+func EncodeMoves(dst []byte, moves []rules.Move) []byte {
 	if dst == nil {
 		dst = []byte{}
 	}
@@ -367,7 +369,9 @@ func encodeMoves(dst []byte, moves []rules.Move) []byte {
 	return dst
 }
 
-func decodeMoves(blob []byte) ([]rules.Move, error) {
+// DecodeMoves is EncodeMoves' inverse: it rejects odd-length blobs and cells
+// outside the board.
+func DecodeMoves(blob []byte) ([]rules.Move, error) {
 	if len(blob)%2 != 0 {
 		return nil, errors.New("server: moves blob length is not a move count")
 	}

@@ -23,6 +23,25 @@ import (
 // query matched nothing, including sessions filtered out by expiry.
 var ErrNotFound = errors.New("server: record not found")
 
+// WithinTx runs fn inside one transaction on the store's pool, rolling back
+// on error. It is the cross-package persistence surface: internal/tourney
+// owns its tables' SQL but rides this so every unit keeps the store's
+// single-pool, context-aware pattern (one tx per completion unit).
+func (s *Store) WithinTx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("server: begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("server: commit tx: %w", err)
+	}
+	return nil
+}
+
 // sqlRunner is the statement surface the pool and an open transaction share,
 // so single-shot writes and the completion unit's statements run identical
 // SQL. Everything rides the Context variants, so the write queue's apply

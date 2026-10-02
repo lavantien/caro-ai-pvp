@@ -425,7 +425,7 @@ func (s *Store) gameByID(id int64) (Game, error) {
 // playbackMoves decodes a history blob into ordered coordinate names through
 // the shared codec.
 func playbackMoves(blob []byte) ([]string, error) {
-	moves, err := decodeMoves(blob)
+	moves, err := DecodeMoves(blob)
 	if err != nil {
 		return nil, err
 	}

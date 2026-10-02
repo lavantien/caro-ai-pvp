@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"strings"
 	"testing"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
 // Migration-ledger failure paths: a corrupted version table refuses startup,
@@ -60,7 +62,8 @@ func TestApplyMigrationLedgerConflictRollsBackScript(t *testing.T) {
 	if n := schemaCount(t, s, "table", "'ledger_probe'"); n != 0 {
 		t.Errorf("ledger_probe tables = %d, want 0 (the script rolled back with the ledger insert)", n)
 	}
-	if count, max := schemaVersionRows(t, s); count != 2 || max != 2 {
-		t.Errorf("ledger after the conflict = %d rows max %d, want untouched 2 and 2", count, max)
+	if count, max := schemaVersionRows(t, s); count != config.SQLiteSchemaVersion || max != config.SQLiteSchemaVersion {
+		t.Errorf("ledger after the conflict = %d rows max %d, want untouched %d and %d",
+			count, max, config.SQLiteSchemaVersion, config.SQLiteSchemaVersion)
 	}
 }

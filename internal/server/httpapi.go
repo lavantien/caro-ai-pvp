@@ -601,7 +601,7 @@ type historyEntry struct {
 // turns of coordinate names (a full turn is red's stone plus blue's), the
 // truncation flag when more followed, and the untouched blob.
 func historyEntryOf(row MatchHistoryRow) (historyEntry, error) {
-	moves, err := decodeMoves(row.Moves)
+	moves, err := DecodeMoves(row.Moves)
 	if err != nil {
 		return historyEntry{}, err
 	}
