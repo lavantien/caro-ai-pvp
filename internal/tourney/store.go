@@ -1,0 +1,405 @@
+package tourney
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"slices"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/rules"
+	"github.com/lavantien/caro-ai-pvp/internal/server"
+)
+
+// Run lifecycle states, mirrored by the tournament_runs.status CHECK.
+const (
+	RunStateOngoing  = "ongoing"
+	RunStateFinished = "finished"
+)
+
+// outcomeTag spells the server Outcome enum the way the tournament_games
+// outcome CHECK constrains it.
+var outcomeTag = map[server.Outcome]string{
+	server.Draw:     server.OutcomeDraw,
+	server.RedWins:  server.OutcomeRed,
+	server.BlueWins: server.OutcomeBlue,
+}
+
+// Run is one persisted tournament header row.
+type Run struct {
+	ID          int64
+	CreatedAt   int64
+	TCIdx       int
+	BOLen       int
+	StartRating int
+	Status      string
+	FinishedAt  *int64
+}
+
+// Series is one persisted pairing row: the schedule slot, both seats, the
+// score line as wins of each seat, and the finish. WinnerSlot stays nil for
+// a majorityless drawn series, mirroring the room series.
+type Series struct {
+	ID            int64
+	RunID         int64
+	PairingSlot   int
+	RedFirstSlot  int
+	BlueFirstSlot int
+	WinnerSlot    *int
+	RedFirstWins  int
+	BlueFirstWins int
+	CreatedAt     int64
+	FinishedAt    *int64
+}
+
+// Game is one finished game of a series, handed in by the conductor on
+// completion. Moves ride the shared server codec into the blob column.
+type Game struct {
+	ID          int64
+	RunID       int64
+	SeriesID    int64
+	IdxInSeries int
+	RedSlot     int
+	BlueSlot    int
+	Outcome     server.Outcome
+	WonBy       *string
+	FullTurns   int
+	Moves       []rules.Move
+	PlayedAt    int64
+}
+
+// Store persists tournaments through the server store's pool. Every unit is
+// one transaction over server.Store.WithinTx, so a statement failing
+// anywhere leaves nothing behind.
+type Store struct {
+	srv *server.Store
+}
+
+// NewStore wraps a server store; the tournament tables come from its
+// startup self-migration (schema v3).
+func NewStore(s *server.Store) *Store {
+	return &Store{srv: s}
+}
+
+// notFound maps the driver's empty-result error onto the server sentinel so
+// callers can errors.Is across packages.
+func notFound(err error, what string) error {
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("tourney: %s: %w", what, server.ErrNotFound)
+	}
+	return fmt.Errorf("tourney: %s: %w", what, err)
+}
+
+// sqlArg binds an optional column: nil pointer to SQL NULL, value otherwise.
+func sqlArg[T any](p *T) any {
+	if p == nil {
+		return nil
+	}
+	return *p
+}
+
+// CreateRun persists one tournament atomically: the header row, one
+// participant row per roster entry, and one series row per Pairings()
+// schedule entry. Roster slots must equal their slice positions.
+func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, roster []Participant) (Run, error) {
+	if tcIdx < 0 || tcIdx >= len(config.TimeControls) {
+		return Run{}, fmt.Errorf("tourney: tc_idx %d outside the %d configured time controls", tcIdx, len(config.TimeControls))
+	}
+	if !slices.Contains(config.SeriesLengths[:], boLen) {
+		return Run{}, fmt.Errorf("tourney: bo_len %d is not a configured series length", boLen)
+	}
+	for i, p := range roster {
+		if p.Slot != i {
+			return Run{}, fmt.Errorf("tourney: roster slot %d at position %d: slots must equal positions", p.Slot, i)
+		}
+		if p.Name == "" || p.Tier == "" {
+			return Run{}, fmt.Errorf("tourney: roster slot %d: name and tier must be set", i)
+		}
+	}
+	var run Run
+	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
+		if err := tx.QueryRowContext(ctx,
+			`INSERT INTO tournament_runs (tc_idx, bo_len, start_rating, status)
+			VALUES (?, ?, ?, ?) RETURNING id, created_at`,
+			tcIdx, boLen, startRating, RunStateOngoing,
+		).Scan(&run.ID, &run.CreatedAt); err != nil {
+			return fmt.Errorf("tourney: create run: %w", err)
+		}
+		for _, p := range roster {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO tournament_participants (run_id, slot, name, tier) VALUES (?, ?, ?, ?)`,
+				run.ID, p.Slot, p.Name, p.Tier); err != nil {
+				return fmt.Errorf("tourney: create participant %d: %w", p.Slot, err)
+			}
+		}
+		for slot, pair := range Pairings(roster) {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO tournament_series (run_id, pairing_slot, red_first_slot, blue_first_slot)
+				VALUES (?, ?, ?, ?)`,
+				run.ID, slot, pair.RedFirst.Slot, pair.BlueFirst.Slot); err != nil {
+				return fmt.Errorf("tourney: create series %d: %w", slot, err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return Run{}, err
+	}
+	run.TCIdx, run.BOLen, run.StartRating, run.Status = tcIdx, boLen, startRating, RunStateOngoing
+	return run, nil
+}
+
+// AppendGame persists one game completion as the all-or-nothing unit: the
+// game row plus the series aggregates recomputed from the series' own games
+// (score line, winner, finish) in one transaction. The recompute is the
+// single source of truth: the score columns summarize the game rows, never
+// a parallel tally, so they cannot drift. Games append in idx order up to
+// the run's bo_len, the cap the forfeit billing of a quit fills to.
+func (t *Store) AppendGame(ctx context.Context, g Game) (Game, error) {
+	tag, ok := outcomeTag[g.Outcome]
+	if !ok {
+		return Game{}, fmt.Errorf("tourney: game outcome %d is not a server outcome", int(g.Outcome))
+	}
+	if g.RedSlot == g.BlueSlot {
+		return Game{}, fmt.Errorf("tourney: red and blue slot are both %d", g.RedSlot)
+	}
+	blob := server.EncodeMoves(nil, g.Moves)
+	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
+		var status string
+		if err := tx.QueryRowContext(ctx,
+			`SELECT status FROM tournament_runs WHERE id = ?`, g.RunID,
+		).Scan(&status); err != nil {
+			return notFound(err, fmt.Sprintf("run %d", g.RunID))
+		}
+		if status != RunStateOngoing {
+			return fmt.Errorf("tourney: run %d is %s: no further games", g.RunID, status)
+		}
+		var boLen, redFirst, blueFirst int
+		if err := tx.QueryRowContext(ctx,
+			`SELECT r.bo_len, s.red_first_slot, s.blue_first_slot
+			FROM tournament_series s JOIN tournament_runs r ON r.id = s.run_id
+			WHERE s.id = ? AND s.run_id = ?`, g.SeriesID, g.RunID,
+		).Scan(&boLen, &redFirst, &blueFirst); err != nil {
+			return notFound(err, fmt.Sprintf("series %d of run %d", g.SeriesID, g.RunID))
+		}
+		for _, slot := range [2]int{g.RedSlot, g.BlueSlot} {
+			if err := tx.QueryRowContext(ctx,
+				`SELECT 1 FROM tournament_participants WHERE run_id = ? AND slot = ?`, g.RunID, slot,
+			).Scan(new(int)); err != nil {
+				return fmt.Errorf("tourney: slot %d is not a participant of run %d: %w", slot, g.RunID, err)
+			}
+		}
+		var played int
+		if err := tx.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM tournament_games WHERE series_id = ?`, g.SeriesID,
+		).Scan(&played); err != nil {
+			return fmt.Errorf("tourney: count games of series %d: %w", g.SeriesID, err)
+		}
+		if g.IdxInSeries != played {
+			return fmt.Errorf("tourney: game idx %d but series %d holds %d games: append in order", g.IdxInSeries, g.SeriesID, played)
+		}
+		if played >= boLen {
+			return fmt.Errorf("tourney: series %d already played its %d games", g.SeriesID, boLen)
+		}
+		if err := tx.QueryRowContext(ctx,
+			`INSERT INTO tournament_games (run_id, series_id, idx_in_series, red_slot, blue_slot, outcome, won_by, full_turns, moves)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, played_at`,
+			g.RunID, g.SeriesID, g.IdxInSeries, g.RedSlot, g.BlueSlot, tag, sqlArg(g.WonBy), g.FullTurns, blob,
+		).Scan(&g.ID, &g.PlayedAt); err != nil {
+			return fmt.Errorf("tourney: append game: %w", err)
+		}
+		redWins, blueWins, total, err := seriesWins(ctx, tx, g.SeriesID, redFirst, blueFirst)
+		if err != nil {
+			return err
+		}
+		winner, finished := settleSeries(boLen, redFirst, blueFirst, redWins, blueWins, total)
+		var finishedAt any
+		if finished {
+			finishedAt = g.PlayedAt
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE tournament_series SET red_first_wins = ?, blue_first_wins = ?, winner_slot = ?, finished_at = ?
+			WHERE id = ?`,
+			redWins, blueWins, sqlArg(winner), finishedAt, g.SeriesID,
+		); err != nil {
+			return fmt.Errorf("tourney: settle series %d: %w", g.SeriesID, err)
+		}
+		return nil
+	})
+	if err != nil {
+		return Game{}, err
+	}
+	return g, nil
+}
+
+// seriesWins counts each seat's wins from the games themselves inside the
+// caller's transaction.
+func seriesWins(ctx context.Context, tx *sql.Tx, seriesID int64, redFirstSlot, blueFirstSlot int) (red, blue, total int, err error) {
+	err = tx.QueryRowContext(ctx, `
+	SELECT
+		COALESCE(SUM(CASE WHEN (outcome = ? AND red_slot = ?) OR (outcome = ? AND blue_slot = ?) THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN (outcome = ? AND red_slot = ?) OR (outcome = ? AND blue_slot = ?) THEN 1 ELSE 0 END), 0),
+		COUNT(*)
+	FROM tournament_games WHERE series_id = ?`,
+		server.OutcomeRed, redFirstSlot, server.OutcomeBlue, redFirstSlot,
+		server.OutcomeRed, blueFirstSlot, server.OutcomeBlue, blueFirstSlot, seriesID,
+	).Scan(&red, &blue, &total)
+	if err != nil {
+		err = fmt.Errorf("tourney: recompute series %d wins: %w", seriesID, err)
+	}
+	return
+}
+
+// FinishRun closes a run atomically: it refuses while any series is
+// unfinished or the run is already closed, then writes the final standings
+// snapshot derived from the games. The snapshot freezes the close-of-run
+// leaderboard; Leaderboard itself keeps deriving live from the games.
+func (t *Store) FinishRun(ctx context.Context, runID int64, finishedAt int64) error {
+	return t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
+		var status string
+		if err := tx.QueryRowContext(ctx,
+			`SELECT status FROM tournament_runs WHERE id = ?`, runID,
+		).Scan(&status); err != nil {
+			return notFound(err, fmt.Sprintf("run %d", runID))
+		}
+		if status != RunStateOngoing {
+			return fmt.Errorf("tourney: run %d is already %s", runID, status)
+		}
+		var unfinished int
+		if err := tx.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM tournament_series WHERE run_id = ? AND finished_at IS NULL`, runID,
+		).Scan(&unfinished); err != nil {
+			return fmt.Errorf("tourney: count unfinished series of run %d: %w", runID, err)
+		}
+		if unfinished != 0 {
+			return fmt.Errorf("tourney: run %d still has %d unfinished series", runID, unfinished)
+		}
+		board, err := leaderboardIn(ctx, tx, runID)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE tournament_runs SET status = ?, finished_at = ? WHERE id = ?`,
+			RunStateFinished, finishedAt, runID); err != nil {
+			return fmt.Errorf("tourney: finish run %d: %w", runID, err)
+		}
+		for _, st := range board {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO tournament_standings (run_id, slot, rating, wins, losses, draws, series_won, games_played)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				runID, st.Slot, st.Rating, st.Wins, st.Losses, st.Draws, st.SeriesWon, st.GamesPlayed); err != nil {
+				return fmt.Errorf("tourney: snapshot slot %d: %w", st.Slot, err)
+			}
+		}
+		return nil
+	})
+}
+
+// Leaderboard derives the ordered standings of a run straight from the
+// persisted games: the rating law replays in play order from the run's
+// start rating, W-L-D counts per game, one series won per decided series.
+// Order: rating desc, then wins desc, then slot asc.
+func (t *Store) Leaderboard(ctx context.Context, runID int64) ([]Standings, error) {
+	var board []Standings
+	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
+		b, err := leaderboardIn(ctx, tx, runID)
+		board = b
+		return err
+	})
+	return board, err
+}
+
+// leaderboardIn folds one run's games inside the caller's transaction.
+func leaderboardIn(ctx context.Context, tx *sql.Tx, runID int64) ([]Standings, error) {
+	var start int
+	if err := tx.QueryRowContext(ctx,
+		`SELECT start_rating FROM tournament_runs WHERE id = ?`, runID,
+	).Scan(&start); err != nil {
+		return nil, notFound(err, fmt.Sprintf("run %d", runID))
+	}
+	slots, err := slotsOf(ctx, tx, runID)
+	if err != nil {
+		return nil, err
+	}
+	games, err := gamesOf(ctx, tx, runID)
+	if err != nil {
+		return nil, err
+	}
+	winners, err := seriesWinnersOf(ctx, tx, runID)
+	if err != nil {
+		return nil, err
+	}
+	return leaderboard(foldStandings(start, slots, games, winners)), nil
+}
+
+func slotsOf(ctx context.Context, tx *sql.Tx, runID int64) ([]int, error) {
+	rows, err := tx.QueryContext(ctx,
+		`SELECT slot FROM tournament_participants WHERE run_id = ? ORDER BY slot`, runID)
+	if err != nil {
+		return nil, fmt.Errorf("tourney: read participants of run %d: %w", runID, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var slots []int
+	for rows.Next() {
+		var s int
+		if err := rows.Scan(&s); err != nil {
+			return nil, fmt.Errorf("tourney: scan participant of run %d: %w", runID, err)
+		}
+		slots = append(slots, s)
+	}
+	return slots, rows.Err()
+}
+
+// gamesOf streams the fold's input in play order, translating the stored
+// outcome tags back onto the server enum.
+func gamesOf(ctx context.Context, tx *sql.Tx, runID int64) ([]foldedGame, error) {
+	rows, err := tx.QueryContext(ctx,
+		`SELECT red_slot, blue_slot, outcome FROM tournament_games WHERE run_id = ? ORDER BY id`, runID)
+	if err != nil {
+		return nil, fmt.Errorf("tourney: read games of run %d: %w", runID, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var games []foldedGame
+	for rows.Next() {
+		var g foldedGame
+		var tag string
+		if err := rows.Scan(&g.RedSlot, &g.BlueSlot, &tag); err != nil {
+			return nil, fmt.Errorf("tourney: scan game of run %d: %w", runID, err)
+		}
+		outcome, ok := outcomeOf(tag)
+		if !ok {
+			return nil, fmt.Errorf("tourney: game of run %d carries outcome %q", runID, tag)
+		}
+		g.Outcome = outcome
+		games = append(games, g)
+	}
+	return games, rows.Err()
+}
+
+func outcomeOf(tag string) (server.Outcome, bool) {
+	for outcome, t := range outcomeTag {
+		if t == tag {
+			return outcome, true
+		}
+	}
+	return 0, false
+}
+
+func seriesWinnersOf(ctx context.Context, tx *sql.Tx, runID int64) ([]int, error) {
+	rows, err := tx.QueryContext(ctx,
+		`SELECT winner_slot FROM tournament_series WHERE run_id = ? AND winner_slot IS NOT NULL`, runID)
+	if err != nil {
+		return nil, fmt.Errorf("tourney: read series winners of run %d: %w", runID, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var winners []int
+	for rows.Next() {
+		var w int
+		if err := rows.Scan(&w); err != nil {
+			return nil, fmt.Errorf("tourney: scan series winner of run %d: %w", runID, err)
+		}
+		winners = append(winners, w)
+	}
+	return winners, rows.Err()
+}

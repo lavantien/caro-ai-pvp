@@ -57,6 +57,11 @@ fuzz:
 			CGO_ENABLED=1 go test -run='^$$' -fuzz=$$t -fuzztime=30s ./internal/server || exit 1; \
 		done; \
 	fi
+	@if [ -d internal/tourney ]; then \
+		for t in FuzzPairings FuzzFoldZeroSum; do \
+			CGO_ENABLED=1 go test -run='^$$' -fuzz=$$t -fuzztime=30s ./internal/tourney || exit 1; \
+		done; \
+	fi
 
 # mutate [PARALLEL=1] [CHALLENGE=1]: mutation gate over the core packages.
 # CHALLENGE=1 runs the suite under allowlisted mutants too, auditing every
