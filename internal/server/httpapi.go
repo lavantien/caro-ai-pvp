@@ -11,6 +11,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -168,15 +169,30 @@ type roomDetail struct {
 	Game *gameSnapshot `json:"game"`
 }
 
-// apiServer carries the transport's two dependencies.
+// apiServer carries the transport's two dependencies plus the SSE keepalive
+// cadence, a field so tests can tighten it.
 type apiServer struct {
-	store *Store
-	rooms *RoomManager
+	store     *Store
+	rooms     *RoomManager
+	keepalive time.Duration
 }
 
-// NewHTTPAPI builds the M6a JSON surface over store and rooms.
+// sseKeepalive is the default idle cadence of the event streams: a comment
+// frame every 15s holds proxies and browsers on an idle connection (config
+// carries no SSE constant yet, reported with the milestone).
+const sseKeepalive = 15 * time.Second
+
+// sseKeepaliveComment is the idle frame: a comment line plus the blank
+// terminator, invisible to the SSE event stream.
+const sseKeepaliveComment = ": keepalive\n\n"
+
+// NewHTTPAPI builds the M6a JSON+SSE surface over store and rooms.
 func NewHTTPAPI(store *Store, rooms *RoomManager) http.Handler {
-	a := &apiServer{store: store, rooms: rooms}
+	a := &apiServer{store: store, rooms: rooms, keepalive: sseKeepalive}
+	return a.routes()
+}
+
+func (a *apiServer) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/login", a.handleLogin)
 	mux.HandleFunc("POST /api/logout", a.handleLogout)
@@ -184,6 +200,7 @@ func NewHTTPAPI(store *Store, rooms *RoomManager) http.Handler {
 	mux.HandleFunc("GET /api/rooms", a.handleListRooms)
 	mux.HandleFunc("POST /api/rooms", a.requireSession(a.handleCreateRoom))
 	mux.HandleFunc("GET /api/rooms/{id}", a.handleRoomDetail)
+	mux.HandleFunc("GET /api/rooms/{id}/events", a.handleRoomEvents)
 	mux.HandleFunc("POST /api/rooms/{id}/join", a.requireSession(a.handleJoin))
 	mux.HandleFunc("POST /api/rooms/{id}/ready", a.requireSession(a.handleReady))
 	mux.HandleFunc("POST /api/rooms/{id}/move", a.requireSession(a.handleMove))
@@ -311,6 +328,74 @@ func (a *apiServer) handleRoomDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, roomDetail{roomSummary: roomSummaryOf(info), Game: room.gameSnapshot()})
+}
+
+// handleRoomEvents is the public SSE stream of one room, guests included.
+// One frame per hub event: "event: <kind>", the payload as "data:" lines,
+// a blank terminator; idle periods emit the keepalive comment frame so
+// intermediaries hold the connection. The stream ends cleanly when the
+// series finishes (the room retires right after that event), earlier when
+// the hub ends the subscription (eviction or hub close), or when the client
+// goes away. A spectator of a retired room reconnects and re-syncs from
+// GET /api/rooms, which is why an eviction needs no error frame.
+func (a *apiServer) handleRoomEvents(w http.ResponseWriter, r *http.Request) {
+	room, ok := a.roomFromRequest(w, r)
+	if !ok {
+		return
+	}
+	sub, err := room.Subscribe()
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	defer sub.Unsubscribe()
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.WriteHeader(http.StatusOK)
+	rc := http.NewResponseController(w)
+	_ = rc.Flush()
+	ticker := time.NewTicker(a.keepalive)
+	defer ticker.Stop()
+	for {
+		select {
+		case ev, open := <-sub.Events():
+			if !open {
+				return
+			}
+			if !writeSSEFrame(w, ev) {
+				return
+			}
+			_ = rc.Flush()
+			if ev.Kind == EventKindSeries {
+				return
+			}
+		case <-ticker.C:
+			if _, err := io.WriteString(w, sseKeepaliveComment); err != nil {
+				return
+			}
+			_ = rc.Flush()
+		case <-r.Context().Done():
+			return
+		}
+	}
+}
+
+// writeSSEFrame writes one event frame and reports whether the client is
+// still reading. Payloads are single-line today; splitting on newlines
+// keeps the frame spec-legal if that ever changes.
+func writeSSEFrame(w io.Writer, ev Event) bool {
+	var b strings.Builder
+	b.WriteString("event: ")
+	b.WriteString(ev.Kind)
+	b.WriteByte('\n')
+	for _, line := range strings.Split(ev.Payload, "\n") {
+		b.WriteString("data: ")
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+	b.WriteByte('\n')
+	_, err := io.WriteString(w, b.String())
+	return err == nil
 }
 
 // roomFromRequest resolves {id} against the manager and writes the 404

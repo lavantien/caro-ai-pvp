@@ -1,12 +1,16 @@
 package server
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -457,6 +461,189 @@ func TestHTTPForfeitRetiresRoom(t *testing.T) {
 	got = doJSON(t, c, http.MethodPost, base+"/forfeit", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
 	got = doJSON(t, c, http.MethodPost, base+"/forfeit", tb, nil)
+	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
+}
+
+// sseFrame is one parsed SSE frame off the wire.
+type sseFrame struct {
+	event string
+	data  string
+}
+
+// sseReader reads frames, skipping keepalive comment frames and counting
+// them so tests can prove the cadence.
+type sseReader struct {
+	br         *bufio.Reader
+	keepalives int
+}
+
+// openSSE opens one room's event stream on a bounded context; the body is
+// closed by the test cleanup.
+func openSSE(t *testing.T, c *http.Client, url string) *sseReader {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		cancel()
+		t.Fatalf("new sse request: %v", err)
+	}
+	resp, err := c.Do(req)
+	if err != nil {
+		cancel()
+		t.Fatalf("open sse %s: %v", url, err)
+	}
+	t.Cleanup(func() {
+		cancel()
+		_ = resp.Body.Close()
+	})
+	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
+		t.Fatalf("sse content type = %q, want text/event-stream", ct)
+	}
+	return &sseReader{br: bufio.NewReader(resp.Body)}
+}
+
+// next reads the next event frame. ok is false on the stream's clean end;
+// a frame cut in half by the end fails the test.
+func (sr *sseReader) next(t *testing.T) (sseFrame, bool) {
+	t.Helper()
+	var f sseFrame
+	for {
+		line, err := sr.br.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				if f.event != "" || f.data != "" {
+					t.Fatalf("stream ended inside a frame: %+v", f)
+				}
+				return f, false
+			}
+			t.Fatalf("read sse line: %v", err)
+		}
+		line = strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
+		switch {
+		case line == "":
+			if f.event != "" || f.data != "" {
+				return f, true
+			}
+		case strings.HasPrefix(line, ":"):
+			sr.keepalives++
+		case strings.HasPrefix(line, "event: "):
+			f.event = strings.TrimPrefix(line, "event: ")
+		case strings.HasPrefix(line, "data: "):
+			f.data += strings.TrimPrefix(line, "data: ")
+		default:
+			t.Fatalf("stray sse line %q", line)
+		}
+	}
+}
+
+func TestHTTPSSEStreamsSeriesToCleanClose(t *testing.T) {
+	s := newStack(t)
+	api := &apiServer{store: s.store, rooms: s.rm, keepalive: 20 * time.Millisecond}
+	srv := httptest.NewServer(api.routes())
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	ta, tb := mintSession(t, s.store, alice), mintSession(t, s.store, bob)
+
+	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+	var room roomSummary
+	wantStatus(t, got, http.StatusCreated, &room)
+	base := srv.URL + "/api/rooms/" + room.ID
+
+	// The guest opens the stream before the handshake, no session involved.
+	sr := openSSE(t, c, base+"/events")
+	got = doJSON(t, c, http.MethodPost, base+"/join", tb, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/ready", ta, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/ready", tb, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+
+	playHTTPScript(t, srv, room.ID, ta, tb, hostWinsRed, true)
+	time.Sleep(60 * time.Millisecond) // keepalive frames must flow while idle
+	playHTTPScript(t, srv, room.ID, ta, tb, guestRedLosesToBlue, false)
+
+	// Read to the clean close: every stone in order, both game ends, the
+	// series frame, then EOF; keepalives interleaved as comments.
+	var moves []string
+	var ends []string
+	series := ""
+	for {
+		f, ok := sr.next(t)
+		if !ok {
+			break
+		}
+		switch f.event {
+		case EventKindMove:
+			moves = append(moves, f.data)
+		case EventKindGameEnd:
+			ends = append(ends, f.data)
+		case EventKindSeries:
+			series = f.data
+		default:
+			t.Fatalf("unexpected frame event %q data %q", f.event, f.data)
+		}
+	}
+	want := append(append([]string{}, hostWinsRed...), guestRedLosesToBlue...)
+	if !slices.Equal(moves, want) {
+		t.Errorf("move frames = %v, want %v", moves, want)
+	}
+	if !slices.Equal(ends, []string{"red", "blue"}) {
+		t.Errorf("game end frames = %v, want red then blue", ends)
+	}
+	if series != "host" {
+		t.Errorf("series frame = %q, want host", series)
+	}
+	if sr.keepalives == 0 {
+		t.Error("no keepalive frame seen during the idle window")
+	}
+}
+
+func TestHTTPSSECleanCloseWhenHubEndsSubscription(t *testing.T) {
+	s := newStack(t)
+	api := &apiServer{store: s.store, rooms: s.rm, keepalive: time.Hour}
+	srv := httptest.NewServer(api.routes())
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	ta, tb := mintSession(t, s.store, alice), mintSession(t, s.store, bob)
+
+	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+	var room roomSummary
+	wantStatus(t, got, http.StatusCreated, &room)
+	base := srv.URL + "/api/rooms/" + room.ID
+	got = doJSON(t, c, http.MethodPost, base+"/join", tb, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/ready", ta, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+	got = doJSON(t, c, http.MethodPost, base+"/ready", tb, nil)
+	wantStatus(t, got, http.StatusNoContent, nil)
+
+	sr := openSSE(t, c, base+"/events")
+	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
+	wantStatus(t, got, http.StatusNoContent, nil)
+	f, ok := sr.next(t)
+	if !ok || f.event != EventKindMove || f.data != "D4" {
+		t.Fatalf("first frame = %+v ok %t, want the D4 move", f, ok)
+	}
+
+	// The hub closing every subscription ends the stream cleanly: the next
+	// read sees the stream end, not an error.
+	s.hub.Close()
+	if _, ok = sr.next(t); ok {
+		t.Fatal("frame after hub close, want the clean stream end")
+	}
+}
+
+func TestHTTPSSEUnknownRoom(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	got := doJSON(t, srv.Client(), http.MethodGet, srv.URL+"/api/rooms/deadbeef/events", "", nil)
 	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
 }
 
