@@ -183,7 +183,11 @@ func TestSMPKillSelectionPrefersDeeperWorker(t *testing.T) {
 	defer s.Close()
 	s.workers[1].radius = 0
 	warmAndPark(t, s, b)
-	mv, stats := s.Search(b, NewFixedBudget(20*time.Millisecond))
+	// The grant must clear the coarse-clock quantum: at 30ms the soft limit
+	// (19.5ms) holds a full 16ms tick, so the head consult keeps opening
+	// iterations on a quantized clock too and the radius-zero worker can
+	// bank the whole ladder the setup pins.
+	mv, stats := s.Search(b, NewFixedBudget(30*time.Millisecond))
 	if s.results[1].completed != config.SearchMaxPly {
 		t.Fatalf("setup: radius-zero worker completed %d", s.results[1].completed)
 	}
