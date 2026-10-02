@@ -66,7 +66,9 @@ func TestPrintRunResult(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	printRunResult(&buf, roster, res)
+	if err := printRunResult(&buf, roster, res); err != nil {
+		t.Fatalf("print: %v", err)
+	}
 	out := buf.String()
 	// tabwriter pads the table cells, so assert on the tab-free text.
 	for _, want := range []string{

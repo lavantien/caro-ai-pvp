@@ -63,7 +63,9 @@ func runTourney(args []string) int {
 		spec.TCIdx, spec.BOLen, spec.StartRating, *parallel)
 
 	if err == nil {
-		printRunResult(os.Stdout, spec.Roster, res)
+		if perr := printRunResult(os.Stdout, spec.Roster, res); perr != nil {
+			fmt.Fprintln(os.Stderr, "caro:", perr)
+		}
 	}
 	// The stack closes in reverse boot order; the run already retired every
 	// room, so Shutdown is the sweep that guarantees it.
@@ -81,7 +83,7 @@ func runTourney(args []string) int {
 }
 
 // printRunResult writes the run's per-series lines and the final leaderboard.
-func printRunResult(w io.Writer, roster []tourney.Participant, res tourney.RunResult) {
+func printRunResult(w io.Writer, roster []tourney.Participant, res tourney.RunResult) error {
 	names := make(map[int]string, len(roster))
 	for _, p := range roster {
 		names[p.Slot] = p.Name
@@ -93,15 +95,24 @@ func printRunResult(w io.Writer, roster []tourney.Participant, res tourney.RunRe
 		return names[*slot]
 	}
 	for _, line := range res.Series {
-		fmt.Fprintf(w, "series %2d: %s (red-first) %d - %d %s, winner %s\n",
+		if _, err := fmt.Fprintf(w, "series %2d: %s (red-first) %d - %d %s, winner %s\n",
 			line.PairingSlot, names[line.RedFirst.Slot], line.RedFirstWins,
-			line.BlueFirstWins, names[line.BlueFirst.Slot], winner(line.WinnerSlot))
+			line.BlueFirstWins, names[line.BlueFirst.Slot], winner(line.WinnerSlot)); err != nil {
+			return fmt.Errorf("caro: print series line: %w", err)
+		}
 	}
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "rank\tparticipant\trating\twins\tlosses\tdraws\tseries\tgames")
-	for i, st := range res.Board {
-		fmt.Fprintf(tw, "%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n",
-			i+1, names[st.Slot], st.Rating, st.Wins, st.Losses, st.Draws, st.SeriesWon, st.GamesPlayed)
+	if _, err := fmt.Fprintln(tw, "rank\tparticipant\trating\twins\tlosses\tdraws\tseries\tgames"); err != nil {
+		return fmt.Errorf("caro: print leaderboard head: %w", err)
 	}
-	_ = tw.Flush()
+	for i, st := range res.Board {
+		if _, err := fmt.Fprintf(tw, "%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n",
+			i+1, names[st.Slot], st.Rating, st.Wins, st.Losses, st.Draws, st.SeriesWon, st.GamesPlayed); err != nil {
+			return fmt.Errorf("caro: print leaderboard row: %w", err)
+		}
+	}
+	if err := tw.Flush(); err != nil {
+		return fmt.Errorf("caro: flush leaderboard: %w", err)
+	}
+	return nil
 }
