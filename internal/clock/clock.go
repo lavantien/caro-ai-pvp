@@ -68,8 +68,13 @@ func (c *GameClock) Budget() time.Duration {
 // Commit settles a move: elapsed time is charged (an overshoot floors the
 // bank at zero), the increment lands, and the move count advances. The pid
 // state persists across commits, which is the whole point of integral and
-// derivative action across moves.
+// derivative action across moves. Negative elapsed is a programmer error:
+// monotonic clock reads cannot produce it, and banking it would overflow
+// the ns conversion and break the never-negative invariant.
 func (c *GameClock) Commit(elapsed time.Duration) {
+	if elapsed < 0 {
+		panic("clock: Commit with negative elapsed")
+	}
 	elapsedMs := float64(elapsed) / float64(time.Millisecond)
 	c.remainingMs = math.Max(0, c.remainingMs-elapsedMs) + c.incrementMs
 	c.moves++

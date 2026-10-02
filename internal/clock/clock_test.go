@@ -77,6 +77,21 @@ func TestNewGameClockPanicsOutOfRange(t *testing.T) {
 	}
 }
 
+func TestCommitPanicsOnNegativeElapsed(t *testing.T) {
+	for _, elapsed := range []time.Duration{-1, -time.Second, math.MinInt64} {
+		func() {
+			defer func() {
+				r, ok := recover().(string)
+				if !ok || r != "clock: Commit with negative elapsed" {
+					t.Errorf("Commit(%v) recover = %v, want the negative elapsed panic", elapsed, recover())
+				}
+			}()
+			c := NewGameClock(0)
+			c.Commit(elapsed)
+		}()
+	}
+}
+
 func TestBudgetExactTables(t *testing.T) {
 	for _, tc := range []struct {
 		tcIdx   int
