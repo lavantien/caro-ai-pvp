@@ -664,6 +664,43 @@ func TestForfeitCompletionUnitAtomicOnFailedStatement(t *testing.T) {
 	}
 }
 
+// TestForfeitOnOpenRoomPublishesTerminalEvent pins that every retirement
+// path ends spectator streams. An open room (no guest, no series formed)
+// still accepts spectators, so its forfeit must publish a terminal event:
+// a stream that only ever sees keepalives pins a goroutine and a subscriber
+// slot forever.
+func TestForfeitOnOpenRoomPublishesTerminalEvent(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	sub, err := r.Subscribe()
+	if err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	defer sub.Unsubscribe()
+
+	if err := r.Forfeit(alice.ID); err != nil {
+		t.Fatalf("forfeit open room: %v", err)
+	}
+	if _, ok := r.Info(); ok {
+		t.Error("open room still listed after forfeit, want retired")
+	}
+	select {
+	case ev := <-sub.Events():
+		// The series kind with the none payload: no series ever formed, so
+		// there is no winner, but the stream still ends on a terminal shape
+		// the live transport already closes on.
+		if ev.Kind != EventKindSeries || ev.Payload != SideNone.String() {
+			t.Errorf("terminal event = %s %s, want series none", ev.Kind, ev.Payload)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("open-room forfeit published no terminal event: the spectator stream would keepalive forever")
+	}
+}
+
 func mustCellT(t *testing.T, name string) rules.Cell {
 	t.Helper()
 	cell, err := rules.ParseCell(name)

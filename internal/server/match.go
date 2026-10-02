@@ -240,6 +240,12 @@ func (r *Room) Forfeit(userID int64) error {
 		return ErrNotParticipant
 	}
 	if r.series == nil {
+		// An open room retires without a series, but the retirement is
+		// still terminal for spectators. EventKindSeries with the none
+		// payload is the chosen terminal shape: the SSE transport closes
+		// streams on the series kind today, so a fresh retire kind would
+		// be ignored by live handlers until the terminal set widens.
+		r.publishLocked(Event{Kind: EventKindSeries, Payload: SideNone.String()})
 		r.mu.Unlock()
 		r.finishLifecycle()
 		return nil
