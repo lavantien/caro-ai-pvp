@@ -28,7 +28,8 @@ type Store struct {
 }
 
 // Open opens the database at path, applies the config pragmas on every
-// pooled connection, and sizes the pool to the host.
+// pooled connection, sizes the pool to the host, and runs the startup
+// self-migration. On failure the pool is closed so Open leaks nothing.
 func Open(path string) (*Store, error) {
 	db, err := sql.Open("sqlite", dsn(path))
 	if err != nil {
@@ -36,7 +37,12 @@ func Open(path string) (*Store, error) {
 	}
 	db.SetMaxOpenConns(runtime.NumCPU())
 	db.SetMaxIdleConns(runtime.NumCPU())
-	return &Store{db: db}, nil
+	s := &Store{db: db}
+	if err := s.migrate(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return s, nil
 }
 
 // Close checkpoints the WAL back into the main file and truncates the -wal
