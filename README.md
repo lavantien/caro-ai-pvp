@@ -7,9 +7,10 @@ Mobile-first web arena for a custom 16x16 caro variant: exact continuous five wi
 ## contents
 
 1. [grounding](#grounding)
-2. [build and verify](#build-and-verify)
-3. [repository layout](#repository-layout)
-4. [diagrams](#diagrams)
+2. [status](#status)
+3. [build and verify](#build-and-verify)
+4. [repository layout](#repository-layout)
+5. [diagrams](#diagrams)
 
 ## grounding
 
@@ -26,19 +27,27 @@ make doctor   # toolchain check: go >= 1.27.1, CGO, gcc
 make ci       # fmt-check, vet, build, race tests, coverage gates
 ```
 
-Coverage gates: 95% overall, 100% on internal/rules and internal/engine.
+Coverage gates: 95% overall, 100% on internal/rules, internal/engine, and internal/clock.
+
+## status
+
+- v0.1 (M0..M4): rules core at 100% with zero surviving mutants, init-computed pattern tables, zero-alloc PVS+ID+TT search, lazy SMP tiers, VCF/VCT solvers with a brute-force soundness oracle.
+- v0.2 (M5): increment-safe time manager, one tuned PID gain set per time control, soft-stop wiring with the Windows clock-quantum guard, mutation gate green at 1573/1573 over rules+engine+clock with 79 challenge-audited equivalence allowances.
+- v0.3 (M6a part 1): server foundation, SQLite WAL store with forward-only self-migration, per-match rating law, series state machine (loser-takes-red, forfeit-as-losses), single-writer mutation queue, room stats pub-sub hub, argon2id login-or-create, zero-alloc M-line emitter.
 
 ## repository layout
 
 ```
 cmd/caro          entrypoint (ports, firewall)
 cmd/covergate     coverage gate over go cover profiles
+cmd/mutate        in-house mutation gate (parallel, resume, challenge audit)
 internal/config   single constants hub
 internal/rules    board, legality, win detection (M1)
 internal/pattern  exhaustive line-pattern tables (M2)
 internal/engine   search core, SMP tiers (M3)
 internal/vcf      VCF/VCT solvers (M4)
-internal/clock   increment-safe time manager, per-TC PID (M5)
+internal/clock    increment-safe time manager, per-TC PID (M5)
+internal/server   store, auth, series and rating, write queue, rooms (M6a)
 playground/       git-tracked R&D ground
 ```
 
