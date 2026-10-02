@@ -1,14 +1,14 @@
 // Command overshoot measures worst-case deadline overshoot of the engine:
-// how far past a granted fixed budget wall-clock time runs before Search
+// how far past a granted fixed budget wall-clock time runs before the search
 // returns, per worker count and budget. The purpose is to validate
 // config.SearchSafetyMarginMs against a 3x factor over the worst observation.
 //
 // Mechanisms under test: the search polls Exceeded() every
-// config.SearchNodeCheckInterval nodes, an iteration boundary is entered only
-// while the deadline is unexceeded (config.SearchSoftStopFraction is a clock
-// constant, not consulted here because the harness grants a raw
-// engine.NewFixedBudget), and the SMP driver must dispatch, halt, and join
-// its parked workers via runWG.
+// config.SearchNodeCheckInterval nodes, and the SMP driver must dispatch,
+// halt, and join its parked workers via runWG. The harness drives
+// SearchDepth so the soft stop stays out of the measurement entirely: a
+// fixed target depth is bounded by the hard deadline only, while Search
+// would return early whenever the soft-stop consult fires for a Budgeter.
 //
 // Run from this directory (the repo Makefile is outside this topic's file
 // ownership, so the conventional make target cannot live here):
@@ -53,10 +53,10 @@ var (
 	}
 )
 
-// searcher is the shared Search surface of the single-threaded Engine and
-// the SMP pool.
+// searcher is the shared SearchDepth surface of the single-threaded Engine
+// and the SMP pool.
 type searcher interface {
-	Search(b *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats)
+	SearchDepth(b *rules.Board, dl engine.Deadline, depth int) (rules.Move, engine.SearchStats)
 }
 
 // newSearcher builds the measurement instance for a worker count:
@@ -112,7 +112,7 @@ type sample struct {
 func measure(s searcher, b *rules.Board, budget time.Duration) sample {
 	start := time.Now()
 	dl := engine.NewFixedBudget(budget)
-	s.Search(b, dl)
+	s.SearchDepth(b, dl, config.SearchMaxPly)
 	elapsed := time.Since(start)
 	return sample{overshoot: elapsed - budget, early: elapsed < budget}
 }
@@ -124,7 +124,7 @@ func runSweep() [][]sample {
 	for _, workers := range workerCounts {
 		s, release := newSearcher(workers)
 		b := midgamePosition()
-		s.Search(b, engine.NewFixedBudget(warmupBudget))
+		s.SearchDepth(b, engine.NewFixedBudget(warmupBudget), config.SearchMaxPly)
 		for _, budget := range budgets {
 			row := make([]sample, repeats)
 			for i := range row {
