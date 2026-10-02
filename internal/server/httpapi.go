@@ -548,7 +548,10 @@ func (a *apiServer) handleMe(w http.ResponseWriter, _ *http.Request, u User) {
 
 // handleHistory answers the session's match history, newest first, with
 // the move preview trimmed server-side and the full blob kept for the
-// playback board.
+// playback board. A row whose moves blob does not decode (odd length or an
+// off-board cell; this server never writes one) is skipped, not fatal: one
+// hostile row must not brick the whole listing, and detecting such
+// corruption belongs to the store layer, not the history read.
 func (a *apiServer) handleHistory(w http.ResponseWriter, _ *http.Request, u User) {
 	rows, err := a.store.MatchHistory(u.ID)
 	if err != nil {
@@ -559,8 +562,7 @@ func (a *apiServer) handleHistory(w http.ResponseWriter, _ *http.Request, u User
 	for _, row := range rows {
 		e, err := historyEntryOf(row)
 		if err != nil {
-			writeDomainError(w, err)
-			return
+			continue
 		}
 		out = append(out, e)
 	}

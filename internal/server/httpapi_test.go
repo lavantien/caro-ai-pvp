@@ -890,8 +890,8 @@ func TestHTTPHistoryPreviewAndPlaybackBlob(t *testing.T) {
 		t.Errorf("short row wonBy = %q, want nil", *short.WonBy)
 	}
 
-	// A row this server never writes (odd-length blob) fails closed rather
-	// than rendering a broken preview.
+	// A row this server never writes (odd-length blob) is skipped, not
+	// fatal: the two valid rows still answer the listing.
 	if _, err := s.store.AppendGame(Game{
 		SeriesID: sr.ID, IdxInSeries: 2, RedUser: alice.ID, BlueUser: bob.ID,
 		Outcome: OutcomeDraw, Moves: []byte{1, 2, 3}, FullTurns: 1,
@@ -899,7 +899,47 @@ func TestHTTPHistoryPreviewAndPlaybackBlob(t *testing.T) {
 		t.Fatalf("append corrupt game: %v", err)
 	}
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/history", mintSession(t, s.store, alice), nil)
-	wantAPIError(t, got, http.StatusInternalServerError, "internal")
+	var after []historyEntry
+	wantStatus(t, got, http.StatusOK, &after)
+	if len(after) != len(rows) {
+		t.Fatalf("history rows after the corrupt append = %d, want the %d valid ones",
+			len(after), len(rows))
+	}
+}
+
+// TestHTTPHistoryCorruptBlobSkippedNotListingFatal pins the isolation of
+// one hostile history row: an undecodable moves blob (odd length, never
+// written by this server) must not 500 the whole listing, the valid rows
+// still answer.
+func TestHTTPHistoryCorruptBlobSkippedNotListingFatal(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+
+	sr := seedSeries(t, s.store, alice, bob)
+	goodBlob := encodeMoves(nil, historyMoves(t, 6))
+	if _, err := s.store.AppendGame(Game{
+		SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+		Outcome: OutcomeRed, Moves: goodBlob, FullTurns: 3,
+	}); err != nil {
+		t.Fatalf("append good game: %v", err)
+	}
+	if _, err := s.store.AppendGame(Game{
+		SeriesID: sr.ID, IdxInSeries: 1, RedUser: alice.ID, BlueUser: bob.ID,
+		Outcome: OutcomeDraw, Moves: []byte{1, 2, 3}, FullTurns: 1,
+	}); err != nil {
+		t.Fatalf("append corrupt game: %v", err)
+	}
+
+	got := doJSON(t, c, http.MethodGet, srv.URL+"/api/history", mintSession(t, s.store, alice), nil)
+	var rows []historyEntry
+	wantStatus(t, got, http.StatusOK, &rows)
+	if len(rows) != 1 || !bytes.Equal(rows[0].Moves, goodBlob) {
+		t.Errorf("rows = %+v, want only the valid game with its blob untouched", rows)
+	}
 }
 
 // driveSeriesHTTP plays one full bo3 over the wire and reports the first
