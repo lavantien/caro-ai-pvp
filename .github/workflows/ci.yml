@@ -1,0 +1,82 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      pct: ${{ steps.total.outputs.pct }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: toolchain check
+        run: make doctor
+      - name: make ci
+        run: make ci
+      - id: total
+        name: overall coverage
+        run: |
+          pct=$(go tool cover -func=coverage.out | awk '/^total:/ {sub(/%/, "", $3); printf "%.1f", $3}')
+          echo "pct=$pct" >> "$GITHUB_OUTPUT"
+      - name: upload coverage profile
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-profile
+          path: coverage.out
+
+  badge:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: publish coverage badge
+        env:
+          PCT: ${{ needs.ci.outputs.pct }}
+        run: |
+          set -e
+          case 1 in
+            "$(awk -v p="$PCT" 'BEGIN {print (p >= 95) ? 1 : 0}')") color=brightgreen ;;
+            "$(awk -v p="$PCT" 'BEGIN {print (p >= 90) ? 1 : 0}')") color=yellow ;;
+            *) color=red ;;
+          esac
+          case "$color" in
+            brightgreen) fill=#4c1 ;;
+            yellow) fill=#dfb317 ;;
+            *) fill=#e05d44 ;;
+          esac
+          value="${PCT}%"
+          lw=$(( 8 * 7 + 12 ))
+          vw=$(( ${#value} * 7 + 12 ))
+          w=$(( lw + vw ))
+          mx1=$(( lw / 2 ))
+          mx2=$(( lw + vw / 2 ))
+          printf -v svg '<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="20" role="img" aria-label="coverage: %s"><linearGradient id="g" x2="0" y2="100%%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="r"><rect width="%d" height="20" rx="3"/></clipPath><g clip-path="url(#r)"><rect width="%d" height="20" fill="#555"/><rect x="%d" width="%d" height="20" fill="%s"/><rect width="%d" height="20" fill="url(#g)"/></g><g fill="#fff" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11" text-anchor="middle"><text x="%d" y="14">coverage</text><text x="%d" y="14">%s</text></g></svg>' \
+            "$w" "$value" "$w" "$lw" "$lw" "$vw" "$fill" "$w" "$mx1" "$mx2" "$value"
+          printf -v json '{"schemaVersion":1,"label":"coverage","message":"%s","color":"%s"}' "$value" "$color"
+          git checkout -q --orphan coverage
+          git rm -rqf .
+          printf '%s' "$svg" > badge.svg
+          printf '%s' "$json" > coverage.json
+          git add badge.svg coverage.json
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "coverage: $value"
+          git push -qf origin coverage
