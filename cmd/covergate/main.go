@@ -12,7 +12,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-var corePackages = [...]string{"internal/rules", "internal/engine"}
+var corePackages = config.CorePackages
 
 type fileCov struct {
 	total   int64

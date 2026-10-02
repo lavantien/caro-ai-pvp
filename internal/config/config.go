@@ -148,6 +148,11 @@ const (
 	QualityCoverageCoreMin    = 100.0
 )
 
+// CorePackages is the correctness-critical set the covergate enforces at
+// QualityCoverageCoreMin: the rules, the engine, and the time manager whose
+// never-flag law is a product invariant.
+var CorePackages = [...]string{"internal/rules", "internal/engine", "internal/clock"}
+
 const (
 	MutatePackages         = "internal/rules,internal/engine,internal/clock"
 	MutateTimeoutMs        = 30_000
