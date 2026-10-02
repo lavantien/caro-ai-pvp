@@ -1,7 +1,7 @@
 BINARY := bin/caro
 COVERPROFILE := coverage.out
 
-.PHONY: all doctor fmt fmt-check lint vet build test test-race cover bench fuzz mutate mutate-resume run serve migrate firewall tidy ci
+.PHONY: all doctor fmt fmt-check lint vet build test test-race cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full firewall tidy ci
 
 all: build
 
@@ -82,6 +82,19 @@ migrate:
 
 serve:
 	CGO_ENABLED=1 go run ./cmd/caro serve
+
+# Headless tournament drivers of first-cause.md Scenario 2. Each prints the
+# per-series lines and the final leaderboard to stdout and writes the
+# per-series txt logs under config.TournamentLogDir (tourney-logs/). ARGS
+# forwards flags, e.g. make tourney-smoke-10 ARGS="--db scratch.db --parallel 1".
+tourney-smoke-32:
+	CGO_ENABLED=1 go run ./cmd/caro tourney smoke32 $(ARGS)
+
+tourney-smoke-10:
+	CGO_ENABLED=1 go run ./cmd/caro tourney smoke10 $(ARGS)
+
+tourney-full:
+	CGO_ENABLED=1 go run ./cmd/caro tourney full $(ARGS)
 
 firewall:
 	CGO_ENABLED=1 go run ./cmd/caro firewall
