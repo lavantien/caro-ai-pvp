@@ -19,6 +19,41 @@ type TimeControl struct {
 
 var TimeControls = [...]TimeControl{{InitialSec: 1}, {InitialSec: 2, IncrementSec: 1}, {InitialSec: 3, IncrementSec: 2}}
 
+// Clock law constants, all consumed by internal/clock. The budget for the
+// next move spreads the spendable remainder over the expected moves left,
+// adds a share of the increment, and lets a PID controller shape the result
+// against the planned drain trajectory. The floor and the reserve bound
+// every grant, so a drained clock still funds minimum moves and the tank
+// never reaches zero while a grant is outstanding.
+const (
+	// ClockExpectedMovesPerSide anchors the drain trajectory and the spread
+	// divisor: a decisive 16x16 caro game runs roughly 20 to 40 moves per
+	// side, the PID absorbs the estimation error.
+	ClockExpectedMovesPerSide = 30
+	// ClockIncrementShare is the fraction of the per-move increment added to
+	// the spread, the rest banks against long endgames.
+	ClockIncrementShare = 0.5
+	// ClockPIDClampFraction bounds the PID correction relative to the
+	// feedforward spread of the same move.
+	ClockPIDClampFraction = 0.25
+	// ClockPIDIntegClampMs bounds the integral term against windup.
+	ClockPIDIntegClampMs = 500.0
+)
+
+// PIDGains carries one time control's controller tuning. Gains scale a
+// millisecond trajectory error into a millisecond budget correction.
+type PIDGains struct {
+	Kp, Ki, Kd float64
+}
+
+// ClockPID is indexed like TimeControls: one gain set per supported time
+// control, tuned against the feedforward baseline by the clock benchmarks.
+var ClockPID = [len(TimeControls)]PIDGains{
+	{Kp: 0.02, Ki: 0.01, Kd: 0.005},
+	{Kp: 0.03, Ki: 0.015, Kd: 0.005},
+	{Kp: 0.03, Ki: 0.015, Kd: 0.005},
+}
+
 const (
 	SeriesBO3  = 3
 	SeriesBO5  = 5
@@ -114,7 +149,7 @@ const (
 )
 
 const (
-	MutatePackages         = "internal/rules,internal/engine"
+	MutatePackages         = "internal/rules,internal/engine,internal/clock"
 	MutateTimeoutMs        = 30_000
 	MutateMinTimeoutMs     = 2_000
 	MutateTestTimeoutSlack = 1_000

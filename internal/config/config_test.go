@@ -60,6 +60,32 @@ func TestTimeControlsMatchSpec(t *testing.T) {
 	}
 }
 
+func TestClockLawConstants(t *testing.T) {
+	if ClockExpectedMovesPerSide < 10 || ClockExpectedMovesPerSide > 60 {
+		t.Errorf("ClockExpectedMovesPerSide = %d, want within [10, 60] to track real game length", ClockExpectedMovesPerSide)
+	}
+	if ClockIncrementShare <= 0 || ClockIncrementShare > 1 {
+		t.Errorf("ClockIncrementShare = %v, want in (0, 1]", ClockIncrementShare)
+	}
+	if ClockPIDClampFraction <= 0 || ClockPIDClampFraction >= 1 {
+		t.Errorf("ClockPIDClampFraction = %v, want in (0, 1)", ClockPIDClampFraction)
+	}
+	if ClockPIDIntegClampMs <= 0 {
+		t.Errorf("ClockPIDIntegClampMs = %v, must be positive", ClockPIDIntegClampMs)
+	}
+	if len(ClockPID) != len(TimeControls) {
+		t.Fatalf("len(ClockPID) = %d, want %d, one gain set per time control", len(ClockPID), len(TimeControls))
+	}
+	for i, g := range ClockPID {
+		if g.Kp < 0 || g.Ki < 0 || g.Kd < 0 {
+			t.Errorf("ClockPID[%d] = %+v, gains must be non-negative", i, g)
+		}
+	}
+	if SearchMinMoveTimeMs <= 0 || SearchSafetyMarginMs <= 0 {
+		t.Errorf("floor %d and reserve %d must both be positive", SearchMinMoveTimeMs, SearchSafetyMarginMs)
+	}
+}
+
 func TestSeriesMatchSpec(t *testing.T) {
 	want := []int{3, 5, 7, 11}
 	if len(SeriesLengths) != len(want) {
