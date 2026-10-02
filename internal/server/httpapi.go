@@ -12,6 +12,9 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
 // Transport-local knobs config does not carry yet (config gap, reported
@@ -134,6 +137,37 @@ type userSummary struct {
 	Level    int    `json:"level"`
 }
 
+// roomSummary is one rooms-grid line.
+type roomSummary struct {
+	ID          string `json:"id"`
+	HostUserID  int64  `json:"hostUserId"`
+	GuestUserID int64  `json:"guestUserId"`
+	TCIdx       int    `json:"tcIdx"`
+	BOLen       int    `json:"boLen"`
+	State       string `json:"state"`
+	VsBotTier   string `json:"vsBotTier,omitempty"`
+	HostWins    int    `json:"hostWins"`
+	GuestWins   int    `json:"guestWins"`
+	CreatedAt   int64  `json:"createdAt"`
+}
+
+// gameSnapshot is the live-game section of the room detail: the board as
+// the ordered stone list a client replays, the side and seat to move, the
+// red seat of the rotation, and both banks in milliseconds.
+type gameSnapshot struct {
+	Moves      []string `json:"moves"`
+	Turn       string   `json:"turn"`
+	TurnUserID int64    `json:"turnUserId"`
+	RedUserID  int64    `json:"redUserId"`
+	ClockMs    [2]int64 `json:"clockMs"`
+}
+
+// roomDetail is the public room view: the grid line plus the live game.
+type roomDetail struct {
+	roomSummary
+	Game *gameSnapshot `json:"game"`
+}
+
 // apiServer carries the transport's two dependencies.
 type apiServer struct {
 	store *Store
@@ -147,7 +181,133 @@ func NewHTTPAPI(store *Store, rooms *RoomManager) http.Handler {
 	mux.HandleFunc("POST /api/login", a.handleLogin)
 	mux.HandleFunc("POST /api/logout", a.handleLogout)
 	mux.HandleFunc("GET /api/me", a.requireSession(a.handleMe))
+	mux.HandleFunc("GET /api/rooms", a.handleListRooms)
+	mux.HandleFunc("POST /api/rooms", a.requireSession(a.handleCreateRoom))
+	mux.HandleFunc("GET /api/rooms/{id}", a.handleRoomDetail)
 	return mux
+}
+
+// handleListRooms answers the rooms grid; public, no session needed.
+func (a *apiServer) handleListRooms(w http.ResponseWriter, _ *http.Request) {
+	infos := a.rooms.List()
+	out := make([]roomSummary, 0, len(infos))
+	for _, info := range infos {
+		out = append(out, roomSummaryOf(info))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// handleCreateRoom opens a room for the session's user under the posted
+// settings, with a config-tier bot guest when a bot name is given.
+func (a *apiServer) handleCreateRoom(w http.ResponseWriter, r *http.Request, u User) {
+	var req struct {
+		TCIdx int    `json:"tcIdx"`
+		BOLen int    `json:"boLen"`
+		Bot   string `json:"bot"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, codeBadRequest, "malformed room body")
+		return
+	}
+	var tier *config.Tier
+	if req.Bot != "" {
+		tier = tierByName(req.Bot)
+		if tier == nil {
+			writeError(w, http.StatusBadRequest, codeBadRequest, "unknown bot tier "+req.Bot)
+			return
+		}
+	}
+	room, err := a.rooms.Create(u.ID, req.TCIdx, req.BOLen, tier)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	info, ok := room.Info()
+	if !ok {
+		writeError(w, http.StatusConflict, codeRoomClosed, ErrRoomClosed.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, roomSummaryOf(info))
+}
+
+// handleRoomDetail answers the public room view of {id}: grid line plus
+// the live game snapshot.
+func (a *apiServer) handleRoomDetail(w http.ResponseWriter, r *http.Request) {
+	room, ok := a.roomFromRequest(w, r)
+	if !ok {
+		return
+	}
+	info, live := room.Info()
+	if !live {
+		writeError(w, http.StatusConflict, codeRoomClosed, ErrRoomClosed.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, roomDetail{roomSummary: roomSummaryOf(info), Game: room.gameSnapshot()})
+}
+
+// roomFromRequest resolves {id} against the manager and writes the 404
+// envelope itself on a miss.
+func (a *apiServer) roomFromRequest(w http.ResponseWriter, r *http.Request) (*Room, bool) {
+	room, err := a.rooms.Get(r.PathValue("id"))
+	if err != nil {
+		writeDomainError(w, err)
+		return nil, false
+	}
+	return room, true
+}
+
+// roomSummaryOf maps one manager grid line onto the wire.
+func roomSummaryOf(info RoomInfo) roomSummary {
+	return roomSummary{
+		ID: info.ID, HostUserID: info.HostUserID, GuestUserID: info.GuestUserID,
+		TCIdx: info.TCIdx, BOLen: info.BOLen, State: info.State.String(),
+		VsBotTier: info.VsBotTier, HostWins: info.HostWins, GuestWins: info.GuestWins,
+		CreatedAt: info.CreatedAt.Unix(),
+	}
+}
+
+// tierByName resolves a wire tier name onto the config tier table.
+func tierByName(name string) *config.Tier {
+	for i := range config.Tiers {
+		if config.Tiers[i].Name == name {
+			return &config.Tiers[i]
+		}
+	}
+	return nil
+}
+
+// gameSnapshot reads the live game under the room lock. Nil means no game
+// is live: the handshake is still pending (between-terminal games never
+// happens, the completion path resets in the same critical section).
+func (r *Room) gameSnapshot() *gameSnapshot {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.over || r.board == nil || r.series == nil {
+		return nil
+	}
+	turnSeat := r.seatByColorLocked(r.board.Side)
+	snap := &gameSnapshot{
+		Moves:      make([]string, 0, len(r.moves)),
+		Turn:       colorName(r.board.Side),
+		TurnUserID: turnSeat.userID, RedUserID: r.series.RedUserID(),
+		ClockMs: [2]int64{
+			r.clock[rules.Red].Remaining().Milliseconds(),
+			r.clock[rules.Blue].Remaining().Milliseconds(),
+		},
+	}
+	for _, m := range r.moves {
+		snap.Moves = append(snap.Moves, cellName(rules.Cell(m)))
+	}
+	return snap
+}
+
+// colorName gives the wire names of the two stone colors; rules.Color is a
+// bare uint8 with no String method. Only called with a side to move.
+func colorName(c rules.Color) string {
+	if c == rules.Blue {
+		return "blue"
+	}
+	return "red"
 }
 
 // handleLogin is the one-form auth of the spec: an unknown username creates

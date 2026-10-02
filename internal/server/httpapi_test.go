@@ -196,6 +196,79 @@ func TestHTTPLogoutInvalidatesSession(t *testing.T) {
 	wantStatus(t, got, http.StatusNoContent, nil)
 }
 
+func TestHTTPRoomsGridAndDetail(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	ta := mintSession(t, s.store, alice)
+
+	// The grid is public: a guest sees it empty.
+	got := doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms", "", nil)
+	var rooms []roomSummary
+	wantStatus(t, got, http.StatusOK, &rooms)
+	if len(rooms) != 0 {
+		t.Fatalf("fresh grid = %+v, want empty", rooms)
+	}
+
+	// Acting on the grid needs a session.
+	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", "",
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+	wantAPIError(t, got, http.StatusUnauthorized, "unauthorized")
+
+	// Settings and body shapes the transport rejects up front.
+	for _, body := range []any{
+		map[string]any{"tcIdx": len(config.TimeControls), "boLen": config.SeriesBO3},
+		map[string]any{"tcIdx": -1, "boLen": config.SeriesBO3},
+		map[string]any{"tcIdx": 0, "boLen": 4},
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3, "bot": "nosuch"},
+		json.RawMessage(`{"tcIdx": "x"}`),
+	} {
+		got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta, body)
+		wantAPIError(t, got, http.StatusBadRequest, "bad_request")
+	}
+
+	// Create a bo5 room under the second time control.
+	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 1, "boLen": config.SeriesBO5})
+	var created roomSummary
+	wantStatus(t, got, http.StatusCreated, &created)
+	if created.ID == "" || created.HostUserID != alice.ID || created.GuestUserID != 0 ||
+		created.TCIdx != 1 || created.BOLen != config.SeriesBO5 || created.State != "created" ||
+		created.VsBotTier != "" || created.HostWins != 0 || created.GuestWins != 0 {
+		t.Errorf("created = %+v, want the fresh alice bo5 room", created)
+	}
+
+	// A bot room by config tier name.
+	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3, "bot": config.TierEasy.Name})
+	var botRoom roomSummary
+	wantStatus(t, got, http.StatusCreated, &botRoom)
+	if botRoom.VsBotTier != config.TierEasy.Name || botRoom.GuestUserID == 0 {
+		t.Errorf("bot room = %+v, want the easy bot seated", botRoom)
+	}
+
+	// The grid lists both in creation order, guest-readable.
+	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms", "", nil)
+	wantStatus(t, got, http.StatusOK, &rooms)
+	if len(rooms) != 2 || rooms[0].ID != created.ID || rooms[1].ID != botRoom.ID {
+		t.Fatalf("grid = %+v, want %s then %s in creation order", rooms, created.ID, botRoom.ID)
+	}
+
+	// The open pvp room carries no live game.
+	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms/"+created.ID, "", nil)
+	var detail roomDetail
+	wantStatus(t, got, http.StatusOK, &detail)
+	if detail.ID != created.ID || detail.Game != nil {
+		t.Errorf("open room detail = %+v, want the summary and no live game", detail)
+	}
+
+	// Unknown rooms answer the 404 envelope.
+	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms/deadbeef", "", nil)
+	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
+}
+
 func TestHTTPStoreFailureMapsToInternal(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
