@@ -648,8 +648,8 @@ func boardViewOf(snap TourneySnapshot) tourneyBoardView {
 		}
 		if line.Finished {
 			done++
-			switch {
-			case line.WinnerSlot == nil:
+			switch line.WinnerSlot {
+			case nil:
 				v.Winner = "drawn"
 			default:
 				v.Winner = name(*line.WinnerSlot) + " wins"

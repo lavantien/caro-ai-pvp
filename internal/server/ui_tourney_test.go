@@ -384,7 +384,7 @@ func TestTourneyRunCloseForm(t *testing.T) {
 		t.Fatalf("stalled run page: status = %d", status)
 	}
 	wantShellBody(t, body, `action="/tourney/run/7/close"`, ">stalled<")
-	status, _, body = doShell(t, c, http.MethodGet, srv.URL+"/tourney/run/7", "", nil)
+	_, _, body = doShell(t, c, http.MethodGet, srv.URL+"/tourney/run/7", "", nil)
 	if strings.Contains(body, "/close") {
 		t.Error("guest page carries the close form, want members only")
 	}
