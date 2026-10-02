@@ -180,11 +180,6 @@ type botOptionView struct {
 	Label string
 }
 
-// tcLabel renders one time control in clock notation 1+0.
-func tcLabel(idx int) string {
-	return fmt.Sprintf("%d+%d", config.TimeControls[idx].InitialSec, config.TimeControls[idx].IncrementSec)
-}
-
 // shellTCOptions mirrors config.TimeControls into the time-control select.
 func shellTCOptions() []optionView {
 	opts := make([]optionView, len(config.TimeControls))
@@ -214,9 +209,9 @@ func shellBotOptions() []botOptionView {
 	return opts
 }
 
-// roomView is one rooms-grid card: the room page link, the settings, the
-// state, both seats, and the series score once a series is under way.
-type roomView struct {
+// roomCardView is one rooms-grid card: the room page link, the settings,
+// the state, both seats, and the series score once a series is under way.
+type roomCardView struct {
 	ID        string
 	ShortID   string
 	TC        string
@@ -231,11 +226,11 @@ type roomView struct {
 // roomViews snapshots the manager grid, resolving both seats through the
 // store; an unresolvable name falls back to the raw id so one broken
 // lookup cannot break the listing.
-func (p *shellPages) roomViews() []roomView {
+func (p *shellPages) roomViews() []roomCardView {
 	infos := p.rooms.List()
-	out := make([]roomView, 0, len(infos))
+	out := make([]roomCardView, 0, len(infos))
 	for _, info := range infos {
-		v := roomView{
+		v := roomCardView{
 			ID: info.ID, ShortID: info.ID[:8],
 			TC: tcLabel(info.TCIdx), BO: "bo" + strconv.Itoa(info.BOLen),
 			State: info.State.String(), Host: p.seatName(info.HostUserID),
@@ -271,7 +266,7 @@ func (p *shellPages) seatName(id int64) string {
 // error, and the poll cadence.
 type homeView struct {
 	Me          *shellViewer
-	Rooms       []roomView
+	Rooms       []roomCardView
 	TCOptions   []optionView
 	BOOptions   []optionView
 	BotOptions  []botOptionView
