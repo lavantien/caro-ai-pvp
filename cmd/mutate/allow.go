@@ -53,6 +53,18 @@ func (a allowlist) clone() allowlist {
 	return out
 }
 
+// unconsumed returns the allowlist entries no executed mutant matched, so a
+// killed, moved, or stale allowance surfaces instead of rotting silently.
+func unconsumed(allows, consumed allowlist) allowlist {
+	pending := allowlist{}
+	for k, v := range allows {
+		if _, ok := consumed[k]; !ok {
+			pending[k] = v
+		}
+	}
+	return pending
+}
+
 // unusedAllowError reports entries that matched no surviving mutant, so a
 // killed or stale allowance fails the gate instead of rotting silently.
 func unusedAllowError(pending allowlist) error {

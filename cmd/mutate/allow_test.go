@@ -110,7 +110,7 @@ func TestExecuteMutantsAllowSurvivor(t *testing.T) {
 	}
 	r := &fakeRunner{failPkg: map[string]bool{"pa": true}}
 	var out strings.Builder
-	res, err := executeMutants(context.Background(), &out, dir, ms, store, r, allows, nil)
+	res, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, allows, nil)
 	if err != nil {
 		t.Fatalf("executeMutants err = %v", err)
 	}
@@ -137,22 +137,27 @@ func TestExecuteMutantsAllowSurvivor(t *testing.T) {
 	}
 }
 
-func TestExecuteMutantsUnusedAllowEntryFails(t *testing.T) {
+func TestRunMutationUnusedAllowEntryFails(t *testing.T) {
 	dir := t.TempDir()
-	src := "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n"
-	path, ms := writePkgFile(t, dir, "a.go", "p", src)
-	allows := allowlist{"a.go:4:11 replace + with -": "stale proof"}
-	store := newFileStore()
-	if err := store.snapshot([]string{path}); err != nil {
-		t.Fatalf("snapshot err = %v", err)
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module fixture\n\ngo 1.27\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(go.mod) err = %v", err)
 	}
+	src := "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n"
+	_, ms := writePkgFile(t, dir, "a.go", "p", src)
+	if len(ms) == 0 {
+		t.Fatal("no mutants collected")
+	}
+	allows := allowlist{"a.go:99:9 replace 9 with 8": "stale proof"}
 	var out strings.Builder
-	res, err := executeMutants(context.Background(), &out, dir, ms, store, &fakeRunner{failPkg: map[string]bool{"p": true}}, allows, nil)
+	res, err := runMutation(context.Background(), &out, dir, []string{"./..."}, &fakeRunner{failPkg: map[string]bool{"fixture": true}}, allows, nil)
 	if err == nil || !strings.Contains(err.Error(), "unused allow entries") {
 		t.Fatalf("err = %v, want unused allow entries failure", err)
 	}
 	if res.survived != 0 || res.allowed != 0 {
 		t.Errorf("survived/allowed = %d/%d, want 0/0 (entry never matched)", res.survived, res.allowed)
+	}
+	if res.killed != res.total {
+		t.Errorf("killed/total = %d/%d, want every mutant killed by the failing suite", res.killed, res.total)
 	}
 }
 

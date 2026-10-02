@@ -13,7 +13,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-const usage = "usage: mutate [-pkgs comma,separated,patterns] [-timeout 30s] [-allow file] [-resume prior-run.log]"
+const usage = "usage: mutate [-pkgs comma,separated,patterns] [-timeout 30s] [-allow file] [-resume prior-run.log] [-parallel 1]"
 
 func splitPkgs(s string) []string {
 	var out []string
@@ -47,7 +47,8 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 	timeout := fs.Duration("timeout", time.Duration(config.MutateTimeoutMs)*time.Millisecond, "per-mutant test timeout")
 	allowPath := fs.String("allow", "", "equivalence allowlist, one 'file:line:col descriptor # proof' entry per line; empty or missing file means no allowances")
 	resumePath := fs.String("resume", "", "prior run log whose KILLED verdicts are replayed instead of re-run, for continuing a gate after a host failure")
-	if err := fs.Parse(args); err != nil || fs.NArg() > 0 {
+	parallel := fs.Int("parallel", 1, "worker count: mutants run concurrently in isolated module copies, survivors re-verified serially")
+	if err := fs.Parse(args); err != nil || fs.NArg() > 0 || *parallel < 1 {
 		_, _ = fmt.Fprintln(stderr, usage)
 		return 2
 	}
@@ -74,7 +75,29 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	res, err := runMutation(ctx, stdout, workDir, patterns, execRunner{dir: workDir, timeout: *timeout}, allows, resumeKilled)
+	var res result
+	var err error
+	if *parallel > 1 {
+		dirs := []string{workDir}
+		for range *parallel - 1 {
+			extra, ierr := isolateModule(workDir)
+			if ierr != nil {
+				_, _ = fmt.Fprintln(stderr, "mutate:", ierr)
+				return 2
+			}
+			dirs = append(dirs, extra)
+		}
+		defer func() {
+			for _, d := range dirs[1:] {
+				_ = os.RemoveAll(d)
+			}
+		}()
+		res, err = runMutationParallel(ctx, stdout, dirs, patterns, func(dir string) runner {
+			return execRunner{dir: dir, timeout: *timeout}
+		}, allows, resumeKilled)
+	} else {
+		res, err = runMutation(ctx, stdout, workDir, patterns, execRunner{dir: workDir, timeout: *timeout}, allows, resumeKilled)
+	}
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "mutate:", err)
 	}

@@ -38,6 +38,19 @@ func isolateModule(src string) (string, error) {
 			return "", werr
 		}
 	}
+	rootGo, gerr := filepath.Glob(filepath.Join(src, "*.go"))
+	if gerr != nil {
+		return "", gerr
+	}
+	for _, p := range rootGo {
+		data, rerr := os.ReadFile(p)
+		if rerr != nil {
+			return "", rerr
+		}
+		if werr := os.WriteFile(filepath.Join(dst, filepath.Base(p)), data, 0o644); werr != nil {
+			return "", werr
+		}
+	}
 	return dst, nil
 }
 

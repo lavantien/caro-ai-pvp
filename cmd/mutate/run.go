@@ -135,9 +135,15 @@ func loadResumeLog(r io.Reader) map[string]bool {
 	return resumed
 }
 
-func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mutation, store *fileStore, r runner, allows allowlist, resumeKilled map[string]bool) (res result, err error) {
+// executeMutants runs every mutant in ms against r inside workDir and
+// returns the verdict counts plus the set of allowlist keys it consumed. An
+// allowlisted mutant is classified without running the suite: the entry
+// asserts a proven equivalence, so the suite verdict under it is noise and
+// the run is skipped. Callers aggregate consumed sets across parallel
+// workers and fail on unconsumed entries.
+func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mutation, store *fileStore, r runner, allows allowlist, resumeKilled map[string]bool) (res result, consumed allowlist, survived []mutation, err error) {
 	res.total = len(ms)
-	pending := allows.clone()
+	consumed = allowlist{}
 	defer func() {
 		if rerr := store.restoreAll(); rerr != nil && err == nil {
 			err = rerr
@@ -145,7 +151,7 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 	}()
 	for _, m := range ms {
 		if ctx.Err() != nil {
-			return res, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
+			return res, consumed, survived, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
 		}
 		key := m.key(workDir)
 		if resumeKilled[key] {
@@ -154,41 +160,63 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdictKilled)
 			continue
 		}
+		if reason, ok := allows[key]; ok {
+			res.run++
+			res.allowed++
+			consumed[key] = reason
+			_, _ = fmt.Fprintf(out, "%s ALLOWED # %s\n", key, reason)
+			continue
+		}
 		orig := store.orig[m.file]
 		mutated, aerr := applyEdits(orig, m.edits)
 		if aerr != nil {
-			return res, aerr
+			return res, consumed, survived, aerr
 		}
 		if werr := os.WriteFile(m.file, mutated, 0o644); werr != nil {
-			return res, werr
+			return res, consumed, survived, werr
 		}
 		testErr := r.runTest(ctx, m.pkg)
 		res.run++
 		if werr := os.WriteFile(m.file, orig, 0o644); werr != nil {
-			return res, werr
+			return res, consumed, survived, werr
 		}
 		if ctx.Err() != nil {
-			return res, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
+			return res, consumed, survived, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
 		}
 		if verdict := classify(testErr); verdict == verdictKilled {
 			res.killed++
 			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdict)
-		} else if reason, ok := allows[key]; ok {
-			res.allowed++
-			delete(pending, key)
-			_, _ = fmt.Fprintf(out, "%s ALLOWED # %s\n", key, reason)
 		} else {
 			res.survived++
+			survived = append(survived, m)
 			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdict)
 		}
 	}
-	if uerr := unusedAllowError(pending); uerr != nil {
+	return res, consumed, survived, nil
+}
+
+func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, r runner, allows allowlist, resumeKilled map[string]bool) (result, error) {
+	ms, paths, err := discoverMutants(ctx, out, workDir, patterns)
+	if err != nil {
+		return result{}, err
+	}
+	store := newFileStore()
+	if err := store.snapshot(paths); err != nil {
+		return result{}, err
+	}
+	res, consumed, _, err := executeMutants(ctx, out, workDir, ms, store, r, allows, resumeKilled)
+	if err != nil {
+		return res, err
+	}
+	if uerr := unusedAllowError(unconsumed(allows, consumed)); uerr != nil {
 		return res, uerr
 	}
 	return res, nil
 }
 
-func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, r runner, allows allowlist, resumeKilled map[string]bool) (result, error) {
+// discoverMutants collects the sorted mutant population of the pattern
+// targets plus the file paths the caller must snapshot before mutating.
+func discoverMutants(ctx context.Context, out io.Writer, workDir string, patterns []string) ([]mutation, []string, error) {
 	present := patterns[:0]
 	for _, p := range patterns {
 		if strings.HasPrefix(p, "./") {
@@ -201,7 +229,7 @@ func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []
 	}
 	targets, err := discover(ctx, workDir, present)
 	if err != nil {
-		return result{}, err
+		return nil, nil, err
 	}
 	var ms []mutation
 	var paths []string
@@ -210,11 +238,11 @@ func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []
 			path := filepath.Join(tg.dir, name)
 			src, rerr := os.ReadFile(path)
 			if rerr != nil {
-				return result{}, rerr
+				return nil, nil, rerr
 			}
 			fms, cerr := collect(path, src)
 			if cerr != nil {
-				return result{}, cerr
+				return nil, nil, cerr
 			}
 			for i := range fms {
 				fms[i].pkg = tg.pkg
@@ -226,9 +254,5 @@ func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []
 		}
 	}
 	sortMutants(ms)
-	store := newFileStore()
-	if err := store.snapshot(paths); err != nil {
-		return result{}, err
-	}
-	return executeMutants(ctx, out, workDir, ms, store, r, allows, resumeKilled)
+	return ms, paths, nil
 }
