@@ -355,6 +355,89 @@ func TestMatchHistory(t *testing.T) {
 	}
 }
 
+// seedGame appends one game row with explicit per-game seating, so tests can
+// reproduce the red rotation the loser-takes-red law produces in play.
+func seedGame(t *testing.T, s *Store, sr SeriesRow, idx int, redUser, blueUser int64, outcome string) {
+	t.Helper()
+	if _, err := s.AppendGame(Game{
+		SeriesID: sr.ID, IdxInSeries: idx, RedUser: redUser, BlueUser: blueUser,
+		Outcome: outcome, Moves: []byte{byte(idx)}, FullTurns: idx + 1,
+	}); err != nil {
+		t.Fatalf("seed game %d: %v", idx, err)
+	}
+}
+
+// TestMatchHistoryScoreCountsParticipantsNotColors pins the score line
+// semantics: RedWins and BlueWins are the row's red and blue PLAYERS' wins in
+// the series so far. Counting color outcomes instead mixes the two players,
+// because the loser-takes-red law rotates the red seat between games.
+func TestMatchHistoryScoreCountsParticipantsNotColors(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+
+	// Distinct users per scenario: history spans every series of a user.
+	alice, bob := seedUser(t, s, "alice"), seedUser(t, s, "bob")
+	carol, dave := seedUser(t, s, "carol"), seedUser(t, s, "dave")
+	erin, frank := seedUser(t, s, "erin"), seedUser(t, s, "frank")
+
+	// Bo3, each player wins one game as red: game 1 alice red, game 2 bob
+	// red. The game-2 row must read 1-1 (bob 1, alice 1); a color count
+	// reads 2-0.
+	swapped := seedSeries(t, s, alice, bob)
+	seedGame(t, s, swapped, 0, alice.ID, bob.ID, OutcomeRed)
+	seedGame(t, s, swapped, 1, bob.ID, alice.ID, OutcomeRed)
+	rows, err := s.MatchHistory(alice.ID)
+	if err != nil {
+		t.Fatalf("history: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("swapped-seating rows = %d, want 2", len(rows))
+	}
+	g2, g1 := rows[0], rows[1]
+	if g1.Red != "alice" || g1.RedWins != 1 || g1.BlueWins != 0 {
+		t.Errorf("game 1 row = %s %d-%d, want alice red at 1-0", g1.Red, g1.RedWins, g1.BlueWins)
+	}
+	if g2.Red != "bob" || g2.Blue != "alice" || g2.RedWins != 1 || g2.BlueWins != 1 {
+		t.Errorf("game 2 row = %s vs %s %d-%d, want bob vs alice at 1-1 by participant", g2.Red, g2.Blue, g2.RedWins, g2.BlueWins)
+	}
+
+	// A three-game line whose final row reverses the leader under a color
+	// count: dave wins games 1 and 2, carol game 3, so dave leads 2-1. The
+	// game-3 row seats carol on red; a color count reads 2-1 for carol.
+	reversed := seedSeries(t, s, carol, dave)
+	seedGame(t, s, reversed, 0, carol.ID, dave.ID, OutcomeBlue)
+	seedGame(t, s, reversed, 1, dave.ID, carol.ID, OutcomeRed)
+	seedGame(t, s, reversed, 2, carol.ID, dave.ID, OutcomeRed)
+	rows, err = s.MatchHistory(dave.ID)
+	if err != nil {
+		t.Fatalf("history: %v", err)
+	}
+	if len(rows) != 3 {
+		t.Fatalf("reversal rows = %d, want 3", len(rows))
+	}
+	final := rows[0]
+	if final.Red != "carol" || final.Blue != "dave" || final.RedWins != 1 || final.BlueWins != 2 {
+		t.Errorf("final row = %s vs %s %d-%d, want carol vs dave at 1-2: dave leads", final.Red, final.Blue, final.RedWins, final.BlueWins)
+	}
+
+	// Fixed seating, the case a color count already gets right: one red in
+	// every game, so the participant line and the color line coincide.
+	fixed := seedSeries(t, s, erin, frank)
+	seedGame(t, s, fixed, 0, erin.ID, frank.ID, OutcomeRed)
+	seedGame(t, s, fixed, 1, erin.ID, frank.ID, OutcomeBlue)
+	seedGame(t, s, fixed, 2, erin.ID, frank.ID, OutcomeRed)
+	rows, err = s.MatchHistory(erin.ID)
+	if err != nil {
+		t.Fatalf("history: %v", err)
+	}
+	wantFixed := [][2]int{{2, 1}, {1, 1}, {1, 0}}
+	for i, r := range rows {
+		if r.RedWins != wantFixed[i][0] || r.BlueWins != wantFixed[i][1] {
+			t.Errorf("fixed row %d score = %d-%d, want %d-%d", i, r.RedWins, r.BlueWins, wantFixed[i][0], wantFixed[i][1])
+		}
+	}
+}
+
 func TestConcurrentReadersWhileWriterHolds(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()

@@ -200,7 +200,8 @@ func TestPvPBO3SeriesDrivenThroughPlayMove(t *testing.T) {
 	})
 
 	// Newest first: game 2 above game 1, with the rotation and the tags.
-	// Score lines count colors, so 2-0 in games reads 1-0 then 1-1.
+	// Score lines count the row's players' wins, so alice's 2-0 series reads
+	// 1-0 on her red row and 0-2 on bob's red row.
 	rows, err := s.store.MatchHistory(alice.ID)
 	if err != nil {
 		t.Fatalf("history: %v", err)
@@ -212,8 +213,8 @@ func TestPvPBO3SeriesDrivenThroughPlayMove(t *testing.T) {
 	if g1.Red != "alice" || g1.Blue != "bob" || g1.RedWins != 1 || g1.BlueWins != 0 {
 		t.Errorf("game 1 row = %+v, want host red at 1-0", g1)
 	}
-	if g2.Red != "bob" || g2.Blue != "alice" || g2.RedWins != 1 || g2.BlueWins != 1 {
-		t.Errorf("game 2 row = %+v, want guest red at 1-1 by color", g2)
+	if g2.Red != "bob" || g2.Blue != "alice" || g2.RedWins != 0 || g2.BlueWins != 2 {
+		t.Errorf("game 2 row = %+v, want guest red at 0-2 by participant", g2)
 	}
 	for _, row := range []struct {
 		m MatchHistoryRow
@@ -489,8 +490,9 @@ func TestForfeitMidSeriesBillsRemainingGames(t *testing.T) {
 	if rows[2].Red != "alice" || rows[1].Red != "bob" || rows[0].Red != "bob" {
 		t.Errorf("rotation in swept rows = %s/%s/%s", rows[2].Red, rows[1].Red, rows[0].Red)
 	}
-	// Score lines count colors, newest first: 1-2, 1-1, 1-0 across the sweep.
-	wantLines := [][2]int{{1, 2}, {1, 1}, {1, 0}}
+	// Score lines count the row's players' wins, newest first: bob's red
+	// rows read 0-3 and 0-2 across the sweep, alice's red row 1-0.
+	wantLines := [][2]int{{0, 3}, {0, 2}, {1, 0}}
 	for i, row := range rows {
 		if row.RedWins != wantLines[i][0] || row.BlueWins != wantLines[i][1] {
 			t.Errorf("row %d score = %d-%d, want %d-%d", i, row.RedWins, row.BlueWins, wantLines[i][0], wantLines[i][1])

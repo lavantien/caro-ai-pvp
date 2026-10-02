@@ -377,8 +377,10 @@ FROM games g`,
 	return st, nil
 }
 
-// MatchHistoryRow is one line of the match history tab. Moves carries the
-// full move blob; trimming to the config.HistoryPreviewTurns preview is the
+// MatchHistoryRow is one line of the match history tab. RedWins and BlueWins
+// are the row's red and blue players' series wins as of that game (the red
+// seat rotates between the same two participants). Moves carries the full
+// move blob; trimming to the config.HistoryPreviewTurns preview is the
 // caller's rendering concern.
 type MatchHistoryRow struct {
 	PlayedAt  int64
@@ -392,21 +394,26 @@ type MatchHistoryRow struct {
 }
 
 // MatchHistory lists a user's games newest first, each with the series
-// score line as of that game.
+// score line as of that game. RedWins and BlueWins count the row's red and
+// blue players' wins, never the red and blue color outcomes: red rotates to
+// the previous loser between games, so a color count would mix the two
+// participants and can reverse the leader of a rotating series.
 func (s *Store) MatchHistory(userID int64) ([]MatchHistoryRow, error) {
 	rows, err := s.db.Query(`
 SELECT g.played_at, ru.username, bu.username,
 	(SELECT COUNT(*) FROM games w
-	 WHERE w.series_id = g.series_id AND w.idx_in_series <= g.idx_in_series AND w.outcome = ?),
+	 WHERE w.series_id = g.series_id AND w.idx_in_series <= g.idx_in_series
+	   AND ((w.outcome = ? AND w.red_user = g.red_user) OR (w.outcome = ? AND w.blue_user = g.red_user))),
 	(SELECT COUNT(*) FROM games w
-	 WHERE w.series_id = g.series_id AND w.idx_in_series <= g.idx_in_series AND w.outcome = ?),
+	 WHERE w.series_id = g.series_id AND w.idx_in_series <= g.idx_in_series
+	   AND ((w.outcome = ? AND w.red_user = g.blue_user) OR (w.outcome = ? AND w.blue_user = g.blue_user))),
 	g.full_turns, g.moves, g.won_by
 FROM games g
 JOIN users ru ON ru.id = g.red_user
 JOIN users bu ON bu.id = g.blue_user
 WHERE g.red_user = ? OR g.blue_user = ?
 ORDER BY g.played_at DESC, g.id DESC`,
-		OutcomeRed, OutcomeBlue, userID, userID,
+		OutcomeRed, OutcomeBlue, OutcomeRed, OutcomeBlue, userID, userID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("server: match history %d: %w", userID, err)
