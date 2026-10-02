@@ -50,8 +50,13 @@ bench:
 
 fuzz:
 	@if [ -d internal/rules ]; then \
-		CGO_ENABLED=1 go test -run='^$$' -fuzz=. -fuzztime=60s ./internal/rules; \
+		CGO_ENABLED=1 go test -run='^$$' -fuzz=FuzzRulesDifferential -fuzztime=60s ./internal/rules; \
 	else echo "fuzz: no targets yet, internal/rules lands at M1"; fi
+	@if [ -d internal/server ]; then \
+		for t in FuzzRatingLaw FuzzSeriesDrive FuzzMovesBlob; do \
+			CGO_ENABLED=1 go test -run='^$$' -fuzz=$$t -fuzztime=30s ./internal/server || exit 1; \
+		done; \
+	fi
 
 # mutate [PARALLEL=1] [CHALLENGE=1]: mutation gate over the core packages.
 # CHALLENGE=1 runs the suite under allowlisted mutants too, auditing every
