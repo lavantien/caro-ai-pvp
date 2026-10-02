@@ -415,8 +415,11 @@ func TestForfeitBeforeFirstStonePersistsZeroLengthBlob(t *testing.T) {
 		t.Fatalf("history = %d rows err %v, want the swept bo3", len(rows), err)
 	}
 	for i, row := range rows {
-		if row.Moves == nil || len(row.Moves) != 0 {
-			t.Errorf("game %d moves = %#v, want non-nil zero-length blob", 3-i, row.Moves)
+		// The write boundary guarantees a non-nil blob (encodeMoves), but a
+		// zero-length blob scans back as Go nil: only the length is
+		// observable after the SQL round trip.
+		if len(row.Moves) != 0 {
+			t.Errorf("game %d moves = %v, want a zero-length record", 3-i, row.Moves)
 		}
 		if row.FullTurns != 0 {
 			t.Errorf("game %d turns = %d, want 0", 3-i, row.FullTurns)
