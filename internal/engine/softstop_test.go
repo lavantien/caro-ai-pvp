@@ -20,6 +20,10 @@ func softLimit(budget time.Duration) time.Duration {
 func TestSoftStopRule(t *testing.T) {
 	big := 10 * time.Millisecond
 	huge := 100 * time.Millisecond
+	// quantum is one coarse-clock tick: its soft fraction sits below the
+	// tick but above any positive elapsed reading, the band where only a
+	// zero-elapsed reading may refuse a head.
+	quantum := time.Duration(config.SearchClockQuantumMs) * time.Millisecond
 	cases := [...]struct {
 		name      string
 		elapsed   time.Duration
@@ -37,6 +41,7 @@ func TestSoftStopRule(t *testing.T) {
 		{"zero budget nothing banked never stops", 1, 0, 0, false},
 		{"deep progress past the limit stops", 2 * big, big, 9, true},
 		{"zero elapsed stops when one quantum blows the limit", 0, big, 1, true},
+		{"one ns elapsed starts under a quantum budget", 1, quantum, 1, false},
 		{"negative elapsed is treated as one quantum", -1, big, 1, true},
 		{"zero elapsed starts when the limit holds a full quantum", 0, huge, 1, false},
 		{"nothing banked never stops at zero elapsed", 0, big, 0, false},

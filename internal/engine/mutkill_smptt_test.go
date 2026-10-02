@@ -128,6 +128,65 @@ func TestSMPKillDepthLoopExitsWhenExceeded(t *testing.T) {
 	}
 }
 
+// Soft-stop and stopped-break loop exits.
+
+// countingBudgetDeadline never stops but observes every Exceeded consult.
+// Its nanosecond budget makes the soft rule fire on the first head consult
+// after a banked iteration whatever the clock reads: a zero elapsed reading
+// becomes the 16ms quantum and any positive reading already clears 0.65ns.
+type countingBudgetDeadline struct {
+	calls atomic.Int32
+}
+
+func (d *countingBudgetDeadline) Exceeded() bool {
+	d.calls.Add(1)
+	return false
+}
+
+func (d *countingBudgetDeadline) Stop()                 {}
+func (d *countingBudgetDeadline) Budget() time.Duration { return time.Nanosecond }
+
+// twoHoleBoard is a full checkerboard holding exactly two empty cells, both
+// on Blue diagonals: Red to move completes no window, so the root is quiet
+// and a depth-1 search covers its few nodes far inside one check interval.
+func twoHoleBoard(t *testing.T) *rules.Board {
+	t.Helper()
+	b := rules.NewCrossCheck()
+	for r := range config.CrossCheckSize {
+		for c := range config.CrossCheckSize {
+			if (r == 0 && c == 1) || (r == 1 && c == 0) {
+				continue
+			}
+			b.Side = rules.Color((r + c) % 2)
+			b.Make(rules.Cell(r*config.BoardStride + c))
+		}
+	}
+	b.Side = rules.Red
+	return b
+}
+
+// The soft-stop break must end the worker loop. Once the soft rule fires, a
+// break leaves exactly the two head-guard consults of one completed
+// iteration, while a continue burns one consult per skipped depth.
+func TestSMPKillSoftStopBreakEndsLoop(t *testing.T) {
+	s := newSMP(1, testTTBytes)
+	w, b, res := s.workers[0], &s.boards[0], &s.results[0]
+	*b = *twoHoleBoard(t)
+	w.resetForSearch(b)
+	s.jobMaxDepth = 8
+	s.jobSoft = true
+	s.halt.Store(false)
+	dl := &countingBudgetDeadline{}
+	s.haltDL.inner = dl
+	s.runWorker(w, b, res)
+	if res.completed != 1 || res.move == moveNone {
+		t.Fatalf("setup: completed %d move %d, want the quiet depth-1 bank with a real move", res.completed, res.move)
+	}
+	if got := dl.calls.Load(); got != 2 {
+		t.Fatalf("deadline consulted %d times, want 2: after the soft rule fires the loop must end, not skip to the next head", got)
+	}
+}
+
 // Selection among workers: depth first, then first arrival.
 
 // poisonChildScore is a losing-mate child score, so a poisoned worker's root

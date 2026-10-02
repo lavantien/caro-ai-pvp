@@ -551,3 +551,138 @@ func TestMutKillInteriorWinClearsChildRow(t *testing.T) {
 		t.Fatalf("interior win pv len=%d head=%d, want 1 and I9: a stale child row leaked", e.pvLen[1], e.pv[1][0])
 	}
 }
+
+// relapseDL is a deadline whose Exceeded relapses: true on the first
+// consult, clear on the second, latched again from the third. The head
+// guard must exit the ladder on the first true consult; a continue would
+// fall into the cleared second consult and open an iteration anyway.
+type relapseDL struct{ calls int }
+
+func (d *relapseDL) Exceeded() bool { d.calls++; return d.calls == 1 || d.calls >= 3 }
+func (d *relapseDL) Stop()          {}
+
+// kills 133:4 (break -> continue): the clean break ends the ladder before
+// any iteration runs, so depth and nodes stay 0 and the answer is the
+// fallback. The continue reaches the cleared second consult, banks the
+// depth 2 iteration, and only the latched third consult ends the ladder,
+// exposing itself through a nonzero depth and node count.
+func TestMutKillHeadGuardExitsOnFirstExceeded(t *testing.T) {
+	b := midgameBoard(t)
+	e := New(0)
+	mv, stats := e.Search(b, &relapseDL{})
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("relapsed search move %d illegal", mv)
+	}
+	if stats.Depth != 0 || stats.Nodes != 0 {
+		t.Errorf("relapsed deadline: depth=%d nodes=%d, want 0 and 0: the head guard must exit on the first exceeded consult", stats.Depth, stats.Nodes)
+	}
+}
+
+// drawBoard is the cross-check region with A1 the only free cell: the
+// alternating coloring never gives either side five, so the single legal
+// move fills the board for a draw (the full main diagonal is an overline,
+// which wins nothing).
+func drawBoard(t *testing.T) *rules.Board {
+	t.Helper()
+	b := rules.NewCrossCheck()
+	for r := range config.CrossCheckSize {
+		for c := range config.CrossCheckSize {
+			if r == 0 && c == 0 {
+				continue
+			}
+			b.Side = rules.Color((r + c) % 2)
+			b.Make(rules.Cell(r*config.BoardStride + c))
+		}
+	}
+	b.Side = rules.Red
+	return b
+}
+
+// kills 196:12 (1 -> 0 and 1 -> 2): the root filling draw must clear the
+// child pv row before the improvement copy reads it, so a stale pvLen[1]
+// from earlier context cannot extend the drawn line past length 1.
+func TestMutKillRootDrawClearsChildRow(t *testing.T) {
+	b := drawBoard(t)
+	e := New(0)
+	e.beginSearch(b)
+	e.pvLen[1] = 2
+	e.pv[1][0] = rules.Move(mustCell(t, "H8"))
+	e.pv[1][1] = rules.Move(mustCell(t, "I9"))
+	sc, mv := e.searchRoot(b, 3, NewFixedBudget(time.Second))
+	if sc != 0 || mv != rules.Move(mustCell(t, "A1")) {
+		t.Fatalf("root draw craft: sc=%d mv=%d, want 0 A1", sc, mv)
+	}
+	if e.pvLen[0] != 1 || e.pv[0][0] != mv {
+		t.Fatalf("drawn pv len=%d head=%d, want 1 and the move: a stale child row leaked", e.pvLen[0], e.pv[0][0])
+	}
+}
+
+// kills 283:16 (1 -> 0 and 1 -> 2): the interior filling draw must clear
+// the ply+1 row before the improvement copy, the same leak one ply down.
+// The window (-1, 1) makes the draw an improvement without a cutoff.
+func TestMutKillInteriorDrawClearsChildRow(t *testing.T) {
+	b := drawBoard(t)
+	e := New(0)
+	e.beginSearch(b)
+	e.pvLen[2] = 2
+	e.pv[2][0] = rules.Move(mustCell(t, "H8"))
+	e.pv[2][1] = rules.Move(mustCell(t, "I9"))
+	rv := e.negamax(b, 1, -1, 1, 1, config.SearchExtensionMaxPly, NewFixedBudget(time.Second))
+	if rv != 0 {
+		t.Fatalf("interior draw craft: rv=%d, want 0", rv)
+	}
+	if e.pvLen[1] != 1 || e.pv[1][0] != rules.Move(mustCell(t, "A1")) {
+		t.Fatalf("interior drawn pv len=%d head=%d, want 1 and A1: a stale child row leaked", e.pvLen[1], e.pv[1][0])
+	}
+}
+
+// consultDL counts Exceeded consults and answers a fixed verdict, turning
+// the number of head-guard evaluations after a refused head into the
+// observable: a break evaluates no later head, a continue one per
+// remaining depth.
+type consultDL struct {
+	exceeded bool
+	calls    int
+}
+
+func (d *consultDL) Exceeded() bool        { d.calls++; return d.exceeded }
+func (d *consultDL) Stop()                 {}
+func (d *consultDL) Budget() time.Duration { return time.Nanosecond }
+
+// kills 133:4 (break -> continue) alongside the relapse craft: with the
+// deadline exceeded before the first iteration, the clean break leaves the
+// single head-guard consult of depth 1, while the continue consults once
+// per depth through SearchMaxPly. No searchRoot runs on either build, so
+// no interior consult disturbs the count.
+func TestMutKillHeadGuardConsultCount(t *testing.T) {
+	b := midgameBoard(t)
+	e := New(0)
+	dl := &consultDL{exceeded: true}
+	e.Search(b, dl)
+	if dl.calls != 1 {
+		t.Errorf("exceeded-at-entry search consulted the deadline %d times, want 1: the head guard must break, not continue", dl.calls)
+	}
+}
+
+// kills 136:4 (break -> continue): the nanosecond grant refuses the depth
+// 2 head through the soft stop on every clock, and the break leaves the
+// two head-guard consults of depths 1 and 2. The continue re-enters the
+// head guard once per skipped depth through SearchMaxPly. The depth 1
+// search of this board sits far under the node check cadence, so no
+// interior consult disturbs the count, and the refused bodies never run,
+// so nodes and depth stay identical between the builds.
+func TestMutKillSoftStopBreakNotContinue(t *testing.T) {
+	b := midgameBoard(t)
+	e := New(0)
+	dl := &consultDL{}
+	mv, stats := e.Search(b, dl)
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("soft-stopped search move %d illegal", mv)
+	}
+	if stats.Depth != 1 {
+		t.Errorf("depth = %d, want 1: the head after the first banked iteration must be refused", stats.Depth)
+	}
+	if dl.calls != 2 {
+		t.Errorf("soft-stopped search consulted the deadline %d times, want 2: the refused head must break, not continue", dl.calls)
+	}
+}
