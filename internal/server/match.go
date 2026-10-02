@@ -168,6 +168,9 @@ func (r *Room) applyMoveLocked(side rules.Color, cell rules.Cell) {
 // the Series machine chose, or retires. Holding the room lock across the
 // blocking Send serializes per-room writes: game n+1 cannot persist before
 // game n, and the rating reads inside the mutation see every earlier event.
+// The room advances even when a write fails: the in-memory game is the
+// live truth, and the lost row surfaces as the returned error instead of a
+// playable finished position.
 func (r *Room) completeGameLocked(winner rules.Color, lastCell rules.Cell) error {
 	redUser, blueUser := r.seatByColorLocked(rules.Red).userID, r.seatByColorLocked(rules.Blue).userID
 	outcome := Draw
@@ -187,9 +190,7 @@ func (r *Room) completeGameLocked(winner rules.Color, lastCell rules.Cell) error
 	if err := r.series.RecordResult(outcome); err != nil {
 		return err
 	}
-	if err := r.persistGameLocked(redUser, blueUser, outcome, wonBy); err != nil {
-		return err
-	}
+	perr := r.persistGameLocked(redUser, blueUser, outcome, wonBy)
 	r.publishLocked(Event{Kind: EventKindGameEnd, Payload: outcome.String()})
 	if r.series.State() == SeriesFinished {
 		r.over = true
@@ -197,7 +198,7 @@ func (r *Room) completeGameLocked(winner rules.Color, lastCell rules.Cell) error
 	} else {
 		r.startGameLocked()
 	}
-	return nil
+	return perr
 }
 
 // persistGameLocked writes one finished game and everything it implies.

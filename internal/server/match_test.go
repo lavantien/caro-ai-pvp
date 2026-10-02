@@ -480,6 +480,36 @@ func TestForfeitMidSeriesBillsRemainingGames(t *testing.T) {
 	})
 }
 
+// A failed persistence write must surface as the returned error, never as
+// a wedged room: the series advances in memory whatever the queue says.
+func TestPlayMoveSurvivesWriteQueueClose(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, hostWinsRed)
+
+	s.wq.Close()
+	for i, name := range guestRedLosesToBlue {
+		mover := bob.ID
+		if i%2 == 1 {
+			mover = alice.ID
+		}
+		err := r.PlayMove(mover, mustCellT(t, name))
+		if i < len(guestRedLosesToBlue)-1 && err != nil {
+			t.Fatalf("move %d: %v", i+1, err)
+		}
+		if i == len(guestRedLosesToBlue)-1 && !errors.Is(err, ErrQueueClosed) {
+			t.Fatalf("final move = %v, want ErrQueueClosed surfaced", err)
+		}
+	}
+	if _, ok := r.Info(); ok {
+		t.Error("room still live after the finished series, want retired")
+	}
+	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); !errors.Is(err, ErrRoomClosed) {
+		t.Errorf("play after finish = %v, want ErrRoomClosed", err)
+	}
+}
+
 func mustCellT(t *testing.T, name string) rules.Cell {
 	t.Helper()
 	cell, err := rules.ParseCell(name)
