@@ -38,6 +38,7 @@ internal/rules    board, legality, win detection (M1)
 internal/pattern  exhaustive line-pattern tables (M2)
 internal/engine   search core, SMP tiers (M3)
 internal/vcf      VCF/VCT solvers (M4)
+internal/clock   increment-safe time manager, per-TC PID (M5)
 playground/       git-tracked R&D ground
 ```
 
