@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -25,27 +26,34 @@ var tourneyDrivers = map[string]func() tourney.RunSpec{
 // runTourney drives one headless tournament against a real store: the
 // conductor runs every pairing as a bot-vs-bot bo series on the room
 // surface, per-series lines and the final leaderboard print to stdout, and
-// the per-series txt logs land under config.TournamentLogDir. SIGINT or
-// SIGTERM aborts the run through the conductor's cancel path. Any conductor
-// error exits 1.
+// the per-series txt logs land under config.TournamentLogDir. The driver
+// may sit ahead of or behind the flags (Go's flag package stops at the
+// first positional, so a leading driver is peeled off before parsing).
+// SIGINT or SIGTERM aborts the run through the conductor's cancel path.
+// Any conductor error exits 1.
 func runTourney(args []string) int {
+	driver := ""
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		driver, args = args[0], args[1:]
+	}
 	fs := flag.NewFlagSet("tourney", flag.ContinueOnError)
 	dbPath := fs.String("db", defaultDBPath, "SQLite database path")
 	parallel := fs.Int("parallel", config.TournamentParallelMatches, "rooms live at once")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	rest := fs.Args()
-	if len(rest) != 1 {
-		fmt.Fprintln(os.Stderr, "caro: tourney needs exactly one driver: smoke32, smoke10, or full")
+	if rest := fs.Args(); len(rest) == 1 && driver == "" {
+		driver = rest[0]
+	} else if len(rest) != 0 || driver == "" {
+		fmt.Fprintln(os.Stderr, "caro: tourney needs exactly one driver (smoke32, smoke10, or full) plus flags")
 		return 2
 	}
-	driver, ok := tourneyDrivers[rest[0]]
+	specFn, ok := tourneyDrivers[driver]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "caro: unknown tourney driver %q\n", rest[0])
+		fmt.Fprintf(os.Stderr, "caro: unknown tourney driver %q\n", driver)
 		return 2
 	}
-	spec := driver()
+	spec := specFn()
 
 	store, err := server.Open(*dbPath)
 	if err != nil {

@@ -42,10 +42,15 @@ func TestRunTourneyRejectsUnopenableStore(t *testing.T) {
 
 func TestRunTourneyParallelOverBudgetIsRefused(t *testing.T) {
 	// The core-budget refusal fires before any room exists, so this runs no
-	// engine and still proves the conductor wiring end to end.
-	if code := run([]string{"tourney", "--parallel", "9", "--db",
-		filepath.Join(t.TempDir(), "caro.sqlite"), "smoke10"}); code != 1 {
-		t.Errorf("over-budget parallelism exit = %d, want 1", code)
+	// engine and still proves the conductor wiring end to end. Both driver
+	// positions (ahead of and behind the flags) must reach it.
+	for _, args := range [][]string{
+		{"tourney", "--parallel", "9", "--db", filepath.Join(t.TempDir(), "caro.sqlite"), "smoke10"},
+		{"tourney", "smoke10", "--parallel", "9", "--db", filepath.Join(t.TempDir(), "caro.sqlite")},
+	} {
+		if code := run(args); code != 1 {
+			t.Errorf("%v: exit = %d, want 1", args, code)
+		}
 	}
 }
 
