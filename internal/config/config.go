@@ -1,5 +1,7 @@
 package config
 
+import "fmt"
+
 const (
 	BoardSize           = 16
 	BoardStride         = 16
@@ -115,6 +117,44 @@ const (
 // Scenario 2. A package var like TimeControls so tests point it at a
 // t.TempDir without touching the process working directory.
 var TournamentLogDir = "tourney-logs"
+
+// Tournament setup-screen bounds of Scenario 2. TournamentNameMaxBytes
+// bounds one seat's display name like UsernameMaxBytes bounds accounts.
+// TournamentStartRatingAbsMax bounds the operator's start-rating input: two
+// seats at opposite bounds put the law's worst delta at
+// RatingDelta * 10^(2*bound/RatingDecayMin), which stays inside int64.
+const (
+	TournamentNameMaxBytes      = 32
+	TournamentStartRatingAbsMax = 4000
+)
+
+// InstancesPerTier is the default roster shape of the setup screen and the
+// Implication 2.4 full run: two instances of every tier. A package var's
+// companion, TournamentMaxParticipants, bounds the setup form's roster (a
+// pairing needs at least 2).
+const InstancesPerTier = 2
+
+// TournamentMaxParticipants is the setup form's roster ceiling.
+var TournamentMaxParticipants = InstancesPerTier * len(Tiers)
+
+// TierInstance is one seat of the default roster: the display name and its
+// tier.
+type TierInstance struct {
+	Name string
+	Tier string
+}
+
+// DefaultRoster spells the two-per-tier default roster, the single source
+// the setup form prefills from and the headless drivers run.
+func DefaultRoster() []TierInstance {
+	out := make([]TierInstance, 0, TournamentMaxParticipants)
+	for i := range Tiers {
+		for k := 1; k <= InstancesPerTier; k++ {
+			out = append(out, TierInstance{Name: fmt.Sprintf("%s-%d", Tiers[i].Name, k), Tier: Tiers[i].Name})
+		}
+	}
+	return out
+}
 
 const (
 	HTTPPort  = 38063
@@ -325,4 +365,8 @@ const (
 	// HistoryPreviewTurns is the move-history preview length before the
 	// ellipsis in the match history tab.
 	HistoryPreviewTurns = 8
+
+	// PagePollMs is the htmx partial poll cadence the live shell pages ride:
+	// the rooms grid and the tournament run board.
+	PagePollMs = 5000
 )

@@ -16,20 +16,15 @@ type RunSpec struct {
 	StartRating int
 }
 
-// twoPerTierRoster builds the 6-participant, 2-per-tier roster: the smallest
-// twice-pair round robin in which every spec matchup type (hard-hard,
-// hard-medium, medium-medium, medium-easy, hard-easy, easy-easy) actually
-// meets, once with each instance red-first.
+// twoPerTierRoster builds the config hub's default roster, 2 per tier: the
+// smallest twice-pair round robin in which every spec matchup type
+// (hard-hard, hard-medium, medium-medium, medium-easy, hard-easy,
+// easy-easy) actually meets, once with each instance red-first.
 func twoPerTierRoster() []Participant {
-	var out []Participant
-	for i := range config.Tiers {
-		for k := 1; k <= 2; k++ {
-			out = append(out, Participant{
-				Slot: len(out),
-				Name: fmt.Sprintf("%s-%d", config.Tiers[i].Name, k),
-				Tier: config.Tiers[i].Name,
-			})
-		}
+	def := config.DefaultRoster()
+	out := make([]Participant, len(def))
+	for i, seat := range def {
+		out[i] = Participant{Slot: i, Name: seat.Name, Tier: seat.Tier}
 	}
 	return out
 }

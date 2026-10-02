@@ -37,13 +37,10 @@ var shellTmplFS embed.FS
 //go:embed web/shell.css
 var shellCSS []byte
 
-// roomsPollInterval is the rooms-grid refresh cadence of the htmx partial
-// poll. The grid aggregates every live room while the SSE hub streams
-// per-room events, so one cheap manager snapshot per viewer beats wiring a
-// cross-room fan-out topic or one stream per room; polling is the simple
-// correct tool here. It lives as a named constant for the lead to lift
-// into the config hub once a second consumer appears.
-const roomsPollInterval = 5 * time.Second
+// The rooms grid polls its partial at config.PagePollMs. The grid
+// aggregates every live room while the SSE hub streams per-room events, so
+// one cheap manager snapshot per viewer beats wiring a cross-room fan-out
+// topic or one stream per room; polling is the simple correct tool here.
 
 // historyTimeFormat renders the play stamp dense and sortable, UTC so the
 // line never depends on the server's locale.
@@ -302,7 +299,7 @@ func (p *shellPages) renderHome(w http.ResponseWriter, status int, me *shellView
 	renderShell(w, status, homeTmpl, "base", homeView{
 		Me: me, Rooms: p.roomViews(),
 		TCOptions: shellTCOptions(), BOOptions: shellBOOptions(), BotOptions: shellBotOptions(),
-		CreateError: createErr, PollMs: roomsPollInterval.Milliseconds(),
+		CreateError: createErr, PollMs: int64(config.PagePollMs),
 	})
 }
 

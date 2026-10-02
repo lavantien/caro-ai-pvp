@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -204,6 +205,53 @@ func TestTournamentConstants(t *testing.T) {
 	name := fmt.Sprintf(TournamentSeriesLogFormat, 7, 3, "hard-1", "easy-2")
 	if name != "run7_s3_hard-1-vs-easy-2.txt" {
 		t.Errorf("TournamentSeriesLogFormat renders %q", name)
+	}
+}
+
+func TestDefaultRosterMatchesScenario2(t *testing.T) {
+	if InstancesPerTier != 2 {
+		t.Errorf("InstancesPerTier = %d, want 2 per Scenario 2 and Implication 2.4", InstancesPerTier)
+	}
+	if TournamentMaxParticipants != InstancesPerTier*len(Tiers) {
+		t.Errorf("TournamentMaxParticipants = %d, want InstancesPerTier*len(Tiers) = %d",
+			TournamentMaxParticipants, InstancesPerTier*len(Tiers))
+	}
+	roster := DefaultRoster()
+	if len(roster) != TournamentMaxParticipants {
+		t.Fatalf("DefaultRoster = %d seats, want %d", len(roster), TournamentMaxParticipants)
+	}
+	perTier := map[string]int{}
+	for _, seat := range roster {
+		if seat.Name == "" || seat.Tier == "" {
+			t.Fatalf("DefaultRoster seat %+v carries an empty name or tier", seat)
+		}
+		if !strings.HasPrefix(seat.Name, seat.Tier+"-") {
+			t.Errorf("DefaultRoster name %q does not derive from its tier %q", seat.Name, seat.Tier)
+		}
+		perTier[seat.Tier]++
+	}
+	for i := range Tiers {
+		if perTier[Tiers[i].Name] != InstancesPerTier {
+			t.Errorf("tier %s entered %d instances, want %d", Tiers[i].Name, perTier[Tiers[i].Name], InstancesPerTier)
+		}
+	}
+}
+
+func TestTournamentFormBounds(t *testing.T) {
+	if TournamentNameMaxBytes < 1 || TournamentNameMaxBytes > 64 {
+		t.Errorf("TournamentNameMaxBytes = %d, want in [1, 64] like a display-name ceiling", TournamentNameMaxBytes)
+	}
+	// The start-rating bound must keep the rating law's worst delta inside
+	// int64: two seats at opposite bounds give K = 10^(2*bound/RatingDecayMin),
+	// and RatingDelta*K is the whole delta.
+	worstDelta := float64(RatingDelta) * math.Pow(10, 2*float64(TournamentStartRatingAbsMax)/float64(RatingDecayMin))
+	if worstDelta >= math.MaxInt64 || math.IsInf(worstDelta, 0) {
+		t.Errorf("start ratings at %d give a worst delta of %v, overflowing int64",
+			TournamentStartRatingAbsMax, worstDelta)
+	}
+	if TournamentStartRatingAbsMax < TournamentStartRating {
+		t.Errorf("TournamentStartRatingAbsMax %d below the default start %d",
+			TournamentStartRatingAbsMax, TournamentStartRating)
 	}
 }
 

@@ -190,7 +190,7 @@ func TestShellLoginCreateRoundTripRendersRealStats(t *testing.T) {
 		">alice</span>", "rating 30", ">1W-0L-0D<", "level 0",
 		`href="/history"`, `action="/logout"`, `action="/rooms"`,
 		`id="rooms"`, `hx-get="/partials/rooms"`, `hx-trigger="every `+
-			strconv.FormatInt(roomsPollInterval.Milliseconds(), 10)+`ms"`,
+			strconv.Itoa(config.PagePollMs)+`ms"`,
 		"bot tournament", "M7",
 	)
 	if strings.Contains(body, `class="guestnote"`) {
