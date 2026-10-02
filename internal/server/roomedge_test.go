@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
@@ -71,5 +72,40 @@ func TestJoinPersistenceFailureLeavesSeatOpen(t *testing.T) {
 	}
 	if info.GuestUserID != 0 || info.State != SeriesCreated {
 		t.Errorf("room after the failed join = %+v, want the open seat and created state", info)
+	}
+}
+
+// TestRoomListTiesBrokenByID pins the grid's second sort key: two rooms
+// stamped the same creation instant list in id order, so the grid order is
+// total whatever the clock resolution.
+func TestRoomListTiesBrokenByID(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	first, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create first: %v", err)
+	}
+	second, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create second: %v", err)
+	}
+	same := time.Unix(1_700_000_000, 0).UTC()
+	for _, r := range []*Room{first, second} {
+		r.mu.Lock()
+		r.createdAt = same
+		r.mu.Unlock()
+	}
+
+	rooms := s.rm.List()
+	if len(rooms) != 2 {
+		t.Fatalf("grid = %d rooms, want 2", len(rooms))
+	}
+	lower, higher := first.ID(), second.ID()
+	if strings.Compare(higher, lower) < 0 {
+		lower, higher = higher, lower
+	}
+	if rooms[0].ID != lower || rooms[1].ID != higher {
+		t.Errorf("same-instant order = [%s %s], want the id order [%s %s]",
+			rooms[0].ID, rooms[1].ID, lower, higher)
 	}
 }
