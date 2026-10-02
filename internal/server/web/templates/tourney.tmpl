@@ -1,0 +1,47 @@
+{{define "title"}}bot tournament - caro{{end}}
+{{define "content"}}
+<section aria-label="tournament setup">
+<h2>bot tournament</h2>
+<form class="tourneyform" method="post" action="/tourney">
+<fieldset>
+<legend>setup</legend>
+<label>time control
+<select name="tc">{{range .TCOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
+</label>
+<label>best of
+<select name="bo">{{range .BOOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
+</label>
+<label>start rating
+<input name="rating" type="number" value="{{.StartRating}}">
+</label>
+<label>parallel matches
+<select name="parallel">{{range .ParallelOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+</label>
+<label>participants
+<select name="count">{{range .CountOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+</label>
+<fieldset class="roster">
+<legend>roster, the first rows play</legend>
+{{range .Rows}}
+<label class="botname">bot {{.N}}
+<input name="name{{.N}}" maxlength="{{$.MaxNameLen}}" value="{{.Name}}">
+</label>
+<label>tier
+<select name="tier{{.N}}">{{range .Tiers}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+</label>
+{{end}}
+</fieldset>
+<button>start tournament</button>
+{{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+</fieldset>
+</form>
+</section>
+<section aria-label="tournament runs">
+<h2>runs</h2>
+{{if .Runs}}<ul class="tourney-runs">
+{{range .Runs}}<li class="tourney-run"><a href="/tourney/run/{{.ID}}">run {{.ID}}</a>
+<span class="meta"><span>{{.When}}</span><span>{{.TC}}</span><span>{{.BO}}</span><span>{{.State}}</span><span>{{.Roster}}</span><span class="score">{{.Leader}}</span></span>
+</li>
+{{end}}</ul>{{else}}<p class="empty">no tournaments yet.</p>{{end}}
+</section>
+{{end}}

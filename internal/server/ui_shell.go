@@ -121,22 +121,30 @@ func (v shellViewer) WLD() string {
 // me resolves the request's session into the viewer line, nil for a guest.
 // An unusable token is just a guest; a store failure surfaces as an error.
 func (p *shellPages) me(r *http.Request) (*shellViewer, error) {
+	return resolveViewer(p.store, r)
+}
+
+// resolveViewer reads the request's session into the shell viewer line, the
+// shared resolver of the shell and tournament pages: nil for a guest (a
+// missing cookie, an unusable token, a dead session), a store failure as an
+// error.
+func resolveViewer(store *Store, r *http.Request) (*shellViewer, error) {
 	token, err := sessionToken(r)
 	if err != nil {
 		return nil, nil
 	}
-	u, err := Authenticate(p.store, token, time.Now().Unix())
+	u, err := Authenticate(store, token, time.Now().Unix())
 	if err != nil {
 		if errors.Is(err, ErrBadCredentials) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	rating, err := currentRating(p.store, u.ID)
+	rating, err := currentRating(store, u.ID)
 	if err != nil {
 		return nil, err
 	}
-	stats, err := p.store.UserStats(u.ID)
+	stats, err := store.UserStats(u.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -169,17 +177,20 @@ func (p *shellPages) handleShellCSS(w http.ResponseWriter, _ *http.Request) {
 }
 
 // optionView is one create-room select option rendered from the config
-// hub: the form value plus the human label.
+// hub: the form value plus the human label, and whether the setup screen
+// preselects it.
 type optionView struct {
-	Value int
-	Label string
+	Value    int
+	Label    string
+	Selected bool
 }
 
 // botOptionView is the opponent option: an empty value keeps the guest
 // seat open for a human, a tier name seats that bot.
 type botOptionView struct {
-	Value string
-	Label string
+	Value    string
+	Label    string
+	Selected bool
 }
 
 // shellTCOptions mirrors config.TimeControls into the time-control select.

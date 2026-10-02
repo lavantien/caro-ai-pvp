@@ -1,0 +1,12 @@
+{{define "tourboard"}}
+<p class="progress">series {{.Done}}/{{.Total}} settled</p>
+<ol class="tseries">
+{{range .Series}}<li><span class="who-vs">{{.Red}} (red first) {{.Score}} {{.Blue}}</span> {{if .Finished}}<span class="score">{{if .Winner}}{{.Winner}}{{else}}drawn{{end}}</span>{{else}}<span class="live">playing</span>{{end}}</li>
+{{end}}</ol>
+<table class="tboard">
+<thead><tr><th>#</th><th>bot</th><th>tier</th><th>rating</th><th>W</th><th>L</th><th>D</th><th>series</th><th>games</th></tr></thead>
+<tbody>
+{{range .Board}}<tr><td>{{.Rank}}</td><td>{{.Name}}</td><td>{{.Tier}}</td><td>{{.Rating}}</td><td>{{.Wins}}</td><td>{{.Losses}}</td><td>{{.Draws}}</td><td>{{.SeriesWon}}</td><td>{{.GamesPlayed}}</td></tr>
+{{end}}</tbody>
+</table>
+{{end}}

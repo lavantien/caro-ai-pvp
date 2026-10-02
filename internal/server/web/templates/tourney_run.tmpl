@@ -1,0 +1,12 @@
+{{define "title"}}tournament {{.Header.ID}} - caro{{end}}
+{{define "content"}}
+<section aria-label="tournament run">
+<h2>tournament {{.Header.ID}} <span class="runstate">{{.Header.State}}</span></h2>
+<p class="meta"><span>{{.Header.When}}</span><span>{{.Header.TC}}</span><span>{{.Header.BO}}</span><span>start {{.Header.StartRating}}</span></p>
+{{if .Header.Failure}}<p class="error" role="alert">run failed: {{.Header.Failure}}</p>{{end}}
+<div id="tourboard" hx-get="/tourney/run/{{.RunID}}/board" hx-trigger="every {{.PollMs}}ms" hx-swap="innerHTML">
+{{template "tourboard" .Board}}
+</div>
+<p><a href="/tourney">back to setup</a></p>
+</section>
+{{end}}

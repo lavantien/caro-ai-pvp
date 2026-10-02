@@ -191,7 +191,8 @@ func TestShellLoginCreateRoundTripRendersRealStats(t *testing.T) {
 		`href="/history"`, `action="/logout"`, `action="/rooms"`,
 		`id="rooms"`, `hx-get="/partials/rooms"`, `hx-trigger="every `+
 			strconv.Itoa(config.PagePollMs)+`ms"`,
-		"bot tournament", "M7",
+		"bot tournament",
+		`href="/tourney">bot tournament<`,
 	)
 	if strings.Contains(body, `class="guestnote"`) {
 		t.Error("logged-in home carries the guest login prompt")

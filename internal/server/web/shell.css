@@ -46,3 +46,29 @@ button[disabled] { opacity: .55 }
 .hrow .moves { font-family: ui-monospace, monospace; word-break: break-word }
 .hrow .moves a { text-decoration: none }
 .empty { opacity: .8 }
+.actions a.action { font: inherit; font-size: 1.05rem; padding: .35rem .9rem;
+	text-decoration: none; border: 1px solid #8886; border-radius: .45rem }
+.tourneyform fieldset { border: 1px solid #8886; border-radius: .45rem;
+	padding: .5rem .75rem .75rem; display: flex; flex-wrap: wrap; gap: .6rem;
+	align-items: end }
+.tourneyform .roster { display: grid; gap: .5rem; width: 100%;
+	grid-template-columns: 1fr 1fr; align-items: end }
+@media (max-width: 40rem) { .tourneyform .roster { grid-template-columns: 1fr } }
+.tourney-runs { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem }
+@media (min-width: 40rem) { .tourney-runs { grid-template-columns: 1fr 1fr } }
+.tourney-run { display: grid; gap: .1rem; border: 1px solid #8886; border-radius: .45rem;
+	padding: .55rem .75rem }
+.tourney-run > a { font-size: 1.2rem; font-weight: 700; text-decoration: none }
+.tourney-run .meta { display: flex; flex-wrap: wrap; gap: .25rem 1rem }
+.runstate { font-size: 1rem; border: 1px solid #8886; border-radius: .4rem;
+	padding: .05rem .5rem }
+.progress { font-weight: 700 }
+.tseries { display: grid; gap: .25rem; margin: .4rem 0 1rem; padding-left: 1.2rem }
+.tseries .score { font-weight: 700 }
+.live { opacity: .7 }
+.tboard { border-collapse: collapse; font-size: 1rem }
+.tboard th, .tboard td { padding: .2rem .6rem; border-bottom: 1px solid #8884;
+	text-align: right }
+.tboard th:first-child, .tboard td:first-child,
+.tboard th:nth-child(2), .tboard td:nth-child(2),
+.tboard th:nth-child(3), .tboard td:nth-child(3) { text-align: left }
