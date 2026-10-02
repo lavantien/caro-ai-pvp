@@ -1,7 +1,3 @@
-# Mutation equivalence allowlist: one entry per line, formatted exactly like
-# the report line before the verdict, followed by " # <one-line proof>".
-# Entries only suppress the gate failure; unused entries fail the run, so
-# prune them when a mutant gets killed or the source moves.
 internal/rules/legality.go:12:8 replace < with <= # equivalent: guard differs only at dr==0 and -0==0, chebyshev returns the identical value for every cell pair
 internal/rules/legality.go:12:10 replace 0 with 1 # equivalent: dr<1 vs dr<0 differ only at dr==0 where negation is identity, output identical for every input
 internal/rules/legality.go:15:8 replace < with <= # equivalent: guard differs only at dc==0 and -0==0, chebyshev returns the identical value for every cell pair
@@ -23,6 +19,17 @@ internal/rules/win.go:143:12 replace 0 with -1 # equivalent: the extra back step
 internal/rules/win.go:143:17 replace < with <= # equivalent: the wider k bound only extends the walk on runs of 6+ stones, all rejected by the back+fwd+1==WinLength sum filter before the walked coordinates are read
 internal/rules/win.go:150:12 replace 0 with -1 # equivalent: the extra forward step only applies to runs of 6+ stones where back+fwd+1>=6 never equals WinLength=5, so the sum filter rejects before the walked coordinates are read
 internal/rules/win.go:150:17 replace < with <= # equivalent: the wider k bound only extends the walk on runs of 6+ stones, all rejected by the back+fwd+1==WinLength sum filter before the walked coordinates are read
+internal/engine/movegen.go:25:17 replace 0 with 1 # dead write: the branch returns n==1 and pickMax reads no score slot when n==1; searchRoot/negamax read scores only through pickMax
+internal/engine/movegen.go:25:22 replace 0 with -1 # dead write: with n==1 pickMax compares nothing and no other code reads scores[ply][0]
+internal/engine/movegen.go:25:22 replace 0 with 1 # dead write: with n==1 pickMax compares nothing and no other code reads scores[ply][0]
+internal/engine/movegen.go:86:15 replace 1 with 0 # j==i compares scores[i] > scores[best==i]; strict > on the incumbent never moves best
+internal/engine/stats.go:40:15 replace < with <= # elapsedNs==1 clamps to 1 (body assigns 1), a no-op; other values unchanged
+internal/engine/stats.go:40:17 replace 1 with 2 # elapsedNs==1 now enters the clamp which assigns 1, a no-op; <=0 still floors to 1
+internal/engine/stats.go:55:25 replace 1 with 2 # both mid rules probe only (lo,hi] with strict progress on the monotone geoSum predicate, so the search converges to the same fixed point (no divergence over nodes 2..2^40 x depth 1..64)
+internal/engine/stats.go:73:11 replace > with >= # boundary term==floor(2^62/bm) never occurs: exhaustive scan over bm in [1000,32000] x 400 rounds found zero hits
+internal/engine/tt.go:157:11 replace > with >= # equivalent: at depth==ttMaxDepth the clamp assigns ttMaxDepth, the value already held
+internal/engine/tt.go:162:12 replace 0 with 1 # equivalent: divergence needs a data word of exactly 1 (impossible, the gen-bound byte is always >=1) or an empty slot at gen 0 with a negative store depth (every caller stores depth >= 1, tests depth >= 0)
+internal/engine/tt.go:181:7 replace > with >= # equivalent: slots are powers of two, at n==SearchHashFullSample the clamp assigns the value already held
 internal/engine/bitboard.go:63:8 replace < with <= # dr==0 branch assigns dr=-dr=0, a no-op; dr<0 negates as before
 internal/engine/bitboard.go:63:10 replace 0 with 1 # dr<1 admits dr==0 where -dr==0 is a no-op; negatives unchanged
 internal/engine/bitboard.go:66:8 replace < with <= # dc==0 branch assigns dc=-dc=0, a no-op
@@ -45,41 +52,4 @@ internal/engine/eval.go:91:18 replace 0 with -1 # blueDelta is a weight differen
 internal/engine/eval.go:91:18 replace 0 with 1 # blueDelta is a weight difference, multiples of 100: 1 unreachable, delta==0 branch adds 0
 internal/engine/eval.go:95:26 replace 7 with 6 # same bit-2 identity as line 70: beforePair&7>=4 iff beforePair&6>=4 for any byte
 internal/engine/eval.go:95:66 replace 7 with 6 # same bit-2 identity: afterPair&7>=4 iff afterPair&6>=4 for any byte
-internal/engine/movegen.go:25:17 replace 0 with 1 # dead write: the branch returns n==1 and pickMax reads no score slot when n==1; searchRoot/negamax read scores only through pickMax
-internal/engine/movegen.go:25:22 replace 0 with -1 # dead write: with n==1 pickMax compares nothing and no other code reads scores[ply][0]
-internal/engine/movegen.go:25:22 replace 0 with 1 # dead write: with n==1 pickMax compares nothing and no other code reads scores[ply][0]
-internal/engine/movegen.go:86:15 replace 1 with 0 # j==i compares scores[i] > scores[best==i]; strict > on the incumbent never moves best
-internal/engine/stats.go:40:15 replace < with <= # elapsedNs==1 clamps to 1 (body assigns 1), a no-op; other values unchanged
-internal/engine/stats.go:40:17 replace 1 with 2 # elapsedNs==1 now enters the clamp which assigns 1, a no-op; <=0 still floors to 1
-internal/engine/stats.go:55:25 replace 1 with 2 # both mid rules probe only (lo,hi] with strict progress on the monotone geoSum predicate, so the search converges to the same fixed point (no divergence over nodes 2..2^40 x depth 1..64)
-internal/engine/stats.go:73:11 replace > with >= # boundary term==floor(2^62/bm) never occurs: exhaustive scan over bm in [1000,32000] x 400 rounds found zero hits
-internal/engine/smp.go:99:13 replace < with <= # equivalent: the wider guard only fires at workers==1 where the clamp assigns the value already held, worker count identical for every input
-internal/engine/smp.go:99:15 replace 1 with 2 # equivalent: workers<2 additionally fires at workers==1 where the clamp re-assigns 1, the value already held
-internal/engine/smp.go:256:14 replace 0 with 1 # equivalent: the arrival counter is consumed only by strict comparisons between completions, a uniform +1 shift preserves every order
-internal/engine/smp.go:271:11 replace 1 with 2 # equivalent: -2 is as negative as -1, the sentinel is only read through best<0 and best>=0 before the first assignment overwrites it
-internal/engine/smp.go:288:76 replace < with <= # equivalent: seq values come from one atomic Add per completion so equality never holds between distinct workers, <= agrees with < everywhere
-internal/engine/smp.go:326:4 replace break with continue # equivalent: w.stopped is latched for the whole runWorker call, the next loop-top guard breaks on it with res untouched by either path
-internal/engine/smp.go:328:23 replace 1 with 2 # equivalent: stride 2 keeps arrival values pairwise distinct and order-preserving, and only strict comparisons consume them
-internal/engine/smp.go:336:4 replace break with continue # equivalent: the just-stored halt flag is read back through haltDL.Exceeded at the next loop-top, which breaks with res identical
-internal/engine/smp.go:381:24 replace 0 with -1 # equivalent: GOMAXPROCS with a non-positive argument is a pure query, -1 behaves exactly like 0
-internal/engine/smp.go:381:27 replace < with <= # equivalent: at GOMAXPROCS==want the branch assigns the value already current, the raise is a no-op
-internal/engine/tt.go:157:11 replace > with >= # equivalent: at depth==ttMaxDepth the clamp assigns ttMaxDepth, the value already held
-internal/engine/tt.go:162:12 replace 0 with 1 # equivalent: divergence needs a data word of exactly 1 (impossible, the gen-bound byte is always >=1) or an empty slot at gen 0 with a negative store depth (every caller stores depth >= 1, tests depth >= 0)
-internal/engine/tt.go:181:7 replace > with >= # equivalent: slots are powers of two, at n==SearchHashFullSample the clamp assigns the value already held
-internal/engine/search.go:24:34 replace 2 with 3 # equivalent: killers is only ever read and written at indices 0 and 1 (orderScore, recordCutoff, resetForSearch), a third slot is unreachable dead memory
-internal/engine/search.go:25:13 replace 2 with 3 # equivalent: history is indexed only by side and side^1, both in {0,1} for Color uint8 Red=0/Blue=1, a third row is never read or written
-internal/engine/search.go:102:4 replace break with continue # equivalent: Exceeded is monotone and stopped never clears, so the continued iteration re-enters the same guard without running any body statement; best/bestMove/completed/stats identical
-internal/engine/search.go:106:4 replace break with continue # equivalent: e.stopped never clears during Search, so the continued iteration hits the 102 guard and breaks with the same last-completed state; the partial iteration is discarded either way
-internal/engine/search.go:162:12 replace 1 with 0 # equivalent: the root IsFull branch needs exactly one free cell so n==1 and it runs at i==0 with pvLen[1] already 0 from resetForSearch (no recursion exists), and the zeroed pvLen[0] is overwritten by the unconditional first-move update 0 > -EvalMateMax
-internal/engine/search.go:162:12 replace 1 with 2 # equivalent: on the one-free-cell root no ply-2 slot is ever written (no recursion exists), so pvLen[2] stays 0 and the write is the same no-op the clean zeroing performs
-internal/engine/search.go:174:11 replace 0 with -1 # equivalent: SearchDepth checks e.stopped and breaks before reading the returned score or move, so the stopped searchRoot return value is discarded
-internal/engine/search.go:174:11 replace 0 with 1 # equivalent: same discard, the caller breaks on e.stopped before touching the returned values
-internal/engine/search.go:205:10 replace 0 with -1 # equivalent: every caller reads s only under !e.stopped guards (167/254) and returns its own 0 when stopped, so the stopped negamax return never flows anywhere
-internal/engine/search.go:205:10 replace 0 with 1 # equivalent: same discard, all uses of s are guarded by !e.stopped and the callers return early themselves
-internal/engine/search.go:228:11 replace 0 with -1 # equivalent: the only new value adopted is rules.Move(-1)=65535 (uint16), outside both the cell range 0..255 and moveNone=256, and ttm is only compared for equality against generated candidates
-internal/engine/search.go:234:43 replace 1 with 2 # equivalent: sentinel -(EvalMateMax+2) vs -(EvalMateMax+1) differs only at s == -EvalMateMax-1, off both the 16Z mate lattice and the 100Z eval lattice, so no attainable score separates them
-internal/engine/search.go:249:16 replace 1 with 0 # equivalent: an IsFull draw node fills the board, so no ply >= p+1 node is ever entered search-wide and pvLen[ply+1] stays 0 from resetForSearch; the node's own slot is 0 from line 210 and reassigned by pvLen[ply] = pvLen[ply+1]+1
-internal/engine/search.go:249:16 replace 1 with 2 # equivalent: ply+2 entries are impossible on a board that fills at ply p, so pvLen[ply+2] is 0 and the write is the same no-op
-internal/engine/search.go:261:11 replace 0 with -1 # equivalent: the stopped return is discarded, parents guard s with !e.stopped at 254 and return their own 0 before any store or update
-internal/engine/search.go:261:11 replace 0 with 1 # equivalent: same discard proof as the negamax stopped return at every call site
 internal/engine/eval.go:87:17 replace 0 with 1 # equivalent: weights are multiples of 100 so a delta of 1 is unreachable, and the delta==0 case the wider guard admits adds zero to both accumulators

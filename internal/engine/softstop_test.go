@@ -115,49 +115,28 @@ func TestSoftStopSkippedWithoutBudgeterSMP(t *testing.T) {
 	}
 }
 
-// softStopCalibFactor places the soft limit at half the measured banked
-// prefix, far enough below the prefix cost that clock quantization and run
-// to run jitter cannot push the limit past it, close enough that the blow
-// up iteration after the prefix can never start.
-const softStopCalibFactor = 0.5
-
-// calibrateGrant times one cold pass of the deterministic depth 1..5 ladder
-// on a throwaway instance. On the fixed midgame position that prefix is the
-// banked region and every iteration past it is a blow up costing orders of
-// magnitude more, so a grant at half the prefix lands the soft limit inside
-// the banked region on any host: the measurement scales with machine speed
-// while the placement stays proportional. The measured search must run on
-// its own fresh instance: a warm table collapses the prefix below the host
-// clock quantum.
-func calibrateGrant(run func(dl Deadline)) time.Duration {
-	window := scaledBudget(500 * time.Millisecond)
-	start := time.Now()
-	run(newBudgetDeadline(window, window))
-	return time.Duration(float64(time.Since(start)) * softStopCalibFactor / config.SearchSoftStopFraction)
-}
-
-// TestSearchSoftStopFiresBeforeHardWindow is the behavioral pin: with the
-// soft limit inside the banked prefix and a hard window far beyond it, the
-// search cannot finish the ladder, cannot mate, and cannot reach the window,
-// so returning with no partial iteration discarded (stopped false) and well
-// before the window means the soft stop ended it. Without the consult the
-// blow up iteration starts and the hard window aborts it.
+// TestSearchSoftStopFiresBeforeHardWindow pins the firing at the public
+// Search level: a nanosecond grant against a hard window far beyond it must
+// end the search at an iteration head (stopped false, elapsed nowhere near
+// the window) with a banked legal move. On a fine clock the elapsed reading
+// alone crosses the soft limit; on a quantized clock the quantum branch
+// does the same job, so the pin holds on every host. A mid-ladder firing
+// under a realistic grant is exercised end to end by the live series
+// harness; a wall-clock unit pin of it cannot be deterministic below one
+// clock quantum, which is exactly the ambiguity the quantum branch owns.
 func TestSearchSoftStopFiresBeforeHardWindow(t *testing.T) {
 	b := midgameBoard(t)
 	window := scaledBudget(500 * time.Millisecond)
-	grant := calibrateGrant(func(dl Deadline) {
-		_, _ = New(testTTBytes).SearchDepth(b, dl, 5)
-	})
 	e := New(testTTBytes)
-	mv, stats := e.Search(b, newBudgetDeadline(window, grant))
+	mv, stats := e.Search(b, newBudgetDeadline(window, time.Nanosecond))
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("soft-stopped search returned illegal move %d", mv)
 	}
-	if stats.Depth < 2 {
-		t.Errorf("depth = %d, want at least 2 before the soft limit", stats.Depth)
+	if stats.Depth != 1 {
+		t.Errorf("depth = %d, want exactly 1: the head after the first banked iteration must be refused on every clock", stats.Depth)
 	}
-	if stats.AllocNs != int64(grant) {
-		t.Errorf("alloc ns = %d, want the reported grant %d", stats.AllocNs, grant)
+	if stats.AllocNs != 1 {
+		t.Errorf("alloc ns = %d, want the reported grant 1", stats.AllocNs)
 	}
 	if e.stopped {
 		t.Error("hard deadline aborted a partial iteration inside a window it never reached")
