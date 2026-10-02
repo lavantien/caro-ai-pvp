@@ -1,0 +1,40 @@
+{{define "title"}}caro{{end}}
+{{define "content"}}
+{{if .Me}}
+<section class="me" aria-label="your stats">
+<span class="name">{{.Me.Username}}</span>
+<span>rating {{.Me.Rating}}</span>
+<a class="wld" href="/history" title="match history">{{.Me.WLD}}</a>
+<span>level {{.Me.Level}}</span>
+</section>
+{{else}}
+<p class="guestnote"><a href="/login">login / create</a> to play and to see your stats.</p>
+{{end}}
+<section aria-label="rooms">
+<h2>rooms</h2>
+<div id="rooms" hx-get="/partials/rooms" hx-trigger="every {{.PollMs}}ms" hx-swap="innerHTML">
+{{template "roomslist" .Rooms}}
+</div>
+</section>
+{{if .Me}}
+<section class="actions" aria-label="actions">
+<form method="post" action="/rooms">
+<fieldset>
+<legend>create room</legend>
+<label>time control
+<select name="tc">{{range .TCOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
+</label>
+<label>best of
+<select name="bo">{{range .BOOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
+</label>
+<label>opponent
+<select name="bot">{{range .BotOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
+</label>
+<button>create room</button>
+</fieldset>
+</form>
+<button disabled title="bot tournament lands in M7">bot tournament (M7)</button>
+{{if .CreateError}}<p class="error" role="alert">{{.CreateError}}</p>{{end}}
+</section>
+{{end}}
+{{end}}

@@ -1,0 +1,17 @@
+{{define "title"}}login - caro{{end}}
+{{define "content"}}
+<section aria-label="login">
+<h2>login / create</h2>
+<p class="guestnote">one form: an unknown username creates the account.</p>
+<form class="loginform" method="post" action="/login">
+<label>username
+<input name="username" required maxlength="{{.MaxNameLen}}" autocomplete="username" autofocus>
+</label>
+<label>password
+<input name="password" type="password" required autocomplete="current-password">
+</label>
+<button>login / create</button>
+{{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+</form>
+</section>
+{{end}}

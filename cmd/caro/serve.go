@@ -76,7 +76,16 @@ func runServe(args []string) int {
 	wq := server.NewWriteQueue(nil)
 	hub := server.NewHub()
 	rooms := server.NewRoomManager(hub, store, wq)
-	srv := newServeServer(*addr, server.NewHTTPAPI(store, rooms))
+	// Provisional M6b composition: the JSON/SSE API keeps its subtree
+	// prefixes, the shell pages own the root. The M6b lead recomposes this
+	// mux when the room and playback pages land.
+	api := server.NewHTTPAPI(store, rooms)
+	root := http.NewServeMux()
+	root.Handle("/api/", api)
+	root.Handle("/static/", api)
+	root.Handle("/spike", api)
+	root.Handle("/", server.NewShellPages(store, rooms))
+	srv := newServeServer(*addr, root)
 
 	ctx, stop := signal.NotifyContext(context.Background(), serveSignals...)
 	defer stop()

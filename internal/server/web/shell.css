@@ -1,0 +1,48 @@
+/* The one stylesheet the M6b shell pages own. Mobile first: one column
+   under 40rem, the rooms grid and action row wrap onto two columns wider.
+   Rem sizing throughout, the largest type on the identity and score data. */
+:root { color-scheme: light dark }
+* { box-sizing: border-box }
+body { font-family: system-ui, sans-serif; line-height: 1.45;
+	margin: 0 auto; max-width: 64rem; padding: 0 .75rem 2rem }
+header { display: flex; align-items: baseline; gap: 1rem; padding: .6rem 0;
+	border-bottom: 1px solid #8886 }
+.brand { font-size: 1.5rem; font-weight: 800; text-decoration: none }
+header nav { margin-left: auto; display: flex; gap: .75rem; align-items: baseline }
+.who { font-weight: 600 }
+form.inline { display: inline; margin: 0 }
+button.linklike { background: none; border: none; padding: 0; font: inherit;
+	color: inherit; text-decoration: underline; cursor: pointer }
+h2 { font-size: 1.05rem; margin: 1.4rem 0 .5rem }
+.me { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; align-items: baseline;
+	font-size: 1.05rem; margin-top: 1rem }
+.me .name { font-size: 1.5rem; font-weight: 800 }
+.me .wld { font-size: 1.25rem; font-weight: 700; text-decoration: none;
+	border: 1px solid #8886; border-radius: .4rem; padding: .1rem .5rem }
+.guestnote { font-size: 1.1rem; margin-top: 1rem }
+.rooms { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem }
+@media (min-width: 40rem) { .rooms { grid-template-columns: 1fr 1fr } }
+.room { display: grid; gap: .1rem; border: 1px solid #8886; border-radius: .45rem;
+	padding: .55rem .75rem }
+.room > a { font-size: 1.2rem; font-weight: 700; text-decoration: none }
+.room .meta { display: flex; flex-wrap: wrap; gap: .25rem 1rem }
+.room .meta .score { font-weight: 700 }
+.actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center }
+.actions fieldset { border: 1px solid #8886; border-radius: .45rem;
+	padding: .5rem .75rem .75rem; display: flex; flex-wrap: wrap; gap: .6rem;
+	align-items: end }
+label { display: grid; gap: .15rem; font-size: .85rem }
+select, input { font: inherit; font-size: 1.05rem; padding: .3rem .4rem }
+button:not(.linklike) { font: inherit; font-size: 1.05rem; padding: .35rem .9rem }
+button[disabled] { opacity: .55 }
+.error { color: #d13438; font-size: 1.2rem; font-weight: 600 }
+.loginform { display: grid; gap: .75rem; max-width: 22rem; margin-top: 1rem }
+.loginform button { justify-self: start }
+.hrow { display: grid; gap: .15rem; border: 1px solid #8886; border-radius: .45rem;
+	padding: .55rem .75rem; margin-bottom: .6rem }
+.hrow .top { display: flex; flex-wrap: wrap; gap: .25rem 1rem }
+.hrow .who-vs { font-size: 1.15rem; font-weight: 700 }
+.hrow .score { font-weight: 700 }
+.hrow .moves { font-family: ui-monospace, monospace; word-break: break-word }
+.hrow .moves a { text-decoration: none }
+.empty { opacity: .8 }

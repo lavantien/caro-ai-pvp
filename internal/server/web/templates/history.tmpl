@@ -1,0 +1,11 @@
+{{define "title"}}match history - caro{{end}}
+{{define "content"}}
+<section aria-label="match history">
+<h2>match history</h2>
+{{if .Rows}}{{range .Rows}}<div class="hrow">
+<div class="top"><span>{{.When}}</span><span class="who-vs">{{.Red}} vs {{.Blue}}</span><span class="score">{{.Score}}</span><span>{{.Turns}} turns</span>{{if .WonBy}}<span>won by {{.WonBy}}</span>{{end}}</div>
+<div class="moves"><a href="/rooms/history/{{.GameID}}" title="playback board">{{.Preview}}{{if .Truncated}} …{{end}}</a></div>
+</div>
+{{end}}{{else}}<p class="empty">no games yet.</p>{{end}}
+</section>
+{{end}}

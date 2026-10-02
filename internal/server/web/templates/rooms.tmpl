@@ -1,0 +1,5 @@
+{{define "roomslist"}}{{if .}}<ul class="rooms">
+{{range .}}<li class="room"><a href="/rooms/{{.ID}}">room {{.ShortID}}</a>
+<span class="meta"><span>{{.TC}}</span><span>{{.BO}}</span><span>{{.State}}</span><span>{{.Host}} vs {{.Guest}}</span>{{if .ShowScore}}<span class="score">{{.Score}}</span>{{end}}</span>
+</li>
+{{end}}</ul>{{else}}<p class="empty">no live rooms</p>{{end}}{{end}}

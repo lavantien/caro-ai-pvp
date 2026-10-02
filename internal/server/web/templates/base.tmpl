@@ -1,0 +1,24 @@
+{{define "base"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{block "title" .}}caro{{end}}</title>
+<script src="/static/htmx.min.js"></script>
+<script src="/static/hx-sse.min.js"></script>
+<link rel="stylesheet" href="/shell.css">
+</head>
+<body>
+<header>
+<a class="brand" href="/">caro</a>
+<nav>
+{{if .Me}}<span class="who">{{.Me.Username}}</span>
+<form class="inline" method="post" action="/logout"><button class="linklike">logout</button></form>
+{{else}}<a href="/login">login</a>{{end}}
+</nav>
+</header>
+<main>
+{{template "content" .}}
+</main>
+</body>
+</html>{{end}}
