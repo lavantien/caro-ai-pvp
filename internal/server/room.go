@@ -10,7 +10,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lavantien/caro-ai-pvp/internal/clock"
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
 // Room lifecycle of the M6a backend: one RoomManager keyed by opaque
@@ -219,6 +221,15 @@ func (rm *RoomManager) Shutdown() {
 	}
 }
 
+// retireRoom drops a finished room from the grid. Called only with no room
+// lock held, after retire, so the manager lock and the room lock never
+// nest.
+func (rm *RoomManager) retireRoom(r *Room) {
+	rm.mu.Lock()
+	delete(rm.rooms, r.id)
+	rm.mu.Unlock()
+}
+
 // Room is one live best-of series plus its current game. The mutex guards
 // every field below it; the match driver in match.go runs bot searches
 // outside the lock on a private board copy and revalidates before applying.
@@ -238,6 +249,14 @@ type Room struct {
 	series   *Series
 	seriesID int64
 	over     bool
+
+	// Live game state, all under mu. board is nil until the handshake
+	// completes and between-terminal games never happens: the completion
+	// path resets in the same critical section.
+	board     *rules.Board
+	moves     []rules.Move
+	clock     [2]*clock.GameClock
+	turnStart time.Time
 
 	wake      chan struct{}
 	quit      chan struct{}
@@ -309,6 +328,15 @@ func (r *Room) retire() {
 		r.over = true
 		r.mu.Unlock()
 	})
+}
+
+// finishLifecycle runs after a terminal transition (series finished or
+// forfeit swept) with no lock held: retire the room, then drop it from the
+// grid. The worker exits on quit by itself, so this is safe on the worker
+// goroutine too.
+func (r *Room) finishLifecycle() {
+	r.retire()
+	r.manager.retireRoom(r)
 }
 
 func newRoomID() string {
