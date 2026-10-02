@@ -12,6 +12,7 @@ import (
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
+	"github.com/lavantien/caro-ai-pvp/internal/tourney"
 )
 
 const defaultDBPath = "caro.db"
@@ -53,6 +54,22 @@ func newServeServer(addr string, h http.Handler) *http.Server {
 	}
 }
 
+// newRootMux composes the serve command's whole handler tree: the JSON/SSE
+// API keeps its subtree prefixes and the static assets, the room, playback,
+// and tournament page patterns win over the root, and the shell pages own
+// every other path. Extracted from runServe so the mounting is testable.
+func newRootMux(store *server.Store, rooms *server.RoomManager, tourneys server.TourneyService) *http.ServeMux {
+	api := server.NewHTTPAPI(store, rooms)
+	root := http.NewServeMux()
+	root.Handle("/api/", api)
+	root.Handle("/static/", api)
+	root.Handle("/spike", api)
+	server.NewRoomPages(rooms, store).Mount(root)
+	server.NewTournamentPages(store, tourneys).Mount(root)
+	root.Handle("/", server.NewShellPages(store, rooms))
+	return root
+}
+
 // runServe boots the full server: store with startup self-migration, the
 // single-writer mutation queue, the pub-sub hub, the room manager, and the
 // HTTP/SSE transport on the configured port. SIGINT or SIGTERM drains:
@@ -76,17 +93,10 @@ func runServe(args []string) int {
 	wq := server.NewWriteQueue(nil)
 	hub := server.NewHub()
 	rooms := server.NewRoomManager(hub, store, wq)
-	// M6b composition: the JSON/SSE API keeps its subtree prefixes and the
-	// static assets, the room and playback page patterns win over the root,
-	// and the shell pages own every other path.
-	api := server.NewHTTPAPI(store, rooms)
-	root := http.NewServeMux()
-	root.Handle("/api/", api)
-	root.Handle("/static/", api)
-	root.Handle("/spike", api)
-	server.NewRoomPages(rooms, store).Mount(root)
-	root.Handle("/", server.NewShellPages(store, rooms))
-	srv := newServeServer(*addr, root)
+	// The tournament manager drives its runs on the room surface; the page
+	// service the root mux mounts is the adapter over it.
+	tourneys := newTourneyService(tourney.NewManager(tourney.NewStore(store), tourney.RoomSource{RM: rooms}))
+	srv := newServeServer(*addr, newRootMux(store, rooms, tourneys))
 
 	ctx, stop := signal.NotifyContext(context.Background(), serveSignals...)
 	defer stop()
