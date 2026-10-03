@@ -48,13 +48,13 @@ func fakeStats() engine.SearchStats {
 	return st
 }
 
-func (b *scriptedBot) Search(_ *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats) {
+func (b *scriptedBot) Search(_ *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats, string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	mv := b.script[0]
 	b.script = b.script[1:]
 	b.searches++
-	return mv, b.stats
+	return mv, b.stats, ""
 }
 
 func (b *scriptedBot) Close() {
@@ -107,7 +107,7 @@ type gatedBot struct {
 	closed   bool
 }
 
-func (g *gatedBot) Search(b *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats) {
+func (g *gatedBot) Search(b *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats, string) {
 	g.mu.Lock()
 	g.searches++
 	g.mu.Unlock()
@@ -117,7 +117,7 @@ func (g *gatedBot) Search(b *rules.Board, _ engine.Deadline) (rules.Move, engine
 	if b.LegalMoves(buf[:]) == 0 {
 		panic("bot test: no legal move for the gated bot")
 	}
-	return buf[0], engine.SearchStats{}
+	return buf[0], engine.SearchStats{}, ""
 }
 
 func (g *gatedBot) Close() {
@@ -140,7 +140,7 @@ type contractBot struct {
 	closed bool
 }
 
-func (b *contractBot) Search(bd *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats) {
+func (b *contractBot) Search(bd *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats, string) {
 	b.mu.Lock()
 	closed := b.closed
 	b.mu.Unlock()
@@ -151,7 +151,7 @@ func (b *contractBot) Search(bd *rules.Board, _ engine.Deadline) (rules.Move, en
 	if bd.LegalMoves(buf[:]) == 0 {
 		panic("bot test: no legal move for the contract bot")
 	}
-	return buf[0], engine.SearchStats{}
+	return buf[0], engine.SearchStats{}, ""
 }
 
 func (b *contractBot) Close() {
@@ -539,7 +539,7 @@ func TestBotRoomMediumBeatsRandomMover(t *testing.T) {
 	if gotMLines == 0 || gotMoves < gotMLines {
 		t.Errorf("stream counts = %d moves vs %d mlines", gotMoves, gotMLines)
 	}
-	if want := MLine(rec.moveNumber, rec.side, rec.move, &rec.stats, ""); gotLast != want {
+	if want := MLine(rec.moveNumber, rec.side, rec.move, &rec.stats, rec.tag); gotLast != want {
 		t.Errorf("last mline = %q, want renderer output %q", gotLast, want)
 	}
 	if blueCommits == 0 {

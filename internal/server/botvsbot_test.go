@@ -42,7 +42,7 @@ type startGatedBot struct {
 	inner searcher
 }
 
-func (b *startGatedBot) Search(bd *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats) {
+func (b *startGatedBot) Search(bd *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats, string) {
 	b.once.Do(func() { <-b.gate })
 	return b.inner.Search(bd, dl)
 }

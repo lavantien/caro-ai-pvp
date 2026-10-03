@@ -21,8 +21,8 @@ func TestNpsReport(t *testing.T) {
 		{1, int64(time.Second), 1},
 	}
 	for _, c := range cases {
-		if got := npsReport(c.nodes, c.elapsedNs); got != c.want {
-			t.Errorf("npsReport(%d, %d) = %d, want %d", c.nodes, c.elapsedNs, got, c.want)
+		if got := NpsReport(c.nodes, c.elapsedNs); got != c.want {
+			t.Errorf("NpsReport(%d, %d) = %d, want %d", c.nodes, c.elapsedNs, got, c.want)
 		}
 	}
 }
@@ -40,8 +40,8 @@ func TestEBFMilli(t *testing.T) {
 		{6, 1, 5999},
 	}
 	for _, c := range cases {
-		if got := ebfMilli(c.nodes, c.depth); got != c.want {
-			t.Errorf("ebfMilli(%d, %d) = %d, want %d", c.nodes, c.depth, got, c.want)
+		if got := EBFMilli(c.nodes, c.depth); got != c.want {
+			t.Errorf("EBFMilli(%d, %d) = %d, want %d", c.nodes, c.depth, got, c.want)
 		}
 	}
 	// The estimate is the maximal b whose geometric node sum fits.
@@ -49,7 +49,7 @@ func TestEBFMilli(t *testing.T) {
 		nodes uint64
 		depth int
 	}{{7, 2}, {121, 4}, {1 << 20, 8}, {1 << 40, 20}} {
-		b := ebfMilli(c.nodes, c.depth)
+		b := EBFMilli(c.nodes, c.depth)
 		if geoSum(b, c.depth) > c.nodes {
 			t.Errorf("ebf %d overruns %d nodes at depth %d", b, c.nodes, c.depth)
 		}
@@ -57,7 +57,7 @@ func TestEBFMilli(t *testing.T) {
 			t.Errorf("ebf %d leaves room: b+1 also fits %d nodes at depth %d", b, c.nodes, c.depth)
 		}
 	}
-	if got := ebfMilli(1<<62, 60); got != 32000 {
+	if got := EBFMilli(1<<62, 60); got != 32000 {
 		t.Errorf("saturated ebf = %d, want the 32.0 ceiling", got)
 	}
 }

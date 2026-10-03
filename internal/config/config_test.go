@@ -85,6 +85,12 @@ func TestClockLawConstants(t *testing.T) {
 	if SearchMinMoveTimeMs <= 0 || SearchSafetyMarginMs <= 0 {
 		t.Errorf("floor %d and reserve %d must both be positive", SearchMinMoveTimeMs, SearchSafetyMarginMs)
 	}
+	if SolverBudgetShare <= 0 || SolverBudgetShare >= 1 {
+		t.Errorf("SolverBudgetShare = %v, want in (0, 1) so a solver miss still funds a search", SolverBudgetShare)
+	}
+	if SolverNodeBudget <= 0 {
+		t.Errorf("SolverNodeBudget = %d, must be positive", SolverNodeBudget)
+	}
 	if SearchClockQuantumMs < 15 || SearchClockQuantumMs > 17 {
 		t.Errorf("SearchClockQuantumMs = %d, want the 64 Hz Windows tick ceiling 16", SearchClockQuantumMs)
 	}

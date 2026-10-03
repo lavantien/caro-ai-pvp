@@ -12,6 +12,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
 	"github.com/lavantien/caro-ai-pvp/internal/pattern"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
+	"github.com/lavantien/caro-ai-pvp/internal/vcf"
 )
 
 // The match driver: one live game at a time per room, the current board,
@@ -31,12 +32,6 @@ const (
 	EventKindGameEnd = "gameend"
 	EventKindSeries  = "series"
 )
-
-// mLineTag is the Implication 1.5 solver tag of an emitted bot line. The
-// engine's SearchStats carries no VCF/VCT provenance yet, so every line
-// ships untagged; when the drivers expose solver-found wins, feed
-// config.BotLogTagVCF and config.BotLogTagVCT here.
-const mLineTag = ""
 
 // WonBy vocabulary derivable today, read off the position at the winner's
 // last move (move n-1 per Scenario 1): "open 4" the winner held a window
@@ -470,9 +465,12 @@ func countWinIn1(pre *rules.Board, winner rules.Color) int {
 // racing it.
 
 // searcher is the per-game bot engine surface the room drives: one Search
-// per turn under a budget deadline, closed at game end.
+// per turn under a budget deadline, closed at game end. The third return
+// is the Implication 1.5 tag of the move, config.BotLogTagVCF or
+// BotLogTagVCT when a dedicated solver delivered it, the empty string for
+// a standard search move.
 type searcher interface {
-	Search(b *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats)
+	Search(b *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats, string)
 	Close()
 }
 
@@ -481,19 +479,114 @@ type searcher interface {
 // as the tiered SMP instance.
 type singleSearcher struct{ e *engine.Engine }
 
-func (s singleSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats) {
-	return s.e.Search(b, dl)
+func (s singleSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats, string) {
+	mv, st := s.e.Search(b, dl)
+	return mv, st, ""
 }
 
 func (singleSearcher) Close() {}
 
-// newBotSearcher sizes a bot from its tier: the SMP pool over a shared
-// lockless table for Cores > 1, the plain engine otherwise.
-func newBotSearcher(t config.Tier) searcher {
-	if t.Cores > 1 {
-		return engine.NewTiered(t)
+// tierSearcher adapts the SMP pool to the searcher surface.
+type tierSearcher struct{ smp *engine.SMP }
+
+func (s tierSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats, string) {
+	mv, st := s.smp.Search(b, dl)
+	return mv, st, ""
+}
+
+func (s tierSearcher) Close() { s.smp.Close() }
+
+// solverSearcher wires the tier's dedicated solvers in front of the
+// standard search: VCF's four-only proof tree runs first (cheapest, and
+// every VCF win is a VCT win), VCT's three-and-four superset second. A
+// proven forced win ends the move on the solver's line with the matching
+// tag; a miss hands the unspent remainder of the grant to the inner
+// searcher, whose line carries no tag.
+type solverSearcher struct {
+	inner searcher
+	vcf   *vcf.Solver
+	vct   *vcf.Solver
+	cores int
+}
+
+func (s *solverSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats, string) {
+	start := time.Now()
+	grant := time.Duration(0)
+	hasGrant := false
+	if bg, ok := dl.(engine.Budgeter); ok {
+		grant = bg.Budget()
+		hasGrant = true
 	}
-	return singleSearcher{e: engine.New(t.TTBytes)}
+	for _, pass := range []struct {
+		solver *vcf.Solver
+		tag    string
+	}{{s.vcf, config.BotLogTagVCF}, {s.vct, config.BotLogTagVCT}} {
+		if pass.solver == nil {
+			continue
+		}
+		var share engine.Deadline
+		if hasGrant {
+			share = engine.NewFixedBudget(time.Duration(config.SolverBudgetShare * float64(grant)))
+		}
+		var out vcf.SolverStats
+		if pass.solver.Solve(b, config.SolverNodeBudget, share, &out) {
+			return rules.Move(out.PV[0]), solverStats(s.cores, grant, &out), pass.tag
+		}
+	}
+	rest := dl
+	if hasGrant {
+		rest = engine.NewFixedBudget(grant - time.Since(start))
+	}
+	mv, st, _ := s.inner.Search(b, rest)
+	if hasGrant {
+		// The M-line bills the whole grant, not the post-solver remainder.
+		st.AllocNs = int64(grant)
+	}
+	return mv, st, ""
+}
+
+func (s *solverSearcher) Close() { s.inner.Close() }
+
+// solverStats maps one solver proof onto the search-stat shape the M-line
+// emitter renders: depth and score are the forced line's ply count and its
+// mate distance on the engine lattice, the PV is the attacker-defender
+// line ending on the winning placement.
+func solverStats(cores int, grant time.Duration, out *vcf.SolverStats) engine.SearchStats {
+	var st engine.SearchStats
+	st.Depth = out.Plies
+	st.Nodes = out.Nodes
+	st.Nps = engine.NpsReport(out.Nodes, out.ElapsedNs)
+	st.EBFMilli = engine.EBFMilli(out.Nodes, out.Plies)
+	st.Score = config.EvalMateMax - out.Plies*config.EvalMateScoreStep
+	st.Threads = cores
+	st.ElapsedNs = out.ElapsedNs
+	st.AllocNs = int64(grant)
+	st.PVLen = out.Plies
+	st.PV = out.PV
+	return st
+}
+
+// newBotSearcher sizes a bot from its tier: the SMP pool over a shared
+// lockless table for Cores > 1, the plain engine otherwise, wrapped with
+// the tier's solver passes when the tier has them.
+func newBotSearcher(t config.Tier) searcher {
+	var inner searcher
+	if t.Cores > 1 {
+		inner = tierSearcher{smp: engine.NewTiered(t)}
+	} else {
+		inner = singleSearcher{e: engine.New(t.TTBytes)}
+	}
+	if !t.VCF && !t.VCT {
+		return inner
+	}
+	s := &solverSearcher{inner: inner, cores: t.Cores}
+	if t.VCF {
+		s.vcf = vcf.New(vcf.KindVCF)
+	}
+	if t.VCT {
+		s.vct = vcf.New(vcf.KindVCT)
+	}
+	return s
 }
 
 // closeEnginesLocked releases the per-game engines. Two callers, both safe
@@ -518,6 +611,7 @@ type mLineRecord struct {
 	side       rules.Color
 	move       rules.Move
 	stats      engine.SearchStats
+	tag        string
 }
 
 // startBotWorker launches the room's bot driver. Called once, before the
@@ -610,7 +704,7 @@ func (r *Room) runBotTurn() bool {
 		entry()
 	}
 
-	mv, st := eng.Search(&board, engine.NewFixedBudget(budget))
+	mv, st, tag := eng.Search(&board, engine.NewFixedBudget(budget))
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -625,11 +719,11 @@ func (r *Room) runBotTurn() bool {
 	}
 	cell := rules.Cell(mv)
 	r.applyMoveLocked(side, cell)
-	r.lastM = mLineRecord{moveNumber: r.board.MoveCount, side: side, move: mv, stats: st}
+	r.lastM = mLineRecord{moveNumber: r.board.MoveCount, side: side, move: mv, stats: st, tag: tag}
 	// Rendered once: the hub payload and the persisted stat line are the
 	// same string by construction, byte-identical to the canonical renderer
 	// fed these inputs.
-	line := MLine(r.lastM.moveNumber, side, mv, &st, mLineTag)
+	line := MLine(r.lastM.moveNumber, side, mv, &st, tag)
 	r.mlines = append(r.mlines, GameStat{MoveNo: r.lastM.moveNumber, Line: line})
 	r.publishLocked(Event{Kind: EventKindMLine, Payload: line})
 	// The worker has no caller to surface a persistence error to; the room

@@ -245,7 +245,7 @@ func TestBotEasyTierRealEngineAnswersLegally(t *testing.T) {
 		t.Error("easy tier built the SMP pool, want the single-threaded engine")
 	}
 	fresh := rules.NewBoard()
-	mv, st := eng.Search(fresh, engine.NewFixedBudget(5*time.Millisecond))
+	mv, st, _ := eng.Search(fresh, engine.NewFixedBudget(5*time.Millisecond))
 	if !fresh.IsLegal(rules.Cell(mv)) {
 		t.Errorf("engine answer %s is illegal on a fresh board", cellName(rules.Cell(mv)))
 	}

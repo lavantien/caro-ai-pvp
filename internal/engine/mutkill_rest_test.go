@@ -94,8 +94,8 @@ func TestEBFMilliDegenerateRows(t *testing.T) {
 		{2, 2, 1000},
 	}
 	for _, c := range cases {
-		if got := ebfMilli(c.nodes, c.depth); got != c.want {
-			t.Errorf("ebfMilli(%d, %d) = %d, want %d", c.nodes, c.depth, got, c.want)
+		if got := EBFMilli(c.nodes, c.depth); got != c.want {
+			t.Errorf("EBFMilli(%d, %d) = %d, want %d", c.nodes, c.depth, got, c.want)
 		}
 	}
 }

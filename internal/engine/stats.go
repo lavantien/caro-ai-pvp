@@ -30,11 +30,11 @@ type SearchStats struct {
 	PV                        [config.SearchMaxPly]rules.Move
 }
 
-// npsReport converts a node count and elapsed nanoseconds into nodes per
+// NpsReport converts a node count and elapsed nanoseconds into nodes per
 // second, flooring a sub-millisecond elapsed to 1ms: a 1ns floor once
 // turned a zero reading into "nps=211000m", while no real search of
 // interest runs faster than one millisecond quantum anyway.
-func npsReport(nodes uint64, elapsedNs int64) uint64 {
+func NpsReport(nodes uint64, elapsedNs int64) uint64 {
 	if nodes == 0 {
 		return 0
 	}
@@ -44,10 +44,10 @@ func npsReport(nodes uint64, elapsedNs int64) uint64 {
 	return nodes * uint64(time.Second) / uint64(elapsedNs)
 }
 
-// ebfMilli estimates the effective branching factor as the integer b, in
+// EBFMilli estimates the effective branching factor as the integer b, in
 // milliunits, whose geometric node sum to the reached depth fits the node
 // count. Integer binary search, outside the hot loop.
-func ebfMilli(nodes uint64, depth int) int {
+func EBFMilli(nodes uint64, depth int) int {
 	if depth < 1 || nodes < 2 {
 		return 0
 	}

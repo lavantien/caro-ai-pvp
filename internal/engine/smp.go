@@ -306,8 +306,8 @@ func (s *SMP) searchDepth(b *rules.Board, dl Deadline, maxDepth int, soft bool) 
 		bestMove = r.move
 	}
 	stats.ElapsedNs = int64(time.Since(start))
-	stats.Nps = npsReport(stats.Nodes, stats.ElapsedNs)
-	stats.EBFMilli = ebfMilli(stats.Nodes, stats.Depth)
+	stats.Nps = NpsReport(stats.Nodes, stats.ElapsedNs)
+	stats.EBFMilli = EBFMilli(stats.Nodes, stats.Depth)
 	if ttProbes > 0 {
 		stats.TTHitPermille = int(ttHits * 1000 / ttProbes)
 	}

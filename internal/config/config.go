@@ -354,6 +354,10 @@ const (
 	// SolverNodeBudget is the default per-Solve node budget for engine
 	// wiring; callers stay free to pass smaller budgets.
 	SolverNodeBudget = 1 << 20
+	// SolverBudgetShare is the fraction of one move's grant the tier
+	// searcher may burn on its solver passes before the standard search
+	// takes the rest: a miss must still fund a real search.
+	SolverBudgetShare = 0.5
 )
 
 // Server constants, all consumed by internal/server. Storage is embedded
