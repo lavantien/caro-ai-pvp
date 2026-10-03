@@ -27,6 +27,8 @@ Mobile-first web arena for a custom 16x16 caro variant: exact continuous five wi
 - v0.4 (M6a part 2): full server surface. Rooms with live match driver (human and bot play, per-game engine ephemerality, clock-law budgets, M-line telemetry), JSON + SSE transport with guest observability, serve and migrate commands with drain-then-backstop shutdown, game completion as one transaction per unit (game row, rating pair, series finish), per-player history score lines, schema v2 player indexes, property fuzz for the series and rating laws, blind adversarial pair run with all 10 confirmed findings fixed.
 - v0.5 (M6b part 1): htmx 4 shell. Login-or-create page, home with name, rating, W-L-D, level and the live rooms grid (SSE-free partial polling), create-room form driven by the config hub (time controls, best-of lengths, bot tiers), logout, history list with per-game score lines, turn counts, move previews and playback links.
 - v0.6 (M6b part 2): room and playback pages over the same rooms and store. Server-rendered 256-cell board with mid-stream reload rehydration, hx-sse push with an EventSource fallback, join button for open human seats, ready and forfeit handshake, tap-to-preview ghost stones on coarse pointers, large tabular clocks ticking client-side between syncs, move history, bot log rendering the spec M-line with ebf, hf and fh1 filtered out, playback board with first, prev, next, last and autoplay stepping. Browser-verified against Implications 1.1, 1.3, 1.4 and 1.5 with isolated contexts per user.
+- v0.7 (M7 part 1): tournament core and conductor. Bot-vs-bot rooms on the same surface, twice-pair round robin with the per-match rating law in a separate tournament space, schema v3 tournament tables, per-series txt logs, leaderboard with a frozen close snapshot, headless smoke and full drivers behind caro tourney and make targets, semaphore-bounded parallelism, and a machine-wide run gate. Root-fixed a real concurrency defect: deferred read-then-write SQLite transactions upgrade into BUSY_SNAPSHOT under parallel writers, closed by immediate transactions in the DSN with a 30-parallel regression test.
+- v0.8 (M7 part 2): tournament UI and official gates. Setup page (config-bounded roster, tiers, time control, best-of, start rating, parallelism), run page with a live leaderboard on partial polling, past runs, stalled-run close. Official smoke gates green at 1+0 and 3+2 (30 series each, zero-sum exact), the full 2+1 UI tournament settled 30 series and 69 games with the tier ladder holding and no cross-tier strength inversion. Blind adversarial pair: 3 confirmed findings (per-run core budget, an even-length missed-move-prefix hole in the replay net, missing series-seat validation), all fixed red-green.
 
 ## build and verify
 
@@ -56,6 +58,7 @@ internal/engine   search core, SMP tiers (M3)
 internal/vcf      VCF/VCT solvers (M4)
 internal/clock    increment-safe time manager, per-TC PID (M5)
 internal/server   store, auth, series and rating, write queue, rooms, htmx ui (M6)
+internal/tourney  round robin, conductor, tournament store and logs (M7)
 playground/       git-tracked R&D ground
 ```
 
@@ -124,7 +127,23 @@ flowchart LR
     R -- game end: per-match rating law --> D
 ```
 
-The tournament conductor diagram lands with M7.
+The tournament conductor. Every series rides the same room surface a human match does; the conductor subscribes before the room can retire, reconciles each finished game against the room's authoritative move list, and fails the whole run on any divergence.
+
+```mermaid
+flowchart TD
+    SU[setup page or caro tourney driver] -- startRun: gate + persist schedule --> C[conductor]
+    G{ongoing run row<br/>or over-budget cores?} -- yes --> X[refuse: close or reconfigure]
+    G -- no --> D[dispatch: TournamentParallel semaphore]
+    D --> R1[room 1: CreateBotVsBot<br/>subscribe, then drive]
+    D --> R2[room 2]
+    R1 -- move, mline, gameend, series events --> REC[recorder]
+    REC -- gameend: delivered moves vs room truth<br/>mismatch fails the run --> ST[(tournament tables, schema v3)]
+    REC -- every mline --> LG[per-series txt log]
+    R1 -- series event --> N[settle, cross-check the room verdict]
+    N -- all settled --> F[FinishRun: frozen standings snapshot]
+```
+
+The machine-wide core budget is held by the run gate: one ongoing run at a time, per-run parallelism bounded by the tier cores, a stalled run (crashed drive) closed explicitly from its page before another can start.
 
 Page surface. The shell and room pages are server-rendered html/template with vendored htmx 4; page routes mount beside the JSON API and win on their patterns, everything else falls to the shell.
 
@@ -156,3 +175,5 @@ The server persists to embedded SQLite in WAL mode behind forward-only startup m
 The mutation gate is in-house, go/parser and AST rewrites only: parallel workers over isolated module copies with serial confirmation of every survivor, resume that replays prior kills after host failures, an equivalence allowlist whose every entry is challenge-audited by running the suite under the allowlisted mutant, and a self-pruning unused-entry alarm. Current state: 1573/1573 mutants over rules, engine, and clock with 0 survivors and 79 proven allowances.
 
 The UI is server-rendered pages over the same session cookie the API mints: the shell (login-or-create, home with stats and the rooms grid, history with move previews) and the room and playback pages mount beside the JSON transport, page patterns winning over the root catch-all. A room page rehydrates the whole board server-side so a mid-game reload misses nothing, then lives off the SSE stream (htmx hx-sse first, a plain EventSource taking over when htmx stops reconnecting) with a one-second detail poll as the safety net and a client-side clock tick between syncs. Coarse pointers get a two-tap flow, select then confirm, with a hover ghost for fine pointers. The bot log line is the raw zero-alloc M-line with ebf, hf and fh1 stripped at the page boundary per the spec. Playback reads one finished game row straight from the store, visible only to its two players, and steps by toggling stone visibility only. The two pure client functions are byte-pinned twins asserted from Go.
+
+Tournaments run bot-versus-bot on the exact room surface human matches use: each pairing creates a bot-vs-bot room whose series plays out under the same series machine and clock law, the conductor subscribing before the room can retire, recording every M-line to a per-series txt log and every game to the schema v3 tournament tables as one transaction. The per-match rating law runs in the tournament's own space from a configurable start rating, standings derive from the game rows so nothing can drift, and the close writes a frozen snapshot. Every finished game is reconciled against the room's own authoritative move list, so a lost or duplicated event anywhere fails the run instead of corrupting a record; a replay validator and the room's terminal verdict act as second and third nets. One run holds the machine at a time: the core budget check plus the ongoing-run gate keep concurrent starts from oversubscribing the engines, and a crashed run is closed explicitly from its page. Official smoke gates ran clean at 1+0 and 3+2 and the full 2+1 tournament through the UI settled with the tier ladder intact: at generous clocks the hard tiers win, at 1+0 the ladder compresses, which is the time manager behaving as designed, not a strength defect.
