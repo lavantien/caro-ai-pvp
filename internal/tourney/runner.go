@@ -241,6 +241,13 @@ dispatch:
 	for slot := range pairs {
 		select {
 		case sem <- struct{}{}:
+			// A cancelled run must not dispatch: the slot freeing after
+			// an abort leaves both select arms ready and Go picks at
+			// random, so the cancel is rechecked after the acquire.
+			if runCtx.Err() != nil {
+				<-sem
+				break dispatch
+			}
 		case <-runCtx.Done():
 			break dispatch
 		}

@@ -387,9 +387,11 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 	}
 
 	// Series logs: one file per series, the header block, one M-line per
-	// move, and the verdict line. Pairing 0 rides both sweep directions
-	// (23 moves), pairing 1 two guest sweeps (24 moves).
+	// move, one summary line per finished game, and the verdict line.
+	// Pairing 0 rides both sweep directions (23 moves over 2 games),
+	// pairing 1 two guest sweeps (24 moves over 2 games).
 	wantMovesByPairing := []int{len(sweepRedMoves) + len(sweepBlueMoves), 2 * len(sweepBlueMoves)}
+	wantGamesByPairing := []int{2, 2}
 	for slot, s := range sched {
 		body, err := os.ReadFile(seriesLogFile(t, logDir, s.ID))
 		if err != nil {
@@ -397,8 +399,9 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 		}
 		lines := strings.Split(strings.TrimSpace(string(body)), "\n")
 		wantMoves := wantMovesByPairing[slot]
-		if len(lines) != 3+wantMoves+1 {
-			t.Errorf("series %d log = %d lines, want %d (header, M-lines, verdict)", s.ID, len(lines), 3+wantMoves+1)
+		wantGames := wantGamesByPairing[slot]
+		if len(lines) != 3+wantMoves+wantGames+1 {
+			t.Errorf("series %d log = %d lines, want %d (header, M-lines, game summaries, verdict)", s.ID, len(lines), 3+wantMoves+wantGames+1)
 		}
 		if !strings.Contains(string(body), fmt.Sprintf("run %d series %d", res.Run.ID, s.ID)) {
 			t.Errorf("series %d log misses its header:\n%s", s.ID, body)
