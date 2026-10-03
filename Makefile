@@ -15,7 +15,7 @@ all: build
 doctor:
 	@set -e; \
 	echo "go: $$(CGO_ENABLED=1 go version)"; \
-	echo "gcc: $$(gcc -dumpversion)"; \
+	echo "cc: $$($$(command -v gcc || command -v clang) --version | head -1)"; \
 	echo "make: $$(make --version | head -1)"; \
 	v=$$(CGO_ENABLED=1 go env GOVERSION | sed 's/^go//'); \
 	major=$${v%%.*}; rest=$${v#*.}; minor=$${rest%%.*}; patch=0; \
@@ -23,7 +23,7 @@ doctor:
 	score=$$((major*1000000 + minor*1000 + patch)); \
 	if [ $$score -lt 1027001 ]; then echo "doctor: need go >= 1.27.1, got $$v"; exit 1; fi; \
 	if [ "$$(CGO_ENABLED=1 go env CGO_ENABLED)" != "1" ]; then echo "doctor: CGO_ENABLED=1 not accepted"; exit 1; fi; \
-	command -v gcc >/dev/null 2>&1 || { echo "doctor: gcc not found in PATH"; exit 1; }; \
+	command -v gcc >/dev/null 2>&1 || command -v clang >/dev/null 2>&1 || { echo "doctor: no C toolchain (gcc or clang) in PATH"; exit 1; }; \
 	echo "doctor: ok"
 
 fmt:

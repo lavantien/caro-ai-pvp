@@ -38,7 +38,7 @@ These are desktop captures; the mobile-first redo (finished games live and in pl
 
 ## build and verify
 
-Requires go 1.27.1+, gcc, GNU make, with CGO enabled.
+Requires go 1.27.1+, a C toolchain (gcc or llvm/clang), GNU make, with CGO enabled.
 
 ```
 make doctor          # toolchain check: go >= 1.27.1, CGO, gcc
