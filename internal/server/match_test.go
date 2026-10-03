@@ -289,6 +289,16 @@ drained:
 	if redCommits != len(guestRedLosesToBlue)/2 || blueCommits != len(guestRedLosesToBlue)/2 {
 		t.Errorf("final game clock commits = red %d blue %d, want 5 and 5", redCommits, blueCommits)
 	}
+
+	// PvP games carry no bot moves, so the per-move stat table stays empty:
+	// its zero rows are the honest record, not a missed write.
+	var statRows int
+	if err := s.store.db.QueryRow(`SELECT COUNT(*) FROM game_stats`).Scan(&statRows); err != nil {
+		t.Fatalf("count game stats: %v", err)
+	}
+	if statRows != 0 {
+		t.Errorf("game_stats rows after the pvp series = %d, want 0", statRows)
+	}
 }
 
 func assertRatings(t *testing.T, s *stack, red, blue User, wantRed, wantBlue []RatingEvent) {

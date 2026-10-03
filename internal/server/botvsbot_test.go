@@ -153,7 +153,7 @@ func TestCreateBotVsBotSeatingAndLiveGame(t *testing.T) {
 
 	close(bot.release)
 	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
-	for _, table := range []string{"series", "games", "rating_events"} {
+	for _, table := range []string{"series", "games", "game_stats", "rating_events"} {
 		if n := countRows(t, s, table); n != 0 {
 			t.Errorf("%s rows after the finished room = %d, want 0", table, n)
 		}
@@ -191,7 +191,7 @@ func TestBotVsBotSeriesScriptedToMajority(t *testing.T) {
 	if rooms := s.rm.List(); len(rooms) != 0 {
 		t.Errorf("grid after the sweep = %d rooms, want 0", len(rooms))
 	}
-	for _, table := range []string{"series", "games", "rating_events"} {
+	for _, table := range []string{"series", "games", "game_stats", "rating_events"} {
 		if n := countRows(t, s, table); n != 0 {
 			t.Errorf("%s rows after the sweep = %d, want 0", table, n)
 		}

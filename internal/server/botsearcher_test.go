@@ -140,8 +140,15 @@ func TestBotMoveFillsBoardToDraw(t *testing.T) {
 		}
 	}
 
-	// The drawn game closed on the bot's own filling stone.
-	waitFor(t, func() bool { return r.series.GamesPlayed() == 1 })
+	// The drawn game closed on the bot's own filling stone. GamesPlayed
+	// flips before the completion unit persists (a real write now that bot
+	// matches record), so the honest observation point is the reset: the
+	// fresh board of game 2 exists only after the gameend event published.
+	waitFor(t, func() bool {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		return r.series.GamesPlayed() == 1 && r.board != nil && r.board.MoveCount == 0
+	})
 	mu.Lock()
 	gotEnds, gotMoves, gotMLines := gameEnds, moves, mlines
 	mu.Unlock()

@@ -1,9 +1,16 @@
 package server
 
+import (
+	"fmt"
+	"strings"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
+)
+
 // Rooms are deliberately NOT persisted: live occupancy, ready flags, and
 // connections are in-memory runtime state that dies with the process. The
-// database records only what happened (users, sessions, series, games,
-// rating events), never what is currently happening.
+// database records only what happened (users, sessions, series, games, per
+// move bot stats, rating events), never what is currently happening.
 
 // Series lifecycle states, mirrored by the series.state CHECK constraint.
 const (
@@ -164,8 +171,45 @@ CREATE INDEX IF NOT EXISTS idx_tournament_games_run ON tournament_games (run_id)
 CREATE INDEX IF NOT EXISTS idx_tournament_series_run ON tournament_series (run_id);
 `
 
+// schemaV4 is the Implication 1.5 per-move stat record plus the reserved bot
+// seat accounts of human-vs-bot matches. game_stats holds one row per bot
+// move of a player-facing match, keyed by the game and the move number of
+// the line, carrying the rendered M-line verbatim (the render is frozen
+// against config.BotLogFormat, later analytics parses lines); tournament
+// rooms never write there, their trace lives in the tournament tables and
+// the per-series txt logs. The seeded users rows let bot series and games
+// satisfy the users foreign keys and give history and playback the seat name
+// through the plain join. They take no explicit id (so real ids keep growing
+// from 1) and carry empty salt and hash: BotAccountID resolves seats by that
+// emptiness, which real accounts never carry, and password verification
+// rejects it before any derivation, so the seats stay unloginable.
+const schemaV4 = `
+CREATE TABLE IF NOT EXISTS game_stats (
+	game_id INTEGER NOT NULL REFERENCES games (id),
+	move_no INTEGER NOT NULL,
+	line TEXT NOT NULL,
+	PRIMARY KEY (game_id, move_no)
+);
+`
+
+// botSeatSeedSQL builds the reserved bot seat inserts from the config tier
+// table, so the seeded names stay single-sourced. INSERT OR IGNORE keeps the
+// script re-runnable and skips a name a pre-v4 account already squatted; the
+// marker check in BotAccountID then fails the seat loudly instead of seating
+// the human's row.
+func botSeatSeedSQL() string {
+	values := make([]string, 0, len(config.Tiers))
+	for i := range config.Tiers {
+		values = append(values, fmt.Sprintf("('%s', %d, %d, %d, X'', X'')",
+			config.BotAccountName(i),
+			config.Argon2Time, config.Argon2MemoryKiB, config.Argon2Parallelism))
+	}
+	return "INSERT OR IGNORE INTO users (username, argon2_time, argon2_memory, argon2_parallelism, salt, hash) VALUES " +
+		strings.Join(values, ", ")
+}
+
 // migrations holds one SQL script per schema version: index i upgrades
 // version i to version i+1. Its length must equal config.SQLiteSchemaVersion
 // so the constants hub stays authoritative; migrate enforces that at
 // startup. New versions only ever append, never edit a landed script.
-var migrations = []string{schemaV1, schemaV2, schemaV3}
+var migrations = []string{schemaV1, schemaV2, schemaV3, schemaV4 + botSeatSeedSQL()}

@@ -143,13 +143,17 @@ func TestRoomCreateBotSeating(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create vs bot: %v", err)
 	}
+	botID, err := s.store.BotAccountID(config.Tiers[1])
+	if err != nil {
+		t.Fatalf("resolve medium seat: %v", err)
+	}
 
 	info, ok := r.Info()
 	if !ok {
 		t.Fatal("info: want ok")
 	}
-	if info.GuestUserID != botGuestUserID || info.VsBotTier != config.TierMedium.Name {
-		t.Errorf("info = %+v, want the medium bot seated as guest", info)
+	if info.GuestUserID != botID || info.VsBotTier != config.TierMedium.Name {
+		t.Errorf("info = %+v, want the medium bot's reserved account seated as guest", info)
 	}
 	if err := s.rm.Join(r.ID(), bob.ID); !errors.Is(err, ErrRoomFull) {
 		t.Errorf("join bot room = %v, want ErrRoomFull", err)
@@ -165,8 +169,15 @@ func TestRoomCreateBotSeating(t *testing.T) {
 	if !guestReady || hostReady {
 		t.Errorf("bot readiness = guest %t host %t, want guest ready and host pending", guestReady, hostReady)
 	}
-	if r.SeriesID() != 0 {
-		t.Errorf("bot room series id = %d, want 0: bot matches persist never here", r.SeriesID())
+
+	// The pairing row persisted before the room went live, the bot seat on
+	// the reserved account.
+	sr, err := s.store.SeriesByID(r.SeriesID())
+	if err != nil {
+		t.Fatalf("series row: %v", err)
+	}
+	if sr.RedUser != alice.ID || sr.BlueUser != botID || sr.State != SeriesStateOngoing {
+		t.Errorf("bot pairing row = %+v, want ongoing host over the reserved seat %d", sr, botID)
 	}
 }
 

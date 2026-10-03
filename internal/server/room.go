@@ -42,6 +42,8 @@ var (
 	ErrBadOwner = errors.New("server: room owner must be a positive user id")
 	// ErrBadTier rejects a bot-vs-bot create without both tiers seated.
 	ErrBadTier = errors.New("server: bot-vs-bot needs both tiers")
+	// ErrUnknownTier rejects a tier value outside the config tier table.
+	ErrUnknownTier = errors.New("server: unknown bot tier")
 )
 
 // roomIDBytes sizes the crypto/rand room id: 128 bits hex-encoded, long
@@ -49,12 +51,13 @@ var (
 // resolved.
 const roomIDBytes = 16
 
-// The synthetic seat ids of bots: the guest and, for Scenario 2's
-// bot-vs-bot matchups, the host. The Series machine demands two distinct
-// int64 sides and SQLite user ids are positive, so two distinct negative
-// constants can never collide with a real account. Bot rooms persist nothing
-// (Scenario 2 keeps a separate tournament rating space and record
-// ownership), so the ids never reach a foreign key.
+// The synthetic seat ids of Scenario 2's bot-vs-bot tournament matchups,
+// where both seats are bots and the room persists nothing (the tournament
+// tables and txt logs are the record), so the ids never reach a foreign key.
+// Human-vs-bot rooms seat the tier's reserved users row instead, resolved
+// through Store.BotAccountID. The Series machine demands two distinct int64
+// sides and SQLite user ids are positive, so the negative constants can
+// never collide with a real account.
 const (
 	botGuestUserID int64 = -2
 	botHostUserID  int64 = -3
@@ -94,14 +97,20 @@ func NewRoomManager(hub *Hub, store *Store, wq *WriteQueue) *RoomManager {
 // settings validate through NewSeries, the same authority that will build
 // the series, so the room grid can never advertise settings a series would
 // reject: for PvP the guest is still unknown, so a throwaway construction
-// checks the time control and length.
+// checks the time control and length. A bot room persists its pairing row
+// before going live, mirroring join, so every match is recorded: games and
+// per-move stats land at each completion, ratings never move.
 func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config.Tier) (*Room, error) {
 	if ownerUserID <= 0 {
 		return nil, ErrBadOwner
 	}
 	guest := seat{}
 	if vsBot != nil {
-		guest = seat{userID: botGuestUserID, bot: vsBot}
+		botID, err := rm.store.BotAccountID(*vsBot)
+		if err != nil {
+			return nil, err
+		}
+		guest = seat{userID: botID, bot: vsBot}
 	}
 	series, err := NewSeries(ownerUserID, guest.userID, tcIdx, boLen)
 	if err != nil {
@@ -115,9 +124,19 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
 	}
 	if vsBot != nil {
+		var row SeriesRow
+		err = r.wq.Send(func(ctx context.Context) error {
+			var perr error
+			row, perr = r.store.CreateSeries(ctx, tcIdx, boLen, series.HostUserID(), series.GuestUserID())
+			return perr
+		})
+		if err != nil {
+			return nil, err
+		}
+		r.seriesID = row.ID
 		// The bot's handshake is immediate, so only the host ready gates
 		// match 1. Ready cannot fail on a fresh series.
-		if err := series.Ready(botGuestUserID); err != nil {
+		if err := series.Ready(guest.userID); err != nil {
 			return nil, err
 		}
 		r.series = series
@@ -316,10 +335,14 @@ type Room struct {
 	// completes and between-terminal games never happens: the completion
 	// path resets in the same critical section. lastMoves is the finished
 	// game's authoritative list, captured at each completion and held until
-	// the next game completes (LastGameMoves).
+	// the next game completes (LastGameMoves). mlines is the live game's
+	// accumulated bot log, one rendered M-line per bot move in publish
+	// order, drained into the completion unit at each game end and reset
+	// with the moves buffer.
 	board     *rules.Board
 	moves     []rules.Move
 	lastMoves []rules.Move
+	mlines    []GameStat
 	clock     [2]*clock.GameClock
 	turnStart time.Time
 	engines   [2]searcher
@@ -345,8 +368,8 @@ type Room struct {
 // ID is the opaque room key, also the room's hub subscription key.
 func (r *Room) ID() string { return r.id }
 
-// SeriesID is the persisted pairing row id, 0 for bot rooms which persist
-// nothing by design.
+// SeriesID is the persisted pairing row id, 0 for the tournament bot-vs-bot
+// rooms which persist nothing by design.
 func (r *Room) SeriesID() int64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()

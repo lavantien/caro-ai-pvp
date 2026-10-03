@@ -247,6 +247,32 @@ func (s *Store) DeleteSession(token []byte) error {
 	return nil
 }
 
+// botAccountMarker is the reserved bot seat rows' identity inside users:
+// schema v4 seeds them with empty salt and hash, material no real account
+// ever carries (creation always writes the argon2 salt and key).
+const botAccountMarker = "length(salt) = 0 AND length(hash) = 0"
+
+// BotAccountID resolves one config tier's reserved seat row, the account
+// human-vs-bot pairings persist their series and games against. The marker
+// check keeps a pre-v4 squatter of the "AI <tier>" name out of the seat: a
+// squatted name fails the marker and creation errors loudly instead of
+// seating the human's row.
+func (s *Store) BotAccountID(tier config.Tier) (int64, error) {
+	idx, ok := config.TierIndex(tier)
+	if !ok {
+		return 0, fmt.Errorf("server: bot account of tier %q: %w", tier.Name, ErrUnknownTier)
+	}
+	var id int64
+	err := notFound(s.db.QueryRow(
+		`SELECT id FROM users WHERE username = ? AND `+botAccountMarker,
+		config.BotAccountName(idx),
+	).Scan(&id))
+	if err != nil {
+		return 0, fmt.Errorf("server: bot account of tier %q: %w", tier.Name, err)
+	}
+	return id, nil
+}
+
 // SeriesRow is one best-of pairing's persisted record. Ongoing series carry
 // NULL winner and finished_at; a draw finish keeps the winner NULL. The
 // in-memory lifecycle lives in the Series state machine type.
@@ -316,7 +342,10 @@ func updateSeriesRow(ctx context.Context, run sqlRunner, id int64, state string,
 
 // Game is one finished game inside a series. Moves is the caller-encoded
 // move blob, WonBy the analytics tag for how the win happened (NULL on
-// draws), FullTurns the count of full turns played.
+// draws), FullTurns the count of full turns played. StatLines carries the
+// game's per-move bot log (Implication 1.5): one rendered M-line per bot
+// move, written beside the game row in the same completion unit. PvP games
+// carry none and write zero stat rows.
 type Game struct {
 	ID          int64
 	SeriesID    int64
@@ -327,7 +356,17 @@ type Game struct {
 	Moves       []byte
 	FullTurns   int
 	WonBy       *string
+	StatLines   []GameStat
 	PlayedAt    int64
+}
+
+// GameStat is one bot move's persisted Implication 1.5 line: MoveNo is the
+// move number of the bot's stone in the game (the line's M<n>), Line the
+// rendered M-line verbatim, byte-identical to the hub payload the room
+// published for that move.
+type GameStat struct {
+	MoveNo int
+	Line   string
 }
 
 // AppendGame persists one game and returns it with the assigned id and
@@ -376,9 +415,11 @@ func insertRatingEventRow(ctx context.Context, run sqlRunner, e RatingEvent) (Ra
 }
 
 // Completion is one all-or-nothing persistence unit: the finished games of a
-// series boundary in game order, each decisive game priced with its zero-sum
-// rating pair chained on the ratings as of this unit (draws move nothing),
-// and the series finish when the boundary closed the series.
+// series boundary in game order, each game with its per-move stat lines, the
+// PvP games priced with their zero-sum rating pairs chained on the ratings as
+// of this unit (draws move nothing, bot-seat games move nothing either: the
+// ledger is PvP-only), and the series finish when the boundary closed the
+// series.
 type Completion struct {
 	Games  []Game
 	Finish *SeriesFinish // nil while the series stays ongoing
@@ -392,10 +433,10 @@ type SeriesFinish struct {
 }
 
 // ApplyCompletion persists one completion unit inside a single transaction:
-// a statement failing anywhere in the unit leaves no game row, no rating
-// event, and no series change behind, so the zero-sum rating law can never
-// tear on disk. The write queue serializes callers, so the transaction adds
-// no contention.
+// a statement failing anywhere in the unit leaves no game row, no stat row,
+// no rating event, and no series change behind, so the zero-sum rating law
+// and the stat record can never tear on disk. The write queue serializes
+// callers, so the transaction adds no contention.
 func (s *Store) ApplyCompletion(ctx context.Context, c Completion) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -407,8 +448,20 @@ func (s *Store) ApplyCompletion(ctx context.Context, c Completion) error {
 		if err != nil {
 			return err
 		}
-		if err := applyRatingPair(ctx, tx, row.ID, g.RedUser, g.BlueUser, g.Outcome); err != nil {
+		if err := insertGameStatRows(ctx, tx, row.ID, g.StatLines); err != nil {
 			return err
+		}
+		// The zero-sum ledger is PvP-only: a seat resolving to a reserved bot
+		// account moves no rating, the M6a law that bot matches never touch
+		// player ratings. The W-L-D record still lands with the game rows.
+		botSeat, err := anyBotSeat(ctx, tx, g.RedUser, g.BlueUser)
+		if err != nil {
+			return err
+		}
+		if !botSeat {
+			if err := applyRatingPair(ctx, tx, row.ID, g.RedUser, g.BlueUser, g.Outcome); err != nil {
+				return err
+			}
 		}
 	}
 	if c.Finish != nil {
@@ -420,6 +473,40 @@ func (s *Store) ApplyCompletion(ctx context.Context, c Completion) error {
 		return fmt.Errorf("server: commit completion: %w", err)
 	}
 	return nil
+}
+
+// insertGameStatRows writes one finished game's stat lines inside the
+// caller's transaction. Nil writes nothing: a PvP game has no bot moves and
+// zero rows are its honest record.
+func insertGameStatRows(ctx context.Context, run sqlRunner, gameID int64, stats []GameStat) error {
+	for _, s := range stats {
+		if _, err := run.ExecContext(ctx,
+			`INSERT INTO game_stats (game_id, move_no, line) VALUES (?, ?, ?)`,
+			gameID, s.MoveNo, s.Line,
+		); err != nil {
+			return fmt.Errorf("server: append game stat: %w", err)
+		}
+	}
+	return nil
+}
+
+// anyBotSeat reports whether either game seat resolves to a reserved bot
+// account row (the empty argon2 material marker). Derived from the record
+// itself, so no caller flag can drift from the seats actually persisted.
+func anyBotSeat(ctx context.Context, run sqlRunner, redUser, blueUser int64) (bool, error) {
+	for _, id := range [2]int64{redUser, blueUser} {
+		var one int
+		err := run.QueryRowContext(ctx,
+			`SELECT 1 FROM users WHERE id = ? AND `+botAccountMarker, id,
+		).Scan(&one)
+		if err == nil {
+			return true, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return false, fmt.Errorf("server: bot seat probe %d: %w", id, err)
+		}
+	}
+	return false, nil
 }
 
 // applyRatingPair prices one game on the two players' CURRENT ratings (the

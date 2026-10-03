@@ -91,6 +91,32 @@ var (
 	Tiers      = [...]Tier{TierEasy, TierMedium, TierHard}
 )
 
+// Bot seat accounts of human-vs-bot matches. Every tier owns one reserved
+// users row (seeded by schema v4 without an explicit id, so real accounts'
+// ids keep growing from 1 as SQLite assigns them) so a bot pairing's series
+// and games rows satisfy the users foreign keys and history and playback
+// render the seat through the plain users join as "AI <tier>". The rows
+// carry empty salt and hash: real accounts always carry argon2 material, so
+// the emptiness doubles as the seat marker the store resolves bot accounts
+// by, and password verification rejects the rows on length before any
+// derivation, which keeps the seats permanently unloginable and their names
+// reserved: registering "AI easy" reports bad credentials like any wrong
+// password.
+
+// BotAccountName is the reserved username of tier index i, the same
+// "AI <tier>" word the live room page renders for a bot seat.
+func BotAccountName(i int) string { return "AI " + Tiers[i].Name }
+
+// TierIndex resolves a tier value's index in Tiers; false when unknown.
+func TierIndex(t Tier) (int, bool) {
+	for i := range Tiers {
+		if Tiers[i] == t {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
 const (
 	MaxCoresPerInstance       = 8
 	MaxRAMPerInstanceBytes    = 16 << 30
@@ -347,7 +373,7 @@ const (
 
 	// SQLiteSchemaVersion is the number of landed migration scripts; the
 	// server package enforces the equality at startup.
-	SQLiteSchemaVersion = 3
+	SQLiteSchemaVersion = 4
 	SQLiteBusyTimeoutMs = 5000
 	SQLiteJournalWAL    = "wal"
 	SQLiteSyncNormal    = "normal"

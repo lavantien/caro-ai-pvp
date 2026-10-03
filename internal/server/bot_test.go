@@ -403,12 +403,13 @@ func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 		t.Errorf("final game clock commits = red %d blue %d, want 5 and 5", redCommits, blueCommits)
 	}
 
-	// Bot rooms persist nothing: no pairing row, no games, no rating move.
-	if id := r.SeriesID(); id != 0 {
-		t.Errorf("bot room series id = %d, want 0", id)
+	// Bot matches record like any pairing: the series row, both games, and
+	// their stat lines, but zero rating events and zero rating movement.
+	if id := r.SeriesID(); id == 0 {
+		t.Error("bot room series id = 0, want the persisted pairing row")
 	}
-	if rows, err := s.store.MatchHistory(alice.ID); err != nil || len(rows) != 0 {
-		t.Errorf("bot room history = %d rows err %v, want none", len(rows), err)
+	if rows, err := s.store.MatchHistory(alice.ID); err != nil || len(rows) != 2 {
+		t.Errorf("bot room history = %d rows err %v, want the two played games", len(rows), err)
 	}
 	if hist, err := s.store.RatingHistoryByUser(alice.ID); err != nil || len(hist) != 0 {
 		t.Errorf("bot room rating events = %d err %v, want none", len(hist), err)

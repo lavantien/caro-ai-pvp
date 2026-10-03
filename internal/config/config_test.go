@@ -153,6 +153,29 @@ func TestTiersMatchSpec(t *testing.T) {
 	}
 }
 
+// TestBotAccountHelpers pins the reserved bot seat names and the tier index
+// resolution the seat lookup rides.
+func TestBotAccountHelpers(t *testing.T) {
+	names := map[string]bool{}
+	for i := range Tiers {
+		name := BotAccountName(i)
+		if want := "AI " + Tiers[i].Name; name != want {
+			t.Errorf("tier %d account name = %q, want %q", i, name, want)
+		}
+		if names[name] {
+			t.Errorf("tier %d account name %q duplicated", i, name)
+		}
+		names[name] = true
+		idx, ok := TierIndex(Tiers[i])
+		if !ok || idx != i {
+			t.Errorf("TierIndex(%s) = %d ok %t, want %d", Tiers[i].Name, idx, ok, i)
+		}
+	}
+	if _, ok := TierIndex(Tier{Name: "bogus"}); ok {
+		t.Error("TierIndex of an unknown tier resolved, want false")
+	}
+}
+
 func TestResourceCapsMatchHardwareBudget(t *testing.T) {
 	if MaxCoresPerInstance != 8 {
 		t.Errorf("MaxCoresPerInstance = %d, want 8 (half of the 16 core machine)", MaxCoresPerInstance)
@@ -457,8 +480,8 @@ func TestServerConstants(t *testing.T) {
 	if UsernameMaxBytes < 1 || UsernameMaxBytes > 64 {
 		t.Errorf("UsernameMaxBytes = %d, want in [1, 64]", UsernameMaxBytes)
 	}
-	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 3 {
-		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 3]: raise the ceiling with the next migration", SQLiteSchemaVersion)
+	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 4 {
+		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 4]: raise the ceiling with the next migration", SQLiteSchemaVersion)
 	}
 	if SQLiteBusyTimeoutMs < 1000 || SQLiteBusyTimeoutMs > 60000 {
 		t.Errorf("SQLiteBusyTimeoutMs = %d, want in [1000, 60000]", SQLiteBusyTimeoutMs)

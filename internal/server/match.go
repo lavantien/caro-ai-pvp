@@ -84,6 +84,7 @@ func (r *Room) startGameLocked() {
 	r.closeEnginesLocked()
 	r.board = rules.NewBoard()
 	r.moves = r.moves[:0]
+	r.mlines = r.mlines[:0]
 	r.clock[rules.Red] = clock.NewGameClock(r.tcIdx)
 	r.clock[rules.Blue] = clock.NewGameClock(r.tcIdx)
 	for _, c := range [2]rules.Color{rules.Red, rules.Blue} {
@@ -206,8 +207,11 @@ func (r *Room) completeGameLocked(winner rules.Color, lastCell rules.Cell) error
 }
 
 // persistGameLocked writes one finished game and everything it implies as a
-// single completion unit. Bot rooms (seriesID 0) persist nothing: Scenario 2
-// keeps bot records in the tournament's separate space.
+// single completion unit. Tournament bot-vs-bot rooms (seriesID 0) persist
+// nothing: Scenario 2 keeps their record in the tournament's separate space.
+// Every player-facing room persists here, human-vs-bot included: the game
+// row, its per-move stat lines, and the series finish, with the rating pair
+// skipped inside the unit for a bot seat.
 func (r *Room) persistGameLocked(redUser, blueUser int64, outcome Outcome, wonBy *string) error {
 	if r.seriesID == 0 {
 		return nil
@@ -217,6 +221,7 @@ func (r *Room) persistGameLocked(redUser, blueUser int64, outcome Outcome, wonBy
 	unit := Completion{Games: []Game{{
 		SeriesID: seriesID, IdxInSeries: idx, RedUser: redUser, BlueUser: blueUser,
 		Outcome: outcome.String(), Moves: blob, FullTurns: fullTurns, WonBy: wonBy,
+		StatLines: append([]GameStat(nil), r.mlines...),
 	}}}
 	if r.series.State() == SeriesFinished {
 		unit.Finish = &SeriesFinish{
@@ -229,10 +234,10 @@ func (r *Room) persistGameLocked(redUser, blueUser int64, outcome Outcome, wonBy
 }
 
 // Forfeit bills a mid-series quit: Series.Forfeit books every remaining
-// game, the live one included, as a quitter loss, the sweep persists with
-// its rating events in order, and the room retires. Quitting an open room
-// (opponent never seated, no series formed) just retires it: nothing is
-// billed because nothing existed.
+// game, the live one included, as a quitter loss, the sweep persists as one
+// completion unit (rating events in order for PvP, none against a bot seat),
+// and the room retires. Quitting an open room (opponent never seated, no
+// series formed) just retires it: nothing is billed because nothing existed.
 func (r *Room) Forfeit(userID int64) error {
 	r.mu.Lock()
 	if r.over {
@@ -270,7 +275,8 @@ func (r *Room) Forfeit(userID int64) error {
 // persistForfeitLocked writes the whole sweep, the synthetic games in game
 // order with their rating pairs and the finished series row, as one
 // completion unit. The first synthetic game is the live one: its blob keeps
-// the partial move history actually played.
+// the partial move history actually played and its stat lines keep the bot
+// log emitted so far; the never-started games carry neither.
 func (r *Room) persistForfeitLocked(liveMoves []rules.Move) error {
 	if r.seriesID == 0 {
 		return nil
@@ -280,14 +286,16 @@ func (r *Room) persistForfeitLocked(liveMoves []rules.Move) error {
 	firstLive := r.series.GamesPlayed() - len(synth) + 1
 	unit := Completion{Games: make([]Game, 0, len(synth))}
 	for _, g := range synth {
-		blob, turns := []byte{}, 0
+		blob, turns, stats := []byte{}, 0, []GameStat(nil)
 		if g.GameNo == firstLive {
 			blob, turns = EncodeMoves(nil, liveMoves), len(liveMoves)/2
+			stats = append([]GameStat(nil), r.mlines...)
 		}
 		unit.Games = append(unit.Games, Game{
 			SeriesID: seriesID, IdxInSeries: g.GameNo - 1,
 			RedUser: g.RedUserID, BlueUser: g.BlueUserID,
 			Outcome: g.Outcome.String(), Moves: blob, FullTurns: turns,
+			StatLines: stats,
 		})
 	}
 	unit.Finish = &SeriesFinish{
@@ -617,9 +625,16 @@ func (r *Room) runBotTurn() bool {
 	cell := rules.Cell(mv)
 	r.applyMoveLocked(side, cell)
 	r.lastM = mLineRecord{moveNumber: r.board.MoveCount, side: side, move: mv, stats: st}
-	r.publishLocked(Event{Kind: EventKindMLine, Payload: MLine(r.lastM.moveNumber, side, mv, &st, mLineTag)})
-	// The worker has no caller to surface a persistence error to; bot
-	// rooms persist nothing today, so the completion path cannot fail here.
+	// Rendered once: the hub payload and the persisted stat line are the
+	// same string by construction, byte-identical to the canonical renderer
+	// fed these inputs.
+	line := MLine(r.lastM.moveNumber, side, mv, &st, mLineTag)
+	r.mlines = append(r.mlines, GameStat{MoveNo: r.lastM.moveNumber, Line: line})
+	r.publishLocked(Event{Kind: EventKindMLine, Payload: line})
+	// The worker has no caller to surface a persistence error to; the
+	// completion path's failure is discarded here and the room advances per
+	// the in-memory-truth policy, the lost unit surfacing as the count gap
+	// between played and recorded games.
 	if r.board.FastLastMoveWin(side, cell) {
 		_ = r.completeGameLocked(side, cell)
 		return true
