@@ -16,8 +16,8 @@ func TestNpsReport(t *testing.T) {
 	}{
 		{0, 0, 0},
 		{0, 5000, 0},
-		{1000, 0, 1000 * uint64(time.Second)},
-		{1000, 1, 1000 * uint64(time.Second)},
+		{1000, 0, 1000 * 1000},
+		{1000, 1, 1000 * 1000},
 		{1, int64(time.Second), 1},
 	}
 	for _, c := range cases {

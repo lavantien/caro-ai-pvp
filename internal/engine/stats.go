@@ -31,14 +31,15 @@ type SearchStats struct {
 }
 
 // npsReport converts a node count and elapsed nanoseconds into nodes per
-// second, flooring a sub-nanosecond elapsed to 1ns so an instant search
-// still reports a rate instead of a zero from clock granularity.
+// second, flooring a sub-millisecond elapsed to 1ms: a 1ns floor once
+// turned a zero reading into "nps=211000m", while no real search of
+// interest runs faster than one millisecond quantum anyway.
 func npsReport(nodes uint64, elapsedNs int64) uint64 {
 	if nodes == 0 {
 		return 0
 	}
-	if elapsedNs < 1 {
-		elapsedNs = 1
+	if elapsedNs < int64(time.Millisecond) {
+		elapsedNs = int64(time.Millisecond)
 	}
 	return nodes * uint64(time.Second) / uint64(elapsedNs)
 }

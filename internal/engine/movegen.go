@@ -19,6 +19,15 @@ import (
 // adjacent across their boundary, and every ring contains its stones. When
 // every candidate is quiet (opening positions with at most isolated stones
 // classify every window None), the quiet cells are kept instead.
+//
+// Selective threat restriction, the spec's "only expanding forced 4-blocks":
+// when the opponent of the mover holds a live four, every move that is
+// neither an own win-in-1 nor a block of a win-in-1 loses at once, so the
+// candidate set narrows to cells whose centered interaction reaches the Four
+// class weight. Both forced kinds center a window of class Four or above,
+// so the threshold admits a superset of the forced set and the node value
+// is preserved; quiet cells sit strictly under it. The unrestricted stages
+// below stay reachable, so the never-empty property is untouched.
 func (e *Engine) generate(b *rules.Board, ply int, ttm rules.Move) int {
 	if b.MoveCount == 0 {
 		e.moves[ply][0] = rules.Move(config.SearchEmptyBoardCell)
@@ -28,14 +37,21 @@ func (e *Engine) generate(b *rules.Board, ply int, ttm rules.Move) int {
 	near := dilate(bitmask(b.Full), e.radius)
 	anchor, constrained := openingAnchor(b)
 	side := int(b.Side)
-	n := e.fill(b, ply, ttm, side, anchor, constrained, near, true)
+	minStatic := 0
+	if e.eval.fours[side^1] > 0 {
+		minStatic = config.PatternWeightFour
+	}
+	n := e.fill(b, ply, ttm, side, anchor, constrained, near, true, minStatic)
 	if n == 0 {
-		n = e.fill(b, ply, ttm, side, anchor, constrained, near, false)
+		n = e.fill(b, ply, ttm, side, anchor, constrained, near, true, 0)
+	}
+	if n == 0 {
+		n = e.fill(b, ply, ttm, side, anchor, constrained, near, false, 0)
 	}
 	return n
 }
 
-func (e *Engine) fill(b *rules.Board, ply int, ttm rules.Move, side int, anchor uint16, constrained bool, near bitmask, requireLive bool) int {
+func (e *Engine) fill(b *rules.Board, ply int, ttm rules.Move, side int, anchor uint16, constrained bool, near bitmask, requireLive bool, minStatic int) int {
 	n := 0
 	for w := range near {
 		free := near[w] & b.Region[w] &^ b.Full[w]
@@ -48,6 +64,9 @@ func (e *Engine) fill(b *rules.Board, ply int, ttm rules.Move, side int, anchor 
 			}
 			static := e.eval.cell[side][cell] + e.eval.cell[side^1][cell]
 			if requireLive && static == 0 {
+				continue
+			}
+			if static < minStatic {
 				continue
 			}
 			e.moves[ply][n] = rules.Move(cell)

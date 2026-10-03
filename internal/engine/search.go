@@ -154,8 +154,12 @@ func (e *Engine) search(b *rules.Board, dl Deadline, maxDepth int, soft bool) (r
 
 // fallbackMove is a legal move computed before any searching, so the clock
 // contract holds at any budget: the engine always answers with a legal move.
+// It answers with the best-ordered candidate, never the raw enumeration's
+// first cell, so even a fully starved turn plays the strongest known shape
+// (under a live four, the restriction leaves exactly the forced answers).
 func (e *Engine) fallbackMove(b *rules.Board) rules.Move {
-	e.generate(b, 0, moveNone)
+	n := e.generate(b, 0, moveNone)
+	pickMax(e.moves[0][:n], e.scores[0][:n], 0, n)
 	return e.moves[0][0]
 }
 

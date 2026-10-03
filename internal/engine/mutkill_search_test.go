@@ -188,7 +188,7 @@ func TestMutKillMidgameBarePins(t *testing.T) {
 	}
 	e = New(0)
 	mv, stats = e.SearchDepth(b, NewFixedBudget(time.Second), 3)
-	if stats.Nodes != 1047 || mv != rules.Move(mustCell(t, "E3")) || stats.Score != 7000 || !pvEquals(&stats, mustCell(t, "E3"), mustCell(t, "B3"), mustCell(t, "G8")) {
+	if stats.Nodes != 578 || mv != rules.Move(mustCell(t, "E3")) || stats.Score != 7000 || !pvEquals(&stats, mustCell(t, "E3"), mustCell(t, "B3"), mustCell(t, "G8")) {
 		t.Errorf("mid d3: nodes=%d mv=%d score=%d pvlen=%d pv=%v", stats.Nodes, mv, stats.Score, stats.PVLen, stats.PV[:stats.PVLen])
 	}
 }
@@ -201,8 +201,8 @@ func TestMutKillTTTraversalPins(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
 	_, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 3)
-	if stats.Nodes != 702 || stats.FirstMoveFailHighPermille != 825 {
-		t.Errorf("mid d3 tt: nodes=%d fh1=%d, want 702 and 825", stats.Nodes, stats.FirstMoveFailHighPermille)
+	if stats.Nodes != 440 || stats.FirstMoveFailHighPermille != 821 {
+		t.Errorf("mid d3 tt: nodes=%d fh1=%d, want 440 and 821", stats.Nodes, stats.FirstMoveFailHighPermille)
 	}
 	_, stats = e.SearchDepth(b, NewFixedBudget(time.Second), 3)
 	if stats.Nodes != 42 {
@@ -276,7 +276,7 @@ func TestMutKillMate2Depth3Pins(t *testing.T) {
 	e := New(0)
 	mv, stats := e.SearchDepth(mate2Board(t), NewFixedBudget(time.Second), 3)
 	want := config.EvalMateMax - 3*config.EvalMateScoreStep
-	if stats.Nodes != 682 || mv != rules.Move(mustCell(t, "E9")) || stats.Score != want || !pvEquals(&stats, mustCell(t, "E9"), mustCell(t, "D9"), mustCell(t, "I9")) {
+	if stats.Nodes != 651 || mv != rules.Move(mustCell(t, "I9")) || stats.Score != want || !pvEquals(&stats, mustCell(t, "I9"), mustCell(t, "E9"), mustCell(t, "J9")) {
 		t.Errorf("mate2 d3: nodes=%d mv=%d score=%d pvlen=%d pv=%v", stats.Nodes, mv, stats.Score, stats.PVLen, stats.PV[:stats.PVLen])
 	}
 }
@@ -288,7 +288,7 @@ func TestMutKillMate3Depth4Pins(t *testing.T) {
 	e := New(0)
 	mv, stats := e.SearchDepth(mate3Board(t), NewFixedBudget(time.Second), 4)
 	want := config.EvalMateMax - 5*config.EvalMateScoreStep
-	if stats.Nodes != 3058 || mv != rules.Move(mustCell(t, "H9")) || stats.Score != want || !pvEquals(&stats, mustCell(t, "H9"), mustCell(t, "I9"), mustCell(t, "H6"), mustCell(t, "I7"), mustCell(t, "H5")) {
+	if stats.Nodes != 2032 || mv != rules.Move(mustCell(t, "H9")) || stats.Score != want || !pvEquals(&stats, mustCell(t, "H9"), mustCell(t, "I9"), mustCell(t, "H10"), mustCell(t, "H11"), mustCell(t, "H6")) {
 		t.Errorf("mate3 d4: nodes=%d mv=%d score=%d pvlen=%d pv=%v", stats.Nodes, mv, stats.Score, stats.PVLen, stats.PV[:stats.PVLen])
 	}
 }
@@ -299,8 +299,8 @@ func TestMutKillMate3Depth4Pins(t *testing.T) {
 func TestMutKillPollCadence(t *testing.T) {
 	e := New(0)
 	_, stats := e.SearchDepth(midgameBoard(t), &mutCountdownDL{calls: 5}, 5)
-	if stats.Nodes != 2048 || stats.Depth != 3 {
-		t.Errorf("countdown stop: nodes=%d depth=%d, want 2048 and 3", stats.Nodes, stats.Depth)
+	if stats.Nodes != 1669 || stats.Depth != 4 {
+		t.Errorf("countdown stop: nodes=%d depth=%d, want 1669 and 4", stats.Nodes, stats.Depth)
 	}
 }
 
@@ -319,8 +319,8 @@ func TestMutKillTTMoveZeroAdopted(t *testing.T) {
 	b.Unmake()
 	e.tt.store(h, 0, 0, 0, ttBoundLower, 1)
 	_, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 3)
-	if stats.Nodes != 410 {
-		t.Errorf("seeded A1 ttm: nodes=%d, want 410", stats.Nodes)
+	if stats.Nodes != 218 {
+		t.Errorf("seeded A1 ttm: nodes=%d, want 218", stats.Nodes)
 	}
 }
 
@@ -432,23 +432,23 @@ func mutCheckerBoard(t *testing.T) *rules.Board {
 }
 
 // kills 212:13, 212:15 x2, 212:45: the extension must fire exactly when
-// extLeft is positive. Blue to move against red's four (fours[red] = 5):
-// extLeft 0 stays a depth-1 node (3 nodes), extLeft 1 extends to depth 2
-// (80 nodes).
+// extLeft is positive. Blue to move against red's four (fours[red] = 5),
+// where the forced restriction leaves only the forced answers: extLeft 0
+// stays a depth-1 node (2 nodes), extLeft 1 extends to depth 2 (76 nodes).
 func TestMutKillExtensionBudget(t *testing.T) {
 	b := mate1Board(t)
 	b.Side = rules.Blue
 	e := New(0)
 	e.resetForSearch(b)
 	e.negamax(b, 1, -config.EvalMateMax, config.EvalMateMax, 1, 0, NewFixedBudget(time.Second))
-	if e.nodes != 3 {
-		t.Errorf("extLeft=0: nodes=%d, want 3 (no extension)", e.nodes)
+	if e.nodes != 2 {
+		t.Errorf("extLeft=0: nodes=%d, want 2 (no extension)", e.nodes)
 	}
 	e = New(0)
 	e.resetForSearch(b)
 	e.negamax(b, 1, -config.EvalMateMax, config.EvalMateMax, 1, 1, NewFixedBudget(time.Second))
-	if e.nodes != 80 {
-		t.Errorf("extLeft=1: nodes=%d, want 80 (extension fires)", e.nodes)
+	if e.nodes != 76 {
+		t.Errorf("extLeft=1: nodes=%d, want 76 (extension fires)", e.nodes)
 	}
 }
 
@@ -500,16 +500,18 @@ func TestMutKillScoutWindowBoundary(t *testing.T) {
 	e.beginSearch(cb)
 	seedChildTT(t, e, cb, mustCell(t, "H7"), 1, 1)
 	sc, mv := e.searchRoot(cb, 3, NewFixedBudget(time.Second))
-	if e.nodes != 1481 || sc != 0 || mv != rules.Move(mustCell(t, "G8")) {
-		t.Errorf("root scout craft: nodes=%d score=%d mv=%d, want 1481 0 G8", e.nodes, sc, mv)
+	if e.nodes != 1331 || sc != 0 || mv != rules.Move(mustCell(t, "G8")) {
+		t.Errorf("root scout craft: nodes=%d score=%d mv=%d, want 1331 0 G8", e.nodes, sc, mv)
 	}
 
 	e = New(testTTBytes)
 	e.beginSearch(cb)
 	seedChildTT(t, e, cb, mustCell(t, "H7"), 1, 2)
 	rv := e.negamax(cb, 3, -config.EvalMateMax, config.EvalMateMax, 1, config.SearchExtensionMaxPly, NewFixedBudget(time.Second))
-	if e.nodes != 1181 || rv != 0 {
-		t.Errorf("interior scout craft: nodes=%d rv=%d, want 1181 0", e.nodes, rv)
+	// 1109 under the forced-four restriction (was 1181 on unrestricted
+	// candidates): the value is pinned by rv=0, only the count moved.
+	if e.nodes != 1109 || rv != 0 {
+		t.Errorf("interior scout craft: nodes=%d rv=%d, want 1109 0", e.nodes, rv)
 	}
 }
 
