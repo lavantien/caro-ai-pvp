@@ -1,0 +1,7 @@
+flowchart LR
+    U[players / bot worker] -- PlayMove --> R[room + match driver<br/>board, clocks, series machine]
+    R -- move, M-line, gameend events --> H[pub-sub hub]
+    H -- per-subscriber buffers, slow evicted --> G[guests and players via SSE]
+    R -- games, rating events, series updates --> W[single-writer mutation queue<br/>blocks, never drops]
+    W --> D[(SQLite WAL, forward-only migrations)]
+    R -- game end: per-match rating law --> D

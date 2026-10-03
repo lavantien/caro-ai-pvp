@@ -1,0 +1,5 @@
+flowchart LR
+    S[VCF / VCT threat-space search<br/>FAIL-only memo, deadline-driven] -- claimed win + line --> O[brute-force alpha-beta oracle<br/>naive array board, shared code: none]
+    O -- win verifies --> P[pass]
+    O -- refuted --> X[defect: soundness broken]
+    O -- refutation only --> Q[ignored: soundness-only criterion]

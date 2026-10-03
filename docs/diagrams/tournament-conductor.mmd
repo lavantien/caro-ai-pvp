@@ -1,0 +1,11 @@
+flowchart TD
+    SU[setup page or caro tourney driver] -- startRun: gate + persist schedule --> C[conductor]
+    G{ongoing run row<br/>or over-budget cores?} -- yes --> X[refuse: close or reconfigure]
+    G -- no --> D[dispatch: TournamentParallel semaphore]
+    D --> R1[room 1: CreateBotVsBot<br/>subscribe, then drive]
+    D --> R2[room 2]
+    R1 -- move, mline, gameend, series events --> REC[recorder]
+    REC -- gameend: delivered moves vs room truth<br/>mismatch fails the run --> ST[(tournament tables, schema v3)]
+    REC -- every mline --> LG[per-series txt log]
+    R1 -- series event --> N[settle, cross-check the room verdict]
+    N -- all settled --> F[FinishRun: frozen standings snapshot]

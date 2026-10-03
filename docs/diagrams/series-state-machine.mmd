@@ -1,0 +1,8 @@
+stateDiagram-v2
+    [*] --> Created: NewSeries(host, guest, tc, bo)
+    Created --> Ready: both readied
+    Ready --> InGame: game 1 live
+    InGame --> InGame: RecordResult<br/>red passes to the loser, draws retain
+    InGame --> Finished: majority reached<br/>or schedule exhausted (plurality)
+    Created --> Finished: Forfeit<br/>charges every remaining game
+    InGame --> Finished: Forfeit<br/>charges every remaining game

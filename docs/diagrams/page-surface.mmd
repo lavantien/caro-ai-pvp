@@ -1,0 +1,8 @@
+flowchart LR
+    BR[browser] -- GET /, /login, /history, /partials/rooms --> SH[shell pages<br/>stats, rooms grid, create form]
+    BR -- GET /rooms/{id} --> RP[room page<br/>board, clocks, handshake, controls]
+    BR -- GET /rooms/history/{id} --> PB[playback page<br/>final position, step controls]
+    RP -- hx-sse primary, EventSource fallback --> EV["SSE /api/rooms/{id}/events<br/>move, mline, gameend, series"]
+    RP -- fetch POST join/ready/move/forfeit --> API[JSON API]
+    SH -- create room --> API
+    API --> RM[room manager] --> ST[(SQLite)]

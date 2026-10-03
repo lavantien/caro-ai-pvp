@@ -1,0 +1,21 @@
+flowchart TD
+    A[Search entry: fallback move precomputed] --> B[iterative deepening: depth 1..max]
+    B --> C{stopped or hard deadline?}
+    C -- yes --> Z[return best of last completed iteration]
+    C -- no --> D{soft stop: elapsed > 65% of grant?<br/>zero clock reading counts as one 16ms tick}
+    D -- yes --> Z
+    D -- no --> E[searchRoot: PVS over root moves]
+    E --> F[negamax fail-soft alpha-beta]
+    F --> G{TT probe: exact/lower/upper cutoff?}
+    G -- cutoff --> H[return stored score]
+    G -- miss --> I[movegen: ring candidates ordered by<br/>TT move, killers, threat score, history]
+    I --> J{opponent holds a four?}
+    J -- yes, budget left --> K[extend depth by one]
+    J -- no --> L[recurse scout window, re-search on fail-high]
+    K --> L
+    L --> M[TT store with mate ply adjustment]
+    M --> F
+    H --> E
+    E --> N{mate score found?}
+    N -- yes --> Z
+    N -- no --> B
