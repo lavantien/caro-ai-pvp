@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,9 +59,10 @@ func scriptedSeries(games []scriptedGame, verdict string) []server.Event {
 }
 
 // easySweeps is the scripted law of the happy-path runs: the easy tier wins
-// every bo3 2-0 through the sweep, whichever seat it holds. Host sweep =
-// red win then blue win (the loser-takes-red rotation); guest sweep = two
-// blue wins (red keeps the seat after a blue win).
+// every bo3 2-0 through the sweep, whichever seat it holds. The seating is
+// the benchmark alternation the rooms run (red passes after every game):
+// host sweep = red win then blue win, guest sweep = blue win then red win,
+// the second win always landing on the seat alternation hands red to.
 func easySweeps(host, guest string) []server.Event {
 	if host == config.TierEasy.Name {
 		return scriptedSeries([]scriptedGame{
@@ -70,7 +72,7 @@ func easySweeps(host, guest string) []server.Event {
 	}
 	return scriptedSeries([]scriptedGame{
 		{moves: sweepBlueMoves, outcome: server.OutcomeBlue},
-		{moves: sweepBlueMoves, outcome: server.OutcomeBlue},
+		{moves: sweepRedMoves, outcome: server.OutcomeRed},
 	}, server.SideGuest.String())
 }
 
@@ -261,26 +263,27 @@ func persistedGames(t *testing.T, ts *Store, seriesID int64) []persistedGame {
 	return out
 }
 
-// seriesLogFile finds the one log file of a series id under the log dir.
+// seriesLogFile finds the one log file of a series id under the log root,
+// inside whichever timestamped run folder the run wrote.
 func seriesLogFile(t *testing.T, dir string, seriesID int64) string {
 	t.Helper()
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read log dir: %v", err)
-	}
-	var path string
-	for _, e := range entries {
-		if strings.Contains(e.Name(), fmt.Sprintf("_s%d_", seriesID)) {
-			if path != "" {
-				t.Fatalf("series %d has several log files: %v", seriesID, entries)
-			}
-			path = filepath.Join(dir, e.Name())
+	var files []string
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
+		if !d.IsDir() && strings.Contains(d.Name(), fmt.Sprintf("_s%d_", seriesID)) {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk log dir: %v", err)
 	}
-	if path == "" {
-		t.Fatalf("no log file for series %d in %v", seriesID, entries)
+	if len(files) != 1 {
+		t.Fatalf("series %d has %d log files under %s: %v", seriesID, len(files), dir, files)
 	}
-	return path
+	return files[0]
 }
 
 func TestConductorRunScriptedHappyPath(t *testing.T) {
@@ -340,12 +343,14 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 		t.Errorf("series line 1 = %+v, want the easy guest sweep 0-2", line)
 	}
 
-	// Game rows: pairing 0 rides the rotation (easy red win, then easy blue
-	// win), pairing 1 is two easy blue wins with red kept by the loser;
-	// every decisive game carries the sweep's open-four tag.
+	// Game rows: both pairings ride the alternation (red passes after every
+	// game), the easy slot winning as red then blue in pairing 0 and as blue
+	// then red in pairing 1; every decisive game carries the sweep's open-four
+	// tag.
 	g0 := persistedGames(t, ts, sched[0].ID)
-	if len(g0) != 2 || len(persistedGames(t, ts, sched[1].ID)) != 2 {
-		t.Fatalf("games per series = %d and %d, want 2 and 2", len(g0), len(persistedGames(t, ts, sched[1].ID)))
+	g1 := persistedGames(t, ts, sched[1].ID)
+	if len(g0) != 2 || len(g1) != 2 {
+		t.Fatalf("games per series = %d and %d, want 2 and 2", len(g0), len(g1))
 	}
 	if g0[0].RedSlot != 0 || g0[0].BlueSlot != 1 || g0[0].Outcome != server.OutcomeRed ||
 		g0[0].FullTurns != len(sweepRedMoves)/2 {
@@ -353,14 +358,17 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 	}
 	if g0[1].RedSlot != 1 || g0[1].BlueSlot != 0 || g0[1].Outcome != server.OutcomeBlue ||
 		g0[1].FullTurns != len(sweepBlueMoves)/2 {
-		t.Errorf("series 0 game 2 = %+v, want the easy blue win after the rotation", g0[1])
+		t.Errorf("series 0 game 2 = %+v, want the easy blue win after the alternation", g0[1])
 	}
-	for i, g := range persistedGames(t, ts, sched[1].ID) {
-		if g.RedSlot != 1 || g.BlueSlot != 0 || g.Outcome != server.OutcomeBlue {
-			t.Errorf("series 1 game %d = %+v, want the easy blue win, red kept by the loser", i, g)
-		}
+	if g1[0].RedSlot != 1 || g1[0].BlueSlot != 0 || g1[0].Outcome != server.OutcomeBlue ||
+		g1[0].FullTurns != len(sweepBlueMoves)/2 {
+		t.Errorf("series 1 game 1 = %+v, want the easy blue win off the medium red", g1[0])
 	}
-	for _, group := range [][]persistedGame{g0, persistedGames(t, ts, sched[1].ID)} {
+	if g1[1].RedSlot != 0 || g1[1].BlueSlot != 1 || g1[1].Outcome != server.OutcomeRed ||
+		g1[1].FullTurns != len(sweepRedMoves)/2 {
+		t.Errorf("series 1 game 2 = %+v, want the easy red win the alternation handed it", g1[1])
+	}
+	for _, group := range [][]persistedGame{g0, g1} {
 		for _, g := range group {
 			if g.WonBy == nil || *g.WonBy != server.WonByOpenFour {
 				t.Errorf("game idx %d won_by = %v, want %q", g.Idx, g.WonBy, server.WonByOpenFour)
@@ -387,10 +395,9 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 	}
 
 	// Series logs: one file per series, the header block, one M-line per
-	// move, one summary line per finished game, and the verdict line.
-	// Pairing 0 rides both sweep directions (23 moves over 2 games),
-	// pairing 1 two guest sweeps (24 moves over 2 games).
-	wantMovesByPairing := []int{len(sweepRedMoves) + len(sweepBlueMoves), 2 * len(sweepBlueMoves)}
+	// move, one summary line per finished game, and the verdict line. Both
+	// pairings ride the two sweep directions (23 moves over 2 games).
+	wantMovesByPairing := []int{len(sweepRedMoves) + len(sweepBlueMoves), len(sweepBlueMoves) + len(sweepRedMoves)}
 	wantGamesByPairing := []int{2, 2}
 	for slot, s := range sched {
 		body, err := os.ReadFile(seriesLogFile(t, logDir, s.ID))

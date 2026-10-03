@@ -9,7 +9,7 @@ DIAGRAM_BG := rgb(13,17,23)
 DIAGRAM_SRC := $(wildcard $(DIAGRAMS_DIR)/*.mmd)
 DIAGRAM_PNG := $(DIAGRAM_SRC:.mmd=.png)
 
-.PHONY: all doctor fmt fmt-check lint vet build test test-race cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full firewall tidy diagrams diagrams-browser ci
+.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full firewall tidy diagrams diagrams-browser ci
 
 all: build
 
@@ -47,6 +47,12 @@ test:
 
 test-race:
 	CGO_ENABLED=1 go test -race ./...
+
+# test-pkg PKG=./internal/tourney [ARGS="-run TestX -count=1"]: one package's
+# tests under the race detector, the same mode test-race runs the tree in,
+# scoped for the fix loop before a full-tree pass.
+test-pkg:
+	CGO_ENABLED=1 go test -race $(ARGS) $(PKG)
 
 cover:
 	CGO_ENABLED=1 go test -coverprofile=$(COVERPROFILE) -covermode=atomic ./...

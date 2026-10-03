@@ -424,25 +424,12 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 			}
 			// The physical trace: one summary line per finished game beside
 			// the M-lines, so a series log reads as evidence without the db.
-			// Names, never bare colors: with the benchmark alternation a
-			// color says nothing about who played it.
 			redName, blueName := pair.RedFirst.Name, pair.BlueFirst.Name
 			if !redIsRedFirst {
 				redName, blueName = blueName, redName
 			}
-			var summary string
-			switch outcome {
-			case server.RedWins:
-				summary = fmt.Sprintf("game %d: %s (red) beat %s (blue), %d moves", games+1, redName, blueName, len(truth))
-			case server.BlueWins:
-				summary = fmt.Sprintf("game %d: %s (blue) beat %s (red), %d moves", games+1, blueName, redName, len(truth))
-			default:
-				summary = fmt.Sprintf("game %d: %s (red) vs %s (blue), drawn at %d moves", games+1, redName, blueName, len(truth))
-			}
-			if wonBy != nil {
-				summary += ", won by " + *wonBy
-			}
-			if lerr := logs.WriteSeriesLine(run.ID, row.ID, summary); lerr != nil {
+			if lerr := logs.WriteSeriesLine(run.ID, row.ID,
+				gameSummary(games+1, redName, blueName, outcome.String(), len(truth), wonBy)); lerr != nil {
 				return line, lerr
 			}
 			switch outcome {
@@ -468,6 +455,26 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 			return line, fmt.Errorf("event kind %q is not part of the room contract", ev.Kind)
 		}
 	}
+}
+
+// gameSummary renders one finished game's trace line, names never bare
+// colors: with the benchmark alternation a color says nothing about who
+// played it. The outcome rides its persisted string form. Single-sourced so
+// the conductor's writer and the tests' asserts cannot drift apart.
+func gameSummary(gameNo int, redName, blueName, outcome string, stones int, wonBy *string) string {
+	var line string
+	switch outcome {
+	case server.RedWins.String():
+		line = fmt.Sprintf("game %d: %s (red) beat %s (blue), %d moves", gameNo, redName, blueName, stones)
+	case server.BlueWins.String():
+		line = fmt.Sprintf("game %d: %s (blue) beat %s (red), %d moves", gameNo, blueName, redName, stones)
+	default:
+		line = fmt.Sprintf("game %d: %s (red) vs %s (blue), drawn at %d moves", gameNo, redName, blueName, stones)
+	}
+	if wonBy != nil {
+		line += ", won by " + *wonBy
+	}
+	return line
 }
 
 // closeSeries settles the series record: the verdict line lands in the log,

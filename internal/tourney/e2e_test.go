@@ -117,15 +117,15 @@ func TestConductorEndToEndEasyTiers(t *testing.T) {
 				t.Errorf("series %d log misses %q:\n%s", s.ID, want, body)
 			}
 		}
-		// Every persisted game of the series carries its own trace line with
-		// the outcome, stone count, and won-by tag.
+		// Every persisted game of the series carries its own name-based trace
+		// line, rebuilt from the row through the same renderer the conductor
+		// writes with.
+		names := [2]string{roster[0].Name, roster[1].Name}
 		for _, g := range persistedGames(t, ts, s.ID) {
-			want := fmt.Sprintf("game %d: %s, %d moves", g.Idx+1, g.Outcome, g.Stones)
+			want := gameSummary(g.Idx+1, names[g.RedSlot], names[g.BlueSlot],
+				g.Outcome, g.Stones, g.WonBy)
 			if !strings.Contains(string(body), want) {
 				t.Errorf("series %d log misses %q:\n%s", s.ID, want, body)
-			}
-			if g.WonBy != nil && !strings.Contains(string(body), ", won by "+*g.WonBy) {
-				t.Errorf("series %d log misses the won-by %q:\n%s", s.ID, *g.WonBy, body)
 			}
 		}
 	}
