@@ -14,18 +14,21 @@ const (
 
 const ZobristSeed uint64 = 0x9E3779B97F4A7C15
 
+// TimeControl is one clock shape in the conventional m+i notation: the
+// initial bank in whole minutes, the per-move increment in seconds, so 1+0
+// is one minute, not one second.
 type TimeControl struct {
-	InitialSec   int
+	InitialMin   int
 	IncrementSec int
 }
 
-var TimeControls = [...]TimeControl{{InitialSec: 1}, {InitialSec: 2, IncrementSec: 1}, {InitialSec: 3, IncrementSec: 2}}
+var TimeControls = [...]TimeControl{{InitialMin: 1}, {InitialMin: 2, IncrementSec: 1}, {InitialMin: 3, IncrementSec: 2}}
 
 // TCIndex resolves a time control by its clock shape, so callers name "3+2"
 // instead of hardcoding table positions.
-func TCIndex(initialSec, incrementSec int) (int, bool) {
+func TCIndex(initialMin, incrementSec int) (int, bool) {
 	for i := range TimeControls {
-		if TimeControls[i].InitialSec == initialSec && TimeControls[i].IncrementSec == incrementSec {
+		if TimeControls[i].InitialMin == initialMin && TimeControls[i].IncrementSec == incrementSec {
 			return i, true
 		}
 	}
@@ -86,8 +89,8 @@ type Tier struct {
 
 var (
 	TierEasy   = Tier{Name: "easy", Cores: 1, TTBytes: 0, VCF: false, VCT: false}
-	TierMedium = Tier{Name: "medium", Cores: 2, TTBytes: 256 << 20, VCF: true, VCT: false}
-	TierHard   = Tier{Name: "hard", Cores: 4, TTBytes: 1 << 30, VCF: true, VCT: true}
+	TierMedium = Tier{Name: "medium", Cores: 2, TTBytes: 32 << 20, VCF: true, VCT: false}
+	TierHard   = Tier{Name: "hard", Cores: 4, TTBytes: 128 << 20, VCF: true, VCT: true}
 	Tiers      = [...]Tier{TierEasy, TierMedium, TierHard}
 )
 

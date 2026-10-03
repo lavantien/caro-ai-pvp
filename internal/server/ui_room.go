@@ -510,7 +510,7 @@ func formatClockMs(ms int64) string {
 
 // tcLabel renders one config time control in the conventional m+i notation.
 func tcLabel(idx int) string {
-	return fmt.Sprintf("%d+%d", config.TimeControls[idx].InitialSec, config.TimeControls[idx].IncrementSec)
+	return fmt.Sprintf("%d+%d", config.TimeControls[idx].InitialMin, config.TimeControls[idx].IncrementSec)
 }
 
 func readyWord(ready bool) string {

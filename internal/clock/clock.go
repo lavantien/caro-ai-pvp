@@ -38,9 +38,10 @@ func NewGameClock(tcIdx int) *GameClock {
 		panic("clock: NewGameClock time control index out of range")
 	}
 	tc := config.TimeControls[tcIdx]
+	initialMs := float64(tc.InitialMin*60) * float64(time.Second/time.Millisecond)
 	return &GameClock{
-		remainingMs: float64(tc.InitialSec) * float64(time.Second/time.Millisecond),
-		initialMs:   float64(tc.InitialSec) * float64(time.Second/time.Millisecond),
+		remainingMs: initialMs,
+		initialMs:   initialMs,
 		incrementMs: float64(tc.IncrementSec) * float64(time.Second/time.Millisecond),
 		pid:         newPID(config.ClockPID[tcIdx]),
 	}

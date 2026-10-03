@@ -49,11 +49,11 @@ func TestTimeControlsMatchSpec(t *testing.T) {
 		t.Fatalf("len(TimeControls) = %d, want %d", len(TimeControls), len(want))
 	}
 	for i, tc := range TimeControls {
-		if tc.InitialSec != want[i][0] || tc.IncrementSec != want[i][1] {
-			t.Errorf("TimeControls[%d] = %d+%d, want %d+%d", i, tc.InitialSec, tc.IncrementSec, want[i][0], want[i][1])
+		if tc.InitialMin != want[i][0] || tc.IncrementSec != want[i][1] {
+			t.Errorf("TimeControls[%d] = %d+%d, want %d+%d", i, tc.InitialMin, tc.IncrementSec, want[i][0], want[i][1])
 		}
-		if tc.InitialSec <= 0 {
-			t.Errorf("TimeControls[%d].InitialSec = %d, must be positive", i, tc.InitialSec)
+		if tc.InitialMin <= 0 {
+			t.Errorf("TimeControls[%d].InitialMin = %d, must be positive", i, tc.InitialMin)
 		}
 		if tc.IncrementSec < 0 {
 			t.Errorf("TimeControls[%d].IncrementSec = %d, must be non-negative", i, tc.IncrementSec)
@@ -123,8 +123,8 @@ func TestTiersMatchSpec(t *testing.T) {
 		tiersPtr *Tier
 	}{
 		{Tier{Name: "easy", Cores: 1, TTBytes: 0, VCF: false, VCT: false}, &TierEasy},
-		{Tier{Name: "medium", Cores: 2, TTBytes: 256 << 20, VCF: true, VCT: false}, &TierMedium},
-		{Tier{Name: "hard", Cores: 4, TTBytes: 1 << 30, VCF: true, VCT: true}, &TierHard},
+		{Tier{Name: "medium", Cores: 2, TTBytes: 32 << 20, VCF: true, VCT: false}, &TierMedium},
+		{Tier{Name: "hard", Cores: 4, TTBytes: 128 << 20, VCF: true, VCT: true}, &TierHard},
 	}
 	for _, c := range cases {
 		if *c.tiersPtr != c.want {
@@ -203,9 +203,9 @@ func TestResourceCapsMatchHardwareBudget(t *testing.T) {
 
 func TestTCIndexResolvesClockShape(t *testing.T) {
 	for i, tc := range TimeControls {
-		got, ok := TCIndex(tc.InitialSec, tc.IncrementSec)
+		got, ok := TCIndex(tc.InitialMin, tc.IncrementSec)
 		if !ok || got != i {
-			t.Errorf("TCIndex(%d, %d) = %d, %t, want %d, true", tc.InitialSec, tc.IncrementSec, got, ok, i)
+			t.Errorf("TCIndex(%d, %d) = %d, %t, want %d, true", tc.InitialMin, tc.IncrementSec, got, ok, i)
 		}
 	}
 	if _, ok := TCIndex(5, 3); ok {

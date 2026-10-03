@@ -452,7 +452,7 @@ func TestFormatClockMs(t *testing.T) {
 func TestTCLabelPinnedToConfig(t *testing.T) {
 	for i := range config.TimeControls {
 		tc := config.TimeControls[i]
-		want := fmt.Sprintf("%d+%d", tc.InitialSec, tc.IncrementSec)
+		want := fmt.Sprintf("%d+%d", tc.InitialMin, tc.IncrementSec)
 		if got := tcLabel(i); got != want {
 			t.Errorf("tcLabel(%d) = %q, want %q", i, got, want)
 		}

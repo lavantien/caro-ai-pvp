@@ -278,7 +278,7 @@ drained:
 	// Clock law on 1+0: banks only drain, never below zero, and the final
 	// game's clocks hold one commit per played stone.
 	for _, c := range []rules.Color{rules.Red, rules.Blue} {
-		cap := time.Duration(config.TimeControls[0].InitialSec) * time.Second
+		cap := time.Duration(config.TimeControls[0].InitialMin) * time.Minute
 		if rem := r.ClockRemaining(c); rem < 0 || rem > cap {
 			t.Errorf("%s clock = %s, want within [0, %d]", sideName(c), rem, cap)
 		}

@@ -31,10 +31,10 @@ func twoPerTierRoster() []Participant {
 
 // mustTC resolves a clock shape onto its table index; the drivers name their
 // time controls, never positions.
-func mustTC(initialSec, incrementSec int) int {
-	idx, ok := config.TCIndex(initialSec, incrementSec)
+func mustTC(initialMin, incrementSec int) int {
+	idx, ok := config.TCIndex(initialMin, incrementSec)
 	if !ok {
-		panic(fmt.Sprintf("tourney: spec time control %d+%d is not configured", initialSec, incrementSec))
+		panic(fmt.Sprintf("tourney: spec time control %d+%d is not configured", initialMin, incrementSec))
 	}
 	return idx
 }

@@ -82,7 +82,7 @@ func TestSimFullGameInvariants(t *testing.T) {
 	for _, g := range simGames() {
 		t.Run(fmt.Sprintf("%s/tc%d", g.label, g.tcIdx), func(t *testing.T) {
 			c := NewGameClock(g.tcIdx)
-			initial := time.Duration(config.TimeControls[g.tcIdx].InitialSec) * time.Second
+			initial := time.Duration(config.TimeControls[g.tcIdx].InitialMin) * time.Minute
 			var budgetSum time.Duration
 			for move := 1; move <= simMovesPerSide; move++ {
 				budget := c.Budget()

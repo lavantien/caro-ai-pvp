@@ -175,8 +175,8 @@ func benchRunSim(tcIdx int, gains config.PIDGains, factors []float64) benchSimRe
 	ctl := config.TimeControls[tcIdx]
 	msPerSec := float64(time.Second / time.Millisecond)
 	c := &benchClock{
-		remainingMs: float64(ctl.InitialSec) * msPerSec,
-		initialMs:   float64(ctl.InitialSec) * msPerSec,
+		remainingMs: float64(ctl.InitialMin*60) * msPerSec,
+		initialMs:   float64(ctl.InitialMin*60) * msPerSec,
 		incrementMs: float64(ctl.IncrementSec) * msPerSec,
 		pid:         benchPID{gains: gains},
 	}
@@ -223,7 +223,7 @@ func benchStdev(b []float64) float64 {
 func benchSweep(b *testing.B, model benchCostModel) {
 	for tcIdx := range config.TimeControls {
 		ctl := config.TimeControls[tcIdx]
-		b.Run(fmt.Sprintf("%d+%d", ctl.InitialSec, ctl.IncrementSec), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d+%d", ctl.InitialMin, ctl.IncrementSec), func(b *testing.B) {
 			results := make([]benchSimResult, len(benchGainSets))
 			for b.Loop() {
 				factors := model.factors(tcIdx)
@@ -231,7 +231,7 @@ func benchSweep(b *testing.B, model benchCostModel) {
 					results[i] = benchRunSim(tcIdx, gs.transform(config.ClockPID[tcIdx]), factors)
 				}
 			}
-			b.Logf("model=%s tc=%d+%d reserve=%dms all metrics in ms", model.name, ctl.InitialSec, ctl.IncrementSec, config.SearchSafetyMarginMs)
+			b.Logf("model=%s tc=%d+%d reserve=%dms all metrics in ms", model.name, ctl.InitialMin, ctl.IncrementSec, config.SearchSafetyMarginMs)
 			b.Logf("%-12s %10s %10s %10s %10s", "gains", "leftover", "dist-res", "collapse", "stdev")
 			for i, gs := range benchGainSets {
 				r := results[i]

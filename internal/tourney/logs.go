@@ -57,7 +57,7 @@ func (g *Logs) WriteSeriesHeader(run, series int64, tcIdx, boLen int, red, blue 
 	lines := []string{
 		fmt.Sprintf("run %d series %d", run, series),
 		fmt.Sprintf("pairing %s (%s) vs %s (%s)", red.Name, red.Tier, blue.Name, blue.Tier),
-		fmt.Sprintf("tc %d+%d bo%d", tc.InitialSec, tc.IncrementSec, boLen),
+		fmt.Sprintf("tc %d+%d bo%d", tc.InitialMin, tc.IncrementSec, boLen),
 	}
 	return g.writeLines(seriesKey{run, series}, red.Name, blue.Name, lines)
 }

@@ -55,7 +55,7 @@ func oracleBudget(k int, remMs, initMs, incMs float64, sim *simPID) time.Duratio
 func TestNewGameClockInitialState(t *testing.T) {
 	for tcIdx, tc := range config.TimeControls {
 		c := NewGameClock(tcIdx)
-		if got, want := c.Remaining(), time.Duration(tc.InitialSec)*time.Second; got != want {
+		if got, want := c.Remaining(), time.Duration(tc.InitialMin)*time.Minute; got != want {
 			t.Errorf("tc %d initial remaining = %v, want %v", tcIdx, got, want)
 		}
 		if got := c.Moves(); got != 0 {
@@ -103,7 +103,7 @@ func TestBudgetExactTables(t *testing.T) {
 	} {
 		ctl := config.TimeControls[tc.tcIdx]
 		c := NewGameClock(tc.tcIdx)
-		initMs := float64(ctl.InitialSec) * float64(time.Second/time.Millisecond)
+		initMs := float64(ctl.InitialMin*60) * float64(time.Second/time.Millisecond)
 		incMs := float64(ctl.IncrementSec) * float64(time.Second/time.Millisecond)
 		remMs := initMs
 		sim := &simPID{gains: config.ClockPID[tc.tcIdx]}
@@ -146,7 +146,7 @@ func TestCeilingPropertySoak(t *testing.T) {
 		ctl := config.TimeControls[tcIdx]
 		c := NewGameClock(tcIdx)
 		incMs := float64(ctl.IncrementSec) * float64(time.Second/time.Millisecond)
-		remMs := float64(ctl.InitialSec) * float64(time.Second/time.Millisecond)
+		remMs := float64(ctl.InitialMin*60) * float64(time.Second/time.Millisecond)
 		rng := rand.New(rand.NewPCG(uint64(tcIdx)+1, 0xC0FFEE))
 		for move := 1; move <= 4000; move++ {
 			budget := c.Budget()
@@ -185,14 +185,14 @@ func TestCeilingPropertySoak(t *testing.T) {
 
 func TestCommitAccounting(t *testing.T) {
 	c := NewGameClock(1) // 2+1
-	if got, want := c.Remaining(), 2*time.Second; got != want {
+	if got, want := c.Remaining(), 2*time.Minute; got != want {
 		t.Errorf("initial remaining = %v, want %v", got, want)
 	}
-	c.Commit(1500 * time.Millisecond)
-	if got, want := c.Remaining(), 1500*time.Millisecond; got != want {
-		t.Errorf("after 1500ms: remaining = %v, want %v", got, want)
+	c.Commit(90 * time.Second)
+	if got, want := c.Remaining(), 31*time.Second; got != want {
+		t.Errorf("after 90s: remaining = %v, want %v", got, want)
 	}
-	c.Commit(2 * time.Second) // overshoot floors at zero, then the increment lands
+	c.Commit(32 * time.Second) // overshoot floors at zero, then the increment lands
 	if got, want := c.Remaining(), time.Second; got != want {
 		t.Errorf("after overshoot: remaining = %v, want %v", got, want)
 	}
@@ -209,7 +209,7 @@ func TestCommitAccounting(t *testing.T) {
 	}
 
 	d := NewGameClock(0) // 1+0: no increment, so a drained clock stays drained
-	d.Commit(time.Second)
+	d.Commit(time.Minute)
 	if got := d.Remaining(); got != 0 {
 		t.Errorf("drained remaining = %v, want 0", got)
 	}
@@ -260,7 +260,7 @@ func TestCorrectionDirection(t *testing.T) {
 	const eps = 0.001
 
 	under := NewGameClock(0)
-	under.Commit(5 * time.Millisecond) // granted ~29ms, spent 5ms
+	under.Commit(300 * time.Millisecond) // granted ~2s, spent 0.3s
 	uFf := feedforwardMs(under, 0)
 	uB := float64(under.Budget()) / float64(time.Millisecond)
 	if uB <= uFf {
@@ -271,7 +271,7 @@ func TestCorrectionDirection(t *testing.T) {
 	}
 
 	over := NewGameClock(0)
-	over.Commit(400 * time.Millisecond) // R falls below the drain trajectory
+	over.Commit(40 * time.Second) // R falls below the drain trajectory
 	oFf := feedforwardMs(over, 0)
 	oB := float64(over.Budget()) / float64(time.Millisecond)
 	if oB >= oFf {

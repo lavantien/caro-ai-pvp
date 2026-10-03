@@ -386,7 +386,7 @@ func TestHTTPRoomActionsPlaySeries(t *testing.T) {
 		detail.Game.RedUserID != alice.ID || len(detail.Game.Moves) != 0 {
 		t.Fatalf("game 1 snapshot = %+v, want the host on red with an empty board", detail.Game)
 	}
-	max := int64(config.TimeControls[0].InitialSec * 1000)
+	max := int64(config.TimeControls[0].InitialMin * 60 * 1000)
 	for i, ms := range detail.Game.ClockMs {
 		if ms <= 0 || ms > max {
 			t.Errorf("game 1 clock[%d] = %dms, want inside (0, %d]", i, ms, max)

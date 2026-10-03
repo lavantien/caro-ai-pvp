@@ -18,8 +18,8 @@ func TestNewTieredMapsConfig(t *testing.T) {
 		slots   int
 	}{
 		{config.TierEasy, 1, 0},
-		{config.TierMedium, 2, 1 << 24},
-		{config.TierHard, 4, 1 << 26},
+		{config.TierMedium, 2, 1 << 21},
+		{config.TierHard, 4, 1 << 23},
 	}
 	for _, c := range cases {
 		s := NewTiered(c.tier)

@@ -36,7 +36,7 @@ func TestNewGameClockPanicMessage(t *testing.T) {
 func TestBudgetSpreadsOverLastPlannedMove(t *testing.T) {
 	tcIdx := -1
 	for i, tc := range config.TimeControls {
-		if tc.InitialSec > 0 && tc.IncrementSec > 0 {
+		if tc.InitialMin > 0 && tc.IncrementSec > 0 {
 			tcIdx = i
 			break
 		}
@@ -45,7 +45,7 @@ func TestBudgetSpreadsOverLastPlannedMove(t *testing.T) {
 		t.Fatalf("no time control with a positive increment to test against")
 	}
 	tc := config.TimeControls[tcIdx]
-	initMs := float64(tc.InitialSec) * float64(time.Second/time.Millisecond)
+	initMs := float64(tc.InitialMin*60) * float64(time.Second/time.Millisecond)
 	incMs := float64(tc.IncrementSec) * float64(time.Second/time.Millisecond)
 
 	commits := config.ClockExpectedMovesPerSide - 1
