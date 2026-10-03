@@ -5,32 +5,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>caro room {{.RoomID}}</title>
+<link rel="stylesheet" href="/shell.css">
 {{template "board-css"}}
 <style>
-:root { color-scheme: light dark }
 body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 48rem; padding: .5rem }
 h1 { font-size: 1.2rem; margin: .2rem 0 }
 h2 { font-size: 1rem; margin: .3rem 0 }
-.status { font-family: ui-monospace, monospace; font-size: .85rem }
+.status { font-family: ui-monospace, monospace; font-size: .85rem;
+	color: var(--text-muted) }
 #clocks { display: flex; justify-content: space-between; gap: 1rem; margin: .4rem 0 }
 .clockbox { min-width: 8rem }
 .clockbox .who { font-size: .9rem }
 .clock { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums }
-.clockbox.red .clock { color: #c62828 }
-.clockbox.blue .clock { color: #1565c0 }
+.clockbox.red .clock { color: var(--red) }
+.clockbox.blue .clock { color: var(--blue) }
 #turn-line { font-size: 1.2rem; font-weight: 600; margin: .3rem 0 }
 #score-line { margin: .2rem 0 }
 button { font: inherit; padding: .4rem 1.2rem }
 #ready-btn { font-size: 1.2rem; padding: .6rem 2.4rem }
-#forfeit-btn.armed { background: #c62828; color: #fff }
+#forfeit-btn { background: var(--surface); color: var(--text) }
+#forfeit-btn.armed { background: var(--danger); color: var(--background) }
 section { margin: .8rem 0 }
 #move-history { display: flex; flex-wrap: wrap; gap: .25rem .6rem; list-style: none;
 	padding: 0; margin: 0; font-family: ui-monospace, monospace; font-size: 1rem }
 #move-history li.latest { font-weight: 700; text-decoration: underline }
 #bot-log { list-style: none; padding: 0; margin: 0; max-height: 24vh; overflow-y: auto;
 	font-family: ui-monospace, monospace; font-size: .8rem;
-	border: 1px solid GrayText; border-radius: .25rem }
-#bot-log li { padding: .1rem .35rem; border-bottom: 1px solid GrayText;
+	border: 1px solid var(--border); border-radius: .25rem }
+#bot-log li { padding: .1rem .35rem; border-bottom: 1px solid var(--border);
 	word-break: break-all }
 #sse-feed { display: none }
 </style>

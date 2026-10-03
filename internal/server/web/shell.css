@@ -1,13 +1,32 @@
-/* The one stylesheet the M6b shell pages own. Mobile first: one column
-   under 40rem, the rooms grid and action row wrap onto two columns wider.
-   Rem sizing throughout, the largest type on the identity and score data. */
-:root { color-scheme: light dark }
+/* The one stylesheet the shell pages own, and the palette hub every page
+   shares: the room and playback pages link it for the :root tokens alone.
+   Dark is the base presentation, no light variant is built; every color in
+   every page references the tokens below (playground/darkcontrast checks
+   the pairs). Mobile first: one column under 40rem, the rooms grid and
+   action row wrap onto two columns wider. Rem sizing throughout, the
+   largest type on the identity and score data. */
+:root {
+	color-scheme: dark;
+	--background: #101318;
+	--surface: #1a1f28;
+	--border: #566179;
+	--text: #e8ebf2;
+	--text-muted: #a4aec2;
+	--accent: #58a8ff;
+	--danger: #ff7a6e;
+	--red: #ef5350;
+	--blue: #42a5f5;
+	--mark: #ffb454;
+}
 * { box-sizing: border-box }
 body { font-family: system-ui, sans-serif; line-height: 1.45;
-	margin: 0 auto; max-width: 64rem; padding: 0 .75rem 2rem }
+	margin: 0 auto; max-width: 64rem; padding: 0 .75rem 2rem;
+	background: var(--background); color: var(--text) }
+a { color: var(--accent) }
 header { display: flex; align-items: baseline; gap: 1rem; padding: .6rem 0;
-	border-bottom: 1px solid #8886 }
-.brand { font-size: 1.5rem; font-weight: 800; text-decoration: none }
+	border-bottom: 1px solid var(--border) }
+.brand { font-size: 1.5rem; font-weight: 800; text-decoration: none;
+	color: var(--text) }
 header nav { margin-left: auto; display: flex; gap: .75rem; align-items: baseline }
 .who { font-weight: 600 }
 form.inline { display: inline; margin: 0 }
@@ -18,57 +37,67 @@ h2 { font-size: 1.05rem; margin: 1.4rem 0 .5rem }
 	font-size: 1.05rem; margin-top: 1rem }
 .me .name { font-size: 1.5rem; font-weight: 800 }
 .me .wld { font-size: 1.25rem; font-weight: 700; text-decoration: none;
-	border: 1px solid #8886; border-radius: .4rem; padding: .1rem .5rem }
+	border: 1px solid var(--border); border-radius: .4rem; padding: .1rem .5rem;
+	background: var(--surface); color: var(--text) }
 .guestnote { font-size: 1.1rem; margin-top: 1rem }
 .rooms { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem }
 @media (min-width: 40rem) { .rooms { grid-template-columns: 1fr 1fr } }
-.room { display: grid; gap: .1rem; border: 1px solid #8886; border-radius: .45rem;
-	padding: .55rem .75rem }
+.room { display: grid; gap: .1rem; border: 1px solid var(--border);
+	border-radius: .45rem; padding: .55rem .75rem; background: var(--surface) }
 .room > a { font-size: 1.2rem; font-weight: 700; text-decoration: none }
-.room .meta { display: flex; flex-wrap: wrap; gap: .25rem 1rem }
+.room .meta { display: flex; flex-wrap: wrap; gap: .25rem 1rem;
+	color: var(--text-muted) }
 .room .meta .score { font-weight: 700 }
 .actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center }
-.actions fieldset { border: 1px solid #8886; border-radius: .45rem;
+.actions fieldset { border: 1px solid var(--border); border-radius: .45rem;
 	padding: .5rem .75rem .75rem; display: flex; flex-wrap: wrap; gap: .6rem;
-	align-items: end }
+	align-items: end; background: var(--surface) }
 label { display: grid; gap: .15rem; font-size: .85rem }
-select, input { font: inherit; font-size: 1.05rem; padding: .3rem .4rem }
-button:not(.linklike) { font: inherit; font-size: 1.05rem; padding: .35rem .9rem }
+select, input { font: inherit; font-size: 1.05rem; padding: .3rem .4rem;
+	background: var(--background); color: var(--text);
+	border: 1px solid var(--border); border-radius: .3rem }
+button:not(.linklike) { font: inherit; font-size: 1.05rem; padding: .35rem .9rem;
+	background: var(--accent); color: var(--background); border: none;
+	border-radius: .3rem }
 button[disabled] { opacity: .55 }
-.error { color: #d13438; font-size: 1.2rem; font-weight: 600 }
+.error { color: var(--danger); font-size: 1.2rem; font-weight: 600 }
 .loginform { display: grid; gap: .75rem; max-width: 22rem; margin-top: 1rem }
 .loginform button { justify-self: start }
-.hrow { display: grid; gap: .15rem; border: 1px solid #8886; border-radius: .45rem;
-	padding: .55rem .75rem; margin-bottom: .6rem }
+.hrow { display: grid; gap: .15rem; border: 1px solid var(--border);
+	border-radius: .45rem; padding: .55rem .75rem; margin-bottom: .6rem;
+	background: var(--surface) }
 .hrow .top { display: flex; flex-wrap: wrap; gap: .25rem 1rem }
 .hrow .who-vs { font-size: 1.15rem; font-weight: 700 }
 .hrow .score { font-weight: 700 }
 .hrow .moves { font-family: ui-monospace, monospace; word-break: break-word }
 .hrow .moves a { text-decoration: none }
-.empty { opacity: .8 }
+.empty { color: var(--text-muted) }
 .actions a.action { font: inherit; font-size: 1.05rem; padding: .35rem .9rem;
-	text-decoration: none; border: 1px solid #8886; border-radius: .45rem }
-.tourneyform fieldset { border: 1px solid #8886; border-radius: .45rem;
+	text-decoration: none; border: 1px solid var(--border); border-radius: .3rem;
+	background: var(--surface); color: var(--text) }
+.tourneyform fieldset { border: 1px solid var(--border); border-radius: .45rem;
 	padding: .5rem .75rem .75rem; display: flex; flex-wrap: wrap; gap: .6rem;
-	align-items: end }
+	align-items: end; background: var(--surface) }
 .tourneyform .roster { display: grid; gap: .5rem; width: 100%;
 	grid-template-columns: 1fr 1fr; align-items: end }
 @media (max-width: 40rem) { .tourneyform .roster { grid-template-columns: 1fr } }
 .tourney-runs { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem }
 @media (min-width: 40rem) { .tourney-runs { grid-template-columns: 1fr 1fr } }
-.tourney-run { display: grid; gap: .1rem; border: 1px solid #8886; border-radius: .45rem;
-	padding: .55rem .75rem }
+.tourney-run { display: grid; gap: .1rem; border: 1px solid var(--border);
+	border-radius: .45rem; padding: .55rem .75rem; background: var(--surface) }
 .tourney-run > a { font-size: 1.2rem; font-weight: 700; text-decoration: none }
-.tourney-run .meta { display: flex; flex-wrap: wrap; gap: .25rem 1rem }
-.runstate { font-size: 1rem; border: 1px solid #8886; border-radius: .4rem;
-	padding: .05rem .5rem }
+.tourney-run .meta { display: flex; flex-wrap: wrap; gap: .25rem 1rem;
+	color: var(--text-muted) }
+.runstate { font-size: 1rem; border: 1px solid var(--border); border-radius: .4rem;
+	padding: .05rem .5rem; color: var(--text-muted) }
 .progress { font-weight: 700 }
 .tseries { display: grid; gap: .25rem; margin: .4rem 0 1rem; padding-left: 1.2rem }
 .tseries .score { font-weight: 700 }
-.live { opacity: .7 }
+.live { color: var(--text-muted) }
 .tboard { border-collapse: collapse; font-size: 1rem }
-.tboard th, .tboard td { padding: .2rem .6rem; border-bottom: 1px solid #8884;
+.tboard th, .tboard td { padding: .2rem .6rem; border-bottom: 1px solid var(--border);
 	text-align: right }
+.tboard th { color: var(--text-muted) }
 .tboard th:first-child, .tboard td:first-child,
 .tboard th:nth-child(2), .tboard td:nth-child(2),
 .tboard th:nth-child(3), .tboard td:nth-child(3) { text-align: left }

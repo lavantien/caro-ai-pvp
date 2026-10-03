@@ -5,9 +5,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>caro playback {{.GameID}}</title>
+<link rel="stylesheet" href="/shell.css">
 {{template "board-css"}}
 <style>
-:root { color-scheme: light dark }
 body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 48rem; padding: .5rem }
 h1 { font-size: 1.2rem; margin: .2rem 0 }
 #pb-controls { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; justify-content: center; margin: .6rem 0 }
@@ -15,7 +15,7 @@ h1 { font-size: 1.2rem; margin: .2rem 0 }
 #pb-counter { font-family: ui-monospace, monospace; font-size: 1.2rem;
 	font-variant-numeric: tabular-nums; margin-left: .5rem }
 #pb-outcome, #won-by { font-weight: 700 }
-#won-by { color: #c62828 }
+#won-by { color: var(--red) }
 #pb-moves { display: flex; flex-wrap: wrap; gap: .25rem .6rem; list-style: none;
 	padding: 0; margin: 0; font-family: ui-monospace, monospace; font-size: 1rem }
 #pb-moves li.latest { font-weight: 700; text-decoration: underline }
