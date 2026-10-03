@@ -3,8 +3,9 @@ dist/
 *.db
 *.db-wal
 *.db-shm
-db/
-logs/
+!docs/evidence/**/*.db
+/db/
+/logs/
 coverage.out
 *.prof
 *.log
