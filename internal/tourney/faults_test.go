@@ -197,8 +197,11 @@ func TestConductorDriveFailsWhenScheduleReadFails(t *testing.T) {
 	}
 }
 
-// TestConductorDriveAbortsOnDeadContext pins the pre-cancelled drive: no
-// series dispatches at all, and the abort names the context error.
+// TestConductorDriveAbortsOnDeadContext pins the pre-dispatch abort: over a
+// dead context no series starts at all, and the abort names the context
+// error. The drive runs with a zero semaphore so the dispatch loop's only
+// ready arm is the cancellation, the deterministic shape of the abort
+// window.
 func TestConductorDriveAbortsOnDeadContext(t *testing.T) {
 	ts, _ := newTestStore(t)
 	pointLogsAt(t)
@@ -212,12 +215,25 @@ func TestConductorDriveAbortsOnDeadContext(t *testing.T) {
 		t.Fatalf("start run: %v", err)
 	}
 
-	_, err = c.drive(ctx, ts, run, rosterTwo(), tiers, 1)
+	_, err = c.drive(ctx, ts, run, rosterTwo(), tiers, 0)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("drive = %v, want the context-cancel abort", err)
 	}
 	if starts, closed, _ := src.snapshot(); len(starts) != 0 || closed != 0 {
 		t.Errorf("source saw %d starts and %d closes, want none", len(starts), closed)
+	}
+}
+
+// TestConductorStartRunFailsWhenGateReadFails pins the run gate's read
+// fault: a store that cannot answer the ongoing-run check refuses the start
+// before anything persists.
+func TestConductorStartRunFailsWhenGateReadFails(t *testing.T) {
+	ts, srv := newTestStore(t)
+	runSQL(t, srv, `DROP TABLE tournament_runs`)
+	_, _, err := NewConductor(&fakeSource{script: easySweeps}).startRun(context.Background(), ts, rosterTwo(),
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1)
+	if err == nil || !strings.Contains(err.Error(), "ongoing run") {
+		t.Fatalf("start run = %v, want the gate-read failure", err)
 	}
 }
 
@@ -339,14 +355,16 @@ func TestAppendGameStatementFaults(t *testing.T) {
 	}
 
 	cases := []struct {
-		name  string
-		fault string
-		want  string
+		name        string
+		fault       string
+		want        string
+		gamesExists bool
 	}{
+		{"games count", `DROP TABLE tournament_games`, "count games", false},
 		{"blocked insert", `CREATE TRIGGER block_game_insert BEFORE INSERT ON tournament_games
-			BEGIN SELECT RAISE(ABORT, 'blocked'); END`, "append game"},
+			BEGIN SELECT RAISE(ABORT, 'blocked'); END`, "append game", true},
 		{"blocked settle", `CREATE TRIGGER block_series_update BEFORE UPDATE ON tournament_series
-			BEGIN SELECT RAISE(ABORT, 'blocked'); END`, "settle series"},
+			BEGIN SELECT RAISE(ABORT, 'blocked'); END`, "settle series", true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -362,8 +380,10 @@ func TestAppendGameStatementFaults(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("append = %v, want the %q failure", err, tc.want)
 			}
-			if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_games`); n != 0 {
-				t.Errorf("games after the failed append = %d, want the rolled-back 0", n)
+			if tc.gamesExists {
+				if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_games`); n != 0 {
+					t.Errorf("games after the failed append = %d, want the rolled-back 0", n)
+				}
 			}
 			if s := mustSchedule(t, srv, run.ID)[0]; s.RedFirstWins != 0 || s.BlueFirstWins != 0 || s.FinishedAt != nil {
 				t.Errorf("series after the failed append = %+v, want untouched", s)

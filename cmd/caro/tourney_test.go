@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -92,6 +93,8 @@ func TestPrintRunResult(t *testing.T) {
 		Series: []tourney.SeriesResult{
 			{PairingSlot: 0, RedFirst: roster[0], BlueFirst: roster[1],
 				WinnerSlot: &winner, RedFirstWins: 2, BlueFirstWins: 1},
+			{PairingSlot: 1, RedFirst: roster[1], BlueFirst: roster[0],
+				WinnerSlot: nil, RedFirstWins: 1, BlueFirstWins: 1},
 		},
 		Board: []tourney.Standings{
 			{Slot: 0, Rating: 1030, Wins: 2, Losses: 1, SeriesWon: 1, GamesPlayed: 3},
@@ -106,10 +109,40 @@ func TestPrintRunResult(t *testing.T) {
 	// tabwriter pads the table cells, so assert on the tab-free text.
 	for _, want := range []string{
 		"series  0: easy-1 (red-first) 2 - 1 medium-1, winner easy-1",
+		"series  1: medium-1 (red-first) 1 - 1 easy-1, winner drawn",
 		"participant", "rating", "easy-1", "1030", "medium-1", "970",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output misses %q:\n%s", want, out)
 		}
+	}
+}
+
+// failWriter rejects every write: the sink-down fault behind the renderer's
+// error wraps.
+type failWriter struct{}
+
+func (failWriter) Write([]byte) (int, error) { return 0, errors.New("sink is down") }
+
+// TestPrintRunResultSurfacesWriteFaults pins the renderer's error arms: a
+// failing series-line write returns at once, and a leaderboard that only
+// fails when the tabwriter flushes surfaces the flush wrap.
+func TestPrintRunResultSurfacesWriteFaults(t *testing.T) {
+	roster := []tourney.Participant{
+		{Slot: 0, Name: "easy-1", Tier: config.TierEasy.Name},
+		{Slot: 1, Name: "medium-1", Tier: config.TierMedium.Name},
+	}
+	withLine := tourney.RunResult{Series: []tourney.SeriesResult{
+		{PairingSlot: 0, RedFirst: roster[0], BlueFirst: roster[1]},
+	}}
+	if err := printRunResult(failWriter{}, roster, withLine); err == nil ||
+		!strings.Contains(err.Error(), "print series line") {
+		t.Errorf("series-line write fault = %v, want the print wrap", err)
+	}
+
+	boardOnly := tourney.RunResult{Board: []tourney.Standings{{Slot: 0, Rating: 1000}}}
+	if err := printRunResult(failWriter{}, roster, boardOnly); err == nil ||
+		!strings.Contains(err.Error(), "flush leaderboard") {
+		t.Errorf("flush fault = %v, want the flush wrap", err)
 	}
 }
