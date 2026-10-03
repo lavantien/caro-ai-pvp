@@ -232,6 +232,7 @@ type persistedGame struct {
 	Outcome           string
 	WonBy             *string
 	FullTurns         int
+	Stones            int
 }
 
 func persistedGames(t *testing.T, ts *Store, seriesID int64) []persistedGame {
@@ -239,7 +240,7 @@ func persistedGames(t *testing.T, ts *Store, seriesID int64) []persistedGame {
 	var out []persistedGame
 	err := ts.srv.WithinTx(context.Background(), func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(context.Background(), `
-		SELECT idx_in_series, red_slot, blue_slot, outcome, won_by, full_turns
+		SELECT idx_in_series, red_slot, blue_slot, outcome, won_by, full_turns, length(moves)/2
 		FROM tournament_games WHERE series_id = ? ORDER BY idx_in_series`, seriesID)
 		if err != nil {
 			return err
@@ -247,7 +248,7 @@ func persistedGames(t *testing.T, ts *Store, seriesID int64) []persistedGame {
 		defer func() { _ = rows.Close() }()
 		for rows.Next() {
 			var g persistedGame
-			if err := rows.Scan(&g.Idx, &g.RedSlot, &g.BlueSlot, &g.Outcome, &g.WonBy, &g.FullTurns); err != nil {
+			if err := rows.Scan(&g.Idx, &g.RedSlot, &g.BlueSlot, &g.Outcome, &g.WonBy, &g.FullTurns, &g.Stones); err != nil {
 				return err
 			}
 			out = append(out, g)

@@ -101,7 +101,8 @@ func TestConductorEndToEndEasyTiers(t *testing.T) {
 		t.Errorf("leaderboard games = %d, persisted games = %d, want two seats per game", played, games)
 	}
 
-	// Real M-lines landed in per-series logs beside the header and verdict.
+	// Real M-lines landed in per-series logs beside the header, one summary
+	// line per finished game, and the verdict.
 	for _, s := range sched {
 		body, err := os.ReadFile(seriesLogFile(t, logDir, s.ID))
 		if err != nil {
@@ -114,6 +115,17 @@ func TestConductorEndToEndEasyTiers(t *testing.T) {
 		} {
 			if !strings.Contains(string(body), want) {
 				t.Errorf("series %d log misses %q:\n%s", s.ID, want, body)
+			}
+		}
+		// Every persisted game of the series carries its own trace line with
+		// the outcome, stone count, and won-by tag.
+		for _, g := range persistedGames(t, ts, s.ID) {
+			want := fmt.Sprintf("game %d: %s, %d moves", g.Idx+1, g.Outcome, g.Stones)
+			if !strings.Contains(string(body), want) {
+				t.Errorf("series %d log misses %q:\n%s", s.ID, want, body)
+			}
+			if g.WonBy != nil && !strings.Contains(string(body), ", won by "+*g.WonBy) {
+				t.Errorf("series %d log misses the won-by %q:\n%s", s.ID, *g.WonBy, body)
 			}
 		}
 	}

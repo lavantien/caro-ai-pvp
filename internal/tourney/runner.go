@@ -410,6 +410,15 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 			}); aerr != nil {
 				return line, fmt.Errorf("persist game %d: %w", games+1, aerr)
 			}
+			// The physical trace: one summary line per finished game beside
+			// the M-lines, so a series log reads as evidence without the db.
+			summary := fmt.Sprintf("game %d: %s, %d moves", games+1, outcome, len(truth))
+			if wonBy != nil {
+				summary += ", won by " + *wonBy
+			}
+			if lerr := logs.WriteSeriesLine(run.ID, row.ID, summary); lerr != nil {
+				return line, lerr
+			}
 			switch outcome {
 			case server.RedWins:
 				if redIsRedFirst {
