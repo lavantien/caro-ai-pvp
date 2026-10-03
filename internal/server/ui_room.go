@@ -129,11 +129,32 @@ func (p *RoomPages) HandlePlayback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "playback read failed", http.StatusInternalServerError)
 		return
 	}
+	// A recorded bot seat renders the game's room-unique bot name over the
+	// reserved account name, the same law history rows carry.
+	if g.BotName != "" {
+		if isBotAccountName(redName) {
+			redName = g.BotName
+		} else if isBotAccountName(blueName) {
+			blueName = g.BotName
+		}
+	}
 	p.renderPlayback(w, playbackView{
 		boardData: boardData{Cells: boardCells(names), BoardSize: config.BoardSize},
 		GameID:    g.ID, RedName: redName, BlueName: blueName,
 		Outcome: outcomeWord(g.Outcome), WonBy: derefString(g.WonBy), Moves: names,
 	})
+}
+
+// isBotAccountName reports whether a users-join name is a reserved bot seat
+// account ("<tier>" under the BotAccountName law), the seat a game's
+// recorded BotName replaces.
+func isBotAccountName(name string) bool {
+	for i := range config.Tiers {
+		if name == config.BotAccountName(i) {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveRoom maps the path id onto a live room; anything but a live room id
@@ -242,7 +263,7 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 	// of the synthetic id would read as a missing account and fail the
 	// page. Bot guests render the same way through guestName.
 	if info.HostBotTier != "" {
-		view.HostName = "AI " + info.HostBotTier
+		view.HostName = botDisplayName(info.HostBotTier, info.ID)
 	} else {
 		hostName, err := p.userName(info.HostUserID)
 		if err != nil {
@@ -334,7 +355,7 @@ func (p *RoomPages) userName(id int64) (string, error) {
 func (p *RoomPages) guestName(info RoomInfo) string {
 	switch {
 	case info.VsBotTier != "":
-		return "AI " + info.VsBotTier
+		return botDisplayName(info.VsBotTier, info.ID)
 	case info.GuestUserID == 0:
 		return "waiting for opponent"
 	}
@@ -409,16 +430,19 @@ func moveLines(names []string) []moveLine {
 // path; a missing id maps to ErrNotFound like every single-row accessor.
 func (s *Store) gameByID(id int64) (Game, error) {
 	var g Game
-	var wonBy sql.NullString
+	var wonBy, botName sql.NullString
 	err := notFound(s.db.QueryRow(
-		`SELECT id, series_id, idx_in_series, red_user, blue_user, outcome, moves, full_turns, won_by, played_at
+		`SELECT id, series_id, idx_in_series, red_user, blue_user, outcome, moves, full_turns, won_by, bot_name, played_at
 		FROM games WHERE id = ?`, id,
 	).Scan(&g.ID, &g.SeriesID, &g.IdxInSeries, &g.RedUser, &g.BlueUser, &g.Outcome,
-		&g.Moves, &g.FullTurns, &wonBy, &g.PlayedAt))
+		&g.Moves, &g.FullTurns, &wonBy, &botName, &g.PlayedAt))
 	if err != nil {
 		return Game{}, fmt.Errorf("server: fetch game %d: %w", id, err)
 	}
 	g.WonBy = nullString(wonBy)
+	if botName.Valid {
+		g.BotName = botName.String
+	}
 	return g, nil
 }
 

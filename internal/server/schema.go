@@ -208,8 +208,16 @@ func botSeatSeedSQL() string {
 		strings.Join(values, ", ")
 }
 
+// schemaV5 names the bot seat of a player-versus-bot game: bot_name holds
+// the seat's display name "<difficulty>-<roomid>" so history and playback
+// render the room-unique bot instead of the tier's reserved account name.
+// Rows older than the column stay NULL and keep rendering the account name.
+const schemaV5 = `
+ALTER TABLE games ADD COLUMN bot_name TEXT;
+`
+
 // migrations holds one SQL script per schema version: index i upgrades
 // version i to version i+1. Its length must equal config.SQLiteSchemaVersion
 // so the constants hub stays authoritative; migrate enforces that at
 // startup. New versions only ever append, never edit a landed script.
-var migrations = []string{schemaV1, schemaV2, schemaV3, schemaV4 + botSeatSeedSQL()}
+var migrations = []string{schemaV1, schemaV2, schemaV3, schemaV4 + botSeatSeedSQL(), schemaV5}

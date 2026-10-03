@@ -215,7 +215,7 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 		t.Errorf("stats after the bot series = %+v, want 2-0-0 with 1 series won", st)
 	}
 
-	// History lists both games with the tier as the opponent.
+	// History lists both games with the room-unique bot as the opponent.
 	rows, err := s.store.MatchHistory(alice.ID)
 	if err != nil {
 		t.Fatalf("history: %v", err)
@@ -224,13 +224,14 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 		t.Fatalf("history rows = %d, want 2", len(rows))
 	}
 	g2, g1 := rows[0], rows[1]
-	if g1.Red != "alice" || g1.Blue != config.BotAccountName(0) || g1.RedWins != 1 || g1.BlueWins != 0 {
+	botName := botDisplayName(config.TierEasy.Name, r.ID())
+	if g1.Red != "alice" || g1.Blue != botName || g1.RedWins != 1 || g1.BlueWins != 0 {
 		t.Errorf("game 1 row = %s vs %s %d-%d, want alice over %s at 1-0",
-			g1.Red, g1.Blue, g1.RedWins, g1.BlueWins, config.BotAccountName(0))
+			g1.Red, g1.Blue, g1.RedWins, g1.BlueWins, botName)
 	}
-	if g2.Red != config.BotAccountName(0) || g2.Blue != "alice" || g2.RedWins != 0 || g2.BlueWins != 2 {
+	if g2.Red != botName || g2.Blue != "alice" || g2.RedWins != 0 || g2.BlueWins != 2 {
 		t.Errorf("game 2 row = %s vs %s %d-%d, want %s over alice at 0-2",
-			g2.Red, g2.Blue, g2.RedWins, g2.BlueWins, config.BotAccountName(0))
+			g2.Red, g2.Blue, g2.RedWins, g2.BlueWins, botName)
 	}
 }
 
@@ -431,8 +432,9 @@ func TestPlaybackBotGameOpensForTheHumanSeat(t *testing.T) {
 	}
 	// Game 1 seated the bot on blue: the page names the seats through the
 	// same users rows history reads.
-	if !strings.Contains(body, "red alice vs blue "+config.BotAccountName(0)) {
-		t.Errorf("playback body misses the bot seat name %q (body %s)", config.BotAccountName(0), body)
+	botName := botDisplayName(config.TierEasy.Name, r.ID())
+	if !strings.Contains(body, "red alice vs blue "+botName) {
+		t.Errorf("playback body misses the bot seat name %q (body %s)", botName, body)
 	}
 	carol := seedUser(t, s.store, "carol")
 	for name, tok := range map[string]string{"stranger": mintSession(t, s.store, carol), "anonymous": ""} {

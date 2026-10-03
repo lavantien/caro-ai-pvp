@@ -156,6 +156,7 @@ func TestFailedMigrationRollsBackAndStays(t *testing.T) {
 		"CREATE TABLE never2 (y)",
 		"CREATE TABLE never3 (z)",
 		"CREATE TABLE never4 (w)",
+		"CREATE TABLE never5 (v)",
 	}
 	err = s.migrate()
 	if err == nil || !strings.Contains(err.Error(), "apply migration 1") {
@@ -237,6 +238,11 @@ func TestMigrateV1DatabaseUpgradesToV2(t *testing.T) {
 	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 2`); err != nil {
 		t.Fatalf("roll ledger back to v1: %v", err)
 	}
+	// Reverse the v5 column too: the surgery rewinds the ledger only, and
+	// the ALTER of migration 5 cannot re-add an existing column.
+	if _, err := s.db.Exec(`ALTER TABLE games DROP COLUMN bot_name`); err != nil {
+		t.Fatalf("drop the v5 column: %v", err)
+	}
 	for _, idx := range []string{"idx_games_red_user", "idx_games_blue_user"} {
 		if _, err := s.db.Exec(`DROP INDEX ` + idx); err != nil {
 			t.Fatalf("drop %s: %v", idx, err)
@@ -276,6 +282,9 @@ func TestMigrateV2DatabaseUpgradesToV3(t *testing.T) {
 	}
 	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 3`); err != nil {
 		t.Fatalf("roll ledger back to v2: %v", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE games DROP COLUMN bot_name`); err != nil {
+		t.Fatalf("drop the v5 column: %v", err)
 	}
 	for _, table := range []string{"tournament_standings", "tournament_games", "tournament_series", "tournament_participants", "tournament_runs"} {
 		if _, err := s.db.Exec(`DROP TABLE ` + table); err != nil {
@@ -318,8 +327,11 @@ func TestMigrateV3DatabaseUpgradesToV4(t *testing.T) {
 	); err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
-	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version = 4`); err != nil {
+	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 4`); err != nil {
 		t.Fatalf("roll ledger back to v3: %v", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE games DROP COLUMN bot_name`); err != nil {
+		t.Fatalf("drop the v5 column: %v", err)
 	}
 	if _, err := s.db.Exec(`DROP TABLE game_stats`); err != nil {
 		t.Fatalf("drop game_stats: %v", err)

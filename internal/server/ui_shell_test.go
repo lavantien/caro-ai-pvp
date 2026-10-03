@@ -304,13 +304,15 @@ func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {
 			created++
 		}
 	}
+	var botIDs [len(config.Tiers)]string
 	for i := range config.Tiers {
-		status, _, body := doShell(t, c, http.MethodPost, srv.URL+"/rooms", token, url.Values{
+		status, h, body := doShell(t, c, http.MethodPost, srv.URL+"/rooms", token, url.Values{
 			"tc": {"0"}, "bo": {strconv.Itoa(config.SeriesBO3)}, "bot": {config.Tiers[i].Name},
 		})
 		if status != http.StatusSeeOther {
 			t.Fatalf("create bot %s: status = %d, want 303 (body %s)", config.Tiers[i].Name, status, body)
 		}
+		botIDs[i] = strings.TrimPrefix(h.Get("Location"), "/rooms/")
 		created++
 	}
 
@@ -324,7 +326,7 @@ func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {
 	wantShellBody(t, body, append([]string{
 		"1&#43;0", "2&#43;1", "3&#43;2", "bo3", "bo5", "bo7", "bo11",
 		"human, open seat", "AI easy", "AI medium", "AI hard",
-	}, roomGridLabels(config.Tiers)...)...)
+	}, roomGridLabels(config.Tiers, botIDs)...)...)
 	if got := strings.Count(body, `class="room"`); got != created {
 		t.Errorf("grid shows %d rooms, want %d", got, created)
 	}
@@ -332,10 +334,10 @@ func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {
 
 // roomGridLabels names the tier rooms the way the grid renders them, so
 // the options test follows the config table instead of restating it.
-func roomGridLabels(tiers [len(config.Tiers)]config.Tier) []string {
+func roomGridLabels(tiers [len(config.Tiers)]config.Tier, ids [len(config.Tiers)]string) []string {
 	labels := make([]string, 0, len(tiers))
 	for i := range tiers {
-		labels = append(labels, "alice vs AI "+tiers[i].Name)
+		labels = append(labels, "alice vs "+tiers[i].Name+"-"+ids[i])
 	}
 	return labels
 }

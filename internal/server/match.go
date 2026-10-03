@@ -217,7 +217,7 @@ func (r *Room) persistGameLocked(redUser, blueUser int64, outcome Outcome, wonBy
 	unit := Completion{Games: []Game{{
 		SeriesID: seriesID, IdxInSeries: idx, RedUser: redUser, BlueUser: blueUser,
 		Outcome: outcome.String(), Moves: blob, FullTurns: fullTurns, WonBy: wonBy,
-		StatLines: append([]GameStat(nil), r.mlines...),
+		BotName: r.botDisplayNameLocked(), StatLines: append([]GameStat(nil), r.mlines...),
 	}}}
 	if r.series.State() == SeriesFinished {
 		unit.Finish = &SeriesFinish{
@@ -227,6 +227,25 @@ func (r *Room) persistGameLocked(redUser, blueUser int64, outcome Outcome, wonBy
 	return r.wq.Send(func(ctx context.Context) error {
 		return r.store.ApplyCompletion(ctx, unit)
 	})
+}
+
+// botDisplayNameLocked names a room's bot seat the way every surface
+// renders it: "<difficulty>-<roomid>", unique per room, empty when neither
+// seat is a bot. Tournament bot-vs-bot rooms never ask (they persist
+// nothing), and their named participants live in the roster.
+func (r *Room) botDisplayNameLocked() string {
+	if tier := botTierName(r.guest.bot); tier != "" {
+		return botDisplayName(tier, r.id)
+	}
+	return botDisplayName(botTierName(r.host.bot), r.id)
+}
+
+// botDisplayName is the single law of the bot seat's name.
+func botDisplayName(tier, roomID string) string {
+	if tier == "" {
+		return ""
+	}
+	return tier + "-" + roomID
 }
 
 // Forfeit bills a mid-series quit: Series.Forfeit books every remaining

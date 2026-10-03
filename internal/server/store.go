@@ -374,8 +374,12 @@ type Game struct {
 	Moves       []byte
 	FullTurns   int
 	WonBy       *string
-	StatLines   []GameStat
-	PlayedAt    int64
+	// BotName is the bot seat's display name of a player-versus-bot game,
+	// "<difficulty>-<roomid>"; empty on human games and the tournament's
+	// unpersisted bot-versus-bot rooms.
+	BotName   string
+	StatLines []GameStat
+	PlayedAt  int64
 }
 
 // GameStat is one bot move's persisted Implication 1.5 line: MoveNo is the
@@ -395,10 +399,16 @@ func (s *Store) AppendGame(g Game) (Game, error) {
 }
 
 func insertGameRow(ctx context.Context, run sqlRunner, g Game) (Game, error) {
+	// An empty BotName persists as NULL: the history query's COALESCE
+	// falls back to the users-join name only for a NULL column.
+	var botName any
+	if g.BotName != "" {
+		botName = g.BotName
+	}
 	err := run.QueryRowContext(ctx,
-		`INSERT INTO games (series_id, idx_in_series, red_user, blue_user, outcome, moves, full_turns, won_by)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, played_at`,
-		g.SeriesID, g.IdxInSeries, g.RedUser, g.BlueUser, g.Outcome, g.Moves, g.FullTurns, sqlArg(g.WonBy),
+		`INSERT INTO games (series_id, idx_in_series, red_user, blue_user, outcome, moves, full_turns, won_by, bot_name)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, played_at`,
+		g.SeriesID, g.IdxInSeries, g.RedUser, g.BlueUser, g.Outcome, g.Moves, g.FullTurns, sqlArg(g.WonBy), botName,
 	).Scan(&g.ID, &g.PlayedAt)
 	if err != nil {
 		return Game{}, fmt.Errorf("server: append game: %w", err)
@@ -659,8 +669,16 @@ type MatchHistoryRow struct {
 // the previous loser between games, so a color count would mix the two
 // participants and can reverse the leader of a rotating series.
 func (s *Store) MatchHistory(userID int64) ([]MatchHistoryRow, error) {
+	// The bot seat's name renders as the game's recorded bot_name
+	// ("<difficulty>-<roomid>"), falling back to the reserved account name
+	// for rows older than the column; the seat is identified by the bot
+	// account marker, the same emptiness law the store resolves seats by.
 	rows, err := s.db.Query(`
-SELECT g.played_at, ru.username, bu.username,
+SELECT g.played_at,
+	CASE WHEN length(ru.salt) = 0 AND length(ru.hash) = 0
+	     THEN COALESCE(g.bot_name, ru.username) ELSE ru.username END,
+	CASE WHEN length(bu.salt) = 0 AND length(bu.hash) = 0
+	     THEN COALESCE(g.bot_name, bu.username) ELSE bu.username END,
 	(SELECT COUNT(*) FROM games w
 	 WHERE w.series_id = g.series_id AND w.idx_in_series <= g.idx_in_series
 	   AND ((w.outcome = ? AND w.red_user = g.red_user) OR (w.outcome = ? AND w.blue_user = g.red_user))),

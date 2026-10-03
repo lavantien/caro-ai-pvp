@@ -305,8 +305,9 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("home: status = %d, want 200", status)
 	}
-	if !strings.Contains(body, "AI easy vs AI medium") {
-		t.Error("home card misses \"AI easy vs AI medium\"")
+	easyName, mediumName := botDisplayName("easy", r.ID()), botDisplayName("medium", r.ID())
+	if !strings.Contains(body, easyName+" vs "+mediumName) {
+		t.Errorf("home card misses %q", easyName+" vs "+mediumName)
 	}
 	if strings.Contains(body, "#-3") {
 		t.Error("home card leaks the synthetic host id")
@@ -321,7 +322,7 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 		t.Fatalf("room page: status = %d, want 200", status)
 	}
 	for _, want := range []string{
-		"red / AI easy", "blue / AI medium", "AI easy 0 - 0 AI medium", "red to move (AI easy)",
+		"red / " + easyName, "blue / " + mediumName, easyName + " 0 - 0 " + mediumName, "red to move (" + easyName + ")",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("room page misses %q", want)
