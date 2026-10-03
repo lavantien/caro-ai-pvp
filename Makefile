@@ -1,7 +1,14 @@
 BINARY := bin/caro
 COVERPROFILE := coverage.out
 
-.PHONY: all doctor fmt fmt-check lint vet build test test-race cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full firewall tidy ci
+MERMAID_CLI_VERSION := 12.0.0
+PUPPETEER_VERSION := 25.12.0
+DIAGRAMS_DIR := docs/diagrams
+DIAGRAM_BG := rgb(13,17,23)
+DIAGRAM_SRC := $(wildcard $(DIAGRAMS_DIR)/*.mmd)
+DIAGRAM_PNG := $(DIAGRAM_SRC:.mmd=.png)
+
+.PHONY: all doctor fmt fmt-check lint vet build test test-race cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full firewall tidy diagrams diagrams-browser ci
 
 all: build
 
@@ -101,6 +108,25 @@ firewall:
 
 tidy:
 	CGO_ENABLED=1 go mod tidy
+
+# diagrams renders every docs/diagrams/*.mmd to a dark-mode PNG next to its
+# source (docs/diagrams/<name>.png, embedded by README.md) at 3x scale for
+# zoom legibility. The theme and colors live in mermaid-config.json, the
+# browser flags in puppeteer.json; editing either re-renders everything.
+# Idempotent: only inputs newer than their PNG re-render. Needs node >= 22.13
+# and network on the first run (npx fetches mermaid-cli plus its puppeteer
+# peer, and diagrams-browser installs the headless browser into the user
+# cache at %USERPROFILE%/.cache/puppeteer).
+diagrams: diagrams-browser $(DIAGRAM_PNG)
+
+# mermaid-cli 12 takes puppeteer as a peer dependency and npx never runs
+# package install scripts, so the browser download has to be explicit. The
+# version is pinned by the puppeteer package, matching $(PUPPETEER_VERSION).
+diagrams-browser:
+	npx -y puppeteer@$(PUPPETEER_VERSION) browsers install chrome-headless-shell
+
+$(DIAGRAMS_DIR)/%.png: $(DIAGRAMS_DIR)/%.mmd $(DIAGRAMS_DIR)/mermaid-config.json $(DIAGRAMS_DIR)/puppeteer.json
+	npx -y -p @mermaid-js/mermaid-cli@$(MERMAID_CLI_VERSION) -p puppeteer@$(PUPPETEER_VERSION) mmdc -i $< -o $@ -e png -b '$(DIAGRAM_BG)' -s 3 -c $(DIAGRAMS_DIR)/mermaid-config.json -p $(DIAGRAMS_DIR)/puppeteer.json
 
 ci: fmt-check lint vet build test-race cover
 	@echo "ci: all green"
