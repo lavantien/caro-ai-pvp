@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -63,8 +64,15 @@ type Store struct {
 
 // Open opens the database at path, applies the config pragmas on every
 // pooled connection, sizes the pool to the host, and runs the startup
-// self-migration. On failure the pool is closed so Open leaks nothing.
+// self-migration. The parent directory is created first so a default path
+// under ./db lands there without a manual mkdir. On failure the pool is
+// closed so Open leaks nothing.
 func Open(path string) (*Store, error) {
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, fmt.Errorf("server: create db dir %s: %w", dir, err)
+		}
+	}
 	db, err := sql.Open("sqlite", dsn(path))
 	if err != nil {
 		return nil, fmt.Errorf("server: open %s: %w", path, err)

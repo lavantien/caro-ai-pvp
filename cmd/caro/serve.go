@@ -15,7 +15,9 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/tourney"
 )
 
-const defaultDBPath = "caro.db"
+// defaultDBPath lands every database file under ./db: the root stays clean
+// of db, -wal, and -shm artifacts.
+const defaultDBPath = "db/caro.db"
 
 // HTTP lifecycle knobs of the serve command, named locals until the config
 // hub carries server constants (gap reported with the milestone).

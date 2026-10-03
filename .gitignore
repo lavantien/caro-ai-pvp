@@ -3,6 +3,8 @@ dist/
 *.db
 *.db-wal
 *.db-shm
+db/
+logs/
 coverage.out
 *.prof
 *.log
