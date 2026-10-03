@@ -492,8 +492,8 @@ func TestServerConstants(t *testing.T) {
 	if UsernameMaxBytes < 1 || UsernameMaxBytes > 64 {
 		t.Errorf("UsernameMaxBytes = %d, want in [1, 64]", UsernameMaxBytes)
 	}
-	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 4 {
-		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 4]: raise the ceiling with the next migration", SQLiteSchemaVersion)
+	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 5 {
+		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 5]: raise the ceiling with the next migration", SQLiteSchemaVersion)
 	}
 	if SQLiteBusyTimeoutMs < 1000 || SQLiteBusyTimeoutMs > 60000 {
 		t.Errorf("SQLiteBusyTimeoutMs = %d, want in [1000, 60000]", SQLiteBusyTimeoutMs)
