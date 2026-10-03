@@ -336,6 +336,18 @@ func meanF(s []float64) float64 {
 	return sum / float64(len(s))
 }
 
+// nonMateScores filters the mate band out of a score sample: those lines
+// are mate distances on the mateWin lattice, not milliunit leaf scores.
+func nonMateScores(s []int) []int {
+	out := make([]int, 0, len(s))
+	for _, v := range s {
+		if v > -mateFloor && v < mateFloor {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
 func medianInt(s []int) float64 {
 	if len(s) == 0 {
 		return 0

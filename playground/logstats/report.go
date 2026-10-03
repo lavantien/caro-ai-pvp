@@ -39,8 +39,12 @@ func renderReport(w io.Writer, a *analysis) {
 		fmt.Fprintf(w, "- mean t: %.2f s, mean alloc: %.2f s, mean alloc/t: %s\n",
 			meanF(t.ts), meanF(t.allocs), displayUtil(t))
 		fmt.Fprintf(w, "- mean tt: %.1f%%\n", meanInt(t.tts))
-		fmt.Fprintf(w, "- score: min %s, max %s, mean %.1f\n",
-			displayScore(minOf(t.scores)), displayScore(maxOf(t.scores)), meanInt(t.scores))
+		// The score mean excludes mate-band lines: their mega-magnitudes
+		// would drown the milliunit leaf scores the mean exists to show.
+		nonMate := nonMateScores(t.scores)
+		fmt.Fprintf(w, "- score: min %s, max %s, mean %.1f over %d non-mate lines\n",
+			displayScore(minOf(t.scores)), displayScore(maxOf(t.scores)),
+			meanInt(nonMate), len(nonMate))
 		fmt.Fprintf(w, "- mate markers: +M %d, -M %d\n", t.matePos, t.mateNeg)
 		fmt.Fprintf(w, "- anomalies: d=1 non-first %d, zero nps %d, dup consecutive %d\n\n",
 			t.anomD1, t.anomZeroNps, t.anomDup)
