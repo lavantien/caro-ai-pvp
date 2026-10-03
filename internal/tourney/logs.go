@@ -49,25 +49,24 @@ func (g *Logs) WriteRunSummary(run Run, roster []Participant, board []Standings)
 	for _, p := range roster {
 		name[p.Slot] = p
 	}
-	path := filepath.Join(g.dir, config.TournamentSummaryName)
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("tourney: open run summary %s: %w", path, err)
-	}
-	defer f.Close()
+	var sb strings.Builder
 	tc := config.TimeControls[run.TCIdx]
-	fmt.Fprintf(f, "run %d\ntc %d+%d bo%d start rating %d\nfinished %s\n\n",
+	fmt.Fprintf(&sb, "run %d\ntc %d+%d bo%d start rating %d\nfinished %s\n\n",
 		run.ID, tc.InitialMin, tc.IncrementSec, run.BOLen, run.StartRating,
 		time.Now().Format(config.TournamentRunDirFormat))
-	fmt.Fprintf(f, "rank\tparticipant\ttier\trating\tseries\twins\tlosses\tdraws\tgames\n")
+	sb.WriteString("rank\tparticipant\ttier\trating\tseries\twins\tlosses\tdraws\tgames\n")
 	for rank, st := range board {
 		p, ok := name[st.Slot]
 		if !ok {
 			return fmt.Errorf("tourney: summary slot %d is outside the roster", st.Slot)
 		}
-		fmt.Fprintf(f, "%d\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n",
+		fmt.Fprintf(&sb, "%d\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n",
 			rank+1, p.Name, p.Tier, st.Rating, st.SeriesWon,
 			st.Wins, st.Losses, st.Draws, st.GamesPlayed)
+	}
+	path := filepath.Join(g.dir, config.TournamentSummaryName)
+	if err := os.WriteFile(path, []byte(sb.String()), 0o644); err != nil {
+		return fmt.Errorf("tourney: write run summary %s: %w", path, err)
 	}
 	return nil
 }
