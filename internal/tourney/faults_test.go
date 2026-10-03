@@ -197,16 +197,17 @@ func TestConductorDriveFailsWhenScheduleReadFails(t *testing.T) {
 	}
 }
 
-// TestConductorDriveAbortsOnDeadContext pins the pre-dispatch abort: over a
-// dead context no series starts at all, and the abort names the context
-// error. The drive runs with a zero semaphore so the dispatch loop's only
-// ready arm is the cancellation, the deterministic shape of the abort
-// window.
+// TestConductorDriveAbortsOnDeadContext pins the pre-dispatch abort: with
+// the dispatch loop parked on a zero-capacity semaphore (its send can never
+// succeed, so the loop's only exit is the cancellation) a context that dies
+// mid-drive aborts before any series starts, and the abort names the
+// context error. The cancel lands a beat after the drive's schedule read, a
+// local SQLite read of two rows, and the assertion on the abort wrap makes
+// a cancel that raced ahead of it a loud failure.
 func TestConductorDriveAbortsOnDeadContext(t *testing.T) {
 	ts, _ := newTestStore(t)
 	pointLogsAt(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
 	src := &fakeSource{script: easySweeps}
 	c := NewConductor(src)
 	run, tiers, err := c.startRun(context.Background(), ts, rosterTwo(),
@@ -215,9 +216,21 @@ func TestConductorDriveAbortsOnDeadContext(t *testing.T) {
 		t.Fatalf("start run: %v", err)
 	}
 
-	_, err = c.drive(ctx, ts, run, rosterTwo(), tiers, 0)
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("drive = %v, want the context-cancel abort", err)
+	done := make(chan error, 1)
+	go func() {
+		_, err := c.drive(ctx, ts, run, rosterTwo(), tiers, 0)
+		done <- err
+	}()
+	time.Sleep(250 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-done:
+		if err == nil || !strings.Contains(err.Error(), "aborted: context canceled") {
+			t.Fatalf("drive = %v, want the run-abort wrap over the cancel", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("drive never returned after the cancel")
 	}
 	if starts, closed, _ := src.snapshot(); len(starts) != 0 || closed != 0 {
 		t.Errorf("source saw %d starts and %d closes, want none", len(starts), closed)
