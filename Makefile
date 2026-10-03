@@ -93,7 +93,8 @@ serve:
 
 # Headless tournament drivers of first-cause.md Scenario 2. Each prints the
 # per-series lines and the final leaderboard to stdout and writes the
-# per-series txt logs under config.TournamentLogDir (tourney-logs/). ARGS
+# per-series txt logs and the summary into their own timestamped folder under
+# logs/tourny/ (config.TournamentLogRoot). ARGS
 # forwards flags, e.g. make tourney-smoke-10 ARGS="--db scratch.db --parallel 1".
 tourney-smoke-32:
 	CGO_ENABLED=1 go run ./cmd/caro tourney smoke32 $(ARGS)
@@ -142,9 +143,9 @@ ci: fmt-check lint vet build test-race cover
 # parent module's package patterns, so it builds with -C at its own
 # directory and runs as a bin/ binary instead of go run: go -C would also
 # re-point the tool's working directory, breaking the relative --dir and
-# --out paths ARGS carries. Empty ARGS reads the canonical log dir
-# (config.TournamentLogDir, tourney-logs), e.g.
-# make logstats ARGS="--dir tourney-logs --out report.md".
+# --out paths ARGS carries. Empty ARGS reads the newest run folder under
+# config.TournamentLogRoot (logs/tourny), e.g.
+# make logstats ARGS="--dir logs/tourny/<run> --out report.md".
 .PHONY: logstats
 logstats:
 	CGO_ENABLED=1 go -C playground/logstats build -o ../../$(LOGSTATS_BIN) .
