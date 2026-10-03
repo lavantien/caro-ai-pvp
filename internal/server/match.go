@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/clock"
@@ -631,16 +632,15 @@ func (r *Room) runBotTurn() bool {
 	line := MLine(r.lastM.moveNumber, side, mv, &st, mLineTag)
 	r.mlines = append(r.mlines, GameStat{MoveNo: r.lastM.moveNumber, Line: line})
 	r.publishLocked(Event{Kind: EventKindMLine, Payload: line})
-	// The worker has no caller to surface a persistence error to; the
-	// completion path's failure is discarded here and the room advances per
-	// the in-memory-truth policy, the lost unit surfacing as the count gap
-	// between played and recorded games.
+	// The worker has no caller to surface a persistence error to; the room
+	// advances per the in-memory-truth policy and the log line is the lost
+	// unit's only trace.
 	if r.board.FastLastMoveWin(side, cell) {
-		_ = r.completeGameLocked(side, cell)
+		logBotCompletion(r.completeGameLocked(side, cell))
 		return true
 	}
 	if r.board.IsFull() {
-		_ = r.completeGameLocked(rules.Empty, cell)
+		logBotCompletion(r.completeGameLocked(rules.Empty, cell))
 		return true
 	}
 	r.turnStart = time.Now()
@@ -654,4 +654,13 @@ func (r *Room) firstLegalLocked() rules.Move {
 		panic("server: bot turn on a board with no legal move")
 	}
 	return r.legalBuf[0]
+}
+
+// logBotCompletion records a bot-ended game's persistence failure: the bot
+// worker has no caller to return it to, so without the log a lost game row
+// would leave no trace anywhere.
+func logBotCompletion(err error) {
+	if err != nil {
+		log.Printf("server: bot game completion persistence failed: %v", err)
+	}
 }

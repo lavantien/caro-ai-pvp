@@ -92,8 +92,10 @@ var (
 )
 
 // Bot seat accounts of human-vs-bot matches. Every tier owns one reserved
-// users row (seeded by schema v4 without an explicit id, so real accounts'
-// ids keep growing from 1 as SQLite assigns them) so a bot pairing's series
+// users row (seeded by schema v4 without an explicit id, because a fixed
+// reserved band would hijack SQLite's max-plus-one rowid assignment: a
+// negative band turns the first real account of a fresh database negative,
+// a high one pushes every later account onto it) so a bot pairing's series
 // and games rows satisfy the users foreign keys and history and playback
 // render the seat through the plain users join as "AI <tier>". The rows
 // carry empty salt and hash: real accounts always carry argon2 material, so

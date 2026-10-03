@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -185,6 +186,13 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 			}
 			if row.MoveNo != wantNos[gi][i] {
 				t.Errorf("game %d stat %d move_no = %d, want %d", gi+1, i, row.MoveNo, wantNos[gi][i])
+			}
+			// The structured column and the line's own M<n> token must
+			// agree, so a renderer drift cannot hide behind the byte check.
+			head, _, _ := strings.Cut(row.Line, ",")
+			n, perr := strconv.Atoi(strings.TrimPrefix(head, "M"))
+			if perr != nil || n != row.MoveNo {
+				t.Errorf("game %d stat %d = move_no %d with line token %q, want agreement", gi+1, i, row.MoveNo, head)
 			}
 		}
 	}
@@ -456,11 +464,15 @@ func TestBotAccountResolution(t *testing.T) {
 	}
 
 	// A pre-v4 squatter on the seat's name keeps the seed's insert out, so
-	// the resolver fails loudly instead of seating the human's row.
+	// the boot refuses to start, naming the tier, instead of failing every
+	// bot room creation per request.
 	path := dbPath(t)
 	squatted := mustOpen(t, path)
 	if _, err := squatted.db.Exec(`DELETE FROM schema_version WHERE version = 4`); err != nil {
 		t.Fatalf("roll ledger back to v3: %v", err)
+	}
+	if _, err := squatted.db.Exec(`DROP TABLE game_stats`); err != nil {
+		t.Fatalf("drop game_stats: %v", err)
 	}
 	if _, err := squatted.db.Exec(`DELETE FROM users WHERE length(salt) = 0`); err != nil {
 		t.Fatalf("drop the seeded seats: %v", err)
@@ -474,12 +486,7 @@ func TestBotAccountResolution(t *testing.T) {
 	if err := squatted.Close(); err != nil {
 		t.Fatalf("close squatted db: %v", err)
 	}
-	again := mustOpen(t, path)
-	defer func() { _ = again.Close() }()
-	if _, err := again.BotAccountID(config.TierEasy); !errors.Is(err, ErrNotFound) {
-		t.Errorf("resolve over a squatted name = %v, want ErrNotFound", err)
-	}
-	if _, err := again.BotAccountID(config.TierHard); err != nil {
-		t.Errorf("resolve the unsquatted hard seat = %v, want nil", err)
+	if _, err := Open(path); err == nil || !strings.Contains(err.Error(), config.BotAccountName(0)) {
+		t.Errorf("open over a squatted seat name = %v, want the boot failure naming %q", err, config.BotAccountName(0))
 	}
 }

@@ -76,7 +76,25 @@ func Open(path string) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := s.verifyBotSeats(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	return s, nil
+}
+
+// verifyBotSeats fails the boot when any config tier's reserved seat row is
+// missing after migration: the v4 seed skips a name a pre-v4 account already
+// squatted, and without this check every later bot room creation would fail
+// per request behind an opaque store error. Refusing to start names the
+// tier once, at the operator.
+func (s *Store) verifyBotSeats() error {
+	for i := range config.Tiers {
+		if _, err := s.BotAccountID(config.Tiers[i]); err != nil {
+			return fmt.Errorf("server: reserved bot seat %q: %w", config.BotAccountName(i), err)
+		}
+	}
+	return nil
 }
 
 // Close checkpoints the WAL back into the main file and truncates the -wal
@@ -370,7 +388,8 @@ type GameStat struct {
 }
 
 // AppendGame persists one game and returns it with the assigned id and
-// played_at stamped by the database.
+// played_at stamped by the database. StatLines ride only ApplyCompletion's
+// all-or-nothing unit; this single-row helper writes the game alone.
 func (s *Store) AppendGame(g Game) (Game, error) {
 	return insertGameRow(context.Background(), s.db, g)
 }
