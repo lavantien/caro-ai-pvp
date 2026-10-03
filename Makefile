@@ -1,4 +1,5 @@
-BINARY := bin/caro
+BINARY := bin/caro$(shell CGO_ENABLED=1 go env GOEXE)
+LOGSTATS_BIN := bin/logstats$(shell CGO_ENABLED=1 go env GOEXE)
 COVERPROFILE := coverage.out
 
 MERMAID_CLI_VERSION := 12.0.0
@@ -145,7 +146,6 @@ ci: fmt-check lint vet build test-race cover
 # (config.TournamentLogDir, tourney-logs), e.g.
 # make logstats ARGS="--dir tourney-logs --out report.md".
 .PHONY: logstats
-LOGSTATS_BIN := bin/logstats
 logstats:
 	CGO_ENABLED=1 go -C playground/logstats build -o ../../$(LOGSTATS_BIN) .
 	$(LOGSTATS_BIN) $(ARGS)
