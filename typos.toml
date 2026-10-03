@@ -6,4 +6,6 @@ extend-exclude = [
     "ref/**",
     # Vendored exact-release minified artifacts: their identifiers are not prose.
     "internal/server/web/static/**",
+    # Fuzz corpus seeds: hex-hash filenames, machine artifacts.
+    "**/testdata/fuzz/**",
 ]
