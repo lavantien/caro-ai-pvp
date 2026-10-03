@@ -666,6 +666,39 @@ func TestConductorDisqualifiesMissedEvents(t *testing.T) {
 			}},
 			"settles",
 		},
+		{
+			// The match surface itself refuses the pairing: the series, and
+			// with it the run, fails with the refusal.
+			"source refusal",
+			&fakeSource{script: easySweeps, onStart: func(*fakeStream) error {
+				return errors.New("the source refused the pairing")
+			}},
+			"the source refused the pairing",
+		},
+		{
+			// The stream ends before the series event with no explainer at
+			// all: still a hard gap, never a silent partial record.
+			"stream end without explainer",
+			&fakeSource{script: func(host, guest string) []server.Event {
+				ev := easySweeps(host, guest)
+				return ev[:len(ev)-1]
+			}, closeEarly: true},
+			"event stream ended before the series event",
+		},
+		{
+			// A room that plays a fourth game of a bo3: the store's bo cap
+			// rejects the append and the run fails instead of overbilling.
+			"room overplays the bo cap",
+			&fakeSource{script: func(host, guest string) []server.Event {
+				return scriptedSeries([]scriptedGame{
+					{moves: sweepRedMoves, outcome: server.OutcomeRed},
+					{moves: sweepRedMoves, outcome: server.OutcomeRed},
+					{moves: sweepBlueMoves, outcome: server.OutcomeBlue},
+					{moves: sweepRedMoves, outcome: server.OutcomeRed},
+				}, server.SideHost.String())
+			}},
+			"already played its 3 games",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ts, _ := newTestStore(t)

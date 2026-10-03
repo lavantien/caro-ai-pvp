@@ -1,10 +1,28 @@
 package tourney
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
+
+// TestMustTCPanicsOnUnconfiguredTimeControl pins the spec resolver's guard:
+// a driver naming a clock shape the config hub does not hold is a spec bug,
+// and it panics at resolve time instead of silently seating a wrong index.
+func TestMustTCPanicsOnUnconfiguredTimeControl(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("mustTC returned, want the panic on the unconfigured shape")
+		}
+		msg, ok := r.(string)
+		if !ok || !strings.Contains(msg, "not configured") || !strings.Contains(msg, "0+7") {
+			t.Errorf("panic = %v, want it naming the 0+7 shape as unconfigured", r)
+		}
+	}()
+	mustTC(0, 7)
+}
 
 func TestHeadlessDriversMatchSpec(t *testing.T) {
 	easy, medium, hard := config.TierEasy.Name, config.TierMedium.Name, config.TierHard.Name

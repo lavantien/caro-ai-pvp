@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -138,5 +139,66 @@ func TestLogsSurfacesDirFailures(t *testing.T) {
 		Participant{Name: "a", Tier: "easy"}, Participant{Name: "b", Tier: "easy"})
 	if err == nil {
 		t.Fatalf("header under a file path succeeded, want the mkdir error")
+	}
+}
+
+// TestLogsCreateFaults pins the file-creation arm: a target path already
+// held by a directory makes the open fail with its own wrap, not a bare
+// syscall error.
+func TestLogsCreateFaults(t *testing.T) {
+	dir := overrideLogDir(t)
+	red := Participant{Name: "a", Tier: "easy"}
+	blue := Participant{Name: "b", Tier: "easy"}
+	target := fmt.Sprintf(config.TournamentSeriesLogFormat, 3, 1, "a", "b")
+	if err := os.Mkdir(filepath.Join(dir, target), 0o755); err != nil {
+		t.Fatalf("seed the target directory: %v", err)
+	}
+
+	g := NewLogs()
+	err := g.WriteSeriesHeader(3, 1, 0, config.SeriesBO3, red, blue)
+	if err == nil || !strings.Contains(err.Error(), "open series log") {
+		t.Fatalf("header onto a directory = %v, want the open failure", err)
+	}
+}
+
+// TestLogsWriteAndCloseFaults pins the lifecycle against a dead handle:
+// writes and closes surface as wrapped errors naming the series, the drain
+// still clears the map, and a healthy sibling file closes cleanly through
+// the same drain.
+func TestLogsWriteAndCloseFaults(t *testing.T) {
+	overrideLogDir(t)
+	red := Participant{Name: "a", Tier: "easy"}
+	blue := Participant{Name: "b", Tier: "easy"}
+	g := NewLogs()
+	for _, id := range []int64{1, 2} {
+		if err := g.WriteSeriesHeader(9, id, 0, config.SeriesBO3, red, blue); err != nil {
+			t.Fatalf("header %d: %v", id, err)
+		}
+	}
+
+	// The write and per-series close arms: the handle dies under the
+	// writer (the fault a full disk or a closed descriptor produces), and
+	// the next write plus the explicit close both report it.
+	if err := g.open[seriesKey{9, 1}].Close(); err != nil {
+		t.Fatalf("kill handle 1: %v", err)
+	}
+	err := g.WriteSeriesLine(9, 1, "M1")
+	if err == nil || !strings.Contains(err.Error(), "series log run 9 series 1") {
+		t.Fatalf("write onto a dead handle = %v, want the wrapped write failure", err)
+	}
+	if err := g.CloseSeries(9, 1); err == nil || !strings.Contains(err.Error(), "close series log run 9 series 1") {
+		t.Fatalf("double close = %v, want the wrapped close failure", err)
+	}
+
+	// The drain arm: the dead handle's close error surfaces once, the
+	// healthy sibling still closes, and the map drains empty.
+	if err := g.open[seriesKey{9, 2}].Close(); err != nil {
+		t.Fatalf("kill handle 2: %v", err)
+	}
+	if err := g.Close(); err == nil || !strings.Contains(err.Error(), "series log run 9 series 2") {
+		t.Fatalf("drain over a dead handle = %v, want the wrapped drain failure", err)
+	}
+	if len(g.open) != 0 {
+		t.Errorf("open map holds %d handles after the drain, want it drained", len(g.open))
 	}
 }
