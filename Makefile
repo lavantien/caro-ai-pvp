@@ -130,3 +130,22 @@ $(DIAGRAMS_DIR)/%.png: $(DIAGRAMS_DIR)/%.mmd $(DIAGRAMS_DIR)/mermaid-config.json
 
 ci: fmt-check lint vet build test-race cover
 	@echo "ci: all green"
+
+# logstats renders the markdown evidence report of the v0.20 chain from the
+# per-series txt tournament logs: inventory, per-participant standings
+# folded through the runner's seat law, per-tier M-line telemetry, a
+# strength verdict with tier-inversion lines, and a parse-integrity ledger
+# listing every line the analyzer rejected. The analyzer lives in its own
+# nested module (playground/logstats, replace-pinned to the root module the
+# same way playground/series is), and a nested go.mod is invisible to the
+# parent module's package patterns, so it builds with -C at its own
+# directory and runs as a bin/ binary instead of go run: go -C would also
+# re-point the tool's working directory, breaking the relative --dir and
+# --out paths ARGS carries. Empty ARGS reads the canonical log dir
+# (config.TournamentLogDir, tourney-logs), e.g.
+# make logstats ARGS="--dir tourney-logs --out report.md".
+.PHONY: logstats
+LOGSTATS_BIN := bin/logstats
+logstats:
+	CGO_ENABLED=1 go -C playground/logstats build -o ../../$(LOGSTATS_BIN) .
+	$(LOGSTATS_BIN) $(ARGS)
