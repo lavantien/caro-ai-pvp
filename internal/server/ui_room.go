@@ -334,7 +334,7 @@ func (p *RoomPages) userName(id int64) (string, error) {
 func (p *RoomPages) guestName(info RoomInfo) string {
 	switch {
 	case info.VsBotTier != "":
-		return "bot " + info.VsBotTier
+		return "AI " + info.VsBotTier
 	case info.GuestUserID == 0:
 		return "waiting for opponent"
 	}

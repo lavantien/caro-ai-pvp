@@ -46,7 +46,7 @@ section { margin: .8rem 0 }
  data-kinds="{{.KindsCSV}}">
 
 <h1>room {{.RoomID}}</h1>
-<p class="status" id="room-status">{{.State}} / {{.TCLabel}} / bo{{.BOLen}}{{if .VsBotTier}} / bot {{.VsBotTier}}{{end}}</p>
+<p class="status" id="room-status">{{.State}} / {{.TCLabel}} / bo{{.BOLen}}{{if .VsBotTier}} / AI {{.VsBotTier}}{{end}}</p>
 
 <section id="clocks">
 <div class="clockbox red"><div class="who" id="clock-who-red">red / {{.RedName}}</div><div class="clock" id="clock-red">{{if .ClockRed}}{{.ClockRed}}{{else}}--:--.-{{end}}</div></div>

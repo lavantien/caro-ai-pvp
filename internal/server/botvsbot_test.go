@@ -321,7 +321,7 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 		t.Fatalf("room page: status = %d, want 200", status)
 	}
 	for _, want := range []string{
-		"red / AI easy", "blue / bot medium", "AI easy 0 - 0 bot medium", "red to move (AI easy)",
+		"red / AI easy", "blue / AI medium", "AI easy 0 - 0 AI medium", "red to move (AI easy)",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("room page misses %q", want)

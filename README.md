@@ -12,6 +12,7 @@ Mobile-first web arena for a custom 16x16 caro variant: exact continuous five wi
 4. [repository layout](#repository-layout)
 5. [diagrams](#diagrams)
 6. [implemented design](#implemented-design)
+7. [screenshots](#screenshots)
 
 ## grounding
 
@@ -177,3 +178,17 @@ The mutation gate is in-house, go/parser and AST rewrites only: parallel workers
 The UI is server-rendered pages over the same session cookie the API mints: the shell (login-or-create, home with stats and the rooms grid, history with move previews) and the room and playback pages mount beside the JSON transport, page patterns winning over the root catch-all. A room page rehydrates the whole board server-side so a mid-game reload misses nothing, then lives off the SSE stream (htmx hx-sse first, a plain EventSource taking over when htmx stops reconnecting) with a one-second detail poll as the safety net and a client-side clock tick between syncs. Coarse pointers get a two-tap flow, select then confirm, with a hover ghost for fine pointers. The bot log line is the raw zero-alloc M-line with ebf, hf and fh1 stripped at the page boundary per the spec. Playback reads one finished game row straight from the store, visible only to its two players, and steps by toggling stone visibility only. The two pure client functions are byte-pinned twins asserted from Go.
 
 Tournaments run bot-versus-bot on the exact room surface human matches use: each pairing creates a bot-vs-bot room whose series plays out under the same series machine and clock law, the conductor subscribing before the room can retire, recording every M-line to a per-series txt log and every game to the schema v3 tournament tables as one transaction. The per-match rating law runs in the tournament's own space from a configurable start rating, standings derive from the game rows so nothing can drift, and the close writes a frozen snapshot. Every finished game is reconciled against the room's own authoritative move list, so a lost or duplicated event anywhere fails the run instead of corrupting a record; a replay validator and the room's terminal verdict act as second and third nets. One run holds the machine at a time: the core budget check plus the ongoing-run gate keep concurrent starts from oversubscribing the engines, and a crashed run is closed explicitly from its page. Official smoke gates ran clean at 1+0 and 3+2 and the full 2+1 tournament through the UI settled with the tier ladder intact: at generous clocks the hard tiers win, at 1+0 the ladder compresses, which is the time manager behaving as designed, not a strength defect.
+
+## screenshots
+
+Live bot vs bot room during a tournament, move history below the board and the bot log rendering the M-line telemetry:
+
+![live bot vs bot room](docs/screenshots/bot-vs-bot-room.png)
+
+Logged-in home with the live rooms grid and the create-room form:
+
+![logged-in home with rooms grid](docs/screenshots/home-rooms-grid.png)
+
+Match history opened onto the playback board at the final position:
+
+![match history playback board](docs/screenshots/history-playback.png)
