@@ -7,12 +7,12 @@ Mobile-first web arena for a custom 16x16 caro variant: exact continuous five wi
 ## contents
 
 1. [grounding](#grounding)
-2. [status](#status)
+2. [screenshots](#screenshots)
 3. [build and verify](#build-and-verify)
 4. [repository layout](#repository-layout)
 5. [diagrams](#diagrams)
 6. [implemented design](#implemented-design)
-7. [screenshots](#screenshots)
+7. [status](#status)
 
 ## grounding
 
@@ -20,18 +20,21 @@ Mobile-first web arena for a custom 16x16 caro variant: exact continuous five wi
 - [docs/plans/first-cause-rebuild.md](docs/plans/first-cause-rebuild.md): milestone plan for the rebuild, updated as milestones land.
 - ref/: offline chessprogramming.org and gomocup grounding, browser-sourced.
 
-## status
+## screenshots
 
-- v0.1 (M0..M4): rules core at 100% with zero surviving mutants, init-computed pattern tables, zero-alloc PVS+ID+TT search, lazy SMP tiers, VCF/VCT solvers with a brute-force soundness oracle.
-- v0.2 (M5): increment-safe time manager, one tuned PID gain set per time control, soft-stop wiring with the Windows clock-quantum guard, mutation gate green at 1573/1573 over rules+engine+clock with 79 challenge-audited equivalence allowances.
-- v0.3 (M6a part 1): server foundation, SQLite WAL store with forward-only self-migration, per-match rating law, series state machine (loser-takes-red, forfeit-as-losses), single-writer mutation queue, room stats pub-sub hub, argon2id login-or-create, zero-alloc M-line emitter.
-- v0.4 (M6a part 2): full server surface. Rooms with live match driver (human and bot play, per-game engine ephemerality, clock-law budgets, M-line telemetry), JSON + SSE transport with guest observability, serve and migrate commands with drain-then-backstop shutdown, game completion as one transaction per unit (game row, rating pair, series finish), per-player history score lines, schema v2 player indexes, property fuzz for the series and rating laws, blind adversarial pair run with all 10 confirmed findings fixed.
-- v0.5 (M6b part 1): htmx 4 shell. Login-or-create page, home with name, rating, W-L-D, level and the live rooms grid (SSE-free partial polling), create-room form driven by the config hub (time controls, best-of lengths, bot tiers), logout, history list with per-game score lines, turn counts, move previews and playback links.
-- v0.6 (M6b part 2): room and playback pages over the same rooms and store. Server-rendered 256-cell board with mid-stream reload rehydration, hx-sse push with an EventSource fallback, join button for open human seats, ready and forfeit handshake, tap-to-preview ghost stones on coarse pointers, large tabular clocks ticking client-side between syncs, move history, bot log rendering the spec M-line with ebf, hf and fh1 filtered out, playback board with first, prev, next, last and autoplay stepping. Browser-verified against Implications 1.1, 1.3, 1.4 and 1.5 with isolated contexts per user.
-- v0.7 (M7 part 1): tournament core and conductor. Bot-vs-bot rooms on the same surface, twice-pair round robin with the per-match rating law in a separate tournament space, schema v3 tournament tables, per-series txt logs, leaderboard with a frozen close snapshot, headless smoke and full drivers behind caro tourney and make targets, semaphore-bounded parallelism, and a machine-wide run gate. Root-fixed a real concurrency defect: deferred read-then-write SQLite transactions upgrade into BUSY_SNAPSHOT under parallel writers, closed by immediate transactions in the DSN with a 30-parallel regression test.
-- v0.8 (M7 part 2): tournament UI and official gates. Setup page (config-bounded roster, tiers, time control, best-of, start rating, parallelism), run page with a live leaderboard on partial polling, past runs, stalled-run close. Official smoke gates green at 1+0 and 3+2 (30 series each, zero-sum exact), the full 2+1 UI tournament settled 30 series and 69 games with the tier ladder holding and no cross-tier strength inversion. Blind adversarial pair: 3 confirmed findings (per-run core budget, an even-length missed-move-prefix hole in the replay net, missing series-seat validation), all fixed red-green.
-- v0.9 (M8): release candidate. Screenshots, completed diagram set, bot seat naming unified, fuzz corpora committed. make ci 96.0% overall, core 100%.
-- v0.20 (MVP): acceptance closed. Every scenario item of the founding spec verified: Scenario 1 implications through the browser e2e and the final guest-observes-bot-match sweep, Scenario 2 through the official smoke gates and the full UI tournament.
+Live bot vs bot room during a tournament, move history below the board and the bot log rendering the M-line telemetry:
+
+![live bot vs bot room](docs/screenshots/bot-vs-bot-room.png)
+
+Logged-in home with the live rooms grid and the create-room form:
+
+![logged-in home with rooms grid](docs/screenshots/home-rooms-grid.png)
+
+Match history opened onto the playback board at the final position:
+
+![match history playback board](docs/screenshots/history-playback.png)
+
+These are desktop captures; the mobile-first redo (finished games live and in playback, the tournament run page mid-run) lands with the v0.20 evidence chain.
 
 ## build and verify
 
@@ -44,6 +47,7 @@ make mutate          # in-house mutation gate over the core packages
 make mutate-resume LOG=prior-run.log PARALLEL=8 CHALLENGE=1
 make bench           # engine, clock, rules benchmarks with allocs
 make fuzz            # rules differential fuzz target
+make diagrams        # render the dark PNG diagrams from the mermaid sources
 ```
 
 Coverage gates: 95% overall, 100% on internal/rules, internal/engine, and internal/clock.
@@ -63,6 +67,7 @@ internal/clock    increment-safe time manager, per-TC PID (M5)
 internal/server   store, auth, series and rating, write queue, rooms, htmx ui (M6)
 internal/tourney  round robin, conductor, tournament store and logs (M7)
 playground/       git-tracked R&D ground
+docs/             rebuild plan, diagram sources and renders, screenshots
 ```
 
 ## diagrams
@@ -113,18 +118,17 @@ The mutation gate is in-house, go/parser and AST rewrites only: parallel workers
 
 The UI is server-rendered pages over the same session cookie the API mints: the shell (login-or-create, home with stats and the rooms grid, history with move previews) and the room and playback pages mount beside the JSON transport, page patterns winning over the root catch-all. A room page rehydrates the whole board server-side so a mid-game reload misses nothing, then lives off the SSE stream (htmx hx-sse first, a plain EventSource taking over when htmx stops reconnecting) with a one-second detail poll as the safety net and a client-side clock tick between syncs. Coarse pointers get a two-tap flow, select then confirm, with a hover ghost for fine pointers. The bot log line is the raw zero-alloc M-line with ebf, hf and fh1 stripped at the page boundary per the spec. Playback reads one finished game row straight from the store, visible only to its two players, and steps by toggling stone visibility only. The two pure client functions are byte-pinned twins asserted from Go.
 
-Tournaments run bot-versus-bot on the exact room surface human matches use: each pairing creates a bot-vs-bot room whose series plays out under the same series machine and clock law, the conductor subscribing before the room can retire, recording every M-line to a per-series txt log and every game to the schema v3 tournament tables as one transaction. The per-match rating law runs in the tournament's own space from a configurable start rating, standings derive from the game rows so nothing can drift, and the close writes a frozen snapshot. Every finished game is reconciled against the room's own authoritative move list, so a lost or duplicated event anywhere fails the run instead of corrupting a record; a replay validator and the room's terminal verdict act as second and third nets. One run holds the machine at a time: the core budget check plus the ongoing-run gate keep concurrent starts from oversubscribing the engines, and a crashed run is closed explicitly from its page. Official smoke gates ran clean at 1+0 and 3+2 and the full 2+1 tournament through the UI settled with the tier ladder intact: at generous clocks the hard tiers win, at 1+0 the ladder compresses, which is the time manager behaving as designed, not a strength defect.
+Tournaments run bot-versus-bot on the exact room surface human matches use: each pairing creates a bot-vs-bot room whose series plays out under the same series machine and clock law, the conductor subscribing before the room can retire, recording every M-line to a per-series txt log with one summary line per finished game beside them, and every game to the schema v3 tournament tables as one transaction. The per-match rating law runs in the tournament's own space from a configurable start rating, standings derive from the game rows so nothing can drift, and the close writes a frozen snapshot. Every finished game is reconciled against the room's own authoritative move list, so a lost or duplicated event anywhere fails the run instead of corrupting a record; a replay validator and the room's terminal verdict act as second and third nets. One run holds the machine at a time: the core budget check plus the ongoing-run gate keep concurrent starts from oversubscribing the engines, and a crashed run is closed explicitly from its page. Official smoke gates ran clean at 1+0 and 3+2 and the full 2+1 tournament through the UI settled with the tier ladder intact: at generous clocks the hard tiers win, at 1+0 the ladder compresses, which is the time manager behaving as designed, not a strength defect.
 
-## screenshots
+## status
 
-Live bot vs bot room during a tournament, move history below the board and the bot log rendering the M-line telemetry:
-
-![live bot vs bot room](docs/screenshots/bot-vs-bot-room.png)
-
-Logged-in home with the live rooms grid and the create-room form:
-
-![logged-in home with rooms grid](docs/screenshots/home-rooms-grid.png)
-
-Match history opened onto the playback board at the final position:
-
-![match history playback board](docs/screenshots/history-playback.png)
+- v0.1 (M0..M4): rules core at 100% with zero surviving mutants, init-computed pattern tables, zero-alloc PVS+ID+TT search, lazy SMP tiers, VCF/VCT solvers with a brute-force soundness oracle.
+- v0.2 (M5): increment-safe time manager, one tuned PID gain set per time control, soft-stop wiring with the Windows clock-quantum guard, mutation gate green at 1573/1573 over rules+engine+clock with 79 challenge-audited equivalence allowances.
+- v0.3 (M6a part 1): server foundation, SQLite WAL store with forward-only self-migration, per-match rating law, series state machine (loser-takes-red, forfeit-as-losses), single-writer mutation queue, room stats pub-sub hub, argon2id login-or-create, zero-alloc M-line emitter.
+- v0.4 (M6a part 2): full server surface. Rooms with live match driver (human and bot play, per-game engine ephemerality, clock-law budgets, M-line telemetry), JSON + SSE transport with guest observability, serve and migrate commands with drain-then-backstop shutdown, game completion as one transaction per unit (game row, rating pair, series finish), per-player history score lines, schema v2 player indexes, property fuzz for the series and rating laws, blind adversarial pair run with all 10 confirmed findings fixed.
+- v0.5 (M6b part 1): htmx 4 shell. Login-or-create page, home with name, rating, W-L-D, level and the live rooms grid (SSE-free partial polling), create-room form driven by the config hub (time controls, best-of lengths, bot tiers), logout, history list with per-game score lines, turn counts, move previews and playback links.
+- v0.6 (M6b part 2): room and playback pages over the same rooms and store. Server-rendered 256-cell board with mid-stream reload rehydration, hx-sse push with an EventSource fallback, join button for open human seats, ready and forfeit handshake, tap-to-preview ghost stones on coarse pointers, large tabular clocks ticking client-side between syncs, move history, bot log rendering the spec M-line with ebf, hf and fh1 filtered out, playback board with first, prev, next, last and autoplay stepping. Browser-verified against Implications 1.1, 1.3, 1.4 and 1.5 with isolated contexts per user.
+- v0.7 (M7 part 1): tournament core and conductor. Bot-vs-bot rooms on the same surface, twice-pair round robin with the per-match rating law in a separate tournament space, schema v3 tournament tables, per-series txt logs, leaderboard with a frozen close snapshot, headless smoke and full drivers behind caro tourney and make targets, semaphore-bounded parallelism, and a machine-wide run gate. Root-fixed a real concurrency defect: deferred read-then-write SQLite transactions upgrade into BUSY_SNAPSHOT under parallel writers, closed by immediate transactions in the DSN with a 30-parallel regression test.
+- v0.8 (M7 part 2): tournament UI and official gates. Setup page (config-bounded roster, tiers, time control, best-of, start rating, parallelism), run page with a live leaderboard on partial polling, past runs, stalled-run close. Official smoke gates green at 1+0 and 3+2 (30 series each, zero-sum exact), the full 2+1 UI tournament settled 30 series and 69 games with the tier ladder holding and no cross-tier strength inversion. Blind adversarial pair: 3 confirmed findings (per-run core budget, an even-length missed-move-prefix hole in the replay net, missing series-seat validation), all fixed red-green.
+- v0.9 (M8): release candidate. Screenshots, completed diagram set, bot seat naming unified, fuzz corpora committed. make ci 96.0% overall, core 100%.
+- v0.20 (MVP): re-opened. The first cut verified every scenario item of the founding spec, scenario 1 through the browser e2e and scenario 2 through the official gates, but the milestone is a hard filter on physical evidence and the tag will be re-cut when the chain completes. Landed since the reopen: one trace line per finished game in every series log, the conductor dispatch-after-cancel fix, dark PNG diagrams behind make diagrams. In flight: per-move stat persistence for player-facing matches (schema v4 game_stats, human-vs-bot series recorded with ratings unmoved), the series-log analyzer, preserved evidence runs at all three gates, mobile-first screenshots.
