@@ -34,12 +34,15 @@ func TestBotIllegalAnswerFallsBackToFirstLegal(t *testing.T) {
 		t.Fatalf("human move: %v", err)
 	}
 
-	// The expected fallback is the first cell of the room's own enumeration
-	// of the post-D4 board, computed off a copy before the bot answers.
-	r.mu.Lock()
+	// The expected fallback is the first cell of the enumeration of the
+	// post-D4 board, replayed on an independent board: reading the room's
+	// own board races the bot's fallback application (PlayMove returns
+	// before the worker answers), which once made the copy already hold
+	// the fallback and turned the expectation into B1.
+	probe := rules.NewBoard()
+	probe.Make(mustCellT(t, "D4"))
 	var buf [config.BoardCells]rules.Move
-	n := r.board.LegalMoves(buf[:])
-	r.mu.Unlock()
+	n := probe.LegalMoves(buf[:])
 	if n == 0 {
 		t.Fatal("no legal move after D4")
 	}
