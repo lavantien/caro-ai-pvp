@@ -69,7 +69,7 @@ func (m *Manager) StartRun(ctx context.Context, spec RunSpec, parallel int) (Run
 	st := &driveState{done: make(chan struct{})}
 	m.drives[run.ID] = st
 	go func() {
-		_, err := m.conductor.drive(context.Background(), m.store, run, spec.Roster, tiers, parallel)
+		_, err := m.conductor.drive(context.Background(), m.store, run, spec.Roster, tiers, parallel, "ui")
 		m.mu.Lock()
 		st.err = err
 		m.mu.Unlock()

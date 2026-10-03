@@ -206,6 +206,37 @@ func TestSeriesMajorityEndsEarlyBO3(t *testing.T) {
 	}
 }
 
+// The benchmark seating of first-cause: in bot series both players
+// alternately take red the same number of times, so red passes after every
+// game, draws included, while the win booking itself is unchanged.
+func TestBotSeriesAlternatesRedEveryGame(t *testing.T) {
+	s, err := NewBotSeries(seriesHostID, seriesGuestID, 0, config.SeriesLengths[0])
+	if err != nil {
+		t.Fatalf("NewBotSeries: %v", err)
+	}
+	if err := s.Ready(seriesHostID); err != nil || s.Ready(seriesGuestID) != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	seriesRedIs(t, s, seriesHostID)
+	if err := s.RecordResult(Draw); err != nil { // a draw still alternates
+		t.Fatalf("game 1 draw: %v", err)
+	}
+	seriesRedIs(t, s, seriesGuestID)
+	seriesScoreIs(t, s, 0, 0)
+	if err := s.RecordResult(RedWins); err != nil { // guest red wins game 2
+		t.Fatalf("game 2: %v", err)
+	}
+	seriesRedIs(t, s, seriesHostID)
+	seriesScoreIs(t, s, 0, 1)
+	if err := s.RecordResult(BlueWins); err != nil { // host red loses game 3
+		t.Fatalf("game 3: %v", err)
+	}
+	seriesScoreIs(t, s, 0, 2)
+	if s.State() != SeriesFinished || s.Winner() != SideGuest {
+		t.Fatalf("0-2 bo3 must finish for the guest, got state %v winner %v", s.State(), s.Winner())
+	}
+}
+
 func TestSeriesDrawRetainsRed(t *testing.T) {
 	s := newReadySeries(t, config.SeriesLengths[0])
 	if err := s.RecordResult(Draw); err != nil {

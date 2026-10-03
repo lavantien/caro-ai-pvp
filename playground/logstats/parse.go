@@ -19,7 +19,7 @@ import (
 type header struct {
 	run, series                          int64
 	redName, redTier, blueName, blueTier string
-	initialSec, incSec, boLen            int
+	initialMin, incSec, boLen            int
 }
 
 // mLine is one parsed bot telemetry line.
@@ -149,7 +149,7 @@ func parseFile(path string) (seriesFile, error) {
 				bad(lineno, line)
 				continue
 			}
-			f.head.initialSec, f.head.incSec, f.head.boLen, sawTC = initial, inc, bo, true
+			f.head.initialMin, f.head.incSec, f.head.boLen, sawTC = initial, inc, bo, true
 		case strings.HasPrefix(line, "game "):
 			if g, ok := parseGameLine(line); ok {
 				f.records = append(f.records, record{gl: &g})
@@ -229,10 +229,12 @@ func parseTCLine(line string) (initial, inc, bo int, ok bool) {
 	return initial, inc, bo, err == nil && n == 3 && initial >= 0 && inc >= 0 && bo >= 1
 }
 
-// parseGameLine reads the per-game summary. It mirrors the unexported sprint
-// of internal/tourney/runner.go:422-425: "game %d: %s, %d moves" with
-// ", won by "+tag appended only when the game carries a classification
-// (server.WonByFour, WonByOpenFour, WonByDoubleFour); draws omit it.
+// parseGameLine reads the per-game summary. It mirrors the sprint of
+// internal/tourney/runner.go: "game %d: %s (red) beat %s (blue), %d moves"
+// (colors swappable), the draw shape "game %d: %s (red) vs %s (blue), drawn
+// at %d moves", each with ", won by "+tag appended only when the game
+// carries a classification. Names never carry the " (red) "/" (blue) "
+// markers in these logs, so the first marker split is exact.
 func parseGameLine(line string) (g gameLine, ok bool) {
 	rest, ok := strings.CutPrefix(line, "game ")
 	if !ok {
@@ -245,52 +247,59 @@ func parseGameLine(line string) (g gameLine, ok bool) {
 	if g.game, ok = intAt(rest[:i]); !ok || g.game < 1 {
 		return g, false
 	}
-	parts := strings.SplitN(rest[i+2:], ", ", 2)
-	if len(parts) != 2 {
-		return g, false
-	}
-	switch parts[0] {
-	case server.OutcomeRed, server.OutcomeBlue, server.OutcomeDraw:
-		g.outcome = parts[0]
+	body := rest[i+2:]
+	switch {
+	case strings.Contains(body, " (red) beat "):
+		g.outcome = server.OutcomeRed
+	case strings.Contains(body, " (blue) beat "):
+		g.outcome = server.OutcomeBlue
+	case strings.Contains(body, " (red) vs ") && strings.Contains(body, ", drawn at "):
+		g.outcome = server.OutcomeDraw
 	default:
 		return g, false
 	}
-	movesTok := parts[1]
-	if k, wb, found := strings.Cut(parts[1], ", won by "); found {
+	movesTok := body
+	if k, wb, found := strings.Cut(body, ", won by "); found {
 		if wb != server.WonByFour && wb != server.WonByOpenFour && wb != server.WonByDoubleFour {
 			return g, false
 		}
 		movesTok, g.wonBy = k, wb
 	}
-	v, ok2 := strings.CutSuffix(movesTok, " moves")
+	j := strings.LastIndex(movesTok, ", ")
+	if j < 0 {
+		return g, false
+	}
+	tail, ok2 := strings.CutSuffix(movesTok[j+2:], " moves")
 	if !ok2 {
 		return g, false
 	}
-	if g.moves, ok2 = intAt(v); !ok2 {
+	tail = strings.TrimPrefix(tail, "drawn at ")
+	if g.moves, ok2 = intAt(tail); !ok2 {
 		return g, false
 	}
 	return g, true
 }
 
-// parseVerdictLine reads the closing verdict. It mirrors the unexported
-// sprint of internal/tourney/runner.go:479-481: "series %s %d-%d" over the
-// room side string and the billed red-first minus blue-first wins.
+// parseVerdictLine reads the closing verdict. It mirrors the sprint of
+// internal/tourney/runner.go: "series %s %d-%d" where %s is the winning
+// participant's display name (spaces allowed) or "drawn", over the billed
+// red-first minus blue-first wins. The score is the last space-separated
+// token, the winner everything before it.
 func parseVerdictLine(line string) (v verdictLine, ok bool) {
 	rest, ok2 := strings.CutPrefix(line, "series ")
 	if !ok2 {
 		return v, false
 	}
-	parts := strings.SplitN(rest, " ", 2)
-	if len(parts) != 2 {
+	i := strings.LastIndex(rest, " ")
+	if i <= 0 {
 		return v, false
 	}
-	switch parts[0] {
-	case server.SideHost.String(), server.SideGuest.String(), server.SideNone.String():
-		v.winner = parts[0]
-	default:
+	scoreTok := rest[i+1:]
+	v.winner = rest[:i]
+	if v.winner == "" {
 		return v, false
 	}
-	score := strings.SplitN(parts[1], "-", 2)
+	score := strings.SplitN(scoreTok, "-", 2)
 	if len(score) != 2 {
 		return v, false
 	}

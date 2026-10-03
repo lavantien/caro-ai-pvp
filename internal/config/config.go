@@ -139,17 +139,25 @@ const (
 // Tournament constants, all consumed by internal/tourney.
 // TournamentStartRating is the per-run seed rating of Scenario 2: the setup
 // lets the operator pick it, the full run of Implication 2.4 pins 1000.
-// TournamentSeriesLogFormat names one series' txt log file under
-// TournamentLogDir: run id, series id, then the two display names.
+// TournamentSeriesLogFormat names one series' txt log file inside one run's
+// folder: run id, series id, then the two display names.
 const (
 	TournamentStartRating     = 1000
 	TournamentSeriesLogFormat = "run%d_s%d_%s-vs-%s.txt"
+	// TournamentRunDirFormat is the timestamp prefix of one tournament's
+	// own log folder, followed by the run label.
+	TournamentRunDirFormat = "20060102-150405"
+	// TournamentSummaryName is the completion summary inside one run's
+	// folder: the final rating table with every participant's series and
+	// game record.
+	TournamentSummaryName = "summary.txt"
 )
 
-// TournamentLogDir is the directory holding the per-series txt run logs of
-// Scenario 2. A package var like TimeControls so tests point it at a
-// t.TempDir without touching the process working directory.
-var TournamentLogDir = "tourney-logs"
+// TournamentLogRoot is the root directory holding one folder per
+// tournament run, each named by TournamentRunDirFormat plus the driver's
+// label. A package var like TimeControls so tests point it at a t.TempDir
+// without touching the process working directory.
+var TournamentLogRoot = "logs/tourny"
 
 // Tournament setup-screen bounds of Scenario 2. TournamentNameMaxBytes
 // bounds one seat's display name like UsernameMaxBytes bounds accounts.

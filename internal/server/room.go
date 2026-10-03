@@ -158,7 +158,7 @@ func (rm *RoomManager) CreateBotVsBot(hostTier, guestTier *config.Tier, tcIdx, b
 	if hostTier == nil || guestTier == nil {
 		return nil, ErrBadTier
 	}
-	series, err := NewSeries(botHostUserID, botGuestUserID, tcIdx, boLen)
+	series, err := NewBotSeries(botHostUserID, botGuestUserID, tcIdx, boLen)
 	if err != nil {
 		return nil, err
 	}

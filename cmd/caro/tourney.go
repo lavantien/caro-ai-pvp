@@ -26,7 +26,7 @@ var tourneyDrivers = map[string]func() tourney.RunSpec{
 // runTourney drives one headless tournament against a real store: the
 // conductor runs every pairing as a bot-vs-bot bo series on the room
 // surface, per-series lines and the final leaderboard print to stdout, and
-// the per-series txt logs land under config.TournamentLogDir. The driver
+// the per-series txt logs and the summary land under config.TournamentLogRoot in the run's own timestamped folder. The driver
 // may sit ahead of or behind the flags (Go's flag package stops at the
 // first positional, so a leading driver is peeled off before parsing).
 // SIGINT or SIGTERM aborts the run through the conductor's cancel path.
@@ -68,7 +68,7 @@ func runTourney(args []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), serveSignals...)
 	defer stop()
 	res, err := conductor.Run(ctx, tourney.NewStore(store), spec.Roster,
-		spec.TCIdx, spec.BOLen, spec.StartRating, *parallel)
+		spec.TCIdx, spec.BOLen, spec.StartRating, *parallel, driver)
 
 	if err == nil {
 		if perr := printRunResult(os.Stdout, spec.Roster, res); perr != nil {

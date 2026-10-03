@@ -6,13 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// Logs writes the Scenario 2 txt run logs: one file per series under
-// config.TournamentLogDir, named by config.TournamentSeriesLogFormat with
-// sanitized display names. The header block opens a series' file lazily,
+// Logs writes the Scenario 2 txt run logs: every run owns one folder under
+// config.TournamentLogRoot (RunDirName), holding one file per series named
+// by config.TournamentSeriesLogFormat with sanitized display names plus the
+// run's completion summary. The header block opens a series' file lazily,
 // every line appends in arrival order, and CloseSeries ends the file's
 // lifecycle. Errors return, never swallow.
 type Logs struct {
@@ -27,9 +29,47 @@ type seriesKey struct {
 	series int64
 }
 
-// NewLogs points the writer at the configured log dir.
-func NewLogs() *Logs {
-	return &Logs{dir: config.TournamentLogDir, open: make(map[seriesKey]*os.File)}
+// NewLogs points the writer at one run's own log dir.
+func NewLogs(dir string) *Logs {
+	return &Logs{dir: dir, open: make(map[seriesKey]*os.File)}
+}
+
+// RunDirName names one tournament's folder: the run's start timestamp, a
+// dash, and the driver's label, all sanitized, under the configured root.
+func RunDirName(label string, at time.Time) string {
+	return filepath.Join(config.TournamentLogRoot,
+		at.Format(config.TournamentRunDirFormat)+"-"+sanitizeName(label))
+}
+
+// WriteRunSummary writes the run's completion summary into its folder: the
+// final standings with every participant's rating, series wins, and game
+// record. The roster names each slot; the board arrives leaderboard-sorted.
+func (g *Logs) WriteRunSummary(run Run, roster []Participant, board []Standings) error {
+	name := make(map[int]Participant, len(roster))
+	for _, p := range roster {
+		name[p.Slot] = p
+	}
+	path := filepath.Join(g.dir, config.TournamentSummaryName)
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("tourney: open run summary %s: %w", path, err)
+	}
+	defer f.Close()
+	tc := config.TimeControls[run.TCIdx]
+	fmt.Fprintf(f, "run %d\ntc %d+%d bo%d start rating %d\nfinished %s\n\n",
+		run.ID, tc.InitialMin, tc.IncrementSec, run.BOLen, run.StartRating,
+		time.Now().Format(config.TournamentRunDirFormat))
+	fmt.Fprintf(f, "rank\tparticipant\ttier\trating\tseries\twins\tlosses\tdraws\tgames\n")
+	for rank, st := range board {
+		p, ok := name[st.Slot]
+		if !ok {
+			return fmt.Errorf("tourney: summary slot %d is outside the roster", st.Slot)
+		}
+		fmt.Fprintf(f, "%d\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n",
+			rank+1, p.Name, p.Tier, st.Rating, st.SeriesWon,
+			st.Wins, st.Losses, st.Draws, st.GamesPlayed)
+	}
+	return nil
 }
 
 // sanitizeName folds everything outside the filename-safe charset into "_"

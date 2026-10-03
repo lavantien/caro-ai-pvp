@@ -20,10 +20,7 @@ func writeWithRealLogs(t *testing.T, run, series int64, tcIdx, boLen int,
 	red, blue tourney.Participant, lines []string) string {
 	t.Helper()
 	dir := t.TempDir()
-	prev := config.TournamentLogDir
-	config.TournamentLogDir = dir
-	t.Cleanup(func() { config.TournamentLogDir = prev })
-	logs := tourney.NewLogs()
+	logs := tourney.NewLogs(dir)
 	if err := logs.WriteSeriesHeader(run, series, tcIdx, boLen, red, blue); err != nil {
 		t.Fatalf("write header: %v", err)
 	}
@@ -66,7 +63,7 @@ func TestHeaderPinnedToRealWriter(t *testing.T) {
 		run: 7, series: 3,
 		redName: "alpha bot", redTier: "easy",
 		blueName: "beta-2", blueTier: "hard",
-		initialSec: tc.InitialSec, incSec: tc.IncrementSec, boLen: 5,
+		initialMin: tc.InitialMin, incSec: tc.IncrementSec, boLen: 5,
 	}
 	if f.head != want {
 		t.Errorf("header = %+v, want %+v", f.head, want)
@@ -96,8 +93,8 @@ func TestLinesPinnedToRealWriter(t *testing.T) {
 	ml := server.MLine(2, rules.Blue, mustMove(t, "D4"), &st, config.BotLogTagVCF)
 	path := writeWithRealLogs(t, 1, 0, tcIdx, 3, red, blue, []string{
 		ml,
-		"game 1: blue, 11 moves, won by double 4",
-		"series guest 0-1",
+		"game 1: delta (blue) beat gamma (red), 11 moves, won by double 4",
+		"series delta 0-1",
 	})
 	f, err := parseFile(path)
 	if err != nil {
@@ -119,7 +116,7 @@ func TestLinesPinnedToRealWriter(t *testing.T) {
 		g.moves != 11 || g.wonBy != server.WonByDoubleFour {
 		t.Errorf("game record = %+v", g)
 	}
-	if f.verdict == nil || f.verdict.winner != server.SideGuest.String() ||
+	if f.verdict == nil || f.verdict.winner != "delta" ||
 		f.verdict.firstWins != 0 || f.verdict.secondWins != 1 {
 		t.Errorf("verdict = %+v", f.verdict)
 	}
@@ -298,21 +295,21 @@ func TestParseStructuralLines(t *testing.T) {
 		}
 	}
 
-	if g, ok := parseGameLine("game 2: blue, 17 moves, won by open 4"); !ok ||
+	if g, ok := parseGameLine("game 2: b (blue) beat a (red), 17 moves, won by open 4"); !ok ||
 		g.game != 2 || g.outcome != server.OutcomeBlue || g.moves != 17 || g.wonBy != server.WonByOpenFour {
 		t.Errorf("parseGameLine = %+v %v", g, ok)
 	}
-	if g, ok := parseGameLine("game 1: draw, 40 moves"); !ok ||
+	if g, ok := parseGameLine("game 1: a (red) vs b (blue), drawn at 40 moves"); !ok ||
 		g.outcome != server.OutcomeDraw || g.wonBy != "" {
 		t.Errorf("parseGameLine draw = %+v %v", g, ok)
 	}
 	for _, bad := range []string{
-		"game 0: red, 9 moves",
-		"game 1: green, 9 moves",
-		"game 1: red",
-		"game 1: red, x moves",
-		"game 1: red, 9 moves, won by 3",
-		"match 1: red, 9 moves",
+		"game 0: a (red) beat b (blue), 9 moves",
+		"game 1: a (green) beat b (blue), 9 moves",
+		"game 1: a (red) beat",
+		"game 1: a (red) beat b (blue), x moves",
+		"game 1: a (red) beat b (blue), 9 moves, won by 3",
+		"match 1: a (red) beat b (blue), 9 moves",
 	} {
 		if _, ok := parseGameLine(bad); ok {
 			t.Errorf("parseGameLine(%q) accepted", bad)
@@ -324,10 +321,11 @@ func TestParseStructuralLines(t *testing.T) {
 		t.Errorf("parseVerdictLine = %+v %v", v, ok)
 	}
 	for _, bad := range []string{
-		"series draw 1-0",
-		"series host 2",
-		"series host a-b",
-		"series host -1-0",
+		"series 1-0",
+		"series  2-1",
+		"series only 2",
+		"series only a-b",
+		"series only -1-0",
 		"result host 2-1",
 	} {
 		if _, ok := parseVerdictLine(bad); ok {

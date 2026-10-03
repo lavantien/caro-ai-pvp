@@ -22,7 +22,7 @@ import (
 )
 
 func main() {
-	dir := flag.String("dir", config.TournamentLogDir, "directory holding the per-series txt tournament logs")
+	flagDir := flag.String("dir", "", "directory holding one run's per-series txt logs (default: the newest run folder under config.TournamentLogRoot)")
 	out := flag.String("out", "", "write the markdown report to this file instead of stdout")
 	flag.Parse()
 
@@ -30,7 +30,15 @@ func main() {
 		fmt.Fprintf(os.Stderr, "logstats: "+format+"\n", args...)
 		os.Exit(2)
 	}
-	paths, err := readSeriesLogs(*dir)
+	dir := *flagDir
+	if dir == "" {
+		var err error
+		dir, err = latestRunDir(config.TournamentLogRoot)
+		if err != nil {
+			fail("no --dir and no run folder under %s: %v", config.TournamentLogRoot, err)
+		}
+	}
+	paths, err := readSeriesLogs(dir)
 	if err != nil {
 		fail("%v", err)
 	}
@@ -43,7 +51,7 @@ func main() {
 		files = append(files, f)
 	}
 	var report strings.Builder
-	renderReport(&report, analyze(*dir, files))
+	renderReport(&report, analyze(dir, files))
 	if *out == "" {
 		fmt.Print(report.String())
 		return
@@ -67,4 +75,23 @@ func readSeriesLogs(dir string) ([]string, error) {
 		}
 	}
 	return paths, nil
+}
+
+// latestRunDir picks the lexicographically newest run folder under root:
+// the TournamentRunDirFormat timestamp prefix sorts chronologically.
+func latestRunDir(root string) (string, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return "", err
+	}
+	newest := ""
+	for _, e := range entries {
+		if e.IsDir() && e.Name() > newest {
+			newest = e.Name()
+		}
+	}
+	if newest == "" {
+		return "", fmt.Errorf("no run folders under %s", root)
+	}
+	return filepath.Join(root, newest), nil
 }

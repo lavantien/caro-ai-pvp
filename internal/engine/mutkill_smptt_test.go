@@ -257,49 +257,66 @@ func TestSMPKillSelectionPrefersDeeperWorker(t *testing.T) {
 }
 
 // Equal completed depth ties break by arrival order, not by index: the
-// radius-zero worker arrives first and must win the tie.
+// radius-zero worker arrives first and must win the tie. Which worker
+// banks its ladder first is scheduler timing, not engine behavior, so the
+// search reruns until the instant worker actually arrived first (a seq
+// mutant fails every attempt that meets the premise; the clean engine
+// passes the first one that does).
 func TestSMPKillSelectionTieBreaksByArrival(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)
 	defer s.Close()
 	s.workers[0].radius = 0
 	s.workers[1] = poisonWorker(b)
-	warmAndPark(t, s, b)
-	mv, stats := s.Search(b, NewFixedBudget(500*time.Millisecond))
-	r0, r1 := &s.results[0], &s.results[1]
-	if r0.completed != config.SearchMaxPly || r1.completed != config.SearchMaxPly {
-		t.Fatalf("setup: completions %d and %d, want both %d", r0.completed, r1.completed, config.SearchMaxPly)
+	for attempt := 1; ; attempt++ {
+		warmAndPark(t, s, b)
+		mv, stats := s.Search(b, NewFixedBudget(500*time.Millisecond))
+		r0, r1 := &s.results[0], &s.results[1]
+		if r0.completed != config.SearchMaxPly || r1.completed != config.SearchMaxPly {
+			t.Fatalf("setup: completions %d and %d, want both %d", r0.completed, r1.completed, config.SearchMaxPly)
+		}
+		if r0.seq >= r1.seq {
+			if attempt < 5 {
+				continue
+			}
+			t.Fatalf("setup: the instant worker never arrived first in %d attempts", attempt)
+		}
+		if r1.nodes > 5000 {
+			t.Fatalf("setup: poison worker searched %d nodes, a child entry was missed", r1.nodes)
+		}
+		assertInstantWinWorker(t, stats, mv)
+		return
 	}
-	if r0.seq >= r1.seq {
-		t.Fatalf("setup: arrival %d then %d, the instant worker must arrive first", r0.seq, r1.seq)
-	}
-	if r1.nodes > 5000 {
-		t.Fatalf("setup: poison worker searched %d nodes, a child entry was missed", r1.nodes)
-	}
-	assertInstantWinWorker(t, stats, mv)
 }
 
 // The arrival counter must strictly increase: with a zero stride every
-// completion ties and the later index can never win on arrival.
+// completion ties and the later index can never win on arrival. The same
+// scheduling-tolerant rerun as the tie-break test above.
 func TestSMPKillArrivalCounterStrictlyIncreases(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)
 	defer s.Close()
 	s.workers[0] = poisonWorker(b)
 	s.workers[1].radius = 0
-	warmAndPark(t, s, b)
-	mv, stats := s.Search(b, NewFixedBudget(500*time.Millisecond))
-	r0, r1 := &s.results[0], &s.results[1]
-	if r0.completed != config.SearchMaxPly || r1.completed != config.SearchMaxPly {
-		t.Fatalf("setup: completions %d and %d, want both %d", r0.completed, r1.completed, config.SearchMaxPly)
+	for attempt := 1; ; attempt++ {
+		warmAndPark(t, s, b)
+		mv, stats := s.Search(b, NewFixedBudget(500*time.Millisecond))
+		r0, r1 := &s.results[0], &s.results[1]
+		if r0.completed != config.SearchMaxPly || r1.completed != config.SearchMaxPly {
+			t.Fatalf("setup: completions %d and %d, want both %d", r0.completed, r1.completed, config.SearchMaxPly)
+		}
+		if r1.seq >= r0.seq {
+			if attempt < 5 {
+				continue
+			}
+			t.Fatalf("setup: the instant worker never arrived first in %d attempts", attempt)
+		}
+		if r0.nodes > 5000 {
+			t.Fatalf("setup: poison worker searched %d nodes, a child entry was missed", r0.nodes)
+		}
+		assertInstantWinWorker(t, stats, mv)
+		return
 	}
-	if r1.seq >= r0.seq {
-		t.Fatalf("setup: arrival %d then %d, the instant worker must arrive first", r1.seq, r0.seq)
-	}
-	if r0.nodes > 5000 {
-		t.Fatalf("setup: poison worker searched %d nodes, a child entry was missed", r0.nodes)
-	}
-	assertInstantWinWorker(t, stats, mv)
 }
 
 // Stats arithmetic against the aggregated worker counters.

@@ -85,23 +85,27 @@ type GameResult struct {
 // decisive game takes red in the next one while a draw lets red keep the
 // seat, and the series ends when one side reaches the majority of
 // boLen/2+1 wins or the schedule runs out (the plurality leader takes a
-// majorityless series, equal wins leave it drawn). It carries no clocks and
-// no persistence: the room layer owns the engine, the store owns timestamps.
+// majorityless series, equal wins leave it drawn). Bot series run the
+// benchmark seating instead: both players alternately take red the same
+// number of times, so red passes after every game, draws included. It
+// carries no clocks and no persistence: the room layer owns the engine,
+// the store owns timestamps.
 type Series struct {
-	mu          sync.Mutex
-	host        int64
-	guest       int64
-	tcIdx       int
-	boLen       int
-	hostReady   bool
-	guestReady  bool
-	state       SeriesState
-	gamesPlayed int
-	redIsHost   bool
-	hostWins    int
-	guestWins   int
-	winner      SeriesSide
-	synthetic   []GameResult
+	mu           sync.Mutex
+	host         int64
+	guest        int64
+	tcIdx        int
+	boLen        int
+	hostReady    bool
+	guestReady   bool
+	state        SeriesState
+	gamesPlayed  int
+	redIsHost    bool
+	alternateRed bool
+	hostWins     int
+	guestWins    int
+	winner       SeriesSide
+	synthetic    []GameResult
 }
 
 // NewSeries validates the room settings against the config hubs and seats
@@ -117,6 +121,18 @@ func NewSeries(hostUserID, guestUserID int64, tcIdx, boLen int) (*Series, error)
 		return nil, ErrBadSeriesLength
 	}
 	return &Series{host: hostUserID, guest: guestUserID, tcIdx: tcIdx, boLen: boLen, redIsHost: true}, nil
+}
+
+// NewBotSeries is the benchmark and tournament seating: red alternates
+// every game. Across a twice-paired round robin, where the mirrored
+// pairing hosts the other way, each participant's red count balances.
+func NewBotSeries(hostUserID, guestUserID int64, tcIdx, boLen int) (*Series, error) {
+	s, err := NewSeries(hostUserID, guestUserID, tcIdx, boLen)
+	if err != nil {
+		return nil, err
+	}
+	s.alternateRed = true
+	return s, nil
 }
 
 // Ready marks one participant ready. Double-ready is idempotent: a reconnect
@@ -207,8 +223,9 @@ func (s *Series) Forfeit(userID int64) error {
 	return nil
 }
 
-// applyGame books one decided game: the winner color banks a win and red
-// passes to the decisive loser, a draw moves nothing.
+// applyGame books one decided game: the winner color banks a win. Under
+// the PvP law red passes to the decisive loser while a draw holds the
+// seat; under the bot law red passes after every game.
 func (s *Series) applyGame(outcome Outcome) {
 	switch outcome {
 	case RedWins:
@@ -217,13 +234,18 @@ func (s *Series) applyGame(outcome Outcome) {
 		} else {
 			s.guestWins++
 		}
-		s.redIsHost = !s.redIsHost
+		if !s.alternateRed {
+			s.redIsHost = !s.redIsHost
+		}
 	case BlueWins:
 		if s.redIsHost {
 			s.guestWins++
 		} else {
 			s.hostWins++
 		}
+	}
+	if s.alternateRed {
+		s.redIsHost = !s.redIsHost
 	}
 	s.gamesPlayed++
 }

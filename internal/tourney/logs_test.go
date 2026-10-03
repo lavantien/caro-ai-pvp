@@ -6,23 +6,20 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// overrideLogDir points the configured log dir at a test directory.
-func overrideLogDir(t *testing.T) string {
+// runLogDir is one test's own run folder.
+func runLogDir(t *testing.T) string {
 	t.Helper()
-	saved := config.TournamentLogDir
-	dir := t.TempDir()
-	config.TournamentLogDir = dir
-	t.Cleanup(func() { config.TournamentLogDir = saved })
-	return dir
+	return t.TempDir()
 }
 
 func TestLogsLifecycle(t *testing.T) {
-	dir := overrideLogDir(t)
-	g := NewLogs()
+	dir := runLogDir(t)
+	g := NewLogs(dir)
 	t.Cleanup(func() { _ = g.Close() })
 	red := Participant{Slot: 0, Name: "hard-1", Tier: "hard"}
 	blue := Participant{Slot: 1, Name: "easy 2", Tier: "easy"}
@@ -64,7 +61,7 @@ func TestLogsLifecycle(t *testing.T) {
 		t.Errorf("double close accepted, want the not-open error")
 	}
 
-	fresh := NewLogs()
+	fresh := NewLogs(dir)
 	t.Cleanup(func() { _ = fresh.Close() })
 	if err := fresh.WriteSeriesHeader(8, 1, 0, config.SeriesBO3, red, blue); err != nil {
 		t.Fatalf("second header setup: %v", err)
@@ -75,8 +72,7 @@ func TestLogsLifecycle(t *testing.T) {
 }
 
 func TestLogsCloseDrainsEverySeries(t *testing.T) {
-	overrideLogDir(t)
-	g := NewLogs()
+	g := NewLogs(runLogDir(t))
 	red := Participant{Slot: 0, Name: "a", Tier: "easy"}
 	blue := Participant{Slot: 1, Name: "b", Tier: "easy"}
 	for _, id := range []int64{1, 2} {
@@ -93,8 +89,8 @@ func TestLogsCloseDrainsEverySeries(t *testing.T) {
 }
 
 func TestLogsSanitizeKeepsNamesInsideTheDir(t *testing.T) {
-	dir := overrideLogDir(t)
-	g := NewLogs()
+	dir := runLogDir(t)
+	g := NewLogs(dir)
 	t.Cleanup(func() { _ = g.Close() })
 	red := Participant{Slot: 0, Name: "../evil/spot", Tier: "hard"}
 	blue := Participant{Slot: 1, Name: "plain", Tier: "easy"}
@@ -115,8 +111,7 @@ func TestLogsSanitizeKeepsNamesInsideTheDir(t *testing.T) {
 }
 
 func TestLogsHeaderRejectsBadTimeControl(t *testing.T) {
-	overrideLogDir(t)
-	g := NewLogs()
+	g := NewLogs(runLogDir(t))
 	t.Cleanup(func() { _ = g.Close() })
 	err := g.WriteSeriesHeader(1, 1, len(config.TimeControls), config.SeriesBO3,
 		Participant{Name: "a", Tier: "easy"}, Participant{Name: "b", Tier: "easy"})
@@ -130,11 +125,7 @@ func TestLogsSurfacesDirFailures(t *testing.T) {
 	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
 		t.Fatalf("seed blocker: %v", err)
 	}
-	saved := config.TournamentLogDir
-	config.TournamentLogDir = filepath.Join(blocker, "under")
-	t.Cleanup(func() { config.TournamentLogDir = saved })
-
-	g := NewLogs()
+	g := NewLogs(filepath.Join(blocker, "under"))
 	err := g.WriteSeriesHeader(1, 1, 0, config.SeriesBO3,
 		Participant{Name: "a", Tier: "easy"}, Participant{Name: "b", Tier: "easy"})
 	if err == nil {
@@ -146,7 +137,7 @@ func TestLogsSurfacesDirFailures(t *testing.T) {
 // held by a directory makes the open fail with its own wrap, not a bare
 // syscall error.
 func TestLogsCreateFaults(t *testing.T) {
-	dir := overrideLogDir(t)
+	dir := runLogDir(t)
 	red := Participant{Name: "a", Tier: "easy"}
 	blue := Participant{Name: "b", Tier: "easy"}
 	target := fmt.Sprintf(config.TournamentSeriesLogFormat, 3, 1, "a", "b")
@@ -154,7 +145,7 @@ func TestLogsCreateFaults(t *testing.T) {
 		t.Fatalf("seed the target directory: %v", err)
 	}
 
-	g := NewLogs()
+	g := NewLogs(dir)
 	err := g.WriteSeriesHeader(3, 1, 0, config.SeriesBO3, red, blue)
 	if err == nil || !strings.Contains(err.Error(), "open series log") {
 		t.Fatalf("header onto a directory = %v, want the open failure", err)
@@ -166,10 +157,10 @@ func TestLogsCreateFaults(t *testing.T) {
 // still clears the map, and a healthy sibling file closes cleanly through
 // the same drain.
 func TestLogsWriteAndCloseFaults(t *testing.T) {
-	overrideLogDir(t)
+	dir := runLogDir(t)
 	red := Participant{Name: "a", Tier: "easy"}
 	blue := Participant{Name: "b", Tier: "easy"}
-	g := NewLogs()
+	g := NewLogs(dir)
 	for _, id := range []int64{1, 2} {
 		if err := g.WriteSeriesHeader(9, id, 0, config.SeriesBO3, red, blue); err != nil {
 			t.Fatalf("header %d: %v", id, err)
@@ -200,5 +191,57 @@ func TestLogsWriteAndCloseFaults(t *testing.T) {
 	}
 	if len(g.open) != 0 {
 		t.Errorf("open map holds %d handles after the drain, want it drained", len(g.open))
+	}
+}
+
+// TestRunDirName pins the per-run folder law: timestamp, dash, sanitized
+// label, under the configured root.
+func TestRunDirName(t *testing.T) {
+	saved := config.TournamentLogRoot
+	config.TournamentLogRoot = t.TempDir()
+	t.Cleanup(func() { config.TournamentLogRoot = saved })
+	at := time.Date(2026, 10, 4, 15, 4, 5, 0, time.UTC)
+	got := RunDirName("smoke 32", at)
+	want := filepath.Join(config.TournamentLogRoot, "20261004-150405-smoke_32")
+	if got != want {
+		t.Fatalf("RunDirName = %q, want %q", got, want)
+	}
+}
+
+// TestWriteRunSummary pins the completion summary: the run header lines and
+// the leaderboard table with names, tiers, ratings, series wins, and the
+// game record.
+func TestWriteRunSummary(t *testing.T) {
+	dir := runLogDir(t)
+	g := NewLogs(dir)
+	t.Cleanup(func() { _ = g.Close() })
+	roster := []Participant{
+		{Slot: 0, Name: "hard-2", Tier: "hard"},
+		{Slot: 1, Name: "easy-1", Tier: "easy"},
+	}
+	board := []Standings{
+		{Slot: 0, Rating: 1105, Wins: 16, Losses: 10, Draws: 0, SeriesWon: 7, GamesPlayed: 26},
+		{Slot: 1, Rating: 769, Wins: 6, Losses: 16, Draws: 2, SeriesWon: 2, GamesPlayed: 24},
+	}
+	if err := g.WriteRunSummary(Run{ID: 9, TCIdx: 2, BOLen: config.SeriesBO3, StartRating: 1000}, roster, board); err != nil {
+		t.Fatalf("summary: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, config.TournamentSummaryName))
+	if err != nil {
+		t.Fatalf("read summary: %v", err)
+	}
+	text := string(data)
+	for _, want := range []string{
+		"run 9\n", "tc 3+2 bo3 start rating 1000\n",
+		"rank\tparticipant\ttier\trating\tseries\twins\tlosses\tdraws\tgames\n",
+		"1\thard-2\thard\t1105\t7\t16\t10\t0\t26\n",
+		"2\teasy-1\teasy\t769\t2\t6\t16\t2\t24\n",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("summary misses %q:\n%s", want, text)
+		}
+	}
+	if err := g.WriteRunSummary(Run{ID: 9}, []Participant{{Slot: 5, Name: "x", Tier: "easy"}}, board); err == nil {
+		t.Error("summary with a slot outside the roster accepted, want rejection")
 	}
 }

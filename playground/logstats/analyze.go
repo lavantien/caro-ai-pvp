@@ -11,10 +11,10 @@ import (
 )
 
 // The aggregation laws, all mirroring the conductor of
-// internal/tourney/runner.go: game 1 seats the pairing's first name on red,
-// a red win passes the red seat to the other participant (the loser takes
-// red, runner.go:436), blue wins and draws hold it, and the verdict line's
-// billed wins must match the fold.
+// internal/tourney/runner.go: game 1 seats the pairing's first name on red
+// and the benchmark alternation passes red to the other participant after
+// every game, draws included; the verdict line names the winning
+// participant (or "drawn") and its billed wins must match the fold.
 
 // participantStats is one participant's folded record across every series.
 type participantStats struct {
@@ -186,7 +186,6 @@ func analyze(dir string, files []seriesFile) *analysis {
 				} else {
 					secondWins++
 				}
-				redIsFirst = !redIsFirst
 			case server.OutcomeBlue:
 				blueSeat.gameWins++
 				redSeat.gameLosses++
@@ -199,6 +198,7 @@ func analyze(dir string, files []seriesFile) *analysis {
 				redSeat.gameDraws++
 				blueSeat.gameDraws++
 			}
+			redIsFirst = !redIsFirst
 		}
 
 		if f.verdict == nil {
@@ -211,17 +211,17 @@ func analyze(dir string, files []seriesFile) *analysis {
 			continue
 		}
 		switch f.verdict.winner {
-		case server.SideHost.String():
+		case f.head.redName:
 			pf.seriesWins++
-		case server.SideGuest.String():
+		case f.head.blueName:
 			ps.seriesWins++
 		}
-		want := server.SideNone.String()
+		want := "drawn"
 		switch {
 		case firstWins > secondWins:
-			want = server.SideHost.String()
+			want = f.head.redName
 		case secondWins > firstWins:
-			want = server.SideGuest.String()
+			want = f.head.blueName
 		}
 		if f.verdict.firstWins != firstWins || f.verdict.secondWins != secondWins || f.verdict.winner != want {
 			a.foldMismatch = append(a.foldMismatch, fmt.Sprintf(

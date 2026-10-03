@@ -133,9 +133,9 @@ type tourneyStack struct {
 // with the series logs pointed at a temp dir.
 func newTourneyStack(t *testing.T, source tourney.MatchSource) *tourneyStack {
 	t.Helper()
-	orig := config.TournamentLogDir
-	config.TournamentLogDir = t.TempDir()
-	t.Cleanup(func() { config.TournamentLogDir = orig })
+	orig := config.TournamentLogRoot
+	config.TournamentLogRoot = t.TempDir()
+	t.Cleanup(func() { config.TournamentLogRoot = orig })
 	store, err := server.Open(filepath.Join(t.TempDir(), "caro.db"))
 	if err != nil {
 		t.Fatalf("open store: %v", err)

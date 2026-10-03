@@ -89,7 +89,7 @@ func TestConductorDisqualifiesMalformedStreams(t *testing.T) {
 			ts, _ := newTestStore(t)
 			pointLogsAt(t)
 			_, err := NewConductor(&literalSource{events: tc.events}).Run(context.Background(), ts, rosterTwo(),
-				mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1)
+				mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
 			if err == nil {
 				t.Fatal("run succeeded, want the disqualifier")
 			}
@@ -109,12 +109,12 @@ func TestConductorFailsWhenSeriesLogCannotOpen(t *testing.T) {
 	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
 		t.Fatalf("seed blocker: %v", err)
 	}
-	saved := config.TournamentLogDir
-	config.TournamentLogDir = filepath.Join(blocker, "under")
-	t.Cleanup(func() { config.TournamentLogDir = saved })
+	saved := config.TournamentLogRoot
+	config.TournamentLogRoot = blocker
+	t.Cleanup(func() { config.TournamentLogRoot = saved })
 
 	_, err := NewConductor(&fakeSource{script: easySweeps}).Run(context.Background(), ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1)
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
 	if err == nil || !strings.Contains(err.Error(), "mkdir") {
 		t.Fatalf("run error = %v, want the log-dir failure", err)
 	}
@@ -144,7 +144,7 @@ func TestConductorDriveCrossChecksSchedule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve 3-roster: %v", err)
 	}
-	_, err = c.drive(ctx, ts, run, roster(3), tiers, 1)
+	_, err = c.drive(ctx, ts, run, roster(3), tiers, 1, "test")
 	if err == nil || !strings.Contains(err.Error(), "series rows for") {
 		t.Fatalf("length-drift drive = %v, want the row-count refusal", err)
 	}
@@ -165,7 +165,7 @@ func TestConductorDriveCrossChecksSchedule(t *testing.T) {
 		t.Fatalf("start run 2: %v", err)
 	}
 	runSQL(t, srv2, `UPDATE tournament_series SET red_first_slot = 1, blue_first_slot = 0 WHERE pairing_slot = 0`)
-	_, err = c2.drive(ctx, ts2, run2, rosterTwo(), tiers2, 1)
+	_, err = c2.drive(ctx, ts2, run2, rosterTwo(), tiers2, 1, "test")
 	if err == nil || !strings.Contains(err.Error(), "disagree with pairing") {
 		t.Fatalf("seat-drift drive = %v, want the seat refusal", err)
 	}
@@ -188,7 +188,7 @@ func TestConductorDriveFailsWhenScheduleReadFails(t *testing.T) {
 	}
 	runSQL(t, srv, `DROP TABLE tournament_series`)
 
-	_, err = c.drive(ctx, ts, run, rosterTwo(), tiers, 1)
+	_, err = c.drive(ctx, ts, run, rosterTwo(), tiers, 1, "test")
 	if err == nil || !strings.Contains(err.Error(), "read schedule") {
 		t.Fatalf("drive = %v, want the schedule-read failure", err)
 	}
@@ -218,7 +218,7 @@ func TestConductorDriveAbortsOnDeadContext(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := c.drive(ctx, ts, run, rosterTwo(), tiers, 0)
+		_, err := c.drive(ctx, ts, run, rosterTwo(), tiers, 0, "test")
 		done <- err
 	}()
 	time.Sleep(250 * time.Millisecond)
@@ -273,7 +273,7 @@ func TestConductorDriveFailsWhenSnapshotCannotLand(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := c.drive(context.Background(), ts, run, rosterTwo(), tiers, 1)
+		_, err := c.drive(context.Background(), ts, run, rosterTwo(), tiers, 1, "test")
 		done <- err
 	}()
 	<-started

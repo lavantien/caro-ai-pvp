@@ -144,17 +144,18 @@ func NewConductor(source MatchSource) *Conductor {
 // Run executes one tournament. The roster's tiers resolve through the config
 // table and the worst-case live-search demand (parallel rooms, one search
 // at a time each, at the roster's largest tier core count) must fit
-// config.MachineCores; both refuse before anything persists. The schedule
+// config.MachineCores; both refuse before anything persists. The label names
+// the run's own log folder under config.TournamentLogRoot. The schedule
 // lands in CreateRun, every pairing runs under the semaphore, and the run
-// finishes with the standings snapshot.
+// finishes with the standings snapshot and the summary file.
 func (c *Conductor) Run(ctx context.Context, store *Store, roster []Participant,
-	tcIdx, boLen, startRating, parallel int) (RunResult, error) {
+	tcIdx, boLen, startRating, parallel int, label string) (RunResult, error) {
 
 	run, tiers, err := c.startRun(ctx, store, roster, tcIdx, boLen, startRating, parallel)
 	if err != nil {
 		return RunResult{}, err
 	}
-	return c.drive(ctx, store, run, roster, tiers, parallel)
+	return c.drive(ctx, store, run, roster, tiers, parallel, label)
 }
 
 // startRun is the synchronous half of a run: resolve the roster tiers, refuse
@@ -194,13 +195,13 @@ func (c *Conductor) startRun(ctx context.Context, store *Store, roster []Partici
 
 // drive executes one already-persisted run: read back the schedule and
 // cross-check it against the pairing plan, run every pairing under the
-// semaphore, close the run, and read the final leaderboard. The first series
-// error aborts the run: pending pairings stop at the semaphore, live streams
-// retire through their Close, the run row stays ongoing for the post-mortem,
-// and the error surfaces. Cancelling ctx is the same abort with the
-// context's error.
+// semaphore, close the run, and read the final leaderboard. The label names
+// the run's own log folder. The first series error aborts the run: pending
+// pairings stop at the semaphore, live streams retire through their Close,
+// the run row stays ongoing for the post-mortem, and the error surfaces.
+// Cancelling ctx is the same abort with the context's error.
 func (c *Conductor) drive(ctx context.Context, store *Store, run Run, roster []Participant,
-	tiers []*config.Tier, parallel int) (RunResult, error) {
+	tiers []*config.Tier, parallel int, label string) (RunResult, error) {
 
 	schedule, err := store.Schedule(ctx, run.ID)
 	if err != nil {
@@ -220,7 +221,7 @@ func (c *Conductor) drive(ctx context.Context, store *Store, run Run, roster []P
 		}
 	}
 
-	logs := NewLogs()
+	logs := NewLogs(RunDirName(label, time.Unix(run.CreatedAt, 0)))
 	res := RunResult{Run: run, Series: make([]SeriesResult, len(pairs))}
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -283,6 +284,9 @@ dispatch:
 	res.Board, err = store.Leaderboard(ctx, run.ID)
 	if err != nil {
 		return res, err
+	}
+	if serr := logs.WriteRunSummary(run, roster, res.Board); serr != nil {
+		return res, serr
 	}
 	return res, nil
 }
@@ -355,9 +359,10 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 
 	// Per-series state: the current game's moves, the game index, and the
 	// red seat fold. Game 1 seats the host (the red-first participant) on
-	// red per the room contract; after that the loser-takes-red law folds
-	// from the outcomes, mirroring the room's own rotation, and the verdict
-	// cross-check below fails the run if the two ever disagree.
+	// red per the room contract; after that the benchmark alternation folds
+	// red to the other participant after every game, mirroring the room's
+	// own rotation, and the verdict cross-check below fails the run if the
+	// two ever disagree.
 	var moves []rules.Move
 	redIsRedFirst := true
 	games := 0
@@ -419,7 +424,21 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 			}
 			// The physical trace: one summary line per finished game beside
 			// the M-lines, so a series log reads as evidence without the db.
-			summary := fmt.Sprintf("game %d: %s, %d moves", games+1, outcome, len(truth))
+			// Names, never bare colors: with the benchmark alternation a
+			// color says nothing about who played it.
+			redName, blueName := pair.RedFirst.Name, pair.BlueFirst.Name
+			if !redIsRedFirst {
+				redName, blueName = blueName, redName
+			}
+			var summary string
+			switch outcome {
+			case server.RedWins:
+				summary = fmt.Sprintf("game %d: %s (red) beat %s (blue), %d moves", games+1, redName, blueName, len(truth))
+			case server.BlueWins:
+				summary = fmt.Sprintf("game %d: %s (blue) beat %s (red), %d moves", games+1, blueName, redName, len(truth))
+			default:
+				summary = fmt.Sprintf("game %d: %s (red) vs %s (blue), drawn at %d moves", games+1, redName, blueName, len(truth))
+			}
 			if wonBy != nil {
 				summary += ", won by " + *wonBy
 			}
@@ -433,7 +452,6 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 				} else {
 					line.BlueFirstWins++
 				}
-				redIsRedFirst = !redIsRedFirst // the winner was red, red passes
 			case server.BlueWins:
 				if redIsRedFirst {
 					line.BlueFirstWins++
@@ -441,6 +459,7 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 					line.RedFirstWins++
 				}
 			}
+			redIsRedFirst = !redIsRedFirst
 			moves = nil
 			games++
 		case server.EventKindSeries:
@@ -476,8 +495,17 @@ func (c *Conductor) closeSeries(logs *Logs, run Run, row Series, line SeriesResu
 		return line, fmt.Errorf("room verdict %q disagrees with the billed line %d-%d (%s)",
 			verdict, line.RedFirstWins, line.BlueFirstWins, want)
 	}
+	// The verdict line names the winner: host and guest are room concepts,
+	// and with red alternating every game they tell the reader nothing.
+	verdictName := "drawn"
+	if winner != nil {
+		verdictName = line.BlueFirst.Name
+		if *winner == line.RedFirst.Slot {
+			verdictName = line.RedFirst.Name
+		}
+	}
 	if lerr := logs.WriteSeriesLine(run.ID, row.ID,
-		fmt.Sprintf("series %s %d-%d", verdict, line.RedFirstWins, line.BlueFirstWins)); lerr != nil {
+		fmt.Sprintf("series %s %d-%d", verdictName, line.RedFirstWins, line.BlueFirstWins)); lerr != nil {
 		return line, lerr
 	}
 	line.WinnerSlot = winner

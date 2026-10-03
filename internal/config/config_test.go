@@ -226,8 +226,14 @@ func TestTournamentConstants(t *testing.T) {
 	if TournamentStartRating != 1000 {
 		t.Errorf("TournamentStartRating = %d, want 1000 per the Implication 2.4 full run", TournamentStartRating)
 	}
-	if TournamentLogDir != "tourney-logs" {
-		t.Errorf("TournamentLogDir = %q, want %q", TournamentLogDir, "tourney-logs")
+	if TournamentLogRoot != "logs/tourny" {
+		t.Errorf("TournamentLogRoot = %q, want %q", TournamentLogRoot, "logs/tourny")
+	}
+	if TournamentSummaryName != "summary.txt" {
+		t.Errorf("TournamentSummaryName = %q, want %q", TournamentSummaryName, "summary.txt")
+	}
+	if TournamentRunDirFormat != "20060102-150405" {
+		t.Errorf("TournamentRunDirFormat = %q, want a sortable timestamp layout", TournamentRunDirFormat)
 	}
 	// The format must carry run id, series id, and both display names in
 	// order, and end in .txt so the artifact stays greppable.

@@ -49,7 +49,7 @@ func analyzeDir(t *testing.T, dir string) *analysis {
 func headerBlock(run, series int, redName, redTier, blueName, blueTier string) string {
 	tc := config.TimeControls[0]
 	return fmt.Sprintf("run %d series %d\npairing %s (%s) vs %s (%s)\ntc %d+%d bo3\n",
-		run, series, redName, redTier, blueName, blueTier, tc.InitialSec, tc.IncrementSec)
+		run, series, redName, redTier, blueName, blueTier, tc.InitialMin, tc.IncrementSec)
 }
 
 // mlineOf builds one M-line through the real emitter, its shape trimmed to
@@ -89,15 +89,15 @@ func findTelemetry(t *testing.T, a *analysis, tier string) *tierTelemetry {
 }
 
 // TestSeatFoldBo3WithDraw walks the fold law of internal/tourney/runner.go
-// through a bo3 with a draw: game 1 red wins (red passes to the guest), game
-// 2 the new red seat wins red (red passes back), game 3 draws (red holds),
-// and the series settles none at 1-1.
+// through a bo3 with a draw: red alternates after every game, so alpha
+// holds red in games 1 and 3, beta in game 2, and the series settles drawn
+// at 1-1.
 func TestSeatFoldBo3WithDraw(t *testing.T) {
 	body := headerBlock(1, 0, "alpha", "easy", "beta", "hard") +
-		"game 1: red, 9 moves, won by 4\n" +
-		"game 2: red, 7 moves, won by open 4\n" +
-		"game 3: draw, 40 moves\n" +
-		"series none 1-1\n"
+		"game 1: alpha (red) beat beta (blue), 9 moves, won by 4\n" +
+		"game 2: beta (red) beat alpha (blue), 7 moves, won by open 4\n" +
+		"game 3: alpha (red) vs beta (blue), drawn at 40 moves\n" +
+		"series drawn 1-1\n"
 	dir := writeSyntheticLogs(t, map[string]string{"run1_s0_alpha-vs-beta.txt": body})
 	a := analyzeDir(t, dir)
 	alpha := findParticipant(t, a, "alpha")
@@ -128,14 +128,14 @@ func TestAnalyzeFullReport(t *testing.T) {
 		mlineOf(t, 4, rules.Blue, "F6", 2, -7, 0) + "\n" + // zero nps
 		mlineOf(t, 5, rules.Red, "E5", 3, 7, 1000) + "\n" + // dup pair with M6
 		mlineOf(t, 6, rules.Blue, "E5", 3, 7, 1000) + "\n" +
-		"game 1: red, 6 moves, won by 4\n" +
+		"game 1: gamma (red) beat delta (blue), 6 moves, won by 4\n" +
 		"M9, Red, corrupted\n" +
 		mlineOf(t, 7, rules.Blue, "G7", 5, 20, 1000) + "\n" +
-		"game 2: blue, 5 moves\n" +
-		"series host 2-0\n"
+		"game 2: gamma (blue) beat delta (red), 5 moves\n" +
+		"series gamma 2-0\n"
 	unfinished := headerBlock(1, 1, "epsilon", "hard", "zeta", "hard") +
 		mlineOf(t, 8, rules.Blue, "B2", 6, 30, 1000) + "\n" +
-		"game 1: blue, 5 moves\n" +
+		"game 1: zeta (blue) beat epsilon (red), 5 moves\n" +
 		"\n"
 	dir := writeSyntheticLogs(t, map[string]string{
 		"run1_s0_gamma-vs-delta.txt":  finished,
@@ -244,7 +244,7 @@ func TestAnalyzeEmptyDir(t *testing.T) {
 // log with data lines but no header still counts its inventory and lands in
 // the missing-header ledger without attributing anything.
 func TestAnalyzeHeaderlessFile(t *testing.T) {
-	body := mlineOf(t, 1, rules.Red, "A1", 2, 5, 1000) + "\ngame 1: red, 1 moves\n"
+	body := mlineOf(t, 1, rules.Red, "A1", 2, 5, 1000) + "\ngame 1: a (red) beat b (blue), 1 moves\n"
 	a := analyzeDir(t, writeSyntheticLogs(t, map[string]string{"stray.txt": body}))
 	if a.files != 1 || a.mlines != 1 || a.games != 1 || a.unattributedM != 1 {
 		t.Errorf("inventory = %+v", a)
@@ -258,8 +258,8 @@ func TestAnalyzeHeaderlessFile(t *testing.T) {
 // billed games.
 func TestAnalyzeFoldMismatchDetected(t *testing.T) {
 	body := headerBlock(1, 0, "a", "easy", "b", "hard") +
-		"game 1: red, 9 moves, won by 4\n" +
-		"series host 2-0\n"
+		"game 1: a (red) beat b (blue), 9 moves, won by 4\n" +
+		"series a 2-0\n"
 	a := analyzeDir(t, writeSyntheticLogs(t, map[string]string{"run1_s0_a-vs-b.txt": body}))
 	if len(a.foldMismatch) != 1 {
 		t.Errorf("foldMismatch = %v, want the folded 1-0 against the billed 2-0", a.foldMismatch)
