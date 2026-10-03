@@ -9,4 +9,3 @@ coverage.out
 *.prof
 *.log
 .playwright-mcp/
-tourney-logs/
