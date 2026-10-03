@@ -69,97 +69,31 @@ playground/       git-tracked R&D ground
 
 Search pipeline, one pass per completed iteration. The soft stop is consulted at iteration heads only, and only completed iterations become the answer.
 
-```mermaid
-flowchart TD
-    A[Search entry: fallback move precomputed] --> B[iterative deepening: depth 1..max]
-    B --> C{stopped or hard deadline?}
-    C -- yes --> Z[return best of last completed iteration]
-    C -- no --> D{soft stop: elapsed > 65% of grant?<br/>zero clock reading counts as one 16ms tick}
-    D -- yes --> Z
-    D -- no --> E[searchRoot: PVS over root moves]
-    E --> F[negamax fail-soft alpha-beta]
-    F --> G{TT probe: exact/lower/upper cutoff?}
-    G -- cutoff --> H[return stored score]
-    G -- miss --> I[movegen: ring candidates ordered by<br/>TT move, killers, threat score, history]
-    I --> J{opponent holds a four?}
-    J -- yes, budget left --> K[extend depth by one]
-    J -- no --> L[recurse scout window, re-search on fail-high]
-    K --> L
-    L --> M[TT store with mate ply adjustment]
-    M --> F
-    H --> E
-    E --> N{mate score found?}
-    N -- yes --> Z
-    N -- no --> B
-```
+![search pipeline flowchart](docs/diagrams/search-pipeline.png)
 
 Lazy SMP wraps the same pipeline: one persistent locked-thread worker per core, parked between searches, all sharing one lockless direct-mapped transposition table; a worker's proven immediate win halts its siblings through a shared flag folded into their deadline.
 
 Threat-solver soundness harness. The solvers generate only threat moves (fours for VCF, threes and fours for VCT) from the init-computed pattern tables; a test-only brute-force oracle over the independent naive board cross-checks every claimed win, and that fuzz runs in CI permanently.
 
-```mermaid
-flowchart LR
-    S[VCF / VCT threat-space search<br/>FAIL-only memo, deadline-driven] -- claimed win + line --> O[brute-force alpha-beta oracle<br/>naive array board, shared code: none]
-    O -- win verifies --> P[pass]
-    O -- refuted --> X[defect: soundness broken]
-    O -- refutation only --> Q[ignored: soundness-only criterion]
-```
+![threat-solver soundness harness flowchart](docs/diagrams/threat-solver-harness.png)
 
 Series state machine inside every room. Host takes red first; the loser of a decisive game takes red next; a draw retains red; quitting books a loss for every remaining game.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Created: NewSeries(host, guest, tc, bo)
-    Created --> Ready: both readied
-    Ready --> InGame: game 1 live
-    InGame --> InGame: RecordResult<br/>red passes to the loser, draws retain
-    InGame --> Finished: majority reached<br/>or schedule exhausted (plurality)
-    Created --> Finished: Forfeit<br/>charges every remaining game
-    InGame --> Finished: Forfeit<br/>charges every remaining game
-```
+![series state machine](docs/diagrams/series-state-machine.png)
 
 Room data path. Gameplay never blocks on the disk: moves apply in memory, mutations queue to the single SQLite writer, and telemetry fans out to every subscriber.
 
-```mermaid
-flowchart LR
-    U[players / bot worker] -- PlayMove --> R[room + match driver<br/>board, clocks, series machine]
-    R -- move, M-line, gameend events --> H[pub-sub hub]
-    H -- per-subscriber buffers, slow evicted --> G[guests and players via SSE]
-    R -- games, rating events, series updates --> W[single-writer mutation queue<br/>blocks, never drops]
-    W --> D[(SQLite WAL, forward-only migrations)]
-    R -- game end: per-match rating law --> D
-```
+![room data path flowchart](docs/diagrams/room-data-path.png)
 
 The tournament conductor. Every series rides the same room surface a human match does; the conductor subscribes before the room can retire, reconciles each finished game against the room's authoritative move list, and fails the whole run on any divergence.
 
-```mermaid
-flowchart TD
-    SU[setup page or caro tourney driver] -- startRun: gate + persist schedule --> C[conductor]
-    G{ongoing run row<br/>or over-budget cores?} -- yes --> X[refuse: close or reconfigure]
-    G -- no --> D[dispatch: TournamentParallel semaphore]
-    D --> R1[room 1: CreateBotVsBot<br/>subscribe, then drive]
-    D --> R2[room 2]
-    R1 -- move, mline, gameend, series events --> REC[recorder]
-    REC -- gameend: delivered moves vs room truth<br/>mismatch fails the run --> ST[(tournament tables, schema v3)]
-    REC -- every mline --> LG[per-series txt log]
-    R1 -- series event --> N[settle, cross-check the room verdict]
-    N -- all settled --> F[FinishRun: frozen standings snapshot]
-```
+![tournament conductor flowchart](docs/diagrams/tournament-conductor.png)
 
 The machine-wide core budget is held by the run gate: one ongoing run at a time, per-run parallelism bounded by the tier cores, a stalled run (crashed drive) closed explicitly from its page before another can start.
 
 Page surface. The shell and room pages are server-rendered html/template with vendored htmx 4; page routes mount beside the JSON API and win on their patterns, everything else falls to the shell.
 
-```mermaid
-flowchart LR
-    BR[browser] -- GET /, /login, /history, /partials/rooms --> SH[shell pages<br/>stats, rooms grid, create form]
-    BR -- GET /rooms/{id} --> RP[room page<br/>board, clocks, handshake, controls]
-    BR -- GET /rooms/history/{id} --> PB[playback page<br/>final position, step controls]
-    RP -- hx-sse primary, EventSource fallback --> EV["SSE /api/rooms/{id}/events<br/>move, mline, gameend, series"]
-    RP -- fetch POST join/ready/move/forfeit --> API[JSON API]
-    SH -- create room --> API
-    API --> RM[room manager] --> ST[(SQLite)]
-```
+![page surface flowchart](docs/diagrams/page-surface.png)
 
 The pure client functions (tap-to-preview selection, the M-line UI filter) ship as byte-pinned twins: the same source is pinned between markers in the served JS and asserted byte-equal by Go tests, so the browser and the test suite cannot drift.
 
