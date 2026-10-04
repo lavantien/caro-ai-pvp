@@ -34,7 +34,17 @@ Match history opened onto the playback board at the final position:
 
 ![match history playback board](docs/screenshots/history-playback.png)
 
-These are desktop captures; the mobile pass audited every surface at 390x844 (home, live and terminal room, playback, tournament setup and run): long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the retired room renders an honest terminal state, and the tournament leaderboard scrolls inside its own wrap. The 390px captures land with the v0.20 evidence chain.
+The 390px mobile captures of the same chain, dark surface, live room and terminal room states:
+
+![terminal room on a phone](docs/screenshots/mobile-terminal-room.png)
+
+![history playback on a phone](docs/screenshots/mobile-history-playback.png)
+
+![live rooms grid on a phone](docs/screenshots/mobile-home-rooms.png)
+
+![tournament run page on a phone](docs/screenshots/mobile-tourney-run.png)
+
+The mobile pass audited every surface at 390x844: long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the board offers only the spaces the rules allow (the opening ring dims on red's second move), the retired room renders an honest terminal state, and the tournament leaderboard scrolls inside its own wrap. The desktop captures above predate the playable-space mask.
 
 ## build and verify
 
