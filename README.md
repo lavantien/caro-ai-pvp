@@ -34,7 +34,7 @@ Match history opened onto the playback board at the final position:
 
 ![match history playback board](docs/screenshots/history-playback.png)
 
-These are desktop captures; the mobile-first redo (finished games live and in playback, the tournament run page mid-run) lands with the v0.20 evidence chain.
+These are desktop captures; the mobile pass audited every surface at 390x844 (home, live and terminal room, playback, tournament setup and run): long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the retired room renders an honest terminal state, and the tournament leaderboard scrolls inside its own wrap. The 390px captures land with the v0.20 evidence chain.
 
 ## build and verify
 
