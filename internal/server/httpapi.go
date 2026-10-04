@@ -164,6 +164,11 @@ type gameSnapshot struct {
 	TurnUserID int64    `json:"turnUserId"`
 	RedUserID  int64    `json:"redUserId"`
 	ClockMs    [2]int64 `json:"clockMs"`
+	// Playable lists every cell the rules law allows the side to move
+	// right now, so the board can offer exactly the possible spaces
+	// instead of discovering legality by rejection. It is LegalMoves
+	// verbatim: no phase is special-cased.
+	Playable []string `json:"playable"`
 }
 
 // roomDetail is the public room view: the grid line plus the live game.
@@ -491,6 +496,12 @@ func (r *Room) gameSnapshot() *gameSnapshot {
 	}
 	for _, m := range r.moves {
 		snap.Moves = append(snap.Moves, cellName(rules.Cell(m)))
+	}
+	var legal [config.BoardCells]rules.Move
+	n := r.board.LegalMoves(legal[:])
+	snap.Playable = make([]string, 0, n)
+	for _, m := range legal[:n] {
+		snap.Playable = append(snap.Playable, cellName(rules.Cell(m)))
 	}
 	return snap
 }

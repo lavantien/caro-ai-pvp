@@ -139,7 +139,7 @@ func (p *RoomPages) HandlePlayback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	p.renderPlayback(w, playbackView{
-		boardData: boardData{Cells: boardCells(names), BoardSize: config.BoardSize},
+		boardData: boardData{Cells: boardCells(names, nil), BoardSize: config.BoardSize},
 		GameID:    g.ID, RedName: redName, BlueName: blueName,
 		Outcome: outcomeWord(g.Outcome), WonBy: derefString(g.WonBy), Moves: names,
 	})
@@ -174,13 +174,16 @@ func (p *RoomPages) resolveRoom(id string) (*Room, error) {
 }
 
 // cellView is one board square: the rules coordinate name and the stone it
-// carries, with the move index and the latest flag for rendering.
+// carries, with the move index and the latest flag for rendering. Off marks
+// a cell the rules refuse the mover, so the board offers only the possible
+// spaces; it renders for the mover alone.
 type cellView struct {
 	Name   string
 	Stone  string // "", "red", "blue"
 	Glyph  string // "", "O", "X"
 	Idx    int
 	Latest bool
+	Off    bool
 }
 
 // moveLine is one move-history entry.
@@ -306,7 +309,7 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 		view.RedName, view.BlueName = view.seatNameOf(snap.RedUserID), view.seatNameOf(blueUserID)
 		view.ClockRed, view.ClockBlue = formatClockMs(snap.ClockMs[0]), formatClockMs(snap.ClockMs[1])
 		view.Moves = moveLines(snap.Moves)
-		view.Cells = boardCells(snap.Moves)
+		var playable map[string]bool
 		if view.IsParticipant {
 			view.MyColor = "blue"
 			if viewer.ID == snap.RedUserID {
@@ -314,11 +317,18 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 			}
 			view.TurnIsMe = snap.TurnUserID == viewer.ID
 			view.Live = view.TurnIsMe
+			if view.Live {
+				playable = make(map[string]bool, len(snap.Playable))
+				for _, name := range snap.Playable {
+					playable[name] = true
+				}
+			}
 		}
+		view.Cells = boardCells(snap.Moves, playable)
 	} else {
 		// The grid renders pre-match too: a spectator arriving before the
 		// handshake sees the full empty board, not a blank square.
-		view.Cells = boardCells(nil)
+		view.Cells = boardCells(nil, nil)
 	}
 	return view, nil
 }
@@ -391,8 +401,9 @@ func (r *Room) readyFlags() (exists, hostReady, guestReady bool) {
 
 // boardCells lays out every coordinate of the config-sized board in row
 // order, stones placed by move parity: plies 0, 2, 4... are red, the first
-// mover holding red per the rules.
-func boardCells(moves []string) []cellView {
+// mover holding red per the rules. A non-nil playable set (the mover's own
+// view) marks every empty cell the rules law refuses with Off.
+func boardCells(moves []string, playable map[string]bool) []cellView {
 	at := make(map[string]int, len(moves))
 	for i, name := range moves {
 		at[name] = i
@@ -405,6 +416,8 @@ func boardCells(moves []string) []cellView {
 			cv.Idx = i
 			cv.Stone, cv.Glyph = stoneOf(i)
 			cv.Latest = i == len(moves)-1
+		} else if playable != nil && !playable[name] {
+			cv.Off = true
 		}
 		cells = append(cells, cv)
 	}

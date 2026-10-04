@@ -164,6 +164,46 @@ func TestRoomPageRendersDrivenPvPGame(t *testing.T) {
 	}
 }
 
+// TestRoomPagePlayableMaskForMoverOnly pins the board presentation during
+// the opening constraint: the mover's render dims exactly the cells the
+// rules refuse, every other view (the waiting opponent included) sees the
+// plain board, and the 409 backstop never becomes the offered UX.
+func TestRoomPagePlayableMaskForMoverOnly(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, []string{"H8", "A1"})
+	ta, tb := mintSession(t, s.store, alice), mintSession(t, s.store, bob)
+
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), ta)
+	if status != http.StatusOK {
+		t.Fatalf("mover page status = %d, want 200 (body %s)", status, body)
+	}
+	// The Chebyshev-2 box around H8 holds 25 cells; the anchor itself is
+	// occupied, so 24 empties carry the off mark.
+	if got := strings.Count(body, `class="cell off"`); got != 24 {
+		t.Errorf("mover render dims %d cells, want the 24-cell opening ring", got)
+	}
+	if !strings.Contains(body, `<div class="cell off" id="c-I8"`) {
+		t.Error("near cell I8 misses the off mark on the mover's board")
+	}
+	if !strings.Contains(body, `<div class="cell" id="c-K11"`) {
+		t.Error("far cell K11 is not a plain live cell on the mover's board")
+	}
+
+	// The waiting opponent and the spectator board carry no mask.
+	for name, token := range map[string]string{
+		"opponent": tb,
+		"guest":    "",
+	} {
+		_, other := getRoomPage(t, srv, "/rooms/"+r.ID(), token)
+		if strings.Contains(other, `class="cell off"`) {
+			t.Errorf("%s view carries the playable mask", name)
+		}
+	}
+}
+
 func TestRoomPageGuestAndStrangerSeeNoControls(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
@@ -584,6 +624,28 @@ func TestRoomJSCarriesSeatRotationSync(t *testing.T) {
 	} {
 		if !strings.Contains(string(src), want) {
 			t.Errorf("room.js misses seat-rotation sync %q", want)
+		}
+	}
+}
+
+// TestRoomJSCarriesPlayableMask pins the client wiring of the playable
+// list: the mask applies from the detail's own legality answer, an off cell
+// rejects locally instead of posting, and every move event pulls a fresh
+// detail so the mask never goes stale mid-turn.
+func TestRoomJSCarriesPlayableMask(t *testing.T) {
+	src, err := fs.ReadFile(staticFS, "room.js")
+	if err != nil {
+		t.Fatalf("read room.js: %v", err)
+	}
+	for _, want := range []string{
+		"applyPlayable(d.game.playable)",
+		"classList.contains('off')",
+		"not a legal space",
+		// Stones never dim: the mask marks refused spaces alone.
+		"!cells[j].classList.contains('occ')",
+	} {
+		if !strings.Contains(string(src), want) {
+			t.Errorf("room.js misses playable-mask wiring %q", want)
 		}
 	}
 }

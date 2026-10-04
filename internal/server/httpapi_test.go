@@ -312,6 +312,82 @@ func TestHTTPRoomsGridAndDetail(t *testing.T) {
 	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
 }
 
+// TestRoomDetailPlayableFollowsRulesLaw pins the playable list the detail
+// ships for the side to move against the rules package's own LegalMoves on
+// the same position: the board presents only spaces the one legality law
+// allows, with no move-number special case anywhere.
+func TestRoomDetailPlayableFollowsRulesLaw(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	ta, tb := mintSession(t, s.store, alice), mintSession(t, s.store, bob)
+
+	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+	var room roomSummary
+	wantStatus(t, got, http.StatusCreated, &room)
+	base := srv.URL + "/api/rooms/" + room.ID
+	wantStatus(t, doJSON(t, c, http.MethodPost, base+"/join", tb, nil), http.StatusNoContent, nil)
+	wantStatus(t, doJSON(t, c, http.MethodPost, base+"/ready", ta, nil), http.StatusNoContent, nil)
+	wantStatus(t, doJSON(t, c, http.MethodPost, base+"/ready", tb, nil), http.StatusNoContent, nil)
+
+	rulesSet := func(moves ...string) map[string]bool {
+		b := rules.NewBoard()
+		for _, name := range moves {
+			cell, err := rules.ParseCell(name)
+			if err != nil {
+				t.Fatalf("parse %s: %v", name, err)
+			}
+			b.Make(cell)
+		}
+		var buf [config.BoardCells]rules.Move
+		n := b.LegalMoves(buf[:])
+		want := make(map[string]bool, n)
+		for _, m := range buf[:n] {
+			want[cellName(rules.Cell(m))] = true
+		}
+		return want
+	}
+	gotSet := func() map[string]bool {
+		var detail roomDetail
+		wantStatus(t, doJSON(t, c, http.MethodGet, base, "", nil), http.StatusOK, &detail)
+		if detail.Game == nil {
+			t.Fatal("no live game in the detail")
+		}
+		out := make(map[string]bool, len(detail.Game.Playable))
+		for _, name := range detail.Game.Playable {
+			out[name] = true
+		}
+		return out
+	}
+
+	// Fresh board: every cell of the region is legal for red.
+	if set := gotSet(); len(set) != config.BoardCells {
+		t.Fatalf("fresh-board playable = %d cells, want all %d", len(set), config.BoardCells)
+	}
+	// Red's first stone plus blue's answer: red's next move sits inside the
+	// opening constraint, the only phase the law restricts beyond occupancy.
+	wantStatus(t, doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "H8"}),
+		http.StatusNoContent, nil)
+	wantStatus(t, doJSON(t, c, http.MethodPost, base+"/move", tb, map[string]string{"cell": "A1"}),
+		http.StatusNoContent, nil)
+	set, want := gotSet(), rulesSet("H8", "A1")
+	if set["I8"] || !set["K11"] {
+		t.Errorf("constrained playable misflags the ring: I8=%v K11=%v", set["I8"], set["K11"])
+	}
+	if len(set) != len(want) {
+		t.Fatalf("constrained playable = %d cells, want %d", len(set), len(want))
+	}
+	for name := range want {
+		if !set[name] {
+			t.Fatalf("playable misses legal cell %s", name)
+		}
+	}
+}
+
 // playHTTPScript alternates move posts, names[0] by the mover the redFirst
 // flag names, then alternating: every post must answer 204.
 func playHTTPScript(t *testing.T, srv *httptest.Server, roomID, redTok, blueTok string, names []string, redFirst bool) {

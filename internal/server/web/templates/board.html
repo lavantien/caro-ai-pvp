@@ -12,20 +12,24 @@
 .stone.hidden { display: none }
 .board.live[data-my-color="red"] { --ghost: color-mix(in srgb, var(--red) 45%, transparent) }
 .board.live[data-my-color="blue"] { --ghost: color-mix(in srgb, var(--blue) 45%, transparent) }
-.board.live .cell:not(.occ) { cursor: pointer }
+.board.live .cell:not(.occ):not(.off) { cursor: pointer }
 .board.live .cell.ghost::after { content: ""; position: absolute; inset: 8%;
 	border-radius: 50%; background: var(--ghost) }
 @media (pointer: fine) {
-	.board.live .cell:not(.occ):hover::after { content: ""; position: absolute; inset: 8%;
+	.board.live .cell:not(.occ):not(.off):hover::after { content: ""; position: absolute; inset: 8%;
 		border-radius: 50%; background: var(--ghost) }
 }
+/* The rules refuse the dimmed cells for the mover (the opening constraint
+   is the only such phase today); they present as inert, never as a tap that
+   bounces off the server. */
+.board.live .cell.off { cursor: default; opacity: .45 }
 </style>
 {{end}}
 
 {{define "board-grid"}}
 <div{{if .Live}} class="board live"{{else}} class="board"{{end}} id="board"{{if .MyColor}} data-my-color="{{.MyColor}}"{{end}} style="grid-template-columns:repeat({{.BoardSize}},1fr)">
 {{- range .Cells}}
-<div class="cell{{if .Stone}} occ{{end}}" id="c-{{.Name}}" data-cell="{{.Name}}">{{if .Stone}}<span class="stone {{.Stone}}{{if .Latest}} latest{{end}}" data-i="{{.Idx}}">{{.Glyph}}</span>{{end}}</div>
+<div class="cell{{if .Stone}} occ{{end}}{{if .Off}} off{{end}}" id="c-{{.Name}}" data-cell="{{.Name}}">{{if .Stone}}<span class="stone {{.Stone}}{{if .Latest}} latest{{end}}" data-i="{{.Idx}}">{{.Glyph}}</span>{{end}}</div>
 {{- end}}
 </div>
 {{end}}

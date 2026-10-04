@@ -136,6 +136,25 @@ function paintClocks() {
 	$('clock-blue').textContent = fmtClock(remMs.blue);
 }
 
+// applyPlayable paints the rules' own answer for the side to move: the
+// detail's playable list, never a client-side re-derivation of the law.
+// Only the mover's live board dims what the rules refuse; every other view
+// clears the marks.
+function applyPlayable(list) {
+	var ok = null;
+	if ($('board').classList.contains('live') && list) {
+		ok = {};
+		for (var i = 0; i < list.length; i++) { ok[list[i]] = 1; }
+	}
+	var cells = $('board').querySelectorAll('.cell');
+	for (var j = 0; j < cells.length; j++) {
+		// Stones never dim: the mask marks refused SPACES, and the playable
+		// list never carries an occupied cell anyway.
+		cells[j].classList.toggle('off', !!ok && !cells[j].classList.contains('occ') &&
+			!ok[cells[j].dataset.cell]);
+	}
+}
+
 // renderDetail reconciles the whole view with one room detail: the board
 // after a reload-safe event gap, both banks, the turn, and the score line.
 function renderDetail(d) {
@@ -179,6 +198,7 @@ function renderDetail(d) {
 			Number(d.game.redUserId) === myID ? 'red' : 'blue');
 	}
 	$('score-line').textContent = hostName + ' ' + d.hostWins + ' - ' + d.guestWins + ' ' + guestName;
+	applyPlayable(d.game.playable);
 }
 
 function sync() {
@@ -232,6 +252,20 @@ function onMove(name) {
 	ol.appendChild(li);
 	root.setAttribute('data-move-count', String(i + 1));
 	if (turn) { turn = turn === 'red' ? 'blue' : 'red'; setTurnLine(); }
+	// The turn handed over: pull the fresh detail so the playable mask for
+	// the new mover replaces the old one within one local round trip
+	// instead of waiting out the poll.
+	scheduleSync();
+}
+
+// scheduleSync collapses the move-event sync burst into one fetch.
+var syncTimer = null;
+function scheduleSync() {
+	if (syncTimer) { return; }
+	syncTimer = setTimeout(function () {
+		syncTimer = null;
+		sync();
+	}, 150);
 }
 
 function onMLine(line) {
@@ -341,6 +375,8 @@ $('board').addEventListener('click', function (e) {
 	if (!participant || terminal) { return; }
 	var cell = e.target.closest ? e.target.closest('.cell') : null;
 	if (!cell || cell.classList.contains('occ')) { return; }
+	// A dimmed cell is a space the rules refuse: refused locally, no post.
+	if (cell.classList.contains('off')) { status('not a legal space', true); return; }
 	var name = cell.dataset.cell;
 	if (!coarse) { confirmMove(name); return; }
 	var r = tapSelect(selected, name);
