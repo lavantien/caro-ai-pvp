@@ -14,14 +14,17 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/tourney"
 )
 
-// tourneyService implements server.TourneyService over one manager.
+// tourneyService implements server.TourneyService over one manager and the
+// room surface its runs ride.
 type tourneyService struct {
-	m *tourney.Manager
+	m     *tourney.Manager
+	rooms *server.RoomManager
 }
 
-// newTourneyService adapts the manager the serve composition drives.
-func newTourneyService(m *tourney.Manager) tourneyService {
-	return tourneyService{m: m}
+// newTourneyService adapts the manager the serve composition drives and the
+// room manager its live boards read.
+func newTourneyService(m *tourney.Manager, rooms *server.RoomManager) tourneyService {
+	return tourneyService{m: m, rooms: rooms}
 }
 
 // StartRun hands the page's validated setup to the manager: the run id comes
@@ -86,6 +89,32 @@ func (s tourneyService) Runs(ctx context.Context) ([]server.TourneyRunSummary, e
 		}
 	}
 	return out, nil
+}
+
+// LiveBoards maps the room surface's live bot-vs-bot rooms onto the run
+// page's spectating reads, red named by the snapshot's own seating.
+func (s tourneyService) LiveBoards() []server.TourneyLiveBoard {
+	boards := s.rooms.BotBoards()
+	out := make([]server.TourneyLiveBoard, 0, len(boards))
+	for _, b := range boards {
+		out = append(out, liveBoardOf(b))
+	}
+	return out
+}
+
+// liveBoardOf turns one live room read into the page shape: the seats and
+// the running score follow red, whichever room seat holds it.
+func liveBoardOf(b server.LiveBotBoard) server.TourneyLiveBoard {
+	lb := server.TourneyLiveBoard{
+		RoomID: b.RoomID, RedName: b.GuestName, BlueName: b.HostName,
+		RedWins: b.GuestWins, BlueWins: b.HostWins,
+		Turn: b.Turn, Moves: b.Moves,
+	}
+	if b.RedIsHost {
+		lb.RedName, lb.BlueName = b.HostName, b.GuestName
+		lb.RedWins, lb.BlueWins = b.HostWins, b.GuestWins
+	}
+	return lb
 }
 
 // runInfoOf maps one detail's header half.

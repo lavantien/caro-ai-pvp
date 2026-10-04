@@ -97,7 +97,7 @@ func runServe(args []string) int {
 	rooms := server.NewRoomManager(hub, store, wq)
 	// The tournament manager drives its runs on the room surface; the page
 	// service the root mux mounts is the adapter over it.
-	tourneys := newTourneyService(tourney.NewManager(tourney.NewStore(store), tourney.RoomSource{RM: rooms}))
+	tourneys := newTourneyService(tourney.NewManager(tourney.NewStore(store), tourney.RoomSource{RM: rooms}), rooms)
 	srv := newServeServer(*addr, newRootMux(store, rooms, tourneys))
 
 	ctx, stop := signal.NotifyContext(context.Background(), serveSignals...)

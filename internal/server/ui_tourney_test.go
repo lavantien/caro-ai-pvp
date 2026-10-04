@@ -33,6 +33,7 @@ type fakeTourney struct {
 	runsErr      error
 	closeErr     error
 	closed       []int64
+	live         []TourneyLiveBoard
 }
 
 func (f *fakeTourney) StartRun(_ context.Context, setup TourneySetup) (int64, error) {
@@ -58,6 +59,10 @@ func (f *fakeTourney) RunSnapshot(_ context.Context, runID int64) (TourneySnapsh
 
 func (f *fakeTourney) Runs(context.Context) ([]TourneyRunSummary, error) {
 	return f.runSummaries, f.runsErr
+}
+
+func (f *fakeTourney) LiveBoards() []TourneyLiveBoard {
+	return f.live
 }
 
 // tourneySrv mounts the pages over a scripted service and a fresh stack.
@@ -283,6 +288,63 @@ func TestTourneyRunPageRendersLiveBoard(t *testing.T) {
 		if strings.Contains(frag, page) {
 			t.Errorf("board fragment carries the whole page (%q)", page)
 		}
+	}
+}
+
+// TestTourneyRunPageRendersLiveBoardSection pins the live spectating cards:
+// one per ongoing room, linked, the score told from red's side, and the mini
+// board an inert grid of stones in play order. The section rides the polled
+// fragment and stays off every page whose run is not live.
+func TestTourneyRunPageRendersLiveBoardSection(t *testing.T) {
+	sn := liveSnapshot()
+	fake := &fakeTourney{snapshot: sn, live: []TourneyLiveBoard{{
+		RoomID: "roomabc", RedName: "easy-1", BlueName: "hard-1",
+		RedWins: 1, BlueWins: 2, Turn: "blue", Moves: []string{"H8", "H9", "I9"},
+	}}}
+	srv, token := tourneySrv(t, fake)
+	c := noRedirectClient(srv)
+
+	status, _, body := doShell(t, c, http.MethodGet, srv.URL+"/tourney/run/7", token, nil)
+	if status != http.StatusOK {
+		t.Fatalf("run page: status = %d (body %s)", status, body)
+	}
+	wantShellBody(t, body,
+		`class="liveboards"`,
+		`href="/rooms/roomabc"`,
+		"easy-1 vs hard-1",
+		// Red's perspective: 1-2 beside red-named-first seats.
+		">1-2<",
+		"blue to move, 3 stones",
+		`class="miniboard" style="grid-template-columns:repeat(`+
+			strconv.Itoa(config.BoardSize)+`,1fr)"`,
+	)
+	// Stones by play parity: H8 and I9 red, H9 blue, the latest marked once.
+	if n := strings.Count(body, `m-red`); n != 2 {
+		t.Errorf("red mini stones = %d, want 2 (body %s)", n, body)
+	}
+	if n := strings.Count(body, `m-blue`); n != 1 {
+		t.Errorf("blue mini stones = %d, want 1 (body %s)", n, body)
+	}
+	if n := strings.Count(body, `m-latest`); n != 1 {
+		t.Errorf("latest mini stone marks = %d, want 1 (body %s)", n, body)
+	}
+	if strings.Contains(body, `class="mcell" data-cell`) {
+		t.Error("mini cells carry tap targets, want an inert spectating grid")
+	}
+
+	// The polled fragment serves the same cards.
+	_, _, frag := doShell(t, c, http.MethodGet, srv.URL+"/tourney/run/7/board", "", nil)
+	if !strings.Contains(frag, "easy-1 vs hard-1") || !strings.Contains(frag, `href="/rooms/roomabc"`) {
+		t.Errorf("board fragment misses the live cards (body %s)", frag)
+	}
+
+	// A run whose drive is not live never shows boards, even with live rooms
+	// behind the service: only the ongoing run's page owns them.
+	stalled := stalledSnapshot()
+	stalledSrv, _ := tourneySrv(t, &fakeTourney{snapshot: stalled, live: fake.live})
+	_, _, body = doShell(t, c, http.MethodGet, stalledSrv.URL+"/tourney/run/7", "", nil)
+	if strings.Contains(body, `class="liveboards"`) || strings.Contains(body, "miniboard") {
+		t.Errorf("non-running run page carries the live section (body %s)", body)
 	}
 }
 

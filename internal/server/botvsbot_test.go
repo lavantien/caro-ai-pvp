@@ -345,3 +345,64 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 		}
 	}
 }
+
+// TestBotBoardsListLiveTournamentRooms pins the run page's live-board read:
+// only bot-vs-bot rooms (the tournament surface) report, with their seating
+// and fresh-game shape, while human rooms stay off the tournament view, and
+// a retired room leaves the list.
+func TestBotBoardsListLiveTournamentRooms(t *testing.T) {
+	s := newStack(t)
+	// The designed host-sweep lines: once released, the series plays out and
+	// the room retires. The gate holds game 1 at zero stones for the
+	// live-shape asserts.
+	open := scriptBotVsBotTiers(t, s, map[string][]string{
+		config.TierEasy.Name:   botVsBotHostLine,
+		config.TierMedium.Name: botVsBotGuestLine,
+	})
+
+	// A human pvp room and a human-vs-bot room: both stay off the list.
+	alice := seedUser(t, s.store, "alice")
+	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil); err != nil {
+		t.Fatalf("create pvp room: %v", err)
+	}
+	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy); err != nil {
+		t.Fatalf("create human-bot room: %v", err)
+	}
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, &config.TierMedium, 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create bot vs bot: %v", err)
+	}
+
+	boards := s.rm.BotBoards()
+	if len(boards) != 1 {
+		t.Fatalf("bot boards = %d rooms, want exactly the tournament room", len(boards))
+	}
+	b := boards[0]
+	if b.RoomID != r.ID() {
+		t.Fatalf("bot board room = %s, want %s", b.RoomID, r.ID())
+	}
+	if wantHost, wantGuest := botDisplayName(config.TierEasy.Name, r.ID()),
+		botDisplayName(config.TierMedium.Name, r.ID()); b.HostName != wantHost || b.GuestName != wantGuest {
+		t.Errorf("bot board names = %s vs %s, want %s vs %s", b.HostName, b.GuestName, wantHost, wantGuest)
+	}
+	if len(b.Moves) != 0 {
+		t.Errorf("gated bot board moves = %v, want the fresh game", b.Moves)
+	}
+	if b.Turn != "red" || !b.RedIsHost {
+		t.Errorf("bot board seating = turn %q redIsHost %v, want the host on red", b.Turn, b.RedIsHost)
+	}
+	if b.HostWins != 0 || b.GuestWins != 0 {
+		t.Errorf("fresh bot board score = %d-%d, want 0-0", b.HostWins, b.GuestWins)
+	}
+
+	// Release the sweep: the scripted series settles, the room retires, and
+	// the live-board read empties with it.
+	open()
+	waitFor(t, func() bool {
+		_, ok := r.Info()
+		return !ok
+	})
+	if got := s.rm.BotBoards(); len(got) != 0 {
+		t.Errorf("bot boards after retire = %d rooms, want none", len(got))
+	}
+}

@@ -1,4 +1,17 @@
 {{define "tourboard"}}
+{{if .Live}}
+<div class="liveboards">
+{{range .Live}}<a class="livecard" href="/rooms/{{.RoomID}}">
+	<span class="who-vs">{{.Red}} vs {{.Blue}}</span>
+	<span class="score">{{.Score}}</span>
+	<span class="meta">{{.Turn}} to move, {{.MoveCount}} stones</span>
+	<div class="miniboard" style="grid-template-columns:repeat({{.BoardSize}},1fr)" aria-hidden="true">
+	{{- range .Cells}}<div class="mcell{{if .Stone}} m-{{.Stone}}{{end}}{{if .Latest}} m-latest{{end}}"></div>
+	{{- end}}
+	</div>
+</a>
+{{end}}</div>
+{{end}}
 <p class="progress">series {{.Done}}/{{.Total}} settled</p>
 <ol class="tseries">
 {{range .Series}}<li><span class="who-vs">{{.Red}} (red first) {{.Score}} {{.Blue}}</span> {{if .Finished}}<span class="score">{{if .Winner}}{{.Winner}}{{else}}drawn{{end}}</span>{{else}}<span class="live">playing</span>{{end}}</li>

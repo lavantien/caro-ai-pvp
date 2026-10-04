@@ -108,6 +108,20 @@ type TourneyRunSummary struct {
 	Leader string
 }
 
+// TourneyLiveBoard is one ongoing bot series' spectating read for the run
+// page: the room link, both seats under the room's naming law with the
+// running series score told from red's side, the stones in play order, and
+// the side to move.
+type TourneyLiveBoard struct {
+	RoomID   string
+	RedName  string
+	BlueName string
+	RedWins  int
+	BlueWins int
+	Turn     string
+	Moves    []string
+}
+
 // TourneyBlockedError names the ongoing run holding the machine-wide run
 // gate; the setup form renders the blocking id inline instead of a bare
 // outage.
@@ -132,6 +146,11 @@ type TourneyService interface {
 	RunSnapshot(ctx context.Context, runID int64) (TourneySnapshot, error)
 	// Runs lists run headers newest first with their rosters and leaders.
 	Runs(ctx context.Context) ([]TourneyRunSummary, error)
+	// LiveBoards reads the ongoing run's live bot series for spectating.
+	// One run holds the machine at a time, so every live bot-vs-bot room
+	// belongs to the ongoing run; a driven run's page renders them, every
+	// other page ignores them.
+	LiveBoards() []TourneyLiveBoard
 	// CloseStalledRun closes a stalled run's row, an ongoing run no live
 	// drive owns. It refuses an unknown run with ErrNotFound and a live
 	// drive or an already-closed run with an error the page renders inline.
@@ -467,6 +486,39 @@ type tourneyBoardView struct {
 	Total  int
 	Series []seriesLineView
 	Board  []standingRowView
+	Live   []liveBoardView
+}
+
+// liveBoardView is one ongoing bot series' section: the linked room, the
+// seats under the room naming law, the running score with the side to move,
+// and the mini board of stones in play order.
+type liveBoardView struct {
+	RoomID    string
+	Red       string
+	Blue      string
+	Score     string
+	Turn      string
+	MoveCount int
+	Cells     []cellView
+	BoardSize int
+}
+
+// liveBoardsOf shapes the service's live reads; empty while the run's drive
+// is not live, so only the ongoing run's page shows boards.
+func liveBoardsOf(running bool, boards []TourneyLiveBoard) []liveBoardView {
+	if !running || len(boards) == 0 {
+		return nil
+	}
+	out := make([]liveBoardView, len(boards))
+	for i, b := range boards {
+		out[i] = liveBoardView{
+			RoomID: b.RoomID, Red: b.RedName, Blue: b.BlueName,
+			Turn: b.Turn, MoveCount: len(b.Moves),
+			Score: strconv.Itoa(b.RedWins) + "-" + strconv.Itoa(b.BlueWins),
+			Cells: boardCells(b.Moves, nil), BoardSize: config.BoardSize,
+		}
+	}
+	return out
 }
 
 // tourneyRunHeaderView is the run page's summary line.
@@ -519,7 +571,8 @@ func (p *TournamentPages) renderRun(w http.ResponseWriter, status int, me *shell
 	header := runHeaderOf(snap)
 	renderShell(w, status, tourneyRunTmpl, "base", tourneyRunView{
 		Me: me, Header: header, RunID: runID,
-		PollMs: int64(config.PagePollMs), Board: boardViewOf(snap),
+		PollMs:     int64(config.PagePollMs),
+		Board:      boardViewOf(snap, liveBoardsOf(snap.Run.Running, p.tourney.LiveBoards())),
 		CanClose:   header.State == runStateStalled && me != nil,
 		CloseError: closeErr,
 	})
@@ -568,7 +621,8 @@ func (p *TournamentPages) handleBoard(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	renderShell(w, http.StatusOK, tourneyBoardTmpl, "tourboard", boardViewOf(snap))
+	renderShell(w, http.StatusOK, tourneyBoardTmpl, "tourboard",
+		boardViewOf(snap, liveBoardsOf(snap.Run.Running, p.tourney.LiveBoards())))
 }
 
 // tourneyRunID parses the path id; a garbage or non-positive id is the 404
@@ -627,9 +681,9 @@ func runHeaderOf(snap TourneySnapshot) tourneyRunHeaderView {
 }
 
 // boardViewOf shapes the polled fragment: names by slot with the raw slot as
-// the unresolvable fallback, red-first lines in pairing order, and ranks over
-// the service's leaderboard order.
-func boardViewOf(snap TourneySnapshot) tourneyBoardView {
+// the unresolvable fallback, red-first lines in pairing order, ranks over
+// the service's leaderboard order, and the live spectating section.
+func boardViewOf(snap TourneySnapshot, live []liveBoardView) tourneyBoardView {
 	name := func(slot int) string {
 		for _, seat := range snap.Seats {
 			if seat.Slot == slot {
@@ -665,7 +719,7 @@ func boardViewOf(snap TourneySnapshot) tourneyBoardView {
 			SeriesWon: st.SeriesWon, GamesPlayed: st.GamesPlayed,
 		}
 	}
-	return tourneyBoardView{Done: done, Total: len(snap.Series), Series: series, Board: board}
+	return tourneyBoardView{Done: done, Total: len(snap.Series), Series: series, Board: board, Live: live}
 }
 
 // tierOfSeat resolves one slot's tier for the leaderboard rows.

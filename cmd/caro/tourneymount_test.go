@@ -150,7 +150,7 @@ func newTourneyStack(t *testing.T, source tourney.MatchSource) *tourneyStack {
 		hub.Close()
 	})
 	return &tourneyStack{
-		svc:   newTourneyService(tourney.NewManager(tourney.NewStore(store), source)),
+		svc:   newTourneyService(tourney.NewManager(tourney.NewStore(store), source), rooms),
 		store: store, rooms: rooms,
 	}
 }
@@ -158,6 +158,42 @@ func newTourneyStack(t *testing.T, source tourney.MatchSource) *tourneyStack {
 // sweepSource scripts every series as the host's 2-0 sweep.
 func sweepSource() tourney.MatchSource {
 	return &cmdSource{script: func(string, string) []server.Event { return hostSweep() }}
+}
+
+// TestLiveBoardOfFollowsRed pins the adapter's seat mapping: names and the
+// running score follow red, whichever room seat (host or guest) holds it.
+func TestLiveBoardOfFollowsRed(t *testing.T) {
+	base := server.LiveBotBoard{
+		RoomID: "roomxyz", HostName: "easy-2", GuestName: "medium-1",
+		Moves: []string{"H8", "I9"}, Turn: "red", RedIsHost: true,
+		HostWins: 2, GuestWins: 1,
+	}
+	host := liveBoardOf(base)
+	if host.RoomID != "roomxyz" || host.RedName != "easy-2" || host.BlueName != "medium-1" {
+		t.Errorf("host-red board = %+v, want easy-2 red over medium-1", host)
+	}
+	if host.RedWins != 2 || host.BlueWins != 1 || host.Turn != "red" {
+		t.Errorf("host-red line = %d-%d turn %q, want 2-1 red", host.RedWins, host.BlueWins, host.Turn)
+	}
+	if len(host.Moves) != 2 || host.Moves[0] != "H8" || host.Moves[1] != "I9" {
+		t.Errorf("moves = %v, want the play order verbatim", host.Moves)
+	}
+
+	guest := base
+	guest.RedIsHost = false
+	g := liveBoardOf(guest)
+	if g.RedName != "medium-1" || g.BlueName != "easy-2" {
+		t.Errorf("guest-red board = %+v, want medium-1 red over easy-2", g)
+	}
+	if g.RedWins != 1 || g.BlueWins != 2 {
+		t.Errorf("guest-red line = %d-%d, want the score swapped to red's side", g.RedWins, g.BlueWins)
+	}
+
+	// With no tournament rooms live the adapter reads empty.
+	s := newTourneyStack(t, sweepSource())
+	if boards := s.svc.LiveBoards(); len(boards) != 0 {
+		t.Errorf("live boards with no rooms = %+v, want none", boards)
+	}
 }
 
 func TestTourneyServiceAdapterDrivesAndMaps(t *testing.T) {

@@ -287,6 +287,59 @@ func (rm *RoomManager) List() []RoomInfo {
 	return infos
 }
 
+// LiveBotBoard is one live bot-vs-bot room's spectating read for the
+// tournament run page: the room link, both seat names under the room's own
+// naming law, the stones on the board in play order, the side to move, and
+// the running series score. Human rooms never appear: only the tournament
+// surface seats bots on both sides.
+type LiveBotBoard struct {
+	RoomID    string
+	HostName  string
+	GuestName string
+	Moves     []string
+	Turn      string
+	RedIsHost bool
+	HostWins  int
+	GuestWins int
+}
+
+// BotBoards snapshots every live bot-vs-bot room in creation order, the
+// run page's live-board section. A room between games reports the next
+// game's fresh board; a room with no live game yet (handshake-free series
+// start instantly, so this is the retirement race window only) drops off
+// until its snapshot exists.
+func (rm *RoomManager) BotBoards() []LiveBotBoard {
+	rm.mu.Lock()
+	rooms := make([]*Room, 0, len(rm.rooms))
+	for _, r := range rm.rooms {
+		rooms = append(rooms, r)
+	}
+	rm.mu.Unlock()
+	out := make([]LiveBotBoard, 0, 2)
+	for _, r := range rooms {
+		info, live := r.Info()
+		if !live || info.HostBotTier == "" || info.VsBotTier == "" {
+			continue
+		}
+		snap := r.gameSnapshot()
+		if snap == nil {
+			continue
+		}
+		lb := LiveBotBoard{
+			RoomID:    info.ID,
+			HostName:  botDisplayName(info.HostBotTier, info.ID),
+			GuestName: botDisplayName(info.VsBotTier, info.ID),
+			Moves:     snap.Moves,
+			Turn:      snap.Turn,
+			RedIsHost: snap.RedUserID == info.HostUserID,
+			HostWins:  info.HostWins,
+			GuestWins: info.GuestWins,
+		}
+		out = append(out, lb)
+	}
+	return out
+}
+
 // Shutdown retires and joins every room. Idempotent; the manager keeps no
 // rooms afterwards.
 func (rm *RoomManager) Shutdown() {
