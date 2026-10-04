@@ -171,7 +171,10 @@ func (b *contractBot) isClosed() bool {
 // the test the entered and release channels.
 func blockAtSearchEntry(t *testing.T, r *Room) (entered, release chan struct{}) {
 	t.Helper()
-	entered, release = make(chan struct{}), make(chan struct{})
+	// entered carries capacity 1: the worker's non-blocking send must land
+	// even when the test goroutine has not parked on the receive yet, or the
+	// signal drops and the test deadlocks on a lost entry notification.
+	entered, release = make(chan struct{}, 1), make(chan struct{})
 	r.mu.Lock()
 	r.searchEntry = func() {
 		select {
