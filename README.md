@@ -112,7 +112,7 @@ The tournament conductor. Every series rides the same room surface a human match
 
 ![tournament conductor flowchart](docs/diagrams/tournament-conductor.png)
 
-The machine-wide core budget is held by the run gate: one ongoing run at a time, per-run parallelism bounded by the tier cores, a stalled run (crashed drive) closed explicitly from its page before another can start. Starting runs and closing stalled ones is the seeded admin account's alone; every page, the setup list, the run boards, and the home's live-run banner read public, guest included.
+The machine-wide core budget is held by the run gate: one ongoing run at a time, per-run parallelism bounded by the tier cores, and an undriven run (stalled or failed) closed explicitly from its page before another can start. Starting runs and closing them is the seeded admin account's alone; every page, the setup list, the run boards, and the home's live-run banner read public, guest included.
 
 Page surface. The shell and room pages are server-rendered html/template with vendored htmx 4; page routes mount beside the JSON API and win on their patterns, everything else falls to the shell.
 
