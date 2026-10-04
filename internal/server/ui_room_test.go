@@ -204,6 +204,34 @@ func TestRoomPagePlayableMaskForMoverOnly(t *testing.T) {
 	}
 }
 
+// TestRoomPageDeadSessionCookieRendersGuest pins the page's session
+// taxonomy: Authenticate translates an unknown or expired token into
+// ErrBadCredentials, which the viewer must fold into the guest view. A
+// well-formed but dead cookie 500ing the page was a real defect (first
+// exercised by switching the serving database under a live browser).
+func TestRoomPageDeadSessionCookieRendersGuest(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, hostWinsRed[:3])
+
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(),
+		"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want the 200 guest render (body %s)", status, body)
+	}
+	if !strings.Contains(body, `data-participant="0"`) {
+		t.Error("dead session misses the guest view")
+	}
+
+	// Playback holds the same taxonomy: no session, no page.
+	status, _ = getRoomPage(t, srv, "/rooms/history/1", "deadbeefdeadbeef")
+	if status != http.StatusNotFound {
+		t.Errorf("playback under a dead session = %d, want 404", status)
+	}
+}
+
 func TestRoomPageGuestAndStrangerSeeNoControls(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)

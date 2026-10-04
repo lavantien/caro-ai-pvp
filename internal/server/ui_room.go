@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -76,6 +77,7 @@ func (p *RoomPages) HandleRoom(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Error(w, "room page read failed", http.StatusInternalServerError)
+		log.Printf("server: room %s page read: %v", id, err)
 		return
 	}
 	p.renderRoom(w, view)
@@ -335,7 +337,9 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 
 // viewerOf resolves the session's user. A missing cookie and a dead session
 // are the guest view; a live-shaped session over a failing store is an
-// outage the caller must surface, not a silent guest render.
+// outage the caller must surface, not a silent guest render. Authenticate
+// folds unknown and expired tokens into ErrBadCredentials, so that is the
+// dead-session surface here too.
 func (p *RoomPages) viewerOf(r *http.Request) (User, bool, error) {
 	token, err := sessionToken(r)
 	if err != nil {
@@ -343,7 +347,7 @@ func (p *RoomPages) viewerOf(r *http.Request) (User, bool, error) {
 	}
 	u, err := Authenticate(p.store, token, time.Now().Unix())
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, ErrNotFound) || errors.Is(err, ErrBadCredentials) {
 			return User{}, false, nil
 		}
 		return User{}, false, err
