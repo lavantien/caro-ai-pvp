@@ -420,6 +420,34 @@ func TestMigrateSeedsAdminAccount(t *testing.T) {
 	}
 }
 
+// TestOpenRefusesAdminSquatter pins the seed-drift guard: the boot fails
+// loudly when the admin row is missing after migration or held by a row
+// the seed did not write, instead of silently arming a credential that
+// cannot log in.
+func TestOpenRefusesAdminSquatter(t *testing.T) {
+	path := dbPath(t)
+	s := mustOpen(t, path)
+
+	// A squatter's row over the name: different salt and hash.
+	if _, err := s.db.Exec(`UPDATE users SET salt = X'00', hash = X'00' WHERE username = ?`, config.AdminName); err != nil {
+		t.Fatalf("forge squatter: %v", err)
+	}
+	if _, err := Open(path); err == nil || !strings.Contains(err.Error(), "seed did not create") {
+		t.Fatalf("open over squatter = %v, want the seed-collision refusal", err)
+	}
+
+	// The row gone entirely: the same refusal shape, the missing-seed arm.
+	if _, err := s.db.Exec(`DELETE FROM users WHERE username = ?`, config.AdminName); err != nil {
+		t.Fatalf("drop admin row: %v", err)
+	}
+	if _, err := Open(path); err == nil || !strings.Contains(err.Error(), "missing after migration") {
+		t.Fatalf("open without the seeded row = %v, want the missing-seed refusal", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+}
+
 func TestCloseCheckpointsWAL(t *testing.T) {
 	path := dbPath(t)
 	s := mustOpen(t, path)

@@ -15,6 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
@@ -372,10 +373,22 @@ func TestBotBoardsListLiveTournamentRooms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
+	// A second tournament room, strictly later in creation time: the list
+	// must hold the cards in creation order so the polled section never
+	// reshuffles.
+	time.Sleep(2 * time.Millisecond)
+	r2, err := s.rm.CreateBotVsBot(&config.TierMedium, &config.TierEasy, 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create second bot vs bot: %v", err)
+	}
 
 	boards := s.rm.BotBoards()
-	if len(boards) != 1 {
-		t.Fatalf("bot boards = %d rooms, want exactly the tournament room", len(boards))
+	if len(boards) != 2 {
+		t.Fatalf("bot boards = %d rooms, want both tournament rooms", len(boards))
+	}
+	if boards[0].RoomID != r.ID() || boards[1].RoomID != r2.ID() {
+		t.Errorf("bot boards order = [%s, %s], want creation order [%s, %s]",
+			boards[0].RoomID, boards[1].RoomID, r.ID(), r2.ID())
 	}
 	b := boards[0]
 	if b.RoomID != r.ID() {
@@ -395,12 +408,13 @@ func TestBotBoardsListLiveTournamentRooms(t *testing.T) {
 		t.Errorf("fresh bot board score = %d-%d, want 0-0", b.HostWins, b.GuestWins)
 	}
 
-	// Release the sweep: the scripted series settles, the room retires, and
-	// the live-board read empties with it.
+	// Release the sweep: both scripted series settle, both rooms retire, and
+	// the live-board read empties with them.
 	open()
 	waitFor(t, func() bool {
-		_, ok := r.Info()
-		return !ok
+		_, ok1 := r.Info()
+		_, ok2 := r2.Info()
+		return !ok1 && !ok2
 	})
 	if got := s.rm.BotBoards(); len(got) != 0 {
 		t.Errorf("bot boards after retire = %d rooms, want none", len(got))

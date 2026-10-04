@@ -2,6 +2,7 @@
 {{define "content"}}
 <section aria-label="tournament setup">
 <h2>bot tournament</h2>
+{{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
 {{if .Admin}}
 <form class="tourneyform" method="post" action="/tourney">
 <fieldset>
@@ -33,10 +34,9 @@
 {{end}}
 </fieldset>
 <button>start tournament</button>
-{{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
 </fieldset>
 </form>
-{{else}}<p class="empty">only the admin account starts tournaments.</p>{{end}}
+{{else}}<p class="empty">tournaments are started by the admin account.</p>{{end}}
 </section>
 <section aria-label="tournament runs">
 <h2>runs</h2>

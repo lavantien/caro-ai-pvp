@@ -296,6 +296,7 @@ type LiveBotBoard struct {
 	RoomID    string
 	HostName  string
 	GuestName string
+	CreatedAt time.Time
 	Moves     []string
 	Turn      string
 	RedIsHost bool
@@ -303,11 +304,38 @@ type LiveBotBoard struct {
 	GuestWins int
 }
 
+// liveBotBoard is one room's spectating read under a single room lock: the
+// seating, the series score, and the live game's stones and colors read
+// atomically, so a game completing during the read can never pair the new
+// board with the old score. False for every room that is not a live
+// bot-vs-bot series with a game under way (between games or in the
+// retirement race window the room drops off the run page's list).
+func (r *Room) liveBotBoard() (LiveBotBoard, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.over || r.host.bot == nil || r.guest.bot == nil || r.series == nil || r.board == nil {
+		return LiveBotBoard{}, false
+	}
+	hostWins, guestWins := r.series.Score()
+	lb := LiveBotBoard{
+		RoomID:    r.id,
+		HostName:  botDisplayName(r.host.bot.Name, r.id),
+		GuestName: botDisplayName(r.guest.bot.Name, r.id),
+		CreatedAt: r.createdAt,
+		Turn:      colorName(r.board.Side),
+		RedIsHost: r.series.RedUserID() == r.host.userID,
+		HostWins:  hostWins, GuestWins: guestWins,
+		Moves: make([]string, 0, len(r.moves)),
+	}
+	for _, m := range r.moves {
+		lb.Moves = append(lb.Moves, cellName(rules.Cell(m)))
+	}
+	return lb, true
+}
+
 // BotBoards snapshots every live bot-vs-bot room in creation order, the
-// run page's live-board section. A room between games reports the next
-// game's fresh board; a room with no live game yet (handshake-free series
-// start instantly, so this is the retirement race window only) drops off
-// until its snapshot exists.
+// run page's live-board section, sorted by CreatedAt then id like List so
+// the polled cards never reshuffle.
 func (rm *RoomManager) BotBoards() []LiveBotBoard {
 	rm.mu.Lock()
 	rooms := make([]*Room, 0, len(rm.rooms))
@@ -317,26 +345,16 @@ func (rm *RoomManager) BotBoards() []LiveBotBoard {
 	rm.mu.Unlock()
 	out := make([]LiveBotBoard, 0, 2)
 	for _, r := range rooms {
-		info, live := r.Info()
-		if !live || info.HostBotTier == "" || info.VsBotTier == "" {
-			continue
+		if lb, ok := r.liveBotBoard(); ok {
+			out = append(out, lb)
 		}
-		snap := r.gameSnapshot()
-		if snap == nil {
-			continue
-		}
-		lb := LiveBotBoard{
-			RoomID:    info.ID,
-			HostName:  botDisplayName(info.HostBotTier, info.ID),
-			GuestName: botDisplayName(info.VsBotTier, info.ID),
-			Moves:     snap.Moves,
-			Turn:      snap.Turn,
-			RedIsHost: snap.RedUserID == info.HostUserID,
-			HostWins:  info.HostWins,
-			GuestWins: info.GuestWins,
-		}
-		out = append(out, lb)
 	}
+	slices.SortFunc(out, func(a, b LiveBotBoard) int {
+		if c := a.CreatedAt.Compare(b.CreatedAt); c != 0 {
+			return c
+		}
+		return strings.Compare(a.RoomID, b.RoomID)
+	})
 	return out
 }
 

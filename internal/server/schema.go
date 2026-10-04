@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -217,20 +218,36 @@ const schemaV5 = `
 ALTER TABLE games ADD COLUMN bot_name TEXT;
 `
 
+// adminSeedSalt and adminSeedHash are the deterministic credential pair the
+// v6 seed writes: both derived from the config constants alone, so every
+// process derives the identical pair and a reopened database verifies
+// against it. The password is a committed demo credential, not a secret, so
+// determinism costs nothing the gate ever claimed; the salt stays
+// user-unique and parameterized like any argon2 row.
+var (
+	adminSeedSalt = adminSeedSaltOf()
+	adminSeedHash = HashPassword(config.AdminPassword, adminSeedSalt)
+)
+
+// adminSeedSaltOf derives the seeded admin's salt from the config
+// credential material: fixed for a fixed config, different the moment the
+// config changes.
+func adminSeedSaltOf() []byte {
+	sum := sha256.Sum256([]byte("caro admin seed " + config.AdminName + " " + config.AdminPassword))
+	return sum[:config.Argon2SaltBytes]
+}
+
 // adminSeedSQL builds the tournament admin's seeded row: the one account the
-// tourney pages let start runs and close them. The hash is derived once per
-// process at init under fresh random salt and the config argon2id params, so
-// LoginOrCreate verifies the config credential against it instead of letting
-// the first visitor claim the name through the create leg. INSERT OR IGNORE
-// keeps the script re-runnable and skips a name a pre-v6 account already
-// squats; that squatter then simply owns the tourney controls.
+// tourney pages let start runs and close them. LoginOrCreate verifies the
+// config credential against it instead of letting the first visitor claim
+// the name through the create leg. INSERT OR IGNORE keeps the script
+// re-runnable and skips a name a pre-v6 account already squatted;
+// verifyAdminSeed then refuses the boot over the collision.
 func adminSeedSQL() string {
-	salt := NewSalt()
-	hash := HashPassword(config.AdminPassword, salt)
 	return fmt.Sprintf(
 		"INSERT OR IGNORE INTO users (username, argon2_time, argon2_memory, argon2_parallelism, salt, hash) VALUES ('%s', %d, %d, %d, X'%s', X'%s')",
 		config.AdminName, config.Argon2Time, config.Argon2MemoryKiB, config.Argon2Parallelism,
-		hex.EncodeToString(salt), hex.EncodeToString(hash),
+		hex.EncodeToString(adminSeedSalt), hex.EncodeToString(adminSeedHash),
 	)
 }
 

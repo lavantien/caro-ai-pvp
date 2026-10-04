@@ -594,9 +594,12 @@ func (p *TournamentPages) renderRun(w http.ResponseWriter, status int, me *shell
 	header := runHeaderOf(snap)
 	renderShell(w, status, tourneyRunTmpl, "base", tourneyRunView{
 		Me: me, Header: header, RunID: runID,
-		PollMs:     int64(config.PagePollMs),
-		Board:      boardViewOf(snap, liveBoardsOf(snap.Run.Running, p.tourney.LiveBoards())),
-		CanClose:   header.State == runStateStalled && isAdmin(me),
+		PollMs: int64(config.PagePollMs),
+		Board:  boardViewOf(snap, liveBoardsOf(snap.Run.Running, p.tourney.LiveBoards())),
+		// A stalled run (no live drive) and a failed drive both leave an
+		// ongoing row holding the machine-wide run gate: the close form is
+		// the admin's only UI escape from either.
+		CanClose:   (header.State == runStateStalled || header.State == "failed") && isAdmin(me),
 		CloseError: closeErr,
 	})
 }

@@ -4,6 +4,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -88,7 +89,36 @@ func Open(path string) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := s.verifyAdminSeed(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	return s, nil
+}
+
+// verifyAdminSeed fails the boot when the admin row does not carry the
+// seeded credential. The v6 seed skips a name a pre-v6 account already
+// squatted, and the documented shared password then never logs in while
+// the squatter holds every tournament control; a row that vanished after
+// seeding is the same loss. Refusing to start names the collision once,
+// at the operator.
+func (s *Store) verifyAdminSeed() error {
+	var salt, hash []byte
+	err := s.db.QueryRow(
+		`SELECT salt, hash FROM users WHERE username = ?`, config.AdminName,
+	).Scan(&salt, &hash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("server: seeded admin account %q missing after migration", config.AdminName)
+	}
+	if err != nil {
+		return fmt.Errorf("server: read seeded admin: %w", err)
+	}
+	if !bytes.Equal(salt, adminSeedSalt) || !bytes.Equal(hash, adminSeedHash) {
+		return fmt.Errorf(
+			"server: admin name %q is held by a row the seed did not create, the seeded credential will not log in",
+			config.AdminName)
+	}
+	return nil
 }
 
 // verifyBotSeats fails the boot when any config tier's reserved seat row is

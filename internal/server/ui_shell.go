@@ -343,14 +343,15 @@ func (p *shellPages) handleHome(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "home read failed", http.StatusInternalServerError)
 		return
 	}
-	p.renderHome(w, http.StatusOK, me, "")
+	p.renderHome(r, w, http.StatusOK, me, "")
 }
 
 // renderHome paints the home page, optionally with an inline create-room
-// error under the form.
-func (p *shellPages) renderHome(w http.ResponseWriter, status int, me *shellViewer, createErr string) {
+// error under the form. The banner read rides the request's context, so a
+// client gone mid-render cancels the store reads behind it.
+func (p *shellPages) renderHome(r *http.Request, w http.ResponseWriter, status int, me *shellViewer, createErr string) {
 	renderShell(w, status, homeTmpl, "base", homeView{
-		Me: me, RoomsList: p.roomsList(context.Background()),
+		Me: me, RoomsList: p.roomsList(r.Context()),
 		TCOptions: shellTCOptions(), BOOptions: shellBOOptions(), BotOptions: shellBotOptions(),
 		CreateError: createErr, PollMs: int64(config.PagePollMs),
 	})
@@ -576,7 +577,7 @@ func (p *shellPages) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	bad := func() {
-		p.renderHome(w, http.StatusBadRequest, me, "invalid room settings, pick from the lists")
+		p.renderHome(r, w, http.StatusBadRequest, me, "invalid room settings, pick from the lists")
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, httpBodyLimitBytes)
 	if err := r.ParseForm(); err != nil {

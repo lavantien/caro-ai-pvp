@@ -7,8 +7,8 @@
 {{if .CanClose}}
 <form class="tourneyform" method="post" action="/tourney/run/{{.RunID}}/close">
 <fieldset>
-<legend>stalled run</legend>
-<p class="meta">no process drives this run. closing its record keeps the leaderboard live from the games played; no finish snapshot is written.</p>
+<legend>undriven run</legend>
+<p class="meta">this run holds the machine-wide gate with no live drive behind it (stalled or failed). closing its record keeps the leaderboard live from the games played; no finish snapshot is written.</p>
 <button>close run</button>
 </fieldset>
 </form>

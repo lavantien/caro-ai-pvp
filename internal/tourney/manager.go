@@ -70,10 +70,16 @@ func (m *Manager) StartRun(ctx context.Context, spec RunSpec, parallel int) (Run
 	m.drives[run.ID] = st
 	go func() {
 		_, err := m.conductor.drive(context.Background(), m.store, run, spec.Roster, tiers, parallel, "ui")
+		// The done channel closes under the same lock the error write
+		// takes: a window with err set but done open lets OngoingRun's
+		// scan report this finished drive as the live one, and a StartRun
+		// landing there leaves two open drives whose map-order pick is
+		// random. driveState's done check is a non-blocking select, so
+		// closing under the lock blocks nobody.
 		m.mu.Lock()
 		st.err = err
-		m.mu.Unlock()
 		close(st.done)
+		m.mu.Unlock()
 	}()
 	return run, nil
 }
@@ -143,9 +149,13 @@ func (m *Manager) CloseStalled(ctx context.Context, runID int64) error {
 	return m.store.CloseStalledRun(ctx, runID, time.Now().Unix())
 }
 
-// OngoingRun reads the run this manager currently drives with its whole
-// detail, the home banner's read. ok is false when no drive is live; the
-// run gate guarantees at most one, so the scan's last hit is the only hit.
+// OngoingRun reads the run this manager currently drives with the banner's
+// own slice of detail: the header and the series lines, no roster and no
+// leaderboard fold. The read rides every home poll of every viewer while a
+// run is live, so it touches the two tables the settled count needs and
+// nothing else. ok is false when no drive is live; with done closed under
+// the lock, an open drive is a driven run and the run gate guarantees at
+// most one.
 func (m *Manager) OngoingRun(ctx context.Context) (Detail, bool, error) {
 	m.mu.Lock()
 	var ongoing int64
@@ -161,11 +171,15 @@ func (m *Manager) OngoingRun(ctx context.Context) (Detail, bool, error) {
 	if !found {
 		return Detail{}, false, nil
 	}
-	d, err := m.Detail(ctx, ongoing)
+	run, err := m.store.Run(ctx, ongoing)
 	if err != nil {
 		return Detail{}, false, err
 	}
-	return d, true, nil
+	series, err := m.store.SeriesAll(ctx, ongoing)
+	if err != nil {
+		return Detail{}, false, err
+	}
+	return Detail{Run: run, Series: series, Running: true}, true, nil
 }
 
 // driveState reads one run's tracked drive under the manager lock.

@@ -119,7 +119,7 @@ func TestTourneyPagePublicAndAdminGated(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("guest setup page: status = %d (body %s)", status, body)
 	}
-	wantShellBody(t, body, "no tournaments yet.", "only the admin account starts tournaments.")
+	wantShellBody(t, body, "no tournaments yet.", "tournaments are started by the admin account.")
 	if strings.Contains(body, `action="/tourney"`) {
 		t.Error("guest page carries the setup form, want the read-only page")
 	}
@@ -272,7 +272,8 @@ func TestTourneyStartValidatesAndRedirects(t *testing.T) {
 	}
 
 	// A member's post never reaches the service: the admin gate answers the
-	// read-only setup page with the refusal inline.
+	// read-only setup page with the refusal inline, through the error slot
+	// outside the form branch.
 	member := mintSession(t, store, seedUser(t, store, "bob"))
 	status, _, body = doShell(t, c, http.MethodPost, srv.URL+"/tourney", member, url.Values{
 		"tc": {"0"}, "bo": {"3"}, "rating": {"1000"}, "parallel": {"1"}, "count": {"2"},
@@ -281,9 +282,7 @@ func TestTourneyStartValidatesAndRedirects(t *testing.T) {
 	if status != http.StatusForbidden {
 		t.Errorf("member start = %d, want 403", status)
 	}
-	if !strings.Contains(body, "only the admin account starts tournaments") {
-		t.Errorf("member start body misses the refusal (body %s)", body)
-	}
+	wantShellBody(t, body, `class="error"`, "only the admin account starts tournaments")
 	if len(fake.started) != 1 {
 		t.Errorf("service saw %d starts after the member post, want the admin's 1 alone", len(fake.started))
 	}
@@ -448,12 +447,22 @@ func TestTourneyRunStatesAndNotFound(t *testing.T) {
 	// run renders finished.
 	failed := liveSnapshot()
 	failed.Run.Running, failed.Run.Failure = false, "pairing 0: too slow"
-	failedSrv, _ := tourneySrv(t, &fakeTourney{snapshot: failed})
+	failedSrv, failedStore := tourneyMount(t, &fakeTourney{snapshot: failed})
 	status, _, body = doShell(t, c, http.MethodGet, failedSrv.URL+"/tourney/run/7", "", nil)
 	if status != http.StatusOK {
 		t.Fatalf("failed run: status = %d", status)
 	}
 	wantShellBody(t, body, ">failed<", "run failed: pairing 0: too slow")
+	// The failed drive's ongoing row holds the run gate with no live drive:
+	// the admin's close form is the escape, the member's page stays
+	// form-free.
+	_, _, body = doShell(t, c, http.MethodGet, failedSrv.URL+"/tourney/run/7", mintAdminSession(t, failedStore), nil)
+	wantShellBody(t, body, `action="/tourney/run/7/close"`, "undriven run")
+	memberTok := mintSession(t, failedStore, seedUser(t, failedStore, "carol"))
+	_, _, body = doShell(t, c, http.MethodGet, failedSrv.URL+"/tourney/run/7", memberTok, nil)
+	if strings.Contains(body, "/close") {
+		t.Error("member page carries the close form on a failed run, want the admin's alone")
+	}
 
 	done := liveSnapshot()
 	done.Run.Running, done.Run.Finished = false, true
