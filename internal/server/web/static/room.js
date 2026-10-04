@@ -28,6 +28,9 @@ function uiMLine(line) {
 /* caro-ui-mline:end */
 
 function $(id) { return document.getElementById(id); }
+// The two seat words the series event's payload carries, the server's
+// SideHost/SideGuest string forms.
+var SideHost = 'host', SideGuest = 'guest';
 var root = $('room-root');
 var detailURL = '/api/rooms/' + root.dataset.room;
 var participant = root.dataset.participant === '1';
@@ -43,6 +46,8 @@ var seatedAtLoad = guestID !== 0;
 var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 var selected = '';
 var terminal = false;
+var seriesSide = '';
+var scoreFinal = false;
 var awaitingNewGame = false;
 var es = null;
 var pollTimer = null;
@@ -56,7 +61,13 @@ function seatName(id) { return Number(id) === hostID ? hostName : guestName; }
 function otherSeat(id) { return Number(id) === hostID ? guestID : hostID; }
 function glyphOf(color) { return color === 'red' ? 'O' : 'X'; }
 function stoneCount() { return $('board').querySelectorAll('.stone').length; }
-function status(msg) { $('room-status').textContent = msg; }
+// status paints the room line; err=true marks a refusal the player must
+// notice (red, bold), cleared by the next plain status.
+function status(msg, err) {
+	var el = $('room-status');
+	el.textContent = msg;
+	el.classList.toggle('err', Boolean(err));
+}
 
 function fmtClock(ms) {
 	if (ms < 0) { ms = 0; }
@@ -104,6 +115,13 @@ function rebuildBoard(names) {
 function setTurnLine() {
 	var line = $('turn-line');
 	var mine = participant && detail && detail.game && Number(detail.game.turnUserId) === myID;
+	if (terminal) {
+		// The status line carries the reason; the turn line must not
+		// contradict it with the handshake text on a finished series.
+		line.textContent = '';
+		$('board').classList.remove('live');
+		return;
+	}
 	if (!turn || !detail || !detail.game) {
 		line.textContent = 'waiting for both to ready';
 		$('board').classList.remove('live');
@@ -122,10 +140,13 @@ function paintClocks() {
 // after a reload-safe event gap, both banks, the turn, and the score line.
 function renderDetail(d) {
 	detail = d;
+	// A detail off a finished series carries the exact closing wins; once
+	// seen, the verdict fallback never overwrites it.
+	if (d.state === 'finished') { scoreFinal = true; }
 	// The handshake section and the seat names render server-side at load:
 	// a page opened while the guest seat was open trades one reload for
 	// the seated render, whatever the viewer's role.
-	if (!d.game && Number(d.guestUserId) !== 0 && !seatedAtLoad) {
+	if (!terminal && !d.game && Number(d.guestUserId) !== 0 && !seatedAtLoad) {
 		location.reload();
 		return;
 	}
@@ -134,6 +155,10 @@ function renderDetail(d) {
 		remMs.red = 0;
 		remMs.blue = 0;
 		paintClocks();
+		// The retired room answers with the game section gone but the
+		// final wins on the summary: the score paints even on the frame
+		// that has no game left.
+		$('score-line').textContent = hostName + ' ' + d.hostWins + ' - ' + d.guestWins + ' ' + guestName;
 		setTurnLine();
 		return;
 	}
@@ -229,7 +254,10 @@ function onGameEnd(outcome) {
 	setTimeout(sync, 700);
 }
 
-function onSeries(side) { onTerminal('series finished: ' + side); }
+function onSeries(side) {
+	seriesSide = side;
+	onTerminal('series finished: ' + side);
+}
 
 function onTerminal(msg) {
 	if (terminal) { return; }
@@ -239,6 +267,32 @@ function onTerminal(msg) {
 	setTurnLine();
 	stopTimers();
 	if (es) { es.close(); es = null; }
+	// The hx-sse wiring retries its own connect forever; removing its
+	// element is the only stop, and the room behind it is retired anyway.
+	var feed = $('sse-feed');
+	if (feed) { feed.remove(); }
+	if (readyBtn) { readyBtn.disabled = true; }
+	if (joinBtn) { joinBtn.disabled = true; }
+	if (forfeitBtn) {
+		forfeitBtn.disabled = true;
+		clearTimeout(forfeitTimer);
+		forfeitBtn.classList.remove('armed');
+	}
+	// The room may still answer its detail with the final wins on the
+	// summary; when it does, the exact closing score paints. The evicted
+	// room's 404 falls back to the verdict line, because the running score
+	// froze mid-series on the forfeit sweep and must not stand as final.
+	fetch(detailURL).then(function (r) {
+		if (r.ok) { return r.json(); }
+		paintSeriesVerdict();
+		return null;
+	}).then(function (d) { if (d) { renderDetail(d); } }).catch(function () {});
+}
+
+function paintSeriesVerdict() {
+	if (!seriesSide || scoreFinal) { return; }
+	$('score-line').textContent = 'series won by ' +
+		(seriesSide === SideHost ? hostName : seriesSide === SideGuest ? guestName : 'no one');
 }
 
 var rejectWords = {
@@ -256,10 +310,10 @@ var rejectWords = {
 function reject(r, what) {
 	if (r.status === 401 || r.status === 404 || r.status === 409) {
 		return r.json().then(function (e) {
-			status(rejectWords[e.error] || ('rejected: ' + e.error));
-		}, function () { status(what + ' failed (' + r.status + ')'); });
+			status(rejectWords[e.error] || ('rejected: ' + e.error), true);
+		}, function () { status(what + ' failed (' + r.status + ')', true); });
 	}
-	status(what + ' failed (' + r.status + ')');
+	status(what + ' failed (' + r.status + ')', true);
 }
 
 function clearGhost() {
@@ -319,23 +373,23 @@ if (joinBtn) {
 }
 
 var forfeitBtn = $('forfeit-btn');
+var forfeitTimer = null;
 if (forfeitBtn) {
 	var armed = false;
-	var armTimer = null;
 	var label = forfeitBtn.textContent;
 	forfeitBtn.addEventListener('click', function () {
 		if (!armed) {
 			armed = true;
 			forfeitBtn.textContent = 'confirm forfeit?';
 			forfeitBtn.classList.add('armed');
-			armTimer = setTimeout(function () {
+			forfeitTimer = setTimeout(function () {
 				armed = false;
 				forfeitBtn.textContent = label;
 				forfeitBtn.classList.remove('armed');
 			}, 3000);
 			return;
 		}
-		clearTimeout(armTimer);
+		clearTimeout(forfeitTimer);
 		fetch(detailURL + '/forfeit', { method: 'POST' }).then(function (r) {
 			if (r.ok) { return; } // the series event ends the page cleanly
 			return reject(r, 'forfeit');

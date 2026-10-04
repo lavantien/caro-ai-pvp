@@ -5,6 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>caro room {{.RoomID}}</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/shell.css">
 {{template "board-css"}}
 <style>
@@ -13,9 +14,14 @@ h1 { font-size: 1.2rem; margin: .2rem 0 }
 h2 { font-size: 1rem; margin: .3rem 0 }
 .status { font-family: ui-monospace, monospace; font-size: .85rem;
 	color: var(--text-muted) }
+#room-status.err { color: var(--danger); font-weight: 700 }
 #clocks { display: flex; justify-content: space-between; gap: 1rem; margin: .4rem 0 }
 .clockbox { min-width: 8rem }
-.clockbox .who { font-size: .9rem }
+/* The seat label clamps to one line with an ellipsis: a wrapped bot name
+   would push its clock below the other and the full id already lives in
+   the header and the score line. */
+.clockbox .who { font-size: .9rem; white-space: nowrap; overflow: hidden;
+	text-overflow: ellipsis }
 .clock { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums }
 .clockbox.red .clock { color: var(--red) }
 .clockbox.blue .clock { color: var(--blue) }

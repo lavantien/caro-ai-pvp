@@ -60,6 +60,18 @@ button:not(.linklike) { font: inherit; font-size: 1.05rem; padding: .35rem .9rem
 	background: var(--accent); color: var(--background); border: none;
 	border-radius: .3rem }
 button[disabled] { opacity: .55 }
+/* Machine tokens (room ids, <tier>-<roomid> bot names) carry no break
+   opportunity inside their hex run, so every line that renders one wraps
+   anywhere instead of pushing the page past the phone viewport. */
+h1, .who, .who-vs, #score-line { overflow-wrap: anywhere }
+/* Touch input pads controls to the 44px target floor; pointer:fine keeps
+   the compact desktop metrics. Nav links grow leftward, the header row
+   keeps its baseline alignment. */
+@media (pointer: coarse) {
+	select, input, button:not(.linklike) { min-height: 44px }
+	header nav a, header nav button.linklike { padding: .75rem 0 .75rem .75rem }
+	header { align-items: center }
+}
 .error { color: var(--danger); font-size: 1.2rem; font-weight: 600 }
 .loginform { display: grid; gap: .75rem; max-width: 22rem; margin-top: 1rem }
 .loginform button { justify-self: start }
@@ -95,8 +107,16 @@ button[disabled] { opacity: .55 }
 .tseries .score { font-weight: 700 }
 .live { color: var(--text-muted) }
 .tboard { border-collapse: collapse; font-size: 1rem }
+/* The leaderboard's 9 columns run wider than a phone viewport; the wrap
+   scrolls them instead of the page, and the narrow band tightens cells so
+   the scroll is one screen-edge nudge, not half the table. */
+.tablewrap { overflow-x: auto }
 .tboard th, .tboard td { padding: .2rem .6rem; border-bottom: 1px solid var(--border);
 	text-align: right }
+@media (max-width: 40rem) {
+	.tboard { font-size: .9rem }
+	.tboard th, .tboard td { padding: .2rem .35rem }
+}
 .tboard th { color: var(--text-muted) }
 .tboard th:first-child, .tboard td:first-child,
 .tboard th:nth-child(2), .tboard td:nth-child(2),
