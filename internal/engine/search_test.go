@@ -203,16 +203,29 @@ func TestIterativeDeepeningProgression(t *testing.T) {
 	}
 }
 
-func TestOrderingReachesDeeper(t *testing.T) {
+// TestOrderingPrunesMoreAtEqualDepth pins ordering's value the
+// deterministic way: two fresh single-threaded engines search the same
+// midgame board to the same completed depth, one with move ordering off,
+// and the ordered one must visit strictly fewer nodes (fewer nodes per
+// depth is what reaches deeper under any fixed budget). Node counts at a
+// completed depth over a fresh table are a pure function of the position,
+// so no wall-clock margin can flake the comparison; the generous budget is
+// only the runner-starvation backstop, the depth cap ends both searches.
+func TestOrderingPrunesMoreAtEqualDepth(t *testing.T) {
 	b := midgameBoard(t)
+	const depth = 5
 	ordered := New(testTTBytes)
-	_, statsOrdered := ordered.Search(b, NewFixedBudget(150*time.Millisecond))
+	_, statsOrdered := ordered.SearchDepth(b, NewFixedBudget(10*time.Second), depth)
 	bare := New(testTTBytes)
 	bare.noOrder = true
-	_, statsBare := bare.Search(b, NewFixedBudget(150*time.Millisecond))
-	if statsOrdered.Depth <= statsBare.Depth {
-		t.Errorf("ordering depth %d not above unordered %d (nodes %d vs %d)",
-			statsOrdered.Depth, statsBare.Depth, statsOrdered.Nodes, statsBare.Nodes)
+	_, statsBare := bare.SearchDepth(b, NewFixedBudget(10*time.Second), depth)
+	if statsOrdered.Depth != depth || statsBare.Depth != depth {
+		t.Fatalf("completed depths = %d and %d, want both %d (budget starved?)",
+			statsOrdered.Depth, statsBare.Depth, depth)
+	}
+	if statsOrdered.Nodes >= statsBare.Nodes {
+		t.Errorf("ordering nodes %d not below unordered %d at depth %d",
+			statsOrdered.Nodes, statsBare.Nodes, depth)
 	}
 	if statsOrdered.FirstMoveFailHighPermille <= 0 {
 		t.Errorf("ordered fh1 = %d, want positive", statsOrdered.FirstMoveFailHighPermille)
