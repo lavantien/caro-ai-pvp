@@ -1,0 +1,7 @@
+run 1
+tc 1+0 bo3 start rating 1000
+finished 20261004-073801
+
+rank	participant	tier	rating	series	wins	losses	draws	games
+1	audit-e1	easy	1001	1	3	3	0	6
+2	audit-e2	easy	999	1	3	3	0	6

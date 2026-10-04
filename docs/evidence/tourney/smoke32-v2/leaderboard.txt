@@ -1,0 +1,38 @@
+CGO_ENABLED=1 go run ./cmd/caro tourney smoke32 --db db/evidence-smoke32-v2.db
+series  0: easy-1 (red-first) 1 - 2 easy-2, winner easy-2
+series  1: easy-1 (red-first) 0 - 2 medium-1, winner medium-1
+series  2: easy-1 (red-first) 0 - 2 medium-2, winner medium-2
+series  3: easy-1 (red-first) 0 - 2 hard-1, winner hard-1
+series  4: easy-1 (red-first) 0 - 2 hard-2, winner hard-2
+series  5: easy-2 (red-first) 0 - 2 medium-1, winner medium-1
+series  6: easy-2 (red-first) 1 - 1 medium-2, winner drawn
+series  7: easy-2 (red-first) 0 - 2 hard-1, winner hard-1
+series  8: easy-2 (red-first) 1 - 2 hard-2, winner hard-2
+series  9: medium-1 (red-first) 2 - 0 medium-2, winner medium-1
+series 10: medium-1 (red-first) 2 - 1 hard-1, winner medium-1
+series 11: medium-1 (red-first) 2 - 0 hard-2, winner medium-1
+series 12: medium-2 (red-first) 1 - 1 hard-1, winner drawn
+series 13: medium-2 (red-first) 2 - 1 hard-2, winner medium-2
+series 14: hard-1 (red-first) 2 - 0 hard-2, winner hard-1
+series 15: hard-2 (red-first) 2 - 1 hard-1, winner hard-2
+series 16: hard-2 (red-first) 1 - 2 medium-2, winner medium-2
+series 17: hard-1 (red-first) 2 - 0 medium-2, winner hard-1
+series 18: hard-2 (red-first) 2 - 1 medium-1, winner hard-2
+series 19: hard-1 (red-first) 1 - 1 medium-1, winner drawn
+series 20: medium-2 (red-first) 1 - 2 medium-1, winner medium-1
+series 21: hard-2 (red-first) 2 - 1 easy-2, winner hard-2
+series 22: hard-1 (red-first) 2 - 0 easy-2, winner hard-1
+series 23: medium-2 (red-first) 1 - 1 easy-2, winner drawn
+series 24: medium-1 (red-first) 2 - 0 easy-2, winner medium-1
+series 25: hard-2 (red-first) 1 - 1 easy-1, winner drawn
+series 26: hard-1 (red-first) 2 - 0 easy-1, winner hard-1
+series 27: medium-2 (red-first) 2 - 0 easy-1, winner medium-2
+series 28: medium-1 (red-first) 1 - 0 easy-1, winner medium-1
+series 29: easy-2 (red-first) 1 - 2 easy-1, winner easy-1
+rank  participant  rating  wins  losses  draws  series  games
+1     medium-1     1273    17    5       6      8       28
+2     hard-1       1240    16    6       5      6       27
+3     medium-2     1016    12    11      4      4       27
+4     hard-2       1009    13    13      2      5       28
+5     easy-2       759     7     17      5      1       29
+6     easy-1       703     4     17      6      1       27
