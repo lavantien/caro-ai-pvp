@@ -299,7 +299,7 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 	defer close(bot.release)
 
 	// The shell card names both bots by tier, never the synthetic id.
-	shellSrv := httptest.NewServer(NewShellPages(s.store, s.rm))
+	shellSrv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer shellSrv.Close()
 	status, _, body := doShell(t, shellSrv.Client(), http.MethodGet, shellSrv.URL+"/", "", nil)
 	if status != http.StatusOK {

@@ -68,7 +68,7 @@ func newRootMux(store *server.Store, rooms *server.RoomManager, tourneys server.
 	root.Handle("/spike", api)
 	server.NewRoomPages(rooms, store).Mount(root)
 	server.NewTournamentPages(store, tourneys).Mount(root)
-	root.Handle("/", server.NewShellPages(store, rooms))
+	root.Handle("/", server.NewShellPages(store, rooms, tourneys))
 	return root
 }
 

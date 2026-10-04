@@ -91,6 +91,22 @@ func (s tourneyService) Runs(ctx context.Context) ([]server.TourneyRunSummary, e
 	return out, nil
 }
 
+// OngoingRun maps the driven run onto the home banner: the id plus the
+// settled count over every pairing.
+func (s tourneyService) OngoingRun(ctx context.Context) (server.TourneyBanner, bool, error) {
+	d, ok, err := s.m.OngoingRun(ctx)
+	if err != nil || !ok {
+		return server.TourneyBanner{}, false, err
+	}
+	b := server.TourneyBanner{RunID: d.Run.ID, Total: len(d.Series)}
+	for _, line := range d.Series {
+		if line.FinishedAt != nil {
+			b.Done++
+		}
+	}
+	return b, true, nil
+}
+
 // LiveBoards maps the room surface's live bot-vs-bot rooms onto the run
 // page's spectating reads, red named by the snapshot's own seating.
 func (s tourneyService) LiveBoards() []server.TourneyLiveBoard {

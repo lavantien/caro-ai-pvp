@@ -40,6 +40,10 @@ h2 { font-size: 1.05rem; margin: 1.4rem 0 .5rem }
 	border: 1px solid var(--border); border-radius: .4rem; padding: .1rem .5rem;
 	background: var(--surface); color: var(--text) }
 .guestnote { font-size: 1.1rem; margin-top: 1rem }
+/* The live-tournament line rides the rooms poll: it shows only while a run
+   is driven, so it reads as an event, not furniture. */
+.tourneynow { font-size: 1.1rem; font-weight: 700; margin: 0 0 .6rem }
+.tourneynow a { color: var(--mark) }
 .rooms { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem }
 @media (min-width: 40rem) { .rooms { grid-template-columns: 1fr 1fr } }
 .room { display: grid; gap: .1rem; border: 1px solid var(--border);

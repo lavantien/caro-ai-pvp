@@ -122,6 +122,14 @@ type TourneyLiveBoard struct {
 	Moves    []string
 }
 
+// TourneyBanner is the home page's live-run read: the ongoing run's id and
+// its settled-series progress over all pairings.
+type TourneyBanner struct {
+	RunID int64
+	Done  int
+	Total int
+}
+
 // TourneyBlockedError names the ongoing run holding the machine-wide run
 // gate; the setup form renders the blocking id inline instead of a bare
 // outage.
@@ -146,6 +154,9 @@ type TourneyService interface {
 	RunSnapshot(ctx context.Context, runID int64) (TourneySnapshot, error)
 	// Runs lists run headers newest first with their rosters and leaders.
 	Runs(ctx context.Context) ([]TourneyRunSummary, error)
+	// OngoingRun reads the run this process currently drives, the home
+	// page's live-tournament banner; ok is false when no drive is live.
+	OngoingRun(ctx context.Context) (TourneyBanner, bool, error)
 	// LiveBoards reads the ongoing run's live bot series for spectating.
 	// One run holds the machine at a time, so every live bot-vs-bot room
 	// belongs to the ongoing run; a driven run's page renders them, every
@@ -172,17 +183,24 @@ func NewTournamentPages(store *Store, tourney TourneyService) *TournamentPages {
 
 // Mount registers the page routes on mux, the room pages' pattern:
 //
-//	GET  /tourney                 the setup form and the runs list (guests bounce)
-//	POST /tourney                 validate and start, redirect to the run page
+//	GET  /tourney                 the runs list for everyone, the setup form for the admin
+//	POST /tourney                 validate and start, redirect to the run page (admin only)
 //	GET  /tourney/run/{id}        the run page (public, like the rooms grid)
 //	GET  /tourney/run/{id}/board  the polled leaderboard fragment
-//	POST /tourney/run/{id}/close  close a stalled run's row (guests bounce)
+//	POST /tourney/run/{id}/close  close a stalled run's row (admin only)
 func (p *TournamentPages) Mount(mux *http.ServeMux) {
 	mux.HandleFunc("GET /tourney", p.handleSetup)
 	mux.HandleFunc("POST /tourney", p.handleStart)
 	mux.HandleFunc("GET /tourney/run/{id}", p.handleRun)
 	mux.HandleFunc("GET /tourney/run/{id}/board", p.handleBoard)
 	mux.HandleFunc("POST /tourney/run/{id}/close", p.handleCloseRun)
+}
+
+// isAdmin names the one account the tournament controls answer to: the
+// seeded admin row. Every viewer can read the pages; only this session
+// starts runs and closes them.
+func isAdmin(me *shellViewer) bool {
+	return me != nil && me.Username == config.AdminName
 }
 
 // tourneyRowView is one roster-builder row: the index behind the form field
@@ -205,9 +223,11 @@ type tourneyRunLineView struct {
 }
 
 // tourneySetupView is the setup page: the form options and prefill from the
-// config hub, an inline error, and the runs list.
+// config hub (rendered for the admin only), an inline error, and the runs
+// list everyone reads.
 type tourneySetupView struct {
 	Me              *shellViewer
+	Admin           bool
 	TCOptions       []optionView
 	BOOptions       []optionView
 	ParallelOptions []optionView
@@ -258,16 +278,12 @@ type tourneySetupState struct {
 	rating int
 }
 
-// handleSetup renders the Scenario 2 setup form with the runs section:
-// members only, guests bounce to the login form like /history.
+// handleSetup renders the Scenario 2 page: the runs section for every
+// viewer, guest included, and the setup form for the admin session only.
 func (p *TournamentPages) handleSetup(w http.ResponseWriter, r *http.Request) {
 	me, err := resolveViewer(p.store, r)
 	if err != nil {
 		http.Error(w, "tournament read failed", http.StatusInternalServerError)
-		return
-	}
-	if me == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 	lines, err := p.runLines(r)
@@ -322,6 +338,7 @@ func (p *TournamentPages) renderSetup(w http.ResponseWriter, status int, me *she
 	}
 	renderShell(w, status, tourneyTmpl, "base", tourneySetupView{
 		Me:        me,
+		Admin:     isAdmin(me),
 		TCOptions: shellTCOptions(), BOOptions: shellBOOptions(),
 		ParallelOptions: parallelOpts, CountOptions: countOpts,
 		Rows:        tourneyRows(names, tiers),
@@ -330,9 +347,10 @@ func (p *TournamentPages) renderSetup(w http.ResponseWriter, status int, me *she
 	})
 }
 
-// handleStart is the setup form POST: every config law validated inline, the
-// roster rows the count select governs, then the service start and the
-// redirect onto the run's live page.
+// handleStart is the setup form POST: guests bounce like every acting route,
+// a non-admin session gets the setup page back with the refusal inline, then
+// every config law validated inline, the roster rows the count select
+// governs, and the service start with the redirect onto the run's live page.
 func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 	me, err := resolveViewer(p.store, r)
 	if err != nil {
@@ -341,6 +359,11 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 	}
 	if me == nil {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if !isAdmin(me) {
+		p.renderSetup(w, http.StatusForbidden, me, &tourneySetupState{rating: config.TournamentStartRating},
+			"only the admin account starts tournaments", p.bestEffortRuns(r))
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, httpBodyLimitBytes)
@@ -573,15 +596,15 @@ func (p *TournamentPages) renderRun(w http.ResponseWriter, status int, me *shell
 		Me: me, Header: header, RunID: runID,
 		PollMs:     int64(config.PagePollMs),
 		Board:      boardViewOf(snap, liveBoardsOf(snap.Run.Running, p.tourney.LiveBoards())),
-		CanClose:   header.State == runStateStalled && me != nil,
+		CanClose:   header.State == runStateStalled && isAdmin(me),
 		CloseError: closeErr,
 	})
 }
 
-// handleCloseRun is the stalled-run close form POST: session-gated like
-// every acting route. The close resolves a run row no live drive owns; a
-// refusal re-renders the run page with the reason inline, an unknown run
-// stays the 404 page.
+// handleCloseRun is the stalled-run close form POST: guests bounce like
+// every acting route and only the admin session closes. The close resolves
+// a run row no live drive owns; a refusal re-renders the run page with the
+// reason inline, an unknown run stays the 404 page.
 func (p *TournamentPages) handleCloseRun(w http.ResponseWriter, r *http.Request) {
 	runID, ok := tourneyRunID(w, r)
 	if !ok {
@@ -594,6 +617,14 @@ func (p *TournamentPages) handleCloseRun(w http.ResponseWriter, r *http.Request)
 	}
 	if me == nil {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if !isAdmin(me) {
+		snap, ok := p.snapshot(w, r, runID)
+		if !ok {
+			return
+		}
+		p.renderRun(w, http.StatusForbidden, me, runID, snap, "only the admin account closes runs")
 		return
 	}
 	if err := p.tourney.CloseStalledRun(r.Context(), runID); err != nil {

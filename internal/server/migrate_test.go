@@ -157,6 +157,7 @@ func TestFailedMigrationRollsBackAndStays(t *testing.T) {
 		"CREATE TABLE never3 (z)",
 		"CREATE TABLE never4 (w)",
 		"CREATE TABLE never5 (v)",
+		"CREATE TABLE never6 (u)",
 	}
 	err = s.migrate()
 	if err == nil || !strings.Contains(err.Error(), "apply migration 1") {
@@ -371,6 +372,51 @@ func TestMigrateV3DatabaseUpgradesToV4(t *testing.T) {
 	}
 	if users != 1 {
 		t.Errorf("v3-era user count after upgrade = %d, want 1 (no data loss)", users)
+	}
+}
+
+// TestMigrateSeedsAdminAccount pins the v6 seed: a fresh database carries the
+// admin row whose hash verifies the config credential, the create leg of
+// login can no longer claim the name, and a reopen neither duplicates nor
+// rewrites the row.
+func TestMigrateSeedsAdminAccount(t *testing.T) {
+	path := dbPath(t)
+	s := mustOpen(t, path)
+
+	admin, err := s.UserByUsername(config.AdminName)
+	if err != nil {
+		t.Fatalf("admin row after migration: %v", err)
+	}
+	if !VerifyPassword(admin, config.AdminPassword) {
+		t.Error("seeded admin hash does not verify the config credential")
+	}
+	if VerifyPassword(admin, "wrong") {
+		t.Error("seeded admin hash verifies a wrong password")
+	}
+
+	// The one-form login against the seeded row: the right password logs in,
+	// a wrong one folds into the opaque sentinel instead of registering over.
+	u, _, err := LoginOrCreate(s, config.AdminName, config.AdminPassword, 0)
+	if err != nil || u.ID != admin.ID {
+		t.Errorf("admin login = user %d err %v, want the seeded row %d", u.ID, err, admin.ID)
+	}
+	if _, _, err := LoginOrCreate(s, config.AdminName, "wrong", 0); err != ErrBadCredentials {
+		t.Errorf("admin wrong password = %v, want ErrBadCredentials", err)
+	}
+
+	if err := s.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	again := mustOpen(t, path)
+	defer func() { _ = again.Close() }()
+	var n int
+	if err := again.db.QueryRow(
+		"SELECT COUNT(*) FROM users WHERE username = ?", config.AdminName,
+	).Scan(&n); err != nil {
+		t.Fatalf("reread admin: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("admin rows after reopen = %d, want 1", n)
 	}
 }
 

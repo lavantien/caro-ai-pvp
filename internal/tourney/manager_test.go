@@ -224,6 +224,42 @@ func TestManagerRefusesSecondConcurrentRun(t *testing.T) {
 	waitDetail(t, m, runs[0].ID, func(d Detail) bool { return d.Run.Status == RunStateFinished })
 }
 
+// TestManagerOngoingRun pins the home banner's read: nothing before any
+// start, the driven run with its twice-pair while the gate holds, nothing
+// once the drive returns.
+func TestManagerOngoingRun(t *testing.T) {
+	ts, _ := newTestStore(t)
+	pointLogsAt(t)
+	release := make(chan struct{})
+	m := NewManager(ts, gatedSource(release))
+	ctx := context.Background()
+
+	if _, ok, err := m.OngoingRun(ctx); ok || err != nil {
+		t.Fatalf("ongoing before any start = %t %v, want none", ok, err)
+	}
+	run, err := m.StartRun(ctx, RunSpec{Roster: rosterTwo(), TCIdx: mustTC(1, 0),
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating}, 1)
+	if err != nil {
+		t.Fatalf("start run: %v", err)
+	}
+	d, ok, err := m.OngoingRun(ctx)
+	if err != nil || !ok {
+		t.Fatalf("ongoing while gated = %t %v, want the driven run", ok, err)
+	}
+	if d.Run.ID != run.ID || !d.Running {
+		t.Errorf("ongoing = run %d running %t, want run %d live", d.Run.ID, d.Running, run.ID)
+	}
+	if len(d.Series) != 2 {
+		t.Errorf("ongoing series = %d pairings, want the twice-pair", len(d.Series))
+	}
+
+	close(release)
+	waitDetail(t, m, run.ID, func(d Detail) bool { return d.Run.Status == RunStateFinished })
+	if _, ok, err := m.OngoingRun(ctx); ok || err != nil {
+		t.Fatalf("ongoing after the finish = %t %v, want none", ok, err)
+	}
+}
+
 func TestManagerCloseStalled(t *testing.T) {
 	ts, srv := newTestStore(t)
 	pointLogsAt(t)

@@ -143,6 +143,31 @@ func (m *Manager) CloseStalled(ctx context.Context, runID int64) error {
 	return m.store.CloseStalledRun(ctx, runID, time.Now().Unix())
 }
 
+// OngoingRun reads the run this manager currently drives with its whole
+// detail, the home banner's read. ok is false when no drive is live; the
+// run gate guarantees at most one, so the scan's last hit is the only hit.
+func (m *Manager) OngoingRun(ctx context.Context) (Detail, bool, error) {
+	m.mu.Lock()
+	var ongoing int64
+	found := false
+	for id, st := range m.drives {
+		select {
+		case <-st.done:
+		default:
+			ongoing, found = id, true
+		}
+	}
+	m.mu.Unlock()
+	if !found {
+		return Detail{}, false, nil
+	}
+	d, err := m.Detail(ctx, ongoing)
+	if err != nil {
+		return Detail{}, false, err
+	}
+	return d, true, nil
+}
+
 // driveState reads one run's tracked drive under the manager lock.
 func (m *Manager) driveState(runID int64) (running bool, failure error) {
 	m.mu.Lock()

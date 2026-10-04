@@ -13,7 +13,7 @@
 <section aria-label="rooms">
 <h2>rooms</h2>
 <div id="rooms" hx-get="/partials/rooms" hx-trigger="every {{.PollMs}}ms" hx-swap="innerHTML">
-{{template "roomslist" .Rooms}}
+{{template "roomslist" .RoomsList}}
 </div>
 </section>
 {{if .Me}}

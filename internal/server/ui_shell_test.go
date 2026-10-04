@@ -9,6 +9,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -134,7 +135,7 @@ func wantShellBody(t *testing.T, body string, wants ...string) {
 
 func TestShellLoginCreateRoundTripRendersRealStats(t *testing.T) {
 	s := newStack(t)
-	srv := httptest.NewServer(NewShellPages(s.store, s.rm))
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
 	c := noRedirectClient(srv)
 
@@ -207,7 +208,7 @@ func TestShellLoginCreateRoundTripRendersRealStats(t *testing.T) {
 
 func TestShellLoginFailuresRenderInline(t *testing.T) {
 	s := newStack(t)
-	srv := httptest.NewServer(NewShellPages(s.store, s.rm))
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
 	c := noRedirectClient(srv)
 	shellRegister(t, c, srv.URL, "alice", "hunter2")
@@ -237,7 +238,7 @@ func TestShellLoginFailuresRenderInline(t *testing.T) {
 
 func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 	s := newStack(t)
-	srv := httptest.NewServer(NewShellPages(s.store, s.rm))
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
 	alice := seedUser(t, s.store, "alice")
 	room, err := s.rm.Create(alice.ID, 1, config.SeriesBO5, nil)
@@ -284,7 +285,7 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 
 func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {
 	s := newStack(t)
-	srv := httptest.NewServer(NewShellPages(s.store, s.rm))
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
 	c := noRedirectClient(srv)
 	token := shellRegister(t, c, srv.URL, "alice", "hunter2")
@@ -344,7 +345,7 @@ func roomGridLabels(tiers [len(config.Tiers)]config.Tier, ids [len(config.Tiers)
 
 func TestShellCreateRoomRejectsGarbageSettings(t *testing.T) {
 	s := newStack(t)
-	srv := httptest.NewServer(NewShellPages(s.store, s.rm))
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
 	c := noRedirectClient(srv)
 
@@ -389,7 +390,7 @@ func TestShellCreateRoomRejectsGarbageSettings(t *testing.T) {
 
 func TestShellHistoryPreviewBoundaryAndPlaybackLink(t *testing.T) {
 	s := newStack(t)
-	srv := httptest.NewServer(NewShellPages(s.store, s.rm))
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
 	alice := seedUser(t, s.store, "alice")
 	bob := seedUser(t, s.store, "bob")
@@ -464,7 +465,7 @@ func TestShellHistoryPreviewBoundaryAndPlaybackLink(t *testing.T) {
 
 func TestShellRoomsPartialServesFragmentOnly(t *testing.T) {
 	s := newStack(t)
-	srv := httptest.NewServer(NewShellPages(s.store, s.rm))
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
 	alice := seedUser(t, s.store, "alice")
 	room, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
@@ -491,7 +492,7 @@ func TestShellRoomsPartialServesFragmentOnly(t *testing.T) {
 
 	// The empty grid is its own fragment shape.
 	empty := newStack(t)
-	emptySrv := httptest.NewServer(NewShellPages(empty.store, empty.rm))
+	emptySrv := httptest.NewServer(NewShellPages(empty.store, empty.rm, nil))
 	defer emptySrv.Close()
 	_, _, body = doShell(t, emptySrv.Client(), http.MethodGet, emptySrv.URL+"/partials/rooms", "", nil)
 	if !strings.Contains(body, "no live rooms") {
@@ -504,7 +505,7 @@ func TestShellRoomsPartialServesFragmentOnly(t *testing.T) {
 // base) and the one shell-owned stylesheet, which the shell serves itself.
 func TestShellBaseAssetsAndStylesheet(t *testing.T) {
 	s := newStack(t)
-	srv := httptest.NewServer(NewShellPages(s.store, s.rm))
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
 
 	status, _, body := doShell(t, srv.Client(), http.MethodGet, srv.URL+"/login", "", nil)
@@ -534,7 +535,7 @@ func TestShellBaseAssetsAndStylesheet(t *testing.T) {
 
 func TestShellLogoutDropsSession(t *testing.T) {
 	s := newStack(t)
-	srv := httptest.NewServer(NewShellPages(s.store, s.rm))
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
 	c := noRedirectClient(srv)
 	token := shellRegister(t, c, srv.URL, "alice", "hunter2")
@@ -566,7 +567,7 @@ func TestShellLogoutDropsSession(t *testing.T) {
 
 func TestShellRendersHostileUsernameInert(t *testing.T) {
 	s := newStack(t)
-	srv := httptest.NewServer(NewShellPages(s.store, s.rm))
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
 	c := noRedirectClient(srv)
 	token := shellRegister(t, c, srv.URL, `<b>&"x`, "hunter2")
@@ -592,7 +593,7 @@ func TestShellBrokenStoreAnswers500(t *testing.T) {
 		t.Fatalf("close store: %v", err)
 	}
 	s := newStack(t)
-	srv := httptest.NewServer(NewShellPages(dead, s.rm))
+	srv := httptest.NewServer(NewShellPages(dead, s.rm, nil))
 	defer srv.Close()
 	c := noRedirectClient(srv)
 
@@ -616,6 +617,52 @@ func TestShellBrokenStoreAnswers500(t *testing.T) {
 	status, _, _ = doShell(t, c, http.MethodPost, srv.URL+"/logout", token, nil)
 	if status != http.StatusInternalServerError {
 		t.Errorf("logout over a broken store = %d, want 500", status)
+	}
+}
+
+// TestHomeShowsLiveTournamentBanner pins the home banner: while a run is
+// driven the page and the polled fragment carry its link and progress for
+// every viewer, guest included; no live run, no banner.
+func TestHomeShowsLiveTournamentBanner(t *testing.T) {
+	s := newStack(t)
+	fake := &fakeTourney{ongoing: &TourneyBanner{RunID: 9, Done: 4, Total: 30}}
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, fake))
+	defer srv.Close()
+	c := noRedirectClient(srv)
+
+	status, _, body := doShell(t, c, http.MethodGet, srv.URL+"/", "", nil)
+	if status != http.StatusOK {
+		t.Fatalf("guest home: status = %d (body %s)", status, body)
+	}
+	wantShellBody(t, body,
+		"a bot tournament is live",
+		`href="/tourney/run/9"`,
+		"series 4/30 settled",
+	)
+	status, _, body = doShell(t, c, http.MethodGet, srv.URL+"/partials/rooms", "", nil)
+	if status != http.StatusOK {
+		t.Fatalf("rooms partial: status = %d", status)
+	}
+	wantShellBody(t, body, "a bot tournament is live", "series 4/30 settled")
+
+	// No live run renders no banner, on the page and in the fragment.
+	fake.ongoing = nil
+	_, _, body = doShell(t, c, http.MethodGet, srv.URL+"/", "", nil)
+	if strings.Contains(body, "tournament is live") {
+		t.Errorf("idle home carries the banner (body %s)", body)
+	}
+	_, _, body = doShell(t, c, http.MethodGet, srv.URL+"/partials/rooms", "", nil)
+	if strings.Contains(body, "tournament is live") {
+		t.Errorf("idle fragment carries the banner (body %s)", body)
+	}
+
+	// A read failure behind the seam drops the banner without failing the
+	// page; the run page stays the run's own source of truth.
+	fake.ongoingErr = errors.New("boom")
+	status, _, body = doShell(t, c, http.MethodGet, srv.URL+"/", "", nil)
+	if status != http.StatusOK || strings.Contains(body, "tournament is live") {
+		t.Errorf("failed banner read = %d with banner %t, want 200 without it", status,
+			strings.Contains(body, "tournament is live"))
 	}
 }
 

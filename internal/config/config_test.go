@@ -492,8 +492,17 @@ func TestServerConstants(t *testing.T) {
 	if UsernameMaxBytes < 1 || UsernameMaxBytes > 64 {
 		t.Errorf("UsernameMaxBytes = %d, want in [1, 64]", UsernameMaxBytes)
 	}
-	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 5 {
-		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 5]: raise the ceiling with the next migration", SQLiteSchemaVersion)
+	if AdminName != "admin" {
+		t.Errorf("AdminName = %q, want the spec's admin account name", AdminName)
+	}
+	if AdminPassword != "1234qwerasdfzxcv" {
+		t.Errorf("AdminPassword = %q, want the spec's seeded credential", AdminPassword)
+	}
+	if len(AdminName) > UsernameMaxBytes {
+		t.Errorf("AdminName %d bytes over the UsernameMaxBytes ceiling %d", len(AdminName), UsernameMaxBytes)
+	}
+	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 6 {
+		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 6]: raise the ceiling with the next migration", SQLiteSchemaVersion)
 	}
 	if SQLiteBusyTimeoutMs < 1000 || SQLiteBusyTimeoutMs > 60000 {
 		t.Errorf("SQLiteBusyTimeoutMs = %d, want in [1000, 60000]", SQLiteBusyTimeoutMs)

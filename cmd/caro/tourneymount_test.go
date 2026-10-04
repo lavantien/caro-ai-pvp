@@ -196,6 +196,73 @@ func TestLiveBoardOfFollowsRed(t *testing.T) {
 	}
 }
 
+// TestTourneyServiceOngoingRunBanner pins the adapter's banner mapping over
+// a real drive: no run before the start, the driven run's id and pairing
+// count while the source holds, nothing after the finish.
+func TestTourneyServiceOngoingRunBanner(t *testing.T) {
+	held := make(chan struct{})
+	s := newTourneyStack(t, &cmdSource{script: func(string, string) []server.Event {
+		<-held
+		return hostSweep()
+	}})
+	ctx := context.Background()
+
+	if _, ok, err := s.svc.OngoingRun(ctx); ok || err != nil {
+		t.Fatalf("ongoing before start = %t %v, want none", ok, err)
+	}
+	id, err := s.svc.StartRun(ctx, server.TourneySetup{
+		Seats: []server.TourneySeat{
+			{Slot: 0, Name: "alpha", Tier: config.TierEasy.Name},
+			{Slot: 1, Name: "beta", Tier: config.TierEasy.Name},
+		},
+		TCIdx: 1, BOLen: config.SeriesBO3,
+		StartRating: config.TournamentStartRating, Parallel: 1,
+	})
+	if err != nil {
+		t.Fatalf("start run: %v", err)
+	}
+
+	// The pairings persist as the drive lays them out; wait for the
+	// twice-pair rather than racing the conductor's first write.
+	deadline := time.Now().Add(10 * time.Second)
+	var b server.TourneyBanner
+	for {
+		var ok bool
+		b, ok, err = s.svc.OngoingRun(ctx)
+		if err != nil || !ok {
+			t.Fatalf("ongoing while held = %t %v, want the driven run", ok, err)
+		}
+		if b.RunID == id && b.Total == 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("banner never reached 2 pairings: %+v", b)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if b.Done != 0 {
+		t.Errorf("settled while held = %d, want 0", b.Done)
+	}
+
+	close(held)
+	for {
+		snap, err := s.svc.RunSnapshot(ctx, id)
+		if err != nil {
+			t.Fatalf("snapshot: %v", err)
+		}
+		if snap.Run.Finished {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("run never finished, snapshot = %+v", snap)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if _, ok, err := s.svc.OngoingRun(ctx); ok || err != nil {
+		t.Fatalf("ongoing after finish = %t %v, want none", ok, err)
+	}
+}
+
 func TestTourneyServiceAdapterDrivesAndMaps(t *testing.T) {
 	s := newTourneyStack(t, sweepSource())
 
@@ -360,19 +427,15 @@ func TestServeRootMuxMountsTournamentPages(t *testing.T) {
 		return resp.StatusCode, string(body)
 	}
 
-	// The shell home still owns the root, the tournament setup bounces
-	// guests exactly like the history tab, an unknown run is the page 404,
-	// and the API subtree keeps its exact patterns.
+	// The shell home still owns the root, the tournament setup reads public
+	// for a guest (form-free), an unknown run is the page 404, and the API
+	// subtree keeps its exact patterns.
 	if status, body := get("/"); status != http.StatusOK || !strings.Contains(body, `id="rooms"`) {
 		t.Errorf("GET / = %d, want the shell home with the rooms grid", status)
 	}
-	resp, err := c.Get(muxSrv.URL + "/tourney")
-	if err != nil {
-		t.Fatalf("get /tourney: %v", err)
-	}
-	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
-		t.Errorf("GET /tourney as guest = %d %q, want 303 /login", resp.StatusCode, resp.Header.Get("Location"))
+	if status, body := get("/tourney"); status != http.StatusOK ||
+		strings.Contains(body, `action="/tourney"`) {
+		t.Errorf("GET /tourney as guest = %d, want the public read-only page (body %s)", status, body)
 	}
 	if status, _ := get("/tourney/run/1"); status != http.StatusNotFound {
 		t.Errorf("GET /tourney/run/1 = %d, want 404", status)

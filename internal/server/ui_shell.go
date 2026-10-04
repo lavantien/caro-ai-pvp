@@ -11,12 +11,14 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -60,15 +62,17 @@ var (
 	roomsTmpl   = template.Must(template.ParseFS(shellTmplFS, "web/templates/rooms.tmpl"))
 )
 
-// shellPages carries the two backend dependencies the pages read: the
-// auth/rating/history store and the live-room manager, the same pair the
-// JSON API rides.
+// shellPages carries the backend dependencies the pages read: the
+// auth/rating/history store, the live-room manager (the same pair the JSON
+// API rides), and the tourney service behind the home banner.
 type shellPages struct {
-	store *Store
-	rooms *RoomManager
+	store   *Store
+	rooms   *RoomManager
+	tourney TourneyService
 }
 
-// NewShellPages builds the M6b shell UI over store and rooms:
+// NewShellPages builds the M6b shell UI over store, rooms, and the tourney
+// service whose ongoing run the home banner reads (nil: no banner):
 //
 //	GET  /{$}            home: stats line, rooms grid, create room, M7 stub
 //	GET  /login          the login/create form
@@ -81,8 +85,8 @@ type shellPages struct {
 //
 // The returned handler is a ServeMux of exact patterns, so it mounts whole
 // or pattern by pattern under the API mux.
-func NewShellPages(store *Store, rooms *RoomManager) http.Handler {
-	p := &shellPages{store: store, rooms: rooms}
+func NewShellPages(store *Store, rooms *RoomManager, tour TourneyService) http.Handler {
+	p := &shellPages{store: store, rooms: rooms, tourney: tour}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", p.handleHome)
 	mux.HandleFunc("GET /login", p.handleLoginForm)
@@ -281,12 +285,50 @@ func (p *shellPages) seatName(id int64) string {
 	return u.Username
 }
 
+// tourneyBannerView is the home page's live-tournament line: the run page
+// link with the settled-series progress.
+type tourneyBannerView struct {
+	RunID int64
+	Done  int
+	Total int
+}
+
+// roomsListView is the rooms grid fragment: the cards plus the live
+// tournament banner, so both ride the one poll.
+type roomsListView struct {
+	Rooms []roomCardView
+	Live  *tourneyBannerView
+}
+
+// banner reads the ongoing run behind the tourney seam. A missing seam or
+// no live drive renders nothing; a read failure logs and renders nothing,
+// the run page stays the source of truth for the run itself.
+func (p *shellPages) banner(ctx context.Context) *tourneyBannerView {
+	if p.tourney == nil {
+		return nil
+	}
+	b, ok, err := p.tourney.OngoingRun(ctx)
+	if err != nil {
+		log.Printf("server: home tournament banner read: %v", err)
+		return nil
+	}
+	if !ok {
+		return nil
+	}
+	return &tourneyBannerView{RunID: b.RunID, Done: b.Done, Total: b.Total}
+}
+
+// roomsList shapes the polled fragment.
+func (p *shellPages) roomsList(ctx context.Context) roomsListView {
+	return roomsListView{Rooms: p.roomViews(), Live: p.banner(ctx)}
+}
+
 // homeView is the home page: the viewer line (nil for a guest), the rooms
-// grid, the create-room options rendered from config, an inline create
-// error, and the poll cadence.
+// grid with the live-tournament banner, the create-room options rendered
+// from config, an inline create error, and the poll cadence.
 type homeView struct {
 	Me          *shellViewer
-	Rooms       []roomCardView
+	RoomsList   roomsListView
 	TCOptions   []optionView
 	BOOptions   []optionView
 	BotOptions  []botOptionView
@@ -308,7 +350,7 @@ func (p *shellPages) handleHome(w http.ResponseWriter, r *http.Request) {
 // error under the form.
 func (p *shellPages) renderHome(w http.ResponseWriter, status int, me *shellViewer, createErr string) {
 	renderShell(w, status, homeTmpl, "base", homeView{
-		Me: me, Rooms: p.roomViews(),
+		Me: me, RoomsList: p.roomsList(context.Background()),
 		TCOptions: shellTCOptions(), BOOptions: shellBOOptions(), BotOptions: shellBotOptions(),
 		CreateError: createErr, PollMs: int64(config.PagePollMs),
 	})
@@ -513,9 +555,9 @@ func (p *shellPages) handleHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleRoomsPartial serves the grid fragment the home page polls: the
-// same card list, public like GET /api/rooms.
-func (p *shellPages) handleRoomsPartial(w http.ResponseWriter, _ *http.Request) {
-	renderShell(w, http.StatusOK, roomsTmpl, "roomslist", p.roomViews())
+// same card list and live-tournament banner, public like GET /api/rooms.
+func (p *shellPages) handleRoomsPartial(w http.ResponseWriter, r *http.Request) {
+	renderShell(w, http.StatusOK, roomsTmpl, "roomslist", p.roomsList(r.Context()))
 }
 
 // handleCreateRoom is the create-room form POST: settings validated by the

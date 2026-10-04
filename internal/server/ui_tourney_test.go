@@ -22,7 +22,8 @@ import (
 )
 
 // fakeTourney scripts TourneyService: the setups StartRun saw, the id it
-// hands back, the reads the pages render, and the stalled closes.
+// hands back, the reads the pages render, the stalled closes, and the home
+// banner's ongoing run.
 type fakeTourney struct {
 	startErr     error
 	startID      int64
@@ -34,6 +35,8 @@ type fakeTourney struct {
 	closeErr     error
 	closed       []int64
 	live         []TourneyLiveBoard
+	ongoing      *TourneyBanner
+	ongoingErr   error
 }
 
 func (f *fakeTourney) StartRun(_ context.Context, setup TourneySetup) (int64, error) {
@@ -61,35 +64,93 @@ func (f *fakeTourney) Runs(context.Context) ([]TourneyRunSummary, error) {
 	return f.runSummaries, f.runsErr
 }
 
+func (f *fakeTourney) OngoingRun(context.Context) (TourneyBanner, bool, error) {
+	if f.ongoingErr != nil {
+		return TourneyBanner{}, false, f.ongoingErr
+	}
+	if f.ongoing == nil {
+		return TourneyBanner{}, false, nil
+	}
+	return *f.ongoing, true, nil
+}
+
 func (f *fakeTourney) LiveBoards() []TourneyLiveBoard {
 	return f.live
 }
 
-// tourneySrv mounts the pages over a scripted service and a fresh stack.
-func tourneySrv(t *testing.T, fake *fakeTourney) (*httptest.Server, string) {
+// tourneyMount mounts the pages over a scripted service and a fresh stack,
+// handing back the server and the store sessions mint against.
+func tourneyMount(t *testing.T, fake *fakeTourney) (*httptest.Server, *Store) {
 	t.Helper()
 	s := newStack(t)
 	mux := http.NewServeMux()
 	NewTournamentPages(s.store, fake).Mount(mux)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
-	return srv, mintSession(t, s.store, seedUser(t, s.store, "alice"))
+	return srv, s.store
 }
 
-func TestTourneyGuestBouncesToLogin(t *testing.T) {
-	srv, _ := tourneySrv(t, &fakeTourney{})
+// tourneySrv mounts the pages with a plain member session (alice), the
+// non-admin answer every admin gate must refuse.
+func tourneySrv(t *testing.T, fake *fakeTourney) (*httptest.Server, string) {
+	t.Helper()
+	srv, store := tourneyMount(t, fake)
+	return srv, mintSession(t, store, seedUser(t, store, "alice"))
+}
+
+// mintAdminSession mints the seeded admin account's session, the one holder
+// of the tournament controls.
+func mintAdminSession(t *testing.T, store *Store) string {
+	t.Helper()
+	admin, err := store.UserByUsername(config.AdminName)
+	if err != nil {
+		t.Fatalf("seeded admin row: %v", err)
+	}
+	return mintSession(t, store, admin)
+}
+
+func TestTourneyPagePublicAndAdminGated(t *testing.T) {
+	srv, store := tourneyMount(t, &fakeTourney{})
 	c := noRedirectClient(srv)
 
-	for _, method := range []string{http.MethodGet, http.MethodPost} {
-		status, h, _ := doShell(t, c, method, srv.URL+"/tourney", "", nil)
-		if status != http.StatusSeeOther || h.Get("Location") != "/login" {
-			t.Errorf("%s /tourney as guest = %d %q, want 303 /login", method, status, h.Get("Location"))
-		}
+	// The page is public like the rooms grid: a guest reads it, sees the
+	// runs section, and never the admin's form.
+	status, _, body := doShell(t, c, http.MethodGet, srv.URL+"/tourney", "", nil)
+	if status != http.StatusOK {
+		t.Fatalf("guest setup page: status = %d (body %s)", status, body)
+	}
+	wantShellBody(t, body, "no tournaments yet.", "only the admin account starts tournaments.")
+	if strings.Contains(body, `action="/tourney"`) {
+		t.Error("guest page carries the setup form, want the read-only page")
+	}
+
+	// A member session gets the same read-only page.
+	token := mintSession(t, store, seedUser(t, store, "alice"))
+	_, _, body = doShell(t, c, http.MethodGet, srv.URL+"/tourney", token, nil)
+	if strings.Contains(body, `action="/tourney"`) {
+		t.Error("member page carries the setup form, want the admin's alone")
+	}
+
+	// The admin session sees the form.
+	_, _, body = doShell(t, c, http.MethodGet, srv.URL+"/tourney", mintAdminSession(t, store), nil)
+	if !strings.Contains(body, `action="/tourney"`) {
+		t.Error("admin page misses the setup form")
+	}
+
+	// The acting routes keep the login bounce for guests.
+	status, h, _ := doShell(t, c, http.MethodPost, srv.URL+"/tourney", "", nil)
+	if status != http.StatusSeeOther || h.Get("Location") != "/login" {
+		t.Errorf("guest start = %d %q, want 303 /login", status, h.Get("Location"))
+	}
+	status, h, _ = doShell(t, c, http.MethodPost, srv.URL+"/tourney/run/7/close", "", nil)
+	if status != http.StatusSeeOther || h.Get("Location") != "/login" {
+		t.Errorf("guest close = %d %q, want 303 /login", status, h.Get("Location"))
 	}
 }
 
 func TestTourneySetupFormRendersConfigDefaults(t *testing.T) {
-	srv, token := tourneySrv(t, &fakeTourney{})
+	srv, store := tourneyMount(t, &fakeTourney{})
+	token := mintAdminSession(t, store)
 
 	status, _, body := doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/tourney", token, nil)
 	if status != http.StatusOK {
@@ -126,7 +187,8 @@ func TestTourneySetupFormRendersConfigDefaults(t *testing.T) {
 
 func TestTourneyStartValidatesAndRedirects(t *testing.T) {
 	fake := &fakeTourney{startID: 7}
-	srv, token := tourneySrv(t, fake)
+	srv, store := tourneyMount(t, fake)
+	token := mintAdminSession(t, store)
 	c := noRedirectClient(srv)
 
 	// The happy path: a 3-bot roster over the first three default rows, the
@@ -207,6 +269,23 @@ func TestTourneyStartValidatesAndRedirects(t *testing.T) {
 		"application/x-www-form-urlencoded", "%zz=1")
 	if status != http.StatusBadRequest || !strings.Contains(body, "malformed form body") {
 		t.Errorf("undecodable start body = %d %s, want 400 with the inline error", status, body)
+	}
+
+	// A member's post never reaches the service: the admin gate answers the
+	// read-only setup page with the refusal inline.
+	member := mintSession(t, store, seedUser(t, store, "bob"))
+	status, _, body = doShell(t, c, http.MethodPost, srv.URL+"/tourney", member, url.Values{
+		"tc": {"0"}, "bo": {"3"}, "rating": {"1000"}, "parallel": {"1"}, "count": {"2"},
+		"name0": {"a"}, "tier0": {"easy"}, "name1": {"b"}, "tier1": {"easy"},
+	})
+	if status != http.StatusForbidden {
+		t.Errorf("member start = %d, want 403", status)
+	}
+	if !strings.Contains(body, "only the admin account starts tournaments") {
+		t.Errorf("member start body misses the refusal (body %s)", body)
+	}
+	if len(fake.started) != 1 {
+		t.Errorf("service saw %d starts after the member post, want the admin's 1 alone", len(fake.started))
 	}
 
 	// A service failure after clean validation is an outage, not a form
@@ -397,7 +476,8 @@ func TestTourneyRunStatesAndNotFound(t *testing.T) {
 // outage.
 func TestTourneyStartBlockedByOngoingRun(t *testing.T) {
 	fake := &fakeTourney{startErr: &TourneyBlockedError{RunID: 4}}
-	srv, token := tourneySrv(t, fake)
+	srv, store := tourneyMount(t, fake)
+	token := mintAdminSession(t, store)
 
 	status, _, body := doShell(t, noRedirectClient(srv), http.MethodPost, srv.URL+"/tourney", token, url.Values{
 		"tc": {"0"}, "bo": {strconv.Itoa(config.SeriesBO3)},
@@ -431,24 +511,31 @@ func stalledSnapshot() TourneySnapshot {
 }
 
 // TestTourneyRunCloseForm pins the stalled state's close surface: the form
-// renders on the stalled page for members only, the POST is session-gated,
-// success bounces back onto the run page, and a refusal renders inline.
+// renders on the stalled page for the admin only, guests and members are
+// refused without touching the service, success bounces back onto the run
+// page, and a refusal renders inline.
 func TestTourneyRunCloseForm(t *testing.T) {
 	fake := &fakeTourney{snapshot: stalledSnapshot()}
-	srv, token := tourneySrv(t, fake)
+	srv, store := tourneyMount(t, fake)
+	token := mintAdminSession(t, store)
 	c := noRedirectClient(srv)
 	form := url.Values{}
 
-	// The form rides the stalled page for a member, not for a guest, and
-	// not on the other run states.
+	// The form rides the stalled page for the admin, not for a member or a
+	// guest, and not on the other run states.
 	status, _, body := doShell(t, c, http.MethodGet, srv.URL+"/tourney/run/7", token, nil)
 	if status != http.StatusOK {
 		t.Fatalf("stalled run page: status = %d", status)
 	}
 	wantShellBody(t, body, `action="/tourney/run/7/close"`, ">stalled<")
+	member := mintSession(t, store, seedUser(t, store, "alice"))
+	_, _, body = doShell(t, c, http.MethodGet, srv.URL+"/tourney/run/7", member, nil)
+	if strings.Contains(body, "/close") {
+		t.Error("member page carries the close form, want the admin's alone")
+	}
 	_, _, body = doShell(t, c, http.MethodGet, srv.URL+"/tourney/run/7", "", nil)
 	if strings.Contains(body, "/close") {
-		t.Error("guest page carries the close form, want members only")
+		t.Error("guest page carries the close form, want the admin's alone")
 	}
 	live := &fakeTourney{snapshot: liveSnapshot()}
 	liveSrv, _ := tourneySrv(t, live)
@@ -466,10 +553,21 @@ func TestTourneyRunCloseForm(t *testing.T) {
 		t.Fatalf("guest close reached the service %d times, want 0", len(fake.closed))
 	}
 
-	// A member's close lands and bounces back onto the run page.
+	// A member's close renders the refusal inline and never reaches the
+	// service.
+	status, _, body = doShell(t, c, http.MethodPost, srv.URL+"/tourney/run/7/close", member, form)
+	if status != http.StatusForbidden {
+		t.Fatalf("member close = %d, want 403 (body %s)", status, body)
+	}
+	wantShellBody(t, body, "only the admin account closes runs")
+	if len(fake.closed) != 0 {
+		t.Errorf("member close reached the service %d times, want 0", len(fake.closed))
+	}
+
+	// The admin's close lands and bounces back onto the run page.
 	status, h, _ = doShell(t, c, http.MethodPost, srv.URL+"/tourney/run/7/close", token, form)
 	if status != http.StatusSeeOther || h.Get("Location") != "/tourney/run/7" {
-		t.Errorf("member close = %d %q, want 303 back onto the run page", status, h.Get("Location"))
+		t.Errorf("admin close = %d %q, want 303 back onto the run page", status, h.Get("Location"))
 	}
 	if len(fake.closed) != 1 || fake.closed[0] != 7 {
 		t.Errorf("closed = %v, want [7]", fake.closed)
@@ -521,6 +619,15 @@ func TestTourneySetupListsRuns(t *testing.T) {
 		"2&#43;1", "bo3", ">finished<",
 		"easy-1, hard-1", ">hard-1<",
 	)
+
+	// A guest reads the same runs list, form-free.
+	_, _, body = doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/tourney", "", nil)
+	if !strings.Contains(body, `href="/tourney/run/5"`) {
+		t.Errorf("guest page misses the runs list (body %s)", body)
+	}
+	if strings.Contains(body, `action="/tourney"`) {
+		t.Error("guest page carries the setup form, want the runs list alone")
+	}
 
 	// A listing failure fails the setup page.
 	bad, badTok := tourneySrv(t, &fakeTourney{runsErr: errors.New("boom")})

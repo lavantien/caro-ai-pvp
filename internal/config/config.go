@@ -388,9 +388,15 @@ const (
 	// UsernameMaxBytes is the login form's username ceiling.
 	UsernameMaxBytes = 32
 
+	// AdminName and AdminPassword seed the one account allowed to start
+	// tournaments and close runs (migration v6). The demo deployment's
+	// shared credential; the gate is a UI control, not a secret.
+	AdminName     = "admin"
+	AdminPassword = "1234qwerasdfzxcv"
+
 	// SQLiteSchemaVersion is the number of landed migration scripts; the
 	// server package enforces the equality at startup.
-	SQLiteSchemaVersion = 5
+	SQLiteSchemaVersion = 6
 	SQLiteBusyTimeoutMs = 5000
 	SQLiteJournalWAL    = "wal"
 	SQLiteSyncNormal    = "normal"

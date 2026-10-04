@@ -1,5 +1,7 @@
-{{define "roomslist"}}{{if .}}<ul class="rooms">
-{{range .}}<li class="room"><a href="/rooms/{{.ID}}">room {{.ShortID}}</a>
+{{define "roomslist"}}
+{{if .Live}}<p class="tourneynow"><a href="/tourney/run/{{.Live.RunID}}">a bot tournament is live</a>, series {{.Live.Done}}/{{.Live.Total}} settled</p>
+{{end}}{{if .Rooms}}<ul class="rooms">
+{{range .Rooms}}<li class="room"><a href="/rooms/{{.ID}}">room {{.ShortID}}</a>
 <span class="meta"><span>{{.TC}}</span><span>{{.BO}}</span><span>{{.State}}</span><span>{{.Host}} vs {{.Guest}}</span>{{if .ShowScore}}<span class="score">{{.Score}}</span>{{end}}</span>
 </li>
 {{end}}</ul>{{else}}<p class="empty">no live rooms</p>{{end}}{{end}}
