@@ -44,6 +44,12 @@ The 390px mobile captures of the same chain, dark surface, live room and termina
 
 ![tournament run page on a phone](docs/screenshots/mobile-tourney-run.png)
 
+The tournament spectating surfaces of the same pass: the run page carries a live board per ongoing bot series (mini stones in play order, score from red's side, the card links the room's own page), and the home grid headlines a live run while it is driven:
+
+![tournament live boards on a phone](docs/screenshots/mobile-tourney-liveboards.png)
+
+![home banner while a tournament runs](docs/screenshots/mobile-home-banner.png)
+
 The mobile pass audited every surface at 390x844: long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the board offers only the spaces the rules allow (the opening ring dims on red's second move), the retired room renders an honest terminal state, and the tournament leaderboard scrolls inside its own wrap. The desktop captures above predate the playable-space mask.
 
 ## build and verify
@@ -106,7 +112,7 @@ The tournament conductor. Every series rides the same room surface a human match
 
 ![tournament conductor flowchart](docs/diagrams/tournament-conductor.png)
 
-The machine-wide core budget is held by the run gate: one ongoing run at a time, per-run parallelism bounded by the tier cores, a stalled run (crashed drive) closed explicitly from its page before another can start.
+The machine-wide core budget is held by the run gate: one ongoing run at a time, per-run parallelism bounded by the tier cores, a stalled run (crashed drive) closed explicitly from its page before another can start. Starting runs and closing stalled ones is the seeded admin account's alone; every page, the setup list, the run boards, and the home's live-run banner read public, guest included.
 
 Page surface. The shell and room pages are server-rendered html/template with vendored htmx 4; page routes mount beside the JSON API and win on their patterns, everything else falls to the shell.
 
