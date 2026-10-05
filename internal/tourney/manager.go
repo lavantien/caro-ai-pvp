@@ -136,15 +136,20 @@ func (m *Manager) Runs(ctx context.Context) ([]Run, error) {
 // own refusal. The close writes no standings snapshot: the live leaderboard
 // keeps deriving from the games, the snapshot stays a clean-finish artifact.
 func (m *Manager) CloseStalled(ctx context.Context, runID int64) error {
-	if running, _ := m.driveState(runID); running {
-		return fmt.Errorf("tourney: run %d: %w", runID, ErrDriveLive)
-	}
+	// The row outranks the drive: drive commits the finished row before its
+	// goroutine closes done, so a drive check first would call a committed
+	// finish "still live" for the lag between the two. An ongoing row with a
+	// live drive still refuses, and CloseStalledRun's status guard owns the
+	// mirror interleaving (row read ongoing, run finishing underneath).
 	run, err := m.store.Run(ctx, runID)
 	if err != nil {
 		return err
 	}
 	if run.Status != RunStateOngoing {
 		return fmt.Errorf("tourney: run %d is already %s", runID, run.Status)
+	}
+	if running, _ := m.driveState(runID); running {
+		return fmt.Errorf("tourney: run %d: %w", runID, ErrDriveLive)
 	}
 	return m.store.CloseStalledRun(ctx, runID, time.Now().Unix())
 }
