@@ -238,14 +238,18 @@ func TestBotEasyTierRealEngineAnswersLegally(t *testing.T) {
 	}
 
 	// The tier seam itself: easy is the plain engine, and a direct search on
-	// a fresh board answers inside the board.
+	// a fresh board answers inside the board. The budget must guarantee one
+	// completed iteration even under coverage instrumentation on a loaded
+	// runner: a search that dies before its first iteration answers with the
+	// legal fallback and zero nodes, which is a budget artifact, not the
+	// seam's behavior.
 	eng := newBotSearcher(config.TierEasy)
 	defer eng.Close()
 	if _, isTiered := eng.(interface{ Workers() int }); isTiered {
 		t.Error("easy tier built the SMP pool, want the single-threaded engine")
 	}
 	fresh := rules.NewBoard()
-	mv, st, _ := eng.Search(fresh, engine.NewFixedBudget(5*time.Millisecond))
+	mv, st, _ := eng.Search(fresh, engine.NewFixedBudget(1*time.Second))
 	if !fresh.IsLegal(rules.Cell(mv)) {
 		t.Errorf("engine answer %s is illegal on a fresh board", cellName(rules.Cell(mv)))
 	}
