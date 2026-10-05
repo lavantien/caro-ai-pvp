@@ -141,6 +141,41 @@ func NewConductor(source MatchSource) *Conductor {
 	return &Conductor{source: source}
 }
 
+// Resume continues the machine's one ongoing run from its own persisted
+// state: the settled series stand as evidence and are never replayed, every
+// interrupted series is scrubbed to its created state and replayed, and the
+// run finishes with its standings snapshot and summary in the folder the
+// run's own label names. Every termination shape lands here the same way:
+// a cancelled drive (SIGINT), a crashed process, or a machine cut. A
+// finished or unknown run refuses, and so does a resume while another run's
+// row holds the machine-wide gate.
+func (c *Conductor) Resume(ctx context.Context, store *Store, runID int64, parallel int) (RunResult, error) {
+	run, err := store.Run(ctx, runID)
+	if err != nil {
+		return RunResult{}, err
+	}
+	if run.Status != RunStateOngoing {
+		return RunResult{}, fmt.Errorf("tourney: run %d is already %s", runID, run.Status)
+	}
+	if id, held, err := store.OngoingRunID(ctx); err != nil {
+		return RunResult{}, err
+	} else if held && id != runID {
+		return RunResult{}, &RunInProgressError{RunID: id}
+	}
+	roster, err := store.Roster(ctx, runID)
+	if err != nil {
+		return RunResult{}, err
+	}
+	tiers, err := tiersOfRoster(roster)
+	if err != nil {
+		return RunResult{}, err
+	}
+	if err := checkCoreBudget(parallel, tiers); err != nil {
+		return RunResult{}, err
+	}
+	return c.drive(ctx, store, run, roster, tiers, parallel)
+}
+
 // Run executes one tournament. The roster's tiers resolve through the config
 // table and the worst-case live-search demand (parallel rooms, one search
 // at a time each, at the roster's largest tier core count) must fit
@@ -196,10 +231,14 @@ func (c *Conductor) startRun(ctx context.Context, store *Store, roster []Partici
 // drive executes one already-persisted run: read back the schedule and
 // cross-check it against the pairing plan, run every pairing under the
 // semaphore, close the run, and read the final leaderboard. The run's own
-// persisted label names its log folder. The first series error aborts the
-// run: pending pairings stop at the semaphore, live streams retire through
-// their Close, the run row stays ongoing for the post-mortem, and the error
-// surfaces. Cancelling ctx is the same abort with the context's error.
+// persisted label names its log folder. Settled series (an earlier drive's
+// record, the resume shape) reconstruct their line from the row and never
+// replay; every unsettled row is scrubbed to its created state first, so an
+// interrupted series replays from idx 0 while a fresh run's bare rows make
+// the scrub a no-op. The first series error aborts the run: pending pairings
+// stop at the semaphore, live streams retire through their Close, the run
+// row stays ongoing for the post-mortem, and the error surfaces. Cancelling
+// ctx is the same abort with the context's error.
 func (c *Conductor) drive(ctx context.Context, store *Store, run Run, roster []Participant,
 	tiers []*config.Tier, parallel int) (RunResult, error) {
 
@@ -223,23 +262,43 @@ func (c *Conductor) drive(ctx context.Context, store *Store, run Run, roster []P
 
 	logs := NewLogs(RunDirName(run.Label, time.Unix(run.CreatedAt, 0)))
 	res := RunResult{Run: run, Series: make([]SeriesResult, len(pairs))}
+	for slot := range pairs {
+		line := SeriesResult{
+			PairingSlot: slot, RedFirst: pairs[slot].RedFirst, BlueFirst: pairs[slot].BlueFirst,
+		}
+		if schedule[slot].FinishedAt != nil {
+			line.WinnerSlot = schedule[slot].WinnerSlot
+			line.RedFirstWins = schedule[slot].RedFirstWins
+			line.BlueFirstWins = schedule[slot].BlueFirstWins
+		}
+		res.Series[slot] = line
+	}
+	// The interrupted drive's in-flight series hold partial games: scrub
+	// every unsettled row to its created state so each replay starts from
+	// idx 0 (a fresh run's rows are already bare, the scrub is their no-op).
+	for slot := range pairs {
+		if schedule[slot].FinishedAt == nil {
+			if err := store.ResetSeries(ctx, schedule[slot].ID); err != nil {
+				return RunResult{}, err
+			}
+		}
+	}
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	// The dispatch loop takes the semaphore slot itself before spawning, so
 	// pairings start in schedule order whenever slots free in order (under
 	// parallel 1 the run is fully serial and deterministic) while parallel
-	// slots keep overlapping freely.
+	// slots keep overlapping freely. Settled series skip the loop whole:
+	// their record is evidence, never a replay.
 	sem := make(chan struct{}, parallel)
 	var wg sync.WaitGroup
 	var once sync.Once
 	var failure error
-	for slot := range pairs {
-		res.Series[slot] = SeriesResult{
-			PairingSlot: slot, RedFirst: pairs[slot].RedFirst, BlueFirst: pairs[slot].BlueFirst,
-		}
-	}
 dispatch:
 	for slot := range pairs {
+		if schedule[slot].FinishedAt != nil {
+			continue
+		}
 		select {
 		case sem <- struct{}{}:
 			// A cancelled run must not dispatch: the slot freeing after
