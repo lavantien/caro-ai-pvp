@@ -40,10 +40,10 @@ func TestRoomSourceRefusesBrokenTierPair(t *testing.T) {
 	rm, _ := newRoomStack(t)
 	src := RoomSource{RM: rm}
 
-	if _, err := src.StartSeries(nil, &config.TierEasy, 0, config.SeriesBO3); !errors.Is(err, server.ErrBadTier) {
+	if _, err := src.StartSeries(nil, &config.TierEasy, "", "", 0, config.SeriesBO3); !errors.Is(err, server.ErrBadTier) {
 		t.Errorf("nil host tier = %v, want ErrBadTier", err)
 	}
-	if _, err := src.StartSeries(&config.TierEasy, nil, 0, config.SeriesBO3); !errors.Is(err, server.ErrBadTier) {
+	if _, err := src.StartSeries(&config.TierEasy, nil, "", "", 0, config.SeriesBO3); !errors.Is(err, server.ErrBadTier) {
 		t.Errorf("nil guest tier = %v, want ErrBadTier", err)
 	}
 	if n := len(rm.List()); n != 0 {
@@ -59,7 +59,7 @@ func TestRoomSourceRetiresRoomWhenSubscribeFails(t *testing.T) {
 	rm, hub := newRoomStack(t)
 	hub.Close()
 
-	_, err := RoomSource{RM: rm}.StartSeries(&config.TierEasy, &config.TierEasy, mustTC(1, 0), config.SeriesBO3)
+	_, err := RoomSource{RM: rm}.StartSeries(&config.TierEasy, &config.TierEasy, "", "", mustTC(1, 0), config.SeriesBO3)
 	if !errors.Is(err, server.ErrHubClosed) {
 		t.Fatalf("start over a closed hub = %v, want ErrHubClosed", err)
 	}
@@ -74,7 +74,7 @@ func TestRoomSourceRetiresRoomWhenSubscribeFails(t *testing.T) {
 // the room behind it.
 func TestRoomStreamSurfacesHubClose(t *testing.T) {
 	rm, hub := newRoomStack(t)
-	room, err := rm.CreateBotVsBot(&config.TierEasy, &config.TierEasy, mustTC(1, 0), config.SeriesBO3)
+	room, err := rm.CreateBotVsBot(&config.TierEasy, "", &config.TierEasy, "", mustTC(1, 0), config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create bot room: %v", err)
 	}

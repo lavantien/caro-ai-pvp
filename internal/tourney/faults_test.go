@@ -44,7 +44,7 @@ type literalSource struct {
 	events []server.Event
 }
 
-func (s *literalSource) StartSeries(*config.Tier, *config.Tier, int, int) (SeriesStream, error) {
+func (s *literalSource) StartSeries(*config.Tier, *config.Tier, string, string, int, int) (SeriesStream, error) {
 	ch := make(chan server.Event, len(s.events))
 	for _, ev := range s.events {
 		ch <- ev

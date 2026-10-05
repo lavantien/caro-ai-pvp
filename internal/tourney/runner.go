@@ -17,7 +17,7 @@ import (
 // bot-vs-bot series and hand back its event stream. Production wires
 // RoomSource over the room manager; tests wire scripted sources.
 type MatchSource interface {
-	StartSeries(host, guest *config.Tier, tcIdx, boLen int) (SeriesStream, error)
+	StartSeries(host, guest *config.Tier, hostName, guestName string, tcIdx, boLen int) (SeriesStream, error)
 }
 
 // SeriesStream is one live bot-vs-bot series from the conductor's view: the
@@ -57,8 +57,8 @@ type RoomSource struct{ RM *server.RoomManager }
 // registered, so waiting would park forever. That is a missed-event gap and
 // a hard error, never a silent partial record. A failed subscribe or the
 // liveness rejection retires the room it opened.
-func (s RoomSource) StartSeries(host, guest *config.Tier, tcIdx, boLen int) (SeriesStream, error) {
-	room, err := s.RM.CreateBotVsBot(host, guest, tcIdx, boLen)
+func (s RoomSource) StartSeries(host, guest *config.Tier, hostName, guestName string, tcIdx, boLen int) (SeriesStream, error) {
+	room, err := s.RM.CreateBotVsBot(host, hostName, guest, guestName, tcIdx, boLen)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +351,8 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 		err = errors.Join(err, logs.CloseSeries(run.ID, row.ID))
 	}()
 
-	stream, serr := c.source.StartSeries(tiers[pair.RedFirst.Slot], tiers[pair.BlueFirst.Slot], run.TCIdx, run.BOLen)
+	stream, serr := c.source.StartSeries(tiers[pair.RedFirst.Slot], tiers[pair.BlueFirst.Slot],
+		pair.RedFirst.Name, pair.BlueFirst.Name, run.TCIdx, run.BOLen)
 	if serr != nil {
 		return line, serr
 	}

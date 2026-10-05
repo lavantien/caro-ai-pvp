@@ -251,6 +251,20 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create ghost room: %v", err)
 	}
+	// A same-tier tournament pairing on the grid must show its two instance
+	// identities, never one stamp on both sides. The gated bot keeps the
+	// room live for the listing without playing a move.
+	release := make(chan struct{})
+	s.rm.makeSearcher = func(config.Tier) searcher {
+		// One gate per seat: gatedBot closes its own seen channel inside
+		// Search, so two seats must never share one.
+		return &gatedBot{seen: make(chan struct{}), release: release}
+	}
+	t.Cleanup(func() { close(release) })
+	botRoom, err := s.rm.CreateBotVsBot(&config.TierEasy, "easy-a", &config.TierEasy, "easy-b", 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create same-tier pairing: %v", err)
+	}
 
 	status, _, body := doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/", "", nil)
 	if status != http.StatusOK {
@@ -259,6 +273,7 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 	wantShellBody(t, body,
 		`id="rooms"`, `href="/rooms/`+room.ID()+`"`,
 		`href="/rooms/`+ghostRoom.ID()+`"`, "#777 vs open seat",
+		"easy-a-"+botRoom.ID()+" vs easy-b-"+botRoom.ID(),
 		// html/template renders "+" as &#43; in text nodes (UTF-7 era
 		// hardening), so the clock notation needles use the served bytes.
 		"2&#43;1", "bo5", "created", "alice vs open seat",

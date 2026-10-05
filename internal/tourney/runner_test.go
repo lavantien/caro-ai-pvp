@@ -162,9 +162,15 @@ type fakeSource struct {
 	maxLive int
 }
 
-func (s *fakeSource) StartSeries(host, guest *config.Tier, tcIdx, boLen int) (SeriesStream, error) {
+func (s *fakeSource) StartSeries(host, guest *config.Tier, hostName, guestName string, tcIdx, boLen int) (SeriesStream, error) {
 	s.mu.Lock()
-	s.starts = append(s.starts, [2]string{host.Name, guest.Name})
+	if hostName == "" {
+		hostName = host.Name
+	}
+	if guestName == "" {
+		guestName = guest.Name
+	}
+	s.starts = append(s.starts, [2]string{hostName, guestName})
 	s.live++
 	if s.live > s.maxLive {
 		s.maxLive = s.live
@@ -298,11 +304,12 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 	}
 
 	// The match source was called per pairing with the red-first seat as
-	// host, both directions of the twice-pair.
+	// host, both directions of the twice-pair, and with the seats' roster
+	// identities (the room stamps the instance names, not the tiers).
 	starts, closed, maxLive := src.snapshot()
 	wantStarts := [][2]string{
-		{config.TierEasy.Name, config.TierMedium.Name},
-		{config.TierMedium.Name, config.TierEasy.Name},
+		{"easy-1", "medium-1"},
+		{"medium-1", "easy-1"},
 	}
 	if len(starts) != 2 || starts[0] != wantStarts[0] || starts[1] != wantStarts[1] {
 		t.Errorf("starts = %v, want %v (red-first hosts)", starts, wantStarts)

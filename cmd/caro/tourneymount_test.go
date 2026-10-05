@@ -114,10 +114,16 @@ type cmdSource struct {
 	streamErr  error
 }
 
-func (s *cmdSource) StartSeries(host, guest *config.Tier, _, _ int) (tourney.SeriesStream, error) {
+func (s *cmdSource) StartSeries(host, guest *config.Tier, hostName, guestName string, _, _ int) (tourney.SeriesStream, error) {
+	if hostName == "" {
+		hostName = host.Name
+	}
+	if guestName == "" {
+		guestName = guest.Name
+	}
 	st := &cmdStream{ch: make(chan server.Event), done: make(chan struct{}),
 		closeEarly: s.closeEarly, streamErr: s.streamErr}
-	go st.feed(s.script(host.Name, guest.Name))
+	go st.feed(s.script(hostName, guestName))
 	return st, nil
 }
 

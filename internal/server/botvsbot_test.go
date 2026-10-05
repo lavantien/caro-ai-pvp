@@ -84,23 +84,73 @@ func TestCreateBotVsBotValidation(t *testing.T) {
 	s := newStack(t)
 	easy, medium := &config.TierEasy, &config.TierMedium
 
-	if _, err := s.rm.CreateBotVsBot(nil, medium, 0, config.SeriesBO3); !errors.Is(err, ErrBadTier) {
+	if _, err := s.rm.CreateBotVsBot(nil, "", medium, "", 0, config.SeriesBO3); !errors.Is(err, ErrBadTier) {
 		t.Errorf("nil host tier = %v, want ErrBadTier", err)
 	}
-	if _, err := s.rm.CreateBotVsBot(easy, nil, 0, config.SeriesBO3); !errors.Is(err, ErrBadTier) {
+	if _, err := s.rm.CreateBotVsBot(easy, "", nil, "", 0, config.SeriesBO3); !errors.Is(err, ErrBadTier) {
 		t.Errorf("nil guest tier = %v, want ErrBadTier", err)
 	}
-	if _, err := s.rm.CreateBotVsBot(nil, nil, 0, config.SeriesBO3); !errors.Is(err, ErrBadTier) {
+	if _, err := s.rm.CreateBotVsBot(nil, "", nil, "", 0, config.SeriesBO3); !errors.Is(err, ErrBadTier) {
 		t.Errorf("both tiers nil = %v, want ErrBadTier", err)
 	}
-	if _, err := s.rm.CreateBotVsBot(easy, medium, -1, config.SeriesBO3); !errors.Is(err, ErrBadTimeControl) {
+	if _, err := s.rm.CreateBotVsBot(easy, "", medium, "", -1, config.SeriesBO3); !errors.Is(err, ErrBadTimeControl) {
 		t.Errorf("bad tc = %v, want ErrBadTimeControl", err)
 	}
-	if _, err := s.rm.CreateBotVsBot(easy, medium, 0, 4); !errors.Is(err, ErrBadSeriesLength) {
+	if _, err := s.rm.CreateBotVsBot(easy, "", medium, "", 0, 4); !errors.Is(err, ErrBadSeriesLength) {
 		t.Errorf("bad bo = %v, want ErrBadSeriesLength", err)
 	}
 	if rooms := s.rm.List(); len(rooms) != 0 {
 		t.Errorf("grid after rejected creates = %d rooms, want 0", len(rooms))
+	}
+}
+
+// The two seats of a bot-vs-bot room are two isolated instances and must
+// never render as one: named seats (the tournament's roster identity) carry
+// their instance names, and an unnamed same-tier pairing, where the plain
+// tier-roomid law would stamp both seats identically, takes a -2 guest
+// suffix. A bot can never appear to play itself.
+func TestBotVsBotSeatNamesNeverCollide(t *testing.T) {
+	s := newStack(t)
+
+	named, err := s.rm.CreateBotVsBot(&config.TierEasy, "easy-a", &config.TierEasy, "easy-b", 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create named same-tier: %v", err)
+	}
+	if b, ok := named.liveBotBoard(); !ok {
+		t.Fatal("named room has no live board")
+	} else if want := "easy-a-" + named.ID(); b.HostName != want {
+		t.Errorf("named host = %q, want %q", b.HostName, want)
+	} else if want := "easy-b-" + named.ID(); b.GuestName != want {
+		t.Errorf("named guest = %q, want %q", b.GuestName, want)
+	}
+	info, _ := named.Info()
+	if info.HostBotName != "easy-a-"+named.ID() || info.GuestBotName != "easy-b-"+named.ID() {
+		t.Errorf("info seat names = %q vs %q, want the roster identities stamped with the room id",
+			info.HostBotName, info.GuestBotName)
+	}
+
+	unnamed, err := s.rm.CreateBotVsBot(&config.TierMedium, "", &config.TierMedium, "", 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create unnamed same-tier: %v", err)
+	}
+	if b, ok := unnamed.liveBotBoard(); !ok {
+		t.Fatal("unnamed room has no live board")
+	} else if want := "medium-" + unnamed.ID(); b.HostName != want {
+		t.Errorf("unnamed host = %q, want %q", b.HostName, want)
+	} else if want := "medium-" + unnamed.ID() + "-2"; b.GuestName != want {
+		t.Errorf("unnamed guest = %q, want the colliding tier law plus -2 (%q)", b.GuestName, want)
+	}
+
+	crossed, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create unnamed cross-tier: %v", err)
+	}
+	if b, ok := crossed.liveBotBoard(); !ok {
+		t.Fatal("cross-tier room has no live board")
+	} else if want := "easy-" + crossed.ID(); b.HostName != want {
+		t.Errorf("cross host = %q, want %q", b.HostName, want)
+	} else if want := "medium-" + crossed.ID(); b.GuestName != want {
+		t.Errorf("cross guest = %q, want %q (distinct tiers never take the suffix)", b.GuestName, want)
 	}
 }
 
@@ -109,7 +159,7 @@ func TestCreateBotVsBotSeatingAndLiveGame(t *testing.T) {
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	s.rm.makeSearcher = func(config.Tier) searcher { return bot }
 
-	r, err := s.rm.CreateBotVsBot(&config.TierEasy, &config.TierMedium, 0, config.SeriesBO3)
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
@@ -167,7 +217,7 @@ func TestBotVsBotSeriesScriptedToMajority(t *testing.T) {
 		config.TierEasy.Name:   botVsBotHostLine,
 		config.TierMedium.Name: botVsBotGuestLine,
 	})
-	r, err := s.rm.CreateBotVsBot(&config.TierEasy, &config.TierMedium, 0, config.SeriesBO3)
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
@@ -245,7 +295,7 @@ func TestRoomLastGameMoves(t *testing.T) {
 	// has finished.
 	parked := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	s.rm.makeSearcher = func(config.Tier) searcher { return parked }
-	fresh, err := s.rm.CreateBotVsBot(&config.TierEasy, &config.TierMedium, 0, config.SeriesBO3)
+	fresh, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
@@ -270,7 +320,7 @@ func TestRoomLastGameMoves(t *testing.T) {
 		}
 		return &scriptedBot{script: script, stats: fakeStats()}
 	}
-	r, err := s.rm.CreateBotVsBot(&config.TierEasy, &config.TierMedium, 0, config.SeriesBO3)
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
@@ -292,7 +342,7 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 	s := newStack(t)
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	s.rm.makeSearcher = func(config.Tier) searcher { return bot }
-	r, err := s.rm.CreateBotVsBot(&config.TierEasy, &config.TierMedium, 0, config.SeriesBO3)
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
@@ -369,7 +419,7 @@ func TestBotBoardsListLiveTournamentRooms(t *testing.T) {
 	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy); err != nil {
 		t.Fatalf("create human-bot room: %v", err)
 	}
-	r, err := s.rm.CreateBotVsBot(&config.TierEasy, &config.TierMedium, 0, config.SeriesBO3)
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
@@ -377,7 +427,7 @@ func TestBotBoardsListLiveTournamentRooms(t *testing.T) {
 	// must hold the cards in creation order so the polled section never
 	// reshuffles.
 	time.Sleep(2 * time.Millisecond)
-	r2, err := s.rm.CreateBotVsBot(&config.TierMedium, &config.TierEasy, 0, config.SeriesBO3)
+	r2, err := s.rm.CreateBotVsBot(&config.TierMedium, "", &config.TierEasy, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create second bot vs bot: %v", err)
 	}

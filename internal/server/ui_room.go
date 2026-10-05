@@ -264,11 +264,12 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 		CanForfeit: true, BoardSize: config.BoardSize,
 		KindsCSV: strings.Join(spikeEventKinds, ","),
 	}
-	// A bot host has no user row: the tier is the name, and a store lookup
-	// of the synthetic id would read as a missing account and fail the
-	// page. Bot guests render the same way through guestName.
-	if info.HostBotTier != "" {
-		view.HostName = botDisplayName(info.HostBotTier, info.ID)
+	// A bot host has no user row: the room's own naming law is the name,
+	// and a store lookup of the synthetic id would read as a missing
+	// account and fail the page. Bot guests render the same way through
+	// guestName.
+	if info.HostBotName != "" {
+		view.HostName = info.HostBotName
 	} else {
 		hostName, err := p.userName(info.HostUserID)
 		if err != nil {
@@ -364,12 +365,12 @@ func (p *RoomPages) userName(id int64) (string, error) {
 	return u.Username, nil
 }
 
-// guestName renders the opponent seat: the bot tier, the waiting state, or
-// the seated user's name.
+// guestName renders the opponent seat: the bot's room-scoped name, the
+// waiting state, or the seated user's name.
 func (p *RoomPages) guestName(info RoomInfo) string {
 	switch {
-	case info.VsBotTier != "":
-		return botDisplayName(info.VsBotTier, info.ID)
+	case info.GuestBotName != "":
+		return info.GuestBotName
 	case info.GuestUserID == 0:
 		return "waiting for opponent"
 	}

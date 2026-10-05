@@ -64,9 +64,13 @@ const (
 )
 
 // seat is one side of a room: a real user id, or a bot tier when bot is set.
+// name carries a bot seat's instance identity (the tournament's roster name:
+// two easy instances seat as easy-a and easy-b); empty falls back to the tier
+// name, which is unique per seat only while the two tiers differ.
 type seat struct {
 	userID int64
 	bot    *config.Tier
+	name   string
 }
 
 // RoomManager owns the live rooms and the rooms grid. All manager methods
@@ -154,7 +158,9 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 // Room.Ready's own Created-to-Ready transition, the exact path a human room
 // drives. The settings validate through NewSeries like Create, the room
 // persists nothing (seriesID stays 0), and no player rating is touched.
-func (rm *RoomManager) CreateBotVsBot(hostTier, guestTier *config.Tier, tcIdx, boLen int) (*Room, error) {
+// hostName and guestName carry the seats' instance identities (the roster's
+// easy-a/easy-b); empty names fall back to the tier name.
+func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, guestTier *config.Tier, guestName string, tcIdx, boLen int) (*Room, error) {
 	if hostTier == nil || guestTier == nil {
 		return nil, ErrBadTier
 	}
@@ -165,8 +171,8 @@ func (rm *RoomManager) CreateBotVsBot(hostTier, guestTier *config.Tier, tcIdx, b
 	r := &Room{
 		id: newRoomID(), hub: rm.hub, store: rm.store, wq: rm.wq, manager: rm,
 		tcIdx: tcIdx, boLen: boLen, createdAt: time.Now(),
-		host:         seat{userID: botHostUserID, bot: hostTier},
-		guest:        seat{userID: botGuestUserID, bot: guestTier},
+		host:         seat{userID: botHostUserID, bot: hostTier, name: hostName},
+		guest:        seat{userID: botGuestUserID, bot: guestTier, name: guestName},
 		makeSearcher: rm.makeSearcher,
 		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
 	}
@@ -257,9 +263,15 @@ type RoomInfo struct {
 	State       SeriesState
 	HostBotTier string
 	VsBotTier   string
-	HostWins    int
-	GuestWins   int
-	CreatedAt   time.Time
+	// HostBotName and GuestBotName are the bot seats' final display strings
+	// under the room's naming law (instance name or tier, stamped with the
+	// room id, collisions suffixed): a bot-vs-bot room never renders one
+	// instance on both sides. Empty on a human seat.
+	HostBotName  string
+	GuestBotName string
+	HostWins     int
+	GuestWins    int
+	CreatedAt    time.Time
 }
 
 // List snapshots the open rooms in creation order. Retired rooms (finished
@@ -317,10 +329,11 @@ func (r *Room) liveBotBoard() (LiveBotBoard, bool) {
 		return LiveBotBoard{}, false
 	}
 	hostWins, guestWins := r.series.Score()
+	hostName, guestName := r.botSeatDisplaysLocked()
 	lb := LiveBotBoard{
 		RoomID:    r.id,
-		HostName:  botDisplayName(r.host.bot.Name, r.id),
-		GuestName: botDisplayName(r.guest.bot.Name, r.id),
+		HostName:  hostName,
+		GuestName: guestName,
 		CreatedAt: r.createdAt,
 		Turn:      colorName(r.board.Side),
 		RedIsHost: r.series.RedUserID() == r.host.userID,
@@ -478,6 +491,7 @@ func (r *Room) Info() (RoomInfo, bool) {
 		TCIdx: r.tcIdx, BOLen: r.boLen, CreatedAt: r.createdAt,
 		HostBotTier: botTierName(r.host.bot), VsBotTier: botTierName(r.guest.bot),
 	}
+	info.HostBotName, info.GuestBotName = r.botSeatDisplaysLocked()
 	if r.series == nil {
 		info.State = SeriesCreated
 		return info, true
@@ -492,6 +506,34 @@ func botTierName(t *config.Tier) string {
 		return ""
 	}
 	return t.Name
+}
+
+// botSeatDisplaysLocked is the one law of a room's bot seat names: each seat
+// renders its instance identity (the roster name when the creator gave one,
+// else the tier name) stamped with the room id, and when both seats would
+// render the same string (an unnamed same-tier pairing) the guest takes a -2
+// suffix, so no surface can ever show a bot playing itself. A human seat
+// renders empty; callers fall back to the user's own name. Callers hold r.mu.
+func (r *Room) botSeatDisplaysLocked() (host, guest string) {
+	if r.host.bot != nil {
+		host = botDisplayName(r.seatInstanceName(&r.host), r.id)
+	}
+	if r.guest.bot != nil {
+		guest = botDisplayName(r.seatInstanceName(&r.guest), r.id)
+	}
+	if host != "" && host == guest {
+		guest += "-2"
+	}
+	return host, guest
+}
+
+// seatInstanceName is a bot seat's identity: the given instance name, else
+// the tier name.
+func (r *Room) seatInstanceName(s *seat) string {
+	if s.name != "" {
+		return s.name
+	}
+	return s.bot.Name
 }
 
 // Close retires the room and joins its bot worker, so no goroutine and no

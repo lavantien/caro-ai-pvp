@@ -252,16 +252,17 @@ func (p *shellPages) roomViews() []roomCardView {
 			TC: tcLabel(info.TCIdx), BO: "bo" + strconv.Itoa(info.BOLen),
 			State: info.State.String(),
 		}
-		// A bot host renders like a bot guest, named per room; seatName's
-		// numeric fallback must never leak a synthetic seat id.
-		if info.HostBotTier != "" {
-			v.Host = botDisplayName(info.HostBotTier, info.ID)
+		// A bot host renders like a bot guest under the room's own naming
+		// law; seatName's numeric fallback must never leak a synthetic seat
+		// id. A same-tier bot pairing carries distinct instance names.
+		if info.HostBotName != "" {
+			v.Host = info.HostBotName
 		} else {
 			v.Host = p.seatName(info.HostUserID)
 		}
 		switch {
-		case info.VsBotTier != "":
-			v.Guest = botDisplayName(info.VsBotTier, info.ID)
+		case info.GuestBotName != "":
+			v.Guest = info.GuestBotName
 		case info.GuestUserID != 0:
 			v.Guest = p.seatName(info.GuestUserID)
 		default:
