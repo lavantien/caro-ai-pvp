@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
@@ -33,8 +34,14 @@ var tourneyDrivers = map[string]func() tourney.RunSpec{
 // Any conductor error exits 1.
 func runTourney(args []string) int {
 	driver := ""
+	closeID := ""
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		driver, args = args[0], args[1:]
+		// close carries one more positional, the run id, peeled with its
+		// driver so the id may also lead the flags.
+		if driver == "close" && len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+			closeID, args = args[0], args[1:]
+		}
 	}
 	fs := flag.NewFlagSet("tourney", flag.ContinueOnError)
 	dbPath := fs.String("db", defaultDBPath, "SQLite database path")
@@ -42,9 +49,23 @@ func runTourney(args []string) int {
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if rest := fs.Args(); len(rest) == 1 && driver == "" {
-		driver = rest[0]
-	} else if len(rest) != 0 || driver == "" {
+	rest := fs.Args()
+	if driver == "" && len(rest) > 0 {
+		driver, rest = rest[0], rest[1:]
+	}
+	if driver == "close" {
+		// The id rides either position: peeled ahead of the flags or as the
+		// one positional left behind them.
+		if closeID == "" && len(rest) == 1 {
+			closeID, rest = rest[0], rest[1:]
+		}
+		if closeID == "" || len(rest) != 0 {
+			fmt.Fprintln(os.Stderr, "caro: tourney close needs exactly one run id")
+			return 2
+		}
+		return runTourneyClose(closeID, *dbPath)
+	}
+	if len(rest) != 0 || driver == "" {
 		fmt.Fprintln(os.Stderr, "caro: tourney needs exactly one driver (smoke32, smoke10, or full) plus flags")
 		return 2
 	}
@@ -87,6 +108,36 @@ func runTourney(args []string) int {
 		fmt.Fprintln(os.Stderr, "caro:", err)
 		return 1
 	}
+	return 0
+}
+
+// runTourneyClose is the run gate's recovery arm: a run whose owning process
+// died leaves an ongoing row that refuses every new start, and this flips it
+// to finished through the manager's stalled close, the same path the run
+// page's close form rides. No rooms boot: the close drives no matches, so the
+// manager's match source stays nil.
+func runTourneyClose(idArg string, dbPath string) int {
+	id, err := strconv.ParseInt(idArg, 10, 64)
+	if err != nil || id <= 0 {
+		fmt.Fprintf(os.Stderr, "caro: tourney close needs a positive run id, got %q\n", idArg)
+		return 2
+	}
+	store, err := server.Open(dbPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "caro:", err)
+		return 1
+	}
+	closeErr := tourney.NewManager(tourney.NewStore(store), nil).
+		CloseStalled(context.Background(), id)
+	cerr := store.Close()
+	if closeErr != nil {
+		fmt.Fprintln(os.Stderr, "caro:", closeErr)
+		return 1
+	}
+	if cerr != nil {
+		fmt.Fprintln(os.Stderr, "caro:", cerr)
+	}
+	fmt.Printf("run %d closed\n", id)
 	return 0
 }
 

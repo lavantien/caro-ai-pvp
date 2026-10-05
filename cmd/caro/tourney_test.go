@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -80,6 +81,65 @@ func TestRunTourneyRefusesWhileRunOngoing(t *testing.T) {
 
 	if code := run([]string{"tourney", "--db", db, "smoke10"}); code != 1 {
 		t.Errorf("driver against an ongoing run = exit %d, want 1", code)
+	}
+}
+
+// TestRunTourneyCloseUsage pins the recovery arm's argument surface: the id
+// is exactly one positive integer, whichever side of the flags it sits on.
+func TestRunTourneyCloseUsage(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{"close without id", []string{"tourney", "close"}, 2},
+		{"close two ids", []string{"tourney", "close", "1", "2"}, 2},
+		{"close non-numeric id", []string{"tourney", "close", "soon"}, 2},
+		{"close zero id", []string{"tourney", "close", "0"}, 2},
+		{"close unknown flag", []string{"tourney", "close", "-nope"}, 2},
+	}
+	for _, tc := range cases {
+		if code := run(tc.args); code != tc.want {
+			t.Errorf("%s: exit = %d, want %d", tc.name, code, tc.want)
+		}
+	}
+}
+
+// TestRunTourneyCloseStalledRun drives the recovery arm against a planted
+// ongoing row, the state a killed run leaves behind: the first close exits 0,
+// a second refuses on the already-finished row, an unknown id refuses, and an
+// unopenable store exits 1 like the drivers.
+func TestRunTourneyCloseStalledRun(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "caro.sqlite")
+	srv, err := server.Open(db)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	roster := []tourney.Participant{
+		{Slot: 0, Name: "easy-1", Tier: config.TierEasy.Name},
+		{Slot: 1, Name: "medium-1", Tier: config.TierMedium.Name},
+	}
+	planted, err := tourney.NewStore(srv).CreateRun(context.Background(), 1,
+		config.SeriesBO3, config.TournamentStartRating, roster)
+	if err != nil {
+		t.Fatalf("plant ongoing run: %v", err)
+	}
+	if err := srv.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	id := strconv.FormatInt(planted.ID, 10)
+
+	if code := run([]string{"tourney", "close", id, "--db", db}); code != 0 {
+		t.Errorf("close stalled run = exit %d, want 0", code)
+	}
+	if code := run([]string{"tourney", "--db", db, "close", id}); code != 1 {
+		t.Errorf("second close on finished row = exit %d, want 1", code)
+	}
+	if code := run([]string{"tourney", "close", "999", "--db", db}); code != 1 {
+		t.Errorf("close unknown run = exit %d, want 1", code)
+	}
+	if code := run([]string{"tourney", "close", "1", "--db", t.TempDir()}); code != 1 {
+		t.Errorf("close on unopenable store = exit %d, want 1", code)
 	}
 }
 
