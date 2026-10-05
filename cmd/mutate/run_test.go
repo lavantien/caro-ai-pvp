@@ -383,23 +383,23 @@ func writeModule(t *testing.T, files map[string]string) string {
 
 func TestDiscoverErrors(t *testing.T) {
 	dir := writeModule(t, map[string]string{"go.mod": "module probe\n\ngo 1.27\n"})
-	if _, err := discover(context.Background(), dir, []string{"./nope"}); err == nil || !strings.Contains(err.Error(), "go list") {
+	if _, err := discover(context.Background(), dir, []string{"./nope"}, t.TempDir()); err == nil || !strings.Contains(err.Error(), "go list") {
 		t.Errorf("discover(missing) err = %v, want go list error", err)
 	}
 	dir = writeModule(t, map[string]string{"go.mod": "module probe\nbroken {\n"})
-	if _, err := discover(context.Background(), dir, []string{"."}); err == nil || !strings.Contains(err.Error(), "go list") {
+	if _, err := discover(context.Background(), dir, []string{"."}, t.TempDir()); err == nil || !strings.Contains(err.Error(), "go list") {
 		t.Errorf("discover(broken go.mod) err = %v, want go list error", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := discover(ctx, dir, []string{"."}); err == nil || strings.Contains(err.Error(), "go list") {
+	if _, err := discover(ctx, dir, []string{"."}, t.TempDir()); err == nil || strings.Contains(err.Error(), "go list") {
 		t.Errorf("discover(canceled ctx) err = %v, want raw exec error", err)
 	}
 }
 
 func TestDiscoverNoGoFiles(t *testing.T) {
 	dir := writeModule(t, map[string]string{"go.mod": "module probe\n\ngo 1.27\n"})
-	if _, err := discover(context.Background(), dir, []string{"."}); err == nil || !strings.Contains(err.Error(), "no Go files") {
+	if _, err := discover(context.Background(), dir, []string{"."}, t.TempDir()); err == nil || !strings.Contains(err.Error(), "no Go files") {
 		t.Errorf("discover(no go files) err = %v, want no Go files error", err)
 	}
 }
@@ -431,14 +431,44 @@ func TestRunCLINoMutantsFails(t *testing.T) {
 
 func TestGoEnvOverrides(t *testing.T) {
 	t.Setenv("CGO_ENABLED", "0")
-	env := goEnv()
-	var cgo []string
+	t.Setenv("GOCACHE", "stale-shared-cache")
+	cache := t.TempDir()
+	env := goEnv(cache)
+	var cgo, gocache []string
 	for _, e := range env {
 		if strings.HasPrefix(e, "CGO_ENABLED=") {
 			cgo = append(cgo, e)
+		}
+		if strings.HasPrefix(e, "GOCACHE=") {
+			gocache = append(gocache, e)
 		}
 	}
 	if len(cgo) != 1 || cgo[0] != "CGO_ENABLED=1" {
 		t.Errorf("CGO_ENABLED entries = %v, want exactly [CGO_ENABLED=1]", cgo)
 	}
+	if len(gocache) != 1 || gocache[0] != "GOCACHE="+cache {
+		t.Errorf("GOCACHE entries = %v, want exactly [GOCACHE=%s]", gocache, cache)
+	}
+}
+
+func TestRunCLIRemovesPrivateCache(t *testing.T) {
+	before := len(cacheDirs(t))
+	dir := writeModule(t, map[string]string{
+		"go.mod":  "module probe\n\ngo 1.27\n",
+		"decl.go": "package probe\n\ntype T struct {\n\tA int\n\tB string\n}\n",
+	})
+	var out, errOut strings.Builder
+	runCLI([]string{"-pkgs", ".", "-timeout", "10s"}, &out, &errOut, dir)
+	if after := len(cacheDirs(t)); after != before {
+		t.Errorf("private build cache dirs: before %d, after %d, want equal (run-private cache must not outlive the run)", before, after)
+	}
+}
+
+func cacheDirs(t *testing.T) []string {
+	t.Helper()
+	dirs, err := filepath.Glob(filepath.Join(os.TempDir(), "caro-mutate-cache-*"))
+	if err != nil {
+		t.Fatalf("glob cache dirs: %v", err)
+	}
+	return dirs
 }

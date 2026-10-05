@@ -35,19 +35,30 @@ type runner interface {
 }
 
 type execRunner struct {
-	dir     string
-	timeout time.Duration
+	dir      string
+	cacheDir string
+	timeout  time.Duration
 }
 
-func goEnv() []string {
-	env := make([]string, 0, len(os.Environ())+1)
+// newRunCache creates the gate's private Go build cache. Every mutant is a
+// distinct source hash, so a shared GOCACHE grows monotonically across
+// gates (measured 28 GB on a 32 GB machine before this existed, starving
+// paged pool until file opens failed); a run-private cache stays bounded
+// by the run and dies with it. The caro-mutate- prefix puts crash
+// leftovers under sweepStaleIsolates.
+func newRunCache() (string, error) {
+	return os.MkdirTemp("", "caro-mutate-cache-")
+}
+
+func goEnv(cacheDir string) []string {
+	env := make([]string, 0, len(os.Environ())+2)
 	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "CGO_ENABLED=") {
+		if strings.HasPrefix(e, "CGO_ENABLED=") || strings.HasPrefix(e, "GOCACHE=") {
 			continue
 		}
 		env = append(env, e)
 	}
-	return append(env, "CGO_ENABLED=1")
+	return append(env, "CGO_ENABLED=1", "GOCACHE="+cacheDir)
 }
 
 func (r execRunner) runTest(ctx context.Context, pkg string) error {
@@ -55,7 +66,7 @@ func (r execRunner) runTest(ctx context.Context, pkg string) error {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", "test", "-count=1", "-short", "-timeout", (r.timeout - time.Duration(config.MutateTestTimeoutSlack)*time.Millisecond).String(), pkg)
 	cmd.Dir = r.dir
-	cmd.Env = goEnv()
+	cmd.Env = goEnv(r.cacheDir)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
 	err := cmd.Run()
@@ -231,8 +242,8 @@ func demotedError(keys []string) error {
 	return fmt.Errorf("%d allow entries no longer equivalent (suite killed the mutant; prune or re-prove): %s", len(keys), strings.Join(keys, "; "))
 }
 
-func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, r runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (result, error) {
-	ms, paths, err := discoverMutants(ctx, out, workDir, patterns)
+func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, cacheDir string, r runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (result, error) {
+	ms, paths, err := discoverMutants(ctx, out, workDir, patterns, cacheDir)
 	if err != nil {
 		return result{}, err
 	}
@@ -260,7 +271,7 @@ func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []
 
 // discoverMutants collects the sorted mutant population of the pattern
 // targets plus the file paths the caller must snapshot before mutating.
-func discoverMutants(ctx context.Context, out io.Writer, workDir string, patterns []string) ([]mutation, []string, error) {
+func discoverMutants(ctx context.Context, out io.Writer, workDir string, patterns []string, cacheDir string) ([]mutation, []string, error) {
 	present := patterns[:0]
 	for _, p := range patterns {
 		if strings.HasPrefix(p, "./") {
@@ -271,7 +282,7 @@ func discoverMutants(ctx context.Context, out io.Writer, workDir string, pattern
 		}
 		present = append(present, p)
 	}
-	targets, err := discover(ctx, workDir, present)
+	targets, err := discover(ctx, workDir, present, cacheDir)
 	if err != nil {
 		return nil, nil, err
 	}

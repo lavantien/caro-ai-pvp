@@ -52,8 +52,8 @@ func rewriteMutants(ms []mutation, from, to string) []mutation {
 // gates should keep -parallel modest. Survivor-heavy populations pay a
 // double-run premium (worker pass plus confirm) that can make parallel
 // slower than serial; kill-dominated populations win roughly linearly.
-func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patterns []string, newRunner func(dir string) runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (result, error) {
-	ms, paths, err := discoverMutants(ctx, out, dirs[0], patterns)
+func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patterns []string, cacheDir string, newRunner func(dir string) runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (result, error) {
+	ms, paths, err := discoverMutants(ctx, out, dirs[0], patterns, cacheDir)
 	if err != nil {
 		return result{}, err
 	}

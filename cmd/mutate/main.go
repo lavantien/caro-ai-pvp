@@ -76,6 +76,12 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+	cacheDir, cerr := newRunCache()
+	if cerr != nil {
+		_, _ = fmt.Fprintln(stderr, "mutate:", cerr)
+		return 2
+	}
+	defer func() { _ = os.RemoveAll(cacheDir) }()
 	var res result
 	var err error
 	if *parallel > 1 {
@@ -98,11 +104,11 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 				_ = os.RemoveAll(d)
 			}
 		}()
-		res, err = runMutationParallel(ctx, stdout, dirs, patterns, func(dir string) runner {
-			return execRunner{dir: dir, timeout: *timeout}
+		res, err = runMutationParallel(ctx, stdout, dirs, patterns, cacheDir, func(dir string) runner {
+			return execRunner{dir: dir, cacheDir: cacheDir, timeout: *timeout}
 		}, allows, resumeKilled, *challenge)
 	} else {
-		res, err = runMutation(ctx, stdout, workDir, patterns, execRunner{dir: workDir, timeout: *timeout}, allows, resumeKilled, *challenge)
+		res, err = runMutation(ctx, stdout, workDir, patterns, cacheDir, execRunner{dir: workDir, cacheDir: cacheDir, timeout: *timeout}, allows, resumeKilled, *challenge)
 	}
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "mutate:", err)

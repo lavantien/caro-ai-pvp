@@ -17,10 +17,10 @@ type target struct {
 	files []string
 }
 
-func discover(ctx context.Context, workDir string, patterns []string) ([]target, error) {
+func discover(ctx context.Context, workDir string, patterns []string, cacheDir string) ([]target, error) {
 	cmd := exec.CommandContext(ctx, "go", append([]string{"list", "-e", "-json"}, patterns...)...)
 	cmd.Dir = workDir
-	cmd.Env = goEnv()
+	cmd.Env = goEnv(cacheDir)
 	out, err := cmd.Output()
 	if err != nil {
 		var ee *exec.ExitError

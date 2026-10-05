@@ -84,7 +84,7 @@ func TestParallelSerialConfirmFlipsLoadLostKills(t *testing.T) {
 		return &scriptedRunner{}
 	}
 	var out strings.Builder
-	res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, newRunner, allows, nil, false)
+	res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), newRunner, allows, nil, false)
 	if err != nil {
 		t.Fatalf("runMutationParallel err = %v\noutput:\n%s", err, out.String())
 	}
@@ -112,7 +112,7 @@ func TestParallelResumeReplaysWithoutRunning(t *testing.T) {
 		return &suiteNeverRunner{t: t}
 	}
 	var out strings.Builder
-	res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, newRunner, nil, resume, false)
+	res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), newRunner, nil, resume, false)
 	if err != nil {
 		t.Fatalf("runMutationParallel err = %v", err)
 	}
@@ -138,8 +138,8 @@ func TestParallelEndToEndMatchesSerial(t *testing.T) {
 	serialDir := t.TempDir()
 	writeAll(serialDir)
 	var serialOut strings.Builder
-	serialRes, serr := runMutation(context.Background(), &serialOut, serialDir, []string{"."},
-		execRunner{dir: serialDir, timeout: 60 * time.Second}, nil, nil, false)
+	serialRes, serr := runMutation(context.Background(), &serialOut, serialDir, []string{"."}, t.TempDir(),
+		execRunner{dir: serialDir, cacheDir: t.TempDir(), timeout: 60 * time.Second}, nil, nil, false)
 	if serr != nil {
 		t.Fatalf("serial err = %v", serr)
 	}
@@ -151,8 +151,8 @@ func TestParallelEndToEndMatchesSerial(t *testing.T) {
 		writeAll(d)
 	}
 	var parallelOut strings.Builder
-	parallelRes, perr := runMutationParallel(context.Background(), &parallelOut, dirs, []string{"."},
-		func(dir string) runner { return execRunner{dir: dir, timeout: 60 * time.Second} }, nil, nil, false)
+	parallelRes, perr := runMutationParallel(context.Background(), &parallelOut, dirs, []string{"."}, t.TempDir(),
+		func(dir string) runner { return execRunner{dir: dir, cacheDir: t.TempDir(), timeout: 60 * time.Second} }, nil, nil, false)
 	if perr != nil {
 		t.Fatalf("parallel err = %v\n%s", perr, parallelOut.String())
 	}
@@ -173,7 +173,7 @@ func TestChallengeDemotesKilledAllowance(t *testing.T) {
 	_, ms := writePkgFile(t, dir, "a.go", "p", src)
 	allows := allowlist{ms[0].key(dir): "proof that no longer holds"}
 	var out strings.Builder
-	res, err := runMutation(context.Background(), &out, dir, []string{"./..."},
+	res, err := runMutation(context.Background(), &out, dir, []string{"./..."}, t.TempDir(),
 		&fakeRunner{failPkg: map[string]bool{"fixture": true}}, allows, nil, true)
 	if err == nil || !strings.Contains(err.Error(), "no longer equivalent") {
 		t.Fatalf("err = %v, want a demotion failure\n%s", err, out.String())
@@ -195,7 +195,7 @@ func TestChallengeSurvivesConsumesAllowance(t *testing.T) {
 	_, ms := writePkgFile(t, dir, "a.go", "p", src)
 	allows := allowlist{ms[0].key(dir): "sound proof"}
 	var out strings.Builder
-	res, err := runMutation(context.Background(), &out, dir, []string{"./..."}, &fakeRunner{}, allows, nil, true)
+	res, err := runMutation(context.Background(), &out, dir, []string{"./..."}, t.TempDir(), &fakeRunner{}, allows, nil, true)
 	if err != nil {
 		t.Fatalf("err = %v\n%s", err, out.String())
 	}
@@ -235,7 +235,7 @@ func TestParallelChallengeSerialResolution(t *testing.T) {
 				return &scriptedRunner{err: errors.New("suite failed under load")}
 			}
 			var out strings.Builder
-			res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, newRunner, allows, nil, true)
+			res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), newRunner, allows, nil, true)
 			if !strings.Contains(out.String(), " CHALLENGED\n") {
 				t.Fatalf("missing challenged verdict:\n%s", out.String())
 			}
@@ -273,7 +273,7 @@ func TestConfirmInterruptIsNotAKill(t *testing.T) {
 		return &scriptedRunner{}
 	}
 	var out strings.Builder
-	res, err := runMutationParallel(ctx, &out, dirs, []string{"./..."}, newRunner, nil, nil, false)
+	res, err := runMutationParallel(ctx, &out, dirs, []string{"./..."}, t.TempDir(), newRunner, nil, nil, false)
 	if err == nil {
 		t.Fatalf("interrupted confirm must surface an error, got clean result %+v\n%s", res, out.String())
 	}
