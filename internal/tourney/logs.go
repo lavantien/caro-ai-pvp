@@ -136,13 +136,16 @@ func (g *Logs) writeLines(k seriesKey, redName, blueName string, lines []string)
 }
 
 // create makes the log directory and the series' file, recording the handle.
+// The header open truncates: one series file holds exactly one series'
+// record, so a drive replaying an interrupted series replaces the stale
+// partial file instead of appending a second header to it.
 func (g *Logs) create(k seriesKey, redName, blueName string) (*os.File, error) {
 	if err := os.MkdirAll(g.dir, 0o755); err != nil {
 		return nil, fmt.Errorf("tourney: mkdir %s: %w", g.dir, err)
 	}
 	path := filepath.Join(g.dir, fmt.Sprintf(
 		config.TournamentSeriesLogFormat, k.run, k.series, sanitizeName(redName), sanitizeName(blueName)))
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return nil, fmt.Errorf("tourney: open series log %s: %w", path, err)
 	}

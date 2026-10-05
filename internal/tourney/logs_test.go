@@ -17,6 +17,51 @@ func runLogDir(t *testing.T) string {
 	return t.TempDir()
 }
 
+// TestLogsReplayReplacesStaleSeriesFile pins the resume shape: a drive that
+// restarts an interrupted series (the stale partial record an aborted process
+// left behind) rewrites the file from its header, so one series file always
+// holds exactly one series' whole record.
+func TestLogsReplayReplacesStaleSeriesFile(t *testing.T) {
+	dir := runLogDir(t)
+	red := Participant{Slot: 0, Name: "easy-1", Tier: "easy"}
+	blue := Participant{Slot: 1, Name: "medium-1", Tier: "medium"}
+
+	g := NewLogs(dir)
+	if err := g.WriteSeriesHeader(7, 3, 1, config.SeriesBO3, red, blue); err != nil {
+		t.Fatalf("header: %v", err)
+	}
+	if err := g.WriteSeriesLine(7, 3, "stale partial line"); err != nil {
+		t.Fatalf("stale line: %v", err)
+	}
+	if err := g.Close(); err != nil {
+		t.Fatalf("close the aborted drive's logs: %v", err)
+	}
+
+	h := NewLogs(dir)
+	if err := h.WriteSeriesHeader(7, 3, 1, config.SeriesBO3, red, blue); err != nil {
+		t.Fatalf("replay header: %v", err)
+	}
+	if err := h.WriteSeriesLine(7, 3, "fresh line"); err != nil {
+		t.Fatalf("replay line: %v", err)
+	}
+	if err := h.Close(); err != nil {
+		t.Fatalf("close the replaying logs: %v", err)
+	}
+
+	name := fmt.Sprintf(config.TournamentSeriesLogFormat, 7, 3, "easy-1", "medium-1")
+	data, err := os.ReadFile(filepath.Join(dir, name))
+	if err != nil {
+		t.Fatalf("read %s: %v", name, err)
+	}
+	want := "run 7 series 3\n" +
+		"pairing easy-1 (easy) vs medium-1 (medium)\n" +
+		"tc 2+1 bo3\n" +
+		"fresh line\n"
+	if string(data) != want {
+		t.Errorf("replayed log = %q, want %q", data, want)
+	}
+}
+
 func TestLogsLifecycle(t *testing.T) {
 	dir := runLogDir(t)
 	g := NewLogs(dir)
