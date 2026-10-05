@@ -3,9 +3,14 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
 var isolateDirs = [...]string{"internal", "cmd"}
@@ -133,6 +138,45 @@ func sweepStaleIsolates() {
 	for _, p := range stale {
 		_ = os.RemoveAll(p)
 	}
+}
+
+// removeAllRetried removes a temp entry with a bounded retry: on Windows a
+// directory handle can outlive its process by milliseconds, and a single
+// RemoveAll racing that teardown deletes the contents but leaves the empty
+// directory shell. Missing paths are success.
+func removeAllRetried(dir string) {
+	for range config.MutateRemoveRetryAttempts {
+		if err := os.RemoveAll(dir); err == nil {
+			return
+		}
+		time.Sleep(time.Duration(config.MutateRemoveRetryDelayMs) * time.Millisecond)
+	}
+}
+
+// residueCheck fails while any caro-mutate-* temp entry remains under root:
+// a leftover isolate or cache dir means a child outlived its run, so the
+// gate reports the leak instead of exiting green over pinned resources.
+// Entries a final retried sweep can still delete are release races, not
+// leaks; only the truly pinned fail the gate.
+func residueCheck(root string) error {
+	left, err := filepath.Glob(filepath.Join(root, "caro-mutate-*"))
+	if err != nil {
+		return err
+	}
+	if len(left) == 0 {
+		return nil
+	}
+	var pinned []string
+	for _, p := range left {
+		removeAllRetried(p)
+		if _, err := os.Stat(p); err == nil {
+			pinned = append(pinned, p)
+		}
+	}
+	if len(pinned) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%d caro-mutate-* entries survived the run (a child process pinned them): %s", len(pinned), strings.Join(pinned, "; "))
 }
 
 func fileHash(path string) (string, error) {

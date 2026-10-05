@@ -279,6 +279,12 @@ const (
 	// copy, and worker counts far past the core count only multiply temp
 	// copies while suites thrash.
 	MutateMaxParallel = 16
+	// MutateRemoveRetryAttempts and MutateRemoveRetryDelayMs bound the temp
+	// cleanup retry: on Windows a directory handle can outlive its process
+	// by milliseconds, and a single RemoveAll racing that teardown leaves an
+	// empty directory shell behind.
+	MutateRemoveRetryAttempts = 5
+	MutateRemoveRetryDelayMs  = 200
 )
 
 const (

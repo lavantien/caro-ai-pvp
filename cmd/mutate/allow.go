@@ -45,6 +45,26 @@ func loadAllowlist(path string) (allowlist, error) {
 	return out, nil
 }
 
+// scopeAllows keeps only entries whose mutant file path starts with one of
+// the prefixes, so a scoped gate (one package in CI) does not fail its
+// unused-allow check over the packages it deliberately skipped. Empty
+// prefixes keeps everything.
+func scopeAllows(allows allowlist, prefixes []string) allowlist {
+	if len(prefixes) == 0 {
+		return allows
+	}
+	out := allowlist{}
+	for k, v := range allows {
+		for _, p := range prefixes {
+			if strings.HasPrefix(k, p) {
+				out[k] = v
+				break
+			}
+		}
+	}
+	return out
+}
+
 // unconsumed returns the allowlist entries no executed mutant matched.
 func unconsumed(allows, consumed allowlist) allowlist {
 	pending := allowlist{}

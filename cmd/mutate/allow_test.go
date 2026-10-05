@@ -172,3 +172,21 @@ func TestRunCLIBadAllowlistExits2(t *testing.T) {
 		t.Errorf("stderr missing parse diagnostic: %q", errOut.String())
 	}
 }
+
+func TestScopeAllowsFiltersByPathPrefix(t *testing.T) {
+	allows := allowlist{
+		"internal/rules/win.go:42:15 replace 0 with 1":      "proof one",
+		"internal/engine/search.go:236:35 replace 0 with 1": "proof two",
+		"internal/clock/clock.go:86:24 replace 0 with 1":    "proof three",
+	}
+	scoped := scopeAllows(allows, []string{"internal/rules"})
+	if len(scoped) != 1 {
+		t.Fatalf("scoped = %v, want only the rules entry", scoped)
+	}
+	if _, ok := scoped["internal/rules/win.go:42:15 replace 0 with 1"]; !ok {
+		t.Errorf("scoped missing the rules entry: %v", scoped)
+	}
+	if got := scopeAllows(allows, nil); len(got) != len(allows) {
+		t.Errorf("scopeAllows(no prefixes) kept %d, want all %d", len(got), len(allows))
+	}
+}

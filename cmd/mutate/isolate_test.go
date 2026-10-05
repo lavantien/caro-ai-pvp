@@ -105,3 +105,22 @@ func TestFileHashUnreadable(t *testing.T) {
 		t.Error("fileHash(directory) err = nil, want read error")
 	}
 }
+
+func TestResidueCheckSweepsReleaseRaces(t *testing.T) {
+	root := t.TempDir()
+	if err := residueCheck(root); err != nil {
+		t.Errorf("residueCheck(clean) = %v, want nil", err)
+	}
+	left := filepath.Join(root, "caro-mutate-cache-999")
+	if err := os.Mkdir(left, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A leftover nobody pins is a Windows handle-release race, not a leak:
+	// the check sweeps it and passes.
+	if err := residueCheck(root); err != nil {
+		t.Errorf("residueCheck(sweepable leftover) = %v, want nil after sweep", err)
+	}
+	if _, serr := os.Stat(left); !os.IsNotExist(serr) {
+		t.Error("residueCheck left the sweepable leftover on disk")
+	}
+}

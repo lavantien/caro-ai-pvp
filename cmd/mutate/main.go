@@ -13,7 +13,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-const usage = "usage: mutate [-pkgs comma,separated,patterns] [-timeout 30s] [-allow file] [-resume prior-run.log] [-parallel 1] [-challenge false]"
+const usage = "usage: mutate [-pkgs comma,separated,patterns] [-timeout 30s] [-allow file] [-allow-scope path,prefixes] [-resume prior-run.log] [-parallel 1] [-challenge false]"
 
 func splitPkgs(s string) []string {
 	var out []string
@@ -49,6 +49,7 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 	resumePath := fs.String("resume", "", "prior run log whose KILLED verdicts are replayed instead of re-run, for continuing a gate after a host failure")
 	parallel := fs.Int("parallel", 1, "worker count: mutants run concurrently in isolated module copies, survivors re-verified serially")
 	challenge := fs.Bool("challenge", false, "run the suite under allowlisted mutants too; a serially confirmed kill demotes the entry and fails the gate")
+	allowScope := fs.String("allow-scope", "", "comma-separated path prefixes; allowlist entries outside them are dropped, so a scoped gate skips the packages it did not run")
 	if err := fs.Parse(args); err != nil || fs.NArg() > 0 || *parallel < 1 || *parallel > config.MutateMaxParallel {
 		_, _ = fmt.Fprintln(stderr, usage)
 		return 2
@@ -74,6 +75,16 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 		_, _ = fmt.Fprintln(stderr, "mutate:", aerr)
 		return 2
 	}
+	if *allowScope != "" {
+		var prefixes []string
+		for _, p := range strings.Split(*allowScope, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				prefixes = append(prefixes, p)
+			}
+		}
+		allows = scopeAllows(allows, prefixes)
+		_, _ = fmt.Fprintf(stdout, "mutate: allowlist scoped to %d entries\n", len(allows))
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	cacheDir, cerr := newRunCache()
@@ -81,7 +92,7 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 		_, _ = fmt.Fprintln(stderr, "mutate:", cerr)
 		return 2
 	}
-	defer func() { _ = os.RemoveAll(cacheDir) }()
+	defer func() { removeAllRetried(cacheDir) }()
 	var res result
 	var err error
 	if *parallel > 1 {
@@ -92,7 +103,7 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 			if ierr != nil {
 				_, _ = fmt.Fprintln(stderr, "mutate:", ierr)
 				for _, d := range dirs[1:] {
-					_ = os.RemoveAll(d)
+					removeAllRetried(d)
 				}
 				return 2
 			}
@@ -101,7 +112,7 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 		}
 		defer func() {
 			for _, d := range dirs[1:] {
-				_ = os.RemoveAll(d)
+				removeAllRetried(d)
 			}
 		}()
 		res, err = runMutationParallel(ctx, stdout, dirs, patterns, cacheDir, func(dir string) runner {
@@ -127,6 +138,14 @@ func main() {
 	// The exit defer runs last, after the cleanup defers registered below
 	// it, so isolated copies are removed even on error paths.
 	defer func() { os.Exit(code) }()
+	// Registered before the isolate cleanup defers, so it runs after them:
+	// a green exit must not leave a single caro-mutate-* entry behind.
+	defer func() {
+		if rerr := residueCheck(os.TempDir()); rerr != nil {
+			_, _ = fmt.Fprintln(os.Stderr, "mutate:", rerr)
+			code = 1
+		}
+	}()
 	sweepStaleIsolates()
 	before, err := treeHash(".")
 	if err != nil {
@@ -140,7 +159,7 @@ func main() {
 		code = 1
 		return
 	}
-	defer func() { _ = os.RemoveAll(iso) }()
+	defer func() { removeAllRetried(iso) }()
 	code = runCLI(os.Args[1:], os.Stdout, os.Stderr, iso)
 	after, err := treeHash(".")
 	if err != nil {

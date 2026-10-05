@@ -88,6 +88,29 @@ mutate:
 mutate-resume:
 	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),1) $(if $(CHALLENGE),-challenge) -resume "$(LOG)"
 
+# mutate-smoke [PARALLEL=2]: the rules-core gate for CI. The allowlist is
+# scoped to the package so the unused-allow check only judges entries the
+# run could consume. Exercises the mutator, the suite-kill contract, and
+# the run-private build cache lifecycle on every push; the full gate stays
+# a release checkpoint behind mutate-full.
+mutate-smoke:
+	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -allow-scope internal/rules -parallel $(or $(PARALLEL),2) -pkgs internal/rules
+
+# mutate-full [PARALLEL=6] [CHALLENGE=1] [LABEL=run]: the whole gate driven
+# to a definitive verdict, logging to logs/archive/mutate-<label>.log. A
+# host-side crash (non-zero exit with no summary line) resumes from the
+# same log automatically, up to 5 attempts; a real gate failure (summary
+# present) fails this target immediately with the runner's verdict.
+mutate-full:
+	@mkdir -p logs/archive; \
+	log=logs/archive/mutate-$(or $(LABEL),run).log; : > $$log; \
+	for attempt in 1 2 3 4 5; do \
+		CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),6) $(if $(CHALLENGE),-challenge) -resume $$log >> $$log 2>&1 && exit 0; \
+		if grep -q '^mutate: [0-9][0-9]*/[0-9]* run' $$log; then tail -2 $$log; exit 1; fi; \
+		echo "mutate-full: attempt $$attempt crashed host-side, resuming from $$log"; \
+	done; \
+	echo "mutate-full: no definitive verdict after 5 attempts"; tail -3 $$log; exit 1
+
 run:
 	CGO_ENABLED=1 go run ./cmd/caro $(or $(ARGS),ports)
 
