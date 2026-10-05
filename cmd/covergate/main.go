@@ -80,12 +80,10 @@ func pct(covered, total int64) float64 {
 	return float64(covered) / float64(total) * 100
 }
 
-func gate(files map[string]fileCov) error {
-	var total, covered int64
+// coreCoverage folds the per-file coverage into per-core-package totals.
+func coreCoverage(files map[string]fileCov) map[string]*fileCov {
 	core := make(map[string]*fileCov)
 	for file, fc := range files {
-		total += fc.total
-		covered += fc.covered
 		if p := corePackage(file); p != "" {
 			c, ok := core[p]
 			if !ok {
@@ -95,6 +93,15 @@ func gate(files map[string]fileCov) error {
 			c.total += fc.total
 			c.covered += fc.covered
 		}
+	}
+	return core
+}
+
+func gate(files map[string]fileCov) error {
+	var total, covered int64
+	for _, fc := range files {
+		total += fc.total
+		covered += fc.covered
 	}
 	if total == 0 {
 		return fmt.Errorf("empty profile, no statements counted")
@@ -106,7 +113,7 @@ func gate(files map[string]fileCov) error {
 		errs = append(errs, fmt.Sprintf("overall %.1f%% below %.0f%%", overall, config.QualityCoverageOverallMin))
 	}
 	for _, p := range corePackages {
-		c, ok := core[p]
+		c, ok := coreCoverage(files)[p]
 		if !ok || c.total == 0 {
 			continue
 		}
@@ -122,6 +129,35 @@ func gate(files map[string]fileCov) error {
 	return nil
 }
 
+// pcts reports the two badge numbers and the two thresholds they are judged
+// against, so the badge publisher colors from the config hub's own values:
+// global over the whole profile, core as the weakest core package (the
+// all-must-pass gate's honest aggregate). A profile with no core statements
+// reports core 0.0 rather than an error: reporting, not judging.
+func pcts(files map[string]fileCov, w io.Writer) error {
+	var total, covered int64
+	for _, fc := range files {
+		total += fc.total
+		covered += fc.covered
+	}
+	if total == 0 {
+		return fmt.Errorf("empty profile, no statements counted")
+	}
+	core := 0.0
+	coreSet := false
+	for _, c := range coreCoverage(files) {
+		if c.total == 0 {
+			continue
+		}
+		if cp := pct(c.covered, c.total); !coreSet || cp < core {
+			core, coreSet = cp, true
+		}
+	}
+	_, err := fmt.Fprintf(w, "global=%.1f core=%.1f global-min=%.1f core-min=%.1f\n",
+		pct(covered, total), core, config.QualityCoverageOverallMin, config.QualityCoverageCoreMin)
+	return err
+}
+
 func check(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -134,9 +170,29 @@ func check(path string) error {
 	return gate(files)
 }
 
+// report prints the badge percentages without judging them.
+func report(path string, w io.Writer) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	files, err := parseProfile(bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	return pcts(files, w)
+}
+
 func runCLI(args []string) int {
-	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "usage: covergate <coverprofile>")
+	if len(args) == 2 && args[0] == "-pcts" {
+		if err := report(args[1], os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "covergate:", err)
+			return 1
+		}
+		return 0
+	}
+	if len(args) != 1 || args[0] == "-pcts" {
+		fmt.Fprintln(os.Stderr, "usage: covergate [-pcts] <coverprofile>")
 		return 2
 	}
 	if err := check(args[0]); err != nil {

@@ -18,7 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     outputs:
-      pct: ${{ steps.total.outputs.pct }}
+      global: ${{ steps.total.outputs.global }}
+      core: ${{ steps.total.outputs.core }}
+      global-min: ${{ steps.total.outputs.global-min }}
+      core-min: ${{ steps.total.outputs.core-min }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -30,10 +33,9 @@ jobs:
       - name: make ci
         run: make ci
       - id: total
-        name: overall coverage
+        name: coverage percentages
         run: |
-          pct=$(go tool cover -func=coverage.out | awk '/^total:/ {sub(/%/, "", $3); printf "%.1f", $3}')
-          echo "pct=$pct" >> "$GITHUB_OUTPUT"
+          for kv in $(make cover-pcts); do echo "$kv" >> "$GITHUB_OUTPUT"; done
       - name: upload coverage profile
         uses: actions/upload-artifact@v6
         with:
@@ -61,34 +63,45 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - name: publish coverage badge
+      - name: publish coverage badges
         env:
-          PCT: ${{ needs.ci.outputs.pct }}
+          GLOBAL: ${{ needs.ci.outputs.global }}
+          CORE: ${{ needs.ci.outputs.core }}
+          GLOBAL_MIN: ${{ needs.ci.outputs.global-min }}
+          CORE_MIN: ${{ needs.ci.outputs.core-min }}
         run: |
           set -e
-          case 1 in
-            "$(awk -v p="$PCT" 'BEGIN {print (p >= 95) ? 1 : 0}')") color=brightgreen ;;
-            "$(awk -v p="$PCT" 'BEGIN {print (p >= 90) ? 1 : 0}')") color=yellow ;;
-            *) color=red ;;
-          esac
-          case "$color" in
-            brightgreen) fill=#4c1 ;;
-            yellow) fill=#dfb317 ;;
-            *) fill=#e05d44 ;;
-          esac
-          value="${PCT}%"
-          lw=$(( 8 * 7 + 12 ))
-          vw=$(( ${#value} * 7 + 12 ))
-          w=$(( lw + vw ))
-          mx1=$(( lw / 2 ))
-          mx2=$(( lw + vw / 2 ))
-          printf -v svg '<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="20" role="img" aria-label="coverage: %s"><linearGradient id="g" x2="0" y2="100%%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="r"><rect width="%d" height="20" rx="3"/></clipPath><g clip-path="url(#r)"><rect width="%d" height="20" fill="#555"/><rect x="%d" width="%d" height="20" fill="%s"/><rect width="%d" height="20" fill="url(#g)"/></g><g fill="#fff" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11" text-anchor="middle"><text x="%d" y="14">coverage</text><text x="%d" y="14">%s</text></g></svg>' \
-            "$w" "$value" "$w" "$lw" "$lw" "$vw" "$fill" "$w" "$mx1" "$mx2" "$value"
-          printf -v json '{"schemaVersion":1,"label":"coverage","message":"%s","color":"%s"}' "$value" "$color"
+          # badge <label> <value> <good-min> <warn-min> <file-base>: colors
+          # against the thresholds the config hub reported, so the pipeline
+          # never restates them.
+          badge() {
+            label=$1 value=$2 good=$3 warn=$4 base=$5
+            case 1 in
+              "$(awk -v p="$value" -v m="$good" 'BEGIN {print (p >= m) ? 1 : 0}')") color=brightgreen ;;
+              "$(awk -v p="$value" -v m="$warn" 'BEGIN {print (p >= m) ? 1 : 0}')") color=yellow ;;
+              *) color=red ;;
+            esac
+            case "$color" in
+              brightgreen) fill=#4c1 ;;
+              yellow) fill=#dfb317 ;;
+              *) fill=#e05d44 ;;
+            esac
+            pctvalue="${value}%"
+            lw=$(( ${#label} * 7 + 12 ))
+            vw=$(( ${#pctvalue} * 7 + 12 ))
+            w=$(( lw + vw ))
+            mx1=$(( lw / 2 ))
+            mx2=$(( lw + vw / 2 ))
+            printf -v svg '<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="20" role="img" aria-label="%s: %s"><linearGradient id="g" x2="0" y2="100%%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="r"><rect width="%d" height="20" rx="3"/></clipPath><g clip-path="url(#r)"><rect width="%d" height="20" fill="#555"/><rect x="%d" width="%d" height="20" fill="%s"/><rect width="%d" height="20" fill="url(#g)"/></g><g fill="#fff" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11" text-anchor="middle"><text x="%d" y="14">%s</text><text x="%d" y="14">%s</text></g></svg>' \
+              "$w" "$label" "$pctvalue" "$w" "$w" "$lw" "$vw" "$fill" "$w" "$mx1" "$label" "$mx2" "$pctvalue"
+            printf -v json '{"schemaVersion":1,"label":"%s","message":"%s","color":"%s"}' "$label" "$pctvalue" "$color"
+            printf '%s' "$svg" > "$base.svg"
+            printf '%s' "$json" > "$base.json"
+          }
+          badge "global coverage" "$GLOBAL" "$GLOBAL_MIN" 90 coverage-global
+          badge "core coverage" "$CORE" "$CORE_MIN" "$CORE_MIN" coverage-core
           git checkout -q --orphan coverage
           git rm -rqf .
-          printf '%s' "$svg" > badge.svg
-          printf '%s' "$json" > coverage.json
-          git add badge.svg coverage.json
-          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "coverage: $value"
+          git add coverage-global.svg coverage-global.json coverage-core.svg coverage-core.json
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "coverage: global $GLOBAL% core $CORE%"
           git push -qf origin coverage

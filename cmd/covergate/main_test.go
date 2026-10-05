@@ -103,6 +103,39 @@ func TestRunCLI(t *testing.T) {
 	}
 }
 
+func TestPctsReport(t *testing.T) {
+	var b strings.Builder
+	if err := pcts(mustParse(t, passFixture), &b); err != nil {
+		t.Fatalf("pcts err = %v", err)
+	}
+	if got, want := b.String(), "global=95.5 core=100.0 global-min=95.0 core-min=100.0\n"; got != want {
+		t.Errorf("pcts(pass) = %q, want %q", got, want)
+	}
+	b.Reset()
+	// rules 0/4, engine 196/196: the core badge reads the weakest core
+	// package, the global reads the whole profile (196/200).
+	if err := pcts(mustParse(t, failCoreFixture), &b); err != nil {
+		t.Fatalf("pcts err = %v", err)
+	}
+	if got, want := b.String(), "global=98.0 core=0.0 global-min=95.0 core-min=100.0\n"; got != want {
+		t.Errorf("pcts(fail core) = %q, want %q", got, want)
+	}
+}
+
+func TestRunCLIPcts(t *testing.T) {
+	if code := runCLI([]string{"-pcts"}); code != 2 {
+		t.Errorf("runCLI(-pcts, no profile) = %d, want 2", code)
+	}
+	if code := runCLI([]string{"-pcts", filepath.Join(t.TempDir(), "missing.out")}); code != 1 {
+		t.Errorf("runCLI(-pcts, missing) = %d, want 1", code)
+	}
+	// The reporter mode exits 0 on a gate-failing profile: it reports, the
+	// gate mode judges.
+	if code := runCLI([]string{"-pcts", writeProfile(t, failOverallFixture)}); code != 0 {
+		t.Errorf("runCLI(-pcts, failing profile) = %d, want 0", code)
+	}
+}
+
 func TestPctZeroTotal(t *testing.T) {
 	if got := pct(3, 0); got != 0 {
 		t.Errorf("pct(3, 0) = %v, want 0", got)
