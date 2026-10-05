@@ -143,6 +143,69 @@ func TestRunTourneyCloseStalledRun(t *testing.T) {
 	}
 }
 
+// TestRunTourneyResumeUsage pins the resume arm's argument surface: the same
+// one-positional grammar as close, whichever side of the flags the id sits.
+func TestRunTourneyResumeUsage(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{"resume without id", []string{"tourney", "resume"}, 2},
+		{"resume two ids", []string{"tourney", "resume", "1", "2"}, 2},
+		{"resume non-numeric id", []string{"tourney", "resume", "soon"}, 2},
+		{"resume zero id", []string{"tourney", "resume", "0"}, 2},
+		{"resume unknown flag", []string{"tourney", "resume", "-nope"}, 2},
+	}
+	for _, tc := range cases {
+		if code := run(tc.args); code != tc.want {
+			t.Errorf("%s: exit = %d, want %d", tc.name, code, tc.want)
+		}
+	}
+}
+
+// TestRunTourneyResumeRefusals pins the refusal arms that need no engines:
+// an unknown run and a finished run refuse before any room starts, and an
+// over-budget parallel over a planted ongoing run refuses the same way.
+func TestRunTourneyResumeRefusals(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "caro.sqlite")
+	srv, err := server.Open(db)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	roster := []tourney.Participant{
+		{Slot: 0, Name: "easy-1", Tier: config.TierEasy.Name},
+		{Slot: 1, Name: "medium-1", Tier: config.TierMedium.Name},
+	}
+	finished, err := tourney.NewStore(srv).CreateRun(context.Background(), 1,
+		config.SeriesBO3, config.TournamentStartRating, roster, "test")
+	if err != nil {
+		t.Fatalf("plant finished run: %v", err)
+	}
+	if err := tourney.NewStore(srv).CloseStalledRun(context.Background(), finished.ID, 1); err != nil {
+		t.Fatalf("finish the planted run: %v", err)
+	}
+	ongoing, err := tourney.NewStore(srv).CreateRun(context.Background(), 1,
+		config.SeriesBO3, config.TournamentStartRating, roster, "test")
+	if err != nil {
+		t.Fatalf("plant ongoing run: %v", err)
+	}
+	if err := srv.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	if code := run([]string{"tourney", "resume", "999", "--db", db}); code != 1 {
+		t.Errorf("resume unknown run = exit %d, want 1", code)
+	}
+	if code := run([]string{"tourney", "resume", strconv.FormatInt(finished.ID, 10), "--db", db}); code != 1 {
+		t.Errorf("resume finished run = exit %d, want 1", code)
+	}
+	if code := run([]string{"tourney", "resume", strconv.FormatInt(ongoing.ID, 10),
+		"--parallel", "9", "--db", db}); code != 1 {
+		t.Errorf("resume over budget = exit %d, want 1", code)
+	}
+}
+
 func TestPrintRunResult(t *testing.T) {
 	roster := []tourney.Participant{
 		{Slot: 0, Name: "easy-1", Tier: config.TierEasy.Name},

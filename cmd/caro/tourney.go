@@ -34,13 +34,13 @@ var tourneyDrivers = map[string]func() tourney.RunSpec{
 // Any conductor error exits 1.
 func runTourney(args []string) int {
 	driver := ""
-	closeID := ""
+	idArg := ""
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		driver, args = args[0], args[1:]
-		// close carries one more positional, the run id, peeled with its
-		// driver so the id may also lead the flags.
-		if driver == "close" && len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-			closeID, args = args[0], args[1:]
+		// close and resume carry one more positional, the run id, peeled
+		// with the driver so the id may also lead the flags.
+		if (driver == "close" || driver == "resume") && len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+			idArg, args = args[0], args[1:]
 		}
 	}
 	fs := flag.NewFlagSet("tourney", flag.ContinueOnError)
@@ -53,17 +53,20 @@ func runTourney(args []string) int {
 	if driver == "" && len(rest) > 0 {
 		driver, rest = rest[0], rest[1:]
 	}
-	if driver == "close" {
+	if driver == "close" || driver == "resume" {
 		// The id rides either position: peeled ahead of the flags or as the
 		// one positional left behind them.
-		if closeID == "" && len(rest) == 1 {
-			closeID, rest = rest[0], rest[1:]
+		if idArg == "" && len(rest) == 1 {
+			idArg, rest = rest[0], rest[1:]
 		}
-		if closeID == "" || len(rest) != 0 {
-			fmt.Fprintln(os.Stderr, "caro: tourney close needs exactly one run id")
+		if idArg == "" || len(rest) != 0 {
+			fmt.Fprintf(os.Stderr, "caro: tourney %s needs exactly one run id\n", driver)
 			return 2
 		}
-		return runTourneyClose(closeID, *dbPath)
+		if driver == "close" {
+			return runTourneyClose(idArg, *dbPath)
+		}
+		return runTourneyResume(idArg, *dbPath, *parallel)
 	}
 	if len(rest) != 0 || driver == "" {
 		fmt.Fprintln(os.Stderr, "caro: tourney needs exactly one driver (smoke32, smoke10, or full) plus flags")
@@ -81,9 +84,7 @@ func runTourney(args []string) int {
 		fmt.Fprintln(os.Stderr, "caro:", err)
 		return 1
 	}
-	wq := server.NewWriteQueue(nil)
-	hub := server.NewHub()
-	rooms := server.NewRoomManager(hub, store, wq)
+	rooms, wq, hub := bootRooms(store)
 	conductor := tourney.NewConductor(tourney.RoomSource{RM: rooms})
 
 	ctx, stop := signal.NotifyContext(context.Background(), serveSignals...)
@@ -109,6 +110,59 @@ func runTourney(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+// runTourneyResume is the recovery arm's drive half: it boots the room stack
+// exactly like a driver and hands the run to the conductor's resume, so an
+// interrupted run (a cancelled drive, a killed process, a machine cut)
+// finishes from its own persisted state: settled series stand as evidence,
+// interrupted ones scrub and replay, the summary lands in the run's own
+// folder. Any conductor error exits 1.
+func runTourneyResume(idArg string, dbPath string, parallel int) int {
+	id, err := strconv.ParseInt(idArg, 10, 64)
+	if err != nil || id <= 0 {
+		fmt.Fprintf(os.Stderr, "caro: tourney resume needs a positive run id, got %q\n", idArg)
+		return 2
+	}
+	store, err := server.Open(dbPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "caro:", err)
+		return 1
+	}
+	rooms, wq, hub := bootRooms(store)
+	conductor := tourney.NewConductor(tourney.RoomSource{RM: rooms})
+
+	ctx, stop := signal.NotifyContext(context.Background(), serveSignals...)
+	defer stop()
+	res, rerr := conductor.Resume(ctx, tourney.NewStore(store), id, parallel)
+	if rerr == nil {
+		roster, gerr := tourney.NewStore(store).Roster(ctx, id)
+		if gerr != nil {
+			rerr = gerr
+		} else if perr := printRunResult(os.Stdout, roster, res); perr != nil {
+			fmt.Fprintln(os.Stderr, "caro:", perr)
+		}
+	}
+	rooms.Shutdown()
+	wq.Close()
+	hub.Close()
+	if cerr := store.Close(); cerr != nil {
+		fmt.Fprintln(os.Stderr, "caro:", cerr)
+	}
+	if rerr != nil {
+		fmt.Fprintln(os.Stderr, "caro:", rerr)
+		return 1
+	}
+	return 0
+}
+
+// bootRooms wires the room stack the driving arms share: the write queue,
+// the hub, and the room manager over the opened store, closed by the caller
+// in reverse boot order.
+func bootRooms(store *server.Store) (*server.RoomManager, *server.WriteQueue, *server.Hub) {
+	wq := server.NewWriteQueue(nil)
+	hub := server.NewHub()
+	return server.NewRoomManager(hub, store, wq), wq, hub
 }
 
 // runTourneyClose is the run gate's recovery arm: a run whose owning process

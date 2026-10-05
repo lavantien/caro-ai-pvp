@@ -9,7 +9,7 @@ DIAGRAM_BG := rgb(13,17,23)
 DIAGRAM_SRC := $(wildcard $(DIAGRAMS_DIR)/*.mmd)
 DIAGRAM_PNG := $(DIAGRAM_SRC:.mmd=.png)
 
-.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full firewall tidy diagrams diagrams-browser ci
+.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser ci
 
 all: build
 
@@ -133,6 +133,10 @@ serve:
 # per-series txt logs and the summary into their own timestamped folder under
 # logs/tourny/ (config.TournamentLogRoot). ARGS
 # forwards flags, e.g. make tourney-smoke-10 ARGS="--db scratch.db --parallel 1".
+# tourney-resume continues the machine's one interrupted run from its own
+# persisted state, e.g. make tourney-resume ARGS="4 --db db/gates-v020.db";
+# tourney-close abandons a stalled run instead,
+# make tourney-close ARGS="4 --db db/gates-v020.db".
 tourney-smoke-32:
 	CGO_ENABLED=1 go run ./cmd/caro tourney smoke32 $(ARGS)
 
@@ -141,6 +145,12 @@ tourney-smoke-10:
 
 tourney-full:
 	CGO_ENABLED=1 go run ./cmd/caro tourney full $(ARGS)
+
+tourney-resume:
+	CGO_ENABLED=1 go run ./cmd/caro tourney resume $(ARGS)
+
+tourney-close:
+	CGO_ENABLED=1 go run ./cmd/caro tourney close $(ARGS)
 
 firewall:
 	CGO_ENABLED=1 go run ./cmd/caro firewall
