@@ -121,10 +121,14 @@ h1, .who, .who-vs, #score-line { overflow-wrap: anywhere }
 .miniboard { display: grid; width: min(100%, 22rem); aspect-ratio: 1; margin: .25rem auto 0;
 	touch-action: manipulation; user-select: none; border: 1px solid var(--border);
 	background: var(--surface) }
-.mcell { border: 1px solid var(--border) }
-.mcell.m-red { background: var(--red) }
-.mcell.m-blue { background: var(--blue) }
-.mcell.m-latest { box-shadow: inset 0 0 0 2px var(--mark) }
+/* Mini stones follow the live board's own law: a round disc inset in the
+   cell, the latest stone ringed with the mark color. */
+.mcell { position: relative; border: 1px solid var(--border) }
+.mcell.m-red::after, .mcell.m-blue::after { content: ""; position: absolute;
+	inset: 8%; border-radius: 50% }
+.mcell.m-red::after { background: var(--red) }
+.mcell.m-blue::after { background: var(--blue) }
+.mcell.m-latest::after { box-shadow: 0 0 0 3px var(--mark) }
 .tseries { display: grid; gap: .25rem; margin: .4rem 0 1rem; padding-left: 1.2rem }
 .tseries .score { font-weight: 700 }
 .live { color: var(--text-muted) }

@@ -22,35 +22,41 @@ Mobile-first web arena for a custom 16x16 caro variant: exact continuous five wi
 
 ## screenshots
 
-Live bot vs bot room during a tournament, move history below the board and the bot log rendering the M-line telemetry:
+The whole app flow as 390px dark mobile captures, primary presentation. Login-or-create (an unknown name registers, the seeded admin row holds its name):
 
-![live bot vs bot room](docs/screenshots/bot-vs-bot-room.png)
+![login or create on a phone](docs/screenshots/mobile-login.png)
 
-Logged-in home with the live rooms grid and the create-room form:
-
-![logged-in home with rooms grid](docs/screenshots/home-rooms-grid.png)
-
-Match history opened onto the playback board at the final position:
-
-![match history playback board](docs/screenshots/history-playback.png)
-
-The 390px mobile captures of the same chain, dark surface, live room and terminal room states:
-
-![terminal room on a phone](docs/screenshots/mobile-terminal-room.png)
-
-![history playback on a phone](docs/screenshots/mobile-history-playback.png)
+Logged-in home with the rooms grid, the create-room form (time control, best-of, opponent tier from the config hub), and the banner headlining a live tournament while one is driven:
 
 ![live rooms grid on a phone](docs/screenshots/mobile-home-rooms.png)
 
-![tournament run page on a phone](docs/screenshots/mobile-tourney-run.png)
+![home banner while a tournament runs](docs/screenshots/mobile-home-banner.png)
 
-The tournament spectating surfaces of the same pass: the run page carries a live board per ongoing bot series (mini stones in play order, score from red's side, the card links the room's own page), and the home grid headlines a live run while it is driven:
+Live room mid-game on the player's side: turn call-out, tabular clocks ticking between syncs, the playable mask dimming everything outside the rules-legal ring on red's second move, the tap ghost, the M-line bot log with depth, nodes, nps, TT hit rate, score and PV, the running move history and the forfeit control:
+
+![live room on a phone](docs/screenshots/mobile-live-room.png)
+
+The retired room renders an honest terminal state:
+
+![terminal room on a phone](docs/screenshots/mobile-terminal-room.png)
+
+Match history with per-game score lines and the playback board stepping through a finished bot game:
+
+![history playback on a phone](docs/screenshots/mobile-history-playback.png)
+
+Tournament setup, admin-only: the config-bounded roster, tiers, time control, best-of, start rating and parallelism, with the run-gate close form for undriven runs:
+
+![tournament setup on a phone](docs/screenshots/mobile-tourney-setup.png)
+
+While the run drives, its page carries a live board per ongoing bot series (mini stones in play order, score from red's side, the card links the room's own page), all public including guests:
 
 ![tournament live boards on a phone](docs/screenshots/mobile-tourney-liveboards.png)
 
-![home banner while a tournament runs](docs/screenshots/mobile-home-banner.png)
+The finished run page with the frozen leaderboard:
 
-The mobile pass audited every surface at 390x844: long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the board offers only the spaces the rules allow (the opening ring dims on red's second move), the retired room renders an honest terminal state, and the tournament leaderboard scrolls inside its own wrap. The desktop captures above predate the playable-space mask.
+![tournament run page on a phone](docs/screenshots/mobile-tourney-run.png)
+
+The mobile pass audited every surface at 390x844: long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the board offers only the spaces the rules allow, the retired room renders an honest terminal state, and the tournament leaderboard scrolls inside its own wrap.
 
 ## build and verify
 
@@ -149,4 +155,4 @@ Tournaments run bot-versus-bot on the exact room surface human matches use: each
 - v0.7 (M7 part 1): tournament core and conductor. Bot-vs-bot rooms on the same surface, twice-pair round robin with the per-match rating law in a separate tournament space, schema v3 tournament tables, per-series txt logs, leaderboard with a frozen close snapshot, headless smoke and full drivers behind caro tourney and make targets, semaphore-bounded parallelism, and a machine-wide run gate. Root-fixed a real concurrency defect: deferred read-then-write SQLite transactions upgrade into BUSY_SNAPSHOT under parallel writers, closed by immediate transactions in the DSN with a 30-parallel regression test.
 - v0.8 (M7 part 2): tournament UI and official gates. Setup page (config-bounded roster, tiers, time control, best-of, start rating, parallelism), run page with a live leaderboard on partial polling, past runs, stalled-run close. Official smoke gates green at 1+0 and 3+2 (30 series each, zero-sum exact), the full 2+1 UI tournament settled 30 series and 69 games with the tier ladder holding and no cross-tier strength inversion. Blind adversarial pair: 3 confirmed findings (per-run core budget, an even-length missed-move-prefix hole in the replay net, missing series-seat validation), all fixed red-green.
 - v0.9 (M8): release candidate. Screenshots, completed diagram set, bot seat naming unified, fuzz corpora committed. make ci 96.0% overall, core 100%.
-- v0.20 (MVP): re-opened. The first cut verified every scenario item of the founding spec, scenario 1 through the browser e2e and scenario 2 through the official gates, but the milestone is a hard filter on physical evidence and the tag will be re-cut when the chain completes. Landed since the reopen: one trace line per finished game in every series log, the conductor dispatch-after-cancel fix, dark PNG diagrams behind make diagrams, per-move stat persistence for player-facing matches (schema v4 game_stats, human-vs-bot series recorded in full with ratings unmoved, reserved unloginable AI accounts seating the bot, history and playback opening bot games), dark mode as the primary web presentation (one custom-properties palette hub, WCAG-checked by playground/darkcontrast), and the series-log evidence analyzer behind make logstats. A formal investigation of the gate logs (docs/evidence/investigation-2026-10-04.md) root-caused the anomalies and closed them: minute-unit time controls (the gates had run on seconds), the selective forced-4 restriction plus best-ordered fallback replacing the extension storm and the A1-scan d=0 drift, tier solver wiring behind the [VCF]/[VCT] tags with medium 32 MiB and hard 128 MiB tables, swap-host-guest meets with named participants under per-run logs/tourny folders with a summary table, and <difficulty>-<roomid> bot naming (schema v5). In flight: corrected-clock evidence runs at all three gates, mobile-first dark screenshots, tag re-cut at the evidence-complete commit.
+- v0.20 (MVP): re-opened. The first cut verified every scenario item of the founding spec, scenario 1 through the browser e2e and scenario 2 through the official gates, but the milestone is a hard filter on physical evidence and the tag will be re-cut when the chain completes. Landed since the reopen: one trace line per finished game in every series log, the conductor dispatch-after-cancel fix, dark PNG diagrams behind make diagrams, per-move stat persistence for player-facing matches (schema v4 game_stats, human-vs-bot series recorded in full with ratings unmoved, reserved unloginable AI accounts seating the bot, history and playback opening bot games), dark mode as the primary web presentation (one custom-properties palette hub, WCAG-checked by playground/darkcontrast), and the series-log evidence analyzer behind make logstats. A formal investigation of the gate logs (docs/evidence/investigation-2026-10-04.md) root-caused the anomalies and closed them: minute-unit time controls (the gates had run on seconds), the selective forced-4 restriction plus best-ordered fallback replacing the extension storm and the A1-scan d=0 drift, tier solver wiring behind the [VCF]/[VCT] tags with medium 32 MiB and hard 128 MiB tables, swap-host-guest meets with named participants under per-run logs/tourny folders with a summary table, and <difficulty>-<roomid> bot naming (schema v5). Landed with the tournament UI close-out: admin-gated tournament creation with the seeded demo credential, public run pages carrying a live board per ongoing bot series, the home live-run banner, the run-gate close form covering failed drives beside stalled ones, horizontal dark diagrams behind make diagrams, and the full app-flow screenshot set recut as 390px dark mobile captures. In flight: corrected-clock evidence runs at all three gates, tag re-cut at the evidence-complete commit.

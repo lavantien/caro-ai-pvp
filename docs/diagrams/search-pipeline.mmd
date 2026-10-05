@@ -1,4 +1,4 @@
-flowchart TD
+flowchart LR
     A[Search entry: fallback move precomputed] --> B[iterative deepening: depth 1..max]
     B --> C{stopped or hard deadline?}
     C -- yes --> Z[return best of last completed iteration]

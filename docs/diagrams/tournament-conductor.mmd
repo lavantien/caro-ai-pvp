@@ -1,4 +1,4 @@
-flowchart TD
+flowchart LR
     SU[setup page or caro tourney driver] -- startRun: gate + persist schedule --> C[conductor]
     G{ongoing run row<br/>or over-budget cores?} -- yes --> X[refuse: close or reconfigure]
     G -- no --> D[dispatch: TournamentParallel semaphore]
