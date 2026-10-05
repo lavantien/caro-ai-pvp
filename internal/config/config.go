@@ -402,7 +402,7 @@ const (
 
 	// SQLiteSchemaVersion is the number of landed migration scripts; the
 	// server package enforces the equality at startup.
-	SQLiteSchemaVersion = 6
+	SQLiteSchemaVersion = 7
 	SQLiteBusyTimeoutMs = 5000
 	SQLiteJournalWAL    = "wal"
 	SQLiteSyncNormal    = "normal"

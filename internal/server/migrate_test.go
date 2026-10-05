@@ -158,6 +158,7 @@ func TestFailedMigrationRollsBackAndStays(t *testing.T) {
 		"CREATE TABLE never4 (w)",
 		"CREATE TABLE never5 (v)",
 		"CREATE TABLE never6 (u)",
+		"CREATE TABLE never7 (t)",
 	}
 	err = s.migrate()
 	if err == nil || !strings.Contains(err.Error(), "apply migration 1") {
@@ -239,10 +240,13 @@ func TestMigrateV1DatabaseUpgradesToV2(t *testing.T) {
 	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 2`); err != nil {
 		t.Fatalf("roll ledger back to v1: %v", err)
 	}
-	// Reverse the v5 column too: the surgery rewinds the ledger only, and
-	// the ALTER of migration 5 cannot re-add an existing column.
+	// Reverse the v5 and v7 columns too: the surgery rewinds the ledger only,
+	// and an ALTER cannot re-add an existing column.
 	if _, err := s.db.Exec(`ALTER TABLE games DROP COLUMN bot_name`); err != nil {
 		t.Fatalf("drop the v5 column: %v", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE tournament_runs DROP COLUMN label`); err != nil {
+		t.Fatalf("drop the v7 column: %v", err)
 	}
 	for _, idx := range []string{"idx_games_red_user", "idx_games_blue_user"} {
 		if _, err := s.db.Exec(`DROP INDEX ` + idx); err != nil {
@@ -334,6 +338,9 @@ func TestMigrateV3DatabaseUpgradesToV4(t *testing.T) {
 	if _, err := s.db.Exec(`ALTER TABLE games DROP COLUMN bot_name`); err != nil {
 		t.Fatalf("drop the v5 column: %v", err)
 	}
+	if _, err := s.db.Exec(`ALTER TABLE tournament_runs DROP COLUMN label`); err != nil {
+		t.Fatalf("drop the v7 column: %v", err)
+	}
 	if _, err := s.db.Exec(`DROP TABLE game_stats`); err != nil {
 		t.Fatalf("drop game_stats: %v", err)
 	}
@@ -372,6 +379,44 @@ func TestMigrateV3DatabaseUpgradesToV4(t *testing.T) {
 	}
 	if users != 1 {
 		t.Errorf("v3-era user count after upgrade = %d, want 1 (no data loss)", users)
+	}
+}
+
+// TestMigrateV6DatabaseUpgradesToV7 pins the forward-only upgrade: a database
+// holding only version 6 gains the tournament_runs label column on reopen,
+// without re-running v1..v6 or touching the v6-era rows.
+func TestMigrateV6DatabaseUpgradesToV7(t *testing.T) {
+	path := dbPath(t)
+	s := mustOpen(t, path)
+	if _, err := s.db.Exec(
+		`INSERT INTO tournament_runs (tc_idx, bo_len, start_rating, status) VALUES (?, ?, ?, ?)`,
+		1, 3, 1000, "finished",
+	); err != nil {
+		t.Fatalf("seed v6-era run: %v", err)
+	}
+	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 7`); err != nil {
+		t.Fatalf("roll ledger back to v6: %v", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE tournament_runs DROP COLUMN label`); err != nil {
+		t.Fatalf("drop the v7 column: %v", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	again := mustOpen(t, path)
+	defer func() { _ = again.Close() }()
+	count, max := schemaVersionRows(t, again)
+	if count != config.SQLiteSchemaVersion || max != config.SQLiteSchemaVersion {
+		t.Errorf("after upgrade: schema_version rows = %d max = %d, want %d and %d",
+			count, max, config.SQLiteSchemaVersion, config.SQLiteSchemaVersion)
+	}
+	var label string
+	if err := again.db.QueryRow(`SELECT label FROM tournament_runs`).Scan(&label); err != nil {
+		t.Fatalf("read the v6-era run's label after upgrade: %v", err)
+	}
+	if label != "ui" {
+		t.Errorf("v6-era run label after upgrade = %q, want the 'ui' default", label)
 	}
 }
 

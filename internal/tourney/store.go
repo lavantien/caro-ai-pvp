@@ -26,7 +26,9 @@ var outcomeTag = map[server.Outcome]string{
 	server.BlueWins: server.OutcomeBlue,
 }
 
-// Run is one persisted tournament header row.
+// Run is one persisted tournament header row. Label names the run's log
+// folder under config.TournamentLogRoot, persisted so a resume reopens the
+// interrupted run's own folder.
 type Run struct {
 	ID          int64
 	CreatedAt   int64
@@ -35,6 +37,7 @@ type Run struct {
 	StartRating int
 	Status      string
 	FinishedAt  *int64
+	Label       string
 }
 
 // Series is one persisted pairing row: the schedule slot, both seats, the
@@ -105,8 +108,10 @@ func sqlArg[T any](p *T) any {
 
 // CreateRun persists one tournament atomically: the header row, one
 // participant row per roster entry, and one series row per Pairings()
-// schedule entry. Roster slots must equal their slice positions.
-func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, roster []Participant) (Run, error) {
+// schedule entry. Roster slots must equal their slice positions. The label
+// names the run's log folder and must be non-empty: the resume path reopens
+// the folder from the persisted row alone.
+func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, roster []Participant, label string) (Run, error) {
 	if len(roster) < 2 {
 		return Run{}, fmt.Errorf("tourney: roster holds %d participants, a pairing needs at least 2", len(roster))
 	}
@@ -115,6 +120,9 @@ func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, ro
 	}
 	if !slices.Contains(config.SeriesLengths[:], boLen) {
 		return Run{}, fmt.Errorf("tourney: bo_len %d is not a configured series length", boLen)
+	}
+	if label == "" {
+		return Run{}, errors.New("tourney: run label is empty, the log folder needs it")
 	}
 	for i, p := range roster {
 		if p.Slot != i {
@@ -127,9 +135,9 @@ func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, ro
 	var run Run
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		if err := tx.QueryRowContext(ctx,
-			`INSERT INTO tournament_runs (tc_idx, bo_len, start_rating, status)
-			VALUES (?, ?, ?, ?) RETURNING id, created_at`,
-			tcIdx, boLen, startRating, RunStateOngoing,
+			`INSERT INTO tournament_runs (tc_idx, bo_len, start_rating, status, label)
+			VALUES (?, ?, ?, ?, ?) RETURNING id, created_at`,
+			tcIdx, boLen, startRating, RunStateOngoing, label,
 		).Scan(&run.ID, &run.CreatedAt); err != nil {
 			return fmt.Errorf("tourney: create run: %w", err)
 		}
@@ -153,7 +161,7 @@ func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, ro
 	if err != nil {
 		return Run{}, err
 	}
-	run.TCIdx, run.BOLen, run.StartRating, run.Status = tcIdx, boLen, startRating, RunStateOngoing
+	run.TCIdx, run.BOLen, run.StartRating, run.Status, run.Label = tcIdx, boLen, startRating, RunStateOngoing, label
 	return run, nil
 }
 
@@ -335,13 +343,16 @@ func (t *Store) CloseStalledRun(ctx context.Context, runID int64, finishedAt int
 	})
 }
 
-// Schedule reads one run's series rows in pairing order: the conductor's map
-// from Pairings slots onto the persisted series ids CreateRun laid down.
+// Schedule reads one run's series rows in pairing order with their settle
+// state: the conductor's map from Pairings slots onto the persisted series
+// ids CreateRun laid down, carrying FinishedAt and the settled line so a
+// resumed drive can skip what an earlier drive already settled.
 func (t *Store) Schedule(ctx context.Context, runID int64) ([]Series, error) {
 	var out []Series
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, `
-		SELECT id, pairing_slot, red_first_slot, blue_first_slot
+		SELECT id, pairing_slot, red_first_slot, blue_first_slot, winner_slot,
+			red_first_wins, blue_first_wins, finished_at
 		FROM tournament_series WHERE run_id = ? ORDER BY pairing_slot`, runID)
 		if err != nil {
 			return fmt.Errorf("tourney: read schedule of run %d: %w", runID, err)
@@ -349,9 +360,13 @@ func (t *Store) Schedule(ctx context.Context, runID int64) ([]Series, error) {
 		defer func() { _ = rows.Close() }()
 		for rows.Next() {
 			var s Series
-			if err := rows.Scan(&s.ID, &s.PairingSlot, &s.RedFirstSlot, &s.BlueFirstSlot); err != nil {
+			var winner, finished sql.NullInt64
+			if err := rows.Scan(&s.ID, &s.PairingSlot, &s.RedFirstSlot, &s.BlueFirstSlot,
+				&winner, &s.RedFirstWins, &s.BlueFirstWins, &finished); err != nil {
 				return fmt.Errorf("tourney: scan schedule row of run %d: %w", runID, err)
 			}
+			s.WinnerSlot = nullIntPtr(winner)
+			s.FinishedAt = nullInt64Ptr(finished)
 			out = append(out, s)
 		}
 		return rows.Err()

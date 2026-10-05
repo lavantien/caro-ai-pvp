@@ -16,7 +16,7 @@ func scanRun(scan func(...any) error) (Run, error) {
 	var run Run
 	var finished sql.NullInt64
 	if err := scan(&run.ID, &run.CreatedAt, &run.TCIdx, &run.BOLen,
-		&run.StartRating, &run.Status, &finished); err != nil {
+		&run.StartRating, &run.Status, &finished, &run.Label); err != nil {
 		return Run{}, err
 	}
 	run.FinishedAt = nullInt64Ptr(finished)
@@ -28,7 +28,7 @@ func (t *Store) Run(ctx context.Context, runID int64) (Run, error) {
 	var run Run
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		r, err := scanRun(tx.QueryRowContext(ctx, `
-		SELECT id, created_at, tc_idx, bo_len, start_rating, status, finished_at
+		SELECT id, created_at, tc_idx, bo_len, start_rating, status, finished_at, label
 		FROM tournament_runs WHERE id = ?`, runID).Scan)
 		run = r
 		return err
@@ -44,7 +44,7 @@ func (t *Store) Runs(ctx context.Context) ([]Run, error) {
 	var out []Run
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, `
-		SELECT id, created_at, tc_idx, bo_len, start_rating, status, finished_at
+		SELECT id, created_at, tc_idx, bo_len, start_rating, status, finished_at, label
 		FROM tournament_runs ORDER BY id DESC`)
 		if err != nil {
 			return err

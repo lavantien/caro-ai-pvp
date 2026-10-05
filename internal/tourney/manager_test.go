@@ -292,7 +292,7 @@ func TestManagerCloseStalled(t *testing.T) {
 
 	// A stalled row no process drives closes without a standings snapshot;
 	// the leaderboard keeps deriving from the games.
-	stalled, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, rosterTwo())
+	stalled, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, rosterTwo(), "test")
 	if err != nil {
 		t.Fatalf("create stalled run: %v", err)
 	}
@@ -339,7 +339,7 @@ func TestManagerDetailUnknownAndUndrivenRuns(t *testing.T) {
 	// A run this process never drives (a previous lifetime's, or one created
 	// straight through the store) reads back unfailed and not running.
 	ctx := context.Background()
-	run, err := ts.CreateRun(ctx, 1, config.SeriesBO3, config.TournamentStartRating, rosterTwo())
+	run, err := ts.CreateRun(ctx, 1, config.SeriesBO3, config.TournamentStartRating, rosterTwo(), "test")
 	if err != nil {
 		t.Fatalf("create run: %v", err)
 	}

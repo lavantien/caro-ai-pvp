@@ -62,14 +62,14 @@ func NewManager(store *Store, source MatchSource) *Manager {
 func (m *Manager) StartRun(ctx context.Context, spec RunSpec, parallel int) (Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	run, tiers, err := m.conductor.startRun(ctx, m.store, spec.Roster, spec.TCIdx, spec.BOLen, spec.StartRating, parallel)
+	run, tiers, err := m.conductor.startRun(ctx, m.store, spec.Roster, spec.TCIdx, spec.BOLen, spec.StartRating, parallel, "ui")
 	if err != nil {
 		return Run{}, err
 	}
 	st := &driveState{done: make(chan struct{})}
 	m.drives[run.ID] = st
 	go func() {
-		_, err := m.conductor.drive(context.Background(), m.store, run, spec.Roster, tiers, parallel, "ui")
+		_, err := m.conductor.drive(context.Background(), m.store, run, spec.Roster, tiers, parallel)
 		// The done channel closes under the same lock the error write
 		// takes: a window with err set but done open lets OngoingRun's
 		// scan report this finished drive as the live one, and a StartRun

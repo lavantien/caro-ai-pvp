@@ -151,11 +151,11 @@ func NewConductor(source MatchSource) *Conductor {
 func (c *Conductor) Run(ctx context.Context, store *Store, roster []Participant,
 	tcIdx, boLen, startRating, parallel int, label string) (RunResult, error) {
 
-	run, tiers, err := c.startRun(ctx, store, roster, tcIdx, boLen, startRating, parallel)
+	run, tiers, err := c.startRun(ctx, store, roster, tcIdx, boLen, startRating, parallel, label)
 	if err != nil {
 		return RunResult{}, err
 	}
-	return c.drive(ctx, store, run, roster, tiers, parallel, label)
+	return c.drive(ctx, store, run, roster, tiers, parallel)
 }
 
 // startRun is the synchronous half of a run: resolve the roster tiers, refuse
@@ -165,7 +165,7 @@ func (c *Conductor) Run(ctx context.Context, store *Store, roster []Participant,
 // hand the id out for a redirect. Split from Run as the M7 service seam; the
 // conductor's behavior is unchanged.
 func (c *Conductor) startRun(ctx context.Context, store *Store, roster []Participant,
-	tcIdx, boLen, startRating, parallel int) (Run, []*config.Tier, error) {
+	tcIdx, boLen, startRating, parallel int, label string) (Run, []*config.Tier, error) {
 
 	tiers, err := tiersOfRoster(roster)
 	if err != nil {
@@ -186,7 +186,7 @@ func (c *Conductor) startRun(ctx context.Context, store *Store, roster []Partici
 	} else if held {
 		return Run{}, nil, &RunInProgressError{RunID: id}
 	}
-	run, err := store.CreateRun(ctx, tcIdx, boLen, startRating, roster)
+	run, err := store.CreateRun(ctx, tcIdx, boLen, startRating, roster, label)
 	if err != nil {
 		return Run{}, nil, err
 	}
@@ -195,13 +195,13 @@ func (c *Conductor) startRun(ctx context.Context, store *Store, roster []Partici
 
 // drive executes one already-persisted run: read back the schedule and
 // cross-check it against the pairing plan, run every pairing under the
-// semaphore, close the run, and read the final leaderboard. The label names
-// the run's own log folder. The first series error aborts the run: pending
-// pairings stop at the semaphore, live streams retire through their Close,
-// the run row stays ongoing for the post-mortem, and the error surfaces.
-// Cancelling ctx is the same abort with the context's error.
+// semaphore, close the run, and read the final leaderboard. The run's own
+// persisted label names its log folder. The first series error aborts the
+// run: pending pairings stop at the semaphore, live streams retire through
+// their Close, the run row stays ongoing for the post-mortem, and the error
+// surfaces. Cancelling ctx is the same abort with the context's error.
 func (c *Conductor) drive(ctx context.Context, store *Store, run Run, roster []Participant,
-	tiers []*config.Tier, parallel int, label string) (RunResult, error) {
+	tiers []*config.Tier, parallel int) (RunResult, error) {
 
 	schedule, err := store.Schedule(ctx, run.ID)
 	if err != nil {
@@ -221,7 +221,7 @@ func (c *Conductor) drive(ctx context.Context, store *Store, run Run, roster []P
 		}
 	}
 
-	logs := NewLogs(RunDirName(label, time.Unix(run.CreatedAt, 0)))
+	logs := NewLogs(RunDirName(run.Label, time.Unix(run.CreatedAt, 0)))
 	res := RunResult{Run: run, Series: make([]SeriesResult, len(pairs))}
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()

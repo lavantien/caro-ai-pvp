@@ -606,7 +606,7 @@ func TestConductorRefusesSecondOngoingRun(t *testing.T) {
 	pointLogsAt(t)
 	src := &fakeSource{script: easySweeps}
 	ctx := context.Background()
-	held, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, rosterTwo())
+	held, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, rosterTwo(), "test")
 	if err != nil {
 		t.Fatalf("plant ongoing run: %v", err)
 	}

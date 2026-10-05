@@ -218,6 +218,15 @@ const schemaV5 = `
 ALTER TABLE games ADD COLUMN bot_name TEXT;
 `
 
+// schemaV7 records each run's log-folder label on the run row: the resume
+// path reopens the interrupted run's own folder under
+// config.TournamentLogRoot, so the label a run was created under belongs to
+// its persisted state, not to the process that started it. Rows older than
+// the column keep the 'ui' default and are finished runs no resume may touch.
+const schemaV7 = `
+ALTER TABLE tournament_runs ADD COLUMN label TEXT NOT NULL DEFAULT 'ui';
+`
+
 // adminSeedSalt and adminSeedHash are the deterministic credential pair the
 // v6 seed writes: both derived from the config constants alone, so every
 // process derives the identical pair and a reopened database verifies
@@ -257,4 +266,4 @@ func adminSeedSQL() string {
 // startup. New versions only ever append, never edit a landed script. The
 // v6 admin seed derives its argon2id hash at this var's init: once per
 // process, never per store.
-var migrations = []string{schemaV1, schemaV2, schemaV3, schemaV4 + botSeatSeedSQL(), schemaV5, adminSeedSQL()}
+var migrations = []string{schemaV1, schemaV2, schemaV3, schemaV4 + botSeatSeedSQL(), schemaV5, adminSeedSQL(), schemaV7}
