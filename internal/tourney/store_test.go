@@ -229,6 +229,61 @@ func TestAppendGameSettlesSeriesFromGames(t *testing.T) {
 	}
 }
 
+// TestResetSeriesScrubsInterruptedSeries pins the resume unit: an interrupted
+// series holds partial games and a partial score line, and the reset deletes
+// the games and zeroes the aggregates so the replay starts from idx 0. A
+// settled series refuses (its record is the run's evidence), and so does any
+// series of a run that is no longer ongoing.
+func TestResetSeriesScrubsInterruptedSeries(t *testing.T) {
+	ts, srv := newTestStore(t)
+	ctx := context.Background()
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	schedule := mustSchedule(t, srv, run.ID)
+	first, second := schedule[0], schedule[1]
+
+	// First series: one game in, 1-0, no majority, the interrupted shape.
+	mustAppend(t, ts, gameOf(run.ID, first.ID, 0, 0, 1, server.RedWins))
+	// Second series: settled 2-0 on the majority.
+	mustAppend(t, ts, gameOf(run.ID, second.ID, 0, 1, 0, server.BlueWins))
+	mustAppend(t, ts, gameOf(run.ID, second.ID, 1, 1, 0, server.BlueWins))
+
+	if err := ts.ResetSeries(ctx, first.ID); err != nil {
+		t.Fatalf("reset interrupted series: %v", err)
+	}
+	s := mustSchedule(t, srv, run.ID)[0]
+	if s.RedFirstWins != 0 || s.BlueFirstWins != 0 || s.WinnerSlot != nil || s.FinishedAt != nil {
+		t.Errorf("series after reset = %+v, want the created state", s)
+	}
+	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_games WHERE series_id = ?`, first.ID); n != 0 {
+		t.Errorf("games after reset = %d, want 0", n)
+	}
+	// The scrubbed series replays from idx 0 exactly like a fresh one.
+	mustAppend(t, ts, gameOf(run.ID, first.ID, 0, 0, 1, server.BlueWins))
+	s = mustSchedule(t, srv, run.ID)[0]
+	if s.RedFirstWins != 0 || s.BlueFirstWins != 1 {
+		t.Errorf("series after replay game 0 = %+v, want 0-1", s)
+	}
+
+	if err := ts.ResetSeries(ctx, second.ID); err == nil ||
+		!strings.Contains(err.Error(), "settled") {
+		t.Errorf("reset settled series = %v, want the evidence refusal", err)
+	}
+	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_games WHERE series_id = ?`, second.ID); n != 2 {
+		t.Errorf("settled series games after refusal = %d, want 2 untouched", n)
+	}
+
+	if err := ts.CloseStalledRun(ctx, run.ID, 1); err != nil {
+		t.Fatalf("finish run: %v", err)
+	}
+	if err := ts.ResetSeries(ctx, first.ID); err == nil ||
+		!strings.Contains(err.Error(), "finished") {
+		t.Errorf("reset of a finished run's series = %v, want the run-status refusal", err)
+	}
+}
+
 func TestAppendGameRejects(t *testing.T) {
 	ts, srv := newTestStore(t)
 	ctx := context.Background()

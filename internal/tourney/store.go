@@ -255,6 +255,44 @@ func (t *Store) AppendGame(ctx context.Context, g Game) (Game, error) {
 	return g, nil
 }
 
+// ResetSeries scrubs one interrupted series back to its created state: the
+// partial games a dead drive left behind are deleted and the aggregates
+// zeroed, so a replay starts from idx 0 over a clean unit. AppendGame settles
+// the row from the games alone, which makes the scrub the resume path's unit
+// of idempotency: a scrubbed series replays exactly like a fresh one. A
+// settled series refuses (its record is the run's evidence), and so does a
+// series of a run that is no longer ongoing.
+func (t *Store) ResetSeries(ctx context.Context, seriesID int64) error {
+	return t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
+		var runID sql.NullInt64
+		var finished sql.NullInt64
+		var status string
+		if err := tx.QueryRowContext(ctx,
+			`SELECT s.run_id, s.finished_at, r.status
+			FROM tournament_series s JOIN tournament_runs r ON r.id = s.run_id
+			WHERE s.id = ?`, seriesID,
+		).Scan(&runID, &finished, &status); err != nil {
+			return notFound(err, fmt.Sprintf("series %d", seriesID))
+		}
+		if finished.Valid {
+			return fmt.Errorf("tourney: series %d is settled, its record is the run's evidence", seriesID)
+		}
+		if status != RunStateOngoing {
+			return fmt.Errorf("tourney: run %d is %s: no further games", runID.Int64, status)
+		}
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM tournament_games WHERE series_id = ?`, seriesID); err != nil {
+			return fmt.Errorf("tourney: scrub games of series %d: %w", seriesID, err)
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE tournament_series SET red_first_wins = 0, blue_first_wins = 0, winner_slot = NULL, finished_at = NULL
+			WHERE id = ?`, seriesID); err != nil {
+			return fmt.Errorf("tourney: reset series %d: %w", seriesID, err)
+		}
+		return nil
+	})
+}
+
 // seriesWins counts each seat's wins from the games themselves inside the
 // caller's transaction.
 func seriesWins(ctx context.Context, tx *sql.Tx, seriesID int64, redFirstSlot, blueFirstSlot int) (red, blue, total int, err error) {
