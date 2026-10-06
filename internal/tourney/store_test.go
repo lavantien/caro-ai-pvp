@@ -559,6 +559,69 @@ func TestOngoingRunIDAndCloseStalledRun(t *testing.T) {
 	}
 }
 
+// TestDriveLeaseFencesSecondDrive pins the cross-process fence: a fresh
+// claim refuses every other drive and that drive's store units, a claim
+// past the stale window is a dead drive's and free to take over, and the
+// dispossessed holder's next unit fails on the fence instead of
+// interleaving over the takeover drive's record.
+func TestDriveLeaseFencesSecondDrive(t *testing.T) {
+	ts, srv := newTestStore(t)
+	ctx := context.Background()
+	if err := ts.ClaimDrive(ctx, 999, 1); !errors.Is(err, server.ErrNotFound) {
+		t.Fatalf("claim of an unknown run = %v, want server.ErrNotFound", err)
+	}
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	sched := mustSchedule(t, srv, run.ID)
+	if err := ts.ClaimDrive(ctx, run.ID, 1000); err != nil {
+		t.Fatalf("claim: %v", err)
+	}
+	other := NewStore(srv)
+	other.fakePid = 4242 // stand in for a second process's drive
+	if err := other.ClaimDrive(ctx, run.ID, 1001); err == nil || !strings.Contains(err.Error(), "driven by pid") {
+		t.Errorf("second claim = %v, want the live-drive refusal", err)
+	}
+	if _, err := other.AppendGame(ctx, gameOf(run.ID, sched[0].ID, 0,
+		sched[0].RedFirstSlot, sched[0].BlueFirstSlot, server.RedWins)); err == nil ||
+		!strings.Contains(err.Error(), "driven by pid") {
+		t.Errorf("foreign append = %v, want the claim fence", err)
+	}
+	if err := other.ResetSeries(ctx, sched[0].ID); err == nil ||
+		!strings.Contains(err.Error(), "driven by pid") {
+		t.Errorf("foreign scrub = %v, want the claim fence", err)
+	}
+	// The holder appends under its claim and its beat keeps it alive; a
+	// foreign beat never refreshes a claim it does not hold.
+	mustAppend(t, ts, gameOf(run.ID, sched[0].ID, 0,
+		sched[0].RedFirstSlot, sched[0].BlueFirstSlot, server.RedWins))
+	if alive, err := ts.BeatDrive(ctx, run.ID, 1002); err != nil || !alive {
+		t.Errorf("holder beat = (%t, %v), want alive", alive, err)
+	}
+	if alive, err := other.BeatDrive(ctx, run.ID, 1003); err != nil || alive {
+		t.Errorf("foreign beat = (%t, %v), want not alive without an error", alive, err)
+	}
+	// The holder's claim sits past the stale window by now: the takeover
+	// proceeds and the dispossessed holder's next unit fails on the fence.
+	if err := other.ClaimDrive(ctx, run.ID, 2000); err != nil {
+		t.Fatalf("takeover over the stale claim: %v", err)
+	}
+	if _, err := ts.AppendGame(ctx, gameOf(run.ID, sched[0].ID, 1,
+		sched[0].RedFirstSlot, sched[0].BlueFirstSlot, server.RedWins)); err == nil ||
+		!strings.Contains(err.Error(), "driven by pid") {
+		t.Errorf("dispossessed append = %v, want the claim fence", err)
+	}
+	// The release drops a live claim at once: the next claim waits no
+	// stale window.
+	if err := other.ReleaseDrive(ctx, run.ID); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	if err := ts.ClaimDrive(ctx, run.ID, 2100); err != nil {
+		t.Fatalf("claim after release: %v", err)
+	}
+}
+
 func TestLeaderboardUnknownRun(t *testing.T) {
 	ts, _ := newTestStore(t)
 	if _, err := ts.Leaderboard(context.Background(), 999); !errors.Is(err, server.ErrNotFound) {

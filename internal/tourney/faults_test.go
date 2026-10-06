@@ -480,12 +480,13 @@ func TestFinishRunFaults(t *testing.T) {
 }
 
 // TestCloseStalledRunFault: the stalled close over a missing runs table
-// surfaces the wrapped update failure.
+// surfaces the wrapped read failure, the v8 lease check reads the row before
+// the update touches it.
 func TestCloseStalledRunFault(t *testing.T) {
 	ts, srv := newTestStore(t)
 	runSQL(t, srv, `DROP TABLE tournament_runs`)
-	if err := ts.CloseStalledRun(context.Background(), 1, 1); err == nil || !strings.Contains(err.Error(), "close stalled run") {
-		t.Errorf("close over a dropped runs table = %v, want the wrapped update failure", err)
+	if err := ts.CloseStalledRun(context.Background(), 1, 1); err == nil || !strings.Contains(err.Error(), "tourney: run 1") {
+		t.Errorf("close over a dropped runs table = %v, want the wrapped read failure", err)
 	}
 }
 

@@ -329,6 +329,50 @@ func TestManagerCloseStalled(t *testing.T) {
 	}
 }
 
+// TestManagerCloseStalledRefusesFreshLease pins the close-side fence across
+// processes: a fresh drive lease is a live drive somewhere else and the
+// close refuses, while a claim past the stale window is a dead drive's and
+// the close proceeds.
+func TestManagerCloseStalledRefusesFreshLease(t *testing.T) {
+	ts, _ := newTestStore(t)
+	pointLogsAt(t)
+	ctx := context.Background()
+	m := NewManager(ts, nil)
+
+	fresh, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	if err != nil {
+		t.Fatalf("create fresh-leased run: %v", err)
+	}
+	ts.fakePid = 4242 // stand in for the other process's drive
+	if err := ts.ClaimDrive(ctx, fresh.ID, time.Now().Unix()); err != nil {
+		t.Fatalf("claim fresh lease: %v", err)
+	}
+	if err := m.CloseStalled(ctx, fresh.ID); err == nil || !strings.Contains(err.Error(), "driven by pid") {
+		t.Errorf("close over a fresh lease = %v, want the live-drive refusal", err)
+	}
+	if status := runStatus(t, ts, fresh.ID); status != RunStateOngoing {
+		t.Errorf("status after the refused close = %q, want %q", status, RunStateOngoing)
+	}
+
+	// A claim stamped past the stale window is a dead drive's: the close
+	// proceeds and clears the dead claim with the row.
+	stale, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	if err != nil {
+		t.Fatalf("create stale-leased run: %v", err)
+	}
+	old := time.Now().Add(-time.Duration(config.TournamentDriveStaleSec+5) * time.Second).Unix()
+	if err := ts.ClaimDrive(ctx, stale.ID, old); err != nil {
+		t.Fatalf("claim stale lease: %v", err)
+	}
+	ts.fakePid = 0
+	if err := m.CloseStalled(ctx, stale.ID); err != nil {
+		t.Errorf("close over a stale lease = %v, want nil", err)
+	}
+	if status := runStatus(t, ts, stale.ID); status != RunStateFinished {
+		t.Errorf("status after the stale-lease close = %q, want %q", status, RunStateFinished)
+	}
+}
+
 func TestManagerDetailUnknownAndUndrivenRuns(t *testing.T) {
 	ts, _ := newTestStore(t)
 	m := NewManager(ts, &fakeSource{script: easySweeps})

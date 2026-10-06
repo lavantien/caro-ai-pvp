@@ -2,7 +2,9 @@ package server
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -159,6 +161,7 @@ func TestFailedMigrationRollsBackAndStays(t *testing.T) {
 		"CREATE TABLE never5 (v)",
 		"CREATE TABLE never6 (u)",
 		"CREATE TABLE never7 (t)",
+		"CREATE TABLE never8 (r)",
 	}
 	err = s.migrate()
 	if err == nil || !strings.Contains(err.Error(), "apply migration 1") {
@@ -247,6 +250,11 @@ func TestMigrateV1DatabaseUpgradesToV2(t *testing.T) {
 	}
 	if _, err := s.db.Exec(`ALTER TABLE tournament_runs DROP COLUMN label`); err != nil {
 		t.Fatalf("drop the v7 column: %v", err)
+	}
+	for _, col := range []string{"drive_pid", "drive_heartbeat"} {
+		if _, err := s.db.Exec(`ALTER TABLE tournament_runs DROP COLUMN ` + col); err != nil {
+			t.Fatalf("drop the v8 column %s: %v", col, err)
+		}
 	}
 	for _, idx := range []string{"idx_games_red_user", "idx_games_blue_user"} {
 		if _, err := s.db.Exec(`DROP INDEX ` + idx); err != nil {
@@ -341,6 +349,11 @@ func TestMigrateV3DatabaseUpgradesToV4(t *testing.T) {
 	if _, err := s.db.Exec(`ALTER TABLE tournament_runs DROP COLUMN label`); err != nil {
 		t.Fatalf("drop the v7 column: %v", err)
 	}
+	for _, col := range []string{"drive_pid", "drive_heartbeat"} {
+		if _, err := s.db.Exec(`ALTER TABLE tournament_runs DROP COLUMN ` + col); err != nil {
+			t.Fatalf("drop the v8 column %s: %v", col, err)
+		}
+	}
 	if _, err := s.db.Exec(`DROP TABLE game_stats`); err != nil {
 		t.Fatalf("drop game_stats: %v", err)
 	}
@@ -400,6 +413,11 @@ func TestMigrateV6DatabaseUpgradesToV7(t *testing.T) {
 	if _, err := s.db.Exec(`ALTER TABLE tournament_runs DROP COLUMN label`); err != nil {
 		t.Fatalf("drop the v7 column: %v", err)
 	}
+	for _, col := range []string{"drive_pid", "drive_heartbeat"} {
+		if _, err := s.db.Exec(`ALTER TABLE tournament_runs DROP COLUMN ` + col); err != nil {
+			t.Fatalf("drop the v8 column %s: %v", col, err)
+		}
+	}
 	if err := s.Close(); err != nil {
 		t.Fatalf("close: %v", err)
 	}
@@ -417,6 +435,72 @@ func TestMigrateV6DatabaseUpgradesToV7(t *testing.T) {
 	}
 	if label != "ui" {
 		t.Errorf("v6-era run label after upgrade = %q, want the 'ui' default", label)
+	}
+}
+
+// TestMigrateV7DatabaseUpgradesToV8 pins the v8 upgrade: the drive lease
+// columns land with empty claims, and exactly the ongoing 'ui' rows are
+// quarantined onto the reserved legacy label, the shape whose original
+// driver label was never persisted. Finished 'ui' rows and native labels
+// stay untouched.
+func TestMigrateV7DatabaseUpgradesToV8(t *testing.T) {
+	path := dbPath(t)
+	s := mustOpen(t, path)
+	seed := func(status, label string) {
+		t.Helper()
+		if _, err := s.db.Exec(
+			`INSERT INTO tournament_runs (tc_idx, bo_len, start_rating, status, label) VALUES (?, ?, ?, ?, ?)`,
+			1, 3, 1000, status, label,
+		); err != nil {
+			t.Fatalf("seed v7-era run (%s, %s): %v", status, label, err)
+		}
+	}
+	seed("ongoing", "ui")
+	seed("finished", "ui")
+	seed("ongoing", "full")
+	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 8`); err != nil {
+		t.Fatalf("roll ledger back to v7: %v", err)
+	}
+	for _, col := range []string{"drive_pid", "drive_heartbeat"} {
+		if _, err := s.db.Exec(`ALTER TABLE tournament_runs DROP COLUMN ` + col); err != nil {
+			t.Fatalf("drop the v8 column %s: %v", col, err)
+		}
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	again := mustOpen(t, path)
+	defer func() { _ = again.Close() }()
+	count, max := schemaVersionRows(t, again)
+	if count != config.SQLiteSchemaVersion || max != config.SQLiteSchemaVersion {
+		t.Errorf("after upgrade: schema_version rows = %d max = %d, want %d and %d",
+			count, max, config.SQLiteSchemaVersion, config.SQLiteSchemaVersion)
+	}
+	rows, err := again.db.Query(`SELECT status, label, drive_pid, drive_heartbeat FROM tournament_runs ORDER BY id`)
+	if err != nil {
+		t.Fatalf("read runs after upgrade: %v", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var got []string
+	for rows.Next() {
+		var status, label string
+		var pid, beat int64
+		if err := rows.Scan(&status, &label, &pid, &beat); err != nil {
+			t.Fatalf("scan run after upgrade: %v", err)
+		}
+		got = append(got, fmt.Sprintf("%s/%s/%d/%d", status, label, pid, beat))
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows after upgrade: %v", err)
+	}
+	want := []string{
+		"ongoing/" + config.TournamentLegacyLabel + "/0/0",
+		"finished/ui/0/0",
+		"ongoing/full/0/0",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("runs after upgrade = %v, want %v", got, want)
 	}
 }
 

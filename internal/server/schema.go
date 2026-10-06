@@ -227,6 +227,25 @@ const schemaV7 = `
 ALTER TABLE tournament_runs ADD COLUMN label TEXT NOT NULL DEFAULT 'ui';
 `
 
+// schemaV8 lands the drive lease on the run row and quarantines the one
+// label shape that cannot name its own folder. The lease: drive_pid and
+// drive_heartbeat (unix seconds) are claimed by the live drive and
+// re-stamped while it runs; a fresh claim refuses every other drive (a
+// resume, a second resume, a hand close) whatever process owns it, and a
+// dead process's claim goes stale on its own, so takeover needs no
+// coordinator. The label quarantine: pre-v7 runs never persisted their
+// label, so v7 stamped them all 'ui'; an ongoing row of that shape resumed
+// after upgrade would reopen a folder its original drive never wrote. v8
+// renames exactly the ongoing 'ui' rows to the reserved
+// config.TournamentLegacyLabel, which CreateRun and Resume both refuse: the
+// operator closes the run and its record stays whole instead of splitting
+// across two folders.
+const schemaV8 = `
+ALTER TABLE tournament_runs ADD COLUMN drive_pid INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE tournament_runs ADD COLUMN drive_heartbeat INTEGER NOT NULL DEFAULT 0;
+UPDATE tournament_runs SET label = '` + config.TournamentLegacyLabel + `' WHERE label = 'ui' AND status = 'ongoing';
+`
+
 // adminSeedSalt and adminSeedHash are the deterministic credential pair the
 // v6 seed writes: both derived from the config constants alone, so every
 // process derives the identical pair and a reopened database verifies
@@ -266,4 +285,4 @@ func adminSeedSQL() string {
 // startup. New versions only ever append, never edit a landed script. The
 // v6 admin seed derives its argon2id hash at this var's init: once per
 // process, never per store.
-var migrations = []string{schemaV1, schemaV2, schemaV3, schemaV4 + botSeatSeedSQL(), schemaV5, adminSeedSQL(), schemaV7}
+var migrations = []string{schemaV1, schemaV2, schemaV3, schemaV4 + botSeatSeedSQL(), schemaV5, adminSeedSQL(), schemaV7, schemaV8}

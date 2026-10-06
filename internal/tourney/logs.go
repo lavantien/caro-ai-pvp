@@ -65,6 +65,12 @@ func (g *Logs) WriteRunSummary(run Run, roster []Participant, board []Standings)
 			st.Wins, st.Losses, st.Draws, st.GamesPlayed)
 	}
 	path := filepath.Join(g.dir, config.TournamentSummaryName)
+	// The folder exists for any dispatched series, but the all-settled
+	// resume dispatches nothing: the summary is that close's only artifact,
+	// so it creates the folder itself.
+	if err := os.MkdirAll(g.dir, 0o755); err != nil {
+		return fmt.Errorf("tourney: create run folder %s: %w", g.dir, err)
+	}
 	if err := os.WriteFile(path, []byte(sb.String()), 0o644); err != nil {
 		return fmt.Errorf("tourney: write run summary %s: %w", path, err)
 	}

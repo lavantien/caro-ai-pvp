@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
@@ -159,5 +160,68 @@ func TestConductorResumeRefusals(t *testing.T) {
 	}
 	if _, err := c.Resume(ctx, ts, first.ID, 1); err != nil {
 		t.Errorf("resume of the gate-holding run itself = %v, want it legal", err)
+	}
+	// The refused younger run holds the gate from here on: close it so the
+	// lease case below resumes its own holder, not the gate loser.
+	if err := ts.CloseStalledRun(ctx, second.ID, 2); err != nil {
+		t.Fatalf("close the gate loser: %v", err)
+	}
+
+	// A fresh drive lease is a live drive in another process: the resume
+	// refuses before dispatching anything, whatever the gate says.
+	live, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	if err != nil {
+		t.Fatalf("create leased run: %v", err)
+	}
+	if err := ts.ClaimDrive(ctx, live.ID, time.Now().Unix()); err != nil {
+		t.Fatalf("claim the leased run: %v", err)
+	}
+	if _, err := c.Resume(ctx, ts, live.ID, 1); err == nil ||
+		!strings.Contains(err.Error(), "driven by pid") {
+		t.Errorf("resume over a live lease = %v, want the live-drive refusal", err)
+	}
+}
+
+// TestResumeAllSettledAbsentFolder pins the zero-dispatch close: every
+// series already settled (a kill between the last settle and the finish)
+// and the log folder never created. The resume dispatches nothing, finishes
+// the run, and writes the one summary into the folder it creates itself,
+// where the old order stranded a finished run without its summary.
+func TestResumeAllSettledAbsentFolder(t *testing.T) {
+	ts, srv := newTestStore(t)
+	logDir := pointLogsAt(t)
+	ctx := context.Background()
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	for _, s := range mustSchedule(t, srv, run.ID) {
+		mustAppend(t, ts, gameOf(run.ID, s.ID, 0, s.RedFirstSlot, s.BlueFirstSlot, server.RedWins))
+		mustAppend(t, ts, gameOf(run.ID, s.ID, 1, s.RedFirstSlot, s.BlueFirstSlot, server.RedWins))
+	}
+
+	// Any series start is a defect here: the whole schedule is evidence.
+	boom := &fakeSource{onStart: func(*fakeStream) error {
+		return errors.New("no series may start: the schedule is settled")
+	}}
+	res, err := NewConductor(boom).Resume(ctx, ts, run.ID, 1)
+	if err != nil {
+		t.Fatalf("resume: %v", err)
+	}
+	if status := runStatus(t, ts, run.ID); status != RunStateFinished {
+		t.Errorf("status after resume = %q, want %q", status, RunStateFinished)
+	}
+	for i, line := range res.Series {
+		if line.WinnerSlot == nil || *line.WinnerSlot != line.RedFirst.Slot ||
+			line.RedFirstWins != 2 || line.BlueFirstWins != 0 {
+			t.Errorf("series %d line = %+v, want the persisted 2-0 sweep of the red-first seat", i, line)
+		}
+	}
+	summaries, err := filepath.Glob(filepath.Join(logDir, "*", config.TournamentSummaryName))
+	if err != nil {
+		t.Fatalf("glob summaries: %v", err)
+	}
+	if len(summaries) != 1 {
+		t.Fatalf("summaries = %v, want exactly one in the run's own recreated folder", summaries)
 	}
 }

@@ -241,6 +241,18 @@ func TestTournamentConstants(t *testing.T) {
 	if name != "run7_s3_hard-1-vs-easy-2.txt" {
 		t.Errorf("TournamentSeriesLogFormat renders %q", name)
 	}
+	// The drive lease's stale window must sit far above its beat so a
+	// loaded machine's skipped ticks never read as a dead drive, and the
+	// legacy quarantine label must never collide with a driver label.
+	if TournamentDriveBeatSec < 1 {
+		t.Errorf("TournamentDriveBeatSec = %d, want at least 1", TournamentDriveBeatSec)
+	}
+	if TournamentDriveStaleSec < 3*TournamentDriveBeatSec {
+		t.Errorf("TournamentDriveStaleSec = %d, want at least 3 beats (%d)", TournamentDriveStaleSec, 3*TournamentDriveBeatSec)
+	}
+	if TournamentLegacyLabel == "" || TournamentLegacyLabel == "ui" {
+		t.Errorf("TournamentLegacyLabel = %q, want a non-empty label no driver passes", TournamentLegacyLabel)
+	}
 }
 
 func TestDefaultRosterMatchesScenario2(t *testing.T) {
@@ -501,8 +513,8 @@ func TestServerConstants(t *testing.T) {
 	if len(AdminName) > UsernameMaxBytes {
 		t.Errorf("AdminName %d bytes over the UsernameMaxBytes ceiling %d", len(AdminName), UsernameMaxBytes)
 	}
-	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 7 {
-		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 7]: raise the ceiling with the next migration", SQLiteSchemaVersion)
+	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 8 {
+		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 8]: raise the ceiling with the next migration", SQLiteSchemaVersion)
 	}
 	if SQLiteBusyTimeoutMs < 1000 || SQLiteBusyTimeoutMs > 60000 {
 		t.Errorf("SQLiteBusyTimeoutMs = %d, want in [1000, 60000]", SQLiteBusyTimeoutMs)

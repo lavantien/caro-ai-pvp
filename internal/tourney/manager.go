@@ -180,6 +180,13 @@ func (m *Manager) OngoingRun(ctx context.Context) (Detail, bool, error) {
 	if err != nil {
 		return Detail{}, false, err
 	}
+	// The row outranks the drive map: between the drive's FinishRun commit
+	// and its goroutine closing done, the map still lists the drive while
+	// the run is already finished. A finished run is not ongoing, whatever
+	// the map says, so the banner drops it the poll the row flips.
+	if run.Status != RunStateOngoing {
+		return Detail{}, false, nil
+	}
 	series, err := m.store.SeriesAll(ctx, ongoing)
 	if err != nil {
 		return Detail{}, false, err

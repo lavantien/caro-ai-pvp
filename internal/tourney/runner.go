@@ -157,6 +157,9 @@ func (c *Conductor) Resume(ctx context.Context, store *Store, runID int64, paral
 	if run.Status != RunStateOngoing {
 		return RunResult{}, fmt.Errorf("tourney: run %d is already %s", runID, run.Status)
 	}
+	if run.Label == config.TournamentLegacyLabel {
+		return RunResult{}, fmt.Errorf("tourney: run %d predates persisted labels, its log folder is unknowable: close it and start a fresh run", runID)
+	}
 	if id, held, err := store.OngoingRunID(ctx); err != nil {
 		return RunResult{}, err
 	} else if held && id != runID {
@@ -229,10 +232,12 @@ func (c *Conductor) startRun(ctx context.Context, store *Store, roster []Partici
 }
 
 // drive executes one already-persisted run: read back the schedule and
-// cross-check it against the pairing plan, run every pairing under the
-// semaphore, close the run, and read the final leaderboard. The run's own
-// persisted label names its log folder. Settled series (an earlier drive's
-// record, the resume shape) reconstruct their line from the row and never
+// cross-check it against the pairing plan, claim the run's drive lease,
+// run every pairing under the semaphore, then close out leaderboard-first
+// and summary-first so every crash window in the close is idempotent. The
+// run's own persisted label names its log folder. Settled series (an
+// earlier drive's record, the resume shape) reconstruct their line from
+// the row and never
 // replay; every unsettled row is scrubbed to its created state first, so an
 // interrupted series replays from idx 0 while a fresh run's bare rows make
 // the scrub a no-op. The first series error aborts the run: pending pairings
@@ -261,6 +266,24 @@ func (c *Conductor) drive(ctx context.Context, store *Store, run Run, roster []P
 	}
 
 	logs := NewLogs(RunDirName(run.Label, time.Unix(run.CreatedAt, 0)))
+	// The drive lease, claimed before any mutation: one live drive per run
+	// across processes. A fresh claim refuses every other drive and a dead
+	// process's claim has gone stale, so a takeover (this resume) proceeds;
+	// the scrub below and every append ride the claim from here on.
+	if err := store.ClaimDrive(ctx, run.ID, time.Now().Unix()); err != nil {
+		return RunResult{}, err
+	}
+	finished := false
+	defer func() {
+		if !finished {
+			// The drive ends without finishing the run (an abort or a
+			// close-out fault): drop the claim so the next resume does not
+			// wait out the stale window. The release rides a background
+			// context because the abort shapes cancel the caller's, and a
+			// failed release only costs the stale window, never correctness.
+			_ = store.ReleaseDrive(context.Background(), run.ID)
+		}
+	}()
 	res := RunResult{Run: run, Series: make([]SeriesResult, len(pairs))}
 	for slot := range pairs {
 		line := SeriesResult{
@@ -294,6 +317,36 @@ func (c *Conductor) drive(ctx context.Context, store *Store, run Run, roster []P
 	var wg sync.WaitGroup
 	var once sync.Once
 	var failure error
+	// The lease heartbeat: re-stamp the claim every beat so resumes and
+	// closes keep refusing it. A beat error is a lost lease and fails the
+	// run through the same once/cancel path a series failure rides; a beat
+	// that finds the claim gone (the run finishing underneath) just stops.
+	// The beater joins through beaterDone before failure is read, so its
+	// write is ordered against the switch below like any series goroutine's.
+	beat := time.NewTicker(time.Duration(config.TournamentDriveBeatSec) * time.Second)
+	defer beat.Stop()
+	beaterDone := make(chan struct{})
+	go func() {
+		defer close(beaterDone)
+		for {
+			select {
+			case <-beat.C:
+				alive, berr := store.BeatDrive(context.Background(), run.ID, time.Now().Unix())
+				if berr != nil {
+					once.Do(func() {
+						failure = fmt.Errorf("tourney: run %d lost its drive lease: %w", run.ID, berr)
+						cancel()
+					})
+					return
+				}
+				if !alive {
+					return
+				}
+			case <-runCtx.Done():
+				return
+			}
+		}
+	}()
 dispatch:
 	for slot := range pairs {
 		if schedule[slot].FinishedAt != nil {
@@ -328,6 +381,11 @@ dispatch:
 		}(slot)
 	}
 	wg.Wait()
+	// Join the beater before reading failure: cancel after the series drain
+	// ends its select, and its own lost-lease exit is a plain return. The
+	// deferred cancel stays as the idempotent safety net.
+	cancel()
+	<-beaterDone
 	closeErr := logs.Close()
 	switch {
 	case failure != nil:
@@ -337,16 +395,21 @@ dispatch:
 	case closeErr != nil:
 		return res, closeErr
 	}
-	if err := store.FinishRun(ctx, run.ID, time.Now().Unix()); err != nil {
-		return res, fmt.Errorf("tourney: finish run %d: %w", run.ID, err)
-	}
 	res.Board, err = store.Leaderboard(ctx, run.ID)
 	if err != nil {
 		return res, err
 	}
+	// The summary lands before the row flips: a crash anywhere in the close
+	// leaves an ongoing row whose every series is settled, and the resume's
+	// zero-dispatch path rewrites the same summary and finishes, so no crash
+	// window can strand a finished run without its summary.
 	if serr := logs.WriteRunSummary(run, roster, res.Board); serr != nil {
 		return res, serr
 	}
+	if err := store.FinishRun(ctx, run.ID, time.Now().Unix()); err != nil {
+		return res, fmt.Errorf("tourney: finish run %d: %w", run.ID, err)
+	}
+	finished = true
 	return res, nil
 }
 

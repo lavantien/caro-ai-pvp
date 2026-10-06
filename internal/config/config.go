@@ -151,6 +151,21 @@ const (
 	// folder: the final rating table with every participant's series and
 	// game record.
 	TournamentSummaryName = "summary.txt"
+	// TournamentDriveBeatSec and TournamentDriveStaleSec are the drive
+	// lease's heartbeat interval and freshness window: the live drive
+	// re-stamps its claim on the run row every beat, a claim whose last beat
+	// sits inside the stale window refuses every other drive, and one older
+	// than it is a dead process's claim, free to take over. The window sits
+	// far above the beat so a loaded machine's skipped ticks never read as a
+	// dead drive. The lease columns live on the run row (schema v8).
+	TournamentDriveBeatSec  = 10
+	TournamentDriveStaleSec = 90
+	// TournamentLegacyLabel is the reserved label of pre-v7 runs whose
+	// original driver label was never persisted: the v8 migration stamps it
+	// on the ongoing rows v7 had defaulted to 'ui', and CreateRun and Resume
+	// both refuse it, so the one shape that cannot name its own log folder
+	// closes loudly instead of splitting its evidence across two.
+	TournamentLegacyLabel = "legacy"
 )
 
 // TournamentLogRoot is the root directory holding one folder per
@@ -402,7 +417,7 @@ const (
 
 	// SQLiteSchemaVersion is the number of landed migration scripts; the
 	// server package enforces the equality at startup.
-	SQLiteSchemaVersion = 7
+	SQLiteSchemaVersion = 8
 	SQLiteBusyTimeoutMs = 5000
 	SQLiteJournalWAL    = "wal"
 	SQLiteSyncNormal    = "normal"

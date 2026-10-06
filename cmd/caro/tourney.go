@@ -183,13 +183,14 @@ func runTourneyClose(idArg string, dbPath string) int {
 	}
 	closeErr := tourney.NewManager(tourney.NewStore(store), nil).
 		CloseStalled(context.Background(), id)
-	cerr := store.Close()
 	if closeErr != nil {
 		fmt.Fprintln(os.Stderr, "caro:", closeErr)
+		_ = store.Close()
 		return 1
 	}
-	if cerr != nil {
+	if cerr := store.Close(); cerr != nil {
 		fmt.Fprintln(os.Stderr, "caro:", cerr)
+		return 1
 	}
 	fmt.Printf("run %d closed\n", id)
 	return 0
