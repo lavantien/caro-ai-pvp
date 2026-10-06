@@ -44,8 +44,10 @@ func TestConductorEndToEndEasyTiers(t *testing.T) {
 	base := runtime.NumGoroutine()
 
 	// A generous ceiling so a stuck engine fails the test instead of the
-	// suite hanging.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	// suite hanging: shared CI runners under -race need well past the 10m
+	// go test default for a healthy run, so this sits at 20m under the
+	// Makefile's 25m binary timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 	start := time.Now()
 	res, err := NewConductor(RoomSource{RM: rm}).Run(ctx, ts, roster,

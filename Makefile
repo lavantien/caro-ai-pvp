@@ -2,6 +2,12 @@ BINARY := bin/caro$(shell CGO_ENABLED=1 go env GOEXE)
 LOGSTATS_BIN := bin/logstats$(shell CGO_ENABLED=1 go env GOEXE)
 COVERPROFILE := coverage.out
 
+# The real-engine e2e in internal/tourney is wall-clock bound and a healthy
+# run can exceed go test's 10m default under -race on shared CI runners, so
+# every suite entry point carries one explicit ceiling: slow-but-healthy runs
+# finish, a stuck engine still trips it.
+GO_TEST_TIMEOUT := 25m
+
 MERMAID_CLI_VERSION := 12.0.0
 PUPPETEER_VERSION := 25.12.0
 DIAGRAMS_DIR := docs/diagrams
@@ -43,16 +49,16 @@ build:
 	CGO_ENABLED=1 go build -o $(BINARY) ./cmd/caro
 
 test:
-	CGO_ENABLED=1 go test ./...
+	CGO_ENABLED=1 go test -timeout $(GO_TEST_TIMEOUT) ./...
 
 test-race:
-	CGO_ENABLED=1 go test -race ./...
+	CGO_ENABLED=1 go test -race -timeout $(GO_TEST_TIMEOUT) ./...
 
 # test-pkg PKG=./internal/tourney [ARGS="-run TestX -count=1"]: one package's
 # tests under the race detector, the same mode test-race runs the tree in,
 # scoped for the fix loop before a full-tree pass.
 test-pkg:
-	CGO_ENABLED=1 go test -race $(ARGS) $(PKG)
+	CGO_ENABLED=1 go test -race -timeout $(GO_TEST_TIMEOUT) $(ARGS) $(PKG)
 
 cover:
 	CGO_ENABLED=1 go test -coverprofile=$(COVERPROFILE) -covermode=atomic ./...
