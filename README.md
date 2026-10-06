@@ -13,6 +13,7 @@ Mobile-first web arena for a custom 16x16 caro variant: exact continuous five wi
 5. [diagrams](#diagrams)
 6. [implemented design](#implemented-design)
 7. [status](#status)
+8. [roadmap v0.21 to v0.30](#roadmap-v021-to-v030)
 
 ## grounding
 
@@ -168,3 +169,17 @@ Tournaments run bot-versus-bot on the exact room surface human matches use: each
 - v0.18 (fast-clock calibration, round 1): the floor-grant gate (db2eb1c, adversarially hardened: pinned constant, quantum-clearing at-gate slice, boundary and grant-less deadline tests) reran the 1+0 smoke with zero starved moves against the first run's 489. hard-2 first at 1296 and the cross-tier hard-versus-medium record even at 7-7, but hard-1 still under both mediums, so the within-tier gap and the parity question stay open.
 - v0.19 (corrected-clock full gate, fixed wiring): the 2+1 full rerun settled 30 series and 66 games with an exact zero-sum, a clean parse ledger, and zero cross-tier inversions: hard-2 1199, hard-1 1169, medium-1 and medium-2 at 1138, easies below. The spec's inversion check passes on corrected clocks, and hard-1 taking its mutual meet from hard-2 reads the 1+0 hard-1 gap as fast-clock variance. The remaining pre-v0.20 work is the inversion research program (capability perturbation matrix, self-play noise floor, red-first measurement) and the engine mutation re-gate.
 - v0.20: reserved for the final issueless finished MVP; the tag is cut only there.
+
+## roadmap v0.21 to v0.30
+
+The post-MVP waves, committed after the v0.20 gate closes. Every tier change rides the research law the inversion program established: capability perturbation in the arena, self-play noise floors, and a ladder re-gate before any strength-bearing constant ships.
+
+Time control: 10+5 joins 1+0, 2+1, and 3+2. The time manager gains a fourth tuned gain set and the fast-clock calibration findings carry over: the floor grant and the solver floor gate must hold at the larger budgets too.
+
+Master tier: a fourth difficulty above hard at 8 threads, a 2 GiB table, full VCF plus VCT, an opening book over the first 16 plies, and pondering on the opponent's time. The book needs a computable definition of optimal before it can claim one: entries backed by solver proofs or deep self-play agreement, built offline in playground with the artifact committed, never a hand-curated list. The arena's phase A measurement (40 of 40 red wins between identical 1+0 engines) is the case for the book: at fast clocks the opening decides the game. Pondering predicts the opponent's reply from the PV, searches that continuation while the opponent thinks, adopts the tree on a hit and re-searches from scratch on a miss, with the shared table keeping even misses warm; book replies land instantly, so they buy the widest ponder windows. Ponder budgets are machine time under an external stop, never the seat's own clock.
+
+Tier resource re-scale: hard to 1 GiB (4 threads), medium to 256 MiB (2 threads), easy gains a 32 MiB table on its single thread, restoring the founding spec's sizes and extending them. Easy leaving the no-table plain-engine design is a tier identity change, so the ladder re-gate covers it explicitly: easy must stay under medium with the table it gains. The sizing evidence is measured, not assumed: at 3+2 the median hard move already wraps the current 128 MiB table 1.5x and the p95 move 4x while the table hit rate stays flat at 13-16% across every oversubscription ratio, so the arena's tt-perturbation round (hard at 128 MiB vs 256 MiB vs 512 MiB vs 1 GiB) runs at 10+5-scale budgets before the resize ships.
+
+Concurrency and memory: master's 8 threads are the whole machine, and pondering holds them through the opponent's turn, so master-versus-master play wants 16 workers on 8 cores continuously. The conductor's admission control becomes seat-aware (rounds holding a master run at reduced parallelism, a global thread budget across rooms and ponder lanes), and the tournament's worst-case table footprint at the new sizes reaches the RAM/4 machine cap, which the same admission controller must hold.
+
+UI/UX overhaul: the mobile-first dark surface gets a full design pass once the engine work above it is final, so the v0.20 screenshots and flows are re-captured against finished behavior, not a moving target.
