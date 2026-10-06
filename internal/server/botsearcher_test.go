@@ -205,7 +205,12 @@ func TestBotEasyTierRealEngineAnswersLegally(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
 	r.mu.Lock()
-	r.budgetCap = 5 * time.Millisecond
+	// The cap must clear the clock-quantum zone: a grant under one
+	// SearchClockQuantumMs tick can die before its first iteration
+	// completes on a loaded race runner, and the designed answer then
+	// carries zero nodes. Twelve quanta keep the same speed while
+	// guaranteeing a funded iteration.
+	r.budgetCap = time.Duration(12*config.SearchClockQuantumMs) * time.Millisecond
 	r.mu.Unlock()
 
 	if err := r.Ready(alice.ID); err != nil {
