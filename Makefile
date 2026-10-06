@@ -203,3 +203,14 @@ ci: fmt-check lint vet build test-race cover
 logstats:
 	CGO_ENABLED=1 go -C playground/logstats build -o ../../$(LOGSTATS_BIN) .
 	$(LOGSTATS_BIN) $(ARGS)
+
+# db-checkpoint folds every db/*.db write-ahead log into its main file and
+# truncates the sidecars. SQLite folds the log only on a clean close, so a
+# db left behind by a killed process commits as a stub main plus an ignored
+# -wal sidecar holding the real data; this makes the tree committable as one
+# honest file per database. Fails if any log is held busy by a live writer.
+# The tool lives in its own nested module like logstats (see above).
+.PHONY: db-checkpoint
+db-checkpoint:
+	CGO_ENABLED=1 go -C playground/walckpt build -o ../../bin/walckpt.exe .
+	bin/walckpt.exe db
