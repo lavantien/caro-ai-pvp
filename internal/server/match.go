@@ -520,7 +520,9 @@ func (s tierSearcher) Close() { s.smp.Close() }
 // every VCF win is a VCT win), VCT's three-and-four superset second. A
 // proven forced win ends the move on the solver's line with the matching
 // tag; a miss hands the unspent remainder of the grant to the inner
-// searcher, whose line carries no tag.
+// searcher, whose line carries no tag. The remainder can never reach
+// zero: each pass draws on what remains, so the inner search keeps at
+// least (1-SolverBudgetShare)^2 of the grant.
 type solverSearcher struct {
 	inner searcher
 	vcf   *vcf.Solver
@@ -545,7 +547,13 @@ func (s *solverSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move,
 		}
 		var share engine.Deadline
 		if hasGrant {
-			share = engine.NewFixedBudget(time.Duration(config.SolverBudgetShare * float64(grant)))
+			// Each pass draws on what remains at its start, not on the
+			// original grant: two passes at half the grant each could
+			// consume it whole and hand the inner searcher an expired
+			// deadline, whose soft stop then answers with the fallback
+			// candidate at zero nodes. Compounding keeps the untagged
+			// search at least (1-share)^2 of the grant.
+			share = engine.NewFixedBudget(time.Duration(config.SolverBudgetShare * float64(grant-time.Since(start))))
 		}
 		var out vcf.SolverStats
 		if pass.solver.Solve(b, config.SolverNodeBudget, share, &out) {
