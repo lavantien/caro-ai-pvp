@@ -4,7 +4,8 @@ dist/
 *.db-wal
 *.db-shm
 !docs/evidence/**/*.db
-/db/
+/db/*
+!/db/*.db
 /logs/*
 !/logs/tourny/
 coverage.out

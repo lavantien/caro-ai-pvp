@@ -1,0 +1,11 @@
+run 1
+tc 1+0 bo3 start rating 1000
+finished 20261005-155258
+
+rank	participant	tier	rating	series	wins	losses	draws	games
+1	hard-1	hard	1206	8	17	8	2	27
+2	hard-2	hard	1206	7	15	6	4	25
+3	medium-2	medium	1135	7	16	10	0	26
+4	medium-1	medium	938	5	12	13	1	26
+5	easy-1	easy	792	2	6	17	0	23
+6	easy-2	easy	723	1	7	19	1	27
