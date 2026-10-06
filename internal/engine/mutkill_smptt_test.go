@@ -272,7 +272,14 @@ func TestSMPKillSelectionTieBreaksByArrival(t *testing.T) {
 		warmAndPark(t, s, b)
 		mv, stats := s.Search(b, NewFixedBudget(500*time.Millisecond))
 		r0, r1 := &s.results[0], &s.results[1]
+		// A starved worker can burn its whole fixed budget without one
+		// completed iteration on a loaded machine, so the completions
+		// premise rides the same rerun as the tie below: a broken poison
+		// setup never meets it in any attempt.
 		if r0.completed != config.SearchMaxPly || r1.completed != config.SearchMaxPly {
+			if attempt < 5 {
+				continue
+			}
 			t.Fatalf("setup: completions %d and %d, want both %d", r0.completed, r1.completed, config.SearchMaxPly)
 		}
 		if r0.seq >= r1.seq {
@@ -302,7 +309,14 @@ func TestSMPKillArrivalCounterStrictlyIncreases(t *testing.T) {
 		warmAndPark(t, s, b)
 		mv, stats := s.Search(b, NewFixedBudget(500*time.Millisecond))
 		r0, r1 := &s.results[0], &s.results[1]
+		// A starved worker can burn its whole fixed budget without one
+		// completed iteration on a loaded machine, so the completions
+		// premise rides the same rerun as the tie below: a broken poison
+		// setup never meets it in any attempt.
 		if r0.completed != config.SearchMaxPly || r1.completed != config.SearchMaxPly {
+			if attempt < 5 {
+				continue
+			}
 			t.Fatalf("setup: completions %d and %d, want both %d", r0.completed, r1.completed, config.SearchMaxPly)
 		}
 		if r1.seq >= r0.seq {
