@@ -44,6 +44,13 @@ type stone = struct {
 func r(row, col int) stone { return stone{row, col, true} }
 func x(row, col int) stone { return stone{row, col, false} }
 
+// hardWiredSingleCore is the hard tier's solver wiring over the plain
+// single-threaded engine. The wiring under test is core-agnostic, and the
+// nodes assertions below are deterministic only without the 4-worker
+// pool: a shared runner can stall the whole grant away before the pool's
+// depth 1 commits, which the tag runs caught as red-on-green flakes.
+var hardWiredSingleCore = config.Tier{Name: "hard-wired", Cores: 1, VCF: true, VCT: true}
+
 // openFourBoard gives red the open four J9-M9 with both completions free.
 func openFourBoard(t testing.TB) *rules.Board {
 	return anchorBoard(t, rules.Red, r(0, 1), r(0, 2), r(0, 3), r(0, 4))
@@ -133,7 +140,7 @@ func TestSolverWiringEasyHasNoSolvers(t *testing.T) {
 
 func TestSolverWiringMissKeepsSearchBudget(t *testing.T) {
 	b := quietBoard(t)
-	s := newBotSearcher(config.TierHard)
+	s := newBotSearcher(hardWiredSingleCore)
 	mv, st, tag := s.Search(b, engine.NewFixedBudget(500*time.Millisecond))
 	s.Close()
 	if tag != "" {
@@ -190,7 +197,7 @@ func TestSolverWiringFloorGrantSkipsPasses(t *testing.T) {
 func TestSolverWiringSkipFundsTheSearch(t *testing.T) {
 	b := quietBoard(t)
 	grant := time.Duration(config.SolverMinGrantMs-10) * time.Millisecond
-	s := newBotSearcher(config.TierHard)
+	s := newBotSearcher(hardWiredSingleCore)
 	mv, st, tag := s.Search(b, engine.NewFixedBudget(grant))
 	s.Close()
 	if tag != "" {
