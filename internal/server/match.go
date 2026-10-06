@@ -522,7 +522,9 @@ func (s tierSearcher) Close() { s.smp.Close() }
 // tag; a miss hands the unspent remainder of the grant to the inner
 // searcher, whose line carries no tag. The remainder can never reach
 // zero: each pass draws on what remains, so the inner search keeps at
-// least (1-SolverBudgetShare)^2 of the grant.
+// least (1-SolverBudgetShare)^2 of the grant, and a grant under
+// SolverMinGrantMs skips the passes whole so a move floor funds the
+// search instead of two compounding slices of nothing.
 type solverSearcher struct {
 	inner searcher
 	vcf   *vcf.Solver
@@ -538,10 +540,16 @@ func (s *solverSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move,
 		grant = bg.Budget()
 		hasGrant = true
 	}
-	for _, pass := range []struct {
+	// The floor-zone gate: a drained clock's grant cannot fund both the
+	// passes and a real search, so it funds only the search.
+	passes := []struct {
 		solver *vcf.Solver
 		tag    string
-	}{{s.vcf, config.BotLogTagVCF}, {s.vct, config.BotLogTagVCT}} {
+	}{{s.vcf, config.BotLogTagVCF}, {s.vct, config.BotLogTagVCT}}
+	if hasGrant && grant < config.SolverMinGrantMs*time.Millisecond {
+		passes = nil
+	}
+	for _, pass := range passes {
 		if pass.solver == nil {
 			continue
 		}

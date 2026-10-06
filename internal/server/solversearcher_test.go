@@ -149,3 +149,91 @@ func TestSolverWiringMissKeepsSearchBudget(t *testing.T) {
 		t.Fatal("quiet search reported no nodes, want the inner engine to have run")
 	}
 }
+
+// neverDeadline is a Deadline with no Budget method: the wiring must treat
+// it as grant-less and still run the passes, the path every caller that is
+// not the room's FixedBudget takes.
+type neverDeadline struct{}
+
+func (neverDeadline) Exceeded() bool { return false }
+func (neverDeadline) Stop()          {}
+
+// The floor-zone gate of the corrected-clock 1+0 smoke: a drained clock
+// grants its SearchMinMoveTimeMs floor, where two compounding solver shares
+// left hard's inner search a 2.5ms slice that finished no iteration, 497
+// zero-node moves in the run, while medium's single 5ms slice starved only
+// a tenth of its floor moves. At the floor itself the passes must not run:
+// the provable open four falls to the untagged inner search holding the
+// whole grant. Nodes stay unasserted here on purpose: the same smoke shows
+// a plain 10ms grant occasionally completing no iteration (3 zero-node
+// moves on easy seats that have no solvers), a floor-versus-quantum
+// residual of the time manager, not of this gate.
+func TestSolverWiringFloorGrantSkipsPasses(t *testing.T) {
+	b := openFourBoard(t)
+	grant := time.Duration(config.SearchMinMoveTimeMs) * time.Millisecond
+	s := newBotSearcher(config.TierHard)
+	mv, st, tag := s.Search(b, engine.NewFixedBudget(grant))
+	s.Close()
+	if tag != "" {
+		t.Fatalf("floor grant tag = %q, want the passes skipped and the untagged search", tag)
+	}
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("floor move %v illegal", mv)
+	}
+	if st.AllocNs != int64(grant) {
+		t.Fatalf("floor alloc = %d, want the whole grant billed", st.AllocNs)
+	}
+}
+
+// A grant just under the gate skips the passes and the whole grant must
+// fund a real search: the skip path leaves an engine that actually ran.
+func TestSolverWiringSkipFundsTheSearch(t *testing.T) {
+	b := quietBoard(t)
+	grant := time.Duration(config.SolverMinGrantMs-10) * time.Millisecond
+	s := newBotSearcher(config.TierHard)
+	mv, st, tag := s.Search(b, engine.NewFixedBudget(grant))
+	s.Close()
+	if tag != "" {
+		t.Fatalf("skip grant tag = %q, want the untagged search", tag)
+	}
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("skip move %v illegal", mv)
+	}
+	if st.AllocNs != int64(grant) {
+		t.Fatalf("skip alloc = %d, want the whole grant billed", st.AllocNs)
+	}
+	if st.Nodes == 0 {
+		t.Fatal("skip search reported no nodes, want the full grant to fund the inner engine")
+	}
+}
+
+// The gate's boundary sits at exactly SolverMinGrantMs: the passes still
+// run there, proving the forced win on the solver's own tagged line.
+func TestSolverWiringGateKeepsRealGrants(t *testing.T) {
+	b := openFourBoard(t)
+	grant := time.Duration(config.SolverMinGrantMs) * time.Millisecond
+	s := newBotSearcher(config.TierHard)
+	mv, _, tag := s.Search(b, engine.NewFixedBudget(grant))
+	s.Close()
+	if tag != config.BotLogTagVCF {
+		t.Fatalf("grant at the gate tag = %q, want %q from the solver pass", tag, config.BotLogTagVCF)
+	}
+	if mv != rules.Move(mustCellT(t, "I9")) && mv != rules.Move(mustCellT(t, "N9")) {
+		t.Fatalf("grant at the gate move %v, want a completion of J9-M9", cellName(rules.Cell(mv)))
+	}
+}
+
+// A deadline without a budget keeps the passes running under a nil share,
+// the grant-less path of the wiring.
+func TestSolverWiringGrantlessDeadlineRunsPasses(t *testing.T) {
+	b := openFourBoard(t)
+	s := newBotSearcher(config.TierHard)
+	mv, _, tag := s.Search(b, neverDeadline{})
+	s.Close()
+	if tag != config.BotLogTagVCF {
+		t.Fatalf("grantless tag = %q, want %q from the solver pass", tag, config.BotLogTagVCF)
+	}
+	if mv != rules.Move(mustCellT(t, "I9")) && mv != rules.Move(mustCellT(t, "N9")) {
+		t.Fatalf("grantless move %v, want a completion of J9-M9", cellName(rules.Cell(mv)))
+	}
+}

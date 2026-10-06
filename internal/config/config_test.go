@@ -91,6 +91,13 @@ func TestClockLawConstants(t *testing.T) {
 	if SolverNodeBudget <= 0 {
 		t.Errorf("SolverNodeBudget = %d, must be positive", SolverNodeBudget)
 	}
+	if SolverMinGrantMs != 80 {
+		t.Errorf("SolverMinGrantMs = %d, want 80, the gate whose at-gate inner slice clears one clock quantum with margin", SolverMinGrantMs)
+	}
+	innerSlice := (1 - SolverBudgetShare) * (1 - SolverBudgetShare) * float64(SolverMinGrantMs)
+	if innerSlice < float64(SearchClockQuantumMs) {
+		t.Errorf("at-gate inner slice %.1fms must clear one clock quantum %d so the smallest funded search keeps soft-stop protection", innerSlice, SearchClockQuantumMs)
+	}
 	if SearchClockQuantumMs < 15 || SearchClockQuantumMs > 17 {
 		t.Errorf("SearchClockQuantumMs = %d, want the 64 Hz Windows tick ceiling 16", SearchClockQuantumMs)
 	}

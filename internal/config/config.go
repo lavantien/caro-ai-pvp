@@ -387,6 +387,17 @@ const (
 	// searcher may burn on its solver passes before the standard search
 	// takes the rest: a miss must still fund a real search.
 	SolverBudgetShare = 0.5
+	// SolverMinGrantMs is the smallest grant the solver passes may draw
+	// on. Below it they skip and the standard search holds the whole
+	// grant: on a drained clock's 10ms move floor, two compounding
+	// shares left hard's inner search a 2.5ms slice that finished no
+	// iteration, 497 zero-node moves in the corrected-clock 1+0 smoke,
+	// while medium's single 5ms slice starved only a tenth of its floor
+	// moves. The value sits where the at-gate inner slice
+	// (1-SolverBudgetShare)^2 * gate clears one clock quantum, so the
+	// soft stop's zero-reading law protects the smallest slice the
+	// passes still leave behind.
+	SolverMinGrantMs = 80
 )
 
 // Server constants, all consumed by internal/server. Storage is embedded
