@@ -214,3 +214,12 @@ logstats:
 db-checkpoint:
 	CGO_ENABLED=1 go -C playground/walckpt build -o ../../bin/walckpt.exe .
 	bin/walckpt.exe db
+
+# arena runs the strength-inversion experiment harness: capability-
+# perturbed tier engines under the shipped clock law, serial pairings on
+# the whole machine. Seat labels and flags in playground/arena/main.go,
+# e.g. make arena ARGS="-tc 0 -games 12 -seats hard,medium".
+.PHONY: arena
+arena:
+	CGO_ENABLED=1 go -C playground/arena build -o ../../bin/arena.exe .
+	bin/arena.exe $(ARGS)

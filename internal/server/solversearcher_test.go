@@ -237,3 +237,17 @@ func TestSolverWiringGrantlessDeadlineRunsPasses(t *testing.T) {
 		t.Fatalf("grantless move %v, want a completion of J9-M9", cellName(rules.Cell(mv)))
 	}
 }
+
+// The exported surface the playground harnesses drive: the constructor
+// returns the same tier wiring the room layer uses, tag law intact.
+func TestNewBotSearcherExportedSurface(t *testing.T) {
+	s := NewBotSearcher(config.TierHard)
+	defer s.Close()
+	mv, _, tag := s.Search(openFourBoard(t), engine.NewFixedBudget(2*time.Second))
+	if tag != config.BotLogTagVCF {
+		t.Fatalf("exported tag = %q, want %q", tag, config.BotLogTagVCF)
+	}
+	if mv != rules.Move(mustCellT(t, "I9")) && mv != rules.Move(mustCellT(t, "N9")) {
+		t.Fatalf("exported move %v, want a completion of J9-M9", cellName(rules.Cell(mv)))
+	}
+}

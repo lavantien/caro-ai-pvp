@@ -493,6 +493,15 @@ type searcher interface {
 	Close()
 }
 
+// Searcher exports the bot engine surface for the playground experiment
+// harnesses, which must measure the shipped tier wiring rather than a
+// drifting copy of it.
+type Searcher = searcher
+
+// NewBotSearcher sizes a bot engine from its tier behind the exported
+// surface: the same constructor the room layer drives every bot seat with.
+func NewBotSearcher(t config.Tier) Searcher { return newBotSearcher(t) }
+
 // singleSearcher adapts the single-threaded Engine (the easy tier: one
 // core, no table), whose lifetime needs no teardown, to the same surface
 // as the tiered SMP instance.
