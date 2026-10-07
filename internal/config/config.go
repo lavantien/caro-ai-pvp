@@ -63,7 +63,10 @@ type PIDGains struct {
 }
 
 // ClockPID is indexed like TimeControls: one gain set per supported time
-// control, tuned against the feedforward baseline by the clock benchmarks.
+// control. The 1+0, 2+1, and 3+2 rows are bench-tuned; the 10+5 row carries
+// the 3+2 gains provisionally, the clocktune sweep having shown the 10+5
+// tracking objective structurally flat (playground/clocktune/out/), so the
+// row stands on game evidence.
 var ClockPID = [len(TimeControls)]PIDGains{
 	{Kp: 0.02, Ki: 0.01, Kd: 0.005},
 	{Kp: 0.03, Ki: 0.015, Kd: 0.005},
