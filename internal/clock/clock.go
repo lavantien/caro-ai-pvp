@@ -95,12 +95,23 @@ func (c *GameClock) Commit(elapsed time.Duration) {
 	c.budgeted = false
 }
 
+// Target is the planned remaining time at the current move count, the drain
+// trajectory the controller steers toward, floored at the reserve. The
+// tuning harness measures trajectory deviation against it without mirroring
+// the law.
+func (c *GameClock) Target() time.Duration {
+	return time.Duration(c.targetMs() * float64(time.Millisecond))
+}
+
+func (c *GameClock) targetMs() float64 {
+	return math.Max(config.SearchSafetyMarginMs, c.initialMs+float64(c.moves)*c.incrementMs-(float64(c.moves)/config.ClockExpectedMovesPerSide)*(c.initialMs+config.ClockExpectedMovesPerSide*c.incrementMs))
+}
+
 func (c *GameClock) law() float64 {
 	spendable := math.Max(0, c.remainingMs-config.SearchSafetyMarginMs)
 	movesLeft := math.Max(1, float64(config.ClockExpectedMovesPerSide-c.moves))
 	feedforward := spendable/movesLeft + c.incrementMs*config.ClockIncrementShare
-	target := math.Max(config.SearchSafetyMarginMs, c.initialMs+float64(c.moves)*c.incrementMs-(float64(c.moves)/config.ClockExpectedMovesPerSide)*(c.initialMs+config.ClockExpectedMovesPerSide*c.incrementMs))
-	err := c.remainingMs - target
+	err := c.remainingMs - c.targetMs()
 	bound := config.ClockPIDClampFraction * feedforward
 	corr := clamp(c.pid.step(err), -bound, bound)
 	return clamp(feedforward+corr, config.SearchMinMoveTimeMs, math.Max(spendable, config.SearchMinMoveTimeMs))

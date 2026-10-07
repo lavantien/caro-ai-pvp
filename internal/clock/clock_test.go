@@ -125,6 +125,35 @@ func TestBudgetExactTables(t *testing.T) {
 	}
 }
 
+// TestTargetDrainTrajectory pins the exported drain target the tuning
+// harness measures against: it starts at the control's initial time, never
+// increases across commits, and rests at the reserve once the expected move
+// count passes.
+func TestTargetDrainTrajectory(t *testing.T) {
+	for _, tcIdx := range []int{0, len(config.TimeControls) - 1} {
+		ctl := config.TimeControls[tcIdx]
+		msPerSec := float64(time.Second / time.Millisecond)
+		initMs := float64(ctl.InitialMin*60) * msPerSec
+		incMs := float64(ctl.IncrementSec) * msPerSec
+		c := NewGameClock(tcIdx)
+		if got, want := c.Target(), time.Duration(initMs)*time.Millisecond; got != want {
+			t.Fatalf("tc %d: initial target = %v, want %v", tcIdx, got, want)
+		}
+		prev := c.Target()
+		for move := range config.ClockExpectedMovesPerSide + 5 {
+			c.Commit(time.Duration(incMs) * time.Millisecond) // bank-neutral spend
+			got := c.Target()
+			if got > prev {
+				t.Fatalf("tc %d move %d: target increased %v -> %v", tcIdx, move, prev, got)
+			}
+			if move >= config.ClockExpectedMovesPerSide && got != time.Duration(config.SearchSafetyMarginMs)*time.Millisecond {
+				t.Fatalf("tc %d move %d: target = %v, want the reserve floor", tcIdx, move, got)
+			}
+			prev = got
+		}
+	}
+}
+
 // TestNewGameClockWithGainsSeam pins the tuning seam: explicit committed
 // gains must reproduce NewGameClock exactly over a commit trace, and the
 // seam constructor carries the same bounds panic.
