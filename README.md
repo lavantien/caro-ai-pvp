@@ -63,11 +63,12 @@ The ui/ux table is the living surface inventory, rebuilt against finished engine
 | history | per-game score lines, turn counts, move previews | signed-in players |
 | playback | first, prev, next, last, autoplay stepping through a finished game | the game's two players |
 | tournament | admin setup with config-bounded roster, live board per series, frozen leaderboard, stalled-run close | public read, admin drives |
-| presentation | dark-first palette, mobile-first 390px capture, 44px touch floor, two-tap select-then-confirm on coarse pointers | all |
+| presentation | dark-first token layer (color ramps, type and space scales, two type voices: human prose and mono machine data), shared card, chip, field and button recipes, amber reserved for live-attention data marks, accent-strong focus rings, 3:1 contrast floor on state-carrying boundaries, reduced-motion respected, 44px touch floor, two-tap select-then-confirm on coarse pointers | all |
+| install | PWA manifest with generated icon set, in-shell install action, offline fallback page; the service worker caches the static shell only and never answers api calls, the event stream, or live room and tournament state | all |
 
 ## screenshots
 
-The whole app flow as 390px dark mobile captures, primary presentation. Login-or-create (an unknown name registers, the seeded admin row holds its name):
+The whole app flow as 390px dark mobile captures, primary presentation. The set is staged through playground/shots behind make shots: the production pages over a seeded store and scripted tournament snapshots, with live rooms driven move by move and no search ever running, so captures never contend with the strength gates for the machine. The bot-room M-line log mid-game, the driven-run live boards and the finished leaderboard of a real run refresh at the wave close. Login-or-create (an unknown name registers, the seeded admin row holds its name):
 
 ![login or create on a phone](docs/screenshots/mobile-login.png)
 
@@ -77,17 +78,21 @@ Logged-in home with the rooms grid, the create-room form (time control, best-of,
 
 ![home banner while a tournament runs](docs/screenshots/mobile-home-banner.png)
 
-Live room mid-game on the player's side: turn call-out, tabular clocks ticking between syncs, the playable mask dimming everything outside the rules-legal ring on red's second move, the tap ghost, the M-line bot log with depth, nodes, nps, TT hit rate, score and PV, the running move history and the forfeit control:
+Live room mid-game on the player's side: turn call-out, tabular clocks ticking between syncs, the running move history and the forfeit control:
 
 ![live room on a phone](docs/screenshots/mobile-live-room.png)
 
-The retired room renders an honest terminal state:
+A finished series holds its verdict on the open page after the room retires:
 
 ![terminal room on a phone](docs/screenshots/mobile-terminal-room.png)
 
-Match history with per-game score lines and the playback board stepping through a finished bot game:
+Match history with per-game score lines and move previews:
 
-![history playback on a phone](docs/screenshots/mobile-history-playback.png)
+![match history on a phone](docs/screenshots/mobile-history.png)
+
+The playback board stepping through a finished bot game, first to last with autoplay:
+
+![playback on a phone](docs/screenshots/mobile-playback.png)
 
 Tournament setup, admin-only: the config-bounded roster, tiers, time control, best-of, start rating and parallelism, with the run-gate close form for undriven runs:
 
@@ -101,7 +106,7 @@ The finished run page with the frozen leaderboard:
 
 ![tournament run page on a phone](docs/screenshots/mobile-tourney-run.png)
 
-The mobile pass audited every surface at 390x844: long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the board offers only the spaces the rules allow, the retired room renders an honest terminal state, and the tournament leaderboard scrolls inside its own wrap.
+The mobile pass audited every surface at 390x844: long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the board offers only the spaces the rules allow, a finished series holds its verdict on the open page, and the tournament leaderboard scrolls inside its own wrap.
 
 ## grounding
 
