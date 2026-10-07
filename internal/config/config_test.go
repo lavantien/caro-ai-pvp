@@ -44,7 +44,7 @@ func TestZobristSeed(t *testing.T) {
 }
 
 func TestTimeControlsMatchSpec(t *testing.T) {
-	want := [][2]int{{1, 0}, {2, 1}, {3, 2}}
+	want := [][2]int{{1, 0}, {2, 1}, {3, 2}, {10, 5}}
 	if len(TimeControls) != len(want) {
 		t.Fatalf("len(TimeControls) = %d, want %d", len(TimeControls), len(want))
 	}
@@ -106,6 +106,25 @@ func TestClockLawConstants(t *testing.T) {
 	}
 	if MutateMaxParallel < 1 || MutateMaxParallel > 64 {
 		t.Errorf("MutateMaxParallel = %d, want a sane bound in [1, 64]", MutateMaxParallel)
+	}
+}
+
+func TestClockPIDGainsFullyAuthored(t *testing.T) {
+	// Closes the zero-fill trap: ClockPID is [len(TimeControls)]PIDGains, so a
+	// TimeControls entry without its authored gain row compiles a silent
+	// all-zero row that still passes the len-parity check in TestClockLawConstants.
+	for i, g := range ClockPID {
+		if g.Kp <= 0 || g.Ki <= 0 || g.Kd <= 0 {
+			t.Errorf("ClockPID[%d] = %+v, every row must be authored with strictly positive gains", i, g)
+		}
+	}
+	idx, ok := TCIndex(10, 5)
+	if !ok {
+		t.Fatalf("TCIndex(10, 5) = %d, %v, want the 10+5 time control configured", idx, ok)
+	}
+	want := PIDGains{Kp: 0.03, Ki: 0.015, Kd: 0.005}
+	if ClockPID[idx] != want {
+		t.Errorf("ClockPID[%d] = %+v, want the committed 10+5 row %+v", idx, ClockPID[idx], want)
 	}
 }
 

@@ -100,6 +100,7 @@ func TestBudgetExactTables(t *testing.T) {
 		{0, []int{5, 25, 400, 2000}},
 		{1, []int{100, 562, 1500, 2500}},
 		{2, []int{50, 1100, 3000, 700}},
+		{3, []int{5000, 22000, 40000, 120000}},
 	} {
 		ctl := config.TimeControls[tc.tcIdx]
 		c := NewGameClock(tc.tcIdx)
