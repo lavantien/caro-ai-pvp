@@ -4,8 +4,8 @@ Question: can the RTX 3080 (10 GB VRAM, CUDA 13.4) speed up or absorb engine com
 
 ## environment
 
-- CUDA toolkit 13.4 (nvcc V13.4.92). The machine PATH still holds 12.8 ahead of 13.4 (registry edit needs elevation), so the documented invocation prefixes 13.4 explicitly.
-- Host compilers: VS 2022 Community MSVC 14.44 links the dll. The VS 2026 install carries no C++ workload (no VC directory), so it hosts nothing until that workload is added.
+- CUDA toolkit 13.4 (nvcc V13.4.92). The machine PATH still resolves 12.8 ahead of 13.4 (registry re-checked 2026-10-07 after the user's edit: `CUDA\v12.8\bin` and `CUDA\v12.8\libnvvp` still precede both v13.4 entries), so the documented invocation keeps prefixing 13.4 explicitly.
+- Host compilers: VS 2022 Community MSVC 14.44 linked the recorded dll run. The VS 2026 C++ workload was added 2026-10-07 (its `VC\Tools\MSVC` tree now exists), so either MSVC can host future links.
 - Driver 617.14, GeForce RTX 3080, 10240 MiB.
 - Integration shape: `nvcc -shared` builds a dll behind a plain C ABI, Go loads it at runtime through the Windows loader (`syscall.NewLazyDLL`), no link-time CUDA dependency. `make gpu-spike` after importing vcvars64 is the whole pipeline.
 
@@ -37,6 +37,15 @@ From the committed benches and the standing measurements in the README:
 | VCF/VCT solver offload | depth-first threat search, the same branchy shape as the main search, launch floor dominates any batch it could form | no |
 | rules or win detection kernels | 13.4 ns local | no |
 | v0.24 bookgen corpus | the games are the same branchy search. A GPU wins on self-play only under batched or neural evaluation, an architecture change rather than an offload. CPU nights already schedule the corpus | revisit only on an architecture change |
+| batched VCF/VCT proof precompute (the v0.24 solver overlay) | the first throughput-shaped candidate: thousands of independent root positions per batch amortize the 7.1 µs launch floor entirely. The blockers move to warp divergence (each thread walks its own irregular DFS with early cutoffs, so a warp serializes on divergent branches), VRAM-latency TT probes inside that DFS, and the port cost itself, a device-code rewrite of the solver for a job that runs once per book release on otherwise idle nights | no for this ladder, the first candidate to measure if book regrows become recurring or the corpus scales up |
+
+## precedents
+
+Stockfish dev-20260930 (checked 2026-10-07) carries no GPU anywhere: the precompiled universal binaries pick the best CPU instruction set at runtime, the notes mention GCC with balanced LTO and the SFNNv17 CPU net, and nothing in the toolchain mentions CUDA or nvcc. The strongest alpha-beta engine keeps evaluation on CPU SIMD for the same reason this assessment records, eval is called a few leaves at a time inside a latency-bound search and a PCIe round trip costs more than the whole evaluation.
+
+lc0 v0.33.0-rc0 is the other architecture class: MCTS batches leaf evaluations into minibatches and pushes them through dense GEMM backends (cuda with CUTLASS fused attention, onnx-trt through TensorRT engines, onnx-coreml, onnx-migraphx on ROCm), and its release notes center on batch handling and network-evaluations-per-second throughput. The GPU pays there because the workload is uniform dense linear algebra in large batches.
+
+This engine is Stockfish-shaped (alpha-beta family, per-node integer eval, latency-bound), so the assessment follows that precedent. The lc0-shaped class is exactly the architecture change the revisit trigger names.
 
 ## conclusion
 
