@@ -15,7 +15,7 @@ DIAGRAM_BG := rgb(13,17,23)
 DIAGRAM_SRC := $(wildcard $(DIAGRAMS_DIR)/*.mmd)
 DIAGRAM_PNG := $(DIAGRAM_SRC:.mmd=.png)
 
-.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser darkcontrast icons ci
+.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser darkcontrast icons ci shots
 
 all: build
 
@@ -135,6 +135,13 @@ migrate:
 
 serve:
 	CGO_ENABLED=1 go run ./cmd/caro serve $(ARGS)
+
+# shots serves the production web surface over staged engine-free state for
+# screenshot capture: seeded store and live rooms, a scripted tournament
+# service instead of the conductor. POST /shots/banner toggles the home
+# live-run banner. Capture at 390x844 against the printed address.
+shots:
+	CGO_ENABLED=1 go -C playground/shots run . $(ARGS)
 
 # Headless tournament drivers of first-cause.md Scenario 2. Each prints the
 # per-series lines and the final leaderboard to stdout and writes the
