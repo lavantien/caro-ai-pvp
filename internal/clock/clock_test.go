@@ -146,8 +146,10 @@ func TestTargetDrainTrajectory(t *testing.T) {
 			if got > prev {
 				t.Fatalf("tc %d move %d: target increased %v -> %v", tcIdx, move, prev, got)
 			}
-			if move >= config.ClockExpectedMovesPerSide && got != time.Duration(config.SearchSafetyMarginMs)*time.Millisecond {
-				t.Fatalf("tc %d move %d: target = %v, want the reserve floor", tcIdx, move, got)
+			// c.moves counts completed moves, so the floor must already
+			// hold there: first at exactly the expected move count.
+			if c.moves >= config.ClockExpectedMovesPerSide && got != time.Duration(config.SearchSafetyMarginMs)*time.Millisecond {
+				t.Fatalf("tc %d after %d moves: target = %v, want the reserve floor", tcIdx, c.moves, got)
 			}
 			prev = got
 		}
