@@ -15,7 +15,7 @@ DIAGRAM_BG := rgb(13,17,23)
 DIAGRAM_SRC := $(wildcard $(DIAGRAMS_DIR)/*.mmd)
 DIAGRAM_PNG := $(DIAGRAM_SRC:.mmd=.png)
 
-.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser ci
+.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser darkcontrast ci
 
 all: build
 
@@ -188,7 +188,16 @@ diagrams-browser:
 $(DIAGRAMS_DIR)/%.png: $(DIAGRAMS_DIR)/%.mmd $(DIAGRAMS_DIR)/mermaid-config.json $(DIAGRAMS_DIR)/puppeteer.json
 	npx -y -p @mermaid-js/mermaid-cli@$(MERMAID_CLI_VERSION) -p puppeteer@$(PUPPETEER_VERSION) mmdc -i $< -o $@ -e png -b '$(DIAGRAM_BG)' -s 3 -c $(DIAGRAMS_DIR)/mermaid-config.json -p $(DIAGRAMS_DIR)/puppeteer.json
 
-ci: playground-modules fmt-check lint vet build test-race cover
+# darkcontrast checks the shell.css palette pairs against the WCAG formula
+# (docs/design-system.md's contrast contract). It lives inside the playground
+# module without its own go.mod, so the playground-modules loop never sees it;
+# this target is its one entry point, and ci runs it so a token change that
+# breaks a pair fails the push.
+.PHONY: darkcontrast
+darkcontrast:
+	CGO_ENABLED=1 go -C playground run ./darkcontrast
+
+ci: playground-modules darkcontrast fmt-check lint vet build test-race cover
 	@echo "ci: all green"
 
 # logstats renders the markdown evidence report of the v0.20 chain from the

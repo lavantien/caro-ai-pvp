@@ -2,7 +2,7 @@
 // internal/server/web/shell.css against the WCAG 2.1 contrast formula:
 // every foreground/background pair the UI paints, with the threshold each
 // pair must clear (4.5:1 body text, 3:1 large text and non-text marks).
-// Run after any token change; a miss fails the process.
+// make darkcontrast runs it (and ci runs that); a miss fails the process.
 package main
 
 import (
@@ -44,16 +44,18 @@ func hex(s string) [3]uint8 {
 func main() {
 	// The :root block of shell.css, verbatim token values.
 	p := map[string]string{
-		"background": "#101318",
-		"surface":    "#1a1f28",
-		"border":     "#566179",
-		"text":       "#e8ebf2",
-		"text-muted": "#a4aec2",
-		"accent":     "#58a8ff",
-		"danger":     "#ff7a6e",
-		"red":        "#ef5350",
-		"blue":       "#42a5f5",
-		"mark":       "#ffb454",
+		"background":    "#101318",
+		"surface":       "#1a1f28",
+		"border":        "#566179",
+		"text":          "#e8ebf2",
+		"text-muted":    "#a4aec2",
+		"accent":        "#58a8ff",
+		"accent-strong": "#7db8ff",
+		"accent-soft":   "#25384f",
+		"danger":        "#ff7a6e",
+		"red":           "#ef5350",
+		"blue":          "#42a5f5",
+		"mark":          "#ffb454",
 	}
 
 	// fg token, bg token, where it paints, minimum ratio.
@@ -76,8 +78,11 @@ func main() {
 		{"background", "red", "glyph on a red stone", 4.5},
 		{"background", "blue", "glyph on a blue stone", 4.5},
 		{"background", "accent", "button label on accent fill", 4.5},
+		{"background", "accent-strong", "button label on the hover fill", 4.5},
 		{"background", "danger", "armed forfeit label", 4.5},
+		{"text", "accent-soft", "chip label on the accent tint", 4.5},
 		{"mark", "surface", "latest-stone ring on the board", 3},
+		{"mark", "background", "focus ring over the page", 3},
 		{"border", "surface", "board grid lines and hairlines", 2.5},
 	}
 
