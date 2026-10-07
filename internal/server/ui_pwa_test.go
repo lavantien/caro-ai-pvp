@@ -256,6 +256,7 @@ func TestPWABaseHeadWiring(t *testing.T) {
 		`<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">`,
 		`<meta name="mobile-web-app-capable" content="yes">`,
 		`<meta name="apple-mobile-web-app-capable" content="yes">`,
+		`<meta name="apple-mobile-web-app-status-bar-style" content="black">`,
 		`<meta name="apple-mobile-web-app-title" content="caro">`,
 		`<script src="/static/pwa.js" defer></script>`,
 		`<button type="button" id="install-btn" class="btn-quiet" hidden>install</button>`,
@@ -274,6 +275,7 @@ func TestPWARoomAndPlaybackHeadWiring(t *testing.T) {
 		`<meta name="theme-color" content="` + pwaThemeColor + `">`,
 		`<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">`,
 		`<meta name="mobile-web-app-capable" content="yes">`,
+		`<meta name="apple-mobile-web-app-status-bar-style" content="black">`,
 		`<script src="/static/pwa.js" defer></script>`,
 	}
 	var out bytes.Buffer
