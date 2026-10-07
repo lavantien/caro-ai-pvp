@@ -200,6 +200,7 @@ type boardData struct {
 	Live      bool   // the room board accepts the mover's input
 	MyColor   string // "", "red", "blue": the viewer's stones when playing
 	BoardSize int
+	Mini      bool // the shared grid scaled down, inert (tournament live cards)
 }
 
 // roomView is the room page's whole render state.

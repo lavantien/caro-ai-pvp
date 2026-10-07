@@ -160,23 +160,12 @@ h1, .who, .who-vs, #score-line { overflow-wrap: anywhere }
 @media (max-width: 40rem) { .tourneyform .roster { grid-template-columns: 1fr } }
 .tourney-run > a { font-size: var(--text-xl); font-weight: 700; text-decoration: none }
 .progress { font-weight: 700 }
-/* Live boards of an ongoing run: one card per playing room, the mini board
-   an inert spectating grid (no ids, no tap targets; the whole card links
-   to the room). The livecard shares the card recipe and adds the link
-   reset alone. */
+/* Live boards of an ongoing run: one card per playing room, the board the
+   shared grid scaled mini (its styles live with the board fragment, not
+   here). The livecard shares the card recipe and adds the link reset
+   alone. */
 .liveboards { margin: .4rem 0 var(--space-4) }
 .livecard { text-decoration: none }
-.miniboard { display: grid; width: min(100%, 22rem); aspect-ratio: 1; margin: var(--space-1) auto 0;
-	touch-action: manipulation; user-select: none; border: 1px solid var(--border);
-	background: var(--surface); border-radius: var(--radius-s) }
-/* Mini stones follow the live board's own law: a round disc inset in the
-   cell, the latest stone ringed with the mark color. */
-.mcell { position: relative; border: 1px solid var(--border) }
-.mcell.m-red::after, .mcell.m-blue::after { content: ""; position: absolute;
-	inset: 8%; border-radius: 50% }
-.mcell.m-red::after { background: var(--red) }
-.mcell.m-blue::after { background: var(--blue) }
-.mcell.m-latest::after { box-shadow: 0 0 0 3px var(--mark) }
 .tseries { display: grid; gap: var(--space-1); margin: .4rem 0 var(--space-4);
 	padding-left: 1.2rem }
 .tboard { border-collapse: collapse; font-size: var(--text-base) }

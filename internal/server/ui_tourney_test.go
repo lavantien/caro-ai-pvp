@@ -393,21 +393,24 @@ func TestTourneyRunPageRendersLiveBoardSection(t *testing.T) {
 		// Red's perspective: 1-2 beside red-named-first seats.
 		">1-2<",
 		"blue to move, 3 stones",
-		`class="miniboard" style="grid-template-columns:repeat(`+
+		// The live card rides the shared board grid scaled mini: same
+		// classes as the room board, no id and no tap targets.
+		`class="board mini" aria-hidden="true" style="grid-template-columns:repeat(`+
 			strconv.Itoa(config.BoardSize)+`,1fr)"`,
 	)
-	// Stones by play parity: H8 and I9 red, H9 blue, the latest marked once.
-	if n := strings.Count(body, `m-red`); n != 2 {
+	// Stones by play parity on the shared markup: H8 and I9 red, H9 blue,
+	// the latest marked once (I9, red).
+	if n := strings.Count(body, `class="stone red`); n != 2 {
 		t.Errorf("red mini stones = %d, want 2 (body %s)", n, body)
 	}
-	if n := strings.Count(body, `m-blue`); n != 1 {
+	if n := strings.Count(body, `class="stone blue`); n != 1 {
 		t.Errorf("blue mini stones = %d, want 1 (body %s)", n, body)
 	}
-	if n := strings.Count(body, `m-latest`); n != 1 {
+	if n := strings.Count(body, `stone red latest`); n != 1 {
 		t.Errorf("latest mini stone marks = %d, want 1 (body %s)", n, body)
 	}
-	if strings.Contains(body, `class="mcell" data-cell`) {
-		t.Error("mini cells carry tap targets, want an inert spectating grid")
+	if strings.Contains(body, `data-cell`) || strings.Contains(body, `id="board"`) {
+		t.Error("mini cells carry ids or tap targets, want an inert spectating grid")
 	}
 
 	// The polled fragment serves the same cards.
@@ -421,7 +424,7 @@ func TestTourneyRunPageRendersLiveBoardSection(t *testing.T) {
 	stalled := stalledSnapshot()
 	stalledSrv, _ := tourneySrv(t, &fakeTourney{snapshot: stalled, live: fake.live})
 	_, _, body = doShell(t, c, http.MethodGet, stalledSrv.URL+"/tourney/run/7", "", nil)
-	if strings.Contains(body, `class="liveboards"`) || strings.Contains(body, "miniboard") {
+	if strings.Contains(body, `class="liveboards"`) || strings.Contains(body, "board mini") {
 		t.Errorf("non-running run page carries the live section (body %s)", body)
 	}
 }

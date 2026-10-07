@@ -80,10 +80,11 @@ func finishedMeets() []meet {
 }
 
 // runningMeets scripts the 2-bot run mid-flight: series 1 settled 2-1 for
-// hard-2, series 2 at 1-1 and playing.
+// hard-2 (1-2 from the red-first seat's perspective), series 2 at 1-1 and
+// playing.
 func runningMeets() []server.TourneySeriesLine {
 	return []server.TourneySeriesLine{
-		{PairingSlot: 0, RedFirstSlot: 0, BlueFirstSlot: 1, RedFirstWins: 2, BlueFirstWins: 1,
+		{PairingSlot: 0, RedFirstSlot: 0, BlueFirstSlot: 1, RedFirstWins: 1, BlueFirstWins: 2,
 			WinnerSlot: intPtr(1), Finished: true},
 		{PairingSlot: 1, RedFirstSlot: 1, BlueFirstSlot: 0, RedFirstWins: 1, BlueFirstWins: 1},
 	}
@@ -142,7 +143,6 @@ func (t *scriptTourney) runningSnapshot() (server.TourneySnapshot, error) {
 			board[*line.WinnerSlot].SeriesWon++
 		}
 	}
-	board[1].SeriesWon = 1
 	return server.TourneySnapshot{
 		Run: server.TourneyRunInfo{
 			ID: runningRunID, CreatedAt: 1791300000, TCIdx: stageTCIdx, BOLen: stageBO,

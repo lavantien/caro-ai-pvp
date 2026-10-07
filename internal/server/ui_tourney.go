@@ -22,18 +22,20 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// tourneyPage parses the base layout, the shared leaderboard fragment, and
-// one tournament page template.
+// tourneyPage parses the base layout, the shared leaderboard fragment, the
+// shared board fragment, and one tournament page template.
 func tourneyPage(page string) *template.Template {
 	return template.Must(template.ParseFS(shellTmplFS,
 		"web/templates/base.tmpl", "web/templates/rooms.tmpl",
-		"web/templates/tourney_board.tmpl", "web/templates/"+page))
+		"web/templates/tourney_board.tmpl", "web/templates/board.html",
+		"web/templates/"+page))
 }
 
 var (
 	tourneyTmpl      = tourneyPage("tourney.tmpl")
 	tourneyRunTmpl   = tourneyPage("tourney_run.tmpl")
-	tourneyBoardTmpl = template.Must(template.ParseFS(shellTmplFS, "web/templates/tourney_board.tmpl"))
+	tourneyBoardTmpl = template.Must(template.ParseFS(shellTmplFS,
+		"web/templates/tourney_board.tmpl", "web/templates/board.html"))
 )
 
 // TourneySeat is one roster seat of a run.
@@ -514,7 +516,7 @@ type tourneyBoardView struct {
 
 // liveBoardView is one ongoing bot series' section: the linked room, the
 // seats under the room naming law, the running score with the side to move,
-// and the mini board of stones in play order.
+// and the live stones on the shared board grid scaled mini.
 type liveBoardView struct {
 	RoomID    string
 	Red       string
@@ -522,8 +524,7 @@ type liveBoardView struct {
 	Score     string
 	Turn      string
 	MoveCount int
-	Cells     []cellView
-	BoardSize int
+	boardData
 }
 
 // liveBoardsOf shapes the service's live reads; empty while the run's drive
@@ -538,7 +539,9 @@ func liveBoardsOf(running bool, boards []TourneyLiveBoard) []liveBoardView {
 			RoomID: b.RoomID, Red: b.RedName, Blue: b.BlueName,
 			Turn: b.Turn, MoveCount: len(b.Moves),
 			Score: strconv.Itoa(b.RedWins) + "-" + strconv.Itoa(b.BlueWins),
-			Cells: boardCells(b.Moves, nil), BoardSize: config.BoardSize,
+			boardData: boardData{
+				Cells: boardCells(b.Moves, nil), BoardSize: config.BoardSize, Mini: true,
+			},
 		}
 	}
 	return out
