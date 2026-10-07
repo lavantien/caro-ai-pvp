@@ -125,6 +125,36 @@ func TestBudgetExactTables(t *testing.T) {
 	}
 }
 
+// TestNewGameClockWithGainsSeam pins the tuning seam: explicit committed
+// gains must reproduce NewGameClock exactly over a commit trace, and the
+// seam constructor carries the same bounds panic.
+func TestNewGameClockWithGainsSeam(t *testing.T) {
+	for _, tcIdx := range []int{0, len(config.TimeControls) - 1} {
+		prod := NewGameClock(tcIdx)
+		seam := NewGameClockWithGains(tcIdx, config.ClockPID[tcIdx])
+		for move := range 10 {
+			if prod.Budget() != seam.Budget() {
+				t.Fatalf("tc %d move %d: seam budget %v differs from production %v", tcIdx, move, seam.Budget(), prod.Budget())
+			}
+			elapsed := time.Duration(100+move*50) * time.Millisecond
+			prod.Commit(elapsed)
+			seam.Commit(elapsed)
+		}
+	}
+	const want = "clock: NewGameClock time control index out of range"
+	for _, idx := range []int{-1, len(config.TimeControls)} {
+		func() {
+			defer func() {
+				r, ok := recover().(string)
+				if !ok || r != want {
+					t.Errorf("NewGameClockWithGains(%d) recover = %v, want panic %q", idx, r, want)
+				}
+			}()
+			NewGameClockWithGains(idx, config.PIDGains{})
+		}()
+	}
+}
+
 func TestDrainedClockFundsMinimumMoves(t *testing.T) {
 	c := NewGameClock(0) // 1+0
 	floor := time.Duration(config.SearchMinMoveTimeMs) * time.Millisecond

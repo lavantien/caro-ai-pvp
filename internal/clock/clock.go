@@ -32,8 +32,21 @@ type GameClock struct {
 }
 
 // NewGameClock starts a side's clock at the initial time of the given time
-// control index into config.TimeControls. Panics on an out-of-range index.
+// control index into config.TimeControls, under its committed PID gain row.
+// Panics on an out-of-range index. The guard must run before the gains
+// lookup: evaluating config.ClockPID[tcIdx] first turns an out-of-range
+// index into a runtime index panic instead of this package's own message.
 func NewGameClock(tcIdx int) *GameClock {
+	if tcIdx < 0 || tcIdx >= len(config.TimeControls) {
+		panic("clock: NewGameClock time control index out of range")
+	}
+	return NewGameClockWithGains(tcIdx, config.ClockPID[tcIdx])
+}
+
+// NewGameClockWithGains starts a clock under explicit controller gains, the
+// tuning seam the clock benchmarks and playground sweeps drive. Production
+// clocks always take the committed per-TC row through NewGameClock.
+func NewGameClockWithGains(tcIdx int, gains config.PIDGains) *GameClock {
 	if tcIdx < 0 || tcIdx >= len(config.TimeControls) {
 		panic("clock: NewGameClock time control index out of range")
 	}
@@ -43,7 +56,7 @@ func NewGameClock(tcIdx int) *GameClock {
 		remainingMs: initialMs,
 		initialMs:   initialMs,
 		incrementMs: float64(tc.IncrementSec) * float64(time.Second/time.Millisecond),
-		pid:         newPID(config.ClockPID[tcIdx]),
+		pid:         newPID(gains),
 	}
 }
 

@@ -2,16 +2,12 @@ package clock
 
 // PID tuning benchmarks for the clock law, two layers.
 //
-// 1. Simulation sweeps that mirror the committed law with injectable gains
-//    against synthetic cost models, so alternative gain sets can be compared
-//    without touching production config. The mirror is a hand copy of the law
-//    in clock.go (law body at clock.go:79-88, commit accounting at
-//    clock.go:72-77) and the controller step in pid.go:26-35. Drift risk is
-//    one-sided: TestBudgetExactTables pins the committed gains against the
-//    real law, so a law change breaks that test first, but the
-//    alternative-gain rows here are only as current as this copy. The mirror
-//    also skips Budget's nanosecond Duration truncation: the metrics want
-//    the law's own floats.
+// 1. Simulation sweeps driving the real GameClock through the
+//    NewGameClockWithGains seam with injectable gains against synthetic cost
+//    models, so alternative gain sets compare without touching production
+//    config. No mirrored law: the sweep runs the production law, including
+//    Budget's nanosecond Duration truncation (sub-nanosecond per grant,
+//    negligible at every control's millisecond scale).
 // 2. One live 1+0 game driving the real engine through the real GameClock,
 //    the first end-to-end wiring of the clock to the engine.
 
@@ -41,58 +37,6 @@ const (
 
 // Live-game shape: the hard cap per side at the 1+0 control.
 const benchLiveCapPerSide = 60
-
-type benchPID struct {
-	gains   config.PIDGains
-	integ   float64
-	prevErr float64
-	primed  bool
-}
-
-func (p *benchPID) step(err float64) float64 {
-	p.integ = clampB(p.integ+err, -config.ClockPIDIntegClampMs, config.ClockPIDIntegClampMs)
-	deriv := 0.0
-	if p.primed {
-		deriv = p.gains.Kd * (err - p.prevErr)
-	}
-	p.prevErr = err
-	p.primed = true
-	return p.gains.Kp*err + p.gains.Ki*p.integ + deriv
-}
-
-func clampB(v, lo, hi float64) float64 {
-	if v < lo {
-		return lo
-	}
-	if v > hi {
-		return hi
-	}
-	return v
-}
-
-type benchClock struct {
-	remainingMs float64
-	initialMs   float64
-	incrementMs float64
-	moves       int
-	pid         benchPID
-}
-
-func (c *benchClock) budgetMs() float64 {
-	spendable := math.Max(0, c.remainingMs-config.SearchSafetyMarginMs)
-	movesLeft := math.Max(1, float64(config.ClockExpectedMovesPerSide-c.moves))
-	feedforward := spendable/movesLeft + c.incrementMs*config.ClockIncrementShare
-	target := math.Max(config.SearchSafetyMarginMs, c.initialMs+float64(c.moves)*c.incrementMs-(float64(c.moves)/config.ClockExpectedMovesPerSide)*(c.initialMs+config.ClockExpectedMovesPerSide*c.incrementMs))
-	err := c.remainingMs - target
-	bound := config.ClockPIDClampFraction * feedforward
-	corr := clampB(c.pid.step(err), -bound, bound)
-	return clampB(feedforward+corr, config.SearchMinMoveTimeMs, math.Max(spendable, config.SearchMinMoveTimeMs))
-}
-
-func (c *benchClock) commit(elapsedMs float64) {
-	c.remainingMs = math.Max(0, c.remainingMs-elapsedMs) + c.incrementMs
-	c.moves++
-}
 
 // benchGainSets are the swept alternatives against the committed per-TC
 // gains. Aggressive triples the proportional and doubles the integral and
@@ -172,22 +116,17 @@ type benchSimResult struct {
 }
 
 func benchRunSim(tcIdx int, gains config.PIDGains, factors []float64) benchSimResult {
-	ctl := config.TimeControls[tcIdx]
-	msPerSec := float64(time.Second / time.Millisecond)
-	c := &benchClock{
-		remainingMs: float64(ctl.InitialMin*60) * msPerSec,
-		initialMs:   float64(ctl.InitialMin*60) * msPerSec,
-		incrementMs: float64(ctl.IncrementSec) * msPerSec,
-		pid:         benchPID{gains: gains},
-	}
+	nsPerMs := float64(time.Millisecond)
+	c := NewGameClockWithGains(tcIdx, gains)
 	budgets := make([]float64, benchSimMoves)
 	for m := range benchSimMoves {
-		budgets[m] = c.budgetMs()
-		c.commit(budgets[m] * factors[m])
+		budgets[m] = float64(c.Budget()) / nsPerMs
+		c.Commit(time.Duration(budgets[m] * factors[m] * nsPerMs))
 	}
+	leftoverMs := float64(c.Remaining()) / nsPerMs
 	return benchSimResult{
-		leftoverMs:    c.remainingMs,
-		distReserveMs: math.Abs(c.remainingMs - config.SearchSafetyMarginMs),
+		leftoverMs:    leftoverMs,
+		distReserveMs: math.Abs(leftoverMs - config.SearchSafetyMarginMs),
 		collapseMs:    benchWorstCollapse(budgets),
 		stdevMs:       benchStdev(budgets),
 	}
