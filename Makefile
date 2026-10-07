@@ -134,7 +134,7 @@ migrate:
 	CGO_ENABLED=1 go run ./cmd/caro migrate
 
 serve:
-	CGO_ENABLED=1 go run ./cmd/caro serve
+	CGO_ENABLED=1 go run ./cmd/caro serve $(ARGS)
 
 # Headless tournament drivers of first-cause.md Scenario 2. Each prints the
 # per-series lines and the final leaderboard to stdout and writes the
