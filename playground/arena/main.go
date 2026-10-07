@@ -13,6 +13,7 @@
 //	arena -tc 0 -games 12 -seats hard,hard-novct,medium,medium-vct
 //	arena -tc 0 -games 40 -seats hard,hard          # self-play noise floor
 //	arena -tc 3 -games 12 -seats hard,hard-tt1g     # v0.22 phase A TT round
+//	arena -tc 1 -games 20 -seats master,hard        # v0.23 master gate
 //
 // -tc indexes config.TimeControls (0 = 1+0, 1 = 2+1, 2 = 3+2, 3 = 10+5). Every
 // unordered seat pair meets -games times. One line prints per finished
@@ -36,7 +37,8 @@ import (
 // seats maps every experiment label to its tier: the three shipped tiers
 // plus the perturbations the inversion research demands, solver added to
 // the weaker tiers and stripped from the stronger one, and the table-size
-// steps the v0.22 phase A round measures against the shipped sizes.
+// steps the v0.22 phase A round measures against the shipped sizes. The
+// master seats carry the v0.23 tier and its vct-stripped perturbation.
 var seats = map[string]config.Tier{
 	"easy":          config.TierEasy,
 	"easy-vcf":      {Name: "easy-vcf", Cores: 1, VCF: true},
@@ -50,6 +52,8 @@ var seats = map[string]config.Tier{
 	"hard-tt256m":   {Name: "hard-tt256m", Cores: 4, TTBytes: 256 << 20, VCF: true, VCT: true},
 	"hard-tt512m":   {Name: "hard-tt512m", Cores: 4, TTBytes: 512 << 20, VCF: true, VCT: true},
 	"hard-tt1g":     {Name: "hard-tt1g", Cores: 4, TTBytes: 1 << 30, VCF: true, VCT: true},
+	"master":        config.TierMaster,
+	"master-novct":  {Name: "master-novct", Cores: 8, TTBytes: config.TierMaster.TTBytes, VCF: true},
 }
 
 // tally is one seat's record over the whole run.
