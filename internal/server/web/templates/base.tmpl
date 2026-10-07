@@ -8,11 +8,19 @@
 <script src="/static/hx-sse.min.js"></script>
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/shell.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#101318">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="caro">
+<script src="/static/pwa.js" defer></script>
 </head>
 <body>
 <header>
 <a class="brand" href="/">caro</a>
 <nav>
+<button type="button" id="install-btn" class="btn-quiet" hidden>install</button>
 {{if .Me}}<span class="who">{{.Me.Username}}</span>
 <form class="inline" method="post" action="/logout"><button class="linklike">logout</button></form>
 {{else}}<a href="/login">login</a>{{end}}

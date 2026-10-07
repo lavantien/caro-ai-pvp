@@ -74,14 +74,16 @@ type shellPages struct {
 // NewShellPages builds the M6b shell UI over store, rooms, and the tourney
 // service whose ongoing run the home banner reads (nil: no banner):
 //
-//	GET  /{$}            home: stats line, rooms grid, create room, M7 stub
-//	GET  /login          the login/create form
-//	POST /login          form login; the same session cookie as /api/login
-//	POST /logout         drops the session and expires the cookie
-//	GET  /history        the match history tab (guests bounce to /login)
-//	GET  /partials/rooms the rooms grid fragment the home page polls
-//	POST /rooms          the create-room form submit (guests bounce)
-//	GET  /shell.css      the one stylesheet the shell pages own
+//	GET  /{$}                 home: stats line, rooms grid, create room, M7 stub
+//	GET  /login               the login/create form
+//	POST /login               form login; the same session cookie as /api/login
+//	POST /logout              drops the session and expires the cookie
+//	GET  /history             the match history tab (guests bounce to /login)
+//	GET  /partials/rooms      the rooms grid fragment the home page polls
+//	POST /rooms               the create-room form submit (guests bounce)
+//	GET  /shell.css           the one stylesheet the shell pages own
+//	GET  /manifest.webmanifest, /sw.js, /offline.html
+//	                        the PWA install shell (ui_pwa.go)
 //
 // The returned handler is a ServeMux of exact patterns, so it mounts whole
 // or pattern by pattern under the API mux.
@@ -101,6 +103,7 @@ func NewShellPages(store *Store, rooms *RoomManager, tour TourneyService) http.H
 	})
 	mux.HandleFunc("POST /rooms", p.handleCreateRoom)
 	mux.HandleFunc("GET /shell.css", p.handleShellCSS)
+	mountPWA(mux)
 	return mux
 }
 
