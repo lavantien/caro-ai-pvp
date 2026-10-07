@@ -13,7 +13,7 @@
 //	arena -tc 0 -games 12 -seats hard,hard-novct,medium,medium-vct
 //	arena -tc 0 -games 40 -seats hard,hard          # self-play noise floor
 //
-// -tc indexes config.TimeControls (0 = 1+0, 1 = 2+1, 2 = 3+2). Every
+// -tc indexes config.TimeControls (0 = 1+0, 1 = 2+1, 2 = 3+2, 3 = 10+5). Every
 // unordered seat pair meets -games times. One line prints per finished
 // game so a monitor can track progress, then a results table and the
 // red-versus-blue win split.

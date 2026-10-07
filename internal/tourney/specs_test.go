@@ -24,6 +24,44 @@ func TestMustTCPanicsOnUnconfiguredTimeControl(t *testing.T) {
 	mustTC(0, 7)
 }
 
+// TestSmokeRoster105Spec pins the 10+5 plumbing smoke: exactly two hard
+// seats meeting twice (each red-first once) at the fourth time control,
+// small enough to validate the conductor path inside a night window.
+func TestSmokeRoster105Spec(t *testing.T) {
+	spec := SmokeRoster105()
+	wantTC, ok := config.TCIndex(10, 5)
+	if !ok {
+		t.Fatal("10+5 is not a configured time control")
+	}
+	if spec.TCIdx != wantTC {
+		t.Errorf("smoke105 tc = %d, want the 10+5 index %d", spec.TCIdx, wantTC)
+	}
+	if spec.BOLen != config.SeriesBO3 {
+		t.Errorf("smoke105 bo = %d, want bo%d", spec.BOLen, config.SeriesBO3)
+	}
+	if spec.StartRating != config.TournamentStartRating {
+		t.Errorf("smoke105 start rating = %d, want %d", spec.StartRating, config.TournamentStartRating)
+	}
+	want := []Participant{{Slot: 0, Name: "hard-1", Tier: config.TierHard.Name}, {Slot: 1, Name: "hard-2", Tier: config.TierHard.Name}}
+	if len(spec.Roster) != len(want) {
+		t.Fatalf("smoke105 roster = %d participants, want %d", len(spec.Roster), len(want))
+	}
+	for i, p := range spec.Roster {
+		if p != want[i] {
+			t.Errorf("smoke105 roster[%d] = %+v, want %+v", i, p, want[i])
+		}
+	}
+	redFirst := map[string]int{}
+	for _, pair := range Pairings(spec.Roster) {
+		if pair.RedFirst.Name == "hard-1" {
+			redFirst[pair.BlueFirst.Name]++
+		}
+	}
+	if redFirst["hard-2"] != 1 {
+		t.Errorf("smoke105 schedule has hard-1 red-first against hard-2 %d times, want exactly 1 (twice-pair, seats swapped)", redFirst["hard-2"])
+	}
+}
+
 func TestHeadlessDriversMatchSpec(t *testing.T) {
 	easy, medium, hard := config.TierEasy.Name, config.TierMedium.Name, config.TierHard.Name
 	// Sorted pairs, the same normalization the seen-set applies.

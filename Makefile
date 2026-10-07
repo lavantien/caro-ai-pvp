@@ -149,6 +149,9 @@ tourney-smoke-32:
 tourney-smoke-10:
 	CGO_ENABLED=1 go run ./cmd/caro tourney smoke10 $(ARGS)
 
+tourney-smoke-105:
+	CGO_ENABLED=1 go run ./cmd/caro tourney smoke105 $(ARGS)
+
 tourney-full:
 	CGO_ENABLED=1 go run ./cmd/caro tourney full $(ARGS)
 

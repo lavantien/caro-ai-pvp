@@ -19,9 +19,10 @@ import (
 // tourneyDrivers maps the subcommand's driver names onto the headless specs
 // of first-cause.md's Scenario 2 implications.
 var tourneyDrivers = map[string]func() tourney.RunSpec{
-	"smoke32": tourney.SmokeRoster32,
-	"smoke10": tourney.SmokeRoster10,
-	"full":    tourney.FullRoster24,
+	"smoke32":  tourney.SmokeRoster32,
+	"smoke10":  tourney.SmokeRoster10,
+	"smoke105": tourney.SmokeRoster105,
+	"full":     tourney.FullRoster24,
 }
 
 // runTourney drives one headless tournament against a real store: the
@@ -69,7 +70,7 @@ func runTourney(args []string) int {
 		return runTourneyResume(idArg, *dbPath, *parallel)
 	}
 	if len(rest) != 0 || driver == "" {
-		fmt.Fprintln(os.Stderr, "caro: tourney needs exactly one driver (smoke32, smoke10, or full) plus flags")
+		fmt.Fprintln(os.Stderr, "caro: tourney needs exactly one driver (smoke32, smoke10, smoke105, or full) plus flags")
 		return 2
 	}
 	specFn, ok := tourneyDrivers[driver]

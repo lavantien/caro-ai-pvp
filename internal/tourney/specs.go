@@ -65,3 +65,17 @@ func FullRoster24() RunSpec {
 		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating,
 	}
 }
+
+// SmokeRoster105 is the 10+5 plumbing smoke: two hard seats meeting twice
+// at the fourth time control, bo3, small enough to drive the conductor path
+// end to end inside one night window at the slower clock.
+func SmokeRoster105() RunSpec {
+	return RunSpec{
+		Roster: []Participant{
+			{Slot: 0, Name: "hard-1", Tier: config.TierHard.Name},
+			{Slot: 1, Name: "hard-2", Tier: config.TierHard.Name},
+		},
+		TCIdx: mustTC(10, 5),
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating,
+	}
+}
