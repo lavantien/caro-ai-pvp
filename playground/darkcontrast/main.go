@@ -82,7 +82,8 @@ func main() {
 		{"background", "danger", "armed forfeit label", 4.5},
 		{"text", "accent-soft", "chip label on the accent tint", 4.5},
 		{"mark", "surface", "latest-stone ring on the board", 3},
-		{"mark", "background", "focus ring over the page", 3},
+		{"mark", "background", "live-tournament line text", 3},
+		{"accent-strong", "background", "focus ring over the page", 3},
 		{"border", "surface", "board grid lines and hairlines", 2.5},
 	}
 

@@ -29,7 +29,7 @@ A second surface depth step (`--surface-raised`) is deliberately absent: depth i
 
 ### The amber law
 
-`--mark` holds exactly one job per view: the live-attention marker. Latest stone on the room and playback boards, latest mini stone on the tournament live cards, the live-tournament line on the rooms grid, and the global focus ring. Amber never decorates anything else.
+`--mark` is purely the data-attention color: latest stone on the room and playback boards, latest mini stone on the tournament live cards, and the live-tournament line on the rooms grid (its link text included). Amber carries no interaction-signal duty; the focus ring rides `--accent-strong`. Amber never decorates anything else.
 
 ## Type
 
@@ -84,13 +84,13 @@ Field: `.field` is the label-plus-control pair: grid, hairline gap, `--text-s`. 
 
 Buttons: `.btn` is the primary (accent fill, `--accent-strong` on hover and active, background-colored label). `.btn-quiet` is the quiet variant (surface fill, border, text color, `--accent-soft` on hover). Element selectors `button:not(.linklike)` and `a.action` alias the two recipes for the shipped markup; `.linklike` stays a plain underlined text button. `button[disabled]` dims.
 
-Focus: interactive elements take `outline: none; box-shadow: 0 0 0 3px var(--mark)` under `:focus-visible` (the amber law). Coarse-pointer minimum target sizes stay as shipped.
+Focus: interactive elements take `outline: none; box-shadow: 0 0 0 3px var(--accent-strong)` under `:focus-visible`, an interaction signal held off the amber data marks. Coarse-pointer minimum target sizes stay as shipped.
 
 Motion: the UI is near-zero motion. The only transitions are button and chip color fades, and they sit behind `prefers-reduced-motion: no-preference`.
 
 ## Contrast contract
 
-`make darkcontrast` fails the build on any miss. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (focus ring over the page, 3).
+`make darkcontrast` fails the build on any miss. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (live-tournament line, 3), `accent-strong` on `background` (focus ring over the page, 3).
 
 ## Board
 
