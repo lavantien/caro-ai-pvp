@@ -29,3 +29,9 @@ Identical-engine floors recorded 0 blue-seat wins at both 1+0 (40 of 40 red) and
 ## outputs
 
 Raw pair logs under logs/archive/arena-v023-p*.log (local per the logs law), the merged table and verdict under playground/arena/out/v023-master-table.md (committed) once the chain completes.
+
+## run record
+
+Run 1 launched 2026-10-07 19:54 detached. Pair 1 (master v hard, 2+1) completed 21:29: master 12, hard 6, 2 draws, 6 of master's wins from the blue seat. Two defects attach to that pair: games 7 through 12 overlapped an unrelated local verification suite for about 15 minutes (a load-law violation, contention biased against master's 8 threads, and every overlapped game still went to master), and the overall count sits one game under the rule 1 bar of 13. Pair 2 reached 4 of 20 games before the host OS crashed at 21:57 and killed the chain.
+
+Rerun protocol, fixed before any run 2 game runs: run 1 is recorded, never silently discarded. Its pair 2 partial (4 games) is interrupted data and carries no decision weight. Run 2 reruns all 4 pairs on the idle machine and is the decision run for every rule above; run 1's pair 1 stands as context for the contention caveat, not as a rule 1 input. Run 1 logs are preserved under logs/archive/run1-arena-v023-*.log.
