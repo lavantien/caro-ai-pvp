@@ -110,16 +110,18 @@ mutate-resume:
 mutate-smoke:
 	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -allow-scope internal/rules -parallel $(or $(PARALLEL),2) -pkgs internal/rules
 
-# mutate-full [PARALLEL=6] [CHALLENGE=1] [LABEL=run]: the whole gate driven
-# to a definitive verdict, logging to logs/archive/mutate-<label>.log. A
-# host-side crash (non-zero exit with no summary line) resumes from the
-# same log automatically, up to 5 attempts; a real gate failure (summary
-# present) fails this target immediately with the runner's verdict.
+# mutate-full [PARALLEL=6] [CHALLENGE=1] [LABEL=run] [ARGS="-pkgs ..."]: the
+# whole gate driven to a definitive verdict, logging to
+# logs/archive/mutate-<label>.log. A host-side crash (non-zero exit with no
+# summary line) resumes from the same log automatically, up to 5 attempts; a
+# real gate failure (summary present) fails this target immediately with the
+# runner's verdict. ARGS scopes the package set for wave-local gates, e.g.
+# ARGS="-pkgs internal/clock".
 mutate-full:
 	@mkdir -p logs/archive; \
 	log=logs/archive/mutate-$(or $(LABEL),run).log; : > $$log; \
 	for attempt in 1 2 3 4 5; do \
-		CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),6) $(if $(CHALLENGE),-challenge) -resume $$log >> $$log 2>&1 && exit 0; \
+		CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),6) $(if $(CHALLENGE),-challenge) $(ARGS) -resume $$log >> $$log 2>&1 && exit 0; \
 		if grep -q '^mutate: [0-9][0-9]*/[0-9]* run' $$log; then tail -2 $$log; exit 1; fi; \
 		echo "mutate-full: attempt $$attempt crashed host-side, resuming from $$log"; \
 	done; \
