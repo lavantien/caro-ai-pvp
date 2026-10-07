@@ -623,7 +623,7 @@ func TestTourneySetupListsRuns(t *testing.T) {
 		t.Fatalf("setup: status = %d", status)
 	}
 	wantShellBody(t, body,
-		`href="/tourney/run/5"`, ">run 5<",
+		`href="/tourney/run/5"`, `>run <span class="mono">5</span><`,
 		time.Unix(created, 0).UTC().Format(historyTimeFormat),
 		"2&#43;1", "bo3", ">finished<",
 		"easy-1, hard-1", ">hard-1<",

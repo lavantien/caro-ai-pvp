@@ -38,7 +38,7 @@ Two voices over two tokens:
 | token | value | voice |
 | --- | --- | --- |
 | `--font-human` | `system-ui, sans-serif` | everything a person reads: prose, names, headings |
-| `--font-mono` | `ui-monospace, monospace` | machine data: room ids, bot names on bot-only surfaces, clocks, M-lines, move lists, playback counters |
+| `--font-mono` | `ui-monospace, monospace` | machine data: room ids, run ids, bot names on bot-only surfaces, clocks, M-lines, move lists, playback counters |
 
 Mixed surfaces (room page seat labels, history rows, score lines) can carry a human or a bot name, so they stay in the human voice; only surfaces that always render bot data take the machine voice.
 
@@ -82,7 +82,7 @@ Chip: `.chip` is the small tag label: a `--text-muted` boundary (the boundary ca
 
 Field: `.field` is the label-plus-control pair: grid, hairline gap, `--text-s`. Bare `label` elements alias the recipe so the shipped forms need no markup change.
 
-Buttons: `.btn` is the primary (accent fill, `--accent-strong` on hover and active, background-colored label). `.btn-quiet` is the quiet variant (surface fill, border, text color, `--accent-soft` on hover). Element selectors `button:not(.linklike)` and `a.action` alias the two recipes for the shipped markup; `.linklike` stays a plain underlined text button. `button[disabled]` dims.
+Buttons: `.btn` is the primary (accent fill, `--accent-strong` on hover and active, background-colored label); the element alias `button:not(.linklike):not(.btn-quiet)` maps the shipped button elements onto it. `.btn-quiet` is the quiet variant (surface fill, border, text color, `--accent-soft` on hover), carried by the class on anchors and buttons alike (`a.btn-quiet`). `.linklike` stays a plain underlined text button. `button[disabled]` dims.
 
 Focus: interactive elements take `outline: none; box-shadow: 0 0 0 3px var(--accent-strong)` under `:focus-visible`, an interaction signal held off the amber data marks. Coarse-pointer minimum target sizes stay as shipped.
 

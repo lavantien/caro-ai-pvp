@@ -41,7 +41,7 @@
 <section aria-label="tournament runs">
 <h2>runs</h2>
 {{if .Runs}}<ul class="tourney-runs">
-{{range .Runs}}<li class="tourney-run"><a href="/tourney/run/{{.ID}}">run {{.ID}}</a>
+{{range .Runs}}<li class="tourney-run"><a href="/tourney/run/{{.ID}}">run <span class="mono">{{.ID}}</span></a>
 <span class="meta"><span>{{.When}}</span><span class="chip">{{.TC}}</span><span class="chip">{{.BO}}</span><span class="chip">{{.State}}</span><span>{{.Roster}}</span><span class="score">{{.Leader}}</span></span>
 </li>
 {{end}}</ul>{{else}}<p class="empty">no tournaments yet.</p>{{end}}
