@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml/badge.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml) [![global coverage](https://raw.githubusercontent.com/lavantien/caro-ai-pvp/coverage/coverage-global.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml) [![core coverage](https://raw.githubusercontent.com/lavantien/caro-ai-pvp/coverage/coverage-core.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml)
 
-Mobile-first web arena for a custom 16x16 caro variant: exact continuous five wins, overlines never win, both-ends close-blocked lines are dead, and red's second move needs Chebyshev distance >= 3 from the first. Play from a phone browser against a person or an increment-safe bot on server-hosted rooms, watch live rooms as a guest, step through match history with a playback board, and run bot vs bot tournaments on the same room surface with per-move engine telemetry and a decay-scaled rating. The v0.20 behavior contract is scenario 1 in [first-cause.md](first-cause.md).
+Mobile-first web arena for a custom 16x16 caro variant: exact continuous five wins, overlines never win, both-ends close-blocked lines are dead, and red's second move needs Chebyshev distance >= 3 from the first. Play from a phone browser against a person or an increment-safe bot on server-hosted rooms, watch live rooms as a guest, step through match history with a playback board, and run bot vs bot tournaments on the same room surface with per-move engine telemetry and a decay-scaled rating. The behavior contract is scenario 1 in [first-cause.md](first-cause.md).
 
 ## contents
 
@@ -29,9 +29,12 @@ Engine tiers are resource-only shapes of one search; this table is the living sp
 | medium | 2 | 32 MiB | yes | no | - | - |
 | hard | 4 | 128 MiB | yes | yes | - | - |
 
-Every bot move reports one M-line. The fields: d search depth, n nodes, nps nodes per second, ebf branching factor, tt transposition hit rate, hf table occupancy, fh1 first-move fail-high rate, s score in thousands from the mover's side or M# for a solver-proven mate in #, thr worker threads, t actual wall spent on the move, alloc the clock's budget draw for the move, pv the principal variation. The trailing tag names the producer: empty for a normal search, [VCF] and [VCT] for threat-solver proofs, [BOOK] for an opening-book reply, [PONDER] for an answer adopted from a ponder search run on the opponent's clock. Real lines from the v0.21 10+5 smoke at the hard tier, the [BOOK] and [PONDER] lines rendered per the frozen format and landing in v0.24 and v0.25:
+A series log opens with its pairing bookends and one M-line per bot move, closes each game with its verdict and the series with its tally. Real lines from a 10+5 hard-tier series, with `[BOOK]` and `[PONDER]` illustrative until those spec columns fill:
 
 ```
+run 1 series 1
+pairing hard-1 (hard) vs hard-2 (hard)
+tc 10+5 bo3
 M1, Red, H8, d=11, n=83.1m, nps=3.69m, ebf=5.2, tt=9%, hf=99%, fh1=90%, s=-300, thr=4, t=22.50, alloc=22.50, pv=H8 H6
 M7, Red, F8, d=12, n=79.39m, nps=3.45m, ebf=4.5, tt=10%, hf=98%, fh1=92%, s=+3000, thr=4, t=22.98, alloc=22.98, pv=F8 F5 G8 E8 I8 J8 I7 J6 I6 I5 J7 J4 K3 G4
 M15, Red, D8, d=9, n=177.09k, nps=60.67k, ebf=3.8, tt=0%, hf=0%, fh1=0%, s=M9, thr=4, t=2.92, alloc=23.55, [VCT], pv=D8 B10 E8 I8 E5 E9 F5 I5 D5
@@ -39,13 +42,17 @@ M31, Red, E9, d=7, n=129, nps=64.54k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M7, thr=4
 M37, Red, B6, d=1, n=1, nps=1k, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=M1, thr=4, t=0.00, alloc=36.52, [VCF], pv=B6
 M1, Red, H8, d=0, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=4, t=0.00, alloc=22.50, [BOOK], pv=H8
 M12, Red, H10, d=16, n=18m, nps=2.8m, ebf=2.0, tt=44%, hf=78%, fh1=91%, s=-25, thr=4, t=0.01, alloc=4.00, [PONDER], pv=H10 I9 J8 K7 J10
+game 1: hard-1 (red) beat hard-2 (blue), 37 moves, won by 4
+series hard-1 2-1
 ```
+
+Notation: `d` search depth, `n` nodes, `nps` nodes per second, `ebf` branching factor, `tt` transposition hit rate, `hf` table occupancy, `fh1` first-move fail-high rate, `s` score in thousands from the mover's side or M# for a solver-proven mate in #, `thr` worker threads, `t` actual wall spent on the move, `alloc` the clock's budget draw for the move, `pv` the principal variation. The trailing tag names the producer: empty for a normal search, `[VCF]` and `[VCT]` for threat-solver proofs, `[BOOK]` for an opening-book reply, `[PONDER]` for an answer adopted from a ponder search run on the opponent's clock. A game verdict names the winner with its seats, the move count, and the winning shape (an open four here), and the series line carries the final tally.
 
 Time controls 1+0, 2+1, 3+2, 10+5 each run the same PID-steered budget controller, the first three on bench-tuned gain rows and 10+5 on the 3+2 gains held provisionally: per-move grants spread the spendable remainder over expected moves left plus an increment share, steered against a planned drain trajectory, floored so a drained clock still funds minimum moves and a timeout can never decide a game.
 
 ## ui/ux features
 
-The ui/ux table is the living surface inventory; the v0.27 overhaul rebuilds it against finished engine behavior.
+The ui/ux table is the living surface inventory, rebuilt against finished engine behavior when the overhaul lands.
 
 | surface | capabilities | access |
 | --- | --- | --- |
@@ -98,7 +105,7 @@ The mobile pass audited every surface at 390x844: long room-id and bot-name toke
 
 ## grounding
 
-- [first-cause.md](first-cause.md): the founding spec, rules, hardware budget, and v0.20 scenarios.
+- [first-cause.md](first-cause.md): the founding spec, rules, hardware budget, and match scenarios.
 - [docs/plans/first-cause-rebuild.md](docs/plans/first-cause-rebuild.md): milestone plan for the rebuild, updated as milestones land.
 - ref/: offline chessprogramming.org and gomocup grounding, browser-sourced.
 
