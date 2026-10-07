@@ -37,3 +37,7 @@ Adjacency pairs (256 v 512, 512 v 1g) refine rule 2's cap placement if a larger 
 ## outputs
 
 Raw pair logs under logs/archive/arena-v022-A-*.log (local per the logs law), the merged table and verdict under playground/arena/out/v022-phaseA-table.md (committed) once the chain completes.
+
+## outcome
+
+Terminated by decision 2026-10-07 before any comparison pair ran: pair 1 (the easy,easy floor) reached 1 of 12 games, pairs 2 through 8 never started, and the detached chain was killed with the decision recorded here. The difficulty specs stand as shipped (easy 1 core no table, medium 2 cores 32 MiB, hard 4 cores 128 MiB) as a working hypothesis, so the re-scale this round was preregistered to gate does not ship and no tier constant moves. The banked hard,hard band (18 red, 2 draws, 0 blue over 20 games at 10+5) stays valid as a recorded floor. Reopen trigger: any later gate (the master round, a ladder re-gate, the v0.30 closing ladder) showing a cross-tier inversion or a table-wrap pathology reopens the table-size question, and this preregistration still binds the design of that round.
