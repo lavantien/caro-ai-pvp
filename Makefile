@@ -248,3 +248,15 @@ playground-modules:
 		echo "build $$(dirname $$d)"; \
 		CGO_ENABLED=1 go -C $$(dirname $$d) build -o ../../bin/ . || exit 1; \
 	done
+
+# gpu-spike builds the nvcc measurement dll and drives it, the toolchain
+# and cost measurements behind the CUDA-offload assessment in
+# playground/gpuoffload/ANALYSIS.md. Local-only, never in ci: needs an
+# MSVC host compiler in PATH (nvcc links through cl.exe) plus the CUDA
+# toolkit, e.g. from a shell that ran vcvars64 with the toolkit's bin
+# ahead of any older toolkit on PATH.
+.PHONY: gpu-spike
+gpu-spike:
+	@mkdir -p bin
+	nvcc -shared -o bin/spike.dll playground/gpuoffload/spike.cu
+	CGO_ENABLED=1 go -C playground/gpuoffload build -o ../../bin/gpuoffload.exe .
