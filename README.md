@@ -6,20 +6,45 @@ Mobile-first web arena for a custom 16x16 caro variant: exact continuous five wi
 
 ## contents
 
-1. [grounding](#grounding)
-2. [screenshots](#screenshots)
-3. [build and verify](#build-and-verify)
-4. [repository layout](#repository-layout)
-5. [diagrams](#diagrams)
-6. [implemented design](#implemented-design)
-7. [status](#status)
-8. [roadmap v0.21 to v0.30](#roadmap-v021-to-v030)
+1. [variant ruleset](#variant-ruleset)
+2. [ui/ux features](#uiux-features)
+3. [screenshots](#screenshots)
+4. [grounding](#grounding)
+5. [build and verify](#build-and-verify)
+6. [repository layout](#repository-layout)
+7. [diagrams](#diagrams)
+8. [implemented design](#implemented-design)
+9. [status](#status)
+10. [roadmap v0.21 to v0.30](#roadmap-v021-to-v030)
 
-## grounding
+## variant ruleset
 
-- [first-cause.md](first-cause.md): the founding spec, rules, hardware budget, and v0.20 scenarios.
-- [docs/plans/first-cause-rebuild.md](docs/plans/first-cause-rebuild.md): milestone plan for the rebuild, updated as milestones land.
-- ref/: offline chessprogramming.org and gomocup grounding, browser-sourced.
+The game is a 16x16 freestyle caro variant with four rules on top of place-a-stone, alternate-turns play: exactly five in a row wins, a line of six or more (an overline) never wins, a line close-blocked at both ends by adjacent opponent stones is dead even when it holds five, and red's second move must sit at Chebyshev distance 3 or more from red's first stone. Red moves first, the first legal five ends the game, a full board draws. Matches run as best-of 3, 5, 7, or 11 games over the 1+0, 2+1, 3+2, and 10+5 time controls, with the loser of a decisive game taking red next and a draw retaining red.
+
+Engine tiers are resource-only shapes of one search; this table is the living spec every strength wave rewrites in place.
+
+| tier | threads | tt | vcf | vct | book | ponder |
+| --- | --- | --- | --- | --- | --- | --- |
+| easy | 1 | none | no | no | - | - |
+| medium | 2 | 32 MiB | yes | no | - | - |
+| hard | 4 | 128 MiB | yes | yes | - | - |
+
+Time controls 1+0, 2+1, 3+2, 10+5 each carry their own PID-tuned budget controller: per-move grants spread the spendable remainder over expected moves left plus an increment share, steered against a planned drain trajectory, floored so a drained clock still funds minimum moves and a timeout can never decide a game.
+
+## ui/ux features
+
+The ui/ux table is the living surface inventory; the v0.27 overhaul rebuilds it against finished engine behavior.
+
+| surface | capabilities | access |
+| --- | --- | --- |
+| login | login-or-create with timing-flat argon2id, seeded demo admin | public |
+| home | player stats, live rooms grid, create-room form (time control, best-of, tier), live-run banner | public |
+| room | 256-cell live board, rules-legal playable mask, tap ghost, tabular ticking clocks, bot M-line log, move history, ready and forfeit handshake | players; live stream public |
+| terminal room | honest terminal state, mid-game reload rehydrates | public |
+| history | per-game score lines, turn counts, move previews | signed-in players |
+| playback | first, prev, next, last, autoplay stepping through a finished game | the game's two players |
+| tournament | admin setup with config-bounded roster, live board per series, frozen leaderboard, stalled-run close | public read, admin drives |
+| presentation | dark-first palette, mobile-first 390px capture, 44px touch floor, two-tap select-then-confirm on coarse pointers | all |
 
 ## screenshots
 
@@ -59,6 +84,12 @@ The finished run page with the frozen leaderboard:
 
 The mobile pass audited every surface at 390x844: long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the board offers only the spaces the rules allow, the retired room renders an honest terminal state, and the tournament leaderboard scrolls inside its own wrap.
 
+## grounding
+
+- [first-cause.md](first-cause.md): the founding spec, rules, hardware budget, and v0.20 scenarios.
+- [docs/plans/first-cause-rebuild.md](docs/plans/first-cause-rebuild.md): milestone plan for the rebuild, updated as milestones land.
+- ref/: offline chessprogramming.org and gomocup grounding, browser-sourced.
+
 ## build and verify
 
 Requires go 1.27.1+, a C toolchain (gcc or llvm/clang), GNU make, with CGO enabled.
@@ -71,6 +102,7 @@ make mutate-full LABEL=vX PARALLEL=6 CHALLENGE=1  # whole gate, auto-resumes hos
 make mutate-resume LOG=prior-run.log PARALLEL=8 CHALLENGE=1
 make bench           # engine, clock, rules benchmarks with allocs
 make fuzz            # rules differential fuzz target
+make clocktune       # PID gain sweep for one time control, artifact under playground/clocktune/out/
 make diagrams        # render the dark PNG diagrams from the mermaid sources
 make logstats          # evidence report over the newest logs/tourny run
 make db-checkpoint     # fold every db/*.db write-ahead log into its main file
@@ -139,7 +171,7 @@ The engine is fail-soft PVS with iterative deepening, a lockless direct-mapped t
 
 The time manager grants per-move budgets as feedforward (spendable remainder over expected moves left plus an increment share) steered by one PID gain set per time control against the planned drain trajectory, clamped so the floor always funds a minimum move: a fully drained 1+0 clock still moves forever and a timeout can never decide a game. The soft stop refuses new iterations past 65% of the grant, treating a zero clock reading as one 16 ms Windows tick.
 
-The server persists to embedded SQLite in WAL mode behind forward-only startup migrations and a single-writer mutation queue (writes block, never drop). One game completion is one transaction: the game row, both rating events, and the series finish commit or roll back together, so the zero-sum rating ledger cannot tear. Passwords hash with argon2id at 64 MiB and 2 passes, per-user parameters, timing-flat login-or-create. Every match rates at +30*K and -30*K with K = 10^((R_loser-R_winner)/D) and D = 3000 on an upset or 500+2.5*R_loser clamped otherwise, applied per match on pre-match ratings, and each best-of series (bo3/5/7/11 over 1+0, 2+1, 3+2) runs as an explicit state machine: host takes red first, the loser takes red next, a draw retains red, and quitting books a loss for every remaining game. Bot engines are ephemeral per game and owned by one worker goroutine each; a forfeit or shutdown racing a search discards the stale answer instead of closing the engine under it. History score lines count the row's players, not stone colors, so red rotation never misattributes a win. Human-vs-bot matches persist through the same unit: each tier seats a reserved, unloginable AI account, every bot move stores its rendered M-line as a game_stats row inside the completion transaction, W-L-D and level count bot games while ratings stay pvp-only with zero rating events on any bot seat, and history and playback open bot games for the human with the bot seat named <difficulty>-<roomid> (schema v5 games.bot_name). The transport is JSON plus SSE with guest observability, subscribe-before-liveness stream setup, and a drain-then-backstop stop path on SIGINT or SIGTERM. Bot telemetry rides the room-keyed pub-sub hub as zero-alloc M-lines.
+The server persists to embedded SQLite in WAL mode behind forward-only startup migrations and a single-writer mutation queue (writes block, never drop). One game completion is one transaction: the game row, both rating events, and the series finish commit or roll back together, so the zero-sum rating ledger cannot tear. Passwords hash with argon2id at 64 MiB and 2 passes, per-user parameters, timing-flat login-or-create. Every match rates at +30*K and -30*K with K = 10^((R_loser-R_winner)/D) and D = 3000 on an upset or 500+2.5*R_loser clamped otherwise, applied per match on pre-match ratings, and each best-of series (bo3/5/7/11 over 1+0, 2+1, 3+2, 10+5) runs as an explicit state machine: host takes red first, the loser takes red next, a draw retains red, and quitting books a loss for every remaining game. Bot engines are ephemeral per game and owned by one worker goroutine each; a forfeit or shutdown racing a search discards the stale answer instead of closing the engine under it. History score lines count the row's players, not stone colors, so red rotation never misattributes a win. Human-vs-bot matches persist through the same unit: each tier seats a reserved, unloginable AI account, every bot move stores its rendered M-line as a game_stats row inside the completion transaction, W-L-D and level count bot games while ratings stay pvp-only with zero rating events on any bot seat, and history and playback open bot games for the human with the bot seat named <difficulty>-<roomid> (schema v5 games.bot_name). The transport is JSON plus SSE with guest observability, subscribe-before-liveness stream setup, and a drain-then-backstop stop path on SIGINT or SIGTERM. Bot telemetry rides the room-keyed pub-sub hub as zero-alloc M-lines.
 
 The mutation gate is in-house, go/parser and AST rewrites only: parallel workers over isolated module copies with serial confirmation of every survivor, resume that replays prior kills after host failures, an equivalence allowlist whose every entry is challenge-audited by running the suite under the allowlisted mutant, and a self-pruning unused-entry alarm. Current state: 1573/1573 mutants over rules, engine, and clock with 0 survivors and 79 proven allowances.
 
@@ -173,8 +205,6 @@ Tournaments run bot-versus-bot on the exact room surface human matches use: each
 ## roadmap v0.21 to v0.30
 
 The post-MVP waves, committed after the v0.20 gate closes. Every tier change rides the research law the inversion program established: capability perturbation in the arena, self-play noise floors, and a ladder re-gate before any strength-bearing constant ships.
-
-Time control: 10+5 joins 1+0, 2+1, and 3+2. The time manager gains a fourth tuned gain set and the fast-clock calibration findings carry over: the floor grant and the solver floor gate must hold at the larger budgets too.
 
 Master tier: a fourth difficulty above hard at 8 threads, a 2 GiB table, full VCF plus VCT, an opening book over the first 16 plies, and pondering on the opponent's time. The book needs a computable definition of optimal before it can claim one: entries backed by solver proofs or deep self-play agreement, built offline in playground with the artifact committed, never a hand-curated list. The arena's phase A measurement (40 of 40 red wins between identical 1+0 engines) is the case for the book: at fast clocks the opening decides the game. Pondering predicts the opponent's reply from the PV, searches that continuation while the opponent thinks, adopts the tree on a hit and re-searches from scratch on a miss, with the shared table keeping even misses warm; book replies land instantly, so they buy the widest ponder windows. Ponder budgets are machine time under an external stop, never the seat's own clock.
 
