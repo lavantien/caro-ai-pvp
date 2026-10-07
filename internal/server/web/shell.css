@@ -111,11 +111,11 @@ select, input { font: inherit; font-size: var(--text-l); padding: .3rem .4rem;
 	border: none; border-radius: var(--radius-s) }
 .btn:hover, button:not(.linklike):hover,
 .btn:active, button:not(.linklike):active { background: var(--accent-strong) }
-.btn-quiet, a.action { font: inherit; font-size: var(--text-l); padding: .35rem .9rem;
+.btn-quiet { font: inherit; font-size: var(--text-l); padding: .35rem .9rem;
 	background: var(--surface); color: var(--text);
 	border: 1px solid var(--border); border-radius: var(--radius-s);
 	text-decoration: none }
-.btn-quiet:hover, a.action:hover { background: var(--accent-soft) }
+.btn-quiet:hover { background: var(--accent-soft) }
 button[disabled] { opacity: .55 }
 /* Near-zero motion: the only transitions are the button and chip color
    fades, and they sit behind the reduced-motion preference. */
