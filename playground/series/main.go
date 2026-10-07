@@ -289,7 +289,7 @@ func main() {
 	tcDef := config.TimeControls[*tc]
 	majority := *bo/2 + 1
 	fmt.Printf("series harness: A=%s B=%s tc=%d (%d+%d) bo=%d majority=%d seed=%d movcap=%d\n",
-		*tierA, *tierB, *tc, tcDef.InitialSec, tcDef.IncrementSec, *bo, majority, *seed, *movcap)
+		*tierA, *tierB, *tc, tcDef.InitialMin, tcDef.IncrementSec, *bo, majority, *seed, *movcap)
 
 	wall := time.Now()
 	var over overrunLog

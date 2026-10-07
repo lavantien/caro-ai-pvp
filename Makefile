@@ -186,7 +186,7 @@ diagrams-browser:
 $(DIAGRAMS_DIR)/%.png: $(DIAGRAMS_DIR)/%.mmd $(DIAGRAMS_DIR)/mermaid-config.json $(DIAGRAMS_DIR)/puppeteer.json
 	npx -y -p @mermaid-js/mermaid-cli@$(MERMAID_CLI_VERSION) -p puppeteer@$(PUPPETEER_VERSION) mmdc -i $< -o $@ -e png -b '$(DIAGRAM_BG)' -s 3 -c $(DIAGRAMS_DIR)/mermaid-config.json -p $(DIAGRAMS_DIR)/puppeteer.json
 
-ci: fmt-check lint vet build test-race cover
+ci: playground-modules fmt-check lint vet build test-race cover
 	@echo "ci: all green"
 
 # logstats renders the markdown evidence report of the v0.20 chain from the
@@ -235,3 +235,14 @@ arena:
 clocktune:
 	CGO_ENABLED=1 go -C playground/clocktune build -o ../../bin/clocktune.exe .
 	bin/clocktune.exe $(ARGS)
+
+# playground-modules builds every nested playground module: a nested go.mod
+# is invisible to the root module's package patterns, so a config rename
+# rotting one module escaped every gate until the v0.21 adversarial pair
+# caught it. Wired into ci as the blind-spot closer.
+.PHONY: playground-modules
+playground-modules:
+	@for d in playground/*/go.mod; do \
+		echo "build $$(dirname $$d)"; \
+		CGO_ENABLED=1 go -C $$(dirname $$d) build . || exit 1; \
+	done
