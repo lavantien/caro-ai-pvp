@@ -246,5 +246,5 @@ clocktune:
 playground-modules:
 	@for d in playground/*/go.mod; do \
 		echo "build $$(dirname $$d)"; \
-		CGO_ENABLED=1 go -C $$(dirname $$d) build . || exit 1; \
+		CGO_ENABLED=1 go -C $$(dirname $$d) build -o ../../bin/ . || exit 1; \
 	done
