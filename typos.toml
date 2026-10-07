@@ -1,7 +1,5 @@
 [default.extend-words]
 thr = "thr"
-# The icon format's plural reads as "PN" to the checker.
-PNGs = "PNGs"
 
 [files]
 extend-exclude = [
