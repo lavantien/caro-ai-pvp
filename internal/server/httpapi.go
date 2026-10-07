@@ -36,6 +36,7 @@ const (
 	codeRoomNotFound    = "room_not_found"
 	codeRoomFull        = "room_full"
 	codeRoomClosed      = "room_closed"
+	codeMachineBusy     = "machine_busy"
 	codeNotReady        = "not_ready"
 	codeNotYourTurn     = "not_your_turn"
 	codeIllegalMove     = "illegal_move"
@@ -61,6 +62,7 @@ const (
 //	ErrRoomNotFound          room_not_found    404
 //	ErrRoomFull              room_full         409
 //	ErrRoomClosed            room_closed       409
+//	ErrMachineBusy           machine_busy      409  the core budget is held by live bot rooms
 //	ErrNotReady              not_ready         409
 //	ErrNotYourTurn           not_your_turn     409
 //	ErrIllegalMove           illegal_move      409
@@ -78,6 +80,8 @@ func errorResponse(err error) (code string, status int) {
 		return codeRoomFull, http.StatusConflict
 	case errors.Is(err, ErrRoomClosed):
 		return codeRoomClosed, http.StatusConflict
+	case errors.Is(err, ErrMachineBusy):
+		return codeMachineBusy, http.StatusConflict
 	case errors.Is(err, ErrNotYourTurn):
 		return codeNotYourTurn, http.StatusConflict
 	case errors.Is(err, ErrIllegalMove):

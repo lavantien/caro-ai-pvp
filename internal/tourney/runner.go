@@ -75,6 +75,18 @@ func (s RoomSource) StartSeries(host, guest *config.Tier, hostName, guestName st
 	return roomStream{room: room, sub: sub}, nil
 }
 
+// LiveCoreBookings exposes the room manager's core ledger, the conductor's
+// casual-room gate at startRun: the production source rides the manager, so
+// it carries the capability, while scripted sources hold no rooms and no
+// ledger.
+func (s RoomSource) LiveCoreBookings() int { return s.RM.LiveCoreBookings() }
+
+// coreLedgerSource is the optional MatchSource capability the start gate
+// reads when the source rides the room manager.
+type coreLedgerSource interface {
+	LiveCoreBookings() int
+}
+
 // roomStream is one live room's subscription wrapper.
 type roomStream struct {
 	room *server.Room
@@ -198,7 +210,9 @@ func (c *Conductor) Run(ctx context.Context, store *Store, roster []Participant,
 
 // startRun is the synchronous half of a run: resolve the roster tiers, refuse
 // a core budget the machine cannot book, refuse while any run row is still
-// ongoing (the machine-wide run gate), and persist the run. It returns
+// ongoing (the machine-wide run gate), refuse while live rooms hold the
+// machine's core ledger (any booking at startRun time is casual, tournament
+// rooms cannot predate their run), and persist the run. It returns
 // once the run row exists, before any series starts, so the UI manager can
 // hand the id out for a redirect. Split from Run as the M7 service seam; the
 // conductor's behavior is unchanged.
@@ -211,6 +225,15 @@ func (c *Conductor) startRun(ctx context.Context, store *Store, roster []Partici
 	}
 	if err := checkCoreBudget(parallel, tiers); err != nil {
 		return Run{}, nil, err
+	}
+	// The casual-room gate: MachineCores budgets the machine as a whole, so
+	// open bot rooms outside the run hold cores the run's own rooms would
+	// oversubscribe. Read only when the source rides the room manager; a
+	// source without the capability holds no rooms.
+	if src, ok := c.source.(coreLedgerSource); ok {
+		if held := src.LiveCoreBookings(); held > 0 {
+			return Run{}, nil, fmt.Errorf("tourney: %d live-search cores are held by open rooms, close them before starting a run", held)
+		}
 	}
 	// The machine-wide run gate: checkCoreBudget books against the whole
 	// machine per run, so two concurrent runs would silently double the

@@ -604,6 +604,13 @@ func (p *shellPages) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "room create failed", status)
 			return
 		}
+		// The ledger refusal is a capacity fact, not bad settings: render it
+		// inline at its own status instead of the invalid-settings line.
+		if errors.Is(err, ErrMachineBusy) {
+			p.renderHome(r, w, http.StatusConflict, me,
+				"the machine is fully booked by bot rooms, wait for one to close and try again")
+			return
+		}
 		bad()
 		return
 	}

@@ -329,7 +329,21 @@ func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {
 			t.Fatalf("create bot %s: status = %d, want 303 (body %s)", config.Tiers[i].Name, status, body)
 		}
 		botIDs[i] = strings.TrimPrefix(h.Get("Location"), "/rooms/")
-		created++
+		// The v0.23 core ledger holds at most one of these rooms live at a
+		// time (master alone books the whole machine), so each accepted room
+		// is asserted on the grid and closed before the next tier books:
+		// every tier's create stays covered without oversubscribing.
+		status, _, gridBody := doShell(t, c, http.MethodGet, srv.URL+"/", token, nil)
+		if status != http.StatusOK ||
+			!strings.Contains(gridBody, "alice vs "+config.Tiers[i].Name+"-"+botIDs[i]) {
+			t.Fatalf("grid after bot %s: status = %d, want the room card (body %s)",
+				config.Tiers[i].Name, status, gridBody)
+		}
+		room, err := s.rm.Get(botIDs[i])
+		if err != nil {
+			t.Fatalf("get the %s room: %v", config.Tiers[i].Name, err)
+		}
+		room.Close()
 	}
 
 	status, _, body := doShell(t, c, http.MethodGet, srv.URL+"/", token, nil)
@@ -339,23 +353,13 @@ func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {
 	// The select options are rendered from the config hub, so the whole
 	// vocabulary must appear and nothing else ("+" arrives escaped, the
 	// UTF-7 hardening of html/template text nodes).
-	wantShellBody(t, body, append([]string{
+	wantShellBody(t, body,
 		"1&#43;0", "2&#43;1", "3&#43;2", "bo3", "bo5", "bo7", "bo11",
-		"human, open seat", "AI easy", "AI medium", "AI hard",
-	}, roomGridLabels(config.Tiers, botIDs)...)...)
+		"human, open seat", "AI easy", "AI medium", "AI hard")
+	// Only the human rooms stay live; the bot rooms closed inside the loop.
 	if got := strings.Count(body, `class="room"`); got != created {
 		t.Errorf("grid shows %d rooms, want %d", got, created)
 	}
-}
-
-// roomGridLabels names the tier rooms the way the grid renders them, so
-// the options test follows the config table instead of restating it.
-func roomGridLabels(tiers [len(config.Tiers)]config.Tier, ids [len(config.Tiers)]string) []string {
-	labels := make([]string, 0, len(tiers))
-	for i := range tiers {
-		labels = append(labels, "alice vs "+tiers[i].Name+"-"+ids[i])
-	}
-	return labels
 }
 
 func TestShellCreateRoomRejectsGarbageSettings(t *testing.T) {

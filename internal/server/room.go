@@ -44,6 +44,9 @@ var (
 	ErrBadTier = errors.New("server: bot-vs-bot needs both tiers")
 	// ErrUnknownTier rejects a tier value outside the config tier table.
 	ErrUnknownTier = errors.New("server: unknown bot tier")
+	// ErrMachineBusy refuses creating a bot room whose cores do not fit the
+	// machine-wide budget the live bot rooms hold (admission.go's ledger).
+	ErrMachineBusy = errors.New("server: machine core budget full")
 )
 
 // roomIDBytes sizes the crypto/rand room id: 128 bits hex-encoded, long
@@ -82,6 +85,9 @@ type RoomManager struct {
 	hub   *Hub
 	store *Store
 	wq    *WriteQueue
+	// coresUsed is the machine-wide core ledger's live total (admission.go),
+	// guarded by mu like the rooms map.
+	coresUsed int
 	// makeSearcher is the engine factory every new room starts from. A
 	// manager-level seam rather than a per-room one because a bot-vs-bot
 	// game 1 starts inside CreateBotVsBot, before any per-room override
@@ -103,7 +109,9 @@ func NewRoomManager(hub *Hub, store *Store, wq *WriteQueue) *RoomManager {
 // reject: for PvP the guest is still unknown, so a throwaway construction
 // checks the time control and length. A bot room persists its pairing row
 // before going live, mirroring join, so every match is recorded: games and
-// per-move stats land at each completion, ratings never move.
+// per-move stats land at each completion, ratings never move. A bot room
+// also books its tier's cores on the machine ledger (admission.go) before
+// that row persists, refusing with ErrMachineBusy when the budget is full.
 func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config.Tier) (*Room, error) {
 	if ownerUserID <= 0 {
 		return nil, ErrBadOwner
@@ -127,7 +135,19 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 		makeSearcher: rm.makeSearcher,
 		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
 	}
+	// The ledger hold spans the booking to the publish: any create step
+	// failing in between returns the cores here, and from the publish the
+	// room's own retire owns the release.
+	published := false
+	defer func() {
+		if !published {
+			rm.releaseRoomCores(r)
+		}
+	}()
 	if vsBot != nil {
+		if !rm.bookRoomCores(r, vsBot.Cores) {
+			return nil, ErrMachineBusy
+		}
 		var row SeriesRow
 		err = r.wq.Send(func(ctx context.Context) error {
 			var perr error
@@ -148,6 +168,7 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 	}
 	rm.mu.Lock()
 	rm.rooms[r.id] = r
+	published = true
 	rm.mu.Unlock()
 	return r, nil
 }
@@ -159,7 +180,9 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 // drives. The settings validate through NewSeries like Create, the room
 // persists nothing (seriesID stays 0), and no player rating is touched.
 // hostName and guestName carry the seats' instance identities (the roster's
-// easy-a/easy-b); empty names fall back to the tier name.
+// easy-a/easy-b); empty names fall back to the tier name. The room books the
+// larger tier's cores on the machine ledger (admission.go) before it
+// publishes, refusing with ErrMachineBusy when the budget is full.
 func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, guestTier *config.Tier, guestName string, tcIdx, boLen int) (*Room, error) {
 	if hostTier == nil || guestTier == nil {
 		return nil, ErrBadTier
@@ -175,6 +198,17 @@ func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, gu
 		guest:        seat{userID: botGuestUserID, bot: guestTier, name: guestName},
 		makeSearcher: rm.makeSearcher,
 		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
+	}
+	// The ledger hold spans the booking to the publish like Create's: turns
+	// alternate, so the room's worst case is the max of the two tiers.
+	published := false
+	defer func() {
+		if !published {
+			rm.releaseRoomCores(r)
+		}
+	}()
+	if !rm.bookRoomCores(r, max(hostTier.Cores, guestTier.Cores)) {
+		return nil, ErrMachineBusy
 	}
 	r.mu.Lock()
 	r.series = series
@@ -194,6 +228,7 @@ func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, gu
 	// game cannot start until the human host readies.
 	rm.mu.Lock()
 	rm.rooms[r.id] = r
+	published = true
 	rm.mu.Unlock()
 	r.startBotWorker()
 	return r, nil
@@ -407,6 +442,10 @@ type Room struct {
 	tcIdx     int
 	boLen     int
 	createdAt time.Time
+	// bookedCores is the admission ledger hold the room carries from its
+	// create to its retire: written once at booking under the manager lock,
+	// released by the once-guarded retire. Zero on a room with no bot seat.
+	bookedCores int
 
 	mu       sync.Mutex
 	host     seat
@@ -557,6 +596,11 @@ func (r *Room) retire() {
 		r.mu.Lock()
 		r.over = true
 		r.mu.Unlock()
+		// The ledger release rides the once-guarded retire: every terminal
+		// path funnels here, while the manager key survives a plain Close by
+		// the pinned mid-retirement law, so releasing at the map delete alone
+		// would strand the booking of a closed-but-keyed room.
+		r.manager.releaseRoomCores(r)
 	})
 }
 
