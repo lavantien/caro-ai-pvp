@@ -22,7 +22,7 @@ type TimeControl struct {
 	IncrementSec int
 }
 
-var TimeControls = [...]TimeControl{{InitialMin: 1}, {InitialMin: 2, IncrementSec: 1}, {InitialMin: 3, IncrementSec: 2}}
+var TimeControls = [...]TimeControl{{InitialMin: 1}, {InitialMin: 2, IncrementSec: 1}, {InitialMin: 3, IncrementSec: 2}, {InitialMin: 10, IncrementSec: 5}}
 
 // TCIndex resolves a time control by its clock shape, so callers name "3+2"
 // instead of hardcoding table positions.
@@ -66,6 +66,7 @@ type PIDGains struct {
 // control, tuned against the feedforward baseline by the clock benchmarks.
 var ClockPID = [len(TimeControls)]PIDGains{
 	{Kp: 0.02, Ki: 0.01, Kd: 0.005},
+	{Kp: 0.03, Ki: 0.015, Kd: 0.005},
 	{Kp: 0.03, Ki: 0.015, Kd: 0.005},
 	{Kp: 0.03, Ki: 0.015, Kd: 0.005},
 }
