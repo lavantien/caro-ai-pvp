@@ -78,7 +78,7 @@ Values finer than `--space-1` (card line gaps, control metrics) stay literal in 
 
 Card: `.card` is the one flat card recipe: surface fill, border, `--radius-m`, grid, tight gap, `--space-2 --space-3` padding. `.room`, `.hrow`, `.tourney-run`, and `.livecard` share the recipe through the selector list and keep only their layout extras (margins, link resets, mini board) in their own rules.
 
-Chip: `.chip` is the small tag label: border, `--radius-s`, `--text-base` at padded density. `.chip.live` fills with `--accent-soft` and drops its border: the live state reads as tint, terminal states as outline.
+Chip: `.chip` is the small tag label: a `--text-muted` boundary (the boundary carries the state, so it clears the meaningful-boundary 3:1 instead of the decorative hairline floor), `--radius-s`, `--text-base` at padded density. `.chip.live` fills with `--accent-soft` and keeps its boundary: the live state reads as tint, terminal states as outline.
 
 Field: `.field` is the label-plus-control pair: grid, hairline gap, `--text-s`. Bare `label` elements alias the recipe so the shipped forms need no markup change.
 
@@ -90,7 +90,7 @@ Motion: the UI is near-zero motion. The only transitions are button and chip col
 
 ## Contrast contract
 
-`make darkcontrast` fails the build on any miss. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (live-tournament line, 3), `accent-strong` on `background` (focus ring over the page, 3).
+`make darkcontrast` fails the build on any miss. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (live-tournament line, 3), `accent-strong` on `background` (focus ring over the page, 3). Boundaries split by meaning: a boundary that carries state must clear WCAG 1.4.11's 3:1 (`text-muted` on `background`, `surface`, and `accent-soft` for the chip state boundary), while decorative boundaries (the board lattice, hairlines) stay at the 2.5 floor.
 
 ## Board
 

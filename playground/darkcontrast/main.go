@@ -84,6 +84,9 @@ func main() {
 		{"mark", "surface", "latest-stone ring on the board", 3},
 		{"mark", "background", "live-tournament line text", 3},
 		{"accent-strong", "background", "focus ring over the page", 3},
+		{"text-muted", "background", "chip state boundary on the page", 3},
+		{"text-muted", "surface", "chip state boundary inside cards", 3},
+		{"text-muted", "accent-soft", "live chip state boundary", 3},
 		{"border", "surface", "board grid lines and hairlines", 2.5},
 	}
 

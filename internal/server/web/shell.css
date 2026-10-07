@@ -88,13 +88,13 @@ h2 { font-size: var(--text-l); margin: 1.4rem 0 var(--space-2) }
 	gap: var(--space-1) var(--space-4); color: var(--text-muted) }
 .score { font-weight: 700 }
 /* The chip recipe: small tag labels (run states, live badges, tier and tc
-   tags). .chip.live swaps the outline for the accent tint: the live state
-   reads as filled, terminal states as outlined. */
-.chip { border: 1px solid var(--border); border-radius: var(--radius-s);
+   tags). The boundary carries the state, so it paints text-muted (past the
+   3:1 meaningful-boundary floor), not the decorative hairline; .chip.live
+   fills with the accent tint and keeps its boundary. */
+.chip { border: 1px solid var(--text-muted); border-radius: var(--radius-s);
 	padding: .05rem var(--space-2); color: var(--text-muted);
 	font-size: var(--text-base) }
-.chip.live { border-color: transparent; background: var(--accent-soft);
-	color: var(--text) }
+.chip.live { background: var(--accent-soft); color: var(--text) }
 /* The field recipe: one label-plus-control pair; bare labels alias it so
    the shipped forms carry no extra markup. */
 .field, label { display: grid; gap: .15rem; font-size: var(--text-s) }
