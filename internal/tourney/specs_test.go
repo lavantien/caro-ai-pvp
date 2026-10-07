@@ -51,14 +51,20 @@ func TestSmokeRoster105Spec(t *testing.T) {
 			t.Errorf("smoke105 roster[%d] = %+v, want %+v", i, p, want[i])
 		}
 	}
+	// Both directions pinned: counting only hard-1-as-red pairs stays green
+	// under a single round robin, the exact regression the twice-pair shape
+	// exists to prevent.
 	redFirst := map[string]int{}
+	pairCount := 0
 	for _, pair := range Pairings(spec.Roster) {
-		if pair.RedFirst.Name == "hard-1" {
-			redFirst[pair.BlueFirst.Name]++
-		}
+		pairCount++
+		redFirst[pair.RedFirst.Name+"-"+pair.BlueFirst.Name]++
 	}
-	if redFirst["hard-2"] != 1 {
-		t.Errorf("smoke105 schedule has hard-1 red-first against hard-2 %d times, want exactly 1 (twice-pair, seats swapped)", redFirst["hard-2"])
+	if pairCount != 2 {
+		t.Errorf("smoke105 schedule holds %d pairings, want 2 (twice-pair)", pairCount)
+	}
+	if redFirst["hard-1-hard-2"] != 1 || redFirst["hard-2-hard-1"] != 1 {
+		t.Errorf("smoke105 red-first split = %v, want each seat red-first exactly once", redFirst)
 	}
 }
 
