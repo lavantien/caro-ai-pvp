@@ -89,13 +89,12 @@ h2 { font-size: var(--text-l); margin: 1.4rem 0 var(--space-2) }
 .score { font-weight: 700 }
 /* The chip recipe: small tag labels (run states, live badges, tier and tc
    tags). .chip.live swaps the outline for the accent tint: the live state
-   reads as filled, terminal states as outlined. The .runstate selector is
-   a legacy alias dropped when tourney_run.tmpl adopts the class. */
-.chip, .runstate { border: 1px solid var(--border); border-radius: var(--radius-s);
-	padding: .05rem var(--space-2); color: var(--text-muted) }
-.chip.live, .runstate.live { border-color: transparent; background: var(--accent-soft);
+   reads as filled, terminal states as outlined. */
+.chip { border: 1px solid var(--border); border-radius: var(--radius-s);
+	padding: .05rem var(--space-2); color: var(--text-muted);
+	font-size: var(--text-base) }
+.chip.live { border-color: transparent; background: var(--accent-soft);
 	color: var(--text) }
-.live { color: var(--text-muted) }
 /* The field recipe: one label-plus-control pair; bare labels alias it so
    the shipped forms carry no extra markup. */
 .field, label { display: grid; gap: .15rem; font-size: var(--text-s) }
@@ -143,8 +142,9 @@ h1, .who, .who-vs, #score-line { overflow-wrap: anywhere }
 .hrow .who-vs, .livecard .who-vs, .tseries .who-vs { font-size: var(--text-xl);
 	font-weight: 700 }
 /* Bot-only surfaces take the machine voice for names; mixed surfaces
-   (history rows, room seats) can carry a human name and stay human. */
-.livecard .who-vs, .tseries .who-vs, .tboard td:nth-child(2),
+   (history rows, room seats) can carry a human name and stay human. The
+   pairing list is machine data end to end. */
+.livecard .who-vs, .tseries, .tboard td:nth-child(2),
 .tboard td:nth-child(3) { font-family: var(--font-mono) }
 .hrow .moves { font-family: var(--font-mono); word-break: break-word }
 .hrow .moves a { text-decoration: none }
@@ -176,7 +176,8 @@ h1, .who, .who-vs, #score-line { overflow-wrap: anywhere }
 .mcell.m-red::after { background: var(--red) }
 .mcell.m-blue::after { background: var(--blue) }
 .mcell.m-latest::after { box-shadow: 0 0 0 3px var(--mark) }
-.tseries { display: grid; gap: var(--space-1); margin: .4rem 0 var(--space-4); padding-left: 1.2rem }
+.tseries { display: grid; gap: var(--space-1); margin: .4rem 0 var(--space-4);
+	padding-left: 1.2rem }
 .tboard { border-collapse: collapse; font-size: var(--text-base) }
 /* The leaderboard's 9 columns run wider than a phone viewport; the wrap
    scrolls them instead of the page, and the narrow band tightens cells so

@@ -1,8 +1,8 @@
 {{define "title"}}tournament {{.Header.ID}} - caro{{end}}
 {{define "content"}}
 <section aria-label="tournament run">
-<h2>tournament {{.Header.ID}} <span class="runstate">{{.Header.State}}</span></h2>
-<p class="meta"><span>{{.Header.When}}</span><span>{{.Header.TC}}</span><span>{{.Header.BO}}</span><span>start {{.Header.StartRating}}</span></p>
+<h2>tournament {{.Header.ID}} <span class="chip{{if eq .Header.State `running`}} live{{end}}">{{.Header.State}}</span></h2>
+<p class="meta"><span>{{.Header.When}}</span><span class="chip">{{.Header.TC}}</span><span class="chip">{{.Header.BO}}</span><span>start {{.Header.StartRating}}</span></p>
 {{if .Header.Failure}}<p class="error" role="alert">run failed: {{.Header.Failure}}</p>{{end}}
 {{if .CanClose}}
 <form class="tourneyform" method="post" action="/tourney/run/{{.RunID}}/close">
