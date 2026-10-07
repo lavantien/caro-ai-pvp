@@ -1,10 +1,21 @@
 // clocktune sweeps PID gain sets for one time control over the real
 // GameClock through the NewGameClockWithGains seam, ranking every grid cell
-// by the wave objective: minimize the worst drain-trajectory deviation from
-// GameClock.Target across cost models and game lengths, subject to the bank
-// never dipping to the reserve at any commit. The committed per-TC row is
-// scored in the same run so the sweep confirms or displaces it. The ranked
-// table lands in out/ as the tuning artifact the config row cites.
+// by worst drain-trajectory deviation from GameClock.Target across cost
+// models and game lengths. The committed per-TC row is scored in the same
+// run so its standing is on the record.
+//
+// Two structural facts of the clock law bound what the ranking can say.
+// The drain target spends down the initial bank only (the increment terms
+// cancel), while the law banks half the increment per move, so mid-game
+// deviation carries a surplus no gain set removes and cells rank by Kp
+// alone, the most aggressive corner winning with no interior optimum. Past
+// the expected move count the grant dumps the spendable remainder
+// regardless of gains. The artifact therefore records the committed row's
+// standing and the objective's flatness rather than selecting gains: gain
+// changes ride game evidence per the research law. The reserve-breach
+// disqualifier only bites at no-increment controls, because Commit
+// recharges the increment first and a post-commit bank at an increment
+// control can never sit at the reserve.
 package main
 
 import (
@@ -124,10 +135,13 @@ func main() {
 	fmt.Fprintf(&b, "# clocktune sweep: %d+%d (tc %d)\n\n", ctl.InitialMin, ctl.IncrementSec, *tcIdx)
 	fmt.Fprintf(&b, "grid Kp %g..%g step %g, Ki %g..%g step %g, Kd %s; lengths %s; models exact, overshoot[%g,%g], slowstart %dx%g; reserve %d ms; seeds %#x/%#x\n\n",
 		*kpMin, *kpMax, *kpStep, *kiMin, *kiMax, *kiStep, *kdList, *lengths, ovLo, ovHi, slowStartMoves, slowStartFactor, config.SearchSafetyMarginMs, sweepSeedHi, sweepSeedLo)
-	fmt.Fprintf(&b, "objective: rank by worst drain-trajectory deviation, reserve breaches disqualify; collapse and stdev are budget-volatility diagnostics from the same sequences (bench metric definitions)\n\n")
+	fmt.Fprintf(&b, "objective: rank by worst drain-trajectory deviation, reserve breaches disqualify (a no-increment metric, see the structural note). collapse and stdev are budget-volatility diagnostics from the same sequences (bench metric definitions)\n\n")
 	fmt.Fprintf(&b, "committed row {Kp %g, Ki %g, Kd %g}: rank %d/%d, worst deviation %.0f ms, collapse %.0f ms, stdev %.0f ms, reserve breaches %d\n",
 		committed.kp, committed.ki, committed.kd, committedRank, len(cells), committed.maxDevMs, committed.collapseMs, committed.stdevMs, committed.breaches)
 	fmt.Fprintf(&b, "winner {Kp %g, Ki %g, Kd %g}: worst deviation %.0f ms, collapse %.0f ms, stdev %.0f ms, reserve breaches %d\n\n", winner.kp, winner.ki, winner.kd, winner.maxDevMs, winner.collapseMs, winner.stdevMs, winner.breaches)
+	if ctl.IncrementSec > 0 {
+		fmt.Fprintf(&b, "structural: the drain target is increment-free while the law banks half the increment per move, so deviation carries a surplus no gain set removes and the ranking is monotone in Kp with no interior optimum. breaches are structurally 0 at increment controls, the post-commit bank flooring at the increment itself\n\n")
+	}
 	fmt.Fprintf(&b, "| rank | Kp | Ki | Kd | worst deviation ms | collapse ms | stdev ms | breaches | max leftover ms |\n")
 	fmt.Fprintf(&b, "| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
 	for i, c := range cells {
@@ -170,12 +184,17 @@ func simulate(tcIdx int, g config.PIDGains, factors []float64) simResult {
 	maxDevMs, _ := devMs()
 	budgets := make([]float64, len(factors))
 	breaches := 0
+	// A breach at an increment control is structurally impossible: Commit
+	// recharges the increment, so the post-commit bank floors at the
+	// increment itself. Counting it there would report a vacuous zero as
+	// safety evidence.
+	noIncrement := config.TimeControls[tcIdx].IncrementSec == 0
 	for m := range factors {
 		budgets[m] = float64(c.Budget()) / nsPerMs
 		c.Commit(time.Duration(budgets[m] * factors[m] * nsPerMs))
 		dev, rem := devMs()
 		maxDevMs = math.Max(maxDevMs, dev)
-		if rem <= config.SearchSafetyMarginMs {
+		if noIncrement && rem <= config.SearchSafetyMarginMs {
 			breaches++
 		}
 	}
@@ -216,11 +235,24 @@ func stdev(b []float64) float64 {
 	return math.Sqrt(ss / float64(len(b)))
 }
 
+// axis expands one grid dimension. Misaligned bounds are an error, never a
+// silently truncated or one-cell sweep: a non-dividing span would print its
+// requested extent while sweeping something else.
 func axis(min, max, step float64) []float64 {
-	if step <= 0 || min > max {
-		return []float64{min}
+	if step <= 0 {
+		fmt.Fprintf(os.Stderr, "clocktune: axis step %g must be positive\n", step)
+		os.Exit(1)
 	}
-	n := int(math.Round((max - min) / step))
+	if min > max {
+		fmt.Fprintf(os.Stderr, "clocktune: axis min %g above max %g\n", min, max)
+		os.Exit(1)
+	}
+	span := (max - min) / step
+	if math.Abs(span-math.Round(span)) > 1e-9 {
+		fmt.Fprintf(os.Stderr, "clocktune: axis %g..%g step %g does not divide exactly\n", min, max, step)
+		os.Exit(1)
+	}
+	n := int(math.Round(span))
 	var out []float64
 	for i := 0; i <= n; i++ {
 		out = append(out, math.Round((min+float64(i)*step)/step)*step)

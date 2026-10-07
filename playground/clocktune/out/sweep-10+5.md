@@ -2,10 +2,12 @@
 
 grid Kp 0.01..0.06 step 0.01, Ki 0.005..0.03 step 0.005, Kd 0,0.005,0.01; lengths 20,30,40,50,60; models exact, overshoot[1,1.3], slowstart 10x3; reserve 120 ms; seeds 0xc10c7eed/0x7e11
 
-objective: rank by worst drain-trajectory deviation, reserve breaches disqualify; collapse and stdev are budget-volatility diagnostics from the same sequences (bench metric definitions)
+objective: rank by worst drain-trajectory deviation, reserve breaches disqualify (a no-increment metric, see the structural note). collapse and stdev are budget-volatility diagnostics from the same sequences (bench metric definitions)
 
 committed row {Kp 0.03, Ki 0.015, Kd 0.005}: rank 64/108, worst deviation 188396 ms, collapse 19190 ms, stdev 9980 ms, reserve breaches 0
 winner {Kp 0.06, Ki 0.03, Kd 0.01}: worst deviation 179797 ms, collapse 19190 ms, stdev 9957 ms, reserve breaches 0
+
+structural: the drain target is increment-free while the law banks half the increment per move, so deviation carries a surplus no gain set removes and the ranking is monotone in Kp with no interior optimum. breaches are structurally 0 at increment controls, the post-commit bank flooring at the increment itself
 
 | rank | Kp | Ki | Kd | worst deviation ms | collapse ms | stdev ms | breaches | max leftover ms |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
