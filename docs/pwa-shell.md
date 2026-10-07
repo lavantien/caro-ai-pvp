@@ -12,7 +12,7 @@ The v0.27 install surface: the web app manifest, the service worker, the offline
 | `/static/pwa.js` | `internal/server/web/static/pwa.js` | static mount, day cache |
 | `/static/icons/*.png` | `internal/server/web/static/icons/` | static mount, day cache |
 
-The worker sits at the root, so its scope covers the whole site with no `Service-Worker-Allowed` header. `theme_color` and `background_color` are `#101318`, the `--background` anchor of docs/design-system.md; they change together. Every page head (base.tmpl, room.html, playback.html) carries the manifest link, the theme-color meta, the apple touch icon and meta set, and `/static/pwa.js` deferred.
+The worker sits at the root, so its scope covers the whole site with no `Service-Worker-Allowed` header. `theme_color` and `background_color` are `#101318`, the `--background` anchor of docs/design-system.md; they change together, and the pwa tests derive the expected color from shell.css's `--background`, so a drifted manifest or meta fails the suite. Every page head (base.tmpl, room.html, playback.html) carries the manifest link, the theme-color meta, the apple touch icon and meta set, and `/static/pwa.js` deferred.
 
 ## The boundary law
 

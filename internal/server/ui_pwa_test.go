@@ -15,13 +15,29 @@ import (
 	"image/png"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
 
-// pwaThemeColor is the manifest's theme and background fill: the committed
-// --background anchor of docs/design-system.md. Change them together.
-const pwaThemeColor = "#101318"
+// pwaThemeColor is the manifest's theme and background fill: shell.css's
+// --background anchor, read at run time so the manifest and the head metas
+// are pinned against the real token instead of a hand copy that can drift.
+// Change them together.
+func pwaThemeColor(t *testing.T) string {
+	t.Helper()
+	css, err := os.ReadFile("web/shell.css")
+	if err != nil {
+		t.Fatalf("read shell.css: %v", err)
+	}
+	m := regexp.MustCompile(`(?m)^\s*--background:\s*(#[0-9a-fA-F]{6})\s*;`).
+		FindSubmatch(css)
+	if m == nil {
+		t.Fatal("shell.css :root does not carry a hex --background anchor")
+	}
+	return string(m[1])
+}
 
 func TestPWAManifestServesInstallFields(t *testing.T) {
 	s := newStack(t)
@@ -38,6 +54,7 @@ func TestPWAManifestServesInstallFields(t *testing.T) {
 	if got := h.Get("Cache-Control"); got != "no-cache" {
 		t.Errorf("manifest Cache-Control = %q, want no-cache", got)
 	}
+	theme := pwaThemeColor(t)
 	var m struct {
 		Name            string `json:"name"`
 		StartURL        string `json:"start_url"`
@@ -63,9 +80,9 @@ func TestPWAManifestServesInstallFields(t *testing.T) {
 	if m.Display != "standalone" {
 		t.Errorf("manifest display = %q, want standalone", m.Display)
 	}
-	if m.ThemeColor != pwaThemeColor || m.BackgroundColor != pwaThemeColor {
+	if m.ThemeColor != theme || m.BackgroundColor != theme {
 		t.Errorf("manifest colors = %q / %q, want both %s",
-			m.ThemeColor, m.BackgroundColor, pwaThemeColor)
+			m.ThemeColor, m.BackgroundColor, theme)
 	}
 	var has192, has512, hasMaskable bool
 	for _, icon := range m.Icons {
@@ -252,7 +269,7 @@ func TestPWABaseHeadWiring(t *testing.T) {
 	}
 	for _, want := range []string{
 		`<link rel="manifest" href="/manifest.webmanifest">`,
-		`<meta name="theme-color" content="` + pwaThemeColor + `">`,
+		`<meta name="theme-color" content="` + pwaThemeColor(t) + `">`,
 		`<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">`,
 		`<meta name="mobile-web-app-capable" content="yes">`,
 		`<meta name="apple-mobile-web-app-capable" content="yes">`,
@@ -272,7 +289,7 @@ func TestPWABaseHeadWiring(t *testing.T) {
 func TestPWARoomAndPlaybackHeadWiring(t *testing.T) {
 	wiring := []string{
 		`<link rel="manifest" href="/manifest.webmanifest">`,
-		`<meta name="theme-color" content="` + pwaThemeColor + `">`,
+		`<meta name="theme-color" content="` + pwaThemeColor(t) + `">`,
 		`<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">`,
 		`<meta name="mobile-web-app-capable" content="yes">`,
 		`<meta name="apple-mobile-web-app-status-bar-style" content="black">`,

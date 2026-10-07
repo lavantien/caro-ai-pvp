@@ -2,13 +2,27 @@
 // internal/server/web/shell.css against the WCAG 2.1 contrast formula:
 // every foreground/background pair the UI paints, with the threshold each
 // pair must clear (4.5:1 body text, 3:1 large text and non-text marks).
-// make darkcontrast runs it (and ci runs that); a miss fails the process.
+// The tokens parse out of the stylesheet's :root block at run time, so the
+// checker reads the shipped values and never a copy that can drift. make
+// darkcontrast runs it (and ci runs that); a miss fails the process.
 package main
 
 import (
 	"fmt"
 	"math"
 	"os"
+	"regexp"
+	"strings"
+)
+
+// shellCSS is the token hub, relative to the playground module the tool
+// always runs from (`go -C playground run ./darkcontrast`, its one entry
+// point).
+const shellCSS = "../internal/server/web/shell.css"
+
+var (
+	declRE  = regexp.MustCompile(`^--([a-z0-9-]+):\s*(.+)$`)
+	colorRE = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 )
 
 // lum is the WCAG relative luminance of an 8-bit sRGB triple.
@@ -41,21 +55,51 @@ func hex(s string) [3]uint8 {
 	return [3]uint8{r, g, b}
 }
 
+// rootColors returns the color tokens of shell.css's :root block. The block
+// carries non-token properties (color-scheme) and fonts and sizes beside
+// the hex anchors; those skip the color map. A --declaration that does not
+// parse is an error, and so is a block that is absent or never closes:
+// quiet parsing would silently turn the checker back into a hand copy.
+func rootColors(path string) (map[string]string, error) {
+	css, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	src := string(css)
+	i := strings.Index(src, ":root {")
+	if i < 0 {
+		return nil, fmt.Errorf("%s: no :root block", path)
+	}
+	body := src[i+len(":root {"):]
+	j := strings.Index(body, "}")
+	if j < 0 {
+		return nil, fmt.Errorf("%s: :root block never closes", path)
+	}
+	colors := make(map[string]string)
+	for _, decl := range strings.Split(body[:j], ";") {
+		decl = strings.TrimSpace(decl)
+		if decl == "" {
+			continue
+		}
+		m := declRE.FindStringSubmatch(decl)
+		if m == nil {
+			if strings.HasPrefix(decl, "--") {
+				return nil, fmt.Errorf("%s: unparsable :root declaration %q", path, decl)
+			}
+			continue
+		}
+		if v := strings.TrimSpace(m[2]); colorRE.MatchString(v) {
+			colors[m[1]] = v
+		}
+	}
+	return colors, nil
+}
+
 func main() {
-	// The :root block of shell.css, verbatim token values.
-	p := map[string]string{
-		"background":    "#101318",
-		"surface":       "#1a1f28",
-		"border":        "#566179",
-		"text":          "#e8ebf2",
-		"text-muted":    "#a4aec2",
-		"accent":        "#58a8ff",
-		"accent-strong": "#7db8ff",
-		"accent-soft":   "#25384f",
-		"danger":        "#ff7a6e",
-		"red":           "#ef5350",
-		"blue":          "#42a5f5",
-		"mark":          "#ffb454",
+	p, err := rootColors(shellCSS)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "darkcontrast:", err)
+		os.Exit(1)
 	}
 
 	// fg token, bg token, where it paints, minimum ratio.
@@ -92,7 +136,14 @@ func main() {
 
 	failed := false
 	for _, c := range checks {
-		r := ratio(hex(p[c.fg]), hex(p[c.bg]))
+		fg, bg := p[c.fg], p[c.bg]
+		if fg == "" || bg == "" {
+			fmt.Printf("FAIL  %-11s on %-10s  token missing from %s :root\n",
+				c.fg, c.bg, shellCSS)
+			failed = true
+			continue
+		}
+		r := ratio(hex(fg), hex(bg))
 		ok := "ok"
 		if r < c.min {
 			ok = "FAIL"
