@@ -78,7 +78,7 @@ Values finer than `--space-1` (card line gaps, control metrics) stay literal in 
 
 Card: `.card` is the one flat card recipe: surface fill, border, `--radius-m`, grid, tight gap, `--space-2 --space-3` padding. `.room`, `.hrow`, `.tourney-run`, and `.livecard` share the recipe through the selector list and keep only their layout extras (margins, link resets, mini board) in their own rules.
 
-Chip: `.chip` is the small tag label: border, `--radius-s`, `--text-base` at padded density. `.chip.live` (and the aliased `.runstate.live`, `span.live`) fills with `--accent-soft` and drops its border: the live state reads as tint, terminal states as outline.
+Chip: `.chip` is the small tag label: border, `--radius-s`, `--text-base` at padded density. `.chip.live` fills with `--accent-soft` and drops its border: the live state reads as tint, terminal states as outline.
 
 Field: `.field` is the label-plus-control pair: grid, hairline gap, `--text-s`. Bare `label` elements alias the recipe so the shipped forms need no markup change.
 
