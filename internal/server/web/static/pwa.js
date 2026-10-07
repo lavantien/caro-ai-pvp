@@ -7,7 +7,9 @@
 (function () {
 'use strict';
 if (!('serviceWorker' in navigator)) { return; }
-navigator.serviceWorker.register('/sw.js');
+navigator.serviceWorker.register('/sw.js').catch(function (err) {
+	console.warn('sw registration failed:', err);
+});
 
 var btn = document.getElementById('install-btn');
 if (!btn) { return; }
@@ -26,6 +28,10 @@ btn.addEventListener('click', function () {
 	btn.hidden = true;
 	deferred.prompt();
 	deferred = null;
+});
+window.addEventListener('appinstalled', function () {
+	deferred = null;
+	btn.hidden = true;
 });
 if (standalone()) { btn.hidden = true; }
 })();
