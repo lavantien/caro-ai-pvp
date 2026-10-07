@@ -103,13 +103,14 @@ select, input { font: inherit; font-size: var(--text-l); padding: .3rem .4rem;
 	border: 1px solid var(--border); border-radius: var(--radius-s) }
 /* The button system: .btn primary (accent fill, accent-strong on hover and
    active), .btn-quiet (surface and border, tint on hover). Element
-   selectors alias both for the shipped markup; .linklike stays the plain
-   text button. */
-.btn, button:not(.linklike) { font: inherit; font-size: var(--text-l);
+   selectors alias the primary for the shipped markup; the :not(.btn-quiet)
+   guard keeps the quiet class outranking the element alias on buttons.
+   .linklike stays the plain text button. */
+.btn, button:not(.linklike):not(.btn-quiet) { font: inherit; font-size: var(--text-l);
 	padding: .35rem .9rem; background: var(--accent); color: var(--background);
 	border: none; border-radius: var(--radius-s) }
-.btn:hover, button:not(.linklike):hover,
-.btn:active, button:not(.linklike):active { background: var(--accent-strong) }
+.btn:hover, button:not(.linklike):not(.btn-quiet):hover,
+.btn:active, button:not(.linklike):not(.btn-quiet):active { background: var(--accent-strong) }
 .btn-quiet { font: inherit; font-size: var(--text-l); padding: .35rem .9rem;
 	background: var(--surface); color: var(--text);
 	border: 1px solid var(--border); border-radius: var(--radius-s);

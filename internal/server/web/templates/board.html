@@ -2,10 +2,11 @@
 <style>
 #board { display: grid; width: min(100%, 44rem); aspect-ratio: 1; margin: 0 auto;
 	touch-action: manipulation; user-select: none; border: 2px solid var(--border);
-	background: var(--surface) }
+	border-radius: var(--radius-m); background: var(--surface) }
 .cell { position: relative; border: 1px solid var(--border) }
 .stone { position: absolute; inset: 8%; border-radius: 50%; display: flex;
-	align-items: center; justify-content: center; font-size: 1rem; font-weight: 700 }
+	align-items: center; justify-content: center; font-size: var(--text-base);
+	font-weight: 700 }
 .stone.red { background: var(--red); color: var(--background) }
 .stone.blue { background: var(--blue); color: var(--background) }
 .stone.latest { box-shadow: 0 0 0 3px var(--mark) }

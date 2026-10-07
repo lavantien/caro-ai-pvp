@@ -9,35 +9,35 @@
 <link rel="stylesheet" href="/shell.css">
 {{template "board-css"}}
 <style>
-body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 48rem; padding: .5rem }
-h1 { font-size: 1.2rem; margin: .2rem 0 }
-h2 { font-size: 1rem; margin: .3rem 0 }
-.status { font-family: ui-monospace, monospace; font-size: .85rem;
+body { margin: 0 auto; max-width: 48rem; padding: var(--space-2) }
+h1 { font-size: var(--text-xl); margin: .2rem 0 }
+h2 { font-size: var(--text-base); margin: .3rem 0 }
+.status { font-family: var(--font-mono); font-size: var(--text-s);
 	color: var(--text-muted) }
 #room-status.err { color: var(--danger); font-weight: 700 }
-#clocks { display: flex; justify-content: space-between; gap: 1rem; margin: .4rem 0 }
+#clocks { display: flex; justify-content: space-between; gap: var(--space-4); margin: .4rem 0 }
 .clockbox { min-width: 8rem }
 /* The seat label clamps to one line with an ellipsis: a wrapped bot name
    would push its clock below the other and the full id already lives in
    the header and the score line. */
-.clockbox .who { font-size: .9rem; white-space: nowrap; overflow: hidden;
+.clockbox .who { font-size: var(--text-m); white-space: nowrap; overflow: hidden;
 	text-overflow: ellipsis }
-.clock { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums }
+.clock { font-family: var(--font-mono); font-size: 2rem; font-weight: 700;
+	font-variant-numeric: tabular-nums }
 .clockbox.red .clock { color: var(--red) }
 .clockbox.blue .clock { color: var(--blue) }
-#turn-line { font-size: 1.2rem; font-weight: 600; margin: .3rem 0 }
+#turn-line { font-size: var(--text-xl); font-weight: 600; margin: .3rem 0 }
 #score-line { margin: .2rem 0 }
 button { font: inherit; padding: .4rem 1.2rem }
-#ready-btn { font-size: 1.2rem; padding: .6rem 2.4rem }
-#forfeit-btn { background: var(--surface); color: var(--text) }
+#ready-btn { font-size: var(--text-xl); padding: .6rem 2.4rem }
 #forfeit-btn.armed { background: var(--danger); color: var(--background) }
 section { margin: .8rem 0 }
-#move-history { display: flex; flex-wrap: wrap; gap: .25rem .6rem; list-style: none;
-	padding: 0; margin: 0; font-family: ui-monospace, monospace; font-size: 1rem }
+#move-history { display: flex; flex-wrap: wrap; gap: var(--space-1) .6rem; list-style: none;
+	padding: 0; margin: 0; font-family: var(--font-mono); font-size: var(--text-base) }
 #move-history li.latest { font-weight: 700; text-decoration: underline }
 #bot-log { list-style: none; padding: 0; margin: 0; max-height: 24vh; overflow-y: auto;
-	font-family: ui-monospace, monospace; font-size: .8rem;
-	border: 1px solid var(--border); border-radius: .25rem }
+	font-family: var(--font-mono); font-size: var(--text-xs);
+	border: 1px solid var(--border); border-radius: var(--radius-s) }
 #bot-log li { padding: .1rem .35rem; border-bottom: 1px solid var(--border);
 	word-break: break-all }
 #sse-feed { display: none }
@@ -53,7 +53,7 @@ section { margin: .8rem 0 }
  data-my-id="{{.ViewerID}}"
  data-kinds="{{.KindsCSV}}">
 
-<h1>room {{.RoomID}}</h1>
+<h1>room <span class="mono">{{.RoomID}}</span></h1>
 <p class="status" id="room-status">{{.State}} / {{.TCLabel}} / bo{{.BOLen}}{{if .VsBotTier}} / AI {{.VsBotTier}}{{end}}</p>
 
 <section id="clocks">
@@ -67,7 +67,7 @@ section { margin: .8rem 0 }
 <section id="controls">
 {{if .CanReady}}<p><span id="ready-host">{{.HostName}}: {{.HostReady}}</span> / <span id="ready-guest">{{.GuestName}}: {{.GuestReady}}</span></p>
 <button id="ready-btn">ready</button>{{end}}
-{{if .CanForfeit}}<button id="forfeit-btn">forfeit</button>{{end}}
+{{if .CanForfeit}}<button id="forfeit-btn" class="btn-quiet">forfeit</button>{{end}}
 </section>
 {{end}}
 {{if .CanJoin}}<section id="join-section"><button id="join-btn">join</button></section>{{end}}

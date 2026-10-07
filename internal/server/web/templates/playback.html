@@ -9,22 +9,22 @@
 <link rel="stylesheet" href="/shell.css">
 {{template "board-css"}}
 <style>
-body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 48rem; padding: .5rem }
-h1 { font-size: 1.2rem; margin: .2rem 0 }
-#pb-controls { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; justify-content: center; margin: .6rem 0 }
-#pb-controls button { font: inherit; font-size: 1.1rem; padding: .4rem 1rem }
-#pb-counter { font-family: ui-monospace, monospace; font-size: 1.2rem;
-	font-variant-numeric: tabular-nums; margin-left: .5rem }
+body { margin: 0 auto; max-width: 48rem; padding: var(--space-2) }
+h1 { font-size: var(--text-xl); margin: .2rem 0 }
+#pb-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; justify-content: center; margin: .6rem 0 }
+#pb-controls button { font: inherit; font-size: var(--text-l); padding: .4rem 1rem }
+#pb-counter { font-family: var(--font-mono); font-size: var(--text-xl);
+	font-variant-numeric: tabular-nums; margin-left: var(--space-2) }
 #pb-outcome, #won-by { font-weight: 700 }
 #won-by { color: var(--red) }
-#pb-moves { display: flex; flex-wrap: wrap; gap: .25rem .6rem; list-style: none;
-	padding: 0; margin: 0; font-family: ui-monospace, monospace; font-size: 1rem }
+#pb-moves { display: flex; flex-wrap: wrap; gap: var(--space-1) .6rem; list-style: none;
+	padding: 0; margin: 0; font-family: var(--font-mono); font-size: var(--text-base) }
 #pb-moves li.latest { font-weight: 700; text-decoration: underline }
 </style>
 </head>
 <body>
 <div id="playback-root" data-total="{{len .Moves}}">
-<h1>game playback #{{.GameID}}</h1>
+<h1>game playback #<span class="mono">{{.GameID}}</span></h1>
 <p>red {{.RedName}} vs blue {{.BlueName}} / <span id="pb-outcome">{{.Outcome}}</span>{{if .WonBy}} / <span id="won-by">won by {{.WonBy}}</span>{{end}}</p>
 
 {{template "board-grid" .}}
