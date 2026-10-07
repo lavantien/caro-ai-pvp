@@ -223,3 +223,12 @@ db-checkpoint:
 arena:
 	CGO_ENABLED=1 go -C playground/arena build -o ../../bin/arena.exe .
 	bin/arena.exe $(ARGS)
+
+# clocktune sweeps PID gain grids for one time control over the real clock
+# law through the gains seam, ranking cells by worst drain-trajectory
+# deviation across cost models and game lengths; the ranked artifact lands
+# in playground/clocktune/out/, e.g. make clocktune ARGS="-tc 3".
+.PHONY: clocktune
+clocktune:
+	CGO_ENABLED=1 go -C playground/clocktune build -o ../../bin/clocktune.exe .
+	bin/clocktune.exe $(ARGS)
