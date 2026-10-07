@@ -15,7 +15,7 @@ DIAGRAM_BG := rgb(13,17,23)
 DIAGRAM_SRC := $(wildcard $(DIAGRAMS_DIR)/*.mmd)
 DIAGRAM_PNG := $(DIAGRAM_SRC:.mmd=.png)
 
-.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser darkcontrast ci
+.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser darkcontrast icons ci
 
 all: build
 
@@ -196,6 +196,14 @@ $(DIAGRAMS_DIR)/%.png: $(DIAGRAMS_DIR)/%.mmd $(DIAGRAMS_DIR)/mermaid-config.json
 .PHONY: darkcontrast
 darkcontrast:
 	CGO_ENABLED=1 go -C playground run ./darkcontrast
+
+# icons regenerates the committed PWA icon set (web/static/icons/) from the
+# favicon geometry: playground/icongen rasterizes favicon.svg's shapes at
+# 192, 512, the 180 apple-touch-icon, and the maskable-safe 512. After any
+# icon lands changed, bump the service worker's CACHE name (docs/pwa-shell.md).
+.PHONY: icons
+icons:
+	CGO_ENABLED=1 go -C playground run ./icongen -out ../internal/server/web/static/icons
 
 ci: playground-modules darkcontrast fmt-check lint vet build test-race cover
 	@echo "ci: all green"

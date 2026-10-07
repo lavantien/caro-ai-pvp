@@ -52,6 +52,8 @@ var staticContentTypes = map[string]string{
 	".js":   "text/javascript; charset=utf-8",
 	".htmx": "text/plain; charset=utf-8",
 	".md":   "text/plain; charset=utf-8",
+	".png":  "image/png",
+	".svg":  "image/svg+xml",
 }
 
 // Spike page knobs: the watched room is the plan's hardcoded id unless the
