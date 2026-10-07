@@ -108,7 +108,7 @@ func TestPWAServiceWorkerServesWithUpdateSemantics(t *testing.T) {
 		t.Errorf("sw.js Cache-Control = %q, want no-cache", got)
 	}
 	for _, want := range []string{
-		"const CACHE = 'caro-static-v1'",
+		"const CACHE = 'caro-static-v2'",
 		"'/shell.css'",
 		"'/static/htmx.min.js'",
 		"'/static/hx-sse.min.js'",
@@ -126,8 +126,11 @@ func TestPWAServiceWorkerServesWithUpdateSemantics(t *testing.T) {
 // TestPWAServiceWorkerBoundary pins the worker's boundary law textually, the
 // only enforcement a source contract can carry: the /api/ pass-through guard
 // (naming the SSE event stream) must precede every respondWith in the file,
-// the worker must hold exactly the two intended respondWith calls, and the
-// offline fallback and the exact-match allowlist check must stay named.
+// the worker must hold exactly the two intended respondWith calls, the
+// offline fallback and the exact-match allowlist check must stay named, both
+// branches must fall back to the network on a cache miss (r || fetch), and
+// the precache must wrap every asset in a cache-reload Request so a bumped
+// cache never bakes stale bytes from the browser HTTP cache.
 func TestPWAServiceWorkerBoundary(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
@@ -164,6 +167,11 @@ func TestPWAServiceWorkerBoundary(t *testing.T) {
 	for _, want := range []string{
 		"caches.match(OFFLINE)",
 		"ASSETS.indexOf(url.pathname) !== -1",
+		"caches.match(e.request)",
+		"r || fetch(e.request)",
+		"r || fetch(OFFLINE)",
+		"c.addAll(ASSETS.map(",
+		"new Request(u, {cache: 'reload'})",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("sw.js misses the pinned boundary string %q", want)

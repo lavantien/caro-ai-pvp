@@ -18,8 +18,8 @@ The worker sits at the root, so its scope covers the whole site with no `Service
 
 The worker holds an explicit `const ASSETS` allowlist and answers exactly two kinds of requests:
 
-1. Exact pathname matches on the allowlist, cache-first: shell.css, the vendored htmx and hx-sse scripts, room.js, playback.js, favicon.svg, the icons, offline.html.
-2. Document navigations, network-first, falling back to the cached `/offline.html` only when the fetch itself fails.
+1. Exact pathname matches on the allowlist, cache-first with a network fallback: shell.css, the vendored htmx and hx-sse scripts, room.js, playback.js, favicon.svg, the icons, offline.html. A cache miss (a query-string variant, a non-GET request, an evicted entry) falls back to `fetch(e.request)` instead of answering a network error.
+2. Document navigations, network-first, falling back to the cached `/offline.html` when the fetch itself fails, and to a fresh network fetch of the offline page when even the cached copy is gone.
 
 Everything else passes through with no `respondWith` at all. In particular the worker never answers anything under `/api/`, which carries the JSON endpoints and the room SSE event streams (`/api/rooms/{id}/events`), and it never answers a room or tournament page: those are live state, the network is their only source. `ui_pwa_test.go` pins this textually: the `/api/` pass-through guard must precede every `e.respondWith(` in the served source, and the worker must carry exactly the two intended calls.
 
@@ -27,7 +27,7 @@ Never cached, by design: any `/api/` response, any SSE stream, every room (`/roo
 
 ## Cache bump law
 
-The cache name is `caro-static-v1`. Bump the version in `sw.js` whenever any allowlisted asset changes content under the same URL (a shell.css token edit, a re-vendored htmx, a regenerated icon). The activate step drops every cache whose name is not the current one, so the bump is the whole migration.
+The cache name is `caro-static-v2`. Bump the version in `sw.js` whenever any allowlisted asset changes content under the same URL (a shell.css token edit, a re-vendored htmx, a regenerated icon). The activate step drops every cache whose name is not the current one, so the bump is the whole migration. The precache wraps every asset in `new Request(u, {cache: 'reload'})`: a bumped cache pulls fresh bytes past the browser's day-long HTTP cache for `/static` instead of baking stale ones in.
 
 ## Icons
 

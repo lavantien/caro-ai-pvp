@@ -4,7 +4,7 @@
 // navigations (network first, cached offline page when the fetch itself
 // fails). The /api/ tree, the /api/rooms/{id}/events SSE streams, and every
 // other request pass through with no respondWith at all.
-const CACHE = 'caro-static-v1';
+const CACHE = 'caro-static-v2';
 // Bump CACHE whenever any allowlisted asset changes; activate drops every
 // cache whose name is not the current one.
 const ASSETS = [
@@ -25,7 +25,12 @@ const API_PREFIX = '/api/';
 
 self.addEventListener('install', function (e) {
 	e.waitUntil(caches.open(CACHE).then(function (c) {
-		return c.addAll(ASSETS);
+		// Every asset rides a cache-reload Request, so a bumped CACHE
+		// fetches fresh bytes instead of baking day-stale ones out of the
+		// browser HTTP cache.
+		return c.addAll(ASSETS.map(function (u) {
+			return new Request(u, {cache: 'reload'});
+		}));
 	}).then(function () {
 		return self.skipWaiting();
 	}));
@@ -51,11 +56,17 @@ self.addEventListener('fetch', function (e) {
 	if (url.pathname.indexOf(API_PREFIX) === 0) { return; }
 	if (e.request.mode === 'navigate') {
 		e.respondWith(fetch(e.request).catch(function () {
-			return caches.match(OFFLINE);
+			return caches.match(OFFLINE).then(function (r) {
+				return r || fetch(OFFLINE);
+			});
 		}));
 		return;
 	}
 	if (ASSETS.indexOf(url.pathname) !== -1) {
-		e.respondWith(caches.match(e.request));
+		// Cache-first, but a miss (query-string variant, non-GET request,
+		// evicted entry) rides the network instead of a network error.
+		e.respondWith(caches.match(e.request).then(function (r) {
+			return r || fetch(e.request);
+		}));
 	}
 });
