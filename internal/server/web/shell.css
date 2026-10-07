@@ -1,10 +1,11 @@
-/* The one stylesheet the shell pages own, and the palette hub every page
+/* The one stylesheet the shell pages own, and the token hub every page
    shares: the room and playback pages link it for the :root tokens alone.
    Dark is the base presentation, no light variant is built; every color in
-   every page references the tokens below (playground/darkcontrast checks
-   the pairs). Mobile first: one column under 40rem, the rooms grid and
-   action row wrap onto two columns wider. Rem sizing throughout, the
-   largest type on the identity and score data. */
+   every page references the tokens below (make darkcontrast checks the
+   pairs, docs/design-system.md holds the contract). Mobile first: one
+   column under 40rem, the rooms grid and action row wrap onto two columns
+   wider. Rem sizing throughout, the largest type on the identity and score
+   data. */
 :root {
 	color-scheme: dark;
 	--background: #101318;
@@ -13,57 +14,115 @@
 	--text: #e8ebf2;
 	--text-muted: #a4aec2;
 	--accent: #58a8ff;
+	--accent-strong: #7db8ff;
+	--accent-soft: #25384f;
 	--danger: #ff7a6e;
 	--red: #ef5350;
 	--blue: #42a5f5;
 	--mark: #ffb454;
+	--font-human: system-ui, sans-serif;
+	--font-mono: ui-monospace, monospace;
+	--text-xs: .8rem;
+	--text-s: .85rem;
+	--text-m: .9rem;
+	--text-base: 1rem;
+	--text-l: 1.05rem;
+	--text-xl: 1.2rem;
+	--text-2xl: 1.5rem;
+	--space-1: .25rem;
+	--space-2: .5rem;
+	--space-3: .75rem;
+	--space-4: 1rem;
+	--space-5: 1.25rem;
+	--space-6: 1.5rem;
+	--radius-s: .3rem;
+	--radius-m: .45rem;
 }
 * { box-sizing: border-box }
-body { font-family: system-ui, sans-serif; line-height: 1.45;
-	margin: 0 auto; max-width: 64rem; padding: 0 .75rem 2rem;
+body { font-family: var(--font-human); line-height: 1.45;
+	margin: 0 auto; max-width: 64rem; padding: 0 var(--space-3) var(--space-6);
 	background: var(--background); color: var(--text) }
+/* The machine voice rides a class, never a bare element: ids, bot names on
+   bot-only surfaces, clocks, move lists, M-lines. */
+.mono { font-family: var(--font-mono) }
 a { color: var(--accent) }
-header { display: flex; align-items: baseline; gap: 1rem; padding: .6rem 0;
+/* The amber law: one job per view. On the shell it is the keyboard focus
+   ring; on the boards the latest stone, on the grid the live-tournament
+   line. */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+	outline: none; box-shadow: 0 0 0 3px var(--mark) }
+header { display: flex; align-items: baseline; gap: var(--space-4); padding: .6rem 0;
 	border-bottom: 1px solid var(--border) }
-.brand { font-size: 1.5rem; font-weight: 800; text-decoration: none;
+.brand { font-size: var(--text-2xl); font-weight: 800; text-decoration: none;
 	color: var(--text) }
-header nav { margin-left: auto; display: flex; gap: .75rem; align-items: baseline }
+header nav { margin-left: auto; display: flex; gap: var(--space-3); align-items: baseline }
 .who { font-weight: 600 }
 form.inline { display: inline; margin: 0 }
 button.linklike { background: none; border: none; padding: 0; font: inherit;
 	color: inherit; text-decoration: underline; cursor: pointer }
-h2 { font-size: 1.05rem; margin: 1.4rem 0 .5rem }
-.me { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; align-items: baseline;
-	font-size: 1.05rem; margin-top: 1rem }
-.me .name { font-size: 1.5rem; font-weight: 800 }
-.me .wld { font-size: 1.25rem; font-weight: 700; text-decoration: none;
-	border: 1px solid var(--border); border-radius: .4rem; padding: .1rem .5rem;
+h2 { font-size: var(--text-l); margin: 1.4rem 0 var(--space-2) }
+.me { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); align-items: baseline;
+	font-size: var(--text-l); margin-top: var(--space-4) }
+.me .name { font-size: var(--text-2xl); font-weight: 800 }
+.me .wld { font-size: var(--text-xl); font-weight: 700; text-decoration: none;
+	border: 1px solid var(--border); border-radius: var(--radius-s); padding: .1rem var(--space-2);
 	background: var(--surface); color: var(--text) }
-.guestnote { font-size: 1.1rem; margin-top: 1rem }
+.guestnote { font-size: var(--text-l); margin-top: var(--space-4) }
 /* The live-tournament line rides the rooms poll: it shows only while a run
-   is driven, so it reads as an event, not furniture. */
-.tourneynow { font-size: 1.1rem; font-weight: 700; margin: 0 0 .6rem }
+   is driven, so it reads as an event, not furniture. Amber is its mark. */
+.tourneynow { font-size: var(--text-l); font-weight: 700; margin: 0 0 .6rem }
 .tourneynow a { color: var(--mark) }
-.rooms { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem }
-@media (min-width: 40rem) { .rooms { grid-template-columns: 1fr 1fr } }
-.room { display: grid; gap: .1rem; border: 1px solid var(--border);
-	border-radius: .45rem; padding: .55rem .75rem; background: var(--surface) }
-.room > a { font-size: 1.2rem; font-weight: 700; text-decoration: none }
-.room .meta { display: flex; flex-wrap: wrap; gap: .25rem 1rem;
-	color: var(--text-muted) }
-.room .meta .score { font-weight: 700 }
-.actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center }
-.actions fieldset { border: 1px solid var(--border); border-radius: .45rem;
-	padding: .5rem .75rem .75rem; display: flex; flex-wrap: wrap; gap: .6rem;
-	align-items: end; background: var(--surface) }
-label { display: grid; gap: .15rem; font-size: .85rem }
-select, input { font: inherit; font-size: 1.05rem; padding: .3rem .4rem;
+.rooms, .tourney-runs, .liveboards { list-style: none; margin: 0; padding: 0;
+	display: grid; gap: var(--space-3) }
+@media (min-width: 40rem) {
+	.rooms, .tourney-runs, .liveboards { grid-template-columns: 1fr 1fr }
+}
+/* The card recipe: flat surface, border, radius, grid with a hairline gap.
+   .room, .hrow, .tourney-run, and .livecard share it and keep only their
+   layout extras in their own rules. */
+.card, .room, .hrow, .tourney-run, .livecard { display: grid; gap: .15rem;
+	border: 1px solid var(--border); border-radius: var(--radius-m);
+	padding: var(--space-2) var(--space-3); background: var(--surface) }
+.room > a { font-size: var(--text-xl); font-weight: 700; text-decoration: none }
+.room .meta, .tourney-run .meta, .livecard .meta { display: flex; flex-wrap: wrap;
+	gap: var(--space-1) var(--space-4); color: var(--text-muted) }
+.score { font-weight: 700 }
+/* The chip recipe: small tag labels (run states, live badges, tier and tc
+   tags). .chip.live swaps the outline for the accent tint: the live state
+   reads as filled, terminal states as outlined. The .runstate selector is
+   a legacy alias dropped when tourney_run.tmpl adopts the class. */
+.chip, .runstate { border: 1px solid var(--border); border-radius: var(--radius-s);
+	padding: .05rem var(--space-2); color: var(--text-muted) }
+.chip.live, .runstate.live { border-color: transparent; background: var(--accent-soft);
+	color: var(--text) }
+.live { color: var(--text-muted) }
+/* The field recipe: one label-plus-control pair; bare labels alias it so
+   the shipped forms carry no extra markup. */
+.field, label { display: grid; gap: .15rem; font-size: var(--text-s) }
+select, input { font: inherit; font-size: var(--text-l); padding: .3rem .4rem;
 	background: var(--background); color: var(--text);
-	border: 1px solid var(--border); border-radius: .3rem }
-button:not(.linklike) { font: inherit; font-size: 1.05rem; padding: .35rem .9rem;
-	background: var(--accent); color: var(--background); border: none;
-	border-radius: .3rem }
+	border: 1px solid var(--border); border-radius: var(--radius-s) }
+/* The button system: .btn primary (accent fill, accent-strong on hover and
+   active), .btn-quiet (surface and border, tint on hover). Element
+   selectors alias both for the shipped markup; .linklike stays the plain
+   text button. */
+.btn, button:not(.linklike) { font: inherit; font-size: var(--text-l);
+	padding: .35rem .9rem; background: var(--accent); color: var(--background);
+	border: none; border-radius: var(--radius-s) }
+.btn:hover, button:not(.linklike):hover,
+.btn:active, button:not(.linklike):active { background: var(--accent-strong) }
+.btn-quiet, a.action { font: inherit; font-size: var(--text-l); padding: .35rem .9rem;
+	background: var(--surface); color: var(--text);
+	border: 1px solid var(--border); border-radius: var(--radius-s);
+	text-decoration: none }
+.btn-quiet:hover, a.action:hover { background: var(--accent-soft) }
 button[disabled] { opacity: .55 }
+/* Near-zero motion: the only transitions are the button and chip color
+   fades, and they sit behind the reduced-motion preference. */
+@media (prefers-reduced-motion: no-preference) {
+	.btn, button:not(.linklike), .btn-quiet, .chip { transition:
+		background-color .12s, border-color .12s, color .12s }
+}
 /* Machine tokens (room ids, <tier>-<roomid> bot names) carry no break
    opportunity inside their hex run, so every line that renders one wraps
    anywhere instead of pushing the page past the phone viewport. */
@@ -73,54 +132,42 @@ h1, .who, .who-vs, #score-line { overflow-wrap: anywhere }
    keeps its baseline alignment. */
 @media (pointer: coarse) {
 	select, input, button:not(.linklike) { min-height: 44px }
-	header nav a, header nav button.linklike { padding: .75rem 0 .75rem .75rem }
+	header nav a, header nav button.linklike { padding: var(--space-3) 0 var(--space-3) var(--space-3) }
 	header { align-items: center }
 }
-.error { color: var(--danger); font-size: 1.2rem; font-weight: 600 }
-.loginform { display: grid; gap: .75rem; max-width: 22rem; margin-top: 1rem }
+.error { color: var(--danger); font-size: var(--text-xl); font-weight: 600 }
+.loginform { display: grid; gap: var(--space-3); max-width: 22rem; margin-top: var(--space-4) }
 .loginform button { justify-self: start }
-.hrow { display: grid; gap: .15rem; border: 1px solid var(--border);
-	border-radius: .45rem; padding: .55rem .75rem; margin-bottom: .6rem;
-	background: var(--surface) }
-.hrow .top { display: flex; flex-wrap: wrap; gap: .25rem 1rem }
-.hrow .who-vs { font-size: 1.15rem; font-weight: 700 }
-.hrow .score { font-weight: 700 }
-.hrow .moves { font-family: ui-monospace, monospace; word-break: break-word }
+.hrow { margin-bottom: var(--space-3) }
+.hrow .top { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4) }
+.hrow .who-vs, .livecard .who-vs, .tseries .who-vs { font-size: var(--text-xl);
+	font-weight: 700 }
+/* Bot-only surfaces take the machine voice for names; mixed surfaces
+   (history rows, room seats) can carry a human name and stay human. */
+.livecard .who-vs, .tseries .who-vs, .tboard td:nth-child(2),
+.tboard td:nth-child(3) { font-family: var(--font-mono) }
+.hrow .moves { font-family: var(--font-mono); word-break: break-word }
 .hrow .moves a { text-decoration: none }
 .empty { color: var(--text-muted) }
-.actions a.action { font: inherit; font-size: 1.05rem; padding: .35rem .9rem;
-	text-decoration: none; border: 1px solid var(--border); border-radius: .3rem;
-	background: var(--surface); color: var(--text) }
-.tourneyform fieldset { border: 1px solid var(--border); border-radius: .45rem;
-	padding: .5rem .75rem .75rem; display: flex; flex-wrap: wrap; gap: .6rem;
-	align-items: end; background: var(--surface) }
-.tourneyform .roster { display: grid; gap: .5rem; width: 100%;
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center }
+.actions fieldset, .tourneyform fieldset { border: 1px solid var(--border);
+	border-radius: var(--radius-m); padding: var(--space-2) var(--space-3) var(--space-3);
+	display: flex; flex-wrap: wrap; gap: .6rem; align-items: end;
+	background: var(--surface) }
+.tourneyform .roster { display: grid; gap: var(--space-2); width: 100%;
 	grid-template-columns: 1fr 1fr; align-items: end }
 @media (max-width: 40rem) { .tourneyform .roster { grid-template-columns: 1fr } }
-.tourney-runs { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem }
-@media (min-width: 40rem) { .tourney-runs { grid-template-columns: 1fr 1fr } }
-.tourney-run { display: grid; gap: .1rem; border: 1px solid var(--border);
-	border-radius: .45rem; padding: .55rem .75rem; background: var(--surface) }
-.tourney-run > a { font-size: 1.2rem; font-weight: 700; text-decoration: none }
-.tourney-run .meta { display: flex; flex-wrap: wrap; gap: .25rem 1rem;
-	color: var(--text-muted) }
-.runstate { font-size: 1rem; border: 1px solid var(--border); border-radius: .4rem;
-	padding: .05rem .5rem; color: var(--text-muted) }
+.tourney-run > a { font-size: var(--text-xl); font-weight: 700; text-decoration: none }
 .progress { font-weight: 700 }
 /* Live boards of an ongoing run: one card per playing room, the mini board
    an inert spectating grid (no ids, no tap targets; the whole card links
-   to the room). Two across on a wide screen, stacked on a phone. */
-.liveboards { display: grid; gap: .6rem; margin: .4rem 0 1rem }
-@media (min-width: 40rem) { .liveboards { grid-template-columns: 1fr 1fr } }
-.livecard { display: grid; gap: .15rem; border: 1px solid var(--border);
-	border-radius: .45rem; padding: .55rem .75rem; background: var(--surface);
-	text-decoration: none }
-.livecard .who-vs { font-size: 1.15rem; font-weight: 700 }
-.livecard .score { font-weight: 700 }
-.livecard .meta { color: var(--text-muted) }
-.miniboard { display: grid; width: min(100%, 22rem); aspect-ratio: 1; margin: .25rem auto 0;
+   to the room). The livecard shares the card recipe and adds the link
+   reset alone. */
+.liveboards { margin: .4rem 0 var(--space-4) }
+.livecard { text-decoration: none }
+.miniboard { display: grid; width: min(100%, 22rem); aspect-ratio: 1; margin: var(--space-1) auto 0;
 	touch-action: manipulation; user-select: none; border: 1px solid var(--border);
-	background: var(--surface) }
+	background: var(--surface); border-radius: var(--radius-s) }
 /* Mini stones follow the live board's own law: a round disc inset in the
    cell, the latest stone ringed with the mark color. */
 .mcell { position: relative; border: 1px solid var(--border) }
@@ -129,10 +176,8 @@ h1, .who, .who-vs, #score-line { overflow-wrap: anywhere }
 .mcell.m-red::after { background: var(--red) }
 .mcell.m-blue::after { background: var(--blue) }
 .mcell.m-latest::after { box-shadow: 0 0 0 3px var(--mark) }
-.tseries { display: grid; gap: .25rem; margin: .4rem 0 1rem; padding-left: 1.2rem }
-.tseries .score { font-weight: 700 }
-.live { color: var(--text-muted) }
-.tboard { border-collapse: collapse; font-size: 1rem }
+.tseries { display: grid; gap: var(--space-1); margin: .4rem 0 var(--space-4); padding-left: 1.2rem }
+.tboard { border-collapse: collapse; font-size: var(--text-base) }
 /* The leaderboard's 9 columns run wider than a phone viewport; the wrap
    scrolls them instead of the page, and the narrow band tightens cells so
    the scroll is one screen-edge nudge, not half the table. */
@@ -140,7 +185,7 @@ h1, .who, .who-vs, #score-line { overflow-wrap: anywhere }
 .tboard th, .tboard td { padding: .2rem .6rem; border-bottom: 1px solid var(--border);
 	text-align: right }
 @media (max-width: 40rem) {
-	.tboard { font-size: .9rem }
+	.tboard { font-size: var(--text-m) }
 	.tboard th, .tboard td { padding: .2rem .35rem }
 }
 .tboard th { color: var(--text-muted) }
