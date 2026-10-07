@@ -24,8 +24,8 @@ func newTestStore(t *testing.T) (*Store, *server.Store) {
 	return NewStore(srv), srv
 }
 
-// rosterSix builds the Implication 2.4 roster: two instances of each tier.
-func rosterSix() []Participant {
+// rosterDefault builds the full ladder roster: two instances of each tier.
+func rosterDefault() []Participant {
 	return twoPerTierRoster()
 }
 
@@ -80,7 +80,9 @@ func countRows(t *testing.T, srv *server.Store, query string, args ...any) int {
 func TestCreateRunPersistsSchedule(t *testing.T) {
 	ts, srv := newTestStore(t)
 	ctx := context.Background()
-	run, err := ts.CreateRun(ctx, 1, config.SeriesBO3, config.TournamentStartRating, rosterSix(), "test")
+	roster := rosterDefault()
+	wantSeries := len(roster) * (len(roster) - 1)
+	run, err := ts.CreateRun(ctx, 1, config.SeriesBO3, config.TournamentStartRating, roster, "test")
 	if err != nil {
 		t.Fatalf("create run: %v", err)
 	}
@@ -98,18 +100,18 @@ func TestCreateRunPersistsSchedule(t *testing.T) {
 	if back.Label != "test" {
 		t.Errorf("read-back label = %q, want %q", back.Label, "test")
 	}
-	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_participants WHERE run_id = ?`, run.ID); n != 6 {
-		t.Errorf("participants = %d, want 6", n)
+	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_participants WHERE run_id = ?`, run.ID); n != len(roster) {
+		t.Errorf("participants = %d, want %d", n, len(roster))
 	}
 	schedule := mustSchedule(t, srv, run.ID)
-	if len(schedule) != 30 {
-		t.Fatalf("series = %d, want n*(n-1) = 30", len(schedule))
+	if len(schedule) != wantSeries {
+		t.Fatalf("series = %d, want n*(n-1) = %d", len(schedule), wantSeries)
 	}
 	if schedule[0].PairingSlot != 0 || schedule[0].RedFirstSlot != 0 || schedule[0].BlueFirstSlot != 1 {
 		t.Errorf("first series = %+v, want pairing 0 with slots 0-1", schedule[0])
 	}
-	if schedule[29].PairingSlot != 29 || schedule[29].RedFirstSlot != 1 || schedule[29].BlueFirstSlot != 0 {
-		t.Errorf("last series = %+v, want pairing 29 with slots 1-0", schedule[29])
+	if last := schedule[wantSeries-1]; last.PairingSlot != wantSeries-1 || last.RedFirstSlot != 1 || last.BlueFirstSlot != 0 {
+		t.Errorf("last series = %+v, want pairing %d with slots 1-0", last, wantSeries-1)
 	}
 	for _, s := range schedule {
 		if s.WinnerSlot != nil || s.RedFirstWins != 0 || s.BlueFirstWins != 0 || s.FinishedAt != nil {

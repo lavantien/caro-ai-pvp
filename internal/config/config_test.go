@@ -157,14 +157,15 @@ func TestTiersMatchSpec(t *testing.T) {
 		{Tier{Name: "easy", Cores: 1, TTBytes: 0, VCF: false, VCT: false}, &TierEasy},
 		{Tier{Name: "medium", Cores: 2, TTBytes: 32 << 20, VCF: true, VCT: false}, &TierMedium},
 		{Tier{Name: "hard", Cores: 4, TTBytes: 128 << 20, VCF: true, VCT: true}, &TierHard},
+		{Tier{Name: "master", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true}, &TierMaster},
 	}
 	for _, c := range cases {
 		if *c.tiersPtr != c.want {
 			t.Errorf("tier = %+v, want %+v", *c.tiersPtr, c.want)
 		}
 	}
-	if len(Tiers) != 3 || Tiers[0] != TierEasy || Tiers[1] != TierMedium || Tiers[2] != TierHard {
-		t.Errorf("Tiers = %+v, want [easy medium hard]", Tiers)
+	if len(Tiers) != 4 || Tiers[0] != TierEasy || Tiers[1] != TierMedium || Tiers[2] != TierHard || Tiers[3] != TierMaster {
+		t.Errorf("Tiers = %+v, want [easy medium hard master]", Tiers)
 	}
 	for i, tier := range Tiers {
 		if tier.Cores > MaxCoresPerInstance {
@@ -230,6 +231,11 @@ func TestResourceCapsMatchHardwareBudget(t *testing.T) {
 	if TournamentParallelMatches*TierHard.Cores > MachineCores {
 		t.Errorf("%d parallel rooms at %d live-search cores each need %d, MachineCores is %d",
 			TournamentParallelMatches, TierHard.Cores, TournamentParallelMatches*TierHard.Cores, MachineCores)
+	}
+	// Master alone may fill the whole live-search budget; the runtime
+	// checkCoreBudget law then holds master-led rosters at parallel 1.
+	if TierMaster.Cores > MachineCores {
+		t.Errorf("master cores %d exceed MachineCores %d, the tier cannot run", TierMaster.Cores, MachineCores)
 	}
 }
 
@@ -539,8 +545,8 @@ func TestServerConstants(t *testing.T) {
 	if len(AdminName) > UsernameMaxBytes {
 		t.Errorf("AdminName %d bytes over the UsernameMaxBytes ceiling %d", len(AdminName), UsernameMaxBytes)
 	}
-	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 8 {
-		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 8]: raise the ceiling with the next migration", SQLiteSchemaVersion)
+	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 9 {
+		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 9]: raise the ceiling with the next migration", SQLiteSchemaVersion)
 	}
 	if SQLiteBusyTimeoutMs < 1000 || SQLiteBusyTimeoutMs > 60000 {
 		t.Errorf("SQLiteBusyTimeoutMs = %d, want in [1000, 60000]", SQLiteBusyTimeoutMs)

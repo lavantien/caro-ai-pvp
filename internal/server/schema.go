@@ -284,5 +284,8 @@ func adminSeedSQL() string {
 // so the constants hub stays authoritative; migrate enforces that at
 // startup. New versions only ever append, never edit a landed script. The
 // v6 admin seed derives its argon2id hash at this var's init: once per
-// process, never per store.
-var migrations = []string{schemaV1, schemaV2, schemaV3, schemaV4 + botSeatSeedSQL(), schemaV5, adminSeedSQL(), schemaV7, schemaV8}
+// process, never per store. The v9 entry reseeds the bot seats from the
+// current tier table: databases that migrated through v4 before a tier was
+// added never ran its seed insert, and INSERT OR IGNORE keeps the reseed a
+// no-op where the seats already exist.
+var migrations = []string{schemaV1, schemaV2, schemaV3, schemaV4 + botSeatSeedSQL(), schemaV5, adminSeedSQL(), schemaV7, schemaV8, botSeatSeedSQL()}

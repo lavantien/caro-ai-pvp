@@ -95,7 +95,8 @@ var (
 	TierEasy   = Tier{Name: "easy", Cores: 1, TTBytes: 0, VCF: false, VCT: false}
 	TierMedium = Tier{Name: "medium", Cores: 2, TTBytes: 32 << 20, VCF: true, VCT: false}
 	TierHard   = Tier{Name: "hard", Cores: 4, TTBytes: 128 << 20, VCF: true, VCT: true}
-	Tiers      = [...]Tier{TierEasy, TierMedium, TierHard}
+	TierMaster = Tier{Name: "master", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true}
+	Tiers      = [...]Tier{TierEasy, TierMedium, TierHard, TierMaster}
 )
 
 // Bot seat accounts of human-vs-bot matches. Every tier owns one reserved
@@ -432,7 +433,7 @@ const (
 
 	// SQLiteSchemaVersion is the number of landed migration scripts; the
 	// server package enforces the equality at startup.
-	SQLiteSchemaVersion = 8
+	SQLiteSchemaVersion = 9
 	SQLiteBusyTimeoutMs = 5000
 	SQLiteJournalWAL    = "wal"
 	SQLiteSyncNormal    = "normal"

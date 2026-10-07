@@ -1,6 +1,7 @@
 package tourney
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -69,12 +70,21 @@ func TestSmokeRoster105Spec(t *testing.T) {
 }
 
 func TestHeadlessDriversMatchSpec(t *testing.T) {
-	easy, medium, hard := config.TierEasy.Name, config.TierMedium.Name, config.TierHard.Name
-	// Sorted pairs, the same normalization the seen-set applies.
-	wantMatchups := [][2]string{
-		{easy, easy}, {easy, hard}, {easy, medium},
-		{hard, hard}, {hard, medium}, {medium, medium},
+	// Sorted tier-name pairs including self-meets, the same normalization
+	// the seen-set applies, derived from the tier table so a new tier joins
+	// the demanded matchups without editing this test.
+	names := make([]string, len(config.Tiers))
+	for i := range config.Tiers {
+		names[i] = config.Tiers[i].Name
 	}
+	slices.Sort(names)
+	var wantMatchups [][2]string
+	for i := 0; i < len(names); i++ {
+		for j := i; j < len(names); j++ {
+			wantMatchups = append(wantMatchups, [2]string{names[i], names[j]})
+		}
+	}
+	wantSeats := config.InstancesPerTier * len(config.Tiers)
 	for _, tc := range []struct {
 		name      string
 		spec      RunSpec
@@ -98,8 +108,8 @@ func TestHeadlessDriversMatchSpec(t *testing.T) {
 		if tc.spec.StartRating != config.TournamentStartRating {
 			t.Errorf("%s start rating = %d, want %d", tc.name, tc.spec.StartRating, config.TournamentStartRating)
 		}
-		if got := len(tc.spec.Roster); got != 6 {
-			t.Fatalf("%s roster = %d participants, want 6", tc.name, got)
+		if got := len(tc.spec.Roster); got != wantSeats {
+			t.Fatalf("%s roster = %d participants, want %d", tc.name, got, wantSeats)
 		}
 		for i, p := range tc.spec.Roster {
 			if p.Slot != i {

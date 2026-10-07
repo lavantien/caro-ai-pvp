@@ -116,7 +116,7 @@ func TestManagerStartRunRefusesWithoutPersisting(t *testing.T) {
 			{Slot: 0, Name: "a", Tier: config.TierEasy.Name},
 			{Slot: 1, Name: "b", Tier: "mythic"},
 		}, 1, "mythic"},
-		"core budget": {rosterSix(), 3, "cores"},
+		"core budget": {rosterDefault(), 3, "cores"},
 		"one participant": {[]Participant{
 			{Slot: 0, Name: "a", Tier: config.TierEasy.Name},
 		}, 1, "at least 2"},

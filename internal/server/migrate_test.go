@@ -153,15 +153,10 @@ func TestFailedMigrationRollsBackAndStays(t *testing.T) {
 	// the failure lands in the script application itself.
 	saved := migrations
 	defer func() { migrations = saved }()
-	migrations = []string{
-		"CREATE TABLE boom (;\nCREATE TABLE never (x)",
-		"CREATE TABLE never2 (y)",
-		"CREATE TABLE never3 (z)",
-		"CREATE TABLE never4 (w)",
-		"CREATE TABLE never5 (v)",
-		"CREATE TABLE never6 (u)",
-		"CREATE TABLE never7 (t)",
-		"CREATE TABLE never8 (r)",
+	migrations = make([]string, len(saved))
+	migrations[0] = "CREATE TABLE boom (;\nCREATE TABLE never (x)"
+	for i := 1; i < len(migrations); i++ {
+		migrations[i] = fmt.Sprintf("CREATE TABLE never%d (x)", i)
 	}
 	err = s.migrate()
 	if err == nil || !strings.Contains(err.Error(), "apply migration 1") {
@@ -501,6 +496,53 @@ func TestMigrateV7DatabaseUpgradesToV8(t *testing.T) {
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("runs after upgrade = %v, want %v", got, want)
+	}
+}
+
+// TestMigrateV8DatabaseUpgradesToV9 pins the v9 upgrade: a database whose
+// v4-era seed predates the master tier gains the reserved master seat on
+// reopen, every earlier seat row keeps its id, and the ledger reaches v9
+// exactly once.
+func TestMigrateV8DatabaseUpgradesToV9(t *testing.T) {
+	path := dbPath(t)
+	s := mustOpen(t, path)
+	before := make(map[string]int64, len(config.Tiers))
+	for i := range config.Tiers {
+		id, err := s.BotAccountID(config.Tiers[i])
+		if err != nil {
+			t.Fatalf("fresh seat %s: %v", config.Tiers[i].Name, err)
+		}
+		before[config.Tiers[i].Name] = id
+	}
+	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 9`); err != nil {
+		t.Fatalf("roll ledger back to v8: %v", err)
+	}
+	if _, err := s.db.Exec(`DELETE FROM users WHERE username = ?`, config.BotAccountName(len(config.Tiers)-1)); err != nil {
+		t.Fatalf("remove the master seat a legacy v4 seed never wrote: %v", err)
+	}
+	// A legacy v8 database holds no master row, so id preservation applies
+	// to the seats that predate the upgrade alone.
+	delete(before, config.Tiers[len(config.Tiers)-1].Name)
+	if err := s.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	again := mustOpen(t, path)
+	defer func() { _ = again.Close() }()
+	count, max := schemaVersionRows(t, again)
+	if count != config.SQLiteSchemaVersion || max != config.SQLiteSchemaVersion {
+		t.Errorf("after upgrade: schema_version rows = %d max = %d, want %d and %d",
+			count, max, config.SQLiteSchemaVersion, config.SQLiteSchemaVersion)
+	}
+	for i := range config.Tiers {
+		got, err := again.BotAccountID(config.Tiers[i])
+		if err != nil {
+			t.Errorf("seat %s after upgrade: %v", config.Tiers[i].Name, err)
+			continue
+		}
+		if want, ok := before[config.Tiers[i].Name]; ok && got != want {
+			t.Errorf("seat %s id = %d after upgrade, want the pre-upgrade %d", config.Tiers[i].Name, got, want)
+		}
 	}
 }
 

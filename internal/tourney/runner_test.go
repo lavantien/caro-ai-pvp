@@ -576,7 +576,7 @@ func TestConductorRunRefusals(t *testing.T) {
 	}
 
 	// Worst-case live-search demand over the machine budget.
-	if err := run(rosterSix(), 3); err == nil || !strings.Contains(err.Error(), "cores") {
+	if err := run(rosterDefault(), 3); err == nil || !strings.Contains(err.Error(), "cores") {
 		t.Errorf("3 parallel rooms over the full roster = %v, want the core budget refusal", err)
 	}
 	if err := run(rosterTwo(), 0); err == nil || !strings.Contains(err.Error(), "parallel") {
