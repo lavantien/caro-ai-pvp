@@ -14,15 +14,11 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// The scripted loss line: the human scatters red stones far apart while
-// the bot closes an open four on the D file in five blue moves.
 var (
 	botWinMoves = []string{"D4", "D5", "D6", "D7", "D3"}
 	humanFiller = []string{"P16", "H8", "P12", "P8", "N16"}
 )
 
-// scriptedBot is a deterministic fake engine: it answers each turn with the
-// next scripted move and fixed stats, recording its lifecycle for asserts.
 type scriptedBot struct {
 	mu       sync.Mutex
 	script   []rules.Move
@@ -47,7 +43,6 @@ func fakeStats() engine.SearchStats {
 	}
 	return st
 }
-
 func (b *scriptedBot) Search(_ *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats, string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -56,27 +51,27 @@ func (b *scriptedBot) Search(_ *rules.Board, _ engine.Deadline) (rules.Move, eng
 	b.searches++
 	return mv, b.stats, ""
 }
+func (b *scriptedBot) StartPonder(*rules.Board) {}
+
+func (b *scriptedBot) StopPonder() (rules.Move, engine.SearchStats, string) {
+	return 0, engine.SearchStats{}, ""
+}
 
 func (b *scriptedBot) Close() {
 	b.mu.Lock()
 	b.closed = true
 	b.mu.Unlock()
 }
-
 func (b *scriptedBot) isClosed() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.closed
 }
-
 func (b *scriptedBot) searchCount() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.searches
 }
-
-// injectScriptedBot replaces the room's engine factory with the scripted
-// fake and returns the live collector of created instances, one per game.
 func injectScriptedBot(t *testing.T, r *Room, script []rules.Move) func() []*scriptedBot {
 	t.Helper()
 	var mu sync.Mutex
@@ -97,7 +92,6 @@ func injectScriptedBot(t *testing.T, r *Room, script []rules.Move) func() []*scr
 	}
 }
 
-// gatedBot blocks inside Search until released, holding the bot turn open.
 type gatedBot struct {
 	mu       sync.Mutex
 	searches int
@@ -119,22 +113,23 @@ func (g *gatedBot) Search(b *rules.Board, _ engine.Deadline) (rules.Move, engine
 	}
 	return buf[0], engine.SearchStats{}, ""
 }
+func (g *gatedBot) StartPonder(*rules.Board) {}
+
+func (g *gatedBot) StopPonder() (rules.Move, engine.SearchStats, string) {
+	return 0, engine.SearchStats{}, ""
+}
 
 func (g *gatedBot) Close() {
 	g.mu.Lock()
 	g.closed = true
 	g.mu.Unlock()
 }
-
 func (g *gatedBot) isClosed() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.closed
 }
 
-// contractBot enforces the engine lifecycle contract the room must uphold:
-// the real SMP instance panics on Search after Close (smp.go), so a
-// retirement closing an engine the worker is about to use kills the process.
 type contractBot struct {
 	mu     sync.Mutex
 	closed bool
@@ -153,27 +148,24 @@ func (b *contractBot) Search(bd *rules.Board, _ engine.Deadline) (rules.Move, en
 	}
 	return buf[0], engine.SearchStats{}, ""
 }
+func (b *contractBot) StartPonder(*rules.Board) {}
+
+func (b *contractBot) StopPonder() (rules.Move, engine.SearchStats, string) {
+	return 0, engine.SearchStats{}, ""
+}
 
 func (b *contractBot) Close() {
 	b.mu.Lock()
 	b.closed = true
 	b.mu.Unlock()
 }
-
 func (b *contractBot) isClosed() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.closed
 }
-
-// blockAtSearchEntry parks the worker between the room-lock release and the
-// Search call, the exact entry gap a concurrent retirement races, and hands
-// the test the entered and release channels.
 func blockAtSearchEntry(t *testing.T, r *Room) (entered, release chan struct{}) {
 	t.Helper()
-	// entered carries capacity 1: the worker's non-blocking send must land
-	// even when the test goroutine has not parked on the receive yet, or the
-	// signal drops and the test deadlocks on a lost entry notification.
 	entered, release = make(chan struct{}, 1), make(chan struct{})
 	r.mu.Lock()
 	r.searchEntry = func() {
@@ -186,11 +178,6 @@ func blockAtSearchEntry(t *testing.T, r *Room) (entered, release chan struct{}) 
 	r.mu.Unlock()
 	return entered, release
 }
-
-// TestForfeitInSearchEntryGapSurvives pins the process against a forfeit
-// landing while the worker sits between the room-lock release and the Search
-// call: the engine must still be open when Search enters, the stale answer
-// still discards, and the worker alone releases the engine on quit.
 func TestForfeitInSearchEntryGapSurvives(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
@@ -199,7 +186,6 @@ func TestForfeitInSearchEntryGapSurvives(t *testing.T) {
 	r.makeSearcher = func(config.Tier) searcher { return bot }
 	r.mu.Unlock()
 	entered, release := blockAtSearchEntry(t, r)
-
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
@@ -211,9 +197,6 @@ func TestForfeitInSearchEntryGapSurvives(t *testing.T) {
 		t.Fatalf("forfeit inside the search entry gap: %v", err)
 	}
 	close(release)
-
-	// Survival is the regression: closing the engine from the forfeit path
-	// made the worker's Search entry panic with no recover in sight.
 	waitFor(t, func() bool {
 		_, ok := r.Info()
 		return !ok
@@ -229,10 +212,6 @@ func TestForfeitInSearchEntryGapSurvives(t *testing.T) {
 		t.Errorf("double forfeit = %v, want ErrRoomClosed", err)
 	}
 }
-
-// TestShutdownInSearchEntryGapSurvives covers the same window for the
-// shutdown path: manager Shutdown closes the room while the worker parks in
-// the entry gap, and the process must survive the worker's Search entry.
 func TestShutdownInSearchEntryGapSurvives(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
@@ -241,7 +220,6 @@ func TestShutdownInSearchEntryGapSurvives(t *testing.T) {
 	r.makeSearcher = func(config.Tier) searcher { return bot }
 	r.mu.Unlock()
 	entered, release := blockAtSearchEntry(t, r)
-
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
@@ -254,14 +232,11 @@ func TestShutdownInSearchEntryGapSurvives(t *testing.T) {
 		defer close(shut)
 		s.rm.Shutdown()
 	}()
-	// Retire decided (over flipped) before the gap opens: the shutdown is
-	// now irreversibly past the point where HEAD closed the engine.
 	waitFor(t, func() bool {
 		_, ok := r.Info()
 		return !ok
 	})
 	close(release)
-
 	select {
 	case <-shut:
 	case <-time.After(10 * time.Second):
@@ -275,7 +250,6 @@ func TestShutdownInSearchEntryGapSurvives(t *testing.T) {
 		t.Errorf("stones after shutdown in the gap = %d, want only the human move", stones)
 	}
 }
-
 func waitFor(t *testing.T, cond func() bool) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
@@ -287,8 +261,6 @@ func waitFor(t *testing.T, cond func() bool) {
 	}
 	t.Fatal("condition not reached within timeout")
 }
-
-// humanTurn reports whether the human holds the move.
 func humanTurn(r *Room, userID int64) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -298,7 +270,6 @@ func humanTurn(r *Room, userID int64) bool {
 	seat := r.seatByColorLocked(r.board.Side)
 	return seat.bot == nil && seat.userID == userID
 }
-
 func botRoom(t *testing.T, s *stack, tier config.Tier) (User, *Room) {
 	t.Helper()
 	alice := seedUser(t, s.store, "alice")
@@ -308,7 +279,6 @@ func botRoom(t *testing.T, s *stack, tier config.Tier) (User, *Room) {
 	}
 	return alice, r
 }
-
 func drainEvents(sub *Subscription) []string {
 	var out []string
 	for {
@@ -320,7 +290,6 @@ func drainEvents(sub *Subscription) []string {
 		}
 	}
 }
-
 func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
@@ -332,9 +301,6 @@ func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
-
-	// Two games: the bot wins both as blue and red never leaves the human,
-	// because only a red win rotates the seat.
 	for game := 0; game < 2; game++ {
 		for i, name := range humanFiller {
 			waitFor(t, func() bool { return humanTurn(r, alice.ID) })
@@ -347,10 +313,6 @@ func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 		_, ok := r.Info()
 		return !ok
 	})
-
-	// Engine ephemerality: one fresh instance per game, both closed. The
-	// last game's engine is released by the worker at its exit, which lags
-	// the room's retirement by one loop iteration.
 	instances := bots()
 	if len(instances) != 2 {
 		t.Fatalf("engine instances = %d, want one per game", len(instances))
@@ -361,9 +323,6 @@ func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 			t.Errorf("engine %d searches = %d, want %d", i, b.searchCount(), len(botWinMoves))
 		}
 	}
-
-	// Stream shape: per round one human move, one bot move, its M-line;
-	// per game an end; the series end closes it.
 	seq := drainEvents(sub)
 	roundLen := len(humanFiller)*2 + len(botWinMoves)
 	if len(seq) != 2*(roundLen+1)+1 {
@@ -386,9 +345,6 @@ func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 	if got := seq[len(seq)-1]; got != EventKindSeries+" "+SideGuest.String() {
 		t.Errorf("series end = %q, want guest", got)
 	}
-
-	// The last M-line payload is byte-identical to the canonical renderer
-	// fed the exact recorded inputs.
 	r.mu.Lock()
 	rec := r.lastM
 	redCommits, blueCommits := r.clock[rules.Red].Moves(), r.clock[rules.Blue].Moves()
@@ -405,9 +361,6 @@ func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 	if blueCommits != len(botWinMoves) || redCommits != len(humanFiller) {
 		t.Errorf("final game clock commits = red %d blue %d, want 5 and 5", redCommits, blueCommits)
 	}
-
-	// Bot matches record like any pairing: the series row, both games, and
-	// their stat lines, but zero rating events and zero rating movement.
 	if id := r.SeriesID(); id == 0 {
 		t.Error("bot room series id = 0, want the persisted pairing row")
 	}
@@ -418,7 +371,6 @@ func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 		t.Errorf("bot room rating events = %d err %v, want none", len(hist), err)
 	}
 }
-
 func TestForfeitDuringBotSearchDiscardsAnswer(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
@@ -429,9 +381,6 @@ func TestForfeitDuringBotSearchDiscardsAnswer(t *testing.T) {
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
-
-	// Hand the turn to the blocked bot, then prove the human cannot move
-	// for it and a quit mid-search settles the room without deadlock.
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
 		t.Fatalf("human move: %v", err)
 	}
@@ -458,19 +407,16 @@ func TestForfeitDuringBotSearchDiscardsAnswer(t *testing.T) {
 		t.Errorf("double forfeit = %v, want ErrRoomClosed", err)
 	}
 }
-
 func TestBotRoomMediumBeatsRandomMover(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierMedium)
 	r.mu.Lock()
-	// Time-box: the real engine capped at a few milliseconds per move.
 	r.budgetCap = 3 * time.Millisecond
 	r.mu.Unlock()
 	sub, err := r.Subscribe()
 	if err != nil {
 		t.Fatalf("subscribe: %v", err)
 	}
-
 	var mu sync.Mutex
 	var moves, mlines int
 	var lastMLine string
@@ -489,7 +435,6 @@ func TestBotRoomMediumBeatsRandomMover(t *testing.T) {
 			mu.Unlock()
 		}
 	}()
-
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
@@ -521,9 +466,6 @@ func TestBotRoomMediumBeatsRandomMover(t *testing.T) {
 	}
 	sub.Unsubscribe()
 	<-drained
-
-	// The series closed legally: a bot sweep, never a flag fall, one M-line
-	// per bot stone.
 	r.mu.Lock()
 	hostWins, guestWins := r.series.Score()
 	played := r.series.GamesPlayed()
@@ -549,7 +491,6 @@ func TestBotRoomMediumBeatsRandomMover(t *testing.T) {
 		t.Error("bot clock never committed")
 	}
 }
-
 func TestNoGoroutineLeakAcrossBotRooms(t *testing.T) {
 	s := newStack(t)
 	base := runtime.NumGoroutine()
@@ -561,8 +502,6 @@ func TestNoGoroutineLeakAcrossBotRooms(t *testing.T) {
 		}
 		return r
 	}
-
-	// A room that closes by series end.
 	scripted := newRoom()
 	injectScriptedBot(t, scripted, movesOf(t, botWinMoves))
 	if err := scripted.Ready(alice.ID); err != nil {
@@ -574,8 +513,6 @@ func TestNoGoroutineLeakAcrossBotRooms(t *testing.T) {
 			t.Fatalf("scripted room move %s: %v", name, err)
 		}
 	}
-
-	// A room shutdown mid-flight, with the bot turn in the search window.
 	live := newRoom()
 	gbot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	live.mu.Lock()
@@ -588,11 +525,8 @@ func TestNoGoroutineLeakAcrossBotRooms(t *testing.T) {
 		t.Fatalf("live move: %v", err)
 	}
 	<-gbot.seen
-	close(gbot.release) // the worker may still be inside Search when Shutdown lands
+	close(gbot.release)
 	s.rm.Shutdown()
-
-	// Every room worker and every engine thread must leave; retries absorb
-	// scheduler lag.
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
 		if runtime.NumGoroutine() <= base+1 {

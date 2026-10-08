@@ -1,11 +1,5 @@
 package server
 
-// The M7 bot-vs-bot surface tests: creation and validation of rooms whose
-// host seat is a bot too, a scripted full bo3 driven to the majority by the
-// worker alone, the render surface (shell card, room page, room detail JSON)
-// over a frozen live game, and the persistence law: bot-vs-bot rooms never
-// land a row in any table.
-
 import (
 	"errors"
 	"net/http"
@@ -22,21 +16,12 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// The scripted sweep's per-tier lines: the host tier closes the D-file five
-// as red in game 1 and as blue in game 2, the guest tier scatters far from
-// the D file, so the host takes the bo3 2-0 with both wins exact fives. The
-// guest line serves both games: game 1 ends before its sixth entry.
 var (
 	botVsBotHostLine  = []string{"D4", "H8", "D5", "D6", "D7", "D3"}
 	botVsBotGuestLine = []string{"P16", "P12", "P8", "N16", "M4", "L2"}
-	// botVsBotGame2 interleaves the guest red scatter with the host blue
-	// five, the loser-takes-red rotation after game 1.
-	botVsBotGame2 = []string{"P16", "D4", "P12", "H8", "P8", "D5", "N16", "D6", "M4", "D7", "L2", "D3"}
+	botVsBotGame2     = []string{"P16", "D4", "P12", "H8", "P8", "D5", "N16", "D6", "M4", "D7", "L2", "D3"}
 )
 
-// startGatedBot delays its first Search until the test opens the gate, so a
-// spectator can subscribe before the first stone of a room whose game 1
-// starts inside the constructor.
 type startGatedBot struct {
 	gate  chan struct{}
 	once  sync.Once
@@ -47,14 +32,13 @@ func (b *startGatedBot) Search(bd *rules.Board, dl engine.Deadline) (rules.Move,
 	b.once.Do(func() { <-b.gate })
 	return b.inner.Search(bd, dl)
 }
+func (b *startGatedBot) StartPonder(bd *rules.Board) { b.inner.StartPonder(bd) }
+
+func (b *startGatedBot) StopPonder() (rules.Move, engine.SearchStats, string) {
+	return b.inner.StopPonder()
+}
 
 func (b *startGatedBot) Close() { b.inner.Close() }
-
-// scriptBotVsBotTiers swaps the manager's engine factory for scripted bots
-// dispatched by tier name, the only signal the factory receives that
-// separates the two seats of a bot-vs-bot room. Must run before the create:
-// game 1 starts inside the constructor. The returned func opens the start
-// gate.
 func scriptBotVsBotTiers(t *testing.T, s *stack, byName map[string][]string) func() {
 	t.Helper()
 	parsed := make(map[string][]rules.Move, len(byName))
@@ -69,8 +53,6 @@ func scriptBotVsBotTiers(t *testing.T, s *stack, byName map[string][]string) fun
 	}
 	return func() { close(gate) }
 }
-
-// countRows reads one table's row count, the persistence law's whole assert.
 func countRows(t *testing.T, s *stack, table string) int {
 	t.Helper()
 	var n int
@@ -79,11 +61,9 @@ func countRows(t *testing.T, s *stack, table string) int {
 	}
 	return n
 }
-
 func TestCreateBotVsBotValidation(t *testing.T) {
 	s := newStack(t)
 	easy, medium := &config.TierEasy, &config.TierMedium
-
 	if _, err := s.rm.CreateBotVsBot(nil, "", medium, "", 0, config.SeriesBO3); !errors.Is(err, ErrBadTier) {
 		t.Errorf("nil host tier = %v, want ErrBadTier", err)
 	}
@@ -103,15 +83,8 @@ func TestCreateBotVsBotValidation(t *testing.T) {
 		t.Errorf("grid after rejected creates = %d rooms, want 0", len(rooms))
 	}
 }
-
-// The two seats of a bot-vs-bot room are two isolated instances and must
-// never render as one: named seats (the tournament's roster identity) carry
-// their instance names, and an unnamed same-tier pairing, where the plain
-// tier-roomid law would stamp both seats identically, takes a -2 guest
-// suffix. A bot can never appear to play itself.
 func TestBotVsBotSeatNamesNeverCollide(t *testing.T) {
 	s := newStack(t)
-
 	named, err := s.rm.CreateBotVsBot(&config.TierEasy, "easy-a", &config.TierEasy, "easy-b", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create named same-tier: %v", err)
@@ -128,7 +101,6 @@ func TestBotVsBotSeatNamesNeverCollide(t *testing.T) {
 		t.Errorf("info seat names = %q vs %q, want the roster identities stamped with the room id",
 			info.HostBotName, info.GuestBotName)
 	}
-
 	unnamed, err := s.rm.CreateBotVsBot(&config.TierMedium, "", &config.TierMedium, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create unnamed same-tier: %v", err)
@@ -140,7 +112,6 @@ func TestBotVsBotSeatNamesNeverCollide(t *testing.T) {
 	} else if want := "medium-" + unnamed.ID() + "-2"; b.GuestName != want {
 		t.Errorf("unnamed guest = %q, want the colliding tier law plus -2 (%q)", b.GuestName, want)
 	}
-
 	crossed, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create unnamed cross-tier: %v", err)
@@ -153,18 +124,15 @@ func TestBotVsBotSeatNamesNeverCollide(t *testing.T) {
 		t.Errorf("cross guest = %q, want %q (distinct tiers never take the suffix)", b.GuestName, want)
 	}
 }
-
 func TestCreateBotVsBotSeatingAndLiveGame(t *testing.T) {
 	s := newStack(t)
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	s.rm.makeSearcher = func(config.Tier) searcher { return bot }
-
 	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
-	<-bot.seen // game 1 is live with the host bot mid-search
-
+	<-bot.seen
 	rooms := s.rm.List()
 	if len(rooms) != 1 || rooms[0].ID != r.ID() {
 		t.Fatalf("grid = %+v, want the one bot-vs-bot room", rooms)
@@ -182,9 +150,6 @@ func TestCreateBotVsBotSeatingAndLiveGame(t *testing.T) {
 	if info.State != SeriesReady || info.HostWins != 0 || info.GuestWins != 0 {
 		t.Errorf("info = %+v, want game 1 live at 0-0", info)
 	}
-
-	// Both handshakes landed inside the constructor; game 1 runs the host
-	// bot on red per the spec's host-first rotation.
 	if exists, hostReady, guestReady := r.readyFlags(); !exists || !hostReady || !guestReady {
 		t.Errorf("readiness = %t %t %t, want the series formed with both ready", exists, hostReady, guestReady)
 	}
@@ -192,8 +157,6 @@ func TestCreateBotVsBotSeatingAndLiveGame(t *testing.T) {
 	if snap == nil || snap.Turn != "red" || snap.TurnUserID != botHostUserID || snap.RedUserID != botHostUserID {
 		t.Errorf("snapshot = %+v, want game 1 live with the host bot on red", snap)
 	}
-
-	// The seats are closed to humans.
 	bob := seedUser(t, s.store, "bob")
 	if err := s.rm.Join(r.ID(), bob.ID); !errors.Is(err, ErrRoomFull) {
 		t.Errorf("join bot-vs-bot room = %v, want ErrRoomFull", err)
@@ -201,7 +164,6 @@ func TestCreateBotVsBotSeatingAndLiveGame(t *testing.T) {
 	if id := r.SeriesID(); id != 0 {
 		t.Errorf("series id = %d, want 0: bot rooms persist never", id)
 	}
-
 	close(bot.release)
 	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
 	for _, table := range []string{"series", "games", "game_stats", "rating_events"} {
@@ -210,7 +172,6 @@ func TestCreateBotVsBotSeatingAndLiveGame(t *testing.T) {
 		}
 	}
 }
-
 func TestBotVsBotSeriesScriptedToMajority(t *testing.T) {
 	s := newStack(t)
 	open := scriptBotVsBotTiers(t, s, map[string][]string{
@@ -227,10 +188,7 @@ func TestBotVsBotSeriesScriptedToMajority(t *testing.T) {
 	}
 	defer sub.Unsubscribe()
 	open()
-
 	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
-
-	// The host closed the bo3 at the 2-of-3 majority in two games.
 	r.mu.Lock()
 	hostWins, guestWins := r.series.Score()
 	played, winner, state := r.series.GamesPlayed(), r.series.Winner(), r.series.State()
@@ -247,9 +205,6 @@ func TestBotVsBotSeriesScriptedToMajority(t *testing.T) {
 			t.Errorf("%s rows after the sweep = %d, want 0", table, n)
 		}
 	}
-
-	// Stream shape: every stone as move plus M-line, a gameend per game
-	// (red then blue, the rotation between them), the series close.
 	seq := drainEvents(sub)
 	g1 := hostWinsRed
 	if want := 2*(len(g1)+len(botVsBotGame2)+1) + 1; len(seq) != want {
@@ -282,17 +237,8 @@ func TestBotVsBotSeriesScriptedToMajority(t *testing.T) {
 		t.Errorf("series end = %q, want host", got)
 	}
 }
-
-// TestRoomLastGameMoves pins the room's authoritative record of the game
-// that just ended: nil before any completion, the finished game's played
-// cells readable into the next game, and the next completion overwriting
-// it. The tournament conductor reconciles its delivered stream against this
-// list, so the accessor must mirror exactly what the room applied.
 func TestRoomLastGameMoves(t *testing.T) {
 	s := newStack(t)
-
-	// Before any completion the accessor is nil: game 1 is live, nothing
-	// has finished.
 	parked := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	s.rm.makeSearcher = func(config.Tier) searcher { return parked }
 	fresh, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
@@ -305,9 +251,6 @@ func TestRoomLastGameMoves(t *testing.T) {
 	}
 	close(parked.release)
 	waitFor(t, func() bool { _, ok := fresh.Info(); return !ok })
-
-	// Game 1's list equals the played cells and survives into game 2, which
-	// parks mid-search; game 2's completion overwrites it.
 	var hostEngines atomic.Int32
 	game2 := make(chan struct{})
 	s.rm.makeSearcher = func(tier config.Tier) searcher {
@@ -337,7 +280,6 @@ func TestRoomLastGameMoves(t *testing.T) {
 		t.Errorf("last game moves after game 2 = %v, want game 2's %v", got, want)
 	}
 }
-
 func TestBotVsBotRenderSurface(t *testing.T) {
 	s := newStack(t)
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
@@ -348,8 +290,6 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 	}
 	<-bot.seen
 	defer close(bot.release)
-
-	// The shell card names both bots by tier, never the synthetic id.
 	shellSrv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer shellSrv.Close()
 	status, _, body := doShell(t, shellSrv.Client(), http.MethodGet, shellSrv.URL+"/", "", nil)
@@ -363,10 +303,6 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 	if strings.Contains(body, "#-3") {
 		t.Error("home card leaks the synthetic host id")
 	}
-
-	// The room page renders tier names on the clock labels and the score
-	// line; a store lookup of the synthetic id would read as a missing
-	// account and fail the page.
 	pageSrv := newPageServer(t, s)
 	status, body = getRoomPage(t, pageSrv, "/rooms/"+r.ID(), "")
 	if status != http.StatusOK {
@@ -382,8 +318,6 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 	if strings.Contains(body, "#-3") {
 		t.Error("room page leaks the synthetic host id")
 	}
-
-	// The room detail JSON carries the host bot tier beside the guest's.
 	apiSrv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
 	defer apiSrv.Close()
 	status, _, body = doGet(t, apiSrv.Client(), apiSrv.URL+"/api/rooms/"+r.ID())
@@ -396,22 +330,12 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 		}
 	}
 }
-
-// TestBotBoardsListLiveTournamentRooms pins the run page's live-board read:
-// only bot-vs-bot rooms (the tournament surface) report, with their seating
-// and fresh-game shape, while human rooms stay off the tournament view, and
-// a retired room leaves the list.
 func TestBotBoardsListLiveTournamentRooms(t *testing.T) {
 	s := newStack(t)
-	// The designed host-sweep lines: once released, the series plays out and
-	// the room retires. The gate holds game 1 at zero stones for the
-	// live-shape asserts.
 	open := scriptBotVsBotTiers(t, s, map[string][]string{
 		config.TierEasy.Name:   botVsBotHostLine,
 		config.TierMedium.Name: botVsBotGuestLine,
 	})
-
-	// A human pvp room and a human-vs-bot room: both stay off the list.
 	alice := seedUser(t, s.store, "alice")
 	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil); err != nil {
 		t.Fatalf("create pvp room: %v", err)
@@ -423,15 +347,11 @@ func TestBotBoardsListLiveTournamentRooms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
-	// A second tournament room, strictly later in creation time: the list
-	// must hold the cards in creation order so the polled section never
-	// reshuffles.
 	time.Sleep(2 * time.Millisecond)
 	r2, err := s.rm.CreateBotVsBot(&config.TierMedium, "", &config.TierEasy, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create second bot vs bot: %v", err)
 	}
-
 	boards := s.rm.BotBoards()
 	if len(boards) != 2 {
 		t.Fatalf("bot boards = %d rooms, want both tournament rooms", len(boards))
@@ -457,9 +377,6 @@ func TestBotBoardsListLiveTournamentRooms(t *testing.T) {
 	if b.HostWins != 0 || b.GuestWins != 0 {
 		t.Errorf("fresh bot board score = %d-%d, want 0-0", b.HostWins, b.GuestWins)
 	}
-
-	// Release the sweep: both scripted series settle, both rooms retire, and
-	// the live-board read empties with them.
 	open()
 	waitFor(t, func() bool {
 		_, ok1 := r.Info()
