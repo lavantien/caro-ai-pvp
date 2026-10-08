@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"sync"
 	"testing"
 	"time"
 )
@@ -10,8 +11,14 @@ import (
 const raceBudgetScale = 1
 const coverBudgetScale = 5
 
+var (
+	coverOnce   sync.Once
+	coverScaled bool
+)
+
 func scaledBudget(d time.Duration) time.Duration {
-	if testing.Coverage() > 0 {
+	coverOnce.Do(func() { coverScaled = testing.Coverage() > 0 })
+	if coverScaled {
 		return d * coverBudgetScale
 	}
 	return d * raceBudgetScale
