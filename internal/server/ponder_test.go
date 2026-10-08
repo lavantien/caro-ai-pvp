@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/binary"
 	"strings"
 	"sync"
 	"testing"
@@ -1134,3 +1135,137 @@ func (b *startGatedPonderBot) StopPonder() (rules.Move, engine.SearchStats, stri
 }
 
 func (b *startGatedPonderBot) Close() { b.inner.Close() }
+
+func FuzzGrantDepthRing(f *testing.F) {
+	seeds := [][]byte{
+		{},
+		{0},
+		{1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 1, 0, 0, 0, 0, 0, 0, 0, 5, 0, 255, 255, 255, 255, 255, 255, 255, 255, 7, 0},
+	}
+	for _, s := range seeds {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, data []byte) {
+		var ring GrantDepthRing
+		var grants []int64
+		var depths []int
+		for i := 0; i+10 <= len(data); i += 10 {
+			grant := int64(binary.LittleEndian.Uint64(data[i:]) % 1_000_000_000)
+			depth := int(binary.LittleEndian.Uint16(data[i+8:]) % 100)
+			ring.Append(grant, depth)
+			grants = append(grants, grant)
+			depths = append(depths, depth)
+			if len(grants) > config.PonderDepthHistory {
+				grants = grants[1:]
+				depths = depths[1:]
+			}
+		}
+		for _, probe := range probeGrants(data) {
+			ref, ok := ring.ReferenceDepth(probe)
+			wantRef, wantOK := -1, false
+			for k := range grants {
+				if grants[k] >= probe/2 && grants[k] <= probe*2 {
+					wantOK = true
+					if depths[k] > wantRef {
+						wantRef = depths[k]
+					}
+				}
+			}
+			if ok != wantOK || (ok && ref != wantRef) {
+				t.Fatalf("probe %d: ReferenceDepth = (%d, %t), model = (%d, %t) over grants %v depths %v",
+					probe, ref, ok, wantRef, wantOK, grants, depths)
+			}
+		}
+	})
+}
+
+func probeGrants(data []byte) []int64 {
+	if len(data) == 0 {
+		return []int64{0, 1, 1_000_000_000}
+	}
+	out := []int64{0, 1}
+	for j := 0; j < 3; j++ {
+		buf := make([]byte, 8)
+		for k := range buf {
+			buf[k] = data[(j*8+k)%len(data)]
+		}
+		out = append(out, int64(binary.LittleEndian.Uint64(buf)%2_000_000_000))
+	}
+	return out
+}
+
+func FuzzAdoptPonder(f *testing.F) {
+	seeds := [][]byte{
+		{},
+		{3, 3, 3, 3, 3, 3, 3, 3, 100, 100, 100, 1},
+		{255, 255, 255, 255},
+	}
+	for _, s := range seeds {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) < 4 {
+			return
+		}
+		var st engine.SearchStats
+		st.RootIters = int(data[0]) % 24
+		st.Depth = int(data[1]) % 60
+		for i := range config.PonderDepthHistory {
+			st.RootMoves[i] = rules.Move(uint16(data[(2+i)%len(data)])<<8 | uint16(data[(3+i)%len(data)]))
+			st.RootScores[i] = int(int16(uint16(data[(4+i)%len(data)])<<8|uint16(data[(5+i)%len(data)])) % 2000)
+		}
+		elapsed := int64(data[len(data)-4])<<32 | int64(data[len(data)-3])<<24 |
+			int64(data[len(data)-2])<<16 | int64(data[len(data)-1])<<8
+		if elapsed < 0 {
+			elapsed = -elapsed
+		}
+		budget := int64(data[0])<<40 | int64(data[1]%20+1)<<32 | int64(data[2])<<16 | 1
+		if budget < 1 {
+			budget = 1
+		}
+		grant := budget / int64(data[3]%4+1)
+		var ring GrantDepthRing
+		for i := 0; i+2 <= len(data) && i < 2*config.PonderDepthHistory; i += 2 {
+			ring.Append(int64(data[i])%1_000_000+grant/2, int(data[i+1])%50)
+		}
+
+		if !AdoptPonder(st, config.BotLogTagVCF, elapsed, budget, ring, grant) {
+			t.Fatal("solver tag must adopt for any stats")
+		}
+		if !AdoptPonder(st, config.BotLogTagVCT, elapsed, budget, ring, grant) {
+			t.Fatal("vct tag must adopt for any stats")
+		}
+		adopt := AdoptPonder(st, "", elapsed, budget, ring, grant)
+		n := min(config.PonderDepthHistory, st.RootIters)
+		if adopt {
+			if n < config.PonderStableIters {
+				t.Fatalf("adopt with root history %d under the stable window", st.RootIters)
+			}
+			for i := n - config.PonderStableIters; i < n; i++ {
+				if st.RootMoves[i] != st.RootMoves[n-1] {
+					t.Fatalf("adopt with unstable tail at slot %d", i)
+				}
+			}
+			drop := st.RootScores[n-1] - st.RootScores[n-config.PonderStableIters]
+			if drop < 0 {
+				drop = -drop
+			}
+			if drop > config.PonderScoreDropMargin {
+				t.Fatalf("adopt with window drop %d over the margin %d", drop, config.PonderScoreDropMargin)
+			}
+			ref, ok := ring.ReferenceDepth(grant)
+			if !(ok && st.Depth >= ref) && elapsed < int64(config.PonderAdoptFraction*float64(budget)) {
+				t.Fatalf("adopt with neither depth nor time adequacy: ref (%d %t) depth %d elapsed %d budget %d",
+					ref, ok, st.Depth, elapsed, budget)
+			}
+		}
+		deeper := st
+		deeper.Depth = st.Depth + 1000
+		if adopt && !AdoptPonder(deeper, "", elapsed, budget, ring, grant) {
+			t.Fatal("adoption must be monotone in depth")
+		}
+		if adopt && !AdoptPonder(st, "", elapsed*2+1, budget, ring, grant) {
+			t.Fatal("adoption must be monotone in ponder elapsed")
+		}
+	})
+}

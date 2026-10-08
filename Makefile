@@ -81,7 +81,7 @@ fuzz:
 		CGO_ENABLED=1 go test -run='^$$' -fuzz=FuzzRulesDifferential -fuzztime=60s ./internal/rules; \
 	else echo "fuzz: no targets yet, internal/rules lands at M1"; fi
 	@if [ -d internal/server ]; then \
-		for t in FuzzRatingLaw FuzzSeriesDrive FuzzMovesBlob; do \
+		for t in FuzzRatingLaw FuzzSeriesDrive FuzzMovesBlob FuzzGrantDepthRing FuzzAdoptPonder; do \
 			CGO_ENABLED=1 go test -run='^$$' -fuzz=$$t -fuzztime=30s ./internal/server || exit 1; \
 		done; \
 	fi
