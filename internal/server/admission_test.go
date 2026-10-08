@@ -9,8 +9,11 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/engine"
+	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
 func TestCoreLedgerBookRefuseRelease(t *testing.T) {
@@ -125,13 +128,17 @@ func TestCreateBotVsBotRefusesWhenLedgerFull(t *testing.T) {
 		t.Fatalf("create master vs easy: %v", err)
 	}
 	<-bot.seen
-	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores; got != want {
-		t.Fatalf("ledger = %d, want the max-of-tiers booking %d", got, want)
+	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+config.TierEasy.Cores; got != want {
+		t.Fatalf("ledger = %d, want the ponding sum %d", got, want)
 	}
 
-	filler, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster)
-	if err != nil {
-		t.Fatalf("fill the ledger: %v", err)
+	var fillers []*Room
+	for _, tier := range []*config.Tier{&config.TierHard, &config.TierMedium, &config.TierEasy} {
+		f, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, tier)
+		if err != nil {
+			t.Fatalf("fill with %s: %v", tier.Name, err)
+		}
+		fillers = append(fillers, f)
 	}
 	if got, want := s.rm.LiveCoreBookings(), config.MachineCores; got != want {
 		t.Fatalf("ledger = %d, want the full budget %d", got, want)
@@ -146,9 +153,123 @@ func TestCreateBotVsBotRefusesWhenLedgerFull(t *testing.T) {
 
 	close(bot.release)
 	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
-	filler.Close()
+	for _, f := range fillers {
+		f.Close()
+	}
 	if got := s.rm.LiveCoreBookings(); got != 0 {
 		t.Errorf("ledger after the swept series = %d, want 0", got)
+	}
+}
+
+func TestCreateBotVsBotPonderFunding(t *testing.T) {
+	s := newStack(t)
+	var masters []*ponderBot
+	s.rm.makeSearcher = func(tier config.Tier) searcher {
+		if !tier.Ponder {
+			return &contractBot{}
+		}
+		b := &ponderBot{}
+		mv := movesOf(t, []string{"H8"})[0]
+		reply := movesOf(t, []string{"P16"})[0]
+		b.answers = []ponderAnswer{{move: mv, pv: []rules.Move{mv, reply},
+			stats: engine.SearchStats{Depth: 12, Threads: 8}}}
+		masters = append(masters, b)
+		return b
+	}
+
+	r1, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierHard, "", 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create master vs hard: %v", err)
+	}
+	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+config.TierHard.Cores; got != want {
+		t.Fatalf("master/hard ledger = %d, want the ponding sum %d", got, want)
+	}
+	seat := masters[0]
+	waitFor(t, func() bool {
+		_, starts, _ := seat.counts()
+		return starts == 1
+	})
+	r1.Close()
+	if got := s.rm.LiveCoreBookings(); got != 0 {
+		t.Fatalf("ledger after the ponding room close = %d, want 0", got)
+	}
+
+	r2, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierMaster, "", 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create master vs master: %v", err)
+	}
+	if got, want := s.rm.LiveCoreBookings(), 2*config.TierMaster.Cores; got != want {
+		t.Fatalf("master/master ledger = %d, want the ponding sum %d", got, want)
+	}
+	r2.Close()
+	if got := s.rm.LiveCoreBookings(); got != 0 {
+		t.Fatalf("ledger after both closes = %d, want 0", got)
+	}
+}
+
+func TestCreateBotVsBotPonderFallsBackWhenSumCannotFund(t *testing.T) {
+	s := newStack(t)
+	holder := seedUser(t, s.store, "holder")
+	if _, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierMaster); err != nil {
+		t.Fatalf("fill the ledger: %v", err)
+	}
+	var masters []*ponderBot
+	s.rm.makeSearcher = func(tier config.Tier) searcher {
+		if !tier.Ponder {
+			return &contractBot{}
+		}
+		b := &ponderBot{}
+		mv := movesOf(t, []string{"H8"})[0]
+		reply := movesOf(t, []string{"P16"})[0]
+		b.answers = []ponderAnswer{{move: mv, pv: []rules.Move{mv, reply},
+			stats: engine.SearchStats{Depth: 12, Threads: 8}}}
+		masters = append(masters, b)
+		return b
+	}
+
+	r, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierHard, "", 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create over the sum: %v", err)
+	}
+	if got, want := s.rm.LiveCoreBookings(), config.MachineCores; got != want {
+		t.Fatalf("fallback ledger = %d, want the full-width max booking %d", got, want)
+	}
+	seat := masters[0]
+	waitFor(t, func() bool {
+		searches, _, _ := seat.counts()
+		return searches >= 1
+	})
+	time.Sleep(150 * time.Millisecond)
+	if _, starts, _ := seat.counts(); starts != 0 {
+		t.Fatalf("fallback room armed a ponder %d times, want the whole game ponder-off", starts)
+	}
+	r.Close()
+	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores; got != want {
+		t.Fatalf("ledger after the fallback close = %d, want the filler's %d", got, want)
+	}
+}
+
+func TestCreateBotVsBotBusyWhenEvenMaxCannotFund(t *testing.T) {
+	s := newStack(t)
+	holder := seedUser(t, s.store, "holder")
+	if _, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierMaster); err != nil {
+		t.Fatalf("book the master filler: %v", err)
+	}
+	if _, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierEasy); err != nil {
+		t.Fatalf("book the easy filler: %v", err)
+	}
+	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+config.TierEasy.Cores; got != want {
+		t.Fatalf("filler ledger = %d, want %d", got, want)
+	}
+	s.rm.makeSearcher = func(config.Tier) searcher { return &contractBot{} }
+	if _, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierHard, "", 0, config.SeriesBO3); !errors.Is(err, ErrMachineBusy) {
+		t.Errorf("master/hard over the full budget = %v, want ErrMachineBusy", err)
+	}
+	if _, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierEasy, "", 0, config.SeriesBO3); err != nil {
+		t.Fatalf("easy/easy within the budget: %v", err)
+	}
+	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+2*config.TierEasy.Cores; got != want {
+		t.Fatalf("ledger = %d, want the fillers plus the easy room %d", got, want)
 	}
 }
 

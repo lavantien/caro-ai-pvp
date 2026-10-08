@@ -131,8 +131,19 @@ func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, gu
 			rm.releaseRoomCores(r)
 		}
 	}()
-	if !rm.bookRoomCores(r, max(hostTier.Cores, guestTier.Cores)) {
-		return nil, ErrMachineBusy
+	if hostTier.Ponder || guestTier.Ponder {
+		if rm.bookRoomCores(r, hostTier.Cores+guestTier.Cores) {
+			r.ponderOn = true
+		} else if rm.bookRoomCores(r, max(hostTier.Cores, guestTier.Cores)) {
+			r.ponderOn = false
+		} else {
+			return nil, ErrMachineBusy
+		}
+	} else {
+		r.ponderOn = false
+		if !rm.bookRoomCores(r, max(hostTier.Cores, guestTier.Cores)) {
+			return nil, ErrMachineBusy
+		}
 	}
 	r.mu.Lock()
 	r.series = series
