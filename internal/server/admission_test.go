@@ -163,10 +163,11 @@ func TestCreateBotVsBotRefusesWhenLedgerFull(t *testing.T) {
 
 func TestCreateBotVsBotPonderFunding(t *testing.T) {
 	s := newStack(t)
+	hard := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	var masters []*ponderBot
 	s.rm.makeSearcher = func(tier config.Tier) searcher {
 		if !tier.Ponder {
-			return &contractBot{}
+			return hard
 		}
 		b := &ponderBot{}
 		mv := movesOf(t, []string{"H8"})[0]
@@ -181,6 +182,7 @@ func TestCreateBotVsBotPonderFunding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create master vs hard: %v", err)
 	}
+	<-hard.seen
 	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+config.TierHard.Cores; got != want {
 		t.Fatalf("master/hard ledger = %d, want the ponding sum %d", got, want)
 	}
@@ -189,18 +191,23 @@ func TestCreateBotVsBotPonderFunding(t *testing.T) {
 		_, starts, _ := seat.counts()
 		return starts == 1
 	})
+	close(hard.release)
 	r1.Close()
 	if got := s.rm.LiveCoreBookings(); got != 0 {
 		t.Fatalf("ledger after the ponding room close = %d, want 0", got)
 	}
 
+	both := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	s.rm.makeSearcher = func(config.Tier) searcher { return both }
 	r2, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierMaster, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create master vs master: %v", err)
 	}
+	<-both.seen
 	if got, want := s.rm.LiveCoreBookings(), 2*config.TierMaster.Cores; got != want {
 		t.Fatalf("master/master ledger = %d, want the ponding sum %d", got, want)
 	}
+	close(both.release)
 	r2.Close()
 	if got := s.rm.LiveCoreBookings(); got != 0 {
 		t.Fatalf("ledger after both closes = %d, want 0", got)
@@ -213,10 +220,11 @@ func TestCreateBotVsBotPonderFallsBackWhenSumCannotFund(t *testing.T) {
 	if _, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierMaster); err != nil {
 		t.Fatalf("fill the ledger: %v", err)
 	}
+	hard := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	var masters []*ponderBot
 	s.rm.makeSearcher = func(tier config.Tier) searcher {
 		if !tier.Ponder {
-			return &contractBot{}
+			return hard
 		}
 		b := &ponderBot{}
 		mv := movesOf(t, []string{"H8"})[0]
@@ -231,6 +239,7 @@ func TestCreateBotVsBotPonderFallsBackWhenSumCannotFund(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create over the sum: %v", err)
 	}
+	<-hard.seen
 	if got, want := s.rm.LiveCoreBookings(), config.MachineCores; got != want {
 		t.Fatalf("fallback ledger = %d, want the full-width max booking %d", got, want)
 	}
@@ -243,6 +252,7 @@ func TestCreateBotVsBotPonderFallsBackWhenSumCannotFund(t *testing.T) {
 	if _, starts, _ := seat.counts(); starts != 0 {
 		t.Fatalf("fallback room armed a ponder %d times, want the whole game ponder-off", starts)
 	}
+	close(hard.release)
 	r.Close()
 	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores; got != want {
 		t.Fatalf("ledger after the fallback close = %d, want the filler's %d", got, want)
@@ -261,16 +271,19 @@ func TestCreateBotVsBotBusyWhenEvenMaxCannotFund(t *testing.T) {
 	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+config.TierEasy.Cores; got != want {
 		t.Fatalf("filler ledger = %d, want %d", got, want)
 	}
-	s.rm.makeSearcher = func(config.Tier) searcher { return &contractBot{} }
+	gate := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	s.rm.makeSearcher = func(config.Tier) searcher { return gate }
 	if _, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierHard, "", 0, config.SeriesBO3); !errors.Is(err, ErrMachineBusy) {
 		t.Errorf("master/hard over the full budget = %v, want ErrMachineBusy", err)
 	}
 	if _, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierEasy, "", 0, config.SeriesBO3); err != nil {
 		t.Fatalf("easy/easy within the budget: %v", err)
 	}
+	<-gate.seen
 	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+2*config.TierEasy.Cores; got != want {
 		t.Fatalf("ledger = %d, want the fillers plus the easy room %d", got, want)
 	}
+	close(gate.release)
 }
 
 func TestBotRoomRetireReleasesBookingExactlyOnce(t *testing.T) {
