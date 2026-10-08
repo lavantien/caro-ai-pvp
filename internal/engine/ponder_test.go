@@ -18,6 +18,36 @@ func TestPondererSurfaceMatchesSMP(t *testing.T) {
 	s.Close()
 }
 
+func TestSearchRootRingMatchesIterations(t *testing.T) {
+	b := playout(t, 4242, 24)
+	dl := NewFixedBudget(scaledBudget(30 * time.Second))
+	const maxIter = config.PonderDepthHistory + 2
+	var moves [maxIter]rules.Move
+	var scores [maxIter]int
+	for d := 1; d <= maxIter; d++ {
+		s := newSMP(1, testTTBytes)
+		mv, stats := s.SearchDepth(b, dl, d)
+		s.Close()
+		if stats.Depth != d {
+			t.Fatalf("depth %d run reached only depth %d, budget too small", d, stats.Depth)
+		}
+		if stats.RootIters != d {
+			t.Fatalf("depth %d run reports %d root iterations", d, stats.RootIters)
+		}
+		moves[d-1], scores[d-1] = mv, stats.Score
+		n := min(d, config.PonderDepthHistory)
+		for j := range n {
+			want := d - n + j
+			if stats.RootMoves[j] != moves[want] {
+				t.Fatalf("depth %d ring slot %d move %d, want iteration %d move %d", d, j, stats.RootMoves[j], want+1, moves[want])
+			}
+			if stats.RootScores[j] != scores[want] {
+				t.Fatalf("depth %d ring slot %d score %d, want iteration %d score %d", d, j, stats.RootScores[j], want+1, scores[want])
+			}
+		}
+	}
+}
+
 func TestPonderStopReturnsLegalMove(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)
@@ -39,6 +69,16 @@ func TestPonderStopReturnsLegalMove(t *testing.T) {
 	}
 	if stats.ElapsedNs <= 0 {
 		t.Errorf("ponder elapsed %d, must span the ponder window", stats.ElapsedNs)
+	}
+	if stats.RootIters < 2 {
+		t.Errorf("ponder root history = %d iterations, want at least 2", stats.RootIters)
+	}
+	tail := min(config.PonderDepthHistory, stats.RootIters)
+	if stats.RootMoves[tail-1] != mv {
+		t.Errorf("newest root history move %d, want the reported move %d", stats.RootMoves[tail-1], mv)
+	}
+	if stats.RootScores[tail-1] != stats.Score {
+		t.Errorf("newest root history score %d, want the reported score %d", stats.RootScores[tail-1], stats.Score)
 	}
 	mv2, stats2 := s.StopPonder()
 	if mv2 != 0 || stats2 != (SearchStats{}) {

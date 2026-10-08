@@ -16,17 +16,20 @@ type Ponderer interface {
 }
 
 type workerResult struct {
-	seq       uint32
-	completed int
-	score     int
-	move      rules.Move
-	pvLen     int
-	pv        [config.SearchMaxPly]rules.Move
-	nodes     uint64
-	ttProbes  uint64
-	ttHits    uint64
-	cutNodes  uint64
-	cutFirst  uint64
+	seq        uint32
+	completed  int
+	score      int
+	move       rules.Move
+	pvLen      int
+	pv         [config.SearchMaxPly]rules.Move
+	nodes      uint64
+	ttProbes   uint64
+	ttHits     uint64
+	cutNodes   uint64
+	cutFirst   uint64
+	rootMoves  [config.PonderDepthHistory]rules.Move
+	rootScores [config.PonderDepthHistory]int
+	rootIters  int
 }
 
 type haltDeadline struct {
@@ -309,6 +312,13 @@ func (s *SMP) collectResults(start time.Time) (rules.Move, SearchStats) {
 		stats.PVLen = r.pvLen
 		stats.PV = r.pv
 		bestMove = r.move
+		n := min(config.PonderDepthHistory, r.rootIters)
+		for j := 0; j < n; j++ {
+			slot := (r.rootIters - n + j) % config.PonderDepthHistory
+			stats.RootMoves[j] = r.rootMoves[slot]
+			stats.RootScores[j] = r.rootScores[slot]
+		}
+		stats.RootIters = r.rootIters
 	}
 	stats.ElapsedNs = int64(time.Since(start))
 	stats.Nps = NpsReport(stats.Nodes, stats.ElapsedNs)
@@ -350,6 +360,9 @@ func (s *SMP) runWorker(w *Engine, b *rules.Board, res *workerResult) {
 		res.move = move
 		res.pv = w.pv[0]
 		res.pvLen = w.pvLen[0]
+		res.rootMoves[(depth-1)%config.PonderDepthHistory] = move
+		res.rootScores[(depth-1)%config.PonderDepthHistory] = score
+		res.rootIters = depth
 		completed = depth
 		if score >= config.EvalMateMax-config.EvalMateScoreStep {
 			s.halt.Store(true)
