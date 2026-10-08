@@ -239,23 +239,24 @@ const (
 	SolverMinGrantMs        = 80
 )
 const (
-	Argon2Time            = 2
-	Argon2MemoryKiB       = 64 * 1024
-	Argon2Parallelism     = 1
-	Argon2SaltBytes       = 16
-	Argon2KeyBytes        = 32
-	SessionTokenBytes     = 32
-	SessionTTLHours       = 24 * 30
-	UsernameMaxBytes      = 32
-	AdminName             = "admin"
-	AdminPassword         = "1234qwerasdfzxcv"
-	SQLiteSchemaVersion   = 9
-	SQLiteBusyTimeoutMs   = 5000
-	SQLiteJournalWAL      = "wal"
-	SQLiteSyncNormal      = "normal"
-	SQLiteTxLockImmediate = "immediate"
-	WriteQueueDepth       = 256
-	HubSubscriberBuffer   = 64
-	HistoryPreviewTurns   = 8
-	PagePollMs            = 5000
+	Argon2Time               = 2
+	Argon2MemoryKiB          = 64 * 1024
+	Argon2Parallelism        = 1
+	Argon2SaltBytes          = 16
+	Argon2KeyBytes           = 32
+	SessionTokenBytes        = 32
+	SessionTTLHours          = 24 * 30
+	UsernameMaxBytes         = 32
+	AdminName                = "admin"
+	AdminPassword            = "1234qwerasdfzxcv"
+	SQLiteSchemaVersion      = 9
+	SQLiteBusyTimeoutMs      = 5000
+	SQLiteJournalWAL         = "wal"
+	SQLiteSyncNormal         = "normal"
+	SQLiteTxLockImmediate    = "immediate"
+	WriteQueueDepth          = 256
+	WriteQueueApplyTimeoutMs = 30_000
+	HubSubscriberBuffer      = 64
+	HistoryPreviewTurns      = 8
+	PagePollMs               = 5000
 )
