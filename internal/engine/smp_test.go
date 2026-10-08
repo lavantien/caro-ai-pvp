@@ -370,11 +370,6 @@ func TestSMPEnsureProcsRaisesOnly(t *testing.T) {
 		t.Errorf("GOMAXPROCS lowered to %d, must never drop below %d", got, old)
 	}
 }
-func TestSMPPonderSeamIsNoOp(t *testing.T) {
-	var p Ponderer = NewTiered(config.TierEasy)
-	p.StartPonder(rules.NewBoard())
-	p.StopPonder()
-}
 func TestSMPHaltDeadlineSemantics(t *testing.T) {
 	dl := NewFixedBudget(time.Hour)
 	var halt atomic.Bool

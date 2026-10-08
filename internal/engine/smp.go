@@ -10,18 +10,11 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// Ponderer is the ponder seam: searching the opponent's expected reply in
-// the background while the clock is idle. The ponder implementation lands
-// with the time manager and the server; until then the hooks are no-ops so
-// callers can be written against the final surface now.
 type Ponderer interface {
 	StartPonder(b *rules.Board)
-	StopPonder()
+	StopPonder() (rules.Move, SearchStats)
 }
 
-// workerResult is one worker's report slot. Only that worker writes it
-// during the search and the driver reads it after WaitGroup.Wait, which
-// gives the needed happens-before edge without any lock.
 type workerResult struct {
 	seq       uint32
 	completed int
@@ -36,10 +29,6 @@ type workerResult struct {
 	cutFirst  uint64
 }
 
-// haltDeadline folds a shared halt flag into the caller's deadline so one
-// worker's proven immediate win stops its siblings inside their normal
-// node-check cadence. Preallocated once per SMP instance, re-armed per
-// search, never allocated in the solve loop.
 type haltDeadline struct {
 	inner Deadline
 	halt  *atomic.Bool
@@ -49,49 +38,39 @@ func (h *haltDeadline) Exceeded() bool { return h.halt.Load() || h.inner.Exceede
 
 func (h *haltDeadline) Stop() { h.inner.Stop() }
 
-// SMP is the tier engine: one shared lockless transposition table plus one
-// Engine of private search state per worker, one per instance, never shared
-// across instances or board kinds since the zobrist key does not encode the
-// region. Every worker runs the same iterative deepening on the same root
-// and differs only in timing, which the shared table converts into tree
-// coverage. The reported move is the mainline of the deepest completed
-// iteration, first arrival breaking ties.
-//
-// Workers are a persistent pool: locked to their threads once and parked on
-// a wake channel between searches, so a search itself allocates nothing.
-// The pool starts lazily on the first search and Close releases it. Close
-// joins an in-flight Search instead of racing it; Search after Close and
-// concurrent Searches on one instance both panic loudly.
+type ponderDeadline struct {
+	stopped atomic.Bool
+}
+
+func (p *ponderDeadline) Exceeded() bool { return p.stopped.Load() }
+
+func (p *ponderDeadline) Stop() { p.stopped.Store(true) }
+
 type SMP struct {
-	tt      *ttTable
-	workers []*Engine
-	boards  []rules.Board
-	results []workerResult
-	seq     atomic.Uint32
-	halt    atomic.Bool
-	haltDL  haltDeadline
+	tt       *ttTable
+	workers  []*Engine
+	boards   []rules.Board
+	results  []workerResult
+	seq      atomic.Uint32
+	halt     atomic.Bool
+	haltDL   haltDeadline
+	ponderDL ponderDeadline
 
 	jobMaxDepth int
 	jobSoft     bool
+	ponderStart time.Time
 	wake        chan struct{}
 	quit        chan struct{}
 	runWG       sync.WaitGroup
 	exitWG      sync.WaitGroup
 
-	// mu serializes the lifecycle: pool start, job dispatch, and close.
-	// Holding it across the dispatch handshake makes Close racing a
-	// starting search deterministic instead of a data race: either Close
-	// wins and dispatch panics before any token is counted, or dispatch
-	// wins and every token is queued before quit closes, which the
-	// workers drain on their way out.
 	mu        sync.Mutex
 	started   bool
 	closed    bool
 	searching bool
+	ponding   bool
 }
 
-// NewTiered sizes an instance from a config tier: worker count from Cores,
-// shared table from TTBytes. Easy's zero bytes disables the table.
 func NewTiered(t config.Tier) *SMP {
 	return newSMP(t.Cores, t.TTBytes)
 }
@@ -112,18 +91,47 @@ func newSMP(workers int, ttBytes int64) *SMP {
 
 func (s *SMP) Workers() int { return len(s.workers) }
 
-// StartPonder is the ponder seam, a documented no-op until ponder lands.
-func (s *SMP) StartPonder(b *rules.Board) {}
+func (s *SMP) StartPonder(b *rules.Board) {
+	if b.IsFull() {
+		return
+	}
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return
+	}
+	if s.searching {
+		s.mu.Unlock()
+		panic("engine: StartPonder while a search is running")
+	}
+	if s.ponding {
+		s.mu.Unlock()
+		panic("engine: StartPonder while already pondering")
+	}
+	s.ponding = true
+	s.ponderStart = time.Now()
+	s.ponderDL.stopped.Store(false)
+	s.setupJob(b, config.SearchMaxPly, false, &s.ponderDL)
+	s.ensureProcs()
+	s.dispatchLocked()
+	s.mu.Unlock()
+}
 
-// StopPonder halts a ponder run started by StartPonder, a no-op until then.
-func (s *SMP) StopPonder() {}
+func (s *SMP) StopPonder() (rules.Move, SearchStats) {
+	s.mu.Lock()
+	if !s.ponding {
+		s.mu.Unlock()
+		var zero rules.Move
+		return zero, SearchStats{}
+	}
+	s.stopPonderLocked()
+	mv, stats := s.collectResults(s.ponderStart)
+	s.mu.Unlock()
+	return mv, stats
+}
 
 var _ Ponderer = (*SMP)(nil)
 
-// Close stops the worker pool and waits for every worker to leave its
-// thread. Idempotent. No allocation. An in-flight Search is joined: its
-// workers serve their dispatched jobs and the driver returns before the
-// last worker exits.
 func (s *SMP) Close() {
 	s.mu.Lock()
 	if s.closed {
@@ -131,6 +139,9 @@ func (s *SMP) Close() {
 		return
 	}
 	s.closed = true
+	if s.ponding {
+		s.stopPonderLocked()
+	}
 	if s.started {
 		close(s.quit)
 		s.mu.Unlock()
@@ -140,10 +151,6 @@ func (s *SMP) Close() {
 	s.mu.Unlock()
 }
 
-// startPool launches the persistent workers exactly once. The caller holds
-// mu: closed is only written under mu and dispatch checks it before calling
-// this, so a Close arriving later is guaranteed to see started and join,
-// and the pool can never leak.
 func (s *SMP) startPool() {
 	if s.started {
 		return
@@ -155,11 +162,6 @@ func (s *SMP) startPool() {
 	}
 }
 
-// worker is the persistent locked-thread loop: serve jobs while hot, park
-// on the wake channel once idle past SearchWorkerParkDelayMs, and leave on
-// Close. The hot window is what keeps a bench or a ponder loop free of
-// blocking channel operations, and parking is what keeps an idle instance
-// off the cores.
 func (s *SMP) worker(w *Engine, b *rules.Board, res *workerResult) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -179,10 +181,6 @@ func (s *SMP) worker(w *Engine, b *rules.Board, res *workerResult) {
 	}
 }
 
-// serveQueuedJob serves a dispatched job that is still queued when its
-// worker sees quit. The driver counts every wake token in runWG before any
-// worker can observe quit, since dispatch and close serialize on mu, so
-// leaving one unserved would hang SearchDepth on runWG.Wait.
 func (s *SMP) serveQueuedJob(w *Engine, b *rules.Board, res *workerResult) bool {
 	select {
 	case <-s.wake:
@@ -193,19 +191,11 @@ func (s *SMP) serveQueuedJob(w *Engine, b *rules.Board, res *workerResult) bool 
 	}
 }
 
-// serveJob runs one dispatched search and releases its runWG slot, deferred
-// so even a panicking search cannot hang the driver's Wait.
 func (s *SMP) serveJob(w *Engine, b *rules.Board, res *workerResult) {
 	defer s.runWG.Done()
 	s.runWorker(w, b, res)
 }
 
-// serveHot spins over the non-blocking wake check for the park delay
-// window and reports whether a job was served. The spin deliberately never
-// yields the P: Gosched would hand the worker's thread around the scheduler
-// and allocate, while holding the P is what keeps the driver and the hot
-// workers running side by side. time.Now is the preemption point. Quit is
-// left to the parked select: Close simply waits out the remaining spin.
 func (s *SMP) serveHot(w *Engine, b *rules.Board, res *workerResult) bool {
 	until := time.Now().Add(time.Duration(config.SearchWorkerParkDelayMs) * time.Millisecond)
 	for {
@@ -225,23 +215,20 @@ func (s *SMP) Search(b *rules.Board, dl Deadline) (rules.Move, SearchStats) {
 	return s.searchDepth(b, dl, config.SearchMaxPly, true)
 }
 
-// SearchDepth is the capped SMP driver behind Search, mirroring the single
-// threaded Engine.SearchDepth contract: only completed iterations count, a
-// legal fallback covers budgets too small for one iteration, and no soft
-// stop, so a fixed target depth is reached unless the hard deadline fires.
-// Zero allocation once the pool runs.
 func (s *SMP) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.Move, SearchStats) {
 	return s.searchDepth(b, dl, maxDepth, false)
 }
 
 func (s *SMP) searchDepth(b *rules.Board, dl Deadline, maxDepth int, soft bool) (rules.Move, SearchStats) {
 	start := time.Now()
-	var stats SearchStats
-	stats.Threads = len(s.workers)
+	var allocNs int64
 	if bg, ok := dl.(Budgeter); ok {
-		stats.AllocNs = int64(bg.Budget())
+		allocNs = int64(bg.Budget())
 	}
 	if b.IsFull() {
+		var stats SearchStats
+		stats.Threads = len(s.workers)
+		stats.AllocNs = allocNs
 		stats.ElapsedNs = int64(time.Since(start))
 		return moveNone, stats
 	}
@@ -254,9 +241,22 @@ func (s *SMP) searchDepth(b *rules.Board, dl Deadline, maxDepth int, soft bool) 
 		s.mu.Unlock()
 		panic("engine: concurrent Search on one SMP instance")
 	}
+	if s.ponding {
+		s.stopPonderLocked()
+	}
 	s.searching = true
 	s.mu.Unlock()
 	defer s.clearSearching()
+	s.setupJob(b, maxDepth, soft, dl)
+	s.ensureProcs()
+	s.dispatch()
+	s.runWG.Wait()
+	bestMove, stats := s.collectResults(start)
+	stats.AllocNs = allocNs
+	return bestMove, stats
+}
+
+func (s *SMP) setupJob(b *rules.Board, maxDepth int, soft bool, dl Deadline) {
 	s.tt.bumpGen()
 	s.halt.Store(false)
 	s.seq.Store(0)
@@ -264,17 +264,22 @@ func (s *SMP) searchDepth(b *rules.Board, dl Deadline, maxDepth int, soft bool) 
 	s.jobMaxDepth = maxDepth
 	s.jobSoft = soft
 	for i := range s.workers {
-		// Each worker searches its own value copy of the root: Make and
-		// Unmake mutate the board, only the table is shared.
 		s.boards[i] = *b
 		s.workers[i].resetForSearch(&s.boards[i])
 		s.results[i] = workerResult{}
 	}
-	fallback := s.workers[0].fallbackMove(&s.boards[0])
-	s.ensureProcs()
-	s.dispatch()
-	s.runWG.Wait()
+}
 
+func (s *SMP) stopPonderLocked() {
+	s.halt.Store(true)
+	s.ponderDL.stopped.Store(true)
+	s.runWG.Wait()
+	s.ponding = false
+}
+
+func (s *SMP) collectResults(start time.Time) (rules.Move, SearchStats) {
+	var stats SearchStats
+	stats.Threads = len(s.workers)
 	best := -1
 	var ttProbes, ttHits, cutNodes, cutFirst uint64
 	for i := range s.results {
@@ -296,7 +301,7 @@ func (s *SMP) searchDepth(b *rules.Board, dl Deadline, maxDepth int, soft bool) 
 			best = i
 		}
 	}
-	bestMove := fallback
+	bestMove := s.workers[0].fallbackMove(&s.boards[0])
 	if best >= 0 {
 		r := &s.results[best]
 		stats.Depth = r.completed
@@ -318,12 +323,6 @@ func (s *SMP) searchDepth(b *rules.Board, dl Deadline, maxDepth int, soft bool) 
 	return bestMove, stats
 }
 
-// runWorker is one locked-thread lazy SMP solve: plain iterative deepening
-// against the shared table, reporting every completed iteration into the
-// worker's slot. Soft jobs consult the same soft stop rule as the single
-// threaded driver, against the grant carried by the wrapped inner deadline
-// and this worker's own banked depth. Zero allocation by construction, same
-// code path as the single threaded driver.
 func (s *SMP) runWorker(w *Engine, b *rules.Board, res *workerResult) {
 	dl := Deadline(&s.haltDL)
 	start := time.Now()
@@ -364,39 +363,30 @@ func (s *SMP) runWorker(w *Engine, b *rules.Board, res *workerResult) {
 	res.cutFirst = w.cutFirst
 }
 
-// clearSearching releases the single-search latch on every exit path of
-// SearchDepth, including panics from the dispatch handshakes.
 func (s *SMP) clearSearching() {
 	s.mu.Lock()
 	s.searching = false
 	s.mu.Unlock()
 }
 
-// dispatch hands every worker one wake token under mu. The closed recheck
-// is what makes Close racing a starting search loud: a Close that slipped
-// in since the entry check is caught here, before any token is counted, so
-// the pool never spawns into an instance nobody will join.
 func (s *SMP) dispatch() {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
 		panic("engine: Search raced Close on an SMP instance")
 	}
+	s.dispatchLocked()
+	s.mu.Unlock()
+}
+
+func (s *SMP) dispatchLocked() {
 	s.startPool()
 	s.runWG.Add(len(s.workers))
 	for range s.workers {
 		s.wake <- struct{}{}
 	}
-	s.mu.Unlock()
 }
 
-// ensureProcs gives the locked workers and the driver room to run in
-// parallel: one P for the driver plus one per hot worker, since a spinning
-// worker holds its P for the whole park delay window. The spec pins
-// instance threads with LockOSThread and GOMAXPROCS(N); a library must not
-// lower the host process's parallelism, so this only raises the ceiling.
-// Bounding instances against each other belongs to the tournament
-// conductor.
 func (s *SMP) ensureProcs() {
 	want := len(s.workers) + 1
 	if runtime.GOMAXPROCS(0) < want {
