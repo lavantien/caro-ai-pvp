@@ -336,3 +336,152 @@ func TestSolverSearcherPonderMissKeepsInwardResult(t *testing.T) {
 		t.Fatalf("ponder miss stop = %d %+v %q, want the inward result", mv, st, tag)
 	}
 }
+
+func TestPonderLaneStartStopHandshake(t *testing.T) {
+	eng := &recordingInner{}
+	eng.stopMove = rules.Move(mustCellT(t, "K10"))
+	eng.stopStats = engine.SearchStats{Depth: 7, Nodes: 123}
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	b := rules.NewBoard()
+	b.Make(mustCellT(t, "H8"))
+	predict := rules.Move(mustCellT(t, "I8"))
+	lane.start(eng, b, predict, 1)
+
+	done := make(chan ponderResult, 1)
+	go func() { done <- lane.stop() }()
+	var res ponderResult
+	select {
+	case res = <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("lane stop handshake hung")
+	}
+	if !res.active {
+		t.Fatal("stop after a queued start must report the drained ponder")
+	}
+	if res.move != eng.stopMove || res.stats != eng.stopStats {
+		t.Fatalf("stop result = %d %+v, want the engine's %d %+v", res.move, res.stats, eng.stopMove, eng.stopStats)
+	}
+	if res.predict != predict || res.base != 1 {
+		t.Fatalf("stop carries predict %d base %d, want %d and 1", res.predict, res.base, predict)
+	}
+	eng.mu.Lock()
+	starts, stops, last := eng.starts, eng.stops, eng.lastBoard
+	eng.mu.Unlock()
+	if starts != 1 || stops != 1 {
+		t.Fatalf("engine calls = %d starts %d stops, want 1 and 1", starts, stops)
+	}
+	if last == nil || last.MoveCount != 1 {
+		t.Fatalf("ponder board = %+v, want the start board copy", last)
+	}
+
+	go func() { done <- lane.stop() }()
+	select {
+	case idle := <-done:
+		if idle.active {
+			t.Fatal("stop with no active ponder must report idle")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("idle stop hung")
+	}
+
+	lane.close()
+	select {
+	case <-exited:
+	case <-time.After(2 * time.Second):
+		t.Fatal("lane did not exit after close")
+	}
+}
+
+func TestPonderLaneStopAfterCloseIsEmpty(t *testing.T) {
+	lane := newPonderLane()
+	go lane.run()
+	lane.close()
+	res := make(chan ponderResult, 1)
+	go func() { res <- lane.stop() }()
+	select {
+	case r := <-res:
+		if r.active {
+			t.Fatal("stop after close must write an empty result")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("stop after close hung")
+	}
+}
+
+func TestPonderLaneStartAfterCloseIsNoOp(t *testing.T) {
+	eng := &recordingInner{}
+	lane := newPonderLane()
+	go lane.run()
+	lane.close()
+	lane.start(eng, rules.NewBoard(), 0, 0)
+	time.Sleep(20 * time.Millisecond)
+	eng.mu.Lock()
+	defer eng.mu.Unlock()
+	if eng.starts != 0 {
+		t.Fatalf("start after close reached the engine %d times, want none", eng.starts)
+	}
+}
+
+func TestPonderLaneCloseWhilePonderingJoins(t *testing.T) {
+	eng := &recordingInner{}
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	lane.start(eng, rules.NewBoard(), 0, 0)
+	closed := make(chan struct{})
+	go func() {
+		lane.close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("close while ponding hung")
+	}
+	select {
+	case <-exited:
+	case <-time.After(2 * time.Second):
+		t.Fatal("lane did not exit after close while ponding")
+	}
+	eng.mu.Lock()
+	defer eng.mu.Unlock()
+	if eng.stops != 1 {
+		t.Fatalf("close stopped the engine %d times, want the one active ponder halted", eng.stops)
+	}
+}
+
+func TestPonderLaneEnqueueNeverBlocks(t *testing.T) {
+	eng := &recordingInner{}
+	lane := newPonderLane()
+	b := rules.NewBoard()
+	t0 := time.Now()
+	lane.start(eng, b, 0, 0)
+	if d := time.Since(t0); d > 100*time.Millisecond {
+		t.Fatalf("enqueue blocked the caller for %s", d)
+	}
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	done := make(chan ponderResult, 1)
+	go func() { done <- lane.stop() }()
+	select {
+	case res := <-done:
+		if !res.active {
+			t.Fatal("the queued start must run before the stop result")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("stop never drained the queued start")
+	}
+	lane.close()
+	<-exited
+}
