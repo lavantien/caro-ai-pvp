@@ -12,3 +12,5 @@ coverage.out
 *.prof
 *.log
 .playwright-mcp/
+
+.scratch/
