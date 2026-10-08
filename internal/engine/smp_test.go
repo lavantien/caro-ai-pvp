@@ -107,6 +107,19 @@ func TestSMPStatsAggregateAcrossWorkers(t *testing.T) {
 		t.Error("shared table hash full permille 0 after a contended search")
 	}
 }
+func TestSMPCollectResultsEqualDepthPrefersEarlierSeq(t *testing.T) {
+	s := newSMP(2, testTTBytes)
+	defer s.Close()
+	s.results[0] = workerResult{completed: 9, seq: 4, score: 100, move: rules.Move(5), pvLen: 1}
+	s.results[1] = workerResult{completed: 9, seq: 2, score: -100, move: rules.Move(7), pvLen: 1}
+	if mv, st := s.collectResults(time.Now()); mv != rules.Move(7) || st.Score != -100 {
+		t.Fatalf("equal-depth tie-break = move %d score %d, want the earlier seq winner 7 at -100", mv, st.Score)
+	}
+	s.results[0].completed = 10
+	if mv, _ := s.collectResults(time.Now()); mv != rules.Move(5) {
+		t.Fatalf("deeper completed = move %d, want the depth winner 5 regardless of seq", mv)
+	}
+}
 func TestSMPFindsForcedMateInOne(t *testing.T) {
 	b := mate1Board(t)
 	s := newSMP(2, testTTBytes)
@@ -287,9 +300,7 @@ func TestSMPConcurrentSearchPanicsLoudly(t *testing.T) {
 	var wg sync.WaitGroup
 	var panicked atomic.Int32
 	for range 2 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
 			defer func() {
 				if recover() != nil {
@@ -297,7 +308,7 @@ func TestSMPConcurrentSearchPanicsLoudly(t *testing.T) {
 				}
 			}()
 			_, _ = s.Search(b, NewFixedBudget(80*time.Millisecond))
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()

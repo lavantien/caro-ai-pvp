@@ -577,6 +577,7 @@ type ponderBot struct {
 	starts    int
 	stops     int
 	answers   []ponderAnswer
+	stopQueue []ponderAnswer
 	stopMove  rules.Move
 	stopStats engine.SearchStats
 	stopTag   string
@@ -614,6 +615,14 @@ func (b *ponderBot) StopPonder() (rules.Move, engine.SearchStats, string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.stops++
+	if len(b.stopQueue) > 0 {
+		a := b.stopQueue[0]
+		b.stopQueue = b.stopQueue[1:]
+		st := a.stats
+		st.PVLen = len(a.pv)
+		copy(st.PV[:], a.pv)
+		return a.move, st, b.stopTag
+	}
 	return b.stopMove, b.stopStats, b.stopTag
 }
 
@@ -1266,4 +1275,329 @@ func FuzzAdoptPonder(f *testing.F) {
 			t.Fatal("adoption must be monotone in ponder elapsed")
 		}
 	})
+}
+
+func TestGrantDepthRingOddGrantTruncation(t *testing.T) {
+	var ring GrantDepthRing
+	ring.Append(1, 3)
+	if ref, ok := ring.ReferenceDepth(3); !ok || ref != 3 {
+		t.Fatalf("probe 3 over stored 1 = (%d, %t), want the truncated band floor to admit it", ref, ok)
+	}
+	if _, ok := ring.ReferenceDepth(7); ok {
+		t.Fatal("probe 7 must not admit stored 1 outside twice the band")
+	}
+}
+
+func TestPonderRingRecordsOnlySearchTurns(t *testing.T) {
+	s := newStack(t)
+	ms := movesOf(t, []string{"D4", "H8", "P16", "K10"})
+	d4, h8, p16, k10 := ms[0], ms[1], ms[2], ms[3]
+	bot := &ponderBot{}
+	bot.answers = []ponderAnswer{
+		{move: h8, pv: []rules.Move{h8, p16}, stats: engine.SearchStats{Depth: 9, Threads: 8}},
+	}
+	bot.stopMove = k10
+	bot.stopStats = adoptableStopStats(k10, 15, int64(10*time.Millisecond))
+	alice, r := ponderRoom(t, s, bot)
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	waitBotMove(t, r, 2, h8)
+	grant := int64(3 * time.Millisecond)
+	r.mu.Lock()
+	ref, ok := r.ponderRing[rules.Blue].ReferenceDepth(grant)
+	r.mu.Unlock()
+	if !ok || ref != 9 {
+		t.Fatalf("search turn ring reference = (%d, %t), want depth 9 from the grant-funded search", ref, ok)
+	}
+	if err := r.PlayMove(alice.ID, rules.Cell(p16)); err != nil {
+		t.Fatalf("predicted reply: %v", err)
+	}
+	waitBotMove(t, r, 4, k10)
+	r.mu.Lock()
+	ref, ok = r.ponderRing[rules.Blue].ReferenceDepth(grant)
+	r.mu.Unlock()
+	if !ok || ref != 9 {
+		t.Fatalf("post-adoption ring reference = (%d, %t), want the search depth 9 only: adopted depths must not calibrate the ring", ref, ok)
+	}
+	if err := r.Forfeit(alice.ID); err != nil {
+		t.Fatalf("forfeit: %v", err)
+	}
+}
+
+func TestCollectPonderToleratesDesyncedBoardState(t *testing.T) {
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	defer func() {
+		lane.close()
+		<-exited
+	}()
+	k10 := rules.Move(mustCellT(t, "K10"))
+	bot := &ponderBot{stopMove: k10, stopStats: adoptableStopStats(k10, 15, int64(time.Millisecond))}
+	board := rules.NewBoard()
+	predict := rules.Move(mustCellT(t, "D4"))
+	lane.start(bot, rules.Blue, board, predict, 0)
+	r := &Room{ponder: lane}
+	if mv, _, _, ok := r.collectPonder(rules.Blue, 1, time.Now()); ok || mv != 0 {
+		t.Fatalf("nil board collect = move %d ok %t, want rejection", mv, ok)
+	}
+	lane.start(bot, rules.Blue, board, predict, 0)
+	b2 := rules.NewBoard()
+	b2.Make(rules.Cell(mustCellT(t, "H8")))
+	r.mu.Lock()
+	r.board = b2
+	r.mu.Unlock()
+	if mv, _, _, ok := r.collectPonder(rules.Blue, 1, time.Now()); ok || mv != 0 {
+		t.Fatalf("desynced moves collect = move %d ok %t, want rejection", mv, ok)
+	}
+}
+
+type panicStartBot struct{ ponderBot }
+
+func (b *panicStartBot) StartPonder(*rules.Board) {
+	b.mu.Lock()
+	b.starts++
+	b.mu.Unlock()
+	panic("engine: ponder ordering regression")
+}
+
+func TestPonderLaneSurvivesEnginePanic(t *testing.T) {
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	bot := &panicStartBot{}
+	board := rules.NewBoard()
+	lane.start(bot, rules.Red, board, 5, 0)
+	waitFor(t, func() bool {
+		bot.mu.Lock()
+		defer bot.mu.Unlock()
+		return bot.starts == 1
+	})
+	stopDone := make(chan ponderResult, 1)
+	go func() { stopDone <- lane.stop(rules.Red) }()
+	closeDone := make(chan struct{})
+	go func() {
+		lane.close()
+		close(closeDone)
+	}()
+	select {
+	case res := <-stopDone:
+		if res.active {
+			t.Fatal("stop after a lane panic must report inactive")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("stop after a lane panic must not hang")
+	}
+	select {
+	case <-closeDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("close after a lane panic must not hang")
+	}
+	<-exited
+}
+
+func TestPonderChainedAdoptionRearmsFromAdoptedPv(t *testing.T) {
+	s := newStack(t)
+	ms := movesOf(t, []string{"D4", "H8", "P16", "K10", "M4", "J10"})
+	d4, h8, p16, k10, m4, j10 := ms[0], ms[1], ms[2], ms[3], ms[4], ms[5]
+	bot := &ponderBot{}
+	bot.answers = []ponderAnswer{
+		{move: h8, pv: []rules.Move{h8, p16}, stats: engine.SearchStats{Depth: 9, Threads: 8}},
+	}
+	bot.stopQueue = []ponderAnswer{
+		{move: k10, pv: []rules.Move{k10, m4}, stats: adoptableStopStats(k10, 15, int64(10*time.Millisecond))},
+		{move: j10, pv: []rules.Move{j10}, stats: adoptableStopStats(j10, 14, int64(10*time.Millisecond))},
+	}
+	alice, r := ponderRoom(t, s, bot)
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	waitBotMove(t, r, 2, h8)
+	waitFor(t, func() bool {
+		_, starts, _ := bot.counts()
+		return starts == 1
+	})
+	if err := r.PlayMove(alice.ID, rules.Cell(p16)); err != nil {
+		t.Fatalf("predicted reply one: %v", err)
+	}
+	waitBotMove(t, r, 4, k10)
+	waitFor(t, func() bool {
+		_, starts, _ := bot.counts()
+		return starts == 2
+	})
+	bot.mu.Lock()
+	secondStart := bot.lastStart
+	bot.mu.Unlock()
+	if secondStart.MoveCount != 5 || secondStart.Side != rules.Blue {
+		t.Fatalf("second ponder board = %d stones side %v, want 5 with blue to move after the adopted pv reply", secondStart.MoveCount, secondStart.Side)
+	}
+	if err := r.PlayMove(alice.ID, rules.Cell(m4)); err != nil {
+		t.Fatalf("predicted reply two: %v", err)
+	}
+	waitBotMove(t, r, 6, j10)
+	searches, starts, stops := bot.counts()
+	if searches != 1 || starts != 2 || stops != 2 {
+		t.Fatalf("counts = %d searches %d starts %d stops, want 1 2 2: both turns adopted", searches, starts, stops)
+	}
+	r.mu.Lock()
+	rec := r.lastM
+	r.mu.Unlock()
+	if rec.tag != config.BotLogTagPonder || rec.move != j10 {
+		t.Fatalf("second adopted record = move %d tag %q, want %d pondered", rec.move, rec.tag, j10)
+	}
+	if err := r.Forfeit(alice.ID); err != nil {
+		t.Fatalf("forfeit: %v", err)
+	}
+}
+
+func TestPonderAdoptedIllegalMoveFallsBackToFirstLegal(t *testing.T) {
+	s := newStack(t)
+	ms := movesOf(t, []string{"D4", "H8", "P16"})
+	d4, h8, p16 := ms[0], ms[1], ms[2]
+	bot := &ponderBot{}
+	bot.answers = []ponderAnswer{
+		{move: h8, pv: []rules.Move{h8, p16}, stats: engine.SearchStats{Depth: 9, Threads: 8}},
+	}
+	bot.stopMove = d4
+	bot.stopStats = adoptableStopStats(d4, 15, int64(10*time.Millisecond))
+	alice, r := ponderRoom(t, s, bot)
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	waitBotMove(t, r, 2, h8)
+	if err := r.PlayMove(alice.ID, rules.Cell(p16)); err != nil {
+		t.Fatalf("predicted reply: %v", err)
+	}
+	waitFor(t, func() bool {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		return r.board != nil && r.board.MoveCount == 4
+	})
+	r.mu.Lock()
+	rec := r.lastM
+	r.mu.Unlock()
+	if rec.move == d4 || rec.move == h8 || rec.move == p16 {
+		t.Fatalf("fallback move %d must be a fresh legal cell, not an occupied one", rec.move)
+	}
+	if rec.tag != config.BotLogTagPonder {
+		t.Fatalf("fallback record tag = %q, want the adopted ponder tag", rec.tag)
+	}
+	searches, _, _ := bot.counts()
+	if searches != 1 {
+		t.Fatalf("searches after the illegal adopted move = %d, want the single first search", searches)
+	}
+	if err := r.Forfeit(alice.ID); err != nil {
+		t.Fatalf("forfeit: %v", err)
+	}
+}
+
+type blockingStopBot struct {
+	ponderBot
+	entered chan struct{}
+	gate    chan struct{}
+}
+
+func (b *blockingStopBot) StopPonder() (rules.Move, engine.SearchStats, string) {
+	b.entered <- struct{}{}
+	<-b.gate
+	return b.ponderBot.StopPonder()
+}
+
+func TestPonderLaneCloseRacesInFlightStop(t *testing.T) {
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	bot := &blockingStopBot{entered: make(chan struct{}), gate: make(chan struct{})}
+	k10 := rules.Move(mustCellT(t, "K10"))
+	bot.stopMove = k10
+	bot.stopStats = adoptableStopStats(k10, 12, int64(time.Millisecond))
+	board := rules.NewBoard()
+	lane.start(bot, rules.Red, board, 5, 0)
+	stopDone := make(chan ponderResult, 1)
+	go func() { stopDone <- lane.stop(rules.Red) }()
+	<-bot.entered
+	closeDone := make(chan struct{})
+	go func() {
+		lane.close()
+		close(closeDone)
+	}()
+	close(bot.gate)
+	select {
+	case res := <-stopDone:
+		if !res.active || res.move != k10 {
+			t.Fatalf("racing stop result = active %t move %d, want the collected halt", res.active, res.move)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the in-flight stop must complete through the racing close")
+	}
+	select {
+	case <-closeDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the racing close must complete after the in-flight stop")
+	}
+	<-exited
+}
+
+func TestRoomPonderTeardownRaceHammer(t *testing.T) {
+	s := newStack(t)
+	ms := movesOf(t, []string{"D4", "H8", "P16", "K10"})
+	d4, h8, p16, k10 := ms[0], ms[1], ms[2], ms[3]
+	for i := range 6 {
+		bot := &ponderBot{}
+		bot.answers = []ponderAnswer{
+			{move: h8, pv: []rules.Move{h8, p16}, stats: engine.SearchStats{Depth: 9, Threads: 8}},
+		}
+		bot.stopMove = k10
+		bot.stopStats = adoptableStopStats(k10, 15, int64(10*time.Millisecond))
+		alice := seedUser(t, s.store, "hammer"+string(rune('a'+i)))
+		tier := config.TierMaster
+		r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &tier)
+		if err != nil {
+			t.Fatalf("create %d: %v", i, err)
+		}
+		r.mu.Lock()
+		r.makeSearcher = func(config.Tier) searcher { return bot }
+		r.budgetCap = 3 * time.Millisecond
+		r.mu.Unlock()
+		if err := r.Ready(alice.ID); err != nil {
+			t.Fatalf("ready %d: %v", i, err)
+		}
+		if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
+			t.Fatalf("human move %d: %v", i, err)
+		}
+		waitBotMove(t, r, 2, h8)
+		waitFor(t, func() bool {
+			_, starts, _ := bot.counts()
+			return starts == 1
+		})
+		if i%2 == 0 {
+			go func() { _ = r.PlayMove(alice.ID, rules.Cell(p16)) }()
+		}
+		_ = r.Forfeit(alice.ID)
+		waitFor(t, func() bool {
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			return r.over
+		})
+		waitFor(t, bot.isClosed)
+	}
 }

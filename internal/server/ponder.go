@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"sync"
 	"time"
 
@@ -67,7 +68,7 @@ func AdoptPonder(stats engine.SearchStats, tag string, elapsedNs, budgetNs int64
 	if drop > config.PonderScoreDropMargin {
 		return false
 	}
-	return stats.RootMoves[n-1] == stats.RootMoves[n-2]
+	return true
 }
 
 type ponderResult struct {
@@ -166,22 +167,59 @@ func (l *ponderLane) run() {
 		cmd := l.queue[0]
 		l.queue = l.queue[1:]
 		l.mu.Unlock()
-		switch cmd.kind {
-		case ponderStart:
-			if l.active[cmd.side] == nil {
-				cmd.eng.StartPonder(&cmd.board)
-				l.active[cmd.side] = &cmd
-			}
-		case ponderStop:
-			res := l.halt(cmd.side)
-			*cmd.result = res
-			close(cmd.done)
-		case ponderClose:
-			l.halt(rules.Red)
-			l.halt(rules.Blue)
-			close(cmd.done)
+		if !l.dispatch(cmd) {
 			return
 		}
+	}
+}
+
+func (l *ponderLane) dispatch(cmd ponderCmd) (keep bool) {
+	keep = true
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("server: ponder lane aborted after an engine panic: %v", r)
+			if cmd.kind != ponderClose && cmd.done != nil {
+				close(cmd.done)
+			}
+			l.abort()
+			keep = false
+		}
+	}()
+	switch cmd.kind {
+	case ponderStart:
+		if l.active[cmd.side] == nil {
+			cmd.eng.StartPonder(&cmd.board)
+			l.active[cmd.side] = &cmd
+		}
+	case ponderStop:
+		res := l.halt(cmd.side)
+		*cmd.result = res
+		close(cmd.done)
+	case ponderClose:
+		l.halt(rules.Red)
+		l.halt(rules.Blue)
+		close(cmd.done)
+		keep = false
+	}
+	return keep
+}
+
+func (l *ponderLane) abort() {
+	l.mu.Lock()
+	l.closed = true
+	pending := l.queue
+	l.queue = nil
+	l.active = [2]*ponderCmd{}
+	done := l.closeDone
+	l.closeDone = nil
+	l.mu.Unlock()
+	for _, cmd := range pending {
+		if cmd.kind != ponderClose && cmd.done != nil {
+			close(cmd.done)
+		}
+	}
+	if done != nil {
+		close(done)
 	}
 }
 
@@ -208,15 +246,16 @@ func (r *Room) collectPonder(side rules.Color, budgetNs int64, turnStart time.Ti
 	var last rules.Move
 	if r.board != nil {
 		mc = r.board.MoveCount
-		if mc > 0 {
-			last = r.moves[mc-1]
-		}
 	}
+	if mc > 0 && mc <= len(r.moves) {
+		last = r.moves[mc-1]
+	}
+	ring := r.ponderRing[side]
 	r.mu.Unlock()
 	if mc == 0 || mc != pres.base+1 || last != pres.predict {
 		return 0, engine.SearchStats{}, "", false
 	}
-	if !AdoptPonder(pres.stats, pres.tag, pres.stats.ElapsedNs, budgetNs, r.ponderRing[side], budgetNs) {
+	if !AdoptPonder(pres.stats, pres.tag, pres.stats.ElapsedNs, budgetNs, ring, budgetNs) {
 		return 0, engine.SearchStats{}, "", false
 	}
 	st := pres.stats

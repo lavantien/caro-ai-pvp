@@ -590,7 +590,9 @@ func (r *Room) runBotTurn() bool {
 	line := MLine(r.lastM.moveNumber, side, mv, &st, tag)
 	r.mlines = append(r.mlines, GameStat{MoveNo: r.lastM.moveNumber, Line: line})
 	r.publishLocked(Event{Kind: EventKindMLine, Payload: line})
-	r.ponderRing[side].Append(int64(budget), st.Depth)
+	if tag == "" {
+		r.ponderRing[side].Append(int64(budget), st.Depth)
+	}
 	if r.board.FastLastMoveWin(side, cell) {
 		logBotCompletion(r.completeGameLocked(side, cell))
 		r.mu.Unlock()
