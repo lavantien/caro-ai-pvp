@@ -15,19 +15,19 @@ func TestNewTieredMapsConfig(t *testing.T) {
 	cases := [...]struct {
 		tier    config.Tier
 		workers int
-		slots   int
 	}{
-		{config.TierEasy, 1, 0},
-		{config.TierMedium, 2, 1 << 21},
-		{config.TierHard, 4, 1 << 23},
+		{config.TierEasy, 1},
+		{config.TierMedium, 2},
+		{config.TierHard, 4},
 	}
 	for _, c := range cases {
 		s := NewTiered(c.tier)
+		wantSlots := int(c.tier.TTBytes) / ttEntryBytes
 		if s.Workers() != c.workers {
 			t.Errorf("%s workers = %d, want %d", c.tier.Name, s.Workers(), c.workers)
 		}
-		if got := len(s.tt.entries) / 2; got != c.slots {
-			t.Errorf("%s tt slots = %d, want %d", c.tier.Name, got, c.slots)
+		if got := len(s.tt.entries) / 2; got != wantSlots {
+			t.Errorf("%s tt slots = %d, want %d", c.tier.Name, got, wantSlots)
 		}
 		for _, w := range s.workers {
 			if w.tt != s.tt {
@@ -46,7 +46,6 @@ func TestNewTieredMapsConfig(t *testing.T) {
 		t.Errorf("worker clamp = %d, want 1", s.Workers())
 	}
 }
-
 func TestSMPSearchReturnsLegalMove(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(4, testTTBytes)
@@ -68,7 +67,6 @@ func TestSMPSearchReturnsLegalMove(t *testing.T) {
 		t.Errorf("pv head %d len %d, want the reported move %d", stats.PV[0], stats.PVLen, mv)
 	}
 }
-
 func TestSMPSingleWorkerMatchesEngine(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(1, 1<<20)
@@ -83,7 +81,6 @@ func TestSMPSingleWorkerMatchesEngine(t *testing.T) {
 		t.Errorf("threads = %d, want 1", statsA.Threads)
 	}
 }
-
 func TestSMPStatsAggregateAcrossWorkers(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(4, testTTBytes)
@@ -110,7 +107,6 @@ func TestSMPStatsAggregateAcrossWorkers(t *testing.T) {
 		t.Error("shared table hash full permille 0 after a contended search")
 	}
 }
-
 func TestSMPFindsForcedMateInOne(t *testing.T) {
 	b := mate1Board(t)
 	s := newSMP(2, testTTBytes)
@@ -126,7 +122,6 @@ func TestSMPFindsForcedMateInOne(t *testing.T) {
 		t.Errorf("immediate win took %v, siblings must halt instead of burning the budget", elapsed)
 	}
 }
-
 func TestSMPFindsForcedMateInTwoAndThree(t *testing.T) {
 	b2 := mate2Board(t)
 	s2 := newSMP(2, testTTBytes)
@@ -147,7 +142,6 @@ func TestSMPFindsForcedMateInTwoAndThree(t *testing.T) {
 		t.Errorf("smp mate in 3 score = %d, want %d", stats3.Score, want)
 	}
 }
-
 func TestSMPDeclinesOverlineTrap(t *testing.T) {
 	b := overlineTrapBoard(t)
 	s := newSMP(2, testTTBytes)
@@ -159,7 +153,6 @@ func TestSMPDeclinesOverlineTrap(t *testing.T) {
 		t.Errorf("score = %d, want mate in 1 %d", stats.Score, want)
 	}
 }
-
 func TestSMPTinyBudgetStillLegal(t *testing.T) {
 	for _, budget := range []time.Duration{0, 30} {
 		b := midgameBoard(t)
@@ -173,7 +166,6 @@ func TestSMPTinyBudgetStillLegal(t *testing.T) {
 		}
 	}
 }
-
 func TestSMPTinyBudgetWithExternalStop(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(4, testTTBytes)
@@ -192,7 +184,6 @@ func TestSMPTinyBudgetWithExternalStop(t *testing.T) {
 		t.Error("stop goroutine never ran")
 	}
 }
-
 func TestSMPFullBoardReturnsNoMove(t *testing.T) {
 	b := rules.NewCrossCheck()
 	for r := range config.CrossCheckSize {
@@ -213,7 +204,6 @@ func TestSMPFullBoardReturnsNoMove(t *testing.T) {
 		t.Errorf("full board depth = %d, want 0", stats.Depth)
 	}
 }
-
 func TestSMPWorkerPoolLifecycle(t *testing.T) {
 	before := runtime.NumGoroutine()
 	s := newSMP(4, testTTBytes)
@@ -224,7 +214,7 @@ func TestSMPWorkerPoolLifecycle(t *testing.T) {
 		}
 	}
 	s.Close()
-	s.Close() // idempotent
+	s.Close()
 	for range 200 {
 		if runtime.NumGoroutine() <= before {
 			return
@@ -233,7 +223,6 @@ func TestSMPWorkerPoolLifecycle(t *testing.T) {
 	}
 	t.Fatalf("goroutines leaked after Close: %d now vs %d before", runtime.NumGoroutine(), before)
 }
-
 func TestSMPCloseBeforeFirstSearchIsInert(t *testing.T) {
 	s := newSMP(2, testTTBytes)
 	s.Close()
@@ -241,7 +230,6 @@ func TestSMPCloseBeforeFirstSearchIsInert(t *testing.T) {
 		t.Error("Close before any search must not start the pool")
 	}
 }
-
 func TestSMPSearchAfterClosePanics(t *testing.T) {
 	s := newSMP(2, 0)
 	if mv, _ := s.Search(midgameBoard(t), NewFixedBudget(time.Microsecond)); !midgameBoard(t).IsLegal(rules.Cell(mv)) {
@@ -255,10 +243,6 @@ func TestSMPSearchAfterClosePanics(t *testing.T) {
 	}()
 	_, _ = s.Search(midgameBoard(t), NewFixedBudget(time.Microsecond))
 }
-
-// TestSMPDispatchAfterClosePanics drives the dispatch handshake itself into
-// a Close that slipped past the entry check: the pool must never spawn into
-// an instance nobody will join.
 func TestSMPDispatchAfterClosePanics(t *testing.T) {
 	s := newSMP(2, testTTBytes)
 	s.closed = true
@@ -272,10 +256,6 @@ func TestSMPDispatchAfterClosePanics(t *testing.T) {
 	}()
 	s.dispatch()
 }
-
-// TestSMPCloseJoinsInFlightSearch is the Close-versus-search race: every
-// interleaving must leave no worker behind and hang nothing, with the
-// in-flight driver either finishing its jobs or failing loudly at entry.
 func TestSMPCloseJoinsInFlightSearch(t *testing.T) {
 	before := runtime.NumGoroutine()
 	for i := range 12 {
@@ -289,7 +269,7 @@ func TestSMPCloseJoinsInFlightSearch(t *testing.T) {
 		}()
 		time.Sleep(time.Duration(i%9) * time.Millisecond)
 		s.Close()
-		s.Close() // idempotent under the join
+		s.Close()
 		<-done
 	}
 	for range 200 {
@@ -300,7 +280,6 @@ func TestSMPCloseJoinsInFlightSearch(t *testing.T) {
 	}
 	t.Fatalf("goroutines leaked by Close racing searches: %d now vs %d before", runtime.NumGoroutine(), before)
 }
-
 func TestSMPConcurrentSearchPanicsLoudly(t *testing.T) {
 	s := newSMP(2, testTTBytes)
 	b := midgameBoard(t)
@@ -327,10 +306,6 @@ func TestSMPConcurrentSearchPanicsLoudly(t *testing.T) {
 	}
 	s.Close()
 }
-
-// TestSMPQuitBranchServesQueuedJob covers the drain that keeps
-// SearchDepth's runWG.Wait hang-proof when Close lands between the token
-// send and a worker's parked receive.
 func TestSMPQuitBranchServesQueuedJob(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	w, b, res := s.workers[0], &s.boards[0], &s.results[0]
@@ -352,7 +327,6 @@ func TestSMPQuitBranchServesQueuedJob(t *testing.T) {
 		t.Fatal("empty wake channel reported a queued job")
 	}
 }
-
 func TestSMPInstantWinStatsReportNps(t *testing.T) {
 	s := newSMP(2, testTTBytes)
 	_, stats := s.Search(mate1Board(t), NewFixedBudget(time.Second))
@@ -363,7 +337,6 @@ func TestSMPInstantWinStatsReportNps(t *testing.T) {
 		t.Errorf("nps 0 on an instant win: nodes %d elapsed %d", stats.Nodes, stats.ElapsedNs)
 	}
 }
-
 func TestSMPRaceHammer(t *testing.T) {
 	if testing.Short() {
 		t.Skip("hammer needs wall clock budget")
@@ -382,7 +355,6 @@ func TestSMPRaceHammer(t *testing.T) {
 		}
 	}
 }
-
 func TestSMPEnsureProcsRaisesOnly(t *testing.T) {
 	old := runtime.GOMAXPROCS(0)
 	defer runtime.GOMAXPROCS(old)
@@ -398,13 +370,11 @@ func TestSMPEnsureProcsRaisesOnly(t *testing.T) {
 		t.Errorf("GOMAXPROCS lowered to %d, must never drop below %d", got, old)
 	}
 }
-
 func TestSMPPonderSeamIsNoOp(t *testing.T) {
 	var p Ponderer = NewTiered(config.TierEasy)
 	p.StartPonder(rules.NewBoard())
 	p.StopPonder()
 }
-
 func TestSMPHaltDeadlineSemantics(t *testing.T) {
 	dl := NewFixedBudget(time.Hour)
 	var halt atomic.Bool
@@ -421,7 +391,6 @@ func TestSMPHaltDeadlineSemantics(t *testing.T) {
 		t.Error("halt flag must force exceeded")
 	}
 }
-
 func TestSMPWorkerLoopZeroAllocs(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)
@@ -443,10 +412,6 @@ func TestSMPWorkerLoopZeroAllocs(t *testing.T) {
 		t.Fatal("worker run produced no nodes")
 	}
 }
-
-// TestSMPSearchZeroAllocs pins the whole SMP search, pool included: once the
-// workers are parked, a search allocates nothing, matching the single
-// threaded Engine contract.
 func TestSMPSearchZeroAllocs(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)
