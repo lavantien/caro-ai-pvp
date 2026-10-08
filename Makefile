@@ -17,6 +17,14 @@ PKG ?= ./...
 # root would not resolve.
 MUTATE_TMP ?= $(CURDIR)/.scratch/tmp
 
+# Tournament engines hold their transposition tables as live Go heap (a
+# master pairing seats two 2 GiB slices), and with default GOGC=100 the
+# collector's heap goal doubles that live set, which breached the machine's
+# RAM/4 guard cap mid-run. GOMEMLIMIT caps the goal instead: the GC works
+# harder near the bound and the process stays under the guard cap. Soft by
+# design, with the runtime's own death-spiral protection.
+TOURNEY_MEMLIMIT ?= 6GiB
+
 MERMAID_CLI_VERSION := 12.0.0
 PUPPETEER_VERSION := 25.12.0
 DIAGRAMS_DIR := docs/diagrams
@@ -168,19 +176,19 @@ shots:
 # tourney-close abandons a stalled run instead,
 # make tourney-close ARGS="4 --db db/gates-v020.db".
 tourney-smoke-32:
-	CGO_ENABLED=1 go run ./cmd/caro tourney smoke32 $(ARGS)
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney smoke32 $(ARGS)
 
 tourney-smoke-10:
-	CGO_ENABLED=1 go run ./cmd/caro tourney smoke10 $(ARGS)
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney smoke10 $(ARGS)
 
 tourney-smoke-105:
-	CGO_ENABLED=1 go run ./cmd/caro tourney smoke105 $(ARGS)
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney smoke105 $(ARGS)
 
 tourney-full:
-	CGO_ENABLED=1 go run ./cmd/caro tourney full $(ARGS)
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney full $(ARGS)
 
 tourney-resume:
-	CGO_ENABLED=1 go run ./cmd/caro tourney resume $(ARGS)
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney resume $(ARGS)
 
 tourney-close:
 	CGO_ENABLED=1 go run ./cmd/caro tourney close $(ARGS)
