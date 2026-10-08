@@ -149,7 +149,7 @@ func main() {
 			code = 1
 		}
 	}()
-	sweepStaleIsolates()
+	sweepStaleTemp(os.TempDir())
 	before, err := treeHash(".")
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "mutate:", err)

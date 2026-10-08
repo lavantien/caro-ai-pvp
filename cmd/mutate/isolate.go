@@ -114,13 +114,15 @@ func treeHash(root string) (map[string]string, error) {
 	}
 	return out, nil
 }
-func sweepStaleIsolates() {
-	stale, err := filepath.Glob(filepath.Join(os.TempDir(), "caro-mutate-*"))
-	if err != nil {
-		return
-	}
-	for _, p := range stale {
-		_ = os.RemoveAll(p)
+func sweepStaleTemp(root string) {
+	for _, pattern := range [...]string{"caro-mutate-*", "go-build*"} {
+		stale, err := filepath.Glob(filepath.Join(root, pattern))
+		if err != nil {
+			return
+		}
+		for _, p := range stale {
+			_ = os.RemoveAll(p)
+		}
 	}
 }
 func removeAllRetried(dir string) {

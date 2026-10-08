@@ -99,6 +99,24 @@ func TestFileHashUnreadable(t *testing.T) {
 		t.Error("fileHash(directory) err = nil, want read error")
 	}
 }
+func TestSweepStaleTempRemovesGateColony(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	for _, name := range [...]string{"caro-mutate-123", "go-build999", "keep-me"} {
+		if err := os.Mkdir(filepath.Join(root, name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sweepStaleTemp(root)
+	for _, name := range [...]string{"caro-mutate-123", "go-build999"} {
+		if _, serr := os.Stat(filepath.Join(root, name)); !os.IsNotExist(serr) {
+			t.Errorf("sweep left %s behind", name)
+		}
+	}
+	if _, serr := os.Stat(filepath.Join(root, "keep-me")); serr != nil {
+		t.Errorf("sweep removed an unrelated dir: %v", serr)
+	}
+}
 func TestResidueCheckSweepsReleaseRaces(t *testing.T) {
 	root := t.TempDir()
 	if err := residueCheck(root); err != nil {
