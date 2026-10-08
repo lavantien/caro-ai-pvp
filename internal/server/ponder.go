@@ -204,8 +204,14 @@ func (r *Room) collectPonder(side rules.Color, budgetNs int64, turnStart time.Ti
 		return 0, engine.SearchStats{}, "", false
 	}
 	r.mu.Lock()
-	mc := r.board.MoveCount
-	last := r.moves[mc-1]
+	mc := 0
+	var last rules.Move
+	if r.board != nil {
+		mc = r.board.MoveCount
+		if mc > 0 {
+			last = r.moves[mc-1]
+		}
+	}
 	r.mu.Unlock()
 	if mc == 0 || mc != pres.base+1 || last != pres.predict {
 		return 0, engine.SearchStats{}, "", false
