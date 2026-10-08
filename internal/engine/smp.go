@@ -275,7 +275,7 @@ func (s *SMP) setupJob(b *rules.Board, maxDepth int, soft bool, dl Deadline) {
 
 func (s *SMP) stopPonderLocked() {
 	s.halt.Store(true)
-	s.ponderDL.stopped.Store(true)
+	s.ponderDL.Stop()
 	s.runWG.Wait()
 	s.ponding = false
 }
@@ -313,7 +313,7 @@ func (s *SMP) collectResults(start time.Time) (rules.Move, SearchStats) {
 		stats.PV = r.pv
 		bestMove = r.move
 		n := min(config.PonderDepthHistory, r.rootIters)
-		for j := 0; j < n; j++ {
+		for j := range n {
 			slot := (r.rootIters - n + j) % config.PonderDepthHistory
 			stats.RootMoves[j] = r.rootMoves[slot]
 			stats.RootScores[j] = r.rootScores[slot]
