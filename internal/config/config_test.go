@@ -36,13 +36,11 @@ func TestBoardMatchesSpec(t *testing.T) {
 		t.Errorf("CrossCheckSize = %d, want 8, strictly below BoardSize", CrossCheckSize)
 	}
 }
-
 func TestZobristSeed(t *testing.T) {
 	if ZobristSeed != 0x9E3779B97F4A7C15 {
 		t.Errorf("ZobristSeed = %#x, want the fixed splitmix64 golden ratio constant", ZobristSeed)
 	}
 }
-
 func TestTimeControlsMatchSpec(t *testing.T) {
 	want := [][2]int{{1, 0}, {2, 1}, {3, 2}, {10, 5}}
 	if len(TimeControls) != len(want) {
@@ -60,7 +58,6 @@ func TestTimeControlsMatchSpec(t *testing.T) {
 		}
 	}
 }
-
 func TestClockLawConstants(t *testing.T) {
 	if ClockExpectedMovesPerSide < 10 || ClockExpectedMovesPerSide > 60 {
 		t.Errorf("ClockExpectedMovesPerSide = %d, want within [10, 60] to track real game length", ClockExpectedMovesPerSide)
@@ -108,11 +105,7 @@ func TestClockLawConstants(t *testing.T) {
 		t.Errorf("MutateMaxParallel = %d, want a sane bound in [1, 64]", MutateMaxParallel)
 	}
 }
-
 func TestClockPIDGainsFullyAuthored(t *testing.T) {
-	// Closes the zero-fill trap: ClockPID is [len(TimeControls)]PIDGains, so a
-	// TimeControls entry without its authored gain row compiles a silent
-	// all-zero row that still passes the len-parity check in TestClockLawConstants.
 	for i, g := range ClockPID {
 		if g.Kp <= 0 || g.Ki <= 0 || g.Kd <= 0 {
 			t.Errorf("ClockPID[%d] = %+v, every row must be authored with strictly positive gains", i, g)
@@ -127,7 +120,6 @@ func TestClockPIDGainsFullyAuthored(t *testing.T) {
 		t.Errorf("ClockPID[%d] = %+v, want the committed 10+5 row %+v", idx, ClockPID[idx], want)
 	}
 }
-
 func TestSeriesMatchSpec(t *testing.T) {
 	want := []int{3, 5, 7, 11}
 	if len(SeriesLengths) != len(want) {
@@ -148,16 +140,15 @@ func TestSeriesMatchSpec(t *testing.T) {
 		t.Errorf("series constants = %d/%d/%d/%d, want 3/5/7/11", SeriesBO3, SeriesBO5, SeriesBO7, SeriesBO11)
 	}
 }
-
 func TestTiersMatchSpec(t *testing.T) {
 	cases := []struct {
 		want     Tier
 		tiersPtr *Tier
 	}{
-		{Tier{Name: "easy", Cores: 1, TTBytes: 0, VCF: false, VCT: false}, &TierEasy},
-		{Tier{Name: "medium", Cores: 2, TTBytes: 32 << 20, VCF: true, VCT: false}, &TierMedium},
-		{Tier{Name: "hard", Cores: 4, TTBytes: 128 << 20, VCF: true, VCT: true}, &TierHard},
-		{Tier{Name: "master", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true}, &TierMaster},
+		{Tier{Name: "easy", Cores: 1, TTBytes: 32 << 20, VCF: false, VCT: false}, &TierEasy},
+		{Tier{Name: "medium", Cores: 2, TTBytes: 128 << 20, VCF: true, VCT: false}, &TierMedium},
+		{Tier{Name: "hard", Cores: 4, TTBytes: 1 << 30, VCF: true, VCT: true}, &TierHard},
+		{Tier{Name: "master", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true, Ponder: true}, &TierMaster},
 	}
 	for _, c := range cases {
 		if *c.tiersPtr != c.want {
@@ -185,9 +176,6 @@ func TestTiersMatchSpec(t *testing.T) {
 		}
 	}
 }
-
-// TestBotAccountHelpers pins the reserved bot seat names and the tier index
-// resolution the seat lookup rides.
 func TestBotAccountHelpers(t *testing.T) {
 	names := map[string]bool{}
 	for i := range Tiers {
@@ -208,7 +196,6 @@ func TestBotAccountHelpers(t *testing.T) {
 		t.Error("TierIndex of an unknown tier resolved, want false")
 	}
 }
-
 func TestResourceCapsMatchHardwareBudget(t *testing.T) {
 	if MaxCoresPerInstance != 8 {
 		t.Errorf("MaxCoresPerInstance = %d, want 8 (half of the 16 core machine)", MaxCoresPerInstance)
@@ -225,20 +212,44 @@ func TestResourceCapsMatchHardwareBudget(t *testing.T) {
 	if TournamentParallelMatches*TierHard.TTBytes > 32<<30 {
 		t.Errorf("%d parallel hard matches need %d bytes, machine has 32GiB", TournamentParallelMatches, TournamentParallelMatches*TierHard.TTBytes)
 	}
-	if MachineCores != 8 {
-		t.Errorf("MachineCores = %d, want 8 (the run's live-search budget)", MachineCores)
+	if MachineCores != 16 {
+		t.Errorf("MachineCores = %d, want 16 (the spec's ponder worst case, master searching while master ponders)", MachineCores)
 	}
 	if TournamentParallelMatches*TierHard.Cores > MachineCores {
 		t.Errorf("%d parallel rooms at %d live-search cores each need %d, MachineCores is %d",
 			TournamentParallelMatches, TierHard.Cores, TournamentParallelMatches*TierHard.Cores, MachineCores)
 	}
-	// Master alone may fill the whole live-search budget; the runtime
-	// checkCoreBudget law then holds master-led rosters at parallel 1.
 	if TierMaster.Cores > MachineCores {
 		t.Errorf("master cores %d exceed MachineCores %d, the tier cannot run", TierMaster.Cores, MachineCores)
 	}
+	if 2*TierMaster.Cores > MachineCores {
+		t.Errorf("master searching %d while master ponders %d needs %d, MachineCores is %d",
+			TierMaster.Cores, TierMaster.Cores, 2*TierMaster.Cores, MachineCores)
+	}
+	ponderTiers := 0
+	for _, tier := range Tiers {
+		if tier.Ponder {
+			ponderTiers++
+		}
+	}
+	if ponderTiers != 1 || !TierMaster.Ponder {
+		t.Errorf("ponder is master-only, found %d pondering tiers, master Ponder %t", ponderTiers, TierMaster.Ponder)
+	}
 }
-
+func TestPonderAdoptionConstants(t *testing.T) {
+	if PonderAdoptFraction <= 0 || PonderAdoptFraction >= 1 {
+		t.Errorf("PonderAdoptFraction = %v, want in (0, 1)", PonderAdoptFraction)
+	}
+	if PonderStableIters < 2 {
+		t.Errorf("PonderStableIters = %d, want at least 2 so clause 4 is a real constraint", PonderStableIters)
+	}
+	if PonderStableIters > PonderDepthHistory {
+		t.Errorf("PonderStableIters = %d exceeds the history tail %d", PonderStableIters, PonderDepthHistory)
+	}
+	if PonderScoreDropMargin <= 0 {
+		t.Errorf("PonderScoreDropMargin = %d, must be positive", PonderScoreDropMargin)
+	}
+}
 func TestTCIndexResolvesClockShape(t *testing.T) {
 	for i, tc := range TimeControls {
 		got, ok := TCIndex(tc.InitialMin, tc.IncrementSec)
@@ -253,7 +264,6 @@ func TestTCIndexResolvesClockShape(t *testing.T) {
 		t.Error("TCIndex(3, 0) resolved a mismatched increment")
 	}
 }
-
 func TestTournamentConstants(t *testing.T) {
 	if TournamentStartRating != 1000 {
 		t.Errorf("TournamentStartRating = %d, want 1000 per the Implication 2.4 full run", TournamentStartRating)
@@ -267,15 +277,10 @@ func TestTournamentConstants(t *testing.T) {
 	if TournamentRunDirFormat != "20060102-150405" {
 		t.Errorf("TournamentRunDirFormat = %q, want a sortable timestamp layout", TournamentRunDirFormat)
 	}
-	// The format must carry run id, series id, and both display names in
-	// order, and end in .txt so the artifact stays greppable.
 	name := fmt.Sprintf(TournamentSeriesLogFormat, 7, 3, "hard-1", "easy-2")
 	if name != "run7_s3_hard-1-vs-easy-2.txt" {
 		t.Errorf("TournamentSeriesLogFormat renders %q", name)
 	}
-	// The drive lease's stale window must sit far above its beat so a
-	// loaded machine's skipped ticks never read as a dead drive, and the
-	// legacy quarantine label must never collide with a driver label.
 	if TournamentDriveBeatSec < 1 {
 		t.Errorf("TournamentDriveBeatSec = %d, want at least 1", TournamentDriveBeatSec)
 	}
@@ -286,7 +291,6 @@ func TestTournamentConstants(t *testing.T) {
 		t.Errorf("TournamentLegacyLabel = %q, want a non-empty label no driver passes", TournamentLegacyLabel)
 	}
 }
-
 func TestDefaultRosterMatchesScenario2(t *testing.T) {
 	if InstancesPerTier != 2 {
 		t.Errorf("InstancesPerTier = %d, want 2 per Scenario 2 and Implication 2.4", InstancesPerTier)
@@ -315,14 +319,10 @@ func TestDefaultRosterMatchesScenario2(t *testing.T) {
 		}
 	}
 }
-
 func TestTournamentFormBounds(t *testing.T) {
 	if TournamentNameMaxBytes < 1 || TournamentNameMaxBytes > 64 {
 		t.Errorf("TournamentNameMaxBytes = %d, want in [1, 64] like a display-name ceiling", TournamentNameMaxBytes)
 	}
-	// The start-rating bound must keep the rating law's worst delta inside
-	// int64: two seats at opposite bounds give K = 10^(2*bound/RatingDecayMin),
-	// and RatingDelta*K is the whole delta.
 	worstDelta := float64(RatingDelta) * math.Pow(10, 2*float64(TournamentStartRatingAbsMax)/float64(RatingDecayMin))
 	if worstDelta >= math.MaxInt64 || math.IsInf(worstDelta, 0) {
 		t.Errorf("start ratings at %d give a worst delta of %v, overflowing int64",
@@ -333,7 +333,6 @@ func TestTournamentFormBounds(t *testing.T) {
 			TournamentStartRatingAbsMax, TournamentStartRating)
 	}
 }
-
 func TestPortsSpec(t *testing.T) {
 	for name, p := range map[string]int{"HTTPPort": HTTPPort, "DebugPort": DebugPort} {
 		if p <= 10000 || p > 65535 {
@@ -344,7 +343,6 @@ func TestPortsSpec(t *testing.T) {
 		t.Errorf("HTTPPort and DebugPort collide on %d", HTTPPort)
 	}
 }
-
 func TestRatingConstantsMatchSpec(t *testing.T) {
 	if RatingDelta != 30 {
 		t.Errorf("RatingDelta = %d, want 30 per win or loss", RatingDelta)
@@ -383,7 +381,6 @@ func TestRatingConstantsMatchSpec(t *testing.T) {
 		}
 	}
 }
-
 func TestEvalConstants(t *testing.T) {
 	if EvalMilliUnit != 1000 {
 		t.Errorf("EvalMilliUnit = %d, want 1000 (1.0 base unit as integer)", EvalMilliUnit)
@@ -402,7 +399,6 @@ func TestEvalConstants(t *testing.T) {
 		t.Errorf("mate-in-%d plies at step %d collides with normal scores", BoardCells*2, EvalMateScoreStep)
 	}
 }
-
 func TestSearchConstants(t *testing.T) {
 	if SearchMaxPly <= 0 || SearchMaxPly > BoardCells {
 		t.Errorf("SearchMaxPly = %d, want in (0, %d]", SearchMaxPly, BoardCells)
@@ -426,7 +422,6 @@ func TestSearchConstants(t *testing.T) {
 		t.Errorf("min move time %d + safety %d must fit a 1+0 clock", SearchMinMoveTimeMs, SearchSafetyMarginMs)
 	}
 }
-
 func TestEngineEvalConstants(t *testing.T) {
 	if EvalTempo != EvalMilliUnit {
 		t.Errorf("EvalTempo = %d, want %d: one unblocked tempo is the 1.0 anchor", EvalTempo, EvalMilliUnit)
@@ -446,7 +441,6 @@ func TestEngineEvalConstants(t *testing.T) {
 		t.Errorf("max leaf score %d collides with the mate band below %d", maxWindowSum*2, mateFloor)
 	}
 }
-
 func TestEngineSearchConstants(t *testing.T) {
 	windowHalf := (PatternWindowLen - 1) / 2
 	if SearchRingRadius < 1 || SearchRingRadius > windowHalf {
@@ -475,7 +469,6 @@ func TestEngineSearchConstants(t *testing.T) {
 		t.Errorf("SearchEmptyBoardCell = %d, want center cell %d", SearchEmptyBoardCell, want)
 	}
 }
-
 func TestBotLogFormatMatchesImplication15(t *testing.T) {
 	cases := []struct {
 		name string
@@ -507,7 +500,6 @@ func TestBotLogFormatMatchesImplication15(t *testing.T) {
 		t.Errorf("bot log tags = %q %q %q", BotLogTagVCF, BotLogTagVCT, BotLogTagPonder)
 	}
 }
-
 func TestQualityGates(t *testing.T) {
 	if QualityCoverageOverallMin != 95 {
 		t.Errorf("QualityCoverageOverallMin = %v, want 95", QualityCoverageOverallMin)
@@ -519,7 +511,6 @@ func TestQualityGates(t *testing.T) {
 		t.Errorf("core gate %v below overall gate %v", QualityCoverageCoreMin, QualityCoverageOverallMin)
 	}
 }
-
 func TestServerConstants(t *testing.T) {
 	if Argon2Time < 1 || Argon2MemoryKiB < 19456 || Argon2Parallelism < 1 {
 		t.Errorf("argon2 profile t=%d m=%dKiB p=%d below the OWASP floor", Argon2Time, Argon2MemoryKiB, Argon2Parallelism)
