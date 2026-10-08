@@ -15,8 +15,6 @@ import (
 
 var isolateDirs = [...]string{"internal", "cmd"}
 
-// isolateModule copies the mutable surface of the module at src into a fresh
-// temp dir so mutants never touch the working tree. Returns the temp root.
 func isolateModule(src string) (string, error) {
 	dst, err := os.MkdirTemp("", "caro-mutate-")
 	if err != nil {
@@ -58,7 +56,6 @@ func isolateModule(src string) (string, error) {
 	}
 	return dst, nil
 }
-
 func copyDir(src, dst string) error {
 	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -72,9 +69,6 @@ func copyDir(src, dst string) error {
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)
 		}
-		if filepath.Ext(path) != ".go" {
-			return nil
-		}
 		data, rerr := os.ReadFile(path)
 		if rerr != nil {
 			return rerr
@@ -82,11 +76,6 @@ func copyDir(src, dst string) error {
 		return os.WriteFile(target, data, 0o644)
 	})
 }
-
-// treeHash fingerprints every .go file under the mutable dirs of root plus
-// the root level, mirroring what isolateModule copies. The mutator
-// snapshots this before and after a run: the live tree must be
-// byte-identical when a mutation session ends.
 func treeHash(root string) (map[string]string, error) {
 	out := map[string]string{}
 	for _, dir := range isolateDirs {
@@ -125,11 +114,6 @@ func treeHash(root string) (map[string]string, error) {
 	}
 	return out, nil
 }
-
-// sweepStaleIsolates removes leftover caro-mutate-* temp copies from runs
-// that died too hard for their deferred cleanup (TerminateProcess skips
-// defers). Safe at gate start: the exclusive-machine rule means no sibling
-// gate owns a live copy.
 func sweepStaleIsolates() {
 	stale, err := filepath.Glob(filepath.Join(os.TempDir(), "caro-mutate-*"))
 	if err != nil {
@@ -139,11 +123,6 @@ func sweepStaleIsolates() {
 		_ = os.RemoveAll(p)
 	}
 }
-
-// removeAllRetried removes a temp entry with a bounded retry: on Windows a
-// directory handle can outlive its process by milliseconds, and a single
-// RemoveAll racing that teardown deletes the contents but leaves the empty
-// directory shell. Missing paths are success.
 func removeAllRetried(dir string) {
 	for range config.MutateRemoveRetryAttempts {
 		if err := os.RemoveAll(dir); err == nil {
@@ -152,12 +131,6 @@ func removeAllRetried(dir string) {
 		time.Sleep(time.Duration(config.MutateRemoveRetryDelayMs) * time.Millisecond)
 	}
 }
-
-// residueCheck fails while any caro-mutate-* temp entry remains under root:
-// a leftover isolate or cache dir means a child outlived its run, so the
-// gate reports the leak instead of exiting green over pinned resources.
-// Entries a final retried sweep can still delete are release races, not
-// leaks; only the truly pinned fail the gate.
 func residueCheck(root string) error {
 	left, err := filepath.Glob(filepath.Join(root, "caro-mutate-*"))
 	if err != nil {
@@ -178,7 +151,6 @@ func residueCheck(root string) error {
 	}
 	return fmt.Errorf("%d caro-mutate-* entries survived the run (a child process pinned them): %s", len(pinned), strings.Join(pinned, "; "))
 }
-
 func fileHash(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

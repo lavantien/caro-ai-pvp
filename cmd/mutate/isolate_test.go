@@ -11,11 +11,11 @@ func writeTree(t *testing.T, root string) {
 	mustWrite(t, filepath.Join(root, "go.mod"), "module example.com/isolated\n\ngo 1.27.1\n")
 	mustWrite(t, filepath.Join(root, "internal", "rules", "a.go"), "package rules\n\nfunc A() int { return 1 }\n")
 	mustWrite(t, filepath.Join(root, "internal", "rules", "a_test.go"), "package rules\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) { if A() != 1 { t.Fatal() } }\n")
-	mustWrite(t, filepath.Join(root, "internal", "notes.txt"), "not Go source, must be skipped\n")
+	mustWrite(t, filepath.Join(root, "internal", "rules", "web", "pwa", "sw.js"), "self.register()\n")
+	mustWrite(t, filepath.Join(root, "internal", "notes.txt"), "not Go source, part of the module mirror\n")
 	mustWrite(t, filepath.Join(root, "cmd", "x", "main.go"), "package main\n\nfunc main() {}\n")
 	mustWrite(t, filepath.Join(root, "ref", "ignore.txt"), "must not be copied\n")
 }
-
 func mustWrite(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -25,7 +25,6 @@ func mustWrite(t *testing.T, path, content string) {
 		t.Fatal(err)
 	}
 }
-
 func TestIsolateModule(t *testing.T) {
 	t.Parallel()
 	src := t.TempDir()
@@ -39,6 +38,8 @@ func TestIsolateModule(t *testing.T) {
 		filepath.Join("go.mod"),
 		filepath.Join("internal", "rules", "a.go"),
 		filepath.Join("internal", "rules", "a_test.go"),
+		filepath.Join("internal", "rules", "web", "pwa", "sw.js"),
+		filepath.Join("internal", "notes.txt"),
 		filepath.Join("cmd", "x", "main.go"),
 	} {
 		if _, serr := os.Stat(filepath.Join(dst, rel)); serr != nil {
@@ -48,11 +49,7 @@ func TestIsolateModule(t *testing.T) {
 	if _, serr := os.Stat(filepath.Join(dst, "ref")); !os.IsNotExist(serr) {
 		t.Errorf("isolate copied excluded dir ref")
 	}
-	if _, serr := os.Stat(filepath.Join(dst, "internal", "notes.txt")); !os.IsNotExist(serr) {
-		t.Errorf("isolate copied non-Go file notes.txt")
-	}
 }
-
 func TestTreeHashDetectsDrift(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -74,7 +71,6 @@ func TestTreeHashDetectsDrift(t *testing.T) {
 		t.Fatal("treeHash did not detect mutation")
 	}
 }
-
 func TestIsolateModuleWithoutMutableDirs(t *testing.T) {
 	t.Parallel()
 	src := t.TempDir()
@@ -88,7 +84,6 @@ func TestIsolateModuleWithoutMutableDirs(t *testing.T) {
 		t.Errorf("isolate missing go.mod: %v", serr)
 	}
 }
-
 func TestIsolateModuleUnreadableGoMod(t *testing.T) {
 	t.Parallel()
 	src := t.TempDir()
@@ -99,13 +94,11 @@ func TestIsolateModuleUnreadableGoMod(t *testing.T) {
 		t.Error("isolateModule(go.mod as directory) err = nil, want read error")
 	}
 }
-
 func TestFileHashUnreadable(t *testing.T) {
 	if _, err := fileHash(t.TempDir()); err == nil {
 		t.Error("fileHash(directory) err = nil, want read error")
 	}
 }
-
 func TestResidueCheckSweepsReleaseRaces(t *testing.T) {
 	root := t.TempDir()
 	if err := residueCheck(root); err != nil {
@@ -115,8 +108,6 @@ func TestResidueCheckSweepsReleaseRaces(t *testing.T) {
 	if err := os.Mkdir(left, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// A leftover nobody pins is a Windows handle-release race, not a leak:
-	// the check sweeps it and passes.
 	if err := residueCheck(root); err != nil {
 		t.Errorf("residueCheck(sweepable leftover) = %v, want nil after sweep", err)
 	}
