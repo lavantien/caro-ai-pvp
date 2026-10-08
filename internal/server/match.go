@@ -50,6 +50,7 @@ func (r *Room) startGameLocked() {
 	r.board = rules.NewBoard()
 	r.moves = r.moves[:0]
 	r.mlines = r.mlines[:0]
+	r.ponderRing = [2]GrantDepthRing{}
 	r.clock[rules.Red] = clock.NewGameClock(r.tcIdx)
 	r.clock[rules.Blue] = clock.NewGameClock(r.tcIdx)
 	for _, c := range [2]rules.Color{rules.Red, rules.Blue} {
@@ -481,6 +482,10 @@ func newBotSearcher(t config.Tier) searcher {
 	return s
 }
 func (r *Room) closeEnginesLocked() {
+	if r.ponder != nil {
+		r.ponder.stop(rules.Red)
+		r.ponder.stop(rules.Blue)
+	}
 	for i := range r.engines {
 		if r.engines[i] != nil {
 			r.engines[i].Close()
@@ -498,7 +503,12 @@ type mLineRecord struct {
 }
 
 func (r *Room) startBotWorker() {
-	r.wg.Add(1)
+	r.ponder = newPonderLane()
+	r.wg.Add(2)
+	go func() {
+		defer r.wg.Done()
+		r.ponder.run()
+	}()
 	go r.botLoop()
 }
 func (r *Room) botLoop() {
@@ -520,6 +530,9 @@ func (r *Room) closeEnginesAtExit() {
 	r.mu.Lock()
 	r.closeEnginesLocked()
 	r.mu.Unlock()
+	if r.ponder != nil {
+		r.ponder.close()
+	}
 }
 func (r *Room) wakeBotLocked() {
 	if _, ok := r.botTurnLocked(); ok {
@@ -552,14 +565,20 @@ func (r *Room) runBotTurn() bool {
 	}
 	board, moveCount, eng := *r.board, r.board.MoveCount, r.engines[side]
 	entry := r.searchEntry
+	turnStart := r.turnStart
 	r.mu.Unlock()
+
+	mv, st, tag, adopted := r.collectPonder(side, int64(budget), turnStart)
 	if entry != nil {
 		entry()
 	}
-	mv, st, tag := eng.Search(&board, engine.NewFixedBudget(budget))
+	if !adopted {
+		mv, st, tag = eng.Search(&board, engine.NewFixedBudget(budget))
+	}
+
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	if r.over || r.board == nil || r.board.MoveCount != moveCount || r.board.Side != side {
+		r.mu.Unlock()
 		return false
 	}
 	if !r.board.IsLegal(rules.Cell(mv)) {
@@ -571,16 +590,22 @@ func (r *Room) runBotTurn() bool {
 	line := MLine(r.lastM.moveNumber, side, mv, &st, tag)
 	r.mlines = append(r.mlines, GameStat{MoveNo: r.lastM.moveNumber, Line: line})
 	r.publishLocked(Event{Kind: EventKindMLine, Payload: line})
+	r.ponderRing[side].Append(int64(budget), st.Depth)
 	if r.board.FastLastMoveWin(side, cell) {
 		logBotCompletion(r.completeGameLocked(side, cell))
+		r.mu.Unlock()
 		return true
 	}
 	if r.board.IsFull() {
 		logBotCompletion(r.completeGameLocked(rules.Empty, cell))
+		r.mu.Unlock()
 		return true
 	}
 	r.turnStart = time.Now()
 	r.wakeBotLocked()
+	arm := r.ponderArmLocked(side, eng, &st)
+	r.mu.Unlock()
+	r.dispatchPonderArm(&arm)
 	return true
 }
 func (r *Room) firstLegalLocked() rules.Move {
