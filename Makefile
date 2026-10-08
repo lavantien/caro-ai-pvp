@@ -12,8 +12,10 @@ PKG ?= ./...
 
 # Gate isolates and build caches live under the repo, not the OS temp dir:
 # host-side temp sweepers have eaten live isolate copies mid-run, and a
-# swept isolate aborts the gate looking like a verdict.
-MUTATE_TMP ?= .scratch/tmp
+# swept isolate aborts the gate looking like a verdict. Absolute because
+# the runner execs go with cwd inside an isolate, where a relative temp
+# root would not resolve.
+MUTATE_TMP ?= $(CURDIR)/.scratch/tmp
 
 MERMAID_CLI_VERSION := 12.0.0
 PUPPETEER_VERSION := 25.12.0
