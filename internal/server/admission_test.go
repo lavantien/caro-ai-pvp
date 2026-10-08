@@ -1,12 +1,5 @@
 package server
 
-// The v0.23 machine-wide core ledger tests: the book/refuse/release law with
-// its exact-fit boundary, the create surfaces' refusal before anything
-// persists, the release exactly once across every retire path, the hammer
-// under -race, and the shell form's friendly refusal. No real engine ever
-// spawns: rooms that would search park on the gated fake, rooms that cannot
-// search seat the contract fake.
-
 import (
 	"errors"
 	"net/http"
@@ -36,8 +29,6 @@ func TestCoreLedgerBookRefuseRelease(t *testing.T) {
 		t.Errorf("ledger after the refused book = %d, want 0", got)
 	}
 
-	// The exact-fit boundary: booking up to the budget lands, one core more
-	// refuses.
 	rm.mu.Lock()
 	fits := rm.bookCoresLocked(config.MachineCores - 1)
 	rm.mu.Unlock()
@@ -73,12 +64,16 @@ func TestCreateRefusesBotRoomWhenLedgerFull(t *testing.T) {
 	s.rm.makeSearcher = func(config.Tier) searcher { return &contractBot{} }
 	alice := seedUser(t, s.store, "alice")
 
-	master, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster)
+	master1, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster)
 	if err != nil {
-		t.Fatalf("create the master room: %v", err)
+		t.Fatalf("create the first master room: %v", err)
 	}
-	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores; got != want {
-		t.Fatalf("ledger = %d, want the master booking %d", got, want)
+	master2, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster)
+	if err != nil {
+		t.Fatalf("create the second master room: %v", err)
+	}
+	if got, want := s.rm.LiveCoreBookings(), 2*config.TierMaster.Cores; got != want {
+		t.Fatalf("ledger = %d, want the two master bookings %d", got, want)
 	}
 	rows := countRows(t, s, "series")
 
@@ -88,29 +83,34 @@ func TestCreateRefusesBotRoomWhenLedgerFull(t *testing.T) {
 	if got := countRows(t, s, "series"); got != rows {
 		t.Errorf("series rows = %d after the refused create, want the held %d: the pairing row never persisted", got, rows)
 	}
-	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores; got != want {
+	if got, want := s.rm.LiveCoreBookings(), config.MachineCores; got != want {
 		t.Errorf("ledger after the refusal = %d, want the held %d", got, want)
 	}
-	if rooms := s.rm.List(); len(rooms) != 1 || rooms[0].ID != master.ID() {
-		t.Errorf("grid = %+v, want only the master room", rooms)
+	if rooms := s.rm.List(); len(rooms) != 2 ||
+		rooms[0].ID != master1.ID() && rooms[1].ID != master1.ID() ||
+		rooms[0].ID != master2.ID() && rooms[1].ID != master2.ID() {
+		t.Errorf("grid = %+v, want the two master rooms", rooms)
 	}
 
-	// A human room books nothing, so a full ledger never refuses it.
 	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil); err != nil {
 		t.Errorf("create a human room over the full budget: %v", err)
 	}
 
-	// The hold leaves with the room: close releases the whole booking and a
-	// fresh bot room books again.
-	master.Close()
-	if got := s.rm.LiveCoreBookings(); got != 0 {
-		t.Fatalf("ledger after close = %d, want 0", got)
+	master1.Close()
+	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores; got != want {
+		t.Fatalf("ledger after the first close = %d, want the held %d", got, want)
 	}
-	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy); err != nil {
+	easy, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy)
+	if err != nil {
 		t.Fatalf("create after the release: %v", err)
 	}
-	if got, want := s.rm.LiveCoreBookings(), config.TierEasy.Cores; got != want {
-		t.Errorf("ledger = %d, want the easy booking %d", got, want)
+	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+config.TierEasy.Cores; got != want {
+		t.Errorf("ledger = %d, want the master and easy bookings %d", got, want)
+	}
+	master2.Close()
+	easy.Close()
+	if got := s.rm.LiveCoreBookings(); got != 0 {
+		t.Fatalf("ledger after every close = %d, want 0", got)
 	}
 }
 
@@ -118,9 +118,8 @@ func TestCreateBotVsBotRefusesWhenLedgerFull(t *testing.T) {
 	s := newStack(t)
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	s.rm.makeSearcher = func(config.Tier) searcher { return bot }
+	alice := seedUser(t, s.store, "alice")
 
-	// The room books the tiers' max, not the easy guest's 1: game 1 parks
-	// mid-search on the gated bot, no real engine spawns.
 	r, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierEasy, "", 0, config.SeriesBO3)
 	if err != nil {
 		t.Fatalf("create master vs easy: %v", err)
@@ -128,6 +127,14 @@ func TestCreateBotVsBotRefusesWhenLedgerFull(t *testing.T) {
 	<-bot.seen
 	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores; got != want {
 		t.Fatalf("ledger = %d, want the max-of-tiers booking %d", got, want)
+	}
+
+	filler, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster)
+	if err != nil {
+		t.Fatalf("fill the ledger: %v", err)
+	}
+	if got, want := s.rm.LiveCoreBookings(), config.MachineCores; got != want {
+		t.Fatalf("ledger = %d, want the full budget %d", got, want)
 	}
 
 	if _, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierEasy, "", 0, config.SeriesBO3); !errors.Is(err, ErrMachineBusy) {
@@ -139,6 +146,7 @@ func TestCreateBotVsBotRefusesWhenLedgerFull(t *testing.T) {
 
 	close(bot.release)
 	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
+	filler.Close()
 	if got := s.rm.LiveCoreBookings(); got != 0 {
 		t.Errorf("ledger after the swept series = %d, want 0", got)
 	}
@@ -158,8 +166,6 @@ func TestBotRoomRetireReleasesBookingExactlyOnce(t *testing.T) {
 		t.Fatalf("ledger = %d, want the medium booking %d", got, want)
 	}
 
-	// The series-complete retire releases the hold, and a later retire of
-	// the same room must not release it a second time into the negative.
 	open()
 	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
 	r.retire()
@@ -201,8 +207,6 @@ func TestCoreLedgerHammer(t *testing.T) {
 			defer wg.Done()
 			for i := range iters {
 				n := 1 + (w+i)%3
-				// Book and release under separate lock holds, the production
-				// shape: a create books, the room's retire releases.
 				rm.mu.Lock()
 				booked := rm.bookCoresLocked(n)
 				rm.mu.Unlock()
@@ -215,8 +219,6 @@ func TestCoreLedgerHammer(t *testing.T) {
 		}()
 	}
 
-	// A concurrent reader holds the ledger to its invariant: within the
-	// budget, never negative.
 	stop := make(chan struct{})
 	breach := make(chan int, 1)
 	go func() {
@@ -249,8 +251,10 @@ func TestShellCreateRoomRendersMachineBusy(t *testing.T) {
 	s := newStack(t)
 	s.rm.makeSearcher = func(config.Tier) searcher { return &contractBot{} }
 	holder := seedUser(t, s.store, "holder")
-	if _, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierMaster); err != nil {
-		t.Fatalf("fill the ledger: %v", err)
+	for range 2 {
+		if _, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierMaster); err != nil {
+			t.Fatalf("fill the ledger: %v", err)
+		}
 	}
 	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
@@ -270,7 +274,6 @@ func TestShellCreateRoomRendersMachineBusy(t *testing.T) {
 		t.Error("the machine-busy refusal rendered as bad settings")
 	}
 
-	// The JSON envelope carries its own wire shape for the same refusal.
 	if code, status := errorResponse(ErrMachineBusy); code != codeMachineBusy || status != http.StatusConflict {
 		t.Errorf("errorResponse(ErrMachineBusy) = %q %d, want %q %d", code, status, codeMachineBusy, http.StatusConflict)
 	}
