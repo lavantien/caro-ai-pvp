@@ -17,7 +17,7 @@ const usage = "usage: mutate [-pkgs comma,separated,patterns] [-timeout 30s] [-a
 
 func splitPkgs(s string) []string {
 	var out []string
-	for _, p := range strings.Split(s, ",") {
+	for p := range strings.SplitSeq(s, ",") {
 		if p = strings.TrimSpace(p); p != "" {
 			if !strings.HasPrefix(p, ".") {
 				p = "./" + p
@@ -38,6 +38,13 @@ func exitCode(err error, res result) int {
 		return 1
 	}
 	return 0
+}
+
+func summaryLine(res result, err error) string {
+	if err != nil || res.total == 0 {
+		return ""
+	}
+	return fmt.Sprintf("mutate: %d/%d run, %d killed, %d survived, %d allowed\n", res.run, res.total, res.killed, res.survived, res.allowed)
 }
 
 func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
@@ -77,7 +84,7 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 	}
 	if *allowScope != "" {
 		var prefixes []string
-		for _, p := range strings.Split(*allowScope, ",") {
+		for p := range strings.SplitSeq(*allowScope, ",") {
 			if p = strings.TrimSpace(p); p != "" {
 				prefixes = append(prefixes, p)
 			}
@@ -127,19 +134,15 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 	if err == nil && res.total == 0 {
 		_, _ = fmt.Fprintln(stdout, "mutate: no mutants found in", strings.Join(patterns, ","))
 	}
-	if res.total > 0 {
-		_, _ = fmt.Fprintf(stdout, "mutate: %d/%d run, %d killed, %d survived, %d allowed\n", res.run, res.total, res.killed, res.survived, res.allowed)
+	if s := summaryLine(res, err); s != "" {
+		_, _ = fmt.Fprint(stdout, s)
 	}
 	return exitCode(err, res)
 }
 
 func main() {
 	code := 0
-	// The exit defer runs last, after the cleanup defers registered below
-	// it, so isolated copies are removed even on error paths.
 	defer func() { os.Exit(code) }()
-	// Registered before the isolate cleanup defers, so it runs after them:
-	// a green exit must not leave a single caro-mutate-* entry behind.
 	defer func() {
 		if rerr := residueCheck(os.TempDir()); rerr != nil {
 			_, _ = fmt.Fprintln(os.Stderr, "mutate:", rerr)

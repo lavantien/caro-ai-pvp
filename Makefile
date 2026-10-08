@@ -10,6 +10,11 @@ GO_TEST_TIMEOUT := 25m
 
 PKG ?= ./...
 
+# Gate isolates and build caches live under the repo, not the OS temp dir:
+# host-side temp sweepers have eaten live isolate copies mid-run, and a
+# swept isolate aborts the gate looking like a verdict.
+MUTATE_TMP ?= .scratch/tmp
+
 MERMAID_CLI_VERSION := 12.0.0
 PUPPETEER_VERSION := 25.12.0
 DIAGRAMS_DIR := docs/diagrams
@@ -97,12 +102,17 @@ fuzz:
 # CHALLENGE=1 runs the suite under allowlisted mutants too, auditing every
 # equivalence proof (milestone-closing runs should set it).
 mutate:
-	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),1) $(if $(CHALLENGE),-challenge)
+	@mkdir -p $(MUTATE_TMP); \
+	TMP=$(MUTATE_TMP) TEMP=$(MUTATE_TMP) GOTMPDIR=$(MUTATE_TMP) CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),1) $(if $(CHALLENGE),-challenge)
 
-# mutate-resume LOG=prior-run.log continues a gate after a host failure:
-# prior KILLED verdicts are replayed, everything else is re-decided fresh.
+# mutate-resume LOG=prior-run.log [PARALLEL=6] [CHALLENGE=1] [ARGS="-pkgs ...
+# -allow-scope ..."] continues a gate after a host failure: prior KILLED
+# verdicts are replayed, everything else is re-decided fresh. ARGS must
+# repeat the crashed run's package scope and allowlist scope, or the
+# population widens and stale allowlist entries fail the unused check.
 mutate-resume:
-	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),1) $(if $(CHALLENGE),-challenge) -resume "$(LOG)"
+	@mkdir -p $(MUTATE_TMP); \
+	TMP=$(MUTATE_TMP) TEMP=$(MUTATE_TMP) GOTMPDIR=$(MUTATE_TMP) CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),1) $(if $(CHALLENGE),-challenge) $(ARGS) -resume "$(LOG)"
 
 # mutate-smoke [PARALLEL=2]: the rules-core gate for CI. The allowlist is
 # scoped to the package so the unused-allow check only judges entries the
@@ -110,7 +120,8 @@ mutate-resume:
 # the run-private build cache lifecycle on every push; the full gate stays
 # a release checkpoint behind mutate-full.
 mutate-smoke:
-	CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -allow-scope internal/rules -parallel $(or $(PARALLEL),2) -pkgs internal/rules
+	@mkdir -p $(MUTATE_TMP); \
+	TMP=$(MUTATE_TMP) TEMP=$(MUTATE_TMP) GOTMPDIR=$(MUTATE_TMP) CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -allow-scope internal/rules -parallel $(or $(PARALLEL),2) -pkgs internal/rules
 
 # mutate-full [PARALLEL=6] [CHALLENGE=1] [LABEL=run] [ARGS="-pkgs ..."]: the
 # whole gate driven to a definitive verdict, logging to
@@ -120,10 +131,10 @@ mutate-smoke:
 # runner's verdict. ARGS scopes the package set for wave-local gates, e.g.
 # ARGS="-pkgs internal/clock".
 mutate-full:
-	@mkdir -p logs/archive; \
+	@mkdir -p logs/archive $(MUTATE_TMP); \
 	log=logs/archive/mutate-$(or $(LABEL),run).log; : > $$log; \
 	for attempt in 1 2 3 4 5; do \
-		CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),6) $(if $(CHALLENGE),-challenge) $(ARGS) -resume $$log >> $$log 2>&1 && exit 0; \
+		TMP=$(MUTATE_TMP) TEMP=$(MUTATE_TMP) GOTMPDIR=$(MUTATE_TMP) CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),6) $(if $(CHALLENGE),-challenge) $(ARGS) -resume $$log >> $$log 2>&1 && exit 0; \
 		if grep -q '^mutate: [0-9][0-9]*/[0-9]* run' $$log; then tail -2 $$log; exit 1; fi; \
 		echo "mutate-full: attempt $$attempt crashed host-side, resuming from $$log"; \
 	done; \
