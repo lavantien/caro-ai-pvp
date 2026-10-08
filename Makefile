@@ -8,6 +8,8 @@ COVERPROFILE := coverage.out
 # finish, a stuck engine still trips it.
 GO_TEST_TIMEOUT := 25m
 
+PKG ?= ./...
+
 MERMAID_CLI_VERSION := 12.0.0
 PUPPETEER_VERSION := 25.12.0
 DIAGRAMS_DIR := docs/diagrams
@@ -61,7 +63,7 @@ test-pkg:
 	CGO_ENABLED=1 go test -race -timeout $(GO_TEST_TIMEOUT) $(ARGS) $(PKG)
 
 cover:
-	CGO_ENABLED=1 go test -coverprofile=$(COVERPROFILE) -covermode=atomic ./...
+	CGO_ENABLED=1 go test -coverprofile=$(COVERPROFILE) -covermode=atomic -timeout $(GO_TEST_TIMEOUT) $(ARGS) $(PKG)
 	CGO_ENABLED=1 go tool cover -func=$(COVERPROFILE)
 	CGO_ENABLED=1 go run ./cmd/covergate $(COVERPROFILE)
 

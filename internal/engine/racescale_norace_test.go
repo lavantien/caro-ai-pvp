@@ -2,8 +2,17 @@
 
 package engine
 
-import "time"
+import (
+	"testing"
+	"time"
+)
 
 const raceBudgetScale = 1
+const coverBudgetScale = 5
 
-func scaledBudget(d time.Duration) time.Duration { return d * raceBudgetScale }
+func scaledBudget(d time.Duration) time.Duration {
+	if testing.Coverage() > 0 {
+		return d * coverBudgetScale
+	}
+	return d * raceBudgetScale
+}
