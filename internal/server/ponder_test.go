@@ -599,9 +599,7 @@ func (b *ponderBot) Search(bd *rules.Board, _ engine.Deadline) (rules.Move, engi
 	b.answers = b.answers[1:]
 	st := a.stats
 	st.PVLen = len(a.pv)
-	for i, m := range a.pv {
-		st.PV[i] = m
-	}
+	copy(st.PV[:], a.pv)
 	return a.move, st, ""
 }
 
@@ -1254,7 +1252,7 @@ func FuzzAdoptPonder(f *testing.F) {
 				t.Fatalf("adopt with window drop %d over the margin %d", drop, config.PonderScoreDropMargin)
 			}
 			ref, ok := ring.ReferenceDepth(grant)
-			if !(ok && st.Depth >= ref) && elapsed < int64(config.PonderAdoptFraction*float64(budget)) {
+			if (!ok || st.Depth < ref) && elapsed < int64(config.PonderAdoptFraction*float64(budget)) {
 				t.Fatalf("adopt with neither depth nor time adequacy: ref (%d %t) depth %d elapsed %d budget %d",
 					ref, ok, st.Depth, elapsed, budget)
 			}
