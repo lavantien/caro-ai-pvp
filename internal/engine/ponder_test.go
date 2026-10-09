@@ -226,6 +226,34 @@ func TestPonderDepthGrowsWithWallTime(t *testing.T) {
 	}
 }
 
+func TestPonderStatsCoverOnlyTheLastJob(t *testing.T) {
+	b := midgameBoard(t)
+	s := newSMP(2, testTTBytes)
+	defer s.Close()
+	_, first := s.Search(b, NewFixedBudget(scaledBudget(120*time.Millisecond)))
+	s.StartPonder(b)
+	time.Sleep(scaledBudget(60 * time.Millisecond))
+	_, p1 := s.StopPonder()
+	_, second := s.Search(b, NewFixedBudget(scaledBudget(120*time.Millisecond)))
+	s.StartPonder(b)
+	time.Sleep(scaledBudget(60 * time.Millisecond))
+	mv, p2 := s.StopPonder()
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("ponder move %d illegal", mv)
+	}
+	if first.Nodes == 0 || p1.Nodes == 0 || second.Nodes == 0 || p2.Nodes == 0 {
+		t.Fatalf("a job reported zero nodes: search %d ponder %d search %d ponder %d", first.Nodes, p1.Nodes, second.Nodes, p2.Nodes)
+	}
+	prior := first.Nodes + p1.Nodes + second.Nodes
+	if p2.Nodes > prior {
+		t.Fatalf("second ponder nodes %d exceeds the prior jobs' whole total %d: stats are not per job", p2.Nodes, prior)
+	}
+	window := scaledBudget(2 * time.Second)
+	if d := time.Duration(p2.ElapsedNs); d > window {
+		t.Fatalf("second ponder elapsed %v spans past its own window, want at most %v", d, window)
+	}
+}
+
 func TestPonderZeroAllocs(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)
