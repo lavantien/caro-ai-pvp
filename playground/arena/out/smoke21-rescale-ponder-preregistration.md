@@ -16,3 +16,5 @@ Question: does the demand-spec tier re-scale (easy 32 MiB, medium 128 MiB, hard 
 ## follow-up chain, queued behind this run
 
 The 3+2 ladder arm (same shape, tc 3+2) completes the re-gate before the rescale tag decision. The master re-derivation arena pairs (master vs hard at both controls at the re-scaled sizes, master-novct perturbation, and master vs master-noponder for the ponder separation evidence) run after it, all serialized engine batches.
+
+Addendum 2026-10-09, user instruction after the 2+1 arm: the evidence set extends with a third arm, smoke10 (1+0, the zero-increment end), queued behind the 3+2 arm. The three arms span the increment axis 0, 1s, 2s so the formal investigation sees the system under zero increment and under ample increment. The 1+0 arm is analysis-only: the v0.20 arena program established 1+0 as thread-decided, so it feeds the investigation and gates nothing. The registered decision rules above are untouched.
