@@ -1,14 +1,5 @@
 package server
 
-// The M7 tournament UI of first-cause.md Scenario 2 over the tourney
-// manager's service seam: the setup form (roster builder, time control,
-// best-of, start rating, parallel matches), the live run page with the
-// htmx-polled leaderboard, and the past-runs section. The pages depend on
-// the TourneyService interface only, so page tests script the service while
-// the serve composition wires the tourney manager over the room surface.
-// The bot-vs-bot rooms of a live run stay on the home grid beside these
-// pages; nothing here hides or duplicates them.
-
 import (
 	"context"
 	"errors"
@@ -22,8 +13,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// tourneyPage parses the base layout, the shared leaderboard fragment, the
-// shared board fragment, and one tournament page template.
 func tourneyPage(page string) *template.Template {
 	return template.Must(template.ParseFS(shellTmplFS,
 		"web/templates/base.tmpl", "web/templates/rooms.tmpl",
@@ -38,16 +27,12 @@ var (
 		"web/templates/tourney_board.tmpl", "web/templates/board.html"))
 )
 
-// TourneySeat is one roster seat of a run.
 type TourneySeat struct {
 	Slot int
 	Name string
 	Tier string
 }
 
-// TourneySetup is one validated tournament start: the roster in slot order,
-// the time control index, the series length, the start rating, and the
-// parallel-room count.
 type TourneySetup struct {
 	Seats       []TourneySeat
 	TCIdx       int
@@ -56,8 +41,6 @@ type TourneySetup struct {
 	Parallel    int
 }
 
-// TourneySeriesLine is one pairing of a run: the seats as wins of the
-// red-first participant, the settled winner, and the finish.
 type TourneySeriesLine struct {
 	PairingSlot   int
 	RedFirstSlot  int
@@ -68,8 +51,6 @@ type TourneySeriesLine struct {
 	Finished      bool
 }
 
-// TourneyStanding is one leaderboard row, ordered rating desc, wins desc,
-// slot asc by the service that derives it.
 type TourneyStanding struct {
 	Slot        int
 	Rating      int
@@ -80,9 +61,6 @@ type TourneyStanding struct {
 	GamesPlayed int
 }
 
-// TourneyRunInfo is one run header plus the drive state the pages render:
-// Finished from the run row, Running while the manager still drives it,
-// Failure the terminal drive error.
 type TourneyRunInfo struct {
 	ID          int64
 	CreatedAt   int64
@@ -94,7 +72,6 @@ type TourneyRunInfo struct {
 	Failure     string
 }
 
-// TourneySnapshot is the run page's whole read.
 type TourneySnapshot struct {
 	Run    TourneyRunInfo
 	Seats  []TourneySeat
@@ -102,18 +79,12 @@ type TourneySnapshot struct {
 	Board  []TourneyStanding
 }
 
-// TourneyRunSummary is one line of the setup page's runs section: the header
-// plus the roster and the standings leader.
 type TourneyRunSummary struct {
 	TourneyRunInfo
 	Seats  []TourneySeat
 	Leader string
 }
 
-// TourneyLiveBoard is one ongoing bot series' spectating read for the run
-// page: the room link, both seats under the room's naming law with the
-// running series score told from red's side, the stones in play order, and
-// the side to move.
 type TourneyLiveBoard struct {
 	RoomID   string
 	RedName  string
@@ -124,17 +95,12 @@ type TourneyLiveBoard struct {
 	Moves    []string
 }
 
-// TourneyBanner is the home page's live-run read: the ongoing run's id and
-// its settled-series progress over all pairings.
 type TourneyBanner struct {
 	RunID int64
 	Done  int
 	Total int
 }
 
-// TourneyBlockedError names the ongoing run holding the machine-wide run
-// gate; the setup form renders the blocking id inline instead of a bare
-// outage.
 type TourneyBlockedError struct{ RunID int64 }
 
 func (e *TourneyBlockedError) Error() string {
@@ -142,54 +108,24 @@ func (e *TourneyBlockedError) Error() string {
 		" is still in progress, close it before starting another"
 }
 
-// TourneyService is the tournament UI's one seam onto the M7 conductor. The
-// serve composition wires the tourney manager over it; page tests wire a
-// script.
 type TourneyService interface {
-	// StartRun validates, persists, and begins driving one tournament. It
-	// returns once the run row exists, so the caller can redirect onto the
-	// run's live page, and refuses with TourneyBlockedError while another
-	// run holds the machine-wide gate.
 	StartRun(ctx context.Context, setup TourneySetup) (int64, error)
-	// RunSnapshot reads one run's whole render state; an unknown run maps
-	// onto ErrNotFound.
 	RunSnapshot(ctx context.Context, runID int64) (TourneySnapshot, error)
-	// Runs lists run headers newest first with their rosters and leaders.
 	Runs(ctx context.Context) ([]TourneyRunSummary, error)
-	// OngoingRun reads the run this process currently drives, the home
-	// page's live-tournament banner; ok is false when no drive is live.
 	OngoingRun(ctx context.Context) (TourneyBanner, bool, error)
-	// LiveBoards reads the ongoing run's live bot series for spectating.
-	// One run holds the machine at a time, so every live bot-vs-bot room
-	// belongs to the ongoing run; a driven run's page renders them, every
-	// other page ignores them.
 	LiveBoards() []TourneyLiveBoard
-	// CloseStalledRun closes a stalled run's row, an ongoing run no live
-	// drive owns. It refuses an unknown run with ErrNotFound and a live
-	// drive or an already-closed run with an error the page renders inline.
 	CloseStalledRun(ctx context.Context, runID int64) error
 }
 
-// TournamentPages serves the Scenario 2 setup, run, and leaderboard pages
-// over a TourneyService and the same store the shell reads sessions
-// through.
 type TournamentPages struct {
 	store   *Store
 	tourney TourneyService
 }
 
-// NewTournamentPages builds the page handlers for the composition to mount.
 func NewTournamentPages(store *Store, tourney TourneyService) *TournamentPages {
 	return &TournamentPages{store: store, tourney: tourney}
 }
 
-// Mount registers the page routes on mux, the room pages' pattern:
-//
-//	GET  /tourney                 the runs list for everyone, the setup form for the admin
-//	POST /tourney                 validate and start, redirect to the run page (admin only)
-//	GET  /tourney/run/{id}        the run page (public, like the rooms grid)
-//	GET  /tourney/run/{id}/board  the polled leaderboard fragment
-//	POST /tourney/run/{id}/close  close a stalled run's row (admin only)
 func (p *TournamentPages) Mount(mux *http.ServeMux) {
 	mux.HandleFunc("GET /tourney", p.handleSetup)
 	mux.HandleFunc("POST /tourney", p.handleStart)
@@ -198,22 +134,16 @@ func (p *TournamentPages) Mount(mux *http.ServeMux) {
 	mux.HandleFunc("POST /tourney/run/{id}/close", p.handleCloseRun)
 }
 
-// isAdmin names the one account the tournament controls answer to: the
-// seeded admin row. Every viewer can read the pages; only this session
-// starts runs and closes them.
 func isAdmin(me *shellViewer) bool {
 	return me != nil && me.Username == config.AdminName
 }
 
-// tourneyRowView is one roster-builder row: the index behind the form field
-// names, the name input's value, and the tier select with its preselection.
 type tourneyRowView struct {
 	N     int
 	Name  string
 	Tiers []botOptionView
 }
 
-// tourneyRunLineView is one line of the setup page's runs section.
 type tourneyRunLineView struct {
 	ID     int64
 	When   string
@@ -224,9 +154,6 @@ type tourneyRunLineView struct {
 	Leader string
 }
 
-// tourneySetupView is the setup page: the form options and prefill from the
-// config hub (rendered for the admin only), an inline error, and the runs
-// list everyone reads.
 type tourneySetupView struct {
 	Me              *shellViewer
 	Admin           bool
@@ -241,8 +168,6 @@ type tourneySetupView struct {
 	Runs            []tourneyRunLineView
 }
 
-// tourneyTierOptions lists every config tier as a select option, marking the
-// wanted one selected.
 func tourneyTierOptions(selected string) []botOptionView {
 	opts := make([]botOptionView, len(config.Tiers))
 	for i := range config.Tiers {
@@ -254,8 +179,6 @@ func tourneyTierOptions(selected string) []botOptionView {
 	return opts
 }
 
-// tourneyRows builds the roster builder: the config default roster by name
-// and tier, or the submitted values echoing back through a failed post.
 func tourneyRows(names, tiers []string) []tourneyRowView {
 	def := config.DefaultRoster()
 	rows := make([]tourneyRowView, len(def))
@@ -272,16 +195,12 @@ func tourneyRows(names, tiers []string) []tourneyRowView {
 	return rows
 }
 
-// tourneySetupState holds the parsed form values across the validate-fail
-// re-render, so a rejected post echoes what the operator typed.
 type tourneySetupState struct {
 	names  []string
 	tiers  []string
 	rating int
 }
 
-// handleSetup renders the Scenario 2 page: the runs section for every
-// viewer, guest included, and the setup form for the admin session only.
 func (p *TournamentPages) handleSetup(w http.ResponseWriter, r *http.Request) {
 	me, err := resolveViewer(p.store, r)
 	if err != nil {
@@ -296,7 +215,6 @@ func (p *TournamentPages) handleSetup(w http.ResponseWriter, r *http.Request) {
 	p.renderSetup(w, http.StatusOK, me, &tourneySetupState{rating: config.TournamentStartRating}, "", lines)
 }
 
-// runLines shapes the runs section of the setup page.
 func (p *TournamentPages) runLines(r *http.Request) ([]tourneyRunLineView, error) {
 	runs, err := p.tourney.Runs(r.Context())
 	if err != nil {
@@ -318,8 +236,6 @@ func (p *TournamentPages) runLines(r *http.Request) ([]tourneyRunLineView, error
 	return lines, nil
 }
 
-// renderSetup paints the setup page around the form state, the runs section,
-// and an inline error.
 func (p *TournamentPages) renderSetup(w http.ResponseWriter, status int, me *shellViewer,
 	state *tourneySetupState, errMsg string, runs []tourneyRunLineView) {
 
@@ -349,10 +265,6 @@ func (p *TournamentPages) renderSetup(w http.ResponseWriter, status int, me *she
 	})
 }
 
-// handleStart is the setup form POST: guests bounce like every acting route,
-// a non-admin session gets the setup page back with the refusal inline, then
-// every config law validated inline, the roster rows the count select
-// governs, and the service start with the redirect onto the run's live page.
 func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 	me, err := resolveViewer(p.store, r)
 	if err != nil {
@@ -377,8 +289,6 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 		names: formStrings(r, "name", config.TournamentMaxParticipants),
 		tiers: formStrings(r, "tier", config.TournamentMaxParticipants),
 	}
-	// A rejected post re-renders with the runs section best-effort: the
-	// inline error is the answer, a listing hiccup must not mask it.
 	bad := func(msg string) {
 		state.rating = config.TournamentStartRating
 		if v, err := strconv.Atoi(r.PostFormValue("rating")); err == nil {
@@ -454,8 +364,6 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 		Seats: seats, TCIdx: tcIdx, BOLen: boLen, StartRating: rating, Parallel: parallel,
 	})
 	if err != nil {
-		// The machine-wide run gate is an answer, not an outage: the form
-		// re-renders with the blocking run's id inline.
 		var blocked *TourneyBlockedError
 		if errors.As(err, &blocked) {
 			p.renderSetup(w, http.StatusConflict, me, state, blocked.Error(), p.bestEffortRuns(r))
@@ -467,8 +375,6 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/tourney/run/"+strconv.FormatInt(runID, 10), http.StatusSeeOther)
 }
 
-// formStrings reads the numbered form fields name0..name{n-1} and
-// tier0..tier{n-1} into index-aligned slices.
 func formStrings(r *http.Request, prefix string, n int) []string {
 	out := make([]string, n)
 	for i := range out {
@@ -477,8 +383,6 @@ func formStrings(r *http.Request, prefix string, n int) []string {
 	return out
 }
 
-// bestEffortRuns shapes the runs section for a re-render, empty on a listing
-// failure.
 func (p *TournamentPages) bestEffortRuns(r *http.Request) []tourneyRunLineView {
 	lines, err := p.runLines(r)
 	if err != nil {
@@ -487,7 +391,6 @@ func (p *TournamentPages) bestEffortRuns(r *http.Request) []tourneyRunLineView {
 	return lines
 }
 
-// seriesLineView is one rendered pairing line, red-first seat first.
 type seriesLineView struct {
 	Red      string
 	Blue     string
@@ -496,7 +399,6 @@ type seriesLineView struct {
 	Finished bool
 }
 
-// standingRowView is one rendered leaderboard row.
 type standingRowView struct {
 	Rank                          int
 	Name                          string
@@ -505,8 +407,6 @@ type standingRowView struct {
 	Draws, SeriesWon, GamesPlayed int
 }
 
-// tourneyBoardView is the polled fragment: the settled count, the pairing
-// lines, and the leaderboard.
 type tourneyBoardView struct {
 	Done   int
 	Total  int
@@ -515,9 +415,6 @@ type tourneyBoardView struct {
 	Live   []liveBoardView
 }
 
-// liveBoardView is one ongoing bot series' section: the linked room, the
-// seats under the room naming law, the running score with the side to move,
-// and the live stones on the shared board grid scaled mini.
 type liveBoardView struct {
 	RoomID    string
 	Red       string
@@ -528,8 +425,6 @@ type liveBoardView struct {
 	boardData
 }
 
-// liveBoardsOf shapes the service's live reads; empty while the run's drive
-// is not live, so only the ongoing run's page shows boards.
 func liveBoardsOf(running bool, boards []TourneyLiveBoard) []liveBoardView {
 	if !running || len(boards) == 0 {
 		return nil
@@ -548,7 +443,6 @@ func liveBoardsOf(running bool, boards []TourneyLiveBoard) []liveBoardView {
 	return out
 }
 
-// tourneyRunHeaderView is the run page's summary line.
 type tourneyRunHeaderView struct {
 	ID          int64
 	When        string
@@ -559,8 +453,6 @@ type tourneyRunHeaderView struct {
 	Failure     string
 }
 
-// tourneyRunView is the run page's whole render state: the board plus, on
-// a stalled run, the close form and its inline refusal.
 type tourneyRunView struct {
 	Me         *shellViewer
 	Header     tourneyRunHeaderView
@@ -571,8 +463,6 @@ type tourneyRunView struct {
 	CloseError string
 }
 
-// handleRun renders one run's live page: public like the rooms grid, the
-// poll wiring around the board fragment the run refreshes in place.
 func (p *TournamentPages) handleRun(w http.ResponseWriter, r *http.Request) {
 	runID, ok := tourneyRunID(w, r)
 	if !ok {
@@ -590,28 +480,19 @@ func (p *TournamentPages) handleRun(w http.ResponseWriter, r *http.Request) {
 	p.renderRun(w, http.StatusOK, me, runID, snap, "")
 }
 
-// renderRun paints the run page around the board fragment, optionally with
-// the close form's inline refusal.
 func (p *TournamentPages) renderRun(w http.ResponseWriter, status int, me *shellViewer,
 	runID int64, snap TourneySnapshot, closeErr string) {
 
 	header := runHeaderOf(snap)
 	renderShell(w, status, tourneyRunTmpl, "base", tourneyRunView{
 		Me: me, Header: header, RunID: runID,
-		PollMs: int64(config.PagePollMs),
-		Board:  boardViewOf(snap, liveBoardsOf(snap.Run.Running, p.tourney.LiveBoards())),
-		// A stalled run (no live drive) and a failed drive both leave an
-		// ongoing row holding the machine-wide run gate: the close form is
-		// the admin's only UI escape from either.
+		PollMs:     int64(config.PagePollMs),
+		Board:      boardViewOf(snap, liveBoardsOf(snap.Run.Running, p.tourney.LiveBoards())),
 		CanClose:   (header.State == runStateStalled || header.State == "failed") && isAdmin(me),
 		CloseError: closeErr,
 	})
 }
 
-// handleCloseRun is the stalled-run close form POST: guests bounce like
-// every acting route and only the admin session closes. The close resolves
-// a run row no live drive owns; a refusal re-renders the run page with the
-// reason inline, an unknown run stays the 404 page.
 func (p *TournamentPages) handleCloseRun(w http.ResponseWriter, r *http.Request) {
 	runID, ok := tourneyRunID(w, r)
 	if !ok {
@@ -649,7 +530,6 @@ func (p *TournamentPages) handleCloseRun(w http.ResponseWriter, r *http.Request)
 	http.Redirect(w, r, "/tourney/run/"+strconv.FormatInt(runID, 10), http.StatusSeeOther)
 }
 
-// handleBoard serves the polled fragment of one run's page.
 func (p *TournamentPages) handleBoard(w http.ResponseWriter, r *http.Request) {
 	runID, ok := tourneyRunID(w, r)
 	if !ok {
@@ -663,8 +543,6 @@ func (p *TournamentPages) handleBoard(w http.ResponseWriter, r *http.Request) {
 		boardViewOf(snap, liveBoardsOf(snap.Run.Running, p.tourney.LiveBoards())))
 }
 
-// tourneyRunID parses the path id; a garbage or non-positive id is the 404
-// page.
 func tourneyRunID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil || id <= 0 {
@@ -674,8 +552,6 @@ func tourneyRunID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	return id, true
 }
 
-// snapshot reads one run's render state, mapping the not-found sentinel onto
-// the 404 page and everything else onto the 500 line.
 func (p *TournamentPages) snapshot(w http.ResponseWriter, r *http.Request, runID int64) (TourneySnapshot, bool) {
 	snap, err := p.tourney.RunSnapshot(r.Context(), runID)
 	if err != nil {
@@ -689,13 +565,8 @@ func (p *TournamentPages) snapshot(w http.ResponseWriter, r *http.Request, runID
 	return snap, true
 }
 
-// runStateStalled names the display state an ongoing row no process drives
-// takes; the run page hands that state its close form.
 const runStateStalled = "stalled"
 
-// runStateOf names the run's display state: a terminal drive failure wins,
-// then the run row's finish, then the manager's liveness; an ongoing row no
-// process drives is stalled (a previous lifetime's abort left it open).
 func runStateOf(run TourneyRunInfo) string {
 	switch {
 	case run.Failure != "":
@@ -708,7 +579,6 @@ func runStateOf(run TourneyRunInfo) string {
 	return runStateStalled
 }
 
-// runHeaderOf shapes one run's summary line.
 func runHeaderOf(snap TourneySnapshot) tourneyRunHeaderView {
 	run := snap.Run
 	return tourneyRunHeaderView{
@@ -718,9 +588,6 @@ func runHeaderOf(snap TourneySnapshot) tourneyRunHeaderView {
 	}
 }
 
-// boardViewOf shapes the polled fragment: names by slot with the raw slot as
-// the unresolvable fallback, red-first lines in pairing order, ranks over
-// the service's leaderboard order, and the live spectating section.
 func boardViewOf(snap TourneySnapshot, live []liveBoardView) tourneyBoardView {
 	name := func(slot int) string {
 		for _, seat := range snap.Seats {
@@ -760,7 +627,6 @@ func boardViewOf(snap TourneySnapshot, live []liveBoardView) tourneyBoardView {
 	return tourneyBoardView{Done: done, Total: len(snap.Series), Series: series, Board: board, Live: live}
 }
 
-// tierOfSeat resolves one slot's tier for the leaderboard rows.
 func tierOfSeat(seats []TourneySeat, slot int) string {
 	for _, seat := range seats {
 		if seat.Slot == slot {
