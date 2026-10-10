@@ -1,5 +1,6 @@
 BINARY := bin/caro$(shell CGO_ENABLED=1 go env GOEXE)
 LOGSTATS_BIN := bin/logstats$(shell CGO_ENABLED=1 go env GOEXE)
+CROSSARM_BIN := bin/crossarm$(shell CGO_ENABLED=1 go env GOEXE)
 COVERPROFILE := coverage.out
 
 # The real-engine e2e in internal/tourney is wall-clock bound and a healthy
@@ -255,6 +256,18 @@ ci: playground-modules darkcontrast fmt-check lint vet build test-race cover
 logstats:
 	CGO_ENABLED=1 go -C playground/logstats build -o ../../$(LOGSTATS_BIN) .
 	$(LOGSTATS_BIN) $(ARGS)
+
+# crossarm decomposes per-seat records across tournament arms, the
+# increment-axis evidence set: integrity ledger, standings, per-seat
+# records by opponent tier and color, pairwise series and game matrices,
+# per-seat and per-phase telemetry, focused-seat loss tables carrying both
+# sides' final evals, and a cross-arm synthesis over same-tier mutuals and
+# adjacent-tier aggregates. Nested module like logstats, e.g.
+# make crossarm ARGS="--arm 2+1=logs/tourny/<run> --arm 1+0=logs/tourny/<run> --focus hard-1 --out report.md".
+.PHONY: crossarm
+crossarm:
+	CGO_ENABLED=1 go -C playground/crossarm build -o ../../$(CROSSARM_BIN) .
+	$(CROSSARM_BIN) $(ARGS)
 
 # db-checkpoint folds every db/*.db write-ahead log into its main file and
 # truncates the sidecars. SQLite folds the log only on a clean close, so a
