@@ -1126,10 +1126,16 @@ func TestBotVsBotPonderMLineObserved(t *testing.T) {
 	}
 	events := make(chan Event, 64)
 	drained := make(chan struct{})
+	done := make(chan struct{})
+	defer close(done)
 	go func() {
 		defer close(drained)
 		for ev := range sub.Events() {
-			events <- ev
+			select {
+			case events <- ev:
+			case <-done:
+				return
+			}
 		}
 	}()
 	close(gate)
