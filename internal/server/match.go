@@ -30,7 +30,7 @@ const (
 func (r *Room) Ready(userID int64) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.over {
+	if r.over || r.finished {
 		return ErrRoomClosed
 	}
 	if r.series == nil {
@@ -68,7 +68,7 @@ func (r *Room) PlayMove(userID int64, cell rules.Cell) error {
 }
 func (r *Room) maybeFinish() {
 	r.mu.Lock()
-	done := r.over
+	done := r.over || r.finished
 	r.mu.Unlock()
 	if done {
 		r.finishLifecycle()
@@ -77,7 +77,7 @@ func (r *Room) maybeFinish() {
 func (r *Room) playMove(userID int64, cell rules.Cell) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.over {
+	if r.over || r.finished {
 		return ErrRoomClosed
 	}
 	if userID != r.host.userID && (r.guest.userID == 0 || userID != r.guest.userID) {
@@ -132,7 +132,7 @@ func (r *Room) completeGameLocked(winner rules.Color, lastCell rules.Cell) error
 	perr := r.persistGameLocked(redUser, blueUser, outcome, wonBy)
 	r.publishLocked(Event{Kind: EventKindGameEnd, Payload: outcome.String()})
 	if r.series.State() == SeriesFinished {
-		r.over = true
+		r.finished = true
 		r.publishLocked(Event{Kind: EventKindSeries, Payload: r.series.Winner().String()})
 	} else {
 		r.startGameLocked()
@@ -173,7 +173,7 @@ func botDisplayName(tier, roomID string) string {
 }
 func (r *Room) Forfeit(userID int64) error {
 	r.mu.Lock()
-	if r.over {
+	if r.over || r.finished {
 		r.mu.Unlock()
 		return ErrRoomClosed
 	}
@@ -193,7 +193,7 @@ func (r *Room) Forfeit(userID int64) error {
 		return err
 	}
 	err := r.persistForfeitLocked(liveMoves)
-	r.over = true
+	r.finished = true
 	r.publishLocked(Event{Kind: EventKindSeries, Payload: r.series.Winner().String()})
 	r.mu.Unlock()
 	r.finishLifecycle()
@@ -543,7 +543,7 @@ func (r *Room) wakeBotLocked() {
 	}
 }
 func (r *Room) botTurnLocked() (rules.Color, bool) {
-	if r.over || r.quitClosed() || r.board == nil {
+	if r.over || r.finished || r.quitClosed() || r.board == nil {
 		return 0, false
 	}
 	side := r.board.Side
@@ -577,7 +577,7 @@ func (r *Room) runBotTurn() bool {
 	}
 
 	r.mu.Lock()
-	if r.over || r.quitClosed() || r.board == nil || r.board.MoveCount != moveCount || r.board.Side != side {
+	if r.over || r.finished || r.quitClosed() || r.board == nil || r.board.MoveCount != moveCount || r.board.Side != side {
 		r.mu.Unlock()
 		return false
 	}

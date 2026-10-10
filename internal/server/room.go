@@ -171,7 +171,7 @@ func (rm *RoomManager) Join(roomID string, userID int64) error {
 func (r *Room) join(userID int64) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.over {
+	if r.over || r.finished {
 		return ErrRoomClosed
 	}
 	if userID == r.host.userID {
@@ -261,7 +261,7 @@ type LiveBotBoard struct {
 func (r *Room) liveBotBoard() (LiveBotBoard, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.over || r.host.bot == nil || r.guest.bot == nil || r.series == nil || r.board == nil {
+	if r.over || r.finished || r.host.bot == nil || r.guest.bot == nil || r.series == nil || r.board == nil {
 		return LiveBotBoard{}, false
 	}
 	hostWins, guestWins := r.series.Score()
@@ -335,6 +335,7 @@ type Room struct {
 	guest        seat
 	series       *Series
 	seriesID     int64
+	finished     bool
 	over         bool
 	board        *rules.Board
 	moves        []rules.Move
