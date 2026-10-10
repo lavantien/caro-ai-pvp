@@ -8,9 +8,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// TestMustTCPanicsOnUnconfiguredTimeControl pins the spec resolver's guard:
-// a driver naming a clock shape the config hub does not hold is a spec bug,
-// and it panics at resolve time instead of silently seating a wrong index.
 func TestMustTCPanicsOnUnconfiguredTimeControl(t *testing.T) {
 	defer func() {
 		r := recover()
@@ -25,9 +22,6 @@ func TestMustTCPanicsOnUnconfiguredTimeControl(t *testing.T) {
 	mustTC(0, 7)
 }
 
-// TestSmokeRoster105Spec pins the 10+5 plumbing smoke: exactly two hard
-// seats meeting twice (each red-first once) at the fourth time control,
-// small enough to validate the conductor path inside a night window.
 func TestSmokeRoster105Spec(t *testing.T) {
 	spec := SmokeRoster105()
 	wantTC, ok := config.TCIndex(10, 5)
@@ -52,9 +46,6 @@ func TestSmokeRoster105Spec(t *testing.T) {
 			t.Errorf("smoke105 roster[%d] = %+v, want %+v", i, p, want[i])
 		}
 	}
-	// Both directions pinned: counting only hard-1-as-red pairs stays green
-	// under a single round robin, the exact regression the twice-pair shape
-	// exists to prevent.
 	redFirst := map[string]int{}
 	pairCount := 0
 	for _, pair := range Pairings(spec.Roster) {
@@ -69,10 +60,43 @@ func TestSmokeRoster105Spec(t *testing.T) {
 	}
 }
 
+func TestPonderProbeSpec(t *testing.T) {
+	spec := PonderProbe()
+	wantTC, ok := config.TCIndex(1, 0)
+	if !ok {
+		t.Fatal("1+0 is not a configured time control")
+	}
+	if spec.TCIdx != wantTC {
+		t.Errorf("ponderprobe tc = %d, want the 1+0 index %d", spec.TCIdx, wantTC)
+	}
+	if spec.BOLen != config.SeriesBO11 {
+		t.Errorf("ponderprobe bo = %d, want bo%d", spec.BOLen, config.SeriesBO11)
+	}
+	if spec.StartRating != config.TournamentStartRating {
+		t.Errorf("ponderprobe start rating = %d, want %d", spec.StartRating, config.TournamentStartRating)
+	}
+	want := []Participant{{Slot: 0, Name: "master-1", Tier: config.TierMaster.Name}, {Slot: 1, Name: "master-2", Tier: config.TierMaster.Name}}
+	if !slices.Equal(spec.Roster, want) {
+		t.Errorf("ponderprobe roster = %+v, want %+v", spec.Roster, want)
+	}
+	if !config.TierMaster.Ponder {
+		t.Fatal("ponderprobe assumes the master tier ponders, the tier table disagrees")
+	}
+	redFirst := map[string]int{}
+	pairCount := 0
+	for _, pair := range Pairings(spec.Roster) {
+		pairCount++
+		redFirst[pair.RedFirst.Name+"-"+pair.BlueFirst.Name]++
+	}
+	if pairCount != 2 {
+		t.Errorf("ponderprobe schedule holds %d pairings, want 2 (twice-pair)", pairCount)
+	}
+	if redFirst["master-1-master-2"] != 1 || redFirst["master-2-master-1"] != 1 {
+		t.Errorf("ponderprobe red-first split = %v, want each seat red-first exactly once", redFirst)
+	}
+}
+
 func TestHeadlessDriversMatchSpec(t *testing.T) {
-	// Sorted tier-name pairs including self-meets, the same normalization
-	// the seen-set applies, derived from the tier table so a new tier joins
-	// the demanded matchups without editing this test.
 	names := make([]string, len(config.Tiers))
 	for i := range config.Tiers {
 		names[i] = config.Tiers[i].Name
@@ -116,7 +140,6 @@ func TestHeadlessDriversMatchSpec(t *testing.T) {
 				t.Errorf("%s slot %d at position %d", tc.name, p.Slot, i)
 			}
 		}
-		// Every spec matchup type meets in the twice-pair schedule.
 		seen := make(map[[2]string]bool)
 		for _, pair := range Pairings(tc.spec.Roster) {
 			a, b := pair.RedFirst.Tier, pair.BlueFirst.Tier

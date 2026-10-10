@@ -185,6 +185,10 @@ tourney-smoke-10:
 tourney-smoke-105:
 	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney smoke105 $(ARGS)
 
+.PHONY: tourney-ponderprobe
+tourney-ponderprobe:
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney ponderprobe $(ARGS)
+
 tourney-full:
 	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney full $(ARGS)
 

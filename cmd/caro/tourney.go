@@ -16,30 +16,19 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/tourney"
 )
 
-// tourneyDrivers maps the subcommand's driver names onto the headless specs
-// of first-cause.md's Scenario 2 implications.
 var tourneyDrivers = map[string]func() tourney.RunSpec{
-	"smoke32":  tourney.SmokeRoster32,
-	"smoke10":  tourney.SmokeRoster10,
-	"smoke105": tourney.SmokeRoster105,
-	"full":     tourney.FullRoster24,
+	"smoke32":     tourney.SmokeRoster32,
+	"smoke10":     tourney.SmokeRoster10,
+	"smoke105":    tourney.SmokeRoster105,
+	"ponderprobe": tourney.PonderProbe,
+	"full":        tourney.FullRoster24,
 }
 
-// runTourney drives one headless tournament against a real store: the
-// conductor runs every pairing as a bot-vs-bot bo series on the room
-// surface, per-series lines and the final leaderboard print to stdout, and
-// the per-series txt logs and the summary land under config.TournamentLogRoot in the run's own timestamped folder. The driver
-// may sit ahead of or behind the flags (Go's flag package stops at the
-// first positional, so a leading driver is peeled off before parsing).
-// SIGINT or SIGTERM aborts the run through the conductor's cancel path.
-// Any conductor error exits 1.
 func runTourney(args []string) int {
 	driver := ""
 	idArg := ""
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		driver, args = args[0], args[1:]
-		// close and resume carry one more positional, the run id, peeled
-		// with the driver so the id may also lead the flags.
 		if (driver == "close" || driver == "resume") && len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 			idArg, args = args[0], args[1:]
 		}
@@ -55,8 +44,6 @@ func runTourney(args []string) int {
 		driver, rest = rest[0], rest[1:]
 	}
 	if driver == "close" || driver == "resume" {
-		// The id rides either position: peeled ahead of the flags or as the
-		// one positional left behind them.
 		if idArg == "" && len(rest) == 1 {
 			idArg, rest = rest[0], rest[1:]
 		}
@@ -70,7 +57,7 @@ func runTourney(args []string) int {
 		return runTourneyResume(idArg, *dbPath, *parallel)
 	}
 	if len(rest) != 0 || driver == "" {
-		fmt.Fprintln(os.Stderr, "caro: tourney needs exactly one driver (smoke32, smoke10, smoke105, or full) plus flags")
+		fmt.Fprintln(os.Stderr, "caro: tourney needs exactly one driver (smoke32, smoke10, smoke105, ponderprobe, or full) plus flags")
 		return 2
 	}
 	specFn, ok := tourneyDrivers[driver]
@@ -98,8 +85,6 @@ func runTourney(args []string) int {
 			fmt.Fprintln(os.Stderr, "caro:", perr)
 		}
 	}
-	// The stack closes in reverse boot order; the run already retired every
-	// room, so Shutdown is the sweep that guarantees it.
 	rooms.Shutdown()
 	wq.Close()
 	hub.Close()
@@ -113,12 +98,6 @@ func runTourney(args []string) int {
 	return 0
 }
 
-// runTourneyResume is the recovery arm's drive half: it boots the room stack
-// exactly like a driver and hands the run to the conductor's resume, so an
-// interrupted run (a cancelled drive, a killed process, a machine cut)
-// finishes from its own persisted state: settled series stand as evidence,
-// interrupted ones scrub and replay, the summary lands in the run's own
-// folder. Any conductor error exits 1.
 func runTourneyResume(idArg string, dbPath string, parallel int) int {
 	id, err := strconv.ParseInt(idArg, 10, 64)
 	if err != nil || id <= 0 {
@@ -157,20 +136,12 @@ func runTourneyResume(idArg string, dbPath string, parallel int) int {
 	return 0
 }
 
-// bootRooms wires the room stack the driving arms share: the write queue,
-// the hub, and the room manager over the opened store, closed by the caller
-// in reverse boot order.
 func bootRooms(store *server.Store) (*server.RoomManager, *server.WriteQueue, *server.Hub) {
 	wq := server.NewWriteQueue(nil)
 	hub := server.NewHub()
 	return server.NewRoomManager(hub, store, wq), wq, hub
 }
 
-// runTourneyClose is the run gate's recovery arm: a run whose owning process
-// died leaves an ongoing row that refuses every new start, and this flips it
-// to finished through the manager's stalled close, the same path the run
-// page's close form rides. No rooms boot: the close drives no matches, so the
-// manager's match source stays nil.
 func runTourneyClose(idArg string, dbPath string) int {
 	id, err := strconv.ParseInt(idArg, 10, 64)
 	if err != nil || id <= 0 {
@@ -197,7 +168,6 @@ func runTourneyClose(idArg string, dbPath string) int {
 	return 0
 }
 
-// printRunResult writes the run's per-series lines and the final leaderboard.
 func printRunResult(w io.Writer, roster []tourney.Participant, res tourney.RunResult) error {
 	names := make(map[int]string, len(roster))
 	for _, p := range roster {
