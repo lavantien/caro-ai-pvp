@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/clock"
@@ -378,9 +379,14 @@ type solverSearcher struct {
 	proofMove    rules.Move
 	proofStats   engine.SearchStats
 	proofTag     string
+
+	passMu sync.Mutex
+	passDL *engine.Stoppable
+	passWG sync.WaitGroup
 }
 
 func (s *solverSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats, string) {
+	s.stopPass()
 	start := time.Now()
 	grant := time.Duration(0)
 	hasGrant := false
@@ -418,29 +424,61 @@ func (s *solverSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move,
 	}
 	return mv, st, ""
 }
-func (s *solverSearcher) Close() { s.inner.Close() }
-
+func (s *solverSearcher) Close() {
+	s.stopPass()
+	s.inner.Close()
+}
 func (s *solverSearcher) StartPonder(b *rules.Board) {
-	for _, pass := range []struct {
-		solver *vcf.Solver
-		tag    string
-	}{{s.vcf, config.BotLogTagVCF}, {s.vct, config.BotLogTagVCT}} {
-		if pass.solver == nil {
-			continue
+	s.stopPass()
+	dl := engine.NewStoppable()
+	pb := *b
+	s.passWG.Add(1)
+	s.passMu.Lock()
+	s.passDL = dl
+	s.passMu.Unlock()
+	go func() {
+		defer s.passWG.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("server: ponder solver pass aborted after a panic: %v", r)
+			}
+		}()
+		for _, pass := range []struct {
+			solver *vcf.Solver
+			tag    string
+		}{{s.vcf, config.BotLogTagVCF}, {s.vct, config.BotLogTagVCT}} {
+			if pass.solver == nil {
+				continue
+			}
+			var out vcf.SolverStats
+			if pass.solver.Solve(&pb, config.SolverNodeBudget, dl, &out) {
+				s.proofPending = true
+				s.proofMove = rules.Move(out.PV[0])
+				s.proofStats = solverStats(s.cores, 0, &out)
+				s.proofTag = pass.tag
+				break
+			}
 		}
-		var out vcf.SolverStats
-		if pass.solver.Solve(b, config.SolverNodeBudget, nil, &out) {
-			s.proofPending = true
-			s.proofMove = rules.Move(out.PV[0])
-			s.proofStats = solverStats(s.cores, 0, &out)
-			s.proofTag = pass.tag
-			break
-		}
-	}
+	}()
 	s.inner.StartPonder(b)
 }
 
+func (s *solverSearcher) stopPass() {
+	s.passMu.Lock()
+	if s.passDL != nil {
+		s.passDL.Stop()
+		s.passDL = nil
+	}
+	s.passMu.Unlock()
+	s.passWG.Wait()
+}
+
+func (s *solverSearcher) waitPass() {
+	s.passWG.Wait()
+}
+
 func (s *solverSearcher) StopPonder() (rules.Move, engine.SearchStats, string) {
+	s.stopPass()
 	mv, st, tag := s.inner.StopPonder()
 	if s.proofPending {
 		s.proofPending = false

@@ -38,3 +38,18 @@ func TestFixedBudgetBudget(t *testing.T) {
 		t.Errorf("Budget() = %v, want 1.5s", got)
 	}
 }
+
+func TestStoppableLifecycle(t *testing.T) {
+	s := NewStoppable()
+	if s.Exceeded() {
+		t.Fatal("fresh stoppable already exceeded")
+	}
+	s.Stop()
+	if !s.Exceeded() {
+		t.Fatal("Stop must force the stoppable exceeded")
+	}
+	s.Reset()
+	if s.Exceeded() {
+		t.Fatal("Reset must clear the stop")
+	}
+}

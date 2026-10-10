@@ -288,6 +288,7 @@ func TestSolverSearcherPonderRecordsVCFProof(t *testing.T) {
 	if starts != 1 || last != b {
 		t.Fatalf("inner start = %d on %p, want 1 on the ponder board", starts, last)
 	}
+	s.waitPass()
 	mv, st, tag := s.StopPonder()
 	if tag != config.BotLogTagVCF {
 		t.Fatalf("ponder proof tag = %q, want %q", tag, config.BotLogTagVCF)
@@ -317,6 +318,7 @@ func TestSolverSearcherPonderRecordsVCTProof(t *testing.T) {
 	inner := &recordingInner{}
 	s := &solverSearcher{inner: inner, vct: vcf.New(vcf.KindVCT), cores: 1}
 	s.StartPonder(doubleThreeBoard(t))
+	s.waitPass()
 	mv, _, tag := s.StopPonder()
 	if tag != config.BotLogTagVCT {
 		t.Fatalf("ponder vct tag = %q, want %q", tag, config.BotLogTagVCT)
@@ -333,9 +335,58 @@ func TestSolverSearcherPonderMissKeepsInwardResult(t *testing.T) {
 	inner.stopStats = want
 	s := &solverSearcher{inner: inner, vcf: vcf.New(vcf.KindVCF), cores: 1}
 	s.StartPonder(quietBoard(t))
+	s.waitPass()
 	mv, st, tag := s.StopPonder()
 	if mv != inner.stopMove || st != want || tag != "" {
 		t.Fatalf("ponder miss stop = %d %+v %q, want the inward result", mv, st, tag)
+	}
+}
+
+func burnBoard(t *testing.T) *rules.Board {
+	t.Helper()
+	b := rules.NewBoard()
+	for _, name := range []string{"H8", "H6", "H5", "I6", "J6", "I7", "I5"} {
+		b.Make(mustCellT(t, name))
+	}
+	return b
+}
+
+func TestSolverSearcherPonderPassRunsUntilStop(t *testing.T) {
+	inner := &recordingInner{}
+	s := &solverSearcher{inner: inner, vcf: vcf.New(vcf.KindVCF), vct: vcf.New(vcf.KindVCT), cores: 1}
+	start := time.Now()
+	s.StartPonder(burnBoard(t))
+	armed := time.Since(start)
+	inner.mu.Lock()
+	starts := inner.starts
+	inner.mu.Unlock()
+	if starts != 1 {
+		t.Fatalf("inner starts = %d, want the inward ponder dispatched without waiting for the pass", starts)
+	}
+	if armed > time.Second {
+		t.Fatalf("StartPonder took %s, the burning solver pass must run off the lane", armed)
+	}
+	s.StopPonder()
+	if total := time.Since(start); total > armed+2*time.Second {
+		t.Fatalf("StopPonder reached %s total, the burning pass must abort at the owner's stop", total)
+	}
+}
+
+func TestSolverSearcherPonderRestartsPassBounded(t *testing.T) {
+	inner := &recordingInner{}
+	s := &solverSearcher{inner: inner, vcf: vcf.New(vcf.KindVCF), vct: vcf.New(vcf.KindVCT), cores: 1}
+	start := time.Now()
+	s.StartPonder(burnBoard(t))
+	s.StartPonder(burnBoard(t))
+	s.StopPonder()
+	if total := time.Since(start); total > 3*time.Second {
+		t.Fatalf("restart cycle took %s, a second arm must retire the first pass before spawning", total)
+	}
+	inner.mu.Lock()
+	starts := inner.starts
+	inner.mu.Unlock()
+	if starts != 2 {
+		t.Fatalf("inner starts = %d, want both arms dispatched", starts)
 	}
 }
 

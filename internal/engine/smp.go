@@ -41,14 +41,6 @@ func (h *haltDeadline) Exceeded() bool { return h.halt.Load() || h.inner.Exceede
 
 func (h *haltDeadline) Stop() { h.inner.Stop() }
 
-type ponderDeadline struct {
-	stopped atomic.Bool
-}
-
-func (p *ponderDeadline) Exceeded() bool { return p.stopped.Load() }
-
-func (p *ponderDeadline) Stop() { p.stopped.Store(true) }
-
 type SMP struct {
 	tt       *ttTable
 	workers  []*Engine
@@ -57,7 +49,7 @@ type SMP struct {
 	seq      atomic.Uint32
 	halt     atomic.Bool
 	haltDL   haltDeadline
-	ponderDL ponderDeadline
+	ponderDL Stoppable
 
 	jobMaxDepth int
 	jobSoft     bool
@@ -113,7 +105,7 @@ func (s *SMP) StartPonder(b *rules.Board) {
 	}
 	s.ponding = true
 	s.ponderStart = time.Now()
-	s.ponderDL.stopped.Store(false)
+	s.ponderDL.Reset()
 	s.setupJob(b, config.SearchMaxPly, false, &s.ponderDL)
 	s.ensureProcs()
 	s.dispatchLocked()
