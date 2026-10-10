@@ -18,6 +18,62 @@ func TestPondererSurfaceMatchesSMP(t *testing.T) {
 	s.Close()
 }
 
+func TestSMPPonderWidthReportsActiveWorkers(t *testing.T) {
+	s := newSMPPonder(4, testTTBytes, 2)
+	defer s.Close()
+	s.StartPonder(midgameBoard(t))
+	_, stats := s.StopPonder()
+	if stats.Threads != 2 {
+		t.Fatalf("ponder stop threads = %d, want the 2-worker ponder width", stats.Threads)
+	}
+	_, stats = s.SearchDepth(midgameBoard(t), NewFixedBudget(scaledBudget(120*time.Millisecond)), 4)
+	if stats.Threads != 4 {
+		t.Fatalf("post-ponder search threads = %d, want the full 4-worker width", stats.Threads)
+	}
+}
+
+func TestSMPPonderWidthZeroNeverPonders(t *testing.T) {
+	s := newSMPPonder(2, testTTBytes, 0)
+	defer s.Close()
+	s.StartPonder(midgameBoard(t))
+	mv, stats := s.StopPonder()
+	if mv != 0 || stats != (SearchStats{}) {
+		t.Fatalf("zero-width ponder stop = %d %+v, want the no-op zeros", mv, stats)
+	}
+}
+
+func TestSMPPonderWidthEngagesOnlyDispatchedWorkers(t *testing.T) {
+	s := newSMPPonder(4, testTTBytes, 2)
+	defer s.Close()
+	s.StartPonder(midgameBoard(t))
+	time.Sleep(scaledBudget(500 * time.Millisecond))
+	s.StopPonder()
+	active := 0
+	for i := range s.results {
+		if s.results[i].nodes > 0 {
+			active++
+		}
+	}
+	if active != 2 {
+		t.Fatalf("ponder engaged %d workers, want the dispatched width 2", active)
+	}
+}
+
+func TestSMPPonderWidthClampsToPoolAndFloor(t *testing.T) {
+	s := newSMPPonder(2, testTTBytes, 5)
+	defer s.Close()
+	s.StartPonder(midgameBoard(t))
+	if _, stats := s.StopPonder(); stats.Threads != 2 {
+		t.Fatalf("over-wide ponder threads = %d, want the clamp to the 2-worker pool", stats.Threads)
+	}
+	z := newSMPPonder(2, testTTBytes, -1)
+	defer z.Close()
+	z.StartPonder(midgameBoard(t))
+	if mv, stats := z.StopPonder(); mv != 0 || stats != (SearchStats{}) {
+		t.Fatalf("negative-width ponder stop = %d %+v, want the no-op zeros", mv, stats)
+	}
+}
+
 func TestSearchRootRingMatchesIterations(t *testing.T) {
 	b := playout(t, 4242, 24)
 	dl := NewFixedBudget(scaledBudget(30 * time.Second))

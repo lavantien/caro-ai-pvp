@@ -145,19 +145,22 @@ func TestTiersMatchSpec(t *testing.T) {
 		want     Tier
 		tiersPtr *Tier
 	}{
-		{Tier{Name: "easy", Cores: 1, TTBytes: 32 << 20, VCF: false, VCT: false}, &TierEasy},
-		{Tier{Name: "medium", Cores: 2, TTBytes: 128 << 20, VCF: true, VCT: false}, &TierMedium},
-		{Tier{Name: "hard", Cores: 4, TTBytes: 1 << 30, VCF: true, VCT: true}, &TierHard},
-		{Tier{Name: "master", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true, Ponder: true}, &TierMaster},
+		{Tier{Name: "easy", Cores: 1, TTBytes: 0}, &TierEasy},
+		{Tier{Name: "medium", Cores: 2, TTBytes: 32 << 20, VCF: true, PonderThreads: 1}, &TierMedium},
+		{Tier{Name: "hard", Cores: 4, TTBytes: 128 << 20, VCF: true, VCT: true, PonderThreads: 2}, &TierHard},
+		{Tier{Name: "master", Cores: 6, TTBytes: 768 << 20, VCF: true, VCT: true, BookMaxPly: 10, PonderThreads: 4}, &TierMaster},
+		{Tier{Name: "grandmaster", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true, BookMaxPly: 20, PonderThreads: 8}, &TierGrandmaster},
 	}
 	for _, c := range cases {
 		if *c.tiersPtr != c.want {
 			t.Errorf("tier = %+v, want %+v", *c.tiersPtr, c.want)
 		}
 	}
-	if len(Tiers) != 4 || Tiers[0] != TierEasy || Tiers[1] != TierMedium || Tiers[2] != TierHard || Tiers[3] != TierMaster {
-		t.Errorf("Tiers = %+v, want [easy medium hard master]", Tiers)
+	if len(Tiers) != 5 || Tiers[0] != TierEasy || Tiers[1] != TierMedium || Tiers[2] != TierHard || Tiers[3] != TierMaster || Tiers[4] != TierGrandmaster {
+		t.Errorf("Tiers = %+v, want [easy medium hard master grandmaster]", Tiers)
 	}
+	wantPonder := map[string]int{"easy": 0, "medium": 1, "hard": 2, "master": 4, "grandmaster": 8}
+	wantBook := map[string]int{"easy": 0, "medium": 0, "hard": 0, "master": 10, "grandmaster": 20}
 	for i, tier := range Tiers {
 		if tier.Cores > MaxCoresPerInstance {
 			t.Errorf("%s cores %d exceeds MaxCoresPerInstance %d", tier.Name, tier.Cores, MaxCoresPerInstance)
@@ -165,10 +168,22 @@ func TestTiersMatchSpec(t *testing.T) {
 		if tier.TTBytes > MaxRAMPerInstanceBytes {
 			t.Errorf("%s tt %d exceeds MaxRAMPerInstanceBytes %d", tier.Name, tier.TTBytes, MaxRAMPerInstanceBytes)
 		}
+		if tier.PonderThreads < 0 || tier.PonderThreads > tier.Cores {
+			t.Errorf("%s ponder threads %d outside [0, cores %d]", tier.Name, tier.PonderThreads, tier.Cores)
+		}
+		if tier.PonderThreads != wantPonder[tier.Name] {
+			t.Errorf("%s ponder threads = %d, want %d", tier.Name, tier.PonderThreads, wantPonder[tier.Name])
+		}
+		if tier.BookMaxPly != wantBook[tier.Name] {
+			t.Errorf("%s book max ply = %d, want %d", tier.Name, tier.BookMaxPly, wantBook[tier.Name])
+		}
 		if i > 0 {
 			prev := Tiers[i-1]
 			if tier.Cores < prev.Cores || tier.TTBytes < prev.TTBytes {
 				t.Errorf("tier resources regress at %s", tier.Name)
+			}
+			if tier.PonderThreads < prev.PonderThreads || tier.BookMaxPly < prev.BookMaxPly {
+				t.Errorf("tier ponder or book shape regresses at %s", tier.Name)
 			}
 			if prev.VCF && !tier.VCF || prev.VCT && !tier.VCT {
 				t.Errorf("tier capabilities regress at %s", tier.Name)
@@ -206,34 +221,54 @@ func TestResourceCapsMatchHardwareBudget(t *testing.T) {
 	if TournamentParallelMatches != 2 {
 		t.Errorf("TournamentParallelMatches = %d, want 2", TournamentParallelMatches)
 	}
-	if TournamentParallelMatches*TierHard.Cores > 16 {
-		t.Errorf("%d parallel hard matches need %d cores, machine has 16", TournamentParallelMatches, TournamentParallelMatches*TierHard.Cores)
+	if TournamentParallelMatches*TierGrandmaster.Cores > MachineCores {
+		t.Errorf("%d parallel grandmaster searches need %d cores, MachineCores is %d; ponder-inclusive rosters hold parallel 1 behind the conductor's pair-peak check",
+			TournamentParallelMatches, TournamentParallelMatches*TierGrandmaster.Cores, MachineCores)
 	}
-	if TournamentParallelMatches*TierHard.TTBytes > 32<<30 {
-		t.Errorf("%d parallel hard matches need %d bytes, machine has 32GiB", TournamentParallelMatches, TournamentParallelMatches*TierHard.TTBytes)
+	peaks := []struct {
+		a, b Tier
+		want int
+	}{
+		{TierGrandmaster, TierGrandmaster, 16},
+		{TierGrandmaster, TierEasy, 9},
+		{TierMaster, TierHard, 8},
+		{TierMaster, TierMaster, 10},
+		{TierMedium, TierHard, 5},
+		{TierEasy, TierEasy, 1},
+	}
+	for _, p := range peaks {
+		if got := RoomCores(p.a, p.b); got != p.want {
+			t.Errorf("RoomCores(%s, %s) = %d, want %d", p.a.Name, p.b.Name, got, p.want)
+		}
+		if got := RoomCores(p.b, p.a); got != p.want {
+			t.Errorf("RoomCores(%s, %s) = %d, want the symmetric %d", p.b.Name, p.a.Name, got, p.want)
+		}
+	}
+	var worstTT int64
+	for _, tier := range Tiers {
+		worstTT += InstancesPerTier * tier.TTBytes
+	}
+	if worstTT > 8<<30 {
+		t.Errorf("default roster worst-case tt footprint %d exceeds the RAM/4 budget %d", worstTT, int64(8<<30))
 	}
 	if MachineCores != 16 {
-		t.Errorf("MachineCores = %d, want 16 (the spec's ponder worst case, master searching while master ponders)", MachineCores)
+		t.Errorf("MachineCores = %d, want 16 (the spec's ponder worst case, grandmaster searching while grandmaster ponders, with the solver pass the documented unbooked thread until v0.26 admission)", MachineCores)
 	}
-	if TournamentParallelMatches*TierHard.Cores > MachineCores {
-		t.Errorf("%d parallel rooms at %d live-search cores each need %d, MachineCores is %d",
-			TournamentParallelMatches, TierHard.Cores, TournamentParallelMatches*TierHard.Cores, MachineCores)
+	if TierGrandmaster.Cores > MachineCores {
+		t.Errorf("grandmaster cores %d exceed MachineCores %d, the tier cannot run", TierGrandmaster.Cores, MachineCores)
 	}
-	if TierMaster.Cores > MachineCores {
-		t.Errorf("master cores %d exceed MachineCores %d, the tier cannot run", TierMaster.Cores, MachineCores)
-	}
-	if 2*TierMaster.Cores > MachineCores {
-		t.Errorf("master searching %d while master ponders %d needs %d, MachineCores is %d",
-			TierMaster.Cores, TierMaster.Cores, 2*TierMaster.Cores, MachineCores)
+	if TierGrandmaster.Cores+TierGrandmaster.PonderThreads > MachineCores {
+		t.Errorf("grandmaster searching %d while grandmaster ponders %d needs %d, MachineCores is %d",
+			TierGrandmaster.Cores, TierGrandmaster.PonderThreads, TierGrandmaster.Cores+TierGrandmaster.PonderThreads, MachineCores)
 	}
 	ponderTiers := 0
 	for _, tier := range Tiers {
-		if tier.Ponder {
+		if tier.PonderThreads > 0 {
 			ponderTiers++
 		}
 	}
-	if ponderTiers != 1 || !TierMaster.Ponder {
-		t.Errorf("ponder is master-only, found %d pondering tiers, master Ponder %t", ponderTiers, TierMaster.Ponder)
+	if ponderTiers != 4 || TierEasy.PonderThreads != 0 {
+		t.Errorf("ponder covers medium through grandmaster, found %d pondering tiers, easy ponder %d", ponderTiers, TierEasy.PonderThreads)
 	}
 }
 func TestPonderAdoptionConstants(t *testing.T) {
@@ -536,8 +571,8 @@ func TestServerConstants(t *testing.T) {
 	if len(AdminName) > UsernameMaxBytes {
 		t.Errorf("AdminName %d bytes over the UsernameMaxBytes ceiling %d", len(AdminName), UsernameMaxBytes)
 	}
-	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 9 {
-		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 9]: raise the ceiling with the next migration", SQLiteSchemaVersion)
+	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 10 {
+		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 10]: raise the ceiling with the next migration", SQLiteSchemaVersion)
 	}
 	if SQLiteBusyTimeoutMs < 1000 || SQLiteBusyTimeoutMs > 60000 {
 		t.Errorf("SQLiteBusyTimeoutMs = %d, want in [1000, 60000]", SQLiteBusyTimeoutMs)

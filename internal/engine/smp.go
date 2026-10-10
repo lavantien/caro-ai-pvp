@@ -51,7 +51,9 @@ type SMP struct {
 	haltDL   haltDeadline
 	ponderDL Stoppable
 
+	ponderWidth int
 	jobMaxDepth int
+	jobThreads  int
 	jobSoft     bool
 	ponderStart time.Time
 	wake        chan struct{}
@@ -67,14 +69,24 @@ type SMP struct {
 }
 
 func NewTiered(t config.Tier) *SMP {
-	return newSMP(t.Cores, t.TTBytes)
+	return newSMPPonder(t.Cores, t.TTBytes, t.PonderThreads)
 }
 
 func newSMP(workers int, ttBytes int64) *SMP {
+	return newSMPPonder(workers, ttBytes, workers)
+}
+
+func newSMPPonder(workers int, ttBytes int64, ponder int) *SMP {
 	if workers < 1 {
 		workers = 1
 	}
-	s := &SMP{tt: newTT(ttBytes), wake: make(chan struct{}, workers), quit: make(chan struct{})}
+	if ponder < 0 {
+		ponder = 0
+	}
+	if ponder > workers {
+		ponder = workers
+	}
+	s := &SMP{tt: newTT(ttBytes), ponderWidth: ponder, wake: make(chan struct{}, workers), quit: make(chan struct{})}
 	for range workers {
 		s.workers = append(s.workers, newEngineShared(s.tt))
 		s.boards = append(s.boards, rules.Board{})
@@ -103,12 +115,16 @@ func (s *SMP) StartPonder(b *rules.Board) {
 		s.mu.Unlock()
 		panic("engine: StartPonder while already pondering")
 	}
+	if s.ponderWidth < 1 {
+		s.mu.Unlock()
+		return
+	}
 	s.ponding = true
 	s.ponderStart = time.Now()
 	s.ponderDL.Reset()
 	s.setupJob(b, config.SearchMaxPly, false, &s.ponderDL)
 	s.ensureProcs()
-	s.dispatchLocked()
+	s.dispatchPonderLocked()
 	s.mu.Unlock()
 }
 
@@ -274,7 +290,7 @@ func (s *SMP) stopPonderLocked() {
 
 func (s *SMP) collectResults(start time.Time) (rules.Move, SearchStats) {
 	var stats SearchStats
-	stats.Threads = len(s.workers)
+	stats.Threads = s.jobThreads
 	best := -1
 	var ttProbes, ttHits, cutNodes, cutFirst uint64
 	for i := range s.results {
@@ -386,8 +402,18 @@ func (s *SMP) dispatch() {
 
 func (s *SMP) dispatchLocked() {
 	s.startPool()
+	s.jobThreads = len(s.workers)
 	s.runWG.Add(len(s.workers))
 	for range s.workers {
+		s.wake <- struct{}{}
+	}
+}
+
+func (s *SMP) dispatchPonderLocked() {
+	s.startPool()
+	s.jobThreads = s.ponderWidth
+	s.runWG.Add(s.ponderWidth)
+	for range s.ponderWidth {
 		s.wake <- struct{}{}
 	}
 }

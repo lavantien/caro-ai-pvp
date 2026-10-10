@@ -257,7 +257,7 @@ func TestSingleSearcherNeverPonders(t *testing.T) {
 }
 
 func TestTierSearcherPonderDelegates(t *testing.T) {
-	probe := config.Tier{Name: "ponder-probe", Cores: 2, TTBytes: 1 << 20}
+	probe := config.Tier{Name: "ponder-probe", Cores: 2, TTBytes: 1 << 20, PonderThreads: 2}
 	s := tierSearcher{smp: engine.NewTiered(probe)}
 	defer s.Close()
 	b := anchorBoard(t, rules.Red, r(0, 0), r(0, 1), x(1, 1), x(1, 2))

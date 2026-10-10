@@ -79,7 +79,7 @@ func TestPonderProbeSpec(t *testing.T) {
 	if !slices.Equal(spec.Roster, want) {
 		t.Errorf("ponderprobe roster = %+v, want %+v", spec.Roster, want)
 	}
-	if !config.TierMaster.Ponder {
+	if config.TierMaster.PonderThreads <= 0 {
 		t.Fatal("ponderprobe assumes the master tier ponders, the tier table disagrees")
 	}
 	redFirst := map[string]int{}
@@ -153,5 +153,20 @@ func TestHeadlessDriversMatchSpec(t *testing.T) {
 				t.Errorf("%s schedule misses the %v matchup", tc.name, want)
 			}
 		}
+	}
+}
+
+func TestCheckCoreBudgetPairPeak(t *testing.T) {
+	if err := checkCoreBudget(1, []*config.Tier{&config.TierGrandmaster, &config.TierGrandmaster}); err != nil {
+		t.Errorf("grandmaster roster at parallel 1 = %v, want funded", err)
+	}
+	if err := checkCoreBudget(2, []*config.Tier{&config.TierGrandmaster, &config.TierGrandmaster}); err == nil {
+		t.Error("grandmaster roster at parallel 2 funded, want the 32-core refusal")
+	}
+	if err := checkCoreBudget(2, []*config.Tier{&config.TierGrandmaster, &config.TierMedium}); err == nil {
+		t.Error("grandmaster and medium roster at parallel 2 funded, want the 20-core refusal")
+	}
+	if err := checkCoreBudget(2, []*config.Tier{&config.TierEasy, &config.TierEasy}); err != nil {
+		t.Errorf("easy roster at parallel 2 = %v, want funded", err)
 	}
 }

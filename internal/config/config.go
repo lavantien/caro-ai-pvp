@@ -57,23 +57,29 @@ const (
 var SeriesLengths = [...]int{SeriesBO3, SeriesBO5, SeriesBO7, SeriesBO11}
 
 type Tier struct {
-	Name    string
-	Cores   int
-	TTBytes int64
-	VCF     bool
-	VCT     bool
-	Ponder  bool
+	Name          string
+	Cores         int
+	TTBytes       int64
+	VCF           bool
+	VCT           bool
+	BookMaxPly    int
+	PonderThreads int
 }
 
 var (
-	TierEasy   = Tier{Name: "easy", Cores: 1, TTBytes: 32 << 20, VCF: false, VCT: false}
-	TierMedium = Tier{Name: "medium", Cores: 2, TTBytes: 128 << 20, VCF: true, VCT: false}
-	TierHard   = Tier{Name: "hard", Cores: 4, TTBytes: 1 << 30, VCF: true, VCT: true}
-	TierMaster = Tier{Name: "master", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true, Ponder: true}
-	Tiers      = [...]Tier{TierEasy, TierMedium, TierHard, TierMaster}
+	TierEasy        = Tier{Name: "easy", Cores: 1, TTBytes: 0, VCF: false, VCT: false}
+	TierMedium      = Tier{Name: "medium", Cores: 2, TTBytes: 32 << 20, VCF: true, VCT: false, PonderThreads: 1}
+	TierHard        = Tier{Name: "hard", Cores: 4, TTBytes: 128 << 20, VCF: true, VCT: true, PonderThreads: 2}
+	TierMaster      = Tier{Name: "master", Cores: 6, TTBytes: 768 << 20, VCF: true, VCT: true, BookMaxPly: 10, PonderThreads: 4}
+	TierGrandmaster = Tier{Name: "grandmaster", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true, BookMaxPly: 20, PonderThreads: 8}
+	Tiers           = [...]Tier{TierEasy, TierMedium, TierHard, TierMaster, TierGrandmaster}
 )
 
 func BotAccountName(i int) string { return "AI " + Tiers[i].Name }
+
+func RoomCores(a, b Tier) int {
+	return max(a.Cores+b.PonderThreads, b.Cores+a.PonderThreads)
+}
 func TierIndex(t Tier) (int, bool) {
 	for i := range Tiers {
 		if Tiers[i] == t {
@@ -249,7 +255,7 @@ const (
 	UsernameMaxBytes         = 32
 	AdminName                = "admin"
 	AdminPassword            = "1234qwerasdfzxcv"
-	SQLiteSchemaVersion      = 9
+	SQLiteSchemaVersion      = 10
 	SQLiteBusyTimeoutMs      = 5000
 	SQLiteJournalWAL         = "wal"
 	SQLiteSyncNormal         = "normal"

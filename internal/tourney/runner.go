@@ -304,16 +304,14 @@ func checkCoreBudget(parallel int, tiers []*config.Tier) error {
 	if parallel < 1 {
 		return fmt.Errorf("tourney: parallel %d, want at least 1", parallel)
 	}
-	cores := make([]int, 0, len(tiers))
-	ponder := false
+	worst := 0
 	for _, t := range tiers {
-		cores = append(cores, t.Cores)
-		ponder = ponder || t.Ponder
+		worst = max(worst, t.Cores)
 	}
-	slices.Sort(cores)
-	worst := cores[len(cores)-1]
-	if ponder && len(cores) > 1 {
-		worst += cores[len(cores)-2]
+	for i, a := range tiers {
+		for _, b := range tiers[i+1:] {
+			worst = max(worst, config.RoomCores(*a, *b))
+		}
 	}
 	if need := parallel * worst; need > config.MachineCores {
 		return fmt.Errorf("tourney: %d parallel rooms at %d live-search cores each need %d cores, machine budget is %d",

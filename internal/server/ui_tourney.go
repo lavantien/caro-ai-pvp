@@ -415,7 +415,8 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 	}
 	seats := make([]TourneySeat, count)
 	seen := make(map[string]bool, count)
-	maxCores := 0
+	worstRoom := 0
+	var picked []*config.Tier
 	for i := range seats {
 		name := state.names[i]
 		if name == "" {
@@ -436,15 +437,15 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 			bad("bot " + strconv.Itoa(i+1) + " needs a tier from the list")
 			return
 		}
-		if tier.Cores > maxCores {
-			maxCores = tier.Cores
+		worstRoom = max(worstRoom, tier.Cores)
+		for _, other := range picked {
+			worstRoom = max(worstRoom, config.RoomCores(*tier, *other))
 		}
+		picked = append(picked, tier)
 		seats[i] = TourneySeat{Slot: i, Name: name, Tier: tier.Name}
 	}
-	// The conductor's core budget law, mirrored client of the same config:
-	// parallel rooms each book the roster's largest tier.
-	if need := parallel * maxCores; need > config.MachineCores {
-		bad(strconv.Itoa(parallel) + " parallel rooms at " + strconv.Itoa(maxCores) +
+	if need := parallel * worstRoom; need > config.MachineCores {
+		bad(strconv.Itoa(parallel) + " parallel rooms at " + strconv.Itoa(worstRoom) +
 			" live-search cores each need " + strconv.Itoa(need) +
 			" cores, the machine budget is " + strconv.Itoa(config.MachineCores))
 		return

@@ -67,16 +67,16 @@ func TestCreateRefusesBotRoomWhenLedgerFull(t *testing.T) {
 	s.rm.makeSearcher = func(config.Tier) searcher { return &contractBot{} }
 	alice := seedUser(t, s.store, "alice")
 
-	master1, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster)
+	gm1, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierGrandmaster)
 	if err != nil {
-		t.Fatalf("create the first master room: %v", err)
+		t.Fatalf("create the first grandmaster room: %v", err)
 	}
-	master2, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster)
+	gm2, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierGrandmaster)
 	if err != nil {
-		t.Fatalf("create the second master room: %v", err)
+		t.Fatalf("create the second grandmaster room: %v", err)
 	}
-	if got, want := s.rm.LiveCoreBookings(), 2*config.TierMaster.Cores; got != want {
-		t.Fatalf("ledger = %d, want the two master bookings %d", got, want)
+	if got, want := s.rm.LiveCoreBookings(), 2*config.TierGrandmaster.Cores; got != want {
+		t.Fatalf("ledger = %d, want the two grandmaster bookings %d", got, want)
 	}
 	rows := countRows(t, s, "series")
 
@@ -90,27 +90,27 @@ func TestCreateRefusesBotRoomWhenLedgerFull(t *testing.T) {
 		t.Errorf("ledger after the refusal = %d, want the held %d", got, want)
 	}
 	if rooms := s.rm.List(); len(rooms) != 2 ||
-		rooms[0].ID != master1.ID() && rooms[1].ID != master1.ID() ||
-		rooms[0].ID != master2.ID() && rooms[1].ID != master2.ID() {
-		t.Errorf("grid = %+v, want the two master rooms", rooms)
+		rooms[0].ID != gm1.ID() && rooms[1].ID != gm1.ID() ||
+		rooms[0].ID != gm2.ID() && rooms[1].ID != gm2.ID() {
+		t.Errorf("grid = %+v, want the two grandmaster rooms", rooms)
 	}
 
 	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil); err != nil {
 		t.Errorf("create a human room over the full budget: %v", err)
 	}
 
-	master1.Close()
-	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores; got != want {
+	gm1.Close()
+	if got, want := s.rm.LiveCoreBookings(), config.TierGrandmaster.Cores; got != want {
 		t.Fatalf("ledger after the first close = %d, want the held %d", got, want)
 	}
 	easy, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy)
 	if err != nil {
 		t.Fatalf("create after the release: %v", err)
 	}
-	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+config.TierEasy.Cores; got != want {
-		t.Errorf("ledger = %d, want the master and easy bookings %d", got, want)
+	if got, want := s.rm.LiveCoreBookings(), config.TierGrandmaster.Cores+config.TierEasy.Cores; got != want {
+		t.Errorf("ledger = %d, want the grandmaster and easy bookings %d", got, want)
 	}
-	master2.Close()
+	gm2.Close()
 	easy.Close()
 	if got := s.rm.LiveCoreBookings(); got != 0 {
 		t.Fatalf("ledger after every close = %d, want 0", got)
@@ -128,12 +128,13 @@ func TestCreateBotVsBotRefusesWhenLedgerFull(t *testing.T) {
 		t.Fatalf("create master vs easy: %v", err)
 	}
 	<-bot.seen
-	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+config.TierEasy.Cores; got != want {
-		t.Fatalf("ledger = %d, want the ponding sum %d", got, want)
+	wantPeak := max(config.TierMaster.Cores+config.TierEasy.PonderThreads, config.TierEasy.Cores+config.TierMaster.PonderThreads)
+	if got, want := s.rm.LiveCoreBookings(), wantPeak; got != want {
+		t.Fatalf("ledger = %d, want the ponding peak %d", got, want)
 	}
 
 	var fillers []*Room
-	for _, tier := range []*config.Tier{&config.TierHard, &config.TierMedium, &config.TierEasy} {
+	for _, tier := range []*config.Tier{&config.TierGrandmaster, &config.TierMedium} {
 		f, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, tier)
 		if err != nil {
 			t.Fatalf("fill with %s: %v", tier.Name, err)
@@ -166,7 +167,7 @@ func TestCreateBotVsBotPonderFunding(t *testing.T) {
 	hard := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	var masters []*ponderBot
 	s.rm.makeSearcher = func(tier config.Tier) searcher {
-		if !tier.Ponder {
+		if tier.Name != config.TierMaster.Name {
 			return hard
 		}
 		b := &ponderBot{}
@@ -183,8 +184,9 @@ func TestCreateBotVsBotPonderFunding(t *testing.T) {
 		t.Fatalf("create master vs hard: %v", err)
 	}
 	<-hard.seen
-	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+config.TierHard.Cores; got != want {
-		t.Fatalf("master/hard ledger = %d, want the ponding sum %d", got, want)
+	wantPeak := max(config.TierMaster.Cores+config.TierHard.PonderThreads, config.TierHard.Cores+config.TierMaster.PonderThreads)
+	if got, want := s.rm.LiveCoreBookings(), wantPeak; got != want {
+		t.Fatalf("master/hard ledger = %d, want the ponding peak %d", got, want)
 	}
 	seat := masters[0]
 	waitFor(t, func() bool {
@@ -204,8 +206,8 @@ func TestCreateBotVsBotPonderFunding(t *testing.T) {
 		t.Fatalf("create master vs master: %v", err)
 	}
 	<-both.seen
-	if got, want := s.rm.LiveCoreBookings(), 2*config.TierMaster.Cores; got != want {
-		t.Fatalf("master/master ledger = %d, want the ponding sum %d", got, want)
+	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+config.TierMaster.PonderThreads; got != want {
+		t.Fatalf("master/master ledger = %d, want the ponding peak %d", got, want)
 	}
 	close(both.release)
 	r2.Close()
@@ -217,13 +219,16 @@ func TestCreateBotVsBotPonderFunding(t *testing.T) {
 func TestCreateBotVsBotPonderFallsBackWhenSumCannotFund(t *testing.T) {
 	s := newStack(t)
 	holder := seedUser(t, s.store, "holder")
-	if _, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierMaster); err != nil {
+	if _, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierGrandmaster); err != nil {
+		t.Fatalf("fill the ledger: %v", err)
+	}
+	if _, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierEasy); err != nil {
 		t.Fatalf("fill the ledger: %v", err)
 	}
 	hard := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	var masters []*ponderBot
 	s.rm.makeSearcher = func(tier config.Tier) searcher {
-		if !tier.Ponder {
+		if tier.Name != config.TierMaster.Name {
 			return hard
 		}
 		b := &ponderBot{}
@@ -240,8 +245,9 @@ func TestCreateBotVsBotPonderFallsBackWhenSumCannotFund(t *testing.T) {
 		t.Fatalf("create over the sum: %v", err)
 	}
 	<-hard.seen
-	if got, want := s.rm.LiveCoreBookings(), config.MachineCores; got != want {
-		t.Fatalf("fallback ledger = %d, want the full-width max booking %d", got, want)
+	filler := config.TierGrandmaster.Cores + config.TierEasy.Cores
+	if got, want := s.rm.LiveCoreBookings(), filler+max(config.TierMaster.Cores, config.TierHard.Cores); got != want {
+		t.Fatalf("fallback ledger = %d, want the fillers plus the max booking %d", got, want)
 	}
 	seat := masters[0]
 	waitFor(t, func() bool {
@@ -254,21 +260,21 @@ func TestCreateBotVsBotPonderFallsBackWhenSumCannotFund(t *testing.T) {
 	}
 	close(hard.release)
 	r.Close()
-	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores; got != want {
-		t.Fatalf("ledger after the fallback close = %d, want the filler's %d", got, want)
+	if got, want := s.rm.LiveCoreBookings(), filler; got != want {
+		t.Fatalf("ledger after the fallback close = %d, want the fillers' %d", got, want)
 	}
 }
 
 func TestCreateBotVsBotBusyWhenEvenMaxCannotFund(t *testing.T) {
 	s := newStack(t)
 	holder := seedUser(t, s.store, "holder")
+	if _, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierGrandmaster); err != nil {
+		t.Fatalf("book the grandmaster filler: %v", err)
+	}
 	if _, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierMaster); err != nil {
 		t.Fatalf("book the master filler: %v", err)
 	}
-	if _, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierEasy); err != nil {
-		t.Fatalf("book the easy filler: %v", err)
-	}
-	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+config.TierEasy.Cores; got != want {
+	if got, want := s.rm.LiveCoreBookings(), config.TierGrandmaster.Cores+config.TierMaster.Cores; got != want {
 		t.Fatalf("filler ledger = %d, want %d", got, want)
 	}
 	gate := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
@@ -280,7 +286,7 @@ func TestCreateBotVsBotBusyWhenEvenMaxCannotFund(t *testing.T) {
 		t.Fatalf("easy/easy within the budget: %v", err)
 	}
 	<-gate.seen
-	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores+2*config.TierEasy.Cores; got != want {
+	if got, want := s.rm.LiveCoreBookings(), config.TierGrandmaster.Cores+config.TierMaster.Cores+max(config.TierEasy.Cores, config.TierEasy.Cores); got != want {
 		t.Fatalf("ledger = %d, want the fillers plus the easy room %d", got, want)
 	}
 	close(gate.release)
