@@ -421,12 +421,22 @@ func (r *Room) Close() {
 }
 func (r *Room) retire() {
 	r.closeOnce.Do(func() {
+		r.mu.Lock()
 		close(r.quit)
+		r.mu.Unlock()
+		r.manager.releaseRoomCores(r)
 		r.mu.Lock()
 		r.over = true
 		r.mu.Unlock()
-		r.manager.releaseRoomCores(r)
 	})
+}
+func (r *Room) quitClosed() bool {
+	select {
+	case <-r.quit:
+		return true
+	default:
+		return false
+	}
 }
 func (r *Room) finishLifecycle() {
 	r.retire()

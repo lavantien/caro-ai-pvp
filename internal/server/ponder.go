@@ -306,7 +306,7 @@ func (r *Room) dispatchPonderArm(arm *ponderArm) {
 	}
 	arm.board.Make(rules.Cell(arm.predict))
 	r.mu.Lock()
-	current := !r.over && r.board != nil && r.board.MoveCount == arm.base &&
+	current := !r.over && !r.quitClosed() && r.board != nil && r.board.MoveCount == arm.base &&
 		r.board.Side == arm.side.Opponent() && r.engines[arm.side] == arm.eng
 	if current {
 		r.ponder.start(arm.eng, arm.side, &arm.board, arm.predict, arm.base)

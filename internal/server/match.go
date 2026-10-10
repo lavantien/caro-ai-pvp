@@ -543,7 +543,7 @@ func (r *Room) wakeBotLocked() {
 	}
 }
 func (r *Room) botTurnLocked() (rules.Color, bool) {
-	if r.over || r.board == nil {
+	if r.over || r.quitClosed() || r.board == nil {
 		return 0, false
 	}
 	side := r.board.Side
@@ -577,7 +577,7 @@ func (r *Room) runBotTurn() bool {
 	}
 
 	r.mu.Lock()
-	if r.over || r.board == nil || r.board.MoveCount != moveCount || r.board.Side != side {
+	if r.over || r.quitClosed() || r.board == nil || r.board.MoveCount != moveCount || r.board.Side != side {
 		r.mu.Unlock()
 		return false
 	}
