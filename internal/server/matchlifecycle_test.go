@@ -1,23 +1,21 @@
 package server
 
 import (
+	"bytes"
 	"errors"
+	"log"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// Handshake and series-resolution edges of the match driver: the refused
-// ready calls, the pre-handshake clock read, and the two series-winner
-// resolutions the fix waves left unexercised, the drawn series and the guest
-// sweep.
-
 func TestReadyRefusedBeforeJoinAndAfterClose(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 
-	// No opponent seated, no series formed: the handshake cannot start.
 	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -32,7 +30,6 @@ func TestReadyRefusedBeforeJoinAndAfterClose(t *testing.T) {
 		t.Errorf("blue clock before the handshake = %s, want the documented 0", rem)
 	}
 
-	// A retired room refuses everything, the handshake included.
 	if err := r.Forfeit(alice.ID); err != nil {
 		t.Fatalf("forfeit open room: %v", err)
 	}
@@ -41,10 +38,6 @@ func TestReadyRefusedBeforeJoinAndAfterClose(t *testing.T) {
 	}
 }
 
-// TestDrawnSeriesPersistsNilWinner closes a bo3 on three drawn games: the
-// schedule runs out level, the series winner resolves to the nil
-// representation callers persist, and the finished row keeps winner NULL
-// while the games and the level stats land.
 func TestDrawnSeriesPersistsNilWinner(t *testing.T) {
 	s := newStack(t)
 	alice, bob, r := newPvPRoom(t, s)
@@ -71,8 +64,6 @@ func TestDrawnSeriesPersistsNilWinner(t *testing.T) {
 		t.Error("drawn series finished_at = NULL, want stamped")
 	}
 
-	// Three drawn games persisted, each with its full blob, and the level
-	// and draw totals read them back.
 	rows, err := s.store.MatchHistory(alice.ID)
 	if err != nil || len(rows) != config.SeriesBO3 {
 		t.Fatalf("history = %d rows err %v, want the %d draws", len(rows), err, config.SeriesBO3)
@@ -99,16 +90,11 @@ func TestDrawnSeriesPersistsNilWinner(t *testing.T) {
 	}
 }
 
-// TestGuestWonSeriesPersistsGuestWinner covers the other side of the
-// resolution: a guest sweep maps the machine's SideGuest onto the guest's
-// user id in the persisted finish.
 func TestGuestWonSeriesPersistsGuestWinner(t *testing.T) {
 	s := newStack(t)
 	alice, bob, r := newPvPRoom(t, s)
 	readyBoth(t, r, alice, bob)
 
-	// The host holds red in both games and loses both as red: the guest
-	// sweeps 2-0 without ever taking the red seat.
 	playScript(t, r, alice.ID, bob.ID, guestRedLosesToBlue)
 	playScript(t, r, alice.ID, bob.ID, guestRedLosesToBlue)
 	if _, ok := r.Info(); ok {
@@ -129,5 +115,169 @@ func TestGuestWonSeriesPersistsGuestWinner(t *testing.T) {
 	}
 	if st, err := s.store.UserStats(bob.ID); err != nil || st.SeriesWon != 1 {
 		t.Errorf("guest level = %+v err %v, want one series won", st, err)
+	}
+}
+
+func TestInMemoryRoomSkipsGamePersistence(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	r.mu.Lock()
+	r.seriesID = 0
+	r.mu.Unlock()
+
+	playScript(t, r, alice.ID, bob.ID, hostWinsRed)
+
+	var games, ratings int
+	if err := s.store.db.QueryRow(`SELECT COUNT(*) FROM games`).Scan(&games); err != nil {
+		t.Fatalf("count games: %v", err)
+	}
+	if err := s.store.db.QueryRow(`SELECT COUNT(*) FROM rating_events`).Scan(&ratings); err != nil {
+		t.Fatalf("count rating events: %v", err)
+	}
+	if games != 0 || ratings != 0 {
+		t.Errorf("disk after the in-memory game = %d games %d ratings, want zero of both", games, ratings)
+	}
+	r.mu.Lock()
+	state := r.series.State()
+	r.mu.Unlock()
+	if state != SeriesInGame {
+		t.Errorf("series state after game 1 = %v, want in-game", state)
+	}
+	if _, ok := r.Info(); !ok {
+		t.Error("room retired after an in-memory game, want live")
+	}
+}
+
+func TestFirstPersistedGameIndexesSeriesFromZero(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, hostWinsRed)
+
+	var idx int
+	if err := s.store.db.QueryRow(`SELECT idx_in_series FROM games WHERE series_id = ?`, r.SeriesID()).Scan(&idx); err != nil {
+		t.Fatalf("read game index: %v", err)
+	}
+	if idx != 0 {
+		t.Errorf("game 1 idx_in_series = %d, want 0", idx)
+	}
+}
+
+func TestForfeitMarksRoomFinished(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, []string{"D4", "P16"})
+
+	if err := r.Forfeit(bob.ID); err != nil {
+		t.Fatalf("forfeit: %v", err)
+	}
+	r.mu.Lock()
+	finished, over := r.finished, r.over
+	r.mu.Unlock()
+	if !finished || !over {
+		t.Errorf("room flags after the forfeit = finished %t over %t, want both true", finished, over)
+	}
+}
+
+func TestForfeitOnInMemoryRoomSkipsPersistence(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, []string{"D4", "P16"})
+	r.mu.Lock()
+	r.seriesID = 0
+	r.mu.Unlock()
+
+	if err := r.Forfeit(bob.ID); err != nil {
+		t.Fatalf("forfeit an in-memory room: %v", err)
+	}
+	var games int
+	if err := s.store.db.QueryRow(`SELECT COUNT(*) FROM games`).Scan(&games); err != nil {
+		t.Fatalf("count games: %v", err)
+	}
+	if games != 0 {
+		t.Errorf("games after the in-memory forfeit = %d, want 0", games)
+	}
+	if _, ok := r.Info(); ok {
+		t.Error("room still live after the forfeit, want retired")
+	}
+}
+
+func TestForfeitMidGameBillsExactFullTurns(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	live := hostWinsRed[:5]
+	playScript(t, r, alice.ID, bob.ID, live)
+	if err := r.Forfeit(bob.ID); err != nil {
+		t.Fatalf("forfeit: %v", err)
+	}
+
+	rows, err := s.store.MatchHistory(alice.ID)
+	if err != nil || len(rows) != config.SeriesBO3 {
+		t.Fatalf("history = %d rows err %v, want the swept %d", len(rows), err, config.SeriesBO3)
+	}
+	liveRow := rows[len(rows)-1]
+	if liveRow.FullTurns != len(live)/2 {
+		t.Errorf("live game full turns = %d, want %d", liveRow.FullTurns, len(live)/2)
+	}
+	if want := EncodeMoves(nil, movesOf(t, live)); string(liveRow.Moves) != string(want) {
+		t.Errorf("live game blob = %v, want %v", liveRow.Moves, want)
+	}
+}
+
+func TestForfeitSweepNumbersGamesFromZero(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	if err := r.Forfeit(bob.ID); err != nil {
+		t.Fatalf("forfeit: %v", err)
+	}
+
+	rows, err := s.store.db.Query(`SELECT idx_in_series FROM games WHERE series_id = ? ORDER BY id`, r.SeriesID())
+	if err != nil {
+		t.Fatalf("read game indexes: %v", err)
+	}
+	defer rows.Close()
+	var got []int
+	for rows.Next() {
+		var idx int
+		if err := rows.Scan(&idx); err != nil {
+			t.Fatalf("scan game index: %v", err)
+		}
+		got = append(got, idx)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate game indexes: %v", err)
+	}
+	if len(got) != config.SeriesBO3 {
+		t.Fatalf("game indexes = %v, want %d entries", got, config.SeriesBO3)
+	}
+	for i, idx := range got {
+		if idx != i {
+			t.Errorf("game %d idx_in_series = %d, want %d", i+1, idx, i)
+		}
+	}
+}
+
+func TestLogBotCompletionReportsOnlyFailures(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+
+	logBotCompletion(nil)
+	if buf.Len() != 0 {
+		t.Errorf("nil completion logged %q, want silence", buf.String())
+	}
+	boom := errors.New("bot completion probe failure")
+	logBotCompletion(boom)
+	if out := buf.String(); !strings.Contains(out, "server: bot game completion persistence failed: "+boom.Error()) {
+		t.Errorf("failed completion logged %q, want the persistence failure line", out)
 	}
 }

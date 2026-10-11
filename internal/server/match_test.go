@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,8 +11,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// playScript drives alternating moves through PlayMove: names[0] is red's.
-// The clock never dips below zero on either side after any move.
 func playScript(t *testing.T, r *Room, redUser, blueUser int64, names []string) {
 	t.Helper()
 	for i, name := range names {
@@ -34,17 +33,11 @@ func playScript(t *testing.T, r *Room, redUser, blueUser int64, names []string) 
 	}
 }
 
-// hostWinsRed runs the fastest honest decisive game: red builds an open
-// four on the D file while blue stones scatter far away, so the winning
-// stone closes an open four. The loser-takes-red rotation is exercised by
-// feeding the mirrored script to the next game.
 var (
 	hostWinsRed         = []string{"D4", "P16", "H8", "P12", "D5", "P8", "D6", "N16", "D7", "M4", "D3"}
 	guestRedLosesToBlue = []string{"P16", "D4", "H8", "D5", "P12", "D6", "P8", "D7", "N16", "D3"}
 )
 
-// newPvPRoom yields a joined, not-yet-ready bo3 1+0 room between two seeded
-// users, host first.
 func newPvPRoom(t *testing.T, s *stack) (host, guest User, r *Room) {
 	t.Helper()
 	host, guest = seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
@@ -77,7 +70,6 @@ func TestPlayMoveHandshakeAndValidation(t *testing.T) {
 	}
 	d4, _ := rules.ParseCell("D4")
 
-	// Open room: no series yet, and the host cannot move it into existence.
 	if err := r.PlayMove(alice.ID, d4); !errors.Is(err, ErrNotReady) {
 		t.Errorf("play before join = %v, want ErrNotReady", err)
 	}
@@ -146,7 +138,6 @@ func TestPvPBO3SeriesDrivenThroughPlayMove(t *testing.T) {
 	defer sub.Unsubscribe()
 	readyBoth(t, r, alice, bob)
 
-	// The host takes red first per the spec.
 	r.mu.Lock()
 	redFirst := r.series.RedUserID()
 	r.mu.Unlock()
@@ -156,7 +147,6 @@ func TestPvPBO3SeriesDrivenThroughPlayMove(t *testing.T) {
 
 	playScript(t, r, alice.ID, bob.ID, hostWinsRed)
 
-	// Decisive game 1: red passes to the loser for game 2.
 	r.mu.Lock()
 	redSecond, state := r.series.RedUserID(), r.series.State()
 	r.mu.Unlock()
@@ -169,7 +159,6 @@ func TestPvPBO3SeriesDrivenThroughPlayMove(t *testing.T) {
 
 	playScript(t, r, bob.ID, alice.ID, guestRedLosesToBlue)
 
-	// Series over 2-0: room retired, off the grid, state machine closed.
 	if _, ok := r.Info(); ok {
 		t.Error("finished room still listed, want retired")
 	}
@@ -189,8 +178,6 @@ func TestPvPBO3SeriesDrivenThroughPlayMove(t *testing.T) {
 		t.Errorf("series row = %+v, want finished with host winner", sr)
 	}
 
-	// Rating law: zero-sum per decisive game, chained on current ratings.
-	// Game 2 seats bob on red, so alice rides the blue deltas.
 	d1r, d1b, a1, b1 := RatingDeltas(0, 0, RedWins)
 	d2r, d2b, a2, b2 := RatingDeltas(b1, a1, BlueWins)
 	assertRatings(t, s, alice, bob, []RatingEvent{
@@ -199,9 +186,6 @@ func TestPvPBO3SeriesDrivenThroughPlayMove(t *testing.T) {
 		{Delta: d1b, RatingAfter: b1}, {Delta: d2r, RatingAfter: a2},
 	})
 
-	// Newest first: game 2 above game 1, with the rotation and the tags.
-	// Score lines count the row's players' wins, so alice's 2-0 series reads
-	// 1-0 on her red row and 0-2 on bob's red row.
 	rows, err := s.store.MatchHistory(alice.ID)
 	if err != nil {
 		t.Fatalf("history: %v", err)
@@ -244,7 +228,6 @@ func TestPvPBO3SeriesDrivenThroughPlayMove(t *testing.T) {
 		}
 	}
 
-	// Hub stream: every stone, each game end, then the series end.
 	var kinds []string
 	for {
 		select {
@@ -255,7 +238,7 @@ func TestPvPBO3SeriesDrivenThroughPlayMove(t *testing.T) {
 		}
 	}
 drained:
-	want := len(hostWinsRed) + len(guestRedLosesToBlue) + 3 // moves + 2 gameends + series
+	want := len(hostWinsRed) + len(guestRedLosesToBlue) + 3
 	if len(kinds) != want {
 		t.Fatalf("events = %d, want %d: %v", len(kinds), want, kinds)
 	}
@@ -275,8 +258,6 @@ drained:
 		t.Errorf("game 2 end = %q", kinds[tail-1])
 	}
 
-	// Clock law on 1+0: banks only drain, never below zero, and the final
-	// game's clocks hold one commit per played stone.
 	for _, c := range []rules.Color{rules.Red, rules.Blue} {
 		cap := time.Duration(config.TimeControls[0].InitialMin) * time.Minute
 		if rem := r.ClockRemaining(c); rem < 0 || rem > cap {
@@ -290,8 +271,6 @@ drained:
 		t.Errorf("final game clock commits = red %d blue %d, want 5 and 5", redCommits, blueCommits)
 	}
 
-	// PvP games carry no bot moves, so the per-move stat table stays empty:
-	// its zero rows are the honest record, not a missed write.
 	var statRows int
 	if err := s.store.db.QueryRow(`SELECT COUNT(*) FROM game_stats`).Scan(&statRows); err != nil {
 		t.Fatalf("count game stats: %v", err)
@@ -322,12 +301,6 @@ func assertRatings(t *testing.T, s *stack, red, blue User, wantRed, wantBlue []R
 	}
 }
 
-// drawMoves fills the whole board without either side ever holding five in
-// a line: cells are pre-colored by (row+2*col) mod 4, red taking residues 0
-// and 1, blue 2 and 3. Every straight window of 5 consecutive cells then
-// contains both colors along all four directions, so no five can exist at
-// any point of the fill. Red's first two stones are reordered to satisfy
-// the opening distance.
 func drawMoves(t *testing.T) []string {
 	t.Helper()
 	var red, blue []string
@@ -362,7 +335,6 @@ func TestFullBoardDrawKeepsRedAndPersistsNoTag(t *testing.T) {
 	}
 	playScript(t, r, alice.ID, bob.ID, script)
 
-	// Draw: no rating event, no won_by, red keeps the seat, game 2 live.
 	r.mu.Lock()
 	redAgain, state := r.series.RedUserID(), r.series.State()
 	r.mu.Unlock()
@@ -388,7 +360,6 @@ func TestFullBoardDrawKeepsRedAndPersistsNoTag(t *testing.T) {
 		}
 	}
 
-	// Close the series 2-0 around the draw: win, then win as blue.
 	playScript(t, r, alice.ID, bob.ID, hostWinsRed)
 	r.mu.Lock()
 	redThird := r.series.RedUserID()
@@ -414,21 +385,15 @@ func TestForfeitBeforeFirstStonePersistsZeroLengthBlob(t *testing.T) {
 	alice, bob, r := newPvPRoom(t, s)
 	readyBoth(t, r, alice, bob)
 
-	// Game 1 is live but no stone has landed: the forfeit sweep writes the
-	// live game with a zero-length blob, which must satisfy the NOT NULL
-	// moves column instead of failing the whole persistence chain.
 	if err := r.Forfeit(bob.ID); err != nil {
 		t.Fatalf("forfeit: %v", err)
 	}
 
 	rows, err := s.store.MatchHistory(alice.ID)
-	if err != nil || len(rows) != 3 {
+	if err != nil || len(rows) != config.SeriesBO3 {
 		t.Fatalf("history = %d rows err %v, want the swept bo3", len(rows), err)
 	}
 	for i, row := range rows {
-		// The write boundary guarantees a non-nil blob (EncodeMoves), but a
-		// zero-length blob scans back as Go nil: only the length is
-		// observable after the SQL round trip.
 		if len(row.Moves) != 0 {
 			t.Errorf("game %d moves = %v, want a zero-length record", 3-i, row.Moves)
 		}
@@ -444,7 +409,6 @@ func TestForfeitMidSeriesBillsRemainingGames(t *testing.T) {
 	readyBoth(t, r, alice, bob)
 	playScript(t, r, alice.ID, bob.ID, hostWinsRed)
 
-	// Three moves into game 2 the quitter walks.
 	playScript(t, r, bob.ID, alice.ID, []string{"D4", "P16", "H8"})
 	if err := r.Forfeit(bob.ID); err != nil {
 		t.Fatalf("forfeit: %v", err)
@@ -476,9 +440,8 @@ func TestForfeitMidSeriesBillsRemainingGames(t *testing.T) {
 	if err != nil || len(rows) != 3 {
 		t.Fatalf("history = %d rows err %v, want 3", len(rows), err)
 	}
-	// Newest first: the two synthetic games above the played one.
 	wantMoves := [][]byte{
-		{}, // game 3 never started
+		{},
 		EncodeMoves(nil, movesOf(t, []string{"D4", "P16", "H8"})),
 		EncodeMoves(nil, movesOf(t, hostWinsRed)),
 	}
@@ -500,8 +463,6 @@ func TestForfeitMidSeriesBillsRemainingGames(t *testing.T) {
 	if rows[2].Red != "alice" || rows[1].Red != "bob" || rows[0].Red != "bob" {
 		t.Errorf("rotation in swept rows = %s/%s/%s", rows[2].Red, rows[1].Red, rows[0].Red)
 	}
-	// Score lines count the row's players' wins, newest first: bob's red
-	// rows read 0-3 and 0-2 across the sweep, alice's red row 1-0.
 	wantLines := [][2]int{{0, 3}, {0, 2}, {1, 0}}
 	for i, row := range rows {
 		if row.RedWins != wantLines[i][0] || row.BlueWins != wantLines[i][1] {
@@ -509,8 +470,6 @@ func TestForfeitMidSeriesBillsRemainingGames(t *testing.T) {
 		}
 	}
 
-	// Ratings chain across the sweep, still zero-sum per game. Bob stays on
-	// red in every synthetic game, so alice rides the blue deltas.
 	d1r, d1b, a1, b1 := RatingDeltas(0, 0, RedWins)
 	d2r, d2b, a2, b2 := RatingDeltas(b1, a1, BlueWins)
 	d3r, d3b, a3, b3 := RatingDeltas(a2, b2, BlueWins)
@@ -521,8 +480,6 @@ func TestForfeitMidSeriesBillsRemainingGames(t *testing.T) {
 	})
 }
 
-// A failed persistence write must surface as the returned error, never as
-// a wedged room: the series advances in memory whatever the queue says.
 func TestPlayMoveSurvivesWriteQueueClose(t *testing.T) {
 	s := newStack(t)
 	alice, bob, r := newPvPRoom(t, s)
@@ -551,9 +508,6 @@ func TestPlayMoveSurvivesWriteQueueClose(t *testing.T) {
 	}
 }
 
-// injectRatingAbort raises an SQLite ABORT on every rating_events insert, so
-// a completion unit fails mid-way at the exact statement a disk error or a
-// busy-timeout expiry would hit. The returned func drops the trigger.
 func injectRatingAbort(t *testing.T, s *stack) func() {
 	t.Helper()
 	if _, err := s.store.db.Exec(
@@ -568,7 +522,6 @@ func injectRatingAbort(t *testing.T, s *stack) func() {
 	}
 }
 
-// diskState snapshots the tables a completion unit touches.
 type diskState struct {
 	games   int
 	ratings int
@@ -592,11 +545,6 @@ func readDiskState(t *testing.T, s *stack, seriesID int64) diskState {
 	return d
 }
 
-// TestGameCompletionUnitAtomicOnFailedStatement pins the all-or-nothing law
-// of one finished game: a statement failing mid-unit (here the first rating
-// insert) must leave zero game rows, zero rating events, and the series row
-// untouched, never a persisted game with a missing or half-applied rating
-// pair.
 func TestGameCompletionUnitAtomicOnFailedStatement(t *testing.T) {
 	s := newStack(t)
 	alice, bob, r := newPvPRoom(t, s)
@@ -629,13 +577,10 @@ func TestGameCompletionUnitAtomicOnFailedStatement(t *testing.T) {
 		t.Errorf("series row after failed unit = %+v, want untouched ongoing", d.series)
 	}
 
-	// The room advances on failure: the in-memory game stays the live truth.
 	if _, ok := r.Info(); !ok {
 		t.Error("room retired after a failed write, want it live per the advance-on-failure policy")
 	}
 
-	// With the fault gone the next completion persists whole again: game 2's
-	// unit lands, so the disk holds exactly that game and its pair.
 	drop()
 	playScript(t, r, bob.ID, alice.ID, guestRedLosesToBlue)
 	d = readDiskState(t, s, r.SeriesID())
@@ -647,8 +592,6 @@ func TestGameCompletionUnitAtomicOnFailedStatement(t *testing.T) {
 	}
 }
 
-// TestForfeitCompletionUnitAtomicOnFailedStatement pins the same law on the
-// forfeit sweep: an injected failure mid-sweep leaves no partial schedule.
 func TestForfeitCompletionUnitAtomicOnFailedStatement(t *testing.T) {
 	s := newStack(t)
 	alice, bob, r := newPvPRoom(t, s)
@@ -674,11 +617,6 @@ func TestForfeitCompletionUnitAtomicOnFailedStatement(t *testing.T) {
 	}
 }
 
-// TestForfeitOnOpenRoomPublishesTerminalEvent pins that every retirement
-// path ends spectator streams. An open room (no guest, no series formed)
-// still accepts spectators, so its forfeit must publish a terminal event:
-// a stream that only ever sees keepalives pins a goroutine and a subscriber
-// slot forever.
 func TestForfeitOnOpenRoomPublishesTerminalEvent(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
@@ -700,9 +638,6 @@ func TestForfeitOnOpenRoomPublishesTerminalEvent(t *testing.T) {
 	}
 	select {
 	case ev := <-sub.Events():
-		// The series kind with the none payload: no series ever formed, so
-		// there is no winner, but the stream still ends on a terminal shape
-		// the live transport already closes on.
 		if ev.Kind != EventKindSeries || ev.Payload != SideNone.String() {
 			t.Errorf("terminal event = %s %s, want series none", ev.Kind, ev.Payload)
 		}
@@ -755,6 +690,26 @@ func TestMovesBlobRoundTrip(t *testing.T) {
 	}
 }
 
+func TestDecodeMovesRejectsCellAboveTheBoard(t *testing.T) {
+	tests := []struct {
+		blob []byte
+		want string
+	}{
+		{[]byte{0x00, 0x01}, "cell 256 out of board"},
+		{[]byte{0x05, 0x01}, "cell 261 out of board"},
+	}
+	for _, tc := range tests {
+		_, err := DecodeMoves(tc.blob)
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("decode %v = %v, want %q", tc.blob, err, tc.want)
+		}
+	}
+	top, err := DecodeMoves([]byte{0xFF, 0x00})
+	if err != nil || len(top) != 1 || top[0] != rules.Move(config.BoardCells-1) {
+		t.Errorf("decode the top cell = %d err %v, want move %d", top, err, config.BoardCells-1)
+	}
+}
+
 func placeStones(t *testing.T, names map[rules.Color][]string) *rules.Board {
 	t.Helper()
 	b := rules.NewBoard()
@@ -773,17 +728,16 @@ func TestWonByTagClassification(t *testing.T) {
 		board map[rules.Color][]string
 		want  string
 	}{
-		// D4-D7 with both D3 and D8 empty: two completions, an open four.
 		{"open four", map[rules.Color][]string{rules.Red: {"D4", "D5", "D6", "D7"}}, WonByOpenFour},
-		// D5-D8 with D9 blocked: only D4 completes, a blockable four.
 		{"simple four", map[rules.Color][]string{rules.Red: {"D5", "D6", "D7", "D8"}, rules.Blue: {"D9"}}, WonByFour},
-		// Two separately blocked fours: two win-in-1 cells, no open window.
 		{"double four", map[rules.Color][]string{
 			rules.Red:  {"D5", "D6", "D7", "D8", "L5", "L6", "L7", "L8"},
 			rules.Blue: {"D9", "L9"},
 		}, WonByDoubleFour},
-		// A three beside a simple four: threes are not countable yet, the
-		// lone completion decides.
+		{"occupied cell before the wins", map[rules.Color][]string{
+			rules.Red:  {"A1", "D5", "D6", "D7", "D8", "L5", "L6", "L7", "L8"},
+			rules.Blue: {"D9", "L9"},
+		}, WonByDoubleFour},
 		{"four beside three", map[rules.Color][]string{
 			rules.Red:  {"D5", "D6", "D7", "D8", "C3", "C4", "C5"},
 			rules.Blue: {"D9"},
@@ -792,7 +746,7 @@ func TestWonByTagClassification(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			b := placeStones(t, tc.board)
-			b.Side = rules.Blue // the probe must survive any side-to-move
+			b.Side = rules.Blue
 			if got := WonByTag(b, rules.Red); got != tc.want {
 				t.Errorf("WonByTag = %q, want %q", got, tc.want)
 			}
