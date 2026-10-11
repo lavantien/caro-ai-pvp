@@ -217,12 +217,12 @@ func TestCloseKeepsCheckpointErrorWhenPoolCloseSucceeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pin writer conn: %v", err)
 	}
-	defer held.Close()
+	defer func() { _ = held.Close() }()
 	tx, err := held.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatalf("begin held write: %v", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.ExecContext(ctx, `UPDATE users SET username = username`); err != nil {
 		t.Fatalf("hold the write lock: %v", err)
 	}
