@@ -584,7 +584,7 @@ func TestBotTurnBudgetCapClampsOnlyWhenSet(t *testing.T) {
 		if err != nil {
 			t.Fatalf("create vs bot: %v", err)
 		}
-		bot := &budgetProbeBot{seen: make(chan struct{}, 1), answer: mustCellT(t, "D5")}
+		bot := &budgetProbeBot{seen: make(chan struct{}, 1), answer: rules.Move(mustCellT(t, "D5"))}
 		r.mu.Lock()
 		r.makeSearcher = func(config.Tier) searcher { return bot }
 		r.budgetCap = limit
@@ -692,7 +692,7 @@ func TestBotTurnDiscardsAnswerWhenGameFinishesMidSearch(t *testing.T) {
 	alice, r := botRoom(t, s, config.TierEasy)
 	r.mu.Lock()
 	r.makeSearcher = func(config.Tier) searcher {
-		return &finishingBot{room: r, answer: mustCellT(t, "D5")}
+		return &finishingBot{room: r, answer: rules.Move(mustCellT(t, "D5"))}
 	}
 	r.mu.Unlock()
 	if err := r.Ready(alice.ID); err != nil {
@@ -774,7 +774,7 @@ func TestBotTurnDiscardsStaleAnswerAfterInterleavedMoves(t *testing.T) {
 	r.mu.Lock()
 	r.makeSearcher = func(config.Tier) searcher {
 		return &interleavedSearchBot{
-			room: r, first: mustCellT(t, "D5"), second: mustCellT(t, "P16"), answer: mustCellT(t, "D6"),
+			room: r, first: rules.Move(mustCellT(t, "D5")), second: rules.Move(mustCellT(t, "P16")), answer: rules.Move(mustCellT(t, "D6")),
 		}
 	}
 	r.mu.Unlock()
@@ -794,7 +794,7 @@ func TestBotTurnDiscardsStaleAnswerAfterInterleavedMoves(t *testing.T) {
 	stones, last := r.board.MoveCount, r.moves[len(r.moves)-1]
 	r.mu.Unlock()
 	if stones != 3 || last != rules.Move(mustCellT(t, "P16")) {
-		t.Errorf("stones %d last %s after the interleaved writer, want the stale answer discarded", stones, cellName(last))
+		t.Errorf("stones %d last %s after the interleaved writer, want the stale answer discarded", stones, cellName(rules.Cell(last)))
 	}
 	if humanTurn(r, alice.ID) {
 		t.Error("human holds the turn after the interleaved writer, want the bot's unfinished turn preserved")

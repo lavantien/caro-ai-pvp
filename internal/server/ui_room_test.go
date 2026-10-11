@@ -757,7 +757,7 @@ func TestPlaybackGameIDDigitNineInBaseTen(t *testing.T) {
 func TestRoomPageJoinedCreatedRoomHidesReadyControlsFromGuest(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
-	alice, bob, r := newPvPRoom(t, s)
+	_, bob, r := newPvPRoom(t, s)
 
 	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), "")
 	if status != http.StatusOK {
