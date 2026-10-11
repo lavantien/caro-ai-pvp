@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/rand/v2"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -535,4 +536,370 @@ func TestNoGoroutineLeakAcrossBotRooms(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	t.Fatalf("goroutines = %d after shutdown, want at most %d", runtime.NumGoroutine(), base+1)
+}
+
+type budgetProbeBot struct {
+	mu      sync.Mutex
+	seen    chan struct{}
+	answer  rules.Move
+	budgets []time.Duration
+}
+
+func (b *budgetProbeBot) Search(_ *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats, string) {
+	if bg, ok := dl.(engine.Budgeter); ok {
+		b.mu.Lock()
+		b.budgets = append(b.budgets, bg.Budget())
+		b.mu.Unlock()
+	}
+	select {
+	case b.seen <- struct{}{}:
+	default:
+	}
+	return b.answer, fakeStats(), ""
+}
+func (b *budgetProbeBot) StartPonder(*rules.Board) {}
+
+func (b *budgetProbeBot) StopPonder() (rules.Move, engine.SearchStats, string) {
+	return 0, engine.SearchStats{}, ""
+}
+
+func (b *budgetProbeBot) Close() {}
+
+func (b *budgetProbeBot) firstBudget(t *testing.T) time.Duration {
+	t.Helper()
+	<-b.seen
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(b.budgets) != 1 {
+		t.Fatalf("bot searches = %d, want the single granted turn", len(b.budgets))
+	}
+	return b.budgets[0]
+}
+
+func TestBotTurnBudgetCapClampsOnlyWhenSet(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	run := func(limit time.Duration) time.Duration {
+		r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy)
+		if err != nil {
+			t.Fatalf("create vs bot: %v", err)
+		}
+		bot := &budgetProbeBot{seen: make(chan struct{}, 1), answer: mustCellT(t, "D5")}
+		r.mu.Lock()
+		r.makeSearcher = func(config.Tier) searcher { return bot }
+		r.budgetCap = limit
+		r.mu.Unlock()
+		if err := r.Ready(alice.ID); err != nil {
+			t.Fatalf("ready: %v", err)
+		}
+		if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
+			t.Fatalf("human move: %v", err)
+		}
+		return bot.firstBudget(t)
+	}
+	if got := run(0); got <= 0 {
+		t.Errorf("uncapped default grant = %s, want the clock budget with cap 0 meaning uncapped", got)
+	}
+	if got := run(1); got != 1 {
+		t.Errorf("capped grant = %s, want the exact 1ns clamp", got)
+	}
+}
+
+func TestBotTurnLockedRefusesFinishedWindow(t *testing.T) {
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierEasy)
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	r.mu.Lock()
+	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.mu.Unlock()
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	<-bot.seen
+	r.mu.Lock()
+	r.finished = true
+	side, ok := r.botTurnLocked()
+	r.mu.Unlock()
+	if ok || side != 0 {
+		t.Errorf("botTurnLocked in the finished window = (%d, %t), want (0, false)", side, ok)
+	}
+	close(bot.release)
+	r.Close()
+	r.mu.Lock()
+	stones := r.board.MoveCount
+	r.mu.Unlock()
+	if stones != 1 {
+		t.Errorf("stones after the finished-window turn = %d, want the discarded answer to leave the human move", stones)
+	}
+}
+
+func TestBotTurnLockedRefusesRetireWindow(t *testing.T) {
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierEasy)
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	r.mu.Lock()
+	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.mu.Unlock()
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	<-bot.seen
+	r.mu.Lock()
+	close(r.quit)
+	side, ok := r.botTurnLocked()
+	r.mu.Unlock()
+	if ok || side != 0 {
+		t.Errorf("botTurnLocked in the retire window = (%d, %t), want (0, false)", side, ok)
+	}
+	close(bot.release)
+	waitFor(t, bot.isClosed)
+	r.mu.Lock()
+	stones := r.board.MoveCount
+	r.quit = make(chan struct{}, 1)
+	r.mu.Unlock()
+	if stones != 1 {
+		t.Errorf("stones after the retire-window turn = %d, want the post-Close answer discarded on the closed quit", stones)
+	}
+}
+
+type finishingBot struct {
+	room   *Room
+	answer rules.Move
+}
+
+func (b *finishingBot) Search(_ *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats, string) {
+	b.room.mu.Lock()
+	b.room.finished = true
+	b.room.mu.Unlock()
+	return b.answer, fakeStats(), ""
+}
+func (b *finishingBot) StartPonder(*rules.Board) {}
+
+func (b *finishingBot) StopPonder() (rules.Move, engine.SearchStats, string) {
+	return 0, engine.SearchStats{}, ""
+}
+
+func (b *finishingBot) Close() {}
+
+func TestBotTurnDiscardsAnswerWhenGameFinishesMidSearch(t *testing.T) {
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierEasy)
+	r.mu.Lock()
+	r.makeSearcher = func(config.Tier) searcher {
+		return &finishingBot{room: r, answer: mustCellT(t, "D5")}
+	}
+	r.mu.Unlock()
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	waitFor(t, func() bool {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		return r.finished
+	})
+	time.Sleep(100 * time.Millisecond)
+	r.mu.Lock()
+	stones, moves := r.board.MoveCount, len(r.moves)
+	r.mu.Unlock()
+	if stones != 1 || moves != 1 {
+		t.Errorf("stones %d moves %d after the mid-search finish, want the stale answer discarded", stones, moves)
+	}
+	if humanTurn(r, alice.ID) {
+		t.Error("human holds the turn after the mid-search finish, want the bot's unfinished turn preserved")
+	}
+}
+
+func TestBotTurnDiscardsAnswerAfterCloseMidSearch(t *testing.T) {
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierEasy)
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	r.mu.Lock()
+	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.mu.Unlock()
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	<-bot.seen
+	r.mu.Lock()
+	close(r.quit)
+	r.mu.Unlock()
+	close(bot.release)
+	waitFor(t, bot.isClosed)
+	r.mu.Lock()
+	stones := r.board.MoveCount
+	r.quit = make(chan struct{}, 1)
+	r.mu.Unlock()
+	if stones != 1 {
+		t.Errorf("stones after a Close during the search = %d, want the stale answer discarded", stones)
+	}
+}
+
+type interleavedSearchBot struct {
+	room   *Room
+	first  rules.Move
+	second rules.Move
+	answer rules.Move
+}
+
+func (b *interleavedSearchBot) Search(_ *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats, string) {
+	b.room.mu.Lock()
+	b.room.applyMoveLocked(rules.Blue, rules.Cell(b.first))
+	b.room.applyMoveLocked(rules.Red, rules.Cell(b.second))
+	b.room.mu.Unlock()
+	return b.answer, fakeStats(), ""
+}
+func (b *interleavedSearchBot) StartPonder(*rules.Board) {}
+
+func (b *interleavedSearchBot) StopPonder() (rules.Move, engine.SearchStats, string) {
+	return 0, engine.SearchStats{}, ""
+}
+
+func (b *interleavedSearchBot) Close() {}
+
+func TestBotTurnDiscardsStaleAnswerAfterInterleavedMoves(t *testing.T) {
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierEasy)
+	r.mu.Lock()
+	r.makeSearcher = func(config.Tier) searcher {
+		return &interleavedSearchBot{
+			room: r, first: mustCellT(t, "D5"), second: mustCellT(t, "P16"), answer: mustCellT(t, "D6"),
+		}
+	}
+	r.mu.Unlock()
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	waitFor(t, func() bool {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		return r.board.MoveCount == 3
+	})
+	time.Sleep(100 * time.Millisecond)
+	r.mu.Lock()
+	stones, last := r.board.MoveCount, r.moves[len(r.moves)-1]
+	r.mu.Unlock()
+	if stones != 3 || last != rules.Move(mustCellT(t, "P16")) {
+		t.Errorf("stones %d last %s after the interleaved writer, want the stale answer discarded", stones, cellName(last))
+	}
+	if humanTurn(r, alice.ID) {
+		t.Error("human holds the turn after the interleaved writer, want the bot's unfinished turn preserved")
+	}
+}
+
+func TestBotIllegalAnswerOnTheLastCellFillsTheBoard(t *testing.T) {
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierEasy)
+	script := drawMoves(t)
+	var human, bot []string
+	for i, name := range script {
+		if i%2 == 0 {
+			human = append(human, name)
+		} else {
+			bot = append(bot, name)
+		}
+	}
+	bot[len(bot)-1] = "D4"
+	bots := injectScriptedBot(t, r, movesOf(t, bot))
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	for _, name := range human {
+		waitFor(t, func() bool { return humanTurn(r, alice.ID) })
+		if err := r.PlayMove(alice.ID, mustCellT(t, name)); err != nil {
+			t.Fatalf("human move %s: %v", name, err)
+		}
+	}
+	waitFor(t, func() bool {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		return r.series.GamesPlayed() == 1 && r.board != nil && r.board.MoveCount == 0
+	})
+	r.mu.Lock()
+	drawn := append([]rules.Move(nil), r.lastMoves...)
+	r.mu.Unlock()
+	if len(drawn) != config.BoardCells || !slices.Equal(drawn, movesOf(t, script)) {
+		t.Errorf("drawn game = %d moves, want the full %d-move fill through the single remaining cell", len(drawn), config.BoardCells)
+	}
+	instances := bots()
+	if len(instances) != 1 {
+		t.Fatalf("engine instances = %d, want one for the single drawn game", len(instances))
+	}
+	if got := instances[0].searchCount(); got != len(bot) {
+		t.Errorf("bot searches = %d, want %d answers with the last answered through the fallback", got, len(bot))
+	}
+}
+
+func TestFirstLegalPanicsOnAFullBoard(t *testing.T) {
+	s := newStack(t)
+	_, r := botRoom(t, s, config.TierEasy)
+	full := rules.NewBoard()
+	for _, name := range drawMoves(t) {
+		full.Make(mustCellT(t, name))
+	}
+	r.mu.Lock()
+	r.board = full
+	panicked := true
+	func() {
+		defer func() {
+			if recover() == nil {
+				panicked = false
+			}
+		}()
+		r.firstLegalLocked()
+	}()
+	r.board = nil
+	r.mu.Unlock()
+	if !panicked {
+		t.Error("firstLegalLocked on a full board returned, want the no-legal-move invariant panic")
+	}
+}
+
+func TestWakeBotCoalescesToASingleBufferedToken(t *testing.T) {
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierEasy)
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	r.mu.Lock()
+	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.mu.Unlock()
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	<-bot.seen
+	r.mu.Lock()
+	r.wakeBotLocked()
+	r.wakeBotLocked()
+	tokens := 0
+drain:
+	for {
+		select {
+		case <-r.wake:
+			tokens++
+		default:
+			break drain
+		}
+	}
+	r.mu.Unlock()
+	if tokens != 1 {
+		t.Errorf("buffered wake tokens = %d, want exactly one coalesced signal", tokens)
+	}
+	close(bot.release)
+	r.Close()
 }

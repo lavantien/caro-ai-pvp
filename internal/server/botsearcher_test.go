@@ -1,6 +1,9 @@
 package server
 
 import (
+	"bytes"
+	"log"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -9,16 +12,9 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
+	"github.com/lavantien/caro-ai-pvp/internal/vcf"
 )
 
-// The bot-turn safety nets of match.go: the first-legal fallback under an
-// engine contract violation, the full-board draw a bot closes itself, and the
-// real engine seam of the easy tier.
-
-// TestBotIllegalAnswerFallsBackToFirstLegal pins the safety net under the
-// engine contract: a searcher that answers with an occupied cell (the room
-// validates every answer) must not corrupt the board, the first legal cell
-// plays instead, and the game continues normally around it.
 func TestBotIllegalAnswerFallsBackToFirstLegal(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
@@ -34,11 +30,6 @@ func TestBotIllegalAnswerFallsBackToFirstLegal(t *testing.T) {
 		t.Fatalf("human move: %v", err)
 	}
 
-	// The expected fallback is the first cell of the enumeration of the
-	// post-D4 board, replayed on an independent board: reading the room's
-	// own board races the bot's fallback application (PlayMove returns
-	// before the worker answers), which once made the copy already hold
-	// the fallback and turned the expectation into B1.
 	probe := rules.NewBoard()
 	probe.Make(mustCellT(t, "D4"))
 	var buf [config.BoardCells]rules.Move
@@ -67,8 +58,6 @@ func TestBotIllegalAnswerFallsBackToFirstLegal(t *testing.T) {
 		t.Errorf("bot searches after the fallback = %d, want the single illegal answer", illegal.searchCount())
 	}
 
-	// The game continues: red holds the turn and lands another stone, the
-	// bot's next answer is legal and plays as itself.
 	waitFor(t, func() bool { return humanTurn(r, alice.ID) })
 	if err := r.PlayMove(alice.ID, mustCellT(t, "H8")); err != nil {
 		t.Fatalf("game did not continue past the fallback: %v", err)
@@ -92,10 +81,6 @@ func TestBotIllegalAnswerFallsBackToFirstLegal(t *testing.T) {
 	}
 }
 
-// TestBotMoveFillsBoardToDraw drives the full-board draw whose last stone is
-// the bot's: blue's half of the no-five fill script plays through the worker,
-// the 256th stone fills the board, and the completion path books the draw and
-// starts the next game instead of waiting for a human move to notice.
 func TestBotMoveFillsBoardToDraw(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
@@ -143,11 +128,6 @@ func TestBotMoveFillsBoardToDraw(t *testing.T) {
 		}
 	}
 
-	// The drawn game closed on the bot's own filling stone. The completion
-	// path now persists a real unit (bot matches record), and the stream
-	// reader drains asynchronously, so the honest observation point is the
-	// reader's own counts plus the reset: all four hold only after the
-	// gameend event published, the unit applied, and game 2 reset.
 	waitFor(t, func() bool {
 		mu.Lock()
 		done := moves == config.BoardCells && mlines == len(bot) && len(gameEnds) == 1
@@ -170,7 +150,6 @@ func TestBotMoveFillsBoardToDraw(t *testing.T) {
 			gotMoves, gotMLines, config.BoardCells, len(bot))
 	}
 
-	// The series lives on at 0-0 with a fresh board and red kept by the host.
 	r.mu.Lock()
 	hostWins, guestWins := r.series.Score()
 	boardStones := r.board.MoveCount
@@ -183,7 +162,6 @@ func TestBotMoveFillsBoardToDraw(t *testing.T) {
 		t.Errorf("game 2 = %d stones red %d, want a fresh board with red kept", boardStones, red)
 	}
 
-	// Retire and prove the stream closed on the terminal series frame.
 	if err := r.Forfeit(alice.ID); err != nil {
 		t.Fatalf("forfeit: %v", err)
 	}
@@ -197,19 +175,10 @@ func TestBotMoveFillsBoardToDraw(t *testing.T) {
 	}
 }
 
-// TestBotEasyTierRealEngineAnswersLegally runs the real single-threaded engine
-// of the easy tier through the room: newBotSearcher sizes it, one search under
-// a small budget answers, and the answer is a legal stone the game continues
-// from.
 func TestBotEasyTierRealEngineAnswersLegally(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
 	r.mu.Lock()
-	// The cap must clear the clock-quantum zone: a grant under one
-	// SearchClockQuantumMs tick can die before its first iteration
-	// completes on a loaded race runner, and the designed answer then
-	// carries zero nodes. Twelve quanta keep the same speed while
-	// guaranteeing a funded iteration.
 	r.budgetCap = time.Duration(12*config.SearchClockQuantumMs) * time.Millisecond
 	r.mu.Unlock()
 
@@ -236,18 +205,11 @@ func TestBotEasyTierRealEngineAnswersLegally(t *testing.T) {
 		t.Error("bot stats show no search nodes, want a real engine search")
 	}
 
-	// The room stays playable: red moves again and the turn comes back.
 	waitFor(t, func() bool { return humanTurn(r, alice.ID) })
 	if err := r.PlayMove(alice.ID, mustCellT(t, "H8")); err != nil {
 		t.Fatalf("game did not continue after the engine answer: %v", err)
 	}
 
-	// The tier seam itself: easy is the plain engine, and a direct search on
-	// a fresh board answers inside the board. The budget must guarantee one
-	// completed iteration even under coverage instrumentation on a loaded
-	// runner: a search that dies before its first iteration answers with the
-	// legal fallback and zero nodes, which is a budget artifact, not the
-	// seam's behavior.
 	eng := newBotSearcher(config.TierEasy)
 	defer eng.Close()
 	if _, isTiered := eng.(interface{ Workers() int }); isTiered {
@@ -260,5 +222,44 @@ func TestBotEasyTierRealEngineAnswersLegally(t *testing.T) {
 	}
 	if st.Nodes == 0 {
 		t.Error("direct engine search reported zero nodes")
+	}
+}
+
+func TestSolverPonderPassStaysSilentOnNormalCompletion(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+	s := &solverSearcher{
+		inner: &scriptedBot{script: movesOf(t, []string{"H8"}), stats: fakeStats()},
+		vct:   vcf.New(vcf.KindVCT), cores: 2,
+	}
+	s.StartPonder(openFourBoard(t))
+	s.StopPonder()
+	s.Close()
+	if out := buf.String(); strings.Contains(out, "ponder solver pass aborted") {
+		t.Errorf("normal ponder pass logged %q, want silence from the recover guard", out)
+	}
+}
+
+func TestNewBotSearcherPoolsOnlyAboveOneCore(t *testing.T) {
+	easy := newBotSearcher(config.TierEasy)
+	if _, ok := easy.(singleSearcher); !ok {
+		t.Errorf("easy wiring = %T, want the single engine behind the one-core tier", easy)
+	}
+	easy.Close()
+	for _, tier := range []config.Tier{config.TierMedium, config.TierHard} {
+		s := newBotSearcher(tier)
+		wrapped, ok := s.(*solverSearcher)
+		if !ok {
+			t.Fatalf("%s wiring = %T, want the solver wrapper around the pool", tier.Name, s)
+		}
+		if _, pooled := wrapped.inner.(tierSearcher); !pooled {
+			t.Errorf("%s inner wiring = %T, want the tiered pool behind %d cores", tier.Name, wrapped.inner, tier.Cores)
+		}
+		s.Close()
 	}
 }

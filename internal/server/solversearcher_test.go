@@ -1,21 +1,16 @@
 package server
 
 import (
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
+	"github.com/lavantien/caro-ai-pvp/internal/vcf"
 )
 
-// The tier solver wiring of Implication 2.1: medium runs VCF, hard runs
-// VCF and VCT, easy runs neither, a proven forced line ends the move with
-// the matching Implication 1.5 tag, and a miss leaves the untagged
-// standard search the unspent remainder of the grant.
-
-// anchorBoard places stones as (row, col) pairs relative to the anchor I9
-// and leaves the given side to move.
 func anchorBoard(t testing.TB, side rules.Color, stones ...struct {
 	row, col int
 	red      bool
@@ -27,9 +22,6 @@ func anchorBoard(t testing.TB, side rules.Color, stones ...struct {
 		if s.red {
 			b.Side = rules.Red
 		}
-		// Made unconditionally the way the solver suite's own crafts are:
-		// adjacent same-color stones would violate the opening rule, which
-		// these post-opening shapes never see in play.
 		b.Make(rules.Cell((8+s.row)*config.BoardStride + 8 + s.col))
 	}
 	b.Side = side
@@ -44,20 +36,12 @@ type stone = struct {
 func r(row, col int) stone { return stone{row, col, true} }
 func x(row, col int) stone { return stone{row, col, false} }
 
-// hardWiredSingleCore is the hard tier's solver wiring over the plain
-// single-threaded engine. The wiring under test is core-agnostic, and the
-// nodes assertion below needs an engine whose whole grant cannot vanish
-// into a worker-pool scheduling loss before depth 1 commits, which the
-// tag runs caught as red-on-green flakes on the 4-worker pool.
 var hardWiredSingleCore = config.Tier{Name: "hard-wired", Cores: 1, VCF: true, VCT: true}
 
-// openFourBoard gives red the open four J9-M9 with both completions free.
 func openFourBoard(t testing.TB) *rules.Board {
 	return anchorBoard(t, rules.Red, r(0, 1), r(0, 2), r(0, 3), r(0, 4))
 }
 
-// doubleThreeBoard is the VCT craft of the solver suite: red wins by
-// continuous threes, never by fours alone, so only the VCT pass proves it.
 func doubleThreeBoard(t testing.TB) *rules.Board {
 	return anchorBoard(t, rules.Red, r(0, -2), r(0, -1), r(-2, 0), r(-1, 0), x(3, -5), x(3, -4))
 }
@@ -106,8 +90,6 @@ func TestSolverWiringSplitsVCTFromVCF(t *testing.T) {
 		t.Fatalf("hard stats plies %d score %d disagree, want the same mate distance", st.Depth, want)
 	}
 
-	// Medium lacks VCT, so the same board falls through to the standard
-	// search: an untagged, legal answer.
 	medium := newBotSearcher(config.TierMedium)
 	mv, st, tag = medium.Search(b, engine.NewFixedBudget(500*time.Millisecond))
 	medium.Close()
@@ -140,11 +122,6 @@ func TestSolverWiringEasyHasNoSolvers(t *testing.T) {
 
 func TestSolverWiringMissKeepsSearchBudget(t *testing.T) {
 	b := quietBoard(t)
-	// The grant must clear the shared-runner stall zone: CI run 37487619913
-	// lost a whole 500ms window to descheduling before depth 1 committed on
-	// this single-core engine, so stalls near half a second are proven on the
-	// runner class. Five seconds holds ten times that, beside the 2s grants
-	// the forced-win tests have never lost across the gate history.
 	grant := 5 * time.Second
 	s := newBotSearcher(hardWiredSingleCore)
 	mv, st, tag := s.Search(b, engine.NewFixedBudget(grant))
@@ -163,24 +140,11 @@ func TestSolverWiringMissKeepsSearchBudget(t *testing.T) {
 	}
 }
 
-// neverDeadline is a Deadline with no Budget method: the wiring must treat
-// it as grant-less and still run the passes, the path every caller that is
-// not the room's FixedBudget takes.
 type neverDeadline struct{}
 
 func (neverDeadline) Exceeded() bool { return false }
 func (neverDeadline) Stop()          {}
 
-// The floor-zone gate of the corrected-clock 1+0 smoke: a drained clock
-// grants its SearchMinMoveTimeMs floor, where two compounding solver shares
-// left hard's inner search a 2.5ms slice that finished no iteration, 497
-// zero-node moves in the run, while medium's single 5ms slice starved only
-// a tenth of its floor moves. At the floor itself the passes must not run:
-// the provable open four falls to the untagged inner search holding the
-// whole grant. Nodes stay unasserted here on purpose: the same smoke shows
-// a plain 10ms grant occasionally completing no iteration (3 zero-node
-// moves on easy seats that have no solvers), a floor-versus-quantum
-// residual of the time manager, not of this gate.
 func TestSolverWiringFloorGrantSkipsPasses(t *testing.T) {
 	b := openFourBoard(t)
 	grant := time.Duration(config.SearchMinMoveTimeMs) * time.Millisecond
@@ -198,11 +162,6 @@ func TestSolverWiringFloorGrantSkipsPasses(t *testing.T) {
 	}
 }
 
-// A grant just under the gate skips the passes and the whole grant is
-// billed to the untagged search. Nodes stay unasserted here by design:
-// the grant is structurally pinned under SolverMinGrantMs, inside the
-// shared-runner stall zone, so the funded-engine property lives in the
-// miss test's stall-sized grant instead.
 func TestSolverWiringSkipFundsTheSearch(t *testing.T) {
 	b := quietBoard(t)
 	grant := time.Duration(config.SolverMinGrantMs-10) * time.Millisecond
@@ -220,8 +179,6 @@ func TestSolverWiringSkipFundsTheSearch(t *testing.T) {
 	}
 }
 
-// The gate's boundary sits at exactly SolverMinGrantMs: the passes still
-// run there, proving the forced win on the solver's own tagged line.
 func TestSolverWiringGateKeepsRealGrants(t *testing.T) {
 	b := openFourBoard(t)
 	grant := time.Duration(config.SolverMinGrantMs) * time.Millisecond
@@ -236,8 +193,6 @@ func TestSolverWiringGateKeepsRealGrants(t *testing.T) {
 	}
 }
 
-// A deadline without a budget keeps the passes running under a nil share,
-// the grant-less path of the wiring.
 func TestSolverWiringGrantlessDeadlineRunsPasses(t *testing.T) {
 	b := openFourBoard(t)
 	s := newBotSearcher(config.TierHard)
@@ -251,8 +206,6 @@ func TestSolverWiringGrantlessDeadlineRunsPasses(t *testing.T) {
 	}
 }
 
-// The exported surface the playground harnesses drive: the constructor
-// returns the same tier wiring the room layer uses, tag law intact.
 func TestNewBotSearcherExportedSurface(t *testing.T) {
 	s := NewBotSearcher(config.TierHard)
 	defer s.Close()
@@ -262,5 +215,88 @@ func TestNewBotSearcherExportedSurface(t *testing.T) {
 	}
 	if mv != rules.Move(mustCellT(t, "I9")) && mv != rules.Move(mustCellT(t, "N9")) {
 		t.Fatalf("exported move %v, want a completion of J9-M9", cellName(rules.Cell(mv)))
+	}
+}
+
+type solverProbeBot struct {
+	mu       sync.Mutex
+	searches int
+	dls      []engine.Deadline
+}
+
+func (b *solverProbeBot) Search(_ *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats, string) {
+	b.mu.Lock()
+	b.searches++
+	b.dls = append(b.dls, dl)
+	b.mu.Unlock()
+	return 0, fakeStats(), ""
+}
+func (b *solverProbeBot) StartPonder(*rules.Board) {}
+
+func (b *solverProbeBot) StopPonder() (rules.Move, engine.SearchStats, string) {
+	return 0, engine.SearchStats{}, ""
+}
+
+func (b *solverProbeBot) Close() {}
+
+func (b *solverProbeBot) snapshot() (int, []engine.Deadline) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.searches, append([]engine.Deadline(nil), b.dls...)
+}
+
+func TestSolverSearcherNilPassSkipsToTheNextSolver(t *testing.T) {
+	inner := &solverProbeBot{}
+	s := &solverSearcher{inner: inner, vct: vcf.New(vcf.KindVCT), cores: 2}
+	mv, st, tag := s.Search(doubleThreeBoard(t), engine.NewFixedBudget(2*time.Second))
+	s.Close()
+	if tag != config.BotLogTagVCT {
+		t.Fatalf("tag = %q, want %q from the VCT pass behind the nil VCF slot", tag, config.BotLogTagVCT)
+	}
+	if !doubleThreeBoard(t).IsLegal(rules.Cell(mv)) {
+		t.Fatalf("VCT move %v illegal on the double three", cellName(rules.Cell(mv)))
+	}
+	if st.Threads != 2 || st.AllocNs != int64(2*time.Second) {
+		t.Fatalf("VCT stats threads %d alloc %d, want 2 and the full grant", st.Threads, st.AllocNs)
+	}
+	if n, _ := inner.snapshot(); n != 0 {
+		t.Errorf("inner searches = %d, want the VCT proof to answer without the inner engine", n)
+	}
+}
+
+func TestSolverSearcherRestBudgetStaysWithinGrant(t *testing.T) {
+	inner := &solverProbeBot{}
+	s := &solverSearcher{inner: inner, vcf: vcf.New(vcf.KindVCF), cores: 1}
+	grant := 2 * time.Second
+	dl := engine.NewFixedBudget(grant)
+	s.Search(quietBoard(t), dl)
+	s.Close()
+	_, dls := inner.snapshot()
+	if len(dls) != 1 {
+		t.Fatalf("inner searches = %d, want the single fallback", len(dls))
+	}
+	fb, ok := dls[0].(*engine.FixedBudget)
+	if !ok {
+		t.Fatalf("inner deadline = %T, want a recomputed fixed budget", dls[0])
+	}
+	if fb == dl {
+		t.Error("inner received the caller's deadline object, want the remainder budget rebuilt after the passes")
+	}
+	if fb.Budget() > grant {
+		t.Errorf("inner budget = %s, want at most the grant", fb.Budget())
+	}
+}
+
+func TestSolverSearcherGrantlessDeadlinePassesThrough(t *testing.T) {
+	inner := &solverProbeBot{}
+	s := &solverSearcher{inner: inner, vcf: vcf.New(vcf.KindVCF), cores: 1}
+	s.Search(quietBoard(t), neverDeadline{})
+	s.Close()
+	_, dls := inner.snapshot()
+	if len(dls) != 1 {
+		t.Fatalf("inner searches = %d, want the single fallback", len(dls))
+	}
+	if _, ok := dls[0].(neverDeadline); !ok {
+		t.Fatalf("inner deadline = %T, want the caller's grant-less deadline passed through untouched", dls[0])
 	}
 }

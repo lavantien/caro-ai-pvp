@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -385,5 +386,146 @@ func TestBotBoardsListLiveTournamentRooms(t *testing.T) {
 	})
 	if got := s.rm.BotBoards(); len(got) != 0 {
 		t.Errorf("bot boards after retire = %d rooms, want none", len(got))
+	}
+}
+
+func drawHalves(t *testing.T) (red, blue []string) {
+	t.Helper()
+	for row := range config.BoardSize {
+		for col := range config.BoardSize {
+			name := string(rune('A'+col)) + strconv.Itoa(row+1)
+			if (row+2*col)%4 < 2 {
+				red = append(red, name)
+			} else {
+				blue = append(blue, name)
+			}
+		}
+	}
+	red[1], red[len(red)-1] = red[len(red)-1], red[1]
+	blue[1], blue[len(blue)-1] = blue[len(blue)-1], blue[1]
+	if len(red) != len(blue) {
+		t.Fatalf("draw halves = %d red vs %d blue, want equal sizes", len(red), len(blue))
+	}
+	return red, blue
+}
+
+func TestBotVsBotDrawnSeriesRetiresOnTheFinalDraw(t *testing.T) {
+	s := newStack(t)
+	hostDraw, guestDraw := drawHalves(t)
+	open := scriptBotVsBotTiers(t, s, map[string][]string{
+		config.TierEasy.Name:   hostDraw,
+		config.TierMedium.Name: guestDraw,
+	})
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create bot vs bot: %v", err)
+	}
+	open()
+	waitFor(t, func() bool {
+		_, ok := r.Info()
+		return !ok
+	})
+	r.mu.Lock()
+	played, winner := r.series.GamesPlayed(), r.series.Winner()
+	hostWins, guestWins := r.series.Score()
+	stones := r.board.MoveCount
+	r.mu.Unlock()
+	if played != config.SeriesBO3 || winner != SideNone {
+		t.Errorf("drawn series = %d games winner %v, want the %d-game cap with no winner", played, winner, config.SeriesBO3)
+	}
+	if hostWins != 0 || guestWins != 0 || stones != config.BoardCells {
+		t.Errorf("final line = %d-%d with %d stones, want 0-0 on the filled closing board", hostWins, guestWins, stones)
+	}
+}
+
+func TestBotVsBotSyntheticSeatIDs(t *testing.T) {
+	s := newStack(t)
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	s.rm.makeSearcher = func(config.Tier) searcher { return bot }
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create bot vs bot: %v", err)
+	}
+	<-bot.seen
+	info, ok := r.Info()
+	if !ok {
+		t.Fatal("info: want the room live")
+	}
+	if info.HostUserID != -3 {
+		t.Errorf("host seat id = %d, want the -3 synthetic host", info.HostUserID)
+	}
+	if info.GuestUserID != -2 {
+		t.Errorf("guest seat id = %d, want the -2 synthetic guest", info.GuestUserID)
+	}
+	r.mu.Lock()
+	red := r.series.RedUserID()
+	r.mu.Unlock()
+	if red != -3 {
+		t.Errorf("series red = %d, want the synthetic host seated on red", red)
+	}
+	close(bot.release)
+	waitFor(t, func() bool {
+		_, ok := r.Info()
+		return !ok
+	})
+}
+
+type ponderSpyBot struct {
+	inner  searcher
+	mu     sync.Mutex
+	starts int
+}
+
+func (b *ponderSpyBot) Search(bd *rules.Board, dl engine.Deadline) (rules.Move, engine.SearchStats, string) {
+	return b.inner.Search(bd, dl)
+}
+func (b *ponderSpyBot) StartPonder(bd *rules.Board) {
+	b.mu.Lock()
+	b.starts++
+	b.mu.Unlock()
+	b.inner.StartPonder(bd)
+}
+
+func (b *ponderSpyBot) StopPonder() (rules.Move, engine.SearchStats, string) {
+	return b.inner.StopPonder()
+}
+
+func (b *ponderSpyBot) Close() { b.inner.Close() }
+
+func (b *ponderSpyBot) startCount() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.starts
+}
+
+func TestBotVsBotNoPonderWithoutBookedCores(t *testing.T) {
+	s := newStack(t)
+	var mu sync.Mutex
+	var spies []*ponderSpyBot
+	s.rm.makeSearcher = func(tier config.Tier) searcher {
+		script := movesOf(t, botVsBotGuestLine)
+		if tier.Name == config.TierEasy.Name {
+			script = movesOf(t, botVsBotHostLine)
+		}
+		b := &ponderSpyBot{inner: &scriptedBot{script: script, stats: fakeStats()}}
+		mu.Lock()
+		spies = append(spies, b)
+		mu.Unlock()
+		return b
+	}
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create bot vs bot: %v", err)
+	}
+	waitFor(t, func() bool {
+		_, ok := r.Info()
+		return !ok
+	})
+	mu.Lock()
+	defer mu.Unlock()
+	for i, b := range spies {
+		if got := b.startCount(); got != 0 {
+			t.Errorf("engine %d StartPonder calls = %d, want none without cores booked for pondering", i, got)
+		}
 	}
 }
