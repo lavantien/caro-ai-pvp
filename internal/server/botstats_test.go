@@ -1,11 +1,5 @@
 package server
 
-// The Implication 1.5 recording law of player-facing bot matches: every
-// series and game persists with one game_stats row per bot move (the
-// rendered M-line, byte-equal to the published hub payload), the W-L-D and
-// level record updates off those rows, and no rating ever moves. Tournament
-// bot-vs-bot rooms stay outside the player tables entirely.
-
 import (
 	"context"
 	"errors"
@@ -14,30 +8,22 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// botLoseScripts is the per-game scripted-bot sweep of a human-won bo3: game
-// 1 has the bot on blue scattering while the human closes the D file (the
-// hostWinsRed pairing), game 2 rotates red to the losing bot (the
-// guestRedLosesToBlue pairing with the seats swapped).
 var botLoseScripts = [][]string{
 	{"P16", "P12", "P8", "N16", "M4"},
 	{"P16", "H8", "P12", "P8", "N16"},
 }
 
-// humanWinSides is the human's half of each game of botLoseScripts: red's
-// stones of game 1, blue's stones of game 2.
 var humanWinSides = [][]string{
 	{"D4", "H8", "D5", "D6", "D7", "D3"},
 	{"D4", "D5", "D6", "D7", "D3"},
 }
 
-// injectPerGameBot swaps the room's engine factory for scripted bots, one
-// fresh script per game in creation order. Runs under the room lock like
-// every engine factory swap.
 func injectPerGameBot(t *testing.T, r *Room, scripts [][]string) {
 	t.Helper()
 	parsed := make([][]rules.Move, 0, len(scripts))
@@ -54,9 +40,6 @@ func injectPerGameBot(t *testing.T, r *Room, scripts [][]string) {
 	r.mu.Unlock()
 }
 
-// driveHumanWonBotSweep plays the scripted bo3 where the human takes both
-// games, waiting for the worker's reply before each human stone, and returns
-// the drained hub stream.
 func driveHumanWonBotSweep(t *testing.T, r *Room, alice User, sub *Subscription) []string {
 	t.Helper()
 	for game, side := range humanWinSides {
@@ -74,7 +57,6 @@ func driveHumanWonBotSweep(t *testing.T, r *Room, alice User, sub *Subscription)
 	return drainEvents(sub)
 }
 
-// gameStatRows reads one game's persisted stat lines in move order.
 func gameStatRows(t *testing.T, s *Store, gameID int64) []GameStat {
 	t.Helper()
 	rows, err := s.db.Query(
@@ -97,8 +79,6 @@ func gameStatRows(t *testing.T, s *Store, gameID int64) []GameStat {
 	return out
 }
 
-// onlyGameID reads a series' single game id, the store-level tests' one-row
-// shape.
 func onlyGameID(t *testing.T, s *Store, seriesID int64) int64 {
 	t.Helper()
 	var id int64
@@ -108,9 +88,6 @@ func onlyGameID(t *testing.T, s *Store, seriesID int64) int64 {
 	return id
 }
 
-// mLinesOf splits a drained hub stream into the per-game published M-line
-// payloads, in order, dropping everything else. A forfeited live game ends
-// with no gameend event, so the trailing group flushes too.
 func mLinesOf(events []string) [][]string {
 	var out [][]string
 	var cur []string
@@ -129,12 +106,6 @@ func mLinesOf(events []string) [][]string {
 	return out
 }
 
-// TestBotSeriesRecordsGamesStatsAndHistory drives a human-won bo3 against a
-// scripted easy bot and pins the whole recording law: the series row and
-// both games persist, each game carries one stat row per bot move whose line
-// is byte-equal to the published M-line payload at the matching move number,
-// the W-L-D and level record updates off the rows, history renders the
-// opponent as "AI <tier>", and not one rating event lands.
 func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
@@ -153,7 +124,6 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 	}
 	events := driveHumanWonBotSweep(t, r, alice, sub)
 
-	// The pairing row finished with the human winner, both seats recorded.
 	sr, err := s.store.SeriesByID(r.SeriesID())
 	if err != nil {
 		t.Fatalf("series row: %v", err)
@@ -163,9 +133,6 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 		t.Errorf("series row = %+v, want finished host over the bot seat %d", sr, botID)
 	}
 
-	// One stat row per bot move, byte-equal to the published payload, at the
-	// bot's own move numbers (even plies when the bot holds blue, odd when
-	// red, both counted from the game's first stone).
 	published := mLinesOf(events)
 	if len(published) != 2 {
 		t.Fatalf("published mline games = %d, want 2: %v", len(published), events)
@@ -187,8 +154,6 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 			if row.MoveNo != wantNos[gi][i] {
 				t.Errorf("game %d stat %d move_no = %d, want %d", gi+1, i, row.MoveNo, wantNos[gi][i])
 			}
-			// The structured column and the line's own M<n> token must
-			// agree, so a renderer drift cannot hide behind the byte check.
 			head, _, _ := strings.Cut(row.Line, ",")
 			n, perr := strconv.Atoi(strings.TrimPrefix(head, "M"))
 			if perr != nil || n != row.MoveNo {
@@ -197,7 +162,6 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 		}
 	}
 
-	// Ratings never move: no event, the chain tail stays at the start value.
 	if hist, err := s.store.RatingHistoryByUser(alice.ID); err != nil || len(hist) != 0 {
 		t.Errorf("rating events after the bot series = %d err %v, want none", len(hist), err)
 	}
@@ -205,8 +169,6 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 		t.Errorf("rating after the bot series = %d err %v, want the unmoved %d", got, err, config.RatingStart)
 	}
 
-	// The W-L-D and level record updates off the recorded rows: 2 wins, one
-	// series taken.
 	st, err := s.store.UserStats(alice.ID)
 	if err != nil {
 		t.Fatalf("stats: %v", err)
@@ -215,7 +177,6 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 		t.Errorf("stats after the bot series = %+v, want 2-0-0 with 1 series won", st)
 	}
 
-	// History lists both games with the room-unique bot as the opponent.
 	rows, err := s.store.MatchHistory(alice.ID)
 	if err != nil {
 		t.Fatalf("history: %v", err)
@@ -235,10 +196,6 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 	}
 }
 
-// TestForfeitVsBotBooksSweptLossesWithoutRating pins the forfeit billing of
-// a bot series: every remaining game lands as the quitter's loss in the
-// record, the live game keeps its partial moves and the bot log emitted so
-// far, the series finishes with the bot seat as winner, and no rating moves.
 func TestForfeitVsBotBooksSweptLossesWithoutRating(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
@@ -256,8 +213,6 @@ func TestForfeitVsBotBooksSweptLossesWithoutRating(t *testing.T) {
 		t.Fatalf("ready: %v", err)
 	}
 
-	// Two full rounds land (the human waits for the bot's second reply so
-	// both M-lines are in), then the human walks mid game 1.
 	for _, name := range []string{"D4", "H8"} {
 		waitFor(t, func() bool { return humanTurn(r, alice.ID) })
 		if err := r.PlayMove(alice.ID, mustCellT(t, name)); err != nil {
@@ -311,9 +266,6 @@ func TestForfeitVsBotBooksSweptLossesWithoutRating(t *testing.T) {
 	}
 }
 
-// TestApplyCompletionBotSeatSkipsRatingPair is the store-level pin of the
-// ledger law: a decisive game against a reserved bot seat lands whole, stat
-// lines included, without any rating event.
 func TestApplyCompletionBotSeatSkipsRatingPair(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
@@ -347,10 +299,6 @@ func TestApplyCompletionBotSeatSkipsRatingPair(t *testing.T) {
 	}
 }
 
-// TestApplyCompletionStatFailureRollsBackTheUnit pins the stat record's
-// atomicity slice: a game_stats insert failing mid-unit leaves no game row,
-// no stat row, and the series untouched, exactly like a failed rating insert
-// already does.
 func TestApplyCompletionStatFailureRollsBackTheUnit(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
@@ -388,7 +336,6 @@ func TestApplyCompletionStatFailureRollsBackTheUnit(t *testing.T) {
 		t.Errorf("series after the rejected unit = %+v err %v, want untouched ongoing", got, err)
 	}
 
-	// With the fault gone the same unit lands whole.
 	if _, err := s.db.Exec(`DROP TRIGGER boom_stat`); err != nil {
 		t.Fatalf("drop stat abort: %v", err)
 	}
@@ -403,9 +350,6 @@ func TestApplyCompletionStatFailureRollsBackTheUnit(t *testing.T) {
 	}
 }
 
-// TestPlaybackBotGameOpensForTheHumanSeat pins the playback gate and render
-// of a recorded bot game: the human participant opens it and sees "AI <tier>"
-// on the bot seat, strangers and anonymous visitors get the 404.
 func TestPlaybackBotGameOpensForTheHumanSeat(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
@@ -430,8 +374,6 @@ func TestPlaybackBotGameOpensForTheHumanSeat(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("human playback status = %d, want 200 (body %s)", status, body)
 	}
-	// Game 1 seated the bot on blue: the page names the seats through the
-	// same users rows history reads.
 	botName := botDisplayName(config.TierEasy.Name, r.ID())
 	if !strings.Contains(body, "red alice vs blue "+botName) {
 		t.Errorf("playback body misses the bot seat name %q (body %s)", botName, body)
@@ -444,9 +386,6 @@ func TestPlaybackBotGameOpensForTheHumanSeat(t *testing.T) {
 	}
 }
 
-// TestBotAccountResolution pins the seat resolver: every config tier
-// resolves to a distinct reserved row, an unknown tier value fails loudly,
-// and a real account that squatted a seat's name never resolves as the seat.
 func TestBotAccountResolution(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
@@ -465,9 +404,6 @@ func TestBotAccountResolution(t *testing.T) {
 		t.Errorf("resolve unknown tier = %v, want ErrUnknownTier", err)
 	}
 
-	// A pre-v4 squatter on the seat's name keeps the seed's insert out, so
-	// the boot refuses to start, naming the tier, instead of failing every
-	// bot room creation per request.
 	path := dbPath(t)
 	squatted := mustOpen(t, path)
 	if _, err := squatted.db.Exec(`DELETE FROM schema_version WHERE version = 4`); err != nil {
@@ -491,4 +427,63 @@ func TestBotAccountResolution(t *testing.T) {
 	if _, err := Open(path); err == nil || !strings.Contains(err.Error(), config.BotAccountName(0)) {
 		t.Errorf("open over a squatted seat name = %v, want the boot failure naming %q", err, config.BotAccountName(0))
 	}
+}
+
+func TestBotBoardsListOnlyLiveRooms(t *testing.T) {
+	s := newStack(t)
+	rows := []struct {
+		name string
+		mut  func(*Room)
+	}{
+		{"closed room", func(r *Room) { r.over = true }},
+		{"completed series", func(r *Room) { r.finished = true }},
+		{"host seat human", func(r *Room) { r.host = seat{userID: 1} }},
+		{"guest seat human", func(r *Room) { r.guest = seat{userID: 2} }},
+		{"series not formed", func(r *Room) { r.series = nil }},
+	}
+	for i, row := range rows {
+		live := roomcoreLiveRoom(t, s.rm)
+		roomcorePublish(s.rm, live)
+		dead := roomcoreLiveRoom(t, s.rm)
+		row.mut(dead)
+		roomcorePublish(s.rm, dead)
+		boards := s.rm.BotBoards()
+		if len(boards) != i+1 {
+			t.Fatalf("%s: bot boards = %d, want only the %d live ones", row.name, len(boards), i+1)
+		}
+		for _, b := range boards {
+			if b.RoomID == dead.id {
+				t.Errorf("%s: bot boards list the dead room %s", row.name, dead.id)
+			}
+		}
+	}
+}
+
+func TestBotBoardsOrderCreationOverID(t *testing.T) {
+	s := newStack(t)
+	base := time.Unix(1_700_000_000, 0)
+	older := roomcoreLiveRoom(t, s.rm)
+	older.id = "ffffffffffffffffffffffffffffffff"
+	older.createdAt = base
+	newer := roomcoreLiveRoom(t, s.rm)
+	newer.id = "00000000000000000000000000000000"
+	newer.createdAt = base.Add(time.Second)
+	roomcorePublish(s.rm, older)
+	roomcorePublish(s.rm, newer)
+	for range 32 {
+		boards := s.rm.BotBoards()
+		if len(boards) != 2 {
+			t.Fatalf("bot boards = %d, want 2", len(boards))
+		}
+		if boards[0].RoomID != older.id || boards[1].RoomID != newer.id {
+			t.Fatalf("bot boards = [%s %s], want creation order [%s %s]",
+				boards[0].RoomID, boards[1].RoomID, older.id, newer.id)
+		}
+	}
+}
+
+func roomcorePublish(rm *RoomManager, r *Room) {
+	rm.mu.Lock()
+	rm.rooms[r.id] = r
+	rm.mu.Unlock()
 }

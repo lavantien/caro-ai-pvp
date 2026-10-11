@@ -6,11 +6,9 @@ import (
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// stack wires one RoomManager over a real temp-file store, a write queue the
-// cleanup drains via Close, and a shared hub, so every room test asserts
-// against the same persistence path production uses.
 type stack struct {
 	store *Store
 	wq    *WriteQueue
@@ -159,7 +157,6 @@ func TestRoomCreateBotSeating(t *testing.T) {
 		t.Errorf("join bot room = %v, want ErrRoomFull", err)
 	}
 
-	// The bot readies at construction: only the host handshake is pending.
 	r.mu.Lock()
 	series, guestReady, hostReady := r.series, r.series.GuestReady(), r.series.HostReady()
 	r.mu.Unlock()
@@ -170,8 +167,6 @@ func TestRoomCreateBotSeating(t *testing.T) {
 		t.Errorf("bot readiness = guest %t host %t, want guest ready and host pending", guestReady, hostReady)
 	}
 
-	// The pairing row persisted before the room went live, the bot seat on
-	// the reserved account.
 	sr, err := s.store.SeriesByID(r.SeriesID())
 	if err != nil {
 		t.Fatalf("series row: %v", err)
@@ -222,5 +217,86 @@ func TestRoomShutdownClosesAndClears(t *testing.T) {
 	if _, err := s.rm.Get(first.ID()); !errors.Is(err, ErrRoomNotFound) {
 		t.Errorf("get after shutdown = %v, want ErrRoomNotFound", err)
 	}
-	s.rm.Shutdown() // idempotent
+	s.rm.Shutdown()
+}
+
+func TestRoomCreateAcceptsOwnerIDOne(t *testing.T) {
+	s := newStack(t)
+	r, err := s.rm.Create(1, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create owner 1 = %v, want the positive-id boundary accepted", err)
+	}
+	if _, err := s.rm.Get(r.ID()); err != nil {
+		t.Errorf("get after boundary create = %v, want the room live", err)
+	}
+}
+
+func TestNewRoomIDEncodes32HexChars(t *testing.T) {
+	for range 8 {
+		id := newRoomID()
+		if len(id) != 32 {
+			t.Fatalf("room id %q len = %d, want 32 hex chars", id, len(id))
+		}
+		for i := range id {
+			c := id[i]
+			if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+				t.Fatalf("room id %q byte %d = %q, want lowercase hex", id, i, c)
+			}
+		}
+	}
+}
+
+func TestCreateBotVsBotSeatsSyntheticAccounts(t *testing.T) {
+	s := newStack(t)
+	release := scriptBotVsBotTiers(t, s, map[string][]string{
+		"easy":   {"D4", "H8", "D5", "D6", "D7", "D3"},
+		"medium": {"P16", "P12", "P8", "N16", "M4"},
+	})
+	defer release()
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create bot vs bot: %v", err)
+	}
+	info, ok := r.Info()
+	if !ok {
+		t.Fatal("info: want ok while the gated bots hold the game open")
+	}
+	if info.HostUserID != -3 || info.GuestUserID != -2 {
+		t.Errorf("synthetic seats = host %d guest %d, want the reserved -3 and -2", info.HostUserID, info.GuestUserID)
+	}
+}
+
+func TestLiveBotBoardGuardMatrix(t *testing.T) {
+	rows := []struct {
+		name string
+		mut  func(*Room)
+	}{
+		{"closed room", func(r *Room) { r.over = true }},
+		{"completed series", func(r *Room) { r.finished = true }},
+		{"host seat human", func(r *Room) { r.host = seat{userID: 1} }},
+		{"guest seat human", func(r *Room) { r.guest = seat{userID: 2} }},
+		{"series not formed", func(r *Room) { r.series = nil }},
+	}
+	for _, row := range rows {
+		r := roomcoreLiveRoom(t, nil)
+		row.mut(r)
+		if _, ok := r.liveBotBoard(); ok {
+			t.Errorf("%s: liveBotBoard = ok, want the guard to refuse the room", row.name)
+		}
+	}
+}
+
+func roomcoreLiveRoom(t *testing.T, rm *RoomManager) *Room {
+	t.Helper()
+	series, err := NewBotSeries(1, 2, 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("craft bot series: %v", err)
+	}
+	return &Room{
+		id: newRoomID(), manager: rm, createdAt: time.Now(),
+		host:   seat{userID: 1, bot: &config.Tiers[0]},
+		guest:  seat{userID: 2, bot: &config.Tiers[0]},
+		series: series, board: rules.NewBoard(),
+		wake: make(chan struct{}, 1), quit: make(chan struct{}),
+	}
 }
