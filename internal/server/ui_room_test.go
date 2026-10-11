@@ -820,10 +820,10 @@ func TestRoomPageViewerColorPinsRedSeat(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("status = %d, want 200 (body %s)", status, body)
 	}
-	if !strings.Contains(body, `data-my-color="red"`) {
+	if !strings.Contains(body, `id="board" data-my-color="red"`) {
 		t.Error("red participant's board misses data-my-color=red")
 	}
-	if strings.Contains(body, `data-my-color="blue"`) {
+	if strings.Contains(body, `id="board" data-my-color="blue"`) {
 		t.Error("red participant's board carries the inverted color")
 	}
 }

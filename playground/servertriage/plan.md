@@ -197,3 +197,13 @@ Abbreviations for the shared harnesses: fake-eng is a searcher stub injected thr
 Totals: 165 killing-test, 65 equivalence, 2 refactor-flag, of 232 server survivors.
 Files by survivor count: match.go 53, ui_tourney.go 49, ponder.go 34, room.go 24, ui_room.go 17, store.go 12, httpapi.go 12, stats.go 9, ui_shell.go 8, hub.go 5, auth.go 5, web.go 2, writeq.go 1, rating.go 1.
 Kill first: match.go:601:17 (> with >=, the budgetCap gate: budgetCap==0 is every human room's default and the mutant zeroes every bot budget), room.go:80:15 (published false with true: a failed create leaks the core booking and the machine answers ErrMachineBusy forever), match.go:642:10 (true with false: a drawn final bot game never retires the room, botLoop parks and the room leaks in the manager), hub.go:87:15 (true with false: Unsubscribe after eviction double-closes the channel and panics), httpapi.go:120:5 (negate condition: 500 responses leak the raw store error text to the wire).
+
+## gap wave
+
+Items the killing-test wave could not close, decided when the machine frees:
+- store.go 146:6: no public-seam input makes the checkpoint exec error under modernc (busy reports through the result row), so the negate mutant has no observable today. Needs a seam, a driver change, or an equivalence ruling. Pinned by TestCloseKeepsCheckpointErrorWhenPoolCloseSucceeds.
+- match.go 410:88: the plan's starve recipe is arithmetically unreachable, the VCF share caps its own burn below the grant. Residual window is a wall-clock VCT straddle, craft and measure in the machine window or reclassify.
+- match.go 505:13 + 505:15-0: no deterministic SearchStats discriminator between a 1-worker NewTiered and engine.New; killed on the construction seam instead, revisit if the seam changes.
+- httpapi.go 195:22: keepalive cadence wall-clock row stands, hoist the cadence into config beside PagePollMs to retire the window.
+- refactor: room.go 125:44 dead ponderOn initializer, ponder.go 288:17 dead tier==nil disjunct.
+- allowlist merge: sidecars under playground/servertriage fold into .mutate-allow with coordinates re-derived after any source shift above.

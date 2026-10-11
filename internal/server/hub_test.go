@@ -148,6 +148,9 @@ func TestHubUnsubscribeAfterEvictionIsNoOp(t *testing.T) {
 	if err := s.Err(); !errors.Is(err, ErrSlowConsumer) {
 		t.Fatalf("unsubscribe after eviction Err = %v, want ErrSlowConsumer, the voluntary path must not run", err)
 	}
+	for j := 0; j < config.HubSubscriberBuffer; j++ {
+		expectEvent(t, s.Events(), strconv.Itoa(j))
+	}
 	expectClosed(t, s.Events())
 	h.Close()
 }

@@ -747,17 +747,27 @@ func TestBotTurnDiscardsAnswerAfterCloseMidSearch(t *testing.T) {
 }
 
 type interleavedSearchBot struct {
-	room   *Room
-	first  rules.Move
-	second rules.Move
-	answer rules.Move
+	room     *Room
+	first    rules.Move
+	second   rules.Move
+	answer   rules.Move
+	injected bool
+	parked   chan struct{}
+	release  chan struct{}
 }
 
 func (b *interleavedSearchBot) Search(_ *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats, string) {
 	b.room.mu.Lock()
-	b.room.applyMoveLocked(rules.Blue, rules.Cell(b.first))
-	b.room.applyMoveLocked(rules.Red, rules.Cell(b.second))
+	if !b.injected {
+		b.injected = true
+		b.room.applyMoveLocked(rules.Blue, rules.Cell(b.first))
+		b.room.applyMoveLocked(rules.Red, rules.Cell(b.second))
+		b.room.mu.Unlock()
+		return b.answer, fakeStats(), ""
+	}
 	b.room.mu.Unlock()
+	close(b.parked)
+	<-b.release
 	return b.answer, fakeStats(), ""
 }
 func (b *interleavedSearchBot) StartPonder(*rules.Board) {}
@@ -771,12 +781,12 @@ func (b *interleavedSearchBot) Close() {}
 func TestBotTurnDiscardsStaleAnswerAfterInterleavedMoves(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
-	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher {
-		return &interleavedSearchBot{
-			room: r, first: rules.Move(mustCellT(t, "D5")), second: rules.Move(mustCellT(t, "P16")), answer: rules.Move(mustCellT(t, "D6")),
-		}
+	bot2 := &interleavedSearchBot{
+		room: r, first: rules.Move(mustCellT(t, "D5")), second: rules.Move(mustCellT(t, "P16")), answer: rules.Move(mustCellT(t, "D6")),
+		parked: make(chan struct{}), release: make(chan struct{}),
 	}
+	r.mu.Lock()
+	r.makeSearcher = func(config.Tier) searcher { return bot2 }
 	r.mu.Unlock()
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
@@ -789,13 +799,21 @@ func TestBotTurnDiscardsStaleAnswerAfterInterleavedMoves(t *testing.T) {
 		defer r.mu.Unlock()
 		return r.board.MoveCount == 3
 	})
-	time.Sleep(100 * time.Millisecond)
+	waitFor(t, func() bool {
+		select {
+		case <-bot2.parked:
+			return true
+		default:
+			return false
+		}
+	})
 	r.mu.Lock()
 	stones, last := r.board.MoveCount, r.moves[len(r.moves)-1]
 	r.mu.Unlock()
 	if stones != 3 || last != rules.Move(mustCellT(t, "P16")) {
 		t.Errorf("stones %d last %s after the interleaved writer, want the stale answer discarded", stones, cellName(rules.Cell(last)))
 	}
+	close(bot2.release)
 	if humanTurn(r, alice.ID) {
 		t.Error("human holds the turn after the interleaved writer, want the bot's unfinished turn preserved")
 	}
@@ -836,8 +854,8 @@ func TestBotIllegalAnswerOnTheLastCellFillsTheBoard(t *testing.T) {
 		t.Errorf("drawn game = %d moves, want the full %d-move fill through the single remaining cell", len(drawn), config.BoardCells)
 	}
 	instances := bots()
-	if len(instances) != 1 {
-		t.Fatalf("engine instances = %d, want one for the single drawn game", len(instances))
+	if len(instances) != 2 {
+		t.Fatalf("engine instances = %d, want a fresh engine for game 2 after the drawn opener", len(instances))
 	}
 	if got := instances[0].searchCount(); got != len(bot) {
 		t.Errorf("bot searches = %d, want %d answers with the last answered through the fallback", got, len(bot))

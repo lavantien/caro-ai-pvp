@@ -59,11 +59,15 @@ func TestPonderLaneStopSurvivesEngineStopPanic(t *testing.T) {
 
 func TestPonderLaneAbortReleasesQueuedWaiters(t *testing.T) {
 	lane := newPonderLane()
-	exited := make(chan struct{})
 	bot := &panicStartBot{}
 	lane.start(bot, rules.Red, rules.NewBoard(), 5, 0)
 	stopDone := make(chan ponderResult, 1)
 	go func() { stopDone <- lane.stop(rules.Red) }()
+	waitFor(t, func() bool {
+		lane.mu.Lock()
+		defer lane.mu.Unlock()
+		return len(lane.queue) == 2
+	})
 	closeDone := make(chan struct{})
 	go func() {
 		lane.close()
@@ -74,6 +78,7 @@ func TestPonderLaneAbortReleasesQueuedWaiters(t *testing.T) {
 		defer lane.mu.Unlock()
 		return len(lane.queue) == 3
 	})
+	exited := make(chan struct{})
 	go func() {
 		defer close(exited)
 		lane.run()
