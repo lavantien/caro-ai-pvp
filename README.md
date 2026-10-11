@@ -34,8 +34,8 @@ Engine tiers are resource-only shapes of one search. This table is the demand sp
 | easy | 1 | no | no | no | no | no |
 | medium | 2 | 32 MiB | yes | no | no | yes (1 thr) |
 | hard | 4 | 128 MiB | yes | yes | no | yes (2 thr) |
-| master | 6 | 768 MiB | yes | yes | yes (10 plies) | yes (4 thr) |
-| grandmaster | 8 | 2 GiB | yes | yes | yes (20 plies) | yes (8 thr) |
+| master | 6 | 768 MiB | yes | yes | yes (8 plies) | yes (4 thr) |
+| grandmaster | 8 | 2 GiB | yes | yes | yes (16 plies) | yes (8 thr) |
 
 A series log opens with its pairing bookends and one M-line per bot move, closes each game with its verdict and the series with its tally. Real lines from a 10+5 hard-tier series, with the `[BOOK]` line illustrative until v0.24 ships it and the `[PONDER]` line an illustrative render of the adoption surface now live on master:
 
@@ -201,7 +201,7 @@ The rebuild closed at v0.20 with the final issueless MVP. Landed since: v0.21 wi
 
 v0.21 (10+5 time control) and v0.22 (TT round skipped by preregistered decision) are closed. v0.23 (master tier and admission basics) closed with its strength gate BLOCKED, the tier untagged pending the re-derivation round. The tier table is the demand spec set 2026-10-10, superseding the 2026-10-08 sizes: the five-tier shape, the per-tier ponder widths, and the book ply bounds landed in tree behind their gates, the smoke-gate ladder re-gate for the sizes and the ponder arena pair, both serialized behind the re-gate run. Every tier change rides the inversion research law the v0.20 program established: capability perturbation in the arena, self-play noise floors, and a ladder re-gate before any strength-bearing constant ships.
 
-- v0.24 opening book (master and grandmaster): a committed hybrid-law book over the first 20 plies, entries backed by solver proofs or deep self-play agreement over a visit floor, built offline in playground and never hand-curated; grandmaster probes it to 20 plies and master to 10, replies land instantly tagged [BOOK], and the 40-of-40 red-first 1+0 floor is the case for it: at fast clocks the opening decides the game.
+- v0.24 opening book (master and grandmaster): a committed hybrid-law book over the first 16 plies, entries backed by solver proofs or deep self-play agreement over a visit floor, built offline in playground and never hand-curated; grandmaster probes it to 16 plies and master to 8, replies land instantly tagged [BOOK], and the 40-of-40 red-first 1+0 floor is the case for it: at fast clocks the opening decides the game.
 - v0.25 pondering: the pondering tiers (medium and up) search the predicted continuation on the opponent's clock at each tier's ponder width and adopt the tree only through the four-clause gated law (depth or time adequacy, best-move stability over recent iterations, no score drop beyond margin, no last-iteration change; solver proofs exempt), re-searching from scratch on a miss with the shared table keeping misses warm; adopted answers land tagged [PONDER]. Ponder budgets are machine time under an external stop, never the seat's own clock.
 - v0.26 admission control: seat-aware reservation of threads and table bytes across rooms and ponder lanes under the machine-wide budget.
 - v0.27 ui overhaul: the design system pass, PWA install shell, lobby and spectate browsing, player profiles, and the screenshot recapture of every surface against finished behavior.

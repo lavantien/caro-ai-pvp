@@ -148,8 +148,8 @@ func TestTiersMatchSpec(t *testing.T) {
 		{Tier{Name: "easy", Cores: 1, TTBytes: 0}, &TierEasy},
 		{Tier{Name: "medium", Cores: 2, TTBytes: 32 << 20, VCF: true, PonderThreads: 1}, &TierMedium},
 		{Tier{Name: "hard", Cores: 4, TTBytes: 128 << 20, VCF: true, VCT: true, PonderThreads: 2}, &TierHard},
-		{Tier{Name: "master", Cores: 6, TTBytes: 768 << 20, VCF: true, VCT: true, BookMaxPly: 10, PonderThreads: 4}, &TierMaster},
-		{Tier{Name: "grandmaster", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true, BookMaxPly: 20, PonderThreads: 8}, &TierGrandmaster},
+		{Tier{Name: "master", Cores: 6, TTBytes: 768 << 20, VCF: true, VCT: true, BookMaxPly: 8, PonderThreads: 4}, &TierMaster},
+		{Tier{Name: "grandmaster", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true, BookMaxPly: 16, PonderThreads: 8}, &TierGrandmaster},
 	}
 	for _, c := range cases {
 		if *c.tiersPtr != c.want {
@@ -160,7 +160,7 @@ func TestTiersMatchSpec(t *testing.T) {
 		t.Errorf("Tiers = %+v, want [easy medium hard master grandmaster]", Tiers)
 	}
 	wantPonder := map[string]int{"easy": 0, "medium": 1, "hard": 2, "master": 4, "grandmaster": 8}
-	wantBook := map[string]int{"easy": 0, "medium": 0, "hard": 0, "master": 10, "grandmaster": 20}
+	wantBook := map[string]int{"easy": 0, "medium": 0, "hard": 0, "master": 8, "grandmaster": 16}
 	for i, tier := range Tiers {
 		if tier.Cores > MaxCoresPerInstance {
 			t.Errorf("%s cores %d exceeds MaxCoresPerInstance %d", tier.Name, tier.Cores, MaxCoresPerInstance)
