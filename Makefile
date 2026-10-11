@@ -22,9 +22,12 @@ MUTATE_TMP ?= $(CURDIR)/.scratch/tmp
 # master pairing seats two 2 GiB slices), and with default GOGC=100 the
 # collector's heap goal doubles that live set, which breached the machine's
 # RAM/4 guard cap mid-run. GOMEMLIMIT caps the goal instead: the GC works
-# harder near the bound and the process stays under the guard cap. Soft by
-# design, with the runtime's own death-spiral protection.
-TOURNEY_MEMLIMIT ?= 6GiB
+# harder near the bound and the process stays near it. Soft by design, with
+# the runtime's own death-spiral protection. Raised to the full guard
+# budget by explicit order 2026-10-12: the engine's envelope extends to
+# the whole cap, guard ticks should read engine-only totals against the
+# widened bound, not kill the run for pressing it.
+TOURNEY_MEMLIMIT ?= 8GiB
 
 MERMAID_CLI_VERSION := 12.0.0
 PUPPETEER_VERSION := 25.12.0
@@ -264,10 +267,14 @@ logstats:
 # crossarm decomposes per-seat records across tournament arms, the
 # increment-axis evidence set: integrity ledger, standings, per-seat
 # records by opponent tier and color, pairwise series and game matrices,
-# per-seat and per-phase telemetry, focused-seat loss tables carrying both
-# sides' final evals, and a cross-arm synthesis over same-tier mutuals and
-# adjacent-tier aggregates. Nested module like logstats, e.g.
+# per-seat and ponder-adoption telemetry, per-phase telemetry, focused-seat
+# loss tables carrying both sides' final evals, and a cross-arm synthesis
+# over same-tier mutuals and adjacent-tier aggregates. Nested module like
+# logstats, e.g.
 # make crossarm ARGS="--arm 2+1=logs/tourny/<run> --arm 1+0=logs/tourny/<run> --focus hard-1 --out report.md".
+# Gate mode renders the preregistered five-tier re-gate reads (rule 0
+# telemetry, floor bands, family z tests) over pooled run dirs, e.g.
+# make crossarm ARGS="--gate-arm rep1=logs/tourny/<run> --gate-floor hard=logs/tourny/<f1>,logs/tourny/<f2> --out gate.md".
 .PHONY: crossarm
 crossarm:
 	CGO_ENABLED=1 go -C playground/crossarm build -o ../../$(CROSSARM_BIN) .
