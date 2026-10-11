@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -12,13 +13,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// Transport failure arms that need a broken analytics surface or a broken
-// client connection, both injected from inside the package.
-
-// TestHTTPSummaryAndHistoryInternalWhenGamesTableBroken drops the games table
-// with a live session held: authentication still passes (users and sessions
-// are intact), but the summary and history reads fail and both routes answer
-// the internal envelope alone, with no partial profile or listing body.
 func TestHTTPSummaryAndHistoryInternalWhenGamesTableBroken(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
@@ -44,9 +38,46 @@ func TestHTTPSummaryAndHistoryInternalWhenGamesTableBroken(t *testing.T) {
 	}
 }
 
-// slowSSEWriter is a ResponseWriter whose writes stall for a fixed delay:
-// the connection of a reader that fell behind, the state whose hub backlog
-// the retirement drain exists for.
+func TestWriteDomainErrorMasksInternalAndPassesDomainText(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	c := srv.Client()
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	carol := seedUser(t, s.store, "carol")
+	ta, tb, tcTok := mintSession(t, s.store, alice), mintSession(t, s.store, bob), mintSession(t, s.store, carol)
+
+	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
+		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
+	var room roomSummary
+	wantStatus(t, got, http.StatusCreated, &room)
+	base := srv.URL + "/api/rooms/" + room.ID
+	wantStatus(t, doJSON(t, c, http.MethodPost, base+"/join", tb, nil), http.StatusNoContent, nil)
+
+	got = doJSON(t, c, http.MethodPost, base+"/join", tcTok, nil)
+	wantAPIError(t, got, http.StatusConflict, "room_full")
+	var e apiError
+	if err := json.Unmarshal(got.body, &e); err != nil {
+		t.Fatalf("decode room_full body %q: %v", got.body, err)
+	}
+	if e.Message != ErrRoomFull.Error() {
+		t.Errorf("room_full message = %q, want the sentinel text %q", e.Message, ErrRoomFull.Error())
+	}
+
+	if _, err := s.store.db.Exec(`DROP TABLE games`); err != nil {
+		t.Fatalf("drop games: %v", err)
+	}
+	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/me", ta, nil)
+	wantAPIError(t, got, http.StatusInternalServerError, "internal")
+	if err := json.Unmarshal(got.body, &e); err != nil {
+		t.Fatalf("decode internal body %q: %v", got.body, err)
+	}
+	if e.Message != "internal error" {
+		t.Errorf("internal message = %q, want the masked %q", e.Message, "internal error")
+	}
+}
+
 type slowSSEWriter struct {
 	rec   *httptest.ResponseRecorder
 	delay time.Duration
@@ -63,8 +94,6 @@ func (w *slowSSEWriter) WriteString(str string) (int, error) {
 	return w.rec.WriteString(str)
 }
 
-// deadSSEWriter is a connection the client already abandoned: every write
-// fails.
 type deadSSEWriter struct {
 	rec *httptest.ResponseRecorder
 }
@@ -76,8 +105,6 @@ func (w *deadSSEWriter) WriteHeader(code int)            { w.rec.WriteHeader(cod
 func (w *deadSSEWriter) Write([]byte) (int, error)       { return 0, errDeadClient }
 func (w *deadSSEWriter) WriteString(string) (int, error) { return 0, errDeadClient }
 
-// runSSEAgainstWriter serves one room's event stream with a substituted
-// ResponseWriter and reports when the handler returned.
 func runSSEAgainstWriter(api *apiServer, roomID string, w http.ResponseWriter) <-chan struct{} {
 	req := httptest.NewRequest(http.MethodGet, "/api/rooms/"+roomID+"/events", nil)
 	done := make(chan struct{})
@@ -88,10 +115,6 @@ func runSSEAgainstWriter(api *apiServer, roomID string, w http.ResponseWriter) <
 	return done
 }
 
-// TestSSEStalledReaderGetsBufferedEventsThenEnds pins the retirement drain:
-// with the reader stalled, the room's last events pile up in the hub buffer;
-// once the room retires without a terminal frame, the stream still delivers
-// every buffered event and then ends instead of keepalive-ing forever.
 func TestSSEStalledReaderGetsBufferedEventsThenEnds(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
@@ -103,7 +126,6 @@ func TestSSEStalledReaderGetsBufferedEventsThenEnds(t *testing.T) {
 	rec := httptest.NewRecorder()
 	done := runSSEAgainstWriter(api, r.ID(), &slowSSEWriter{rec: rec, delay: 4 * time.Millisecond})
 
-	// Wait until the stream is registered on the hub, then bury it.
 	var subscribed bool
 	deadline := time.Now().Add(5 * time.Second)
 	for !subscribed && time.Now().Before(deadline) {
@@ -122,8 +144,6 @@ func TestSSEStalledReaderGetsBufferedEventsThenEnds(t *testing.T) {
 	for i := range events {
 		s.hub.Publish(r.ID(), Event{Kind: EventKindMove, Payload: "D" + strconv.Itoa(i+1)})
 	}
-	// The terminal series frame rides at the tail of the backlog: whichever
-	// loop delivers it, the stream ends on it.
 	s.hub.Publish(r.ID(), Event{Kind: EventKindSeries, Payload: SideNone.String()})
 	r.Close()
 
@@ -144,9 +164,6 @@ func TestSSEStalledReaderGetsBufferedEventsThenEnds(t *testing.T) {
 	}
 }
 
-// TestSSEKeepaliveWriteErrorEndsStream pins the dead-connection arm: a client
-// that stopped reading makes the keepalive write fail, and the stream ends
-// on that error instead of ticking forever against a gone reader.
 func TestSSEKeepaliveWriteErrorEndsStream(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")

@@ -6,13 +6,10 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// Failure paths of the store's completion unit and its statement helpers:
-// every arm asserts the typed error and the all-or-nothing state left behind,
-// not just that something failed.
-
-// completionFootprint counts what a completion unit left on disk.
 func completionFootprint(t *testing.T, s *Store, seriesID int64) (games, ratings int) {
 	t.Helper()
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM games WHERE series_id = ?`, seriesID).Scan(&games); err != nil {
@@ -24,9 +21,6 @@ func completionFootprint(t *testing.T, s *Store, seriesID int64) (games, ratings
 	return games, ratings
 }
 
-// TestApplyCompletionRejectsNullMovesAtomically feeds the unit a game whose
-// moves blob is NULL (a shape this server never writes, the NOT NULL column
-// refuses it): the insert fails, nothing of the unit lands.
 func TestApplyCompletionRejectsNullMovesAtomically(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
@@ -46,10 +40,6 @@ func TestApplyCompletionRejectsNullMovesAtomically(t *testing.T) {
 	}
 }
 
-// TestApplyCompletionFinishOfMissingSeriesRollsBackTheUnit pins the finish
-// statement's slice of the atomicity law: a game that would persist fine is
-// still rolled back when the series finish targets a series that does not
-// exist.
 func TestApplyCompletionFinishOfMissingSeriesRollsBackTheUnit(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
@@ -93,9 +83,6 @@ func TestApplyRatingPairRejectsUnknownOutcome(t *testing.T) {
 	}
 }
 
-// dyingReadsRunner reads the first query off the live database and every later
-// one off a pool that already closed, the exact mid-unit death a broken
-// connection produces between two statements.
 type dyingReadsRunner struct {
 	live, dead *sql.DB
 	reads      int
@@ -113,17 +100,12 @@ func (d *dyingReadsRunner) QueryRowContext(ctx context.Context, q string, args .
 	return d.dead.QueryRowContext(ctx, q, args...)
 }
 
-// TestApplyRatingPairReadFailureAbortsBeforeWrites covers both read legs of
-// the pricing: a dead pool fails the red read, and a pool dying between the
-// two reads fails the blue read; either way no rating event lands, so the
-// zero-sum pair can never tear.
 func TestApplyRatingPairReadFailureAbortsBeforeWrites(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
 	alice := seedUser(t, s, "alice")
 	bob := seedUser(t, s, "bob")
 
-	// Red read dead: the whole pool is gone up front.
 	dead := mustOpen(t, dbPath(t))
 	if err := dead.Close(); err != nil {
 		t.Fatalf("close dead pool: %v", err)
@@ -133,7 +115,6 @@ func TestApplyRatingPairReadFailureAbortsBeforeWrites(t *testing.T) {
 		t.Fatalf("pricing over a dead pool = %v, want the current-rating read failure", err)
 	}
 
-	// Blue read dead: the first read answers, the second dies mid-unit.
 	dying := &dyingReadsRunner{live: s.db, dead: dead.db}
 	err = applyRatingPair(context.Background(), dying, 2, alice.ID, bob.ID, OutcomeRed)
 	if err == nil || !strings.Contains(err.Error(), "current rating") {
@@ -149,7 +130,6 @@ func TestApplyRatingPairReadFailureAbortsBeforeWrites(t *testing.T) {
 	}
 }
 
-// brokenCountResult is a driver result that cannot report its row count.
 type brokenCountResult struct{}
 
 func (brokenCountResult) LastInsertId() (int64, error) { return 0, nil }
@@ -157,8 +137,6 @@ func (brokenCountResult) RowsAffected() (int64, error) {
 	return 0, errors.New("driver lost the count")
 }
 
-// countlessRunner executes fine but reports a broken RowsAffected, the seam
-// updateSeriesRow owns for driver-level accounting failures.
 type countlessRunner struct{}
 
 func (countlessRunner) ExecContext(context.Context, string, ...any) (sql.Result, error) {
@@ -175,9 +153,6 @@ func TestUpdateSeriesRowSurfacesRowsAffectedFailure(t *testing.T) {
 	}
 }
 
-// TestRatingHistoryScanFailureOnPoisonedRow injects the one row shape this
-// server never writes but a foreign writer could: text in an INTEGER column.
-// The listing fails loudly instead of returning a mangled history.
 func TestRatingHistoryScanFailureOnPoisonedRow(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
@@ -207,9 +182,6 @@ func TestRatingHistoryScanFailureOnPoisonedRow(t *testing.T) {
 	}
 }
 
-// TestMatchHistoryScanFailureOnPoisonedRow does the same for the history
-// tab's own scan: a game row with an unparsable timestamp fails the listing
-// instead of surfacing garbage.
 func TestMatchHistoryScanFailureOnPoisonedRow(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
@@ -233,5 +205,54 @@ func TestMatchHistoryScanFailureOnPoisonedRow(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "match history") {
 		t.Errorf("error = %v, want the match-history wrap", err)
+	}
+}
+
+func TestCloseSurfacesBusyCheckpointUnderHeldReader(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	seedUser(t, s, "alice")
+
+	ctx := context.Background()
+	held, err := s.db.Conn(ctx)
+	if err != nil {
+		t.Fatalf("pin reader conn: %v", err)
+	}
+	tx, err := held.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin held read: %v", err)
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM users`)
+	if err != nil {
+		t.Fatalf("held read: %v", err)
+	}
+	_ = rows.Close()
+
+	err = s.Close()
+	_ = tx.Rollback()
+	_ = held.Close()
+	if err == nil {
+		t.Fatal("close under a held read transaction = nil, want the surfaced wal checkpoint failure")
+	}
+}
+
+func TestCreateReleasesCoresWhenSeriesWriteFails(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	if _, err := s.store.db.Exec(`DROP TABLE series`); err != nil {
+		t.Fatalf("drop series: %v", err)
+	}
+
+	vsBot := config.TierGrandmaster
+	for range 3 {
+		_, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &vsBot)
+		if err == nil {
+			t.Fatal("create over the broken series write succeeded, want the store failure")
+		}
+		if errors.Is(err, ErrMachineBusy) {
+			t.Fatalf("create = %v, want the store failure again, not the wedged core budget", err)
+		}
+		if got := s.rm.LiveCoreBookings(); got != 0 {
+			t.Fatalf("core bookings after the failed create = %d, want 0", got)
+		}
 	}
 }

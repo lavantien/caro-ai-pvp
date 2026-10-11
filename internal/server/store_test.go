@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -33,7 +34,6 @@ func TestOpenAppliesConfiguredPragmas(t *testing.T) {
 	if err := s.db.QueryRow("PRAGMA synchronous").Scan(&sync); err != nil {
 		t.Fatalf("synchronous: %v", err)
 	}
-	// The synchronous pragma reports on SQLite's 0..3 scale, NORMAL is 1.
 	if sync != 1 {
 		t.Errorf("synchronous = %d, want 1 for %q", sync, config.SQLiteSyncNormal)
 	}
@@ -43,6 +43,18 @@ func TestOpenAppliesConfiguredPragmas(t *testing.T) {
 	}
 	if busy != config.SQLiteBusyTimeoutMs {
 		t.Errorf("busy_timeout = %d, want %d", busy, config.SQLiteBusyTimeoutMs)
+	}
+}
+
+func TestOpenCreatesMissingParentDirectory(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nested", "db", "caro.sqlite")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatalf("open in a missing directory: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("database file after open: %v", err)
 	}
 }
 
@@ -63,7 +75,6 @@ func TestForeignKeysHoldOnEveryPooledConn(t *testing.T) {
 	if err := held.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&heldFK); err != nil {
 		t.Fatalf("pinned foreign_keys: %v", err)
 	}
-	// The pool must open a second connection here, the first stays pinned.
 	var pooledFK int
 	if err := s.db.QueryRow("PRAGMA foreign_keys").Scan(&pooledFK); err != nil {
 		t.Fatalf("second conn foreign_keys: %v", err)
@@ -81,16 +92,11 @@ func TestCloseIsIdempotentPerStore(t *testing.T) {
 	if err := s.Close(); err != nil {
 		t.Fatalf("close: %v", err)
 	}
-	// Close drains the pool, a second call must not panic or error on a nil
-	// busy loop: sql.DB.Close is documented safe to call repeatedly.
 	if err := s.Close(); err != nil {
 		t.Errorf("second close: %v", err)
 	}
 }
 
-// TestWithinTxCommitsAndRollsBack pins the cross-package persistence
-// surface: a returning fn commits and its writes are visible, an erroring fn
-// leaves nothing behind.
 func TestWithinTxCommitsAndRollsBack(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
