@@ -240,7 +240,7 @@ func TestForfeitSweepNumbersGamesFromZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read game indexes: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var got []int
 	for rows.Next() {
 		var idx int
