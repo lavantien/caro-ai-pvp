@@ -462,6 +462,9 @@ func TestBotRoomMediumBeatsRandomMover(t *testing.T) {
 			t.Fatalf("clock below zero: blue %s red %s", blueRem, redRem)
 		}
 		if err := r.PlayMove(alice.ID, cell); err != nil {
+			if errors.Is(err, ErrRoomClosed) {
+				break
+			}
 			t.Fatalf("random human move: %v", err)
 		}
 	}
