@@ -152,10 +152,11 @@ func (l *ponderLane) close() {
 	}
 	l.closed = true
 	l.closeDone = make(chan struct{})
-	l.queue = append(l.queue, ponderCmd{kind: ponderClose, done: l.closeDone})
+	done := l.closeDone
+	l.queue = append(l.queue, ponderCmd{kind: ponderClose, done: done})
 	l.cond.Signal()
 	l.mu.Unlock()
-	<-l.closeDone
+	<-done
 }
 
 func (l *ponderLane) run() {
