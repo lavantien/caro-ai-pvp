@@ -1,12 +1,5 @@
 package server
 
-// The M6b shell UI tests: the login/create form round trip against the
-// real store, the guest home, the create-room form over every config hub
-// combination, the match history lines with the preview boundary, and
-// template hygiene against hostile usernames. Real argon2 derivations only
-// happen where a test registers or verifies through the form; every other
-// session is minted straight into the store.
-
 import (
 	"context"
 	"errors"
@@ -23,9 +16,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// noRedirectClient returns a client over the test server's transport that
-// hands back the redirect response itself, so the tests pin Location and
-// status instead of following the bounce.
 func noRedirectClient(srv *httptest.Server) *http.Client {
 	return &http.Client{
 		Transport: srv.Client().Transport,
@@ -35,9 +25,6 @@ func noRedirectClient(srv *httptest.Server) *http.Client {
 	}
 }
 
-// doShell runs one shell exchange: an optional session cookie and an
-// optional urlencoded form body, status, headers, and the drained body
-// back. A nil form is a plain GET.
 func doShell(t *testing.T, c *http.Client, method, rawurl, token string, form url.Values) (int, http.Header, string) {
 	t.Helper()
 	var rd io.Reader
@@ -66,10 +53,6 @@ func doShell(t *testing.T, c *http.Client, method, rawurl, token string, form ur
 	return resp.StatusCode, resp.Header, string(body)
 }
 
-// doRawPost posts one literal body under the content type, for payloads
-// no url.Values can produce (a body that does not decode as a form). The
-// optional token rides the session cookie so a guarded route still reaches
-// its body parse.
 func doRawPost(t *testing.T, c *http.Client, rawurl, token, contentType, body string) (int, string) {
 	t.Helper()
 	req, err := http.NewRequest(http.MethodPost, rawurl, strings.NewReader(body))
@@ -92,8 +75,6 @@ func doRawPost(t *testing.T, c *http.Client, rawurl, token, contentType, body st
 	return resp.StatusCode, string(b)
 }
 
-// shellCookieValue extracts the session cookie value from the Set-Cookie
-// headers; it fails the test when none is present.
 func shellCookieValue(t *testing.T, h http.Header) string {
 	t.Helper()
 	for _, c := range h.Values("Set-Cookie") {
@@ -110,8 +91,6 @@ func shellCookieValue(t *testing.T, h http.Header) string {
 	return ""
 }
 
-// shellRegister drives the login form once for a fresh account and returns
-// the session cookie value.
 func shellRegister(t *testing.T, c *http.Client, base, name, pass string) string {
 	t.Helper()
 	status, h, body := doShell(t, c, http.MethodPost, base+"/login", "", url.Values{
@@ -123,7 +102,6 @@ func shellRegister(t *testing.T, c *http.Client, base, name, pass string) string
 	return shellCookieValue(t, h)
 }
 
-// wantShellBody asserts every needle lands in the rendered body.
 func wantShellBody(t *testing.T, body string, wants ...string) {
 	t.Helper()
 	for _, want := range wants {
@@ -149,8 +127,6 @@ func TestShellLoginCreateRoundTripRendersRealStats(t *testing.T) {
 		t.Errorf("login redirect = %q, want /", loc)
 	}
 	token := shellCookieValue(t, h)
-	// Cookie semantics identical to /api/login: same name, path, lifetime,
-	// and hardening flags.
 	setCookie := h.Values("Set-Cookie")[0]
 	for _, want := range []string{
 		"Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=" + strconv.Itoa(int(sessionTTLSec)),
@@ -160,8 +136,6 @@ func TestShellLoginCreateRoundTripRendersRealStats(t *testing.T) {
 		}
 	}
 
-	// One real decisive game through the completion unit: the home line
-	// must show the store's own numbers, not placeholders.
 	alice, err := s.store.UserByUsername("alice")
 	if err != nil {
 		t.Fatalf("fetch alice: %v", err)
@@ -186,7 +160,6 @@ func TestShellLoginCreateRoundTripRendersRealStats(t *testing.T) {
 	if got := h.Get("Content-Type"); got != "text/html; charset=utf-8" {
 		t.Errorf("home Content-Type = %q, want text/html", got)
 	}
-	// The rating law prices a 30-0 upset at 0-0 as a flat +30.
 	wantShellBody(t, body,
 		">alice</span>", "rating 30", ">1W-0L-0D<", "level 0",
 		`href="/history"`, `action="/logout"`, `action="/rooms"`,
@@ -199,7 +172,6 @@ func TestShellLoginCreateRoundTripRendersRealStats(t *testing.T) {
 		t.Error("logged-in home carries the guest login prompt")
 	}
 
-	// Already logged in: the login form bounces home.
 	status, h, _ = doShell(t, c, http.MethodGet, srv.URL+"/login", token, nil)
 	if status != http.StatusSeeOther || h.Get("Location") != "/" {
 		t.Errorf("GET /login logged in = %d %q, want 303 /", status, h.Get("Location"))
@@ -245,19 +217,12 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}
-	// A host whose user row vanished (deleted account, store hiccup) must
-	// not break the listing: the seat falls back to the numeric id.
 	ghostRoom, err := s.rm.Create(777, 0, config.SeriesBO3, nil)
 	if err != nil {
 		t.Fatalf("create ghost room: %v", err)
 	}
-	// A same-tier tournament pairing on the grid must show its two instance
-	// identities, never one stamp on both sides. The gated bot keeps the
-	// room live for the listing without playing a move.
 	release := make(chan struct{})
 	s.rm.makeSearcher = func(config.Tier) searcher {
-		// One gate per seat: gatedBot closes its own seen channel inside
-		// Search, so two seats must never share one.
 		return &gatedBot{seen: make(chan struct{}), release: release}
 	}
 	t.Cleanup(func() { close(release) })
@@ -274,8 +239,6 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 		`id="rooms"`, `href="/rooms/`+room.ID()+`"`,
 		`href="/rooms/`+ghostRoom.ID()+`"`, "#777 vs open seat",
 		"easy-a-"+botRoom.ID()+" vs easy-b-"+botRoom.ID(),
-		// html/template renders "+" as &#43; in text nodes (UTF-7 era
-		// hardening), so the clock notation needles use the served bytes.
 		"2&#43;1", "bo5", "created", "alice vs open seat",
 		`class="guestnote"`, `href="/login"`,
 	)
@@ -285,13 +248,11 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 		}
 	}
 
-	// The history tab is session territory: guests bounce to the form.
 	status, h, _ := doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/history", "", nil)
 	if status != http.StatusSeeOther || h.Get("Location") != "/login" {
 		t.Errorf("guest /history = %d %q, want 303 /login", status, h.Get("Location"))
 	}
 
-	// The rooms collection URL is the home grid, never a 405 dead end.
 	status, h, _ = doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/rooms", "", nil)
 	if status != http.StatusSeeOther || h.Get("Location") != "/" {
 		t.Errorf("GET /rooms = %d %q, want 303 /", status, h.Get("Location"))
@@ -329,10 +290,6 @@ func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {
 			t.Fatalf("create bot %s: status = %d, want 303 (body %s)", config.Tiers[i].Name, status, body)
 		}
 		botIDs[i] = strings.TrimPrefix(h.Get("Location"), "/rooms/")
-		// The v0.23 core ledger holds at most one of these rooms live at a
-		// time (master alone books the whole machine), so each accepted room
-		// is asserted on the grid and closed before the next tier books:
-		// every tier's create stays covered without oversubscribing.
 		status, _, gridBody := doShell(t, c, http.MethodGet, srv.URL+"/", token, nil)
 		if status != http.StatusOK ||
 			!strings.Contains(gridBody, "alice vs "+config.Tiers[i].Name+"-"+botIDs[i]) {
@@ -350,13 +307,9 @@ func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("home: status = %d", status)
 	}
-	// The select options are rendered from the config hub, so the whole
-	// vocabulary must appear and nothing else ("+" arrives escaped, the
-	// UTF-7 hardening of html/template text nodes).
 	wantShellBody(t, body,
 		"1&#43;0", "2&#43;1", "3&#43;2", "bo3", "bo5", "bo7", "bo11",
 		"human, open seat", "AI easy", "AI medium", "AI hard")
-	// Only the human rooms stay live; the bot rooms closed inside the loop.
 	if got := strings.Count(body, `class="room"`); got != created {
 		t.Errorf("grid shows %d rooms, want %d", got, created)
 	}
@@ -368,7 +321,6 @@ func TestShellCreateRoomRejectsGarbageSettings(t *testing.T) {
 	defer srv.Close()
 	c := noRedirectClient(srv)
 
-	// A guest bounces to the form before any settings parse.
 	status, h, _ := doShell(t, c, http.MethodPost, srv.URL+"/rooms", "", url.Values{
 		"tc": {"0"}, "bo": {strconv.Itoa(config.SeriesBO3)},
 	})
@@ -393,8 +345,6 @@ func TestShellCreateRoomRejectsGarbageSettings(t *testing.T) {
 		}
 	}
 
-	// A body that cannot decode as a form fails the same way, and the login
-	// form answers its own undecodable body inline too.
 	status, body := doRawPost(t, c, srv.URL+"/rooms", token,
 		"application/x-www-form-urlencoded", "%zz=1")
 	if status != http.StatusBadRequest || !strings.Contains(body, "invalid room settings") {
@@ -415,10 +365,6 @@ func TestShellHistoryPreviewBoundaryAndPlaybackLink(t *testing.T) {
 	bob := seedUser(t, s.store, "bob")
 	sr := seedSeries(t, s.store, alice, bob)
 
-	// Short game: exactly HistoryPreviewTurns-2 full turns, all shown. Long
-	// game: past the boundary, first 2*HistoryPreviewTurns stones then the
-	// ellipsis. Stones are any decodable cells; the history read never
-	// judges legality.
 	shortMoves := seqMoves(2 * (config.HistoryPreviewTurns - 2))
 	longMoves := seqMoves(2 * (config.HistoryPreviewTurns + 12))
 	won := WonByOpenFour
@@ -438,8 +384,6 @@ func TestShellHistoryPreviewBoundaryAndPlaybackLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("append long game: %v", err)
 	}
-	// A row with an undecodable moves blob (this server never writes one)
-	// is skipped, not fatal: the good rows still render.
 	if _, err := s.store.AppendGame(Game{
 		SeriesID: sr.ID, IdxInSeries: 3, RedUser: alice.ID, BlueUser: bob.ID,
 		Outcome: OutcomeRed, Moves: []byte{0x01}, FullTurns: 0,
@@ -509,7 +453,6 @@ func TestShellRoomsPartialServesFragmentOnly(t *testing.T) {
 		}
 	}
 
-	// The empty grid is its own fragment shape.
 	empty := newStack(t)
 	emptySrv := httptest.NewServer(NewShellPages(empty.store, empty.rm, nil))
 	defer emptySrv.Close()
@@ -519,9 +462,6 @@ func TestShellRoomsPartialServesFragmentOnly(t *testing.T) {
 	}
 }
 
-// TestShellBaseAssetsAndStylesheet pins the shared base wiring: every page
-// loads both vendored scripts (the room pages ride hx-sse off the same
-// base) and the one shell-owned stylesheet, which the shell serves itself.
 func TestShellBaseAssetsAndStylesheet(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
@@ -566,18 +506,21 @@ func TestShellLogoutDropsSession(t *testing.T) {
 	if loc := h.Get("Location"); loc != "/" {
 		t.Errorf("logout redirect = %q, want /", loc)
 	}
-	if sc := h.Values("Set-Cookie"); len(sc) == 0 || !strings.Contains(sc[0], "Max-Age=0") {
-		t.Errorf("logout cookie = %v, want an expired session cookie", sc)
+	sc := h.Values("Set-Cookie")
+	if len(sc) == 0 {
+		t.Fatal("logout set no session cookie")
+	}
+	for _, want := range []string{"Path=/", "Max-Age=0", "HttpOnly"} {
+		if !strings.Contains(sc[0], want) {
+			t.Errorf("logout cookie misses %q: %s", want, sc[0])
+		}
 	}
 
-	// The token is gone server-side: the old cookie reads as a guest.
 	_, _, body = doShell(t, c, http.MethodGet, srv.URL+"/", token, nil)
 	if !strings.Contains(body, `class="guestnote"`) {
 		t.Error("home after logout still shows the logged-in view")
 	}
 
-	// A logout with no cookie at all still bounces home, natural expiry
-	// raced.
 	status, _, _ = doShell(t, c, http.MethodPost, srv.URL+"/logout", "", nil)
 	if status != http.StatusSeeOther {
 		t.Errorf("cookieless logout = %d, want 303", status)
@@ -616,8 +559,6 @@ func TestShellBrokenStoreAnswers500(t *testing.T) {
 	defer srv.Close()
 	c := noRedirectClient(srv)
 
-	// A present but unresolvable cookie must surface the store failure on
-	// every session-reading page, not a silent guest view.
 	token := strings.Repeat("0", 2*config.SessionTokenBytes)
 	for _, path := range []string{"/", "/login", "/history"} {
 		status, _, _ := doShell(t, c, http.MethodGet, srv.URL+path, token, nil)
@@ -625,8 +566,6 @@ func TestShellBrokenStoreAnswers500(t *testing.T) {
 			t.Errorf("GET %s over a broken store = %d, want 500", path, status)
 		}
 	}
-	// Login and logout surface the same failure: the generic retry message
-	// for the form, a plain 500 for the token drop.
 	status, _, body := doShell(t, c, http.MethodPost, srv.URL+"/login", "", url.Values{
 		"username": {"alice"}, "password": {"hunter2"},
 	})
@@ -639,9 +578,6 @@ func TestShellBrokenStoreAnswers500(t *testing.T) {
 	}
 }
 
-// TestHomeShowsLiveTournamentBanner pins the home banner: while a run is
-// driven the page and the polled fragment carry its link and progress for
-// every viewer, guest included; no live run, no banner.
 func TestHomeShowsLiveTournamentBanner(t *testing.T) {
 	s := newStack(t)
 	fake := &fakeTourney{ongoing: &TourneyBanner{RunID: 9, Done: 4, Total: 30}}
@@ -664,7 +600,6 @@ func TestHomeShowsLiveTournamentBanner(t *testing.T) {
 	}
 	wantShellBody(t, body, "a bot tournament is live", "series 4/30 settled")
 
-	// No live run renders no banner, on the page and in the fragment.
 	fake.ongoing = nil
 	_, _, body = doShell(t, c, http.MethodGet, srv.URL+"/", "", nil)
 	if strings.Contains(body, "tournament is live") {
@@ -675,8 +610,6 @@ func TestHomeShowsLiveTournamentBanner(t *testing.T) {
 		t.Errorf("idle fragment carries the banner (body %s)", body)
 	}
 
-	// A read failure behind the seam drops the banner without failing the
-	// page; the run page stays the run's own source of truth.
 	fake.ongoingErr = errors.New("boom")
 	status, _, body = doShell(t, c, http.MethodGet, srv.URL+"/", "", nil)
 	if status != http.StatusOK || strings.Contains(body, "tournament is live") {
@@ -685,7 +618,73 @@ func TestHomeShowsLiveTournamentBanner(t *testing.T) {
 	}
 }
 
-// seqMoves yields n stones at distinct cells 0..n-1.
+func TestShellHomeGridCardShortIDAndStateScore(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	defer srv.Close()
+	c := noRedirectClient(srv)
+	alice, bob, r := newPvPRoom(t, s)
+
+	status, _, body := doShell(t, c, http.MethodGet, srv.URL+"/", "", nil)
+	if status != http.StatusOK {
+		t.Fatalf("home: status = %d (body %s)", status, body)
+	}
+	wantShellBody(t, body,
+		`href="/rooms/`+r.ID()+`"`,
+		`<span class="mono">`+r.ID()[:8]+`</span>`,
+		`"chip">created<`,
+	)
+	if strings.Contains(body, `class="score"`) {
+		t.Error("a created room's card carries a series score line")
+	}
+
+	readyBoth(t, r, alice, bob)
+	status, _, body = doShell(t, c, http.MethodGet, srv.URL+"/", "", nil)
+	if status != http.StatusOK {
+		t.Fatalf("home after handshake: status = %d (body %s)", status, body)
+	}
+	if got := strings.Count(body, `class="score"`); got != 1 {
+		t.Errorf("in-game card shows %d score lines, want 1 (body %s)", got, body)
+	}
+	if !strings.Contains(body, `<span class="score">0-0</span>`) {
+		t.Error("in-game card misses the 0-0 series score")
+	}
+}
+
+func TestShellHistoryStampMinuteBoundary(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	defer srv.Close()
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	sr := seedSeries(t, s.store, alice, bob)
+	won := WonByOpenFour
+	g, err := s.store.AppendGame(Game{
+		SeriesID: sr.ID, IdxInSeries: 1, RedUser: alice.ID, BlueUser: bob.ID,
+		Outcome: OutcomeRed, Moves: EncodeMoves(nil, seqMoves(2)),
+		FullTurns: 1, WonBy: &won,
+	})
+	if err != nil {
+		t.Fatalf("append game: %v", err)
+	}
+	if _, err := s.store.db.Exec(`UPDATE games SET played_at = 600 WHERE id = ?`, g.ID); err != nil {
+		t.Fatalf("stamp the minute-aligned played_at: %v", err)
+	}
+
+	token := mintSession(t, s.store, alice)
+	status, _, body := doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/history", token, nil)
+	if status != http.StatusOK {
+		t.Fatalf("history: status = %d (body %s)", status, body)
+	}
+	want := time.Unix(600, 0).UTC().Format(historyTimeFormat)
+	if !strings.Contains(body, want) {
+		t.Errorf("history stamp misses the minute-aligned %q (body %s)", want, body)
+	}
+	if prev := time.Unix(540, 0).UTC().Format(historyTimeFormat); strings.Contains(body, prev) {
+		t.Errorf("history stamp renders the previous minute %q", prev)
+	}
+}
+
 func seqMoves(n int) []rules.Move {
 	moves := make([]rules.Move, n)
 	for i := range moves {

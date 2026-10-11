@@ -1,11 +1,5 @@
 package server
 
-// The M6b room page and playback board tests: a driven PvP room renders both
-// players' stones server-side over the full config-sized grid, guests and
-// strangers get the read-only page, the playback board replays a finished
-// game's blob with its won-by tag, and the tap-to-preview selection machine
-// and the template hygiene hold as plain functions and pins.
-
 import (
 	"errors"
 	"fmt"
@@ -15,13 +9,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// newPageServer mounts RoomPages alone on a fresh mux, the way the serve
-// command composes the page routes over the JSON API.
 func newPageServer(t *testing.T, s *stack) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
@@ -31,7 +24,6 @@ func newPageServer(t *testing.T, s *stack) *httptest.Server {
 	return srv
 }
 
-// getRoomPage fetches one page under an optional session token.
 func getRoomPage(t *testing.T, srv *httptest.Server, path, token string) (int, string) {
 	t.Helper()
 	req, err := http.NewRequest(http.MethodGet, srv.URL+path, nil)
@@ -53,8 +45,6 @@ func getRoomPage(t *testing.T, srv *httptest.Server, path, token string) (int, s
 	return resp.StatusCode, string(body)
 }
 
-// wantBoard asserts the full grid: exactly BoardSize x BoardSize cells, every
-// rules coordinate name present exactly once as a cell id.
 func wantBoard(t *testing.T, body string) {
 	t.Helper()
 	if got := strings.Count(body, `class="cell`); got != config.BoardCells {
@@ -71,8 +61,6 @@ func wantBoard(t *testing.T, body string) {
 	}
 }
 
-// wantStone asserts one landed stone of a color sits inside its cell; the
-// latest stone also carries the latest highlight class.
 func wantStone(t *testing.T, body, name, color string) {
 	t.Helper()
 	i := strings.Index(body, `id="c-`+name+`"`)
@@ -84,9 +72,6 @@ func wantStone(t *testing.T, body, name, color string) {
 	}
 }
 
-// wantSSEWiring pins the spike's proven wiring on the room page: the hx-sse
-// connection, the vendored scripts, and one literal hx-on handler per wire
-// kind, so the handlers and the event vocabulary cannot drift apart.
 func wantSSEWiring(t *testing.T, body, roomID string) {
 	t.Helper()
 	handlers := map[string]string{
@@ -127,7 +112,6 @@ func TestRoomPageRendersDrivenPvPGame(t *testing.T) {
 		t.Fatalf("status = %d, want 200 (body %s)", status, body)
 	}
 	wantBoard(t, body)
-	// Five stones landed: three red (even plies) and two blue.
 	wantStone(t, body, "D4", "red")
 	wantStone(t, body, "H8", "red")
 	wantStone(t, body, "D5", "red")
@@ -136,7 +120,6 @@ func TestRoomPageRendersDrivenPvPGame(t *testing.T) {
 	if got := strings.Count(body, `class="stone `); got != 5 {
 		t.Errorf("stone count = %d, want 5", got)
 	}
-	// Move history in play order, latest highlighted.
 	for _, name := range hostWinsRed[:4] {
 		if !strings.Contains(body, "<li>"+name+"</li>") {
 			t.Errorf("move history misses %s", name)
@@ -145,7 +128,6 @@ func TestRoomPageRendersDrivenPvPGame(t *testing.T) {
 	if !strings.Contains(body, `<li class="latest">D5</li>`) {
 		t.Error("move history misses the latest highlight on D5")
 	}
-	// The host holds red in game 1 and blue moves after five stones.
 	if !strings.Contains(body, `id="turn-line"`) || !strings.Contains(body, "blue to move") {
 		t.Error("turn line misses the blue-to-move state")
 	}
@@ -164,10 +146,6 @@ func TestRoomPageRendersDrivenPvPGame(t *testing.T) {
 	}
 }
 
-// TestRoomPagePlayableMaskForMoverOnly pins the board presentation during
-// the opening constraint: the mover's render dims exactly the cells the
-// rules refuse, every other view (the waiting opponent included) sees the
-// plain board, and the 409 backstop never becomes the offered UX.
 func TestRoomPagePlayableMaskForMoverOnly(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
@@ -180,8 +158,6 @@ func TestRoomPagePlayableMaskForMoverOnly(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("mover page status = %d, want 200 (body %s)", status, body)
 	}
-	// The Chebyshev-2 box around H8 holds 25 cells; the anchor itself is
-	// occupied, so 24 empties carry the off mark.
 	if got := strings.Count(body, `class="cell off"`); got != 24 {
 		t.Errorf("mover render dims %d cells, want the 24-cell opening ring", got)
 	}
@@ -192,7 +168,6 @@ func TestRoomPagePlayableMaskForMoverOnly(t *testing.T) {
 		t.Error("far cell K11 is not a plain live cell on the mover's board")
 	}
 
-	// The waiting opponent and the spectator board carry no mask.
 	for name, token := range map[string]string{
 		"opponent": tb,
 		"guest":    "",
@@ -204,11 +179,6 @@ func TestRoomPagePlayableMaskForMoverOnly(t *testing.T) {
 	}
 }
 
-// TestRoomPageDeadSessionCookieRendersGuest pins the page's session
-// taxonomy: Authenticate translates an unknown or expired token into
-// ErrBadCredentials, which the viewer must fold into the guest view. A
-// well-formed but dead cookie 500ing the page was a real defect (first
-// exercised by switching the serving database under a live browser).
 func TestRoomPageDeadSessionCookieRendersGuest(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
@@ -225,7 +195,6 @@ func TestRoomPageDeadSessionCookieRendersGuest(t *testing.T) {
 		t.Error("dead session misses the guest view")
 	}
 
-	// Playback holds the same taxonomy: no session, no page.
 	status, _ = getRoomPage(t, srv, "/rooms/history/1", "deadbeefdeadbeef")
 	if status != http.StatusNotFound {
 		t.Errorf("playback under a dead session = %d, want 404", status)
@@ -282,11 +251,8 @@ func TestRoomPagePreMatchReadyHandshake(t *testing.T) {
 	if strings.Contains(body, `class="board live"`) {
 		t.Error("pre-match board is interactive before the handshake completes")
 	}
-	// The full grid renders before any game: the spectator's first paint is
-	// the board, never a blank square.
 	wantBoard(t, body)
 
-	// One side readied: the per-player state splits, the game stays pending.
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("host ready: %v", err)
 	}
@@ -296,10 +262,6 @@ func TestRoomPagePreMatchReadyHandshake(t *testing.T) {
 	}
 }
 
-// TestRoomPageJoinButtonGating pins the seat-taking affordance: only a
-// logged-in stranger facing a created human room with an open guest seat
-// gets the join button. Anonymous visitors, participants, seated rooms,
-// bot rooms, and started rooms render none.
 func TestRoomPageJoinButtonGating(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
@@ -307,8 +269,6 @@ func TestRoomPageJoinButtonGating(t *testing.T) {
 	carol := seedUser(t, s.store, "carol")
 	tc := mintSession(t, s.store, carol)
 
-	// Open human room: the stranger sees the join button, the host and
-	// anonymous visitors do not.
 	open, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -331,7 +291,6 @@ func TestRoomPageJoinButtonGating(t *testing.T) {
 		t.Error("anonymous visitor sees a join button")
 	}
 
-	// Seat taken: the join button disappears for everyone.
 	bob := seedUser(t, s.store, "bob")
 	if err := s.rm.Join(open.ID(), bob.ID); err != nil {
 		t.Fatalf("join: %v", err)
@@ -340,7 +299,6 @@ func TestRoomPageJoinButtonGating(t *testing.T) {
 		t.Error("stranger sees a join button on a seated room")
 	}
 
-	// Bot room: the seat is never open to humans.
 	hard := config.Tiers[len(config.Tiers)-1]
 	bot, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &hard)
 	if err != nil {
@@ -359,7 +317,7 @@ func TestRoomPageBadOrRetiredRoomIs404(t *testing.T) {
 	for _, bad := range []string{
 		"/rooms/nope",
 		"/rooms/" + strings.Repeat("z", 2*roomIDBytes),
-		"/rooms/" + strings.Repeat("a", 2*roomIDBytes), // id shape, no such room
+		"/rooms/" + strings.Repeat("a", 2*roomIDBytes),
 	} {
 		status, body := getRoomPage(t, srv, bad, "")
 		if status != http.StatusNotFound {
@@ -367,7 +325,6 @@ func TestRoomPageBadOrRetiredRoomIs404(t *testing.T) {
 		}
 	}
 
-	// A finished series retires the room; the page must not render it.
 	alice, bob, r := newPvPRoom(t, s)
 	readyBoth(t, r, alice, bob)
 	playScript(t, r, alice.ID, bob.ID, hostWinsRed)
@@ -419,8 +376,6 @@ func TestPlaybackPageReplaysSeededFinishedGame(t *testing.T) {
 		t.Error("playback body misses its script")
 	}
 
-	// Both participants may replay their own games; a stranger and an
-	// anonymous visitor get the 404, the visibility /api/history grants.
 	if status, _ := getRoomPage(t, srv, "/rooms/history/"+fmt.Sprint(ids[1]), tb); status != http.StatusOK {
 		t.Errorf("participant playback status = %d, want 200", status)
 	}
@@ -430,7 +385,6 @@ func TestPlaybackPageReplaysSeededFinishedGame(t *testing.T) {
 		}
 	}
 
-	// Garbage ids never reach the store.
 	for _, bad := range []string{"/rooms/history/abc", "/rooms/history/0", "/rooms/history/9999"} {
 		if status, _ := getRoomPage(t, srv, bad, ta); status != http.StatusNotFound {
 			t.Errorf("GET %s: status = %d, want 404", bad, status)
@@ -438,8 +392,6 @@ func TestPlaybackPageReplaysSeededFinishedGame(t *testing.T) {
 	}
 }
 
-// gameIDs lists the persisted game ids in insert order straight off the
-// store's connection, the read the playback route owns.
 func gameIDs(t *testing.T, s *stack) []int64 {
 	t.Helper()
 	rows, err := s.store.db.Query(`SELECT id FROM games ORDER BY id`)
@@ -480,10 +432,6 @@ func TestTapSelectStateMachine(t *testing.T) {
 	}
 }
 
-// TestRoomJSTapSelectTwinIsPinned pins the browser twin of tapSelect: the
-// marked block in the served room.js must stay byte-identical to the
-// reviewed canonical source, so the Go semantics and the shipped script
-// cannot drift silently.
 func TestRoomJSTapSelectTwinIsPinned(t *testing.T) {
 	src, err := fs.ReadFile(staticFS, "room.js")
 	if err != nil {
@@ -510,6 +458,7 @@ func TestFormatClockMs(t *testing.T) {
 		{65_430, "01:05.4"},
 		{59_999, "00:59.9"},
 		{-5, "00:00.0"},
+		{-1, "00:00.0"},
 	} {
 		if got := formatClockMs(tc.ms); got != tc.want {
 			t.Errorf("formatClockMs(%d) = %q, want %q", tc.ms, got, tc.want)
@@ -527,10 +476,6 @@ func TestTCLabelPinnedToConfig(t *testing.T) {
 	}
 }
 
-// TestRoomViewOfRetiredRoomIsNotFound pins the retirement race fix: a
-// room retiring between the liveness resolve and the view's own read maps
-// onto ErrRoomNotFound, so the handler answers the 404 page, never a 500
-// off the zero RoomInfo.
 func TestRoomViewOfRetiredRoomIsNotFound(t *testing.T) {
 	s := newStack(t)
 	alice, bob, r := newPvPRoom(t, s)
@@ -543,9 +488,6 @@ func TestRoomViewOfRetiredRoomIsNotFound(t *testing.T) {
 	}
 }
 
-// TestPlaybackPageForfeitSweptGames covers the sweep rows playback also
-// serves: the first game keeps its partial blob, the booked games carry an
-// empty one, and no synthetic game owns a won-by tag.
 func TestPlaybackPageForfeitSweptGames(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
@@ -592,8 +534,6 @@ func TestPlaybackPageForfeitSweptGames(t *testing.T) {
 	}
 }
 
-// TestUIMLineHidesSpecHiddenFields drops exactly the three tokens
-// Implication 1.5 bars from the UI, using the spec's own goldens.
 func TestUIMLineHidesSpecHiddenFields(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
 		{
@@ -612,9 +552,6 @@ func TestUIMLineHidesSpecHiddenFields(t *testing.T) {
 	}
 }
 
-// TestRoomJSUIMLineTwinIsPinned pins uiMLine's browser twin byte-exact, and
-// the terminal-on-404 detail poll that ends the page when eviction (not the
-// series frame) closed the stream.
 func TestRoomJSUIMLineTwinIsPinned(t *testing.T) {
 	src, err := fs.ReadFile(staticFS, "room.js")
 	if err != nil {
@@ -634,11 +571,6 @@ func TestRoomJSUIMLineTwinIsPinned(t *testing.T) {
 	}
 }
 
-// TestRoomJSCarriesSeatRotationSync pins the page driver's seat-rotation
-// sync: the clock labels and the mover's ghost color follow every new
-// game's redUserId (the decisive loser takes red), which the load-time
-// server render can only freeze. The literals tie room.js to the template
-// ids the room page test already pins.
 func TestRoomJSCarriesSeatRotationSync(t *testing.T) {
 	src, err := fs.ReadFile(staticFS, "room.js")
 	if err != nil {
@@ -656,10 +588,6 @@ func TestRoomJSCarriesSeatRotationSync(t *testing.T) {
 	}
 }
 
-// TestRoomJSCarriesPlayableMask pins the client wiring of the playable
-// list: the mask applies from the detail's own legality answer, an off cell
-// rejects locally instead of posting, and every move event pulls a fresh
-// detail so the mask never goes stale mid-turn.
 func TestRoomJSCarriesPlayableMask(t *testing.T) {
 	src, err := fs.ReadFile(staticFS, "room.js")
 	if err != nil {
@@ -669,7 +597,6 @@ func TestRoomJSCarriesPlayableMask(t *testing.T) {
 		"applyPlayable(d.game.playable)",
 		"classList.contains('off')",
 		"not a legal space",
-		// Stones never dim: the mask marks refused spaces alone.
 		"!cells[j].classList.contains('occ')",
 	} {
 		if !strings.Contains(string(src), want) {
@@ -678,9 +605,6 @@ func TestRoomJSCarriesPlayableMask(t *testing.T) {
 	}
 }
 
-// TestRoomTemplatesEscapePoisonedPayloads pins the hygiene: every
-// interpolation the room and playback pages carry renders HTML specials
-// inert even when a view is poisoned past what the domain can produce.
 func TestRoomTemplatesEscapePoisonedPayloads(t *testing.T) {
 	poison := `<script>alert(1)</script>`
 	cells := []cellView{{Name: poison, Stone: "red", Glyph: "O"}}
@@ -716,8 +640,6 @@ func TestRoomTemplatesEscapePoisonedPayloads(t *testing.T) {
 	}
 }
 
-// TestGameByIDReadsAndMisses covers the playback data path accessor: a
-// seeded game round-trips and a missing id maps to ErrNotFound.
 func TestGameByIDReadsAndMisses(t *testing.T) {
 	s := newStack(t)
 	red, blue := seedUser(t, s.store, "red"), seedUser(t, s.store, "blue")
@@ -741,10 +663,6 @@ func TestGameByIDReadsAndMisses(t *testing.T) {
 	}
 }
 
-// TestRoomAndPlaybackBrokenStoreAnswers500 pins the outage posture the shell
-// pages already carry: a present session over a broken store surfaces the
-// failure, never a silent guest view or a masquerading 404. A cookie-less
-// request stays a 404 guest page.
 func TestRoomAndPlaybackBrokenStoreAnswers500(t *testing.T) {
 	dead := mustOpen(t, dbPath(t))
 	if err := dead.Close(); err != nil {
@@ -761,7 +679,6 @@ func TestRoomAndPlaybackBrokenStoreAnswers500(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	// A valid-shaped token over the closed pool must read as an outage.
 	token := strings.Repeat("0", 2*config.SessionTokenBytes)
 	for _, path := range []string{"/rooms/" + live.ID(), "/rooms/history/1"} {
 		req, err := http.NewRequest(http.MethodGet, srv.URL+path, nil)
@@ -778,16 +695,12 @@ func TestRoomAndPlaybackBrokenStoreAnswers500(t *testing.T) {
 			t.Errorf("GET %s with a session over a broken store = %d, want 500", path, resp.StatusCode)
 		}
 	}
-	// No cookie: the anonymous view stays the guest page, 404 for playback.
 	status, _ := getRoomPage(t, srv, "/rooms/history/1", "")
 	if status != http.StatusNotFound {
 		t.Errorf("anonymous playback over a broken store = %d, want 404", status)
 	}
 }
 
-// TestRoomPagesComposeWithJSONAPI mounts the pages beside the JSON mux the
-// way the serve command does: page routes win on /rooms, everything else
-// falls through to the API untouched.
 func TestRoomPagesComposeWithJSONAPI(t *testing.T) {
 	s := newStack(t)
 	mux := http.NewServeMux()
@@ -807,5 +720,165 @@ func TestRoomPagesComposeWithJSONAPI(t *testing.T) {
 	}
 	if status, _, _ := doGet(t, srv.Client(), srv.URL+"/api/rooms/"+r.ID()); status != http.StatusOK {
 		t.Errorf("composed mux api detail status = %d, want 200", status)
+	}
+}
+
+func TestPlaybackGameIDDigitNineInBaseTen(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice, bob := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
+	sr := seedSeries(t, s.store, alice, bob)
+	blob := EncodeMoves(nil, seqMoves(2))
+	var last int64
+	for i := 1; i <= 19; i++ {
+		g, err := s.store.AppendGame(Game{SeriesID: sr.ID, IdxInSeries: i,
+			RedUser: alice.ID, BlueUser: bob.ID, Outcome: OutcomeRed,
+			Moves: blob, FullTurns: 1})
+		if err != nil {
+			t.Fatalf("append game %d: %v", i, err)
+		}
+		last = g.ID
+	}
+	if last != 19 {
+		t.Fatalf("last seeded game id = %d, want 19 off the fresh rowid sequence", last)
+	}
+	ta := mintSession(t, s.store, alice)
+
+	status, body := getRoomPage(t, srv, "/rooms/history/19", ta)
+	if status != http.StatusOK {
+		t.Fatalf("playback of game 19: status = %d, want 200 (body %s)", status, body)
+	}
+	wantBoard(t, body)
+	if !strings.Contains(body, `id="pb-counter">2 / 2<`) {
+		t.Error("playback body misses the final-step move counter")
+	}
+}
+
+func TestRoomPageJoinedCreatedRoomHidesReadyControlsFromGuest(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice, bob, r := newPvPRoom(t, s)
+
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), "")
+	if status != http.StatusOK {
+		t.Fatalf("guest page: status = %d, want 200 (body %s)", status, body)
+	}
+	if !strings.Contains(body, `data-participant="0"`) {
+		t.Error("guest view misses the non-participant flag")
+	}
+	for _, banned := range []string{`id="controls"`, `id="ready-btn"`, `id="ready-host"`,
+		`id="ready-guest"`, `id="forfeit-btn"`, `id="join-btn"`} {
+		if strings.Contains(body, banned) {
+			t.Errorf("guest body contains the participant control %q", banned)
+		}
+	}
+
+	_, body = getRoomPage(t, srv, "/rooms/"+r.ID(), mintSession(t, s.store, bob))
+	for _, want := range []string{`id="ready-btn"`, `id="ready-host"`, `id="ready-guest"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("participant body misses %q", want)
+		}
+	}
+}
+
+func TestRoomPageRedClockLineReadsRedBank(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, hostWinsRed[:1])
+
+	r.mu.Lock()
+	r.clock[rules.Red].Commit(time.Hour)
+	redLeft := r.clock[rules.Red].Remaining().Milliseconds()
+	r.mu.Unlock()
+	if got := formatClockMs(redLeft); got != "00:00.0" {
+		t.Fatalf("red bank after the burn = %s, want the floored 00:00.0", got)
+	}
+
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), "")
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body %s)", status, body)
+	}
+	if !strings.Contains(body, `id="clock-red">00:00.0</div>`) {
+		t.Error("red clock line does not read the red bank")
+	}
+	if strings.Contains(body, `id="clock-blue">00:00.0</div>`) {
+		t.Error("blue bank collapsed onto the red line's value")
+	}
+}
+
+func TestRoomPageViewerColorPinsRedSeat(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, hostWinsRed[:1])
+	ta := mintSession(t, s.store, alice)
+
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), ta)
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body %s)", status, body)
+	}
+	if !strings.Contains(body, `data-my-color="red"`) {
+		t.Error("red participant's board misses data-my-color=red")
+	}
+	if strings.Contains(body, `data-my-color="blue"`) {
+		t.Error("red participant's board carries the inverted color")
+	}
+}
+
+func TestRoomPageUnusableSessionStaysGuestOnOpenRoom(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice := seedUser(t, s.store, "alice")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(),
+		strings.Repeat("ab", config.SessionTokenBytes))
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want the 200 guest render (body %s)", status, body)
+	}
+	if !strings.Contains(body, `data-participant="0"`) {
+		t.Error("dead session reads as a participant over the open guest seat")
+	}
+	for _, banned := range []string{`id="controls"`, `id="ready-btn"`, `id="forfeit-btn"`, `id="join-btn"`} {
+		if strings.Contains(body, banned) {
+			t.Errorf("dead-session body contains control %q", banned)
+		}
+	}
+}
+
+func TestRoomPageOpenGuestSeatWaitingLine(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice := seedUser(t, s.store, "alice")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), "")
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body %s)", status, body)
+	}
+	if !strings.Contains(body, "waiting for opponent") {
+		t.Error("open guest seat misses the waiting line")
+	}
+}
+
+func TestBoardCellsLatestFlagOnLastMove(t *testing.T) {
+	cells := boardCells(hostWinsRed[:3], nil)
+	var latest []string
+	for _, c := range cells {
+		if c.Latest {
+			latest = append(latest, c.Name)
+		}
+	}
+	if len(latest) != 1 || latest[0] != "H8" {
+		t.Errorf("latest cells = %v, want exactly [H8]", latest)
 	}
 }

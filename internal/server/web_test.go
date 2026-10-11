@@ -1,23 +1,17 @@
 package server
 
-// The M6b SSE spike surface tests: /static serves the vendored htmx 4
-// artifacts byte-exact with pinned content and cache headers and nothing
-// else (no listing, no missing file), and /spike renders the scratch room
-// view with both push wirings without any session.
-
 import (
 	"io"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// doGet runs one plain GET (no cookie, no body) and returns status, header,
-// and the drained body.
 func doGet(t *testing.T, c *http.Client, url string) (int, http.Header, string) {
 	t.Helper()
 	resp, err := c.Get(url)
@@ -91,7 +85,6 @@ func TestSpikePageServesBothWiringsWithoutSession(t *testing.T) {
 	if got := h.Get("Cache-Control"); got != "no-store" {
 		t.Errorf("Cache-Control = %q, want no-store", got)
 	}
-	// Both wirings present, aimed at the hardcoded default room.
 	for _, want := range []string{
 		`id="htmx-list"`, `id="es-list"`,
 		`id="htmx-count"`, `id="es-count"`,
@@ -103,15 +96,11 @@ func TestSpikePageServesBothWiringsWithoutSession(t *testing.T) {
 			t.Errorf("spike body misses %q", want)
 		}
 	}
-	// Every wire event kind has its htmx handler: the literal hx-on
-	// attributes and the kinds slice must not drift apart.
 	for _, kind := range spikeEventKinds {
 		if attr := `hx-on:` + kind + `="spikeEvent('htmx', '` + kind + `', event.detail.data)"`; !strings.Contains(body, attr) {
 			t.Errorf("spike body misses the hx-on handler %q", attr)
 		}
 	}
-	// html/template renders ZgotmplZ where an unsafe interpolation landed;
-	// any occurrence means the wiring markup was silently mangled.
 	if strings.Contains(body, "ZgotmplZ") {
 		t.Error("spike body contains ZgotmplZ, an html/template escape marker")
 	}
@@ -127,7 +116,6 @@ func TestSpikeRoomParamTakesValidRoomIDOnly(t *testing.T) {
 		t.Fatalf("create room: %v", err)
 	}
 
-	// A real room id steers both streams.
 	_, _, body := doGet(t, srv.Client(), srv.URL+"/spike?room="+room.ID())
 	for _, want := range []string{
 		`hx-sse:connect="/api/rooms/` + room.ID() + `/events"`,
@@ -138,13 +126,12 @@ func TestSpikeRoomParamTakesValidRoomIDOnly(t *testing.T) {
 		}
 	}
 
-	// Anything that is not a 32-char lowercase hex room id falls back to the
-	// hardcoded default, so the query string cannot inject markup.
 	for _, bad := range []string{
 		"<script>alert(1)</script>",
 		"short",
 		strings.Repeat("A", 2*roomIDBytes),
 		strings.Repeat("g", 2*roomIDBytes),
+		"F" + strings.Repeat("a", 2*roomIDBytes-1),
 	} {
 		_, _, body := doGet(t, srv.Client(), srv.URL+"/spike?room="+bad)
 		if strings.Contains(body, bad) {
@@ -175,13 +162,23 @@ func TestSpikeListsRoomsWithoutSession(t *testing.T) {
 	}
 }
 
-// TestSpikeScratchRoomSettingsArePlayable pins the one-click room's settings
-// against the config hub: the page would render fine and then 400 on click
-// if the tier name or series length drifted from what a room accepts.
 func TestSpikeScratchRoomSettingsArePlayable(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 	if _, err := s.rm.Create(alice.ID, spikeScratchTCIdx, spikeScratchBOLen, tierByName(spikeScratchBot)); err != nil {
 		t.Fatalf("scratch room settings rejected: %v", err)
+	}
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+
+	status, _, body := doGet(t, srv.Client(), srv.URL+"/spike")
+	if status != http.StatusOK {
+		t.Fatalf("spike: status = %d, want 200 (body %s)", status, body)
+	}
+	if !strings.Contains(body, `data-tc="0"`) {
+		t.Error("scratch button does not carry the literal time-control index 0")
+	}
+	if !strings.Contains(body, `data-bo="`+strconv.Itoa(spikeScratchBOLen)+`"`) {
+		t.Error("scratch button misses the series length attribute")
 	}
 }

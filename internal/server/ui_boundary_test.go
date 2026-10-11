@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -80,5 +81,47 @@ func TestWriteQueueDefaultApplyTimeoutFromConfig(t *testing.T) {
 	want := time.Duration(config.WriteQueueApplyTimeoutMs) * time.Millisecond
 	if q.ApplyTimeout != want {
 		t.Errorf("ApplyTimeout = %v, want %v from the config hub", q.ApplyTimeout, want)
+	}
+}
+
+func TestTourneyRunIDOverInt63BoundaryBrokenStore(t *testing.T) {
+	dead := mustOpen(t, dbPath(t))
+	if err := dead.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	mux := http.NewServeMux()
+	NewTournamentPages(dead, &fakeTourney{}).Mount(mux)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	token := strings.Repeat("0", 2*config.SessionTokenBytes)
+	status, _, body := doShell(t, noRedirectClient(srv), http.MethodGet,
+		srv.URL+"/tourney/run/"+strconv.FormatInt(1<<62, 10), token, nil)
+	if status != http.StatusInternalServerError {
+		t.Fatalf("run id 2^62: status = %d, want the 500 of the viewer read past the parse (body %s)", status, body)
+	}
+}
+
+func TestPlaybackIDBoundaryRowsBrokenStore(t *testing.T) {
+	dead := mustOpen(t, dbPath(t))
+	if err := dead.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	s := newStack(t)
+	mux := http.NewServeMux()
+	NewRoomPages(s.rm, dead).Mount(mux)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	token := strings.Repeat("0", 2*config.SessionTokenBytes)
+	for _, row := range []struct {
+		path string
+		want int
+	}{
+		{"/rooms/history/0", http.StatusNotFound},
+		{"/rooms/history/" + strconv.FormatInt(1<<62, 10), http.StatusInternalServerError},
+	} {
+		status, body := getRoomPage(t, srv, row.path, token)
+		if status != row.want {
+			t.Errorf("GET %s = %d, want %d (body %s)", row.path, status, row.want, body)
+		}
 	}
 }
