@@ -156,6 +156,71 @@ func TestHeadlessDriversMatchSpec(t *testing.T) {
 	}
 }
 
+func TestFloorAndRegateDriverSpecs(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		spec      RunSpec
+		initial   int
+		increment int
+		bo        int
+		names     []string
+		tiers     []string
+	}{
+		{"floor-hard21", FloorHard21(), 2, 1, config.SeriesBO11,
+			[]string{"hard-1", "hard-2"},
+			[]string{config.TierHard.Name, config.TierHard.Name}},
+		{"floor-hard32", FloorHard32(), 3, 2, config.SeriesBO11,
+			[]string{"hard-1", "hard-2"},
+			[]string{config.TierHard.Name, config.TierHard.Name}},
+		{"floor-gm21", FloorGM21(), 2, 1, config.SeriesBO11,
+			[]string{"grandmaster-1", "grandmaster-2"},
+			[]string{config.TierGrandmaster.Name, config.TierGrandmaster.Name}},
+		{"floor-gm32", FloorGM32(), 3, 2, config.SeriesBO11,
+			[]string{"grandmaster-1", "grandmaster-2"},
+			[]string{config.TierGrandmaster.Name, config.TierGrandmaster.Name}},
+		{"regate21-r1", Regate21R1(), 2, 1, config.SeriesBO3,
+			[]string{"easy-1", "easy-2", "medium-1", "medium-2", "hard-1", "hard-2", "master-1", "master-2", "grandmaster-1", "grandmaster-2"},
+			[]string{config.TierEasy.Name, config.TierEasy.Name, config.TierMedium.Name, config.TierMedium.Name, config.TierHard.Name, config.TierHard.Name, config.TierMaster.Name, config.TierMaster.Name, config.TierGrandmaster.Name, config.TierGrandmaster.Name}},
+		{"regate21-r2", Regate21R2(), 2, 1, config.SeriesBO3,
+			[]string{"grandmaster-1", "master-1", "hard-1", "medium-1", "easy-1", "grandmaster-2", "master-2", "hard-2", "medium-2", "easy-2"},
+			[]string{config.TierGrandmaster.Name, config.TierMaster.Name, config.TierHard.Name, config.TierMedium.Name, config.TierEasy.Name, config.TierGrandmaster.Name, config.TierMaster.Name, config.TierHard.Name, config.TierMedium.Name, config.TierEasy.Name}},
+		{"regate21-r3", Regate21R3(), 2, 1, config.SeriesBO3,
+			[]string{"easy-1", "medium-1", "hard-1", "master-1", "grandmaster-1", "easy-2", "medium-2", "hard-2", "master-2", "grandmaster-2"},
+			[]string{config.TierEasy.Name, config.TierMedium.Name, config.TierHard.Name, config.TierMaster.Name, config.TierGrandmaster.Name, config.TierEasy.Name, config.TierMedium.Name, config.TierHard.Name, config.TierMaster.Name, config.TierGrandmaster.Name}},
+		{"regate32-r1", Regate32R1(), 3, 2, config.SeriesBO3,
+			[]string{"master-1", "grandmaster-1", "easy-1", "hard-1", "medium-1", "master-2", "grandmaster-2", "easy-2", "hard-2", "medium-2"},
+			[]string{config.TierMaster.Name, config.TierGrandmaster.Name, config.TierEasy.Name, config.TierHard.Name, config.TierMedium.Name, config.TierMaster.Name, config.TierGrandmaster.Name, config.TierEasy.Name, config.TierHard.Name, config.TierMedium.Name}},
+	} {
+		wantTC, ok := config.TCIndex(tc.initial, tc.increment)
+		if !ok {
+			t.Fatalf("%s: %d+%d is not a configured time control", tc.name, tc.initial, tc.increment)
+		}
+		if tc.spec.TCIdx != wantTC {
+			t.Errorf("%s tc = %d, want the %d+%d index %d", tc.name, tc.spec.TCIdx, tc.initial, tc.increment, wantTC)
+		}
+		if tc.spec.BOLen != tc.bo {
+			t.Errorf("%s bo = %d, want bo%d", tc.name, tc.spec.BOLen, tc.bo)
+		}
+		if tc.spec.StartRating != config.TournamentStartRating {
+			t.Errorf("%s start rating = %d, want %d", tc.name, tc.spec.StartRating, config.TournamentStartRating)
+		}
+		if got := len(tc.spec.Roster); got != len(tc.names) {
+			t.Fatalf("%s roster = %d participants, want %d", tc.name, got, len(tc.names))
+		}
+		for i, p := range tc.spec.Roster {
+			if p.Slot != i {
+				t.Errorf("%s slot %d at position %d", tc.name, p.Slot, i)
+			}
+			if p.Name != tc.names[i] {
+				t.Errorf("%s roster[%d] name = %q, want %q", tc.name, i, p.Name, tc.names[i])
+			}
+			if p.Tier != tc.tiers[i] {
+				t.Errorf("%s roster[%d] tier = %q, want %q", tc.name, i, p.Tier, tc.tiers[i])
+			}
+		}
+	}
+}
+
 func TestCheckCoreBudgetPairPeak(t *testing.T) {
 	if err := checkCoreBudget(1, []*config.Tier{&config.TierGrandmaster, &config.TierGrandmaster}); err != nil {
 		t.Errorf("grandmaster roster at parallel 1 = %v, want funded", err)

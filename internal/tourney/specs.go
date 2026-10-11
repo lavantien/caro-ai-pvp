@@ -72,3 +72,84 @@ func PonderProbe() RunSpec {
 		BOLen: config.SeriesBO11, StartRating: config.TournamentStartRating,
 	}
 }
+
+var seatLabels = map[string]Participant{
+	"e1": {Name: "easy-1", Tier: config.TierEasy.Name},
+	"e2": {Name: "easy-2", Tier: config.TierEasy.Name},
+	"m1": {Name: "medium-1", Tier: config.TierMedium.Name},
+	"m2": {Name: "medium-2", Tier: config.TierMedium.Name},
+	"h1": {Name: "hard-1", Tier: config.TierHard.Name},
+	"h2": {Name: "hard-2", Tier: config.TierHard.Name},
+	"M1": {Name: "master-1", Tier: config.TierMaster.Name},
+	"M2": {Name: "master-2", Tier: config.TierMaster.Name},
+	"G1": {Name: "grandmaster-1", Tier: config.TierGrandmaster.Name},
+	"G2": {Name: "grandmaster-2", Tier: config.TierGrandmaster.Name},
+}
+
+func seatRoster(order ...string) []Participant {
+	out := make([]Participant, len(order))
+	for i, label := range order {
+		seat, ok := seatLabels[label]
+		if !ok {
+			panic(fmt.Sprintf("tourney: unknown seat label %q", label))
+		}
+		out[i] = Participant{Slot: i, Name: seat.Name, Tier: seat.Tier}
+	}
+	return out
+}
+
+func FloorHard21() RunSpec {
+	return RunSpec{
+		Roster: seatRoster("h1", "h2"), TCIdx: mustTC(2, 1),
+		BOLen: config.SeriesBO11, StartRating: config.TournamentStartRating,
+	}
+}
+
+func FloorHard32() RunSpec {
+	return RunSpec{
+		Roster: seatRoster("h1", "h2"), TCIdx: mustTC(3, 2),
+		BOLen: config.SeriesBO11, StartRating: config.TournamentStartRating,
+	}
+}
+
+func FloorGM21() RunSpec {
+	return RunSpec{
+		Roster: seatRoster("G1", "G2"), TCIdx: mustTC(2, 1),
+		BOLen: config.SeriesBO11, StartRating: config.TournamentStartRating,
+	}
+}
+
+func FloorGM32() RunSpec {
+	return RunSpec{
+		Roster: seatRoster("G1", "G2"), TCIdx: mustTC(3, 2),
+		BOLen: config.SeriesBO11, StartRating: config.TournamentStartRating,
+	}
+}
+
+func Regate21R1() RunSpec {
+	return RunSpec{
+		Roster: twoPerTierRoster(), TCIdx: mustTC(2, 1),
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating,
+	}
+}
+
+func Regate21R2() RunSpec {
+	return RunSpec{
+		Roster: seatRoster("G1", "M1", "h1", "m1", "e1", "G2", "M2", "h2", "m2", "e2"), TCIdx: mustTC(2, 1),
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating,
+	}
+}
+
+func Regate21R3() RunSpec {
+	return RunSpec{
+		Roster: seatRoster("e1", "m1", "h1", "M1", "G1", "e2", "m2", "h2", "M2", "G2"), TCIdx: mustTC(2, 1),
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating,
+	}
+}
+
+func Regate32R1() RunSpec {
+	return RunSpec{
+		Roster: seatRoster("M1", "G1", "e1", "h1", "m1", "M2", "G2", "e2", "h2", "m2"), TCIdx: mustTC(3, 2),
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating,
+	}
+}

@@ -68,11 +68,13 @@ const (
 
 var mateFloor = config.EvalMateMax - config.SearchMaxPly*config.EvalMateScoreStep
 
-var tagBodies = []string{
-	strings.TrimPrefix(config.BotLogTagVCF, ", "),
-	strings.TrimPrefix(config.BotLogTagVCT, ", "),
-	strings.TrimPrefix(config.BotLogTagPonder, ", "),
-}
+var (
+	tagVCF    = strings.TrimPrefix(config.BotLogTagVCF, ", ")
+	tagVCT    = strings.TrimPrefix(config.BotLogTagVCT, ", ")
+	tagPonder = strings.TrimPrefix(config.BotLogTagPonder, ", ")
+)
+
+var tagBodies = []string{tagVCF, tagVCT, tagPonder}
 
 func readSeriesLogs(dir string) ([]string, error) {
 	entries, err := os.ReadDir(dir)

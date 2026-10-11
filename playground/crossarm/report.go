@@ -26,8 +26,8 @@ func renderArm(a *armData, focus []string) string {
 		zero = "BROKEN"
 	}
 	fmt.Fprintf(&b, "## arm %s\n\n", a.label)
-	fmt.Fprintf(&b, "dir %s, files %d, series %d, games %d (%d decisive, %d drawn), zero-sum %s, bad lines %d, unfinished %d, fold mismatches %d\n\n",
-		a.dir, a.files, a.series, len(a.games), decisive, draws, zero, a.badLines, len(a.unfinished), len(a.foldMismatch))
+	fmt.Fprintf(&b, "dir %s, files %d, series %d, tc %d+%d, games %d (%d decisive, %d drawn), zero-sum %s, bad lines %d, unfinished %d, fold mismatches %d\n\n",
+		a.dir, a.files, a.series, a.initialMin, a.incSec, len(a.games), decisive, draws, zero, a.badLines, len(a.unfinished), len(a.foldMismatch))
 	for _, m := range a.foldMismatch {
 		fmt.Fprintf(&b, "fold mismatch: %s\n", m)
 	}
@@ -79,6 +79,12 @@ func renderArm(a *armData, focus []string) string {
 		fmt.Fprintf(&b, "| %s | %d | %d | %.1f | %.1f | %.2f | %.2f | %.2f | %.2fm | %.2fm |\n",
 			s.name, s.tel.lines, s.tel.tagged, s.tel.depthMean(), s.tel.depthMedian(),
 			s.tel.tMean(), s.tel.allocMean(), s.tel.ratioMean(), s.tel.npsMean()/1e6, s.tel.nodesMean()/1e6)
+	}
+	b.WriteString("\n### ponder adoption telemetry\n\n")
+	b.WriteString("| seat | ponder | t mean | t max | vcf | vct |\n|---|---|---|---|---|---|\n")
+	for _, s := range seats {
+		fmt.Fprintf(&b, "| %s | %d | %.2f | %.2f | %d | %d |\n",
+			s.name, s.pond.adopt, s.pond.tMean(), s.pond.tMax, s.pond.vcf, s.pond.vct)
 	}
 	for _, name := range focus {
 		s, ok := a.seats[name]

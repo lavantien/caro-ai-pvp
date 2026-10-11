@@ -76,3 +76,31 @@ func TestFoldFinalScoresPerSeat(t *testing.T) {
 		t.Errorf("telemetry lines: total %d early %d mid %d", sa.tel.lines, sa.phase[0].lines, sa.phase[1].lines)
 	}
 }
+
+func TestFoldPonderTagStats(t *testing.T) {
+	dir := t.TempDir()
+	writeSeries(t, dir, "run1_s01_a-vs-b.txt", "run 1 series 1\npairing seat-a (medium) vs seat-b (medium)\ntc 2+1 bo3\n"+
+		"M1, Red, H8, d=9, n=2.86m, nps=1.43m, ebf=5.1, tt=8%, hf=42%, fh1=89%, s=-200, thr=1, t=2.00, alloc=2.00, pv=H8\n"+
+		"M2, Blue, H9, d=9, n=2.86m, nps=1.43m, ebf=5.1, tt=8%, hf=42%, fh1=89%, s=+200, thr=1, t=0.01, alloc=4.00, [PONDER], pv=H9\n"+
+		"M3, Blue, H10, d=9, n=2.86m, nps=1.43m, ebf=5.1, tt=8%, hf=42%, fh1=89%, s=+200, thr=1, t=0.03, alloc=4.00, [PONDER], pv=H10\n"+
+		"M4, Red, H11, d=9, n=2.86m, nps=1.43m, ebf=5.1, tt=8%, hf=42%, fh1=89%, s=+200, thr=1, t=0.02, alloc=4.00, [VCF], pv=H11\n"+
+		"M5, Red, H12, d=9, n=2.86m, nps=1.43m, ebf=5.1, tt=8%, hf=42%, fh1=89%, s=+200, thr=1, t=0.02, alloc=4.00, [VCT], pv=H12\n"+
+		"game 1: seat-a (red) beat seat-b (blue), 6 moves, won by 4\nseries seat-a 1-0\n")
+	a, err := loadArm("probe", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sa, sb := a.seats["seat-a"], a.seats["seat-b"]
+	if sb.pond.adopt != 2 || sb.pond.tSum != 0.04 || sb.pond.tMax != 0.03 {
+		t.Errorf("seat-b ponder: adopt %d tSum %v tMax %v", sb.pond.adopt, sb.pond.tSum, sb.pond.tMax)
+	}
+	if got := sb.pond.tMean(); got != 0.02 {
+		t.Errorf("seat-b ponder t mean: %v", got)
+	}
+	if sa.pond.adopt != 0 || sa.pond.vcf != 1 || sa.pond.vct != 1 || sa.pond.tMax != 0 {
+		t.Errorf("seat-a tags: %+v", sa.pond)
+	}
+	if sa.tel.lines != 1 || sa.tel.tagged != 2 || sb.tel.lines != 0 || sb.tel.tagged != 2 {
+		t.Errorf("tel lines: a %d/%d b %d/%d, want a 1/2 b 0/2", sa.tel.lines, sa.tel.tagged, sb.tel.lines, sb.tel.tagged)
+	}
+}

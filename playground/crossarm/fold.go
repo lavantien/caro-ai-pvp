@@ -128,6 +128,28 @@ func (t telStats) nodesMean() float64 {
 	return t.nodesSum / float64(t.lines)
 }
 
+type pondStats struct {
+	adopt int
+	tSum  float64
+	tMax  float64
+	vcf   int
+	vct   int
+}
+
+func (p pondStats) tMean() float64 {
+	if p.adopt == 0 {
+		return 0
+	}
+	return p.tSum / float64(p.adopt)
+}
+
+func (p pondStats) add(o pondStats) pondStats {
+	return pondStats{
+		adopt: p.adopt + o.adopt, tSum: p.tSum + o.tSum,
+		tMax: max(p.tMax, o.tMax), vcf: p.vcf + o.vcf, vct: p.vct + o.vct,
+	}
+}
+
 type seatStats struct {
 	name, tier string
 	seriesW    int
@@ -139,6 +161,7 @@ type seatStats struct {
 	red        wld
 	blue       wld
 	tel        telStats
+	pond       pondStats
 	phase      [phaseCount]telStats
 }
 
@@ -186,6 +209,8 @@ type armData struct {
 	dir          string
 	files        int
 	series       int
+	initialMin   int
+	incSec       int
 	games        []gameRec
 	seats        map[string]*seatStats
 	badLines     int
@@ -230,6 +255,12 @@ func loadArm(label, dir string) (*armData, error) {
 		}
 		if !f.hasHead {
 			return nil, fmt.Errorf("series log without a full header: %s", path)
+		}
+		if a.series == 0 {
+			a.initialMin, a.incSec = f.head.initialMin, f.head.incSec
+		} else if a.initialMin != f.head.initialMin || a.incSec != f.head.incSec {
+			return nil, fmt.Errorf("mixed time controls in %s: %d+%d and %d+%d",
+				dir, a.initialMin, a.incSec, f.head.initialMin, f.head.incSec)
 		}
 		a.series++
 		pf := seat(f.head.redName, f.head.redTier)
@@ -304,6 +335,16 @@ func loadArm(label, dir string) (*armData, error) {
 				}
 				mover.tel.add(r.ml)
 				mover.phase[phaseOf(r.ml.move)].add(r.ml)
+				switch r.ml.tag {
+				case tagPonder:
+					mover.pond.adopt++
+					mover.pond.tSum += r.ml.t
+					mover.pond.tMax = max(mover.pond.tMax, r.ml.t)
+				case tagVCF:
+					mover.pond.vcf++
+				case tagVCT:
+					mover.pond.vct++
+				}
 				if r.ml.side == "Red" {
 					redLast = r.ml.score
 				} else {
