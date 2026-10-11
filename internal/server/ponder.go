@@ -286,7 +286,7 @@ func (r *Room) ponderArmLocked(side rules.Color, eng searcher, st *engine.Search
 		return arm
 	}
 	tier := r.seatByColorLocked(side).bot
-	if tier == nil || tier.PonderThreads < 1 {
+	if tier.PonderThreads < 1 {
 		return arm
 	}
 	arm.eng = eng

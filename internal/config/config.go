@@ -265,4 +265,5 @@ const (
 	HubSubscriberBuffer      = 64
 	HistoryPreviewTurns      = 8
 	PagePollMs               = 5000
+	SSEKeepaliveMs           = 15_000
 )

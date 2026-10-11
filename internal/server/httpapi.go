@@ -189,18 +189,15 @@ type apiServer struct {
 	keepalive time.Duration
 }
 
-// sseKeepalive is the default idle cadence of the event streams: a comment
-// frame every 15s holds proxies and browsers on an idle connection (config
-// carries no SSE constant yet, reported with the milestone).
-const sseKeepalive = 15 * time.Second
-
 // sseKeepaliveComment is the idle frame: a comment line plus the blank
 // terminator, invisible to the SSE event stream.
 const sseKeepaliveComment = ": keepalive\n\n"
 
-// NewHTTPAPI builds the M6a JSON+SSE surface over store and rooms.
+// NewHTTPAPI builds the M6a JSON+SSE surface over store and rooms. The
+// default keepalive cadence is config.SSEKeepaliveMs.
 func NewHTTPAPI(store *Store, rooms *RoomManager) http.Handler {
-	a := &apiServer{store: store, rooms: rooms, keepalive: sseKeepalive}
+	a := &apiServer{store: store, rooms: rooms,
+		keepalive: time.Duration(config.SSEKeepaliveMs) * time.Millisecond}
 	return a.routes()
 }
 

@@ -122,7 +122,8 @@ func TestHTTPSSEDefaultKeepaliveCadence(t *testing.T) {
 		t.Fatalf("create room: %v", err)
 	}
 
-	sr, _ := openSSE(t, srv.Client(), srv.URL+"/api/rooms/"+r.ID()+"/events", 2*sseKeepalive)
+	cadence := time.Duration(config.SSEKeepaliveMs) * time.Millisecond
+	sr, _ := openSSE(t, srv.Client(), srv.URL+"/api/rooms/"+r.ID()+"/events", 2*cadence)
 	start := time.Now()
 	for {
 		line, err := sr.br.ReadString('\n')
@@ -134,7 +135,7 @@ func TestHTTPSSEDefaultKeepaliveCadence(t *testing.T) {
 		}
 	}
 	elapsed := time.Since(start)
-	lo, hi := sseKeepalive-500*time.Millisecond, sseKeepalive+500*time.Millisecond
+	lo, hi := cadence-500*time.Millisecond, cadence+500*time.Millisecond
 	if elapsed < lo || elapsed > hi {
 		t.Fatalf("first keepalive after %v, want inside (%v, %v)", elapsed, lo, hi)
 	}

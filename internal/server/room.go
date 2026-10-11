@@ -122,8 +122,8 @@ func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, gu
 		tcIdx: tcIdx, boLen: boLen, createdAt: time.Now(),
 		host:         seat{userID: botHostUserID, bot: hostTier, name: hostName},
 		guest:        seat{userID: botGuestUserID, bot: guestTier, name: guestName},
-		makeSearcher: rm.makeSearcher, ponderOn: true,
-		wake: make(chan struct{}, 1), quit: make(chan struct{}),
+		makeSearcher: rm.makeSearcher,
+		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
 	}
 	published := false
 	defer func() {
