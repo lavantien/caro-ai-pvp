@@ -13,7 +13,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-const usage = "usage: mutate [-pkgs comma,separated,patterns] [-timeout 30s] [-allow file] [-allow-scope path,prefixes] [-resume prior-run.log] [-parallel 1] [-challenge false]"
+const usage = "usage: mutate [-pkgs comma,separated,patterns] [-timeout duration] [-allow file] [-allow-scope path,prefixes] [-resume prior-run.log] [-parallel 1] [-challenge false]"
 
 func splitPkgs(s string) []string {
 	var out []string

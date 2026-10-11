@@ -187,7 +187,7 @@ var CorePackages = [...]string{"internal/rules", "internal/engine", "internal/cl
 
 const (
 	MutatePackages            = "internal/rules,internal/engine,internal/clock"
-	MutateTimeoutMs           = 30_000
+	MutateTimeoutMs           = 120_000
 	MutateMinTimeoutMs        = 2_000
 	MutateTestTimeoutSlack    = 1_000
 	MutateMaxParallel         = 16

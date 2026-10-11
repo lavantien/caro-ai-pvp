@@ -42,6 +42,20 @@ func TestSMPPonderWidthZeroNeverPonders(t *testing.T) {
 	}
 }
 
+func TestSMPPonderWidthOnePonders(t *testing.T) {
+	s := newSMPPonder(2, testTTBytes, 1)
+	defer s.Close()
+	s.StartPonder(midgameBoard(t))
+	time.Sleep(scaledBudget(500 * time.Millisecond))
+	_, stats := s.StopPonder()
+	if stats.RootIters < 1 {
+		t.Fatalf("width-1 ponder banked %d iterations, want the dispatched worker searching", stats.RootIters)
+	}
+	if stats.Threads != 1 {
+		t.Fatalf("width-1 ponder threads = %d, want the single dispatched worker", stats.Threads)
+	}
+}
+
 func TestSMPPonderWidthEngagesOnlyDispatchedWorkers(t *testing.T) {
 	s := newSMPPonder(4, testTTBytes, 2)
 	defer s.Close()
