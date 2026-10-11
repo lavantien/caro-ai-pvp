@@ -200,10 +200,10 @@ Kill first: match.go:601:17 (> with >=, the budgetCap gate: budgetCap==0 is ever
 
 ## gap wave
 
-Items the killing-test wave could not close, decided when the machine frees:
-- store.go 146:6: no public-seam input makes the checkpoint exec error under modernc (busy reports through the result row), so the negate mutant has no observable today. Needs a seam, a driver change, or an equivalence ruling. Pinned by TestCloseKeepsCheckpointErrorWhenPoolCloseSucceeds.
-- match.go 410:88: the plan's starve recipe is arithmetically unreachable, the VCF share caps its own burn below the grant. Residual window is a wall-clock VCT straddle, craft and measure in the machine window or reclassify.
-- match.go 505:13 + 505:15-0: no deterministic SearchStats discriminator between a 1-worker NewTiered and engine.New; killed on the construction seam instead, revisit if the seam changes.
-- httpapi.go 195:22: keepalive cadence wall-clock row stands, hoist the cadence into config beside PagePollMs to retire the window.
-- refactor: room.go 125:44 dead ponderOn initializer, ponder.go 288:17 dead tier==nil disjunct.
-- allowlist merge: sidecars under playground/servertriage fold into .mutate-allow with coordinates re-derived after any source shift above.
+Items the killing-test wave could not close, dispositioned 2026-10-12:
+- store.go 146:6: ruled equivalent under the current driver and allowlisted. modernc reports checkpoint busy through the result row and never errors the exec, and no public-seam input makes the pool close return non-nil, so the negate gate stores the same closeErr on every reachable input. Pinned by TestCloseKeepsCheckpointErrorWhenPoolCloseSucceeds; revisit if the driver grows a real checkpoint error path.
+- match.go 410:88: reclassified as a wall-clock residual, not allowlisted. The starve recipe is arithmetically unreachable (the VCF share caps its own burn below the grant, so grant-elapsed stays positive at the VCT build), and the only discriminating window is a VCT proof whose wall-clock completion lands between Share*(grant-elapsed) and Share*(grant+elapsed), a timing straddle no deterministic test can hold. The server re-gate will show this as its one known survivor; the gate verdict records it and the code path gets re-derived when the admission rework touches solver funding.
+- match.go 505:13 + 505:15-0: stands as the construction-seam kill, no deterministic SearchStats discriminator between a 1-worker NewTiered and engine.New exists; revisit if the seam changes.
+- httpapi.go 195:22: retired. The cadence hoisted to config.SSEKeepaliveMs with the TestServerConstants literal pin, the wall-clock window test now derives its bounds from the hub, so the slow mutation window is gone.
+- refactor: done. room.go 125's ponderOn initializer removed (every CreateBotVsBot path assigns before any read, the failure defer reads bookedCores only) and ponder.go's tier==nil disjunct removed (the sole caller passes botTurnLocked's bot-guaranteed side past the board.Side revalidation).
+- allowlist merge: done. All sidecar entries folded into .mutate-allow by playground/servertriage/merge-allow.ps1 with every coordinate re-derived and token-verified against the current tree (ponder +1 from the close-done fix, httpapi -3), plus the store.go negate ruling.
