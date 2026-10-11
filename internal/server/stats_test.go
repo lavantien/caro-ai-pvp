@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -30,11 +31,6 @@ func setPV(t *testing.T, st *engine.SearchStats, names ...string) {
 	st.PVLen = len(names)
 }
 
-// TestMLineGoldensImplication15 reproduces the three Implication 1.5 example
-// lines verbatim from hand-built SearchStats values: the tag arrives as a
-// config.BotLogTag constant, the empty string leaves the healthy line
-// without a tag section, and the M9 score sits on the mateWin lattice at
-// EvalMateMax - 9*EvalMateScoreStep.
 func TestMLineGoldensImplication15(t *testing.T) {
 	cases := []struct {
 		name string
@@ -81,6 +77,13 @@ func TestMLineGoldensImplication15(t *testing.T) {
 			},
 			pv: []string{"H10", "I9", "J8", "K7", "J10"},
 		},
+		{
+			name: "sixteen threads",
+			line: "M40, Red, A1, d=1, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=16, t=0.00, alloc=0.00, pv=A1",
+			num:  40, side: rules.Red, move: "A1", tag: "",
+			st: engine.SearchStats{Depth: 1, Threads: 16},
+			pv: []string{"A1"},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -92,10 +95,6 @@ func TestMLineGoldensImplication15(t *testing.T) {
 	}
 }
 
-// TestMLineMatchesBotLogFormat pins the emitter against the canonical
-// config.BotLogFormat on values off the golden grid: compact rounding
-// boundaries, permille rounding, the empty PV trailing "pv=", and a zeroed
-// search.
 func TestMLineMatchesBotLogFormat(t *testing.T) {
 	rich := engine.SearchStats{
 		Depth: 7, Nodes: 1_050_000, Nps: 999_995, EBFMilli: 1535,
@@ -146,11 +145,6 @@ func TestMLineMatchesBotLogFormat(t *testing.T) {
 	}
 }
 
-// TestCompactNumberTable pins the n=/nps= rule: plain digits below a
-// thousand, then a mantissa of at most three significant digits with
-// trailing zeros trimmed, k below a million, m at and above. Second decimal
-// rounds half up; a mantissa rounding to 1000k promotes to 1m, and above 1e9
-// the mantissa widens because the spec has no billion scale.
 func TestCompactNumberTable(t *testing.T) {
 	cases := []struct {
 		in   uint64
@@ -189,11 +183,6 @@ func TestCompactNumberTable(t *testing.T) {
 	}
 }
 
-// TestScoreFormatting pins s=: signed integer milliunits inside the mate
-// band (zero keeps the plus so the sign column never varies), mate scores as
-// M-distance over the mateWin lattice, negated lattice points as -M-distance,
-// and the early-break boundary EvalMateMax - EvalMateScoreStep = mateWin(0)
-// as M1.
 func TestScoreFormatting(t *testing.T) {
 	mate := func(dist int) int {
 		return config.EvalMateMax - dist*config.EvalMateScoreStep
@@ -223,9 +212,6 @@ func TestScoreFormatting(t *testing.T) {
 	}
 }
 
-// TestStatsCellNameMatchesCodec walks every board cell and holds the
-// emitter's allocation-free coordinate naming to rules.CellName, the
-// canonical codec.
 func TestStatsCellNameMatchesCodec(t *testing.T) {
 	var buf []byte
 	for cell := 0; cell < config.BoardCells; cell++ {
@@ -258,5 +244,30 @@ func TestAppendMLineZeroAlloc(t *testing.T) {
 	})
 	if allocs != 0 {
 		t.Errorf("AppendMLine allocated %v times per run, want 0 (line %q)", allocs, buf)
+	}
+}
+
+func TestMLineMaximalLineFitsCapWithoutRealloc(t *testing.T) {
+	st := &engine.SearchStats{
+		Depth: config.SearchMaxPly, Nodes: 9_999_999_999_999, Nps: 987_654_321,
+		EBFMilli: 32000, TTHitPermille: 1000, HashFullPermille: 1000,
+		FirstMoveFailHighPermille: 1000,
+		Score:                     999_999,
+		Threads:                   16, ElapsedNs: math.MaxInt64, AllocNs: math.MaxInt64,
+	}
+	for i := range st.PV {
+		st.PV[i] = mustMove(t, "P16")
+	}
+	st.PVLen = config.SearchMaxPly
+	move := mustMove(t, "P16")
+	line := MLine(99_999_999, rules.Red, move, st, config.BotLogTagPonder)
+	if len(line) != mLineCap {
+		t.Fatalf("maximal line = %d bytes, want exactly mLineCap %d (line %q)", len(line), mLineCap, line)
+	}
+	allocs := testing.AllocsPerRun(100, func() {
+		line = MLine(99_999_999, rules.Red, move, st, config.BotLogTagPonder)
+	})
+	if allocs != 1 {
+		t.Errorf("MLine allocated %v times per run, want 1, the returned string alone (line %q)", allocs, line)
 	}
 }

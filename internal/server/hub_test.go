@@ -10,10 +10,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// testBurst is the publish pacing unit: every burst stays below
-// config.HubSubscriberBuffer, so a subscriber that has not run at all during
-// a burst still cannot be evicted. The drains between bursts are the
-// synchronization, no sleeps.
 const testBurst = 48
 
 func recvEvent(t *testing.T, ch <-chan Event) Event {
@@ -49,9 +45,6 @@ func expectClosed(t *testing.T, ch <-chan Event) {
 	}
 }
 
-// publishBurst publishes n events starting at sequence start, then drains
-// every stream, checking each subscriber received the burst exactly once,
-// in order.
 func publishBurst(t *testing.T, h *Hub, room string, subs []*Subscription, n, start int) {
 	t.Helper()
 	for j := 0; j < n; j++ {
@@ -81,9 +74,6 @@ func TestHubFanOutIdenticalOrder(t *testing.T) {
 	h.Close()
 }
 
-// TestHubEvictsSlowSubscriberWhenFull pins the eviction point: buffer slots
-// 0..N-1 all land, the slot-N publish finds the buffer full, evicts, and
-// closes the stream with ErrSlowConsumer while fast subscribers keep going.
 func TestHubEvictsSlowSubscriberWhenFull(t *testing.T) {
 	h := NewHub()
 	slow, err := h.Subscribe("room")
@@ -100,8 +90,6 @@ func TestHubEvictsSlowSubscriberWhenFull(t *testing.T) {
 		fastSubs[i] = s
 	}
 
-	// Bursts fill the slow buffer to exactly config.HubSubscriberBuffer
-	// while the fast streams drain empty after each one.
 	drained := 0
 	for drained+testBurst <= config.HubSubscriberBuffer {
 		publishBurst(t, h, "room", fastSubs, testBurst, drained)
@@ -120,7 +108,6 @@ func TestHubEvictsSlowSubscriberWhenFull(t *testing.T) {
 		t.Fatalf("slow subscriber evicted before its buffer filled: %v", err)
 	}
 
-	// The eviction trigger: the publish that finds the slow buffer full.
 	h.Publish("room", Event{Kind: "board", Payload: strconv.Itoa(published)})
 	published++
 	if err := slow.Err(); !errors.Is(err, ErrSlowConsumer) {
@@ -138,7 +125,6 @@ func TestHubEvictsSlowSubscriberWhenFull(t *testing.T) {
 		}
 	}
 
-	// The slow stream holds exactly its buffer, in order, then the close.
 	for j := 0; j < config.HubSubscriberBuffer; j++ {
 		expectEvent(t, slow.Events(), strconv.Itoa(j))
 	}
@@ -146,8 +132,26 @@ func TestHubEvictsSlowSubscriberWhenFull(t *testing.T) {
 	h.Close()
 }
 
-// TestHubUnsubscribeStopsDelivery pins the voluntary path deterministically:
-// a nil Err, an idempotent call, and no event after the Unsubscribe lands.
+func TestHubUnsubscribeAfterEvictionIsNoOp(t *testing.T) {
+	h := NewHub()
+	s, err := h.Subscribe("room")
+	if err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	for j := 0; j <= config.HubSubscriberBuffer; j++ {
+		h.Publish("room", Event{Kind: "board", Payload: strconv.Itoa(j)})
+	}
+	if err := s.Err(); !errors.Is(err, ErrSlowConsumer) {
+		t.Fatalf("evicted subscriber Err = %v, want ErrSlowConsumer", err)
+	}
+	s.Unsubscribe()
+	if err := s.Err(); !errors.Is(err, ErrSlowConsumer) {
+		t.Fatalf("unsubscribe after eviction Err = %v, want ErrSlowConsumer, the voluntary path must not run", err)
+	}
+	expectClosed(t, s.Events())
+	h.Close()
+}
+
 func TestHubUnsubscribeStopsDelivery(t *testing.T) {
 	h := NewHub()
 	s, err := h.Subscribe("room")
@@ -170,10 +174,6 @@ func TestHubUnsubscribeStopsDelivery(t *testing.T) {
 	h.Close()
 }
 
-// TestHubUnsubscribeDuringPublish races an Unsubscribe spammer against a
-// live publisher. The victim stops reading, so eviction is a legal second
-// end state: both terminators are identifiable, the stream always closes
-// with a contiguous ordered prefix, and the keeper stream is unaffected.
 func TestHubUnsubscribeDuringPublish(t *testing.T) {
 	h := NewHub()
 	victim, err := h.Subscribe("room")
@@ -208,8 +208,6 @@ func TestHubUnsubscribeDuringPublish(t *testing.T) {
 	close(pubDone)
 	<-unsubDone
 
-	// The keeper saw the whole stream, in order, despite the concurrent
-	// churn on the victim.
 	n := 0
 	for {
 		ev, ok := <-victim.Events()
@@ -271,10 +269,6 @@ func TestHubPublishWithoutSubscribersIsNoOp(t *testing.T) {
 	h.Close()
 }
 
-// TestHubConcurrentPublishersPreservePerPublisherOrder publishes to one
-// room from many goroutines, round by round: each subscriber must see one
-// identical global order, and inside it every publisher's own subsequence
-// stays FIFO.
 func TestHubConcurrentPublishersPreservePerPublisherOrder(t *testing.T) {
 	h := NewHub()
 	const publishers, subscribers, rounds, chunk = 4, 3, 5, 15

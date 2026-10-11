@@ -12,11 +12,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// fakeKDF is the deterministic argon2 stand-in: it keys the digest on every
-// argon2 input (password, salt, and the full parameter set), counts
-// derivations, and records the parameters it was handed, so tests assert call
-// counts, stored-parameter plumbing, and fail-closed guards without burning
-// real argon2.
 type fakeKDF struct {
 	calls        int
 	lastTime     uint32
@@ -70,8 +65,6 @@ func TestHashPasswordDeterministicAndSaltSensitive(t *testing.T) {
 
 func TestVerifyPasswordUsesStoredPerUserParams(t *testing.T) {
 	f := &fakeKDF{}
-	// A weaker legacy row: every cost at or below today's config set, so the
-	// era guard accepts it, yet distinct from config on time and memory.
 	u := User{
 		Username:          "alice",
 		Argon2Time:        1,
@@ -120,9 +113,6 @@ func TestVerifyPasswordFailsClosed(t *testing.T) {
 	badHashLen := u
 	badHashLen.Hash = bytes.Clone(u.Hash[:len(u.Hash)-1])
 
-	// Cost shapes the guard must stop before the KDF: narrowing wraps (time
-	// 1<<32 to uint32 0, parallelism 256 to uint8 0, both argon2 panics) and
-	// oversized memory would drive the derivation toward a huge allocation.
 	wrapTime := u
 	wrapTime.Argon2Time = 1 << 32
 	wrapThreads := u
@@ -139,8 +129,7 @@ func TestVerifyPasswordFailsClosed(t *testing.T) {
 		user     User
 		password string
 		want     bool
-		// burns says whether a well-formed row reaches the KDF at all.
-		burns bool
+		burns    bool
 	}{
 		{"wrong password", u, "wrong-password", false, true},
 		{"tampered hash byte", tampered, "hunter2", false, true},
@@ -159,6 +148,39 @@ func TestVerifyPasswordFailsClosed(t *testing.T) {
 	for _, tc := range cases {
 		f.calls = 0
 		if got := verifyPassword(tc.user, tc.password, f.derive); got != tc.want {
+			t.Errorf("%s: verify = %t, want %t", tc.name, got, tc.want)
+		}
+		if burns := f.calls == 1; burns != tc.burns {
+			t.Errorf("%s: derivations = %d, want %t path", tc.name, f.calls, tc.burns)
+		}
+	}
+}
+
+func TestVerifyPasswordCostEnvelopeBoundaries(t *testing.T) {
+	f := &fakeKDF{}
+	cases := []struct {
+		name   string
+		time   int
+		memKiB int
+		par    int
+		want   bool
+		burns  bool
+	}{
+		{"zero time at floor memory", 0, 8, 1, false, false},
+		{"memory at the 8kib per lane floor", 1, 8, 1, true, true},
+		{"memory one kib below floor", 1, 7, 1, false, false},
+	}
+	for _, tc := range cases {
+		u := User{
+			Username:          "alice",
+			Argon2Time:        tc.time,
+			Argon2MemoryKiB:   tc.memKiB,
+			Argon2Parallelism: tc.par,
+			Salt:              NewSalt(),
+		}
+		u.Hash = f.derive([]byte("hunter2"), u.Salt, uint32(tc.time), uint32(tc.memKiB), uint8(tc.par), config.Argon2KeyBytes)
+		f.calls = 0
+		if got := verifyPassword(u, "hunter2", f.derive); got != tc.want {
 			t.Errorf("%s: verify = %t, want %t", tc.name, got, tc.want)
 		}
 		if burns := f.calls == 1; burns != tc.burns {
@@ -358,7 +380,6 @@ func TestSessionExpiryBoundaryIsExclusive(t *testing.T) {
 	if err != nil || got.ID != u.ID {
 		t.Errorf("authenticate before expiry = user %+d err %v, want alice and nil", got.ID, err)
 	}
-	// The store filters expires_at > now, so the deadline instant is gone.
 	if _, err := Authenticate(s, sess.Token, sess.ExpiresAt); !errors.Is(err, ErrBadCredentials) {
 		t.Errorf("authenticate at deadline = %v, want ErrBadCredentials", err)
 	}
@@ -390,7 +411,6 @@ func TestLogoutInvalidates(t *testing.T) {
 	if _, err := Authenticate(s, sess.Token, now); !errors.Is(err, ErrBadCredentials) {
 		t.Errorf("authenticate after logout = %v, want ErrBadCredentials", err)
 	}
-	// Logout races natural expiry, so a second call stays a clean no-op.
 	if err := Logout(s, sess.Token); err != nil {
 		t.Errorf("repeat logout = %v, want nil", err)
 	}
@@ -406,9 +426,6 @@ func TestAuthenticateVanishedUserRowFailsClosed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	// The FK blocks this through normal flows; force it to check the glue.
-	// Both statements ride one pinned connection so the PRAGMA cannot land
-	// on a different pooled conn than the DELETE.
 	ctx := context.Background()
 	conn, err := s.db.Conn(ctx)
 	if err != nil {
@@ -458,9 +475,6 @@ func TestLoginOrCreateTamperedRowFailsClosed(t *testing.T) {
 	}
 }
 
-// racingStore simulates a registration race: the username row lands between
-// LoginOrCreate's lookup and its insert, so CreateUserIfAbsent reports
-// created=false on a name the lookup just missed.
 type racingStore struct {
 	*Store
 	racer    string
@@ -494,8 +508,6 @@ func TestLoginOrCreatePassesStoreErrorsThrough(t *testing.T) {
 	}
 }
 
-// failingSessions wraps the store so every session insert errors, pinning
-// the branch where the user row is fine but persistence of the token fails.
 type failingSessions struct {
 	*Store
 }
@@ -514,7 +526,6 @@ func TestSessionInsertFailureSurfaces(t *testing.T) {
 	if u, sess, err := loginOrCreate(broken, "alice", "hunter2", now, f.derive); err == nil || !strings.Contains(err.Error(), "simulated insert failure") {
 		t.Errorf("create with failing session insert = (%d, %+v, %v), want the insert failure", u.ID, sess, err)
 	}
-	// The account row commits before the session insert; a retry logs in.
 	if _, err := s.UserByUsername("alice"); err != nil {
 		t.Errorf("user row after failed session insert = %v, want it kept for retry", err)
 	}
