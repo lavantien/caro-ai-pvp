@@ -762,6 +762,7 @@ func (b *interleavedSearchBot) Search(_ *rules.Board, _ engine.Deadline) (rules.
 		b.injected = true
 		b.room.applyMoveLocked(rules.Blue, rules.Cell(b.first))
 		b.room.applyMoveLocked(rules.Red, rules.Cell(b.second))
+		b.room.wakeBotLocked()
 		b.room.mu.Unlock()
 		return b.answer, fakeStats(), ""
 	}
@@ -813,10 +814,10 @@ func TestBotTurnDiscardsStaleAnswerAfterInterleavedMoves(t *testing.T) {
 	if stones != 3 || last != rules.Move(mustCellT(t, "P16")) {
 		t.Errorf("stones %d last %s after the interleaved writer, want the stale answer discarded", stones, cellName(rules.Cell(last)))
 	}
-	close(bot2.release)
 	if humanTurn(r, alice.ID) {
 		t.Error("human holds the turn after the interleaved writer, want the bot's unfinished turn preserved")
 	}
+	close(bot2.release)
 }
 
 func TestBotIllegalAnswerOnTheLastCellFillsTheBoard(t *testing.T) {
