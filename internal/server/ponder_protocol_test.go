@@ -3,6 +3,7 @@ package server
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
@@ -112,5 +113,112 @@ func TestPonderSearcherCallProtocol(t *testing.T) {
 	}
 	if starts == 0 {
 		t.Fatal("no ponder was ever armed, the protocol was not exercised")
+	}
+}
+
+func collectPonderCase(t *testing.T, bot searcher, side rules.Color, predict rules.Move, base int, board *rules.Board, moves []rules.Move) (rules.Move, engine.SearchStats, string, bool) {
+	t.Helper()
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	defer func() {
+		lane.close()
+		<-exited
+	}()
+	lane.start(bot, side, board, predict, base)
+	r := &Room{ponder: lane, board: board, moves: moves}
+	return r.collectPonder(side, 1, time.Now())
+}
+
+func TestCollectPonderAdoptsAtMoveCountOne(t *testing.T) {
+	h8 := rules.Move(mustCellT(t, "H8"))
+	k10 := rules.Move(mustCellT(t, "K10"))
+	bot := &ponderBot{stopMove: k10, stopStats: adoptableStopStats(k10, 15, int64(time.Millisecond))}
+	board := rules.NewBoard()
+	board.Make(rules.Cell(h8))
+	mv, _, tag, ok := collectPonderCase(t, bot, rules.Blue, h8, 0, board, []rules.Move{h8})
+	if !ok || mv != k10 || tag != config.BotLogTagPonder {
+		t.Fatalf("base-zero adoption = move %d tag %q ok %t, want the adopted %d with the ponder tag", mv, tag, ok, k10)
+	}
+}
+
+func TestCollectPonderRejectsStalePonder(t *testing.T) {
+	moves := movesOf(t, []string{"D4", "H8", "P16", "K10", "J10", "M4", "N14"})
+	board := rules.NewBoard()
+	for _, mv := range moves {
+		board.Make(rules.Cell(mv))
+	}
+	k10 := rules.Move(mustCellT(t, "K10"))
+	bot := &ponderBot{stopMove: k10, stopStats: adoptableStopStats(k10, 15, int64(time.Millisecond))}
+	mv, _, _, ok := collectPonderCase(t, bot, rules.Blue, moves[len(moves)-1], 5, board, moves)
+	if ok || mv != 0 {
+		t.Fatalf("stale ponder = move %d ok %t, want rejection two moves past the arm", mv, ok)
+	}
+}
+
+func TestDispatchPonderArmRefusesUnarmedPonder(t *testing.T) {
+	eng := &recordingInner{}
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	defer func() {
+		lane.close()
+		<-exited
+	}()
+	arm := ponderArm{eng: eng, side: rules.Blue, board: *rules.NewBoard(), predict: rules.Move(mustCellT(t, "H8"))}
+	r := &Room{ponder: lane, board: rules.NewBoard(), engines: [2]searcher{rules.Blue: eng}}
+	r.dispatchPonderArm(&arm)
+	time.Sleep(100 * time.Millisecond)
+	eng.mu.Lock()
+	starts := eng.starts
+	eng.mu.Unlock()
+	if starts != 0 {
+		t.Fatalf("unarmed dispatch reached the engine %d times, want the arm gate to refuse", starts)
+	}
+}
+
+func TestDispatchPonderArmGuardMatrix(t *testing.T) {
+	eng := &recordingInner{}
+	swapped := &recordingInner{}
+	h8 := rules.Move(mustCellT(t, "H8"))
+	movedPast := rules.NewBoard()
+	movedPast.Make(mustCellT(t, "D4"))
+	movedPast.Make(mustCellT(t, "H8"))
+	openQuit := make(chan struct{})
+	closedQuit := make(chan struct{})
+	close(closedQuit)
+	arm := ponderArm{ok: true, eng: eng, side: rules.Blue, board: *rules.NewBoard(), predict: h8, base: 0}
+	movedArm := arm
+	movedArm.base = 1
+	swappedArm := arm
+	swappedArm.eng = swapped
+	rows := []struct {
+		name string
+		room *Room
+		arm  ponderArm
+	}{
+		{"retired", &Room{over: true, quit: openQuit, board: rules.NewBoard(), engines: [2]searcher{rules.Blue: eng}}, arm},
+		{"completed", &Room{finished: true, quit: openQuit, board: rules.NewBoard(), engines: [2]searcher{rules.Blue: eng}}, arm},
+		{"retire window", &Room{quit: closedQuit, board: rules.NewBoard(), engines: [2]searcher{rules.Blue: eng}}, arm},
+		{"no board", &Room{quit: openQuit, engines: [2]searcher{rules.Blue: eng}}, arm},
+		{"moved past base", &Room{quit: openQuit, board: movedPast, engines: [2]searcher{rules.Blue: eng}}, movedArm},
+		{"engine swapped", &Room{quit: openQuit, board: rules.NewBoard(), engines: [2]searcher{rules.Blue: eng}}, swappedArm},
+	}
+	for _, row := range rows {
+		lane := newPonderLane()
+		row.room.ponder = lane
+		row.room.dispatchPonderArm(&row.arm)
+		lane.mu.Lock()
+		queued := len(lane.queue)
+		lane.mu.Unlock()
+		if queued != 0 {
+			t.Errorf("%s row: the state guard armed %d ponder start(s), want refusal", row.name, queued)
+		}
 	}
 }

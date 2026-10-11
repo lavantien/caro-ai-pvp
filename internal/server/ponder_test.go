@@ -708,18 +708,7 @@ func adoptableStopStats(move rules.Move, depth int, elapsedNs int64) engine.Sear
 }
 
 func ponderRoom(t *testing.T, s *stack, bot *ponderBot) (User, *Room) {
-	t.Helper()
-	alice := seedUser(t, s.store, "alice")
-	tier := config.TierMaster
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &tier)
-	if err != nil {
-		t.Fatalf("create vs master: %v", err)
-	}
-	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher { return bot }
-	r.budgetCap = 3 * time.Millisecond
-	r.mu.Unlock()
-	return alice, r
+	return ponderRoomTier(t, s, "alice", bot, config.TierMaster)
 }
 
 func waitBotMove(t *testing.T, r *Room, moveCount int, want rules.Move) {
