@@ -192,6 +192,26 @@ tourney-smoke-105:
 tourney-ponderprobe:
 	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney ponderprobe $(ARGS)
 
+.PHONY: tourney-floor-hard21 tourney-floor-hard32 tourney-floor-gm21 tourney-floor-gm32
+tourney-floor-hard21:
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney floor-hard21 $(ARGS)
+tourney-floor-hard32:
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney floor-hard32 $(ARGS)
+tourney-floor-gm21:
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney floor-gm21 $(ARGS)
+tourney-floor-gm32:
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney floor-gm32 $(ARGS)
+
+.PHONY: tourney-regate21-r1 tourney-regate21-r2 tourney-regate21-r3 tourney-regate32-r1
+tourney-regate21-r1:
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney regate21-r1 $(ARGS)
+tourney-regate21-r2:
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney regate21-r2 $(ARGS)
+tourney-regate21-r3:
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney regate21-r3 $(ARGS)
+tourney-regate32-r1:
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney regate32-r1 $(ARGS)
+
 tourney-full:
 	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney full $(ARGS)
 

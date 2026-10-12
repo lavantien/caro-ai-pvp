@@ -13,7 +13,7 @@ const (
 	gateZCut       = 2.496
 	gateFloorCIZ   = 1.96
 	gateRule0TMax  = 1.0
-	gateRule0Ratio = 0.95
+	gateRule0Ratio = 1.0
 )
 
 type gateEntry struct {

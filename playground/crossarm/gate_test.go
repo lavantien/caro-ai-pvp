@@ -176,6 +176,26 @@ func TestGateRule0FailsOnStalledPonder(t *testing.T) {
 	}
 }
 
+func TestGateRule0ReadsGrantOverrunNotSaturation(t *testing.T) {
+	dir := t.TempDir()
+	writeSeries(t, dir, "run1_s01_easy-1-vs-medium-1.txt", "run 1 series 1\npairing easy-1 (easy) vs medium-1 (medium)\ntc 2+1 bo3\n"+
+		"M1, Red, H8, d=9, n=2.86m, nps=1.43m, ebf=5.1, tt=8%, hf=42%, fh1=89%, s=-200, thr=1, t=2.10, alloc=2.00, pv=H8\n"+
+		"M2, Blue, H9, d=9, n=2.86m, nps=1.43m, ebf=5.1, tt=8%, hf=42%, fh1=89%, s=+200, thr=1, t=1.94, alloc=2.00, pv=H9\n"+
+		"game 1: easy-1 (red) beat medium-1 (blue), 2 moves, won by 4\nseries easy-1 1-0\n")
+	out, err := renderGate([]gateEntry{{key: "rep1", dirs: []string{dir}}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"| medium-1 | medium | 0 | 0.00 | 0.00 | 0.97 | pass |",
+		"| easy-1 | easy | 0 | 0.00 | 0.00 | 1.05 | FAIL |",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("rule 0 row missing %q in:\n%s", want, out)
+		}
+	}
+}
+
 func TestParseGateEntries(t *testing.T) {
 	f := &multiFlag{}
 	if err := f.Set("hard=logs/a,logs/b"); err != nil {
