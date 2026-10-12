@@ -23,11 +23,11 @@ MUTATE_TMP ?= $(CURDIR)/.scratch/tmp
 # collector's heap goal doubles that live set, which breached the machine's
 # RAM/4 guard cap mid-run. GOMEMLIMIT caps the goal instead: the GC works
 # harder near the bound and the process stays near it. Soft by design, with
-# the runtime's own death-spiral protection. Raised to the full guard
-# budget by explicit order 2026-10-12: the engine's envelope extends to
-# the whole cap, guard ticks should read engine-only totals against the
-# widened bound, not kill the run for pressing it.
-TOURNEY_MEMLIMIT ?= 8GiB
+# the runtime's own death-spiral protection. Raised 6 to 8 GiB then 8 to
+# 12 GiB by explicit orders 2026-10-12: the engine's envelope now extends
+# past the RAM/4 guard cap, so guard ticks read engine-only totals against
+# this bound and never kill a tournament for pressing it.
+TOURNEY_MEMLIMIT ?= 12GiB
 
 MERMAID_CLI_VERSION := 12.0.0
 PUPPETEER_VERSION := 25.12.0
