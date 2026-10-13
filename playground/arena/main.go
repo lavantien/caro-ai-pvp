@@ -1,24 +1,3 @@
-// arena plays capability-perturbed tier engines against each other under
-// the shipped clock law, for the strength-inversion research program: the
-// question every run answers is what each tier resource (cores, table,
-// VCF, VCT) actually contributes at a given time control. Seats are
-// config.Tier values wired through server.NewBotSearcher, so the
-// experiments measure the same code the rooms drive, never a copy. Games
-// run serially: one pairing at a time on the whole machine, budgets from
-// the real GameClock, engines fresh per game per the ephemerality law,
-// red alternating per game per the bot-series law.
-//
-// Usage:
-//
-//	arena -tc 0 -games 12 -seats hard,hard-novct,medium,medium-vct
-//	arena -tc 0 -games 40 -seats hard,hard          # self-play noise floor
-//	arena -tc 3 -games 12 -seats hard,hard-tt1g     # v0.22 phase A TT round
-//	arena -tc 1 -games 20 -seats master,hard        # v0.23 master gate
-//
-// -tc indexes config.TimeControls (0 = 1+0, 1 = 2+1, 2 = 3+2, 3 = 10+5). Every
-// unordered seat pair meets -games times. One line prints per finished
-// game so a monitor can track progress, then a results table and the
-// red-versus-blue win split.
 package main
 
 import (
@@ -34,32 +13,54 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
 
-// seats maps every experiment label to its tier: the three shipped tiers
-// plus the perturbations the inversion research demands, solver added to
-// the weaker tiers and stripped from the stronger one, and the table-size
-// steps the v0.22 phase A round measures against the shipped sizes. The
-// master seats carry the v0.23 tier and its vct-stripped perturbation.
-var seats = map[string]config.Tier{
-	"easy":          config.TierEasy,
-	"easy-vcf":      {Name: "easy-vcf", Cores: 1, VCF: true},
-	"easy-tt32m":    {Name: "easy-tt32m", Cores: 1, TTBytes: 32 << 20},
-	"medium":        config.TierMedium,
-	"medium-vct":    {Name: "medium-vct", Cores: 2, TTBytes: config.TierMedium.TTBytes, VCF: true, VCT: true},
-	"medium-tt256m": {Name: "medium-tt256m", Cores: 2, TTBytes: 256 << 20, VCF: true},
-	"hard":          config.TierHard,
-	"hard-novct":    {Name: "hard-novct", Cores: 4, TTBytes: config.TierHard.TTBytes, VCF: true},
-	"hard-nosolver": {Name: "hard-nosolver", Cores: 4, TTBytes: config.TierHard.TTBytes},
-	"hard-tt256m":   {Name: "hard-tt256m", Cores: 4, TTBytes: 256 << 20, VCF: true, VCT: true},
-	"hard-tt512m":   {Name: "hard-tt512m", Cores: 4, TTBytes: 512 << 20, VCF: true, VCT: true},
-	"hard-tt1g":     {Name: "hard-tt1g", Cores: 4, TTBytes: 1 << 30, VCF: true, VCT: true},
-	"master":        config.TierMaster,
-	"master-novct":  {Name: "master-novct", Cores: 8, TTBytes: config.TierMaster.TTBytes, VCF: true},
+var seats = buildSeats()
+
+func buildSeats() map[string]config.Tier {
+	perturb := func(base config.Tier, name string, edit func(*config.Tier)) config.Tier {
+		t := base
+		t.Name = name
+		edit(&t)
+		return t
+	}
+	m := map[string]config.Tier{
+		"easy":                 config.TierEasy,
+		"medium":               config.TierMedium,
+		"hard":                 config.TierHard,
+		"master":               config.TierMaster,
+		"grandmaster":          config.TierGrandmaster,
+		"easy-vcf":             perturb(config.TierEasy, "easy-vcf", func(t *config.Tier) { t.VCF = true }),
+		"easy-tt32m":           perturb(config.TierEasy, "easy-tt32m", func(t *config.Tier) { t.TTBytes = 32 << 20 }),
+		"medium-vct":           perturb(config.TierMedium, "medium-vct", func(t *config.Tier) { t.VCT = true }),
+		"medium-tt256m":        perturb(config.TierMedium, "medium-tt256m", func(t *config.Tier) { t.TTBytes = 256 << 20 }),
+		"hard-novct":           perturb(config.TierHard, "hard-novct", func(t *config.Tier) { t.VCT = false }),
+		"hard-nosolver":        perturb(config.TierHard, "hard-nosolver", func(t *config.Tier) { t.VCF = false; t.VCT = false }),
+		"hard-tt256m":          perturb(config.TierHard, "hard-tt256m", func(t *config.Tier) { t.TTBytes = 256 << 20 }),
+		"hard-tt512m":          perturb(config.TierHard, "hard-tt512m", func(t *config.Tier) { t.TTBytes = 512 << 20 }),
+		"hard-tt1g":            perturb(config.TierHard, "hard-tt1g", func(t *config.Tier) { t.TTBytes = 1 << 30 }),
+		"master-novct":         perturb(config.TierMaster, "master-novct", func(t *config.Tier) { t.VCT = false }),
+		"master-noponder":      perturb(config.TierMaster, "master-noponder", func(t *config.Tier) { t.PonderThreads = 0 }),
+		"grandmaster-noponder": perturb(config.TierGrandmaster, "grandmaster-noponder", func(t *config.Tier) { t.PonderThreads = 0 }),
+	}
+	return m
 }
 
-// tally is one seat's record over the whole run.
 type tally struct {
+	name                                   string
 	wins, losses, draws, redWins, blueWins int
 	games                                  int
+	ponderArms, ponderAdopts               int
+}
+
+type seatState struct {
+	label   string
+	tier    config.Tier
+	eng     server.Searcher
+	clock   *clock.GameClock
+	ring    server.GrantDepthRing
+	tally   *tally
+	armed   bool
+	predict rules.Move
+	base    int
 }
 
 func main() {
@@ -74,7 +75,7 @@ func main() {
 
 	results := map[string]*tally{}
 	for _, label := range labels {
-		results[label] = &tally{}
+		results[label] = &tally{name: label}
 	}
 	gameNo := 0
 	for i := 0; i < len(labels); i++ {
@@ -82,13 +83,11 @@ func main() {
 			a, b := labels[i], labels[j]
 			for g := 0; g < *games; g++ {
 				gameNo++
-				// Red alternates per game; the first game of each pair
-				// seats a on red.
 				red, blue := a, b
 				if g%2 == 1 {
 					red, blue = blue, red
 				}
-				winner, moves := play(red, blue, *tcIdx)
+				winner, moves := play(results[red], results[blue], *tcIdx)
 				record(results, red, blue, winner, moves)
 				outcome := "draw"
 				if winner != "" {
@@ -100,16 +99,14 @@ func main() {
 		}
 	}
 
-	fmt.Println("results (wins-losses-draws over games, red/blue win split)")
+	fmt.Println("results (wins-losses-draws over games, red/blue win split, ponder adopts/arms)")
 	for _, label := range labels {
 		r := results[label]
-		fmt.Printf("%-14s %d-%d-%d over %d, red wins %d blue wins %d\n",
-			label, r.wins, r.losses, r.draws, r.games, r.redWins, r.blueWins)
+		fmt.Printf("%-22s %d-%d-%d over %d, red wins %d blue wins %d, ponder %d/%d\n",
+			label, r.wins, r.losses, r.draws, r.games, r.redWins, r.blueWins, r.ponderAdopts, r.ponderArms)
 	}
 }
 
-// seatLabels resolves the -seats argument, defaulting to the full roster
-// in seats-map order made stable by rosterOrder.
 func seatLabels(arg string) []string {
 	if arg == "" {
 		return rosterOrder
@@ -125,7 +122,6 @@ func seatLabels(arg string) []string {
 	return out
 }
 
-// rosterOrder pins the default round-robin order so runs are comparable.
 var rosterOrder = []string{"easy", "easy-vcf", "medium", "medium-vct", "hard", "hard-novct", "hard-nosolver"}
 
 func splitComma(s string) []string {
@@ -142,49 +138,91 @@ func splitComma(s string) []string {
 	return out
 }
 
-// play drives one full game under the shipped clock law and returns the
-// winning seat label (empty for a draw) and the move count. Engines are
-// fresh per game; the safety net mirrors the room's: the engine contract
-// guarantees legality, an illegal answer falls back to the first legal
-// move rather than corrupting the experiment.
-func play(redLabel, blueLabel string, tcIdx int) (string, int) {
-	engines := map[rules.Color]server.Searcher{
-		rules.Red:  server.NewBotSearcher(seats[redLabel]),
-		rules.Blue: server.NewBotSearcher(seats[blueLabel]),
-	}
-	defer engines[rules.Red].Close()
-	defer engines[rules.Blue].Close()
-	labels := map[rules.Color]string{rules.Red: redLabel, rules.Blue: blueLabel}
+func newSeatState(t *tally, tcIdx int) *seatState {
+	tier := seats[t.name]
+	return &seatState{label: t.name, tier: tier, eng: server.NewBotSearcher(tier), clock: clock.NewGameClock(tcIdx), tally: t}
+}
 
-	clocks := map[rules.Color]*clock.GameClock{
-		rules.Red:  clock.NewGameClock(tcIdx),
-		rules.Blue: clock.NewGameClock(tcIdx),
+func play(redT, blueT *tally, tcIdx int) (string, int) {
+	st := map[rules.Color]*seatState{
+		rules.Red:  newSeatState(redT, tcIdx),
+		rules.Blue: newSeatState(blueT, tcIdx),
 	}
+	defer st[rules.Red].eng.Close()
+	defer st[rules.Blue].eng.Close()
+
 	var legalBuf [config.BoardCells]rules.Move
-
 	b := rules.NewBoard()
+	var lastMove rules.Move
 	turnStart := time.Now()
 	for {
 		side := b.Side
-		budget := clocks[side].Budget()
-		mv, _, _ := engines[side].Search(b, engine.NewFixedBudget(budget))
+		s := st[side]
+		budget := s.clock.Budget()
+		mv, stats, tag, adopted := collectPonder(s, b, lastMove, budget)
+		if adopted {
+			s.tally.ponderAdopts++
+		}
+		if !adopted {
+			mv, stats, tag = s.eng.Search(b, engine.NewFixedBudget(budget))
+			if tag == "" {
+				s.ring.Append(int64(budget), stats.Depth)
+			}
+		}
 		if !b.IsLegal(rules.Cell(mv)) {
 			n := b.LegalMoves(legalBuf[:])
 			mv = legalBuf[0]
 			fmt.Fprintf(os.Stderr, "arena: %s returned illegal %v, fell back (legal count %d)\n",
-				labels[side], cellNameOf(mv), n)
+				s.label, cellNameOf(mv), n)
 		}
 		cell := rules.Cell(mv)
 		b.Make(cell)
-		clocks[side].Commit(time.Since(turnStart))
+		s.clock.Commit(time.Since(turnStart))
 		turnStart = time.Now()
+		lastMove = mv
 		if b.FastLastMoveWin(side, cell) {
-			return labels[side], b.MoveCount
+			return s.label, b.MoveCount
 		}
 		if b.IsFull() {
 			return "", b.MoveCount
 		}
+		armPonder(s, b, stats)
 	}
+}
+
+func collectPonder(s *seatState, b *rules.Board, lastMove rules.Move, budget time.Duration) (rules.Move, engine.SearchStats, string, bool) {
+	if !s.armed {
+		return 0, engine.SearchStats{}, "", false
+	}
+	s.armed = false
+	pmv, pst, ptag := s.eng.StopPonder()
+	if b.MoveCount != s.base+1 || lastMove != s.predict {
+		return 0, engine.SearchStats{}, "", false
+	}
+	if !server.AdoptPonder(pst, ptag, pst.ElapsedNs, int64(budget), s.ring, int64(budget)) {
+		return 0, engine.SearchStats{}, "", false
+	}
+	tag := config.BotLogTagPonder
+	if ptag != "" {
+		tag = ptag
+	}
+	return pmv, pst, tag, true
+}
+
+func armPonder(s *seatState, b *rules.Board, stats engine.SearchStats) {
+	if s.tier.PonderThreads < 1 || stats.PVLen < 2 {
+		return
+	}
+	pb := *b
+	if !pb.IsLegal(rules.Cell(stats.PV[1])) {
+		return
+	}
+	s.base = pb.MoveCount
+	s.predict = stats.PV[1]
+	pb.Make(rules.Cell(s.predict))
+	s.eng.StartPonder(&pb)
+	s.armed = true
+	s.tally.ponderArms++
 }
 
 func record(results map[string]*tally, redLabel, blueLabel, winner string, moves int) {
@@ -209,8 +247,6 @@ func cellNameOf(m rules.Move) string {
 	return string(appendCellName(nil, m))
 }
 
-// appendCellName mirrors the rules codec notation for the stderr fallback
-// line without reaching into unexported server helpers.
 func appendCellName(dst []byte, m rules.Move) []byte {
 	col := int(m) % config.BoardStride
 	row := int(m) / config.BoardStride
