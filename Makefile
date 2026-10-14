@@ -212,6 +212,17 @@ tourney-regate21-r3:
 tourney-regate32-r1:
 	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney regate32-r1 $(ARGS)
 
+# tourney-regate-chain runs the four preregistered re-gate arms back to back,
+# the serialized engine queue for unattended nights: each arm is a full
+# tournament behind its own make target, ARGS forwards to every arm, e.g.
+# make tourney-regate-chain ARGS="--parallel 1".
+.PHONY: tourney-regate-chain
+tourney-regate-chain:
+	$(MAKE) tourney-regate21-r1 ARGS="$(ARGS)"
+	$(MAKE) tourney-regate21-r2 ARGS="$(ARGS)"
+	$(MAKE) tourney-regate21-r3 ARGS="$(ARGS)"
+	$(MAKE) tourney-regate32-r1 ARGS="$(ARGS)"
+
 tourney-full:
 	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney full $(ARGS)
 
