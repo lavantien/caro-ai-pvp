@@ -331,6 +331,14 @@ arena:
 	CGO_ENABLED=1 go -C playground/arena build -o ../../bin/arena.exe .
 	bin/arena.exe $(ARGS)
 
+# arena-test vets and tests the harness module: the M-line emission law and
+# the ponder outcome classifier live there, root make ci does not descend
+# into nested playground modules.
+.PHONY: arena-test
+arena-test:
+	CGO_ENABLED=1 go -C playground/arena vet ./...
+	CGO_ENABLED=1 go -C playground/arena test ./...
+
 # clocktune sweeps PID gain grids for one time control over the real clock
 # law through the gains seam, ranking cells by worst drain-trajectory
 # deviation across cost models and game lengths; the ranked artifact lands

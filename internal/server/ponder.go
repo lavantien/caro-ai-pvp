@@ -259,16 +259,19 @@ func (r *Room) collectPonder(side rules.Color, budgetNs int64, turnStart time.Ti
 	if !AdoptPonder(pres.stats, pres.tag, pres.stats.ElapsedNs, budgetNs, ring, budgetNs) {
 		return 0, engine.SearchStats{}, "", false
 	}
-	st := pres.stats
-	tag := pres.tag
+	st, tag := ComposePonderStats(pres.stats, pres.tag, turnStart, budgetNs)
+	return pres.move, st, tag, true
+}
+
+func ComposePonderStats(src engine.SearchStats, tag string, turnStart time.Time, budgetNs int64) (engine.SearchStats, string) {
+	nps := engine.NpsReport(src.Nodes, src.ElapsedNs)
+	src.ElapsedNs = int64(time.Since(turnStart))
+	src.Nps = nps
+	src.AllocNs = budgetNs
 	if tag == "" {
 		tag = config.BotLogTagPonder
 	}
-	nps := engine.NpsReport(st.Nodes, st.ElapsedNs)
-	st.ElapsedNs = int64(time.Since(turnStart))
-	st.Nps = nps
-	st.AllocNs = budgetNs
-	return pres.move, st, tag, true
+	return src, tag
 }
 
 type ponderArm struct {

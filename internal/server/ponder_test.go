@@ -1647,3 +1647,27 @@ func TestRoomPonderTeardownRaceHammer(t *testing.T) {
 		waitFor(t, bot.isClosed)
 	}
 }
+
+func TestComposePonderStats(t *testing.T) {
+	src := engine.SearchStats{Nodes: 1000, ElapsedNs: 2_000_000_000, AllocNs: 1, Threads: 8}
+	turnStart := time.Now().Add(-10 * time.Millisecond)
+	st, tag := ComposePonderStats(src, "", turnStart, 2_240_000_000)
+	if tag != config.BotLogTagPonder {
+		t.Errorf("empty tag must default to the ponder tag, got %q", tag)
+	}
+	if st.AllocNs != 2_240_000_000 {
+		t.Errorf("alloc must be the turn budget draw, got %d", st.AllocNs)
+	}
+	if st.ElapsedNs < 0 || st.ElapsedNs > int64(50*time.Millisecond) {
+		t.Errorf("t must be the turn wall elapsed, got %d", st.ElapsedNs)
+	}
+	if st.Nps != 500 {
+		t.Errorf("nps must derive from ponder nodes over ponder elapsed, got %d", st.Nps)
+	}
+	if _, tag := ComposePonderStats(src, config.BotLogTagVCF, turnStart, 1); tag != config.BotLogTagVCF {
+		t.Errorf("a producer tag must survive composition, got %q", tag)
+	}
+	if src.AllocNs != 1 || src.ElapsedNs != 2_000_000_000 {
+		t.Errorf("composition must not mutate the caller's stats copy")
+	}
+}

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -87,7 +88,8 @@ func main() {
 				if g%2 == 1 {
 					red, blue = blue, red
 				}
-				winner, moves := play(results[red], results[blue], *tcIdx)
+				fmt.Printf("game %d: %s (red) vs %s (blue), tc %d+%d\n", gameNo, red, blue, tc.InitialMin, tc.IncrementSec)
+				winner, moves := play(results[red], results[blue], *tcIdx, gameNo)
 				record(results, red, blue, winner, moves)
 				outcome := "draw"
 				if winner != "" {
@@ -143,7 +145,7 @@ func newSeatState(t *tally, tcIdx int) *seatState {
 	return &seatState{label: t.name, tier: tier, eng: server.NewBotSearcher(tier), clock: clock.NewGameClock(tcIdx), tally: t}
 }
 
-func play(redT, blueT *tally, tcIdx int) (string, int) {
+func play(redT, blueT *tally, tcIdx, gameNo int) (string, int) {
 	st := map[rules.Color]*seatState{
 		rules.Red:  newSeatState(redT, tcIdx),
 		rules.Blue: newSeatState(blueT, tcIdx),
@@ -159,16 +161,20 @@ func play(redT, blueT *tally, tcIdx int) (string, int) {
 		side := b.Side
 		s := st[side]
 		budget := s.clock.Budget()
-		mv, stats, tag, adopted := collectPonder(s, b, lastMove, budget)
-		if adopted {
-			s.tally.ponderAdopts++
+		mv, stats, tag, outcome := collectPonder(s, b, lastMove, budget, turnStart)
+		if outcome != "" {
+			if outcome == "adopt" {
+				s.tally.ponderAdopts++
+			}
+			emitPonderOutcome(os.Stdout, gameNo, b.MoveCount+1, s.label, outcome)
 		}
-		if !adopted {
+		if outcome != "adopt" {
 			mv, stats, tag = s.eng.Search(b, engine.NewFixedBudget(budget))
 			if tag == "" {
 				s.ring.Append(int64(budget), stats.Depth)
 			}
 		}
+		emitMLine(os.Stdout, gameNo, b.MoveCount+1, side, mv, &stats, tag)
 		if !b.IsLegal(rules.Cell(mv)) {
 			n := b.LegalMoves(legalBuf[:])
 			mv = legalBuf[0]
@@ -190,23 +196,40 @@ func play(redT, blueT *tally, tcIdx int) (string, int) {
 	}
 }
 
-func collectPonder(s *seatState, b *rules.Board, lastMove rules.Move, budget time.Duration) (rules.Move, engine.SearchStats, string, bool) {
+func collectPonder(s *seatState, b *rules.Board, lastMove rules.Move, budget time.Duration, turnStart time.Time) (rules.Move, engine.SearchStats, string, string) {
 	if !s.armed {
-		return 0, engine.SearchStats{}, "", false
+		return 0, engine.SearchStats{}, "", ""
 	}
 	s.armed = false
 	pmv, pst, ptag := s.eng.StopPonder()
-	if b.MoveCount != s.base+1 || lastMove != s.predict {
-		return 0, engine.SearchStats{}, "", false
+	hit := b.MoveCount == s.base+1 && lastMove == s.predict
+	adopted := hit && server.AdoptPonder(pst, ptag, pst.ElapsedNs, int64(budget), s.ring, int64(budget))
+	if outcome := ponderOutcome(true, hit, adopted); outcome != "adopt" {
+		return 0, engine.SearchStats{}, "", outcome
 	}
-	if !server.AdoptPonder(pst, ptag, pst.ElapsedNs, int64(budget), s.ring, int64(budget)) {
-		return 0, engine.SearchStats{}, "", false
+	st, tag := server.ComposePonderStats(pst, ptag, turnStart, int64(budget))
+	return pmv, st, tag, "adopt"
+}
+
+func ponderOutcome(armed, hit, adopted bool) string {
+	if !armed {
+		return ""
 	}
-	tag := config.BotLogTagPonder
-	if ptag != "" {
-		tag = ptag
+	if !hit {
+		return "miss"
 	}
-	return pmv, pst, tag, true
+	if adopted {
+		return "adopt"
+	}
+	return "reject"
+}
+
+func emitMLine(w io.Writer, gameNo, moveNo int, side rules.Color, mv rules.Move, st *engine.SearchStats, tag string) {
+	fmt.Fprintf(w, "g%d %s\n", gameNo, server.MLine(moveNo, side, mv, st, tag))
+}
+
+func emitPonderOutcome(w io.Writer, gameNo, moveNo int, seat, outcome string) {
+	fmt.Fprintf(w, "g%d ponder %s m%d %s\n", gameNo, seat, moveNo, outcome)
 }
 
 func armPonder(s *seatState, b *rules.Board, stats engine.SearchStats) {
