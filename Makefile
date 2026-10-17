@@ -218,13 +218,24 @@ tourney-regate32-r1:
 # tourney-regate-chain runs the four preregistered re-gate arms back to back,
 # the serialized engine queue for unattended nights: each arm is a full
 # tournament behind its own make target, ARGS forwards to every arm, e.g.
-# make tourney-regate-chain ARGS="--parallel 1".
+# make tourney-regate-chain ARGS="--parallel 1". An arm only counts as done
+# when the newest logs/tourny/*-<label> directory carries summary.txt; a dead
+# arm is relaunched up to 5 times so the run resumes from its recorded series
+# instead of failing the whole chain.
 .PHONY: tourney-regate-chain
 tourney-regate-chain:
-	$(MAKE) tourney-regate21-r1 ARGS="$(ARGS)"
-	$(MAKE) tourney-regate21-r2 ARGS="$(ARGS)"
-	$(MAKE) tourney-regate21-r3 ARGS="$(ARGS)"
-	$(MAKE) tourney-regate32-r1 ARGS="$(ARGS)"
+	@for arm in regate21-r1 regate21-r2 regate21-r3 regate32-r1; do \
+		dir=; \
+		for attempt in 1 2 3 4 5; do \
+			$(MAKE) tourney-$$arm ARGS="$(ARGS)" || echo "chain: $$arm exited nonzero on attempt $$attempt"; \
+			dir=$$(ls -1dt logs/tourny/*-$$arm 2>/dev/null | head -1); \
+			if [ -n "$$dir" ] && [ -f "$$dir/summary.txt" ]; then break; fi; \
+			echo "chain: $$arm has no summary.txt after attempt $$attempt, relaunching to resume"; \
+		done; \
+		if [ -z "$$dir" ] || [ ! -f "$$dir/summary.txt" ]; then \
+			echo "chain: $$arm never reached summary.txt in 5 attempts"; exit 1; \
+		fi; \
+	done
 
 tourney-full:
 	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go run ./cmd/caro tourney full $(ARGS)
