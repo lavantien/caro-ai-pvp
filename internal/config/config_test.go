@@ -586,6 +586,12 @@ func TestBookConstants(t *testing.T) {
 	if BookMoveBytes != 2 || BookVisitsBytes != 4 || BookSourceBytes != 1 || BookReservedBytes != 4 {
 		t.Errorf("field widths = %d/%d/%d/%d, want 2/4/1/4", BookMoveBytes, BookVisitsBytes, BookSourceBytes, BookReservedBytes)
 	}
+	if BookMetaLineMaxBytes != 1024 {
+		t.Errorf("BookMetaLineMaxBytes = %d, want 1024, generous over the fixed-shape meta line", BookMetaLineMaxBytes)
+	}
+	if FuzzInputMaxBytes != 1<<20 {
+		t.Errorf("FuzzInputMaxBytes = %d, want 1<<20", FuzzInputMaxBytes)
+	}
 }
 func TestServerConstants(t *testing.T) {
 	if Argon2Time < 1 || Argon2MemoryKiB < 19456 || Argon2Parallelism < 1 {

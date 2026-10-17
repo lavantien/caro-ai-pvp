@@ -189,10 +189,12 @@ const (
 	BookSourceBytes      = 1
 	BookReservedBytes    = 4
 	BookEntryBytes       = BookKeyBytes + BookMoveBytes + BookVisitsBytes + BookSourceBytes + BookReservedBytes
+	BookMetaLineMaxBytes = 1024
 	BookVisitFloor       = 20
 	BookCorpusGames      = 300
 	BookSolverNodeBudget = 1 << 24
 )
+const FuzzInputMaxBytes = 1 << 20
 const (
 	BookSourceMajority uint8 = 1
 	BookSourceSolver   uint8 = 2
