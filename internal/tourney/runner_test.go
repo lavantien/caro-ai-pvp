@@ -1,12 +1,7 @@
 package tourney
 
-// The conductor tests over a scripted match source: the full run flow
-// (schedule persisted, every event recorded, games settled, logs written,
-// run finished), real overlap under the parallelism cap, ctx cancel retiring
-// live series, the resource-budget refusals, and the missed-event
-// disqualifiers.
-
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -24,26 +19,16 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
 
-// The scripted sweep lines of the server bot tests, reused as pure event
-// scripts: the D-file side closes D3..D7 (an open four, both D3 and D8
-// empty at move n-1) while the opponent scatters far from the D file.
-// sweepRedMoves is the full move order of a game the red seat wins at move
-// 11; sweepBlueMoves the same sweep held by blue, won at move 12.
 var (
 	sweepRedMoves  = []string{"D4", "P16", "H8", "P12", "D5", "P8", "D6", "N16", "D7", "M4", "D3"}
 	sweepBlueMoves = []string{"P16", "D4", "P12", "H8", "P8", "D5", "N16", "D6", "M4", "D7", "L2", "D3"}
 )
 
-// scriptedGame is one game of a scripted series: the interleaved cell names
-// in play order plus the gameend payload.
 type scriptedGame struct {
 	moves   []string
 	outcome string
 }
 
-// scriptedSeries renders one series' whole event stream: per game a move and
-// an M-line per stone in play order then the gameend, and the series verdict
-// closing the stream.
 func scriptedSeries(games []scriptedGame, verdict string) []server.Event {
 	var out []server.Event
 	for _, g := range games {
@@ -58,11 +43,6 @@ func scriptedSeries(games []scriptedGame, verdict string) []server.Event {
 	return append(out, server.Event{Kind: server.EventKindSeries, Payload: verdict})
 }
 
-// easySweeps is the scripted law of the happy-path runs: the easy tier wins
-// every bo3 2-0 through the sweep, whichever seat it holds. The seating is
-// the benchmark alternation the rooms run (red passes after every game):
-// host sweep = red win then blue win, guest sweep = blue win then red win,
-// the second win always landing on the seat alternation hands red to.
 func easySweeps(host, guest string) []server.Event {
 	if host == config.TierEasy.Name {
 		return scriptedSeries([]scriptedGame{
@@ -76,13 +56,6 @@ func easySweeps(host, guest string) []server.Event {
 	}, server.SideGuest.String())
 }
 
-// fakeStream is one scripted series' event stream. Unbuffered channel: each
-// event is consumed before the next delivers, so scripts stay in order. The
-// feeder parks after the script unless closeEarly ends the channel without
-// the series event, the slow-consumer eviction shape. Truth derives from
-// the script's own move events, the room's guarantee for a clean stream;
-// the source's dropLeadMoves knob withholds delivered moves from the
-// consumer only, scripting a subscription gap.
 type fakeStream struct {
 	src       *fakeSource
 	ch        chan server.Event
@@ -96,8 +69,6 @@ type fakeStream struct {
 func (f *fakeStream) Events() <-chan server.Event { return f.ch }
 func (f *fakeStream) Err() error                  { return f.src.streamErr }
 
-// TruthMoves is the scripted room's authoritative list for the game that
-// just ended.
 func (f *fakeStream) TruthMoves() []rules.Move {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -143,11 +114,6 @@ func (f *fakeStream) feed(events []server.Event) {
 	}
 }
 
-// fakeSource scripts MatchSource without engines: every StartSeries records
-// the tier order it was called with, runs the optional gate (overlap and
-// cancel hooks), and feeds the script on a goroutine. dropLeadMoves
-// withholds each game's first k move events from delivery while truth keeps
-// them, the create-to-subscribe gap's lost prefix.
 type fakeSource struct {
 	script        func(host, guest string) []server.Event
 	onStart       func(*fakeStream) error
@@ -200,7 +166,6 @@ func (s *fakeSource) snapshot() (starts [][2]string, closed, maxLive int) {
 	return s.starts, s.closed, s.maxLive
 }
 
-// pointLogsAt moves the series log dir for one test and restores it after.
 func pointLogsAt(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -210,7 +175,6 @@ func pointLogsAt(t *testing.T) string {
 	return dir
 }
 
-// rosterTwo builds the 2-participant roster the scripted runs ride.
 func rosterTwo() []Participant {
 	return []Participant{
 		{Slot: 0, Name: "easy-1", Tier: config.TierEasy.Name},
@@ -218,8 +182,6 @@ func rosterTwo() []Participant {
 	}
 }
 
-// runStatus reads one run row's status through the store's transaction
-// surface.
 func runStatus(t *testing.T, ts *Store, runID int64) string {
 	t.Helper()
 	var status string
@@ -233,7 +195,6 @@ func runStatus(t *testing.T, ts *Store, runID int64) string {
 	return status
 }
 
-// persistedGame is one tournament_games row of the happy-path asserts.
 type persistedGame struct {
 	Idx               int
 	RedSlot, BlueSlot int
@@ -269,8 +230,6 @@ func persistedGames(t *testing.T, ts *Store, seriesID int64) []persistedGame {
 	return out
 }
 
-// seriesLogFile finds the one log file of a series id under the log root,
-// inside whichever timestamped run folder the run wrote.
 func seriesLogFile(t *testing.T, dir string, seriesID int64) string {
 	t.Helper()
 	var files []string
@@ -303,9 +262,6 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 		t.Fatalf("run: %v", err)
 	}
 
-	// The match source was called per pairing with the red-first seat as
-	// host, both directions of the twice-pair, and with the seats' roster
-	// identities (the room stamps the instance names, not the tiers).
 	starts, closed, maxLive := src.snapshot()
 	wantStarts := [][2]string{
 		{"easy-1", "medium-1"},
@@ -318,7 +274,6 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 		t.Errorf("closed = %d, maxLive = %d, want 2 streams closed, 1 live at a time", closed, maxLive)
 	}
 
-	// Schedule persisted, both series settled for the easy sweep, run closed.
 	sched := mustSchedule(t, ts.srv, res.Run.ID)
 	if len(sched) != 2 {
 		t.Fatalf("schedule = %d series, want 2", len(sched))
@@ -339,8 +294,6 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 		t.Errorf("run status = %q, want %q", status, RunStateFinished)
 	}
 
-	// Result lines mirror the settled series: the easy red-first sweep 2-0,
-	// then the medium red-first sweep 0-2.
 	if line := res.Series[0]; line.PairingSlot != 0 || line.RedFirstWins != 2 || line.BlueFirstWins != 0 ||
 		line.WinnerSlot == nil || *line.WinnerSlot != 0 {
 		t.Errorf("series line 0 = %+v, want the easy red-first sweep 2-0", line)
@@ -350,10 +303,6 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 		t.Errorf("series line 1 = %+v, want the easy guest sweep 0-2", line)
 	}
 
-	// Game rows: both pairings ride the alternation (red passes after every
-	// game), the easy slot winning as red then blue in pairing 0 and as blue
-	// then red in pairing 1; every decisive game carries the sweep's open-four
-	// tag.
 	g0 := persistedGames(t, ts, sched[0].ID)
 	g1 := persistedGames(t, ts, sched[1].ID)
 	if len(g0) != 2 || len(g1) != 2 {
@@ -383,7 +332,6 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 		}
 	}
 
-	// Leaderboard: zero-sum at the seed, easy first, 4 games each.
 	if len(res.Board) != 2 {
 		t.Fatalf("leaderboard = %d rows, want 2", len(res.Board))
 	}
@@ -401,9 +349,6 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 		t.Errorf("leaderboard order = %d then %d, want the easy slot first", res.Board[0].Slot, res.Board[1].Slot)
 	}
 
-	// Series logs: one file per series, the header block, one M-line per
-	// move, one summary line per finished game, and the verdict line. Both
-	// pairings ride the two sweep directions (23 moves over 2 games).
 	wantMovesByPairing := []int{len(sweepRedMoves) + len(sweepBlueMoves), len(sweepBlueMoves) + len(sweepRedMoves)}
 	wantGamesByPairing := []int{2, 2}
 	for slot, s := range sched {
@@ -429,19 +374,73 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 	}
 }
 
-// gapRedMoves is the even-gap sweep: the leading pair (one red, one blue
-// stone) sits far from the E-file five, so dropping it leaves a delivery
-// that replays clean onto the same terminal position, the exact corruption
-// the replay net cannot catch and the truth reconciliation exists for.
+func TestConductorReportsProgress(t *testing.T) {
+	ts, _ := newTestStore(t)
+	logDir := pointLogsAt(t)
+	src := &fakeSource{script: easySweeps}
+	var out bytes.Buffer
+	saved := progressOut
+	progressOut = &out
+	t.Cleanup(func() { progressOut = saved })
+
+	res, err := NewConductor(src).Run(context.Background(), ts, rosterTwo(),
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	console := out.String()
+	for _, want := range []string{
+		fmt.Sprintf("run %d drive claimed: 0 of 2 series settled", res.Run.ID),
+		fmt.Sprintf("run %d series 1/2 started: easy-1 vs medium-1", res.Run.ID),
+		fmt.Sprintf("run %d series 1/2 settled: easy-1 2-0 medium-1", res.Run.ID),
+		fmt.Sprintf("run %d series 2/2 started: medium-1 vs easy-1", res.Run.ID),
+		fmt.Sprintf("run %d series 2/2 settled: medium-1 0-2 easy-1", res.Run.ID),
+		fmt.Sprintf("run %d finished: summary in", res.Run.ID),
+	} {
+		if !strings.Contains(console, want) {
+			t.Errorf("console progress misses %q:\n%s", want, console)
+		}
+	}
+
+	matches, gerr := filepath.Glob(filepath.Join(logDir, "*", config.TournamentProgressName))
+	if gerr != nil || len(matches) != 1 {
+		t.Fatalf("progress files = %v (err %v), want one under %s", matches, gerr, logDir)
+	}
+	data, rerr := os.ReadFile(matches[0])
+	if rerr != nil {
+		t.Fatalf("read progress: %v", rerr)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 6 {
+		t.Fatalf("progress lines = %d, want 6 (claim, 2 starts, 2 settles, finish):\n%s", len(lines), data)
+	}
+	wants := []struct {
+		text   string
+		prefix bool
+	}{
+		{fmt.Sprintf("run %d drive claimed: 0 of 2 series settled", res.Run.ID), false},
+		{fmt.Sprintf("run %d series 1/2 started: easy-1 vs medium-1", res.Run.ID), false},
+		{fmt.Sprintf("run %d series 1/2 settled: easy-1 2-0 medium-1 in ", res.Run.ID), true},
+		{fmt.Sprintf("run %d series 2/2 started: medium-1 vs easy-1", res.Run.ID), false},
+		{fmt.Sprintf("run %d series 2/2 settled: medium-1 0-2 easy-1 in ", res.Run.ID), true},
+		{fmt.Sprintf("run %d finished: summary in ", res.Run.ID), true},
+	}
+	for i, want := range wants {
+		if len(lines[i]) < 17 || lines[i][15] != ' ' {
+			t.Errorf("progress line %d = %q, want a leading 20060102-150405 stamp", i, lines[i])
+			continue
+		}
+		got := lines[i][16:]
+		if want.prefix && !strings.HasPrefix(got, want.text) || !want.prefix && got != want.text {
+			t.Errorf("progress line %d = %q, want %q", i, got, want.text)
+		}
+	}
+}
+
 var gapRedMoves = []string{"A1", "A15", "P16", "H8", "E5", "N16", "E6", "M4", "E4", "L2", "E7", "G10", "E3"}
 
-// TestConductorFailsOnTruncatedDelivery pins the truth reconciliation: a
-// stream that lost an even-length move prefix while the room holds the full
-// list fails the run before anything persists, though the truncated game
-// replays clean.
 func TestConductorFailsOnTruncatedDelivery(t *testing.T) {
-	// Pin the premise first: without the truth net the corrupted delivery
-	// passes the replay validator on its own.
 	delivered := make([]rules.Move, 0, len(gapRedMoves)-2)
 	for _, name := range gapRedMoves[2:] {
 		cell, err := rules.ParseCell(name)
@@ -469,8 +468,6 @@ func TestConductorFailsOnTruncatedDelivery(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "11 moves against the room's 13") {
 		t.Fatalf("run error = %v, want the truth reconciliation naming both counts", err)
 	}
-	// The corrupted game never lands and the run row stays ongoing for the
-	// post-mortem, every series error's failure contract.
 	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_games`); n != 0 {
 		t.Errorf("games after the truncated delivery = %d, want 0", n)
 	}
@@ -483,8 +480,6 @@ func TestConductorOverlapsUpToParallel(t *testing.T) {
 	ts, _ := newTestStore(t)
 	pointLogsAt(t)
 
-	// The gate holds every StartSeries until two sit inside it at once: a
-	// serialized conductor times out and fails the run.
 	var mu sync.Mutex
 	inside := 0
 	release := make(chan struct{})
@@ -519,8 +514,6 @@ func TestConductorCancelRetiresEverything(t *testing.T) {
 
 	started := make(chan struct{})
 	var once sync.Once
-	// The script parks after two moves: no gameend, no series event, so the
-	// conductor's event loop waits on ctx alone.
 	src := &fakeSource{
 		script: func(host, guest string) []server.Event {
 			return []server.Event{
@@ -575,14 +568,12 @@ func TestConductorRunRefusals(t *testing.T) {
 		return err
 	}
 
-	// Worst-case live-search demand over the machine budget.
 	if err := run(rosterDefault(), 3); err == nil || !strings.Contains(err.Error(), "cores") {
 		t.Errorf("3 parallel rooms over the full roster = %v, want the core budget refusal", err)
 	}
 	if err := run(rosterTwo(), 0); err == nil || !strings.Contains(err.Error(), "parallel") {
 		t.Errorf("parallel 0 = %v, want the parallelism refusal", err)
 	}
-	// Unknown tier names refuse before anything persists.
 	bad := []Participant{
 		{Slot: 0, Name: "a", Tier: config.TierEasy.Name},
 		{Slot: 1, Name: "b", Tier: "mythic"},
@@ -598,9 +589,6 @@ func TestConductorRunRefusals(t *testing.T) {
 	}
 }
 
-// TestConductorRefusesSecondOngoingRun pins the machine-wide run gate: with
-// any ongoing row in the store, a new run refuses with ErrRunInProgress
-// naming the holder before anything persists or any series starts.
 func TestConductorRefusesSecondOngoingRun(t *testing.T) {
 	ts, _ := newTestStore(t)
 	pointLogsAt(t)
@@ -635,35 +623,27 @@ func TestConductorDisqualifiesMissedEvents(t *testing.T) {
 		want   string
 	}{
 		{
-			// The subscription missed the first stone, an odd lost prefix:
-			// the truth reconciliation fires before the replay.
 			"lost first move",
 			&fakeSource{script: easySweeps, dropLeadMoves: 1},
 			"10 moves against the room's 11",
 		},
 		{
-			// The room's own record is the corrupt one: truth matches the
-			// delivery but the game does not replay, the second net's catch.
 			"unreplayable record",
 			&fakeSource{script: func(host, guest string) []server.Event {
 				ev := easySweeps(host, guest)
-				return append(ev[:0], ev[2:]...) // drop move 1 and its M-line
+				return append(ev[:0], ev[2:]...)
 			}},
 			"completes no",
 		},
 		{
-			// The stream closes before the series event with the eviction
-			// explainer: a hard gap, never a silent partial record.
 			"evicted subscriber",
 			&fakeSource{script: func(host, guest string) []server.Event {
 				ev := easySweeps(host, guest)
-				return ev[:len(ev)-1] // everything but the series event
+				return ev[:len(ev)-1]
 			}, closeEarly: true, streamErr: server.ErrSlowConsumer},
 			"too slow",
 		},
 		{
-			// The room's verdict disagrees with the billed line: corrupt
-			// seat bookkeeping fails the run instead of persisting.
 			"verdict mismatch",
 			&fakeSource{script: func(host, guest string) []server.Event {
 				ev := easySweeps(host, guest)
@@ -673,20 +653,16 @@ func TestConductorDisqualifiesMissedEvents(t *testing.T) {
 			"disagrees",
 		},
 		{
-			// A series event before the bo law settles (1-0 in a bo3): the
-			// room closed early or events went missing.
 			"early series close",
 			&fakeSource{script: func(host, guest string) []server.Event {
 				ev := easySweeps(host, guest)
-				cut := 2*len(sweepRedMoves) + 1 // game 1, its M-lines, its end
+				cut := 2*len(sweepRedMoves) + 1
 				out := append([]server.Event(nil), ev[:cut]...)
 				return append(out, ev[len(ev)-1])
 			}},
 			"settles",
 		},
 		{
-			// The match surface itself refuses the pairing: the series, and
-			// with it the run, fails with the refusal.
 			"source refusal",
 			&fakeSource{script: easySweeps, onStart: func(*fakeStream) error {
 				return errors.New("the source refused the pairing")
@@ -694,8 +670,6 @@ func TestConductorDisqualifiesMissedEvents(t *testing.T) {
 			"the source refused the pairing",
 		},
 		{
-			// The stream ends before the series event with no explainer at
-			// all: still a hard gap, never a silent partial record.
 			"stream end without explainer",
 			&fakeSource{script: func(host, guest string) []server.Event {
 				ev := easySweeps(host, guest)
@@ -704,8 +678,6 @@ func TestConductorDisqualifiesMissedEvents(t *testing.T) {
 			"event stream ended before the series event",
 		},
 		{
-			// A room that plays a fourth game of a bo3: the store's bo cap
-			// rejects the append and the run fails instead of overbilling.
 			"room overplays the bo cap",
 			&fakeSource{script: func(host, guest string) []server.Event {
 				return scriptedSeries([]scriptedGame{

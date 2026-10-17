@@ -106,6 +106,7 @@ const (
 	TournamentSeriesLogFormat = "run%d_s%d_%s-vs-%s.txt"
 	TournamentRunDirFormat    = "20060102-150405"
 	TournamentSummaryName     = "summary.txt"
+	TournamentProgressName    = "progress.txt"
 	TournamentDriveBeatSec    = 10
 	TournamentDriveStaleSec   = 90
 	TournamentLegacyLabel     = "legacy"

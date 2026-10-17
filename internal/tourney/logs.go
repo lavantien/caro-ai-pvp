@@ -11,39 +11,26 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// Logs writes the Scenario 2 txt run logs: every run owns one folder under
-// config.TournamentLogRoot (RunDirName), holding one file per series named
-// by config.TournamentSeriesLogFormat with sanitized display names plus the
-// run's completion summary. The header block opens a series' file lazily,
-// every line appends in arrival order, and CloseSeries ends the file's
-// lifecycle. Errors return, never swallow.
 type Logs struct {
 	mu   sync.Mutex
 	dir  string
 	open map[seriesKey]*os.File
 }
 
-// seriesKey identifies one series' log file.
 type seriesKey struct {
 	run    int64
 	series int64
 }
 
-// NewLogs points the writer at one run's own log dir.
 func NewLogs(dir string) *Logs {
 	return &Logs{dir: dir, open: make(map[seriesKey]*os.File)}
 }
 
-// RunDirName names one tournament's folder: the run's start timestamp, a
-// dash, and the driver's label, all sanitized, under the configured root.
 func RunDirName(label string, at time.Time) string {
 	return filepath.Join(config.TournamentLogRoot,
 		at.Format(config.TournamentRunDirFormat)+"-"+sanitizeName(label))
 }
 
-// WriteRunSummary writes the run's completion summary into its folder: the
-// final standings with every participant's rating, series wins, and game
-// record. The roster names each slot; the board arrives leaderboard-sorted.
 func (g *Logs) WriteRunSummary(run Run, roster []Participant, board []Standings) error {
 	name := make(map[int]Participant, len(roster))
 	for _, p := range roster {
@@ -65,9 +52,6 @@ func (g *Logs) WriteRunSummary(run Run, roster []Participant, board []Standings)
 			st.Wins, st.Losses, st.Draws, st.GamesPlayed)
 	}
 	path := filepath.Join(g.dir, config.TournamentSummaryName)
-	// The folder exists for any dispatched series, but the all-settled
-	// resume dispatches nothing: the summary is that close's only artifact,
-	// so it creates the folder itself.
 	if err := os.MkdirAll(g.dir, 0o755); err != nil {
 		return fmt.Errorf("tourney: create run folder %s: %w", g.dir, err)
 	}
@@ -77,8 +61,28 @@ func (g *Logs) WriteRunSummary(run Run, roster []Participant, board []Standings)
 	return nil
 }
 
-// sanitizeName folds everything outside the filename-safe charset into "_"
-// so a display name can never escape the log directory.
+func (g *Logs) WriteProgress(line string) (err error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if err := os.MkdirAll(g.dir, 0o755); err != nil {
+		return fmt.Errorf("tourney: mkdir %s: %w", g.dir, err)
+	}
+	path := filepath.Join(g.dir, config.TournamentProgressName)
+	f, oerr := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if oerr != nil {
+		return fmt.Errorf("tourney: open progress %s: %w", path, oerr)
+	}
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("tourney: close progress %s: %w", path, cerr)
+		}
+	}()
+	if _, err = fmt.Fprintf(f, "%s %s\n", time.Now().Format(config.TournamentRunDirFormat), line); err != nil {
+		return fmt.Errorf("tourney: write progress %s: %w", path, err)
+	}
+	return nil
+}
+
 func sanitizeName(name string) string {
 	return strings.Map(func(r rune) rune {
 		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' ||
@@ -89,9 +93,6 @@ func sanitizeName(name string) string {
 	}, name)
 }
 
-// WriteSeriesHeader opens the series' file (lazily, like any first line)
-// and writes the header block: run and series, the pairing with tiers, the
-// time control, and the best-of length.
 func (g *Logs) WriteSeriesHeader(run, series int64, tcIdx, boLen int, red, blue Participant) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -107,18 +108,12 @@ func (g *Logs) WriteSeriesHeader(run, series int64, tcIdx, boLen int, red, blue 
 	return g.writeLines(seriesKey{run, series}, red.Name, blue.Name, lines)
 }
 
-// WriteSeriesLine appends one event line to the series' log in arrival
-// order: a move or the raw M-line telemetry of a bot turn, exactly as the
-// caller hands it over. The header must have opened the file.
 func (g *Logs) WriteSeriesLine(run, series int64, line string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.writeLines(seriesKey{run, series}, "", "", []string{line})
 }
 
-// writeLines appends lines to the series' open file, opening it on first
-// use when the header carries the display names. A second header on an
-// open series is rejected: it would silently duplicate the header block.
 func (g *Logs) writeLines(k seriesKey, redName, blueName string, lines []string) error {
 	f, ok := g.open[k]
 	if !ok {
@@ -141,10 +136,6 @@ func (g *Logs) writeLines(k seriesKey, redName, blueName string, lines []string)
 	return nil
 }
 
-// create makes the log directory and the series' file, recording the handle.
-// The header open truncates: one series file holds exactly one series'
-// record, so a drive replaying an interrupted series replaces the stale
-// partial file instead of appending a second header to it.
 func (g *Logs) create(k seriesKey, redName, blueName string) (*os.File, error) {
 	if err := os.MkdirAll(g.dir, 0o755); err != nil {
 		return nil, fmt.Errorf("tourney: mkdir %s: %w", g.dir, err)
@@ -159,8 +150,6 @@ func (g *Logs) create(k seriesKey, redName, blueName string) (*os.File, error) {
 	return f, nil
 }
 
-// CloseSeries closes the series' file: its lifecycle ends, later writes
-// error instead of silently reopening.
 func (g *Logs) CloseSeries(run, series int64) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -176,7 +165,6 @@ func (g *Logs) CloseSeries(run, series int64) error {
 	return nil
 }
 
-// Close closes every open series file, the run or process boundary.
 func (g *Logs) Close() error {
 	g.mu.Lock()
 	defer g.mu.Unlock()

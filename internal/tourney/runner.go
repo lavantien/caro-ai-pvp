@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"slices"
 	"sync"
 	"time"
@@ -12,6 +14,16 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
+
+var progressOut io.Writer = os.Stdout
+
+func reportProgress(logs *Logs, format string, args ...any) error {
+	line := fmt.Sprintf(format, args...)
+	if _, err := fmt.Fprintln(progressOut, time.Now().Format(config.TournamentRunDirFormat), line); err != nil {
+		return fmt.Errorf("tourney: progress stdout: %w", err)
+	}
+	return logs.WriteProgress(line)
+}
 
 type MatchSource interface {
 	StartSeries(host, guest *config.Tier, hostName, guestName string, tcIdx, boLen int) (SeriesStream, error)
@@ -179,6 +191,15 @@ func (c *Conductor) drive(ctx context.Context, store *Store, run Run, roster []P
 			_ = store.ReleaseDrive(context.Background(), run.ID)
 		}
 	}()
+	settled := 0
+	for slot := range pairs {
+		if schedule[slot].FinishedAt != nil {
+			settled++
+		}
+	}
+	if err := reportProgress(logs, "run %d drive claimed: %d of %d series settled", run.ID, settled, len(pairs)); err != nil {
+		return RunResult{}, err
+	}
 	res := RunResult{Run: run, Series: make([]SeriesResult, len(pairs))}
 	for slot := range pairs {
 		line := SeriesResult{
@@ -246,16 +267,34 @@ dispatch:
 		go func(slot int) {
 			defer wg.Done()
 			defer func() { <-sem }()
+			if perr := reportProgress(logs, "run %d series %d/%d started: %s vs %s",
+				run.ID, slot+1, len(pairs), pairs[slot].RedFirst.Name, pairs[slot].BlueFirst.Name); perr != nil {
+				once.Do(func() {
+					failure = perr
+					cancel()
+				})
+				return
+			}
+			begin := time.Now()
 			line, serr := c.series(runCtx, store, logs, run, schedule[slot], pairs[slot], tiers)
 			if serr != nil {
+				perr := reportProgress(logs, "run %d pairing %d failed: %v", run.ID, slot, serr)
 				once.Do(func() {
-					failure = fmt.Errorf("tourney: pairing %d (%s vs %s): %w",
-						slot, pairs[slot].RedFirst.Name, pairs[slot].BlueFirst.Name, serr)
+					failure = errors.Join(fmt.Errorf("tourney: pairing %d (%s vs %s): %w",
+						slot, pairs[slot].RedFirst.Name, pairs[slot].BlueFirst.Name, serr), perr)
 					cancel()
 				})
 				return
 			}
 			res.Series[slot] = line
+			if perr := reportProgress(logs, "run %d series %d/%d settled: %s %d-%d %s in %s",
+				run.ID, slot+1, len(pairs), line.RedFirst.Name, line.RedFirstWins, line.BlueFirstWins,
+				line.BlueFirst.Name, time.Since(begin).Round(time.Second)); perr != nil {
+				once.Do(func() {
+					failure = perr
+					cancel()
+				})
+			}
 		}(slot)
 	}
 	wg.Wait()
@@ -281,6 +320,9 @@ dispatch:
 		return res, fmt.Errorf("tourney: finish run %d: %w", run.ID, err)
 	}
 	finished = true
+	if err := reportProgress(logs, "run %d finished: summary in %s", run.ID, logs.dir); err != nil {
+		return res, err
+	}
 	return res, nil
 }
 func tiersOfRoster(roster []Participant) ([]*config.Tier, error) {

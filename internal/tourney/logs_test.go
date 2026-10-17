@@ -11,16 +11,11 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// runLogDir is one test's own run folder.
 func runLogDir(t *testing.T) string {
 	t.Helper()
 	return t.TempDir()
 }
 
-// TestLogsReplayReplacesStaleSeriesFile pins the resume shape: a drive that
-// restarts an interrupted series (the stale partial record an aborted process
-// left behind) rewrites the file from its header, so one series file always
-// holds exactly one series' whole record.
 func TestLogsReplayReplacesStaleSeriesFile(t *testing.T) {
 	dir := runLogDir(t)
 	red := Participant{Slot: 0, Name: "easy-1", Tier: "easy"}
@@ -178,9 +173,6 @@ func TestLogsSurfacesDirFailures(t *testing.T) {
 	}
 }
 
-// TestLogsCreateFaults pins the file-creation arm: a target path already
-// held by a directory makes the open fail with its own wrap, not a bare
-// syscall error.
 func TestLogsCreateFaults(t *testing.T) {
 	dir := runLogDir(t)
 	red := Participant{Name: "a", Tier: "easy"}
@@ -197,10 +189,6 @@ func TestLogsCreateFaults(t *testing.T) {
 	}
 }
 
-// TestLogsWriteAndCloseFaults pins the lifecycle against a dead handle:
-// writes and closes surface as wrapped errors naming the series, the drain
-// still clears the map, and a healthy sibling file closes cleanly through
-// the same drain.
 func TestLogsWriteAndCloseFaults(t *testing.T) {
 	dir := runLogDir(t)
 	red := Participant{Name: "a", Tier: "easy"}
@@ -212,9 +200,6 @@ func TestLogsWriteAndCloseFaults(t *testing.T) {
 		}
 	}
 
-	// The write and per-series close arms: the handle dies under the
-	// writer (the fault a full disk or a closed descriptor produces), and
-	// the next write plus the explicit close both report it.
 	if err := g.open[seriesKey{9, 1}].Close(); err != nil {
 		t.Fatalf("kill handle 1: %v", err)
 	}
@@ -226,8 +211,6 @@ func TestLogsWriteAndCloseFaults(t *testing.T) {
 		t.Fatalf("double close = %v, want the wrapped close failure", err)
 	}
 
-	// The drain arm: the dead handle's close error surfaces once, the
-	// healthy sibling still closes, and the map drains empty.
 	if err := g.open[seriesKey{9, 2}].Close(); err != nil {
 		t.Fatalf("kill handle 2: %v", err)
 	}
@@ -239,8 +222,6 @@ func TestLogsWriteAndCloseFaults(t *testing.T) {
 	}
 }
 
-// TestRunDirName pins the per-run folder law: timestamp, dash, sanitized
-// label, under the configured root.
 func TestRunDirName(t *testing.T) {
 	saved := config.TournamentLogRoot
 	config.TournamentLogRoot = t.TempDir()
@@ -253,9 +234,6 @@ func TestRunDirName(t *testing.T) {
 	}
 }
 
-// TestWriteRunSummary pins the completion summary: the run header lines and
-// the leaderboard table with names, tiers, ratings, series wins, and the
-// game record.
 func TestWriteRunSummary(t *testing.T) {
 	dir := runLogDir(t)
 	g := NewLogs(dir)
@@ -288,5 +266,48 @@ func TestWriteRunSummary(t *testing.T) {
 	}
 	if err := g.WriteRunSummary(Run{ID: 9}, []Participant{{Slot: 5, Name: "x", Tier: "easy"}}, board); err == nil {
 		t.Error("summary with a slot outside the roster accepted, want rejection")
+	}
+}
+
+func TestLogsWriteProgressAppendsTimestampedLines(t *testing.T) {
+	dir := runLogDir(t)
+	g := NewLogs(dir)
+	t.Cleanup(func() { _ = g.Close() })
+	if err := g.WriteProgress("run 5 series 1/2 started: easy-1 vs medium-1"); err != nil {
+		t.Fatalf("progress 1: %v", err)
+	}
+	if err := g.WriteProgress("run 5 series 1/2 settled: easy-1 2-0 medium-1"); err != nil {
+		t.Fatalf("progress 2: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, config.TournamentProgressName))
+	if err != nil {
+		t.Fatalf("read progress: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("progress lines = %d, want 2 (append semantics):\n%s", len(lines), data)
+	}
+	for i, want := range []string{
+		"run 5 series 1/2 started: easy-1 vs medium-1",
+		"run 5 series 1/2 settled: easy-1 2-0 medium-1",
+	} {
+		if len(lines[i]) < 17 || lines[i][15] != ' ' {
+			t.Errorf("progress line %d = %q, want a leading 20060102-150405 stamp", i, lines[i])
+			continue
+		}
+		if got := lines[i][16:]; got != want {
+			t.Errorf("progress line %d = %q, want %q", i, got, want)
+		}
+	}
+}
+
+func TestLogsWriteProgressSurfacesDirFailures(t *testing.T) {
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatalf("seed blocker: %v", err)
+	}
+	g := NewLogs(filepath.Join(blocker, "under"))
+	if err := g.WriteProgress("line"); err == nil {
+		t.Fatalf("progress under a file path succeeded, want the mkdir error")
 	}
 }
