@@ -126,7 +126,12 @@ mutate:
 # population widens and stale allowlist entries fail the unused check.
 mutate-resume:
 	@mkdir -p $(MUTATE_TMP); \
-	TMP=$(MUTATE_TMP) TEMP=$(MUTATE_TMP) GOTMPDIR=$(MUTATE_TMP) CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),1) $(if $(CHALLENGE),-challenge) $(ARGS) -resume "$(LOG)"
+	for attempt in 1 2 3 4 5; do \
+		TMP=$(MUTATE_TMP) TEMP=$(MUTATE_TMP) GOTMPDIR=$(MUTATE_TMP) CGO_ENABLED=1 go run ./cmd/mutate -allow .mutate-allow -parallel $(or $(PARALLEL),1) $(if $(CHALLENGE),-challenge) $(ARGS) -resume "$(LOG)" && exit 0; \
+		if grep -q '^mutate: [0-9][0-9]*/[0-9]* run' "$(LOG)"; then tail -2 "$(LOG)"; exit 1; fi; \
+		echo "mutate-resume: attempt $$attempt crashed host-side, resuming from $(LOG)"; \
+	done; \
+	echo "mutate-resume: no definitive verdict after 5 attempts"; exit 1
 
 # mutate-smoke [PARALLEL=2]: the rules-core gate for CI. The allowlist is
 # scoped to the package so the unused-allow check only judges entries the
