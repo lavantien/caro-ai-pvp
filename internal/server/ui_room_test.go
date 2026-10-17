@@ -882,3 +882,10 @@ func TestBoardCellsLatestFlagOnLastMove(t *testing.T) {
 		t.Errorf("latest cells = %v, want exactly [H8]", latest)
 	}
 }
+
+func TestReadyFlagsReportNoSeriesBeforeStart(t *testing.T) {
+	r := &Room{}
+	if exists, host, guest := r.readyFlags(); exists || host || guest {
+		t.Errorf("readyFlags on a room without a series = %v %v %v, want all false", exists, host, guest)
+	}
+}

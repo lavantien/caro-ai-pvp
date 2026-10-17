@@ -299,6 +299,47 @@ func TestApplyCompletionBotSeatSkipsRatingPair(t *testing.T) {
 	}
 }
 
+func TestApplyCompletionHumanSeatsBookRatingPair(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	bob := seedUser(t, s, "bob")
+	sr, err := s.CreateSeries(context.Background(), 0, config.SeriesBO3, alice.ID, bob.ID)
+	if err != nil {
+		t.Fatalf("seed human series: %v", err)
+	}
+
+	if err := s.ApplyCompletion(context.Background(), Completion{
+		Games: []Game{{
+			SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+			Outcome: OutcomeRed, Moves: []byte{1, 0}, FullTurns: 1,
+		}},
+	}); err != nil {
+		t.Fatalf("apply human completion: %v", err)
+	}
+	if games, ratings := completionFootprint(t, s, sr.ID); games != 1 || ratings != 2 {
+		t.Errorf("human completion = %d games %d ratings, want 1 and 2", games, ratings)
+	}
+	ha, err := s.RatingHistoryByUser(alice.ID)
+	if err != nil {
+		t.Fatalf("alice rating history: %v", err)
+	}
+	hb, err := s.RatingHistoryByUser(bob.ID)
+	if err != nil {
+		t.Fatalf("bob rating history: %v", err)
+	}
+	if len(ha) != 1 || len(hb) != 1 {
+		t.Fatalf("rating histories = %d and %d events, want 1 each", len(ha), len(hb))
+	}
+	if ha[0].Delta != -hb[0].Delta || ha[0].Delta == 0 {
+		t.Errorf("rating deltas = %d and %d, want a nonzero zero-sum pair", ha[0].Delta, hb[0].Delta)
+	}
+	if ha[0].RatingAfter <= config.RatingStart || hb[0].RatingAfter >= config.RatingStart {
+		t.Errorf("ratings after = %d and %d, want the red winner up and the blue loser down from %d",
+			ha[0].RatingAfter, hb[0].RatingAfter, config.RatingStart)
+	}
+}
+
 func TestApplyCompletionStatFailureRollsBackTheUnit(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
