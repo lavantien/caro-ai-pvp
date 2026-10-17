@@ -557,6 +557,62 @@ func TestQualityGates(t *testing.T) {
 		t.Errorf("core gate %v below overall gate %v", QualityCoverageCoreMin, QualityCoverageOverallMin)
 	}
 }
+func TestBookConstants(t *testing.T) {
+	if BookFileMagic != "CAROBOOK1" {
+		t.Errorf("BookFileMagic = %q, want CAROBOOK1", BookFileMagic)
+	}
+	if BookMagicLine != BookFileMagic+"\n" || len(BookMagicLine) != 10 {
+		t.Errorf("BookMagicLine = %q, want the magic plus one newline", BookMagicLine)
+	}
+	if BookFormatVersion != 1 {
+		t.Errorf("BookFormatVersion = %d, want 1", BookFormatVersion)
+	}
+	if BookVisitFloor != 20 {
+		t.Errorf("BookVisitFloor = %d, want 20", BookVisitFloor)
+	}
+	if BookCorpusGames != 300 {
+		t.Errorf("BookCorpusGames = %d, want 300", BookCorpusGames)
+	}
+	if BookSolverNodeBudget != 1<<24 {
+		t.Errorf("BookSolverNodeBudget = %d, want 1<<24", BookSolverNodeBudget)
+	}
+	if BotLogTagBook != ", [BOOK]" {
+		t.Errorf("BotLogTagBook = %q, want the book producer tag", BotLogTagBook)
+	}
+	if BookSourceMajority != 1 || BookSourceSolver != 2 {
+		t.Errorf("book sources = %d/%d, want majority 1 and solver 2", BookSourceMajority, BookSourceSolver)
+	}
+	if BookKeyBytes != 2*BoardWordsPerColor*8 {
+		t.Errorf("BookKeyBytes = %d, want both color planes %d", BookKeyBytes, 2*BoardWordsPerColor*8)
+	}
+	if BookKeyBytes != 64 {
+		t.Errorf("BookKeyBytes = %d, want the spec's 64", BookKeyBytes)
+	}
+	if BookEntryBytes != BookKeyBytes+BookMoveBytes+BookVisitsBytes+BookSourceBytes+BookReservedBytes {
+		t.Errorf("BookEntryBytes = %d, want the component sum %d", BookEntryBytes, BookKeyBytes+BookMoveBytes+BookVisitsBytes+BookSourceBytes+BookReservedBytes)
+	}
+	if BookEntryBytes != 75 {
+		t.Errorf("BookEntryBytes = %d, want the spec's fixed 75", BookEntryBytes)
+	}
+	if BookMoveBytes != 2 || BookVisitsBytes != 4 || BookSourceBytes != 1 || BookReservedBytes != 4 {
+		t.Errorf("field widths = %d/%d/%d/%d, want 2/4/1/4", BookMoveBytes, BookVisitsBytes, BookSourceBytes, BookReservedBytes)
+	}
+	if BookMetaLineMaxBytes != 1024 {
+		t.Errorf("BookMetaLineMaxBytes = %d, want 1024, generous over the fixed-shape meta line", BookMetaLineMaxBytes)
+	}
+	if FuzzInputMaxBytes != 1<<20 {
+		t.Errorf("FuzzInputMaxBytes = %d, want 1<<20", FuzzInputMaxBytes)
+	}
+	wantFields := []string{"version", "max_ply", "generator", "corpus_games", "visit_floor", "created"}
+	if len(BookMetaFields) != len(wantFields) {
+		t.Fatalf("len(BookMetaFields) = %d, want %d", len(BookMetaFields), len(wantFields))
+	}
+	for i, f := range wantFields {
+		if BookMetaFields[i] != f {
+			t.Errorf("BookMetaFields[%d] = %q, want %q", i, BookMetaFields[i], f)
+		}
+	}
+}
 func TestServerConstants(t *testing.T) {
 	if Argon2Time < 1 || Argon2MemoryKiB < 19456 || Argon2Parallelism < 1 {
 		t.Errorf("argon2 profile t=%d m=%dKiB p=%d below the OWASP floor", Argon2Time, Argon2MemoryKiB, Argon2Parallelism)

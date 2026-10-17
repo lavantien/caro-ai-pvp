@@ -178,6 +178,30 @@ const (
 	BotLogTagVCF    = ", [VCF]"
 	BotLogTagVCT    = ", [VCT]"
 	BotLogTagPonder = ", [PONDER]"
+	BotLogTagBook   = ", [BOOK]"
+)
+const (
+	BookFileMagic        = "CAROBOOK1"
+	BookMagicLine        = BookFileMagic + "\n"
+	BookFormatVersion    = 1
+	BookKeyBytes         = 2 * BoardWordsPerColor * 8
+	BookMoveBytes        = 2
+	BookVisitsBytes      = 4
+	BookSourceBytes      = 1
+	BookReservedBytes    = 4
+	BookEntryBytes       = BookKeyBytes + BookMoveBytes + BookVisitsBytes + BookSourceBytes + BookReservedBytes
+	BookMetaLineMaxBytes = 1024
+	BookVisitFloor       = 20
+	BookCorpusGames      = 300
+	BookSolverNodeBudget = 1 << 24
+)
+const FuzzInputMaxBytes = 1 << 20
+
+var BookMetaFields = [...]string{"version", "max_ply", "generator", "corpus_games", "visit_floor", "created"}
+
+const (
+	BookSourceMajority uint8 = 1
+	BookSourceSolver   uint8 = 2
 )
 const (
 	QualityCoverageOverallMin = 95.0
