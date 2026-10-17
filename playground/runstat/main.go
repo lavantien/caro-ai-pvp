@@ -1,5 +1,3 @@
-// runstat prints the raw tournament run rows of an evidence db, one-off
-// diagnostic for a drive that will not finish.
 package main
 
 import (
@@ -16,18 +14,25 @@ func main() {
 		panic(err)
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT id, status, finished_at FROM tournament_runs ORDER BY id`)
+	rows, err := db.Query(`
+	SELECT r.id, r.label, r.status, datetime(r.created_at, 'unixepoch', 'localtime'),
+	       (SELECT COUNT(*) FROM tournament_series s WHERE s.run_id = r.id AND s.finished_at IS NOT NULL),
+	       (SELECT COUNT(*) FROM tournament_series s WHERE s.run_id = r.id)
+	FROM tournament_runs r ORDER BY r.id`)
 	if err != nil {
 		panic(err)
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var id int64
-		var status string
-		var finished sql.NullInt64
-		if err := rows.Scan(&id, &status, &finished); err != nil {
+		var label, status, createdAt string
+		var settled, total int
+		if err := rows.Scan(&id, &label, &status, &createdAt, &settled, &total); err != nil {
 			panic(err)
 		}
-		fmt.Printf("run %d status=%s finished=%v\n", id, status, finished.Int64)
+		fmt.Printf("run %d label=%s status=%s created=%s series=%d/%d\n", id, label, status, createdAt, settled, total)
+	}
+	if err := rows.Err(); err != nil {
+		panic(err)
 	}
 }
