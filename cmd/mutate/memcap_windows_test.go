@@ -19,7 +19,7 @@ func TestMemcapRunawayHelper(t *testing.T) {
 	for i := range buf {
 		buf[i] = 1
 	}
-	os.Stderr.Write(buf[:1])
+	_, _ = os.Stderr.Write(buf[:1])
 }
 
 func TestTreeCapKillsRunaway(t *testing.T) {

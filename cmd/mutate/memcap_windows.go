@@ -26,19 +26,19 @@ func capStartedTree(cmd *exec.Cmd, capBytes int64) (release func(), err error) {
 		JobMemoryLimit: uintptr(capBytes),
 	}
 	if _, err = windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info))); err != nil {
-		windows.CloseHandle(job)
+		_ = windows.CloseHandle(job)
 		return nil, fmt.Errorf("set job memory limit %d: %w", capBytes, err)
 	}
 	proc, perr := windows.OpenProcess(windows.PROCESS_SET_QUOTA|windows.PROCESS_TERMINATE, false, uint32(cmd.Process.Pid))
 	if perr != nil {
-		windows.CloseHandle(job)
+		_ = windows.CloseHandle(job)
 		return nil, fmt.Errorf("open pid %d: %w", cmd.Process.Pid, perr)
 	}
 	if err = windows.AssignProcessToJobObject(job, proc); err != nil {
-		windows.CloseHandle(proc)
-		windows.CloseHandle(job)
+		_ = windows.CloseHandle(proc)
+		_ = windows.CloseHandle(job)
 		return nil, fmt.Errorf("assign pid %d to job: %w", cmd.Process.Pid, err)
 	}
-	windows.CloseHandle(proc)
+	_ = windows.CloseHandle(proc)
 	return func() { _ = windows.CloseHandle(job) }, nil
 }
