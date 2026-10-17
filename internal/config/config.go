@@ -190,7 +190,9 @@ const (
 	MutateTimeoutMs           = 120_000
 	MutateMinTimeoutMs        = 2_000
 	MutateTestTimeoutSlack    = 1_000
-	MutateMaxParallel         = 16
+	MutateMaxParallel         = 4
+	MutateTreeMemCapBytes     = 2 << 30
+	MutateTotalMemCapBytes    = 8 << 30
 	MutateRemoveRetryAttempts = 5
 	MutateRemoveRetryDelayMs  = 200
 )

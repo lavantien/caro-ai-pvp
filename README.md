@@ -130,8 +130,8 @@ Requires go 1.27.1+, a C toolchain (gcc or llvm/clang), GNU make, with CGO enabl
 make doctor          # toolchain check: go >= 1.27.1, CGO, gcc
 make ci              # fmt-check, vet, build, race tests, coverage gates
 make mutate-smoke    # rules-core mutation gate (runs in CI on every push)
-make mutate-full LABEL=vX PARALLEL=6 CHALLENGE=1  # whole gate, auto-resumes host crashes
-make mutate-resume LOG=prior-run.log PARALLEL=8 CHALLENGE=1
+make mutate-full LABEL=vX PARALLEL=4 CHALLENGE=1  # whole gate, auto-resumes host crashes; every test tree runs under a kernel-enforced 2 GiB commit cap so a broken-bound mutant dies in its own tree and 4 workers hold the 8 GiB mutation ceiling
+make mutate-resume LOG=prior-run.log PARALLEL=4 CHALLENGE=1
 make bench           # engine, clock, rules benchmarks with allocs
 make fuzz            # rules differential fuzz target
 make clocktune       # PID gain sweep for one time control, artifact under playground/clocktune/out/

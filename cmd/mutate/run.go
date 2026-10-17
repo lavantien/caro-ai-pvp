@@ -10,9 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,9 +23,6 @@ const (
 	verdictChallenged = "CHALLENGED"
 )
 
-// errInterrupted marks a run stopped by context cancellation before a
-// verdict could be classified; callers translate it into their own
-// progress messages.
 var errInterrupted = errors.New("interrupted")
 
 type runner interface {
@@ -40,12 +35,6 @@ type execRunner struct {
 	timeout  time.Duration
 }
 
-// newRunCache creates the gate's private Go build cache. Every mutant is a
-// distinct source hash, so a shared GOCACHE grows monotonically across
-// gates (measured 28 GB on a 32 GB machine before this existed, starving
-// paged pool until file opens failed); a run-private cache stays bounded
-// by the run and dies with it. The caro-mutate- prefix puts crash
-// leftovers under sweepStaleIsolates.
 func newRunCache() (string, error) {
 	return os.MkdirTemp("", "caro-mutate-cache-")
 }
@@ -64,18 +53,23 @@ func goEnv(cacheDir string) []string {
 func (r execRunner) runTest(ctx context.Context, pkg string) error {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "go", "test", "-count=1", "-short", "-timeout", (r.timeout - time.Duration(config.MutateTestTimeoutSlack)*time.Millisecond).String(), pkg)
+	argv := []string{"go", "test", "-count=1", "-short", "-timeout", (r.timeout - time.Duration(config.MutateTestTimeoutSlack)*time.Millisecond).String(), pkg}
+	wrapped := cappedArgv(argv, config.MutateTreeMemCapBytes)
+	cmd := exec.CommandContext(ctx, wrapped[0], wrapped[1:]...)
 	cmd.Dir = r.dir
 	cmd.Env = goEnv(r.cacheDir)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
-	err := cmd.Run()
-	// CommandContext kills only the direct child; the compiled test binary
-	// is its grandchild and survives on Windows, pinning the module copy.
-	if ctx.Err() != nil && runtime.GOOS == "windows" && cmd.Process != nil {
-		_ = exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
+	if err := cmd.Start(); err != nil {
+		return err
 	}
-	return err
+	release, err := capStartedTree(cmd, config.MutateTreeMemCapBytes)
+	if err != nil {
+		_ = cmd.Process.Kill()
+		return err
+	}
+	defer release()
+	return cmd.Wait()
 }
 
 func classify(err error) string {
@@ -145,12 +139,7 @@ func displayPath(workDir, path string) string {
 	return filepath.ToSlash(rel)
 }
 
-// loadResumeLog reads a prior run log and collects the keys that ended as
-// KILLED. Those verdicts are replayed verbatim on a resume: the tree is
-// unchanged between segments, and the suite only ever grows, so a killed
-// mutant stays killed. Survivors and allows are re-decided fresh by the
-// current suite and allowlist.
-func loadResumeLog(r io.Reader) map[string]bool {
+func loadResumeLog(r io.Reader) (map[string]bool, error) {
 	resumed := map[string]bool{}
 	sc := bufio.NewScanner(r)
 	for sc.Scan() {
@@ -159,19 +148,12 @@ func loadResumeLog(r io.Reader) map[string]bool {
 			resumed[key] = true
 		}
 	}
-	return resumed
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	return resumed, nil
 }
 
-// executeMutants runs every mutant in ms against r inside workDir. Without
-// challenge mode an allowlisted mutant is classified without running the
-// suite: the entry asserts a proven equivalence, so the suite verdict under
-// it is noise and the run is skipped. With challenge mode the suite runs
-// under allowlisted mutants too, and a suite kill marks the entry
-// CHALLENGED: callers re-verify challenged entries serially, a confirmed
-// kill demotes the entry and fails the gate, a survive consumes it. The
-// return carries verdict counts, consumed allow keys, surviving mutants,
-// and challenge-flagged mutants; callers aggregate across parallel workers
-// and fail on unconsumed entries.
 func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mutation, store *fileStore, r runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (res result, consumed allowlist, survived []mutation, challenged []mutation, err error) {
 	res.total = len(ms)
 	consumed = allowlist{}
@@ -235,8 +217,6 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 	return res, consumed, survived, challenged, nil
 }
 
-// demotedError fails the gate for allow entries whose mutants were killed
-// under challenge: the equivalence proof no longer holds.
 func demotedError(keys []string) error {
 	sort.Strings(keys)
 	return fmt.Errorf("%d allow entries no longer equivalent (suite killed the mutant; prune or re-prove): %s", len(keys), strings.Join(keys, "; "))
@@ -255,7 +235,6 @@ func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []
 	if err != nil {
 		return res, err
 	}
-	// Serial mode has no load: a challenge kill is already a serial verdict.
 	if len(challenged) > 0 {
 		keys := make([]string, 0, len(challenged))
 		for _, m := range challenged {
@@ -269,8 +248,6 @@ func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []
 	return res, nil
 }
 
-// discoverMutants collects the sorted mutant population of the pattern
-// targets plus the file paths the caller must snapshot before mutating.
 func discoverMutants(ctx context.Context, out io.Writer, workDir string, patterns []string, cacheDir string) ([]mutation, []string, error) {
 	present := patterns[:0]
 	for _, p := range patterns {

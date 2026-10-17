@@ -105,6 +105,17 @@ func TestClockLawConstants(t *testing.T) {
 		t.Errorf("MutateMaxParallel = %d, want a sane bound in [1, 64]", MutateMaxParallel)
 	}
 }
+func TestMutateMemCapLaw(t *testing.T) {
+	if MutateTreeMemCapBytes != 2<<30 {
+		t.Errorf("MutateTreeMemCapBytes = %d, want 2 GiB per test tree", MutateTreeMemCapBytes)
+	}
+	if MutateTotalMemCapBytes != 8<<30 {
+		t.Errorf("MutateTotalMemCapBytes = %d, want the 8 GiB mutation ceiling", MutateTotalMemCapBytes)
+	}
+	if worst := int64(MutateMaxParallel) * MutateTreeMemCapBytes; worst > MutateTotalMemCapBytes {
+		t.Errorf("worst-case gate commit %d (parallel %d x tree %d) exceeds the %d ceiling", worst, MutateMaxParallel, MutateTreeMemCapBytes, MutateTotalMemCapBytes)
+	}
+}
 func TestClockPIDGainsFullyAuthored(t *testing.T) {
 	for i, g := range ClockPID {
 		if g.Kp <= 0 || g.Ki <= 0 || g.Kd <= 0 {

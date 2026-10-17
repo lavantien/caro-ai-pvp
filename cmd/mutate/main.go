@@ -68,8 +68,13 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 			_, _ = fmt.Fprintln(stderr, "mutate:", rerr)
 			return 2
 		}
-		resumeKilled = loadResumeLog(rf)
+		loaded, lerr := loadResumeLog(rf)
 		_ = rf.Close()
+		if lerr != nil {
+			_, _ = fmt.Fprintln(stderr, "mutate:", lerr)
+			return 2
+		}
+		resumeKilled = loaded
 		_, _ = fmt.Fprintf(stdout, "mutate: resuming, %d prior kills replayed\n", len(resumeKilled))
 	}
 	patterns := splitPkgs(*pkgs)
@@ -100,6 +105,7 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 		return 2
 	}
 	defer func() { removeAllRetried(cacheDir) }()
+	_, _ = fmt.Fprintf(stdout, "mutate: memory cap %d MiB per tree, %d workers, worst case %d MiB\n", config.MutateTreeMemCapBytes>>20, *parallel, int64(*parallel)*config.MutateTreeMemCapBytes>>20)
 	var res result
 	var err error
 	if *parallel > 1 {

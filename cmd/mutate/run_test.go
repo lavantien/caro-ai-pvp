@@ -199,7 +199,10 @@ func TestLoadResumeLog(t *testing.T) {
 		"internal/engine/bitboard.go:63:8 replace < with <= ALLOWED # proof text\n" +
 		"mutate: 1483/1483 run, 1410 killed, 4 survived, 69 allowed\n" +
 		"garbage line without verdict\n"
-	got := loadResumeLog(strings.NewReader(log))
+	got, err := loadResumeLog(strings.NewReader(log))
+	if err != nil {
+		t.Fatalf("loadResumeLog err = %v", err)
+	}
 	want := map[string]bool{"internal/engine/tt.go:118:10 replace 0 with -1": true}
 	if len(got) != len(want) {
 		t.Fatalf("loadResumeLog = %v, want only the killed key %v", got, want)
