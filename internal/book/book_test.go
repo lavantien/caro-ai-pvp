@@ -1,6 +1,7 @@
 package book
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"slices"
@@ -33,7 +34,7 @@ func specEntry(key [config.BookKeyBytes]byte, move rules.Move, visits uint32, so
 }
 
 func specMetaLine(version int) []byte {
-	return []byte(`{"version":` + strconv.Itoa(version) + `,"max_ply":16,"generator":"spec","corpus_games":300,"visit_floor":20,"created":"20261018-000000"}` + "\n")
+	return []byte(`{"version":` + strconv.Itoa(version) + `,"max_ply":16,"generator":"spec","corpus_games":` + strconv.Itoa(config.BookCorpusGames) + `,"visit_floor":` + strconv.Itoa(config.BookVisitFloor) + `,"created":"20261018-000000"}` + "\n")
 }
 
 func specBook(meta []byte, entries ...[]byte) []byte {
@@ -114,7 +115,7 @@ func TestLoadAcceptsValidBook(t *testing.T) {
 	if bk.Len() != len(rows) {
 		t.Errorf("Len = %d, want %d", bk.Len(), len(rows))
 	}
-	if bk.MaxPly != 16 || bk.Generator != "spec" || bk.CorpusGames != 300 || bk.VisitFloor != 20 || bk.Created != "20261018-000000" {
+	if bk.MaxPly != 16 || bk.Generator != "spec" || bk.CorpusGames != config.BookCorpusGames || bk.VisitFloor != config.BookVisitFloor || bk.Created != "20261018-000000" {
 		t.Errorf("meta = ply %d gen %q corpus %d floor %d created %q", bk.MaxPly, bk.Generator, bk.CorpusGames, bk.VisitFloor, bk.Created)
 	}
 	for _, r := range rows {
@@ -273,7 +274,7 @@ func TestLoadAcceptsThousandEntryBook(t *testing.T) {
 		var k [config.BookKeyBytes]byte
 		k[62] = byte(i >> 8)
 		k[63] = byte(i)
-		raw = append(raw, specEntry(k, rules.Move(i%config.BoardCells), uint32(config.BookVisitFloor), config.BookSourceMajority))
+		raw = append(raw, specEntry(k, rules.Move(i%8), uint32(config.BookVisitFloor), config.BookSourceMajority))
 	}
 	bk := mustLoad(t, specBook(specMetaLine(config.BookFormatVersion), raw...))
 	if bk.Len() != entries {
@@ -281,8 +282,101 @@ func TestLoadAcceptsThousandEntryBook(t *testing.T) {
 	}
 	b := rules.NewBoard()
 	b.Blue[3] = 0x0102 << 48
-	if mv, ok := bk.Probe(b); !ok || int(mv) != 513%config.BoardCells {
-		t.Errorf("probe of entry 513 = (%d, %t), want (%d, true)", uint16(mv), ok, 513%config.BoardCells)
+	if mv, ok := bk.Probe(b); !ok || int(mv) != 513%8 {
+		t.Errorf("probe of entry 513 = (%d, %t), want (%d, true)", uint16(mv), ok, 513%8)
+	}
+}
+
+func TestLoadRejectsOccupiedMove(t *testing.T) {
+	var redKey [config.BookKeyBytes]byte
+	binary.LittleEndian.PutUint64(redKey[:], uint64(1)<<17)
+	var blueKey [config.BookKeyBytes]byte
+	binary.LittleEndian.PutUint64(blueKey[config.BoardWordsPerColor*8:], uint64(1)<<17)
+	cases := map[string][]byte{
+		"red plane":  specEntry(redKey, rules.Move(17), uint32(config.BookVisitFloor), config.BookSourceMajority),
+		"blue plane": specEntry(blueKey, rules.Move(17), uint32(config.BookVisitFloor), config.BookSourceMajority),
+	}
+	for name, e := range cases {
+		bk, err := Load(bytes.NewReader(specBook(specMetaLine(config.BookFormatVersion), e)))
+		if err == nil || !strings.Contains(err.Error(), "occupied") {
+			t.Errorf("%s: err = %v, want an occupied-move fault", name, err)
+		}
+		if bk != nil {
+			t.Errorf("%s: book non-nil on fault", name)
+		}
+	}
+}
+
+func TestLoadRejectsBadSource(t *testing.T) {
+	for _, src := range []uint8{0, 3, 255} {
+		e := specEntry([config.BookKeyBytes]byte{}, 0, uint32(config.BookVisitFloor), src)
+		bk, err := Load(bytes.NewReader(specBook(specMetaLine(config.BookFormatVersion), e)))
+		if err == nil || !strings.Contains(err.Error(), "source") {
+			t.Errorf("source %d: err = %v, want a source fault", src, err)
+		}
+		if bk != nil {
+			t.Errorf("source %d: book non-nil on fault", src)
+		}
+	}
+}
+
+func TestLoadRejectsNonzeroReserved(t *testing.T) {
+	e := specEntry([config.BookKeyBytes]byte{}, 0, uint32(config.BookVisitFloor), config.BookSourceMajority)
+	e[config.BookEntryBytes-1] = 7
+	bk, err := Load(bytes.NewReader(specBook(specMetaLine(config.BookFormatVersion), e)))
+	if err == nil || !strings.Contains(err.Error(), "reserved") {
+		t.Errorf("err = %v, want a reserved-bytes fault", err)
+	}
+	if bk != nil {
+		t.Error("book non-nil on fault")
+	}
+}
+
+func TestLoadRejectsMetaSchemaFaults(t *testing.T) {
+	base := string(specMetaLine(config.BookFormatVersion))
+	versionField := `"version":` + strconv.Itoa(config.BookFormatVersion)
+	corpusField := `"corpus_games":` + strconv.Itoa(config.BookCorpusGames)
+	floorField := `"visit_floor":` + strconv.Itoa(config.BookVisitFloor)
+	cases := []struct {
+		name     string
+		meta     string
+		faultSub string
+	}{
+		{"missing version", strings.Replace(base, versionField+",", "", 1), "misses field"},
+		{"missing created", strings.Replace(base, `,"created":"20261018-000000"`, "", 1), "misses field"},
+		{"case bent", strings.Replace(base, `"version":`, `"Version":`, 1), "misses field"},
+		{"unknown field", strings.Replace(base, "{", `{"extra":1,`, 1), "outside the contract"},
+		{"negative max_ply", strings.Replace(base, `"max_ply":16`, `"max_ply":-16`, 1), "negative"},
+		{"negative corpus_games", strings.Replace(base, corpusField, `"corpus_games":-1`, 1), "negative"},
+		{"negative visit_floor", strings.Replace(base, floorField, `"visit_floor":-1`, 1), "negative"},
+		{"version wrong type", strings.Replace(base, versionField, `"version":"x"`, 1), "decode"},
+	}
+	for _, c := range cases {
+		bk, err := Load(bytes.NewReader(specBook([]byte(c.meta))))
+		if err == nil || !strings.Contains(err.Error(), c.faultSub) {
+			t.Errorf("%s: err = %v, want a %q fault", c.name, err, c.faultSub)
+		}
+		if bk != nil {
+			t.Errorf("%s: book non-nil on fault", c.name)
+		}
+	}
+}
+
+func TestLoadThroughCallerBufio(t *testing.T) {
+	valid := specBook(specMetaLine(config.BookFormatVersion), specEntry([config.BookKeyBytes]byte{}, 0, uint32(config.BookVisitFloor), config.BookSourceMajority))
+	fatMeta := []byte(config.BookMagicLine + `{"version":` + strconv.Itoa(config.BookFormatVersion) + `,"generator":"` + strings.Repeat("A", 2000) + `"}` + "\n")
+	for _, size := range []int{16, 90, 512, 4096} {
+		bk, err := Load(bufio.NewReaderSize(bytes.NewReader(valid), size))
+		if err != nil || bk == nil || bk.Len() != 1 {
+			t.Errorf("buffer %d: valid book load = (%d entries, %v), want 1 entry, nil error", size, bk.Len(), err)
+		}
+		bk, err = Load(bufio.NewReaderSize(bytes.NewReader(fatMeta), size))
+		if err == nil || !strings.Contains(err.Error(), "oversized") {
+			t.Errorf("buffer %d: oversized meta err = %v, want the cap to hold regardless of the caller buffer", size, err)
+		}
+		if bk != nil {
+			t.Errorf("buffer %d: book non-nil on fault", size)
+		}
 	}
 }
 

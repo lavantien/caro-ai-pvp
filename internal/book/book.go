@@ -23,19 +23,16 @@ type Book struct {
 }
 
 type metaLine struct {
-	Version     int    `json:"version"`
-	MaxPly      int    `json:"max_ply"`
-	Generator   string `json:"generator"`
-	CorpusGames int    `json:"corpus_games"`
-	VisitFloor  int    `json:"visit_floor"`
-	Created     string `json:"created"`
+	Version     int
+	MaxPly      int
+	Generator   string
+	CorpusGames int
+	VisitFloor  int
+	Created     string
 }
 
 func Load(r io.Reader) (*Book, error) {
-	br, ok := r.(*bufio.Reader)
-	if !ok {
-		br = bufio.NewReaderSize(r, config.BookMetaLineMaxBytes)
-	}
+	br := bufio.NewReaderSize(struct{ io.Reader }{r}, config.BookMetaLineMaxBytes)
 	magic, err := br.ReadSlice('\n')
 	if err == bufio.ErrBufferFull {
 		return nil, fmt.Errorf("book: oversized magic line exceeds %d bytes", config.BookMetaLineMaxBytes)
@@ -53,12 +50,39 @@ func Load(r io.Reader) (*Book, error) {
 	if err != nil {
 		return nil, fmt.Errorf("book: truncated meta line: %w", err)
 	}
-	var meta metaLine
-	if err := json.Unmarshal(rawMeta, &meta); err != nil {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(rawMeta, &fields); err != nil {
 		return nil, fmt.Errorf("book: meta line parse: %w", err)
+	}
+	for _, f := range config.BookMetaFields {
+		if _, ok := fields[f]; !ok {
+			return nil, fmt.Errorf("book: meta line misses field %q", f)
+		}
+	}
+	if len(fields) != len(config.BookMetaFields) {
+		return nil, fmt.Errorf("book: meta line carries a field outside the contract")
+	}
+	var meta metaLine
+	targets := [...]any{&meta.Version, &meta.MaxPly, &meta.Generator, &meta.CorpusGames, &meta.VisitFloor, &meta.Created}
+	for i, f := range config.BookMetaFields {
+		if err := json.Unmarshal(fields[f], targets[i]); err != nil {
+			return nil, fmt.Errorf("book: meta field %q decode: %w", f, err)
+		}
 	}
 	if meta.Version != config.BookFormatVersion {
 		return nil, fmt.Errorf("book: meta version %d does not match format version %d", meta.Version, config.BookFormatVersion)
+	}
+	for _, n := range [3]struct {
+		name string
+		val  int
+	}{
+		{config.BookMetaFields[1], meta.MaxPly},
+		{config.BookMetaFields[3], meta.CorpusGames},
+		{config.BookMetaFields[4], meta.VisitFloor},
+	} {
+		if n.val < 0 {
+			return nil, fmt.Errorf("book: meta field %q = %d is negative", n.name, n.val)
+		}
 	}
 	entries, err := io.ReadAll(br)
 	if err != nil {
@@ -67,6 +91,8 @@ func Load(r io.Reader) (*Book, error) {
 	if len(entries)%config.BookEntryBytes != 0 {
 		return nil, fmt.Errorf("book: entry region %d bytes is not a multiple of %d", len(entries), config.BookEntryBytes)
 	}
+	bitsPerWord := config.BoardCells / config.BoardWordsPerColor
+	bytesPerWord := bitsPerWord / 8
 	for i := range len(entries) / config.BookEntryBytes {
 		off := i * config.BookEntryBytes
 		if i > 0 {
@@ -79,6 +105,20 @@ func Load(r io.Reader) (*Book, error) {
 		move := binary.LittleEndian.Uint16(entries[off+config.BookKeyBytes:])
 		if int(move) >= config.BoardCells {
 			return nil, fmt.Errorf("book: entry %d move %d outside the board", i, move)
+		}
+		word := int(move) / bitsPerWord
+		mask := uint64(1) << (uint(move) % uint(bitsPerWord))
+		if binary.LittleEndian.Uint64(entries[off+word*bytesPerWord:])&mask != 0 || binary.LittleEndian.Uint64(entries[off+(config.BoardWordsPerColor+word)*bytesPerWord:])&mask != 0 {
+			return nil, fmt.Errorf("book: entry %d move %d already occupied in its key", i, move)
+		}
+		sourceOff := off + config.BookKeyBytes + config.BookMoveBytes + config.BookVisitsBytes
+		if source := entries[sourceOff]; source != config.BookSourceMajority && source != config.BookSourceSolver {
+			return nil, fmt.Errorf("book: entry %d source %d not a known source", i, source)
+		}
+		for _, b := range entries[sourceOff+config.BookSourceBytes : off+config.BookEntryBytes] {
+			if b != 0 {
+				return nil, fmt.Errorf("book: entry %d carries nonzero reserved bytes", i)
+			}
 		}
 	}
 	return &Book{

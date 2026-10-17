@@ -195,6 +195,9 @@ const (
 	BookSolverNodeBudget = 1 << 24
 )
 const FuzzInputMaxBytes = 1 << 20
+
+var BookMetaFields = [...]string{"version", "max_ply", "generator", "corpus_games", "visit_floor", "created"}
+
 const (
 	BookSourceMajority uint8 = 1
 	BookSourceSolver   uint8 = 2

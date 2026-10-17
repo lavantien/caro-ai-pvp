@@ -592,6 +592,15 @@ func TestBookConstants(t *testing.T) {
 	if FuzzInputMaxBytes != 1<<20 {
 		t.Errorf("FuzzInputMaxBytes = %d, want 1<<20", FuzzInputMaxBytes)
 	}
+	wantFields := []string{"version", "max_ply", "generator", "corpus_games", "visit_floor", "created"}
+	if len(BookMetaFields) != len(wantFields) {
+		t.Fatalf("len(BookMetaFields) = %d, want %d", len(BookMetaFields), len(wantFields))
+	}
+	for i, f := range wantFields {
+		if BookMetaFields[i] != f {
+			t.Errorf("BookMetaFields[%d] = %q, want %q", i, BookMetaFields[i], f)
+		}
+	}
 }
 func TestServerConstants(t *testing.T) {
 	if Argon2Time < 1 || Argon2MemoryKiB < 19456 || Argon2Parallelism < 1 {
