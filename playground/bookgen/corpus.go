@@ -126,69 +126,80 @@ func loadCorpus(path string) (corpusScan, error) {
 		return corpusScan{}, fmt.Errorf("bookgen: read corpus %s: %w", path, err)
 	}
 	sc := corpusScan{}
+	end := len(data)
+	if end > 0 && data[end-1] != '\n' {
+		sc.torn = true
+		if i := bytes.LastIndexByte(data, '\n'); i >= 0 {
+			end = i + 1
+		} else {
+			end = 0
+		}
+	}
 	var block []posRec
 	inBlock := false
 	off := 0
-	fail := func(line int, reason string) error {
-		return fmt.Errorf("bookgen: corpus %s line %d: %s", path, line, reason)
+	lineno := 0
+	fail := func(reason string) error {
+		return fmt.Errorf("bookgen: corpus %s line %d: %s", path, lineno, reason)
 	}
-	for len(data) > 0 {
-		nl := bytes.IndexByte(data, '\n')
-		var line []byte
-		if nl < 0 {
-			line, data = data, nil
-		} else {
-			line, data = data[:nl], data[nl+1:]
-		}
-		off += len(line) + 1
-		lineno := sc.games + len(block) + 1
+	for off < end {
+		nl := off + bytes.IndexByte(data[off:end], '\n')
+		line := data[off:nl]
+		off = nl + 1
+		lineno++
 		if len(line) == 0 {
-			return sc, fail(lineno, "empty line")
+			if off >= end {
+				break
+			}
+			return sc, fail("empty line")
 		}
 		fields := strings.Fields(string(line))
+		if len(fields) == 0 {
+			return sc, fail("blank line")
+		}
 		switch fields[0] {
 		case "G":
 			if inBlock {
-				return sc, fail(lineno, "game header inside a game block")
+				return sc, fail("game header inside a game block")
 			}
 			if len(fields) != 2 {
-				return sc, fail(lineno, "game header wants one index")
+				return sc, fail("game header wants one index")
 			}
 			idx, err := strconv.Atoi(fields[1])
 			if err != nil || idx < 0 {
-				return sc, fail(lineno, "game header index")
+				return sc, fail("game header index")
 			}
 			if idx != sc.games {
-				return sc, fail(lineno, fmt.Sprintf("game index %d breaks the recorded sequence at %d", idx, sc.games))
+				return sc, fail(fmt.Sprintf("game index %d breaks the recorded sequence at %d", idx, sc.games))
 			}
 			inBlock = true
 			block = block[:0]
 		case "P":
 			if !inBlock {
-				return sc, fail(lineno, "position record outside a game block")
+				return sc, fail("position record outside a game block")
 			}
 			if len(fields) != 3 {
-				return sc, fail(lineno, "position record wants key and move")
+				return sc, fail("position record wants key and move")
 			}
 			k, err := keyFromHex(fields[1])
 			if err != nil {
-				return sc, fail(lineno, "position key")
+				return sc, fail("position key")
 			}
 			mv, err := strconv.Atoi(fields[2])
 			if err != nil || mv < 0 || mv >= config.BoardCells {
-				return sc, fail(lineno, "position move")
+				return sc, fail("position move")
 			}
 			block = append(block, posRec{key: k, move: rules.Move(mv)})
 		case "E":
 			if !inBlock {
-				return sc, fail(lineno, "block end outside a game block")
+				return sc, fail("block end outside a game block")
 			}
 			if len(fields) != 2 {
-				return sc, fail(lineno, "block end wants the record count")
+				return sc, fail("block end wants the record count")
 			}
 			n, err := strconv.Atoi(fields[1])
 			if err != nil || n != len(block) {
-				return sc, fail(lineno, fmt.Sprintf("block end count %d over %d records", n, len(block)))
+				return sc, fail(fmt.Sprintf("block end count %d over %d records", n, len(block)))
 			}
 			sc.recs = append(sc.recs, block...)
 			sc.games++
@@ -196,7 +207,7 @@ func loadCorpus(path string) (corpusScan, error) {
 			inBlock = false
 			block = block[:0]
 		default:
-			return sc, fail(lineno, fmt.Sprintf("unknown line kind %q", fields[0]))
+			return sc, fail(fmt.Sprintf("unknown line kind %q", fields[0]))
 		}
 	}
 	if inBlock {

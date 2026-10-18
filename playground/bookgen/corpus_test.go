@@ -196,6 +196,149 @@ func TestCorpusMissingFileScansEmpty(t *testing.T) {
 	}
 }
 
+func TestCorpusUnterminatedTailIsDroppedNotParsed(t *testing.T) {
+	dir := t.TempDir()
+	k0 := singleStoneKey(t, 0)
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"tear mid record", "G 0\nP " + hexKey(k0[:]) + " 9\nP " + strings.Repeat("a", 2*config.BookKeyBytes)},
+		{"tear after end without newline", "G 0\nP " + hexKey(k0[:]) + " 1\nE 1"},
+	}
+	for _, c := range cases {
+		path := filepath.Join(dir, strings.ReplaceAll(c.name, " ", "-")+".txt")
+		if err := os.WriteFile(path, []byte(c.body), 0o644); err != nil {
+			t.Fatalf("write %s: %v", c.name, err)
+		}
+		sc, err := loadCorpus(path)
+		if err != nil {
+			t.Fatalf("%s: loadCorpus: %v", c.name, err)
+		}
+		if sc.games != 0 || !sc.torn || sc.clean != 0 || len(sc.recs) != 0 {
+			t.Fatalf("%s: scan = %+v, want the game replayed from scratch", c.name, sc)
+		}
+		var seen []gameCall
+		if err := runCorpus(corpusOpts{path: path, games: 1}, scriptedPlayer(t, &seen), io.Discard); err != nil {
+			t.Fatalf("%s: resume: %v", c.name, err)
+		}
+		if len(seen) != 1 || seen[0].idx != 0 {
+			t.Fatalf("%s: resume played %+v, want game 0 replayed", c.name, seen)
+		}
+		sc, err = loadCorpus(path)
+		if err != nil {
+			t.Fatalf("%s: reread: %v", c.name, err)
+		}
+		if sc.games != 1 || sc.torn {
+			t.Fatalf("%s: resumed file = %+v, want 1 complete game and no tail", c.name, sc)
+		}
+	}
+}
+
+func TestCorpusTearAfterCompleteGameKeepsEarlierGames(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "c.txt")
+	k0 := singleStoneKey(t, 0)
+	clean, err := appendGame(path, 0, 0, []posRec{{key: k0, move: 1}})
+	if err != nil {
+		t.Fatalf("appendGame: %v", err)
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if _, err := f.WriteString("P " + strings.Repeat("b", 2*config.BookKeyBytes)); err != nil {
+		t.Fatalf("tear: %v", err)
+	}
+	f.Close()
+	sc, err := loadCorpus(path)
+	if err != nil {
+		t.Fatalf("loadCorpus: %v", err)
+	}
+	if sc.games != 1 || !sc.torn || sc.clean != clean {
+		t.Fatalf("scan = %+v, want 1 game, torn tail, clean at %d", sc, clean)
+	}
+	var seen []gameCall
+	if err := runCorpus(corpusOpts{path: path, games: 2}, scriptedPlayer(t, &seen), io.Discard); err != nil {
+		t.Fatalf("resume: %v", err)
+	}
+	if len(seen) != 1 || seen[0].idx != 1 {
+		t.Fatalf("resume played %+v, want only game 1", seen)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reread: %v", err)
+	}
+	if bytes.Contains(data, []byte(strings.Repeat("b", 8))) || bytes.Contains(data, []byte{0}) {
+		t.Fatalf("resumed file keeps torn or nul bytes: %q", data)
+	}
+}
+
+func TestCorpusToleratesExactlyOneTrailingBlankLine(t *testing.T) {
+	dir := t.TempDir()
+	k0 := singleStoneKey(t, 0)
+	base := "G 0\nP " + hexKey(k0[:]) + " 1\nE 1\n"
+	cases := []struct {
+		name string
+		body string
+		ok   bool
+	}{
+		{"clean file", base, true},
+		{"one trailing blank", base + "\n", true},
+		{"two trailing blanks", base + "\n\n", false},
+	}
+	for _, c := range cases {
+		path := filepath.Join(dir, strings.ReplaceAll(c.name, " ", "-")+".txt")
+		if err := os.WriteFile(path, []byte(c.body), 0o644); err != nil {
+			t.Fatalf("write %s: %v", c.name, err)
+		}
+		sc, err := loadCorpus(path)
+		if c.ok && (err != nil || sc.games != 1 || sc.torn) {
+			t.Errorf("%s: scan = %+v err %v, want 1 clean game", c.name, sc, err)
+		}
+		if !c.ok && err == nil {
+			t.Errorf("%s: loadCorpus accepted %q", c.name, c.body)
+		}
+	}
+}
+
+func TestCorpusRejectsBlankAndWhitespaceLinesWithoutPanicking(t *testing.T) {
+	dir := t.TempDir()
+	k0 := singleStoneKey(t, 0)
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"whitespace line", "G 0\n \nP " + hexKey(k0[:]) + " 1\nE 1\n"},
+		{"bare cr line", "G 0\n\r\nP " + hexKey(k0[:]) + " 1\nE 1\n"},
+		{"tab line", "\t\n"},
+	}
+	for _, c := range cases {
+		path := filepath.Join(dir, strings.ReplaceAll(c.name, " ", "-")+".txt")
+		if err := os.WriteFile(path, []byte(c.body), 0o644); err != nil {
+			t.Fatalf("write %s: %v", c.name, err)
+		}
+		_, err := loadCorpus(path)
+		if err == nil {
+			t.Errorf("%s: loadCorpus accepted %q", c.name, c.body)
+		}
+	}
+}
+
+func TestCorpusErrorsCarryPhysicalLineNumbers(t *testing.T) {
+	dir := t.TempDir()
+	k0 := singleStoneKey(t, 0)
+	body := "G 0\nP " + hexKey(k0[:]) + " 1\nP " + hexKey(k0[:]) + " 2\nQ 9\n"
+	path := filepath.Join(dir, "c.txt")
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	_, err := loadCorpus(path)
+	if err == nil || !strings.Contains(err.Error(), "line 4") {
+		t.Fatalf("error = %v, want line 4 named", err)
+	}
+}
+
 func TestKeyOfMatchesBookProbeGeometry(t *testing.T) {
 	b := rules.NewBoard()
 	for _, name := range []string{"H8", "P8", "H9", "P9"} {
