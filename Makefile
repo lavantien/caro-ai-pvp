@@ -1,6 +1,7 @@
 BINARY := bin/caro$(shell CGO_ENABLED=1 go env GOEXE)
 LOGSTATS_BIN := bin/logstats$(shell CGO_ENABLED=1 go env GOEXE)
 CROSSARM_BIN := bin/crossarm$(shell CGO_ENABLED=1 go env GOEXE)
+BOOKGEN_BIN := bin/bookgen$(shell CGO_ENABLED=1 go env GOEXE)
 COVERPROFILE := coverage.out
 
 # The real-engine e2e in internal/tourney is wall-clock bound and a healthy
@@ -36,7 +37,7 @@ DIAGRAM_BG := rgb(13,17,23)
 DIAGRAM_SRC := $(wildcard $(DIAGRAMS_DIR)/*.mmd)
 DIAGRAM_PNG := $(DIAGRAM_SRC:.mmd=.png)
 
-.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser darkcontrast icons ci shots
+.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser darkcontrast icons ci shots bookgen bookgen-test
 
 all: build
 
@@ -357,6 +358,25 @@ arena:
 arena-test:
 	CGO_ENABLED=1 go -C playground/arena vet ./...
 	CGO_ENABLED=1 go -C playground/arena test ./...
+
+# bookgen runs the v0.24 opening-book generator, three phases over one
+# command: -phase corpus self-plays the games (master seats at tc 3 by
+# default, checkpoint-resumable, detached for the real 300-game run), then
+# -phase overlay solver-proves the floor-passing positions, then -phase emit
+# writes the CAROBOOK1 artifact plus its stats file, e.g.
+# make bookgen ARGS="-phase corpus" or ARGS="-phase emit -floor 20".
+.PHONY: bookgen
+bookgen:
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go -C playground/bookgen build -o ../../$(BOOKGEN_BIN) .
+	$(BOOKGEN_BIN) $(ARGS)
+
+# bookgen-test vets and tests the generator module: the corpus resume law,
+# the overlay source selection, the emit contract round trip, and the
+# 2-game real-engine smoke chain, race-clean at parallel 2.
+.PHONY: bookgen-test
+bookgen-test:
+	CGO_ENABLED=1 go -C playground/bookgen vet ./...
+	GOMEMLIMIT=2GiB CGO_ENABLED=1 go -C playground/bookgen test -race -parallel 2 -timeout $(GO_TEST_TIMEOUT) ./...
 
 # clocktune sweeps PID gain grids for one time control over the real clock
 # law through the gains seam, ranking cells by worst drain-trajectory
