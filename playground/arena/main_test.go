@@ -48,6 +48,36 @@ func TestEmitMLineMatchesBotLogFormat(t *testing.T) {
 	}
 }
 
+func TestNoBookSeatsClearOnlyTheBookFlag(t *testing.T) {
+	for _, name := range []string{"master", "grandmaster"} {
+		base, ok := seats[name]
+		if !ok {
+			t.Fatalf("seat %q missing from the roster", name)
+		}
+		if !base.Book {
+			t.Errorf("%s seat lost the book flag", name)
+		}
+		nobook := name + "-nobook"
+		over, ok := seats[nobook]
+		if !ok {
+			t.Fatalf("override seat %q missing from the roster", nobook)
+		}
+		if over.Book {
+			t.Errorf("%s override keeps the book flag, want the book cleared", nobook)
+		}
+		if over.BookMaxPly != base.BookMaxPly || over.Cores != base.Cores || over.TTBytes != base.TTBytes ||
+			over.VCF != base.VCF || over.VCT != base.VCT || over.PonderThreads != base.PonderThreads {
+			t.Errorf("%s override perturbs beyond the book flag: %+v over %+v", nobook, over, base)
+		}
+		if over.Name != nobook {
+			t.Errorf("%s override name = %q, want the seat label", nobook, over.Name)
+		}
+	}
+	if got := seatLabels("master-nobook,grandmaster-nobook"); len(got) != 2 || got[0] != "master-nobook" || got[1] != "grandmaster-nobook" {
+		t.Errorf("seatLabels of the nobook pair = %v, want both override labels", got)
+	}
+}
+
 func TestEmitPonderOutcome(t *testing.T) {
 	var buf bytes.Buffer
 	emitPonderOutcome(&buf, 5, 9, "master", "reject")

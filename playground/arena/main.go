@@ -40,7 +40,9 @@ func buildSeats() map[string]config.Tier {
 		"hard-tt1g":            perturb(config.TierHard, "hard-tt1g", func(t *config.Tier) { t.TTBytes = 1 << 30 }),
 		"master-novct":         perturb(config.TierMaster, "master-novct", func(t *config.Tier) { t.VCT = false }),
 		"master-noponder":      perturb(config.TierMaster, "master-noponder", func(t *config.Tier) { t.PonderThreads = 0 }),
+		"master-nobook":        perturb(config.TierMaster, "master-nobook", func(t *config.Tier) { t.Book = false }),
 		"grandmaster-noponder": perturb(config.TierGrandmaster, "grandmaster-noponder", func(t *config.Tier) { t.PonderThreads = 0 }),
+		"grandmaster-nobook":   perturb(config.TierGrandmaster, "grandmaster-nobook", func(t *config.Tier) { t.Book = false }),
 	}
 	return m
 }
@@ -71,6 +73,16 @@ func main() {
 	flag.Parse()
 
 	labels := seatLabels(*seatsArg)
+	for _, label := range labels {
+		if !seats[label].Book {
+			continue
+		}
+		if _, err := os.Stat(config.BookArtifactPath); err != nil {
+			fmt.Fprintf(os.Stderr, "arena: seat %s wants the book but %s is unreadable: %v\n", label, config.BookArtifactPath, err)
+			os.Exit(1)
+		}
+		break
+	}
 	tc := config.TimeControls[*tcIdx]
 	fmt.Printf("arena tc %d+%d seats %v games %d\n", tc.InitialMin, tc.IncrementSec, labels, *games)
 

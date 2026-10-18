@@ -84,6 +84,13 @@ func TestMLineGoldensImplication15(t *testing.T) {
 			st: engine.SearchStats{Depth: 1, Threads: 16},
 			pv: []string{"A1"},
 		},
+		{
+			name: "book hit",
+			line: "M2, Blue, K12, d=0, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=6, t=0.00, alloc=2.00, [BOOK], pv=K12",
+			num:  2, side: rules.Blue, move: "K12", tag: config.BotLogTagBook,
+			st: engine.SearchStats{Threads: 6, AllocNs: 2_000_000_000},
+			pv: []string{"K12"},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -108,6 +115,8 @@ func TestMLineMatchesBotLogFormat(t *testing.T) {
 		Depth: 1, Nodes: 0, Nps: 0, EBFMilli: 0, Score: 0,
 		Threads: 1, ElapsedNs: 0, AllocNs: 0,
 	}
+	booked := engine.SearchStats{Threads: 6, AllocNs: 2_000_000_000}
+	setPV(t, &booked, "K12")
 	cases := []struct {
 		name string
 		num  int
@@ -129,6 +138,11 @@ func TestMLineMatchesBotLogFormat(t *testing.T) {
 			name: "zeroed empty pv", num: 1, side: rules.Red, move: "A1",
 			tag: "", st: &empty,
 			args: []any{1, "Red", "A1", 1, "0", "0", 0.0, 0, 0, 0, "+0", 1, 0.0, 0.0, "", ""},
+		},
+		{
+			name: "zero-cost book tag", num: 2, side: rules.Blue, move: "K12",
+			tag: config.BotLogTagBook, st: &booked,
+			args: []any{2, "Blue", "K12", 0, "0", "0", 0.0, 0, 0, 0, "+0", 6, 0.0, 2.0, config.BotLogTagBook, "K12"},
 		},
 	}
 	for _, c := range cases {
