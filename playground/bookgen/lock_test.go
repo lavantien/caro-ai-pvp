@@ -22,9 +22,11 @@ func TestSidecarLockRefusesTheSecondHolder(t *testing.T) {
 	} else if !strings.Contains(err.Error(), "concurrent corpus run refused") {
 		t.Fatalf("second acquire error = %v, want the concurrent-run refusal", err)
 	}
-	if _, err := acquireSidecarLock(corpus, "overlay"); err != nil {
+	other, err := acquireSidecarLock(corpus, "overlay")
+	if err != nil {
 		t.Fatalf("a different phase shares the lock: %v", err)
 	}
+	other.Release()
 	lk.Release()
 	again, err := acquireSidecarLock(corpus, "corpus")
 	if err != nil {
