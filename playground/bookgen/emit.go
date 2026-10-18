@@ -123,7 +123,7 @@ func emitRun(o emitOpts, progress io.Writer) (emitStats, error) {
 		return st, err
 	}
 	agg := aggregate(sc.recs)
-	proofs, _, err := readOverlay(o.overlayPath)
+	proofs, _, _, _, err := readOverlay(o.overlayPath)
 	if err != nil {
 		return st, err
 	}

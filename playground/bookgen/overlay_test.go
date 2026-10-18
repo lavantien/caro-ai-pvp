@@ -91,7 +91,7 @@ func TestOverlayRecordsOnlyFloorPassingProofs(t *testing.T) {
 	if len(probed) != 1 {
 		t.Fatalf("probed %d positions, want only the floor-passing one", len(probed))
 	}
-	proofs, done, err := readOverlay(out)
+	proofs, done, _, _, err := readOverlay(out)
 	if err != nil {
 		t.Fatalf("readOverlay: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestOverlayResumeSkipsProcessedPositions(t *testing.T) {
 	if calls != 3 {
 		t.Errorf("resume probed again, calls = %d, want to stay at 3", calls)
 	}
-	proofs, _, err := readOverlay(out)
+	proofs, _, _, _, err := readOverlay(out)
 	if err != nil {
 		t.Fatalf("readOverlay: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestOverlayProvesAndRecordsTheRealSolverVerdict(t *testing.T) {
 	if err := overlayRun(overlayOpts{corpusPath: corpus, outPath: out, floor: config.BookVisitFloor, budget: config.BookSolverNodeBudget}, solverProber(config.BookSolverNodeBudget), &progress); err != nil {
 		t.Fatalf("overlayRun: %v", err)
 	}
-	proofs, _, err := readOverlay(out)
+	proofs, _, _, _, err := readOverlay(out)
 	if err != nil {
 		t.Fatalf("readOverlay: %v", err)
 	}
@@ -270,5 +270,71 @@ func TestOverlayQuietPositionExhaustsBudgetWithoutProof(t *testing.T) {
 	}
 	if want := "N " + hexKey(start[:]) + "\n"; string(data) != want {
 		t.Errorf("overlay file = %q, want the no-proof line %q", string(data), want)
+	}
+}
+
+func TestOverlayTornTailIsDroppedAndTruncatedOnResume(t *testing.T) {
+	dir := t.TempDir()
+	strong := singleStoneKey(t, 4)
+	weak := singleStoneKey(t, 6)
+	corpus := filepath.Join(dir, "c.txt")
+	writeCorpusWithVisits(t, corpus, map[[config.BookKeyBytes]byte]int{
+		strong: config.BookVisitFloor,
+		weak:   config.BookVisitFloor,
+	}, 200)
+	out := filepath.Join(dir, "o.txt")
+	good := "P " + hexKey(strong[:]) + " 11 42 vcf\n"
+	tear := "N " + strings.Repeat("c", 2*config.BookKeyBytes-4)
+	if err := os.WriteFile(out, []byte(good+tear), 0o644); err != nil {
+		t.Fatalf("seed overlay: %v", err)
+	}
+	proofs, done, clean, torn, err := readOverlay(out)
+	if err != nil {
+		t.Fatalf("readOverlay torn: %v", err)
+	}
+	if len(proofs) != 1 || len(done) != 1 || !torn || clean != int64(len(good)) {
+		t.Fatalf("torn scan = %d proofs %d done clean %d torn %t, want the good line only at %d", len(proofs), len(done), clean, torn, len(good))
+	}
+	calls := 0
+	probe := func(b *rules.Board) (rules.Move, uint64, string, bool) {
+		calls++
+		return 8, 8, "vct", true
+	}
+	if err := overlayRun(overlayOpts{corpusPath: corpus, outPath: out, floor: config.BookVisitFloor}, probe, io.Discard); err != nil {
+		t.Fatalf("overlayRun resume: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("resume probed %d positions, want only the torn key re-probed", calls)
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("reread overlay: %v", err)
+	}
+	want := good + "P " + hexKey(weak[:]) + " 8 8 vct\n"
+	if string(data) != want {
+		t.Fatalf("overlay after resume = %q, want %q", string(data), want)
+	}
+}
+
+func TestOverlaySkipsBlankLinesAndRejectsMalformed(t *testing.T) {
+	dir := t.TempDir()
+	k := singleStoneKey(t, 4)
+	good := "P " + hexKey(k[:]) + " 11 42 vcf\n"
+	path := filepath.Join(dir, "o.txt")
+	if err := os.WriteFile(path, []byte(good+"\n"+good), 0o644); err != nil {
+		t.Fatalf("write blank-separated overlay: %v", err)
+	}
+	proofs, done, clean, torn, err := readOverlay(path)
+	if err != nil {
+		t.Fatalf("readOverlay: %v", err)
+	}
+	if len(proofs) != 1 || len(done) != 1 || torn || clean != int64(len(good)*2+1) {
+		t.Fatalf("scan = %d/%d clean %d torn %t, want both good lines", len(proofs), len(done), clean, torn)
+	}
+	if err := os.WriteFile(path, []byte("Q x\n"), 0o644); err != nil {
+		t.Fatalf("write malformed: %v", err)
+	}
+	if _, _, _, _, err := readOverlay(path); err == nil {
+		t.Errorf("readOverlay accepted an unknown line kind")
 	}
 }

@@ -68,62 +68,76 @@ func majorityOf(counts map[rules.Move]int) (rules.Move, int) {
 	return best, bestN
 }
 
-func readOverlay(path string) (map[[config.BookKeyBytes]byte]proofRec, map[[config.BookKeyBytes]byte]struct{}, error) {
+func readOverlay(path string) (map[[config.BookKeyBytes]byte]proofRec, map[[config.BookKeyBytes]byte]struct{}, int64, bool, error) {
 	proofs := make(map[[config.BookKeyBytes]byte]proofRec)
 	done := make(map[[config.BookKeyBytes]byte]struct{})
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return proofs, done, nil
+			return proofs, done, 0, false, nil
 		}
-		return nil, nil, fmt.Errorf("bookgen: read overlay %s: %w", path, err)
+		return nil, nil, 0, false, fmt.Errorf("bookgen: read overlay %s: %w", path, err)
+	}
+	end := len(data)
+	torn := false
+	if end > 0 && data[end-1] != '\n' {
+		torn = true
+		if i := bytes.LastIndexByte(data, '\n'); i >= 0 {
+			end = i + 1
+		} else {
+			end = 0
+		}
 	}
 	lineno := 0
-	for _, line := range bytes.Split(data, []byte("\n")) {
+	off := 0
+	for off < end {
+		nl := off + bytes.IndexByte(data[off:end], '\n')
+		line := data[off:nl]
+		off = nl + 1
 		lineno++
-		if len(line) == 0 {
+		fields := strings.Fields(string(line))
+		if len(fields) == 0 {
 			continue
 		}
-		fields := strings.Fields(string(line))
 		fail := func(reason string) error {
 			return fmt.Errorf("bookgen: overlay %s line %d: %s", path, lineno, reason)
 		}
 		switch fields[0] {
 		case "P":
 			if len(fields) != 5 {
-				return nil, nil, fail("proof line wants key move nodes kind")
+				return nil, nil, 0, false, fail("proof line wants key move nodes kind")
 			}
 			k, err := keyFromHex(fields[1])
 			if err != nil {
-				return nil, nil, fail("proof key")
+				return nil, nil, 0, false, fail("proof key")
 			}
 			mv, err := strconv.Atoi(fields[2])
 			if err != nil || mv < 0 || mv >= config.BoardCells {
-				return nil, nil, fail("proof move")
+				return nil, nil, 0, false, fail("proof move")
 			}
 			nodes, err := strconv.ParseUint(fields[3], 10, 64)
 			if err != nil {
-				return nil, nil, fail("proof nodes")
+				return nil, nil, 0, false, fail("proof nodes")
 			}
 			if fields[4] != "vcf" && fields[4] != "vct" {
-				return nil, nil, fail("proof kind")
+				return nil, nil, 0, false, fail("proof kind")
 			}
 			proofs[k] = proofRec{move: rules.Move(mv), nodes: nodes, kind: fields[4]}
 			done[k] = struct{}{}
 		case "N":
 			if len(fields) != 2 {
-				return nil, nil, fail("no-proof line wants the key")
+				return nil, nil, 0, false, fail("no-proof line wants the key")
 			}
 			k, err := keyFromHex(fields[1])
 			if err != nil {
-				return nil, nil, fail("no-proof key")
+				return nil, nil, 0, false, fail("no-proof key")
 			}
 			done[k] = struct{}{}
 		default:
-			return nil, nil, fail(fmt.Sprintf("unknown line kind %q", fields[0]))
+			return nil, nil, 0, false, fail(fmt.Sprintf("unknown line kind %q", fields[0]))
 		}
 	}
-	return proofs, done, nil
+	return proofs, done, int64(end), torn, nil
 }
 
 func floorPassingKeys(agg map[[config.BookKeyBytes]byte]map[rules.Move]int, floor int) [][config.BookKeyBytes]byte {
@@ -144,7 +158,7 @@ func overlayRun(o overlayOpts, probe prober, progress io.Writer) error {
 	}
 	agg := aggregate(sc.recs)
 	keys := floorPassingKeys(agg, o.floor)
-	proofs, done, err := readOverlay(o.outPath)
+	proofs, done, clean, _, err := readOverlay(o.outPath)
 	if err != nil {
 		return err
 	}
@@ -158,11 +172,17 @@ func overlayRun(o overlayOpts, probe prober, progress io.Writer) error {
 		fmt.Fprintf(progress, "overlay complete: %d positions processed at %s (%d proofs)\n", len(done), o.outPath, len(proofs))
 		return nil
 	}
-	f, err := os.OpenFile(o.outPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	f, err := os.OpenFile(o.outPath, os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
 		return fmt.Errorf("bookgen: open overlay %s: %w", o.outPath, err)
 	}
 	defer func() { _ = f.Close() }()
+	if err := f.Truncate(clean); err != nil {
+		return fmt.Errorf("bookgen: truncate overlay %s to %d: %w", o.outPath, clean, err)
+	}
+	if _, err := f.Seek(clean, io.SeekStart); err != nil {
+		return fmt.Errorf("bookgen: seek overlay %s: %w", o.outPath, err)
+	}
 	for i, k := range pending {
 		b, err := boardFromKey(k)
 		if err != nil {
