@@ -225,6 +225,10 @@ func overlayRun(o overlayOpts, probe prober, progress io.Writer) error {
 			return fmt.Errorf("bookgen: overlay position: %w", err)
 		}
 		mv, nodes, kind, ok := probe(b)
+		if ok && !b.IsLegal(rules.Cell(mv)) {
+			fmt.Fprintf(progress, "position %d/%d key %s... proof move %d illegal in its position, no proof recorded\n", i+1, len(pending), hexKey(k[:])[:12], mv)
+			ok = false
+		}
 		line := fmt.Sprintf("N %s\n", hexKey(k[:]))
 		if ok {
 			line = fmt.Sprintf("P %s %d %d %s\n", hexKey(k[:]), mv, nodes, kind)

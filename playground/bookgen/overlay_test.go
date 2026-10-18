@@ -343,6 +343,45 @@ func TestOverlaySkipsBlankLinesAndRejectsMalformed(t *testing.T) {
 	}
 }
 
+func TestOverlayRecordsNoProofForAnIllegalProofMove(t *testing.T) {
+	dir := t.TempDir()
+	anchored := rules.NewBoard()
+	anchored.Make(rules.Cell(119))
+	anchored.Make(rules.Cell(0))
+	k := keyOf(anchored)
+	corpus := filepath.Join(dir, "c.txt")
+	writeCorpusWithVisits(t, corpus, map[[config.BookKeyBytes]byte]int{k: config.BookVisitFloor}, 200)
+	out := filepath.Join(dir, "o.txt")
+	probe := func(b *rules.Board) (rules.Move, uint64, string, bool) {
+		return 135, 5, "vcf", true
+	}
+	var progress strings.Builder
+	if err := overlayRun(overlayOpts{corpusPath: corpus, outPath: out, floor: config.BookVisitFloor}, probe, &progress); err != nil {
+		t.Fatalf("overlayRun: %v", err)
+	}
+	if !strings.Contains(progress.String(), "proof move 135 illegal in its position") {
+		t.Fatalf("progress misses the refused proof: %q", progress.String())
+	}
+	osc, err := readOverlay(out)
+	if err != nil {
+		t.Fatalf("readOverlay: %v", err)
+	}
+	if len(osc.proofs) != 0 {
+		t.Fatalf("illegal proof recorded: %+v", osc.proofs)
+	}
+	if _, ok := osc.done[k]; !ok {
+		t.Fatalf("the position was not marked processed, resume would re-probe it")
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("read overlay: %v", err)
+	}
+	want := overlayFingerprint(config.BookVisitFloor, 0) + "\nN " + hexKey(k[:]) + "\n"
+	if string(data) != want {
+		t.Fatalf("overlay file = %q, want the no-proof verdict %q", string(data), want)
+	}
+}
+
 func TestOverlayResumeRejectsConfigChange(t *testing.T) {
 	dir := t.TempDir()
 	k := singleStoneKey(t, 4)
