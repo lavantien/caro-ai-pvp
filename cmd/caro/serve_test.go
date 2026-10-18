@@ -16,18 +16,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
 
-// The serve lifecycle tests pin what is reachable without process control
-// (Windows cannot raise SIGINT or SIGTERM at the test process): the static
-// server configuration through the newServeServer helper, the signal set
-// through serveSignals, and the drain/close contract through closeServeStack
-// and a real port-in-use boot. The signal-driven arms of runServe are
-// code-verified only.
-
-// TestServeServerLifecycleKnobs freezes the timeout configuration: a
-// positive ReadTimeout and IdleTimeout bound slow or idle clients, while
-// WriteTimeout stays 0 by decision because any finite value would cut
-// healthy SSE streams mid-series (it deadlines the whole response, not
-// idle periods).
 func TestServeServerLifecycleKnobs(t *testing.T) {
 	srv := newServeServer(":0", http.NotFoundHandler())
 	if srv.ReadTimeout <= 0 {
@@ -41,8 +29,6 @@ func TestServeServerLifecycleKnobs(t *testing.T) {
 	}
 }
 
-// TestServeSignalsAreInterruptAndSIGTERM freezes the stop set: SIGTERM
-// rides along Ctrl+C so an orchestrator's termination drains too.
 func TestServeSignalsAreInterruptAndSIGTERM(t *testing.T) {
 	interrupt, sigterm := false, false
 	for _, sig := range serveSignals {
@@ -54,10 +40,6 @@ func TestServeSignalsAreInterruptAndSIGTERM(t *testing.T) {
 	}
 }
 
-// TestServePortInUseExitsOneClosesStore boots the real command against an
-// occupied port: the listen failure must exit 1 with the whole stack
-// closed behind it, the store included (its checkpointing close leaves no
-// populated WAL sidecar).
 func TestServePortInUseExitsOneClosesStore(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -74,10 +56,6 @@ func TestServePortInUseExitsOneClosesStore(t *testing.T) {
 	}
 }
 
-// TestServeCloseStackDrainsThenBackstopsAndClosesEverything pins the
-// shutdown contract of closeServeStack: a lingering SSE stream holds the
-// graceful drain for the full window (a bare Close would return at once),
-// the backstop cuts it, and every stack component answers closed after.
 func TestServeCloseStackDrainsThenBackstopsAndClosesEverything(t *testing.T) {
 	st, err := server.Open(filepath.Join(t.TempDir(), "caro.db"))
 	if err != nil {
@@ -94,8 +72,6 @@ func TestServeCloseStackDrainsThenBackstopsAndClosesEverything(t *testing.T) {
 	serveDone := make(chan error, 1)
 	go func() { serveDone <- srv.Serve(ln) }()
 
-	// One lingering spectator stream: the events route is public, so the
-	// room needs no account (owner 1, an open pvp room).
 	room, err := rooms.Create(1, 0, config.SeriesBO3, nil)
 	if err != nil {
 		t.Fatalf("create room: %v", err)
@@ -130,15 +106,16 @@ func TestServeCloseStackDrainsThenBackstopsAndClosesEverything(t *testing.T) {
 		t.Errorf("close elapsed %v, want at least the drain window %v the stream holds", el, drain)
 	}
 
-	// The backstop actually cut the lingering stream: the read returns
-	// instead of parking until the request deadline.
 	readDone := make(chan error, 1)
 	go func() {
 		_, rerr := bufio.NewReader(resp.Body).Read(make([]byte, 1))
 		readDone <- rerr
 	}()
 	select {
-	case <-readDone:
+	case rerr := <-readDone:
+		if rerr == nil {
+			t.Error("read after the backstop close returned nil, want the cut-body error")
+		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("sse stream still open after the backstop close")
 	}
