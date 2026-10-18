@@ -49,6 +49,7 @@ type emitStats struct {
 	Trunks           int
 	PositionsPerGame float64
 	DiversityAlarm   bool
+	IllegalFallbacks int
 	VisitsMin        uint32
 	VisitsMedian     float64
 	VisitsMean       float64
@@ -105,6 +106,7 @@ solver_vct %d
 trunks %d
 positions_per_game %s
 diversity_alarm %t
+illegal_fallbacks %d
 visits_min %d
 visits_median %s
 visits_mean %s
@@ -114,7 +116,7 @@ solver_nodes_max %d
 `,
 		st.CorpusGames, st.Positions, st.FloorPassing, st.Entries, st.Majority, st.Solver,
 		st.SolverVCF, st.SolverVCT, st.Trunks,
-		formatFloat(st.PositionsPerGame), st.DiversityAlarm, st.VisitsMin,
+		formatFloat(st.PositionsPerGame), st.DiversityAlarm, st.IllegalFallbacks, st.VisitsMin,
 		formatFloat(st.VisitsMedian), formatFloat(st.VisitsMean), st.VisitsMax,
 		st.SolverNodesTotal, st.SolverNodesMax)
 }
@@ -136,6 +138,7 @@ func emitRun(o emitOpts, progress io.Writer) (emitStats, error) {
 	}
 	proofs := osc.proofs
 	st.CorpusGames = sc.games
+	st.IllegalFallbacks = sc.illegal
 	st.Positions = len(agg)
 	keys := floorPassingKeys(agg, o.floor)
 	st.FloorPassing = len(keys)

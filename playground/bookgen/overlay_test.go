@@ -23,7 +23,7 @@ func writeCorpusWithVisits(t *testing.T, path string, visits map[[config.BookKey
 		for i := range recs {
 			recs[i] = posRec{key: k, move: rules.Move(baseMove)}
 		}
-		next, err := appendGame(path, clean, idx, recs)
+		next, err := appendGame(path, clean, idx, recs, 0)
 		if err != nil {
 			t.Fatalf("appendGame %d: %v", idx, err)
 		}
@@ -53,7 +53,7 @@ func TestOverlayMergesVisitsAcrossGames(t *testing.T) {
 	corpus := filepath.Join(dir, "c.txt")
 	clean := seedHeader(t, corpus, corpusFingerprint(config.TierEasy.Name, 0, 3))
 	for g := 0; g < 3; g++ {
-		next, err := appendGame(corpus, clean, g, []posRec{{key: k, move: 42}})
+		next, err := appendGame(corpus, clean, g, []posRec{{key: k, move: 42}}, 0)
 		if err != nil {
 			t.Fatalf("appendGame %d: %v", g, err)
 		}

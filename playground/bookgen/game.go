@@ -32,6 +32,10 @@ func playCorpusGame(tier config.Tier, tcIdx, gameIdx, redSeat int, mlines io.Wri
 	engines := [2]server.Searcher{server.NewBotSearcher(tier), server.NewBotSearcher(tier)}
 	defer engines[0].Close()
 	defer engines[1].Close()
+	return playGame(engines, tcIdx, gameIdx, redSeat, mlines)
+}
+
+func playGame(engines [2]server.Searcher, tcIdx, gameIdx, redSeat int, mlines io.Writer) gameResult {
 	clocks := [2]*clock.GameClock{clock.NewGameClock(tcIdx), clock.NewGameClock(tcIdx)}
 	var legalBuf [config.BoardCells]rules.Move
 	b := rules.NewBoard()
@@ -44,6 +48,7 @@ func playCorpusGame(tier config.Tier, tcIdx, gameIdx, redSeat int, mlines io.Wri
 			seat = 1 - redSeat
 		}
 		var mv rules.Move
+		legal := true
 		if b.MoveCount == 0 {
 			mv = openingMove(gameIdx)
 			name, nerr := rules.CellName(rules.Cell(mv))
@@ -55,6 +60,7 @@ func playCorpusGame(tier config.Tier, tcIdx, gameIdx, redSeat int, mlines io.Wri
 				n := b.LegalMoves(legalBuf[:])
 				fmt.Fprintf(mlines, "g%d illegal opening %d, fell back (legal count %d)\n", gameIdx+1, mv, n)
 				mv = legalBuf[0]
+				legal = false
 			}
 		} else {
 			budget := clocks[seat].Budget()
@@ -66,9 +72,12 @@ func playCorpusGame(tier config.Tier, tcIdx, gameIdx, redSeat int, mlines io.Wri
 				n := b.LegalMoves(legalBuf[:])
 				fmt.Fprintf(mlines, "g%d illegal %d from seat %d, fell back (legal count %d)\n", gameIdx+1, mv, seat, n)
 				mv = legalBuf[0]
+				legal = false
 			}
 		}
-		if b.MoveCount < config.BookMaxPly {
+		if !legal {
+			res.illegal++
+		} else if b.MoveCount < config.BookMaxPly {
 			res.records = append(res.records, posRec{key: keyOf(b), move: mv})
 		}
 		cell := rules.Cell(mv)

@@ -90,7 +90,7 @@ func TestCorpusBlockFormat(t *testing.T) {
 		{key: singleStoneKey(t, 0), move: rules.Move(7)},
 		{key: singleStoneKey(t, 1), move: rules.Move(200)},
 	}
-	if _, err := appendGame(path, 0, 4, recs); err != nil {
+	if _, err := appendGame(path, 0, 4, recs, 0); err != nil {
 		t.Fatalf("appendGame: %v", err)
 	}
 	data, err := os.ReadFile(path)
@@ -99,7 +99,7 @@ func TestCorpusBlockFormat(t *testing.T) {
 	}
 	k0 := singleStoneKey(t, 0)
 	k1 := singleStoneKey(t, 1)
-	want := fmt.Sprintf("G 4\nP %s 7\nP %s 200\nE 2\n", hexKey(k0[:]), hexKey(k1[:]))
+	want := fmt.Sprintf("G 4\nP %s 7\nP %s 200\nE 2 0\n", hexKey(k0[:]), hexKey(k1[:]))
 	if string(data) != want {
 		t.Errorf("corpus block = %q, want %q", string(data), want)
 	}
@@ -108,7 +108,7 @@ func TestCorpusBlockFormat(t *testing.T) {
 func TestCorpusScanCountsOnlyCompleteBlocks(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "corpus.txt")
 	clean0 := seedHeader(t, path, corpusFingerprint(config.TierEasy.Name, 0, 2))
-	if _, err := appendGame(path, clean0, 0, []posRec{{key: singleStoneKey(t, 0), move: 1}}); err != nil {
+	if _, err := appendGame(path, clean0, 0, []posRec{{key: singleStoneKey(t, 0), move: 1}}, 0); err != nil {
 		t.Fatalf("appendGame 0: %v", err)
 	}
 	sc, err := loadCorpus(path)
@@ -134,7 +134,7 @@ func TestCorpusScanCountsOnlyCompleteBlocks(t *testing.T) {
 		t.Fatalf("scan of torn tail = %+v, want 1 game flagged torn", sc)
 	}
 	k0 := singleStoneKey(t, 0)
-	block := len("G 0\nP " + hexKey(k0[:]) + " 1\nE 1\n")
+	block := len("G 0\nP " + hexKey(k0[:]) + " 1\nE 1 0\n")
 	if sc.clean != clean0+int64(block) {
 		t.Errorf("clean offset = %d, want the end of the last complete block at %d", sc.clean, clean0+int64(block))
 	}
@@ -149,12 +149,13 @@ func TestCorpusLoadRejectsCorruptLines(t *testing.T) {
 	}{
 		{"record outside a game", fp + "P " + hexKey(k3[:]) + " 5\n"},
 		{"game header inside a game", fp + "G 0\nG 1\n"},
-		{"bad key hex", fp + "G 0\nP zz 5\nE 1\n"},
-		{"short key", fp + "G 0\nP abcd 5\nE 1\n"},
-		{"bad move", fp + "G 0\nP " + hexKey(k3[:]) + " x\nE 1\n"},
-		{"move off board", fp + "G 0\nP " + hexKey(k3[:]) + " 256\nE 1\n"},
+		{"bad key hex", fp + "G 0\nP zz 5\nE 1 0\n"},
+		{"short key", fp + "G 0\nP abcd 5\nE 1 0\n"},
+		{"bad move", fp + "G 0\nP " + hexKey(k3[:]) + " x\nE 1 0\n"},
+		{"move off board", fp + "G 0\nP " + hexKey(k3[:]) + " 256\nE 1 0\n"},
 		{"unknown line", fp + "Q 0\n"},
-		{"count mismatch", fp + "G 0\nE 2\n"},
+		{"count mismatch", fp + "G 0\nE 2 0\n"},
+		{"block end missing illegal count", fp + "G 0\nE 1\n"},
 	}
 	for _, c := range cases {
 		path := filepath.Join(dir, strings.ReplaceAll(c.name, " ", "-")+".txt")
@@ -205,7 +206,7 @@ func TestCorpusRunResumesFromRecordedGames(t *testing.T) {
 func TestCorpusRunTruncatesTornTailAndSkipsDoneGames(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "corpus.txt")
 	clean0 := seedHeader(t, path, corpusFingerprint(config.TierEasy.Name, 0, 2))
-	if _, err := appendGame(path, clean0, 0, []posRec{{key: corpusZeroKey, move: openingMove(0)}, {key: singleStoneKey(t, 0), move: 1}}); err != nil {
+	if _, err := appendGame(path, clean0, 0, []posRec{{key: corpusZeroKey, move: openingMove(0)}, {key: singleStoneKey(t, 0), move: 1}}, 0); err != nil {
 		t.Fatalf("seed block: %v", err)
 	}
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0)
@@ -295,7 +296,7 @@ func TestCorpusTearAfterCompleteGameKeepsEarlierGames(t *testing.T) {
 	path := filepath.Join(dir, "c.txt")
 	k0 := singleStoneKey(t, 0)
 	clean0 := seedHeader(t, path, corpusFingerprint(config.TierEasy.Name, 0, 2))
-	clean, err := appendGame(path, clean0, 0, []posRec{{key: corpusZeroKey, move: openingMove(0)}, {key: k0, move: 1}})
+	clean, err := appendGame(path, clean0, 0, []posRec{{key: corpusZeroKey, move: openingMove(0)}, {key: k0, move: 1}}, 0)
 	if err != nil {
 		t.Fatalf("appendGame: %v", err)
 	}
@@ -334,7 +335,7 @@ func TestCorpusToleratesExactlyOneTrailingBlankLine(t *testing.T) {
 	dir := t.TempDir()
 	k0 := singleStoneKey(t, 0)
 	fp := corpusFingerprint(config.TierEasy.Name, 0, 1) + "\n"
-	base := fp + "G 0\nP " + hexKey(k0[:]) + " 1\nE 1\n"
+	base := fp + "G 0\nP " + hexKey(k0[:]) + " 1\nE 1 0\n"
 	cases := []struct {
 		name string
 		body string
@@ -367,8 +368,8 @@ func TestCorpusRejectsBlankAndWhitespaceLinesWithoutPanicking(t *testing.T) {
 		name string
 		body string
 	}{
-		{"whitespace line", fp + "G 0\n \nP " + hexKey(k0[:]) + " 1\nE 1\n"},
-		{"bare cr line", fp + "G 0\n\r\nP " + hexKey(k0[:]) + " 1\nE 1\n"},
+		{"whitespace line", fp + "G 0\n \nP " + hexKey(k0[:]) + " 1\nE 1 0\n"},
+		{"bare cr line", fp + "G 0\n\r\nP " + hexKey(k0[:]) + " 1\nE 1 0\n"},
 		{"tab line", fp + "\t\n"},
 	}
 	for _, c := range cases {

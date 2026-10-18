@@ -29,7 +29,7 @@ func seedCorpusCounts(t *testing.T, dir string, perPos []map[rules.Move]int) str
 				recs = append(recs, posRec{key: key, move: mv})
 			}
 		}
-		next, err := appendGame(path, clean, i, recs)
+		next, err := appendGame(path, clean, i, recs, 0)
 		if err != nil {
 			t.Fatalf("appendGame %d: %v", i, err)
 		}
@@ -191,12 +191,12 @@ func TestEmitArtifactLoadsAndProbesBack(t *testing.T) {
 	}
 	corpus := filepath.Join(dir, "c.txt")
 	clean := seedHeader(t, corpus, corpusFingerprint(config.TierEasy.Name, 0, 2))
-	next, err := appendGame(corpus, clean, 0, repeat(posRec{key: keyOf(b1), move: 42}, config.BookVisitFloor))
+	next, err := appendGame(corpus, clean, 0, repeat(posRec{key: keyOf(b1), move: 42}, config.BookVisitFloor), 0)
 	if err != nil {
 		t.Fatalf("appendGame: %v", err)
 	}
 	clean = next
-	next, err = appendGame(corpus, clean, 1, repeat(posRec{key: keyOf(b2), move: 43}, config.BookVisitFloor))
+	next, err = appendGame(corpus, clean, 1, repeat(posRec{key: keyOf(b2), move: 43}, config.BookVisitFloor), 0)
 	if err != nil {
 		t.Fatalf("appendGame 2: %v", err)
 	}
@@ -291,11 +291,11 @@ func TestEmitStatsReportTrunkDiversity(t *testing.T) {
 		{key: corpusZeroKey, move: openingMove(0)},
 		{key: corpusZeroKey, move: openingMove(1)},
 	}
-	next, err := appendGame(corpus, clean, 0, rotated[:1])
+	next, err := appendGame(corpus, clean, 0, rotated[:1], 0)
 	if err != nil {
 		t.Fatalf("appendGame: %v", err)
 	}
-	if _, err := appendGame(corpus, next, 1, rotated[1:]); err != nil {
+	if _, err := appendGame(corpus, next, 1, rotated[1:], 0); err != nil {
 		t.Fatalf("appendGame 2: %v", err)
 	}
 	statsPath := filepath.Join(dir, "s.txt")
@@ -312,11 +312,11 @@ func TestEmitStatsReportTrunkDiversity(t *testing.T) {
 	}
 	collapsed := filepath.Join(dir, "c2.txt")
 	clean = seedHeader(t, collapsed, corpusFingerprint(config.TierEasy.Name, 0, 2))
-	cnext, err := appendGame(collapsed, clean, 0, rotated[:1])
+	cnext, err := appendGame(collapsed, clean, 0, rotated[:1], 1)
 	if err != nil {
 		t.Fatalf("appendGame collapsed 1: %v", err)
 	}
-	if _, err := appendGame(collapsed, cnext, 1, rotated[:1]); err != nil {
+	if _, err := appendGame(collapsed, cnext, 1, rotated[:1], 1); err != nil {
 		t.Fatalf("appendGame collapsed 2: %v", err)
 	}
 	st, err = emitRun(emitOpts{
@@ -329,6 +329,9 @@ func TestEmitStatsReportTrunkDiversity(t *testing.T) {
 	}
 	if st.Trunks != 1 || !st.DiversityAlarm {
 		t.Fatalf("collapsed stats = trunks %d alarm %t, want 1 trunk and the alarm", st.Trunks, st.DiversityAlarm)
+	}
+	if st.IllegalFallbacks != 2 {
+		t.Fatalf("collapsed stats illegal fallbacks = %d, want the 2 recorded per game", st.IllegalFallbacks)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "s2.txt"))
 	if err != nil {
@@ -345,7 +348,7 @@ func TestEmitRejectsOccupiedProofMove(t *testing.T) {
 	b.Make(rules.Cell(30))
 	corpus := filepath.Join(dir, "c.txt")
 	clean := seedHeader(t, corpus, corpusFingerprint(config.TierEasy.Name, 0, 1))
-	if _, err := appendGame(corpus, clean, 0, repeat(posRec{key: keyOf(b), move: 42}, config.BookVisitFloor)); err != nil {
+	if _, err := appendGame(corpus, clean, 0, repeat(posRec{key: keyOf(b), move: 42}, config.BookVisitFloor), 0); err != nil {
 		t.Fatalf("appendGame: %v", err)
 	}
 	overlay := filepath.Join(dir, "o.txt")

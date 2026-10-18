@@ -31,6 +31,7 @@ type gameCall struct {
 type gameResult struct {
 	records []posRec
 	moves   int
+	illegal int
 	winner  string
 }
 
@@ -47,6 +48,7 @@ type corpusScan struct {
 	games    int
 	clean    int64
 	torn     bool
+	illegal  int
 	recs     []posRec
 	fp       string
 	openings map[rules.Move]int
@@ -280,12 +282,16 @@ func loadCorpus(path string) (corpusScan, error) {
 			if !inBlock {
 				return sc, fail("block end outside a game block")
 			}
-			if len(fields) != 2 {
-				return sc, fail("block end wants the record count")
+			if len(fields) != 3 {
+				return sc, fail("block end wants the record and illegal counts")
 			}
 			n, err := strconv.Atoi(fields[1])
 			if err != nil || n != len(block) {
 				return sc, fail(fmt.Sprintf("block end count %d over %d records", n, len(block)))
+			}
+			illegal, err := strconv.Atoi(fields[2])
+			if err != nil || illegal < 0 {
+				return sc, fail("block end illegal count")
 			}
 			sc.recs = append(sc.recs, block...)
 			if len(block) > 0 && block[0].key == corpusZeroKey {
@@ -295,6 +301,7 @@ func loadCorpus(path string) (corpusScan, error) {
 				sc.openings[block[0].move]++
 			}
 			sc.games++
+			sc.illegal += illegal
 			sc.clean = int64(off)
 			inBlock = false
 			block = block[:0]
@@ -308,7 +315,7 @@ func loadCorpus(path string) (corpusScan, error) {
 	return sc, nil
 }
 
-func appendGame(path string, clean int64, idx int, recs []posRec) (int64, error) {
+func appendGame(path string, clean int64, idx int, recs []posRec, illegal int) (int64, error) {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
 		return 0, fmt.Errorf("bookgen: open corpus %s: %w", path, err)
@@ -325,7 +332,7 @@ func appendGame(path string, clean int64, idx int, recs []posRec) (int64, error)
 	for _, r := range recs {
 		fmt.Fprintf(&buf, "P %s %d\n", hexKey(r.key[:]), r.move)
 	}
-	fmt.Fprintf(&buf, "E %d\n", len(recs))
+	fmt.Fprintf(&buf, "E %d %d\n", len(recs), illegal)
 	if _, err := f.Write(buf.Bytes()); err != nil {
 		return 0, fmt.Errorf("bookgen: append game %d: %w", idx, err)
 	}
@@ -354,18 +361,19 @@ func runCorpus(o corpusOpts, play gamePlayer, progress io.Writer) error {
 		return err
 	}
 	if sc.games >= o.games {
-		fmt.Fprintf(progress, "corpus complete: %d games, %d distinct openings recorded at %s\n", sc.games, len(sc.openings), o.path)
+		fmt.Fprintf(progress, "corpus complete: %d games, %d distinct openings, %d illegal fallbacks recorded at %s\n", sc.games, len(sc.openings), sc.illegal, o.path)
 		return nil
 	}
 	for i := sc.games; i < o.games; i++ {
 		redSeat := i % 2
 		res := play(i, redSeat)
-		clean, err := appendGame(o.path, sc.clean, i, res.records)
+		clean, err := appendGame(o.path, sc.clean, i, res.records, res.illegal)
 		if err != nil {
 			return err
 		}
 		sc.clean = clean
 		sc.games = i + 1
+		sc.illegal += res.illegal
 		if len(res.records) > 0 && res.records[0].key == corpusZeroKey {
 			if sc.openings == nil {
 				sc.openings = make(map[rules.Move]int)
@@ -375,8 +383,8 @@ func runCorpus(o corpusOpts, play gamePlayer, progress io.Writer) error {
 		if err := checkTrunkDiversity(sc.games, len(sc.openings)); err != nil {
 			return err
 		}
-		fmt.Fprintf(progress, "game %d/%d red seat %d winner %s moves %d positions %d openings %d\n",
-			i+1, o.games, redSeat+1, res.winner, res.moves, len(res.records), len(sc.openings))
+		fmt.Fprintf(progress, "game %d/%d red seat %d winner %s moves %d positions %d openings %d illegal %d\n",
+			i+1, o.games, redSeat+1, res.winner, res.moves, len(res.records), len(sc.openings), sc.illegal)
 	}
 	return nil
 }
