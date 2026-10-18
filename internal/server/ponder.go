@@ -42,15 +42,19 @@ func (g *GrantDepthRing) ReferenceDepth(grantNs int64) (int, bool) {
 	return ref, true
 }
 
-func AdoptPonder(stats engine.SearchStats, tag string, elapsedNs, budgetNs int64, ring GrantDepthRing, grantNs int64) bool {
+type SoftLimitCrossed bool
+
+func AssessSoftLimit(elapsedNs, budgetNs int64) SoftLimitCrossed {
+	return SoftLimitCrossed(elapsedNs >= int64(config.PonderAdoptFraction*float64(budgetNs)))
+}
+
+func AdoptPonder(stats engine.SearchStats, tag string, soft SoftLimitCrossed, ring GrantDepthRing, grantNs int64) bool {
 	if tag != "" {
 		return true
 	}
 	ref, ok := ring.ReferenceDepth(grantNs)
-	if !ok || stats.Depth < ref {
-		if elapsedNs < int64(config.PonderAdoptFraction*float64(budgetNs)) {
-			return false
-		}
+	if (!ok || stats.Depth < ref) && !bool(soft) {
+		return false
 	}
 	n := min(config.PonderDepthHistory, stats.RootIters)
 	if n < config.PonderStableIters {
@@ -256,7 +260,7 @@ func (r *Room) collectPonder(side rules.Color, budgetNs int64, turnStart time.Ti
 	if mc == 0 || mc != pres.base+1 || last != pres.predict {
 		return 0, engine.SearchStats{}, "", false
 	}
-	if !AdoptPonder(pres.stats, pres.tag, pres.stats.ElapsedNs, budgetNs, ring, budgetNs) {
+	if !AdoptPonder(pres.stats, pres.tag, AssessSoftLimit(pres.stats.ElapsedNs, budgetNs), ring, budgetNs) {
 		return 0, engine.SearchStats{}, "", false
 	}
 	st, tag := ComposePonderStats(pres.stats, pres.tag, turnStart, budgetNs)
