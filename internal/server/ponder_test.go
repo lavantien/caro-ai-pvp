@@ -1308,7 +1308,7 @@ func FuzzAdoptPonder(f *testing.F) {
 				t.Fatalf("adopt with window drop %d over the margin %d", drop, config.PonderScoreDropMargin)
 			}
 			ref, ok := ring.ReferenceDepth(grant)
-			if (!ok || st.Depth < ref) && !bool(soft) {
+			if (!ok || st.Depth < ref) && elapsed < int64(config.PonderAdoptFraction*float64(budget)) {
 				t.Fatalf("adopt with neither depth nor time adequacy: ref (%d %t) depth %d elapsed %d budget %d",
 					ref, ok, st.Depth, elapsed, budget)
 			}
@@ -1317,6 +1317,9 @@ func FuzzAdoptPonder(f *testing.F) {
 		deeper.Depth = st.Depth + 1000
 		if adopt && !AdoptPonder(deeper, "", soft, ring, grant) {
 			t.Fatal("adoption must be monotone in depth")
+		}
+		if adopt && !AdoptPonder(st, "", AssessSoftLimit(elapsed*2+1, budget), ring, grant) {
+			t.Fatal("adoption must be monotone in ponder elapsed")
 		}
 		if adopt && !AdoptPonder(st, "", true, ring, grant) {
 			t.Fatal("adoption must be monotone in the soft-limit marker")

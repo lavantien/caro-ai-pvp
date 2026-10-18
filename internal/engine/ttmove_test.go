@@ -69,9 +69,12 @@ func TestTTMoveProbesTheSharedTable(t *testing.T) {
 	s := newSMP(2, testTTBytes)
 	defer s.Close()
 	b := midgameBoard(t)
-	mv, _ := s.Search(b, NewFixedBudget(scaledBudget(60*time.Millisecond)))
+	mv, _ := s.SearchDepth(b, NewFixedBudget(scaledBudget(time.Minute)), 2)
 	if !b.IsLegal(rules.Cell(mv)) {
-		t.Fatalf("search move %d illegal", mv)
+		t.Fatalf("depth-2 search move %d illegal", mv)
+	}
+	if root := s.TTMove(b); root == moveNone || !b.IsLegal(rules.Cell(root)) {
+		t.Fatalf("TTMove on the searched root = %d, want the stored best move of the final root store", root)
 	}
 	child := *b
 	child.Make(rules.Cell(mv))

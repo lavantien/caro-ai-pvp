@@ -26,6 +26,18 @@ func TestAssessSoftLimitBoundary(t *testing.T) {
 	}
 }
 
+func TestAssessSoftLimitTruncationCorners(t *testing.T) {
+	if !AssessSoftLimit(1, 3) {
+		t.Error("odd budget 3 truncates the 1.5 fraction limit to 1, elapsed 1 must cross")
+	}
+	if AssessSoftLimit(0, 3) {
+		t.Error("odd budget 3 truncates the 1.5 fraction limit to 1, elapsed 0 must not cross")
+	}
+	if !AssessSoftLimit(0, 1) {
+		t.Error("budget 1 truncates the 0.5 fraction limit to 0, elapsed 0 must cross")
+	}
+}
+
 func TestAdoptPonderConsumesSoftLimitMarker(t *testing.T) {
 	mv := rules.Move(mustCellT(t, "H8"))
 	budget := int64(2 * time.Second)

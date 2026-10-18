@@ -85,6 +85,10 @@ func TestPonderTTFallbackArmsAndAdopts(t *testing.T) {
 		t.Fatalf("predicted reply: %v", err)
 	}
 	waitBotMove(t, r, 4, k10)
+	waitFor(t, func() bool {
+		probes, _ := bot.ttState()
+		return probes == 2
+	})
 	searches, starts, stops := bot.counts()
 	if searches != 1 {
 		t.Fatalf("searches after the TT-fallback adoption = %d, want 1: adoption must not search", searches)
@@ -213,6 +217,7 @@ func TestTTMoveDelegatesThroughTheSearcherStack(t *testing.T) {
 
 func TestSearchTTMoveMissesWithoutAProber(t *testing.T) {
 	b := rules.NewBoard()
+	b.Make(mustCellT(t, "H8"))
 	if mv := searchTTMove(&recordingInner{}, b); mv != rules.Move(config.BoardCells) {
 		t.Fatalf("non-prober TTMove = %d, want the always-illegal sentinel", mv)
 	}
