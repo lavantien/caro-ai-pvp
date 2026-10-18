@@ -100,7 +100,7 @@ func TestParseSeriesLogErrors(t *testing.T) {
 	cases := []struct {
 		name, body, wantErr string
 	}{
-		{"no pairing", "game 1: a (red) beat b (blue), 9 moves\n", "no pairing line"},
+		{"no pairing", "game 1: a (red) beat b (blue), 9 moves\n", "before the pairing line"},
 		{"second pairing", "pairing a (easy) vs b (easy)\npairing c (easy) vs d (easy)\n", "second pairing line"},
 		{"bad pairing", "pairing a easy vs b easy\n", "unparsable pairing line"},
 		{"game out of order", "pairing a (easy) vs b (easy)\ngame 2: a (red) beat b (blue), 9 moves\n", "out of order"},
@@ -109,6 +109,10 @@ func TestParseSeriesLogErrors(t *testing.T) {
 		{"bad verdict", "pairing a (easy) vs b (easy)\nseries a 2\n", "unparsable series line"},
 		{"color alternation broken", "pairing a (easy) vs b (easy)\ngame 1: a (red) beat b (blue), 9 moves\ngame 2: b (blue) beat a (red), 9 moves\n", "color alternation"},
 		{"first game red seat wrong", "pairing a (easy) vs b (easy)\ngame 1: b (red) beat a (blue), 9 moves\n", "color alternation"},
+		{"game before pairing", "game 1: b (red) beat a (blue), 9 moves\npairing a (easy) vs b (easy)\nseries b 1-0\n", "before the pairing line"},
+		{"second verdict", "pairing a (easy) vs b (easy)\ngame 1: a (red) beat b (blue), 9 moves\nseries a 1-0\nseries a 1-0\n", "second series line"},
+		{"game after verdict", "pairing a (easy) vs b (easy)\ngame 1: a (red) beat b (blue), 9 moves\nseries a 1-0\ngame 2: b (red) beat a (blue), 9 moves\n", "after the verdict"},
+		{"negative verdict score", "pairing a (easy) vs b (easy)\ngame 1: a (red) beat b (blue), 9 moves\nseries a 1--1\n", "unparsable series line"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

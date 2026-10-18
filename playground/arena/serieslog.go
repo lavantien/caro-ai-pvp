@@ -40,6 +40,12 @@ func parseSeriesLog(path string) (seriesLog, error) {
 			}
 			sl.redFirst, sl.blueFirst, sawPairing = rn, bn, true
 		case strings.HasPrefix(line, "game "):
+			if !sawPairing {
+				return sl, fmt.Errorf("%s:%d: game line before the pairing line", path, lineno)
+			}
+			if sl.hasVerdict {
+				return sl, fmt.Errorf("%s:%d: game line after the verdict line", path, lineno)
+			}
 			r, ok, err2 := parseGameResult(line)
 			if err2 != nil {
 				return sl, fmt.Errorf("%s:%d: %w", path, lineno, err2)
@@ -50,13 +56,14 @@ func parseSeriesLog(path string) (seriesLog, error) {
 			if r.game != len(sl.games)+1 {
 				return sl, fmt.Errorf("%s:%d: game %d out of order after %d games", path, lineno, r.game, len(sl.games))
 			}
-			if sawPairing {
-				if err2 := sl.checkSeats(r); err2 != nil {
-					return sl, fmt.Errorf("%s:%d: %w", path, lineno, err2)
-				}
+			if err2 := sl.checkSeats(r); err2 != nil {
+				return sl, fmt.Errorf("%s:%d: %w", path, lineno, err2)
 			}
 			sl.games = append(sl.games, r.result)
 		case strings.HasPrefix(line, "series "):
+			if sl.hasVerdict {
+				return sl, fmt.Errorf("%s:%d: second series line", path, lineno)
+			}
 			winner, first, second, ok := parseVerdictLine(line)
 			if !ok {
 				return sl, fmt.Errorf("%s:%d: unparsable series line %q", path, lineno, line)
@@ -192,11 +199,11 @@ func parseVerdictLine(line string) (winner string, firstWins, secondWins int, ok
 		return "", 0, 0, false
 	}
 	firstWins, err := strconv.Atoi(score[0])
-	if err != nil {
+	if err != nil || firstWins < 0 {
 		return "", 0, 0, false
 	}
 	secondWins, err = strconv.Atoi(score[1])
-	if err != nil {
+	if err != nil || secondWins < 0 {
 		return "", 0, 0, false
 	}
 	return winner, firstWins, secondWins, true
