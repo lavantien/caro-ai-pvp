@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -83,5 +84,72 @@ func TestEmitPonderOutcome(t *testing.T) {
 	emitPonderOutcome(&buf, 5, 9, "master", "reject")
 	if buf.String() != "g5 ponder master m9 reject\n" {
 		t.Errorf("emitPonderOutcome = %q", buf.String())
+	}
+}
+
+func TestResultFor(t *testing.T) {
+	cases := []struct {
+		ref, winner string
+		want        Result
+	}{
+		{"easy", "", Draw},
+		{"easy", "easy", Win},
+		{"easy", "hard", Loss},
+		{"easy-vcf", "easy", Loss},
+		{"easy-vcf", "easy-vcf", Win},
+	}
+	for _, c := range cases {
+		if got := resultFor(c.ref, c.winner); got != c.want {
+			t.Errorf("resultFor(%q, %q) = %d, want %d", c.ref, c.winner, got, c.want)
+		}
+	}
+}
+
+func TestEmitDuelPairAndUnpaired(t *testing.T) {
+	var buf bytes.Buffer
+	emitDuelPair(&buf, "easy", "medium", 3, PairWinDraw)
+	emitDuelUnpaired(&buf, "easy", "medium", 7, Loss)
+	want := "duel easy vs medium pair 3: easy 1.5-0.5\nduel easy vs medium unpaired game 7: easy loss\n"
+	if buf.String() != want {
+		t.Errorf("duel emission = %q, want %q", buf.String(), want)
+	}
+}
+
+func TestPrintResultsKeepsLegacyBlockAndAppendsPtnml(t *testing.T) {
+	results := map[string]*tally{
+		"easy":   {name: "easy", wins: 9, losses: 3, games: 12, redWins: 5, blueWins: 4, ponderArms: 2, ponderAdopts: 1},
+		"medium": {name: "medium", wins: 3, losses: 9, games: 12, redWins: 2, blueWins: 1},
+	}
+	easyMedium := &duel{a: "easy", b: "medium"}
+	easyMedium.pt.AddGame(Win)
+	easyMedium.pt.AddGame(Win)
+	easyMedium.pt.AddGame(Draw)
+	easyMedium.pt.Finish()
+	var buf bytes.Buffer
+	printResults(&buf, []string{"easy", "medium"}, results, []*duel{easyMedium})
+	pad := func(label string) string {
+		return label + strings.Repeat(" ", 22-len(label)) + " "
+	}
+	want := strings.Join([]string{
+		"results (wins-losses-draws over games, red/blue win split, ponder adopts/arms)",
+		pad("easy") + "9-3-0 over 12, red wins 5 blue wins 4, ponder 1/2",
+		pad("medium") + "3-9-0 over 12, red wins 2 blue wins 1, ponder 0/0",
+		"ptnml (duel pairs merged from the first seat's side: 2-0 1.5-0.5 1-1 0.5-1.5 0-2)",
+		pad("easy vs medium") + "1-0-0-0-0 over 1 pairs, 1 unpaired",
+		"",
+	}, "\n")
+	if buf.String() != want {
+		t.Errorf("printResults output:\n got %q\nwant %q", buf.String(), want)
+	}
+}
+
+func TestPrintResultsWithoutDuelsSkipsPtnmlBlock(t *testing.T) {
+	results := map[string]*tally{"easy": {name: "easy"}}
+	var buf bytes.Buffer
+	printResults(&buf, []string{"easy"}, results, nil)
+	want := "results (wins-losses-draws over games, red/blue win split, ponder adopts/arms)\neasy" +
+		strings.Repeat(" ", 19) + "0-0-0 over 0, red wins 0 blue wins 0, ponder 0/0\n"
+	if buf.String() != want {
+		t.Errorf("printResults without duels = %q, want %q", buf.String(), want)
 	}
 }

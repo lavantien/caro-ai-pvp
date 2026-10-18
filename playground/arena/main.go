@@ -66,6 +66,11 @@ type seatState struct {
 	base    int
 }
 
+type duel struct {
+	a, b string
+	pt   Ptnml
+}
+
 func main() {
 	tcIdx := flag.Int("tc", 0, "time control index into config.TimeControls")
 	games := flag.Int("games", 12, "games per unordered seat pair")
@@ -91,9 +96,12 @@ func main() {
 		results[label] = &tally{name: label}
 	}
 	gameNo := 0
+	var duels []*duel
 	for i := 0; i < len(labels); i++ {
 		for j := i + 1; j < len(labels); j++ {
 			a, b := labels[i], labels[j]
+			d := &duel{a: a, b: b}
+			duels = append(duels, d)
 			for g := 0; g < *games; g++ {
 				gameNo++
 				red, blue := a, b
@@ -108,17 +116,53 @@ func main() {
 					outcome = winner
 				}
 				fmt.Printf("game %d: %s (red) vs %s, winner %s over %d moves\n", gameNo, red, blue, outcome, moves)
+				if bucket, closed := d.pt.AddGame(resultFor(a, winner)); closed {
+					emitDuelPair(os.Stdout, a, b, g/2+1, bucket)
+				}
+			}
+			if r, had := d.pt.Finish(); had {
+				emitDuelUnpaired(os.Stdout, a, b, gameNo, r)
 			}
 			fmt.Printf("pair done: %s vs %s\n", a, b)
 		}
 	}
 
-	fmt.Println("results (wins-losses-draws over games, red/blue win split, ponder adopts/arms)")
+	printResults(os.Stdout, labels, results, duels)
+}
+
+func printResults(w io.Writer, labels []string, results map[string]*tally, duels []*duel) {
+	fmt.Fprintln(w, "results (wins-losses-draws over games, red/blue win split, ponder adopts/arms)")
 	for _, label := range labels {
 		r := results[label]
-		fmt.Printf("%-22s %d-%d-%d over %d, red wins %d blue wins %d, ponder %d/%d\n",
+		fmt.Fprintf(w, "%-22s %d-%d-%d over %d, red wins %d blue wins %d, ponder %d/%d\n",
 			label, r.wins, r.losses, r.draws, r.games, r.redWins, r.blueWins, r.ponderAdopts, r.ponderArms)
 	}
+	if len(duels) == 0 {
+		return
+	}
+	fmt.Fprintln(w, "ptnml (duel pairs merged from the first seat's side: 2-0 1.5-0.5 1-1 0.5-1.5 0-2)")
+	for _, d := range duels {
+		fmt.Fprintf(w, "%-22s %s\n", d.a+" vs "+d.b, d.pt.Summary())
+	}
+}
+
+func resultFor(ref, winner string) Result {
+	switch {
+	case winner == "":
+		return Draw
+	case winner == ref:
+		return Win
+	default:
+		return Loss
+	}
+}
+
+func emitDuelPair(w io.Writer, a, b string, pair, bucket int) {
+	fmt.Fprintf(w, "duel %s vs %s pair %d: %s %s\n", a, b, pair, a, pairScores[bucket])
+}
+
+func emitDuelUnpaired(w io.Writer, a, b string, game int, r Result) {
+	fmt.Fprintf(w, "duel %s vs %s unpaired game %d: %s %s\n", a, b, game, a, resultWords[r])
 }
 
 func seatLabels(arg string) []string {
