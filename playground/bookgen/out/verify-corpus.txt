@@ -1,1 +1,0 @@
-F corpus v1 tier=easy tc=3 games=2
