@@ -197,8 +197,8 @@ func emitRun(o emitOpts, progress io.Writer) (emitStats, error) {
 		if err != nil {
 			return st, fmt.Errorf("bookgen: emit position: %w", err)
 		}
-		if int(e.move) >= config.BoardCells || b.At(rules.Cell(e.move)) != rules.Empty {
-			return st, fmt.Errorf("bookgen: entry move %d is occupied or off board in its own key", e.move)
+		if !b.IsLegal(rules.Cell(e.move)) {
+			return st, fmt.Errorf("bookgen: entry move %d is not a legal move in its own key", e.move)
 		}
 		entries = append(entries, e)
 		visits = append(visits, e.visits)

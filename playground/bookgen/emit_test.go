@@ -406,6 +406,50 @@ func TestEmitRefusesAZeroEntryArtifact(t *testing.T) {
 	}
 }
 
+func TestEmitRejectsOpeningRuleViolation(t *testing.T) {
+	dir := t.TempDir()
+	b := rules.NewBoard()
+	b.Make(rules.Cell(119))
+	b.Make(rules.Cell(0))
+	corpus := filepath.Join(dir, "c.txt")
+	clean := seedHeader(t, corpus, corpusFingerprint(config.TierEasy.Name, 0, 1))
+	if _, err := appendGame(corpus, clean, 0, repeat(posRec{key: keyOf(b), move: 135}, config.BookVisitFloor), 0); err != nil {
+		t.Fatalf("appendGame: %v", err)
+	}
+	_, err := emitRun(emitOpts{
+		corpusPath: corpus, overlayPath: filepath.Join(dir, "o.txt"),
+		outPath: filepath.Join(dir, "b.carobook"), statsPath: filepath.Join(dir, "s.txt"),
+		floor: config.BookVisitFloor, created: "2026-10-18T00:00:00Z",
+	}, io.Discard)
+	if err == nil {
+		t.Fatalf("emitRun accepted move 135 one row from the lone red anchor, inside the opening exclusion")
+	}
+}
+
+func TestEmitSolverVisitsCarryTheCorpusCountEvenAtZero(t *testing.T) {
+	perPos := []map[rules.Move]int{{100: config.BookVisitFloor}}
+	proofs := map[int]proofRec{0: {move: 7, nodes: 42, kind: "vcf"}}
+	out, _, data, st := runEmitFor(t, perPos, proofs, config.BookVisitFloor)
+	if st.Solver != 1 {
+		t.Fatalf("stats solver = %d, want the proof entry", st.Solver)
+	}
+	entry := decodeEntry(t, data, 0)
+	if entry.source != config.BookSourceSolver || entry.move != 7 {
+		t.Fatalf("solver entry = move %d source %d, want the proof move 7", entry.move, entry.source)
+	}
+	if entry.visits != 0 {
+		t.Fatalf("solver entry visits = %d, want the corpus count of the proof move, zero when never played", entry.visits)
+	}
+	f, err := os.Open(out)
+	if err != nil {
+		t.Fatalf("open artifact: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+	if _, err := book.Load(f); err != nil {
+		t.Fatalf("book.Load rejected a zero-visit solver entry: %v", err)
+	}
+}
+
 func TestEmitRejectsOccupiedProofMove(t *testing.T) {
 	dir := t.TempDir()
 	b := rules.NewBoard()
