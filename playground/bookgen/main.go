@@ -9,6 +9,37 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
+func validateCorpusArgs(games, tcIdx int, tierName string) error {
+	if games < 1 {
+		return fmt.Errorf("bookgen: -games %d must be at least 1", games)
+	}
+	if tcIdx < 0 || tcIdx >= len(config.TimeControls) {
+		return fmt.Errorf("bookgen: -tc %d outside config.TimeControls", tcIdx)
+	}
+	if _, err := seatTier(tierName); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateFloor(floor int) error {
+	if floor < 1 {
+		return fmt.Errorf("bookgen: -floor %d must be at least 1", floor)
+	}
+	return nil
+}
+
+func validateReadSidecar(path, flagName string) error {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("bookgen: -%s %s: %w", flagName, path, err)
+	}
+	if fi.IsDir() || fi.Size() == 0 {
+		return fmt.Errorf("bookgen: -%s %s is empty or not a regular file", flagName, path)
+	}
+	return nil
+}
+
 func main() {
 	phase := flag.String("phase", "", "corpus, overlay, or emit")
 	games := flag.Int("games", config.BookCorpusGames, "corpus game target")
@@ -24,9 +55,7 @@ func main() {
 
 	switch *phase {
 	case "corpus":
-		if *tcIdx < 0 || *tcIdx >= len(config.TimeControls) {
-			fatal(fmt.Errorf("bookgen: -tc %d outside config.TimeControls", *tcIdx))
-		}
+		fatal(validateCorpusArgs(*games, *tcIdx, *tierName))
 		tier, err := seatTier(*tierName)
 		if err != nil {
 			fatal(err)
@@ -36,8 +65,13 @@ func main() {
 		}
 		fatal(runCorpus(corpusOpts{path: *corpusPath, tier: *tierName, tc: *tcIdx, games: *games}, play, os.Stdout))
 	case "overlay":
+		fatal(validateFloor(*floor))
+		fatal(validateReadSidecar(*corpusPath, "corpus"))
 		fatal(overlayRun(overlayOpts{corpusPath: *corpusPath, outPath: *overlayPath, floor: *floor, budget: *budget}, solverProber(*budget), os.Stdout))
 	case "emit":
+		fatal(validateFloor(*floor))
+		fatal(validateReadSidecar(*corpusPath, "corpus"))
+		fatal(validateReadSidecar(*overlayPath, "overlay"))
 		_, err := emitRun(emitOpts{
 			corpusPath:  *corpusPath,
 			overlayPath: *overlayPath,
@@ -55,6 +89,7 @@ func main() {
 func fatal(err error) {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		flag.Usage()
 		os.Exit(1)
 	}
 }
