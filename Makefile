@@ -37,7 +37,7 @@ DIAGRAM_BG := rgb(13,17,23)
 DIAGRAM_SRC := $(wildcard $(DIAGRAMS_DIR)/*.mmd)
 DIAGRAM_PNG := $(DIAGRAM_SRC:.mmd=.png)
 
-.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser darkcontrast icons ci shots bookgen bookgen-test
+.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser ci shots
 
 all: build
 
@@ -368,7 +368,7 @@ arena-test:
 .PHONY: bookgen
 bookgen:
 	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go -C playground/bookgen build -o ../../$(BOOKGEN_BIN) .
-	$(BOOKGEN_BIN) $(ARGS)
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) $(BOOKGEN_BIN) $(ARGS)
 
 # bookgen-test vets and tests the generator module: the corpus resume law,
 # the overlay source selection, the emit contract round trip, and the

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lavantien/caro-ai-pvp/internal/book"
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
@@ -471,16 +471,26 @@ func TestKeyOfMatchesBookProbeGeometry(t *testing.T) {
 		}
 		b.Make(c)
 	}
-	k := keyOf(b)
-	for i, w := range b.Red {
-		if got := binary.LittleEndian.Uint64(k[i*8:]); got != w {
-			t.Errorf("key red word %d = %#x, want %#x", i, got, w)
-		}
+	want := rules.Move(42)
+	meta := bookMetaOut{
+		Version: config.BookFormatVersion, MaxPly: config.BookMaxPly,
+		Generator: config.BookGeneratorTag, CorpusGames: 1,
+		VisitFloor: config.BookVisitFloor, Created: "2026-10-18T00:00:00Z",
 	}
-	for i, w := range b.Blue {
-		if got := binary.LittleEndian.Uint64(k[(config.BoardWordsPerColor+i)*8:]); got != w {
-			t.Errorf("key blue word %d = %#x, want %#x", i, got, w)
-		}
+	entry := []bookEntry{{key: keyOf(b), move: want, visits: config.BookVisitFloor, source: config.BookSourceMajority}}
+	f := bytes.NewReader(buildArtifact(entry, meta))
+	bk, err := book.Load(f)
+	if err != nil {
+		t.Fatalf("book.Load over a keyOf-built artifact: %v", err)
+	}
+	got, ok := bk.Probe(b)
+	if !ok || got != want {
+		t.Fatalf("probe = %d/%t, want %d through the real book reader", got, ok, want)
+	}
+	other := rules.NewBoard()
+	other.Make(rules.Cell(0))
+	if _, ok := bk.Probe(other); ok {
+		t.Fatalf("probe hit an unlisted position")
 	}
 }
 
