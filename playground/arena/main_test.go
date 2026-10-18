@@ -134,7 +134,7 @@ func TestPrintResultsKeepsLegacyBlockAndAppendsPtnml(t *testing.T) {
 		"results (wins-losses-draws over games, red/blue win split, ponder adopts/arms)",
 		pad("easy") + "9-3-0 over 12, red wins 5 blue wins 4, ponder 1/2",
 		pad("medium") + "3-9-0 over 12, red wins 2 blue wins 1, ponder 0/0",
-		"ptnml (duel pairs merged from the first seat's side: 2-0 1.5-0.5 1-1 0.5-1.5 0-0)",
+		"ptnml (duel pairs merged from the first seat's side: 2-0 1.5-0.5 1-1 0.5-1.5 0-2)",
 		pad("easy vs medium") + "1-0-0-0-0 over 1 pairs, 1 unpaired",
 		"",
 	}, "\n")

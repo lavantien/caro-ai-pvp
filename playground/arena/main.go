@@ -140,7 +140,7 @@ func printResults(w io.Writer, labels []string, results map[string]*tally, duels
 	if len(duels) == 0 {
 		return
 	}
-	fmt.Fprintln(w, "ptnml (duel pairs merged from the first seat's side: 2-0 1.5-0.5 1-1 0.5-1.5 0-0)")
+	fmt.Fprintln(w, "ptnml (duel pairs merged from the first seat's side: 2-0 1.5-0.5 1-1 0.5-1.5 0-2)")
 	for _, d := range duels {
 		fmt.Fprintf(w, "%-22s %s\n", d.a+" vs "+d.b, d.pt.Summary())
 	}

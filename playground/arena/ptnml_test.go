@@ -26,7 +26,7 @@ func TestPairBucketDefinitionTable(t *testing.T) {
 }
 
 func TestPairScoresOrderMatchesBuckets(t *testing.T) {
-	want := [pairBuckets]string{"2-0", "1.5-0.5", "1-1", "0.5-1.5", "0-0"}
+	want := [pairBuckets]string{"2-0", "1.5-0.5", "1-1", "0.5-1.5", "0-2"}
 	if pairScores != want {
 		t.Errorf("pairScores = %v, want %v", pairScores, want)
 	}
