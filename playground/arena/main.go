@@ -259,7 +259,7 @@ func collectPonder(s *seatState, b *rules.Board, lastMove rules.Move, budget tim
 	s.armed = false
 	pmv, pst, ptag := s.eng.StopPonder()
 	hit := b.MoveCount == s.base+1 && lastMove == s.predict
-	adopted := hit && server.AdoptPonder(pst, ptag, pst.ElapsedNs, int64(budget), s.ring, int64(budget))
+	adopted := hit && server.AdoptPonder(pst, ptag, server.AssessSoftLimit(pst.ElapsedNs, int64(budget)), s.ring, int64(budget))
 	if outcome := ponderOutcome(true, hit, adopted); outcome != "adopt" {
 		return 0, engine.SearchStats{}, "", outcome
 	}

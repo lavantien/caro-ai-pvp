@@ -88,10 +88,10 @@ func TestAdoptPonderSolverProofIsExempt(t *testing.T) {
 	var ring GrantDepthRing
 	mv := rules.Move(mustCellT(t, "H8"))
 	for _, tag := range []string{config.BotLogTagVCF, config.BotLogTagVCT} {
-		if !AdoptPonder(engine.SearchStats{}, tag, 0, 1, ring, 1) {
+		if !AdoptPonder(engine.SearchStats{}, tag, AssessSoftLimit(0, 1), ring, 1) {
 			t.Errorf("%s proof with an empty ring and zero history must adopt", tag)
 		}
-		if !AdoptPonder(stablePonderStats(t, 0, 0, mv, []int{0, 0, 0}), tag, 0, 1, ring, 1) {
+		if !AdoptPonder(stablePonderStats(t, 0, 0, mv, []int{0, 0, 0}), tag, AssessSoftLimit(0, 1), ring, 1) {
 			t.Errorf("%s proof must adopt regardless of the clauses", tag)
 		}
 	}
@@ -99,7 +99,7 @@ func TestAdoptPonderSolverProofIsExempt(t *testing.T) {
 
 func TestAdoptPonderRejectsTheEmptyZeroNodeStop(t *testing.T) {
 	var ring GrantDepthRing
-	if AdoptPonder(engine.SearchStats{}, "", 0, int64(time.Hour), ring, 1) {
+	if AdoptPonder(engine.SearchStats{}, "", AssessSoftLimit(0, int64(time.Hour)), ring, 1) {
 		t.Fatal("zero-node stop with an empty ring must reject: no depth, no elapsed, no history")
 	}
 }
@@ -109,10 +109,10 @@ func TestAdoptPonderTimeAdequacyBoundary(t *testing.T) {
 	mv := rules.Move(mustCellT(t, "H8"))
 	budget := int64(2 * time.Second)
 	st := stablePonderStats(t, 10, config.PonderStableIters, mv, []int{100, 100, 100})
-	if !AdoptPonder(st, "", int64(time.Second), budget, ring, 1) {
+	if !AdoptPonder(st, "", AssessSoftLimit(int64(time.Second), budget), ring, 1) {
 		t.Error("ponder elapsed at exactly the adopt fraction of the budget must adopt")
 	}
-	if AdoptPonder(st, "", int64(time.Second)-1, budget, ring, 1) {
+	if AdoptPonder(st, "", AssessSoftLimit(int64(time.Second)-1, budget), ring, 1) {
 		t.Error("ponder elapsed one nanosecond under the adopt fraction must reject")
 	}
 }
@@ -123,11 +123,11 @@ func TestAdoptPonderDepthAdequacy(t *testing.T) {
 	ring.Append(int64(time.Second), 10)
 	huge := int64(time.Hour)
 	atRef := stablePonderStats(t, 10, config.PonderStableIters, mv, []int{100, 100, 100})
-	if !AdoptPonder(atRef, "", 0, huge, ring, int64(time.Second)) {
+	if !AdoptPonder(atRef, "", AssessSoftLimit(0, huge), ring, int64(time.Second)) {
 		t.Error("ponder depth at the comparable reference with no elapsed time must adopt")
 	}
 	below := stablePonderStats(t, 9, config.PonderStableIters, mv, []int{100, 100, 100})
-	if AdoptPonder(below, "", 0, huge, ring, int64(time.Second)) {
+	if AdoptPonder(below, "", AssessSoftLimit(0, huge), ring, int64(time.Second)) {
 		t.Error("ponder depth under the comparable reference must reject when time is inadequate")
 	}
 }
@@ -137,7 +137,7 @@ func TestAdoptPonderOutOfBandGrantsGiveNoReference(t *testing.T) {
 	var ring GrantDepthRing
 	ring.Append(10*int64(time.Second), 30)
 	st := stablePonderStats(t, 20, config.PonderStableIters, mv, []int{100, 100, 100})
-	if AdoptPonder(st, "", 0, int64(time.Hour), ring, int64(time.Second)) {
+	if AdoptPonder(st, "", AssessSoftLimit(0, int64(time.Hour)), ring, int64(time.Second)) {
 		t.Error("a ring with no in-band comparables cannot satisfy depth adequacy")
 	}
 }
@@ -150,23 +150,23 @@ func TestAdoptPonderStabilityWindow(t *testing.T) {
 	var ring GrantDepthRing
 
 	short := stablePonderStats(t, 10, config.PonderStableIters-1, mv, []int{0, 0, 0})
-	if AdoptPonder(short, "", elapsed, budget, ring, 1) {
+	if AdoptPonder(short, "", AssessSoftLimit(elapsed, budget), ring, 1) {
 		t.Errorf("root history of %d iterations under PonderStableIters must reject", config.PonderStableIters-1)
 	}
 
 	st := stablePonderStats(t, 10, 5, mv, []int{100, 100, 100})
 	st.RootMoves[4] = other
-	if AdoptPonder(st, "", elapsed, budget, ring, 1) {
+	if AdoptPonder(st, "", AssessSoftLimit(elapsed, budget), ring, 1) {
 		t.Error("a best-move change in the final completed iteration must reject")
 	}
 
 	unstableMid := stablePonderStats(t, 10, 5, mv, []int{100, 100, 100})
 	unstableMid.RootMoves[5-config.PonderStableIters] = other
-	if AdoptPonder(unstableMid, "", elapsed, budget, ring, 1) {
+	if AdoptPonder(unstableMid, "", AssessSoftLimit(elapsed, budget), ring, 1) {
 		t.Error("an unstable tail over the stable window must reject")
 	}
 
-	if !AdoptPonder(stablePonderStats(t, 10, 5, mv, []int{100, 100, 100}), "", elapsed, budget, ring, 1) {
+	if !AdoptPonder(stablePonderStats(t, 10, 5, mv, []int{100, 100, 100}), "", AssessSoftLimit(elapsed, budget), ring, 1) {
 		t.Error("a stable tail with adequate time must adopt")
 	}
 }
@@ -179,17 +179,17 @@ func TestAdoptPonderScoreDropMargin(t *testing.T) {
 
 	atMargin := stablePonderStats(t, 10, config.PonderStableIters, mv,
 		[]int{100, 100, 100 + config.PonderScoreDropMargin})
-	if !AdoptPonder(atMargin, "", elapsed, budget, ring, 1) {
+	if !AdoptPonder(atMargin, "", AssessSoftLimit(elapsed, budget), ring, 1) {
 		t.Error("a window drop at exactly the margin must adopt")
 	}
 	overMargin := stablePonderStats(t, 10, config.PonderStableIters, mv,
 		[]int{100, 100, 100 + config.PonderScoreDropMargin + 1})
-	if AdoptPonder(overMargin, "", elapsed, budget, ring, 1) {
+	if AdoptPonder(overMargin, "", AssessSoftLimit(elapsed, budget), ring, 1) {
 		t.Error("a window drop one point over the margin must reject")
 	}
 	rise := stablePonderStats(t, 10, config.PonderStableIters, mv,
 		[]int{100, 100, 100 - config.PonderScoreDropMargin - 1})
-	if AdoptPonder(rise, "", elapsed, budget, ring, 1) {
+	if AdoptPonder(rise, "", AssessSoftLimit(elapsed, budget), ring, 1) {
 		t.Error("a window rise beyond the margin must reject under the absolute drop law")
 	}
 }
@@ -204,13 +204,13 @@ func TestAdoptPonderRequiresEveryClause(t *testing.T) {
 
 	unstable := stablePonderStats(t, 10, config.PonderStableIters, mv, []int{100, 100, 100})
 	unstable.RootMoves[config.PonderStableIters-1] = other
-	if AdoptPonder(unstable, "", elapsed, budget, ring, int64(time.Second)) {
+	if AdoptPonder(unstable, "", AssessSoftLimit(elapsed, budget), ring, int64(time.Second)) {
 		t.Error("time adequacy must not rescue an unstable tail")
 	}
 
 	drifty := stablePonderStats(t, 10, config.PonderStableIters, mv,
 		[]int{100, 100, 100 + config.PonderScoreDropMargin + 1})
-	if AdoptPonder(drifty, "", elapsed, budget, ring, int64(time.Second)) {
+	if AdoptPonder(drifty, "", AssessSoftLimit(elapsed, budget), ring, int64(time.Second)) {
 		t.Error("time adequacy must not rescue a score drop beyond the margin")
 	}
 }
@@ -1282,13 +1282,14 @@ func FuzzAdoptPonder(f *testing.F) {
 			ring.Append(int64(data[i])%1_000_000+grant/2, int(data[i+1])%50)
 		}
 
-		if !AdoptPonder(st, config.BotLogTagVCF, elapsed, budget, ring, grant) {
+		soft := AssessSoftLimit(elapsed, budget)
+		if !AdoptPonder(st, config.BotLogTagVCF, soft, ring, grant) {
 			t.Fatal("solver tag must adopt for any stats")
 		}
-		if !AdoptPonder(st, config.BotLogTagVCT, elapsed, budget, ring, grant) {
+		if !AdoptPonder(st, config.BotLogTagVCT, soft, ring, grant) {
 			t.Fatal("vct tag must adopt for any stats")
 		}
-		adopt := AdoptPonder(st, "", elapsed, budget, ring, grant)
+		adopt := AdoptPonder(st, "", soft, ring, grant)
 		n := min(config.PonderDepthHistory, st.RootIters)
 		if adopt {
 			if n < config.PonderStableIters {
@@ -1314,11 +1315,14 @@ func FuzzAdoptPonder(f *testing.F) {
 		}
 		deeper := st
 		deeper.Depth = st.Depth + 1000
-		if adopt && !AdoptPonder(deeper, "", elapsed, budget, ring, grant) {
+		if adopt && !AdoptPonder(deeper, "", soft, ring, grant) {
 			t.Fatal("adoption must be monotone in depth")
 		}
-		if adopt && !AdoptPonder(st, "", elapsed*2+1, budget, ring, grant) {
+		if adopt && !AdoptPonder(st, "", AssessSoftLimit(elapsed*2+1, budget), ring, grant) {
 			t.Fatal("adoption must be monotone in ponder elapsed")
+		}
+		if adopt && !AdoptPonder(st, "", true, ring, grant) {
+			t.Fatal("adoption must be monotone in the soft-limit marker")
 		}
 	})
 }
