@@ -9,7 +9,7 @@ import (
 
 func ulimitArgv(kb int64, argv []string) []string {
 	wrapped := make([]string, 0, len(argv)+4)
-	wrapped = append(wrapped, "sh", "-c", fmt.Sprintf("ulimit -v %d; exec \"$@\"", kb))
+	wrapped = append(wrapped, "sh", "-c", fmt.Sprintf("ulimit -v %d; exec \"$@\"", kb), "sh")
 	return append(wrapped, argv...)
 }
 

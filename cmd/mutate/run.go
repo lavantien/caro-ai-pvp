@@ -79,6 +79,45 @@ func classify(err error) string {
 	return verdictKilled
 }
 
+func isInfraError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var ee *exec.ExitError
+	return !errors.As(err, &ee)
+}
+
+func hasRunnableMutants(ms []mutation, workDir string, resumeKilled map[string]bool, allows allowlist, challenge bool) bool {
+	for _, m := range ms {
+		key := m.key(workDir)
+		if resumeKilled[key] {
+			continue
+		}
+		if _, isAllowed := allows[key]; isAllowed && !challenge {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+func runBaseline(ctx context.Context, out io.Writer, ms []mutation, r runner) error {
+	seen := map[string]bool{}
+	for _, m := range ms {
+		if seen[m.pkg] {
+			continue
+		}
+		seen[m.pkg] = true
+		if err := r.runTest(ctx, m.pkg); err != nil {
+			return fmt.Errorf("baseline suite failed for %s: %v (unmutated suite must be green before scoring mutants)", m.pkg, err)
+		}
+	}
+	if len(seen) > 0 {
+		_, _ = fmt.Fprintf(out, "mutate: baseline green for %d package(s)\n", len(seen))
+	}
+	return nil
+}
+
 type fileStore struct {
 	orig map[string][]byte
 }
@@ -197,6 +236,9 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 		if ctx.Err() != nil {
 			return res, consumed, survived, challenged, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
 		}
+		if isInfraError(testErr) {
+			return res, consumed, survived, challenged, fmt.Errorf("infra failure at %s: %v (verdicts so far void, rerun the gate)", key, testErr)
+		}
 		switch {
 		case classify(testErr) == verdictKilled && isAllowed:
 			challenged = append(challenged, m)
@@ -226,6 +268,11 @@ func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []
 	ms, paths, err := discoverMutants(ctx, out, workDir, patterns, cacheDir)
 	if err != nil {
 		return result{}, err
+	}
+	if hasRunnableMutants(ms, workDir, resumeKilled, allows, challenge) {
+		if berr := runBaseline(ctx, out, ms, r); berr != nil {
+			return result{}, berr
+		}
 	}
 	store := newFileStore()
 	if err := store.snapshot(paths); err != nil {

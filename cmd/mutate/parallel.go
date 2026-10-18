@@ -9,8 +9,6 @@ import (
 	"sync"
 )
 
-// lockedWriter serializes verdict lines from concurrent workers into one
-// log so a resume scan sees whole lines only.
 type lockedWriter struct {
 	mu sync.Mutex
 	w  io.Writer
@@ -22,9 +20,6 @@ func (l *lockedWriter) Write(p []byte) (int, error) {
 	return l.w.Write(p)
 }
 
-// rewriteMutants retargets absolute mutant file paths from one isolated
-// module copy to another. Keys are relative to the work dir, so they stay
-// byte-identical across copies and resume logs stay portable.
 func rewriteMutants(ms []mutation, from, to string) []mutation {
 	out := make([]mutation, len(ms))
 	copy(out, ms)
@@ -38,24 +33,15 @@ func rewriteMutants(ms []mutation, from, to string) []mutation {
 	return out
 }
 
-// runMutationParallel spreads the mutant population round-robin over the
-// isolated module copies in dirs, each driven by its own runner from
-// newRunner(dir). Round-robin mixes files and cost profiles so workers
-// finish together. After the workers join, every survivor and every
-// challenge-flagged allowance is re-verified once serially on dirs[0]:
-// concurrent load can lose kills, and a load-induced verdict must never be
-// the final word on a reported survivor or an equivalence proof. The
-// converse asymmetry is deliberate and accepted: worker-phase kills are
-// load-trusted and never re-verified, because re-running every kill would
-// double the suite cost and erase the parallel win; measured flip rate at
-// parallel 8 under ambient load was zero, the cap is 16, and milestone
-// gates should keep -parallel modest. Survivor-heavy populations pay a
-// double-run premium (worker pass plus confirm) that can make parallel
-// slower than serial; kill-dominated populations win roughly linearly.
 func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patterns []string, cacheDir string, newRunner func(dir string) runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (result, error) {
 	ms, paths, err := discoverMutants(ctx, out, dirs[0], patterns, cacheDir)
 	if err != nil {
 		return result{}, err
+	}
+	if hasRunnableMutants(ms, dirs[0], resumeKilled, allows, challenge) {
+		if berr := runBaseline(ctx, out, ms, newRunner(dirs[0])); berr != nil {
+			return result{}, berr
+		}
 	}
 	byKey := make(map[string]mutation, len(ms))
 	for _, m := range ms {
@@ -150,8 +136,6 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 	return res, nil
 }
 
-// resolveChallengedSerially re-runs challenge-flagged allowances alone: a
-// serial kill demotes the entry and fails the gate, a survive consumes it.
 func resolveChallengedSerially(ctx context.Context, out io.Writer, dir string, challenged []mutation, r runner, allows allowlist, res *result, consumed allowlist) error {
 	if len(challenged) == 0 {
 		return nil
@@ -181,10 +165,6 @@ func resolveChallengedSerially(ctx context.Context, out io.Writer, dir string, c
 	return demotedError(keys)
 }
 
-// confirmSurvivorsSerially re-runs every survivor alone on one copy and
-// flips load-lost kills back: the gate's promise is that a reported
-// survivor truly survives without concurrent siblings. A canceled suite is
-// never classified: an interrupt here must not forge a kill verdict.
 func confirmSurvivorsSerially(ctx context.Context, out io.Writer, dir string, survivors []mutation, r runner, res *result) error {
 	onKilled := func(m mutation) {
 		res.survived--
@@ -194,9 +174,6 @@ func confirmSurvivorsSerially(ctx context.Context, out io.Writer, dir string, su
 	return reverifySerially(ctx, dir, survivors, r, onKilled)
 }
 
-// reverifySerially runs each mutant alone on one copy, restoring files as
-// it goes, and calls onKilled for every suite failure. Canceled suites are
-// not classified: ctx cancellation surfaces as an interrupted error.
 func reverifySerially(ctx context.Context, dir string, ms []mutation, r runner, onKilled func(m mutation)) error {
 	if len(ms) == 0 {
 		return nil
@@ -231,6 +208,9 @@ func reverifySerially(ctx context.Context, dir string, ms []mutation, r runner, 
 		}
 		if ctx.Err() != nil {
 			return errInterrupted
+		}
+		if isInfraError(testErr) {
+			return fmt.Errorf("infra failure reverifying %s: %v", m.key(dir), testErr)
 		}
 		if classify(testErr) == verdictKilled {
 			onKilled(m)

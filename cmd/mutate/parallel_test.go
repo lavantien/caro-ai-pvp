@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -11,15 +11,24 @@ import (
 	"time"
 )
 
-// scriptedRunner reports a fixed error per call, so tests can make the
-// parallel workers behave differently from the serial confirmation pass.
 type scriptedRunner struct {
 	err error
 }
 
 func (r *scriptedRunner) runTest(ctx context.Context, pkg string) error { return r.err }
 
-// suiteNeverRunner fails the test the moment any suite actually runs.
+type greenThenFailRunner struct {
+	calls int
+}
+
+func (r *greenThenFailRunner) runTest(context.Context, string) error {
+	r.calls++
+	if r.calls == 1 {
+		return nil
+	}
+	return &exec.ExitError{}
+}
+
 type suiteNeverRunner struct {
 	t *testing.T
 }
@@ -29,8 +38,6 @@ func (r *suiteNeverRunner) runTest(ctx context.Context, pkg string) error {
 	return nil
 }
 
-// parallelFixture builds n module copies holding the same single-file
-// package and returns the dirs plus the mutant population of dirs[0].
 func parallelFixture(t *testing.T, n int, src string) ([]string, []mutation) {
 	t.Helper()
 	dirs := make([]string, n)
@@ -79,7 +86,7 @@ func TestParallelSerialConfirmFlipsLoadLostKills(t *testing.T) {
 		n := invocations[dir]
 		mu.Unlock()
 		if dir == dirs[0] && n > 1 {
-			return &scriptedRunner{err: errors.New("suite failed alone")}
+			return &scriptedRunner{err: &exec.ExitError{}}
 		}
 		return &scriptedRunner{}
 	}
@@ -174,7 +181,7 @@ func TestChallengeDemotesKilledAllowance(t *testing.T) {
 	allows := allowlist{ms[0].key(dir): "proof that no longer holds"}
 	var out strings.Builder
 	res, err := runMutation(context.Background(), &out, dir, []string{"./..."}, t.TempDir(),
-		&fakeRunner{failPkg: map[string]bool{"fixture": true}}, allows, nil, true)
+		&greenThenFailRunner{}, allows, nil, true)
 	if err == nil || !strings.Contains(err.Error(), "no longer equivalent") {
 		t.Fatalf("err = %v, want a demotion failure\n%s", err, out.String())
 	}
@@ -215,7 +222,7 @@ func TestParallelChallengeSerialResolution(t *testing.T) {
 		wantErr    string
 	}{
 		{"serial survive consumes the allowance", nil, ""},
-		{"serial kill demotes the allowance", errors.New("suite failed alone"), "no longer equivalent"},
+		{"serial kill demotes the allowance", &exec.ExitError{}, "no longer equivalent"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dirs, ms := parallelFixture(t, 2, src)
@@ -227,12 +234,13 @@ func TestParallelChallengeSerialResolution(t *testing.T) {
 				invocations[dir]++
 				n := invocations[dir]
 				mu.Unlock()
-				// Workers kill everything, so the allowlisted mutant is
-				// CHALLENGED; the third dirs[0] runner is the resolver.
+				if dir == dirs[0] && n == 1 {
+					return &scriptedRunner{}
+				}
 				if dir == dirs[0] && n >= 3 {
 					return &scriptedRunner{err: tc.resolveErr}
 				}
-				return &scriptedRunner{err: errors.New("suite failed under load")}
+				return &scriptedRunner{err: &exec.ExitError{}}
 			}
 			var out strings.Builder
 			res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), newRunner, allows, nil, true)

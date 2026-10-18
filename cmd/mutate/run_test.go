@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -23,9 +24,18 @@ func (r *fakeRunner) runTest(ctx context.Context, pkg string) error {
 		r.onCall(ctx)
 	}
 	if r.failPkg[pkg] {
-		return errors.New("test failed")
+		return &exec.ExitError{}
 	}
 	return nil
+}
+
+type infraRunner struct {
+	calls int
+}
+
+func (r *infraRunner) runTest(context.Context, string) error {
+	r.calls++
+	return errors.New("exec: sh: not found")
 }
 
 func TestClassify(t *testing.T) {
@@ -404,6 +414,50 @@ func TestDiscoverNoGoFiles(t *testing.T) {
 	dir := writeModule(t, map[string]string{"go.mod": "module probe\n\ngo 1.27\n"})
 	if _, err := discover(context.Background(), dir, []string{"."}, t.TempDir()); err == nil || !strings.Contains(err.Error(), "no Go files") {
 		t.Errorf("discover(no go files) err = %v, want no Go files error", err)
+	}
+}
+
+func TestExecuteMutantsInfraErrorVoidsRun(t *testing.T) {
+	dir := t.TempDir()
+	src := "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n"
+	path, ms := writePkgFile(t, dir, "a.go", "p", src)
+	store := newFileStore()
+	if err := store.snapshot([]string{path}); err != nil {
+		t.Fatalf("snapshot err = %v", err)
+	}
+	r := &infraRunner{}
+	res, _, _, _, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, r, nil, nil, false)
+	if err == nil || !strings.Contains(err.Error(), "infra failure") {
+		t.Errorf("err = %v, want infra failure", err)
+	}
+	if res.killed != 0 {
+		t.Errorf("killed = %d, want 0: a runner that never ran a test must not score kills", res.killed)
+	}
+	if got, rerr := os.ReadFile(path); rerr != nil || string(got) != src {
+		t.Errorf("file not restored after infra failure: %q, err %v", got, rerr)
+	}
+}
+
+func TestRunMutationBaselineGuards(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module probe\n\ngo 1.27\n",
+		"a.go":   "package probe\n\nfunc F(a int) int {\n\treturn a + 1\n}\n",
+	})
+	r := &fakeRunner{failPkg: map[string]bool{"probe": true}}
+	_, err := runMutation(context.Background(), &strings.Builder{}, dir, []string{"."}, t.TempDir(), r, nil, nil, false)
+	if err == nil || !strings.Contains(err.Error(), "baseline") {
+		t.Fatalf("runMutation(red baseline) err = %v, want baseline failure", err)
+	}
+	var out strings.Builder
+	res, err := runMutation(context.Background(), &out, dir, []string{"."}, t.TempDir(), &fakeRunner{}, nil, nil, false)
+	if err != nil {
+		t.Fatalf("runMutation(green baseline) err = %v", err)
+	}
+	if !strings.Contains(out.String(), "mutate: baseline green for 1 package(s)\n") {
+		t.Errorf("stdout missing baseline line:\n%s", out.String())
+	}
+	if res.run != res.total || res.survived != res.total {
+		t.Errorf("run/survived = %d/%d, want %d/%d", res.run, res.survived, res.total, res.total)
 	}
 }
 
