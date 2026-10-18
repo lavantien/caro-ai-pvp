@@ -121,7 +121,7 @@ func main() {
 				}
 			}
 			if r, had := d.pt.Finish(); had {
-				emitDuelUnpaired(os.Stdout, a, b, *games, r)
+				emitDuelUnpaired(os.Stdout, a, b, gameNo, r)
 			}
 			fmt.Printf("pair done: %s vs %s\n", a, b)
 		}
