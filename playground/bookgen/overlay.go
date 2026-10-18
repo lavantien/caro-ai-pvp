@@ -68,28 +68,52 @@ func majorityOf(counts map[rules.Move]int) (rules.Move, int) {
 	return best, bestN
 }
 
-func readOverlay(path string) (map[[config.BookKeyBytes]byte]proofRec, map[[config.BookKeyBytes]byte]struct{}, int64, bool, error) {
-	proofs := make(map[[config.BookKeyBytes]byte]proofRec)
-	done := make(map[[config.BookKeyBytes]byte]struct{})
+type overlayScan struct {
+	proofs map[[config.BookKeyBytes]byte]proofRec
+	done   map[[config.BookKeyBytes]byte]struct{}
+	clean  int64
+	torn   bool
+	fp     string
+}
+
+func readOverlay(path string) (overlayScan, error) {
+	sc := overlayScan{
+		proofs: make(map[[config.BookKeyBytes]byte]proofRec),
+		done:   make(map[[config.BookKeyBytes]byte]struct{}),
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return proofs, done, 0, false, nil
+			return sc, nil
 		}
-		return nil, nil, 0, false, fmt.Errorf("bookgen: read overlay %s: %w", path, err)
+		return sc, fmt.Errorf("bookgen: read overlay %s: %w", path, err)
 	}
 	end := len(data)
-	torn := false
 	if end > 0 && data[end-1] != '\n' {
-		torn = true
+		sc.torn = true
 		if i := bytes.LastIndexByte(data, '\n'); i >= 0 {
 			end = i + 1
 		} else {
 			end = 0
 		}
 	}
-	lineno := 0
 	off := 0
+	if len(data) > 0 {
+		header := data
+		if end > 0 {
+			header = data[:end]
+		}
+		nl := bytes.IndexByte(header, '\n')
+		if nl < 0 {
+			nl = len(header)
+		}
+		if !parseSidecarFingerprint(strings.Fields(string(header[:nl])), "overlay", 2) {
+			return sc, fmt.Errorf("bookgen: overlay %s line 1: missing or malformed fingerprint", path)
+		}
+		sc.fp = string(header[:nl])
+		off = nl + 1
+	}
+	lineno := 1
 	for off < end {
 		nl := off + bytes.IndexByte(data[off:end], '\n')
 		line := data[off:nl]
@@ -105,39 +129,40 @@ func readOverlay(path string) (map[[config.BookKeyBytes]byte]proofRec, map[[conf
 		switch fields[0] {
 		case "P":
 			if len(fields) != 5 {
-				return nil, nil, 0, false, fail("proof line wants key move nodes kind")
+				return sc, fail("proof line wants key move nodes kind")
 			}
 			k, err := keyFromHex(fields[1])
 			if err != nil {
-				return nil, nil, 0, false, fail("proof key")
+				return sc, fail("proof key")
 			}
 			mv, err := strconv.Atoi(fields[2])
 			if err != nil || mv < 0 || mv >= config.BoardCells {
-				return nil, nil, 0, false, fail("proof move")
+				return sc, fail("proof move")
 			}
 			nodes, err := strconv.ParseUint(fields[3], 10, 64)
 			if err != nil {
-				return nil, nil, 0, false, fail("proof nodes")
+				return sc, fail("proof nodes")
 			}
 			if fields[4] != "vcf" && fields[4] != "vct" {
-				return nil, nil, 0, false, fail("proof kind")
+				return sc, fail("proof kind")
 			}
-			proofs[k] = proofRec{move: rules.Move(mv), nodes: nodes, kind: fields[4]}
-			done[k] = struct{}{}
+			sc.proofs[k] = proofRec{move: rules.Move(mv), nodes: nodes, kind: fields[4]}
+			sc.done[k] = struct{}{}
 		case "N":
 			if len(fields) != 2 {
-				return nil, nil, 0, false, fail("no-proof line wants the key")
+				return sc, fail("no-proof line wants the key")
 			}
 			k, err := keyFromHex(fields[1])
 			if err != nil {
-				return nil, nil, 0, false, fail("no-proof key")
+				return sc, fail("no-proof key")
 			}
-			done[k] = struct{}{}
+			sc.done[k] = struct{}{}
 		default:
-			return nil, nil, 0, false, fail(fmt.Sprintf("unknown line kind %q", fields[0]))
+			return sc, fail(fmt.Sprintf("unknown line kind %q", fields[0]))
 		}
 	}
-	return proofs, done, int64(end), torn, nil
+	sc.clean = int64(end)
+	return sc, nil
 }
 
 func floorPassingKeys(agg map[[config.BookKeyBytes]byte]map[rules.Move]int, floor int) [][config.BookKeyBytes]byte {
@@ -158,18 +183,29 @@ func overlayRun(o overlayOpts, probe prober, progress io.Writer) error {
 	}
 	agg := aggregate(sc.recs)
 	keys := floorPassingKeys(agg, o.floor)
-	proofs, done, clean, _, err := readOverlay(o.outPath)
+	osc, err := readOverlay(o.outPath)
 	if err != nil {
 		return err
 	}
+	want := overlayFingerprint(o.floor, o.budget)
+	clean := osc.clean
+	if osc.fp == "" {
+		written, err := writeSidecarHeader(o.outPath, want)
+		if err != nil {
+			return err
+		}
+		clean = written
+	} else if osc.fp != want {
+		return fmt.Errorf("bookgen: overlay %s holds fingerprint %q, run config wants %q", o.outPath, osc.fp, want)
+	}
 	pending := keys[:0]
 	for _, k := range keys {
-		if _, ok := done[k]; !ok {
+		if _, ok := osc.done[k]; !ok {
 			pending = append(pending, k)
 		}
 	}
 	if len(pending) == 0 {
-		fmt.Fprintf(progress, "overlay complete: %d positions processed at %s (%d proofs)\n", len(done), o.outPath, len(proofs))
+		fmt.Fprintf(progress, "overlay complete: %d positions processed at %s (%d proofs)\n", len(osc.done), o.outPath, len(osc.proofs))
 		return nil
 	}
 	f, err := os.OpenFile(o.outPath, os.O_CREATE|os.O_RDWR, 0o644)
@@ -201,11 +237,11 @@ func overlayRun(o overlayOpts, probe prober, progress io.Writer) error {
 		}
 		outcome := "no proof"
 		if ok {
-			proofs[k] = proofRec{move: mv, nodes: nodes, kind: kind}
+			osc.proofs[k] = proofRec{move: mv, nodes: nodes, kind: kind}
 			outcome = fmt.Sprintf("proof %s move %d nodes %d", kind, mv, nodes)
 		}
 		fmt.Fprintf(progress, "position %d/%d key %s... %s\n", i+1, len(pending), hexKey(k[:])[:12], outcome)
 	}
-	fmt.Fprintf(progress, "overlay done: %d positions, %d proofs\n", len(pending), len(proofs))
+	fmt.Fprintf(progress, "overlay done: %d positions, %d proofs\n", len(pending), len(osc.proofs))
 	return nil
 }

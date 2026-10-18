@@ -19,7 +19,7 @@ import (
 func seedCorpusCounts(t *testing.T, dir string, perPos []map[rules.Move]int) string {
 	t.Helper()
 	path := filepath.Join(dir, "corpus.txt")
-	clean := int64(0)
+	clean := seedHeader(t, path, corpusFingerprint(config.TierEasy.Name, 0, len(perPos)))
 	for i, counts := range perPos {
 		var recs []posRec
 		for mv, n := range counts {
@@ -65,6 +65,9 @@ func runEmitFor(t *testing.T, perPos []map[rules.Move]int, proofs map[int]proofR
 	dir := t.TempDir()
 	corpus := seedCorpusCounts(t, dir, perPos)
 	overlay := filepath.Join(dir, "overlay.txt")
+	if len(proofs) > 0 {
+		seedHeader(t, overlay, overlayFingerprint(config.BookVisitFloor, config.BookSolverNodeBudget))
+	}
 	for i, p := range proofs {
 		var key [config.BookKeyBytes]byte
 		binary.LittleEndian.PutUint64(key[:], uint64(i+1))
@@ -187,7 +190,7 @@ func TestEmitArtifactLoadsAndProbesBack(t *testing.T) {
 		b2.Make(c)
 	}
 	corpus := filepath.Join(dir, "c.txt")
-	clean := int64(0)
+	clean := seedHeader(t, corpus, corpusFingerprint(config.TierEasy.Name, 0, 2))
 	next, err := appendGame(corpus, clean, 0, repeat(posRec{key: keyOf(b1), move: 42}, config.BookVisitFloor))
 	if err != nil {
 		t.Fatalf("appendGame: %v", err)
@@ -285,13 +288,14 @@ func TestEmitRejectsOccupiedProofMove(t *testing.T) {
 	b := rules.NewBoard()
 	b.Make(rules.Cell(30))
 	corpus := filepath.Join(dir, "c.txt")
-	if _, err := appendGame(corpus, 0, 0, repeat(posRec{key: keyOf(b), move: 42}, config.BookVisitFloor)); err != nil {
+	clean := seedHeader(t, corpus, corpusFingerprint(config.TierEasy.Name, 0, 1))
+	if _, err := appendGame(corpus, clean, 0, repeat(posRec{key: keyOf(b), move: 42}, config.BookVisitFloor)); err != nil {
 		t.Fatalf("appendGame: %v", err)
 	}
 	overlay := filepath.Join(dir, "o.txt")
 	occupied := rules.Move(30)
 	kb := keyOf(b)
-	line := "P " + hexKey(kb[:]) + " " + strconv.Itoa(int(occupied)) + " 5 vcf\n"
+	line := overlayFingerprint(config.BookVisitFloor, config.BookSolverNodeBudget) + "\nP " + hexKey(kb[:]) + " " + strconv.Itoa(int(occupied)) + " 5 vcf\n"
 	if err := os.WriteFile(overlay, []byte(line), 0o644); err != nil {
 		t.Fatalf("write overlay: %v", err)
 	}

@@ -45,7 +45,7 @@ func TestEndToEndSmokeChain(t *testing.T) {
 	play := func(idx, redSeat int) gameResult {
 		return playCorpusGame(tier, 0, idx, redSeat, &mlines)
 	}
-	if err := runCorpus(corpusOpts{path: corpus, games: 2}, play, io.Discard); err != nil {
+	if err := runCorpus(corpusOpts{path: corpus, tier: config.TierEasy.Name, tc: 0, games: 2}, play, io.Discard); err != nil {
 		t.Fatalf("runCorpus: %v", err)
 	}
 	sc, err := loadCorpus(corpus)

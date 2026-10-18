@@ -34,7 +34,7 @@ func main() {
 		play := func(idx, redSeat int) gameResult {
 			return playCorpusGame(tier, *tcIdx, idx, redSeat, os.Stdout)
 		}
-		fatal(runCorpus(corpusOpts{path: *corpusPath, games: *games}, play, os.Stdout))
+		fatal(runCorpus(corpusOpts{path: *corpusPath, tier: *tierName, tc: *tcIdx, games: *games}, play, os.Stdout))
 	case "overlay":
 		fatal(overlayRun(overlayOpts{corpusPath: *corpusPath, outPath: *overlayPath, floor: *floor, budget: *budget}, solverProber(*budget), os.Stdout))
 	case "emit":

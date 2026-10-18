@@ -38,6 +38,8 @@ type gamePlayer func(idx, redSeat int) gameResult
 
 type corpusOpts struct {
 	path  string
+	tier  string
+	tc    int
 	games int
 }
 
@@ -46,6 +48,54 @@ type corpusScan struct {
 	clean int64
 	torn  bool
 	recs  []posRec
+	fp    string
+}
+
+func corpusFingerprint(tier string, tc, games int) string {
+	return fmt.Sprintf("F corpus v%d tier=%s tc=%d games=%d", config.BookSidecarVersion, tier, tc, games)
+}
+
+func overlayFingerprint(floor, budget int) string {
+	return fmt.Sprintf("F overlay v%d floor=%d budget=%d", config.BookSidecarVersion, floor, budget)
+}
+
+func parseSidecarFingerprint(fields []string, kind string, pairs int) bool {
+	if len(fields) != 3+pairs {
+		return false
+	}
+	if fields[0] != "F" || fields[1] != kind || fields[2] != fmt.Sprintf("v%d", config.BookSidecarVersion) {
+		return false
+	}
+	for _, f := range fields[3:] {
+		eq := strings.IndexByte(f, '=')
+		if eq <= 0 || eq == len(f)-1 {
+			return false
+		}
+		if key, val := f[:eq], f[eq+1:]; key != "tier" {
+			for _, ch := range val {
+				if ch < '0' || ch > '9' {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+func writeSidecarHeader(path, fp string) (int64, error) {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return 0, fmt.Errorf("bookgen: write header %s: %w", path, err)
+	}
+	defer func() { _ = f.Close() }()
+	n, err := fmt.Fprintf(f, "%s\n", fp)
+	if err != nil {
+		return 0, fmt.Errorf("bookgen: write header %s: %w", path, err)
+	}
+	if err := f.Sync(); err != nil {
+		return 0, fmt.Errorf("bookgen: sync header %s: %w", path, err)
+	}
+	return int64(n), nil
 }
 
 func keyOf(b *rules.Board) [config.BookKeyBytes]byte {
@@ -135,10 +185,29 @@ func loadCorpus(path string) (corpusScan, error) {
 			end = 0
 		}
 	}
+	lineno := 0
+	if len(data) > 0 {
+		header := data
+		if end > 0 {
+			header = data[:end]
+		}
+		nl := bytes.IndexByte(header, '\n')
+		if nl < 0 {
+			nl = len(header)
+		}
+		if !parseSidecarFingerprint(strings.Fields(string(header[:nl])), "corpus", 3) {
+			return sc, fmt.Errorf("bookgen: corpus %s line 1: missing or malformed fingerprint", path)
+		}
+		sc.fp = string(header[:nl])
+		sc.clean = int64(nl + 1)
+		lineno = 1
+	}
 	var block []posRec
 	inBlock := false
 	off := 0
-	lineno := 0
+	if sc.clean > 0 {
+		off = int(sc.clean)
+	}
 	fail := func(reason string) error {
 		return fmt.Errorf("bookgen: corpus %s line %d: %s", path, lineno, reason)
 	}
@@ -247,6 +316,16 @@ func runCorpus(o corpusOpts, play gamePlayer, progress io.Writer) error {
 	sc, err := loadCorpus(o.path)
 	if err != nil {
 		return err
+	}
+	want := corpusFingerprint(o.tier, o.tc, o.games)
+	if sc.fp == "" {
+		clean, err := writeSidecarHeader(o.path, want)
+		if err != nil {
+			return err
+		}
+		sc.clean = clean
+	} else if sc.fp != want {
+		return fmt.Errorf("bookgen: corpus %s holds fingerprint %q, run config wants %q", o.path, sc.fp, want)
 	}
 	if sc.games >= o.games {
 		fmt.Fprintf(progress, "corpus complete: %d games recorded at %s\n", sc.games, o.path)

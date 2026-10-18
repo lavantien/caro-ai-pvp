@@ -34,6 +34,19 @@ func scriptedPlayer(t *testing.T, seen *[]gameCall) gamePlayer {
 	}
 }
 
+func seedHeader(t *testing.T, path, fp string) int64 {
+	t.Helper()
+	clean, err := writeSidecarHeader(path, fp)
+	if err != nil {
+		t.Fatalf("writeSidecarHeader %s: %v", path, err)
+	}
+	return clean
+}
+
+func easyCorpusOpts(path string, games int) corpusOpts {
+	return corpusOpts{path: path, tier: config.TierEasy.Name, tc: 0, games: games}
+}
+
 func TestCorpusBlockFormat(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "corpus.txt")
 	recs := []posRec{
@@ -57,7 +70,8 @@ func TestCorpusBlockFormat(t *testing.T) {
 
 func TestCorpusScanCountsOnlyCompleteBlocks(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "corpus.txt")
-	if _, err := appendGame(path, 0, 0, []posRec{{key: singleStoneKey(t, 0), move: 1}}); err != nil {
+	clean0 := seedHeader(t, path, corpusFingerprint(config.TierEasy.Name, 0, 2))
+	if _, err := appendGame(path, clean0, 0, []posRec{{key: singleStoneKey(t, 0), move: 1}}); err != nil {
 		t.Fatalf("appendGame 0: %v", err)
 	}
 	sc, err := loadCorpus(path)
@@ -83,25 +97,27 @@ func TestCorpusScanCountsOnlyCompleteBlocks(t *testing.T) {
 		t.Fatalf("scan of torn tail = %+v, want 1 game flagged torn", sc)
 	}
 	k0 := singleStoneKey(t, 0)
-	if int(sc.clean) != len("G 0\nP "+hexKey(k0[:])+" 1\nE 1\n") {
-		t.Errorf("clean offset = %d, want the end of the last complete block", sc.clean)
+	block := len("G 0\nP " + hexKey(k0[:]) + " 1\nE 1\n")
+	if sc.clean != clean0+int64(block) {
+		t.Errorf("clean offset = %d, want the end of the last complete block at %d", sc.clean, clean0+int64(block))
 	}
 }
 
 func TestCorpusLoadRejectsCorruptLines(t *testing.T) {
 	dir := t.TempDir()
 	k3 := singleStoneKey(t, 3)
+	fp := corpusFingerprint(config.TierEasy.Name, 0, 1) + "\n"
 	cases := []struct {
 		name, body string
 	}{
-		{"record outside a game", "P " + hexKey(k3[:]) + " 5\n"},
-		{"game header inside a game", "G 0\nG 1\n"},
-		{"bad key hex", "G 0\nP zz 5\nE 1\n"},
-		{"short key", "G 0\nP abcd 5\nE 1\n"},
-		{"bad move", "G 0\nP " + hexKey(k3[:]) + " x\nE 1\n"},
-		{"move off board", "G 0\nP " + hexKey(k3[:]) + " 256\nE 1\n"},
-		{"unknown line", "Q 0\n"},
-		{"count mismatch", "G 0\nE 2\n"},
+		{"record outside a game", fp + "P " + hexKey(k3[:]) + " 5\n"},
+		{"game header inside a game", fp + "G 0\nG 1\n"},
+		{"bad key hex", fp + "G 0\nP zz 5\nE 1\n"},
+		{"short key", fp + "G 0\nP abcd 5\nE 1\n"},
+		{"bad move", fp + "G 0\nP " + hexKey(k3[:]) + " x\nE 1\n"},
+		{"move off board", fp + "G 0\nP " + hexKey(k3[:]) + " 256\nE 1\n"},
+		{"unknown line", fp + "Q 0\n"},
+		{"count mismatch", fp + "G 0\nE 2\n"},
 	}
 	for _, c := range cases {
 		path := filepath.Join(dir, strings.ReplaceAll(c.name, " ", "-")+".txt")
@@ -118,14 +134,14 @@ func TestCorpusRunResumesFromRecordedGames(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "corpus.txt")
 	var seen []gameCall
 	play := scriptedPlayer(t, &seen)
-	if err := runCorpus(corpusOpts{path: path, games: 3}, play, io.Discard); err != nil {
-		t.Fatalf("runCorpus 3: %v", err)
-	}
-	if len(seen) != 3 {
-		t.Fatalf("first run played %d games, want 3", len(seen))
-	}
-	if err := runCorpus(corpusOpts{path: path, games: 5}, play, io.Discard); err != nil {
+	if err := runCorpus(easyCorpusOpts(path, 5), play, io.Discard); err != nil {
 		t.Fatalf("runCorpus 5: %v", err)
+	}
+	if len(seen) != 5 {
+		t.Fatalf("first run played %d games, want 5", len(seen))
+	}
+	if err := runCorpus(easyCorpusOpts(path, 5), play, io.Discard); err != nil {
+		t.Fatalf("runCorpus rerun: %v", err)
 	}
 	wantIdx := []int{0, 1, 2, 3, 4}
 	wantRed := []int{0, 1, 0, 1, 0}
@@ -151,7 +167,8 @@ func TestCorpusRunResumesFromRecordedGames(t *testing.T) {
 
 func TestCorpusRunTruncatesTornTailAndSkipsDoneGames(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "corpus.txt")
-	if _, err := appendGame(path, 0, 0, []posRec{{key: singleStoneKey(t, 0), move: 1}}); err != nil {
+	clean0 := seedHeader(t, path, corpusFingerprint(config.TierEasy.Name, 0, 2))
+	if _, err := appendGame(path, clean0, 0, []posRec{{key: singleStoneKey(t, 0), move: 1}}); err != nil {
 		t.Fatalf("seed block: %v", err)
 	}
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0)
@@ -164,7 +181,7 @@ func TestCorpusRunTruncatesTornTailAndSkipsDoneGames(t *testing.T) {
 	}
 	f.Close()
 	var seen []gameCall
-	if err := runCorpus(corpusOpts{path: path, games: 2}, scriptedPlayer(t, &seen), io.Discard); err != nil {
+	if err := runCorpus(easyCorpusOpts(path, 2), scriptedPlayer(t, &seen), io.Discard); err != nil {
 		t.Fatalf("runCorpus: %v", err)
 	}
 	if len(seen) != 1 || seen[0].idx != 1 {
@@ -178,7 +195,7 @@ func TestCorpusRunTruncatesTornTailAndSkipsDoneGames(t *testing.T) {
 		t.Fatalf("post-resume scan = %+v, want 2 complete games and no torn tail", sc)
 	}
 	var progress bytes.Buffer
-	if err := runCorpus(corpusOpts{path: path, games: 2}, scriptedPlayer(t, &seen), &progress); err != nil {
+	if err := runCorpus(easyCorpusOpts(path, 2), scriptedPlayer(t, &seen), &progress); err != nil {
 		t.Fatalf("rerun complete corpus: %v", err)
 	}
 	if len(seen) != 1 || !strings.Contains(progress.String(), "corpus complete: 2 games") {
@@ -199,12 +216,13 @@ func TestCorpusMissingFileScansEmpty(t *testing.T) {
 func TestCorpusUnterminatedTailIsDroppedNotParsed(t *testing.T) {
 	dir := t.TempDir()
 	k0 := singleStoneKey(t, 0)
+	fp := corpusFingerprint(config.TierEasy.Name, 0, 1) + "\n"
 	cases := []struct {
 		name string
 		body string
 	}{
-		{"tear mid record", "G 0\nP " + hexKey(k0[:]) + " 9\nP " + strings.Repeat("a", 2*config.BookKeyBytes)},
-		{"tear after end without newline", "G 0\nP " + hexKey(k0[:]) + " 1\nE 1"},
+		{"tear mid record", fp + "G 0\nP " + hexKey(k0[:]) + " 9\nP " + strings.Repeat("a", 2*config.BookKeyBytes)},
+		{"tear after end without newline", fp + "G 0\nP " + hexKey(k0[:]) + " 1\nE 1"},
 	}
 	for _, c := range cases {
 		path := filepath.Join(dir, strings.ReplaceAll(c.name, " ", "-")+".txt")
@@ -215,11 +233,11 @@ func TestCorpusUnterminatedTailIsDroppedNotParsed(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: loadCorpus: %v", c.name, err)
 		}
-		if sc.games != 0 || !sc.torn || sc.clean != 0 || len(sc.recs) != 0 {
-			t.Fatalf("%s: scan = %+v, want the game replayed from scratch", c.name, sc)
+		if sc.games != 0 || !sc.torn || sc.clean != int64(len(fp)) || len(sc.recs) != 0 {
+			t.Fatalf("%s: scan = %+v, want the game replayed from the header", c.name, sc)
 		}
 		var seen []gameCall
-		if err := runCorpus(corpusOpts{path: path, games: 1}, scriptedPlayer(t, &seen), io.Discard); err != nil {
+		if err := runCorpus(easyCorpusOpts(path, 1), scriptedPlayer(t, &seen), io.Discard); err != nil {
 			t.Fatalf("%s: resume: %v", c.name, err)
 		}
 		if len(seen) != 1 || seen[0].idx != 0 {
@@ -239,7 +257,8 @@ func TestCorpusTearAfterCompleteGameKeepsEarlierGames(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "c.txt")
 	k0 := singleStoneKey(t, 0)
-	clean, err := appendGame(path, 0, 0, []posRec{{key: k0, move: 1}})
+	clean0 := seedHeader(t, path, corpusFingerprint(config.TierEasy.Name, 0, 2))
+	clean, err := appendGame(path, clean0, 0, []posRec{{key: k0, move: 1}})
 	if err != nil {
 		t.Fatalf("appendGame: %v", err)
 	}
@@ -259,7 +278,7 @@ func TestCorpusTearAfterCompleteGameKeepsEarlierGames(t *testing.T) {
 		t.Fatalf("scan = %+v, want 1 game, torn tail, clean at %d", sc, clean)
 	}
 	var seen []gameCall
-	if err := runCorpus(corpusOpts{path: path, games: 2}, scriptedPlayer(t, &seen), io.Discard); err != nil {
+	if err := runCorpus(easyCorpusOpts(path, 2), scriptedPlayer(t, &seen), io.Discard); err != nil {
 		t.Fatalf("resume: %v", err)
 	}
 	if len(seen) != 1 || seen[0].idx != 1 {
@@ -277,7 +296,8 @@ func TestCorpusTearAfterCompleteGameKeepsEarlierGames(t *testing.T) {
 func TestCorpusToleratesExactlyOneTrailingBlankLine(t *testing.T) {
 	dir := t.TempDir()
 	k0 := singleStoneKey(t, 0)
-	base := "G 0\nP " + hexKey(k0[:]) + " 1\nE 1\n"
+	fp := corpusFingerprint(config.TierEasy.Name, 0, 1) + "\n"
+	base := fp + "G 0\nP " + hexKey(k0[:]) + " 1\nE 1\n"
 	cases := []struct {
 		name string
 		body string
@@ -305,13 +325,14 @@ func TestCorpusToleratesExactlyOneTrailingBlankLine(t *testing.T) {
 func TestCorpusRejectsBlankAndWhitespaceLinesWithoutPanicking(t *testing.T) {
 	dir := t.TempDir()
 	k0 := singleStoneKey(t, 0)
+	fp := corpusFingerprint(config.TierEasy.Name, 0, 1) + "\n"
 	cases := []struct {
 		name string
 		body string
 	}{
-		{"whitespace line", "G 0\n \nP " + hexKey(k0[:]) + " 1\nE 1\n"},
-		{"bare cr line", "G 0\n\r\nP " + hexKey(k0[:]) + " 1\nE 1\n"},
-		{"tab line", "\t\n"},
+		{"whitespace line", fp + "G 0\n \nP " + hexKey(k0[:]) + " 1\nE 1\n"},
+		{"bare cr line", fp + "G 0\n\r\nP " + hexKey(k0[:]) + " 1\nE 1\n"},
+		{"tab line", fp + "\t\n"},
 	}
 	for _, c := range cases {
 		path := filepath.Join(dir, strings.ReplaceAll(c.name, " ", "-")+".txt")
@@ -328,14 +349,78 @@ func TestCorpusRejectsBlankAndWhitespaceLinesWithoutPanicking(t *testing.T) {
 func TestCorpusErrorsCarryPhysicalLineNumbers(t *testing.T) {
 	dir := t.TempDir()
 	k0 := singleStoneKey(t, 0)
-	body := "G 0\nP " + hexKey(k0[:]) + " 1\nP " + hexKey(k0[:]) + " 2\nQ 9\n"
+	fp := corpusFingerprint(config.TierEasy.Name, 0, 1) + "\n"
+	body := fp + "G 0\nP " + hexKey(k0[:]) + " 1\nP " + hexKey(k0[:]) + " 2\nQ 9\n"
 	path := filepath.Join(dir, "c.txt")
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	_, err := loadCorpus(path)
-	if err == nil || !strings.Contains(err.Error(), "line 4") {
-		t.Fatalf("error = %v, want line 4 named", err)
+	if err == nil || !strings.Contains(err.Error(), "line 5") {
+		t.Fatalf("error = %v, want line 5 named", err)
+	}
+}
+
+func TestCorpusRunWritesAndVerifiesTheFingerprint(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "c.txt")
+	var seen []gameCall
+	opts := corpusOpts{path: path, games: 2, tier: config.TierEasy.Name, tc: 0}
+	if err := runCorpus(opts, scriptedPlayer(t, &seen), io.Discard); err != nil {
+		t.Fatalf("runCorpus: %v", err)
+	}
+	sc, err := loadCorpus(path)
+	if err != nil {
+		t.Fatalf("loadCorpus: %v", err)
+	}
+	want := corpusFingerprint(config.TierEasy.Name, 0, 2)
+	if sc.fp != want {
+		t.Fatalf("fingerprint = %q, want %q", sc.fp, want)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !bytes.HasPrefix(data, []byte(want+"\n")) {
+		t.Fatalf("file does not open with the fingerprint line: %q", data)
+	}
+	seen = nil
+	if err := runCorpus(opts, scriptedPlayer(t, &seen), io.Discard); err != nil {
+		t.Fatalf("rerun: %v", err)
+	}
+	if len(seen) != 0 {
+		t.Fatalf("matching rerun replayed %d games", len(seen))
+	}
+	for _, changed := range []corpusOpts{
+		{path: path, games: 3, tier: config.TierEasy.Name, tc: 0},
+		{path: path, games: 2, tier: config.TierMaster.Name, tc: 0},
+		{path: path, games: 2, tier: config.TierEasy.Name, tc: 1},
+	} {
+		if err := runCorpus(changed, scriptedPlayer(t, &seen), io.Discard); err == nil {
+			t.Errorf("runCorpus accepted a changed config %+v over fingerprint %q", changed, want)
+		}
+	}
+}
+
+func TestCorpusRejectsMissingOrMalformedFingerprint(t *testing.T) {
+	dir := t.TempDir()
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"no fingerprint", "G 0\n"},
+		{"wrong kind", "F overlay v1 floor=1 budget=1\n"},
+		{"wrong version", "F corpus v2 tier=easy tc=0 games=1\n"},
+		{"missing games field", "F corpus v1 tier=easy tc=0\n"},
+		{"bad tc value", "F corpus v1 tier=easy tc=x games=1\n"},
+	}
+	for _, c := range cases {
+		path := filepath.Join(dir, strings.ReplaceAll(c.name, " ", "-")+".txt")
+		if err := os.WriteFile(path, []byte(c.body), 0o644); err != nil {
+			t.Fatalf("write %s: %v", c.name, err)
+		}
+		if _, err := loadCorpus(path); err == nil {
+			t.Errorf("%s: loadCorpus accepted %q", c.name, c.body)
+		}
 	}
 }
 

@@ -198,6 +198,7 @@ const (
 	BookMaxPly           = 16
 	BookCorpusTCIndex    = 3
 	BookGeneratorTag     = "bookgen"
+	BookSidecarVersion   = 1
 )
 const FuzzInputMaxBytes = 1 << 20
 

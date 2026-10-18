@@ -623,6 +623,9 @@ func TestBookConstants(t *testing.T) {
 	if BookGeneratorTag != "bookgen" {
 		t.Errorf("BookGeneratorTag = %q, want %q", BookGeneratorTag, "bookgen")
 	}
+	if BookSidecarVersion != 1 {
+		t.Errorf("BookSidecarVersion = %d, want 1", BookSidecarVersion)
+	}
 	for _, p := range []struct {
 		name string
 		path string

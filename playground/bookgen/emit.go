@@ -123,10 +123,11 @@ func emitRun(o emitOpts, progress io.Writer) (emitStats, error) {
 		return st, err
 	}
 	agg := aggregate(sc.recs)
-	proofs, _, _, _, err := readOverlay(o.overlayPath)
+	osc, err := readOverlay(o.overlayPath)
 	if err != nil {
 		return st, err
 	}
+	proofs := osc.proofs
 	st.CorpusGames = sc.games
 	st.Positions = len(agg)
 	keys := floorPassingKeys(agg, o.floor)
