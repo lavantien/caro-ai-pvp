@@ -165,8 +165,8 @@ func TestBookHitReturnsZeroCostTaggedLine(t *testing.T) {
 	if dl.Budget() != grant {
 		t.Fatalf("grant after the book reply = %v, want the draw to stay idempotent at %v", dl.Budget(), grant)
 	}
-	if st.ElapsedNs < 0 || st.ElapsedNs >= int64(5*time.Millisecond) {
-		t.Fatalf("book hit elapsed = %d, want near zero rendering t=0.00", st.ElapsedNs)
+	if st.ElapsedNs < 0 {
+		t.Fatalf("book hit elapsed = %d, want a measured non-negative duration", st.ElapsedNs)
 	}
 	want := "M2, Blue, H8, d=0, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=1, t=0.00, alloc=2.00, [BOOK], pv=H8"
 	if line := MLine(2, rules.Blue, mv, &st, tag); line != want {
@@ -364,5 +364,73 @@ func TestRoomMasterOpensFromTheBookThenSearches(t *testing.T) {
 	}
 	if err := r.Forfeit(alice.ID); err != nil {
 		t.Fatalf("forfeit: %v", err)
+	}
+}
+
+type lifecycleRecorder struct {
+	searcher
+	started, stopped, closed int
+	ponderBoard              *rules.Board
+}
+
+func (r *lifecycleRecorder) StartPonder(b *rules.Board) {
+	r.started++
+	r.ponderBoard = b
+	r.searcher.StartPonder(b)
+}
+
+func (r *lifecycleRecorder) StopPonder() (rules.Move, engine.SearchStats, string) {
+	r.stopped++
+	return r.searcher.StopPonder()
+}
+
+func (r *lifecycleRecorder) Close() {
+	r.closed++
+	r.searcher.Close()
+}
+
+func TestBookSearcherDelegatesLifecycleAndPlainDeadlines(t *testing.T) {
+	bk, err := book.Load(bytes.NewReader(buildBookArtifact(t, []bookRow{{reply: "H8"}})))
+	if err != nil {
+		t.Fatalf("load staged artifact: %v", err)
+	}
+	rec := &lifecycleRecorder{searcher: &scriptedBot{script: movesOf(t, []string{"A1"}), stats: fakeStats()}}
+	s := &bookSearcher{inner: rec, book: bk, maxPly: 8, cores: 2}
+	b := rules.NewBoard()
+	s.StartPonder(b)
+	if rec.started != 1 || rec.ponderBoard != b {
+		t.Fatalf("ponder delegation = %d starts, want the ponder board handed inward once", rec.started)
+	}
+	if _, _, _ = s.StopPonder(); rec.stopped != 1 {
+		t.Fatalf("stop-ponder delegation = %d, want 1", rec.stopped)
+	}
+	s.Close()
+	if rec.closed != 1 {
+		t.Fatalf("close delegation = %d, want 1", rec.closed)
+	}
+	s2 := &bookSearcher{inner: &scriptedBot{script: movesOf(t, []string{"A1"})}, book: bk, maxPly: 8, cores: 2}
+	_, st, tag := s2.Search(rules.NewBoard(), engine.NewStoppable())
+	if tag != config.BotLogTagBook {
+		t.Fatalf("plain-deadline hit tag = %q, want %q", tag, config.BotLogTagBook)
+	}
+	if st.AllocNs != 0 {
+		t.Fatalf("plain-deadline hit alloc = %d, want 0: only a Budgeter deadline carries an alloc draw", st.AllocNs)
+	}
+}
+
+func TestReadySurfacesCorruptBookArtifactWithoutResidue(t *testing.T) {
+	stageBookArtifact(t, []byte("CAROBOOK2\n"))
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierMaster)
+	err := r.Ready(alice.ID)
+	if err == nil || !strings.Contains(err.Error(), "book") {
+		t.Fatalf("ready over a corrupt artifact err = %v, want the construction failure surfaced", err)
+	}
+	if rerr := r.Ready(alice.ID); rerr != nil {
+		t.Fatalf("repeat ready over the parked room err = %v, want the quiet state short-circuit", rerr)
+	}
+	r.Close()
+	if got := s.rm.LiveCoreBookings(); got != 0 {
+		t.Errorf("core bookings after close = %d, want 0: the parked room must release on teardown", got)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lavantien/caro-ai-pvp/internal/book"
 	"github.com/lavantien/caro-ai-pvp/internal/clock"
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
@@ -42,11 +43,11 @@ func (r *Room) Ready(userID int64) error {
 		return err
 	}
 	if before == SeriesCreated && r.series.State() == SeriesReady {
-		r.startGameLocked()
+		return r.startGameLocked()
 	}
 	return nil
 }
-func (r *Room) startGameLocked() {
+func (r *Room) startGameLocked() (err error) {
 	r.closeEnginesLocked()
 	r.board = rules.NewBoard()
 	r.moves = r.moves[:0]
@@ -54,6 +55,12 @@ func (r *Room) startGameLocked() {
 	r.ponderRing = [2]GrantDepthRing{}
 	r.clock[rules.Red] = clock.NewGameClock(r.tcIdx)
 	r.clock[rules.Blue] = clock.NewGameClock(r.tcIdx)
+	defer func() {
+		if rec := recover(); rec != nil {
+			r.closeEnginesLocked()
+			err = fmt.Errorf("engine construction failed: %v", rec)
+		}
+	}()
 	for _, c := range [2]rules.Color{rules.Red, rules.Blue} {
 		if seat := r.seatByColorLocked(c); seat.bot != nil {
 			r.engines[c] = r.makeSearcher(*seat.bot)
@@ -61,6 +68,7 @@ func (r *Room) startGameLocked() {
 	}
 	r.turnStart = time.Now()
 	r.wakeBotLocked()
+	return nil
 }
 func (r *Room) PlayMove(userID int64, cell rules.Cell) error {
 	err := r.playMove(userID, cell)
@@ -135,8 +143,8 @@ func (r *Room) completeGameLocked(winner rules.Color, lastCell rules.Cell) error
 	if r.series.State() == SeriesFinished {
 		r.finished = true
 		r.publishLocked(Event{Kind: EventKindSeries, Payload: r.series.Winner().String()})
-	} else {
-		r.startGameLocked()
+	} else if serr := r.startGameLocked(); serr != nil && perr == nil {
+		perr = serr
 	}
 	return perr
 }
@@ -501,6 +509,10 @@ func solverStats(cores int, grant time.Duration, out *vcf.SolverStats) engine.Se
 	return st
 }
 func newBotSearcher(t config.Tier) searcher {
+	var bk *book.Book
+	if t.Book {
+		bk = loadBotBook()
+	}
 	var inner searcher
 	if t.Cores > 1 {
 		inner = tierSearcher{smp: engine.NewTiered(t)}
@@ -518,7 +530,7 @@ func newBotSearcher(t config.Tier) searcher {
 		inner = s
 	}
 	if t.Book {
-		return &bookSearcher{inner: inner, book: loadBotBook(), maxPly: t.BookMaxPly, cores: t.Cores}
+		return &bookSearcher{inner: inner, book: bk, maxPly: t.BookMaxPly, cores: t.Cores}
 	}
 	return inner
 }

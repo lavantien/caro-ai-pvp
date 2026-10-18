@@ -73,6 +73,16 @@ func main() {
 	flag.Parse()
 
 	labels := seatLabels(*seatsArg)
+	for _, label := range labels {
+		if !seats[label].Book {
+			continue
+		}
+		if _, err := os.Stat(config.BookArtifactPath); err != nil {
+			fmt.Fprintf(os.Stderr, "arena: seat %s wants the book but %s is unreadable: %v\n", label, config.BookArtifactPath, err)
+			os.Exit(1)
+		}
+		break
+	}
 	tc := config.TimeControls[*tcIdx]
 	fmt.Printf("arena tc %d+%d seats %v games %d\n", tc.InitialMin, tc.IncrementSec, labels, *games)
 
