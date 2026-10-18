@@ -56,6 +56,11 @@ func main() {
 	switch *phase {
 	case "corpus":
 		fatal(validateCorpusArgs(*games, *tcIdx, *tierName))
+		lock, err := acquireSidecarLock(*corpusPath, "corpus")
+		if err != nil {
+			fatal(err)
+		}
+		defer lock.Release()
 		tier, err := seatTier(*tierName)
 		if err != nil {
 			fatal(err)
@@ -67,12 +72,22 @@ func main() {
 	case "overlay":
 		fatal(validateFloor(*floor))
 		fatal(validateReadSidecar(*corpusPath, "corpus"))
+		lock, err := acquireSidecarLock(*corpusPath, "overlay")
+		if err != nil {
+			fatal(err)
+		}
+		defer lock.Release()
 		fatal(overlayRun(overlayOpts{corpusPath: *corpusPath, outPath: *overlayPath, floor: *floor, budget: *budget}, solverProber(*budget), os.Stdout))
 	case "emit":
 		fatal(validateFloor(*floor))
 		fatal(validateReadSidecar(*corpusPath, "corpus"))
 		fatal(validateReadSidecar(*overlayPath, "overlay"))
-		_, err := emitRun(emitOpts{
+		lock, err := acquireSidecarLock(*corpusPath, "emit")
+		if err != nil {
+			fatal(err)
+		}
+		defer lock.Release()
+		_, err = emitRun(emitOpts{
 			corpusPath:  *corpusPath,
 			overlayPath: *overlayPath,
 			outPath:     *outPath,

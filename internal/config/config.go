@@ -199,6 +199,8 @@ const (
 	BookCorpusTCIndex    = 3
 	BookGeneratorTag     = "bookgen"
 	BookSidecarVersion   = 1
+	BookLockHeartbeatMs  = 5000
+	BookLockStaleMs      = 30000
 )
 const FuzzInputMaxBytes = 1 << 20
 

@@ -642,6 +642,12 @@ func TestBookConstants(t *testing.T) {
 	if BookOpeningCells[0] == BookOpeningCells[1] {
 		t.Errorf("the first two rotation cells collide, consecutive games would replay one trunk")
 	}
+	if BookLockHeartbeatMs < 1000 {
+		t.Errorf("BookLockHeartbeatMs = %d, want at least a 1s beat", BookLockHeartbeatMs)
+	}
+	if BookLockStaleMs <= 2*BookLockHeartbeatMs {
+		t.Errorf("BookLockStaleMs = %d over heartbeat %d, want a window covering at least two missed beats", BookLockStaleMs, BookLockHeartbeatMs)
+	}
 	for _, p := range []struct {
 		name string
 		path string
