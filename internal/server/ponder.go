@@ -283,19 +283,52 @@ type ponderArm struct {
 	base    int
 }
 
+type ttReplySearcher interface {
+	TTMove(b *rules.Board) rules.Move
+}
+
+func (s tierSearcher) TTMove(b *rules.Board) rules.Move { return s.smp.TTMove(b) }
+
+func (s *solverSearcher) TTMove(b *rules.Board) rules.Move { return searchTTMove(s.inner, b) }
+
+func (s *bookSearcher) TTMove(b *rules.Board) rules.Move { return searchTTMove(s.inner, b) }
+
+func searchTTMove(eng searcher, b *rules.Board) rules.Move {
+	if p, ok := eng.(ttReplySearcher); ok {
+		return p.TTMove(b)
+	}
+	return rules.Move(config.BoardCells)
+}
+
+func ttPonderPredict(eng searcher, b *rules.Board) (rules.Move, bool) {
+	mv := searchTTMove(eng, b)
+	if !b.IsLegal(rules.Cell(mv)) {
+		return 0, false
+	}
+	return mv, true
+}
+
 func (r *Room) ponderArmLocked(side rules.Color, eng searcher, st *engine.SearchStats) ponderArm {
 	var arm ponderArm
-	if r.ponder == nil || !r.ponderOn || st.PVLen < 2 {
+	if r.ponder == nil || !r.ponderOn || st.PVLen < 1 {
 		return arm
 	}
 	tier := r.seatByColorLocked(side).bot
 	if tier.PonderThreads < 1 {
 		return arm
 	}
+	predict := st.PV[1]
+	if st.PVLen == 1 {
+		ttPredict, ok := ttPonderPredict(eng, r.board)
+		if !ok {
+			return arm
+		}
+		predict = ttPredict
+	}
 	arm.eng = eng
 	arm.side = side
 	arm.board = *r.board
-	arm.predict = st.PV[1]
+	arm.predict = predict
 	arm.base = arm.board.MoveCount
 	arm.ok = true
 	return arm

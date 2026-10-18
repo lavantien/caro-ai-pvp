@@ -23,6 +23,14 @@ func TestTTMoveDisabledTableAlwaysMisses(t *testing.T) {
 	}
 }
 
+func TestTTMoveEmptyBoardProbeMisses(t *testing.T) {
+	s := newSMP(1, testTTBytes)
+	defer s.Close()
+	if mv := s.TTMove(rules.NewBoard()); mv != moveNone {
+		t.Fatalf("TTMove on the hash-zero empty board = %d, want moveNone: hash zero is never stored", mv)
+	}
+}
+
 func TestTTMoveDepthOneSearchStoresNoChildEntry(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	defer s.Close()
