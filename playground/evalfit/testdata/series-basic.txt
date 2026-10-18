@@ -1,0 +1,18 @@
+run 26 series 491
+pairing master-1 (master) vs grandmaster-1 (grandmaster)
+tc 3+2 bo3
+M1, Red, H8, d=11, n=42.35m, nps=6.05m, ebf=4.9, tt=8%, hf=42%, fh1=91%, s=-300, thr=6, t=7.00, alloc=7.00, pv=H8 H6 H5
+M2, Blue, F8, d=10, n=37.22m, nps=5.32m, ebf=5.7, tt=9%, hf=11%, fh1=95%, s=+300, thr=8, t=7.00, alloc=7.00, pv=F8
+M3, Red, E8, d=10, n=42.75m, nps=6.04m, ebf=5.8, tt=11%, hf=42%, fh1=93%, s=-1000, thr=6, t=7.07, alloc=7.07, pv=E8 F7
+M4, Blue, F9, d=8, n=41.03m, nps=5.8m, ebf=8.9, tt=12%, hf=11%, fh1=95%, s=+300, thr=8, t=7.08, alloc=7.07, [BOOK], pv=F9
+M5, Red, F10, d=11, n=41.25m, nps=5.78m, ebf=4.9, tt=13%, hf=43%, fh1=94%, s=+900, thr=6, t=7.14, alloc=7.13, [PONDER], pv=F10 G9
+game 1: master-1 (red) beat grandmaster-1 (blue), 5 moves, won by open 4
+M1, Red, H8, d=11, n=47.77m, nps=6.82m, ebf=5.0, tt=9%, hf=15%, fh1=91%, s=-300, thr=8, t=7.00, alloc=7.00, pv=H8 H6
+M2, Blue, H6, d=10, n=23.85m, nps=3.41m, ebf=5.4, tt=9%, hf=25%, fh1=91%, s=+300, thr=6, t=7.00, alloc=7.00, pv=H6
+M3, Red, H5, d=10, n=34.01m, nps=4.85m, ebf=5.6, tt=12%, hf=10%, fh1=96%, s=-1000, thr=8, t=0.00, alloc=7.07, [PONDER], pv=H5
+M4, Blue, I6, d=9, n=39.77m, nps=5.62m, ebf=7.0, tt=13%, hf=40%, fh1=93%, s=+1000, thr=6, t=7.08, alloc=7.07, pv=I6
+game 2: master-1 (blue) beat grandmaster-1 (red), 4 moves, won by 4
+M1, Red, H8, d=11, n=42.35m, nps=6.05m, ebf=4.9, tt=8%, hf=42%, fh1=91%, s=-300, thr=6, t=7.00, alloc=7.00, pv=H8
+M2, Blue, H6, d=10, n=23.85m, nps=3.41m, ebf=5.4, tt=9%, hf=25%, fh1=91%, s=+300, thr=6, t=7.00, alloc=7.00, pv=H6
+game 3: master-1 (red) vs grandmaster-1 (blue), drawn at 256 moves
+series master-1 2-1
