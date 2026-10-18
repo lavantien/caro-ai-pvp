@@ -97,6 +97,10 @@ func main() {
 		}, os.Stdout)
 		fatal(err)
 	default:
+		if *phase == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
 		fatal(fmt.Errorf("bookgen: -phase %q must be corpus, overlay, or emit", *phase))
 	}
 }
