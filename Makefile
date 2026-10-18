@@ -29,6 +29,7 @@ MUTATE_TMP ?= $(CURDIR)/.scratch/tmp
 # past the RAM/4 guard cap, so guard ticks read engine-only totals against
 # this bound and never kill a tournament for pressing it.
 TOURNEY_MEMLIMIT ?= 12GiB
+BOOKGEN_MEMLIMIT ?= $(TOURNEY_MEMLIMIT)
 
 MERMAID_CLI_VERSION := 12.0.0
 PUPPETEER_VERSION := 25.12.0
@@ -365,10 +366,11 @@ arena-test:
 # -phase overlay solver-proves the floor-passing positions, then -phase emit
 # writes the CAROBOOK1 artifact plus its stats file, e.g.
 # make bookgen ARGS="-phase corpus" or ARGS="-phase emit -floor 20".
-.PHONY: bookgen
-bookgen:
+.PHONY: bookgen bookgen-build
+bookgen: bookgen-build
+	GOMEMLIMIT=$(BOOKGEN_MEMLIMIT) $(BOOKGEN_BIN) $(ARGS)
+bookgen-build:
 	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go -C playground/bookgen build -o ../../$(BOOKGEN_BIN) .
-	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) $(BOOKGEN_BIN) $(ARGS)
 
 # bookgen-test vets and tests the generator module: the corpus resume law,
 # the overlay source selection, the emit contract round trip, and the
