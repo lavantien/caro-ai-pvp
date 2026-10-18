@@ -3,6 +3,7 @@ package engine
 import (
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -345,4 +346,50 @@ func TestPonderZeroAllocs(t *testing.T) {
 	if sinkStats.Threads != 2 {
 		t.Errorf("sink ponder threads = %d, want 2", sinkStats.Threads)
 	}
+}
+
+func TestPonderConcurrentStartStopHammer(t *testing.T) {
+	if testing.Short() {
+		t.Skip("hammer needs wall clock budget")
+	}
+	b := midgameBoard(t)
+	s := newSMP(2, testTTBytes)
+	before := runtime.NumGoroutine()
+	quit := make(chan struct{})
+	var wg sync.WaitGroup
+	for range 3 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-quit:
+					return
+				default:
+				}
+				if mv, _ := s.StopPonder(); mv != 0 && !b.IsLegal(rules.Cell(mv)) {
+					t.Errorf("hammer stop returned illegal move %d", mv)
+					return
+				}
+			}
+		})
+	}
+	for range 6 {
+		s.StartPonder(b)
+		time.Sleep(scaledBudget(20 * time.Millisecond))
+		if mv, _ := s.StopPonder(); mv != 0 && !b.IsLegal(rules.Cell(mv)) {
+			t.Errorf("hammer cycle move %d illegal", mv)
+		}
+	}
+	s.StartPonder(b)
+	time.Sleep(scaledBudget(20 * time.Millisecond))
+	s.Close()
+	s.Close()
+	close(quit)
+	wg.Wait()
+	for range 200 {
+		if runtime.NumGoroutine() <= before {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("goroutines leaked after the ponder hammer: %d now vs %d before", runtime.NumGoroutine(), before)
 }
