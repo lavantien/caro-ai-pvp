@@ -159,8 +159,8 @@ func TestTiersMatchSpec(t *testing.T) {
 		{Tier{Name: "easy", Cores: 1, TTBytes: 0}, &TierEasy},
 		{Tier{Name: "medium", Cores: 2, TTBytes: 32 << 20, VCF: true, PonderThreads: 1}, &TierMedium},
 		{Tier{Name: "hard", Cores: 4, TTBytes: 128 << 20, VCF: true, VCT: true, PonderThreads: 2}, &TierHard},
-		{Tier{Name: "master", Cores: 6, TTBytes: 768 << 20, VCF: true, VCT: true, BookMaxPly: 8, PonderThreads: 4}, &TierMaster},
-		{Tier{Name: "grandmaster", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true, BookMaxPly: 16, PonderThreads: 8}, &TierGrandmaster},
+		{Tier{Name: "master", Cores: 6, TTBytes: 768 << 20, VCF: true, VCT: true, Book: true, BookMaxPly: 8, PonderThreads: 4}, &TierMaster},
+		{Tier{Name: "grandmaster", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true, Book: true, BookMaxPly: 16, PonderThreads: 8}, &TierGrandmaster},
 	}
 	for _, c := range cases {
 		if *c.tiersPtr != c.want {
@@ -172,6 +172,7 @@ func TestTiersMatchSpec(t *testing.T) {
 	}
 	wantPonder := map[string]int{"easy": 0, "medium": 1, "hard": 2, "master": 4, "grandmaster": 8}
 	wantBook := map[string]int{"easy": 0, "medium": 0, "hard": 0, "master": 8, "grandmaster": 16}
+	wantBookOn := map[string]bool{"easy": false, "medium": false, "hard": false, "master": true, "grandmaster": true}
 	for i, tier := range Tiers {
 		if tier.Cores > MaxCoresPerInstance {
 			t.Errorf("%s cores %d exceeds MaxCoresPerInstance %d", tier.Name, tier.Cores, MaxCoresPerInstance)
@@ -188,6 +189,9 @@ func TestTiersMatchSpec(t *testing.T) {
 		if tier.BookMaxPly != wantBook[tier.Name] {
 			t.Errorf("%s book max ply = %d, want %d", tier.Name, tier.BookMaxPly, wantBook[tier.Name])
 		}
+		if tier.Book != wantBookOn[tier.Name] {
+			t.Errorf("%s book probe = %t, want %t: only master and grandmaster probe the artifact", tier.Name, tier.Book, wantBookOn[tier.Name])
+		}
 		if i > 0 {
 			prev := Tiers[i-1]
 			if tier.Cores < prev.Cores || tier.TTBytes < prev.TTBytes {
@@ -196,7 +200,7 @@ func TestTiersMatchSpec(t *testing.T) {
 			if tier.PonderThreads < prev.PonderThreads || tier.BookMaxPly < prev.BookMaxPly {
 				t.Errorf("tier ponder or book shape regresses at %s", tier.Name)
 			}
-			if prev.VCF && !tier.VCF || prev.VCT && !tier.VCT {
+			if prev.VCF && !tier.VCF || prev.VCT && !tier.VCT || prev.Book && !tier.Book {
 				t.Errorf("tier capabilities regress at %s", tier.Name)
 			}
 		}
@@ -599,6 +603,12 @@ func TestBookConstants(t *testing.T) {
 	}
 	if BookMetaLineMaxBytes != 1024 {
 		t.Errorf("BookMetaLineMaxBytes = %d, want 1024, generous over the fixed-shape meta line", BookMetaLineMaxBytes)
+	}
+	if BookArtifactPath != "db/book.carobook" {
+		t.Errorf("BookArtifactPath = %q, want %q", BookArtifactPath, "db/book.carobook")
+	}
+	if !strings.HasSuffix(BookArtifactPath, ".carobook") || strings.HasPrefix(BookArtifactPath, "/") || len(BookArtifactPath) > 1 && BookArtifactPath[1] == ':' {
+		t.Errorf("BookArtifactPath = %q, want a relative repo-rooted artifact path", BookArtifactPath)
 	}
 	if FuzzInputMaxBytes != 1<<20 {
 		t.Errorf("FuzzInputMaxBytes = %d, want 1<<20", FuzzInputMaxBytes)

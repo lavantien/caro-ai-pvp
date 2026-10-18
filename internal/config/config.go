@@ -62,6 +62,7 @@ type Tier struct {
 	TTBytes       int64
 	VCF           bool
 	VCT           bool
+	Book          bool
 	BookMaxPly    int
 	PonderThreads int
 }
@@ -70,8 +71,8 @@ var (
 	TierEasy        = Tier{Name: "easy", Cores: 1, TTBytes: 0, VCF: false, VCT: false}
 	TierMedium      = Tier{Name: "medium", Cores: 2, TTBytes: 32 << 20, VCF: true, VCT: false, PonderThreads: 1}
 	TierHard        = Tier{Name: "hard", Cores: 4, TTBytes: 128 << 20, VCF: true, VCT: true, PonderThreads: 2}
-	TierMaster      = Tier{Name: "master", Cores: 6, TTBytes: 768 << 20, VCF: true, VCT: true, BookMaxPly: 8, PonderThreads: 4}
-	TierGrandmaster = Tier{Name: "grandmaster", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true, BookMaxPly: 16, PonderThreads: 8}
+	TierMaster      = Tier{Name: "master", Cores: 6, TTBytes: 768 << 20, VCF: true, VCT: true, Book: true, BookMaxPly: 8, PonderThreads: 4}
+	TierGrandmaster = Tier{Name: "grandmaster", Cores: 8, TTBytes: 2 << 30, VCF: true, VCT: true, Book: true, BookMaxPly: 16, PonderThreads: 8}
 	Tiers           = [...]Tier{TierEasy, TierMedium, TierHard, TierMaster, TierGrandmaster}
 )
 
@@ -198,6 +199,8 @@ const (
 const FuzzInputMaxBytes = 1 << 20
 
 var BookMetaFields = [...]string{"version", "max_ply", "generator", "corpus_games", "visit_floor", "created"}
+
+var BookArtifactPath = "db/book.carobook"
 
 const (
 	BookSourceMajority uint8 = 1
