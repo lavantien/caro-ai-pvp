@@ -700,4 +700,7 @@ func TestServerConstants(t *testing.T) {
 	if SSEKeepaliveMs != 15_000 {
 		t.Errorf("SSEKeepaliveMs = %d, want the 15s idle-frame cadence that holds proxies on open streams", SSEKeepaliveMs)
 	}
+	if PagePollMs != 5000 {
+		t.Errorf("PagePollMs = %d, want the 5s rooms-grid poll cadence", PagePollMs)
+	}
 }
