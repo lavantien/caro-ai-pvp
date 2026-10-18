@@ -195,12 +195,26 @@ const (
 	BookVisitFloor       = 20
 	BookCorpusGames      = 300
 	BookSolverNodeBudget = 1 << 24
+	BookMaxPly           = 16
+	BookCorpusTCIndex    = 3
+	BookGeneratorTag     = "bookgen"
+	BookSidecarVersion   = 1
+	BookLockHeartbeatMs  = 5000
+	BookLockStaleMs      = 30000
 )
 const FuzzInputMaxBytes = 1 << 20
 
 var BookMetaFields = [...]string{"version", "max_ply", "generator", "corpus_games", "visit_floor", "created"}
 
 var BookArtifactPath = "db/book.carobook"
+
+var (
+	BookCorpusPath  = "db/book-corpus.txt"
+	BookOverlayPath = "db/book-overlay.txt"
+	BookStatsPath   = "db/book-stats.txt"
+)
+
+var BookOpeningCells = [...]int{119, 120, 135, 136, 102, 105, 150, 153, 116, 123, 87, 167}
 
 const (
 	BookSourceMajority uint8 = 1

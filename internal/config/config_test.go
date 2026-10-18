@@ -610,6 +610,59 @@ func TestBookConstants(t *testing.T) {
 	if !strings.HasSuffix(BookArtifactPath, ".carobook") || strings.HasPrefix(BookArtifactPath, "/") || len(BookArtifactPath) > 1 && BookArtifactPath[1] == ':' {
 		t.Errorf("BookArtifactPath = %q, want a relative repo-rooted artifact path", BookArtifactPath)
 	}
+	if BookMaxPly != 16 {
+		t.Errorf("BookMaxPly = %d, want the 16-ply artifact bound", BookMaxPly)
+	}
+	if BookMaxPly != TierGrandmaster.BookMaxPly {
+		t.Errorf("BookMaxPly = %d, want the deepest tier bound %d so one artifact serves both book tiers", BookMaxPly, TierGrandmaster.BookMaxPly)
+	}
+	wantTC, ok := TCIndex(10, 5)
+	if !ok || BookCorpusTCIndex != wantTC {
+		t.Errorf("BookCorpusTCIndex = %d, want the 10+5 control index %d", BookCorpusTCIndex, wantTC)
+	}
+	if BookGeneratorTag != "bookgen" {
+		t.Errorf("BookGeneratorTag = %q, want %q", BookGeneratorTag, "bookgen")
+	}
+	if BookSidecarVersion != 1 {
+		t.Errorf("BookSidecarVersion = %d, want 1", BookSidecarVersion)
+	}
+	if len(BookOpeningCells) < 2 {
+		t.Fatalf("BookOpeningCells holds %d cells, want at least 2 distinct trunks", len(BookOpeningCells))
+	}
+	seen := map[int]bool{}
+	for _, c := range BookOpeningCells {
+		if c < 0 || c >= BoardCells {
+			t.Errorf("BookOpeningCells entry %d outside the board", c)
+		}
+		if seen[c] {
+			t.Errorf("BookOpeningCells entry %d repeats", c)
+		}
+		seen[c] = true
+	}
+	if BookOpeningCells[0] == BookOpeningCells[1] {
+		t.Errorf("the first two rotation cells collide, consecutive games would replay one trunk")
+	}
+	if BookLockHeartbeatMs < 1000 {
+		t.Errorf("BookLockHeartbeatMs = %d, want at least a 1s beat", BookLockHeartbeatMs)
+	}
+	if BookLockStaleMs <= 2*BookLockHeartbeatMs {
+		t.Errorf("BookLockStaleMs = %d over heartbeat %d, want a window covering at least two missed beats", BookLockStaleMs, BookLockHeartbeatMs)
+	}
+	for _, p := range []struct {
+		name string
+		path string
+	}{
+		{"BookCorpusPath", BookCorpusPath},
+		{"BookOverlayPath", BookOverlayPath},
+		{"BookStatsPath", BookStatsPath},
+	} {
+		if p.path == "" || strings.HasPrefix(p.path, "/") || len(p.path) > 1 && p.path[1] == ':' {
+			t.Errorf("%s = %q, want a relative repo-rooted path", p.name, p.path)
+		}
+	}
+	if BookCorpusPath != "db/book-corpus.txt" || BookOverlayPath != "db/book-overlay.txt" || BookStatsPath != "db/book-stats.txt" {
+		t.Errorf("bookgen sidecar paths = %q/%q/%q, want the db/ defaults", BookCorpusPath, BookOverlayPath, BookStatsPath)
+	}
 	if FuzzInputMaxBytes != 1<<20 {
 		t.Errorf("FuzzInputMaxBytes = %d, want 1<<20", FuzzInputMaxBytes)
 	}
@@ -671,5 +724,8 @@ func TestServerConstants(t *testing.T) {
 	}
 	if SSEKeepaliveMs != 15_000 {
 		t.Errorf("SSEKeepaliveMs = %d, want the 15s idle-frame cadence that holds proxies on open streams", SSEKeepaliveMs)
+	}
+	if PagePollMs != 5000 {
+		t.Errorf("PagePollMs = %d, want the 5s rooms-grid poll cadence", PagePollMs)
 	}
 }
