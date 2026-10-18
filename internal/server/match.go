@@ -507,17 +507,20 @@ func newBotSearcher(t config.Tier) searcher {
 	} else {
 		inner = singleSearcher{e: engine.New(t.TTBytes)}
 	}
-	if !t.VCF && !t.VCT {
-		return inner
+	if t.VCF || t.VCT {
+		s := &solverSearcher{inner: inner, cores: t.Cores}
+		if t.VCF {
+			s.vcf = vcf.New(vcf.KindVCF)
+		}
+		if t.VCT {
+			s.vct = vcf.New(vcf.KindVCT)
+		}
+		inner = s
 	}
-	s := &solverSearcher{inner: inner, cores: t.Cores}
-	if t.VCF {
-		s.vcf = vcf.New(vcf.KindVCF)
+	if t.Book {
+		return &bookSearcher{inner: inner, book: loadBotBook(), maxPly: t.BookMaxPly, cores: t.Cores}
 	}
-	if t.VCT {
-		s.vct = vcf.New(vcf.KindVCT)
-	}
-	return s
+	return inner
 }
 func (r *Room) closeEnginesLocked() {
 	if r.ponder != nil {
