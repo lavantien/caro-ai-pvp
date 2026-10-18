@@ -32,9 +32,6 @@ func TestSeatTierResolvesAndClearsTheBook(t *testing.T) {
 }
 
 func TestEndToEndSmokeChain(t *testing.T) {
-	if testing.Short() {
-		t.Skip("the smoke chain drives two real engine games")
-	}
 	tier, err := seatTier(config.TierEasy.Name)
 	if err != nil {
 		t.Fatalf("seatTier easy: %v", err)
@@ -58,7 +55,19 @@ func TestEndToEndSmokeChain(t *testing.T) {
 	if len(sc.recs) < 2 || len(sc.recs) > 2*config.BookMaxPly {
 		t.Fatalf("corpus records = %d, want between one and %d", len(sc.recs), 2*config.BookMaxPly)
 	}
-	if !bytes.Contains(mlines.Bytes(), []byte("M1, Red, ")) {
+	var openings []rules.Move
+	for _, rec := range sc.recs {
+		if rec.key == corpusZeroKey {
+			openings = append(openings, rec.move)
+		}
+	}
+	if len(openings) != 2 {
+		t.Fatalf("found %d opening records over 2 games, want exactly 2", len(openings))
+	}
+	if openings[0] != openingMove(0) || openings[1] != openingMove(1) {
+		t.Fatalf("openings %d/%d do not follow the rotation %d/%d", openings[0], openings[1], openingMove(0), openingMove(1))
+	}
+	if !bytes.Contains(mlines.Bytes(), []byte("M2, Blue, ")) {
 		t.Errorf("engine moves emitted no M-lines, buffer holds %d bytes", mlines.Len())
 	}
 	overlay := filepath.Join(dir, "o.txt")
@@ -123,6 +132,12 @@ func TestEndToEndSmokeChain(t *testing.T) {
 	_ = pf.Close()
 	if st.Entries != len(counts) {
 		t.Fatalf("emit reported %d entries over %d distinct corpus positions at floor 1", st.Entries, len(counts))
+	}
+	if len(counts) <= config.BookMaxPly {
+		t.Fatalf("%d distinct positions over 2 games, the trunk collapsed", len(counts))
+	}
+	if st.Trunks != 2 || st.DiversityAlarm {
+		t.Fatalf("emit trunks = %d alarm %t over 2 rotated games, want 2 and quiet", st.Trunks, st.DiversityAlarm)
 	}
 	for key, per := range counts {
 		want, bestN := 0, -1

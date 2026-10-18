@@ -212,6 +212,8 @@ var (
 	BookStatsPath   = "db/book-stats.txt"
 )
 
+var BookOpeningCells = [...]int{119, 120, 135, 136, 102, 105, 150, 153, 116, 123, 87, 167}
+
 const (
 	BookSourceMajority uint8 = 1
 	BookSourceSolver   uint8 = 2

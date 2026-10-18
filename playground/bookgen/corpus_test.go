@@ -27,10 +27,47 @@ func scriptedPlayer(t *testing.T, seen *[]gameCall) gamePlayer {
 	return func(idx, redSeat int) gameResult {
 		*seen = append(*seen, gameCall{idx: idx, redSeat: redSeat})
 		return gameResult{
-			records: []posRec{{key: singleStoneKey(t, idx), move: rules.Move(idx)}},
+			records: []posRec{{key: corpusZeroKey, move: openingMove(idx)}},
 			moves:   3,
 			winner:  "red",
 		}
+	}
+}
+
+func collapsedPlayer(t *testing.T, seen *[]gameCall) gamePlayer {
+	t.Helper()
+	return func(idx, redSeat int) gameResult {
+		*seen = append(*seen, gameCall{idx: idx, redSeat: redSeat})
+		return gameResult{
+			records: []posRec{{key: corpusZeroKey, move: openingMove(0)}},
+			moves:   3,
+			winner:  "red",
+		}
+	}
+}
+
+func TestOpeningMoveRotatesDistinctTrunks(t *testing.T) {
+	seen := map[rules.Move]int{}
+	for i := 0; i < 3*len(config.BookOpeningCells); i++ {
+		mv := openingMove(i)
+		if mv != rules.Move(config.BookOpeningCells[i%len(config.BookOpeningCells)]) {
+			t.Fatalf("openingMove(%d) = %d, want cell %d", i, mv, config.BookOpeningCells[i%len(config.BookOpeningCells)])
+		}
+		seen[mv]++
+	}
+	if len(seen) != len(config.BookOpeningCells) {
+		t.Fatalf("rotation covered %d distinct cells, want %d", len(seen), len(config.BookOpeningCells))
+	}
+	if openingMove(0) == openingMove(1) {
+		t.Fatalf("consecutive games share one trunk")
+	}
+}
+
+func TestCorpusRunFailsOnCollapsedTrunks(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "c.txt")
+	var seen []gameCall
+	if err := runCorpus(easyCorpusOpts(path, 3), collapsedPlayer(t, &seen), io.Discard); err == nil {
+		t.Fatalf("runCorpus accepted a collapsed trunk corpus of %d games", len(seen))
 	}
 }
 
@@ -168,7 +205,7 @@ func TestCorpusRunResumesFromRecordedGames(t *testing.T) {
 func TestCorpusRunTruncatesTornTailAndSkipsDoneGames(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "corpus.txt")
 	clean0 := seedHeader(t, path, corpusFingerprint(config.TierEasy.Name, 0, 2))
-	if _, err := appendGame(path, clean0, 0, []posRec{{key: singleStoneKey(t, 0), move: 1}}); err != nil {
+	if _, err := appendGame(path, clean0, 0, []posRec{{key: corpusZeroKey, move: openingMove(0)}, {key: singleStoneKey(t, 0), move: 1}}); err != nil {
 		t.Fatalf("seed block: %v", err)
 	}
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0)
@@ -258,7 +295,7 @@ func TestCorpusTearAfterCompleteGameKeepsEarlierGames(t *testing.T) {
 	path := filepath.Join(dir, "c.txt")
 	k0 := singleStoneKey(t, 0)
 	clean0 := seedHeader(t, path, corpusFingerprint(config.TierEasy.Name, 0, 2))
-	clean, err := appendGame(path, clean0, 0, []posRec{{key: k0, move: 1}})
+	clean, err := appendGame(path, clean0, 0, []posRec{{key: corpusZeroKey, move: openingMove(0)}, {key: k0, move: 1}})
 	if err != nil {
 		t.Fatalf("appendGame: %v", err)
 	}

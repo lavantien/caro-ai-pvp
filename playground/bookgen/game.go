@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/clock"
@@ -23,6 +24,10 @@ func seatTier(name string) (config.Tier, error) {
 	return config.Tier{}, fmt.Errorf("bookgen: unknown tier %q", name)
 }
 
+func openingMove(gameIdx int) rules.Move {
+	return rules.Move(config.BookOpeningCells[gameIdx%len(config.BookOpeningCells)])
+}
+
 func playCorpusGame(tier config.Tier, tcIdx, gameIdx, redSeat int, mlines io.Writer) gameResult {
 	engines := [2]server.Searcher{server.NewBotSearcher(tier), server.NewBotSearcher(tier)}
 	defer engines[0].Close()
@@ -38,13 +43,30 @@ func playCorpusGame(tier config.Tier, tcIdx, gameIdx, redSeat int, mlines io.Wri
 		if side == rules.Blue {
 			seat = 1 - redSeat
 		}
-		budget := clocks[seat].Budget()
-		mv, st, tag := engines[seat].Search(b, engine.NewFixedBudget(budget))
-		fmt.Fprintf(mlines, "g%d %s\n", gameIdx+1, server.MLine(b.MoveCount+1, side, mv, &st, tag))
-		if !b.IsLegal(rules.Cell(mv)) {
-			n := b.LegalMoves(legalBuf[:])
-			fmt.Fprintf(mlines, "g%d illegal %d from seat %d, fell back (legal count %d)\n", gameIdx+1, mv, seat, n)
-			mv = legalBuf[0]
+		var mv rules.Move
+		if b.MoveCount == 0 {
+			mv = openingMove(gameIdx)
+			name, nerr := rules.CellName(rules.Cell(mv))
+			if nerr != nil {
+				name = strconv.Itoa(int(mv))
+			}
+			fmt.Fprintf(mlines, "g%d opening %s\n", gameIdx+1, name)
+			if !b.IsLegal(rules.Cell(mv)) {
+				n := b.LegalMoves(legalBuf[:])
+				fmt.Fprintf(mlines, "g%d illegal opening %d, fell back (legal count %d)\n", gameIdx+1, mv, n)
+				mv = legalBuf[0]
+			}
+		} else {
+			budget := clocks[seat].Budget()
+			var st engine.SearchStats
+			var tag string
+			mv, st, tag = engines[seat].Search(b, engine.NewFixedBudget(budget))
+			fmt.Fprintf(mlines, "g%d %s\n", gameIdx+1, server.MLine(b.MoveCount+1, side, mv, &st, tag))
+			if !b.IsLegal(rules.Cell(mv)) {
+				n := b.LegalMoves(legalBuf[:])
+				fmt.Fprintf(mlines, "g%d illegal %d from seat %d, fell back (legal count %d)\n", gameIdx+1, mv, seat, n)
+				mv = legalBuf[0]
+			}
 		}
 		if b.MoveCount < config.BookMaxPly {
 			res.records = append(res.records, posRec{key: keyOf(b), move: mv})

@@ -626,6 +626,22 @@ func TestBookConstants(t *testing.T) {
 	if BookSidecarVersion != 1 {
 		t.Errorf("BookSidecarVersion = %d, want 1", BookSidecarVersion)
 	}
+	if len(BookOpeningCells) < 2 {
+		t.Fatalf("BookOpeningCells holds %d cells, want at least 2 distinct trunks", len(BookOpeningCells))
+	}
+	seen := map[int]bool{}
+	for _, c := range BookOpeningCells {
+		if c < 0 || c >= BoardCells {
+			t.Errorf("BookOpeningCells entry %d outside the board", c)
+		}
+		if seen[c] {
+			t.Errorf("BookOpeningCells entry %d repeats", c)
+		}
+		seen[c] = true
+	}
+	if BookOpeningCells[0] == BookOpeningCells[1] {
+		t.Errorf("the first two rotation cells collide, consecutive games would replay one trunk")
+	}
 	for _, p := range []struct {
 		name string
 		path string

@@ -44,11 +44,28 @@ type corpusOpts struct {
 }
 
 type corpusScan struct {
-	games int
-	clean int64
-	torn  bool
-	recs  []posRec
-	fp    string
+	games    int
+	clean    int64
+	torn     bool
+	recs     []posRec
+	fp       string
+	openings map[rules.Move]int
+}
+
+var corpusZeroKey = keyOf(rules.NewBoard())
+
+func checkTrunkDiversity(games, openings int) error {
+	if games < 2 {
+		return nil
+	}
+	want := games
+	if want > len(config.BookOpeningCells) {
+		want = len(config.BookOpeningCells)
+	}
+	if openings < want {
+		return fmt.Errorf("bookgen: diversity alarm: %d distinct opening moves over %d games, the trunk collapsed", openings, games)
+	}
+	return nil
 }
 
 func corpusFingerprint(tier string, tc, games int) string {
@@ -271,6 +288,12 @@ func loadCorpus(path string) (corpusScan, error) {
 				return sc, fail(fmt.Sprintf("block end count %d over %d records", n, len(block)))
 			}
 			sc.recs = append(sc.recs, block...)
+			if len(block) > 0 && block[0].key == corpusZeroKey {
+				if sc.openings == nil {
+					sc.openings = make(map[rules.Move]int)
+				}
+				sc.openings[block[0].move]++
+			}
 			sc.games++
 			sc.clean = int64(off)
 			inBlock = false
@@ -327,8 +350,11 @@ func runCorpus(o corpusOpts, play gamePlayer, progress io.Writer) error {
 	} else if sc.fp != want {
 		return fmt.Errorf("bookgen: corpus %s holds fingerprint %q, run config wants %q", o.path, sc.fp, want)
 	}
+	if err := checkTrunkDiversity(sc.games, len(sc.openings)); err != nil {
+		return err
+	}
 	if sc.games >= o.games {
-		fmt.Fprintf(progress, "corpus complete: %d games recorded at %s\n", sc.games, o.path)
+		fmt.Fprintf(progress, "corpus complete: %d games, %d distinct openings recorded at %s\n", sc.games, len(sc.openings), o.path)
 		return nil
 	}
 	for i := sc.games; i < o.games; i++ {
@@ -340,8 +366,17 @@ func runCorpus(o corpusOpts, play gamePlayer, progress io.Writer) error {
 		}
 		sc.clean = clean
 		sc.games = i + 1
-		fmt.Fprintf(progress, "game %d/%d red seat %d winner %s moves %d positions %d\n",
-			i+1, o.games, redSeat+1, res.winner, res.moves, len(res.records))
+		if len(res.records) > 0 && res.records[0].key == corpusZeroKey {
+			if sc.openings == nil {
+				sc.openings = make(map[rules.Move]int)
+			}
+			sc.openings[res.records[0].move]++
+		}
+		if err := checkTrunkDiversity(sc.games, len(sc.openings)); err != nil {
+			return err
+		}
+		fmt.Fprintf(progress, "game %d/%d red seat %d winner %s moves %d positions %d openings %d\n",
+			i+1, o.games, redSeat+1, res.winner, res.moves, len(res.records), len(sc.openings))
 	}
 	return nil
 }

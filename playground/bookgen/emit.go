@@ -46,6 +46,9 @@ type emitStats struct {
 	Solver           int
 	SolverVCF        int
 	SolverVCT        int
+	Trunks           int
+	PositionsPerGame float64
+	DiversityAlarm   bool
 	VisitsMin        uint32
 	VisitsMedian     float64
 	VisitsMean       float64
@@ -99,6 +102,9 @@ entries_majority %d
 entries_solver %d
 solver_vcf %d
 solver_vct %d
+trunks %d
+positions_per_game %s
+diversity_alarm %t
 visits_min %d
 visits_median %s
 visits_mean %s
@@ -107,7 +113,8 @@ solver_nodes_total %d
 solver_nodes_max %d
 `,
 		st.CorpusGames, st.Positions, st.FloorPassing, st.Entries, st.Majority, st.Solver,
-		st.SolverVCF, st.SolverVCT, st.VisitsMin,
+		st.SolverVCF, st.SolverVCT, st.Trunks,
+		formatFloat(st.PositionsPerGame), st.DiversityAlarm, st.VisitsMin,
 		formatFloat(st.VisitsMedian), formatFloat(st.VisitsMean), st.VisitsMax,
 		st.SolverNodesTotal, st.SolverNodesMax)
 }
@@ -166,6 +173,11 @@ func emitRun(o emitOpts, progress io.Writer) (emitStats, error) {
 		visits = append(visits, e.visits)
 	}
 	st.Entries = len(entries)
+	st.Trunks = len(agg[corpusZeroKey])
+	if st.CorpusGames > 0 {
+		st.PositionsPerGame = float64(st.Positions) / float64(st.CorpusGames)
+	}
+	st.DiversityAlarm = checkTrunkDiversity(st.CorpusGames, st.Trunks) != nil
 	st.VisitsMin, st.VisitsMax, st.VisitsMedian, st.VisitsMean = visitSummary(visits)
 	meta := bookMetaOut{
 		Version:     config.BookFormatVersion,

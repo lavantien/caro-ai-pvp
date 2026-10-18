@@ -283,6 +283,62 @@ func TestEmitStatsFileCarriesTheSummary(t *testing.T) {
 	}
 }
 
+func TestEmitStatsReportTrunkDiversity(t *testing.T) {
+	dir := t.TempDir()
+	corpus := filepath.Join(dir, "c.txt")
+	clean := seedHeader(t, corpus, corpusFingerprint(config.TierEasy.Name, 0, 2))
+	rotated := []posRec{
+		{key: corpusZeroKey, move: openingMove(0)},
+		{key: corpusZeroKey, move: openingMove(1)},
+	}
+	next, err := appendGame(corpus, clean, 0, rotated[:1])
+	if err != nil {
+		t.Fatalf("appendGame: %v", err)
+	}
+	if _, err := appendGame(corpus, next, 1, rotated[1:]); err != nil {
+		t.Fatalf("appendGame 2: %v", err)
+	}
+	statsPath := filepath.Join(dir, "s.txt")
+	st, err := emitRun(emitOpts{
+		corpusPath: corpus, overlayPath: filepath.Join(dir, "o.txt"),
+		outPath: filepath.Join(dir, "b.carobook"), statsPath: statsPath,
+		floor: 1, created: "2026-10-18T00:00:00Z",
+	}, io.Discard)
+	if err != nil {
+		t.Fatalf("emitRun rotated: %v", err)
+	}
+	if st.Trunks != 2 || st.DiversityAlarm {
+		t.Fatalf("rotated stats = trunks %d alarm %t, want 2 trunks and no alarm", st.Trunks, st.DiversityAlarm)
+	}
+	collapsed := filepath.Join(dir, "c2.txt")
+	clean = seedHeader(t, collapsed, corpusFingerprint(config.TierEasy.Name, 0, 2))
+	cnext, err := appendGame(collapsed, clean, 0, rotated[:1])
+	if err != nil {
+		t.Fatalf("appendGame collapsed 1: %v", err)
+	}
+	if _, err := appendGame(collapsed, cnext, 1, rotated[:1]); err != nil {
+		t.Fatalf("appendGame collapsed 2: %v", err)
+	}
+	st, err = emitRun(emitOpts{
+		corpusPath: collapsed, overlayPath: filepath.Join(dir, "o.txt"),
+		outPath: filepath.Join(dir, "b2.carobook"), statsPath: filepath.Join(dir, "s2.txt"),
+		floor: 1, created: "2026-10-18T00:00:00Z",
+	}, io.Discard)
+	if err != nil {
+		t.Fatalf("emitRun collapsed: %v", err)
+	}
+	if st.Trunks != 1 || !st.DiversityAlarm {
+		t.Fatalf("collapsed stats = trunks %d alarm %t, want 1 trunk and the alarm", st.Trunks, st.DiversityAlarm)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "s2.txt"))
+	if err != nil {
+		t.Fatalf("read stats: %v", err)
+	}
+	if !strings.Contains(string(data), "diversity_alarm true") {
+		t.Fatalf("stats file misses the alarm line: %q", data)
+	}
+}
+
 func TestEmitRejectsOccupiedProofMove(t *testing.T) {
 	dir := t.TempDir()
 	b := rules.NewBoard()
