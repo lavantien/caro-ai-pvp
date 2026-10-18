@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -69,7 +70,7 @@ func runEmitFor(t *testing.T, perPos []map[rules.Move]int, proofs map[int]proofR
 		binary.LittleEndian.PutUint64(key[:], uint64(i+1))
 		line := "N " + hexKey(key[:]) + "\n"
 		if p.move != 0 || p.nodes != 0 || p.kind != "" {
-			line = "P " + hexKey(key[:]) + " " + itoa(int(p.move)) + " " + u64itoa(p.nodes) + " " + p.kind + "\n"
+			line = "P " + hexKey(key[:]) + " " + strconv.Itoa(int(p.move)) + " " + strconv.FormatUint(p.nodes, 10) + " " + p.kind + "\n"
 		}
 		f, err := os.OpenFile(overlay, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 		if err != nil {
@@ -99,20 +100,6 @@ func runEmitFor(t *testing.T, perPos []map[rules.Move]int, proofs map[int]proofR
 	}
 	return out, statsPath, data, st
 }
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	digits := ""
-	for n > 0 {
-		digits = string(rune('0'+n%10)) + digits
-		n /= 10
-	}
-	return digits
-}
-
-func u64itoa(n uint64) string { return itoa(int(n)) }
 
 func TestEmitAppliesTheHybridSourceLaw(t *testing.T) {
 	perPos := []map[rules.Move]int{
@@ -169,11 +156,11 @@ func TestEmitMetaAndMagicMatchContract(t *testing.T) {
 		t.Fatalf("meta line is not JSON: %v", err)
 	}
 	wantKeys := map[string]string{
-		"version":      itoa(config.BookFormatVersion),
-		"max_ply":      itoa(config.BookMaxPly),
+		"version":      strconv.Itoa(config.BookFormatVersion),
+		"max_ply":      strconv.Itoa(config.BookMaxPly),
 		"generator":    "\"" + config.BookGeneratorTag + "\"",
 		"corpus_games": "1",
-		"visit_floor":  itoa(config.BookVisitFloor),
+		"visit_floor":  strconv.Itoa(config.BookVisitFloor),
 		"created":      "\"2026-10-18T00:00:00Z\"",
 	}
 	if len(fields) != len(config.BookMetaFields) {
@@ -273,9 +260,9 @@ func TestEmitStatsFileCarriesTheSummary(t *testing.T) {
 		"entries_solver":     "0",
 		"solver_vcf":         "0",
 		"solver_vct":         "0",
-		"visits_min":         itoa(config.BookVisitFloor),
-		"visits_max":         itoa(config.BookVisitFloor + 4),
-		"visits_median":      itoa(config.BookVisitFloor + 2),
+		"visits_min":         strconv.Itoa(config.BookVisitFloor),
+		"visits_max":         strconv.Itoa(config.BookVisitFloor + 4),
+		"visits_median":      strconv.Itoa(config.BookVisitFloor + 2),
 		"solver_nodes_total": "0",
 		"solver_nodes_max":   "0",
 	}
@@ -304,7 +291,7 @@ func TestEmitRejectsOccupiedProofMove(t *testing.T) {
 	overlay := filepath.Join(dir, "o.txt")
 	occupied := rules.Move(30)
 	kb := keyOf(b)
-	line := "P " + hexKey(kb[:]) + " " + itoa(int(occupied)) + " 5 vcf\n"
+	line := "P " + hexKey(kb[:]) + " " + strconv.Itoa(int(occupied)) + " 5 vcf\n"
 	if err := os.WriteFile(overlay, []byte(line), 0o644); err != nil {
 		t.Fatalf("write overlay: %v", err)
 	}
