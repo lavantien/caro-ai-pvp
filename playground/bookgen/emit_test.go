@@ -342,6 +342,70 @@ func TestEmitStatsReportTrunkDiversity(t *testing.T) {
 	}
 }
 
+func TestEmitIsAtomicOverThePreviousArtifact(t *testing.T) {
+	dir := t.TempDir()
+	k := singleStoneKey(t, 4)
+	corpus := filepath.Join(dir, "c.txt")
+	clean := seedHeader(t, corpus, corpusFingerprint(config.TierEasy.Name, 0, 1))
+	if _, err := appendGame(corpus, clean, 0, repeat(posRec{key: k, move: 42}, config.BookVisitFloor), 0); err != nil {
+		t.Fatalf("appendGame: %v", err)
+	}
+	overlay := filepath.Join(dir, "o.txt")
+	seedHeader(t, overlay, overlayFingerprint(config.BookVisitFloor, config.BookSolverNodeBudget))
+	out := filepath.Join(dir, "b.carobook")
+	stats := filepath.Join(dir, "s.txt")
+	opts := emitOpts{
+		corpusPath: corpus, overlayPath: overlay, outPath: out, statsPath: stats,
+		floor: config.BookVisitFloor, created: "2026-10-18T00:00:00Z",
+	}
+	if _, err := emitRun(opts, io.Discard); err != nil {
+		t.Fatalf("first emit: %v", err)
+	}
+	good, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("read artifact: %v", err)
+	}
+	occupied := "P " + hexKey(k[:]) + " " + strconv.Itoa(int(4)) + " 5 vcf\n"
+	if err := os.WriteFile(overlay, []byte(overlayFingerprint(config.BookVisitFloor, config.BookSolverNodeBudget)+"\n"+occupied), 0o644); err != nil {
+		t.Fatalf("poison overlay: %v", err)
+	}
+	if _, err := emitRun(opts, io.Discard); err == nil {
+		t.Fatalf("second emit accepted an occupied proof move")
+	}
+	after, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("reread artifact: %v", err)
+	}
+	if !bytes.Equal(after, good) {
+		t.Fatalf("failed emit replaced the artifact: %d bytes over %d", len(after), len(good))
+	}
+	leftovers, err := filepath.Glob(filepath.Join(dir, "*.tmp*"))
+	if err != nil || len(leftovers) != 0 {
+		t.Fatalf("emit left temp files %v (err %v), want none", leftovers, err)
+	}
+}
+
+func TestEmitRefusesAZeroEntryArtifact(t *testing.T) {
+	dir := t.TempDir()
+	k := singleStoneKey(t, 4)
+	corpus := filepath.Join(dir, "c.txt")
+	clean := seedHeader(t, corpus, corpusFingerprint(config.TierEasy.Name, 0, 1))
+	if _, err := appendGame(corpus, clean, 0, repeat(posRec{key: k, move: 42}, config.BookVisitFloor), 0); err != nil {
+		t.Fatalf("appendGame: %v", err)
+	}
+	out := filepath.Join(dir, "b.carobook")
+	if _, err := emitRun(emitOpts{
+		corpusPath: corpus, overlayPath: filepath.Join(dir, "o.txt"),
+		outPath: out, statsPath: filepath.Join(dir, "s.txt"),
+		floor: config.BookVisitFloor * 10, created: "2026-10-18T00:00:00Z",
+	}, io.Discard); err == nil {
+		t.Fatalf("emitRun accepted a zero-entry artifact")
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("refused emit still touched the artifact path: %v", err)
+	}
+}
+
 func TestEmitRejectsOccupiedProofMove(t *testing.T) {
 	dir := t.TempDir()
 	b := rules.NewBoard()

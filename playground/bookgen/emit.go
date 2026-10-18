@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -125,6 +126,33 @@ func formatFloat(v float64) string {
 	return fmt.Sprintf("%g", v)
 }
 
+func writeFileAtomic(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp")
+	if err != nil {
+		return fmt.Errorf("bookgen: temp for %s: %w", path, err)
+	}
+	name := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(name)
+		return fmt.Errorf("bookgen: write temp %s: %w", name, err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(name)
+		return fmt.Errorf("bookgen: sync temp %s: %w", name, err)
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(name)
+		return fmt.Errorf("bookgen: close temp %s: %w", name, err)
+	}
+	if err := os.Rename(name, path); err != nil {
+		_ = os.Remove(name)
+		return fmt.Errorf("bookgen: publish %s over %s: %w", name, path, err)
+	}
+	return nil
+}
+
 func emitRun(o emitOpts, progress io.Writer) (emitStats, error) {
 	var st emitStats
 	sc, err := loadCorpus(o.corpusPath)
@@ -190,11 +218,14 @@ func emitRun(o emitOpts, progress io.Writer) (emitStats, error) {
 		VisitFloor:  o.floor,
 		Created:     o.created,
 	}
-	if err := os.WriteFile(o.outPath, buildArtifact(entries, meta), 0o644); err != nil {
-		return st, fmt.Errorf("bookgen: write artifact %s: %w", o.outPath, err)
+	if len(entries) == 0 {
+		return st, fmt.Errorf("bookgen: emit refused to write a zero-entry artifact to %s", o.outPath)
 	}
-	if err := os.WriteFile(o.statsPath, []byte(renderStats(st)), 0o644); err != nil {
-		return st, fmt.Errorf("bookgen: write stats %s: %w", o.statsPath, err)
+	if err := writeFileAtomic(o.statsPath, []byte(renderStats(st))); err != nil {
+		return st, err
+	}
+	if err := writeFileAtomic(o.outPath, buildArtifact(entries, meta)); err != nil {
+		return st, err
 	}
 	fmt.Fprintf(progress, "emit done: %d entries (%d majority, %d solver) to %s, stats at %s\n",
 		st.Entries, st.Majority, st.Solver, o.outPath, o.statsPath)
