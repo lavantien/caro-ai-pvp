@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
 func mustOpen(t *testing.T, path string) *Store {
@@ -499,6 +500,96 @@ func TestMigrateV8DatabaseUpgradesToV9(t *testing.T) {
 		if want, ok := before[config.Tiers[i].Name]; ok && got != want {
 			t.Errorf("seat %s id = %d after upgrade, want the pre-upgrade %d", config.Tiers[i].Name, got, want)
 		}
+	}
+}
+
+func TestMigrateV10DatabaseUpgradesToV11(t *testing.T) {
+	path := dbPath(t)
+	s := mustOpen(t, path)
+	var runID int64
+	if err := s.db.QueryRow(
+		`INSERT INTO tournament_runs (tc_idx, bo_len, start_rating, status, label) VALUES (?, ?, ?, ?, ?) RETURNING id`,
+		1, config.SeriesBO3, config.TournamentStartRating, "finished", "v10era",
+	).Scan(&runID); err != nil {
+		t.Fatalf("seed v10-era run: %v", err)
+	}
+	if _, err := s.db.Exec(
+		`INSERT INTO tournament_participants (run_id, slot, name, tier) VALUES (?, 0, 'a', 'easy'), (?, 1, 'b', 'easy')`,
+		runID, runID,
+	); err != nil {
+		t.Fatalf("seed v10-era participants: %v", err)
+	}
+	var seriesID int64
+	if err := s.db.QueryRow(
+		`INSERT INTO tournament_series (run_id, pairing_slot, red_first_slot, blue_first_slot, winner_slot, red_first_wins, blue_first_wins, finished_at)
+		VALUES (?, 0, 0, 1, 0, 2, 1, 111) RETURNING id`, runID,
+	).Scan(&seriesID); err != nil {
+		t.Fatalf("seed v10-era series: %v", err)
+	}
+	seedMoves := EncodeMoves(nil, []rules.Move{rules.Move(7), rules.Move(120)})
+	if _, err := s.db.Exec(
+		`INSERT INTO tournament_games (run_id, series_id, idx_in_series, red_slot, blue_slot, outcome, won_by, full_turns, moves)
+		VALUES (?, ?, 0, 0, 1, 'red', 'a', 3, ?)`, runID, seriesID, seedMoves,
+	); err != nil {
+		t.Fatalf("seed v10-era game: %v", err)
+	}
+	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 11`); err != nil {
+		t.Fatalf("roll ledger back to v10: %v", err)
+	}
+	if _, err := s.db.Exec(`DROP TABLE tournament_game_stats`); err != nil {
+		t.Fatalf("drop the v11 table: %v", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	again := mustOpen(t, path)
+	defer func() { _ = again.Close() }()
+	count, max := schemaVersionRows(t, again)
+	if count != config.SQLiteSchemaVersion || max != config.SQLiteSchemaVersion {
+		t.Errorf("after upgrade: schema_version rows = %d max = %d, want %d and %d",
+			count, max, config.SQLiteSchemaVersion, config.SQLiteSchemaVersion)
+	}
+	if n := schemaCount(t, again, "table", "'tournament_game_stats'"); n != 1 {
+		t.Errorf("tournament_game_stats after upgrade = %d, want 1 (v11 applied)", n)
+	}
+	rows, err := again.db.Query(`PRAGMA table_info(tournament_game_stats)`)
+	if err != nil {
+		t.Fatalf("read tournament_game_stats columns: %v", err)
+	}
+	var cols []string
+	for rows.Next() {
+		var cid, notnull, pk int
+		var name, ctype string
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			t.Fatalf("scan tournament_game_stats column: %v", err)
+		}
+		cols = append(cols, name)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("tournament_game_stats columns: %v", err)
+	}
+	wantCols := []string{"tournament_game_id", "move_no", "mover", "move", "depth", "nodes", "nps",
+		"ebf_milli", "tt_permille", "hf_permille", "fh1_permille", "score", "threads",
+		"elapsed_ns", "alloc_ns", "tag", "pv"}
+	if !slices.Equal(cols, wantCols) {
+		t.Errorf("tournament_game_stats columns = %v, want %v", cols, wantCols)
+	}
+	var games int
+	if err := again.db.QueryRow(`SELECT COUNT(*) FROM tournament_games WHERE run_id = ?`, runID).Scan(&games); err != nil {
+		t.Fatalf("reread v10-era games: %v", err)
+	}
+	if games != 1 {
+		t.Errorf("v10-era games after upgrade = %d, want 1 (no data loss)", games)
+	}
+	var blob []byte
+	if err := again.db.QueryRow(`SELECT moves FROM tournament_games WHERE run_id = ?`, runID).Scan(&blob); err != nil {
+		t.Fatalf("reread v10-era moves: %v", err)
+	}
+	back, err := DecodeMoves(blob)
+	if err != nil || len(back) != 2 || back[0] != rules.Move(7) || back[1] != rules.Move(120) {
+		t.Errorf("v10-era moves after upgrade = %v err %v, want the seeded pair intact", back, err)
 	}
 }
 
