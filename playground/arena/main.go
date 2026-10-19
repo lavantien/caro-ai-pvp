@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/clock"
@@ -16,13 +18,52 @@ import (
 
 var seats = buildSeats()
 
-func buildSeats() map[string]config.Tier {
-	perturb := func(base config.Tier, name string, edit func(*config.Tier)) config.Tier {
-		t := base
-		t.Name = name
-		edit(&t)
-		return t
+func perturb(base config.Tier, name string, edit func(*config.Tier)) config.Tier {
+	t := base
+	t.Name = name
+	edit(&t)
+	return t
+}
+
+func parseEvalWeights(s string) ([config.PatternClassCount]int, error) {
+	var w [config.PatternClassCount]int
+	parts := strings.Split(s, ",")
+	if len(parts) != config.PatternClassCount-1 {
+		return w, fmt.Errorf("want %d comma-separated weights for classes 1..%d, got %d parts",
+			config.PatternClassCount-1, config.PatternClassCount-1, len(parts))
 	}
+	for i, part := range parts {
+		v, err := strconv.Atoi(part)
+		if err != nil {
+			return w, fmt.Errorf("weight %d %q: %v", i+1, part, err)
+		}
+		if v < 0 {
+			return w, fmt.Errorf("weight %d = %d, want non-negative", i+1, v)
+		}
+		w[i+1] = v
+	}
+	return w, nil
+}
+
+func evalWeightsLabel(base string, w *[config.PatternClassCount]int) string {
+	parts := make([]string, config.PatternClassCount-1)
+	for i := range parts {
+		parts[i] = strconv.Itoa(w[i+1])
+	}
+	return base + "-w" + strings.Join(parts, ".")
+}
+
+func registerEvalWeightsSeat(base string, w [config.PatternClassCount]int) (string, error) {
+	b, ok := seats[base]
+	if !ok {
+		return "", fmt.Errorf("unknown base seat %q", base)
+	}
+	label := evalWeightsLabel(base, &w)
+	seats[label] = perturb(b, label, func(t *config.Tier) { t.EvalWeights = &w })
+	return label, nil
+}
+
+func buildSeats() map[string]config.Tier {
 	m := map[string]config.Tier{
 		"easy":                 config.TierEasy,
 		"medium":               config.TierMedium,
@@ -75,9 +116,31 @@ func main() {
 	tcIdx := flag.Int("tc", 0, "time control index into config.TimeControls")
 	games := flag.Int("games", 12, "games per unordered seat pair")
 	seatsArg := flag.String("seats", "", "comma-separated seat labels, default all")
+	evalWeightsArg := flag.String("evalweights", "", "comma-separated pattern class weights 1..5 for a derived seat, class 0 pinned to zero")
+	evalBaseArg := flag.String("evalbase", "", "base seat label the evalweights override derives from")
 	flag.Parse()
 
-	labels := seatLabels(*seatsArg)
+	if (*evalWeightsArg == "") != (*evalBaseArg == "") {
+		fmt.Fprintln(os.Stderr, "arena: -evalweights and -evalbase must be set together")
+		os.Exit(1)
+	}
+	seatsSel := *seatsArg
+	if *evalWeightsArg != "" {
+		w, err := parseEvalWeights(*evalWeightsArg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "arena: evalweights %q: %v\n", *evalWeightsArg, err)
+			os.Exit(1)
+		}
+		label, err := registerEvalWeightsSeat(*evalBaseArg, w)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "arena: evalbase %q: %v\n", *evalBaseArg, err)
+			os.Exit(1)
+		}
+		if seatsSel == "" {
+			seatsSel = *evalBaseArg + "," + label
+		}
+	}
+	labels := seatLabels(seatsSel)
 	for _, label := range labels {
 		if !seats[label].Book {
 			continue
