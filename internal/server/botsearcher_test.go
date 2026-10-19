@@ -196,7 +196,7 @@ func TestBotEasyTierRealEngineAnswersLegally(t *testing.T) {
 
 	r.mu.Lock()
 	answer := r.moves[1]
-	stats := r.lastM.stats
+	stats := r.lastM.Stats
 	r.mu.Unlock()
 	if rules.Cell(answer) == rules.Cell(mustCellT(t, "D4")) {
 		t.Error("bot replayed the occupied D4")

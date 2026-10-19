@@ -347,7 +347,7 @@ type Room struct {
 	turnStart    time.Time
 	engines      [2]searcher
 	legalBuf     [config.BoardCells]rules.Move
-	lastM        mLineRecord
+	lastM        MoveStat
 	ponder       *ponderLane
 	ponderOn     bool
 	ponderRing   [2]GrantDepthRing

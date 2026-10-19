@@ -49,14 +49,10 @@ func TestMigrateFreshAppliesAll(t *testing.T) {
 		t.Errorf("schema_version rows = %d, max = %d, want %d and %d", count, max, config.SQLiteSchemaVersion, config.SQLiteSchemaVersion)
 	}
 	tables := schemaCount(t, s, "table",
-		"'schema_version','users','sessions','series','games','game_stats','rating_events','tournament_runs','tournament_participants','tournament_series','tournament_games','tournament_standings'")
-	if tables != 12 {
-		t.Errorf("known tables found = %d, want 12", tables)
+		"'schema_version','users','sessions','series','games','game_stats','rating_events','tournament_runs','tournament_participants','tournament_series','tournament_games','tournament_standings','tournament_game_stats'")
+	if tables != 13 {
+		t.Errorf("known tables found = %d, want 13", tables)
 	}
-	// The reserved bot seat accounts of human-vs-bot matches ride the v4
-	// seed: one users row per tier under the "AI <tier>" name, salt and hash
-	// empty so no password can ever verify against them, and a fresh
-	// database's real ids still grow from 1 past the seats.
 	for i := range config.Tiers {
 		var salt, hash []byte
 		if err := s.db.QueryRow(
@@ -91,9 +87,6 @@ func TestMigrateIdempotentAcrossReopen(t *testing.T) {
 
 	again := mustOpen(t, path)
 	defer func() { _ = again.Close() }()
-	// A second migration pass that re-applied v1 would violate the
-	// schema_version primary key, so survival plus an unchanged row count
-	// proves the up-to-date database applied zero scripts.
 	count, max := schemaVersionRows(t, again)
 	if count != config.SQLiteSchemaVersion || max != config.SQLiteSchemaVersion {
 		t.Errorf("after reopen: schema_version rows = %d, max = %d, want %d and %d", count, max, config.SQLiteSchemaVersion, config.SQLiteSchemaVersion)
@@ -149,8 +142,6 @@ func TestFailedMigrationRollsBackAndStays(t *testing.T) {
 	defer func() { _ = db.Close() }()
 	s := &Store{db: db}
 
-	// Swap in a same-count broken script set so the hub guard passes and
-	// the failure lands in the script application itself.
 	saved := migrations
 	defer func() { migrations = saved }()
 	migrations = make([]string, len(saved))
@@ -170,7 +161,6 @@ func TestFailedMigrationRollsBackAndStays(t *testing.T) {
 		t.Errorf("partial tables = %d, want 0 (transaction rolled back)", n)
 	}
 
-	// With the real scripts restored, the same database migrates cleanly.
 	migrations = saved
 	if err := s.migrate(); err != nil {
 		t.Fatalf("migrate after rollback: %v", err)
@@ -180,8 +170,6 @@ func TestFailedMigrationRollsBackAndStays(t *testing.T) {
 	}
 }
 
-// explainDetail returns one query's EXPLAIN QUERY PLAN detail lines joined,
-// so index usage asserts read the planner's own words.
 func explainDetail(t *testing.T, s *Store, query string, args ...any) string {
 	t.Helper()
 	rows, err := s.db.Query("EXPLAIN QUERY PLAN "+query, args...)
@@ -204,9 +192,6 @@ func explainDetail(t *testing.T, s *Store, query string, args ...any) string {
 	return b.String()
 }
 
-// TestSchemaV2IndexesGamesPlayerColumns pins the player-column indexes of
-// the games table: without them every MatchHistory and UserStats lookup
-// full-scans games.
 func TestSchemaV2IndexesGamesPlayerColumns(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
@@ -219,27 +204,18 @@ func TestSchemaV2IndexesGamesPlayerColumns(t *testing.T) {
 		{"idx_games_blue_user", `SELECT COUNT(*) FROM games WHERE blue_user = ?`},
 	} {
 		plan := explainDetail(t, s, tc.query, int64(1))
-		// The planner may pick the index as covering or not; either way the
-		// scan of games must be gone.
 		if !strings.Contains(plan, tc.idx) || strings.Contains(plan, "SCAN games") {
 			t.Errorf("plan for %q = %q, want it to ride %s", tc.query, plan, tc.idx)
 		}
 	}
 }
 
-// TestMigrateV1DatabaseUpgradesToV2 pins the forward-only upgrade: a
-// database holding only version 1 gains the v2 indexes on reopen, without
-// re-running v1 or touching data. With later versions landed the reopen
-// continues to the current one, so the assertion also proves the tournament
-// tables and the v4 additions ride along.
 func TestMigrateV1DatabaseUpgradesToV2(t *testing.T) {
 	path := dbPath(t)
 	s := mustOpen(t, path)
 	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 2`); err != nil {
 		t.Fatalf("roll ledger back to v1: %v", err)
 	}
-	// Reverse the v5 and v7 columns too: the surgery rewinds the ledger only,
-	// and an ALTER cannot re-add an existing column.
 	if _, err := s.db.Exec(`ALTER TABLE games DROP COLUMN bot_name`); err != nil {
 		t.Fatalf("drop the v5 column: %v", err)
 	}
@@ -271,14 +247,11 @@ func TestMigrateV1DatabaseUpgradesToV2(t *testing.T) {
 		t.Errorf("indexes after upgrade = %d, want 3 (v1 pair kept, v2 pair added)", n)
 	}
 	if n := schemaCount(t, again, "table",
-		"'tournament_runs','tournament_participants','tournament_series','tournament_games','tournament_standings','game_stats'"); n != 6 {
-		t.Errorf("later tables after upgrade = %d, want 6 (v3 and v4 applied after v2)", n)
+		"'tournament_runs','tournament_participants','tournament_series','tournament_games','tournament_standings','game_stats','tournament_game_stats'"); n != 7 {
+		t.Errorf("later tables after upgrade = %d, want 7 (v3 and v4 applied after v2)", n)
 	}
 }
 
-// TestMigrateV2DatabaseUpgradesToV3 pins the forward-only upgrade: a
-// database holding only version 2 gains the tournament tables on reopen,
-// without re-running v1/v2 or touching the v2-era data.
 func TestMigrateV2DatabaseUpgradesToV3(t *testing.T) {
 	path := dbPath(t)
 	s := mustOpen(t, path)
@@ -311,8 +284,8 @@ func TestMigrateV2DatabaseUpgradesToV3(t *testing.T) {
 			count, max, config.SQLiteSchemaVersion, config.SQLiteSchemaVersion)
 	}
 	if n := schemaCount(t, again, "table",
-		"'tournament_runs','tournament_participants','tournament_series','tournament_games','tournament_standings','game_stats'"); n != 6 {
-		t.Errorf("later tables after upgrade = %d, want 6 (v3 pair kept, v4 added)", n)
+		"'tournament_runs','tournament_participants','tournament_series','tournament_games','tournament_standings','game_stats','tournament_game_stats'"); n != 7 {
+		t.Errorf("later tables after upgrade = %d, want 7 (v3 pair kept, v4 added)", n)
 	}
 	var users int
 	if err := again.db.QueryRow("SELECT COUNT(*) FROM users WHERE username = ?", "veteran").Scan(&users); err != nil {
@@ -323,9 +296,6 @@ func TestMigrateV2DatabaseUpgradesToV3(t *testing.T) {
 	}
 }
 
-// TestMigrateV3DatabaseUpgradesToV4 pins the forward-only upgrade: a database
-// holding only version 3 gains the game_stats table and the reserved bot seat
-// rows on reopen, without re-running v1..v3 or touching the v3-era data.
 func TestMigrateV3DatabaseUpgradesToV4(t *testing.T) {
 	path := dbPath(t)
 	s := mustOpen(t, path)
@@ -390,9 +360,6 @@ func TestMigrateV3DatabaseUpgradesToV4(t *testing.T) {
 	}
 }
 
-// TestMigrateV6DatabaseUpgradesToV7 pins the forward-only upgrade: a database
-// holding only version 6 gains the tournament_runs label column on reopen,
-// without re-running v1..v6 or touching the v6-era rows.
 func TestMigrateV6DatabaseUpgradesToV7(t *testing.T) {
 	path := dbPath(t)
 	s := mustOpen(t, path)
@@ -433,11 +400,6 @@ func TestMigrateV6DatabaseUpgradesToV7(t *testing.T) {
 	}
 }
 
-// TestMigrateV7DatabaseUpgradesToV8 pins the v8 upgrade: the drive lease
-// columns land with empty claims, and exactly the ongoing 'ui' rows are
-// quarantined onto the reserved legacy label, the shape whose original
-// driver label was never persisted. Finished 'ui' rows and native labels
-// stay untouched.
 func TestMigrateV7DatabaseUpgradesToV8(t *testing.T) {
 	path := dbPath(t)
 	s := mustOpen(t, path)
@@ -499,10 +461,6 @@ func TestMigrateV7DatabaseUpgradesToV8(t *testing.T) {
 	}
 }
 
-// TestMigrateV8DatabaseUpgradesToV9 pins the v9 upgrade: a database whose
-// v4-era seed predates the master tier gains the reserved master seat on
-// reopen, every earlier seat row keeps its id, and the ledger reaches v9
-// exactly once.
 func TestMigrateV8DatabaseUpgradesToV9(t *testing.T) {
 	path := dbPath(t)
 	s := mustOpen(t, path)
@@ -520,8 +478,6 @@ func TestMigrateV8DatabaseUpgradesToV9(t *testing.T) {
 	if _, err := s.db.Exec(`DELETE FROM users WHERE username = ?`, config.BotAccountName(len(config.Tiers)-1)); err != nil {
 		t.Fatalf("remove the master seat a legacy v4 seed never wrote: %v", err)
 	}
-	// A legacy v8 database holds no master row, so id preservation applies
-	// to the seats that predate the upgrade alone.
 	delete(before, config.Tiers[len(config.Tiers)-1].Name)
 	if err := s.Close(); err != nil {
 		t.Fatalf("close: %v", err)
@@ -546,10 +502,6 @@ func TestMigrateV8DatabaseUpgradesToV9(t *testing.T) {
 	}
 }
 
-// TestMigrateSeedsAdminAccount pins the v6 seed: a fresh database carries the
-// admin row whose hash verifies the config credential, the create leg of
-// login can no longer claim the name, and a reopen neither duplicates nor
-// rewrites the row.
 func TestMigrateSeedsAdminAccount(t *testing.T) {
 	path := dbPath(t)
 	s := mustOpen(t, path)
@@ -565,8 +517,6 @@ func TestMigrateSeedsAdminAccount(t *testing.T) {
 		t.Error("seeded admin hash verifies a wrong password")
 	}
 
-	// The one-form login against the seeded row: the right password logs in,
-	// a wrong one folds into the opaque sentinel instead of registering over.
 	u, _, err := LoginOrCreate(s, config.AdminName, config.AdminPassword, 0)
 	if err != nil || u.ID != admin.ID {
 		t.Errorf("admin login = user %d err %v, want the seeded row %d", u.ID, err, admin.ID)
@@ -591,15 +541,10 @@ func TestMigrateSeedsAdminAccount(t *testing.T) {
 	}
 }
 
-// TestOpenRefusesAdminSquatter pins the seed-drift guard: the boot fails
-// loudly when the admin row is missing after migration or held by a row
-// the seed did not write, instead of silently arming a credential that
-// cannot log in.
 func TestOpenRefusesAdminSquatter(t *testing.T) {
 	path := dbPath(t)
 	s := mustOpen(t, path)
 
-	// A squatter's row over the name: different salt and hash.
 	if _, err := s.db.Exec(`UPDATE users SET salt = X'00', hash = X'00' WHERE username = ?`, config.AdminName); err != nil {
 		t.Fatalf("forge squatter: %v", err)
 	}
@@ -607,7 +552,6 @@ func TestOpenRefusesAdminSquatter(t *testing.T) {
 		t.Fatalf("open over squatter = %v, want the seed-collision refusal", err)
 	}
 
-	// The row gone entirely: the same refusal shape, the missing-seed arm.
 	if _, err := s.db.Exec(`DELETE FROM users WHERE username = ?`, config.AdminName); err != nil {
 		t.Fatalf("drop admin row: %v", err)
 	}

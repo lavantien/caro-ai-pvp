@@ -7,29 +7,24 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
 
-// Run lifecycle states, mirrored by the tournament_runs.status CHECK.
 const (
 	RunStateOngoing  = "ongoing"
 	RunStateFinished = "finished"
 )
 
-// outcomeTag spells the server Outcome enum the way the tournament_games
-// outcome CHECK constrains it.
 var outcomeTag = map[server.Outcome]string{
 	server.Draw:     server.OutcomeDraw,
 	server.RedWins:  server.OutcomeRed,
 	server.BlueWins: server.OutcomeBlue,
 }
 
-// Run is one persisted tournament header row. Label names the run's log
-// folder under config.TournamentLogRoot, persisted so a resume reopens the
-// interrupted run's own folder.
 type Run struct {
 	ID          int64
 	CreatedAt   int64
@@ -41,9 +36,6 @@ type Run struct {
 	Label       string
 }
 
-// Series is one persisted pairing row: the schedule slot, both seats, the
-// score line as wins of each seat, and the finish. WinnerSlot stays nil for
-// a majorityless drawn series, mirroring the room series.
 type Series struct {
 	ID            int64
 	RunID         int64
@@ -57,8 +49,6 @@ type Series struct {
 	FinishedAt    *int64
 }
 
-// Game is one finished game of a series, handed in by the conductor on
-// completion. Moves ride the shared server codec into the blob column.
 type Game struct {
 	ID          int64
 	RunID       int64
@@ -70,37 +60,20 @@ type Game struct {
 	WonBy       *string
 	FullTurns   int
 	Moves       []rules.Move
+	Stats       []server.MoveStat
 	PlayedAt    int64
 }
 
-// Store persists tournaments through the server store's pool. Every unit is
-// one transaction over server.Store.WithinTx, so a statement failing
-// anywhere leaves nothing behind.
-//
-// drivePid is the lease identity this store claimed (0 = claimed nothing),
-// set by ClaimDrive before any mutating unit of a driven run and fenced on
-// by AppendGame, ResetSeries, and FinishRun, so a zombie drive whose lease
-// expired under it fails loudly instead of interleaving its writes over the
-// takeover drive's record. Written once before the drive's goroutines
-// start, read-only afterwards.
 type Store struct {
 	srv      *server.Store
 	drivePid int
-	// fakePid is an in-package test seam standing in for a second process:
-	// the lease stamps os.Getpid() in production, and two stores inside one
-	// test process share a pid, so a test that must play a foreign drive
-	// swaps the identity here before claiming. Zero in production.
-	fakePid int
+	fakePid  int
 }
 
-// NewStore wraps a server store; the tournament tables come from its
-// startup self-migration (schema v3).
 func NewStore(s *server.Store) *Store {
 	return &Store{srv: s}
 }
 
-// pid is the identity the lease stamps for this store: the process id, or
-// the test seam's stand-in.
 func (t *Store) pid() int {
 	if t.fakePid != 0 {
 		return t.fakePid
@@ -108,8 +81,6 @@ func (t *Store) pid() int {
 	return os.Getpid()
 }
 
-// notFound maps the driver's empty-result error onto the server sentinel so
-// callers can errors.Is across packages.
 func notFound(err error, what string) error {
 	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("tourney: %s: %w", what, server.ErrNotFound)
@@ -117,11 +88,8 @@ func notFound(err error, what string) error {
 	return fmt.Errorf("tourney: %s: %w", what, err)
 }
 
-// ErrNotSeriesPair rejects a game whose seats, whatever their orientation
-// (red rotates across games), are not the series row's own pair.
 var ErrNotSeriesPair = errors.New("tourney: game seats are not the series' pair")
 
-// sqlArg binds an optional column: nil pointer to SQL NULL, value otherwise.
 func sqlArg[T any](p *T) any {
 	if p == nil {
 		return nil
@@ -129,11 +97,6 @@ func sqlArg[T any](p *T) any {
 	return *p
 }
 
-// CreateRun persists one tournament atomically: the header row, one
-// participant row per roster entry, and one series row per Pairings()
-// schedule entry. Roster slots must equal their slice positions. The label
-// names the run's log folder and must be non-empty: the resume path reopens
-// the folder from the persisted row alone.
 func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, roster []Participant, label string) (Run, error) {
 	if len(roster) < 2 {
 		return Run{}, fmt.Errorf("tourney: roster holds %d participants, a pairing needs at least 2", len(roster))
@@ -191,14 +154,6 @@ func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, ro
 	return run, nil
 }
 
-// AppendGame persists one game completion as the all-or-nothing unit: the
-// game row plus the series aggregates recomputed from the series' own games
-// (score line, winner, finish) in one transaction. Both seats must be run
-// participants and the series row's own pair, either orientation (red
-// rotates across games). The recompute is the
-// single source of truth: the score columns summarize the game rows, never
-// a parallel tally, so they cannot drift. Games append in idx order up to
-// the run's bo_len, the cap the forfeit billing of a quit fills to.
 func (t *Store) AppendGame(ctx context.Context, g Game) (Game, error) {
 	tag, ok := outcomeTag[g.Outcome]
 	if !ok {
@@ -262,6 +217,32 @@ func (t *Store) AppendGame(ctx context.Context, g Game) (Game, error) {
 		).Scan(&g.ID, &g.PlayedAt); err != nil {
 			return fmt.Errorf("tourney: append game: %w", err)
 		}
+		for i, st := range g.Stats {
+			mover := "red"
+			if st.Side == rules.Blue {
+				mover = "blue"
+			}
+			var pv strings.Builder
+			for j := range st.Stats.PVLen {
+				if j > 0 {
+					pv.WriteByte(' ')
+				}
+				name, nerr := rules.CellName(rules.Cell(st.Stats.PV[j]))
+				if nerr != nil {
+					return fmt.Errorf("tourney: m-line %d pv cell %d of game %d: %w", i+1, st.Stats.PV[j], g.ID, nerr)
+				}
+				pv.WriteString(name)
+			}
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO tournament_game_stats (tournament_game_id, move_no, mover, move, depth, nodes, nps, ebf_milli, tt_permille, hf_permille, fh1_permille, score, threads, elapsed_ns, alloc_ns, tag, pv)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				g.ID, i+1, mover, int(st.Move), st.Stats.Depth, st.Stats.Nodes, st.Stats.Nps, st.Stats.EBFMilli,
+				st.Stats.TTHitPermille, st.Stats.HashFullPermille, st.Stats.FirstMoveFailHighPermille,
+				st.Stats.Score, st.Stats.Threads, st.Stats.ElapsedNs, st.Stats.AllocNs, st.TagName(), pv.String(),
+			); err != nil {
+				return fmt.Errorf("tourney: append m-line %d of game %d: %w", i+1, g.ID, err)
+			}
+		}
 		redWins, blueWins, total, err := seriesWins(ctx, tx, g.SeriesID, redFirst, blueFirst)
 		if err != nil {
 			return err
@@ -286,13 +267,6 @@ func (t *Store) AppendGame(ctx context.Context, g Game) (Game, error) {
 	return g, nil
 }
 
-// ResetSeries scrubs one interrupted series back to its created state: the
-// partial games a dead drive left behind are deleted and the aggregates
-// zeroed, so a replay starts from idx 0 over a clean unit. AppendGame settles
-// the row from the games alone, which makes the scrub the resume path's unit
-// of idempotency: a scrubbed series replays exactly like a fresh one. A
-// settled series refuses (its record is the run's evidence), and so does a
-// series of a run that is no longer ongoing.
 func (t *Store) ResetSeries(ctx context.Context, seriesID int64) error {
 	return t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		var runID sql.NullInt64
@@ -317,6 +291,11 @@ func (t *Store) ResetSeries(ctx context.Context, seriesID int64) error {
 				runID.Int64, drivePid, t.drivePid)
 		}
 		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM tournament_game_stats WHERE tournament_game_id IN
+			(SELECT id FROM tournament_games WHERE series_id = ?)`, seriesID); err != nil {
+			return fmt.Errorf("tourney: scrub m-lines of series %d: %w", seriesID, err)
+		}
+		if _, err := tx.ExecContext(ctx,
 			`DELETE FROM tournament_games WHERE series_id = ?`, seriesID); err != nil {
 			return fmt.Errorf("tourney: scrub games of series %d: %w", seriesID, err)
 		}
@@ -329,8 +308,6 @@ func (t *Store) ResetSeries(ctx context.Context, seriesID int64) error {
 	})
 }
 
-// seriesWins counts each seat's wins from the games themselves inside the
-// caller's transaction.
 func seriesWins(ctx context.Context, tx *sql.Tx, seriesID int64, redFirstSlot, blueFirstSlot int) (red, blue, total int, err error) {
 	err = tx.QueryRowContext(ctx, `
 	SELECT
@@ -347,11 +324,6 @@ func seriesWins(ctx context.Context, tx *sql.Tx, seriesID int64, redFirstSlot, b
 	return
 }
 
-// FinishRun closes a run atomically: it refuses while any series is
-// unfinished or the run is already closed, then writes the final standings
-// snapshot derived from the games. The snapshot freezes the close-of-run
-// leaderboard; Leaderboard itself keeps deriving live from the games. The
-// drive's claim clears with the finish: a finished run owns no lease.
 func (t *Store) FinishRun(ctx context.Context, runID int64, finishedAt int64) error {
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		var status string
@@ -399,20 +371,10 @@ func (t *Store) FinishRun(ctx context.Context, runID int64, finishedAt int64) er
 	if err != nil {
 		return err
 	}
-	// A finished run owns no lease and its store drives nothing: the
-	// instance identity clears with the row, so the same store (the UI
-	// manager's) may claim the next run's lease cleanly.
 	t.drivePid = 0
 	return nil
 }
 
-// CloseStalledRun flips one ongoing run row to finished without the
-// standings snapshot: the resolution path for a run whose drive died with
-// the process that owned it. A fresh drive lease refuses: the close is for
-// dead drives, and a live one's own FinishRun owns the row. The leaderboard
-// keeps deriving live from the games; the snapshot stays the artifact of a
-// clean FinishRun. Zero rows affected means the row stopped being ongoing
-// between the caller's read and this update, reported as already closed.
 func (t *Store) CloseStalledRun(ctx context.Context, runID int64, finishedAt int64) error {
 	return t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		var pid, beat int64
@@ -443,12 +405,6 @@ func (t *Store) CloseStalledRun(ctx context.Context, runID int64, finishedAt int
 	})
 }
 
-// ClaimDrive takes the run's drive lease for this process: one live drive
-// per run, across processes, without a coordinator. The claim is fresh
-// while drive_heartbeat sits inside config.TournamentDriveStaleSec of now,
-// so a live drive's claim refuses every other drive (a resume, a second
-// resume, a hand close) and a dead process's claim goes stale on its own.
-// The winner's pid rides the store instance for the per-unit fences.
 func (t *Store) ClaimDrive(ctx context.Context, runID, now int64) error {
 	pid := int64(t.pid())
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
@@ -480,11 +436,6 @@ func (t *Store) ClaimDrive(ctx context.Context, runID, now int64) error {
 	return nil
 }
 
-// BeatDrive re-stamps the claim while its holder still drives. alive is
-// false once the row no longer carries this store's claim (the run finished
-// or a takeover happened): the caller stops beating without failing, the
-// drive is ending or already ended. Any other error is a lost lease check
-// and fails the drive.
 func (t *Store) BeatDrive(ctx context.Context, runID, now int64) (alive bool, err error) {
 	err = t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx,
@@ -503,10 +454,6 @@ func (t *Store) BeatDrive(ctx context.Context, runID, now int64) (alive bool, er
 	return alive, err
 }
 
-// ReleaseDrive drops the claim on a drive that ends without finishing the
-// run, so the next resume does not wait out the stale window. RowsAffected
-// is deliberately unchecked: a claim already cleared or taken over releases
-// clean, and the stale window is the fallback either way.
 func (t *Store) ReleaseDrive(ctx context.Context, runID int64) error {
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx,
@@ -523,10 +470,6 @@ func (t *Store) ReleaseDrive(ctx context.Context, runID int64) error {
 	return nil
 }
 
-// Schedule reads one run's series rows in pairing order with their settle
-// state: the conductor's map from Pairings slots onto the persisted series
-// ids CreateRun laid down, carrying FinishedAt and the settled line so a
-// resumed drive can skip what an earlier drive already settled.
 func (t *Store) Schedule(ctx context.Context, runID int64) ([]Series, error) {
 	var out []Series
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
@@ -557,10 +500,6 @@ func (t *Store) Schedule(ctx context.Context, runID int64) ([]Series, error) {
 	return out, nil
 }
 
-// Leaderboard derives the ordered standings of a run straight from the
-// persisted games: the rating law replays in play order from the run's
-// start rating, W-L-D counts per game, one series won per decided series.
-// Order: rating desc, then wins desc, then slot asc.
 func (t *Store) Leaderboard(ctx context.Context, runID int64) ([]Standings, error) {
 	var board []Standings
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
@@ -571,7 +510,6 @@ func (t *Store) Leaderboard(ctx context.Context, runID int64) ([]Standings, erro
 	return board, err
 }
 
-// leaderboardIn folds one run's games inside the caller's transaction.
 func leaderboardIn(ctx context.Context, tx *sql.Tx, runID int64) ([]Standings, error) {
 	var start int
 	if err := tx.QueryRowContext(ctx,
@@ -612,8 +550,6 @@ func slotsOf(ctx context.Context, tx *sql.Tx, runID int64) ([]int, error) {
 	return slots, rows.Err()
 }
 
-// gamesOf streams the fold's input in play order, translating the stored
-// outcome tags back onto the server enum.
 func gamesOf(ctx context.Context, tx *sql.Tx, runID int64) ([]foldedGame, error) {
 	rows, err := tx.QueryContext(ctx,
 		`SELECT red_slot, blue_slot, outcome FROM tournament_games WHERE run_id = ? ORDER BY id`, runID)

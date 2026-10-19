@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/engine"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
@@ -24,12 +25,10 @@ func newTestStore(t *testing.T) (*Store, *server.Store) {
 	return NewStore(srv), srv
 }
 
-// rosterDefault builds the full ladder roster: two instances of each tier.
 func rosterDefault() []Participant {
 	return twoPerTierRoster()
 }
 
-// mustSchedule reads a run's series rows in pairing order for assertions.
 func mustSchedule(t *testing.T, srv *server.Store, runID int64) []Series {
 	t.Helper()
 	var out []Series
@@ -151,7 +150,6 @@ func TestCreateRunValidation(t *testing.T) {
 	}
 }
 
-// mustAppend wraps AppendGame for the happy path.
 func mustAppend(t *testing.T, ts *Store, g Game) Game {
 	t.Helper()
 	out, err := ts.AppendGame(context.Background(), g)
@@ -165,6 +163,147 @@ func gameOf(runID, seriesID int64, idx, red, blue int, outcome server.Outcome) G
 	return Game{RunID: runID, SeriesID: seriesID, IdxInSeries: idx,
 		RedSlot: red, BlueSlot: blue, Outcome: outcome, FullTurns: idx + 1,
 		Moves: []rules.Move{rules.Move(7), rules.Move(120)}}
+}
+
+type statRow struct {
+	moveNo, move, depth, nodes, nps, ebfMilli, ttPm, hfPm, fh1Pm, score, threads int
+	elapsedNs, allocNs                                                           int64
+	mover, tag, pv                                                               string
+}
+
+func statsOf(t *testing.T, srv *server.Store, gameID int64) []statRow {
+	t.Helper()
+	var out []statRow
+	err := srv.WithinTx(context.Background(), func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(context.Background(),
+			`SELECT move_no, mover, move, depth, nodes, nps, ebf_milli, tt_permille, hf_permille, fh1_permille, score, threads, elapsed_ns, alloc_ns, tag, pv
+			FROM tournament_game_stats WHERE tournament_game_id = ? ORDER BY move_no`, gameID)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = rows.Close() }()
+		wantNo := 1
+		for rows.Next() {
+			var r statRow
+			if err := rows.Scan(&r.moveNo, &r.mover, &r.move, &r.depth, &r.nodes, &r.nps, &r.ebfMilli,
+				&r.ttPm, &r.hfPm, &r.fh1Pm, &r.score, &r.threads, &r.elapsedNs, &r.allocNs, &r.tag, &r.pv); err != nil {
+				return err
+			}
+			if r.moveNo != wantNo {
+				t.Errorf("stat move_no = %d, want %d", r.moveNo, wantNo)
+			}
+			wantNo++
+			out = append(out, r)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		t.Fatalf("read tournament_game_stats of game %d: %v", gameID, err)
+	}
+	return out
+}
+
+func sampleStats() []server.MoveStat {
+	pv := engine.SearchStats{}
+	pv.PVLen = 2
+	pv.PV[0] = rules.Move(119)
+	pv.PV[1] = rules.Move(87)
+	return []server.MoveStat{
+		{MoveNumber: 1, Side: rules.Red, Move: rules.Move(119), Stats: pv, Tag: ""},
+		{MoveNumber: 2, Side: rules.Blue, Move: rules.Move(102), Stats: engine.SearchStats{
+			Depth: 11, Nodes: 42_345_678, Nps: 6_055_432, EBFMilli: 4900,
+			TTHitPermille: 123, HashFullPermille: 987, FirstMoveFailHighPermille: 500,
+			Score: -1400, Threads: 6, ElapsedNs: 2_680_000_011, AllocNs: 5_000_000_023,
+		}, Tag: config.BotLogTagVCF},
+	}
+}
+
+func TestAppendGamePersistsMoveStats(t *testing.T) {
+	ts, srv := newTestStore(t)
+	ctx := context.Background()
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	first := mustSchedule(t, srv, run.ID)[0]
+	g := gameOf(run.ID, first.ID, 0, 0, 1, server.RedWins)
+	g.Stats = sampleStats()
+	stored := mustAppend(t, ts, g)
+	rows := statsOf(t, srv, stored.ID)
+	if len(rows) != 2 {
+		t.Fatalf("stat rows = %d, want 2", len(rows))
+	}
+	second := rows[1]
+	want := g.Stats[1]
+	if second.mover != "blue" || second.move != int(want.Move) || second.tag != "VCF" || second.pv != "" {
+		t.Errorf("row identity = %+v", second)
+	}
+	if second.depth != want.Stats.Depth || second.nodes != int(want.Stats.Nodes) || second.nps != int(want.Stats.Nps) ||
+		second.ebfMilli != want.Stats.EBFMilli || second.score != want.Stats.Score || second.threads != want.Stats.Threads {
+		t.Errorf("row counts = %+v", second)
+	}
+	if second.ttPm != want.Stats.TTHitPermille || second.hfPm != want.Stats.HashFullPermille || second.fh1Pm != want.Stats.FirstMoveFailHighPermille {
+		t.Errorf("row permilles = %+v", second)
+	}
+	if second.elapsedNs != want.Stats.ElapsedNs || second.allocNs != want.Stats.AllocNs {
+		t.Errorf("row ns = elapsed %d alloc %d, want %d %d", second.elapsedNs, second.allocNs, want.Stats.ElapsedNs, want.Stats.AllocNs)
+	}
+	if rows[0].pv != "H8 H6" || rows[0].mover != "red" {
+		t.Errorf("pv row = %+v, want red H8 H6", rows[0])
+	}
+	plain := mustAppend(t, ts, gameOf(run.ID, first.ID, 1, 1, 0, server.RedWins))
+	if rows := statsOf(t, srv, plain.ID); len(rows) != 0 {
+		t.Errorf("game without stats persisted %d rows, want 0", len(rows))
+	}
+}
+
+func TestAppendGameStatsRollBackWithTheGame(t *testing.T) {
+	ts, srv := newTestStore(t)
+	ctx := context.Background()
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	first := mustSchedule(t, srv, run.ID)[0]
+	if err := srv.WithinTx(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `CREATE TRIGGER boom_stat BEFORE INSERT ON tournament_game_stats BEGIN SELECT RAISE(ABORT, 'boom'); END`)
+		return err
+	}); err != nil {
+		t.Fatalf("arm trigger: %v", err)
+	}
+	g := gameOf(run.ID, first.ID, 0, 0, 1, server.RedWins)
+	g.Stats = sampleStats()
+	if _, err := ts.AppendGame(ctx, g); err == nil || !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("append under trigger = %v, want the boom failure", err)
+	}
+	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_games`); n != 0 {
+		t.Errorf("games after failed append = %d, want 0 rolled back with the stats", n)
+	}
+	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_game_stats`); n != 0 {
+		t.Errorf("stat rows after failed append = %d, want 0", n)
+	}
+}
+
+func TestResetSeriesScrubsMoveStats(t *testing.T) {
+	ts, srv := newTestStore(t)
+	ctx := context.Background()
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	first := mustSchedule(t, srv, run.ID)[0]
+	g := gameOf(run.ID, first.ID, 0, 0, 1, server.RedWins)
+	g.Stats = sampleStats()
+	stored := mustAppend(t, ts, g)
+	if rows := statsOf(t, srv, stored.ID); len(rows) != 2 {
+		t.Fatalf("seed stat rows = %d, want 2", len(rows))
+	}
+	if err := ts.ResetSeries(ctx, first.ID); err != nil {
+		t.Fatalf("reset interrupted series: %v", err)
+	}
+	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_game_stats`); n != 0 {
+		t.Errorf("stat rows after reset = %d, want 0 scrubbed with the game", n)
+	}
 }
 
 func TestAppendGameSettlesSeriesFromGames(t *testing.T) {
@@ -189,7 +328,6 @@ func TestAppendGameSettlesSeriesFromGames(t *testing.T) {
 		t.Errorf("series after game 0 = %+v, want 1-0 still ongoing", s)
 	}
 
-	// The moves blob must decode through the shared server codec.
 	var blob []byte
 	if err := srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
@@ -205,8 +343,6 @@ func TestAppendGameSettlesSeriesFromGames(t *testing.T) {
 		t.Errorf("moves round-trip = %v", moves)
 	}
 
-	// 2-0 closes the bo3 on the majority; a billed third game keeps the
-	// winner and the cap rejects a fourth.
 	mustAppend(t, ts, gameOf(run.ID, first.ID, 1, 0, 1, server.RedWins))
 	s = mustSchedule(t, srv, run.ID)[0]
 	if s.RedFirstWins != 2 || s.WinnerSlot == nil || *s.WinnerSlot != 0 || s.FinishedAt == nil {
@@ -231,11 +367,6 @@ func TestAppendGameSettlesSeriesFromGames(t *testing.T) {
 	}
 }
 
-// TestResetSeriesScrubsInterruptedSeries pins the resume unit: an interrupted
-// series holds partial games and a partial score line, and the reset deletes
-// the games and zeroes the aggregates so the replay starts from idx 0. A
-// settled series refuses (its record is the run's evidence), and so does any
-// series of a run that is no longer ongoing.
 func TestResetSeriesScrubsInterruptedSeries(t *testing.T) {
 	ts, srv := newTestStore(t)
 	ctx := context.Background()
@@ -246,9 +377,7 @@ func TestResetSeriesScrubsInterruptedSeries(t *testing.T) {
 	schedule := mustSchedule(t, srv, run.ID)
 	first, second := schedule[0], schedule[1]
 
-	// First series: one game in, 1-0, no majority, the interrupted shape.
 	mustAppend(t, ts, gameOf(run.ID, first.ID, 0, 0, 1, server.RedWins))
-	// Second series: settled 2-0 on the majority.
 	mustAppend(t, ts, gameOf(run.ID, second.ID, 0, 1, 0, server.BlueWins))
 	mustAppend(t, ts, gameOf(run.ID, second.ID, 1, 1, 0, server.BlueWins))
 
@@ -262,7 +391,6 @@ func TestResetSeriesScrubsInterruptedSeries(t *testing.T) {
 	if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_games WHERE series_id = ?`, first.ID); n != 0 {
 		t.Errorf("games after reset = %d, want 0", n)
 	}
-	// The scrubbed series replays from idx 0 exactly like a fresh one.
 	mustAppend(t, ts, gameOf(run.ID, first.ID, 0, 0, 1, server.BlueWins))
 	s = mustSchedule(t, srv, run.ID)[0]
 	if s.RedFirstWins != 0 || s.BlueFirstWins != 1 {
@@ -289,8 +417,6 @@ func TestResetSeriesScrubsInterruptedSeries(t *testing.T) {
 func TestAppendGameRejects(t *testing.T) {
 	ts, srv := newTestStore(t)
 	ctx := context.Background()
-	// A 3-seat roster so a game can seat a legal participant that is still
-	// not part of series 0's pair.
 	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(3), "test")
 	if err != nil {
 		t.Fatalf("create run: %v", err)
@@ -329,9 +455,6 @@ func TestAppendGameRejects(t *testing.T) {
 	}
 }
 
-// TestLeaderboardSeededRun pins the hand-computed fold of a partly played
-// 3-bot run: the law's chained ratings, the W-L-D tallies, the series-won
-// credit, and the rating-desc ordering.
 func TestLeaderboardSeededRun(t *testing.T) {
 	ts, srv := newTestStore(t)
 	ctx := context.Background()
@@ -345,8 +468,6 @@ func TestLeaderboardSeededRun(t *testing.T) {
 		t.Fatalf("schedule seats = %+v %+v", v01, v02)
 	}
 
-	// Three games: 0 beats 1 (d=30, 1030/970), then 1 as red beats 0
-	// (upset, d=31, 1001/999), then 0 vs 2 drawn (nothing moves).
 	mustAppend(t, ts, gameOf(run.ID, v01.ID, 0, 0, 1, server.RedWins))
 	mustAppend(t, ts, gameOf(run.ID, v01.ID, 1, 1, 0, server.RedWins))
 	mustAppend(t, ts, gameOf(run.ID, v02.ID, 0, 0, 2, server.Draw))
@@ -359,8 +480,6 @@ func TestLeaderboardSeededRun(t *testing.T) {
 	}
 	assertBoard(t, board, want)
 
-	// The fourth game closes the 0-1 series 2-1: 0 as red beats 1 (d=30,
-	// 1029/971) and takes the series-won credit.
 	mustAppend(t, ts, gameOf(run.ID, v01.ID, 2, 0, 1, server.RedWins))
 	board = mustBoard(t, ts, run.ID)
 	want = []Standings{
@@ -371,9 +490,6 @@ func TestLeaderboardSeededRun(t *testing.T) {
 	assertBoard(t, board, want)
 }
 
-// TestRunCompletionSnapshot plays a full 2-bot run, closes it, and pins the
-// frozen standings: the snapshot equals the live leaderboard, ratings stay
-// zero-sum at 2x the start, and the close is a one-way door.
 func TestRunCompletionSnapshot(t *testing.T) {
 	ts, srv := newTestStore(t)
 	ctx := context.Background()
@@ -386,7 +502,6 @@ func TestRunCompletionSnapshot(t *testing.T) {
 	if err := ts.FinishRun(ctx, run.ID, 123); err == nil {
 		t.Fatalf("finish with unfinished series succeeded, want rejection")
 	}
-	// 2-0 then a billed loss for series 0; 1-1 then a decider for series 1.
 	mustAppend(t, ts, gameOf(run.ID, schedule[0].ID, 0, 0, 1, server.RedWins))
 	mustAppend(t, ts, gameOf(run.ID, schedule[0].ID, 1, 0, 1, server.RedWins))
 	mustAppend(t, ts, gameOf(run.ID, schedule[0].ID, 2, 0, 1, server.BlueWins))
@@ -394,7 +509,6 @@ func TestRunCompletionSnapshot(t *testing.T) {
 	mustAppend(t, ts, gameOf(run.ID, schedule[1].ID, 1, 1, 0, server.RedWins))
 	mustAppend(t, ts, gameOf(run.ID, schedule[1].ID, 2, 1, 0, server.RedWins))
 
-	// Expected ratings chain the law directly, game by game.
 	ratings := map[int]int{0: config.TournamentStartRating, 1: config.TournamentStartRating}
 	for _, s := range []struct {
 		red, blue int
@@ -472,10 +586,6 @@ func TestRunCompletionSnapshot(t *testing.T) {
 	}
 }
 
-// TestAppendGameConcurrentUnits drives every series of a 6-bot run to
-// completion in parallel, the harshest shape of the conductor's parallel
-// matches: all units must land exactly once with no lock failures, courtesy
-// of the immediate transaction begin.
 func TestAppendGameConcurrentUnits(t *testing.T) {
 	ts, srv := newTestStore(t)
 	ctx := context.Background()
@@ -510,10 +620,6 @@ func TestAppendGameConcurrentUnits(t *testing.T) {
 	}
 }
 
-// TestOngoingRunIDAndCloseStalledRun pins the run gate's store half: the
-// oldest ongoing row is the gate's holder, and the stalled close flips one
-// ongoing row to finished without a standings snapshot, refusing whatever
-// is no longer ongoing.
 func TestOngoingRunIDAndCloseStalledRun(t *testing.T) {
 	ts, srv := newTestStore(t)
 	ctx := context.Background()
@@ -561,11 +667,6 @@ func TestOngoingRunIDAndCloseStalledRun(t *testing.T) {
 	}
 }
 
-// TestDriveLeaseFencesSecondDrive pins the cross-process fence: a fresh
-// claim refuses every other drive and that drive's store units, a claim
-// past the stale window is a dead drive's and free to take over, and the
-// dispossessed holder's next unit fails on the fence instead of
-// interleaving over the takeover drive's record.
 func TestDriveLeaseFencesSecondDrive(t *testing.T) {
 	ts, srv := newTestStore(t)
 	ctx := context.Background()
@@ -594,8 +695,6 @@ func TestDriveLeaseFencesSecondDrive(t *testing.T) {
 		!strings.Contains(err.Error(), "driven by pid") {
 		t.Errorf("foreign scrub = %v, want the claim fence", err)
 	}
-	// The holder appends under its claim and its beat keeps it alive; a
-	// foreign beat never refreshes a claim it does not hold.
 	mustAppend(t, ts, gameOf(run.ID, sched[0].ID, 0,
 		sched[0].RedFirstSlot, sched[0].BlueFirstSlot, server.RedWins))
 	if alive, err := ts.BeatDrive(ctx, run.ID, 1002); err != nil || !alive {
@@ -604,8 +703,6 @@ func TestDriveLeaseFencesSecondDrive(t *testing.T) {
 	if alive, err := other.BeatDrive(ctx, run.ID, 1003); err != nil || alive {
 		t.Errorf("foreign beat = (%t, %v), want not alive without an error", alive, err)
 	}
-	// The holder's claim sits past the stale window by now: the takeover
-	// proceeds and the dispossessed holder's next unit fails on the fence.
 	if err := other.ClaimDrive(ctx, run.ID, 2000); err != nil {
 		t.Fatalf("takeover over the stale claim: %v", err)
 	}
@@ -614,8 +711,6 @@ func TestDriveLeaseFencesSecondDrive(t *testing.T) {
 		!strings.Contains(err.Error(), "driven by pid") {
 		t.Errorf("dispossessed append = %v, want the claim fence", err)
 	}
-	// The release drops a live claim at once: the next claim waits no
-	// stale window.
 	if err := other.ReleaseDrive(ctx, run.ID); err != nil {
 		t.Fatalf("release: %v", err)
 	}

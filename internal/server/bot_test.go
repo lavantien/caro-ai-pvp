@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -280,6 +281,61 @@ func botRoom(t *testing.T, s *stack, tier config.Tier) (User, *Room) {
 	}
 	return alice, r
 }
+func TestMLineEventCarriesStructuredStat(t *testing.T) {
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierEasy)
+	injectScriptedBot(t, r, movesOf(t, botWinMoves))
+	sub, err := r.Subscribe()
+	if err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	waitFor(t, func() bool { return humanTurn(r, alice.ID) })
+	if err := r.PlayMove(alice.ID, mustCellT(t, humanFiller[0])); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	var got *MoveStat
+	var payload string
+	waitFor(t, func() bool {
+		for {
+			select {
+			case ev := <-sub.Events():
+				if ev.Kind == EventKindMLine {
+					got, payload = ev.Stat, ev.Payload
+					return true
+				}
+			default:
+				return false
+			}
+		}
+	})
+	if got == nil {
+		t.Fatal("mline event carried no structured stat")
+	}
+	wantMove := rules.Move(mustCellT(t, botWinMoves[0]))
+	if got.Stats != fakeStats() || got.Move != wantMove || got.Tag != "" {
+		t.Errorf("stat twin = move %d tag %q stats %+v, want the scripted bot's %d untagged %+v",
+			got.Move, got.Tag, got.Stats, wantMove, fakeStats())
+	}
+	fields := strings.Split(payload, ", ")
+	no, err := strconv.Atoi(strings.TrimPrefix(fields[0], "M"))
+	if err != nil {
+		t.Fatalf("payload move number: %v", err)
+	}
+	if got.MoveNumber != no {
+		t.Errorf("stat move number = %d, payload says %d", got.MoveNumber, no)
+	}
+	payloadMove, err := rules.ParseCell(fields[2])
+	if err != nil {
+		t.Fatalf("payload move %q: %v", fields[2], err)
+	}
+	if got.Move != rules.Move(payloadMove) {
+		t.Errorf("stat move = %d, payload says %d", got.Move, payloadMove)
+	}
+}
+
 func drainEvents(sub *Subscription) []string {
 	var out []string
 	for {
@@ -356,7 +412,7 @@ func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 			lastMLine = strings.TrimPrefix(e, EventKindMLine+" ")
 		}
 	}
-	if want := MLine(rec.moveNumber, rec.side, rec.move, &rec.stats, ""); lastMLine != want {
+	if want := MLine(rec.MoveNumber, rec.Side, rec.Move, &rec.Stats, ""); lastMLine != want {
 		t.Errorf("mline payload = %q, want renderer output %q", lastMLine, want)
 	}
 	if blueCommits != len(botWinMoves) || redCommits != len(humanFiller) {
@@ -488,7 +544,7 @@ func TestBotRoomMediumBeatsRandomMover(t *testing.T) {
 	if gotMLines == 0 || gotMoves < gotMLines {
 		t.Errorf("stream counts = %d moves vs %d mlines", gotMoves, gotMLines)
 	}
-	if want := MLine(rec.moveNumber, rec.side, rec.move, &rec.stats, rec.tag); gotLast != want {
+	if want := MLine(rec.MoveNumber, rec.Side, rec.Move, &rec.Stats, rec.Tag); gotLast != want {
 		t.Errorf("last mline = %q, want renderer output %q", gotLast, want)
 	}
 	if blueCommits == 0 {

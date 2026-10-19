@@ -766,17 +766,17 @@ func TestPonderArmsAfterOwnMoveAndAdoptsOnHit(t *testing.T) {
 	rec := r.lastM
 	line := r.mlines[len(r.mlines)-1].Line
 	r.mu.Unlock()
-	if rec.tag != config.BotLogTagPonder || rec.move != k10 {
-		t.Fatalf("last mline record = move %d tag %q, want the adopted %d with %q", rec.move, rec.tag, k10, config.BotLogTagPonder)
+	if rec.Tag != config.BotLogTagPonder || rec.Move != k10 {
+		t.Fatalf("last mline record = move %d tag %q, want the adopted %d with %q", rec.Move, rec.Tag, k10, config.BotLogTagPonder)
 	}
-	if want := int64(3 * time.Millisecond); rec.stats.AllocNs != want {
-		t.Fatalf("adopted alloc = %d, want the budget draw %d", rec.stats.AllocNs, want)
+	if want := int64(3 * time.Millisecond); rec.Stats.AllocNs != want {
+		t.Fatalf("adopted alloc = %d, want the budget draw %d", rec.Stats.AllocNs, want)
 	}
-	if want := engine.NpsReport(500, int64(10*time.Millisecond)); rec.stats.Nps != want {
-		t.Fatalf("adopted nps = %d, want the ponder search's %d", rec.stats.Nps, want)
+	if want := engine.NpsReport(500, int64(10*time.Millisecond)); rec.Stats.Nps != want {
+		t.Fatalf("adopted nps = %d, want the ponder search's %d", rec.Stats.Nps, want)
 	}
-	if rec.stats.Depth != 12 || rec.stats.ElapsedNs < 0 {
-		t.Fatalf("adopted stats depth %d elapsed %d, want the ponder depth 12 and a real turn wall", rec.stats.Depth, rec.stats.ElapsedNs)
+	if rec.Stats.Depth != 12 || rec.Stats.ElapsedNs < 0 {
+		t.Fatalf("adopted stats depth %d elapsed %d, want the ponder depth 12 and a real turn wall", rec.Stats.Depth, rec.Stats.ElapsedNs)
 	}
 	if !strings.Contains(line, ", [PONDER], pv=K10") {
 		t.Fatalf("adopted line = %q, want the ponder tag before the pv", line)
@@ -819,8 +819,8 @@ func TestPonderMissFallsThroughToSearch(t *testing.T) {
 	r.mu.Lock()
 	rec := r.lastM
 	r.mu.Unlock()
-	if rec.tag != "" || rec.move != j10 {
-		t.Fatalf("last record = move %d tag %q, want the searched move untagged", rec.move, rec.tag)
+	if rec.Tag != "" || rec.Move != j10 {
+		t.Fatalf("last record = move %d tag %q, want the searched move untagged", rec.Move, rec.Tag)
 	}
 	if err := r.Forfeit(alice.ID); err != nil {
 		t.Fatalf("forfeit: %v", err)
@@ -894,8 +894,8 @@ func TestPonderSolverProofAdoptsWithoutClauses(t *testing.T) {
 	r.mu.Lock()
 	rec := r.lastM
 	r.mu.Unlock()
-	if rec.tag != config.BotLogTagVCF {
-		t.Fatalf("proof adoption tag = %q, want %q", rec.tag, config.BotLogTagVCF)
+	if rec.Tag != config.BotLogTagVCF {
+		t.Fatalf("proof adoption tag = %q, want %q", rec.Tag, config.BotLogTagVCF)
 	}
 	if err := r.Forfeit(alice.ID); err != nil {
 		t.Fatalf("forfeit: %v", err)
@@ -1505,8 +1505,8 @@ func TestPonderChainedAdoptionRearmsFromAdoptedPv(t *testing.T) {
 	r.mu.Lock()
 	rec := r.lastM
 	r.mu.Unlock()
-	if rec.tag != config.BotLogTagPonder || rec.move != j10 {
-		t.Fatalf("second adopted record = move %d tag %q, want %d pondered", rec.move, rec.tag, j10)
+	if rec.Tag != config.BotLogTagPonder || rec.Move != j10 {
+		t.Fatalf("second adopted record = move %d tag %q, want %d pondered", rec.Move, rec.Tag, j10)
 	}
 	if err := r.Forfeit(alice.ID); err != nil {
 		t.Fatalf("forfeit: %v", err)
@@ -1542,11 +1542,11 @@ func TestPonderAdoptedIllegalMoveFallsBackToFirstLegal(t *testing.T) {
 	r.mu.Lock()
 	rec := r.lastM
 	r.mu.Unlock()
-	if rec.move == d4 || rec.move == h8 || rec.move == p16 {
-		t.Fatalf("fallback move %d must be a fresh legal cell, not an occupied one", rec.move)
+	if rec.Move == d4 || rec.Move == h8 || rec.Move == p16 {
+		t.Fatalf("fallback move %d must be a fresh legal cell, not an occupied one", rec.Move)
 	}
-	if rec.tag != config.BotLogTagPonder {
-		t.Fatalf("fallback record tag = %q, want the adopted ponder tag", rec.tag)
+	if rec.Tag != config.BotLogTagPonder {
+		t.Fatalf("fallback record tag = %q, want the adopted ponder tag", rec.Tag)
 	}
 	searches, _, _ := bot.counts()
 	if searches != 1 {

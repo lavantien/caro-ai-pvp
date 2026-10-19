@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/engine"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
@@ -33,9 +34,19 @@ func scriptedSeries(games []scriptedGame, verdict string) []server.Event {
 	var out []server.Event
 	for _, g := range games {
 		for i, name := range g.moves {
+			cell, err := rules.ParseCell(name)
+			if err != nil {
+				panic("tourney test: scripted move " + name + " is not a cell")
+			}
+			side := rules.Red
+			if i%2 == 1 {
+				side = rules.Blue
+			}
+			stat := server.MoveStat{MoveNumber: i + 1, Side: side, Move: rules.Move(cell),
+				Stats: engine.SearchStats{Depth: 1, Nodes: uint64(100 + i), Nps: 100, Threads: 1}}
 			out = append(out,
 				server.Event{Kind: server.EventKindMove, Payload: name},
-				server.Event{Kind: server.EventKindMLine, Payload: fmt.Sprintf("M%d scripted %s", i+1, name)},
+				server.Event{Kind: server.EventKindMLine, Payload: fmt.Sprintf("M%d scripted %s", i+1, name), Stat: &stat},
 			)
 		}
 		out = append(out, server.Event{Kind: server.EventKindGameEnd, Payload: g.outcome})
@@ -516,9 +527,15 @@ func TestConductorCancelRetiresEverything(t *testing.T) {
 	var once sync.Once
 	src := &fakeSource{
 		script: func(host, guest string) []server.Event {
+			cell, err := rules.ParseCell(sweepRedMoves[0])
+			if err != nil {
+				panic("tourney test: scripted move " + sweepRedMoves[0] + " is not a cell")
+			}
+			stat := server.MoveStat{MoveNumber: 1, Side: rules.Red, Move: rules.Move(cell),
+				Stats: engine.SearchStats{Depth: 1, Nodes: 100, Nps: 100, Threads: 1}}
 			return []server.Event{
 				{Kind: server.EventKindMove, Payload: sweepRedMoves[0]},
-				{Kind: server.EventKindMLine, Payload: "M1 scripted"},
+				{Kind: server.EventKindMLine, Payload: "M1 scripted", Stat: &stat},
 				{Kind: server.EventKindMove, Payload: sweepRedMoves[1]},
 			}
 		},
@@ -555,6 +572,44 @@ func TestConductorCancelRetiresEverything(t *testing.T) {
 	}
 	if status := runStatus(t, ts, 1); status != RunStateOngoing {
 		t.Errorf("run status = %q, want %q after the abort", status, RunStateOngoing)
+	}
+}
+
+func TestConductorPersistsMLines(t *testing.T) {
+	ts, srv := newTestStore(t)
+	pointLogsAt(t)
+	src := &fakeSource{script: easySweeps}
+
+	if _, err := NewConductor(src).Run(context.Background(), ts, rosterTwo(),
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test"); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	var games, lines, gamesWithLines, badMover int
+	err := srv.WithinTx(context.Background(), func(tx *sql.Tx) error {
+		if err := tx.QueryRowContext(context.Background(),
+			`SELECT COUNT(*) FROM tournament_games`).Scan(&games); err != nil {
+			return err
+		}
+		if err := tx.QueryRowContext(context.Background(), `
+			SELECT COUNT(*) FROM tournament_game_stats s
+			JOIN tournament_games g ON g.id = s.tournament_game_id`).Scan(&lines); err != nil {
+			return err
+		}
+		if err := tx.QueryRowContext(context.Background(), `
+			SELECT COUNT(DISTINCT s.tournament_game_id) FROM tournament_game_stats s
+			JOIN tournament_games g ON g.id = s.tournament_game_id`).Scan(&gamesWithLines); err != nil {
+			return err
+		}
+		return tx.QueryRowContext(context.Background(), `
+			SELECT COUNT(*) FROM tournament_game_stats
+			WHERE (move_no % 2 = 1 AND mover != 'red') OR (move_no % 2 = 0 AND mover != 'blue')`).Scan(&badMover)
+	})
+	if err != nil {
+		t.Fatalf("read persisted m-lines: %v", err)
+	}
+	if games == 0 || games%2 != 0 || gamesWithLines != games || lines != 23*(games/2) || badMover != 0 {
+		t.Errorf("games = %d, stat rows = %d, games with stats = %d, mover violations = %d, want the sweeps' structured 11+12 per 2-game series",
+			games, lines, gamesWithLines, badMover)
 	}
 }
 

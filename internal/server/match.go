@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -547,12 +548,16 @@ func (r *Room) closeEnginesLocked() {
 	}
 }
 
-type mLineRecord struct {
-	moveNumber int
-	side       rules.Color
-	move       rules.Move
-	stats      engine.SearchStats
-	tag        string
+type MoveStat struct {
+	MoveNumber int
+	Side       rules.Color
+	Move       rules.Move
+	Stats      engine.SearchStats
+	Tag        string
+}
+
+func (m MoveStat) TagName() string {
+	return strings.TrimSuffix(strings.TrimPrefix(m.Tag, ", ["), "]")
 }
 
 func (r *Room) startBotWorker() {
@@ -639,10 +644,11 @@ func (r *Room) runBotTurn() bool {
 	}
 	cell := rules.Cell(mv)
 	r.applyMoveLocked(side, cell)
-	r.lastM = mLineRecord{moveNumber: r.board.MoveCount, side: side, move: mv, stats: st, tag: tag}
-	line := MLine(r.lastM.moveNumber, side, mv, &st, tag)
-	r.mlines = append(r.mlines, GameStat{MoveNo: r.lastM.moveNumber, Line: line})
-	r.publishLocked(Event{Kind: EventKindMLine, Payload: line})
+	r.lastM = MoveStat{MoveNumber: r.board.MoveCount, Side: side, Move: mv, Stats: st, Tag: tag}
+	line := MLine(r.lastM.MoveNumber, side, mv, &st, tag)
+	r.mlines = append(r.mlines, GameStat{MoveNo: r.lastM.MoveNumber, Line: line})
+	stat := r.lastM
+	r.publishLocked(Event{Kind: EventKindMLine, Payload: line, Stat: &stat})
 	if tag == "" {
 		r.ponderRing[side].Append(int64(budget), st.Depth)
 	}

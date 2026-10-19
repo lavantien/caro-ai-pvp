@@ -99,8 +99,8 @@ func TestPonderTTFallbackArmsAndAdopts(t *testing.T) {
 	r.mu.Lock()
 	rec := r.lastM
 	r.mu.Unlock()
-	if rec.tag != config.BotLogTagPonder || rec.move != k10 {
-		t.Fatalf("adopted record = move %d tag %q, want %d pondered", rec.move, rec.tag, k10)
+	if rec.Tag != config.BotLogTagPonder || rec.Move != k10 {
+		t.Fatalf("adopted record = move %d tag %q, want %d pondered", rec.Move, rec.Tag, k10)
 	}
 	if err := r.Forfeit(alice.ID); err != nil {
 		t.Fatalf("forfeit: %v", err)

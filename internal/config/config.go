@@ -299,7 +299,7 @@ const (
 	UsernameMaxBytes         = 32
 	AdminName                = "admin"
 	AdminPassword            = "1234qwerasdfzxcv"
-	SQLiteSchemaVersion      = 10
+	SQLiteSchemaVersion      = 11
 	SQLiteBusyTimeoutMs      = 5000
 	SQLiteJournalWAL         = "wal"
 	SQLiteSyncNormal         = "normal"

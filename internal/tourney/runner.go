@@ -377,6 +377,7 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 	}
 	defer stream.Close()
 	var moves []rules.Move
+	var stats []server.MoveStat
 	redIsRedFirst := true
 	games := 0
 	for {
@@ -404,6 +405,10 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 			if lerr := logs.WriteSeriesLine(run.ID, row.ID, ev.Payload); lerr != nil {
 				return line, lerr
 			}
+			if ev.Stat == nil {
+				return line, fmt.Errorf("game %d: m-line event carries no structured stat", games+1)
+			}
+			stats = append(stats, *ev.Stat)
 		case server.EventKindGameEnd:
 			outcome, ok := outcomeOf(ev.Payload)
 			if !ok {
@@ -425,7 +430,7 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 			if _, aerr := store.AppendGame(ctx, Game{
 				RunID: run.ID, SeriesID: row.ID, IdxInSeries: games,
 				RedSlot: redSlot, BlueSlot: blueSlot, Outcome: outcome,
-				WonBy: wonBy, FullTurns: len(truth) / 2, Moves: truth,
+				WonBy: wonBy, FullTurns: len(truth) / 2, Moves: truth, Stats: stats,
 			}); aerr != nil {
 				return line, fmt.Errorf("persist game %d: %w", games+1, aerr)
 			}
@@ -453,6 +458,7 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 			}
 			redIsRedFirst = !redIsRedFirst
 			moves = nil
+			stats = nil
 			games++
 		case server.EventKindSeries:
 			return c.closeSeries(logs, run, row, line, games, ev.Payload)

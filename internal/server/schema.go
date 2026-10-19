@@ -185,6 +185,29 @@ ALTER TABLE tournament_runs ADD COLUMN drive_heartbeat INTEGER NOT NULL DEFAULT 
 UPDATE tournament_runs SET label = '` + config.TournamentLegacyLabel + `' WHERE label = 'ui' AND status = 'ongoing';
 `
 
+const schemaV11 = `
+CREATE TABLE IF NOT EXISTS tournament_game_stats (
+	tournament_game_id INTEGER NOT NULL REFERENCES tournament_games (id),
+	move_no INTEGER NOT NULL,
+	mover TEXT NOT NULL CHECK (mover IN ('red', 'blue')),
+	move INTEGER NOT NULL,
+	depth INTEGER NOT NULL,
+	nodes INTEGER NOT NULL,
+	nps INTEGER NOT NULL,
+	ebf_milli INTEGER NOT NULL,
+	tt_permille INTEGER NOT NULL,
+	hf_permille INTEGER NOT NULL,
+	fh1_permille INTEGER NOT NULL,
+	score INTEGER NOT NULL,
+	threads INTEGER NOT NULL,
+	elapsed_ns INTEGER NOT NULL,
+	alloc_ns INTEGER NOT NULL,
+	tag TEXT NOT NULL DEFAULT '',
+	pv TEXT NOT NULL,
+	PRIMARY KEY (tournament_game_id, move_no)
+);
+`
+
 var (
 	adminSeedSalt = adminSeedSaltOf()
 	adminSeedHash = HashPassword(config.AdminPassword, adminSeedSalt)
@@ -203,4 +226,4 @@ func adminSeedSQL() string {
 	)
 }
 
-var migrations = []string{schemaV1, schemaV2, schemaV3, schemaV4 + botSeatSeedSQL(), schemaV5, adminSeedSQL(), schemaV7, schemaV8, botSeatSeedSQL(), botSeatSeedSQL()}
+var migrations = []string{schemaV1, schemaV2, schemaV3, schemaV4 + botSeatSeedSQL(), schemaV5, adminSeedSQL(), schemaV7, schemaV8, botSeatSeedSQL(), botSeatSeedSQL(), schemaV11}
