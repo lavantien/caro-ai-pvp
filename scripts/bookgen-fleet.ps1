@@ -1,6 +1,7 @@
 param(
-	[int]$Shards = 3,
-	[int]$ShardGames = 41,
+	[int]$Shards = 2,
+	[int]$ShardGames = 55,
+	[string]$ShardCorpus = 'book-corpus-b.txt',
 	[int]$LegacyGames = 300,
 	[string]$MemLimit = '1536MiB',
 	[switch]$VerifyOnly
@@ -14,7 +15,7 @@ $members = @(
 	@{ Name = 'legacy'; Corpus = "$outRoot/book-corpus.txt"; Games = $LegacyGames; Log = 'corpus-native' }
 )
 foreach ($i in 2..(1 + $Shards)) {
-	$members += @{ Name = "inst$i"; Corpus = "$outRoot/inst$i/book-corpus.txt"; Games = $ShardGames; Log = 'corpus' }
+	$members += @{ Name = "inst$i"; Corpus = "$outRoot/inst$i/$ShardCorpus"; Games = $ShardGames; Log = 'corpus' }
 }
 
 function Test-MemberAlive([string]$corpus) {
