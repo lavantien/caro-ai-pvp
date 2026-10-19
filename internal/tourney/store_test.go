@@ -284,6 +284,56 @@ func TestAppendGameStatsRollBackWithTheGame(t *testing.T) {
 	}
 }
 
+func TestAppendGameRejectsMisnumberedMoveStats(t *testing.T) {
+	ts, srv := newTestStore(t)
+	ctx := context.Background()
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	first := mustSchedule(t, srv, run.ID)[0]
+	cases := []struct {
+		name  string
+		stats []server.MoveStat
+	}{
+		{"skipped number", []server.MoveStat{
+			{MoveNumber: 1, Side: rules.Red, Move: rules.Move(119)},
+			{MoveNumber: 3, Side: rules.Blue, Move: rules.Move(102)},
+		}},
+		{"duplicated number", []server.MoveStat{
+			{MoveNumber: 1, Side: rules.Red, Move: rules.Move(119)},
+			{MoveNumber: 1, Side: rules.Blue, Move: rules.Move(102)},
+		}},
+		{"zero number", []server.MoveStat{
+			{MoveNumber: 0, Side: rules.Red, Move: rules.Move(119)},
+		}},
+	}
+	for _, c := range cases {
+		g := gameOf(run.ID, first.ID, 0, 0, 1, server.RedWins)
+		g.Stats = c.stats
+		if _, err := ts.AppendGame(ctx, g); err == nil || !strings.Contains(err.Error(), "move number") {
+			t.Errorf("%s: append = %v, want the move-number refusal", c.name, err)
+		}
+		if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_games`); n != 0 {
+			t.Errorf("%s: games after refusal = %d, want 0 rolled back with the game", c.name, n)
+		}
+		if n := countRows(t, srv, `SELECT COUNT(*) FROM tournament_game_stats`); n != 0 {
+			t.Errorf("%s: stat rows after refusal = %d, want 0 rolled back with the game", c.name, n)
+		}
+	}
+	if s := mustSchedule(t, srv, run.ID)[0]; s.RedFirstWins != 0 || s.BlueFirstWins != 0 {
+		t.Errorf("series after refusals = %+v, want untouched aggregates", s)
+	}
+	stored := mustAppend(t, ts, func() Game {
+		g := gameOf(run.ID, first.ID, 0, 0, 1, server.RedWins)
+		g.Stats = sampleStats()
+		return g
+	}())
+	if rows := statsOf(t, srv, stored.ID); len(rows) != 2 {
+		t.Errorf("in-order stats after refusals = %d rows, want 2 accepted", len(rows))
+	}
+}
+
 func TestResetSeriesScrubsMoveStats(t *testing.T) {
 	ts, srv := newTestStore(t)
 	ctx := context.Background()

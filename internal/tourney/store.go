@@ -218,6 +218,10 @@ func (t *Store) AppendGame(ctx context.Context, g Game) (Game, error) {
 			return fmt.Errorf("tourney: append game: %w", err)
 		}
 		for i, st := range g.Stats {
+			if st.MoveNumber != i+1 {
+				return fmt.Errorf("tourney: m-line %d of game %d carries move number %d: stats must be numbered 1..%d in slice order",
+					i+1, g.ID, st.MoveNumber, len(g.Stats))
+			}
 			mover := "red"
 			if st.Side == rules.Blue {
 				mover = "blue"
