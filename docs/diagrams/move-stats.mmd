@@ -1,0 +1,7 @@
+flowchart LR
+    E[engine search<br/>SearchStats: depth, nodes, nps, ebf_milli,<br/>tt, hf, fh1 permilles, score, threads,<br/>elapsed_ns, alloc_ns, pv] --> R[room: MoveStat capture<br/>move number, side, move, tag<br/>taken before the M-line renders]
+    R -- one lossless record, no reparse --> L[M-line render: BotLogFormat text]
+    L --> H[hub event: Payload string + Stat pointer]
+    H -- rendered payload: mline events --> SSE[room SSE stream<br/>bot M-line log]
+    H -- rendered payload: series lines --> LG[per-series text log]
+    H -- structured Stat: buffered per game,<br/>one row per move in the same transaction<br/>as the game row --> D[(tournament_game_stats<br/>schema v11)]

@@ -1,0 +1,15 @@
+flowchart LR
+    SE[(sessions)] -- user_id --> U[(users<br/>argon2id, seeded admin and bot seats)]
+    CS[(series)] -- red_user, blue_user --> U
+    G[(games<br/>moves blob, outcome, bot seat)] -- series_id --> CS
+    GS[(game_stats<br/>rendered m-line per move)] -- game_id --> G
+    RE[(rating_events<br/>decay-scaled deltas)] -- game_id --> G
+    RE -- user_id --> U
+    TR[(tournament_runs<br/>tc, bo, label, drive lease)]
+    TP[(tournament_participants<br/>slot, name, tier)] -- run_id --> TR
+    TS[(tournament_series<br/>pairing slots, wins)] -- run_id --> TR
+    TS -- red_first_slot, blue_first_slot --> TP
+    TG[(tournament_games<br/>moves blob, outcome, seats)] -- series_id --> TS
+    TG -- red_slot, blue_slot --> TP
+    STD[(tournament_standings<br/>frozen at finish)] -- run_id, slot --> TP
+    TGS[(tournament_game_stats v11<br/>mover red or blue, move, depth, nodes, nps,<br/>ebf_milli, tt, hf, fh1 permilles, score,<br/>threads, elapsed_ns, alloc_ns, tag,<br/>pv space-joined text)] -- tournament_game_id, move_no --> TG

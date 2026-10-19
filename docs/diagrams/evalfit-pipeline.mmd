@@ -1,0 +1,12 @@
+flowchart LR
+    DB[(sqlite tournament_games<br/>joined to participants for seat tiers)] -- moves blob: little-endian uint16 cells --> DEC[decode<br/>colors alternate from red]
+    DEC --> REP[replay with integrity checks<br/>winner holds the final line, draws end full,<br/>over 2% rejected games aborts the fit]
+    REP -- side-to-move positions --> FE[window-class histogram features<br/>internal/pattern classes 1-5, class 0 pinned,<br/>own minus opp counts]
+    FE -- series-level 90/10 split --> SP[train series, val series]
+    SP --> GD[monotone-chain gradient descent<br/>cumulative exp increments keep weights increasing]
+    GD --> CK{differential evolution cross-check<br/>gd must not lose beyond 2%}
+    CK -- pass, both losses recorded --> ART[artifact file<br/>machine-readable weights and scale lines]
+    CK -- fail --> X[abort, no artifact]
+    ART --> AG{arena gate}
+    AG -- pass, only then --> CW[config hub PatternClassWeights swap]
+    AG -- fail --> X2[weights stay unshipped]

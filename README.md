@@ -183,11 +183,23 @@ Room data path. Gameplay never blocks on the disk: moves apply in memory, mutati
 
 ![room data path flowchart](docs/diagrams/room-data-path.png)
 
+Move stats pipeline. Every bot move is captured once as a structured record before its M-line renders, so the text line and the stored row are two views of one lossless capture: the rendered payload reaches the SSE stream and the per-series text log, and the structured stat persists as one tournament_game_stats row per move, written in the same transaction as its game row under schema v11.
+
+![move stats pipeline flowchart](docs/diagrams/move-stats.png)
+
 The tournament conductor. Every series rides the same room surface a human match does; the conductor subscribes before the room can retire, reconciles each finished game against the room's authoritative move list, and fails the whole run on any divergence.
 
 ![tournament conductor flowchart](docs/diagrams/tournament-conductor.png)
 
 The machine-wide core budget is held by the run gate: one ongoing run at a time, per-run parallelism bounded by the tier cores, and an undriven run (stalled or failed) closed explicitly from its page before another can start. Starting runs and closing them is the seeded admin account's alone; every page, the setup list, the run boards, and the home's live-run banner read public, guest included.
+
+Store schema. One sqlite database carries both sides: the casual tables behind human rooms and bot games, and the tournament tables behind the conductor, with the per-move telemetry in tournament_game_stats beside its game, mover red or blue per row, and the PV stored space-joined as text.
+
+![store schema flowchart](docs/diagrams/store-schema.png)
+
+Evalfit pipeline. Tournament games decode from their move blobs and replay under integrity checks into side-to-move window-class features, fitted by monotone-chain gradient descent cross-checked by differential evolution. The artifact's weights reach the config hub's PatternClassWeights only after the arena gate passes, per the inversion research law.
+
+![evalfit pipeline flowchart](docs/diagrams/evalfit-pipeline.png)
 
 Page surface. The shell and room pages are server-rendered html/template with vendored htmx 4; page routes mount beside the JSON API and win on their patterns, everything else falls to the shell.
 
