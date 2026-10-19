@@ -7,15 +7,8 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// moveNone is the absent move sentinel: one past the last real cell.
 const moveNone = rules.Move(config.BoardCells)
 
-// Engine is one independent bot instance: its own transposition table, its
-// own move stacks and heuristics, nothing shared at runtime. Search is
-// single threaded here; the SMP layer adds workers around the same state.
-// The zobrist hash does not encode the playable region, so one engine
-// instance must serve one board kind only: cross-check runs against the 8x8
-// region get their own instance.
 type Engine struct {
 	tt        *ttTable
 	radius    int
@@ -36,16 +29,18 @@ type Engine struct {
 	noOrder   bool
 }
 
-// New allocates the engine and its transposition table once, sized from the
-// tier budget rounded down to a power of two entries. bytes below one entry
-// disables the table, which is the easy tier configuration.
 func New(ttBytes int64) *Engine {
-	return newEngineShared(newTT(ttBytes))
+	return NewEval(ttBytes, nil)
 }
 
-// newEngineShared builds a worker engine over an existing table: the SMP
-// layer shares one lockless table across its workers, everything else in an
-// Engine stays worker private.
+func NewEval(ttBytes int64, w *[config.PatternClassCount]int) *Engine {
+	e := newEngineShared(newTT(ttBytes))
+	if w != nil {
+		e.eval.w = w
+	}
+	return e
+}
+
 func newEngineShared(tt *ttTable) *Engine {
 	return &Engine{radius: config.SearchRingRadius, tt: tt}
 }
@@ -59,9 +54,6 @@ func (e *Engine) beginSearch(b *rules.Board) {
 	e.resetForSearch(b)
 }
 
-// resetForSearch clears every per-search worker state. The table generation
-// is bumped separately so a shared table advances once per search, not once
-// per worker.
 func (e *Engine) resetForSearch(b *rules.Board) {
 	clear(e.history[:])
 	for ply := range e.killers {
@@ -74,33 +66,14 @@ func (e *Engine) resetForSearch(b *rules.Board) {
 	e.eval.reset(b)
 }
 
-// Search runs iterative deepening to SearchMaxPly under the deadline and
-// returns the best move of the last completed iteration, or the precomputed
-// legal fallback when no iteration completes. Only completed iterations are
-// candidates, so a stop mid-iteration never leaks a partial root choice.
-// Once one iteration is banked, the soft stop consult at each iteration
-// head refuses to open an iteration the remaining budget tail cannot
-// realistically finish, so the grant is not burned on a partial result the
-// caller never reads.
 func (e *Engine) Search(b *rules.Board, dl Deadline) (rules.Move, SearchStats) {
 	return e.search(b, dl, config.SearchMaxPly, true)
 }
 
-// SearchDepth is the capped driver behind Search; a fixed depth cap also
-// serves the solver cross-check oracles. No soft stop here: the contract is
-// to reach the target depth unless the hard deadline fires.
 func (e *Engine) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.Move, SearchStats) {
 	return e.search(b, dl, maxDepth, false)
 }
 
-// softStop reports whether a new iteration must not start: one iteration is
-// already banked, so a legal move exists beyond the fallback, and elapsed
-// time is strictly past the soft fraction of the granted budget. Exactly at
-// the limit the iteration still starts. A zero elapsed reading after a
-// completed iteration proves nothing on a quantized monotonic clock (Windows
-// ticks can span the whole minimum grant), so it counts as one full quantum:
-// when even one quantum blows the soft limit the head is refused. Pure and
-// allocation free; consulted at iteration heads only.
 func softStop(elapsed, budget time.Duration, completed int) bool {
 	if completed < 1 {
 		return false
@@ -140,8 +113,6 @@ func (e *Engine) search(b *rules.Board, dl Deadline, maxDepth int, soft bool) (r
 			break
 		}
 		best, bestMove, completed = score, move, depth
-		// Snapshot the pv here: a later partially searched iteration would
-		// otherwise wipe it while its root choice is discarded anyway.
 		stats.PV = e.pv[0]
 		stats.PVLen = e.pvLen[0]
 		if score >= config.EvalMateMax-config.EvalMateScoreStep {
@@ -152,11 +123,6 @@ func (e *Engine) search(b *rules.Board, dl Deadline, maxDepth int, soft bool) (r
 	return bestMove, stats
 }
 
-// fallbackMove is a legal move computed before any searching, so the clock
-// contract holds at any budget: the engine always answers with a legal move.
-// It answers with the best-ordered candidate, never the raw enumeration's
-// first cell, so even a fully starved turn plays the strongest known shape
-// (under a live four, the restriction leaves exactly the forced answers).
 func (e *Engine) fallbackMove(b *rules.Board) rules.Move {
 	n := e.generate(b, 0, moveNone)
 	pickMax(e.moves[0][:n], e.scores[0][:n], 0, n)
@@ -225,12 +191,6 @@ func (e *Engine) searchRoot(b *rules.Board, depth int, dl Deadline) (int, rules.
 	return best, bestMove
 }
 
-// negamax is fail-soft alpha-beta with principal variation search. Terminal
-// detection is exact through the rules package: FastLastMoveWin after each
-// make, draw on the full board. Forced defense extension: when the opponent
-// of the side to move holds a four or open four window, this node has a
-// single minded answer and depth grows by one, bounded by the per path
-// extension budget.
 func (e *Engine) negamax(b *rules.Board, depth int, alpha, beta int, ply int, extLeft int, dl Deadline) int {
 	e.nodes++
 	if e.nodeCheck--; e.nodeCheck <= 0 {
@@ -242,11 +202,7 @@ func (e *Engine) negamax(b *rules.Board, depth int, alpha, beta int, ply int, ex
 	if e.stopped {
 		return 0
 	}
-
-	// Reset on entry: leaves, hash cutoffs, and every other early return
-	// leave this ply's length zero, so a parent never copies a stale line.
 	e.pvLen[ply] = 0
-
 	if extLeft > 0 && e.eval.fours[b.Side^1] > 0 {
 		depth++
 		extLeft--
@@ -254,7 +210,6 @@ func (e *Engine) negamax(b *rules.Board, depth int, alpha, beta int, ply int, ex
 	if depth <= 0 || ply >= config.SearchMaxPly {
 		return e.eval.eval(b.Side)
 	}
-
 	ttm := moveNone
 	if e.tt.enabled() {
 		e.ttProbes++
@@ -267,7 +222,6 @@ func (e *Engine) negamax(b *rules.Board, depth int, alpha, beta int, ply int, ex
 			ttm = rules.Move(m)
 		}
 	}
-
 	n := e.generate(b, ply, ttm)
 	best, bestMove := -(config.EvalMateMax + 1), moveNone
 	a0 := alpha

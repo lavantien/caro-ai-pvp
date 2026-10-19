@@ -65,6 +65,7 @@ type Tier struct {
 	Book          bool
 	BookMaxPly    int
 	PonderThreads int
+	EvalWeights   *[PatternClassCount]int
 }
 
 var (

@@ -516,9 +516,9 @@ func newBotSearcher(t config.Tier) searcher {
 	}
 	var inner searcher
 	if t.Cores > 1 {
-		inner = tierSearcher{smp: engine.NewTiered(t)}
+		inner = tierSearcher{smp: engine.NewTieredEval(t, t.EvalWeights)}
 	} else {
-		inner = singleSearcher{e: engine.New(t.TTBytes)}
+		inner = singleSearcher{e: engine.NewEval(t.TTBytes, t.EvalWeights)}
 	}
 	if t.VCF || t.VCT {
 		s := &solverSearcher{inner: inner, cores: t.Cores}

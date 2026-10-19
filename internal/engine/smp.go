@@ -72,6 +72,16 @@ func NewTiered(t config.Tier) *SMP {
 	return newSMPPonder(t.Cores, t.TTBytes, t.PonderThreads)
 }
 
+func NewTieredEval(t config.Tier, w *[config.PatternClassCount]int) *SMP {
+	s := newSMPPonder(t.Cores, t.TTBytes, t.PonderThreads)
+	if w != nil {
+		for _, wk := range s.workers {
+			wk.eval.w = w
+		}
+	}
+	return s
+}
+
 func newSMP(workers int, ttBytes int64) *SMP {
 	return newSMPPonder(workers, ttBytes, workers)
 }

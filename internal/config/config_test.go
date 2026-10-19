@@ -174,6 +174,9 @@ func TestTiersMatchSpec(t *testing.T) {
 	wantBook := map[string]int{"easy": 0, "medium": 0, "hard": 0, "master": 8, "grandmaster": 16}
 	wantBookOn := map[string]bool{"easy": false, "medium": false, "hard": false, "master": true, "grandmaster": true}
 	for i, tier := range Tiers {
+		if tier.EvalWeights != nil {
+			t.Errorf("%s eval weights = %v, shipped tiers carry nil and play on the global defaults", tier.Name, tier.EvalWeights)
+		}
 		if tier.Cores > MaxCoresPerInstance {
 			t.Errorf("%s cores %d exceeds MaxCoresPerInstance %d", tier.Name, tier.Cores, MaxCoresPerInstance)
 		}
@@ -701,8 +704,8 @@ func TestServerConstants(t *testing.T) {
 	if len(AdminName) > UsernameMaxBytes {
 		t.Errorf("AdminName %d bytes over the UsernameMaxBytes ceiling %d", len(AdminName), UsernameMaxBytes)
 	}
-	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 10 {
-		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 10]: raise the ceiling with the next migration", SQLiteSchemaVersion)
+	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 11 {
+		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 11]: raise the ceiling with the next migration", SQLiteSchemaVersion)
 	}
 	if SQLiteBusyTimeoutMs < 1000 || SQLiteBusyTimeoutMs > 60000 {
 		t.Errorf("SQLiteBusyTimeoutMs = %d, want in [1000, 60000]", SQLiteBusyTimeoutMs)

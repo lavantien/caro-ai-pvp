@@ -6,11 +6,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// classPairs packs both mover views of one packed window into a byte: the
-// red-relative class in the low 3 bits, the blue-relative class (the state
-// swapped view) in the high bits. Built once at package init from the pattern
-// tables, which are direction independent by the pinned reversal and
-// transposition invariants of internal/pattern.
 var classPairs [config.PatternTableEntries]uint8
 
 func init() {
@@ -25,48 +20,41 @@ const cellStateMask = 1<<config.PatternCellBits - 1
 
 const windowHalf = (config.PatternWindowLen - 1) / 2
 
-// evaluator keeps the pattern table view of the position in sync with the
-// board incrementally. A stone placed at cell x changes exactly the windows
-// containing x: PatternDirections lines through x, PatternWindowLen centers
-// each, 36 windows total. For every such window the evaluator stores the
-// red-relative packed index and its packed class pair, so a make derives the
-// new index by setting the placed stone's two state bits and reads a single
-// class pair load, and an unmake clears the bits again, with no pattern
-// calls and no per-ply save buffer.
-//
-// Three aggregates ride the same 36-window pass:
-//   - score per color: sum of window class weights, the leaf evaluation
-//   - cell per color: the same sum restricted to the 4 windows centered on a
-//     cell, the static move ordering score (threat plus denial value)
-//   - fours per color: window count at class Four or above, the forced
-//     defense trigger of the threat extension
 type evaluator struct {
 	win   [config.PatternDirections][config.BoardCells]uint32
 	wpair [config.PatternDirections][config.BoardCells]uint8
 	score [2]int
 	cell  [2][config.BoardCells]int
 	fours [2]int
+	w     *[config.PatternClassCount]int
 }
 
-// swapStates maps a red-relative packed index to the blue-relative one:
-// Own and Opp exchange their two-bit codes, Empty and Off stay fixed.
+func (ev *evaluator) weights() *[config.PatternClassCount]int {
+	if ev.w != nil {
+		return ev.w
+	}
+	return &config.PatternClassWeights
+}
+
 func swapStates(idx uint32) uint32 {
 	const evenBits = 0b010101010101010101
 	return idx&evenBits<<1 | idx>>1&evenBits
 }
 
 func (ev *evaluator) reset(b *rules.Board) {
-	*ev = evaluator{}
+	w := ev.w
+	*ev = evaluator{w: w}
+	cw := ev.weights()
 	for d := range config.PatternDirections {
 		for cell := range config.BoardCells {
 			red := pattern.Index(b, rules.Cell(cell), d, rules.Red)
 			pair := classPairs[red]
 			ev.win[d][cell] = red
 			ev.wpair[d][cell] = pair
-			ev.score[rules.Red] += int(config.PatternClassWeights[pair&7])
-			ev.score[rules.Blue] += int(config.PatternClassWeights[pair>>3])
-			ev.cell[rules.Red][cell] += int(config.PatternClassWeights[pair&7])
-			ev.cell[rules.Blue][cell] += int(config.PatternClassWeights[pair>>3])
+			ev.score[rules.Red] += int(cw[pair&7])
+			ev.score[rules.Blue] += int(cw[pair>>3])
+			ev.cell[rules.Red][cell] += int(cw[pair&7])
+			ev.cell[rules.Blue][cell] += int(cw[pair>>3])
 			if pair&7 >= config.PatternClassFour {
 				ev.fours[rules.Red]++
 			}
@@ -82,8 +70,9 @@ func (ev *evaluator) eval(side rules.Color) int {
 }
 
 func (ev *evaluator) applyWindow(center int, beforePair, afterPair uint8) {
-	redDelta := int(config.PatternClassWeights[afterPair&7]) - int(config.PatternClassWeights[beforePair&7])
-	blueDelta := int(config.PatternClassWeights[afterPair>>3]) - int(config.PatternClassWeights[beforePair>>3])
+	cw := ev.weights()
+	redDelta := int(cw[afterPair&7]) - int(cw[beforePair&7])
+	blueDelta := int(cw[afterPair>>3]) - int(cw[beforePair>>3])
 	if redDelta != 0 {
 		ev.score[rules.Red] += redDelta
 		ev.cell[rules.Red][center] += redDelta
@@ -108,8 +97,6 @@ func (ev *evaluator) applyWindow(center int, beforePair, afterPair uint8) {
 	}
 }
 
-// makeMove folds a stone into the window tables. The state bits are set
-// relative to red: Own for a red stone, Opp for a blue one.
 func (ev *evaluator) makeMove(color rules.Color, cell rules.Cell) {
 	state := uint32(config.PatternStateOpp)
 	if color == rules.Red {
@@ -134,8 +121,6 @@ func (ev *evaluator) makeMove(color rules.Color, cell rules.Cell) {
 	}
 }
 
-// unmakeMove is the exact inverse: the placed field returns to Empty and the
-// window deltas reverse. Color independent, clearing works for both codes.
 func (ev *evaluator) unmakeMove(cell rules.Cell) {
 	r, c := int(cell)/config.BoardStride, int(cell)%config.BoardStride
 	for d := range config.PatternDirections {
