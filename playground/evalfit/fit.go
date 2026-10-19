@@ -21,6 +21,7 @@ const (
 	gdStallWindow         = 500
 	gdStallEps            = 1e-12
 	pClamp                = 1e-15
+	intProjectPad         = 5
 )
 
 type gdOptions struct {
@@ -85,6 +86,14 @@ func clampP(p float64) float64 {
 	return p
 }
 
+func sigmoid(x float64) float64 {
+	if x >= 0 {
+		return 1 / (1 + math.Exp(-x))
+	}
+	e := math.Exp(x)
+	return e / (1 + e)
+}
+
 func (d fitData) lossGrad(w [5]float64, s float64, wantGrad bool) (float64, [5]float64, float64) {
 	var dw [5]float64
 	if d.Total == 0 || s <= 0 || math.IsNaN(s) {
@@ -123,6 +132,60 @@ func (d fitData) lossAt(w [5]float64, s float64) float64 {
 
 func evalLoss(samples []sample, w [5]float64, s float64) float64 {
 	return aggregateFit(samples).lossAt(w, s)
+}
+
+func projectMonotoneInt(w [5]float64) [5]int64 {
+	lo, hi := w[0], w[0]
+	for _, x := range w {
+		lo = math.Min(lo, x)
+		hi = math.Max(hi, x)
+	}
+	first := int(math.Floor(lo)) - intProjectPad
+	levels := int(math.Ceil(hi)) + intProjectPad - first + 1
+	cost := make([]float64, levels)
+	for v := range cost {
+		cost[v] = math.Abs(w[0] - float64(first+v))
+	}
+	parents := make([][]int, len(w)-1)
+	for i := 1; i < len(w); i++ {
+		parent := make([]int, levels)
+		next := make([]float64, levels)
+		next[0] = math.Inf(1)
+		best := math.Inf(1)
+		bestIdx := -1
+		for v := 1; v < levels; v++ {
+			if cost[v-1] < best {
+				best = cost[v-1]
+				bestIdx = v - 1
+			}
+			parent[v] = bestIdx
+			next[v] = math.Abs(w[i]-float64(first+v)) + best
+		}
+		parents[i-1] = parent
+		cost = next
+	}
+	v := 0
+	for j := 1; j < levels; j++ {
+		if cost[j] < cost[v] {
+			v = j
+		}
+	}
+	var out [5]int64
+	for i := len(w) - 1; i >= 0; i-- {
+		out[i] = int64(first + v)
+		if i > 0 {
+			v = parents[i-1][v]
+		}
+	}
+	return out
+}
+
+func maxIntDrift(w [5]float64, v [5]int64) float64 {
+	d := 0.0
+	for i := range w {
+		d = math.Max(d, math.Abs(w[i]-float64(v[i])))
+	}
+	return d
 }
 
 func weightsFromU(u [5]float64) [5]float64 {

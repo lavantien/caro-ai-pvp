@@ -8,14 +8,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-func sigmoid(x float64) float64 {
-	if x >= 0 {
-		return 1 / (1 + math.Exp(-x))
-	}
-	e := math.Exp(x)
-	return e / (1 + e)
-}
-
 func genSynthetic(rng *rand.Rand, patterns, draws int, w [5]float64, s float64) []sample {
 	loud := [5]int{8, 4, 4, 2, 1}
 	quiet := [5]int{3, 1, 1, 0, 0}
@@ -105,6 +97,74 @@ func TestFitScaleOnly(t *testing.T) {
 	res := fitScaleGD(aggregateFit(samples), w, defaultGDOptions(), rng)
 	if rel := math.Abs(res.S-3000) / 3000; rel > 0.15 {
 		t.Fatalf("scale = %.1f, want 3000 within 15 percent (rel %.3f)", res.S, rel)
+	}
+}
+
+func greedyMonotoneInt(w [5]float64) [5]int64 {
+	var out [5]int64
+	prev := int64(0)
+	for i := range w {
+		v := int64(math.Round(w[i]))
+		if v <= prev {
+			v = prev + 1
+		}
+		out[i], prev = v, v
+	}
+	return out
+}
+
+func l1Drift(w [5]float64, v [5]int64) float64 {
+	sum := 0.0
+	for i := range w {
+		sum += math.Abs(w[i] - float64(v[i]))
+	}
+	return sum
+}
+
+func intsAsFloats(v [5]int64) [5]float64 {
+	var out [5]float64
+	for i, x := range v {
+		out[i] = float64(x)
+	}
+	return out
+}
+
+func TestProjectMonotoneIntClustered(t *testing.T) {
+	w := [5]float64{483.2, 483.4, 483.6, 483.8, 484.0}
+	got := projectMonotoneInt(w)
+	want := [5]int64{482, 483, 484, 485, 486}
+	if got != want {
+		t.Fatalf("projection = %v, want %v", got, want)
+	}
+	assertStrictlyAscending(t, intsAsFloats(got))
+	if drift := maxIntDrift(w, got); math.Abs(drift-2) > 1e-9 {
+		t.Fatalf("max drift = %v, want 2", drift)
+	}
+	if cost := l1Drift(w, got); math.Abs(cost-5.2) > 1e-9 {
+		t.Fatalf("l1 cost = %v, want 5.2", cost)
+	}
+	g := greedyMonotoneInt(w)
+	if g != [5]int64{483, 484, 485, 486, 487} {
+		t.Fatalf("greedy baseline = %v, want the cascaded push", g)
+	}
+	if maxIntDrift(w, g) <= maxIntDrift(w, got) {
+		t.Fatalf("projection max drift %v must beat greedy %v", maxIntDrift(w, got), maxIntDrift(w, g))
+	}
+}
+
+func TestProjectMonotoneIntNeverLosesToGreedy(t *testing.T) {
+	rng := rand.New(rand.NewSource(14))
+	for range 200 {
+		var w [5]float64
+		w[0] = 1 + rng.Float64()*3000
+		for i := 1; i < len(w); i++ {
+			w[i] = w[i-1] + 0.05 + rng.Float64()*1.5
+		}
+		dp := projectMonotoneInt(w)
+		assertStrictlyAscending(t, intsAsFloats(dp))
+		if l1Drift(w, dp) > l1Drift(w, greedyMonotoneInt(w))+1e-9 {
+			t.Fatalf("projection l1 cost %v exceeds greedy on %v", l1Drift(w, dp), w)
+		}
 	}
 }
 

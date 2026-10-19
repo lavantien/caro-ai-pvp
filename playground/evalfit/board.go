@@ -14,6 +14,41 @@ type sample struct {
 	Y      float64
 }
 
+type seat struct {
+	Name string
+	Tier string
+}
+
+type gameMove struct {
+	Color rules.Color
+	Cell  rules.Cell
+}
+
+type gameOutcome uint8
+
+const (
+	outcomeDraw gameOutcome = iota
+	outcomeRedWin
+	outcomeBlueWin
+)
+
+func (o gameOutcome) winner() (rules.Color, bool) {
+	switch o {
+	case outcomeRedWin:
+		return rules.Red, true
+	case outcomeBlueWin:
+		return rules.Blue, true
+	}
+	return 0, false
+}
+
+type parsedGame struct {
+	Red     seat
+	Blue    seat
+	Outcome gameOutcome
+	Moves   []gameMove
+}
+
 func featureVector(b *rules.Board, mover rules.Color) [5]int32 {
 	var red, blue [config.PatternClassCount]int32
 	for d := range config.PatternDirections {
