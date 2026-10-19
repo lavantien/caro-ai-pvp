@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -156,6 +157,27 @@ func TestMLineMatchesBotLogFormat(t *testing.T) {
 	}
 	if got := MLine(cases[1].num, cases[1].side, mustMove(t, cases[1].move), cases[1].st, ""); got[len(got)-3:] != "pv=" {
 		t.Errorf("empty PV must leave a bare trailing pv=, got %q", got)
+	}
+}
+
+func TestMoveStatTagNameStripsDerivedDecoration(t *testing.T) {
+	cases := []struct{ tag, want string }{
+		{config.BotLogTagVCF, "VCF"},
+		{config.BotLogTagVCT, "VCT"},
+		{config.BotLogTagPonder, "PONDER"},
+		{config.BotLogTagBook, "BOOK"},
+		{"", ""},
+		{"bare", "bare"},
+	}
+	for _, c := range cases {
+		if got := (MoveStat{Tag: c.tag}).TagName(); got != c.want {
+			t.Errorf("TagName(%q) = %q, want %q", c.tag, got, c.want)
+		}
+	}
+	if !strings.HasPrefix(config.BotLogTagVCF, botLogTagPrefix) ||
+		!strings.HasSuffix(config.BotLogTagVCF, "]") ||
+		!strings.HasSuffix(botLogTagPrefix, "[") {
+		t.Fatalf("derived prefix %q no longer decorates %q", botLogTagPrefix, config.BotLogTagVCF)
 	}
 }
 

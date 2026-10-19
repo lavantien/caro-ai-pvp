@@ -556,8 +556,10 @@ type MoveStat struct {
 	Tag        string
 }
 
+var botLogTagPrefix = config.BotLogTagVCF[:strings.IndexByte(config.BotLogTagVCF, '[')+1]
+
 func (m MoveStat) TagName() string {
-	return strings.TrimSuffix(strings.TrimPrefix(m.Tag, ", ["), "]")
+	return strings.TrimSuffix(strings.TrimPrefix(m.Tag, botLogTagPrefix), "]")
 }
 
 func (r *Room) startBotWorker() {
