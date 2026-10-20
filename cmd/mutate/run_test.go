@@ -508,6 +508,87 @@ func TestGoEnvOverrides(t *testing.T) {
 	}
 }
 
+type failingReader struct {
+	data []byte
+	err  error
+	done bool
+}
+
+func (r *failingReader) Read(p []byte) (int, error) {
+	if !r.done {
+		r.done = true
+		n := copy(p, r.data)
+		return n, nil
+	}
+	return 0, r.err
+}
+
+func TestLoadResumeLogReadFailure(t *testing.T) {
+	_, err := loadResumeLog(&failingReader{data: []byte("a.go:1:1 d KILLED\n"), err: errors.New("disk gone")})
+	if err == nil || !strings.Contains(err.Error(), "disk gone") {
+		t.Errorf("loadResumeLog(failing reader) err = %v, want the read failure", err)
+	}
+}
+
+func TestExecuteMutantsDeferredRestoreDriftSurfaces(t *testing.T) {
+	dir := t.TempDir()
+	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	bystander := filepath.Join(dir, "b.txt")
+	mustWrite(t, bystander, "not go source\n")
+	store := newFileStore()
+	if err := store.snapshot([]string{path, bystander}); err != nil {
+		t.Fatalf("snapshot err = %v", err)
+	}
+	if err := os.Remove(bystander); err != nil {
+		t.Fatal(err)
+	}
+	_, _, _, _, err := executeMutants(context.Background(), &strings.Builder{}, dir, ms, store, &fakeRunner{}, nil, nil, false)
+	if err == nil {
+		t.Fatal("executeMutants(drifted snapshot) err = nil, want the deferred restore failure")
+	}
+}
+
+type baselineThenInfraRunner struct {
+	calls int
+}
+
+func (r *baselineThenInfraRunner) runTest(context.Context, string) error {
+	r.calls++
+	if r.calls == 1 {
+		return nil
+	}
+	return errors.New("exec: sh: not found")
+}
+
+func TestRunMutationMutantPhaseInfraErrorPropagates(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module probe\n\ngo 1.27\n",
+		"a.go":   "package probe\n\nfunc F(a int) int {\n\treturn a + 1\n}\n",
+	})
+	r := &baselineThenInfraRunner{}
+	res, err := runMutation(context.Background(), &strings.Builder{}, dir, []string{"."}, t.TempDir(), r, nil, nil, false)
+	if err == nil || !strings.Contains(err.Error(), "infra failure") {
+		t.Fatalf("runMutation(infra mid-gate) err = %v, want the infra failure", err)
+	}
+	if res.total == 0 || res.run != 1 {
+		t.Errorf("total/run = %d/%d, want the first mutant attempted", res.total, res.run)
+	}
+}
+
+func TestDiscoverDeduplicatesRepeatedPattern(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module probe\n\ngo 1.27\n",
+		"a.go":   "package probe\n\nfunc F(a int) int {\n\treturn a + 1\n}\n",
+	})
+	targets, err := discover(context.Background(), dir, []string{"./...", "."}, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 1 {
+		t.Fatalf("discover(overlapping patterns) = %d targets, want 1", len(targets))
+	}
+}
+
 func TestRunCLIRemovesPrivateCache(t *testing.T) {
 	before := len(cacheDirs(t))
 	dir := writeModule(t, map[string]string{

@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -64,5 +65,18 @@ func TestTreeCapAttachesLiveJob(t *testing.T) {
 	release()
 	if werr != nil {
 		t.Errorf("capped benign child Wait err = %v, want nil", werr)
+	}
+}
+
+func TestTreeCapExitedProcessFailsClosed(t *testing.T) {
+	cmd := exec.Command("cmd", "/c", "exit 0")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("Start err = %v", err)
+	}
+	if werr := cmd.Wait(); werr != nil {
+		t.Fatalf("helper Wait err = %v", werr)
+	}
+	if _, err := capStartedTree(cmd, config.MutateTreeMemCapBytes); err == nil || !strings.Contains(err.Error(), "open pid") {
+		t.Fatalf("capStartedTree(exited process) err = %v, want the open failure", err)
 	}
 }

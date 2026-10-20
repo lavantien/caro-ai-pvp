@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -287,5 +288,206 @@ func TestConfirmInterruptIsNotAKill(t *testing.T) {
 	}
 	if strings.Contains(out.String(), " KILLED\n") {
 		t.Errorf("canceled confirm suite classified as killed:\n%s", out.String())
+	}
+}
+
+func TestRewriteMutantsLeavesAlienPaths(t *testing.T) {
+	ms := []mutation{{file: filepath.Join("rel", "a.go"), line: 1, col: 2, desc: "d"}}
+	got := rewriteMutants(ms, t.TempDir(), t.TempDir())
+	if got[0].file != ms[0].file {
+		t.Errorf("rewrite moved an alien path: %q, want %q", got[0].file, ms[0].file)
+	}
+}
+
+func TestParallelDiscoverFailurePropagates(t *testing.T) {
+	dirs := []string{writeModule(t, map[string]string{"go.mod": "module probe\nbroken {\n"}), t.TempDir()}
+	_, err := runMutationParallel(context.Background(), &strings.Builder{}, dirs, []string{"./..."}, t.TempDir(),
+		func(string) runner { return &scriptedRunner{} }, nil, nil, false)
+	if err == nil || !strings.Contains(err.Error(), "go list") {
+		t.Fatalf("runMutationParallel(broken module) err = %v, want the go list failure", err)
+	}
+}
+
+func TestParallelBaselineFailurePropagates(t *testing.T) {
+	dirs, _ := parallelFixture(t, 2, "package pa\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	_, err := runMutationParallel(context.Background(), &strings.Builder{}, dirs, []string{"./..."}, t.TempDir(),
+		func(string) runner { return &scriptedRunner{err: &exec.ExitError{}} }, nil, nil, false)
+	if err == nil || !strings.Contains(err.Error(), "baseline") {
+		t.Fatalf("runMutationParallel(red baseline) err = %v, want the baseline failure", err)
+	}
+}
+
+func TestParallelWorkerSnapshotFailureAborts(t *testing.T) {
+	dirs, _ := parallelFixture(t, 2, "package pa\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	dirs[1] = t.TempDir()
+	var out strings.Builder
+	_, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(),
+		func(string) runner { return &scriptedRunner{} }, nil, nil, false)
+	if err == nil {
+		t.Fatalf("runMutationParallel(missing worker copy) err = nil, want the aborted run:\n%s", out.String())
+	}
+	if !strings.Contains(err.Error(), "worker 1") && !strings.Contains(err.Error(), "interrupted") {
+		t.Fatalf("runMutationParallel(missing worker copy) err = %v, want the worker snapshot failure or its cancel:\n%s", err, out.String())
+	}
+}
+
+func TestParallelConfirmPassInfraErrorFails(t *testing.T) {
+	dirs, _ := parallelFixture(t, 2, "package pa\n\nfunc F() bool {\n\treturn true\n}\n")
+	var mu sync.Mutex
+	invocations := map[string]int{}
+	newRunner := func(dir string) runner {
+		mu.Lock()
+		invocations[dir]++
+		n := invocations[dir]
+		mu.Unlock()
+		if dir == dirs[0] && n >= 3 {
+			return &infraRunner{}
+		}
+		return &scriptedRunner{}
+	}
+	var out strings.Builder
+	_, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), newRunner, nil, nil, false)
+	if err == nil || !strings.Contains(err.Error(), "infra failure reverifying") {
+		t.Fatalf("runMutationParallel(confirm infra) err = %v, want the reverify failure:\n%s", err, out.String())
+	}
+}
+
+func TestParallelUnusedAllowFails(t *testing.T) {
+	dirs, _ := parallelFixture(t, 2, "package pa\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	allows := allowlist{"nope.go:1:1 replace 1 with 2": "stale proof for a mutant that no longer exists"}
+	var mu sync.Mutex
+	invocations := map[string]int{}
+	newRunner := func(dir string) runner {
+		mu.Lock()
+		invocations[dir]++
+		n := invocations[dir]
+		mu.Unlock()
+		if dir == dirs[0] && n == 1 {
+			return &scriptedRunner{}
+		}
+		return &scriptedRunner{err: &exec.ExitError{}}
+	}
+	var out strings.Builder
+	_, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), newRunner, allows, nil, false)
+	if err == nil || !strings.Contains(err.Error(), "nope.go") {
+		t.Fatalf("runMutationParallel(unused allowance) err = %v, want the unused-allow failure:\n%s", err, out.String())
+	}
+}
+
+func TestParallelChallengeResolveInfraErrorFails(t *testing.T) {
+	src := "package pa\n\nfunc F() bool {\n\treturn true\n}\n"
+	dirs, ms := parallelFixture(t, 2, src)
+	if len(ms) != 1 {
+		t.Fatalf("fixture yielded %d mutants, want exactly 1", len(ms))
+	}
+	allows := allowlist{ms[0].key(dirs[0]): "proof under test"}
+	var mu sync.Mutex
+	invocations := map[string]int{}
+	newRunner := func(dir string) runner {
+		mu.Lock()
+		invocations[dir]++
+		n := invocations[dir]
+		mu.Unlock()
+		if dir == dirs[0] && n == 1 {
+			return &scriptedRunner{}
+		}
+		if dir == dirs[0] && n >= 3 {
+			return &infraRunner{}
+		}
+		return &scriptedRunner{err: &exec.ExitError{}}
+	}
+	var out strings.Builder
+	_, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), newRunner, allows, nil, true)
+	if !strings.Contains(out.String(), " CHALLENGED\n") {
+		t.Fatalf("missing challenged verdict:\n%s", out.String())
+	}
+	if err == nil || !strings.Contains(err.Error(), "infra failure reverifying") {
+		t.Fatalf("runMutationParallel(resolve infra) err = %v, want the reverify failure:\n%s", err, out.String())
+	}
+}
+
+func TestReverifySeriallySnapshotFailure(t *testing.T) {
+	dir := t.TempDir()
+	ms := []mutation{{file: filepath.Join(dir, "missing.go"), pkg: "p", line: 1, col: 1, desc: "d", edits: []edit{{start: 0, end: 1, repl: "x"}}}}
+	if err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{}, nil); err == nil {
+		t.Error("reverifySerially(missing file) err = nil, want the snapshot failure")
+	}
+}
+
+func TestReverifySeriallyInterruptedBeforeLoop(t *testing.T) {
+	dir := t.TempDir()
+	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := reverifySerially(ctx, dir, ms, &scriptedRunner{}, nil)
+	if err == nil || !errors.Is(err, errInterrupted) {
+		t.Errorf("reverifySerially(dead ctx) err = %v, want interrupted", err)
+	}
+	if got, rerr := os.ReadFile(path); rerr != nil || !strings.Contains(string(got), "package p") {
+		t.Errorf("file mutated despite the interrupt: %q, err %v", got, rerr)
+	}
+}
+
+func TestReverifySeriallyBadEdits(t *testing.T) {
+	dir := t.TempDir()
+	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	ms[0].edits = []edit{{start: 99, end: 100, repl: "x"}}
+	err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "bad or overlapping edit") {
+		t.Errorf("reverifySerially(bad edits) err = %v, want the edit failure", err)
+	}
+	if got, rerr := os.ReadFile(path); rerr != nil || !strings.Contains(string(got), "package p") {
+		t.Errorf("file mutated despite the edit failure: %q, err %v", got, rerr)
+	}
+}
+
+func TestReverifySeriallyMutantWriteFails(t *testing.T) {
+	dir := t.TempDir()
+	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	if err := os.Chmod(path, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
+	if err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{}, nil); err == nil {
+		t.Error("reverifySerially(read-only target) err = nil, want the mutant write failure")
+	}
+}
+
+func TestReverifySeriallyRestoreWriteFails(t *testing.T) {
+	dir := t.TempDir()
+	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	r := &fakeRunner{onCall: func(context.Context) {
+		if err := os.Remove(path); err != nil {
+			t.Errorf("Remove err = %v", err)
+		}
+		if err := os.Mkdir(path, 0o755); err != nil {
+			t.Errorf("Mkdir err = %v", err)
+		}
+	}}
+	if err := reverifySerially(context.Background(), dir, ms, r, nil); err == nil {
+		t.Error("reverifySerially(restore unwritable) err = nil, want the write failure")
+	}
+}
+
+func TestReverifySeriallyInterruptAfterTest(t *testing.T) {
+	dir := t.TempDir()
+	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	ctx, cancel := context.WithCancel(context.Background())
+	r := &fakeRunner{onCall: func(context.Context) { cancel() }}
+	err := reverifySerially(ctx, dir, ms, r, nil)
+	if err == nil || !errors.Is(err, errInterrupted) {
+		t.Errorf("reverifySerially(cancel after test) err = %v, want interrupted", err)
+	}
+	if got, rerr := os.ReadFile(path); rerr != nil || !strings.Contains(string(got), "package p") {
+		t.Errorf("file not restored after the interrupt: %q, err %v", got, rerr)
+	}
+}
+
+func TestReverifySeriallyInfraErrorVoidsVerdict(t *testing.T) {
+	dir := t.TempDir()
+	_, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	err := reverifySerially(context.Background(), dir, ms, &infraRunner{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "infra failure reverifying") {
+		t.Errorf("reverifySerially(infra runner) err = %v, want the infra failure", err)
 	}
 }
