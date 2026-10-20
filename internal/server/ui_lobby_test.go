@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -259,6 +260,43 @@ func TestLobbyQuickStartForm(t *testing.T) {
 	}
 	if !strings.Contains(guest, "login / create") || !strings.Contains(guest, `href="/login"`) {
 		t.Error("guest lobby missing the login / create line")
+	}
+}
+
+func TestLobbyQuickStartCreateErrorRendersLobby(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	mux := http.NewServeMux()
+	NewLobbyPages(s.store, s.rm).Mount(mux)
+	mux.Handle("/", NewShellPages(s.store, s.rm, nil))
+	post := func(form url.Values) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/rooms", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.AddCookie(lobbyCookieFor(t, s.store, alice))
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+	rec := post(url.Values{"tc": {"99"}, "bo": {"3"}, "origin": {"lobby"}})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("lobby-origin create = %d, want 400", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "invalid room settings, pick from the lists") {
+		t.Error("lobby-origin create misses the inline error line")
+	}
+	if !strings.Contains(body, `<legend>quick start</legend>`) || !strings.Contains(body, `aria-label="lobby"`) {
+		t.Error("lobby-origin create re-rendered a page other than the lobby")
+	}
+	if strings.Contains(body, `<legend>create room</legend>`) {
+		t.Error("lobby-origin create fell back to the home form legend")
+	}
+	rec = post(url.Values{"tc": {"99"}, "bo": {"3"}})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("originless create = %d, want 400", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), `<legend>create room</legend>`) {
+		t.Error("originless create lost the home render")
 	}
 }
 

@@ -17,6 +17,7 @@
 <form class="actions quick" method="post" action="/rooms">
 <fieldset>
 <legend>quick start</legend>
+<input type="hidden" name="origin" value="lobby">
 <span class="tcchips">{{range .TCOptions}}<label class="tcchip"><input type="radio" name="tc" value="{{.Value}}"{{if .Selected}} checked{{end}}><span>{{.Label}}</span></label>{{end}}</span>
 <label>best of<select name="bo">{{range .BOOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
 <label>opponent<select name="bot">{{range .BotOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select></label>

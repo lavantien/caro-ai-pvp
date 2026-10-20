@@ -1,14 +1,5 @@
 package server
 
-// The M6b shell UI over the landed M6a backend: the login, home, and
-// match-history pages of first-cause.md Scenario 1, server-rendered from
-// the same store and room manager the JSON API reads. html/template with
-// embedded templates, htmx only where a partial swap earns its keep (the
-// cross-room grid poll), plain form POSTs everywhere else so the shell
-// works without any JavaScript. The room view and the playback board are
-// the M6b room-page agent's pages: this shell only links into them by
-// path contract (/rooms/{id} and /rooms/history/{gameID}), 404 or not.
-
 import (
 	"bytes"
 	"context"
@@ -30,26 +21,11 @@ import (
 //go:embed web/templates
 var shellTmplFS embed.FS
 
-// shellCSS is the one stylesheet the shell pages own, served at
-// /shell.css. It lives beside the vendored htmx tree but outside it (the
-// vendor dir stays the exact pinned distribution), and it ships in the
-// binary, so no-cache revalidation keeps a redeploy from serving stale
-// style under the same URL.
-//
 //go:embed web/shell.css
 var shellCSS []byte
 
-// The rooms grid polls its partial at config.PagePollMs. The grid
-// aggregates every live room while the SSE hub streams per-room events, so
-// one cheap manager snapshot per viewer beats wiring a cross-room fan-out
-// topic or one stream per room; polling is the simple correct tool here.
-
-// historyTimeFormat renders the play stamp dense and sortable, UTC so the
-// line never depends on the server's locale.
 const historyTimeFormat = "2006-01-02 15:04"
 
-// shellPage parses the base layout, the shared rooms fragment, and one
-// page template; every page defines "content" on top of "base".
 func shellPage(page string) *template.Template {
 	return template.Must(template.ParseFS(shellTmplFS,
 		"web/templates/base.tmpl", "web/templates/rooms.tmpl", "web/templates/"+page))
@@ -62,31 +38,12 @@ var (
 	roomsTmpl   = template.Must(template.ParseFS(shellTmplFS, "web/templates/rooms.tmpl"))
 )
 
-// shellPages carries the backend dependencies the pages read: the
-// auth/rating/history store, the live-room manager (the same pair the JSON
-// API rides), and the tourney service behind the home banner.
 type shellPages struct {
 	store   *Store
 	rooms   *RoomManager
 	tourney TourneyService
 }
 
-// NewShellPages builds the M6b shell UI over store, rooms, and the tourney
-// service whose ongoing run the home banner reads (nil: no banner):
-//
-//	GET  /{$}                 home: stats line, rooms grid, create room, M7 stub
-//	GET  /login               the login/create form
-//	POST /login               form login; the same session cookie as /api/login
-//	POST /logout              drops the session and expires the cookie
-//	GET  /history             the match history tab (guests bounce to /login)
-//	GET  /partials/rooms      the rooms grid fragment the home page polls
-//	POST /rooms               the create-room form submit (guests bounce)
-//	GET  /shell.css           the one stylesheet the shell pages own
-//	GET  /manifest.webmanifest, /sw.js, /offline.html
-//	                        the PWA install shell (ui_pwa.go)
-//
-// The returned handler is a ServeMux of exact patterns, so it mounts whole
-// or pattern by pattern under the API mux.
 func NewShellPages(store *Store, rooms *RoomManager, tour TourneyService) http.Handler {
 	p := &shellPages{store: store, rooms: rooms, tourney: tour}
 	mux := http.NewServeMux()
@@ -96,8 +53,6 @@ func NewShellPages(store *Store, rooms *RoomManager, tour TourneyService) http.H
 	mux.HandleFunc("POST /logout", p.handleLogout)
 	mux.HandleFunc("GET /history", p.handleHistory)
 	mux.HandleFunc("GET /partials/rooms", p.handleRoomsPartial)
-	// The collection URL is the home grid: only the form POST lives here,
-	// so a typed GET lands on home instead of a bare 405.
 	mux.HandleFunc("GET /rooms", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
@@ -107,9 +62,6 @@ func NewShellPages(store *Store, rooms *RoomManager, tour TourneyService) http.H
 	return mux
 }
 
-// shellViewer is the resolved session for the shell pages: the user id the
-// acting handlers need plus the summary line the header and home stats
-// render, from the same reads as /api/me.
 type shellViewer struct {
 	ID       int64
 	Username string
@@ -120,21 +72,14 @@ type shellViewer struct {
 	Level    int
 }
 
-// WLD renders the clickable W-L-D field into the history tab.
 func (v shellViewer) WLD() string {
 	return fmt.Sprintf("%dW-%dL-%dD", v.Wins, v.Losses, v.Draws)
 }
 
-// me resolves the request's session into the viewer line, nil for a guest.
-// An unusable token is just a guest; a store failure surfaces as an error.
 func (p *shellPages) me(r *http.Request) (*shellViewer, error) {
 	return resolveViewer(p.store, r)
 }
 
-// resolveViewer reads the request's session into the shell viewer line, the
-// shared resolver of the shell and tournament pages: nil for a guest (a
-// missing cookie, an unusable token, a dead session), a store failure as an
-// error.
 func resolveViewer(store *Store, r *http.Request) (*shellViewer, error) {
 	token, err := sessionToken(r)
 	if err != nil {
@@ -161,8 +106,6 @@ func resolveViewer(store *Store, r *http.Request) (*shellViewer, error) {
 	}, nil
 }
 
-// renderShell writes one page (or fragment): session-dependent HTML, so
-// every response is no-store.
 func renderShell(w http.ResponseWriter, status int, tmpl *template.Template, name string, data any) {
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, name, data); err != nil {
@@ -175,32 +118,24 @@ func renderShell(w http.ResponseWriter, status int, tmpl *template.Template, nam
 	_, _ = w.Write(buf.Bytes())
 }
 
-// handleShellCSS serves the shell stylesheet; session-independent bytes,
-// revalidated every fetch so a redeploy never serves stale style.
 func (p *shellPages) handleShellCSS(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/css; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	_, _ = w.Write(shellCSS)
 }
 
-// optionView is one create-room select option rendered from the config
-// hub: the form value plus the human label, and whether the setup screen
-// preselects it.
 type optionView struct {
 	Value    int
 	Label    string
 	Selected bool
 }
 
-// botOptionView is the opponent option: an empty value keeps the guest
-// seat open for a human, a tier name seats that bot.
 type botOptionView struct {
 	Value    string
 	Label    string
 	Selected bool
 }
 
-// shellTCOptions mirrors config.TimeControls into the time-control select.
 func shellTCOptions() []optionView {
 	opts := make([]optionView, len(config.TimeControls))
 	for i := range config.TimeControls {
@@ -209,7 +144,6 @@ func shellTCOptions() []optionView {
 	return opts
 }
 
-// shellBOOptions mirrors config.SeriesLengths into the best-of select.
 func shellBOOptions() []optionView {
 	opts := make([]optionView, len(config.SeriesLengths))
 	for i, bo := range config.SeriesLengths {
@@ -218,7 +152,6 @@ func shellBOOptions() []optionView {
 	return opts
 }
 
-// shellBotOptions lists the open human seat first, then every config tier.
 func shellBotOptions() []botOptionView {
 	opts := []botOptionView{{Label: "human, open seat"}}
 	for i := range config.Tiers {
@@ -229,8 +162,6 @@ func shellBotOptions() []botOptionView {
 	return opts
 }
 
-// roomCardView is one rooms-grid card: the room page link, the settings,
-// the state, both seats, and the series score once a series is under way.
 type roomCardView struct {
 	ID        string
 	ShortID   string
@@ -243,9 +174,6 @@ type roomCardView struct {
 	ShowScore bool
 }
 
-// roomViews snapshots the manager grid, resolving both seats through the
-// store; an unresolvable name falls back to the raw id so one broken
-// lookup cannot break the listing.
 func (p *shellPages) roomViews() []roomCardView {
 	infos := p.rooms.List()
 	out := make([]roomCardView, 0, len(infos))
@@ -255,9 +183,6 @@ func (p *shellPages) roomViews() []roomCardView {
 			TC: tcLabel(info.TCIdx), BO: "bo" + strconv.Itoa(info.BOLen),
 			State: info.State.String(),
 		}
-		// A bot host renders like a bot guest under the room's own naming
-		// law; seatName's numeric fallback must never leak a synthetic seat
-		// id. A same-tier bot pairing carries distinct instance names.
 		if info.HostBotName != "" {
 			v.Host = info.HostBotName
 		} else {
@@ -280,7 +205,6 @@ func (p *shellPages) roomViews() []roomCardView {
 	return out
 }
 
-// seatName resolves one seat's user id, falling back to the numeric id.
 func (p *shellPages) seatName(id int64) string {
 	u, err := p.store.UserByID(id)
 	if err != nil {
@@ -289,24 +213,17 @@ func (p *shellPages) seatName(id int64) string {
 	return u.Username
 }
 
-// tourneyBannerView is the home page's live-tournament line: the run page
-// link with the settled-series progress.
 type tourneyBannerView struct {
 	RunID int64
 	Done  int
 	Total int
 }
 
-// roomsListView is the rooms grid fragment: the cards plus the live
-// tournament banner, so both ride the one poll.
 type roomsListView struct {
 	Rooms []roomCardView
 	Live  *tourneyBannerView
 }
 
-// banner reads the ongoing run behind the tourney seam. A missing seam or
-// no live drive renders nothing; a read failure logs and renders nothing,
-// the run page stays the source of truth for the run itself.
 func (p *shellPages) banner(ctx context.Context) *tourneyBannerView {
 	if p.tourney == nil {
 		return nil
@@ -322,14 +239,10 @@ func (p *shellPages) banner(ctx context.Context) *tourneyBannerView {
 	return &tourneyBannerView{RunID: b.RunID, Done: b.Done, Total: b.Total}
 }
 
-// roomsList shapes the polled fragment.
 func (p *shellPages) roomsList(ctx context.Context) roomsListView {
 	return roomsListView{Rooms: p.roomViews(), Live: p.banner(ctx)}
 }
 
-// homeView is the home page: the viewer line (nil for a guest), the rooms
-// grid with the live-tournament banner, the create-room options rendered
-// from config, an inline create error, and the poll cadence.
 type homeView struct {
 	Me          *shellViewer
 	RoomsList   roomsListView
@@ -340,7 +253,6 @@ type homeView struct {
 	PollMs      int64
 }
 
-// handleHome renders the shell's front page for guests and members alike.
 func (p *shellPages) handleHome(w http.ResponseWriter, r *http.Request) {
 	me, err := p.me(r)
 	if err != nil {
@@ -350,9 +262,6 @@ func (p *shellPages) handleHome(w http.ResponseWriter, r *http.Request) {
 	p.renderHome(r, w, http.StatusOK, me, "")
 }
 
-// renderHome paints the home page, optionally with an inline create-room
-// error under the form. The banner read rides the request's context, so a
-// client gone mid-render cancels the store reads behind it.
 func (p *shellPages) renderHome(r *http.Request, w http.ResponseWriter, status int, me *shellViewer, createErr string) {
 	renderShell(w, status, homeTmpl, "base", homeView{
 		Me: me, RoomsList: p.roomsList(r.Context()),
@@ -361,14 +270,12 @@ func (p *shellPages) renderHome(r *http.Request, w http.ResponseWriter, status i
 	})
 }
 
-// loginView is the login/create form page.
 type loginView struct {
 	Me         *shellViewer
 	Error      string
 	MaxNameLen int
 }
 
-// handleLoginForm paints the one-form login; a live session bounces home.
 func (p *shellPages) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 	me, err := p.me(r)
 	if err != nil {
@@ -383,8 +290,6 @@ func (p *shellPages) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 		loginView{MaxNameLen: config.UsernameMaxBytes})
 }
 
-// loginMessage maps the wire error codes of the API envelope onto the
-// inline form message; anything else is a generic retry line.
 func loginMessage(code string) string {
 	switch code {
 	case codeBadCredentials:
@@ -397,10 +302,6 @@ func loginMessage(code string) string {
 	}
 }
 
-// handleLogin is the one-form auth of the spec as a server-side form POST:
-// the same LoginOrCreate and the same session cookie attributes as
-// /api/login, then onto the home page. A failure re-renders the form with
-// the message inline under the button, at the envelope's status.
 func (p *shellPages) handleLogin(w http.ResponseWriter, r *http.Request) {
 	fail := func(status int, msg string) {
 		renderShell(w, status, loginTmpl, "base",
@@ -429,9 +330,6 @@ func (p *shellPages) handleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// handleLogout mirrors /api/logout: drop the token behind the cookie,
-// expire the cookie, back to home. Without a usable cookie it still
-// succeeds, natural expiry raced.
 func (p *shellPages) handleLogout(w http.ResponseWriter, r *http.Request) {
 	if token, err := sessionToken(r); err == nil {
 		if err := Logout(p.store, token); err != nil {
@@ -445,19 +343,11 @@ func (p *shellPages) handleLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// historyGameRow couples one store MatchHistoryRow with its games.id, the
-// key of the playback link contract.
 type historyGameRow struct {
 	MatchHistoryRow
 	GameID int64
 }
 
-// matchHistoryWithIDs is the shell's history read: store.MatchHistory's
-// query plus g.id, the key of the /rooms/history/{gameID} playback link
-// contract. The shared MatchHistoryRow lacks the id (API gap reported
-// with the milestone); widening the shared row would touch every consumer,
-// so the shell owns this mirror of the query until the store lifts the id
-// itself.
 func (s *Store) matchHistoryWithIDs(userID int64) ([]historyGameRow, error) {
 	rows, err := s.db.Query(`
 SELECT g.id, g.played_at, ru.username, bu.username,
@@ -493,9 +383,6 @@ ORDER BY g.played_at DESC, g.id DESC`,
 	return out, rows.Err()
 }
 
-// historyRowView is one rendered history line: when, who vs who, the
-// series score as of that game, the full-turn count, how the game was won,
-// and the trimmed move preview linking into the playback board.
 type historyRowView struct {
 	GameID    int64
 	When      string
@@ -508,18 +395,11 @@ type historyRowView struct {
 	Truncated bool
 }
 
-// historyView is the history tab page.
 type historyView struct {
 	Me   *shellViewer
 	Rows []historyRowView
 }
 
-// handleHistory renders the match history tab: one line per game with the
-// first config.HistoryPreviewTurns full turns of stones, the ellipsis
-// past that, and the /rooms/history/{gameID} playback link (the room-page
-// agent owns that board; it may 404 until M6b lands it). A row whose
-// moves blob does not decode is skipped, not fatal, the same policy as
-// /api/history.
 func (p *shellPages) handleHistory(w http.ResponseWriter, r *http.Request) {
 	me, err := p.me(r)
 	if err != nil {
@@ -559,17 +439,19 @@ func (p *shellPages) handleHistory(w http.ResponseWriter, r *http.Request) {
 	renderShell(w, http.StatusOK, historyTmpl, "base", view)
 }
 
-// handleRoomsPartial serves the grid fragment the home page polls: the
-// same card list and live-tournament banner, public like GET /api/rooms.
 func (p *shellPages) handleRoomsPartial(w http.ResponseWriter, r *http.Request) {
 	renderShell(w, http.StatusOK, roomsTmpl, "roomslist", p.roomsList(r.Context()))
 }
 
-// handleCreateRoom is the create-room form POST: settings validated by the
-// same RoomManager.Create the JSON API rides, then straight into the room
-// page (/rooms/{id}, the room-view agent's page). The form's options are
-// rendered from the config hub, so the selects constrain every value
-// client-side; the manager re-validates server-side.
+func (p *shellPages) renderCreateError(r *http.Request, w http.ResponseWriter, me *shellViewer,
+	status int, msg string) {
+	if r.PostFormValue("origin") == "lobby" {
+		renderLobbyPage(w, status, p.rooms, me, msg)
+		return
+	}
+	p.renderHome(r, w, status, me, msg)
+}
+
 func (p *shellPages) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 	me, err := p.me(r)
 	if err != nil {
@@ -580,13 +462,13 @@ func (p *shellPages) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	bad := func() {
-		p.renderHome(r, w, http.StatusBadRequest, me, "invalid room settings, pick from the lists")
-	}
 	r.Body = http.MaxBytesReader(w, r.Body, httpBodyLimitBytes)
 	if err := r.ParseForm(); err != nil {
-		bad()
+		p.renderCreateError(r, w, me, http.StatusBadRequest, "invalid room settings, pick from the lists")
 		return
+	}
+	bad := func() {
+		p.renderCreateError(r, w, me, http.StatusBadRequest, "invalid room settings, pick from the lists")
 	}
 	tcIdx, errTC := strconv.Atoi(r.PostFormValue("tc"))
 	boLen, errBO := strconv.Atoi(r.PostFormValue("bo"))
@@ -607,10 +489,8 @@ func (p *shellPages) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "room create failed", status)
 			return
 		}
-		// The ledger refusal is a capacity fact, not bad settings: render it
-		// inline at its own status instead of the invalid-settings line.
 		if errors.Is(err, ErrMachineBusy) {
-			p.renderHome(r, w, http.StatusConflict, me,
+			p.renderCreateError(r, w, me, http.StatusConflict,
 				"the machine is fully booked by bot rooms, wait for one to close and try again")
 			return
 		}

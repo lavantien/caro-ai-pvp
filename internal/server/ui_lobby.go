@@ -203,8 +203,8 @@ func lobbySeatViewOf(s LobbySeat) lobbySeatView {
 	return v
 }
 
-func (p *LobbyPages) lobbyViews(me *shellViewer) []lobbyRoomView {
-	snap := p.rooms.LobbySnapshot()
+func lobbyViews(rooms *RoomManager, me *shellViewer) []lobbyRoomView {
+	snap := rooms.LobbySnapshot()
 	out := make([]lobbyRoomView, 0, len(snap))
 	for _, lr := range snap {
 		red, blue := lr.Host, lr.Guest
@@ -229,25 +229,25 @@ func (p *LobbyPages) lobbyViews(me *shellViewer) []lobbyRoomView {
 	return out
 }
 
+func renderLobbyPage(w http.ResponseWriter, status int, rooms *RoomManager, me *shellViewer, errMsg string) {
+	tc := shellTCOptions()
+	tc[0].Selected = true
+	bo := shellBOOptions()
+	bo[0].Selected = true
+	renderShell(w, status, lobbyTmpl, "base", lobbyView{
+		Me: me, Rooms: lobbyViews(rooms, me),
+		TCOptions: tc, BOOptions: bo, BotOptions: shellBotOptions(),
+		PollMs: int64(config.PagePollMs), JoinError: errMsg,
+	})
+}
+
 func (p *LobbyPages) handleLobby(w http.ResponseWriter, r *http.Request) {
 	me, err := resolveViewer(p.store, r)
 	if err != nil {
 		http.Error(w, "lobby read failed", http.StatusInternalServerError)
 		return
 	}
-	p.renderLobby(w, http.StatusOK, me, "")
-}
-
-func (p *LobbyPages) renderLobby(w http.ResponseWriter, status int, me *shellViewer, joinErr string) {
-	tc := shellTCOptions()
-	tc[0].Selected = true
-	bo := shellBOOptions()
-	bo[0].Selected = true
-	renderShell(w, status, lobbyTmpl, "base", lobbyView{
-		Me: me, Rooms: p.lobbyViews(me),
-		TCOptions: tc, BOOptions: bo, BotOptions: shellBotOptions(),
-		PollMs: int64(config.PagePollMs), JoinError: joinErr,
-	})
+	renderLobbyPage(w, http.StatusOK, p.rooms, me, "")
 }
 
 func (p *LobbyPages) handleLobbyPartial(w http.ResponseWriter, r *http.Request) {
@@ -256,7 +256,7 @@ func (p *LobbyPages) handleLobbyPartial(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "lobby read failed", http.StatusInternalServerError)
 		return
 	}
-	renderShell(w, http.StatusOK, lobbyListTmpl, "lobbylist", lobbyListView{Me: me, Rooms: p.lobbyViews(me)})
+	renderShell(w, http.StatusOK, lobbyListTmpl, "lobbylist", lobbyListView{Me: me, Rooms: lobbyViews(p.rooms, me)})
 }
 
 func joinFailMessage(code string) string {
@@ -286,7 +286,7 @@ func (p *LobbyPages) handleJoin(w http.ResponseWriter, r *http.Request) {
 	}
 	id := r.PathValue("id")
 	if !isRoomID(id) {
-		p.renderLobby(w, http.StatusBadRequest, me, joinFailMessage(codeRoomNotFound))
+		renderLobbyPage(w, http.StatusBadRequest, p.rooms, me, joinFailMessage(codeRoomNotFound))
 		return
 	}
 	if err := p.rooms.Join(id, me.ID); err != nil {
@@ -295,7 +295,7 @@ func (p *LobbyPages) handleJoin(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "join failed", status)
 			return
 		}
-		p.renderLobby(w, status, me, joinFailMessage(code))
+		renderLobbyPage(w, status, p.rooms, me, joinFailMessage(code))
 		return
 	}
 	http.Redirect(w, r, "/rooms/"+id, http.StatusSeeOther)
