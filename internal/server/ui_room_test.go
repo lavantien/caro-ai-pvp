@@ -435,8 +435,8 @@ func TestPlaybackPageReplaysSeededFinishedGame(t *testing.T) {
 		}
 	}
 	for _, want := range []string{
-		`<span class="n">1</span><span class="half red">D4</span><span class="half blue">P16</span>`,
-		`<span class="n">6</span><span class="half red latest">D3</span><span class="half blue"></span>`,
+		`<span class="n">1</span><button type="button" class="half red">D4</button><button type="button" class="half blue">P16</button>`,
+		`<span class="n">6</span><button type="button" class="half red latest">D3</button><span class="half blue"></span>`,
 		`<a class="brand" href="/">caro</a>`, `<a href="/lobby">lobby</a>`,
 	} {
 		if !strings.Contains(body, want) {
@@ -714,6 +714,26 @@ func TestRoomJSMLineStopsAfterTerminal(t *testing.T) {
 	want := "function onMLine(line) {\n\tif (terminal) { return; }"
 	if !strings.Contains(string(src), want) {
 		t.Errorf("room.js misses the terminal guard on the mline handler: %q", want)
+	}
+}
+
+func TestPlaybackPairHalvesAreKeyboardReachable(t *testing.T) {
+	var out strings.Builder
+	if err := executePlayback(&out, playbackView{
+		GameID: 1, RedName: "r", BlueName: "b",
+		Moves: hostWinsRed[:3], Pairs: movePairs(hostWinsRed[:3]),
+	}); err != nil {
+		t.Fatalf("render playback: %v", err)
+	}
+	body := out.String()
+	if !strings.Contains(body, `<button type="button" class="half red">D4</button>`) {
+		t.Errorf("filled half is not a native focusable button (body %s)", body)
+	}
+	if !strings.Contains(body, `<button type="button" class="half red latest">H8</button>`) {
+		t.Error("latest filled half lost its latest mark in button form")
+	}
+	if !strings.Contains(body, `<span class="half blue"></span>`) {
+		t.Error("empty half must stay a plain non-focusable span")
 	}
 }
 

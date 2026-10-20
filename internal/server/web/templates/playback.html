@@ -47,6 +47,8 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
 #pb-moves .pair.latest { background: var(--surface); border-radius: var(--radius-s) }
 #pb-moves .n { color: var(--text-muted) }
 #pb-moves .half { cursor: pointer }
+#pb-moves button.half { font: inherit; background: none; border: 0;
+	padding: .1rem .15rem; min-height: 0; color: inherit; text-align: inherit }
 #pb-moves .half.latest { font-weight: 700; text-decoration: underline }
 </style>
 </head>
@@ -79,7 +81,7 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
 <h2>moves</h2>
 <ol id="pb-moves">
 {{- range .Pairs}}
-<li class="pair{{if or .RedLatest .BlueLatest}} latest{{end}}"><span class="n">{{.N}}</span><span class="half red{{if .RedLatest}} latest{{end}}">{{.Red}}</span><span class="half blue{{if .BlueLatest}} latest{{end}}">{{.Blue}}</span></li>
+<li class="pair{{if or .RedLatest .BlueLatest}} latest{{end}}"><span class="n">{{.N}}</span>{{if .Red}}<button type="button" class="half red{{if .RedLatest}} latest{{end}}">{{.Red}}</button>{{else}}<span class="half red"></span>{{end}}{{if .Blue}}<button type="button" class="half blue{{if .BlueLatest}} latest{{end}}">{{.Blue}}</button>{{else}}<span class="half blue"></span>{{end}}</li>
 {{- end}}
 </ol>
 </section>
