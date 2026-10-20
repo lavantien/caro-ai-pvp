@@ -63,6 +63,25 @@ func TestOpeningMoveRotatesDistinctTrunks(t *testing.T) {
 	}
 }
 
+func TestTrunkDiversityCapsAtTheOpeningCellCount(t *testing.T) {
+	cells := len(config.BookOpeningCells)
+	if err := checkTrunkDiversity(1, 0); err != nil {
+		t.Errorf("single game alarm = %v, want the exemption under 2 games", err)
+	}
+	if err := checkTrunkDiversity(2, 2); err != nil {
+		t.Errorf("diversity alarm at 2 openings over 2 games: %v", err)
+	}
+	if err := checkTrunkDiversity(cells, cells-1); err == nil {
+		t.Errorf("diversity accepted %d openings over %d games at the cap boundary", cells-1, cells)
+	}
+	if err := checkTrunkDiversity(cells+1, cells); err != nil {
+		t.Errorf("diversity alarm at %d openings over %d games: %v, want the demand capped at %d", cells, cells+1, err, cells)
+	}
+	if err := checkTrunkDiversity(cells+5, cells-1); err == nil {
+		t.Errorf("diversity accepted %d openings over %d games past the cap", cells-1, cells+5)
+	}
+}
+
 func TestCorpusRunFailsOnCollapsedTrunks(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "c.txt")
 	var seen []gameCall
