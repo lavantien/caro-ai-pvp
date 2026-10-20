@@ -1,0 +1,62 @@
+20261018-011625 run 26 drive claimed: 60 of 90 series settled
+20261018-011625 run 26 series 61/90 started: medium-2 vs hard-1
+20261018-013405 run 26 series 61/90 settled: medium-2 0-2 hard-1 in 17m40s
+20261018-013405 run 26 series 62/90 started: hard-2 vs hard-1
+20261018-014538 run 26 series 62/90 settled: hard-2 2-0 hard-1 in 11m33s
+20261018-014538 run 26 series 63/90 started: easy-2 vs hard-1
+20261018-021158 run 26 series 63/90 settled: easy-2 1-1 hard-1 in 26m20s
+20261018-021158 run 26 series 64/90 started: grandmaster-2 vs hard-1
+20261018-022603 run 26 series 64/90 settled: grandmaster-2 2-0 hard-1 in 14m5s
+20261018-022603 run 26 series 65/90 started: master-2 vs hard-1
+20261018-023949 run 26 series 65/90 settled: master-2 2-1 hard-1 in 13m46s
+20261018-023949 run 26 series 66/90 started: medium-1 vs hard-1
+20261018-025834 run 26 series 66/90 settled: medium-1 2-1 hard-1 in 18m45s
+20261018-025834 run 26 series 67/90 started: medium-2 vs easy-1
+20261018-032928 run 26 series 67/90 settled: medium-2 1-1 easy-1 in 30m53s
+20261018-032928 run 26 series 68/90 started: hard-2 vs easy-1
+20261018-040335 run 26 series 68/90 settled: hard-2 1-1 easy-1 in 34m8s
+20261018-040335 run 26 series 69/90 started: easy-2 vs easy-1
+20261018-042846 run 26 series 69/90 settled: easy-2 1-2 easy-1 in 25m11s
+20261018-042846 run 26 series 70/90 started: grandmaster-2 vs easy-1
+20261018-043507 run 26 series 70/90 settled: grandmaster-2 2-0 easy-1 in 6m21s
+20261018-043507 run 26 series 71/90 started: master-2 vs easy-1
+20261018-050233 run 26 series 71/90 settled: master-2 1-1 easy-1 in 27m27s
+20261018-050233 run 26 series 72/90 started: medium-1 vs easy-1
+20261018-051302 run 26 series 72/90 settled: medium-1 2-0 easy-1 in 10m28s
+20261018-051302 run 26 series 73/90 started: hard-1 vs easy-1
+20261018-053211 run 26 series 73/90 settled: hard-1 1-2 easy-1 in 19m10s
+20261018-053211 run 26 series 74/90 started: medium-2 vs grandmaster-1
+20261018-054654 run 26 series 74/90 settled: medium-2 0-2 grandmaster-1 in 14m43s
+20261018-054654 run 26 series 75/90 started: hard-2 vs grandmaster-1
+20261018-055920 run 26 series 75/90 settled: hard-2 0-2 grandmaster-1 in 12m26s
+20261018-055920 run 26 series 76/90 started: easy-2 vs grandmaster-1
+20261018-061055 run 26 series 76/90 settled: easy-2 0-2 grandmaster-1 in 11m35s
+20261018-061055 run 26 series 77/90 started: grandmaster-2 vs grandmaster-1
+20261018-063231 run 26 series 77/90 settled: grandmaster-2 2-1 grandmaster-1 in 21m37s
+20261018-063231 run 26 series 78/90 started: master-2 vs grandmaster-1
+20261018-064748 run 26 series 78/90 settled: master-2 2-1 grandmaster-1 in 15m16s
+20261018-064748 run 26 series 79/90 started: medium-1 vs grandmaster-1
+20261018-070457 run 26 series 79/90 settled: medium-1 0-2 grandmaster-1 in 17m9s
+20261018-070457 run 26 series 80/90 started: hard-1 vs grandmaster-1
+20261018-071527 run 26 series 80/90 settled: hard-1 2-1 grandmaster-1 in 10m30s
+20261018-071527 run 26 series 81/90 started: easy-1 vs grandmaster-1
+20261018-072603 run 26 series 81/90 settled: easy-1 0-2 grandmaster-1 in 10m36s
+20261018-072603 run 26 series 82/90 started: medium-2 vs master-1
+20261018-075024 run 26 series 82/90 settled: medium-2 1-2 master-1 in 24m21s
+20261018-075024 run 26 series 83/90 started: hard-2 vs master-1
+20261018-080330 run 26 series 83/90 settled: hard-2 1-2 master-1 in 13m6s
+20261018-080330 run 26 series 84/90 started: easy-2 vs master-1
+20261018-081530 run 26 series 84/90 settled: easy-2 2-0 master-1 in 12m0s
+20261018-081530 run 26 series 85/90 started: grandmaster-2 vs master-1
+20261018-083222 run 26 series 85/90 settled: grandmaster-2 0-2 master-1 in 16m52s
+20261018-083222 run 26 series 86/90 started: master-2 vs master-1
+20261018-084211 run 26 series 86/90 settled: master-2 2-0 master-1 in 9m49s
+20261018-084211 run 26 series 87/90 started: medium-1 vs master-1
+20261018-090011 run 26 series 87/90 settled: medium-1 1-2 master-1 in 18m0s
+20261018-090011 run 26 series 88/90 started: hard-1 vs master-1
+20261018-091510 run 26 series 88/90 settled: hard-1 1-2 master-1 in 14m59s
+20261018-091510 run 26 series 89/90 started: easy-1 vs master-1
+20261018-092605 run 26 series 89/90 settled: easy-1 0-2 master-1 in 10m55s
+20261018-092605 run 26 series 90/90 started: grandmaster-1 vs master-1
+20261018-094739 run 26 series 90/90 settled: grandmaster-1 1-1 master-1 in 21m34s
+20261018-094739 run 26 finished: summary in logs\tourny\20261016-160431-regate32-r1

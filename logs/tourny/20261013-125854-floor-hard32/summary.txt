@@ -1,0 +1,7 @@
+run 16
+tc 3+2 bo11 start rating 1000
+finished 20261013-145619
+
+rank	participant	tier	rating	series	wins	losses	draws	games
+1	hard-1	hard	1150	1	11	6	2	19
+2	hard-2	hard	850	0	6	11	2	19

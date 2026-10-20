@@ -1,0 +1,7 @@
+run 18
+tc 3+2 bo11 start rating 1000
+finished 20261013-184301
+
+rank	participant	tier	rating	series	wins	losses	draws	games
+1	grandmaster-2	grandmaster	1056	1	11	9	1	21
+2	grandmaster-1	grandmaster	944	0	9	11	1	21
