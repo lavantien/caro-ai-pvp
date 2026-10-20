@@ -252,6 +252,55 @@ func TestRoomPageGuestAndStrangerSeeNoControls(t *testing.T) {
 	}
 }
 
+func TestRoomPageSeatCardsCarryNamesBeforeHandshake(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	_, _, r := newPvPRoom(t, s)
+
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), "")
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body %s)", status, body)
+	}
+	if !strings.Contains(body, `<span class="who" id="clock-who-red">red / alice</span>`) {
+		t.Error("red seat card renders blank before the game handshake")
+	}
+	if !strings.Contains(body, `<span class="who" id="clock-who-blue">blue / bob</span>`) {
+		t.Error("blue seat card renders blank before the game handshake")
+	}
+	if !strings.Contains(body, `<p id="turn-line" aria-live="polite">`) {
+		t.Error("turn line is not a polite live region")
+	}
+}
+
+func TestPlaybackHumanNamedLikeBotSeatKeepsOwnName(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	squatName := config.BotAccountName(len(config.Tiers) - 1)
+	if _, err := s.store.db.Exec(`DELETE FROM users WHERE username = ?`, squatName); err != nil {
+		t.Fatalf("free the %s seat name: %v", squatName, err)
+	}
+	human := seedUser(t, s.store, squatName)
+	botUser, err := s.store.UserByUsername(config.BotAccountName(0))
+	if err != nil {
+		t.Fatalf("easy bot account: %v", err)
+	}
+	sr := seedSeries(t, s.store, human, botUser)
+	blob := EncodeMoves(nil, movesOf(t, hostWinsRed[:2]))
+	tag := "open 4"
+	if _, err := s.store.AppendGame(Game{SeriesID: sr.ID, IdxInSeries: 0,
+		RedUser: human.ID, BlueUser: botUser.ID, Outcome: OutcomeRed,
+		Moves: blob, FullTurns: 1, WonBy: &tag, BotName: "easy-1a2b3c4d"}); err != nil {
+		t.Fatalf("append game: %v", err)
+	}
+	status, body := getRoomPage(t, srv, "/rooms/history/1", mintSession(t, s.store, human))
+	if status != http.StatusOK {
+		t.Fatalf("playback status = %d, want 200 (body %s)", status, body)
+	}
+	if !strings.Contains(body, "red "+squatName+" vs blue easy-1a2b3c4d") {
+		t.Errorf("bot-shaped human name lost under the room bot name (body %s)", body)
+	}
+}
+
 func TestRoomPagePreMatchReadyHandshake(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)

@@ -96,7 +96,7 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
 <section id="status-strip">
 <h1>room <span class="mono">{{.RoomID}}</span></h1>
 <p class="status" id="room-status">{{.State}} / {{.TCLabel}} / bo{{.BOLen}}{{if .VsBotTier}} / AI {{.VsBotTier}}{{end}}</p>
-<p id="turn-line">{{if .GameLive}}{{if .TurnIsMe}}your move ({{.Turn}}){{else}}{{.Turn}} to move ({{.TurnName}}){{end}}{{else}}waiting for both to ready{{end}}</p>
+<p id="turn-line" aria-live="polite">{{if .GameLive}}{{if .TurnIsMe}}your move ({{.Turn}}){{else}}{{.Turn}} to move ({{.TurnName}}){{end}}{{else}}waiting for both to ready{{end}}</p>
 </section>
 
 <div class="seatcard{{if and .GameLive (eq .Turn "red")}} active{{end}}" id="card-red"><span class="dot red"></span><span class="who" id="clock-who-red">red / {{.RedName}}</span>{{if .RedTier}}<span class="chip">{{.RedTier}}</span>{{end}}<div class="clock" id="clock-red">{{if .ClockRed}}{{.ClockRed}}{{else}}--:--.-{{end}}</div></div>

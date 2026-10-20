@@ -1,11 +1,3 @@
-/* The one stylesheet the shell pages own, and the token hub every page
-   shares: the room and playback pages link it for the :root tokens alone.
-   Dark is the base presentation, no light variant is built; every color in
-   every page references the tokens below (make darkcontrast checks the
-   pairs, docs/design-system.md holds the contract). Mobile first: one
-   column under 40rem, the rooms grid and action row wrap onto two columns
-   wider. Rem sizing throughout, the largest type on the identity and score
-   data. */
 :root {
 	color-scheme: dark;
 	--background: #101318;
@@ -42,13 +34,8 @@
 body { font-family: var(--font-human); line-height: 1.45;
 	margin: 0 auto; max-width: 64rem; padding: 0 var(--space-3) var(--space-6);
 	background: var(--background); color: var(--text) }
-/* The machine voice rides a class, never a bare element: ids, bot names on
-   bot-only surfaces, clocks, move lists, M-lines. */
 .mono { font-family: var(--font-mono) }
 a { color: var(--accent) }
-/* Amber is the data-attention color alone (latest stone, live-tournament
-   line), so the keyboard focus ring rides accent-strong: focus is an
-   interaction signal and never paints amber around the amber data marks. */
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
 	outline: none; box-shadow: 0 0 0 3px var(--accent-strong) }
 header { display: flex; align-items: baseline; gap: var(--space-4); padding: .6rem 0;
@@ -68,8 +55,6 @@ h2 { font-size: var(--text-l); margin: 1.4rem 0 var(--space-2) }
 	border: 1px solid var(--border); border-radius: var(--radius-s); padding: .1rem var(--space-2);
 	background: var(--surface); color: var(--text) }
 .guestnote { font-size: var(--text-l); margin-top: var(--space-4) }
-/* The live-tournament line rides the rooms poll: it shows only while a run
-   is driven, so it reads as an event, not furniture. Amber is its mark. */
 .tourneynow { font-size: var(--text-l); font-weight: 700; margin: 0 0 .6rem }
 .tourneynow a { color: var(--mark) }
 .rooms, .tourney-runs, .liveboards { list-style: none; margin: 0; padding: 0;
@@ -77,9 +62,6 @@ h2 { font-size: var(--text-l); margin: 1.4rem 0 var(--space-2) }
 @media (min-width: 40rem) {
 	.rooms, .tourney-runs, .liveboards { grid-template-columns: 1fr 1fr }
 }
-/* The card recipe: flat surface, border, radius, grid with a hairline gap.
-   .room, .hrow, .tourney-run, and .livecard share it and keep only their
-   layout extras in their own rules. */
 .card, .room, .hrow, .tourney-run, .livecard { display: grid; gap: .15rem;
 	border: 1px solid var(--border); border-radius: var(--radius-m);
 	padding: var(--space-2) var(--space-3); background: var(--surface) }
@@ -87,25 +69,14 @@ h2 { font-size: var(--text-l); margin: 1.4rem 0 var(--space-2) }
 .room .meta, .tourney-run .meta, .livecard .meta { display: flex; flex-wrap: wrap;
 	gap: var(--space-1) var(--space-4); color: var(--text-muted) }
 .score { font-weight: 700 }
-/* The chip recipe: small tag labels (run states, live badges, tier and tc
-   tags). The boundary carries the state, so it paints text-muted (past the
-   3:1 meaningful-boundary floor), not the decorative hairline; .chip.live
-   fills with the accent tint and keeps its boundary. */
 .chip { border: 1px solid var(--text-muted); border-radius: var(--radius-s);
 	padding: .05rem var(--space-2); color: var(--text-muted);
 	font-size: var(--text-base) }
 .chip.live { background: var(--accent-soft); color: var(--text) }
-/* The field recipe: one label-plus-control pair; bare labels alias it so
-   the shipped forms carry no extra markup. */
 .field, label { display: grid; gap: .15rem; font-size: var(--text-s) }
 select, input { font: inherit; font-size: var(--text-l); padding: .3rem .4rem;
 	background: var(--background); color: var(--text);
 	border: 1px solid var(--border); border-radius: var(--radius-s) }
-/* The button system: .btn primary (accent fill, accent-strong on hover and
-   active), .btn-quiet (surface and border, tint on hover). Element
-   selectors alias the primary for the shipped markup; the :not(.btn-quiet)
-   guard keeps the quiet class outranking the element alias on buttons.
-   .linklike stays the plain text button. */
 .btn, button:not(.linklike):not(.btn-quiet) { font: inherit; font-size: var(--text-l);
 	padding: .35rem .9rem; background: var(--accent); color: var(--background);
 	border: none; border-radius: var(--radius-s) }
@@ -117,19 +88,11 @@ select, input { font: inherit; font-size: var(--text-l); padding: .3rem .4rem;
 	text-decoration: none }
 .btn-quiet:hover { background: var(--accent-soft) }
 button[disabled] { opacity: .55 }
-/* Near-zero motion: the only transitions are the button and chip color
-   fades, and they sit behind the reduced-motion preference. */
 @media (prefers-reduced-motion: no-preference) {
 	.btn, button:not(.linklike), .btn-quiet, .chip { transition:
 		background-color .12s, border-color .12s, color .12s }
 }
-/* Machine tokens (room ids, <tier>-<roomid> bot names) carry no break
-   opportunity inside their hex run, so every line that renders one wraps
-   anywhere instead of pushing the page past the phone viewport. */
-h1, .who, .who-vs, #score-line { overflow-wrap: anywhere }
-/* Touch input pads controls to the 44px target floor; pointer:fine keeps
-   the compact desktop metrics. Nav links grow leftward, the header row
-   keeps its baseline alignment. */
+h1, .who, .who-vs, #score-line, .p-name, #turn-line { overflow-wrap: anywhere }
 @media (pointer: coarse) {
 	select, input, button:not(.linklike) { min-height: 44px }
 	header nav a, header nav button.linklike { padding: var(--space-3) 0 var(--space-3) var(--space-3) }
@@ -142,9 +105,6 @@ h1, .who, .who-vs, #score-line { overflow-wrap: anywhere }
 .hrow .top { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4) }
 .hrow .who-vs, .livecard .who-vs, .tseries .who-vs { font-size: var(--text-xl);
 	font-weight: 700 }
-/* Bot-only surfaces take the machine voice for names; mixed surfaces
-   (history rows, room seats) can carry a human name and stay human. The
-   pairing list is machine data end to end. */
 .livecard .who-vs, .tseries, .tboard td:nth-child(2),
 .tboard td:nth-child(3) { font-family: var(--font-mono) }
 .hrow .moves { font-family: var(--font-mono); word-break: break-word }
@@ -160,18 +120,11 @@ h1, .who, .who-vs, #score-line { overflow-wrap: anywhere }
 @media (max-width: 40rem) { .tourneyform .roster { grid-template-columns: 1fr } }
 .tourney-run > a { font-size: var(--text-xl); font-weight: 700; text-decoration: none }
 .progress { font-weight: 700 }
-/* Live boards of an ongoing run: one card per playing room, the board the
-   shared grid scaled mini (its styles live with the board fragment, not
-   here). The livecard shares the card recipe and adds the link reset
-   alone. */
 .liveboards { margin: .4rem 0 var(--space-4) }
 .livecard { text-decoration: none }
 .tseries { display: grid; gap: var(--space-1); margin: .4rem 0 var(--space-4);
 	padding-left: 1.2rem }
 .tboard { border-collapse: collapse; font-size: var(--text-base) }
-/* The leaderboard's 9 columns run wider than a phone viewport; the wrap
-   scrolls them instead of the page, and the narrow band tightens cells so
-   the scroll is one screen-edge nudge, not half the table. */
 .tablewrap { overflow-x: auto }
 .tboard th, .tboard td { padding: .2rem .6rem; border-bottom: 1px solid var(--border);
 	text-align: right }

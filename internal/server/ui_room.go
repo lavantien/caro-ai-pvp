@@ -95,20 +95,21 @@ func (p *RoomPages) HandlePlayback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "playback decode failed", http.StatusInternalServerError)
 		return
 	}
-	redName, err := p.userName(g.RedUser)
+	red, err := p.store.UserByID(g.RedUser)
 	if err != nil {
 		http.Error(w, "playback read failed", http.StatusInternalServerError)
 		return
 	}
-	blueName, err := p.userName(g.BlueUser)
+	blue, err := p.store.UserByID(g.BlueUser)
 	if err != nil {
 		http.Error(w, "playback read failed", http.StatusInternalServerError)
 		return
 	}
+	redName, blueName := red.Username, blue.Username
 	if g.BotName != "" {
-		if isBotAccountName(redName) {
+		if isBotAccount(red) {
 			redName = g.BotName
-		} else if isBotAccountName(blueName) {
+		} else if isBotAccount(blue) {
 			blueName = g.BotName
 		}
 	}
@@ -120,13 +121,8 @@ func (p *RoomPages) HandlePlayback(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func isBotAccountName(name string) bool {
-	for i := range config.Tiers {
-		if name == config.BotAccountName(i) {
-			return true
-		}
-	}
-	return false
+func isBotAccount(u User) bool {
+	return len(u.Salt) == 0 && len(u.Hash) == 0
 }
 
 func (p *RoomPages) resolveRoom(id string) (*Room, error) {
@@ -285,6 +281,7 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 		}
 		view.Cells = boardCells(snap.Moves, playable)
 	} else {
+		view.RedName, view.BlueName = view.HostName, view.GuestName
 		view.Cells = boardCells(nil, nil)
 	}
 	return view, nil
