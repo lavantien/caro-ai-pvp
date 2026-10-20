@@ -178,10 +178,6 @@ func TestBotMoveFillsBoardToDraw(t *testing.T) {
 func TestBotEasyTierRealEngineAnswersLegally(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
-	r.mu.Lock()
-	r.budgetCap = time.Duration(12*config.SearchClockQuantumMs) * time.Millisecond
-	r.mu.Unlock()
-
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
