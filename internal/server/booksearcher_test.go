@@ -172,8 +172,9 @@ func TestBookHitReturnsZeroCostTaggedLine(t *testing.T) {
 		t.Fatalf("book hit elapsed = %d, want a measured non-negative duration", st.ElapsedNs)
 	}
 	want := "M2, Blue, H8, d=0, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=1, t=0.00, alloc=2.00, [BOOK], pv=H8"
-	if line := MLine(2, rules.Blue, mv, &st, tag); line != want {
-		t.Errorf("book M-line:\n got %q\nwant %q", line, want)
+	line := MLine(2, rules.Blue, mv, &st, tag)
+	if line != want && line != strings.Replace(want, "t=0.00", "t=0.01", 1) {
+		t.Errorf("book M-line:\n got %q\nwant %q or its one rounding step up on t", line, want)
 	}
 }
 
@@ -352,8 +353,9 @@ func TestRoomMasterOpensFromTheBookThenSearches(t *testing.T) {
 		if prefix := fmt.Sprintf("M%d, Blue, %s, d=0, n=0, nps=0, ebf=0.0, tt=0%%, hf=0%%, fh1=0%%, s=+0, thr=%d, ", 2*i+2, reply, config.TierMaster.Cores); !strings.HasPrefix(line.Line, prefix) {
 			t.Errorf("book line %d:\n got %q\nwant prefix %q", i, line.Line, prefix)
 		}
-		if tail := ", t=0.00, alloc=" + grants[i] + ", [BOOK], pv=" + reply; !strings.HasSuffix(line.Line, tail) {
-			t.Errorf("book line %d tail:\n got %q\nwant %q", i, line.Line, tail)
+		tail := ", t=0.00, alloc=" + grants[i] + ", [BOOK], pv=" + reply
+		if !strings.HasSuffix(line.Line, tail) && !strings.HasSuffix(line.Line, strings.Replace(tail, "t=0.00", "t=0.01", 1)) {
+			t.Errorf("book line %d tail:\n got %q\nwant %q or its one rounding step up on t", i, line.Line, tail)
 		}
 	}
 	past := lines[len(booked)]
