@@ -1,0 +1,841 @@
+run 7 series 189
+pairing grandmaster-1 (grandmaster) vs grandmaster-2 (grandmaster)
+tc 2+1 bo11
+M1, Red, H8, d=11, n=26.86m, nps=5.97m, ebf=4.7, tt=8%, hf=7%, fh1=91%, s=-300, thr=8, t=4.50, alloc=4.50, pv=H8 H6
+M2, Blue, H6, d=10, n=16.78m, nps=3.73m, ebf=5.2, tt=8%, hf=6%, fh1=90%, s=+300, thr=8, t=4.50, alloc=4.50, pv=H6
+M3, Red, H5, d=10, n=19.19m, nps=4.26m, ebf=5.3, tt=12%, hf=6%, fh1=97%, s=-1000, thr=8, t=0.00, alloc=4.54, [PONDER], pv=H5
+M4, Blue, I6, d=9, n=25.66m, nps=5.65m, ebf=6.6, tt=12%, hf=8%, fh1=94%, s=+1000, thr=8, t=4.54, alloc=4.54, pv=I6
+M5, Red, J6, d=11, n=27.54m, nps=5.63m, ebf=4.7, tt=12%, hf=7%, fh1=91%, s=+900, thr=8, t=4.89, alloc=4.89, pv=J6 I7 I5 G5 J8 I8 K7 H4 I9 F4 E3 F6
+M6, Blue, I7, d=11, n=19.2m, nps=4.2m, ebf=4.6, tt=10%, hf=5%, fh1=91%, s=-1500, thr=8, t=4.57, alloc=4.57, pv=I7 J8 J7
+M7, Red, J8, d=10, n=19.65m, nps=4.29m, ebf=5.3, tt=10%, hf=6%, fh1=90%, s=+1500, thr=8, t=0.01, alloc=4.88, [PONDER], pv=J8
+M8, Blue, J5, d=10, n=13.06m, nps=5.72m, ebf=5.0, tt=10%, hf=4%, fh1=93%, s=-1400, thr=8, t=2.28, alloc=4.60, pv=J5
+M9, Red, I8, d=10, n=14.07m, nps=5.4m, ebf=5.1, tt=11%, hf=4%, fh1=94%, s=+3000, thr=8, t=2.61, alloc=5.25, pv=I8 K8 G8
+M10, Blue, K8, d=11, n=9.03m, nps=3.96m, ebf=4.2, tt=14%, hf=4%, fh1=94%, s=-4800, thr=8, t=2.28, alloc=4.62, pv=K8 G8 F8 G7 G6
+M11, Red, G8, d=11, n=10.7m, nps=4.15m, ebf=4.3, tt=9%, hf=3%, fh1=97%, s=+6200, thr=8, t=2.58, alloc=5.23, pv=G8
+M12, Blue, F8, d=12, n=24.61m, nps=4.67m, ebf=4.0, tt=12%, hf=7%, fh1=97%, s=-6200, thr=8, t=0.00, alloc=4.65, [PONDER], pv=F8 G7 G6 E6 F7 F6 E5 I9 J10 H10 G11 K7 L6 H9
+M13, Red, G7, d=11, n=10.29m, nps=3.94m, ebf=4.3, tt=17%, hf=3%, fh1=96%, s=+6200, thr=8, t=2.61, alloc=5.22, pv=G7
+M14, Blue, G6, d=11, n=27.55m, nps=5.25m, ebf=4.7, tt=10%, hf=5%, fh1=90%, s=-7900, thr=8, t=0.02, alloc=5.04, [PONDER], pv=G6
+M15, Red, E6, d=10, n=15.4m, nps=5.93m, ebf=5.2, tt=11%, hf=4%, fh1=90%, s=+7900, thr=8, t=2.60, alloc=5.22, pv=E6
+M16, Blue, F7, d=10, n=15.51m, nps=5.75m, ebf=5.2, tt=14%, hf=4%, fh1=94%, s=-7100, thr=8, t=2.70, alloc=5.42, pv=F7 F6 E5 I9 J10 H10 G11 K7 L6 I5 L8
+M17, Red, F6, d=9, n=10.29m, nps=4m, ebf=6.0, tt=16%, hf=4%, fh1=96%, s=+7100, thr=8, t=2.57, alloc=5.23, pv=F6
+M18, Blue, E5, d=10, n=28.54m, nps=5.32m, ebf=5.5, tt=10%, hf=9%, fh1=99%, s=-8500, thr=8, t=5.36, alloc=5.38, pv=E5
+M19, Red, G10, d=7, n=52.64k, nps=43.41k, ebf=4.7, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=1.21, alloc=5.23, [VCT], pv=G10 G14 J7 F11 J10 J11 I9
+M20, Blue, I9, d=10, n=25.94m, nps=4.83m, ebf=5.5, tt=15%, hf=4%, fh1=97%, s=-7400, thr=8, t=5.37, alloc=5.38, pv=I9 H9 F11 F9 H11 J7 K6 J10 J9 I10 H10 D11
+M21, Red, H9, d=9, n=13.33m, nps=4.83m, ebf=6.1, tt=16%, hf=3%, fh1=96%, s=+7400, thr=8, t=2.76, alloc=5.57, pv=H9 F11 F9 H11 J7 K6 J10 J9 I10 H10 D11
+M22, Blue, F11, d=10, n=20.91m, nps=3.9m, ebf=5.3, tt=18%, hf=6%, fh1=99%, s=-9200, thr=8, t=5.36, alloc=5.37, pv=F11
+M23, Red, F9, d=8, n=20.99m, nps=3.87m, ebf=8.1, tt=11%, hf=5%, fh1=96%, s=+7800, thr=8, t=0.04, alloc=5.54, [PONDER], pv=F9
+M24, Blue, E8, d=10, n=19.43m, nps=7.24m, ebf=5.3, tt=27%, hf=3%, fh1=95%, s=-13000, thr=8, t=2.68, alloc=5.37, pv=E8 H10 D9
+M25, Red, E10, d=8, n=14.28m, nps=4.77m, ebf=7.8, tt=22%, hf=2%, fh1=98%, s=+11800, thr=8, t=2.99, alloc=6.03, pv=E10 H7 F10 K4 L3 D10 G9 G11 E11 D12 E12
+M26, Blue, D11, d=8, n=21.78m, nps=4.08m, ebf=8.2, tt=25%, hf=6%, fh1=100%, s=-11600, thr=8, t=5.33, alloc=5.37, pv=D11 J7
+M27, Red, J7, d=7, n=12.36m, nps=4.18m, ebf=10.2, tt=23%, hf=3%, fh1=99%, s=+11600, thr=8, t=2.96, alloc=5.96, pv=J7
+M28, Blue, K6, d=8, n=23.31m, nps=3.9m, ebf=8.2, tt=9%, hf=7%, fh1=100%, s=-9800, thr=8, t=0.00, alloc=5.37, [PONDER], pv=K6
+M29, Red, H10, d=7, n=13.63m, nps=4.64m, ebf=10.4, tt=19%, hf=5%, fh1=99%, s=+9800, thr=8, t=2.94, alloc=5.93, pv=H10
+M30, Blue, D9, d=6, n=13.91m, nps=4.77m, ebf=15.4, tt=30%, hf=4%, fh1=97%, s=-9800, thr=8, t=2.92, alloc=5.89, pv=D9
+M31, Red, C10, d=7, n=25.37m, nps=4.29m, ebf=11.3, tt=14%, hf=7%, fh1=94%, s=+7900, thr=8, t=5.91, alloc=5.91, pv=C10 I10 H11 H12 D10 H7 B10
+M32, Blue, I10, d=5, n=9.01m, nps=3.1m, ebf=24.5, tt=14%, hf=2%, fh1=88%, s=-7900, thr=8, t=2.91, alloc=5.84, pv=I10 D10 H11 J9 J10 G11
+M33, Red, H11, d=5, n=18.49m, nps=3.15m, ebf=28.3, tt=10%, hf=6%, fh1=100%, s=+8000, thr=8, t=0.03, alloc=5.88, [PONDER], pv=H11
+M34, Blue, H12, d=6, n=25.16m, nps=4.32m, ebf=17.0, tt=11%, hf=8%, fh1=91%, s=-8000, thr=8, t=5.82, alloc=5.82, pv=H12 G9 G11 E11 H7 F10 D12 D10 B10 C9
+M35, Red, G9, d=5, n=11.24m, nps=3.52m, ebf=25.6, tt=14%, hf=4%, fh1=94%, s=+8000, thr=8, t=3.19, alloc=6.52, pv=G9 G11 F10 H7 D10
+M36, Blue, G11, d=6, n=27m, nps=4.13m, ebf=17.2, tt=12%, hf=9%, fh1=92%, s=-5500, thr=8, t=0.01, alloc=5.80, [PONDER], pv=G11
+M37, Red, F10, d=5, n=18.18m, nps=5.71m, ebf=28.1, tt=19%, hf=5%, fh1=93%, s=+5500, thr=8, t=3.18, alloc=6.43, pv=F10
+M38, Blue, H7, d=6, n=35.2m, nps=5.47m, ebf=18.0, tt=17%, hf=12%, fh1=95%, s=-2500, thr=8, t=6.43, alloc=6.47, pv=H7 E11
+M39, Red, D10, d=5, n=26.49m, nps=4.22m, ebf=30.4, tt=21%, hf=8%, fh1=96%, s=+2500, thr=8, t=6.28, alloc=6.38, pv=D10
+M40, Blue, B10, d=11, n=33.7m, nps=6.17m, ebf=4.8, tt=19%, hf=6%, fh1=97%, s=-500, thr=8, t=5.46, alloc=6.39, pv=B10 E11 D12 C9 F12 E12 E13 C11 D14 C15 K4 L3 K7 K5 I4
+M41, Red, E11, d=10, n=25.27m, nps=5.1m, ebf=5.4, tt=24%, hf=4%, fh1=96%, s=+500, thr=8, t=4.95, alloc=6.34, pv=E11 D12 C9 F12 E12
+M42, Blue, D12, d=10, n=26.81m, nps=5.31m, ebf=5.5, tt=23%, hf=6%, fh1=97%, s=-500, thr=8, t=0.01, alloc=6.35, [PONDER], pv=D12
+M43, Red, C9, d=9, n=41.27m, nps=6.37m, ebf=7.0, tt=22%, hf=8%, fh1=97%, s=+500, thr=8, t=6.48, alloc=6.50, pv=C9
+M44, Blue, F12, d=8, n=47.08m, nps=6.72m, ebf=9.0, tt=22%, hf=8%, fh1=97%, s=-500, thr=8, t=7.00, alloc=7.24, pv=F12
+M45, Red, E12, d=8, n=41.78m, nps=6.6m, ebf=9.0, tt=14%, hf=10%, fh1=90%, s=-1700, thr=8, t=6.33, alloc=6.45, pv=E12
+M46, Blue, E13, d=8, n=49.63m, nps=7.29m, ebf=9.0, tt=19%, hf=8%, fh1=96%, s=+2200, thr=8, t=6.81, alloc=7.12, pv=E13 C11 C8 K7 I12 B8 A7 C13 C12 I5
+M47, Red, C11, d=9, n=31.56m, nps=5.01m, ebf=6.8, tt=18%, hf=8%, fh1=93%, s=-5600, thr=8, t=6.29, alloc=6.42, pv=C11 C8 D8 I4 H3 I12 B8 A7 G5 E7 I3
+M48, Blue, C8, d=9, n=16.56m, nps=4.72m, ebf=6.3, tt=10%, hf=4%, fh1=94%, s=+6400, thr=8, t=3.51, alloc=7.06, pv=C8
+M49, Red, K7, d=9, n=38.92m, nps=6.1m, ebf=7.0, tt=18%, hf=9%, fh1=95%, s=-8900, thr=8, t=6.38, alloc=6.41, pv=K7 L7
+M50, Blue, L7, d=8, n=15.4m, nps=4.43m, ebf=7.9, tt=17%, hf=4%, fh1=95%, s=+8700, thr=8, t=3.48, alloc=7.00, pv=L7 I12 J13 I4 J9 M6 B8 D8 D14
+M51, Red, I4, d=7, n=25.99m, nps=4.08m, ebf=11.4, tt=18%, hf=8%, fh1=96%, s=-9400, thr=8, t=6.37, alloc=6.40, pv=I4 J9 M6 I12 B8 A7 I13 D14
+M52, Blue, I12, d=7, n=7.85m, nps=4.69m, ebf=9.6, tt=14%, hf=2%, fh1=93%, s=+10400, thr=8, t=1.68, alloc=6.96, pv=I12 B8 A7 J9 J10 I11 D14 C15 D13 D15 C13
+M53, Red, I5, d=7, n=26.45m, nps=4.19m, ebf=11.4, tt=10%, hf=8%, fh1=94%, s=-9300, thr=8, t=6.31, alloc=6.42, pv=I5 J9
+M54, Blue, J9, d=6, n=7.52m, nps=4.35m, ebf=14.0, tt=12%, hf=3%, fh1=95%, s=+9300, thr=8, t=1.73, alloc=6.94, pv=J9
+M55, Red, M6, d=8, n=38.58m, nps=5.96m, ebf=8.9, tt=9%, hf=11%, fh1=94%, s=-12000, thr=8, t=6.48, alloc=6.47, pv=M6
+M56, Blue, L8, d=7, n=9.44m, nps=5.62m, ebf=9.9, tt=17%, hf=3%, fh1=96%, s=+12000, thr=8, t=1.68, alloc=6.96, pv=L8 B8 A7 H4 G3 K4 J12 G12 I13 I11 L10
+M57, Red, I11, d=7, n=31.53m, nps=4.91m, ebf=11.7, tt=13%, hf=10%, fh1=94%, s=-12100, thr=8, t=6.42, alloc=6.59, pv=I11
+M58, Blue, J12, d=7, n=9.95m, nps=5.74m, ebf=10.0, tt=14%, hf=3%, fh1=97%, s=+19700, thr=8, t=1.74, alloc=7.05, pv=J12
+M59, Red, G12, d=8, n=37.76m, nps=5.95m, ebf=8.8, tt=13%, hf=9%, fh1=94%, s=-20000, thr=8, t=6.35, alloc=6.34, pv=G12 L9 B8 A7 G3 H4 L10 D14 C15 K12 L12 J11
+M60, Blue, L9, d=7, n=9.27m, nps=5.52m, ebf=9.9, tt=12%, hf=2%, fh1=86%, s=+20000, thr=8, t=1.68, alloc=6.75, pv=L9
+M61, Red, H4, d=6, n=6.58m, nps=6.83m, ebf=13.6, tt=25%, hf=2%, fh1=100%, s=-23900, thr=8, t=0.96, alloc=1.00, pv=H4 G3 C13 C12 L10 M8 N9 D14 C15 F4
+M62, Blue, G3, d=8, n=6.12m, nps=6.13m, ebf=7.0, tt=20%, hf=1%, fh1=98%, s=+31000, thr=8, t=1.00, alloc=1.00, pv=G3 C13 C12 B8 A7 L10 K9 M9 M8 N9 K10 J11 K12 L12
+M63, Red, C13, d=5, n=7.07m, nps=7.41m, ebf=23.3, tt=33%, hf=0%, fh1=100%, s=-24000, thr=8, t=0.95, alloc=0.99, pv=C13
+M64, Blue, C12, d=7, n=4.91m, nps=4.89m, ebf=9.0, tt=35%, hf=0%, fh1=100%, s=+31000, thr=8, t=0.00, alloc=1.00, [PONDER], pv=C12
+M65, Red, L10, d=4, n=5.93m, nps=6.17m, ebf=32.0, tt=30%, hf=1%, fh1=100%, s=-24000, thr=8, t=0.96, alloc=0.99, pv=L10
+M66, Blue, M8, d=3, n=3.08m, nps=6.28m, ebf=32.0, tt=41%, hf=0%, fh1=100%, s=+23900, thr=8, t=0.49, alloc=1.99, pv=M8 N9 D14 C15 F4
+M67, Red, N9, d=4, n=4.46m, nps=4.46m, ebf=32.0, tt=17%, hf=2%, fh1=100%, s=-23400, thr=8, t=1.00, alloc=1.00, pv=N9 J11 K10 K12 L12 F4
+M68, Blue, J11, d=3, n=876.54k, nps=4.74m, ebf=32.0, tt=29%, hf=0%, fh1=100%, s=+23400, thr=8, t=0.18, alloc=1.00, pv=J11
+M69, Red, K10, d=4, n=5.71m, nps=5.61m, ebf=32.0, tt=23%, hf=1%, fh1=100%, s=-23400, thr=8, t=0.00, alloc=1.00, [PONDER], pv=K10
+M70, Blue, K12, d=3, n=1.41m, nps=6.77m, ebf=32.0, tt=28%, hf=0%, fh1=99%, s=+23400, thr=8, t=0.21, alloc=0.98, pv=K12
+M71, Red, L12, d=4, n=11.31m, nps=5.67m, ebf=32.0, tt=13%, hf=5%, fh1=99%, s=-22500, thr=8, t=1.99, alloc=1.99, pv=L12
+M72, Blue, B8, d=3, n=1.39m, nps=5.95m, ebf=32.0, tt=19%, hf=1%, fh1=99%, s=+22500, thr=8, t=0.23, alloc=1.00, pv=B8 D8 D14 C15
+M73, Red, D8, d=3, n=5.5m, nps=5.49m, ebf=32.0, tt=9%, hf=2%, fh1=81%, s=-20800, thr=8, t=1.00, alloc=1.00, pv=D8 J13 J10 F4
+M74, Blue, J13, d=2, n=964.61k, nps=5.31m, ebf=32.0, tt=11%, hf=0%, fh1=83%, s=+20800, thr=8, t=0.18, alloc=1.00, pv=J13
+M75, Red, J10, d=3, n=6.71m, nps=6.76m, ebf=32.0, tt=11%, hf=1%, fh1=84%, s=-20800, thr=8, t=0.99, alloc=0.99, pv=J10
+M76, Blue, D14, d=2, n=1.52m, nps=7.24m, ebf=32.0, tt=8%, hf=0%, fh1=84%, s=+20800, thr=8, t=0.21, alloc=0.98, pv=D14
+M77, Red, C15, d=4, n=5.9m, nps=5.91m, ebf=32.0, tt=12%, hf=2%, fh1=93%, s=-19900, thr=8, t=1.00, alloc=1.00, pv=C15 M10 K4 F4
+M78, Blue, J14, d=2, n=1.02m, nps=5.1m, ebf=32.0, tt=11%, hf=0%, fh1=91%, s=+20800, thr=8, t=0.20, alloc=1.00, pv=J14
+M79, Red, J15, d=3, n=6.97m, nps=6.99m, ebf=32.0, tt=9%, hf=1%, fh1=82%, s=-19700, thr=8, t=1.00, alloc=1.00, pv=J15
+M80, Blue, I13, d=7, n=8.84k, nps=46.04k, ebf=3.7, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=0.19, alloc=0.99, [VCF], pv=I13 L16 L13 N15 K13 M13 H13
+M81, Red, K15, d=3, n=7.4m, nps=7.41m, ebf=32.0, tt=26%, hf=0%, fh1=100%, s=-26100, thr=8, t=1.00, alloc=1.00, pv=K15
+M82, Blue, L13, d=5, n=413, nps=40.92k, ebf=3.2, tt=0%, hf=0%, fh1=0%, s=M5, thr=8, t=0.01, alloc=1.80, [VCF], pv=L13 N15 K13 M13 H13
+M83, Red, M14, d=3, n=7.35m, nps=7.38m, ebf=32.0, tt=32%, hf=0%, fh1=100%, s=-M4, thr=8, t=1.00, alloc=0.99, pv=M14
+M84, Blue, K13, d=3, n=5, nps=4.97k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M3, thr=8, t=0.00, alloc=2.79, [VCF], pv=K13 M13 H13
+M85, Red, M13, d=2, n=5.86m, nps=5.89m, ebf=32.0, tt=46%, hf=0%, fh1=100%, s=-M2, thr=8, t=1.00, alloc=0.99, pv=M13
+M86, Blue, H13, d=1, n=1, nps=1k, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=M1, thr=8, t=0.00, alloc=3.79, [VCF], pv=H13
+game 1: grandmaster-2 (blue) beat grandmaster-1 (red), 86 moves, won by 4
+M1, Red, H8, d=11, n=25.35m, nps=5.64m, ebf=4.7, tt=8%, hf=7%, fh1=90%, s=-300, thr=8, t=4.50, alloc=4.50, pv=H8 H6
+M2, Blue, I7, d=10, n=18.71m, nps=4.16m, ebf=5.3, tt=9%, hf=7%, fh1=92%, s=+300, thr=8, t=4.50, alloc=4.50, pv=I7
+M3, Red, H5, d=9, n=26.74m, nps=5.89m, ebf=6.7, tt=10%, hf=8%, fh1=92%, s=-300, thr=8, t=4.54, alloc=4.54, pv=H5 H7 F7 I4 I5 J5 G8 L7 E8
+M4, Blue, H7, d=12, n=20.49m, nps=4.51m, ebf=4.0, tt=13%, hf=6%, fh1=94%, s=-900, thr=8, t=4.54, alloc=4.54, pv=H7 J7 I6 I8 G8 J5 I5 K6 H9 I4 F9 E10 F7
+M5, Red, J7, d=11, n=21.49m, nps=4.72m, ebf=4.6, tt=11%, hf=6%, fh1=91%, s=+900, thr=8, t=0.01, alloc=4.57, [PONDER], pv=J7 I6
+M6, Blue, I6, d=11, n=20.45m, nps=4.47m, ebf=4.6, tt=13%, hf=7%, fh1=94%, s=-1500, thr=8, t=4.57, alloc=4.57, pv=I6
+M7, Red, J5, d=11, n=22.31m, nps=4.87m, ebf=4.6, tt=10%, hf=6%, fh1=91%, s=+1400, thr=8, t=0.00, alloc=4.93, [PONDER], pv=J5 J8 H6 I5 I8 H9 I4 F7 G8 G7 E7 F8
+M8, Blue, J8, d=10, n=9.3m, nps=4.05m, ebf=5.0, tt=11%, hf=2%, fh1=93%, s=-1400, thr=8, t=2.30, alloc=4.60, pv=J8 H6
+M9, Red, I5, d=10, n=22.11m, nps=4.79m, ebf=5.4, tt=15%, hf=8%, fh1=91%, s=+3000, thr=8, t=0.01, alloc=5.28, [PONDER], pv=I5
+M10, Blue, K5, d=11, n=11.61m, nps=5.08m, ebf=4.3, tt=9%, hf=5%, fh1=95%, s=-4800, thr=8, t=2.29, alloc=4.63, pv=K5 G5 F5 G6 G7
+M11, Red, G5, d=11, n=12.36m, nps=4.4m, ebf=4.4, tt=11%, hf=3%, fh1=95%, s=+6100, thr=8, t=2.81, alloc=5.64, pv=G5 F5 G6 G7 E7 K9 F6 D8 H6 M11 L10 I4 H4 I3
+M12, Blue, F5, d=12, n=21.21m, nps=4.56m, ebf=4.0, tt=13%, hf=5%, fh1=94%, s=-6200, thr=8, t=4.66, alloc=4.65, pv=F5 G6 G7 E7 F6
+M13, Red, G6, d=11, n=20.98m, nps=4.43m, ebf=4.6, tt=12%, hf=6%, fh1=94%, s=+6200, thr=8, t=0.07, alloc=5.59, [PONDER], pv=G6 G7
+M14, Blue, G7, d=11, n=10.08m, nps=4.33m, ebf=4.3, tt=13%, hf=2%, fh1=95%, s=-7900, thr=8, t=2.33, alloc=4.68, pv=G7
+M15, Red, E7, d=10, n=28.37m, nps=5.95m, ebf=5.5, tt=13%, hf=5%, fh1=91%, s=+7900, thr=8, t=0.01, alloc=6.01, [PONDER], pv=E7
+M16, Blue, F6, d=10, n=13.18m, nps=5.63m, ebf=5.1, tt=13%, hf=4%, fh1=95%, s=-7100, thr=8, t=2.34, alloc=4.70, pv=F6
+M17, Red, G2, d=7, n=60.6k, nps=40.17k, ebf=4.8, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=1.51, alloc=6.43, [VCT], pv=G2 G4 I4 E8 H3 K6 F1
+M18, Blue, F7, d=10, n=14.62m, nps=4.04m, ebf=5.1, tt=12%, hf=4%, fh1=92%, s=-2800, thr=8, t=3.62, alloc=4.73, pv=F7 F8 K9 L10 G4 D6 G9 F4 H3 E5
+M19, Red, F8, d=11, n=26.85m, nps=3.99m, ebf=4.7, tt=12%, hf=6%, fh1=91%, s=+4700, thr=8, t=6.74, alloc=6.75, pv=F8 H3 G4 G3 F3 G8
+M20, Blue, H3, d=10, n=19.5m, nps=4.03m, ebf=5.3, tt=13%, hf=6%, fh1=92%, s=-4700, thr=8, t=4.84, alloc=4.85, pv=H3
+M21, Red, G4, d=9, n=20.8m, nps=4.25m, ebf=6.4, tt=13%, hf=7%, fh1=94%, s=+4700, thr=8, t=0.03, alloc=6.65, [PONDER], pv=G4
+M22, Blue, G3, d=10, n=25.36m, nps=5.22m, ebf=5.4, tt=10%, hf=10%, fh1=94%, s=-3300, thr=8, t=4.86, alloc=4.86, pv=G3 F3
+M23, Red, F3, d=9, n=16.79m, nps=4.73m, ebf=6.3, tt=14%, hf=4%, fh1=95%, s=+3300, thr=8, t=3.55, alloc=7.16, pv=F3
+M24, Blue, G8, d=9, n=39.52m, nps=5.51m, ebf=7.0, tt=12%, hf=9%, fh1=93%, s=-2700, thr=8, t=0.00, alloc=4.88, [PONDER], pv=G8
+M25, Red, E2, d=9, n=43.06m, nps=6.13m, ebf=7.0, tt=13%, hf=12%, fh1=95%, s=+5400, thr=8, t=7.02, alloc=7.03, pv=E2 D1 D2
+M26, Blue, D1, d=10, n=29.84m, nps=5.58m, ebf=5.6, tt=9%, hf=4%, fh1=90%, s=-18900, thr=8, t=5.35, alloc=5.35, pv=D1 D2 F2 F4 E10 F9 H6 E4 K9 L10 D5 D4 H4
+M27, Red, D2, d=8, n=32.21m, nps=6.01m, ebf=8.6, tt=10%, hf=4%, fh1=94%, s=+18900, thr=8, t=0.01, alloc=6.95, [PONDER], pv=D2
+M28, Blue, F2, d=8, n=30.83m, nps=5.81m, ebf=8.6, tt=24%, hf=9%, fh1=100%, s=-18900, thr=8, t=5.31, alloc=5.32, pv=F2
+M29, Red, F4, d=7, n=47.43m, nps=6.29m, ebf=12.4, tt=36%, hf=11%, fh1=100%, s=+18900, thr=8, t=7.54, alloc=7.55, pv=F4
+M30, Blue, F9, d=10, n=28.1m, nps=6.63m, ebf=5.5, tt=39%, hf=3%, fh1=100%, s=-M12, thr=8, t=4.24, alloc=5.32, pv=F9 E10 K9 E3 C1 E4 H6 L10 D5 D4 H4 C4
+M31, Red, E10, d=6, n=49.64m, nps=6.7m, ebf=19.0, tt=30%, hf=4%, fh1=100%, s=+19300, thr=8, t=7.40, alloc=7.40, pv=E10 H6 E4 L10 K9 D5 D4
+M32, Blue, K9, d=9, n=51.09m, nps=6.89m, ebf=7.1, tt=24%, hf=3%, fh1=100%, s=-M10, thr=8, t=0.01, alloc=5.33, [PONDER], pv=K9
+M33, Red, E3, d=9, n=49.45m, nps=6.8m, ebf=7.1, tt=35%, hf=4%, fh1=100%, s=M9, thr=8, t=7.27, alloc=7.30, pv=E3 C1 E4 H6 L10 D5 D4
+M34, Blue, C1, d=9, n=32.42m, nps=5.49m, ebf=6.8, tt=25%, hf=1%, fh1=100%, s=-M8, thr=8, t=5.91, alloc=5.90, pv=C1
+M35, Red, E4, d=8, n=31.26m, nps=5.29m, ebf=8.6, tt=28%, hf=2%, fh1=100%, s=M7, thr=8, t=0.00, alloc=7.20, [PONDER], pv=E4
+M36, Blue, H6, d=8, n=30.09m, nps=5.19m, ebf=8.6, tt=28%, hf=3%, fh1=100%, s=-M6, thr=8, t=5.80, alloc=5.85, pv=H6
+M37, Red, L10, d=8, n=70.64m, nps=8.86m, ebf=9.5, tt=28%, hf=3%, fh1=100%, s=M5, thr=8, t=7.97, alloc=7.97, pv=L10
+M38, Blue, E6, d=7, n=43.83m, nps=7.55m, ebf=12.2, tt=32%, hf=3%, fh1=100%, s=-M4, thr=8, t=5.80, alloc=5.83, pv=E6 D5 C6 H1
+M39, Red, D4, d=3, n=5, nps=4.98k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M3, thr=8, t=0.00, alloc=7.80, [VCF], pv=D4 H4 C4
+M40, Blue, H4, d=7, n=44.8m, nps=7.7m, ebf=12.3, tt=30%, hf=2%, fh1=100%, s=-M2, thr=8, t=5.82, alloc=5.82, pv=H4 C4
+M41, Red, C4, d=1, n=1, nps=1k, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=M1, thr=8, t=0.00, alloc=8.74, [VCF], pv=C4
+game 2: grandmaster-2 (red) beat grandmaster-1 (blue), 41 moves, won by 4
+M1, Red, H8, d=11, n=20.85m, nps=4.63m, ebf=4.6, tt=9%, hf=6%, fh1=91%, s=-300, thr=8, t=4.50, alloc=4.50, pv=H8 H6
+M2, Blue, H6, d=10, n=20.12m, nps=4.47m, ebf=5.3, tt=9%, hf=5%, fh1=91%, s=+300, thr=8, t=4.50, alloc=4.50, pv=H6
+M3, Red, H5, d=10, n=24.4m, nps=5.38m, ebf=5.4, tt=11%, hf=8%, fh1=93%, s=-1000, thr=8, t=4.54, alloc=4.54, pv=H5
+M4, Blue, G6, d=9, n=25.53m, nps=5.62m, ebf=6.6, tt=10%, hf=8%, fh1=91%, s=+1000, thr=8, t=4.54, alloc=4.54, pv=G6
+M5, Red, F6, d=11, n=27.36m, nps=5.99m, ebf=4.7, tt=13%, hf=7%, fh1=92%, s=+900, thr=8, t=4.57, alloc=4.57, pv=F6 G7 G5 I5 F8 G8 E7 H4 G9 J4 K3 J6
+M6, Blue, G7, d=11, n=17.31m, nps=3.79m, ebf=4.5, tt=13%, hf=6%, fh1=93%, s=-1500, thr=8, t=4.57, alloc=4.57, pv=G7 F8
+M7, Red, F8, d=11, n=21.59m, nps=4.71m, ebf=4.6, tt=12%, hf=7%, fh1=93%, s=+1400, thr=8, t=0.01, alloc=4.60, [PONDER], pv=F8 F5 H7
+M8, Blue, F5, d=10, n=8.79m, nps=3.88m, ebf=5.0, tt=10%, hf=2%, fh1=92%, s=-1400, thr=8, t=2.27, alloc=4.60, pv=F5 H7 G8 G5 H4 G9 J6 I5 I6 K6 J5
+M9, Red, G8, d=9, n=21.02m, nps=4.51m, ebf=6.5, tt=11%, hf=7%, fh1=94%, s=+3000, thr=8, t=0.01, alloc=4.96, [PONDER], pv=G8 E8 I8 J8
+M10, Blue, E8, d=11, n=14.42m, nps=4.06m, ebf=4.4, tt=13%, hf=4%, fh1=95%, s=-4800, thr=8, t=3.56, alloc=4.62, pv=E8 I8 J8 I7 I6
+M11, Red, I8, d=8, n=16.67m, nps=4.6m, ebf=8.0, tt=10%, hf=4%, fh1=92%, s=+3000, thr=8, t=0.00, alloc=5.32, [PONDER], pv=I8
+M12, Blue, J8, d=10, n=25.48m, nps=5.39m, ebf=5.4, tt=15%, hf=8%, fh1=98%, s=-4800, thr=8, t=4.73, alloc=4.73, pv=J8
+M13, Red, I7, d=8, n=17.75m, nps=6.27m, ebf=8.0, tt=9%, hf=5%, fh1=90%, s=+3500, thr=8, t=2.83, alloc=5.70, pv=I7
+M14, Blue, I6, d=10, n=13.67m, nps=5.82m, ebf=5.1, tt=12%, hf=4%, fh1=94%, s=-6200, thr=8, t=2.35, alloc=4.75, pv=I6 K6 J7 J6 K5 G9 F10 H10 I11 E7 D6 H9
+M15, Red, K6, d=9, n=11.08m, nps=3.99m, ebf=6.0, tt=12%, hf=4%, fh1=97%, s=+6200, thr=8, t=2.78, alloc=5.65, pv=K6 J7
+M16, Blue, J7, d=10, n=7.74m, nps=3.29m, ebf=4.9, tt=7%, hf=3%, fh1=96%, s=-7100, thr=8, t=2.36, alloc=4.77, pv=J7
+M17, Red, I11, d=7, n=119.45k, nps=26.05k, ebf=5.2, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=0.00, alloc=5.63, [VCT], pv=I11 I15 G9 C13 F10 E11 J6
+M18, Blue, J6, d=10, n=21.26m, nps=4.45m, ebf=5.3, tt=13%, hf=5%, fh1=92%, s=-2800, thr=8, t=4.78, alloc=4.79, pv=J6 J5
+M19, Red, J5, d=10, n=24.64m, nps=4.06m, ebf=5.4, tt=13%, hf=8%, fh1=93%, s=+3400, thr=8, t=6.07, alloc=6.08, pv=J5 H10 L7
+M20, Blue, D3, d=9, n=19.39m, nps=4.04m, ebf=6.4, tt=13%, hf=5%, fh1=94%, s=-3600, thr=8, t=4.81, alloc=4.82, pv=D3
+M21, Red, H10, d=9, n=31.42m, nps=5.24m, ebf=6.8, tt=12%, hf=9%, fh1=93%, s=+5800, thr=8, t=5.99, alloc=6.01, pv=H10 E4 C2 G9 H7 I10 L7 I4 J10
+M22, Blue, E4, d=10, n=17.45m, nps=3.63m, ebf=5.2, tt=12%, hf=5%, fh1=94%, s=-7200, thr=8, t=4.81, alloc=4.84, pv=E4 C2 G9 H7 I10 J9 I5 M8 I4 K10 L11 H11 H9 J11
+M23, Red, C2, d=11, n=23.26m, nps=4.8m, ebf=4.7, tt=16%, hf=6%, fh1=94%, s=+7700, thr=8, t=0.01, alloc=5.97, [PONDER], pv=C2 G9 H7 I10 J9 I5 H11 H9 J11 K11 K10 L11 G11 F11 M8
+M24, Blue, G9, d=10, n=20.25m, nps=4.17m, ebf=5.3, tt=15%, hf=5%, fh1=93%, s=-7700, thr=8, t=4.85, alloc=4.86, pv=G9
+M25, Red, H7, d=10, n=21.49m, nps=4.36m, ebf=5.4, tt=9%, hf=4%, fh1=91%, s=+7700, thr=8, t=0.04, alloc=6.48, [PONDER], pv=H7
+M26, Blue, I10, d=9, n=31.34m, nps=6.44m, ebf=6.8, tt=8%, hf=9%, fh1=90%, s=-7700, thr=8, t=4.86, alloc=4.88, pv=I10
+M27, Red, H11, d=8, n=18.83m, nps=5.41m, ebf=8.0, tt=9%, hf=7%, fh1=89%, s=+7000, thr=8, t=3.48, alloc=6.99, pv=H11 H9 F9
+M28, Blue, H9, d=6, n=18.77m, nps=3.82m, ebf=16.2, tt=13%, hf=6%, fh1=93%, s=-6000, thr=8, t=4.91, alloc=4.91, pv=H9 F9 F7
+M29, Red, F9, d=8, n=22.04m, nps=4.42m, ebf=8.2, tt=9%, hf=6%, fh1=89%, s=+8600, thr=8, t=0.07, alloc=6.88, [PONDER], pv=F9
+M30, Blue, F7, d=2, n=25.26m, nps=5.14m, ebf=32.0, tt=15%, hf=9%, fh1=96%, s=-7900, thr=8, t=4.92, alloc=4.93, pv=F7
+M31, Red, F11, d=7, n=34.77m, nps=5.18m, ebf=11.9, tt=14%, hf=10%, fh1=95%, s=+8800, thr=8, t=6.71, alloc=7.49, pv=F11
+M32, Blue, G11, d=9, n=28m, nps=5.71m, ebf=6.7, tt=12%, hf=7%, fh1=90%, s=-9000, thr=8, t=4.91, alloc=4.96, pv=G11
+M33, Red, L7, d=9, n=18m, nps=4.96m, ebf=6.3, tt=14%, hf=5%, fh1=92%, s=+8400, thr=8, t=3.63, alloc=7.35, pv=L7
+M34, Blue, I4, d=10, n=26.77m, nps=5.44m, ebf=5.5, tt=15%, hf=8%, fh1=94%, s=-8400, thr=8, t=4.92, alloc=4.98, pv=I4 E10 D11 H13 G12
+M35, Red, E10, d=9, n=16.23m, nps=4.56m, ebf=6.2, tt=11%, hf=4%, fh1=90%, s=+8400, thr=8, t=3.56, alloc=7.25, pv=E10 D11 H13 G12 H12
+M36, Blue, D11, d=9, n=38.46m, nps=5.3m, ebf=7.0, tt=9%, hf=11%, fh1=89%, s=-8400, thr=8, t=0.00, alloc=5.01, [PONDER], pv=D11
+M37, Red, H13, d=8, n=22.19m, nps=6.26m, ebf=8.2, tt=10%, hf=5%, fh1=88%, s=+8400, thr=8, t=3.55, alloc=7.16, pv=H13
+M38, Blue, G12, d=8, n=28.85m, nps=5.19m, ebf=8.5, tt=19%, hf=8%, fh1=98%, s=-7900, thr=8, t=5.56, alloc=5.63, pv=G12
+M39, Red, H12, d=7, n=19.26m, nps=5.49m, ebf=11.0, tt=18%, hf=5%, fh1=98%, s=+7900, thr=8, t=3.51, alloc=7.07, pv=H12
+M40, Blue, H14, d=8, n=30.58m, nps=5.46m, ebf=8.6, tt=17%, hf=9%, fh1=97%, s=-8400, thr=8, t=5.60, alloc=5.60, pv=H14
+M41, Red, G13, d=7, n=21.16m, nps=6.11m, ebf=11.0, tt=18%, hf=5%, fh1=96%, s=+8400, thr=8, t=3.46, alloc=7.00, pv=G13
+M42, Blue, J10, d=7, n=34.76m, nps=6.24m, ebf=11.9, tt=23%, hf=7%, fh1=94%, s=-7400, thr=8, t=5.57, alloc=5.60, pv=J10
+M43, Red, J9, d=7, n=35.54m, nps=5.13m, ebf=12.0, tt=15%, hf=11%, fh1=95%, s=+7400, thr=8, t=6.93, alloc=6.93, pv=J9
+M44, Blue, F13, d=6, n=32.4m, nps=5.8m, ebf=17.8, tt=13%, hf=10%, fh1=93%, s=-7400, thr=8, t=5.59, alloc=5.61, pv=F13
+M45, Red, C10, d=5, n=22.41m, nps=6.68m, ebf=29.4, tt=14%, hf=5%, fh1=95%, s=+6100, thr=8, t=3.35, alloc=6.87, pv=C10
+M46, Blue, K10, d=6, n=30.51m, nps=5.45m, ebf=17.6, tt=15%, hf=9%, fh1=95%, s=-6700, thr=8, t=5.60, alloc=5.63, pv=K10 D10 B10 L10 I5 L9
+M47, Red, D10, d=5, n=13.86m, nps=4.11m, ebf=26.8, tt=11%, hf=4%, fh1=94%, s=+6700, thr=8, t=3.37, alloc=6.82, pv=D10 B10 L10
+M48, Blue, F10, d=8, n=29.71m, nps=5.3m, ebf=8.5, tt=18%, hf=6%, fh1=94%, s=-4700, thr=8, t=5.61, alloc=5.65, pv=F10
+M49, Red, I5, d=9, n=17.91m, nps=5.32m, ebf=6.3, tt=15%, hf=6%, fh1=94%, s=+4700, thr=8, t=3.37, alloc=6.78, pv=I5
+M50, Blue, G5, d=10, n=24.1m, nps=4.27m, ebf=5.4, tt=16%, hf=6%, fh1=92%, s=-4900, thr=8, t=5.65, alloc=5.67, pv=G5 G4
+M51, Red, G4, d=8, n=3.88m, nps=1.09m, ebf=6.6, tt=10%, hf=2%, fh1=87%, s=+5700, thr=8, t=3.55, alloc=6.74, pv=G4
+M52, Blue, F14, d=8, n=10.68m, nps=1.41m, ebf=7.5, tt=10%, hf=4%, fh1=92%, s=-4900, thr=8, t=0.06, alloc=5.71, [PONDER], pv=F14
+M53, Red, G14, d=8, n=14.24m, nps=4.67m, ebf=7.8, tt=12%, hf=4%, fh1=91%, s=+5700, thr=8, t=3.05, alloc=6.52, pv=G14 M8 L9
+M54, Blue, F15, d=8, n=20.75m, nps=2.83m, ebf=8.1, tt=16%, hf=7%, fh1=90%, s=-5700, thr=8, t=7.33, alloc=7.39, pv=F15 L10
+M55, Red, L10, d=8, n=24.98m, nps=3.95m, ebf=8.3, tt=13%, hf=9%, fh1=90%, s=+6100, thr=8, t=6.33, alloc=6.58, pv=L10 L9 K5 L5 K8 K7 F12 M8 J11
+M56, Blue, N9, d=8, n=28.47m, nps=3.9m, ebf=8.5, tt=10%, hf=9%, fh1=93%, s=-5400, thr=8, t=7.31, alloc=7.33, pv=N9
+M57, Red, K5, d=7, n=18.84m, nps=5.68m, ebf=10.9, tt=13%, hf=6%, fh1=91%, s=+5400, thr=8, t=3.32, alloc=6.69, pv=K5
+M58, Blue, L5, d=8, n=39.45m, nps=5.34m, ebf=8.9, tt=14%, hf=10%, fh1=94%, s=-6000, thr=8, t=7.39, alloc=7.39, pv=L5
+M59, Red, F12, d=7, n=17.06m, nps=5.4m, ebf=10.8, tt=12%, hf=6%, fh1=93%, s=+6000, thr=8, t=3.16, alloc=6.43, pv=F12 K8
+M60, Blue, K8, d=7, n=28.89m, nps=4.11m, ebf=11.6, tt=11%, hf=8%, fh1=90%, s=-4900, thr=8, t=7.03, alloc=7.06, pv=K8 K4 L9 M10 M8 K3 K2 N8 K7 K11
+M61, Red, C9, d=9, n=1.67m, nps=3.53m, ebf=4.9, tt=18%, hf=0%, fh1=91%, s=+7900, thr=8, t=0.47, alloc=1.00, pv=C9
+M62, Blue, E11, d=9, n=5.88m, nps=5.92m, ebf=5.6, tt=16%, hf=1%, fh1=94%, s=-7900, thr=8, t=0.99, alloc=0.99, pv=E11 C11 C8 D12 E9 C12 C13 B10 A10 B12 E12 L9
+M63, Red, C11, d=8, n=1.99m, nps=4.48m, ebf=6.0, tt=15%, hf=0%, fh1=94%, s=+7900, thr=8, t=0.44, alloc=0.97, pv=C11
+M64, Blue, L9, d=9, n=5.7m, nps=5.9m, ebf=5.6, tt=16%, hf=1%, fh1=91%, s=-6000, thr=8, t=0.97, alloc=0.99, pv=L9
+M65, Red, M10, d=10, n=5.82m, nps=5.85m, ebf=4.7, tt=16%, hf=1%, fh1=91%, s=+5500, thr=8, t=1.00, alloc=0.99, pv=M10 C8 B10 A10 K4
+M66, Blue, C8, d=9, n=4.37m, nps=4.56m, ebf=5.4, tt=15%, hf=1%, fh1=90%, s=-5500, thr=8, t=0.96, alloc=0.99, pv=C8
+M67, Red, B10, d=8, n=5.13m, nps=4.83m, ebf=6.9, tt=14%, hf=1%, fh1=91%, s=+5500, thr=8, t=0.06, alloc=1.00, [PONDER], pv=B10
+M68, Blue, A10, d=8, n=6.02m, nps=6.05m, ebf=7.0, tt=18%, hf=2%, fh1=96%, s=-5500, thr=8, t=1.00, alloc=0.99, pv=A10
+M69, Red, C13, d=8, n=5.24m, nps=5.63m, ebf=6.9, tt=22%, hf=2%, fh1=94%, s=+3100, thr=8, t=0.93, alloc=1.94, pv=C13
+M70, Blue, C12, d=8, n=5.24m, nps=5.25m, ebf=6.9, tt=13%, hf=2%, fh1=92%, s=-3100, thr=8, t=1.00, alloc=1.00, pv=C12
+M71, Red, K4, d=7, n=2.27m, nps=5.09m, ebf=8.0, tt=13%, hf=1%, fh1=94%, s=+1000, thr=8, t=0.45, alloc=1.00, pv=K4 K3 M8 E9 C7 M9 O9
+M72, Blue, E9, d=7, n=3.86m, nps=4.04m, ebf=8.7, tt=13%, hf=1%, fh1=91%, s=-500, thr=8, t=0.96, alloc=1.00, pv=E9 D8 E7 D7 K3 M9 M8 K11
+M73, Red, K3, d=8, n=2.17m, nps=4.38m, ebf=6.1, tt=16%, hf=0%, fh1=94%, s=+3900, thr=8, t=0.50, alloc=1.00, pv=K3 K2 K11 K7 M9
+M74, Blue, K2, d=8, n=3.43m, nps=3.44m, ebf=6.5, tt=6%, hf=1%, fh1=99%, s=-4000, thr=8, t=1.00, alloc=1.00, pv=K2 D8
+M75, Red, K11, d=8, n=4.6m, nps=4.49m, ebf=6.8, tt=12%, hf=2%, fh1=89%, s=+4000, thr=8, t=0.01, alloc=0.89, [PONDER], pv=K11
+M76, Blue, K7, d=8, n=2.61m, nps=5.74m, ebf=6.2, tt=14%, hf=1%, fh1=91%, s=-4000, thr=8, t=0.45, alloc=0.99, pv=K7 D8 E7
+M77, Red, M9, d=7, n=3.76m, nps=4.27m, ebf=8.6, tt=18%, hf=1%, fh1=95%, s=+4000, thr=8, t=0.88, alloc=1.88, pv=M9 N8
+M78, Blue, D8, d=4, n=2.37m, nps=5.19m, ebf=32.0, tt=14%, hf=0%, fh1=96%, s=-3400, thr=8, t=0.46, alloc=0.92, pv=D8 C7 N8 J11 L11 M8
+M79, Red, C7, d=7, n=4.38m, nps=4.4m, ebf=8.9, tt=11%, hf=2%, fh1=91%, s=+2900, thr=8, t=1.00, alloc=0.99, pv=C7 N8 M8 M11 B8
+M80, Blue, N8, d=6, n=4.27m, nps=4.49m, ebf=12.7, tt=10%, hf=0%, fh1=90%, s=-2900, thr=8, t=0.95, alloc=0.99, pv=N8
+M81, Red, J11, d=5, n=4.53m, nps=4.51m, ebf=21.3, tt=10%, hf=2%, fh1=91%, s=+2600, thr=8, t=0.01, alloc=0.99, [PONDER], pv=J11
+M82, Blue, L11, d=6, n=5.46m, nps=5.5m, ebf=13.1, tt=11%, hf=2%, fh1=91%, s=-1900, thr=8, t=0.99, alloc=0.99, pv=L11 M8 M11 B8 N10 B9
+M83, Red, M8, d=5, n=8.41m, nps=4.32m, ebf=24.1, tt=30%, hf=2%, fh1=93%, s=+1900, thr=8, t=1.95, alloc=1.98, pv=M8
+M84, Blue, M11, d=4, n=8.34m, nps=4.19m, ebf=32.0, tt=11%, hf=2%, fh1=93%, s=-1900, thr=8, t=0.00, alloc=1.00, [PONDER], pv=M11
+M85, Red, N10, d=4, n=2.7m, nps=5.7m, ebf=32.0, tt=11%, hf=0%, fh1=92%, s=+1900, thr=8, t=0.47, alloc=1.00, pv=N10
+M86, Blue, A8, d=4, n=5.56m, nps=5.67m, ebf=32.0, tt=13%, hf=2%, fh1=89%, s=-2000, thr=8, t=0.98, alloc=1.99, pv=A8
+M87, Red, B8, d=5, n=5.57m, nps=5.58m, ebf=22.2, tt=12%, hf=2%, fh1=93%, s=+100, thr=8, t=1.00, alloc=1.00, pv=B8 A9 A7 A11 A12 M5
+M88, Blue, A9, d=4, n=2.1m, nps=4.23m, ebf=32.0, tt=14%, hf=0%, fh1=96%, s=-100, thr=8, t=0.50, alloc=1.00, pv=A9
+M89, Red, A7, d=5, n=5.26m, nps=5.45m, ebf=22.0, tt=12%, hf=2%, fh1=95%, s=+4700, thr=8, t=0.96, alloc=1.00, pv=A7
+M90, Blue, I13, d=4, n=2.7m, nps=5.49m, ebf=32.0, tt=11%, hf=1%, fh1=95%, s=-5000, thr=8, t=0.49, alloc=0.99, pv=I13
+M91, Red, M7, d=6, n=6.01m, nps=6.39m, ebf=13.4, tt=6%, hf=1%, fh1=97%, s=+2300, thr=8, t=0.94, alloc=0.99, pv=M7 M6 L6 B7 I3 J4 P10 O10 L3
+M92, Blue, M6, d=7, n=7.67m, nps=7.68m, ebf=9.6, tt=35%, hf=0%, fh1=95%, s=-1300, thr=8, t=1.00, alloc=1.00, pv=M6 L6 I3 B9 B7 B12 B11 D14
+M93, Red, L6, d=6, n=7.75m, nps=7.67m, ebf=14.0, tt=29%, hf=0%, fh1=97%, s=+1300, thr=8, t=0.01, alloc=1.00, [PONDER], pv=L6
+M94, Blue, I3, d=7, n=9m, nps=9.32m, ebf=9.8, tt=25%, hf=0%, fh1=97%, s=-500, thr=8, t=0.97, alloc=0.99, pv=I3 A11
+M95, Red, A12, d=6, n=11.57m, nps=5.96m, ebf=15.0, tt=12%, hf=1%, fh1=96%, s=+500, thr=8, t=1.94, alloc=1.99, pv=A12 O10 B9 B11 B6 B7 C6
+M96, Blue, O10, d=5, n=5.12m, nps=5.5m, ebf=22.0, tt=13%, hf=1%, fh1=96%, s=-500, thr=8, t=0.93, alloc=0.96, pv=O10 B9 B11 B6 B7 C6
+M97, Red, B7, d=5, n=1.71m, nps=3.85m, ebf=17.6, tt=6%, hf=0%, fh1=99%, s=+1300, thr=8, t=0.44, alloc=0.99, pv=B7 B9 D7
+M98, Blue, B9, d=4, n=3.35m, nps=3.5m, ebf=32.0, tt=22%, hf=1%, fh1=100%, s=-300, thr=8, t=0.96, alloc=0.99, pv=B9 D7
+M99, Red, D7, d=3, n=6.12m, nps=5.79m, ebf=32.0, tt=15%, hf=1%, fh1=98%, s=+1300, thr=8, t=0.05, alloc=0.98, [PONDER], pv=D7
+M100, Blue, E7, d=6, n=6.76m, nps=6.86m, ebf=13.7, tt=7%, hf=1%, fh1=99%, s=-4200, thr=8, t=0.99, alloc=0.98, pv=E7 D13 E12 N6
+M101, Red, D13, d=5, n=4.48m, nps=5.04m, ebf=21.2, tt=9%, hf=1%, fh1=96%, s=+4200, thr=8, t=0.89, alloc=1.93, pv=D13 E12 N6
+M102, Blue, E12, d=6, n=1.79m, nps=3.61m, ebf=11.0, tt=5%, hf=1%, fh1=98%, s=-4200, thr=8, t=0.50, alloc=0.99, pv=E12
+M103, Red, J13, d=5, n=3.21m, nps=7.06m, ebf=20.0, tt=13%, hf=1%, fh1=98%, s=+4200, thr=8, t=0.45, alloc=0.99, pv=J13
+M104, Blue, I12, d=4, n=2.26m, nps=5.64m, ebf=32.0, tt=34%, hf=1%, fh1=99%, s=-2500, thr=8, t=0.40, alloc=0.89, pv=I12
+M105, Red, E13, d=5, n=3.23m, nps=7.11m, ebf=20.0, tt=15%, hf=1%, fh1=99%, s=+4200, thr=8, t=0.45, alloc=0.97, pv=E13 A13 N6 L8 L4
+M106, Blue, A13, d=5, n=4.3m, nps=4.42m, ebf=21.0, tt=9%, hf=2%, fh1=99%, s=-2500, thr=8, t=0.97, alloc=1.00, pv=A13 J2
+M107, Red, E15, d=6, n=3.01m, nps=6m, ebf=12.0, tt=24%, hf=2%, fh1=98%, s=+2500, thr=8, t=0.50, alloc=1.00, pv=E15 D14 M4 L4 J12 K13
+M108, Blue, D14, d=6, n=2.45m, nps=5.85m, ebf=11.5, tt=11%, hf=0%, fh1=98%, s=-3800, thr=8, t=0.42, alloc=0.99, pv=D14 L2
+M109, Red, L2, d=5, n=5.85m, nps=5.07m, ebf=22.5, tt=10%, hf=2%, fh1=99%, s=+3800, thr=8, t=0.07, alloc=0.90, [PONDER], pv=L2
+M110, Blue, J4, d=6, n=4.8m, nps=5.42m, ebf=13.0, tt=8%, hf=3%, fh1=99%, s=-3800, thr=8, t=0.89, alloc=0.91, pv=J4 J2
+M111, Red, J2, d=5, n=3.64m, nps=4.33m, ebf=20.4, tt=8%, hf=1%, fh1=99%, s=+3800, thr=8, t=0.84, alloc=1.82, pv=J2 L4 M3
+M112, Blue, L4, d=5, n=10.34m, nps=5.33m, ebf=25.1, tt=8%, hf=3%, fh1=100%, s=-2500, thr=8, t=0.11, alloc=0.99, [PONDER], pv=L4
+M113, Red, N4, d=5, n=2.74m, nps=5.54m, ebf=19.2, tt=13%, hf=2%, fh1=99%, s=+3000, thr=8, t=0.49, alloc=0.99, pv=N4
+M114, Blue, O5, d=6, n=4.97m, nps=5.64m, ebf=13.0, tt=9%, hf=2%, fh1=99%, s=-3000, thr=8, t=0.88, alloc=1.88, pv=O5 N5 N6 M2 N1 J12
+M115, Red, N5, d=5, n=2.04m, nps=5.15m, ebf=18.1, tt=9%, hf=1%, fh1=98%, s=+3000, thr=8, t=0.40, alloc=0.91, pv=N5 N6 M3
+M116, Blue, N3, d=6, n=1.73m, nps=3.58m, ebf=11.0, tt=11%, hf=1%, fh1=99%, s=-3000, thr=8, t=0.48, alloc=1.00, pv=N3
+M117, Red, N1, d=3, n=2.47m, nps=4.99m, ebf=32.0, tt=9%, hf=2%, fh1=99%, s=+3000, thr=8, t=0.50, alloc=0.99, pv=N1 L3 J12
+M118, Blue, L3, d=6, n=4.06m, nps=4.53m, ebf=12.6, tt=11%, hf=1%, fh1=99%, s=-3000, thr=8, t=0.90, alloc=0.92, pv=L3 K1 M1 O11 L8 J12
+M119, Red, K1, d=5, n=4.68m, nps=4.89m, ebf=21.5, tt=13%, hf=1%, fh1=99%, s=+3000, thr=8, t=0.03, alloc=0.97, [PONDER], pv=K1 L1 O3 P2 J12
+M120, Blue, M1, d=6, n=2.29m, nps=5.05m, ebf=11.4, tt=10%, hf=0%, fh1=99%, s=-3000, thr=8, t=0.45, alloc=0.99, pv=M1 O11
+M121, Red, H1, d=5, n=5.38m, nps=5.64m, ebf=22.0, tt=9%, hf=1%, fh1=99%, s=+3000, thr=8, t=0.95, alloc=1.94, pv=H1 I1 H3 H2 J12
+M122, Blue, I1, d=5, n=2.56m, nps=5.79m, ebf=19.0, tt=9%, hf=2%, fh1=98%, s=-2500, thr=8, t=0.44, alloc=0.90, pv=I1 O3 M5 J12 K13
+M123, Red, H2, d=5, n=2.27m, nps=5.48m, ebf=18.6, tt=13%, hf=1%, fh1=99%, s=+2900, thr=8, t=0.42, alloc=0.89, pv=H2 H3 F2
+M124, Blue, H3, d=6, n=4.28m, nps=4.48m, ebf=12.7, tt=9%, hf=3%, fh1=99%, s=-2900, thr=8, t=0.96, alloc=0.99, pv=H3 G2 F2 O3 P2 J12
+M125, Red, G2, d=5, n=1.75m, nps=4.01m, ebf=17.7, tt=21%, hf=3%, fh1=99%, s=+2900, thr=8, t=0.44, alloc=0.93, pv=G2 F2
+M126, Blue, F2, d=5, n=7.45m, nps=7.63m, ebf=23.6, tt=5%, hf=2%, fh1=97%, s=-2400, thr=8, t=0.01, alloc=0.99, [PONDER], pv=F2
+M127, Red, O3, d=5, n=2.4m, nps=5.18m, ebf=18.8, tt=18%, hf=2%, fh1=100%, s=+2900, thr=8, t=0.46, alloc=0.97, pv=O3
+M128, Blue, M5, d=6, n=9.94m, nps=5.1m, ebf=14.6, tt=13%, hf=5%, fh1=100%, s=-1400, thr=8, t=1.95, alloc=1.97, pv=M5 O11 L8 N12
+M129, Red, O11, d=4, n=2.95m, nps=6.52m, ebf=32.0, tt=7%, hf=0%, fh1=94%, s=+2400, thr=8, t=0.45, alloc=0.92, pv=O11 L8 J12 K13
+M130, Blue, L8, d=5, n=7.14m, nps=7.65m, ebf=23.3, tt=8%, hf=3%, fh1=96%, s=-1200, thr=8, t=0.01, alloc=1.00, [PONDER], pv=L8
+M131, Red, J12, d=3, n=2.74m, nps=5.87m, ebf=32.0, tt=28%, hf=2%, fh1=99%, s=+1200, thr=8, t=0.47, alloc=0.99, pv=J12
+M132, Blue, L14, d=4, n=10.68m, nps=5.42m, ebf=32.0, tt=30%, hf=4%, fh1=99%, s=+500, thr=8, t=1.97, alloc=1.99, pv=L14
+M133, Red, J14, d=3, n=2.08m, nps=5.19m, ebf=32.0, tt=36%, hf=2%, fh1=100%, s=-500, thr=8, t=0.40, alloc=0.92, pv=J14 J15 F3 E2
+M134, Blue, J15, d=4, n=3.52m, nps=3.5m, ebf=32.0, tt=21%, hf=3%, fh1=99%, s=-400, thr=8, t=1.00, alloc=1.00, pv=J15 F3
+M135, Red, F3, d=4, n=1.97m, nps=4.34m, ebf=32.0, tt=24%, hf=2%, fh1=99%, s=-500, thr=8, t=0.45, alloc=1.00, pv=F3
+M136, Blue, E2, d=7, n=3.97m, nps=9.17m, ebf=8.7, tt=7%, hf=1%, fh1=97%, s=+11000, thr=8, t=0.43, alloc=0.99, pv=E2
+M137, Red, B5, d=5, n=3.71m, nps=7.92m, ebf=20.5, tt=14%, hf=2%, fh1=99%, s=-7800, thr=8, t=0.47, alloc=0.96, pv=B5 B4 C4 E5 C5 E3
+M138, Blue, B4, d=5, n=1.79m, nps=3.99m, ebf=17.8, tt=19%, hf=2%, fh1=100%, s=+11500, thr=8, t=0.45, alloc=0.98, pv=B4
+M139, Red, C4, d=4, n=4.9m, nps=4.87m, ebf=32.0, tt=28%, hf=5%, fh1=99%, s=-11500, thr=8, t=0.02, alloc=1.00, [PONDER], pv=C4
+M140, Blue, E5, d=3, n=2.87m, nps=5.96m, ebf=32.0, tt=32%, hf=1%, fh1=100%, s=+11500, thr=8, t=0.48, alloc=0.99, pv=E5
+M141, Red, C5, d=4, n=12.09m, nps=6.16m, ebf=32.0, tt=20%, hf=5%, fh1=100%, s=-11500, thr=8, t=1.96, alloc=1.97, pv=C5 E1 E3 B6 C1 C3 D2 E14 B14
+M142, Blue, E1, d=3, n=2.53m, nps=5.4m, ebf=32.0, tt=12%, hf=3%, fh1=100%, s=+11500, thr=8, t=0.47, alloc=1.00, pv=E1 E3 B6 C1 C3 D2 E14 C14
+M143, Red, E3, d=4, n=5.14m, nps=5.07m, ebf=32.0, tt=12%, hf=2%, fh1=100%, s=-14000, thr=8, t=0.01, alloc=0.99, [PONDER], pv=E3 B6 C1
+M144, Blue, B6, d=3, n=2.06m, nps=5.86m, ebf=32.0, tt=37%, hf=4%, fh1=100%, s=+14000, thr=8, t=0.35, alloc=0.99, pv=B6 C1
+M145, Red, C1, d=4, n=8.56m, nps=4.31m, ebf=32.0, tt=30%, hf=5%, fh1=100%, s=-15000, thr=8, t=1.99, alloc=1.99, pv=C1
+M146, Blue, C3, d=3, n=8.52m, nps=4.14m, ebf=32.0, tt=21%, hf=7%, fh1=100%, s=+14000, thr=8, t=0.06, alloc=1.01, [PONDER], pv=C3
+M147, Red, D2, d=4, n=5.99m, nps=6.09m, ebf=32.0, tt=33%, hf=4%, fh1=100%, s=-15000, thr=8, t=0.98, alloc=0.99, pv=D2
+M148, Blue, L13, d=3, n=8.29m, nps=8.53m, ebf=32.0, tt=41%, hf=6%, fh1=100%, s=+15000, thr=8, t=0.97, alloc=1.96, pv=L13
+M149, Red, L15, d=4, n=9.06m, nps=9.1m, ebf=32.0, tt=23%, hf=3%, fh1=99%, s=-15100, thr=8, t=1.00, alloc=1.00, pv=L15
+M150, Blue, M4, d=2, n=2.7m, nps=5.76m, ebf=32.0, tt=36%, hf=1%, fh1=99%, s=+15000, thr=8, t=0.47, alloc=1.00, pv=M4
+M151, Red, P1, d=4, n=5.66m, nps=5.69m, ebf=32.0, tt=20%, hf=5%, fh1=98%, s=-16800, thr=8, t=1.00, alloc=1.00, pv=P1
+M152, Blue, O7, d=2, n=3.04m, nps=6.2m, ebf=32.0, tt=45%, hf=1%, fh1=98%, s=+15100, thr=8, t=0.49, alloc=1.00, pv=O7
+M153, Red, P8, d=4, n=8.89m, nps=8.92m, ebf=32.0, tt=28%, hf=3%, fh1=98%, s=-16800, thr=8, t=1.00, alloc=1.00, pv=P8 O4
+M154, Blue, O4, d=2, n=3.13m, nps=6.67m, ebf=32.0, tt=7%, hf=1%, fh1=98%, s=+16800, thr=8, t=0.47, alloc=1.00, pv=O4
+M155, Red, O6, d=4, n=8.69m, nps=8.63m, ebf=32.0, tt=18%, hf=5%, fh1=99%, s=-17000, thr=8, t=0.00, alloc=1.00, [PONDER], pv=O6 P9 M12 N7 O8 M2
+M156, Blue, B2, d=2, n=2.22m, nps=4.92m, ebf=32.0, tt=39%, hf=1%, fh1=99%, s=+16800, thr=8, t=0.45, alloc=0.99, pv=B2
+M157, Red, A1, d=4, n=12.8m, nps=6.4m, ebf=32.0, tt=38%, hf=3%, fh1=100%, s=-17000, thr=8, t=2.00, alloc=2.00, pv=A1 P9 M12 N7 O8 M2 P5
+M158, Blue, P9, d=3, n=2.28m, nps=4.57m, ebf=32.0, tt=33%, hf=1%, fh1=100%, s=+17000, thr=8, t=0.50, alloc=1.00, pv=P9 N11 N7 O8 M2
+M159, Red, M12, d=4, n=5.43m, nps=5.4m, ebf=32.0, tt=35%, hf=1%, fh1=100%, s=-19500, thr=8, t=0.00, alloc=0.99, [PONDER], pv=M12
+M160, Blue, N7, d=3, n=3.15m, nps=6.63m, ebf=32.0, tt=41%, hf=2%, fh1=100%, s=+19500, thr=8, t=0.47, alloc=0.99, pv=N7 O8 M2 P5 E14
+M161, Red, O8, d=4, n=9.16m, nps=4.6m, ebf=32.0, tt=33%, hf=1%, fh1=100%, s=-19500, thr=8, t=1.99, alloc=1.99, pv=O8 M2
+M162, Blue, M2, d=3, n=9.12m, nps=4.5m, ebf=32.0, tt=34%, hf=1%, fh1=100%, s=+19500, thr=8, t=0.04, alloc=0.93, [PONDER], pv=M2
+M163, Red, P5, d=4, n=165.89k, nps=4.34m, ebf=20.0, tt=34%, hf=1%, fh1=100%, s=-19500, thr=8, t=0.00, alloc=0.99, [PONDER], pv=P5
+M164, Blue, N13, d=3, n=10.9m, nps=6.55m, ebf=32.0, tt=42%, hf=2%, fh1=100%, s=+19500, thr=8, t=1.66, alloc=1.90, pv=N13
+M165, Red, M13, d=4, n=7.37m, nps=7.48m, ebf=32.0, tt=43%, hf=1%, fh1=100%, s=-19500, thr=8, t=0.98, alloc=1.99, pv=M13 B14
+M166, Blue, B14, d=3, n=3.39m, nps=4.88m, ebf=32.0, tt=41%, hf=1%, fh1=100%, s=+19500, thr=8, t=0.69, alloc=1.00, pv=B14
+M167, Red, E14, d=4, n=5.49m, nps=5.45m, ebf=32.0, tt=44%, hf=3%, fh1=100%, s=-17000, thr=8, t=0.00, alloc=1.00, [PONDER], pv=E14
+M168, Blue, B12, d=3, n=6.45m, nps=6.51m, ebf=32.0, tt=44%, hf=2%, fh1=100%, s=+17000, thr=8, t=0.99, alloc=0.99, pv=B12
+M169, Red, B13, d=5, n=7.78m, nps=7.92m, ebf=23.9, tt=48%, hf=1%, fh1=99%, s=-14800, thr=8, t=0.98, alloc=1.99, pv=B13 I16 I15 L16
+M170, Blue, I16, d=3, n=4.98m, nps=4.99m, ebf=32.0, tt=46%, hf=2%, fh1=100%, s=+17000, thr=8, t=1.00, alloc=1.00, pv=I16
+M171, Red, I15, d=5, n=5.64m, nps=5.54m, ebf=22.2, tt=44%, hf=2%, fh1=100%, s=-14500, thr=8, t=0.01, alloc=1.00, [PONDER], pv=I15 L16
+M172, Blue, L16, d=4, n=5.86m, nps=5.88m, ebf=32.0, tt=54%, hf=2%, fh1=100%, s=+14500, thr=8, t=1.00, alloc=0.99, pv=L16 K16 H16
+M173, Red, K16, d=5, n=7.63m, nps=7.35m, ebf=23.7, tt=17%, hf=1%, fh1=95%, s=-14500, thr=8, t=0.04, alloc=1.99, [PONDER], pv=K16
+M174, Blue, H16, d=4, n=11.74m, nps=11.84m, ebf=32.0, tt=27%, hf=1%, fh1=100%, s=+14500, thr=8, t=0.99, alloc=0.99, pv=H16
+M175, Red, G16, d=4, n=16.86m, nps=11.8m, ebf=32.0, tt=24%, hf=0%, fh1=95%, s=-14500, thr=8, t=1.43, alloc=2.95, pv=G16
+M176, Blue, N14, d=3, n=10.42m, nps=10.47m, ebf=32.0, tt=43%, hf=1%, fh1=99%, s=+14500, thr=8, t=1.00, alloc=1.00, pv=N14
+M177, Red, O14, d=3, n=4.22m, nps=8.52m, ebf=32.0, tt=38%, hf=1%, fh1=98%, s=-14400, thr=8, t=0.50, alloc=1.00, pv=O14
+M178, Blue, N15, d=3, n=6.61m, nps=7.66m, ebf=32.0, tt=48%, hf=3%, fh1=100%, s=+14400, thr=8, t=0.86, alloc=1.00, pv=N15
+M179, Red, N16, d=3, n=5.76m, nps=11.91m, ebf=32.0, tt=19%, hf=1%, fh1=99%, s=-14400, thr=8, t=0.48, alloc=1.00, pv=N16
+M180, Blue, N11, d=2, n=11.53m, nps=12.03m, ebf=32.0, tt=28%, hf=1%, fh1=100%, s=+14400, thr=8, t=0.96, alloc=1.00, pv=N11
+M181, Red, P2, d=2, n=3.87m, nps=7.78m, ebf=32.0, tt=53%, hf=2%, fh1=100%, s=-14400, thr=8, t=0.50, alloc=1.00, pv=P2
+M182, Blue, P3, d=2, n=11.75m, nps=11.82m, ebf=32.0, tt=26%, hf=2%, fh1=100%, s=+14400, thr=8, t=0.99, alloc=1.00, pv=P3 A3 A4 N12
+M183, Red, A3, d=2, n=2.95m, nps=6.5m, ebf=32.0, tt=43%, hf=1%, fh1=100%, s=-14400, thr=8, t=0.45, alloc=1.00, pv=A3
+M184, Blue, A4, d=2, n=11.69m, nps=11.76m, ebf=32.0, tt=34%, hf=1%, fh1=100%, s=+14400, thr=8, t=0.99, alloc=1.00, pv=A4
+M185, Red, P6, d=2, n=3.54m, nps=7.33m, ebf=32.0, tt=45%, hf=2%, fh1=100%, s=-14400, thr=8, t=0.48, alloc=0.99, pv=P6
+M186, Blue, P4, d=2, n=11.34m, nps=12.19m, ebf=32.0, tt=30%, hf=0%, fh1=100%, s=+14400, thr=8, t=0.93, alloc=1.00, pv=P4
+M187, Red, C14, d=2, n=3.84m, nps=8.01m, ebf=32.0, tt=50%, hf=2%, fh1=100%, s=-14400, thr=8, t=0.48, alloc=1.00, pv=C14
+M188, Blue, D15, d=2, n=11.76m, nps=11.81m, ebf=32.0, tt=27%, hf=0%, fh1=100%, s=+14500, thr=8, t=1.00, alloc=1.00, pv=D15
+M189, Red, N12, d=2, n=5.07m, nps=7.86m, ebf=32.0, tt=56%, hf=2%, fh1=100%, s=-14500, thr=8, t=0.65, alloc=1.00, pv=N12
+M190, Blue, K12, d=1, n=8.52m, nps=8.56m, ebf=32.0, tt=66%, hf=1%, fh1=100%, s=+14500, thr=8, t=0.99, alloc=1.00, pv=K12
+M191, Red, M14, d=4, n=11.89m, nps=11.92m, ebf=32.0, tt=32%, hf=1%, fh1=97%, s=-1000, thr=8, t=1.00, alloc=1.00, pv=M14 M15 P12 L12 M3 P10 E6
+M192, Blue, M15, d=4, n=8.94m, nps=8.93m, ebf=32.0, tt=33%, hf=1%, fh1=99%, s=-600, thr=8, t=1.00, alloc=1.00, pv=M15 P12 L12 M3 B16 E6 C16
+M193, Red, P12, d=4, n=9.13m, nps=9.02m, ebf=32.0, tt=32%, hf=0%, fh1=100%, s=+600, thr=8, t=0.01, alloc=1.00, [PONDER], pv=P12
+M194, Blue, L12, d=3, n=11.46m, nps=11.57m, ebf=32.0, tt=44%, hf=1%, fh1=100%, s=-600, thr=8, t=0.99, alloc=0.99, pv=L12
+M195, Red, M3, d=3, n=23.64m, nps=11.88m, ebf=32.0, tt=28%, hf=0%, fh1=100%, s=+1000, thr=8, t=1.99, alloc=1.99, pv=M3
+M196, Blue, B16, d=3, n=11.96m, nps=11.98m, ebf=32.0, tt=48%, hf=0%, fh1=100%, s=-1000, thr=8, t=1.00, alloc=1.00, pv=B16
+M197, Red, C16, d=3, n=11.76m, nps=11.8m, ebf=32.0, tt=65%, hf=0%, fh1=100%, s=+1000, thr=8, t=1.00, alloc=1.00, pv=C16
+M198, Blue, P13, d=2, n=12.26m, nps=12.27m, ebf=32.0, tt=52%, hf=0%, fh1=100%, s=-1000, thr=8, t=1.00, alloc=1.00, pv=P13
+M199, Red, E6, d=2, n=11.94m, nps=11.98m, ebf=32.0, tt=44%, hf=1%, fh1=100%, s=+1000, thr=8, t=1.00, alloc=1.00, pv=E6 O12
+M200, Blue, A2, d=7, n=8.87m, nps=8.87m, ebf=9.8, tt=53%, hf=0%, fh1=98%, s=-1000, thr=8, t=1.00, alloc=1.00, pv=A2 D16 F16 O12 O13 E16
+M201, Red, F16, d=6, n=9.03m, nps=9.04m, ebf=14.3, tt=64%, hf=0%, fh1=99%, s=+1000, thr=8, t=1.00, alloc=1.00, pv=F16 D16 O12 O13 E16 F1
+M202, Blue, D16, d=7, n=8.74m, nps=8.74m, ebf=9.8, tt=44%, hf=1%, fh1=99%, s=-1000, thr=8, t=1.00, alloc=1.00, pv=D16 O12 O13 B1 B3 D1 E16
+M203, Red, F1, d=6, n=9.02m, nps=9.09m, ebf=14.3, tt=56%, hf=1%, fh1=100%, s=+1000, thr=8, t=0.99, alloc=0.99, pv=F1 O13 E16 O12 B1 D1
+M204, Blue, O13, d=7, n=8.39m, nps=8.42m, ebf=9.7, tt=52%, hf=2%, fh1=100%, s=-1000, thr=8, t=1.00, alloc=0.99, pv=O13 O12 B1 E16 B3 J1 G1
+M205, Red, G1, d=7, n=8.44m, nps=8.54m, ebf=9.7, tt=55%, hf=1%, fh1=100%, s=-1000, thr=8, t=0.99, alloc=0.99, pv=G1 O12 B1 D1 J1 E16 L1
+M206, Blue, B1, d=6, n=8.84m, nps=8.93m, ebf=14.3, tt=57%, hf=0%, fh1=100%, s=+1000, thr=8, t=0.99, alloc=0.99, pv=B1 E16 O12 I14 B3 D1
+M207, Red, D1, d=6, n=8.84m, nps=8.88m, ebf=14.3, tt=50%, hf=1%, fh1=100%, s=+1000, thr=8, t=0.99, alloc=0.99, pv=D1 J1 L1 E16 I2 O12
+M208, Blue, O12, d=7, n=8.4m, nps=8.51m, ebf=9.7, tt=51%, hf=2%, fh1=100%, s=-1000, thr=8, t=0.99, alloc=0.99, pv=O12 I14 J1 E16 B3 L1 O15
+M209, Red, L1, d=7, n=7.13m, nps=8.76m, ebf=9.4, tt=51%, hf=1%, fh1=100%, s=-1000, thr=8, t=0.81, alloc=0.99, pv=L1 E16 J1 O1 N2 I2 O2
+M210, Blue, J1, d=7, n=6m, nps=8.45m, ebf=9.2, tt=54%, hf=1%, fh1=100%, s=-1000, thr=8, t=0.71, alloc=1.00, pv=J1 I14 G3 E16 J3 O1 O15
+M211, Red, K13, d=7, n=10.39m, nps=8.82m, ebf=10.0, tt=46%, hf=1%, fh1=100%, s=-1000, thr=8, t=1.18, alloc=1.17, pv=K13 E16 A14 N2 I2
+M212, Blue, E16, d=7, n=11.28m, nps=8.81m, ebf=10.0, tt=51%, hf=1%, fh1=100%, s=-1000, thr=8, t=1.28, alloc=1.28, pv=E16 I14 O15 I2 B3 O1 J3
+M213, Red, A14, d=7, n=6.56m, nps=6.6m, ebf=9.3, tt=51%, hf=2%, fh1=100%, s=-1000, thr=8, t=0.99, alloc=0.99, pv=A14
+M214, Blue, O15, d=7, n=11.61m, nps=11.76m, ebf=10.1, tt=52%, hf=1%, fh1=100%, s=-1000, thr=8, t=0.99, alloc=0.99, pv=O15 O1 I14 O2 B3 I2 N2
+M215, Red, I2, d=7, n=6.05m, nps=8.74m, ebf=9.2, tt=47%, hf=1%, fh1=100%, s=-1000, thr=8, t=0.69, alloc=0.99, pv=I2 O1 N2 B3 O2 G3 A11
+M216, Blue, B3, d=7, n=8.23m, nps=8.22m, ebf=9.7, tt=47%, hf=2%, fh1=100%, s=-1000, thr=8, t=1.00, alloc=1.00, pv=B3 N2 G3 O2 I14 O1 J3
+M217, Red, O2, d=8, n=6.79m, nps=7.98m, ebf=7.0, tt=68%, hf=1%, fh1=100%, s=+1000, thr=8, t=0.85, alloc=1.29, pv=O2 N2 O1 G3 A11 J3
+M218, Blue, I14, d=7, n=8.1m, nps=8.18m, ebf=9.7, tt=64%, hf=2%, fh1=100%, s=-1000, thr=8, t=0.99, alloc=0.99, pv=I14 O1 N2 G3 J3 D4
+M219, Red, O1, d=8, n=11.68m, nps=8.1m, ebf=7.6, tt=58%, hf=1%, fh1=100%, s=+1000, thr=8, t=1.44, alloc=1.44, pv=O1 G3 N2 J3 D4 F4 H4 A5
+M220, Blue, N2, d=8, n=11.8m, nps=8.12m, ebf=7.6, tt=62%, hf=3%, fh1=100%, s=+1000, thr=8, t=0.00, alloc=0.99, [PONDER], pv=N2 G3 J3 D4 F4 H4 A5 D5
+M221, Red, G3, d=8, n=8.04m, nps=8.09m, ebf=7.2, tt=61%, hf=2%, fh1=100%, s=+1000, thr=8, t=0.99, alloc=0.99, pv=G3 D4 J3 H4 A11 F4
+M222, Blue, D4, d=9, n=12.88m, nps=9.13m, ebf=6.1, tt=79%, hf=4%, fh1=100%, s=-1000, thr=8, t=1.41, alloc=1.99, pv=D4 J3 F4 H4 A5 D5 A6 C6 D6
+M223, Red, F4, d=8, n=5.94m, nps=8.9m, ebf=7.0, tt=82%, hf=1%, fh1=100%, s=+1000, thr=8, t=0.67, alloc=0.99, pv=F4 J3 H4 A5 A11 P10 A6 D5
+M224, Blue, J3, d=9, n=14.45m, nps=9.19m, ebf=6.2, tt=65%, hf=4%, fh1=100%, s=-1000, thr=8, t=1.57, alloc=1.57, pv=J3 H4 A5 D5 A6 C6 D6 N6 P7
+M225, Red, H4, d=8, n=14.01m, nps=8.87m, ebf=7.8, tt=56%, hf=0%, fh1=100%, s=+1000, thr=8, t=0.00, alloc=1.32, [PONDER], pv=H4 A5 A11 P10 A6 D5 C6 D6
+M226, Blue, A5, d=9, n=6.87m, nps=9.18m, ebf=5.7, tt=60%, hf=2%, fh1=100%, s=-1000, thr=8, t=0.75, alloc=0.99, pv=A5 D5 A6 C6 D6
+M227, Red, D9, d=9, n=20.33m, nps=8.76m, ebf=6.4, tt=62%, hf=1%, fh1=100%, s=-1000, thr=8, t=2.32, alloc=2.32, pv=D9 P10 A11 D5 A6 C6 D6 N6 P7
+M228, Blue, D5, d=9, n=8.03m, nps=8.76m, ebf=5.8, tt=56%, hf=2%, fh1=100%, s=-1000, thr=8, t=0.92, alloc=1.24, pv=D5 A6 C6 D6 N6 P7 A16 I9 O16
+M229, Red, D6, d=9, n=8.56m, nps=8.66m, ebf=5.9, tt=54%, hf=4%, fh1=100%, s=-1000, thr=8, t=0.99, alloc=0.99, pv=D6 P10 I9 A6 P14 C6 P7 K9 N6
+M230, Blue, A6, d=10, n=9.32m, nps=8.43m, ebf=5.0, tt=60%, hf=3%, fh1=100%, s=+1000, thr=8, t=1.11, alloc=1.32, pv=A6 C6 N6 P7 A16 K9 O16 I9 A11 G10
+M231, Red, P7, d=9, n=9.18m, nps=9.23m, ebf=6.0, tt=60%, hf=2%, fh1=100%, s=-1000, thr=8, t=0.99, alloc=0.99, pv=P7 P10 P15 C6 A11 I9 N6 O9 G15
+M232, Blue, A11, d=11, n=10.5m, nps=8.79m, ebf=4.3, tt=64%, hf=4%, fh1=100%, s=-1000, thr=8, t=1.19, alloc=1.21, pv=A11 C6 O16 I9 A16 K9 O9 N6 G10 P10 B11
+M233, Red, C15, d=10, n=8.25m, nps=8.3m, ebf=4.9, tt=58%, hf=4%, fh1=100%, s=+1000, thr=8, t=0.99, alloc=0.99, pv=C15 C6 N6 P10 I9 K9
+M234, Blue, N6, d=10, n=6.98m, nps=8.56m, ebf=4.8, tt=58%, hf=5%, fh1=100%, s=+1000, thr=8, t=0.82, alloc=1.01, pv=N6 I9 C6 G10 K9 O9 O16 P10 A16 K14
+M235, Red, C6, d=10, n=8.84m, nps=8.89m, ebf=5.0, tt=64%, hf=2%, fh1=100%, s=+1000, thr=8, t=0.99, alloc=0.99, pv=C6 P10 G15 G10 P14 K9 O9 I9 P16
+M236, Blue, O16, d=12, n=10.26m, nps=8.65m, ebf=3.8, tt=61%, hf=1%, fh1=100%, s=+1000, thr=8, t=1.19, alloc=1.19, pv=O16 I9 K9 K14 A16 B15 O9 B11 G10 P10 P16 P11
+M237, Red, G15, d=12, n=8.02m, nps=8.81m, ebf=3.7, tt=61%, hf=4%, fh1=100%, s=+1000, thr=8, t=0.91, alloc=0.99, pv=G15 G10 O9 I9 K9 P10 P14 K14 B11 P11 P16 A15
+M238, Blue, K9, d=11, n=8.8m, nps=8.86m, ebf=4.2, tt=58%, hf=1%, fh1=100%, s=-1000, thr=8, t=0.99, alloc=0.99, pv=K9 G10 O9 B11 I9 K14 J16 P11 M16 P10 P16
+M239, Red, I9, d=14, n=7.17m, nps=8.84m, ebf=3.0, tt=62%, hf=4%, fh1=100%, s=+1000, thr=8, t=0.81, alloc=1.07, pv=I9 G10 O9 K14 P16 A15 P10 B11 P11 D12 P14 A16 P15 J16
+M240, Blue, O9, d=15, n=6.14m, nps=8.16m, ebf=2.9, tt=61%, hf=1%, fh1=100%, s=-1000, thr=8, t=0.75, alloc=0.99, pv=O9 B11 A16 P10 M16 G10 P16 P11 J16 D12 K14 B15 A15 P14 H15
+M241, Red, G10, d=18, n=7.47m, nps=8.23m, ebf=2.4, tt=59%, hf=4%, fh1=100%, s=+0, thr=8, t=0.91, alloc=1.26, pv=G10 P10 P14 A15 B11 K14 P16 D12 P15 P11 B15 A16 H15 J16 K15
+M242, Blue, B11, d=22, n=6.86m, nps=8.05m, ebf=2.0, tt=56%, hf=1%, fh1=100%, s=+0, thr=8, t=0.85, alloc=1.23, pv=B11 P10 P11 D12 M16 K14 P14 B15 A16 A15 P16 H15 J16
+M243, Red, P14, d=44, n=7.99m, nps=9.07m, ebf=2.0, tt=56%, hf=3%, fh1=100%, s=+0, thr=8, t=0.88, alloc=1.34, pv=P14 A15 P10 K14 P16 D12 P15 P11 B15 A16 K15 J16 H15 M16
+M244, Blue, J16, d=63, n=8.85m, nps=9.85m, ebf=2.0, tt=54%, hf=1%, fh1=100%, s=+0, thr=8, t=0.90, alloc=1.37, pv=J16 P10 M16 K14 A16 D12 P16 A15 P11 B15 H15
+M245, Red, P10, d=64, n=3.93m, nps=10.48m, ebf=2.0, tt=55%, hf=1%, fh1=100%, s=+0, thr=8, t=0.37, alloc=1.45, pv=P10 K14 P16 A15 P15 P11 B15 A16 K15
+M246, Blue, M16, d=64, n=107.07k, nps=283.33k, ebf=2.0, tt=51%, hf=2%, fh1=100%, s=+0, thr=8, t=0.00, alloc=1.47, [PONDER], pv=M16 K14 A16 D12 P16 A15 P11 B15 H15 K15 P15
+M247, Red, P11, d=64, n=995.58k, nps=10.56m, ebf=2.0, tt=50%, hf=1%, fh1=100%, s=+0, thr=8, t=0.09, alloc=2.08, pv=P11 A15 K14 D12 P16 A16 P15 K15 H15
+M248, Blue, D12, d=64, n=338.64k, nps=10.69m, ebf=2.0, tt=50%, hf=2%, fh1=100%, s=+0, thr=8, t=0.03, alloc=2.47, pv=D12 B15 A16 A15 P16 K14 H15 K15 P15
+M249, Red, A15, d=64, n=206.06k, nps=10.8m, ebf=2.0, tt=48%, hf=1%, fh1=100%, s=+0, thr=8, t=0.02, alloc=2.98, pv=A15 H15 K14 B15 P16 K15
+M250, Blue, A16, d=64, n=57.15k, nps=10.13m, ebf=2.0, tt=58%, hf=1%, fh1=100%, s=+0, thr=8, t=0.01, alloc=3.44, pv=A16 K14 P16 B15
+M251, Red, K14, d=64, n=34.47k, nps=6.81m, ebf=2.0, tt=48%, hf=1%, fh1=100%, s=+0, thr=8, t=0.01, alloc=3.96, pv=K14 H15 P16 K15 P15 B15
+M252, Blue, P16, d=64, n=2.95k, nps=419.76k, ebf=2.0, tt=89%, hf=1%, fh1=100%, s=+0, thr=8, t=0.00, alloc=4.43, [PONDER], pv=P16 B15 H15 K15 P15
+M253, Red, P15, d=64, n=7.82k, nps=2.59m, ebf=2.0, tt=43%, hf=1%, fh1=100%, s=+0, thr=8, t=0.00, alloc=4.95, pv=P15 B15 K15 H15
+M254, Blue, H15, d=64, n=1.79k, nps=710.88k, ebf=2.0, tt=86%, hf=1%, fh1=100%, s=+0, thr=8, t=0.00, alloc=5.43, pv=H15 K15 B15
+M255, Red, B15, d=64, n=1.02k, nps=403.4k, ebf=2.0, tt=65%, hf=2%, fh1=100%, s=+0, thr=8, t=0.00, alloc=5.95, pv=B15 K15
+M256, Blue, K15, d=64, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=8, t=0.00, alloc=6.42, pv=K15
+game 3: grandmaster-1 (red) vs grandmaster-2 (blue), drawn at 256 moves
+M1, Red, H8, d=11, n=23.2m, nps=5.16m, ebf=4.7, tt=10%, hf=7%, fh1=94%, s=-300, thr=8, t=4.50, alloc=4.50, pv=H8 H6
+M2, Blue, H6, d=10, n=18.72m, nps=4.16m, ebf=5.3, tt=11%, hf=6%, fh1=93%, s=+300, thr=8, t=4.50, alloc=4.50, pv=H6
+M3, Red, H5, d=9, n=19.19m, nps=4.26m, ebf=6.4, tt=10%, hf=5%, fh1=94%, s=-300, thr=8, t=0.01, alloc=4.54, [PONDER], pv=H5
+M4, Blue, I6, d=8, n=24.26m, nps=5.34m, ebf=8.3, tt=16%, hf=8%, fh1=96%, s=+300, thr=8, t=4.54, alloc=4.54, pv=I6
+M5, Red, J6, d=11, n=26.5m, nps=5.42m, ebf=4.7, tt=10%, hf=9%, fh1=93%, s=+900, thr=8, t=4.89, alloc=4.89, pv=J6 I7 I5 G5 J8 I8
+M6, Blue, I7, d=12, n=19.19m, nps=4.2m, ebf=4.0, tt=11%, hf=6%, fh1=90%, s=-1400, thr=8, t=4.57, alloc=4.57, pv=I7 J8 J5 H7 I8
+M7, Red, J8, d=10, n=21.88m, nps=4.77m, ebf=5.4, tt=11%, hf=4%, fh1=91%, s=+1500, thr=8, t=0.01, alloc=4.88, [PONDER], pv=J8
+M8, Blue, J5, d=10, n=13.36m, nps=5.86m, ebf=5.1, tt=27%, hf=2%, fh1=99%, s=-1400, thr=8, t=2.28, alloc=4.60, pv=J5
+M9, Red, H7, d=9, n=14.36m, nps=5.49m, ebf=6.2, tt=13%, hf=4%, fh1=95%, s=+1400, thr=8, t=2.62, alloc=5.25, pv=H7
+M10, Blue, K8, d=10, n=11.33m, nps=4.93m, ebf=5.0, tt=7%, hf=4%, fh1=97%, s=-2500, thr=8, t=2.30, alloc=4.62, pv=K8 I8 J9 I10 F8 G7 F6 F7 G6 E6 E7
+M11, Red, I8, d=9, n=10.44m, nps=4.01m, ebf=6.0, tt=7%, hf=3%, fh1=95%, s=+2500, thr=8, t=2.60, alloc=5.23, pv=I8 J9
+M12, Blue, J9, d=10, n=18.04m, nps=3.88m, ebf=5.2, tt=8%, hf=4%, fh1=97%, s=-2900, thr=8, t=4.64, alloc=4.65, pv=J9
+M13, Red, I10, d=10, n=14.62m, nps=5.67m, ebf=5.1, tt=15%, hf=3%, fh1=94%, s=+5100, thr=8, t=2.58, alloc=5.23, pv=I10
+M14, Blue, F8, d=13, n=25.18m, nps=5.39m, ebf=3.7, tt=16%, hf=8%, fh1=96%, s=-6100, thr=8, t=4.67, alloc=4.68, pv=F8 G7 F6 F7 G8 G6 E8 F5
+M15, Red, G7, d=12, n=11m, nps=4.24m, ebf=3.9, tt=15%, hf=3%, fh1=93%, s=+6100, thr=8, t=2.60, alloc=5.22, pv=G7 F6 F7 G8 G6 E8 F5 E4 C8 D7
+M16, Blue, F6, d=12, n=8.14m, nps=3.54m, ebf=3.7, tt=4%, hf=3%, fh1=99%, s=-8000, thr=8, t=2.30, alloc=4.71, pv=F6
+M17, Red, F7, d=12, n=15.55m, nps=6.07m, ebf=4.0, tt=12%, hf=3%, fh1=91%, s=+7300, thr=8, t=2.56, alloc=5.22, pv=F7
+M18, Blue, G8, d=11, n=14.7m, nps=6.21m, ebf=4.4, tt=12%, hf=4%, fh1=95%, s=-7300, thr=8, t=2.37, alloc=4.73, pv=G8 G6
+M19, Red, G6, d=11, n=12.34m, nps=4.83m, ebf=4.4, tt=13%, hf=4%, fh1=95%, s=+7300, thr=8, t=2.55, alloc=5.22, pv=G6
+M20, Blue, E8, d=11, n=29.12m, nps=6.14m, ebf=4.7, tt=10%, hf=7%, fh1=92%, s=-6800, thr=8, t=4.74, alloc=4.76, pv=E8
+M21, Red, F5, d=11, n=29.45m, nps=5.96m, ebf=4.7, tt=13%, hf=8%, fh1=90%, s=+5600, thr=8, t=4.94, alloc=5.23, pv=F5 E4 G5 C8 D8 E5 E6 G3 D7
+M22, Blue, E4, d=11, n=31.61m, nps=6.6m, ebf=4.8, tt=20%, hf=3%, fh1=100%, s=-5600, thr=8, t=4.79, alloc=4.78, pv=E4
+M23, Red, G5, d=10, n=23.87m, nps=4.98m, ebf=5.4, tt=16%, hf=4%, fh1=91%, s=+5600, thr=8, t=0.00, alloc=5.23, [PONDER], pv=G5
+M24, Blue, C8, d=12, n=30.95m, nps=6.45m, ebf=4.1, tt=17%, hf=6%, fh1=93%, s=-1700, thr=8, t=4.79, alloc=4.81, pv=C8 D8 E5 E7 D7 G3 G4 H4 K7 J3 I4 H3 I3 I5 F2 K10 K6 J10
+M25, Red, D8, d=12, n=16.87m, nps=4.25m, ebf=4.0, tt=13%, hf=5%, fh1=93%, s=+1700, thr=8, t=3.97, alloc=5.71, pv=D8 E5 E7 D7 G3 G4 H4
+M26, Blue, E5, d=11, n=20.08m, nps=5.05m, ebf=4.6, tt=17%, hf=5%, fh1=92%, s=-1700, thr=8, t=0.00, alloc=4.84, [PONDER], pv=E5
+M27, Red, E7, d=10, n=18.39m, nps=6.4m, ebf=5.2, tt=12%, hf=4%, fh1=92%, s=+1700, thr=8, t=2.87, alloc=5.83, pv=E7
+M28, Blue, D7, d=11, n=32.24m, nps=6.06m, ebf=4.8, tt=11%, hf=10%, fh1=91%, s=-1300, thr=8, t=5.32, alloc=5.32, pv=D7
+M29, Red, G3, d=10, n=16.23m, nps=5.68m, ebf=5.2, tt=17%, hf=5%, fh1=95%, s=+1300, thr=8, t=2.86, alloc=5.79, pv=G3
+M30, Blue, G4, d=11, n=31.47m, nps=5.94m, ebf=4.8, tt=13%, hf=9%, fh1=92%, s=+500, thr=8, t=5.30, alloc=5.29, pv=G4
+M31, Red, H4, d=9, n=17.97m, nps=6.24m, ebf=6.3, tt=15%, hf=5%, fh1=90%, s=-500, thr=8, t=2.88, alloc=5.78, pv=H4
+M32, Blue, I5, d=10, n=37.41m, nps=7.09m, ebf=5.7, tt=14%, hf=9%, fh1=95%, s=+1000, thr=8, t=5.28, alloc=5.30, pv=I5
+M33, Red, I3, d=7, n=75.78k, nps=40.89k, ebf=5.0, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=1.85, alloc=5.76, [VCT], pv=I3 J2 J3 K2 H3 K3 F3
+M34, Blue, H3, d=10, n=26.17m, nps=4.95m, ebf=5.5, tt=15%, hf=6%, fh1=93%, s=+1000, thr=8, t=5.28, alloc=5.31, pv=H3 I4 J3 J2 K1 B5 E2
+M35, Red, J2, d=9, n=15.76m, nps=5.2m, ebf=6.2, tt=21%, hf=3%, fh1=94%, s=-1000, thr=8, t=3.03, alloc=6.18, pv=J2 K1 I4 J3 B5 E2
+M36, Blue, K1, d=12, n=21.73m, nps=4.09m, ebf=4.0, tt=12%, hf=5%, fh1=92%, s=+1500, thr=8, t=5.32, alloc=5.32, pv=K1 I4 J3 B5 E2 E6 F9
+M37, Red, I4, d=9, n=27.63m, nps=5.17m, ebf=6.7, tt=20%, hf=6%, fh1=96%, s=-1500, thr=8, t=0.02, alloc=6.12, [PONDER], pv=I4
+M38, Blue, J3, d=11, n=30.52m, nps=5.72m, ebf=4.8, tt=11%, hf=9%, fh1=94%, s=+1500, thr=8, t=5.33, alloc=5.33, pv=J3
+M39, Red, B5, d=9, n=22.48m, nps=6.6m, ebf=6.5, tt=18%, hf=5%, fh1=94%, s=-3000, thr=8, t=3.41, alloc=6.87, pv=B5 G10 F9
+M40, Blue, E2, d=9, n=12.42m, nps=4.67m, ebf=6.0, tt=11%, hf=3%, fh1=92%, s=+4400, thr=8, t=2.66, alloc=5.34, pv=E2 E3 G10 H11 H10 C6 J7 M10 G9
+M41, Red, E3, d=8, n=38.6m, nps=5.71m, ebf=8.9, tt=18%, hf=5%, fh1=94%, s=-3000, thr=8, t=6.76, alloc=6.76, pv=E3 G10 C6
+M42, Blue, G10, d=8, n=32.07m, nps=4.7m, ebf=8.6, tt=12%, hf=9%, fh1=93%, s=+3100, thr=8, t=0.04, alloc=5.36, [PONDER], pv=G10
+M43, Red, H11, d=7, n=22.06m, nps=6.63m, ebf=11.1, tt=18%, hf=7%, fh1=95%, s=-3100, thr=8, t=3.33, alloc=6.71, pv=H11 H10
+M44, Blue, H10, d=6, n=24.41m, nps=4.42m, ebf=17.0, tt=12%, hf=7%, fh1=94%, s=+6600, thr=8, t=5.52, alloc=6.16, pv=H10
+M45, Red, C6, d=8, n=17.09m, nps=5.19m, ebf=8.0, tt=8%, hf=5%, fh1=98%, s=-7400, thr=8, t=3.30, alloc=6.65, pv=C6
+M46, Blue, M9, d=7, n=18.36m, nps=6.14m, ebf=10.9, tt=14%, hf=4%, fh1=93%, s=+7400, thr=8, t=2.99, alloc=6.11, pv=M9
+M47, Red, K9, d=7, n=28.51m, nps=8.72m, ebf=11.5, tt=27%, hf=1%, fh1=94%, s=-3900, thr=8, t=3.27, alloc=6.61, pv=K9
+M48, Blue, M7, d=7, n=20.25m, nps=6.68m, ebf=11.0, tt=13%, hf=4%, fh1=100%, s=+8200, thr=8, t=3.03, alloc=6.10, pv=M7 M6 L8 O11 L6
+M49, Red, M6, d=7, n=17.4m, nps=5.3m, ebf=10.8, tt=24%, hf=1%, fh1=96%, s=-8700, thr=8, t=3.29, alloc=6.58, pv=M6 N10 L8 M10
+M50, Blue, N10, d=7, n=11.84m, nps=3.96m, ebf=10.1, tt=6%, hf=3%, fh1=100%, s=+10200, thr=8, t=2.99, alloc=6.10, pv=N10
+M51, Red, O11, d=7, n=25.43m, nps=4.04m, ebf=11.3, tt=10%, hf=8%, fh1=99%, s=-10200, thr=8, t=0.07, alloc=6.57, [PONDER], pv=O11 M10 M11 L10 O10 L9 J7 J12
+M52, Blue, M10, d=6, n=18.17m, nps=6.07m, ebf=16.1, tt=16%, hf=2%, fh1=90%, s=+10200, thr=8, t=2.99, alloc=6.09, pv=M10
+M53, Red, M11, d=7, n=47.23m, nps=5.62m, ebf=12.4, tt=18%, hf=13%, fh1=95%, s=-14700, thr=8, t=8.40, alloc=8.43, pv=M11 L10 O10 L9 J7 L11 L8 N9
+M54, Blue, L10, d=7, n=14.75m, nps=4.88m, ebf=10.5, tt=13%, hf=3%, fh1=88%, s=+18300, thr=8, t=3.02, alloc=6.13, pv=L10
+M55, Red, O10, d=6, n=29.88m, nps=4.87m, ebf=17.5, tt=18%, hf=8%, fh1=98%, s=-18300, thr=8, t=0.00, alloc=8.30, [PONDER], pv=O10 L9
+M56, Blue, L9, d=5, n=12.49m, nps=4.07m, ebf=26.1, tt=25%, hf=2%, fh1=100%, s=+18300, thr=8, t=3.07, alloc=6.20, pv=L9
+M57, Red, J7, d=6, n=37.26m, nps=5.85m, ebf=18.1, tt=31%, hf=4%, fh1=100%, s=-M8, thr=8, t=6.37, alloc=12.74, pv=J7
+M58, Blue, N8, d=3, n=17.26m, nps=5.51m, ebf=32.0, tt=36%, hf=3%, fh1=100%, s=M7, thr=8, t=3.13, alloc=6.34, pv=N8
+M59, Red, K11, d=5, n=88.91m, nps=7.65m, ebf=32.0, tt=26%, hf=8%, fh1=100%, s=-M6, thr=8, t=11.63, alloc=11.72, pv=K11 N11
+M60, Blue, N11, d=5, n=39, nps=39k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M5, thr=8, t=0.00, alloc=6.12, [VCF], pv=N11 P13 N9 N12 N7
+M61, Red, O12, d=4, n=4.19m, nps=4.17m, ebf=32.0, tt=26%, hf=0%, fh1=100%, s=-M4, thr=8, t=1.00, alloc=1.00, pv=O12
+M62, Blue, N9, d=3, n=5, nps=5k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M3, thr=8, t=0.00, alloc=7.12, [VCF], pv=N9 N12 N7
+M63, Red, N12, d=4, n=5.63m, nps=5.69m, ebf=32.0, tt=32%, hf=0%, fh1=100%, s=-M2, thr=8, t=0.99, alloc=0.99, pv=N12
+M64, Blue, N7, d=1, n=1, nps=1k, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=M1, thr=8, t=0.00, alloc=8.11, [VCF], pv=N7
+game 4: grandmaster-1 (blue) beat grandmaster-2 (red), 64 moves, won by 4
+M1, Red, H8, d=11, n=23.93m, nps=5.32m, ebf=4.7, tt=9%, hf=6%, fh1=91%, s=-300, thr=8, t=4.50, alloc=4.50, pv=H8 H6
+M2, Blue, G9, d=9, n=18.99m, nps=4.22m, ebf=6.4, tt=9%, hf=7%, fh1=91%, s=+1000, thr=8, t=4.50, alloc=4.50, pv=G9 H11 H10 E7 I11 K13 F8 J12 G7 G10
+M3, Red, E8, d=9, n=20.11m, nps=4.43m, ebf=6.4, tt=10%, hf=8%, fh1=92%, s=-300, thr=8, t=4.54, alloc=4.54, pv=E8 G8 G6
+M4, Blue, G8, d=8, n=19.7m, nps=4.34m, ebf=8.0, tt=16%, hf=5%, fh1=96%, s=+300, thr=8, t=4.55, alloc=4.54, pv=G8 G6 D9 E9 E10 H7 G12 H5
+M5, Red, G11, d=8, n=19.25m, nps=4.22m, ebf=8.0, tt=12%, hf=7%, fh1=95%, s=-1000, thr=8, t=0.01, alloc=4.57, [PONDER], pv=G11
+M6, Blue, G7, d=10, n=29.1m, nps=6.37m, ebf=5.5, tt=13%, hf=6%, fh1=92%, s=+3400, thr=8, t=4.57, alloc=4.57, pv=G7
+M7, Red, G6, d=12, n=24.55m, nps=4.98m, ebf=4.0, tt=13%, hf=7%, fh1=90%, s=-4900, thr=8, t=4.93, alloc=4.93, pv=G6 F7 E7 E6
+M8, Blue, F7, d=9, n=21.11m, nps=4.59m, ebf=6.5, tt=11%, hf=6%, fh1=96%, s=+5500, thr=8, t=4.60, alloc=4.60, pv=F7 E7 E9 F9 E6 H9 F8
+M9, Red, E7, d=10, n=19.12m, nps=4.15m, ebf=5.3, tt=16%, hf=6%, fh1=96%, s=-4900, thr=8, t=0.01, alloc=4.92, [PONDER], pv=E7
+M10, Blue, E6, d=11, n=13.92m, nps=6.01m, ebf=4.4, tt=15%, hf=4%, fh1=93%, s=+3500, thr=8, t=2.32, alloc=4.63, pv=E6 H9 H7 F9 J7 I7 G10 D5 I6
+M11, Red, H9, d=10, n=21.88m, nps=4.12m, ebf=5.4, tt=13%, hf=7%, fh1=94%, s=-3500, thr=8, t=5.30, alloc=5.30, pv=H9 H7 F9 J7
+M12, Blue, H7, d=10, n=25.67m, nps=4.8m, ebf=5.4, tt=14%, hf=5%, fh1=90%, s=+1500, thr=8, t=0.04, alloc=4.65, [PONDER], pv=H7
+M13, Red, J7, d=11, n=28.7m, nps=5.45m, ebf=4.7, tt=12%, hf=9%, fh1=95%, s=-2200, thr=8, t=5.27, alloc=5.27, pv=J7 K6 F9 G10 C4 I5
+M14, Blue, F9, d=9, n=10.25m, nps=4.12m, ebf=6.0, tt=18%, hf=3%, fh1=97%, s=+3500, thr=8, t=2.49, alloc=5.03, pv=F9 E10 E9 F8 K6 J5 J6 L6
+M15, Red, E10, d=9, n=29.18m, nps=5.54m, ebf=6.7, tt=24%, hf=5%, fh1=96%, s=-2000, thr=8, t=5.26, alloc=5.27, pv=E10
+M16, Blue, E9, d=7, n=18.52k, nps=30.58k, ebf=4.0, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=0.00, alloc=5.02, [VCT], pv=E9 I9 F8 B12 F6 F10 F5
+M17, Red, I8, d=10, n=23.67m, nps=4.5m, ebf=5.4, tt=15%, hf=7%, fh1=93%, s=-1600, thr=8, t=5.26, alloc=5.27, pv=I8 G10 F8 K6 I6 K8 K9 D5 C4 D9 C9 D8
+M18, Blue, G10, d=9, n=21.24m, nps=3.99m, ebf=6.5, tt=18%, hf=8%, fh1=95%, s=+1600, thr=8, t=5.33, alloc=5.43, pv=G10 F8 K6 I6 K8 K5 D5 C4 D9 C9 D8
+M19, Red, F8, d=9, n=24.64m, nps=4.52m, ebf=6.6, tt=10%, hf=8%, fh1=90%, s=-400, thr=8, t=0.00, alloc=5.27, [PONDER], pv=F8
+M20, Blue, D9, d=10, n=26.34m, nps=4.93m, ebf=5.5, tt=14%, hf=9%, fh1=95%, s=+1000, thr=8, t=5.34, alloc=5.40, pv=D9 C9 D8
+M21, Red, C9, d=11, n=18.46m, nps=3.23m, ebf=4.5, tt=18%, hf=5%, fh1=96%, s=+300, thr=8, t=5.72, alloc=5.72, pv=C9 D8 D7 K6 C7 B7 C6 C5 C10
+M22, Blue, D8, d=9, n=25.78m, nps=4.5m, ebf=6.6, tt=14%, hf=9%, fh1=94%, s=+1000, thr=8, t=0.01, alloc=5.39, [PONDER], pv=D8
+M23, Red, D7, d=9, n=32.22m, nps=5.69m, ebf=6.8, tt=10%, hf=9%, fh1=90%, s=+300, thr=8, t=5.66, alloc=5.67, pv=D7
+M24, Blue, K6, d=9, n=32.39m, nps=5.54m, ebf=6.8, tt=14%, hf=11%, fh1=94%, s=-600, thr=8, t=5.84, alloc=5.86, pv=K6 C7 C6 B7 A7 I6
+M25, Red, I6, d=11, n=24.27m, nps=4.3m, ebf=4.7, tt=11%, hf=8%, fh1=94%, s=+3900, thr=8, t=5.64, alloc=5.65, pv=I6 B6 C7 C6 B7
+M26, Blue, C7, d=9, n=12.78m, nps=4.44m, ebf=6.1, tt=11%, hf=4%, fh1=92%, s=-2400, thr=8, t=2.88, alloc=5.80, pv=C7 B6 I5
+M27, Red, B6, d=9, n=21.61m, nps=3.85m, ebf=6.5, tt=11%, hf=7%, fh1=95%, s=+4900, thr=8, t=5.62, alloc=5.64, pv=B6 K8 I9 I7 H10 F12 H11 H12 K7 J8 I11
+M28, Blue, K8, d=11, n=11.93m, nps=4.18m, ebf=4.3, tt=8%, hf=4%, fh1=90%, s=-4300, thr=8, t=2.85, alloc=5.78, pv=K8
+M29, Red, I9, d=8, n=27.01m, nps=4.6m, ebf=8.4, tt=11%, hf=10%, fh1=93%, s=+2300, thr=8, t=0.05, alloc=5.62, [PONDER], pv=I9
+M30, Blue, I7, d=10, n=26.08m, nps=5.46m, ebf=5.5, tt=12%, hf=7%, fh1=91%, s=-4400, thr=8, t=4.78, alloc=5.76, pv=I7
+M31, Red, H10, d=10, n=16.89m, nps=5.47m, ebf=5.2, tt=16%, hf=5%, fh1=94%, s=+3700, thr=8, t=3.09, alloc=6.18, pv=H10
+M32, Blue, F12, d=10, n=30.46m, nps=5.23m, ebf=5.6, tt=13%, hf=8%, fh1=91%, s=-2200, thr=8, t=5.83, alloc=5.84, pv=F12 H11 H12 I11 J11
+M33, Red, H11, d=9, n=13.62m, nps=4.47m, ebf=6.1, tt=11%, hf=4%, fh1=91%, s=+2400, thr=8, t=3.05, alloc=6.11, pv=H11 H12 I11 F11 J8 K7 K11 J11 J10 L12
+M34, Blue, H12, d=10, n=21.73m, nps=3.73m, ebf=5.4, tt=5%, hf=5%, fh1=97%, s=-3400, thr=8, t=5.82, alloc=5.81, pv=H12
+M35, Red, I11, d=8, n=32.9m, nps=5.63m, ebf=8.7, tt=10%, hf=2%, fh1=92%, s=+1700, thr=8, t=0.02, alloc=6.08, [PONDER], pv=I11
+M36, Blue, J11, d=9, n=34.37m, nps=5.95m, ebf=6.9, tt=12%, hf=8%, fh1=90%, s=-2600, thr=8, t=5.78, alloc=5.80, pv=J11 F11 E11 I10 I12 G12 F13 K10 G13 J10 L10 H14
+M37, Red, G12, d=9, n=13.81m, nps=4.14m, ebf=6.1, tt=16%, hf=4%, fh1=93%, s=+1000, thr=8, t=3.34, alloc=6.77, pv=G12
+M38, Blue, I10, d=10, n=29.86m, nps=5.17m, ebf=5.6, tt=12%, hf=8%, fh1=93%, s=+0, thr=8, t=5.77, alloc=5.78, pv=I10 K7
+M39, Red, K7, d=9, n=12.17m, nps=3.71m, ebf=6.0, tt=11%, hf=2%, fh1=94%, s=+0, thr=8, t=3.28, alloc=6.67, pv=K7 J8 H6
+M40, Blue, J8, d=10, n=30.36m, nps=4.54m, ebf=5.6, tt=13%, hf=10%, fh1=95%, s=-700, thr=8, t=0.01, alloc=5.77, [PONDER], pv=J8
+M41, Red, H6, d=8, n=20.97m, nps=6.36m, ebf=8.1, tt=10%, hf=4%, fh1=89%, s=+700, thr=8, t=3.29, alloc=6.61, pv=H6
+M42, Blue, J6, d=10, n=21.29m, nps=6.57m, ebf=5.3, tt=9%, hf=3%, fh1=93%, s=+1500, thr=8, t=3.24, alloc=6.55, pv=J6 C4 E11 G13 G14 H13 F13 F10 I14 F14
+M43, Red, C4, d=11, n=17.15m, nps=5.26m, ebf=4.5, tt=17%, hf=3%, fh1=93%, s=-3100, thr=8, t=3.26, alloc=6.56, pv=C4 E11 G13 G14 H13 F13
+M44, Blue, E11, d=13, n=11.93m, nps=3.68m, ebf=3.5, tt=17%, hf=3%, fh1=99%, s=+4900, thr=8, t=3.24, alloc=6.47, pv=E11
+M45, Red, G13, d=12, n=15.84m, nps=4.91m, ebf=4.0, tt=17%, hf=4%, fh1=99%, s=-4900, thr=8, t=3.23, alloc=6.52, pv=G13
+M46, Blue, G14, d=11, n=31.73m, nps=4.96m, ebf=4.8, tt=6%, hf=10%, fh1=99%, s=+4900, thr=8, t=6.40, alloc=6.42, pv=G14
+M47, Red, H13, d=10, n=16.46m, nps=5.09m, ebf=5.2, tt=8%, hf=3%, fh1=99%, s=-4900, thr=8, t=3.23, alloc=6.48, pv=H13
+M48, Blue, F13, d=9, n=17.68m, nps=5.61m, ebf=6.3, tt=8%, hf=5%, fh1=98%, s=+4900, thr=8, t=3.15, alloc=6.40, pv=F13
+M49, Red, F11, d=9, n=25.78m, nps=7.99m, ebf=6.6, tt=13%, hf=2%, fh1=94%, s=-4800, thr=8, t=3.23, alloc=6.46, pv=F11
+M50, Blue, I14, d=11, n=32.68m, nps=5.12m, ebf=4.8, tt=13%, hf=8%, fh1=96%, s=+6000, thr=8, t=6.38, alloc=6.38, pv=I14 F14 H15 D11 K12 J13 M14 L13 K14 J14
+M51, Red, F14, d=9, n=13.13m, nps=4.14m, ebf=6.1, tt=20%, hf=3%, fh1=97%, s=-7400, thr=8, t=3.17, alloc=6.45, pv=F14
+M52, Blue, E12, d=9, n=40.49m, nps=6.24m, ebf=7.0, tt=12%, hf=4%, fh1=100%, s=+5400, thr=8, t=0.03, alloc=6.38, [PONDER], pv=E12
+M53, Red, D11, d=8, n=47.72m, nps=7.41m, ebf=9.0, tt=14%, hf=5%, fh1=100%, s=-5400, thr=8, t=6.44, alloc=6.47, pv=D11
+M54, Blue, I16, d=7, n=21.08m, nps=5.18m, ebf=11.0, tt=17%, hf=5%, fh1=99%, s=+5700, thr=8, t=4.07, alloc=8.22, pv=I16 H15 K9 M11 M8 L7 L8 N8 M7
+M55, Red, H15, d=8, n=31.69m, nps=4.86m, ebf=8.6, tt=18%, hf=5%, fh1=99%, s=-9500, thr=8, t=6.52, alloc=6.52, pv=H15 K9
+M56, Blue, K9, d=6, n=43.4m, nps=6.54m, ebf=18.7, tt=18%, hf=3%, fh1=90%, s=+9500, thr=8, t=0.11, alloc=8.10, [PONDER], pv=K9
+M57, Red, L10, d=7, n=64.59m, nps=9.77m, ebf=13.0, tt=30%, hf=1%, fh1=98%, s=-7300, thr=8, t=6.61, alloc=6.63, pv=L10
+M58, Blue, L4, d=7, n=44.63m, nps=7.25m, ebf=12.3, tt=28%, hf=4%, fh1=100%, s=+11500, thr=8, t=6.16, alloc=12.39, pv=L4
+M59, Red, K5, d=7, n=55.22m, nps=8.69m, ebf=12.7, tt=31%, hf=2%, fh1=100%, s=-11200, thr=8, t=6.35, alloc=6.38, pv=K5 L7 N5 M6 L6 M8 N9 K10 N8 M7 M5
+M60, Blue, L7, d=7, n=28.21m, nps=6.98m, ebf=11.5, tt=33%, hf=1%, fh1=94%, s=+11700, thr=8, t=4.04, alloc=11.42, pv=L7 J9
+M61, Red, M6, d=8, n=3.16m, nps=3.22m, ebf=6.4, tt=12%, hf=1%, fh1=100%, s=-9100, thr=8, t=0.98, alloc=1.00, pv=M6
+M62, Blue, M8, d=8, n=7.46m, nps=5.9m, ebf=7.1, tt=15%, hf=2%, fh1=92%, s=+10400, thr=8, t=1.26, alloc=2.67, pv=M8 N9 K10 L9
+M63, Red, N9, d=7, n=4.32m, nps=4.49m, ebf=8.9, tt=13%, hf=1%, fh1=88%, s=-10400, thr=8, t=0.96, alloc=0.98, pv=N9
+M64, Blue, K10, d=6, n=2.55m, nps=5.88m, ebf=11.6, tt=14%, hf=1%, fh1=91%, s=+8900, thr=8, t=0.43, alloc=0.97, pv=K10
+M65, Red, N7, d=5, n=5.98m, nps=6.18m, ebf=22.6, tt=19%, hf=1%, fh1=87%, s=-10500, thr=8, t=0.97, alloc=0.99, pv=N7
+M66, Blue, K4, d=5, n=1.04m, nps=5.23m, ebf=16.0, tt=15%, hf=0%, fh1=93%, s=+8700, thr=8, t=0.20, alloc=0.91, pv=K4
+M67, Red, J4, d=5, n=5.46m, nps=5.64m, ebf=22.1, tt=13%, hf=2%, fh1=90%, s=-7500, thr=8, t=0.97, alloc=1.00, pv=J4 N8 L8 I12 K12 I13 I15 J5 I4
+M68, Blue, N8, d=4, n=1.1m, nps=4.31m, ebf=32.0, tt=12%, hf=1%, fh1=88%, s=+7500, thr=8, t=0.25, alloc=1.00, pv=N8
+M69, Red, L8, d=6, n=4.65m, nps=4.66m, ebf=12.9, tt=20%, hf=2%, fh1=99%, s=-9500, thr=8, t=1.00, alloc=1.00, pv=L8
+M70, Blue, I12, d=3, n=1.88m, nps=4.21m, ebf=32.0, tt=9%, hf=1%, fh1=98%, s=+7500, thr=8, t=0.45, alloc=0.99, pv=I12
+M71, Red, K12, d=4, n=5.19m, nps=5.41m, ebf=32.0, tt=17%, hf=1%, fh1=92%, s=-5900, thr=8, t=0.96, alloc=0.99, pv=K12 L11 I3 H2 I13
+M72, Blue, L11, d=1, n=1.65m, nps=3.39m, ebf=32.0, tt=10%, hf=1%, fh1=98%, s=+7400, thr=8, t=0.49, alloc=1.00, pv=L11 I3
+M73, Red, I3, d=3, n=3.63m, nps=3.8m, ebf=32.0, tt=10%, hf=1%, fh1=90%, s=-5900, thr=8, t=0.96, alloc=1.00, pv=I3
+M74, Blue, L6, d=1, n=4.79m, nps=4.98m, ebf=32.0, tt=19%, hf=1%, fh1=88%, s=+8800, thr=8, t=0.96, alloc=1.00, pv=L6 L5
+M75, Red, L5, d=4, n=1.78m, nps=3.84m, ebf=32.0, tt=14%, hf=0%, fh1=93%, s=-1800, thr=8, t=0.46, alloc=0.99, pv=L5
+M76, Blue, I5, d=4, n=6m, nps=6.26m, ebf=32.0, tt=21%, hf=1%, fh1=93%, s=+1900, thr=8, t=0.96, alloc=0.99, pv=I5
+M77, Red, I13, d=3, n=2.7m, nps=5.53m, ebf=32.0, tt=15%, hf=1%, fh1=92%, s=-1500, thr=8, t=0.49, alloc=0.99, pv=I13 J5 I4
+M78, Blue, J5, d=3, n=3.59m, nps=4m, ebf=32.0, tt=12%, hf=1%, fh1=89%, s=+1500, thr=8, t=0.90, alloc=0.99, pv=J5 I4
+M79, Red, I4, d=4, n=3.57m, nps=3.55m, ebf=32.0, tt=19%, hf=1%, fh1=98%, s=-1900, thr=8, t=1.01, alloc=1.00, pv=I4
+M80, Blue, K13, d=3, n=4.4m, nps=4.37m, ebf=32.0, tt=13%, hf=1%, fh1=98%, s=+1900, thr=8, t=1.01, alloc=1.05, pv=K13
+M81, Red, N13, d=2, n=2.15m, nps=4.69m, ebf=32.0, tt=10%, hf=1%, fh1=98%, s=-1400, thr=8, t=0.46, alloc=0.98, pv=N13 K11 N11
+M82, Blue, K11, d=1, n=3.21m, nps=3.35m, ebf=32.0, tt=12%, hf=1%, fh1=98%, s=+1400, thr=8, t=0.96, alloc=0.99, pv=K11 N11
+M83, Red, H2, d=3, n=1.61m, nps=3.61m, ebf=32.0, tt=7%, hf=1%, fh1=99%, s=+3400, thr=8, t=0.45, alloc=1.00, pv=H2
+M84, Blue, G1, d=3, n=8.8m, nps=8.86m, ebf=32.0, tt=14%, hf=1%, fh1=94%, s=-2600, thr=8, t=0.99, alloc=0.99, pv=G1 M11 P9 H4 H5
+M85, Red, M11, d=3, n=1.45m, nps=3.35m, ebf=32.0, tt=6%, hf=0%, fh1=99%, s=+3400, thr=8, t=0.43, alloc=0.96, pv=M11
+M86, Blue, P9, d=2, n=4.73m, nps=4.91m, ebf=32.0, tt=27%, hf=0%, fh1=100%, s=-2600, thr=8, t=0.96, alloc=0.99, pv=P9
+M87, Red, H4, d=2, n=3.52m, nps=7.55m, ebf=32.0, tt=29%, hf=1%, fh1=89%, s=+3800, thr=8, t=0.47, alloc=0.99, pv=H4
+M88, Blue, H5, d=2, n=4.69m, nps=4.97m, ebf=32.0, tt=13%, hf=2%, fh1=99%, s=-6900, thr=8, t=0.95, alloc=0.99, pv=H5
+M89, Red, G5, d=2, n=4.77m, nps=10.13m, ebf=32.0, tt=31%, hf=0%, fh1=95%, s=+7900, thr=8, t=0.47, alloc=1.00, pv=G5
+M90, Blue, F6, d=2, n=7.65m, nps=7.66m, ebf=32.0, tt=36%, hf=1%, fh1=99%, s=-6900, thr=8, t=1.00, alloc=1.00, pv=F6
+M91, Red, G4, d=2, n=4.87m, nps=10.78m, ebf=32.0, tt=38%, hf=0%, fh1=100%, s=+7900, thr=8, t=0.45, alloc=1.00, pv=G4
+M92, Blue, F4, d=0, n=5.91m, nps=5.91m, ebf=0.0, tt=26%, hf=2%, fh1=92%, s=+0, thr=8, t=1.00, alloc=1.00, pv=
+M93, Red, J2, d=2, n=4.85m, nps=10.35m, ebf=32.0, tt=30%, hf=0%, fh1=99%, s=+14000, thr=8, t=0.47, alloc=1.00, pv=J2
+M94, Blue, K1, d=0, n=4.99m, nps=5m, ebf=0.0, tt=15%, hf=2%, fh1=99%, s=+0, thr=8, t=1.00, alloc=1.00, pv=
+M95, Red, G2, d=3, n=3.17m, nps=7.03m, ebf=32.0, tt=45%, hf=0%, fh1=99%, s=+14000, thr=8, t=0.45, alloc=1.00, pv=G2
+M96, Blue, I2, d=0, n=4.53m, nps=4.74m, ebf=0.0, tt=17%, hf=3%, fh1=98%, s=+0, thr=8, t=0.96, alloc=1.00, pv=
+M97, Red, F5, d=3, n=3.13m, nps=6.92m, ebf=32.0, tt=13%, hf=0%, fh1=100%, s=+15200, thr=8, t=0.45, alloc=1.00, pv=F5
+M98, Blue, E5, d=0, n=2.28m, nps=4.96m, ebf=0.0, tt=13%, hf=1%, fh1=98%, s=+0, thr=8, t=0.46, alloc=1.00, pv=
+M99, Red, D4, d=3, n=4.42m, nps=9.59m, ebf=32.0, tt=16%, hf=0%, fh1=100%, s=+15200, thr=8, t=0.46, alloc=1.00, pv=D4
+M100, Blue, D6, d=2, n=2.65m, nps=5.61m, ebf=32.0, tt=6%, hf=0%, fh1=99%, s=-4700, thr=8, t=0.47, alloc=1.00, pv=D6
+M101, Red, B8, d=3, n=5.38m, nps=5.39m, ebf=32.0, tt=11%, hf=3%, fh1=100%, s=M15, thr=8, t=1.00, alloc=1.00, pv=B8 G3 B5 B4 D3 E2 E4
+M102, Blue, G3, d=3, n=3.41m, nps=7.29m, ebf=32.0, tt=22%, hf=1%, fh1=100%, s=-M14, thr=8, t=0.47, alloc=1.00, pv=G3
+M103, Red, B5, d=4, n=9.62m, nps=8.83m, ebf=32.0, tt=35%, hf=1%, fh1=100%, s=M13, thr=8, t=0.08, alloc=1.00, [PONDER], pv=B5
+M104, Blue, B4, d=2, n=5.06m, nps=5.26m, ebf=32.0, tt=27%, hf=1%, fh1=100%, s=-M12, thr=8, t=0.96, alloc=0.99, pv=B4
+M105, Red, D3, d=3, n=5.04m, nps=5.55m, ebf=32.0, tt=34%, hf=1%, fh1=100%, s=M11, thr=8, t=0.91, alloc=1.91, pv=D3
+M106, Blue, E2, d=2, n=5.46m, nps=5.69m, ebf=32.0, tt=34%, hf=0%, fh1=100%, s=-M10, thr=8, t=0.96, alloc=1.00, pv=E2
+M107, Red, E4, d=9, n=410, nps=47.95k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M9, thr=8, t=0.01, alloc=1.00, [VCF], pv=E4 B1 C6 A4 D5 F3 B7 B10 A8
+M108, Blue, C2, d=2, n=4.17m, nps=4.16m, ebf=32.0, tt=27%, hf=1%, fh1=100%, s=-M8, thr=8, t=1.00, alloc=1.00, pv=C2 C6 A4
+M109, Red, C6, d=7, n=62, nps=41.05k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=0.00, alloc=1.99, [VCF], pv=C6 A4 D5 F3 B7 B10 A8
+M110, Blue, A4, d=2, n=3.97m, nps=3.97m, ebf=32.0, tt=29%, hf=1%, fh1=100%, s=-M6, thr=8, t=1.00, alloc=0.99, pv=A4
+M111, Red, D5, d=5, n=21, nps=21k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M5, thr=8, t=0.00, alloc=2.98, [VCF], pv=D5 F3 B7 B10 A8
+M112, Blue, F3, d=3, n=7.82m, nps=7.88m, ebf=32.0, tt=27%, hf=1%, fh1=100%, s=-M4, thr=8, t=0.99, alloc=0.99, pv=F3
+M113, Red, B7, d=3, n=6, nps=6k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M3, thr=8, t=0.00, alloc=3.98, [VCF], pv=B7 B10 A8
+M114, Blue, A8, d=64, n=1.02k, nps=408.7k, ebf=2.0, tt=76%, hf=1%, fh1=100%, s=-M2, thr=8, t=0.00, alloc=0.99, pv=A8 B9
+M115, Red, B9, d=1, n=1, nps=1k, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=M1, thr=8, t=0.00, alloc=4.98, [VCF], pv=B9
+game 5: grandmaster-1 (red) beat grandmaster-2 (blue), 115 moves, won by 4
+M1, Red, H8, d=11, n=22.21m, nps=4.94m, ebf=4.6, tt=14%, hf=7%, fh1=94%, s=-300, thr=8, t=4.50, alloc=4.50, pv=H8 H6 H5 I6 F6 I9 I8 J8 G5 L6 E5
+M2, Blue, H6, d=10, n=20.34m, nps=4.52m, ebf=5.3, tt=9%, hf=5%, fh1=91%, s=+300, thr=8, t=4.50, alloc=4.50, pv=H6 H5 G6 J6 G9 G8 F8 I5 D6 K5
+M3, Red, H5, d=9, n=20.25m, nps=4.49m, ebf=6.4, tt=11%, hf=6%, fh1=94%, s=-300, thr=8, t=0.01, alloc=4.54, [PONDER], pv=H5
+M4, Blue, G6, d=9, n=25.81m, nps=5.69m, ebf=6.6, tt=12%, hf=7%, fh1=94%, s=+1000, thr=8, t=4.54, alloc=4.54, pv=G6
+M5, Red, F6, d=11, n=27.13m, nps=5.55m, ebf=4.7, tt=12%, hf=8%, fh1=92%, s=+900, thr=8, t=4.89, alloc=4.89, pv=F6 G7 G5 I5 F8 G8 E7
+M6, Blue, G7, d=11, n=16.92m, nps=3.7m, ebf=4.5, tt=17%, hf=4%, fh1=91%, s=-1500, thr=8, t=4.57, alloc=4.57, pv=G7 F8 F7 G8 E8 E7 G5 I7 G4 G3 G9 D9
+M7, Red, F8, d=11, n=21.95m, nps=4.79m, ebf=4.6, tt=12%, hf=5%, fh1=93%, s=+1400, thr=8, t=0.01, alloc=4.88, [PONDER], pv=F8 F5 H7
+M8, Blue, F5, d=10, n=9.27m, nps=4.09m, ebf=5.0, tt=12%, hf=3%, fh1=94%, s=-1400, thr=8, t=2.27, alloc=4.60, pv=F5 H7
+M9, Red, G8, d=10, n=11.93m, nps=4.56m, ebf=5.0, tt=12%, hf=2%, fh1=91%, s=+3000, thr=8, t=2.61, alloc=5.25, pv=G8
+M10, Blue, E8, d=8, n=25.38m, nps=5.5m, ebf=8.3, tt=9%, hf=8%, fh1=94%, s=-2400, thr=8, t=4.61, alloc=4.62, pv=E8 H7
+M11, Red, I8, d=8, n=11.31m, nps=4.34m, ebf=7.6, tt=9%, hf=3%, fh1=89%, s=+3500, thr=8, t=2.61, alloc=5.22, pv=I8
+M12, Blue, J8, d=9, n=23.86m, nps=5.13m, ebf=6.6, tt=12%, hf=8%, fh1=95%, s=-3500, thr=8, t=4.65, alloc=4.65, pv=J8 I7 I5 G9
+M13, Red, I7, d=8, n=12.01m, nps=4.6m, ebf=7.6, tt=10%, hf=2%, fh1=91%, s=+3500, thr=8, t=2.61, alloc=5.22, pv=I7
+M14, Blue, I5, d=7, n=24.18m, nps=4.59m, ebf=11.2, tt=10%, hf=7%, fh1=92%, s=-3500, thr=8, t=0.04, alloc=4.67, [PONDER], pv=I5
+M15, Red, I10, d=9, n=27.84m, nps=5.34m, ebf=6.7, tt=11%, hf=9%, fh1=93%, s=+9100, thr=8, t=5.22, alloc=5.22, pv=I10 I6 J6 G9 H9 F7 I11 I9 J11 K12 H11
+M16, Blue, I6, d=6, n=22.21m, nps=4.39m, ebf=16.7, tt=13%, hf=5%, fh1=94%, s=-6500, thr=8, t=5.06, alloc=5.07, pv=I6
+M17, Red, G9, d=10, n=41.04m, nps=7.87m, ebf=5.8, tt=22%, hf=4%, fh1=100%, s=M15, thr=8, t=5.21, alloc=5.22, pv=G9
+M18, Blue, J6, d=11, n=17.59m, nps=6.99m, ebf=4.5, tt=32%, hf=2%, fh1=100%, s=-M14, thr=8, t=2.52, alloc=5.05, pv=J6 K6 J4 K3 J7 J5 J10 J9 I9 F7 K7 F10 E11 F9
+M19, Red, K6, d=10, n=31.6m, nps=6.04m, ebf=5.6, tt=27%, hf=2%, fh1=100%, s=M13, thr=8, t=5.23, alloc=5.23, pv=K6 J4 K3
+M20, Blue, J4, d=10, n=22.39m, nps=4.28m, ebf=5.4, tt=32%, hf=5%, fh1=100%, s=-M12, thr=8, t=0.01, alloc=5.06, [PONDER], pv=J4
+M21, Red, K3, d=11, n=34.81m, nps=6.65m, ebf=4.8, tt=28%, hf=4%, fh1=100%, s=M11, thr=8, t=5.23, alloc=5.23, pv=K3 J7 J5 J10 J9 I9 F7
+M22, Blue, J7, d=10, n=31.55m, nps=5.75m, ebf=5.6, tt=29%, hf=4%, fh1=100%, s=-M10, thr=8, t=5.49, alloc=5.50, pv=J7
+M23, Red, J5, d=10, n=38.02m, nps=6.9m, ebf=5.7, tt=26%, hf=1%, fh1=100%, s=M9, thr=8, t=0.00, alloc=5.23, [PONDER], pv=J5
+M24, Blue, I11, d=7, n=30.35m, nps=5.57m, ebf=11.7, tt=29%, hf=5%, fh1=100%, s=-M8, thr=8, t=5.44, alloc=5.46, pv=I11 F10 E11 F7 F9 H9 E6 J11
+M25, Red, F10, d=7, n=47, nps=46.58k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=0.00, alloc=5.71, [VCF], pv=F10 D12 F7 F11 H9 J11 E6
+M26, Blue, E11, d=6, n=22.23m, nps=4.07m, ebf=16.7, tt=35%, hf=4%, fh1=100%, s=-M6, thr=8, t=5.47, alloc=5.46, pv=E11
+M27, Red, F7, d=5, n=18, nps=18k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M5, thr=8, t=0.00, alloc=6.20, [VCF], pv=F7 F11 H9 J11 E6
+M28, Blue, F9, d=5, n=32.59m, nps=5.97m, ebf=31.8, tt=29%, hf=1%, fh1=100%, s=-M4, thr=8, t=5.46, alloc=5.45, pv=F9
+M29, Red, H9, d=3, n=5, nps=5k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M3, thr=8, t=0.00, alloc=6.73, [VCF], pv=H9 J11 E6
+M30, Blue, E6, d=4, n=30.55m, nps=5.61m, ebf=32.0, tt=31%, hf=8%, fh1=100%, s=-M2, thr=8, t=5.45, alloc=5.45, pv=E6
+M31, Red, J11, d=1, n=1, nps=1k, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=M1, thr=8, t=0.00, alloc=7.32, [VCF], pv=J11
+game 6: grandmaster-2 (red) beat grandmaster-1 (blue), 31 moves, won by 4
+M1, Red, H8, d=11, n=26.04m, nps=5.79m, ebf=4.7, tt=9%, hf=7%, fh1=91%, s=-300, thr=8, t=4.50, alloc=4.50, pv=H8 H6
+M2, Blue, G7, d=10, n=18.8m, nps=4.18m, ebf=5.3, tt=9%, hf=6%, fh1=91%, s=+300, thr=8, t=4.50, alloc=4.50, pv=G7 H5
+M3, Red, H5, d=9, n=20.27m, nps=4.46m, ebf=6.4, tt=14%, hf=6%, fh1=93%, s=-300, thr=8, t=4.54, alloc=4.54, pv=H5 H7 J7
+M4, Blue, H7, d=13, n=20.82m, nps=4.58m, ebf=3.7, tt=12%, hf=5%, fh1=89%, s=-1500, thr=8, t=4.54, alloc=4.54, pv=H7 F7 G6 F5 F6 E6 G8 G5 G9
+M5, Red, F7, d=11, n=20.68m, nps=4.54m, ebf=4.6, tt=10%, hf=6%, fh1=91%, s=+900, thr=8, t=0.01, alloc=4.57, [PONDER], pv=F7 G6 G8 I8 F5
+M6, Blue, G6, d=12, n=18.21m, nps=3.98m, ebf=4.0, tt=11%, hf=6%, fh1=90%, s=-1400, thr=8, t=4.57, alloc=4.57, pv=G6 F5
+M7, Red, F5, d=11, n=20.44m, nps=4.46m, ebf=4.6, tt=12%, hf=6%, fh1=92%, s=+1400, thr=8, t=0.01, alloc=4.93, [PONDER], pv=F5 F8
+M8, Blue, F8, d=10, n=8.2m, nps=3.61m, ebf=4.9, tt=13%, hf=2%, fh1=94%, s=-1400, thr=8, t=2.27, alloc=4.60, pv=F8
+M9, Red, G5, d=11, n=14.11m, nps=5.4m, ebf=4.4, tt=28%, hf=2%, fh1=99%, s=+4800, thr=8, t=2.61, alloc=5.28, pv=G5
+M10, Blue, E5, d=8, n=24.1m, nps=5.23m, ebf=8.3, tt=9%, hf=8%, fh1=95%, s=-3000, thr=8, t=4.61, alloc=4.62, pv=E5 I5
+M11, Red, I5, d=11, n=10.79m, nps=4.19m, ebf=4.3, tt=9%, hf=3%, fh1=96%, s=+5300, thr=8, t=2.58, alloc=5.24, pv=I5 J5 I6 I7 K7 E9 J6 H4 L8 M9 D10 G4 L6
+M12, Blue, J5, d=9, n=17.26m, nps=3.71m, ebf=6.3, tt=10%, hf=5%, fh1=89%, s=-4100, thr=8, t=4.65, alloc=4.65, pv=J5
+M13, Red, I6, d=11, n=18.16m, nps=3.89m, ebf=4.5, tt=19%, hf=6%, fh1=96%, s=+6200, thr=8, t=0.01, alloc=5.24, [PONDER], pv=I6
+M14, Blue, I7, d=9, n=11.25m, nps=4.87m, ebf=6.0, tt=10%, hf=3%, fh1=93%, s=-5300, thr=8, t=2.31, alloc=4.68, pv=I7 K7
+M15, Red, K7, d=10, n=12.4m, nps=4.38m, ebf=5.0, tt=10%, hf=3%, fh1=90%, s=+7900, thr=8, t=2.83, alloc=5.66, pv=K7
+M16, Blue, J7, d=11, n=11.61m, nps=4.97m, ebf=4.3, tt=15%, hf=4%, fh1=94%, s=-5600, thr=8, t=2.34, alloc=4.70, pv=J7 J6
+M17, Red, I3, d=7, n=47.73k, nps=32.99k, ebf=4.6, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=1.45, alloc=5.61, [VCT], pv=I3 I4 H4 D8 J2 F6 K1
+M18, Blue, J6, d=9, n=20.04m, nps=4.25m, ebf=6.4, tt=10%, hf=7%, fh1=94%, s=-3000, thr=8, t=4.71, alloc=4.73, pv=J6
+M19, Red, J8, d=10, n=33.36m, nps=5.63m, ebf=5.6, tt=16%, hf=10%, fh1=95%, s=+4200, thr=8, t=5.93, alloc=5.94, pv=J8 F6 L6 M5 I4 I2 K5 J4 J3 D6 H10 I9 K8
+M20, Blue, F6, d=9, n=20.88m, nps=4.4m, ebf=6.5, tt=15%, hf=6%, fh1=95%, s=-4200, thr=8, t=4.75, alloc=4.76, pv=F6 L6 M5 I4 I2 K5 J4 J3 D6 K2 L1 K8
+M21, Red, L6, d=9, n=28.55m, nps=4.86m, ebf=6.7, tt=13%, hf=9%, fh1=94%, s=+7200, thr=8, t=5.87, alloc=5.88, pv=L6
+M22, Blue, M5, d=10, n=28.45m, nps=4.83m, ebf=5.5, tt=20%, hf=7%, fh1=96%, s=-9700, thr=8, t=0.00, alloc=4.78, [PONDER], pv=M5 I2 I4 H3 G4 J3
+M23, Red, I2, d=9, n=26.38m, nps=4.53m, ebf=6.7, tt=22%, hf=8%, fh1=99%, s=+9700, thr=8, t=5.83, alloc=5.85, pv=I2 I4 H3 G4 J3 K3 K5 J4 G3 F3 H4
+M24, Blue, I4, d=10, n=26.04m, nps=4.44m, ebf=5.5, tt=29%, hf=7%, fh1=99%, s=-12400, thr=8, t=0.01, alloc=5.23, [PONDER], pv=I4
+M25, Red, H3, d=9, n=36.28m, nps=6.24m, ebf=6.9, tt=17%, hf=7%, fh1=94%, s=+12400, thr=8, t=5.81, alloc=5.83, pv=H3 G4 K3
+M26, Blue, G4, d=8, n=24.78m, nps=4.39m, ebf=8.3, tt=28%, hf=7%, fh1=100%, s=-12400, thr=8, t=5.64, alloc=5.68, pv=G4
+M27, Red, K3, d=7, n=26.17m, nps=4.6m, ebf=11.4, tt=30%, hf=8%, fh1=100%, s=+15000, thr=8, t=0.00, alloc=5.80, [PONDER], pv=K3
+M28, Blue, J3, d=11, n=19.53m, nps=6.94m, ebf=4.6, tt=43%, hf=3%, fh1=100%, s=-M16, thr=8, t=2.81, alloc=5.63, pv=J3 J4 D4 C3 H2 L2 M1 K5 M7 K6 K4 I8 H6 K8 L8 K9
+M29, Red, J4, d=10, n=39.98m, nps=6.29m, ebf=5.7, tt=30%, hf=3%, fh1=100%, s=M15, thr=8, t=6.35, alloc=6.35, pv=J4 D4 C3 H2 K5 M7 L2 M1 K6 K4 I8 H6 K8 L8 K9
+M30, Blue, D4, d=10, n=29.23m, nps=4.6m, ebf=5.5, tt=41%, hf=7%, fh1=98%, s=-M14, thr=8, t=0.01, alloc=5.62, [PONDER], pv=D4
+M31, Red, C3, d=9, n=35.47m, nps=5.66m, ebf=6.9, tt=32%, hf=7%, fh1=100%, s=M13, thr=8, t=6.27, alloc=6.27, pv=C3
+M32, Blue, H2, d=10, n=33.52m, nps=5.44m, ebf=5.6, tt=34%, hf=4%, fh1=100%, s=-M12, thr=8, t=6.16, alloc=6.18, pv=H2 L2
+M33, Red, K5, d=8, n=13.08m, nps=4.43m, ebf=7.7, tt=34%, hf=2%, fh1=100%, s=M11, thr=8, t=2.95, alloc=6.22, pv=K5
+M34, Blue, M7, d=6, n=35.82m, nps=5.86m, ebf=18.0, tt=34%, hf=7%, fh1=100%, s=-M10, thr=8, t=6.11, alloc=6.11, pv=M7 L2
+M35, Red, L2, d=7, n=14.09m, nps=4.62m, ebf=10.4, tt=29%, hf=3%, fh1=100%, s=M9, thr=8, t=3.05, alloc=6.19, pv=L2
+M36, Blue, M1, d=8, n=29.85m, nps=4.82m, ebf=8.5, tt=29%, hf=5%, fh1=100%, s=-M8, thr=8, t=0.00, alloc=6.08, [PONDER], pv=M1
+M37, Red, K6, d=6, n=24.28m, nps=7.99m, ebf=17.0, tt=32%, hf=2%, fh1=100%, s=M7, thr=8, t=3.04, alloc=6.15, pv=K6
+M38, Blue, K4, d=8, n=37.61m, nps=5.55m, ebf=8.8, tt=34%, hf=3%, fh1=100%, s=-M6, thr=8, t=6.77, alloc=6.77, pv=K4
+M39, Red, I8, d=7, n=18.36m, nps=7.68m, ebf=10.9, tt=28%, hf=1%, fh1=100%, s=M5, thr=8, t=2.39, alloc=6.12, pv=I8 H6 K8 L8 K9
+M40, Blue, H6, d=8, n=25.27m, nps=3.79m, ebf=8.3, tt=26%, hf=3%, fh1=100%, s=-M4, thr=8, t=6.67, alloc=6.67, pv=H6
+M41, Red, K8, d=3, n=7, nps=7k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M3, thr=8, t=0.00, alloc=6.19, [VCF], pv=K8 K10 G8
+M42, Blue, L8, d=7, n=57.8m, nps=8.74m, ebf=12.8, tt=29%, hf=1%, fh1=100%, s=-M2, thr=8, t=6.62, alloc=6.62, pv=L8
+M43, Red, K9, d=1, n=1, nps=1k, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=M1, thr=8, t=0.00, alloc=7.06, [VCF], pv=K9
+game 7: grandmaster-1 (red) beat grandmaster-2 (blue), 43 moves, won by 4
+M1, Red, H8, d=11, n=22.34m, nps=4.97m, ebf=4.6, tt=9%, hf=7%, fh1=91%, s=-300, thr=8, t=4.50, alloc=4.50, pv=H8 H6 H5 I6
+M2, Blue, H6, d=10, n=16.61m, nps=3.69m, ebf=5.2, tt=9%, hf=5%, fh1=91%, s=+300, thr=8, t=4.50, alloc=4.50, pv=H6 H5 G6 J6 G9 G8 F8 I5 D6 K5
+M3, Red, H5, d=10, n=19.37m, nps=4.26m, ebf=5.3, tt=10%, hf=6%, fh1=92%, s=-1000, thr=8, t=4.54, alloc=4.54, pv=H5
+M4, Blue, G6, d=9, n=23.91m, nps=5.27m, ebf=6.6, tt=14%, hf=9%, fh1=95%, s=+1000, thr=8, t=4.54, alloc=4.54, pv=G6
+M5, Red, F6, d=11, n=27.45m, nps=6.01m, ebf=4.7, tt=12%, hf=8%, fh1=91%, s=+900, thr=8, t=4.57, alloc=4.57, pv=F6 G7 G5 I5 F8 G8 E7 H4 G9
+M6, Blue, G7, d=12, n=18.59m, nps=4.07m, ebf=4.0, tt=11%, hf=5%, fh1=90%, s=-1300, thr=8, t=4.57, alloc=4.57, pv=G7 F8 F5 G8 I8 H7
+M7, Red, F8, d=11, n=21.26m, nps=4.64m, ebf=4.6, tt=12%, hf=6%, fh1=93%, s=+1400, thr=8, t=0.01, alloc=4.60, [PONDER], pv=F8 F5
+M8, Blue, F5, d=10, n=9.95m, nps=4.4m, ebf=5.0, tt=12%, hf=2%, fh1=96%, s=-1300, thr=8, t=2.26, alloc=4.60, pv=F5
+M9, Red, G8, d=11, n=12.97m, nps=5.26m, ebf=4.4, tt=6%, hf=3%, fh1=99%, s=+4800, thr=8, t=2.46, alloc=4.96, pv=G8
+M10, Blue, E8, d=10, n=25.82m, nps=5.59m, ebf=5.5, tt=12%, hf=8%, fh1=96%, s=-3500, thr=8, t=4.62, alloc=4.62, pv=E8 I8 J8 I7
+M11, Red, I8, d=10, n=11.13m, nps=4.51m, ebf=5.0, tt=10%, hf=3%, fh1=90%, s=+4800, thr=8, t=2.47, alloc=4.95, pv=I8
+M12, Blue, J8, d=9, n=37.05m, nps=7.47m, ebf=6.9, tt=12%, hf=3%, fh1=93%, s=-3500, thr=8, t=0.00, alloc=4.65, [PONDER], pv=J8
+M13, Red, I7, d=11, n=13.45m, nps=5.45m, ebf=4.4, tt=12%, hf=5%, fh1=90%, s=+6200, thr=8, t=2.47, alloc=4.96, pv=I7 I6 K6 J7
+M14, Blue, I6, d=9, n=9.77m, nps=3.94m, ebf=6.0, tt=9%, hf=3%, fh1=95%, s=-5300, thr=8, t=2.48, alloc=5.04, pv=I6 K6 E4
+M15, Red, K6, d=11, n=12.85m, nps=5.24m, ebf=4.4, tt=15%, hf=2%, fh1=97%, s=+7100, thr=8, t=2.45, alloc=4.98, pv=K6
+M16, Blue, J6, d=12, n=13.33m, nps=5.32m, ebf=3.9, tt=13%, hf=4%, fh1=97%, s=-4200, thr=8, t=2.50, alloc=5.02, pv=J6
+M17, Red, J7, d=9, n=12.67m, nps=5.17m, ebf=6.0, tt=12%, hf=5%, fh1=96%, s=+8100, thr=8, t=2.45, alloc=4.98, pv=J7
+M18, Blue, H9, d=11, n=27.72m, nps=5.52m, ebf=4.7, tt=10%, hf=9%, fh1=90%, s=-6600, thr=8, t=5.02, alloc=5.03, pv=H9
+M19, Red, L7, d=10, n=10.78m, nps=4.41m, ebf=5.0, tt=15%, hf=4%, fh1=97%, s=+6600, thr=8, t=2.45, alloc=5.00, pv=L7 K7 J5
+M20, Blue, K7, d=9, n=20.04m, nps=3.98m, ebf=6.4, tt=9%, hf=6%, fh1=89%, s=-6600, thr=8, t=5.04, alloc=5.04, pv=K7
+M21, Red, J5, d=9, n=20.61m, nps=4.03m, ebf=6.4, tt=10%, hf=6%, fh1=89%, s=+4600, thr=8, t=0.06, alloc=5.01, [PONDER], pv=J5 M8 I5
+M22, Blue, M8, d=8, n=18.03m, nps=3.57m, ebf=8.0, tt=17%, hf=5%, fh1=97%, s=-4600, thr=8, t=5.05, alloc=5.05, pv=M8 I5
+M23, Red, I5, d=7, n=10.65m, nps=3.97m, ebf=10.0, tt=18%, hf=3%, fh1=97%, s=+4100, thr=8, t=2.68, alloc=5.46, pv=I5
+M24, Blue, K5, d=10, n=25.56m, nps=5.06m, ebf=5.4, tt=4%, hf=8%, fh1=99%, s=-5300, thr=8, t=5.05, alloc=5.07, pv=K5
+M25, Red, I9, d=9, n=15.54m, nps=5.79m, ebf=6.2, tt=18%, hf=5%, fh1=98%, s=+5300, thr=8, t=2.69, alloc=5.42, pv=I9 I11 I4 H3 I2 E4 D3 L5 I3 I1 H4
+M26, Blue, I11, d=10, n=24.94m, nps=4.92m, ebf=5.4, tt=17%, hf=4%, fh1=93%, s=-3800, thr=8, t=5.07, alloc=5.08, pv=I11 H3 I4 E4 M4 C4 D4 F7 D5 F9 F10 E10
+M27, Red, H3, d=9, n=10.58m, nps=3.94m, ebf=6.0, tt=7%, hf=3%, fh1=99%, s=+6500, thr=8, t=2.69, alloc=5.42, pv=H3
+M28, Blue, I4, d=10, n=24.25m, nps=4.76m, ebf=5.4, tt=15%, hf=8%, fh1=99%, s=-6500, thr=8, t=5.10, alloc=5.09, pv=I4
+M29, Red, E4, d=9, n=13.83m, nps=5.12m, ebf=6.1, tt=14%, hf=4%, fh1=99%, s=+6500, thr=8, t=2.70, alloc=5.41, pv=E4
+M30, Blue, M4, d=8, n=10.76m, nps=4.22m, ebf=7.5, tt=8%, hf=4%, fh1=100%, s=-6500, thr=8, t=2.55, alloc=5.11, pv=M4
+M31, Red, G4, d=7, n=14.13m, nps=5.23m, ebf=10.4, tt=11%, hf=5%, fh1=99%, s=+6500, thr=8, t=2.70, alloc=5.41, pv=G4 F4 F3 I3 D5
+M32, Blue, F4, d=8, n=14.32m, nps=5.6m, ebf=7.8, tt=18%, hf=2%, fh1=98%, s=-6000, thr=8, t=2.56, alloc=5.13, pv=F4 F3
+M33, Red, F3, d=8, n=13.37m, nps=5.04m, ebf=7.7, tt=21%, hf=1%, fh1=99%, s=+6500, thr=8, t=2.66, alloc=5.42, pv=F3
+M34, Blue, E2, d=8, n=25.16m, nps=4.57m, ebf=8.3, tt=7%, hf=8%, fh1=97%, s=-6500, thr=8, t=0.01, alloc=5.14, [PONDER], pv=E2 E3 D3
+M35, Red, E3, d=9, n=12.49m, nps=4.7m, ebf=6.0, tt=8%, hf=2%, fh1=93%, s=+4900, thr=8, t=2.66, alloc=5.41, pv=E3 D3 D5 G2 F2 C4 B5 C5 G3 I3
+M36, Blue, G3, d=8, n=23.54m, nps=4.34m, ebf=8.2, tt=5%, hf=9%, fh1=97%, s=-3600, thr=8, t=0.01, alloc=5.74, [PONDER], pv=G3 E5 G2
+M37, Red, D6, d=7, n=9.14m, nps=3.44m, ebf=9.9, tt=8%, hf=4%, fh1=98%, s=+6500, thr=8, t=2.66, alloc=5.42, pv=D6
+M38, Blue, C6, d=5, n=15.16m, nps=4.78m, ebf=27.1, tt=6%, hf=6%, fh1=99%, s=-1000, thr=8, t=3.17, alloc=6.37, pv=C6 E7 C5 H4 E5
+M39, Red, E7, d=6, n=12.31m, nps=4.63m, ebf=15.0, tt=11%, hf=4%, fh1=96%, s=+8400, thr=8, t=2.66, alloc=5.42, pv=E7 C5 D8
+M40, Blue, C5, d=6, n=12.82m, nps=4.16m, ebf=15.2, tt=12%, hf=4%, fh1=96%, s=-9300, thr=8, t=3.08, alloc=6.29, pv=C5
+M41, Red, D5, d=7, n=88.61k, nps=27.64k, ebf=5.0, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=0.00, alloc=5.43, [VCT], pv=D5 A8 H4 D8 H1 H2 G2
+M42, Blue, D8, d=6, n=12.65m, nps=4.06m, ebf=15.1, tt=12%, hf=4%, fh1=94%, s=-6300, thr=8, t=3.11, alloc=6.24, pv=D8 C4 F7 H1
+M43, Red, C4, d=5, n=12.44m, nps=4.04m, ebf=26.0, tt=13%, hf=4%, fh1=96%, s=+6300, thr=8, t=3.08, alloc=6.24, pv=C4 F7 H1 G2 H2
+M44, Blue, F7, d=6, n=22.71m, nps=3.67m, ebf=16.8, tt=5%, hf=7%, fh1=98%, s=-5500, thr=8, t=6.19, alloc=6.22, pv=F7
+M45, Red, F9, d=7, n=29.62m, nps=4.8m, ebf=11.6, tt=9%, hf=11%, fh1=97%, s=+5800, thr=8, t=6.17, alloc=6.19, pv=F9
+M46, Blue, G2, d=6, n=16.17m, nps=5.24m, ebf=15.9, tt=9%, hf=5%, fh1=96%, s=-5800, thr=8, t=3.08, alloc=6.19, pv=G2 H2 H10
+M47, Red, H2, d=6, n=28.74m, nps=4.67m, ebf=17.4, tt=13%, hf=9%, fh1=92%, s=+7400, thr=8, t=6.15, alloc=6.17, pv=H2
+M48, Blue, H4, d=3, n=55.65m, nps=9.04m, ebf=32.0, tt=5%, hf=2%, fh1=98%, s=-7500, thr=8, t=6.16, alloc=6.18, pv=H4 H10 D11 D3
+M49, Red, H10, d=4, n=21.51m, nps=3.5m, ebf=32.0, tt=19%, hf=7%, fh1=99%, s=+10000, thr=8, t=6.15, alloc=6.17, pv=H10 D11 D3 D2
+M50, Blue, D11, d=2, n=11.08m, nps=3.58m, ebf=32.0, tt=9%, hf=3%, fh1=100%, s=-7500, thr=8, t=3.09, alloc=6.18, pv=D11
+M51, Red, D3, d=3, n=37.18m, nps=5.97m, ebf=32.0, tt=14%, hf=5%, fh1=99%, s=+10000, thr=8, t=0.00, alloc=6.18, [PONDER], pv=D3
+M52, Blue, D7, d=2, n=28.3m, nps=4.61m, ebf=32.0, tt=8%, hf=11%, fh1=100%, s=-7800, thr=8, t=6.13, alloc=6.18, pv=D7
+M53, Red, B3, d=3, n=36.98m, nps=4.75m, ebf=32.0, tt=6%, hf=12%, fh1=100%, s=+9500, thr=8, t=7.79, alloc=7.98, pv=B3 C3 E6 A2 D2
+M54, Blue, C3, d=4, n=26.8m, nps=4.31m, ebf=32.0, tt=9%, hf=7%, fh1=99%, s=-12000, thr=8, t=6.22, alloc=6.21, pv=C3 E6 A2 D2 D4 D9 A4 B5 A5
+M55, Red, E6, d=3, n=23.77m, nps=3.82m, ebf=32.0, tt=16%, hf=8%, fh1=99%, s=+12000, thr=8, t=0.01, alloc=7.88, [PONDER], pv=E6
+M56, Blue, A2, d=4, n=30.04m, nps=4.78m, ebf=32.0, tt=15%, hf=11%, fh1=99%, s=-10200, thr=8, t=6.28, alloc=6.28, pv=A2
+M57, Red, D2, d=2, n=67.87m, nps=5.61m, ebf=32.0, tt=7%, hf=13%, fh1=99%, s=+10200, thr=8, t=12.10, alloc=12.12, pv=D2
+M58, Blue, D4, d=4, n=58.34m, nps=9.1m, ebf=32.0, tt=6%, hf=1%, fh1=98%, s=-9000, thr=8, t=6.41, alloc=6.41, pv=D4
+M59, Red, C10, d=3, n=95.09m, nps=8.51m, ebf=32.0, tt=9%, hf=6%, fh1=97%, s=+9000, thr=8, t=11.18, alloc=11.19, pv=C10 D9 D10 B10 B5 B2 A1 G9
+M60, Blue, D9, d=3, n=12.18m, nps=3.97m, ebf=32.0, tt=25%, hf=2%, fh1=100%, s=-9000, thr=8, t=3.07, alloc=6.18, pv=D9
+M61, Red, D10, d=3, n=50.23m, nps=8.11m, ebf=32.0, tt=6%, hf=2%, fh1=97%, s=+9000, thr=8, t=0.00, alloc=1.00, [PONDER], pv=D10
+M62, Blue, B10, d=3, n=2.42m, nps=5.52m, ebf=32.0, tt=17%, hf=1%, fh1=100%, s=-9000, thr=8, t=0.44, alloc=0.99, pv=B10
+M63, Red, A4, d=1, n=15.66m, nps=7.91m, ebf=32.0, tt=11%, hf=1%, fh1=94%, s=+6500, thr=8, t=1.98, alloc=2.00, pv=A4 E5
+M64, Blue, E5, d=1, n=2.13m, nps=4.41m, ebf=32.0, tt=9%, hf=1%, fh1=88%, s=-6500, thr=8, t=0.48, alloc=1.00, pv=E5
+M65, Red, B2, d=3, n=4.78m, nps=4.83m, ebf=32.0, tt=10%, hf=2%, fh1=100%, s=+11000, thr=8, t=0.99, alloc=1.00, pv=B2
+M66, Blue, B4, d=3, n=3m, nps=6.25m, ebf=32.0, tt=10%, hf=1%, fh1=97%, s=-11000, thr=8, t=0.48, alloc=0.99, pv=B4 A5 A7 F12 F11
+M67, Red, A5, d=2, n=1.93m, nps=3.91m, ebf=32.0, tt=13%, hf=1%, fh1=92%, s=+9700, thr=8, t=0.49, alloc=0.99, pv=A5
+M68, Blue, A7, d=3, n=3.85m, nps=8.44m, ebf=32.0, tt=17%, hf=0%, fh1=90%, s=-9700, thr=8, t=0.46, alloc=1.00, pv=A7
+M69, Red, F12, d=2, n=4.28m, nps=8.88m, ebf=32.0, tt=11%, hf=0%, fh1=94%, s=+9700, thr=8, t=0.48, alloc=0.99, pv=F12
+M70, Blue, G11, d=2, n=4.95m, nps=5.35m, ebf=32.0, tt=23%, hf=1%, fh1=99%, s=-9700, thr=8, t=0.93, alloc=0.94, pv=G11
+M71, Red, F10, d=7, n=61, nps=39.66k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=0.00, alloc=1.00, [VCF], pv=F10 F13 E11 D12 G13 H14 C9
+M72, Blue, F11, d=1, n=2.27m, nps=4.9m, ebf=32.0, tt=30%, hf=1%, fh1=86%, s=-7200, thr=8, t=0.46, alloc=0.99, pv=F11
+M73, Red, E11, d=5, n=25, nps=25k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M5, thr=8, t=0.00, alloc=1.99, [VCF], pv=E11 D12 G13 H14 C9
+M74, Blue, G9, d=4, n=4.54m, nps=4.54m, ebf=32.0, tt=21%, hf=1%, fh1=100%, s=-M4, thr=8, t=1.00, alloc=0.99, pv=G9 G13 C9 H14
+M75, Red, G13, d=3, n=8, nps=8k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M3, thr=8, t=0.00, alloc=2.99, [VCF], pv=G13 H14 C9
+M76, Blue, C9, d=4, n=30.72k, nps=2.65m, ebf=13.0, tt=9%, hf=0%, fh1=100%, s=-M2, thr=8, t=0.01, alloc=0.99, [PONDER], pv=C9
+M77, Red, H14, d=1, n=1, nps=1k, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=M1, thr=8, t=0.00, alloc=3.99, [VCF], pv=H14
+game 8: grandmaster-2 (red) beat grandmaster-1 (blue), 77 moves, won by 4
+M1, Red, H8, d=11, n=24.57m, nps=5.46m, ebf=4.7, tt=9%, hf=7%, fh1=90%, s=-300, thr=8, t=4.50, alloc=4.50, pv=H8 H6 H5 I6
+M2, Blue, H6, d=10, n=16.71m, nps=3.71m, ebf=5.2, tt=9%, hf=6%, fh1=93%, s=+300, thr=8, t=4.50, alloc=4.50, pv=H6 H5
+M3, Red, H5, d=10, n=18.99m, nps=4.21m, ebf=5.3, tt=13%, hf=7%, fh1=95%, s=-1000, thr=8, t=0.01, alloc=4.54, [PONDER], pv=H5
+M4, Blue, G6, d=9, n=25.2m, nps=5.55m, ebf=6.6, tt=11%, hf=6%, fh1=91%, s=+1000, thr=8, t=4.54, alloc=4.54, pv=G6 E6
+M5, Red, F6, d=11, n=21.86m, nps=4.47m, ebf=4.6, tt=10%, hf=7%, fh1=91%, s=+900, thr=8, t=4.89, alloc=4.89, pv=F6 G7 G5 I5 F8 G8 E7 H4 G9 J4 K3 J6
+M6, Blue, G7, d=12, n=18.6m, nps=4.07m, ebf=4.0, tt=11%, hf=6%, fh1=91%, s=-1400, thr=8, t=4.57, alloc=4.57, pv=G7 F8 F5 H7 G8 G5 H4 G9 J6 I5 I6 K6 J5
+M7, Red, F8, d=11, n=20.04m, nps=4.37m, ebf=4.6, tt=11%, hf=5%, fh1=94%, s=+1400, thr=8, t=0.01, alloc=4.88, [PONDER], pv=F8 F5 H7
+M8, Blue, F5, d=10, n=9.16m, nps=3.97m, ebf=5.0, tt=11%, hf=2%, fh1=93%, s=-1400, thr=8, t=2.31, alloc=4.60, pv=F5 H7
+M9, Red, G8, d=10, n=12.85m, nps=4.96m, ebf=5.0, tt=13%, hf=2%, fh1=89%, s=+3000, thr=8, t=2.59, alloc=5.25, pv=G8
+M10, Blue, E8, d=8, n=24.85m, nps=5.38m, ebf=8.3, tt=8%, hf=8%, fh1=93%, s=-2400, thr=8, t=4.62, alloc=4.62, pv=E8 H7
+M11, Red, I8, d=8, n=12.08m, nps=4.63m, ebf=7.6, tt=10%, hf=3%, fh1=89%, s=+3500, thr=8, t=2.61, alloc=5.22, pv=I8
+M12, Blue, J8, d=11, n=25.57m, nps=5.5m, ebf=4.7, tt=12%, hf=7%, fh1=96%, s=-6100, thr=8, t=4.65, alloc=4.65, pv=J8 I7 I6 K6 E4 J7 L5
+M13, Red, I7, d=10, n=10.49m, nps=4.03m, ebf=5.0, tt=10%, hf=3%, fh1=92%, s=+5300, thr=8, t=2.60, alloc=5.22, pv=I7 I6 K6 E4
+M14, Blue, I6, d=10, n=7.58m, nps=3.32m, ebf=4.9, tt=10%, hf=3%, fh1=97%, s=-8000, thr=8, t=2.29, alloc=4.68, pv=I6
+M15, Red, K6, d=10, n=15.47m, nps=6m, ebf=5.2, tt=13%, hf=4%, fh1=95%, s=+7900, thr=8, t=2.58, alloc=5.22, pv=K6
+M16, Blue, D3, d=9, n=15.16m, nps=6.52m, ebf=6.2, tt=9%, hf=4%, fh1=90%, s=-7900, thr=8, t=2.32, alloc=4.70, pv=D3
+M17, Red, J7, d=8, n=25.66m, nps=4.93m, ebf=8.4, tt=12%, hf=9%, fh1=94%, s=+7300, thr=8, t=5.21, alloc=5.22, pv=J7 H9 E4 G9 K7 I9 M4 L5
+M18, Blue, H9, d=7, n=21.58m, nps=4.57m, ebf=11.0, tt=10%, hf=6%, fh1=90%, s=-7900, thr=8, t=4.72, alloc=4.73, pv=H9
+M19, Red, E4, d=8, n=44.31m, nps=8.5m, ebf=9.0, tt=18%, hf=3%, fh1=92%, s=+8500, thr=8, t=5.21, alloc=5.22, pv=E4
+M20, Blue, J6, d=11, n=24.61m, nps=5.19m, ebf=4.7, tt=10%, hf=8%, fh1=91%, s=-6000, thr=8, t=4.75, alloc=4.75, pv=J6 L7
+M21, Red, L7, d=11, n=9.99m, nps=3.89m, ebf=4.2, tt=12%, hf=2%, fh1=93%, s=+6000, thr=8, t=2.57, alloc=5.23, pv=L7 K7 J5 I4 I5 K5 I9 I11 L5 M4
+M22, Blue, K7, d=10, n=24.78m, nps=4.73m, ebf=5.4, tt=14%, hf=7%, fh1=94%, s=-6000, thr=8, t=0.01, alloc=4.78, [PONDER], pv=K7
+M23, Red, J5, d=9, n=13.32m, nps=5.11m, ebf=6.1, tt=16%, hf=4%, fh1=95%, s=+6000, thr=8, t=2.61, alloc=5.23, pv=J5
+M24, Blue, M8, d=8, n=27.48m, nps=5.27m, ebf=8.4, tt=20%, hf=9%, fh1=94%, s=-6000, thr=8, t=5.21, alloc=5.23, pv=M8
+M25, Red, I5, d=7, n=14.7m, nps=5.66m, ebf=10.5, tt=13%, hf=5%, fh1=93%, s=+4900, thr=8, t=2.60, alloc=5.23, pv=I5
+M26, Blue, K5, d=10, n=29.24m, nps=5.63m, ebf=5.5, tt=10%, hf=9%, fh1=94%, s=-4200, thr=8, t=5.19, alloc=5.20, pv=K5 I9 I11 I4 H3 I2 L5 I3 I1 H4
+M27, Red, I9, d=9, n=12.78m, nps=4.97m, ebf=6.1, tt=9%, hf=3%, fh1=96%, s=+4200, thr=8, t=2.57, alloc=5.24, pv=I9 I11 I4 H3 I2 L5 I3 I1 H4 G5 G3
+M28, Blue, I10, d=10, n=20.15m, nps=3.87m, ebf=5.3, tt=7%, hf=6%, fh1=98%, s=-4500, thr=8, t=5.20, alloc=5.21, pv=I10 M4 L5 H3 I4 J10 K11 E7 G9 H4 G5 G3
+M29, Red, M4, d=9, n=11.28m, nps=4.37m, ebf=6.0, tt=8%, hf=4%, fh1=97%, s=+4900, thr=8, t=2.58, alloc=5.25, pv=M4 L5 H3 I4 E10 F9
+M30, Blue, L5, d=10, n=20.85m, nps=3.99m, ebf=5.3, tt=6%, hf=8%, fh1=99%, s=-3200, thr=8, t=5.23, alloc=5.22, pv=L5
+M31, Red, H3, d=9, n=20.45m, nps=3.88m, ebf=6.4, tt=16%, hf=6%, fh1=99%, s=+3200, thr=8, t=0.04, alloc=5.25, [PONDER], pv=H3
+M32, Blue, I4, d=9, n=32.48m, nps=6.21m, ebf=6.8, tt=8%, hf=7%, fh1=87%, s=-3200, thr=8, t=5.23, alloc=5.23, pv=I4
+M33, Red, F10, d=8, n=17.54m, nps=6.08m, ebf=8.0, tt=9%, hf=5%, fh1=87%, s=+5700, thr=8, t=2.89, alloc=5.81, pv=F10
+M34, Blue, G9, d=10, n=27.67m, nps=5.3m, ebf=5.5, tt=16%, hf=9%, fh1=94%, s=-3500, thr=8, t=5.22, alloc=5.24, pv=G9 F9 F7 F11
+M35, Red, F9, d=9, n=10.84m, nps=3.8m, ebf=6.0, tt=6%, hf=5%, fh1=98%, s=+3500, thr=8, t=2.85, alloc=5.77, pv=F9 F7 E10 D11 F11 F12 D9 G12 C10 D10 C9
+M36, Blue, F7, d=9, n=41.63m, nps=7.2m, ebf=7.0, tt=12%, hf=2%, fh1=99%, s=-3500, thr=8, t=0.01, alloc=5.26, [PONDER], pv=F7
+M37, Red, D9, d=9, n=13.55m, nps=4.78m, ebf=6.1, tt=11%, hf=4%, fh1=98%, s=+3500, thr=8, t=2.83, alloc=5.75, pv=D9
+M38, Blue, D11, d=9, n=28.91m, nps=4.92m, ebf=6.7, tt=20%, hf=9%, fh1=96%, s=-3700, thr=8, t=5.88, alloc=5.89, pv=D11 E7 G5 F11 F12 G3 G12 F3 E12 D5
+M39, Red, E7, d=8, n=11.99m, nps=4.26m, ebf=7.6, tt=9%, hf=5%, fh1=89%, s=+3700, thr=8, t=2.81, alloc=5.74, pv=E7
+M40, Blue, G5, d=9, n=32.3m, nps=5.54m, ebf=6.8, tt=12%, hf=11%, fh1=91%, s=-3100, thr=8, t=5.83, alloc=5.84, pv=G5
+M41, Red, F11, d=8, n=14.39m, nps=5.04m, ebf=7.8, tt=10%, hf=4%, fh1=91%, s=+3100, thr=8, t=2.85, alloc=5.73, pv=F11
+M42, Blue, F12, d=9, n=31.72m, nps=5.43m, ebf=6.8, tt=12%, hf=10%, fh1=92%, s=-3500, thr=8, t=5.84, alloc=5.83, pv=F12
+M43, Red, E10, d=8, n=15.68m, nps=5.48m, ebf=7.9, tt=17%, hf=4%, fh1=93%, s=+3100, thr=8, t=2.86, alloc=5.73, pv=E10 C8 D10 C10 C9 D8 B9 E9 B8
+M44, Blue, G12, d=8, n=21.88m, nps=3.77m, ebf=8.2, tt=12%, hf=8%, fh1=93%, s=-3500, thr=8, t=5.80, alloc=5.83, pv=G12 C10 B10
+M45, Red, C10, d=7, n=11.75m, nps=4.15m, ebf=10.1, tt=12%, hf=3%, fh1=95%, s=+3500, thr=8, t=2.83, alloc=5.74, pv=C10 B10 C8 B7 C9 C7
+M46, Blue, D10, d=9, n=33.25m, nps=5.74m, ebf=6.8, tt=23%, hf=3%, fh1=99%, s=-M14, thr=8, t=5.79, alloc=5.83, pv=D10 C9 G4 G3 C7 B10 D8 B7 C8 B9 E9 B8 B11 B6
+M47, Red, C9, d=8, n=16.36m, nps=5.82m, ebf=8.0, tt=22%, hf=2%, fh1=100%, s=M13, thr=8, t=2.81, alloc=5.74, pv=C9 G4 G3 C7 B9 E9 B7 C8 B10 D8 B8 B11 B6
+M48, Blue, G4, d=7, n=40.5m, nps=6.99m, ebf=12.1, tt=26%, hf=3%, fh1=100%, s=-M12, thr=8, t=0.01, alloc=5.84, [PONDER], pv=G4
+M49, Red, G3, d=7, n=35.41m, nps=6.15m, ebf=12.0, tt=40%, hf=4%, fh1=100%, s=M11, thr=8, t=5.76, alloc=5.76, pv=G3
+M50, Blue, C7, d=6, n=38.45m, nps=5.5m, ebf=18.2, tt=28%, hf=14%, fh1=100%, s=-M10, thr=8, t=6.99, alloc=7.03, pv=C7
+M51, Red, B7, d=9, n=1.31k, nps=37.2k, ebf=2.1, tt=0%, hf=0%, fh1=0%, s=M9, thr=8, t=0.04, alloc=5.79, [VCF], pv=B7 A6 B9 A9 B10 A11 B8 B11 B6
+M52, Blue, C8, d=5, n=45.87m, nps=6.6m, ebf=32.0, tt=18%, hf=5%, fh1=100%, s=-M8, thr=8, t=6.95, alloc=6.95, pv=C8 B10
+M53, Red, B9, d=7, n=76, nps=37.87k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=0.00, alloc=7.49, [VCF], pv=B9 A9 B10 A11 B8 B11 B6
+M54, Blue, E9, d=5, n=44.27m, nps=6.38m, ebf=32.0, tt=19%, hf=4%, fh1=100%, s=-M6, thr=8, t=6.94, alloc=6.94, pv=E9 B10
+M55, Red, B10, d=5, n=19, nps=19k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M5, thr=8, t=0.00, alloc=10.19, [VCF], pv=B10 A11 B8 B11 B6
+M56, Blue, D8, d=6, n=15.47m, nps=4.45m, ebf=15.7, tt=24%, hf=4%, fh1=100%, s=-M4, thr=8, t=3.48, alloc=6.95, pv=D8 B8
+M57, Red, B8, d=3, n=5, nps=5k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M3, thr=8, t=0.00, alloc=15.42, [VCF], pv=B8 B11 B6
+M58, Blue, B11, d=6, n=42.38m, nps=6.05m, ebf=18.6, tt=36%, hf=5%, fh1=100%, s=-M2, thr=8, t=7.00, alloc=7.00, pv=B11
+M59, Red, B6, d=1, n=1, nps=1k, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=M1, thr=8, t=0.00, alloc=29.54, [VCF], pv=B6
+game 9: grandmaster-1 (red) beat grandmaster-2 (blue), 59 moves, won by 4
+M1, Red, H8, d=11, n=23.24m, nps=5.17m, ebf=4.7, tt=9%, hf=8%, fh1=93%, s=-300, thr=8, t=4.50, alloc=4.50, pv=H8 H6
+M2, Blue, H6, d=10, n=18.22m, nps=4.05m, ebf=5.2, tt=9%, hf=7%, fh1=91%, s=+300, thr=8, t=4.50, alloc=4.50, pv=H6 H5 I6
+M3, Red, I4, d=9, n=20.07m, nps=4.42m, ebf=6.4, tt=9%, hf=5%, fh1=88%, s=-400, thr=8, t=4.54, alloc=4.54, pv=I4
+M4, Blue, J6, d=8, n=26.95m, nps=5.94m, ebf=8.4, tt=9%, hf=8%, fh1=91%, s=+400, thr=8, t=4.54, alloc=4.54, pv=J6 K6 J5 J4 H4 K7 K8 H5
+M5, Red, G6, d=12, n=19.83m, nps=4.34m, ebf=4.0, tt=10%, hf=5%, fh1=91%, s=+500, thr=8, t=4.57, alloc=4.57, pv=G6 H5 H4 J4 J5 I5 K3 K6 I6 H7 F8 I8
+M6, Blue, H5, d=11, n=20.89m, nps=4.57m, ebf=4.6, tt=10%, hf=7%, fh1=91%, s=-500, thr=8, t=4.57, alloc=4.57, pv=H5 H4 J4 J5 K6 I6 I5 K3 H7 F8 I8
+M7, Red, H4, d=13, n=19.43m, nps=4.22m, ebf=3.6, tt=11%, hf=6%, fh1=94%, s=+1400, thr=8, t=4.60, alloc=4.60, pv=H4 J4
+M8, Blue, J4, d=10, n=20.61m, nps=4.46m, ebf=5.3, tt=11%, hf=6%, fh1=92%, s=-500, thr=8, t=0.01, alloc=4.60, [PONDER], pv=J4
+M9, Red, J5, d=11, n=13.63m, nps=5.93m, ebf=4.4, tt=10%, hf=4%, fh1=94%, s=+1400, thr=8, t=2.30, alloc=4.63, pv=J5
+M10, Blue, K6, d=9, n=13.66m, nps=5.56m, ebf=6.1, tt=11%, hf=4%, fh1=91%, s=+100, thr=8, t=2.45, alloc=4.96, pv=K6
+M11, Red, I6, d=12, n=26.41m, nps=5.68m, ebf=4.1, tt=13%, hf=8%, fh1=92%, s=+3500, thr=8, t=4.65, alloc=4.65, pv=I6 I5
+M12, Blue, I5, d=11, n=10.96m, nps=4.47m, ebf=4.3, tt=11%, hf=3%, fh1=92%, s=-3500, thr=8, t=2.45, alloc=4.95, pv=I5 G7 K3 L2 K4 K5 G5 F4 E5 F5 E4 F6 E3
+M13, Red, G7, d=11, n=22.17m, nps=4.47m, ebf=4.6, tt=9%, hf=8%, fh1=95%, s=+4100, thr=8, t=0.01, alloc=4.68, [PONDER], pv=G7
+M14, Blue, K3, d=10, n=14.7m, nps=5.96m, ebf=5.1, tt=12%, hf=5%, fh1=91%, s=-4100, thr=8, t=2.47, alloc=4.96, pv=K3
+M15, Red, L2, d=11, n=28.61m, nps=5.64m, ebf=4.7, tt=12%, hf=8%, fh1=92%, s=+5400, thr=8, t=5.07, alloc=5.07, pv=L2
+M16, Blue, L6, d=7, n=57.72k, nps=45.73k, ebf=4.7, tt=0%, hf=0%, fh1=0%, s=M7, thr=8, t=1.26, alloc=4.97, [VCT], pv=L6 P6 K5 O9 I3 M7 H2
+M17, Red, G8, d=8, n=24.64m, nps=4.89m, ebf=8.3, tt=26%, hf=4%, fh1=100%, s=M7, thr=8, t=5.04, alloc=5.06, pv=G8 M6 N6 G5 H7 K4 F9
+M18, Blue, M6, d=8, n=29.76m, nps=5.65m, ebf=8.5, tt=29%, hf=2%, fh1=100%, s=-M6, thr=8, t=5.27, alloc=5.29, pv=M6 N6 G5 H7
+M19, Red, N6, d=8, n=31.9m, nps=6.02m, ebf=8.6, tt=24%, hf=2%, fh1=100%, s=M5, thr=8, t=0.01, alloc=5.07, [PONDER], pv=N6
+M20, Blue, K5, d=5, n=39.34m, nps=7.48m, ebf=32.0, tt=30%, hf=3%, fh1=100%, s=-M4, thr=8, t=5.26, alloc=5.27, pv=K5 H7
+M21, Red, G5, d=3, n=5, nps=5k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M3, thr=8, t=0.00, alloc=5.51, [VCF], pv=G5 G9 G4
+M22, Blue, G4, d=5, n=42.16m, nps=8m, ebf=32.0, tt=30%, hf=1%, fh1=100%, s=-M2, thr=8, t=5.27, alloc=5.27, pv=G4 G9
+M23, Red, G9, d=1, n=1, nps=1k, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=M1, thr=8, t=0.00, alloc=5.95, [VCF], pv=G9
+game 10: grandmaster-2 (red) beat grandmaster-1 (blue), 23 moves, won by 4
+M1, Red, H8, d=11, n=24.35m, nps=5.41m, ebf=4.7, tt=7%, hf=8%, fh1=92%, s=-300, thr=8, t=4.50, alloc=4.50, pv=H8 H6
+M2, Blue, H6, d=10, n=18.24m, nps=4.05m, ebf=5.2, tt=8%, hf=6%, fh1=91%, s=+300, thr=8, t=4.50, alloc=4.50, pv=H6 H5 I6 F6 I9 I8 J8 G5 L6 E5
+M3, Red, H5, d=10, n=18.27m, nps=4.02m, ebf=5.2, tt=13%, hf=4%, fh1=97%, s=-1000, thr=8, t=4.54, alloc=4.54, pv=H5
+M4, Blue, I6, d=9, n=17.2m, nps=3.78m, ebf=6.3, tt=12%, hf=4%, fh1=97%, s=+1000, thr=8, t=0.00, alloc=4.54, [PONDER], pv=I6
+M5, Red, J6, d=12, n=24.51m, nps=5.36m, ebf=4.0, tt=14%, hf=7%, fh1=94%, s=+1500, thr=8, t=4.57, alloc=4.57, pv=J6 I7 J8 J7 K7 I5 I8 K8 G7 I4 I3 I9 L9
+M6, Blue, I7, d=12, n=21.88m, nps=4.47m, ebf=4.0, tt=11%, hf=5%, fh1=92%, s=-1400, thr=8, t=4.89, alloc=4.89, pv=I7 J8 J5 H7 I8 I5 H4 I9 F6 G5 G6 E6 F5
+M7, Red, J8, d=10, n=21.87m, nps=4.46m, ebf=5.4, tt=11%, hf=7%, fh1=91%, s=+1500, thr=8, t=0.01, alloc=4.60, [PONDER], pv=J8
+M8, Blue, J5, d=11, n=12.71m, nps=5.25m, ebf=4.4, tt=12%, hf=4%, fh1=93%, s=-3000, thr=8, t=2.42, alloc=4.88, pv=J5
+M9, Red, I8, d=11, n=13.28m, nps=5.43m, ebf=4.4, tt=12%, hf=4%, fh1=95%, s=+3500, thr=8, t=2.45, alloc=4.96, pv=I8 K8 G8 F8 G7 G5 I9
+M10, Blue, K8, d=10, n=9.53m, nps=3.93m, ebf=5.0, tt=11%, hf=2%, fh1=93%, s=-3500, thr=8, t=2.42, alloc=4.89, pv=K8 G8 F8 G7 G5 I9 F6 J10 K11 J9 J7 J11 J12 H9
+M11, Red, G8, d=11, n=8.44m, nps=3.42m, ebf=4.2, tt=16%, hf=3%, fh1=100%, s=+5300, thr=8, t=2.47, alloc=4.95, pv=G8
+M12, Blue, F8, d=12, n=31m, nps=6.31m, ebf=4.1, tt=17%, hf=7%, fh1=93%, s=-6200, thr=8, t=4.91, alloc=4.91, pv=F8
+M13, Red, G7, d=10, n=16.22m, nps=6.62m, ebf=5.2, tt=13%, hf=4%, fh1=94%, s=+5300, thr=8, t=2.45, alloc=4.96, pv=G7
+M14, Blue, L3, d=8, n=14.87m, nps=6.06m, ebf=7.9, tt=10%, hf=6%, fh1=95%, s=-5500, thr=8, t=2.45, alloc=4.92, pv=L3 G6 G5 H7 J9 F7 K4 M2 I4
+M15, Red, G6, d=7, n=22.37m, nps=4.5m, ebf=11.1, tt=11%, hf=6%, fh1=96%, s=+5600, thr=8, t=4.97, alloc=4.98, pv=G6 G5 H7 J9 F7 F4 E3 I4
+M16, Blue, G5, d=8, n=21.11m, nps=4.28m, ebf=8.1, tt=17%, hf=7%, fh1=97%, s=-12400, thr=8, t=4.93, alloc=4.94, pv=G5
+M17, Red, H7, d=6, n=24.96m, nps=5.04m, ebf=17.0, tt=11%, hf=4%, fh1=90%, s=+8000, thr=8, t=0.00, alloc=4.99, [PONDER], pv=H7
+M18, Blue, J9, d=9, n=40.97m, nps=8.3m, ebf=7.0, tt=27%, hf=3%, fh1=98%, s=-21900, thr=8, t=4.94, alloc=4.95, pv=J9 F7
+M19, Red, H11, d=9, n=28.16m, nps=5.23m, ebf=6.7, tt=26%, hf=7%, fh1=99%, s=M13, thr=8, t=5.39, alloc=5.42, pv=H11 F4 E3 H9 E8
+M20, Blue, E3, d=9, n=31.71m, nps=6.42m, ebf=6.8, tt=22%, hf=3%, fh1=100%, s=-M12, thr=8, t=4.94, alloc=4.97, pv=E3 F4 H9 E8 M2 K4 D9 G10 G9 F9 D7 I12
+M21, Red, F4, d=8, n=36.64m, nps=6.8m, ebf=8.8, tt=20%, hf=4%, fh1=100%, s=M11, thr=8, t=5.38, alloc=5.38, pv=F4 H9 E8 K4 M2 F7 G10 G9 F9 D7 I12
+M22, Blue, H9, d=9, n=34.79m, nps=6.45m, ebf=6.9, tt=26%, hf=3%, fh1=100%, s=-M10, thr=8, t=0.00, alloc=4.99, [PONDER], pv=H9 E8
+M23, Red, E8, d=7, n=25.51m, nps=4.76m, ebf=11.3, tt=30%, hf=4%, fh1=100%, s=M9, thr=8, t=5.36, alloc=5.38, pv=E8
+M24, Blue, M2, d=7, n=38.43m, nps=7.07m, ebf=12.0, tt=30%, hf=1%, fh1=100%, s=-M8, thr=8, t=0.00, alloc=5.44, [PONDER], pv=M2
+M25, Red, K4, d=8, n=45.67m, nps=8.5m, ebf=9.0, tt=30%, hf=2%, fh1=100%, s=M7, thr=8, t=5.38, alloc=5.37, pv=K4 F7 G10 G9 F9 D7 I12
+M26, Blue, F7, d=7, n=38.16m, nps=6.48m, ebf=12.0, tt=30%, hf=2%, fh1=100%, s=-M6, thr=8, t=5.89, alloc=5.90, pv=F7 G10 G9 F9 D7 I12
+M27, Red, G10, d=5, n=56, nps=56k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M5, thr=8, t=0.00, alloc=5.37, [VCF], pv=G10 G11 F9 I12 D7
+M28, Blue, G9, d=7, n=41.78m, nps=7.15m, ebf=12.1, tt=26%, hf=1%, fh1=100%, s=-M4, thr=8, t=5.84, alloc=5.84, pv=G9
+M29, Red, F9, d=3, n=5, nps=5k, ebf=2.0, tt=0%, hf=0%, fh1=0%, s=M3, thr=8, t=0.00, alloc=5.90, [VCF], pv=F9 I12 D7
+M30, Blue, D7, d=6, n=28.83m, nps=4.95m, ebf=17.4, tt=23%, hf=5%, fh1=100%, s=-M2, thr=8, t=5.82, alloc=5.82, pv=D7
+M31, Red, I12, d=1, n=1, nps=1k, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=M1, thr=8, t=0.00, alloc=6.44, [VCF], pv=I12
+game 11: grandmaster-1 (red) beat grandmaster-2 (blue), 31 moves, won by 4
+series drawn 5-5

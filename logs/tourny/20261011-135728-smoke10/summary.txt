@@ -1,0 +1,15 @@
+run 1
+tc 1+0 bo3 start rating 1000
+finished 20261011-191641
+
+rank	participant	tier	rating	series	wins	losses	draws	games
+1	grandmaster-1	grandmaster	1260	13	29	14	0	43
+2	hard-2	hard	1206	11	26	18	0	44
+3	master-1	master	1139	12	27	17	0	44
+4	grandmaster-2	grandmaster	1132	8	25	22	1	48
+5	medium-1	medium	1125	9	23	20	1	44
+6	hard-1	hard	1042	10	24	19	1	44
+7	master-2	master	1024	10	23	20	1	44
+8	medium-2	medium	1017	10	22	21	0	43
+9	easy-1	easy	544	2	9	34	0	43
+10	easy-2	easy	511	3	9	32	2	43
