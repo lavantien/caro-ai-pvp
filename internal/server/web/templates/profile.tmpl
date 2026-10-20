@@ -1,0 +1,21 @@
+{{define "title"}}player {{.Name}} - caro{{end}}
+{{define "content"}}
+<section aria-label="player profile">
+<h2>{{.Name}}{{if .IsBot}} <span class="chip">AI seat</span>{{end}}</h2>
+<p class="meta"><span>rating {{.Rating}}</span><span>{{.Games}} games</span><span class="wld">{{.WLD}}</span></p>
+<div class="tablewrap">
+<table class="tboard">
+<thead><tr><th>opponent</th><th>W</th><th>L</th><th>D</th></tr></thead>
+<tbody>
+<tr><td>humans</td><td>{{.PvPWins}}</td><td>{{.PvPLosses}}</td><td>{{.PvPDraws}}</td></tr>
+<tr><td>bots</td><td>{{.BotWins}}</td><td>{{.BotLosses}}</td><td>{{.BotDraws}}</td></tr>
+{{range .Tiers}}<tr><td>AI {{.Tier}}</td><td>{{.Wins}}</td><td>{{.Losses}}</td><td>{{.Draws}}</td></tr>
+{{end}}</tbody>
+</table>
+</div>
+<h3>recent games</h3>
+{{if .Recent}}<ul class="rooms">
+{{range .Recent}}<li class="room"><span class="meta"><span>{{.When}}</span><span class="who-vs">vs <a href="{{.OpponentProfile}}">{{.Opponent}}</a></span><span class="chip">{{.Result}}</span><span>{{.Turns}} turns</span><a href="/rooms/history/{{.GameID}}">playback</a></span></li>
+{{end}}</ul>{{else}}<p class="empty">no games yet.</p>{{end}}
+</section>
+{{end}}

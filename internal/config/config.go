@@ -78,7 +78,6 @@ var (
 )
 
 func BotAccountName(i int) string { return "AI " + Tiers[i].Name }
-
 func RoomCores(a, b Tier) int {
 	return max(a.Cores+b.PonderThreads, b.Cores+a.PonderThreads)
 }
@@ -208,15 +207,12 @@ const GoBuildTempDirPrefix = "go-build"
 const FuzzInputMaxBytes = 1 << 20
 
 var BookMetaFields = [...]string{"version", "max_ply", "generator", "corpus_games", "visit_floor", "created"}
-
 var BookArtifactPath = "db/book.carobook"
-
 var (
 	BookCorpusPath  = "db/book-corpus.txt"
 	BookOverlayPath = "db/book-overlay.txt"
 	BookStatsPath   = "db/book-stats.txt"
 )
-
 var BookOpeningCells = [...]int{119, 120, 135, 136, 102, 105, 150, 153, 116, 123, 87, 167}
 
 const (
@@ -311,6 +307,7 @@ const (
 	WriteQueueApplyTimeoutMs = 30_000
 	HubSubscriberBuffer      = 64
 	HistoryPreviewTurns      = 8
+	ProfileRecentGames       = 10
 	PagePollMs               = 5000
 	SSEKeepaliveMs           = 15_000
 )

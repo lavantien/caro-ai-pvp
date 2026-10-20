@@ -45,6 +45,7 @@ func newRootMux(store *server.Store, rooms *server.RoomManager, tourneys server.
 	server.NewRoomPages(rooms, store).Mount(root)
 	server.NewTournamentPages(store, tourneys).Mount(root)
 	server.NewLobbyPages(store, rooms).Mount(root)
+	server.NewProfilePages(store).Mount(root)
 	root.Handle("/", server.NewShellPages(store, rooms, tourneys))
 	return root
 }
