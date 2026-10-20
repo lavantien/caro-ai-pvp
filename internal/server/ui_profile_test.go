@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -84,6 +85,85 @@ func TestPlayerProfileSplitsTiersAndRecent(t *testing.T) {
 	}
 	if len(bp.Recent) != 1 || bp.Recent[0].Opponent != "alice" || bp.Recent[0].Result != "loss" {
 		t.Errorf("bot seat recent = %+v, want the loss against alice", bp.Recent)
+	}
+}
+
+func TestProfileHeroRender(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	bob := seedUser(t, s, "bob")
+	easy, err := s.BotAccountID(config.TierEasy)
+	if err != nil {
+		t.Fatalf("easy seat: %v", err)
+	}
+	medium, err := s.BotAccountID(config.TierMedium)
+	if err != nil {
+		t.Fatalf("medium seat: %v", err)
+	}
+	seedProfileGame(t, s, alice.ID, bob.ID, OutcomeRed, "")
+	seedProfileGame(t, s, bob.ID, alice.ID, OutcomeRed, "")
+	seedProfileGame(t, s, alice.ID, bob.ID, OutcomeDraw, "")
+	seedProfileGame(t, s, alice.ID, easy, OutcomeRed, "easy-abc123")
+	seedProfileGame(t, s, medium, alice.ID, OutcomeRed, "medium-def456")
+	seedProfileGame(t, s, alice.ID, easy, OutcomeRed, "easy-abc123")
+	mux := http.NewServeMux()
+	NewProfilePages(s).Mount(mux)
+	get := func(path string) string {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d", path, rec.Code)
+		}
+		return rec.Body.String()
+	}
+	body := get("/players/alice")
+	for _, want := range []string{
+		`class="p-name"`, "alice", "6 games", "3W-2L-1D",
+		strconv.Itoa(config.RatingStart),
+		"seg-win", "width:50.0%", "seg-loss", "width:33.3%", "seg-draw", "width:16.7%",
+		`class="chip win"`, `class="chip loss"`, `class="chip draw"`,
+		`4</span> red`, `2</span> blue`, "/players/bob", "/rooms/history/",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("hero body missing %q", want)
+		}
+	}
+	botBody := get("/players/" + url.PathEscape(config.BotAccountName(0)))
+	for _, want := range []string{
+		"AI seat", "0W-2L-0D", "width:100.0%", `class="chip loss"`,
+	} {
+		if !strings.Contains(botBody, want) {
+			t.Errorf("bot seat body missing %q", want)
+		}
+	}
+	if strings.Contains(botBody, "NaN") {
+		t.Errorf("bot seat body carries a NaN width")
+	}
+}
+
+func TestProfileZeroGamesRender(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	mux := http.NewServeMux()
+	NewProfilePages(s).Mount(mux)
+	req := httptest.NewRequest(http.MethodGet, "/players/"+config.AdminName, nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /players/%s = %d", config.AdminName, rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"0 games", "no results yet.", "no games yet."} {
+		if !strings.Contains(body, want) {
+			t.Errorf("zero-game body missing %q", want)
+		}
+	}
+	for _, banned := range []string{"NaN", `class="seg`, `style="width:`} {
+		if strings.Contains(body, banned) {
+			t.Errorf("zero-game body carries %q", banned)
+		}
 	}
 }
 

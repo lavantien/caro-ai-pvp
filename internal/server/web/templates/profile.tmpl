@@ -1,8 +1,49 @@
 {{define "title"}}player {{.Name}} - caro{{end}}
+{{define "pagestyle"}}
+<style>
+.p-hero { border: 1px solid var(--border); border-radius: var(--radius-m);
+	background: var(--surface); padding: var(--space-3) var(--space-4);
+	margin: var(--space-4) 0 var(--space-3) }
+.p-row { display: flex; flex-wrap: wrap; align-items: baseline;
+	gap: var(--space-1) var(--space-3) }
+.p-name { font-size: var(--text-2xl); font-weight: 800; margin: 0 }
+.p-rating { font-size: var(--text-xl); font-weight: 700 }
+.p-hero .mono { font-variant-numeric: tabular-nums }
+.p-stats { margin: var(--space-2) 0 var(--space-3) }
+.p-stats, .p-legend { color: var(--text-muted) }
+.p-seats .s-red { color: var(--red) }
+.p-seats .s-blue { color: var(--blue) }
+.wldbar { display: flex; height: .55rem; border-radius: var(--radius-s);
+	overflow: hidden; background: var(--surface) }
+.seg { min-width: 0 }
+.seg-win { background: var(--accent) }
+.seg-loss { background: var(--danger) }
+.seg-draw { background: var(--text-muted) }
+.p-legend { display: flex; gap: var(--space-4); margin: var(--space-2) 0 0 }
+.lg-win { color: var(--accent); font-weight: 700 }
+.lg-loss { color: var(--danger); font-weight: 700 }
+.lg-draw { color: var(--text-muted); font-weight: 700 }
+.chip.win { background: var(--accent-soft); color: var(--text) }
+.chip.loss { border-color: var(--danger); color: var(--danger) }
+</style>
+{{end}}
 {{define "content"}}
 <section aria-label="player profile">
-<h2>{{.Name}}{{if .IsBot}} <span class="chip">AI seat</span>{{end}}</h2>
-<p class="meta"><span>rating {{.Rating}}</span><span>{{.Games}} games</span><span class="wld">{{.WLD}}</span></p>
+<div class="p-hero">
+<div class="p-row">
+<h2 class="p-name">{{.Name}}</h2>
+{{if .IsBot}}<span class="chip">AI seat</span>{{end}}
+<span class="p-rating">rating <span class="mono">{{.Rating}}</span></span>
+</div>
+<p class="meta p-stats"><span class="mono">{{.Games}} games</span><span class="wld mono">{{.WLD}}</span><span class="p-seats"><span class="s-red"><span class="mono">{{.RedGames}}</span> red</span> <span class="s-blue"><span class="mono">{{.BlueGames}}</span> blue</span></span></p>
+{{if .HasGames}}<div class="wldbar" role="img" aria-label="{{.WLD}} from {{.Games}} games">
+<span class="seg seg-win" style="width:{{.WinPct}}"></span>
+<span class="seg seg-loss" style="width:{{.LossPct}}"></span>
+<span class="seg seg-draw" style="width:{{.DrawPct}}"></span>
+</div>
+<p class="p-legend"><span class="lg-win mono">{{.Wins}}W</span><span class="lg-loss mono">{{.Losses}}L</span><span class="lg-draw mono">{{.Draws}}D</span></p>
+{{else}}<p class="empty">no results yet.</p>{{end}}
+</div>
 <div class="tablewrap">
 <table class="tboard">
 <thead><tr><th>opponent</th><th>W</th><th>L</th><th>D</th></tr></thead>
@@ -15,7 +56,7 @@
 </div>
 <h3>recent games</h3>
 {{if .Recent}}<ul class="rooms">
-{{range .Recent}}<li class="room"><span class="meta"><span>{{.When}}</span><span class="who-vs">vs <a href="{{.OpponentProfile}}">{{.Opponent}}</a></span><span class="chip">{{.Result}}</span><span>{{.Turns}} turns</span><a href="/rooms/history/{{.GameID}}">playback</a></span></li>
+{{range .Recent}}<li class="room"><span class="meta"><span>{{.When}}</span><span class="who-vs">vs <a href="{{.OpponentProfile}}">{{.Opponent}}</a></span><span class="chip {{.ResultClass}}">{{.Result}}</span><span>{{.Turns}} turns</span><a href="/rooms/history/{{.GameID}}">playback</a></span></li>
 {{end}}</ul>{{else}}<p class="empty">no games yet.</p>{{end}}
 </section>
 {{end}}

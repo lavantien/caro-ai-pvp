@@ -43,13 +43,15 @@ type ProfileGame struct {
 }
 
 type PlayerProfile struct {
-	User   User
-	Games  int
-	All    wldRecord
-	PvP    wldRecord
-	Bot    wldRecord
-	Tiers  []TierRecord
-	Recent []ProfileGame
+	User      User
+	Games     int
+	All       wldRecord
+	PvP       wldRecord
+	Bot       wldRecord
+	RedGames  int
+	BlueGames int
+	Tiers     []TierRecord
+	Recent    []ProfileGame
 }
 
 const profilePlayerGamesSQL = `
@@ -107,6 +109,11 @@ func (s *Store) PlayerProfile(u User) (PlayerProfile, error) {
 		won := (redUser == u.ID && outcome == OutcomeRed) || (redUser != u.ID && outcome == OutcomeBlue)
 		draw := outcome == OutcomeDraw
 		pp.Games++
+		if redUser == u.ID {
+			pp.RedGames++
+		} else {
+			pp.BlueGames++
+		}
 		pp.All.add(won, draw)
 		if botSeat == 1 {
 			pp.Bot.add(won, draw)
@@ -163,6 +170,10 @@ type profileGameView struct {
 	Turns           int
 }
 
+func (g profileGameView) ResultClass() string {
+	return g.Result
+}
+
 type profileView struct {
 	Me        *shellViewer
 	Name      string
@@ -178,12 +189,25 @@ type profileView struct {
 	BotWins   int
 	BotLosses int
 	BotDraws  int
+	RedGames  int
+	BlueGames int
+	HasGames  bool
+	WinPct    string
+	LossPct   string
+	DrawPct   string
 	Tiers     []TierRecord
 	Recent    []profileGameView
 }
 
 func (v profileView) WLD() string {
 	return strconv.Itoa(v.Wins) + "W-" + strconv.Itoa(v.Losses) + "L-" + strconv.Itoa(v.Draws) + "D"
+}
+
+func profileShare(n, games int) string {
+	if games == 0 {
+		return "0.0%"
+	}
+	return fmt.Sprintf("%.1f%%", 100*float64(n)/float64(games))
 }
 
 func (p *ProfilePages) handleProfile(w http.ResponseWriter, r *http.Request) {
@@ -219,8 +243,13 @@ func (p *ProfilePages) handleProfile(w http.ResponseWriter, r *http.Request) {
 		Wins:   pp.All.Wins, Losses: pp.All.Losses, Draws: pp.All.Draws,
 		PvPWins: pp.PvP.Wins, PvPLosses: pp.PvP.Losses, PvPDraws: pp.PvP.Draws,
 		BotWins: pp.Bot.Wins, BotLosses: pp.Bot.Losses, BotDraws: pp.Bot.Draws,
-		Tiers:  pp.Tiers,
-		Recent: make([]profileGameView, 0, len(pp.Recent)),
+		RedGames: pp.RedGames, BlueGames: pp.BlueGames,
+		HasGames: pp.Games > 0,
+		WinPct:   profileShare(pp.All.Wins, pp.Games),
+		LossPct:  profileShare(pp.All.Losses, pp.Games),
+		DrawPct:  profileShare(pp.All.Draws, pp.Games),
+		Tiers:    pp.Tiers,
+		Recent:   make([]profileGameView, 0, len(pp.Recent)),
 	}
 	for _, g := range pp.Recent {
 		view.Recent = append(view.Recent, profileGameView{
