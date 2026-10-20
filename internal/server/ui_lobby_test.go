@@ -373,3 +373,224 @@ func TestLobbyPagesRoutes(t *testing.T) {
 		t.Errorf("third join = %d, want 409 with the full-room line", rec.Code)
 	}
 }
+
+func TestLobbySnapshotOrdersOldestRoomFirst(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	first, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create first: %v", err)
+	}
+	second, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create second: %v", err)
+	}
+	second.mu.Lock()
+	second.createdAt = second.createdAt.Add(-time.Minute)
+	second.mu.Unlock()
+	snap := s.rm.LobbySnapshot()
+	if len(snap) != 2 {
+		t.Fatalf("snapshot rooms = %d, want 2", len(snap))
+	}
+	if snap[0].ID != second.ID() || snap[1].ID != first.ID() {
+		t.Errorf("snapshot order = %s then %s, want the backdated room listed first", snap[0].ID, snap[1].ID)
+	}
+}
+
+func TestLobbySnapshotSkipsClosedRoom(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	live, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create live: %v", err)
+	}
+	closed, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create closed: %v", err)
+	}
+	closed.Close()
+	snap := s.rm.LobbySnapshot()
+	if len(snap) != 1 || snap[0].ID != live.ID() {
+		t.Errorf("snapshot after close = %d rooms, want only the live %s", len(snap), live.ID())
+	}
+}
+
+func TestLobbySnapshotSeatFallsBackToIDMarkerWhenUserDeleted(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, err := s.store.db.Exec(`DELETE FROM users WHERE username = 'alice'`); err != nil {
+		t.Fatalf("delete host: %v", err)
+	}
+	snap := s.rm.LobbySnapshot()
+	if len(snap) != 1 {
+		t.Fatalf("snapshot rooms = %d, want 1", len(snap))
+	}
+	if want := "#" + strconv.FormatInt(alice.ID, 10); snap[0].Host.Name != want {
+		t.Errorf("host seat = %q, want the id marker %q", snap[0].Host.Name, want)
+	}
+	if snap[0].ID != r.ID() {
+		t.Errorf("snapshot id = %s, want %s", snap[0].ID, r.ID())
+	}
+}
+
+func TestLobbySeatViewOfProfiles(t *testing.T) {
+	easyIdx := 0
+	for i := range config.Tiers {
+		if config.Tiers[i].Name == config.TierEasy.Name {
+			easyIdx = i
+		}
+	}
+	rows := []struct {
+		seat        LobbySeat
+		wantProfile string
+	}{
+		{LobbySeat{Name: "easy-room-1", Tier: config.TierEasy.Name}, "/players/" + url.PathEscape(config.BotAccountName(easyIdx))},
+		{LobbySeat{Name: "ghost-room-1", Tier: "ghost"}, ""},
+		{LobbySeat{Name: "alice"}, "/players/alice"},
+		{LobbySeat{Name: openSeatLabel}, ""},
+	}
+	for _, row := range rows {
+		got := lobbySeatViewOf(row.seat)
+		if got.Profile != row.wantProfile || got.Name != row.seat.Name || got.Tier != row.seat.Tier {
+			t.Errorf("lobbySeatViewOf(%+v) = %+v, want profile %q", row.seat, got, row.wantProfile)
+		}
+	}
+}
+
+func TestLobbyBotRoomLinksTierSeatToBotAccount(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy); err != nil {
+		t.Fatalf("create vs bot: %v", err)
+	}
+	mux := http.NewServeMux()
+	NewLobbyPages(s.store, s.rm).Mount(mux)
+	req := httptest.NewRequest(http.MethodGet, "/lobby", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /lobby = %d", rec.Code)
+	}
+	want := `href="/players/` + url.PathEscape(config.BotAccountName(0)) + `"`
+	if !strings.Contains(rec.Body.String(), want) {
+		t.Errorf("lobby body misses the tier seat link %q", want)
+	}
+}
+
+func TestLobbyViewsSwapSeatsWhenGuestHoldsRed(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, hostWinsRed)
+	playScript(t, r, bob.ID, alice.ID, []string{"D4"})
+	snap := s.rm.LobbySnapshot()
+	if len(snap) != 1 || !snap[0].Live || snap[0].RedIsHost {
+		t.Fatalf("snapshot = %+v, want one live room with the guest holding red", snap)
+	}
+	views := lobbyViews(s.rm, nil)
+	if len(views) != 1 {
+		t.Fatalf("lobby views = %d, want 1", len(views))
+	}
+	if views[0].Red.Name != "bob" || views[0].Blue.Name != "alice" {
+		t.Errorf("card seats = red %q blue %q, want the red guest bob against alice", views[0].Red.Name, views[0].Blue.Name)
+	}
+}
+
+func TestLobbyPagesBrokenStoreAnswers500(t *testing.T) {
+	dead := mustOpen(t, dbPath(t))
+	if err := dead.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	mux := http.NewServeMux()
+	NewLobbyPages(dead, s.rm).Mount(mux)
+	for name, tc := range map[string]struct {
+		method, path, want string
+	}{
+		"page":    {http.MethodGet, "/lobby", "lobby read failed"},
+		"partial": {http.MethodGet, "/partials/lobby", "lobby read failed"},
+		"join":    {http.MethodPost, "/lobby/" + r.ID() + "/join", "join read failed"},
+	} {
+		req := httptest.NewRequest(tc.method, tc.path, nil)
+		req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: strings.Repeat("0", 2*config.SessionTokenBytes)})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusInternalServerError || !strings.Contains(rec.Body.String(), tc.want) {
+			t.Errorf("%s over a broken store = %d %q, want 500 with %q", name, rec.Code, rec.Body.String(), tc.want)
+		}
+	}
+}
+
+func TestLobbyJoinClosedRoomRendersClosedMessage(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	r.Close()
+	mux := http.NewServeMux()
+	NewLobbyPages(s.store, s.rm).Mount(mux)
+	req := httptest.NewRequest(http.MethodPost, "/lobby/"+r.ID()+"/join", nil)
+	req.AddCookie(lobbyCookieFor(t, s.store, bob))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("join closed room = %d, want 409", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "room closed") {
+		t.Errorf("join closed room body misses the closed-room line: %s", rec.Body.String())
+	}
+}
+
+func TestLobbyJoinWriteFailureAnswers500(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, err := s.store.db.Exec(`CREATE TRIGGER block_series_insert BEFORE INSERT ON series BEGIN SELECT RAISE(ABORT, 'series insert blocked'); END;`); err != nil {
+		t.Fatalf("block series writes: %v", err)
+	}
+	mux := http.NewServeMux()
+	NewLobbyPages(s.store, s.rm).Mount(mux)
+	req := httptest.NewRequest(http.MethodPost, "/lobby/"+r.ID()+"/join", nil)
+	req.AddCookie(lobbyCookieFor(t, s.store, bob))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("join with blocked series writes = %d, want 500 (body %s)", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "join failed") {
+		t.Errorf("join write failure body misses the plain failure line: %s", rec.Body.String())
+	}
+}
+
+func TestJoinFailMessageCodes(t *testing.T) {
+	rows := []struct {
+		code, want string
+	}{
+		{codeRoomNotFound, "room not found or already closed"},
+		{codeRoomFull, "room already has an opponent"},
+		{codeRoomClosed, "room closed"},
+		{codeBadRequest, "this room cannot be joined"},
+		{codeInternal, "join failed, try again"},
+	}
+	for _, row := range rows {
+		if got := joinFailMessage(row.code); got != row.want {
+			t.Errorf("joinFailMessage(%q) = %q, want %q", row.code, got, row.want)
+		}
+	}
+}

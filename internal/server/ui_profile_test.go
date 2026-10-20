@@ -239,3 +239,122 @@ func TestProfilePageRoute(t *testing.T) {
 		t.Errorf("GET /players/%s = %d, want the empty profile", config.AdminName, rec.Code)
 	}
 }
+
+func TestTierOfAccountMatchesOnlyConfiguredBotSeats(t *testing.T) {
+	rows := []struct {
+		name    string
+		want    string
+		wantBot bool
+	}{
+		{config.BotAccountName(0), config.TierEasy.Name, true},
+		{config.BotAccountName(len(config.Tiers) - 1), config.Tiers[len(config.Tiers)-1].Name, true},
+		{"alice", "", false},
+	}
+	for _, row := range rows {
+		got, ok := tierOfAccount(row.name)
+		if got != row.want || ok != row.wantBot {
+			t.Errorf("tierOfAccount(%q) = (%q, %t), want (%q, %t)", row.name, got, ok, row.want, row.wantBot)
+		}
+	}
+}
+
+func TestPlayerProfileMarkerAccountOutsideTiersAddsNoTierRow(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	bob := seedUser(t, s, "bob")
+	if _, err := s.db.Exec(`UPDATE users SET salt = x'', hash = x'' WHERE username = 'bob'`); err != nil {
+		t.Fatalf("mark bob as a bot seat: %v", err)
+	}
+	seedProfileGame(t, s, alice.ID, bob.ID, OutcomeRed, "")
+	pp, err := s.PlayerProfile(alice)
+	if err != nil {
+		t.Fatalf("profile: %v", err)
+	}
+	if pp.Bot != (wldRecord{Wins: 1}) {
+		t.Errorf("bot split = %+v, want the marker seat counted at 1-0-0", pp.Bot)
+	}
+	if len(pp.Tiers) != 0 {
+		t.Errorf("tiers = %+v, want none for a marker account outside config.Tiers", pp.Tiers)
+	}
+	if len(pp.Recent) != 1 || pp.Recent[0].Opponent != "bob" {
+		t.Errorf("recent = %+v, want the single bob row", pp.Recent)
+	}
+}
+
+func TestPlayerProfileStoreFailuresSurface(t *testing.T) {
+	dead := mustOpen(t, dbPath(t))
+	if err := dead.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	if _, err := dead.PlayerProfile(User{ID: 1}); err == nil {
+		t.Error("profile over a closed store = nil error, want the wrapped failure")
+	}
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	bob := seedUser(t, s, "bob")
+	seedProfileGame(t, s, alice.ID, bob.ID, OutcomeRed, "")
+	if _, err := s.db.Exec(`UPDATE games SET played_at = 'not-a-timestamp'`); err != nil {
+		t.Fatalf("corrupt played_at: %v", err)
+	}
+	if _, err := s.PlayerProfile(alice); err == nil {
+		t.Error("profile over a corrupted row = nil error, want the scan failure")
+	}
+}
+
+func TestProfileHandlerBrokenStoreAnswers500(t *testing.T) {
+	dead := mustOpen(t, dbPath(t))
+	if err := dead.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	mux := http.NewServeMux()
+	NewProfilePages(dead).Mount(mux)
+	get := func(cookie string) int {
+		req := httptest.NewRequest(http.MethodGet, "/players/"+config.AdminName, nil)
+		if cookie != "" {
+			req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: cookie})
+		}
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if got := get(""); got != http.StatusInternalServerError {
+		t.Errorf("anonymous profile over a broken store = %d, want 500", got)
+	}
+	if got := get(strings.Repeat("0", 2*config.SessionTokenBytes)); got != http.StatusInternalServerError {
+		t.Errorf("member profile over a broken store = %d, want 500", got)
+	}
+}
+
+func TestProfileHandlerReadFailuresAnswer500(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	seedUser(t, s, "alice")
+	if _, err := s.db.Exec(`DROP TABLE games`); err != nil {
+		t.Fatalf("drop games: %v", err)
+	}
+	mux := http.NewServeMux()
+	NewProfilePages(s).Mount(mux)
+	req := httptest.NewRequest(http.MethodGet, "/players/alice", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("profile without the games table = %d, want 500", rec.Code)
+	}
+
+	s2 := mustOpen(t, dbPath(t))
+	defer func() { _ = s2.Close() }()
+	seedUser(t, s2, "bob")
+	if _, err := s2.db.Exec(`DROP TABLE rating_events`); err != nil {
+		t.Fatalf("drop rating events: %v", err)
+	}
+	mux2 := http.NewServeMux()
+	NewProfilePages(s2).Mount(mux2)
+	req = httptest.NewRequest(http.MethodGet, "/players/bob", nil)
+	rec = httptest.NewRecorder()
+	mux2.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("profile without the ratings table = %d, want 500", rec.Code)
+	}
+}

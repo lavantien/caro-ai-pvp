@@ -1104,3 +1104,225 @@ func TestReadyFlagsReportNoSeriesBeforeStart(t *testing.T) {
 		t.Errorf("readyFlags on a room without a series = %v %v %v, want all false", exists, host, guest)
 	}
 }
+
+func TestRoomPageClosedRoomStillListedIs404(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice := seedUser(t, s.store, "alice")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	r.Close()
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), "")
+	if status != http.StatusNotFound {
+		t.Errorf("closed room page = %d, want 404 (body %s)", status, body)
+	}
+}
+
+func TestRoomPageSessionsTableFailureAnswers500(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice := seedUser(t, s.store, "alice")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	ta := mintSession(t, s.store, alice)
+	if _, err := s.store.db.Exec(`DROP TABLE sessions`); err != nil {
+		t.Fatalf("drop sessions: %v", err)
+	}
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), ta)
+	if status != http.StatusInternalServerError {
+		t.Errorf("room page without the sessions table = %d, want 500 (body %s)", status, body)
+	}
+}
+
+func TestRoomPageGuestRowMissingRendersOpponent(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	_, _, r := newPvPRoom(t, s)
+	if _, err := s.store.db.Exec(`DELETE FROM series`); err != nil {
+		t.Fatalf("drop the series rows: %v", err)
+	}
+	if _, err := s.store.db.Exec(`DELETE FROM users WHERE username = 'bob'`); err != nil {
+		t.Fatalf("delete guest: %v", err)
+	}
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), "")
+	if status != http.StatusOK {
+		t.Fatalf("room page = %d, want 200 (body %s)", status, body)
+	}
+	if !strings.Contains(body, "blue / opponent") {
+		t.Errorf("room page misses the opponent fallback for the unreadable guest seat: %s", body)
+	}
+}
+
+func TestPlaybackGamesTableFailureAnswers500(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice, bob := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
+	sr := seedSeries(t, s.store, alice, bob)
+	blob := EncodeMoves(nil, movesOf(t, hostWinsRed[:2]))
+	if _, err := s.store.AppendGame(Game{SeriesID: sr.ID, IdxInSeries: 0,
+		RedUser: alice.ID, BlueUser: bob.ID, Outcome: OutcomeRed,
+		Moves: blob, FullTurns: 1}); err != nil {
+		t.Fatalf("append game: %v", err)
+	}
+	ta := mintSession(t, s.store, alice)
+	if _, err := s.store.db.Exec(`DROP TABLE games`); err != nil {
+		t.Fatalf("drop games: %v", err)
+	}
+	status, body := getRoomPage(t, srv, "/rooms/history/1", ta)
+	if status != http.StatusInternalServerError {
+		t.Errorf("playback without the games table = %d, want 500 (body %s)", status, body)
+	}
+}
+
+func TestPlaybackUnreadableSeatRowAnswers500(t *testing.T) {
+	for name, corruptRed := range map[string]bool{"red": true, "blue": false} {
+		s := newStack(t)
+		srv := newPageServer(t, s)
+		alice, bob := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
+		sr := seedSeries(t, s.store, alice, bob)
+		blob := EncodeMoves(nil, movesOf(t, hostWinsRed[:2]))
+		if _, err := s.store.AppendGame(Game{SeriesID: sr.ID, IdxInSeries: 0,
+			RedUser: alice.ID, BlueUser: bob.ID, Outcome: OutcomeRed,
+			Moves: blob, FullTurns: 1}); err != nil {
+			t.Fatalf("%s: append game: %v", name, err)
+		}
+		target, viewer := "alice", bob
+		if !corruptRed {
+			target, viewer = "bob", alice
+		}
+		token := mintSession(t, s.store, viewer)
+		if _, err := s.store.db.Exec(`UPDATE users SET argon2_time = 'corrupt' WHERE username = ?`, target); err != nil {
+			t.Fatalf("%s: corrupt the %s row: %v", name, target, err)
+		}
+		status, body := getRoomPage(t, srv, "/rooms/history/1", token)
+		if status != http.StatusInternalServerError {
+			t.Errorf("%s: playback with an unreadable %s row = %d, want 500 (body %s)", name, target, status, body)
+		}
+	}
+}
+
+func TestPlaybackCorruptMovesBlobAnswers500(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice, bob := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
+	sr := seedSeries(t, s.store, alice, bob)
+	blob := EncodeMoves(nil, movesOf(t, hostWinsRed[:2]))
+	if _, err := s.store.AppendGame(Game{SeriesID: sr.ID, IdxInSeries: 0,
+		RedUser: alice.ID, BlueUser: bob.ID, Outcome: OutcomeRed,
+		Moves: blob, FullTurns: 1}); err != nil {
+		t.Fatalf("append game: %v", err)
+	}
+	if _, err := s.store.db.Exec(`UPDATE games SET moves = x'0001'`); err != nil {
+		t.Fatalf("corrupt moves: %v", err)
+	}
+	status, body := getRoomPage(t, srv, "/rooms/history/1", mintSession(t, s.store, alice))
+	if status != http.StatusInternalServerError {
+		t.Fatalf("playback of a corrupt blob = %d, want 500 (body %s)", status, body)
+	}
+	if !strings.Contains(body, "playback decode failed") {
+		t.Errorf("corrupt blob body = %q, want the decode failure line", body)
+	}
+}
+
+func TestPlaybackMovesDecode(t *testing.T) {
+	names, err := playbackMoves(EncodeMoves(nil, movesOf(t, hostWinsRed[:2])))
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(names) != 2 || names[0] != "D4" || names[1] != "P16" {
+		t.Errorf("names = %v, want D4 P16", names)
+	}
+	for name, blob := range map[string][]byte{
+		"odd length":     {0x01},
+		"cell off board": {0x00, 0x01},
+	} {
+		if _, err := playbackMoves(blob); err == nil {
+			t.Errorf("playbackMoves over %s = nil error, want the decode failure", name)
+		}
+	}
+}
+
+func TestPlaybackRedBotSeatCarriesRoomBotName(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice := seedUser(t, s.store, "alice")
+	easy, err := s.store.BotAccountID(config.TierEasy)
+	if err != nil {
+		t.Fatalf("easy seat: %v", err)
+	}
+	botUser, err := s.store.UserByUsername(config.BotAccountName(0))
+	if err != nil {
+		t.Fatalf("easy bot account: %v", err)
+	}
+	sr := seedSeries(t, s.store, botUser, alice)
+	blob := EncodeMoves(nil, movesOf(t, hostWinsRed[:2]))
+	if _, err := s.store.AppendGame(Game{SeriesID: sr.ID, IdxInSeries: 0,
+		RedUser: easy, BlueUser: alice.ID, Outcome: OutcomeRed,
+		Moves: blob, FullTurns: 1, BotName: "easy-1a2b3c4d"}); err != nil {
+		t.Fatalf("append game: %v", err)
+	}
+	status, body := getRoomPage(t, srv, "/rooms/history/1", mintSession(t, s.store, alice))
+	if status != http.StatusOK {
+		t.Fatalf("playback status = %d, want 200 (body %s)", status, body)
+	}
+	if !strings.Contains(body, "red easy-1a2b3c4d vs blue alice") {
+		t.Errorf("bot red seat body misses the room bot name: %s", body)
+	}
+}
+
+func TestPlaybackBlueWinRendersOutcomeWord(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice, bob := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
+	sr := seedSeries(t, s.store, alice, bob)
+	blob := EncodeMoves(nil, movesOf(t, hostWinsRed[:2]))
+	if _, err := s.store.AppendGame(Game{SeriesID: sr.ID, IdxInSeries: 0,
+		RedUser: alice.ID, BlueUser: bob.ID, Outcome: OutcomeBlue,
+		Moves: blob, FullTurns: 1}); err != nil {
+		t.Fatalf("append game: %v", err)
+	}
+	status, body := getRoomPage(t, srv, "/rooms/history/1", mintSession(t, s.store, bob))
+	if status != http.StatusOK {
+		t.Fatalf("playback status = %d, want 200 (body %s)", status, body)
+	}
+	if !strings.Contains(body, `id="pb-outcome">blue wins<`) {
+		t.Errorf("playback body misses the blue-wins outcome line: %s", body)
+	}
+}
+
+func TestSeatNameOfUnknownSeatFallsBackToOpponent(t *testing.T) {
+	v := roomView{HostUserID: 1, HostName: "alice", GuestUserID: 2, GuestName: "bob"}
+	rows := []struct {
+		id   int64
+		want string
+	}{
+		{1, "alice"},
+		{2, "bob"},
+		{99, "opponent"},
+	}
+	for _, row := range rows {
+		if got := v.seatNameOf(row.id); got != row.want {
+			t.Errorf("seatNameOf(%d) = %q, want %q", row.id, got, row.want)
+		}
+	}
+}
+
+func TestOutcomeWord(t *testing.T) {
+	rows := []struct {
+		outcome, want string
+	}{
+		{OutcomeRed, "red wins"},
+		{OutcomeBlue, "blue wins"},
+		{OutcomeDraw, "draw"},
+		{"aborted", "aborted"},
+	}
+	for _, row := range rows {
+		if got := outcomeWord(row.outcome); got != row.want {
+			t.Errorf("outcomeWord(%q) = %q, want %q", row.outcome, got, row.want)
+		}
+	}
+}
