@@ -305,7 +305,7 @@ darkcontrast:
 icons:
 	CGO_ENABLED=1 go -C playground run ./icongen -out ../internal/server/web/static/icons
 
-ci: playground-modules darkcontrast fmt-check lint vet build test-race cover
+ci: playground-modules darkcontrast fmt-check lint vet build test-race bookgen-test cover
 	@echo "ci: all green"
 
 # logstats renders the markdown evidence report of the v0.20 chain from the
