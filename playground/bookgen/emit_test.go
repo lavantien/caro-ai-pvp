@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -66,7 +67,7 @@ func runEmitFor(t *testing.T, perPos []map[rules.Move]int, proofs map[int]proofR
 	corpus := seedCorpusCounts(t, dir, perPos)
 	overlay := filepath.Join(dir, "overlay.txt")
 	if len(proofs) > 0 {
-		seedHeader(t, overlay, overlayFingerprint(config.BookVisitFloor, config.BookSolverNodeBudget))
+		seedHeader(t, overlay, overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, len(perPos)), config.BookVisitFloor, config.BookSolverNodeBudget))
 	}
 	for i, p := range proofs {
 		var key [config.BookKeyBytes]byte
@@ -351,7 +352,7 @@ func TestEmitIsAtomicOverThePreviousArtifact(t *testing.T) {
 		t.Fatalf("appendGame: %v", err)
 	}
 	overlay := filepath.Join(dir, "o.txt")
-	seedHeader(t, overlay, overlayFingerprint(config.BookVisitFloor, config.BookSolverNodeBudget))
+	seedHeader(t, overlay, overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, 1), config.BookVisitFloor, config.BookSolverNodeBudget))
 	out := filepath.Join(dir, "b.carobook")
 	stats := filepath.Join(dir, "s.txt")
 	opts := emitOpts{
@@ -366,7 +367,7 @@ func TestEmitIsAtomicOverThePreviousArtifact(t *testing.T) {
 		t.Fatalf("read artifact: %v", err)
 	}
 	occupied := "P " + hexKey(k[:]) + " " + strconv.Itoa(int(4)) + " 5 vcf\n"
-	if err := os.WriteFile(overlay, []byte(overlayFingerprint(config.BookVisitFloor, config.BookSolverNodeBudget)+"\n"+occupied), 0o644); err != nil {
+	if err := os.WriteFile(overlay, []byte(overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, 1), config.BookVisitFloor, config.BookSolverNodeBudget)+"\n"+occupied), 0o644); err != nil {
 		t.Fatalf("poison overlay: %v", err)
 	}
 	if _, err := emitRun(opts, io.Discard); err == nil {
@@ -492,6 +493,30 @@ func TestEmitSolverVisitsCarryTheCorpusCountEvenAtZero(t *testing.T) {
 	}
 }
 
+func TestEmitRefusesStaleOverlayProofs(t *testing.T) {
+	dir := t.TempDir()
+	k := singleStoneKey(t, 4)
+	corpus := filepath.Join(dir, "c.txt")
+	writeCorpusWithVisits(t, corpus, map[[config.BookKeyBytes]byte]int{k: config.BookVisitFloor}, 200)
+	overlay := filepath.Join(dir, "o.txt")
+	legacy := fmt.Sprintf("F overlay v%d floor=%d budget=%d", config.BookSidecarVersion, config.BookVisitFloor, config.BookSolverNodeBudget)
+	otherCorpus := overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, 2), config.BookVisitFloor, config.BookSolverNodeBudget)
+	staleLines := []string{legacy, otherCorpus}
+	for _, stale := range staleLines {
+		if err := os.WriteFile(overlay, []byte(stale+"\nP "+hexKey(k[:])+" 7 5 vcf\n"), 0o644); err != nil {
+			t.Fatalf("write stale overlay: %v", err)
+		}
+		_, err := emitRun(emitOpts{
+			corpusPath: corpus, overlayPath: overlay,
+			outPath: filepath.Join(dir, "b.carobook"), statsPath: filepath.Join(dir, "s.txt"),
+			floor: config.BookVisitFloor, created: "2026-10-18T00:00:00Z",
+		}, io.Discard)
+		if err == nil {
+			t.Fatalf("emitRun applied the stale overlay %q", stale)
+		}
+	}
+}
+
 func TestEmitRejectsOccupiedProofMove(t *testing.T) {
 	dir := t.TempDir()
 	b := rules.NewBoard()
@@ -504,7 +529,7 @@ func TestEmitRejectsOccupiedProofMove(t *testing.T) {
 	overlay := filepath.Join(dir, "o.txt")
 	occupied := rules.Move(30)
 	kb := keyOf(b)
-	line := overlayFingerprint(config.BookVisitFloor, config.BookSolverNodeBudget) + "\nP " + hexKey(kb[:]) + " " + strconv.Itoa(int(occupied)) + " 5 vcf\n"
+	line := overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, 1), config.BookVisitFloor, config.BookSolverNodeBudget) + "\nP " + hexKey(kb[:]) + " " + strconv.Itoa(int(occupied)) + " 5 vcf\n"
 	if err := os.WriteFile(overlay, []byte(line), 0o644); err != nil {
 		t.Fatalf("write overlay: %v", err)
 	}

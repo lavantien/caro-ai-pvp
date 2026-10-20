@@ -107,7 +107,7 @@ func readOverlay(path string) (overlayScan, error) {
 		if nl < 0 {
 			sc.torn = true
 		} else {
-			if !parseSidecarFingerprint(strings.Fields(string(header[:nl])), "overlay", 2) {
+			if !parseSidecarFingerprint(strings.Fields(string(header[:nl])), "overlay", 4) {
 				return sc, fmt.Errorf("bookgen: overlay %s line 1: missing or malformed fingerprint", path)
 			}
 			sc.fp = string(header[:nl])
@@ -182,13 +182,16 @@ func overlayRun(o overlayOpts, probe prober, progress io.Writer) error {
 	if err != nil {
 		return err
 	}
+	if sc.fp == "" {
+		return fmt.Errorf("bookgen: overlay refuses an unidentified corpus at %s", o.corpusPath)
+	}
 	agg := aggregate(sc.recs)
 	keys := floorPassingKeys(agg, o.floor)
 	osc, err := readOverlay(o.outPath)
 	if err != nil {
 		return err
 	}
-	want := overlayFingerprint(o.floor, o.budget)
+	want := overlayFingerprint(sc.fp, o.floor, o.budget)
 	clean := osc.clean
 	if osc.fp == "" {
 		written, err := writeSidecarHeader(o.outPath, want)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -109,7 +110,7 @@ func TestOverlayRecordsOnlyFloorPassingProofs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read overlay: %v", err)
 	}
-	want := overlayFingerprint(config.BookVisitFloor, 0) + "\nP " + hexKey(strong[:]) + " 11 42 vcf\n"
+	want := overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, 2), config.BookVisitFloor, 0) + "\nP " + hexKey(strong[:]) + " 11 42 vcf\n"
 	if string(data) != want {
 		t.Errorf("overlay file = %q, want %q", string(data), want)
 	}
@@ -268,7 +269,7 @@ func TestOverlayQuietPositionExhaustsBudgetWithoutProof(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read overlay: %v", err)
 	}
-	want := overlayFingerprint(config.BookVisitFloor, 1<<10) + "\nN " + hexKey(start[:]) + "\n"
+	want := overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, 1), config.BookVisitFloor, 1<<10) + "\nN " + hexKey(start[:]) + "\n"
 	if string(data) != want {
 		t.Errorf("overlay file = %q, want %q", string(data), want)
 	}
@@ -284,7 +285,7 @@ func TestOverlayTornTailIsDroppedAndTruncatedOnResume(t *testing.T) {
 		weak:   config.BookVisitFloor,
 	}, 200)
 	out := filepath.Join(dir, "o.txt")
-	fp := overlayFingerprint(config.BookVisitFloor, 0)
+	fp := overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, 2), config.BookVisitFloor, 0)
 	good := "P " + hexKey(strong[:]) + " 11 42 vcf\n"
 	tear := "N " + strings.Repeat("c", 2*config.BookKeyBytes-4)
 	if err := os.WriteFile(out, []byte(fp+"\n"+good+tear), 0o644); err != nil {
@@ -322,7 +323,7 @@ func TestOverlayTornTailIsDroppedAndTruncatedOnResume(t *testing.T) {
 func TestOverlaySkipsBlankLinesAndRejectsMalformed(t *testing.T) {
 	dir := t.TempDir()
 	k := singleStoneKey(t, 4)
-	fp := overlayFingerprint(config.BookVisitFloor, 0)
+	fp := overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, 1), config.BookVisitFloor, 0)
 	good := "P " + hexKey(k[:]) + " 11 42 vcf\n"
 	path := filepath.Join(dir, "o.txt")
 	if err := os.WriteFile(path, []byte(fp+"\n"+good+"\n"+good), 0o644); err != nil {
@@ -376,7 +377,7 @@ func TestOverlayRecordsNoProofForAnIllegalProofMove(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read overlay: %v", err)
 	}
-	want := overlayFingerprint(config.BookVisitFloor, 0) + "\nN " + hexKey(k[:]) + "\n"
+	want := overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, 1), config.BookVisitFloor, 0) + "\nN " + hexKey(k[:]) + "\n"
 	if string(data) != want {
 		t.Fatalf("overlay file = %q, want the no-proof verdict %q", string(data), want)
 	}
@@ -388,7 +389,7 @@ func TestOverlayRecoversATornHeaderWithoutItsNewline(t *testing.T) {
 	corpus := filepath.Join(dir, "c.txt")
 	writeCorpusWithVisits(t, corpus, map[[config.BookKeyBytes]byte]int{k: config.BookVisitFloor}, 200)
 	out := filepath.Join(dir, "o.txt")
-	fp := overlayFingerprint(config.BookVisitFloor, 0)
+	fp := overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, 1), config.BookVisitFloor, 0)
 	if err := os.WriteFile(out, []byte(fp), 0o644); err != nil {
 		t.Fatalf("write torn header: %v", err)
 	}
@@ -421,6 +422,40 @@ func TestOverlayRecoversATornHeaderWithoutItsNewline(t *testing.T) {
 	}
 	if calls != 0 {
 		t.Fatalf("recovered overlay re-probed %d positions", calls)
+	}
+}
+
+func TestOverlayRefusesProofsFromADifferentCorpus(t *testing.T) {
+	dir := t.TempDir()
+	k1 := singleStoneKey(t, 4)
+	k2 := singleStoneKey(t, 5)
+	corpus := filepath.Join(dir, "c.txt")
+	out := filepath.Join(dir, "o.txt")
+	probe := func(b *rules.Board) (rules.Move, uint64, string, bool) { return 8, 8, "vcf", true }
+	writeCorpusWithVisits(t, corpus, map[[config.BookKeyBytes]byte]int{k1: config.BookVisitFloor}, 200)
+	if err := overlayRun(overlayOpts{corpusPath: corpus, outPath: out, floor: config.BookVisitFloor}, probe, io.Discard); err != nil {
+		t.Fatalf("overlayRun first: %v", err)
+	}
+	writeCorpusWithVisits(t, corpus, map[[config.BookKeyBytes]byte]int{k1: config.BookVisitFloor, k2: config.BookVisitFloor}, 200)
+	if err := overlayRun(overlayOpts{corpusPath: corpus, outPath: out, floor: config.BookVisitFloor}, probe, io.Discard); err == nil {
+		t.Fatalf("overlayRun reused proofs pinned to a regrown corpus at the same floor and budget")
+	}
+}
+
+func TestOverlayRefusesProofsFromASolverUpgrade(t *testing.T) {
+	dir := t.TempDir()
+	k := singleStoneKey(t, 4)
+	corpus := filepath.Join(dir, "c.txt")
+	writeCorpusWithVisits(t, corpus, map[[config.BookKeyBytes]byte]int{k: config.BookVisitFloor}, 200)
+	upgraded := fmt.Sprintf("F overlay v%d solver=%d corpus=%s floor=%d budget=%d",
+		config.BookSidecarVersion, config.BookSolverIdentity+1, corpusTag(corpusFingerprint(config.TierEasy.Name, 0, 1)), config.BookVisitFloor, 0)
+	out := filepath.Join(dir, "o.txt")
+	if err := os.WriteFile(out, []byte(upgraded+"\nP "+hexKey(k[:])+" 8 8 vcf\n"), 0o644); err != nil {
+		t.Fatalf("write upgraded overlay: %v", err)
+	}
+	probe := func(b *rules.Board) (rules.Move, uint64, string, bool) { return 8, 8, "vcf", true }
+	if err := overlayRun(overlayOpts{corpusPath: corpus, outPath: out, floor: config.BookVisitFloor}, probe, io.Discard); err == nil {
+		t.Fatalf("overlayRun accepted proofs minted under a different solver identity")
 	}
 }
 

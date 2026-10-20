@@ -629,6 +629,9 @@ func TestBookConstants(t *testing.T) {
 	if BookSidecarVersion != 1 {
 		t.Errorf("BookSidecarVersion = %d, want 1", BookSidecarVersion)
 	}
+	if BookSolverIdentity != 1 {
+		t.Errorf("BookSolverIdentity = %d, want 1", BookSolverIdentity)
+	}
 	if len(BookOpeningCells) < 2 {
 		t.Fatalf("BookOpeningCells holds %d cells, want at least 2 distinct trunks", len(BookOpeningCells))
 	}

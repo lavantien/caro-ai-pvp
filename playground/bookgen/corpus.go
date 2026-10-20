@@ -74,8 +74,26 @@ func corpusFingerprint(tier string, tc, games int) string {
 	return fmt.Sprintf("F corpus v%d tier=%s tc=%d games=%d", config.BookSidecarVersion, tier, tc, games)
 }
 
-func overlayFingerprint(floor, budget int) string {
-	return fmt.Sprintf("F overlay v%d floor=%d budget=%d", config.BookSidecarVersion, floor, budget)
+func corpusTag(fp string) string {
+	return strings.ReplaceAll(fp, " ", "+")
+}
+
+func overlayFingerprint(corpusFP string, floor, budget int) string {
+	return fmt.Sprintf("F overlay v%d solver=%d corpus=%s floor=%d budget=%d",
+		config.BookSidecarVersion, config.BookSolverIdentity, corpusTag(corpusFP), floor, budget)
+}
+
+func fingerprintField(fp, key string) (string, bool) {
+	fields := strings.Fields(fp)
+	if len(fields) < 4 {
+		return "", false
+	}
+	for _, f := range fields[3:] {
+		if v, ok := strings.CutPrefix(f, key+"="); ok {
+			return v, true
+		}
+	}
+	return "", false
 }
 
 func parseSidecarFingerprint(fields []string, kind string, pairs int) bool {
@@ -90,7 +108,7 @@ func parseSidecarFingerprint(fields []string, kind string, pairs int) bool {
 		if eq <= 0 || eq == len(f)-1 {
 			return false
 		}
-		if key, val := f[:eq], f[eq+1:]; key != "tier" {
+		if key, val := f[:eq], f[eq+1:]; key != "tier" && key != "solver" && key != "corpus" {
 			for _, ch := range val {
 				if ch < '0' || ch > '9' {
 					return false

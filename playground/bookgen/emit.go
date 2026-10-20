@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
@@ -163,6 +164,14 @@ func emitRun(o emitOpts, progress io.Writer) (emitStats, error) {
 	osc, err := readOverlay(o.overlayPath)
 	if err != nil {
 		return st, err
+	}
+	if osc.fp != "" {
+		solver, hasSolver := fingerprintField(osc.fp, "solver")
+		corpus, hasCorpus := fingerprintField(osc.fp, "corpus")
+		if !hasSolver || !hasCorpus || corpus != corpusTag(sc.fp) || solver != strconv.Itoa(config.BookSolverIdentity) {
+			return st, fmt.Errorf("bookgen: emit refused overlay %s pinned to corpus %q solver %q over corpus %q solver %d",
+				o.overlayPath, corpus, solver, sc.fp, config.BookSolverIdentity)
+		}
 	}
 	proofs := osc.proofs
 	st.CorpusGames = sc.games

@@ -72,7 +72,7 @@ func FuzzLoadCorpus(f *testing.F) {
 
 func FuzzReadOverlay(f *testing.F) {
 	k := fuzzStoneKey(4)
-	fp := overlayFingerprint(config.BookVisitFloor, 0)
+	fp := overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, 1), config.BookVisitFloor, 0)
 	seeds := [][]byte{
 		nil,
 		[]byte(fp),
