@@ -316,6 +316,10 @@ func TestLoginOrCreateUsernameValidation(t *testing.T) {
 		wantErr  bool
 	}{
 		{"empty", "", true},
+		{"dot", ".", true},
+		{"dot dot", "..", true},
+		{"three dots", "...", false},
+		{"dot letter", ".a", false},
 		{"33 bytes", strings.Repeat("a", 33), true},
 		{"embedded newline", "a\nb", true},
 		{"nul byte", "a\x00b", true},
