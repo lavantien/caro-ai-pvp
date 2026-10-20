@@ -385,6 +385,48 @@ func TestEmitIsAtomicOverThePreviousArtifact(t *testing.T) {
 	}
 }
 
+func TestEmitFailedArtifactPublishLeavesTheStatsUntouched(t *testing.T) {
+	dir := t.TempDir()
+	strong := singleStoneKey(t, 4)
+	weak := singleStoneKey(t, 5)
+	corpus := filepath.Join(dir, "c.txt")
+	clean := seedHeader(t, corpus, corpusFingerprint(config.TierEasy.Name, 0, 2))
+	next, err := appendGame(corpus, clean, 0, repeat(posRec{key: strong, move: 42}, config.BookVisitFloor+4), 0)
+	if err != nil {
+		t.Fatalf("appendGame 0: %v", err)
+	}
+	if _, err := appendGame(corpus, next, 1, repeat(posRec{key: weak, move: 43}, config.BookVisitFloor), 0); err != nil {
+		t.Fatalf("appendGame 1: %v", err)
+	}
+	overlay := filepath.Join(dir, "o.txt")
+	stats := filepath.Join(dir, "s.txt")
+	first := emitOpts{
+		corpusPath: corpus, overlayPath: overlay,
+		outPath: filepath.Join(dir, "b.carobook"), statsPath: stats,
+		floor: config.BookVisitFloor, created: "2026-10-18T00:00:00Z",
+	}
+	if _, err := emitRun(first, io.Discard); err != nil {
+		t.Fatalf("first emit: %v", err)
+	}
+	good, err := os.ReadFile(stats)
+	if err != nil {
+		t.Fatalf("read stats: %v", err)
+	}
+	broken := first
+	broken.floor = config.BookVisitFloor + 3
+	broken.outPath = filepath.Join(dir, "gone", "b.carobook")
+	if _, err := emitRun(broken, io.Discard); err == nil {
+		t.Fatalf("emitRun published an artifact into a missing directory")
+	}
+	after, err := os.ReadFile(stats)
+	if err != nil {
+		t.Fatalf("reread stats: %v", err)
+	}
+	if !bytes.Equal(after, good) {
+		t.Fatalf("failed artifact publish rewrote stats: %q over %q", after, good)
+	}
+}
+
 func TestEmitRefusesAZeroEntryArtifact(t *testing.T) {
 	dir := t.TempDir()
 	k := singleStoneKey(t, 4)

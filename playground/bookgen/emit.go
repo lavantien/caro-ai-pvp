@@ -221,10 +221,10 @@ func emitRun(o emitOpts, progress io.Writer) (emitStats, error) {
 	if len(entries) == 0 {
 		return st, fmt.Errorf("bookgen: emit refused to write a zero-entry artifact to %s", o.outPath)
 	}
-	if err := writeFileAtomic(o.statsPath, []byte(renderStats(st))); err != nil {
+	if err := writeFileAtomic(o.outPath, buildArtifact(entries, meta)); err != nil {
 		return st, err
 	}
-	if err := writeFileAtomic(o.outPath, buildArtifact(entries, meta)); err != nil {
+	if err := writeFileAtomic(o.statsPath, []byte(renderStats(st))); err != nil {
 		return st, err
 	}
 	fmt.Fprintf(progress, "emit done: %d entries (%d majority, %d solver) to %s, stats at %s\n",
