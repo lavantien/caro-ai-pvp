@@ -1,14 +1,5 @@
 package server
 
-// The v0.27 PWA install shell tests: the manifest parses with the required
-// install fields over the committed design tokens, the service worker serves
-// with update semantics and its source contract pins the cache boundary (no
-// respondWith is reachable for /api/ or the room SSE event stream), the
-// offline fallback renders on the shared stylesheet, the icons serve through
-// the static mount as decodable PNG files, and every page head carries the
-// install wiring. Everything here rides the real shell mux and template
-// set; nothing constructs searchers or plays games.
-
 import (
 	"bytes"
 	"encoding/json"
@@ -21,10 +12,6 @@ import (
 	"testing"
 )
 
-// pwaThemeColor is the manifest's theme and background fill: shell.css's
-// --background anchor, read at run time so the manifest and the head metas
-// are pinned against the real token instead of a hand copy that can drift.
-// Change them together.
 func pwaThemeColor(t *testing.T) string {
 	t.Helper()
 	css, err := os.ReadFile("web/shell.css")
@@ -119,13 +106,11 @@ func TestPWAServiceWorkerServesWithUpdateSemantics(t *testing.T) {
 	if got := h.Get("Content-Type"); got != "text/javascript; charset=utf-8" {
 		t.Errorf("sw.js Content-Type = %q", got)
 	}
-	// The browser checks the worker script itself for updates, so it must
-	// revalidate every fetch, never ride a shared cache window.
 	if got := h.Get("Cache-Control"); got != "no-cache" {
 		t.Errorf("sw.js Cache-Control = %q, want no-cache", got)
 	}
 	for _, want := range []string{
-		"const CACHE = 'caro-static-v2'",
+		"const CACHE = 'caro-static-v3'",
 		"'/shell.css'",
 		"'/static/htmx.min.js'",
 		"'/static/hx-sse.min.js'",
@@ -140,14 +125,6 @@ func TestPWAServiceWorkerServesWithUpdateSemantics(t *testing.T) {
 	}
 }
 
-// TestPWAServiceWorkerBoundary pins the worker's boundary law textually, the
-// only enforcement a source contract can carry: the /api/ pass-through guard
-// (naming the SSE event stream) must precede every respondWith in the file,
-// the worker must hold exactly the two intended respondWith calls, the
-// offline fallback and the exact-match allowlist check must stay named, both
-// branches must fall back to the network on a cache miss (r || fetch), and
-// the precache must wrap every asset in a cache-reload Request so a bumped
-// cache never bakes stale bytes from the browser HTTP cache.
 func TestPWAServiceWorkerBoundary(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
@@ -220,9 +197,6 @@ func TestPWAOfflinePageServesOnSharedTokens(t *testing.T) {
 	}
 }
 
-// TestPWAIconsServeDecodableAtPinnedSizes drives the static mount: every
-// icon the manifest and the worker allowlist name must serve at its URL as
-// a PNG of the exact rasterized size.
 func TestPWAIconsServeDecodableAtPinnedSizes(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
@@ -254,10 +228,6 @@ func TestPWAIconsServeDecodableAtPinnedSizes(t *testing.T) {
 	}
 }
 
-// TestPWABaseHeadWiring pins the install wiring every shell page carries:
-// the manifest link, the theme-color meta over the committed token, the
-// apple touch icon and meta set, the registration script, and the hidden
-// header install action the script surfaces.
 func TestPWABaseHeadWiring(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
@@ -284,8 +254,6 @@ func TestPWABaseHeadWiring(t *testing.T) {
 	}
 }
 
-// TestPWARoomAndPlaybackHeadWiring renders the two standalone documents
-// directly and pins the same install wiring on them.
 func TestPWARoomAndPlaybackHeadWiring(t *testing.T) {
 	wiring := []string{
 		`<link rel="manifest" href="/manifest.webmanifest">`,

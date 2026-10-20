@@ -1,12 +1,5 @@
-// The caro install shell's service worker. The boundary law lives in
-// docs/pwa-shell.md and is pinned by test: this worker answers only the
-// ASSETS allowlist below, on exact pathname matches, and document
-// navigations (network first, cached offline page when the fetch itself
-// fails). The /api/ tree, the /api/rooms/{id}/events SSE streams, and every
-// other request pass through with no respondWith at all.
-const CACHE = 'caro-static-v2';
-// Bump CACHE whenever any allowlisted asset changes; activate drops every
-// cache whose name is not the current one.
+// /api/rooms/{id}/events rides the /api/ pass-through below.
+const CACHE = 'caro-static-v3';
 const ASSETS = [
 	'/shell.css',
 	'/static/htmx.min.js',
@@ -25,9 +18,6 @@ const API_PREFIX = '/api/';
 
 self.addEventListener('install', function (e) {
 	e.waitUntil(caches.open(CACHE).then(function (c) {
-		// Every asset rides a cache-reload Request, so a bumped CACHE
-		// fetches fresh bytes instead of baking day-stale ones out of the
-		// browser HTTP cache.
 		return c.addAll(ASSETS.map(function (u) {
 			return new Request(u, {cache: 'reload'});
 		}));
@@ -51,8 +41,6 @@ self.addEventListener('activate', function (e) {
 self.addEventListener('fetch', function (e) {
 	var url = new URL(e.request.url);
 	if (url.origin !== self.location.origin) { return; }
-	// The pass-through law: the JSON endpoints, the SSE event streams, and
-	// every stateful URL ride the network alone.
 	if (url.pathname.indexOf(API_PREFIX) === 0) { return; }
 	if (e.request.mode === 'navigate') {
 		e.respondWith(fetch(e.request).catch(function () {
@@ -63,8 +51,6 @@ self.addEventListener('fetch', function (e) {
 		return;
 	}
 	if (ASSETS.indexOf(url.pathname) !== -1) {
-		// Cache-first, but a miss (query-string variant, non-GET request,
-		// evicted entry) rides the network instead of a network error.
 		e.respondWith(caches.match(e.request).then(function (r) {
 			return r || fetch(e.request);
 		}));
