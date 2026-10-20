@@ -12,6 +12,7 @@ dist/
 coverage.out
 *.prof
 *.log
+*.err
 .playwright-mcp/
 
 .scratch/
