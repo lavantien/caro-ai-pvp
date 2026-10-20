@@ -670,7 +670,7 @@ func TestRoomJSCarriesActiveCardAndPairPaint(t *testing.T) {
 		"card-red", "card-blue",
 		"classList.toggle('active'",
 		"function markLatestPly(i)",
-		"scrollIntoView({ block: 'nearest' })",
+		"ol.scrollTop = ol.scrollHeight",
 	} {
 		if !strings.Contains(string(src), want) {
 			t.Errorf("room.js misses active-card/pair wiring %q", want)

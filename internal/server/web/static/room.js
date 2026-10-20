@@ -105,7 +105,7 @@ function markLatestPly(i) {
 	var half = row.children[1 + (i % 2)];
 	if (half) {
 		half.classList.add('latest');
-		if (half.scrollIntoView) { half.scrollIntoView({ block: 'nearest' }); }
+		if (ol.scrollHeight > ol.clientHeight) { ol.scrollTop = ol.scrollHeight; }
 	}
 }
 
