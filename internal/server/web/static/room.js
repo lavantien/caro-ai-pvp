@@ -94,7 +94,12 @@ function moveRow(n) {
 	return li;
 }
 
-function markLatestPly(i) {
+var stickZonePx = 32;
+function nearBottom(el) {
+	return el.scrollHeight - el.scrollTop - el.clientHeight <= stickZonePx;
+}
+
+function markLatestPly(i, stick) {
 	var ol = $('move-history');
 	var marks = ol.querySelectorAll('.latest');
 	for (var k = 0; k < marks.length; k++) { marks[k].classList.remove('latest'); }
@@ -105,7 +110,7 @@ function markLatestPly(i) {
 	var half = row.children[1 + (i % 2)];
 	if (half) {
 		half.classList.add('latest');
-		if (ol.scrollHeight > ol.clientHeight) { ol.scrollTop = ol.scrollHeight; }
+		if (stick && ol.scrollHeight > ol.clientHeight) { ol.scrollTop = ol.scrollHeight; }
 	}
 }
 
@@ -121,6 +126,7 @@ function rebuildBoard(names) {
 	var ghost = board.querySelector('.cell.ghost');
 	if (ghost && ghost.classList.contains('occ')) { ghost.classList.remove('ghost'); selected = ''; }
 	var ol = $('move-history');
+	var stick = String(names.length) !== root.getAttribute('data-move-count') && nearBottom(ol);
 	ol.textContent = '';
 	for (var m = 0; m < names.length; m += 2) {
 		var row = moveRow(m / 2 + 1);
@@ -128,7 +134,7 @@ function rebuildBoard(names) {
 		if (m + 1 < names.length) { row.children[2].textContent = names[m + 1]; }
 		ol.appendChild(row);
 	}
-	markLatestPly(names.length - 1);
+	markLatestPly(names.length - 1, stick);
 	root.setAttribute('data-move-count', String(names.length));
 }
 
@@ -235,6 +241,7 @@ function onMove(name) {
 		awaitingNewGame = false;
 		rebuildBoard([]);
 		turn = '';
+		status('');
 	}
 	var cell = $('c-' + name);
 	if (!cell || cell.classList.contains('occ')) { return; }
@@ -246,13 +253,14 @@ function onMove(name) {
 		stone.classList.add('latest');
 	}
 	var ol = $('move-history');
+	var stick = nearBottom(ol);
 	var row = ol.children[Math.floor(i / 2)];
 	if (!row) {
 		row = moveRow(Math.floor(i / 2) + 1);
 		ol.appendChild(row);
 	}
 	row.children[1 + (i % 2)].textContent = name;
-	markLatestPly(i);
+	markLatestPly(i, stick);
 	root.setAttribute('data-move-count', String(i + 1));
 	if (turn) { turn = turn === 'red' ? 'blue' : 'red'; setTurnLine(); }
 	scheduleSync();
@@ -268,6 +276,7 @@ function scheduleSync() {
 }
 
 function onMLine(line) {
+	if (terminal) { return; }
 	var ul = $('bot-log');
 	if (ul.firstElementChild && ul.children.length === 1 &&
 		ul.firstElementChild.textContent === 'no bot lines yet') {

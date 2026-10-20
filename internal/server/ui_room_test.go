@@ -669,12 +669,51 @@ func TestRoomJSCarriesActiveCardAndPairPaint(t *testing.T) {
 		"function paintActiveSeat()",
 		"card-red", "card-blue",
 		"classList.toggle('active'",
-		"function markLatestPly(i)",
+		"function markLatestPly(i, stick)",
 		"ol.scrollTop = ol.scrollHeight",
 	} {
 		if !strings.Contains(string(src), want) {
 			t.Errorf("room.js misses active-card/pair wiring %q", want)
 		}
+	}
+}
+
+func TestRoomJSMovesPanelScrollFollowsOnlyNewSticks(t *testing.T) {
+	src, err := fs.ReadFile(staticFS, "room.js")
+	if err != nil {
+		t.Fatalf("read room.js: %v", err)
+	}
+	for _, want := range []string{
+		"function nearBottom(el)",
+		"el.scrollHeight - el.scrollTop - el.clientHeight <= stickZonePx",
+		"var stick = String(names.length) !== root.getAttribute('data-move-count') && nearBottom(ol)",
+		"if (stick && ol.scrollHeight > ol.clientHeight) { ol.scrollTop = ol.scrollHeight; }",
+	} {
+		if !strings.Contains(string(src), want) {
+			t.Errorf("room.js misses moves-panel stick wiring %q", want)
+		}
+	}
+}
+
+func TestRoomJSClearsStaleGameOverLineOnNewGame(t *testing.T) {
+	src, err := fs.ReadFile(staticFS, "room.js")
+	if err != nil {
+		t.Fatalf("read room.js: %v", err)
+	}
+	want := "awaitingNewGame = false;\n\t\trebuildBoard([]);\n\t\tturn = '';\n\t\tstatus('')"
+	if !strings.Contains(string(src), want) {
+		t.Errorf("room.js misses the status clear on a new game's first move: %q", want)
+	}
+}
+
+func TestRoomJSMLineStopsAfterTerminal(t *testing.T) {
+	src, err := fs.ReadFile(staticFS, "room.js")
+	if err != nil {
+		t.Fatalf("read room.js: %v", err)
+	}
+	want := "function onMLine(line) {\n\tif (terminal) { return; }"
+	if !strings.Contains(string(src), want) {
+		t.Errorf("room.js misses the terminal guard on the mline handler: %q", want)
 	}
 }
 
