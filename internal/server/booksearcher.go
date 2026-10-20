@@ -54,6 +54,8 @@ func bookStats(cores int, dl engine.Deadline, start time.Time, mv rules.Move) en
 	return st
 }
 
+var executablePath = os.Executable
+
 var missingBookWarn = new(sync.Once)
 
 func loadBotBook() *book.Book {
@@ -100,7 +102,7 @@ func bookArtifactCandidates() ([]string, string) {
 	if filepath.IsAbs(configured) {
 		return []string{configured}, ""
 	}
-	exe, err := os.Executable()
+	exe, err := executablePath()
 	if err != nil {
 		return []string{configured}, ""
 	}

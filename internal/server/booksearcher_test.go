@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -511,5 +512,122 @@ func TestMissingBookArtifactWarnsOnceNamingTriedPaths(t *testing.T) {
 	}
 	if !strings.Contains(out, abs) {
 		t.Errorf("missing-artifact warning %q does not name the tried absolute path %s", out, abs)
+	}
+}
+
+func stageExecutablePath(t *testing.T, exe string, exeErr error) {
+	t.Helper()
+	saved := executablePath
+	executablePath = func() (string, error) { return exe, exeErr }
+	t.Cleanup(func() { executablePath = saved })
+}
+
+func TestLoadBotBookResolvesTheArtifactFromTheExecutableTree(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
+		t.Fatalf("stage bin: %v", err)
+	}
+	exe := filepath.Join(root, "bin", "caro.exe")
+	if err := os.WriteFile(exe, []byte("placeholder"), 0o644); err != nil {
+		t.Fatalf("stage exe: %v", err)
+	}
+	bookPath := filepath.Join(root, "db", "book.carobook")
+	if err := os.MkdirAll(filepath.Dir(bookPath), 0o755); err != nil {
+		t.Fatalf("stage db: %v", err)
+	}
+	if err := os.WriteFile(bookPath, buildBookArtifact(t, []bookRow{{reply: "H8"}}), 0o644); err != nil {
+		t.Fatalf("stage artifact: %v", err)
+	}
+	saved := config.BookArtifactPath
+	config.BookArtifactPath = filepath.Join("db", "book.carobook")
+	t.Cleanup(func() { config.BookArtifactPath = saved })
+	stageExecutablePath(t, exe, nil)
+	bk := loadBotBook()
+	if bk == nil {
+		t.Fatal("cwd miss with an on-book executable tree loaded no book, want the anchored artifact")
+	}
+	mv, ok := bk.Probe(rules.NewBoard())
+	if !ok || mv != mustMove(t, "H8") {
+		t.Fatalf("anchored book probe = (%s, %v), want the artifact's H8 reply", cellName(rules.Cell(mv)), ok)
+	}
+}
+
+func TestLoadBotBookWarnsWithTheSearchedTreeWhenNothingAnchors(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+	savedPath := config.BookArtifactPath
+	config.BookArtifactPath = filepath.Join("no-such-book-tree", "book.carobook")
+	t.Cleanup(func() { config.BookArtifactPath = savedPath })
+	root := t.TempDir()
+	exe := filepath.Join(root, "caro.exe")
+	if err := os.WriteFile(exe, []byte("placeholder"), 0o644); err != nil {
+		t.Fatalf("stage exe: %v", err)
+	}
+	stageExecutablePath(t, exe, nil)
+	savedWarn := missingBookWarn
+	missingBookWarn = new(sync.Once)
+	t.Cleanup(func() { missingBookWarn = savedWarn })
+	if bk := loadBotBook(); bk != nil {
+		t.Fatalf("nothing anchored loaded %d entries, want nil", bk.Len())
+	}
+	out := buf.String()
+	if !strings.Contains(out, "; executable tree "+root) {
+		t.Fatalf("missing-artifact warning %q does not name the searched executable tree %s", out, root)
+	}
+	abs, err := filepath.Abs(config.BookArtifactPath)
+	if err != nil {
+		t.Fatalf("resolve the tried absolute path: %v", err)
+	}
+	if !strings.Contains(out, abs) {
+		t.Errorf("missing-artifact warning %q does not name the tried absolute path %s", out, abs)
+	}
+}
+
+func TestLoadBotBookStaysCwdOnlyWhenTheExecutableIsUnknown(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+	savedPath := config.BookArtifactPath
+	config.BookArtifactPath = filepath.Join("no-such-book-tree", "book.carobook")
+	t.Cleanup(func() { config.BookArtifactPath = savedPath })
+	stageExecutablePath(t, "", errors.New("no exe"))
+	savedWarn := missingBookWarn
+	missingBookWarn = new(sync.Once)
+	t.Cleanup(func() { missingBookWarn = savedWarn })
+	if bk := loadBotBook(); bk != nil {
+		t.Fatalf("unknown executable loaded %d entries, want nil", bk.Len())
+	}
+	out := buf.String()
+	if !strings.Contains(out, "book artifact missing") {
+		t.Fatalf("unknown executable produced no missing-artifact warning:\n%s", out)
+	}
+	if strings.Contains(out, "executable tree") {
+		t.Fatalf("missing-artifact warning %q names an executable tree though the executable is unknown", out)
+	}
+}
+
+func TestUnreadableBookArtifactPathFailsLoudlyAtConstruction(t *testing.T) {
+	saved := config.BookArtifactPath
+	config.BookArtifactPath = "bad\x00path" + string(os.PathSeparator) + "book.carobook"
+	t.Cleanup(func() { config.BookArtifactPath = saved })
+	var msg string
+	func() {
+		defer func() { msg, _ = recover().(string) }()
+		_ = loadBotBook()
+	}()
+	if msg == "" {
+		t.Fatal("unreadable artifact path constructed a book quietly, want the loud open failure")
+	}
+	if !strings.Contains(msg, "opening the book artifact") {
+		t.Errorf("unreadable path panic = %q, want the open failure named", msg)
 	}
 }
