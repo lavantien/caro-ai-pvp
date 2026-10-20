@@ -111,6 +111,28 @@ func wantShellBody(t *testing.T, body string, wants ...string) {
 	}
 }
 
+func TestShellNavLinksLobbyOnEveryShellPage(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	defer srv.Close()
+	c := noRedirectClient(srv)
+	member := shellRegister(t, c, srv.URL, "alice", "hunter2")
+	for _, row := range []struct {
+		path  string
+		token string
+	}{
+		{"/", ""},
+		{"/", member},
+		{"/login", ""},
+	} {
+		status, _, body := doShell(t, c, http.MethodGet, srv.URL+row.path, row.token, nil)
+		if status != http.StatusOK {
+			t.Fatalf("GET %s: status = %d", row.path, status)
+		}
+		wantShellBody(t, body, `<a href="/lobby">lobby</a>`)
+	}
+}
+
 func TestShellLoginCreateRoundTripRendersRealStats(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
