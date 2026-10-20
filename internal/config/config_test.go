@@ -626,8 +626,8 @@ func TestBookConstants(t *testing.T) {
 	if BookGeneratorTag != "bookgen" {
 		t.Errorf("BookGeneratorTag = %q, want %q", BookGeneratorTag, "bookgen")
 	}
-	if BookSidecarVersion != 1 {
-		t.Errorf("BookSidecarVersion = %d, want 1", BookSidecarVersion)
+	if BookSidecarVersion != 2 {
+		t.Errorf("BookSidecarVersion = %d, want 2", BookSidecarVersion)
 	}
 	if BookSolverIdentity != 1 {
 		t.Errorf("BookSolverIdentity = %d, want 1", BookSolverIdentity)

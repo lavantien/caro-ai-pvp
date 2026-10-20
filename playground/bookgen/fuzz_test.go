@@ -31,7 +31,7 @@ func FuzzLoadCorpus(f *testing.F) {
 		[]byte(fp + "\n\n\n"),
 		[]byte(fp + "\nQ 1\n"),
 		[]byte("G 0\n"),
-		[]byte("F corpus v2 tier=easy tc=0 games=1\n"),
+		[]byte("F corpus v3 tier=easy tc=0 games=1\n"),
 		[]byte("F corpus v1 tier=easy tc=x games=1\n"),
 	}
 	for _, s := range seeds {
@@ -84,7 +84,7 @@ func FuzzReadOverlay(f *testing.F) {
 		[]byte(fp + "\nP " + hexKey(k[:]) + " 11 x vcf\n"),
 		[]byte(fp + "\nP " + hexKey(k[:]) + " 11 42 vx\n"),
 		[]byte(fp + "\nQ x\n"),
-		[]byte("F overlay v2 floor=1 budget=1\n"),
+		[]byte("F overlay v3 floor=1 budget=1\n"),
 		[]byte("P " + hexKey(k[:]) + " 11 42 vcf\n"),
 	}
 	for _, s := range seeds {

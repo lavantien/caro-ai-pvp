@@ -198,7 +198,7 @@ const (
 	BookMaxPly           = 16
 	BookCorpusTCIndex    = 3
 	BookGeneratorTag     = "bookgen"
-	BookSidecarVersion   = 1
+	BookSidecarVersion   = 2
 	BookSolverIdentity   = 1
 	BookLockHeartbeatMs  = 5000
 	BookLockStaleMs      = 30000

@@ -499,7 +499,7 @@ func TestEmitRefusesStaleOverlayProofs(t *testing.T) {
 	corpus := filepath.Join(dir, "c.txt")
 	writeCorpusWithVisits(t, corpus, map[[config.BookKeyBytes]byte]int{k: config.BookVisitFloor}, 200)
 	overlay := filepath.Join(dir, "o.txt")
-	legacy := fmt.Sprintf("F overlay v%d floor=%d budget=%d", config.BookSidecarVersion, config.BookVisitFloor, config.BookSolverNodeBudget)
+	legacy := fmt.Sprintf("F overlay v1 floor=%d budget=%d", config.BookVisitFloor, config.BookSolverNodeBudget)
 	otherCorpus := overlayFingerprint(corpusFingerprint(config.TierEasy.Name, 0, 2), config.BookVisitFloor, config.BookSolverNodeBudget)
 	staleLines := []string{legacy, otherCorpus}
 	for _, stale := range staleLines {

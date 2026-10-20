@@ -107,8 +107,8 @@ func readOverlay(path string) (overlayScan, error) {
 		if nl < 0 {
 			sc.torn = true
 		} else {
-			if !parseSidecarFingerprint(strings.Fields(string(header[:nl])), "overlay", 4) {
-				return sc, fmt.Errorf("bookgen: overlay %s line 1: missing or malformed fingerprint", path)
+			if err := sidecarHeaderError("overlay", path, string(header[:nl]), 4); err != nil {
+				return sc, err
 			}
 			sc.fp = string(header[:nl])
 			off = nl + 1

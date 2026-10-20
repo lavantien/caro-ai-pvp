@@ -425,6 +425,24 @@ func TestOverlayRecoversATornHeaderWithoutItsNewline(t *testing.T) {
 	}
 }
 
+func TestOverlayRefusesTheOldFiveFieldV1Header(t *testing.T) {
+	dir := t.TempDir()
+	k := singleStoneKey(t, 4)
+	legacy := fmt.Sprintf("F overlay v1 floor=%d budget=%d", config.BookVisitFloor, config.BookSolverNodeBudget)
+	body := legacy + "\nP " + hexKey(k[:]) + " 7 5 vcf\n"
+	path := filepath.Join(dir, "legacy-o.txt")
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatalf("write legacy overlay: %v", err)
+	}
+	_, err := readOverlay(path)
+	if err == nil {
+		t.Fatalf("readOverlay accepted the pre-v2 five-field header")
+	}
+	if !strings.Contains(err.Error(), "sidecar version v1") || !strings.Contains(err.Error(), fmt.Sprintf("v%d", config.BookSidecarVersion)) {
+		t.Fatalf("error = %v, want a version refusal naming v1 against v%d, not a field-count complaint", err, config.BookSidecarVersion)
+	}
+}
+
 func TestOverlayRefusesProofsFromADifferentCorpus(t *testing.T) {
 	dir := t.TempDir()
 	k1 := singleStoneKey(t, 4)

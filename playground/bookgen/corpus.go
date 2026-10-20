@@ -96,27 +96,41 @@ func fingerprintField(fp, key string) (string, bool) {
 	return "", false
 }
 
-func parseSidecarFingerprint(fields []string, kind string, pairs int) bool {
-	if len(fields) != 3+pairs {
-		return false
+func parseSidecarFingerprint(fields []string, kind string, pairs int) (string, bool) {
+	if len(fields) < 3 || fields[0] != "F" || fields[1] != kind {
+		return "", false
 	}
-	if fields[0] != "F" || fields[1] != kind || fields[2] != fmt.Sprintf("v%d", config.BookSidecarVersion) {
-		return false
+	if fields[2] != fmt.Sprintf("v%d", config.BookSidecarVersion) {
+		return fields[2], false
+	}
+	if len(fields) != 3+pairs {
+		return "", false
 	}
 	for _, f := range fields[3:] {
 		eq := strings.IndexByte(f, '=')
 		if eq <= 0 || eq == len(f)-1 {
-			return false
+			return "", false
 		}
 		if key, val := f[:eq], f[eq+1:]; key != "tier" && key != "solver" && key != "corpus" {
 			for _, ch := range val {
 				if ch < '0' || ch > '9' {
-					return false
+					return "", false
 				}
 			}
 		}
 	}
-	return true
+	return "", true
+}
+
+func sidecarHeaderError(kind, path, line string, pairs int) error {
+	ver, ok := parseSidecarFingerprint(strings.Fields(line), kind, pairs)
+	if ok {
+		return nil
+	}
+	if ver != "" {
+		return fmt.Errorf("bookgen: %s %s line 1: sidecar version %s, want v%d, regenerate the %s", kind, path, ver, config.BookSidecarVersion, kind)
+	}
+	return fmt.Errorf("bookgen: %s %s line 1: missing or malformed fingerprint", kind, path)
 }
 
 func writeSidecarHeader(path, fp string) (int64, error) {
@@ -232,8 +246,8 @@ func loadCorpus(path string) (corpusScan, error) {
 		if nl < 0 {
 			sc.torn = true
 		} else {
-			if !parseSidecarFingerprint(strings.Fields(string(header[:nl])), "corpus", 3) {
-				return sc, fmt.Errorf("bookgen: corpus %s line 1: missing or malformed fingerprint", path)
+			if err := sidecarHeaderError("corpus", path, string(header[:nl]), 3); err != nil {
+				return sc, err
 			}
 			sc.fp = string(header[:nl])
 			sc.clean = int64(nl + 1)

@@ -498,6 +498,22 @@ func TestCorpusRunWritesAndVerifiesTheFingerprint(t *testing.T) {
 	}
 }
 
+func TestCorpusRefusesAnOldSidecarVersion(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "v1.txt")
+	body := fmt.Sprintf("F corpus v1 tier=%s tc=0 games=1\n", config.TierEasy.Name)
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatalf("write v1 corpus: %v", err)
+	}
+	_, err := loadCorpus(path)
+	if err == nil {
+		t.Fatalf("loadCorpus accepted a v1 sidecar header")
+	}
+	if !strings.Contains(err.Error(), "sidecar version v1") || !strings.Contains(err.Error(), fmt.Sprintf("v%d", config.BookSidecarVersion)) {
+		t.Fatalf("error = %v, want a version refusal naming v1 against v%d", err, config.BookSidecarVersion)
+	}
+}
+
 func TestCorpusRejectsMissingOrMalformedFingerprint(t *testing.T) {
 	dir := t.TempDir()
 	cases := []struct {
@@ -506,7 +522,7 @@ func TestCorpusRejectsMissingOrMalformedFingerprint(t *testing.T) {
 	}{
 		{"no fingerprint", "G 0\n"},
 		{"wrong kind", "F overlay v1 floor=1 budget=1\n"},
-		{"wrong version", "F corpus v2 tier=easy tc=0 games=1\n"},
+		{"wrong version", "F corpus v3 tier=easy tc=0 games=1\n"},
 		{"missing games field", "F corpus v1 tier=easy tc=0\n"},
 		{"bad tc value", "F corpus v1 tier=easy tc=x games=1\n"},
 	}
