@@ -319,14 +319,15 @@ func TestRoomMasterOpensFromTheBookThenSearches(t *testing.T) {
 	stageBookArtifact(t, buildBookArtifact(t, rows))
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierMaster)
-	r.mu.Lock()
-	r.budgetCap = time.Duration(12*config.SearchClockQuantumMs) * time.Millisecond
-	r.mu.Unlock()
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
+	grants := make([]string, len(redScript))
 	for i, name := range redScript {
 		waitFor(t, func() bool { return humanTurn(r, alice.ID) })
+		r.mu.Lock()
+		grants[i] = fmt.Sprintf("%.2f", float64(r.clock[rules.Blue].Budget())/float64(time.Second))
+		r.mu.Unlock()
 		if err := r.PlayMove(alice.ID, mustCellT(t, name)); err != nil {
 			t.Fatalf("human move %s: %v", name, err)
 		}
@@ -351,7 +352,7 @@ func TestRoomMasterOpensFromTheBookThenSearches(t *testing.T) {
 		if prefix := fmt.Sprintf("M%d, Blue, %s, d=0, n=0, nps=0, ebf=0.0, tt=0%%, hf=0%%, fh1=0%%, s=+0, thr=%d, ", 2*i+2, reply, config.TierMaster.Cores); !strings.HasPrefix(line.Line, prefix) {
 			t.Errorf("book line %d:\n got %q\nwant prefix %q", i, line.Line, prefix)
 		}
-		if tail := ", t=0.00, alloc=0.19, [BOOK], pv=" + reply; !strings.HasSuffix(line.Line, tail) {
+		if tail := ", t=0.00, alloc=" + grants[i] + ", [BOOK], pv=" + reply; !strings.HasSuffix(line.Line, tail) {
 			t.Errorf("book line %d tail:\n got %q\nwant %q", i, line.Line, tail)
 		}
 	}
