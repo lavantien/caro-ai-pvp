@@ -372,7 +372,7 @@ arena-test:
 
 # bookgen runs the v0.24 opening-book generator, three phases over one
 # command: -phase corpus self-plays the games (master seats at tc 3 by
-# default, checkpoint-resumable, detached for the real 300-game run), then
+# default, checkpoint-resumable, detached for the real 1500-game run), then
 # -phase overlay solver-proves the floor-passing positions, then -phase emit
 # writes the CAROBOOK1 artifact plus its stats file, e.g.
 # make bookgen ARGS="-phase corpus" or ARGS="-phase emit -floor 20".

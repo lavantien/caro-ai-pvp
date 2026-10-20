@@ -2,7 +2,7 @@ param(
 	[int]$Shards = 2,
 	[int]$ShardGames = 55,
 	[string]$ShardCorpus = 'book-corpus-b.txt',
-	[int]$LegacyGames = 300,
+	[int]$LegacyGames = 1500,
 	[string]$MemLimit = '1536MiB',
 	[switch]$VerifyOnly
 )
