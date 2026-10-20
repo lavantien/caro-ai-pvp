@@ -1,16 +1,51 @@
 {{define "lobbylist"}}
-{{if .Rooms}}<ul class="rooms">
-{{range .Rooms}}<li class="room"><a href="/rooms/{{.ID}}">room <span class="mono">{{.ShortID}}</span></a>
-<span class="meta"><span class="chip">{{.Mode}}</span><span class="chip">{{.TC}}</span><span class="chip">{{.BO}}</span><span class="chip">{{.Status}}</span>{{if .Spectators}}<span class="chip">{{.Spectators}} watching</span>{{end}}<span>{{if .Host.Profile}}<a href="{{.Host.Profile}}">{{.Host.Name}}</a>{{else}}{{.Host.Name}}{{end}}{{if .Host.Tier}} <span class="chip">{{.Host.Tier}}</span>{{end}} vs {{if .Guest.Profile}}<a href="{{.Guest.Profile}}">{{.Guest.Name}}</a>{{else}}{{.Guest.Name}}{{end}}{{if .Guest.Tier}} <span class="chip">{{.Guest.Tier}}</span>{{end}}</span></span>
-{{if .CanJoin}}<form class="inline" method="post" action="/lobby/{{.ID}}/join"><button>join</button></form>{{end}}
-</li>
+{{if .Rooms}}<ul class="liveboards">
+{{range .Rooms}}<li><div class="livecard">
+<div class="who-vs">{{template "lobbyseat" .Red}} vs {{template "lobbyseat" .Blue}}</div>
+<a class="watch" href="/rooms/{{.ID}}">
+<span class="meta"><span class="chip">{{.Mode}}</span><span class="chip">{{.TC}}</span><span class="chip">{{.BO}}</span><span class="chip">{{.Status}}</span>{{if .Spectators}}<span class="chip">{{.Spectators}} watching</span>{{end}}<span class="chip">room <span class="mono">{{.ShortID}}</span></span></span>
+{{template "board-grid" .}}
+<span class="meta">{{.MoveCount}} stones</span>
+</a>
+{{if .CanJoin}}<form class="inline joinrow" method="post" action="/lobby/{{.ID}}/join"><button>join</button></form>{{end}}
+</div></li>
 {{end}}</ul>{{else}}<p class="empty">no live rooms</p>{{end}}
 {{end}}
+{{define "lobbyseat"}}{{if .Profile}}<a href="{{.Profile}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}{{if .Tier}} <span class="chip">{{.Tier}}</span>{{end}}{{end}}
+{{define "quickstart"}}
+{{if .Me}}
+<form class="actions quick" method="post" action="/rooms">
+<fieldset>
+<legend>quick start</legend>
+<span class="tcchips">{{range .TCOptions}}<label class="tcchip"><input type="radio" name="tc" value="{{.Value}}"{{if .Selected}} checked{{end}}><span>{{.Label}}</span></label>{{end}}</span>
+<label>best of<select name="bo">{{range .BOOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+<label>opponent<select name="bot">{{range .BotOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select></label>
+<button>play</button>
+</fieldset>
+</form>
+{{else}}<p class="guestnote"><a href="/login">login / create</a> to start a game.</p>{{end}}
+{{end}}
 {{define "title"}}lobby - caro{{end}}
+{{define "pagestyle"}}{{template "board-css"}}<style>
+.livecard a.watch { display: grid; gap: .15rem; text-decoration: none; color: inherit }
+.livecard .joinrow { margin-top: var(--space-1) }
+.quick { margin: 0 0 var(--space-3) }
+.quick .tcchips { display: flex; flex-wrap: wrap; gap: var(--space-1) }
+.quick .tcchip { position: relative; display: inline-flex }
+.quick .tcchip input { position: absolute; inset: 0; opacity: 0; margin: 0;
+	min-height: 0; padding: 0; cursor: pointer }
+.quick .tcchip span { border: 1px solid var(--text-muted); border-radius: var(--radius-s);
+	padding: .35rem var(--space-2); font-size: var(--text-l);
+	background: var(--surface); color: var(--text) }
+.quick .tcchip input:checked + span { background: var(--accent);
+	border-color: var(--accent); color: var(--background) }
+.quick .tcchip input:focus-visible + span { box-shadow: 0 0 0 3px var(--accent-strong) }
+</style>{{end}}
 {{define "content"}}
 <section aria-label="lobby">
 <h2>lobby</h2>
 {{if .JoinError}}<p class="error" role="alert">{{.JoinError}}</p>{{end}}
+{{template "quickstart" .}}
 <div id="lobby" hx-get="/partials/lobby" hx-trigger="every {{.PollMs}}ms" hx-swap="innerHTML">
 {{template "lobbylist" .}}
 </div>

@@ -99,6 +99,169 @@ func TestLobbySnapshotRoomsAndSpectators(t *testing.T) {
 	}
 }
 
+func TestLobbySnapshotCarriesLiveBoard(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	snap := s.rm.LobbySnapshot()
+	if len(snap) != 1 {
+		t.Fatalf("snapshot rooms = %d, want 1", len(snap))
+	}
+	if created := snap[0]; created.Live || created.MoveCount != 0 || len(created.Moves) != 0 {
+		t.Errorf("created room board = live %t moves %v, want no live game", created.Live, created.Moves)
+	}
+	if err := s.rm.Join(r.ID(), bob.ID); err != nil {
+		t.Fatalf("join: %v", err)
+	}
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, []string{"D4", "P16"})
+	snap = s.rm.LobbySnapshot()
+	if len(snap) != 1 {
+		t.Fatalf("snapshot rooms = %d, want 1", len(snap))
+	}
+	got := snap[0]
+	if !got.Live || got.MoveCount != 2 || len(got.Moves) != 2 {
+		t.Fatalf("live board = live %t count %d moves %v, want the two played stones", got.Live, got.MoveCount, got.Moves)
+	}
+	if got.Moves[0] != "D4" || got.Moves[1] != "P16" {
+		t.Errorf("moves = %v, want D4 then P16", got.Moves)
+	}
+	if !got.RedIsHost {
+		t.Error("red is host = false, want the host holding red in a fresh series")
+	}
+}
+
+func TestLobbyLivecardsMarkup(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	carol := seedUser(t, s.store, "carol")
+	open, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create open: %v", err)
+	}
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := s.rm.Join(r.ID(), bob.ID); err != nil {
+		t.Fatalf("join: %v", err)
+	}
+	readyBoth(t, r, alice, bob)
+	playScript(t, r, alice.ID, bob.ID, []string{"D4", "P16"})
+	mux := http.NewServeMux()
+	NewLobbyPages(s.store, s.rm).Mount(mux)
+	for _, path := range []string{"/lobby", "/partials/lobby"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d", path, rec.Code)
+		}
+		body := rec.Body.String()
+		for _, want := range []string{
+			`class="liveboards"`,
+			`class="livecard"`,
+			`href="/rooms/` + r.ID() + `"`,
+			`class="board mini"`,
+			`aria-hidden="true"`,
+			`class="stone red"`,
+			`class="stone blue latest"`,
+			"2 stones",
+			`<span class="mono">` + r.ID()[:8] + `</span>`,
+			`href="/players/alice"`,
+			lobbyModeCasual,
+		} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s missing %q", path, want)
+			}
+		}
+	}
+	req := httptest.NewRequest(http.MethodGet, "/lobby", nil)
+	req.AddCookie(lobbyCookieFor(t, s.store, carol))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("member lobby = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	anchor := `href="/rooms/` + open.ID() + `"`
+	ai := strings.Index(body, anchor)
+	if ai < 0 {
+		t.Fatalf("member lobby missing the spectate anchor")
+	}
+	ae := ai + strings.Index(body[ai:], "</a>")
+	ji := strings.Index(body, `action="/lobby/`+open.ID()+`/join"`)
+	if ae < 0 || ji < 0 {
+		t.Fatalf("member card incomplete: anchor close %d join form %d", ae, ji)
+	}
+	if ji < ae {
+		t.Error("join form sits inside the spectate anchor, want it outside")
+	}
+	if !strings.Contains(body[ai:ae], `class="board mini"`) {
+		t.Error("spectate anchor missing the mini board")
+	}
+}
+
+func TestLobbyQuickStartForm(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	mux := http.NewServeMux()
+	NewLobbyPages(s.store, s.rm).Mount(mux)
+	get := func(path string, cookie *http.Cookie) string {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		if cookie != nil {
+			req.AddCookie(cookie)
+		}
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d", path, rec.Code)
+		}
+		return rec.Body.String()
+	}
+	member := get("/lobby", lobbyCookieFor(t, s.store, alice))
+	if !strings.Contains(member, `method="post" action="/rooms"`) {
+		t.Error("member lobby missing the quick-start create form")
+	}
+	if got := strings.Count(member, `class="tcchip"`); got != len(config.TimeControls) {
+		t.Errorf("tc chips = %d, want one per time control (%d)", got, len(config.TimeControls))
+	}
+	for i := range config.TimeControls {
+		if !strings.Contains(member, `name="tc" value="`+strconv.Itoa(i)+`"`) {
+			t.Errorf("member lobby missing the tc chip for index %d", i)
+		}
+	}
+	if !strings.Contains(member, `type="radio"`) || !strings.Contains(member, "checked") {
+		t.Error("tc chips must be radios with a default pick")
+	}
+	for _, bo := range config.SeriesLengths {
+		if !strings.Contains(member, `value="`+strconv.Itoa(bo)+`"`) {
+			t.Errorf("member lobby missing the bo %d option", bo)
+		}
+	}
+	if !strings.Contains(member, "human, open seat") {
+		t.Error("member lobby missing the human opponent option")
+	}
+	for i := range config.Tiers {
+		if !strings.Contains(member, `value="`+config.Tiers[i].Name+`"`) {
+			t.Errorf("member lobby missing the %s bot option", config.Tiers[i].Name)
+		}
+	}
+	guest := get("/lobby", nil)
+	if strings.Contains(guest, `action="/rooms"`) {
+		t.Error("guest lobby offers the create form, want the login line")
+	}
+	if !strings.Contains(guest, "login / create") || !strings.Contains(guest, `href="/login"`) {
+		t.Error("guest lobby missing the login / create line")
+	}
+}
+
 func TestLobbyPagesRoutes(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
