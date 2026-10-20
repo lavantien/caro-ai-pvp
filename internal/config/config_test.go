@@ -577,8 +577,8 @@ func TestBookConstants(t *testing.T) {
 	if BookVisitFloor != 20 {
 		t.Errorf("BookVisitFloor = %d, want 20", BookVisitFloor)
 	}
-	if BookCorpusGames != 300 {
-		t.Errorf("BookCorpusGames = %d, want 300", BookCorpusGames)
+	if BookCorpusGames != 1500 {
+		t.Errorf("BookCorpusGames = %d, want 1500", BookCorpusGames)
 	}
 	if BookSolverNodeBudget != 1<<24 {
 		t.Errorf("BookSolverNodeBudget = %d, want 1<<24", BookSolverNodeBudget)

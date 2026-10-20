@@ -193,7 +193,7 @@ const (
 	BookEntryBytes       = BookKeyBytes + BookMoveBytes + BookVisitsBytes + BookSourceBytes + BookReservedBytes
 	BookMetaLineMaxBytes = 1024
 	BookVisitFloor       = 20
-	BookCorpusGames      = 300
+	BookCorpusGames      = 1500
 	BookSolverNodeBudget = 1 << 24
 	BookMaxPly           = 16
 	BookCorpusTCIndex    = 3
