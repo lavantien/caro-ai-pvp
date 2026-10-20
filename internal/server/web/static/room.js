@@ -1,9 +1,3 @@
-// The M6b room page driver: SSE stones per the spike's proven wiring (the
-// hx-on handlers below call into window.caroRoom; a plain EventSource takes
-// over once htmx stops reconnecting), clock polling and ticking, the ready
-// handshake, forfeit with a confirm step, and the tap-to-preview selection
-// machine for coarse pointers. Guests run the same page with the acting
-// handlers simply absent.
 (function () {
 'use strict';
 
@@ -28,8 +22,6 @@ function uiMLine(line) {
 /* caro-ui-mline:end */
 
 function $(id) { return document.getElementById(id); }
-// The two seat words the series event's payload carries, the server's
-// SideHost/SideGuest string forms.
 var SideHost = 'host', SideGuest = 'guest';
 var root = $('room-root');
 var detailURL = '/api/rooms/' + root.dataset.room;
@@ -39,9 +31,6 @@ var hostID = Number(root.dataset.hostId || 0);
 var guestID = Number(root.dataset.guestId || 0);
 var hostName = root.dataset.hostName;
 var guestName = root.dataset.guestName;
-// Seat names freeze at render: a page opened while the guest seat was open
-// (host or spectator) must reload once the seat fills, the only render that
-// carries the seated name and the participant handshake.
 var seatedAtLoad = guestID !== 0;
 var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 var selected = '';
@@ -61,8 +50,7 @@ function seatName(id) { return Number(id) === hostID ? hostName : guestName; }
 function otherSeat(id) { return Number(id) === hostID ? guestID : hostID; }
 function glyphOf(color) { return color === 'red' ? 'O' : 'X'; }
 function stoneCount() { return $('board').querySelectorAll('.stone').length; }
-// status paints the room line; err=true marks a refusal the player must
-// notice (red, bold), cleared by the next plain status.
+
 function status(msg, err) {
 	var el = $('room-status');
 	el.textContent = msg;
@@ -90,6 +78,37 @@ function applyStone(name, color, idx) {
 	return s;
 }
 
+function moveRow(n) {
+	var li = document.createElement('li');
+	li.className = 'pair';
+	var num = document.createElement('span');
+	num.className = 'n';
+	num.textContent = String(n);
+	var red = document.createElement('span');
+	red.className = 'half red';
+	var blue = document.createElement('span');
+	blue.className = 'half blue';
+	li.appendChild(num);
+	li.appendChild(red);
+	li.appendChild(blue);
+	return li;
+}
+
+function markLatestPly(i) {
+	var ol = $('move-history');
+	var marks = ol.querySelectorAll('.latest');
+	for (var k = 0; k < marks.length; k++) { marks[k].classList.remove('latest'); }
+	if (i < 0) { return; }
+	var row = ol.children[Math.floor(i / 2)];
+	if (!row) { return; }
+	row.classList.add('latest');
+	var half = row.children[1 + (i % 2)];
+	if (half) {
+		half.classList.add('latest');
+		if (half.scrollIntoView) { half.scrollIntoView({ block: 'nearest' }); }
+	}
+}
+
 function rebuildBoard(names) {
 	var board = $('board');
 	var stones = board.querySelectorAll('.stone');
@@ -103,32 +122,41 @@ function rebuildBoard(names) {
 	if (ghost && ghost.classList.contains('occ')) { ghost.classList.remove('ghost'); selected = ''; }
 	var ol = $('move-history');
 	ol.textContent = '';
-	for (var m = 0; m < names.length; m++) {
-		var li = document.createElement('li');
-		li.textContent = names[m];
-		ol.appendChild(li);
+	for (var m = 0; m < names.length; m += 2) {
+		var row = moveRow(m / 2 + 1);
+		row.children[1].textContent = names[m];
+		if (m + 1 < names.length) { row.children[2].textContent = names[m + 1]; }
+		ol.appendChild(row);
 	}
-	if (ol.lastElementChild) { ol.lastElementChild.classList.add('latest'); }
+	markLatestPly(names.length - 1);
 	root.setAttribute('data-move-count', String(names.length));
+}
+
+function paintActiveSeat() {
+	var live = !terminal && !!turn;
+	var red = $('card-red'), blue = $('card-blue');
+	if (red) { red.classList.toggle('active', live && turn === 'red'); }
+	if (blue) { blue.classList.toggle('active', live && turn === 'blue'); }
 }
 
 function setTurnLine() {
 	var line = $('turn-line');
 	var mine = participant && detail && detail.game && Number(detail.game.turnUserId) === myID;
 	if (terminal) {
-		// The status line carries the reason; the turn line must not
-		// contradict it with the handshake text on a finished series.
 		line.textContent = '';
 		$('board').classList.remove('live');
+		paintActiveSeat();
 		return;
 	}
 	if (!turn || !detail || !detail.game) {
 		line.textContent = 'waiting for both to ready';
 		$('board').classList.remove('live');
+		paintActiveSeat();
 		return;
 	}
 	line.textContent = mine ? 'your move (' + turn + ')' : turn + ' to move (' + seatName(detail.game.turnUserId) + ')';
 	$('board').classList.toggle('live', mine && !terminal);
+	paintActiveSeat();
 }
 
 function paintClocks() {
@@ -136,10 +164,6 @@ function paintClocks() {
 	$('clock-blue').textContent = fmtClock(remMs.blue);
 }
 
-// applyPlayable paints the rules' own answer for the side to move: the
-// detail's playable list, never a client-side re-derivation of the law.
-// Only the mover's live board dims what the rules refuse; every other view
-// clears the marks.
 function applyPlayable(list) {
 	var ok = null;
 	if ($('board').classList.contains('live') && list) {
@@ -148,23 +172,14 @@ function applyPlayable(list) {
 	}
 	var cells = $('board').querySelectorAll('.cell');
 	for (var j = 0; j < cells.length; j++) {
-		// Stones never dim: the mask marks refused SPACES, and the playable
-		// list never carries an occupied cell anyway.
 		cells[j].classList.toggle('off', !!ok && !cells[j].classList.contains('occ') &&
 			!ok[cells[j].dataset.cell]);
 	}
 }
 
-// renderDetail reconciles the whole view with one room detail: the board
-// after a reload-safe event gap, both banks, the turn, and the score line.
 function renderDetail(d) {
 	detail = d;
-	// A detail off a finished series carries the exact closing wins; once
-	// seen, the verdict fallback never overwrites it.
 	if (d.state === 'finished') { scoreFinal = true; }
-	// The handshake section and the seat names render server-side at load:
-	// a page opened while the guest seat was open trades one reload for
-	// the seated render, whatever the viewer's role.
 	if (!terminal && !d.game && Number(d.guestUserId) !== 0 && !seatedAtLoad) {
 		location.reload();
 		return;
@@ -174,9 +189,6 @@ function renderDetail(d) {
 		remMs.red = 0;
 		remMs.blue = 0;
 		paintClocks();
-		// The retired room answers with the game section gone but the
-		// final wins on the summary: the score paints even on the frame
-		// that has no game left.
 		$('score-line').textContent = hostName + ' ' + d.hostWins + ' - ' + d.guestWins + ' ' + guestName;
 		setTurnLine();
 		return;
@@ -188,14 +200,12 @@ function renderDetail(d) {
 	rebuildBoard(d.game.moves);
 	paintClocks();
 	setTurnLine();
-	// The red seat rotates every game (the decisive loser takes red), so
-	// the clock labels and the mover's ghost color follow redUserId, not
-	// the load-time render.
 	$('clock-who-red').textContent = 'red / ' + seatName(d.game.redUserId);
 	$('clock-who-blue').textContent = 'blue / ' + seatName(otherSeat(d.game.redUserId));
 	if (participant) {
-		$('board').setAttribute('data-my-color',
-			Number(d.game.redUserId) === myID ? 'red' : 'blue');
+		var me = Number(d.game.redUserId) === myID ? 'red' : 'blue';
+		root.setAttribute('data-me-seat', me);
+		$('board').setAttribute('data-my-color', me);
 	}
 	$('score-line').textContent = hostName + ' ' + d.hostWins + ' - ' + d.guestWins + ' ' + guestName;
 	applyPlayable(d.game.playable);
@@ -203,9 +213,6 @@ function renderDetail(d) {
 
 function sync() {
 	fetch(detailURL).then(function (r) {
-		// A retired room answers 409 room_closed while still mapped and
-		// 404 room_not_found once evicted; both end the page, so a missed
-		// series frame never parks it on an endless poll.
 		if (r.status === 404 || r.status === 409) { onTerminal('room closed'); return null; }
 		if (!r.ok) { return null; }
 		return r.json();
@@ -224,9 +231,6 @@ function tick() {
 
 function onMove(name) {
 	if (terminal || !name) { return; }
-	// A move after a gameend opens the next game: the board resets in the
-	// same server critical section as the completion, so the SSE stream
-	// never carries an explicit reset frame.
 	if (awaitingNewGame) {
 		awaitingNewGame = false;
 		rebuildBoard([]);
@@ -236,29 +240,24 @@ function onMove(name) {
 	if (!cell || cell.classList.contains('occ')) { return; }
 	var i = stoneCount();
 	var stone = applyStone(name, i % 2 === 0 ? 'red' : 'blue', i);
-	// The latest ring tracks the stream, not just the one-second poll, so
-	// the winning stone stays highlighted on the terminal page.
 	if (stone) {
 		var prevStone = $('board').querySelector('.stone.latest');
 		if (prevStone) { prevStone.classList.remove('latest'); }
 		stone.classList.add('latest');
 	}
 	var ol = $('move-history');
-	var prev = ol.querySelector('li.latest');
-	if (prev) { prev.classList.remove('latest'); }
-	var li = document.createElement('li');
-	li.textContent = name;
-	li.classList.add('latest');
-	ol.appendChild(li);
+	var row = ol.children[Math.floor(i / 2)];
+	if (!row) {
+		row = moveRow(Math.floor(i / 2) + 1);
+		ol.appendChild(row);
+	}
+	row.children[1 + (i % 2)].textContent = name;
+	markLatestPly(i);
 	root.setAttribute('data-move-count', String(i + 1));
 	if (turn) { turn = turn === 'red' ? 'blue' : 'red'; setTurnLine(); }
-	// The turn handed over: pull the fresh detail so the playable mask for
-	// the new mover replaces the old one within one local round trip
-	// instead of waiting out the poll.
 	scheduleSync();
 }
 
-// scheduleSync collapses the move-event sync burst into one fetch.
 var syncTimer = null;
 function scheduleSync() {
 	if (syncTimer) { return; }
@@ -283,8 +282,6 @@ function onMLine(line) {
 function onGameEnd(outcome) {
 	awaitingNewGame = true;
 	status('game over: ' + outcome);
-	// The room either retires (a series event follows) or resets for the
-	// next game with the loser on red; one detail sync paints either.
 	setTimeout(sync, 700);
 }
 
@@ -301,8 +298,6 @@ function onTerminal(msg) {
 	setTurnLine();
 	stopTimers();
 	if (es) { es.close(); es = null; }
-	// The hx-sse wiring retries its own connect forever; removing its
-	// element is the only stop, and the room behind it is retired anyway.
 	var feed = $('sse-feed');
 	if (feed) { feed.remove(); }
 	if (readyBtn) { readyBtn.disabled = true; }
@@ -312,10 +307,6 @@ function onTerminal(msg) {
 		clearTimeout(forfeitTimer);
 		forfeitBtn.classList.remove('armed');
 	}
-	// The room may still answer its detail with the final wins on the
-	// summary; when it does, the exact closing score paints. The evicted
-	// room's 404 falls back to the verdict line, because the running score
-	// froze mid-series on the forfeit sweep and must not stand as final.
 	fetch(detailURL).then(function (r) {
 		if (r.ok) { return r.json(); }
 		paintSeriesVerdict();
@@ -339,8 +330,6 @@ var rejectWords = {
 	unauthorized: 'login required'
 };
 
-// reject renders one refused acting call through the wire's error codes;
-// every handler failure a player can provoke lands as words, not a status.
 function reject(r, what) {
 	if (r.status === 401 || r.status === 404 || r.status === 409) {
 		return r.json().then(function (e) {
@@ -368,14 +357,10 @@ function confirmMove(name) {
 	}).catch(function () { status('move failed'); });
 }
 
-// Coarse pointers run the tap-to-preview machine: select, confirm on the
-// same cell, reselect elsewhere. Fine pointers confirm on click and preview
-// through the hover ghost the board css paints.
 $('board').addEventListener('click', function (e) {
 	if (!participant || terminal) { return; }
 	var cell = e.target.closest ? e.target.closest('.cell') : null;
 	if (!cell || cell.classList.contains('occ')) { return; }
-	// A dimmed cell is a space the rules refuse: refused locally, no post.
 	if (cell.classList.contains('off')) { status('not a legal space', true); return; }
 	var name = cell.dataset.cell;
 	if (!coarse) { confirmMove(name); return; }
@@ -396,8 +381,6 @@ if (readyBtn) {
 	});
 }
 
-// Taking the open seat flips the viewer into a participant; the reload
-// re-renders the handshake section server-side.
 var joinBtn = $('join-btn');
 if (joinBtn) {
 	joinBtn.addEventListener('click', function () {
@@ -427,7 +410,7 @@ if (forfeitBtn) {
 		}
 		clearTimeout(forfeitTimer);
 		fetch(detailURL + '/forfeit', { method: 'POST' }).then(function (r) {
-			if (r.ok) { return; } // the series event ends the page cleanly
+			if (r.ok) { return; }
 			return reject(r, 'forfeit');
 		}).catch(function () { status('forfeit failed'); });
 	});
@@ -440,10 +423,6 @@ function dispatch(kind, data) {
 	else if (kind === 'series') { onSeries(data); }
 }
 
-// The EventSource fallback of the spike's dual wiring: it starts only after
-// htmx reports its stream closed, so one wiring is live at a time, and its
-// own retries stop through onTerminal once the detail poll reads the room
-// closed.
 function startES() {
 	if (es || terminal) { return; }
 	es = new EventSource(detailURL + '/events');

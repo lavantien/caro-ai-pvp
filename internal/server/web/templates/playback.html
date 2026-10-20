@@ -17,25 +17,54 @@
 <script src="/static/pwa.js" defer></script>
 {{template "board-css"}}
 <style>
-body { margin: 0 auto; max-width: 48rem; padding: var(--space-2) }
+body { margin: 0 auto; max-width: 68rem; padding: var(--space-2) }
 h1 { font-size: var(--text-xl); margin: .2rem 0 }
+h2 { font-size: var(--text-base); margin: .3rem 0 }
+#playback-root { display: grid; gap: var(--space-3) var(--space-4); align-content: start;
+	grid-template-areas: "result" "board" "transport" "moves" }
+#pb-result { grid-area: result }
+#board-section { grid-area: board }
+#pb-controls { grid-area: transport }
+#pb-moves-panel { grid-area: moves }
+@media (min-width: 62rem) {
+	#playback-root { grid-template-columns: minmax(0, 1fr) 21rem;
+		grid-template-areas:
+			"board result"
+			"board transport"
+			"board moves" }
+}
 #pb-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; justify-content: center; margin: .6rem 0 }
 #pb-controls button { font: inherit; font-size: var(--text-l); padding: .4rem 1rem }
 #pb-counter { font-family: var(--font-mono); font-size: var(--text-xl);
 	font-variant-numeric: tabular-nums; margin-left: var(--space-2) }
 #pb-outcome, #won-by { font-weight: 700 }
 #won-by { color: var(--red) }
-#pb-moves { display: flex; flex-wrap: wrap; gap: var(--space-1) .6rem; list-style: none;
-	padding: 0; margin: 0; font-family: var(--font-mono); font-size: var(--text-base) }
-#pb-moves li.latest { font-weight: 700; text-decoration: underline }
+#pb-moves { list-style: none; padding: 0; margin: 0; font-family: var(--font-mono);
+	font-size: var(--text-base); display: grid; gap: .1rem;
+	max-height: min(40vh, 24rem); overflow-y: auto }
+#pb-moves .pair { display: grid; grid-template-columns: 2.4rem 1fr 1fr;
+	gap: var(--space-2); padding: 0 .2rem }
+#pb-moves .pair.latest { background: var(--surface); border-radius: var(--radius-s) }
+#pb-moves .n { color: var(--text-muted) }
+#pb-moves .half { cursor: pointer }
+#pb-moves .half.latest { font-weight: 700; text-decoration: underline }
 </style>
 </head>
 <body>
+<header>
+<a class="brand" href="/">caro</a>
+<nav><a href="/lobby">lobby</a></nav>
+</header>
 <div id="playback-root" data-total="{{len .Moves}}">
+
+<section id="pb-result">
 <h1>game playback #<span class="mono">{{.GameID}}</span></h1>
 <p>red {{.RedName}} vs blue {{.BlueName}} / <span id="pb-outcome">{{.Outcome}}</span>{{if .WonBy}} / <span id="won-by">won by {{.WonBy}}</span>{{end}}</p>
+</section>
 
+<section id="board-section">
 {{template "board-grid" .}}
+</section>
 
 <div id="pb-controls">
 <button id="pb-first" aria-label="first move">|&lt;</button>
@@ -46,11 +75,14 @@ h1 { font-size: var(--text-xl); margin: .2rem 0 }
 <span id="pb-counter">{{len .Moves}} / {{len .Moves}}</span>
 </div>
 
+<section id="pb-moves-panel">
+<h2>moves</h2>
 <ol id="pb-moves">
-{{- range .Moves}}
-<li>{{.}}</li>
+{{- range .Pairs}}
+<li class="pair{{if or .RedLatest .BlueLatest}} latest{{end}}"><span class="n">{{.N}}</span><span class="half red{{if .RedLatest}} latest{{end}}">{{.Red}}</span><span class="half blue{{if .BlueLatest}} latest{{end}}">{{.Blue}}</span></li>
 {{- end}}
 </ol>
+</section>
 
 <script src="/static/playback.js"></script>
 </body>

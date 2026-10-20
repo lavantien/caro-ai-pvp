@@ -120,22 +120,44 @@ func TestRoomPageRendersDrivenPvPGame(t *testing.T) {
 	if got := strings.Count(body, `class="stone `); got != 5 {
 		t.Errorf("stone count = %d, want 5", got)
 	}
-	for _, name := range hostWinsRed[:4] {
-		if !strings.Contains(body, "<li>"+name+"</li>") {
-			t.Errorf("move history misses %s", name)
+	for _, want := range []string{
+		`<span class="n">1</span><span class="half red">D4</span><span class="half blue">P16</span>`,
+		`<span class="n">2</span><span class="half red">H8</span><span class="half blue">P12</span>`,
+		`<span class="n">3</span><span class="half red latest">D5</span><span class="half blue"></span>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("paired move rows miss %q", want)
 		}
-	}
-	if !strings.Contains(body, `<li class="latest">D5</li>`) {
-		t.Error("move history misses the latest highlight on D5")
 	}
 	if !strings.Contains(body, `id="turn-line"`) || !strings.Contains(body, "blue to move") {
 		t.Error("turn line misses the blue-to-move state")
 	}
 	for _, id := range []string{"clock-red", "clock-blue", "clock-who-red", "clock-who-blue",
-		"score-line", "move-history", "bot-log", "room-status"} {
+		"card-red", "card-blue", "score-line", "move-history", "bot-log", "room-status"} {
 		if !strings.Contains(body, `id="`+id+`"`) {
 			t.Errorf("room body misses #%s", id)
 		}
+	}
+	if !strings.Contains(body, `<span class="who" id="clock-who-red">red / alice</span>`) {
+		t.Error("red card misses alice's seat name")
+	}
+	if !strings.Contains(body, `<span class="who" id="clock-who-blue">blue / bob</span>`) {
+		t.Error("blue card misses bob's seat name")
+	}
+	if !strings.Contains(body, `<div class="seatcard active" id="card-blue">`) {
+		t.Error("blue to move but the blue card is not lit")
+	}
+	if strings.Contains(body, `<div class="seatcard active" id="card-red">`) {
+		t.Error("red card is lit while blue is on turn")
+	}
+	if !strings.Contains(body, `data-me-seat="red"`) {
+		t.Error("red participant misses the me-seat marker")
+	}
+	if !strings.Contains(body, `<a class="brand" href="/">caro</a>`) || !strings.Contains(body, `<a href="/lobby">lobby</a>`) {
+		t.Error("room header misses the brand and lobby links")
+	}
+	if !strings.Contains(body, `<details id="bot-log-wrap" open>`) {
+		t.Error("bot logs are not an open details panel")
 	}
 	if !strings.Contains(body, `data-participant="1"`) {
 		t.Error("host view misses the participant flag")
@@ -310,6 +332,46 @@ func TestRoomPageJoinButtonGating(t *testing.T) {
 	}
 }
 
+func TestRoomPageBotSeatCarriesTierChip(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice := seedUser(t, s.store, "alice")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy)
+	if err != nil {
+		t.Fatalf("create bot room: %v", err)
+	}
+	injectScriptedBot(t, r, movesOf(t, botWinMoves))
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	waitFor(t, func() bool { return humanTurn(r, alice.ID) })
+	if err := r.PlayMove(alice.ID, mustCellT(t, humanFiller[0])); err != nil {
+		t.Fatalf("human move: %v", err)
+	}
+	waitFor(t, func() bool { return humanTurn(r, alice.ID) })
+
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), mintSession(t, s.store, alice))
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body %s)", status, body)
+	}
+	card := func(id string) string {
+		i := strings.Index(body, `id="`+id+`"`)
+		if i < 0 {
+			t.Fatalf("seat card %s missing", id)
+		}
+		return body[i:min(i+300, len(body))]
+	}
+	if got := card("card-blue"); !strings.Contains(got, `<span class="chip">easy</span>`) {
+		t.Errorf("bot seat card misses the tier chip: %s", got)
+	}
+	if got := card("card-red"); strings.Contains(got, `<span class="chip">`) {
+		t.Errorf("human seat card carries a chip: %s", got)
+	}
+	if !strings.Contains(body, `<div class="seatcard active" id="card-red">`) {
+		t.Error("human mover card is not lit on her turn")
+	}
+}
+
 func TestRoomPageBadOrRetiredRoomIs404(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
@@ -370,6 +432,15 @@ func TestPlaybackPageReplaysSeededFinishedGame(t *testing.T) {
 	for _, id := range []string{"pb-first", "pb-prev", "pb-next", "pb-last", "pb-play", "playback-root"} {
 		if !strings.Contains(body, `id="`+id+`"`) {
 			t.Errorf("playback body misses #%s", id)
+		}
+	}
+	for _, want := range []string{
+		`<span class="n">1</span><span class="half red">D4</span><span class="half blue">P16</span>`,
+		`<span class="n">6</span><span class="half red latest">D3</span><span class="half blue"></span>`,
+		`<a class="brand" href="/">caro</a>`, `<a href="/lobby">lobby</a>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("playback body misses %q", want)
 		}
 	}
 	if !strings.Contains(body, `src="/static/playback.js"`) {
@@ -580,10 +651,45 @@ func TestRoomJSCarriesSeatRotationSync(t *testing.T) {
 		"otherSeat",
 		"$('clock-who-red').textContent = 'red / ' + seatName(d.game.redUserId)",
 		"$('clock-who-blue').textContent = 'blue / ' + seatName(otherSeat(d.game.redUserId))",
+		"setAttribute('data-me-seat'",
 		"setAttribute('data-my-color'",
 	} {
 		if !strings.Contains(string(src), want) {
 			t.Errorf("room.js misses seat-rotation sync %q", want)
+		}
+	}
+}
+
+func TestRoomJSCarriesActiveCardAndPairPaint(t *testing.T) {
+	src, err := fs.ReadFile(staticFS, "room.js")
+	if err != nil {
+		t.Fatalf("read room.js: %v", err)
+	}
+	for _, want := range []string{
+		"function paintActiveSeat()",
+		"card-red", "card-blue",
+		"classList.toggle('active'",
+		"function markLatestPly(i)",
+		"scrollIntoView({ block: 'nearest' })",
+	} {
+		if !strings.Contains(string(src), want) {
+			t.Errorf("room.js misses active-card/pair wiring %q", want)
+		}
+	}
+}
+
+func TestPlaybackJSCarriesPairJump(t *testing.T) {
+	src, err := fs.ReadFile(staticFS, "playback.js")
+	if err != nil {
+		t.Fatalf("read playback.js: %v", err)
+	}
+	for _, want := range []string{
+		"closest('.half[data-i]')",
+		"Number(half.getAttribute('data-i')) + 1",
+		"classList.toggle('latest'",
+	} {
+		if !strings.Contains(string(src), want) {
+			t.Errorf("playback.js misses pair-jump wiring %q", want)
 		}
 	}
 }
@@ -612,8 +718,9 @@ func TestRoomTemplatesEscapePoisonedPayloads(t *testing.T) {
 	var out strings.Builder
 	rv := roomView{RoomID: strings.Repeat("a", 2*roomIDBytes), TCLabel: "1+0", BOLen: config.SeriesBO3,
 		HostName: poison, GuestName: poison, ViewerName: poison, State: poison,
-		Turn: poison, TurnName: poison, RedName: poison, BlueName: poison,
-		Moves: []moveLine{{Name: poison}}, Cells: cells, KindsCSV: strings.Join(spikeEventKinds, ",")}
+		Turn: poison, TurnName: poison, RedName: poison, BlueName: poison, RedTier: poison,
+		Moves: []string{poison}, Pairs: movePairs([]string{poison}),
+		Cells: cells, KindsCSV: strings.Join(spikeEventKinds, ",")}
 	if err := executeRoom(&out, rv); err != nil {
 		t.Fatalf("render room: %v", err)
 	}
@@ -625,7 +732,7 @@ func TestRoomTemplatesEscapePoisonedPayloads(t *testing.T) {
 	}
 
 	pv := playbackView{RedName: poison, BlueName: poison, Outcome: poison, WonBy: poison,
-		Moves:  []string{poison},
+		Moves: []string{poison}, Pairs: movePairs([]string{poison}),
 		Cells:  []cellView{{Name: poison, Stone: "blue", Glyph: "X", Idx: 0}},
 		GameID: 1}
 	out.Reset()

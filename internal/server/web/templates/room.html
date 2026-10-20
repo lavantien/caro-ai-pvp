@@ -17,31 +17,60 @@
 <script src="/static/pwa.js" defer></script>
 {{template "board-css"}}
 <style>
-body { margin: 0 auto; max-width: 48rem; padding: var(--space-2) }
+body { margin: 0 auto; max-width: 68rem; padding: var(--space-2) }
 h1 { font-size: var(--text-xl); margin: .2rem 0 }
 h2 { font-size: var(--text-base); margin: .3rem 0 }
 .status { font-family: var(--font-mono); font-size: var(--text-s);
 	color: var(--text-muted) }
 #room-status.err { color: var(--danger); font-weight: 700 }
-#clocks { display: flex; justify-content: space-between; gap: var(--space-4); margin: .4rem 0 }
-.clockbox { min-width: 8rem }
-/* The seat label clamps to one line with an ellipsis: a wrapped bot name
-   would push its clock below the other and the full id already lives in
-   the header and the score line. */
-.clockbox .who { font-size: var(--text-m); white-space: nowrap; overflow: hidden;
-	text-overflow: ellipsis }
-.clock { font-family: var(--font-mono); font-size: 2rem; font-weight: 700;
-	font-variant-numeric: tabular-nums }
-.clockbox.red .clock { color: var(--red) }
-.clockbox.blue .clock { color: var(--blue) }
+#room-root { display: grid; gap: var(--space-3) var(--space-4); align-content: start;
+	grid-template-areas: "status" "opp" "board" "you" "controls" "moves" "series" "logs" }
+#status-strip { grid-area: status }
+#card-red { grid-area: opp }
+#card-blue { grid-area: you }
+#room-root[data-me-seat="red"] #card-red { grid-area: you }
+#room-root[data-me-seat="red"] #card-blue { grid-area: opp }
+#room-root[data-me-seat="blue"] #card-blue { grid-area: you }
+#room-root[data-me-seat="blue"] #card-red { grid-area: opp }
+#board-section { grid-area: board }
+#controls, #join-section { grid-area: controls }
+#moves-panel { grid-area: moves }
+#series-strip { grid-area: series }
+#bot-logs { grid-area: logs }
+@media (min-width: 62rem) {
+	#room-root { grid-template-columns: minmax(0, 1fr) 21rem;
+		grid-template-areas:
+			"status  opp"
+			"board   moves"
+			"board   series"
+			"controls you"
+			"logs    logs" }
+}
 #turn-line { font-size: var(--text-xl); font-weight: 600; margin: .3rem 0 }
-#score-line { margin: .2rem 0 }
 #ready-btn { font-size: var(--text-xl); padding: .6rem 2.4rem }
 #forfeit-btn.armed { background: var(--danger); color: var(--background) }
-section { margin: .8rem 0 }
-#move-history { display: flex; flex-wrap: wrap; gap: var(--space-1) .6rem; list-style: none;
-	padding: 0; margin: 0; font-family: var(--font-mono); font-size: var(--text-base) }
-#move-history li.latest { font-weight: 700; text-decoration: underline }
+.seatcard { display: flex; align-items: center; gap: var(--space-2);
+	border: 1px solid var(--border); border-radius: var(--radius-m);
+	padding: var(--space-2) var(--space-3); background: var(--surface) }
+.seatcard.active { background: var(--accent-soft) }
+.seatcard .dot { width: .9rem; height: .9rem; border-radius: 50%; flex: none }
+.seatcard .dot.red { background: var(--red) }
+.seatcard .dot.blue { background: var(--blue) }
+.seatcard .who { font-size: var(--text-l); min-width: 0 }
+.seatcard .chip { flex: none }
+.seatcard .clock { margin-left: auto; font-family: var(--font-mono);
+	font-size: var(--text-xl); font-weight: 700; font-variant-numeric: tabular-nums;
+	color: var(--text-muted) }
+.seatcard.active .clock { color: var(--accent-strong) }
+#move-history { list-style: none; padding: 0; margin: 0; font-family: var(--font-mono);
+	font-size: var(--text-base); display: grid; gap: .1rem;
+	max-height: min(40vh, 24rem); overflow-y: auto }
+#move-history .pair { display: grid; grid-template-columns: 2.4rem 1fr 1fr;
+	gap: var(--space-2); padding: 0 .2rem }
+#move-history .pair.latest { background: var(--surface); border-radius: var(--radius-s) }
+#move-history .n { color: var(--text-muted) }
+#move-history .half.latest { font-weight: 700; text-decoration: underline }
+#bot-log-wrap summary { cursor: pointer; font-size: var(--text-base); font-weight: 600 }
 #bot-log { list-style: none; padding: 0; margin: 0; max-height: 24vh; overflow-y: auto;
 	font-family: var(--font-mono); font-size: var(--text-xs);
 	border: 1px solid var(--border); border-radius: var(--radius-s) }
@@ -51,24 +80,32 @@ section { margin: .8rem 0 }
 </style>
 </head>
 <body>
+<header>
+<a class="brand" href="/">caro</a>
+<nav><a href="/lobby">lobby</a></nav>
+</header>
 <div id="room-root"
  data-room="{{.RoomID}}"
  data-participant="{{if .IsParticipant}}1{{else}}0{{end}}"
  data-move-count="{{len .Moves}}"
  data-host-id="{{.HostUserID}}" data-host-name="{{.HostName}}"
  data-guest-id="{{.GuestUserID}}" data-guest-name="{{.GuestName}}"
- data-my-id="{{.ViewerID}}"
+ data-my-id="{{.ViewerID}}"{{if .MyColor}} data-me-seat="{{.MyColor}}"{{end}}
  data-kinds="{{.KindsCSV}}">
 
+<section id="status-strip">
 <h1>room <span class="mono">{{.RoomID}}</span></h1>
 <p class="status" id="room-status">{{.State}} / {{.TCLabel}} / bo{{.BOLen}}{{if .VsBotTier}} / AI {{.VsBotTier}}{{end}}</p>
-
-<section id="clocks">
-<div class="clockbox red"><div class="who" id="clock-who-red">red / {{.RedName}}</div><div class="clock" id="clock-red">{{if .ClockRed}}{{.ClockRed}}{{else}}--:--.-{{end}}</div></div>
-<div class="clockbox blue"><div class="who" id="clock-who-blue">blue / {{.BlueName}}</div><div class="clock" id="clock-blue">{{if .ClockBlue}}{{.ClockBlue}}{{else}}--:--.-{{end}}</div></div>
-</section>
 <p id="turn-line">{{if .GameLive}}{{if .TurnIsMe}}your move ({{.Turn}}){{else}}{{.Turn}} to move ({{.TurnName}}){{end}}{{else}}waiting for both to ready{{end}}</p>
-<p id="score-line">{{.HostName}} {{.HostWins}} - {{.GuestWins}} {{.GuestName}}</p>
+</section>
+
+<div class="seatcard{{if and .GameLive (eq .Turn "red")}} active{{end}}" id="card-red"><span class="dot red"></span><span class="who" id="clock-who-red">red / {{.RedName}}</span>{{if .RedTier}}<span class="chip">{{.RedTier}}</span>{{end}}<div class="clock" id="clock-red">{{if .ClockRed}}{{.ClockRed}}{{else}}--:--.-{{end}}</div></div>
+
+<section id="board-section">
+{{template "board-grid" .}}
+</section>
+
+<div class="seatcard{{if and .GameLive (eq .Turn "blue")}} active{{end}}" id="card-blue"><span class="dot blue"></span><span class="who" id="clock-who-blue">blue / {{.BlueName}}</span>{{if .BlueTier}}<span class="chip">{{.BlueTier}}</span>{{end}}<div class="clock" id="clock-blue">{{if .ClockBlue}}{{.ClockBlue}}{{else}}--:--.-{{end}}</div></div>
 
 {{if or .CanReady .CanForfeit}}
 <section id="controls">
@@ -79,23 +116,25 @@ section { margin: .8rem 0 }
 {{end}}
 {{if .CanJoin}}<section id="join-section"><button id="join-btn">join</button></section>{{end}}
 
-<section id="board-section">
-{{template "board-grid" .}}
-</section>
-
-<section id="move-history-section">
+<section id="moves-panel">
 <h2>moves</h2>
 <ol id="move-history">
-{{- range .Moves}}
-<li{{if .Latest}} class="latest"{{end}}>{{.Name}}</li>
+{{- range .Pairs}}
+<li class="pair{{if or .RedLatest .BlueLatest}} latest{{end}}"><span class="n">{{.N}}</span><span class="half red{{if .RedLatest}} latest{{end}}">{{.Red}}</span><span class="half blue{{if .BlueLatest}} latest{{end}}">{{.Blue}}</span></li>
 {{- end}}
 </ol>
 </section>
 
-<section id="bot-logs">
-<h2>bot logs</h2>
-<ul id="bot-log"><li>no bot lines yet</li></ul>
+<section id="series-strip">
+<h2>series</h2>
+<p id="score-line">{{.HostName}} {{.HostWins}} - {{.GuestWins}} {{.GuestName}}</p>
 </section>
+
+<section id="bot-logs">
+<details id="bot-log-wrap" open><summary>bot logs</summary><ul id="bot-log"><li>no bot lines yet</li></ul></details>
+</section>
+
+</div>
 
 <div id="sse-feed"
  hx-sse:connect="/api/rooms/{{.RoomID}}/events"
