@@ -382,6 +382,48 @@ func TestOverlayRecordsNoProofForAnIllegalProofMove(t *testing.T) {
 	}
 }
 
+func TestOverlayRecoversATornHeaderWithoutItsNewline(t *testing.T) {
+	dir := t.TempDir()
+	k := singleStoneKey(t, 4)
+	corpus := filepath.Join(dir, "c.txt")
+	writeCorpusWithVisits(t, corpus, map[[config.BookKeyBytes]byte]int{k: config.BookVisitFloor}, 200)
+	out := filepath.Join(dir, "o.txt")
+	fp := overlayFingerprint(config.BookVisitFloor, 0)
+	if err := os.WriteFile(out, []byte(fp), 0o644); err != nil {
+		t.Fatalf("write torn header: %v", err)
+	}
+	probe := func(b *rules.Board) (rules.Move, uint64, string, bool) { return 8, 8, "vcf", true }
+	if err := overlayRun(overlayOpts{corpusPath: corpus, outPath: out, floor: config.BookVisitFloor}, probe, io.Discard); err != nil {
+		t.Fatalf("overlayRun over a header that lost its newline: %v", err)
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("reread: %v", err)
+	}
+	want := fp + "\nP " + hexKey(k[:]) + " 8 8 vcf\n"
+	if string(data) != want {
+		t.Fatalf("recovered overlay = %q, want %q", data, want)
+	}
+	osc, err := readOverlay(out)
+	if err != nil {
+		t.Fatalf("readOverlay after recovery: %v", err)
+	}
+	if len(osc.done) != 1 || len(osc.proofs) != 1 || osc.torn || osc.fp != fp || osc.clean != int64(len(want)) {
+		t.Fatalf("recovered overlay scan = %d proofs %d done clean %d torn %t, want the rewritten header at %d", len(osc.proofs), len(osc.done), osc.clean, osc.torn, len(want))
+	}
+	calls := 0
+	reprobe := func(b *rules.Board) (rules.Move, uint64, string, bool) {
+		calls++
+		return 8, 8, "vcf", true
+	}
+	if err := overlayRun(overlayOpts{corpusPath: corpus, outPath: out, floor: config.BookVisitFloor}, reprobe, io.Discard); err != nil {
+		t.Fatalf("rerun after recovery: %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("recovered overlay re-probed %d positions", calls)
+	}
+}
+
 func TestOverlayResumeRejectsConfigChange(t *testing.T) {
 	dir := t.TempDir()
 	k := singleStoneKey(t, 4)

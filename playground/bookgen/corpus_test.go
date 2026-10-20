@@ -331,6 +331,46 @@ func TestCorpusTearAfterCompleteGameKeepsEarlierGames(t *testing.T) {
 	}
 }
 
+func TestCorpusRecoversATornHeaderWithoutItsNewline(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "c.txt")
+	want := corpusFingerprint(config.TierEasy.Name, 0, 1)
+	if err := os.WriteFile(path, []byte(want), 0o644); err != nil {
+		t.Fatalf("write torn header: %v", err)
+	}
+	var seen []gameCall
+	if err := runCorpus(easyCorpusOpts(path, 1), scriptedPlayer(t, &seen), io.Discard); err != nil {
+		t.Fatalf("runCorpus over a header that lost its newline: %v", err)
+	}
+	if len(seen) != 1 || seen[0].idx != 0 {
+		t.Fatalf("resume played %+v, want game 0 exactly once", seen)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reread: %v", err)
+	}
+	wantBody := want + "\n" + fmt.Sprintf("G 0\nP %s %d\nE 1 0\n", hexKey(corpusZeroKey[:]), int(openingMove(0)))
+	if string(data) != wantBody {
+		t.Fatalf("recovered file = %q, want %q", data, wantBody)
+	}
+	if bytes.Contains(data, []byte{0}) {
+		t.Fatalf("recovered file carries a nul byte")
+	}
+	sc, err := loadCorpus(path)
+	if err != nil {
+		t.Fatalf("loadCorpus after recovery: %v", err)
+	}
+	if sc.games != 1 || sc.torn || sc.fp != want || sc.clean != int64(len(wantBody)) {
+		t.Fatalf("recovered scan = %+v, want 1 complete game under %q", sc, want)
+	}
+	seen = nil
+	if err := runCorpus(easyCorpusOpts(path, 1), scriptedPlayer(t, &seen), io.Discard); err != nil {
+		t.Fatalf("rerun after recovery: %v", err)
+	}
+	if len(seen) != 0 {
+		t.Fatalf("recovered corpus replayed %d games", len(seen))
+	}
+}
+
 func TestCorpusToleratesExactlyOneTrailingBlankLine(t *testing.T) {
 	dir := t.TempDir()
 	k0 := singleStoneKey(t, 0)

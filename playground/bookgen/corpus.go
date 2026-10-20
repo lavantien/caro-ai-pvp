@@ -212,14 +212,15 @@ func loadCorpus(path string) (corpusScan, error) {
 		}
 		nl := bytes.IndexByte(header, '\n')
 		if nl < 0 {
-			nl = len(header)
+			sc.torn = true
+		} else {
+			if !parseSidecarFingerprint(strings.Fields(string(header[:nl])), "corpus", 3) {
+				return sc, fmt.Errorf("bookgen: corpus %s line 1: missing or malformed fingerprint", path)
+			}
+			sc.fp = string(header[:nl])
+			sc.clean = int64(nl + 1)
+			lineno = 1
 		}
-		if !parseSidecarFingerprint(strings.Fields(string(header[:nl])), "corpus", 3) {
-			return sc, fmt.Errorf("bookgen: corpus %s line 1: missing or malformed fingerprint", path)
-		}
-		sc.fp = string(header[:nl])
-		sc.clean = int64(nl + 1)
-		lineno = 1
 	}
 	var block []posRec
 	inBlock := false
