@@ -1,10 +1,3 @@
-// Command shots serves the production web surface over staged, engine-free
-// state for screenshot capture: a real store and room manager seeded at boot
-// (users, a live PvP room, a finished PvP series, a finished human-vs-bot
-// game with stat lines, an un-readied bot room) plus a scripted
-// TourneyService standing in for the conductor. No searcher is ever
-// constructed. Capture at 390x844 against the printed address; POST
-// /shots/banner toggles the home live-run banner for the banner capture.
 package main
 
 import (
@@ -24,18 +17,16 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
 
-// Staging fixtures, the whole harness's tunable surface.
 const (
-	stageTCIdx = 1 // 2+1
+	stageTCIdx = 1
 	stageBO    = config.SeriesBO3
 	aliceName  = "alice"
 	alicePass  = "alicepw"
 	bobName    = "bob"
 	bobPass    = "bobpw"
-	botNameTag = "hard-b3d17c92" // the seeded bot game's seat, room-shaped
+	botNameTag = "hard-b3d17c92"
 )
 
-// movesOf parses coordinate names into the move list the room and store eat.
 func movesOf(names []string) []rules.Move {
 	ms := make([]rules.Move, 0, len(names))
 	for _, n := range names {
@@ -48,8 +39,6 @@ func movesOf(names []string) []rules.Move {
 	return ms
 }
 
-// playLine applies one scripted game's moves to a room, alternating by the
-// mover list, then re-readies both seats for the next game of the series.
 func playLine(r *server.Room, redID, blueID int64, names []string) {
 	for i, m := range movesOf(names) {
 		who := blueID
@@ -100,7 +89,6 @@ func main() {
 		log.Fatalf("shots: seed bob: %v", err)
 	}
 
-	// Live room: alice hosts red, 12 stones in, alice to move.
 	live, err := rooms.Create(alice.ID, stageTCIdx, stageBO, nil)
 	if err != nil {
 		log.Fatalf("shots: live room: %v", err)
@@ -118,9 +106,6 @@ func main() {
 		"H8", "I9", "D5", "J10", "E6", "H11", "F7", "G10", "I7", "J9", "K7", "H10",
 	})
 
-	// Terminal room: bob takes game 1 on the board; game 2 auto-starts with
-	// alice on red, and POST /shots/finish later plays it out so an open
-	// page holds the series-verdict render after the room retires.
 	done, err := rooms.Create(bob.ID, stageTCIdx, stageBO, nil)
 	if err != nil {
 		log.Fatalf("shots: done room: %v", err)
@@ -138,8 +123,6 @@ func main() {
 		"G8", "B2", "D4", "B3", "H8", "C2", "I8", "C3", "J8", "C4", "K8",
 	})
 
-	// Grid bot room, created and never readied: card on the grid, zero
-	// engines, one ledger core held.
 	if _, err := rooms.Create(alice.ID, stageTCIdx, stageBO, &config.TierEasy); err != nil {
 		log.Fatalf("shots: bot room: %v", err)
 	}
@@ -155,6 +138,7 @@ func main() {
 	root.Handle("/shots/finish", shotsFinish(done, alice.ID, bob.ID))
 	server.NewRoomPages(rooms, store).Mount(root)
 	server.NewTournamentPages(store, tour).Mount(root)
+	server.NewLobbyPages(store, rooms).Mount(root)
 	root.Handle("/", server.NewShellPages(store, rooms, tour))
 
 	srv := &http.Server{Addr: *addr, Handler: root}
@@ -184,8 +168,6 @@ func main() {
 	}
 }
 
-// shotsBanner toggles the scripted service's ongoing-run flag so the home
-// page's banner appears only for the banner capture.
 func shotsBanner(tour *scriptTourney) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -197,9 +179,6 @@ func shotsBanner(tour *scriptTourney) http.Handler {
 	})
 }
 
-// shotsFinish plays the terminal room's second game out so an open browser
-// page receives the series end over its stream and holds the honest terminal
-// render: the client keeps the verdict after the room retires server-side.
 func shotsFinish(r *server.Room, redID, blueID int64) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost {
@@ -213,8 +192,6 @@ func shotsFinish(r *server.Room, redID, blueID int64) http.Handler {
 	})
 }
 
-// seedHistory writes the finished games the history and playback pages read:
-// alice beating the hard bot (with stat lines) and bob beating alice.
 func seedHistory(ctx context.Context, store *server.Store, aliceID, bobID int64) {
 	botID, err := store.BotAccountID(config.TierHard)
 	if err != nil {
@@ -257,7 +234,6 @@ func seedHistory(ctx context.Context, store *server.Store, aliceID, bobID int64)
 	}
 }
 
-// mustSeries opens an ongoing series row and returns its id.
 func mustSeries(ctx context.Context, store *server.Store, red, blue int64) int64 {
 	sr, err := store.CreateSeries(ctx, stageTCIdx, stageBO, red, blue)
 	if err != nil {

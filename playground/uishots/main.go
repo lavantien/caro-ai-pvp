@@ -131,6 +131,7 @@ func main() {
 	root := http.NewServeMux()
 	api := server.NewHTTPAPI(store, rooms)
 	root.Handle("/static/", api)
+	server.NewLobbyPages(store, rooms).Mount(root)
 	server.NewProfilePages(store).Mount(root)
 	root.Handle("/", server.NewShellPages(store, rooms, nil))
 	srv := &http.Server{Addr: *addr, Handler: root}
