@@ -24,8 +24,12 @@ func FuzzBookLoad(f *testing.F) {
 	oobEntry := specEntry(oobKey, rules.Move(config.BoardCells+5), uint32(config.BookVisitFloor), config.BookSourceMajority)
 	occupiedEntry := specEntry(validKey, rules.Move(8), uint32(config.BookVisitFloor), config.BookSourceMajority)
 	badSourceEntry := specEntry(validKey, rules.Move(17), uint32(config.BookVisitFloor), 7)
-	dirtyReservedEntry := specEntry(validKey, rules.Move(17), uint32(config.BookVisitFloor), config.BookSourceMajority)
-	dirtyReservedEntry[config.BookEntryBytes-1] = 1
+	dirtySeeds := make([][]byte, 0, config.BookReservedBytes)
+	for i := range config.BookReservedBytes {
+		dirty := specEntry(validKey, rules.Move(17), uint32(config.BookVisitFloor), config.BookSourceMajority)
+		dirty[config.BookKeyBytes+config.BookMoveBytes+config.BookVisitsBytes+config.BookSourceBytes+i] = 1
+		dirtySeeds = append(dirtySeeds, specBook(specMetaLine(config.BookFormatVersion), dirty))
+	}
 	var highKey [config.BookKeyBytes]byte
 	binary.LittleEndian.PutUint64(highKey[:], 1<<10)
 	reversed := specBook(specMetaLine(config.BookFormatVersion), specEntry(highKey, 0, uint32(config.BookVisitFloor), config.BookSourceMajority), specEntry(validKey, 0, uint32(config.BookVisitFloor), config.BookSourceMajority))
@@ -46,9 +50,9 @@ func FuzzBookLoad(f *testing.F) {
 		specBook(specMetaLine(config.BookFormatVersion), validEntry, oobEntry),
 		specBook(specMetaLine(config.BookFormatVersion), occupiedEntry),
 		specBook(specMetaLine(config.BookFormatVersion), badSourceEntry),
-		specBook(specMetaLine(config.BookFormatVersion), dirtyReservedEntry),
 		reversed,
 	}
+	seeds = append(seeds, dirtySeeds...)
 	for _, s := range seeds {
 		f.Add(s)
 	}

@@ -321,14 +321,18 @@ func TestLoadRejectsBadSource(t *testing.T) {
 }
 
 func TestLoadRejectsNonzeroReserved(t *testing.T) {
-	e := specEntry([config.BookKeyBytes]byte{}, 0, uint32(config.BookVisitFloor), config.BookSourceMajority)
-	e[config.BookEntryBytes-1] = 7
-	bk, err := Load(bytes.NewReader(specBook(specMetaLine(config.BookFormatVersion), e)))
-	if err == nil || !strings.Contains(err.Error(), "reserved") {
-		t.Errorf("err = %v, want a reserved-bytes fault", err)
-	}
-	if bk != nil {
-		t.Error("book non-nil on fault")
+	base := specEntry([config.BookKeyBytes]byte{}, 0, uint32(config.BookVisitFloor), config.BookSourceMajority)
+	start := config.BookKeyBytes + config.BookMoveBytes + config.BookVisitsBytes + config.BookSourceBytes
+	for i := range config.BookReservedBytes {
+		e := append([]byte(nil), base...)
+		e[start+i] = 7
+		bk, err := Load(bytes.NewReader(specBook(specMetaLine(config.BookFormatVersion), e)))
+		if err == nil || !strings.Contains(err.Error(), "reserved") {
+			t.Errorf("reserved byte %d: err = %v, want a reserved-bytes fault", i, err)
+		}
+		if bk != nil {
+			t.Errorf("reserved byte %d: book non-nil on fault", i)
+		}
 	}
 }
 
