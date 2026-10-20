@@ -60,35 +60,57 @@ Time controls 1+0, 2+1, 3+2, 10+5 each run the same PID-steered budget controlle
 
 ## ui/ux features
 
-The ui/ux table is the living surface inventory, rebuilt against finished engine behavior when the overhaul lands.
+The ui/ux table is the living surface inventory, rebuilt against the overhauled surfaces.
 
 | surface | capabilities | access |
 | --- | --- | --- |
 | login | login-or-create with timing-flat argon2id, seeded demo admin | public |
 | home | player stats, live rooms grid, create-room form (time control, best-of, tier), live-run banner | public |
-| room | 256-cell live board, rules-legal playable mask, tap ghost, tabular ticking clocks, bot M-line log, move history, ready and forfeit handshake | players; live stream public |
+| lobby | quick-start create row (time-control chips, best-of, opponent), live room cards with mini boards in play order, seat and tier chips, spectator counts, join on open casual seats, watch into any live room | public, create and join signed-in |
+| room | 256-cell live board with the seat cards, paired move list, series strip and controls railed beside it at wide widths, tabular ticking clocks and tier chips with the mover's card emphasized, rules-legal playable mask, tap ghost, bot M-line telemetry panel, ready and forfeit handshake | players; live stream public |
 | terminal room | honest terminal state, mid-game reload rehydrates | public |
 | history | per-game score lines, turn counts, move previews | signed-in players |
-| playback | first, prev, next, last, autoplay stepping through a finished game | the game's two players |
+| playback | paired numbered move list, first, prev, next, last, autoplay, jump-to-move from keyboard-focusable move buttons | the game's two players |
+| profile | hero with rating, games, WLD bar and red/blue seat split, humans and bots records with per-tier bot rows, recent games with playback links | public |
 | tournament | admin setup with config-bounded roster, live board per series, frozen leaderboard, stalled-run close | public read, admin drives |
 | presentation | dark-first token layer (color ramps, type and space scales, two type voices: human prose and mono machine data), shared card, chip, field and button recipes, amber reserved for live-attention data marks, accent-strong focus rings, 3:1 contrast floor on state-carrying boundaries, reduced-motion respected, 44px touch floor, two-tap select-then-confirm on coarse pointers | all |
 | install | PWA manifest with generated icon set, in-shell install action, offline fallback page; the service worker caches the static shell only and never answers api calls, the event stream, or live room and tournament state | all |
 
 ## screenshots
 
-The whole app flow as 390px dark mobile captures, primary presentation. The set is staged through playground/shots behind make shots: the production pages over a seeded store and scripted tournament snapshots, with live rooms driven move by move and no search ever running, so captures never contend with the strength gates for the machine. The bot-room M-line log mid-game, the driven-run live boards and the finished leaderboard of a real run land with the v0.28 master pass gate, which requires screenshots from all supported flows on real systems. Login-or-create (an unknown name registers, the seeded admin row holds its name):
+Dark-default captures at 390px phone and 1280px desktop widths, the primary presentation. The set is staged engine-free: the game, lobby, and profile surfaces through playground/uishots over a seeded store, the login, home, history, and tournament surfaces through playground/shots behind make shots over its seeded store and scripted tournament snapshots, with live rooms driven move by move and no search ever running, so captures never contend with the strength gates for the machine. The bot-room M-line log mid-game, the driven-run live boards and the finished leaderboard of a real run land with the v0.28 master pass gate, which requires screenshots from all supported flows on real systems. Login-or-create (an unknown name registers, the seeded admin row holds its name):
 
 ![login or create on a phone](docs/screenshots/mobile-login.png)
 
-Logged-in home with the rooms grid, the create-room form (time control, best-of, opponent tier from the config hub), and the banner headlining a live tournament while one is driven:
+The guest home with the live rooms grid, then the logged-in home with the create-room form (time control, best-of, opponent tier from the config hub) and the banner headlining a live tournament while one is driven:
+
+![guest home with the rooms grid on a phone](docs/screenshots/mobile-home.png)
+
+![guest home with the rooms grid on desktop](docs/screenshots/desktop-home.png)
 
 ![live rooms grid on a phone](docs/screenshots/mobile-home-rooms.png)
 
 ![home banner while a tournament runs](docs/screenshots/mobile-home-banner.png)
 
-Live room mid-game on the player's side: turn call-out, tabular clocks ticking between syncs, the running move history and the forfeit control:
+The lobby, the play-and-watch hub: the quick-start row (time-control chips, best-of, opponent) above live room cards, each card holding a mini board in play order, seat and tier chips, the spectator count, a join control on an open casual seat, and the watch link into the room itself:
 
-![live room on a phone](docs/screenshots/mobile-live-room.png)
+![lobby with a live room card on a phone](docs/screenshots/mobile-lobby.png)
+
+![lobby with a live room card on desktop](docs/screenshots/desktop-lobby.png)
+
+![empty lobby on a phone](docs/screenshots/mobile-lobby-empty.png)
+
+A live room mid-game on the player's side, phone stack and desktop board with its rail: turn call-out, seat cards with tabular clocks ticking between syncs and the mover's card emphasized, the paired numbered move list, the running series score, and the forfeit control:
+
+![live room on a phone](docs/screenshots/mobile-room-live.png)
+
+![live room on desktop](docs/screenshots/desktop-room-live.png)
+
+A bot room at the easy tier, the bot's seat card holding its name, tier chip and clock beside the player's:
+
+![bot room on a phone](docs/screenshots/mobile-room-bot.png)
+
+![bot room on desktop](docs/screenshots/desktop-room-bot.png)
 
 A finished series holds its verdict on the open page after the room retires:
 
@@ -98,9 +120,21 @@ Match history with per-game score lines and move previews:
 
 ![match history on a phone](docs/screenshots/mobile-history.png)
 
-The playback board stepping through a finished bot game, first to last with autoplay:
+The playback page over a finished game, the board beside its rail: the verdict line, first to last with autoplay, and jump-to-move from the paired numbered list:
 
 ![playback on a phone](docs/screenshots/mobile-playback.png)
+
+![playback on desktop](docs/screenshots/desktop-playback.png)
+
+Player profiles, public per name: the hero with rating, games, the WLD bar and the red/blue seat split, the humans and bots records with per-tier bot rows, and recent games with playback links. The bot seat's profile carries its AI seat chip, an account without games holds its empty states:
+
+![player profile on a phone](docs/screenshots/mobile-profile.png)
+
+![player profile on desktop](docs/screenshots/desktop-profile.png)
+
+![bot seat profile on a phone](docs/screenshots/mobile-profile-bot.png)
+
+![profile with no games yet on a phone](docs/screenshots/mobile-profile-empty.png)
 
 Tournament setup, admin-only: the config-bounded roster, tiers, time control, best-of, start rating and parallelism, with the run-gate close form for undriven runs:
 
@@ -114,7 +148,7 @@ The finished run page with the frozen leaderboard:
 
 ![tournament run page on a phone](docs/screenshots/mobile-tourney-run.png)
 
-The mobile pass audited every surface at 390x844: long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the board offers only the spaces the rules allow, a finished series holds its verdict on the open page, and the tournament leaderboard scrolls inside its own wrap.
+The login, logged-in home and banner, terminal room, history, and tournament captures are the prior set: those surfaces have no recaptured pair yet. The mobile pass audited every surface at 390x844: long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the board offers only the spaces the rules allow, a finished series holds its verdict on the open page, and the tournament leaderboard scrolls inside its own wrap.
 
 ## grounding
 
@@ -209,7 +243,7 @@ The pure client functions (tap-to-preview selection, the M-line UI filter) ship 
 
 ## status
 
-The rebuild closed at v0.20 with the final issueless MVP. Landed since: v0.21 with the 10+5 control, v0.22 closed by the preregistered skip decision, and v0.23 the five-tier rescale, closed and tagged after its re-derivation round. The five-tier demand re-spec (grandmaster tier, sized master, per-tier ponder widths, book ply bounds) and pondering sit in tree, pondering behind its arena pair. The increment-axis investigation, the retire ordering law, and the ponder t-inflation fix closed on evidence with no tier constant moved. The internal/server mutation gate closed clean (1716/1716 run, 1638 killed, 0 survived, 78 allowed). The re-gate chain folded clean at both controls: the 2+1 read (playground/arena/out/regate-2plus1-gate.md) with rule 0 pass on every seat, both floors symmetric at 93 decisive games, rule A quiet in all 4 families, rule B certifying medium over easy; the 3+2 read (playground/arena/out/regate-3plus2-gate.md) with rule 0 pass on every seat, floors symmetric at 90 and 87 decisive games, rule A quiet in all 4 families, rule B unproven at this power exactly as the preregistered operating characteristics state. Rule C with zero fires across all 8 reads shipped the rescale tag v0.23 and closed the master tier's strength gate: the re-derivation found no inversion at either control. The internal/book artifact reader landed as v0.24 groundwork (218b976) with the stdlib bufio cap fix behind it, and the bookSearcher wiring merged after its adversarial pair (4469654): the artifact loads before any engine exists, construction failures surface as room errors with the room parked and releasable, the arena fails fast when a Book seat runs without a readable artifact, and master and grandmaster-nobook seats exist for the strength gates; book hits leave the ponder lane unarmed by their one-move PV, so ponder gate measurements run on the nobook seats. Blocked: the ponder tag on the arena pair, the grandmaster tag on its strength gate. The implemented design record and the full wave-by-wave log live in [devlog.md](devlog.md).
+The rebuild closed at v0.20 with the final issueless MVP. Landed since: v0.21 with the 10+5 control, v0.22 closed by the preregistered skip decision, and v0.23 the five-tier rescale, closed and tagged after its re-derivation round. The five-tier demand re-spec (grandmaster tier, sized master, per-tier ponder widths, book ply bounds) and pondering sit in tree, pondering behind its arena pair. The increment-axis investigation, the retire ordering law, and the ponder t-inflation fix closed on evidence with no tier constant moved. The internal/server mutation gate closed clean (1716/1716 run, 1638 killed, 0 survived, 78 allowed). The re-gate chain folded clean at both controls: the 2+1 read (playground/arena/out/regate-2plus1-gate.md) with rule 0 pass on every seat, both floors symmetric at 93 decisive games, rule A quiet in all 4 families, rule B certifying medium over easy; the 3+2 read (playground/arena/out/regate-3plus2-gate.md) with rule 0 pass on every seat, floors symmetric at 90 and 87 decisive games, rule A quiet in all 4 families, rule B unproven at this power exactly as the preregistered operating characteristics state. Rule C with zero fires across all 8 reads shipped the rescale tag v0.23 and closed the master tier's strength gate: the re-derivation found no inversion at either control. The internal/book artifact reader landed as v0.24 groundwork (218b976) with the stdlib bufio cap fix behind it, and the bookSearcher wiring merged after its adversarial pair (4469654): the artifact loads before any engine exists, construction failures surface as room errors with the room parked and releasable, the arena fails fast when a Book seat runs without a readable artifact, and master and grandmaster-nobook seats exist for the strength gates; book hits leave the ponder lane unarmed by their one-move PV, so ponder gate measurements run on the nobook seats. The ui overhaul landed: room and playback pages as a board with a rail (seat cards with clocks and tier chips, the mover's card emphasized, paired numbered move lists, jump-to-move playback), the lobby as a play-and-watch hub (quick-start create row, live room cards with mini boards, join, spectate into any live room), public player profiles (hero with WLD bar, seat split, humans and bots records with per-tier rows, recent games with playback links), and the PWA install shell with its offline boundary. The game, lobby, and profile surfaces carry dark-default captures at phone and desktop widths, the login, logged-in home, terminal, history, and tournament surfaces keep the prior captures until their recapture. Blocked: the ponder tag on the arena pair, the grandmaster tag on its strength gate. The implemented design record and the full wave-by-wave log live in [devlog.md](devlog.md).
 
 ## roadmap v0.21 to v0.30
 
