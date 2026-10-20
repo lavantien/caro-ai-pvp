@@ -350,6 +350,11 @@ func TestLoadRejectsMetaSchemaFaults(t *testing.T) {
 		{"negative corpus_games", strings.Replace(base, corpusField, `"corpus_games":-1`, 1), "negative"},
 		{"negative visit_floor", strings.Replace(base, floorField, `"visit_floor":-1`, 1), "negative"},
 		{"version wrong type", strings.Replace(base, versionField, `"version":"x"`, 1), "decode"},
+		{"duplicate max_ply", strings.Replace(base, `"max_ply":16`, `"max_ply":16,"max_ply":17`, 1), "repeats"},
+		{"duplicate version", strings.Replace(base, versionField+",", versionField+","+versionField+",", 1), "repeats"},
+		{"duplicate created", strings.Replace(base, `"created":"20261018-000000"`, `"created":"20261018-000000","created":"x"`, 1), "repeats"},
+		{"escaped duplicate version", strings.Replace(base, versionField+",", versionField+`,"version":2,`, 1), "repeats"},
+		{"content after the object", strings.Replace(base, "}\n", "} junk\n", 1), "meta"},
 	}
 	for _, c := range cases {
 		bk, err := Load(bytes.NewReader(specBook([]byte(c.meta))))

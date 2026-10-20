@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
@@ -31,6 +32,47 @@ type metaLine struct {
 	Created     string
 }
 
+func decodeMetaFields(rawMeta []byte) (map[string]json.RawMessage, error) {
+	dec := json.NewDecoder(bytes.NewReader(rawMeta))
+	open, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	if d, ok := open.(json.Delim); !ok || d != '{' {
+		return nil, fmt.Errorf("book: meta line is not a json object")
+	}
+	fields := make(map[string]json.RawMessage)
+	for dec.More() {
+		keyTok, err := dec.Token()
+		if err != nil {
+			return nil, err
+		}
+		key, ok := keyTok.(string)
+		if !ok {
+			return nil, fmt.Errorf("book: meta line holds a non-string field name")
+		}
+		if _, dup := fields[key]; dup {
+			return nil, fmt.Errorf("book: meta line repeats field %q", key)
+		}
+		var val json.RawMessage
+		if err := dec.Decode(&val); err != nil {
+			return nil, err
+		}
+		fields[key] = val
+	}
+	if _, err := dec.Token(); err != nil {
+		return nil, err
+	}
+	rest, err := io.ReadAll(dec.Buffered())
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(string(rest)) != "" {
+		return nil, fmt.Errorf("book: meta line carries content after the object")
+	}
+	return fields, nil
+}
+
 func Load(r io.Reader) (*Book, error) {
 	br := bufio.NewReaderSize(struct{ io.Reader }{r}, config.BookMetaLineMaxBytes)
 	magic, err := br.ReadSlice('\n')
@@ -50,8 +92,8 @@ func Load(r io.Reader) (*Book, error) {
 	if err != nil {
 		return nil, fmt.Errorf("book: truncated meta line: %w", err)
 	}
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(rawMeta, &fields); err != nil {
+	fields, err := decodeMetaFields(rawMeta)
+	if err != nil {
 		return nil, fmt.Errorf("book: meta line parse: %w", err)
 	}
 	for _, f := range config.BookMetaFields {
