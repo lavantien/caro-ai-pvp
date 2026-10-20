@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -432,5 +434,82 @@ func TestReadySurfacesCorruptBookArtifactWithoutResidue(t *testing.T) {
 	r.Close()
 	if got := s.rm.LiveCoreBookings(); got != 0 {
 		t.Errorf("core bookings after close = %d, want 0: the parked room must release on teardown", got)
+	}
+}
+
+func TestAncestorBookPathFindsTheArtifactFromTheExecutableTree(t *testing.T) {
+	root := t.TempDir()
+	touch := func(rel string) string {
+		p := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatalf("stage dirs for %s: %v", rel, err)
+		}
+		if err := os.WriteFile(p, []byte("placeholder"), 0o644); err != nil {
+			t.Fatalf("stage %s: %v", rel, err)
+		}
+		return p
+	}
+	saved := config.BookArtifactPath
+	config.BookArtifactPath = filepath.Join("db", "book.carobook")
+	t.Cleanup(func() { config.BookArtifactPath = saved })
+	want := touch(filepath.Join("db", "book.carobook"))
+	touch(filepath.Join("bin", "caro.exe"))
+	if got, ok := ancestorBookPath(filepath.Join(root, "bin")); !ok || got != want {
+		t.Fatalf("ancestor path from bin = (%q, %v), want (%q, true)", got, ok, want)
+	}
+	touch(filepath.Join("dist", "windows", "caro.exe"))
+	if got, ok := ancestorBookPath(filepath.Join(root, "dist", "windows")); !ok || got != want {
+		t.Fatalf("ancestor path from dist/windows = (%q, %v), want (%q, true)", got, ok, want)
+	}
+}
+
+func TestGoBuildTempTreeDisablesTheExecutableAnchor(t *testing.T) {
+	root := t.TempDir()
+	exeDir := filepath.Join(root, ".gotmp", config.GoBuildTempDirPrefix+"001", "b001", "exe")
+	if err := os.MkdirAll(exeDir, 0o755); err != nil {
+		t.Fatalf("stage go-build exe dir: %v", err)
+	}
+	if !isGoBuildTempTree(exeDir) {
+		t.Fatal("go-build temp exe dir passed the anchor gate, want the anchor disabled")
+	}
+	bin := filepath.Join(root, "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatalf("stage bin: %v", err)
+	}
+	if isGoBuildTempTree(bin) {
+		t.Fatal("plain bin dir tripped the go-build gate, want the anchor enabled")
+	}
+}
+
+func TestMissingBookArtifactWarnsOnceNamingTriedPaths(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+	savedPath := config.BookArtifactPath
+	t.Cleanup(func() { config.BookArtifactPath = savedPath })
+	savedWarn := missingBookWarn
+	missingBookWarn = new(sync.Once)
+	t.Cleanup(func() { missingBookWarn = savedWarn })
+	config.BookArtifactPath = filepath.Join("no-such-book-tree", "book.carobook")
+	if bk := loadBotBook(); bk != nil {
+		t.Fatalf("missing artifact loaded %d entries, want nil", bk.Len())
+	}
+	if bk := loadBotBook(); bk != nil {
+		t.Fatalf("second missing artifact load = %d entries, want nil", bk.Len())
+	}
+	out := buf.String()
+	if n := strings.Count(out, "book artifact missing"); n != 1 {
+		t.Fatalf("missing-artifact warnings after two loads = %d, want exactly 1:\n%s", n, out)
+	}
+	abs, err := filepath.Abs(config.BookArtifactPath)
+	if err != nil {
+		t.Fatalf("resolve the tried absolute path: %v", err)
+	}
+	if !strings.Contains(out, abs) {
+		t.Errorf("missing-artifact warning %q does not name the tried absolute path %s", out, abs)
 	}
 }

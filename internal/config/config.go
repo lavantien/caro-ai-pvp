@@ -203,6 +203,7 @@ const (
 	BookLockHeartbeatMs  = 5000
 	BookLockStaleMs      = 30000
 )
+const GoBuildTempDirPrefix = "go-build"
 const FuzzInputMaxBytes = 1 << 20
 
 var BookMetaFields = [...]string{"version", "max_ply", "generator", "corpus_games", "visit_floor", "created"}

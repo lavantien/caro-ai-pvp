@@ -4,7 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
+	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/book"
@@ -50,18 +54,90 @@ func bookStats(cores int, dl engine.Deadline, start time.Time, mv rules.Move) en
 	return st
 }
 
+var missingBookWarn = new(sync.Once)
+
 func loadBotBook() *book.Book {
-	f, err := os.Open(config.BookArtifactPath)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil
-		}
-		panic(fmt.Sprintf("server: opening the book artifact at %s: %v", config.BookArtifactPath, err))
+	f, tried, searchRoot := openBookArtifact()
+	if f == nil {
+		missingBookWarn.Do(func() {
+			detail := strings.Join(tried, "; ")
+			if searchRoot != "" {
+				detail = detail + "; executable tree " + searchRoot
+			}
+			log.Printf("server: book artifact missing, tried %s: every book tier now plays without a book", detail)
+		})
+		return nil
 	}
 	defer func() { _ = f.Close() }()
 	bk, err := book.Load(f)
 	if err != nil {
-		panic(fmt.Sprintf("server: book artifact at %s broke the CAROBOOK1 contract: %v", config.BookArtifactPath, err))
+		panic(fmt.Sprintf("server: book artifact at %s broke the CAROBOOK1 contract: %v", f.Name(), err))
 	}
 	return bk
+}
+
+func openBookArtifact() (*os.File, []string, string) {
+	candidates, searchRoot := bookArtifactCandidates()
+	tried := make([]string, 0, len(candidates))
+	for _, p := range candidates {
+		if abs, err := filepath.Abs(p); err == nil {
+			p = abs
+		}
+		tried = append(tried, p)
+		f, err := os.Open(p)
+		if err == nil {
+			return f, tried, searchRoot
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			panic(fmt.Sprintf("server: opening the book artifact at %s: %v", p, err))
+		}
+	}
+	return nil, tried, searchRoot
+}
+
+func bookArtifactCandidates() ([]string, string) {
+	configured := config.BookArtifactPath
+	if filepath.IsAbs(configured) {
+		return []string{configured}, ""
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return []string{configured}, ""
+	}
+	root := filepath.Dir(exe)
+	if isGoBuildTempTree(root) {
+		return []string{configured}, ""
+	}
+	candidates := []string{configured}
+	if anchored, ok := ancestorBookPath(root); ok {
+		candidates = append(candidates, anchored)
+	}
+	return candidates, root
+}
+
+func isGoBuildTempTree(dir string) bool {
+	for {
+		if strings.HasPrefix(filepath.Base(dir), config.GoBuildTempDirPrefix) {
+			return true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return false
+		}
+		dir = parent
+	}
+}
+
+func ancestorBookPath(dir string) (string, bool) {
+	for {
+		cand := filepath.Join(dir, config.BookArtifactPath)
+		if _, err := os.Stat(cand); err == nil {
+			return cand, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", false
+		}
+		dir = parent
+	}
 }
