@@ -52,7 +52,7 @@ func TestOverlayMergesVisitsAcrossGames(t *testing.T) {
 	dir := t.TempDir()
 	corpus := filepath.Join(dir, "c.txt")
 	clean := seedHeader(t, corpus, corpusFingerprint(config.TierEasy.Name, 0, 3))
-	for g := 0; g < 3; g++ {
+	for g := range 3 {
 		next, err := appendGame(corpus, clean, g, []posRec{{key: k, move: 42}}, 0)
 		if err != nil {
 			t.Fatalf("appendGame %d: %v", g, err)

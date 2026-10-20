@@ -48,7 +48,7 @@ func collapsedPlayer(t *testing.T, seen *[]gameCall) gamePlayer {
 
 func TestOpeningMoveRotatesDistinctTrunks(t *testing.T) {
 	seen := map[rules.Move]int{}
-	for i := 0; i < 3*len(config.BookOpeningCells); i++ {
+	for i := range 3 * len(config.BookOpeningCells) {
 		mv := openingMove(i)
 		if mv != rules.Move(config.BookOpeningCells[i%len(config.BookOpeningCells)]) {
 			t.Fatalf("openingMove(%d) = %d, want cell %d", i, mv, config.BookOpeningCells[i%len(config.BookOpeningCells)])
