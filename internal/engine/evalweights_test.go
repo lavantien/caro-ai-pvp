@@ -2,6 +2,7 @@ package engine
 
 import (
 	"testing"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
@@ -126,5 +127,18 @@ func TestNewTieredEvalWeightsReachWorkers(t *testing.T) {
 		if wk.eval.w != nil {
 			t.Errorf("default worker %d carries override %v, want nil global default", i, wk.eval.w)
 		}
+	}
+}
+
+func TestNewEvalWeightsReachSearch(t *testing.T) {
+	b := playout(t, 7, 40)
+	dl := NewFixedBudget(30 * time.Second)
+	_, over := NewEval(1<<16, &[config.PatternClassCount]int{}).SearchDepth(b, dl, 1)
+	if over.Score != config.EvalTempo {
+		t.Errorf("zero-weights depth-1 score = %d, want tempo %d", over.Score, config.EvalTempo)
+	}
+	_, def := New(1<<16).SearchDepth(b, dl, 1)
+	if def.Score == config.EvalTempo {
+		t.Errorf("default depth-1 score = tempo %d, want a weighted score off tempo", config.EvalTempo)
 	}
 }
