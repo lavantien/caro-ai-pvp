@@ -113,6 +113,16 @@ fuzz:
 			CGO_ENABLED=1 go test -run='^$$' -fuzz=$$t -fuzztime=30s ./internal/tourney || exit 1; \
 		done; \
 	fi
+	@if [ -d internal/book ]; then \
+		for t in FuzzBookLoad; do \
+			CGO_ENABLED=1 go test -run='^$$' -fuzz=$$t -fuzztime=30s ./internal/book || exit 1; \
+		done; \
+	fi
+	@if [ -d playground/bookgen ]; then \
+		for t in FuzzLoadCorpus FuzzReadOverlay; do \
+			CGO_ENABLED=1 go -C playground/bookgen test -run='^$$' -fuzz=$$t -fuzztime=30s . || exit 1; \
+		done; \
+	fi
 
 # mutate [PARALLEL=1] [CHALLENGE=1]: mutation gate over the core packages.
 # CHALLENGE=1 runs the suite under allowlisted mutants too, auditing every
