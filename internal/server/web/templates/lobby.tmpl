@@ -1,0 +1,18 @@
+{{define "lobbylist"}}
+{{if .Rooms}}<ul class="rooms">
+{{range .Rooms}}<li class="room"><a href="/rooms/{{.ID}}">room <span class="mono">{{.ShortID}}</span></a>
+<span class="meta"><span class="chip">{{.Mode}}</span><span class="chip">{{.TC}}</span><span class="chip">{{.BO}}</span><span class="chip">{{.Status}}</span>{{if .Spectators}}<span class="chip">{{.Spectators}} watching</span>{{end}}<span>{{if .Host.Profile}}<a href="{{.Host.Profile}}">{{.Host.Name}}</a>{{else}}{{.Host.Name}}{{end}}{{if .Host.Tier}} <span class="chip">{{.Host.Tier}}</span>{{end}} vs {{if .Guest.Profile}}<a href="{{.Guest.Profile}}">{{.Guest.Name}}</a>{{else}}{{.Guest.Name}}{{end}}{{if .Guest.Tier}} <span class="chip">{{.Guest.Tier}}</span>{{end}}</span></span>
+{{if .CanJoin}}<form class="inline" method="post" action="/lobby/{{.ID}}/join"><button>join</button></form>{{end}}
+</li>
+{{end}}</ul>{{else}}<p class="empty">no live rooms</p>{{end}}
+{{end}}
+{{define "title"}}lobby - caro{{end}}
+{{define "content"}}
+<section aria-label="lobby">
+<h2>lobby</h2>
+{{if .JoinError}}<p class="error" role="alert">{{.JoinError}}</p>{{end}}
+<div id="lobby" hx-get="/partials/lobby" hx-trigger="every {{.PollMs}}ms" hx-swap="innerHTML">
+{{template "lobbylist" .}}
+</div>
+</section>
+{{end}}
