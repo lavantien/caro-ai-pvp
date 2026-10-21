@@ -45,6 +45,7 @@ func parseSeriesLog(body []byte) (seriesLog, error) {
 				ebfMilli: int(p.ml.ebf * 1000), tt: p.ml.tt * 10, hf: p.ml.hf * 10, fh1: p.ml.fh1 * 10,
 				threads: p.ml.thr, tag: p.ml.tag,
 				elapsedNS: int64(p.ml.t * 1e9), allocNS: int64(p.ml.alloc * 1e9),
+				moveNo: p.ml.move, scoreTxt: p.ml.score, pvLen: pvWordCount(p.ml.pv),
 			}
 			if p.side == "Red" {
 				r.tier = redTier
@@ -125,6 +126,19 @@ func startsWith(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
+func pvWordCount(pv string) int {
+	if pv == "" {
+		return 0
+	}
+	n := 1
+	for i := 0; i < len(pv); i++ {
+		if pv[i] == ' ' {
+			n++
+		}
+	}
+	return n
+}
+
 func splitLines(body []byte) []string {
 	var out []string
 	start := 0
@@ -180,6 +194,10 @@ func mineLogDir(root string) (logDirResult, error) {
 			return res, err
 		}
 		res.files++
+		base := filepath.Base(path)
+		for i := range s.moves {
+			s.moves[i].srcFile = base
+		}
 		res.tournament = append(res.tournament, s.moves...)
 		res.rejects += s.rejects
 		if s.firstTier != "" && s.secondTier != "" && (s.firstWins != 0 || s.secondWins != 0) {

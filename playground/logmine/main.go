@@ -14,6 +14,8 @@ import (
 func main() {
 	dbs := flag.String("db", "", "comma-separated paths of caro sqlite databases to mine")
 	dir := flag.String("dir", "", "mine every per-series txt log under this tournament log root instead of databases")
+	ponder := flag.Bool("ponder", false, "with -dir, emit the ponder adoption artifact")
+	runaway := flag.Bool("runaway", false, "with -dir, emit the easy-tier depth runaway artifact")
 	outDir := flag.String("out", "out", "directory for the markdown artifacts")
 	flag.Parse()
 	fail := func(format string, args ...any) {
@@ -42,6 +44,20 @@ func main() {
 		}
 		fmt.Fprintf(os.Stderr, "logmine: dir %s: %d files, %d moves, %d rejects -> %s\n",
 			*dir, res.files, len(res.tournament), res.rejects, outPath)
+		if *ponder {
+			pOut := filepath.Join(*outDir, "ponder-adoption-logmine.md")
+			if err := os.WriteFile(pOut, []byte(renderPonderReport(*dir, res.files, ponderStats(res.tournament))), 0o644); err != nil {
+				fail("write %s: %v", pOut, err)
+			}
+			fmt.Fprintf(os.Stderr, "logmine: ponder report -> %s\n", pOut)
+		}
+		if *runaway {
+			rOut := filepath.Join(*outDir, "easy-depth-runaway-logmine.md")
+			if err := os.WriteFile(rOut, []byte(renderRunawayReport(*dir, res.files, mineRunaway(res.tournament))), 0o644); err != nil {
+				fail("write %s: %v", rOut, err)
+			}
+			fmt.Fprintf(os.Stderr, "logmine: runaway report -> %s\n", rOut)
+		}
 		return
 	}
 	for _, raw := range strings.Split(*dbs, ",") {

@@ -26,6 +26,10 @@ type moveRow struct {
 	elapsedNS   int64
 	allocNS     int64
 	tag         string
+	moveNo      int
+	scoreTxt    string
+	pvLen       int
+	srcFile     string
 }
 
 type firstWins struct {
