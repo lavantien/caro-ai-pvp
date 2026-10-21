@@ -445,6 +445,7 @@ func (s *solverSearcher) Close() {
 }
 func (s *solverSearcher) StartPonder(b *rules.Board) {
 	s.stopPass()
+	s.proofPending = false
 	dl := engine.NewStoppable()
 	pb := *b
 	s.passWG.Add(1)

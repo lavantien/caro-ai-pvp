@@ -361,6 +361,25 @@ func TestSolverSearcherPonderRecordsVCTProof(t *testing.T) {
 	}
 }
 
+func TestSolverSearcherPonderRestartDropsTheStaleProof(t *testing.T) {
+	inner := &recordingInner{}
+	s := &solverSearcher{inner: inner, vcf: vcf.New(vcf.KindVCF), cores: 1}
+	s.StartPonder(openFourBoard(t))
+	s.waitPass()
+	if !s.proofPending {
+		t.Fatal("setup: the first ponder must record a vcf proof")
+	}
+	s.StartPonder(quietBoard(t))
+	s.waitPass()
+	mv, st, tag := s.StopPonder()
+	if tag != "" {
+		t.Fatalf("stop after a proofless restart tag = %q, want the stale proof dropped", tag)
+	}
+	if mv != inner.stopMove || st != inner.stopStats {
+		t.Fatalf("stop after a proofless restart = %d %+v, want the inward result", mv, st)
+	}
+}
+
 func TestSolverSearcherPonderMissKeepsInwardResult(t *testing.T) {
 	inner := &recordingInner{}
 	want := engine.SearchStats{Depth: 3, Nodes: 77}
