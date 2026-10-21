@@ -91,13 +91,12 @@ func TestSMPPonderWidthClampsToPoolAndFloor(t *testing.T) {
 
 func TestSearchRootRingMatchesIterations(t *testing.T) {
 	b := playout(t, 4242, 24)
-	grant := scaledBudget(30 * time.Second)
 	const maxIter = config.PonderDepthHistory + 2
 	var moves [maxIter]rules.Move
 	var scores [maxIter]int
 	for d := 1; d <= maxIter; d++ {
 		s := newSMP(1, testTTBytes)
-		mv, stats := s.SearchDepth(b, NewFixedBudget(grant), d)
+		mv, stats := s.SearchDepth(b, NewStoppable(), d)
 		s.Close()
 		if stats.Depth != d {
 			t.Fatalf("depth %d run reached only depth %d, budget too small", d, stats.Depth)
@@ -116,7 +115,6 @@ func TestSearchRootRingMatchesIterations(t *testing.T) {
 				t.Fatalf("depth %d ring slot %d score %d, want iteration %d score %d", d, j, stats.RootScores[j], want+1, scores[want])
 			}
 		}
-		grant = max(grant, 8*time.Duration(stats.ElapsedNs))
 	}
 }
 
