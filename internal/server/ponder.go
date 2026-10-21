@@ -213,12 +213,22 @@ func (l *ponderLane) abort() {
 	l.closed = true
 	pending := l.queue
 	l.queue = nil
+	held := [2]*ponderCmd{}
+	for side, a := range l.active {
+		held[side] = a
+		l.active[side] = nil
+	}
 	done := l.closeDone
 	l.closeDone = nil
 	l.mu.Unlock()
 	for _, cmd := range pending {
 		if cmd.kind != ponderClose && cmd.done != nil {
 			close(cmd.done)
+		}
+	}
+	for _, a := range held {
+		if a != nil && a.cores > 0 && a.adm != nil {
+			a.adm.ReleaseCores(a.cores)
 		}
 	}
 	if done != nil {
@@ -241,16 +251,18 @@ func (l *ponderLane) drain() {
 	}
 }
 
-func (l *ponderLane) halt(side rules.Color) ponderResult {
+func (l *ponderLane) halt(side rules.Color) (res ponderResult) {
 	a := l.active[side]
 	if a == nil {
 		return ponderResult{}
 	}
 	l.active[side] = nil
+	defer func() {
+		if a.cores > 0 && a.adm != nil {
+			a.adm.ReleaseCores(a.cores)
+		}
+	}()
 	mv, st, tag := a.eng.StopPonder()
-	if a.cores > 0 && a.adm != nil {
-		a.adm.ReleaseCores(a.cores)
-	}
 	return ponderResult{active: true, move: mv, stats: st, tag: tag, predict: a.predict, base: a.base}
 }
 

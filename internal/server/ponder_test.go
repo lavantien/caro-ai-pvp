@@ -1508,6 +1508,50 @@ func TestPonderLaneSurvivesEnginePanic(t *testing.T) {
 	<-exited
 }
 
+func TestPonderLaneReleasesTheGrantWhenStopPonderPanics(t *testing.T) {
+	adm := newAdmission()
+	lane := newPonderLane()
+	done := make(chan struct{})
+	go func() {
+		lane.run()
+		close(done)
+	}()
+	bot := &panicStopBot{}
+	lane.start(bot, rules.Red, rules.NewBoard(), 0, 0, adm, 2)
+	waitFor(t, func() bool {
+		_, starts, _ := bot.counts()
+		return starts == 1
+	})
+	if got := adm.LiveCores(); got != 2 {
+		t.Fatalf("cores during the armed ponder = %d, want 2", got)
+	}
+	if res := lane.stop(rules.Red); res.active {
+		t.Fatal("stop through the panicking bot went active")
+	}
+	<-done
+	if got := adm.LiveCores(); got != 0 {
+		t.Fatalf("cores after the StopPonder panic = %d, want 0: the halt leaked the ponder grant", got)
+	}
+	lane.close()
+}
+
+func TestPonderLaneReleasesTheGrantWhenStartPonderPanics(t *testing.T) {
+	adm := newAdmission()
+	lane := newPonderLane()
+	done := make(chan struct{})
+	go func() {
+		lane.run()
+		close(done)
+	}()
+	bot := &panicStartBot{}
+	lane.start(bot, rules.Red, rules.NewBoard(), 0, 0, adm, 2)
+	<-done
+	if got := adm.LiveCores(); got != 0 {
+		t.Fatalf("cores after the StartPonder panic = %d, want 0: the abort leaked the armed grant", got)
+	}
+	lane.close()
+}
+
 func TestPonderChainedAdoptionRearmsFromAdoptedPv(t *testing.T) {
 	s := newStack(t)
 	ms := movesOf(t, []string{"D4", "H8", "P16", "K10", "M4", "J10"})
