@@ -118,6 +118,58 @@ func TestSearchRootRingMatchesIterations(t *testing.T) {
 	}
 }
 
+func TestEngineSearchRootRingMatchesIterations(t *testing.T) {
+	b := playout(t, 4242, 24)
+	const maxIter = config.PonderDepthHistory + 2
+	var moves [maxIter]rules.Move
+	var scores [maxIter]int
+	for d := 1; d <= maxIter; d++ {
+		e := New(testTTBytes)
+		mv, stats := e.SearchDepth(b, NewStoppable(), d)
+		if stats.Depth != d {
+			t.Fatalf("depth %d run reached only depth %d, ladder starved", d, stats.Depth)
+		}
+		if stats.RootIters != d {
+			t.Fatalf("depth %d run reports %d root iterations", d, stats.RootIters)
+		}
+		moves[d-1], scores[d-1] = mv, stats.Score
+		n := min(d, config.PonderDepthHistory)
+		for j := range n {
+			want := d - n + j
+			if stats.RootMoves[j] != moves[want] {
+				t.Fatalf("depth %d ring slot %d move %d, want iteration %d move %d", d, j, stats.RootMoves[j], want+1, moves[want])
+			}
+			if stats.RootScores[j] != scores[want] {
+				t.Fatalf("depth %d ring slot %d score %d, want iteration %d score %d", d, j, stats.RootScores[j], want+1, scores[want])
+			}
+		}
+	}
+}
+
+func TestEngineRingMatchesSMPWidthOne(t *testing.T) {
+	b := playout(t, 4242, 24)
+	const depth = config.PonderDepthHistory
+	e := New(testTTBytes)
+	engMv, engStats := e.SearchDepth(b, NewStoppable(), depth)
+	s := newSMP(1, testTTBytes)
+	defer s.Close()
+	smpMv, smpStats := s.SearchDepth(b, NewStoppable(), depth)
+	if engStats.RootIters != depth || smpStats.RootIters != depth {
+		t.Fatalf("ring tails %d and %d, want the capped %d on both engines", engStats.RootIters, smpStats.RootIters, depth)
+	}
+	for j := range config.PonderDepthHistory {
+		if engStats.RootMoves[j] != smpStats.RootMoves[j] {
+			t.Fatalf("ring slot %d move %d, want the smp ring move %d", j, engStats.RootMoves[j], smpStats.RootMoves[j])
+		}
+		if engStats.RootScores[j] != smpStats.RootScores[j] {
+			t.Fatalf("ring slot %d score %d, want the smp ring score %d", j, engStats.RootScores[j], smpStats.RootScores[j])
+		}
+	}
+	if engMv != smpMv || engStats.Score != smpStats.Score {
+		t.Fatalf("engine root %d/%d diverged from smp %d/%d", engMv, engStats.Score, smpMv, smpStats.Score)
+	}
+}
+
 func TestPonderStopReturnsLegalMove(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)

@@ -101,6 +101,9 @@ func (e *Engine) search(b *rules.Board, dl Deadline, maxDepth int, soft bool) (r
 		return moveNone, stats
 	}
 	best, bestMove, completed := 0, e.fallbackMove(b), 0
+	var rootMoves [config.PonderDepthHistory]rules.Move
+	var rootScores [config.PonderDepthHistory]int
+	rootIters := 0
 	for depth := 1; depth <= maxDepth; depth++ {
 		if e.stopped || dl.Exceeded() {
 			break
@@ -113,12 +116,22 @@ func (e *Engine) search(b *rules.Board, dl Deadline, maxDepth int, soft bool) (r
 			break
 		}
 		best, bestMove, completed = score, move, depth
+		rootMoves[(depth-1)%config.PonderDepthHistory] = move
+		rootScores[(depth-1)%config.PonderDepthHistory] = score
+		rootIters = depth
 		stats.PV = e.pv[0]
 		stats.PVLen = e.pvLen[0]
 		if score >= config.EvalMateMax-config.EvalMateScoreStep {
 			break
 		}
 	}
+	n := min(config.PonderDepthHistory, rootIters)
+	for j := range n {
+		slot := (rootIters - n + j) % config.PonderDepthHistory
+		stats.RootMoves[j] = rootMoves[slot]
+		stats.RootScores[j] = rootScores[slot]
+	}
+	stats.RootIters = rootIters
 	e.finishStats(&stats, best, completed, start)
 	return bestMove, stats
 }
