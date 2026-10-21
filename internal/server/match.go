@@ -356,12 +356,13 @@ func (s singleSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move, 
 	mv, st := s.e.Search(b, dl)
 	return mv, st, ""
 }
-func (singleSearcher) Close() {}
+func (s singleSearcher) Close() { s.e.Close() }
 
-func (singleSearcher) StartPonder(*rules.Board) {}
+func (s singleSearcher) StartPonder(b *rules.Board) { s.e.StartPonder(b) }
 
-func (singleSearcher) StopPonder() (rules.Move, engine.SearchStats, string) {
-	return 0, engine.SearchStats{}, ""
+func (s singleSearcher) StopPonder() (rules.Move, engine.SearchStats, string) {
+	mv, st := s.e.StopPonder()
+	return mv, st, ""
 }
 
 type tierSearcher struct{ smp *engine.SMP }

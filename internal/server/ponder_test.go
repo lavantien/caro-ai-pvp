@@ -245,15 +245,48 @@ func (f *recordingInner) StopPonder() (rules.Move, engine.SearchStats, string) {
 
 func (f *recordingInner) Close() {}
 
-func TestSingleSearcherNeverPonders(t *testing.T) {
+func TestSingleSearcherPonderDelegates(t *testing.T) {
 	s := singleSearcher{e: engine.New(config.TierEasy.TTBytes)}
 	defer s.Close()
 	b := anchorBoard(t, rules.Red, r(0, 0), x(1, 1))
 	s.StartPonder(b)
+	func() {
+		defer func() {
+			if rec := recover(); rec == nil {
+				t.Fatal("second ponder start = no panic, want the engine already-pondering contract surfaced through the wrapper")
+			}
+		}()
+		s.StartPonder(b)
+	}()
 	mv, st, tag := s.StopPonder()
-	if mv != 0 || st != (engine.SearchStats{}) || tag != "" {
-		t.Fatalf("single searcher ponder stop = %d %+v %q, want zero values", mv, st, tag)
+	if tag != "" {
+		t.Fatalf("single searcher ponder tag = %q, want the empty string: adoption stamps [PONDER]", tag)
 	}
+	if mv != 0 && !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("single ponder move %v is not legal on the ponder board", cellName(rules.Cell(mv)))
+	}
+	if st.Nodes != 0 && st.RootIters < 1 {
+		t.Fatalf("single ponder nodes %d without a completed iteration", st.Nodes)
+	}
+	if mv2, st2, tag2 := s.StopPonder(); mv2 != 0 || st2 != (engine.SearchStats{}) || tag2 != "" {
+		t.Fatalf("second single ponder stop = %d %+v %q, want zero values", mv2, st2, tag2)
+	}
+}
+
+func TestSingleSearcherCloseStopsAndClosesTheEngine(t *testing.T) {
+	s := singleSearcher{e: engine.New(config.TierEasy.TTBytes)}
+	b := anchorBoard(t, rules.Red, r(0, 0), x(1, 1))
+	s.StartPonder(b)
+	s.Close()
+	func() {
+		defer func() {
+			if rec := recover(); rec == nil {
+				t.Fatal("search after close = no panic, want the closed-engine contract surfaced through the wrapper")
+			}
+		}()
+		s.Search(b, engine.NewFixedBudget(time.Millisecond))
+	}()
+	s.Close()
 }
 
 func TestTierSearcherPonderDelegates(t *testing.T) {
