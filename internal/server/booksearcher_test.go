@@ -395,6 +395,40 @@ func (r *lifecycleRecorder) Close() {
 	r.searcher.Close()
 }
 
+func TestBookSearcherPonderProbesThePonderBoard(t *testing.T) {
+	bk, err := book.Load(bytes.NewReader(buildBookArtifact(t, []bookRow{{moves: []string{"H8"}, reply: "I9"}})))
+	if err != nil {
+		t.Fatalf("load staged artifact: %v", err)
+	}
+	hit := &recordingInner{}
+	s := &bookSearcher{inner: hit, book: bk, maxPly: 8, cores: 2}
+	s.StartPonder(bookBoard(t, "H8"))
+	if hit.starts != 0 {
+		t.Fatalf("ponder on a book hit below the bound = %d inward starts, want the skip", hit.starts)
+	}
+	if _, _, _ = s.StopPonder(); hit.stops != 1 {
+		t.Fatalf("stop-ponder after a skipped start = %d, want the inward stop forwarded once", hit.stops)
+	}
+	miss := &recordingInner{}
+	s2 := &bookSearcher{inner: miss, book: bk, maxPly: 8, cores: 2}
+	s2.StartPonder(bookBoard(t, "P16"))
+	if miss.starts != 1 {
+		t.Fatalf("ponder on a book miss below the bound = %d inward starts, want the board forwarded", miss.starts)
+	}
+	past := &recordingInner{}
+	s3 := &bookSearcher{inner: past, book: bk, maxPly: 8, cores: 2}
+	s3.StartPonder(bookBoard(t, "H8", "I9", "P8", "I10", "H10", "I11", "H11", "I12"))
+	if past.starts != 1 {
+		t.Fatalf("ponder at the ply bound = %d inward starts, want the board forwarded", past.starts)
+	}
+	nilBook := &recordingInner{}
+	s4 := &bookSearcher{inner: nilBook, book: nil, maxPly: 8, cores: 2}
+	s4.StartPonder(bookBoard(t, "P16"))
+	if nilBook.starts != 1 {
+		t.Fatalf("ponder with a missing artifact = %d inward starts, want the miss forwarded", nilBook.starts)
+	}
+}
+
 func TestBookSearcherDelegatesLifecycleAndPlainDeadlines(t *testing.T) {
 	bk, err := book.Load(bytes.NewReader(buildBookArtifact(t, []bookRow{{reply: "H8"}})))
 	if err != nil {
@@ -402,7 +436,7 @@ func TestBookSearcherDelegatesLifecycleAndPlainDeadlines(t *testing.T) {
 	}
 	rec := &lifecycleRecorder{searcher: &scriptedBot{script: movesOf(t, []string{"A1"}), stats: fakeStats()}}
 	s := &bookSearcher{inner: rec, book: bk, maxPly: 8, cores: 2}
-	b := rules.NewBoard()
+	b := bookBoard(t, "P16")
 	s.StartPonder(b)
 	if rec.started != 1 || rec.ponderBoard != b {
 		t.Fatalf("ponder delegation = %d starts, want the ponder board handed inward once", rec.started)

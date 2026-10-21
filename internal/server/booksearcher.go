@@ -36,7 +36,14 @@ func (s *bookSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move, e
 
 func (s *bookSearcher) Close() { s.inner.Close() }
 
-func (s *bookSearcher) StartPonder(b *rules.Board) { s.inner.StartPonder(b) }
+func (s *bookSearcher) StartPonder(b *rules.Board) {
+	if b.MoveCount < s.maxPly {
+		if _, ok := s.book.Probe(b); ok {
+			return
+		}
+	}
+	s.inner.StartPonder(b)
+}
 
 func (s *bookSearcher) StopPonder() (rules.Move, engine.SearchStats, string) {
 	return s.inner.StopPonder()
