@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -218,25 +219,46 @@ func bitLen64(v uint64) int {
 	return n
 }
 
-func loadCorpus(path string) (corpusScan, error) {
+type gameBlock struct {
+	recs    []posRec
+	illegal int
+	sig     [sha256.Size]byte
+}
+
+type corpusFile struct {
+	fp     string
+	clean  int64
+	torn   bool
+	games  int
+	blocks []gameBlock
+}
+
+func blockBody(b gameBlock) []byte {
+	var buf bytes.Buffer
+	for _, r := range b.recs {
+		fmt.Fprintf(&buf, "P %s %d\n", hexKey(r.key[:]), r.move)
+	}
+	fmt.Fprintf(&buf, "E %d %d\n", len(b.recs), b.illegal)
+	return buf.Bytes()
+}
+
+func parseCorpusFile(path string) (corpusFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return corpusScan{}, nil
-		}
-		return corpusScan{}, fmt.Errorf("bookgen: read corpus %s: %w", path, err)
+		return corpusFile{}, fmt.Errorf("bookgen: read corpus %s: %w", path, err)
 	}
-	sc := corpusScan{}
+	cf := corpusFile{}
 	end := len(data)
 	if end > 0 && data[end-1] != '\n' {
-		sc.torn = true
+		cf.torn = true
 		if i := bytes.LastIndexByte(data, '\n'); i >= 0 {
 			end = i + 1
 		} else {
 			end = 0
 		}
 	}
-	lineno := 0
+	lineno := 1
+	off := 0
 	if len(data) > 0 {
 		header := data
 		if end > 0 {
@@ -244,25 +266,21 @@ func loadCorpus(path string) (corpusScan, error) {
 		}
 		nl := bytes.IndexByte(header, '\n')
 		if nl < 0 {
-			sc.torn = true
+			cf.torn = true
 		} else {
 			if err := sidecarHeaderError("corpus", path, string(header[:nl]), 3); err != nil {
-				return sc, err
+				return cf, err
 			}
-			sc.fp = string(header[:nl])
-			sc.clean = int64(nl + 1)
-			lineno = 1
+			cf.fp = string(header[:nl])
+			cf.clean = int64(nl + 1)
+			off = nl + 1
 		}
-	}
-	var block []posRec
-	inBlock := false
-	off := 0
-	if sc.clean > 0 {
-		off = int(sc.clean)
 	}
 	fail := func(reason string) error {
 		return fmt.Errorf("bookgen: corpus %s line %d: %s", path, lineno, reason)
 	}
+	var recs []posRec
+	inBlock := false
 	for off < end {
 		nl := off + bytes.IndexByte(data[off:end], '\n')
 		line := data[off:nl]
@@ -272,78 +290,92 @@ func loadCorpus(path string) (corpusScan, error) {
 			if off >= end {
 				break
 			}
-			return sc, fail("empty line")
+			return cf, fail("empty line")
 		}
 		fields := strings.Fields(string(line))
 		if len(fields) == 0 {
-			return sc, fail("blank line")
+			return cf, fail("blank line")
 		}
 		switch fields[0] {
 		case "G":
 			if inBlock {
-				return sc, fail("game header inside a game block")
+				return cf, fail("game header inside a game block")
 			}
 			if len(fields) != 2 {
-				return sc, fail("game header wants one index")
+				return cf, fail("game header wants one index")
 			}
 			idx, err := strconv.Atoi(fields[1])
 			if err != nil || idx < 0 {
-				return sc, fail("game header index")
+				return cf, fail("game header index")
 			}
-			if idx != sc.games {
-				return sc, fail(fmt.Sprintf("game index %d breaks the recorded sequence at %d", idx, sc.games))
+			if idx != len(cf.blocks) {
+				return cf, fail(fmt.Sprintf("game index %d breaks the recorded sequence at %d", idx, len(cf.blocks)))
 			}
 			inBlock = true
-			block = block[:0]
+			recs = recs[:0]
 		case "P":
 			if !inBlock {
-				return sc, fail("position record outside a game block")
+				return cf, fail("position record outside a game block")
 			}
 			if len(fields) != 3 {
-				return sc, fail("position record wants key and move")
+				return cf, fail("position record wants key and move")
 			}
 			k, err := keyFromHex(fields[1])
 			if err != nil {
-				return sc, fail("position key")
+				return cf, fail("position key")
 			}
 			mv, err := strconv.Atoi(fields[2])
 			if err != nil || mv < 0 || mv >= config.BoardCells {
-				return sc, fail("position move")
+				return cf, fail("position move")
 			}
-			block = append(block, posRec{key: k, move: rules.Move(mv)})
+			recs = append(recs, posRec{key: k, move: rules.Move(mv)})
 		case "E":
 			if !inBlock {
-				return sc, fail("block end outside a game block")
+				return cf, fail("block end outside a game block")
 			}
 			if len(fields) != 3 {
-				return sc, fail("block end wants the record and illegal counts")
+				return cf, fail("block end wants the record and illegal counts")
 			}
 			n, err := strconv.Atoi(fields[1])
-			if err != nil || n != len(block) {
-				return sc, fail(fmt.Sprintf("block end count %d over %d records", n, len(block)))
+			if err != nil || n != len(recs) {
+				return cf, fail(fmt.Sprintf("block end count %d over %d records", n, len(recs)))
 			}
 			illegal, err := strconv.Atoi(fields[2])
 			if err != nil || illegal < 0 {
-				return sc, fail("block end illegal count")
+				return cf, fail("block end illegal count")
 			}
-			sc.recs = append(sc.recs, block...)
-			if len(block) > 0 && block[0].key == corpusZeroKey {
-				if sc.openings == nil {
-					sc.openings = make(map[rules.Move]int)
-				}
-				sc.openings[block[0].move]++
-			}
-			sc.games++
-			sc.illegal += illegal
-			sc.clean = int64(off)
+			blk := gameBlock{recs: append([]posRec(nil), recs...), illegal: illegal}
+			blk.sig = sha256.Sum256(blockBody(blk))
+			cf.blocks = append(cf.blocks, blk)
+			cf.clean = int64(off)
 			inBlock = false
-			block = block[:0]
+			recs = recs[:0]
 		default:
-			return sc, fail(fmt.Sprintf("unknown line kind %q", fields[0]))
+			return cf, fail(fmt.Sprintf("unknown line kind %q", fields[0]))
 		}
 	}
 	if inBlock {
-		sc.torn = true
+		cf.torn = true
+	}
+	cf.games = len(cf.blocks)
+	return cf, nil
+}
+
+func loadCorpus(path string) (corpusScan, error) {
+	cf, err := parseCorpusFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return corpusScan{}, nil
+		}
+		return corpusScan{}, err
+	}
+	sc := corpusScan{games: cf.games, clean: cf.clean, torn: cf.torn, fp: cf.fp, openings: make(map[rules.Move]int)}
+	for _, blk := range cf.blocks {
+		sc.recs = append(sc.recs, blk.recs...)
+		sc.illegal += blk.illegal
+		if len(blk.recs) > 0 && blk.recs[0].key == corpusZeroKey {
+			sc.openings[blk.recs[0].move]++
+		}
 	}
 	return sc, nil
 }

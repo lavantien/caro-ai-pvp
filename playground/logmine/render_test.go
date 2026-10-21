@@ -16,13 +16,13 @@ func TestRenderReportDeterministic(t *testing.T) {
 	}
 	for _, want := range []string{
 		"# logmine: gates-x", "source: db\\gates-x.db",
-		"## tier x time control", "| easy | 0 | 1 | 1 | 10/10/10 |",
-		"| hard | 0 | 2 | 2 | 16/16/16 |",
+		"## tier x time control", "| easy | 1+0 | 1 | 1 | 10/10/10 |",
+		"| hard | 1+0 | 2 | 2 | 16/16/16 |",
 		"## grant x depth", "| easy | 2-5 | 1 |", "| hard | 10-20 | 2 |",
-		"## red first", "| 0 | easy | hard | 3 | 1 |",
-		"## game outcomes", "| 0 | easy | hard | red | 1 |", "| 0 | hard | easy | blue | 1 |",
-		"## grant usage", "| hard | 0 | 2 |", "## tags", "| VCT | 1 |", "## casual m-lines",
-		"| hard | 1 | 1 | 1 | 9/9/9 |", "| human | 1 | 1 | 1 | 8/8/8 |",
+		"## red first", "| 1+0 | easy | hard | 3 | 1 |",
+		"## game outcomes", "| 1+0 | easy | hard | red | 1 |", "| 1+0 | hard | easy | blue | 1 |",
+		"## grant usage", "| hard | 1+0 | 2 |", "## tags", "| VCT | 1 |", "## casual m-lines",
+		"| hard | 2+1 | 1 | 1 | 9/9/9 |", "| human | 2+1 | 1 | 1 | 8/8/8 |",
 	} {
 		if !strings.Contains(a1, want) {
 			t.Errorf("report missing %q", want)

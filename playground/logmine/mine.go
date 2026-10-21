@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
 type querier interface {
@@ -12,7 +14,7 @@ type querier interface {
 
 type moveRow struct {
 	tier        string
-	tc          int
+	tc          string
 	gameID      int64
 	depth       int
 	nodes       uint64
@@ -27,13 +29,13 @@ type moveRow struct {
 }
 
 type firstWins struct {
-	tc                    int
+	tc                    string
 	firstTier, secondTier string
 	firstWins, secondWins int
 }
 
 type outcomeKey struct {
-	tc                int
+	tc                string
 	redTier, blueTier string
 	outcome           string
 }
@@ -45,7 +47,7 @@ type outcomeRow struct {
 
 type telemetryKey struct {
 	tier string
-	tc   int
+	tc   string
 }
 
 type grantKey struct {
@@ -79,6 +81,14 @@ type usageAgg struct {
 	used    spread
 	under10 int
 	over100 int
+}
+
+func tcLabel(idx int) string {
+	if idx >= 0 && idx < len(config.TimeControls) {
+		tc := config.TimeControls[idx]
+		return fmt.Sprintf("%d+%d", tc.InitialMin, tc.IncrementSec)
+	}
+	return fmt.Sprintf("tc%d", idx)
 }
 
 var allocBucketEdges = []struct {
@@ -146,10 +156,12 @@ func loadTournamentMoves(q querier) ([]moveRow, error) {
 	var out []moveRow
 	for rows.Next() {
 		var r moveRow
-		if err := rows.Scan(&r.tier, &r.tc, &r.gameID, &r.depth, &r.nodes, &r.nps, &r.ebfMilli,
+		var tcIdx int
+		if err := rows.Scan(&r.tier, &tcIdx, &r.gameID, &r.depth, &r.nodes, &r.nps, &r.ebfMilli,
 			&r.tt, &r.hf, &r.fh1, &r.score, &r.threads, &r.elapsedNS, &r.allocNS, &r.tag); err != nil {
 			return nil, fmt.Errorf("logmine: tournament move scan: %w", err)
 		}
+		r.tc = tcLabel(tcIdx)
 		out = append(out, r)
 	}
 	return out, rows.Err()
@@ -173,9 +185,11 @@ func loadSeriesFirstWins(q querier) ([]firstWins, error) {
 	var out []firstWins
 	for rows.Next() {
 		var f firstWins
-		if err := rows.Scan(&f.tc, &f.firstTier, &f.secondTier, &f.firstWins, &f.secondWins); err != nil {
+		var tcIdx int
+		if err := rows.Scan(&tcIdx, &f.firstTier, &f.secondTier, &f.firstWins, &f.secondWins); err != nil {
 			return nil, fmt.Errorf("logmine: series first wins scan: %w", err)
 		}
+		f.tc = tcLabel(tcIdx)
 		out = append(out, f)
 	}
 	return out, rows.Err()
@@ -200,9 +214,11 @@ func loadGameOutcomes(q querier) ([]outcomeRow, error) {
 	var out []outcomeRow
 	for rows.Next() {
 		var o outcomeRow
-		if err := rows.Scan(&o.key.tc, &o.key.redTier, &o.key.blueTier, &o.key.outcome, &o.count); err != nil {
+		var tcIdx int
+		if err := rows.Scan(&tcIdx, &o.key.redTier, &o.key.blueTier, &o.key.outcome, &o.count); err != nil {
 			return nil, fmt.Errorf("logmine: game outcome scan: %w", err)
 		}
+		o.key.tc = tcLabel(tcIdx)
 		out = append(out, o)
 	}
 	return out, rows.Err()
@@ -235,9 +251,9 @@ func loadCasualMoves(q querier) ([]moveRow, int, error) {
 	rejects := 0
 	for rows.Next() {
 		var redName, blueName, line string
-		var tc int
+		var tcIdx int
 		var gameID int64
-		if err := rows.Scan(&redName, &blueName, &tc, &gameID, &line); err != nil {
+		if err := rows.Scan(&redName, &blueName, &tcIdx, &gameID, &line); err != nil {
 			return nil, 0, fmt.Errorf("logmine: casual scan: %w", err)
 		}
 		ml, err := parseMLine(line)
@@ -246,7 +262,7 @@ func loadCasualMoves(q querier) ([]moveRow, int, error) {
 			continue
 		}
 		r := moveRow{
-			tc: tc, gameID: gameID, depth: ml.depth, nodes: ml.nodes, nps: ml.nps,
+			tc: tcLabel(tcIdx), gameID: gameID, depth: ml.depth, nodes: ml.nodes, nps: ml.nps,
 			ebfMilli: int(ml.ebf * 1000), tt: ml.tt * 10, hf: ml.hf * 10, fh1: ml.fh1 * 10,
 			threads: ml.thr, tag: ml.tag,
 		}
@@ -265,7 +281,8 @@ func loadCasualMoves(q querier) ([]moveRow, int, error) {
 func tierTelemetry(rows []moveRow) map[telemetryKey]tierAgg {
 	byKey := map[telemetryKey][]moveRow{}
 	for _, r := range rows {
-		byKey[telemetryKey{tier: r.tier, tc: r.tc}] = append(byKey[telemetryKey{tier: r.tier, tc: r.tc}], r)
+		k := telemetryKey{tier: r.tier, tc: r.tc}
+		byKey[k] = append(byKey[k], r)
 	}
 	out := map[telemetryKey]tierAgg{}
 	for k, rs := range byKey {

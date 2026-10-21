@@ -12,6 +12,7 @@ type mined struct {
 	tournament []moveRow
 	casual     []moveRow
 	rejects    int
+	files      int
 	firstWins  []firstWins
 	outcomes   []outcomeRow
 }
@@ -77,7 +78,7 @@ func telemetryTable(title string, rows []moveRow) string {
 	b.WriteString("|---|---|---|---|---|---|---|---|---|---|---|\n")
 	for _, k := range keys {
 		a := tele[k]
-		fmt.Fprintf(&b, "| %s | %d | %d | %d | %s | %s | %s | %s | %s | %s | %s |\n",
+		fmt.Fprintf(&b, "| %s | %s | %d | %d | %s | %s | %s | %s | %s | %s | %s |\n",
 			k.tier, k.tc, a.games, a.moves,
 			fmtCount(a.depth), fmtCount(a.nodes), fmtCount(a.nps),
 			fmtPermille(a.tt), fmtPermille(a.hf), fmtPermille(a.fh1),
@@ -121,13 +122,16 @@ func renderReport(name, source string, m mined) string {
 		return b.String()
 	}
 	fmt.Fprintf(&b, "moves: %d tournament, %d casual, %d lines rejected\n\n", len(m.tournament), len(m.casual), m.rejects)
+	if m.files > 0 {
+		fmt.Fprintf(&b, "series log files parsed: %d\n\n", m.files)
+	}
 	b.WriteString(telemetryTable("tier x time control", m.tournament))
 	b.WriteString(grantDepthTable(m.tournament))
 	if len(m.firstWins) > 0 {
 		b.WriteString("## red first (tournament series)\n\n")
 		b.WriteString("| tc | first tier | second tier | first wins | second wins |\n|---|---|---|---|---|\n")
 		for _, f := range m.firstWins {
-			fmt.Fprintf(&b, "| %d | %s | %s | %d | %d |\n", f.tc, f.firstTier, f.secondTier, f.firstWins, f.secondWins)
+			fmt.Fprintf(&b, "| %s | %s | %s | %d | %d |\n", f.tc, f.firstTier, f.secondTier, f.firstWins, f.secondWins)
 		}
 		b.WriteString("\n")
 	}
@@ -135,7 +139,7 @@ func renderReport(name, source string, m mined) string {
 		b.WriteString("## game outcomes\n\n")
 		b.WriteString("| tc | red tier | blue tier | outcome | count |\n|---|---|---|---|---|\n")
 		for _, o := range m.outcomes {
-			fmt.Fprintf(&b, "| %d | %s | %s | %s | %d |\n", o.key.tc, o.key.redTier, o.key.blueTier, o.key.outcome, o.count)
+			fmt.Fprintf(&b, "| %s | %s | %s | %s | %d |\n", o.key.tc, o.key.redTier, o.key.blueTier, o.key.outcome, o.count)
 		}
 		b.WriteString("\n")
 	}
@@ -155,7 +159,7 @@ func renderReport(name, source string, m mined) string {
 		b.WriteString("| tier | tc | moves | used q1/med/q3 | under 10% | over 100% |\n|---|---|---|---|---|---|\n")
 		for _, k := range keys {
 			u := usage[k]
-			fmt.Fprintf(&b, "| %s | %d | %d | %s | %d | %d |\n", k.tier, k.tc, u.moves, fmtSpread(u.used, 1, 2), u.under10, u.over100)
+			fmt.Fprintf(&b, "| %s | %s | %d | %s | %d | %d |\n", k.tier, k.tc, u.moves, fmtSpread(u.used, 1, 2), u.under10, u.over100)
 		}
 		b.WriteString("\n")
 		tagCounts := map[string]int{}

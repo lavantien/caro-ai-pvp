@@ -126,8 +126,8 @@ func TestLoadTournamentMoves(t *testing.T) {
 	wantDepths := []int{10, 16, 16}
 	wantTags := []string{"", "", "VCT"}
 	for i, r := range rows {
-		if r.tier != wantTiers[i] || r.depth != wantDepths[i] || r.tag != wantTags[i] || r.tc != 0 {
-			t.Errorf("row %d = tier %q tc %d depth %d tag %q, want %q 0 %d %q", i, r.tier, r.tc, r.depth, r.tag, wantTiers[i], wantDepths[i], wantTags[i])
+		if r.tier != wantTiers[i] || r.depth != wantDepths[i] || r.tag != wantTags[i] || r.tc != "1+0" {
+			t.Errorf("row %d = tier %q tc %s depth %d tag %q, want %q 1+0 %d %q", i, r.tier, r.tc, r.depth, r.tag, wantTiers[i], wantDepths[i], wantTags[i])
 		}
 	}
 }
@@ -156,7 +156,7 @@ func TestTierTelemetryAggregates(t *testing.T) {
 		t.Fatalf("load: %v", err)
 	}
 	tele := tierTelemetry(rows)
-	easy, ok := tele[telemetryKey{tier: "easy", tc: 0}]
+	easy, ok := tele[telemetryKey{tier: "easy", tc: "1+0"}]
 	if !ok {
 		t.Fatal("easy tier missing")
 	}
@@ -166,7 +166,7 @@ func TestTierTelemetryAggregates(t *testing.T) {
 	if easy.nodes.med != 100_000 || easy.nps.med != 1_000_000 || easy.tt.med != 380 || easy.hf.med != 450 || easy.fh1.med != 930 {
 		t.Errorf("easy metrics = %+v", easy)
 	}
-	hard, ok := tele[telemetryKey{tier: "hard", tc: 0}]
+	hard, ok := tele[telemetryKey{tier: "hard", tc: "1+0"}]
 	if !ok {
 		t.Fatal("hard tier missing")
 	}
@@ -209,7 +209,7 @@ func TestRedFirstAndOutcomes(t *testing.T) {
 		t.Fatalf("series rows = %d, want 1", len(wins))
 	}
 	w := wins[0]
-	if w.tc != 0 || w.firstTier != "easy" || w.secondTier != "hard" || w.firstWins != 3 || w.secondWins != 1 {
+	if w.tc != "1+0" || w.firstTier != "easy" || w.secondTier != "hard" || w.firstWins != 3 || w.secondWins != 1 {
 		t.Errorf("series row = %+v", w)
 	}
 	outs, err := loadGameOutcomes(db)
@@ -217,9 +217,9 @@ func TestRedFirstAndOutcomes(t *testing.T) {
 		t.Fatalf("outcomes: %v", err)
 	}
 	want := map[outcomeKey]int{
-		{tc: 0, redTier: "easy", blueTier: "hard", outcome: "red"}:  1,
-		{tc: 0, redTier: "hard", blueTier: "easy", outcome: "blue"}: 1,
-		{tc: 0, redTier: "easy", blueTier: "hard", outcome: "draw"}: 1,
+		{tc: "1+0", redTier: "easy", blueTier: "hard", outcome: "red"}:  1,
+		{tc: "1+0", redTier: "hard", blueTier: "easy", outcome: "blue"}: 1,
+		{tc: "1+0", redTier: "easy", blueTier: "hard", outcome: "draw"}: 1,
 	}
 	if len(outs) != len(want) {
 		t.Fatalf("outcome rows = %d, want %d: %+v", len(outs), len(want), outs)
@@ -242,10 +242,10 @@ func TestLoadCasualMoves(t *testing.T) {
 	if len(rows) != 2 {
 		t.Fatalf("rows = %d, want 2", len(rows))
 	}
-	if rows[0].tier != "hard" || rows[0].tc != 1 || rows[0].depth != 9 || rows[0].nodes != 45_000 || rows[0].tag != "[VCT]" {
+	if rows[0].tier != "hard" || rows[0].tc != "2+1" || rows[0].depth != 9 || rows[0].nodes != 45_000 || rows[0].tag != "[VCT]" {
 		t.Errorf("row 0 = %+v", rows[0])
 	}
-	if rows[1].tier != "human" || rows[1].tc != 1 || rows[1].depth != 8 || rows[1].nodes != 40_000 || rows[1].tag != "" {
+	if rows[1].tier != "human" || rows[1].tc != "2+1" || rows[1].depth != 8 || rows[1].nodes != 40_000 || rows[1].tag != "" {
 		t.Errorf("row 1 = %+v", rows[1])
 	}
 }
@@ -256,7 +256,7 @@ func TestGrantUsageTails(t *testing.T) {
 		t.Fatalf("load: %v", err)
 	}
 	u := grantUsage(rows)
-	hard, ok := u[telemetryKey{tier: "hard", tc: 0}]
+	hard, ok := u[telemetryKey{tier: "hard", tc: "1+0"}]
 	if !ok {
 		t.Fatal("hard usage missing")
 	}
