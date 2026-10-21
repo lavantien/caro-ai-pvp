@@ -66,13 +66,7 @@ func AdoptPonder(stats engine.SearchStats, tag string, soft SoftLimitCrossed, ri
 		}
 	}
 	drop := stats.RootScores[n-1] - stats.RootScores[n-config.PonderStableIters]
-	if drop < 0 {
-		drop = -drop
-	}
-	if drop > config.PonderScoreDropMargin {
-		return false
-	}
-	return true
+	return drop <= config.PonderScoreDropMargin
 }
 
 type ponderResult struct {

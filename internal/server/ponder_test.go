@@ -189,8 +189,8 @@ func TestAdoptPonderScoreDropMargin(t *testing.T) {
 	}
 	rise := stablePonderStats(t, 10, config.PonderStableIters, mv,
 		[]int{100, 100, 100 - config.PonderScoreDropMargin - 1})
-	if AdoptPonder(rise, "", AssessSoftLimit(elapsed, budget), ring, 1) {
-		t.Error("a window rise beyond the margin must reject under the absolute drop law")
+	if !AdoptPonder(rise, "", AssessSoftLimit(elapsed, budget), ring, 1) {
+		t.Error("a window rise beyond the margin must not reject: only a drop beyond the margin rejects")
 	}
 }
 
