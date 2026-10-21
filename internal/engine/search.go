@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"sync"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -27,6 +28,15 @@ type Engine struct {
 	nodeCheck int
 	stopped   bool
 	noOrder   bool
+
+	mu          sync.Mutex
+	closed      bool
+	searching   bool
+	ponding     bool
+	ponderDL    Stoppable
+	ponderDone  chan struct{}
+	ponderMove  rules.Move
+	ponderStats SearchStats
 }
 
 func New(ttBytes int64) *Engine {
@@ -74,6 +84,70 @@ func (e *Engine) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.M
 	return e.search(b, dl, maxDepth, false)
 }
 
+var _ Ponderer = (*Engine)(nil)
+
+func (e *Engine) StartPonder(b *rules.Board) {
+	if b.IsFull() {
+		return
+	}
+	e.mu.Lock()
+	if e.closed {
+		e.mu.Unlock()
+		return
+	}
+	if e.searching {
+		e.mu.Unlock()
+		panic("engine: StartPonder while a search is running")
+	}
+	if e.ponding {
+		e.mu.Unlock()
+		panic("engine: StartPonder while already pondering")
+	}
+	e.ponding = true
+	e.ponderDL.Reset()
+	e.ponderDone = make(chan struct{})
+	done := e.ponderDone
+	board := *b
+	e.mu.Unlock()
+	go func() {
+		mv, stats := e.runSearch(&board, &e.ponderDL, config.SearchMaxPly, false)
+		e.ponderMove, e.ponderStats = mv, stats
+		close(done)
+	}()
+}
+
+func (e *Engine) StopPonder() (rules.Move, SearchStats) {
+	e.mu.Lock()
+	if !e.ponding {
+		e.mu.Unlock()
+		var zero rules.Move
+		return zero, SearchStats{}
+	}
+	e.stopPonderLocked()
+	mv, stats := e.ponderMove, e.ponderStats
+	e.mu.Unlock()
+	return mv, stats
+}
+
+func (e *Engine) Close() {
+	e.mu.Lock()
+	if e.closed {
+		e.mu.Unlock()
+		return
+	}
+	e.closed = true
+	if e.ponding {
+		e.stopPonderLocked()
+	}
+	e.mu.Unlock()
+}
+
+func (e *Engine) stopPonderLocked() {
+	e.ponderDL.Stop()
+	<-e.ponderDone
+	e.ponding = false
+}
+
 func softStop(elapsed, budget time.Duration, completed int) bool {
 	if completed < 1 {
 		return false
@@ -85,6 +159,28 @@ func softStop(elapsed, budget time.Duration, completed int) bool {
 }
 
 func (e *Engine) search(b *rules.Board, dl Deadline, maxDepth int, soft bool) (rules.Move, SearchStats) {
+	e.mu.Lock()
+	if e.closed {
+		e.mu.Unlock()
+		panic("engine: Search on a closed Engine instance")
+	}
+	if e.searching {
+		e.mu.Unlock()
+		panic("engine: concurrent Search on one Engine instance")
+	}
+	if e.ponding {
+		e.stopPonderLocked()
+	}
+	e.searching = true
+	e.mu.Unlock()
+	mv, stats := e.runSearch(b, dl, maxDepth, soft)
+	e.mu.Lock()
+	e.searching = false
+	e.mu.Unlock()
+	return mv, stats
+}
+
+func (e *Engine) runSearch(b *rules.Board, dl Deadline, maxDepth int, soft bool) (rules.Move, SearchStats) {
 	start := time.Now()
 	e.beginSearch(b)
 	var stats SearchStats

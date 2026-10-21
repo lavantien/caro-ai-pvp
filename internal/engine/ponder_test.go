@@ -399,6 +399,263 @@ func TestPonderZeroAllocs(t *testing.T) {
 	}
 }
 
+func TestEnginePonderLifecycle(t *testing.T) {
+	b := midgameBoard(t)
+	e := New(testTTBytes)
+	defer e.Close()
+	var p Ponderer = e
+	p.StartPonder(b)
+	e.mu.Lock()
+	ponding := e.ponding
+	e.mu.Unlock()
+	if !ponding {
+		t.Fatal("StartPonder left the ponder latch unset")
+	}
+	mv, stats := p.StopPonder()
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("ponder stop move %d illegal", mv)
+	}
+	if stats.Threads != 1 {
+		t.Errorf("ponder stop threads = %d, want 1", stats.Threads)
+	}
+	e.mu.Lock()
+	ponding = e.ponding
+	e.mu.Unlock()
+	if ponding {
+		t.Fatal("StopPonder left the ponder latch set")
+	}
+	if mv2, stats2 := p.StopPonder(); mv2 != 0 || stats2 != (SearchStats{}) {
+		t.Errorf("second StopPonder = %d %+v, want zero values", mv2, stats2)
+	}
+}
+
+func TestPonderOutlastsFundedGrant(t *testing.T) {
+	b := midgameBoard(t)
+	grant := scaledBudget(120 * time.Millisecond)
+	pacer := New(testTTBytes)
+	pacerBoard := *b
+	paceOnce := func() {
+		pacer.Search(&pacerBoard, NewFixedBudget(grant))
+	}
+	fundedUnderPace := func(search func() SearchStats) int {
+		paced := make(chan struct{})
+		go func() {
+			defer close(paced)
+			paceOnce()
+		}()
+		stats := search()
+		<-paced
+		return stats.Depth
+	}
+	e := New(testTTBytes)
+	defer e.Close()
+	engFunded := fundedUnderPace(func() SearchStats {
+		_, stats := e.Search(b, NewFixedBudget(grant))
+		return stats
+	})
+	e.StartPonder(b)
+	paceOnce()
+	paceOnce()
+	e.mu.Lock()
+	still := e.ponding
+	e.mu.Unlock()
+	if !still {
+		t.Fatal("engine ponder self-terminated without a stop")
+	}
+	mv, stats := e.StopPonder()
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("engine ponder move %d illegal", mv)
+	}
+	if stats.Depth < engFunded || stats.RootIters < engFunded {
+		t.Fatalf("engine ponder banked depth %d root iters %d, want at least the funded %d", stats.Depth, stats.RootIters, engFunded)
+	}
+	s := newSMP(2, testTTBytes)
+	defer s.Close()
+	smpFunded := fundedUnderPace(func() SearchStats {
+		_, stats := s.Search(b, NewFixedBudget(grant))
+		return stats
+	})
+	s.StartPonder(b)
+	paceOnce()
+	paceOnce()
+	s.mu.Lock()
+	still = s.ponding
+	s.mu.Unlock()
+	if !still {
+		t.Fatal("smp ponder self-terminated without a stop")
+	}
+	mv, stats = s.StopPonder()
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("smp ponder move %d illegal", mv)
+	}
+	if stats.Depth < smpFunded || stats.RootIters < smpFunded {
+		t.Fatalf("smp ponder banked depth %d root iters %d, want at least the funded %d", stats.Depth, stats.RootIters, smpFunded)
+	}
+}
+
+func TestEnginePonderImplicitStopOnSearch(t *testing.T) {
+	b := midgameBoard(t)
+	e := New(testTTBytes)
+	defer e.Close()
+	e.StartPonder(b)
+	e.mu.Lock()
+	ponding := e.ponding
+	e.mu.Unlock()
+	if !ponding {
+		t.Fatal("StartPonder left the ponder latch unset")
+	}
+	mv, stats := e.Search(b, NewFixedBudget(scaledBudget(80*time.Millisecond)))
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("search after ponder move %d illegal", mv)
+	}
+	if stats.Depth < 2 {
+		t.Errorf("search depth = %d, want at least 2", stats.Depth)
+	}
+	e.mu.Lock()
+	ponding = e.ponding
+	e.mu.Unlock()
+	if ponding {
+		t.Fatal("Search left the ponder latch set")
+	}
+	if mv2, stats2 := e.StopPonder(); mv2 != 0 || stats2 != (SearchStats{}) {
+		t.Errorf("StopPonder after implicit stop = %d %+v, want zero values", mv2, stats2)
+	}
+}
+
+func TestEnginePonderImplicitStopOnClose(t *testing.T) {
+	before := runtime.NumGoroutine()
+	for range 6 {
+		e := New(testTTBytes)
+		e.StartPonder(midgameBoard(t))
+		e.Close()
+		e.Close()
+	}
+	for range 200 {
+		if runtime.NumGoroutine() <= before {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("goroutines leaked after closing pondering engines: %d now vs %d before", runtime.NumGoroutine(), before)
+}
+
+func fullBoard(t *testing.T) *rules.Board {
+	t.Helper()
+	b := rules.NewBoard()
+	var buf [config.BoardCells]rules.Move
+	for {
+		n := b.LegalMoves(buf[:])
+		if n == 0 {
+			break
+		}
+		b.Make(rules.Cell(buf[0]))
+	}
+	return b
+}
+
+func assertEnginePanic(t *testing.T, name string, fn func()) {
+	t.Helper()
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatalf("%s must panic", name)
+		}
+		if msg, ok := r.(string); !ok || !strings.HasPrefix(msg, "engine:") {
+			t.Fatalf("%s panic %v, want an engine: prefix", name, r)
+		}
+	}()
+	fn()
+}
+
+func TestEngineStartPonderGuards(t *testing.T) {
+	e := New(testTTBytes)
+	e.StartPonder(fullBoard(t))
+	if mv, stats := e.StopPonder(); mv != 0 || stats != (SearchStats{}) {
+		t.Fatalf("full-board ponder stop = %d %+v, want zero values", mv, stats)
+	}
+	e.Close()
+	e.StartPonder(midgameBoard(t))
+	if mv, stats := e.StopPonder(); mv != 0 || stats != (SearchStats{}) {
+		t.Fatalf("closed-engine ponder stop = %d %+v, want zero values", mv, stats)
+	}
+	assertEnginePanic(t, "Search after Close", func() { e.Search(midgameBoard(t), NewStoppable()) })
+
+	hot := New(testTTBytes)
+	defer hot.Close()
+	hot.StartPonder(midgameBoard(t))
+	assertEnginePanic(t, "StartPonder while pondering", func() { hot.StartPonder(midgameBoard(t)) })
+	hot.StopPonder()
+
+	busy := New(testTTBytes)
+	defer busy.Close()
+	b := midgameBoard(t)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		busy.Search(b, NewFixedBudget(scaledBudget(150*time.Millisecond)))
+	}()
+	for {
+		busy.mu.Lock()
+		searching := busy.searching
+		busy.mu.Unlock()
+		if searching {
+			break
+		}
+		runtime.Gosched()
+	}
+	assertEnginePanic(t, "StartPonder while searching", func() { busy.StartPonder(b) })
+	<-done
+}
+
+func TestEnginePonderConcurrentLifecycle(t *testing.T) {
+	if testing.Short() {
+		t.Skip("hammer needs wall clock budget")
+	}
+	b := midgameBoard(t)
+	e := New(testTTBytes)
+	before := runtime.NumGoroutine()
+	quit := make(chan struct{})
+	var wg sync.WaitGroup
+	for range 3 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-quit:
+					return
+				default:
+				}
+				if mv, _ := e.StopPonder(); mv != 0 && !b.IsLegal(rules.Cell(mv)) {
+					t.Errorf("hammer stop returned illegal move %d", mv)
+					return
+				}
+			}
+		})
+	}
+	for range 6 {
+		e.StartPonder(b)
+		time.Sleep(scaledBudget(20 * time.Millisecond))
+		if mv, _ := e.StopPonder(); mv != 0 && !b.IsLegal(rules.Cell(mv)) {
+			t.Errorf("hammer cycle move %d illegal", mv)
+		}
+		if mv, _ := e.Search(b, NewFixedBudget(scaledBudget(10*time.Millisecond))); mv != 0 && !b.IsLegal(rules.Cell(mv)) {
+			t.Errorf("hammer search move %d illegal", mv)
+		}
+	}
+	e.StartPonder(b)
+	time.Sleep(scaledBudget(20 * time.Millisecond))
+	e.Close()
+	e.Close()
+	close(quit)
+	wg.Wait()
+	for range 200 {
+		if runtime.NumGoroutine() <= before {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("goroutines leaked after the engine ponder hammer: %d now vs %d before", runtime.NumGoroutine(), before)
+}
+
 func TestPonderConcurrentStartStopHammer(t *testing.T) {
 	if testing.Short() {
 		t.Skip("hammer needs wall clock budget")
