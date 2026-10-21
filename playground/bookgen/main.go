@@ -40,8 +40,18 @@ func validateReadSidecar(path, flagName string) error {
 	return nil
 }
 
+func flagWasSet(fs *flag.FlagSet, name string) bool {
+	set := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			set = true
+		}
+	})
+	return set
+}
+
 func main() {
-	phase := flag.String("phase", "", "corpus, overlay, or emit")
+	phase := flag.String("phase", "", "corpus, overlay, emit, merge, or stats")
 	games := flag.Int("games", config.BookCorpusGames, "corpus game target")
 	tcIdx := flag.Int("tc", config.BookCorpusTCIndex, "time control index into config.TimeControls")
 	tierName := flag.String("tier", config.TierMaster.Name, "corpus seat tier")
@@ -78,6 +88,27 @@ func main() {
 		}
 		defer lock.Release()
 		fatal(overlayRun(overlayOpts{corpusPath: *corpusPath, outPath: *overlayPath, floor: *floor, budget: *budget}, solverProber(*budget), os.Stdout))
+	case "merge":
+		fatal(validateCorpusArgs(*games, *tcIdx, *tierName))
+		if !flagWasSet(flag.CommandLine, "out") {
+			fatal(fmt.Errorf("bookgen: -phase merge requires an explicit -out path for the merged corpus"))
+		}
+		if flag.NArg() == 0 {
+			fatal(fmt.Errorf("bookgen: -phase merge wants the shard paths as positional arguments"))
+		}
+		lock, err := acquireSidecarLock(*outPath, "merge")
+		if err != nil {
+			fatal(err)
+		}
+		defer lock.Release()
+		fatal(runMerge(mergeOpts{shards: flag.Args(), outPath: *outPath, tier: *tierName, tc: *tcIdx, games: *games}, os.Stdout))
+	case "stats":
+		fatal(validateFloor(*floor))
+		if flag.NArg() == 0 {
+			fatal(fmt.Errorf("bookgen: -phase stats wants the corpus paths as positional arguments"))
+		}
+		_, err := runStats(flag.Args(), *floor, os.Stdout)
+		fatal(err)
 	case "emit":
 		fatal(validateFloor(*floor))
 		fatal(validateReadSidecar(*corpusPath, "corpus"))
@@ -101,7 +132,7 @@ func main() {
 			flag.Usage()
 			os.Exit(1)
 		}
-		fatal(fmt.Errorf("bookgen: -phase %q must be corpus, overlay, or emit", *phase))
+		fatal(fmt.Errorf("bookgen: -phase %q must be corpus, overlay, emit, merge, or stats", *phase))
 	}
 }
 
