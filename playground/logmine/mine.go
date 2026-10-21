@@ -30,6 +30,8 @@ type moveRow struct {
 	scoreTxt    string
 	pvLen       int
 	srcFile     string
+	cell        string
+	pvCells     []string
 }
 
 type firstWins struct {

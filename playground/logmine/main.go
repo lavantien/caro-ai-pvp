@@ -16,6 +16,7 @@ func main() {
 	dir := flag.String("dir", "", "mine every per-series txt log under this tournament log root instead of databases")
 	ponder := flag.Bool("ponder", false, "with -dir, emit the ponder adoption artifact")
 	runaway := flag.Bool("runaway", false, "with -dir, emit the easy-tier depth runaway artifact")
+	hitrate := flag.Bool("hitrate", false, "with -dir, emit the ponder hit rate artifact")
 	outDir := flag.String("out", "out", "directory for the markdown artifacts")
 	flag.Parse()
 	fail := func(format string, args ...any) {
@@ -57,6 +58,13 @@ func main() {
 				fail("write %s: %v", rOut, err)
 			}
 			fmt.Fprintf(os.Stderr, "logmine: runaway report -> %s\n", rOut)
+		}
+		if *hitrate {
+			hOut := filepath.Join(*outDir, "ponder-hitrate-logmine.md")
+			if err := os.WriteFile(hOut, []byte(renderHitReport(*dir, res.files, hitStats(res.tournament))), 0o644); err != nil {
+				fail("write %s: %v", hOut, err)
+			}
+			fmt.Fprintf(os.Stderr, "logmine: hitrate report -> %s\n", hOut)
 		}
 		return
 	}

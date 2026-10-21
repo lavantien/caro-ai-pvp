@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 var (
@@ -46,6 +47,7 @@ func parseSeriesLog(body []byte) (seriesLog, error) {
 				threads: p.ml.thr, tag: p.ml.tag,
 				elapsedNS: int64(p.ml.t * 1e9), allocNS: int64(p.ml.alloc * 1e9),
 				moveNo: p.ml.move, scoreTxt: p.ml.score, pvLen: pvWordCount(p.ml.pv),
+				cell: p.ml.cell, pvCells: strings.Fields(p.ml.pv),
 			}
 			if p.side == "Red" {
 				r.tier = redTier
