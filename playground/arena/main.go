@@ -114,11 +114,26 @@ type duel struct {
 
 func main() {
 	tcIdx := flag.Int("tc", 0, "time control index into config.TimeControls")
-	games := flag.Int("games", 12, "games per unordered seat pair")
+	games := flag.Int("games", 12, "games per unordered seat pair, or games per floor dir in floor mode")
 	seatsArg := flag.String("seats", "", "comma-separated seat labels, default all")
 	evalWeightsArg := flag.String("evalweights", "", "comma-separated pattern class weights 1..5 for a derived seat, class 0 pinned to zero")
 	evalBaseArg := flag.String("evalbase", "", "base seat label the evalweights override derives from")
+	floorName := flag.String("floor", "", "floor pool base name under -floorOut, drives the same-tier pool then aggregates, exclusive of the round robin")
+	floorOut := flag.String("floorOut", defaultFloorOutRoot, "root dir for floor pool dirs and floor artifacts")
+	floorDirs := flag.Int("floorDirs", 5, "floor dirs to drive this invocation, 0 aggregates an existing pool only")
+	floorBlockDirs := flag.Int("floorBlockDirs", 5, "dirs per extension block for the aggregate verdict")
+	floorMaxBlocks := flag.Int("floorMaxBlocks", 3, "max extension blocks before the aggregate refuses more")
+	floorSeat := flag.String("floorSeat", "master-nobook", "same-tier seat label for floor pools")
+	floorZ := flag.Float64("floorZ", 1.96, "wald z multiplier for the floor interval")
 	flag.Parse()
+
+	if *floorName != "" {
+		if err := runFloorMode(*floorName, *floorSeat, *floorOut, *tcIdx, *games, *floorDirs, *floorBlockDirs, *floorMaxBlocks, *floorZ); err != nil {
+			fmt.Fprintf(os.Stderr, "arena: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	if (*evalWeightsArg == "") != (*evalBaseArg == "") {
 		fmt.Fprintln(os.Stderr, "arena: -evalweights and -evalbase must be set together")
@@ -172,7 +187,15 @@ func main() {
 					red, blue = blue, red
 				}
 				fmt.Printf("game %d: %s (red) vs %s (blue), tc %d+%d\n", gameNo, red, blue, tc.InitialMin, tc.IncrementSec)
-				winner, moves := play(results[red], results[blue], *tcIdx, gameNo)
+				side, drawn, moves := play(results[red], results[blue], *tcIdx, gameNo)
+				winner := ""
+				if !drawn {
+					if side == rules.Red {
+						winner = red
+					} else {
+						winner = blue
+					}
+				}
 				record(results, red, blue, winner, moves)
 				outcome := "draw"
 				if winner != "" {
@@ -264,7 +287,7 @@ func newSeatState(t *tally, tcIdx int) *seatState {
 	return &seatState{label: t.name, tier: tier, eng: server.NewBotSearcher(tier), clock: clock.NewGameClock(tcIdx), tally: t}
 }
 
-func play(redT, blueT *tally, tcIdx, gameNo int) (string, int) {
+func play(redT, blueT *tally, tcIdx, gameNo int) (rules.Color, bool, int) {
 	st := map[rules.Color]*seatState{
 		rules.Red:  newSeatState(redT, tcIdx),
 		rules.Blue: newSeatState(blueT, tcIdx),
@@ -306,10 +329,10 @@ func play(redT, blueT *tally, tcIdx, gameNo int) (string, int) {
 		turnStart = time.Now()
 		lastMove = mv
 		if b.FastLastMoveWin(side, cell) {
-			return s.label, b.MoveCount
+			return side, false, b.MoveCount
 		}
 		if b.IsFull() {
-			return "", b.MoveCount
+			return rules.Red, true, b.MoveCount
 		}
 		armPonder(s, b, stats)
 	}
