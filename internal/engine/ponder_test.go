@@ -589,6 +589,7 @@ func TestEngineStartPonderGuards(t *testing.T) {
 	busy := New(testTTBytes)
 	defer busy.Close()
 	b := midgameBoard(t)
+	guard := *b
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -603,7 +604,7 @@ func TestEngineStartPonderGuards(t *testing.T) {
 		}
 		runtime.Gosched()
 	}
-	assertEnginePanic(t, "StartPonder while searching", func() { busy.StartPonder(b) })
+	assertEnginePanic(t, "StartPonder while searching", func() { busy.StartPonder(&guard) })
 	<-done
 }
 
