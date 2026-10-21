@@ -65,6 +65,7 @@ func (r *Room) startGameLocked() (err error) {
 	for _, c := range [2]rules.Color{rules.Red, rules.Blue} {
 		if seat := r.seatByColorLocked(c); seat.bot != nil {
 			if err := r.manager.adm.AcquireTT(seat.bot.TTBytes); err != nil {
+				r.parkLocked(err)
 				r.closeEnginesLocked()
 				return err
 			}
@@ -624,6 +625,9 @@ func (r *Room) botTurnLocked() (rules.Color, bool) {
 	}
 	side := r.board.Side
 	if r.seatByColorLocked(side).bot == nil {
+		return 0, false
+	}
+	if r.engines[side] == nil {
 		return 0, false
 	}
 	return side, true

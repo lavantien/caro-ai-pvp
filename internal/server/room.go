@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"log"
 	"slices"
 	"strings"
 	"sync"
@@ -408,6 +409,11 @@ func (r *Room) quitClosed() bool {
 	default:
 		return false
 	}
+}
+func (r *Room) parkLocked(reason error) {
+	r.closeOnce.Do(func() { close(r.quit) })
+	r.over = true
+	log.Printf("server: room parked after a refused game start: %v", reason)
 }
 func (r *Room) finishLifecycle() {
 	r.retire()

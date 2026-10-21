@@ -407,6 +407,65 @@ func TestCasualAndBotVsBotRoomsCoexist(t *testing.T) {
 	casual.Close()
 }
 
+func TestNextGameTTRefusalParksTheRoom(t *testing.T) {
+	s := newStack(t)
+	hostTier := config.Tier{Name: "parkhost", Cores: 1, TTBytes: 1}
+	guestTier := config.Tier{Name: "parkguest", Cores: 1, TTBytes: 1}
+	constructions := 0
+	s.rm.makeSearcher = func(tier config.Tier) searcher {
+		constructions++
+		if constructions == 3 {
+			if err := s.rm.adm.AcquireTT(config.MachineTTBudgetBytes - 1); err != nil {
+				t.Errorf("hold the remaining tt budget: %v", err)
+			}
+		}
+		script := movesOf(t, botVsBotGuestLine)
+		if tier.Name == hostTier.Name {
+			script = movesOf(t, botVsBotHostLine)
+		}
+		return &scriptedBot{script: script, stats: fakeStats()}
+	}
+	r, err := s.rm.CreateBotVsBot(&hostTier, "", &guestTier, "", 0, config.SeriesBO3)
+	if err != nil {
+		t.Fatalf("create bot vs bot: %v", err)
+	}
+	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
+	s.rm.adm.ReleaseTT(config.MachineTTBudgetBytes - 1)
+	r.Close()
+	if got := s.rm.LiveCoreBookings(); got != 0 {
+		t.Errorf("cores after the parked room closed = %d, want 0", got)
+	}
+	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.MachineTTBudgetBytes })
+}
+
+func TestReadyTTRefusalParksTheRoomAndRefusesMoves(t *testing.T) {
+	s := newStack(t)
+	s.rm.makeSearcher = func(config.Tier) searcher {
+		return &scriptedBot{script: movesOf(t, botVsBotGuestLine), stats: fakeStats()}
+	}
+	alice := seedUser(t, s.store, "alice")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMedium)
+	if err != nil {
+		t.Fatalf("create vs medium: %v", err)
+	}
+	drain := config.MachineTTBudgetBytes - config.TierMedium.TTBytes + 1
+	if err := s.rm.adm.AcquireTT(drain); err != nil {
+		t.Fatalf("drain the tt budget: %v", err)
+	}
+	if err := r.Ready(alice.ID); !errors.Is(err, ErrMachineBusy) {
+		t.Fatalf("ready over the drained budget = %v, want ErrMachineBusy", err)
+	}
+	if err := r.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); !errors.Is(err, ErrRoomClosed) {
+		t.Errorf("move into the parked room = %v, want ErrRoomClosed", err)
+	}
+	s.rm.adm.ReleaseTT(drain)
+	r.Close()
+	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.MachineTTBudgetBytes })
+	if _, ok := r.Info(); ok {
+		t.Error("the parked room still reports live info")
+	}
+}
+
 func TestShellCreateRoomRendersMachineBusy(t *testing.T) {
 	s := newStack(t)
 	fillTTBudget(t, s, int(config.MachineTTBudgetBytes/config.TierGrandmaster.TTBytes))
