@@ -95,6 +95,8 @@ const (
 	MaxRAMPerInstanceBytes    = 16 << 30
 	TournamentParallelMatches = 2
 	MachineCores              = 16
+	MachineTTBudgetBytes      = 8 << 30
+	AdmissionWaitMaxMs        = 60_000
 )
 const (
 	PonderAdoptFraction   = 0.5

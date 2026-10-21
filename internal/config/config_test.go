@@ -266,8 +266,14 @@ func TestResourceCapsMatchHardwareBudget(t *testing.T) {
 	for _, tier := range Tiers {
 		worstTT += InstancesPerTier * tier.TTBytes
 	}
-	if worstTT > 8<<30 {
-		t.Errorf("default roster worst-case tt footprint %d exceeds the RAM/4 budget %d", worstTT, int64(8<<30))
+	if worstTT > MachineTTBudgetBytes {
+		t.Errorf("default roster worst-case tt footprint %d exceeds the RAM/4 budget %d", worstTT, MachineTTBudgetBytes)
+	}
+	if MachineTTBudgetBytes != 8<<30 {
+		t.Errorf("MachineTTBudgetBytes = %d, want the RAM/4 law at %d", MachineTTBudgetBytes, int64(8<<30))
+	}
+	if AdmissionWaitMaxMs != 60_000 {
+		t.Errorf("AdmissionWaitMaxMs = %d, want the provisional 60000", AdmissionWaitMaxMs)
 	}
 	if MachineCores != 16 {
 		t.Errorf("MachineCores = %d, want 16 (the spec's ponder worst case, grandmaster searching while grandmaster ponders, with the solver pass the documented unbooked thread until v0.26 admission)", MachineCores)
