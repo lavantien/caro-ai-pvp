@@ -249,8 +249,8 @@ func TestNewRoomIDEncodes32HexChars(t *testing.T) {
 func TestCreateBotVsBotSeatsSyntheticAccounts(t *testing.T) {
 	s := newStack(t)
 	release := scriptBotVsBotTiers(t, s, map[string][]string{
-		"easy":   {"D4", "H8", "D5", "D6", "D7", "D3"},
-		"medium": {"P16", "P12", "P8", "N16", "M4"},
+		config.TierEasy.Name:   botVsBotHostLine,
+		config.TierMedium.Name: botVsBotGuestLine,
 	})
 	defer release()
 	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
