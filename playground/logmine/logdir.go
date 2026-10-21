@@ -182,10 +182,12 @@ func mineLogDir(root string) (logDirResult, error) {
 		res.files++
 		res.tournament = append(res.tournament, s.moves...)
 		res.rejects += s.rejects
-		res.firstWins = append(res.firstWins, firstWins{
-			tc: s.tc, firstTier: s.firstTier, secondTier: s.secondTier,
-			firstWins: s.firstWins, secondWins: s.secondWins,
-		})
+		if s.firstTier != "" && s.secondTier != "" && (s.firstWins != 0 || s.secondWins != 0) {
+			res.firstWins = append(res.firstWins, firstWins{
+				tc: s.tc, firstTier: s.firstTier, secondTier: s.secondTier,
+				firstWins: s.firstWins, secondWins: s.secondWins,
+			})
+		}
 		for _, o := range s.outcomes {
 			firstAgg[o.key] += o.count
 		}

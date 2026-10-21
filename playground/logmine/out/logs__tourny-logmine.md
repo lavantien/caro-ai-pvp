@@ -1,6 +1,6 @@
 # logmine: tourny
 
-source: ..\..\logs\tourny
+source: logs\tourny
 
 moves: 214354 tournament, 0 casual, 398 lines rejected
 
@@ -100,7 +100,6 @@ series log files parsed: 1111
 | 1+0 | easy | medium | 2 | 1 |
 | 1+0 | easy | hard | 1 | 2 |
 | 1+0 | easy | hard | 0 | 2 |
-|  |  |  | 0 | 0 |
 | 3+2 | medium | medium | 2 | 0 |
 | 3+2 | medium | hard | 2 | 1 |
 | 3+2 | medium | hard | 2 | 0 |
@@ -131,12 +130,8 @@ series log files parsed: 1111
 | 3+2 | easy | medium | 1 | 1 |
 | 3+2 | easy | hard | 0 | 2 |
 | 3+2 | easy | hard | 1 | 2 |
-|  |  |  | 0 | 0 |
 | 1+0 | easy | easy | 1 | 2 |
 | 1+0 | easy | easy | 1 | 2 |
-|  |  |  | 0 | 0 |
-| 2+1 | easy | easy | 0 | 0 |
-| 2+1 | easy | medium | 0 | 0 |
 | 2+1 | medium | medium | 2 | 0 |
 | 2+1 | medium | hard | 2 | 1 |
 | 2+1 | medium | hard | 2 | 1 |
@@ -167,16 +162,12 @@ series log files parsed: 1111
 | 2+1 | easy | medium | 1 | 2 |
 | 2+1 | easy | hard | 0 | 2 |
 | 2+1 | easy | hard | 0 | 2 |
-|  |  |  | 0 | 0 |
 | 1+0 | easy | easy | 1 | 2 |
 | 1+0 | easy | easy | 1 | 2 |
-|  |  |  | 0 | 0 |
 | 1+0 | easy | easy | 1 | 2 |
 | 1+0 | easy | easy | 1 | 2 |
-|  |  |  | 0 | 0 |
 | 1+0 | easy | easy | 1 | 2 |
 | 1+0 | easy | easy | 1 | 2 |
-|  |  |  | 0 | 0 |
 | 1+0 | medium | medium | 2 | 0 |
 | 1+0 | medium | hard | 2 | 1 |
 | 1+0 | medium | hard | 0 | 2 |
@@ -207,7 +198,6 @@ series log files parsed: 1111
 | 1+0 | easy | medium | 1 | 2 |
 | 1+0 | easy | hard | 0 | 2 |
 | 1+0 | easy | hard | 0 | 2 |
-|  |  |  | 0 | 0 |
 | 3+2 | easy | easy | 2 | 0 |
 | 3+2 | easy | medium | 0 | 2 |
 | 3+2 | easy | medium | 1 | 2 |
@@ -238,7 +228,6 @@ series log files parsed: 1111
 | 3+2 | medium | easy | 2 | 0 |
 | 3+2 | medium | easy | 2 | 1 |
 | 3+2 | easy | easy | 1 | 2 |
-|  |  |  | 0 | 0 |
 | 2+1 | easy | easy | 1 | 2 |
 | 2+1 | easy | medium | 0 | 2 |
 | 2+1 | easy | medium | 0 | 2 |
@@ -269,7 +258,6 @@ series log files parsed: 1111
 | 2+1 | medium | easy | 2 | 0 |
 | 2+1 | medium | easy | 2 | 1 |
 | 2+1 | easy | easy | 1 | 2 |
-|  |  |  | 0 | 0 |
 | 1+0 | easy | easy | 1 | 2 |
 | 1+0 | easy | medium | 1 | 1 |
 | 1+0 | easy | medium | 0 | 2 |
@@ -300,7 +288,6 @@ series log files parsed: 1111
 | 1+0 | medium | easy | 2 | 0 |
 | 1+0 | medium | easy | 2 | 0 |
 | 1+0 | easy | easy | 1 | 2 |
-|  |  |  | 0 | 0 |
 | 3+2 | easy | easy | 1 | 2 |
 | 3+2 | easy | medium | 0 | 2 |
 | 3+2 | easy | medium | 0 | 2 |
@@ -331,7 +318,6 @@ series log files parsed: 1111
 | 3+2 | medium | easy | 2 | 0 |
 | 3+2 | medium | easy | 2 | 0 |
 | 3+2 | easy | easy | 1 | 2 |
-|  |  |  | 0 | 0 |
 | 1+0 | easy | easy | 1 | 2 |
 | 1+0 | easy | medium | 0 | 2 |
 | 1+0 | easy | medium | 0 | 2 |
@@ -362,7 +348,6 @@ series log files parsed: 1111
 | 1+0 | medium | easy | 2 | 0 |
 | 1+0 | medium | easy | 2 | 0 |
 | 1+0 | easy | easy | 1 | 2 |
-|  |  |  | 0 | 0 |
 | 2+1 | easy | easy | 1 | 0 |
 | 2+1 | easy | medium | 0 | 2 |
 | 2+1 | easy | medium | 0 | 2 |
@@ -393,10 +378,8 @@ series log files parsed: 1111
 | 2+1 | medium | easy | 2 | 1 |
 | 2+1 | medium | easy | 2 | 0 |
 | 2+1 | easy | easy | 1 | 0 |
-|  |  |  | 0 | 0 |
 | 10+5 | hard | hard | 2 | 1 |
 | 10+5 | hard | hard | 2 | 1 |
-|  |  |  | 0 | 0 |
 | 2+1 | easy | hard | 2 | 0 |
 | 2+1 | easy | hard | 1 | 1 |
 | 2+1 | easy | master | 0 | 2 |
@@ -453,7 +436,6 @@ series log files parsed: 1111
 | 2+1 | easy | master | 1 | 2 |
 | 2+1 | easy | medium | 1 | 0 |
 | 2+1 | easy | medium | 1 | 1 |
-|  |  |  | 0 | 0 |
 | 3+2 | easy | hard | 0 | 2 |
 | 3+2 | easy | hard | 1 | 1 |
 | 3+2 | easy | master | 1 | 1 |
@@ -510,7 +492,6 @@ series log files parsed: 1111
 | 3+2 | easy | master | 1 | 2 |
 | 3+2 | easy | medium | 1 | 1 |
 | 3+2 | easy | medium | 0 | 2 |
-|  |  |  | 0 | 0 |
 | 1+0 | easy | hard | 0 | 2 |
 | 1+0 | easy | hard | 1 | 2 |
 | 1+0 | easy | master | 2 | 0 |
@@ -567,13 +548,10 @@ series log files parsed: 1111
 | 1+0 | easy | master | 1 | 2 |
 | 1+0 | easy | medium | 0 | 2 |
 | 1+0 | easy | medium | 0 | 2 |
-|  |  |  | 0 | 0 |
 | 1+0 | master | master | 6 | 3 |
 | 1+0 | master | master | 4 | 6 |
-|  |  |  | 0 | 0 |
 | 1+0 | master | master | 6 | 3 |
 | 1+0 | master | master | 6 | 4 |
-|  |  |  | 0 | 0 |
 | 1+0 | easy | medium | 2 | 1 |
 | 1+0 | easy | medium | 2 | 1 |
 | 1+0 | easy | hard | 0 | 2 |
@@ -664,7 +642,6 @@ series log files parsed: 1111
 | 1+0 | easy | grandmaster | 0 | 2 |
 | 1+0 | easy | easy | 1 | 2 |
 | 1+0 | easy | grandmaster | 0 | 2 |
-|  |  |  | 0 | 0 |
 | 2+1 | easy | medium | 0 | 2 |
 | 2+1 | easy | medium | 0 | 2 |
 | 2+1 | easy | hard | 0 | 2 |
@@ -755,67 +732,46 @@ series log files parsed: 1111
 | 2+1 | easy | master | 0 | 2 |
 | 2+1 | easy | grandmaster | 0 | 2 |
 | 2+1 | easy | grandmaster | 0 | 2 |
-|  |  |  | 0 | 0 |
 | 2+1 | hard | hard | 6 | 5 |
 | 2+1 | hard | hard | 6 | 4 |
-|  |  |  | 0 | 0 |
 | 3+2 | hard | hard | 5 | 5 |
 | 3+2 | hard | hard | 4 | 4 |
-|  |  |  | 0 | 0 |
 | 2+1 | hard | hard | 2 | 6 |
 | 2+1 | hard | hard | 6 | 2 |
-|  |  |  | 0 | 0 |
 | 3+2 | hard | hard | 6 | 5 |
 | 3+2 | hard | hard | 5 | 4 |
-|  |  |  | 0 | 0 |
 | 2+1 | grandmaster | grandmaster | 5 | 5 |
 | 2+1 | grandmaster | grandmaster | 6 | 2 |
-|  |  |  | 0 | 0 |
 | 2+1 | hard | hard | 5 | 5 |
 | 2+1 | hard | hard | 3 | 6 |
-|  |  |  | 0 | 0 |
 | 3+2 | grandmaster | grandmaster | 6 | 3 |
 | 3+2 | grandmaster | grandmaster | 5 | 5 |
-|  |  |  | 0 | 0 |
 | 3+2 | hard | hard | 6 | 3 |
 | 3+2 | hard | hard | 4 | 4 |
-|  |  |  | 0 | 0 |
 | 2+1 | grandmaster | grandmaster | 5 | 5 |
 | 2+1 | grandmaster | grandmaster | 3 | 6 |
-|  |  |  | 0 | 0 |
 | 2+1 | hard | hard | 6 | 4 |
 | 2+1 | hard | hard | 3 | 6 |
-|  |  |  | 0 | 0 |
 | 2+1 | hard | hard | 4 | 5 |
 | 2+1 | hard | hard | 6 | 3 |
-|  |  |  | 0 | 0 |
 | 3+2 | grandmaster | grandmaster | 6 | 3 |
 | 3+2 | grandmaster | grandmaster | 5 | 2 |
-|  |  |  | 0 | 0 |
 | 3+2 | hard | hard | 6 | 3 |
 | 3+2 | hard | hard | 5 | 4 |
-|  |  |  | 0 | 0 |
 | 3+2 | hard | hard | 5 | 5 |
 | 3+2 | hard | hard | 1 | 6 |
-|  |  |  | 0 | 0 |
 | 2+1 | grandmaster | grandmaster | 4 | 6 |
 | 2+1 | grandmaster | grandmaster | 6 | 4 |
-|  |  |  | 0 | 0 |
 | 3+2 | grandmaster | grandmaster | 5 | 5 |
 | 3+2 | grandmaster | grandmaster | 6 | 4 |
-|  |  |  | 0 | 0 |
 | 2+1 | grandmaster | grandmaster | 6 | 3 |
 | 2+1 | grandmaster | grandmaster | 5 | 5 |
-|  |  |  | 0 | 0 |
 | 3+2 | grandmaster | grandmaster | 6 | 3 |
 | 3+2 | grandmaster | grandmaster | 6 | 2 |
-|  |  |  | 0 | 0 |
 | 2+1 | grandmaster | grandmaster | 5 | 3 |
 | 2+1 | grandmaster | grandmaster | 4 | 5 |
-|  |  |  | 0 | 0 |
 | 3+2 | grandmaster | grandmaster | 6 | 1 |
 | 3+2 | grandmaster | grandmaster | 2 | 6 |
-|  |  |  | 0 | 0 |
 | 2+1 | easy | easy | 1 | 2 |
 | 2+1 | easy | medium | 0 | 2 |
 | 2+1 | easy | medium | 1 | 2 |
@@ -906,7 +862,6 @@ series log files parsed: 1111
 | 2+1 | medium | easy | 2 | 0 |
 | 2+1 | medium | easy | 2 | 0 |
 | 2+1 | easy | easy | 1 | 2 |
-|  |  |  | 0 | 0 |
 | 2+1 | grandmaster | master | 2 | 1 |
 | 2+1 | grandmaster | hard | 2 | 1 |
 | 2+1 | grandmaster | medium | 2 | 0 |
@@ -997,7 +952,6 @@ series log files parsed: 1111
 | 2+1 | medium | grandmaster | 2 | 0 |
 | 2+1 | hard | grandmaster | 1 | 2 |
 | 2+1 | master | grandmaster | 2 | 0 |
-|  |  |  | 0 | 0 |
 | 2+1 | easy | medium | 1 | 2 |
 | 2+1 | easy | hard | 1 | 2 |
 | 2+1 | easy | master | 0 | 2 |
@@ -1088,8 +1042,6 @@ series log files parsed: 1111
 | 2+1 | master | easy | 2 | 0 |
 | 2+1 | hard | easy | 2 | 0 |
 | 2+1 | medium | easy | 2 | 0 |
-|  |  |  | 0 | 0 |
-|  |  |  | 0 | 0 |
 | 3+2 | master | grandmaster | 1 | 2 |
 | 3+2 | master | easy | 2 | 0 |
 | 3+2 | master | hard | 2 | 0 |
@@ -1180,7 +1132,6 @@ series log files parsed: 1111
 | 3+2 | hard | master | 1 | 2 |
 | 3+2 | easy | master | 0 | 2 |
 | 3+2 | grandmaster | master | 1 | 1 |
-|  |  |  | 0 | 0 |
 
 ## game outcomes
 

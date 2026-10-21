@@ -1,6 +1,6 @@
-# logmine: ponderprobe-postfix.db
+# logmine: ponderprobe.db
 
-source: ..\..\db\ponderprobe-postfix.db
+source: db\ponderprobe.db
 
 moves: 0 tournament, 0 casual, 0 lines rejected
 
@@ -8,13 +8,13 @@ moves: 0 tournament, 0 casual, 0 lines rejected
 
 | tc | first tier | second tier | first wins | second wins |
 |---|---|---|---|---|
-| 0 | master | master | 6 | 3 |
-| 0 | master | master | 6 | 4 |
+| 1+0 | master | master | 6 | 3 |
+| 1+0 | master | master | 4 | 6 |
 
 ## game outcomes
 
 | tc | red tier | blue tier | outcome | count |
 |---|---|---|---|---|
-| 0 | master | master | blue | 6 |
-| 0 | master | master | red | 13 |
+| 1+0 | master | master | blue | 8 |
+| 1+0 | master | master | red | 11 |
 

@@ -1,6 +1,6 @@
-# logmine: ponderprobe.db
+# logmine: smoke105-v021.db
 
-source: ..\..\db\ponderprobe.db
+source: db\smoke105-v021.db
 
 moves: 0 tournament, 0 casual, 0 lines rejected
 
@@ -8,13 +8,12 @@ moves: 0 tournament, 0 casual, 0 lines rejected
 
 | tc | first tier | second tier | first wins | second wins |
 |---|---|---|---|---|
-| 0 | master | master | 6 | 3 |
-| 0 | master | master | 4 | 6 |
+| 10+5 | hard | hard | 2 | 1 |
+| 10+5 | hard | hard | 2 | 1 |
 
 ## game outcomes
 
 | tc | red tier | blue tier | outcome | count |
 |---|---|---|---|---|
-| 0 | master | master | blue | 8 |
-| 0 | master | master | red | 11 |
+| 10+5 | hard | hard | red | 6 |
 
