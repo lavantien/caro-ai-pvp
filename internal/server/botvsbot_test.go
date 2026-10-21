@@ -497,35 +497,3 @@ func (b *ponderSpyBot) startCount() int {
 	defer b.mu.Unlock()
 	return b.starts
 }
-
-func TestBotVsBotNoPonderWithoutBookedCores(t *testing.T) {
-	s := newStack(t)
-	var mu sync.Mutex
-	var spies []*ponderSpyBot
-	s.rm.makeSearcher = func(tier config.Tier) searcher {
-		script := movesOf(t, botVsBotGuestLine)
-		if tier.Name == config.TierEasy.Name {
-			script = movesOf(t, botVsBotHostLine)
-		}
-		b := &ponderSpyBot{inner: &scriptedBot{script: script, stats: fakeStats()}}
-		mu.Lock()
-		spies = append(spies, b)
-		mu.Unlock()
-		return b
-	}
-	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
-	if err != nil {
-		t.Fatalf("create bot vs bot: %v", err)
-	}
-	waitFor(t, func() bool {
-		_, ok := r.Info()
-		return !ok
-	})
-	mu.Lock()
-	defer mu.Unlock()
-	for i, b := range spies {
-		if got := b.startCount(); got != 0 {
-			t.Errorf("engine %d StartPonder calls = %d, want none without cores booked for pondering", i, got)
-		}
-	}
-}

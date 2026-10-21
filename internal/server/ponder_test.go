@@ -436,7 +436,7 @@ func TestPonderLaneStartStopHandshake(t *testing.T) {
 	b := rules.NewBoard()
 	b.Make(mustCellT(t, "H8"))
 	predict := rules.Move(mustCellT(t, "I8"))
-	lane.start(eng, rules.Red, b, predict, 1)
+	lane.start(eng, rules.Red, b, predict, 1, nil, 0)
 
 	done := make(chan ponderResult, 1)
 	go func() { done <- lane.stop(rules.Red) }()
@@ -504,7 +504,7 @@ func TestPonderLaneStartAfterCloseIsNoOp(t *testing.T) {
 	lane := newPonderLane()
 	go lane.run()
 	lane.close()
-	lane.start(eng, rules.Red, rules.NewBoard(), 0, 0)
+	lane.start(eng, rules.Red, rules.NewBoard(), 0, 0, nil, 0)
 	time.Sleep(20 * time.Millisecond)
 	eng.mu.Lock()
 	defer eng.mu.Unlock()
@@ -521,7 +521,7 @@ func TestPonderLaneCloseWhilePonderingJoins(t *testing.T) {
 		defer close(exited)
 		lane.run()
 	}()
-	lane.start(eng, rules.Red, rules.NewBoard(), 0, 0)
+	lane.start(eng, rules.Red, rules.NewBoard(), 0, 0, nil, 0)
 	closed := make(chan struct{})
 	go func() {
 		lane.close()
@@ -549,7 +549,7 @@ func TestPonderLaneEnqueueNeverBlocks(t *testing.T) {
 	lane := newPonderLane()
 	b := rules.NewBoard()
 	t0 := time.Now()
-	lane.start(eng, rules.Red, b, 0, 0)
+	lane.start(eng, rules.Red, b, 0, 0, nil, 0)
 	if d := time.Since(t0); d > 100*time.Millisecond {
 		t.Fatalf("enqueue blocked the caller for %s", d)
 	}
@@ -583,8 +583,8 @@ func TestPonderLanePerSideIndependence(t *testing.T) {
 		lane.run()
 	}()
 	b := rules.NewBoard()
-	lane.start(red, rules.Red, b, 1, 1)
-	lane.start(blue, rules.Blue, b, 2, 2)
+	lane.start(red, rules.Red, b, 1, 1, nil, 0)
+	lane.start(blue, rules.Blue, b, 2, 2, nil, 0)
 
 	done := make(chan ponderResult, 2)
 	go func() { done <- lane.stop(rules.Red) }()
@@ -626,8 +626,8 @@ func TestPonderLaneSkipsStartWhileSeatPonders(t *testing.T) {
 		lane.run()
 	}()
 	b := rules.NewBoard()
-	lane.start(first, rules.Red, b, 1, 1)
-	lane.start(second, rules.Red, b, 2, 2)
+	lane.start(first, rules.Red, b, 1, 1, nil, 0)
+	lane.start(second, rules.Red, b, 2, 2, nil, 0)
 	done := make(chan ponderResult, 1)
 	go func() { done <- lane.stop(rules.Red) }()
 	select {
@@ -1426,12 +1426,12 @@ func TestCollectPonderToleratesDesyncedBoardState(t *testing.T) {
 	bot := &ponderBot{stopMove: k10, stopStats: adoptableStopStats(k10, 15, int64(time.Millisecond))}
 	board := rules.NewBoard()
 	predict := rules.Move(mustCellT(t, "D4"))
-	lane.start(bot, rules.Blue, board, predict, 0)
+	lane.start(bot, rules.Blue, board, predict, 0, nil, 0)
 	r := &Room{ponder: lane}
 	if mv, _, _, ok := r.collectPonder(rules.Blue, 1, time.Now()); ok || mv != 0 {
 		t.Fatalf("nil board collect = move %d ok %t, want rejection", mv, ok)
 	}
-	lane.start(bot, rules.Blue, board, predict, 0)
+	lane.start(bot, rules.Blue, board, predict, 0, nil, 0)
 	b2 := rules.NewBoard()
 	b2.Make(rules.Cell(mustCellT(t, "H8")))
 	r.mu.Lock()
@@ -1460,7 +1460,7 @@ func TestPonderLaneSurvivesEnginePanic(t *testing.T) {
 	}()
 	bot := &panicStartBot{}
 	board := rules.NewBoard()
-	lane.start(bot, rules.Red, board, 5, 0)
+	lane.start(bot, rules.Red, board, 5, 0, nil, 0)
 	waitFor(t, func() bool {
 		bot.mu.Lock()
 		defer bot.mu.Unlock()
@@ -1614,7 +1614,7 @@ func TestPonderLaneCloseRacesInFlightStop(t *testing.T) {
 	bot.stopMove = k10
 	bot.stopStats = adoptableStopStats(k10, 12, int64(time.Millisecond))
 	board := rules.NewBoard()
-	lane.start(bot, rules.Red, board, 5, 0)
+	lane.start(bot, rules.Red, board, 5, 0, nil, 0)
 	stopDone := make(chan ponderResult, 1)
 	go func() { stopDone <- lane.stop(rules.Red) }()
 	<-bot.entered

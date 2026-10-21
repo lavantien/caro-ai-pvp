@@ -64,6 +64,11 @@ func (r *Room) startGameLocked() (err error) {
 	}()
 	for _, c := range [2]rules.Color{rules.Red, rules.Blue} {
 		if seat := r.seatByColorLocked(c); seat.bot != nil {
+			if err := r.manager.adm.AcquireTT(seat.bot.TTBytes); err != nil {
+				r.closeEnginesLocked()
+				return err
+			}
+			r.ttHeld[c] = seat.bot.TTBytes
 			r.engines[c] = r.makeSearcher(*seat.bot)
 		}
 	}
@@ -540,11 +545,20 @@ func (r *Room) closeEnginesLocked() {
 	if r.ponder != nil {
 		r.ponder.stop(rules.Red)
 		r.ponder.stop(rules.Blue)
+		r.ponder.drain()
 	}
 	for i := range r.engines {
 		if r.engines[i] != nil {
 			r.engines[i].Close()
 			r.engines[i] = nil
+		}
+	}
+	if r.manager != nil && r.manager.adm != nil {
+		for i := range r.ttHeld {
+			if r.ttHeld[i] != 0 {
+				r.manager.adm.ReleaseTT(r.ttHeld[i])
+				r.ttHeld[i] = 0
+			}
 		}
 	}
 }
@@ -624,6 +638,7 @@ func (r *Room) runBotTurn() bool {
 	if r.budgetCap > 0 && budget > r.budgetCap {
 		budget = r.budgetCap
 	}
+	cores := r.seatByColorLocked(side).bot.Cores
 	board, moveCount, eng := *r.board, r.board.MoveCount, r.engines[side]
 	entry := r.searchEntry
 	turnStart := r.turnStart
@@ -634,7 +649,20 @@ func (r *Room) runBotTurn() bool {
 		entry()
 	}
 	if !adopted {
+		if err := r.manager.adm.AcquireCores(cores); err != nil {
+			log.Printf("server: bot search refused by the machine budget: %v", err)
+			r.finishLifecycle()
+			return true
+		}
+		held := true
+		defer func() {
+			if held {
+				r.manager.adm.ReleaseCores(cores)
+			}
+		}()
 		mv, st, tag = eng.Search(&board, engine.NewFixedBudget(budget))
+		r.manager.adm.ReleaseCores(cores)
+		held = false
 	}
 
 	r.mu.Lock()

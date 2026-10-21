@@ -34,7 +34,7 @@ func TestPonderLaneStopSurvivesEngineStopPanic(t *testing.T) {
 		lane.run()
 	}()
 	bot := &panicStopBot{}
-	lane.start(bot, rules.Red, rules.NewBoard(), 5, 0)
+	lane.start(bot, rules.Red, rules.NewBoard(), 5, 0, nil, 0)
 	waitFor(t, func() bool {
 		bot.mu.Lock()
 		defer bot.mu.Unlock()
@@ -60,7 +60,7 @@ func TestPonderLaneStopSurvivesEngineStopPanic(t *testing.T) {
 func TestPonderLaneAbortReleasesQueuedWaiters(t *testing.T) {
 	lane := newPonderLane()
 	bot := &panicStartBot{}
-	lane.start(bot, rules.Red, rules.NewBoard(), 5, 0)
+	lane.start(bot, rules.Red, rules.NewBoard(), 5, 0, nil, 0)
 	stopDone := make(chan ponderResult, 1)
 	go func() { stopDone <- lane.stop(rules.Red) }()
 	waitFor(t, func() bool {

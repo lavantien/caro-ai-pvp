@@ -159,16 +159,10 @@ func injectSeriesAbort(t *testing.T, s *stack) func() {
 	}
 }
 
-func TestCreateVsBotFailureReleasesCoreBooking(t *testing.T) {
+func TestCreateVsBotFailureLeavesLedgerClean(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 	bot := config.Tiers[1]
-	fillRooms := (config.MachineCores - bot.Cores) / bot.Cores
-	for range fillRooms {
-		if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &bot); err != nil {
-			t.Fatalf("fill create: %v", err)
-		}
-	}
 	drop := injectSeriesAbort(t, s)
 	defer drop()
 
@@ -176,13 +170,16 @@ func TestCreateVsBotFailureReleasesCoreBooking(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "injected series failure") {
 		t.Fatalf("create over the aborted series write = %v, want the injected failure", err)
 	}
-	if got := s.rm.LiveCoreBookings(); got != fillRooms*bot.Cores {
-		t.Errorf("core bookings after the failed create = %d, want the pre-fill %d", got, fillRooms*bot.Cores)
+	if got := s.rm.LiveCoreBookings(); got != 0 {
+		t.Errorf("cores after the failed create = %d, want 0", got)
+	}
+	if got := s.rm.adm.TTFree(); got != config.MachineTTBudgetBytes {
+		t.Errorf("ttFree after the failed create = %d, want the full budget", got)
 	}
 	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &bot); err == nil || !strings.Contains(err.Error(), "injected series failure") {
-		t.Errorf("retry after the released booking = %v, want the injected failure again, not ErrMachineBusy", err)
+		t.Errorf("retry after the failed create = %v, want the injected failure again, not a busy machine", err)
 	}
-	if got := s.rm.LiveCoreBookings(); got != fillRooms*bot.Cores {
-		t.Errorf("core bookings after the retry = %d, want the pre-fill %d", got, fillRooms*bot.Cores)
+	if got := s.rm.LiveCoreBookings(); got != 0 {
+		t.Errorf("cores after the retry = %d, want 0", got)
 	}
 }

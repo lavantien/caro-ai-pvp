@@ -99,6 +99,8 @@ type ponderCmd struct {
 	board   rules.Board
 	predict rules.Move
 	base    int
+	adm     *Admission
+	cores   int
 	done    chan struct{}
 	result  *ponderResult
 }
@@ -118,13 +120,13 @@ func newPonderLane() *ponderLane {
 	return l
 }
 
-func (l *ponderLane) start(eng searcher, side rules.Color, board *rules.Board, predict rules.Move, base int) {
+func (l *ponderLane) start(eng searcher, side rules.Color, board *rules.Board, predict rules.Move, base int, adm *Admission, cores int) {
 	l.mu.Lock()
 	if l.closed {
 		l.mu.Unlock()
 		return
 	}
-	l.queue = append(l.queue, ponderCmd{kind: ponderStart, side: side, eng: eng, board: *board, predict: predict, base: base})
+	l.queue = append(l.queue, ponderCmd{kind: ponderStart, side: side, eng: eng, board: *board, predict: predict, base: base, adm: adm, cores: cores})
 	l.cond.Signal()
 	l.mu.Unlock()
 }
@@ -193,8 +195,11 @@ func (l *ponderLane) dispatch(cmd ponderCmd) (keep bool) {
 	switch cmd.kind {
 	case ponderStart:
 		if l.active[cmd.side] == nil {
-			cmd.eng.StartPonder(&cmd.board)
+			if cmd.cores > 0 && cmd.adm != nil && !cmd.adm.TryAcquireCores(cmd.cores) {
+				break
+			}
 			l.active[cmd.side] = &cmd
+			cmd.eng.StartPonder(&cmd.board)
 		}
 	case ponderStop:
 		res := l.halt(cmd.side)
@@ -214,7 +219,6 @@ func (l *ponderLane) abort() {
 	l.closed = true
 	pending := l.queue
 	l.queue = nil
-	l.active = [2]*ponderCmd{}
 	done := l.closeDone
 	l.closeDone = nil
 	l.mu.Unlock()
@@ -228,6 +232,21 @@ func (l *ponderLane) abort() {
 	}
 }
 
+func (l *ponderLane) drain() {
+	l.mu.Lock()
+	held := [2]*ponderCmd{}
+	for side, a := range l.active {
+		held[side] = a
+		l.active[side] = nil
+	}
+	l.mu.Unlock()
+	for _, a := range held {
+		if a != nil && a.cores > 0 && a.adm != nil {
+			a.adm.ReleaseCores(a.cores)
+		}
+	}
+}
+
 func (l *ponderLane) halt(side rules.Color) ponderResult {
 	a := l.active[side]
 	if a == nil {
@@ -235,6 +254,9 @@ func (l *ponderLane) halt(side rules.Color) ponderResult {
 	}
 	l.active[side] = nil
 	mv, st, tag := a.eng.StopPonder()
+	if a.cores > 0 && a.adm != nil {
+		a.adm.ReleaseCores(a.cores)
+	}
 	return ponderResult{active: true, move: mv, stats: st, tag: tag, predict: a.predict, base: a.base}
 }
 
@@ -285,6 +307,7 @@ type ponderArm struct {
 	board   rules.Board
 	predict rules.Move
 	base    int
+	cores   int
 }
 
 type ttReplySearcher interface {
@@ -314,7 +337,7 @@ func ttPonderPredict(eng searcher, b *rules.Board) (rules.Move, bool) {
 
 func (r *Room) ponderArmLocked(side rules.Color, eng searcher, st *engine.SearchStats) ponderArm {
 	var arm ponderArm
-	if r.ponder == nil || !r.ponderOn || st.PVLen < 1 {
+	if r.ponder == nil || st.PVLen < 1 {
 		return arm
 	}
 	tier := r.seatByColorLocked(side).bot
@@ -334,6 +357,7 @@ func (r *Room) ponderArmLocked(side rules.Color, eng searcher, st *engine.Search
 	arm.board = *r.board
 	arm.predict = predict
 	arm.base = arm.board.MoveCount
+	arm.cores = tier.PonderThreads
 	arm.ok = true
 	return arm
 }
@@ -350,7 +374,7 @@ func (r *Room) dispatchPonderArm(arm *ponderArm) {
 	current := !r.over && !r.finished && !r.quitClosed() && r.board != nil && r.board.MoveCount == arm.base &&
 		r.board.Side == arm.side.Opponent() && r.engines[arm.side] == arm.eng
 	if current {
-		r.ponder.start(arm.eng, arm.side, &arm.board, arm.predict, arm.base)
+		r.ponder.start(arm.eng, arm.side, &arm.board, arm.predict, arm.base, r.manager.adm, arm.cores)
 	}
 	r.mu.Unlock()
 }

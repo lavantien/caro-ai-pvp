@@ -44,14 +44,14 @@ type RoomManager struct {
 	hub          *Hub
 	store        *Store
 	wq           *WriteQueue
-	coresUsed    int
+	adm          *Admission
 	makeSearcher func(config.Tier) searcher
 }
 
 func NewRoomManager(hub *Hub, store *Store, wq *WriteQueue) *RoomManager {
 	return &RoomManager{
 		rooms: make(map[string]*Room), hub: hub, store: store, wq: wq,
-		makeSearcher: newBotSearcher,
+		adm: newAdmission(), makeSearcher: newBotSearcher,
 	}
 }
 func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config.Tier) (*Room, error) {
@@ -74,17 +74,11 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 		id: newRoomID(), hub: rm.hub, store: rm.store, wq: rm.wq, manager: rm,
 		tcIdx: tcIdx, boLen: boLen, createdAt: time.Now(),
 		host: seat{userID: ownerUserID}, guest: guest,
-		makeSearcher: rm.makeSearcher, ponderOn: true,
-		wake: make(chan struct{}, 1), quit: make(chan struct{}),
+		makeSearcher: rm.makeSearcher,
+		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
 	}
-	published := false
-	defer func() {
-		if !published {
-			rm.releaseRoomCores(r)
-		}
-	}()
 	if vsBot != nil {
-		if !rm.bookRoomCores(r, vsBot.Cores) {
+		if !rm.adm.CanAcquireTT(vsBot.TTBytes) {
 			return nil, ErrMachineBusy
 		}
 		var row SeriesRow
@@ -105,7 +99,6 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 	}
 	rm.mu.Lock()
 	rm.rooms[r.id] = r
-	published = true
 	rm.mu.Unlock()
 	return r, nil
 }
@@ -125,28 +118,6 @@ func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, gu
 		makeSearcher: rm.makeSearcher,
 		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
 	}
-	published := false
-	defer func() {
-		if !published {
-			rm.releaseRoomCores(r)
-		}
-	}()
-	peak := config.RoomCores(*hostTier, *guestTier)
-	floor := max(hostTier.Cores, guestTier.Cores)
-	if peak > floor {
-		if rm.bookRoomCores(r, peak) {
-			r.ponderOn = true
-		} else if rm.bookRoomCores(r, floor) {
-			r.ponderOn = false
-		} else {
-			return nil, ErrMachineBusy
-		}
-	} else {
-		r.ponderOn = false
-		if !rm.bookRoomCores(r, floor) {
-			return nil, ErrMachineBusy
-		}
-	}
 	r.mu.Lock()
 	r.series = series
 	r.mu.Unlock()
@@ -158,7 +129,6 @@ func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, gu
 	}
 	rm.mu.Lock()
 	rm.rooms[r.id] = r
-	published = true
 	rm.mu.Unlock()
 	r.startBotWorker()
 	return r, nil
@@ -331,7 +301,7 @@ type Room struct {
 	tcIdx        int
 	boLen        int
 	createdAt    time.Time
-	bookedCores  int
+	ttHeld       [2]int64
 	mu           sync.Mutex
 	host         seat
 	guest        seat
@@ -349,7 +319,6 @@ type Room struct {
 	legalBuf     [config.BoardCells]rules.Move
 	lastM        MoveStat
 	ponder       *ponderLane
-	ponderOn     bool
 	ponderRing   [2]GrantDepthRing
 	budgetCap    time.Duration
 	makeSearcher func(config.Tier) searcher
@@ -427,7 +396,6 @@ func (r *Room) retire() {
 		r.mu.Lock()
 		close(r.quit)
 		r.mu.Unlock()
-		r.manager.releaseRoomCores(r)
 		r.mu.Lock()
 		r.over = true
 		r.mu.Unlock()

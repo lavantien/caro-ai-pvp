@@ -128,7 +128,7 @@ func collectPonderCase(t *testing.T, bot searcher, side rules.Color, predict rul
 		lane.close()
 		<-exited
 	}()
-	lane.start(bot, side, board, predict, base)
+	lane.start(bot, side, board, predict, base, nil, 0)
 	r := &Room{ponder: lane, board: board, moves: moves}
 	return r.collectPonder(side, 1, time.Now())
 }
