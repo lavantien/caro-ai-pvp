@@ -605,6 +605,7 @@ func TestEngineStartPonderGuards(t *testing.T) {
 		runtime.Gosched()
 	}
 	assertEnginePanic(t, "StartPonder while searching", func() { busy.StartPonder(&guard) })
+	assertEnginePanic(t, "Search while searching", func() { busy.Search(&guard, NewStoppable()) })
 	<-done
 }
 
