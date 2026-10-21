@@ -8,8 +8,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// mate1: red E9..H9 with the left end closed by D9, I9 open. I9 completes the
-// exact five E9..I9 whose only blocked end is D9.
 func mate1Board(t *testing.T) *rules.Board {
 	t.Helper()
 	b := rules.NewBoard()
@@ -19,8 +17,6 @@ func mate1Board(t *testing.T) *rules.Board {
 	return b
 }
 
-// mate2: an open three F9..H9. Red extends to an open four, blue cannot hold
-// both ends: forced in 3 plies.
 func mate2Board(t *testing.T) *rules.Board {
 	t.Helper()
 	b := rules.NewBoard()
@@ -30,10 +26,6 @@ func mate2Board(t *testing.T) *rules.Board {
 	return b
 }
 
-// mate3: the four plus open three cross. H9 makes the simple four E9..H9
-// (win cell I9) and the open column three H7..H9 at once. Blue must spend
-// its move on I9, then H6 or H10 turns the column into an open four:
-// forced in 5 plies.
 func mate3Board(t *testing.T) *rules.Board {
 	t.Helper()
 	b := rules.NewBoard()
@@ -43,8 +35,6 @@ func mate3Board(t *testing.T) *rules.Board {
 	return b
 }
 
-// overlineTrap: F9..I9 plus K9. J9 completes six in a row and wins nothing,
-// E9 is the only win-in-1. The engine must decline the trap.
 func overlineTrapBoard(t *testing.T) *rules.Board {
 	t.Helper()
 	b := rules.NewBoard()
@@ -54,8 +44,6 @@ func overlineTrapBoard(t *testing.T) *rules.Board {
 	return b
 }
 
-// deadLine: E9..H9 plus J9 with D9 closed. Every extension of the row
-// overlines or hits the blue block, no win exists on this line.
 func deadLineBoard(t *testing.T) *rules.Board {
 	t.Helper()
 	b := rules.NewBoard()
@@ -203,14 +191,6 @@ func TestIterativeDeepeningProgression(t *testing.T) {
 	}
 }
 
-// TestOrderingPrunesMoreAtEqualDepth pins ordering's value the
-// deterministic way: two fresh single-threaded engines search the same
-// midgame board to the same completed depth, one with move ordering off,
-// and the ordered one must visit strictly fewer nodes (fewer nodes per
-// depth is what reaches deeper under any fixed budget). Node counts at a
-// completed depth over a fresh table are a pure function of the position,
-// so no wall-clock margin can flake the comparison; the generous budget is
-// only the runner-starvation backstop, the depth cap ends both searches.
 func TestOrderingPrunesMoreAtEqualDepth(t *testing.T) {
 	b := midgameBoard(t)
 	const depth = 5
@@ -235,7 +215,7 @@ func TestOrderingPrunesMoreAtEqualDepth(t *testing.T) {
 func TestStatsTTCountersPopulated(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
-	_, stats := e.Search(b, NewFixedBudget(200*time.Millisecond))
+	_, stats := e.Search(b, NewFixedBudget(scaledBudget(200*time.Millisecond)))
 	if stats.TTHitPermille < 0 || stats.TTHitPermille > 1000 {
 		t.Errorf("tt hit permille %d out of range", stats.TTHitPermille)
 	}
@@ -243,16 +223,13 @@ func TestStatsTTCountersPopulated(t *testing.T) {
 		t.Errorf("hash full permille %d out of range", stats.HashFullPermille)
 	}
 	if stats.HashFullPermille == 0 {
-		t.Error("hash full permille 0 after a 200ms search with a small table")
+		t.Error("hash full permille 0 after a funded search with a small table")
 	}
 	if stats.TTHitPermille == 0 {
 		t.Error("tt hit permille 0 with transpositions enabled")
 	}
 }
 
-// TestRootFillingMoveDraws covers the root draw path: a checkerboarded 8x8
-// region with one corner empty. The only move fills the board without a win,
-// so the root scores the draw and still answers legally.
 func TestRootFillingMoveDraws(t *testing.T) {
 	b := rules.NewCrossCheck()
 	for r := range config.CrossCheckSize {
@@ -282,9 +259,6 @@ func TestRootFillingMoveDraws(t *testing.T) {
 	}
 }
 
-// TestInteriorFillingMoveDraws drives negamax itself into the last empty
-// cell: two holes on a checkerboarded region, depth 2, so the interior node
-// takes its own draw branch.
 func TestInteriorFillingMoveDraws(t *testing.T) {
 	b := rules.NewCrossCheck()
 	for r := range config.CrossCheckSize {
