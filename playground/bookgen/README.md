@@ -12,7 +12,7 @@ Opening book corpus generator. A nested Go module that plays tier-vs-tier games,
 
 ## merge rules
 
-Every shard must carry the same corpus fingerprint, matching the `-tier`, `-tc`, and `-games` flags; a mismatch refuses with the file and field named. A shard still held by a running corpus member, or ending torn, refuses. Header-only shards count as zero games and merge cleanly. Duplicate games are detected by a SHA-256 signature over the game block body, skipped in shard order, and counted in the log; the `-games` floor applies to the kept total.
+Every shard must match the `-tier` and `-tc` flags exactly and carry a `games` target at or below the merge `-games` target, so an accumulation member at the full target and its smaller re-armed segments unify under one requested target; a tier or tc mismatch refuses with the file and field named, and a shard whose games target exceeds the merge target refuses as a wrong-generation shard. The merged header carries the `-games` target. A shard still held by a running corpus member, or ending torn, refuses. Header-only shards count as zero games and merge cleanly. Duplicate games are detected by a SHA-256 signature over the game block body, skipped in shard order, and counted in the log; the `-games` floor applies to the kept total.
 
 Merging is idempotent with no delta: the merged file is itself a plain corpus with the target fingerprint and games renumbered from zero, so re-merging a merged file alone reproduces it byte for byte. The fingerprint's `games=` field stays the identity target for every contributor, while the true game count is the block count the file carries and the merge log reports.
 

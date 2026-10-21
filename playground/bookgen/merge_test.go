@@ -191,7 +191,6 @@ func TestMergeRefusesFingerprintMismatch(t *testing.T) {
 		runTC, runGames   int
 		field, got, want  string
 	}{
-		{"games target", config.TierEasy.Name, 0, 3, config.TierEasy.Name, 0, 4, "games", "3", "4"},
 		{"tier", config.TierMaster.Name, 0, 4, config.TierEasy.Name, 0, 4, "tier", config.TierMaster.Name, config.TierEasy.Name},
 		{"tc", config.TierEasy.Name, 1, 4, config.TierEasy.Name, 0, 4, "tc", "1", "0"},
 	}
@@ -209,6 +208,75 @@ func TestMergeRefusesFingerprintMismatch(t *testing.T) {
 				t.Errorf("%s: error %q misses %q", c.name, err.Error(), part)
 			}
 		}
+	}
+}
+
+func TestMergeMixedTargetsUnifyAtTheRequestedTarget(t *testing.T) {
+	dir := t.TempDir()
+	legacy := filepath.Join(dir, "legacy.txt")
+	segB := filepath.Join(dir, "book-corpus-b.txt")
+	segC := filepath.Join(dir, "book-corpus-c.txt")
+	segD := filepath.Join(dir, "book-corpus-d.txt")
+	games := [][]posRec{
+		lineRecs(t, 119, 7),
+		lineRecs(t, 120, 8),
+		lineRecs(t, 119, 9),
+		lineRecs(t, 120, 7),
+		lineRecs(t, 102, 5),
+	}
+	writeShard(t, legacy, config.TierEasy.Name, 0, 8, games...)
+	writeShard(t, segB, config.TierEasy.Name, 0, 2, lineRecs(t, 105, 6), lineRecs(t, 150, 4))
+	writeShard(t, segC, config.TierEasy.Name, 0, 2, lineRecs(t, 153, 3), lineRecs(t, 116, 21))
+	writeShard(t, segD, config.TierEasy.Name, 0, 2, lineRecs(t, 123, 22), lineRecs(t, 87, 23))
+	out := filepath.Join(dir, "merged.txt")
+	var progress bytes.Buffer
+	if err := runMerge(mergeOpts{shards: []string{legacy, segB, segC, segD}, outPath: out, tier: config.TierEasy.Name, tc: 0, games: 8}, &progress); err != nil {
+		t.Fatalf("runMerge over mixed targets: %v", err)
+	}
+	var want strings.Builder
+	fmt.Fprintf(&want, "%s\n", corpusFingerprint(config.TierEasy.Name, 0, 8))
+	for i, recs := range append(append([][]posRec{}, games...), lineRecs(t, 105, 6), lineRecs(t, 150, 4), lineRecs(t, 153, 3), lineRecs(t, 116, 21), lineRecs(t, 123, 22), lineRecs(t, 87, 23)) {
+		want.WriteString(renderGame(i, recs, 0))
+	}
+	if got := readAll(t, out); got != want.String() {
+		t.Fatalf("mixed-target merge = %q, want %q", got, want.String())
+	}
+	if !strings.Contains(progress.String(), "merge done: 11 games from 4 shards (0 duplicates skipped)") {
+		t.Errorf("log %q misses the unified summary", progress.String())
+	}
+}
+
+func TestMergeSegmentsOnlySetAccepted(t *testing.T) {
+	dir := t.TempDir()
+	segs := []string{filepath.Join(dir, "b.txt"), filepath.Join(dir, "c.txt"), filepath.Join(dir, "d.txt")}
+	for i, seg := range segs {
+		recs := [][]posRec{lineRecs(t, 119+i, 7), lineRecs(t, 120+i, 8), lineRecs(t, 121+i, 9)}
+		writeShard(t, seg, config.TierEasy.Name, 0, 3, recs...)
+	}
+	out := filepath.Join(dir, "m.txt")
+	if err := runMerge(mergeOpts{shards: segs, outPath: out, tier: config.TierEasy.Name, tc: 0, games: 9}, io.Discard); err != nil {
+		t.Fatalf("runMerge over segments only: %v", err)
+	}
+	sc, err := loadCorpus(out)
+	if err != nil {
+		t.Fatalf("loadCorpus: %v", err)
+	}
+	if sc.games != 9 || sc.fp != corpusFingerprint(config.TierEasy.Name, 0, 9) {
+		t.Fatalf("segments-only scan = %d games under %q, want 9 under the requested target", sc.games, sc.fp)
+	}
+}
+
+func TestMergeRefusesShardGamesAboveTarget(t *testing.T) {
+	dir := t.TempDir()
+	shard := filepath.Join(dir, "s.txt")
+	writeShard(t, shard, config.TierEasy.Name, 0, 5, lineRecs(t, 119), lineRecs(t, 120))
+	out := filepath.Join(dir, "m.txt")
+	err := runMerge(mergeOpts{shards: []string{shard}, outPath: out, tier: config.TierEasy.Name, tc: 0, games: 4}, io.Discard)
+	if err == nil || !strings.Contains(err.Error(), filepath.Base(shard)) || !strings.Contains(err.Error(), "games=5") || !strings.Contains(err.Error(), "target 4") {
+		t.Fatalf("above-target shard error = %v, want the wrong-generation refusal naming shard value and target", err)
+	}
+	if _, serr := os.Stat(out); !os.IsNotExist(serr) {
+		t.Fatalf("refused merge still wrote %s", out)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,7 +34,21 @@ func shardFingerprintError(path, fp, want string) error {
 	for _, key := range corpusIdentityFields {
 		got, ok := fingerprintField(fp, key)
 		expected, _ := fingerprintField(want, key)
-		if !ok || got != expected {
+		if !ok {
+			return fmt.Errorf("bookgen: merge shard %s fingerprint misses %s=, want %s=%s under %q", path, key, key, expected, want)
+		}
+		if key == "games" {
+			shardGames, err := strconv.Atoi(got)
+			if err != nil {
+				return fmt.Errorf("bookgen: merge shard %s fingerprint games=%s is not a number", path, got)
+			}
+			target, _ := strconv.Atoi(expected)
+			if shardGames > target {
+				return fmt.Errorf("bookgen: merge shard %s fingerprint games=%d exceeds the merge target %d, wrong-generation shard", path, shardGames, target)
+			}
+			continue
+		}
+		if got != expected {
 			return fmt.Errorf("bookgen: merge shard %s fingerprint %s=%s, want %s=%s under %q", path, key, got, key, expected, want)
 		}
 	}
