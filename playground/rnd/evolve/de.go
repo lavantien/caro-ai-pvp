@@ -166,9 +166,6 @@ func (e *engine) scalarGeneration(pop [][]float64, loss []float64, best int, s *
 		trial := e.makeTrial(pop, loss, i, s)
 		if e.screen != nil && e.screen.skip(trial, loss, skipped, len(pop)) {
 			skipped++
-			if s != nil {
-				s.recordSkip()
-			}
 			continue
 		}
 		draws := e.freshDraws()

@@ -154,9 +154,6 @@ func (e *engine) rankGeneration(pop [][]float64, s *shadeState) ([][]float64, []
 		}
 		trial := e.makeTrial(pop, loss, i, s)
 		if e.screen != nil && e.screen.skip(trial, loss, len(trials), len(pop)) {
-			if s != nil {
-				s.recordSkip()
-			}
 			continue
 		}
 		trials = append(trials, trial)

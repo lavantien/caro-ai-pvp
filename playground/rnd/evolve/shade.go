@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"math/rand"
+	"sort"
 )
 
 type shadeState struct {
@@ -149,8 +150,6 @@ func (s *shadeState) record(i int, delta float64, accept bool) {
 	}
 }
 
-func (s *shadeState) recordSkip() {}
-
 func (s *shadeState) pushArchive(x []float64) {
 	s.archive = append(s.archive, append([]float64(nil), x...))
 }
@@ -239,13 +238,19 @@ func (s *shadeState) afterGeneration(rng *rand.Rand, gen, maxGens int, pop [][]f
 		for i := range order {
 			order[i] = i
 		}
-		for i := len(order) - 1; i > 0; i-- {
-			j := rng.Intn(i + 1)
-			order[i], order[j] = order[j], order[i]
-		}
+		sort.Slice(order, func(a, b int) bool { return loss[order[a]] < loss[order[b]] })
 		keep := order[:n]
-		np := make([][]float64, n)
-		nl := make([]float64, n)
+		keptBest := false
+		for _, idx := range keep {
+			if idx == best {
+				keptBest = true
+			}
+		}
+		if !keptBest {
+			keep[len(keep)-1] = best
+		}
+		np := make([][]float64, len(keep))
+		nl := make([]float64, len(keep))
 		nb := 0
 		for k, idx := range keep {
 			np[k], nl[k] = pop[idx], loss[idx]
