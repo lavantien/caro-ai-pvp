@@ -1,0 +1,31 @@
+F games v1 tier=master budget-ms=15 jitter=0.5 games=2 seed=11
+G 0 red
+M 119
+M 85
+M 71
+M 87
+M 86
+M 101
+M 69
+M 70
+M 52
+M 100
+M 103
+M 35
+M 120
+E 13 0
+G 1 red
+M 120
+M 86
+M 72
+M 88
+M 87
+M 102
+M 70
+M 71
+M 53
+M 101
+M 104
+M 36
+M 121
+E 13 0

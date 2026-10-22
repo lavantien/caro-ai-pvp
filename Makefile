@@ -305,7 +305,7 @@ darkcontrast:
 icons:
 	CGO_ENABLED=1 go -C playground run ./icongen -out ../internal/server/web/static/icons
 
-ci: playground-modules darkcontrast fmt-check lint vet build test-race bookgen-test cover
+ci: playground-modules darkcontrast fmt-check lint vet build test-race bookgen-test evalfit-test cover
 	@echo "ci: all green"
 
 # logstats renders the markdown evidence report of the v0.20 chain from the
@@ -409,6 +409,16 @@ playground-modules:
 		echo "build $$(dirname $$d)"; \
 		CGO_ENABLED=1 go -C $$(dirname $$d) build -o ../../bin/ . || exit 1; \
 	done
+
+# evalfit-test vets and tests the organic eval-weight fitting module: the
+# outcome-labeled self-play games generator (resume law, torn-tail recovery,
+# opening-rule fallbacks), the games-file loader feeding the fit corpus, and
+# the SHADE challenger that keeps gradient descent honest through the 2
+# percent tolerance gate.
+.PHONY: evalfit-test
+evalfit-test:
+	CGO_ENABLED=1 go -C playground/evalfit vet ./...
+	GOMEMLIMIT=2GiB CGO_ENABLED=1 go -C playground/evalfit test -race -parallel 2 -timeout $(GO_TEST_TIMEOUT) ./...
 
 # gpu-spike builds the nvcc measurement dll and drives it, the toolchain
 # and cost measurements behind the CUDA-offload assessment in
