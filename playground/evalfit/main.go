@@ -20,8 +20,19 @@ const (
 )
 
 func fatal(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "evalfit: "+format+"\n", args...)
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
 	os.Exit(1)
+}
+
+func splitDataPaths(dbs, games string) ([]string, []string) {
+	dbPaths := strings.Split(dbs, ",")
+	var gamePaths []string
+	for _, gp := range strings.Split(games, ",") {
+		if strings.TrimSpace(gp) != "" {
+			gamePaths = append(gamePaths, gp)
+		}
+	}
+	return dbPaths, gamePaths
 }
 
 func challengerViolatesTolerance(gdLoss, chalLoss float64) bool {
@@ -48,12 +59,9 @@ func main() {
 	}
 	fmt.Fprintf(os.Stderr, "evalfit: start dbs=%s tiers=%s games=%s seed=%d train-frac=%.2f\n", *dbs, *tiers, *gamesFiles, *seed, *trainFrac)
 	if *dbs == "" {
-		fatal("-dbs is required")
+		fatal("evalfit: -dbs is required")
 	}
-	roots := strings.Split(*dbs, ",")
-	if strings.TrimSpace(*gamesFiles) != "" {
-		roots = append(roots, strings.Split(*gamesFiles, ",")...)
-	}
+	dbRoots, gameRoots := splitDataPaths(*dbs, *gamesFiles)
 	tierSet := map[string]bool{}
 	if strings.TrimSpace(*tiers) != "" {
 		for _, t := range strings.Split(*tiers, ",") {
@@ -68,7 +76,7 @@ func main() {
 	var samples []sample
 	keySet := map[string]bool{}
 	var seriesKeys []string
-	for _, root := range roots {
+	for _, root := range dbRoots {
 		load, err := loadDBGames(root, tierSet)
 		if err != nil {
 			fatal("%v", err)
@@ -96,10 +104,7 @@ func main() {
 			}
 		}
 	}
-	for _, gp := range strings.Split(*gamesFiles, ",") {
-		if strings.TrimSpace(gp) == "" {
-			continue
-		}
+	for _, gp := range gameRoots {
 		gf, ok, err := loadGamesFile(gp, tierSet)
 		if err != nil {
 			fatal("%v", err)
@@ -135,10 +140,10 @@ func main() {
 		}
 	}
 	if gamesRejected > int(rejectBudgetFrac*float64(gamesKept+gamesRejected)) {
-		fatal("%d of %d games rejected, over the %.0f%% integrity budget", gamesRejected, gamesKept+gamesRejected, 100*rejectBudgetFrac)
+		fatal("evalfit: %d of %d games rejected, over the %.0f%% integrity budget", gamesRejected, gamesKept+gamesRejected, 100*rejectBudgetFrac)
 	}
 	if len(samples) < minSamples {
-		fatal("%d positions fall under the %d minimum", len(samples), minSamples)
+		fatal("evalfit: %d positions fall under the %d minimum", len(samples), minSamples)
 	}
 	sort.Strings(seriesKeys)
 	trainSet := splitSeriesKeys(seriesKeys, *seed, *trainFrac)
@@ -151,7 +156,7 @@ func main() {
 		}
 	}
 	if len(train) == 0 || len(val) == 0 {
-		fatal("split left train=%d val=%d positions", len(train), len(val))
+		fatal("evalfit: split left train=%d val=%d positions", len(train), len(val))
 	}
 	trainSeries := 0
 	for _, k := range seriesKeys {
@@ -178,7 +183,7 @@ func main() {
 	de := fitShade(d, defaultDEOptions(), rand.New(rand.NewSource(*seed+1)))
 	fmt.Fprintf(os.Stderr, "evalfit: shade loss %.9f (gen %d)\n", de.Loss, de.Gen)
 	if challengerViolatesTolerance(res.Loss, de.Loss) {
-		fatal("gd loss %.9f loses to the shade challenger %.9f beyond the %.0f%% tolerance", res.Loss, de.Loss, 100*deToleranceFrac)
+		fatal("evalfit: gd loss %.9f loses to the shade challenger %.9f beyond the %.0f%% tolerance", res.Loss, de.Loss, 100*deToleranceFrac)
 	}
 
 	wInt := projectMonotoneInt(res.W)
@@ -194,6 +199,9 @@ func main() {
 			draws++
 		}
 	}
+	roots := make([]string, 0, len(dbRoots)+len(gameRoots))
+	roots = append(roots, dbRoots...)
+	roots = append(roots, gameRoots...)
 	a := artifactData{
 		Date:            time.Now().Format("2006-01-02"),
 		Roots:           roots,
@@ -257,7 +265,7 @@ func openGenLog(logPath, genPath string) *os.File {
 	}
 	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
-		fatal("open gen log %s: %v", logPath, err)
+		fatal("evalfit: open gen log %s: %v", logPath, err)
 	}
 	return f
 }
