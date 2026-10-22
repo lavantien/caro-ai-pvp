@@ -24,18 +24,36 @@ func fatal(format string, args ...any) {
 	os.Exit(1)
 }
 
+func challengerViolatesTolerance(gdLoss, chalLoss float64) bool {
+	return chalLoss < gdLoss*(1-deToleranceFrac)
+}
+
 func main() {
 	dbs := flag.String("dbs", "", "comma-separated sqlite db paths holding tournament_games")
 	tiers := flag.String("tiers", "master,grandmaster", "comma-separated seat tiers both seats must hold, empty keeps every tier")
+	gamesFiles := flag.String("games", "", "comma-separated outcome-labeled self-play games files fitted beside the dbs")
 	seed := flag.Int64("seed", 1, "series split and optimizer seed")
 	trainFrac := flag.Float64("train-frac", 0.9, "fraction of series held for training")
 	out := flag.String("out", "out/evalfit.txt", "artifact path")
+	gen := flag.String("gen", "", "generate outcome-labeled self-play games to this path and exit")
+	genTier := flag.String("gen-tier", "master", "tier of both self-play seats during generation")
+	genGames := flag.Int("gen-games", 0, "target game count for generation")
+	genBudgetMs := flag.Int64("gen-budget-ms", 250, "base per-move search budget during generation")
+	genJitter := flag.Float64("gen-jitter", 0.5, "per-move budget jitter fraction in [0, 1] driving line diversity")
+	genLog := flag.String("gen-log", "", "m-line log path for generation, defaults to <gen>.log")
 	flag.Parse()
-	fmt.Fprintf(os.Stderr, "evalfit: start dbs=%s tiers=%s seed=%d train-frac=%.2f\n", *dbs, *tiers, *seed, *trainFrac)
+	if *gen != "" {
+		runGenMode(genOptsFromFlags(*gen, *genTier, *genGames, *genBudgetMs, *genJitter, *genLog, *seed))
+		return
+	}
+	fmt.Fprintf(os.Stderr, "evalfit: start dbs=%s tiers=%s games=%s seed=%d train-frac=%.2f\n", *dbs, *tiers, *gamesFiles, *seed, *trainFrac)
 	if *dbs == "" {
 		fatal("-dbs is required")
 	}
 	roots := strings.Split(*dbs, ",")
+	if strings.TrimSpace(*gamesFiles) != "" {
+		roots = append(roots, strings.Split(*gamesFiles, ",")...)
+	}
 	tierSet := map[string]bool{}
 	if strings.TrimSpace(*tiers) != "" {
 		for _, t := range strings.Split(*tiers, ",") {
@@ -75,6 +93,37 @@ func main() {
 			if keptInSeries && !keySet[s.Key] {
 				keySet[s.Key] = true
 				seriesKeys = append(seriesKeys, s.Key)
+			}
+		}
+	}
+	for _, gp := range strings.Split(*gamesFiles, ",") {
+		if strings.TrimSpace(gp) == "" {
+			continue
+		}
+		gf, ok, err := loadGamesFile(gp, tierSet)
+		if err != nil {
+			fatal("%v", err)
+		}
+		if !ok {
+			continue
+		}
+		for i, g := range gamesToParsed(gf) {
+			key := genSeriesKey(gp, i)
+			ss, err := reconstructGame(g, key)
+			if err != nil {
+				gamesRejected++
+				perRejected[gp]++
+				if len(rejectReasons) < 10 {
+					rejectReasons = append(rejectReasons, fmt.Sprintf("%s: %v", key, err))
+				}
+				continue
+			}
+			gamesKept++
+			perKept[gp]++
+			samples = append(samples, ss...)
+			if !keySet[key] {
+				keySet[key] = true
+				seriesKeys = append(seriesKeys, key)
 			}
 		}
 	}
@@ -126,10 +175,10 @@ func main() {
 	}
 	base := fitScaleGD(d, cur, defaultGDOptions(), rng)
 
-	de := fitDE(d, defaultDEOptions(), rand.New(rand.NewSource(*seed+1)))
-	fmt.Fprintf(os.Stderr, "evalfit: de loss %.9f (gen %d)\n", de.Loss, de.Gen)
-	if de.Loss < res.Loss*(1-deToleranceFrac) {
-		fatal("gd loss %.9f loses to de %.9f beyond the %.0f%% tolerance", res.Loss, de.Loss, 100*deToleranceFrac)
+	de := fitShade(d, defaultDEOptions(), rand.New(rand.NewSource(*seed+1)))
+	fmt.Fprintf(os.Stderr, "evalfit: shade loss %.9f (gen %d)\n", de.Loss, de.Gen)
+	if challengerViolatesTolerance(res.Loss, de.Loss) {
+		fatal("gd loss %.9f loses to the shade challenger %.9f beyond the %.0f%% tolerance", res.Loss, de.Loss, 100*deToleranceFrac)
 	}
 
 	wInt := projectMonotoneInt(res.W)
@@ -188,6 +237,42 @@ func main() {
 	fmt.Printf("weights-int-drift %s\n", fmtF(intDrift))
 	fmt.Printf("scale %.3f\n", a.S)
 	fmt.Printf("artifact %s\n", *out)
+}
+
+func genOptsFromFlags(path, tier string, games int, budgetMs int64, jitter float64, logPath string, seed int64) genOpts {
+	return genOpts{
+		Path:   path,
+		Tier:   tier,
+		Budget: time.Duration(budgetMs) * time.Millisecond,
+		Jitter: jitter,
+		Games:  games,
+		Seed:   seed,
+		MLines: openGenLog(logPath, path),
+	}
+}
+
+func openGenLog(logPath, genPath string) *os.File {
+	if logPath == "" {
+		logPath = genPath + ".log"
+	}
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		fatal("open gen log %s: %v", logPath, err)
+	}
+	return f
+}
+
+func runGenMode(o genOpts) {
+	defer func() { _ = o.MLines.(*os.File).Close() }()
+	start := time.Now()
+	err := runGenerate(o, func(idx int, res genGame) {
+		fmt.Fprintf(os.Stderr, "evalfit: game %d/%d outcome %s moves %d illegal %d elapsed %s\n",
+			idx+1, o.Games, outcomeName(res.outcome), len(res.cells), res.illegal, time.Since(start).Round(time.Second))
+	})
+	if err != nil {
+		fatal("%v", err)
+	}
+	fmt.Fprintf(os.Stderr, "evalfit: generation complete at %s\n", o.Path)
 }
 
 func calibrate(val []sample, w [5]float64, s float64) []bucketRow {
