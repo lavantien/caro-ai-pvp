@@ -21,7 +21,7 @@ Corpus snapshot: 4912 P lines, 1411 unique positions, plies 0-15 exactly (BookMa
 
 ## verdict 3: ponder singleton policy is the right first bandit, the gate is the lever
 
-Model from ponder.go plus the arena driver: state (pre-move position, side, budget, grant-depth ring), action singleton PV[1] with TTMove fallback, reward hit x banked time, adoption behind the 4-clause gate. Pooled arena outcomes: grandmaster 59.4 percent hit / 28.5 percent adopt over 997 arms, grandmaster-nobook 71.5 percent hit, master 68.9 / 29.2, master-nobook 69.2. This brackets the logmine 214k-move reading of 67-73 percent hit with the gate binding. Next lever is gate tuning, not prediction diversity. Evaluating a real bandit later needs two fields the outcome line lacks: predicted versus actual move per arm, and the candidate set at arm time. Parked until the ponder arena pair reopens.
+Model from ponder.go plus the arena driver: state (pre-move position, side, budget, grant-depth ring), action singleton PV[1] with TTMove fallback, reward hit x banked time, adoption behind the 4-clause gate. Pooled arena outcomes: grandmaster 59.4 percent hit / 28.5 percent adopt over 997 arms, grandmaster-nobook 71.2 percent hit (209 adopt + 278 reject over 685 arms), master 68.9 / 29.2, master-nobook 69.2. This brackets the logmine 214k-move reading of 67-73 percent hit with the gate binding. Next lever is gate tuning, not prediction diversity. Evaluating a real bandit later needs two fields the outcome line lacks: predicted versus actual move per arm, and the candidate set at arm time. Parked until the ponder arena pair reopens.
 
 ## verdict 4: no draw death
 
@@ -40,7 +40,7 @@ Openings from M1 M2 M3, possible only on the six bookgate and evalfit logs, sinc
 | H8 H6 J5 | 1 | 1 | 0 | 0 | 2+1 | 1 |
 | H8 I9 K8 | 1 | 0 | 1 | 0 | 3+2 | 1 |
 
-Independence verdict on the 81 floor games: genuinely varied, not a fixed deterministic set. Length diversity proves >= 56 of 78 decisive games distinct (a-noise 26/40, v021 13/18, v023-p3 16/19, v022-A 1/1). At most 22 same-file length collisions remain identity-unknown without move lists, 0 proven repeats, and cross-control games cannot be replays. Separately, 9 of 120 same-base games are exact full-move-list repeats, all inside the dominant H8 H6 H5 opening: deterministic convergence happens even under lazy SMP.
+Independence verdict on the 81 floor games: genuinely varied, not a fixed deterministic set. Length diversity proves >= 56 of 78 decisive games distinct (a-noise 26/40, v021 13/18, v023-p3 16/19, v022-A 1/1). At most 22 same-file length collisions remain identity-unknown without move lists, 0 proven repeats, and cross-control games are mostly not replays, though 2 of the 8 exact-repeat groups in the M-line-carrying logs do span time controls where play is book-forced. Separately, 9 of 120 same-base games are exact full-move-list repeats, all inside the dominant H8 H6 H5 opening: deterministic convergence happens even under lazy SMP.
 
 The one-line harness fix that closes the artifact class: emit the winner seat (red or blue), not the winner label, in the arena result line.
 

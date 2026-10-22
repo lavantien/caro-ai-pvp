@@ -17,7 +17,7 @@ Leaf demand equals node rate to first order: one eval call per leaf (search.go:3
 Nets 256-64-32-1 (narrow) and 256-128-64-1 (wide), out/cpu.txt:
 
 - narrow: 17.8-24 us/eval single-thread (48-56 k evals/s), best 6.5 us/eval at 8 threads batch 4096 (155 k/s)
-- wide: 39.8-50 us single-thread, best 13.4 us/eval at 8 threads (75 k/s)
+- wide: 41.8-65.2 us single-thread, best 13.4 us/eval at 8 threads (75 k/s)
 
 10-100x too slow against the 1.4 M leaf/s per core need. Batching barely helps under fleet load: only 2.5x from 8 threads.
 
@@ -33,7 +33,7 @@ Weights resident on device, per iteration = synchronized input upload + fused ml
 
 ## verdict
 
-Throughput exists only at batch >= 4096, which an alpha-beta dfs structurally cannot form. Each leaf's value is consumed immediately, a formable sibling batch is 10-40 leaves and pays a ~66 us sync round trip that exceeds the cpu cost of evaluating the whole batch, and queueing leaves across the 8 lazy-SMP workers drains 11 M leaves/s of production into the gpu's 4.6 M/s, collapsing nps below the shipped integer eval.
+Throughput exists only at batch >= 4096, which an alpha-beta dfs structurally cannot form. Each leaf's value is consumed immediately, a formable sibling batch is 10-40 leaves, and at those sizes the ~66 us sync round trip is cheaper than the cpu matmul path for the same batch (~740 us at 40 leaves) but 16x the shipped integer eval's cost for it (~4 us): what kills the split is the replacement budget itself. At formable batch sizes the gpu lands at 1.65-6.6 us per leaf against the ~100 ns budget where eval stays under 1 percent of node cost, 16-66x over. Queueing leaves across the 8 lazy-SMP workers does not rescue it: it drains 11 M leaves/s of production into the gpu's 4.6 M/s, collapsing nps below the shipped integer eval.
 
 The prior gpuoffload revisit clause holds its exact shape: the gpu pays only under an architecture-class change (an mcts-style leaf queue or root-parallel batched probing, the lc0 class). That is a new engine gated by arena evidence, not an offload of the current one.
 
