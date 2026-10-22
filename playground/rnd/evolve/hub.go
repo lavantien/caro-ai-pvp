@@ -36,9 +36,9 @@ const (
 	rastriginTarget  = 1e-6
 	rosenbrockTarget = 1.0
 	gameTargetEps    = 0.05
-	marginWeak       = 0.1
-	marginMid        = 0.4
-	marginStrong     = 0.8
+	marginWeak       = 0.12266826044534127
+	marginMid        = 0.49067304178136528
+	marginStrong     = 1.0099496221211108
 	clampPMin        = 0.02
 	clampPMax        = 0.98
 )
