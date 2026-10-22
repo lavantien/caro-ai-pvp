@@ -20,6 +20,11 @@ import (
 
 const genFormatVersion = 1
 
+var (
+	errGamesEmpty  = errors.New("evalfit: games file is empty")
+	errGamesHeader = errors.New("evalfit: games header is malformed")
+)
+
 type genGame struct {
 	idx     int
 	outcome gameOutcome
@@ -109,7 +114,7 @@ func headerValue(fields []string, key string) (string, bool) {
 func parseGenFingerprint(line, path string) (string, error) {
 	fields := strings.Fields(line)
 	if len(fields) < 7 || fields[0] != "F" || fields[1] != "games" || fields[2] != fmt.Sprintf("v%d", genFormatVersion) {
-		return "", fmt.Errorf("evalfit: games %s line 1: missing or malformed games header", path)
+		return "", fmt.Errorf("%w: %s line 1", errGamesHeader, path)
 	}
 	tier, ok := headerValue(fields, "tier")
 	bms, okB := headerValue(fields, "budget-ms")
@@ -117,23 +122,23 @@ func parseGenFingerprint(line, path string) (string, error) {
 	games, okG := headerValue(fields, "games")
 	seed, okS := headerValue(fields, "seed")
 	if !ok || !okB || !okJ || !okG || !okS {
-		return "", fmt.Errorf("evalfit: games %s line 1: games header lacks a field", path)
+		return "", fmt.Errorf("%w: %s line 1 lacks a field", errGamesHeader, path)
 	}
 	budget, err := strconv.ParseInt(bms, 10, 64)
 	if err != nil {
-		return "", fmt.Errorf("evalfit: games %s line 1: budget-ms unparsable", path)
+		return "", fmt.Errorf("%w: %s line 1 budget-ms unparsable", errGamesHeader, path)
 	}
 	jitter, err := strconv.ParseFloat(jit, 64)
 	if err != nil {
-		return "", fmt.Errorf("evalfit: games %s line 1: jitter unparsable", path)
+		return "", fmt.Errorf("%w: %s line 1 jitter unparsable", errGamesHeader, path)
 	}
 	n, err := strconv.Atoi(games)
 	if err != nil {
-		return "", fmt.Errorf("evalfit: games %s line 1: games unparsable", path)
+		return "", fmt.Errorf("%w: %s line 1 games unparsable", errGamesHeader, path)
 	}
 	sd, err := strconv.ParseInt(seed, 10, 64)
 	if err != nil {
-		return "", fmt.Errorf("evalfit: games %s line 1: seed unparsable", path)
+		return "", fmt.Errorf("%w: %s line 1 seed unparsable", errGamesHeader, path)
 	}
 	return genFingerprint(tier, budget, jitter, n, sd), nil
 }
@@ -158,7 +163,7 @@ func parseGamesFile(path string) (*gamesFile, error) {
 	if end > 0 {
 		nl := bytes.IndexByte(data[:end], '\n')
 		if nl < 0 {
-			return nil, fmt.Errorf("evalfit: games %s line 1: missing or malformed games header", path)
+			return nil, fmt.Errorf("%w: %s line 1", errGamesHeader, path)
 		}
 		fp, err := parseGenFingerprint(string(data[:nl]), path)
 		if err != nil {
@@ -174,7 +179,7 @@ func parseGamesFile(path string) (*gamesFile, error) {
 		gf.games, _ = strconv.Atoi(mustField(fields, "games"))
 		gf.seed, _ = strconv.ParseInt(mustField(fields, "seed"), 10, 64)
 	} else {
-		return nil, fmt.Errorf("evalfit: games %s: empty file", path)
+		return nil, fmt.Errorf("%w: %s", errGamesEmpty, path)
 	}
 	fail := func(reason string) error {
 		return fmt.Errorf("evalfit: games %s line %d: %s", path, lineno, reason)
@@ -306,7 +311,7 @@ func genBudgets(base time.Duration, jitter float64, seed int64, idx, n int) []ti
 }
 
 func playGenGame(engines [2]server.Searcher, redSeat, gameIdx int, base time.Duration, jitter float64, seed int64, mlines io.Writer) genGame {
-	rng := rand.New(rand.NewSource(seed*1000003 + int64(gameIdx)))
+	budgets := genBudgets(base, jitter, seed, gameIdx, config.BoardCells)
 	var legalBuf [config.BoardCells]rules.Move
 	b := rules.NewBoard()
 	res := genGame{idx: gameIdx}
@@ -332,7 +337,7 @@ func playGenGame(engines [2]server.Searcher, redSeat, gameIdx int, base time.Dur
 				legal = false
 			}
 		} else {
-			budget := drawGenBudget(rng, base, jitter)
+			budget := budgets[b.MoveCount-1]
 			var st engine.SearchStats
 			var tag string
 			mv, st, tag = engines[seat].Search(b, engine.NewFixedBudget(budget))
@@ -392,19 +397,20 @@ func runGenerate(o genOpts, progress func(idx int, res genGame)) error {
 	want := genFingerprint(o.Tier, o.Budget.Milliseconds(), o.Jitter, o.Games, o.Seed)
 	gf, err := parseGamesFile(o.Path)
 	var clean int64
-	if err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return err
+	switch {
+	case err == nil:
+		if gf.fp != want {
+			return fmt.Errorf("evalfit: games %s holds fingerprint %q, run config wants %q", o.Path, gf.fp, want)
 		}
+		clean = gf.clean
+	case errors.Is(err, fs.ErrNotExist), errors.Is(err, errGamesEmpty), errors.Is(err, errGamesHeader):
 		clean, err = writeGenHeader(o.Path, want)
 		if err != nil {
 			return err
 		}
 		gf = &gamesFile{fp: want, clean: clean}
-	} else if gf.fp != want {
-		return fmt.Errorf("evalfit: games %s holds fingerprint %q, run config wants %q", o.Path, gf.fp, want)
-	} else {
-		clean = gf.clean
+	default:
+		return err
 	}
 	mlines := o.MLines
 	if mlines == nil {

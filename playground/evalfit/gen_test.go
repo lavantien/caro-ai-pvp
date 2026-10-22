@@ -195,6 +195,51 @@ func TestRunGenerateFingerprintMismatch(t *testing.T) {
 	}
 }
 
+func TestRunGenerateRewritesBlocklessHeader(t *testing.T) {
+	stub := func() ([2]server.Searcher, error) {
+		return [2]server.Searcher{winLadderSearcher(), winLadderSearcher()}, nil
+	}
+	t.Run("empty file", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "games.txt")
+		o := genOpts{Path: path, Tier: "master", Budget: time.Millisecond, Jitter: 0, Games: 1, Seed: 7, Seats: stub}
+		writeGamesFixture(t, path, "")
+		if err := runGenerate(o, func(int, genGame) {}); err != nil {
+			t.Fatalf("run over an empty file: %v", err)
+		}
+		gf, err := parseGamesFile(path)
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		if len(gf.blocks) != 1 {
+			t.Fatalf("blocks = %d, want 1 after the header rewrite", len(gf.blocks))
+		}
+	})
+	t.Run("malformed header line", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "games.txt")
+		o := genOpts{Path: path, Tier: "master", Budget: time.Millisecond, Jitter: 0, Games: 1, Seed: 7, Seats: stub}
+		writeGamesFixture(t, path, "F games v1 tier=master\n")
+		if err := runGenerate(o, func(int, genGame) {}); err != nil {
+			t.Fatalf("run over a malformed header: %v", err)
+		}
+		gf, err := parseGamesFile(path)
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		if len(gf.blocks) != 1 || gf.fp != genFingerprint("master", 1, 0, 1, 7) {
+			t.Fatalf("blocks=%d fp=%q, want the rewritten fingerprint and 1 block", len(gf.blocks), gf.fp)
+		}
+	})
+	t.Run("corrupt content after a valid header still errors", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "games.txt")
+		o := genOpts{Path: path, Tier: "master", Budget: time.Millisecond, Jitter: 0, Games: 1, Seed: 7, Seats: stub}
+		writeGamesFixture(t, path, genFingerprint("master", 1, 0, 1, 7)+"\nX junk\n")
+		err := runGenerate(o, func(int, genGame) {})
+		if err == nil || !strings.Contains(err.Error(), "unknown line kind") {
+			t.Fatalf("err = %v, want the corrupt-content error to stand behind a valid header", err)
+		}
+	})
+}
+
 func TestRunGenerateSkipsCompleteGames(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "games.txt")
 	header := "F games v1 tier=master budget-ms=250 jitter=0.5 games=2 seed=7\n"
