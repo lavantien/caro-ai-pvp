@@ -31,6 +31,11 @@ func perturb(base config.Tier, name string, edit func(*config.Tier)) config.Tier
 	return t
 }
 
+func halveTierShape(t *config.Tier) {
+	t.Cores = t.Cores / 2
+	t.TTBytes = t.TTBytes / 2
+}
+
 func parseEvalWeights(s string) ([config.PatternClassCount]int, error) {
 	var w [config.PatternClassCount]int
 	parts := strings.Split(s, ",")
@@ -131,6 +136,7 @@ func main() {
 	floorMaxBlocks := flag.Int("floorMaxBlocks", 3, "max extension blocks before the aggregate refuses more")
 	floorSeat := flag.String("floorSeat", "master-nobook", "same-tier seat label for floor pools")
 	floorZ := flag.Float64("floorZ", 1.96, "wald z multiplier for the floor interval")
+	pairOut := flag.String("pairOut", "", "append-only resumable pair log path, requires exactly 2 seats, exclusive of floor mode")
 	flag.Parse()
 
 	if *floorName != "" {
@@ -162,6 +168,27 @@ func main() {
 		}
 	}
 	labels := seatLabels(seatsSel)
+	var plog *pairLog
+	if *pairOut != "" {
+		if *floorName != "" {
+			fmt.Fprintln(os.Stderr, "arena: -pairOut is exclusive of floor mode")
+			os.Exit(1)
+		}
+		if len(labels) != 2 {
+			fmt.Fprintf(os.Stderr, "arena: -pairOut needs exactly 2 seats, got %d\n", len(labels))
+			os.Exit(1)
+		}
+		if *games < 1 {
+			fmt.Fprintln(os.Stderr, "arena: -pairOut needs -games >= 1")
+			os.Exit(1)
+		}
+		pl, err := openPairLogForAppend(*pairOut, labels[0], labels[1], *tcIdx, *games)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "arena: %v\n", err)
+			os.Exit(1)
+		}
+		plog = &pl
+	}
 	for _, label := range labels {
 		if !seats[label].Book {
 			continue
@@ -186,7 +213,23 @@ func main() {
 			a, b := labels[i], labels[j]
 			d := &duel{a: a, b: b}
 			duels = append(duels, d)
-			for g := 0; g < *games; g++ {
+			startGame := 0
+			if plog != nil {
+				for i, w := range plog.winners {
+					red, blue := a, b
+					if i%2 == 1 {
+						red, blue = blue, red
+					}
+					record(results, red, blue, w, 0)
+					d.pt.AddGame(resultFor(red == a, w))
+					gameNo++
+				}
+				startGame = plog.done
+				if plog.done > 0 {
+					fmt.Printf("resumed pair from log: %s %d of %d games\n", plog.path, plog.done, *games)
+				}
+			}
+			for g := startGame; g < *games; g++ {
 				gameNo++
 				red, blue := a, b
 				if g%2 == 1 {
@@ -204,12 +247,30 @@ func main() {
 				}
 				record(results, red, blue, winnerSeat, moves)
 				fmt.Println(gameLine(gameNo, red, blue, winnerSeat, moves))
+				if plog != nil {
+					if err := plog.appendGame(g+1, winnerSeat, moves); err != nil {
+						fmt.Fprintf(os.Stderr, "arena: %v\n", err)
+						os.Exit(1)
+					}
+				}
 				if bucket, closed := d.pt.AddGame(resultFor(red == a, winnerSeat)); closed {
 					emitDuelPair(os.Stdout, a, b, g/2+1, bucket)
 				}
 			}
 			if r, had := d.pt.Finish(); had {
 				emitDuelUnpaired(os.Stdout, a, b, gameNo, r)
+			}
+			if plog != nil {
+				if !plog.complete {
+					if err := plog.appendComplete(); err != nil {
+						fmt.Fprintf(os.Stderr, "arena: %v\n", err)
+						os.Exit(1)
+					}
+				}
+				if err := plog.close(); err != nil {
+					fmt.Fprintf(os.Stderr, "arena: %v\n", err)
+					os.Exit(1)
+				}
 			}
 			fmt.Printf("pair done: %s vs %s\n", a, b)
 		}
