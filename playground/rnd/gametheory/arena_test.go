@@ -73,6 +73,46 @@ func TestParseArenaPonderCounts(t *testing.T) {
 	}
 }
 
+func TestParseArenaSeatWinnerWords(t *testing.T) {
+	fixture := `arena tc 3+2 seats [master master] games 2
+game 1: master (red) vs master, winner blue over 50 moves
+game 2: master (red) vs master, winner draw over 256 moves
+`
+	af, err := parseArena(strings.NewReader(fixture), "y.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(af.Games) != 2 {
+		t.Fatalf("games = %d, want 2", len(af.Games))
+	}
+	if af.Games[0].Winner != "blue" || af.Games[1].Winner != "draw" {
+		t.Fatalf("seat-word winners = %+v", af.Games)
+	}
+}
+
+func TestWinnerIsRedSeat(t *testing.T) {
+	cases := []struct {
+		g      arenaGame
+		bucket string
+		red    bool
+		known  bool
+	}{
+		{arenaGame{Winner: "red"}, bucketIdentical, true, true},
+		{arenaGame{Winner: "blue"}, bucketIdentical, false, true},
+		{arenaGame{Winner: "draw"}, bucketIdentical, false, false},
+		{arenaGame{Winner: "draw"}, bucketCross, false, false},
+		{arenaGame{Winner: "master", Red: "master", Blue: "hard"}, bucketCross, true, true},
+		{arenaGame{Winner: "hard", Red: "master", Blue: "hard"}, bucketCross, false, true},
+		{arenaGame{Winner: "master", Red: "master", Blue: "master"}, bucketIdentical, false, false},
+	}
+	for _, c := range cases {
+		red, known := winnerIsRedSeat(c.g, c.bucket)
+		if red != c.red || known != c.known {
+			t.Errorf("winnerIsRedSeat(%+v, %s) = (%v, %v), want (%v, %v)", c.g, c.bucket, red, known, c.red, c.known)
+		}
+	}
+}
+
 func TestBucketOf(t *testing.T) {
 	cases := []struct {
 		red, blue, want string

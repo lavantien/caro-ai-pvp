@@ -67,17 +67,19 @@ func reportArena(files []*arenaFile) {
 				fa.Draws++
 				drawMoves[g.Moves]++
 			default:
-				if bucket == bucketIdentical {
+				decisiveLens = append(decisiveLens, g.Moves)
+				if red, known := winnerIsRedSeat(g, bucket); known {
+					if red {
+						a.RedWins++
+						fa.RedWins++
+					} else {
+						a.BlueWins++
+						fa.BlueWins++
+					}
+				} else {
 					a.Unattributed++
 					fa.Unattributed++
-				} else if g.Winner == g.Red {
-					a.RedWins++
-					fa.RedWins++
-				} else {
-					a.BlueWins++
-					fa.BlueWins++
 				}
-				decisiveLens = append(decisiveLens, g.Moves)
 			}
 		}
 		byFile[af.Path] = fa
@@ -306,6 +308,10 @@ func reportOpenings(files []*arenaFile) {
 			switch g.Winner {
 			case "draw":
 				a.Draws++
+			case "red":
+				a.RedWins++
+			case "blue":
+				a.BlueWins++
 			case g.Red:
 				a.RedWins++
 			default:

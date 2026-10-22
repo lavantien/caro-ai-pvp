@@ -169,3 +169,18 @@ func bucketOf(red, blue string) string {
 		return bucketCross
 	}
 }
+
+func winnerIsRedSeat(g arenaGame, bucket string) (bool, bool) {
+	switch g.Winner {
+	case "draw":
+		return false, false
+	case "red":
+		return true, true
+	case "blue":
+		return false, true
+	}
+	if bucket == bucketIdentical {
+		return false, false
+	}
+	return g.Winner == g.Red, true
+}

@@ -18,6 +18,12 @@ import (
 
 var seats = buildSeats()
 
+const (
+	winnerRed  = "red"
+	winnerBlue = "blue"
+	winnerDraw = "draw"
+)
+
 func perturb(base config.Tier, name string, edit func(*config.Tier)) config.Tier {
 	t := base
 	t.Name = name
@@ -188,21 +194,17 @@ func main() {
 				}
 				fmt.Printf("game %d: %s (red) vs %s (blue), tc %d+%d\n", gameNo, red, blue, tc.InitialMin, tc.IncrementSec)
 				side, drawn, moves := play(results[red], results[blue], *tcIdx, gameNo)
-				winner := ""
+				winnerSeat := winnerDraw
 				if !drawn {
 					if side == rules.Red {
-						winner = red
+						winnerSeat = winnerRed
 					} else {
-						winner = blue
+						winnerSeat = winnerBlue
 					}
 				}
-				record(results, red, blue, winner, moves)
-				outcome := "draw"
-				if winner != "" {
-					outcome = winner
-				}
-				fmt.Printf("game %d: %s (red) vs %s, winner %s over %d moves\n", gameNo, red, blue, outcome, moves)
-				if bucket, closed := d.pt.AddGame(resultFor(a, winner)); closed {
+				record(results, red, blue, winnerSeat, moves)
+				fmt.Println(gameLine(gameNo, red, blue, winnerSeat, moves))
+				if bucket, closed := d.pt.AddGame(resultFor(red == a, winnerSeat)); closed {
 					emitDuelPair(os.Stdout, a, b, g/2+1, bucket)
 				}
 			}
@@ -232,15 +234,19 @@ func printResults(w io.Writer, labels []string, results map[string]*tally, duels
 	}
 }
 
-func resultFor(ref, winner string) Result {
-	switch {
-	case winner == "":
+func resultFor(refRed bool, winnerSeat string) Result {
+	switch winnerSeat {
+	case winnerDraw:
 		return Draw
-	case winner == ref:
-		return Win
-	default:
-		return Loss
 	}
+	if (winnerSeat == winnerRed) == refRed {
+		return Win
+	}
+	return Loss
+}
+
+func gameLine(game int, red, blue, winnerSeat string, moves int) string {
+	return fmt.Sprintf("game %d: %s (red) vs %s, winner %s over %d moves", game, red, blue, winnerSeat, moves)
 }
 
 func emitDuelPair(w io.Writer, a, b string, pair, bucket int) {
@@ -390,18 +396,18 @@ func armPonder(s *seatState, b *rules.Board, stats engine.SearchStats) {
 	s.tally.ponderArms++
 }
 
-func record(results map[string]*tally, redLabel, blueLabel, winner string, moves int) {
+func record(results map[string]*tally, redLabel, blueLabel, winnerSeat string, moves int) {
 	results[redLabel].games++
 	results[blueLabel].games++
-	switch {
-	case winner == "":
+	switch winnerSeat {
+	case winnerDraw:
 		results[redLabel].draws++
 		results[blueLabel].draws++
-	case winner == redLabel:
+	case winnerRed:
 		results[redLabel].wins++
 		results[blueLabel].losses++
 		results[redLabel].redWins++
-	case winner == blueLabel:
+	case winnerBlue:
 		results[blueLabel].wins++
 		results[redLabel].losses++
 		results[blueLabel].blueWins++

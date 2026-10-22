@@ -89,19 +89,56 @@ func TestEmitPonderOutcome(t *testing.T) {
 
 func TestResultFor(t *testing.T) {
 	cases := []struct {
-		ref, winner string
-		want        Result
+		refRed     bool
+		winnerSeat string
+		want       Result
 	}{
-		{"easy", "", Draw},
-		{"easy", "easy", Win},
-		{"easy", "hard", Loss},
-		{"easy-vcf", "easy", Loss},
-		{"easy-vcf", "easy-vcf", Win},
+		{true, winnerDraw, Draw},
+		{false, winnerDraw, Draw},
+		{true, winnerRed, Win},
+		{false, winnerRed, Loss},
+		{true, winnerBlue, Loss},
+		{false, winnerBlue, Win},
 	}
 	for _, c := range cases {
-		if got := resultFor(c.ref, c.winner); got != c.want {
-			t.Errorf("resultFor(%q, %q) = %d, want %d", c.ref, c.winner, got, c.want)
+		if got := resultFor(c.refRed, c.winnerSeat); got != c.want {
+			t.Errorf("resultFor(%v, %q) = %d, want %d", c.refRed, c.winnerSeat, got, c.want)
 		}
+	}
+}
+
+func TestRecordCreditsBySeat(t *testing.T) {
+	results := map[string]*tally{"master": {name: "master"}, "hard": {name: "hard"}}
+	record(results, "master", "hard", winnerRed, 40)
+	record(results, "master", "hard", winnerBlue, 41)
+	record(results, "master", "hard", winnerDraw, 256)
+	m := results["master"]
+	if m.games != 3 || m.wins != 1 || m.losses != 1 || m.draws != 1 || m.redWins != 1 || m.blueWins != 0 {
+		t.Errorf("master tally = %+v", m)
+	}
+	h := results["hard"]
+	if h.games != 3 || h.wins != 1 || h.losses != 1 || h.draws != 1 || h.redWins != 0 || h.blueWins != 1 {
+		t.Errorf("hard tally = %+v", h)
+	}
+}
+
+func TestRecordIdenticalLabelsCreditBlueSeat(t *testing.T) {
+	results := map[string]*tally{"master": {name: "master"}}
+	record(results, "master", "master", winnerBlue, 50)
+	if r := results["master"]; r.blueWins != 1 || r.redWins != 0 {
+		t.Errorf("identical pairing blue-seat win = %+v, want the blue split credited", r)
+	}
+}
+
+func TestGameLineNamesWinnerSeat(t *testing.T) {
+	if got := gameLine(3, "master", "master", winnerBlue, 51); got != "game 3: master (red) vs master, winner blue over 51 moves" {
+		t.Errorf("gameLine blue = %q", got)
+	}
+	if got := gameLine(4, "easy", "medium", winnerRed, 12); got != "game 4: easy (red) vs medium, winner red over 12 moves" {
+		t.Errorf("gameLine red = %q", got)
+	}
+	if got := gameLine(5, "easy", "medium", winnerDraw, 256); got != "game 5: easy (red) vs medium, winner draw over 256 moves" {
+		t.Errorf("gameLine draw = %q", got)
 	}
 }
 
