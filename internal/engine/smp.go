@@ -41,6 +41,12 @@ func (h *haltDeadline) Exceeded() bool { return h.halt.Load() || h.inner.Exceede
 
 func (h *haltDeadline) Stop() { h.inner.Stop() }
 
+func (h *haltDeadline) Add(nodes uint64) {
+	if nf, ok := h.inner.(nodeFeeder); ok {
+		nf.Add(nodes)
+	}
+}
+
 type SMP struct {
 	tt       *ttTable
 	workers  []*Engine
@@ -284,9 +290,11 @@ func (s *SMP) setupJob(b *rules.Board, maxDepth int, soft bool, dl Deadline) {
 	s.haltDL.inner = dl
 	s.jobMaxDepth = maxDepth
 	s.jobSoft = soft
+	feed, _ := Deadline(&s.haltDL).(nodeFeeder)
 	for i := range s.workers {
 		s.boards[i] = *b
 		s.workers[i].resetForSearch(&s.boards[i])
+		s.workers[i].nodeFeed = feed
 		s.results[i] = workerResult{}
 	}
 }

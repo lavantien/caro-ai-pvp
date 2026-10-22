@@ -28,6 +28,13 @@ type Engine struct {
 	nodeCheck int
 	stopped   bool
 	noOrder   bool
+	nodeFeed  nodeFeeder
+
+	rankPendingMoves  [config.SearchMaxMovesPerPly]rules.Move
+	rankPendingScores [config.SearchMaxMovesPerPly]int
+	rankMoves         [config.SearchMaxMovesPerPly]rules.Move
+	rankScores        [config.SearchMaxMovesPerPly]int
+	rankN             int
 
 	mu          sync.Mutex
 	closed      bool
@@ -73,6 +80,7 @@ func (e *Engine) resetForSearch(b *rules.Board) {
 	e.nodes, e.ttProbes, e.ttHits, e.cutNodes, e.cutFirst = 0, 0, 0, 0, 0
 	e.nodeCheck = config.SearchNodeCheckInterval
 	e.stopped = false
+	e.rankN = 0
 	e.eval.reset(b)
 }
 
@@ -183,6 +191,7 @@ func (e *Engine) search(b *rules.Board, dl Deadline, maxDepth int, soft bool) (r
 func (e *Engine) runSearch(b *rules.Board, dl Deadline, maxDepth int, soft bool) (rules.Move, SearchStats) {
 	start := time.Now()
 	e.beginSearch(b)
+	e.nodeFeed, _ = dl.(nodeFeeder)
 	var stats SearchStats
 	stats.Threads = 1
 	var budget time.Duration
@@ -286,6 +295,8 @@ func (e *Engine) searchRoot(b *rules.Board, depth int, dl Deadline) (int, rules.
 		if e.stopped {
 			return 0, moveNone
 		}
+		e.rankPendingMoves[i] = m
+		e.rankPendingScores[i] = s
 		if s > best {
 			best, bestMove = s, m
 			if s > alpha {
@@ -296,14 +307,51 @@ func (e *Engine) searchRoot(b *rules.Board, depth int, dl Deadline) (int, rules.
 			}
 		}
 	}
+	e.rankMoves = e.rankPendingMoves
+	e.rankScores = e.rankPendingScores
+	e.rankN = n
 	e.tt.store(b.Hash, best, bestMove, depth, ttBoundExact, 0)
 	return best, bestMove
+}
+
+type RankedMove struct {
+	Move  rules.Move
+	Score int
+}
+
+func (e *Engine) RootRanking(dst []RankedMove, k int) []RankedMove {
+	limit := min(k, len(dst))
+	if limit <= 0 || e.rankN == 0 {
+		return dst[:0]
+	}
+	n := 0
+	for i := range e.rankN {
+		s, m := e.rankScores[i], e.rankMoves[i]
+		if n == limit {
+			worst := dst[limit-1]
+			if s < worst.Score || (s == worst.Score && m > worst.Move) {
+				continue
+			}
+			n--
+		}
+		pos := n
+		for pos > 0 && (dst[pos-1].Score < s || (dst[pos-1].Score == s && dst[pos-1].Move > m)) {
+			dst[pos] = dst[pos-1]
+			pos--
+		}
+		dst[pos] = RankedMove{Move: m, Score: s}
+		n++
+	}
+	return dst[:n]
 }
 
 func (e *Engine) negamax(b *rules.Board, depth int, alpha, beta int, ply int, extLeft int, dl Deadline) int {
 	e.nodes++
 	if e.nodeCheck--; e.nodeCheck <= 0 {
 		e.nodeCheck = config.SearchNodeCheckInterval
+		if e.nodeFeed != nil {
+			e.nodeFeed.Add(config.SearchNodeCheckInterval)
+		}
 		if dl.Exceeded() {
 			e.stopped = true
 		}

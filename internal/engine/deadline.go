@@ -49,3 +49,29 @@ func (s *Stoppable) Exceeded() bool { return s.stopped.Load() }
 func (s *Stoppable) Stop() { s.stopped.Store(true) }
 
 func (s *Stoppable) Reset() { s.stopped.Store(false) }
+
+type nodeFeeder interface {
+	Add(nodes uint64)
+}
+
+type NodeBudget struct {
+	count   atomic.Uint64
+	limit   uint64
+	stopped atomic.Bool
+}
+
+func NewNodeBudget(limit uint64) *NodeBudget { return &NodeBudget{limit: limit} }
+
+func (n *NodeBudget) Add(nodes uint64) { n.count.Add(nodes) }
+
+func (n *NodeBudget) Exceeded() bool { return n.stopped.Load() || n.count.Load() >= n.limit }
+
+func (n *NodeBudget) Stop() { n.stopped.Store(true) }
+
+func (n *NodeBudget) Count() uint64 { return n.count.Load() }
+
+func (n *NodeBudget) Reset(limit uint64) {
+	n.count.Store(0)
+	n.limit = limit
+	n.stopped.Store(false)
+}
