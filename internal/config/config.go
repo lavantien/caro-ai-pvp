@@ -216,6 +216,7 @@ const (
 	BookTreePruneMarginMilli    = 300
 	BookTreeTotalNodes          = 1 << 28
 	BookTreeVisitScale          = 1000
+	BookTreeVisitFloor          = 1
 	BookTreeGeneratorTag        = "bookgen-tree"
 )
 const GoBuildTempDirPrefix = "go-build"

@@ -79,11 +79,13 @@ func (bt *bookTree) emitEntries() ([]bookEntry, treeStats, error) {
 			continue
 		}
 		gap := 4 * bt.params.prune
+		move := latest.best
 		if ex, ok := bt.log.expansions[key]; ok {
 			gap = ex.bestGap
+			move = ex.best
 		}
 		visits := visitWeight(gap, bt.params.prune)
-		if err := merge(key, ownerPlan{move: latest.best, visits: visits, source: config.BookSourceMajority}); err != nil {
+		if err := merge(key, ownerPlan{move: move, visits: visits, source: config.BookSourceMajority}); err != nil {
 			return nil, st, err
 		}
 	}
@@ -193,7 +195,7 @@ func (bt *bookTree) writeArtifact(outPath, statsPath, created string) (treeStats
 		MaxPly:      bt.plyBound,
 		Generator:   config.BookTreeGeneratorTag,
 		CorpusGames: bt.priors.games,
-		VisitFloor:  1,
+		VisitFloor:  config.BookTreeVisitFloor,
 		Created:     created,
 	}
 	if err := writeFileAtomic(outPath, buildArtifact(entries, meta)); err != nil {

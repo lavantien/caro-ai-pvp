@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -120,8 +121,27 @@ func TestTreeRootExpandsAllProtocolOpenings(t *testing.T) {
 	if !ok {
 		t.Fatal("root never expanded")
 	}
-	if len(ex.children) != len(config.BookOpeningCells) {
-		t.Fatalf("root children = %d, want all %d protocol openings", len(ex.children), len(config.BookOpeningCells))
+	want := make(map[[config.BookKeyBytes]byte]struct{}, len(config.BookOpeningCells))
+	for _, c := range config.BookOpeningCells {
+		b := rules.NewBoard()
+		b.Make(rules.Cell(c))
+		ck, _ := canonicalEntry(keyOf(b), 0)
+		want[ck] = struct{}{}
+	}
+	got := make(map[[config.BookKeyBytes]byte]struct{}, len(ex.children))
+	for _, c := range ex.children {
+		got[c.child] = struct{}{}
+	}
+	if len(got) != len(ex.children) {
+		t.Fatalf("root children %d hold %d distinct keys, orbit-mate duplicates must not enqueue", len(ex.children), len(got))
+	}
+	if len(got) != len(want) {
+		t.Fatalf("distinct canonical root children %d, want %d covering every protocol opening", len(got), len(want))
+	}
+	for ck := range want {
+		if _, ok := got[ck]; !ok {
+			t.Fatalf("protocol opening orbit %s missing from the root expansion", hexKey(ck[:])[:12])
+		}
 	}
 	if !ex.own {
 		t.Error("root must be an owner node, red moves first")
@@ -129,14 +149,7 @@ func TestTreeRootExpandsAllProtocolOpenings(t *testing.T) {
 	if len(bt.frontier) != 0 {
 		t.Errorf("full drain leaves frontier %d, want 0", len(bt.frontier))
 	}
-	distinct := make(map[[config.BookKeyBytes]byte]struct{})
-	for _, c := range ex.children {
-		distinct[c.child] = struct{}{}
-	}
-	if len(distinct) >= len(config.BookOpeningCells) {
-		t.Errorf("distinct canonical children %d: orbit-mate openings must merge", len(distinct))
-	}
-	if len(bt.log.analyses) < len(distinct)+1 {
+	if len(bt.log.analyses) < len(got)+1 {
 		t.Errorf("analyses %d, want at least root plus one per canonical child", len(bt.log.analyses))
 	}
 }
@@ -431,5 +444,317 @@ func TestTreePriorsTieBreakFavorsRealMasterPlay(t *testing.T) {
 	got := rankedByScoreMoves(rank, canon, pt)
 	if got[0].Move != playedMv {
 		t.Error("master-played move must win the tie at an opponent node")
+	}
+}
+
+func TestTreeResumeSpendCountsLoggedNodes(t *testing.T) {
+	sa := &stubAnalyst{score: 200}
+	path := treeLogPath(t)
+	p := tinyParams()
+	p.total = 600
+	clean, err := writeSidecarHeader(path, p.fingerprint(4))
+	if err != nil {
+		t.Fatal(err)
+	}
+	k := canonicalBoardKey(boardWithMoves(t, rules.Cell(119), rules.Cell(72)))
+	clean, err = appendTreeLine(path, clean, formatLeaf(k, leafRec{budget: 100, score: 5, best: 7, nodes: 500}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := appendTreeLine(path, clean, formatNoProof(k, 100)); err != nil {
+		t.Fatal(err)
+	}
+	bt, err := newBookTree(p, 4, priorsTable{}, sa.analyze, (&stubSolver{nodes: 10}).probe, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bt.spent != 600 {
+		t.Fatalf("resumed spend = %d, want the logged 600", bt.spent)
+	}
+	if err := bt.run(io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if sa.calls != 0 {
+		t.Fatalf("resume ran %d analyses, want 0 under an exhausted cap", sa.calls)
+	}
+	if bt.stopped != "budget spent" {
+		t.Fatalf("stop reason %q, want budget spent", bt.stopped)
+	}
+}
+
+func TestTreeSolverRecordWithoutFreezeRepairsOnLoad(t *testing.T) {
+	path := treeLogPath(t)
+	p := tinyParams()
+	clean, err := writeSidecarHeader(path, p.fingerprint(4))
+	if err != nil {
+		t.Fatal(err)
+	}
+	k := canonicalBoardKey(boardWithMoves(t, rules.Cell(119), rules.Cell(72)))
+	if _, err := appendTreeLine(path, clean, formatSolver(k, 33, "vcf", 10, 3)); err != nil {
+		t.Fatal(err)
+	}
+	bt, err := newBookTree(p, 4, priorsTable{}, (&stubAnalyst{score: 200}).analyze, (&stubSolver{nodes: 10}).probe, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, ok := bt.log.frozen[k]
+	if !ok {
+		t.Fatal("crash-window solver record was not re-frozen on load")
+	}
+	if f.reason != "win" || f.score != mateScore(3) {
+		t.Fatalf("repaired freeze = %+v, want win at mate distance 3", f)
+	}
+	if bt.spent != 10 {
+		t.Fatalf("repaired spend = %d, want the logged solver nodes 10", bt.spent)
+	}
+}
+
+func TestTreeExpandConsumesSolverProofMove(t *testing.T) {
+	bt, _ := newTestTree(t, (&stubAnalyst{score: 200}).analyze, (&stubSolver{nodes: 10}).probe)
+	k := canonicalBoardKey(boardWithMoves(t, rules.Cell(119), rules.Cell(72)))
+	b, err := boardFromKey(k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proof := legalNear(b)
+	bt.log.solver[k] = solverRec{move: proof, kind: "vcf", pvLen: 2}
+	ranking := topLegal(b, 6, 200)
+	if err := bt.expand(k, b, 1, ranking); err != nil {
+		t.Fatal(err)
+	}
+	ex, ok := bt.log.expansions[k]
+	if !ok {
+		t.Fatal("expansion missing")
+	}
+	if len(ex.children) != 1 || ex.children[0].move != proof || ex.best != proof {
+		t.Fatalf("solver node expanded %+v, want the single proof move %d", ex, proof)
+	}
+}
+
+func TestTreeHoldDefersOffPVNodesAndStopsWhenAllHeld(t *testing.T) {
+	sa := &stubAnalyst{score: 200}
+	path := treeLogPath(t)
+	p := tinyParams()
+	clean, err := writeSidecarHeader(path, p.fingerprint(4))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := canonicalKey(corpusZeroKey)
+	c1 := [config.BookKeyBytes]byte{1}
+	c2 := [config.BookKeyBytes]byte{2}
+	c3 := [config.BookKeyBytes]byte{3}
+	clean, err = appendTreeLine(path, clean, formatExpansion(root, treeExpansion{ply: 0, own: true, children: []childRec{{move: 9, child: c1}, {move: 8, child: c2}}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clean, err = appendTreeLine(path, clean, formatFreeze(c1, "win", mateScore(2)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := appendTreeLine(path, clean, formatExpansion(c2, treeExpansion{ply: 1, own: false, children: []childRec{{move: 7, child: c3}}})); err != nil {
+		t.Fatal(err)
+	}
+	bt, err := newBookTree(p, 4, priorsTable{}, sa.analyze, (&stubSolver{nodes: 10}).probe, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bt.frontier) != 1 || bt.frontier[0].key != c3 {
+		t.Fatalf("construction frontier = %+v, want only the open child", bt.frontier)
+	}
+	if err := bt.run(io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if bt.stopped != "frontier held" {
+		t.Fatalf("stop reason %q, want frontier held", bt.stopped)
+	}
+	if bt.frontierHeld() != 1 {
+		t.Fatalf("held = %d, want the single off-PV entry deferred once", bt.frontierHeld())
+	}
+	if sa.calls != 0 {
+		t.Fatalf("held node ran %d analyses, deferral must precede analysis", sa.calls)
+	}
+	if _, expanded := bt.log.expansions[c3]; expanded {
+		t.Fatal("held node expanded despite the all-held stop")
+	}
+}
+
+func TestTreeFrontierAgingSortsDeferredLast(t *testing.T) {
+	bt, _ := newTestTree(t, (&stubAnalyst{score: 200}).analyze, (&stubSolver{nodes: 10}).probe)
+	a := canonicalBoardKey(boardWithMoves(t, rules.Cell(119), rules.Cell(72)))
+	b := canonicalBoardKey(boardWithMoves(t, rules.Cell(119), rules.Cell(73)))
+	bt.frontier = []frontierEntry{{key: a, ply: 2}, {key: b, ply: 2, attempts: 1}}
+	bt.sortFrontier(bt.principalVariation())
+	if bt.frontier[0].key != a || bt.frontier[1].key != b {
+		t.Fatal("deferred entry must age behind an equal-weight fresh entry")
+	}
+}
+
+func TestTreeStabilityLadderIsGeometric(t *testing.T) {
+	sa := &stubAnalyst{score: 5000, rankings: map[int][]rankedMove{0: rootOpeningRanking()}}
+	bt, _ := newTestTree(t, sa.analyze, (&stubSolver{nodes: 10}).probe)
+	if err := bt.run(io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	laddered := 0
+	for key, f := range bt.log.frozen {
+		if f.reason != "quiet" {
+			continue
+		}
+		recs := bt.log.analyses[key]
+		if len(recs) != bt.params.stableIters {
+			t.Fatalf("quiet freeze without the full ladder: %d recs", len(recs))
+		}
+		base := recs[0].budget
+		for i, want := range []int{base, base * 2, base * 4} {
+			if recs[i].budget != want {
+				t.Fatalf("ladder budgets %v, want geometric base 2x 4x from %d", recs, base)
+			}
+		}
+		laddered++
+	}
+	if laddered == 0 {
+		t.Fatal("no quiet freeze to inspect")
+	}
+}
+
+func TestTreeBackUpStepsMateDistances(t *testing.T) {
+	if got, want := backUp(mateScore(1)), -mateScore(2); got != want {
+		t.Fatalf("backUp of a win in 1 = %d, want %d", got, want)
+	}
+	if got, want := backUp(-mateScore(2)), mateScore(3); got != want {
+		t.Fatalf("backUp of a loss in 2 = %d, want %d", got, want)
+	}
+	if got, want := backUp(750), -750; got != want {
+		t.Fatalf("backUp of a quiet score = %d, want %d", got, want)
+	}
+	path := treeLogPath(t)
+	p := tinyParams()
+	clean, err := writeSidecarHeader(path, p.fingerprint(4))
+	if err != nil {
+		t.Fatal(err)
+	}
+	k1 := [config.BookKeyBytes]byte{1}
+	k2 := [config.BookKeyBytes]byte{2}
+	k3 := [config.BookKeyBytes]byte{3}
+	clean, err = appendTreeLine(path, clean, formatExpansion(k1, treeExpansion{ply: 0, own: true, children: []childRec{{move: 5, child: k2}}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clean, err = appendTreeLine(path, clean, formatExpansion(k2, treeExpansion{ply: 1, own: false, children: []childRec{{move: 6, child: k3}}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := appendTreeLine(path, clean, formatFreeze(k3, "win", mateScore(1))); err != nil {
+		t.Fatal(err)
+	}
+	bt, err := newBookTree(p, 4, priorsTable{}, (&stubAnalyst{score: 200}).analyze, (&stubSolver{nodes: 10}).probe, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bt.cascade(); err != nil {
+		t.Fatal(err)
+	}
+	if got := bt.log.frozen[k2]; got.reason != "loss" || got.score != -mateScore(2) {
+		t.Fatalf("mid freeze = %+v, want loss at distance 2", got)
+	}
+	if got := bt.log.frozen[k1]; got.score != mateScore(3) {
+		t.Fatalf("root freeze score = %d, want a backed win at distance 3", got.score)
+	}
+}
+
+func TestTreeReverifyPassIsIdempotentAndKeyCounted(t *testing.T) {
+	rank := make([]rankedMove, len(config.BookOpeningCells))
+	for i, c := range config.BookOpeningCells {
+		rank[i] = rankedMove{Move: rules.Move(c), Score: 4000 - i*10}
+	}
+	sa := &stubAnalyst{rankings: map[int][]rankedMove{0: rank}, score: 200}
+	bt, path := newTestTree(t, sa.analyze, (&stubSolver{nodes: 10}).probe)
+	if err := bt.run(io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	port := func(b *rules.Board, budget int) (rules.Move, int, uint64) {
+		calls++
+		ck := canonicalBoardKey(b)
+		recs := bt.log.analyses[ck]
+		if len(recs) == 0 {
+			return legalNear(b), 0, uint64(budget)
+		}
+		last := recs[len(recs)-1]
+		return last.best, last.score, uint64(budget)
+	}
+	if err := bt.reverifyPass(port, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	firstCalls := calls
+	firstRecords := len(bt.log.reverify)
+	sizeFirst, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstRecords == 0 {
+		t.Fatal("no contested owner node was ever reverified")
+	}
+	if err := bt.reverifyPass(port, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if calls != firstCalls {
+		t.Fatalf("second pass ran %d extra probes, want 0", calls-firstCalls)
+	}
+	sizeSecond, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sizeSecond.Size() != sizeFirst.Size() {
+		t.Fatal("second pass appended records, the done-guard failed")
+	}
+	if bt.flipCount() != 0 {
+		t.Fatalf("flipCount = %d, want 0 with agreeing probes", bt.flipCount())
+	}
+}
+
+func TestTreeEmittedMoveMatchesExpandedBest(t *testing.T) {
+	analyst := func(b *rules.Board, budget, k int) (leafRec, []rankedMove) {
+		rank := topLegal(b, 6, 200)
+		if b.MoveCount == 0 {
+			rank = rootOpeningRanking()
+		}
+		second := rank[0]
+		if len(rank) > 1 {
+			second = rank[1]
+		}
+		return leafRec{budget: budget, score: second.Score, best: second.Move, nodes: uint64(budget)}, rank
+	}
+	bt, _ := newTestTree(t, analyst, (&stubSolver{nodes: 10}).probe)
+	if err := bt.run(io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	entries, _, err := bt.emitEntries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) == 0 {
+		t.Fatal("no entries emitted")
+	}
+	index := make(map[[config.BookKeyBytes]byte]bookEntry, len(entries))
+	for _, ent := range entries {
+		index[ent.key] = ent
+	}
+	checked := 0
+	for key, ex := range bt.log.expansions {
+		if !ex.own {
+			continue
+		}
+		ent, ok := index[key]
+		if !ok {
+			continue
+		}
+		if ent.move != ex.best {
+			t.Fatalf("emitted move %d differs from expanded best %d at %s", ent.move, ex.best, hexKey(key[:])[:12])
+		}
+		checked++
+	}
+	if checked == 0 {
+		t.Fatal("no own expansion ever verified against its emitted entry")
 	}
 }

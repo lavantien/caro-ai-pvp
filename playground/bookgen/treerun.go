@@ -56,7 +56,7 @@ func runTree(o treeOpts, analyst analystPort, solver solverPort, progress io.Wri
 		return st, err
 	}
 	if o.reverify {
-		if err := bt.reverifyPass(progress); err != nil {
+		if err := bt.reverifyPass(grandmasterReverify, progress); err != nil {
 			return st, err
 		}
 	}

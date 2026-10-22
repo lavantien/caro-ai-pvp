@@ -498,6 +498,7 @@ func TestBookTreeConstantsMatchPreregistration(t *testing.T) {
 		{"BookTreePruneMarginMilli", BookTreePruneMarginMilli, 300},
 		{"BookTreeTotalNodes", BookTreeTotalNodes, 1 << 28},
 		{"BookTreeVisitScale", BookTreeVisitScale, 1000},
+		{"BookTreeVisitFloor", BookTreeVisitFloor, 1},
 	}
 	for _, w := range wants {
 		if w.got != w.want {

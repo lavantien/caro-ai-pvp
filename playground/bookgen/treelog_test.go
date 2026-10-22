@@ -30,7 +30,7 @@ func TestTreeFingerprintRefusesDrift(t *testing.T) {
 	if tl.fp != fp {
 		t.Fatalf("parsed fingerprint %q, want %q", tl.fp, fp)
 	}
-	if _, err := appendTreeLine(path, clean, formatNoProof([config.BookKeyBytes]byte{1})); err != nil {
+	if _, err := appendTreeLine(path, clean, formatNoProof([config.BookKeyBytes]byte{1}, 5)); err != nil {
 		t.Fatal(err)
 	}
 	other := paramsFromConfig(config.TierGrandmaster.Name)
@@ -65,11 +65,11 @@ func TestTreeLogRoundTripAllLineKinds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	clean, err = appendTreeLine(path, clean, formatSolver(k2, 12, "vcf", 777))
+	clean, err = appendTreeLine(path, clean, formatSolver(k2, 12, "vcf", 777, 3))
 	if err != nil {
 		t.Fatal(err)
 	}
-	clean, err = appendTreeLine(path, clean, formatNoProof(k1))
+	clean, err = appendTreeLine(path, clean, formatNoProof(k1, 55))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestTreeLogRoundTripAllLineKinds(t *testing.T) {
 	if got := tl.analyses[k2]; len(got) != 1 || got[0].budget != 1024 || got[0].score != -35 || got[0].best != 9 || got[0].nodes != 4096 {
 		t.Errorf("leaf round trip = %+v", got)
 	}
-	if got := tl.solver[k2]; got.move != 12 || got.kind != "vcf" {
+	if got := tl.solver[k2]; got.move != 12 || got.kind != "vcf" || got.pvLen != 3 {
 		t.Errorf("solver round trip = %+v", got)
 	}
 	if _, ok := tl.solverDone[k1]; !ok {
@@ -103,6 +103,9 @@ func TestTreeLogRoundTripAllLineKinds(t *testing.T) {
 	if len(tl.reverify) != 1 || !tl.reverify[0].flip || tl.reverify[0].delta != 12 {
 		t.Errorf("reverify round trip = %+v", tl.reverify)
 	}
+	if tl.spent != 4096+777+55 {
+		t.Errorf("logged spend = %d, want %d", tl.spent, 4096+777+55)
+	}
 }
 
 func TestTreeLogTornTailTruncatesToLastCompleteLine(t *testing.T) {
@@ -113,11 +116,11 @@ func TestTreeLogTornTailTruncatesToLastCompleteLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	k := [config.BookKeyBytes]byte{7}
-	clean, err = appendTreeLine(path, clean, formatNoProof(k))
+	clean, err = appendTreeLine(path, clean, formatNoProof(k, 5))
 	if err != nil {
 		t.Fatal(err)
 	}
-	torn := formatNoProof([config.BookKeyBytes]byte{9})
+	torn := formatNoProof([config.BookKeyBytes]byte{9}, 6)
 	f, err := os.OpenFile(path, os.O_WRONLY, 0o644)
 	if err != nil {
 		t.Fatal(err)

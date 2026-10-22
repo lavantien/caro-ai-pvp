@@ -74,8 +74,15 @@ func TestCanonicalKeyIsInvariantAndMinimal(t *testing.T) {
 			t.Fatalf("canonical key of transform %d differs from canonical of identity", ti)
 		}
 	}
-	if !keyBefore(c, k) && c != k {
-		t.Fatal("canonical key is not the minimum representative")
+	want := k
+	for ti := range dihedral {
+		v := transformKey(ti, k)
+		if keyBefore(v, want) {
+			want = v
+		}
+	}
+	if c != want {
+		t.Fatalf("canonical key %s differs from the transform minimum %s", hexKey(c[:])[:12], hexKey(want[:])[:12])
 	}
 }
 

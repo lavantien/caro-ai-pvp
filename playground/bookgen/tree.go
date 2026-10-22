@@ -51,6 +51,17 @@ func (bt *bookTree) append(line string) error {
 	return nil
 }
 
+func backUp(child int) int {
+	switch {
+	case child > config.EvalMateMax/2:
+		return -child + config.EvalMateScoreStep
+	case child < -config.EvalMateMax/2:
+		return -child - config.EvalMateScoreStep
+	default:
+		return -child
+	}
+}
+
 func newBookTree(params treeParams, plyBound int, priors priorsTable, analyst analystPort, solver solverPort, logPath string) (*bookTree, error) {
 	tl, err := parseTreeLog(logPath)
 	if err != nil {
@@ -68,7 +79,19 @@ func newBookTree(params treeParams, plyBound int, priors priorsTable, analyst an
 	}
 	bt := &bookTree{
 		params: params, plyBound: plyBound, priors: priors, analyst: analyst, solver: solver,
-		log: tl, logPath: logPath, clean: tl.clean, root: canonicalKey(corpusZeroKey),
+		log: tl, logPath: logPath, clean: tl.clean, spent: tl.spent, root: canonicalKey(corpusZeroKey),
+	}
+	unfrozen := make([][config.BookKeyBytes]byte, 0, len(tl.solver))
+	for k := range tl.solver {
+		if _, ok := tl.frozen[k]; !ok {
+			unfrozen = append(unfrozen, k)
+		}
+	}
+	sort.Slice(unfrozen, func(i, j int) bool { return keyBefore(unfrozen[i], unfrozen[j]) })
+	for _, k := range unfrozen {
+		if err := bt.freeze(k, "win", mateScore(tl.solver[k].pvLen)); err != nil {
+			return nil, err
+		}
 	}
 	if _, done := bt.log.expansions[bt.root]; done {
 		bt.collectChildren(bt.root)
@@ -107,7 +130,7 @@ func (bt *bookTree) nodeValue(key [config.BookKeyBytes]byte) (int, bool) {
 	if ex, ok := bt.log.expansions[key]; ok {
 		for _, c := range ex.children {
 			if v, ok := bt.nodeValue(c.child); ok {
-				nv := -v
+				nv := backUp(v)
 				if !found || nv > best {
 					best, found = nv, true
 				}
@@ -137,7 +160,7 @@ func (bt *bookTree) principalVariation() [][config.BookKeyBytes]byte {
 		found := false
 		for _, c := range ex.children {
 			if v, ok := bt.nodeValue(c.child); ok {
-				nv := -v
+				nv := backUp(v)
 				if !found || nv > best || (nv == best && keyBefore(c.child, bestKey)) {
 					best, bestKey, found = nv, c.child, true
 				}
@@ -202,10 +225,10 @@ func (bt *bookTree) solverPass(key [config.BookKeyBytes]byte, b *rules.Board) er
 	bt.spent += nodes
 	bt.log.solverDone[key] = struct{}{}
 	if !ok {
-		return bt.append(formatNoProof(key))
+		return bt.append(formatNoProof(key, nodes))
 	}
-	bt.log.solver[key] = solverRec{move: mv, kind: kind}
-	if err := bt.append(formatSolver(key, mv, kind, nodes)); err != nil {
+	bt.log.solver[key] = solverRec{move: mv, kind: kind, pvLen: pvLen}
+	if err := bt.append(formatSolver(key, mv, kind, nodes, pvLen)); err != nil {
 		return err
 	}
 	return bt.freeze(key, "win", mateScore(pvLen))
@@ -221,7 +244,7 @@ func (bt *bookTree) analyze(key [config.BookKeyBytes]byte, b *rules.Board, budge
 
 func (bt *bookTree) tryFreeze(key [config.BookKeyBytes]byte, b *rules.Board, base int) (bool, []rankedMove, error) {
 	ranking := []rankedMove(nil)
-	for mult := 2; mult <= bt.params.stableIters; mult++ {
+	for mult := 2; mult <= 1<<(bt.params.stableIters-1); mult *= 2 {
 		dup := false
 		for _, r := range bt.log.analyses[key] {
 			if r.budget == base*mult {
@@ -282,7 +305,7 @@ func (bt *bookTree) cascade() error {
 					all = false
 					break
 				}
-				nv := -f.score
+				nv := backUp(f.score)
 				if !found || nv > best {
 					best, found = nv, true
 				}
@@ -302,13 +325,15 @@ func (bt *bookTree) cascade() error {
 	return nil
 }
 
-func (bt *bookTree) expand(key [config.BookKeyBytes]byte, b *rules.Board, ply int, rec leafRec, ranking []rankedMove) error {
-	if s, ok := bt.log.solver[key]; ok {
-		rec.best = s.move
-	}
+func (bt *bookTree) expand(key [config.BookKeyBytes]byte, b *rules.Board, ply int, ranking []rankedMove) error {
 	ranked := rankedByScoreMoves(ranking, key, bt.priors)
 	var chosen []rankedMove
-	if ply == 0 {
+	if s, ok := bt.log.solver[key]; ok {
+		if !b.IsLegal(rules.Cell(s.move)) {
+			return fmt.Errorf("bookgen: solver proof move %d illegal in its position", s.move)
+		}
+		chosen = append(chosen, rankedMove{Move: s.move, Score: mateScore(s.pvLen)})
+	} else if ply == 0 {
 		openSet := make(map[rules.Move]struct{}, len(config.BookOpeningCells))
 		for _, c := range config.BookOpeningCells {
 			openSet[rules.Move(c)] = struct{}{}
@@ -344,7 +369,8 @@ func (bt *bookTree) expand(key [config.BookKeyBytes]byte, b *rules.Board, ply in
 			gap = 0
 		}
 	}
-	ex := treeExpansion{ply: ply, own: b.Side == rules.Red, bestGap: gap}
+	ex := treeExpansion{ply: ply, own: b.Side == rules.Red, best: chosen[0].Move, bestGap: gap}
+	seen := make(map[[config.BookKeyBytes]byte]struct{}, len(chosen))
 	for _, rm := range chosen {
 		if !b.IsLegal(rules.Cell(rm.Move)) {
 			return fmt.Errorf("bookgen: ranked move %d illegal in its position", rm.Move)
@@ -355,6 +381,10 @@ func (bt *bookTree) expand(key [config.BookKeyBytes]byte, b *rules.Board, ply in
 		}
 		cb.Make(rules.Cell(rm.Move))
 		ck, _ := canonicalEntry(keyOf(cb), 0)
+		if _, dup := seen[ck]; dup {
+			continue
+		}
+		seen[ck] = struct{}{}
 		ex.children = append(ex.children, childRec{move: rm.Move, child: ck})
 	}
 	bt.log.expansions[key] = &ex
@@ -370,9 +400,14 @@ func (bt *bookTree) expand(key [config.BookKeyBytes]byte, b *rules.Board, ply in
 }
 
 func (bt *bookTree) allHeld(pv [][config.BookKeyBytes]byte) bool {
-	pvSet := make(map[[config.BookKeyBytes]byte]struct{}, len(pv))
+	pvSet := make(map[[config.BookKeyBytes]byte]struct{}, len(pv)+4)
 	for _, k := range pv {
 		pvSet[k] = struct{}{}
+	}
+	if ex, ok := bt.log.expansions[pv[len(pv)-1]]; ok {
+		for _, c := range ex.children {
+			pvSet[c.child] = struct{}{}
+		}
 	}
 	for _, e := range bt.frontier {
 		if e.attempts == 0 {
@@ -401,10 +436,9 @@ func (bt *bookTree) run(progress io.Writer) error {
 		if _, done := bt.log.expansions[e.key]; done {
 			continue
 		}
-		if e.attempts > 0 {
-			_, onPV := containsKey(pv, e.key)
-			if !onPV {
-				e.attempts++
+		if e.ply >= 2 && e.attempts == 0 && len(pv) > 1 {
+			if _, onPV := containsKey(pv, e.key); !onPV {
+				e.attempts = 1
 				bt.frontier = append(bt.frontier, e)
 				if bt.allHeld(pv) {
 					bt.stopped = "frontier held"
@@ -428,11 +462,11 @@ func (bt *bookTree) run(progress io.Writer) error {
 			return nil
 		}
 		if e.ply == 0 {
-			rec, ranking, err := bt.analyze(e.key, b, bt.params.critical, config.SearchMaxMovesPerPly)
+			_, ranking, err := bt.analyze(e.key, b, bt.params.critical, config.SearchMaxMovesPerPly)
 			if err != nil {
 				return err
 			}
-			if err := bt.expand(e.key, b, 0, rec, ranking); err != nil {
+			if err := bt.expand(e.key, b, 0, ranking); err != nil {
 				return err
 			}
 			fmt.Fprintf(progress, "tree root expanded: %d openings, gap %d, spent %d\n", len(bt.log.expansions[bt.root].children), bt.log.expansions[bt.root].bestGap, bt.spent)
@@ -459,7 +493,7 @@ func (bt *bookTree) run(progress io.Writer) error {
 		if rank != nil {
 			ranking = rank
 		}
-		if err := bt.expand(e.key, b, e.ply, rec, ranking); err != nil {
+		if err := bt.expand(e.key, b, e.ply, ranking); err != nil {
 			return err
 		}
 	}

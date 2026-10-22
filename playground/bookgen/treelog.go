@@ -18,6 +18,7 @@ type treeParams struct {
 	opponentK   int
 	leaf        int
 	critical    int
+	reverify    int
 	critMargin  int
 	stableIters int
 	stableMarg  int
@@ -33,6 +34,7 @@ func paramsFromConfig(tier string) treeParams {
 		opponentK:   config.BookTreeOpponentK,
 		leaf:        config.BookTreeLeafNodes,
 		critical:    config.BookTreeCriticalNodes,
+		reverify:    config.BookTreeReverifyNodes,
 		critMargin:  config.BookTreeCriticalMarginMilli,
 		stableIters: config.BookTreeStableIters,
 		stableMarg:  config.BookTreeStableMarginMilli,
@@ -44,8 +46,8 @@ func paramsFromConfig(tier string) treeParams {
 }
 
 func (p treeParams) fingerprint(plyBound int) string {
-	return fmt.Sprintf("F tree v%d tier=%s ply=%d k=%d leaf=%d critical=%d critmargin=%d stable=%d stablemargin=%d lopsided=%d prune=%d total=%d solver=%d",
-		config.BookSidecarVersion, p.tier, plyBound, p.opponentK, p.leaf, p.critical, p.critMargin,
+	return fmt.Sprintf("F tree v%d tier=%s ply=%d k=%d leaf=%d critical=%d reverify=%d critmargin=%d stable=%d stablemargin=%d lopsided=%d prune=%d total=%d solver=%d",
+		config.BookSidecarVersion, p.tier, plyBound, p.opponentK, p.leaf, p.critical, p.reverify, p.critMargin,
 		p.stableIters, p.stableMarg, p.lopsided, p.prune, p.total, p.solver)
 }
 
@@ -57,6 +59,7 @@ type childRec struct {
 type treeExpansion struct {
 	ply      int
 	own      bool
+	best     rules.Move
 	children []childRec
 	bestGap  int
 }
@@ -69,9 +72,10 @@ type leafRec struct {
 }
 
 type solverRec struct {
-	move rules.Move
-	kind string
-	lose bool
+	move  rules.Move
+	kind  string
+	pvLen int
+	lose  bool
 }
 
 type freezeRec struct {
@@ -90,6 +94,7 @@ type treeLog struct {
 	fp         string
 	clean      int64
 	torn       bool
+	spent      uint64
 	expansions map[[config.BookKeyBytes]byte]*treeExpansion
 	analyses   map[[config.BookKeyBytes]byte][]leafRec
 	solver     map[[config.BookKeyBytes]byte]solverRec
@@ -133,7 +138,7 @@ func parseTreeLog(path string) (treeLog, error) {
 		if nl < 0 {
 			tl.torn = true
 		} else {
-			if err := sidecarHeaderError("tree", path, string(data[:nl]), 12); err != nil {
+			if err := sidecarHeaderError("tree", path, string(data[:nl]), 13); err != nil {
 				return tl, err
 			}
 			tl.fp = string(data[:nl])
@@ -185,6 +190,7 @@ func parseTreeLog(path string) (treeLog, error) {
 			if len(ex.children) == 0 {
 				return tl, fail("expansion without children")
 			}
+			ex.best = ex.children[0].move
 			tl.expansions[k] = ex
 			tl.clean = int64(off)
 		case "L":
@@ -211,11 +217,12 @@ func parseTreeLog(path string) (treeLog, error) {
 			if err != nil {
 				return tl, fail("leaf nodes")
 			}
+			tl.spent += nodes
 			tl.analyses[k] = append(tl.analyses[k], leafRec{budget: budget, score: score, best: rules.Move(best), nodes: nodes})
 			tl.clean = int64(off)
 		case "S":
-			if len(fields) != 5 {
-				return tl, fail("proof wants key kind move nodes")
+			if len(fields) != 6 {
+				return tl, fail("proof wants key kind move nodes pvlen")
 			}
 			k, err := keyFromHex(fields[1])
 			if err != nil {
@@ -229,20 +236,31 @@ func parseTreeLog(path string) (treeLog, error) {
 			if err != nil || mv < 0 || mv >= config.BoardCells {
 				return tl, fail("proof move")
 			}
-			if _, err := strconv.ParseUint(fields[4], 10, 64); err != nil {
+			nodes, err := strconv.ParseUint(fields[4], 10, 64)
+			if err != nil {
 				return tl, fail("proof nodes")
 			}
-			tl.solver[k] = solverRec{move: rules.Move(mv), kind: kind}
+			pvLen, err := strconv.Atoi(fields[5])
+			if err != nil || pvLen < 1 {
+				return tl, fail("proof pvlen")
+			}
+			tl.spent += nodes
+			tl.solver[k] = solverRec{move: rules.Move(mv), kind: kind, pvLen: pvLen}
 			tl.solverDone[k] = struct{}{}
 			tl.clean = int64(off)
 		case "N":
-			if len(fields) != 2 {
-				return tl, fail("no-proof wants key")
+			if len(fields) != 3 {
+				return tl, fail("no-proof wants key nodes")
 			}
 			k, err := keyFromHex(fields[1])
 			if err != nil {
 				return tl, fail("no-proof key")
 			}
+			nodes, err := strconv.ParseUint(fields[2], 10, 64)
+			if err != nil {
+				return tl, fail("no-proof nodes")
+			}
+			tl.spent += nodes
 			tl.solverDone[k] = struct{}{}
 			tl.clean = int64(off)
 		case "F":
@@ -344,12 +362,12 @@ func formatLeaf(k [config.BookKeyBytes]byte, r leafRec) string {
 	return fmt.Sprintf("L %s %d %d %d %d\n", hexKey(k[:]), r.budget, r.score, r.best, r.nodes)
 }
 
-func formatSolver(k [config.BookKeyBytes]byte, mv rules.Move, kind string, nodes uint64) string {
-	return fmt.Sprintf("S %s %s %d %d\n", hexKey(k[:]), kind, mv, nodes)
+func formatSolver(k [config.BookKeyBytes]byte, mv rules.Move, kind string, nodes uint64, pvLen int) string {
+	return fmt.Sprintf("S %s %s %d %d %d\n", hexKey(k[:]), kind, mv, nodes, pvLen)
 }
 
-func formatNoProof(k [config.BookKeyBytes]byte) string {
-	return fmt.Sprintf("N %s\n", hexKey(k[:]))
+func formatNoProof(k [config.BookKeyBytes]byte, nodes uint64) string {
+	return fmt.Sprintf("N %s %d\n", hexKey(k[:]), nodes)
 }
 
 func formatFreeze(k [config.BookKeyBytes]byte, reason string, score int) string {
