@@ -7,7 +7,7 @@ import (
 
 func branin(x []float64) float64 {
 	b := 5.1 / (4 * math.Pi * math.Pi)
-	c := 4 / math.Pi
+	c := 5 / math.Pi
 	r := 6.0
 	s := 10.0
 	t := 1 / (8 * math.Pi)

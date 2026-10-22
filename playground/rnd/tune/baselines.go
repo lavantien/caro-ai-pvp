@@ -23,27 +23,70 @@ func levelValue(d dim, lvl, levels int) float64 {
 	return clampScalar(d, d.lo+float64(lvl)/float64(levels-1)*(d.hi-d.lo))
 }
 
-func gridStream(dims []dim) [][]float64 {
-	levels := make([]int, len(dims))
+func fittedLevels(dims []dim, budget int) int {
+	continuous := 0
+	cells := 1
+	for _, d := range dims {
+		if d.integer {
+			cells *= dimLevels(d)
+		} else {
+			continuous++
+		}
+	}
+	if continuous == 0 {
+		return gridLevels
+	}
+	levels := 1
+	for l := 1; l <= gridLevels; l++ {
+		c := cells
+		for range continuous {
+			c *= l
+		}
+		if c > budget {
+			break
+		}
+		levels = l
+	}
+	return levels
+}
+
+func gridLattice(dims []dim, levels int, seed uint64) [][]float64 {
+	rng := newSeededRng(seed)
+	axes := make([][]float64, len(dims))
 	for i, d := range dims {
-		levels[i] = dimLevels(d)
+		if d.integer {
+			n := dimLevels(d)
+			axis := make([]float64, n)
+			for lvl := range n {
+				axis[lvl] = levelValue(d, lvl, n)
+			}
+			axes[i] = axis
+			continue
+		}
+		spacing := (d.hi - d.lo) / float64(levels)
+		offset := rng.Float64() * spacing
+		axis := make([]float64, levels)
+		for k := range levels {
+			axis[k] = clampScalar(d, d.lo+offset+float64(k)*spacing)
+		}
+		axes[i] = axis
 	}
 	idx := make([]int, len(dims))
 	total := 1
-	for _, n := range levels {
-		total *= n
+	for _, a := range axes {
+		total *= len(a)
 	}
 	out := make([][]float64, 0, total)
 	for {
 		x := make([]float64, len(dims))
-		for i, d := range dims {
-			x[i] = levelValue(d, idx[i], levels[i])
+		for i := range x {
+			x[i] = axes[i][idx[i]]
 		}
 		out = append(out, x)
 		done := true
 		for i := len(idx) - 1; i >= 0; i-- {
 			idx[i]++
-			if idx[i] < levels[i] {
+			if idx[i] < len(axes[i]) {
 				done = false
 				break
 			}
@@ -56,10 +99,10 @@ func gridStream(dims []dim) [][]float64 {
 	return out
 }
 
-func runGrid(dims []dim, obj func([]float64) float64, budget int, target float64) runResult {
+func runGridAt(dims []dim, obj func([]float64) float64, seed uint64, budget int, target float64, levels int) runResult {
 	best := runResult{bestF: math.Inf(1)}
 	n := 0
-	for _, x := range gridStream(dims) {
+	for _, x := range gridLattice(dims, levels, seed) {
 		if n >= budget {
 			break
 		}
@@ -75,6 +118,14 @@ func runGrid(dims []dim, obj func([]float64) float64, budget int, target float64
 		}
 	}
 	return best
+}
+
+func runGrid(dims []dim, obj func([]float64) float64, seed uint64, budget int, target float64) runResult {
+	return runGridAt(dims, obj, seed, budget, target, gridLevels)
+}
+
+func runGridCoarse(dims []dim, obj func([]float64) float64, seed uint64, budget int, target float64) runResult {
+	return runGridAt(dims, obj, seed, budget, target, fittedLevels(dims, budget))
 }
 
 func runRandom(dims []dim, obj func([]float64) float64, seed uint64, budget int, target float64) runResult {

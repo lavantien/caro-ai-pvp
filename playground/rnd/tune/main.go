@@ -25,9 +25,8 @@ type method struct {
 func methods() []method {
 	return []method{
 		{"bayes", runBayes},
-		{"grid", func(dims []dim, obj func([]float64) float64, _ uint64, budget int, target float64) runResult {
-			return runGrid(dims, obj, budget, target)
-		}},
+		{"grid", runGrid},
+		{"grid-coarse", runGridCoarse},
 		{"random", runRandom},
 		{"aco", runACO},
 	}
@@ -101,18 +100,26 @@ func writeValidationTable(path string) error {
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "# tune lane validation\n\n")
-	fmt.Fprintf(&b, "budget %d trials per run, %d seeds, median trials-to-target (%d means never reached), median best value at budget\n\n",
-		tableBudget, seedCount, tableBudget+1)
+	fmt.Fprintf(&b, "budget %d trials per run, %d seeds, median trials-to-target (>%d means never reached), median best value at budget\n\n",
+		tableBudget, seedCount, tableBudget)
+	fmt.Fprintf(&b, "grid rows are per-seed random-offset lattices, fine at %d levels per continuous axis and coarse at the largest level count whose full lattice fits the budget\n\n", gridLevels)
 	fmt.Fprintf(&b, "| objective | target | method | median trials-to-target | median best f |\n")
 	fmt.Fprintf(&b, "| --- | --- | --- | --- | --- |\n")
 	for i, c := range cases {
 		for _, m := range ms {
+			name := m.name
+			if m.name == "grid" {
+				name = fmt.Sprintf("grid(%d)", gridLevels)
+			}
+			if m.name == "grid-coarse" {
+				name = fmt.Sprintf("grid-coarse(%d)", fittedLevels(c.dims, tableBudget))
+			}
 			tt := median(table[i][m.name].trials)
 			label := fmt.Sprintf("%.0f", tt)
-			if tt > tableBudget {
+			if tt > tableBudget || tt == 0 {
 				label = fmt.Sprintf(">%d", tableBudget)
 			}
-			fmt.Fprintf(&b, "| %s | %g | %s | %s | %.4f |\n", c.name, c.target, m.name, label, median(table[i][m.name].best))
+			fmt.Fprintf(&b, "| %s | %g | %s | %s | %.4f |\n", c.name, c.target, name, label, median(table[i][m.name].best))
 		}
 	}
 	return writeFile(path, b.String())
