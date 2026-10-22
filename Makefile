@@ -460,3 +460,11 @@ bookval-cross:
 	pwsh.exe -NoProfile -File scripts/bookval-cross.ps1 $(ARGS)
 booktree-run:
 	pwsh.exe -NoProfile -File scripts/booktree-run.ps1 $(ARGS)
+
+# evaladopt-arms detaches the preregistered evalweights adoption chain:
+# fitted and scaffold master floors at 2+1 and 3+2, then the
+# fitted-vs-scaffold pairs, one engine batch, every arm resumes from its
+# records, ARGS forwards, e.g. make evaladopt-arms ARGS="-DryRun".
+.PHONY: evaladopt-arms
+evaladopt-arms:
+	pwsh.exe -NoProfile -File scripts/evaladopt-arms.ps1 $(ARGS)
