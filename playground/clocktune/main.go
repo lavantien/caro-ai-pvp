@@ -1,21 +1,3 @@
-// clocktune sweeps PID gain sets for one time control over the real
-// GameClock through the NewGameClockWithGains seam, ranking every grid cell
-// by worst drain-trajectory deviation from GameClock.Target across cost
-// models and game lengths. The committed per-TC row is scored in the same
-// run so its standing is on the record.
-//
-// Two structural facts of the clock law bound what the ranking can say.
-// The drain target spends down the initial bank only (the increment terms
-// cancel), while the law banks half the increment per move, so mid-game
-// deviation carries a surplus no gain set removes and cells rank by Kp
-// alone, the most aggressive corner winning with no interior optimum. Past
-// the expected move count the grant dumps the spendable remainder
-// regardless of gains. The artifact therefore records the committed row's
-// standing and the objective's flatness rather than selecting gains: gain
-// changes ride game evidence per the research law. The reserve-breach
-// disqualifier only bites at no-increment controls, because Commit
-// recharges the increment first and a post-commit bank at an increment
-// control can never sit at the reserve.
 package main
 
 import (
@@ -35,11 +17,8 @@ import (
 )
 
 const (
-	sweepSeedHi = 0xC10C7EED
-	sweepSeedLo = 0x7E11
-	// Slow-start shape, matching the clock bench's stress model: the first
-	// moves cost a multiple of their grant while the controller is still
-	// catching up.
+	sweepSeedHi     = 0xC10C7EED
+	sweepSeedLo     = 0x7E11
 	slowStartMoves  = 10
 	slowStartFactor = 3.0
 )
@@ -170,9 +149,6 @@ type simResult struct {
 	stdevMs    float64
 }
 
-// simulate plays one length-bounded game under the real clock law: budget,
-// spend budget scaled by the model factor, commit, and measure the bank's
-// deviation from the drain target after every commit.
 func simulate(tcIdx int, g config.PIDGains, factors []float64) simResult {
 	nsPerMs := float64(time.Millisecond)
 	c := clock.NewGameClockWithGains(tcIdx, g)
@@ -184,10 +160,6 @@ func simulate(tcIdx int, g config.PIDGains, factors []float64) simResult {
 	maxDevMs, _ := devMs()
 	budgets := make([]float64, len(factors))
 	breaches := 0
-	// A breach at an increment control is structurally impossible: Commit
-	// recharges the increment, so the post-commit bank floors at the
-	// increment itself. Counting it there would report a vacuous zero as
-	// safety evidence.
 	noIncrement := config.TimeControls[tcIdx].IncrementSec == 0
 	for m := range factors {
 		budgets[m] = float64(c.Budget()) / nsPerMs
@@ -208,8 +180,6 @@ func simulate(tcIdx int, g config.PIDGains, factors []float64) simResult {
 	}
 }
 
-// worstCollapse is the largest single-step drop of the granted budget below
-// the running mean of the grants so far, the bench's volatility metric.
 func worstCollapse(b []float64) float64 {
 	worst, sum := 0.0, 0.0
 	for k, v := range b {
@@ -235,9 +205,6 @@ func stdev(b []float64) float64 {
 	return math.Sqrt(ss / float64(len(b)))
 }
 
-// axis expands one grid dimension. Misaligned bounds are an error, never a
-// silently truncated or one-cell sweep: a non-dividing span would print its
-// requested extent while sweeping something else.
 func axis(min, max, step float64) []float64 {
 	if step <= 0 {
 		fmt.Fprintf(os.Stderr, "clocktune: axis step %g must be positive\n", step)
@@ -268,9 +235,6 @@ func constFactors(length int, v float64) []float64 {
 	return f
 }
 
-// uniformFactors draws the overshoot model's spend factors. The sequence
-// keys on (tc, length) so every gain cell in one (model, length) column
-// spends against the identical cost sequence and the comparison stays fair.
 func uniformFactors(tcIdx, length int, lo, hi float64) []float64 {
 	rng := rand.New(rand.NewPCG(sweepSeedHi, sweepSeedLo+uint64(uint32(tcIdx))<<32|uint64(uint32(length))))
 	f := make([]float64, length)
@@ -289,8 +253,6 @@ func slowStartFactors(length int) []float64 {
 }
 
 func findCell(cells []cell, g config.PIDGains) cell {
-	// Epsilon compare: axis-generated values come from min+i*step arithmetic
-	// and need not equal the parsed config literals bit-for-bit.
 	for _, c := range cells {
 		if math.Abs(c.kp-g.Kp) < 1e-9 && math.Abs(c.ki-g.Ki) < 1e-9 && math.Abs(c.kd-g.Kd) < 1e-9 {
 			return c
