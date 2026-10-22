@@ -84,7 +84,7 @@ func TestToleranceCheckTripsOnDrift(t *testing.T) {
 }
 
 func TestClampFReflectsAndBounds(t *testing.T) {
-	for _, v := range []float64{-1e300, -1e15, -0.75, -0.0, 0, 0.05, 0.5, 1, 1.5, 1e300} {
+	for _, v := range []float64{-1e300, -1e15, -0.75, 0.0, 0, 0.05, 0.5, 1, 1.5, 1e300} {
 		got := clampF(v)
 		if !(got > 0 && got <= 1) {
 			t.Fatalf("clampF(%v) = %v, want inside (0, 1]", v, got)

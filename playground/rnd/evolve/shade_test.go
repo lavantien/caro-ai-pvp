@@ -6,11 +6,26 @@ import (
 )
 
 func TestClampFRange(t *testing.T) {
+	for _, v := range []float64{-1e300, -1e15, -0.75, 0, 0.05, 0.5, 1, 1.5, 1e300} {
+		got := clampF(v)
+		if !(got > 0 && got <= 1) {
+			t.Fatalf("clampF(%v) = %v, want inside (0, 1]", v, got)
+		}
+	}
 	if clampF(0) <= 0 || clampF(0) > 1 {
 		t.Fatal("clampF(0) out of range")
 	}
 	if clampF(2) != 1 || clampF(0.5) != 0.5 {
 		t.Fatal("clampF bounds wrong")
+	}
+	if got := clampF(-0.75); got != 0.75 {
+		t.Fatalf("clampF(-0.75) = %v, want reflection to 0.75", got)
+	}
+	if got := clampF(-1e300); got != 1 {
+		t.Fatalf("clampF(-1e300) = %v, want 1", got)
+	}
+	if got := clampF(0); got != 0.05 {
+		t.Fatalf("clampF(0) = %v, want 0.05", got)
 	}
 	if clampCR(-1) != 0 || clampCR(2) != 1 {
 		t.Fatal("clampCR bounds wrong")

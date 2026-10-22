@@ -42,11 +42,14 @@ func cauchy(rng *rand.Rand, loc, scale float64) float64 {
 }
 
 func clampF(v float64) float64 {
-	for v <= 0 {
-		v = 0.05 + v
+	if v <= 0 {
+		v = -v
 	}
-	if v > 1 {
+	if v >= 1 {
 		return 1
+	}
+	if v == 0 {
+		return 0.05
 	}
 	return v
 }
