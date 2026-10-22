@@ -48,16 +48,16 @@ function Invoke-Build {
 	$binAbs = Join-Path $repo ($Bin -replace '/', '\')
 	$cmd = "set GOMEMLIMIT=$MemLimit&& `"$binAbs`" $argLine >>`"$logAbs`" 2>&1"
 	if ($DryRun) {
-		Write-Output "dryrun build: $cmd"
+		Write-Host "dryrun build: $cmd"
 		return 0
 	}
-	Write-Output "build start, log $logAbs"
+	Write-Host "build start, log $logAbs"
 	$p = Start-Process -FilePath cmd.exe -ArgumentList '/c', $cmd -WorkingDirectory $repo -WindowStyle Hidden -Wait -PassThru
 	if ($p.ExitCode -ne 0) {
-		Write-Output "build exited $($p.ExitCode), see $logAbs"
+		Write-Host "build exited $($p.ExitCode), see $logAbs"
 		return $p.ExitCode
 	}
-	Write-Output 'build done'
+	Write-Host 'build done'
 	return 0
 }
 
