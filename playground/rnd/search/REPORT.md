@@ -1,6 +1,6 @@
 # search: algorithmic prototypes against the shipped engine
 
-Four experiments over 212 master self-play games and 35 tactical positions. Trust anchor: the lane's reimplementation of internal/vcf reproduces the shipped solver exactly (identical verdicts and node counts on the committed corpus state, 11298/11298, asserted by TestSolverMirrorMatchesShipped against internal/vcf directly), so the A/B numbers compare against a verified mirror. Per-position artifacts under out/, benchmarks in bench_test.go (in-loop timing proved eliminable by the optimizer, so measurements live in testing.B).
+Four experiments over 212 master self-play games and 35 tactical positions. Trust anchor: the lane's reimplementation of internal/vcf reproduces the shipped solver exactly on both committed corpus states: 11298/11298 in the original run and 12812/12812 with 0 verdict flips over 202 live-corpus games (out/parity-snapshot.md), asserted by TestSolverMirrorMatchesShipped against internal/vcf directly, so the A/B numbers compare against a verified mirror. Per-position artifacts under out/, benchmarks in bench_test.go (in-loop timing proved eliminable by the optimizer, so measurements live in testing.B).
 
 ## verdicts
 
