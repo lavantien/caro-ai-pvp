@@ -56,7 +56,7 @@ func TestTreeLogRoundTripAllLineKinds(t *testing.T) {
 	}
 	k1 := canonicalBoardKey(boardWithMoves(t, rules.Cell(119), rules.Cell(72)))
 	k2 := canonicalBoardKey(boardWithMoves(t, rules.Cell(119), rules.Cell(72), rules.Cell(0)))
-	ex := treeExpansion{ply: 2, own: true, children: []childRec{{move: 5, child: k2}}}
+	ex := treeExpansion{ply: 2, own: true, bestGap: 111, children: []childRec{{move: 5, child: k2}}}
 	clean, err = appendTreeLine(path, clean, formatExpansion(k1, ex))
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +85,7 @@ func TestTreeLogRoundTripAllLineKinds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := tl.expansions[k1]; got == nil || got.ply != 2 || !got.own || len(got.children) != 1 || got.children[0].move != 5 || got.children[0].child != k2 {
+	if got := tl.expansions[k1]; got == nil || got.ply != 2 || !got.own || got.bestGap != 111 || len(got.children) != 1 || got.children[0].move != 5 || got.children[0].child != k2 {
 		t.Errorf("expansion round trip = %+v", got)
 	}
 	if got := tl.analyses[k2]; len(got) != 1 || got[0].budget != 1024 || got[0].score != -35 || got[0].best != 9 || got[0].nodes != 4096 {
@@ -148,6 +148,7 @@ func TestTreeLogRejectsMalformedLines(t *testing.T) {
 	cases := []string{
 		"Q something\n",
 		"X deadbeef\n",
+		"X " + strings.Repeat("00", 64) + " 2 own -1 5:" + strings.Repeat("00", 64) + "\n",
 		"X " + strings.Repeat("00", 64) + " 2 sideways 5:" + strings.Repeat("00", 64) + "\n",
 		"L " + strings.Repeat("00", 64) + " 0 1 2 3\n",
 		"F " + strings.Repeat("00", 64) + " mystery 1\n",

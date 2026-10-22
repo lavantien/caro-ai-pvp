@@ -382,6 +382,16 @@ bookgen: bookgen-build
 bookgen-build:
 	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) CGO_ENABLED=1 go -C playground/bookgen build -o ../../$(BOOKGEN_BIN) .
 
+# booktree runs the fixed-budget tree expansion book build: single-thread
+# node-count leaf analyses in dihedral canonical space, negamax backup over
+# the transposition DAG, solver and stability freezing, resumable expansion
+# log, optional 8-thread reverify pass, e.g.
+# make booktree ARGS="-tier master playground/bookgen/out/book-corpus.txt"
+# or make booktree ARGS="-tier grandmaster -reverify" for the full chain.
+.PHONY: booktree
+booktree: bookgen-build
+	GOMEMLIMIT=$(BOOKGEN_MEMLIMIT) $(BOOKGEN_BIN) -phase tree $(ARGS)
+
 # bookgen-test vets and tests the generator module: the corpus resume law,
 # the overlay source selection, the emit contract round trip, and the
 # 2-game real-engine smoke chain, race-clean at parallel 2.

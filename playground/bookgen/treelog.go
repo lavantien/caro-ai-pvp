@@ -155,8 +155,8 @@ func parseTreeLog(path string) (treeLog, error) {
 		}
 		switch fields[0] {
 		case "X":
-			if len(fields) < 5 {
-				return tl, fail("expansion wants key ply own children")
+			if len(fields) < 6 {
+				return tl, fail("expansion wants key ply own gap children")
 			}
 			k, err := keyFromHex(fields[1])
 			if err != nil {
@@ -170,8 +170,12 @@ func parseTreeLog(path string) (treeLog, error) {
 			if fields[3] != "own" && fields[3] != "opp" {
 				return tl, fail("expansion mover")
 			}
-			ex := &treeExpansion{ply: ply, own: own}
-			for _, pair := range fields[4:] {
+			gap, err := strconv.Atoi(fields[4])
+			if err != nil || gap < 0 {
+				return tl, fail("expansion gap")
+			}
+			ex := &treeExpansion{ply: ply, own: own, bestGap: gap}
+			for _, pair := range fields[5:] {
 				mv, ck, perr := parseChildPair(pair)
 				if perr != nil {
 					return tl, fail("expansion child " + perr.Error())
@@ -250,7 +254,7 @@ func parseTreeLog(path string) (treeLog, error) {
 				return tl, fail("freeze key")
 			}
 			reason := fields[2]
-			if reason != "quiet" && reason != "win" && reason != "loss" && reason != "bound" {
+			if reason != "quiet" && reason != "win" && reason != "loss" && reason != "bound" && reason != "backed" {
 				return tl, fail("freeze reason")
 			}
 			score, err := strconv.Atoi(fields[3])
@@ -328,7 +332,7 @@ func formatExpansion(k [config.BookKeyBytes]byte, ex treeExpansion) string {
 	if ex.own {
 		mover = "own"
 	}
-	fmt.Fprintf(&b, " %s", mover)
+	fmt.Fprintf(&b, " %s %d", mover, ex.bestGap)
 	for _, c := range ex.children {
 		fmt.Fprintf(&b, " %d:%s", c.move, hexKey(c.child[:]))
 	}

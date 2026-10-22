@@ -51,12 +51,14 @@ func flagWasSet(fs *flag.FlagSet, name string) bool {
 }
 
 func main() {
-	phase := flag.String("phase", "", "corpus, overlay, emit, merge, or stats")
+	phase := flag.String("phase", "", "corpus, tree, overlay, emit, merge, or stats")
 	games := flag.Int("games", config.BookCorpusGames, "corpus game target")
 	tcIdx := flag.Int("tc", config.BookCorpusTCIndex, "time control index into config.TimeControls")
 	tierName := flag.String("tier", config.TierMaster.Name, "corpus seat tier")
 	corpusPath := flag.String("corpus", config.BookCorpusPath, "append-only corpus file")
 	overlayPath := flag.String("overlay", config.BookOverlayPath, "solver overlay file")
+	treeLogPath := flag.String("tree-log", config.BookTreeLogPath, "append-only tree expansion log")
+	reverify := flag.Bool("reverify", false, "run the 8-thread reverify pass after the tree build")
 	floor := flag.Int("floor", config.BookVisitFloor, "majority visit floor")
 	budget := flag.Int("solver-budget", config.BookSolverNodeBudget, "solver node budget per pass")
 	outPath := flag.String("out", config.BookArtifactPath, "CAROBOOK1 artifact path")
@@ -79,6 +81,11 @@ func main() {
 			return playCorpusGame(tier, *tcIdx, idx, redSeat, os.Stdout)
 		}
 		fatal(runCorpus(corpusOpts{path: *corpusPath, tier: *tierName, tc: *tcIdx, games: *games}, play, os.Stdout))
+	case "tree":
+		fatal(validateTreeArgs(*tierName))
+		o := treeOptsFromFlags(*tierName, *treeLogPath, *outPath, *statsPath, flag.Args(), *reverify)
+		_, err := runTree(o, nil, nil, os.Stdout)
+		fatal(err)
 	case "overlay":
 		fatal(validateFloor(*floor))
 		fatal(validateReadSidecar(*corpusPath, "corpus"))
@@ -132,7 +139,7 @@ func main() {
 			flag.Usage()
 			os.Exit(1)
 		}
-		fatal(fmt.Errorf("bookgen: -phase %q must be corpus, overlay, emit, merge, or stats", *phase))
+		fatal(fmt.Errorf("bookgen: -phase %q must be corpus, tree, overlay, emit, merge, or stats", *phase))
 	}
 }
 
