@@ -204,6 +204,19 @@ const (
 	BookSolverIdentity   = 1
 	BookLockHeartbeatMs  = 5000
 	BookLockStaleMs      = 30000
+
+	BookTreeOpponentK           = 4
+	BookTreeLeafNodes           = 1 << 20
+	BookTreeCriticalNodes       = 1 << 23
+	BookTreeCriticalMarginMilli = 300
+	BookTreeReverifyNodes       = 1 << 24
+	BookTreeStableIters         = 3
+	BookTreeStableMarginMilli   = 150
+	BookTreeLopsidedMilli       = 3000
+	BookTreePruneMarginMilli    = 300
+	BookTreeTotalNodes          = 1 << 28
+	BookTreeVisitScale          = 1000
+	BookTreeGeneratorTag        = "bookgen-tree"
 )
 const GoBuildTempDirPrefix = "go-build"
 const FuzzInputMaxBytes = 1 << 20
@@ -214,6 +227,7 @@ var (
 	BookCorpusPath  = "db/book-corpus.txt"
 	BookOverlayPath = "db/book-overlay.txt"
 	BookStatsPath   = "db/book-stats.txt"
+	BookTreeLogPath = "db/book-tree.txt"
 )
 var BookOpeningCells = [...]int{119, 120, 135, 136, 102, 105, 150, 153, 116, 123, 87, 167}
 

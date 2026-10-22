@@ -481,6 +481,39 @@ func TestSearchConstants(t *testing.T) {
 		t.Errorf("min move time %d + safety %d must fit a 1+0 clock", SearchMinMoveTimeMs, SearchSafetyMarginMs)
 	}
 }
+func TestBookTreeConstantsMatchPreregistration(t *testing.T) {
+	wants := []struct {
+		name string
+		got  int
+		want int
+	}{
+		{"BookTreeOpponentK", BookTreeOpponentK, 4},
+		{"BookTreeLeafNodes", BookTreeLeafNodes, 1 << 20},
+		{"BookTreeCriticalNodes", BookTreeCriticalNodes, 1 << 23},
+		{"BookTreeCriticalMarginMilli", BookTreeCriticalMarginMilli, 300},
+		{"BookTreeReverifyNodes", BookTreeReverifyNodes, 1 << 24},
+		{"BookTreeStableIters", BookTreeStableIters, 3},
+		{"BookTreeStableMarginMilli", BookTreeStableMarginMilli, 150},
+		{"BookTreeLopsidedMilli", BookTreeLopsidedMilli, 3000},
+		{"BookTreePruneMarginMilli", BookTreePruneMarginMilli, 300},
+		{"BookTreeTotalNodes", BookTreeTotalNodes, 1 << 28},
+		{"BookTreeVisitScale", BookTreeVisitScale, 1000},
+	}
+	for _, w := range wants {
+		if w.got != w.want {
+			t.Errorf("%s = %d, want %d", w.name, w.got, w.want)
+		}
+	}
+	if BookTreeGeneratorTag != "bookgen-tree" {
+		t.Errorf("BookTreeGeneratorTag = %q, want bookgen-tree", BookTreeGeneratorTag)
+	}
+	if BookTreeLeafNodes >= BookTreeCriticalNodes || BookTreeCriticalNodes >= BookTreeReverifyNodes {
+		t.Errorf("budget ladder %d %d %d must ascend", BookTreeLeafNodes, BookTreeCriticalNodes, BookTreeReverifyNodes)
+	}
+	if BookTreeStableMarginMilli >= BookTreeLopsidedMilli {
+		t.Errorf("stability margin %d must sit under the lopsided floor %d", BookTreeStableMarginMilli, BookTreeLopsidedMilli)
+	}
+}
 func TestEngineEvalConstants(t *testing.T) {
 	if EvalTempo != EvalMilliUnit {
 		t.Errorf("EvalTempo = %d, want %d: one unblocked tempo is the 1.0 anchor", EvalTempo, EvalMilliUnit)
