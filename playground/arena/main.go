@@ -74,6 +74,27 @@ func registerEvalWeightsSeat(base string, w [config.PatternClassCount]int) (stri
 	return label, nil
 }
 
+func applyEvalWeightFlags(seatsSel, weightsArg, baseArg string) (string, error) {
+	if (weightsArg == "") != (baseArg == "") {
+		return seatsSel, fmt.Errorf("-evalweights and -evalbase must be set together")
+	}
+	if weightsArg == "" {
+		return seatsSel, nil
+	}
+	w, err := parseEvalWeights(weightsArg)
+	if err != nil {
+		return seatsSel, fmt.Errorf("evalweights %q: %w", weightsArg, err)
+	}
+	label, err := registerEvalWeightsSeat(baseArg, w)
+	if err != nil {
+		return seatsSel, fmt.Errorf("evalbase %q: %w", baseArg, err)
+	}
+	if seatsSel == "" {
+		return baseArg + "," + label, nil
+	}
+	return seatsSel, nil
+}
+
 func buildSeats() map[string]config.Tier {
 	m := map[string]config.Tier{
 		"easy":                 config.TierEasy,
@@ -141,6 +162,12 @@ func main() {
 	pairOut := flag.String("pairOut", "", "append-only resumable pair log path, requires exactly 2 seats, exclusive of floor mode")
 	flag.Parse()
 
+	seatsSel, err := applyEvalWeightFlags(*seatsArg, *evalWeightsArg, *evalBaseArg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "arena: %v\n", err)
+		os.Exit(1)
+	}
+
 	if *floorName != "" {
 		if err := runFloorMode(*floorName, *floorSeat, *floorOut, *tcIdx, *games, *floorDirs, *floorBlockDirs, *floorMaxBlocks, *floorZ); err != nil {
 			fmt.Fprintf(os.Stderr, "arena: %v\n", err)
@@ -149,26 +176,6 @@ func main() {
 		return
 	}
 
-	if (*evalWeightsArg == "") != (*evalBaseArg == "") {
-		fmt.Fprintln(os.Stderr, "arena: -evalweights and -evalbase must be set together")
-		os.Exit(1)
-	}
-	seatsSel := *seatsArg
-	if *evalWeightsArg != "" {
-		w, err := parseEvalWeights(*evalWeightsArg)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "arena: evalweights %q: %v\n", *evalWeightsArg, err)
-			os.Exit(1)
-		}
-		label, err := registerEvalWeightsSeat(*evalBaseArg, w)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "arena: evalbase %q: %v\n", *evalBaseArg, err)
-			os.Exit(1)
-		}
-		if seatsSel == "" {
-			seatsSel = *evalBaseArg + "," + label
-		}
-	}
 	labels := seatLabels(seatsSel)
 	var plog *pairLog
 	if *pairOut != "" {
