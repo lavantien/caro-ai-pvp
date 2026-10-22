@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,7 +28,9 @@ func casualFilePath(dir string, h casualGameHeader) string {
 func casualHeader() casualGameHeader {
 	return casualGameHeader{
 		SeriesID: 7, GameNo: 1, RoomID: "ab12", Mode: lobbyModeVsBot,
-		Red: "alice", Blue: "easy-ab12", TCIdx: 0, BOLen: config.SeriesBO3,
+		Red: "alice", Blue: "easy-ab12",
+		PairingRed: "alice", PairingBlue: "easy-ab12",
+		TCIdx: 0, BOLen: config.SeriesBO3,
 		Outcome: OutcomeRed,
 	}
 }
@@ -282,4 +285,177 @@ func FuzzCasualLogWriteGame(f *testing.F) {
 			t.Errorf("file name length unbounded: %d", len(name))
 		}
 	})
+}
+
+func TestApplyCompletionWritesTheCasualTextFile(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	botID, err := s.BotAccountID(config.TierEasy)
+	if err != nil {
+		t.Fatalf("resolve bot seat: %v", err)
+	}
+	sr, err := s.CreateSeries(context.Background(), 2, config.SeriesBO5, alice.ID, botID)
+	if err != nil {
+		t.Fatalf("seed series: %v", err)
+	}
+	botName := botDisplayName(config.TierEasy.Name, "room42")
+	lines := []GameStat{
+		{MoveNo: 2, Line: "M2, Blue, P12, d=9"},
+		{MoveNo: 4, Line: "M4, Blue, P8, d=9"},
+	}
+	if err := s.ApplyCompletion(context.Background(), Completion{
+		Games: []Game{{
+			SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: botID,
+			Outcome: OutcomeRed, Moves: []byte{1, 0}, FullTurns: 1,
+			BotName: botName, StatLines: lines,
+		}},
+	}); err != nil {
+		t.Fatalf("apply completion: %v", err)
+	}
+	path := filepath.Join(config.CasualLogRoot,
+		fmt.Sprintf("s%d_%s-vs-%s.txt", sr.ID, "alice", botName))
+	var body string
+	waitFor(t, func() bool {
+		b, err := os.ReadFile(path)
+		body = string(b)
+		return err == nil
+	})
+	tc := config.TimeControls[2]
+	want := strings.Join([]string{
+		"game 1 room room42 mode vs bot",
+		"pairing alice vs " + botName,
+		fmt.Sprintf("tc %d+%d bo%d outcome red", tc.InitialMin, tc.IncrementSec, config.SeriesBO5),
+		"M2, Blue, P12, d=9",
+		"M4, Blue, P8, d=9",
+		"",
+		"",
+	}, "\n")
+	if body != want {
+		t.Errorf("casual file = %q, want %q", body, want)
+	}
+	rows := gameStatRows(t, s, onlyGameID(t, s, sr.ID))
+	for i, row := range rows {
+		if !strings.Contains(body, row.Line+"\n") {
+			t.Errorf("sqlite stat %d %q missing from the text side", i, row.Line)
+		}
+	}
+}
+
+func TestApplyCompletionHumanGamesWriteNoCasualFile(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	bob := seedUser(t, s, "bob")
+	sr, err := s.CreateSeries(context.Background(), 0, config.SeriesBO3, alice.ID, bob.ID)
+	if err != nil {
+		t.Fatalf("seed series: %v", err)
+	}
+	if err := s.ApplyCompletion(context.Background(), Completion{
+		Games: []Game{{
+			SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+			Outcome: OutcomeDraw, Moves: []byte{1, 0}, FullTurns: 1,
+		}},
+	}); err != nil {
+		t.Fatalf("apply completion: %v", err)
+	}
+	if entries, _ := os.ReadDir(config.CasualLogRoot); len(entries) != 0 {
+		t.Errorf("casual files after a pvp game = %d, want 0", len(entries))
+	}
+}
+
+func TestApplyCompletionCasualLogFailureNeverFailsTheUnit(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	botID, err := s.BotAccountID(config.TierEasy)
+	if err != nil {
+		t.Fatalf("resolve bot seat: %v", err)
+	}
+	sr, err := s.CreateSeries(context.Background(), 0, config.SeriesBO3, alice.ID, botID)
+	if err != nil {
+		t.Fatalf("seed series: %v", err)
+	}
+	blocker := filepath.Join(t.TempDir(), "blocked")
+	if err := os.WriteFile(blocker, nil, 0o644); err != nil {
+		t.Fatalf("seed blocker: %v", err)
+	}
+	saved := config.CasualLogRoot
+	config.CasualLogRoot = blocker
+	t.Cleanup(func() { config.CasualLogRoot = saved })
+
+	if err := s.ApplyCompletion(context.Background(), Completion{
+		Games: []Game{{
+			SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: botID,
+			Outcome: OutcomeRed, Moves: []byte{1, 0}, FullTurns: 1,
+			BotName: "easy-x", StatLines: twoLines(),
+		}},
+	}); err != nil {
+		t.Fatalf("apply over the blocked log dir = %v, want the sqlite side to win", err)
+	}
+	if rows := gameStatRows(t, s, onlyGameID(t, s, sr.ID)); len(rows) != 2 {
+		t.Errorf("stat rows over the blocked log dir = %d, want 2", len(rows))
+	}
+}
+
+func TestCasualRoomSweepRecordsBothStorageSides(t *testing.T) {
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierEasy)
+	injectPerGameBot(t, r, botLoseScripts)
+	sub, err := r.Subscribe()
+	if err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	defer sub.Unsubscribe()
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	driveHumanWonBotSweep(t, r, alice, sub)
+
+	botName := botDisplayName(config.TierEasy.Name, r.ID())
+	path := filepath.Join(config.CasualLogRoot,
+		fmt.Sprintf("s%d_%s-vs-%s.txt", r.SeriesID(), "alice", botName))
+	var body string
+	waitFor(t, func() bool {
+		b, err := os.ReadFile(path)
+		body = string(b)
+		return err == nil
+	})
+	if n := strings.Count(body, "game "); n != 2 {
+		t.Fatalf("blocks = %d, want 2: %q", n, body)
+	}
+	head := fmt.Sprintf("game 1 room %s mode vs bot\npairing alice vs %s\n", r.ID(), botName)
+	if !strings.HasPrefix(body, head) {
+		t.Errorf("header = %q, want %q", body[:min(len(body), len(head))], head)
+	}
+	if !strings.Contains(body, "game 2 room "+r.ID()+" mode vs bot\npairing "+botName+" vs alice\n") {
+		t.Errorf("game 2 header wrong in %q", body)
+	}
+	tc := config.TimeControls[0]
+	if !strings.Contains(body, fmt.Sprintf("tc %d+%d bo%d outcome red\n", tc.InitialMin, tc.IncrementSec, config.SeriesBO3)) ||
+		!strings.Contains(body, fmt.Sprintf("tc %d+%d bo%d outcome blue\n", tc.InitialMin, tc.IncrementSec, config.SeriesBO3)) {
+		t.Errorf("tc or outcome lines wrong in %q", body)
+	}
+	ids := gameIDs(t, s)
+	if len(ids) != 2 {
+		t.Fatalf("persisted games = %d, want 2", len(ids))
+	}
+	textLines := 0
+	for _, row := range strings.Split(body, "\n") {
+		if strings.HasPrefix(row, "M") {
+			textLines++
+		}
+	}
+	sqliteLines := 0
+	for _, id := range ids {
+		for _, row := range gameStatRows(t, s.store, id) {
+			sqliteLines++
+			if !strings.Contains(body, row.Line+"\n") {
+				t.Errorf("sqlite stat %q missing from the text side", row.Line)
+			}
+		}
+	}
+	if textLines != sqliteLines {
+		t.Errorf("M-lines text %d vs sqlite %d, want equal sets", textLines, sqliteLines)
+	}
 }

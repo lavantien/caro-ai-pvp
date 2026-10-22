@@ -13,6 +13,9 @@ import (
 
 func dbPath(t *testing.T) string {
 	t.Helper()
+	saved := config.CasualLogRoot
+	config.CasualLogRoot = t.TempDir()
+	t.Cleanup(func() { config.CasualLogRoot = saved })
 	return filepath.Join(t.TempDir(), "caro.sqlite")
 }
 

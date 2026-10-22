@@ -1,6 +1,3 @@
-// Package server hosts the caro PvP server: embedded SQLite storage in WAL
-// mode behind a single-writer mutation queue, argon2id auth, in-memory
-// rooms, and the stats hub. The storage foundation lands first.
 package server
 
 import (
@@ -9,11 +6,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 
 	_ "modernc.org/sqlite"
@@ -21,14 +20,8 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// ErrNotFound is the typed sentinel for every single-row accessor whose
-// query matched nothing, including sessions filtered out by expiry.
 var ErrNotFound = errors.New("server: record not found")
 
-// WithinTx runs fn inside one transaction on the store's pool, rolling back
-// on error. It is the cross-package persistence surface: internal/tourney
-// owns its tables' SQL but rides this so every unit keeps the store's
-// single-pool, context-aware pattern (one tx per completion unit).
 func (s *Store) WithinTx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -44,30 +37,18 @@ func (s *Store) WithinTx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	return nil
 }
 
-// sqlRunner is the statement surface the pool and an open transaction share,
-// so single-shot writes and the completion unit's statements run identical
-// SQL. Everything rides the Context variants, so the write queue's apply
-// deadline reaches the driver instead of going unheard.
 type sqlRunner interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-// Store owns the embedded SQLite database. Every pragma rides the DSN so
-// each pooled connection applies it, and the pool sizes to the host so the
-// one serialized writer (the mutation queue built above this package) never
-// starves concurrent readers.
 type Store struct {
 	db       *sql.DB
+	casual   *casualLogs
 	closeOne sync.Once
 	closeErr error
 }
 
-// Open opens the database at path, applies the config pragmas on every
-// pooled connection, sizes the pool to the host, and runs the startup
-// self-migration. The parent directory is created first so a default path
-// under ./db lands there without a manual mkdir. On failure the pool is
-// closed so Open leaks nothing.
 func Open(path string) (*Store, error) {
 	if dir := filepath.Dir(path); dir != "" && dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -80,7 +61,7 @@ func Open(path string) (*Store, error) {
 	}
 	db.SetMaxOpenConns(runtime.NumCPU())
 	db.SetMaxIdleConns(runtime.NumCPU())
-	s := &Store{db: db}
+	s := &Store{db: db, casual: newCasualLogs(config.CasualLogRoot, config.CasualSeriesLogFormat)}
 	if err := s.migrate(); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -96,12 +77,6 @@ func Open(path string) (*Store, error) {
 	return s, nil
 }
 
-// verifyAdminSeed fails the boot when the admin row does not carry the
-// seeded credential. The v6 seed skips a name a pre-v6 account already
-// squatted, and the documented shared password then never logs in while
-// the squatter holds every tournament control; a row that vanished after
-// seeding is the same loss. Refusing to start names the collision once,
-// at the operator.
 func (s *Store) verifyAdminSeed() error {
 	var salt, hash []byte
 	err := s.db.QueryRow(
@@ -121,11 +96,6 @@ func (s *Store) verifyAdminSeed() error {
 	return nil
 }
 
-// verifyBotSeats fails the boot when any config tier's reserved seat row is
-// missing after migration: the v4 seed skips a name a pre-v4 account already
-// squatted, and without this check every later bot room creation would fail
-// per request behind an opaque store error. Refusing to start names the
-// tier once, at the operator.
 func (s *Store) verifyBotSeats() error {
 	for i := range config.Tiers {
 		if _, err := s.BotAccountID(config.Tiers[i]); err != nil {
@@ -135,10 +105,6 @@ func (s *Store) verifyBotSeats() error {
 	return nil
 }
 
-// Close checkpoints the WAL back into the main file and truncates the -wal
-// sidecar, so later analytics readers may copy the database file at rest.
-// The pool always closes even when the checkpoint fails, and the close is
-// idempotent: repeated calls replay the first result instead of erroring.
 func (s *Store) Close() error {
 	s.closeOne.Do(func() {
 		_, ckErr := s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
@@ -151,26 +117,16 @@ func (s *Store) Close() error {
 	return s.closeErr
 }
 
-// dsn builds the modernc.org/sqlite DSN. The mattn-style shorthand pragmas
-// below are applied on every new connection, so pooled readers all see WAL
-// journalling, NORMAL sync, the busy timeout, and enforced foreign keys.
 func dsn(path string) string {
-	q := make(url.Values, 4)
+	q := make(url.Values, 5)
 	q.Set("_journal_mode", config.SQLiteJournalWAL)
 	q.Set("_synchronous", config.SQLiteSyncNormal)
 	q.Set("_busy_timeout", strconv.Itoa(config.SQLiteBusyTimeoutMs))
 	q.Set("_foreign_keys", "on")
-	// Every transaction takes the write lock up front: read-then-write units
-	// (ApplyCompletion, tourney appends) would otherwise upgrade a deferred
-	// read snapshot that a concurrent committer already invalidated, the
-	// unretryable BUSY_SNAPSHOT. With BEGIN IMMEDIATE the lock wait rides
-	// the busy timeout instead, so concurrent writers queue rather than
-	// error.
 	q.Set("_txlock", config.SQLiteTxLockImmediate)
 	return filepath.ToSlash(path) + "?" + q.Encode()
 }
 
-// notFound maps the driver's empty-result error onto the package sentinel.
 func notFound(err error) error {
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
@@ -178,7 +134,6 @@ func notFound(err error) error {
 	return err
 }
 
-// sqlArg binds an optional column: nil pointer to SQL NULL, value otherwise.
 func sqlArg[T any](p *T) any {
 	if p == nil {
 		return nil
@@ -200,8 +155,6 @@ func nullString(n sql.NullString) *string {
 	return &n.String
 }
 
-// User is one account row. The argon2 columns snapshot the parameters the
-// password was hashed with, so future parameter bumps can rehash on login.
 type User struct {
 	ID                int64
 	Username          string
@@ -218,9 +171,6 @@ INSERT INTO users (username, argon2_time, argon2_memory, argon2_parallelism, sal
 VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT (username) DO NOTHING`
 
-// CreateUserIfAbsent inserts the account stamped with the config argon2
-// parameters, or leaves the existing row untouched. The returned flag says
-// which happened; on collision the caller verifies against the stored hash.
 func (s *Store) CreateUserIfAbsent(username string, salt, hash []byte) (User, bool, error) {
 	res, err := s.db.Exec(insertUserSQL, username, config.Argon2Time, config.Argon2MemoryKiB, config.Argon2Parallelism, salt, hash)
 	if err != nil {
@@ -237,7 +187,6 @@ func (s *Store) CreateUserIfAbsent(username string, salt, hash []byte) (User, bo
 	return u, inserted == 1, nil
 }
 
-// UserByID fetches one user row; a missing id maps to ErrNotFound.
 func (s *Store) UserByID(id int64) (User, error) {
 	var u User
 	err := notFound(s.db.QueryRow(
@@ -262,8 +211,6 @@ func (s *Store) UserByUsername(username string) (User, error) {
 	return u, nil
 }
 
-// Session is one opaque-token login row. ExpiresAt is exclusive: a fetch at
-// that instant is already expired.
 type Session struct {
 	Token     []byte
 	UserID    int64
@@ -280,8 +227,6 @@ func (s *Store) InsertSession(sess Session) error {
 	return nil
 }
 
-// SessionByToken returns the session only while unexpired at now, mapping
-// both missing and expired tokens onto ErrNotFound.
 func (s *Store) SessionByToken(token []byte, now int64) (Session, error) {
 	var sess Session
 	err := notFound(s.db.QueryRow(
@@ -294,8 +239,6 @@ func (s *Store) SessionByToken(token []byte, now int64) (Session, error) {
 	return sess, nil
 }
 
-// DeleteSession drops one token. Deleting a missing token is not an error:
-// logout races a natural expiry.
 func (s *Store) DeleteSession(token []byte) error {
 	if _, err := s.db.Exec(`DELETE FROM sessions WHERE token = ?`, token); err != nil {
 		return fmt.Errorf("server: delete session: %w", err)
@@ -303,16 +246,8 @@ func (s *Store) DeleteSession(token []byte) error {
 	return nil
 }
 
-// botAccountMarker is the reserved bot seat rows' identity inside users:
-// schema v4 seeds them with empty salt and hash, material no real account
-// ever carries (creation always writes the argon2 salt and key).
 const botAccountMarker = "length(salt) = 0 AND length(hash) = 0"
 
-// BotAccountID resolves one config tier's reserved seat row, the account
-// human-vs-bot pairings persist their series and games against. The marker
-// check keeps a pre-v4 squatter of the "AI <tier>" name out of the seat: a
-// squatted name fails the marker and creation errors loudly instead of
-// seating the human's row.
 func (s *Store) BotAccountID(tier config.Tier) (int64, error) {
 	idx, ok := config.TierIndex(tier)
 	if !ok {
@@ -329,9 +264,6 @@ func (s *Store) BotAccountID(tier config.Tier) (int64, error) {
 	return id, nil
 }
 
-// SeriesRow is one best-of pairing's persisted record. Ongoing series carry
-// NULL winner and finished_at; a draw finish keeps the winner NULL. The
-// in-memory lifecycle lives in the Series state machine type.
 type SeriesRow struct {
 	ID         int64
 	TCIdx      int
@@ -372,8 +304,6 @@ func (s *Store) SeriesByID(id int64) (SeriesRow, error) {
 	return sr, nil
 }
 
-// UpdateSeries rewrites the mutable columns: state plus the optional winner
-// and finish time, NULL while undecided. A missing id maps to ErrNotFound.
 func (s *Store) UpdateSeries(id int64, state string, winner, finishedAt *int64) error {
 	return updateSeriesRow(context.Background(), s.db, id, state, winner, finishedAt)
 }
@@ -396,12 +326,6 @@ func updateSeriesRow(ctx context.Context, run sqlRunner, id int64, state string,
 	return nil
 }
 
-// Game is one finished game inside a series. Moves is the caller-encoded
-// move blob, WonBy the analytics tag for how the win happened (NULL on
-// draws), FullTurns the count of full turns played. StatLines carries the
-// game's per-move bot log (Implication 1.5): one rendered M-line per bot
-// move, written beside the game row in the same completion unit. PvP games
-// carry none and write zero stat rows.
 type Game struct {
 	ID          int64
 	SeriesID    int64
@@ -412,33 +336,21 @@ type Game struct {
 	Moves       []byte
 	FullTurns   int
 	WonBy       *string
-	// BotName is the bot seat's display name of a player-versus-bot game,
-	// "<difficulty>-<roomid>"; empty on human games and the tournament's
-	// unpersisted bot-versus-bot rooms.
-	BotName   string
-	StatLines []GameStat
-	PlayedAt  int64
+	BotName     string
+	StatLines   []GameStat
+	PlayedAt    int64
 }
 
-// GameStat is one bot move's persisted Implication 1.5 line: MoveNo is the
-// move number of the bot's stone in the game (the line's M<n>), Line the
-// rendered M-line verbatim, byte-identical to the hub payload the room
-// published for that move.
 type GameStat struct {
 	MoveNo int
 	Line   string
 }
 
-// AppendGame persists one game and returns it with the assigned id and
-// played_at stamped by the database. StatLines ride only ApplyCompletion's
-// all-or-nothing unit; this single-row helper writes the game alone.
 func (s *Store) AppendGame(g Game) (Game, error) {
 	return insertGameRow(context.Background(), s.db, g)
 }
 
 func insertGameRow(ctx context.Context, run sqlRunner, g Game) (Game, error) {
-	// An empty BotName persists as NULL: the history query's COALESCE
-	// falls back to the users-join name only for a NULL column.
 	var botName any
 	if g.BotName != "" {
 		botName = g.BotName
@@ -454,8 +366,6 @@ func insertGameRow(ctx context.Context, run sqlRunner, g Game) (Game, error) {
 	return g, nil
 }
 
-// RatingEvent records one rating step. Ratings start at 0 and may go
-// negative, so RatingAfter is a plain signed integer.
 type RatingEvent struct {
 	ID          int64
 	GameID      int64
@@ -481,29 +391,17 @@ func insertRatingEventRow(ctx context.Context, run sqlRunner, e RatingEvent) (Ra
 	return e, nil
 }
 
-// Completion is one all-or-nothing persistence unit: the finished games of a
-// series boundary in game order, each game with its per-move stat lines, the
-// PvP games priced with their zero-sum rating pairs chained on the ratings as
-// of this unit (draws move nothing, bot-seat games move nothing either: the
-// ledger is PvP-only), and the series finish when the boundary closed the
-// series.
 type Completion struct {
 	Games  []Game
-	Finish *SeriesFinish // nil while the series stays ongoing
+	Finish *SeriesFinish
 }
 
-// SeriesFinish is the terminal series update of a completion unit.
 type SeriesFinish struct {
 	SeriesID   int64
-	Winner     *int64 // nil for a drawn series
+	Winner     *int64
 	FinishedAt int64
 }
 
-// ApplyCompletion persists one completion unit inside a single transaction:
-// a statement failing anywhere in the unit leaves no game row, no stat row,
-// no rating event, and no series change behind, so the zero-sum rating law
-// and the stat record can never tear on disk. The write queue serializes
-// callers, so the transaction adds no contention.
 func (s *Store) ApplyCompletion(ctx context.Context, c Completion) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -518,9 +416,6 @@ func (s *Store) ApplyCompletion(ctx context.Context, c Completion) error {
 		if err := insertGameStatRows(ctx, tx, row.ID, g.StatLines); err != nil {
 			return err
 		}
-		// The zero-sum ledger is PvP-only: a seat resolving to a reserved bot
-		// account moves no rating, the M6a law that bot matches never touch
-		// player ratings. The W-L-D record still lands with the game rows.
 		botSeat, err := anyBotSeat(ctx, tx, g.RedUser, g.BlueUser)
 		if err != nil {
 			return err
@@ -539,12 +434,91 @@ func (s *Store) ApplyCompletion(ctx context.Context, c Completion) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("server: commit completion: %w", err)
 	}
+	s.logCasualCompletion(ctx, c)
 	return nil
 }
 
-// insertGameStatRows writes one finished game's stat lines inside the
-// caller's transaction. Nil writes nothing: a PvP game has no bot moves and
-// zero rows are its honest record.
+func (s *Store) logCasualCompletion(ctx context.Context, c Completion) {
+	if s.casual == nil {
+		return
+	}
+	for _, g := range c.Games {
+		if len(g.StatLines) == 0 {
+			continue
+		}
+		h, err := s.casualHeaderFor(ctx, g)
+		if err != nil {
+			log.Printf("server: casual log header for series %d game %d: %v", g.SeriesID, g.IdxInSeries+1, err)
+			continue
+		}
+		if err := s.casual.WriteGame(h, g.StatLines); err != nil {
+			log.Printf("server: casual log for series %d game %d: %v", g.SeriesID, h.GameNo, err)
+		}
+	}
+}
+
+func (s *Store) casualHeaderFor(ctx context.Context, g Game) (casualGameHeader, error) {
+	sr, err := s.SeriesByID(g.SeriesID)
+	if err != nil {
+		return casualGameHeader{}, err
+	}
+	redName, redBot, err := s.casualSeatName(ctx, g.RedUser, g.BotName)
+	if err != nil {
+		return casualGameHeader{}, err
+	}
+	blueName, blueBot, err := s.casualSeatName(ctx, g.BlueUser, g.BotName)
+	if err != nil {
+		return casualGameHeader{}, err
+	}
+	seriesRed, _, err := s.casualSeatName(ctx, sr.RedUser, g.BotName)
+	if err != nil {
+		return casualGameHeader{}, err
+	}
+	seriesBlue, _, err := s.casualSeatName(ctx, sr.BlueUser, g.BotName)
+	if err != nil {
+		return casualGameHeader{}, err
+	}
+	mode := lobbyModeCasual
+	if redBot && blueBot {
+		mode = lobbyModeBotVsBot
+	} else if redBot || blueBot {
+		mode = lobbyModeVsBot
+	}
+	_, roomID, _ := strings.Cut(g.BotName, "-")
+	h := casualGameHeader{
+		GameNo: g.IdxInSeries + 1, RoomID: roomID, Mode: mode,
+		TCIdx: sr.TCIdx, BOLen: sr.BOLen, Outcome: g.Outcome,
+	}
+	h.SeriesID, h.Red, h.Blue = g.SeriesID, seriesRed, seriesBlue
+	h.PairingRed, h.PairingBlue = redName, blueName
+	return h, nil
+}
+
+func (s *Store) casualSeatName(ctx context.Context, userID int64, botName string) (string, bool, error) {
+	var one int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT 1 FROM users WHERE id = ? AND `+botAccountMarker, userID,
+	).Scan(&one)
+	if err == nil {
+		if botName != "" {
+			return botName, true, nil
+		}
+		u, err := s.UserByID(userID)
+		if err != nil {
+			return "", false, err
+		}
+		return u.Username, true, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return "", false, fmt.Errorf("server: bot seat probe %d: %w", userID, err)
+	}
+	u, err := s.UserByID(userID)
+	if err != nil {
+		return "", false, err
+	}
+	return u.Username, false, nil
+}
+
 func insertGameStatRows(ctx context.Context, run sqlRunner, gameID int64, stats []GameStat) error {
 	for _, s := range stats {
 		if _, err := run.ExecContext(ctx,
@@ -557,9 +531,6 @@ func insertGameStatRows(ctx context.Context, run sqlRunner, gameID int64, stats 
 	return nil
 }
 
-// anyBotSeat reports whether either game seat resolves to a reserved bot
-// account row (the empty argon2 material marker). Derived from the record
-// itself, so no caller flag can drift from the seats actually persisted.
 func anyBotSeat(ctx context.Context, run sqlRunner, redUser, blueUser int64) (bool, error) {
 	for _, id := range [2]int64{redUser, blueUser} {
 		var one int
@@ -576,9 +547,6 @@ func anyBotSeat(ctx context.Context, run sqlRunner, redUser, blueUser int64) (bo
 	return false, nil
 }
 
-// applyRatingPair prices one game on the two players' CURRENT ratings (the
-// last rating event's RatingAfter, RatingStart before any) and appends the
-// zero-sum pair. Draws carry no rating move.
 func applyRatingPair(ctx context.Context, run sqlRunner, gameID, redUser, blueUser int64, outcome string) error {
 	var dRed, dBlue, afterRed, afterBlue int
 	switch outcome {
@@ -612,15 +580,10 @@ func applyRatingPair(ctx context.Context, run sqlRunner, gameID, redUser, blueUs
 	return nil
 }
 
-// currentRating reads one user's latest rating, RatingStart before any
-// event.
 func currentRating(st *Store, userID int64) (int, error) {
 	return currentRatingOn(context.Background(), st.db, userID)
 }
 
-// currentRatingOn reads one user's latest rating, RatingStart before any
-// event. Inside a completion unit the same transaction sees the pair just
-// written, so multi-game units chain exactly like sequential commits.
 func currentRatingOn(ctx context.Context, run sqlRunner, userID int64) (int, error) {
 	var r int
 	err := run.QueryRowContext(ctx,
@@ -635,7 +598,6 @@ func currentRatingOn(ctx context.Context, run sqlRunner, userID int64) (int, err
 	return r, nil
 }
 
-// RatingHistoryByUser returns one user's events in append order.
 func (s *Store) RatingHistoryByUser(userID int64) ([]RatingEvent, error) {
 	rows, err := s.db.Query(
 		`SELECT id, game_id, user_id, delta, rating_after, created_at
@@ -656,8 +618,6 @@ func (s *Store) RatingHistoryByUser(userID int64) ([]RatingEvent, error) {
 	return out, rows.Err()
 }
 
-// UserStats is the profile field: per-game W-L-D totals plus the level,
-// the count of best-of series won.
 type UserStats struct {
 	Wins      int
 	Losses    int
@@ -685,11 +645,6 @@ FROM games g`,
 	return st, nil
 }
 
-// MatchHistoryRow is one line of the match history tab. RedWins and BlueWins
-// are the row's red and blue players' series wins as of that game (the red
-// seat rotates between the same two participants). Moves carries the full
-// move blob; trimming to the config.HistoryPreviewTurns preview is the
-// caller's rendering concern.
 type MatchHistoryRow struct {
 	PlayedAt  int64
 	Red       string
@@ -701,16 +656,7 @@ type MatchHistoryRow struct {
 	WonBy     *string
 }
 
-// MatchHistory lists a user's games newest first, each with the series
-// score line as of that game. RedWins and BlueWins count the row's red and
-// blue players' wins, never the red and blue color outcomes: red rotates to
-// the previous loser between games, so a color count would mix the two
-// participants and can reverse the leader of a rotating series.
 func (s *Store) MatchHistory(userID int64) ([]MatchHistoryRow, error) {
-	// The bot seat's name renders as the game's recorded bot_name
-	// ("<difficulty>-<roomid>"), falling back to the reserved account name
-	// for rows older than the column; the seat is identified by the bot
-	// account marker, the same emptiness law the store resolves seats by.
 	rows, err := s.db.Query(`
 SELECT g.played_at,
 	CASE WHEN length(ru.salt) = 0 AND length(ru.hash) = 0

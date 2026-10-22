@@ -18,15 +18,17 @@ type casualLogs struct {
 }
 
 type casualGameHeader struct {
-	SeriesID int64
-	GameNo   int
-	RoomID   string
-	Mode     string
-	Red      string
-	Blue     string
-	TCIdx    int
-	BOLen    int
-	Outcome  string
+	SeriesID    int64
+	GameNo      int
+	RoomID      string
+	Mode        string
+	Red         string
+	Blue        string
+	PairingRed  string
+	PairingBlue string
+	TCIdx       int
+	BOLen       int
+	Outcome     string
 }
 
 func newCasualLogs(dir, seriesNameFormat string) *casualLogs {
@@ -82,9 +84,9 @@ func appendCasualHeader(dst []byte, h casualGameHeader) []byte {
 	dst = append(dst, '\n')
 
 	dst = append(dst, "pairing "...)
-	dst = append(dst, h.Red...)
+	dst = append(dst, h.PairingRed...)
 	dst = append(dst, " vs "...)
-	dst = append(dst, h.Blue...)
+	dst = append(dst, h.PairingBlue...)
 	dst = append(dst, '\n')
 
 	tc := config.TimeControls[h.TCIdx]
