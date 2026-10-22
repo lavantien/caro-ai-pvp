@@ -1,0 +1,16 @@
+kernel launch: 200000 launches, 10.163µs per launch
+pcie h2d: 256 KiB blocks, 4.6 GB/s one-way
+pcie h2d: 1024 KiB blocks, 16.4 GB/s one-way
+pcie h2d: 8192 KiB blocks, 23.4 GB/s one-way
+gpu mlp bench: weights resident, per iter = input upload + kernel + output readback + sync
+net        batch   us_per_iter   us_per_eval   evals_per_s
+narrow         64           66.0         1.0312         969697
+narrow        256          103.0         0.4023        2485437
+narrow       1024          292.0         0.2852        3506849
+narrow       4096          942.0         0.2300        4348195
+narrow      16384         3576.0         0.2183        4581655
+wide           64           98.0         1.5312         653061
+wide          256          162.0         0.6328        1580247
+wide         1024          488.0         0.4766        2098361
+wide         4096         1762.0         0.4302        2324631
+wide        16384         6729.0         0.4107        2434834

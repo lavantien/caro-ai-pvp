@@ -1,0 +1,4 @@
+search probe: fixed midgame, fresh engine per rep, 5 reps, TT 64 MiB
+depth   median_nodes   median_ms   median_knps   last_score
+    8         120834       112.6        1073.0         2300
+    9       35227312     58842.7         598.7         2500
