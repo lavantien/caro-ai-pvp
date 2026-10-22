@@ -62,10 +62,10 @@ One commit swaps the literals at internal/config/config.go:163-167 and :266 with
 
 | item | value | verdict |
 | --- | --- | --- |
-| refit artifact | | |
-| integer drift | | |
-| tempo decision | | |
-| validation loss | | |
+| refit artifact | playground/evalfit/out/evalfit-refit-gm.txt, 1595 games (395 db plus 1200 generated), 0 rejected, 105467 positions, draw rate 0.2427 | recorded |
+| integer drift | 0.56 percent | accepted under the 5 percent law |
+| tempo decision | keep EvalTempo at 1000 | both arena arms hold tempo constant, the pair isolates the weight swap, refitting tempo conflates seat advantage with side-to-move per the risk note |
+| validation loss | fitted 0.65568 against scaffold 0.67078 on the same 129-series holdout, SHADE 0.666985241 beside GD 0.666985315 inside tolerance | fitted strictly better |
 | floor fitted 2+1 | | |
 | floor fitted 3+2 | | |
 | floor scaffold 2+1 | | |
