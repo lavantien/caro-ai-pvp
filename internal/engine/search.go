@@ -28,6 +28,7 @@ type Engine struct {
 	nodeCheck int
 	stopped   bool
 	noOrder   bool
+	rankExact bool
 	nodeFeed  nodeFeeder
 
 	rankPendingMoves  [config.SearchMaxMovesPerPly]rules.Move
@@ -266,6 +267,7 @@ func (e *Engine) finishStats(stats *SearchStats, score int, depth int, start tim
 func (e *Engine) searchRoot(b *rules.Board, depth int, dl Deadline) (int, rules.Move) {
 	n := e.generate(b, 0, e.tt.move(b.Hash))
 	alpha, beta := -config.EvalMateMax, config.EvalMateMax
+	alpha0 := alpha
 	best, bestMove := alpha-1, moveNone
 	e.pvLen[0] = 0
 	for i := 0; i < n; i++ {
@@ -282,8 +284,8 @@ func (e *Engine) searchRoot(b *rules.Board, depth int, dl Deadline) (int, rules.
 		case b.IsFull():
 			s = 0
 			e.pvLen[1] = 0
-		case i == 0:
-			s = -e.negamax(b, depth-1, -beta, -alpha, 1, config.SearchExtensionMaxPly, dl)
+		case i == 0 || e.rankExact:
+			s = -e.negamax(b, depth-1, -beta, -alpha0, 1, config.SearchExtensionMaxPly, dl)
 		default:
 			s = -e.negamax(b, depth-1, -(alpha + 1), -alpha, 1, config.SearchExtensionMaxPly, dl)
 			if s > alpha && s < beta && !e.stopped {
@@ -317,6 +319,10 @@ func (e *Engine) searchRoot(b *rules.Board, depth int, dl Deadline) (int, rules.
 type RankedMove struct {
 	Move  rules.Move
 	Score int
+}
+
+func (e *Engine) SetExactRootRanking(on bool) {
+	e.rankExact = on
 }
 
 func (e *Engine) RootRanking(dst []RankedMove, k int) []RankedMove {
