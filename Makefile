@@ -441,3 +441,22 @@ gpu-spike:
 	@mkdir -p bin
 	nvcc -shared -o bin/spike.dll playground/gpuoffload/spike.cu
 	CGO_ENABLED=1 go -C playground/gpuoffload build -o ../../bin/gpuoffload.exe .
+
+# bookval-* detach the preregistered book validation arms through
+# scripts/, one engine batch: bookval-short drives the master-nobook
+# floors at 2+1 and 3+2 (auto-extending blocks) then the book-vs-nobook
+# pairs at 1+0, 2+1, 3+2; bookval-confirm drives the 10+5 confirmation
+# pair; bookval-cross drives the perturbed cross-check pair plus the
+# optional -evalweights arm; booktree-run detaches the tree build with
+# self-resume. Every arm resumes from its recorded log, ARGS forwards,
+# e.g. make bookval-cross ARGS="-Games 12 -Tc 0" or
+# make bookval-short ARGS="-DryRun".
+.PHONY: bookval-short bookval-confirm bookval-cross booktree-run
+bookval-short:
+	pwsh.exe -NoProfile -File scripts/bookval-short.ps1 $(ARGS)
+bookval-confirm:
+	pwsh.exe -NoProfile -File scripts/bookval-confirm.ps1 $(ARGS)
+bookval-cross:
+	pwsh.exe -NoProfile -File scripts/bookval-cross.ps1 $(ARGS)
+booktree-run:
+	pwsh.exe -NoProfile -File scripts/booktree-run.ps1 $(ARGS)
