@@ -1,11 +1,5 @@
+[default]
+extend-ignore-re = ["[0-9a-fA-F]{7,}"]
+
 [default.extend-words]
 thr = "thr"
-
-[files]
-extend-exclude = [
-    "ref/**",
-    # Vendored exact-release minified artifacts: their identifiers are not prose.
-    "internal/server/web/static/**",
-    # Fuzz corpus seeds: hex-hash filenames, machine artifacts.
-    "**/testdata/fuzz/**",
-]
