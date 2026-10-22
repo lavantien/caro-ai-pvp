@@ -74,6 +74,102 @@ func TestToleranceCheckTripsOnDrift(t *testing.T) {
 	if challengerViolatesTolerance(0.68, 0.70) {
 		t.Fatal("a worse challenger must pass")
 	}
+	bnd := 0.68 * 0.98
+	if challengerViolatesTolerance(0.68, bnd) {
+		t.Fatal("a challenger exactly at the 2 percent boundary must not trip")
+	}
+	if !challengerViolatesTolerance(0.68, math.Nextafter(bnd, 0)) {
+		t.Fatal("a challenger one ulp past the boundary must trip")
+	}
+}
+
+func TestClampFReflectsAndBounds(t *testing.T) {
+	for _, v := range []float64{-1e300, -1e15, -0.75, -0.0, 0, 0.05, 0.5, 1, 1.5, 1e300} {
+		got := clampF(v)
+		if !(got > 0 && got <= 1) {
+			t.Fatalf("clampF(%v) = %v, want inside (0, 1]", v, got)
+		}
+	}
+	if got := clampF(-0.75); got != 0.75 {
+		t.Fatalf("clampF(-0.75) = %v, want reflection to 0.75", got)
+	}
+	if got := clampF(-1e300); got != 1 {
+		t.Fatalf("clampF(-1e300) = %v, want 1", got)
+	}
+	if got := clampF(0); got != 0.05 {
+		t.Fatalf("clampF(0) = %v, want 0.05", got)
+	}
+}
+
+func TestTrimArchiveCapsAtInitPop(t *testing.T) {
+	s := newShadeState(6, defaultDEOptions())
+	for i := range 10 {
+		s.pushArchive([6]float64{float64(i)})
+	}
+	s.trimArchive(rand.New(rand.NewSource(1)))
+	if len(s.archive) > 6 {
+		t.Fatalf("archive = %d entries, want at most the 6 initial population", len(s.archive))
+	}
+}
+
+func TestRestartAroundKeepsIncumbentAndResets(t *testing.T) {
+	opts := defaultDEOptions()
+	s := newShadeState(8, opts)
+	pop := make([][6]float64, 8)
+	loss := make([]float64, 8)
+	for i := range pop {
+		pop[i] = [6]float64{1, 2, 3, 4, 5, 8}
+		loss[i] = 1.0
+	}
+	incumbent := [6]float64{7, 6, 5, 4, 3, 9}
+	pop[3] = incumbent
+	loss[3] = 0.25
+	s.pushArchive([6]float64{0})
+	s.stall = 30
+	s.restartAround(pop, loss, 3, rand.New(rand.NewSource(2)))
+	if pop[3] != incumbent || loss[3] != 0.25 {
+		t.Fatalf("incumbent mutated: %v loss %v", pop[3], loss[3])
+	}
+	for i := range pop {
+		if i == 3 {
+			continue
+		}
+		if loss[i] != math.Inf(1) {
+			t.Fatalf("loss[%d] = %v, want reset to infinity", i, loss[i])
+		}
+		for j := range pop[i] {
+			if pop[i][j] < opts.Lo[j] || pop[i][j] > opts.Hi[j] {
+				t.Fatalf("restart genome out of bounds at %d,%d: %v", i, j, pop[i][j])
+			}
+		}
+	}
+	if s.archive != nil {
+		t.Fatal("restart must clear the archive")
+	}
+	if s.stall != 0 {
+		t.Fatalf("stall = %d, want reset to 0", s.stall)
+	}
+}
+
+func TestAfterGenerationStallAndDiversityTriggersRestart(t *testing.T) {
+	opts := defaultDEOptions()
+	opts.Pop = 8
+	s := newShadeState(8, opts)
+	pop := make([][6]float64, 8)
+	loss := make([]float64, 8)
+	for i := range pop {
+		pop[i] = [6]float64{1, 2, 3, 4, 5, 8}
+		loss[i] = 1.0
+	}
+	s.prevBest = 1.0
+	s.stall = 24
+	np, nl, _ := s.afterGeneration(rand.New(rand.NewSource(3)), 200, pop, loss, 0)
+	if len(np) != 8 {
+		t.Fatalf("pop = %d after the stall generation, want the restart path without the LPSR reduction to 6", len(np))
+	}
+	if nl[1] != math.Inf(1) {
+		t.Fatalf("loss[1] = %v, want the restart reset to infinity", nl[1])
+	}
 }
 
 func TestShadeReduceKeepsBest(t *testing.T) {
@@ -110,13 +206,11 @@ func TestShadeMemoriesAdaptOnSuccess(t *testing.T) {
 	s.record(1, -1.5, true)
 	s.record(0, -0.1, false)
 	s.afterSuccesses()
-	lm := lehmerMean([]float64{0.6, 0.8}, []float64{0.5, 1.5})
-	if math.Abs(s.memF[0]-lm) > 1e-12 {
-		t.Fatalf("memF[0] = %v, want Lehmer mean %v", s.memF[0], lm)
+	if math.Abs(s.memF[0]-0.76) > 1e-12 {
+		t.Fatalf("memF[0] = %v, want Lehmer mean 0.76 over v {0.6, 0.8} w {0.5, 1.5}", s.memF[0])
 	}
-	wm := weightedMean([]float64{0.2, 0.9}, []float64{0.5, 1.5})
-	if math.Abs(s.memCR[0]-wm) > 1e-12 {
-		t.Fatalf("memCR[0] = %v, want weighted mean %v", s.memCR[0], wm)
+	if math.Abs(s.memCR[0]-0.725) > 1e-12 {
+		t.Fatalf("memCR[0] = %v, want weighted mean 0.725 over v {0.2, 0.9} w {0.5, 1.5}", s.memCR[0])
 	}
 	if s.memIdx != 1 {
 		t.Fatalf("memIdx = %d, want 1 after one update", s.memIdx)

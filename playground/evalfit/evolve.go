@@ -7,18 +7,17 @@ import (
 )
 
 const (
-	shadePop        = 48
-	shadeGens       = 400
-	shadeUBound     = 12.0
-	shadeULo        = -4.0
-	shadeSLo        = 200.0
-	shadeSHi        = 20000.0
-	shadeMemSize    = 6
-	shadePBestFrac  = 0.15
-	shadeNMin       = 4
-	shadeStallGens  = 25
-	shadeDivEps     = 1e-6
-	shadeArchiveCap = shadePop
+	shadePop       = 48
+	shadeGens      = 400
+	shadeUBound    = 12.0
+	shadeULo       = -4.0
+	shadeSLo       = 200.0
+	shadeSHi       = 20000.0
+	shadeMemSize   = 6
+	shadePBestFrac = 0.15
+	shadeNMin      = 4
+	shadeStallGens = 25
+	shadeDivEps    = 1e-6
 )
 
 type deOptions struct {
@@ -59,11 +58,14 @@ func cauchy(rng *rand.Rand, loc, scale float64) float64 {
 }
 
 func clampF(v float64) float64 {
-	for v <= 0 {
-		v = 0.05 + v
+	if v <= 0 {
+		v = -v
 	}
-	if v > 1 {
+	if v >= 1 {
 		return 1
+	}
+	if v == 0 {
+		return 0.05
 	}
 	return v
 }
@@ -148,7 +150,7 @@ func (s *shadeState) pushArchive(x [6]float64) {
 }
 
 func (s *shadeState) trimArchive(rng *rand.Rand) {
-	for len(s.archive) > shadeArchiveCap {
+	for len(s.archive) > s.initPop {
 		j := rng.Intn(len(s.archive))
 		s.archive = append(s.archive[:j], s.archive[j+1:]...)
 	}
