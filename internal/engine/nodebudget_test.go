@@ -131,3 +131,28 @@ func TestZeroAllocsNodeBudget(t *testing.T) {
 		t.Fatalf("SearchDepth under NodeBudget: %v allocs, want 0", n)
 	}
 }
+
+func TestNodeBudgetGovernsSMP(t *testing.T) {
+	b := midgameBoard(t)
+	s := newSMP(2, testTTBytes)
+	defer s.Close()
+	mv, stats := s.SearchDepth(b, NewNodeBudget(1<<40), 3)
+	if stats.Depth != 3 {
+		t.Fatalf("huge budget smp depth = %d, want 3", stats.Depth)
+	}
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("smp move %v illegal", mv)
+	}
+	s2 := newSMP(2, testTTBytes)
+	defer s2.Close()
+	mv2, stats2 := s2.SearchDepth(b, NewNodeBudget(2048), 8)
+	if stats2.Depth < 1 || stats2.Depth > 7 {
+		t.Fatalf("budgeted smp depth = %d, want a partial completion inside 1 to 7", stats2.Depth)
+	}
+	if !b.IsLegal(rules.Cell(mv2)) {
+		t.Fatalf("budgeted smp move %v illegal", mv2)
+	}
+	if stats2.Nodes < 2048 {
+		t.Fatalf("budgeted smp nodes %d under the limit, trip impossible", stats2.Nodes)
+	}
+}
