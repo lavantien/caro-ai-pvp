@@ -27,4 +27,5 @@ const (
 	patCorpusG     = `^G (\d+)$`
 	patCorpusP     = `^P ([0-9a-fA-F]+) (\d+)$`
 	patCorpusE     = `^E (\d+) (\d+)$`
+	patMLine       = `^g(\d+) M(\d+), (Red|Blue), ([A-Pa-p][0-9]{1,2}),`
 )

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 func main() {
@@ -22,6 +23,8 @@ func main() {
 		os.Exit(1)
 	}
 	reportArena(files)
+	reportFloors(files)
+	reportOpenings(files)
 	cs, err := loadCorpus(filepath.Join(*repo, corpusDir))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "corpus load:", err)
@@ -31,7 +34,7 @@ func main() {
 }
 
 type tcAgg struct {
-	Games, RedWins, BlueWins, Draws int
+	Games, RedWins, BlueWins, Draws, Unattributed int
 }
 
 func reportArena(files []*arenaFile) {
@@ -64,7 +67,10 @@ func reportArena(files []*arenaFile) {
 				fa.Draws++
 				drawMoves[g.Moves]++
 			default:
-				if g.Winner == g.Red {
+				if bucket == bucketIdentical {
+					a.Unattributed++
+					fa.Unattributed++
+				} else if g.Winner == g.Red {
 					a.RedWins++
 					fa.RedWins++
 				} else {
@@ -97,6 +103,10 @@ func reportArena(files []*arenaFile) {
 	sort.Strings(paths)
 	for _, p := range paths {
 		a := byFile[p]
+		if a.Unattributed > 0 {
+			fmt.Printf("%-52s games %3d decisive %3d unattributed draws %d\n", p, a.Games, a.Unattributed, a.Draws)
+			continue
+		}
 		fmt.Printf("%-52s games %3d red %3d blue %3d draws %d\n", p, a.Games, a.RedWins, a.BlueWins, a.Draws)
 	}
 	fmt.Println("\n== red-first by bucket and tc (decisive red share, wilson 95%) ==")
@@ -114,6 +124,7 @@ func reportArena(files []*arenaFile) {
 			sum.RedWins += a.RedWins
 			sum.BlueWins += a.BlueWins
 			sum.Draws += a.Draws
+			sum.Unattributed += a.Unattributed
 			printAgg(bucket, tc, a)
 		}
 		if len(tcs) > 1 {
@@ -148,6 +159,11 @@ func reportArena(files []*arenaFile) {
 }
 
 func printAgg(bucket, tc string, a *tcAgg) {
+	if a.Unattributed > 0 {
+		fmt.Printf("%-10s %-6s games %3d decisive %3d (seat unattributable, labels alias) draws %2d\n",
+			bucket, tc, a.Games, a.Unattributed, a.Draws)
+		return
+	}
 	n := a.RedWins + a.BlueWins
 	lo, hi := wilson(a.RedWins, n)
 	fmt.Printf("%-10s %-6s games %3d red %3d blue %3d draws %2d redshare %6.1f%% [%5.1f, %5.1f]\n",
@@ -235,4 +251,101 @@ func mean(xs []float64) float64 {
 		s += x
 	}
 	return s / float64(len(xs))
+}
+
+type openingAgg struct {
+	Games, RedWins, BlueWins, Draws int
+	TCs, Seqs                       map[string]bool
+}
+
+func reportFloors(files []*arenaFile) {
+	fmt.Println("\n== identical-engine floors: move-list availability and length diversity ==")
+	for _, af := range files {
+		var floors []arenaGame
+		withSeq := 0
+		for _, g := range af.Games {
+			if bucketOf(g.Red, g.Blue) != bucketIdentical {
+				continue
+			}
+			floors = append(floors, g)
+			if g.HasSeq {
+				withSeq++
+			}
+		}
+		if len(floors) == 0 {
+			continue
+		}
+		seen := map[int]bool{}
+		var decisive []int
+		for _, g := range floors {
+			if g.Winner != "draw" {
+				decisive = append(decisive, g.Moves)
+				seen[g.Moves] = true
+			}
+		}
+		fmt.Printf("%-24s floors %3d with-mlines %3d decisive %3d distinct-lengths %3d length-collisions %3d\n",
+			filepath.Base(af.Path), len(floors), withSeq, len(decisive), len(seen), len(decisive)-len(seen))
+	}
+}
+
+func reportOpenings(files []*arenaFile) {
+	fmt.Println("\n== opening decomposition (same-base pairs with move lists), signature = M1 M2 M3 ==")
+	byOpening := map[string]*openingAgg{}
+	seqSeen := map[string]int{}
+	for _, af := range files {
+		for _, g := range af.Games {
+			if !g.HasSeq || bucketOf(g.Red, g.Blue) != bucketSameBase || g.Opening == "" {
+				continue
+			}
+			a := byOpening[g.Opening]
+			if a == nil {
+				a = &openingAgg{TCs: map[string]bool{}, Seqs: map[string]bool{}}
+				byOpening[g.Opening] = a
+			}
+			a.Games++
+			switch g.Winner {
+			case "draw":
+				a.Draws++
+			case g.Red:
+				a.RedWins++
+			default:
+				a.BlueWins++
+			}
+			a.TCs[g.TC] = true
+			a.Seqs[g.Seq] = true
+			seqSeen[g.Seq]++
+		}
+	}
+	openings := make([]string, 0, len(byOpening))
+	for k := range byOpening {
+		openings = append(openings, k)
+	}
+	sort.Slice(openings, func(i, j int) bool {
+		a, b := byOpening[openings[i]], byOpening[openings[j]]
+		if a.Games != b.Games {
+			return a.Games > b.Games
+		}
+		return openings[i] < openings[j]
+	})
+	totGames, totSeqs := 0, 0
+	for _, o := range openings {
+		a := byOpening[o]
+		totGames += a.Games
+		totSeqs += len(a.Seqs)
+		tcs := make([]string, 0, len(a.TCs))
+		for tc := range a.TCs {
+			tcs = append(tcs, tc)
+		}
+		sort.Strings(tcs)
+		fmt.Printf("%-12s games %3d red %3d blue %3d draws %2d tcs %-10s distinct-full-games %3d\n",
+			o, a.Games, a.RedWins, a.BlueWins, a.Draws, strings.Join(tcs, ","), len(a.Seqs))
+	}
+	dupes := 0
+	for _, n := range seqSeen {
+		if n > 1 {
+			dupes += n - 1
+		}
+	}
+	fmt.Printf("openings %d games %d distinct full games %d exact full-game repeats %d\n",
+		len(openings), totGames, totSeqs, dupes)
 }

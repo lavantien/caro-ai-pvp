@@ -15,16 +15,20 @@ var (
 	reHeader = regexp.MustCompile(patArenaHeader)
 	reResult = regexp.MustCompile(patArenaResult)
 	rePonder = regexp.MustCompile(patPonderLine)
+	reMLine  = regexp.MustCompile(patMLine)
 )
 
 type arenaGame struct {
-	File   string
-	GameNo int
-	TC     string
-	Red    string
-	Blue   string
-	Winner string
-	Moves  int
+	File    string
+	GameNo  int
+	TC      string
+	Red     string
+	Blue    string
+	Winner  string
+	Moves   int
+	Opening string
+	Seq     string
+	HasSeq  bool
 }
 
 type ponderCounts struct {
@@ -45,10 +49,15 @@ func parseArena(r io.Reader, path string) (*arenaFile, error) {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	tc := ""
+	var seq []string
 	for sc.Scan() {
 		line := sc.Text()
 		if m := reHeader.FindStringSubmatch(line); m != nil {
 			tc = m[1]
+			continue
+		}
+		if m := reMLine.FindStringSubmatch(line); m != nil {
+			seq = append(seq, m[4])
 			continue
 		}
 		if m := reResult.FindStringSubmatch(line); m != nil {
@@ -60,7 +69,7 @@ func parseArena(r io.Reader, path string) (*arenaFile, error) {
 			if _, err := fmt.Sscanf(m[1], "%d", &gameNo); err != nil {
 				return nil, fmt.Errorf("%s: bad game number %q: %w", path, m[1], err)
 			}
-			af.Games = append(af.Games, arenaGame{
+			g := arenaGame{
 				File:   filepath.Base(path),
 				GameNo: gameNo,
 				TC:     tc,
@@ -68,7 +77,18 @@ func parseArena(r io.Reader, path string) (*arenaFile, error) {
 				Blue:   m[3],
 				Winner: m[4],
 				Moves:  moves,
-			})
+			}
+			if len(seq) > 0 {
+				g.HasSeq = true
+				g.Seq = strings.Join(seq, " ")
+				opening := seq
+				if len(opening) > 3 {
+					opening = opening[:3]
+				}
+				g.Opening = strings.Join(opening, " ")
+			}
+			seq = seq[:0]
+			af.Games = append(af.Games, g)
 			continue
 		}
 		if m := rePonder.FindStringSubmatch(line); m != nil {
