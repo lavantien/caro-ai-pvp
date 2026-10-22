@@ -143,6 +143,39 @@ func TestLoadPairLogMissingFileStartsFresh(t *testing.T) {
 	}
 }
 
+func TestPairLogAppendTruncatesTornTail(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "p.pairlog")
+	torn := "pairlog v1 seats a,b tc 1 games 2\ngame 1 winner red moves 9\ngame 2 winner bl"
+	writePairLog(t, path, torn)
+	pl, err := openPairLogForAppend(path, "a", "b", 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pl.done != 1 {
+		t.Fatalf("done = %d, want 1", pl.done)
+	}
+	if err := pl.appendGame(2, winnerBlue, 40); err != nil {
+		t.Fatal(err)
+	}
+	if err := pl.appendComplete(); err != nil {
+		t.Fatal(err)
+	}
+	if err := pl.close(); err != nil {
+		t.Fatal(err)
+	}
+	want := "pairlog v1 seats a,b tc 1 games 2\ngame 1 winner red moves 9\ngame 2 winner blue moves 40\ncomplete 2 games\n"
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != want {
+		t.Fatalf("recovered pairlog = %q, want %q", data, want)
+	}
+	if _, err := loadPairLog(path, "a", "b", 1, 2); err != nil {
+		t.Fatalf("reload after recovery: %v", err)
+	}
+}
+
 func TestPairLogAppendWritesGameAndComplete(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "p.pairlog")
 	pl, err := openPairLogForAppend(path, "a", "b", 1, 2)

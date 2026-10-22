@@ -15,6 +15,8 @@ type pairLog struct {
 	winners      []string
 	complete     bool
 	exists       bool
+	torn         bool
+	validLen     int64
 	f            *os.File
 }
 
@@ -73,12 +75,15 @@ func loadPairLog(path, a, b string, tcIdx, games int) (pairLog, error) {
 		return pl, fmt.Errorf("read %s: %w", path, err)
 	}
 	text := string(data)
-	if idx := strings.LastIndexByte(text, '\n'); !strings.HasSuffix(text, "\n") {
-		if idx < 0 {
-			text = ""
+	if !strings.HasSuffix(text, "\n") {
+		pl.torn = true
+		if idx := strings.LastIndexByte(text, '\n'); idx < 0 {
+			pl.validLen, text = 0, ""
 		} else {
-			text = text[:idx+1]
+			pl.validLen, text = int64(idx+1), text[:idx+1]
 		}
+	} else {
+		pl.validLen = int64(len(data))
 	}
 	lines := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
 	if len(lines) == 1 && lines[0] == "" {
@@ -124,6 +129,11 @@ func openPairLogForAppend(path, a, b string, tcIdx, games int) (pairLog, error) 
 	}
 	if pl.complete {
 		return pl, nil
+	}
+	if pl.torn {
+		if err := os.Truncate(path, pl.validLen); err != nil {
+			return pl, fmt.Errorf("truncate %s torn tail: %w", path, err)
+		}
 	}
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
