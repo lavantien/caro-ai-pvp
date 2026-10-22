@@ -95,6 +95,8 @@ func buildSeats() map[string]config.Tier {
 		"master-nobook":        perturb(config.TierMaster, "master-nobook", func(t *config.Tier) { t.Book = false }),
 		"grandmaster-noponder": perturb(config.TierGrandmaster, "grandmaster-noponder", func(t *config.Tier) { t.PonderThreads = 0 }),
 		"grandmaster-nobook":   perturb(config.TierGrandmaster, "grandmaster-nobook", func(t *config.Tier) { t.Book = false }),
+		"master-cross":         perturb(config.TierMaster, "master-cross", halveTierShape),
+		"grandmaster-cross":    perturb(config.TierGrandmaster, "grandmaster-cross", halveTierShape),
 	}
 	return m
 }
