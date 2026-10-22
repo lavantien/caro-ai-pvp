@@ -12,10 +12,10 @@ import (
 func main() {
 	repo := flag.String("repo", ".", "repo root")
 	flag.Parse()
-	roots := []string{
-		filepath.Join(*repo, arenaDirOut),
-		filepath.Join(*repo, arenaDirArchive),
-		filepath.Join(*repo, arenaDirScratch),
+	roots, corpusPath, err := resolveRepo(*repo)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "repo:", err)
+		os.Exit(1)
 	}
 	files, err := loadArenaFiles(roots)
 	if err != nil {
@@ -25,7 +25,7 @@ func main() {
 	reportArena(files)
 	reportFloors(files)
 	reportOpenings(files)
-	cs, err := loadCorpus(filepath.Join(*repo, corpusDir))
+	cs, err := loadCorpus(corpusPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "corpus load:", err)
 		os.Exit(1)
@@ -35,6 +35,31 @@ func main() {
 
 type tcAgg struct {
 	Games, RedWins, BlueWins, Draws, Unattributed int
+}
+
+func resolveRepo(repo string) ([]string, string, error) {
+	if _, err := os.Stat(repo); err != nil {
+		return nil, "", fmt.Errorf("repo root %s unusable: %w", repo, err)
+	}
+	roots := []string{
+		filepath.Join(repo, arenaDirOut),
+		filepath.Join(repo, arenaDirArchive),
+		filepath.Join(repo, arenaDirScratch),
+	}
+	corpusPath := filepath.Join(repo, corpusDir)
+	usable := 0
+	for _, r := range roots {
+		if fi, err := os.Stat(r); err == nil && fi.IsDir() {
+			usable++
+		}
+	}
+	if fi, err := os.Stat(corpusPath); err == nil && fi.IsDir() {
+		usable++
+	}
+	if usable == 0 {
+		return nil, "", fmt.Errorf("repo root %s has no arena or corpus sources", repo)
+	}
+	return roots, corpusPath, nil
 }
 
 func reportArena(files []*arenaFile) {
