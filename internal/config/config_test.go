@@ -340,6 +340,13 @@ func TestTournamentConstants(t *testing.T) {
 	if name != "run7_s3_hard-1-vs-easy-2.txt" {
 		t.Errorf("TournamentSeriesLogFormat renders %q", name)
 	}
+	if CasualLogRoot != "logs/casual" {
+		t.Errorf("CasualLogRoot = %q, want %q", CasualLogRoot, "logs/casual")
+	}
+	casual := fmt.Sprintf(CasualSeriesLogFormat, 12, "alice", "easy-ab12")
+	if casual != "s12_alice-vs-easy-ab12.txt" {
+		t.Errorf("CasualSeriesLogFormat renders %q", casual)
+	}
 	if TournamentDriveBeatSec < 1 {
 		t.Errorf("TournamentDriveBeatSec = %d, want at least 1", TournamentDriveBeatSec)
 	}

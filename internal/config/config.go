@@ -117,6 +117,10 @@ const (
 
 var TournamentLogRoot = "logs/tourny"
 
+const CasualSeriesLogFormat = "s%d_%s-vs-%s.txt"
+
+var CasualLogRoot = "logs/casual"
+
 const (
 	TournamentNameMaxBytes      = 32
 	TournamentStartRatingAbsMax = 4000
