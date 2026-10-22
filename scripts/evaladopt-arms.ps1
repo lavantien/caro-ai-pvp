@@ -84,20 +84,20 @@ function Invoke-Arm($arm) {
 	$binAbs = Join-Path $repo ($Bin -replace '/', '\')
 	$cmd = "set GOMEMLIMIT=$MemLimit&& `"$binAbs`" $($arm.Args) >>`"$log`" 2>&1"
 	if ($DryRun) {
-		Write-Output "dryrun arm $($arm.Name): $cmd"
+		Write-Host "dryrun arm $($arm.Name): $cmd"
 		return 0
 	}
-	Write-Output "arm $($arm.Name) start, log $log"
+	Write-Host "arm $($arm.Name) start, log $log"
 	$p = Start-Process -FilePath cmd.exe -ArgumentList '/c', $cmd -WorkingDirectory $repo -WindowStyle Hidden -Wait -PassThru
 	if ($p.ExitCode -ne 0) {
-		Write-Output "arm $($arm.Name) exited $($p.ExitCode), see $log"
+		Write-Host "arm $($arm.Name) exited $($p.ExitCode), see $log"
 		return $p.ExitCode
 	}
 	if (-not (Test-ArmDone $arm)) {
-		Write-Output "arm $($arm.Name) ran without reaching completion, see $log"
+		Write-Host "arm $($arm.Name) ran without reaching completion, see $log"
 		return 1
 	}
-	Write-Output "arm $($arm.Name) done"
+	Write-Host "arm $($arm.Name) done"
 	return 0
 }
 
