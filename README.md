@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml/badge.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml) [![global coverage](https://raw.githubusercontent.com/lavantien/caro-ai-pvp/coverage/coverage-global.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml) [![core coverage](https://raw.githubusercontent.com/lavantien/caro-ai-pvp/coverage/coverage-core.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml)
 
-Mobile-first web arena for a custom 16x16 gomoku variant. Play from a phone browser against a person or an increment-safe bot on server-hosted rooms, watch live rooms as a guest, step through match history with a playback board, and run bot vs bot tournaments on the same room surface with per-move engine telemetry and a decay-scaled rating. The behavior contract is scenario 1 in [first-cause.md](first-cause.md).
+Mobile-first web arena for a custom 16x16 gomoku variant and its hexagonal-board sibling. Play from a phone browser against a person or an increment-safe bot on server-hosted rooms, watch live rooms as a guest, step through match history with a playback board, and run bot vs bot tournaments on the same room surface with per-move engine telemetry and a decay-scaled rating. The behavior contract is scenario 1 in [first-cause.md](first-cause.md).
 
 ## contents
 
@@ -26,6 +26,8 @@ The game is a 16x16 gomoku variant with four rules on top of place-a-stone, alte
 - red's second move must sit at Chebyshev distance 3 or more from red's first stone
 
 Red moves first, the first legal five ends the game, a full board draws. Matches run as best-of 3, 5, 7, or 11 games over the 1+0, 2+1, 3+2, and 10+5 time controls, with the loser of a decisive game taking red next and a draw retaining red.
+
+Two boards share that ruleset. The square grid is 16 by 16 with four line axes and the opening balance rule measured in Chebyshev distance. The hexagon has side 12, 397 playable cells, coordinates A..W by 1..23, three line axes, six-neighbor threat dilation, and the same opening balance rule measured in hex distance: red's second move sits at hex distance 3 or more from red's first stone, and a full 397-stone board draws. The engine cost is honest and asymmetric: the hexagon scans 9-word stone masks against the square's 4 and enumerates 1191 cell-direction evaluation windows against 1024, so legality, win-scan, and move-generation work runs 1.3 to 1.7 times the square cost at matched machine load, while the last-move win check and the incremental evaluation run cheaper on three axes, and solver and threat-cascade enumeration shrinks by the same axis cut (measured in playground/hex/out under an active arena batch, canaries recorded in the artifacts, all zero-alloc). Every surface plays either board: rooms, lobby, spectate, playback, tournaments, and profiles carry the variant, and the hexagon ships bookless, the opening book being a square artifact.
 
 Engine tiers are resource-only shapes of one search. This table is the demand spec set 2026-10-10: the sizes, the per-tier ponder widths, and the book ply bounds land in tree behind their gates, the ladder re-gate for the sizes and the arena pair for ponder, and the book column filled at v0.24 as one artifact probed to each tier's ply bound, then failed its strength gate at 3+2, so the build was rebuilt as fixed-budget tree expansion and waits on its first run plus the validation arms. The status section summarizes what is shipped today, with the wave-by-wave record in devlog.md.
 
@@ -65,20 +67,20 @@ The ui/ux table is the living surface inventory, rebuilt against the overhauled 
 | surface | capabilities | access |
 | --- | --- | --- |
 | login | login-or-create with timing-flat argon2id, seeded demo admin | public |
-| home | player stats, live rooms grid, create-room form (time control, best-of, tier), live-run banner | public |
-| lobby | quick-start create row (time-control chips, best-of, opponent), live room cards with mini boards in play order, seat and tier chips, spectator counts, join on open casual seats, watch into any live room | public, create and join signed-in |
-| room | 256-cell live board with the seat cards, paired move list, series strip and controls railed beside it at wide widths, tabular ticking clocks and tier chips with the mover's card emphasized, rules-legal playable mask, tap ghost, bot M-line telemetry panel, ready and forfeit handshake | players; live stream public |
+| home | player stats, live rooms grid, create-room form (time control, best-of, tier, board), live-run banner | public |
+| lobby | quick-start create row (time-control chips, best-of, opponent, board), live room cards with mini boards in play order, seat and tier chips, variant chips, spectator counts, join on open casual seats, watch into any live room | public, create and join signed-in |
+| room | square 256-cell grid or hexagon 397-cell SVG live board with the seat cards, paired move list, series strip and controls railed beside it at wide widths, tabular ticking clocks and tier chips with the mover's card emphasized, rules-legal playable mask, tap ghost, bot M-line telemetry panel, ready and forfeit handshake | players; live stream public |
 | terminal room | honest terminal state, mid-game reload rehydrates | public |
 | history | per-game score lines, turn counts, move previews | signed-in players |
 | playback | paired numbered move list, first, prev, next, last, autoplay, jump-to-move from keyboard-focusable move buttons | the game's two players |
 | profile | hero with rating, games, WLD bar and red/blue seat split, humans and bots records with per-tier bot rows, recent games with playback links | public |
-| tournament | admin setup with config-bounded roster, live board per series, frozen leaderboard, stalled-run close | public read, admin drives |
+| tournament | admin setup with config-bounded roster and board choice, live board per series, frozen leaderboard, stalled-run close | public read, admin drives |
 | presentation | dark-first token layer (color ramps, type and space scales, two type voices: human prose and mono machine data), shared card, chip, field and button recipes, amber reserved for live-attention data marks, accent-strong focus rings, 3:1 contrast floor on state-carrying boundaries, reduced-motion respected, 44px touch floor, two-tap select-then-confirm on coarse pointers | all |
 | install | PWA manifest with generated icon set, in-shell install action, offline fallback page; the service worker caches the static shell only and never answers api calls, the event stream, or live room and tournament state | all |
 
 ## screenshots
 
-Dark-default captures at 390px phone and 1280px desktop widths, the primary presentation. The set is staged engine-free: the game, lobby, and profile surfaces through playground/uishots over a seeded store, the login, home, history, and tournament surfaces through playground/shots behind make shots over its seeded store and scripted tournament snapshots, with live rooms driven move by move and no search ever running, so captures never contend with the strength gates for the machine. The bot-room M-line log mid-game, the driven-run live boards and the finished leaderboard of a real run land with the v0.28 master pass gate, which requires screenshots from all supported flows on real systems. Login-or-create (an unknown name registers, the seeded admin row holds its name):
+Dark-default captures at 390px phone and 1280px desktop widths, the primary presentation. The set is staged engine-free: the game, lobby, and profile surfaces through playground/uishots over a seeded store, the login, home, history, and tournament surfaces through playground/shots behind make shots over its seeded store and scripted tournament snapshots, with live rooms (square and hexagon) driven move by move and no search ever running, so captures never contend with the strength gates for the machine. The bot-room M-line log mid-game, the driven-run live boards and the finished leaderboard of a real run land with the v0.28 master pass gate, which requires screenshots from all supported flows on real systems. Login-or-create (an unknown name registers, the seeded admin row holds its name):
 
 ![login or create on a phone](docs/screenshots/mobile-login.png)
 
@@ -147,6 +149,20 @@ While the run drives, its page carries a live board per ongoing bot series in th
 The finished run page with the frozen leaderboard:
 
 ![tournament run page on a phone](docs/screenshots/mobile-tourney-run.png)
+
+The hexagon board, the second variant's own surfaces: the live hex room mid-game with the hex-distance opening mask, the bot room before ready, a finished game holding its verdict, the lobby card carrying the hex chip and its mini hex board, and a running hex tournament's live board:
+
+![hex live room on a phone](docs/screenshots/mobile-hex-room-live.png)
+
+![hex live room on desktop](docs/screenshots/desktop-hex-room-live.png)
+
+![hex bot room on a phone](docs/screenshots/mobile-hex-room-bot.png)
+
+![hex terminal room on a phone](docs/screenshots/mobile-hex-terminal-room.png)
+
+![hex lobby card on a phone](docs/screenshots/mobile-hex-lobby.png)
+
+![hex tournament live board on a phone](docs/screenshots/mobile-hex-tourney-liveboards.png)
 
 The login, logged-in home and banner, terminal room, history, and tournament captures are the prior set: those surfaces have no recaptured pair yet. The mobile pass audited every surface at 390x844: long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the board offers only the spaces the rules allow, a finished series holds its verdict on the open page, and the tournament leaderboard scrolls inside its own wrap.
 
