@@ -499,6 +499,36 @@ func TestCasualLogConcurrentInstancesOnOneRootLoseNothing(t *testing.T) {
 	}
 }
 
+func TestCasualLogKeepsEarlierGamesWhenTheTailWindowHasNoNewline(t *testing.T) {
+	c, dir := newTestCasualLogs(t)
+	h := casualHeader()
+	if err := c.WriteGame(h, twoLines()); err != nil {
+		t.Fatalf("game 1: %v", err)
+	}
+	path := casualFilePath(dir, h)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		t.Fatalf("seed long torn tail: %v", err)
+	}
+	if _, err := f.WriteString(strings.Repeat("x", casualTailScan+512)); err != nil {
+		t.Fatalf("write long torn tail: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("close long torn tail: %v", err)
+	}
+	h.GameNo, h.Outcome = 2, OutcomeDraw
+	if err := c.WriteGame(h, twoLines()[:1]); err != nil {
+		t.Fatalf("game 2 over the long torn tail: %v", err)
+	}
+	got := readCasualFile(t, path)
+	if n := strings.Count(got, "game "); n != 2 {
+		t.Errorf("blocks = %d, want both games: %q", n, got)
+	}
+	if n := strings.Count(got, "M4, Blue, P8, d=9"); n != 1 {
+		t.Errorf("game 1 M4 lines = %d, want the earlier game intact: %q", n, got)
+	}
+}
+
 func TestCasualRoomSweepRecordsBothStorageSides(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)

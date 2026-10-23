@@ -137,7 +137,7 @@ func trimTornTail(path string) error {
 		}
 	}
 	if cut < 0 {
-		cut = 0
+		cut = size - scan
 	}
 	return f.Truncate(cut)
 }
