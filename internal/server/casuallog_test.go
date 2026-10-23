@@ -398,6 +398,73 @@ func TestApplyCompletionCasualLogFailureNeverFailsTheUnit(t *testing.T) {
 	}
 }
 
+func TestForfeitAfterALiveGameKeepsOneCasualFile(t *testing.T) {
+	s := newStack(t)
+	alice, r := botRoom(t, s, config.TierEasy)
+	injectPerGameBot(t, r, botLoseScripts)
+	sub, err := r.Subscribe()
+	if err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	defer sub.Unsubscribe()
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	for _, name := range humanWinSides[0] {
+		waitFor(t, func() bool { return humanTurn(r, alice.ID) })
+		if err := r.PlayMove(alice.ID, mustCellT(t, name)); err != nil {
+			t.Fatalf("game 1 human move %s: %v", name, err)
+		}
+	}
+	waitFor(t, func() bool { return humanTurn(r, alice.ID) })
+	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
+		t.Fatalf("game 2 human move D4: %v", err)
+	}
+	waitFor(t, func() bool { return humanTurn(r, alice.ID) })
+	if err := r.Forfeit(alice.ID); err != nil {
+		t.Fatalf("forfeit in game 2: %v", err)
+	}
+	drainEvents(sub)
+
+	botName := botDisplayName(config.TierEasy.Name, r.ID())
+	entries, err := os.ReadDir(config.CasualLogRoot)
+	if err != nil {
+		t.Fatalf("list casual dir: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("casual files after the forfeit = %d, want 1: %v", len(entries), entries)
+	}
+	want := fmt.Sprintf("s%d_alice-vs-%s.txt", r.SeriesID(), botName)
+	if entries[0].Name() != want {
+		t.Errorf("casual file = %s, want %s", entries[0].Name(), want)
+	}
+	body := readCasualFile(t, filepath.Join(config.CasualLogRoot, entries[0].Name()))
+	if n := strings.Count(body, "game "); n != 2 {
+		t.Errorf("blocks = %d, want the live game and the forfeited game: %q", n, body)
+	}
+	if n := strings.Count(body, "room "+r.ID()+" mode vs bot\n"); n != 2 {
+		t.Errorf("headers carrying the room id = %d, want 2: %q", n, body)
+	}
+	textLines := 0
+	for _, row := range strings.Split(body, "\n") {
+		if strings.HasPrefix(row, "M") {
+			textLines++
+		}
+	}
+	sqliteLines := 0
+	for _, id := range gameIDs(t, s) {
+		for _, row := range gameStatRows(t, s.store, id) {
+			sqliteLines++
+			if !strings.Contains(body, row.Line+"\n") {
+				t.Errorf("sqlite stat %q missing from the text side", row.Line)
+			}
+		}
+	}
+	if textLines != sqliteLines {
+		t.Errorf("M-lines text %d vs sqlite %d, want equal sets", textLines, sqliteLines)
+	}
+}
+
 func TestCasualRoomSweepRecordsBothStorageSides(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)

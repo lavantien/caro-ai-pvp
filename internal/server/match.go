@@ -233,7 +233,7 @@ func (r *Room) persistForfeitLocked(liveMoves []rules.Move) error {
 			SeriesID: seriesID, IdxInSeries: g.GameNo - 1,
 			RedUser: g.RedUserID, BlueUser: g.BlueUserID,
 			Outcome: g.Outcome.String(), Moves: blob, FullTurns: turns,
-			StatLines: stats,
+			BotName: r.botDisplayNameLocked(), StatLines: stats,
 		})
 	}
 	unit.Finish = &SeriesFinish{
