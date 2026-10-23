@@ -11,6 +11,24 @@ const (
 	OpeningChebyshevMin = 3
 	CrossCheckSize      = 8
 )
+
+type VariantSpec struct {
+	Name string
+	Kind string
+	Size int
+}
+
+var Variants = [...]VariantSpec{
+	{Name: "square", Kind: "square", Size: 16},
+	{Name: "hex", Kind: "hex", Size: 12},
+}
+
+const DefaultVariant = "square"
+
+const (
+	MaxBoardCells         = 518
+	MaxBoardWordsPerColor = 9
+)
 const ZobristSeed uint64 = 0x9E3779B97F4A7C15
 
 type TimeControl struct {
@@ -173,7 +191,7 @@ const (
 )
 const (
 	SearchMaxPly            = 64
-	SearchMaxMovesPerPly    = BoardCells
+	SearchMaxMovesPerPly    = MaxBoardCells
 	SearchNodeCheckInterval = 2048
 	SearchSoftStopFraction  = 0.65
 	SearchSafetyMarginMs    = 120
