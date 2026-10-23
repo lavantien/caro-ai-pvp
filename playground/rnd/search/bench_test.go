@@ -32,7 +32,7 @@ func BenchmarkDilateCandidateSet(b *testing.B) {
 	p := ps[len(ps)/2]
 	board := p.board
 	for b.Loop() {
-		near := dilateBB(bb(board.Full), candRadiusSearch)
+		near := dilateBB(fullOf(board), candRadiusSearch)
 		for w := range near {
 			sinkInt += bits.OnesCount64(near[w] &^ board.Full[w])
 		}
@@ -43,7 +43,7 @@ func BenchmarkCandIncremental(b *testing.B) {
 	ps := benchPositions(b)
 	p := ps[len(ps)/2]
 	board := p.board
-	cell := freeInRegion(board, dilateBB(bb(board.Full), candRadiusSearch))[0]
+	cell := freeInRegion(board, dilateBB(fullOf(board), candRadiusSearch))[0]
 	tr := &candTracker{}
 	tr.make(cell)
 	for b.Loop() {

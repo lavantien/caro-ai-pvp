@@ -54,8 +54,8 @@ func featureVector(b *rules.Board, mover rules.Color) [5]int32 {
 	for d := range config.PatternDirections {
 		for cell := range config.BoardCells {
 			c := rules.Cell(cell)
-			red[pattern.Lookup(0, pattern.Index(b, c, d, rules.Red)).Class]++
-			blue[pattern.Lookup(0, pattern.Index(b, c, d, rules.Blue)).Class]++
+			red[pattern.Lookup(pattern.Index(b, c, d, rules.Red)).Class]++
+			blue[pattern.Lookup(pattern.Index(b, c, d, rules.Blue)).Class]++
 		}
 	}
 	own, opp := &red, &blue

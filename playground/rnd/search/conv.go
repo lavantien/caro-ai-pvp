@@ -20,7 +20,7 @@ func tableFours(b *rules.Board, mover rules.Color) []bool {
 				continue
 			}
 			idx := pattern.Index(b, c, d, mover)
-			if pattern.Lookup(d, idx|uint32(config.PatternStateOwn)<<windowCenterShift).Class >= config.PatternClassFour {
+			if pattern.Lookup(idx|uint32(config.PatternStateOwn)<<windowCenterShift).Class >= config.PatternClassFour {
 				out[cell] = true
 				break
 			}

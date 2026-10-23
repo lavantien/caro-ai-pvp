@@ -36,8 +36,14 @@ func (t *candTracker) make(cell rules.Cell) { t.apply(int(cell), +1) }
 
 func (t *candTracker) unmake(cell rules.Cell) { t.apply(int(cell), -1) }
 
+func fullOf(b *rules.Board) bb {
+	var out bb
+	copy(out[:], b.Full[:config.BoardWordsPerColor])
+	return out
+}
+
 func (t *candTracker) matches(b *rules.Board) bool {
-	want := dilateBB(bb(b.Full), candRadiusSearch)
+	want := dilateBB(fullOf(b), candRadiusSearch)
 	for w := range want {
 		inSet := t.set[w] & b.Region[w] &^ b.Full[w]
 		if inSet != want[w]&b.Region[w]&^b.Full[w] {

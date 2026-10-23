@@ -52,7 +52,7 @@ func (e *mctsEngine) alloc(cell rules.Cell, mover rules.Color, parent *mctsNode)
 }
 
 func (e *mctsEngine) candidates() []rules.Cell {
-	return freeInRegion(e.board, dilateBB(bb(e.board.Full), candRadiusSearch))
+	return freeInRegion(e.board, dilateBB(fullOf(e.board), candRadiusSearch))
 }
 
 func (e *mctsEngine) playout() rules.Color {

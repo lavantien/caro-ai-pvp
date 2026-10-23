@@ -24,10 +24,13 @@ func init() {
 }
 
 func stonesOf(b *rules.Board, mover rules.Color) bb {
+	var out bb
 	if mover == rules.Red {
-		return bb(b.Red)
+		copy(out[:], b.Red[:config.BoardWordsPerColor])
+		return out
 	}
-	return bb(b.Blue)
+	copy(out[:], b.Blue[:config.BoardWordsPerColor])
+	return out
 }
 
 func cellOfRC(r, c int) rules.Cell { return rules.Cell(r*config.BoardStride + c) }
@@ -123,7 +126,7 @@ func threatRank(b *rules.Board, cell rules.Cell, mover rules.Color, reach *[conf
 			continue
 		}
 		idx := pattern.Index(b, cell, d, mover)
-		cls := pattern.Lookup(d, idx|uint32(config.PatternStateOwn)<<windowCenterShift).Class
+		cls := pattern.Lookup(idx | uint32(config.PatternStateOwn)<<windowCenterShift).Class
 		if cls > best {
 			best = cls
 		}
@@ -139,7 +142,7 @@ func threatScore(b *rules.Board, cell rules.Cell, mover rules.Color, reach *[con
 			continue
 		}
 		idx := pattern.Index(b, cell, d, mover)
-		cls := pattern.Lookup(d, idx|uint32(config.PatternStateOwn)<<windowCenterShift).Class
+		cls := pattern.Lookup(idx | uint32(config.PatternStateOwn)<<windowCenterShift).Class
 		if cls > rank {
 			rank = cls
 		}
