@@ -1,11 +1,5 @@
 package main
 
-// scriptTourney stands in for the conductor: every tournament surface the
-// pages render (setup runs list, running run with live boards, finished run
-// with a frozen leaderboard, home banner) reads this script, never a drive.
-// The leaderboard derives from the scripted series lines so the arithmetic
-// cannot drift.
-
 import (
 	"context"
 	"sync/atomic"
@@ -17,6 +11,7 @@ import (
 const (
 	finishedRunID = 3
 	runningRunID  = 4
+	hexRunID      = 5
 )
 
 type scriptTourney struct {
@@ -34,7 +29,8 @@ func (t *scriptTourney) CloseStalledRun(context.Context, int64) error { return n
 func (t *scriptTourney) Runs(context.Context) ([]server.TourneyRunSummary, error) {
 	finished, _ := t.finishedSnapshot()
 	running, _ := t.runningSnapshot()
-	return []server.TourneyRunSummary{summaryOf(running), summaryOf(finished)}, nil
+	hexRun, _ := t.hexSnapshot()
+	return []server.TourneyRunSummary{summaryOf(hexRun), summaryOf(running), summaryOf(finished)}, nil
 }
 
 func (t *scriptTourney) RunSnapshot(_ context.Context, runID int64) (server.TourneySnapshot, error) {
@@ -43,6 +39,8 @@ func (t *scriptTourney) RunSnapshot(_ context.Context, runID int64) (server.Tour
 		return t.finishedSnapshot()
 	case runningRunID:
 		return t.runningSnapshot()
+	case hexRunID:
+		return t.hexSnapshot()
 	}
 	return server.TourneySnapshot{}, server.ErrNotFound
 }
@@ -59,15 +57,47 @@ func (t *scriptTourney) LiveBoards() []server.TourneyLiveBoard {
 		RoomID: "4d2e7f90a1b3c5d6", RedName: "hard-1", BlueName: "hard-2",
 		RedWins: 1, BlueWins: 2, Turn: "blue",
 		Moves: []string{"H8", "I9", "H10", "J9", "K10", "J10"},
+	}, {
+		RoomID: "5e3f8a01c2d4e6f7", RedName: "hard-3", BlueName: "hard-4",
+		RedWins: 1, BlueWins: 0, Turn: "red", Variant: "hex",
+		Moves: []string{"L12", "M13", "P12"},
 	}}
 }
 
-// meet is one scripted series: the seats and the game score from the
-// red-first seat's perspective.
+func (t *scriptTourney) hexSnapshot() (server.TourneySnapshot, error) {
+	seats := []server.TourneySeat{
+		{Slot: 0, Name: "hard-3", Tier: config.TierHard.Name},
+		{Slot: 1, Name: "hard-4", Tier: config.TierHard.Name},
+	}
+	board := []server.TourneyStanding{{Slot: 0, Rating: 1006}, {Slot: 1, Rating: 994}}
+	lines := []server.TourneySeriesLine{
+		{PairingSlot: 0, RedFirstSlot: 0, BlueFirstSlot: 1, RedFirstWins: 2, BlueFirstWins: 1,
+			WinnerSlot: intPtr(0), Finished: true},
+		{PairingSlot: 1, RedFirstSlot: 1, BlueFirstSlot: 0, RedFirstWins: 1, BlueFirstWins: 1},
+	}
+	for _, line := range lines {
+		red, blue := &board[line.RedFirstSlot], &board[line.BlueFirstSlot]
+		red.Wins += line.RedFirstWins
+		blue.Wins += line.BlueFirstWins
+		red.Losses += line.BlueFirstWins
+		blue.Losses += line.RedFirstWins
+		red.GamesPlayed += line.RedFirstWins + line.BlueFirstWins
+		blue.GamesPlayed += line.RedFirstWins + line.BlueFirstWins
+		if line.Finished && line.WinnerSlot != nil {
+			board[*line.WinnerSlot].SeriesWon++
+		}
+	}
+	return server.TourneySnapshot{
+		Run: server.TourneyRunInfo{
+			ID: hexRunID, CreatedAt: 1791310000, TCIdx: stageTCIdx, BOLen: stageBO,
+			StartRating: config.TournamentStartRating, Variant: "hex", Running: true,
+		},
+		Seats: seats, Series: lines, Board: board,
+	}, nil
+}
+
 type meet struct{ a, b, redWins, blueWins int }
 
-// finishedMeets scripts the 12-series, 4-bot finished run: hard-2 sweeps,
-// hard-1 second, medium-1 third, easy-1 last.
 func finishedMeets() []meet {
 	return []meet{
 		{0, 1, 2, 1}, {1, 0, 1, 2},
@@ -79,9 +109,6 @@ func finishedMeets() []meet {
 	}
 }
 
-// runningMeets scripts the 2-bot run mid-flight: series 1 settled 2-1 for
-// hard-2 (1-2 from the red-first seat's perspective), series 2 at 1-1 and
-// playing.
 func runningMeets() []server.TourneySeriesLine {
 	return []server.TourneySeriesLine{
 		{PairingSlot: 0, RedFirstSlot: 0, BlueFirstSlot: 1, RedFirstWins: 1, BlueFirstWins: 2,
@@ -152,8 +179,6 @@ func (t *scriptTourney) runningSnapshot() (server.TourneySnapshot, error) {
 	}, nil
 }
 
-// tallyMeet folds one series into the standings: wins, losses, games played,
-// and the series win for the seat that took it.
 func tallyMeet(a, b *server.TourneyStanding, m meet) {
 	a.Wins += m.redWins
 	a.Losses += m.blueWins
@@ -168,7 +193,6 @@ func tallyMeet(a, b *server.TourneyStanding, m meet) {
 	}
 }
 
-// summaryOf flattens a snapshot into the setup page's runs-list row.
 func summaryOf(sn server.TourneySnapshot) server.TourneyRunSummary {
 	s := server.TourneyRunSummary{TourneyRunInfo: sn.Run, Seats: sn.Seats}
 	best := -1

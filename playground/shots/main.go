@@ -40,13 +40,17 @@ func movesOf(names []string) []rules.Move {
 }
 
 func playLine(r *server.Room, redID, blueID int64, names []string) {
-	for i, m := range movesOf(names) {
+	for i, name := range names {
+		cell, err := r.ParseCell(name)
+		if err != nil {
+			log.Fatalf("shots: stage move %q: %v", name, err)
+		}
 		who := blueID
 		if i%2 == 0 {
 			who = redID
 		}
-		if err := r.PlayMove(who, rules.Cell(m)); err != nil {
-			log.Fatalf("shots: stage move %d %s: %v", i+1, names[i], err)
+		if err := r.PlayMove(who, cell); err != nil {
+			log.Fatalf("shots: stage move %d %s: %v", i+1, name, err)
 		}
 	}
 }
@@ -127,6 +131,44 @@ func main() {
 		log.Fatalf("shots: bot room: %v", err)
 	}
 
+	hexLive, err := rooms.Create(alice.ID, stageTCIdx, stageBO, nil, "hex")
+	if err != nil {
+		log.Fatalf("shots: hex live room: %v", err)
+	}
+	if err := rooms.Join(hexLive.ID(), bob.ID); err != nil {
+		log.Fatalf("shots: join hex live: %v", err)
+	}
+	if err := hexLive.Ready(alice.ID); err != nil {
+		log.Fatalf("shots: ready alice (hex): %v", err)
+	}
+	if err := hexLive.Ready(bob.ID); err != nil {
+		log.Fatalf("shots: ready bob (hex): %v", err)
+	}
+	playLine(hexLive, alice.ID, bob.ID, []string{
+		"L12", "M13", "P12", "N13", "N12", "O13",
+	})
+
+	hexDone, err := rooms.Create(bob.ID, stageTCIdx, stageBO, nil, "hex")
+	if err != nil {
+		log.Fatalf("shots: hex done room: %v", err)
+	}
+	if err := rooms.Join(hexDone.ID(), alice.ID); err != nil {
+		log.Fatalf("shots: join hex done: %v", err)
+	}
+	if err := hexDone.Ready(bob.ID); err != nil {
+		log.Fatalf("shots: ready bob (hex done): %v", err)
+	}
+	if err := hexDone.Ready(alice.ID); err != nil {
+		log.Fatalf("shots: ready alice (hex done): %v", err)
+	}
+	playLine(hexDone, bob.ID, alice.ID, []string{
+		"L12", "M13", "P12", "N13", "N12", "O13", "O12", "L13", "M12",
+	})
+
+	if _, err := rooms.Create(alice.ID, stageTCIdx, stageBO, &config.TierEasy, "hex"); err != nil {
+		log.Fatalf("shots: hex bot room: %v", err)
+	}
+
 	seedHistory(ctx, store, alice.ID, bob.ID)
 
 	root := http.NewServeMux()
@@ -154,6 +196,7 @@ func main() {
 	fmt.Printf("shots: logins %s/%s %s/%s admin/%s\n",
 		aliceName, alicePass, bobName, bobPass, config.AdminPassword)
 	fmt.Printf("shots: live room %s (alice to move), terminal room %s\n", live.ID(), done.ID())
+	fmt.Printf("shots: hex live room %s (alice to move), hex terminal room %s\n", hexLive.ID(), hexDone.ID())
 	err = srv.ListenAndServe()
 	_ = srv.Close()
 	rooms.Shutdown()
