@@ -36,6 +36,33 @@ func TestBoardMatchesSpec(t *testing.T) {
 		t.Errorf("CrossCheckSize = %d, want 8, strictly below BoardSize", CrossCheckSize)
 	}
 }
+
+func TestVariantSourceMatchesSpec(t *testing.T) {
+	if len(Variants) != 2 {
+		t.Fatalf("Variants = %d entries, want exactly square and hex", len(Variants))
+	}
+	sq := Variants[0]
+	if sq.Name != DefaultVariant || sq.Kind != "square" || sq.Size != BoardSize {
+		t.Errorf("square variant %+v must stay the default and derive the pinned board", sq)
+	}
+	if sq.Size*sq.Size != BoardCells {
+		t.Errorf("square variant size %d does not derive BoardCells %d", sq.Size, BoardCells)
+	}
+	hx := Variants[1]
+	if hx.Name != "hex" || hx.Kind != "hex" || hx.Size != 12 {
+		t.Errorf("hex variant %+v must stay side 12", hx)
+	}
+	w := 2*hx.Size - 1
+	if want := (w-1)*w + hx.Size; want != MaxBoardCells {
+		t.Errorf("hex variant derives %d cells, want MaxBoardCells %d", want, MaxBoardCells)
+	}
+	if want := (MaxBoardCells + 63) / 64; want != MaxBoardWordsPerColor {
+		t.Errorf("MaxBoardWordsPerColor = %d, want %d covering MaxBoardCells", MaxBoardWordsPerColor, want)
+	}
+	if MaxBoardCells <= BoardCells {
+		t.Errorf("MaxBoardCells %d must exceed the square BoardCells %d", MaxBoardCells, BoardCells)
+	}
+}
 func TestZobristSeed(t *testing.T) {
 	if ZobristSeed != 0x9E3779B97F4A7C15 {
 		t.Errorf("ZobristSeed = %#x, want the fixed splitmix64 golden ratio constant", ZobristSeed)

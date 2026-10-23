@@ -266,7 +266,7 @@ const (
 var CorePackages = [...]string{"internal/rules", "internal/engine", "internal/clock"}
 
 const (
-	MutatePackages            = "internal/rules,internal/engine,internal/clock"
+	MutatePackages            = "internal/rules,internal/geom,internal/engine,internal/clock"
 	MutateTimeoutMs           = 120_000
 	MutateMinTimeoutMs        = 2_000
 	MutateTestTimeoutSlack    = 1_000
