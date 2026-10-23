@@ -45,20 +45,8 @@ func (c *casualLogs) WriteGame(h casualGameHeader, lines []GameStat) error {
 		return fmt.Errorf("server: casual log mkdir %s: %w", c.dir, err)
 	}
 	path := filepath.Join(c.dir, fmt.Sprintf(c.format, h.SeriesID, sanitizeLogName(h.Red), sanitizeLogName(h.Blue)))
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
-	if err != nil {
-		return fmt.Errorf("server: casual log open %s: %w", path, err)
-	}
-	defer func() {
-		if cerr := f.Close(); cerr != nil {
-			fmt.Fprintf(os.Stderr, "server: casual log close %s: %v\n", path, cerr)
-		}
-	}()
-	if err := trimTornTail(f); err != nil {
+	if err := trimTornTail(path); err != nil {
 		return fmt.Errorf("server: casual log recover %s: %w", path, err)
-	}
-	if _, err := f.Seek(0, io.SeekEnd); err != nil {
-		return fmt.Errorf("server: casual log seek %s: %w", path, err)
 	}
 	var b []byte
 	b = appendCasualHeader(b, h)
@@ -67,6 +55,15 @@ func (c *casualLogs) WriteGame(h casualGameHeader, lines []GameStat) error {
 		b = append(b, '\n')
 	}
 	b = append(b, '\n')
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return fmt.Errorf("server: casual log open %s: %w", path, err)
+	}
+	defer func() {
+		if cerr := f.Close(); cerr != nil {
+			fmt.Fprintf(os.Stderr, "server: casual log close %s: %v\n", path, cerr)
+		}
+	}()
 	if _, err := f.Write(b); err != nil {
 		return fmt.Errorf("server: casual log write %s: %w", path, err)
 	}
@@ -104,7 +101,15 @@ func appendCasualHeader(dst []byte, h casualGameHeader) []byte {
 
 const casualTailScan = 4096
 
-func trimTornTail(f *os.File) error {
+func trimTornTail(path string) error {
+	f, err := os.OpenFile(path, os.O_RDWR, 0o644)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	defer func() { _ = f.Close() }()
 	info, err := f.Stat()
 	if err != nil {
 		return err
