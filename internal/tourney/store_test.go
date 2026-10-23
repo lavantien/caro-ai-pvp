@@ -11,6 +11,7 @@ import (
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
@@ -385,7 +386,7 @@ func TestAppendGameSettlesSeriesFromGames(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("read moves blob: %v", err)
 	}
-	moves, err := server.DecodeMoves(blob, config.BoardCells)
+	moves, err := server.DecodeMoves(blob, geom.Default())
 	if err != nil {
 		t.Fatalf("decode moves: %v", err)
 	}

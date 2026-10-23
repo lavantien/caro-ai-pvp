@@ -294,15 +294,18 @@ func EncodeMoves(dst []byte, moves []rules.Move) []byte {
 	}
 	return dst
 }
-func DecodeMoves(blob []byte, cells int) ([]rules.Move, error) {
+func DecodeMoves(blob []byte, g *geom.Geometry) ([]rules.Move, error) {
 	if len(blob)%2 != 0 {
 		return nil, errors.New("server: moves blob length is not a move count")
 	}
 	moves := make([]rules.Move, 0, len(blob)/2)
 	for i := 0; i < len(blob); i += 2 {
 		m := rules.Move(blob[i]) | rules.Move(blob[i+1])<<8
-		if int(m) >= cells {
+		if int(m) >= g.Cells {
 			return nil, fmt.Errorf("server: moves blob cell %d out of board", m)
+		}
+		if !g.Contains(int(m)) {
+			return nil, fmt.Errorf("server: moves blob cell %d out of region", m)
 		}
 		moves = append(moves, m)
 	}
@@ -318,7 +321,7 @@ func DecodeMovesForVariant(blob []byte, variant string) ([]rules.Move, error) {
 	if err != nil {
 		return nil, ErrUnknownVariant
 	}
-	return DecodeMoves(blob, g.Cells)
+	return DecodeMoves(blob, g)
 }
 func WonByTag(pre *rules.Board, winner rules.Color) string {
 	if hasOpenFourWindow(pre, winner) {

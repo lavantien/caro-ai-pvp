@@ -138,8 +138,8 @@ func TestHexMiniTournamentRecordsVariantAndDecodes(t *testing.T) {
 		t.Fatalf("hex geometry: %v", err)
 	}
 	for i, blob := range blobs {
-		if _, derr := server.DecodeMoves(blob, config.BoardCells); derr == nil {
-			t.Errorf("game %d decoded under the square bound, want rejection", i+1)
+		if _, derr := server.DecodeMoves(blob, geom.Default()); derr == nil {
+			t.Errorf("game %d decoded under the square geometry, want rejection", i+1)
 		}
 		moves, derr := server.DecodeMovesForVariant(blob, run.Variant)
 		if derr != nil {

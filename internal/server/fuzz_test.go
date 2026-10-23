@@ -6,25 +6,10 @@ import (
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// FuzzRatingLaw pins the per-match rating law on every input of its domain.
-// K = 10^((R_loser-R_winner)/D) with D >= RatingDecayMin > 0, so K < 1
-// strictly on the favorite branch (winner pre-rated above the loser: delta
-// in [0, RatingDelta]) and K >= 1 on the upset branch (delta >= RatingDelta,
-// growing with the gap). A blanket |delta| <= RatingDelta is a false
-// property: an upset gap of 1500 already earns 95. Zero-sum, pool
-// conservation, pre+delta afters, inert draws, the color-swap mirror, and
-// the documented panic on outcomes outside the enum all hold for every
-// input.
-//
-// Encoding: data[0:2] rRed, data[2:4] rBlue, both little-endian int16 taken
-// modulo 10001 into [-10000, 10000]. The worst product the law reaches at
-// the 20000 max gap is RatingDelta*10^(20000/RatingDivisorFull) ~= 1.4e8,
-// far under MaxInt64, so math.Round and the int conversion stay exact and
-// the zero-sum assertions are arithmetic, not wraparound. data[4] selects
-// the outcome: 0 draw, 1 red, 2 blue, 3 an Outcome outside the enum.
 func FuzzRatingLaw(f *testing.F) {
 	seeds := [][]byte{
 		{0, 0, 0, 0, 0},
@@ -94,12 +79,6 @@ func FuzzRatingLaw(f *testing.F) {
 	})
 }
 
-// fuzzSeriesModel is the shadow replay of the documented series law, written
-// from first-cause.md Scenario 1 rather than from series.go: host red in
-// game 1, the decisive loser takes red while a draw retains it, the majority
-// boLen/2+1 or the exhausted schedule finishes the series, and a forfeit
-// bills every remaining game as a quitter loss. FuzzSeriesDrive asserts the
-// Series machine against this model after every operation.
 type fuzzSeriesModel struct {
 	host, guest           int64
 	boLen                 int
@@ -191,9 +170,6 @@ func (m *fuzzSeriesModel) forfeit(userID int64) error {
 	return nil
 }
 
-// apply books one decided game: the winner color banks the win, red passes
-// to the decisive loser (a RedWins loss under the current red) and survives
-// a BlueWins loss, a draw moves nothing.
 func (m *fuzzSeriesModel) apply(outcome Outcome) {
 	switch outcome {
 	case RedWins:
@@ -234,17 +210,6 @@ func (m *fuzzSeriesModel) settle() {
 	}
 }
 
-// FuzzSeriesDrive replays a random but reproducible operation script from
-// construction through Finish and asserts, after every step, the full
-// invariant set: played and win bounds, the frozen post-finish state, the
-// terminal condition, synthetic-game accounting, the red rotation, and
-// error-for-error agreement with the shadow model.
-//
-// Encoding: data[0] picks boLen from config.SeriesLengths, data[1] picks
-// tcIdx from config.TimeControls, then one operation per byte, b%10:
-// 0..2 Ready host/guest/outsider, 3..5 RecordResult draw/red/blue, 6
-// RecordResult of an Outcome outside the enum, 7..9 Forfeit host/guest/
-// outsider.
 func FuzzSeriesDrive(f *testing.F) {
 	seeds := [][]byte{
 		{0, 0, 3, 4, 4},
@@ -349,11 +314,6 @@ func FuzzSeriesDrive(f *testing.F) {
 	})
 }
 
-// FuzzMovesBlob pins the moves blob codec: two little-endian bytes per
-// move, fixed stride, encode total, decode rejecting odd lengths and cells
-// outside the board. Every byte pairing is a legal uint16 cell candidate, so
-// the input is consumed raw: data[0:2] is move 1, data[2:4] move 2, and so
-// on, a trailing odd byte is dropped.
 func FuzzMovesBlob(f *testing.F) {
 	seeds := [][]byte{
 		{},
@@ -384,7 +344,7 @@ func FuzzMovesBlob(f *testing.F) {
 		if len(blob) != 2*len(moves) {
 			t.Fatalf("%d moves encoded into %d bytes", len(moves), len(blob))
 		}
-		got, err := DecodeMoves(blob, config.BoardCells)
+		got, err := DecodeMoves(blob, geom.Default())
 		if inBoard {
 			if err != nil {
 				t.Fatalf("in-board moves %v rejected: %v", moves, err)
@@ -396,7 +356,7 @@ func FuzzMovesBlob(f *testing.F) {
 			t.Fatalf("out-of-board moves %v decoded without error", moves)
 		}
 		if len(blob) > 0 {
-			if _, err := DecodeMoves(blob[:len(blob)-1], config.BoardCells); err == nil {
+			if _, err := DecodeMoves(blob[:len(blob)-1], geom.Default()); err == nil {
 				t.Fatalf("truncated blob %v decoded without error", blob)
 			}
 		}

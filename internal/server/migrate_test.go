@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
@@ -605,7 +606,7 @@ func TestMigrateV10DatabaseUpgradesToV11(t *testing.T) {
 	if err := again.db.QueryRow(`SELECT moves FROM tournament_games WHERE run_id = ?`, runID).Scan(&blob); err != nil {
 		t.Fatalf("reread v10-era moves: %v", err)
 	}
-	back, err := DecodeMoves(blob, config.BoardCells)
+	back, err := DecodeMoves(blob, geom.Default())
 	if err != nil || len(back) != 2 || back[0] != rules.Move(7) || back[1] != rules.Move(120) {
 		t.Errorf("v10-era moves after upgrade = %v err %v, want the seeded pair intact", back, err)
 	}

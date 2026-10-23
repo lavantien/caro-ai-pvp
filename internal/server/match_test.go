@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
@@ -204,7 +205,7 @@ func TestPvPBO3SeriesDrivenThroughPlayMove(t *testing.T) {
 		m MatchHistoryRow
 		n []string
 	}{{g1, hostWinsRed}, {g2, guestRedLosesToBlue}} {
-		moves, err := DecodeMoves(row.m.Moves, config.BoardCells)
+		moves, err := DecodeMoves(row.m.Moves, geom.Default())
 		if err != nil {
 			t.Fatalf("decode moves: %v", err)
 		}
@@ -670,7 +671,7 @@ func TestMovesBlobRoundTrip(t *testing.T) {
 	if len(blob) != 2*len(moves) {
 		t.Fatalf("blob = %d bytes for %d moves, want 2 per move", len(blob), len(moves))
 	}
-	got, err := DecodeMoves(blob, config.BoardCells)
+	got, err := DecodeMoves(blob, geom.Default())
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -682,10 +683,10 @@ func TestMovesBlobRoundTrip(t *testing.T) {
 			t.Errorf("move %d = %d, want %d", i, got[i], moves[i])
 		}
 	}
-	if _, err := DecodeMoves([]byte{1}, config.BoardCells); err == nil {
+	if _, err := DecodeMoves([]byte{1}, geom.Default()); err == nil {
 		t.Error("odd blob decoded, want error")
 	}
-	if _, err := DecodeMoves([]byte{0x01, 0x01}, config.BoardCells); err == nil {
+	if _, err := DecodeMoves([]byte{0x01, 0x01}, geom.Default()); err == nil {
 		t.Error("out-of-board cell decoded, want error")
 	}
 }
@@ -699,12 +700,12 @@ func TestDecodeMovesRejectsCellAboveTheBoard(t *testing.T) {
 		{[]byte{0x05, 0x01}, "cell 261 out of board"},
 	}
 	for _, tc := range tests {
-		_, err := DecodeMoves(tc.blob, config.BoardCells)
+		_, err := DecodeMoves(tc.blob, geom.Default())
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("decode %v = %v, want %q", tc.blob, err, tc.want)
 		}
 	}
-	top, err := DecodeMoves([]byte{0xFF, 0x00}, config.BoardCells)
+	top, err := DecodeMoves([]byte{0xFF, 0x00}, geom.Default())
 	if err != nil || len(top) != 1 || top[0] != rules.Move(config.BoardCells-1) {
 		t.Errorf("decode the top cell = %d err %v, want move %d", top, err, config.BoardCells-1)
 	}

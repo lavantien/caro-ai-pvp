@@ -141,8 +141,8 @@ func TestHexRoomPlaysHexMovesAndStoresBothSides(t *testing.T) {
 	if got := string(g.AppendName(nil, int(moves[0]))); got != "P12" {
 		t.Errorf("first hex move = %q, want P12", got)
 	}
-	if _, err := DecodeMoves(games[0].Moves, config.BoardCells); err == nil {
-		t.Error("hex blob decoded under the square bound, want rejection")
+	if _, err := DecodeMoves(games[0].Moves, geom.Default()); err == nil {
+		t.Error("hex blob decoded under the square geometry, want rejection")
 	}
 
 	casual := readCasualDir(t, casualDir)
@@ -194,6 +194,19 @@ func firstLineContaining(text, sub string) string {
 	return ""
 }
 
+func TestDecodeMovesRejectsOffRegionFlats(t *testing.T) {
+	g := mustHexGeometry(t)
+	if _, err := DecodeMoves([]byte{0x00, 0x00}, g); err == nil {
+		t.Error("off-region flat 0 decoded under the hex geometry, want rejection")
+	}
+	if _, err := DecodeMoves([]byte{0xFF, 0x00}, g); err != nil {
+		t.Errorf("hex-region flat 255 rejected: %v", err)
+	}
+	if _, err := DecodeMoves([]byte{0x00, 0x00}, geom.Default()); err != nil {
+		t.Errorf("square flat 0 rejected under the square geometry: %v", err)
+	}
+}
+
 func TestMovesBlobRoundTripsPerVariant(t *testing.T) {
 	g := mustHexGeometry(t)
 	squareTop, err := geom.Default().ParseCell("P16")
@@ -206,16 +219,16 @@ func TestMovesBlobRoundTripsPerVariant(t *testing.T) {
 	}
 
 	sq := EncodeMoves(nil, []rules.Move{rules.Move(squareTop)})
-	if _, err := DecodeMoves(sq, config.BoardCells); err != nil {
-		t.Errorf("square blob under the square bound: %v", err)
+	if _, err := DecodeMoves(sq, geom.Default()); err != nil {
+		t.Errorf("square blob under the square geometry: %v", err)
 	}
-	if _, err := DecodeMoves(sq, g.Cells); err != nil {
-		t.Errorf("square blob under the hex bound: %v", err)
+	if _, err := DecodeMoves(sq, g); err != nil {
+		t.Errorf("square in-region blob under the hex geometry: %v", err)
 	}
 
 	hx := EncodeMoves(nil, []rules.Move{rules.Move(hexTop)})
-	if _, err := DecodeMoves(hx, config.BoardCells); err == nil {
-		t.Error("hex cell decoded under the square bound, want rejection")
+	if _, err := DecodeMoves(hx, geom.Default()); err == nil {
+		t.Error("hex cell decoded under the square geometry, want rejection")
 	}
 	back, err := DecodeMovesForVariant(hx, "hex")
 	if err != nil || len(back) != 1 || back[0] != rules.Move(hexTop) {

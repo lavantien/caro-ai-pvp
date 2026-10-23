@@ -408,7 +408,7 @@ func playbackMovesFor(blob []byte, variant string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	moves, err := DecodeMoves(blob, g.Cells)
+	moves, err := DecodeMoves(blob, g)
 	if err != nil {
 		return nil, err
 	}

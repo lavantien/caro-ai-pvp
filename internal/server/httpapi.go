@@ -506,7 +506,7 @@ func historyEntryOf(row MatchHistoryRow) (historyEntry, error) {
 	if err != nil {
 		return historyEntry{}, err
 	}
-	moves, err := DecodeMoves(row.Moves, g.Cells)
+	moves, err := DecodeMoves(row.Moves, g)
 	if err != nil {
 		return historyEntry{}, err
 	}
