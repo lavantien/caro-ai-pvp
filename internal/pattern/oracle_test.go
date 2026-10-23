@@ -20,10 +20,6 @@ func oracleCellFor(g *geom.Geometry, i int) rules.Cell {
 	return genCell(g, g.Rows/2, &delta, i)
 }
 
-func oracleCell(i int) rules.Cell {
-	return oracleCellFor(oracleSquare, i)
-}
-
 func naiveBuildFor(t *testing.T, g *geom.Geometry, w [config.PatternWindowLen]uint8) *rules.NaiveBoard {
 	t.Helper()
 	nb := rules.NewNaiveBoardFor(g)
@@ -36,11 +32,6 @@ func naiveBuildFor(t *testing.T, g *geom.Geometry, w [config.PatternWindowLen]ui
 		}
 	}
 	return nb
-}
-
-func naiveBuild(t *testing.T, w [config.PatternWindowLen]uint8) *rules.NaiveBoard {
-	t.Helper()
-	return naiveBuildFor(t, oracleSquare, w)
 }
 
 func naiveWin1For(t *testing.T, g *geom.Geometry, w [config.PatternWindowLen]uint8) uint16 {
