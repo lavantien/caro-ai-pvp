@@ -74,11 +74,12 @@ func TestCasualLogWritesHeaderLinesAndSeparator(t *testing.T) {
 }
 
 func TestCasualLogSkipsGamesWithoutStatLines(t *testing.T) {
-	c := newCasualLogs(filepath.Join(t.TempDir(), "casual"), casualTestFormat)
+	dir := filepath.Join(t.TempDir(), "casual")
+	c := newCasualLogs(dir, casualTestFormat)
 	if err := c.WriteGame(casualHeader(), nil); err != nil {
 		t.Fatalf("write without stats: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(t.TempDir(), "casual")); !os.IsNotExist(err) {
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Errorf("dir after a stats-less game = %v, want never created", err)
 	}
 }
@@ -366,7 +367,22 @@ func TestApplyCompletionHumanGamesWriteNoCasualFile(t *testing.T) {
 }
 
 func TestApplyCompletionCasualLogFailureNeverFailsTheUnit(t *testing.T) {
-	s := mustOpen(t, dbPath(t))
+	blocker := filepath.Join(t.TempDir(), "blocked")
+	if err := os.WriteFile(blocker, nil, 0o644); err != nil {
+		t.Fatalf("seed blocker: %v", err)
+	}
+	buf := &lockedBuffer{}
+	log.SetOutput(buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+	saved := config.CasualLogRoot
+	config.CasualLogRoot = blocker
+	t.Cleanup(func() { config.CasualLogRoot = saved })
+
+	s := mustOpen(t, filepath.Join(t.TempDir(), "caro.sqlite"))
 	defer func() { _ = s.Close() }()
 	alice := seedUser(t, s, "alice")
 	botID, err := s.BotAccountID(config.TierEasy)
@@ -377,13 +393,6 @@ func TestApplyCompletionCasualLogFailureNeverFailsTheUnit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed series: %v", err)
 	}
-	blocker := filepath.Join(t.TempDir(), "blocked")
-	if err := os.WriteFile(blocker, nil, 0o644); err != nil {
-		t.Fatalf("seed blocker: %v", err)
-	}
-	saved := config.CasualLogRoot
-	config.CasualLogRoot = blocker
-	t.Cleanup(func() { config.CasualLogRoot = saved })
 
 	if err := s.ApplyCompletion(context.Background(), Completion{
 		Games: []Game{{
@@ -396,6 +405,9 @@ func TestApplyCompletionCasualLogFailureNeverFailsTheUnit(t *testing.T) {
 	}
 	if rows := gameStatRows(t, s, onlyGameID(t, s, sr.ID)); len(rows) != 2 {
 		t.Errorf("stat rows over the blocked log dir = %d, want 2", len(rows))
+	}
+	if out := buf.String(); !strings.Contains(out, "casual log") || !strings.Contains(out, blocker) {
+		t.Errorf("log over the blocked dir = %q, want the loud failure naming %s", out, blocker)
 	}
 }
 
