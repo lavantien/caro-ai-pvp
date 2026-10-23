@@ -284,6 +284,30 @@ func TestAppendMLineZeroAlloc(t *testing.T) {
 	}
 }
 
+func TestAppendMLineHexPVNamesRideTheGeometry(t *testing.T) {
+	hex, err := geom.ByName("hex")
+	if err != nil {
+		t.Fatalf("hex geometry: %v", err)
+	}
+	center, err := hex.ParseCell("L12")
+	if err != nil {
+		t.Fatalf("hex L12: %v", err)
+	}
+	neighbor, err := hex.ParseCell("M12")
+	if err != nil {
+		t.Fatalf("hex M12: %v", err)
+	}
+	st := &engine.SearchStats{Depth: 3, PVLen: 2}
+	st.PV[0], st.PV[1] = rules.Move(center), rules.Move(neighbor)
+	line := string(AppendMLine(make([]byte, 0, mLineCap), hex, 12, rules.Red, rules.Move(center), st, ""))
+	if !strings.Contains(line, ", pv=L12 M12") {
+		t.Errorf("hex pv names = %q, want geometry-rendered L12 M12", line)
+	}
+	if strings.Contains(line, "I17") {
+		t.Errorf("hex pv rendered a square-modulus name: %q", line)
+	}
+}
+
 func TestMLineMaximalLineFitsCapWithoutRealloc(t *testing.T) {
 	st := &engine.SearchStats{
 		Depth: config.SearchMaxPly, Nodes: 9_999_999_999_999, Nps: 987_654_321,

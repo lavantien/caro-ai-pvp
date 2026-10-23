@@ -48,7 +48,13 @@ func AppendMLine(dst []byte, g *geom.Geometry, moveNumber int, side rules.Color,
 	dst = strconv.AppendFloat(dst, float64(st.AllocNs)/float64(time.Second), 'f', 2, 64)
 	dst = append(dst, tag...)
 	dst = append(dst, ", pv="...)
-	return st.AppendPV(dst)
+	for i := 0; i < st.PVLen && i < len(st.PV); i++ {
+		if i > 0 {
+			dst = append(dst, ' ')
+		}
+		dst = g.AppendName(dst, int(st.PV[i]))
+	}
+	return dst
 }
 
 func MLine(moveNumber int, side rules.Color, move rules.Move, st *engine.SearchStats, tag string) string {
