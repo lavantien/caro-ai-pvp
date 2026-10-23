@@ -29,6 +29,33 @@ func newReadySeries(t *testing.T, boLen int) *Series {
 	return s
 }
 
+func TestNewSeriesForCarriesTheVariantAndRejectsUnknown(t *testing.T) {
+	s, err := NewSeriesFor(seriesHostID, seriesGuestID, 0, config.SeriesBO3, "hex")
+	if err != nil {
+		t.Fatalf("NewSeriesFor hex: %v", err)
+	}
+	if got := s.Variant(); got != "hex" {
+		t.Errorf("Variant = %q, want hex", got)
+	}
+	if _, err := NewSeriesFor(seriesHostID, seriesGuestID, 0, config.SeriesBO3, "hexagon"); err != ErrUnknownVariant {
+		t.Errorf("unknown variant error = %v, want ErrUnknownVariant", err)
+	}
+	def, err := NewSeriesFor(seriesHostID, seriesGuestID, 0, config.SeriesBO3, "")
+	if err != nil {
+		t.Fatalf("NewSeriesFor empty variant: %v", err)
+	}
+	if got := def.Variant(); got != config.DefaultVariant {
+		t.Errorf("empty variant = %q, want the default %q", got, config.DefaultVariant)
+	}
+	bot, err := NewBotSeriesFor(botHostUserID, botGuestUserID, 0, config.SeriesBO3, "hex")
+	if err != nil {
+		t.Fatalf("NewBotSeriesFor hex: %v", err)
+	}
+	if got := bot.Variant(); got != "hex" {
+		t.Errorf("bot series Variant = %q, want hex", got)
+	}
+}
+
 func seriesRedIs(t *testing.T, s *Series, want int64) {
 	t.Helper()
 	if got := s.RedUserID(); got != want {

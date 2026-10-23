@@ -483,7 +483,11 @@ func (p *shellPages) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	room, err := p.rooms.Create(me.ID, tcIdx, boLen, tier)
+	if _, _, err := resolveVariant(r.PostFormValue("variant")); err != nil {
+		bad()
+		return
+	}
+	room, err := p.rooms.Create(me.ID, tcIdx, boLen, tier, r.PostFormValue("variant"))
 	if err != nil {
 		if _, status := errorResponse(err); status == http.StatusInternalServerError {
 			http.Error(w, "room create failed", status)

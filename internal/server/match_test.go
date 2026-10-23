@@ -41,7 +41,7 @@ var (
 func newPvPRoom(t *testing.T, s *stack) (host, guest User, r *Room) {
 	t.Helper()
 	host, guest = seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
-	r, err := s.rm.Create(host.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(host.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -64,7 +64,7 @@ func readyBoth(t *testing.T, r *Room, host, guest User) {
 func TestPlayMoveHandshakeAndValidation(t *testing.T) {
 	s := newStack(t)
 	alice, bob, carol := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob"), seedUser(t, s.store, "carol")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestPlayMoveHandshakeAndValidation(t *testing.T) {
 		t.Error("abandoned room still listed, want retired")
 	}
 
-	r, err = s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err = s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("recreate: %v", err)
 	}
@@ -204,7 +204,7 @@ func TestPvPBO3SeriesDrivenThroughPlayMove(t *testing.T) {
 		m MatchHistoryRow
 		n []string
 	}{{g1, hostWinsRed}, {g2, guestRedLosesToBlue}} {
-		moves, err := DecodeMoves(row.m.Moves)
+		moves, err := DecodeMoves(row.m.Moves, config.BoardCells)
 		if err != nil {
 			t.Fatalf("decode moves: %v", err)
 		}
@@ -620,7 +620,7 @@ func TestForfeitCompletionUnitAtomicOnFailedStatement(t *testing.T) {
 func TestForfeitOnOpenRoomPublishesTerminalEvent(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -670,7 +670,7 @@ func TestMovesBlobRoundTrip(t *testing.T) {
 	if len(blob) != 2*len(moves) {
 		t.Fatalf("blob = %d bytes for %d moves, want 2 per move", len(blob), len(moves))
 	}
-	got, err := DecodeMoves(blob)
+	got, err := DecodeMoves(blob, config.BoardCells)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -682,10 +682,10 @@ func TestMovesBlobRoundTrip(t *testing.T) {
 			t.Errorf("move %d = %d, want %d", i, got[i], moves[i])
 		}
 	}
-	if _, err := DecodeMoves([]byte{1}); err == nil {
+	if _, err := DecodeMoves([]byte{1}, config.BoardCells); err == nil {
 		t.Error("odd blob decoded, want error")
 	}
-	if _, err := DecodeMoves([]byte{0x01, 0x01}); err == nil {
+	if _, err := DecodeMoves([]byte{0x01, 0x01}, config.BoardCells); err == nil {
 		t.Error("out-of-board cell decoded, want error")
 	}
 }
@@ -699,12 +699,12 @@ func TestDecodeMovesRejectsCellAboveTheBoard(t *testing.T) {
 		{[]byte{0x05, 0x01}, "cell 261 out of board"},
 	}
 	for _, tc := range tests {
-		_, err := DecodeMoves(tc.blob)
+		_, err := DecodeMoves(tc.blob, config.BoardCells)
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("decode %v = %v, want %q", tc.blob, err, tc.want)
 		}
 	}
-	top, err := DecodeMoves([]byte{0xFF, 0x00})
+	top, err := DecodeMoves([]byte{0xFF, 0x00}, config.BoardCells)
 	if err != nil || len(top) != 1 || top[0] != rules.Move(config.BoardCells-1) {
 		t.Errorf("decode the top cell = %d err %v, want move %d", top, err, config.BoardCells-1)
 	}

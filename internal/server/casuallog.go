@@ -28,6 +28,7 @@ type casualGameHeader struct {
 	PairingBlue string
 	TCIdx       int
 	BOLen       int
+	Variant     string
 	Outcome     string
 }
 
@@ -96,6 +97,10 @@ func appendCasualHeader(dst []byte, h casualGameHeader) []byte {
 	dst = strconv.AppendInt(dst, int64(tc.IncrementSec), 10)
 	dst = append(dst, " bo"...)
 	dst = strconv.AppendInt(dst, int64(h.BOLen), 10)
+	if h.Variant != "" && h.Variant != config.DefaultVariant {
+		dst = append(dst, ' ')
+		dst = append(dst, h.Variant...)
+	}
 	dst = append(dst, " outcome "...)
 	dst = append(dst, h.Outcome...)
 	dst = append(dst, '\n')

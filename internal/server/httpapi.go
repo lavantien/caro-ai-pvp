@@ -113,6 +113,7 @@ type roomSummary struct {
 	GuestUserID int64  `json:"guestUserId"`
 	TCIdx       int    `json:"tcIdx"`
 	BOLen       int    `json:"boLen"`
+	Variant     string `json:"variant"`
 	State       string `json:"state"`
 	HostBotTier string `json:"hostBotTier,omitempty"`
 	VsBotTier   string `json:"vsBotTier,omitempty"`
@@ -204,7 +205,7 @@ func (a *apiServer) handleMove(w http.ResponseWriter, r *http.Request, u User) {
 		writeError(w, http.StatusBadRequest, codeBadRequest, "malformed move body")
 		return
 	}
-	cell, err := rules.ParseCell(req.Cell)
+	cell, err := room.ParseCell(req.Cell)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, codeBadRequest, err.Error())
 		return
@@ -239,9 +240,10 @@ func (a *apiServer) handleListRooms(w http.ResponseWriter, _ *http.Request) {
 
 func (a *apiServer) handleCreateRoom(w http.ResponseWriter, r *http.Request, u User) {
 	var req struct {
-		TCIdx int    `json:"tcIdx"`
-		BOLen int    `json:"boLen"`
-		Bot   string `json:"bot"`
+		TCIdx   int    `json:"tcIdx"`
+		BOLen   int    `json:"boLen"`
+		Bot     string `json:"bot"`
+		Variant string `json:"variant"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, codeBadRequest, "malformed room body")
@@ -255,7 +257,11 @@ func (a *apiServer) handleCreateRoom(w http.ResponseWriter, r *http.Request, u U
 			return
 		}
 	}
-	room, err := a.rooms.Create(u.ID, req.TCIdx, req.BOLen, tier)
+	if _, _, err := resolveVariant(req.Variant); err != nil {
+		writeError(w, http.StatusBadRequest, codeBadRequest, ErrUnknownVariant.Error())
+		return
+	}
+	room, err := a.rooms.Create(u.ID, req.TCIdx, req.BOLen, tier, req.Variant)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -367,7 +373,7 @@ func (a *apiServer) roomFromRequest(w http.ResponseWriter, r *http.Request) (*Ro
 func roomSummaryOf(info RoomInfo) roomSummary {
 	return roomSummary{
 		ID: info.ID, HostUserID: info.HostUserID, GuestUserID: info.GuestUserID,
-		TCIdx: info.TCIdx, BOLen: info.BOLen, State: info.State.String(),
+		TCIdx: info.TCIdx, BOLen: info.BOLen, Variant: info.Variant, State: info.State.String(),
 		HostBotTier: info.HostBotTier, VsBotTier: info.VsBotTier,
 		HostWins: info.HostWins, GuestWins: info.GuestWins,
 		CreatedAt: info.CreatedAt.Unix(),
@@ -400,13 +406,13 @@ func (r *Room) gameSnapshot() *gameSnapshot {
 		},
 	}
 	for _, m := range r.moves {
-		snap.Moves = append(snap.Moves, cellName(rules.Cell(m)))
+		snap.Moves = append(snap.Moves, r.cellNameOf(m))
 	}
 	var legal [config.MaxBoardCells]rules.Move
 	n := r.board.LegalMoves(legal[:])
 	snap.Playable = make([]string, 0, n)
 	for _, m := range legal[:n] {
-		snap.Playable = append(snap.Playable, cellName(rules.Cell(m)))
+		snap.Playable = append(snap.Playable, r.cellNameOf(m))
 	}
 	return snap
 }
@@ -496,14 +502,18 @@ type historyEntry struct {
 }
 
 func historyEntryOf(row MatchHistoryRow) (historyEntry, error) {
-	moves, err := DecodeMoves(row.Moves)
+	_, g, err := resolveVariant(row.Variant)
+	if err != nil {
+		return historyEntry{}, err
+	}
+	moves, err := DecodeMoves(row.Moves, g.Cells)
 	if err != nil {
 		return historyEntry{}, err
 	}
 	limit := min(2*config.HistoryPreviewTurns, len(moves))
 	preview := make([]string, 0, limit)
 	for _, m := range moves[:limit] {
-		preview = append(preview, cellName(rules.Cell(m)))
+		preview = append(preview, string(g.AppendName(nil, int(m))))
 	}
 	return historyEntry{
 		PlayedAt: row.PlayedAt, Red: row.Red, Blue: row.Blue,

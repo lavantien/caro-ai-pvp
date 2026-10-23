@@ -268,6 +268,7 @@ type SeriesRow struct {
 	ID         int64
 	TCIdx      int
 	BOLen      int
+	Variant    string
 	RedUser    int64
 	BlueUser   int64
 	State      string
@@ -277,19 +278,27 @@ type SeriesRow struct {
 }
 
 func (s *Store) CreateSeries(ctx context.Context, tcIdx, boLen int, redUser, blueUser int64) (SeriesRow, error) {
+	return s.CreateSeriesFor(ctx, tcIdx, boLen, redUser, blueUser, config.DefaultVariant)
+}
+
+func (s *Store) CreateSeriesFor(ctx context.Context, tcIdx, boLen int, redUser, blueUser int64, variant string) (SeriesRow, error) {
 	if tcIdx < 0 || tcIdx >= len(config.TimeControls) {
 		return SeriesRow{}, fmt.Errorf("server: create series: time control index %d outside the %d configured controls", tcIdx, len(config.TimeControls))
 	}
+	v, err := normalizeVariant(variant)
+	if err != nil {
+		return SeriesRow{}, fmt.Errorf("server: create series: %w", err)
+	}
 	var sr SeriesRow
-	err := s.db.QueryRowContext(ctx,
-		`INSERT INTO series (tc_idx, bo_len, red_user, blue_user, state)
-		VALUES (?, ?, ?, ?, ?) RETURNING id, created_at`,
-		tcIdx, boLen, redUser, blueUser, SeriesStateOngoing,
+	err = s.db.QueryRowContext(ctx,
+		`INSERT INTO series (tc_idx, bo_len, red_user, blue_user, state, variant)
+		VALUES (?, ?, ?, ?, ?, ?) RETURNING id, created_at`,
+		tcIdx, boLen, redUser, blueUser, SeriesStateOngoing, v,
 	).Scan(&sr.ID, &sr.CreatedAt)
 	if err != nil {
 		return SeriesRow{}, fmt.Errorf("server: create series: %w", err)
 	}
-	sr.TCIdx, sr.BOLen, sr.RedUser, sr.BlueUser, sr.State = tcIdx, boLen, redUser, blueUser, SeriesStateOngoing
+	sr.TCIdx, sr.BOLen, sr.Variant, sr.RedUser, sr.BlueUser, sr.State = tcIdx, boLen, v, redUser, blueUser, SeriesStateOngoing
 	return sr, nil
 }
 
@@ -297,9 +306,9 @@ func (s *Store) SeriesByID(id int64) (SeriesRow, error) {
 	var sr SeriesRow
 	var winner, finished sql.NullInt64
 	err := notFound(s.db.QueryRow(
-		`SELECT id, tc_idx, bo_len, red_user, blue_user, state, winner, created_at, finished_at
+		`SELECT id, tc_idx, bo_len, variant, red_user, blue_user, state, winner, created_at, finished_at
 		FROM series WHERE id = ?`, id,
-	).Scan(&sr.ID, &sr.TCIdx, &sr.BOLen, &sr.RedUser, &sr.BlueUser, &sr.State, &winner, &sr.CreatedAt, &finished))
+	).Scan(&sr.ID, &sr.TCIdx, &sr.BOLen, &sr.Variant, &sr.RedUser, &sr.BlueUser, &sr.State, &winner, &sr.CreatedAt, &finished))
 	if err != nil {
 		return SeriesRow{}, fmt.Errorf("server: fetch series %d: %w", id, err)
 	}
@@ -491,7 +500,7 @@ func (s *Store) casualHeaderFor(ctx context.Context, g Game) (casualGameHeader, 
 	_, roomID, _ := strings.Cut(g.BotName, "-")
 	h := casualGameHeader{
 		GameNo: g.IdxInSeries + 1, RoomID: roomID, Mode: mode,
-		TCIdx: sr.TCIdx, BOLen: sr.BOLen, Outcome: g.Outcome,
+		TCIdx: sr.TCIdx, BOLen: sr.BOLen, Variant: sr.Variant, Outcome: g.Outcome,
 	}
 	h.SeriesID, h.Red, h.Blue = g.SeriesID, seriesRed, seriesBlue
 	h.PairingRed, h.PairingBlue = redName, blueName
@@ -656,6 +665,7 @@ type MatchHistoryRow struct {
 	RedWins   int
 	BlueWins  int
 	FullTurns int
+	Variant   string
 	Moves     []byte
 	WonBy     *string
 }
@@ -673,10 +683,11 @@ SELECT g.played_at,
 	(SELECT COUNT(*) FROM games w
 	 WHERE w.series_id = g.series_id AND w.idx_in_series <= g.idx_in_series
 	   AND ((w.outcome = ? AND w.red_user = g.blue_user) OR (w.outcome = ? AND w.blue_user = g.blue_user))),
-	g.full_turns, g.moves, g.won_by
+	g.full_turns, COALESCE(se.variant, 'square'), g.moves, g.won_by
 FROM games g
 JOIN users ru ON ru.id = g.red_user
 JOIN users bu ON bu.id = g.blue_user
+JOIN series se ON se.id = g.series_id
 WHERE g.red_user = ? OR g.blue_user = ?
 ORDER BY g.played_at DESC, g.id DESC`,
 		OutcomeRed, OutcomeBlue, OutcomeRed, OutcomeBlue, userID, userID,
@@ -689,7 +700,7 @@ ORDER BY g.played_at DESC, g.id DESC`,
 	for rows.Next() {
 		var r MatchHistoryRow
 		var wonBy sql.NullString
-		if err := rows.Scan(&r.PlayedAt, &r.Red, &r.Blue, &r.RedWins, &r.BlueWins, &r.FullTurns, &r.Moves, &wonBy); err != nil {
+		if err := rows.Scan(&r.PlayedAt, &r.Red, &r.Blue, &r.RedWins, &r.BlueWins, &r.FullTurns, &r.Variant, &r.Moves, &wonBy); err != nil {
 			return nil, fmt.Errorf("server: match history %d: %w", userID, err)
 		}
 		r.WonBy = nullString(wonBy)

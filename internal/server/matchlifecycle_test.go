@@ -16,7 +16,7 @@ func TestReadyRefusedBeforeJoinAndAfterClose(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}

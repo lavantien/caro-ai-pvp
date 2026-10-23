@@ -65,14 +65,14 @@ func TestPonderSearcherCallProtocol(t *testing.T) {
 	s := newStack(t)
 	var regMu sync.Mutex
 	var registry []*protocolSearcher
-	s.rm.makeSearcher = func(config.Tier) searcher {
+	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher {
 		p := &protocolSearcher{}
 		regMu.Lock()
 		registry = append(registry, p)
 		regMu.Unlock()
 		return p
 	}
-	r, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierMaster, "", 0, config.SeriesBO3)
+	r, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierMaster, "", 0, config.SeriesBO3, "")
 	if err != nil {
 		t.Fatalf("create master vs master: %v", err)
 	}

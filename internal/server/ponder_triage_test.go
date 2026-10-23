@@ -103,12 +103,12 @@ func TestPonderLaneAbortReleasesQueuedWaiters(t *testing.T) {
 func ponderRoomTier(t *testing.T, s *stack, name string, bot *ponderBot, tier config.Tier) (User, *Room) {
 	t.Helper()
 	alice := seedUser(t, s.store, name)
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &tier)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &tier, "")
 	if err != nil {
 		t.Fatalf("create vs %s: %v", tier.Name, err)
 	}
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.budgetCap = 3 * time.Millisecond
 	r.mu.Unlock()
 	return alice, r

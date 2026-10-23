@@ -90,7 +90,12 @@ func (p *RoomPages) HandlePlayback(w http.ResponseWriter, r *http.Request) {
 		writePageNotFound(w)
 		return
 	}
-	names, err := playbackMoves(g.Moves)
+	sr, err := p.store.SeriesByID(g.SeriesID)
+	if err != nil {
+		http.Error(w, "playback read failed", http.StatusInternalServerError)
+		return
+	}
+	names, err := playbackMovesFor(g.Moves, sr.Variant)
 	if err != nil {
 		http.Error(w, "playback decode failed", http.StatusInternalServerError)
 		return
@@ -390,13 +395,21 @@ func (s *Store) gameByID(id int64) (Game, error) {
 }
 
 func playbackMoves(blob []byte) ([]string, error) {
-	moves, err := DecodeMoves(blob)
+	return playbackMovesFor(blob, config.DefaultVariant)
+}
+
+func playbackMovesFor(blob []byte, variant string) ([]string, error) {
+	_, g, err := resolveVariant(variant)
+	if err != nil {
+		return nil, err
+	}
+	moves, err := DecodeMoves(blob, g.Cells)
 	if err != nil {
 		return nil, err
 	}
 	names := make([]string, len(moves))
 	for i, m := range moves {
-		names[i] = cellName(rules.Cell(m))
+		names[i] = string(g.AppendName(nil, int(m)))
 	}
 	return names, nil
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/clock"
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/pattern"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/vcf"
@@ -50,7 +51,7 @@ func (r *Room) Ready(userID int64) error {
 }
 func (r *Room) startGameLocked() (err error) {
 	r.closeEnginesLocked()
-	r.board = rules.NewBoard()
+	r.board = rules.NewBoardFor(r.geom)
 	r.moves = r.moves[:0]
 	r.mlines = r.mlines[:0]
 	r.ponderRing = [2]GrantDepthRing{}
@@ -70,7 +71,7 @@ func (r *Room) startGameLocked() (err error) {
 				return err
 			}
 			r.ttHeld[c] = seat.bot.TTBytes
-			r.engines[c] = r.makeSearcher(*seat.bot)
+			r.engines[c] = r.makeSearcher(r.variant, *seat.bot)
 		}
 	}
 	r.turnStart = time.Now()
@@ -293,19 +294,31 @@ func EncodeMoves(dst []byte, moves []rules.Move) []byte {
 	}
 	return dst
 }
-func DecodeMoves(blob []byte) ([]rules.Move, error) {
+func DecodeMoves(blob []byte, cells int) ([]rules.Move, error) {
 	if len(blob)%2 != 0 {
 		return nil, errors.New("server: moves blob length is not a move count")
 	}
 	moves := make([]rules.Move, 0, len(blob)/2)
 	for i := 0; i < len(blob); i += 2 {
 		m := rules.Move(blob[i]) | rules.Move(blob[i+1])<<8
-		if int(m) >= config.BoardCells {
+		if int(m) >= cells {
 			return nil, fmt.Errorf("server: moves blob cell %d out of board", m)
 		}
 		moves = append(moves, m)
 	}
 	return moves, nil
+}
+
+func DecodeMovesForVariant(blob []byte, variant string) ([]rules.Move, error) {
+	v, err := normalizeVariant(variant)
+	if err != nil {
+		return nil, err
+	}
+	g, err := geom.ByName(v)
+	if err != nil {
+		return nil, ErrUnknownVariant
+	}
+	return DecodeMoves(blob, g.Cells)
 }
 func WonByTag(pre *rules.Board, winner rules.Color) string {
 	if hasOpenFourWindow(pre, winner) {
@@ -332,9 +345,9 @@ func countWinIn1(pre *rules.Board, winner rules.Color) int {
 	side := pre.Side
 	defer func() { pre.Side = side }()
 	n := 0
-	for cell := range config.BoardCells {
+	for cell := range pre.Geom.Cells {
 		c := rules.Cell(cell)
-		if pre.At(c) != rules.Empty {
+		if pre.At(c) != rules.Empty || !pre.Geom.Contains(cell) {
 			continue
 		}
 		pre.Side = winner
@@ -355,7 +368,9 @@ type searcher interface {
 }
 type Searcher = searcher
 
-func NewBotSearcher(t config.Tier) Searcher { return newBotSearcher(t) }
+func NewBotSearcher(t config.Tier) Searcher { return newBotSearcherFor(config.DefaultVariant, t) }
+
+func newBotSearcher(t config.Tier) searcher { return newBotSearcherFor(config.DefaultVariant, t) }
 
 type singleSearcher struct{ e *engine.Engine }
 
@@ -518,10 +533,12 @@ func solverStats(cores int, grant time.Duration, out *vcf.SolverStats) engine.Se
 	st.PV = out.PV
 	return st
 }
-func newBotSearcher(t config.Tier) searcher {
+func newBotSearcherFor(variant string, t config.Tier) searcher {
 	var bk *book.Book
 	if t.Book {
-		bk = loadBotBook()
+		if _, ok := config.BookArtifactPathFor(variant); ok {
+			bk = loadBotBook()
+		}
 	}
 	var inner searcher
 	if t.Cores > 1 {

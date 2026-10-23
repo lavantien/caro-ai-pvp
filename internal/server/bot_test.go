@@ -79,7 +79,7 @@ func injectScriptedBot(t *testing.T, r *Room, script []rules.Move) func() []*scr
 	var mu sync.Mutex
 	var bots []*scriptedBot
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher {
+	r.makeSearcher = func(_ string, _ config.Tier) searcher {
 		b := &scriptedBot{script: append([]rules.Move(nil), script...), stats: fakeStats()}
 		mu.Lock()
 		bots = append(bots, b)
@@ -185,7 +185,7 @@ func TestForfeitInSearchEntryGapSurvives(t *testing.T) {
 	alice, r := botRoom(t, s, config.TierEasy)
 	bot := &contractBot{}
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
 	entered, release := blockAtSearchEntry(t, r)
 	if err := r.Ready(alice.ID); err != nil {
@@ -219,7 +219,7 @@ func TestShutdownInSearchEntryGapSurvives(t *testing.T) {
 	alice, r := botRoom(t, s, config.TierEasy)
 	bot := &contractBot{}
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
 	entered, release := blockAtSearchEntry(t, r)
 	if err := r.Ready(alice.ID); err != nil {
@@ -275,7 +275,7 @@ func humanTurn(r *Room, userID int64) bool {
 func botRoom(t *testing.T, s *stack, tier config.Tier) (User, *Room) {
 	t.Helper()
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &tier)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &tier, "")
 	if err != nil {
 		t.Fatalf("create vs bot: %v", err)
 	}
@@ -433,7 +433,7 @@ func TestForfeitDuringBotSearchDiscardsAnswer(t *testing.T) {
 	alice, r := botRoom(t, s, config.TierEasy)
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
@@ -556,7 +556,7 @@ func TestNoGoroutineLeakAcrossBotRooms(t *testing.T) {
 	base := runtime.NumGoroutine()
 	alice := seedUser(t, s.store, "alice")
 	newRoom := func() *Room {
-		r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy)
+		r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy, "")
 		if err != nil {
 			t.Fatalf("create: %v", err)
 		}
@@ -576,7 +576,7 @@ func TestNoGoroutineLeakAcrossBotRooms(t *testing.T) {
 	live := newRoom()
 	gbot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	live.mu.Lock()
-	live.makeSearcher = func(config.Tier) searcher { return gbot }
+	live.makeSearcher = func(_ string, _ config.Tier) searcher { return gbot }
 	live.mu.Unlock()
 	if err := live.Ready(alice.ID); err != nil {
 		t.Fatalf("ready live: %v", err)
@@ -639,13 +639,13 @@ func TestBotTurnBudgetCapClampsOnlyWhenSet(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 	run := func(limit time.Duration) time.Duration {
-		r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy)
+		r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy, "")
 		if err != nil {
 			t.Fatalf("create vs bot: %v", err)
 		}
 		bot := &budgetProbeBot{seen: make(chan struct{}, 1), answer: rules.Move(mustCellT(t, "D5"))}
 		r.mu.Lock()
-		r.makeSearcher = func(config.Tier) searcher { return bot }
+		r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 		r.budgetCap = limit
 		r.mu.Unlock()
 		if err := r.Ready(alice.ID); err != nil {
@@ -669,7 +669,7 @@ func TestBotTurnLockedRefusesFinishedWindow(t *testing.T) {
 	alice, r := botRoom(t, s, config.TierEasy)
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
@@ -700,7 +700,7 @@ func TestBotTurnLockedRefusesRetireWindow(t *testing.T) {
 	alice, r := botRoom(t, s, config.TierEasy)
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
@@ -750,7 +750,7 @@ func TestBotTurnDiscardsAnswerWhenGameFinishesMidSearch(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher {
+	r.makeSearcher = func(_ string, _ config.Tier) searcher {
 		return &finishingBot{room: r, answer: rules.Move(mustCellT(t, "D5"))}
 	}
 	r.mu.Unlock()
@@ -782,7 +782,7 @@ func TestBotTurnDiscardsAnswerAfterCloseMidSearch(t *testing.T) {
 	alice, r := botRoom(t, s, config.TierEasy)
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
@@ -846,7 +846,7 @@ func TestBotTurnDiscardsStaleAnswerAfterInterleavedMoves(t *testing.T) {
 		parked: make(chan struct{}), release: make(chan struct{}),
 	}
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher { return bot2 }
+	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot2 }
 	r.mu.Unlock()
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
@@ -952,7 +952,7 @@ func TestWakeBotCoalescesToASingleBufferedToken(t *testing.T) {
 	alice, r := botRoom(t, s, config.TierEasy)
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)

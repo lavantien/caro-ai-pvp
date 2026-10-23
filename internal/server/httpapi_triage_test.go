@@ -80,7 +80,7 @@ func TestHTTPSSEDefaultHandlerOpensStream(t *testing.T) {
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
 	defer srv.Close()
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestHTTPSSEDefaultHandlerOpensStream(t *testing.T) {
 func TestHTTPSSEKeepaliveKeepsStreamOpen(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestHTTPSSEDefaultKeepaliveCadence(t *testing.T) {
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
 	defer srv.Close()
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}

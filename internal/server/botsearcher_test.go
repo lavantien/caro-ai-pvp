@@ -20,7 +20,7 @@ func TestBotIllegalAnswerFallsBackToFirstLegal(t *testing.T) {
 	alice, r := botRoom(t, s, config.TierEasy)
 	illegal := &scriptedBot{script: movesOf(t, []string{"D4", "P16"}), stats: fakeStats()}
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher { return illegal }
+	r.makeSearcher = func(_ string, _ config.Tier) searcher { return illegal }
 	r.mu.Unlock()
 
 	if err := r.Ready(alice.ID); err != nil {

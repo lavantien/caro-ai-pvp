@@ -1061,7 +1061,7 @@ func TestPonderGameResetDrainsMidPonder(t *testing.T) {
 	var bots []*ponderBot
 	scatter := []string{"H8", "N14", "L12", "J10"}
 	dfive := []string{"D4", "D8", "D5", "D6", "D7"}
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &tier)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &tier, "")
 	if err != nil {
 		t.Fatalf("create vs master: %v", err)
 	}
@@ -1078,7 +1078,7 @@ func TestPonderGameResetDrainsMidPonder(t *testing.T) {
 		}
 		game1Answers = append(game1Answers, ans)
 	}
-	r.makeSearcher = func(config.Tier) searcher {
+	r.makeSearcher = func(_ string, _ config.Tier) searcher {
 		b := &ponderBot{}
 		gmu.Lock()
 		if len(bots) == 0 {
@@ -1151,13 +1151,13 @@ func TestBotVsBotPonderMLineObserved(t *testing.T) {
 		{move: p16, pv: []rules.Move{p16}, stats: engine.SearchStats{Depth: 9, Threads: 4}},
 		{move: n14, pv: []rules.Move{n14}, stats: engine.SearchStats{Depth: 9, Threads: 4}},
 	}
-	s.rm.makeSearcher = func(tier config.Tier) searcher {
+	s.rm.makeSearcher = func(_ string, tier config.Tier) searcher {
 		if tier.Name != config.TierMaster.Name {
 			return hard
 		}
 		return &startGatedPonderBot{gate: gate, once: &once, inner: master}
 	}
-	r, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierHard, "", 0, config.SeriesBO3)
+	r, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierHard, "", 0, config.SeriesBO3, "")
 	if err != nil {
 		t.Fatalf("create master vs hard: %v", err)
 	}
@@ -1716,12 +1716,12 @@ func TestRoomPonderTeardownRaceHammer(t *testing.T) {
 		bot.stopStats = adoptableStopStats(k10, 15, int64(10*time.Millisecond))
 		alice := seedUser(t, s.store, "hammer"+string(rune('a'+i)))
 		tier := config.TierMaster
-		r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &tier)
+		r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &tier, "")
 		if err != nil {
 			t.Fatalf("create %d: %v", i, err)
 		}
 		r.mu.Lock()
-		r.makeSearcher = func(config.Tier) searcher { return bot }
+		r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 		r.budgetCap = 3 * time.Millisecond
 		r.mu.Unlock()
 		if err := r.Ready(alice.ID); err != nil {

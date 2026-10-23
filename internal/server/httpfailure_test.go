@@ -118,7 +118,7 @@ func runSSEAgainstWriter(api *apiServer, roomID string, w http.ResponseWriter) <
 func TestSSEStalledReaderGetsBufferedEventsThenEnds(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestSSEStalledReaderGetsBufferedEventsThenEnds(t *testing.T) {
 func TestSSEKeepaliveWriteErrorEndsStream(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/lavantien/caro-ai-pvp/internal/clock"
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
@@ -46,18 +47,22 @@ type RoomManager struct {
 	store        *Store
 	wq           *WriteQueue
 	adm          *Admission
-	makeSearcher func(config.Tier) searcher
+	makeSearcher func(variant string, t config.Tier) searcher
 }
 
 func NewRoomManager(hub *Hub, store *Store, wq *WriteQueue) *RoomManager {
 	return &RoomManager{
 		rooms: make(map[string]*Room), hub: hub, store: store, wq: wq,
-		adm: newAdmission(), makeSearcher: newBotSearcher,
+		adm: newAdmission(), makeSearcher: newBotSearcherFor,
 	}
 }
-func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config.Tier) (*Room, error) {
+func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config.Tier, variant string) (*Room, error) {
 	if ownerUserID <= 0 {
 		return nil, ErrBadOwner
+	}
+	v, g, err := resolveVariant(variant)
+	if err != nil {
+		return nil, err
 	}
 	guest := seat{}
 	if vsBot != nil {
@@ -67,7 +72,7 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 		}
 		guest = seat{userID: botID, bot: vsBot}
 	}
-	series, err := NewSeries(ownerUserID, guest.userID, tcIdx, boLen)
+	series, err := NewSeriesFor(ownerUserID, guest.userID, tcIdx, boLen, v)
 	if err != nil {
 		return nil, err
 	}
@@ -75,6 +80,7 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 		id: newRoomID(), hub: rm.hub, store: rm.store, wq: rm.wq, manager: rm,
 		tcIdx: tcIdx, boLen: boLen, createdAt: time.Now(),
 		host: seat{userID: ownerUserID}, guest: guest,
+		variant: v, geom: g,
 		makeSearcher: rm.makeSearcher,
 		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
 	}
@@ -85,7 +91,7 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 		var row SeriesRow
 		err = r.wq.Send(func(ctx context.Context) error {
 			var perr error
-			row, perr = r.store.CreateSeries(ctx, tcIdx, boLen, series.HostUserID(), series.GuestUserID())
+			row, perr = r.store.CreateSeriesFor(ctx, tcIdx, boLen, series.HostUserID(), series.GuestUserID(), v)
 			return perr
 		})
 		if err != nil {
@@ -103,19 +109,24 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 	rm.mu.Unlock()
 	return r, nil
 }
-func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, guestTier *config.Tier, guestName string, tcIdx, boLen int) (*Room, error) {
+func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, guestTier *config.Tier, guestName string, tcIdx, boLen int, variant string) (*Room, error) {
 	if hostTier == nil || guestTier == nil {
 		return nil, ErrBadTier
 	}
-	series, err := NewBotSeries(botHostUserID, botGuestUserID, tcIdx, boLen)
+	v, g, err := resolveVariant(variant)
+	if err != nil {
+		return nil, err
+	}
+	series, err := NewBotSeriesFor(botHostUserID, botGuestUserID, tcIdx, boLen, v)
 	if err != nil {
 		return nil, err
 	}
 	r := &Room{
 		id: newRoomID(), hub: rm.hub, store: rm.store, wq: rm.wq, manager: rm,
 		tcIdx: tcIdx, boLen: boLen, createdAt: time.Now(),
-		host:         seat{userID: botHostUserID, bot: hostTier, name: hostName},
-		guest:        seat{userID: botGuestUserID, bot: guestTier, name: guestName},
+		host:    seat{userID: botHostUserID, bot: hostTier, name: hostName},
+		guest:   seat{userID: botGuestUserID, bot: guestTier, name: guestName},
+		variant: v, geom: g,
 		makeSearcher: rm.makeSearcher,
 		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
 	}
@@ -133,6 +144,18 @@ func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, gu
 	rm.mu.Unlock()
 	r.startBotWorker()
 	return r, nil
+}
+
+func resolveVariant(variant string) (string, *geom.Geometry, error) {
+	v, err := normalizeVariant(variant)
+	if err != nil {
+		return "", nil, err
+	}
+	g, err := geom.ByName(v)
+	if err != nil {
+		return "", nil, ErrUnknownVariant
+	}
+	return v, g, nil
 }
 func (rm *RoomManager) Join(roomID string, userID int64) error {
 	r, err := rm.Get(roomID)
@@ -153,14 +176,14 @@ func (r *Room) join(userID int64) error {
 	if r.guest.userID != 0 {
 		return ErrRoomFull
 	}
-	series, err := NewSeries(r.host.userID, userID, r.tcIdx, r.boLen)
+	series, err := NewSeriesFor(r.host.userID, userID, r.tcIdx, r.boLen, r.variant)
 	if err != nil {
 		return err
 	}
 	var row SeriesRow
 	err = r.wq.Send(func(ctx context.Context) error {
 		var perr error
-		row, perr = r.store.CreateSeries(ctx, r.tcIdx, r.boLen, series.HostUserID(), series.GuestUserID())
+		row, perr = r.store.CreateSeriesFor(ctx, r.tcIdx, r.boLen, series.HostUserID(), series.GuestUserID(), r.variant)
 		return perr
 	})
 	if err != nil {
@@ -187,6 +210,7 @@ type RoomInfo struct {
 	GuestUserID  int64
 	TCIdx        int
 	BOLen        int
+	Variant      string
 	State        SeriesState
 	HostBotTier  string
 	VsBotTier    string
@@ -250,7 +274,7 @@ func (r *Room) liveBotBoard() (LiveBotBoard, bool) {
 		Moves: make([]string, 0, len(r.moves)),
 	}
 	for _, m := range r.moves {
-		lb.Moves = append(lb.Moves, cellName(rules.Cell(m)))
+		lb.Moves = append(lb.Moves, r.cellNameOf(m))
 	}
 	return lb, true
 }
@@ -301,6 +325,8 @@ type Room struct {
 	manager      *RoomManager
 	tcIdx        int
 	boLen        int
+	variant      string
+	geom         *geom.Geometry
 	createdAt    time.Time
 	ttHeld       [2]int64
 	mu           sync.Mutex
@@ -322,7 +348,7 @@ type Room struct {
 	ponder       *ponderLane
 	ponderRing   [2]GrantDepthRing
 	budgetCap    time.Duration
-	makeSearcher func(config.Tier) searcher
+	makeSearcher func(variant string, t config.Tier) searcher
 	searchEntry  func()
 	wake         chan struct{}
 	quit         chan struct{}
@@ -331,6 +357,27 @@ type Room struct {
 }
 
 func (r *Room) ID() string { return r.id }
+func (r *Room) Variant() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.variant
+}
+func (r *Room) ParseCell(name string) (rules.Cell, error) {
+	r.mu.Lock()
+	g := r.geom
+	r.mu.Unlock()
+	cell, err := g.ParseCell(name)
+	if err != nil {
+		return 0, err
+	}
+	return rules.Cell(cell), nil
+}
+func (r *Room) cellNameOf(m rules.Move) string {
+	r.mu.Lock()
+	g := r.geom
+	r.mu.Unlock()
+	return string(g.AppendName(nil, int(m)))
+}
 func (r *Room) SeriesID() int64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -352,7 +399,7 @@ func (r *Room) Info() (RoomInfo, bool) {
 	}
 	info := RoomInfo{
 		ID: r.id, HostUserID: r.host.userID, GuestUserID: r.guest.userID,
-		TCIdx: r.tcIdx, BOLen: r.boLen, CreatedAt: r.createdAt,
+		TCIdx: r.tcIdx, BOLen: r.boLen, Variant: r.variant, CreatedAt: r.createdAt,
 		HostBotTier: botTierName(r.host.bot), VsBotTier: botTierName(r.guest.bot),
 	}
 	info.HostBotName, info.GuestBotName = r.botSeatDisplaysLocked()

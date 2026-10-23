@@ -44,7 +44,7 @@ func TestLobbyModeMatrix(t *testing.T) {
 func TestLobbySnapshotRoomsAndSpectators(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 1, config.SeriesBO5, nil)
+	r, err := s.rm.Create(alice.ID, 1, config.SeriesBO5, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestLobbySnapshotRoomsAndSpectators(t *testing.T) {
 	if snap = s.rm.LobbySnapshot(); snap[0].Spectators != 0 {
 		t.Errorf("spectators after unsubscribe = %d, want 0", snap[0].Spectators)
 	}
-	botRoom, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy)
+	botRoom, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy, "")
 	if err != nil {
 		t.Fatalf("create vs bot: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestLobbySnapshotCarriesLiveBoard(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 	bob := seedUser(t, s.store, "bob")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -141,11 +141,11 @@ func TestLobbyLivecardsMarkup(t *testing.T) {
 	alice := seedUser(t, s.store, "alice")
 	bob := seedUser(t, s.store, "bob")
 	carol := seedUser(t, s.store, "carol")
-	open, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	open, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create open: %v", err)
 	}
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -305,7 +305,7 @@ func TestLobbyPagesRoutes(t *testing.T) {
 	alice := seedUser(t, s.store, "alice")
 	bob := seedUser(t, s.store, "bob")
 	carol := seedUser(t, s.store, "carol")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -377,11 +377,11 @@ func TestLobbyPagesRoutes(t *testing.T) {
 func TestLobbySnapshotOrdersOldestRoomFirst(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	first, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	first, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create first: %v", err)
 	}
-	second, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	second, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create second: %v", err)
 	}
@@ -400,11 +400,11 @@ func TestLobbySnapshotOrdersOldestRoomFirst(t *testing.T) {
 func TestLobbySnapshotSkipsClosedRoom(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	live, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	live, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create live: %v", err)
 	}
-	closed, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	closed, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create closed: %v", err)
 	}
@@ -418,7 +418,7 @@ func TestLobbySnapshotSkipsClosedRoom(t *testing.T) {
 func TestLobbySnapshotSeatFallsBackToIDMarkerWhenUserDeleted(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -464,7 +464,7 @@ func TestLobbySeatViewOfProfiles(t *testing.T) {
 func TestLobbyBotRoomLinksTierSeatToBotAccount(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy); err != nil {
+	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy, ""); err != nil {
 		t.Fatalf("create vs bot: %v", err)
 	}
 	mux := http.NewServeMux()
@@ -507,7 +507,7 @@ func TestLobbyPagesBrokenStoreAnswers500(t *testing.T) {
 	}
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -534,7 +534,7 @@ func TestLobbyJoinClosedRoomRendersClosedMessage(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 	bob := seedUser(t, s.store, "bob")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -557,7 +557,7 @@ func TestLobbyJoinWriteFailureAnswers500(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 	bob := seedUser(t, s.store, "bob")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}

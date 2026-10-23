@@ -39,6 +39,7 @@ type TourneySetup struct {
 	BOLen       int
 	StartRating int
 	Parallel    int
+	Variant     string
 }
 
 type TourneySeriesLine struct {
@@ -67,6 +68,7 @@ type TourneyRunInfo struct {
 	TCIdx       int
 	BOLen       int
 	StartRating int
+	Variant     string
 	Finished    bool
 	Running     bool
 	Failure     string
@@ -323,6 +325,11 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 		bad("participants must sit between 2 and " + strconv.Itoa(config.TournamentMaxParticipants))
 		return
 	}
+	variant := r.PostFormValue("variant")
+	if _, _, err := resolveVariant(variant); err != nil {
+		bad("pick a board from the list")
+		return
+	}
 	seats := make([]TourneySeat, count)
 	seen := make(map[string]bool, count)
 	worstRoom := 0
@@ -361,7 +368,7 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	runID, err := p.tourney.StartRun(r.Context(), TourneySetup{
-		Seats: seats, TCIdx: tcIdx, BOLen: boLen, StartRating: rating, Parallel: parallel,
+		Seats: seats, TCIdx: tcIdx, BOLen: boLen, StartRating: rating, Parallel: parallel, Variant: variant,
 	})
 	if err != nil {
 		var blocked *TourneyBlockedError

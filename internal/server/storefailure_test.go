@@ -242,7 +242,7 @@ func TestCreateReleasesCoresWhenSeriesWriteFails(t *testing.T) {
 
 	vsBot := config.TierGrandmaster
 	for range 3 {
-		_, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &vsBot)
+		_, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &vsBot, "")
 		if err == nil {
 			t.Fatal("create over the broken series write succeeded, want the store failure")
 		}

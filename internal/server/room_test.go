@@ -35,22 +35,22 @@ func TestRoomCreateValidatesSettings(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 
-	if _, err := s.rm.Create(alice.ID, -1, config.SeriesBO3, nil); !errors.Is(err, ErrBadTimeControl) {
+	if _, err := s.rm.Create(alice.ID, -1, config.SeriesBO3, nil, ""); !errors.Is(err, ErrBadTimeControl) {
 		t.Errorf("create tc -1 = %v, want ErrBadTimeControl", err)
 	}
-	if _, err := s.rm.Create(alice.ID, len(config.TimeControls), config.SeriesBO3, nil); !errors.Is(err, ErrBadTimeControl) {
+	if _, err := s.rm.Create(alice.ID, len(config.TimeControls), config.SeriesBO3, nil, ""); !errors.Is(err, ErrBadTimeControl) {
 		t.Errorf("create tc overflow = %v, want ErrBadTimeControl", err)
 	}
 	for _, bo := range []int{0, 2, 4} {
-		if _, err := s.rm.Create(alice.ID, 0, bo, nil); !errors.Is(err, ErrBadSeriesLength) {
+		if _, err := s.rm.Create(alice.ID, 0, bo, nil, ""); !errors.Is(err, ErrBadSeriesLength) {
 			t.Errorf("create bo %d = %v, want ErrBadSeriesLength", bo, err)
 		}
 	}
-	if _, err := s.rm.Create(0, 0, config.SeriesBO3, nil); !errors.Is(err, ErrBadOwner) {
+	if _, err := s.rm.Create(0, 0, config.SeriesBO3, nil, ""); !errors.Is(err, ErrBadOwner) {
 		t.Errorf("create owner 0 = %v, want ErrBadOwner", err)
 	}
 
-	r, err := s.rm.Create(alice.ID, 1, config.SeriesBO5, nil)
+	r, err := s.rm.Create(alice.ID, 1, config.SeriesBO5, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestRoomIDsAreUniqueOpaqueStrings(t *testing.T) {
 	alice := seedUser(t, s.store, "alice")
 	seen := make(map[string]bool, 32)
 	for range 32 {
-		r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+		r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 		if err != nil {
 			t.Fatalf("create: %v", err)
 		}
@@ -92,7 +92,7 @@ func TestRoomJoinSeatsOpponentAndPersistsPairing(t *testing.T) {
 	alice := seedUser(t, s.store, "alice")
 	bob := seedUser(t, s.store, "bob")
 	carol := seedUser(t, s.store, "carol")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestRoomCreateBotSeating(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 	bob := seedUser(t, s.store, "bob")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.Tiers[1])
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.Tiers[1], "")
 	if err != nil {
 		t.Fatalf("create vs bot: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestRoomListOrderedByCreation(t *testing.T) {
 	for _, name := range hosts {
 		u := seedUser(t, s.store, name)
 		ids = append(ids, u.ID)
-		if _, err := s.rm.Create(u.ID, 0, config.SeriesBO3, nil); err != nil {
+		if _, err := s.rm.Create(u.ID, 0, config.SeriesBO3, nil, ""); err != nil {
 			t.Fatalf("create %s: %v", name, err)
 		}
 		time.Sleep(2 * time.Millisecond)
@@ -202,11 +202,11 @@ func TestRoomListOrderedByCreation(t *testing.T) {
 func TestRoomShutdownClosesAndClears(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	first, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	first, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if _, err := s.rm.Create(alice.ID, 1, config.SeriesBO5, nil); err != nil {
+	if _, err := s.rm.Create(alice.ID, 1, config.SeriesBO5, nil, ""); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
@@ -222,7 +222,7 @@ func TestRoomShutdownClosesAndClears(t *testing.T) {
 
 func TestRoomCreateAcceptsOwnerIDOne(t *testing.T) {
 	s := newStack(t)
-	r, err := s.rm.Create(1, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(1, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create owner 1 = %v, want the positive-id boundary accepted", err)
 	}
@@ -253,7 +253,7 @@ func TestCreateBotVsBotSeatsSyntheticAccounts(t *testing.T) {
 		config.TierMedium.Name: botVsBotGuestLine,
 	})
 	defer release()
-	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}

@@ -18,11 +18,11 @@ import (
 
 func fillTTBudget(t *testing.T, s *stack, rooms int) []*Room {
 	t.Helper()
-	s.rm.makeSearcher = func(config.Tier) searcher { return &contractBot{} }
+	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return &contractBot{} }
 	holder := seedUser(t, s.store, "holder")
 	out := make([]*Room, 0, rooms)
 	for range rooms {
-		r, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierGrandmaster)
+		r, err := s.rm.Create(holder.ID, 0, config.SeriesBO3, &config.TierGrandmaster, "")
 		if err != nil {
 			t.Fatalf("fill the tt budget: %v", err)
 		}
@@ -46,19 +46,19 @@ func TestCreateRefusesBotRoomWhenTTBudgetFull(t *testing.T) {
 	rows := countRows(t, s, "series")
 
 	alice := seedUser(t, s.store, "alice")
-	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierGrandmaster); !errors.Is(err, ErrMachineBusy) {
+	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierGrandmaster, ""); !errors.Is(err, ErrMachineBusy) {
 		t.Errorf("create over the full tt budget = %v, want ErrMachineBusy", err)
 	}
 	if got := countRows(t, s, "series"); got != rows {
 		t.Errorf("series rows = %d after the refused create, want the held %d", got, rows)
 	}
-	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil); err != nil {
+	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, ""); err != nil {
 		t.Errorf("human room over the full tt budget: %v", err)
 	}
 
 	fill[0].Close()
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.TierGrandmaster.TTBytes })
-	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierGrandmaster); err != nil {
+	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierGrandmaster, ""); err != nil {
 		t.Fatalf("create after the tt release: %v", err)
 	}
 }
@@ -66,15 +66,15 @@ func TestCreateRefusesBotRoomWhenTTBudgetFull(t *testing.T) {
 func TestBotVsBotRefusesWhenTTBudgetFull(t *testing.T) {
 	s := newStack(t)
 	fill := fillTTBudget(t, s, int(config.MachineTTBudgetBytes/config.TierGrandmaster.TTBytes))
-	if _, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierEasy, "", 0, config.SeriesBO3); !errors.Is(err, ErrMachineBusy) {
+	if _, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierEasy, "", 0, config.SeriesBO3, ""); !errors.Is(err, ErrMachineBusy) {
 		t.Fatalf("bot vs bot over the full tt budget = %v, want ErrMachineBusy", err)
 	}
 
 	fill[0].Close()
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.TierGrandmaster.TTBytes })
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
-	s.rm.makeSearcher = func(config.Tier) searcher { return bot }
-	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
+	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {
 		t.Fatalf("create within the budget: %v", err)
 	}
@@ -93,9 +93,9 @@ func TestBotVsBotRefusesWhenTTBudgetFull(t *testing.T) {
 func TestSearchWindowHoldsTierCoresOnlyDuringTheSearch(t *testing.T) {
 	s := newStack(t)
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
-	s.rm.makeSearcher = func(config.Tier) searcher { return bot }
+	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster, "")
 	if err != nil {
 		t.Fatalf("create vs master: %v", err)
 	}
@@ -124,9 +124,9 @@ func TestSearchWindowHoldsTierCoresOnlyDuringTheSearch(t *testing.T) {
 func TestBotRoomForfeitDuringSearchDrainsLedger(t *testing.T) {
 	s := newStack(t)
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
-	s.rm.makeSearcher = func(config.Tier) searcher { return bot }
+	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierHard)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierHard, "")
 	if err != nil {
 		t.Fatalf("create vs hard: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestBotRoomRetireReleasesLedgerExactlyOnce(t *testing.T) {
 		config.TierEasy.Name:   botVsBotHostLine,
 		config.TierMedium.Name: botVsBotGuestLine,
 	})
-	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
@@ -174,9 +174,9 @@ func TestSearchAdmissionTimeoutRetiresTheRoom(t *testing.T) {
 	s := newStack(t)
 	s.rm.adm.waitMax = 50 * time.Millisecond
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
-	s.rm.makeSearcher = func(config.Tier) searcher { return bot }
+	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy, "")
 	if err != nil {
 		t.Fatalf("create vs easy: %v", err)
 	}
@@ -204,14 +204,14 @@ func TestSecondMasterRoomWaitsForCoresThenProceeds(t *testing.T) {
 	gated := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	nobook := config.TierMaster
 	nobook.Book = false
-	s.rm.makeSearcher = func(tier config.Tier) searcher {
+	s.rm.makeSearcher = func(_ string, tier config.Tier) searcher {
 		if tier.Book {
 			return gated
 		}
 		return &contractBot{}
 	}
 	alice := seedUser(t, s.store, "alice")
-	casual, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster)
+	casual, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster, "")
 	if err != nil {
 		t.Fatalf("create the casual master room: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestSecondMasterRoomWaitsForCoresThenProceeds(t *testing.T) {
 	if !s.rm.adm.TryAcquireCores(squeezed) {
 		t.Fatal("squeeze the remaining free cores")
 	}
-	second, err := s.rm.CreateBotVsBot(&nobook, "", &nobook, "", 0, config.SeriesBO3)
+	second, err := s.rm.CreateBotVsBot(&nobook, "", &nobook, "", 0, config.SeriesBO3, "")
 	if err != nil {
 		t.Fatalf("create the second master room: %v", err)
 	}
@@ -260,7 +260,7 @@ func TestPonderArmsThroughTheLedgerAtFullWidth(t *testing.T) {
 	s := newStack(t)
 	hard := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	var masters []*ponderBot
-	s.rm.makeSearcher = func(tier config.Tier) searcher {
+	s.rm.makeSearcher = func(_ string, tier config.Tier) searcher {
 		if tier.Name != config.TierMaster.Name {
 			return hard
 		}
@@ -272,7 +272,7 @@ func TestPonderArmsThroughTheLedgerAtFullWidth(t *testing.T) {
 		masters = append(masters, b)
 		return b
 	}
-	r1, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierHard, "", 0, config.SeriesBO3)
+	r1, err := s.rm.CreateBotVsBot(&config.TierMaster, "", &config.TierHard, "", 0, config.SeriesBO3, "")
 	if err != nil {
 		t.Fatalf("create master vs hard: %v", err)
 	}
@@ -333,7 +333,7 @@ func TestBotVsBotPonderFollowsTierWidth(t *testing.T) {
 	s := newStack(t)
 	var mu sync.Mutex
 	var spies []*ponderSpyBot
-	s.rm.makeSearcher = func(tier config.Tier) searcher {
+	s.rm.makeSearcher = func(_ string, tier config.Tier) searcher {
 		script := movesOf(t, botVsBotGuestLine)
 		if tier.Name == config.TierEasy.Name {
 			script = movesOf(t, botVsBotHostLine)
@@ -344,7 +344,7 @@ func TestBotVsBotPonderFollowsTierWidth(t *testing.T) {
 		mu.Unlock()
 		return b
 	}
-	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
+	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
@@ -369,7 +369,7 @@ func TestCasualAndBotVsBotRoomsCoexist(t *testing.T) {
 	s := newStack(t)
 	gated := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	scriptGate := make(chan struct{})
-	s.rm.makeSearcher = func(tier config.Tier) searcher {
+	s.rm.makeSearcher = func(_ string, tier config.Tier) searcher {
 		if tier.Name == config.TierMaster.Name {
 			return gated
 		}
@@ -380,7 +380,7 @@ func TestCasualAndBotVsBotRoomsCoexist(t *testing.T) {
 		return &startGatedBot{gate: scriptGate, inner: &scriptedBot{script: script, stats: fakeStats()}}
 	}
 	alice := seedUser(t, s.store, "alice")
-	casual, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster)
+	casual, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster, "")
 	if err != nil {
 		t.Fatalf("create the casual master room: %v", err)
 	}
@@ -392,7 +392,7 @@ func TestCasualAndBotVsBotRoomsCoexist(t *testing.T) {
 	}
 	<-gated.seen
 	close(scriptGate)
-	botRoom, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3)
+	botRoom, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {
 		t.Fatalf("create the bot room under the held search: %v", err)
 	}
@@ -412,7 +412,7 @@ func TestNextGameTTRefusalParksTheRoom(t *testing.T) {
 	hostTier := config.Tier{Name: "parkhost", Cores: 1, TTBytes: 1}
 	guestTier := config.Tier{Name: "parkguest", Cores: 1, TTBytes: 1}
 	constructions := 0
-	s.rm.makeSearcher = func(tier config.Tier) searcher {
+	s.rm.makeSearcher = func(_ string, tier config.Tier) searcher {
 		constructions++
 		if constructions == 3 {
 			if err := s.rm.adm.AcquireTT(config.MachineTTBudgetBytes - 1); err != nil {
@@ -425,7 +425,7 @@ func TestNextGameTTRefusalParksTheRoom(t *testing.T) {
 		}
 		return &scriptedBot{script: script, stats: fakeStats()}
 	}
-	r, err := s.rm.CreateBotVsBot(&hostTier, "", &guestTier, "", 0, config.SeriesBO3)
+	r, err := s.rm.CreateBotVsBot(&hostTier, "", &guestTier, "", 0, config.SeriesBO3, "")
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
@@ -440,11 +440,11 @@ func TestNextGameTTRefusalParksTheRoom(t *testing.T) {
 
 func TestReadyTTRefusalParksTheRoomAndRefusesMoves(t *testing.T) {
 	s := newStack(t)
-	s.rm.makeSearcher = func(config.Tier) searcher {
+	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher {
 		return &scriptedBot{script: movesOf(t, botVsBotGuestLine), stats: fakeStats()}
 	}
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMedium)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMedium, "")
 	if err != nil {
 		t.Fatalf("create vs medium: %v", err)
 	}

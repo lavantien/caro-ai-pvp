@@ -13,11 +13,11 @@ func TestJoinAndListDuringRetirementWindow(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 	bob := seedUser(t, s.store, "bob")
-	retiring, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	retiring, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create retiring: %v", err)
 	}
-	live, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	live, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create live: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestJoinPersistenceFailureLeavesSeatOpen(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 	bob := seedUser(t, s.store, "bob")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -65,11 +65,11 @@ func TestJoinPersistenceFailureLeavesSeatOpen(t *testing.T) {
 func TestRoomListTiesBrokenByID(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	first, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	first, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create first: %v", err)
 	}
-	second, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	second, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create second: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestPlayMoveAfterCloseRefused(t *testing.T) {
 func TestPlayMoveZeroUserOnGuestlessRoomRefused(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestForfeitAfterCloseRefused(t *testing.T) {
 func TestForfeitZeroUserOnGuestlessRoomRefused(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestCreateVsBotFailureLeavesLedgerClean(t *testing.T) {
 	drop := injectSeriesAbort(t, s)
 	defer drop()
 
-	_, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &bot)
+	_, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &bot, "")
 	if err == nil || !strings.Contains(err.Error(), "injected series failure") {
 		t.Fatalf("create over the aborted series write = %v, want the injected failure", err)
 	}
@@ -176,7 +176,7 @@ func TestCreateVsBotFailureLeavesLedgerClean(t *testing.T) {
 	if got := s.rm.adm.TTFree(); got != config.MachineTTBudgetBytes {
 		t.Errorf("ttFree after the failed create = %d, want the full budget", got)
 	}
-	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &bot); err == nil || !strings.Contains(err.Error(), "injected series failure") {
+	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &bot, ""); err == nil || !strings.Contains(err.Error(), "injected series failure") {
 		t.Errorf("retry after the failed create = %v, want the injected failure again, not a busy machine", err)
 	}
 	if got := s.rm.LiveCoreBookings(); got != 0 {

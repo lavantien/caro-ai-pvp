@@ -340,7 +340,7 @@ func TestRoomPageJoinButtonGating(t *testing.T) {
 	carol := seedUser(t, s.store, "carol")
 	tc := mintSession(t, s.store, carol)
 
-	open, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	open, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -371,7 +371,7 @@ func TestRoomPageJoinButtonGating(t *testing.T) {
 	}
 
 	hard := config.Tiers[len(config.Tiers)-1]
-	bot, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &hard)
+	bot, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &hard, "")
 	if err != nil {
 		t.Fatalf("create bot room: %v", err)
 	}
@@ -385,7 +385,7 @@ func TestRoomPageBotSeatCarriesTierChip(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy, "")
 	if err != nil {
 		t.Fatalf("create bot room: %v", err)
 	}
@@ -885,7 +885,7 @@ func TestRoomAndPlaybackBrokenStoreAnswers500(t *testing.T) {
 	}
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	live, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	live, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -1047,7 +1047,7 @@ func TestRoomPageUnusableSessionStaysGuestOnOpenRoom(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -1071,7 +1071,7 @@ func TestRoomPageOpenGuestSeatWaitingLine(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -1109,7 +1109,7 @@ func TestRoomPageClosedRoomStillListedIs404(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -1124,7 +1124,7 @@ func TestRoomPageSessionsTableFailureAnswers500(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
 	alice := seedUser(t, s.store, "alice")
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}

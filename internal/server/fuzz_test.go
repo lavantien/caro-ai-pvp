@@ -384,7 +384,7 @@ func FuzzMovesBlob(f *testing.F) {
 		if len(blob) != 2*len(moves) {
 			t.Fatalf("%d moves encoded into %d bytes", len(moves), len(blob))
 		}
-		got, err := DecodeMoves(blob)
+		got, err := DecodeMoves(blob, config.BoardCells)
 		if inBoard {
 			if err != nil {
 				t.Fatalf("in-board moves %v rejected: %v", moves, err)
@@ -396,7 +396,7 @@ func FuzzMovesBlob(f *testing.F) {
 			t.Fatalf("out-of-board moves %v decoded without error", moves)
 		}
 		if len(blob) > 0 {
-			if _, err := DecodeMoves(blob[:len(blob)-1]); err == nil {
+			if _, err := DecodeMoves(blob[:len(blob)-1], config.BoardCells); err == nil {
 				t.Fatalf("truncated blob %v decoded without error", blob)
 			}
 		}

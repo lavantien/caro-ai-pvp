@@ -37,12 +37,12 @@ func ttFallbackRoom(t *testing.T, bot searcher) (User, *Room) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 	tier := config.TierMaster
-	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &tier)
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &tier, "")
 	if err != nil {
 		t.Fatalf("create vs master: %v", err)
 	}
 	r.mu.Lock()
-	r.makeSearcher = func(config.Tier) searcher { return bot }
+	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.budgetCap = 3 * time.Millisecond
 	r.mu.Unlock()
 	return alice, r

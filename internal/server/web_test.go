@@ -111,7 +111,7 @@ func TestSpikeRoomParamTakesValidRoomIDOnly(t *testing.T) {
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
 	defer srv.Close()
 	alice := seedUser(t, s.store, "alice")
-	room, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	room, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestSpikeListsRoomsWithoutSession(t *testing.T) {
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
 	defer srv.Close()
 	alice := seedUser(t, s.store, "alice")
-	room, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	room, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestSpikeListsRoomsWithoutSession(t *testing.T) {
 func TestSpikeScratchRoomSettingsArePlayable(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
-	if _, err := s.rm.Create(alice.ID, spikeScratchTCIdx, spikeScratchBOLen, tierByName(spikeScratchBot)); err != nil {
+	if _, err := s.rm.Create(alice.ID, spikeScratchTCIdx, spikeScratchBOLen, tierByName(spikeScratchBot), ""); err != nil {
 		t.Fatalf("scratch room settings rejected: %v", err)
 	}
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))

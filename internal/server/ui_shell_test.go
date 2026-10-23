@@ -235,20 +235,20 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
 	alice := seedUser(t, s.store, "alice")
-	room, err := s.rm.Create(alice.ID, 1, config.SeriesBO5, nil)
+	room, err := s.rm.Create(alice.ID, 1, config.SeriesBO5, nil, "")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}
-	ghostRoom, err := s.rm.Create(777, 0, config.SeriesBO3, nil)
+	ghostRoom, err := s.rm.Create(777, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create ghost room: %v", err)
 	}
 	release := make(chan struct{})
-	s.rm.makeSearcher = func(config.Tier) searcher {
+	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher {
 		return &gatedBot{seen: make(chan struct{}), release: release}
 	}
 	t.Cleanup(func() { close(release) })
-	botRoom, err := s.rm.CreateBotVsBot(&config.TierEasy, "easy-a", &config.TierEasy, "easy-b", 0, config.SeriesBO3)
+	botRoom, err := s.rm.CreateBotVsBot(&config.TierEasy, "easy-a", &config.TierEasy, "easy-b", 0, config.SeriesBO3, "")
 	if err != nil {
 		t.Fatalf("create same-tier pairing: %v", err)
 	}
@@ -453,7 +453,7 @@ func TestShellRoomsPartialServesFragmentOnly(t *testing.T) {
 	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer srv.Close()
 	alice := seedUser(t, s.store, "alice")
-	room, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil)
+	room, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}
