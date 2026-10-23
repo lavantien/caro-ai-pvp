@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
@@ -51,9 +52,10 @@ func TestOracleClaimPlyCapStaysWithinCutBounds(t *testing.T) {
 
 type opos struct {
 	nb     rules.NaiveBoard
-	occ    [config.BoardCells]bool
-	color  [config.BoardCells]uint8
-	region [config.BoardCells]bool
+	occ    [config.MaxBoardCells]bool
+	color  [config.MaxBoardCells]uint8
+	region [config.MaxBoardCells]bool
+	g      *geom.Geometry
 }
 
 type oracleLim struct {
@@ -64,41 +66,29 @@ type oracleLim struct {
 // stoneList collects the cells of one color in one board pass, so the ring
 // classification of all empties costs empties times stones instead of
 // empties times cells.
-func stoneList(p *opos, color rules.Color) [config.BoardCells]int {
-	var out [config.BoardCells]int
+func stoneList(p *opos, color rules.Color) [config.MaxBoardCells]int {
+	var out [config.MaxBoardCells]int
 	n := 0
 	want := uint8(rules.Red)
 	if color == rules.Blue {
 		want = uint8(rules.Blue)
 	}
-	for cell := range config.BoardCells {
+	for cell := range p.g.Cells {
 		if p.occ[cell] && p.color[cell] == want {
 			out[n] = cell
 			n++
 		}
 	}
-	out[config.BoardCells-1] = n
+	out[config.MaxBoardCells-1] = n
 	return out
 }
 
-func ringOf(cell int, stones [config.BoardCells]int) int {
-	n := stones[config.BoardCells-1]
-	r, c := cell/config.BoardStride, cell%config.BoardStride
+func ringOf(p *opos, cell int, stones [config.MaxBoardCells]int) int {
+	n := stones[config.MaxBoardCells-1]
 	best := 5
 	for i := 0; i < n; i++ {
-		dr := stones[i]/config.BoardStride - r
-		dc := stones[i]%config.BoardStride - c
-		if dr < 0 {
-			dr = -dr
-		}
-		if dc < 0 {
-			dc = -dc
-		}
-		if dr < dc {
-			dr = dc
-		}
-		if dr < best {
-			best = dr
+		if d := p.g.Distance(cell, stones[i]); d < best {
+			best = d
 		}
 	}
 	return best
@@ -122,20 +112,20 @@ func oracleForced(p opos, attacker, side rules.Color, depth int, pv []rules.Move
 		lim.capped = true
 		return false, false
 	}
-	hint := rules.Move(config.BoardCells)
+	hint := rules.Move(p.g.Cells)
 	if ply < len(pv) {
 		hint = pv[ply]
 	}
-	var ring1, mid, far [config.BoardCells]rules.Cell
+	var ring1, mid, far [config.MaxBoardCells]rules.Cell
 	var n1, nmid, nfar int
 	moverStones := stoneList(&p, side)
 	otherStones := stoneList(&p, side.Opponent())
-	for cell := range config.BoardCells {
+	for cell := range p.g.Cells {
 		if p.occ[cell] || !p.region[cell] {
 			continue
 		}
 		c := rules.Cell(cell)
-		switch ringOf(cell, moverStones) {
+		switch ringOf(&p, cell, moverStones) {
 		case 1:
 			ring1[n1] = c
 			n1++
@@ -151,11 +141,11 @@ func oracleForced(p opos, attacker, side rules.Color, depth int, pv []rules.Move
 		return false, true
 	}
 	undecided := false
-	tryIdx := rules.Cell(config.BoardCells)
-	if hint < rules.Move(config.BoardCells) {
+	tryIdx := rules.Cell(p.g.Cells)
+	if hint < rules.Move(p.g.Cells) {
 		tryIdx = rules.Cell(hint)
-		if tryIdx >= rules.Cell(config.BoardCells) || p.occ[int(tryIdx)] || !p.region[int(tryIdx)] {
-			tryIdx = rules.Cell(config.BoardCells)
+		if tryIdx >= rules.Cell(p.g.Cells) || p.occ[int(tryIdx)] || !p.region[int(tryIdx)] {
+			tryIdx = rules.Cell(p.g.Cells)
 		}
 	}
 	try := func(cell rules.Cell) (bool, bool) {
@@ -175,7 +165,7 @@ func oracleForced(p opos, attacker, side rules.Color, depth int, pv []rules.Move
 		return oracleForced(child, attacker, side.Opponent(), depth-1, pv, ply+1, lim)
 	}
 	if depth == 1 {
-		if tryIdx != rules.Cell(config.BoardCells) {
+		if tryIdx != rules.Cell(p.g.Cells) {
 			if f, d := try(tryIdx); f && d {
 				if side == attacker {
 					return true, true
@@ -198,7 +188,7 @@ func oracleForced(p opos, attacker, side rules.Color, depth int, pv []rules.Move
 	}
 	if side == attacker {
 		tryHint := func() (bool, bool) {
-			if tryIdx == rules.Cell(config.BoardCells) {
+			if tryIdx == rules.Cell(p.g.Cells) {
 				return false, false
 			}
 			f, d := try(tryIdx)
@@ -265,7 +255,7 @@ func oracleForced(p opos, attacker, side rules.Color, depth int, pv []rules.Move
 	if !refuted {
 		skippedInert := false
 		for i := 0; i < nfar; i++ {
-			if ringOf(int(far[i]), otherStones) <= 4 {
+			if ringOf(&p, int(far[i]), otherStones) <= 4 {
 				f, d := try(far[i])
 				if !f && d {
 					refuted = true
@@ -300,6 +290,7 @@ func buildOracleAt(t *testing.T, cross bool, ar, ac int, side rules.Color, spec 
 	t.Helper()
 	b := buildAt(t, cross, ar, ac, side, spec)
 	var p opos
+	p.g = testGeom
 	if cross {
 		p.nb = *rules.NewNaiveCrossCheck()
 	} else {
@@ -391,6 +382,7 @@ func genRandom(seedA, seedB uint64, cross bool) (*rules.Board, opos, bool) {
 	want := 4 + rng.IntN(7)
 	var b *rules.Board
 	var p opos
+	p.g = testGeom
 	if cross {
 		b = rules.NewCrossCheck()
 		p.nb = *rules.NewNaiveCrossCheck()
