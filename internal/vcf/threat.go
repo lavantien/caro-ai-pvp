@@ -4,30 +4,19 @@ import (
 	"math/bits"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/pattern"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
 const wordBits = 64
 
-// windowHalf is the center offset inside a packed window; windowCenterShift
-// is its bit offset in the packed index. A candidate square always sits at
-// the window center, per the taxonomy's center-bit contract.
 const (
 	windowHalf        = (config.PatternWindowLen - 1) / 2
 	windowCenterShift = config.PatternCellBits * windowHalf
 )
 
-type bb [config.BoardWordsPerColor]uint64
-
-var fileMaskFirst, fileMaskLast uint64
-
-func init() {
-	for row := range config.BoardWordsPerColor {
-		fileMaskFirst |= 1 << (row * config.BoardStride)
-		fileMaskLast |= 1 << (row*config.BoardStride + config.BoardStride - 1)
-	}
-}
+type bb [config.MaxBoardWordsPerColor]uint64
 
 func stones(b *rules.Board, mover rules.Color) bb {
 	if mover == rules.Red {
@@ -36,114 +25,139 @@ func stones(b *rules.Board, mover rules.Color) bb {
 	return bb(b.Blue)
 }
 
-func cellOf(r, c int) rules.Cell { return rules.Cell(r*config.BoardStride + c) }
+func cellOf(r, c int, g *geom.Geometry) rules.Cell { return rules.Cell(r*g.Stride + c) }
 
-// fwdClear is the file mask of wrapped bits after shifting one cell along a
-// direction with column delta dc.
-func fwdClear(dc int) uint64 {
-	switch dc {
-	case 1:
-		return fileMaskFirst
-	case -1:
-		return fileMaskLast
-	}
-	return 0
-}
-
-// shiftLine steps a bitboard one cell along a direction, forward or
-// backward, with cross-word carries and file clears so lines never wrap
-// into neighbor columns.
-func shiftLine(s bb, dir int, forward bool) bb {
-	dr, dc := config.PatternDirs[dir][0], config.PatternDirs[dir][1]
-	step := dr*config.BoardStride + dc
-	clear := fwdClear(dc)
-	if !forward {
-		step, clear = -step, fwdClear(-dc)
-	}
+func shiftLine(s bb, d *geom.Dir, g *geom.Geometry, forward bool) bb {
+	words := g.Words
 	var r bb
-	if step >= 0 {
-		us := uint(step)
-		for w := config.BoardWordsPerColor - 1; w >= 0; w-- {
-			r[w] = s[w] << us
+	if forward {
+		for w := words - 1; w >= 0; w-- {
+			r[w] = s[w] << d.Step
 			if w > 0 {
-				r[w] |= s[w-1] >> (wordBits - us)
+				r[w] |= s[w-1] >> (wordBits - d.Step)
 			}
-			r[w] &^= clear
+			r[w] &^= d.FwdClr[w]
 		}
 		return r
 	}
-	us := uint(-step)
-	for w := range config.BoardWordsPerColor {
-		r[w] = s[w] >> us
-		if w < config.BoardWordsPerColor-1 {
-			r[w] |= s[w+1] << (wordBits - us)
+	for w := range words {
+		r[w] = s[w] >> d.Step
+		if w < words-1 {
+			r[w] |= s[w+1] << (wordBits - d.Step)
 		}
-		r[w] &^= clear
+		r[w] &^= d.BwdClr[w]
 	}
 	return r
 }
 
-func orBB(a, b bb) bb {
-	for w := range a {
+func shiftDeltaVCF(s bb, dr, dc int, g *geom.Geometry) bb {
+	delta := dr*g.Stride + dc
+	var clear *[config.MaxBoardWordsPerColor]uint64
+	if dc > 0 {
+		clear = &g.Dirs[0].FwdClr
+	} else if dc < 0 {
+		clear = &g.Dirs[0].BwdClr
+	}
+	var r bb
+	if delta >= 0 {
+		us := uint(delta)
+		for w := g.Words - 1; w >= 0; w-- {
+			r[w] = s[w] << us
+			if w > 0 {
+				r[w] |= s[w-1] >> (wordBits - us)
+			}
+			if clear != nil {
+				r[w] &^= clear[w]
+			}
+		}
+		return r
+	}
+	us := uint(-delta)
+	for w := range g.Words {
+		r[w] = s[w] >> us
+		if w < g.Words-1 {
+			r[w] |= s[w+1] << (wordBits - us)
+		}
+		if clear != nil {
+			r[w] &^= clear[w]
+		}
+	}
+	return r
+}
+
+func orBB(a, b bb, words int) bb {
+	for w := range words {
 		a[w] |= b[w]
 	}
 	return a
 }
 
-// dirReach returns, per direction, the cells holding at least one own stone
-// within the window line through them: a one-bit pre-filter before the full
-// window lookup, since every threat class needs own stones in the window.
 func dirReach(b *rules.Board, mover rules.Color) [config.PatternDirections]bb {
 	var out [config.PatternDirections]bb
-	for d := range config.PatternDirs {
+	g := b.Geom
+	for d := range g.Dirs {
 		up, down := stones(b, mover), stones(b, mover)
 		m := up
 		for range windowHalf {
-			up = shiftLine(up, d, true)
-			down = shiftLine(down, d, false)
-			m = orBB(m, orBB(up, down))
+			up = shiftLine(up, &g.Dirs[d], g, true)
+			down = shiftLine(down, &g.Dirs[d], g, false)
+			m = orBB(m, orBB(up, down, g.Words), g.Words)
 		}
 		out[d] = m
 	}
 	return out
 }
 
-// dilate grows a stone set by radius Chebyshev rings; Chebyshev dilation
-// composes, so radius r is r single steps.
-func dilate(s bb, radius int) bb {
+func dilate(s bb, radius int, g *geom.Geometry) bb {
 	for range radius {
-		var vert, out bb
-		for w := range s {
-			up := s[w] >> config.BoardStride
-			if w+1 < len(s) {
-				up |= s[w+1] << (wordBits - config.BoardStride)
-			}
-			down := s[w] << config.BoardStride
-			if w > 0 {
-				down |= s[w-1] >> (wordBits - config.BoardStride)
-			}
-			vert[w] = up | down
-			out[w] = s[w] | vert[w] | (s[w]>>1)&^fileMaskLast | (s[w]<<1)&^fileMaskFirst |
-				(vert[w]>>1)&^fileMaskLast | (vert[w]<<1)&^fileMaskFirst
-		}
-		s = out
+		s = dilate1(s, g)
 	}
 	return s
 }
 
-// threatRank classifies placing the mover's stone at cell: the best class,
-// over the four directions, of the post-placement window centered on the
-// cell. Window classes are over-approximations of the real board; the
-// search verifies everything that matters through rules.FastLastMoveWin.
+func dilate1(s bb, g *geom.Geometry) bb {
+	if g.Kind != geom.KindSquare {
+		return dilateNeighbors(s, g)
+	}
+	words := g.Words
+	horiz := &g.Dirs[0]
+	var vert, out bb
+	for w := range words {
+		up := s[w] >> uint(g.Stride)
+		if w+1 < words {
+			up |= s[w+1] << (wordBits - uint(g.Stride))
+		}
+		down := s[w] << uint(g.Stride)
+		if w > 0 {
+			down |= s[w-1] >> (wordBits - uint(g.Stride))
+		}
+		vert[w] = up | down
+		out[w] = s[w] | vert[w] | (s[w]>>1)&^horiz.BwdClr[w] | (s[w]<<1)&^horiz.FwdClr[w] |
+			(vert[w]>>1)&^horiz.BwdClr[w] | (vert[w]<<1)&^horiz.FwdClr[w]
+	}
+	return out
+}
+
+func dilateNeighbors(s bb, g *geom.Geometry) bb {
+	out := s
+	for _, n := range g.Neighbors {
+		m := shiftDeltaVCF(s, n[0], n[1], g)
+		for w := range g.Words {
+			out[w] |= m[w]
+		}
+	}
+	return out
+}
+
 func threatRank(b *rules.Board, cell rules.Cell, mover rules.Color, reach *[config.PatternDirections]bb) uint8 {
 	best := config.PatternClassNone
-	for d := range config.PatternDirs {
-		w, m := int(cell)/wordBits, uint64(1)<<(uint(cell)%wordBits)
+	w, m := int(cell)/wordBits, uint64(1)<<(uint(cell)%wordBits)
+	for d := range b.Geom.Dirs {
 		if reach[d][w]&m == 0 {
 			continue
 		}
 		idx := pattern.Index(b, cell, d, mover)
-		cls := pattern.Lookup(d, idx|uint32(config.PatternStateOwn)<<windowCenterShift).Class
+		cls := pattern.Lookup(idx | uint32(config.PatternStateOwn)<<windowCenterShift).Class
 		if cls > best {
 			best = cls
 		}
@@ -151,20 +165,16 @@ func threatRank(b *rules.Board, cell rules.Cell, mover rules.Color, reach *[conf
 	return best
 }
 
-// threatScore packs a threat move ordering key: class rank in the high
-// bits, then the number of directions reaching the floor, so double
-// threats through one square come before single line threats of the same
-// class.
 func (s *Solver) threatScore(b *rules.Board, cell rules.Cell, mover rules.Color, reach *[config.PatternDirections]bb) uint8 {
 	floor := s.kindFloor()
 	rank, dirs := config.PatternClassNone, 0
-	for d := range config.PatternDirs {
-		w, m := int(cell)/wordBits, uint64(1)<<(uint(cell)%wordBits)
+	w, m := int(cell)/wordBits, uint64(1)<<(uint(cell)%wordBits)
+	for d := range b.Geom.Dirs {
 		if reach[d][w]&m == 0 {
 			continue
 		}
 		idx := pattern.Index(b, cell, d, mover)
-		cls := pattern.Lookup(d, idx|uint32(config.PatternStateOwn)<<windowCenterShift).Class
+		cls := pattern.Lookup(idx | uint32(config.PatternStateOwn)<<windowCenterShift).Class
 		if cls > rank {
 			rank = cls
 		}
@@ -175,16 +185,14 @@ func (s *Solver) threatScore(b *rules.Board, cell rules.Cell, mover rules.Color,
 	return rank<<2 | uint8(min(dirs, 3))
 }
 
-// probeWins finds every empty in-region cell where mover placing a stone
-// wins right now, each verified on the real board at move time. out stores
-// up to its length cells, the count is real either way.
 func (s *Solver) probeWins(b *rules.Board, mover rules.Color, out []rules.Cell) (int, rules.Cell) {
 	n := 0
 	var first rules.Cell
-	cands := dilate(stones(b, mover), config.SolverCandidateRadius)
+	g := b.Geom
+	cands := dilate(stones(b, mover), config.SolverCandidateRadius, g)
 	cur := b.Side
 	b.Side = mover
-	for w := range cands {
+	for w := range g.Words {
 		free := cands[w] & b.Region[w] &^ b.Full[w]
 		for free != 0 {
 			bit := free & (^free + 1)
@@ -208,54 +216,45 @@ func (s *Solver) probeWins(b *rules.Board, mover rules.Color, out []rules.Cell) 
 	return n, first
 }
 
-// cellAt reports a stone of the color at row, col; off-board never matches.
 func cellAt(b *rules.Board, r, c int, color rules.Color) bool {
-	if r < 0 || r >= config.BoardSize || c < 0 || c >= config.BoardSize {
+	g := b.Geom
+	if r < 0 || r >= g.Rows || c < 0 || c >= g.Cols {
 		return false
 	}
 	s := &b.Red
 	if color == rules.Blue {
 		s = &b.Blue
 	}
-	cell := r*config.BoardStride + c
+	cell := r*g.Stride + c
 	return s[cell/wordBits]&(1<<(uint(cell)%wordBits)) != 0
 }
 
-// playable reports an empty in-region cell.
 func playable(b *rules.Board, r, c int) bool {
-	if r < 0 || r >= config.BoardSize || c < 0 || c >= config.BoardSize {
+	g := b.Geom
+	if r < 0 || r >= g.Rows || c < 0 || c >= g.Cols {
 		return false
 	}
-	cell := r*config.BoardStride + c
+	cell := r*g.Stride + c
 	w, m := cell/wordBits, uint64(1)<<(uint(cell)%wordBits)
 	return b.Region[w]&m != 0 && b.Full[w]&m == 0
 }
 
-// windowCell maps window position i of the line through cell to a board
-// cell. Callers only ask for positions the window held Empty.
-func windowCell(cell rules.Cell, dir, i int) rules.Cell {
+func windowCell(cell rules.Cell, g *geom.Geometry, dir, i int) rules.Cell {
 	k := i - windowHalf
-	dr, dc := config.PatternDirs[dir][0], config.PatternDirs[dir][1]
-	r := int(cell)/config.BoardStride + k*dr
-	c := int(cell)%config.BoardStride + k*dc
-	return cellOf(r, c)
+	dr, dc := g.Dirs[dir].Dr, g.Dirs[dir].Dc
+	r := int(cell)/g.Stride + k*dr
+	c := int(cell)%g.Stride + k*dc
+	return cellOf(r, c, g)
 }
 
-// fiveFrame holds the two neighbor cells one step past an exact five run:
-// before (br,bc) behind the run, after (fr,fc) past its front.
 type fiveFrame struct{ br, bc, fr, fc int }
 
-// fiveFrames reports every direction whose maximal contiguous run of color
-// stones through the empty cell is exactly WinLength, at most one frame per
-// direction, writing into out and returning the real count. A frame with
-// both neighbors holding the opponent's stones is dead and never a win
-// witness, so callers reading far ends only ever see frames whose one
-// defender end leaves the other end playable.
 func fiveFrames(b *rules.Board, color rules.Color, cell rules.Cell, out []fiveFrame) int {
-	r, c := int(cell)/config.BoardStride, int(cell)%config.BoardStride
+	g := b.Geom
+	r, c := int(cell)/g.Stride, int(cell)%g.Stride
 	n := 0
-	for d := range config.PatternDirs {
-		dr, dc := config.PatternDirs[d][0], config.PatternDirs[d][1]
+	for d := range g.Dirs {
+		dr, dc := g.Dirs[d].Dr, g.Dirs[d].Dc
 		back := 0
 		xr, xc := r-dr, c-dc
 		for back < config.WinLength && cellAt(b, xr, xc, color) {
@@ -280,18 +279,10 @@ func fiveFrames(b *rules.Board, color rules.Color, cell rules.Cell, out []fiveFr
 	return n
 }
 
-// defusing fills the defender's exact defusing set for the attacker win
-// cells s.winA[:nA]: each win cell itself, plus the opposite end of every
-// winning line whose one end already holds a defender stone. One win cell
-// can complete exact fives in several directions at once, so every frame
-// through it contributes; dead frames (both ends defender stones) pass
-// neither playability test and add nothing. Under the exact-5 both-ends
-// rule that far end closes the five, a defense gomoku does not have. Every
-// other defender move is dominated: it cannot five (W_D was empty) and
-// cannot defuse, so the attacker completes at a live win cell.
 func (s *Solver) defusing(b *rules.Board, attacker rules.Color, nA, ply int) int {
 	defender := attacker.Opponent()
 	n := 0
+	g := b.Geom
 	var frames [config.PatternDirections]fiveFrame
 	for i := 0; i < nA; i++ {
 		w := s.winA[i]
@@ -299,17 +290,16 @@ func (s *Solver) defusing(b *rules.Board, attacker rules.Color, nA, ply int) int
 		for j, nf := 0, fiveFrames(b, attacker, w, frames[:]); j < nf; j++ {
 			f := frames[j]
 			if cellAt(b, f.br, f.bc, defender) && playable(b, f.fr, f.fc) {
-				n = addCell(s.defends[ply][:], n, cellOf(f.fr, f.fc))
+				n = addCell(s.defends[ply][:], n, cellOf(f.fr, f.fc, g))
 			}
 			if cellAt(b, f.fr, f.fc, defender) && playable(b, f.br, f.bc) {
-				n = addCell(s.defends[ply][:], n, cellOf(f.br, f.bc))
+				n = addCell(s.defends[ply][:], n, cellOf(f.br, f.bc, g))
 			}
 		}
 	}
 	return n
 }
 
-// addCell appends a cell to the reply buffer unless already present.
 func addCell(buf []rules.Cell, n int, c rules.Cell) int {
 	for i := 0; i < n; i++ {
 		if buf[i] == c {
@@ -320,13 +310,11 @@ func addCell(buf []rules.Cell, n int, c rules.Cell) int {
 	return n + 1
 }
 
-// realThree gates a screened three-move before the defender is treated as
-// forced: some in-window conversion must yield a win cell that verifies on
-// the real board, else the window threat is phantom and the line fails.
 func realThree(b *rules.Board, attacker rules.Color, last rules.Cell) bool {
-	for d := range config.PatternDirs {
+	g := b.Geom
+	for d := range g.Dirs {
 		idx := pattern.Index(b, last, d, attacker)
-		switch pattern.Lookup(d, idx).Class {
+		switch pattern.Lookup(idx).Class {
 		case config.PatternClassThree, config.PatternClassBrokenThree:
 		default:
 			continue
@@ -336,16 +324,16 @@ func realThree(b *rules.Board, attacker rules.Color, last rules.Cell) bool {
 			if st != config.PatternStateEmpty {
 				continue
 			}
-			child := pattern.Lookup(d, idx|uint32(config.PatternStateOwn)<<(uint(i)*config.PatternCellBits)).Win1
+			child := pattern.Lookup(idx | uint32(config.PatternStateOwn)<<(uint(i)*config.PatternCellBits)).Win1
 			if child == 0 {
 				continue
 			}
-			a := windowCell(last, d, i)
+			a := windowCell(last, g, d, i)
 			for j := range config.PatternWindowLen {
 				if child&(uint16(1)<<uint(j)) == 0 {
 					continue
 				}
-				v := windowCell(last, d, j)
+				v := windowCell(last, g, d, j)
 				cur := b.Side
 				b.Side = attacker
 				b.Make(a)

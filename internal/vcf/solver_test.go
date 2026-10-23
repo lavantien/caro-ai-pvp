@@ -4,8 +4,11 @@ import (
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
+
+var testGeom = geom.Default()
 
 type placed struct {
 	dr, dc int
@@ -14,9 +17,6 @@ type placed struct {
 
 func o(dr, dc int) placed { return placed{dr, dc, true} }
 func x(dr, dc int) placed { return placed{dr, dc, false} }
-
-// Construction specs are relative to an anchor so the same shape runs on
-// the full board and inside the 8x8 cross-check region.
 
 var (
 	specWinIn1    = []placed{o(0, 1), o(0, 2), o(0, 3), o(0, 4)}
@@ -75,15 +75,12 @@ func buildAt(t testing.TB, cross bool, ar, ac int, side rules.Color, spec []plac
 		if !p.red {
 			b.Side = rules.Blue
 		}
-		b.Make(cellOf(ar+p.dr, ac+p.dc))
+		b.Make(cellOf(ar+p.dr, ac+p.dc, testGeom))
 	}
 	b.Side = side
 	return b
 }
 
-// verifyForcedPV replays a claimed line on a fresh copy of the board: every
-// entry legal, no intermediate win, the final attacker placement a verified
-// win through rules.FastLastMoveWin.
 func verifyForcedPV(t testing.TB, b *rules.Board, stats SolverStats) {
 	t.Helper()
 	if !stats.Found || stats.Plies%2 == 0 || stats.Plies == 0 {
@@ -152,8 +149,8 @@ func TestWinInOne(t *testing.T) {
 		ar, ac   int
 		expected rules.Cell
 	}{
-		{false, 8, 4, cellOf(8, 4)},
-		{true, 1, 1, cellOf(1, 1)},
+		{false, 8, 4, cellOf(8, 4, testGeom)},
+		{true, 1, 1, cellOf(1, 1, testGeom)},
 	} {
 		b := buildAt(t, tc.cross, tc.ar, tc.ac, rules.Red, specWinIn1)
 		stats := mustFound(t, b, KindVCF, config.SolverNodeBudget)
@@ -235,7 +232,7 @@ func TestCrossThreeFour(t *testing.T) {
 func TestOverlineDecline(t *testing.T) {
 	b := buildAt(t, false, 8, 4, rules.Red, specOverlineDecline)
 	stats := mustFound(t, b, KindVCF, config.SolverNodeBudget)
-	if stats.Plies != 1 || stats.PV[0] != rules.Move(cellOf(8, 4)) {
+	if stats.Plies != 1 || stats.PV[0] != rules.Move(cellOf(8, 4, testGeom)) {
 		t.Fatalf("overline decline: plies=%d pv0=%d want the near win cell", stats.Plies, stats.PV[0])
 	}
 	mustNotFound(t, buildAt(t, false, 8, 5, rules.Red, specOverlineTrap), KindVCF, config.SolverNodeBudget)
@@ -411,8 +408,6 @@ func TestBlueAttacker(t *testing.T) {
 }
 
 func TestFullBoardIsFail(t *testing.T) {
-	// Checkerboard fill: no two same color stones adjacent, so no five and
-	// no threat anywhere; the board is full.
 	b := rules.NewCrossCheck()
 	for r := range config.CrossCheckSize {
 		for c := range config.CrossCheckSize {
@@ -421,7 +416,7 @@ func TestFullBoardIsFail(t *testing.T) {
 				color = rules.Blue
 			}
 			b.Side = color
-			b.Make(cellOf(r, c))
+			b.Make(cellOf(r, c, testGeom))
 		}
 	}
 	b.Side = rules.Red
@@ -444,9 +439,9 @@ func TestPhantomFourFailsVCF(t *testing.T) {
 func TestAppendPVSeparatesEntries(t *testing.T) {
 	var stats SolverStats
 	stats.Plies = 3
-	stats.PV[0] = rules.Move(cellOf(8, 5))
-	stats.PV[1] = rules.Move(cellOf(8, 9))
-	stats.PV[2] = rules.Move(cellOf(8, 4))
+	stats.PV[0] = rules.Move(cellOf(8, 5, testGeom))
+	stats.PV[1] = rules.Move(cellOf(8, 9, testGeom))
+	stats.PV[2] = rules.Move(cellOf(8, 4, testGeom))
 	var buf [24]byte
 	got := string(stats.AppendPV(buf[:0]))
 	if got != "F9 J9 E9" {
@@ -471,9 +466,6 @@ func TestDeadlineMidSearchPoll(t *testing.T) {
 }
 
 func TestDefendDefenderWinsInOne(t *testing.T) {
-	// White box: the attacker's threat moves and forced blocks always
-	// remove the defender's win cells before defend runs, so reach the
-	// guard directly with a board where the defender has a live four.
 	b := buildAt(t, false, 8, 4, rules.Red, []placed{
 		x(2, 1), x(2, 2), x(2, 3), x(2, 4),
 		o(2, 0),
@@ -482,22 +474,20 @@ func TestDefendDefenderWinsInOne(t *testing.T) {
 	s := New(KindVCF)
 	s.nodes, s.budget, s.check, s.aborted = 0, config.SolverNodeBudget, config.SolverNodeCheckInterval, false
 	s.plyCap = config.SolverMaxPly
-	if r := s.defend(b, cellOf(10, 5), 1); r != resFail {
+	if r := s.defend(b, cellOf(10, 5, testGeom), 1); r != resFail {
 		t.Fatalf("defend with defender win in 1: result %d want %d", r, resFail)
 	}
 }
 
 func TestDefusingSkipsNonWinCells(t *testing.T) {
-	// White box: defusing trusts its win cell list, fiveFrames reports no
-	// exact five for a plain stone, and the loop adds the cell alone.
 	b := buildAt(t, false, 8, 4, rules.Red, specQuiet)
 	s := New(KindVCF)
-	s.winA[0] = cellOf(8, 4)
+	s.winA[0] = cellOf(8, 4, testGeom)
 	if n := s.defusing(b, rules.Red, 1, 0); n != 1 {
 		t.Fatalf("defusing: n=%d want the win cell alone", n)
 	}
 	var frames [config.PatternDirections]fiveFrame
-	if n := fiveFrames(b, rules.Red, cellOf(8, 4), frames[:]); n != 0 {
+	if n := fiveFrames(b, rules.Red, cellOf(8, 4, testGeom), frames[:]); n != 0 {
 		t.Fatalf("fiveFrames: quiet stone reported %d fives", n)
 	}
 }

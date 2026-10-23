@@ -8,8 +8,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// attack is the OR node: the attacker to move. Its value is a pure function
-// of board and side, so completely evaluated results are memoized.
 func (s *Solver) attack(b *rules.Board, ply int) result {
 	if ply >= s.plyCap || !s.ok() {
 		return resAbort
@@ -40,15 +38,7 @@ func (s *Solver) attack(b *rules.Board, ply int) result {
 	return s.threatLine(b, attacker, ply)
 }
 
-// forcedBlock handles the single defender win cell: the attacker must
-// occupy it, or close its far end when one end of the defender's five
-// already holds an attacker stone, with a threat move of the solver's
-// kind, else the defender fives first.
 func (s *Solver) forcedBlock(b *rules.Board, attacker rules.Color, u rules.Cell, ply int) result {
-	// The forced square itself, plus the far end of every live defender
-	// frame through it whose other end already holds an attacker stone.
-	// One win cell can complete fives in several directions, so every
-	// frame's far end is a try, deduped by addCell.
 	var cands [1 + config.PatternDirections]rules.Cell
 	cands[0] = u
 	n := 1
@@ -58,9 +48,9 @@ func (s *Solver) forcedBlock(b *rules.Board, attacker rules.Color, u rules.Cell,
 		f := frames[j]
 		switch {
 		case cellAt(b, f.br, f.bc, attacker) && playable(b, f.fr, f.fc):
-			n = addCell(cands[:], n, cellOf(f.fr, f.fc))
+			n = addCell(cands[:], n, cellOf(f.fr, f.fc, b.Geom))
 		case cellAt(b, f.fr, f.fc, attacker) && playable(b, f.br, f.bc):
-			n = addCell(cands[:], n, cellOf(f.br, f.bc))
+			n = addCell(cands[:], n, cellOf(f.br, f.bc, b.Geom))
 		}
 	}
 	reach := dirReach(b, attacker)
@@ -86,9 +76,6 @@ func (s *Solver) forcedBlock(b *rules.Board, attacker rules.Color, u rules.Cell,
 	return overall
 }
 
-// threatLine tries every screened threat move in class rank order, so open
-// four conversions go before simple fours and threes. A depth-aborted move
-// does not stop the OR: a later move's complete proof is a valid win.
 func (s *Solver) threatLine(b *rules.Board, attacker rules.Color, ply int) result {
 	n := s.threatMoves(b, attacker, ply)
 	overall := resFail
@@ -111,11 +98,6 @@ func (s *Solver) threatLine(b *rules.Board, attacker rules.Color, ply int) resul
 	return overall
 }
 
-// defend is the AND node: the defender to move right after the attacker's
-// threat move last. Defender model, see vcf.md: with live attacker win
-// cells the replies are the exact defusing set; after a gated three they
-// are the threat window cells plus every counter-four; a defender win in 1
-// fails the line outright.
 func (s *Solver) defend(b *rules.Board, last rules.Cell, ply int) result {
 	if ply >= s.plyCap || !s.ok() {
 		return resAbort
@@ -171,15 +153,13 @@ func (s *Solver) defend(b *rules.Board, last rules.Cell, ply int) result {
 	return resWin
 }
 
-// threatMoves screens the attacker's candidate moves: every empty cell in
-// the Chebyshev SolverCandidateRadius ring of the attacker's stones whose
-// centered post-placement window reaches the kind's class floor.
 func (s *Solver) threatMoves(b *rules.Board, attacker rules.Color, ply int) int {
 	reach := dirReach(b, attacker)
 	floor := s.kindFloor()
-	cands := dilate(stones(b, attacker), config.SolverCandidateRadius)
+	g := b.Geom
+	cands := dilate(stones(b, attacker), config.SolverCandidateRadius, g)
 	n := 0
-	for w := range cands {
+	for w := range g.Words {
 		free := cands[w] & b.Region[w] &^ b.Full[w]
 		for free != 0 {
 			bit := free & (^free + 1)
@@ -195,18 +175,13 @@ func (s *Solver) threatMoves(b *rules.Board, attacker rules.Color, ply int) int 
 	return n
 }
 
-// threatReplies assembles the defender model after a gated three: every
-// defender move whose centered post-placement window reaches Four (the
-// counter-fours that force the attacker back), then every empty cell of
-// the threat windows through the last move, the blocks of the three.
-// Counter-fours come first: they are the tries most likely to refute, and
-// AND nodes exit on the first refutation.
 func (s *Solver) threatReplies(b *rules.Board, attacker rules.Color, last rules.Cell, ply int) int {
 	defender := attacker.Opponent()
 	n := 0
+	g := b.Geom
 	reach := dirReach(b, defender)
-	cands := dilate(stones(b, defender), config.SolverCandidateRadius)
-	for w := range cands {
+	cands := dilate(stones(b, defender), config.SolverCandidateRadius, g)
+	for w := range g.Words {
 		free := cands[w] & b.Region[w] &^ b.Full[w]
 		for free != 0 {
 			bit := free & (^free + 1)
@@ -217,9 +192,9 @@ func (s *Solver) threatReplies(b *rules.Board, attacker rules.Color, last rules.
 			}
 		}
 	}
-	for d := range config.PatternDirs {
+	for d := range g.Dirs {
 		idx := pattern.Index(b, last, d, attacker)
-		switch pattern.Lookup(d, idx).Class {
+		switch pattern.Lookup(idx).Class {
 		case config.PatternClassThree, config.PatternClassBrokenThree:
 		default:
 			continue
@@ -228,14 +203,12 @@ func (s *Solver) threatReplies(b *rules.Board, attacker rules.Color, last rules.
 			if st != config.PatternStateEmpty {
 				continue
 			}
-			n = addCell(s.defends[ply][:], n, windowCell(last, d, i))
+			n = addCell(s.defends[ply][:], n, windowCell(last, g, d, i))
 		}
 	}
 	return n
 }
 
-// pickBest swaps the best remaining move into position i by class rank,
-// stable on equal ranks, matching the deterministic cell order.
 func pickBest(moves []rules.Move, ranks []uint8, i, n int) {
 	best := i
 	for j := i + 1; j < n; j++ {

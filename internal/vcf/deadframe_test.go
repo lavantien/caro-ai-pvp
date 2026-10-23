@@ -28,8 +28,8 @@ func buildAbs(t *testing.T, stones []absStone, side rules.Color) (*rules.Board, 
 			color = rules.Red
 		}
 		b.Side = color
-		b.Make(cellOf(s.r, s.c))
-		p.nb.Set(cellOf(s.r, s.c), color)
+		b.Make(cellOf(s.r, s.c, testGeom))
+		p.nb.Set(cellOf(s.r, s.c, testGeom), color)
 		cell := s.r*config.BoardStride + s.c
 		p.occ[cell] = true
 		p.color[cell] = uint8(color)
@@ -41,11 +41,6 @@ func buildAbs(t *testing.T, stones []absStone, side rules.Color) (*rules.Board, 
 	return b, p
 }
 
-// deadFrameFirstCells is the adversarial counterexample root: Blue's broken
-// four (6,7),(6,9),(6,10),(6,11) forces Red to answer (6,8), whose reply
-// creates the win cell (7,8) completing two exact fives at once, the dead
-// horizontal frame with both ends Blue at (7,3) and (7,9), and the live
-// vertical frame with near end Blue at (2,8) and open far end (8,8).
 func deadFrameFirstCells() []absStone {
 	return []absStone{
 		{3, 8, true}, {4, 8, true}, {5, 8, true},
@@ -57,15 +52,11 @@ func deadFrameFirstCells() []absStone {
 	}
 }
 
-// TestFiveFramesEnumeratesEveryDirection pins the witness enumeration: the
-// win cell (7,8) after Red's forced block (6,8) completes exact fives in
-// two directions at once, the dead horizontal frame (7,3)-(7,9) and the
-// live vertical frame (2,8)-(8,8).
 func TestFiveFramesEnumeratesEveryDirection(t *testing.T) {
 	stones := append(deadFrameFirstCells(), absStone{6, 8, true})
 	b, _ := buildAbs(t, stones, rules.Blue)
 	var frames [config.PatternDirections]fiveFrame
-	n := fiveFrames(b, rules.Red, cellOf(7, 8), frames[:])
+	n := fiveFrames(b, rules.Red, cellOf(7, 8, testGeom), frames[:])
 	if n != 2 {
 		t.Fatalf("frames = %d, want the dead horizontal and the live vertical", n)
 	}
@@ -78,25 +69,21 @@ func TestFiveFramesEnumeratesEveryDirection(t *testing.T) {
 	}
 }
 
-// TestDefusingCoversLiveFrameFarEnd is the white box regression: the
-// defusing set of (7,8) must hold both the win cell and the live vertical
-// frame's far end (8,8). Sampling only the first exact-five frame returned
-// the dead horizontal one and omitted (8,8), Blue's real saving move.
 func TestDefusingCoversLiveFrameFarEnd(t *testing.T) {
 	stones := append(deadFrameFirstCells(), absStone{6, 8, true})
 	b, _ := buildAbs(t, stones, rules.Blue)
 	s := New(KindVCF)
 	nA, _ := s.probeWins(b, rules.Red, s.winA[:])
-	if nA != 1 || s.winA[0] != cellOf(7, 8) {
+	if nA != 1 || s.winA[0] != cellOf(7, 8, testGeom) {
 		t.Fatalf("setup: win cells n=%d first=%v, want exactly (7,8)", nA, s.winA[0])
 	}
 	n := s.defusing(b, rules.Red, nA, 0)
 	var hasWin, hasFar bool
 	for i := range n {
 		switch s.defends[0][i] {
-		case cellOf(7, 8):
+		case cellOf(7, 8, testGeom):
 			hasWin = true
-		case cellOf(8, 8):
+		case cellOf(8, 8, testGeom):
 			hasFar = true
 		}
 	}
@@ -105,11 +92,6 @@ func TestDefusingCoversLiveFrameFarEnd(t *testing.T) {
 	}
 }
 
-// TestThreatRepliesDenseCounterFoursHold is the adversarial panic repro:
-// 144 defender stones leave 110 counter-four cells at one defend node, past
-// the old hand-picked 96 entry buffer that used to index out of range. The
-// BoardCells-sized defends stack must hold every reply, since dropping one
-// would hide a refutation and turn limits into false wins.
 func TestThreatRepliesDenseCounterFoursHold(t *testing.T) {
 	var stones []absStone
 	for r := range config.BoardSize {
@@ -122,7 +104,7 @@ func TestThreatRepliesDenseCounterFoursHold(t *testing.T) {
 	s := New(KindVCT)
 	s.nodes, s.budget, s.check, s.aborted = 0, config.SolverNodeBudget, config.SolverNodeCheckInterval, false
 	s.plyCap = config.SolverMaxPly
-	n := s.threatReplies(b, rules.Red, cellOf(5, 0), 0)
+	n := s.threatReplies(b, rules.Red, cellOf(5, 0, testGeom), 0)
 	if n <= 96 || n > len(s.defends[0]) {
 		t.Fatalf("counter-four replies = %d, want the repro shape >96 inside the %d stack", n, len(s.defends[0]))
 	}
@@ -131,9 +113,6 @@ func TestThreatRepliesDenseCounterFoursHold(t *testing.T) {
 	s2.Solve(b, config.SolverNodeBudget, nil, &stats) // must not panic
 }
 
-// TestDeadFrameFirstIsNoForcedWin is the end to end soundness regression:
-// the full width oracle proves Blue holds within 5 plies (saving with
-// (8,8) after the forced Red (6,8)), so neither kind may claim a win.
 func TestDeadFrameFirstIsNoForcedWin(t *testing.T) {
 	b, p := buildAbs(t, deadFrameFirstCells(), rules.Red)
 	for _, kind := range []Kind{KindVCF, KindVCT} {
