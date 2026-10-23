@@ -15,11 +15,11 @@ import (
 
 func specKey(b *rules.Board) [config.BookKeyBytes]byte {
 	var k [config.BookKeyBytes]byte
-	for i, w := range b.Red {
-		binary.LittleEndian.PutUint64(k[i*8:], w)
+	for i := range config.BoardWordsPerColor {
+		binary.LittleEndian.PutUint64(k[i*8:], b.Red[i])
 	}
-	for i, w := range b.Blue {
-		binary.LittleEndian.PutUint64(k[(config.BoardWordsPerColor+i)*8:], w)
+	for i := range config.BoardWordsPerColor {
+		binary.LittleEndian.PutUint64(k[(config.BoardWordsPerColor+i)*8:], b.Blue[i])
 	}
 	return k
 }

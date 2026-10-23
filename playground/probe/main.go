@@ -1,8 +1,3 @@
-// probe replays one logged game up to a move and re-searches the position
-// under the logged budget on both the easy and hard tier engines, printing
-// the Implication 1.5 stat fields. Built for the 2026-10-04 investigation:
-// the same smoke32 series-9 position whose logged line reads d=0 n=5.7m at
-// a 1.68s grant.
 package main
 
 import (
@@ -18,7 +13,6 @@ import (
 )
 
 func main() {
-	// The smoke32 s9 game 1 move column, in order.
 	moves := []string{
 		"H8", "H6", "H5", "G7", "F8", "G8", "G9", "I7", "H10", "E7",
 		"H9", "H7", "F7", "K7", "J7", "F9", "H11", "H12", "I6", "D11",
@@ -78,5 +72,5 @@ func (p plainEngine) Search(b *rules.Board, dl engine.Deadline) (rules.Move, eng
 func (p plainEngine) Close() {}
 
 func cellName(m rules.Move) string {
-	return string(rune('A'+m%config.BoardStride)) + strconv.Itoa(int(m/config.BoardStride)+1)
+	return string(rules.AppendCellName(nil, rules.Cell(m)))
 }

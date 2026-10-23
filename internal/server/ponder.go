@@ -330,7 +330,7 @@ func searchTTMove(eng searcher, b *rules.Board) rules.Move {
 	if p, ok := eng.(ttReplySearcher); ok {
 		return p.TTMove(b)
 	}
-	return rules.Move(config.BoardCells)
+	return rules.MoveNone
 }
 
 func ttPonderPredict(eng searcher, b *rules.Board) (rules.Move, bool) {

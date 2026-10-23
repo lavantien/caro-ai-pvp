@@ -89,10 +89,10 @@ func FuzzBookLoad(f *testing.F) {
 		copy(probeKey[:], region[:config.BookKeyBytes])
 		stored := rules.Move(binary.LittleEndian.Uint16(region[config.BookKeyBytes:]))
 		oracle := rules.NewBoard()
-		for i := range oracle.Red {
+		for i := range config.BoardWordsPerColor {
 			oracle.Red[i] = binary.LittleEndian.Uint64(probeKey[i*8:])
 		}
-		for i := range oracle.Blue {
+		for i := range config.BoardWordsPerColor {
 			oracle.Blue[i] = binary.LittleEndian.Uint64(probeKey[(config.BoardWordsPerColor+i)*8:])
 		}
 		got, ok := bk.Probe(oracle)

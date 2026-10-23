@@ -317,9 +317,10 @@ func WonByTag(pre *rules.Board, winner rules.Color) string {
 	return WonByFour
 }
 func hasOpenFourWindow(pre *rules.Board, winner rules.Color) bool {
-	for cell := range config.BoardCells {
-		for dir := range config.PatternDirections {
-			e := pattern.Lookup(dir, pattern.Index(pre, rules.Cell(cell), dir, winner))
+	g := pre.Geom
+	for cell := range g.Cells {
+		for dir := range g.Dirs {
+			e := pattern.Lookup(pattern.Index(pre, rules.Cell(cell), dir, winner))
 			if e.Class == config.PatternClassOpenFour {
 				return true
 			}

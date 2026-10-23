@@ -1,10 +1,5 @@
 package server
 
-// The HTTP transport of the M6a backend over the landed domain: the auth
-// store and the room manager behind one stdlib ServeMux. Bodies are JSON,
-// errors ride the stable envelope below, acting routes require the session
-// cookie, and guests read rooms per first-cause.md Implication 1.1.
-
 import (
 	"encoding/hex"
 	"encoding/json"
@@ -18,15 +13,11 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// Transport-local knobs config does not carry yet (config gap, reported
-// with the milestone): the auth cookie key and the ceiling on one request
-// body read, so a hostile client cannot buffer unbounded memory.
 const (
 	sessionCookieName  = "caro_session"
 	httpBodyLimitBytes = 64 << 10
 )
 
-// Stable wire error codes of the {error, message} envelope.
 const (
 	codeBadCredentials  = "bad_credentials"
 	codeInvalidUsername = "invalid_username"
@@ -44,30 +35,6 @@ const (
 	codeInternal        = "internal"
 )
 
-// errorResponse maps the package sentinels onto wire code and status.
-// Classes: 401 the caller must log in, 400 the request itself is unusable,
-// 403 the caller is real but not a party to the room, 404 the target does
-// not exist, 409 the target exists but the transition is refused now, 500
-// the server failed.
-//
-//	ErrBadCredentials        bad_credentials   401  wrong password, login only
-//	missing or dead token    unauthorized      401  protected route, no live session
-//	ErrInvalidUsername       invalid_username  400
-//	ErrBadTimeControl        bad_request       400  settings the config hubs reject
-//	ErrBadSeriesLength       bad_request       400
-//	ErrSamePlayer            bad_request       400  the host joining its own room
-//	ErrBadTier               bad_request       400  nil tier on a bot-vs-bot create
-//	malformed body or cell   bad_request       400  decode and rules.ParseCell failures
-//	ErrNotParticipant        not_participant   403
-//	ErrRoomNotFound          room_not_found    404
-//	ErrRoomFull              room_full         409
-//	ErrRoomClosed            room_closed       409
-//	ErrMachineBusy           machine_busy      409  the core budget is held by live bot rooms
-//	ErrNotReady              not_ready         409
-//	ErrNotYourTurn           not_your_turn     409
-//	ErrIllegalMove           illegal_move      409
-//	ErrSeriesFinished        series_finished   409  defensive: rooms retire at finish
-//	anything else            internal          500  store and queue failures
 func errorResponse(err error) (code string, status int) {
 	switch {
 	case errors.Is(err, ErrBadCredentials):
@@ -112,8 +79,6 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 	writeJSON(w, status, apiError{Error: code, Message: message})
 }
 
-// writeDomainError renders an error through the mapping; internal failures
-// keep a generic message so nothing about the store leaks.
 func writeDomainError(w http.ResponseWriter, err error) {
 	code, status := errorResponse(err)
 	message := err.Error()
@@ -129,12 +94,10 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-// decodeJSON reads one JSON value from the request body within the limit.
 func decodeJSON(r *http.Request, dst any) error {
 	return json.NewDecoder(io.LimitReader(r.Body, httpBodyLimitBytes)).Decode(dst)
 }
 
-// userSummary is the logged-in home line: the login and /api/me body.
 type userSummary struct {
 	Username string `json:"username"`
 	Rating   int    `json:"rating"`
@@ -144,7 +107,6 @@ type userSummary struct {
 	Level    int    `json:"level"`
 }
 
-// roomSummary is one rooms-grid line.
 type roomSummary struct {
 	ID          string `json:"id"`
 	HostUserID  int64  `json:"hostUserId"`
@@ -159,42 +121,28 @@ type roomSummary struct {
 	CreatedAt   int64  `json:"createdAt"`
 }
 
-// gameSnapshot is the live-game section of the room detail: the board as
-// the ordered stone list a client replays, the side and seat to move, the
-// red seat of the rotation, and both banks in milliseconds.
 type gameSnapshot struct {
 	Moves      []string `json:"moves"`
 	Turn       string   `json:"turn"`
 	TurnUserID int64    `json:"turnUserId"`
 	RedUserID  int64    `json:"redUserId"`
 	ClockMs    [2]int64 `json:"clockMs"`
-	// Playable lists every cell the rules law allows the side to move
-	// right now, so the board can offer exactly the possible spaces
-	// instead of discovering legality by rejection. It is LegalMoves
-	// verbatim: no phase is special-cased.
-	Playable []string `json:"playable"`
+	Playable   []string `json:"playable"`
 }
 
-// roomDetail is the public room view: the grid line plus the live game.
 type roomDetail struct {
 	roomSummary
 	Game *gameSnapshot `json:"game"`
 }
 
-// apiServer carries the transport's two dependencies plus the SSE keepalive
-// cadence, a field so tests can tighten it.
 type apiServer struct {
 	store     *Store
 	rooms     *RoomManager
 	keepalive time.Duration
 }
 
-// sseKeepaliveComment is the idle frame: a comment line plus the blank
-// terminator, invisible to the SSE event stream.
 const sseKeepaliveComment = ": keepalive\n\n"
 
-// NewHTTPAPI builds the M6a JSON+SSE surface over store and rooms. The
-// default keepalive cadence is config.SSEKeepaliveMs.
 func NewHTTPAPI(store *Store, rooms *RoomManager) http.Handler {
 	a := &apiServer{store: store, rooms: rooms,
 		keepalive: time.Duration(config.SSEKeepaliveMs) * time.Millisecond}
@@ -220,7 +168,6 @@ func (a *apiServer) routes() http.Handler {
 	return mux
 }
 
-// handleJoin seats the session's user as the open room's opponent.
 func (a *apiServer) handleJoin(w http.ResponseWriter, r *http.Request, u User) {
 	room, ok := a.roomFromRequest(w, r)
 	if !ok {
@@ -233,7 +180,6 @@ func (a *apiServer) handleJoin(w http.ResponseWriter, r *http.Request, u User) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleReady marks one participant's handshake.
 func (a *apiServer) handleReady(w http.ResponseWriter, r *http.Request, u User) {
 	room, ok := a.roomFromRequest(w, r)
 	if !ok {
@@ -246,7 +192,6 @@ func (a *apiServer) handleReady(w http.ResponseWriter, r *http.Request, u User) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleMove lands one stone by coordinate name through the rules codec.
 func (a *apiServer) handleMove(w http.ResponseWriter, r *http.Request, u User) {
 	room, ok := a.roomFromRequest(w, r)
 	if !ok {
@@ -271,7 +216,6 @@ func (a *apiServer) handleMove(w http.ResponseWriter, r *http.Request, u User) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleForfeit bills a mid-series quit or retires an open room.
 func (a *apiServer) handleForfeit(w http.ResponseWriter, r *http.Request, u User) {
 	room, ok := a.roomFromRequest(w, r)
 	if !ok {
@@ -284,7 +228,6 @@ func (a *apiServer) handleForfeit(w http.ResponseWriter, r *http.Request, u User
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleListRooms answers the rooms grid; public, no session needed.
 func (a *apiServer) handleListRooms(w http.ResponseWriter, _ *http.Request) {
 	infos := a.rooms.List()
 	out := make([]roomSummary, 0, len(infos))
@@ -294,8 +237,6 @@ func (a *apiServer) handleListRooms(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleCreateRoom opens a room for the session's user under the posted
-// settings, with a config-tier bot guest when a bot name is given.
 func (a *apiServer) handleCreateRoom(w http.ResponseWriter, r *http.Request, u User) {
 	var req struct {
 		TCIdx int    `json:"tcIdx"`
@@ -327,8 +268,6 @@ func (a *apiServer) handleCreateRoom(w http.ResponseWriter, r *http.Request, u U
 	writeJSON(w, http.StatusCreated, roomSummaryOf(info))
 }
 
-// handleRoomDetail answers the public room view of {id}: grid line plus
-// the live game snapshot.
 func (a *apiServer) handleRoomDetail(w http.ResponseWriter, r *http.Request) {
 	room, ok := a.roomFromRequest(w, r)
 	if !ok {
@@ -342,25 +281,6 @@ func (a *apiServer) handleRoomDetail(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, roomDetail{roomSummary: roomSummaryOf(info), Game: room.gameSnapshot()})
 }
 
-// handleRoomEvents is the public SSE stream of one room, guests included.
-// One frame per hub event: "event: <kind>", the payload as "data:" lines,
-// a blank terminator; idle periods emit the keepalive comment frame so
-// intermediaries hold the connection. The stream ends cleanly when the
-// series finishes (the room retires right after that event), earlier when
-// the hub ends the subscription (eviction or hub close), or when the client
-// goes away. A spectator of a retired room reconnects and re-syncs from
-// GET /api/rooms, which is why an eviction needs no error frame.
-//
-// The subscription is registered before the room's liveness is checked: a
-// completion landing between the manager lookup and the register retires
-// the room after its terminal event was published, so checking first would
-// miss the event and park the stream on keepalives forever. A room already
-// over at the recheck answers the 409 envelope; one that retires later
-// without this stream seeing the terminal event (an out-of-band close, or
-// a retirement whose event predates the register) is caught by the
-// liveness probe riding the keepalive tick, which delivers whatever is
-// still buffered below the terminal frame and then ends the stream with a
-// plain EOF.
 func (a *apiServer) handleRoomEvents(w http.ResponseWriter, r *http.Request) {
 	room, ok := a.roomFromRequest(w, r)
 	if !ok {
@@ -383,8 +303,6 @@ func (a *apiServer) handleRoomEvents(w http.ResponseWriter, r *http.Request) {
 	_ = rc.Flush()
 	ticker := time.NewTicker(a.keepalive)
 	defer ticker.Stop()
-	// deliver writes one event frame and reports whether the stream is
-	// done: hub end, a client that stopped reading, or the series frame.
 	deliver := func(ev Event, open bool) bool {
 		if !open || !writeSSEFrame(w, ev) {
 			return true
@@ -406,10 +324,6 @@ func (a *apiServer) handleRoomEvents(w http.ResponseWriter, r *http.Request) {
 				_ = rc.Flush()
 				continue
 			}
-			// The room retired without a terminal frame reaching this
-			// stream. Events published before the retirement flag flipped
-			// may still sit in the buffer: deliver them (returning on the
-			// series frame), then end with the plain EOF of an eviction.
 			for {
 				select {
 				case ev, open := <-sub.Events():
@@ -426,9 +340,6 @@ func (a *apiServer) handleRoomEvents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// writeSSEFrame writes one event frame and reports whether the client is
-// still reading. Payloads are single-line today; splitting on newlines
-// keeps the frame spec-legal if that ever changes.
 func writeSSEFrame(w io.Writer, ev Event) bool {
 	var b strings.Builder
 	b.WriteString("event: ")
@@ -444,8 +355,6 @@ func writeSSEFrame(w io.Writer, ev Event) bool {
 	return err == nil
 }
 
-// roomFromRequest resolves {id} against the manager and writes the 404
-// envelope itself on a miss.
 func (a *apiServer) roomFromRequest(w http.ResponseWriter, r *http.Request) (*Room, bool) {
 	room, err := a.rooms.Get(r.PathValue("id"))
 	if err != nil {
@@ -455,7 +364,6 @@ func (a *apiServer) roomFromRequest(w http.ResponseWriter, r *http.Request) (*Ro
 	return room, true
 }
 
-// roomSummaryOf maps one manager grid line onto the wire.
 func roomSummaryOf(info RoomInfo) roomSummary {
 	return roomSummary{
 		ID: info.ID, HostUserID: info.HostUserID, GuestUserID: info.GuestUserID,
@@ -466,7 +374,6 @@ func roomSummaryOf(info RoomInfo) roomSummary {
 	}
 }
 
-// tierByName resolves a wire tier name onto the config tier table.
 func tierByName(name string) *config.Tier {
 	for i := range config.Tiers {
 		if config.Tiers[i].Name == name {
@@ -476,9 +383,6 @@ func tierByName(name string) *config.Tier {
 	return nil
 }
 
-// gameSnapshot reads the live game under the room lock. Nil means no game
-// is live: the handshake is still pending (between-terminal games never
-// happens, the completion path resets in the same critical section).
 func (r *Room) gameSnapshot() *gameSnapshot {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -498,7 +402,7 @@ func (r *Room) gameSnapshot() *gameSnapshot {
 	for _, m := range r.moves {
 		snap.Moves = append(snap.Moves, cellName(rules.Cell(m)))
 	}
-	var legal [config.BoardCells]rules.Move
+	var legal [config.MaxBoardCells]rules.Move
 	n := r.board.LegalMoves(legal[:])
 	snap.Playable = make([]string, 0, n)
 	for _, m := range legal[:n] {
@@ -507,8 +411,6 @@ func (r *Room) gameSnapshot() *gameSnapshot {
 	return snap
 }
 
-// colorName gives the wire names of the two stone colors; rules.Color is a
-// bare uint8 with no String method. Only called with a side to move.
 func colorName(c rules.Color) string {
 	if c == rules.Blue {
 		return "blue"
@@ -516,11 +418,6 @@ func colorName(c rules.Color) string {
 	return "red"
 }
 
-// handleLogin is the one-form auth of the spec: an unknown username creates
-// the account, a known one verifies. The full success response is built
-// before the session cookie is set, so a failing summary read answers the
-// 500 without leaving a live cookie aimed at a half-logged-in client (the
-// orphan session row expires on its own).
 func (a *apiServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username"`
@@ -551,8 +448,6 @@ func (a *apiServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, sum)
 }
 
-// handleLogout drops the token behind the cookie and expires the cookie.
-// Without a usable cookie it is still 204: logout races natural expiry.
 func (a *apiServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 	if token, err := sessionToken(r); err == nil {
 		if err := Logout(a.store, token); err != nil {
@@ -566,17 +461,10 @@ func (a *apiServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleMe answers the session's own summary line.
 func (a *apiServer) handleMe(w http.ResponseWriter, _ *http.Request, u User) {
 	a.writeUserSummary(w, http.StatusOK, u)
 }
 
-// handleHistory answers the session's match history, newest first, with
-// the move preview trimmed server-side and the full blob kept for the
-// playback board. A row whose moves blob does not decode (odd length or an
-// off-board cell; this server never writes one) is skipped, not fatal: one
-// hostile row must not brick the whole listing, and detecting such
-// corruption belongs to the store layer, not the history read.
 func (a *apiServer) handleHistory(w http.ResponseWriter, _ *http.Request, u User) {
 	rows, err := a.store.MatchHistory(u.ID)
 	if err != nil {
@@ -594,8 +482,6 @@ func (a *apiServer) handleHistory(w http.ResponseWriter, _ *http.Request, u User
 	writeJSON(w, http.StatusOK, out)
 }
 
-// historyEntry is one match-history line: the grid fields plus the trimmed
-// coordinate preview, the ellipsis flag, and the full moves blob.
 type historyEntry struct {
 	PlayedAt  int64    `json:"playedAt"`
 	Red       string   `json:"red"`
@@ -609,9 +495,6 @@ type historyEntry struct {
 	Moves     []byte   `json:"moves"`
 }
 
-// historyEntryOf renders one row: the first config.HistoryPreviewTurns full
-// turns of coordinate names (a full turn is red's stone plus blue's), the
-// truncation flag when more followed, and the untouched blob.
 func historyEntryOf(row MatchHistoryRow) (historyEntry, error) {
 	moves, err := DecodeMoves(row.Moves)
 	if err != nil {
@@ -631,9 +514,6 @@ func historyEntryOf(row MatchHistoryRow) (historyEntry, error) {
 	}, nil
 }
 
-// userSummaryOf reads the rating chain tail and the W-L-D plus level
-// totals of one user into the wire line, split from the write so login can
-// build the whole response before any cookie exists.
 func (a *apiServer) userSummaryOf(u User) (userSummary, error) {
 	rating, err := currentRating(a.store, u.ID)
 	if err != nil {
@@ -649,8 +529,6 @@ func (a *apiServer) userSummaryOf(u User) (userSummary, error) {
 	}, nil
 }
 
-// writeUserSummary renders the summary line, mapping read failures onto
-// the error envelope.
 func (a *apiServer) writeUserSummary(w http.ResponseWriter, status int, u User) {
 	sum, err := a.userSummaryOf(u)
 	if err != nil {
@@ -660,9 +538,6 @@ func (a *apiServer) writeUserSummary(w http.ResponseWriter, status int, u User) 
 	writeJSON(w, status, sum)
 }
 
-// requireSession is the middleware of acting routes: parse the cookie,
-// authenticate the token against the store with one clock read, hand the
-// resolved user down. Everything else gets the 401 unauthorized envelope.
 func (a *apiServer) requireSession(h func(http.ResponseWriter, *http.Request, User)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token, err := sessionToken(r)
@@ -683,7 +558,6 @@ func (a *apiServer) requireSession(h func(http.ResponseWriter, *http.Request, Us
 	}
 }
 
-// sessionToken hex-decodes the session cookie value.
 func sessionToken(r *http.Request) ([]byte, error) {
 	c, err := r.Cookie(sessionCookieName)
 	if err != nil {

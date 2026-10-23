@@ -485,16 +485,9 @@ func record(results map[string]*tally, redLabel, blueLabel, winnerSeat string, m
 }
 
 func cellNameOf(m rules.Move) string {
-	return string(appendCellName(nil, m))
+	return string(rules.AppendCellName(nil, rules.Cell(m)))
 }
 
 func appendCellName(dst []byte, m rules.Move) []byte {
-	col := int(m) % config.BoardStride
-	row := int(m) / config.BoardStride
-	dst = append(dst, byte('A'+col))
-	if row >= 10 {
-		dst = append(dst, byte('0'+row/10))
-	}
-	dst = append(dst, byte('0'+row%10))
-	return dst
+	return rules.AppendCellName(dst, rules.Cell(m))
 }

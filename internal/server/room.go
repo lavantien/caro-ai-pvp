@@ -317,7 +317,7 @@ type Room struct {
 	clock        [2]*clock.GameClock
 	turnStart    time.Time
 	engines      [2]searcher
-	legalBuf     [config.BoardCells]rules.Move
+	legalBuf     [config.MaxBoardCells]rules.Move
 	lastM        MoveStat
 	ponder       *ponderLane
 	ponderRing   [2]GrantDepthRing

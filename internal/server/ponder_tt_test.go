@@ -135,7 +135,7 @@ func TestPonderTTFallbackRefusesSentinelReply(t *testing.T) {
 	d4, h8 := ms[0], ms[1]
 	inner := &ponderBot{}
 	inner.answers = []ponderAnswer{{move: h8, pv: []rules.Move{h8}, stats: engine.SearchStats{Depth: 12, Threads: 8}}}
-	bot := &ttReplyBot{ponderBot: inner, reply: rules.Move(config.BoardCells)}
+	bot := &ttReplyBot{ponderBot: inner, reply: rules.MoveNone}
 	alice, r := ttFallbackRoom(t, bot)
 	if err := r.Ready(alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
@@ -218,15 +218,15 @@ func TestTTMoveDelegatesThroughTheSearcherStack(t *testing.T) {
 func TestSearchTTMoveMissesWithoutAProber(t *testing.T) {
 	b := rules.NewBoard()
 	b.Make(mustCellT(t, "H8"))
-	if mv := searchTTMove(&recordingInner{}, b); mv != rules.Move(config.BoardCells) {
+	if mv := searchTTMove(&recordingInner{}, b); mv != rules.MoveNone {
 		t.Fatalf("non-prober TTMove = %d, want the always-illegal sentinel", mv)
 	}
-	if mv := searchTTMove(&solverSearcher{inner: &recordingInner{}, cores: 1}, b); mv != rules.Move(config.BoardCells) {
+	if mv := searchTTMove(&solverSearcher{inner: &recordingInner{}, cores: 1}, b); mv != rules.MoveNone {
 		t.Fatalf("solver over a non-prober = %d, want the always-illegal sentinel", mv)
 	}
 	tier := tierSearcher{smp: engine.NewTiered(config.Tier{Name: "ponder-probe", Cores: 2, TTBytes: 1 << 20, PonderThreads: 2})}
 	defer tier.Close()
-	if mv := tier.TTMove(b); mv != rules.Move(config.BoardCells) {
+	if mv := tier.TTMove(b); mv != rules.MoveNone {
 		t.Fatalf("tier TTMove on an unsearched board = %d, want the miss sentinel", mv)
 	}
 }
@@ -241,7 +241,7 @@ func TestTTPonderPredictGatesOnLegality(t *testing.T) {
 	if _, ok := ttPonderPredict(occupied, b); ok {
 		t.Fatal("occupied-cell predict must refuse")
 	}
-	sentinel := &scriptedTTBot{recordingInner: &recordingInner{}, reply: rules.Move(config.BoardCells)}
+	sentinel := &scriptedTTBot{recordingInner: &recordingInner{}, reply: rules.MoveNone}
 	if _, ok := ttPonderPredict(sentinel, b); ok {
 		t.Fatal("sentinel predict must refuse")
 	}

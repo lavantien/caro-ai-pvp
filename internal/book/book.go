@@ -185,12 +185,12 @@ func (bk *Book) Probe(board *rules.Board) (rules.Move, bool) {
 		return 0, false
 	}
 	var key [config.BookKeyBytes]byte
-	for i, w := range board.Red {
-		binary.LittleEndian.PutUint64(key[i*8:], w)
+	for i := range config.BoardWordsPerColor {
+		binary.LittleEndian.PutUint64(key[i*8:], board.Red[i])
 	}
 	blueOff := config.BoardWordsPerColor * 8
-	for i, w := range board.Blue {
-		binary.LittleEndian.PutUint64(key[blueOff+i*8:], w)
+	for i := range config.BoardWordsPerColor {
+		binary.LittleEndian.PutUint64(key[blueOff+i*8:], board.Blue[i])
 	}
 	n := len(bk.entries) / config.BookEntryBytes
 	idx := sort.Search(n, func(i int) bool {
