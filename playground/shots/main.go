@@ -181,7 +181,7 @@ func main() {
 		"H8", "I6", "P1", "J6", "A1", "K6", "P16", "L6", "A16", "M6",
 	}))
 	root.Handle("/shots/finish-hex", shotsFinish(hexDone, alice.ID, bob.ID, []string{
-		"G12", "I12", "G14", "J12", "G16", "K12", "G18", "L12", "G20", "M12",
+		"G12", "I12", "G17", "J12", "G19", "K12", "G21", "L12", "G23", "M12",
 	}))
 	server.NewRoomPages(rooms, store).Mount(root)
 	server.NewTournamentPages(store, tour).Mount(root)
