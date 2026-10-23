@@ -4,8 +4,47 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
+
+func TestFeatureVectorHexOpenPair(t *testing.T) {
+	hex := mustGeom(t, "hex")
+	b := rules.NewBoardFor(hex)
+	b.Red[4] |= 1<<8 | 1<<9
+	f := featureVector(b, rules.Red)
+	for i, v := range f {
+		if i == 0 {
+			if v != 6 {
+				t.Fatalf("hex open pair at flats 264,265 scored %d, want the 6 axis-0 windows holding both inside the window", v)
+			}
+			continue
+		}
+		if v != 0 {
+			t.Fatalf("hex open pair leaked into class slot %d: %d", i+1, v)
+		}
+	}
+}
+
+func TestFeatureVectorHexLoneStoneScoresNothing(t *testing.T) {
+	hex := mustGeom(t, "hex")
+	b := rules.NewBoardFor(hex)
+	b.Red[4] |= 1 << 8
+	f := featureVector(b, rules.Red)
+	for i, v := range f {
+		if v != 0 {
+			t.Fatalf("lone hex stone scored class slot %d: %d", i+1, v)
+		}
+	}
+}
+
+func TestReconstructGameRejectsHexOffRegion(t *testing.T) {
+	hex := mustGeom(t, "hex")
+	g := parsedGame{Red: seat{Name: "r"}, Blue: seat{Name: "b"}, Outcome: outcomeDraw, Moves: []gameMove{{Color: rules.Red, Cell: rules.Cell(0)}, {Color: rules.Blue, Cell: rules.Cell(264)}}}
+	if _, err := reconstructGame(g, "s1", hex); err == nil {
+		t.Fatal("off-region hex corner cell 0 accepted")
+	}
+}
 
 func redWinsGame(t *testing.T) parsedGame {
 	t.Helper()
@@ -27,7 +66,7 @@ func redWinsGame(t *testing.T) parsedGame {
 
 func TestReconstructRedWinGame(t *testing.T) {
 	g := redWinsGame(t)
-	samples, err := reconstructGame(g, "s1")
+	samples, err := reconstructGame(g, "s1", geom.Default())
 	if err != nil {
 		t.Fatalf("reconstruct: %v", err)
 	}
@@ -88,7 +127,7 @@ func TestReconstructIntegrityRejections(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := reconstructGame(tc.game, "s1")
+			_, err := reconstructGame(tc.game, "s1", geom.Default())
 			if err == nil {
 				t.Fatal("expected an error, got nil")
 			}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 	"github.com/lavantien/caro-ai-pvp/internal/tourney"
@@ -46,7 +47,7 @@ func buildFixtureDB(t *testing.T) string {
 		{Slot: 1, Name: "master-b", Tier: "master"},
 		{Slot: 2, Name: "easy-a", Tier: "easy"},
 	}
-	run, err := ts.CreateRun(ctx, 3, config.SeriesBO3, 1500, roster, "evalfit-fixture")
+	run, err := ts.CreateRun(ctx, 3, config.SeriesBO3, 1500, roster, "evalfit-fixture", "")
 	if err != nil {
 		t.Fatalf("create run: %v", err)
 	}
@@ -97,7 +98,7 @@ func buildFixtureDB(t *testing.T) string {
 func TestLoadDBGamesFiltersTiersAndDecodesMoves(t *testing.T) {
 	path := buildFixtureDB(t)
 	masterOnly := map[string]bool{"master": true}
-	load, err := loadDBGames(path, masterOnly)
+	load, err := loadDBGames(path, masterOnly, config.BoardCells)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -125,7 +126,7 @@ func TestLoadDBGamesFiltersTiersAndDecodesMoves(t *testing.T) {
 	if games < 2 {
 		t.Fatalf("master-only games = %d, want at least the 2 of one pairing", games)
 	}
-	all, err := loadDBGames(path, nil)
+	all, err := loadDBGames(path, nil, config.BoardCells)
 	if err != nil {
 		t.Fatalf("load unfiltered: %v", err)
 	}
@@ -140,7 +141,7 @@ func TestLoadDBGamesFiltersTiersAndDecodesMoves(t *testing.T) {
 
 func TestLoadDBGamesSeriesKeysAreStable(t *testing.T) {
 	path := buildFixtureDB(t)
-	load, err := loadDBGames(path, nil)
+	load, err := loadDBGames(path, nil, config.BoardCells)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -155,18 +156,37 @@ func TestLoadDBGamesSeriesKeysAreStable(t *testing.T) {
 }
 
 func TestDecodeMovesRejectsCorruptBlobs(t *testing.T) {
-	if _, err := decodeMoves([]byte{1, 2, 3}, 7); err == nil {
+	if _, err := decodeMoves([]byte{1, 2, 3}, 7, config.BoardCells); err == nil {
 		t.Fatal("odd-length blob accepted")
 	}
-	if _, err := decodeMoves([]byte{0x00, 0x01}, 7); err == nil {
+	if _, err := decodeMoves([]byte{0x00, 0x01}, 7, config.BoardCells); err == nil {
 		t.Fatal("out-of-board cell accepted")
 	}
-	moves, err := decodeMoves([]byte{0x77, 0x00, 0x57, 0x00}, 7)
+	moves, err := decodeMoves([]byte{0x77, 0x00, 0x57, 0x00}, 7, config.BoardCells)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 	if len(moves) != 2 || moves[0].Cell != rules.Cell(119) || moves[1].Cell != rules.Cell(87) {
 		t.Fatalf("moves = %v, want cells 119 then 87", moves)
+	}
+}
+
+func TestDecodeMovesBoundsAtVariantCapacity(t *testing.T) {
+	hex, err := geom.ByName("hex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hex.Cells != 518 {
+		t.Fatalf("hex cells = %d, want 518", hex.Cells)
+	}
+	if _, err := decodeMoves([]byte{0x05, 0x02}, 9, hex.Cells); err != nil {
+		t.Fatalf("in-capacity hex cell 517 rejected: %v", err)
+	}
+	if _, err := decodeMoves([]byte{0x06, 0x02}, 9, hex.Cells); err == nil {
+		t.Fatal("cell 518 at the hex capacity bound accepted")
+	}
+	if _, err := decodeMoves([]byte{0x00, 0x01}, 9, config.BoardCells); err == nil {
+		t.Fatal("cell 256 outside the square capacity accepted under the square bound")
 	}
 }
 

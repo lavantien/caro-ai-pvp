@@ -11,9 +11,19 @@ import (
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
+
+func mustGeom(t *testing.T, name string) *geom.Geometry {
+	t.Helper()
+	g, err := geom.ByName(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return g
+}
 
 type stubSearcher struct {
 	next func(b *rules.Board) rules.Move
@@ -103,6 +113,9 @@ func TestParseGamesFileRoundTrip(t *testing.T) {
 	if gf.tier != "master" || gf.budgetMs != 250 || gf.jitter != 0.5 || gf.games != 3 || gf.seed != 7 {
 		t.Fatalf("header fields = tier %s budget %d jitter %v games %d seed %d", gf.tier, gf.budgetMs, gf.jitter, gf.games, gf.seed)
 	}
+	if gf.geometry != "square" {
+		t.Fatalf("legacy square header geometry = %q, want square", gf.geometry)
+	}
 	if gf.torn {
 		t.Fatal("complete file flagged torn")
 	}
@@ -114,6 +127,37 @@ func TestParseGamesFileRoundTrip(t *testing.T) {
 	}
 	if gf.blocks[0].cells[0] != int(config.BookOpeningCells[0]) {
 		t.Fatalf("first cell = %d, want opening cell %d", gf.blocks[0].cells[0], config.BookOpeningCells[0])
+	}
+}
+
+func TestGenFingerprintGeometry(t *testing.T) {
+	square := genFingerprint("master", 250, 0.5, 3, 7, "square")
+	if strings.Contains(square, "geometry") {
+		t.Fatalf("square fingerprint carries geometry: %q", square)
+	}
+	hex := genFingerprint("master", 250, 0.5, 3, 7, "hex")
+	if !strings.HasSuffix(hex, " geometry=hex") {
+		t.Fatalf("hex fingerprint lacks geometry: %q", hex)
+	}
+	dir := t.TempDir()
+	hexPath := filepath.Join(dir, "hexgames.txt")
+	writeGamesFixture(t, hexPath, hex+"\nG 0 red\nM 264\nM 265\nE 2 0\n")
+	gf, err := parseGamesFile(hexPath)
+	if err != nil {
+		t.Fatalf("parse hex file: %v", err)
+	}
+	if gf.geometry != "hex" || gf.fp != hex {
+		t.Fatalf("hex file geometry %q fp %q", gf.geometry, gf.fp)
+	}
+	o := genOpts{Path: hexPath, Tier: "master", Variant: "hex", Geom: mustGeom(t, "hex"), Budget: 250 * time.Millisecond, Jitter: 0.5, Games: 3, Seed: 7, Seats: func() ([2]server.Searcher, error) {
+		return [2]server.Searcher{winLadderSearcher(), winLadderSearcher()}, nil
+	}}
+	if err := runGenerate(o, func(int, genGame) {}); err != nil {
+		t.Fatalf("resume hex file: %v", err)
+	}
+	squareOpts := genOpts{Path: hexPath, Tier: "master", Budget: 250 * time.Millisecond, Jitter: 0.5, Games: 3, Seed: 7}
+	if err := runGenerate(squareOpts, func(int, genGame) {}); err == nil {
+		t.Fatal("square invocation resumed a hex games file")
 	}
 }
 
@@ -165,7 +209,7 @@ func TestAppendGenGameResumesFromTornTail(t *testing.T) {
 	if !gf.torn || len(gf.blocks) != 1 {
 		t.Fatalf("torn=%v blocks=%d, want torn with 1 block", gf.torn, len(gf.blocks))
 	}
-	if gf.fp != genFingerprint("master", 250, 0.5, 3, 7) {
+	if gf.fp != genFingerprint("master", 250, 0.5, 3, 7, "square") {
 		t.Fatalf("fingerprint %q", gf.fp)
 	}
 	blk := genGame{idx: 1, outcome: outcomeDraw, cells: []int{119, 118}}
@@ -225,14 +269,14 @@ func TestRunGenerateRewritesBlocklessHeader(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parse: %v", err)
 		}
-		if len(gf.blocks) != 1 || gf.fp != genFingerprint("master", 1, 0, 1, 7) {
+		if len(gf.blocks) != 1 || gf.fp != genFingerprint("master", 1, 0, 1, 7, "square") {
 			t.Fatalf("blocks=%d fp=%q, want the rewritten fingerprint and 1 block", len(gf.blocks), gf.fp)
 		}
 	})
 	t.Run("corrupt content after a valid header still errors", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "games.txt")
 		o := genOpts{Path: path, Tier: "master", Budget: time.Millisecond, Jitter: 0, Games: 1, Seed: 7, Seats: stub}
-		writeGamesFixture(t, path, genFingerprint("master", 1, 0, 1, 7)+"\nX junk\n")
+		writeGamesFixture(t, path, genFingerprint("master", 1, 0, 1, 7, "square")+"\nX junk\n")
 		err := runGenerate(o, func(int, genGame) {})
 		if err == nil || !strings.Contains(err.Error(), "unknown line kind") {
 			t.Fatalf("err = %v, want the corrupt-content error to stand behind a valid header", err)
@@ -276,7 +320,7 @@ func TestRunGeneratePlaysUntilTargetWithStubSeats(t *testing.T) {
 }
 
 func TestPlayGenGameRecordsMovesAndOutcome(t *testing.T) {
-	res := playGenGame([2]server.Searcher{winLadderSearcher(), winLadderSearcher()}, 0, 0, time.Millisecond, 0, 7, io.Discard)
+	res := playGenGame(geom.Default(), "square", [2]server.Searcher{winLadderSearcher(), winLadderSearcher()}, 0, 0, time.Millisecond, 0, 7, io.Discard)
 	if res.outcome != outcomeRedWin {
 		t.Fatalf("outcome = %v, want red win from the ladder", res.outcome)
 	}
@@ -296,7 +340,7 @@ func TestPlayGenGameRecordsMovesAndOutcome(t *testing.T) {
 
 func TestPlayGenGameIllegalFallbackCounts(t *testing.T) {
 	bad := stubSearcher{next: func(*rules.Board) rules.Move { return rules.Move(9999) }}
-	res := playGenGame([2]server.Searcher{bad, bad}, 0, 1, time.Millisecond, 0, 7, io.Discard)
+	res := playGenGame(geom.Default(), "square", [2]server.Searcher{bad, bad}, 0, 1, time.Millisecond, 0, 7, io.Discard)
 	if res.outcome != outcomeBlueWin {
 		t.Fatalf("outcome = %v, want blue win, the ascending fallback fill hands blue the even cells and the A1 to A5 column", res.outcome)
 	}
@@ -361,7 +405,7 @@ func TestGamesFileBlocksReconstructToSamples(t *testing.T) {
 		t.Fatalf("load: ok=%v err=%v", ok, err)
 	}
 	blk := gamesToParsed(gf)[0]
-	ss, err := reconstructGame(blk, genSeriesKey(path, 0))
+	ss, err := reconstructGame(blk, genSeriesKey(path, 0), geom.Default())
 	if err != nil {
 		t.Fatalf("reconstruct: %v", err)
 	}

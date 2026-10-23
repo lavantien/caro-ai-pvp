@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
 func TestSplitDataPathsKeepsGamesOffTheDBLoader(t *testing.T) {
@@ -16,7 +18,7 @@ func TestSplitDataPathsKeepsGamesOffTheDBLoader(t *testing.T) {
 	}
 	path := filepath.Join(t.TempDir(), "games.txt")
 	writeGamesFixture(t, path, gamesFixtureHeader)
-	if _, err := loadDBGames(path, nil); err == nil || !strings.Contains(err.Error(), "not a database") {
+	if _, err := loadDBGames(path, nil, config.BoardCells); err == nil || !strings.Contains(err.Error(), "not a database") {
 		t.Fatalf("err = %v, want the sqlite loader to refuse a games file", err)
 	}
 }

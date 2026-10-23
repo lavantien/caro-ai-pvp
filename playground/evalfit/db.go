@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	_ "modernc.org/sqlite"
 )
@@ -29,7 +28,7 @@ func readDSN(path string) string {
 	return "file:" + filepath.ToSlash(abs) + "?mode=ro"
 }
 
-func decodeMoves(blob []byte, gameID int64) ([]gameMove, error) {
+func decodeMoves(blob []byte, gameID int64, cells int) ([]gameMove, error) {
 	if len(blob)%2 != 0 {
 		return nil, fmt.Errorf("game %d moves blob holds %d bytes, not uint16 cells", gameID, len(blob))
 	}
@@ -37,8 +36,8 @@ func decodeMoves(blob []byte, gameID int64) ([]gameMove, error) {
 	color := rules.Red
 	for i := 0; i < len(blob); i += 2 {
 		cell := binary.LittleEndian.Uint16(blob[i:])
-		if int(cell) >= config.BoardCells {
-			return nil, fmt.Errorf("game %d move %d cell %d outside the %d-cell board", gameID, len(moves)+1, cell, config.BoardCells)
+		if int(cell) >= cells {
+			return nil, fmt.Errorf("game %d move %d cell %d outside the %d-cell board", gameID, len(moves)+1, cell, cells)
 		}
 		moves = append(moves, gameMove{Color: color, Cell: rules.Cell(cell)})
 		color = color.Opponent()
@@ -58,7 +57,7 @@ func outcomeOfColumn(outcome string, gameID int64) (gameOutcome, error) {
 	return 0, fmt.Errorf("game %d outcome %q is neither red, blue, nor draw", gameID, outcome)
 }
 
-func loadDBGames(path string, tiers map[string]bool) (dbLoad, error) {
+func loadDBGames(path string, tiers map[string]bool, cells int) (dbLoad, error) {
 	db, err := sql.Open("sqlite", readDSN(path))
 	if err != nil {
 		return dbLoad{}, fmt.Errorf("evalfit: open %s: %w", path, err)
@@ -92,7 +91,7 @@ func loadDBGames(path string, tiers map[string]bool) (dbLoad, error) {
 		if err != nil {
 			return dbLoad{}, fmt.Errorf("evalfit: %s: %w", path, err)
 		}
-		moves, err := decodeMoves(blob, gameID)
+		moves, err := decodeMoves(blob, gameID, cells)
 		if err != nil {
 			return dbLoad{}, fmt.Errorf("evalfit: %s: %w", path, err)
 		}

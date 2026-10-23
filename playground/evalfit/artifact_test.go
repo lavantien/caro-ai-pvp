@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -102,6 +103,71 @@ func TestArtifactRoundTrip(t *testing.T) {
 		if gotRow.N != row.N {
 			t.Fatalf("bucket %d n = %d, want %d", i, gotRow.N, row.N)
 		}
+	}
+}
+
+func TestArtifactGeometryField(t *testing.T) {
+	dir := t.TempDir()
+	hexPath := filepath.Join(dir, "hex.txt")
+	hexArt := smallArtifact()
+	hexArt.Geometry = "hex"
+	if err := writeArtifact(hexPath, hexArt); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := parseArtifact(hexPath)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got.Geometry != "hex" {
+		t.Fatalf("geometry = %q, want hex", got.Geometry)
+	}
+	body, err := os.ReadFile(hexPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "geometry hex") {
+		t.Fatalf("artifact body lacks the geometry line:\n%s", body)
+	}
+
+	squarePath := filepath.Join(dir, "square.txt")
+	squareArt := smallArtifact()
+	squareArt.Geometry = "square"
+	if err := writeArtifact(squarePath, squareArt); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err = parseArtifact(squarePath)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got.Geometry != "square" {
+		t.Fatalf("geometry = %q, want square", got.Geometry)
+	}
+
+	lines := strings.Split(string(body), "\n")
+	var kept []string
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "geometry ") {
+			kept = append(kept, line)
+		}
+	}
+	legacyPath := filepath.Join(dir, "legacy.txt")
+	if err := os.WriteFile(legacyPath, []byte(strings.Join(kept, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err = parseArtifact(legacyPath)
+	if err != nil {
+		t.Fatalf("parse legacy: %v", err)
+	}
+	if artifactGeometry(got.Geometry) != "square" {
+		t.Fatalf("legacy geometry = %q, want square default", got.Geometry)
+	}
+
+	badPath := filepath.Join(dir, "bad.txt")
+	if err := os.WriteFile(badPath, []byte("date 2026-10-19\ngeometry circle\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseArtifact(badPath); err == nil {
+		t.Fatal("unknown geometry accepted")
 	}
 }
 

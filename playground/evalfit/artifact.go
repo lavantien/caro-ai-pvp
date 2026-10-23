@@ -7,7 +7,16 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 )
+
+func artifactGeometry(name string) string {
+	if name == "" {
+		return "square"
+	}
+	return name
+}
 
 type bucketRow struct {
 	Lo, Hi    float64
@@ -18,6 +27,7 @@ type bucketRow struct {
 
 type artifactData struct {
 	Date            string
+	Geometry        string
 	Roots           []string
 	Tiers           []string
 	PerRootKept     map[string]int
@@ -50,6 +60,7 @@ func writeArtifact(path string, a artifactData) error {
 	var b strings.Builder
 	w := func(format string, args ...any) { fmt.Fprintf(&b, format+"\n", args...) }
 	w("date %s", a.Date)
+	w("geometry %s", artifactGeometry(a.Geometry))
 	for _, root := range a.Roots {
 		w("root %s", root)
 	}
@@ -140,6 +151,11 @@ func parseArtifact(path string) (artifactData, error) {
 		switch key {
 		case "date":
 			a.Date = rest
+		case "geometry":
+			if _, err := geom.ByName(rest); err != nil {
+				return artifactData{}, fail("unknown geometry %q", rest)
+			}
+			a.Geometry = rest
 		case "root":
 			a.Roots = append(a.Roots, rest)
 		case "tier":

@@ -14,6 +14,7 @@ import (
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
@@ -35,6 +36,8 @@ type genGame struct {
 type gamesFile struct {
 	fp       string
 	tier     string
+	geometry string
+	cells    int
 	budgetMs int64
 	jitter   float64
 	games    int
@@ -45,19 +48,39 @@ type gamesFile struct {
 }
 
 type genOpts struct {
-	Path   string
-	Tier   string
-	Budget time.Duration
-	Jitter float64
-	Games  int
-	Seed   int64
-	Seats  func() ([2]server.Searcher, error)
-	MLines io.Writer
+	Path    string
+	Tier    string
+	Variant string
+	Geom    *geom.Geometry
+	Budget  time.Duration
+	Jitter  float64
+	Games   int
+	Seed    int64
+	Seats   func() ([2]server.Searcher, error)
+	MLines  io.Writer
 }
 
-func genFingerprint(tier string, budgetMs int64, jitter float64, games int, seed int64) string {
-	return fmt.Sprintf("F games v%d tier=%s budget-ms=%d jitter=%g games=%d seed=%d",
+func (o genOpts) variant() string {
+	if o.Variant == "" {
+		return "square"
+	}
+	return o.Variant
+}
+
+func (o genOpts) geometry() *geom.Geometry {
+	if o.Geom == nil {
+		return geom.Default()
+	}
+	return o.Geom
+}
+
+func genFingerprint(tier string, budgetMs int64, jitter float64, games int, seed int64, geometry string) string {
+	fp := fmt.Sprintf("F games v%d tier=%s budget-ms=%d jitter=%g games=%d seed=%d",
 		genFormatVersion, tier, budgetMs, jitter, games, seed)
+	if geometry != "square" {
+		fp += " geometry=" + geometry
+	}
+	return fp
 }
 
 func genSeriesKey(path string, idx int) string {
@@ -140,7 +163,14 @@ func parseGenFingerprint(line, path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w: %s line 1 seed unparsable", errGamesHeader, path)
 	}
-	return genFingerprint(tier, budget, jitter, n, sd), nil
+	geometry, ok := headerValue(fields, "geometry")
+	if !ok {
+		geometry = "square"
+	}
+	if _, err := geom.ByName(geometry); err != nil {
+		return "", fmt.Errorf("%w: %s line 1 geometry %q unknown", errGamesHeader, path, geometry)
+	}
+	return genFingerprint(tier, budget, jitter, n, sd, geometry), nil
 }
 
 func parseGamesFile(path string) (*gamesFile, error) {
@@ -148,7 +178,7 @@ func parseGamesFile(path string) (*gamesFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("evalfit: read games %s: %w", path, err)
 	}
-	gf := &gamesFile{}
+	gf := &gamesFile{cells: config.BoardCells}
 	end := len(data)
 	if end > 0 && data[end-1] != '\n' {
 		gf.torn = true
@@ -174,10 +204,17 @@ func parseGamesFile(path string) (*gamesFile, error) {
 		off = nl + 1
 		fields := strings.Fields(string(data[:nl]))
 		gf.tier, _ = headerValue(fields, "tier")
+		gf.geometry = "square"
+		if g, ok := headerValue(fields, "geometry"); ok {
+			gf.geometry = g
+		}
 		gf.budgetMs, _ = strconv.ParseInt(mustField(fields, "budget-ms"), 10, 64)
 		gf.jitter, _ = strconv.ParseFloat(mustField(fields, "jitter"), 64)
 		gf.games, _ = strconv.Atoi(mustField(fields, "games"))
 		gf.seed, _ = strconv.ParseInt(mustField(fields, "seed"), 10, 64)
+		if g, err := geom.ByName(gf.geometry); err == nil {
+			gf.cells = g.Cells
+		}
 	} else {
 		return nil, fmt.Errorf("%w: %s", errGamesEmpty, path)
 	}
@@ -226,7 +263,7 @@ func parseGamesFile(path string) (*gamesFile, error) {
 				return nil, fail("move record wants one cell")
 			}
 			cell, err := strconv.Atoi(parts[1])
-			if err != nil || cell < 0 || cell >= config.BoardCells {
+			if err != nil || cell < 0 || cell >= gf.cells {
 				return nil, fail("move cell out of the board")
 			}
 			cells = append(cells, cell)
@@ -310,10 +347,10 @@ func genBudgets(base time.Duration, jitter float64, seed int64, idx, n int) []ti
 	return out
 }
 
-func playGenGame(engines [2]server.Searcher, redSeat, gameIdx int, base time.Duration, jitter float64, seed int64, mlines io.Writer) genGame {
-	budgets := genBudgets(base, jitter, seed, gameIdx, config.BoardCells)
-	var legalBuf [config.BoardCells]rules.Move
-	b := rules.NewBoard()
+func playGenGame(geo *geom.Geometry, variant string, engines [2]server.Searcher, redSeat, gameIdx int, base time.Duration, jitter float64, seed int64, mlines io.Writer) genGame {
+	budgets := genBudgets(base, jitter, seed, gameIdx, geo.Cells)
+	var legalBuf [config.MaxBoardCells]rules.Move
+	b := rules.NewBoardFor(geo)
 	res := genGame{idx: gameIdx}
 	for {
 		side := b.Side
@@ -324,7 +361,11 @@ func playGenGame(engines [2]server.Searcher, redSeat, gameIdx int, base time.Dur
 		var mv rules.Move
 		legal := true
 		if b.MoveCount == 0 {
-			mv = rules.Move(config.BookOpeningCells[gameIdx%len(config.BookOpeningCells)])
+			if variant == "square" {
+				mv = rules.Move(config.BookOpeningCells[gameIdx%len(config.BookOpeningCells)])
+			} else {
+				mv = rules.Move(geo.Center)
+			}
 			name, nerr := rules.CellName(rules.Cell(mv))
 			if nerr != nil {
 				name = strconv.Itoa(int(mv))
@@ -394,7 +435,7 @@ func runGenerate(o genOpts, progress func(idx int, res genGame)) error {
 	if o.Jitter < 0 || o.Jitter > 1 {
 		return fmt.Errorf("evalfit: gen jitter must sit in [0, 1], got %v", o.Jitter)
 	}
-	want := genFingerprint(o.Tier, o.Budget.Milliseconds(), o.Jitter, o.Games, o.Seed)
+	want := genFingerprint(o.Tier, o.Budget.Milliseconds(), o.Jitter, o.Games, o.Seed, o.variant())
 	gf, err := parseGamesFile(o.Path)
 	var clean int64
 	switch {
@@ -421,7 +462,7 @@ func runGenerate(o genOpts, progress func(idx int, res genGame)) error {
 		if err != nil {
 			return err
 		}
-		res := playGenGame(engines, i%2, i, o.Budget, o.Jitter, o.Seed, mlines)
+		res := playGenGame(o.geometry(), o.variant(), engines, i%2, i, o.Budget, o.Jitter, o.Seed, mlines)
 		engines[0].Close()
 		engines[1].Close()
 		clean, err = appendGenGame(o.Path, clean, res)
@@ -437,7 +478,7 @@ func (o genOpts) seatPair(tier config.Tier) ([2]server.Searcher, error) {
 	if o.Seats != nil {
 		return o.Seats()
 	}
-	return [2]server.Searcher{server.NewBotSearcher(tier), server.NewBotSearcher(tier)}, nil
+	return [2]server.Searcher{server.NewBotSearcherFor(o.variant(), tier), server.NewBotSearcherFor(o.variant(), tier)}, nil
 }
 
 func loadGamesFile(path string, tiers map[string]bool) (*gamesFile, bool, error) {

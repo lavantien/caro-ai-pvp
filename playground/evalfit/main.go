@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 )
 
 const (
@@ -52,9 +53,14 @@ func main() {
 	genBudgetMs := flag.Int64("gen-budget-ms", 250, "base per-move search budget during generation")
 	genJitter := flag.Float64("gen-jitter", 0.5, "per-move budget jitter fraction in [0, 1] driving line diversity")
 	genLog := flag.String("gen-log", "", "m-line log path for generation, defaults to <gen>.log")
+	geometryArg := flag.String("geometry", "square", "board geometry for feature walks, blob bounds, board reconstruction, and generation")
 	flag.Parse()
+	geo, err := geom.ByName(*geometryArg)
+	if err != nil {
+		fatal("evalfit: %v", err)
+	}
 	if *gen != "" {
-		runGenMode(genOptsFromFlags(*gen, *genTier, *genGames, *genBudgetMs, *genJitter, *genLog, *seed))
+		runGenMode(genOptsFromFlags(*gen, *genTier, *genGames, *genBudgetMs, *genJitter, *genLog, *seed, *geometryArg, geo))
 		return
 	}
 	fmt.Fprintf(os.Stderr, "evalfit: start dbs=%s tiers=%s games=%s seed=%d train-frac=%.2f\n", *dbs, *tiers, *gamesFiles, *seed, *trainFrac)
@@ -77,14 +83,14 @@ func main() {
 	keySet := map[string]bool{}
 	var seriesKeys []string
 	for _, root := range dbRoots {
-		load, err := loadDBGames(root, tierSet)
+		load, err := loadDBGames(root, tierSet, geo.Cells)
 		if err != nil {
 			fatal("%v", err)
 		}
 		for _, s := range load.Series {
 			keptInSeries := false
 			for _, g := range s.Games {
-				ss, err := reconstructGame(g, s.Key)
+				ss, err := reconstructGame(g, s.Key, geo)
 				if err != nil {
 					gamesRejected++
 					perRejected[root]++
@@ -114,7 +120,14 @@ func main() {
 		}
 		for i, g := range gamesToParsed(gf) {
 			key := genSeriesKey(gp, i)
-			ss, err := reconstructGame(g, key)
+			fileGeo := geo
+			if gf.geometry != *geometryArg {
+				fileGeo, err = geom.ByName(gf.geometry)
+				if err != nil {
+					fatal("evalfit: games file %s: %v", gp, err)
+				}
+			}
+			ss, err := reconstructGame(g, key, fileGeo)
 			if err != nil {
 				gamesRejected++
 				perRejected[gp]++
@@ -204,6 +217,7 @@ func main() {
 	roots = append(roots, gameRoots...)
 	a := artifactData{
 		Date:            time.Now().Format("2006-01-02"),
+		Geometry:        *geometryArg,
 		Roots:           roots,
 		Tiers:           sortedKeys(tierSet),
 		PerRootKept:     perKept,
@@ -247,15 +261,17 @@ func main() {
 	fmt.Printf("artifact %s\n", *out)
 }
 
-func genOptsFromFlags(path, tier string, games int, budgetMs int64, jitter float64, logPath string, seed int64) genOpts {
+func genOptsFromFlags(path, tier string, games int, budgetMs int64, jitter float64, logPath string, seed int64, variant string, geo *geom.Geometry) genOpts {
 	return genOpts{
-		Path:   path,
-		Tier:   tier,
-		Budget: time.Duration(budgetMs) * time.Millisecond,
-		Jitter: jitter,
-		Games:  games,
-		Seed:   seed,
-		MLines: openGenLog(logPath, path),
+		Path:    path,
+		Tier:    tier,
+		Variant: variant,
+		Geom:    geo,
+		Budget:  time.Duration(budgetMs) * time.Millisecond,
+		Jitter:  jitter,
+		Games:   games,
+		Seed:    seed,
+		MLines:  openGenLog(logPath, path),
 	}
 }
 

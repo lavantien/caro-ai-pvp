@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"math/bits"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/pattern"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
@@ -51,8 +53,8 @@ type parsedGame struct {
 
 func featureVector(b *rules.Board, mover rules.Color) [5]int32 {
 	var red, blue [config.PatternClassCount]int32
-	for d := range config.PatternDirections {
-		for cell := range config.BoardCells {
+	for d := range len(b.Geom.Dirs) {
+		for cell := range b.Geom.Cells {
 			c := rules.Cell(cell)
 			red[pattern.Lookup(pattern.Index(b, c, d, rules.Red)).Class]++
 			blue[pattern.Lookup(pattern.Index(b, c, d, rules.Blue)).Class]++
@@ -69,13 +71,24 @@ func featureVector(b *rules.Board, mover rules.Color) [5]int32 {
 	return f
 }
 
-func reconstructGame(g parsedGame, series string) ([]sample, error) {
-	b := rules.NewBoard()
+func regionCells(g *geom.Geometry) int {
+	n := 0
+	for w := range g.Words {
+		n += bits.OnesCount64(g.Region[w])
+	}
+	return n
+}
+
+func reconstructGame(g parsedGame, series string, geo *geom.Geometry) ([]sample, error) {
+	b := rules.NewBoardFor(geo)
 	samples := make([]sample, 0, len(g.Moves))
 	want := rules.Red
 	for i, m := range g.Moves {
 		if m.Color != want {
 			return nil, fmt.Errorf("game move %d color %v breaks the red/blue alternation", i+1, m.Color)
+		}
+		if !b.Geom.Contains(int(m.Cell)) {
+			return nil, fmt.Errorf("game move %d plays off-region cell %d", i+1, m.Cell)
 		}
 		if b.Occupied(m.Cell) {
 			return nil, fmt.Errorf("game move %d plays occupied cell %d", i+1, m.Cell)
@@ -103,7 +116,7 @@ func reconstructGame(g parsedGame, series string) ([]sample, error) {
 		return samples, nil
 	}
 	if !b.IsFull() {
-		return nil, fmt.Errorf("recorded draw but the final board is not full (%d of 256 cells)", b.MoveCount)
+		return nil, fmt.Errorf("recorded draw but the final board is not full (%d of %d cells)", b.MoveCount, regionCells(geo))
 	}
 	return samples, nil
 }
