@@ -94,6 +94,7 @@ type TourneyLiveBoard struct {
 	RedWins  int
 	BlueWins int
 	Turn     string
+	Variant  string
 	Moves    []string
 }
 
@@ -147,13 +148,14 @@ type tourneyRowView struct {
 }
 
 type tourneyRunLineView struct {
-	ID     int64
-	When   string
-	TC     string
-	BO     string
-	State  string
-	Roster string
-	Leader string
+	ID      int64
+	When    string
+	TC      string
+	BO      string
+	Variant string
+	State   string
+	Roster  string
+	Leader  string
 }
 
 type tourneySetupView struct {
@@ -161,6 +163,7 @@ type tourneySetupView struct {
 	Admin           bool
 	TCOptions       []optionView
 	BOOptions       []optionView
+	VariantOptions  []botOptionView
 	ParallelOptions []optionView
 	CountOptions    []optionView
 	Rows            []tourneyRowView
@@ -231,7 +234,8 @@ func (p *TournamentPages) runLines(r *http.Request) ([]tourneyRunLineView, error
 		lines[i] = tourneyRunLineView{
 			ID: run.ID, When: time.Unix(run.CreatedAt, 0).UTC().Format(historyTimeFormat),
 			TC: tcLabel(run.TCIdx), BO: "bo" + strconv.Itoa(run.BOLen),
-			State: runStateOf(run.TourneyRunInfo), Roster: strings.Join(names, ", "),
+			Variant: run.Variant,
+			State:   runStateOf(run.TourneyRunInfo), Roster: strings.Join(names, ", "),
 			Leader: run.Leader,
 		}
 	}
@@ -260,6 +264,7 @@ func (p *TournamentPages) renderSetup(w http.ResponseWriter, status int, me *she
 		Me:        me,
 		Admin:     isAdmin(me),
 		TCOptions: shellTCOptions(), BOOptions: shellBOOptions(),
+		VariantOptions:  shellVariantOptions(),
 		ParallelOptions: parallelOpts, CountOptions: countOpts,
 		Rows:        tourneyRows(names, tiers),
 		StartRating: rating, MaxNameLen: config.TournamentNameMaxBytes,
@@ -438,13 +443,13 @@ func liveBoardsOf(running bool, boards []TourneyLiveBoard) []liveBoardView {
 	}
 	out := make([]liveBoardView, len(boards))
 	for i, b := range boards {
+		bd := boardDataFor(b.Variant, b.Moves, nil)
+		bd.Mini = true
 		out[i] = liveBoardView{
 			RoomID: b.RoomID, Red: b.RedName, Blue: b.BlueName,
 			Turn: b.Turn, MoveCount: len(b.Moves),
-			Score: strconv.Itoa(b.RedWins) + "-" + strconv.Itoa(b.BlueWins),
-			boardData: boardData{
-				Cells: boardCells(b.Moves, nil), BoardSize: config.BoardSize, Mini: true,
-			},
+			Score:     strconv.Itoa(b.RedWins) + "-" + strconv.Itoa(b.BlueWins),
+			boardData: bd,
 		}
 	}
 	return out
@@ -455,6 +460,7 @@ type tourneyRunHeaderView struct {
 	When        string
 	TC          string
 	BO          string
+	Variant     string
 	StartRating int
 	State       string
 	Failure     string
@@ -590,8 +596,9 @@ func runHeaderOf(snap TourneySnapshot) tourneyRunHeaderView {
 	run := snap.Run
 	return tourneyRunHeaderView{
 		ID: run.ID, When: time.Unix(run.CreatedAt, 0).UTC().Format(historyTimeFormat),
-		TC: tcLabel(run.TCIdx), BO: "bo" + strconv.Itoa(run.BOLen), StartRating: run.StartRating,
-		State: runStateOf(run), Failure: run.Failure,
+		TC: tcLabel(run.TCIdx), BO: "bo" + strconv.Itoa(run.BOLen), Variant: run.Variant,
+		StartRating: run.StartRating,
+		State:       runStateOf(run), Failure: run.Failure,
 	}
 }
 

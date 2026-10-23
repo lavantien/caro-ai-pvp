@@ -162,11 +162,30 @@ func shellBotOptions() []botOptionView {
 	return opts
 }
 
+func shellVariantOptions() []botOptionView {
+	opts := make([]botOptionView, len(config.Variants))
+	for i := range config.Variants {
+		opts[i] = botOptionView{
+			Value: config.Variants[i].Name, Label: variantLabel(config.Variants[i]),
+			Selected: config.Variants[i].Name == config.DefaultVariant,
+		}
+	}
+	return opts
+}
+
+func variantLabel(spec config.VariantSpec) string {
+	if spec.Kind == "hex" {
+		return "hexagon " + strconv.Itoa(spec.Size)
+	}
+	return "square " + strconv.Itoa(spec.Size) + "x" + strconv.Itoa(spec.Size)
+}
+
 type roomCardView struct {
 	ID        string
 	ShortID   string
 	TC        string
 	BO        string
+	Variant   string
 	State     string
 	Host      string
 	Guest     string
@@ -181,7 +200,7 @@ func (p *shellPages) roomViews() []roomCardView {
 		v := roomCardView{
 			ID: info.ID, ShortID: info.ID[:8],
 			TC: tcLabel(info.TCIdx), BO: "bo" + strconv.Itoa(info.BOLen),
-			State: info.State.String(),
+			Variant: info.Variant, State: info.State.String(),
 		}
 		if info.HostBotName != "" {
 			v.Host = info.HostBotName
@@ -244,13 +263,14 @@ func (p *shellPages) roomsList(ctx context.Context) roomsListView {
 }
 
 type homeView struct {
-	Me          *shellViewer
-	RoomsList   roomsListView
-	TCOptions   []optionView
-	BOOptions   []optionView
-	BotOptions  []botOptionView
-	CreateError string
-	PollMs      int64
+	Me             *shellViewer
+	RoomsList      roomsListView
+	TCOptions      []optionView
+	BOOptions      []optionView
+	VariantOptions []botOptionView
+	BotOptions     []botOptionView
+	CreateError    string
+	PollMs         int64
 }
 
 func (p *shellPages) handleHome(w http.ResponseWriter, r *http.Request) {
@@ -265,7 +285,8 @@ func (p *shellPages) handleHome(w http.ResponseWriter, r *http.Request) {
 func (p *shellPages) renderHome(r *http.Request, w http.ResponseWriter, status int, me *shellViewer, createErr string) {
 	renderShell(w, status, homeTmpl, "base", homeView{
 		Me: me, RoomsList: p.roomsList(r.Context()),
-		TCOptions: shellTCOptions(), BOOptions: shellBOOptions(), BotOptions: shellBotOptions(),
+		TCOptions: shellTCOptions(), BOOptions: shellBOOptions(),
+		VariantOptions: shellVariantOptions(), BotOptions: shellBotOptions(),
 		CreateError: createErr, PollMs: int64(config.PagePollMs),
 	})
 }

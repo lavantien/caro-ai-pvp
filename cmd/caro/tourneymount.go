@@ -101,7 +101,7 @@ func liveBoardOf(b server.LiveBotBoard) server.TourneyLiveBoard {
 	lb := server.TourneyLiveBoard{
 		RoomID: b.RoomID, RedName: b.GuestName, BlueName: b.HostName,
 		RedWins: b.GuestWins, BlueWins: b.HostWins,
-		Turn: b.Turn, Moves: b.Moves,
+		Turn: b.Turn, Moves: b.Moves, Variant: b.Variant,
 	}
 	if b.RedIsHost {
 		lb.RedName, lb.BlueName = b.HostName, b.GuestName

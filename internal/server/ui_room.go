@@ -119,7 +119,7 @@ func (p *RoomPages) HandlePlayback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	p.renderPlayback(w, playbackView{
-		boardData: boardData{Cells: boardCells(names, nil), BoardSize: config.BoardSize},
+		boardData: boardDataFor(sr.Variant, names, nil),
 		GameID:    g.ID, RedName: redName, BlueName: blueName,
 		Outcome: outcomeWord(g.Outcome), WonBy: derefString(g.WonBy), Moves: names,
 		Pairs: movePairs(names),
@@ -159,11 +159,14 @@ type boardData struct {
 	MyColor   string
 	BoardSize int
 	Mini      bool
+	Hex       bool
+	HexBoard  hexBoardView
 }
 
 type roomView struct {
 	boardData
 	RoomID        string
+	Variant       string
 	State         string
 	TCLabel       string
 	BOLen         int
@@ -214,7 +217,7 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 		return roomView{}, ErrRoomNotFound
 	}
 	view := roomView{
-		RoomID: info.ID, State: info.State.String(), TCLabel: tcLabel(info.TCIdx),
+		RoomID: info.ID, Variant: info.Variant, State: info.State.String(), TCLabel: tcLabel(info.TCIdx),
 		BOLen: info.BOLen, VsBotTier: info.VsBotTier,
 		HostUserID: info.HostUserID, GuestUserID: info.GuestUserID,
 		HostWins: info.HostWins, GuestWins: info.GuestWins,
@@ -284,10 +287,12 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 				}
 			}
 		}
-		view.Cells = boardCells(snap.Moves, playable)
+		bd := boardDataFor(info.Variant, snap.Moves, playable)
+		bd.Live, bd.MyColor, bd.Mini = view.Live, view.MyColor, view.Mini
+		view.boardData = bd
 	} else {
 		view.RedName, view.BlueName = view.HostName, view.GuestName
-		view.Cells = boardCells(nil, nil)
+		view.boardData = boardDataFor(info.Variant, nil, nil)
 	}
 	return view, nil
 }

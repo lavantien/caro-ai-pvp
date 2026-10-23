@@ -32,6 +32,7 @@ type LobbyRoom struct {
 	HostUserID int64
 	TCIdx      int
 	BOLen      int
+	Variant    string
 	Spectators int
 	Status     string
 	Joinable   bool
@@ -86,6 +87,7 @@ func lobbyRoomOf(r *Room, hub *Hub, store *Store) (LobbyRoom, bool) {
 		HostUserID: info.HostUserID,
 		TCIdx:      info.TCIdx,
 		BOLen:      info.BOLen,
+		Variant:    info.Variant,
 		Spectators: hub.watchers(info.ID),
 		Status:     info.State.String(),
 		Joinable:   info.HostBotTier == "" && info.VsBotTier == "" && info.GuestUserID == 0 && info.State == SeriesCreated,
@@ -166,6 +168,7 @@ type lobbyRoomView struct {
 	Blue       lobbySeatView
 	TC         string
 	BO         string
+	Variant    string
 	Spectators int
 	Status     string
 	MoveCount  int
@@ -179,13 +182,14 @@ type lobbyListView struct {
 }
 
 type lobbyView struct {
-	Me         *shellViewer
-	Rooms      []lobbyRoomView
-	TCOptions  []optionView
-	BOOptions  []optionView
-	BotOptions []botOptionView
-	PollMs     int64
-	JoinError  string
+	Me             *shellViewer
+	Rooms          []lobbyRoomView
+	TCOptions      []optionView
+	BOOptions      []optionView
+	VariantOptions []botOptionView
+	BotOptions     []botOptionView
+	PollMs         int64
+	JoinError      string
 }
 
 func lobbySeatViewOf(s LobbySeat) lobbySeatView {
@@ -211,6 +215,8 @@ func lobbyViews(rooms *RoomManager, me *shellViewer) []lobbyRoomView {
 		if lr.Live && !lr.RedIsHost {
 			red, blue = lr.Guest, lr.Host
 		}
+		bd := boardDataFor(lr.Variant, lr.Moves, nil)
+		bd.Mini = true
 		out = append(out, lobbyRoomView{
 			ID:         lr.ID,
 			ShortID:    lr.ID[:8],
@@ -219,11 +225,12 @@ func lobbyViews(rooms *RoomManager, me *shellViewer) []lobbyRoomView {
 			Blue:       lobbySeatViewOf(blue),
 			TC:         tcLabel(lr.TCIdx),
 			BO:         "bo" + strconv.Itoa(lr.BOLen),
+			Variant:    lr.Variant,
 			Spectators: lr.Spectators,
 			Status:     lr.Status,
 			MoveCount:  lr.MoveCount,
 			CanJoin:    lr.Joinable && me != nil && me.ID != lr.HostUserID,
-			boardData:  boardData{Cells: boardCells(lr.Moves, nil), BoardSize: config.BoardSize, Mini: true},
+			boardData:  bd,
 		})
 	}
 	return out
@@ -236,7 +243,8 @@ func renderLobbyPage(w http.ResponseWriter, status int, rooms *RoomManager, me *
 	bo[0].Selected = true
 	renderShell(w, status, lobbyTmpl, "base", lobbyView{
 		Me: me, Rooms: lobbyViews(rooms, me),
-		TCOptions: tc, BOOptions: bo, BotOptions: shellBotOptions(),
+		TCOptions: tc, BOOptions: bo,
+		VariantOptions: shellVariantOptions(), BotOptions: shellBotOptions(),
 		PollMs: int64(config.PagePollMs), JoinError: errMsg,
 	})
 }

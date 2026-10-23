@@ -250,6 +250,7 @@ type LiveBotBoard struct {
 	CreatedAt time.Time
 	Moves     []string
 	Turn      string
+	Variant   string
 	RedIsHost bool
 	HostWins  int
 	GuestWins int
@@ -269,6 +270,7 @@ func (r *Room) liveBotBoard() (LiveBotBoard, bool) {
 		GuestName: guestName,
 		CreatedAt: r.createdAt,
 		Turn:      colorName(r.board.Side),
+		Variant:   r.variant,
 		RedIsHost: r.series.RedUserID() == r.host.userID,
 		HostWins:  hostWins, GuestWins: guestWins,
 		Moves: make([]string, 0, len(r.moves)),

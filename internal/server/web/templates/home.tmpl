@@ -30,6 +30,9 @@
 <label>opponent
 <select name="bot">{{range .BotOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
 </label>
+<label>board
+<select name="variant">{{range .VariantOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+</label>
 <button>create room</button>
 </fieldset>
 </form>

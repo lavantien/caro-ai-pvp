@@ -3,7 +3,7 @@
 {{range .Rooms}}<li><div class="livecard">
 <div class="who-vs">{{template "lobbyseat" .Red}} vs {{template "lobbyseat" .Blue}}</div>
 <a class="watch" href="/rooms/{{.ID}}">
-<span class="meta"><span class="chip">{{.Mode}}</span><span class="chip">{{.TC}}</span><span class="chip">{{.BO}}</span><span class="chip">{{.Status}}</span>{{if .Spectators}}<span class="chip">{{.Spectators}} watching</span>{{end}}<span class="chip">room <span class="mono">{{.ShortID}}</span></span></span>
+<span class="meta"><span class="chip">{{.Mode}}</span><span class="chip">{{.TC}}</span><span class="chip">{{.BO}}</span>{{if ne .Variant "square"}}<span class="chip">{{.Variant}}</span>{{end}}<span class="chip">{{.Status}}</span>{{if .Spectators}}<span class="chip">{{.Spectators}} watching</span>{{end}}<span class="chip">room <span class="mono">{{.ShortID}}</span></span></span>
 {{template "board-grid" .}}
 <span class="meta">{{.MoveCount}} stones</span>
 </a>
@@ -21,6 +21,7 @@
 <span class="tcchips">{{range .TCOptions}}<label class="tcchip"><input type="radio" name="tc" value="{{.Value}}"{{if .Selected}} checked{{end}}><span>{{.Label}}</span></label>{{end}}</span>
 <label>best of<select name="bo">{{range .BOOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
 <label>opponent<select name="bot">{{range .BotOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select></label>
+<label>board<select name="variant">{{range .VariantOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
 <button>play</button>
 </fieldset>
 </form>
