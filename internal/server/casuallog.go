@@ -39,6 +39,9 @@ func (c *casualLogs) WriteGame(h casualGameHeader, lines []GameStat) error {
 	if len(lines) == 0 {
 		return nil
 	}
+	if h.TCIdx < 0 || h.TCIdx >= len(config.TimeControls) {
+		return fmt.Errorf("server: casual log tc index %d outside the %d configured controls", h.TCIdx, len(config.TimeControls))
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if err := os.MkdirAll(c.dir, 0o755); err != nil {

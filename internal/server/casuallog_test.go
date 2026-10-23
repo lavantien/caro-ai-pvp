@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -561,6 +562,64 @@ func TestApplyCompletionSurvivesACanceledContextAfterCommit(t *testing.T) {
 	body := readCasualFile(t, path)
 	if n := strings.Count(body, "game "); n != 2 {
 		t.Errorf("blocks after a canceled post-commit context = %d, want 2: %q", n, body)
+	}
+}
+
+func TestCreateSeriesRejectsAnUnconfiguredTimeControl(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	bob := seedUser(t, s, "bob")
+	for _, tc := range []int{-1, len(config.TimeControls), 99} {
+		if _, err := s.CreateSeries(context.Background(), tc, config.SeriesBO3, alice.ID, bob.ID); err == nil {
+			t.Errorf("tc index %d created a series, want rejection", tc)
+		}
+	}
+	if _, err := s.CreateSeries(context.Background(), 0, config.SeriesBO3, alice.ID, bob.ID); err != nil {
+		t.Fatalf("tc index 0 rejected: %v", err)
+	}
+}
+
+func TestApplyCompletionSkipsTheTextSideLoudlyOnACorruptTCIndex(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	botID, err := s.BotAccountID(config.TierEasy)
+	if err != nil {
+		t.Fatalf("resolve bot seat: %v", err)
+	}
+	sr, err := s.CreateSeries(context.Background(), 0, config.SeriesBO3, alice.ID, botID)
+	if err != nil {
+		t.Fatalf("seed series: %v", err)
+	}
+	bad := len(config.TimeControls) + 50
+	if _, err := s.db.Exec(`UPDATE series SET tc_idx = ? WHERE id = ?`, bad, sr.ID); err != nil {
+		t.Fatalf("corrupt tc index: %v", err)
+	}
+	buf := &lockedBuffer{}
+	log.SetOutput(buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+	if err := s.ApplyCompletion(context.Background(), Completion{
+		Games: []Game{{
+			SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: botID,
+			Outcome: OutcomeRed, Moves: []byte{1, 0}, FullTurns: 1,
+			BotName: "easy-x", StatLines: twoLines(),
+		}},
+	}); err != nil {
+		t.Fatalf("apply over a corrupt tc index = %v, want the sqlite side to win", err)
+	}
+	if rows := gameStatRows(t, s, onlyGameID(t, s, sr.ID)); len(rows) != 2 {
+		t.Errorf("stat rows over a corrupt tc index = %d, want 2", len(rows))
+	}
+	if entries, _ := os.ReadDir(config.CasualLogRoot); len(entries) != 0 {
+		t.Errorf("casual files over a corrupt tc index = %d, want the skip to write nothing", len(entries))
+	}
+	if out := buf.String(); !strings.Contains(out, "casual log") || !strings.Contains(out, "tc index") {
+		t.Errorf("log over a corrupt tc index = %q, want the loud skip naming the index", out)
 	}
 }
 

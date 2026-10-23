@@ -277,6 +277,9 @@ type SeriesRow struct {
 }
 
 func (s *Store) CreateSeries(ctx context.Context, tcIdx, boLen int, redUser, blueUser int64) (SeriesRow, error) {
+	if tcIdx < 0 || tcIdx >= len(config.TimeControls) {
+		return SeriesRow{}, fmt.Errorf("server: create series: time control index %d outside the %d configured controls", tcIdx, len(config.TimeControls))
+	}
 	var sr SeriesRow
 	err := s.db.QueryRowContext(ctx,
 		`INSERT INTO series (tc_idx, bo_len, red_user, blue_user, state)

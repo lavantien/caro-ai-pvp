@@ -3,6 +3,9 @@ package server
 import (
 	"context"
 	"errors"
+	"log"
+	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -10,15 +13,9 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// Bounded-wait budgets. Every wait below is event driven, the bounds only
-// fail a wedged implementation. The engine scales such budgets with a
-// build-tagged race factor in its own file; the M6a file list fixes these
-// two files, so the bounds are generous enough to hold under -race directly.
 const (
-	// testBlockBound is the negative budget: a channel that must stay quiet.
 	testBlockBound = 1 * time.Second
-	// testWaitBound is the positive budget: a channel that must deliver.
-	testWaitBound = 10 * time.Second
+	testWaitBound  = 10 * time.Second
 )
 
 func recvWithin[T any](t *testing.T, ch <-chan T, what string) T {
@@ -42,10 +39,6 @@ func assertBlocked[T any](t *testing.T, ch <-chan T, what string) {
 	}
 }
 
-// TestWriteQueueSerialOrderManyProducers proves the worker applies strictly
-// serially: applied and count are plain non-atomic writes touched only
-// inside mutations, so the race detector flags any second applier, and the
-// per-producer subsequence must stay FIFO for sync and async senders alike.
 func TestWriteQueueSerialOrderManyProducers(t *testing.T) {
 	const producers, perProducer = 8, 500
 	type rec struct{ producer, seq int }
@@ -158,7 +151,7 @@ func TestWriteQueueAsyncErrorSink(t *testing.T) {
 }
 
 func TestWriteQueueCloseDrainsEverythingQueued(t *testing.T) {
-	const queued = 300 // above WriteQueueDepth, so fillers re-block and drain
+	const queued = 300
 	var applied int
 	q := NewWriteQueue(nil)
 	var wg sync.WaitGroup
@@ -200,10 +193,6 @@ func TestWriteQueueCloseIdempotentAndSendAfterCloseRejected(t *testing.T) {
 	}
 }
 
-// TestWriteQueueBlockedSenderDuringClosePolicy pins the Close policy: a
-// sender blocked on a full queue unblocks with ErrQueueClosed the moment
-// Close decides, without waiting for the drain; Close itself returns only
-// after the worker applied every already-queued mutation.
 func TestWriteQueueBlockedSenderDuringClosePolicy(t *testing.T) {
 	var applied int
 	release := make(chan struct{})
@@ -258,10 +247,6 @@ func TestWriteQueueApplyTimeoutCutsWedgedMutation(t *testing.T) {
 	}
 }
 
-// TestWriteQueueStressConcurrentClose hammers Send and SendAsync from many
-// producers while Close runs concurrently. Whatever the interleaving, every
-// accepted mutation applies exactly once in per-producer FIFO order, every
-// rejection is ErrQueueClosed, and the sink stays silent.
 func TestWriteQueueStressConcurrentClose(t *testing.T) {
 	const producers, perProducer = 8, 400
 	type rec struct{ producer, seq int }
@@ -335,4 +320,24 @@ func TestWriteQueueStressConcurrentClose(t *testing.T) {
 		t.Fatalf("error sink hit: %v", err)
 	default:
 	}
+}
+
+func TestWriteQueueSurvivesAPanicInTheApply(t *testing.T) {
+	buf := &lockedBuffer{}
+	log.SetOutput(buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+	q := NewWriteQueue(nil)
+
+	err := q.Send(func(context.Context) error { panic("write queue probe panic") })
+	if err == nil || !strings.Contains(err.Error(), "write queue probe panic") {
+		t.Fatalf("send over a panicking apply = %v, want the panic surfaced as an error", err)
+	}
+	if err := q.Send(func(context.Context) error { return nil }); err != nil {
+		t.Fatalf("send after the panic = %v, want the worker alive", err)
+	}
+	q.Close()
 }

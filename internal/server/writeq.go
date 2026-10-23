@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -96,7 +97,7 @@ func (q *WriteQueue) work() {
 
 func (q *WriteQueue) applyOne(m mutation) {
 	ctx, cancel := context.WithTimeout(context.Background(), q.ApplyTimeout)
-	err := m.apply(ctx)
+	err := applyWithRecover(ctx, m)
 	cancel()
 	if m.done != nil {
 		m.done <- err
@@ -105,6 +106,15 @@ func (q *WriteQueue) applyOne(m mutation) {
 	if err != nil {
 		q.onError(err)
 	}
+}
+
+func applyWithRecover(ctx context.Context, m mutation) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("server: write queue apply panic: %v", r)
+		}
+	}()
+	return m.apply(ctx)
 }
 
 func (q *WriteQueue) Close() {
