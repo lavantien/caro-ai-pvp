@@ -63,7 +63,7 @@ func TestRoomCreateValidatesSettings(t *testing.T) {
 	}
 	want := RoomInfo{
 		ID: r.ID(), HostUserID: alice.ID, GuestUserID: 0,
-		TCIdx: 1, BOLen: config.SeriesBO5, State: SeriesCreated,
+		TCIdx: 1, BOLen: config.SeriesBO5, Variant: config.DefaultVariant, State: SeriesCreated,
 		VsBotTier: "", CreatedAt: rooms[0].CreatedAt,
 	}
 	if rooms[0] != want {
