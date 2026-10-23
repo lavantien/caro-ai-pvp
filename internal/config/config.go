@@ -27,6 +27,7 @@ const DefaultVariant = "square"
 
 const (
 	MaxBoardCells         = 518
+	MaxBoardBoxCells      = 529
 	MaxBoardWordsPerColor = 9
 )
 const ZobristSeed uint64 = 0x9E3779B97F4A7C15
@@ -246,6 +247,14 @@ const FuzzInputMaxBytes = 1 << 20
 
 var BookMetaFields = [...]string{"version", "max_ply", "generator", "corpus_games", "visit_floor", "created"}
 var BookArtifactPath = "db/book.carobook"
+
+func BookArtifactPathFor(variant string) (string, bool) {
+	if variant == "square" {
+		return BookArtifactPath, true
+	}
+	return "", false
+}
+
 var (
 	BookCorpusPath  = "db/book-corpus.txt"
 	BookOverlayPath = "db/book-overlay.txt"
@@ -337,7 +346,7 @@ const (
 	UsernameMaxBytes         = 32
 	AdminName                = "admin"
 	AdminPassword            = "1234qwerasdfzxcv"
-	SQLiteSchemaVersion      = 11
+	SQLiteSchemaVersion      = 12
 	SQLiteBusyTimeoutMs      = 5000
 	SQLiteJournalWAL         = "wal"
 	SQLiteSyncNormal         = "normal"

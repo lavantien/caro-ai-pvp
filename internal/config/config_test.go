@@ -56,6 +56,12 @@ func TestVariantSourceMatchesSpec(t *testing.T) {
 	if want := (w-1)*w + hx.Size; want != MaxBoardCells {
 		t.Errorf("hex variant derives %d cells, want MaxBoardCells %d", want, MaxBoardCells)
 	}
+	if want := w * w; want != MaxBoardBoxCells {
+		t.Errorf("hex variant box %d, want MaxBoardBoxCells %d", want, MaxBoardBoxCells)
+	}
+	if MaxBoardBoxCells < BoardCells || MaxBoardBoxCells < MaxBoardCells {
+		t.Errorf("MaxBoardBoxCells %d must cover every variant box and capacity", MaxBoardBoxCells)
+	}
 	if want := (MaxBoardCells + 63) / 64; want != MaxBoardWordsPerColor {
 		t.Errorf("MaxBoardWordsPerColor = %d, want %d covering MaxBoardCells", MaxBoardWordsPerColor, want)
 	}
@@ -781,8 +787,8 @@ func TestServerConstants(t *testing.T) {
 	if len(AdminName) > UsernameMaxBytes {
 		t.Errorf("AdminName %d bytes over the UsernameMaxBytes ceiling %d", len(AdminName), UsernameMaxBytes)
 	}
-	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 11 {
-		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 11]: raise the ceiling with the next migration", SQLiteSchemaVersion)
+	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 12 {
+		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 12]: raise the ceiling with the next migration", SQLiteSchemaVersion)
 	}
 	if SQLiteBusyTimeoutMs < 1000 || SQLiteBusyTimeoutMs > 60000 {
 		t.Errorf("SQLiteBusyTimeoutMs = %d, want in [1000, 60000]", SQLiteBusyTimeoutMs)
