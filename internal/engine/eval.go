@@ -2,6 +2,7 @@ package engine
 
 import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/pattern"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
@@ -10,8 +11,8 @@ var classPairs [config.PatternTableEntries]uint8
 
 func init() {
 	for idx := range config.PatternTableEntries {
-		red := pattern.Lookup(0, uint32(idx)).Class
-		blue := pattern.Lookup(0, swapStates(uint32(idx))).Class
+		red := pattern.Lookup(uint32(idx)).Class
+		blue := pattern.Lookup(swapStates(uint32(idx))).Class
 		classPairs[idx] = red | blue<<3
 	}
 }
@@ -21,10 +22,11 @@ const cellStateMask = 1<<config.PatternCellBits - 1
 const windowHalf = (config.PatternWindowLen - 1) / 2
 
 type evaluator struct {
-	win   [config.PatternDirections][config.BoardCells]uint32
-	wpair [config.PatternDirections][config.BoardCells]uint8
+	geom  *geom.Geometry
+	win   [config.PatternDirections][config.MaxBoardCells]uint32
+	wpair [config.PatternDirections][config.MaxBoardCells]uint8
 	score [2]int
-	cell  [2][config.BoardCells]int
+	cell  [2][config.MaxBoardCells]int
 	fours [2]int
 	w     *[config.PatternClassCount]int
 }
@@ -43,10 +45,11 @@ func swapStates(idx uint32) uint32 {
 
 func (ev *evaluator) reset(b *rules.Board) {
 	w := ev.w
-	*ev = evaluator{w: w}
+	*ev = evaluator{w: w, geom: b.Geom}
+	g := b.Geom
 	cw := ev.weights()
-	for d := range config.PatternDirections {
-		for cell := range config.BoardCells {
+	for d := range g.Dirs {
+		for cell := range g.Cells {
 			red := pattern.Index(b, rules.Cell(cell), d, rules.Red)
 			pair := classPairs[red]
 			ev.win[d][cell] = red
@@ -102,15 +105,16 @@ func (ev *evaluator) makeMove(color rules.Color, cell rules.Cell) {
 	if color == rules.Red {
 		state = uint32(config.PatternStateOwn)
 	}
-	r, c := int(cell)/config.BoardStride, int(cell)%config.BoardStride
-	for d := range config.PatternDirections {
-		dr, dc := config.PatternDirs[d][0], config.PatternDirs[d][1]
+	g := ev.geom
+	r, c := int(cell)/g.Stride, int(cell)%g.Stride
+	for d := range g.Dirs {
+		dr, dc := g.Dirs[d].Dr, g.Dirs[d].Dc
 		for k := -windowHalf; k <= windowHalf; k++ {
 			rr, cc := r+k*dr, c+k*dc
-			if rr < 0 || rr >= config.BoardSize || cc < 0 || cc >= config.BoardSize {
+			if rr < 0 || rr >= g.Rows || cc < 0 || cc >= g.Cols {
 				continue
 			}
-			center := rr*config.BoardStride + cc
+			center := rr*g.Stride + cc
 			beforePair := ev.wpair[d][center]
 			after := ev.win[d][center] | state<<(uint(windowHalf-k)*config.PatternCellBits)
 			ev.win[d][center] = after
@@ -122,15 +126,16 @@ func (ev *evaluator) makeMove(color rules.Color, cell rules.Cell) {
 }
 
 func (ev *evaluator) unmakeMove(cell rules.Cell) {
-	r, c := int(cell)/config.BoardStride, int(cell)%config.BoardStride
-	for d := range config.PatternDirections {
-		dr, dc := config.PatternDirs[d][0], config.PatternDirs[d][1]
+	g := ev.geom
+	r, c := int(cell)/g.Stride, int(cell)%g.Stride
+	for d := range g.Dirs {
+		dr, dc := g.Dirs[d].Dr, g.Dirs[d].Dc
 		for k := -windowHalf; k <= windowHalf; k++ {
 			rr, cc := r+k*dr, c+k*dc
-			if rr < 0 || rr >= config.BoardSize || cc < 0 || cc >= config.BoardSize {
+			if rr < 0 || rr >= g.Rows || cc < 0 || cc >= g.Cols {
 				continue
 			}
-			center := rr*config.BoardStride + cc
+			center := rr*g.Stride + cc
 			afterPair := ev.wpair[d][center]
 			before := ev.win[d][center] &^ (cellStateMask << (uint(windowHalf-k) * config.PatternCellBits))
 			ev.win[d][center] = before

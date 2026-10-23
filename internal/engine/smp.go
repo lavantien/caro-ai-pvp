@@ -105,7 +105,7 @@ func newSMPPonder(workers int, ttBytes int64, ponder int) *SMP {
 	s := &SMP{tt: newTT(ttBytes), ponderWidth: ponder, wake: make(chan struct{}, workers), quit: make(chan struct{})}
 	for range workers {
 		s.workers = append(s.workers, newEngineShared(s.tt))
-		s.boards = append(s.boards, rules.Board{})
+		s.boards = append(s.boards, *rules.NewBoard())
 		s.results = append(s.results, workerResult{})
 	}
 	s.haltDL.halt = &s.halt

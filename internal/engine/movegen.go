@@ -7,34 +7,13 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// generate fills the ply move list with candidate moves and their ordering
-// scores, returning the count. Candidates are the free in-region cells within
-// SearchRingRadius Chebyshev rings of any stone whose static window score is
-// nonzero for either color: a cell with no live pattern interaction in any of
-// its 8 centered windows cannot be a win, a block, or a development this
-// horizon. Every forcing move survives by construction: a win-in-1 cell
-// centers a Four window of its own color, a forced block centers the
-// opponent's Four window. On any reachable non-full board with at least one
-// stone the ring is never empty: grid cells of the empty and stone sets are
-// adjacent across their boundary, and every ring contains its stones. When
-// every candidate is quiet (opening positions with at most isolated stones
-// classify every window None), the quiet cells are kept instead.
-//
-// Selective threat restriction, the spec's "only expanding forced 4-blocks":
-// when the opponent of the mover holds a live four, every move that is
-// neither an own win-in-1 nor a block of a win-in-1 loses at once, so the
-// candidate set narrows to cells whose centered interaction reaches the Four
-// class weight. Both forced kinds center a window of class Four or above,
-// so the threshold admits a superset of the forced set and the node value
-// is preserved; quiet cells sit strictly under it. The unrestricted stages
-// below stay reachable, so the never-empty property is untouched.
 func (e *Engine) generate(b *rules.Board, ply int, ttm rules.Move) int {
 	if b.MoveCount == 0 {
-		e.moves[ply][0] = rules.Move(config.SearchEmptyBoardCell)
+		e.moves[ply][0] = rules.Move(b.Geom.Center)
 		e.scores[ply][0] = 0
 		return 1
 	}
-	near := dilate(bitmask(b.Full), e.radius)
+	near := dilate(bitmask(b.Full), e.radius, b.Geom)
 	anchor, constrained := openingAnchor(b)
 	side := int(b.Side)
 	minStatic := 0
@@ -53,13 +32,13 @@ func (e *Engine) generate(b *rules.Board, ply int, ttm rules.Move) int {
 
 func (e *Engine) fill(b *rules.Board, ply int, ttm rules.Move, side int, anchor uint16, constrained bool, near bitmask, requireLive bool, minStatic int) int {
 	n := 0
-	for w := range near {
+	for w := range b.Geom.Words {
 		free := near[w] & b.Region[w] &^ b.Full[w]
 		for free != 0 {
 			bit := free & (^free + 1)
 			free ^= bit
 			cell := uint16(w*wordBits + bits.TrailingZeros64(bit))
-			if constrained && chebyshevCell(anchor, cell) < config.OpeningChebyshevMin {
+			if constrained && b.Geom.Distance(int(anchor), int(cell)) < b.Geom.OpeningMin {
 				continue
 			}
 			static := e.eval.cell[side][cell] + e.eval.cell[side^1][cell]
@@ -77,10 +56,6 @@ func (e *Engine) fill(b *rules.Board, ply int, ttm rules.Move, side int, anchor 
 	return n
 }
 
-// orderScore layers the ordering: transposition move, two killers, then the
-// static threat plus denial value of the cell plus history. The static part
-// reads the incremental per-cell window sums, so it costs two array reads,
-// and its maximum stays below the killer layer by the config bounds.
 func (e *Engine) orderScore(static int, cell uint16, ply int, ttm rules.Move, side int) int {
 	if e.noOrder {
 		return 0
@@ -98,8 +73,6 @@ func (e *Engine) orderScore(static int, cell uint16, ply int, ttm rules.Move, si
 	return static + e.history[side][cell]
 }
 
-// pickMax swaps the i-th best remaining move into position i. Selection on
-// demand: beta cutoffs usually happen after a handful of moves.
 func pickMax(moves []rules.Move, scores []int, i, n int) {
 	best := i
 	for j := i + 1; j < n; j++ {

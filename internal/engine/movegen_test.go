@@ -8,10 +8,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// TestCandidateSetCoversAllWinInOneCells is the tactical half of the radius
-// justification: every cell where either color would win by moving sits in
-// the candidate set. Every such cell is line-adjacent to a stone of its run,
-// so any radius >= 1 covers them; radius 2 keeps quiet developing moves too.
 func TestCandidateSetCoversAllWinInOneCells(t *testing.T) {
 	for seed := range uint64(10) {
 		b := playout(t, 700*seed+29, int(6+seed*7))
@@ -50,8 +46,8 @@ func TestGenerateRespectsOpeningRule(t *testing.T) {
 	}
 	anchor := mustCell(t, "H8")
 	for _, m := range e.moves[0][:n] {
-		if chebyshevCell(uint16(anchor), uint16(m)) < config.OpeningChebyshevMin {
-			t.Fatalf("move %v within Chebyshev %d of the anchor", m, chebyshevCell(uint16(anchor), uint16(m)))
+		if b.Geom.Distance(int(anchor), int(m)) < b.Geom.OpeningMin {
+			t.Fatalf("move %v within distance %d of the anchor", m, b.Geom.Distance(int(anchor), int(m)))
 		}
 		if !b.IsLegal(rules.Cell(m)) {
 			t.Fatalf("move %v illegal", m)
@@ -63,7 +59,6 @@ func TestOrderingLayers(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(0)
 	e.eval.reset(b)
-	// Pick live cells so the pruning in generate keeps them.
 	n := e.generate(b, 0, moveNone)
 	if n < 3 {
 		t.Fatalf("need 3 live candidates, got %d", n)
@@ -136,9 +131,6 @@ func TestRecordCutoffHistoryOverflowHalves(t *testing.T) {
 	}
 }
 
-// TestRingRadiusMeasurement is the documented measurement behind
-// SearchRingRadius: candidate counts and depth reached per radius on a fixed
-// midgame position under one 150ms budget. Run with -v to read the table.
 func TestRingRadiusMeasurement(t *testing.T) {
 	if testing.Short() {
 		t.Skip("measurement needs wall clock budget")

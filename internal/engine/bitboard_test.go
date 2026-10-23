@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// bruteDilate computes the Chebyshev radius neighborhood cell set directly.
 func bruteDilate(cells map[uint16]bool, radius int) map[uint16]bool {
 	out := make(map[uint16]bool, len(cells)*(2*radius+1)*(2*radius+1))
 	for c := range cells {
@@ -26,6 +26,7 @@ func bruteDilate(cells map[uint16]bool, radius int) map[uint16]bool {
 }
 
 func TestDilateMatchesBruteForce(t *testing.T) {
+	g := geom.Default()
 	rng := rand.New(rand.NewPCG(7, 13))
 	for radius := 1; radius <= 3; radius++ {
 		for trial := range 30 {
@@ -37,7 +38,7 @@ func TestDilateMatchesBruteForce(t *testing.T) {
 			for c := range cells {
 				s[c/64] |= 1 << (c % 64)
 			}
-			got := dilate(s, radius)
+			got := dilate(s, radius, g)
 			want := bruteDilate(cells, radius)
 			for w := range want {
 				if got[w/64]>>(w%64)&1 == 0 {
@@ -54,10 +55,27 @@ func TestDilateMatchesBruteForce(t *testing.T) {
 	}
 }
 
+func TestDilate1NeighborsMatchesFused(t *testing.T) {
+	g := geom.Default()
+	rng := rand.New(rand.NewPCG(21, 34))
+	for trial := range 50 {
+		var s bitmask
+		for range 1 + rng.IntN(24) {
+			c := uint16(rng.IntN(config.BoardCells))
+			s[c/64] |= 1 << (c % 64)
+		}
+		fused := dilate1(s, g)
+		byNeighbors := dilate1Neighbors(s, g)
+		if fused != byNeighbors {
+			t.Fatalf("trial %d: neighbor dilation %x differs from the fused ring %x", trial, byNeighbors, fused)
+		}
+	}
+}
+
 func TestDilateCornerDoesNotWrap(t *testing.T) {
 	var s bitmask
-	s[0] = 1 // A1
-	got := dilate1(s)
+	s[0] = 1
+	got := dilate1(s, geom.Default())
 	want := []uint16{0, 1, 16, 17}
 	for _, c := range want {
 		if got[c/64]>>(c%64)&1 == 0 {
@@ -73,6 +91,7 @@ func TestDilateCornerDoesNotWrap(t *testing.T) {
 }
 
 func TestChebyshevCell(t *testing.T) {
+	g := rules.NewBoard().Geom
 	cases := [...]struct {
 		a, b uint16
 		want int
@@ -85,8 +104,8 @@ func TestChebyshevCell(t *testing.T) {
 		{3, 3 + 3*config.BoardStride + 2, 3},
 	}
 	for _, c := range cases {
-		if got := chebyshevCell(c.a, c.b); got != c.want {
-			t.Errorf("chebyshev(%d, %d) = %d, want %d", c.a, c.b, got, c.want)
+		if got := g.Distance(int(c.a), int(c.b)); got != c.want {
+			t.Errorf("distance(%d, %d) = %d, want %d", c.a, c.b, got, c.want)
 		}
 	}
 }

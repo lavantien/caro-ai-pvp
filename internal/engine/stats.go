@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -68,8 +67,7 @@ func (s *SearchStats) AppendPV(dst []byte) []byte {
 		if i > 0 {
 			dst = append(dst, ' ')
 		}
-		dst = append(dst, byte('A'+s.PV[i]%config.BoardStride))
-		dst = strconv.AppendInt(dst, int64(s.PV[i]/config.BoardStride)+1, 10)
+		dst = rules.AppendCellName(dst, rules.Cell(s.PV[i]))
 	}
 	return dst
 }

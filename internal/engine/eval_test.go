@@ -27,23 +27,16 @@ func TestSwapStates(t *testing.T) {
 	}
 }
 
-// TestClassPairsMatchAllDirections guards the direction independence the
-// packed class pair table relies on: every direction must classify both
-// mover views identically for any index.
-func TestClassPairsMatchAllDirections(t *testing.T) {
+func TestClassPairsMatchUnifiedTable(t *testing.T) {
 	rng := rand.New(rand.NewPCG(5, 55))
 	probes := []uint32{0, 1, 2, 3, 0xFFFF, config.PatternTableEntries - 1}
 	for range 1000 {
 		probes = append(probes, rng.Uint32N(config.PatternTableEntries))
 	}
 	for _, idx := range probes {
-		want := pattern.Lookup(0, idx).Class | pattern.Lookup(0, swapStates(idx)).Class<<3
-		for d := 1; d < config.PatternDirections; d++ {
-			red := pattern.Lookup(d, idx).Class
-			blue := pattern.Lookup(d, swapStates(idx)).Class
-			if got := red | blue<<3; got != want {
-				t.Fatalf("dir %d idx %d: pair %d differs from dir 0 pair %d", d, idx, got, want)
-			}
+		want := pattern.Lookup(idx).Class | pattern.Lookup(swapStates(idx)).Class<<3
+		if got := classPairs[idx]; got != want {
+			t.Fatalf("idx %d: class pair %d differs from the unified table pair %d", idx, got, want)
 		}
 	}
 }

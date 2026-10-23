@@ -8,7 +8,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-const moveNone = rules.Move(config.BoardCells)
+const moveNone = rules.MoveNone
 
 type Engine struct {
 	tt        *ttTable
@@ -16,7 +16,7 @@ type Engine struct {
 	moves     [config.SearchMaxPly][config.SearchMaxMovesPerPly]rules.Move
 	scores    [config.SearchMaxPly][config.SearchMaxMovesPerPly]int
 	killers   [config.SearchMaxPly][2]rules.Move
-	history   [2][config.BoardCells]int
+	history   [2][config.MaxBoardCells]int
 	pv        [config.SearchMaxPly + 1][config.SearchMaxPly]rules.Move
 	pvLen     [config.SearchMaxPly + 1]int
 	eval      evaluator
