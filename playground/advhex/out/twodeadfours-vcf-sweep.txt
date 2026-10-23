@@ -1,0 +1,9 @@
+four-only forced-win-in-1: false (forcedCalls=1 defenderMoves=0)
+four-only forced-win-in-3: false (forcedCalls=921 defenderMoves=920)
+four-only forced-win-in-5: false (forcedCalls=2749 defenderMoves=2752)
+four-only forced-win-in-7: false (forcedCalls=2749 defenderMoves=2752)
+four-only forced-win-in-9: false (forcedCalls=2749 defenderMoves=2752)
+four-only forced-win-in-11: false (forcedCalls=2749 defenderMoves=2752)
+four-only forced-win-in-13: false (forcedCalls=2749 defenderMoves=2752)
+four-only forced-win-in-15: false (forcedCalls=2749 defenderMoves=2752)
+four-only sweep: no forced win through ply 15 with attacker restricted to four makers, solver VCF not-found consistent

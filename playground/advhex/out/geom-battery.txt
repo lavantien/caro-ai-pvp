@@ -1,0 +1,13 @@
+square: cells=256 words=4 region=256 maxInRegion=255 center=H8(119)
+square: parseRoundTripBad=0 distanceBad=0 fwdMaskBad=0 bwdMaskBad=0 winsDiffBad=0
+hex: cells=518 words=9 region=397 maxInRegion=517 center=L12(264)
+hex: parseRoundTripBad=0 distanceBad=0 fwdMaskBad=0 bwdMaskBad=0 winsDiffBad=0
+hex distance L12-L11 = 1
+hex distance L12-M12 = 1
+hex distance L12-M11 = 1
+hex distance L12-K13 = 1
+hex distance A1-W1 parse error geom: cell name "A1": cell out of region <nil>
+hex distance A1-A23 parse error geom: cell name "A1": cell out of region <nil>
+hex distance L12-A1 parse error <nil> geom: cell name "A1": cell out of region
+hex distance L12-W23 parse error <nil> geom: cell name "W23": cell out of region
+square distance A1-P16 = 15

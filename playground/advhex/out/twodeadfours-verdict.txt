@@ -1,0 +1,8 @@
+cross-check: 150 random hex games, winThrough agrees with rules.FastLastMoveWin at every move
+solver claim: found=true plies=7 nodes=9654
+verifier: attacker moves restricted to four and three makers, defender tries all 389 legal cells, exact five rules (overline dead per axis, both-ends-stone-blocked lines dead)
+forced-win-in-7: true (forcedCalls=735543 defendCalls=3806 defenderMoves=1093435 memoHits=357893 memo=735543)
+minimality: forced-win-in-5 = false
+verdict: PROVEN, red forces a win in 7 plies against every legal defense
+solver pv: P12 R12 O13 K17 O14 O16 O11
+pv replay on independent model: final move completes a five, all earlier entries legal and non-winning

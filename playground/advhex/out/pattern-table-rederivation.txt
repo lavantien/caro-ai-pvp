@@ -1,0 +1,5 @@
+pattern table: checked 44272 realizable states of 262144 total, mask mismatches 0, class mismatches 0
+pattern table: independent line-oracle re-derivation agrees on every realizable entry
+pattern table: 217872 states carry interior Off and are unrealizable by construction
+hex windows: enumerated 1191 (center in region), fully in-region 639, rim windows with Off 552, windows with INTERIOR Off 0
+hex windows: Off cells form prefix and suffix runs only, interior-Off table states are unreachable

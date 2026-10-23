@@ -1,0 +1,2 @@
+vcf: found=false plies=0 nodes=300 pv=
+vct: found=true plies=7 nodes=9654 pv=P12 R12 O13 K17 O14 O16 O11
