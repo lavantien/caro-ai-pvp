@@ -115,6 +115,9 @@ func (ev *evaluator) makeMove(color rules.Color, cell rules.Cell) {
 				continue
 			}
 			center := rr*g.Stride + cc
+			if center >= config.MaxBoardCells {
+				continue
+			}
 			beforePair := ev.wpair[d][center]
 			after := ev.win[d][center] | state<<(uint(windowHalf-k)*config.PatternCellBits)
 			ev.win[d][center] = after
@@ -136,6 +139,9 @@ func (ev *evaluator) unmakeMove(cell rules.Cell) {
 				continue
 			}
 			center := rr*g.Stride + cc
+			if center >= config.MaxBoardCells {
+				continue
+			}
 			afterPair := ev.wpair[d][center]
 			before := ev.win[d][center] &^ (cellStateMask << (uint(windowHalf-k) * config.PatternCellBits))
 			ev.win[d][center] = before
