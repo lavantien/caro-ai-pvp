@@ -220,7 +220,11 @@ func (g *Geometry) CellName(cell int) (string, error) {
 }
 
 func (g *Geometry) AppendName(dst []byte, cell int) []byte {
-	dst = append(dst, 'A'+g.Col[cell])
+	if cell >= 0 && cell < len(g.Col) {
+		dst = append(dst, 'A'+g.Col[cell])
+		return strconv.AppendInt(dst, int64(cell/g.Stride)+1, 10)
+	}
+	dst = append(dst, byte('A'+cell%g.Stride))
 	return strconv.AppendInt(dst, int64(cell/g.Stride)+1, 10)
 }
 

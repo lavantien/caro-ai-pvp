@@ -256,6 +256,19 @@ func TestAppendNameMatchesCellName(t *testing.T) {
 	}
 }
 
+func TestAppendNameOutOfRangeFallsBackToModulus(t *testing.T) {
+	g := Square(config.BoardSize)
+	if got := string(g.AppendName(nil, 9999)); got != "P625" {
+		t.Fatalf("AppendName(9999) = %q, want the modulus fallback P625", got)
+	}
+	if got := string(g.AppendName(nil, config.BoardCells)); got != "A17" {
+		t.Fatalf("AppendName(%d) = %q, want the modulus fallback A17", config.BoardCells, got)
+	}
+	if got := string(g.AppendName(nil, 518)); got != "G33" {
+		t.Fatalf("AppendName(518) = %q, want the modulus fallback G33", got)
+	}
+}
+
 func TestDistance(t *testing.T) {
 	s := Square(config.BoardSize)
 	for _, tc := range []struct {
