@@ -442,11 +442,12 @@ func (s *Store) logCasualCompletion(ctx context.Context, c Completion) {
 	if s.casual == nil {
 		return
 	}
+	bg := context.Background()
 	for _, g := range c.Games {
 		if len(g.StatLines) == 0 {
 			continue
 		}
-		h, err := s.casualHeaderFor(ctx, g)
+		h, err := s.casualHeaderFor(bg, g)
 		if err != nil {
 			log.Printf("server: casual log header for series %d game %d: %v", g.SeriesID, g.IdxInSeries+1, err)
 			continue

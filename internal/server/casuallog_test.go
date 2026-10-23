@@ -529,6 +529,41 @@ func TestCasualLogKeepsEarlierGamesWhenTheTailWindowHasNoNewline(t *testing.T) {
 	}
 }
 
+func TestApplyCompletionSurvivesACanceledContextAfterCommit(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	botID, err := s.BotAccountID(config.TierEasy)
+	if err != nil {
+		t.Fatalf("resolve bot seat: %v", err)
+	}
+	sr, err := s.CreateSeries(context.Background(), 0, config.SeriesBO3, alice.ID, botID)
+	if err != nil {
+		t.Fatalf("seed series: %v", err)
+	}
+	botName := botDisplayName(config.TierEasy.Name, "room7")
+	unit := func(idx int) Completion {
+		return Completion{Games: []Game{{
+			SeriesID: sr.ID, IdxInSeries: idx, RedUser: alice.ID, BlueUser: botID,
+			Outcome: OutcomeRed, Moves: []byte{1, 0}, FullTurns: 1,
+			BotName: botName, StatLines: twoLines(),
+		}}}
+	}
+	if err := s.ApplyCompletion(context.Background(), unit(0)); err != nil {
+		t.Fatalf("game 1: %v", err)
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	s.logCasualCompletion(canceled, unit(1))
+
+	path := filepath.Join(config.CasualLogRoot,
+		fmt.Sprintf("s%d_%s-vs-%s.txt", sr.ID, "alice", botName))
+	body := readCasualFile(t, path)
+	if n := strings.Count(body, "game "); n != 2 {
+		t.Errorf("blocks after a canceled post-commit context = %d, want 2: %q", n, body)
+	}
+}
+
 func TestCasualRoomSweepRecordsBothStorageSides(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
