@@ -388,9 +388,15 @@ func TestContainsBounds(t *testing.T) {
 		if g.Contains(-1) || g.Contains(g.Cells) {
 			t.Fatalf("%s Contains bounds broken", g.Name)
 		}
+		if len(g.Col) < g.Cells {
+			t.Fatalf("%s Col table = %d entries, want at least %d", g.Name, len(g.Col), g.Cells)
+		}
 		for _, cell := range regionCells(g) {
 			if !g.Contains(cell) {
 				t.Fatalf("%s Contains(%d) false for region cell", g.Name, cell)
+			}
+			if int(g.Col[cell]) != cell%g.Stride {
+				t.Fatalf("%s Col(%d) = %d, want %d", g.Name, cell, g.Col[cell], cell%g.Stride)
 			}
 		}
 	}

@@ -32,6 +32,7 @@ type Geometry struct {
 	Region     [config.MaxBoardWordsPerColor]uint64
 	Dirs       []Dir
 	Neighbors  [][2]int
+	Col        []uint8
 	Center     int
 	OpeningMin int
 }
@@ -97,9 +98,11 @@ func Square(size int) *Geometry {
 		Center:     (size-1)/2*size + (size-1)/2,
 		OpeningMin: config.OpeningChebyshevMin,
 	}
+	g.Col = make([]uint8, cells)
 	for r := range size {
 		for c := range size {
 			g.setRegion(r*size + c)
+			g.Col[r*size+c] = uint8(c)
 		}
 	}
 	for _, d := range [4][2]int{{0, 1}, {1, 0}, {1, 1}, {1, -1}} {
@@ -130,11 +133,13 @@ func Hex(side int) *Geometry {
 		Center:     c*w + c,
 		OpeningMin: config.OpeningChebyshevMin,
 	}
+	g.Col = make([]uint8, w*w)
 	for q := range w {
 		for r := range w {
 			if abs(q-c) <= c && abs(r-c) <= c && abs(q+r-2*c) <= c {
 				g.setRegion(q*w + r)
 			}
+			g.Col[q*w+r] = uint8(r)
 		}
 	}
 	for _, d := range [3][2]int{{0, 1}, {1, 0}, {1, -1}} {
@@ -215,7 +220,7 @@ func (g *Geometry) CellName(cell int) (string, error) {
 }
 
 func (g *Geometry) AppendName(dst []byte, cell int) []byte {
-	dst = append(dst, byte('A'+cell%g.Stride))
+	dst = append(dst, 'A'+g.Col[cell])
 	return strconv.AppendInt(dst, int64(cell/g.Stride)+1, 10)
 }
 

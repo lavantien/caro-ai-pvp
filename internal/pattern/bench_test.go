@@ -7,7 +7,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-var benchSink [config.PatternDirections][config.PatternTableEntries]Entry
+var benchSink [config.PatternTableEntries]Entry
 
 func benchBoard(b *testing.B) *rules.Board {
 	b.Helper()
@@ -23,8 +23,9 @@ func benchBoard(b *testing.B) *rules.Board {
 }
 
 func BenchmarkInit(b *testing.B) {
+	board := rules.NewBoard()
 	for range b.N {
-		buildTables(&benchSink)
+		buildDirTable(board, &config.PatternDirs[0], benchSink[:])
 	}
 }
 
@@ -49,6 +50,6 @@ func BenchmarkLookup(b *testing.B) {
 	cell := rules.Cell(config.BoardSize/2*config.BoardStride + config.BoardSize/2)
 	idx := Index(board, cell, 0, rules.Red)
 	for range b.N {
-		_ = Lookup(0, idx)
+		_ = Lookup(idx)
 	}
 }

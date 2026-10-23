@@ -8,11 +8,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// Oracle path: independent recomputation of win-in-1 and the classification
-// chain through rules.NaiveBoard, sharing no code with the generator. The
-// emulation geometry is the horizontal anchor line, which doubles as a check
-// of direction freeness for the other direction tables.
-
 func oracleCell(i int) rules.Cell {
 	return genCell(config.BoardSize/2, &config.PatternDirs[0], i)
 }
@@ -95,7 +90,6 @@ func naiveClass(t *testing.T, w [config.PatternWindowLen]uint8) uint8 {
 	return config.PatternClassNone
 }
 
-// win parses a 9 character witness: '.' empty, 'o' own, 'x' opp, ' ' off.
 func win(t *testing.T, s string) [config.PatternWindowLen]uint8 {
 	t.Helper()
 	if len(s) != config.PatternWindowLen {

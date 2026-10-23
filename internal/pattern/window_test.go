@@ -37,8 +37,6 @@ func seededBoard(t *testing.T, seed uint64, cross bool) *rules.Board {
 	return b
 }
 
-// manualWindow re-derives the window through rules.At and a direct region
-// bit read, a separate code path from Index.
 func manualWindow(b *rules.Board, cell rules.Cell, dir int, mover rules.Color) [config.PatternWindowLen]uint8 {
 	var w [config.PatternWindowLen]uint8
 	dr, dc := config.PatternDirs[dir][0], config.PatternDirs[dir][1]
@@ -142,7 +140,7 @@ func TestExtractedEntryMatchesNaive(t *testing.T) {
 				cell := rules.Cell(r*config.BoardStride + c)
 				for dir := range config.PatternDirections {
 					idx := Index(b, cell, dir, rules.Red)
-					if got, want := Lookup(dir, idx).Win1, naiveWin1(t, Unpack(idx)); got != want {
+					if got, want := Lookup(idx).Win1, naiveWin1(t, Unpack(idx)); got != want {
 						t.Fatalf("%s cell %d dir %d: Win1 = %#x want %#x", region.name, cell, dir, got, want)
 					}
 					n++
@@ -165,20 +163,11 @@ func TestIndexPanicsOutOfRange(t *testing.T) {
 	_ = Index(b, rules.Cell(config.BoardCells), 0, rules.Red)
 }
 
-func TestLookupPanicsBadDir(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatal("Lookup on dir 4: want panic")
-		}
-	}()
-	_ = Lookup(config.PatternDirections, 0)
-}
-
 func TestLookupPanicsOversizedIndex(t *testing.T) {
 	defer func() {
 		if recover() == nil {
 			t.Fatal("Lookup on oversized index: want panic")
 		}
 	}()
-	_ = Lookup(0, uint32(config.PatternTableEntries))
+	_ = Lookup(uint32(config.PatternTableEntries))
 }

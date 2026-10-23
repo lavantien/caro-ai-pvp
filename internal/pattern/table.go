@@ -7,8 +7,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// Entry classifies one packed window for the mover: the win-in-1 bitmask over
-// the PatternWindowLen positions plus the threat class byte from taxonomy.md.
 type Entry struct {
 	Win1  uint16
 	Class uint8
@@ -20,38 +18,28 @@ const (
 	flagBroken
 )
 
-var tables [config.PatternDirections][config.PatternTableEntries]Entry
+var table [config.PatternTableEntries]Entry
 
-// Generation scratch, written only inside buildTables.
 var (
 	n1Scratch    [config.PatternTableEntries]uint8
 	flagsScratch [config.PatternTableEntries]uint8
 )
 
-func init() { buildTables(&tables) }
-
-// Lookup returns the entry of a packed own-relative window index.
-func Lookup(dir int, idx uint32) Entry { return tables[dir][idx] }
-
-// buildTables fills all 4 direction tables by emulating every realizable
-// window on one rules board and reading only rules.Make, rules.Unmake and
-// rules.FastLastMoveWin. Single threaded by construction: package init or a
-// benchmark call.
-func buildTables(dst *[config.PatternDirections][config.PatternTableEntries]Entry) {
+func init() {
 	board := rules.NewBoard()
-	for d := range config.PatternDirections {
-		clear(n1Scratch[:])
-		clear(flagsScratch[:])
-		sweepWins(board, &config.PatternDirs[d], dst[d][:])
-		markThreats()
-		finishClasses(dst[d][:])
-	}
+	buildDirTable(board, &config.PatternDirs[0], table[:])
 }
 
-// sweepWins emulates each realizable window on the board, centered at the
-// board middle so every window offset lands in region, and records the
-// win-in-1 mask plus the n1 count. Out-of-window cells stay empty, which is
-// exactly wall semantics: runs stop there and empty never blocks.
+func Lookup(idx uint32) Entry { return table[idx] }
+
+func buildDirTable(board *rules.Board, delta *[2]int, dst []Entry) {
+	clear(n1Scratch[:])
+	clear(flagsScratch[:])
+	sweepWins(board, delta, dst)
+	markThreats()
+	finishClasses(dst)
+}
+
 func sweepWins(board *rules.Board, delta *[2]int, dst []Entry) {
 	anchor := config.BoardSize / 2
 	for idx := range config.PatternTableEntries {
@@ -91,9 +79,6 @@ func sweepWins(board *rules.Board, delta *[2]int, dst []Entry) {
 	}
 }
 
-// markThreats derives Three and BrokenThree from child n1 counts by pure
-// index arithmetic: placing Own at empty position i of idx gives the packed
-// index idx|Own<<(2*i), always realizable itself.
 func markThreats() {
 	for idx := range config.PatternTableEntries {
 		if flagsScratch[idx]&flagRealizable == 0 {
@@ -115,8 +100,6 @@ func markThreats() {
 	}
 }
 
-// finishClasses assigns the class byte. In the OpenTwo branch every child has
-// n1 = 0, so a child flagged Three is exactly a child classified Three.
 func finishClasses(dst []Entry) {
 	for idx := range config.PatternTableEntries {
 		if flagsScratch[idx]&flagRealizable == 0 {

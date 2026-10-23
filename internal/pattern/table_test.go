@@ -5,7 +5,15 @@ import (
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
+
+func dirTable(t *testing.T, dir int) []Entry {
+	t.Helper()
+	dst := make([]Entry, config.PatternTableEntries)
+	buildDirTable(rules.NewBoard(), &config.PatternDirs[dir], dst)
+	return dst
+}
 
 func TestGeneratorTruthExhaustive(t *testing.T) {
 	stride := 1
@@ -15,6 +23,7 @@ func TestGeneratorTruthExhaustive(t *testing.T) {
 	for dir := range config.PatternDirections {
 		t.Run(strconv.Itoa(dir), func(t *testing.T) {
 			t.Parallel()
+			dt := dirTable(t, dir)
 			checked := 0
 			for idx := range config.PatternTableEntries {
 				if idx%stride != 0 {
@@ -22,12 +31,12 @@ func TestGeneratorTruthExhaustive(t *testing.T) {
 				}
 				w := Unpack(uint32(idx))
 				if !isRealizable(&w) {
-					if entry := tables[dir][idx]; entry != (Entry{}) {
+					if entry := dt[idx]; entry != (Entry{}) {
 						t.Fatalf("idx %#x: non-realizable entry %+v want zero", idx, entry)
 					}
 					continue
 				}
-				if got, want := tables[dir][idx].Win1, naiveWin1(t, w); got != want {
+				if got, want := dt[idx].Win1, naiveWin1(t, w); got != want {
 					t.Fatalf("idx %#x %v: Win1 = %#x want %#x", idx, w, got, want)
 				}
 				checked++
@@ -47,6 +56,7 @@ func TestClassTruth(t *testing.T) {
 	for dir := range config.PatternDirections {
 		t.Run(strconv.Itoa(dir), func(t *testing.T) {
 			t.Parallel()
+			dt := dirTable(t, dir)
 			for idx := range config.PatternTableEntries {
 				if idx%strides[dir] != 0 {
 					continue
@@ -55,11 +65,22 @@ func TestClassTruth(t *testing.T) {
 				if !isRealizable(&w) {
 					continue
 				}
-				if got, want := tables[dir][idx].Class, naiveClass(t, w); got != want {
+				if got, want := dt[idx].Class, naiveClass(t, w); got != want {
 					t.Fatalf("idx %#x %v: Class = %d want %d", idx, w, got, want)
 				}
 			}
 		})
+	}
+}
+
+func TestUnifiedTableMatchesEveryDirection(t *testing.T) {
+	for dir := range config.PatternDirections {
+		dt := dirTable(t, dir)
+		for idx := range config.PatternTableEntries {
+			if dt[idx] != table[idx] {
+				t.Fatalf("dir %d idx %#x: rebuilt %+v differs from the unified table %+v", dir, idx, dt[idx], table[idx])
+			}
+		}
 	}
 }
 
@@ -87,14 +108,12 @@ func TestTaxonomyWitnesses(t *testing.T) {
 		for _, bit := range c.win1Bits {
 			wantMask |= 1 << uint(bit)
 		}
-		for dir := range config.PatternDirections {
-			entry := Lookup(dir, Pack(w))
-			if entry.Class != c.class {
-				t.Fatalf("%s dir %d: class = %d want %d", c.name, dir, entry.Class, c.class)
-			}
-			if entry.Win1 != wantMask {
-				t.Fatalf("%s dir %d: Win1 = %#x want %#x", c.name, dir, entry.Win1, wantMask)
-			}
+		entry := Lookup(Pack(w))
+		if entry.Class != c.class {
+			t.Fatalf("%s: class = %d want %d", c.name, entry.Class, c.class)
+		}
+		if entry.Win1 != wantMask {
+			t.Fatalf("%s: Win1 = %#x want %#x", c.name, entry.Win1, wantMask)
 		}
 	}
 }
@@ -110,20 +129,17 @@ func TestOverlineExclusion(t *testing.T) {
 	}
 	for _, s := range cases {
 		w := win(t, s)
-		for dir := range config.PatternDirections {
-			entry := Lookup(dir, Pack(w))
-			if entry.Win1 != 0 {
-				t.Fatalf("%q dir %d: Win1 = %#x want 0, overline completions never win", s, dir, entry.Win1)
-			}
-			if got, want := entry.Class, naiveClass(t, w); got != want {
-				t.Fatalf("%q dir %d: class = %d want %d", s, dir, got, want)
-			}
+		entry := Lookup(Pack(w))
+		if entry.Win1 != 0 {
+			t.Fatalf("%q: Win1 = %#x want 0, overline completions never win", s, entry.Win1)
+		}
+		if got, want := entry.Class, naiveClass(t, w); got != want {
+			t.Fatalf("%q: class = %d want %d", s, got, want)
 		}
 	}
 }
 
 func TestRealizableCount(t *testing.T) {
-	// Independent contiguity scan: no Off may sit between two non-Off cells.
 	independent := func(w *[config.PatternWindowLen]uint8) bool {
 		inRun, afterOff := false, false
 		for _, s := range w {
@@ -140,7 +156,6 @@ func TestRealizableCount(t *testing.T) {
 		}
 		return true
 	}
-	// 1 all-Off window plus sum over L=1..9 of (10-L)*3^L interval windows.
 	const want = 44272
 	scan, live := 0, 0
 	for idx := range config.PatternTableEntries {
