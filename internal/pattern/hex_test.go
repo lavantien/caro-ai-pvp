@@ -10,7 +10,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-func hexBoardFor(t *testing.T) *rules.Board {
+func hexBoardFor(t testing.TB) *rules.Board {
 	t.Helper()
 	g, err := geom.ByName("hex")
 	if err != nil {
