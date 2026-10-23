@@ -186,8 +186,6 @@ func TestLegalMovesConstraintExpires(t *testing.T) {
 
 func cellAt(row, col int) Cell { return Cell(row*config.BoardStride + col) }
 
-// Pin the exact max-norm for pairs covering every sign and dominance branch,
-// including the magnitude-1 axes where a broken negation guard would return 0.
 func TestChebyshevExactValues(t *testing.T) {
 	for _, tc := range []struct {
 		a, b Cell

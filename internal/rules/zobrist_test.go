@@ -45,9 +45,6 @@ func TestZobristCapacityKeysDistinctNonzero(t *testing.T) {
 	add(zobristSide)
 }
 
-// Golden pins derived once from the pinned splitmix64 constants and
-// config.ZobristSeed: any mixer, seed-chain, or colorCount mutation changes
-// at least one of these exact values.
 func TestZobristGoldenPins(t *testing.T) {
 	if len(zobristPieces) != 2 {
 		t.Fatalf("len(zobristPieces) = %d, want 2 (red and blue keys only)", len(zobristPieces))

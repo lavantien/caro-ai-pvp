@@ -88,13 +88,6 @@ func popcountBB(w bb) int {
 	return n
 }
 
-func (b *Board) stones(color Color) bb {
-	if color == Red {
-		return b.Red
-	}
-	return b.Blue
-}
-
 func (b *Board) At(cell Cell) Color {
 	if int(cell) >= b.Geom.Cells {
 		panic("rules: At cell out of range")
