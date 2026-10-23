@@ -22,7 +22,6 @@ func TestGeneratorTruthExhaustive(t *testing.T) {
 	}
 	for dir := range config.PatternDirections {
 		t.Run(strconv.Itoa(dir), func(t *testing.T) {
-			t.Parallel()
 			dt := dirTable(t, dir)
 			checked := 0
 			for idx := range config.PatternTableEntries {
@@ -55,7 +54,6 @@ func TestClassTruth(t *testing.T) {
 	}
 	for dir := range config.PatternDirections {
 		t.Run(strconv.Itoa(dir), func(t *testing.T) {
-			t.Parallel()
 			dt := dirTable(t, dir)
 			for idx := range config.PatternTableEntries {
 				if idx%strides[dir] != 0 {
