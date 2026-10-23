@@ -95,9 +95,18 @@ func TestParseVerdictAndHeader(t *testing.T) {
 	if !ok || rn != "easy-2" || rt != "easy" || bn != "hard-1" || bt != "hard" {
 		t.Errorf("got %s %s %s %s ok %v", rn, rt, bn, bt, ok)
 	}
-	initial, inc, bo, ok := parseTCLine("tc 3+2 bo3")
-	if !ok || initial != 3 || inc != 2 || bo != 3 {
-		t.Errorf("got %d %d %d ok %v", initial, inc, bo, ok)
+	initial, inc, bo, variant, ok := parseTCLine("tc 3+2 bo3")
+	if !ok || initial != 3 || inc != 2 || bo != 3 || variant != config.DefaultVariant {
+		t.Errorf("got %d %d %d %q ok %v", initial, inc, bo, variant, ok)
+	}
+	initial, inc, bo, variant, ok = parseTCLine("tc 1+0 bo3 hex")
+	if !ok || initial != 1 || inc != 0 || bo != 3 || variant != "hex" {
+		t.Errorf("got %d %d %d %q ok %v", initial, inc, bo, variant, ok)
+	}
+	for _, badTC := range []string{"tc 1+0 bo3 hexagon", "tc 1+0 bo3 hex extra", "tc 1+0 bo0"} {
+		if _, _, _, _, ok := parseTCLine(badTC); ok {
+			t.Errorf("accepted bad tc line: %s", badTC)
+		}
 	}
 	if _, _, _, _, ok := parsePairingLine("pairing easy-2 easy vs hard-1 (hard)"); ok {
 		t.Error("accepted pairing without a red tier")

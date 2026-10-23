@@ -16,6 +16,7 @@ type header struct {
 	run, series                          int64
 	redName, redTier, blueName, blueTier string
 	initialMin, incSec, boLen            int
+	variant                              string
 }
 
 type mLine struct {
@@ -144,12 +145,12 @@ func parseFile(path string) (seriesFile, error) {
 				bad(lineno, line)
 				continue
 			}
-			initial, inc, bo, ok := parseTCLine(line)
+			initial, inc, bo, variant, ok := parseTCLine(line)
 			if !ok {
 				bad(lineno, line)
 				continue
 			}
-			f.head.initialMin, f.head.incSec, f.head.boLen, sawTC = initial, inc, bo, true
+			f.head.initialMin, f.head.incSec, f.head.boLen, f.head.variant, sawTC = initial, inc, bo, variant, true
 		case strings.HasPrefix(line, "game "):
 			if g, ok := parseGameLine(line); ok {
 				f.records = append(f.records, record{gl: &g})
@@ -216,9 +217,55 @@ func cutTier(s string) (name, tier string, ok bool) {
 	return name, tier, true
 }
 
-func parseTCLine(line string) (initial, inc, bo int, ok bool) {
-	n, err := fmt.Sscanf(line, "tc %d+%d bo%d", &initial, &inc, &bo)
-	return initial, inc, bo, err == nil && n == 3 && initial >= 0 && inc >= 0 && bo >= 1
+func parseTCLine(line string) (initial, inc, bo int, variant string, ok bool) {
+	rest, cut := strings.CutPrefix(line, "tc ")
+	if !cut {
+		return 0, 0, 0, "", false
+	}
+	fields := strings.Fields(rest)
+	if len(fields) < 2 || len(fields) > 3 {
+		return 0, 0, 0, "", false
+	}
+	clock := strings.Split(fields[0], "+")
+	if len(clock) != 2 || !digits(clock[0]) || !digits(clock[1]) {
+		return 0, 0, 0, "", false
+	}
+	initial, _ = intAt(clock[0])
+	inc, _ = intAt(clock[1])
+	boTok, cutBo := strings.CutPrefix(fields[1], "bo")
+	if !cutBo || !digits(boTok) {
+		return 0, 0, 0, "", false
+	}
+	bo, _ = intAt(boTok)
+	variant = config.DefaultVariant
+	if len(fields) == 3 {
+		if !knownVariant(fields[2]) {
+			return 0, 0, 0, "", false
+		}
+		variant = fields[2]
+	}
+	return initial, inc, bo, variant, initial >= 0 && inc >= 0 && bo >= 1
+}
+
+func knownVariant(name string) bool {
+	for i := range config.Variants {
+		if config.Variants[i].Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func digits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func parseGameLine(line string) (g gameLine, ok bool) {
