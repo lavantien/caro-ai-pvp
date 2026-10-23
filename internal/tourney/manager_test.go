@@ -1,12 +1,5 @@
 package tourney
 
-// The manager tests: the M7 UI seam over the conductor. StartRun persists
-// synchronously (the run id exists before any series starts), the drive runs
-// in the background to a finished run, invalid specs refuse without
-// persisting, a failed drive surfaces on Detail while the run row stays
-// ongoing for the post-mortem, and an unknown run maps onto
-// server.ErrNotFound.
-
 import (
 	"context"
 	"errors"
@@ -18,7 +11,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
 
-// waitDetail polls Detail until cond holds or the deadline passes.
 func waitDetail(t *testing.T, m *Manager, runID int64, cond func(Detail) bool) Detail {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
@@ -50,8 +42,6 @@ func TestManagerStartRunDrivesInBackground(t *testing.T) {
 	if err != nil {
 		t.Fatalf("start run: %v", err)
 	}
-	// The row exists the moment StartRun returns: the page can redirect onto
-	// the run's live board without racing the first series.
 	if run.ID == 0 || run.Status != RunStateOngoing {
 		t.Fatalf("started run = %+v, want a persisted ongoing row", run)
 	}
@@ -63,9 +53,6 @@ func TestManagerStartRunDrivesInBackground(t *testing.T) {
 	if d.Running {
 		t.Error("detail reports the run still driven after it finished")
 	}
-	// The scripted sweep: both series of the twice-pair settle for slot 0,
-	// the roster reads back in slot order, and the leaderboard seats the
-	// easy tier first at the zero-sum.
 	if len(d.Roster) != 2 || d.Roster[0].Name != "easy-1" || d.Roster[1].Name != "medium-1" {
 		t.Errorf("roster = %+v, want the created participants in slot order", d.Roster)
 	}
@@ -137,7 +124,6 @@ func TestManagerStartRunRefusesWithoutPersisting(t *testing.T) {
 func TestManagerFailedDriveMarksDetail(t *testing.T) {
 	ts, _ := newTestStore(t)
 	pointLogsAt(t)
-	// The eviction shape: the stream ends before the series event.
 	src := &fakeSource{script: func(host, guest string) []server.Event {
 		ev := easySweeps(host, guest)
 		return ev[:len(ev)-1]
@@ -158,9 +144,6 @@ func TestManagerFailedDriveMarksDetail(t *testing.T) {
 	if !errors.Is(d.Failure, server.ErrSlowConsumer) {
 		t.Errorf("failure = %v, want the stream's eviction error", d.Failure)
 	}
-	// The aborted run row stays ongoing for the post-mortem. The first
-	// pairing's games landed before the eviction, so the store's own majority
-	// law settled that series row; the second never started.
 	if d.Run.Status != RunStateOngoing {
 		t.Errorf("run status = %q, want %q after the abort", d.Run.Status, RunStateOngoing)
 	}
@@ -169,8 +152,6 @@ func TestManagerFailedDriveMarksDetail(t *testing.T) {
 	}
 }
 
-// gatedSource parks every StartSeries until released, holding a run's drive
-// live without spinning.
 func gatedSource(release chan struct{}) *fakeSource {
 	return &fakeSource{script: easySweeps, onStart: func(*fakeStream) error {
 		<-release
@@ -186,8 +167,6 @@ func TestManagerRefusesSecondConcurrentRun(t *testing.T) {
 	spec := RunSpec{Roster: rosterTwo(), TCIdx: mustTC(1, 0),
 		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating}
 
-	// Posts racing in-process serialize on the manager's lock: exactly one
-	// wins the run gate, every other reads its ongoing row and refuses.
 	const posts = 8
 	errs := make(chan error, posts)
 	for range posts {
@@ -215,7 +194,6 @@ func TestManagerRefusesSecondConcurrentRun(t *testing.T) {
 		t.Errorf("runs after the race = %d, want the one winner", n)
 	}
 
-	// The winner still finishes cleanly once its gate opens.
 	runs, err := m.Runs(context.Background())
 	if err != nil || len(runs) != 1 {
 		t.Fatalf("runs after the race = %v (%v), want the one ongoing row", runs, err)
@@ -224,9 +202,6 @@ func TestManagerRefusesSecondConcurrentRun(t *testing.T) {
 	waitDetail(t, m, runs[0].ID, func(d Detail) bool { return d.Run.Status == RunStateFinished })
 }
 
-// TestManagerOngoingRun pins the home banner's read: nothing before any
-// start, the driven run with its twice-pair while the gate holds, nothing
-// once the drive returns.
 func TestManagerOngoingRun(t *testing.T) {
 	ts, _ := newTestStore(t)
 	pointLogsAt(t)
@@ -271,7 +246,6 @@ func TestManagerCloseStalled(t *testing.T) {
 		t.Fatalf("close of an unknown run = %v, want server.ErrNotFound", err)
 	}
 
-	// A live drive owns the row and refuses the close.
 	release := make(chan struct{})
 	m := NewManager(ts, gatedSource(release))
 	run, err := m.StartRun(ctx, spec, 1)
@@ -290,9 +264,7 @@ func TestManagerCloseStalled(t *testing.T) {
 		t.Fatalf("close of a finished run = %v, want the already-finished refusal", err)
 	}
 
-	// A stalled row no process drives closes without a standings snapshot;
-	// the leaderboard keeps deriving from the games.
-	stalled, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, rosterTwo(), "test")
+	stalled, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, rosterTwo(), "test", "")
 	if err != nil {
 		t.Fatalf("create stalled run: %v", err)
 	}
@@ -310,8 +282,6 @@ func TestManagerCloseStalled(t *testing.T) {
 		t.Errorf("standings after a stalled close = %d, want 0", n)
 	}
 
-	// A failed drive leaves the row ongoing for the post-mortem; with the
-	// drive dead the close resolves it.
 	failM := NewManager(ts, &fakeSource{script: func(host, guest string) []server.Event {
 		ev := easySweeps(host, guest)
 		return ev[:len(ev)-1]
@@ -329,21 +299,17 @@ func TestManagerCloseStalled(t *testing.T) {
 	}
 }
 
-// TestManagerCloseStalledRefusesFreshLease pins the close-side fence across
-// processes: a fresh drive lease is a live drive somewhere else and the
-// close refuses, while a claim past the stale window is a dead drive's and
-// the close proceeds.
 func TestManagerCloseStalledRefusesFreshLease(t *testing.T) {
 	ts, _ := newTestStore(t)
 	pointLogsAt(t)
 	ctx := context.Background()
 	m := NewManager(ts, nil)
 
-	fresh, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	fresh, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create fresh-leased run: %v", err)
 	}
-	ts.fakePid = 4242 // stand in for the other process's drive
+	ts.fakePid = 4242
 	if err := ts.ClaimDrive(ctx, fresh.ID, time.Now().Unix()); err != nil {
 		t.Fatalf("claim fresh lease: %v", err)
 	}
@@ -354,9 +320,7 @@ func TestManagerCloseStalledRefusesFreshLease(t *testing.T) {
 		t.Errorf("status after the refused close = %q, want %q", status, RunStateOngoing)
 	}
 
-	// A claim stamped past the stale window is a dead drive's: the close
-	// proceeds and clears the dead claim with the row.
-	stale, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	stale, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create stale-leased run: %v", err)
 	}
@@ -380,10 +344,8 @@ func TestManagerDetailUnknownAndUndrivenRuns(t *testing.T) {
 	if _, err := m.Detail(context.Background(), 999); !errors.Is(err, server.ErrNotFound) {
 		t.Errorf("detail of run 999 = %v, want server.ErrNotFound", err)
 	}
-	// A run this process never drives (a previous lifetime's, or one created
-	// straight through the store) reads back unfailed and not running.
 	ctx := context.Background()
-	run, err := ts.CreateRun(ctx, 1, config.SeriesBO3, config.TournamentStartRating, rosterTwo(), "test")
+	run, err := ts.CreateRun(ctx, 1, config.SeriesBO3, config.TournamentStartRating, rosterTwo(), "test", "")
 	if err != nil {
 		t.Fatalf("create run: %v", err)
 	}
@@ -396,5 +358,44 @@ func TestManagerDetailUnknownAndUndrivenRuns(t *testing.T) {
 	}
 	if len(d.Series) != 2 {
 		t.Errorf("series = %d rows, want the 2 the create persisted", len(d.Series))
+	}
+}
+
+func TestManagerDetailDropsRunningOnceTheRowFinishes(t *testing.T) {
+	ts, srv := newTestStore(t)
+	pointLogsAt(t)
+	ctx := context.Background()
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	m := NewManager(ts, gatedSource(release))
+
+	run, err := m.StartRun(ctx, RunSpec{Roster: rosterTwo(), TCIdx: mustTC(1, 0),
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating}, 1)
+	if err != nil {
+		t.Fatalf("start run: %v", err)
+	}
+	d, err := m.Detail(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("detail while gated: %v", err)
+	}
+	if !d.Running || d.Run.Status != RunStateOngoing {
+		t.Fatalf("gated detail = running %t status %q, want live and ongoing", d.Running, d.Run.Status)
+	}
+
+	now := time.Now().Unix()
+	runSQL(t, srv,
+		`UPDATE tournament_series SET winner_slot = 0, finished_at = ? WHERE run_id = ?`, now, run.ID)
+	if err := ts.FinishRun(ctx, run.ID, now); err != nil {
+		t.Fatalf("finish the run row under the open drive: %v", err)
+	}
+	d, err = m.Detail(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("detail after the row finished: %v", err)
+	}
+	if d.Run.Status != RunStateFinished {
+		t.Fatalf("status = %q, want finished", d.Run.Status)
+	}
+	if d.Running {
+		t.Error("detail reports a finished row as running: the row outranks the drive map")
 	}
 }

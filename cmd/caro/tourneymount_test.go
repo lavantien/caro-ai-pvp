@@ -114,7 +114,7 @@ type cmdSource struct {
 	streamErr  error
 }
 
-func (s *cmdSource) StartSeries(host, guest *config.Tier, hostName, guestName string, _, _ int) (tourney.SeriesStream, error) {
+func (s *cmdSource) StartSeries(host, guest *config.Tier, hostName, guestName string, _, _ int, _ string) (tourney.SeriesStream, error) {
 	if hostName == "" {
 		hostName = host.Name
 	}
@@ -366,7 +366,7 @@ func TestTourneyServiceStartMapsRunGate(t *testing.T) {
 		config.SeriesBO3, config.TournamentStartRating, []tourney.Participant{
 			{Slot: 0, Name: "alpha", Tier: config.TierEasy.Name},
 			{Slot: 1, Name: "beta", Tier: config.TierEasy.Name},
-		}, "test")
+		}, "test", "")
 	if err != nil {
 		t.Fatalf("plant ongoing run: %v", err)
 	}
@@ -395,7 +395,7 @@ func TestTourneyServiceCloseStalled(t *testing.T) {
 		config.SeriesBO3, config.TournamentStartRating, []tourney.Participant{
 			{Slot: 0, Name: "alpha", Tier: config.TierEasy.Name},
 			{Slot: 1, Name: "beta", Tier: config.TierEasy.Name},
-		}, "test")
+		}, "test", "")
 	if err != nil {
 		t.Fatalf("plant stalled run: %v", err)
 	}
@@ -473,7 +473,7 @@ func plantRun(t *testing.T, store *server.Store) int64 {
 		config.SeriesBO3, config.TournamentStartRating, []tourney.Participant{
 			{Slot: 0, Name: "alpha", Tier: config.TierEasy.Name},
 			{Slot: 1, Name: "beta", Tier: config.TierEasy.Name},
-		}, "test")
+		}, "test", "")
 	if err != nil {
 		t.Fatalf("plant run: %v", err)
 	}

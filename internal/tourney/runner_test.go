@@ -16,6 +16,7 @@ import (
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
@@ -139,7 +140,7 @@ type fakeSource struct {
 	maxLive int
 }
 
-func (s *fakeSource) StartSeries(host, guest *config.Tier, hostName, guestName string, tcIdx, boLen int) (SeriesStream, error) {
+func (s *fakeSource) StartSeries(host, guest *config.Tier, hostName, guestName string, tcIdx, boLen int, variant string) (SeriesStream, error) {
 	s.mu.Lock()
 	if hostName == "" {
 		hostName = host.Name
@@ -268,7 +269,7 @@ func TestConductorRunScriptedHappyPath(t *testing.T) {
 	src := &fakeSource{script: easySweeps}
 
 	res, err := NewConductor(src).Run(context.Background(), ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
@@ -395,7 +396,7 @@ func TestConductorReportsProgress(t *testing.T) {
 	t.Cleanup(func() { progressOut = saved })
 
 	res, err := NewConductor(src).Run(context.Background(), ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
@@ -460,7 +461,7 @@ func TestConductorFailsOnTruncatedDelivery(t *testing.T) {
 		}
 		delivered = append(delivered, rules.Move(cell))
 	}
-	if wonBy, rerr := replayGame(delivered, server.RedWins); rerr != nil || wonBy == nil {
+	if wonBy, rerr := replayGame(delivered, server.RedWins, geom.Default()); rerr != nil || wonBy == nil {
 		t.Fatalf("truncated replay = (%v, %v), want it clean without the truth net", wonBy, rerr)
 	}
 
@@ -475,7 +476,7 @@ func TestConductorFailsOnTruncatedDelivery(t *testing.T) {
 	}
 
 	_, err := NewConductor(src).Run(context.Background(), ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err == nil || !strings.Contains(err.Error(), "11 moves against the room's 13") {
 		t.Fatalf("run error = %v, want the truth reconciliation naming both counts", err)
 	}
@@ -511,7 +512,7 @@ func TestConductorOverlapsUpToParallel(t *testing.T) {
 	src := &fakeSource{script: easySweeps, onStart: gate}
 
 	if _, err := NewConductor(src).Run(context.Background(), ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 2, "test"); err != nil {
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 2, "test", ""); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	if _, _, maxLive := src.snapshot(); maxLive != 2 {
@@ -549,7 +550,7 @@ func TestConductorCancelRetiresEverything(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		_, err := NewConductor(src).Run(ctx, ts, rosterTwo(),
-			mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+			mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 		done <- err
 	}()
 	<-started
@@ -581,7 +582,7 @@ func TestConductorPersistsMLines(t *testing.T) {
 	src := &fakeSource{script: easySweeps}
 
 	if _, err := NewConductor(src).Run(context.Background(), ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test"); err != nil {
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", ""); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	var games, lines, gamesWithLines, badMover int
@@ -619,7 +620,7 @@ func TestConductorRunRefusals(t *testing.T) {
 	src := &fakeSource{script: easySweeps}
 	run := func(roster []Participant, parallel int) error {
 		_, err := NewConductor(src).Run(context.Background(), ts, roster,
-			mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, parallel, "test")
+			mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, parallel, "test", "")
 		return err
 	}
 
@@ -649,13 +650,13 @@ func TestConductorRefusesSecondOngoingRun(t *testing.T) {
 	pointLogsAt(t)
 	src := &fakeSource{script: easySweeps}
 	ctx := context.Background()
-	held, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, rosterTwo(), "test")
+	held, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, rosterTwo(), "test", "")
 	if err != nil {
 		t.Fatalf("plant ongoing run: %v", err)
 	}
 
 	_, err = NewConductor(src).Run(ctx, ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	var gate *RunInProgressError
 	if !errors.As(err, &gate) || gate.RunID != held.ID {
 		t.Fatalf("run error = %v, want RunInProgressError naming run %d", err, held.ID)
@@ -749,7 +750,7 @@ func TestConductorDisqualifiesMissedEvents(t *testing.T) {
 			ts, _ := newTestStore(t)
 			pointLogsAt(t)
 			_, err := NewConductor(tc.source).Run(context.Background(), ts, rosterTwo(),
-				mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+				mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 			if err == nil {
 				t.Fatal("run succeeded, want the disqualifier")
 			}

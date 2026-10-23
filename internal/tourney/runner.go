@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/bits"
 	"os"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
@@ -26,7 +28,7 @@ func reportProgress(logs *Logs, format string, args ...any) error {
 }
 
 type MatchSource interface {
-	StartSeries(host, guest *config.Tier, hostName, guestName string, tcIdx, boLen int) (SeriesStream, error)
+	StartSeries(host, guest *config.Tier, hostName, guestName string, tcIdx, boLen int, variant string) (SeriesStream, error)
 }
 type SeriesStream interface {
 	Events() <-chan server.Event
@@ -36,8 +38,8 @@ type SeriesStream interface {
 }
 type RoomSource struct{ RM *server.RoomManager }
 
-func (s RoomSource) StartSeries(host, guest *config.Tier, hostName, guestName string, tcIdx, boLen int) (SeriesStream, error) {
-	room, err := s.RM.CreateBotVsBot(host, hostName, guest, guestName, tcIdx, boLen)
+func (s RoomSource) StartSeries(host, guest *config.Tier, hostName, guestName string, tcIdx, boLen int, variant string) (SeriesStream, error) {
+	room, err := s.RM.CreateBotVsBot(host, hostName, guest, guestName, tcIdx, boLen, variant)
 	if err != nil {
 		return nil, err
 	}
@@ -130,15 +132,15 @@ func (c *Conductor) Resume(ctx context.Context, store *Store, runID int64, paral
 	return c.drive(ctx, store, run, roster, tiers, parallel)
 }
 func (c *Conductor) Run(ctx context.Context, store *Store, roster []Participant,
-	tcIdx, boLen, startRating, parallel int, label string) (RunResult, error) {
-	run, tiers, err := c.startRun(ctx, store, roster, tcIdx, boLen, startRating, parallel, label)
+	tcIdx, boLen, startRating, parallel int, label, variant string) (RunResult, error) {
+	run, tiers, err := c.startRun(ctx, store, roster, tcIdx, boLen, startRating, parallel, label, variant)
 	if err != nil {
 		return RunResult{}, err
 	}
 	return c.drive(ctx, store, run, roster, tiers, parallel)
 }
 func (c *Conductor) startRun(ctx context.Context, store *Store, roster []Participant,
-	tcIdx, boLen, startRating, parallel int, label string) (Run, []*config.Tier, error) {
+	tcIdx, boLen, startRating, parallel int, label, variant string) (Run, []*config.Tier, error) {
 	tiers, err := tiersOfRoster(roster)
 	if err != nil {
 		return Run{}, nil, err
@@ -156,7 +158,7 @@ func (c *Conductor) startRun(ctx context.Context, store *Store, roster []Partici
 	} else if held {
 		return Run{}, nil, &RunInProgressError{RunID: id}
 	}
-	run, err := store.CreateRun(ctx, tcIdx, boLen, startRating, roster, label)
+	run, err := store.CreateRun(ctx, tcIdx, boLen, startRating, roster, label, variant)
 	if err != nil {
 		return Run{}, nil, err
 	}
@@ -364,14 +366,18 @@ func checkCoreBudget(parallel int, tiers []*config.Tier) error {
 func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Run,
 	row Series, pair Pairing, tiers []*config.Tier) (line SeriesResult, err error) {
 	line = SeriesResult{PairingSlot: row.PairingSlot, RedFirst: pair.RedFirst, BlueFirst: pair.BlueFirst}
-	if err = logs.WriteSeriesHeader(run.ID, row.ID, run.TCIdx, run.BOLen, pair.RedFirst, pair.BlueFirst); err != nil {
+	board, berr := geom.ByName(run.Variant)
+	if berr != nil {
+		return line, fmt.Errorf("tourney: run %d variant %q: %w", run.ID, run.Variant, berr)
+	}
+	if err = logs.WriteSeriesHeader(run.ID, row.ID, run.TCIdx, run.BOLen, pair.RedFirst, pair.BlueFirst, run.Variant); err != nil {
 		return line, err
 	}
 	defer func() {
 		err = errors.Join(err, logs.CloseSeries(run.ID, row.ID))
 	}()
 	stream, serr := c.source.StartSeries(tiers[pair.RedFirst.Slot], tiers[pair.BlueFirst.Slot],
-		pair.RedFirst.Name, pair.BlueFirst.Name, run.TCIdx, run.BOLen)
+		pair.RedFirst.Name, pair.BlueFirst.Name, run.TCIdx, run.BOLen, run.Variant)
 	if serr != nil {
 		return line, serr
 	}
@@ -396,7 +402,7 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 		}
 		switch ev.Kind {
 		case server.EventKindMove:
-			cell, perr := rules.ParseCell(ev.Payload)
+			cell, perr := board.ParseCell(ev.Payload)
 			if perr != nil {
 				return line, fmt.Errorf("game %d move %q: %w", games+1, ev.Payload, perr)
 			}
@@ -419,7 +425,7 @@ func (c *Conductor) series(ctx context.Context, store *Store, logs *Logs, run Ru
 				return line, fmt.Errorf("game %d delivered %d moves against the room's %d, the stream dropped or corrupted stones",
 					games+1, len(moves), len(truth))
 			}
-			wonBy, rerr := replayGame(truth, outcome)
+			wonBy, rerr := replayGame(truth, outcome, board)
 			if rerr != nil {
 				return line, fmt.Errorf("game %d: %w", games+1, rerr)
 			}
@@ -515,11 +521,19 @@ func (c *Conductor) closeSeries(logs *Logs, run Run, row Series, line SeriesResu
 	line.WinnerSlot = winner
 	return line, nil
 }
-func replayGame(moves []rules.Move, outcome server.Outcome) (*string, error) {
+func playableCells(g *geom.Geometry) int {
+	n := 0
+	for _, w := range g.Region[:g.Words] {
+		n += bits.OnesCount64(w)
+	}
+	return n
+}
+
+func replayGame(moves []rules.Move, outcome server.Outcome, g *geom.Geometry) (*string, error) {
 	if len(moves) == 0 {
 		return nil, fmt.Errorf("%s verdict on an empty board", outcome)
 	}
-	b := rules.NewBoard()
+	b := rules.NewBoardFor(g)
 	for _, mv := range moves {
 		if !b.IsLegal(rules.Cell(mv)) {
 			return nil, fmt.Errorf("move %d is illegal on the replayed board", b.MoveCount+1)
@@ -529,7 +543,7 @@ func replayGame(moves []rules.Move, outcome server.Outcome) (*string, error) {
 	last := rules.Cell(moves[len(moves)-1])
 	if outcome == server.Draw {
 		if !b.IsFull() {
-			return nil, fmt.Errorf("draw verdict on a board with %d of %d cells", b.MoveCount, config.BoardCells)
+			return nil, fmt.Errorf("draw verdict on a board with %d of %d cells", b.MoveCount, playableCells(g))
 		}
 		if b.FastLastMoveWin(rules.Red, last) || b.FastLastMoveWin(rules.Blue, last) {
 			return nil, errors.New("draw verdict but the final stone completes a five")

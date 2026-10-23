@@ -29,7 +29,7 @@ func TestConductorStartRunRefusesWhileRoomsHoldCores(t *testing.T) {
 	held := &ledgerFakeSource{fakeSource: fakeSource{script: easySweeps}, held: config.TierHard.Cores}
 
 	_, _, err := NewConductor(held).startRun(context.Background(), ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("%d live-search cores", config.TierHard.Cores)) {
 		t.Fatalf("start run = %v, want the held-cores refusal naming %d", err, config.TierHard.Cores)
 	}
@@ -44,7 +44,7 @@ func TestConductorStartRunRefusesWhileRoomsHoldCores(t *testing.T) {
 	// A source with no ledger to expose (the scripted tests' shape) starts
 	// clean: the gate only reads the capability when the source carries it.
 	if _, _, err := NewConductor(&fakeSource{script: easySweeps}).startRun(context.Background(), ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test"); err != nil {
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", ""); err != nil {
 		t.Fatalf("start run without ledger holdings: %v", err)
 	}
 }

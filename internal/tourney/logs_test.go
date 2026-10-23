@@ -22,7 +22,7 @@ func TestLogsReplayReplacesStaleSeriesFile(t *testing.T) {
 	blue := Participant{Slot: 1, Name: "medium-1", Tier: "medium"}
 
 	g := NewLogs(dir)
-	if err := g.WriteSeriesHeader(7, 3, 1, config.SeriesBO3, red, blue); err != nil {
+	if err := g.WriteSeriesHeader(7, 3, 1, config.SeriesBO3, red, blue, ""); err != nil {
 		t.Fatalf("header: %v", err)
 	}
 	if err := g.WriteSeriesLine(7, 3, "stale partial line"); err != nil {
@@ -33,7 +33,7 @@ func TestLogsReplayReplacesStaleSeriesFile(t *testing.T) {
 	}
 
 	h := NewLogs(dir)
-	if err := h.WriteSeriesHeader(7, 3, 1, config.SeriesBO3, red, blue); err != nil {
+	if err := h.WriteSeriesHeader(7, 3, 1, config.SeriesBO3, red, blue, ""); err != nil {
 		t.Fatalf("replay header: %v", err)
 	}
 	if err := h.WriteSeriesLine(7, 3, "fresh line"); err != nil {
@@ -67,7 +67,7 @@ func TestLogsLifecycle(t *testing.T) {
 	if err := g.WriteSeriesLine(7, 3, "M1, Red, H8"); err == nil {
 		t.Fatalf("line before header accepted, want the no-header error")
 	}
-	if err := g.WriteSeriesHeader(7, 3, 1, config.SeriesBO3, red, blue); err != nil {
+	if err := g.WriteSeriesHeader(7, 3, 1, config.SeriesBO3, red, blue, ""); err != nil {
 		t.Fatalf("header: %v", err)
 	}
 	if err := g.WriteSeriesLine(7, 3, "M1, Red, H8, d=12"); err != nil {
@@ -103,10 +103,10 @@ func TestLogsLifecycle(t *testing.T) {
 
 	fresh := NewLogs(dir)
 	t.Cleanup(func() { _ = fresh.Close() })
-	if err := fresh.WriteSeriesHeader(8, 1, 0, config.SeriesBO3, red, blue); err != nil {
+	if err := fresh.WriteSeriesHeader(8, 1, 0, config.SeriesBO3, red, blue, ""); err != nil {
 		t.Fatalf("second header setup: %v", err)
 	}
-	if err := fresh.WriteSeriesHeader(8, 1, 0, config.SeriesBO3, red, blue); err == nil {
+	if err := fresh.WriteSeriesHeader(8, 1, 0, config.SeriesBO3, red, blue, ""); err == nil {
 		t.Errorf("duplicate header accepted, want the already-has-a-header error")
 	}
 }
@@ -116,7 +116,7 @@ func TestLogsCloseDrainsEverySeries(t *testing.T) {
 	red := Participant{Slot: 0, Name: "a", Tier: "easy"}
 	blue := Participant{Slot: 1, Name: "b", Tier: "easy"}
 	for _, id := range []int64{1, 2} {
-		if err := g.WriteSeriesHeader(1, id, 0, config.SeriesBO3, red, blue); err != nil {
+		if err := g.WriteSeriesHeader(1, id, 0, config.SeriesBO3, red, blue, ""); err != nil {
 			t.Fatalf("header %d: %v", id, err)
 		}
 	}
@@ -134,7 +134,7 @@ func TestLogsSanitizeKeepsNamesInsideTheDir(t *testing.T) {
 	t.Cleanup(func() { _ = g.Close() })
 	red := Participant{Slot: 0, Name: "../evil/spot", Tier: "hard"}
 	blue := Participant{Slot: 1, Name: "plain", Tier: "easy"}
-	if err := g.WriteSeriesHeader(2, 1, 0, config.SeriesBO3, red, blue); err != nil {
+	if err := g.WriteSeriesHeader(2, 1, 0, config.SeriesBO3, red, blue, ""); err != nil {
 		t.Fatalf("header: %v", err)
 	}
 	name := fmt.Sprintf(config.TournamentSeriesLogFormat, 2, 1, ".._evil_spot", "plain")
@@ -154,7 +154,7 @@ func TestLogsHeaderRejectsBadTimeControl(t *testing.T) {
 	g := NewLogs(runLogDir(t))
 	t.Cleanup(func() { _ = g.Close() })
 	err := g.WriteSeriesHeader(1, 1, len(config.TimeControls), config.SeriesBO3,
-		Participant{Name: "a", Tier: "easy"}, Participant{Name: "b", Tier: "easy"})
+		Participant{Name: "a", Tier: "easy"}, Participant{Name: "b", Tier: "easy"}, "")
 	if err == nil {
 		t.Fatalf("header with tc out of range accepted, want rejection")
 	}
@@ -167,7 +167,7 @@ func TestLogsSurfacesDirFailures(t *testing.T) {
 	}
 	g := NewLogs(filepath.Join(blocker, "under"))
 	err := g.WriteSeriesHeader(1, 1, 0, config.SeriesBO3,
-		Participant{Name: "a", Tier: "easy"}, Participant{Name: "b", Tier: "easy"})
+		Participant{Name: "a", Tier: "easy"}, Participant{Name: "b", Tier: "easy"}, "")
 	if err == nil {
 		t.Fatalf("header under a file path succeeded, want the mkdir error")
 	}
@@ -183,7 +183,7 @@ func TestLogsCreateFaults(t *testing.T) {
 	}
 
 	g := NewLogs(dir)
-	err := g.WriteSeriesHeader(3, 1, 0, config.SeriesBO3, red, blue)
+	err := g.WriteSeriesHeader(3, 1, 0, config.SeriesBO3, red, blue, "")
 	if err == nil || !strings.Contains(err.Error(), "open series log") {
 		t.Fatalf("header onto a directory = %v, want the open failure", err)
 	}
@@ -195,7 +195,7 @@ func TestLogsWriteAndCloseFaults(t *testing.T) {
 	blue := Participant{Name: "b", Tier: "easy"}
 	g := NewLogs(dir)
 	for _, id := range []int64{1, 2} {
-		if err := g.WriteSeriesHeader(9, id, 0, config.SeriesBO3, red, blue); err != nil {
+		if err := g.WriteSeriesHeader(9, id, 0, config.SeriesBO3, red, blue, ""); err != nil {
 			t.Fatalf("header %d: %v", id, err)
 		}
 	}

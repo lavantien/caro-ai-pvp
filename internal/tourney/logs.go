@@ -93,17 +93,24 @@ func sanitizeName(name string) string {
 	}, name)
 }
 
-func (g *Logs) WriteSeriesHeader(run, series int64, tcIdx, boLen int, red, blue Participant) error {
+func (g *Logs) WriteSeriesHeader(run, series int64, tcIdx, boLen int, red, blue Participant, variant string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if tcIdx < 0 || tcIdx >= len(config.TimeControls) {
 		return fmt.Errorf("tourney: tc_idx %d outside the %d configured time controls", tcIdx, len(config.TimeControls))
 	}
+	if variant == "" {
+		variant = config.DefaultVariant
+	}
 	tc := config.TimeControls[tcIdx]
+	tcLine := fmt.Sprintf("tc %d+%d bo%d", tc.InitialMin, tc.IncrementSec, boLen)
+	if variant != config.DefaultVariant {
+		tcLine += " " + variant
+	}
 	lines := []string{
 		fmt.Sprintf("run %d series %d", run, series),
 		fmt.Sprintf("pairing %s (%s) vs %s (%s)", red.Name, red.Tier, blue.Name, blue.Tier),
-		fmt.Sprintf("tc %d+%d bo%d", tc.InitialMin, tc.IncrementSec, boLen),
+		tcLine,
 	}
 	return g.writeLines(seriesKey{run, series}, red.Name, blue.Name, lines)
 }

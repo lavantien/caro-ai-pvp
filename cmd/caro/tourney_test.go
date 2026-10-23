@@ -72,7 +72,7 @@ func TestRunTourneyRefusesWhileRunOngoing(t *testing.T) {
 		{Slot: 1, Name: "medium-1", Tier: config.TierMedium.Name},
 	}
 	if _, err := tourney.NewStore(srv).CreateRun(context.Background(), 1,
-		config.SeriesBO3, config.TournamentStartRating, roster, "test"); err != nil {
+		config.SeriesBO3, config.TournamentStartRating, roster, "test", ""); err != nil {
 		t.Fatalf("plant ongoing run: %v", err)
 	}
 	if err := srv.Close(); err != nil {
@@ -120,7 +120,7 @@ func TestRunTourneyCloseStalledRun(t *testing.T) {
 		{Slot: 1, Name: "medium-1", Tier: config.TierMedium.Name},
 	}
 	planted, err := tourney.NewStore(srv).CreateRun(context.Background(), 1,
-		config.SeriesBO3, config.TournamentStartRating, roster, "test")
+		config.SeriesBO3, config.TournamentStartRating, roster, "test", "")
 	if err != nil {
 		t.Fatalf("plant ongoing run: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestRunTourneyResumeRefusals(t *testing.T) {
 		{Slot: 1, Name: "medium-1", Tier: config.TierMedium.Name},
 	}
 	finished, err := tourney.NewStore(srv).CreateRun(context.Background(), 1,
-		config.SeriesBO3, config.TournamentStartRating, roster, "test")
+		config.SeriesBO3, config.TournamentStartRating, roster, "test", "")
 	if err != nil {
 		t.Fatalf("plant finished run: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestRunTourneyResumeRefusals(t *testing.T) {
 		t.Fatalf("finish the planted run: %v", err)
 	}
 	ongoing, err := tourney.NewStore(srv).CreateRun(context.Background(), 1,
-		config.SeriesBO3, config.TournamentStartRating, roster, "test")
+		config.SeriesBO3, config.TournamentStartRating, roster, "test", "")
 	if err != nil {
 		t.Fatalf("plant ongoing run: %v", err)
 	}

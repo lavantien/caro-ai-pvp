@@ -37,7 +37,7 @@ func TestConductorResumeAfterInterruptedRun(t *testing.T) {
 	}}
 	c := NewConductor(dying)
 	run, tiers, err := c.startRun(ctx, ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err != nil {
 		t.Fatalf("start run: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestConductorResumeRefusals(t *testing.T) {
 		t.Errorf("resume unknown run = %v, want server.ErrNotFound", err)
 	}
 
-	done, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	done, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create finished run: %v", err)
 	}
@@ -145,11 +145,11 @@ func TestConductorResumeRefusals(t *testing.T) {
 	// Two ongoing rows planted straight through the store (the conductor's
 	// gate lives in startRun, not the store): resuming the younger one must
 	// refuse on the older one holding the machine-wide gate.
-	first, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	first, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create first ongoing run: %v", err)
 	}
-	second, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	second, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create second ongoing run: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestConductorResumeRefusals(t *testing.T) {
 
 	// A fresh drive lease is a live drive in another process: the resume
 	// refuses before dispatching anything, whatever the gate says.
-	live, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	live, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create leased run: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestResumeAllSettledAbsentFolder(t *testing.T) {
 	ts, srv := newTestStore(t)
 	logDir := pointLogsAt(t)
 	ctx := context.Background()
-	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create run: %v", err)
 	}

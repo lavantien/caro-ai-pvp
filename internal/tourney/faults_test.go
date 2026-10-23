@@ -44,7 +44,7 @@ type literalSource struct {
 	events []server.Event
 }
 
-func (s *literalSource) StartSeries(*config.Tier, *config.Tier, string, string, int, int) (SeriesStream, error) {
+func (s *literalSource) StartSeries(*config.Tier, *config.Tier, string, string, int, int, string) (SeriesStream, error) {
 	ch := make(chan server.Event, len(s.events))
 	for _, ev := range s.events {
 		ch <- ev
@@ -89,7 +89,7 @@ func TestConductorDisqualifiesMalformedStreams(t *testing.T) {
 			ts, _ := newTestStore(t)
 			pointLogsAt(t)
 			_, err := NewConductor(&literalSource{events: tc.events}).Run(context.Background(), ts, rosterTwo(),
-				mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+				mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 			if err == nil {
 				t.Fatal("run succeeded, want the disqualifier")
 			}
@@ -114,7 +114,7 @@ func TestConductorFailsWhenSeriesLogCannotOpen(t *testing.T) {
 	t.Cleanup(func() { config.TournamentLogRoot = saved })
 
 	_, err := NewConductor(&fakeSource{script: easySweeps}).Run(context.Background(), ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err == nil || !strings.Contains(err.Error(), "mkdir") {
 		t.Fatalf("run error = %v, want the log-dir failure", err)
 	}
@@ -136,7 +136,7 @@ func TestConductorDriveCrossChecksSchedule(t *testing.T) {
 	ts, _ := newTestStore(t)
 	pointLogsAt(t)
 	c := NewConductor(src)
-	run, _, err := c.startRun(ctx, ts, rosterTwo(), mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+	run, _, err := c.startRun(ctx, ts, rosterTwo(), mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err != nil {
 		t.Fatalf("start run: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestConductorDriveCrossChecksSchedule(t *testing.T) {
 	ts2, srv2 := newTestStore(t)
 	pointLogsAt(t)
 	c2 := NewConductor(&fakeSource{script: easySweeps})
-	run2, tiers2, err := c2.startRun(ctx, ts2, rosterTwo(), mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+	run2, tiers2, err := c2.startRun(ctx, ts2, rosterTwo(), mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err != nil {
 		t.Fatalf("start run 2: %v", err)
 	}
@@ -182,7 +182,7 @@ func TestConductorDriveFailsWhenScheduleReadFails(t *testing.T) {
 	pointLogsAt(t)
 	ctx := context.Background()
 	c := NewConductor(&fakeSource{script: easySweeps})
-	run, tiers, err := c.startRun(ctx, ts, rosterTwo(), mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+	run, tiers, err := c.startRun(ctx, ts, rosterTwo(), mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err != nil {
 		t.Fatalf("start run: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestConductorDriveAbortsOnDeadContext(t *testing.T) {
 	src := &fakeSource{script: easySweeps}
 	c := NewConductor(src)
 	run, tiers, err := c.startRun(context.Background(), ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err != nil {
 		t.Fatalf("start run: %v", err)
 	}
@@ -244,7 +244,7 @@ func TestConductorStartRunFailsWhenGateReadFails(t *testing.T) {
 	ts, srv := newTestStore(t)
 	runSQL(t, srv, `DROP TABLE tournament_runs`)
 	_, _, err := NewConductor(&fakeSource{script: easySweeps}).startRun(context.Background(), ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err == nil || !strings.Contains(err.Error(), "ongoing run") {
 		t.Fatalf("start run = %v, want the gate-read failure", err)
 	}
@@ -266,7 +266,7 @@ func TestConductorDriveFailsWhenSnapshotCannotLand(t *testing.T) {
 	}}
 	c := NewConductor(src)
 	run, tiers, err := c.startRun(context.Background(), ts, rosterTwo(),
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err != nil {
 		t.Fatalf("start run: %v", err)
 	}
@@ -316,7 +316,7 @@ func TestStoreCreateRunFaults(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ts, srv := newTestStore(t)
 			runSQL(t, srv, tc.fault)
-			_, err := ts.CreateRun(context.Background(), 0, config.SeriesBO3, config.TournamentStartRating, rosterTwo(), "test")
+			_, err := ts.CreateRun(context.Background(), 0, config.SeriesBO3, config.TournamentStartRating, rosterTwo(), "test", "")
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("create run = %v, want the %q failure", err, tc.want)
 			}
@@ -343,7 +343,7 @@ func TestCreateRunRequiresNames(t *testing.T) {
 			{Slot: 1, Name: "b", Tier: ""},
 		},
 	} {
-		if _, err := ts.CreateRun(context.Background(), 0, config.SeriesBO3, config.TournamentStartRating, roster, "test"); err == nil {
+		if _, err := ts.CreateRun(context.Background(), 0, config.SeriesBO3, config.TournamentStartRating, roster, "test", ""); err == nil {
 			t.Errorf("%s: create run succeeded, want rejection", name)
 		}
 	}
@@ -382,7 +382,7 @@ func TestAppendGameStatementFaults(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ts, srv := newTestStore(t)
-			run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+			run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 			if err != nil {
 				t.Fatalf("create run: %v", err)
 			}
@@ -467,7 +467,7 @@ func TestFinishRunFaults(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ts, srv := newTestStore(t)
-			run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+			run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 			if err != nil {
 				t.Fatalf("create run: %v", err)
 			}
@@ -502,7 +502,7 @@ func TestScheduleFaults(t *testing.T) {
 	}
 
 	ts, srv = newTestStore(t)
-	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create run: %v", err)
 	}
@@ -565,7 +565,7 @@ func TestLeaderboardFaults(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ts, srv := newTestStore(t)
-			run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+			run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 			if err != nil {
 				t.Fatalf("create run: %v", err)
 			}
@@ -607,7 +607,7 @@ func TestQueriesFaults(t *testing.T) {
 
 	// The scan arms: text planted into integer columns.
 	ts, srv = newTestStore(t)
-	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create run: %v", err)
 	}
@@ -634,7 +634,7 @@ func TestManagerDetailFaults(t *testing.T) {
 	ctx := context.Background()
 
 	ts, srv := newTestStore(t)
-	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create run: %v", err)
 	}
@@ -651,7 +651,7 @@ func TestManagerDetailFaults(t *testing.T) {
 	}
 
 	ts2, srv2 := newTestStore(t)
-	run2, err := ts2.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test")
+	run2, err := ts2.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create run 2: %v", err)
 	}

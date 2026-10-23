@@ -72,7 +72,7 @@ func TestServeCloseStackDrainsThenBackstopsAndClosesEverything(t *testing.T) {
 	serveDone := make(chan error, 1)
 	go func() { serveDone <- srv.Serve(ln) }()
 
-	room, err := rooms.Create(1, 0, config.SeriesBO3, nil)
+	room, err := rooms.Create(1, 0, config.SeriesBO3, nil, "")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}

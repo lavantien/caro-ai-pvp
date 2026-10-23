@@ -86,7 +86,7 @@ func runTourney(args []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), serveSignals...)
 	defer stop()
 	res, err := conductor.Run(ctx, tourney.NewStore(store), spec.Roster,
-		spec.TCIdx, spec.BOLen, spec.StartRating, *parallel, driver)
+		spec.TCIdx, spec.BOLen, spec.StartRating, *parallel, driver, spec.Variant)
 
 	if err == nil {
 		if perr := printRunResult(os.Stdout, spec.Roster, res); perr != nil {

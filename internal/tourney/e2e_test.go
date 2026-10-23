@@ -51,7 +51,7 @@ func TestConductorEndToEndEasyTiers(t *testing.T) {
 	defer cancel()
 	start := time.Now()
 	res, err := NewConductor(RoomSource{RM: rm}).Run(ctx, ts, roster,
-		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test")
+		mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, 1, "test", "")
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}

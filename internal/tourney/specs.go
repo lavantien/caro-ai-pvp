@@ -11,6 +11,7 @@ type RunSpec struct {
 	TCIdx       int
 	BOLen       int
 	StartRating int
+	Variant     string
 }
 
 func twoPerTierRoster() []Participant {

@@ -1,9 +1,5 @@
 package tourney
 
-// The run-page reads of the M7 UI: additive, read-only projections over the
-// schema v3 tournament tables, kept beside the write surface they mirror.
-// Nothing here feeds the conductor; the pages and the manager ride these.
-
 import (
 	"context"
 	"database/sql"
@@ -11,24 +7,22 @@ import (
 	"fmt"
 )
 
-// scanRun reads one run header row, the shared shape of Run and Runs.
 func scanRun(scan func(...any) error) (Run, error) {
 	var run Run
 	var finished sql.NullInt64
 	if err := scan(&run.ID, &run.CreatedAt, &run.TCIdx, &run.BOLen,
-		&run.StartRating, &run.Status, &finished, &run.Label); err != nil {
+		&run.StartRating, &run.Variant, &run.Status, &finished, &run.Label); err != nil {
 		return Run{}, err
 	}
 	run.FinishedAt = nullInt64Ptr(finished)
 	return run, nil
 }
 
-// Run reads one run header; an unknown id maps onto server.ErrNotFound.
 func (t *Store) Run(ctx context.Context, runID int64) (Run, error) {
 	var run Run
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		r, err := scanRun(tx.QueryRowContext(ctx, `
-		SELECT id, created_at, tc_idx, bo_len, start_rating, status, finished_at, label
+		SELECT id, created_at, tc_idx, bo_len, start_rating, variant, status, finished_at, label
 		FROM tournament_runs WHERE id = ?`, runID).Scan)
 		run = r
 		return err
@@ -39,12 +33,11 @@ func (t *Store) Run(ctx context.Context, runID int64) (Run, error) {
 	return run, nil
 }
 
-// Runs lists run headers newest first, the setup page's past-runs section.
 func (t *Store) Runs(ctx context.Context) ([]Run, error) {
 	var out []Run
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, `
-		SELECT id, created_at, tc_idx, bo_len, start_rating, status, finished_at, label
+		SELECT id, created_at, tc_idx, bo_len, start_rating, variant, status, finished_at, label
 		FROM tournament_runs ORDER BY id DESC`)
 		if err != nil {
 			return err
@@ -65,8 +58,6 @@ func (t *Store) Runs(ctx context.Context) ([]Run, error) {
 	return out, nil
 }
 
-// Roster reads one run's participants in slot order; an unknown run reads
-// back empty, its header read is the page's not-found gate.
 func (t *Store) Roster(ctx context.Context, runID int64) ([]Participant, error) {
 	var out []Participant
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
@@ -92,8 +83,6 @@ func (t *Store) Roster(ctx context.Context, runID int64) ([]Participant, error) 
 	return out, nil
 }
 
-// SeriesAll reads one run's series rows whole, in pairing order, with the
-// settled aggregates Schedule leaves out.
 func (t *Store) SeriesAll(ctx context.Context, runID int64) ([]Series, error) {
 	var out []Series
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
@@ -124,8 +113,6 @@ func (t *Store) SeriesAll(ctx context.Context, runID int64) ([]Series, error) {
 	return out, nil
 }
 
-// OngoingRunID reports the oldest ongoing run row, the machine-wide run
-// gate's holder; held is false when no run is ongoing.
 func (t *Store) OngoingRunID(ctx context.Context) (id int64, held bool, err error) {
 	err = t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
@@ -141,8 +128,6 @@ func (t *Store) OngoingRunID(ctx context.Context) (id int64, held bool, err erro
 	return id, true, nil
 }
 
-// nullInt64Ptr maps a nullable column onto the run and series rows' optional
-// timestamps, nullIntPtr onto the series row's optional winner slot.
 func nullInt64Ptr(n sql.NullInt64) *int64 {
 	if !n.Valid {
 		return nil

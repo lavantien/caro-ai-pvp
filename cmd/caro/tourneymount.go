@@ -1,11 +1,5 @@
 package main
 
-// The serve composition's adapter from the tourney manager onto the page
-// service. The manager owns the tournament domain and stays free of UI
-// shapes; the pages own the render shapes and know no tourney type (the
-// server package cannot import tourney, tourney already sits on server).
-// This file is the one mapping layer between them.
-
 import (
 	"context"
 	"errors"
@@ -14,22 +8,15 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/tourney"
 )
 
-// tourneyService implements server.TourneyService over one manager and the
-// room surface its runs ride.
 type tourneyService struct {
 	m     *tourney.Manager
 	rooms *server.RoomManager
 }
 
-// newTourneyService adapts the manager the serve composition drives and the
-// room manager its live boards read.
 func newTourneyService(m *tourney.Manager, rooms *server.RoomManager) tourneyService {
 	return tourneyService{m: m, rooms: rooms}
 }
 
-// StartRun hands the page's validated setup to the manager: the run id comes
-// back the moment the row persists. The manager's run-gate refusal crosses
-// the seam as the page sentinel naming the blocking run, not a bare outage.
 func (s tourneyService) StartRun(ctx context.Context, setup server.TourneySetup) (int64, error) {
 	roster := make([]tourney.Participant, len(setup.Seats))
 	for i, seat := range setup.Seats {
@@ -37,7 +24,7 @@ func (s tourneyService) StartRun(ctx context.Context, setup server.TourneySetup)
 	}
 	run, err := s.m.StartRun(ctx, tourney.RunSpec{
 		Roster: roster, TCIdx: setup.TCIdx, BOLen: setup.BOLen,
-		StartRating: setup.StartRating,
+		StartRating: setup.StartRating, Variant: setup.Variant,
 	}, setup.Parallel)
 	if err != nil {
 		var gate *tourney.RunInProgressError
@@ -49,13 +36,10 @@ func (s tourneyService) StartRun(ctx context.Context, setup server.TourneySetup)
 	return run.ID, nil
 }
 
-// CloseStalledRun hands the stalled close to the manager verbatim: its
-// refusals are answers the run page renders inline.
 func (s tourneyService) CloseStalledRun(ctx context.Context, runID int64) error {
 	return s.m.CloseStalled(ctx, runID)
 }
 
-// RunSnapshot maps one run's whole detail onto the page shapes.
 func (s tourneyService) RunSnapshot(ctx context.Context, runID int64) (server.TourneySnapshot, error) {
 	d, err := s.m.Detail(ctx, runID)
 	if err != nil {
@@ -70,7 +54,6 @@ func (s tourneyService) RunSnapshot(ctx context.Context, runID int64) (server.To
 	return snap, nil
 }
 
-// Runs maps the run headers with each run's roster and standings head.
 func (s tourneyService) Runs(ctx context.Context) ([]server.TourneyRunSummary, error) {
 	runs, err := s.m.Runs(ctx)
 	if err != nil {
@@ -91,8 +74,6 @@ func (s tourneyService) Runs(ctx context.Context) ([]server.TourneyRunSummary, e
 	return out, nil
 }
 
-// OngoingRun maps the driven run onto the home banner: the id plus the
-// settled count over every pairing.
 func (s tourneyService) OngoingRun(ctx context.Context) (server.TourneyBanner, bool, error) {
 	d, ok, err := s.m.OngoingRun(ctx)
 	if err != nil || !ok {
@@ -107,8 +88,6 @@ func (s tourneyService) OngoingRun(ctx context.Context) (server.TourneyBanner, b
 	return b, true, nil
 }
 
-// LiveBoards maps the room surface's live bot-vs-bot rooms onto the run
-// page's spectating reads, red named by the snapshot's own seating.
 func (s tourneyService) LiveBoards() []server.TourneyLiveBoard {
 	boards := s.rooms.BotBoards()
 	out := make([]server.TourneyLiveBoard, 0, len(boards))
@@ -118,8 +97,6 @@ func (s tourneyService) LiveBoards() []server.TourneyLiveBoard {
 	return out
 }
 
-// liveBoardOf turns one live room read into the page shape: the seats and
-// the running score follow red, whichever room seat holds it.
 func liveBoardOf(b server.LiveBotBoard) server.TourneyLiveBoard {
 	lb := server.TourneyLiveBoard{
 		RoomID: b.RoomID, RedName: b.GuestName, BlueName: b.HostName,
@@ -133,11 +110,10 @@ func liveBoardOf(b server.LiveBotBoard) server.TourneyLiveBoard {
 	return lb
 }
 
-// runInfoOf maps one detail's header half.
 func runInfoOf(d tourney.Detail) server.TourneyRunInfo {
 	info := server.TourneyRunInfo{
 		ID: d.Run.ID, CreatedAt: d.Run.CreatedAt, TCIdx: d.Run.TCIdx,
-		BOLen: d.Run.BOLen, StartRating: d.Run.StartRating,
+		BOLen: d.Run.BOLen, StartRating: d.Run.StartRating, Variant: d.Run.Variant,
 		Finished: d.Run.Status == tourney.RunStateFinished, Running: d.Running,
 	}
 	if d.Failure != nil {
@@ -146,7 +122,6 @@ func runInfoOf(d tourney.Detail) server.TourneyRunInfo {
 	return info
 }
 
-// seatsOf maps the roster; tier select options aside, the shapes agree.
 func seatsOf(roster []tourney.Participant) []server.TourneySeat {
 	seats := make([]server.TourneySeat, len(roster))
 	for i, p := range roster {
@@ -155,7 +130,6 @@ func seatsOf(roster []tourney.Participant) []server.TourneySeat {
 	return seats
 }
 
-// seriesOf maps the pairing lines, keeping the winner slots as pointers.
 func seriesOf(series []tourney.Series) []server.TourneySeriesLine {
 	lines := make([]server.TourneySeriesLine, len(series))
 	for i, s := range series {
@@ -168,7 +142,6 @@ func seriesOf(series []tourney.Series) []server.TourneySeriesLine {
 	return lines
 }
 
-// boardOf maps the standings rows.
 func boardOf(board []tourney.Standings) []server.TourneyStanding {
 	rows := make([]server.TourneyStanding, len(board))
 	for i, st := range board {
@@ -180,8 +153,6 @@ func boardOf(board []tourney.Standings) []server.TourneyStanding {
 	return rows
 }
 
-// leaderName resolves the standings head onto its roster name, empty when
-// the board is empty.
 func leaderName(d tourney.Detail) string {
 	if len(d.Board) == 0 {
 		return ""

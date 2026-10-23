@@ -31,6 +31,7 @@ type Run struct {
 	TCIdx       int
 	BOLen       int
 	StartRating int
+	Variant     string
 	Status      string
 	FinishedAt  *int64
 	Label       string
@@ -88,6 +89,15 @@ func notFound(err error, what string) error {
 	return fmt.Errorf("tourney: %s: %w", what, err)
 }
 
+func variantConfigured(variant string) bool {
+	for i := range config.Variants {
+		if config.Variants[i].Name == variant {
+			return true
+		}
+	}
+	return false
+}
+
 var ErrNotSeriesPair = errors.New("tourney: game seats are not the series' pair")
 
 func sqlArg[T any](p *T) any {
@@ -97,7 +107,7 @@ func sqlArg[T any](p *T) any {
 	return *p
 }
 
-func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, roster []Participant, label string) (Run, error) {
+func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, roster []Participant, label, variant string) (Run, error) {
 	if len(roster) < 2 {
 		return Run{}, fmt.Errorf("tourney: roster holds %d participants, a pairing needs at least 2", len(roster))
 	}
@@ -113,6 +123,12 @@ func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, ro
 	if label == config.TournamentLegacyLabel {
 		return Run{}, fmt.Errorf("tourney: run label %q is reserved for pre-v7 runs whose folder was never persisted", label)
 	}
+	if variant == "" {
+		variant = config.DefaultVariant
+	}
+	if !variantConfigured(variant) {
+		return Run{}, fmt.Errorf("tourney: run variant %q is not a configured board variant", variant)
+	}
 	for i, p := range roster {
 		if p.Slot != i {
 			return Run{}, fmt.Errorf("tourney: roster slot %d at position %d: slots must equal positions", p.Slot, i)
@@ -121,12 +137,12 @@ func (t *Store) CreateRun(ctx context.Context, tcIdx, boLen, startRating int, ro
 			return Run{}, fmt.Errorf("tourney: roster slot %d: name and tier must be set", i)
 		}
 	}
-	var run Run
+	run := Run{TCIdx: tcIdx, BOLen: boLen, StartRating: startRating, Variant: variant}
 	err := t.srv.WithinTx(ctx, func(tx *sql.Tx) error {
 		if err := tx.QueryRowContext(ctx,
-			`INSERT INTO tournament_runs (tc_idx, bo_len, start_rating, status, label)
-			VALUES (?, ?, ?, ?, ?) RETURNING id, created_at`,
-			tcIdx, boLen, startRating, RunStateOngoing, label,
+			`INSERT INTO tournament_runs (tc_idx, bo_len, start_rating, status, label, variant)
+			VALUES (?, ?, ?, ?, ?, ?) RETURNING id, created_at`,
+			tcIdx, boLen, startRating, RunStateOngoing, label, variant,
 		).Scan(&run.ID, &run.CreatedAt); err != nil {
 			return fmt.Errorf("tourney: create run: %w", err)
 		}
