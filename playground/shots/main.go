@@ -177,7 +177,12 @@ func main() {
 	root.Handle("/static/", api)
 	root.Handle("/spike", api)
 	root.Handle("/shots/banner", shotsBanner(tour))
-	root.Handle("/shots/finish", shotsFinish(done, alice.ID, bob.ID))
+	root.Handle("/shots/finish", shotsFinish(done, alice.ID, bob.ID, []string{
+		"H8", "I6", "P1", "J6", "A1", "K6", "P16", "L6", "A16", "M6",
+	}))
+	root.Handle("/shots/finish-hex", shotsFinish(hexDone, alice.ID, bob.ID, []string{
+		"G12", "I12", "G14", "J12", "G16", "K12", "G18", "L12", "G20", "M12",
+	}))
 	server.NewRoomPages(rooms, store).Mount(root)
 	server.NewTournamentPages(store, tour).Mount(root)
 	server.NewLobbyPages(store, rooms).Mount(root)
@@ -222,15 +227,13 @@ func shotsBanner(tour *scriptTourney) http.Handler {
 	})
 }
 
-func shotsFinish(r *server.Room, redID, blueID int64) http.Handler {
+func shotsFinish(r *server.Room, redID, blueID int64, line []string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost {
 			http.Error(w, "post only", http.StatusMethodNotAllowed)
 			return
 		}
-		playLine(r, redID, blueID, []string{
-			"H8", "I6", "P1", "J6", "A1", "K6", "P16", "L6", "A16", "M6",
-		})
+		playLine(r, redID, blueID, line)
 		w.WriteHeader(http.StatusNoContent)
 	})
 }
