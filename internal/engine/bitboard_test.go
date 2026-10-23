@@ -72,6 +72,74 @@ func TestDilate1NeighborsMatchesFused(t *testing.T) {
 	}
 }
 
+func TestDilateHexMatchesBruteForce(t *testing.T) {
+	g := geom.Hex(12)
+	box := g.Rows * g.Cols
+	rng := rand.New(rand.NewPCG(5, 83))
+	for radius := 1; radius <= 3; radius++ {
+		for trial := range 30 {
+			var s bitmask
+			stones := make(map[int]bool)
+			for range 1 + rng.IntN(16) {
+				for {
+					cell := regionCell(g, rng)
+					if !stones[cell] {
+						stones[cell] = true
+						s[cell/64] |= 1 << (uint(cell) % 64)
+						break
+					}
+				}
+			}
+			want := make(map[int]bool)
+			for range radius {
+				next := make(map[int]bool)
+				for c := range want {
+					next[c] = true
+				}
+				for c := range stones {
+					next[c] = true
+				}
+				for c := range next {
+					q, r := c/g.Stride, c%g.Stride
+					for _, n := range g.Neighbors {
+						qq, rr := q+n[0], r+n[1]
+						if qq >= 0 && qq < g.Rows && rr >= 0 && rr < g.Cols {
+							want[qq*g.Stride+rr] = true
+						}
+					}
+				}
+			}
+			for c := range stones {
+				want[c] = true
+			}
+			got := dilate(s, radius, g)
+			for c := range want {
+				if got[c/64]>>(uint(c)%64)&1 == 0 {
+					t.Fatalf("radius %d trial %d: cell %d missing", radius, trial, c)
+				}
+			}
+			for c := range box {
+				if !want[c] && got[c/64]>>(uint(c)%64)&1 != 0 {
+					var missing []int
+					for w := range want {
+						missing = append(missing, w)
+					}
+					t.Fatalf("radius %d trial %d: stray cell %d, want has %v, stones %v", radius, trial, c, missing, stones)
+				}
+			}
+		}
+	}
+}
+
+func regionCell(g *geom.Geometry, rng *rand.Rand) int {
+	for {
+		cell := rng.IntN(g.Cells)
+		if g.Contains(cell) {
+			return cell
+		}
+	}
+}
+
 func TestDilateCornerDoesNotWrap(t *testing.T) {
 	var s bitmask
 	s[0] = 1

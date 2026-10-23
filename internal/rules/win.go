@@ -5,25 +5,25 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/geom"
 )
 
-func shiftFwdInto(dst *bb, d *geom.Dir, words int) {
-	for w := words - 1; w >= 0; w-- {
+func shiftFwdInto(dst *bb, d *geom.Dir, g *geom.Geometry) {
+	for w := g.Words - 1; w >= 0; w-- {
 		var carry uint64
 		if w > 0 {
 			carry = dst[w-1] >> (wordBits - d.Step)
 		}
 		dst[w] = dst[w]<<d.Step | carry
-		dst[w] &^= d.FwdClr[w]
+		dst[w] &^= d.FwdClr[w] | g.BoxClear[w]
 	}
 }
 
-func shiftBwdInto(dst *bb, d *geom.Dir, words int) {
-	for w := range words {
+func shiftBwdInto(dst *bb, d *geom.Dir, g *geom.Geometry) {
+	for w := range g.Words {
 		var carry uint64
-		if w < words-1 {
+		if w < g.Words-1 {
 			carry = dst[w+1] << (wordBits - d.Step)
 		}
 		dst[w] = dst[w]>>d.Step | carry
-		dst[w] &^= d.BwdClr[w]
+		dst[w] &^= d.BwdClr[w] | g.BoxClear[w]
 	}
 }
 
@@ -54,19 +54,20 @@ func nonzeroBB(a *bb, words int) bool {
 	return false
 }
 
-func winsDir(s, o *bb, d *geom.Dir, words int) bool {
+func winsDir(s, o *bb, d *geom.Dir, g *geom.Geometry) bool {
+	words := g.Words
 	five, cur := *s, *s
 	for range config.WinLength - 1 {
-		shiftBwdInto(&cur, d, words)
+		shiftBwdInto(&cur, d, g)
 		andInto(&five, &cur, words)
 	}
 	if !nonzeroBB(&five, words) {
 		return false
 	}
 	after := cur
-	shiftBwdInto(&after, d, words)
+	shiftBwdInto(&after, d, g)
 	before := *s
-	shiftFwdInto(&before, d, words)
+	shiftFwdInto(&before, d, g)
 	orInto(&after, &before, words)
 	cand := five
 	andNotInto(&cand, &after, words)
@@ -75,10 +76,10 @@ func winsDir(s, o *bb, d *geom.Dir, words int) bool {
 	}
 	oppShift := *o
 	for range config.WinLength {
-		shiftBwdInto(&oppShift, d, words)
+		shiftBwdInto(&oppShift, d, g)
 	}
 	blocked := *o
-	shiftFwdInto(&blocked, d, words)
+	shiftFwdInto(&blocked, d, g)
 	andInto(&blocked, &oppShift, words)
 	andNotInto(&cand, &blocked, words)
 	return nonzeroBB(&cand, words)
@@ -95,7 +96,7 @@ func (b *Board) Wins(color Color) bool {
 	s, o := b.stonesPtr(color), b.stonesPtr(color.Opponent())
 	g := b.Geom
 	for i := range g.Dirs {
-		if winsDir(s, o, &g.Dirs[i], g.Words) {
+		if winsDir(s, o, &g.Dirs[i], g) {
 			return true
 		}
 	}

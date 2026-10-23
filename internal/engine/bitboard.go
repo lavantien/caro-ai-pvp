@@ -31,6 +31,7 @@ func shiftDelta(s bitmask, dr, dc int, g *geom.Geometry) bitmask {
 			if clear != nil {
 				r[w] &^= clear[w]
 			}
+			r[w] &^= g.BoxClear[w]
 		}
 		return r
 	}
@@ -43,6 +44,7 @@ func shiftDelta(s bitmask, dr, dc int, g *geom.Geometry) bitmask {
 		if clear != nil {
 			r[w] &^= clear[w]
 		}
+		r[w] &^= g.BoxClear[w]
 	}
 	return r
 }

@@ -33,6 +33,7 @@ type Geometry struct {
 	Dirs       []Dir
 	Neighbors  [][2]int
 	Col        []uint8
+	BoxClear   [config.MaxBoardWordsPerColor]uint64
 	Center     int
 	OpeningMin int
 }
@@ -60,9 +61,9 @@ func (g *Geometry) Contains(cell int) bool {
 	return cell >= 0 && cell < g.Cells && g.Region[cell/64]&(1<<uint(cell%64)) != 0
 }
 
-func clearMasks(stride, cells, mod int) [config.MaxBoardWordsPerColor]uint64 {
+func clearMasks(stride, box, mod int) [config.MaxBoardWordsPerColor]uint64 {
 	var m [config.MaxBoardWordsPerColor]uint64
-	for flat := range cells {
+	for flat := range box {
 		if flat%stride == mod {
 			m[flat/64] |= 1 << uint(flat%64)
 		}
@@ -70,19 +71,25 @@ func clearMasks(stride, cells, mod int) [config.MaxBoardWordsPerColor]uint64 {
 	return m
 }
 
-func newDir(dr, dc, stride, cells int) Dir {
+func newDir(dr, dc, stride, box int) Dir {
 	d := Dir{Dr: dr, Dc: dc, Step: uint(dr*stride + dc)}
 	if dc == 0 {
 		return d
 	}
-	first := clearMasks(stride, cells, 0)
-	last := clearMasks(stride, cells, stride-1)
+	first := clearMasks(stride, box, 0)
+	last := clearMasks(stride, box, stride-1)
 	if dc > 0 {
 		d.FwdClr, d.BwdClr = first, last
 	} else {
 		d.FwdClr, d.BwdClr = last, first
 	}
 	return d
+}
+
+func buildBoxClear(g *Geometry, box int) {
+	for flat := box; flat < g.Words*64; flat++ {
+		g.BoxClear[flat/64] |= 1 << uint(flat%64)
+	}
 }
 
 func Square(size int) *Geometry {
@@ -98,6 +105,7 @@ func Square(size int) *Geometry {
 		Center:     (size-1)/2*size + (size-1)/2,
 		OpeningMin: config.OpeningChebyshevMin,
 	}
+	buildBoxClear(g, cells)
 	g.Col = make([]uint8, cells)
 	for r := range size {
 		for c := range size {
@@ -143,11 +151,12 @@ func Hex(side int) *Geometry {
 		}
 	}
 	for _, d := range [3][2]int{{0, 1}, {1, 0}, {1, -1}} {
-		g.Dirs = append(g.Dirs, newDir(d[0], d[1], w, cells))
+		g.Dirs = append(g.Dirs, newDir(d[0], d[1], w, w*w))
 	}
 	for _, n := range [6][2]int{{0, 1}, {0, -1}, {1, 0}, {-1, 0}, {1, -1}, {-1, 1}} {
 		g.Neighbors = append(g.Neighbors, n)
 	}
+	buildBoxClear(g, w*w)
 	return g
 }
 

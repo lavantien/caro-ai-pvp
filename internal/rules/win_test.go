@@ -294,13 +294,13 @@ func TestShiftImage(t *testing.T) {
 			d := &g.Dirs[i]
 			want := image(p, d, true)
 			got := p
-			shiftFwdInto(&got, d, g.Words)
+			shiftFwdInto(&got, d, g)
 			if got != want {
 				t.Fatalf("%s fwd dir %d: got %x want %x", name, i, got, want)
 			}
 			want = image(p, d, false)
 			got = p
-			shiftBwdInto(&got, d, g.Words)
+			shiftBwdInto(&got, d, g)
 			if got != want {
 				t.Fatalf("%s bwd dir %d: got %x want %x", name, i, got, want)
 			}

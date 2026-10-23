@@ -36,7 +36,7 @@ func shiftLine(s bb, d *geom.Dir, g *geom.Geometry, forward bool) bb {
 			if w > 0 {
 				r[w] |= s[w-1] >> (wordBits - d.Step)
 			}
-			r[w] &^= d.FwdClr[w]
+			r[w] &^= d.FwdClr[w] | g.BoxClear[w]
 		}
 		return r
 	}
@@ -45,7 +45,7 @@ func shiftLine(s bb, d *geom.Dir, g *geom.Geometry, forward bool) bb {
 		if w < words-1 {
 			r[w] |= s[w+1] << (wordBits - d.Step)
 		}
-		r[w] &^= d.BwdClr[w]
+		r[w] &^= d.BwdClr[w] | g.BoxClear[w]
 	}
 	return r
 }
@@ -69,6 +69,7 @@ func shiftDeltaVCF(s bb, dr, dc int, g *geom.Geometry) bb {
 			if clear != nil {
 				r[w] &^= clear[w]
 			}
+			r[w] &^= g.BoxClear[w]
 		}
 		return r
 	}
@@ -81,6 +82,7 @@ func shiftDeltaVCF(s bb, dr, dc int, g *geom.Geometry) bb {
 		if clear != nil {
 			r[w] &^= clear[w]
 		}
+		r[w] &^= g.BoxClear[w]
 	}
 	return r
 }

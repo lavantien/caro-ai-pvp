@@ -90,9 +90,6 @@ func TestParseCellInvalid(t *testing.T) {
 	}
 }
 
-// Golden pins: each error path returns the zero Cell and its exact message,
-// including the derived range text (A..P, 1..16) spelled out literally so
-// mutations of the message arguments cannot survive.
 func TestParseCellErrorContract(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -136,5 +133,21 @@ func TestCellNameErrorContract(t *testing.T) {
 	}
 	if want := "rules: cell 256 out of 0..255"; err.Error() != want {
 		t.Errorf("CellName(BoardCells) err = %q, want %q", err.Error(), want)
+	}
+}
+
+func TestAppendCellNameMatchesCodec(t *testing.T) {
+	for cell := range config.BoardCells {
+		want, err := CellName(Cell(cell))
+		if err != nil {
+			t.Fatalf("CellName(%d): %v", cell, err)
+		}
+		if got := string(AppendCellName(nil, Cell(cell))); got != want {
+			t.Fatalf("AppendCellName(%d) = %q, want %q", cell, got, want)
+		}
+		prefixed := AppendCellName([]byte("pv "), Cell(cell))
+		if string(prefixed) != "pv "+want {
+			t.Fatalf("AppendCellName prefixing = %q, want pv %q", prefixed, want)
+		}
 	}
 }

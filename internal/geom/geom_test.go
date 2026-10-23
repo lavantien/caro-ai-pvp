@@ -126,6 +126,21 @@ func TestHexLongestLineSpansSideDoubling(t *testing.T) {
 	}
 }
 
+func TestBoxClearCoversEverythingAboveTheBox(t *testing.T) {
+	for _, g := range []*Geometry{Square(config.BoardSize), Hex(12), Hex(5)} {
+		box := g.Rows * g.Stride
+		for flat := range g.Words * 64 {
+			bit := g.BoxClear[flat/64]&(1<<uint(flat%64)) != 0
+			if want := flat >= box; bit != want {
+				t.Fatalf("%s BoxClear(%d) = %t, want %t (box %d)", g.Name, flat, bit, want, box)
+			}
+		}
+	}
+	if m := Square(config.BoardSize).BoxClear; m != [config.MaxBoardWordsPerColor]uint64{} {
+		t.Fatalf("square BoxClear = %x, want empty: the box fills the word boundary", m)
+	}
+}
+
 func TestDirMasksMatchIndependentDerivation(t *testing.T) {
 	for _, g := range []*Geometry{Square(config.BoardSize), Hex(12)} {
 		for i, d := range g.Dirs {
@@ -143,7 +158,7 @@ func TestDirMasksMatchIndependentDerivation(t *testing.T) {
 				fwdMod, bwdMod = g.Stride-1, 0
 			}
 			var fwdWant, bwdWant [config.MaxBoardWordsPerColor]uint64
-			for flat := range g.Cells {
+			for flat := range g.Rows * g.Stride {
 				w, b := flat/64, uint(flat%64)
 				if flat%g.Stride == fwdMod {
 					fwdWant[w] |= 1 << b
