@@ -7,7 +7,7 @@ import (
 )
 
 func FuzzParseCell(f *testing.F) {
-	for _, s := range []string{"A1", "P16", "H8", "L12", "W1", "A23", "Q1", "a1", "A01", "A17", "X23", "", "A", "A123"} {
+	for _, s := range []string{"A1", "P16", "H8", "L12", "W1", "A23", "Q1", "a1", "A01", "A17", "X23", "", "A", "A123", "A12", "L23", "M14", "N13", "O15", "A24", "L0", "L24", "W23", "W12", "G33"} {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, name string) {

@@ -284,6 +284,19 @@ func TestAppendNameOutOfRangeFallsBackToModulus(t *testing.T) {
 	}
 }
 
+func TestParseCellAcceptsRegionOnly(t *testing.T) {
+	h := Hex(12)
+	for q := range h.Rows {
+		for r := range h.Cols {
+			name := string(h.AppendName(nil, q*h.Stride+r))
+			_, err := h.ParseCell(name)
+			if want := h.Contains(q*h.Stride + r); (err == nil) != want {
+				t.Fatalf("ParseCell(%q) in-region %t: err %v", name, want, err)
+			}
+		}
+	}
+}
+
 func TestDistance(t *testing.T) {
 	s := Square(config.BoardSize)
 	for _, tc := range []struct {

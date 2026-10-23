@@ -4,10 +4,6 @@ import (
 	"testing"
 )
 
-// Encoding: data[0] bit0 region (0 full, 1 cross check), bit1 side to move
-// (0 red, 1 blue). data[1] red stone count, data[2] blue stone count, both
-// capped. Then red cells followed by blue cells, one byte per cell index.
-// Remaining bytes are legality and make/unmake candidates.
 func FuzzRulesDifferential(f *testing.F) {
 	seeds := [][]byte{
 		{0, 5, 0, 0, 1, 2, 3, 4},
@@ -22,6 +18,10 @@ func FuzzRulesDifferential(f *testing.F) {
 		{0, 1, 1, 119, 0, 120, 200},
 		{2, 1, 1, 119, 0, 120, 200},
 		{0, 10, 10, 0, 1, 2, 3, 4, 16, 32, 48, 64, 17, 33, 255, 254, 253, 128, 127, 126, 125},
+		{4, 3, 1, 8, 1, 31, 1, 54, 1, 34, 1, 26, 0, 244, 1},
+		{4, 5, 1, 8, 1, 31, 1, 54, 1, 77, 1, 100, 1, 241, 0, 0, 0, 5, 2},
+		{4, 6, 0, 8, 1, 31, 1, 54, 1, 77, 1, 100, 1, 123, 1, 0, 0},
+		{4, 1, 1, 8, 1, 9, 1, 31, 1, 74, 1},
 	}
 	for _, s := range seeds {
 		f.Add(s)
@@ -30,7 +30,8 @@ func FuzzRulesDifferential(f *testing.F) {
 		if len(data) < 3 {
 			return
 		}
-		cross := data[0]&1 == 1
+		hexMode := data[0]&4 != 0
+		cross := !hexMode && data[0]&1 == 1
 		side := Red
 		if data[0]&2 != 0 {
 			side = Blue
@@ -38,30 +39,44 @@ func FuzzRulesDifferential(f *testing.F) {
 		reds := int(data[1]) % 33
 		blues := int(data[2]) % 33
 		body := data[3:]
-		if reds+blues > len(body) {
-			reds = min(reds, len(body))
-			blues = min(blues, len(body)-reds)
+		width := 1
+		if hexMode {
+			width = 2
+		}
+		cells := len(body) / width
+		if reds+blues > cells {
+			reds = min(reds, cells)
+			blues = min(blues, cells-reds)
 		}
 		var b *Board
 		var nb *NaiveBoard
-		if cross {
+		if hexMode {
+			b, nb = NewBoardFor(hexGeometry), NewNaiveBoardFor(hexGeometry)
+		} else if cross {
 			b, nb = NewCrossCheck(), NewNaiveCrossCheck()
 		} else {
 			b, nb = NewBoard(), NewNaiveBoard()
 		}
 		b.Side = side
+		cellAt := func(i int) Cell {
+			if hexMode {
+				return Cell(int(body[2*i]) | int(body[2*i+1])<<8)
+			}
+			return Cell(body[i])
+		}
+		limit := Cell(b.Geom.Cells)
 		var stones []Cell
-		for _, v := range body[:reds] {
-			c := Cell(v)
-			if b.inRegion(c) && !b.Occupied(c) {
+		for i := range reds {
+			c := cellAt(i)
+			if c < limit && b.inRegion(c) && !b.Occupied(c) {
 				setStone(b, c, Red)
 				nb.Set(c, Red)
 				stones = append(stones, c)
 			}
 		}
-		for _, v := range body[reds : reds+blues] {
-			c := Cell(v)
-			if b.inRegion(c) && !b.Occupied(c) {
+		for i := range blues {
+			c := cellAt(reds + i)
+			if c < limit && b.inRegion(c) && !b.Occupied(c) {
 				setStone(b, c, Blue)
 				nb.Set(c, Blue)
 				stones = append(stones, c)
@@ -78,15 +93,19 @@ func FuzzRulesDifferential(f *testing.F) {
 				t.Fatalf("through disagreement cell %d data %x", c, data)
 			}
 		}
-		rest := body[reds+blues:]
-		for _, v := range rest {
-			if b.IsLegal(Cell(v)) != nb.IsLegal(side, Cell(v)) {
-				t.Fatalf("legality disagreement cell %d data %x", v, data)
+		rest := cells - reds - blues
+		for i := range rest {
+			c := cellAt(reds + blues + i)
+			if c >= limit {
+				continue
+			}
+			if b.IsLegal(c) != nb.IsLegal(side, c) {
+				t.Fatalf("legality disagreement cell %d data %x", c, data)
 			}
 		}
-		for _, v := range rest {
-			c := Cell(v)
-			if !b.inRegion(c) || b.Occupied(c) {
+		for i := range rest {
+			c := cellAt(reds + blues + i)
+			if c >= limit || !b.inRegion(c) || b.Occupied(c) {
 				continue
 			}
 			before := snapshot(b)
