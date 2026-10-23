@@ -38,7 +38,7 @@ DIAGRAM_BG := rgb(13,17,23)
 DIAGRAM_SRC := $(wildcard $(DIAGRAMS_DIR)/*.mmd)
 DIAGRAM_PNG := $(DIAGRAM_SRC:.mmd=.png)
 
-.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser ci shots
+.PHONY: all doctor fmt fmt-check lint vet build test test-race test-pkg cover bench fuzz mutate mutate-resume run serve migrate tourney-smoke-32 tourney-smoke-10 tourney-full tourney-resume tourney-close firewall tidy diagrams diagrams-browser ci shots hex-noise hex-passgates hex-ladder
 
 all: build
 
@@ -369,6 +369,42 @@ arena:
 arena-test:
 	CGO_ENABLED=1 go -C playground/arena vet ./...
 	CGO_ENABLED=1 go -C playground/arena test ./...
+
+# hex-noise [TC=1] [GAMES=20]: the hex noise floor, master versus master at
+# one time control, driven to a Wald-covering interval or the block cap by
+# the arena's verdict mode. Prints exactly one final verdict line,
+# hex-noise: DONE or hex-noise: FAILED <reason>, per the
+# scripts/hex-noise.ps1 marker-chain contract.
+.PHONY: hex-noise
+hex-noise: TC ?= 1
+hex-noise: GAMES ?= 20
+hex-noise:
+	CGO_ENABLED=1 go -C playground/arena build -o ../../bin/arena.exe .
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) bin/arena.exe -geometry hex -floor hex-noise-tc$(TC) -floorSeat master-nobook -tc $(TC) -games $(GAMES) -floorDirs 5 -floorBlockDirs 5 -floorMaxBlocks 3 -floorVerdict hex-noise
+
+# hex-passgates [TC=1] [OPP=hard] [GAMES=20]: the hex master pass gate
+# against one lower tier, master's W+D aggregated over both seats against
+# the tier threshold (easy 0.90, medium 0.75, hard 0.60). Final verdict
+# line hex-passgates: DONE or hex-passgates: FAILED opp=... tc=... wd=...
+# threshold=..., per scripts/hex-passgates.ps1.
+.PHONY: hex-passgates
+hex-passgates: TC ?= 1
+hex-passgates: OPP ?= hard
+hex-passgates: GAMES ?= 20
+hex-passgates:
+	CGO_ENABLED=1 go -C playground/arena build -o ../../bin/arena.exe .
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) bin/arena.exe -geometry hex -passgate $(OPP) -tc $(TC) -games $(GAMES)
+
+# hex-ladder [TC=1] [GAMES=40]: the hex ladder inversion check, the full
+# easy/medium/hard/master round-robin at one time control, zero inversions
+# required. Final verdict line hex-ladder: DONE <underpowering note> or
+# hex-ladder: FAILED edge=... tc=... wd=... n=..., per scripts/hex-ladder.ps1.
+.PHONY: hex-ladder
+hex-ladder: TC ?= 1
+hex-ladder: GAMES ?= 40
+hex-ladder:
+	CGO_ENABLED=1 go -C playground/arena build -o ../../bin/arena.exe .
+	GOMEMLIMIT=$(TOURNEY_MEMLIMIT) bin/arena.exe -geometry hex -ladder -tc $(TC) -games $(GAMES)
 
 # bookgen runs the v0.24 opening-book generator, three phases over one
 # command: -phase corpus self-plays the games (master seats at tc 3 by
