@@ -4,6 +4,7 @@ import (
 	"math/bits"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
@@ -41,7 +42,7 @@ func buildDirTable(board *rules.Board, delta *[2]int, dst []Entry) {
 }
 
 func sweepWins(board *rules.Board, delta *[2]int, dst []Entry) {
-	anchor := config.BoardSize / 2
+	anchor := board.Geom.Rows / 2
 	for idx := range config.PatternTableEntries {
 		states := Unpack(uint32(idx))
 		if !isRealizable(&states) {
@@ -55,7 +56,7 @@ func sweepWins(board *rules.Board, delta *[2]int, dst []Entry) {
 				continue
 			}
 			board.Side = genColor(s)
-			board.Make(genCell(anchor, delta, i))
+			board.Make(genCell(board.Geom, anchor, delta, i))
 			placed++
 		}
 		var mask uint16
@@ -63,7 +64,7 @@ func sweepWins(board *rules.Board, delta *[2]int, dst []Entry) {
 			if s != config.PatternStateEmpty {
 				continue
 			}
-			cell := genCell(anchor, delta, i)
+			cell := genCell(board.Geom, anchor, delta, i)
 			board.Side = rules.Red
 			board.Make(cell)
 			if board.FastLastMoveWin(rules.Red, cell) {
@@ -162,7 +163,7 @@ func genColor(s uint8) rules.Color {
 	return rules.Blue
 }
 
-func genCell(anchor int, delta *[2]int, i int) rules.Cell {
+func genCell(g *geom.Geometry, anchor int, delta *[2]int, i int) rules.Cell {
 	k := i - windowHalf
-	return rules.Cell((anchor+k*delta[0])*config.BoardStride + anchor + k*delta[1])
+	return rules.Cell((anchor+k*delta[0])*g.Stride + anchor + k*delta[1])
 }

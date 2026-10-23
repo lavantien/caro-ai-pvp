@@ -5,41 +5,63 @@ import (
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-func oracleCell(i int) rules.Cell {
-	return genCell(config.BoardSize/2, &config.PatternDirs[0], i)
+var oracleSquare = geom.Default()
+
+func oracleDir(g *geom.Geometry) [2]int {
+	return [2]int{g.Dirs[0].Dr, g.Dirs[0].Dc}
 }
 
-func naiveBuild(t *testing.T, w [config.PatternWindowLen]uint8) *rules.NaiveBoard {
+func oracleCellFor(g *geom.Geometry, i int) rules.Cell {
+	delta := oracleDir(g)
+	return genCell(g, g.Rows/2, &delta, i)
+}
+
+func oracleCell(i int) rules.Cell {
+	return oracleCellFor(oracleSquare, i)
+}
+
+func naiveBuildFor(t *testing.T, g *geom.Geometry, w [config.PatternWindowLen]uint8) *rules.NaiveBoard {
 	t.Helper()
-	nb := rules.NewNaiveBoard()
+	nb := rules.NewNaiveBoardFor(g)
 	for i, s := range w {
 		switch s {
 		case config.PatternStateOwn:
-			nb.Set(oracleCell(i), rules.Red)
+			nb.Set(oracleCellFor(g, i), rules.Red)
 		case config.PatternStateOpp:
-			nb.Set(oracleCell(i), rules.Blue)
+			nb.Set(oracleCellFor(g, i), rules.Blue)
 		}
 	}
 	return nb
 }
 
-func naiveWin1(t *testing.T, w [config.PatternWindowLen]uint8) uint16 {
+func naiveBuild(t *testing.T, w [config.PatternWindowLen]uint8) *rules.NaiveBoard {
+	t.Helper()
+	return naiveBuildFor(t, oracleSquare, w)
+}
+
+func naiveWin1For(t *testing.T, g *geom.Geometry, w [config.PatternWindowLen]uint8) uint16 {
 	t.Helper()
 	var mask uint16
 	for i, s := range w {
 		if s != config.PatternStateEmpty {
 			continue
 		}
-		probe := naiveBuild(t, w)
-		probe.Set(oracleCell(i), rules.Red)
-		if probe.WinsThrough(rules.Red, oracleCell(i)) {
+		probe := naiveBuildFor(t, g, w)
+		probe.Set(oracleCellFor(g, i), rules.Red)
+		if probe.WinsThrough(rules.Red, oracleCellFor(g, i)) {
 			mask |= 1 << uint(i)
 		}
 	}
 	return mask
+}
+
+func naiveWin1(t *testing.T, w [config.PatternWindowLen]uint8) uint16 {
+	t.Helper()
+	return naiveWin1For(t, oracleSquare, w)
 }
 
 func withOwn(w [config.PatternWindowLen]uint8, i int) [config.PatternWindowLen]uint8 {
@@ -47,9 +69,9 @@ func withOwn(w [config.PatternWindowLen]uint8, i int) [config.PatternWindowLen]u
 	return w
 }
 
-func naiveClass(t *testing.T, w [config.PatternWindowLen]uint8) uint8 {
+func naiveClassFor(t *testing.T, g *geom.Geometry, w [config.PatternWindowLen]uint8) uint8 {
 	t.Helper()
-	if n1 := bits.OnesCount16(naiveWin1(t, w)); n1 >= 2 {
+	if n1 := bits.OnesCount16(naiveWin1For(t, g, w)); n1 >= 2 {
 		return config.PatternClassOpenFour
 	} else if n1 == 1 {
 		return config.PatternClassFour
@@ -60,7 +82,7 @@ func naiveClass(t *testing.T, w [config.PatternWindowLen]uint8) uint8 {
 		if s != config.PatternStateEmpty {
 			continue
 		}
-		childN1[i] = uint8(bits.OnesCount16(naiveWin1(t, withOwn(w, i))))
+		childN1[i] = uint8(bits.OnesCount16(naiveWin1For(t, g, withOwn(w, i))))
 		if childN1[i] >= 2 {
 			three = true
 		} else if childN1[i] == 1 {
@@ -82,12 +104,17 @@ func naiveClass(t *testing.T, w [config.PatternWindowLen]uint8) uint8 {
 			if s2 != config.PatternStateEmpty {
 				continue
 			}
-			if bits.OnesCount16(naiveWin1(t, withOwn(child, j))) >= 2 {
+			if bits.OnesCount16(naiveWin1For(t, g, withOwn(child, j))) >= 2 {
 				return config.PatternClassOpenTwo
 			}
 		}
 	}
 	return config.PatternClassNone
+}
+
+func naiveClass(t *testing.T, w [config.PatternWindowLen]uint8) uint8 {
+	t.Helper()
+	return naiveClassFor(t, oracleSquare, w)
 }
 
 func win(t *testing.T, s string) [config.PatternWindowLen]uint8 {
