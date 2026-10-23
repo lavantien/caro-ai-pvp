@@ -18,9 +18,9 @@ func writePairLog(t *testing.T, path, text string) {
 }
 
 func TestParsePairLogHeader(t *testing.T) {
-	a, b, tc, games, ok := parsePairLogHeader("pairlog v1 seats master,master-nobook tc 1 games 20")
-	if !ok || a != "master" || b != "master-nobook" || tc != 1 || games != 20 {
-		t.Fatalf("parsePairLogHeader = %q %q %d %d %v", a, b, tc, games, ok)
+	a, b, geometry, tc, games, ok := parsePairLogHeader("pairlog v1 seats master,master-nobook tc 1 games 20")
+	if !ok || a != "master" || b != "master-nobook" || geometry != "square" || tc != 1 || games != 20 {
+		t.Fatalf("parsePairLogHeader = %q %q %q %d %d %v", a, b, geometry, tc, games, ok)
 	}
 	for _, bad := range []string{
 		"",
@@ -31,7 +31,7 @@ func TestParsePairLogHeader(t *testing.T) {
 		"pairlog v1 seats a,b tc 0 games",
 		"pairlog v1 seats ,b tc 0 games 1",
 	} {
-		if _, _, _, _, ok := parsePairLogHeader(bad); ok {
+		if _, _, _, _, _, ok := parsePairLogHeader(bad); ok {
 			t.Errorf("parsePairLogHeader(%q) ok, want reject", bad)
 		}
 	}
@@ -66,7 +66,7 @@ func TestLoadPairLogRejectsHeaderMismatch(t *testing.T) {
 		"games":   {"a", "b", 1, 5},
 		"tcaseat": {"A", "b", 1, 4},
 	} {
-		pl, err := loadPairLog(path, args[0].(string), args[1].(string), args[2].(int), args[3].(int))
+		pl, err := loadPairLog(path, args[0].(string), args[1].(string), args[2].(int), args[3].(int), "square")
 		if err == nil || !strings.Contains(err.Error(), "header") {
 			t.Errorf("loadPairLog with %s mismatch = %v, want header error", name, err)
 		}
@@ -80,7 +80,7 @@ func TestLoadPairLogCountsAndRecoversTornTail(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "p.pairlog")
 	full := "pairlog v1 seats a,b tc 1 games 4\ngame 1 winner red moves 9\ngame 2 winner draw moves 250\ngame 3 winner blue moves 60\n"
 	writePairLog(t, path, full)
-	pl, err := loadPairLog(path, "a", "b", 1, 4)
+	pl, err := loadPairLog(path, "a", "b", 1, 4, "square")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestLoadPairLogCountsAndRecoversTornTail(t *testing.T) {
 	}
 	torn := full + "game 4 winner re"
 	writePairLog(t, path, torn)
-	pl, err = loadPairLog(path, "a", "b", 1, 4)
+	pl, err = loadPairLog(path, "a", "b", 1, 4, "square")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestLoadPairLogRejectsOutOfOrderAndJunk(t *testing.T) {
 	} {
 		path := filepath.Join(t.TempDir(), name+".pairlog")
 		writePairLog(t, path, text)
-		if _, err := loadPairLog(path, "a", "b", 1, 4); err == nil {
+		if _, err := loadPairLog(path, "a", "b", 1, 4, "square"); err == nil {
 			t.Errorf("loadPairLog %s: want error", name)
 		}
 	}
@@ -123,7 +123,7 @@ func TestLoadPairLogRejectsOutOfOrderAndJunk(t *testing.T) {
 func TestLoadPairLogAcceptsCompleteMarker(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "p.pairlog")
 	writePairLog(t, path, "pairlog v1 seats a,b tc 1 games 1\ngame 1 winner red moves 9\ncomplete 1 games\n")
-	pl, err := loadPairLog(path, "a", "b", 1, 1)
+	pl, err := loadPairLog(path, "a", "b", 1, 1, "square")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestLoadPairLogAcceptsCompleteMarker(t *testing.T) {
 
 func TestLoadPairLogMissingFileStartsFresh(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "absent.pairlog")
-	pl, err := loadPairLog(path, "a", "b", 1, 4)
+	pl, err := loadPairLog(path, "a", "b", 1, 4, "square")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestPairLogAppendTruncatesTornTail(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "p.pairlog")
 	torn := "pairlog v1 seats a,b tc 1 games 2\ngame 1 winner red moves 9\ngame 2 winner bl"
 	writePairLog(t, path, torn)
-	pl, err := openPairLogForAppend(path, "a", "b", 1, 2)
+	pl, err := openPairLogForAppend(path, "a", "b", 1, 2, "square")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,14 +171,14 @@ func TestPairLogAppendTruncatesTornTail(t *testing.T) {
 	if string(data) != want {
 		t.Fatalf("recovered pairlog = %q, want %q", data, want)
 	}
-	if _, err := loadPairLog(path, "a", "b", 1, 2); err != nil {
+	if _, err := loadPairLog(path, "a", "b", 1, 2, "square"); err != nil {
 		t.Fatalf("reload after recovery: %v", err)
 	}
 }
 
 func TestPairLogAppendWritesGameAndComplete(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "p.pairlog")
-	pl, err := openPairLogForAppend(path, "a", "b", 1, 2)
+	pl, err := openPairLogForAppend(path, "a", "b", 1, 2, "square")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestPairLogAppendWritesGameAndComplete(t *testing.T) {
 	if string(data) != want {
 		t.Fatalf("pairlog = %q, want %q", data, want)
 	}
-	back, err := loadPairLog(path, "a", "b", 1, 2)
+	back, err := loadPairLog(path, "a", "b", 1, 2, "square")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +214,7 @@ func TestPairLogAppendWritesGameAndComplete(t *testing.T) {
 func TestPairLogCompleteMarkerOnlyAfterFullCount(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "p.pairlog")
 	writePairLog(t, path, "pairlog v1 seats a,b tc 1 games 4\ncomplete 4 games\n")
-	if _, err := loadPairLog(path, "a", "b", 1, 4); err == nil {
+	if _, err := loadPairLog(path, "a", "b", 1, 4, "square"); err == nil {
 		t.Fatal("complete marker with 0 game lines: want error")
 	}
 }

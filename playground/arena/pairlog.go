@@ -20,28 +20,36 @@ type pairLog struct {
 	f            *os.File
 }
 
-func parsePairLogHeader(line string) (a, b string, tcIdx, games int, ok bool) {
+func parsePairLogHeader(line string) (a, b, geometry string, tcIdx, games int, ok bool) {
 	rest, ok := strings.CutPrefix(line, "pairlog v1 seats ")
 	if !ok {
-		return "", "", 0, 0, false
+		return "", "", "", 0, 0, false
 	}
 	fields := strings.Fields(rest)
+	geometry = "square"
+	if len(fields) == 7 {
+		if fields[5] != "geometry" {
+			return "", "", "", 0, 0, false
+		}
+		geometry = fields[6]
+		fields = fields[:5]
+	}
 	if len(fields) != 5 || fields[1] != "tc" || fields[3] != "games" {
-		return "", "", 0, 0, false
+		return "", "", "", 0, 0, false
 	}
 	seats := strings.Split(fields[0], ",")
 	if len(seats) != 2 || seats[0] == "" || seats[1] == "" {
-		return "", "", 0, 0, false
+		return "", "", "", 0, 0, false
 	}
 	tcIdx, err := strconv.Atoi(fields[2])
 	if err != nil || tcIdx < 0 {
-		return "", "", 0, 0, false
+		return "", "", "", 0, 0, false
 	}
 	games, err = strconv.Atoi(fields[4])
 	if err != nil || games < 1 {
-		return "", "", 0, 0, false
+		return "", "", "", 0, 0, false
 	}
-	return seats[0], seats[1], tcIdx, games, true
+	return seats[0], seats[1], geometry, tcIdx, games, true
 }
 
 func parsePairLogGameLine(line string) (n int, winner string, moves int, ok bool) {
@@ -65,7 +73,7 @@ func parsePairLogGameLine(line string) (n int, winner string, moves int, ok bool
 	return n, fields[3], moves, true
 }
 
-func loadPairLog(path, a, b string, tcIdx, games int) (pairLog, error) {
+func loadPairLog(path, a, b string, tcIdx, games int, geometry string) (pairLog, error) {
 	pl := pairLog{path: path, a: a, b: b, tcIdx: tcIdx, games: games}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -90,9 +98,9 @@ func loadPairLog(path, a, b string, tcIdx, games int) (pairLog, error) {
 		return pl, fmt.Errorf("%s: file is empty", path)
 	}
 	pl.exists = true
-	ha, hb, htc, hgames, ok := parsePairLogHeader(lines[0])
-	if !ok || ha != a || hb != b || htc != tcIdx || hgames != games {
-		return pl, fmt.Errorf("%s: header %q does not match invocation pairlog v1 seats %s,%s tc %d games %d", path, lines[0], a, b, tcIdx, games)
+	ha, hb, hgeometry, htc, hgames, ok := parsePairLogHeader(lines[0])
+	if !ok || ha != a || hb != b || hgeometry != geometry || htc != tcIdx || hgames != games {
+		return pl, fmt.Errorf("%s: header %q does not match invocation pairlog v1 seats %s,%s tc %d games %d geometry %s", path, lines[0], a, b, tcIdx, games, geometry)
 	}
 	for i, line := range lines[1:] {
 		lineno := i + 2
@@ -122,8 +130,8 @@ func loadPairLog(path, a, b string, tcIdx, games int) (pairLog, error) {
 	return pl, nil
 }
 
-func openPairLogForAppend(path, a, b string, tcIdx, games int) (pairLog, error) {
-	pl, err := loadPairLog(path, a, b, tcIdx, games)
+func openPairLogForAppend(path, a, b string, tcIdx, games int, geometry string) (pairLog, error) {
+	pl, err := loadPairLog(path, a, b, tcIdx, games, geometry)
 	if err != nil {
 		return pl, err
 	}
@@ -140,7 +148,11 @@ func openPairLogForAppend(path, a, b string, tcIdx, games int) (pairLog, error) 
 		return pl, fmt.Errorf("open %s: %w", path, err)
 	}
 	if pl.done == 0 && !pl.exists {
-		if _, err := fmt.Fprintf(f, "pairlog v1 seats %s,%s tc %d games %d\n", a, b, tcIdx, games); err != nil {
+		header := fmt.Sprintf("pairlog v1 seats %s,%s tc %d games %d", a, b, tcIdx, games)
+		if geometry != "square" {
+			header += " geometry " + geometry
+		}
+		if _, err := fmt.Fprintln(f, header); err != nil {
 			f.Close()
 			return pl, fmt.Errorf("write %s header: %w", path, err)
 		}

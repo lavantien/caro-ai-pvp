@@ -24,7 +24,7 @@ const (
 )
 
 type floorConfig struct {
-	name, seat                 string
+	name, seat, geometry       string
 	tcIdx, gamesPerDir         int
 	dirs, blockDirs, maxBlocks int
 	z                          float64
@@ -158,16 +158,20 @@ func trailingMoves(body string) (int, bool) {
 	return n, true
 }
 
-func parseFloorHeader(line string) (name, seat string, games int, ok bool) {
+func parseFloorHeader(line string) (name, seat, geometry string, games int, ok bool) {
 	parts := strings.Fields(line)
-	if len(parts) != 8 || parts[0] != "floor" || parts[2] != "tc" || parts[4] != "seat" || parts[6] != "games" {
-		return "", "", 0, false
+	if len(parts) == 8 && parts[0] == "floor" && parts[2] == "tc" && parts[4] == "seat" && parts[6] == "games" {
+		geometry = "square"
+	} else if len(parts) == 10 && parts[0] == "floor" && parts[2] == "tc" && parts[4] == "seat" && parts[6] == "games" && parts[8] == "geometry" {
+		geometry = parts[9]
+	} else {
+		return "", "", "", 0, false
 	}
 	games, err := strconv.Atoi(parts[7])
 	if err != nil {
-		return "", "", 0, false
+		return "", "", "", 0, false
 	}
-	return parts[1], parts[5], games, true
+	return parts[1], parts[5], geometry, games, true
 }
 
 func parseFloorDir(path string, cfg floorConfig) (dirTally, error) {
@@ -180,9 +184,9 @@ func parseFloorDir(path string, cfg floorConfig) (dirTally, error) {
 		return dirTally{}, fmt.Errorf("%s: file is empty", path)
 	}
 	lines := strings.Split(text, "\n")
-	name, seat, wantGames, ok := parseFloorHeader(lines[0])
-	if !ok || name != cfg.name || seat != cfg.seat {
-		return dirTally{}, fmt.Errorf("%s: header %q does not match pool %s seat %s", path, lines[0], cfg.name, cfg.seat)
+	name, seat, geometry, wantGames, ok := parseFloorHeader(lines[0])
+	if !ok || name != cfg.name || seat != cfg.seat || geometry != cfg.geometry {
+		return dirTally{}, fmt.Errorf("%s: header %q does not match pool %s seat %s geometry %s", path, lines[0], cfg.name, cfg.seat, cfg.geometry)
 	}
 	var t dirTally
 	for _, line := range lines[1:] {
@@ -272,7 +276,11 @@ func runFloorPool(cfg floorConfig, poolDir string, drive func(game int, redFirst
 		if err != nil {
 			return err
 		}
-		_, werr := fmt.Fprintf(f, "floor %s tc %d seat %s games %d\n", cfg.name, cfg.tcIdx, cfg.seat, cfg.gamesPerDir)
+		header := fmt.Sprintf("floor %s tc %d seat %s games %d", cfg.name, cfg.tcIdx, cfg.seat, cfg.gamesPerDir)
+		if cfg.geometry != "square" {
+			header += " geometry " + cfg.geometry
+		}
+		_, werr := fmt.Fprintln(f, header)
 		if werr == nil {
 			var red, blue, draws int
 			for g := 1; g <= cfg.gamesPerDir && werr == nil; g++ {
@@ -311,38 +319,39 @@ func runFloorPool(cfg floorConfig, poolDir string, drive func(game int, redFirst
 
 func renderFloorArtifact(w *bytes.Buffer, a floorAgg) {
 	fmt.Fprintf(w, "# floor %s\n\n", a.cfg.name)
+	if a.cfg.geometry != "square" {
+		fmt.Fprintf(w, "geometry: %s\n\n", a.cfg.geometry)
+	}
 	fmt.Fprintf(w, "integrity: %d dirs, bad lines %d, unfinished %d\n\n", a.dirs, a.badLines, a.unfinished)
 	fmt.Fprintln(w, "| seat | dirs | games | decisive | frac | 95% ci | covers 0.5 |")
 	fmt.Fprintln(w, "|---|---|---|---|---|---|---|")
 	frac, lower, upper, ok := waldInterval(a.redWins, a.decisive(), a.cfg.z)
-	fracText, ciText := "n a", "n a"
-	if ok {
-		fracText = fmt.Sprintf("%.3f", frac)
-		ciText = fmt.Sprintf("%.3f to %.3f", lower, upper)
-	}
-	fmt.Fprintf(w, "| %s | %d | %d | %d | %s | %s | %t |\n\n", a.seat, a.dirs, a.games, a.decisive(), fracText, ciText, a.coversHalf())
+	fmt.Fprintf(w, "| %s | %d | %d | %d | %s | %s | %t |\n\n", a.seat, a.dirs, a.games, a.decisive(), fracText(frac, ok), ciText(lower, upper, ok), a.coversHalf())
 	fmt.Fprintf(w, "extend: %s\n", a.extension())
 }
 
-func runFloorMode(name, seat, outRoot string, tcIdx, gamesPerDir, dirs, blockDirs, maxBlocks int, z float64) error {
-	cfg := floorConfig{name: name, seat: seat, tcIdx: tcIdx, gamesPerDir: gamesPerDir, dirs: dirs, blockDirs: blockDirs, maxBlocks: maxBlocks, z: z}
+func runFloorMode(env gameEnv, name, seat, outRoot string, tcIdx, gamesPerDir, dirs, blockDirs, maxBlocks int, z float64, verdict string, fixedMs int64) error {
+	cfg := floorConfig{name: name, seat: seat, geometry: env.variant, tcIdx: tcIdx, gamesPerDir: gamesPerDir, dirs: dirs, blockDirs: blockDirs, maxBlocks: maxBlocks, z: z}
 	if err := validateFloorConfig(cfg, len(config.TimeControls)); err != nil {
 		return err
 	}
 	poolDir := filepath.Join(outRoot, name)
-	if cfg.dirs > 0 {
-		drive := func(game int, redFirstSeat bool) (floorGameResult, error) {
-			first := &tally{name: seat}
-			second := &tally{name: seat}
-			if !redFirstSeat {
-				first, second = second, first
-			}
-			side, drawn, moves := play(first, second, cfg.tcIdx, game)
-			if drawn {
-				return floorGameResult{drawn: true, moves: moves}, nil
-			}
-			return floorGameResult{redWon: side == rules.Red, moves: moves}, nil
+	drive := func(game int, redFirstSeat bool) (floorGameResult, error) {
+		first := &tally{name: seat}
+		second := &tally{name: seat}
+		if !redFirstSeat {
+			first, second = second, first
 		}
+		side, drawn, moves := play(env, first, second, cfg.tcIdx, game, fixedMs)
+		if drawn {
+			return floorGameResult{drawn: true, moves: moves}, nil
+		}
+		return floorGameResult{redWon: side == rules.Red, moves: moves}, nil
+	}
+	if verdict != "" {
+		return runFloorVerdictMode(cfg, poolDir, drive, verdict)
+	}
+	if cfg.dirs > 0 {
 		if err := runFloorPool(cfg, poolDir, drive); err != nil {
 			return err
 		}
@@ -357,4 +366,50 @@ func runFloorMode(name, seat, outRoot string, tcIdx, gamesPerDir, dirs, blockDir
 		return err
 	}
 	return os.WriteFile(filepath.Join(outRoot, name+".md"), buf.Bytes(), 0o644)
+}
+
+func runFloorVerdictMode(cfg floorConfig, poolDir string, drive func(game int, redFirstSeat bool) (floorGameResult, error), verdict string) error {
+	for range cfg.maxBlocks {
+		if err := runFloorPool(cfg, poolDir, drive); err != nil {
+			return err
+		}
+		agg := aggregateFloorDirs(poolDir, cfg)
+		var buf bytes.Buffer
+		renderFloorArtifact(&buf, agg)
+		if _, err := os.Stdout.Write(buf.Bytes()); err != nil {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(poolDir), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Dir(poolDir)+string(filepath.Separator)+cfg.name+".md", buf.Bytes(), 0o644); err != nil {
+			return err
+		}
+		if agg.coversHalf() {
+			fmt.Printf("%s: DONE\n", verdict)
+			return nil
+		}
+		if agg.extension() == extensionCap {
+			break
+		}
+	}
+	agg := aggregateFloorDirs(poolDir, cfg)
+	frac, lower, upper, ok := waldInterval(agg.redWins, agg.decisive(), agg.cfg.z)
+	fmt.Printf("%s: FAILED floor blocked at the %d-block cap without covering 0.5 (games %d, decisive %d, frac %s, ci %s)\n",
+		verdict, agg.cfg.maxBlocks, agg.games, agg.decisive(), fracText(frac, ok), ciText(lower, upper, ok))
+	return nil
+}
+
+func fracText(frac float64, ok bool) string {
+	if !ok {
+		return "n a"
+	}
+	return fmt.Sprintf("%.3f", frac)
+}
+
+func ciText(lower, upper float64, ok bool) string {
+	if !ok {
+		return "n a"
+	}
+	return fmt.Sprintf("%.3f to %.3f", lower, upper)
 }

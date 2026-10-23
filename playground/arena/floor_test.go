@@ -14,7 +14,7 @@ import (
 
 func baseFloorCfg() floorConfig {
 	return floorConfig{
-		name: "floor-master21", seat: "master-nobook", tcIdx: 1,
+		name: "floor-master21", seat: "master-nobook", geometry: "square", tcIdx: 1,
 		gamesPerDir: 20, dirs: 5, blockDirs: 5, maxBlocks: 3, z: 1.96,
 	}
 }

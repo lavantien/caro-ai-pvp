@@ -160,7 +160,26 @@ func main() {
 	floorSeat := flag.String("floorSeat", "master-nobook", "same-tier seat label for floor pools")
 	floorZ := flag.Float64("floorZ", 1.96, "wald z multiplier for the floor interval")
 	pairOut := flag.String("pairOut", "", "append-only resumable pair log path, requires exactly 2 seats, exclusive of floor mode")
+	geometryArg := flag.String("geometry", "square", "board geometry variant name")
+	floorVerdict := flag.String("floorVerdict", "", "floor mode verdict prefix: drive extension blocks to a covering interval or the block cap, then print one <prefix>: DONE or FAILED line")
+	passgateOpp := flag.String("passgate", "", "hex master pass gate opponent tier among easy, medium, hard: master versus it over both seats, exclusive of floor and pair modes")
+	ladder := flag.Bool("ladder", false, "hex ladder inversion check: easy, medium, hard, master round-robin, exclusive of floor and pair modes")
+	fixedBudgetMs := flag.Int64("fixedBudgetMs", 0, "per-move fixed budget in ms replacing the time control clock, 0 keeps the clock")
 	flag.Parse()
+
+	env, err := resolveGeometry(*geometryArg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "arena: %v\n", err)
+		os.Exit(1)
+	}
+	if (*passgateOpp != "" || *ladder) && (*floorName != "" || *pairOut != "") {
+		fmt.Fprintln(os.Stderr, "arena: gate modes are exclusive of floor and pair modes")
+		os.Exit(1)
+	}
+	if *passgateOpp != "" && *ladder {
+		fmt.Fprintln(os.Stderr, "arena: passgate and ladder modes are exclusive of each other")
+		os.Exit(1)
+	}
 
 	seatsSel, err := applyEvalWeightFlags(*seatsArg, *evalWeightsArg, *evalBaseArg)
 	if err != nil {
@@ -168,8 +187,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *passgateOpp != "" {
+		if err := runHexPassGate(os.Stdout, env, *tcIdx, *games, *passgateOpp, *fixedBudgetMs); err != nil {
+			fmt.Fprintf(os.Stderr, "arena: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+	if *ladder {
+		if err := runHexLadder(os.Stdout, env, *tcIdx, *games, *fixedBudgetMs); err != nil {
+			fmt.Fprintf(os.Stderr, "arena: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	if *floorName != "" {
-		if err := runFloorMode(*floorName, *floorSeat, *floorOut, *tcIdx, *games, *floorDirs, *floorBlockDirs, *floorMaxBlocks, *floorZ); err != nil {
+		if err := runFloorMode(env, *floorName, *floorSeat, *floorOut, *tcIdx, *games, *floorDirs, *floorBlockDirs, *floorMaxBlocks, *floorZ, *floorVerdict, *fixedBudgetMs); err != nil {
 			fmt.Fprintf(os.Stderr, "arena: %v\n", err)
 			os.Exit(1)
 		}
@@ -191,25 +225,33 @@ func main() {
 			fmt.Fprintln(os.Stderr, "arena: -pairOut needs -games >= 1")
 			os.Exit(1)
 		}
-		pl, err := openPairLogForAppend(*pairOut, labels[0], labels[1], *tcIdx, *games)
+		pl, err := openPairLogForAppend(*pairOut, labels[0], labels[1], *tcIdx, *games, env.variant)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "arena: %v\n", err)
 			os.Exit(1)
 		}
 		plog = &pl
 	}
+	bookPath, hasBook := config.BookArtifactPathFor(env.variant)
 	for _, label := range labels {
 		if !seats[label].Book {
 			continue
 		}
-		if _, err := os.Stat(config.BookArtifactPath); err != nil {
-			fmt.Fprintf(os.Stderr, "arena: seat %s wants the book but %s is unreadable: %v\n", label, config.BookArtifactPath, err)
+		if !hasBook {
+			break
+		}
+		if _, err := os.Stat(bookPath); err != nil {
+			fmt.Fprintf(os.Stderr, "arena: seat %s wants the book but %s is unreadable: %v\n", label, bookPath, err)
 			os.Exit(1)
 		}
 		break
 	}
 	tc := config.TimeControls[*tcIdx]
-	fmt.Printf("arena tc %d+%d seats %v games %d\n", tc.InitialMin, tc.IncrementSec, labels, *games)
+	header := fmt.Sprintf("arena tc %d+%d seats %v games %d", tc.InitialMin, tc.IncrementSec, labels, *games)
+	if env.variant != "square" {
+		header += " geometry " + env.variant
+	}
+	fmt.Println(header)
 
 	results := map[string]*tally{}
 	for _, label := range labels {
@@ -245,7 +287,7 @@ func main() {
 					red, blue = blue, red
 				}
 				fmt.Printf("game %d: %s (red) vs %s (blue), tc %d+%d\n", gameNo, red, blue, tc.InitialMin, tc.IncrementSec)
-				side, drawn, moves := play(results[red], results[blue], *tcIdx, gameNo)
+				side, drawn, moves := play(env, results[red], results[blue], *tcIdx, gameNo, *fixedBudgetMs)
 				winnerSeat := winnerDraw
 				if !drawn {
 					if side == rules.Red {
@@ -358,27 +400,30 @@ func splitComma(s string) []string {
 	return out
 }
 
-func newSeatState(t *tally, tcIdx int) *seatState {
+func newSeatState(env gameEnv, t *tally, tcIdx int) *seatState {
 	tier := seats[t.name]
-	return &seatState{label: t.name, tier: tier, eng: server.NewBotSearcher(tier), clock: clock.NewGameClock(tcIdx), tally: t}
+	return &seatState{label: t.name, tier: tier, eng: server.NewBotSearcherFor(env.variant, tier), clock: clock.NewGameClock(tcIdx), tally: t}
 }
 
-func play(redT, blueT *tally, tcIdx, gameNo int) (rules.Color, bool, int) {
+func play(env gameEnv, redT, blueT *tally, tcIdx, gameNo int, fixedMs int64) (rules.Color, bool, int) {
 	st := map[rules.Color]*seatState{
-		rules.Red:  newSeatState(redT, tcIdx),
-		rules.Blue: newSeatState(blueT, tcIdx),
+		rules.Red:  newSeatState(env, redT, tcIdx),
+		rules.Blue: newSeatState(env, blueT, tcIdx),
 	}
 	defer st[rules.Red].eng.Close()
 	defer st[rules.Blue].eng.Close()
 
 	var legalBuf [config.BoardCells]rules.Move
-	b := rules.NewBoard()
+	b := env.board()
 	var lastMove rules.Move
 	turnStart := time.Now()
 	for {
 		side := b.Side
 		s := st[side]
 		budget := s.clock.Budget()
+		if fixedMs > 0 {
+			budget = time.Duration(fixedMs) * time.Millisecond
+		}
 		mv, stats, tag, outcome := collectPonder(s, b, lastMove, budget, turnStart)
 		if outcome != "" {
 			if outcome == "adopt" {
