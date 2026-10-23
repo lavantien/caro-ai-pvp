@@ -1,41 +1,38 @@
 package rules
 
 import (
+	"errors"
 	"fmt"
-	"strconv"
 
-	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 )
 
 type Cell uint16
 
 func ParseCell(name string) (Cell, error) {
-	if n := len(name); n < 2 || n > 3 {
-		return 0, fmt.Errorf("rules: cell name %q: want 2 or 3 characters", name)
+	cell, err := squareGeometry.ParseCell(name)
+	if err != nil {
+		return 0, wrapCodecError(err)
 	}
-	col := int(name[0]) - 'A'
-	if col < 0 || col >= config.BoardSize {
-		return 0, fmt.Errorf("rules: cell name %q: column out of A..%c", name, rune('A'+config.BoardSize-1))
-	}
-	row := 0
-	for _, ch := range name[1:] {
-		if ch < '0' || ch > '9' {
-			return 0, fmt.Errorf("rules: cell name %q: stray character %q", name, ch)
-		}
-		row = row*10 + int(ch-'0')
-	}
-	if len(name) == 3 && name[1] == '0' {
-		return 0, fmt.Errorf("rules: cell name %q: leading zero", name)
-	}
-	if row < 1 || row > config.BoardSize {
-		return 0, fmt.Errorf("rules: cell name %q: row out of 1..%d", name, config.BoardSize)
-	}
-	return Cell((row-1)*config.BoardStride + col), nil
+	return Cell(cell), nil
 }
 
 func CellName(cell Cell) (string, error) {
-	if int(cell) >= config.BoardCells {
-		return "", fmt.Errorf("rules: cell %d out of 0..%d", cell, config.BoardCells-1)
+	name, err := squareGeometry.CellName(int(cell))
+	if err != nil {
+		return "", wrapCodecError(err)
 	}
-	return string(rune('A'+rune(cell%config.BoardStride))) + strconv.Itoa(int(cell/config.BoardStride)+1), nil
+	return name, nil
+}
+
+func AppendCellName(dst []byte, cell Cell) []byte {
+	return squareGeometry.AppendName(dst, int(cell))
+}
+
+func wrapCodecError(err error) error {
+	var ne *geom.NameError
+	if errors.As(err, &ne) {
+		return fmt.Errorf("rules: %s", ne.Text)
+	}
+	return err
 }

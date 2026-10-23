@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 )
 
 func setStone(b *Board, cell Cell, color Color) {
@@ -139,25 +140,6 @@ func TestWinSpecCases(t *testing.T) {
 	}
 }
 
-func TestDirectionTablesShape(t *testing.T) {
-	// Spec: exactly four line directions, each a (dr, dc) pair, and every
-	// derived table must stay indexed in lockstep with lineDirs.
-	if len(lineDirs) != 4 {
-		t.Fatalf("len(lineDirs) = %d, want 4", len(lineDirs))
-	}
-	for _, d := range lineDirs {
-		if len(d) != 2 {
-			t.Fatalf("direction %v has %d components, want 2", d, len(d))
-		}
-	}
-	if len(dirStep) != len(lineDirs) || len(dirFwdClr) != len(lineDirs) || len(dirBwdClr) != len(lineDirs) {
-		t.Fatalf("derived tables %d/%d/%d, want all len %d", len(dirStep), len(dirFwdClr), len(dirBwdClr), len(lineDirs))
-	}
-}
-
-// The horizontal exact five through H8 is dead with both ends blocked, and a
-// winning diagonal five leaves H8 in the other direction: skipping past the
-// blocked direction (not abandoning the scan) is what makes the win visible.
 func TestFastLastMoveWinBlockedThenWinningDirection(t *testing.T) {
 	b, nb := NewBoard(), NewNaiveBoard()
 	for _, name := range []string{"D8", "E8", "F8", "G8", "H8", "I9", "J10", "K11", "L12"} {
@@ -261,6 +243,7 @@ func TestWinDirectionThroughSameStone(t *testing.T) {
 }
 
 func TestShiftImage(t *testing.T) {
+	g := NewBoard().Geom
 	patterns := make(map[string]bb)
 	var full bb
 	for cell := range config.BoardCells {
@@ -285,8 +268,8 @@ func TestShiftImage(t *testing.T) {
 		patterns[fmt.Sprintf("col%d", col)] = c
 	}
 
-	image := func(p bb, d int, fwd bool) bb {
-		dr, dc := lineDirs[d][0], lineDirs[d][1]
+	image := func(p bb, dir *geom.Dir, fwd bool) bb {
+		dr, dc := dir.Dr, dir.Dc
 		if !fwd {
 			dr, dc = -dr, -dc
 		}
@@ -307,14 +290,19 @@ func TestShiftImage(t *testing.T) {
 	}
 
 	for name, p := range patterns {
-		for d := range lineDirs {
+		for i := range g.Dirs {
+			d := &g.Dirs[i]
 			want := image(p, d, true)
-			if got := shiftFwd(p, dirStep[d], dirFwdClr[d]); got != want {
-				t.Fatalf("%s fwd dir %d: got %x want %x", name, d, got, want)
+			got := p
+			shiftFwdInto(&got, d, g.Words)
+			if got != want {
+				t.Fatalf("%s fwd dir %d: got %x want %x", name, i, got, want)
 			}
 			want = image(p, d, false)
-			if got := shiftBwd(p, dirStep[d], dirBwdClr[d]); got != want {
-				t.Fatalf("%s bwd dir %d: got %x want %x", name, d, got, want)
+			got = p
+			shiftBwdInto(&got, d, g.Words)
+			if got != want {
+				t.Fatalf("%s bwd dir %d: got %x want %x", name, i, got, want)
 			}
 		}
 	}

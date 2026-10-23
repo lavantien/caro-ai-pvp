@@ -4,6 +4,7 @@ import (
 	"math/bits"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 )
 
 type Color uint8
@@ -18,7 +19,7 @@ const colorCount = 2
 
 func (c Color) Opponent() Color { return c ^ 1 }
 
-var lineDirs = [4][2]int{{0, 1}, {1, 0}, {1, 1}, {1, -1}}
+var squareGeometry = geom.Default()
 
 func inBoard(r, c int) bool {
 	return r >= 0 && r < config.BoardSize && c >= 0 && c < config.BoardSize
@@ -28,7 +29,9 @@ type Move uint16
 
 const wordBits = 64
 
-type bb [config.BoardWordsPerColor]uint64
+type bb [config.MaxBoardWordsPerColor]uint64
+
+const MoveNone = Move(config.MaxBoardCells)
 
 type undoEntry struct {
 	cell  Cell
@@ -44,7 +47,8 @@ type Board struct {
 	Hash      uint64
 	Region    bb
 	Full      bb
-	undo      [config.BoardCells]undoEntry
+	Geom      *geom.Geometry
+	undo      [config.MaxBoardCells]undoEntry
 }
 
 func regionBB(rows, cols int) bb {
@@ -58,12 +62,18 @@ func regionBB(rows, cols int) bb {
 	return r
 }
 
+func NewBoardFor(g *geom.Geometry) *Board {
+	return &Board{Side: Red, Region: g.Region, Geom: g}
+}
+
 func NewBoard() *Board {
-	return &Board{Side: Red, Region: regionBB(config.BoardSize, config.BoardSize)}
+	return NewBoardFor(squareGeometry)
 }
 
 func NewCrossCheck() *Board {
-	return &Board{Side: Red, Region: regionBB(config.CrossCheckSize, config.CrossCheckSize)}
+	b := NewBoard()
+	b.Region = regionBB(config.CrossCheckSize, config.CrossCheckSize)
+	return b
 }
 
 func bitOf(cell Cell) (int, uint64) {
@@ -86,7 +96,7 @@ func (b *Board) stones(color Color) bb {
 }
 
 func (b *Board) At(cell Cell) Color {
-	if int(cell) >= config.BoardCells {
+	if int(cell) >= b.Geom.Cells {
 		panic("rules: At cell out of range")
 	}
 	w, m := bitOf(cell)
@@ -100,7 +110,7 @@ func (b *Board) At(cell Cell) Color {
 }
 
 func (b *Board) Occupied(cell Cell) bool {
-	if int(cell) >= config.BoardCells {
+	if int(cell) >= b.Geom.Cells {
 		panic("rules: Occupied cell out of range")
 	}
 	w, m := bitOf(cell)
@@ -108,7 +118,7 @@ func (b *Board) Occupied(cell Cell) bool {
 }
 
 func (b *Board) inRegion(cell Cell) bool {
-	if int(cell) >= config.BoardCells {
+	if int(cell) >= b.Geom.Cells {
 		panic("rules: inRegion cell out of range")
 	}
 	w, m := bitOf(cell)
@@ -120,7 +130,7 @@ func (b *Board) IsFull() bool {
 }
 
 func (b *Board) Make(cell Cell) {
-	if int(cell) >= config.BoardCells {
+	if int(cell) >= b.Geom.Cells {
 		panic("rules: Make out of bounds")
 	}
 	w, m := bitOf(cell)

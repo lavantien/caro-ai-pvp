@@ -58,8 +58,8 @@ func (nb *NaiveBoard) Wins(color Color) bool {
 			continue
 		}
 		r, c := cell/config.BoardStride, cell%config.BoardStride
-		for d := range lineDirs {
-			dr, dc := lineDirs[d][0], lineDirs[d][1]
+		for _, dir := range squareGeometry.Dirs {
+			dr, dc := dir.Dr, dir.Dc
 			if inBoard(r-dr, c-dc) && nb.at(r-dr, c-dc) == me {
 				continue
 			}
@@ -90,8 +90,8 @@ func (nb *NaiveBoard) WinsThrough(color Color, cell Cell) bool {
 		return false
 	}
 	r, c := int(cell)/config.BoardStride, int(cell)%config.BoardStride
-	for d := range lineDirs {
-		dr, dc := lineDirs[d][0], lineDirs[d][1]
+	for _, dir := range squareGeometry.Dirs {
+		dr, dc := dir.Dr, dir.Dc
 		back := 0
 		br, bc := r-dr, c-dc
 		for inBoard(br, bc) && nb.at(br, bc) == me {

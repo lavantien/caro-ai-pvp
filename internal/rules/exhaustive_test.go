@@ -129,7 +129,7 @@ func TestExhaustiveWindowSweep(t *testing.T) {
 		{"full", false},
 		{"crosscheck", true},
 	} {
-		for d := range lineDirs {
+		for d := range squareGeometry.Dirs {
 			t.Run(fmt.Sprintf("%s/dir%d", region.name, d), func(t *testing.T) {
 				t.Parallel()
 				var b *Board
@@ -144,7 +144,7 @@ func TestExhaustiveWindowSweep(t *testing.T) {
 					size = config.CrossCheckSize
 				}
 				window := 2*config.WinLength - 1
-				dr, dc := lineDirs[d][0], lineDirs[d][1]
+				dr, dc := squareGeometry.Dirs[d].Dr, squareGeometry.Dirs[d].Dc
 				var slots []Cell
 				for r0 := -(window - 1); r0 < size; r0++ {
 					for c0 := -(window - 1); c0 < size; c0++ {

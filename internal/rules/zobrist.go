@@ -2,7 +2,6 @@ package rules
 
 import "github.com/lavantien/caro-ai-pvp/internal/config"
 
-// splitmix64 finalizer constants
 const (
 	splitmixMulA = 0xBF58476D1CE4E5B9
 	splitmixMulB = 0x94D049BB133111EB
@@ -12,7 +11,7 @@ const (
 )
 
 var (
-	zobristPieces [colorCount][config.BoardCells]uint64
+	zobristPieces [colorCount][config.MaxBoardCells]uint64
 	zobristSide   uint64
 )
 
@@ -34,4 +33,10 @@ func init() {
 	}
 	state = splitmix64(state)
 	zobristSide = state
+	for color := range colorCount {
+		for cell := range config.MaxBoardCells - config.BoardCells {
+			state = splitmix64(state)
+			zobristPieces[color][config.BoardCells+cell] = state
+		}
+	}
 }

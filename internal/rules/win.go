@@ -1,127 +1,101 @@
 package rules
 
-import "github.com/lavantien/caro-ai-pvp/internal/config"
-
-var (
-	fileMask0 uint64
-	fileMaskF uint64
-	dirStep   [4]uint
-	dirFwdClr [4]uint64
-	dirBwdClr [4]uint64
+import (
+	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 )
 
-func init() {
-	for col := range wordBits / config.BoardStride {
-		fileMask0 |= 1 << (uint(col) * config.BoardStride)
-		fileMaskF |= 1 << (uint(col)*config.BoardStride + config.BoardStride - 1)
-	}
-	for d, delta := range lineDirs {
-		dirStep[d] = uint(delta[0]*config.BoardStride + delta[1])
-		dirFwdClr[d] = fileClear(delta[1])
-		dirBwdClr[d] = fileClear(-delta[1])
-	}
-}
-
-func fileClear(dc int) uint64 {
-	switch dc {
-	case 1:
-		return fileMask0
-	case -1:
-		return fileMaskF
-	}
-	return 0
-}
-
-func shiftFwd(s bb, step uint, clear uint64) bb {
-	var r bb
-	for w := config.BoardWordsPerColor - 1; w >= 0; w-- {
-		r[w] = s[w] << step
+func shiftFwdInto(dst *bb, d *geom.Dir, words int) {
+	for w := words - 1; w >= 0; w-- {
+		var carry uint64
 		if w > 0 {
-			r[w] |= s[w-1] >> (wordBits - step)
+			carry = dst[w-1] >> (wordBits - d.Step)
 		}
-		if clear != 0 {
-			r[w] &^= clear
-		}
+		dst[w] = dst[w]<<d.Step | carry
+		dst[w] &^= d.FwdClr[w]
 	}
-	return r
 }
 
-func shiftBwd(s bb, step uint, clear uint64) bb {
-	var r bb
-	for w := range config.BoardWordsPerColor {
-		r[w] = s[w] >> step
-		if w < config.BoardWordsPerColor-1 {
-			r[w] |= s[w+1] << (wordBits - step)
+func shiftBwdInto(dst *bb, d *geom.Dir, words int) {
+	for w := range words {
+		var carry uint64
+		if w < words-1 {
+			carry = dst[w+1] << (wordBits - d.Step)
 		}
-		if clear != 0 {
-			r[w] &^= clear
-		}
+		dst[w] = dst[w]>>d.Step | carry
+		dst[w] &^= d.BwdClr[w]
 	}
-	return r
 }
 
-func andBB(a, b bb) bb {
-	for w := range a {
+func andInto(a, b *bb, words int) {
+	for w := range words {
 		a[w] &= b[w]
 	}
-	return a
 }
 
-func orBB(a, b bb) bb {
-	for w := range a {
+func orInto(a, b *bb, words int) {
+	for w := range words {
 		a[w] |= b[w]
 	}
-	return a
 }
 
-func andNotBB(a, b bb) bb {
-	for w := range a {
+func andNotInto(a, b *bb, words int) {
+	for w := range words {
 		a[w] &^= b[w]
 	}
-	return a
 }
 
-func nonzeroBB(a bb) bool {
-	for _, x := range a {
-		if x != 0 {
+func nonzeroBB(a *bb, words int) bool {
+	for w := range words {
+		if a[w] != 0 {
 			return true
 		}
 	}
 	return false
 }
 
-// winsDir reports whether color s has a maximal run of exactly WinLength stones
-// in direction d whose two immediate neighbors are not both opponent stones.
-func winsDir(s, o bb, d int) bool {
-	step, fc, bc := dirStep[d], dirFwdClr[d], dirBwdClr[d]
-	five := s
-	cur := s
+func winsDir(s, o *bb, d *geom.Dir, words int) bool {
+	five, cur := *s, *s
 	for range config.WinLength - 1 {
-		cur = shiftBwd(cur, step, bc)
-		five = andBB(five, cur)
+		shiftBwdInto(&cur, d, words)
+		andInto(&five, &cur, words)
 	}
-	if !nonzeroBB(five) {
+	if !nonzeroBB(&five, words) {
 		return false
 	}
-	after := shiftBwd(cur, step, bc)
-	before := shiftFwd(s, step, fc)
-	cand := andNotBB(five, orBB(before, after))
-	if !nonzeroBB(cand) {
+	after := cur
+	shiftBwdInto(&after, d, words)
+	before := *s
+	shiftFwdInto(&before, d, words)
+	orInto(&after, &before, words)
+	cand := five
+	andNotInto(&cand, &after, words)
+	if !nonzeroBB(&cand, words) {
 		return false
 	}
-	oppShift := o
+	oppShift := *o
 	for range config.WinLength {
-		oppShift = shiftBwd(oppShift, step, bc)
+		shiftBwdInto(&oppShift, d, words)
 	}
-	blocked := andBB(shiftFwd(o, step, fc), oppShift)
-	return nonzeroBB(andNotBB(cand, blocked))
+	blocked := *o
+	shiftFwdInto(&blocked, d, words)
+	andInto(&blocked, &oppShift, words)
+	andNotInto(&cand, &blocked, words)
+	return nonzeroBB(&cand, words)
+}
+
+func (b *Board) stonesPtr(color Color) *bb {
+	if color == Red {
+		return &b.Red
+	}
+	return &b.Blue
 }
 
 func (b *Board) Wins(color Color) bool {
-	s := b.stones(color)
-	o := b.stones(color.Opponent())
-	for d := range lineDirs {
-		if winsDir(s, o, d) {
+	s, o := b.stonesPtr(color), b.stonesPtr(color.Opponent())
+	g := b.Geom
+	for i := range g.Dirs {
+		if winsDir(s, o, &g.Dirs[i], g.Words) {
 			return true
 		}
 	}
@@ -129,25 +103,25 @@ func (b *Board) Wins(color Color) bool {
 }
 
 func (b *Board) FastLastMoveWin(color Color, cell Cell) bool {
-	s := b.stones(color)
-	o := b.stones(color.Opponent())
-	r := int(cell) / config.BoardStride
-	c := int(cell) % config.BoardStride
+	s, o := b.stonesPtr(color), b.stonesPtr(color.Opponent())
+	g := b.Geom
+	r := int(cell) / g.Stride
+	c := int(cell) % g.Stride
 	if !b.bitAt(s, r, c) {
 		return false
 	}
-	for d := range lineDirs {
-		dr, dc := lineDirs[d][0], lineDirs[d][1]
+	for i := range g.Dirs {
+		dr, dc := g.Dirs[i].Dr, g.Dirs[i].Dc
 		back := 0
 		br, bc := r-dr, c-dc
-		for k := 0; k < config.WinLength && inBoard(br, bc) && b.bitAt(s, br, bc); k++ {
+		for k := 0; k < config.WinLength && inGeom(g, br, bc) && b.bitAt(s, br, bc); k++ {
 			back++
 			br -= dr
 			bc -= dc
 		}
 		fwd := 0
 		fr, fc := r+dr, c+dc
-		for k := 0; k < config.WinLength && inBoard(fr, fc) && b.bitAt(s, fr, fc); k++ {
+		for k := 0; k < config.WinLength && inGeom(g, fr, fc) && b.bitAt(s, fr, fc); k++ {
 			fwd++
 			fr += dr
 			fc += dc
@@ -155,7 +129,7 @@ func (b *Board) FastLastMoveWin(color Color, cell Cell) bool {
 		if back+fwd+1 != config.WinLength {
 			continue
 		}
-		if inBoard(br, bc) && b.bitAt(o, br, bc) && inBoard(fr, fc) && b.bitAt(o, fr, fc) {
+		if inGeom(g, br, bc) && b.bitAt(o, br, bc) && inGeom(g, fr, fc) && b.bitAt(o, fr, fc) {
 			continue
 		}
 		return true
@@ -163,7 +137,11 @@ func (b *Board) FastLastMoveWin(color Color, cell Cell) bool {
 	return false
 }
 
-func (b *Board) bitAt(s bb, r, c int) bool {
-	w, m := bitOf(Cell(r*config.BoardStride + c))
+func inGeom(g *geom.Geometry, r, c int) bool {
+	return r >= 0 && r < g.Rows && c >= 0 && c < g.Cols
+}
+
+func (b *Board) bitAt(s *bb, r, c int) bool {
+	w, m := bitOf(Cell(r*b.Geom.Stride + c))
 	return s[w]&m != 0
 }

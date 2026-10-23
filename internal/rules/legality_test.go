@@ -209,8 +209,8 @@ func TestChebyshevExactValues(t *testing.T) {
 		{cellAt(7, 2), cellAt(2, 7), 5},
 		{cellAt(1, 2), cellAt(2, 1), 1},
 	} {
-		if got := chebyshev(tc.a, tc.b); got != tc.want {
-			t.Errorf("chebyshev(%d, %d) = %d, want %d", tc.a, tc.b, got, tc.want)
+		if got := squareGeometry.Distance(int(tc.a), int(tc.b)); got != tc.want {
+			t.Errorf("distance(%d, %d) = %d, want %d", tc.a, tc.b, got, tc.want)
 		}
 	}
 }

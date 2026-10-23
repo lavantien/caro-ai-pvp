@@ -26,6 +26,25 @@ func TestZobristKeysDistinctNonzero(t *testing.T) {
 	add(zobristSide)
 }
 
+func TestZobristCapacityKeysDistinctNonzero(t *testing.T) {
+	seen := make(map[uint64]struct{})
+	add := func(k uint64) {
+		if k == 0 {
+			t.Fatal("zobrist key must not be zero")
+		}
+		if _, dup := seen[k]; dup {
+			t.Fatalf("duplicate zobrist key %016x", k)
+		}
+		seen[k] = struct{}{}
+	}
+	for color := range colorCount {
+		for cell := range config.MaxBoardCells {
+			add(zobristPieces[color][cell])
+		}
+	}
+	add(zobristSide)
+}
+
 // Golden pins derived once from the pinned splitmix64 constants and
 // config.ZobristSeed: any mixer, seed-chain, or colorCount mutation changes
 // at least one of these exact values.
