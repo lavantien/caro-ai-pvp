@@ -413,7 +413,7 @@ func play(env gameEnv, redT, blueT *tally, tcIdx, gameNo int, fixedMs int64) (ru
 	defer st[rules.Red].eng.Close()
 	defer st[rules.Blue].eng.Close()
 
-	var legalBuf [config.BoardCells]rules.Move
+	var legalBuf [config.MaxBoardCells]rules.Move
 	b := env.board()
 	var lastMove rules.Move
 	turnStart := time.Now()
