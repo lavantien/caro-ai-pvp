@@ -8,20 +8,18 @@ import (
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 	"github.com/lavantien/caro-ai-pvp/internal/tourney"
 )
 
-// writeWithRealLogs writes one series log through the production
-// tourney.Logs writer, config.TournamentLogDir pointed at a temp dir, so the
-// header and line tests parse the exact bytes internal/tourney emits.
 func writeWithRealLogs(t *testing.T, run, series int64, tcIdx, boLen int,
-	red, blue tourney.Participant, lines []string) string {
+	red, blue tourney.Participant, variant string, lines []string) string {
 	t.Helper()
 	dir := t.TempDir()
 	logs := tourney.NewLogs(dir)
-	if err := logs.WriteSeriesHeader(run, series, tcIdx, boLen, red, blue); err != nil {
+	if err := logs.WriteSeriesHeader(run, series, tcIdx, boLen, red, blue, variant); err != nil {
 		t.Fatalf("write header: %v", err)
 	}
 	for _, l := range lines {
@@ -39,10 +37,6 @@ func writeWithRealLogs(t *testing.T, run, series int64, tcIdx, boLen int,
 	return filepath.Join(dir, entries[0].Name())
 }
 
-// TestHeaderPinnedToRealWriter round-trips the whole header block through
-// the real writer: run and series ids, the pairing names and tiers (first
-// name = host = red in game 1), and the time control with the best-of
-// length.
 func TestHeaderPinnedToRealWriter(t *testing.T) {
 	tcIdx, ok := config.TCIndex(3, 2)
 	if !ok {
@@ -51,7 +45,7 @@ func TestHeaderPinnedToRealWriter(t *testing.T) {
 	tc := config.TimeControls[tcIdx]
 	red := tourney.Participant{Slot: 0, Name: "alpha bot", Tier: "easy"}
 	blue := tourney.Participant{Slot: 1, Name: "beta-2", Tier: "hard"}
-	path := writeWithRealLogs(t, 7, 3, tcIdx, 5, red, blue, nil)
+	path := writeWithRealLogs(t, 7, 3, tcIdx, 5, red, blue, config.DefaultVariant, nil)
 	f, err := parseFile(path)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
@@ -64,6 +58,7 @@ func TestHeaderPinnedToRealWriter(t *testing.T) {
 		redName: "alpha bot", redTier: "easy",
 		blueName: "beta-2", blueTier: "hard",
 		initialMin: tc.InitialMin, incSec: tc.IncrementSec, boLen: 5,
+		variant: config.DefaultVariant,
 	}
 	if f.head != want {
 		t.Errorf("header = %+v, want %+v", f.head, want)
@@ -76,9 +71,6 @@ func TestHeaderPinnedToRealWriter(t *testing.T) {
 	}
 }
 
-// TestLinesPinnedToRealWriter parses the event lines of a real-written
-// series log: M-lines from the server emitter, a game summary, and a
-// verdict, each carried into the parsed record stream in arrival order.
 func TestLinesPinnedToRealWriter(t *testing.T) {
 	tcIdx, _ := config.TCIndex(1, 0)
 	red := tourney.Participant{Slot: 0, Name: "gamma", Tier: "medium"}
@@ -91,7 +83,7 @@ func TestLinesPinnedToRealWriter(t *testing.T) {
 	st.PV[0], st.PV[1] = mustMove(t, "D4"), mustMove(t, "E5")
 	st.PVLen = 2
 	ml := server.MLine(2, rules.Blue, mustMove(t, "D4"), &st, config.BotLogTagVCF)
-	path := writeWithRealLogs(t, 1, 0, tcIdx, 3, red, blue, []string{
+	path := writeWithRealLogs(t, 1, 0, tcIdx, 3, red, blue, config.DefaultVariant, []string{
 		ml,
 		"game 1: delta (blue) beat gamma (red), 11 moves, won by double 4",
 		"series delta 0-1",
@@ -107,7 +99,7 @@ func TestLinesPinnedToRealWriter(t *testing.T) {
 		t.Fatalf("records = %d, want the M-line and the game summary", len(f.records))
 	}
 	m := f.records[0].ml
-	if m == nil || m.move != 2 || m.side != "Blue" || m.cell != "D4" ||
+	if m == nil || m.move != 2 || m.side != "Blue" || m.cell != "D4" || m.cellFlat != 51 ||
 		m.tag != strings.TrimPrefix(config.BotLogTagVCF, ", ") || m.pv != "D4 E5" {
 		t.Errorf("m-line record = %+v", m)
 	}
@@ -131,28 +123,113 @@ func mustMove(t *testing.T, name string) rules.Move {
 	return rules.Move(cell)
 }
 
-// TestMLinePinnedToRealEmitter round-trips every M-line field through the
-// real server.MLine emitter: both mate signs on the mateWin lattice, the
-// signed zero, each config tag, and the empty pv. Node, ebf, and second
-// values stay compact-exact so the parsed fields equal the inputs.
+func mustVariantGeom(t *testing.T, variant string) *geom.Geometry {
+	t.Helper()
+	g, err := geom.ByName(variant)
+	if err != nil {
+		t.Fatalf("geometry %q: %v", variant, err)
+	}
+	return g
+}
+
+func variantMove(t *testing.T, g *geom.Geometry, name string) rules.Move {
+	t.Helper()
+	cell, err := g.ParseCell(name)
+	if err != nil {
+		t.Fatalf("parse cell %q: %v", name, err)
+	}
+	return rules.Move(cell)
+}
+
+func TestHexSeriesParsesThroughTheHexGeometry(t *testing.T) {
+	tcIdx, _ := config.TCIndex(1, 0)
+	red := tourney.Participant{Slot: 0, Name: "alpha", Tier: "easy"}
+	blue := tourney.Participant{Slot: 1, Name: "beta", Tier: "hard"}
+	hex := mustVariantGeom(t, "hex")
+	base := engine.SearchStats{
+		Depth: 9, Nodes: 45_000, Nps: 1_200_000, EBFMilli: 1400,
+		TTHitPermille: 180, HashFullPermille: 600, FirstMoveFailHighPermille: 880,
+		Score: 150, Threads: 4, ElapsedNs: 30_000_000, AllocNs: 3_000_000_000,
+	}
+	withPV := base
+	withPV.PV[0], withPV.PVLen = variantMove(t, hex, "I17"), 1
+	lines := []string{
+		string(server.AppendMLine(nil, hex, 3, rules.Red, variantMove(t, hex, "W12"), &base, "")),
+		string(server.AppendMLine(nil, hex, 5, rules.Red, variantMove(t, hex, "L23"), &base, config.BotLogTagVCF)),
+		string(server.AppendMLine(nil, hex, 7, rules.Red, variantMove(t, hex, "L12"), &withPV, "")),
+	}
+	path := writeWithRealLogs(t, 9, 1, tcIdx, 3, red, blue, "hex", lines)
+	f, err := parseFile(path)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if f.head.variant != "hex" {
+		t.Errorf("header variant = %q, want hex", f.head.variant)
+	}
+	if len(f.bad) != 0 {
+		t.Fatalf("bad lines = %v, want the hex-only cell names to parse", f.bad)
+	}
+	if len(f.records) != 3 {
+		t.Fatalf("records = %d, want the three hex M-lines", len(f.records))
+	}
+	want := []struct {
+		num  int
+		cell string
+		flat int
+	}{
+		{3, "W12", 275},
+		{5, "L23", 517},
+		{7, "L12", 264},
+	}
+	for i, w := range want {
+		m := f.records[i].ml
+		if m == nil || m.move != w.num || m.cell != w.cell || m.cellFlat != w.flat {
+			t.Errorf("hex M-line %d = %+v, want move %d cell %s flat %d", i, m, w.num, w.cell, w.flat)
+		}
+	}
+	if m := f.records[2].ml; m.pv != "I17" {
+		t.Errorf("hex pv = %q, want I17", m.pv)
+	}
+
+	sq := mustVariantGeom(t, config.DefaultVariant)
+	sqLine := string(server.AppendMLine(nil, sq, 7, rules.Red, variantMove(t, sq, "L12"), &base, ""))
+	sqPath := writeWithRealLogs(t, 9, 2, tcIdx, 3, red, blue, config.DefaultVariant, []string{sqLine})
+	sf, err := parseFile(sqPath)
+	if err != nil {
+		t.Fatalf("parse square: %v", err)
+	}
+	if len(sf.bad) != 0 || len(sf.records) != 1 {
+		t.Fatalf("square parse bad %v records %d, want a clean single M-line", sf.bad, len(sf.records))
+	}
+	if m := sf.records[0].ml; m.cell != "L12" || m.cellFlat != 187 {
+		t.Errorf("square L12 flat = %d, want 187", m.cellFlat)
+	}
+
+	offRegion := string(server.AppendMLine(nil, hex, 8, rules.Red, rules.Move(23), &base, ""))
+	if _, ok := parseMLine(offRegion, hex); ok {
+		t.Error("off-region cell A2 accepted under the hex geometry, want rejection")
+	}
+}
+
 func TestMLinePinnedToRealEmitter(t *testing.T) {
 	cases := []struct {
 		name string
 		num  int
 		side rules.Color
 		move string
+		flat int
 		tag  string
 		st   engine.SearchStats
 		pv   []string
 	}{
-		{name: "healthy", num: 24, side: rules.Red, move: "J9", tag: "",
+		{name: "healthy", num: 24, side: rules.Red, move: "J9", flat: 137, tag: "",
 			st: engine.SearchStats{
 				Depth: 14, Nodes: 6_250_000, Nps: 2_500_000, EBFMilli: 2100,
 				TTHitPermille: 380, HashFullPermille: 450, FirstMoveFailHighPermille: 930,
 				Score: 150, Threads: 4, ElapsedNs: 2_500_000_000, AllocNs: 2_500_000_000,
 			},
 			pv: []string{"J9", "K10", "K9", "L9", "M8", "L8"}},
-		{name: "mate for mover", num: 31, side: rules.Blue, move: "G7", tag: config.BotLogTagVCT,
+		{name: "mate for mover", num: 31, side: rules.Blue, move: "G7", flat: 102, tag: config.BotLogTagVCT,
 			st: engine.SearchStats{
 				Depth: 9, Nodes: 45_000, Nps: 1_200_000, EBFMilli: 1400,
 				TTHitPermille: 180, HashFullPermille: 600, FirstMoveFailHighPermille: 880,
@@ -160,7 +237,7 @@ func TestMLinePinnedToRealEmitter(t *testing.T) {
 				ElapsedNs: 30_000_000, AllocNs: 3_000_000_000,
 			},
 			pv: []string{"G7", "H7"}},
-		{name: "mate against mover", num: 7, side: rules.Blue, move: "A1", tag: config.BotLogTagVCF,
+		{name: "mate against mover", num: 7, side: rules.Blue, move: "A1", flat: 0, tag: config.BotLogTagVCF,
 			st: engine.SearchStats{
 				Depth: 7, Nodes: 1_050_000, Nps: 2_000_000, EBFMilli: 1500,
 				TTHitPermille: 385, HashFullPermille: 454, FirstMoveFailHighPermille: 929,
@@ -168,20 +245,20 @@ func TestMLinePinnedToRealEmitter(t *testing.T) {
 				ElapsedNs: 1_230_000_000, AllocNs: 9_870_000_000,
 			},
 			pv: []string{"A1"}},
-		{name: "signed zero", num: 12, side: rules.Red, move: "H10", tag: config.BotLogTagPonder,
+		{name: "signed zero", num: 12, side: rules.Red, move: "H10", flat: 151, tag: config.BotLogTagPonder,
 			st: engine.SearchStats{
 				Depth: 16, Nodes: 18_000_000, Nps: 2_800_000, EBFMilli: 2000,
 				TTHitPermille: 440, HashFullPermille: 780, FirstMoveFailHighPermille: 910,
 				Score: 0, Threads: 4, ElapsedNs: 10_000_000, AllocNs: 4_000_000_000,
 			},
 			pv: []string{"H10", "I9"}},
-		{name: "negative leaf", num: 3, side: rules.Red, move: "P16", tag: "",
+		{name: "negative leaf", num: 3, side: rules.Red, move: "P16", flat: 255, tag: "",
 			st: engine.SearchStats{
 				Depth: 5, Nodes: 999, Nps: 999, EBFMilli: 1200,
 				TTHitPermille: 10, HashFullPermille: 20, FirstMoveFailHighPermille: 30,
 				Score: -25, Threads: 1, ElapsedNs: 0, AllocNs: 0,
 			}},
-		{name: "zeroed empty pv", num: 1, side: rules.Red, move: "A1", tag: "",
+		{name: "zeroed empty pv", num: 1, side: rules.Red, move: "A1", flat: 0, tag: "",
 			st: engine.SearchStats{Depth: 1, Threads: 1}},
 	}
 	for _, c := range cases {
@@ -191,7 +268,7 @@ func TestMLinePinnedToRealEmitter(t *testing.T) {
 			}
 			c.st.PVLen = len(c.pv)
 			line := server.MLine(c.num, c.side, mustMove(t, c.move), &c.st, c.tag)
-			m, ok := parseMLine(line)
+			m, ok := parseMLine(line, geom.Default())
 			if !ok {
 				t.Fatalf("parseMLine(%q) rejected the emitter's line", line)
 			}
@@ -207,6 +284,7 @@ func TestMLinePinnedToRealEmitter(t *testing.T) {
 				{"move", m.move, c.num},
 				{"side", m.side, side},
 				{"cell", m.cell, c.move},
+				{"cellFlat", m.cellFlat, c.flat},
 				{"depth", m.depth, c.st.Depth},
 				{"nodes", m.nodes, c.st.Nodes},
 				{"nps", m.nps, c.st.Nps},
@@ -230,8 +308,6 @@ func TestMLinePinnedToRealEmitter(t *testing.T) {
 	}
 }
 
-// TestMLineRejectsCorruption pins the integrity ledger's feed: corrupt
-// M-lines are rejected whole, never half-parsed.
 func TestMLineRejectsCorruption(t *testing.T) {
 	good := "M4, Red, C3, d=2, n=100, nps=50, ebf=1.2, tt=10%, hf=20%, fh1=30%, s=+5, thr=1, t=0.10, alloc=1.00, pv=D4"
 	for what, bad := range map[string]string{
@@ -249,17 +325,15 @@ func TestMLineRejectsCorruption(t *testing.T) {
 		"unknown tag":     strings.Replace(good, "alloc=1.00,", "alloc=1.00, [BOGUS],", 1),
 		"corrupt pv cell": strings.Replace(good, "pv=D4", "pv=Z1", 1),
 	} {
-		if _, ok := parseMLine(bad); ok {
+		if _, ok := parseMLine(bad, geom.Default()); ok {
 			t.Errorf("%s: parseMLine(%q) accepted a corrupt line", what, bad)
 		}
 	}
-	if _, ok := parseMLine(good); !ok {
+	if _, ok := parseMLine(good, geom.Default()); !ok {
 		t.Errorf("parseMLine(%q) rejected a healthy line", good)
 	}
 }
 
-// TestParseStructuralLines walks the header, game, and verdict parsers over
-// their accept and reject shapes.
 func TestParseStructuralLines(t *testing.T) {
 	if run, series, ok := parseRunLine("run 12 series 4"); !ok || run != 12 || series != 4 {
 		t.Errorf("parseRunLine = %d %d %v", run, series, ok)
@@ -286,11 +360,22 @@ func TestParseStructuralLines(t *testing.T) {
 		}
 	}
 
-	if initial, inc, bo, ok := parseTCLine("tc 1+0 bo3"); !ok || initial != 1 || inc != 0 || bo != 3 {
-		t.Errorf("parseTCLine = %d %d %d %v", initial, inc, bo, ok)
+	if initial, inc, bo, variant, ok := parseTCLine("tc 1+0 bo3"); !ok || initial != 1 || inc != 0 || bo != 3 || variant != config.DefaultVariant {
+		t.Errorf("parseTCLine = %d %d %d %q %v", initial, inc, bo, variant, ok)
 	}
-	for _, bad := range []string{"tc 1+0 bo0", "tc 1+0", "tc x+0 bo3", "time 1+0 bo3"} {
-		if _, _, _, ok := parseTCLine(bad); ok {
+	if initial, inc, bo, variant, ok := parseTCLine("tc 1+0 bo3 hex"); !ok || initial != 1 || inc != 0 || bo != 3 || variant != "hex" {
+		t.Errorf("parseTCLine hex = %d %d %d %q %v", initial, inc, bo, variant, ok)
+	}
+	for _, bad := range []string{
+		"tc 1+0 bo0",
+		"tc 1+0",
+		"tc x+0 bo3",
+		"time 1+0 bo3",
+		"tc 1+0 bo3 hexagon",
+		"tc 1+0 bo3 hex extra",
+		"tc 1+0 bo3 hexagon hex",
+	} {
+		if _, _, _, _, ok := parseTCLine(bad); ok {
 			t.Errorf("parseTCLine(%q) accepted", bad)
 		}
 	}
@@ -334,9 +419,6 @@ func TestParseStructuralLines(t *testing.T) {
 	}
 }
 
-// TestParseFileLedgersBadLines pins the never-dropped rule: unknown,
-// corrupt, duplicated, and blank lines land in the bad ledger with their
-// file positions, and data lines around them still parse.
 func TestParseFileLedgersBadLines(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "run1_s0_a-vs-b.txt")

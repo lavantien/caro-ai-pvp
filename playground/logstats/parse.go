@@ -9,23 +9,21 @@ import (
 	"strings"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
-	"github.com/lavantien/caro-ai-pvp/internal/rules"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
 
-// header is one series file's three header lines parsed apart: the run and
-// series ids, the pairing (first name = host = red in game 1), and the time
-// control with the best-of length.
 type header struct {
 	run, series                          int64
 	redName, redTier, blueName, blueTier string
 	initialMin, incSec, boLen            int
+	variant                              string
 }
 
-// mLine is one parsed bot telemetry line.
 type mLine struct {
 	move        int
 	side, cell  string
+	cellFlat    int
 	depth       int
 	nodes, nps  uint64
 	ebf         float64
@@ -36,8 +34,6 @@ type mLine struct {
 	tag, pv     string
 }
 
-// gameLine is one parsed game summary; wonBy is empty when the summary
-// carries no classification.
 type gameLine struct {
 	game    int
 	outcome string
@@ -45,28 +41,22 @@ type gameLine struct {
 	wonBy   string
 }
 
-// verdictLine is one parsed series verdict: the room side string and the
-// billed first-minus-second participant wins.
 type verdictLine struct {
 	winner                string
 	firstWins, secondWins int
 }
 
-// badLine is one line no parser accepted: counted and listed, never dropped.
 type badLine struct {
 	path   string
 	lineno int
 	text   string
 }
 
-// record keeps one file's data lines in arrival order, the order the seat
-// fold walks them.
 type record struct {
 	ml *mLine
 	gl *gameLine
 }
 
-// seriesFile is one parsed log file.
 type seriesFile struct {
 	path    string
 	head    header
@@ -76,38 +66,26 @@ type seriesFile struct {
 	bad     []badLine
 }
 
-// compactK and compactM mirror the emitter's compact scales
-// (internal/server/stats.go compactKilo/compactMega): k below a million, m
-// at and above. displayCompact renders means on the same scales.
 const (
 	compactK = 1_000
 	compactM = 1_000_000
 )
 
-// mateFloor mirrors the emitter's mate band floor (internal/server/stats.go
-// appendScore): scores at or beyond it are mate distances on the mateWin
-// lattice, everything inside is a milliunit leaf score.
 var mateFloor = config.EvalMateMax - config.SearchMaxPly*config.EvalMateScoreStep
 
-// tagBodies are the M-line tag tokens, derived from the config constants the
-// emitter appends after alloc.
 var tagBodies = []string{
 	strings.TrimPrefix(config.BotLogTagVCF, ", "),
 	strings.TrimPrefix(config.BotLogTagVCT, ", "),
 	strings.TrimPrefix(config.BotLogTagPonder, ", "),
 }
 
-// parseFile reads one series log line by line, classifying by the writer's
-// leading tokens. Duplicated structural lines (a second header line, a
-// second verdict) and anything unparsable land in the bad ledger; data lines
-// accumulate in arrival order. A trailing newline is the writer's, a blank
-// or CRLF-polluted line is corruption and is ledgered.
 func parseFile(path string) (seriesFile, error) {
 	f := seriesFile{path: path}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return f, fmt.Errorf("read %s: %w", path, err)
 	}
+	g := geom.Default()
 	var sawRun, sawPairing, sawTC, sawVerdict bool
 	bad := func(lineno int, line string) {
 		f.bad = append(f.bad, badLine{path: path, lineno: lineno, text: line})
@@ -144,12 +122,19 @@ func parseFile(path string) (seriesFile, error) {
 				bad(lineno, line)
 				continue
 			}
-			initial, inc, bo, ok := parseTCLine(line)
+			initial, inc, bo, variant, ok := parseTCLine(line)
 			if !ok {
 				bad(lineno, line)
 				continue
 			}
-			f.head.initialMin, f.head.incSec, f.head.boLen, sawTC = initial, inc, bo, true
+			vg, err := geom.ByName(variant)
+			if err != nil {
+				bad(lineno, line)
+				continue
+			}
+			f.head.initialMin, f.head.incSec, f.head.boLen, f.head.variant, sawTC =
+				initial, inc, bo, variant, true
+			g = vg
 		case strings.HasPrefix(line, "game "):
 			if g, ok := parseGameLine(line); ok {
 				f.records = append(f.records, record{gl: &g})
@@ -167,7 +152,7 @@ func parseFile(path string) (seriesFile, error) {
 				bad(lineno, line)
 			}
 		case len(line) > 1 && line[0] == 'M' && line[1] >= '0' && line[1] <= '9':
-			if m, ok := parseMLine(line); ok {
+			if m, ok := parseMLine(line, g); ok {
 				f.records = append(f.records, record{ml: &m})
 			} else {
 				bad(lineno, line)
@@ -180,17 +165,11 @@ func parseFile(path string) (seriesFile, error) {
 	return f, nil
 }
 
-// parseRunLine reads the header's opening line, the first of the three
-// tourney.Logs.WriteSeriesHeader writes.
 func parseRunLine(line string) (run, series int64, ok bool) {
 	n, err := fmt.Sscanf(line, "run %d series %d", &run, &series)
 	return run, series, err == nil && n == 2
 }
 
-// parsePairingLine reads the header's pairing line: the first name is the
-// host, red in game 1. Tier names come from config.Tiers and never hold
-// parentheses, so the split rides the last ") vs " boundary and each side
-// cuts at its last " (".
 func parsePairingLine(line string) (redName, redTier, blueName, blueTier string, ok bool) {
 	rest, ok := strings.CutPrefix(line, "pairing ")
 	if !ok {
@@ -207,7 +186,6 @@ func parsePairingLine(line string) (redName, redTier, blueName, blueTier string,
 	return redName, redTier, blueName, blueTier, ok
 }
 
-// cutTier splits "name (tier)" at its last " (" boundary.
 func cutTier(s string) (name, tier string, ok bool) {
 	if !strings.HasSuffix(s, ")") {
 		return "", "", false
@@ -223,18 +201,57 @@ func cutTier(s string) (name, tier string, ok bool) {
 	return name, tier, true
 }
 
-// parseTCLine reads the header's time-control line.
-func parseTCLine(line string) (initial, inc, bo int, ok bool) {
-	n, err := fmt.Sscanf(line, "tc %d+%d bo%d", &initial, &inc, &bo)
-	return initial, inc, bo, err == nil && n == 3 && initial >= 0 && inc >= 0 && bo >= 1
+func parseTCLine(line string) (initial, inc, bo int, variant string, ok bool) {
+	rest, cut := strings.CutPrefix(line, "tc ")
+	if !cut {
+		return 0, 0, 0, "", false
+	}
+	fields := strings.Fields(rest)
+	if len(fields) < 2 || len(fields) > 3 {
+		return 0, 0, 0, "", false
+	}
+	clock := strings.Split(fields[0], "+")
+	if len(clock) != 2 || !digits(clock[0]) || !digits(clock[1]) {
+		return 0, 0, 0, "", false
+	}
+	initial, _ = intAt(clock[0])
+	inc, _ = intAt(clock[1])
+	boTok, cutBo := strings.CutPrefix(fields[1], "bo")
+	if !cutBo || !digits(boTok) {
+		return 0, 0, 0, "", false
+	}
+	bo, _ = intAt(boTok)
+	variant = config.DefaultVariant
+	if len(fields) == 3 {
+		if !knownVariant(fields[2]) {
+			return 0, 0, 0, "", false
+		}
+		variant = fields[2]
+	}
+	return initial, inc, bo, variant, initial >= 0 && inc >= 0 && bo >= 1
 }
 
-// parseGameLine reads the per-game summary. It mirrors the sprint of
-// internal/tourney/runner.go: "game %d: %s (red) beat %s (blue), %d moves"
-// (colors swappable), the draw shape "game %d: %s (red) vs %s (blue), drawn
-// at %d moves", each with ", won by "+tag appended only when the game
-// carries a classification. Names never carry the " (red) "/" (blue) "
-// markers in these logs, so the first marker split is exact.
+func knownVariant(name string) bool {
+	for i := range config.Variants {
+		if config.Variants[i].Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func digits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 func parseGameLine(line string) (g gameLine, ok bool) {
 	rest, ok := strings.CutPrefix(line, "game ")
 	if !ok {
@@ -280,11 +297,6 @@ func parseGameLine(line string) (g gameLine, ok bool) {
 	return g, true
 }
 
-// parseVerdictLine reads the closing verdict. It mirrors the sprint of
-// internal/tourney/runner.go: "series %s %d-%d" where %s is the winning
-// participant's display name (spaces allowed) or "drawn", over the billed
-// red-first minus blue-first wins. The score is the last space-separated
-// token, the winner everything before it.
 func parseVerdictLine(line string) (v verdictLine, ok bool) {
 	rest, ok2 := strings.CutPrefix(line, "series ")
 	if !ok2 {
@@ -312,11 +324,7 @@ func parseVerdictLine(line string) (v verdictLine, ok bool) {
 	return v, true
 }
 
-// parseMLine splits one Implication 1.5 M-line on its ", " separators and
-// reads every field back. The tail shape is alloc=<f>, an optional tag token
-// ([VCF], [VCT], [PONDER]), then the final pv=<cells or empty>; cells are
-// validated through rules.ParseCell, the codec the emitter names moves with.
-func parseMLine(line string) (m mLine, ok bool) {
+func parseMLine(line string, g *geom.Geometry) (m mLine, ok bool) {
 	parts := strings.Split(line, ", ")
 	if len(parts) < 15 {
 		return m, false
@@ -343,9 +351,11 @@ func parseMLine(line string) (m mLine, ok bool) {
 	}
 	m.side = mid[0]
 	m.cell = mid[1]
-	if _, err := rules.ParseCell(m.cell); err != nil {
+	flat, err := g.ParseCell(m.cell)
+	if err != nil {
 		return m, false
 	}
+	m.cellFlat = flat
 	if m.depth, ok = intField(mid[2], "d="); !ok {
 		return m, false
 	}
@@ -382,7 +392,7 @@ func parseMLine(line string) (m mLine, ok bool) {
 	m.pv = strings.TrimPrefix(parts[len(parts)-1], "pv=")
 	if m.pv != "" {
 		for _, cell := range strings.Split(m.pv, " ") {
-			if _, err := rules.ParseCell(cell); err != nil {
+			if _, err := g.ParseCell(cell); err != nil {
 				return m, false
 			}
 		}
@@ -390,7 +400,6 @@ func parseMLine(line string) (m mLine, ok bool) {
 	return m, true
 }
 
-// intAt reads a plain non-negative integer.
 func intAt(s string) (int, bool) {
 	n, err := strconv.Atoi(s)
 	return n, err == nil && n >= 0
@@ -433,9 +442,6 @@ func compactField(tok, key string) (uint64, bool) {
 	return parseCompact(v)
 }
 
-// scoreField reads s=<score>: a mate marker M<dist>/-M<dist> on the mateWin
-// lattice (config.EvalMateMax - dist*config.EvalMateScoreStep), else a
-// signed milliunit integer whose zero keeps its plus (+0).
 func scoreField(tok string) (int, bool) {
 	v, ok := strings.CutPrefix(tok, "s=")
 	if !ok {
@@ -445,7 +451,6 @@ func scoreField(tok string) (int, bool) {
 }
 
 func parseScore(s string) (int, bool) {
-	// maxDist bounds the distance so the lattice arithmetic cannot overflow.
 	maxDist := config.EvalMateMax / config.EvalMateScoreStep
 	if dist, cut := strings.CutPrefix(s, "-M"); cut {
 		d, ok := intAt(dist)
@@ -465,9 +470,6 @@ func parseScore(s string) (int, bool) {
 	return n, err == nil
 }
 
-// parseCompact reads one compact count (6.25m, 45k, 2500m, 0) back to its
-// integer value; the emitter's three significant digits make the round trip
-// exact for every value it writes.
 func parseCompact(s string) (uint64, bool) {
 	body, scale := s, uint64(1)
 	if b, ok := strings.CutSuffix(s, "k"); ok {
