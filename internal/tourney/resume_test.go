@@ -1,11 +1,5 @@
 package tourney
 
-// The resume tests: a drive that dies mid-run (cancelled, crashed, or the
-// machine cut) leaves the run row ongoing with the settled series settled and
-// the in-flight series holding whatever partial games landed. Resume skips
-// the settled series, scrubs and replays the interrupted ones, finishes the
-// run, and writes the one summary in the run's own folder.
-
 import (
 	"context"
 	"errors"
@@ -26,8 +20,6 @@ func TestConductorResumeAfterInterruptedRun(t *testing.T) {
 	logDir := pointLogsAt(t)
 	ctx := context.Background()
 
-	// The dying source: pairing 0 plays its sweep, pairing 1's start fails
-	// the run, the shape every abrupt termination leaves behind.
 	var calls int32
 	dying := &fakeSource{script: easySweeps, onStart: func(*fakeStream) error {
 		if atomic.AddInt32(&calls, 1) >= 2 {
@@ -56,8 +48,6 @@ func TestConductorResumeAfterInterruptedRun(t *testing.T) {
 		t.Fatalf("pairing 1 settled though its start failed: %+v", sched[1])
 	}
 
-	// The in-flight shape: one partial game of the interrupted series, the
-	// state a kill lands on when it cuts inside a series.
 	mustAppend(t, ts, gameOf(run.ID, sched[1].ID, 0,
 		sched[1].RedFirstSlot, sched[1].BlueFirstSlot, server.RedWins))
 	if s := mustSchedule(t, srv, run.ID)[1]; s.RedFirstWins != 1 {
@@ -70,7 +60,6 @@ func TestConductorResumeAfterInterruptedRun(t *testing.T) {
 		t.Fatalf("resume: %v", err)
 	}
 
-	// Only the interrupted series played: pairing 1, medium-1 hosting.
 	starts, closed, _ := fresh.snapshot()
 	if len(starts) != 1 || closed != 1 {
 		t.Errorf("resume saw %d starts and %d closes, want exactly the interrupted series", len(starts), closed)
@@ -78,8 +67,6 @@ func TestConductorResumeAfterInterruptedRun(t *testing.T) {
 		t.Errorf("resume start = %v, want pairing 1 with medium-1 hosting", starts[0])
 	}
 
-	// The settled series reconstructs its persisted line, the replayed one
-	// settles again, and no game row survived the scrub.
 	if res.Series[0].WinnerSlot == nil || *res.Series[0].WinnerSlot != 0 ||
 		res.Series[0].RedFirstWins != 2 || res.Series[0].BlueFirstWins != 0 {
 		t.Errorf("reconstructed line = %+v, want the persisted 2-0 sweep of slot 0", res.Series[0])
@@ -102,8 +89,6 @@ func TestConductorResumeAfterInterruptedRun(t *testing.T) {
 		t.Errorf("board ratings sum = %d, want the zero-sum %d", sum, 2*config.TournamentStartRating)
 	}
 
-	// One summary, and the replayed series' file holds exactly one header:
-	// the aborted drive's stale partial record did not survive.
 	summaries, err := filepath.Glob(filepath.Join(logDir, "*", config.TournamentSummaryName))
 	if err != nil {
 		t.Fatalf("glob summaries: %v", err)
@@ -142,9 +127,6 @@ func TestConductorResumeRefusals(t *testing.T) {
 		t.Errorf("resume finished run = %v, want the already-%s refusal", err, RunStateFinished)
 	}
 
-	// Two ongoing rows planted straight through the store (the conductor's
-	// gate lives in startRun, not the store): resuming the younger one must
-	// refuse on the older one holding the machine-wide gate.
 	first, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create first ongoing run: %v", err)
@@ -161,14 +143,10 @@ func TestConductorResumeRefusals(t *testing.T) {
 	if _, err := c.Resume(ctx, ts, first.ID, 1); err != nil {
 		t.Errorf("resume of the gate-holding run itself = %v, want it legal", err)
 	}
-	// The refused younger run holds the gate from here on: close it so the
-	// lease case below resumes its own holder, not the gate loser.
 	if err := ts.CloseStalledRun(ctx, second.ID, 2); err != nil {
 		t.Fatalf("close the gate loser: %v", err)
 	}
 
-	// A fresh drive lease is a live drive in another process: the resume
-	// refuses before dispatching anything, whatever the gate says.
 	live, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
 		t.Fatalf("create leased run: %v", err)
@@ -182,11 +160,6 @@ func TestConductorResumeRefusals(t *testing.T) {
 	}
 }
 
-// TestResumeAllSettledAbsentFolder pins the zero-dispatch close: every
-// series already settled (a kill between the last settle and the finish)
-// and the log folder never created. The resume dispatches nothing, finishes
-// the run, and writes the one summary into the folder it creates itself,
-// where the old order stranded a finished run without its summary.
 func TestResumeAllSettledAbsentFolder(t *testing.T) {
 	ts, srv := newTestStore(t)
 	logDir := pointLogsAt(t)
@@ -200,7 +173,6 @@ func TestResumeAllSettledAbsentFolder(t *testing.T) {
 		mustAppend(t, ts, gameOf(run.ID, s.ID, 1, s.RedFirstSlot, s.BlueFirstSlot, server.RedWins))
 	}
 
-	// Any series start is a defect here: the whole schedule is evidence.
 	boom := &fakeSource{onStart: func(*fakeStream) error {
 		return errors.New("no series may start: the schedule is settled")
 	}}

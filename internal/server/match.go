@@ -126,7 +126,7 @@ func (r *Room) applyMoveLocked(side rules.Color, cell rules.Cell) {
 	r.board.Make(cell)
 	r.moves = append(r.moves, rules.Move(cell))
 	r.clock[side].Commit(time.Since(r.turnStart))
-	r.publishLocked(Event{Kind: EventKindMove, Payload: cellName(cell)})
+	r.publishLocked(Event{Kind: EventKindMove, Payload: string(r.geom.AppendName(nil, int(cell)))})
 }
 func (r *Room) completeGameLocked(winner rules.Color, lastCell rules.Cell) error {
 	r.lastMoves = append(r.lastMoves[:0], r.moves...)

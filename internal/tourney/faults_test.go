@@ -1,13 +1,5 @@
 package tourney
 
-// The fault surfaces of the M7 write and read paths, injected through the
-// real SQLite store: dropped tables, aborted statements (RAISE triggers),
-// and type-corrupted rows make every persistence unit fail where it must,
-// with the failure wrapped in its context and the whole unit rolled back.
-// The conductor's drive-level arms ride the same faults: the schedule
-// cross-check refuses a drifted schedule, a failing snapshot aborts the
-// run, and a dead context aborts before any series starts.
-
 import (
 	"context"
 	"database/sql"
@@ -24,8 +16,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
 
-// runSQL runs one statement through the store's own transaction surface:
-// the schema faults these tests inject.
 func runSQL(t *testing.T, srv *server.Store, query string, args ...any) {
 	t.Helper()
 	if err := srv.WithinTx(context.Background(), func(tx *sql.Tx) error {
@@ -36,10 +26,6 @@ func runSQL(t *testing.T, srv *server.Store, query string, args ...any) {
 	}
 }
 
-// literalSource hands every series the same raw event slice verbatim: the
-// fixture never parses move payloads, so malformed scripts reach the
-// conductor's own validators. Truth stays nil: these scripts fail before
-// any game-end reconciliation reads it.
 type literalSource struct {
 	events []server.Event
 }
@@ -60,9 +46,6 @@ func (s literalStream) Err() error                  { return nil }
 func (s literalStream) TruthMoves() []rules.Move    { return nil }
 func (s literalStream) Close()                      {}
 
-// TestConductorDisqualifiesMalformedStreams pins the conductor's own event
-// validators: an unparsable move payload, a game end that is not a room
-// outcome, and an event kind outside the room contract each fail the run.
 func TestConductorDisqualifiesMalformedStreams(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -100,9 +83,6 @@ func TestConductorDisqualifiesMalformedStreams(t *testing.T) {
 	}
 }
 
-// TestConductorFailsWhenSeriesLogCannotOpen pins the log-seam failure: a
-// series whose log file cannot be created fails the series, and with it
-// the run, before any game persists.
 func TestConductorFailsWhenSeriesLogCannotOpen(t *testing.T) {
 	ts, _ := newTestStore(t)
 	blocker := filepath.Join(t.TempDir(), "blocker")
@@ -123,16 +103,10 @@ func TestConductorFailsWhenSeriesLogCannotOpen(t *testing.T) {
 	}
 }
 
-// TestConductorDriveCrossChecksSchedule pins the drive-side schedule
-// cross-check: a schedule whose length or seats disagree with the pairing
-// plan of the roster it is driven with refuses the run instead of playing
-// the wrong pairings.
 func TestConductorDriveCrossChecksSchedule(t *testing.T) {
 	ctx := context.Background()
 	src := &fakeSource{script: easySweeps}
 
-	// A roster larger than the persisted schedule: 6 pairings against 2
-	// series rows.
 	ts, _ := newTestStore(t)
 	pointLogsAt(t)
 	c := NewConductor(src)
@@ -155,8 +129,6 @@ func TestConductorDriveCrossChecksSchedule(t *testing.T) {
 		t.Errorf("started = %d series against the drifted schedule, want 0", len(starts))
 	}
 
-	// A schedule row whose seats were corrupted in storage: same length,
-	// wrong pair.
 	ts2, srv2 := newTestStore(t)
 	pointLogsAt(t)
 	c2 := NewConductor(&fakeSource{script: easySweeps})
@@ -174,9 +146,6 @@ func TestConductorDriveCrossChecksSchedule(t *testing.T) {
 	}
 }
 
-// TestConductorDriveFailsWhenScheduleReadFails pins the drive's first store
-// read: a schedule that cannot be read at all fails the run with the
-// wrapped error.
 func TestConductorDriveFailsWhenScheduleReadFails(t *testing.T) {
 	ts, srv := newTestStore(t)
 	pointLogsAt(t)
@@ -197,13 +166,6 @@ func TestConductorDriveFailsWhenScheduleReadFails(t *testing.T) {
 	}
 }
 
-// TestConductorDriveAbortsOnDeadContext pins the pre-dispatch abort: with
-// the dispatch loop parked on a zero-capacity semaphore (its send can never
-// succeed, so the loop's only exit is the cancellation) a context that dies
-// mid-drive aborts before any series starts, and the abort names the
-// context error. The cancel lands a beat after the drive's schedule read, a
-// local SQLite read of two rows, and the assertion on the abort wrap makes
-// a cancel that raced ahead of it a loud failure.
 func TestConductorDriveAbortsOnDeadContext(t *testing.T) {
 	ts, _ := newTestStore(t)
 	pointLogsAt(t)
@@ -237,9 +199,6 @@ func TestConductorDriveAbortsOnDeadContext(t *testing.T) {
 	}
 }
 
-// TestConductorStartRunFailsWhenGateReadFails pins the run gate's read
-// fault: a store that cannot answer the ongoing-run check refuses the start
-// before anything persists.
 func TestConductorStartRunFailsWhenGateReadFails(t *testing.T) {
 	ts, srv := newTestStore(t)
 	runSQL(t, srv, `DROP TABLE tournament_runs`)
@@ -250,9 +209,6 @@ func TestConductorStartRunFailsWhenGateReadFails(t *testing.T) {
 	}
 }
 
-// TestConductorDriveFailsWhenSnapshotCannotLand pins the snapshot arm: with
-// every series settled, a failing standings snapshot aborts the run's
-// FinishRun and the row stays ongoing for the post-mortem.
 func TestConductorDriveFailsWhenSnapshotCannotLand(t *testing.T) {
 	ts, srv := newTestStore(t)
 	pointLogsAt(t)
@@ -296,9 +252,6 @@ func TestConductorDriveFailsWhenSnapshotCannotLand(t *testing.T) {
 	}
 }
 
-// TestStoreCreateRunFaults pins the create unit's fault arms: each
-// statement failing anywhere rolls the whole unit back, so every surviving
-// tournament table stays empty.
 func TestStoreCreateRunFaults(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
@@ -329,8 +282,6 @@ func TestStoreCreateRunFaults(t *testing.T) {
 	}
 }
 
-// TestCreateRunRequiresNames: the roster validation arms the earlier
-// length and slot checks shadow in the existing table.
 func TestCreateRunRequiresNames(t *testing.T) {
 	ts, srv := newTestStore(t)
 	for name, roster := range map[string][]Participant{
@@ -352,10 +303,6 @@ func TestCreateRunRequiresNames(t *testing.T) {
 	}
 }
 
-// TestAppendGameStatementFaults pins the append unit against statement
-// faults: a blocked insert or a blocked settle rolls the whole unit back,
-// and a missing runs table surfaces through the not-found wrap rather than
-// the no-rows sentinel.
 func TestAppendGameStatementFaults(t *testing.T) {
 	ctx := context.Background()
 
@@ -405,8 +352,6 @@ func TestAppendGameStatementFaults(t *testing.T) {
 	}
 }
 
-// settleBothSeries appends the 2-0 majority that closes each series of a
-// fresh 2-roster run.
 func settleBothSeries(t *testing.T, ts *Store, runID int64) {
 	t.Helper()
 	for _, s := range mustSchedule(t, ts.srv, runID) {
@@ -415,9 +360,6 @@ func settleBothSeries(t *testing.T, ts *Store, runID int64) {
 	}
 }
 
-// TestFinishRunFaults pins the close unit's fault arms: the header read,
-// the unfinished count, the fold, the status flip, and the snapshot insert
-// each failing surfaces its own wrap.
 func TestFinishRunFaults(t *testing.T) {
 	ctx := context.Background()
 
@@ -479,9 +421,6 @@ func TestFinishRunFaults(t *testing.T) {
 	}
 }
 
-// TestCloseStalledRunFault: the stalled close over a missing runs table
-// surfaces the wrapped read failure, the v8 lease check reads the row before
-// the update touches it.
 func TestCloseStalledRunFault(t *testing.T) {
 	ts, srv := newTestStore(t)
 	runSQL(t, srv, `DROP TABLE tournament_runs`)
@@ -490,8 +429,6 @@ func TestCloseStalledRunFault(t *testing.T) {
 	}
 }
 
-// TestScheduleFaults pins the conductor's schedule read against a missing
-// table and a type-corrupted row.
 func TestScheduleFaults(t *testing.T) {
 	ctx := context.Background()
 
@@ -513,8 +450,6 @@ func TestScheduleFaults(t *testing.T) {
 	}
 }
 
-// TestLeaderboardFaults pins the fold's reads: each input query failing,
-// and a type-corrupted participant or winner row failing its scan.
 func TestLeaderboardFaults(t *testing.T) {
 	ctx := context.Background()
 	dropSeriesFirst := func(t *testing.T, srv *server.Store) {
@@ -577,13 +512,9 @@ func TestLeaderboardFaults(t *testing.T) {
 	}
 }
 
-// TestQueriesFaults pins the page reads: each list query against a missing
-// table, and type-corrupted rows failing their scans mid-list.
 func TestQueriesFaults(t *testing.T) {
 	ctx := context.Background()
 
-	// A store with no rows at all: every table can drop without the
-	// foreign keys objecting, and each list read fails on its own table.
 	ts, srv := newTestStore(t)
 	for _, drop := range []string{
 		`DROP TABLE tournament_runs`,
@@ -605,7 +536,6 @@ func TestQueriesFaults(t *testing.T) {
 		t.Errorf("series list over a dropped table = %v, want the read failure", err)
 	}
 
-	// The scan arms: text planted into integer columns.
 	ts, srv = newTestStore(t)
 	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
 	if err != nil {
@@ -628,8 +558,6 @@ func TestQueriesFaults(t *testing.T) {
 	}
 }
 
-// TestManagerDetailFaults pins the page read's ordering: the first failing
-// projection surfaces, with the projections before it already read.
 func TestManagerDetailFaults(t *testing.T) {
 	ctx := context.Background()
 

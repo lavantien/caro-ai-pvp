@@ -1,11 +1,5 @@
 package main
 
-// The composition tests of the serve tree's tournament arm: the adapter maps
-// the tourney manager's domain shapes onto the page service (a scripted
-// MatchSource drives a real manager over a real store, no engine runs), and
-// the root mux mounts the tournament pages beside the shell, room, and API
-// surfaces.
-
 import (
 	"context"
 	"database/sql"
@@ -25,17 +19,11 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/tourney"
 )
 
-// The scripted sweep lines, mirroring the tourney package's fixture: the
-// D-file side closes D3..D7 (an open four at the final stone) while the
-// opponent scatters far from the D file. sweepRed wins at move 11, sweepBlue
-// at move 12.
 var (
 	sweepRedMoves  = []string{"D4", "P16", "H8", "P12", "D5", "P8", "D6", "N16", "D7", "M4", "D3"}
 	sweepBlueMoves = []string{"P16", "D4", "P12", "H8", "P8", "D5", "N16", "D6", "M4", "D7", "L2", "D3"}
 )
 
-// hostSweep scripts the host seat winning a bo3 2-0: a red win, then the
-// loser-takes-red rotation hands the host blue for the second win.
 func hostSweep() []server.Event {
 	var out []server.Event
 	for _, game := range []struct {
@@ -50,11 +38,6 @@ func hostSweep() []server.Event {
 	return append(out, server.Event{Kind: server.EventKindSeries, Payload: server.SideHost.String()})
 }
 
-// cmdStream is one scripted series over the exported tourney seam: the
-// feeder parks once the script drains, Close ends it, and closeEarly ends
-// the channel without the series event while Err explains why, the
-// slow-consumer eviction shape. Truth derives from the script's own move
-// events, the room's guarantee for a clean stream.
 type cmdStream struct {
 	ch         chan server.Event
 	done       chan struct{}
@@ -69,8 +52,6 @@ type cmdStream struct {
 func (s *cmdStream) Events() <-chan server.Event { return s.ch }
 func (s *cmdStream) Err() error                  { return s.streamErr }
 
-// TruthMoves is the scripted room's authoritative list for the game that
-// just ended.
 func (s *cmdStream) TruthMoves() []rules.Move {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -127,16 +108,12 @@ func (s *cmdSource) StartSeries(host, guest *config.Tier, hostName, guestName st
 	return st, nil
 }
 
-// tourneyStack is one composition boot for the tests: the store, rooms, and
-// the adapter over a manager whose source is scripted.
 type tourneyStack struct {
 	svc   tourneyService
 	store *server.Store
 	rooms *server.RoomManager
 }
 
-// newTourneyStack boots the stack over the given scripted match source,
-// with the series logs pointed at a temp dir.
 func newTourneyStack(t *testing.T, source tourney.MatchSource) *tourneyStack {
 	t.Helper()
 	orig := config.TournamentLogRoot
@@ -161,13 +138,10 @@ func newTourneyStack(t *testing.T, source tourney.MatchSource) *tourneyStack {
 	}
 }
 
-// sweepSource scripts every series as the host's 2-0 sweep.
 func sweepSource() tourney.MatchSource {
 	return &cmdSource{script: func(string, string) []server.Event { return hostSweep() }}
 }
 
-// TestLiveBoardOfFollowsRed pins the adapter's seat mapping: names and the
-// running score follow red, whichever room seat (host or guest) holds it.
 func TestLiveBoardOfFollowsRed(t *testing.T) {
 	base := server.LiveBotBoard{
 		RoomID: "roomxyz", HostName: "easy-2", GuestName: "medium-1",
@@ -195,16 +169,12 @@ func TestLiveBoardOfFollowsRed(t *testing.T) {
 		t.Errorf("guest-red line = %d-%d, want the score swapped to red's side", g.RedWins, g.BlueWins)
 	}
 
-	// With no tournament rooms live the adapter reads empty.
 	s := newTourneyStack(t, sweepSource())
 	if boards := s.svc.LiveBoards(); len(boards) != 0 {
 		t.Errorf("live boards with no rooms = %+v, want none", boards)
 	}
 }
 
-// TestTourneyServiceOngoingRunBanner pins the adapter's banner mapping over
-// a real drive: no run before the start, the driven run's id and pairing
-// count while the source holds, nothing after the finish.
 func TestTourneyServiceOngoingRunBanner(t *testing.T) {
 	held := make(chan struct{})
 	s := newTourneyStack(t, &cmdSource{script: func(string, string) []server.Event {
@@ -228,8 +198,6 @@ func TestTourneyServiceOngoingRunBanner(t *testing.T) {
 		t.Fatalf("start run: %v", err)
 	}
 
-	// The pairings persist as the drive lays them out; wait for the
-	// twice-pair rather than racing the conductor's first write.
 	deadline := time.Now().Add(10 * time.Second)
 	var b server.TourneyBanner
 	for {
@@ -287,9 +255,6 @@ func TestTourneyServiceAdapterDrivesAndMaps(t *testing.T) {
 		t.Fatal("start run handed back id 0")
 	}
 
-	// The drive lands and the snapshot maps the domain shapes onto the page
-	// shapes: the twice-pair in red-first order, the settled winners, and
-	// the zero-sum board.
 	var snap server.TourneySnapshot
 	deadline := time.Now().Add(10 * time.Second)
 	for {
@@ -333,7 +298,6 @@ func TestTourneyServiceAdapterDrivesAndMaps(t *testing.T) {
 		t.Errorf("board = %+v, want the zero-sum %d", snap.Board, 2*config.TournamentStartRating)
 	}
 
-	// The runs list carries the roster and the standings head.
 	runs, err := s.svc.Runs(context.Background())
 	if err != nil {
 		t.Fatalf("runs: %v", err)
@@ -348,20 +312,14 @@ func TestTourneyServiceAdapterDrivesAndMaps(t *testing.T) {
 		t.Errorf("run seats = %+v, want the roster", runs[0].Seats)
 	}
 
-	// An unknown run maps onto the store sentinel the pages 404 on.
 	if _, err := s.svc.RunSnapshot(context.Background(), 999); !errors.Is(err, server.ErrNotFound) {
 		t.Errorf("snapshot of run 999 = %v, want server.ErrNotFound", err)
 	}
 }
 
-// TestTourneyServiceStartMapsRunGate pins the adapter's gate mapping: the
-// manager's refusal crosses the seam as the page sentinel naming the
-// blocking run, not a bare outage.
 func TestTourneyServiceStartMapsRunGate(t *testing.T) {
 	s := newTourneyStack(t, sweepSource())
 
-	// A planted ongoing row holds the machine-wide gate with no drive at
-	// all, the stalled shape a previous process leaves behind.
 	_, err := tourney.NewStore(s.store).CreateRun(context.Background(), 1,
 		config.SeriesBO3, config.TournamentStartRating, []tourney.Participant{
 			{Slot: 0, Name: "alpha", Tier: config.TierEasy.Name},
@@ -385,9 +343,6 @@ func TestTourneyServiceStartMapsRunGate(t *testing.T) {
 	}
 }
 
-// TestTourneyServiceCloseStalled drives the stalled close across the
-// adapter: a planted ongoing row this process never drove closes, and the
-// row reads back finished.
 func TestTourneyServiceCloseStalled(t *testing.T) {
 	s := newTourneyStack(t, sweepSource())
 	ctx := context.Background()
@@ -433,9 +388,6 @@ func TestServeRootMuxMountsTournamentPages(t *testing.T) {
 		return resp.StatusCode, string(body)
 	}
 
-	// The shell home still owns the root, the tournament setup reads public
-	// for a guest (form-free), an unknown run is the page 404, and the API
-	// subtree keeps its exact patterns.
 	if status, body := get("/"); status != http.StatusOK || !strings.Contains(body, `id="rooms"`) {
 		t.Errorf("GET / = %d, want the shell home with the rooms grid", status)
 	}
@@ -446,7 +398,6 @@ func TestServeRootMuxMountsTournamentPages(t *testing.T) {
 	if status, _ := get("/tourney/run/1"); status != http.StatusNotFound {
 		t.Errorf("GET /tourney/run/1 = %d, want 404", status)
 	}
-	// The rooms list is a bare JSON array, empty over a fresh store.
 	if status, body := get("/api/rooms"); status != http.StatusOK || !strings.HasPrefix(body, "[") {
 		t.Errorf("GET /api/rooms = %d %s, want the untouched API subtree's array", status, body)
 	}
@@ -455,7 +406,6 @@ func TestServeRootMuxMountsTournamentPages(t *testing.T) {
 	}
 }
 
-// stackSQL runs one fault statement through the stack's own store.
 func stackSQL(t *testing.T, store *server.Store, query string) {
 	t.Helper()
 	if err := store.WithinTx(context.Background(), func(tx *sql.Tx) error {
@@ -466,7 +416,6 @@ func stackSQL(t *testing.T, store *server.Store, query string) {
 	}
 }
 
-// plantRun persists one unplayed run through the store directly.
 func plantRun(t *testing.T, store *server.Store) int64 {
 	t.Helper()
 	run, err := tourney.NewStore(store).CreateRun(context.Background(), 1,
@@ -480,9 +429,6 @@ func plantRun(t *testing.T, store *server.Store) int64 {
 	return run.ID
 }
 
-// TestTourneyServiceStartMapsPlainRefusal pins the adapter's non-gate arm:
-// a spec the manager refuses for its own reasons crosses the seam verbatim,
-// not dressed up as the run-gate sentinel.
 func TestTourneyServiceStartMapsPlainRefusal(t *testing.T) {
 	s := newTourneyStack(t, sweepSource())
 	_, err := s.svc.StartRun(context.Background(), server.TourneySetup{
@@ -502,8 +448,6 @@ func TestTourneyServiceStartMapsPlainRefusal(t *testing.T) {
 	}
 }
 
-// evictedSource scripts every series as the host sweep cut before the
-// series event, the channel closing with the slow-consumer eviction.
 func evictedSource() tourney.MatchSource {
 	return &cmdSource{
 		script: func(string, string) []server.Event {
@@ -514,9 +458,6 @@ func evictedSource() tourney.MatchSource {
 	}
 }
 
-// TestTourneyServiceSnapshotMapsDriveFailure pins the failure mapping: a
-// drive that dies on the eviction lands on the snapshot as the failure
-// string, with the run row itself staying put for the page's post-mortem.
 func TestTourneyServiceSnapshotMapsDriveFailure(t *testing.T) {
 	s := newTourneyStack(t, evictedSource())
 
@@ -553,9 +494,6 @@ func TestTourneyServiceSnapshotMapsDriveFailure(t *testing.T) {
 	}
 }
 
-// TestTourneyServiceRunsFaults pins the list surface's fault arms: a store
-// that cannot list runs fails the call, and a run whose detail read fails
-// mid-list surfaces instead of a half-rendered summary.
 func TestTourneyServiceRunsFaults(t *testing.T) {
 	s := newTourneyStack(t, sweepSource())
 	stackSQL(t, s.store, `DROP TABLE tournament_runs`)
@@ -572,11 +510,6 @@ func TestTourneyServiceRunsFaults(t *testing.T) {
 	}
 }
 
-// TestTourneyServiceRunsLeaderOfUnplayedRun pins the leader resolution over
-// both board shapes: a seeded-but-unplayed run already seats its roster on
-// the board (every participant folds at the start rating), while a gutted
-// run row with no participants at all renders an empty leader instead of a
-// crash or a phantom name.
 func TestTourneyServiceRunsLeaderOfUnplayedRun(t *testing.T) {
 	s := newTourneyStack(t, sweepSource())
 	plantRun(t, s.store)
@@ -592,8 +525,6 @@ func TestTourneyServiceRunsLeaderOfUnplayedRun(t *testing.T) {
 		t.Errorf("unplayed run summary = %+v, want the seeded roster and its first seat as leader", runs[0])
 	}
 
-	// The gutted shape: no series, no participants, so the fold's board is
-	// empty and the leader resolves to the empty name.
 	s2 := newTourneyStack(t, sweepSource())
 	plantRun(t, s2.store)
 	stackSQL(t, s2.store, `DELETE FROM tournament_series`)

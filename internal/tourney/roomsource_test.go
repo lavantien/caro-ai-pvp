@@ -1,11 +1,5 @@
 package tourney
 
-// The production RoomSource adapter's own arms over a real room manager:
-// the create refusal for a broken tier pair, the subscribe refusal over a
-// closed hub (which must retire the room it opened), the subscription
-// wrapper surfacing the hub-close explainer, and the run-gate error's
-// render.
-
 import (
 	"errors"
 	"path/filepath"
@@ -16,8 +10,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
 
-// newRoomStack boots the room surface the adapter rides: store, write
-// queue, hub, and manager, all torn down by the test.
 func newRoomStack(t *testing.T) (*server.RoomManager, *server.Hub) {
 	t.Helper()
 	srv, err := server.Open(filepath.Join(t.TempDir(), "caro.sqlite"))
@@ -51,10 +43,6 @@ func TestRoomSourceRefusesBrokenTierPair(t *testing.T) {
 	}
 }
 
-// TestRoomSourceRetiresRoomWhenSubscribeFails pins the failed-subscribe
-// cleanup: over a closed hub the room itself comes up (Publish is
-// fire-and-forget) but the subscription refuses, and the stream it cannot
-// hand back must retire the room instead of leaking a live bot series.
 func TestRoomSourceRetiresRoomWhenSubscribeFails(t *testing.T) {
 	rm, hub := newRoomStack(t)
 	hub.Close()
@@ -68,10 +56,6 @@ func TestRoomSourceRetiresRoomWhenSubscribeFails(t *testing.T) {
 	}
 }
 
-// TestRoomStreamSurfacesHubClose pins the subscription wrapper over a live
-// room: the hub's close ends the event channel and the wrapper's Err
-// carries the hub-close explainer the conductor reports, and Close retires
-// the room behind it.
 func TestRoomStreamSurfacesHubClose(t *testing.T) {
 	rm, hub := newRoomStack(t)
 	room, err := rm.CreateBotVsBot(&config.TierEasy, "", &config.TierEasy, "", mustTC(1, 0), config.SeriesBO3, "")

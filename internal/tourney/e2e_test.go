@@ -1,12 +1,5 @@
 package tourney
 
-// One real end-to-end conductor run: the production RoomSource over a real
-// room manager and real easy-tier engines, the smallest surface the room
-// contract allows (1+0, bo3), proving the whole chain the scripted tests
-// cannot: live rooms per pairing in red-first order, real M-lines in the
-// logs, settled game units, the zero-sum leaderboard, retired rooms, and no
-// goroutine leak.
-
 import (
 	"context"
 	"fmt"
@@ -43,10 +36,6 @@ func TestConductorEndToEndEasyTiers(t *testing.T) {
 	}
 	base := runtime.NumGoroutine()
 
-	// A generous ceiling so a stuck engine fails the test instead of the
-	// suite hanging: shared CI runners under -race need well past the 10m
-	// go test default for a healthy run, so this sits at 20m under the
-	// Makefile's 25m binary timeout.
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 	start := time.Now()
@@ -58,7 +47,6 @@ func TestConductorEndToEndEasyTiers(t *testing.T) {
 	elapsed := time.Since(start)
 	t.Logf("e2e run: 2 easy bo3 series at 1+0 in %s", elapsed)
 
-	// Both pairings ran to settled series with games on disk.
 	sched := mustSchedule(t, srv, res.Run.ID)
 	if len(sched) != 2 {
 		t.Fatalf("schedule = %d series, want 2", len(sched))
@@ -89,7 +77,6 @@ func TestConductorEndToEndEasyTiers(t *testing.T) {
 		t.Errorf("total games = %d, want at least 4 (two bo3)", games)
 	}
 
-	// Zero-sum leaderboard with every game billed exactly once.
 	sum := 0
 	played := 0
 	for _, st := range res.Board {
@@ -103,8 +90,6 @@ func TestConductorEndToEndEasyTiers(t *testing.T) {
 		t.Errorf("leaderboard games = %d, persisted games = %d, want two seats per game", played, games)
 	}
 
-	// Real M-lines landed in per-series logs beside the header, one summary
-	// line per finished game, and the verdict.
 	for _, s := range sched {
 		body, err := os.ReadFile(seriesLogFile(t, logDir, s.ID))
 		if err != nil {
@@ -119,9 +104,6 @@ func TestConductorEndToEndEasyTiers(t *testing.T) {
 				t.Errorf("series %d log misses %q:\n%s", s.ID, want, body)
 			}
 		}
-		// Every persisted game of the series carries its own name-based trace
-		// line, rebuilt from the row through the same renderer the conductor
-		// writes with.
 		names := [2]string{roster[0].Name, roster[1].Name}
 		for _, g := range persistedGames(t, ts, s.ID) {
 			want := gameSummary(g.Idx+1, names[g.RedSlot], names[g.BlueSlot],
@@ -132,8 +114,6 @@ func TestConductorEndToEndEasyTiers(t *testing.T) {
 		}
 	}
 
-	// Every room retired at its series end, and no worker or engine
-	// goroutine outlives the run.
 	if live := rm.List(); len(live) != 0 {
 		t.Errorf("rooms after the run = %d, want 0", len(live))
 	}
