@@ -89,7 +89,7 @@ func main() {
 		log.Fatalf("shots: seed bob: %v", err)
 	}
 
-	live, err := rooms.Create(alice.ID, stageTCIdx, stageBO, nil)
+	live, err := rooms.Create(alice.ID, stageTCIdx, stageBO, nil, "")
 	if err != nil {
 		log.Fatalf("shots: live room: %v", err)
 	}
@@ -106,7 +106,7 @@ func main() {
 		"H8", "I9", "D5", "J10", "E6", "H11", "F7", "G10", "I7", "J9", "K7", "H10",
 	})
 
-	done, err := rooms.Create(bob.ID, stageTCIdx, stageBO, nil)
+	done, err := rooms.Create(bob.ID, stageTCIdx, stageBO, nil, "")
 	if err != nil {
 		log.Fatalf("shots: done room: %v", err)
 	}
@@ -123,7 +123,7 @@ func main() {
 		"G8", "B2", "D4", "B3", "H8", "C2", "I8", "C3", "J8", "C4", "K8",
 	})
 
-	if _, err := rooms.Create(alice.ID, stageTCIdx, stageBO, &config.TierEasy); err != nil {
+	if _, err := rooms.Create(alice.ID, stageTCIdx, stageBO, &config.TierEasy, ""); err != nil {
 		log.Fatalf("shots: bot room: %v", err)
 	}
 
