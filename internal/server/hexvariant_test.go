@@ -149,8 +149,8 @@ func TestHexRoomPlaysHexMovesAndStoresBothSides(t *testing.T) {
 	if !strings.Contains(casual, "tc 1+0 bo3 hex outcome") {
 		t.Errorf("casual tc line = %q, want the hex variant on it", firstLineContaining(casual, "tc "))
 	}
-	if !strings.Contains(casual, "P12") || !strings.Contains(casual, "S12") {
-		t.Errorf("casual text missing hex move names")
+	if !strings.Contains(casual, ", C10,") || !strings.Contains(casual, ", C13,") {
+		t.Errorf("casual text missing the bot's hex move names in the m-lines")
 	}
 }
 

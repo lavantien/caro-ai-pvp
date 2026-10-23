@@ -126,7 +126,7 @@ func (r *Room) applyMoveLocked(side rules.Color, cell rules.Cell) {
 	r.board.Make(cell)
 	r.moves = append(r.moves, rules.Move(cell))
 	r.clock[side].Commit(time.Since(r.turnStart))
-	r.publishLocked(Event{Kind: EventKindMove, Payload: string(r.geom.AppendName(nil, int(cell)))})
+	r.publishLocked(Event{Kind: EventKindMove, Payload: r.cellNameOf(rules.Move(cell))})
 }
 func (r *Room) completeGameLocked(winner rules.Color, lastCell rules.Cell) error {
 	r.lastMoves = append(r.lastMoves[:0], r.moves...)
@@ -699,7 +699,7 @@ func (r *Room) runBotTurn() bool {
 	cell := rules.Cell(mv)
 	r.applyMoveLocked(side, cell)
 	r.lastM = MoveStat{MoveNumber: r.board.MoveCount, Side: side, Move: mv, Stats: st, Tag: tag}
-	line := MLine(r.lastM.MoveNumber, side, mv, &st, tag)
+	line := string(AppendMLine(make([]byte, 0, mLineCap), r.geom, r.lastM.MoveNumber, side, mv, &st, tag))
 	r.mlines = append(r.mlines, GameStat{MoveNo: r.lastM.MoveNumber, Line: line})
 	stat := r.lastM
 	r.publishLocked(Event{Kind: EventKindMLine, Payload: line, Stat: &stat})

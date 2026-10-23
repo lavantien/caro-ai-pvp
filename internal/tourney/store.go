@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
@@ -195,12 +196,20 @@ func (t *Store) AppendGame(ctx context.Context, g Game) (Game, error) {
 				g.RunID, drivePid, t.drivePid)
 		}
 		var boLen, redFirst, blueFirst int
+		var variant string
 		if err := tx.QueryRowContext(ctx,
-			`SELECT r.bo_len, s.red_first_slot, s.blue_first_slot
+			`SELECT r.bo_len, r.variant, s.red_first_slot, s.blue_first_slot
 			FROM tournament_series s JOIN tournament_runs r ON r.id = s.run_id
 			WHERE s.id = ? AND s.run_id = ?`, g.SeriesID, g.RunID,
-		).Scan(&boLen, &redFirst, &blueFirst); err != nil {
+		).Scan(&boLen, &variant, &redFirst, &blueFirst); err != nil {
 			return notFound(err, fmt.Sprintf("series %d of run %d", g.SeriesID, g.RunID))
+		}
+		if variant == "" {
+			variant = config.DefaultVariant
+		}
+		board, gerr := geom.ByName(variant)
+		if gerr != nil {
+			return fmt.Errorf("tourney: game %d run variant %q: %w", g.ID, variant, gerr)
 		}
 		for _, slot := range [2]int{g.RedSlot, g.BlueSlot} {
 			if err := tx.QueryRowContext(ctx,
@@ -247,7 +256,7 @@ func (t *Store) AppendGame(ctx context.Context, g Game) (Game, error) {
 				if j > 0 {
 					pv.WriteByte(' ')
 				}
-				name, nerr := rules.CellName(rules.Cell(st.Stats.PV[j]))
+				name, nerr := board.CellName(int(st.Stats.PV[j]))
 				if nerr != nil {
 					return fmt.Errorf("tourney: m-line %d pv cell %d of game %d: %w", i+1, st.Stats.PV[j], g.ID, nerr)
 				}

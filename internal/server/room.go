@@ -373,10 +373,7 @@ func (r *Room) ParseCell(name string) (rules.Cell, error) {
 	return rules.Cell(cell), nil
 }
 func (r *Room) cellNameOf(m rules.Move) string {
-	r.mu.Lock()
-	g := r.geom
-	r.mu.Unlock()
-	return string(g.AppendName(nil, int(m)))
+	return string(r.geom.AppendName(nil, int(m)))
 }
 func (r *Room) SeriesID() int64 {
 	r.mu.Lock()

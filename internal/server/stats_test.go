@@ -9,6 +9,7 @@ import (
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
@@ -276,7 +277,7 @@ func TestAppendMLineZeroAlloc(t *testing.T) {
 	buf := make([]byte, 0, 512)
 	move := mustMove(t, "P16")
 	allocs := testing.AllocsPerRun(100, func() {
-		buf = AppendMLine(buf[:0], 999_999, rules.Red, move, st, config.BotLogTagPonder)
+		buf = AppendMLine(buf[:0], geom.Default(), 999_999, rules.Red, move, st, config.BotLogTagPonder)
 	})
 	if allocs != 0 {
 		t.Errorf("AppendMLine allocated %v times per run, want 0 (line %q)", allocs, buf)

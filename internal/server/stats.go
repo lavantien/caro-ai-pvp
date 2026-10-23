@@ -6,6 +6,7 @@ import (
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
@@ -16,13 +17,13 @@ const (
 
 const mLineCap = 160 + config.SearchMaxPly*4
 
-func AppendMLine(dst []byte, moveNumber int, side rules.Color, move rules.Move, st *engine.SearchStats, tag string) []byte {
+func AppendMLine(dst []byte, g *geom.Geometry, moveNumber int, side rules.Color, move rules.Move, st *engine.SearchStats, tag string) []byte {
 	dst = append(dst, 'M')
 	dst = strconv.AppendInt(dst, int64(moveNumber), 10)
 	dst = append(dst, ", "...)
 	dst = append(dst, sideName(side)...)
 	dst = append(dst, ", "...)
-	dst = appendCellName(dst, move)
+	dst = g.AppendName(dst, int(move))
 	dst = append(dst, ", d="...)
 	dst = strconv.AppendInt(dst, int64(st.Depth), 10)
 	dst = append(dst, ", n="...)
@@ -51,7 +52,7 @@ func AppendMLine(dst []byte, moveNumber int, side rules.Color, move rules.Move, 
 }
 
 func MLine(moveNumber int, side rules.Color, move rules.Move, st *engine.SearchStats, tag string) string {
-	return string(AppendMLine(make([]byte, 0, mLineCap), moveNumber, side, move, st, tag))
+	return string(AppendMLine(make([]byte, 0, mLineCap), geom.Default(), moveNumber, side, move, st, tag))
 }
 
 func sideName(c rules.Color) string {
