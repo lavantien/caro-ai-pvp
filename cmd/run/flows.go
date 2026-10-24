@@ -210,13 +210,17 @@ func tailLines(path string, n int) []string {
 	return lines
 }
 
-func mutateStepArgs(v vars, parallelDefault string, extra []string) []string {
+func mutateStepArgs(v vars, parallelDefault string, extra []string) ([]string, error) {
+	runArgs, err := splitArgs(v)
+	if err != nil {
+		return nil, err
+	}
 	args := []string{"run", "./cmd/mutate", "-allow", ".mutate-allow", "-parallel", v.get("PARALLEL", parallelDefault)}
 	if v.has("CHALLENGE") {
 		args = append(args, "-challenge")
 	}
-	args = append(args, splitArgs(v)...)
-	return append(args, extra...)
+	args = append(args, runArgs...)
+	return append(args, extra...), nil
 }
 
 func registerMutateFlows() {
@@ -226,7 +230,11 @@ func registerMutateFlows() {
 			return fmt.Errorf("mutate-resume: LOG=<prior-run.log> required")
 		}
 		for attempt := 1; attempt <= 5; attempt++ {
-			s := step{name: "mutate-resume", path: "go", args: mutateStepArgs(v, "1", []string{"-resume", log}), env: r.mutateEnv(v)}
+			mArgs, err := mutateStepArgs(v, "1", []string{"-resume", log})
+			if err != nil {
+				return err
+			}
+			s := step{name: "mutate-resume", path: "go", args: mArgs, env: r.mutateEnv(v)}
 			if err := r.run(s); err == nil {
 				return nil
 			}
@@ -249,7 +257,11 @@ func registerMutateFlows() {
 			return err
 		}
 		for attempt := 1; attempt <= 5; attempt++ {
-			s := step{name: "mutate-full", path: "go", args: mutateStepArgs(v, "4", []string{"-resume", log}), env: r.mutateEnv(v), logTo: log}
+			mArgs, err := mutateStepArgs(v, "4", []string{"-resume", log})
+			if err != nil {
+				return err
+			}
+			s := step{name: "mutate-full", path: "go", args: mArgs, env: r.mutateEnv(v), logTo: log}
 			if err := r.run(s); err == nil {
 				return nil
 			}
@@ -342,7 +354,11 @@ func diagramNeedsRender(png, mmd string) bool {
 
 func registerDiagrams() {
 	registerFlow("diagrams", func(r *runner, v vars) error {
-		if err := r.run(step{name: "diagrams-browser", path: "npx", args: []string{"-y", "puppeteer@" + puppeteerVersion, "browsers", "install", "chrome-headless-shell"}}); err != nil {
+		browserSteps, err := buildSteps("diagrams-browser", r, v)
+		if err != nil {
+			return err
+		}
+		if err := r.run(browserSteps[0]); err != nil {
 			return err
 		}
 		mmds, err := filepath.Glob(filepath.Join(diagramsDir, "*.mmd"))

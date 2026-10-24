@@ -9,7 +9,12 @@ $outDir = Join-Path $PSScriptRoot 'bin'
 New-Item -ItemType Directory -Force $outDir | Out-Null
 $dll = Join-Path $outDir 'nnevalcuda.dll'
 $src = Join-Path $PSScriptRoot 'gpu.cu'
-$cmd = "`"$vcvars`" >NUL && `"$nvcc`" -shared -O3 -o `"$dll`" `"$src`""
-& cmd.exe /c $cmd
+$dump = & cmd.exe /c "`"$vcvars`" >NUL && set"
+if ($LASTEXITCODE -ne 0) { throw "vcvars64 bootstrap failed with exit $LASTEXITCODE" }
+foreach ($line in $dump) {
+	$i = $line.IndexOf('=')
+	if ($i -gt 0) { Set-Item -Path ('Env:' + $line.Substring(0, $i)) -Value $line.Substring($i + 1) }
+}
+& $nvcc -shared -O3 -o $dll $src
 if ($LASTEXITCODE -ne 0) { throw "nvcc failed with exit $LASTEXITCODE" }
 "built $dll"

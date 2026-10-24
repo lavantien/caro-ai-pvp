@@ -15,11 +15,56 @@ func register(name string, b specBuilder) {
 	registry[name] = b
 }
 
-func splitArgs(v vars) []string {
+func splitArgs(v vars) ([]string, error) {
 	if !v.has("ARGS") {
-		return nil
+		return nil, nil
 	}
-	return strings.Fields(v["ARGS"])
+	return parseArgTokens(v["ARGS"])
+}
+
+func parseArgTokens(s string) ([]string, error) {
+	var out []string
+	var b strings.Builder
+	inQuote := false
+	closed := false
+	started := false
+	appendTok := func() {
+		if started {
+			out = append(out, b.String())
+			b.Reset()
+		}
+		started = false
+		closed = false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c == '"':
+			if inQuote {
+				inQuote = false
+				closed = true
+				continue
+			}
+			if closed || started {
+				return nil, fmt.Errorf("run: quote inside an unquoted ARGS token: %q", s)
+			}
+			inQuote = true
+			started = true
+		case (c == ' ' || c == '\t') && !inQuote:
+			appendTok()
+		default:
+			if closed {
+				return nil, fmt.Errorf("run: characters after a closing ARGS quote: %q", s)
+			}
+			b.WriteByte(c)
+			started = true
+		}
+	}
+	if inQuote {
+		return nil, fmt.Errorf("run: unterminated ARGS quote: %q", s)
+	}
+	appendTok()
+	return out, nil
 }
 
 func goStep(name string, args ...string) step {
@@ -54,12 +99,20 @@ func registerGoTargets() {
 		return []step{goStep("test-race", "test", "-race", "-timeout", goTestTimeout, "./...")}, nil
 	})
 	register("test-pkg", func(r *runner, v vars) ([]step, error) {
-		args := append([]string{"test", "-race", "-timeout", goTestTimeout}, splitArgs(v)...)
+		extra, err := splitArgs(v)
+		if err != nil {
+			return nil, err
+		}
+		args := append([]string{"test", "-race", "-timeout", goTestTimeout}, extra...)
 		args = append(args, v.get("PKG", "./..."))
 		return []step{{name: "test-pkg", path: "go", args: args, env: map[string]string{"CGO_ENABLED": "1"}}}, nil
 	})
 	register("cover", func(r *runner, v vars) ([]step, error) {
-		args := append([]string{"test", "-race", "-coverprofile=coverage.out", "-covermode=atomic", "-timeout", goTestTimeout}, splitArgs(v)...)
+		extra, err := splitArgs(v)
+		if err != nil {
+			return nil, err
+		}
+		args := append([]string{"test", "-race", "-coverprofile=coverage.out", "-covermode=atomic", "-timeout", goTestTimeout}, extra...)
 		args = append(args, v.get("PKG", "./..."))
 		return []step{
 			{name: "cover", path: "go", args: args, env: map[string]string{"CGO_ENABLED": "1"}},
@@ -77,7 +130,10 @@ func registerGoTargets() {
 		return []step{goStep("tidy", "mod", "tidy")}, nil
 	})
 	register("run", func(r *runner, v vars) ([]step, error) {
-		args := splitArgs(v)
+		args, err := splitArgs(v)
+		if err != nil {
+			return nil, err
+		}
 		if len(args) == 0 {
 			args = []string{"ports"}
 		}
@@ -87,7 +143,11 @@ func registerGoTargets() {
 		return []step{goStep("migrate", "run", "./cmd/caro", "migrate")}, nil
 	})
 	register("serve", func(r *runner, v vars) ([]step, error) {
-		return []step{{name: "serve", path: "go", args: append([]string{"run", "./cmd/caro", "serve"}, splitArgs(v)...), env: map[string]string{"CGO_ENABLED": "1"}}}, nil
+		extra, err := splitArgs(v)
+		if err != nil {
+			return nil, err
+		}
+		return []step{{name: "serve", path: "go", args: append([]string{"run", "./cmd/caro", "serve"}, extra...), env: map[string]string{"CGO_ENABLED": "1"}}}, nil
 	})
 	register("firewall", func(r *runner, v vars) ([]step, error) {
 		return []step{goStep("firewall", "run", "./cmd/caro", "firewall")}, nil
@@ -102,7 +162,11 @@ func registerPlaygroundTargets() {
 		return []step{goDirStep("icons", "playground", "run", "./icongen", "-out", "../internal/server/web/static/icons")}, nil
 	})
 	register("shots", func(r *runner, v vars) ([]step, error) {
-		return []step{{name: "shots", path: "go", args: append([]string{"-C", "playground/shots", "run", "."}, splitArgs(v)...), env: map[string]string{"CGO_ENABLED": "1"}}}, nil
+		extra, err := splitArgs(v)
+		if err != nil {
+			return nil, err
+		}
+		return []step{{name: "shots", path: "go", args: append([]string{"-C", "playground/shots", "run", "."}, extra...), env: map[string]string{"CGO_ENABLED": "1"}}}, nil
 	})
 	register("playground-modules", func(r *runner, v vars) ([]step, error) {
 		entries, err := os.ReadDir("playground")
@@ -139,17 +203,21 @@ func registerPlaygroundTargets() {
 		}, nil
 	})
 	register("bookgen-build", func(r *runner, v vars) ([]step, error) {
-		return []step{{name: "bookgen-build", path: "go", args: []string{"-C", "playground/bookgen", "build", "-o", "../../bin/bookgen" + r.goExe, "."}, dir: "playground/bookgen", env: tourneyEnv(r, v)}}, nil
+		return []step{{name: "bookgen-build", path: "go", args: []string{"-C", "playground/bookgen", "build", "-o", "../../bin/bookgen" + r.goExe, "."}, env: tourneyEnv(r, v)}}, nil
 	})
 	register("bookgen", func(r *runner, v vars) ([]step, error) {
 		build, err := registry["bookgen-build"](r, v)
 		if err != nil {
 			return nil, err
 		}
+		runArgs, err := splitArgs(v)
+		if err != nil {
+			return nil, err
+		}
 		return append(build, step{
 			name: "bookgen",
 			path: "bin/bookgen" + r.goExe,
-			args: splitArgs(v),
+			args: runArgs,
 			env:  map[string]string{"GOMEMLIMIT": v.get("BOOKGEN_MEMLIMIT", v.get("TOURNEY_MEMLIMIT", "12GiB"))},
 		}), nil
 	})
@@ -158,10 +226,14 @@ func registerPlaygroundTargets() {
 		if err != nil {
 			return nil, err
 		}
+		runArgs, err := splitArgs(v)
+		if err != nil {
+			return nil, err
+		}
 		return append(build, step{
 			name: "booktree",
 			path: "bin/bookgen" + r.goExe,
-			args: append([]string{"-phase", "tree"}, splitArgs(v)...),
+			args: append([]string{"-phase", "tree"}, runArgs...),
 			env:  map[string]string{"GOMEMLIMIT": v.get("BOOKGEN_MEMLIMIT", v.get("TOURNEY_MEMLIMIT", "12GiB"))},
 		}), nil
 	})
@@ -172,21 +244,33 @@ func registerPlaygroundTargets() {
 		}, nil
 	})
 	register("clocktune", func(r *runner, v vars) ([]step, error) {
+		runArgs, err := splitArgs(v)
+		if err != nil {
+			return nil, err
+		}
 		return []step{
 			goDirStep("clocktune-build", "playground/clocktune", "build", "-o", "../../bin/clocktune.exe", "."),
-			{name: "clocktune", path: "bin/clocktune.exe", args: splitArgs(v)},
+			{name: "clocktune", path: "bin/clocktune.exe", args: runArgs},
 		}, nil
 	})
 	register("logstats", func(r *runner, v vars) ([]step, error) {
+		runArgs, err := splitArgs(v)
+		if err != nil {
+			return nil, err
+		}
 		return []step{
 			goDirStep("logstats-build", "playground/logstats", "build", "-o", "../../bin/logstats"+r.goExe, "."),
-			{name: "logstats", path: "bin/logstats" + r.goExe, args: splitArgs(v)},
+			{name: "logstats", path: "bin/logstats" + r.goExe, args: runArgs},
 		}, nil
 	})
 	register("crossarm", func(r *runner, v vars) ([]step, error) {
+		runArgs, err := splitArgs(v)
+		if err != nil {
+			return nil, err
+		}
 		return []step{
 			goDirStep("crossarm-build", "playground/crossarm", "build", "-o", "../../bin/crossarm"+r.goExe, "."),
-			{name: "crossarm", path: "bin/crossarm" + r.goExe, args: splitArgs(v)},
+			{name: "crossarm", path: "bin/crossarm" + r.goExe, args: runArgs},
 		}, nil
 	})
 	register("db-checkpoint", func(r *runner, v vars) ([]step, error) {
@@ -211,7 +295,11 @@ func registerArenaTargets() {
 		return goDirStep("arena-build", "playground/arena", "build", "-o", "../../bin/arena.exe", ".")
 	}
 	register("arena", func(r *runner, v vars) ([]step, error) {
-		return []step{arenaBuild(), {name: "arena", path: "bin/arena.exe", args: splitArgs(v), env: map[string]string{"CGO_ENABLED": "1"}}}, nil
+		runArgs, err := splitArgs(v)
+		if err != nil {
+			return nil, err
+		}
+		return []step{arenaBuild(), {name: "arena", path: "bin/arena.exe", args: runArgs, env: map[string]string{"CGO_ENABLED": "1"}}}, nil
 	})
 	register("hex-noise", func(r *runner, v vars) ([]step, error) {
 		tc := v.get("TC", "1")
@@ -244,7 +332,11 @@ func registerArenaTargets() {
 func registerTourneyTargets() {
 	tourney := func(sub string, mem bool) specBuilder {
 		return func(r *runner, v vars) ([]step, error) {
-			args := append([]string{"run", "./cmd/caro", "tourney", sub}, splitArgs(v)...)
+			extra, err := splitArgs(v)
+			if err != nil {
+				return nil, err
+			}
+			args := append([]string{"run", "./cmd/caro", "tourney", sub}, extra...)
 			env := map[string]string{"CGO_ENABLED": "1"}
 			if mem {
 				env["GOMEMLIMIT"] = v.get("TOURNEY_MEMLIMIT", "12GiB")
@@ -277,10 +369,20 @@ func registerTourneyTargets() {
 	}
 }
 
+func registerDiagramTargets() {
+	register("diagrams-browser", func(r *runner, v vars) ([]step, error) {
+		return []step{{name: "diagrams-browser", path: "npx", args: []string{"-y", "puppeteer@" + puppeteerVersion, "browsers", "install", "chrome-headless-shell"}}}, nil
+	})
+}
+
 func registerScriptTargets() {
 	script := func(name, file string) specBuilder {
 		return func(r *runner, v vars) ([]step, error) {
-			return []step{{name: name, path: "pwsh.exe", args: append([]string{"-NoProfile", "-File", file}, splitArgs(v)...)}}, nil
+			extra, err := splitArgs(v)
+			if err != nil {
+				return nil, err
+			}
+			return []step{{name: name, path: "pwsh.exe", args: append([]string{"-NoProfile", "-File", file}, extra...)}}, nil
 		}
 	}
 	register("bookval-short", script("bookval-short", "scripts/bookval-short.ps1"))
@@ -314,6 +416,7 @@ func init() {
 	registerPlaygroundTargets()
 	registerArenaTargets()
 	registerTourneyTargets()
+	registerDiagramTargets()
 	registerScriptTargets()
 	registerMutateTargets()
 }

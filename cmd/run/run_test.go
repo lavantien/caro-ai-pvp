@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -113,15 +114,24 @@ func TestTourneyTargets(t *testing.T) {
 }
 
 func TestMutateStepArgs(t *testing.T) {
-	got := mutateStepArgs(vars{"CHALLENGE": "1", "PARALLEL": "8", "ARGS": "-pkgs internal/clock"}, "4", []string{"-resume", "L"})
+	got, err := mutateStepArgs(vars{"CHALLENGE": "1", "PARALLEL": "8", "ARGS": "-pkgs internal/clock"}, "4", []string{"-resume", "L"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := []string{"run", "./cmd/mutate", "-allow", ".mutate-allow", "-parallel", "8", "-challenge", "-pkgs", "internal/clock", "-resume", "L"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("mutateStepArgs = %v, want %v", got, want)
 	}
-	got = mutateStepArgs(vars{}, "1", nil)
+	got, err = mutateStepArgs(vars{}, "1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	want = []string{"run", "./cmd/mutate", "-allow", ".mutate-allow", "-parallel", "1"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("mutateStepArgs defaults = %v, want %v", got, want)
+	}
+	if _, err := mutateStepArgs(vars{"ARGS": `--db "a`}, "1", nil); err == nil {
+		t.Fatal("malformed ARGS accepted")
 	}
 }
 
@@ -217,11 +227,49 @@ func TestParseVarsAndSplitArgs(t *testing.T) {
 	if v["TC"] != "2" || v["CHALLENGE"] != "1" {
 		t.Fatalf("vars = %v", v)
 	}
-	if got := splitArgs(v); !reflect.DeepEqual(got, []string{"-run", "X", "-count=1"}) {
+	got, err := splitArgs(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, []string{"-run", "X", "-count=1"}) {
 		t.Fatalf("splitArgs = %v", got)
 	}
 	if _, err := parseVars([]string{"TC"}); err == nil {
 		t.Fatal("bare token accepted")
+	}
+}
+
+func TestParseArgTokens(t *testing.T) {
+	cases := []struct {
+		in   string
+		want []string
+		err  string
+	}{
+		{in: "-run X -count=1", want: []string{"-run", "X", "-count=1"}},
+		{in: `--out "a b.md" -tc 3`, want: []string{"--out", "a b.md", "-tc", "3"}},
+		{in: `--dir logs/tourny/run --out report.md`, want: []string{"--dir", "logs/tourny/run", "--out", "report.md"}},
+		{in: `""`, want: []string{""}},
+		{in: `x y  z`, want: []string{"x", "y", "z"}},
+		{in: `--db "C:\a`, err: "unterminated"},
+		{in: `a"b`, err: "unquoted"},
+		{in: `"a"b`, err: "closing"},
+		{in: `"a""b"`, err: "unquoted"},
+	}
+	for _, c := range cases {
+		got, err := parseArgTokens(c.in)
+		if c.err != "" {
+			if err == nil || !strings.Contains(err.Error(), c.err) {
+				t.Errorf("parseArgTokens(%q) err = %v, want containing %q", c.in, err, c.err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("parseArgTokens(%q) unexpected err %v", c.in, err)
+			continue
+		}
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("parseArgTokens(%q) = %v, want %v", c.in, got, c.want)
+		}
 	}
 }
 
@@ -260,7 +308,10 @@ func TestNestedModuleBinTargets(t *testing.T) {
 
 func TestBookgenTargets(t *testing.T) {
 	steps := specs(t, "bookgen", vars{"ARGS": "-phase corpus"})
-	if steps[0].env["GOMEMLIMIT"] != "12GiB" {
+	if steps[0].dir != "" || !reflect.DeepEqual(steps[0].args, []string{"-C", "playground/bookgen", "build", "-o", "../../bin/bookgen.exe", "."}) {
+		t.Fatalf("bookgen-build = %v dir=%q", steps[0].args, steps[0].dir)
+	}
+	if steps[0].env["GOMEMLIMIT"] != "12GiB" || steps[0].env["CGO_ENABLED"] != "1" {
 		t.Fatalf("bookgen-build env = %v", steps[0].env)
 	}
 	if steps[1].path != "bin/bookgen.exe" || !reflect.DeepEqual(steps[1].args, []string{"-phase", "corpus"}) {
@@ -377,24 +428,61 @@ func TestChildEnvOverrides(t *testing.T) {
 	}
 }
 
-func TestTargetInventoryMatchesMakefile(t *testing.T) {
-	want := []string{
-		"all", "doctor", "fmt", "fmt-check", "lint", "vet", "build", "test", "test-race", "test-pkg",
-		"cover", "cover-pcts", "bench", "fuzz", "mutate", "mutate-resume", "mutate-smoke", "mutate-full",
-		"run", "serve", "migrate", "shots", "tourney-smoke-32", "tourney-smoke-10", "tourney-smoke-105",
-		"tourney-ponderprobe", "tourney-floor-hard21", "tourney-floor-hard32", "tourney-floor-gm21",
-		"tourney-floor-gm32", "tourney-regate21-r1", "tourney-regate21-r2", "tourney-regate21-r3",
-		"tourney-regate32-r1", "tourney-regate-chain", "tourney-full", "tourney-resume", "tourney-close",
-		"firewall", "tidy", "diagrams", "contrast", "icons", "ci", "logstats", "crossarm", "db-checkpoint",
-		"arena", "arena-test", "hex-noise", "hex-passgates", "hex-ladder", "bookgen", "bookgen-build",
-		"booktree", "bookgen-test", "clocktune", "playground-modules", "evalfit-test", "gpu-spike",
-		"bookval-short", "bookval-confirm", "bookval-cross", "booktree-run", "evaladopt-arms",
+func makefileTargetNames(t *testing.T) map[string]bool {
+	t.Helper()
+	_, this, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
 	}
-	for _, w := range want {
-		_, inReg := registry[w]
-		_, inFlow := flows[w]
-		if !inReg && !inFlow {
-			t.Errorf("make target %q missing from the runner", w)
+	b, err := os.ReadFile(filepath.Join(filepath.Dir(this), "..", "..", "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	set := map[string]bool{}
+	for _, raw := range strings.Split(string(b), "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(raw, "\t") {
+			continue
+		}
+		if strings.HasPrefix(line, ".PHONY:") {
+			for _, n := range strings.Fields(strings.TrimPrefix(line, ".PHONY:")) {
+				set[n] = true
+			}
+			continue
+		}
+		name, rest, ok := strings.Cut(line, ":")
+		if !ok || strings.HasPrefix(rest, "=") {
+			continue
+		}
+		name = strings.TrimSpace(name)
+		if name == "" || strings.HasPrefix(name, ".") || strings.ContainsAny(name, "%$=") {
+			continue
+		}
+		set[name] = true
+	}
+	return set
+}
+
+func TestTargetInventoryMatchesMakefile(t *testing.T) {
+	mk := makefileTargetNames(t)
+	if len(mk) < 60 {
+		t.Fatalf("Makefile parse found only %d targets, parsing broke", len(mk))
+	}
+	runnerNames := map[string]bool{}
+	for n := range registry {
+		runnerNames[n] = true
+	}
+	for n := range flows {
+		runnerNames[n] = true
+	}
+	for n := range mk {
+		if !runnerNames[n] {
+			t.Errorf("make target %q missing from the runner", n)
+		}
+	}
+	for n := range runnerNames {
+		if !mk[n] {
+			t.Errorf("runner target %q has no Makefile rule", n)
 		}
 	}
 }
