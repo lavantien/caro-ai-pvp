@@ -19,20 +19,21 @@ const (
 )
 
 const (
-	codeBadCredentials  = "bad_credentials"
-	codeInvalidUsername = "invalid_username"
-	codeUnauthorized    = "unauthorized"
-	codeBadRequest      = "bad_request"
-	codeNotParticipant  = "not_participant"
-	codeRoomNotFound    = "room_not_found"
-	codeRoomFull        = "room_full"
-	codeRoomClosed      = "room_closed"
-	codeMachineBusy     = "machine_busy"
-	codeNotReady        = "not_ready"
-	codeNotYourTurn     = "not_your_turn"
-	codeIllegalMove     = "illegal_move"
-	codeSeriesFinished  = "series_finished"
-	codeInternal        = "internal"
+	codeBadCredentials      = "bad_credentials"
+	codeInvalidUsername     = "invalid_username"
+	codeUnauthorized        = "unauthorized"
+	codeBadRequest          = "bad_request"
+	codeNotParticipant      = "not_participant"
+	codeRoomNotFound        = "room_not_found"
+	codeRoomFull            = "room_full"
+	codeRoomClosed          = "room_closed"
+	codeMachineBusy         = "machine_busy"
+	codeServerResourcesFull = "resources_full"
+	codeNotReady            = "not_ready"
+	codeNotYourTurn         = "not_your_turn"
+	codeIllegalMove         = "illegal_move"
+	codeSeriesFinished      = "series_finished"
+	codeInternal            = "internal"
 )
 
 func errorResponse(err error) (code string, status int) {
@@ -49,6 +50,8 @@ func errorResponse(err error) (code string, status int) {
 		return codeRoomClosed, http.StatusConflict
 	case errors.Is(err, ErrMachineBusy):
 		return codeMachineBusy, http.StatusConflict
+	case errors.Is(err, ErrServerResourcesFull):
+		return codeServerResourcesFull, http.StatusConflict
 	case errors.Is(err, ErrNotYourTurn):
 		return codeNotYourTurn, http.StatusConflict
 	case errors.Is(err, ErrIllegalMove):

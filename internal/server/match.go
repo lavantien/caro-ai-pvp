@@ -66,8 +66,8 @@ func (r *Room) startGameLocked() (err error) {
 	for _, c := range [2]rules.Color{rules.Red, rules.Blue} {
 		if seat := r.seatByColorLocked(c); seat.bot != nil {
 			if err := r.manager.adm.AcquireTT(seat.bot.TTBytes); err != nil {
-				r.parkLocked(err)
 				r.closeEnginesLocked()
+				r.refuseLocked(err)
 				return err
 			}
 			r.ttHeld[c] = seat.bot.TTBytes

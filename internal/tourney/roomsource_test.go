@@ -2,6 +2,7 @@ package tourney
 
 import (
 	"errors"
+	"math"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -19,6 +20,7 @@ func newRoomStack(t *testing.T) (*server.RoomManager, *server.Hub) {
 	wq := server.NewWriteQueue(nil)
 	hub := server.NewHub()
 	rm := server.NewRoomManager(hub, srv, wq)
+	rm.SetMemoryProbe(func() (uint64, error) { return math.MaxUint64, nil })
 	t.Cleanup(func() {
 		rm.Shutdown()
 		wq.Close()

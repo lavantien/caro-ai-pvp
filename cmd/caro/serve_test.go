@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -64,6 +65,7 @@ func TestServeCloseStackDrainsThenBackstopsAndClosesEverything(t *testing.T) {
 	wq := server.NewWriteQueue(nil)
 	hub := server.NewHub()
 	rooms := server.NewRoomManager(hub, st, wq)
+	rooms.SetMemoryProbe(func() (uint64, error) { return math.MaxUint64, nil })
 	srv := newServeServer("", server.NewHTTPAPI(st, rooms))
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

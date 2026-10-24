@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -407,7 +408,7 @@ func TestCasualAndBotVsBotRoomsCoexist(t *testing.T) {
 	casual.Close()
 }
 
-func TestNextGameTTRefusalParksTheRoom(t *testing.T) {
+func TestNextGameTTRefusalRetiresTheRoom(t *testing.T) {
 	s := newStack(t)
 	hostTier := config.Tier{Name: "parkhost", Cores: 1, TTBytes: 1}
 	guestTier := config.Tier{Name: "parkguest", Cores: 1, TTBytes: 1}
@@ -430,6 +431,9 @@ func TestNextGameTTRefusalParksTheRoom(t *testing.T) {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
 	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
+	if _, err := s.rm.Get(r.ID()); !errors.Is(err, ErrRoomNotFound) {
+		t.Errorf("get the refused room = %v, want ErrRoomNotFound: the refusal must retire it from the manager", err)
+	}
 	s.rm.adm.ReleaseTT(config.MachineTTBudgetBytes - 1)
 	r.Close()
 	if got := s.rm.LiveCoreBookings(); got != 0 {
@@ -438,7 +442,7 @@ func TestNextGameTTRefusalParksTheRoom(t *testing.T) {
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.MachineTTBudgetBytes })
 }
 
-func TestReadyTTRefusalParksTheRoomAndRefusesMoves(t *testing.T) {
+func TestReadyTTRefusalRetiresTheRoomAndRefusesMoves(t *testing.T) {
 	s := newStack(t)
 	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher {
 		return &scriptedBot{script: movesOf(t, botVsBotGuestLine), stats: fakeStats()}
@@ -455,14 +459,81 @@ func TestReadyTTRefusalParksTheRoomAndRefusesMoves(t *testing.T) {
 	if err := r.Ready(alice.ID); !errors.Is(err, ErrMachineBusy) {
 		t.Fatalf("ready over the drained budget = %v, want ErrMachineBusy", err)
 	}
+	if _, err := s.rm.Get(r.ID()); !errors.Is(err, ErrRoomNotFound) {
+		t.Errorf("get the refused room = %v, want ErrRoomNotFound: the refusal must retire it from the manager", err)
+	}
+	if got, want := s.rm.adm.TTFree(), config.MachineTTBudgetBytes-drain; got != want {
+		t.Errorf("ttFree right after the refused ready = %d, want the test drain only %d", got, want)
+	}
 	if err := r.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); !errors.Is(err, ErrRoomClosed) {
-		t.Errorf("move into the parked room = %v, want ErrRoomClosed", err)
+		t.Errorf("move into the retired room = %v, want ErrRoomClosed", err)
 	}
 	s.rm.adm.ReleaseTT(drain)
 	r.Close()
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.MachineTTBudgetBytes })
 	if _, ok := r.Info(); ok {
-		t.Error("the parked room still reports live info")
+		t.Error("the retired room still reports live info")
+	}
+}
+
+func TestCreateRefusesWhenAvailableMemoryShort(t *testing.T) {
+	s := newStack(t)
+	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return &contractBot{} }
+	alice := seedUser(t, s.store, "alice")
+	avail := uint64(math.MaxUint64)
+	s.rm.SetMemoryProbe(func() (uint64, error) { return avail, nil })
+
+	avail = uint64(config.TierGrandmaster.TTBytes+config.AdmissionMemoryReserveBytes) - 1
+	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierGrandmaster, ""); !errors.Is(err, ErrServerResourcesFull) {
+		t.Fatalf("create one byte under the demand = %v, want ErrServerResourcesFull", err)
+	}
+	if got := len(s.rm.List()); got != 0 {
+		t.Errorf("rooms after the refused create = %d, want 0", got)
+	}
+	if got := countRows(t, s, "series"); got != 0 {
+		t.Errorf("series rows after the refused create = %d, want 0", got)
+	}
+
+	avail = config.AdmissionMemoryReserveBytes - 1
+	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, ""); !errors.Is(err, ErrServerResourcesFull) {
+		t.Fatalf("human create under the bare reserve = %v, want ErrServerResourcesFull", err)
+	}
+
+	avail = config.AdmissionMemoryReserveBytes
+	human, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
+	if err != nil {
+		t.Fatalf("human create at the bare reserve: %v", err)
+	}
+	human.Close()
+
+	pairDemand := uint64(config.TierGrandmaster.TTBytes + config.TierEasy.TTBytes + config.AdmissionMemoryReserveBytes)
+	avail = pairDemand - 1
+	if _, err := s.rm.CreateBotVsBot(&config.TierGrandmaster, "", &config.TierEasy, "", 0, config.SeriesBO3, ""); !errors.Is(err, ErrServerResourcesFull) {
+		t.Fatalf("bot vs bot one byte under the demand = %v, want ErrServerResourcesFull", err)
+	}
+	avail = pairDemand
+	pair, err := s.rm.CreateBotVsBot(&config.TierGrandmaster, "", &config.TierEasy, "", 0, config.SeriesBO3, "")
+	if err != nil {
+		t.Fatalf("bot vs bot at the exact demand: %v", err)
+	}
+	pair.Close()
+	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.MachineTTBudgetBytes })
+}
+
+func TestCreateSurfacesMemoryProbeFailure(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	boom := errors.New("probe down")
+	s.rm.SetMemoryProbe(func() (uint64, error) { return 0, boom })
+	_, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy, "")
+	if !errors.Is(err, boom) {
+		t.Fatalf("create over the failed probe = %v, want the wrapped probe error", err)
+	}
+	if errors.Is(err, ErrServerResourcesFull) {
+		t.Error("probe failure mislabeled as ErrServerResourcesFull")
+	}
+	if got := len(s.rm.List()); got != 0 {
+		t.Errorf("rooms after the failed probe = %d, want 0", got)
 	}
 }
 
@@ -488,5 +559,30 @@ func TestShellCreateRoomRendersMachineBusy(t *testing.T) {
 	}
 	if code, status := errorResponse(ErrMachineBusy); code != codeMachineBusy || status != http.StatusConflict {
 		t.Errorf("errorResponse(ErrMachineBusy) = %q %d, want %q %d", code, status, codeMachineBusy, http.StatusConflict)
+	}
+}
+
+func TestShellCreateRoomRendersResourcesFull(t *testing.T) {
+	s := newStack(t)
+	s.rm.SetMemoryProbe(func() (uint64, error) { return 0, nil })
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	defer srv.Close()
+	c := noRedirectClient(srv)
+	token := shellRegister(t, c, srv.URL, "alice", "hunter2")
+
+	status, _, body := doShell(t, c, http.MethodPost, srv.URL+"/rooms", token, url.Values{
+		"tc": {"0"}, "bo": {strconv.Itoa(config.SeriesBO3)}, "bot": {config.TierEasy.Name},
+	})
+	if status != http.StatusConflict {
+		t.Fatalf("create with no available memory: status = %d, want 409 (body %s)", status, body)
+	}
+	if !strings.Contains(body, "server resources are currently full") {
+		t.Errorf("body misses the resources-full refusal (body %s)", body)
+	}
+	if strings.Contains(body, "invalid room settings") {
+		t.Error("the resources-full refusal rendered as bad settings")
+	}
+	if code, status := errorResponse(ErrServerResourcesFull); code != codeServerResourcesFull || status != http.StatusConflict {
+		t.Errorf("errorResponse(ErrServerResourcesFull) = %q %d, want %q %d", code, status, codeServerResourcesFull, http.StatusConflict)
 	}
 }

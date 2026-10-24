@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -127,6 +128,7 @@ func newTourneyStack(t *testing.T, source tourney.MatchSource) *tourneyStack {
 	wq := server.NewWriteQueue(nil)
 	hub := server.NewHub()
 	rooms := server.NewRoomManager(hub, store, wq)
+	rooms.SetMemoryProbe(func() (uint64, error) { return math.MaxUint64, nil })
 	t.Cleanup(func() {
 		rooms.Shutdown()
 		wq.Close()

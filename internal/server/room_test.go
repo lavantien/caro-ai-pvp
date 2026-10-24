@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ func newStack(t *testing.T) *stack {
 	wq := NewWriteQueue(nil)
 	hub := NewHub()
 	rm := NewRoomManager(hub, st, wq)
+	rm.SetMemoryProbe(func() (uint64, error) { return math.MaxUint64, nil })
 	t.Cleanup(func() {
 		rm.Shutdown()
 		wq.Close()

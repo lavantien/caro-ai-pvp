@@ -519,6 +519,11 @@ func (p *shellPages) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 				"the machine is fully booked by bot rooms, wait for one to close and try again")
 			return
 		}
+		if errors.Is(err, ErrServerResourcesFull) {
+			p.renderCreateError(r, w, me, http.StatusConflict,
+				"server resources are currently full, try again later")
+			return
+		}
 		bad()
 		return
 	}

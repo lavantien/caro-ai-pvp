@@ -272,6 +272,12 @@ func TestResourceCapsMatchHardwareBudget(t *testing.T) {
 	if TournamentParallelMatches != 2 {
 		t.Errorf("TournamentParallelMatches = %d, want 2", TournamentParallelMatches)
 	}
+	if AdmissionMemoryReserveBytes != 1<<30 {
+		t.Errorf("AdmissionMemoryReserveBytes = %d, want 1GiB of non-tt engine headroom", AdmissionMemoryReserveBytes)
+	}
+	if worst := 2*TierGrandmaster.TTBytes + AdmissionMemoryReserveBytes; worst > MaxRAMPerInstanceBytes {
+		t.Errorf("worst casual create demand %d exceeds the per-instance envelope %d", worst, MaxRAMPerInstanceBytes)
+	}
 	if TournamentParallelMatches*TierGrandmaster.Cores > MachineCores {
 		t.Errorf("%d parallel grandmaster searches need %d cores, MachineCores is %d; ponder-inclusive rosters hold parallel 1 behind the conductor's pair-peak check",
 			TournamentParallelMatches, TournamentParallelMatches*TierGrandmaster.Cores, MachineCores)

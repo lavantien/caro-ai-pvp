@@ -3,6 +3,7 @@ package tourney
 import (
 	"context"
 	"database/sql"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,7 @@ func newHexRunStack(t *testing.T) (RoomSource, *Store, *server.Store) {
 	wq := server.NewWriteQueue(nil)
 	hub := server.NewHub()
 	rm := server.NewRoomManager(hub, srv, wq)
+	rm.SetMemoryProbe(func() (uint64, error) { return math.MaxUint64, nil })
 	t.Cleanup(func() {
 		rm.Shutdown()
 		wq.Close()

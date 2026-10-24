@@ -18,15 +18,16 @@ import (
 )
 
 var (
-	ErrRoomNotFound = errors.New("server: room not found")
-	ErrRoomFull     = errors.New("server: room already has an opponent")
-	ErrRoomClosed   = errors.New("server: room closed")
-	ErrNotYourTurn  = errors.New("server: not this side's turn")
-	ErrIllegalMove  = errors.New("server: illegal move")
-	ErrBadOwner     = errors.New("server: room owner must be a positive user id")
-	ErrBadTier      = errors.New("server: bot-vs-bot needs both tiers")
-	ErrUnknownTier  = errors.New("server: unknown bot tier")
-	ErrMachineBusy  = errors.New("server: machine core budget full")
+	ErrRoomNotFound        = errors.New("server: room not found")
+	ErrRoomFull            = errors.New("server: room already has an opponent")
+	ErrRoomClosed          = errors.New("server: room closed")
+	ErrNotYourTurn         = errors.New("server: not this side's turn")
+	ErrIllegalMove         = errors.New("server: illegal move")
+	ErrBadOwner            = errors.New("server: room owner must be a positive user id")
+	ErrBadTier             = errors.New("server: bot-vs-bot needs both tiers")
+	ErrUnknownTier         = errors.New("server: unknown bot tier")
+	ErrMachineBusy         = errors.New("server: machine core budget full")
+	ErrServerResourcesFull = errors.New("server: resources currently full")
 )
 
 const roomIDBytes = 16
@@ -48,12 +49,13 @@ type RoomManager struct {
 	wq           *WriteQueue
 	adm          *Admission
 	makeSearcher func(variant string, t config.Tier) searcher
+	availMem     func() (uint64, error)
 }
 
 func NewRoomManager(hub *Hub, store *Store, wq *WriteQueue) *RoomManager {
 	return &RoomManager{
 		rooms: make(map[string]*Room), hub: hub, store: store, wq: wq,
-		adm: newAdmission(), makeSearcher: newBotSearcherFor,
+		adm: newAdmission(), makeSearcher: newBotSearcherFor, availMem: hostAvailMem,
 	}
 }
 func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config.Tier, variant string) (*Room, error) {
@@ -62,6 +64,9 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 	}
 	v, g, err := resolveVariant(variant)
 	if err != nil {
+		return nil, err
+	}
+	if err := rm.refuseWhenMemoryShort(vsBot); err != nil {
 		return nil, err
 	}
 	guest := seat{}
@@ -115,6 +120,9 @@ func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, gu
 	}
 	v, g, err := resolveVariant(variant)
 	if err != nil {
+		return nil, err
+	}
+	if err := rm.refuseWhenMemoryShort(hostTier, guestTier); err != nil {
 		return nil, err
 	}
 	series, err := NewBotSeriesFor(botHostUserID, botGuestUserID, tcIdx, boLen, v)
@@ -456,10 +464,11 @@ func (r *Room) quitClosed() bool {
 		return false
 	}
 }
-func (r *Room) parkLocked(reason error) {
+func (r *Room) refuseLocked(reason error) {
 	r.closeOnce.Do(func() { close(r.quit) })
 	r.over = true
-	log.Printf("server: room parked after a refused game start: %v", reason)
+	r.manager.retireRoom(r)
+	log.Printf("server: room retired after a refused game start: %v", reason)
 }
 func (r *Room) finishLifecycle() {
 	r.retire()

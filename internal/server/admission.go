@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -122,4 +123,25 @@ func (a *Admission) CanAcquireTT(bytes int64) bool {
 
 func (rm *RoomManager) LiveCoreBookings() int {
 	return rm.adm.LiveCores()
+}
+
+func (rm *RoomManager) SetMemoryProbe(probe func() (uint64, error)) {
+	rm.availMem = probe
+}
+
+func (rm *RoomManager) refuseWhenMemoryShort(botSeats ...*config.Tier) error {
+	demand := int64(config.AdmissionMemoryReserveBytes)
+	for _, seat := range botSeats {
+		if seat != nil {
+			demand += seat.TTBytes
+		}
+	}
+	avail, err := rm.availMem()
+	if err != nil {
+		return fmt.Errorf("server: available memory probe: %w", err)
+	}
+	if avail < uint64(demand) {
+		return ErrServerResourcesFull
+	}
+	return nil
 }

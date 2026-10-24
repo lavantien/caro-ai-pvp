@@ -3,6 +3,7 @@ package tourney
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -23,6 +24,7 @@ func TestConductorEndToEndEasyTiers(t *testing.T) {
 	wq := server.NewWriteQueue(nil)
 	hub := server.NewHub()
 	rm := server.NewRoomManager(hub, srv, wq)
+	rm.SetMemoryProbe(func() (uint64, error) { return math.MaxUint64, nil })
 	t.Cleanup(func() {
 		rm.Shutdown()
 		wq.Close()
