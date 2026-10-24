@@ -45,3 +45,44 @@ func TestZeroAllocs(t *testing.T) {
 		t.Fatalf("IsLegal: %v allocs, want 0", n)
 	}
 }
+
+func TestZeroAllocsHex(t *testing.T) {
+	board, buf, g := hexBenchBoard(t)
+	last, err := g.ParseCell("L12")
+	if err != nil {
+		t.Fatalf("hex cell: %v", err)
+	}
+	lastMove := Cell(last)
+	open, err := g.ParseCell("A12")
+	if err != nil {
+		t.Fatalf("hex cell: %v", err)
+	}
+	openCell := Cell(open)
+
+	if n := testing.AllocsPerRun(100, func() {
+		_ = board.FastLastMoveWin(Red, lastMove)
+	}); n != 0 {
+		t.Fatalf("hex FastLastMoveWin: %v allocs, want 0", n)
+	}
+
+	if n := testing.AllocsPerRun(100, func() {
+		board.Make(openCell)
+		board.Unmake()
+	}); n != 0 {
+		t.Fatalf("hex make+unmake: %v allocs, want 0", n)
+	}
+
+	board.Make(openCell)
+	if n := testing.AllocsPerRun(100, func() {
+		_ = board.Wins(Red)
+		_ = board.Wins(Blue)
+	}); n != 0 {
+		t.Fatalf("hex Wins: %v allocs, want 0", n)
+	}
+
+	if n := testing.AllocsPerRun(100, func() {
+		_ = board.LegalMoves(buf)
+	}); n != 0 {
+		t.Fatalf("hex LegalMoves: %v allocs, want 0", n)
+	}
+}

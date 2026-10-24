@@ -8,9 +8,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// The zero allocation contract of the search path, pinned with
-// testing.AllocsPerRun the way the rules and pattern packages pin theirs.
-
 func TestZeroAllocsSearch(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
@@ -68,6 +65,40 @@ func TestZeroAllocsGenerate(t *testing.T) {
 	e.eval.reset(b)
 	if n := testing.AllocsPerRun(100, func() { e.generate(b, 0, moveNone) }); n != 0 {
 		t.Fatalf("generate: %v allocs, want 0", n)
+	}
+}
+
+func TestZeroAllocsEvalIncrementalHex(t *testing.T) {
+	b, g := hexMidgame(t)
+	e := New(0)
+	e.eval.reset(b)
+	cell, err := g.ParseCell("J12")
+	if err != nil {
+		t.Fatalf("hex cell: %v", err)
+	}
+	hexCell := rules.Cell(cell)
+	if n := testing.AllocsPerRun(100, func() {
+		e.eval.makeMove(rules.Red, hexCell)
+		e.eval.unmakeMove(hexCell)
+	}); n != 0 {
+		t.Fatalf("hex eval make/unmake: %v allocs, want 0", n)
+	}
+}
+
+func TestZeroAllocsEvalResetHex(t *testing.T) {
+	board, _ := hexMidgame(t)
+	e := New(0)
+	if n := testing.AllocsPerRun(10, func() { e.eval.reset(board) }); n != 0 {
+		t.Fatalf("hex eval reset: %v allocs, want 0", n)
+	}
+}
+
+func TestZeroAllocsGenerateHex(t *testing.T) {
+	board, _ := hexMidgame(t)
+	e := New(0)
+	e.eval.reset(board)
+	if n := testing.AllocsPerRun(100, func() { _ = e.generate(board, 0, moveNone) }); n != 0 {
+		t.Fatalf("hex generate: %v allocs, want 0", n)
 	}
 }
 

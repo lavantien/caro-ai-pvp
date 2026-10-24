@@ -7,17 +7,17 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-func hexMidgame(b *testing.B) (*rules.Board, *geom.Geometry) {
-	b.Helper()
+func hexMidgame(tb testing.TB) (*rules.Board, *geom.Geometry) {
+	tb.Helper()
 	g, err := geom.ByName("hex")
 	if err != nil {
-		b.Fatalf("hex geometry: %v", err)
+		tb.Fatalf("hex geometry: %v", err)
 	}
 	board := rules.NewBoardFor(g)
 	for _, name := range [...]string{"L12", "L13", "M12", "M13", "G7", "G8", "H7", "P17", "P18", "Q17"} {
 		cell, err := g.ParseCell(name)
 		if err != nil {
-			b.Fatalf("bench cell %q: %v", name, err)
+			tb.Fatalf("bench cell %q: %v", name, err)
 		}
 		board.Make(rules.Cell(cell))
 	}
@@ -32,7 +32,7 @@ func BenchmarkHexEvalMakeUnmake(b *testing.B) {
 	if err != nil {
 		b.Fatalf("bench cell: %v", err)
 	}
-	for range b.N {
+	for b.Loop() {
 		e.eval.makeMove(rules.Blue, rules.Cell(cell))
 		e.eval.unmakeMove(rules.Cell(cell))
 	}
@@ -41,7 +41,7 @@ func BenchmarkHexEvalMakeUnmake(b *testing.B) {
 func BenchmarkHexEvalReset(b *testing.B) {
 	board, _ := hexMidgame(b)
 	e := New(0)
-	for range b.N {
+	for b.Loop() {
 		e.eval.reset(board)
 	}
 }
@@ -50,7 +50,7 @@ func BenchmarkHexGenerate(b *testing.B) {
 	board, _ := hexMidgame(b)
 	e := New(0)
 	e.eval.reset(board)
-	for range b.N {
+	for b.Loop() {
 		_ = e.generate(board, 0, moveNone)
 	}
 }

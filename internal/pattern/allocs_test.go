@@ -30,3 +30,16 @@ func TestZeroAllocs(t *testing.T) {
 		t.Fatalf("buildDirTable: %v allocs, want 0", n)
 	}
 }
+
+func TestZeroAllocsHex(t *testing.T) {
+	b := hexBoardFor(t)
+	cell := rules.Cell(b.Geom.Center)
+	idx := Index(b, cell, 0, rules.Red)
+
+	if n := testing.AllocsPerRun(100, func() { _ = Lookup(idx) }); n != 0 {
+		t.Fatalf("hex Lookup: %v allocs, want 0", n)
+	}
+	if n := testing.AllocsPerRun(100, func() { _ = Index(b, cell, 1, rules.Blue) }); n != 0 {
+		t.Fatalf("hex Index: %v allocs, want 0", n)
+	}
+}
