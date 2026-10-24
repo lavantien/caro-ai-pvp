@@ -195,6 +195,7 @@ func main() {
 	server.NewRoomPages(rooms, store).Mount(root)
 	server.NewTournamentPages(store, tour).Mount(root)
 	server.NewLobbyPages(store, rooms).Mount(root)
+	server.NewProfilePages(store).Mount(root)
 	root.Handle("/", server.NewShellPages(store, rooms, tour))
 
 	srv := &http.Server{Addr: *addr, Handler: root}
