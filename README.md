@@ -106,7 +106,7 @@ Every picture renders at one 440x956 portrait viewport on the light theme, numbe
 
 ![square tournament run](docs/screenshots/p11-square-tourney-run.png) ![hex tournament run](docs/screenshots/p12-hex-tourney-run.png)
 
-**P13, P14 tournament live boards.** The run page's live boards surface: P13 shows the shared surface with both bot cards live, P14 the hexagon-pure member.
+**P13, P14 tournament live boards.** The run page's live boards surface, one live bot card per member: P13 square-pure on the square run, P14 hexagon-pure on the real hex run.
 
 ![square live boards](docs/screenshots/p13-square-tourney-liveboards.png) ![hex live boards](docs/screenshots/p14-hex-tourney-liveboards.png)
 

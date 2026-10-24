@@ -35,6 +35,9 @@
 @media (pointer: fine) {
 	.board.hex.live .cell:not(.occ):not(.off):hover polygon { fill: var(--ghost) }
 }
+.board.mini.hex .cell polygon { fill: none; stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke }
+.board.mini.hex .cell circle.stone.latest { stroke-width: 1.5; vector-effect: non-scaling-stroke }
+.board.mini.hex .cell text.glyph { display: none }
 </style>
 {{end}}
 

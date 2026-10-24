@@ -148,6 +148,32 @@ func wantHexMiniBoard(t *testing.T, body string) {
 	}
 }
 
+func TestMiniHexBoardStaysLegibleAtCaptureScale(t *testing.T) {
+	s := newStack(t)
+	alice, bob, r := newHexPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+	playHexScript(t, r, alice.ID, bob.ID, []string{"L12", "M13"})
+	mux := http.NewServeMux()
+	NewLobbyPages(s.store, s.rm).Mount(mux)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	resp, err := srv.Client().Get(srv.URL + "/lobby")
+	if err != nil {
+		t.Fatalf("lobby get: %v", err)
+	}
+	body := readAllBody(t, resp)
+	for _, want := range []string{
+		`.board.mini.hex .cell polygon { fill: none; stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke }`,
+		`.board.mini.hex .cell circle.stone.latest { stroke-width: 1.5; vector-effect: non-scaling-stroke }`,
+		`.board.mini.hex .cell text.glyph { display: none }`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("mini hex legibility rule missing: %s", want)
+		}
+	}
+}
+
 func TestHexRoomPageRendersOnlyPlayableCells(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
