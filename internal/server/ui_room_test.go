@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -270,6 +272,34 @@ func TestRoomPageSeatCardsCarryNamesBeforeHandshake(t *testing.T) {
 	}
 	if !strings.Contains(body, `<p id="turn-line" aria-live="polite">`) {
 		t.Error("turn line is not a polite live region")
+	}
+}
+
+func TestRoomSeatCardHoldsTheNameOnOneLine(t *testing.T) {
+	tmpl, err := os.ReadFile("web/templates/room.html")
+	if err != nil {
+		t.Fatalf("read room.html: %v", err)
+	}
+	row := regexp.MustCompile(`(?m)^\.seatcard \{[^}]*\}`).Find(tmpl)
+	if row == nil {
+		t.Fatal("room.html loses the .seatcard rule")
+	}
+	if !regexp.MustCompile(`gap:\s*var\(--space-1\)`).Match(row) {
+		t.Errorf(".seatcard must run at the tight gap so a bot name fits beside the chip and clock, got %s", row)
+	}
+	who := regexp.MustCompile(`\.seatcard \.who \{[^}]*\}`).Find(tmpl)
+	if who == nil {
+		t.Fatal("room.html loses the .seatcard .who rule")
+	}
+	if !regexp.MustCompile(`font-size:\s*var\(--text-m\)`).Match(who) {
+		t.Errorf(".seatcard .who must sit at text-m to keep the name on one line, got %s", who)
+	}
+	chip := regexp.MustCompile(`\.seatcard \.chip \{[^}]*\}`).Find(tmpl)
+	if chip == nil {
+		t.Fatal("room.html loses the .seatcard .chip rule")
+	}
+	if !regexp.MustCompile(`font-size:\s*var\(--text-s\)`).Match(chip) {
+		t.Errorf(".seatcard .chip must sit at text-s to keep the name on one line, got %s", chip)
 	}
 }
 
