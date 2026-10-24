@@ -81,23 +81,48 @@ function Write-Status([string]$text) {
 }
 
 function Get-LiveArmProcess([string]$match) {
-	Get-CimInstance Win32_Process -Filter "Name='arena.exe'" |
+	Get-CimInstance Win32_Process -Filter "Name LIKE 'arena%'" |
 		Where-Object { $_.CommandLine -and $_.CommandLine.Contains($repo) -and $_.CommandLine.Contains($match) } |
 		Select-Object -First 1
 }
 
+$arenaBin = Join-Path $repo 'bin\arena.exe'
+$arenaFreeze = Join-Path $repo 'bin\arena-freeze.exe'
 $script:arenaBuilt = $false
 function Ensure-Arena([string]$pollLog) {
 	if ($script:arenaBuilt) { return $true }
-	$arenaBin = Join-Path $repo 'bin\arena.exe'
 	$env:GOMEMLIMIT = '4GiB'
 	$env:CGO_ENABLED = '1'
 	go -C (Join-Path $repo 'playground\arena') build -o $arenaBin .
 	if ($LASTEXITCODE -ne 0) { Write-Status "failed build $target exit $LASTEXITCODE"; "$(Get-Date -Format s) arena build failed exit $LASTEXITCODE" | Add-Content -Path $pollLog; return $false }
 	if (-not (Test-Path $arenaBin)) { Write-Status "failed no-arena-binary $target"; "$(Get-Date -Format s) arena binary missing after build" | Add-Content -Path $pollLog; return $false }
+	if (-not (Test-Path $arenaFreeze)) {
+		Copy-Item -Path $arenaBin -Destination $arenaFreeze -Force
+		if ((Test-Path $arenaFreeze) -and ((Get-Item $arenaBin).Length -eq (Get-Item $arenaFreeze).Length)) {
+			"$(Get-Date -Format s) arena frozen: bin\arena-freeze.exe $((Get-Item $arenaFreeze).Length) bytes" | Add-Content -Path $pollLog
+		} else {
+			if (Test-Path $arenaFreeze) { Remove-Item $arenaFreeze -Force -Confirm:$false }
+			Write-Status "failed freeze-copy $target"
+			"$(Get-Date -Format s) freeze copy size mismatch" | Add-Content -Path $pollLog
+			return $false
+		}
+	}
 	$env:GOMEMLIMIT = $MemLimit
 	$script:arenaBuilt = $true
 	return $true
+}
+
+function Remove-ArenaFreeze([string]$pollLog) {
+	foreach ($f in @($arenaFreeze, (Join-Path $repo 'bin\arena.exe~'))) {
+		if (Test-Path $f) {
+			try {
+				Remove-Item $f -Force -Confirm:$false -ErrorAction Stop
+				"$(Get-Date -Format s) chain end sweep $(Split-Path $f -Leaf)" | Add-Content -Path $pollLog
+			} catch {
+				"$(Get-Date -Format s) chain end sweep skip locked $(Split-Path $f -Leaf)" | Add-Content -Path $pollLog
+			}
+		}
+	}
 }
 
 function Invoke-Arm($arm, $pollLog) {
@@ -111,12 +136,11 @@ function Invoke-Arm($arm, $pollLog) {
 		try { Wait-Process -Id $live.ProcessId -ErrorAction Stop } catch {}
 	} else {
 		if (-not (Ensure-Arena $pollLog)) { return "failed build $target" }
-		$arenaBin = Join-Path $repo 'bin\arena.exe'
 		$raw = "$log.raw"
 		$err = "$log.err"
-		Set-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) start: bin\arena.exe $argText"
+		Set-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) start: bin\arena-freeze.exe $argText"
 		Write-Host "arm $($arm.Name) start, log $log"
-		$p = Start-Process -FilePath $arenaBin -ArgumentList $arm.Args -WorkingDirectory $repo -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $raw -RedirectStandardError $err
+		$p = Start-Process -FilePath $arenaFreeze -ArgumentList $arm.Args -WorkingDirectory $repo -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $raw -RedirectStandardError $err
 		if (Test-Path $raw) { Add-Content -Path $log -Value (Get-Content $raw); Remove-Item $raw -Force -Confirm:$false }
 		if (Test-Path $err) { Add-Content -Path $log -Value (Get-Content $err); Remove-Item $err -Force -Confirm:$false }
 		Add-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) exit $($p.ExitCode)"
@@ -147,9 +171,9 @@ if ($DryRun) {
 	}
 	Write-Output "command template per arm:"
 	foreach ($arm in $arms) {
-		Write-Output "  GOMEMLIMIT=$MemLimit bin\arena.exe $($arm.Args -join ' ') >> $OutRoot/$($arm.Name).log"
+		Write-Output "  GOMEMLIMIT=$MemLimit bin\arena-freeze.exe $($arm.Args -join ' ') >> $OutRoot/$($arm.Name).log"
 	}
-	Write-Output "probe before the first arm: go -C playground\arena build -o bin\arena.exe ."
+	Write-Output "probe before the first arm: go -C playground\arena build -o bin\arena.exe . then freeze to bin\arena-freeze.exe"
 	exit 0
 }
 
@@ -176,12 +200,14 @@ foreach ($arm in $arms) {
 	if (Test-ArmFailed $arm.Name) {
 		$verdict = Get-ArmVerdict $arm.Name
 		Write-Status "failed $($arm.Name) $verdict"
+		Remove-ArenaFreeze $pollLog
 		exit 2
 	}
 	Write-Status "running $($arm.Name)"
 	$failure = Invoke-Arm $arm $pollLog
-	if ($null -ne $failure) { Write-Status $failure; exit 2 }
+	if ($null -ne $failure) { Write-Status $failure; Remove-ArenaFreeze $pollLog; exit 2 }
 }
 Write-Status 'all-done'
+Remove-ArenaFreeze $pollLog
 Write-Output 'hex-ladder complete'
 exit 0
