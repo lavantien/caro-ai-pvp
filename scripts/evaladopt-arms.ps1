@@ -22,8 +22,12 @@ evaladopt-arms: detached evalweights adoption chain, fitted-vs-scaffold pairs on
         pairlog-resumable), floors cut from weight adoption by owner order
         2026-10-24
   every arm carries $regArgs so the derived seat exists in the registry
+  launches: bin/arena.exe <regArgs> -tc <i> -games <n> -seats master,<fitted>
+        -pairOut $OutRoot/<arm>.pairlog, under GOMEMLIMIT $MemLimit
   logs, artifacts, and the evaladopt-arms.status marker under $OutRoot
-  relaunching resumes every arm from its recorded progress
+  relaunching resumes: complete pairlogs skip, partial pairlogs continue from
+        their recorded games; an arm whose arena is already live is adopted
+        and waited on, never double-launched
 '@
 
 if ($Help) { Write-Output $usage; exit 0 }
@@ -32,6 +36,7 @@ function New-PairArm([string]$Name, [int]$Tc) {
 	@{
 		Name = $Name; Tc = $Tc
 		Args = "$regArgs -tc $Tc -games $Games -seats $EvalBase,$fittedSeat -pairOut $OutRoot/$Name.pairlog"
+		Match = "$OutRoot/$Name.pairlog"
 	}
 }
 $arms = @(
@@ -39,33 +44,53 @@ $arms = @(
 	(New-PairArm 'evalpair-32' 2)
 )
 
+function Convert-ToRepoPath([string]$rel) { Join-Path $repo ($rel -replace '/', '\') }
+
 function Test-ArmDone([string]$name) {
-	$pl = Join-Path $repo (($OutRoot + '/' + $name + '.pairlog') -replace '/', '\')
+	$pl = Convert-ToRepoPath "$OutRoot/$name.pairlog"
 	if (-not (Test-Path $pl)) { return $false }
 	return [bool](Select-String -Path $pl -Pattern '^complete \d+ games' -Quiet)
 }
 
 function Write-Status([string]$text) {
-	$path = Join-Path $repo (($OutRoot + '/evaladopt-arms.status') -replace '/', '\')
+	$path = Convert-ToRepoPath "$OutRoot/evaladopt-arms.status"
 	New-Item -ItemType Directory -Force (Split-Path $path -Parent) | Out-Null
 	Set-Content -Path $path -Value $text
 	Write-Output "status: $text"
 }
 
+function Get-LiveArmProcess([string]$match) {
+	$binName = [IO.Path]::GetFileName(($Bin -replace '/', '\'))
+	Get-CimInstance Win32_Process -Filter "Name='$binName'" |
+		Where-Object { $_.CommandLine -and $_.CommandLine.Contains($repo) -and $_.CommandLine.Contains($match) } |
+		Select-Object -First 1
+}
+
 function Invoke-Arm($arm) {
-	$log = Join-Path $repo (($OutRoot + '/' + $arm.Name + '.log') -replace '/', '\')
+	$log = Convert-ToRepoPath "$OutRoot/$($arm.Name).log"
 	New-Item -ItemType Directory -Force (Split-Path $log -Parent) | Out-Null
-	$binAbs = Join-Path $repo ($Bin -replace '/', '\')
-	$cmd = "set GOMEMLIMIT=$MemLimit&& `"$binAbs`" $($arm.Args) >>`"$log`" 2>&1"
 	if ($DryRun) {
-		Write-Host "dryrun arm $($arm.Name): $cmd"
+		Write-Host "dryrun arm $($arm.Name): GOMEMLIMIT=$MemLimit `"$Bin`" $($arm.Args)"
 		return 0
 	}
-	Write-Host "arm $($arm.Name) start, log $log"
-	$p = Start-Process -FilePath cmd.exe -ArgumentList '/c', $cmd -WorkingDirectory $repo -WindowStyle Hidden -Wait -PassThru
-	if ($p.ExitCode -ne 0) {
-		Write-Host "arm $($arm.Name) exited $($p.ExitCode), see $log"
-		return $p.ExitCode
+	$binAbs = Convert-ToRepoPath $Bin
+	$live = Get-LiveArmProcess $arm.Match
+	if ($null -ne $live) {
+		Write-Host "arm $($arm.Name) adopting live arena pid $($live.ProcessId), waiting"
+		try { Wait-Process -Id $live.ProcessId -ErrorAction Stop } catch {}
+	} else {
+		$raw = "$log.raw"
+		$err = "$log.err"
+		Set-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) start: $Bin $($arm.Args)"
+		Write-Host "arm $($arm.Name) start, log $log"
+		$p = Start-Process -FilePath $binAbs -ArgumentList $arm.Args -WorkingDirectory $repo -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $raw -RedirectStandardError $err
+		if (Test-Path $raw) { Add-Content -Path $log -Value (Get-Content $raw); Remove-Item $raw -Force -Confirm:$false }
+		if (Test-Path $err) { Add-Content -Path $log -Value (Get-Content $err); Remove-Item $err -Force -Confirm:$false }
+		Add-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) exit $($p.ExitCode)"
+		if ($p.ExitCode -ne 0) {
+			Write-Host "arm $($arm.Name) exited $($p.ExitCode), see $log"
+			return $p.ExitCode
+		}
 	}
 	if (-not (Test-ArmDone $arm.Name)) {
 		Write-Host "arm $($arm.Name) ran without reaching completion, see $log"
@@ -79,11 +104,13 @@ if ($DryRun) {
 	Write-Output "evaladopt-arms dryrun: games $Games weights $EvalWeights base $EvalBase mem $MemLimit"
 	foreach ($arm in $arms) {
 		$state = if (Test-ArmDone $arm.Name) { 'done' } else { 'pending' }
-		Write-Output "arm $($arm.Name) state $state"
+		$live = Get-LiveArmProcess $arm.Match
+		$adopt = if ($null -ne $live) { " adopting pid $($live.ProcessId)" } else { '' }
+		Write-Output "arm $($arm.Name) state $state$adopt"
 	}
 	Write-Output "command template per arm:"
 	foreach ($arm in $arms) {
-		Write-Output "  bin/arena.exe $($arm.Args)"
+		Write-Output "  GOMEMLIMIT=$MemLimit $Bin $($arm.Args)"
 	}
 	exit 0
 }
@@ -95,13 +122,14 @@ if (-not $Foreground) {
 	exit 0
 }
 
-$binAbs = Join-Path $repo ($Bin -replace '/', '\')
+$binAbs = Convert-ToRepoPath $Bin
 if (-not (Test-Path $binAbs)) {
 	$env:GOMEMLIMIT = '4GiB'
 	$env:CGO_ENABLED = '1'
 	go -C (Join-Path $repo 'playground\arena') build -o $binAbs .
 	if ($LASTEXITCODE -ne 0) { Write-Status 'crashed build exit 1'; exit 1 }
 }
+$env:GOMEMLIMIT = $MemLimit
 
 foreach ($arm in $arms) {
 	if (Test-ArmDone $arm.Name) {

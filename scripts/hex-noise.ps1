@@ -4,8 +4,8 @@ param(
 	[int]$PollSec = 60,
 	[string]$MemLimit = '12GiB',
 	[string]$OutRoot = 'playground/arena/out',
-	[string]$Predecessor = 'evaladopt-arms',
-	[string]$GoVerdict = 'all-done',
+	[string]$Predecessor = 'evaladopt-terminal',
+	[string]$GoVerdict = 're-registered 2026-10-24',
 	[switch]$Help,
 	[switch]$DryRun,
 	[switch]$Foreground
@@ -20,8 +20,10 @@ $usage = @'
 hex-noise: detached hex noise floor chain, master vs master on the hex board
   waits for $GoVerdict inside $OutRoot/$Predecessor.status before starting
   arms: hex noise floor at tc index 1 (2+1) and 2 (3+2), $Games games each,
-        run via: make hex-noise TC=<i> GAMES=<n>
-  make contract: the target plays the games, computes the Wald CI band on the
+        run via: bin/arena.exe -geometry hex -floor hex-noise-tc<i> -floorSeat
+        master-nobook -tc <i> -games <n> -floorDirs 5 -floorBlockDirs 5
+        -floorMaxBlocks 3 -floorVerdict hex-noise
+  arena contract: the binary plays the games, computes the Wald CI band on the
         observed W+D, and prints exactly one final verdict line:
         hex-noise: DONE
         hex-noise: FAILED <reason naming what failed to measure>
@@ -29,18 +31,29 @@ hex-noise: detached hex noise floor chain, master vs master on the hex board
   marker $OutRoot/hex-noise.status is rewritten on every terminal transition:
         running <arm> | all-done | failed <arm> <verdict detail> |
         crashed <arm> exit <n> | crashed <arm> exit 0 no-verdict |
-        failed no-make-target hex-noise
+        failed no-arena-binary hex-noise | failed build hex-noise exit <n>
   logs under $OutRoot/hex-noise-<arm>.log, poll trace in $OutRoot/hex-noise.poll.log
   every engine invocation runs under GOMEMLIMIT $MemLimit
   relaunching resumes: DONE arms skip, FAILED arms re-mark their failure,
-        pending arms run; a missing make target is a loud failure, never a loop
+        pending arms run; an arm whose arena is already live is adopted and
+        waited on, never double-launched; a failed arena build is a loud
+        failure, never a loop
 '@
 
 if ($Help) { Write-Output $usage; exit 0 }
 
+$arenaArgs = @{
+	1 = @('-geometry', 'hex', '-floor', 'hex-noise-tc1', '-floorSeat', 'master-nobook', '-tc', '1', '-games', "$Games", '-floorDirs', '5', '-floorBlockDirs', '5', '-floorMaxBlocks', '3', '-floorVerdict', 'hex-noise')
+	2 = @('-geometry', 'hex', '-floor', 'hex-noise-tc2', '-floorSeat', 'master-nobook', '-tc', '2', '-games', "$Games", '-floorDirs', '5', '-floorBlockDirs', '5', '-floorMaxBlocks', '3', '-floorVerdict', 'hex-noise')
+}
+
 $arms = @()
 foreach ($tc in 1, 2) {
-	$arms += @{ Name = "hex-noise-tc$tc"; Vars = "TC=$tc GAMES=$Games" }
+	$arms += @{
+		Name = "hex-noise-tc$tc"
+		Args = $arenaArgs[$tc]
+		Match = "-floor hex-noise-tc$tc"
+	}
 }
 
 function Convert-ToRepoPath([string]$rel) { Join-Path $repo ($rel -replace '/', '\') }
@@ -70,15 +83,50 @@ function Write-Status([string]$text) {
 	Write-Output "status: $text"
 }
 
-function Invoke-Arm($arm) {
+function Get-LiveArmProcess([string]$match) {
+	Get-CimInstance Win32_Process -Filter "Name='arena.exe'" |
+		Where-Object { $_.CommandLine -and $_.CommandLine.Contains($repo) -and $_.CommandLine.Contains($match) } |
+		Select-Object -First 1
+}
+
+$script:arenaBuilt = $false
+function Ensure-Arena([string]$pollLog) {
+	if ($script:arenaBuilt) { return $true }
+	$arenaBin = Join-Path $repo 'bin\arena.exe'
+	$env:GOMEMLIMIT = '4GiB'
+	$env:CGO_ENABLED = '1'
+	go -C (Join-Path $repo 'playground\arena') build -o $arenaBin .
+	if ($LASTEXITCODE -ne 0) { Write-Status "failed build $target exit $LASTEXITCODE"; "$(Get-Date -Format s) arena build failed exit $LASTEXITCODE" | Add-Content -Path $pollLog; return $false }
+	if (-not (Test-Path $arenaBin)) { Write-Status "failed no-arena-binary $target"; "$(Get-Date -Format s) arena binary missing after build" | Add-Content -Path $pollLog; return $false }
+	$env:GOMEMLIMIT = $MemLimit
+	$script:arenaBuilt = $true
+	return $true
+}
+
+function Invoke-Arm($arm, $pollLog) {
 	$log = Convert-ToRepoPath "$OutRoot/$($arm.Name).log"
 	New-Item -ItemType Directory -Force (Split-Path $log -Parent) | Out-Null
-	$cmd = "set GOMEMLIMIT=$MemLimit&& make $target $($arm.Vars) >>`"$log`" 2>&1"
-	Write-Host "arm $($arm.Name) start, log $log"
-	$p = Start-Process -FilePath cmd.exe -ArgumentList '/c', $cmd -WorkingDirectory $repo -WindowStyle Hidden -Wait -PassThru
-	if ($p.ExitCode -ne 0) {
-		Write-Host "arm $($arm.Name) exited $($p.ExitCode), see $log"
-		return "crashed $($arm.Name) exit $($p.ExitCode)"
+	$argText = $arm.Args -join ' '
+	$live = Get-LiveArmProcess $arm.Match
+	if ($null -ne $live) {
+		Write-Host "arm $($arm.Name) adopting live arena pid $($live.ProcessId), waiting"
+		"$(Get-Date -Format s) arm $($arm.Name) adopt pid $($live.ProcessId)" | Add-Content -Path $pollLog
+		try { Wait-Process -Id $live.ProcessId -ErrorAction Stop } catch {}
+	} else {
+		if (-not (Ensure-Arena $pollLog)) { return "failed build $target" }
+		$arenaBin = Join-Path $repo 'bin\arena.exe'
+		$raw = "$log.raw"
+		$err = "$log.err"
+		Set-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) start: bin\arena.exe $argText"
+		Write-Host "arm $($arm.Name) start, log $log"
+		$p = Start-Process -FilePath $arenaBin -ArgumentList $arm.Args -WorkingDirectory $repo -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $raw -RedirectStandardError $err
+		if (Test-Path $raw) { Add-Content -Path $log -Value (Get-Content $raw); Remove-Item $raw -Force -Confirm:$false }
+		if (Test-Path $err) { Add-Content -Path $log -Value (Get-Content $err); Remove-Item $err -Force -Confirm:$false }
+		Add-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) exit $($p.ExitCode)"
+		if ($p.ExitCode -ne 0) {
+			Write-Host "arm $($arm.Name) exited $($p.ExitCode), see $log"
+			return "crashed $($arm.Name) exit $($p.ExitCode)"
+		}
 	}
 	$verdict = Get-ArmVerdict $arm.Name
 	if ($null -eq $verdict) {
@@ -96,13 +144,15 @@ if ($DryRun) {
 	Write-Output "hex-noise dryrun: games $Games poll ${PollSec}s mem $MemLimit predecessor $Predecessor go '$GoVerdict'"
 	foreach ($arm in $arms) {
 		$state = if (Test-ArmDone $arm.Name) { 'done' } elseif (Test-ArmFailed $arm.Name) { 'failed' } else { 'pending' }
-		Write-Output "arm $($arm.Name) state $state"
+		$live = Get-LiveArmProcess $arm.Match
+		$adopt = if ($null -ne $live) { " adopting pid $($live.ProcessId)" } else { '' }
+		Write-Output "arm $($arm.Name) state $state$adopt"
 	}
 	Write-Output "command template per arm:"
 	foreach ($arm in $arms) {
-		Write-Output "  set GOMEMLIMIT=$MemLimit&& make $target $($arm.Vars)"
+		Write-Output "  GOMEMLIMIT=$MemLimit bin\arena.exe $($arm.Args -join ' ') >> $OutRoot/$($arm.Name).log"
 	}
-	Write-Output "probe before the first arm: make -n $target"
+	Write-Output "probe before the first arm: go -C playground\arena build -o bin\arena.exe ."
 	exit 0
 }
 
@@ -124,11 +174,6 @@ while ($true) {
 }
 "$(Get-Date -Format s) $Predecessor.status reached '$GoVerdict'" | Add-Content -Path $pollLog
 
-$global:LASTEXITCODE = 0
-$probeOk = $true
-try { & make -n $target *> $null } catch { $probeOk = $false }
-if (-not $probeOk -or $LASTEXITCODE -ne 0) { Write-Status "failed no-make-target $target"; exit 2 }
-
 foreach ($arm in $arms) {
 	if (Test-ArmDone $arm.Name) { Write-Output "arm $($arm.Name) already complete, skipping"; continue }
 	if (Test-ArmFailed $arm.Name) {
@@ -137,7 +182,7 @@ foreach ($arm in $arms) {
 		exit 2
 	}
 	Write-Status "running $($arm.Name)"
-	$failure = Invoke-Arm $arm
+	$failure = Invoke-Arm $arm $pollLog
 	if ($null -ne $failure) { Write-Status $failure; exit 2 }
 }
 Write-Status 'all-done'
