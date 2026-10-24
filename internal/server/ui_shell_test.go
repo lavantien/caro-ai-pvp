@@ -334,7 +334,7 @@ func TestHistoryListsFinishedSeriesOfBothVariants(t *testing.T) {
 	if got := strings.Count(body, `class="hrow"`); got != 2 {
 		t.Errorf("history rows = %d, want the square and the hex game (body %s)", got, body)
 	}
-	for _, want := range []string{"H8 I6", "L12 M13", `<span class="chip"><svg class="vglyph vglyph-hex"`} {
+	for _, want := range []string{"H8, I6", "L12, M13", `<span class="chip"><svg class="vglyph vglyph-hex"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("history misses %q (body %s)", want, body)
 		}
@@ -636,6 +636,13 @@ func TestShellHistoryPreviewBoundaryAndPlaybackLink(t *testing.T) {
 		}
 		return strings.Join(names, " ")
 	}
+	turnItem := func(moves []rules.Move, i int) string {
+		item := cellName(rules.Cell(moves[2*i]))
+		if 2*i+1 < len(moves) {
+			item += ", " + cellName(rules.Cell(moves[2*i+1]))
+		}
+		return item
+	}
 	limit := 2 * config.HistoryPreviewTurns
 	wantShellBody(t, body,
 		time.Unix(short.PlayedAt, 0).UTC().Format(historyTimeFormat),
@@ -644,17 +651,85 @@ func TestShellHistoryPreviewBoundaryAndPlaybackLink(t *testing.T) {
 		"won by "+won,
 		`href="/rooms/history/`+strconv.FormatInt(short.ID, 10)+`"`,
 		`href="/rooms/history/`+strconv.FormatInt(long.ID, 10)+`"`,
-		">"+preview(shortMoves)+"<",
-		">"+preview(longMoves[:limit])+" …<",
+		`class="hcols"`, `class="hturns"`, `class="hstat"`,
 	)
+	for _, moves := range [][]rules.Move{shortMoves, longMoves[:limit]} {
+		for i := range min(len(moves), limit) / 2 {
+			want := `<li><span class="tn">` + strconv.Itoa(i+1) + `.</span> ` + turnItem(moves, i) + `</li>`
+			if !strings.Contains(body, want) {
+				t.Errorf("history misses turn item %q", want)
+			}
+		}
+	}
 	if strings.Count(body, "…") != 1 {
 		t.Errorf("ellipsis appears %d times, want 1 (only the truncated row)", strings.Count(body, "…"))
 	}
 	if over := cellName(rules.Cell(longMoves[limit])); strings.Contains(body, over) {
 		t.Errorf("history shows stone %s past the preview boundary", over)
 	}
+	if strings.Contains(body, preview(longMoves)) {
+		t.Error("history renders the flat unnumbered move preview")
+	}
 	if strings.Contains(body, "ZgotmplZ") {
 		t.Error("history body contains ZgotmplZ, an html/template escape marker")
+	}
+}
+
+func TestHistoryRowsCarryStatusBoxes(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	t.Cleanup(srv.Close)
+	alice := seedUser(t, s.store, "alice")
+	bob := seedUser(t, s.store, "bob")
+	easy, err := s.store.UserByUsername(config.BotAccountName(0))
+	if err != nil {
+		t.Fatalf("easy bot account: %v", err)
+	}
+	won := WonByFour
+	botName := "easy-1a2b3c4d"
+	pvp, err := s.store.CreateSeriesFor(context.Background(), 1, config.SeriesBO3, alice.ID, bob.ID, "")
+	if err != nil {
+		t.Fatalf("pvp series: %v", err)
+	}
+	if err := s.store.ApplyCompletion(context.Background(), Completion{Games: []Game{{
+		SeriesID: pvp.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+		Outcome: OutcomeRed, Moves: EncodeMoves(nil, seqMoves(4)), FullTurns: 2, WonBy: &won,
+	}}}); err != nil {
+		t.Fatalf("pvp completion: %v", err)
+	}
+	vsBot, err := s.store.CreateSeriesFor(context.Background(), 1, config.SeriesBO3, alice.ID, easy.ID, "")
+	if err != nil {
+		t.Fatalf("bot series: %v", err)
+	}
+	if err := s.store.ApplyCompletion(context.Background(), Completion{Games: []Game{{
+		SeriesID: vsBot.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: easy.ID,
+		Outcome: OutcomeRed, Moves: EncodeMoves(nil, seqMoves(4)), FullTurns: 2,
+		WonBy: &won, BotName: botName,
+		StatLines: []GameStat{
+			{MoveNo: 1, Line: "M1, Red, A1, d=9, n=45k"},
+			{MoveNo: 3, Line: "M3, Red, C1, d=11, n=1.2m"},
+		},
+	}}}); err != nil {
+		t.Fatalf("bot completion: %v", err)
+	}
+
+	token := mintSession(t, s.store, alice)
+	status, body := getRoomPage(t, srv, "/history", token)
+	if status != http.StatusOK {
+		t.Fatalf("history: status = %d (body %s)", status, body)
+	}
+	if got := strings.Count(body, `class="hstat"`); got != 2 {
+		t.Errorf("status boxes = %d, want one per row (body %s)", got, body)
+	}
+	wantShellBody(t, body,
+		`class="pstat s-red">red alice <span class="mono">2W-0L-0D</span>`,
+		`class="pstat s-blue">blue bob <span class="mono">0W-1L-0D</span>`,
+		`<p class="mline">M1, Red, A1, d=9, n=45k</p>`,
+		`<p class="mline">M3, Red, C1, d=11, n=1.2m</p>`,
+		"alice vs "+botName,
+	)
+	if got := strings.Count(body, `class="pstat `); got != 2 {
+		t.Errorf("pvp stat lines = %d, want 2 on the pvp row only (body %s)", got, body)
 	}
 }
 

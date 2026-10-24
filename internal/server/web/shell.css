@@ -129,8 +129,23 @@ h1, .who, .who-vs, #score-line, .p-name, #turn-line { overflow-wrap: anywhere }
 	font-weight: 700 }
 .livecard .who-vs, .tseries, .tboard td:nth-child(2),
 .tboard td:nth-child(3) { font-family: var(--font-mono) }
-.hrow .moves { font-family: var(--font-mono); word-break: break-word }
-.hrow .moves a { text-decoration: none }
+.hrow .hcols { display: grid; gap: var(--space-2) var(--space-3);
+	grid-template-columns: minmax(0, 21rem) minmax(0, 1fr); align-items: start }
+.hrow .hmoves { text-decoration: none; color: inherit; min-width: 0 }
+.hturns { list-style: none; margin: 0; padding: 0; display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-1) var(--space-2);
+	font-family: var(--font-mono); font-size: var(--text-s) }
+.hturns .tn { color: var(--text-muted) }
+.hturns .tmore { color: var(--text-muted) }
+.hstat { border: 1px solid var(--border); border-radius: var(--radius-s);
+	background: var(--surface); padding: var(--space-1) var(--space-2);
+	min-width: 0; display: grid; gap: .1rem }
+.hstat .mline { margin: 0; font-family: var(--font-mono); font-size: var(--text-xs);
+	word-break: break-all; color: var(--text-muted) }
+.hstat .mline.tmore { text-align: center }
+.hstat .pstat { margin: 0; font-size: var(--text-s) }
+.hstat .pstat.s-red { color: var(--red) }
+.hstat .pstat.s-blue { color: var(--blue) }
 .empty { color: var(--text-muted) }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center }
 .actions fieldset, .tourneyform fieldset { border: 1px solid var(--border);

@@ -362,6 +362,7 @@ const (
 	WriteQueueApplyTimeoutMs = 30_000
 	HubSubscriberBuffer      = 64
 	HistoryPreviewTurns      = 8
+	HistoryStatTail          = 3
 	ProfileRecentGames       = 10
 	PagePollMs               = 5000
 	SSEKeepaliveMs           = 15_000

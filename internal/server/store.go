@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -685,6 +686,79 @@ GROUP BY COALESCE(se.variant, 'square')`,
 			return nil, fmt.Errorf("server: user variant stats %d: %w", userID, err)
 		}
 		out[variant] = rec
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) gameStatTail(gameID int64, limit int) ([]string, bool, error) {
+	var total int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM game_stats WHERE game_id = ?`, gameID).
+		Scan(&total); err != nil {
+		return nil, false, fmt.Errorf("server: game stat tail %d: %w", gameID, err)
+	}
+	if total == 0 {
+		return nil, false, nil
+	}
+	rows, err := s.db.Query(
+		`SELECT line FROM game_stats WHERE game_id = ? ORDER BY move_no DESC LIMIT ?`, gameID, limit)
+	if err != nil {
+		return nil, false, fmt.Errorf("server: game stat tail %d: %w", gameID, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var lines []string
+	for rows.Next() {
+		var line string
+		if err := rows.Scan(&line); err != nil {
+			return nil, false, fmt.Errorf("server: game stat tail %d: %w", gameID, err)
+		}
+		lines = append(lines, line)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, fmt.Errorf("server: game stat tail %d: %w", gameID, err)
+	}
+	slices.Reverse(lines)
+	return lines, total > len(lines), nil
+}
+
+func (s *Store) userWLDs(ids []int64) (map[int64]wldRecord, error) {
+	out := make(map[int64]wldRecord, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	marks := strings.Repeat("?,", len(ids))
+	marks = marks[:len(marks)-1]
+	args := make([]any, 0, 2*len(ids))
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	rows, err := s.db.Query(`SELECT g.red_user, g.blue_user, g.outcome FROM games g
+WHERE g.red_user IN (`+marks+`) OR g.blue_user IN (`+marks+`)`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("server: user wlds: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	wanted := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		wanted[id] = true
+	}
+	for rows.Next() {
+		var red, blue int64
+		var outcome string
+		if err := rows.Scan(&red, &blue, &outcome); err != nil {
+			return nil, fmt.Errorf("server: user wlds: %w", err)
+		}
+		for _, id := range []int64{red, blue} {
+			if !wanted[id] {
+				continue
+			}
+			rec := out[id]
+			rec.add((id == red && outcome == OutcomeRed) || (id == blue && outcome == OutcomeBlue),
+				outcome == OutcomeDraw)
+			out[id] = rec
+		}
 	}
 	return out, rows.Err()
 }

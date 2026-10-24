@@ -12,7 +12,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -76,14 +75,7 @@ type shellViewer struct {
 	ID       int64
 	Username string
 	Rating   int
-	Wins     int
-	Losses   int
-	Draws    int
 	Level    int
-}
-
-func (v shellViewer) WLD() string {
-	return fmt.Sprintf("%dW-%dL-%dD", v.Wins, v.Losses, v.Draws)
 }
 
 type viewerVariantStats struct {
@@ -130,8 +122,7 @@ func resolveViewer(store *Store, r *http.Request) (*shellViewer, error) {
 		return nil, err
 	}
 	return &shellViewer{
-		ID: u.ID, Username: u.Username, Rating: rating,
-		Wins: stats.Wins, Losses: stats.Losses, Draws: stats.Draws, Level: stats.SeriesWon,
+		ID: u.ID, Username: u.Username, Rating: rating, Level: stats.SeriesWon,
 	}, nil
 }
 
@@ -456,7 +447,11 @@ func (p *shellPages) handleLogout(w http.ResponseWriter, r *http.Request) {
 
 type historyGameRow struct {
 	MatchHistoryRow
-	GameID int64
+	GameID   int64
+	RedUser  int64
+	BlueUser int64
+	RedBot   bool
+	BlueBot  bool
 }
 
 func (s *Store) matchHistoryWithIDs(userID int64, variant string) ([]historyGameRow, error) {
@@ -467,14 +462,21 @@ func (s *Store) matchHistoryWithIDs(userID int64, variant string) ([]historyGame
 		args = append(args, variant)
 	}
 	rows, err := s.db.Query(`
-SELECT g.id, g.played_at, ru.username, bu.username,
+SELECT g.id, g.played_at,
+	CASE WHEN length(ru.salt) = 0 AND length(ru.hash) = 0
+	     THEN COALESCE(g.bot_name, ru.username) ELSE ru.username END,
+	CASE WHEN length(bu.salt) = 0 AND length(bu.hash) = 0
+	     THEN COALESCE(g.bot_name, bu.username) ELSE bu.username END,
 	(SELECT COUNT(*) FROM games w
 	 WHERE w.series_id = g.series_id AND w.idx_in_series <= g.idx_in_series
 	   AND ((w.outcome = ? AND w.red_user = g.red_user) OR (w.outcome = ? AND w.blue_user = g.red_user))),
 	(SELECT COUNT(*) FROM games w
 	 WHERE w.series_id = g.series_id AND w.idx_in_series <= g.idx_in_series
 	   AND ((w.outcome = ? AND w.red_user = g.blue_user) OR (w.outcome = ? AND w.blue_user = g.blue_user))),
-	g.full_turns, COALESCE(se.variant, 'square'), g.moves, g.won_by
+	g.full_turns, COALESCE(se.variant, 'square'), g.moves, g.won_by,
+	g.red_user, g.blue_user,
+	CASE WHEN length(ru.salt) = 0 AND length(ru.hash) = 0 THEN 1 ELSE 0 END,
+	CASE WHEN length(bu.salt) = 0 AND length(bu.hash) = 0 THEN 1 ELSE 0 END
 FROM games g
 JOIN users ru ON ru.id = g.red_user
 JOIN users bu ON bu.id = g.blue_user
@@ -492,7 +494,8 @@ ORDER BY g.played_at DESC, g.id DESC`,
 		var r historyGameRow
 		var wonBy sql.NullString
 		if err := rows.Scan(&r.GameID, &r.PlayedAt, &r.Red, &r.Blue,
-			&r.RedWins, &r.BlueWins, &r.FullTurns, &r.Variant, &r.Moves, &wonBy); err != nil {
+			&r.RedWins, &r.BlueWins, &r.FullTurns, &r.Variant, &r.Moves, &wonBy,
+			&r.RedUser, &r.BlueUser, &r.RedBot, &r.BlueBot); err != nil {
 			return nil, fmt.Errorf("server: match history with ids %d: %w", userID, err)
 		}
 		r.WonBy = nullString(wonBy)
@@ -501,17 +504,55 @@ ORDER BY g.played_at DESC, g.id DESC`,
 	return out, rows.Err()
 }
 
+type turnItemView struct {
+	N    int
+	Red  string
+	Blue string
+}
+
+type playerStatView struct {
+	SeatClass string
+	Seat      string
+	Name      string
+	WLD       string
+}
+
 type historyRowView struct {
-	GameID    int64
-	When      string
-	Red       string
-	Blue      string
-	Variant   string
-	Score     string
-	Turns     int
-	WonBy     string
-	Preview   string
-	Truncated bool
+	GameID        int64
+	When          string
+	Red           string
+	Blue          string
+	Variant       string
+	Score         string
+	Turns         int
+	WonBy         string
+	TurnItems     []turnItemView
+	Truncated     bool
+	IsBot         bool
+	StatLines     []string
+	StatTruncated bool
+	Players       []playerStatView
+}
+
+func turnItemsOf(preview []string) []turnItemView {
+	items := make([]turnItemView, 0, len(preview)/2)
+	for i := 0; i < len(preview); i += 2 {
+		item := turnItemView{N: i/2 + 1, Red: preview[i]}
+		if i+1 < len(preview) {
+			item.Blue = preview[i+1]
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+func playerStatsOf(seat, name string, rec wldRecord) playerStatView {
+	class := "s-blue"
+	if seat == "red" {
+		class = "s-red"
+	}
+	return playerStatView{SeatClass: class, Seat: seat, Name: name,
+		WLD: wldString(rec.Wins, rec.Losses, rec.Draws)}
 }
 
 type historyView struct {
@@ -542,6 +583,17 @@ func (p *shellPages) handleHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "history read failed", http.StatusInternalServerError)
 		return
 	}
+	wldIDs := make([]int64, 0, 2*len(gameRows))
+	for _, row := range gameRows {
+		if !row.RedBot && !row.BlueBot {
+			wldIDs = append(wldIDs, row.RedUser, row.BlueUser)
+		}
+	}
+	wlds, err := p.store.userWLDs(wldIDs)
+	if err != nil {
+		http.Error(w, "history read failed", http.StatusInternalServerError)
+		return
+	}
 	view := historyView{Me: me, Variant: variant, Rows: make([]historyRowView, 0, len(gameRows))}
 	for _, row := range gameRows {
 		e, err := historyEntryOf(row.MatchHistoryRow)
@@ -556,11 +608,25 @@ func (p *shellPages) handleHistory(w http.ResponseWriter, r *http.Request) {
 			Variant:   row.Variant,
 			Score:     strconv.Itoa(e.RedWins) + "-" + strconv.Itoa(e.BlueWins),
 			Turns:     e.FullTurns,
-			Preview:   strings.Join(e.Preview, " "),
+			TurnItems: turnItemsOf(e.Preview),
 			Truncated: e.Truncated,
+			IsBot:     row.RedBot || row.BlueBot,
 		}
 		if e.WonBy != nil {
 			hv.WonBy = *e.WonBy
+		}
+		if hv.IsBot {
+			lines, more, err := p.store.gameStatTail(row.GameID, config.HistoryStatTail)
+			if err != nil {
+				http.Error(w, "history read failed", http.StatusInternalServerError)
+				return
+			}
+			hv.StatLines, hv.StatTruncated = lines, more
+		} else {
+			hv.Players = []playerStatView{
+				playerStatsOf("red", e.Red, wlds[row.RedUser]),
+				playerStatsOf("blue", e.Blue, wlds[row.BlueUser]),
+			}
 		}
 		view.Rows = append(view.Rows, hv)
 	}
