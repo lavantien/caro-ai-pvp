@@ -66,12 +66,12 @@ One commit swaps the literals at internal/config/config.go:163-167 and :266 with
 | integer drift | 0.56 percent | accepted under the 5 percent law |
 | tempo decision | keep EvalTempo at 1000 | both arena arms hold tempo constant, the pair isolates the weight swap, refitting tempo conflates seat advantage with side-to-move per the risk note |
 | validation loss | fitted 0.65568 against scaffold 0.67078 on the same 129-series holdout, SHADE 0.666985241 beside GD 0.666985315 inside tolerance | fitted strictly better |
-| floor fitted 2+1 | | |
-| floor fitted 3+2 | | |
-| floor scaffold 2+1 | | |
-| floor scaffold 3+2 | | |
-| pair 2+1 | | |
-| pair 3+2 | | |
-| book hold | | |
-| decision | | |
-| re-gate ladder | | |
+| floor fitted 2+1 | 5 dirs, 100 games, decisive 0.470, ci 0.372 to 0.568, covers 0.5 | measured |
+| floor fitted 3+2 | 5 dirs, 100 games, decisive 0.540, ci 0.442 to 0.638, covers 0.5 | measured |
+| floor scaffold 2+1 | 15 dirs, 300 games, decisive 0.662, ci 0.605 to 0.719, covers 0.5 false at the 2-extension cap | unmeasurable, pauses for re-registration |
+| floor scaffold 3+2 | not run, the chain stopped at the scaffold 2+1 block cap | |
+| pair 2+1 | not run under this protocol instance | |
+| pair 3+2 | not run under this protocol instance | |
+| book hold | not run under this protocol instance | |
+| decision | scaffold stays in force, no weight swap, the single iterate not consumed (no pair outcome); re-registration must resolve the scaffold floor band at 2+1 before any pair runs; chain terminal marker evaladopt-terminal.status | paused for re-registration |
+| re-gate ladder | not triggered, no adoption | |
