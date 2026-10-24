@@ -334,7 +334,7 @@ const (
 	mermaidVersion   = "12.0.0"
 	puppeteerVersion = "25.12.0"
 	diagramsDir      = "docs/diagrams"
-	diagramBg        = "rgb(13,17,23)"
+	diagramBg        = "rgb(255,247,251)"
 	diagramScale     = "3"
 )
 
