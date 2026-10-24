@@ -7,11 +7,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// Zero allocation pins for the solve loop: every buffer the search touches
-// is preallocated on the Solver, so repeated solves reuse one object
-// without heap traffic. The solver itself is constructed outside the
-// measured run, matching how the engine owns its instances.
-
 func TestSolveZeroAllocs(t *testing.T) {
 	vcfBoard := buildAt(t, false, 8, 4, rules.Red, specFourChain)
 	vctBoard := buildAt(t, false, 8, 9, rules.Red, specVCTDoubleThree)
@@ -40,7 +35,7 @@ func benchmarkConstruction(b *testing.B, kind Kind, board *rules.Board) {
 	s := New(kind)
 	var stats SolverStats
 	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		s.Solve(board, config.SolverNodeBudget, nil, &stats)
 	}
 }
