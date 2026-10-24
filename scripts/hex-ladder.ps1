@@ -111,7 +111,7 @@ if ($DryRun) {
 }
 
 if (-not $Foreground) {
-	$pass = @('-NoProfile', '-File', $PSCommandPath, '-Foreground', '-Games', "$Games", '-PollSec', "$PollSec", '-MemLimit', $MemLimit, '-OutRoot', $OutRoot, '-Predecessor', $Predecessor, '-GoVerdict', $GoVerdict)
+	$pass = "-NoProfile -File `"$PSCommandPath`" -Foreground -Games $Games -PollSec $PollSec -MemLimit $MemLimit -OutRoot `"$OutRoot`" -Predecessor `"$Predecessor`" -GoVerdict `"$GoVerdict`""
 	Start-Process -FilePath pwsh.exe -ArgumentList $pass -WorkingDirectory $repo -WindowStyle Hidden
 	Write-Output "hex-ladder detached, logs under $OutRoot"
 	exit 0
