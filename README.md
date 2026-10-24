@@ -68,103 +68,73 @@ The ui/ux table is the living surface inventory, rebuilt against the overhauled 
 | --- | --- | --- |
 | login | login-or-create with timing-flat argon2id, seeded demo admin | public |
 | home | player stats, live rooms grid, create-room form (time control, best-of, tier, board), live-run banner | public |
-| lobby | quick-start create row (time-control chips, best-of, opponent, board), live room cards with mini boards in play order, seat and tier chips, variant chips, spectator counts, join on open casual seats, watch into any live room | public, create and join signed-in |
+| lobby | quick-start create row (time control, best-of, opponent, board as segmented controls), live room cards with mini boards in play order, seat and tier chips, variant chips, spectator counts, join on open casual seats, watch into any live room | public, create and join signed-in |
 | room | square 256-cell grid or hexagon 397-cell SVG live board with the seat cards, paired move list, series strip and controls railed beside it at wide widths, tabular ticking clocks and tier chips with the mover's card emphasized, rules-legal playable mask, tap ghost, bot M-line telemetry panel, ready and forfeit handshake | players; live stream public |
 | terminal room | honest terminal state, mid-game reload rehydrates | public |
 | history | per-game score lines, turn counts, move previews | signed-in players |
 | playback | paired numbered move list, first, prev, next, last, autoplay, jump-to-move from keyboard-focusable move buttons | the game's two players |
 | profile | hero with rating, games, WLD bar and red/blue seat split, humans and bots records with per-tier bot rows, recent games with playback links | public |
 | tournament | admin setup with config-bounded roster and board choice, live board per series, frozen leaderboard, stalled-run close | public read, admin drives |
-| presentation | dark-first token layer (color ramps, type and space scales, two type voices: human prose and mono machine data), shared card, chip, field and button recipes, amber reserved for live-attention data marks, accent-strong focus rings, 3:1 contrast floor on state-carrying boundaries, reduced-motion respected, 44px touch floor, two-tap select-then-confirm on coarse pointers | all |
+| presentation | light pastel token layer (light pink page, one theme, color, type and space scales, two type voices: human prose and mono machine data), shared card, chip, field and button recipes, segmented controls for short option sets, amber reserved for live-attention data marks, accent-strong focus rings, 3:1 contrast floor on state-carrying boundaries, reduced-motion respected, 44px touch floor, two-tap select-then-confirm on coarse pointers | all |
 | install | PWA manifest with generated icon set, in-shell install action, offline fallback page; the service worker caches the static shell only and never answers api calls, the event stream, or live room and tournament state | all |
 
 ## screenshots
 
-Dark-default captures at 390px phone and 1280px desktop widths, the primary presentation. The set is staged engine-free: the game, lobby, and profile surfaces through playground/uishots over a seeded store, the login, home, history, and tournament surfaces through playground/shots over its seeded store and scripted tournament snapshots, with live rooms (square and hexagon) driven move by move and no search ever running, so captures never contend with the strength gates for the machine. The bot-room M-line log mid-game, the driven-run live boards and the finished leaderboard of a real run land with the v0.28 master pass gate, which requires screenshots from all supported flows on real systems. Login-or-create (an unknown name registers, the seeded admin row holds its name):
+Every picture renders at one 440x956 portrait viewport on the light theme, numbered pairs with the square member left and the hexagon member right, P01 through P26 the evidence ids the devlog carries. The bot rooms, the hexagon tournament run, and both banners are real engine activity: playground/shots hosts real easy-tier bot-versus-bot rooms at 1+0 bo3 and a real two-bot hexagon run, the operator polls the room endpoints and shoots at the stone thresholds, and terminal frames load before the finish so a retired room still holds its verdict. The bot-versus-bot pairs P05 and P06 close the founding readme's first required picture on both variants, the home pairs P01 and P02 the second, and the history pairs P17 and P18 with the playback close-ups P09 and P10 the third.
 
-![login or create on a phone](docs/screenshots/mobile-login.png)
+**P01, P02 home.** The guest home with the rooms grid, live-run banner, and the create-room form's segmented controls: square default, then the hexagon variant checked.
 
-The guest home with the live rooms grid, then the logged-in home with the create-room form (time control, best-of, opponent tier from the config hub) and the banner headlining a live tournament while one is driven:
+![home, square variant](docs/screenshots/p01-square-home.png) ![home, hexagon variant](docs/screenshots/p02-hex-home.png)
 
-![guest home with the rooms grid on a phone](docs/screenshots/mobile-home.png)
+**P03, P04 live rooms.** Human rooms mid-game on both boards, the board the width hero beside the seat cards, clocks, and move list.
 
-![guest home with the rooms grid on desktop](docs/screenshots/desktop-home.png)
+![square room live](docs/screenshots/p03-square-room-live.png) ![hex room live](docs/screenshots/p04-hex-room-live.png)
 
-![live rooms grid on a phone](docs/screenshots/mobile-home-rooms.png)
+**P05, P06 bot rooms.** Real easy-tier bot-versus-bot games at 1+0 bo3 mid-play with real searches running, full-board games on both variants, the founding readme's first required picture.
 
-![home banner while a tournament runs](docs/screenshots/mobile-home-banner.png)
+![square bot room](docs/screenshots/p05-square-room-bot.png) ![hex bot room](docs/screenshots/p06-hex-room-bot.png)
 
-The lobby, the play-and-watch hub: the quick-start row (time-control chips, best-of, opponent) above live room cards, each card holding a mini board in play order, seat and tier chips, the spectator count, a join control on an open casual seat, and the watch link into the room itself:
+**P07, P08 terminal rooms.** Finished bo3 series holding the verdict on the open page after the room retired.
 
-![lobby with a live room card on a phone](docs/screenshots/mobile-lobby.png)
+![square terminal room](docs/screenshots/p07-square-room-terminal.png) ![hex terminal room](docs/screenshots/p08-hex-room-terminal.png)
 
-![lobby with a live room card on desktop](docs/screenshots/desktop-lobby.png)
+**P09, P10 playback.** Finished games stepped to the final position, the winning five visible beside the playback rail.
 
-![empty lobby on a phone](docs/screenshots/mobile-lobby-empty.png)
+![square playback](docs/screenshots/p09-square-playback.png) ![hex playback](docs/screenshots/p10-hex-playback.png)
 
-A live room mid-game on the player's side, phone stack and desktop board with its rail: turn call-out, seat cards with tabular clocks ticking between syncs and the mover's card emphasized, the paired numbered move list, the running series score, and the forfeit control:
+**P11, P12 tournament run pages.** The scripted square run's frozen leaderboard and the real two-bot hexagon run's page.
 
-![live room on a phone](docs/screenshots/mobile-room-live.png)
+![square tournament run](docs/screenshots/p11-square-tourney-run.png) ![hex tournament run](docs/screenshots/p12-hex-tourney-run.png)
 
-![live room on desktop](docs/screenshots/desktop-room-live.png)
+**P13, P14 tournament live boards.** The run page's live boards surface: P13 shows the shared surface with both bot cards live, P14 the hexagon-pure member.
 
-A bot room at the easy tier, the bot's seat card holding its name, tier chip and clock beside the player's:
+![square live boards](docs/screenshots/p13-square-tourney-liveboards.png) ![hex live boards](docs/screenshots/p14-hex-tourney-liveboards.png)
 
-![bot room on a phone](docs/screenshots/mobile-room-bot.png)
+**P15, P16 profiles.** Public player pages with the rating hero, WLD bar, per-tier bot rows, and recent games; profile rows carry no variant naming.
 
-![bot room on desktop](docs/screenshots/desktop-room-bot.png)
+![square profile](docs/screenshots/p15-square-profile.png) ![hex profile](docs/screenshots/p16-hex-profile.png)
 
-A finished series holds its verdict on the open page after the room retires:
+**P17, P18 history.** Per-game score lines with turn counts and move previews, the founding readme's third required picture with P09 and P10.
 
-![terminal room on a phone](docs/screenshots/mobile-terminal-room.png)
+![square history](docs/screenshots/p17-square-history.png) ![hex history](docs/screenshots/p18-hex-history.png)
 
-Match history with per-game score lines and move previews:
+**P19, P20 lobby.** The play-and-watch hub: quick-start create row over live room cards with mini boards, the hexagon card carrying its variant chip.
 
-![match history on a phone](docs/screenshots/mobile-history.png)
+![square lobby](docs/screenshots/p19-square-lobby.png) ![hex lobby](docs/screenshots/p20-hex-lobby.png)
 
-The playback page over a finished game, the board beside its rail: the verdict line, first to last with autoplay, and jump-to-move from the paired numbered list:
+**P21, P22 tournament setup.** The admin setup with the config-bounded roster and the board choice segmented: square checked, then hexagon checked.
 
-![playback on a phone](docs/screenshots/mobile-playback.png)
+![square tournament setup](docs/screenshots/p21-square-tourney-setup.png) ![hex tournament setup](docs/screenshots/p22-hex-tourney-setup.png)
 
-![playback on desktop](docs/screenshots/desktop-playback.png)
+**P23, P24 login and offline.** The centered login-or-create card, and the PWA offline fallback served from the shell cache with the server process dead.
 
-Player profiles, public per name: the hero with rating, games, the WLD bar and the red/blue seat split, the humans and bots records with per-tier bot rows, and recent games with playback links. The bot seat's profile carries its AI seat chip, an account without games holds its empty states:
+![login](docs/screenshots/p23-square-login.png) ![offline fallback](docs/screenshots/p24-pwa-offline.png)
 
-![player profile on a phone](docs/screenshots/mobile-profile.png)
+**P25, P26 live-run banners.** The home banner over the scripted square run and over the real hexagon run.
 
-![player profile on desktop](docs/screenshots/desktop-profile.png)
+![square banner](docs/screenshots/p25-square-banner.png) ![hex banner](docs/screenshots/p26-hex-banner.png)
 
-![bot seat profile on a phone](docs/screenshots/mobile-profile-bot.png)
-
-![profile with no games yet on a phone](docs/screenshots/mobile-profile-empty.png)
-
-Tournament setup, admin-only: the config-bounded roster, tiers, time control, best-of, start rating and parallelism, with the run-gate close form for undriven runs:
-
-![tournament setup on a phone](docs/screenshots/mobile-tourney-setup.png)
-
-While the run drives, its page carries a live board per ongoing bot series in the room board's own style scaled into the card (stones in play order, score from red's side, the card links the room's own page), all public including guests:
-
-![tournament live boards on a phone](docs/screenshots/mobile-tourney-liveboards.png)
-
-The finished run page with the frozen leaderboard:
-
-![tournament run page on a phone](docs/screenshots/mobile-tourney-run.png)
-
-The hexagon board, the second variant's own surfaces: the live hex room mid-game with the hex-distance opening mask, the bot room before ready, a finished game holding its verdict, the lobby card carrying the hex chip and its mini hex board, and a running hex tournament's live board:
-
-![hex live room on a phone](docs/screenshots/mobile-hex-room-live.png)
-
-![hex live room on desktop](docs/screenshots/desktop-hex-room-live.png)
-
-![hex bot room on a phone](docs/screenshots/mobile-hex-room-bot.png)
-
-![hex terminal room on a phone](docs/screenshots/mobile-hex-terminal-room.png)
-
-![hex lobby card on a phone](docs/screenshots/mobile-hex-lobby.png)
-
-![hex tournament live board on a phone](docs/screenshots/mobile-hex-tourney-liveboards.png)
-
-The login, logged-in home and banner, terminal room, history, and tournament captures are the prior set: those surfaces have no recaptured pair yet. The mobile pass audited every surface at 390x844: long room-id and bot-name tokens wrap or clamp instead of overflowing, controls hit the 44px touch floor under pointer:coarse, the board offers only the spaces the rules allow, a finished series holds its verdict on the open page, and the tournament leaderboard scrolls inside its own wrap.
+The capture contract, thresholds, and ordering live in [docs/design-system.md](docs/design-system.md).
 
 ## grounding
 
@@ -261,7 +231,7 @@ The pure client functions (tap-to-preview selection, the M-line UI filter) ship 
 
 ## status
 
-The rebuild closed at v0.20 with the final issueless MVP. Landed since: v0.21 with the 10+5 control, v0.22 closed by the preregistered skip decision, v0.23 the five-tier rescale closed and tagged after its re-derivation round, then v0.24 through v0.28 in tree with no tags: the book's gate failed its preregistered band so its tag waits on the tree build, pondering and admission are live behind the ponder arena pair, the ui overhaul shipped, and the grandmaster pass rungs wait on the weight chain. The five-tier demand re-spec (grandmaster tier, sized master, per-tier ponder widths, book ply bounds) and pondering sit in tree, pondering behind its arena pair. The increment-axis investigation, the retire ordering law, and the ponder t-inflation fix closed on evidence with no tier constant moved. The internal/server mutation gate closed clean (1716/1716 run, 1638 killed, 0 survived, 78 allowed). The re-gate chain folded clean at both controls: the 2+1 read (playground/arena/out/regate-2plus1-gate.md) with rule 0 pass on every seat, both floors symmetric at 93 decisive games, rule A quiet in all 4 families, rule B certifying medium over easy; the 3+2 read (playground/arena/out/regate-3plus2-gate.md) with rule 0 pass on every seat, floors symmetric at 90 and 87 decisive games, rule A quiet in all 4 families, rule B unproven at this power exactly as the preregistered operating characteristics state. Rule C with zero fires across all 8 reads shipped the rescale tag v0.23 and closed the master tier's strength gate: the re-derivation found no inversion at either control. The internal/book artifact reader landed as v0.24 groundwork (218b976) with the stdlib bufio cap fix behind it, and the bookSearcher wiring merged after its adversarial pair (4469654): the artifact loads before any engine exists, construction failures surface as room errors with the room parked and releasable, the arena fails fast when a Book seat runs without a readable artifact, and master and grandmaster-nobook seats exist for the strength gates; book hits leave the ponder lane unarmed by their one-move PV, so ponder gate measurements run on the nobook seats. The ui overhaul landed: room and playback pages as a board with a rail (seat cards with clocks and tier chips, the mover's card emphasized, paired numbered move lists, jump-to-move playback), the lobby as a play-and-watch hub (quick-start create row, live room cards with mini boards, join, spectate into any live room), public player profiles (hero with WLD bar, seat split, humans and bots records with per-tier rows, recent games with playback links), and the PWA install shell with its offline boundary. The game, lobby, and profile surfaces carry dark-default captures at phone and desktop widths, the login, logged-in home, terminal, history, and tournament surfaces keep the prior captures until their recapture. The v0.24 book gate scored against its preregistered bands (playground/arena/out/v024-bookgate-verdict.md): the grandmaster 3+2 arm failed at a 0.368 book decisive fraction against the 0.447 floor lower bound, the 2+1 arm read inside band, the master arms stay descriptive because no master floor was ever committed, and the evalfit weights variant lost both controls so the base weights stand. The v0.26 admission ledger landed in tree: cores attach to the search window behind a bounded machine-wide wait that never grants partially, table bytes reserve at engine construction under the 8 GiB budget, ponder lanes fund the full tier width or arm off, tournament rounds admit through the same ledger, and a refused mid-series game start parks the room releasably instead of crashing the worker. The regrow window also banked its tooling and telemetry: the shard merge with segment-target semantics and the read-only corpus stats monitor in playground/bookgen, the floor-pool harness where the master floors are one command each in playground/arena, and the logmine mining over 214k logged moves that measured ponder adoption and hit rates (prediction correct 67 to 73 percent at every tier, the four-clause gate the binding constraint on converting hits) and triaged the easy depth cap as expected endgame behavior. The corpus regrow was then retired at 284 games with the self-play generator rejected outright (one line per full game, outcome noise dominated by the first-player edge), and the book build moved to fixed-budget tree expansion: pre-registered, built through its blind adversarial pair (dihedral canonical keys, a fresh engine per leaf under fixed node budgets, negamax backup over the transposition DAG, solver-proven or stable-lopsided stopping, the 284-game corpus demoted to tie-break priors), with detached resumable launchers staged for the build and the short, confirm, and cross validation arms. Casual M-line dual storage landed beside it: every casual completion writes its exact series log to an append-only text file under logs/casual in the same beat as its sqlite rows, so both storage sides hold every engine line. The eval weights organic fit ran over 1595 grandmaster and master games (fitted integers 97/122/512/513/2077 at 0.56 percent integer drift, validation loss 0.6557 against the scaffold 0.6708) and the pre-registered adoption chain ran to its terminal pause: the fitted floors measured at both controls while the scaffold floor at 2+1 stayed unmeasurable at the extension cap, so the protocol pauses for re-registration, the scaffold weights stand, and no swap runs. The hexagon variant then landed end to end at side 12: one geometry descriptor under every layer, the schema and every parser carrying the variant token with absence as square, the board rendered as an inline SVG under the same cell contract, hex playing bookless, and the hex noise, pass gate, and ladder chains running detached. Blocked: the ponder tag on the arena pair, the grandmaster tag on its strength rungs, the v0.24 book tag on the tree build plus validation arms, the v0.29 tag on the hex gates, and any weight swap on the re-registration decision. The implemented design record and the full wave-by-wave log live in [devlog.md](devlog.md).
+The rebuild closed at v0.20 with the final issueless MVP. Landed since: v0.21 with the 10+5 control, v0.22 closed by the preregistered skip decision, v0.23 the five-tier rescale closed and tagged after its re-derivation round, then v0.24 through v0.28 in tree with no tags: the book's gate failed its preregistered band so its tag waits on the tree build, pondering and admission are live behind the ponder arena pair, the ui overhaul shipped, and the grandmaster pass rungs wait on the weight chain. The five-tier demand re-spec (grandmaster tier, sized master, per-tier ponder widths, book ply bounds) and pondering sit in tree, pondering behind its arena pair. The increment-axis investigation, the retire ordering law, and the ponder t-inflation fix closed on evidence with no tier constant moved. The internal/server mutation gate closed clean (1716/1716 run, 1638 killed, 0 survived, 78 allowed). The re-gate chain folded clean at both controls: the 2+1 read (playground/arena/out/regate-2plus1-gate.md) with rule 0 pass on every seat, both floors symmetric at 93 decisive games, rule A quiet in all 4 families, rule B certifying medium over easy; the 3+2 read (playground/arena/out/regate-3plus2-gate.md) with rule 0 pass on every seat, floors symmetric at 90 and 87 decisive games, rule A quiet in all 4 families, rule B unproven at this power exactly as the preregistered operating characteristics state. Rule C with zero fires across all 8 reads shipped the rescale tag v0.23 and closed the master tier's strength gate: the re-derivation found no inversion at either control. The internal/book artifact reader landed as v0.24 groundwork (218b976) with the stdlib bufio cap fix behind it, and the bookSearcher wiring merged after its adversarial pair (4469654): the artifact loads before any engine exists, construction failures surface as room errors with the room parked and releasable, the arena fails fast when a Book seat runs without a readable artifact, and master and grandmaster-nobook seats exist for the strength gates; book hits leave the ponder lane unarmed by their one-move PV, so ponder gate measurements run on the nobook seats. The ui overhaul landed: room and playback pages as a board with a rail (seat cards with clocks and tier chips, the mover's card emphasized, paired numbered move lists, jump-to-move playback), the lobby as a play-and-watch hub (quick-start create row, live room cards with mini boards, join, spectate into any live room), public player profiles (hero with WLD bar, seat split, humans and bots records with per-tier rows, recent games with playback links), and the PWA install shell with its offline boundary. Every surface carries a recaptured 440x956 variant pair on the light theme, P01 through P26 in the screenshots section. The v0.24 book gate scored against its preregistered bands (playground/arena/out/v024-bookgate-verdict.md): the grandmaster 3+2 arm failed at a 0.368 book decisive fraction against the 0.447 floor lower bound, the 2+1 arm read inside band, the master arms stay descriptive because no master floor was ever committed, and the evalfit weights variant lost both controls so the base weights stand. The v0.26 admission ledger landed in tree: cores attach to the search window behind a bounded machine-wide wait that never grants partially, table bytes reserve at engine construction under the 8 GiB budget, ponder lanes fund the full tier width or arm off, tournament rounds admit through the same ledger, and a refused mid-series game start parks the room releasably instead of crashing the worker. The regrow window also banked its tooling and telemetry: the shard merge with segment-target semantics and the read-only corpus stats monitor in playground/bookgen, the floor-pool harness where the master floors are one command each in playground/arena, and the logmine mining over 214k logged moves that measured ponder adoption and hit rates (prediction correct 67 to 73 percent at every tier, the four-clause gate the binding constraint on converting hits) and triaged the easy depth cap as expected endgame behavior. The corpus regrow was then retired at 284 games with the self-play generator rejected outright (one line per full game, outcome noise dominated by the first-player edge), and the book build moved to fixed-budget tree expansion: pre-registered, built through its blind adversarial pair (dihedral canonical keys, a fresh engine per leaf under fixed node budgets, negamax backup over the transposition DAG, solver-proven or stable-lopsided stopping, the 284-game corpus demoted to tie-break priors), with detached resumable launchers staged for the build and the short, confirm, and cross validation arms. Casual M-line dual storage landed beside it: every casual completion writes its exact series log to an append-only text file under logs/casual in the same beat as its sqlite rows, so both storage sides hold every engine line. The eval weights organic fit ran over 1595 grandmaster and master games (fitted integers 97/122/512/513/2077 at 0.56 percent integer drift, validation loss 0.6557 against the scaffold 0.6708) and the pre-registered adoption chain ran to its terminal pause: the fitted floors measured at both controls while the scaffold floor at 2+1 stayed unmeasurable at the extension cap, so the protocol pauses for re-registration, the scaffold weights stand, and no swap runs. The hexagon variant then landed end to end at side 12: one geometry descriptor under every layer, the schema and every parser carrying the variant token with absence as square, the board rendered as an inline SVG under the same cell contract, hex playing bookless, and the hex noise, pass gate, and ladder chains running detached. Blocked: the ponder tag on the arena pair, the grandmaster tag on its strength rungs, the v0.24 book tag on the tree build plus validation arms, the v0.29 tag on the hex gates, and any weight swap on the re-registration decision. The implemented design record and the full wave-by-wave log live in [devlog.md](devlog.md).
 
 ## roadmap v0.21 to v0.30
 

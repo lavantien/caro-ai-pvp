@@ -29,7 +29,7 @@ A second surface depth step (`--surface-raised`) is deliberately absent: depth i
 
 ### The amber law
 
-`--mark` is purely the data-attention color: latest stone on the room and playback boards, latest mini stone on the tournament live cards, and the live-tournament line on the rooms grid (its link text included). Amber carries no interaction-signal duty; the focus ring rides `--accent-strong`. Amber never decorates anything else. The old dark-theme amber `#ffb454` measured about 1.9 on the pink page and is retired; the `#b26a00` family carries the law on light.
+`--mark` is purely the data-attention color: latest stone on the room and playback boards, latest mini stone on the tournament live cards, and the live-tournament line on the rooms grid (its link text included, rendered at `--text-xl` bold so it qualifies as large text at the 3 floor). Amber carries no interaction-signal duty; the focus ring rides `--accent-strong`. Amber never decorates anything else. The old dark-theme amber `#ffb454` measured about 1.9 on the pink page and is retired; the `#b26a00` family carries the law on light.
 
 ## Type
 
@@ -90,7 +90,7 @@ Motion: the UI is near-zero motion. The only transitions are button and chip col
 
 ## Contrast contract
 
-`go run ./cmd/run contrast` fails the build on any miss, recomputing every pair from `:root` at runtime. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (live-tournament line, 3), `accent-strong` on `background` (focus ring over the page, 3). Boundaries split by meaning: a boundary that carries state must clear WCAG 1.4.11's 3:1 (`text-muted` on `background`, `surface`, and `accent-soft` for the chip state boundary), while decorative boundaries (the board lattice, hairlines) stay at the 2.5 floor. Tightest shipped margins on the light palette: `text-muted` on `background` 5.00, `border` on `surface` 2.64, `mark` on `background` 3.60.
+`go run ./cmd/run contrast` fails the build on any miss, recomputing every pair from `:root` at runtime. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (live-tournament line at `--text-xl` bold, large text, 3), `accent-strong` on `background` (focus ring over the page, 3). Boundaries split by meaning: a boundary that carries state must clear WCAG 1.4.11's 3:1 (`text-muted` on `background`, `surface`, and `accent-soft` for the chip state boundary), while decorative boundaries (the board lattice, hairlines) stay at the 2.5 floor. Tightest shipped margins on the light palette: `text-muted` on `background` 5.00, `border` on `surface` 2.64, `mark` on `background` 3.60.
 
 ## Board
 
@@ -98,7 +98,7 @@ The board frame takes `--radius-m`; cells and stones keep the lattice and disc l
 
 ## Captures
 
-The canonical capture contract for every README picture, referenced by the screenshots section and the Makefile `shots` entry point.
+The canonical capture contract for every README picture, referenced by the screenshots section and executed through playground/shots.
 
 Every capture renders at the 440x956 viewport, one viewport for the whole set, portrait, light theme. Pictures run as numbered pairs, two per line in the README, the square member left and the hex member right, one caption line per pair carrying the evidence ids (P01 through P26) that devlog and README reference.
 

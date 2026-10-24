@@ -1,32 +1,3 @@
-// Command series runs a headless best-of-N engine-vs-engine smoke series,
-// the seed of the later M7 tournament conductor. Both seats are config
-// tiers searched through engine.NewTiered under a fresh clock.NewGameClock
-// per seat per game. Series colors rotate by the first-cause rule: the
-// loser of each game takes red next game, game 1 seat A is red; a draw or
-// move-cap game has no loser, so colors swap, the neutral extension of a
-// rule the founding spec states for decisive games only. A game hitting
-// the per-side move cap ends CAP, printed CAP not DRAW so cap-outs stay
-// visible in the tally.
-//
-// Invariants asserted live, panic on violation, every move: legality of
-// the returned move (which also rejects the engine's absent-move
-// sentinel), both clocks' Remaining() >= 0 after commit, stats.Nodes > 0
-// (a search that visited nothing is an engine error state), and the
-// opening Chebyshev rule on move 3 of the game, red's second move, which
-// the engine's move generation already enforces and this harness asserts
-// independently as a smoke invariant.
-//
-// Determinism: games are engine-deterministic given the seed only where
-// the engine itself is deterministic. The easy tier runs one worker and is
-// fully deterministic; medium and hard run lazy SMP pools whose worker
-// timing varies run to run, so those games vary run to run under the same
-// seed. Nothing in the loop consumes randomness; the seed is echoed in
-// the header and stays reserved for future seeded tie-breaks.
-//
-// Run from this directory (the repo Makefile is outside this topic's
-// file ownership, so the conventional make target cannot live here):
-//
-//	CGO_ENABLED=1 go run . -tierA medium -tierB medium -tc 1 -bo 3 -seed 1
 package main
 
 import (
@@ -42,8 +13,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// CLI defaults; every engine, clock, and format constant lives in the
-// config hub.
 const (
 	defaultTierA  = "medium"
 	defaultTierB  = "medium"
@@ -63,15 +32,10 @@ const (
 	reasonCap  = "CAP"
 )
 
-// mateScoreFence mirrors the engine's mate band boundary from the config
-// hub: scores at or beyond it are mate distances on the mateWin lattice,
-// everything below is a milliunit leaf score.
 var mateScoreFence = config.EvalMateMax - config.SearchMaxPly*config.EvalMateScoreStep
 
 var seatNames = [2]string{"A", "B"}
 
-// seat is one side of the series: the engine instance lives for the whole
-// series, the clock and the move counter are per game.
 type seat struct {
 	label string
 	tier  config.Tier
@@ -81,8 +45,6 @@ type seat struct {
 	wins  int
 }
 
-// tierByName resolves a CLI tier name through config.Tiers, the single
-// source of tier definitions.
 func tierByName(name string) (config.Tier, bool) {
 	for _, t := range config.Tiers {
 		if t.Name == name {
@@ -92,10 +54,6 @@ func tierByName(name string) (config.Tier, bool) {
 	return config.Tier{}, false
 }
 
-// overrunLog accumulates the overshoot signal across all turns: wall-clock
-// elapsed minus the granted budget, armed before the grant the same way
-// the overshoot harness arms it, so the measure can only overstate the
-// past-grant return time.
 type overrunLog struct {
 	n   int
 	sum time.Duration
@@ -117,8 +75,6 @@ func (l *overrunLog) mean() time.Duration {
 	return l.sum / time.Duration(l.n)
 }
 
-// compact renders a node or nps count the way the M-line examples read:
-// millions and thousands with trailing zeros trimmed (6.25m, 45k, 18m).
 func compact(n uint64) string {
 	switch {
 	case n >= unitM:
@@ -129,8 +85,6 @@ func compact(n uint64) string {
 	return strconv.FormatUint(n, 10)
 }
 
-// scoreStr renders a search score for the M-line: mate distances as M<n>
-// off the mateWin lattice, milliunit leaf scores as signed hundredths.
 func scoreStr(score int) string {
 	if score >= mateScoreFence {
 		return fmt.Sprintf("M%d", (config.EvalMateMax-score)/config.EvalMateScoreStep)
@@ -160,9 +114,6 @@ func mustCellName(c rules.Cell) string {
 	return name
 }
 
-// chebyshevDist is the max coordinate delta between two cells, the same
-// measure rules applies to the opening constraint; it stays unexported
-// there, so the smoke assertion recomputes it.
 func chebyshevDist(a, b rules.Cell) int {
 	dr := int(a/config.BoardStride) - int(b/config.BoardStride)
 	dc := int(a%config.BoardStride) - int(b%config.BoardStride)
@@ -171,10 +122,6 @@ func chebyshevDist(a, b rules.Cell) int {
 	return max(dr, dc)
 }
 
-// botLine fills config.BotLogFormat from one search's stats, pv from the
-// stats themselves. fmt is fine here: the no-fmt rule binds the engine
-// hot path, not an offline tool. The solver tag slot stays empty because
-// SearchStats does not report VCF or VCT hits yet.
 func botLine(turn int, mover rules.Color, cell rules.Cell, s *engine.SearchStats, granted time.Duration) string {
 	return fmt.Sprintf(config.BotLogFormat,
 		turn, colorName(mover), mustCellName(cell),
@@ -190,8 +137,6 @@ func botLine(turn int, mover rules.Color, cell rules.Cell, s *engine.SearchStats
 		string(s.AppendPV(make([]byte, 0, s.PVLen*4))))
 }
 
-// playGame runs one game to its end and returns the winning seat index
-// (-1 for a draw or cap) plus the end reason.
 func playGame(n int, seats []*seat, redIdx, tcIdx, movcap int, over *overrunLog) (int, string) {
 	b := rules.NewBoard()
 	for _, s := range seats {
@@ -257,7 +202,7 @@ func main() {
 	tierB := flag.String("tierB", defaultTierB, "seat B tier, a name from config.Tiers")
 	tc := flag.Int("tc", defaultTC, "time control index into config.TimeControls")
 	bo := flag.Int("bo", defaultBO, "best-of series length, odd")
-	seed := flag.Int("seed", defaultSeed, "series seed, see the determinism note")
+	seed := flag.Int("seed", defaultSeed, "series seed")
 	movcap := flag.Int("movcap", defaultMovCap, "per-side move cap, a game ending there is a CAP")
 	flag.Parse()
 
@@ -320,7 +265,7 @@ func main() {
 			seats[0].moves, seats[1].moves,
 			seats[0].clock.Remaining(), seats[1].clock.Remaining())
 		if winner >= 0 {
-			redIdx = 1 - winner // the loser takes red next game per the spec
+			redIdx = 1 - winner
 		} else {
 			redIdx = 1 - redIdx
 		}

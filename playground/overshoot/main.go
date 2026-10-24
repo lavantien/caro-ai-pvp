@@ -1,19 +1,3 @@
-// Command overshoot measures worst-case deadline overshoot of the engine:
-// how far past a granted fixed budget wall-clock time runs before the search
-// returns, per worker count and budget. The purpose is to validate
-// config.SearchSafetyMarginMs against a 3x factor over the worst observation.
-//
-// Mechanisms under test: the search polls Exceeded() every
-// config.SearchNodeCheckInterval nodes, and the SMP driver must dispatch,
-// halt, and join its parked workers via runWG. The harness drives
-// SearchDepth so the soft stop stays out of the measurement entirely: a
-// fixed target depth is bounded by the hard deadline only, while Search
-// would return early whenever the soft-stop consult fires for a Budgeter.
-//
-// Run from this directory (the repo Makefile is outside this topic's file
-// ownership, so the conventional make target cannot live here):
-//
-//	CGO_ENABLED=1 go run .
 package main
 
 import (
@@ -30,10 +14,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// Measurement knobs. The worker axis is normalized on one TT size so table
-// size does not confound worker count; NewTiered reads only Cores and
-// TTBytes today, the solver flags mirror the stock tier of the same core
-// count for drift-resistance.
 const (
 	ttBytes      = 1 << 26
 	repeats      = 100
@@ -42,7 +22,6 @@ const (
 	p99          = 0.99
 )
 
-// Experiment matrix.
 var (
 	workerCounts = []int{1, 2, 4}
 	budgets      = []time.Duration{
@@ -53,15 +32,10 @@ var (
 	}
 )
 
-// searcher is the shared SearchDepth surface of the single-threaded Engine
-// and the SMP pool.
 type searcher interface {
 	SearchDepth(b *rules.Board, dl engine.Deadline, depth int) (rules.Move, engine.SearchStats)
 }
 
-// newSearcher builds the measurement instance for a worker count:
-// engine.New for one worker, engine.NewTiered for the SMP pool. The returned
-// func releases worker threads; the single engine has none to release.
 func newSearcher(workers int) (searcher, func()) {
 	if workers == 1 {
 		return engine.New(ttBytes), func() {}
@@ -76,11 +50,6 @@ func newSearcher(workers int) (searcher, func()) {
 	return s, s.Close
 }
 
-// midgamePosition builds the fixed 12-stone midgame board: a 2x2 center
-// block (H8, H9, I8, I9), a 3-stone cluster upper left (C3, C4, D3), a
-// 3-stone cluster lower right (M12, M13, N12), and a horizontal pair at
-// (K10, L10). Sides alternate in listed order, neither side owns a live
-// threat, so the deadline binds every search.
 func midgamePosition() *rules.Board {
 	b := rules.NewBoard()
 	for _, name := range [...]string{
@@ -98,17 +67,11 @@ func midgamePosition() *rules.Board {
 	return b
 }
 
-// sample is one budgeted search outcome. early marks a search that returned
-// before the deadline bound it (mate found or fallback), which would make
-// the overshoot non-informative for that repeat.
 type sample struct {
 	overshoot time.Duration
 	early     bool
 }
 
-// measure runs one budgeted search. The wall clock is armed before the grant
-// so elapsed-budget can only overstate the true past-grant return time,
-// never understate it: the conservative direction for sizing a reserve.
 func measure(s searcher, b *rules.Board, budget time.Duration) sample {
 	start := time.Now()
 	dl := engine.NewFixedBudget(budget)
@@ -117,8 +80,6 @@ func measure(s searcher, b *rules.Board, budget time.Duration) sample {
 	return sample{overshoot: elapsed - budget, early: elapsed < budget}
 }
 
-// runSweep measures every configuration once with fresh instances, so the
-// three sweeps are independent samples of host contention.
 func runSweep() [][]sample {
 	var out [][]sample
 	for _, workers := range workerCounts {
@@ -137,7 +98,6 @@ func runSweep() [][]sample {
 	return out
 }
 
-// pctIndex is the nearest-rank index of quantile q over n samples.
 func pctIndex(n int, q float64) int {
 	i := int(math.Ceil(q*float64(n))) - 1
 	if i < 0 {
@@ -166,8 +126,6 @@ func statsOf(row []sample) (med, hi, worst time.Duration, early int) {
 
 func ms(d time.Duration) float64 { return float64(d) / float64(time.Millisecond) }
 
-// worstOf is a sweep's worst max across configurations, the criterion for
-// picking the least-contentioned sweep.
 func worstOf(sweep [][]sample) time.Duration {
 	var worst time.Duration
 	for _, row := range sweep {
