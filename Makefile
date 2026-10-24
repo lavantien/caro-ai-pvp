@@ -84,8 +84,9 @@ test-pkg:
 	CGO_ENABLED=1 go test -race -timeout $(GO_TEST_TIMEOUT) $(ARGS) $(PKG)
 
 cover:
-	CGO_ENABLED=1 go test -coverprofile=$(COVERPROFILE) -covermode=atomic -timeout $(GO_TEST_TIMEOUT) $(ARGS) $(PKG)
+	CGO_ENABLED=1 go test -race -coverprofile=$(COVERPROFILE) -covermode=atomic -timeout $(GO_TEST_TIMEOUT) $(ARGS) $(PKG)
 	CGO_ENABLED=1 go tool cover -func=$(COVERPROFILE)
+	CGO_ENABLED=1 go run ./cmd/covergate $(COVERPROFILE)
 
 cover-pcts:
 	@CGO_ENABLED=1 go run ./cmd/covergate $(COVERPROFILE)
@@ -299,7 +300,7 @@ darkcontrast:
 icons:
 	CGO_ENABLED=1 go -C playground run ./icongen -out ../internal/server/web/static/icons
 
-ci: playground-modules darkcontrast fmt-check lint vet build test-race bookgen-test evalfit-test cover
+ci: playground-modules darkcontrast fmt-check lint vet build bookgen-test evalfit-test cover
 	@echo "ci: all green"
 
 # logstats renders the markdown evidence report of the v0.20 chain from the

@@ -178,7 +178,7 @@ Requires go 1.27.1+, a C toolchain (gcc or llvm/clang), GNU make, with CGO enabl
 
 ```
 make doctor          # toolchain check: go >= 1.27.1, CGO, gcc
-make ci              # fmt-check, vet, build, race tests, global coverage run
+make ci              # fmt-check, vet, build, race tests with coverage gates
 make mutate-smoke    # rules-core mutation gate (runs in CI on every push)
 make mutate-full LABEL=vX PARALLEL=4 CHALLENGE=1  # whole gate, auto-resumes host crashes; every test tree runs under a kernel-enforced 2 GiB commit cap so a broken-bound mutant dies in its own tree and 4 workers hold the 8 GiB mutation ceiling
 make mutate-resume LOG=prior-run.log PARALLEL=4 CHALLENGE=1
@@ -193,7 +193,7 @@ make db-checkpoint     # fold every db/*.db write-ahead log into its main file
 make serve             # serve on the configured port, db under db/
 ```
 
-The global coverage run reports overall and core percentages with no threshold gates. The working tree keeps its artifacts placed: databases under db/, tournament logs under logs/tourny/, nothing database- or log-shaped in the root.
+Coverage gates: 95% overall, 100% on internal/rules, internal/engine, and internal/clock, read from the real suite's race coverage profile. The working tree keeps its artifacts placed: databases under db/, tournament logs under logs/tourny/, nothing database- or log-shaped in the root.
 
 Mutation harness verdict laws: the unmutated suite must be green per package before any mutant is scored, a run that would execute nothing (full resume replay or a fully allowed population) skips that baseline, and only a real test exit can score a kill: infrastructure failures (spawn errors, missing shell, cap setup) void the whole run loudly instead of counting as kills. Parallel gates spread mutants round-robin over isolated module copies; survivors and challenge-flagged allowances are re-verified once serially, and worker-phase kills are load-trusted without re-verification, so kill-dominated populations scale near-linearly while any reported survivor is confirmed alone. Each test tree runs under a kernel memory cap, a Windows job object or a POSIX ulimit wrapper, and the cap wrapper must pass the command through intact: a dropped argv head turns every verdict into an instant fake kill.
 
@@ -201,7 +201,7 @@ Mutation harness verdict laws: the unmutated suite must be green per package bef
 
 ```
 cmd/caro          entrypoint (ports, firewall)
-cmd/covergate     coverage percentages over go cover profiles
+cmd/covergate     coverage gate over go cover profiles
 cmd/mutate        in-house mutation gate (parallel, resume, challenge audit)
 internal/config   single constants hub
 internal/rules    board, legality, win detection (M1)

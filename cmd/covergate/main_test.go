@@ -15,12 +15,12 @@ github.com/lavantien/caro-ai-pvp/cmd/caro/main.go:3.2,4.9 100 100
 github.com/lavantien/caro-ai-pvp/cmd/caro/main.go:8.2,9.9 5 0
 `
 
-const lowOverallFixture = `mode: atomic
+const failOverallFixture = `mode: atomic
 github.com/lavantien/caro-ai-pvp/cmd/caro/main.go:3.2,4.9 50 30
 github.com/lavantien/caro-ai-pvp/cmd/caro/main.go:8.2,9.9 10 0
 `
 
-const zeroCoreFixture = `mode: atomic
+const failCoreFixture = `mode: atomic
 github.com/lavantien/caro-ai-pvp/internal/rules/win.go:10.2,11.10 4 0
 github.com/lavantien/caro-ai-pvp/internal/engine/search.go:3.2,4.9 196 196
 `
@@ -56,6 +56,27 @@ func TestParseProfileErrors(t *testing.T) {
 	}
 }
 
+func TestGatePass(t *testing.T) {
+	if err := gate(mustParse(t, passFixture)); err != nil {
+		t.Errorf("gate err = %v, want nil", err)
+	}
+}
+
+func TestGateFailures(t *testing.T) {
+	err := gate(mustParse(t, failOverallFixture))
+	if err == nil || !strings.Contains(err.Error(), "overall") {
+		t.Errorf("gate err = %v, want overall failure", err)
+	}
+	err = gate(mustParse(t, failCoreFixture))
+	if err == nil || !strings.Contains(err.Error(), "internal/rules") {
+		t.Errorf("gate err = %v, want internal/rules failure", err)
+	}
+	err = gate(mustParse(t, "mode: set\n"))
+	if err == nil || !strings.Contains(err.Error(), "empty profile") {
+		t.Errorf("gate err = %v, want empty profile failure", err)
+	}
+}
+
 func TestPctsReport(t *testing.T) {
 	var b strings.Builder
 	if err := pcts(mustParse(t, passFixture), &b); err != nil {
@@ -65,11 +86,11 @@ func TestPctsReport(t *testing.T) {
 		t.Errorf("pcts(pass) = %q, want %q", got, want)
 	}
 	b.Reset()
-	if err := pcts(mustParse(t, zeroCoreFixture), &b); err != nil {
+	if err := pcts(mustParse(t, failCoreFixture), &b); err != nil {
 		t.Fatalf("pcts err = %v", err)
 	}
 	if got, want := b.String(), "global=98.0 core=0.0\n"; got != want {
-		t.Errorf("pcts(zero core) = %q, want %q", got, want)
+		t.Errorf("pcts(fail core) = %q, want %q", got, want)
 	}
 }
 
@@ -86,8 +107,20 @@ func TestRunCLI(t *testing.T) {
 	if code := runCLI([]string{writeProfile(t, passFixture)}); code != 0 {
 		t.Errorf("runCLI(pass) = %d, want 0", code)
 	}
-	if code := runCLI([]string{writeProfile(t, lowOverallFixture)}); code != 0 {
-		t.Errorf("runCLI(low overall) = %d, want 0", code)
+	if code := runCLI([]string{writeProfile(t, failOverallFixture)}); code != 1 {
+		t.Errorf("runCLI(fail) = %d, want 1", code)
+	}
+}
+
+func TestRunCLIPcts(t *testing.T) {
+	if code := runCLI([]string{"-pcts"}); code != 2 {
+		t.Errorf("runCLI(-pcts, no profile) = %d, want 2", code)
+	}
+	if code := runCLI([]string{"-pcts", filepath.Join(t.TempDir(), "missing.out")}); code != 1 {
+		t.Errorf("runCLI(-pcts, missing) = %d, want 1", code)
+	}
+	if code := runCLI([]string{"-pcts", writeProfile(t, failOverallFixture)}); code != 0 {
+		t.Errorf("runCLI(-pcts, failing profile) = %d, want 0", code)
 	}
 }
 

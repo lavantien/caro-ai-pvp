@@ -57,11 +57,11 @@ func parseProfile(r io.Reader) (map[string]fileCov, error) {
 }
 
 func fileOf(loc string) string {
-	i := strings.LastIndex(loc, ":")
-	if i < 0 {
+	file, _, found := strings.CutLast(loc, ":")
+	if !found {
 		return ""
 	}
-	return loc[:i]
+	return file
 }
 
 func corePackage(file string) string {
@@ -96,6 +96,38 @@ func coreCoverage(files map[string]fileCov) map[string]*fileCov {
 	return core
 }
 
+func gate(files map[string]fileCov) error {
+	var total, covered int64
+	for _, fc := range files {
+		total += fc.total
+		covered += fc.covered
+	}
+	if total == 0 {
+		return fmt.Errorf("empty profile, no statements counted")
+	}
+	var errs []string
+	overall := pct(covered, total)
+	fmt.Printf("covergate: overall %.1f%% (gate %.0f%%)\n", overall, config.QualityCoverageOverallMin)
+	if overall+1e-9 < config.QualityCoverageOverallMin {
+		errs = append(errs, fmt.Sprintf("overall %.1f%% below %.0f%%", overall, config.QualityCoverageOverallMin))
+	}
+	for _, p := range corePackages {
+		c, ok := coreCoverage(files)[p]
+		if !ok || c.total == 0 {
+			continue
+		}
+		cp := pct(c.covered, c.total)
+		fmt.Printf("covergate: %s %.1f%% (gate %.0f%%)\n", p, cp, config.QualityCoverageCoreMin)
+		if cp+1e-9 < config.QualityCoverageCoreMin {
+			errs = append(errs, fmt.Sprintf("%s %.1f%% below %.0f%%", p, cp, config.QualityCoverageCoreMin))
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("coverage gates failed: %s", strings.Join(errs, "; "))
+	}
+	return nil
+}
+
 func pcts(files map[string]fileCov, w io.Writer) error {
 	var total, covered int64
 	for _, fc := range files {
@@ -119,12 +151,16 @@ func pcts(files map[string]fileCov, w io.Writer) error {
 	return err
 }
 
-func report(path string, w io.Writer) error {
+func readProfile(path string) (map[string]fileCov, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	files, err := parseProfile(bytes.NewReader(data))
+	return parseProfile(bytes.NewReader(data))
+}
+
+func report(path string, w io.Writer) error {
+	files, err := readProfile(path)
 	if err != nil {
 		return err
 	}
@@ -132,11 +168,23 @@ func report(path string, w io.Writer) error {
 }
 
 func runCLI(args []string) int {
-	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "usage: covergate <coverprofile>")
+	if len(args) == 2 && args[0] == "-pcts" {
+		if err := report(args[1], os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "covergate:", err)
+			return 1
+		}
+		return 0
+	}
+	if len(args) != 1 || args[0] == "-pcts" {
+		fmt.Fprintln(os.Stderr, "usage: covergate [-pcts] <coverprofile>")
 		return 2
 	}
-	if err := report(args[0], os.Stdout); err != nil {
+	files, err := readProfile(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "covergate:", err)
+		return 1
+	}
+	if err := gate(files); err != nil {
 		fmt.Fprintln(os.Stderr, "covergate:", err)
 		return 1
 	}

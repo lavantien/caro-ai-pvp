@@ -267,6 +267,10 @@ const (
 	BookSourceMajority uint8 = 1
 	BookSourceSolver   uint8 = 2
 )
+const (
+	QualityCoverageOverallMin = 95.0
+	QualityCoverageCoreMin    = 100.0
+)
 
 var CorePackages = [...]string{"internal/rules", "internal/engine", "internal/clock"}
 
