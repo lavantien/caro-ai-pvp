@@ -94,14 +94,17 @@ func goVersionScore(v string) (int, bool) {
 }
 
 func gofmtPath() string {
-	candidates := []string{filepath.Join(runtime.GOROOT(), "bin", "gofmt")}
-	if runtime.GOOS == "windows" {
-		candidates[0] += ".exe"
+	root, code, err := execCapture("go", []string{"env", "GOROOT"}, nil, "")
+	if err != nil || code != 0 {
+		return "gofmt"
 	}
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			return c
-		}
+	name := "gofmt"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	c := filepath.Join(root, "bin", name)
+	if _, err := os.Stat(c); err == nil {
+		return c
 	}
 	return "gofmt"
 }

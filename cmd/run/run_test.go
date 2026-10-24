@@ -298,7 +298,9 @@ func TestRegateArmsAndChain(t *testing.T) {
 		t.Fatal(err)
 	}
 	time.Sleep(10 * time.Millisecond)
-	os.Chtimes(fresh, time.Now(), time.Now())
+	if err := os.Chtimes(fresh, time.Now(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
 	if got := newestRunDir("regate21-r1"); got != fresh {
 		t.Fatalf("newestRunDir = %s, want %s", got, fresh)
 	}
@@ -332,13 +334,19 @@ func TestDiagramNeedsRender(t *testing.T) {
 	if diagramNeedsRender(png, mmd) {
 		t.Fatal("fresh png must not render")
 	}
-	os.Chtimes(mmd, time.Now(), time.Now())
+	if err := os.Chtimes(mmd, time.Now(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
 	if !diagramNeedsRender(png, mmd) {
 		t.Fatal("newer mmd must render")
 	}
 	past := time.Now().Add(-time.Hour)
-	os.Chtimes(png, past, past)
-	os.Chtimes(cfg, time.Now(), time.Now())
+	if err := os.Chtimes(png, past, past); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(cfg, time.Now(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
 	if !diagramNeedsRender(png, mmd) {
 		t.Fatal("newer config must render")
 	}

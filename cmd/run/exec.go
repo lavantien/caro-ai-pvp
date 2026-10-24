@@ -26,7 +26,11 @@ func execStep(s step, env []string) (int, error) {
 		if err != nil {
 			return 0, fmt.Errorf("open log %s: %w", s.logTo, err)
 		}
-		defer f.Close()
+		defer func() {
+			if cerr := f.Close(); cerr != nil {
+				fmt.Fprintf(os.Stderr, "run: close log %s: %v\n", s.logTo, cerr)
+			}
+		}()
 		cmd.Stdout = f
 		cmd.Stderr = f
 	} else {
