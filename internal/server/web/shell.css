@@ -125,8 +125,11 @@ h1, .who, .who-vs, #score-line, .p-name, #turn-line { overflow-wrap: anywhere }
 .loginform button { justify-self: start }
 .hrow { margin-bottom: var(--space-3) }
 .hrow .top { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4) }
-.hrow .who-vs, .livecard .who-vs, .tseries .who-vs { font-size: var(--text-xl);
+.hrow .who-vs, .tseries .who-vs { font-size: var(--text-xl);
 	font-weight: 700 }
+.livecard .who-vs { font-size: var(--text-base); font-weight: 700;
+	overflow-wrap: normal }
+.livecard .who-vs a { white-space: nowrap }
 .livecard .who-vs, .tseries, .tboard td:nth-child(2),
 .tboard td:nth-child(3) { font-family: var(--font-mono) }
 .hrow .hcols { display: grid; gap: var(--space-2) var(--space-3);

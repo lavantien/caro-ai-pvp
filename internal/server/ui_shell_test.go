@@ -237,6 +237,31 @@ func TestShellLoginFailuresRenderInline(t *testing.T) {
 	wantShellBody(t, body, `class="error"`, "invalid username")
 }
 
+func TestShellCSSHoldsLiveCardTitlesOnOneLine(t *testing.T) {
+	css, err := os.ReadFile("web/shell.css")
+	if err != nil {
+		t.Fatalf("read shell.css: %v", err)
+	}
+	rule := regexp.MustCompile(`(?m)^\.livecard \.who-vs \{[^}]*\}`).Find(css)
+	if rule == nil {
+		t.Fatal("shell.css loses the .livecard .who-vs rule")
+	}
+	for _, want := range []string{
+		`font-size:\s*var\(--text-base\)`, `font-weight:\s*700`, `overflow-wrap:\s*normal`,
+	} {
+		if !regexp.MustCompile(want).Match(rule) {
+			t.Errorf(".livecard .who-vs must carry %s, got %s", want, rule)
+		}
+	}
+	if nowrap := regexp.MustCompile(`\.livecard \.who-vs a \{[^}]*white-space:\s*nowrap`).Find(css); nowrap == nil {
+		t.Error("shell.css loses the live card name nowrap rule")
+	}
+	shared := regexp.MustCompile(`\.hrow \.who-vs, \.tseries \.who-vs \{[^}]*var\(--text-xl\)`).Match(css)
+	if !shared {
+		t.Error("the history and series who-vs lines must keep the text-xl scale")
+	}
+}
+
 func TestBotNameDisplayTrimsTheRoomIDSuffix(t *testing.T) {
 	id := "0123456789abcdef0123456789abcdef"
 	rows := []struct{ in, want string }{
