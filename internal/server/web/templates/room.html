@@ -88,28 +88,28 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
  data-room="{{.RoomID}}"
  data-participant="{{if .IsParticipant}}1{{else}}0{{end}}"
  data-move-count="{{len .Moves}}"
- data-host-id="{{.HostUserID}}" data-host-name="{{.HostName}}"
- data-guest-id="{{.GuestUserID}}" data-guest-name="{{.GuestName}}"
+ data-host-id="{{.HostUserID}}" data-host-name="{{disp .HostName}}"
+ data-guest-id="{{.GuestUserID}}" data-guest-name="{{disp .GuestName}}"
  data-my-id="{{.ViewerID}}"{{if .MyColor}} data-me-seat="{{.MyColor}}"{{end}}
  data-kinds="{{.KindsCSV}}">
 
 <section id="status-strip">
 <h1>room <span class="mono" title="{{.RoomID}}">{{.ShortID}}</span></h1>
 <p class="status" id="room-status">{{.State}}{{if ne .Variant "square"}} / {{.Variant}}{{end}} / {{.TCLabel}} / bo{{.BOLen}}{{if .VsBotTier}} / AI {{.VsBotTier}}{{end}}</p>
-<p id="turn-line" aria-live="polite">{{if .GameLive}}{{if .TurnIsMe}}your move ({{.Turn}}){{else}}{{.Turn}} to move ({{.TurnName}}){{end}}{{else}}waiting for both to ready{{end}}</p>
+<p id="turn-line" aria-live="polite">{{if .GameLive}}{{if .TurnIsMe}}your move ({{.Turn}}){{else}}{{.Turn}} to move ({{disp .TurnName}}){{end}}{{else}}waiting for both to ready{{end}}</p>
 </section>
 
-<div class="seatcard{{if and .GameLive (eq .Turn "red")}} active{{end}}" id="card-red"><span class="dot red"></span><span class="who" id="clock-who-red">red / {{.RedName}}</span>{{if .RedTier}}<span class="chip">{{.RedTier}}</span>{{end}}<div class="clock" id="clock-red">{{if .ClockRed}}{{.ClockRed}}{{else}}--:--.-{{end}}</div></div>
+<div class="seatcard{{if and .GameLive (eq .Turn "red")}} active{{end}}" id="card-red"><span class="dot red"></span><span class="who" id="clock-who-red" title="{{.RedName}}">red / {{disp .RedName}}</span>{{if .RedTier}}<span class="chip">{{.RedTier}}</span>{{end}}<div class="clock" id="clock-red">{{if .ClockRed}}{{.ClockRed}}{{else}}--:--.-{{end}}</div></div>
 
 <section id="board-section">
 {{template "board-grid" .}}
 </section>
 
-<div class="seatcard{{if and .GameLive (eq .Turn "blue")}} active{{end}}" id="card-blue"><span class="dot blue"></span><span class="who" id="clock-who-blue">blue / {{.BlueName}}</span>{{if .BlueTier}}<span class="chip">{{.BlueTier}}</span>{{end}}<div class="clock" id="clock-blue">{{if .ClockBlue}}{{.ClockBlue}}{{else}}--:--.-{{end}}</div></div>
+<div class="seatcard{{if and .GameLive (eq .Turn "blue")}} active{{end}}" id="card-blue"><span class="dot blue"></span><span class="who" id="clock-who-blue" title="{{.BlueName}}">blue / {{disp .BlueName}}</span>{{if .BlueTier}}<span class="chip">{{.BlueTier}}</span>{{end}}<div class="clock" id="clock-blue">{{if .ClockBlue}}{{.ClockBlue}}{{else}}--:--.-{{end}}</div></div>
 
 {{if or .CanReady .CanForfeit}}
 <section id="controls">
-{{if .CanReady}}<p><span id="ready-host">{{.HostName}}: {{.HostReady}}</span> / <span id="ready-guest">{{.GuestName}}: {{.GuestReady}}</span></p>
+{{if .CanReady}}<p><span id="ready-host" title="{{.HostName}}">{{disp .HostName}}: {{.HostReady}}</span> / <span id="ready-guest" title="{{.GuestName}}">{{disp .GuestName}}: {{.GuestReady}}</span></p>
 <button id="ready-btn">ready</button>{{end}}
 {{if .CanForfeit}}<button id="forfeit-btn" class="btn-quiet">forfeit</button>{{end}}
 </section>
@@ -127,7 +127,7 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
 
 <section id="series-strip">
 <h2>series</h2>
-<p id="score-line">{{.HostName}} {{.HostWins}} - {{.GuestWins}} {{.GuestName}}</p>
+<p id="score-line" title="{{.HostName}} / {{.GuestName}}">{{disp .HostName}} {{.HostWins}} - {{.GuestWins}} {{disp .GuestName}}</p>
 </section>
 
 <section id="bot-logs">

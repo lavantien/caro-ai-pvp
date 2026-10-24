@@ -11,7 +11,7 @@
 </div></li>
 {{end}}</ul>{{else}}<p class="empty">no live rooms</p>{{end}}
 {{end}}
-{{define "lobbyseat"}}{{if .Profile}}<a href="{{.Profile}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}{{if .Tier}} <span class="chip">{{.Tier}}</span>{{end}}{{end}}
+{{define "lobbyseat"}}{{if .Profile}}<a href="{{.Profile}}" title="{{.Name}}">{{disp .Name}}</a>{{else}}{{disp .Name}}{{end}}{{if .Tier}} <span class="chip">{{.Tier}}</span>{{end}}{{end}}
 {{define "quickstart"}}
 {{if .Me}}
 <form class="actions quick" method="post" action="/rooms">

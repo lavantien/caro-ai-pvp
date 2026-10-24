@@ -187,7 +187,7 @@ func TestProfileRecentRowsAlignTableLike(t *testing.T) {
 	for _, want := range []string{
 		`<li class="room grow">`,
 		`<span class="gwhen mono">`,
-		`<span class="gopp who-vs">vs <a href="/players/bob">bob</a></span>`,
+		`<span class="gopp who-vs">vs <a href="/players/bob" title="bob">bob</a></span>`,
 		`<span class="gturns mono">`,
 		`<a class="gpb" href="/rooms/history/`,
 	} {

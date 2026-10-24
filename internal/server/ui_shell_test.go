@@ -237,6 +237,25 @@ func TestShellLoginFailuresRenderInline(t *testing.T) {
 	wantShellBody(t, body, `class="error"`, "invalid username")
 }
 
+func TestBotNameDisplayTrimsTheRoomIDSuffix(t *testing.T) {
+	id := "0123456789abcdef0123456789abcdef"
+	rows := []struct{ in, want string }{
+		{"easy-" + id, "easy-" + shortID(id)},
+		{"easy-a-" + id, "easy-a-" + shortID(id)},
+		{"easy-b-" + id + "-2", "easy-b-" + shortID(id) + "-2"},
+		{"alice", "alice"},
+		{"easy-1a2b3c4d", "easy-1a2b3c4d"},
+		{"easy-2", "easy-2"},
+		{id, id},
+		{"", ""},
+	}
+	for _, row := range rows {
+		if got := botNameDisplay(row.in); got != row.want {
+			t.Errorf("botNameDisplay(%q) = %q, want %q", row.in, got, row.want)
+		}
+	}
+}
+
 func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
@@ -264,13 +283,17 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("guest home: status = %d", status)
 	}
+	short := shortID(botRoom.ID())
 	wantShellBody(t, body,
 		`id="rooms"`, `href="/rooms/`+room.ID()+`"`,
 		`href="/rooms/`+ghostRoom.ID()+`"`, "#777 vs open seat",
-		"easy-a-"+botRoom.ID()+" vs easy-b-"+botRoom.ID(),
+		`title="easy-a-`+botRoom.ID()+` / easy-b-`+botRoom.ID()+`">easy-a-`+short+` vs easy-b-`+short,
 		"2&#43;1", "bo5", "created", "alice vs open seat",
 		`class="guestnote"`, `href="/login"`,
 	)
+	if strings.Contains(body, ">easy-a-"+botRoom.ID()+" vs ") {
+		t.Error("home card renders the full 32-char room id as visible text")
+	}
 	for _, banned := range []string{`class="me"`, `action="/rooms"`, `action="/logout"`, "W-0L-0D"} {
 		if strings.Contains(body, banned) {
 			t.Errorf("guest home contains %q", banned)
@@ -507,7 +530,7 @@ func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {
 		botIDs[i] = strings.TrimPrefix(h.Get("Location"), "/rooms/")
 		status, _, gridBody := doShell(t, c, http.MethodGet, srv.URL+"/", token, nil)
 		if status != http.StatusOK ||
-			!strings.Contains(gridBody, "alice vs "+config.Tiers[i].Name+"-"+botIDs[i]) {
+			!strings.Contains(gridBody, "alice vs "+config.Tiers[i].Name+"-"+shortID(botIDs[i])) {
 			t.Fatalf("grid after bot %s: status = %d, want the room card (body %s)",
 				config.Tiers[i].Name, status, gridBody)
 		}

@@ -2,7 +2,7 @@
 {{if .Live}}
 <div class="liveboards">
 {{range .Live}}<a class="livecard" href="/rooms/{{.RoomID}}">
-	<span class="who-vs">{{.Red}} vs {{.Blue}}</span>
+	<span class="who-vs" title="{{.Red}} vs {{.Blue}}">{{disp .Red}} vs {{disp .Blue}}</span>
 	<span class="score">{{.Score}}</span>
 	<span class="meta">{{.Turn}} to move, {{.MoveCount}} stones</span>
 	{{template "board-grid" .}}

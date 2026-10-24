@@ -424,6 +424,9 @@ func botTierName(t *config.Tier) string {
 	}
 	return t.Name
 }
+
+const botSeatTwinSuffix = "-2"
+
 func (r *Room) botSeatDisplaysLocked() (host, guest string) {
 	if r.host.bot != nil {
 		host = botDisplayName(r.seatInstanceName(&r.host), r.id)
@@ -432,7 +435,7 @@ func (r *Room) botSeatDisplaysLocked() (host, guest string) {
 		guest = botDisplayName(r.seatInstanceName(&r.guest), r.id)
 	}
 	if host != "" && host == guest {
-		guest += "-2"
+		guest += botSeatTwinSuffix
 	}
 	return host, guest
 }

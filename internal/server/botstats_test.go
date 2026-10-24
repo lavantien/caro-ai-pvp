@@ -416,8 +416,8 @@ func TestPlaybackBotGameOpensForTheHumanSeat(t *testing.T) {
 		t.Fatalf("human playback status = %d, want 200 (body %s)", status, body)
 	}
 	botName := botDisplayName(config.TierEasy.Name, r.ID())
-	if !strings.Contains(body, "red alice vs blue "+botName) {
-		t.Errorf("playback body misses the bot seat name %q (body %s)", botName, body)
+	if !strings.Contains(body, `title="alice vs `+botName+`">red alice vs blue `+botNameDisplay(botName)) {
+		t.Errorf("playback body misses the trimmed bot seat name %q (body %s)", botName, body)
 	}
 	carol := seedUser(t, s.store, "carol")
 	for name, tok := range map[string]string{"stranger": mintSession(t, s.store, carol), "anonymous": ""} {

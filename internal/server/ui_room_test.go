@@ -138,10 +138,10 @@ func TestRoomPageRendersDrivenPvPGame(t *testing.T) {
 			t.Errorf("room body misses #%s", id)
 		}
 	}
-	if !strings.Contains(body, `<span class="who" id="clock-who-red">red / alice</span>`) {
+	if !strings.Contains(body, `<span class="who" id="clock-who-red" title="alice">red / alice</span>`) {
 		t.Error("red card misses alice's seat name")
 	}
-	if !strings.Contains(body, `<span class="who" id="clock-who-blue">blue / bob</span>`) {
+	if !strings.Contains(body, `<span class="who" id="clock-who-blue" title="bob">blue / bob</span>`) {
 		t.Error("blue card misses bob's seat name")
 	}
 	if !strings.Contains(body, `<div class="seatcard active" id="card-blue">`) {
@@ -262,14 +262,41 @@ func TestRoomPageSeatCardsCarryNamesBeforeHandshake(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("status = %d, want 200 (body %s)", status, body)
 	}
-	if !strings.Contains(body, `<span class="who" id="clock-who-red">red / alice</span>`) {
+	if !strings.Contains(body, `<span class="who" id="clock-who-red" title="alice">red / alice</span>`) {
 		t.Error("red seat card renders blank before the game handshake")
 	}
-	if !strings.Contains(body, `<span class="who" id="clock-who-blue">blue / bob</span>`) {
+	if !strings.Contains(body, `<span class="who" id="clock-who-blue" title="bob">blue / bob</span>`) {
 		t.Error("blue seat card renders blank before the game handshake")
 	}
 	if !strings.Contains(body, `<p id="turn-line" aria-live="polite">`) {
 		t.Error("turn line is not a polite live region")
+	}
+}
+
+func TestRoomPageTrimsRoomIDFromBotSeatNames(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice := seedUser(t, s.store, "alice")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy, "")
+	if err != nil {
+		t.Fatalf("create bot room: %v", err)
+	}
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), "")
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body %s)", status, body)
+	}
+	full, short := botDisplayName(config.TierEasy.Name, r.ID()), "easy-"+shortID(r.ID())
+	if !strings.Contains(body, `<span class="who" id="clock-who-blue" title="`+full+`">blue / `+short+`</span>`) {
+		t.Errorf("blue seat misses the trimmed bot name under the full title (body %s)", body)
+	}
+	if !strings.Contains(body, `data-guest-name="`+short+`"`) {
+		t.Errorf("guest dataset carries the raw room id (body %s)", body)
+	}
+	if strings.Contains(body, ">blue / "+full) {
+		t.Error("blue seat renders the full 32-char room id as visible text")
+	}
+	if !strings.Contains(body, `<p id="score-line" title="alice / `+full+`">alice 0 - 0 `+short+`</p>`) {
+		t.Errorf("score line misses the trimmed bot name under the full title (body %s)", body)
 	}
 }
 

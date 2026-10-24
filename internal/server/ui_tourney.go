@@ -14,17 +14,17 @@ import (
 )
 
 func tourneyPage(page string) *template.Template {
-	return template.Must(template.ParseFS(shellTmplFS,
+	return parseUI(
 		"web/templates/base.tmpl", "web/templates/rooms.tmpl", "web/templates/seg.tmpl",
 		"web/templates/brand.html", "web/templates/tourney_board.tmpl", "web/templates/board.html",
-		"web/templates/"+page))
+		"web/templates/"+page)
 }
 
 var (
 	tourneyTmpl      = tourneyPage("tourney.tmpl")
 	tourneyRunTmpl   = tourneyPage("tourney_run.tmpl")
-	tourneyBoardTmpl = template.Must(template.ParseFS(shellTmplFS,
-		"web/templates/tourney_board.tmpl", "web/templates/board.html"))
+	tourneyBoardTmpl = parseUI(
+		"web/templates/tourney_board.tmpl", "web/templates/board.html")
 )
 
 type TourneySeat struct {

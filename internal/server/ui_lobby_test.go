@@ -136,6 +136,33 @@ func TestLobbySnapshotCarriesLiveBoard(t *testing.T) {
 	}
 }
 
+func TestLobbySeatTrimsRoomIDFromBotNames(t *testing.T) {
+	s := newStack(t)
+	alice := seedUser(t, s.store, "alice")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy, "")
+	if err != nil {
+		t.Fatalf("create vs bot: %v", err)
+	}
+	mux := http.NewServeMux()
+	NewLobbyPages(s.store, s.rm).Mount(mux)
+	req := httptest.NewRequest(http.MethodGet, "/partials/lobby", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("partial = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	full := botDisplayName(config.TierEasy.Name, r.ID())
+	want := `<a href="/players/` + url.PathEscape(config.BotAccountName(0)) +
+		`" title="` + full + `">easy-` + shortID(r.ID()) + `</a>`
+	if !strings.Contains(body, want) {
+		t.Errorf("lobby seat misses the trimmed bot name under the full title (body %s)", body)
+	}
+	if strings.Contains(body, ">"+full+"<") {
+		t.Errorf("lobby seat renders the full 32-char room id as visible text (body %s)", body)
+	}
+}
+
 func TestLobbyLivecardsMarkup(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")

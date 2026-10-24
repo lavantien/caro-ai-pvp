@@ -1,7 +1,6 @@
 package server
 
 import (
-	"html/template"
 	"net/http"
 	"net/url"
 	"slices"
@@ -142,16 +141,12 @@ func (p *LobbyPages) Mount(mux *http.ServeMux) {
 	mux.HandleFunc("POST /lobby/{id}/join", p.handleJoin)
 }
 
-func lobbyPage() *template.Template {
-	return template.Must(template.ParseFS(shellTmplFS,
-		"web/templates/base.tmpl", "web/templates/rooms.tmpl", "web/templates/seg.tmpl",
-		"web/templates/brand.html", "web/templates/board.html", "web/templates/lobby.tmpl"))
-}
-
 var (
-	lobbyTmpl     = lobbyPage()
-	lobbyListTmpl = template.Must(template.ParseFS(shellTmplFS,
-		"web/templates/lobby.tmpl", "web/templates/brand.html", "web/templates/board.html"))
+	lobbyTmpl = parseUI(
+		"web/templates/base.tmpl", "web/templates/rooms.tmpl", "web/templates/seg.tmpl",
+		"web/templates/brand.html", "web/templates/board.html", "web/templates/lobby.tmpl")
+	lobbyListTmpl = parseUI(
+		"web/templates/lobby.tmpl", "web/templates/brand.html", "web/templates/board.html")
 )
 
 type lobbySeatView struct {

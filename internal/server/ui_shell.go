@@ -9,9 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -34,17 +36,40 @@ func shortID(id string) string {
 	return id[:shortIDEdge] + id[len(id)-shortIDEdge:]
 }
 
+func botNameDisplay(name string) string {
+	suffix := ""
+	if strings.HasSuffix(name, botSeatTwinSuffix) {
+		suffix = botSeatTwinSuffix
+		name = name[:len(name)-len(botSeatTwinSuffix)]
+	}
+	i := strings.LastIndexByte(name, '-')
+	if i < 0 || !isRoomID(name[i+1:]) {
+		return name + suffix
+	}
+	return name[:i+1] + shortID(name[i+1:]) + suffix
+}
+
+var uiFuncs = template.FuncMap{"disp": botNameDisplay}
+
+func parseUI(files ...string) *template.Template {
+	return parseUIFS(shellTmplFS, files...)
+}
+
+func parseUIFS(fsys fs.FS, files ...string) *template.Template {
+	return template.Must(template.New("ui").Funcs(uiFuncs).ParseFS(fsys, files...))
+}
+
 func shellPage(page string) *template.Template {
-	return template.Must(template.ParseFS(shellTmplFS,
+	return parseUI(
 		"web/templates/base.tmpl", "web/templates/rooms.tmpl", "web/templates/seg.tmpl",
-		"web/templates/brand.html", "web/templates/"+page))
+		"web/templates/brand.html", "web/templates/"+page)
 }
 
 var (
 	homeTmpl    = shellPage("home.tmpl")
 	loginTmpl   = shellPage("login.tmpl")
 	historyTmpl = shellPage("history.tmpl")
-	roomsTmpl   = template.Must(template.ParseFS(shellTmplFS, "web/templates/rooms.tmpl", "web/templates/brand.html"))
+	roomsTmpl   = parseUI("web/templates/rooms.tmpl", "web/templates/brand.html")
 )
 
 type shellPages struct {

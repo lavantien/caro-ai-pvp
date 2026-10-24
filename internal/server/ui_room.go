@@ -6,7 +6,6 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -21,7 +20,7 @@ import (
 //go:embed web/templates
 var webTemplates embed.FS
 
-var uiTmpl = template.Must(template.ParseFS(webTemplates, "web/templates/*.html"))
+var uiTmpl = parseUIFS(webTemplates, "web/templates/*.html")
 
 const (
 	roomRoutePattern     = "GET /rooms/{id}"

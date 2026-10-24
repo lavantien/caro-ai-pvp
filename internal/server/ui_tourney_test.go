@@ -381,6 +381,24 @@ func TestTourneyRunPageRendersLiveBoardSection(t *testing.T) {
 	}
 }
 
+func TestLiveBoardCardsTrimRoomIDFromBotNames(t *testing.T) {
+	id := "0123456789abcdef0123456789abcdef"
+	fake := &fakeTourney{snapshot: liveSnapshot(), live: []TourneyLiveBoard{{
+		RoomID: "trimcard", RedName: "easy-a-" + id, BlueName: "easy-b-" + id,
+		RedWins: 1, BlueWins: 2, Turn: "blue", Moves: []string{"H8"},
+	}}}
+	srv, _ := tourneySrv(t, fake)
+	_, _, body := doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/tourney/run/7/board", "", nil)
+	want := `<span class="who-vs" title="easy-a-` + id + ` vs easy-b-` + id + `">easy-a-` +
+		shortID(id) + ` vs easy-b-` + shortID(id) + `</span>`
+	if !strings.Contains(body, want) {
+		t.Errorf("live card misses the trimmed names under the full title (body %s)", body)
+	}
+	if strings.Contains(body, ">easy-a-"+id+" vs ") {
+		t.Error("live card renders the full 32-char room id as visible text")
+	}
+}
+
 func TestTourneyRunStatesAndNotFound(t *testing.T) {
 	srv, _ := tourneySrv(t, &fakeTourney{snapshot: liveSnapshot()})
 	c := noRedirectClient(srv)

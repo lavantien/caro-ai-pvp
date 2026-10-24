@@ -3,7 +3,7 @@
 <section aria-label="match history">
 <h2>match history{{if .Variant}} <span class="chip">{{template "vglyph" .Variant}} {{.Variant}}</span>{{end}}</h2>
 {{if .Rows}}{{range .Rows}}<div class="hrow">
-<div class="top"><span>{{.When}}</span><span class="who-vs">{{.Red}} vs {{.Blue}}</span><span class="chip">{{template "vglyph" .Variant}} {{.Variant}}</span><span class="score">{{.Score}}</span><span>{{.Turns}} turns</span>{{if .WonBy}}<span>won by {{.WonBy}}</span>{{end}}</div>
+<div class="top"><span>{{.When}}</span><span class="who-vs" title="{{.Red}} vs {{.Blue}}">{{disp .Red}} vs {{disp .Blue}}</span><span class="chip">{{template "vglyph" .Variant}} {{.Variant}}</span><span class="score">{{.Score}}</span><span>{{.Turns}} turns</span>{{if .WonBy}}<span>won by {{.WonBy}}</span>{{end}}</div>
 <div class="hcols">
 <a class="hmoves" href="/rooms/history/{{.GameID}}" title="playback board">
 <ol class="hturns">
