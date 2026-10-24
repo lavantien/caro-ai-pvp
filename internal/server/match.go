@@ -50,6 +50,13 @@ func (r *Room) Ready(userID int64) error {
 	return nil
 }
 func (r *Room) startGameLocked() (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			r.closeEnginesLocked()
+			err = fmt.Errorf("engine construction failed: %v", rec)
+			r.refuseLocked(err)
+		}
+	}()
 	r.closeEnginesLocked()
 	r.board = rules.NewBoardFor(r.geom)
 	r.moves = r.moves[:0]
@@ -57,12 +64,6 @@ func (r *Room) startGameLocked() (err error) {
 	r.ponderRing = [2]GrantDepthRing{}
 	r.clock[rules.Red] = clock.NewGameClock(r.tcIdx)
 	r.clock[rules.Blue] = clock.NewGameClock(r.tcIdx)
-	defer func() {
-		if rec := recover(); rec != nil {
-			r.closeEnginesLocked()
-			err = fmt.Errorf("engine construction failed: %v", rec)
-		}
-	}()
 	for _, c := range [2]rules.Color{rules.Red, rules.Blue} {
 		if seat := r.seatByColorLocked(c); seat.bot != nil {
 			if err := r.manager.adm.AcquireTT(seat.bot.TTBytes); err != nil {

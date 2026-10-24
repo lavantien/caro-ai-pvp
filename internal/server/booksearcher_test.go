@@ -466,12 +466,22 @@ func TestReadySurfacesCorruptBookArtifactWithoutResidue(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "book") {
 		t.Fatalf("ready over a corrupt artifact err = %v, want the construction failure surfaced", err)
 	}
-	if rerr := r.Ready(alice.ID); rerr != nil {
-		t.Fatalf("repeat ready over the parked room err = %v, want the quiet state short-circuit", rerr)
+	if _, err := s.rm.Get(r.ID()); !errors.Is(err, ErrRoomNotFound) {
+		t.Errorf("get the refused room = %v, want ErrRoomNotFound: the refusal must retire it from the manager", err)
 	}
+	if rerr := r.Ready(alice.ID); !errors.Is(rerr, ErrRoomClosed) {
+		t.Fatalf("repeat ready over the retired room err = %v, want ErrRoomClosed", rerr)
+	}
+	if err := r.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); !errors.Is(err, ErrRoomClosed) {
+		t.Errorf("move into the retired room = %v, want ErrRoomClosed", err)
+	}
+	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.MachineTTBudgetBytes })
 	r.Close()
 	if got := s.rm.LiveCoreBookings(); got != 0 {
-		t.Errorf("core bookings after close = %d, want 0: the parked room must release on teardown", got)
+		t.Errorf("core bookings after close = %d, want 0: the retired room must release on teardown", got)
+	}
+	if _, ok := r.Info(); ok {
+		t.Error("the retired room still reports live info")
 	}
 }
 
