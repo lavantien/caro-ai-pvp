@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -530,6 +532,53 @@ func TestTourneyRunCloseForm(t *testing.T) {
 		return status
 	}(); code != http.StatusNotFound {
 		t.Errorf("close of a garbage id = %d, want 404", code)
+	}
+}
+
+func TestTourneyRunPageShowsVariantChipOnBothVariants(t *testing.T) {
+	for _, row := range []struct{ variant, glyph string }{
+		{config.DefaultVariant, "vglyph-square"},
+		{"hex", "vglyph-hex"},
+	} {
+		sn := liveSnapshot()
+		sn.Run.Variant = row.variant
+		srv, token := tourneySrv(t, &fakeTourney{snapshot: sn})
+
+		status, _, body := doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/tourney/run/7", token, nil)
+		if status != http.StatusOK {
+			t.Fatalf("%s run page: status = %d (body %s)", row.variant, status, body)
+		}
+		if !strings.Contains(body, `<span class="chip"><svg class="vglyph `+row.glyph+`"`) {
+			t.Errorf("%s run page misses the glyph chip (body %s)", row.variant, body)
+		}
+		if !strings.Contains(body, `</svg> `+row.variant+`</span>`) {
+			t.Errorf("%s run page misses the chip label (body %s)", row.variant, body)
+		}
+	}
+}
+
+func TestTourneyRunPageSpacesRowGroups(t *testing.T) {
+	css, err := os.ReadFile("web/shell.css")
+	if err != nil {
+		t.Fatalf("read shell.css: %v", err)
+	}
+	series := regexp.MustCompile(`(?m)^\.tseries \{[^}]*\}`).Find(css)
+	if series == nil {
+		t.Fatal("shell.css loses the .tseries rule")
+	}
+	for _, want := range []string{
+		`gap:\s*var\(--space-2\)`, `margin:\s*var\(--space-4\) 0`,
+	} {
+		if !regexp.MustCompile(want).Match(series) {
+			t.Errorf(".tseries must carry %s, got %s", want, series)
+		}
+	}
+	live := regexp.MustCompile(`(?m)^\.liveboards \{[^}]*\}`).Find(css)
+	if live == nil {
+		t.Fatal("shell.css loses the .liveboards margin rule")
+	}
+	if !regexp.MustCompile(`margin:\s*var\(--space-4\) 0`).Match(live) {
+		t.Errorf(".liveboards margin must sit at var(--space-4) 0, got %s", live)
 	}
 }
 

@@ -151,7 +151,7 @@ func lobbyPage() *template.Template {
 var (
 	lobbyTmpl     = lobbyPage()
 	lobbyListTmpl = template.Must(template.ParseFS(shellTmplFS,
-		"web/templates/lobby.tmpl", "web/templates/board.html"))
+		"web/templates/lobby.tmpl", "web/templates/brand.html", "web/templates/board.html"))
 )
 
 type lobbySeatView struct {

@@ -45,7 +45,7 @@ var (
 	homeTmpl    = shellPage("home.tmpl")
 	loginTmpl   = shellPage("login.tmpl")
 	historyTmpl = shellPage("history.tmpl")
-	roomsTmpl   = template.Must(template.ParseFS(shellTmplFS, "web/templates/rooms.tmpl"))
+	roomsTmpl   = template.Must(template.ParseFS(shellTmplFS, "web/templates/rooms.tmpl", "web/templates/brand.html"))
 )
 
 type shellPages struct {

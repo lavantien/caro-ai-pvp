@@ -330,7 +330,7 @@ func TestHistoryListsFinishedSeriesOfBothVariants(t *testing.T) {
 	if got := strings.Count(body, `class="hrow"`); got != 2 {
 		t.Errorf("history rows = %d, want the square and the hex game (body %s)", got, body)
 	}
-	for _, want := range []string{"H8 I6", "L12 M13", `<span class="chip">hex</span>`} {
+	for _, want := range []string{"H8 I6", "L12 M13", `<span class="chip"><svg class="vglyph vglyph-hex"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("history misses %q (body %s)", want, body)
 		}

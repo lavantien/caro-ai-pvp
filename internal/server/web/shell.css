@@ -77,6 +77,8 @@ h2 { font-size: var(--text-l); margin: 1.4rem 0 var(--space-2) }
 	padding: .05rem var(--space-2); color: var(--text-muted);
 	font-size: var(--text-base) }
 .chip.live { background: var(--accent-soft); color: var(--text) }
+.chip .vglyph { width: .8em; height: .8em; stroke-width: 2;
+	vertical-align: -0.08em; margin-right: .1em }
 .field, label { display: grid; gap: .15rem; font-size: var(--text-s) }
 select, input { font: inherit; font-size: var(--text-l); padding: .3rem .4rem;
 	background: var(--background); color: var(--text);
@@ -140,9 +142,9 @@ h1, .who, .who-vs, #score-line, .p-name, #turn-line { overflow-wrap: anywhere }
 @media (max-width: 40rem) { .tourneyform .roster { grid-template-columns: 1fr } }
 .tourney-run > a { font-size: var(--text-xl); font-weight: 700; text-decoration: none }
 .progress { font-weight: 700 }
-.liveboards { margin: .4rem 0 var(--space-4) }
+.liveboards { margin: var(--space-4) 0 }
 .livecard { text-decoration: none }
-.tseries { display: grid; gap: var(--space-1); margin: .4rem 0 var(--space-4);
+.tseries { display: grid; gap: var(--space-2); margin: var(--space-4) 0;
 	padding-left: 1.2rem }
 .tboard { border-collapse: collapse; font-size: var(--text-base) }
 .tablewrap { overflow-x: auto }
