@@ -142,6 +142,20 @@ func TestLiveBoardsDelegatesToRealRooms(t *testing.T) {
 	}
 }
 
+func TestScriptedSnapshotsCarryVariant(t *testing.T) {
+	tour := newScriptTourney(&stubRunSource{}, stubBoards{}, 41)
+	for _, id := range []int64{finishedRunID, runningRunID} {
+		sn, err := tour.RunSnapshot(context.Background(), id)
+		if err != nil {
+			t.Fatalf("scripted run %d snapshot: %v", id, err)
+		}
+		if sn.Run.Variant != config.DefaultVariant {
+			t.Errorf("scripted run %d variant = %q, want %q",
+				id, sn.Run.Variant, config.DefaultVariant)
+		}
+	}
+}
+
 func TestStartRunBlockedByRealRun(t *testing.T) {
 	tour := newScriptTourney(&stubRunSource{}, stubBoards{}, 41)
 	_, err := tour.StartRun(context.Background(), server.TourneySetup{})

@@ -216,7 +216,7 @@ func (t *scriptTourney) finishedSnapshot() (server.TourneySnapshot, error) {
 	return server.TourneySnapshot{
 		Run: server.TourneyRunInfo{
 			ID: finishedRunID, CreatedAt: 1791000000, TCIdx: stageTCIdx, BOLen: stageBO,
-			StartRating: config.TournamentStartRating, Finished: true,
+			StartRating: config.TournamentStartRating, Variant: config.DefaultVariant, Finished: true,
 		},
 		Seats: seats, Series: series, Board: board,
 	}, nil
@@ -243,7 +243,7 @@ func (t *scriptTourney) runningSnapshot() (server.TourneySnapshot, error) {
 	return server.TourneySnapshot{
 		Run: server.TourneyRunInfo{
 			ID: runningRunID, CreatedAt: 1791300000, TCIdx: stageTCIdx, BOLen: stageBO,
-			StartRating: config.TournamentStartRating, Running: true,
+			StartRating: config.TournamentStartRating, Variant: config.DefaultVariant, Running: true,
 		},
 		Seats: seats, Series: runningMeets(), Board: board,
 	}, nil
