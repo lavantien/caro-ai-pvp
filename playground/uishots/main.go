@@ -88,6 +88,28 @@ func seedDraw(ctx context.Context, store *server.Store, red, blue int64) {
 	}
 }
 
+func seedHexWin(ctx context.Context, store *server.Store, red, blue int64, botName string) {
+	wonBy := "M11"
+	series, err := store.CreateSeriesFor(ctx, 1, config.SeriesBO3, red, blue, "hex")
+	if err != nil {
+		log.Fatalf("uishots: hex series: %v", err)
+	}
+	finish := &server.SeriesFinish{SeriesID: series.ID, Winner: &red, FinishedAt: time.Now().Unix()}
+	if err := store.ApplyCompletion(ctx, server.Completion{
+		Games: []server.Game{{
+			SeriesID: series.ID, IdxInSeries: 0, RedUser: red, BlueUser: blue,
+			Outcome: server.OutcomeRed,
+			Moves: server.EncodeMoves(nil, movesOf([]string{
+				"L12", "M13", "P12", "N13", "N12", "O13", "O12", "L13", "M12", "N14", "M11",
+			})),
+			FullTurns: 5, WonBy: &wonBy, BotName: botName,
+		}},
+		Finish: finish,
+	}); err != nil {
+		log.Fatalf("uishots: seed hex win %d over %d: %v", red, blue, err)
+	}
+}
+
 func seedProfiles(store *server.Store) {
 	ctx := context.Background()
 	alice := mustUser(store, "alice", "alicepw")
@@ -100,6 +122,7 @@ func seedProfiles(store *server.Store) {
 	seedWin(ctx, store, medium, alice.ID, "medium-52dd8e40")
 	seedDraw(ctx, store, alice.ID, bob.ID)
 	seedWin(ctx, store, alice.ID, easy, "easy-31c9ab77")
+	seedHexWin(ctx, store, alice.ID, easy, "easy-b7f3a1c9")
 	fmt.Printf("uishots: seeded /players/alice, /players/bob, /players/%s, /players/%s, /players/%s\n",
 		config.BotAccountName(0), config.BotAccountName(1), config.AdminName)
 }

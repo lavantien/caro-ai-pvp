@@ -9,17 +9,22 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
+	"github.com/lavantien/caro-ai-pvp/internal/tourney"
 )
 
 const (
 	stageTCIdx = 1
 	stageBO    = config.SeriesBO3
+	botTCIdx   = 0
+	botHost    = "easy-a"
+	botGuest   = "easy-b"
 	aliceName  = "alice"
 	alicePass  = "alicepw"
 	bobName    = "bob"
@@ -81,7 +86,6 @@ func main() {
 	wq := server.NewWriteQueue(nil)
 	hub := server.NewHub()
 	rooms := server.NewRoomManager(hub, store, wq)
-	tour := newScriptTourney()
 
 	ctx := context.Background()
 	alice, _, err := server.LoginOrCreate(store, aliceName, alicePass, time.Now().Unix())
@@ -92,6 +96,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("shots: seed bob: %v", err)
 	}
+
+	mgr := tourney.NewManager(tourney.NewStore(store), tourney.RoomSource{RM: rooms})
+	realRun, err := mgr.StartRun(ctx, hexRunSpec(), 1)
+	if err != nil {
+		log.Fatalf("shots: real hex run: %v", err)
+	}
+	tour := newScriptTourney(mgr, rooms, realRun.ID)
 
 	live, err := rooms.Create(alice.ID, stageTCIdx, stageBO, nil, "")
 	if err != nil {
@@ -127,10 +138,6 @@ func main() {
 		"G8", "B2", "D4", "B3", "H8", "C2", "I8", "C3", "J8", "C4", "K8",
 	})
 
-	if _, err := rooms.Create(alice.ID, stageTCIdx, stageBO, &config.TierEasy, ""); err != nil {
-		log.Fatalf("shots: bot room: %v", err)
-	}
-
 	hexLive, err := rooms.Create(alice.ID, stageTCIdx, stageBO, nil, "hex")
 	if err != nil {
 		log.Fatalf("shots: hex live room: %v", err)
@@ -165,7 +172,8 @@ func main() {
 		"L12", "M13", "P12", "N13", "N12", "O13", "O12", "L13", "M12",
 	})
 
-	if _, err := rooms.Create(alice.ID, stageTCIdx, stageBO, &config.TierEasy, "hex"); err != nil {
+	hexBot, err := rooms.CreateBotVsBot(&config.TierEasy, botHost, &config.TierEasy, botGuest, botTCIdx, stageBO, "hex")
+	if err != nil {
 		log.Fatalf("shots: hex bot room: %v", err)
 	}
 
@@ -183,6 +191,7 @@ func main() {
 	root.Handle("/shots/finish-hex", shotsFinish(hexDone, alice.ID, bob.ID, []string{
 		"G12", "I12", "G17", "J12", "G19", "K12", "G21", "L12", "G23", "M12",
 	}))
+	root.Handle("/shots/square-bot", shotsSquareBot(rooms))
 	server.NewRoomPages(rooms, store).Mount(root)
 	server.NewTournamentPages(store, tour).Mount(root)
 	server.NewLobbyPages(store, rooms).Mount(root)
@@ -202,6 +211,8 @@ func main() {
 		aliceName, alicePass, bobName, bobPass, config.AdminPassword)
 	fmt.Printf("shots: live room %s (alice to move), terminal room %s\n", live.ID(), done.ID())
 	fmt.Printf("shots: hex live room %s (alice to move), hex terminal room %s\n", hexLive.ID(), hexDone.ID())
+	fmt.Printf("shots: hex bot room %s, real easy bots at 1+0, poll /api/rooms/%s and shoot at 8 stones\n", hexBot.ID(), hexBot.ID())
+	fmt.Printf("shots: real hex tournament run %d live, POST /shots/square-bot for the square bot room, shoot it at 12 stones\n", realRun.ID)
 	err = srv.ListenAndServe()
 	_ = srv.Close()
 	rooms.Shutdown()
@@ -235,6 +246,40 @@ func shotsFinish(r *server.Room, redID, blueID int64, line []string) http.Handle
 		}
 		playLine(r, redID, blueID, line)
 		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
+func hexRunSpec() tourney.RunSpec {
+	return tourney.RunSpec{
+		Roster: []tourney.Participant{
+			{Slot: 0, Name: "easy-1", Tier: config.TierEasy.Name},
+			{Slot: 1, Name: "easy-2", Tier: config.TierEasy.Name},
+		},
+		TCIdx: botTCIdx, BOLen: stageBO,
+		StartRating: config.TournamentStartRating, Variant: "hex",
+	}
+}
+
+func shotsSquareBot(rooms *server.RoomManager) http.Handler {
+	var mu sync.Mutex
+	var id string
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "post only", http.StatusMethodNotAllowed)
+			return
+		}
+		mu.Lock()
+		if id == "" {
+			room, err := rooms.CreateBotVsBot(&config.TierEasy, botHost, &config.TierEasy, botGuest, botTCIdx, stageBO, "")
+			if err != nil {
+				mu.Unlock()
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			id = room.ID()
+		}
+		mu.Unlock()
+		fmt.Fprintln(w, id)
 	})
 }
 

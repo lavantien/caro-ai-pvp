@@ -6,94 +6,164 @@ import (
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
+	"github.com/lavantien/caro-ai-pvp/internal/tourney"
 )
 
 const (
 	finishedRunID = 3
 	runningRunID  = 4
-	hexRunID      = 5
 )
+
+type runSource interface {
+	Detail(ctx context.Context, runID int64) (tourney.Detail, error)
+	OngoingRun(ctx context.Context) (tourney.Detail, bool, error)
+}
+
+type boardSource interface {
+	BotBoards() []server.LiveBotBoard
+}
 
 type scriptTourney struct {
 	bannerOn atomic.Bool
+	runs     runSource
+	boards   boardSource
+	realRun  int64
 }
 
-func newScriptTourney() *scriptTourney { return &scriptTourney{} }
+func newScriptTourney(runs runSource, boards boardSource, realRun int64) *scriptTourney {
+	return &scriptTourney{runs: runs, boards: boards, realRun: realRun}
+}
 
 func (t *scriptTourney) StartRun(context.Context, server.TourneySetup) (int64, error) {
-	return 0, &server.TourneyBlockedError{RunID: runningRunID}
+	var blocked int64 = runningRunID
+	if t.realRun != 0 {
+		blocked = t.realRun
+	}
+	return 0, &server.TourneyBlockedError{RunID: blocked}
 }
 
 func (t *scriptTourney) CloseStalledRun(context.Context, int64) error { return nil }
 
-func (t *scriptTourney) Runs(context.Context) ([]server.TourneyRunSummary, error) {
-	finished, _ := t.finishedSnapshot()
+func (t *scriptTourney) Runs(ctx context.Context) ([]server.TourneyRunSummary, error) {
+	out := make([]server.TourneyRunSummary, 0, 3)
+	if t.realRun != 0 {
+		d, err := t.runs.Detail(ctx, t.realRun)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, summaryOf(snapshotOf(d)))
+	}
 	running, _ := t.runningSnapshot()
-	hexRun, _ := t.hexSnapshot()
-	return []server.TourneyRunSummary{summaryOf(hexRun), summaryOf(running), summaryOf(finished)}, nil
+	finished, _ := t.finishedSnapshot()
+	return append(out, summaryOf(running), summaryOf(finished)), nil
 }
 
-func (t *scriptTourney) RunSnapshot(_ context.Context, runID int64) (server.TourneySnapshot, error) {
+func (t *scriptTourney) RunSnapshot(ctx context.Context, runID int64) (server.TourneySnapshot, error) {
+	if t.realRun != 0 && runID == t.realRun {
+		d, err := t.runs.Detail(ctx, runID)
+		if err != nil {
+			return server.TourneySnapshot{}, err
+		}
+		return snapshotOf(d), nil
+	}
 	switch runID {
 	case finishedRunID:
 		return t.finishedSnapshot()
 	case runningRunID:
 		return t.runningSnapshot()
-	case hexRunID:
-		return t.hexSnapshot()
 	}
 	return server.TourneySnapshot{}, server.ErrNotFound
 }
 
-func (t *scriptTourney) OngoingRun(context.Context) (server.TourneyBanner, bool, error) {
-	if !t.bannerOn.Load() {
-		return server.TourneyBanner{}, false, nil
+func (t *scriptTourney) OngoingRun(ctx context.Context) (server.TourneyBanner, bool, error) {
+	if t.bannerOn.Load() {
+		return server.TourneyBanner{RunID: runningRunID, Done: 7, Total: 12}, true, nil
 	}
-	return server.TourneyBanner{RunID: runningRunID, Done: 7, Total: 12}, true, nil
+	d, ok, err := t.runs.OngoingRun(ctx)
+	if err != nil || !ok {
+		return server.TourneyBanner{}, false, err
+	}
+	b := server.TourneyBanner{RunID: d.Run.ID, Total: len(d.Series)}
+	for _, line := range d.Series {
+		if line.FinishedAt != nil {
+			b.Done++
+		}
+	}
+	return b, true, nil
 }
 
 func (t *scriptTourney) LiveBoards() []server.TourneyLiveBoard {
-	return []server.TourneyLiveBoard{{
-		RoomID: "4d2e7f90a1b3c5d6", RedName: "hard-1", BlueName: "hard-2",
-		RedWins: 1, BlueWins: 2, Turn: "blue",
-		Moves: []string{"H8", "I9", "H10", "J9", "K10", "J10"},
-	}, {
-		RoomID: "5e3f8a01c2d4e6f7", RedName: "hard-3", BlueName: "hard-4",
-		RedWins: 1, BlueWins: 0, Turn: "red", Variant: "hex",
-		Moves: []string{"L12", "M13", "P12"},
-	}}
+	boards := t.boards.BotBoards()
+	out := make([]server.TourneyLiveBoard, 0, len(boards))
+	for _, b := range boards {
+		out = append(out, liveBoardOf(b))
+	}
+	return out
 }
 
-func (t *scriptTourney) hexSnapshot() (server.TourneySnapshot, error) {
-	seats := []server.TourneySeat{
-		{Slot: 0, Name: "hard-3", Tier: config.TierHard.Name},
-		{Slot: 1, Name: "hard-4", Tier: config.TierHard.Name},
+func snapshotOf(d tourney.Detail) server.TourneySnapshot {
+	return server.TourneySnapshot{
+		Run:    runInfoOf(d),
+		Seats:  seatsOf(d.Roster),
+		Series: seriesOf(d.Series),
+		Board:  boardOf(d.Board),
 	}
-	board := []server.TourneyStanding{{Slot: 0, Rating: 1006}, {Slot: 1, Rating: 994}}
-	lines := []server.TourneySeriesLine{
-		{PairingSlot: 0, RedFirstSlot: 0, BlueFirstSlot: 1, RedFirstWins: 2, BlueFirstWins: 1,
-			WinnerSlot: intPtr(0), Finished: true},
-		{PairingSlot: 1, RedFirstSlot: 1, BlueFirstSlot: 0, RedFirstWins: 1, BlueFirstWins: 1},
+}
+
+func liveBoardOf(b server.LiveBotBoard) server.TourneyLiveBoard {
+	lb := server.TourneyLiveBoard{
+		RoomID: b.RoomID, RedName: b.GuestName, BlueName: b.HostName,
+		RedWins: b.GuestWins, BlueWins: b.HostWins,
+		Turn: b.Turn, Moves: b.Moves, Variant: b.Variant,
 	}
-	for _, line := range lines {
-		red, blue := &board[line.RedFirstSlot], &board[line.BlueFirstSlot]
-		red.Wins += line.RedFirstWins
-		blue.Wins += line.BlueFirstWins
-		red.Losses += line.BlueFirstWins
-		blue.Losses += line.RedFirstWins
-		red.GamesPlayed += line.RedFirstWins + line.BlueFirstWins
-		blue.GamesPlayed += line.RedFirstWins + line.BlueFirstWins
-		if line.Finished && line.WinnerSlot != nil {
-			board[*line.WinnerSlot].SeriesWon++
+	if b.RedIsHost {
+		lb.RedName, lb.BlueName = b.HostName, b.GuestName
+		lb.RedWins, lb.BlueWins = b.HostWins, b.GuestWins
+	}
+	return lb
+}
+
+func runInfoOf(d tourney.Detail) server.TourneyRunInfo {
+	info := server.TourneyRunInfo{
+		ID: d.Run.ID, CreatedAt: d.Run.CreatedAt, TCIdx: d.Run.TCIdx,
+		BOLen: d.Run.BOLen, StartRating: d.Run.StartRating, Variant: d.Run.Variant,
+		Finished: d.Run.Status == tourney.RunStateFinished, Running: d.Running,
+	}
+	if d.Failure != nil {
+		info.Failure = d.Failure.Error()
+	}
+	return info
+}
+
+func seatsOf(roster []tourney.Participant) []server.TourneySeat {
+	seats := make([]server.TourneySeat, len(roster))
+	for i, p := range roster {
+		seats[i] = server.TourneySeat{Slot: p.Slot, Name: p.Name, Tier: p.Tier}
+	}
+	return seats
+}
+
+func seriesOf(series []tourney.Series) []server.TourneySeriesLine {
+	lines := make([]server.TourneySeriesLine, len(series))
+	for i, s := range series {
+		lines[i] = server.TourneySeriesLine{
+			PairingSlot: s.PairingSlot, RedFirstSlot: s.RedFirstSlot, BlueFirstSlot: s.BlueFirstSlot,
+			RedFirstWins: s.RedFirstWins, BlueFirstWins: s.BlueFirstWins,
+			WinnerSlot: s.WinnerSlot, Finished: s.FinishedAt != nil,
 		}
 	}
-	return server.TourneySnapshot{
-		Run: server.TourneyRunInfo{
-			ID: hexRunID, CreatedAt: 1791310000, TCIdx: stageTCIdx, BOLen: stageBO,
-			StartRating: config.TournamentStartRating, Variant: "hex", Running: true,
-		},
-		Seats: seats, Series: lines, Board: board,
-	}, nil
+	return lines
+}
+
+func boardOf(board []tourney.Standings) []server.TourneyStanding {
+	rows := make([]server.TourneyStanding, len(board))
+	for i, st := range board {
+		rows[i] = server.TourneyStanding{
+			Slot: st.Slot, Rating: st.Rating, Wins: st.Wins, Losses: st.Losses,
+			Draws: st.Draws, SeriesWon: st.SeriesWon, GamesPlayed: st.GamesPlayed,
+		}
+	}
+	return rows
 }
 
 type meet struct{ a, b, redWins, blueWins int }
