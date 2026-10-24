@@ -18,7 +18,7 @@ func benchBoard(b *testing.B) (*Board, []Move) {
 func BenchmarkMakeUnmake(b *testing.B) {
 	board, _ := benchBoard(b)
 	cell := cellsOf(b, "A1")[0]
-	for range b.N {
+	for b.Loop() {
 		board.Make(cell)
 		board.Unmake()
 	}
@@ -26,7 +26,7 @@ func BenchmarkMakeUnmake(b *testing.B) {
 
 func BenchmarkWins(b *testing.B) {
 	board, _ := benchBoard(b)
-	for range b.N {
+	for b.Loop() {
 		board.Wins(Red)
 		board.Wins(Blue)
 	}
@@ -35,14 +35,14 @@ func BenchmarkWins(b *testing.B) {
 func BenchmarkFastLastMoveWin(b *testing.B) {
 	board, _ := benchBoard(b)
 	cell := cellsOf(b, "H8")[0]
-	for range b.N {
+	for b.Loop() {
 		board.FastLastMoveWin(Red, cell)
 	}
 }
 
 func BenchmarkLegalMoves(b *testing.B) {
 	board, buf := benchBoard(b)
-	for range b.N {
+	for b.Loop() {
 		board.LegalMoves(buf)
 	}
 }

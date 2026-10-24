@@ -24,7 +24,7 @@ func benchBoard(b *testing.B) *rules.Board {
 
 func BenchmarkInit(b *testing.B) {
 	board := rules.NewBoard()
-	for range b.N {
+	for b.Loop() {
 		buildDirTable(board, &config.PatternDirs[0], benchSink[:])
 	}
 }
@@ -32,16 +32,20 @@ func BenchmarkInit(b *testing.B) {
 func BenchmarkIndex(b *testing.B) {
 	board := benchBoard(b)
 	cell := rules.Cell(config.BoardSize/2*config.BoardStride + config.BoardSize/2)
-	for i := range b.N {
+	i := 0
+	for b.Loop() {
 		_ = Index(board, cell, i&3, rules.Red)
+		i++
 	}
 }
 
 func BenchmarkIndexMovers(b *testing.B) {
 	board := benchBoard(b)
 	cell := rules.Cell(config.BoardSize/2*config.BoardStride + config.BoardSize/2)
-	for i := range b.N {
+	i := 0
+	for b.Loop() {
 		_ = Index(board, cell, i&3, rules.Color((i>>2)&1))
+		i++
 	}
 }
 
@@ -49,7 +53,7 @@ func BenchmarkLookup(b *testing.B) {
 	board := benchBoard(b)
 	cell := rules.Cell(config.BoardSize/2*config.BoardStride + config.BoardSize/2)
 	idx := Index(board, cell, 0, rules.Red)
-	for range b.N {
+	for b.Loop() {
 		_ = Lookup(idx)
 	}
 }
