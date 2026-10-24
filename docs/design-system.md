@@ -1,6 +1,6 @@
 # Design system
 
-The v0.29 light contract. Light is the base presentation on every surface, a light pink page with a pastel palette and dark plum ink, and no dark variant exists. The palette hub stays `internal/server/web/shell.css` `:root`, machine-checked by `make contrast` (playground/contrast, wired into `ci`).
+The v0.29 light contract. Light is the base presentation on every surface, a light pink page with a pastel palette and dark plum ink, and no dark variant exists. The palette hub stays `internal/server/web/shell.css` `:root`, machine-checked by `go run ./cmd/run contrast` (playground/contrast, wired into `ci`).
 
 ## Identity
 
@@ -90,7 +90,7 @@ Motion: the UI is near-zero motion. The only transitions are button and chip col
 
 ## Contrast contract
 
-`make contrast` fails the build on any miss, recomputing every pair from `:root` at runtime. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (live-tournament line, 3), `accent-strong` on `background` (focus ring over the page, 3). Boundaries split by meaning: a boundary that carries state must clear WCAG 1.4.11's 3:1 (`text-muted` on `background`, `surface`, and `accent-soft` for the chip state boundary), while decorative boundaries (the board lattice, hairlines) stay at the 2.5 floor. Tightest shipped margins on the light palette: `text-muted` on `background` 5.00, `border` on `surface` 2.64, `mark` on `background` 3.60.
+`go run ./cmd/run contrast` fails the build on any miss, recomputing every pair from `:root` at runtime. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (live-tournament line, 3), `accent-strong` on `background` (focus ring over the page, 3). Boundaries split by meaning: a boundary that carries state must clear WCAG 1.4.11's 3:1 (`text-muted` on `background`, `surface`, and `accent-soft` for the chip state boundary), while decorative boundaries (the board lattice, hairlines) stay at the 2.5 floor. Tightest shipped margins on the light palette: `text-muted` on `background` 5.00, `border` on `surface` 2.64, `mark` on `background` 3.60.
 
 ## Board
 

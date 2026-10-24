@@ -43,7 +43,7 @@ func main() {
 	kdList := flag.String("kd", "0,0.005,0.01", "grid: comma-separated Kd values")
 	lengths := flag.String("lengths", "20,30,40,50,60", "comma-separated game lengths in moves per side")
 	overshoot := flag.String("overshoot", "1.0,1.3", "overshoot model spend-factor bounds")
-	out := flag.String("out", "", "artifact path (default playground/clocktune/out/sweep-<tc label>.md, repo-root relative like make clocktune runs it)")
+	out := flag.String("out", "", "artifact path (default playground/clocktune/out/sweep-<tc label>.md, repo-root relative like go run ./cmd/run clocktune runs it)")
 	flag.Parse()
 
 	if *tcIdx < 0 || *tcIdx >= len(config.TimeControls) {

@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -428,45 +427,27 @@ func TestChildEnvOverrides(t *testing.T) {
 	}
 }
 
-func makefileTargetNames(t *testing.T) map[string]bool {
-	t.Helper()
-	_, this, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+func TestRunnerTargetSurface(t *testing.T) {
+	want := map[string]bool{
+		"all": true, "build": true, "lint": true, "vet": true, "test": true,
+		"test-race": true, "test-pkg": true, "cover": true, "cover-pcts": true, "bench": true,
+		"tidy": true, "run": true, "migrate": true, "serve": true, "firewall": true,
+		"contrast": true, "icons": true, "shots": true, "playground-modules": true, "evalfit-test": true,
+		"arena-test": true, "bookgen-build": true, "bookgen": true, "booktree": true, "bookgen-test": true,
+		"clocktune": true, "logstats": true, "crossarm": true, "db-checkpoint": true, "gpu-spike": true,
+		"arena": true, "hex-noise": true, "hex-passgates": true, "hex-ladder": true, "diagrams-browser": true,
+		"bookval-short": true, "bookval-confirm": true, "bookval-cross": true, "booktree-run": true, "evaladopt-arms": true,
+		"mutate": true, "mutate-smoke": true,
+		"tourney-smoke-32": true, "tourney-smoke-10": true, "tourney-smoke-105": true,
+		"tourney-ponderprobe": true, "tourney-floor-hard21": true, "tourney-floor-hard32": true,
+		"tourney-floor-gm21": true, "tourney-floor-gm32": true,
+		"tourney-regate21-r1": true, "tourney-regate21-r2": true, "tourney-regate21-r3": true,
+		"tourney-regate32-r1": true, "tourney-full": true, "tourney-resume": true, "tourney-close": true,
+		"doctor": true, "fmt": true, "fmt-check": true, "fuzz": true,
+		"mutate-resume": true, "mutate-full": true, "tourney-regate-chain": true, "diagrams": true, "ci": true,
 	}
-	b, err := os.ReadFile(filepath.Join(filepath.Dir(this), "..", "..", "Makefile"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	set := map[string]bool{}
-	for _, raw := range strings.Split(string(b), "\n") {
-		line := strings.TrimSpace(raw)
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(raw, "\t") {
-			continue
-		}
-		if strings.HasPrefix(line, ".PHONY:") {
-			for _, n := range strings.Fields(strings.TrimPrefix(line, ".PHONY:")) {
-				set[n] = true
-			}
-			continue
-		}
-		name, rest, ok := strings.Cut(line, ":")
-		if !ok || strings.HasPrefix(rest, "=") {
-			continue
-		}
-		name = strings.TrimSpace(name)
-		if name == "" || strings.HasPrefix(name, ".") || strings.ContainsAny(name, "%$=") {
-			continue
-		}
-		set[name] = true
-	}
-	return set
-}
-
-func TestTargetInventoryMatchesMakefile(t *testing.T) {
-	mk := makefileTargetNames(t)
-	if len(mk) < 60 {
-		t.Fatalf("Makefile parse found only %d targets, parsing broke", len(mk))
+	if len(want) < 66 {
+		t.Fatalf("frozen surface holds only %d targets, the literal was truncated", len(want))
 	}
 	runnerNames := map[string]bool{}
 	for n := range registry {
@@ -475,14 +456,14 @@ func TestTargetInventoryMatchesMakefile(t *testing.T) {
 	for n := range flows {
 		runnerNames[n] = true
 	}
-	for n := range mk {
+	for n := range want {
 		if !runnerNames[n] {
-			t.Errorf("make target %q missing from the runner", n)
+			t.Errorf("frozen target %q missing from the runner", n)
 		}
 	}
 	for n := range runnerNames {
-		if !mk[n] {
-			t.Errorf("runner target %q has no Makefile rule", n)
+		if !want[n] {
+			t.Errorf("runner target %q absent from the frozen surface", n)
 		}
 	}
 }

@@ -1,14 +1,3 @@
-// Command logstats parses every per-series txt tournament log in a directory
-// (the files internal/tourney's Logs writes under config.TournamentLogDir)
-// and renders the markdown evidence report of the v0.20 chain: inventory,
-// per-participant standings folded through the runner's seat law, per-tier
-// telemetry from the M-lines, a strength verdict with tier-inversion lines,
-// and a parse-integrity ledger that counts and lists every line the parsers
-// rejected. Deterministic: same logs in, same bytes out.
-//
-// Run from the repo root through the make target:
-//
-//	make logstats ARGS="--dir tourney-logs --out report.md"
 package main
 
 import (
@@ -61,8 +50,6 @@ func main() {
 	}
 }
 
-// readSeriesLogs lists the dir's plain .txt files in name order: one series
-// log per file under the tourney writer's naming.
 func readSeriesLogs(dir string) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -77,8 +64,6 @@ func readSeriesLogs(dir string) ([]string, error) {
 	return paths, nil
 }
 
-// latestRunDir picks the lexicographically newest run folder under root:
-// the TournamentRunDirFormat timestamp prefix sorts chronologically.
 func latestRunDir(root string) (string, error) {
 	entries, err := os.ReadDir(root)
 	if err != nil {

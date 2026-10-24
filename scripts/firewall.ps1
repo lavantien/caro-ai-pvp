@@ -1,7 +1,3 @@
-# Manages the Windows Firewall inbound allow rules for the caro server ports.
-# Needs an elevated shell (run as administrator): make firewall
-# Usage: pwsh -File scripts/firewall.ps1 -Ports 38063,38069 [-Remove]
-
 param(
 	[Parameter(Mandatory = $true)]
 	[int[]]$Ports,

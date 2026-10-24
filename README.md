@@ -80,7 +80,7 @@ The ui/ux table is the living surface inventory, rebuilt against the overhauled 
 
 ## screenshots
 
-Dark-default captures at 390px phone and 1280px desktop widths, the primary presentation. The set is staged engine-free: the game, lobby, and profile surfaces through playground/uishots over a seeded store, the login, home, history, and tournament surfaces through playground/shots behind make shots over its seeded store and scripted tournament snapshots, with live rooms (square and hexagon) driven move by move and no search ever running, so captures never contend with the strength gates for the machine. The bot-room M-line log mid-game, the driven-run live boards and the finished leaderboard of a real run land with the v0.28 master pass gate, which requires screenshots from all supported flows on real systems. Login-or-create (an unknown name registers, the seeded admin row holds its name):
+Dark-default captures at 390px phone and 1280px desktop widths, the primary presentation. The set is staged engine-free: the game, lobby, and profile surfaces through playground/uishots over a seeded store, the login, home, history, and tournament surfaces through playground/shots over its seeded store and scripted tournament snapshots, with live rooms (square and hexagon) driven move by move and no search ever running, so captures never contend with the strength gates for the machine. The bot-room M-line log mid-game, the driven-run live boards and the finished leaderboard of a real run land with the v0.28 master pass gate, which requires screenshots from all supported flows on real systems. Login-or-create (an unknown name registers, the seeded admin row holds its name):
 
 ![login or create on a phone](docs/screenshots/mobile-login.png)
 
@@ -174,23 +174,23 @@ The login, logged-in home and banner, terminal room, history, and tournament cap
 
 ## build and verify
 
-Requires go 1.27.1+, a C toolchain (gcc or llvm/clang), GNU make, with CGO enabled.
+Requires go 1.27.1+ and a C toolchain (gcc or llvm/clang), with CGO enabled.
 
 ```
-make doctor          # toolchain check: go >= 1.27.1, CGO, gcc
-make ci              # fmt-check, vet, build, race tests with coverage gates
-make mutate-smoke    # rules-core mutation gate (runs in CI on every push)
-make mutate-full LABEL=vX PARALLEL=4 CHALLENGE=1  # whole gate, auto-resumes host crashes; every test tree runs under a kernel-enforced 2 GiB commit cap so a broken-bound mutant dies in its own tree and 4 workers hold the 8 GiB mutation ceiling
-make mutate-resume LOG=prior-run.log PARALLEL=4 CHALLENGE=1
-make bench           # engine, clock, rules benchmarks with allocs
-make fuzz            # rules differential fuzz target
-make clocktune       # PID gain sweep for one time control, artifact under playground/clocktune/out/
-make booktree-run    # detached tree-expansion book build, resumable from its expansion log
-make bookval-short   # detached book validation arms (also bookval-confirm, bookval-cross), each resumable
-make diagrams        # render the dark PNG diagrams from the mermaid sources
-make logstats          # evidence report over the newest logs/tourny run
-make db-checkpoint     # fold every db/*.db write-ahead log into its main file
-make serve             # serve on the configured port, db under db/
+go run ./cmd/run doctor          # toolchain check: go >= 1.27.1, CGO, gcc
+go run ./cmd/run ci              # fmt-check, vet, build, race tests with coverage gates
+go run ./cmd/run mutate-smoke    # rules-core mutation gate (runs in CI on every push)
+go run ./cmd/run mutate-full LABEL=vX PARALLEL=4 CHALLENGE=1  # whole gate, auto-resumes host crashes; every test tree runs under a kernel-enforced 2 GiB commit cap so a broken-bound mutant dies in its own tree and 4 workers hold the 8 GiB mutation ceiling
+go run ./cmd/run mutate-resume LOG=prior-run.log PARALLEL=4 CHALLENGE=1
+go run ./cmd/run bench           # engine, clock, rules benchmarks with allocs
+go run ./cmd/run fuzz            # rules differential fuzz target
+go run ./cmd/run clocktune       # PID gain sweep for one time control, artifact under playground/clocktune/out/
+go run ./cmd/run booktree-run    # detached tree-expansion book build, resumable from its expansion log
+go run ./cmd/run bookval-short   # detached book validation arms (also bookval-confirm, bookval-cross), each resumable
+go run ./cmd/run diagrams        # render the PNG diagrams from the mermaid sources
+go run ./cmd/run logstats        # evidence report over the newest logs/tourny run
+go run ./cmd/run db-checkpoint   # fold every db/*.db write-ahead log into its main file
+go run ./cmd/run serve           # serve on the configured port, db under db/
 ```
 
 Coverage gates: 95% overall, 100% on internal/rules, internal/engine, and internal/clock, read from the real suite's race coverage profile. The working tree keeps its artifacts placed: databases under db/, tournament logs under logs/tourny/, nothing database- or log-shaped in the root.
