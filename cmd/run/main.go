@@ -116,7 +116,16 @@ func (r *runner) runCode(s step) (int, error) {
 		return 0, fmt.Errorf("run: %s: %w", s.name, err)
 	}
 	started := time.Now()
-	fmt.Printf("run: %s %s: %s %s\n", r.target, s.name, s.path, strings.Join(s.args, " "))
+	fmt.Printf("run: %s %s: %s %s", r.target, s.name, s.path, strings.Join(s.args, " "))
+	if image, guarded := buildOutputImage(s, r.goExe); guarded {
+		if err := guardRunningImage(s, image); err != nil {
+			fmt.Printf(" [guard %s refused]\n", image)
+			return 0, err
+		}
+		fmt.Printf(" [guard %s clear]\n", image)
+	} else {
+		fmt.Println()
+	}
 	code, err := execStep(s, r.childEnv(s.env))
 	if err != nil {
 		return 0, fmt.Errorf("run: %s failed at %s: %v", r.target, s.name, err)
