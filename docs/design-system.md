@@ -1,6 +1,6 @@
 # Design system
 
-The v0.27 re-skin contract. Dark is the base presentation on every surface; no light variant exists. The palette hub stays `internal/server/web/shell.css` `:root`, machine-checked by `make darkcontrast` (playground/darkcontrast, wired into `ci`).
+The v0.29 light contract. Light is the base presentation on every surface, a light pink page with a pastel palette and dark plum ink, and no dark variant exists. The palette hub stays `internal/server/web/shell.css` `:root`, machine-checked by `make contrast` (playground/contrast, wired into `ci`).
 
 ## Identity
 
@@ -8,28 +8,28 @@ Caro is five-in-a-row on a grid. The board lattice, the red and blue stone discs
 
 ## Color tokens
 
-The ten shipped anchors never change value. Two ramp steps of the existing accent hue were added; no new hues exist.
+The twelve shipped anchors never change value without the contrast gate rerunning.
 
 | token | value | role |
 | --- | --- | --- |
-| `--background` | `#101318` | page |
-| `--surface` | `#1a1f28` | cards, fieldsets, board fill |
-| `--border` | `#566179` | every hairline |
-| `--text` | `#e8ebf2` | copy |
-| `--text-muted` | `#a4aec2` | status and meta |
-| `--accent` | `#58a8ff` | links, primary button fill |
-| `--accent-strong` | `#7db8ff` | primary button hover and active fill |
-| `--accent-soft` | `#25384f` | accent tint fill (quiet hover, live chip) |
-| `--danger` | `#ff7a6e` | errors, armed forfeit |
-| `--red` | `#ef5350` | red stones, red clock |
-| `--blue` | `#42a5f5` | blue stones, blue clock |
-| `--mark` | `#ffb454` | amber, see the amber law |
+| `--background` | `#f9e8f1` | page, glyph ink, button label on accent |
+| `--surface` | `#fff7fb` | cards, fieldsets, board fill |
+| `--border` | `#c48ba1` | every hairline |
+| `--text` | `#2a2430` | copy |
+| `--text-muted` | `#6f5f75` | status and meta |
+| `--accent` | `#7050b8` | links, primary button fill |
+| `--accent-strong` | `#5d3f9e` | primary button hover and active fill, focus ring |
+| `--accent-soft` | `#ead9f7` | accent tint fill (quiet hover, live chip) |
+| `--danger` | `#b02a44` | errors, armed forfeit |
+| `--red` | `#c2185b` | red stones, red clock |
+| `--blue` | `#1565c0` | blue stones, blue clock |
+| `--mark` | `#b26a00` | amber, see the amber law |
 
 A second surface depth step (`--surface-raised`) is deliberately absent: depth is one fill plus borders. Add it only when a surface truly needs to float.
 
 ### The amber law
 
-`--mark` is purely the data-attention color: latest stone on the room and playback boards, latest mini stone on the tournament live cards, and the live-tournament line on the rooms grid (its link text included). Amber carries no interaction-signal duty; the focus ring rides `--accent-strong`. Amber never decorates anything else.
+`--mark` is purely the data-attention color: latest stone on the room and playback boards, latest mini stone on the tournament live cards, and the live-tournament line on the rooms grid (its link text included). Amber carries no interaction-signal duty; the focus ring rides `--accent-strong`. Amber never decorates anything else. The old dark-theme amber `#ffb454` measured about 1.9 on the pink page and is retired; the `#b26a00` family carries the law on light.
 
 ## Type
 
@@ -42,19 +42,19 @@ Two voices over two tokens:
 
 Mixed surfaces (room page seat labels, history rows, score lines) can carry a human or a bot name, so they stay in the human voice; only surfaces that always render bot data take the machine voice.
 
-Scale (the `1.1`, `1.15`, and `1.25` legacy sizes folded to the nearest step):
+Scale, one step up from the v0.27 set so the board-first mobile layout reads larger:
 
-| token | value | legacy folds in |
-| --- | --- | --- |
-| `--text-xs` | `.8rem` | bot log |
-| `--text-s` | `.85rem` | labels, status line |
-| `--text-m` | `.9rem` | clock labels, narrow table |
-| `--text-base` | `1rem` | body, move lists, tables, chips |
-| `--text-l` | `1.05rem` | `1.1` guestnote, banner, playback buttons |
-| `--text-xl` | `1.2rem` | `1.15` card titles, `1.25` wld badge, h1, errors |
-| `--text-2xl` | `1.5rem` | brand, player identity |
+| token | value |
+| --- | --- |
+| `--text-xs` | `.85rem` |
+| `--text-s` | `.9rem` |
+| `--text-m` | `.95rem` |
+| `--text-base` | `1.05rem` |
+| `--text-l` | `1.15rem` |
+| `--text-xl` | `1.3rem` |
+| `--text-2xl` | `1.7rem` |
 
-The room clock keeps its `2rem` component metric (single-source, the room's hero data), and the amber ring keeps its `3px` spread; both are component metrics, not scale steps.
+The room clock keeps its `2.25rem` component metric (single-source, the room's hero data) and the square stone glyph rides `--text-l`; both are component metrics, not scale steps.
 
 ## Spacing and radius
 
@@ -90,8 +90,18 @@ Motion: the UI is near-zero motion. The only transitions are button and chip col
 
 ## Contrast contract
 
-`make darkcontrast` fails the build on any miss. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (live-tournament line, 3), `accent-strong` on `background` (focus ring over the page, 3). Boundaries split by meaning: a boundary that carries state must clear WCAG 1.4.11's 3:1 (`text-muted` on `background`, `surface`, and `accent-soft` for the chip state boundary), while decorative boundaries (the board lattice, hairlines) stay at the 2.5 floor.
+`make contrast` fails the build on any miss, recomputing every pair from `:root` at runtime. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (live-tournament line, 3), `accent-strong` on `background` (focus ring over the page, 3). Boundaries split by meaning: a boundary that carries state must clear WCAG 1.4.11's 3:1 (`text-muted` on `background`, `surface`, and `accent-soft` for the chip state boundary), while decorative boundaries (the board lattice, hairlines) stay at the 2.5 floor. Tightest shipped margins on the light palette: `text-muted` on `background` 5.00, `border` on `surface` 2.64, `mark` on `background` 3.60.
 
 ## Board
 
-The board frame takes `--radius-m`; cells and stones keep the lattice and disc language (border cells, circular stones, amber latest ring, color-mixed hover ghost). The board-css define in `board.html` consumes the tokens only; its markup classes are pinned by tests and do not change.
+The board frame takes `--radius-m`; cells and stones keep the lattice and disc language (border cells, circular stones with x/o glyphs, amber latest ring, color-mixed hover ghost). The board-css define in `board.html` consumes the tokens only; its markup classes are pinned by tests and do not change.
+
+## Captures
+
+The canonical capture contract for every README picture, referenced by the screenshots section and the Makefile `shots` entry point.
+
+Every capture renders at the 440x956 viewport, one viewport for the whole set, portrait, light theme. Pictures run as numbered pairs, two per line in the README, the square member left and the hex member right, one caption line per pair carrying the evidence ids (P01 through P26) that devlog and README reference.
+
+Bot-room pictures come from real engine games: `playground/shots` starts real bot-vs-bot rooms at the easy tier on 1+0 bo3, and the operator polls the room detail endpoint and shoots when the stone count reaches the threshold, 12 stones square, 8 stones hex. Terminal verdicts shoot the already-loaded page after the finish endpoint fires, because a retired room 404s on a fresh load. The hex tournament live board comes from a real run.
+
+Capture order is hex first, then square, so the shared live-boards surface renders hex-pure while only hex rooms are live. The desktop-width landscape set and the 390px set are retired.

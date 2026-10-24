@@ -72,7 +72,7 @@ func wrapHTML(svg string) string {
 	b.WriteString("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n")
 	b.WriteString("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
 	b.WriteString("<title>hex variant board prototype</title>\n<style>\n")
-	b.WriteString(":root { color-scheme: dark }\n")
+	b.WriteString(":root { color-scheme: light }\n")
 	fmt.Fprintf(&b, "body { margin: 0; min-height: 100vh; background: %s; display: flex; flex-direction: column; align-items: center; gap: .75rem; padding: 1rem 0; font-family: system-ui, sans-serif }\n", colBackground)
 	fmt.Fprintf(&b, "h1 { font-size: .9rem; font-weight: 400; color: %s; margin: 0 }\n", colTextMuted)
 	b.WriteString("figure { margin: 0; width: min(100%, 44rem); padding: 0 1rem; box-sizing: border-box }\n")

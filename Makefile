@@ -283,14 +283,9 @@ diagrams-browser:
 $(DIAGRAMS_DIR)/%.png: $(DIAGRAMS_DIR)/%.mmd $(DIAGRAMS_DIR)/mermaid-config.json $(DIAGRAMS_DIR)/puppeteer.json
 	npx -y -p @mermaid-js/mermaid-cli@$(MERMAID_CLI_VERSION) -p puppeteer@$(PUPPETEER_VERSION) mmdc -i $< -o $@ -e png -b '$(DIAGRAM_BG)' -s 3 -c $(DIAGRAMS_DIR)/mermaid-config.json -p $(DIAGRAMS_DIR)/puppeteer.json
 
-# darkcontrast checks the shell.css palette pairs against the WCAG formula
-# (docs/design-system.md's contrast contract). It lives inside the playground
-# module without its own go.mod, so the playground-modules loop never sees it;
-# this target is its one entry point, and ci runs it so a token change that
-# breaks a pair fails the push.
-.PHONY: darkcontrast
-darkcontrast:
-	CGO_ENABLED=1 go -C playground run ./darkcontrast
+.PHONY: contrast
+contrast:
+	CGO_ENABLED=1 go -C playground run ./contrast
 
 # icons regenerates the committed PWA icon set (web/static/icons/) from the
 # favicon geometry: playground/icongen rasterizes favicon.svg's shapes at
@@ -300,7 +295,7 @@ darkcontrast:
 icons:
 	CGO_ENABLED=1 go -C playground run ./icongen -out ../internal/server/web/static/icons
 
-ci: playground-modules darkcontrast fmt-check lint vet build bookgen-test evalfit-test cover
+ci: playground-modules contrast fmt-check lint vet build bookgen-test evalfit-test cover
 	@echo "ci: all green"
 
 # logstats renders the markdown evidence report of the v0.20 chain from the

@@ -21,13 +21,13 @@ const (
 var sqrt3 = math.Sqrt(3)
 
 const (
-	colBackground = "#101318"
-	colSurface    = "#1a1f28"
-	colBorder     = "#566179"
-	colTextMuted  = "#a4aec2"
-	colRed        = "#ef5350"
-	colBlue       = "#42a5f5"
-	colMark       = "#ffb454"
+	colBackground = "#f9e8f1"
+	colSurface    = "#fff7fb"
+	colBorder     = "#c48ba1"
+	colTextMuted  = "#6f5f75"
+	colRed        = "#c2185b"
+	colBlue       = "#1565c0"
+	colMark       = "#b26a00"
 )
 
 func playable(q, r int) bool {

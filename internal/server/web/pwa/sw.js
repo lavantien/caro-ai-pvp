@@ -1,5 +1,4 @@
-// /api/rooms/{id}/events rides the /api/ pass-through below.
-const CACHE = 'caro-static-v3';
+const CACHE = 'caro-static-v4';
 const ASSETS = [
 	'/shell.css',
 	'/static/htmx.min.js',
@@ -15,6 +14,7 @@ const ASSETS = [
 ];
 const OFFLINE = '/offline.html';
 const API_PREFIX = '/api/';
+const SSE_ROUTE = '/api/rooms/{id}/events';
 
 self.addEventListener('install', function (e) {
 	e.waitUntil(caches.open(CACHE).then(function (c) {
@@ -41,7 +41,7 @@ self.addEventListener('activate', function (e) {
 self.addEventListener('fetch', function (e) {
 	var url = new URL(e.request.url);
 	if (url.origin !== self.location.origin) { return; }
-	if (url.pathname.indexOf(API_PREFIX) === 0) { return; }
+	if (url.pathname === SSE_ROUTE || url.pathname.indexOf(API_PREFIX) === 0) { return; }
 	if (e.request.mode === 'navigate') {
 		e.respondWith(fetch(e.request).catch(function () {
 			return caches.match(OFFLINE).then(function (r) {
