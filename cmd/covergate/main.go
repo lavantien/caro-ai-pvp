@@ -147,7 +147,10 @@ func pcts(files map[string]fileCov, w io.Writer) error {
 			core, coreSet = cp, true
 		}
 	}
-	_, err := fmt.Fprintf(w, "global=%.1f core=%.1f\n", pct(covered, total), core)
+	_, err := fmt.Fprintf(w, "global=%.1f core=%.1f global-good=%.1f global-warn=%.1f core-good=%.1f core-warn=%.1f\n",
+		pct(covered, total), core,
+		config.BadgeCoverageOverallGoodMin, config.BadgeCoverageOverallWarnMin,
+		config.BadgeCoverageCoreGoodMin, config.BadgeCoverageCoreWarnMin)
 	return err
 }
 

@@ -271,6 +271,12 @@ const (
 	QualityCoverageOverallMin = 95.0
 	QualityCoverageCoreMin    = 100.0
 )
+const (
+	BadgeCoverageOverallGoodMin = 95.0
+	BadgeCoverageOverallWarnMin = 90.0
+	BadgeCoverageCoreGoodMin    = 100.0
+	BadgeCoverageCoreWarnMin    = 100.0
+)
 
 var CorePackages = [...]string{"internal/rules", "internal/engine", "internal/clock"}
 

@@ -82,14 +82,14 @@ func TestPctsReport(t *testing.T) {
 	if err := pcts(mustParse(t, passFixture), &b); err != nil {
 		t.Fatalf("pcts err = %v", err)
 	}
-	if got, want := b.String(), "global=95.5 core=100.0\n"; got != want {
+	if got, want := b.String(), "global=95.5 core=100.0 global-good=95.0 global-warn=90.0 core-good=100.0 core-warn=100.0\n"; got != want {
 		t.Errorf("pcts(pass) = %q, want %q", got, want)
 	}
 	b.Reset()
 	if err := pcts(mustParse(t, failCoreFixture), &b); err != nil {
 		t.Fatalf("pcts err = %v", err)
 	}
-	if got, want := b.String(), "global=98.0 core=0.0\n"; got != want {
+	if got, want := b.String(), "global=98.0 core=0.0 global-good=95.0 global-warn=90.0 core-good=100.0 core-warn=100.0\n"; got != want {
 		t.Errorf("pcts(fail core) = %q, want %q", got, want)
 	}
 }

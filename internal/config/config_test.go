@@ -644,6 +644,14 @@ func TestQualityGates(t *testing.T) {
 		t.Errorf("core gate %v below overall gate %v", QualityCoverageCoreMin, QualityCoverageOverallMin)
 	}
 }
+func TestQualityBadgeBands(t *testing.T) {
+	if BadgeCoverageOverallGoodMin != 95 || BadgeCoverageOverallWarnMin != 90 {
+		t.Errorf("overall badge bands = %v %v, want 95 90", BadgeCoverageOverallGoodMin, BadgeCoverageOverallWarnMin)
+	}
+	if BadgeCoverageCoreGoodMin != 100 || BadgeCoverageCoreWarnMin != 100 {
+		t.Errorf("core badge bands = %v %v, want 100 100", BadgeCoverageCoreGoodMin, BadgeCoverageCoreWarnMin)
+	}
+}
 func TestBookConstants(t *testing.T) {
 	if BookFileMagic != "CAROBOOK1" {
 		t.Errorf("BookFileMagic = %q, want CAROBOOK1", BookFileMagic)

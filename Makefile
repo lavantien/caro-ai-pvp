@@ -89,7 +89,7 @@ cover:
 	CGO_ENABLED=1 go run ./cmd/covergate $(COVERPROFILE)
 
 cover-pcts:
-	@CGO_ENABLED=1 go run ./cmd/covergate $(COVERPROFILE)
+	@CGO_ENABLED=1 go run ./cmd/covergate -pcts $(COVERPROFILE)
 
 bench:
 	CGO_ENABLED=1 go test -run='^$$' -bench=. -benchmem ./...
