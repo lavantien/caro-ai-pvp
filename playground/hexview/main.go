@@ -39,6 +39,7 @@ func renderSVG(m boardModel) string {
 	b.WriteString("<g>\n")
 	for _, s := range m.Stones {
 		fmt.Fprintf(&b, "<circle class=\"stone %s\" cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\" fill=\"%s\"/>\n", stoneClass(s.Fill), s.X, s.Y, stoneR, s.Fill)
+		fmt.Fprintf(&b, "<text class=\"glyph\" x=\"%.2f\" y=\"%.2f\" dy=\".35em\" text-anchor=\"middle\" font-size=\"%.2f\" font-weight=\"700\" fill=\"%s\">%s</text>\n", s.X, s.Y, glyphSize, colBackground, s.Glyph)
 	}
 	for _, c := range m.Cells {
 		if !latestStone(m, c.Name) {

@@ -10,7 +10,7 @@
 .stone.red { background: var(--red); color: var(--background) }
 .stone.blue { background: var(--blue); color: var(--background) }
 .stone.latest { box-shadow: 0 0 0 3px var(--mark) }
-.stone.hidden { display: none }
+.stone.hidden, .glyph.hidden { display: none }
 .board.live[data-my-color="red"] { --ghost: color-mix(in srgb, var(--red) 45%, transparent) }
 .board.live[data-my-color="blue"] { --ghost: color-mix(in srgb, var(--blue) 45%, transparent) }
 .board.live .cell:not(.occ):not(.off) { cursor: pointer }
@@ -29,9 +29,8 @@
 .board.hex .cell circle.stone.red { fill: var(--red) }
 .board.hex .cell circle.stone.blue { fill: var(--blue) }
 .board.hex .cell circle.stone.latest { stroke: var(--mark); stroke-width: .55 }
-.board.hex .cell:has(span.stone.red) polygon { fill: var(--red); stroke: none }
-.board.hex .cell:has(span.stone.blue) polygon { fill: var(--blue); stroke: none }
-.board.hex .cell:has(span.stone.latest) polygon { stroke: var(--mark); stroke-width: .55 }
+.board.hex .cell text.glyph { text-anchor: middle; fill: var(--background);
+	font-size: 7.5px; font-weight: 700; pointer-events: none }
 .board.hex .cell.ghost polygon { fill: var(--ghost) }
 @media (pointer: fine) {
 	.board.hex.live .cell:not(.occ):not(.off):hover polygon { fill: var(--ghost) }
@@ -41,10 +40,10 @@
 
 {{define "board-grid"}}
 {{if .Hex}}
-<div class="board hex{{if .Live}} live{{end}}{{if .Mini}} mini{{end}}"{{if not .Mini}} id="board"{{end}}{{if .MyColor}} data-my-color="{{.MyColor}}"{{end}}{{if .Mini}} aria-hidden="true"{{end}} style="aspect-ratio:{{.HexBoard.Aspect}}">
+<div class="board hex{{if .Live}} live{{end}}{{if .Mini}} mini{{end}}"{{if not .Mini}} id="board"{{end}}{{if .MyColor}} data-my-color="{{.MyColor}}"{{end}}{{if .Mini}} aria-hidden="true"{{end}} data-stone-r="{{.HexBoard.StoneR}}" style="aspect-ratio:{{.HexBoard.Aspect}}">
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="{{.HexBoard.ViewBox}}" role="img" aria-label="hex board">
 {{- range .HexBoard.Cells}}
-<g class="cell{{if .Stone}} occ{{end}}{{if .Off}} off{{end}}"{{if not $.Mini}} id="c-{{.Name}}" data-cell="{{.Name}}"{{end}} transform="{{.Transform}}"><polygon points="{{$.HexBoard.Points}}"/>{{if .Stone}}<circle class="stone {{.Stone}}{{if .Latest}} latest{{end}}" data-i="{{.Idx}}" r="{{$.HexBoard.StoneR}}"/>{{end}}</g>
+<g class="cell{{if .Stone}} occ{{end}}{{if .Off}} off{{end}}"{{if not $.Mini}} id="c-{{.Name}}" data-cell="{{.Name}}"{{end}} transform="{{.Transform}}"><polygon points="{{$.HexBoard.Points}}"/>{{if .Stone}}<circle class="stone {{.Stone}}{{if .Latest}} latest{{end}}" data-i="{{.Idx}}" r="{{$.HexBoard.StoneR}}"/><text class="glyph" dy=".35em" data-i="{{.Idx}}">{{.Glyph}}</text>{{end}}</g>
 {{- end}}
 </svg>
 </div>

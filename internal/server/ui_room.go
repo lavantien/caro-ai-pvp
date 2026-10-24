@@ -426,17 +426,11 @@ func tapSelect(selected, tapped string) (next string, confirm bool) {
 	return tapped, false
 }
 
-const (
-	tapSelectJSBegin = "/* caro-tap-select:begin */"
-	tapSelectJSEnd   = "/* caro-tap-select:end */"
-)
-
-const tapSelectJS = tapSelectJSBegin + `
-function tapSelect(sel, cell) {
+const tapSelectJS = `function tapSelect(sel, cell) {
 	if (sel === cell) { return { select: '', confirm: true }; }
 	return { select: cell, confirm: false };
 }
-` + tapSelectJSEnd
+`
 
 func uiMLine(line string) string {
 	fields := strings.Split(line, ", ")
@@ -450,13 +444,7 @@ func uiMLine(line string) string {
 	return strings.Join(kept, ", ")
 }
 
-const (
-	uiMLineJSBegin = "/* caro-ui-mline:begin */"
-	uiMLineJSEnd   = "/* caro-ui-mline:end */"
-)
-
-const uiMLineJS = uiMLineJSBegin + `
-function uiMLine(line) {
+const uiMLineJS = `function uiMLine(line) {
 	var fields = line.split(', ');
 	var kept = [];
 	for (var i = 0; i < fields.length; i++) {
@@ -466,7 +454,7 @@ function uiMLine(line) {
 	}
 	return kept.join(', ');
 }
-` + uiMLineJSEnd
+`
 
 func formatClockMs(ms int64) string {
 	if ms < 0 {

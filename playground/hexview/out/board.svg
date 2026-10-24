@@ -448,7 +448,9 @@
 </g>
 <g>
 <circle class="stone red" cx="285.79" cy="165.00" r="6.30" fill="#c2185b"/>
+<text class="glyph" x="285.79" y="165.00" dy=".35em" text-anchor="middle" font-size="7.50" font-weight="700" fill="#f9e8f1">O</text>
 <circle class="stone blue" cx="320.43" cy="195.00" r="6.30" fill="#1565c0"/>
+<text class="glyph" x="320.43" y="195.00" dy=".35em" text-anchor="middle" font-size="7.50" font-weight="700" fill="#f9e8f1">X</text>
 <polygon class="latest-ring" points="294.06,160.22 294.06,169.78 285.79,174.55 277.52,169.78 277.52,160.22 285.79,155.45" fill="none" stroke="#b26a00" stroke-width="0.55"/>
 </g>
 </svg>

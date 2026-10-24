@@ -118,12 +118,12 @@ func TestHexBoardViewGeometryAndStones(t *testing.T) {
 	for _, c := range view.Cells {
 		switch c.Name {
 		case "L12":
-			if c.Stone != "red" || c.Idx != 0 || c.Latest {
-				t.Errorf("L12 stone = %q idx %d latest %v, want red idx 0 not latest", c.Stone, c.Idx, c.Latest)
+			if c.Stone != "red" || c.Glyph != "O" || c.Idx != 0 || c.Latest {
+				t.Errorf("L12 stone = %q glyph %q idx %d latest %v, want red O idx 0 not latest", c.Stone, c.Glyph, c.Idx, c.Latest)
 			}
 		case "M13":
-			if c.Stone != "blue" || c.Idx != 1 || !c.Latest {
-				t.Errorf("M13 stone = %q idx %d latest %v, want blue idx 1 latest", c.Stone, c.Idx, c.Latest)
+			if c.Stone != "blue" || c.Glyph != "X" || c.Idx != 1 || !c.Latest {
+				t.Errorf("M13 stone = %q glyph %q idx %d latest %v, want blue X idx 1 latest", c.Stone, c.Glyph, c.Idx, c.Latest)
 			}
 		}
 		if c.Stone != "" {
@@ -164,13 +164,22 @@ func TestHexRoomPageRendersOnlyPlayableCells(t *testing.T) {
 	if got := strings.Count(body, `class="cell`); got != 397 {
 		t.Errorf("hex page cell markers = %d, want 397", got)
 	}
+	if !strings.Contains(body, `data-stone-r="6.30"`) {
+		t.Error("hex board div misses its data-stone-r radius for JS stones")
+	}
 	i := strings.Index(body, `id="c-L12"`)
 	if i < 0 || !strings.Contains(body[i:i+250], `class="stone red"`) {
 		t.Error("L12 misses its red stone")
 	}
+	if i < 0 || !strings.Contains(body[i:i+250], `<circle class="stone red" data-i="0" r="6.30"/><text class="glyph" dy=".35em" data-i="0">O</text>`) {
+		t.Error("L12 misses its circle stone with the O glyph text")
+	}
 	i = strings.Index(body, `id="c-P12"`)
 	if i < 0 || !strings.Contains(body[i:i+250], `class="stone red latest"`) {
 		t.Error("P12 misses its red latest stone")
+	}
+	if i < 0 || !strings.Contains(body[i:i+400], `<text class="glyph" dy=".35em" data-i="2">O</text>`) {
+		t.Error("P12 misses its O glyph text")
 	}
 	if !strings.Contains(body, "playing / hex /") && !strings.Contains(body, "/ hex /") {
 		t.Error("room status line misses the hex variant")
@@ -336,12 +345,12 @@ func TestCreateFormsOfferTheBoardSelect(t *testing.T) {
 			t.Fatalf("GET %s: %v", path, err)
 		}
 		body := readAllBody(t, resp)
-		if !strings.Contains(body, `<select name="variant">`) {
-			t.Errorf("%s misses the board select", path)
+		if !strings.Contains(body, `<input type="radio" name="variant"`) {
+			t.Errorf("%s misses the board seg", path)
 			continue
 		}
-		if !strings.Contains(body, `<option value="square" selected>square 16x16</option>`) {
-			t.Errorf("%s misses the selected square default", path)
+		if !strings.Contains(body, `name="variant" value="square" checked><span>square 16x16</span>`) {
+			t.Errorf("%s misses the checked square default", path)
 		}
 		if !strings.Contains(body, `<option value="hex">hexagon 12</option>`) {
 			t.Errorf("%s misses the hexagon option", path)

@@ -1,14 +1,11 @@
 (function () {
 'use strict';
 
-/* caro-tap-select:begin */
 function tapSelect(sel, cell) {
 	if (sel === cell) { return { select: '', confirm: true }; }
 	return { select: cell, confirm: false };
 }
-/* caro-tap-select:end */
 
-/* caro-ui-mline:begin */
 function uiMLine(line) {
 	var fields = line.split(', ');
 	var kept = [];
@@ -19,7 +16,6 @@ function uiMLine(line) {
 	}
 	return kept.join(', ');
 }
-/* caro-ui-mline:end */
 
 function $(id) { return document.getElementById(id); }
 var SideHost = 'host', SideGuest = 'guest';
@@ -69,13 +65,30 @@ function fmtClock(ms) {
 function applyStone(name, color, idx) {
 	var cell = $('c-' + name);
 	if (!cell || cell.classList.contains('occ')) { return null; }
-	var s = document.createElement('span');
-	s.className = 'stone ' + color;
-	if (typeof idx === 'number') { s.setAttribute('data-i', String(idx)); }
-	s.textContent = glyphOf(color);
-	cell.appendChild(s);
+	var board = $('board');
+	var stone;
+	if (board.dataset.stoneR) {
+		var svgNS = 'http://www.w3.org/2000/svg';
+		stone = document.createElementNS(svgNS, 'circle');
+		stone.setAttribute('class', 'stone ' + color);
+		stone.setAttribute('r', board.dataset.stoneR);
+		if (typeof idx === 'number') { stone.setAttribute('data-i', String(idx)); }
+		var glyph = document.createElementNS(svgNS, 'text');
+		glyph.setAttribute('class', 'glyph');
+		glyph.setAttribute('dy', '.35em');
+		if (typeof idx === 'number') { glyph.setAttribute('data-i', String(idx)); }
+		glyph.textContent = glyphOf(color);
+		cell.appendChild(stone);
+		cell.appendChild(glyph);
+	} else {
+		stone = document.createElement('span');
+		stone.className = 'stone ' + color;
+		if (typeof idx === 'number') { stone.setAttribute('data-i', String(idx)); }
+		stone.textContent = glyphOf(color);
+		cell.appendChild(stone);
+	}
 	cell.classList.add('occ');
-	return s;
+	return stone;
 }
 
 function moveRow(n) {
@@ -116,7 +129,7 @@ function markLatestPly(i, stick) {
 
 function rebuildBoard(names) {
 	var board = $('board');
-	var stones = board.querySelectorAll('.stone');
+	var stones = board.querySelectorAll('.stone, .glyph');
 	for (var i = 0; i < stones.length; i++) { stones[i].remove(); }
 	var occs = board.querySelectorAll('.cell.occ');
 	for (var j = 0; j < occs.length; j++) { occs[j].classList.remove('occ'); }

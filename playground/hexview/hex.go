@@ -12,6 +12,7 @@ const (
 	unitR       = 10.0
 	hexGapFrac  = 0.045
 	labelSize   = 7.5
+	glyphSize   = 7.5
 	stoneR      = 6.3
 	latestRingW = 0.55
 	strokeCellW = 0.22
@@ -97,6 +98,7 @@ type stoneView struct {
 	Name   string
 	X, Y   float64
 	Fill   string
+	Glyph  string
 	Latest bool
 }
 
@@ -152,7 +154,10 @@ func buildBoard() boardModel {
 		track(lx-labelSize*0.8, ly)
 	}
 	m.ViewBox = [4]float64{minX - viewBoxPad, minY - viewBoxPad, maxX + viewBoxPad, maxY + viewBoxPad}
-	m.Stones = []stoneView{{Name: "L12", Fill: colRed, Latest: true}, {Name: "M14", Fill: colBlue}}
+	m.Stones = []stoneView{
+		{Name: "L12", Fill: colRed, Glyph: "O", Latest: true},
+		{Name: "M14", Fill: colBlue, Glyph: "X"},
+	}
 	for i := range m.Stones {
 		q, r, _ := parseCell(m.Stones[i].Name)
 		m.Stones[i].X, m.Stones[i].Y = cellCenter(q, r)

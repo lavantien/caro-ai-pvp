@@ -557,14 +557,39 @@ func TestRoomJSTapSelectTwinIsPinned(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read room.js: %v", err)
 	}
-	begin, end := tapSelectJSBegin+"\n", "\n"+tapSelectJSEnd
-	i := strings.Index(string(src), begin)
-	j := strings.Index(string(src), end)
-	if i < 0 || j < 0 || j < i {
-		t.Fatal("room.js misses the pinned tapSelect block markers")
+	if !strings.Contains(string(src), tapSelectJS) {
+		t.Errorf("room.js misses the pinned tapSelect twin:\n%q", tapSelectJS)
 	}
-	if got := string(src)[i : j+len(end)]; got != tapSelectJS {
-		t.Errorf("pinned tapSelect block drifted:\n got: %q\nwant: %q", got, tapSelectJS)
+	if strings.Contains(string(src), "caro-tap-select") {
+		t.Error("room.js still carries the retired tap-select marker comment")
+	}
+}
+
+func TestRoomJSHexStonesRenderAsGlyphNodes(t *testing.T) {
+	src, err := fs.ReadFile(staticFS, "room.js")
+	if err != nil {
+		t.Fatalf("read room.js: %v", err)
+	}
+	for _, want := range []string{
+		"document.createElementNS",
+		"stone.setAttribute('r', board.dataset.stoneR)",
+		"glyph.setAttribute('class', 'glyph')",
+		"glyph.setAttribute('dy', '.35em')",
+		"board.querySelectorAll('.stone, .glyph')",
+	} {
+		if !strings.Contains(string(src), want) {
+			t.Errorf("room.js misses the hex glyph wiring %q", want)
+		}
+	}
+}
+
+func TestPlaybackJSStepsHexGlyphNodesWithStones(t *testing.T) {
+	src, err := fs.ReadFile(staticFS, "playback.js")
+	if err != nil {
+		t.Fatalf("read playback.js: %v", err)
+	}
+	if !strings.Contains(string(src), "board.querySelectorAll('.stone, .glyph')") {
+		t.Error("playback.js steps only .stone, hex glyph texts would linger mid-playback")
 	}
 }
 
@@ -677,14 +702,11 @@ func TestRoomJSUIMLineTwinIsPinned(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read room.js: %v", err)
 	}
-	begin, end := uiMLineJSBegin+"\n", "\n"+uiMLineJSEnd
-	i := strings.Index(string(src), begin)
-	j := strings.Index(string(src), end)
-	if i < 0 || j < 0 || j < i {
-		t.Fatal("room.js misses the pinned uiMLine block markers")
+	if !strings.Contains(string(src), uiMLineJS) {
+		t.Errorf("room.js misses the pinned uiMLine twin:\n%q", uiMLineJS)
 	}
-	if got := string(src)[i : j+len(end)]; got != uiMLineJS {
-		t.Errorf("pinned uiMLine block drifted:\n got: %q\nwant: %q", got, uiMLineJS)
+	if strings.Contains(string(src), "caro-ui-mline") {
+		t.Error("room.js still carries the retired ui-mline marker comment")
 	}
 	if !strings.Contains(string(src), "r.status === 404 || r.status === 409") {
 		t.Error("room.js detail poll no longer treats eviction's 404 as terminal")

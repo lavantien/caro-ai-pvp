@@ -20,7 +20,7 @@ function indexHalves() {
 }
 
 function render() {
-	var stones = board.querySelectorAll('.stone');
+	var stones = board.querySelectorAll('.stone, .glyph');
 	for (var i = 0; i < stones.length; i++) {
 		var at = Number(stones[i].getAttribute('data-i'));
 		stones[i].classList.toggle('hidden', at >= step);

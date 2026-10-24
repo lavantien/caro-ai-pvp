@@ -22,6 +22,7 @@ type hexCellView struct {
 	Name      string
 	Transform string
 	Stone     string
+	Glyph     string
 	Latest    bool
 	Idx       int
 	Off       bool
@@ -90,7 +91,7 @@ func hexBoardOf(g *geom.Geometry, moves []string, playable map[string]bool) hexB
 		cv := hexCellView{Name: name, Transform: "translate(" + hexFmt(x) + " " + hexFmt(y) + ")"}
 		if i, ok := at[name]; ok {
 			cv.Idx = i
-			cv.Stone, _ = stoneOf(i)
+			cv.Stone, cv.Glyph = stoneOf(i)
 			cv.Latest = i == len(moves)-1
 		} else if playable != nil && !playable[name] {
 			cv.Off = true
