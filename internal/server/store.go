@@ -658,6 +658,37 @@ FROM games g`,
 	return st, nil
 }
 
+func (s *Store) UserWLDByVariant(userID int64) (map[string]wldRecord, error) {
+	rows, err := s.db.Query(`
+SELECT COALESCE(se.variant, 'square'),
+	SUM(CASE WHEN (g.red_user = ? AND g.outcome = ?) OR (g.blue_user = ? AND g.outcome = ?) THEN 1 ELSE 0 END),
+	SUM(CASE WHEN (g.red_user = ? AND g.outcome = ?) OR (g.blue_user = ? AND g.outcome = ?) THEN 1 ELSE 0 END),
+	SUM(CASE WHEN g.outcome = ? THEN 1 ELSE 0 END)
+FROM games g
+JOIN series se ON se.id = g.series_id
+WHERE g.red_user = ? OR g.blue_user = ?
+GROUP BY COALESCE(se.variant, 'square')`,
+		userID, OutcomeRed, userID, OutcomeBlue,
+		userID, OutcomeBlue, userID, OutcomeRed,
+		OutcomeDraw,
+		userID, userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("server: user variant stats %d: %w", userID, err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := make(map[string]wldRecord)
+	for rows.Next() {
+		var variant string
+		var rec wldRecord
+		if err := rows.Scan(&variant, &rec.Wins, &rec.Losses, &rec.Draws); err != nil {
+			return nil, fmt.Errorf("server: user variant stats %d: %w", userID, err)
+		}
+		out[variant] = rec
+	}
+	return out, rows.Err()
+}
+
 type MatchHistoryRow struct {
 	PlayedAt  int64
 	Red       string

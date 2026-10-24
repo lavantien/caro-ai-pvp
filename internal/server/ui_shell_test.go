@@ -186,8 +186,12 @@ func TestShellLoginCreateRoundTripRendersRealStats(t *testing.T) {
 		t.Errorf("home Content-Type = %q, want text/html", got)
 	}
 	wantShellBody(t, body,
-		">alice</span>", "rating 30", ">1W-0L-0D<", "level 0",
-		`href="/history"`, `action="/logout"`, `action="/rooms"`,
+		">alice</span>", "rating 30", "level 0",
+		`href="/history?variant=`+config.DefaultVariant+`" title="`+config.DefaultVariant+
+			` match history"><svg class="vglyph vglyph-`+config.DefaultVariant+`"`,
+		`href="/history?variant=hex"`,
+		"</svg> 1W-0L-0D</a>",
+		`action="/logout"`, `action="/rooms"`,
 		`id="rooms"`, `hx-get="/partials/rooms"`, `hx-trigger="every `+
 			strconv.Itoa(config.PagePollMs)+`ms"`,
 		"bot tournament",
@@ -334,6 +338,139 @@ func TestHistoryListsFinishedSeriesOfBothVariants(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("history misses %q (body %s)", want, body)
 		}
+	}
+}
+
+func TestUserWLDByVariantSplitsPerVariant(t *testing.T) {
+	s := newStack(t)
+	alice, bob := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
+	hx := mustHexGeometry(t)
+	finish := func(variant string, g *geom.Geometry, red, blue string, outcome string) {
+		t.Helper()
+		moves := []rules.Move{}
+		for _, n := range []string{red, blue} {
+			cell, err := g.ParseCell(n)
+			if err != nil {
+				t.Fatalf("parse %s: %v", n, err)
+			}
+			moves = append(moves, rules.Move(cell))
+		}
+		sr, err := s.store.CreateSeriesFor(context.Background(), 1, config.SeriesBO3, alice.ID, bob.ID, variant)
+		if err != nil {
+			t.Fatalf("%s series row: %v", variant, err)
+		}
+		if _, err := s.store.AppendGame(Game{
+			SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+			Outcome: outcome, Moves: EncodeMoves(nil, moves), FullTurns: 1,
+		}); err != nil {
+			t.Fatalf("%s game row: %v", variant, err)
+		}
+	}
+	finish(config.DefaultVariant, geom.Default(), "H8", "I6", OutcomeRed)
+	finish("hex", hx, "L12", "M13", OutcomeBlue)
+
+	byVariant, err := s.store.UserWLDByVariant(alice.ID)
+	if err != nil {
+		t.Fatalf("variant stats: %v", err)
+	}
+	if len(byVariant) != 2 {
+		t.Fatalf("variants = %v, want square and hex", byVariant)
+	}
+	if rec := byVariant[config.DefaultVariant]; rec.Wins != 1 || rec.Losses != 0 || rec.Draws != 0 {
+		t.Errorf("square record = %+v, want 1W-0L-0D", rec)
+	}
+	if rec := byVariant["hex"]; rec.Wins != 0 || rec.Losses != 1 || rec.Draws != 0 {
+		t.Errorf("hex record = %+v, want 0W-1L-0D", rec)
+	}
+}
+
+func TestShellHomeShowsPerVariantWLDRows(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	defer srv.Close()
+	c := noRedirectClient(srv)
+	token := shellRegister(t, c, srv.URL, "alice", "hunter2")
+
+	status, _, body := doShell(t, c, http.MethodGet, srv.URL+"/", token, nil)
+	if status != http.StatusOK {
+		t.Fatalf("home: status = %d (body %s)", status, body)
+	}
+	wantShellBody(t, body,
+		`href="/history?variant=square"`,
+		`href="/history?variant=hex"`,
+		`title="square match history"><svg class="vglyph vglyph-square"`,
+		`title="hex match history"><svg class="vglyph vglyph-hex"`,
+	)
+	for _, row := range []struct{ variant, wld string }{
+		{config.DefaultVariant, "0W-0L-0D"},
+		{"hex", "0W-0L-0D"},
+	} {
+		if !strings.Contains(body, `href="/history?variant=`+row.variant+`" title="`+row.variant+` match history"><svg class="vglyph vglyph-`+row.variant+`"`) {
+			t.Errorf("home misses the %s wld row link", row.variant)
+		}
+	}
+}
+
+func TestHistoryFiltersByVariantParam(t *testing.T) {
+	s := newStack(t)
+	alice, bob := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
+	sq, err := geom.ByName(config.DefaultVariant)
+	if err != nil {
+		t.Fatalf("square geometry: %v", err)
+	}
+	hx := mustHexGeometry(t)
+	finish := func(variant string, g *geom.Geometry, names []string) {
+		t.Helper()
+		moves := make([]rules.Move, 0, len(names))
+		for _, n := range names {
+			cell, err := g.ParseCell(n)
+			if err != nil {
+				t.Fatalf("parse %s: %v", n, err)
+			}
+			moves = append(moves, rules.Move(cell))
+		}
+		sr, err := s.store.CreateSeriesFor(context.Background(), 1, config.SeriesBO3, alice.ID, bob.ID, variant)
+		if err != nil {
+			t.Fatalf("%s series row: %v", variant, err)
+		}
+		if _, err := s.store.AppendGame(Game{
+			SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+			Outcome: OutcomeRed, Moves: EncodeMoves(nil, moves), FullTurns: len(moves) / 2,
+		}); err != nil {
+			t.Fatalf("%s game row: %v", variant, err)
+		}
+	}
+	finish(config.DefaultVariant, sq, []string{"H8", "I6"})
+	finish("hex", hx, []string{"L12", "M13"})
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	t.Cleanup(srv.Close)
+	ta := mintSession(t, s.store, alice)
+
+	status, body := getRoomPage(t, srv, "/history?variant=hex", ta)
+	if status != http.StatusOK {
+		t.Fatalf("hex history: status = %d (body %s)", status, body)
+	}
+	if got := strings.Count(body, `class="hrow"`); got != 1 {
+		t.Errorf("hex history rows = %d, want 1 (body %s)", got, body)
+	}
+	if !strings.Contains(body, "L12") || strings.Contains(body, "H8 I6") {
+		t.Error("hex history must carry only the hex game")
+	}
+	if !strings.Contains(body, `match history <span class="chip"><svg class="vglyph vglyph-hex"`) {
+		t.Error("filtered history misses the active variant chip")
+	}
+
+	status, body = getRoomPage(t, srv, "/history", ta)
+	if status != http.StatusOK {
+		t.Fatalf("history: status = %d (body %s)", status, body)
+	}
+	if got := strings.Count(body, `class="hrow"`); got != 2 {
+		t.Errorf("unfiltered history rows = %d, want 2 (body %s)", got, body)
+	}
+
+	status, body = getRoomPage(t, srv, "/history?variant=bogus", ta)
+	if status != http.StatusBadRequest {
+		t.Errorf("bogus variant history = %d, want 400 (body %s)", status, body)
 	}
 }
 

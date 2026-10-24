@@ -4,8 +4,8 @@
 <section class="me" aria-label="your stats">
 <span class="name">{{.Me.Username}}</span>
 <span>rating {{.Me.Rating}}</span>
-<a class="wld" href="/history" title="match history">{{.Me.WLD}}</a>
-<span>level {{.Me.Level}}</span>
+{{range .Variants}}<a class="wld" href="/history?variant={{.Variant}}" title="{{.Variant}} match history">{{template "vglyph" .Variant}} {{.WLD}}</a>
+{{end}}<span>level {{.Me.Level}}</span>
 </section>
 {{else}}
 <p class="guestnote"><a href="/login">login / create</a> to play and to see your stats.</p>

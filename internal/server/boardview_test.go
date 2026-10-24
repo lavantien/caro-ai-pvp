@@ -319,7 +319,7 @@ func TestHexPlaybackPageRendersHexBoard(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("hex completion: %v", err)
 	}
-	rows, err := s.store.matchHistoryWithIDs(alice.ID)
+	rows, err := s.store.matchHistoryWithIDs(alice.ID, "")
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("history rows = %d err %v, want the hex game", len(rows), err)
 	}

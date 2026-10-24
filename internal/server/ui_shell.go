@@ -86,6 +86,25 @@ func (v shellViewer) WLD() string {
 	return fmt.Sprintf("%dW-%dL-%dD", v.Wins, v.Losses, v.Draws)
 }
 
+type viewerVariantStats struct {
+	Variant string
+	WLD     string
+}
+
+func wldString(w, l, d int) string {
+	return strconv.Itoa(w) + "W-" + strconv.Itoa(l) + "L-" + strconv.Itoa(d) + "D"
+}
+
+func variantStatsOf(byVariant map[string]wldRecord) []viewerVariantStats {
+	out := make([]viewerVariantStats, 0, len(config.Variants))
+	for i := range config.Variants {
+		name := config.Variants[i].Name
+		rec := byVariant[name]
+		out = append(out, viewerVariantStats{Variant: name, WLD: wldString(rec.Wins, rec.Losses, rec.Draws)})
+	}
+	return out
+}
+
 func (p *shellPages) me(r *http.Request) (*shellViewer, error) {
 	return resolveViewer(p.store, r)
 }
@@ -316,6 +335,7 @@ func (p *shellPages) roomsList(ctx context.Context) roomsListView {
 
 type homeView struct {
 	Me          *shellViewer
+	Variants    []viewerVariantStats
 	RoomsList   roomsListView
 	SegTC       segView
 	SegBO       segView
@@ -325,18 +345,34 @@ type homeView struct {
 	PollMs      int64
 }
 
+func (p *shellPages) variantRows(userID int64) ([]viewerVariantStats, error) {
+	byVariant, err := p.store.UserWLDByVariant(userID)
+	if err != nil {
+		return nil, err
+	}
+	return variantStatsOf(byVariant), nil
+}
+
 func (p *shellPages) handleHome(w http.ResponseWriter, r *http.Request) {
 	me, err := p.me(r)
 	if err != nil {
 		http.Error(w, "home read failed", http.StatusInternalServerError)
 		return
 	}
-	p.renderHome(r, w, http.StatusOK, me, "")
+	var variants []viewerVariantStats
+	if me != nil {
+		if variants, err = p.variantRows(me.ID); err != nil {
+			http.Error(w, "home read failed", http.StatusInternalServerError)
+			return
+		}
+	}
+	p.renderHome(r, w, http.StatusOK, me, variants, "")
 }
 
-func (p *shellPages) renderHome(r *http.Request, w http.ResponseWriter, status int, me *shellViewer, createErr string) {
+func (p *shellPages) renderHome(r *http.Request, w http.ResponseWriter, status int,
+	me *shellViewer, variants []viewerVariantStats, createErr string) {
 	renderShell(w, status, homeTmpl, "base", homeView{
-		Me: me, RoomsList: p.roomsList(r.Context()),
+		Me: me, Variants: variants, RoomsList: p.roomsList(r.Context()),
 		SegTC:       intSeg("tc", shellTCOptions()),
 		SegBO:       intSeg("bo", shellBOOptions()),
 		SegVariant:  stringSeg("variant", shellVariantOptions()),
@@ -423,7 +459,13 @@ type historyGameRow struct {
 	GameID int64
 }
 
-func (s *Store) matchHistoryWithIDs(userID int64) ([]historyGameRow, error) {
+func (s *Store) matchHistoryWithIDs(userID int64, variant string) ([]historyGameRow, error) {
+	variantFilter := ""
+	args := []any{OutcomeRed, OutcomeBlue, OutcomeRed, OutcomeBlue, userID, userID}
+	if variant != "" {
+		variantFilter = " AND COALESCE(se.variant, 'square') = ?"
+		args = append(args, variant)
+	}
 	rows, err := s.db.Query(`
 SELECT g.id, g.played_at, ru.username, bu.username,
 	(SELECT COUNT(*) FROM games w
@@ -437,9 +479,9 @@ FROM games g
 JOIN users ru ON ru.id = g.red_user
 JOIN users bu ON bu.id = g.blue_user
 JOIN series se ON se.id = g.series_id
-WHERE g.red_user = ? OR g.blue_user = ?
+WHERE (g.red_user = ? OR g.blue_user = ?)`+variantFilter+`
 ORDER BY g.played_at DESC, g.id DESC`,
-		OutcomeRed, OutcomeBlue, OutcomeRed, OutcomeBlue, userID, userID,
+		args...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("server: match history with ids %d: %w", userID, err)
@@ -473,8 +515,9 @@ type historyRowView struct {
 }
 
 type historyView struct {
-	Me   *shellViewer
-	Rows []historyRowView
+	Me      *shellViewer
+	Variant string
+	Rows    []historyRowView
 }
 
 func (p *shellPages) handleHistory(w http.ResponseWriter, r *http.Request) {
@@ -487,12 +530,19 @@ func (p *shellPages) handleHistory(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	gameRows, err := p.store.matchHistoryWithIDs(me.ID)
+	variant := r.URL.Query().Get("variant")
+	if variant != "" {
+		if _, _, err := resolveVariant(variant); err != nil {
+			http.Error(w, "unknown variant", http.StatusBadRequest)
+			return
+		}
+	}
+	gameRows, err := p.store.matchHistoryWithIDs(me.ID, variant)
 	if err != nil {
 		http.Error(w, "history read failed", http.StatusInternalServerError)
 		return
 	}
-	view := historyView{Me: me, Rows: make([]historyRowView, 0, len(gameRows))}
+	view := historyView{Me: me, Variant: variant, Rows: make([]historyRowView, 0, len(gameRows))}
 	for _, row := range gameRows {
 		e, err := historyEntryOf(row.MatchHistoryRow)
 		if err != nil {
@@ -523,11 +573,16 @@ func (p *shellPages) handleRoomsPartial(w http.ResponseWriter, r *http.Request) 
 
 func (p *shellPages) renderCreateError(r *http.Request, w http.ResponseWriter, me *shellViewer,
 	status int, msg string) {
+	variants, err := p.variantRows(me.ID)
+	if err != nil {
+		http.Error(w, "create read failed", http.StatusInternalServerError)
+		return
+	}
 	if r.PostFormValue("origin") == "lobby" {
 		renderLobbyPage(w, status, p.rooms, me, msg)
 		return
 	}
-	p.renderHome(r, w, status, me, msg)
+	p.renderHome(r, w, status, me, variants, msg)
 }
 
 func (p *shellPages) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
