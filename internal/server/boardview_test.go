@@ -352,7 +352,7 @@ func TestCreateFormsOfferTheBoardSelect(t *testing.T) {
 		if !strings.Contains(body, `name="variant" value="square" checked><span>square 16x16</span>`) {
 			t.Errorf("%s misses the checked square default", path)
 		}
-		if !strings.Contains(body, `<option value="hex">hexagon 12</option>`) {
+		if !strings.Contains(body, `name="variant" value="hex"><span>hexagon 12</span>`) {
 			t.Errorf("%s misses the hexagon option", path)
 		}
 	}

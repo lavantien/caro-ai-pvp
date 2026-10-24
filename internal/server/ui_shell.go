@@ -28,7 +28,8 @@ const historyTimeFormat = "2006-01-02 15:04"
 
 func shellPage(page string) *template.Template {
 	return template.Must(template.ParseFS(shellTmplFS,
-		"web/templates/base.tmpl", "web/templates/rooms.tmpl", "web/templates/"+page))
+		"web/templates/base.tmpl", "web/templates/rooms.tmpl", "web/templates/seg.tmpl",
+		"web/templates/"+page))
 }
 
 var (
@@ -134,6 +135,48 @@ type botOptionView struct {
 	Value    string
 	Label    string
 	Selected bool
+}
+
+type segOption struct {
+	Value    string
+	Label    string
+	Selected bool
+}
+
+type segView struct {
+	Name    string
+	Tight   bool
+	Options []segOption
+}
+
+func (v segView) defaultFirst() segView {
+	for _, o := range v.Options {
+		if o.Selected {
+			return v
+		}
+	}
+	if len(v.Options) > 0 {
+		v.Options[0].Selected = true
+	}
+	return v
+}
+
+func intSeg(name string, opts []optionView) segView {
+	seg := segView{Name: name, Options: make([]segOption, len(opts))}
+	for i, o := range opts {
+		seg.Options[i] = segOption{
+			Value: strconv.Itoa(o.Value), Label: o.Label, Selected: o.Selected,
+		}
+	}
+	return seg.defaultFirst()
+}
+
+func stringSeg(name string, opts []botOptionView) segView {
+	seg := segView{Name: name, Options: make([]segOption, len(opts))}
+	for i, o := range opts {
+		seg.Options[i] = segOption{Value: o.Value, Label: o.Label, Selected: o.Selected}
+	}
+	return seg.defaultFirst()
 }
 
 func shellTCOptions() []optionView {
@@ -263,14 +306,14 @@ func (p *shellPages) roomsList(ctx context.Context) roomsListView {
 }
 
 type homeView struct {
-	Me             *shellViewer
-	RoomsList      roomsListView
-	TCOptions      []optionView
-	BOOptions      []optionView
-	VariantOptions []botOptionView
-	BotOptions     []botOptionView
-	CreateError    string
-	PollMs         int64
+	Me          *shellViewer
+	RoomsList   roomsListView
+	SegTC       segView
+	SegBO       segView
+	SegVariant  segView
+	BotOptions  []botOptionView
+	CreateError string
+	PollMs      int64
 }
 
 func (p *shellPages) handleHome(w http.ResponseWriter, r *http.Request) {
@@ -285,8 +328,10 @@ func (p *shellPages) handleHome(w http.ResponseWriter, r *http.Request) {
 func (p *shellPages) renderHome(r *http.Request, w http.ResponseWriter, status int, me *shellViewer, createErr string) {
 	renderShell(w, status, homeTmpl, "base", homeView{
 		Me: me, RoomsList: p.roomsList(r.Context()),
-		TCOptions: shellTCOptions(), BOOptions: shellBOOptions(),
-		VariantOptions: shellVariantOptions(), BotOptions: shellBotOptions(),
+		SegTC:       intSeg("tc", shellTCOptions()),
+		SegBO:       intSeg("bo", shellBOOptions()),
+		SegVariant:  stringSeg("variant", shellVariantOptions()),
+		BotOptions:  shellBotOptions(),
 		CreateError: createErr, PollMs: int64(config.PagePollMs),
 	})
 }

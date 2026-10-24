@@ -66,16 +66,24 @@ func TestTourneySetupSelectsRenderExactOptionLists(t *testing.T) {
 	_, _, body := doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/tourney",
 		mintAdminSession(t, store), nil)
 
-	parallel := tourneyTriageSelectRegion(t, body, "parallel")
-	if n := strings.Count(parallel, "<option"); n != config.TournamentParallelMatches {
-		t.Errorf("parallel options = %d, want %d (region %s)", n, config.TournamentParallelMatches, parallel)
+	parallel := `type="radio" name="parallel"`
+	if n := strings.Count(body, parallel); n != config.TournamentParallelMatches {
+		t.Errorf("parallel options = %d, want %d", n, config.TournamentParallelMatches)
 	}
-	if strings.Contains(parallel, `value="0"`) {
-		t.Errorf("parallel select carries a zero option (region %s)", parallel)
+	if strings.Contains(body, `name="parallel" value="0"`) {
+		t.Error("parallel seg carries a zero option")
 	}
 	for v := 1; v <= config.TournamentParallelMatches; v++ {
-		if want := tourneyTriageOption(v, v == config.TournamentParallelMatches); !strings.Contains(parallel, want) {
-			t.Errorf("parallel select misses %q (region %s)", want, parallel)
+		mark := ""
+		if v == config.TournamentParallelMatches {
+			mark = ` value="` + strconv.Itoa(v) + `" checked`
+			if !strings.Contains(body, parallel+mark) {
+				t.Errorf("parallel seg misses its default on %d", v)
+			}
+			continue
+		}
+		if !strings.Contains(body, parallel+` value="`+strconv.Itoa(v)+`"`) {
+			t.Errorf("parallel seg misses option %d", v)
 		}
 	}
 
@@ -104,11 +112,11 @@ func TestTourneyStartReRenderKeepsPostedTier(t *testing.T) {
 	if status != http.StatusBadRequest {
 		t.Fatalf("re-render: status = %d, want 400 (body %s)", status, body)
 	}
-	posted := `<option value="` + config.TierMedium.Name + `" selected>AI ` + config.TierMedium.Name + `</option>`
+	posted := `value="` + config.TierMedium.Name + `" checked`
 	if n := strings.Count(body, posted); n != config.InstancesPerTier+1 {
 		t.Errorf("posted tier selected on %d rows, want %d (body %s)", n, config.InstancesPerTier+1, body)
 	}
-	defaulted := `<option value="` + config.TierEasy.Name + `" selected>AI ` + config.TierEasy.Name + `</option>`
+	defaulted := `value="` + config.TierEasy.Name + `" checked`
 	if n := strings.Count(body, defaulted); n != config.InstancesPerTier-1 {
 		t.Errorf("row 0 default tier still selected on %d rows, want %d (body %s)", n, config.InstancesPerTier-1, body)
 	}

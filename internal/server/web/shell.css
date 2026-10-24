@@ -77,6 +77,21 @@ h2 { font-size: var(--text-l); margin: 1.4rem 0 var(--space-2) }
 select, input { font: inherit; font-size: var(--text-l); padding: .3rem .4rem;
 	background: var(--background); color: var(--text);
 	border: 1px solid var(--border); border-radius: var(--radius-s) }
+.seg { display: flex; flex-wrap: wrap; gap: var(--space-1) }
+.seg label { position: relative; display: inline-flex }
+.seg input { position: absolute; inset: 0; opacity: 0; margin: 0;
+	min-height: 0; min-width: 0; padding: 0; border: none; cursor: pointer }
+.seg span { border: 1px solid var(--border); border-radius: var(--radius-s);
+	padding: .3rem var(--space-2); font-size: var(--text-base);
+	background: var(--surface); color: var(--text); white-space: nowrap }
+.seg input:checked + span { background: var(--accent); border-color: var(--accent);
+	color: var(--background) }
+.seg input:focus-visible + span { box-shadow: 0 0 0 3px var(--accent-strong) }
+.seg.tight span { padding: .1rem var(--space-2); font-size: var(--text-s) }
+@media (pointer: coarse) {
+	.seg span { padding: .55rem var(--space-3) }
+	.seg.tight span { padding: .4rem var(--space-2) }
+}
 .btn, button:not(.linklike):not(.btn-quiet) { font: inherit; font-size: var(--text-l);
 	padding: .35rem .9rem; background: var(--accent); color: var(--background);
 	border: none; border-radius: var(--radius-s) }
@@ -99,7 +114,8 @@ h1, .who, .who-vs, #score-line, .p-name, #turn-line { overflow-wrap: anywhere }
 	header { align-items: center }
 }
 .error { color: var(--danger); font-size: var(--text-xl); font-weight: 600 }
-.loginform { display: grid; gap: var(--space-3); max-width: 22rem; margin-top: var(--space-4) }
+.loginform { display: grid; gap: var(--space-3); max-width: 22rem;
+	margin: var(--space-4) auto 0 }
 .loginform button { justify-self: start }
 .hrow { margin-bottom: var(--space-3) }
 .hrow .top { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4) }

@@ -21,18 +21,18 @@
 <form method="post" action="/rooms">
 <fieldset>
 <legend>create room</legend>
-<label>time control
-<select name="tc">{{range .TCOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
-</label>
-<label>best of
-<select name="bo">{{range .BOOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
-</label>
+<div class="field">time control
+{{template "seg" .SegTC}}
+</div>
+<div class="field">best of
+{{template "seg" .SegBO}}
+</div>
 <label>opponent
 <select name="bot">{{range .BotOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
 </label>
-<label>board
-<select name="variant">{{range .VariantOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
-</label>
+<div class="field">board
+{{template "seg" .SegVariant}}
+</div>
 <button>create room</button>
 </fieldset>
 </form>

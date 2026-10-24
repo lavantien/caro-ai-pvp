@@ -15,7 +15,7 @@ import (
 
 func tourneyPage(page string) *template.Template {
 	return template.Must(template.ParseFS(shellTmplFS,
-		"web/templates/base.tmpl", "web/templates/rooms.tmpl",
+		"web/templates/base.tmpl", "web/templates/rooms.tmpl", "web/templates/seg.tmpl",
 		"web/templates/tourney_board.tmpl", "web/templates/board.html",
 		"web/templates/"+page))
 }
@@ -142,9 +142,9 @@ func isAdmin(me *shellViewer) bool {
 }
 
 type tourneyRowView struct {
-	N     int
-	Name  string
-	Tiers []botOptionView
+	N       int
+	Name    string
+	SegTier segView
 }
 
 type tourneyRunLineView struct {
@@ -159,29 +159,31 @@ type tourneyRunLineView struct {
 }
 
 type tourneySetupView struct {
-	Me              *shellViewer
-	Admin           bool
-	TCOptions       []optionView
-	BOOptions       []optionView
-	VariantOptions  []botOptionView
-	ParallelOptions []optionView
-	CountOptions    []optionView
-	Rows            []tourneyRowView
-	StartRating     int
-	MaxNameLen      int
-	Error           string
-	Runs            []tourneyRunLineView
+	Me           *shellViewer
+	Admin        bool
+	SegTC        segView
+	SegBO        segView
+	SegVariant   segView
+	SegParallel  segView
+	CountOptions []optionView
+	Rows         []tourneyRowView
+	StartRating  int
+	MaxNameLen   int
+	Error        string
+	Runs         []tourneyRunLineView
 }
 
-func tourneyTierOptions(selected string) []botOptionView {
+func tourneyTierSeg(n int, selected string) segView {
 	opts := make([]botOptionView, len(config.Tiers))
 	for i := range config.Tiers {
 		opts[i] = botOptionView{
-			Value: config.Tiers[i].Name, Label: "AI " + config.Tiers[i].Name,
+			Value: config.Tiers[i].Name, Label: config.Tiers[i].Name,
 			Selected: config.Tiers[i].Name == selected,
 		}
 	}
-	return opts
+	seg := stringSeg("tier"+strconv.Itoa(n), opts)
+	seg.Tight = true
+	return seg
 }
 
 func tourneyRows(names, tiers []string) []tourneyRowView {
@@ -195,7 +197,7 @@ func tourneyRows(names, tiers []string) []tourneyRowView {
 		if i < len(tiers) && tiers[i] != "" {
 			tier = tiers[i]
 		}
-		rows[i] = tourneyRowView{N: i, Name: name, Tiers: tourneyTierOptions(tier)}
+		rows[i] = tourneyRowView{N: i, Name: name, SegTier: tourneyTierSeg(i, tier)}
 	}
 	return rows
 }
@@ -261,13 +263,15 @@ func (p *TournamentPages) renderSetup(w http.ResponseWriter, status int, me *she
 		names, tiers, rating = state.names, state.tiers, state.rating
 	}
 	renderShell(w, status, tourneyTmpl, "base", tourneySetupView{
-		Me:        me,
-		Admin:     isAdmin(me),
-		TCOptions: shellTCOptions(), BOOptions: shellBOOptions(),
-		VariantOptions:  shellVariantOptions(),
-		ParallelOptions: parallelOpts, CountOptions: countOpts,
-		Rows:        tourneyRows(names, tiers),
-		StartRating: rating, MaxNameLen: config.TournamentNameMaxBytes,
+		Me:           me,
+		Admin:        isAdmin(me),
+		SegTC:        intSeg("tc", shellTCOptions()),
+		SegBO:        intSeg("bo", shellBOOptions()),
+		SegVariant:   stringSeg("variant", shellVariantOptions()),
+		SegParallel:  intSeg("parallel", parallelOpts),
+		CountOptions: countOpts,
+		Rows:         tourneyRows(names, tiers),
+		StartRating:  rating, MaxNameLen: config.TournamentNameMaxBytes,
 		Error: errMsg, Runs: runs,
 	})
 }

@@ -332,6 +332,23 @@ func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {
 	wantShellBody(t, body,
 		"1&#43;0", "2&#43;1", "3&#43;2", "bo3", "bo5", "bo7", "bo11",
 		"human, open seat", "AI easy", "AI medium", "AI hard")
+	for _, want := range []string{
+		`name="tc" value="0" checked`,
+		`name="bo" value="` + strconv.Itoa(config.SeriesLengths[0]) + `" checked`,
+		`name="variant" value="square" checked`,
+		`<select name="bot"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("home create form misses %q", want)
+		}
+	}
+	for _, gone := range []string{
+		`<select name="tc"`, `<select name="bo"`, `<select name="variant"`,
+	} {
+		if strings.Contains(body, gone) {
+			t.Errorf("home still renders %s as a select, want segmented radios", gone)
+		}
+	}
 	if got := strings.Count(body, `class="room"`); got != created {
 		t.Errorf("grid shows %d rooms, want %d", got, created)
 	}

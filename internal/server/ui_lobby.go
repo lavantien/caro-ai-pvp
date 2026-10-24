@@ -144,7 +144,7 @@ func (p *LobbyPages) Mount(mux *http.ServeMux) {
 
 func lobbyPage() *template.Template {
 	return template.Must(template.ParseFS(shellTmplFS,
-		"web/templates/base.tmpl", "web/templates/rooms.tmpl",
+		"web/templates/base.tmpl", "web/templates/rooms.tmpl", "web/templates/seg.tmpl",
 		"web/templates/board.html", "web/templates/lobby.tmpl"))
 }
 
@@ -182,14 +182,14 @@ type lobbyListView struct {
 }
 
 type lobbyView struct {
-	Me             *shellViewer
-	Rooms          []lobbyRoomView
-	TCOptions      []optionView
-	BOOptions      []optionView
-	VariantOptions []botOptionView
-	BotOptions     []botOptionView
-	PollMs         int64
-	JoinError      string
+	Me         *shellViewer
+	Rooms      []lobbyRoomView
+	SegTC      segView
+	SegBO      segView
+	SegVariant segView
+	BotOptions []botOptionView
+	PollMs     int64
+	JoinError  string
 }
 
 func lobbySeatViewOf(s LobbySeat) lobbySeatView {
@@ -237,15 +237,13 @@ func lobbyViews(rooms *RoomManager, me *shellViewer) []lobbyRoomView {
 }
 
 func renderLobbyPage(w http.ResponseWriter, status int, rooms *RoomManager, me *shellViewer, errMsg string) {
-	tc := shellTCOptions()
-	tc[0].Selected = true
-	bo := shellBOOptions()
-	bo[0].Selected = true
 	renderShell(w, status, lobbyTmpl, "base", lobbyView{
 		Me: me, Rooms: lobbyViews(rooms, me),
-		TCOptions: tc, BOOptions: bo,
-		VariantOptions: shellVariantOptions(), BotOptions: shellBotOptions(),
-		PollMs: int64(config.PagePollMs), JoinError: errMsg,
+		SegTC:      intSeg("tc", shellTCOptions()),
+		SegBO:      intSeg("bo", shellBOOptions()),
+		SegVariant: stringSeg("variant", shellVariantOptions()),
+		BotOptions: shellBotOptions(),
+		PollMs:     int64(config.PagePollMs), JoinError: errMsg,
 	})
 }
 

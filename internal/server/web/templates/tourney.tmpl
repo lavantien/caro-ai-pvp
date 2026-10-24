@@ -7,33 +7,33 @@
 <form class="tourneyform" method="post" action="/tourney">
 <fieldset>
 <legend>setup</legend>
-<label>time control
-<select name="tc">{{range .TCOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
-</label>
-<label>best of
-<select name="bo">{{range .BOOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
-</label>
+<div class="field">time control
+{{template "seg" .SegTC}}
+</div>
+<div class="field">best of
+{{template "seg" .SegBO}}
+</div>
 <label>start rating
 <input name="rating" type="number" value="{{.StartRating}}">
 </label>
-<label>parallel matches
-<select name="parallel">{{range .ParallelOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
-</label>
+<div class="field">parallel matches
+{{template "seg" .SegParallel}}
+</div>
 <label>participants
 <select name="count">{{range .CountOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
 </label>
-<label>board
-<select name="variant">{{range .VariantOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
-</label>
+<div class="field">board
+{{template "seg" .SegVariant}}
+</div>
 <fieldset class="roster">
 <legend>roster, the first rows play</legend>
 {{range .Rows}}
 <label class="botname">bot {{.N}}
 <input name="name{{.N}}" maxlength="{{$.MaxNameLen}}" value="{{.Name}}">
 </label>
-<label>tier
-<select name="tier{{.N}}">{{range .Tiers}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
-</label>
+<div class="field">tier
+{{template "seg" .SegTier}}
+</div>
 {{end}}
 </fieldset>
 <button>start tournament</button>

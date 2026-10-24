@@ -230,19 +230,25 @@ func TestLobbyQuickStartForm(t *testing.T) {
 	if !strings.Contains(member, `method="post" action="/rooms"`) {
 		t.Error("member lobby missing the quick-start create form")
 	}
-	if got := strings.Count(member, `class="tcchip"`); got != len(config.TimeControls) {
-		t.Errorf("tc chips = %d, want one per time control (%d)", got, len(config.TimeControls))
+	if got := strings.Count(member, `type="radio" name="tc"`); got != len(config.TimeControls) {
+		t.Errorf("tc seg options = %d, want one per time control (%d)", got, len(config.TimeControls))
 	}
 	for i := range config.TimeControls {
 		if !strings.Contains(member, `name="tc" value="`+strconv.Itoa(i)+`"`) {
-			t.Errorf("member lobby missing the tc chip for index %d", i)
+			t.Errorf("member lobby missing the tc option for index %d", i)
 		}
 	}
-	if !strings.Contains(member, `type="radio"`) || !strings.Contains(member, "checked") {
-		t.Error("tc chips must be radios with a default pick")
+	if !strings.Contains(member, `name="tc" value="0" checked`) {
+		t.Error("tc seg must default to the first time control")
+	}
+	if !strings.Contains(member, `name="bo" value="`+strconv.Itoa(config.SeriesLengths[0])+`" checked`) {
+		t.Error("bo seg must default to the first series length")
+	}
+	if !strings.Contains(member, `name="variant" value="square" checked`) {
+		t.Error("variant seg must default to square")
 	}
 	for _, bo := range config.SeriesLengths {
-		if !strings.Contains(member, `value="`+strconv.Itoa(bo)+`"`) {
+		if !strings.Contains(member, `name="bo" value="`+strconv.Itoa(bo)+`"`) {
 			t.Errorf("member lobby missing the bo %d option", bo)
 		}
 	}
@@ -252,6 +258,14 @@ func TestLobbyQuickStartForm(t *testing.T) {
 	for i := range config.Tiers {
 		if !strings.Contains(member, `value="`+config.Tiers[i].Name+`"`) {
 			t.Errorf("member lobby missing the %s bot option", config.Tiers[i].Name)
+		}
+	}
+	if !strings.Contains(member, `<select name="bot"`) {
+		t.Error("member lobby keeps the bot select, it has more than five options")
+	}
+	for _, gone := range []string{`<select name="tc"`, `<select name="bo"`, `<select name="variant"`} {
+		if strings.Contains(member, gone) {
+			t.Errorf("lobby quickstart still renders %s as a select, want segmented radios", gone)
 		}
 	}
 	guest := get("/lobby", nil)

@@ -18,10 +18,16 @@
 <fieldset>
 <legend>quick start</legend>
 <input type="hidden" name="origin" value="lobby">
-<span class="tcchips">{{range .TCOptions}}<label class="tcchip"><input type="radio" name="tc" value="{{.Value}}"{{if .Selected}} checked{{end}}><span>{{.Label}}</span></label>{{end}}</span>
-<label>best of<select name="bo">{{range .BOOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+<div class="field">time control
+{{template "seg" .SegTC}}
+</div>
+<div class="field">best of
+{{template "seg" .SegBO}}
+</div>
 <label>opponent<select name="bot">{{range .BotOptions}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select></label>
-<label>board<select name="variant">{{range .VariantOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+<div class="field">board
+{{template "seg" .SegVariant}}
+</div>
 <button>play</button>
 </fieldset>
 </form>
@@ -32,16 +38,6 @@
 .livecard a.watch { display: grid; gap: .15rem; text-decoration: none; color: inherit }
 .livecard .joinrow { margin-top: var(--space-1) }
 .quick { margin: 0 0 var(--space-3) }
-.quick .tcchips { display: flex; flex-wrap: wrap; gap: var(--space-1) }
-.quick .tcchip { position: relative; display: inline-flex }
-.quick .tcchip input { position: absolute; inset: 0; opacity: 0; margin: 0;
-	min-height: 0; padding: 0; cursor: pointer }
-.quick .tcchip span { border: 1px solid var(--text-muted); border-radius: var(--radius-s);
-	padding: .35rem var(--space-2); font-size: var(--text-l);
-	background: var(--surface); color: var(--text) }
-.quick .tcchip input:checked + span { background: var(--accent);
-	border-color: var(--accent); color: var(--background) }
-.quick .tcchip input:focus-visible + span { box-shadow: 0 0 0 3px var(--accent-strong) }
 </style>{{end}}
 {{define "content"}}
 <section aria-label="lobby">
