@@ -55,7 +55,7 @@ h2 { font-size: var(--text-l); margin: 1.4rem 0 var(--space-2) }
 	border: 1px solid var(--border); border-radius: var(--radius-s); padding: .1rem var(--space-2);
 	background: var(--surface); color: var(--text) }
 .guestnote { font-size: var(--text-l); margin-top: var(--space-4) }
-.tourneynow { font-size: var(--text-l); font-weight: 700; margin: 0 0 .6rem }
+.tourneynow { font-size: var(--text-xl); font-weight: 700; margin: 0 0 .6rem }
 .tourneynow a { color: var(--mark) }
 .rooms, .tourney-runs, .liveboards { list-style: none; margin: 0; padding: 0;
 	display: grid; gap: var(--space-3) }

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -730,4 +732,21 @@ func seqMoves(n int) []rules.Move {
 		moves[i] = rules.Move(i)
 	}
 	return moves
+}
+
+func TestTourneynowRendersAtLargeTextScale(t *testing.T) {
+	css, err := os.ReadFile("web/shell.css")
+	if err != nil {
+		t.Fatalf("read shell.css: %v", err)
+	}
+	rule := regexp.MustCompile(`(?m)^\.tourneynow \{[^}]*\}`).Find(css)
+	if rule == nil {
+		t.Fatal("shell.css loses the .tourneynow rule")
+	}
+	if !regexp.MustCompile(`font-size:\s*var\(--text-xl\)`).Match(rule) {
+		t.Fatalf(".tourneynow must render at var(--text-xl) so the mark link stays large-text WCAG, got %s", rule)
+	}
+	if !regexp.MustCompile(`font-weight:\s*700`).Match(rule) {
+		t.Fatalf(".tourneynow must stay bold for the large-text cutoff, got %s", rule)
+	}
 }

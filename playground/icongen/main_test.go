@@ -1,11 +1,14 @@
 package main
 
 import (
+	"fmt"
+	"image/color"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -30,6 +33,41 @@ func hexNRGBA(t *testing.T, s string) (r, g, b uint8) {
 		t.Fatalf("icongen: parse %q: %v", s, err)
 	}
 	return uint8(v >> 16), uint8(v >> 8), uint8(v)
+}
+
+func shellToken(t *testing.T, name string) string {
+	t.Helper()
+	_, this, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("icongen: cannot locate the test source")
+	}
+	data, err := os.ReadFile(filepath.Join(filepath.Dir(this), "..", "..",
+		"internal", "server", "web", "shell.css"))
+	if err != nil {
+		t.Fatalf("icongen: read shell.css: %v", err)
+	}
+	m := regexp.MustCompile(`(?m)^\s*--` + name + `:\s*(#[0-9a-fA-F]{6})\s*;`).
+		FindSubmatch(data)
+	if m == nil {
+		t.Fatalf("icongen: shell.css misses the --%s token", name)
+	}
+	return string(m[1])
+}
+
+func TestIconColorsMatchShellTokens(t *testing.T) {
+	bg := shellToken(t, "background")
+	red := shellToken(t, "red")
+	blue := shellToken(t, "blue")
+	assertHex := func(label string, c color.NRGBA, want string) {
+		t.Helper()
+		got := fmt.Sprintf("#%02x%02x%02x", c.R, c.G, c.B)
+		if got != strings.ToLower(want) {
+			t.Errorf("icongen: %s = %s, shell.css --token = %s", label, got, want)
+		}
+	}
+	assertHex("bgColor", bgColor, bg)
+	assertHex("redColor", redColor, red)
+	assertHex("blueColor", blueColor, blue)
 }
 
 func TestIconColorsMatchFavicon(t *testing.T) {

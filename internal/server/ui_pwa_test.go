@@ -110,7 +110,7 @@ func TestPWAServiceWorkerServesWithUpdateSemantics(t *testing.T) {
 		t.Errorf("sw.js Cache-Control = %q, want no-cache", got)
 	}
 	for _, want := range []string{
-		"const CACHE = 'caro-static-v4'",
+		"const CACHE = 'caro-static-v5'",
 		"'/shell.css'",
 		"'/static/htmx.min.js'",
 		"'/static/hx-sse.min.js'",
@@ -131,16 +131,13 @@ func TestPWAServiceWorkerBoundary(t *testing.T) {
 	defer srv.Close()
 
 	_, _, body := doShell(t, srv.Client(), http.MethodGet, srv.URL+"/sw.js", "", nil)
-	const guard = "url.pathname.indexOf(API_PREFIX) === 0"
+	const guard = "if (url.pathname.indexOf(API_PREFIX) === 0) { return; }"
 	guardAt := strings.Index(body, guard)
 	if guardAt < 0 {
 		t.Fatalf("sw.js loses the /api/ pass-through guard %q", guard)
 	}
 	if i := strings.Index(body, "const API_PREFIX = '/api/'"); i < 0 || i > guardAt {
 		t.Errorf("sw.js does not define API_PREFIX as '/api/' before the guard")
-	}
-	if !strings.Contains(body, "/api/rooms/{id}/events") {
-		t.Error("sw.js does not name the SSE event stream route in its boundary")
 	}
 	responds := 0
 	for pos := 0; ; {

@@ -12,7 +12,7 @@ The v0.27 install surface: the web app manifest, the service worker, the offline
 | `/static/pwa.js` | `internal/server/web/static/pwa.js` | static mount, day cache |
 | `/static/icons/*.png` | `internal/server/web/static/icons/` | static mount, day cache |
 
-The worker sits at the root, so its scope covers the whole site with no `Service-Worker-Allowed` header. `theme_color` and `background_color` are `#101318`, the `--background` anchor of docs/design-system.md; they change together, and the pwa tests derive the expected color from shell.css's `--background`, so a drifted manifest or meta fails the suite. Every page head (base.tmpl, room.html, playback.html) carries the manifest link, the theme-color meta, the apple touch icon and meta set, and `/static/pwa.js` deferred.
+The worker sits at the root, so its scope covers the whole site with no `Service-Worker-Allowed` header. `theme_color` and `background_color` are `#f9e8f1`, the `--background` anchor of docs/design-system.md; they change together, and the pwa tests derive the expected color from shell.css's `--background`, so a drifted manifest or meta fails the suite. Every page head (base.tmpl, room.html, playback.html) carries the manifest link, the theme-color meta, the apple touch icon and meta set, and `/static/pwa.js` deferred.
 
 ## The boundary law
 
@@ -27,11 +27,11 @@ Never cached, by design: any `/api/` response, any SSE stream, every room (`/roo
 
 ## Cache bump law
 
-The cache name is `caro-static-v2`. Bump the version in `sw.js` whenever any allowlisted asset changes content under the same URL (a shell.css token edit, a re-vendored htmx, a regenerated icon). The activate step drops every cache whose name is not the current one, so the bump is the whole migration. The precache wraps every asset in `new Request(u, {cache: 'reload'})`: a bumped cache pulls fresh bytes past the browser's day-long HTTP cache for `/static` instead of baking stale ones in.
+The cache name is `caro-static-v5`. Bump the version in `sw.js` whenever any allowlisted asset changes content under the same URL (a shell.css token edit, a re-vendored htmx, a regenerated icon). The activate step drops every cache whose name is not the current one, so the bump is the whole migration. The precache wraps every asset in `new Request(u, {cache: 'reload'})`: a bumped cache pulls fresh bytes past the browser's day-long HTTP cache for `/static` instead of baking stale ones in.
 
 ## Icons
 
-`make icons` regenerates the four committed PNG files via `playground/icongen` (stdlib only), rasterizing the favicon.svg geometry with 4x supersampling:
+`playground/icongen` regenerates the four committed PNG files (stdlib only), rasterizing the favicon.svg geometry with 4x supersampling:
 
 | file | size | law |
 | --- | --- | --- |
