@@ -409,11 +409,11 @@ func TestPlaygroundModulesSteps(t *testing.T) {
 		t.Fatal("no playground module steps")
 	}
 	for _, s := range steps {
-		if s.path != "go" || !reflect.DeepEqual(s.args, []string{"-C", s.dir[strings.LastIndex(s.dir, string(os.PathSeparator))+1:], "build", "-o", "../../bin/", "."}) {
+		if s.path != "go" || !strings.HasPrefix(strings.Join(s.args, " "), "-C playground"+string(os.PathSeparator)) {
 			t.Fatalf("module step = %v %v", s.path, s.args)
 		}
-		if !strings.HasPrefix(s.dir, filepath.Join("playground")) {
-			t.Fatalf("module dir = %s", s.dir)
+		if !reflect.DeepEqual(s.args[2:], []string{"build", "-o", "../../bin/", "."}) || s.dir != "" {
+			t.Fatalf("module argv = %v dir=%q", s.args, s.dir)
 		}
 	}
 }

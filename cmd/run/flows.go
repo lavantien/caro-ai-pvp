@@ -175,7 +175,7 @@ func registerFuzz() {
 				args := []string{"test", "-run=^$", "-fuzz=" + t, "-fuzztime=" + g.fuzztime, g.pkgArg}
 				s := goStep("fuzz "+t, args...)
 				if g.inCDir {
-					s = step{name: "fuzz " + t, path: "go", args: append([]string{"-C", g.dir}, args...), dir: g.dir, env: map[string]string{"CGO_ENABLED": "1"}}
+					s = step{name: "fuzz " + t, path: "go", args: append([]string{"-C", g.dir}, args...), env: map[string]string{"CGO_ENABLED": "1"}}
 				}
 				if err := r.run(s); err != nil {
 					return err

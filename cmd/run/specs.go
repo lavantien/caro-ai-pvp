@@ -102,7 +102,7 @@ func registerPlaygroundTargets() {
 		return []step{goDirStep("icons", "playground", "run", "./icongen", "-out", "../internal/server/web/static/icons")}, nil
 	})
 	register("shots", func(r *runner, v vars) ([]step, error) {
-		return []step{{name: "shots", path: "go", args: append([]string{"-C", "playground/shots", "run", "."}, splitArgs(v)...), dir: "playground/shots", env: map[string]string{"CGO_ENABLED": "1"}}}, nil
+		return []step{{name: "shots", path: "go", args: append([]string{"-C", "playground/shots", "run", "."}, splitArgs(v)...), env: map[string]string{"CGO_ENABLED": "1"}}}, nil
 	})
 	register("playground-modules", func(r *runner, v vars) ([]step, error) {
 		entries, err := os.ReadDir("playground")
@@ -120,8 +120,7 @@ func registerPlaygroundTargets() {
 			steps = append(steps, step{
 				name: "build " + e.Name(),
 				path: "go",
-				args: []string{"-C", e.Name(), "build", "-o", "../../bin/", "."},
-				dir:  filepath.Join("playground", e.Name()),
+				args: []string{"-C", filepath.Join("playground", e.Name()), "build", "-o", "../../bin/", "."},
 				env:  map[string]string{"CGO_ENABLED": "1"},
 			})
 		}
