@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
@@ -280,6 +281,59 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 	status, h, _ = doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/rooms", "", nil)
 	if status != http.StatusSeeOther || h.Get("Location") != "/" {
 		t.Errorf("GET /rooms = %d %q, want 303 /", status, h.Get("Location"))
+	}
+}
+
+func TestHistoryListsFinishedSeriesOfBothVariants(t *testing.T) {
+	s := newStack(t)
+	alice, bob := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
+	sq, err := geom.ByName(config.DefaultVariant)
+	if err != nil {
+		t.Fatalf("square geometry: %v", err)
+	}
+	hx := mustHexGeometry(t)
+	finish := func(variant string, g *geom.Geometry, names []string) {
+		t.Helper()
+		moves := make([]rules.Move, 0, len(names))
+		for _, n := range names {
+			cell, err := g.ParseCell(n)
+			if err != nil {
+				t.Fatalf("parse %s: %v", n, err)
+			}
+			moves = append(moves, rules.Move(cell))
+		}
+		sr, err := s.store.CreateSeriesFor(context.Background(), 1, config.SeriesBO3, alice.ID, bob.ID, variant)
+		if err != nil {
+			t.Fatalf("%s series row: %v", variant, err)
+		}
+		wonBy := "5"
+		if err := s.store.ApplyCompletion(context.Background(), Completion{
+			Games: []Game{{
+				SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+				Outcome: OutcomeRed, Moves: EncodeMoves(nil, moves),
+				FullTurns: len(moves) / 2, WonBy: &wonBy,
+			}},
+		}); err != nil {
+			t.Fatalf("%s completion: %v", variant, err)
+		}
+	}
+	finish(config.DefaultVariant, sq, []string{"H8", "I6"})
+	finish("hex", hx, []string{"L12", "M13"})
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	t.Cleanup(srv.Close)
+	ta := mintSession(t, s.store, alice)
+
+	status, body := getRoomPage(t, srv, "/history", ta)
+	if status != http.StatusOK {
+		t.Fatalf("history: status = %d (body %s)", status, body)
+	}
+	if got := strings.Count(body, `class="hrow"`); got != 2 {
+		t.Errorf("history rows = %d, want the square and the hex game (body %s)", got, body)
+	}
+	for _, want := range []string{"H8 I6", "L12 M13", `<span class="chip">hex</span>`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("history misses %q (body %s)", want, body)
+		}
 	}
 }
 

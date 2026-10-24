@@ -423,10 +423,11 @@ SELECT g.id, g.played_at, ru.username, bu.username,
 	(SELECT COUNT(*) FROM games w
 	 WHERE w.series_id = g.series_id AND w.idx_in_series <= g.idx_in_series
 	   AND ((w.outcome = ? AND w.red_user = g.blue_user) OR (w.outcome = ? AND w.blue_user = g.blue_user))),
-	g.full_turns, g.moves, g.won_by
+	g.full_turns, COALESCE(se.variant, 'square'), g.moves, g.won_by
 FROM games g
 JOIN users ru ON ru.id = g.red_user
 JOIN users bu ON bu.id = g.blue_user
+JOIN series se ON se.id = g.series_id
 WHERE g.red_user = ? OR g.blue_user = ?
 ORDER BY g.played_at DESC, g.id DESC`,
 		OutcomeRed, OutcomeBlue, OutcomeRed, OutcomeBlue, userID, userID,
@@ -440,7 +441,7 @@ ORDER BY g.played_at DESC, g.id DESC`,
 		var r historyGameRow
 		var wonBy sql.NullString
 		if err := rows.Scan(&r.GameID, &r.PlayedAt, &r.Red, &r.Blue,
-			&r.RedWins, &r.BlueWins, &r.FullTurns, &r.Moves, &wonBy); err != nil {
+			&r.RedWins, &r.BlueWins, &r.FullTurns, &r.Variant, &r.Moves, &wonBy); err != nil {
 			return nil, fmt.Errorf("server: match history with ids %d: %w", userID, err)
 		}
 		r.WonBy = nullString(wonBy)
@@ -454,6 +455,7 @@ type historyRowView struct {
 	When      string
 	Red       string
 	Blue      string
+	Variant   string
 	Score     string
 	Turns     int
 	WonBy     string
@@ -492,6 +494,7 @@ func (p *shellPages) handleHistory(w http.ResponseWriter, r *http.Request) {
 			When:      time.Unix(e.PlayedAt, 0).UTC().Format(historyTimeFormat),
 			Red:       e.Red,
 			Blue:      e.Blue,
+			Variant:   row.Variant,
 			Score:     strconv.Itoa(e.RedWins) + "-" + strconv.Itoa(e.BlueWins),
 			Turns:     e.FullTurns,
 			Preview:   strings.Join(e.Preview, " "),
