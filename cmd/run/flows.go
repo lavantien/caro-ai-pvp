@@ -139,6 +139,7 @@ func registerFmt() {
 		if len(files) == 0 {
 			return nil
 		}
+		fmt.Printf("run: %s fmt-check: %s -l (%d files)\n", r.target, gofmtPath(), len(files))
 		out, code, err := execCapture(gofmtPath(), append([]string{"-l"}, files...), nil, "")
 		if err != nil || code != 0 {
 			return fmt.Errorf("fmt-check: gofmt failed: %v", err)
@@ -147,6 +148,7 @@ func registerFmt() {
 			fmt.Println(out)
 			return fmt.Errorf("fmt-check: run go run ./cmd/run fmt")
 		}
+		fmt.Printf("run: %s fmt-check: exit 0\n", r.target)
 		return nil
 	})
 }
