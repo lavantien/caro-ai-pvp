@@ -216,6 +216,44 @@ func TestProfileRecentRowsAlignTableLike(t *testing.T) {
 	}
 }
 
+func TestProfileStatsRowSeparatesParts(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	bob := seedUser(t, s, "bob")
+	seedProfileGame(t, s, alice.ID, bob.ID, OutcomeRed, "")
+	mux := http.NewServeMux()
+	NewProfilePages(s).Mount(mux)
+	req := httptest.NewRequest(http.MethodGet, "/players/alice", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("profile page = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `<div class="p-row p-stats">`) {
+		t.Errorf("stats summary must sit in the flex p-row wrapper (body %s)", body)
+	}
+	tmpl, err := os.ReadFile("web/templates/profile.tmpl")
+	if err != nil {
+		t.Fatalf("read profile.tmpl: %v", err)
+	}
+	row := regexp.MustCompile(`(?m)^\.p-row \{[^}]*\}`).Find(tmpl)
+	if row == nil {
+		t.Fatal("profile.tmpl loses the .p-row rule")
+	}
+	if !regexp.MustCompile(`display:\s*flex`).Match(row) || !regexp.MustCompile(`gap:`).Match(row) {
+		t.Errorf(".p-row must lay its parts out with flex gap, got %s", row)
+	}
+	seats := regexp.MustCompile(`\.p-seats \{[^}]*\}`).Find(tmpl)
+	if seats == nil {
+		t.Fatal("profile.tmpl loses the .p-seats rule")
+	}
+	if !regexp.MustCompile(`display:\s*(inline-)?flex`).Match(seats) || !regexp.MustCompile(`gap:`).Match(seats) {
+		t.Errorf(".p-seats must flex-gap the red and blue counts, got %s", seats)
+	}
+}
+
 func TestPlayerProfileRecentCap(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
