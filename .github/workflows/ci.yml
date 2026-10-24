@@ -31,13 +31,13 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: toolchain check
-        run: make doctor
-      - name: make ci
-        run: make ci
+        run: go run ./cmd/run doctor
+      - name: run ci
+        run: go run ./cmd/run ci
       - id: total
         name: coverage percentages
         run: |
-          for kv in $(make cover-pcts); do echo "$kv" >> "$GITHUB_OUTPUT"; done
+          for kv in $(go run ./cmd/run cover-pcts); do echo "$kv" >> "$GITHUB_OUTPUT"; done
       - name: upload coverage profile
         uses: actions/upload-artifact@v6
         with:
@@ -54,7 +54,7 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: rules-core mutation smoke gate
-        run: make mutate-smoke
+        run: go run ./cmd/run mutate-smoke
 
   badge:
     needs: ci
