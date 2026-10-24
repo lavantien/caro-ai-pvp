@@ -301,6 +301,7 @@ func TestTourneyRunPageRendersLiveBoard(t *testing.T) {
 	}
 	wantShellBody(t, body,
 		">running<",
+		`tournament <span class="mono" title="run 7">7</span>`,
 		"series 1/2 settled",
 		"easy-1 (red first) 2-0 hard-1",
 		"easy-1 wins",
@@ -550,7 +551,7 @@ func TestTourneySetupListsRuns(t *testing.T) {
 		t.Fatalf("setup: status = %d", status)
 	}
 	wantShellBody(t, body,
-		`href="/tourney/run/5"`, `>run <span class="mono">5</span><`,
+		`href="/tourney/run/5"`, `title="run 5">5</span>`,
 		time.Unix(created, 0).UTC().Format(historyTimeFormat),
 		"2&#43;1", "bo3", ">finished<",
 		"easy-1, hard-1", ">hard-1<",

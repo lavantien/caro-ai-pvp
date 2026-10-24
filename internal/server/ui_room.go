@@ -120,7 +120,8 @@ func (p *RoomPages) HandlePlayback(w http.ResponseWriter, r *http.Request) {
 	}
 	p.renderPlayback(w, playbackView{
 		boardData: boardDataFor(sr.Variant, names, nil),
-		GameID:    g.ID, RedName: redName, BlueName: blueName,
+		GameID:    g.ID, ShortID: shortID(strconv.FormatInt(g.ID, 10)),
+		RedName: redName, BlueName: blueName,
 		Outcome: outcomeWord(g.Outcome), WonBy: derefString(g.WonBy), Moves: names,
 		Pairs: movePairs(names),
 	})
@@ -166,6 +167,7 @@ type boardData struct {
 type roomView struct {
 	boardData
 	RoomID        string
+	ShortID       string
 	Variant       string
 	State         string
 	TCLabel       string
@@ -203,6 +205,7 @@ type roomView struct {
 type playbackView struct {
 	boardData
 	GameID   int64
+	ShortID  string
 	RedName  string
 	BlueName string
 	Outcome  string
@@ -217,7 +220,7 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 		return roomView{}, ErrRoomNotFound
 	}
 	view := roomView{
-		RoomID: info.ID, Variant: info.Variant, State: info.State.String(), TCLabel: tcLabel(info.TCIdx),
+		RoomID: info.ID, ShortID: shortID(info.ID), Variant: info.Variant, State: info.State.String(), TCLabel: tcLabel(info.TCIdx),
 		BOLen: info.BOLen, VsBotTier: info.VsBotTier,
 		HostUserID: info.HostUserID, GuestUserID: info.GuestUserID,
 		HostWins: info.HostWins, GuestWins: info.GuestWins,

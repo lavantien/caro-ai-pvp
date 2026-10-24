@@ -26,6 +26,15 @@ var shellCSS []byte
 
 const historyTimeFormat = "2006-01-02 15:04"
 
+const shortIDEdge = 4
+
+func shortID(id string) string {
+	if len(id) <= 2*shortIDEdge {
+		return id
+	}
+	return id[:shortIDEdge] + id[len(id)-shortIDEdge:]
+}
+
 func shellPage(page string) *template.Template {
 	return template.Must(template.ParseFS(shellTmplFS,
 		"web/templates/base.tmpl", "web/templates/rooms.tmpl", "web/templates/seg.tmpl",
@@ -241,7 +250,7 @@ func (p *shellPages) roomViews() []roomCardView {
 	out := make([]roomCardView, 0, len(infos))
 	for _, info := range infos {
 		v := roomCardView{
-			ID: info.ID, ShortID: info.ID[:8],
+			ID: info.ID, ShortID: shortID(info.ID),
 			TC: tcLabel(info.TCIdx), BO: "bo" + strconv.Itoa(info.BOLen),
 			Variant: info.Variant, State: info.State.String(),
 		}

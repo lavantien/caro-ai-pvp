@@ -149,6 +149,7 @@ type tourneyRowView struct {
 
 type tourneyRunLineView struct {
 	ID      int64
+	ShortID string
 	When    string
 	TC      string
 	BO      string
@@ -234,8 +235,9 @@ func (p *TournamentPages) runLines(r *http.Request) ([]tourneyRunLineView, error
 			names[j] = seat.Name
 		}
 		lines[i] = tourneyRunLineView{
-			ID: run.ID, When: time.Unix(run.CreatedAt, 0).UTC().Format(historyTimeFormat),
-			TC: tcLabel(run.TCIdx), BO: "bo" + strconv.Itoa(run.BOLen),
+			ID: run.ID, ShortID: shortID(strconv.FormatInt(run.ID, 10)),
+			When: time.Unix(run.CreatedAt, 0).UTC().Format(historyTimeFormat),
+			TC:   tcLabel(run.TCIdx), BO: "bo" + strconv.Itoa(run.BOLen),
 			Variant: run.Variant,
 			State:   runStateOf(run.TourneyRunInfo), Roster: strings.Join(names, ", "),
 			Leader: run.Leader,
@@ -461,6 +463,7 @@ func liveBoardsOf(running bool, boards []TourneyLiveBoard) []liveBoardView {
 
 type tourneyRunHeaderView struct {
 	ID          int64
+	ShortID     string
 	When        string
 	TC          string
 	BO          string
@@ -599,8 +602,9 @@ func runStateOf(run TourneyRunInfo) string {
 func runHeaderOf(snap TourneySnapshot) tourneyRunHeaderView {
 	run := snap.Run
 	return tourneyRunHeaderView{
-		ID: run.ID, When: time.Unix(run.CreatedAt, 0).UTC().Format(historyTimeFormat),
-		TC: tcLabel(run.TCIdx), BO: "bo" + strconv.Itoa(run.BOLen), Variant: run.Variant,
+		ID: run.ID, ShortID: shortID(strconv.FormatInt(run.ID, 10)),
+		When: time.Unix(run.CreatedAt, 0).UTC().Format(historyTimeFormat),
+		TC:   tcLabel(run.TCIdx), BO: "bo" + strconv.Itoa(run.BOLen), Variant: run.Variant,
 		StartRating: run.StartRating,
 		State:       runStateOf(run), Failure: run.Failure,
 	}

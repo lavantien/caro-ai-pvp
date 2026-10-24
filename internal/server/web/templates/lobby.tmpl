@@ -3,7 +3,7 @@
 {{range .Rooms}}<li><div class="livecard">
 <div class="who-vs">{{template "lobbyseat" .Red}} vs {{template "lobbyseat" .Blue}}</div>
 <a class="watch" href="/rooms/{{.ID}}">
-<span class="meta"><span class="chip">{{.Mode}}</span><span class="chip">{{.TC}}</span><span class="chip">{{.BO}}</span>{{if ne .Variant "square"}}<span class="chip">{{.Variant}}</span>{{end}}<span class="chip">{{.Status}}</span>{{if .Spectators}}<span class="chip">{{.Spectators}} watching</span>{{end}}<span class="chip">room <span class="mono">{{.ShortID}}</span></span></span>
+<span class="meta"><span class="chip">{{.Mode}}</span><span class="chip">{{.TC}}</span><span class="chip">{{.BO}}</span>{{if ne .Variant "square"}}<span class="chip">{{.Variant}}</span>{{end}}<span class="chip">{{.Status}}</span>{{if .Spectators}}<span class="chip">{{.Spectators}} watching</span>{{end}}<span class="chip" title="room {{.ID}}">room <span class="mono">{{.ShortID}}</span></span></span>
 {{template "board-grid" .}}
 <span class="meta">{{.MoveCount}} stones</span>
 </a>

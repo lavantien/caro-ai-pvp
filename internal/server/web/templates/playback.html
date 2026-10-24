@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>caro playback {{.GameID}}</title>
+<title>caro playback {{.ShortID}}</title>
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/shell.css">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -60,7 +60,7 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
 <div id="playback-root" data-total="{{len .Moves}}">
 
 <section id="pb-result">
-<h1>game playback #<span class="mono">{{.GameID}}</span></h1>
+<h1>game playback #<span class="mono" title="game {{.GameID}}">{{.ShortID}}</span></h1>
 <p>red {{.RedName}} vs blue {{.BlueName}} / <span id="pb-outcome">{{.Outcome}}</span>{{if .WonBy}} / <span id="won-by">won by {{.WonBy}}</span>{{end}}</p>
 </section>
 

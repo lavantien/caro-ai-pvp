@@ -173,7 +173,7 @@ func TestLobbyLivecardsMarkup(t *testing.T) {
 			`class="stone red"`,
 			`class="stone blue latest"`,
 			"2 stones",
-			`<span class="mono">` + r.ID()[:8] + `</span>`,
+			`title="room ` + r.ID() + `">room <span class="mono">` + shortID(r.ID()) + `</span>`,
 			`href="/players/alice"`,
 			lobbyModeCasual,
 		} {
@@ -342,13 +342,16 @@ func TestLobbyPagesRoutes(t *testing.T) {
 	for _, want := range []string{
 		`hx-get="/partials/lobby"`,
 		"every " + strconv.FormatInt(config.PagePollMs, 10) + "ms",
-		r.ID()[:8],
+		shortID(r.ID()),
 		lobbyModeCasual,
 		"alice",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("lobby body missing %q", want)
 		}
+	}
+	if strings.Contains(body, `>`+r.ID()+`<`) {
+		t.Error("lobby renders the full 32-char room id as visible text")
 	}
 	if strings.Contains(body, "/join") {
 		t.Errorf("guest lobby body offers a join action")

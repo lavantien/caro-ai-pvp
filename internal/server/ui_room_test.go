@@ -301,6 +301,49 @@ func TestPlaybackHumanNamedLikeBotSeatKeepsOwnName(t *testing.T) {
 	}
 }
 
+func TestRoomAndPlaybackPagesTruncateVisibleIDs(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	alice, bob, r := newPvPRoom(t, s)
+	sr := seedSeries(t, s.store, alice, bob)
+	blob := EncodeMoves(nil, movesOf(t, hostWinsRed[:2]))
+	tag := "open 4"
+	g, err := s.store.AppendGame(Game{SeriesID: sr.ID, IdxInSeries: 0,
+		RedUser: alice.ID, BlueUser: bob.ID, Outcome: OutcomeRed,
+		Moves: blob, FullTurns: 1, WonBy: &tag})
+	if err != nil {
+		t.Fatalf("append game: %v", err)
+	}
+	ta := mintSession(t, s.store, alice)
+
+	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), ta)
+	if status != http.StatusOK {
+		t.Fatalf("room page: status = %d (body %s)", status, body)
+	}
+	for _, want := range []string{
+		`<h1>room <span class="mono" title="` + r.ID() + `">` + shortID(r.ID()) + `</span></h1>`,
+		`<title>caro room ` + shortID(r.ID()) + `</title>`,
+		`data-room="` + r.ID() + `"`,
+		`hx-sse:connect="/api/rooms/` + r.ID() + `/events"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("room page misses %q", want)
+		}
+	}
+	if strings.Contains(body, `<span class="mono">`+r.ID()+`</span>`) {
+		t.Error("room h1 renders the full 32-char id as visible text")
+	}
+
+	status, body = getRoomPage(t, srv, "/rooms/history/"+fmt.Sprint(g.ID), ta)
+	if status != http.StatusOK {
+		t.Fatalf("playback: status = %d (body %s)", status, body)
+	}
+	full := fmt.Sprint(g.ID)
+	if !strings.Contains(body, `#<span class="mono" title="game `+full+`">`+shortID(full)+`</span>`) {
+		t.Errorf("playback h1 misses the truncated game id (body %s)", body)
+	}
+}
+
 func TestRoomPagePreMatchReadyHandshake(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)

@@ -713,6 +713,21 @@ func TestHomeShowsLiveTournamentBanner(t *testing.T) {
 	}
 }
 
+func TestShortIDKeepsFirstAndLastFourOnly(t *testing.T) {
+	full := "0123456789abcdefghijklmnop"
+	for _, row := range []struct{ in, want string }{
+		{full, "0123mnop"},
+		{"deadbeef", "deadbeef"},
+		{"123456789", "12346789"},
+		{"12345", "12345"},
+		{"", ""},
+	} {
+		if got := shortID(row.in); got != row.want {
+			t.Errorf("shortID(%q) = %q, want %q", row.in, got, row.want)
+		}
+	}
+}
+
 func TestShellHomeGridCardShortIDAndStateScore(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
@@ -726,9 +741,12 @@ func TestShellHomeGridCardShortIDAndStateScore(t *testing.T) {
 	}
 	wantShellBody(t, body,
 		`href="/rooms/`+r.ID()+`"`,
-		`<span class="mono">`+r.ID()[:8]+`</span>`,
+		`title="room `+r.ID()+`">room <span class="mono">`+shortID(r.ID())+`</span></a>`,
 		`"chip">created<`,
 	)
+	if strings.Contains(body, `>`+r.ID()+`<`) {
+		t.Error("home grid renders the full 32-char room id as visible text")
+	}
 	if strings.Contains(body, `class="score"`) {
 		t.Error("a created room's card carries a series score line")
 	}

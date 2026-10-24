@@ -219,7 +219,7 @@ func lobbyViews(rooms *RoomManager, me *shellViewer) []lobbyRoomView {
 		bd.Mini = true
 		out = append(out, lobbyRoomView{
 			ID:         lr.ID,
-			ShortID:    lr.ID[:8],
+			ShortID:    shortID(lr.ID),
 			Mode:       lr.Mode,
 			Red:        lobbySeatViewOf(red),
 			Blue:       lobbySeatViewOf(blue),
