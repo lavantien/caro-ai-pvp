@@ -146,6 +146,13 @@ h1, .who, .who-vs, #score-line, .p-name, #turn-line { overflow-wrap: anywhere }
 .hstat .pstat { margin: 0; font-size: var(--text-s) }
 .hstat .pstat.s-red { color: var(--red) }
 .hstat .pstat.s-blue { color: var(--blue) }
+.grow { display: grid;
+	grid-template-columns: minmax(0, 10.5rem) minmax(0, 1fr) max-content max-content max-content;
+	gap: var(--space-1) var(--space-3); align-items: baseline }
+@media (max-width: 40rem) {
+	.grow { grid-template-columns: minmax(0, 1fr) max-content max-content }
+	.grow .gwhen, .grow .gturns { display: none }
+}
 .empty { color: var(--text-muted) }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center }
 .actions fieldset, .tourneyform fieldset { border: 1px solid var(--border);

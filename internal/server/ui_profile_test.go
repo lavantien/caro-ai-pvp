@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -164,6 +166,53 @@ func TestProfileZeroGamesRender(t *testing.T) {
 		if strings.Contains(body, banned) {
 			t.Errorf("zero-game body carries %q", banned)
 		}
+	}
+}
+
+func TestProfileRecentRowsAlignTableLike(t *testing.T) {
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	bob := seedUser(t, s, "bob")
+	seedProfileGame(t, s, alice.ID, bob.ID, OutcomeRed, "")
+	mux := http.NewServeMux()
+	NewProfilePages(s).Mount(mux)
+	req := httptest.NewRequest(http.MethodGet, "/players/alice", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("profile page = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`<li class="room grow">`,
+		`<span class="gwhen mono">`,
+		`<span class="gopp who-vs">vs <a href="/players/bob">bob</a></span>`,
+		`<span class="gturns mono">`,
+		`<a class="gpb" href="/rooms/history/`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("profile recent row misses %q", want)
+		}
+	}
+	css, err := os.ReadFile("web/shell.css")
+	if err != nil {
+		t.Fatalf("read shell.css: %v", err)
+	}
+	rule := regexp.MustCompile(`(?m)^\.grow \{[^}]*\}`).Find(css)
+	if rule == nil {
+		t.Fatal("shell.css loses the .grow rule")
+	}
+	if !regexp.MustCompile(`display:\s*grid`).Match(rule) ||
+		!regexp.MustCompile(`grid-template-columns:`).Match(rule) {
+		t.Errorf(".grow must be a grid with fixed columns, got %s", rule)
+	}
+	turns := regexp.MustCompile(`(?m)^\.hturns \{[^}]*\}`).Find(css)
+	if turns == nil {
+		t.Fatal("shell.css loses the .hturns rule")
+	}
+	if !regexp.MustCompile(`grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)`).Match(turns) {
+		t.Errorf(".hturns must wrap at 4 turn items per line, got %s", turns)
 	}
 }
 

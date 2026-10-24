@@ -56,7 +56,7 @@
 </div>
 <h3>recent games</h3>
 {{if .Recent}}<ul class="rooms">
-{{range .Recent}}<li class="room"><span class="meta"><span>{{.When}}</span><span class="who-vs">vs <a href="{{.OpponentProfile}}">{{.Opponent}}</a></span><span class="chip {{.ResultClass}}">{{.Result}}</span><span>{{.Turns}} turns</span><a href="/rooms/history/{{.GameID}}">playback</a></span></li>
+{{range .Recent}}<li class="room grow"><span class="gwhen mono">{{.When}}</span><span class="gopp who-vs">vs <a href="{{.OpponentProfile}}">{{.Opponent}}</a></span><span class="chip {{.ResultClass}}">{{.Result}}</span><span class="gturns mono">{{.Turns}} turns</span><a class="gpb" href="/rooms/history/{{.GameID}}">playback</a></li>
 {{end}}</ul>{{else}}<p class="empty">no games yet.</p>{{end}}
 </section>
 {{end}}
