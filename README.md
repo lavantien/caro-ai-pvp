@@ -82,7 +82,7 @@ The ui/ux table is the living surface inventory, rebuilt against the overhauled 
 
 Every picture renders at one 440x956 portrait viewport on the light theme, numbered pairs with the square member left and the hexagon member right, P01 through P26 the evidence ids the devlog carries. The bot rooms, the hexagon tournament run, and both banners are real engine activity: playground/shots hosts real easy-tier bot-versus-bot rooms at 1+0 bo3 and a real two-bot hexagon run, the operator polls the room endpoints and shoots at the stone thresholds, and terminal frames load before the finish so a retired room still holds its verdict. The bot-versus-bot pairs P05 and P06 close the founding readme's first required picture on both variants, the home pairs P01 and P02 the second, and the history pairs P17 and P18 with the playback close-ups P09 and P10 the third.
 
-**P01, P02 home.** The guest home with the rooms grid, live-run banner, and the create-room form's segmented controls: square default, then the hexagon variant checked.
+**P01, P02 home.** The signed-in home with per-variant WLD stat rows, the live-run banner, and the rooms grid, then the create form's board control with the hexagon variant checked.
 
 ![home, square variant](docs/screenshots/p01-square-home.png) ![home, hexagon variant](docs/screenshots/p02-hex-home.png)
 
@@ -102,7 +102,7 @@ Every picture renders at one 440x956 portrait viewport on the light theme, numbe
 
 ![square playback](docs/screenshots/p09-square-playback.png) ![hex playback](docs/screenshots/p10-hex-playback.png)
 
-**P11, P12 tournament run pages.** The scripted square run's frozen leaderboard and the real two-bot hexagon run's page.
+**P11, P12 tournament run pages.** The scripted square run's frozen record with the filled square chip beside bo3 and the real two-bot hexagon run's page with its live boards.
 
 ![square tournament run](docs/screenshots/p11-square-tourney-run.png) ![hex tournament run](docs/screenshots/p12-hex-tourney-run.png)
 
@@ -114,11 +114,11 @@ Every picture renders at one 440x956 portrait viewport on the light theme, numbe
 
 ![square profile](docs/screenshots/p15-square-profile.png) ![hex profile](docs/screenshots/p16-hex-profile.png)
 
-**P17, P18 history.** Per-game score lines with turn counts and move previews, the founding readme's third required picture with P09 and P10.
+**P17, P18 history.** Per-game rows with turn-item move lists and status boxes, engine M-line tails on bot rows and both players' WLD on human rows, the founding readme's third required picture with P09 and P10.
 
 ![square history](docs/screenshots/p17-square-history.png) ![hex history](docs/screenshots/p18-hex-history.png)
 
-**P19, P20 lobby.** The play-and-watch hub: quick-start create row over live room cards with mini boards, the hexagon card carrying its variant chip.
+**P19, P20 lobby.** The play-and-watch hub: quick-start create row over live room cards with mini boards and variant chips.
 
 ![square lobby](docs/screenshots/p19-square-lobby.png) ![hex lobby](docs/screenshots/p20-hex-lobby.png)
 
