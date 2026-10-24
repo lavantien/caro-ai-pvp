@@ -145,7 +145,7 @@ func (p *LobbyPages) Mount(mux *http.ServeMux) {
 func lobbyPage() *template.Template {
 	return template.Must(template.ParseFS(shellTmplFS,
 		"web/templates/base.tmpl", "web/templates/rooms.tmpl", "web/templates/seg.tmpl",
-		"web/templates/board.html", "web/templates/lobby.tmpl"))
+		"web/templates/brand.html", "web/templates/board.html", "web/templates/lobby.tmpl"))
 }
 
 var (

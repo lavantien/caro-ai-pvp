@@ -153,8 +153,9 @@ func TestRoomPageRendersDrivenPvPGame(t *testing.T) {
 	if !strings.Contains(body, `data-me-seat="red"`) {
 		t.Error("red participant misses the me-seat marker")
 	}
-	if !strings.Contains(body, `<a class="brand" href="/">caro</a>`) || !strings.Contains(body, `<a href="/lobby">lobby</a>`) {
-		t.Error("room header misses the brand and lobby links")
+	if !strings.Contains(body, `<a class="brand" href="/">caro`) || !strings.Contains(body, `<svg class="vglyph vglyph-square"`) ||
+		!strings.Contains(body, `<svg class="vglyph vglyph-hex"`) || !strings.Contains(body, `<a href="/lobby">lobby</a>`) {
+		t.Error("room header misses the brand glyphs and lobby link")
 	}
 	if !strings.Contains(body, `<details id="bot-log-wrap" open>`) {
 		t.Error("bot logs are not an open details panel")
@@ -529,7 +530,7 @@ func TestPlaybackPageReplaysSeededFinishedGame(t *testing.T) {
 	for _, want := range []string{
 		`<span class="n">1</span><button type="button" class="half red">D4</button><button type="button" class="half blue">P16</button>`,
 		`<span class="n">6</span><button type="button" class="half red latest">D3</button><span class="half blue"></span>`,
-		`<a class="brand" href="/">caro</a>`, `<a href="/lobby">lobby</a>`,
+		`<a class="brand" href="/">caro`, `<svg class="vglyph vglyph-hex"`, `<a href="/lobby">lobby</a>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("playback body misses %q", want)

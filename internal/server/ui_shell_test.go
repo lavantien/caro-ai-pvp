@@ -557,6 +557,50 @@ func TestShellRoomsPartialServesFragmentOnly(t *testing.T) {
 	}
 }
 
+func TestShellBrandCarriesBothVariantGlyphs(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	defer srv.Close()
+
+	status, _, body := doShell(t, srv.Client(), http.MethodGet, srv.URL+"/login", "", nil)
+	if status != http.StatusOK {
+		t.Fatalf("login page: status = %d", status)
+	}
+	for _, want := range []string{
+		`<a class="brand" href="/">caro`,
+		`<svg class="vglyph vglyph-square"`,
+		`<svg class="vglyph vglyph-hex"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("brand misses %q", want)
+		}
+	}
+
+	css, err := os.ReadFile("web/shell.css")
+	if err != nil {
+		t.Fatalf("read shell.css: %v", err)
+	}
+	rule := regexp.MustCompile(`(?m)^\.vglyph \{[^}]*\}`).Find(css)
+	if rule == nil {
+		t.Fatal("shell.css loses the .vglyph rule")
+	}
+	for _, want := range []string{
+		`fill:\s*none`, `stroke:\s*currentColor`, `stroke-width:\s*1\.8`,
+	} {
+		if !regexp.MustCompile(want).Match(rule) {
+			t.Errorf(".vglyph must carry %s, got %s", want, rule)
+		}
+	}
+	for _, want := range []string{
+		`\.brand \.vglyph-square \{[^}]*var\(--red\)`,
+		`\.brand \.vglyph-hex \{[^}]*var\(--blue\)`,
+	} {
+		if !regexp.MustCompile(want).Match(css) {
+			t.Errorf("shell.css misses %q", want)
+		}
+	}
+}
+
 func TestShellBaseAssetsAndStylesheet(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))

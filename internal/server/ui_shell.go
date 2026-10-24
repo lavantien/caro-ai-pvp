@@ -38,7 +38,7 @@ func shortID(id string) string {
 func shellPage(page string) *template.Template {
 	return template.Must(template.ParseFS(shellTmplFS,
 		"web/templates/base.tmpl", "web/templates/rooms.tmpl", "web/templates/seg.tmpl",
-		"web/templates/"+page))
+		"web/templates/brand.html", "web/templates/"+page))
 }
 
 var (
