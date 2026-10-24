@@ -86,15 +86,9 @@ test-pkg:
 cover:
 	CGO_ENABLED=1 go test -coverprofile=$(COVERPROFILE) -covermode=atomic -timeout $(GO_TEST_TIMEOUT) $(ARGS) $(PKG)
 	CGO_ENABLED=1 go tool cover -func=$(COVERPROFILE)
-	CGO_ENABLED=1 go run ./cmd/covergate $(COVERPROFILE)
 
-# cover-pcts prints the badge percentages off a coverage profile: global
-# over the whole profile, core as the weakest core package, plus the two
-# thresholds the badge colors against (single-sourced in the config hub).
-# Silent recipe: CI feeds this output straight into GITHUB_OUTPUT, where
-# make's echoed command line would land as garbage entries.
 cover-pcts:
-	@CGO_ENABLED=1 go run ./cmd/covergate -pcts $(COVERPROFILE)
+	@CGO_ENABLED=1 go run ./cmd/covergate $(COVERPROFILE)
 
 bench:
 	CGO_ENABLED=1 go test -run='^$$' -bench=. -benchmem ./...

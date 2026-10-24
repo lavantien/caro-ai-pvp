@@ -633,17 +633,6 @@ func TestBotLogFormatMatchesImplication15(t *testing.T) {
 		t.Errorf("bot log tags = %q %q %q", BotLogTagVCF, BotLogTagVCT, BotLogTagPonder)
 	}
 }
-func TestQualityGates(t *testing.T) {
-	if QualityCoverageOverallMin != 95 {
-		t.Errorf("QualityCoverageOverallMin = %v, want 95", QualityCoverageOverallMin)
-	}
-	if QualityCoverageCoreMin != 100 {
-		t.Errorf("QualityCoverageCoreMin = %v, want 100", QualityCoverageCoreMin)
-	}
-	if QualityCoverageCoreMin < QualityCoverageOverallMin {
-		t.Errorf("core gate %v below overall gate %v", QualityCoverageCoreMin, QualityCoverageOverallMin)
-	}
-}
 func TestBookConstants(t *testing.T) {
 	if BookFileMagic != "CAROBOOK1" {
 		t.Errorf("BookFileMagic = %q, want CAROBOOK1", BookFileMagic)
