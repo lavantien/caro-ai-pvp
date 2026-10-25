@@ -487,7 +487,7 @@ func TestFindPlantumlJar(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	os.Unsetenv("PLANTUML_JAR")
+	_ = os.Unsetenv("PLANTUML_JAR")
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HOME", home)
 	jar, err = findPlantumlJar()

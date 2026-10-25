@@ -107,7 +107,7 @@ func (h *ctx) hasAny(dir string, paths ...string) bool {
 
 func (h *ctx) gitAddAll(dir string) {
 	if path, ok := ToolPath(h.env, "git"); ok {
-		capture(path, []string{"add", "."}, h.env, dir)
+		_, _, _ = capture(path, []string{"add", "."}, h.env, dir)
 	}
 }
 

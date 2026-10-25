@@ -21,7 +21,7 @@ type ctx struct {
 }
 
 func (h *ctx) printf(format string, a ...any) {
-	fmt.Fprintf(h.out, format+"\n", a...)
+	_, _ = fmt.Fprintf(h.out, format+"\n", a...)
 }
 
 func (h *ctx) section(name string) {
@@ -72,7 +72,7 @@ func (h *ctx) gitAdd(files ...string) {
 		return
 	}
 	if path, ok := ToolPath(h.env, "git"); ok {
-		capture(path, append([]string{"add", "--"}, files...), h.env, h.root)
+		_, _, _ = capture(path, append([]string{"add", "--"}, files...), h.env, h.root)
 	}
 }
 
@@ -152,7 +152,7 @@ func (h *ctx) staged(pattern string) []string {
 
 func findDepth(root string, depth int, pattern string) string {
 	var found string
-	filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err != nil || found != "" {
 			return filepath.SkipAll
 		}
@@ -272,8 +272,13 @@ func (h *ctx) goChecks() {
 	h.gitAdd(files...)
 	if _, ok := ToolPath(h.env, "golangci-lint"); ok {
 		h.printf("Running golangci-lint...")
-		if _, code, _ := h.tryTool("golangci-lint", []string{"run", "--no-config", "./..."}, h.root); code != 0 {
+		out, code, _ := h.tryTool("golangci-lint", []string{"run", "--no-config", "./..."}, h.root)
+		if code == 1 {
+			h.printHead(out, 30)
 			h.printf("Lint warnings found.")
+		} else if code != 0 {
+			h.printHead(out, 30)
+			h.printf("golangci-lint exited %d.", code)
 		}
 	}
 	h.printf("Running go vet...")
@@ -305,7 +310,7 @@ func (h *ctx) powershellChecks() {
 func Run(root string, out io.Writer, env []string) error {
 	started := time.Now()
 	h := &ctx{root: root, out: out, env: env}
-	fmt.Fprintf(out, "hook: pre-commit start %s\n", root)
+	_, _ = fmt.Fprintf(out, "hook: pre-commit start %s\n", root)
 	h.printf("Pre-commit checks...")
 	h.spellCheck()
 	projects := detectProjects(root)
@@ -344,11 +349,11 @@ func Run(root string, out io.Writer, env []string) error {
 	h.powershellChecks()
 	if h.failed {
 		h.printf("\nPre-commit checks failed. Fix issues or use --no-verify to bypass.")
-		fmt.Fprintf(out, "hook: pre-commit failed %s (%s)\n", root, time.Since(started).Round(time.Millisecond))
+		_, _ = fmt.Fprintf(out, "hook: pre-commit failed %s (%s)\n", root, time.Since(started).Round(time.Millisecond))
 		return fmt.Errorf("hook: pre-commit failed for %s", root)
 	}
 	h.printf("All checks passed!")
-	fmt.Fprintf(out, "hook: pre-commit exit 0 %s (%s)\n", root, time.Since(started).Round(time.Millisecond))
+	_, _ = fmt.Fprintf(out, "hook: pre-commit exit 0 %s (%s)\n", root, time.Since(started).Round(time.Millisecond))
 	return nil
 }
 

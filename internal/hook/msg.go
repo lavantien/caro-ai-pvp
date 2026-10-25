@@ -11,6 +11,10 @@ import (
 
 const maxSubjectLength = 100
 
+func report(out io.Writer, format string, a ...any) {
+	_, _ = fmt.Fprintf(out, format+"\n", a...)
+}
+
 var attributionRe = regexp.MustCompile(`^(Co-Authored-By:.+(Claude|Anthropic|Copilot|Cursor|Gemini|Codeium|Windsurf|Cline|Aider)|Generated with .*(Claude|Copilot|Cursor))`)
 
 var conventionalRe = regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|break|bump)(\(.+\))?: .+$`)
@@ -24,7 +28,7 @@ func CommitMsg(msgPath string, out io.Writer) error {
 	}
 	lines := strings.Split(strings.TrimSuffix(string(b), "\n"), "\n")
 	if stripAttribution(&lines, msgPath, out) {
-		fmt.Fprintln(out, "Stripped AI attribution trailer from commit message.")
+		report(out, "Stripped AI attribution trailer from commit message.")
 	}
 	subject := ""
 	if len(lines) > 0 {
@@ -34,44 +38,44 @@ func CommitMsg(msgPath string, out io.Writer) error {
 		return nil
 	}
 	if subject == "" {
-		fmt.Fprintln(out, "ERROR: Commit message cannot be empty.")
-		fmt.Fprintln(out, "Expected format: type(scope): description")
-		fmt.Fprintln(out, "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, break, bump")
+		report(out, "ERROR: Commit message cannot be empty.")
+		report(out, "Expected format: type(scope): description")
+		report(out, "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, break, bump")
 		return fmt.Errorf("hook: commit-msg rejected empty subject in %s", msgPath)
 	}
 	length := utf8.RuneCountInString(subject)
 	if !conventionalRe.MatchString(subject) {
-		fmt.Fprintln(out, "ERROR: Commit message does not follow Conventional Commits format.")
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, "Expected format: type(scope): description")
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, "Type (required): feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, break, bump")
-		fmt.Fprintln(out, "Scope (optional): component or module in parentheses")
-		fmt.Fprintf(out, "Description: brief description (subject capped at %d characters)\n", maxSubjectLength)
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, "Examples:")
-		fmt.Fprintln(out, "  feat(api): add user authentication endpoint")
-		fmt.Fprintln(out, "  fix(auth): resolve token expiration issue")
-		fmt.Fprintln(out, "  docs: update installation instructions")
-		fmt.Fprintln(out, "  test(auth): add unit tests for login flow")
-		fmt.Fprintln(out)
-		fmt.Fprintf(out, "Your subject: %s\n", subject)
-		fmt.Fprintf(out, "Subject length: %d characters (max %d)\n", length, maxSubjectLength)
+		report(out, "ERROR: Commit message does not follow Conventional Commits format.")
+		report(out, "")
+		report(out, "Expected format: type(scope): description")
+		report(out, "")
+		report(out, "Type (required): feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, break, bump")
+		report(out, "Scope (optional): component or module in parentheses")
+		report(out, "Description: brief description (subject capped at %d characters)", maxSubjectLength)
+		report(out, "")
+		report(out, "Examples:")
+		report(out, "  feat(api): add user authentication endpoint")
+		report(out, "  fix(auth): resolve token expiration issue")
+		report(out, "  docs: update installation instructions")
+		report(out, "  test(auth): add unit tests for login flow")
+		report(out, "")
+		report(out, "Your subject: %s", subject)
+		report(out, "Subject length: %d characters (max %d)", length, maxSubjectLength)
 		return fmt.Errorf("hook: commit-msg rejected %s", subject)
 	}
 	if length > maxSubjectLength {
-		fmt.Fprintf(out, "ERROR: Subject exceeds %d characters.\n", maxSubjectLength)
-		fmt.Fprintf(out, "Subject length: %d characters (max %d)\n", length, maxSubjectLength)
-		fmt.Fprintf(out, "Your subject: %s\n", subject)
+		report(out, "ERROR: Subject exceeds %d characters.", maxSubjectLength)
+		report(out, "Subject length: %d characters (max %d)", length, maxSubjectLength)
+		report(out, "Your subject: %s", subject)
 		return fmt.Errorf("hook: commit-msg subject too long in %s", msgPath)
 	}
 	if len(lines) > 1 && lines[1] != "" {
-		fmt.Fprintln(out, "ERROR: Commit message must have a blank line between subject and body.")
-		fmt.Fprintln(out)
-		fmt.Fprintf(out, "Subject: %s\n", subject)
-		fmt.Fprintf(out, "Second line: %s\n", lines[1])
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, "Please add a blank line after the subject line.")
+		report(out, "ERROR: Commit message must have a blank line between subject and body.")
+		report(out, "")
+		report(out, "Subject: %s", subject)
+		report(out, "Second line: %s", lines[1])
+		report(out, "")
+		report(out, "Please add a blank line after the subject line.")
 		return fmt.Errorf("hook: commit-msg missing blank line in %s", msgPath)
 	}
 	return nil
@@ -92,7 +96,7 @@ func stripAttribution(lines *[]string, msgPath string, out io.Writer) bool {
 	}
 	*lines = kept
 	if err := os.WriteFile(msgPath, []byte(strings.Join(kept, "\n")+"\n"), 0o644); err != nil {
-		fmt.Fprintf(out, "hook: commit-msg rewrite %s: %v\n", msgPath, err)
+		report(out, "hook: commit-msg rewrite %s: %v", msgPath, err)
 	}
 	return true
 }

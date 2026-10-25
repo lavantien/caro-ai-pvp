@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -46,10 +47,10 @@ func gitIn(t *testing.T, dir string, args ...string) string {
 	return string(out)
 }
 
-func buildFakeTool(t *testing.T, dir, name string, code int) string {
+func buildFakeTool(t *testing.T, dir, name string, code int, prints ...string) string {
 	t.Helper()
 	src := filepath.Join(dir, name+".go")
-	if err := os.WriteFile(src, []byte(fmtExit(code)), 0o644); err != nil {
+	if err := os.WriteFile(src, []byte(fmtExit(code, prints...)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	exe := filepath.Join(dir, name)
@@ -64,7 +65,14 @@ func buildFakeTool(t *testing.T, dir, name string, code int) string {
 	return exe
 }
 
-func fmtExit(code int) string {
+func fmtExit(code int, prints ...string) string {
+	src := "package main\n\nimport \"os\"\n\nfunc main() {\n"
+	if len(prints) > 0 {
+		src = "package main\n\nimport (\n\t\"fmt\"\n\t\"os\"\n)\n\nfunc main() {\n"
+		for _, p := range prints {
+			src += "\tfmt.Println(" + strconv.Quote(p) + ")\n"
+		}
+	}
 	digits := "0123456789"
 	s := ""
 	n := code
@@ -75,7 +83,7 @@ func fmtExit(code int) string {
 		s = string(digits[n%10]) + s
 		n /= 10
 	}
-	return "package main\n\nimport \"os\"\n\nfunc main() { os.Exit(" + s + ") }\n"
+	return src + "\tos.Exit(" + s + ")\n}\n"
 }
 
 func envWith(t *testing.T, extraDir string) []string {
@@ -181,6 +189,66 @@ func TestGoFormatterRestagesStagedFiles(t *testing.T) {
 	}
 	if !strings.Contains(staged, "func f()") {
 		t.Fatalf("staged file not reformatted:\n%s", staged)
+	}
+}
+
+func stageGoFile(t *testing.T, dir string) {
+	t.Helper()
+	writeFile(t, dir, "go.mod", "module tmp\n\ngo 1.27\n")
+	gitIn(t, dir, "add", "go.mod")
+	gitIn(t, dir, "commit", "--no-verify", "-q", "-m", "mod")
+	writeFile(t, dir, "a.go", "package tmp\n")
+	gitIn(t, dir, "add", "a.go")
+}
+
+func TestGoLintCleanRunIsSilent(t *testing.T) {
+	dir := newRepo(t)
+	fakeDir := t.TempDir()
+	buildFakeTool(t, fakeDir, "golangci-lint", 0)
+	stageGoFile(t, dir)
+	out, err := runHook(t, dir, envWith(t, fakeDir))
+	if err != nil {
+		t.Fatalf("hook failed on clean lint: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Running golangci-lint...") {
+		t.Fatalf("golangci-lint step did not run:\n%s", out)
+	}
+	if strings.Contains(out, "Lint warnings found.") {
+		t.Fatalf("clean lint run printed a warning:\n%s", out)
+	}
+}
+
+func TestGoLintFindingsAreVisibleAndAdvertised(t *testing.T) {
+	dir := newRepo(t)
+	fakeDir := t.TempDir()
+	buildFakeTool(t, fakeDir, "golangci-lint", 1, "a.go:1:1: boom (errcheck)")
+	stageGoFile(t, dir)
+	out, err := runHook(t, dir, envWith(t, fakeDir))
+	if err != nil {
+		t.Fatalf("hook failed on lint findings: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Lint warnings found.") {
+		t.Fatalf("output missing lint warning line:\n%s", out)
+	}
+	if !strings.Contains(out, "a.go:1:1: boom (errcheck)") {
+		t.Fatalf("lint findings hidden from output:\n%s", out)
+	}
+}
+
+func TestGoLintToolFailureIsNotAWarning(t *testing.T) {
+	dir := newRepo(t)
+	fakeDir := t.TempDir()
+	buildFakeTool(t, fakeDir, "golangci-lint", 3)
+	stageGoFile(t, dir)
+	out, err := runHook(t, dir, envWith(t, fakeDir))
+	if err != nil {
+		t.Fatalf("hook failed on lint tool failure: %v\n%s", err, out)
+	}
+	if strings.Contains(out, "Lint warnings found.") {
+		t.Fatalf("tool failure reported as warnings:\n%s", out)
+	}
+	if !strings.Contains(out, "golangci-lint exited 3.") {
+		t.Fatalf("output missing honest exit line:\n%s", out)
 	}
 }
 
