@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml/badge.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml) [![global coverage](https://raw.githubusercontent.com/lavantien/caro-ai-pvp/coverage/coverage-global.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml) [![core coverage](https://raw.githubusercontent.com/lavantien/caro-ai-pvp/coverage/coverage-core.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml)
 
-Mobile-first web arena for a custom 16x16 gomoku variant and its hexagonal-board sibling. Play from a phone browser against a person or an increment-safe bot on server-hosted rooms, watch live rooms as a guest, step through match history with a playback board, and run bot vs bot tournaments on the same room surface with per-move engine telemetry and a decay-scaled rating. The behavior contract is scenario 1 in [first-cause.md](first-cause.md).
+Mobile-first web arena for a custom gomoku variant played on two boards, a 16 by 16 grid and a side-12 hexagon. Play from a phone browser against a person or an increment-safe bot on server-hosted rooms, watch live rooms as a guest, step through match history with a playback board, and run bot vs bot tournaments on the same room surface with per-move engine telemetry and a decay-scaled rating. The behavior contract is scenario 1 in [first-cause.md](first-cause.md).
 
 ## contents
 
@@ -231,26 +231,20 @@ The pure client functions (tap-to-preview selection, the M-line UI filter) ship 
 
 ## status
 
-The rebuild closed at v0.20 with the final issueless MVP. Landed since:
+What ships today:
 
-- **v0.21.** The 10+5 time control ships as the fourth control on the clock's gain rows, tagged [v0.21](https://github.com/lavantien/caro-ai-pvp/tree/v0.21).
-- **v0.22.** The TT arena round closed by its preregistered skip decision with the shipped sizes as a working hypothesis, tagged [v0.22](https://github.com/lavantien/caro-ai-pvp/tree/v0.22) ([preregistration](playground/arena/out/v022-phaseA-preregistration.md)).
-- **v0.23.** The five-tier rescale and the master strength gate closed together after the re-gate chain folded clean at both controls, tagged [v0.23](https://github.com/lavantien/caro-ai-pvp/tree/v0.23) ([2+1 gate](playground/arena/out/regate-2plus1-gate.md), [3+2 gate](playground/arena/out/regate-3plus2-gate.md)).
-- **closures with no tier constant moved.** The increment-axis investigation closed on power accounting ([verdict](playground/arena/out/increment-axis-investigation.md)), the ponder t-inflation fix landed with the off-lane solver pass verified stall-free ([probe](playground/arena/out/ponderscan-probe-postfix.md)), the retire ordering law closed its CI races, and the internal/server mutation gate closed clean at 1716/1716 run with 0 survivors and 78 allowed.
-- **v0.24.** The book artifact reader and searcher wiring are live with nobook seats for the arena, the strength gate failed its preregistered band at 3+2 ([verdict](playground/arena/out/v024-bookgate-verdict.md)), the self-play corpus closed at 284 games, and the builder became fixed-budget tree expansion with staged validation arms ([preregistration](playground/arena/out/booktree-preregistration.md)). The tag waits on the first build run and the arms.
-- **v0.25.** Pondering is live on both engine halves behind the four-clause adoption gate with [PONDER] M-lines. The tag waits on the ponder arena pair.
-- **v0.26.** Admission control runs one machine-wide ledger: cores attach at the search window, table bytes reserve at engine construction, ponder lanes and tournament rounds admit at full tier width or off, and a refused mid-series start parks the room releasably.
-- **v0.27.** The ui overhaul shipped the board-plus-rail room and playback pages, the lobby play-and-watch hub, public player profiles, and the PWA install shell, every surface recaptured as the P01 to P26 variant pairs in [screenshots](#screenshots).
-- **v0.28.** The grandmaster pass rungs are fixed at 2/3 versus master, 3/4 versus hard, 4/5 versus medium, and 9/10 versus easy and wait on the weight chain.
-- **eval weights.** The organic fit over 1595 top-tier games ran its adoption chain to the terminal pause for re-registration: the scaffold weights stand and no swap runs ([protocol](playground/arena/out/evalweights-adoption-preregistration.md)).
-- **casual dual storage.** Every casual completion writes its exact series log as append-only text beside its sqlite rows, so both storage sides hold every engine line.
-- **hexagon and rider.** The hexagon variant landed end to end on every playing surface, bookless. The rider shipped the light pastel theme, the hex stone glyphs, one 440x956 capture law for the whole evidence set, and the native go runner in place of make, evidence in [screenshots](#screenshots). The tag waits on the hex gates.
+- the five-tier engine at the demand-spec shapes: fail-soft PVS over lazy SMP, VCF and VCT threat solvers with the brute-force soundness oracle in CI, pondering at each tier's width behind the four-clause adoption gate, and the increment-safe clock over the four time controls
+- the CAROBOOK1 book reader and searcher wiring, with the fixed-budget tree-expansion builder
+- the hexagon variant on every playing surface, bookless
+- the machine-wide admission ledger: full tier width or off, never a shrunken engine
+- casual dual storage: every completion writes its series log as append-only text beside its sqlite rows
+- verification: 95 percent overall and 100 percent core coverage gates on the race suite, mutation gates closed over rules, engine, clock, and server, the differential and soundness fuzz corpora in CI
 
 The implemented design record and the full wave-by-wave log live in [devlog.md](devlog.md).
 
 ## roadmap
 
-Only the unlanded waves, the landed record lives in [status](#status) and devlog.md.
+Only the unlanded waves, the landed record lives in devlog.md.
 
 - v0.24 opening book: the fixed-budget tree-expansion build run, then the short, confirm, and cross validation arms, the master floors, and the strength gates rerun at the hybrid-law bar (first 16 plies, entries backed by solver proofs or tree agreement over a visit floor, grandmaster probes 16 plies and master 8) before the tag.
 - v0.25 pondering: the ponder arena pair (noponder versus pondering seats at the gated control) and the tag.
