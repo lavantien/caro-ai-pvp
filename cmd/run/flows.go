@@ -10,6 +10,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
 type flowFunc func(r *runner, v vars) error
@@ -332,6 +335,7 @@ func registerChain() {
 
 const (
 	diagramsDir       = "docs/diagrams"
+	badgesDir         = "docs/badges"
 	plantumlLimitSize = "16384"
 )
 
@@ -404,14 +408,60 @@ func registerDiagrams() {
 
 func registerCi() {
 	registerFlow("ci", func(r *runner, v vars) error {
-		for _, t := range []string{"playground-modules", "contrast", "fmt-check", "lint", "vet", "build", "bookgen-test", "evalfit-test", "cover"} {
-			if err := runRegistered(r, v, t); err != nil {
-				return err
-			}
+		chainErr := runCiChain(r, v)
+		badgeErr := regenerateBadges(r, chainErr)
+		if chainErr != nil {
+			return chainErr
+		}
+		if badgeErr != nil {
+			return badgeErr
 		}
 		fmt.Println("ci: all green")
 		return nil
 	})
+}
+
+func runCiChain(r *runner, v vars) error {
+	for _, t := range []string{"playground-modules", "contrast", "fmt-check", "lint", "vet", "build", "bookgen-test", "evalfit-test", "cover"} {
+		if err := runRegistered(r, v, t); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func badgeRegenTarget(chainErr error) (target, verdict string) {
+	if chainErr != nil {
+		return "cover-verdict", config.VerdictFailed
+	}
+	return "cover-badges", config.VerdictPassed
+}
+
+func badgeRunID(now time.Time) string {
+	return now.Format("20060102-150405")
+}
+
+func gitHeadSha() (string, error) {
+	out, code, err := execCapture("git", []string{"rev-parse", "HEAD"}, nil, "")
+	if err != nil || code != 0 {
+		return "", fmt.Errorf("ci badges: git rev-parse HEAD failed: %v", err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+func regenerateBadges(r *runner, chainErr error) error {
+	sha, err := gitHeadSha()
+	if err != nil {
+		return err
+	}
+	runID := badgeRunID(time.Now())
+	target, verdict := badgeRegenTarget(chainErr)
+	bv := vars{"SHA": sha, "RUN_ID": runID, "VERDICT": verdict, "OUT": badgesDir}
+	fmt.Printf("run: ci badges: regenerating %s at %s, sha %s, run %s\n", verdict, badgesDir, sha, runID)
+	if err := runRegistered(r, bv, target); err != nil {
+		return fmt.Errorf("ci badges: %s regeneration failed: %w", verdict, err)
+	}
+	return nil
 }
 
 func init() {

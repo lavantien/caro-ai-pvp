@@ -1,12 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
 func testRunner() *runner {
@@ -57,7 +60,7 @@ func TestCoverBadgesTarget(t *testing.T) {
 		t.Fatalf("cover-badges = %v %v", steps[0].path, steps[0].args)
 	}
 	steps = specs(t, "cover-badges", vars{"SHA": "abc123", "RUN_ID": "42", "VERDICT": "passed"})
-	if !reflect.DeepEqual(steps[0].args, []string{"run", "./cmd/covergate", "-badges", "coverage.out", ".", "abc123", "42", "passed"}) {
+	if !reflect.DeepEqual(steps[0].args, []string{"run", "./cmd/covergate", "-badges", "coverage.out", badgesDir, "abc123", "42", "passed"}) {
 		t.Fatalf("cover-badges default out = %v", steps[0].args)
 	}
 	for _, missing := range []string{"RUN_ID", "SHA", "VERDICT"} {
@@ -76,7 +79,7 @@ func TestCoverVerdictTarget(t *testing.T) {
 		t.Fatalf("cover-verdict = %v %v", steps[0].path, steps[0].args)
 	}
 	steps = specs(t, "cover-verdict", vars{"VERDICT": "passed", "SHA": "abc123", "RUN_ID": "42"})
-	if !reflect.DeepEqual(steps[0].args, []string{"run", "./cmd/covergate", "-verdict", "passed", ".", "abc123", "42"}) {
+	if !reflect.DeepEqual(steps[0].args, []string{"run", "./cmd/covergate", "-verdict", "passed", badgesDir, "abc123", "42"}) {
 		t.Fatalf("cover-verdict default out = %v", steps[0].args)
 	}
 	for _, missing := range []string{"RUN_ID", "SHA", "VERDICT"} {
@@ -85,6 +88,24 @@ func TestCoverVerdictTarget(t *testing.T) {
 		if _, err := buildSteps("cover-verdict", testRunner(), v); err == nil {
 			t.Fatalf("cover-verdict built without %s", missing)
 		}
+	}
+}
+
+func TestBadgeRunID(t *testing.T) {
+	got := badgeRunID(time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC))
+	if got != "20261025-120000" {
+		t.Fatalf("badgeRunID = %q, want 20261025-120000", got)
+	}
+}
+
+func TestBadgeRegenTarget(t *testing.T) {
+	target, verdict := badgeRegenTarget(nil)
+	if target != "cover-badges" || verdict != config.VerdictPassed {
+		t.Fatalf("badgeRegenTarget(nil) = %q %q, want cover-badges passed", target, verdict)
+	}
+	target, verdict = badgeRegenTarget(fmt.Errorf("chain failed"))
+	if target != "cover-verdict" || verdict != config.VerdictFailed {
+		t.Fatalf("badgeRegenTarget(err) = %q %q, want cover-verdict failed", target, verdict)
 	}
 }
 
