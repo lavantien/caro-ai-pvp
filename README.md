@@ -157,7 +157,7 @@ go run ./cmd/run fuzz            # rules differential fuzz target
 go run ./cmd/run clocktune       # PID gain sweep for 1 time control, artifact under playground/clocktune/out/
 go run ./cmd/run booktree-run    # detached tree-expansion book build, resumable from its expansion log
 go run ./cmd/run bookval-short   # detached book validation arms (also bookval-confirm, bookval-cross), each resumable
-go run ./cmd/run diagrams        # render the PNG diagrams from the mermaid sources
+go run ./cmd/run diagrams        # render the pngs from the puml sources
 go run ./cmd/run logstats        # evidence report over the newest logs/tourny run
 go run ./cmd/run db-checkpoint   # fold every db/*.db write-ahead log into its main file
 go run ./cmd/run serve           # serve on the configured port, db under db/
@@ -187,47 +187,75 @@ docs/             rebuild plan, diagram sources and renders, screenshots
 
 ## diagrams
 
-Search pipeline, 1 pass per completed iteration. The soft stop is consulted at iteration heads only, and only completed iterations become the answer.
+Sources are PlantUML under docs/diagrams, rendered to png by `go run ./cmd/run diagrams`.
 
-![search pipeline flowchart](docs/diagrams/search-pipeline.png)
+**search-pipeline.** 1 pass per completed iteration: the soft stop is consulted at iteration heads only and only completed iterations become the answer.
 
-Lazy SMP wraps the same pipeline: 1 persistent locked-thread worker per core, parked between searches, all sharing 1 lockless direct-mapped transposition table; a worker's proven immediate win halts its siblings through a shared flag folded into their deadline.
+![search pipeline](docs/diagrams/search-pipeline.png)
 
-Threat-solver soundness harness. The solvers generate only threat moves (fours for VCF, threes and fours for VCT) from the init-computed pattern tables; a test-only brute-force oracle over the independent naive board cross-checks every claimed win, and that fuzz runs in CI permanently.
+**engine-searcher-stack.** The searcher composition per seat: the book probe on book tiers, VCF and VCT solver wrappers, and the SMP engine of 1 locked-thread worker per core over the shared transposition table, with the ponder lane beside the main worker.
 
-![threat-solver soundness harness flowchart](docs/diagrams/threat-solver-harness.png)
+![engine searcher stack](docs/diagrams/engine-searcher-stack.png)
 
-Series state machine inside every room. Host takes red first; the loser of a decisive game takes red next; a draw retains red; quitting books a loss for every remaining game.
+**threat-solver-harness.** The solvers generate only threat moves (fours for VCF, threes and fours for VCT) from the pattern tables, and the brute-force oracle fuzz cross-checks every claimed win in CI.
+
+![threat-solver harness](docs/diagrams/threat-solver-harness.png)
+
+**clock-budget.** The PID-steered controller draws the per-move budget, spreads it over expected moves left plus the increment share, steers against the drain trajectory, and floors the grant so a drained clock still funds minimum moves and a timeout can never decide a game.
+
+![clock budget](docs/diagrams/clock-budget.png)
+
+**geometry-seam.** 1 Geometry descriptor carries the square and hexagon boards through rules, pattern tables, engine, solvers, and rendering. The hexagon ships bookless.
+
+![geometry seam](docs/diagrams/geometry-seam.png)
+
+**series-state-machine.** The host takes red first, the loser of a decisive game takes red next, a draw retains red, and quitting books a loss for every remaining game.
 
 ![series state machine](docs/diagrams/series-state-machine.png)
 
-Room data path. Gameplay never blocks on the disk: moves apply in memory, mutations queue to the single SQLite writer, and telemetry fan out to every subscriber.
+**room-lifecycle.** Room create, seats joining, the ready handshake, the turn loop of human moves and bot searches, ponder armed on the opponent's turn, SSE events fanning out to players and spectators, and the retire to the terminal verdict.
 
-![room data path flowchart](docs/diagrams/room-data-path.png)
+![room lifecycle](docs/diagrams/room-lifecycle.png)
 
-Move stats pipeline. Every bot move is captured once as a structured record before its M-line renders, so the text line and the stored row are 2 views of 1 lossless capture: the rendered payload reaches the SSE stream and the per-series text log, and the structured stat persists as a tournament_game_stats row per move, written in the same transaction as its game row.
+**room-data-path.** Gameplay never blocks on the disk: moves apply in memory, mutations queue to the single SQLite writer, and telemetry fans out to every subscriber.
 
-![move stats pipeline flowchart](docs/diagrams/move-stats.png)
+![room data path](docs/diagrams/room-data-path.png)
 
-The tournament conductor. Every series rides the same room surface a human match does; the conductor subscribes before the room can retire, reconciles each finished game against the room's authoritative move list, and fails the whole run on any divergence.
+**admission-ledger.** The machine-wide ledger acquires cores and transposition bytes at the search window, books the ponder width for the opponent's turn, and rejects room creation with a server-resources-full failure when the machine cannot fund the engines.
 
-![tournament conductor flowchart](docs/diagrams/tournament-conductor.png)
+![admission ledger](docs/diagrams/admission-ledger.png)
 
-The machine-wide core budget is held by the run gate: 1 ongoing run at a time, per-run parallelism bounded by the tier cores, and an undriven run (stalled or failed) closed explicitly from its page before another can start. Starting runs and closing them is the seeded admin account's alone; every page, the setup list, the run boards, and the home's live-run banner read public, guest included.
+**pwa-shell.** The service worker caches the static shell only, answers navigation network-first with the offline fallback, and never answers api calls or the event stream.
 
-Store schema. 1 sqlite database carries both sides: the casual tables behind human rooms and bot games, and the tournament tables behind the conductor, with the per-move telemetry in tournament_game_stats beside its game, mover red or blue per row, and the PV stored space-joined as text.
+![pwa shell](docs/diagrams/pwa-shell.png)
 
-![store schema flowchart](docs/diagrams/store-schema.png)
+**auth-session.** Login-or-create runs argon2id on an equal-work path for existing and new accounts, issues the session token, and verifies the seeded admin at boot.
 
-Evalfit pipeline. Tournament games decode from their move blobs and replay under integrity checks into side-to-move window-class features, fitted by monotone-chain gradient descent cross-checked by differential evolution. The artifact's weights reach the config hub's PatternClassWeights only after the arena gate passes, per the inversion research law.
+![auth session](docs/diagrams/auth-session.png)
 
-![evalfit pipeline flowchart](docs/diagrams/evalfit-pipeline.png)
+**tournament-conductor.** Every series rides the same room surface a human match does: the conductor subscribes before the room can retire, reconciles each finished game against the authoritative move list, and fails the whole run on any divergence. 1 ongoing run at a time, per-run parallelism bounded by the tier cores, and only the admin starts or closes runs.
 
-Page surface. The shell and room pages are server-rendered html/template with vendored htmx 4; page routes mount beside the JSON API and win on their patterns, everything else falls to the shell.
+![tournament conductor](docs/diagrams/tournament-conductor.png)
 
-![page surface flowchart](docs/diagrams/page-surface.png)
+**move-stats.** Every bot move is captured once as a structured record before its M-line renders, so the text line and the stored row are 2 views of 1 lossless capture.
 
-The pure client functions (tap-to-preview selection, the M-line UI filter) ship as byte-pinned twins: the same source is pinned between markers in the served JS and asserted byte-equal by Go tests, so the browser and the test suite cannot drift.
+![move stats](docs/diagrams/move-stats.png)
+
+**store-schema.** 1 sqlite database carries the casual and tournament tables, the per-move telemetry in tournament_game_stats beside its game, and the PV stored space-joined as text.
+
+![store schema](docs/diagrams/store-schema.png)
+
+**rating-flow.** Game completion writes the rating events, per-variant rating and WLD aggregate into the profile hero, the home stat lines, history rows, and playback deltas, and bot seats never carry a rating.
+
+![rating flow](docs/diagrams/rating-flow.png)
+
+**evalfit-pipeline.** Tournament games replay under integrity checks into window-class features fitted by monotone-chain gradient descent cross-checked by differential evolution, and the weights reach the config hub only after the arena gate passes.
+
+![evalfit pipeline](docs/diagrams/evalfit-pipeline.png)
+
+**page-surface.** The shell and room pages are server-rendered html/template with vendored htmx 4, page routes mount beside the JSON API and win on their patterns, and the pure client functions ship as byte-pinned twins between the served JS and the Go tests.
+
+![page surface](docs/diagrams/page-surface.png)
 
 ## status
 
