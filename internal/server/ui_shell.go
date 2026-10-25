@@ -541,12 +541,6 @@ ORDER BY g.played_at DESC, g.id DESC`,
 	return out, rows.Err()
 }
 
-type turnItemView struct {
-	N    int
-	Red  string
-	Blue string
-}
-
 type playerStatView struct {
 	SeatClass string
 	Seat      string
@@ -563,24 +557,12 @@ type historyRowView struct {
 	Score         string
 	Turns         int
 	WonBy         string
-	TurnItems     []turnItemView
+	MoveItems     []moveItemView
 	Truncated     bool
 	IsBot         bool
 	StatLines     []string
 	StatTruncated bool
 	Players       []playerStatView
-}
-
-func turnItemsOf(preview []string) []turnItemView {
-	items := make([]turnItemView, 0, len(preview)/2)
-	for i := 0; i < len(preview); i += 2 {
-		item := turnItemView{N: i/2 + 1, Red: preview[i]}
-		if i+1 < len(preview) {
-			item.Blue = preview[i+1]
-		}
-		items = append(items, item)
-	}
-	return items
 }
 
 func playerStatsOf(seat, name string, rec wldRecord) playerStatView {
@@ -645,7 +627,7 @@ func (p *shellPages) handleHistory(w http.ResponseWriter, r *http.Request) {
 			Variant:   row.Variant,
 			Score:     strconv.Itoa(e.RedWins) + "-" + strconv.Itoa(e.BlueWins),
 			Turns:     e.FullTurns,
-			TurnItems: turnItemsOf(e.Preview),
+			MoveItems: newestMoveItems(e.Preview),
 			Truncated: e.Truncated,
 			IsBot:     row.RedBot || row.BlueBot,
 		}

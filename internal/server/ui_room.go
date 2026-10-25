@@ -117,13 +117,72 @@ func (p *RoomPages) HandlePlayback(w http.ResponseWriter, r *http.Request) {
 			blueName = g.BotName
 		}
 	}
-	p.renderPlayback(w, playbackView{
+	view := playbackView{
 		boardData: boardDataFor(sr.Variant, names, nil),
 		GameID:    g.ID, ShortID: shortID(strconv.FormatInt(g.ID, 10)),
 		RedName: redName, BlueName: blueName,
 		Outcome: outcomeWord(g.Outcome), WonBy: derefString(g.WonBy), Moves: names,
-		Pairs: movePairs(names),
-	})
+		MoveItems: newestMoveItems(names),
+	}
+	if isBotAccount(red) || isBotAccount(blue) {
+		view.IsBotGame = true
+		lines, more, err := p.store.gameStatTail(g.ID, config.HistoryStatTail)
+		if err != nil {
+			http.Error(w, "playback read failed", http.StatusInternalServerError)
+			return
+		}
+		view.StatLines, view.StatTruncated = lines, more
+	} else {
+		deltas, err := p.playerDeltas(g, sr, viewer.ID)
+		if err != nil {
+			http.Error(w, "playback read failed", http.StatusInternalServerError)
+			return
+		}
+		view.Deltas = deltas
+	}
+	p.renderPlayback(w, view)
+}
+
+func signedDelta(v int) string {
+	if v >= 0 {
+		return "+" + strconv.Itoa(v)
+	}
+	return strconv.Itoa(v)
+}
+
+func (p *RoomPages) playerDeltas(g Game, sr SeriesRow, userID int64) ([]string, error) {
+	rating, err := p.store.gameRatingDelta(g.ID, userID)
+	if err != nil {
+		return nil, err
+	}
+	wld := "+1L"
+	switch g.Outcome {
+	case OutcomeDraw:
+		wld = "+1D"
+	case OutcomeRed:
+		if g.RedUser == userID {
+			wld = "+1W"
+		}
+	case OutcomeBlue:
+		if g.BlueUser == userID {
+			wld = "+1W"
+		}
+	}
+	level := 0
+	if sr.Winner != nil && *sr.Winner == userID {
+		games, err := p.store.seriesGameCount(sr.ID)
+		if err != nil {
+			return nil, err
+		}
+		if g.IdxInSeries == games-1 {
+			level = 1
+		}
+	}
+	return []string{
+		"rating " + signedDelta(rating),
+		"record " + wld,
+		"level +" + strconv.Itoa(level),
+	}, nil
 }
 
 func isBotAccount(u User) bool {
@@ -197,20 +256,24 @@ type roomView struct {
 	ClockRed      string
 	ClockBlue     string
 	Moves         []string
-	Pairs         []MovePair
+	MoveItems     []moveItemView
 	KindsCSV      string
 }
 
 type playbackView struct {
 	boardData
-	GameID   int64
-	ShortID  string
-	RedName  string
-	BlueName string
-	Outcome  string
-	WonBy    string
-	Moves    []string
-	Pairs    []MovePair
+	GameID        int64
+	ShortID       string
+	RedName       string
+	BlueName      string
+	Outcome       string
+	WonBy         string
+	Moves         []string
+	MoveItems     []moveItemView
+	IsBotGame     bool
+	StatLines     []string
+	StatTruncated bool
+	Deltas        []string
 }
 
 func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
@@ -273,7 +336,7 @@ func (p *RoomPages) roomViewOf(r *http.Request, room *Room) (roomView, error) {
 		}
 		view.ClockRed, view.ClockBlue = formatClockMs(snap.ClockMs[0]), formatClockMs(snap.ClockMs[1])
 		view.Moves = snap.Moves
-		view.Pairs = movePairs(snap.Moves)
+		view.MoveItems = newestMoveItems(snap.Moves)
 		var playable map[string]bool
 		if view.IsParticipant {
 			view.MyColor = "blue"

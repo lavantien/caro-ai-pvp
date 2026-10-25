@@ -388,7 +388,13 @@ func TestHistoryListsFinishedSeriesOfBothVariants(t *testing.T) {
 	if got := strings.Count(body, `class="hrow"`); got != 2 {
 		t.Errorf("history rows = %d, want the square and the hex game (body %s)", got, body)
 	}
-	for _, want := range []string{"H8, I6", "L12, M13", `<span class="chip"><svg class="vglyph vglyph-hex"`} {
+	for _, want := range []string{
+		`<span class="n">1.</span><span class="m">H8</span>`,
+		`<span class="n">2.</span><span class="m">I6</span>`,
+		`<span class="n">1.</span><span class="m">L12</span>`,
+		`<span class="n">2.</span><span class="m">M13</span>`,
+		`<span class="chip"><svg class="vglyph vglyph-hex"`,
+	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("history misses %q (body %s)", want, body)
 		}
@@ -762,13 +768,6 @@ func TestShellHistoryPreviewBoundaryAndPlaybackLink(t *testing.T) {
 		}
 		return strings.Join(names, " ")
 	}
-	turnItem := func(moves []rules.Move, i int) string {
-		item := cellName(rules.Cell(moves[2*i]))
-		if 2*i+1 < len(moves) {
-			item += ", " + cellName(rules.Cell(moves[2*i+1]))
-		}
-		return item
-	}
 	limit := 2 * config.HistoryPreviewTurns
 	wantShellBody(t, body,
 		time.Unix(short.PlayedAt, 0).UTC().Format(historyTimeFormat),
@@ -777,15 +776,37 @@ func TestShellHistoryPreviewBoundaryAndPlaybackLink(t *testing.T) {
 		"won by "+won,
 		`href="/rooms/history/`+strconv.FormatInt(short.ID, 10)+`"`,
 		`href="/rooms/history/`+strconv.FormatInt(long.ID, 10)+`"`,
-		`class="hcols"`, `class="hturns"`, `class="hstat"`,
+		`<div class="rail">`, `class="hmoves rail-scroll"`, `<ol class="mvlist">`,
+		`class="rail-stats hstat"`,
 	)
+	mvSeat := func(i int) string {
+		if i%2 == 0 {
+			return "s-red"
+		}
+		return "s-blue"
+	}
 	for _, moves := range [][]rules.Move{shortMoves, longMoves[:limit]} {
-		for i := range min(len(moves), limit) / 2 {
-			want := `<li><span class="tn">` + strconv.Itoa(i+1) + `.</span> ` + turnItem(moves, i) + `</li>`
+		shown := moves[:min(len(moves), limit)]
+		for i := range shown {
+			want := `<li class="mv ` + mvSeat(i) + `"><span class="n">` + strconv.Itoa(i+1) +
+				`.</span><span class="m">` + cellName(rules.Cell(moves[i])) + `</span></li>`
 			if !strings.Contains(body, want) {
-				t.Errorf("history misses turn item %q", want)
+				t.Errorf("history misses move item %q", want)
 			}
 		}
+	}
+	longAt := strings.Index(body, `href="/rooms/history/`+strconv.FormatInt(long.ID, 10)+`"`)
+	if longAt < 0 {
+		t.Fatalf("history misses the long row")
+	}
+	longRow := body[longAt:]
+	firstMove := strings.Index(longRow, `<li class="mv `)
+	trunc := strings.Index(longRow, `<li class="mv tmore">…</li>`)
+	if trunc < 0 || firstMove < 0 || trunc > firstMove {
+		t.Errorf("truncated preview must lead with the ellipsis (tmore %d, first move %d)", trunc, firstMove)
+	}
+	if newest := strings.Index(longRow, `<li class="mv s-blue"><span class="n">`+strconv.Itoa(limit)+`.`); newest < 0 {
+		t.Error("the newest shown move must lead the preview column")
 	}
 	if strings.Count(body, "…") != 1 {
 		t.Errorf("ellipsis appears %d times, want 1 (only the truncated row)", strings.Count(body, "…"))
@@ -844,7 +865,7 @@ func TestHistoryRowsCarryStatusBoxes(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("history: status = %d (body %s)", status, body)
 	}
-	if got := strings.Count(body, `class="hstat"`); got != 2 {
+	if got := strings.Count(body, `class="rail-stats hstat"`); got != 2 {
 		t.Errorf("status boxes = %d, want one per row (body %s)", got, body)
 	}
 	wantShellBody(t, body,

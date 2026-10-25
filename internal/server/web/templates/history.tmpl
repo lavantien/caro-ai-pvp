@@ -4,14 +4,15 @@
 <h2>match history{{if .Variant}} <span class="chip">{{template "vglyph" .Variant}} {{.Variant}}</span>{{end}}</h2>
 {{if .Rows}}{{range .Rows}}<div class="hrow">
 <div class="top"><span>{{.When}}</span><span class="who-vs" title="{{.Red}} vs {{.Blue}}">{{disp .Red}} vs {{disp .Blue}}</span><span class="chip">{{template "vglyph" .Variant}} {{.Variant}}</span><span class="score">{{.Score}}</span><span>{{.Turns}} turns</span>{{if .WonBy}}<span>won by {{.WonBy}}</span>{{end}}</div>
-<div class="hcols">
-<a class="hmoves" href="/rooms/history/{{.GameID}}" title="playback board">
-<ol class="hturns">
-{{range .TurnItems}}<li><span class="tn">{{.N}}.</span> {{.Red}}{{if .Blue}}, {{.Blue}}{{end}}</li>
-{{end}}{{if .Truncated}}<li class="tmore">…</li>{{end}}
+<div class="rail">
+<a class="hmoves rail-scroll" href="/rooms/history/{{.GameID}}" title="playback board">
+<ol class="mvlist">
+{{if .Truncated}}<li class="mv tmore">…</li>{{end}}
+{{range .MoveItems}}<li class="mv {{.SeatClass}}"><span class="n">{{.N}}.</span><span class="m">{{.Name}}</span></li>
+{{end}}
 </ol>
 </a>
-<div class="hstat">
+<div class="rail-stats hstat">
 {{if .IsBot}}{{if .StatLines}}{{range .StatLines}}<p class="mline">{{.}}</p>
 {{end}}{{if .StatTruncated}}<p class="mline tmore">…</p>{{end}}{{else}}<p class="empty">no engine lines recorded.</p>{{end}}
 {{else}}{{range .Players}}<p class="pstat {{.SeatClass}}">{{.Seat}} {{.Name}} <span class="mono">{{.WLD}}</span></p>

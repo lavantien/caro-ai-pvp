@@ -1,27 +1,36 @@
 package server
 
-type MovePair struct {
-	N          int
-	Red        string
-	Blue       string
-	RedLatest  bool
-	BlueLatest bool
+import "slices"
+
+type moveItemView struct {
+	N         int
+	Idx       int
+	Name      string
+	SeatClass string
+	Latest    bool
 }
 
-func movePairs(names []string) []MovePair {
+func moveItems(names []string) []moveItemView {
 	if len(names) == 0 {
 		return nil
 	}
-	pairs := make([]MovePair, 0, (len(names)+1)/2)
-	for i := 0; i < len(names); i += 2 {
-		p := MovePair{N: i/2 + 1, Red: names[i]}
-		if i+1 < len(names) {
-			p.Blue = names[i+1]
-			p.BlueLatest = i+1 == len(names)-1
-		} else {
-			p.RedLatest = true
-		}
-		pairs = append(pairs, p)
+	out := make([]moveItemView, len(names))
+	for i, name := range names {
+		out[i] = moveItemView{N: i + 1, Idx: i, Name: name, SeatClass: seatClassOfMove(i),
+			Latest: i == len(names)-1}
 	}
-	return pairs
+	return out
+}
+
+func newestMoveItems(names []string) []moveItemView {
+	items := moveItems(names)
+	slices.Reverse(items)
+	return items
+}
+
+func seatClassOfMove(i int) string {
+	if i%2 == 0 {
+		return "s-red"
+	}
+	return "s-blue"
 }

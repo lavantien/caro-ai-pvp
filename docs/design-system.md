@@ -88,6 +88,8 @@ Buttons: `.btn` is the primary (accent fill, `--accent-strong` on hover and acti
 
 Focus: interactive elements take `outline: none; box-shadow: 0 0 0 3px var(--accent-strong)` under `:focus-visible`, an interaction signal held off the amber data marks. Coarse-pointer minimum target sizes stay as shipped.
 
+Rail: `.rail` is the one two-column reading rail a paired surface uses, moves left at 30 percent and stats right at 70, in that order and never swapped. The moves column is a `.rail-scroll` box: it scrolls on both axes, its items are `.mvlist .mv` single moves that never wrap (the list grows to `max-content` so overflow is horizontal, not a reflow), and the newest move always leads. A `.rail-top` button rides sticky at the bottom of the scroll box and jumps back to the newest move; it appears wherever the list grows live (room, playback) and is omitted from bounded previews. The stats column carries engine data (mono M-lines) or player delta lines; a truncated preview puts its ellipsis item first, because the cut falls on the newest side. The room page, playback, and every history row are the rail's surfaces.
+
 Motion: the UI is near-zero motion. The only transitions are button and chip color fades, and they sit behind `prefers-reduced-motion: no-preference`.
 
 ## Contrast contract

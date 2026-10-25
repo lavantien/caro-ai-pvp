@@ -138,14 +138,23 @@ h1, .who, .who-vs, #score-line, .p-name, #turn-line { overflow-wrap: anywhere }
 .livecard .who-vs a { white-space: nowrap }
 .livecard .who-vs, .tseries, .tboard td:nth-child(2),
 .tboard td:nth-child(3) { font-family: var(--font-mono) }
-.hrow .hcols { display: grid; gap: var(--space-2) var(--space-3);
-	grid-template-columns: minmax(0, 21rem) minmax(0, 1fr); align-items: start }
-.hrow .hmoves { text-decoration: none; color: inherit; min-width: 0 }
-.hturns { list-style: none; margin: 0; padding: 0; display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-1) var(--space-2);
-	font-family: var(--font-mono); font-size: var(--text-s) }
-.hturns .tn { color: var(--text-muted) }
-.hturns .tmore { color: var(--text-muted) }
+.hrow .hmoves { text-decoration: none; color: inherit; display: block }
+.rail { display: grid; grid-template-columns: minmax(0, 30%) minmax(0, 70%);
+	gap: var(--space-2) var(--space-3); align-items: start }
+.rail-scroll { overflow: auto; max-height: min(40vh, 24rem) }
+.mvlist { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem;
+	align-content: start; width: max-content; min-width: 100%;
+	font-family: var(--font-mono); font-size: var(--text-base) }
+.mvlist .mv { display: flex; gap: var(--space-2); padding: 0 .2rem; white-space: nowrap }
+.mvlist .mv .n { color: var(--text-muted); min-width: 2.4rem; text-align: right }
+.mvlist .mv.s-red .m { color: var(--red) }
+.mvlist .mv.s-blue .m { color: var(--blue) }
+.mvlist .mv.latest { background: var(--surface); border-radius: var(--radius-s);
+	font-weight: 700; text-decoration: underline }
+.mvlist .mv.tmore { color: var(--text-muted) }
+.mvlist button.m { font: inherit; background: none; border: 0; padding: 0;
+	min-height: 0; color: inherit; text-align: inherit; cursor: pointer }
+.rail-top { position: sticky; bottom: 0; width: 100%; margin-top: var(--space-1) }
 .hstat { border: 1px solid var(--border); border-radius: var(--radius-s);
 	background: var(--surface); padding: var(--space-1) var(--space-2);
 	min-width: 0; display: grid; gap: .1rem }

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -123,13 +124,34 @@ func TestRoomPageRendersDrivenPvPGame(t *testing.T) {
 		t.Errorf("stone count = %d, want 5", got)
 	}
 	for _, want := range []string{
-		`<span class="n">1</span><span class="half red">D4</span><span class="half blue">P16</span>`,
-		`<span class="n">2</span><span class="half red">H8</span><span class="half blue">P12</span>`,
-		`<span class="n">3</span><span class="half red latest">D5</span><span class="half blue"></span>`,
+		`<li class="mv s-red latest"><span class="n">5.</span><span class="m">D5</span></li>`,
+		`<li class="mv s-blue"><span class="n">4.</span><span class="m">P12</span></li>`,
+		`<li class="mv s-red"><span class="n">3.</span><span class="m">H8</span></li>`,
+		`<li class="mv s-blue"><span class="n">2.</span><span class="m">P16</span></li>`,
+		`<li class="mv s-red"><span class="n">1.</span><span class="m">D4</span></li>`,
 	} {
 		if !strings.Contains(body, want) {
-			t.Errorf("paired move rows miss %q", want)
+			t.Errorf("newest-first move items miss %q", want)
 		}
+	}
+	if first := strings.Index(body, `<li class="mv s-red latest">`); first < 0 || first > strings.Index(body, `<li class="mv s-red"><span class="n">1.</span>`) {
+		t.Error("the newest move item must render first in the moves column")
+	}
+	if !strings.Contains(body, `<section id="moves-panel" class="rail">`) {
+		t.Error("moves and stats do not ride the rail section")
+	}
+	for _, id := range []string{"moves-scroll", "moves-top"} {
+		if !strings.Contains(body, `id="`+id+`"`) {
+			t.Errorf("rail moves column misses #%s", id)
+		}
+	}
+	railAt := strings.Index(body, `<section id="moves-panel" class="rail">`)
+	statsAt := strings.Index(body, `<div class="rail-stats">`)
+	if railAt < 0 || statsAt < railAt || statsAt > strings.Index(body, `id="bot-log"`) {
+		t.Error("the bot log must sit inside the rail stats column")
+	}
+	if !strings.Contains(body, `<h2>engine stats</h2>`) {
+		t.Error("rail stats column misses its heading")
 	}
 	if !strings.Contains(body, `id="turn-line"`) || !strings.Contains(body, "blue to move") {
 		t.Error("turn line misses the blue-to-move state")
@@ -158,9 +180,6 @@ func TestRoomPageRendersDrivenPvPGame(t *testing.T) {
 	if !strings.Contains(body, `<a class="brand" href="/">caro`) || !strings.Contains(body, `<svg class="vglyph vglyph-square"`) ||
 		!strings.Contains(body, `<svg class="vglyph vglyph-hex"`) || !strings.Contains(body, `<a href="/lobby">lobby</a>`) {
 		t.Error("room header misses the brand glyphs and lobby link")
-	}
-	if !strings.Contains(body, `<details id="bot-log-wrap" open>`) {
-		t.Error("bot logs are not an open details panel")
 	}
 	if !strings.Contains(body, `data-participant="1"`) {
 		t.Error("host view misses the participant flag")
@@ -586,8 +605,12 @@ func TestPlaybackPageReplaysSeededFinishedGame(t *testing.T) {
 		}
 	}
 	for _, want := range []string{
-		`<span class="n">1</span><button type="button" class="half red">D4</button><button type="button" class="half blue">P16</button>`,
-		`<span class="n">6</span><button type="button" class="half red latest">D3</button><span class="half blue"></span>`,
+		`<li class="mv s-red latest"><span class="n">` + fmt.Sprint(len(hostWinsRed)) +
+			`.</span><button type="button" class="m" data-i="` + fmt.Sprint(len(hostWinsRed)-1) + `">D3</button></li>`,
+		`<li class="mv s-blue"><span class="n">2.</span><button type="button" class="m" data-i="1">P16</button></li>`,
+		`<section id="pb-moves-panel" class="rail">`,
+		`<p class="pstat">rating &#43;30</p>`,
+		`<p class="pstat">record &#43;1W</p>`,
 		`<a class="brand" href="/">caro`, `<svg class="vglyph vglyph-hex"`, `<a href="/lobby">lobby</a>`,
 	} {
 		if !strings.Contains(body, want) {
@@ -842,28 +865,33 @@ func TestRoomJSCarriesActiveCardAndPairPaint(t *testing.T) {
 		"function paintActiveSeat()",
 		"card-red", "card-blue",
 		"classList.toggle('active'",
-		"function markLatestPly(i, stick)",
-		"ol.scrollTop = ol.scrollHeight",
+		"function markLatestFirst(ol)",
 	} {
 		if !strings.Contains(string(src), want) {
-			t.Errorf("room.js misses active-card/pair wiring %q", want)
+			t.Errorf("room.js misses active-card wiring %q", want)
 		}
 	}
 }
 
-func TestRoomJSMovesPanelScrollFollowsOnlyNewSticks(t *testing.T) {
+func TestRoomJSMovesPanelPrependsNewestFirst(t *testing.T) {
 	src, err := fs.ReadFile(staticFS, "room.js")
 	if err != nil {
 		t.Fatalf("read room.js: %v", err)
 	}
 	for _, want := range []string{
-		"function nearBottom(el)",
-		"el.scrollHeight - el.scrollTop - el.clientHeight <= stickZonePx",
-		"var stick = String(names.length) !== root.getAttribute('data-move-count') && nearBottom(ol)",
-		"if (stick && ol.scrollHeight > ol.clientHeight) { ol.scrollTop = ol.scrollHeight; }",
+		"function moveItem(n, name, seat)",
+		"ol.insertBefore(li, ol.firstChild)",
+		"for (var m = names.length - 1; m >= 0; m--)",
+		"$('moves-top').addEventListener('click'",
+		"scroller.scrollTop = 0",
 	} {
 		if !strings.Contains(string(src), want) {
-			t.Errorf("room.js misses moves-panel stick wiring %q", want)
+			t.Errorf("room.js misses newest-first moves wiring %q", want)
+		}
+	}
+	for _, banned := range []string{"ol.scrollTop = ol.scrollHeight", "function nearBottom(el)"} {
+		if strings.Contains(string(src), banned) {
+			t.Errorf("room.js still carries the retired bottom-stick wiring %q", banned)
 		}
 	}
 }
@@ -890,38 +918,36 @@ func TestRoomJSMLineStopsAfterTerminal(t *testing.T) {
 	}
 }
 
-func TestPlaybackPairHalvesAreKeyboardReachable(t *testing.T) {
+func TestPlaybackMoveItemsAreKeyboardReachable(t *testing.T) {
 	var out strings.Builder
 	if err := executePlayback(&out, playbackView{
 		GameID: 1, RedName: "r", BlueName: "b",
-		Moves: hostWinsRed[:3], Pairs: movePairs(hostWinsRed[:3]),
+		Moves: hostWinsRed[:3], MoveItems: newestMoveItems(hostWinsRed[:3]),
 	}); err != nil {
 		t.Fatalf("render playback: %v", err)
 	}
 	body := out.String()
-	if !strings.Contains(body, `<button type="button" class="half red">D4</button>`) {
-		t.Errorf("filled half is not a native focusable button (body %s)", body)
+	if !strings.Contains(body, `<button type="button" class="m" data-i="0">D4</button>`) {
+		t.Errorf("a move is not a native focusable button (body %s)", body)
 	}
-	if !strings.Contains(body, `<button type="button" class="half red latest">H8</button>`) {
-		t.Error("latest filled half lost its latest mark in button form")
-	}
-	if !strings.Contains(body, `<span class="half blue"></span>`) {
-		t.Error("empty half must stay a plain non-focusable span")
+	if !strings.Contains(body, `<li class="mv s-red latest"><span class="n">3.</span><button type="button" class="m" data-i="2">H8</button></li>`) {
+		t.Error("the newest move item must lead with the latest mark")
 	}
 }
 
-func TestPlaybackJSCarriesPairJump(t *testing.T) {
+func TestPlaybackJSCarriesMoveJump(t *testing.T) {
 	src, err := fs.ReadFile(staticFS, "playback.js")
 	if err != nil {
 		t.Fatalf("read playback.js: %v", err)
 	}
 	for _, want := range []string{
-		"closest('.half[data-i]')",
-		"Number(half.getAttribute('data-i')) + 1",
+		"closest('.m[data-i]')",
+		"Number(m.getAttribute('data-i')) + 1",
 		"classList.toggle('latest'",
+		"$('pb-top').addEventListener('click'",
 	} {
 		if !strings.Contains(string(src), want) {
-			t.Errorf("playback.js misses pair-jump wiring %q", want)
+			t.Errorf("playback.js misses move-jump wiring %q", want)
 		}
 	}
 }
@@ -951,7 +977,7 @@ func TestRoomTemplatesEscapePoisonedPayloads(t *testing.T) {
 	rv := roomView{RoomID: strings.Repeat("a", 2*roomIDBytes), TCLabel: "1+0", BOLen: config.SeriesBO3,
 		HostName: poison, GuestName: poison, ViewerName: poison, State: poison,
 		Turn: poison, TurnName: poison, RedName: poison, BlueName: poison, RedTier: poison,
-		Moves: []string{poison}, Pairs: movePairs([]string{poison}),
+		Moves: []string{poison}, MoveItems: newestMoveItems([]string{poison}),
 		Cells: cells, KindsCSV: strings.Join(spikeEventKinds, ",")}
 	if err := executeRoom(&out, rv); err != nil {
 		t.Fatalf("render room: %v", err)
@@ -964,7 +990,7 @@ func TestRoomTemplatesEscapePoisonedPayloads(t *testing.T) {
 	}
 
 	pv := playbackView{RedName: poison, BlueName: poison, Outcome: poison, WonBy: poison,
-		Moves: []string{poison}, Pairs: movePairs([]string{poison}),
+		Moves: []string{poison}, MoveItems: newestMoveItems([]string{poison}),
 		Cells:  []cellView{{Name: poison, Stone: "blue", Glyph: "X", Idx: 0}},
 		GameID: 1}
 	out.Reset()
@@ -1448,5 +1474,107 @@ func TestOutcomeWord(t *testing.T) {
 		if got := outcomeWord(row.outcome); got != row.want {
 			t.Errorf("outcomeWord(%q) = %q, want %q", row.outcome, got, row.want)
 		}
+	}
+}
+
+func TestRailComponentCarriesFixedColumns(t *testing.T) {
+	css, err := os.ReadFile("web/shell.css")
+	if err != nil {
+		t.Fatalf("read shell.css: %v", err)
+	}
+	rail := regexp.MustCompile(`(?m)^\.rail \{[^}]*\}`).Find(css)
+	if rail == nil {
+		t.Fatal("shell.css loses the .rail rule")
+	}
+	if !regexp.MustCompile(`grid-template-columns:\s*minmax\(0,\s*30%\) minmax\(0,\s*70%\)`).Match(rail) {
+		t.Errorf(".rail must fix the moves column at 30 percent and the stats column at 70, got %s", rail)
+	}
+	scroll := regexp.MustCompile(`(?m)^\.rail-scroll \{[^}]*\}`).Find(css)
+	if scroll == nil || !regexp.MustCompile(`overflow:\s*auto`).Match(scroll) {
+		t.Errorf("the rail scroll box must scroll on both axes, got %s", scroll)
+	}
+	mv := regexp.MustCompile(`\.mvlist \.mv \{[^}]*\}`).Find(css)
+	if mv == nil || !regexp.MustCompile(`white-space:\s*nowrap`).Match(mv) {
+		t.Errorf("move items must never wrap, got %s", mv)
+	}
+	top := regexp.MustCompile(`(?m)^\.rail-top \{[^}]*\}`).Find(css)
+	if top == nil || !regexp.MustCompile(`position:\s*sticky`).Match(top) {
+		t.Errorf("the to-top button must sit sticky in the moves column, got %s", top)
+	}
+}
+
+func TestPlaybackStatsColumnSplitsHumanDeltasFromEngineLines(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	t.Cleanup(srv.Close)
+	alice, bob := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
+	won := WonByFour
+	sr, err := s.store.CreateSeriesFor(context.Background(), 1, config.SeriesBO3, alice.ID, bob.ID, "")
+	if err != nil {
+		t.Fatalf("pvp series: %v", err)
+	}
+	if err := s.store.ApplyCompletion(context.Background(), Completion{
+		Games: []Game{
+			{SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+				Outcome: OutcomeRed, Moves: EncodeMoves(nil, seqMoves(2)), FullTurns: 1, WonBy: &won},
+			{SeriesID: sr.ID, IdxInSeries: 1, RedUser: alice.ID, BlueUser: bob.ID,
+				Outcome: OutcomeRed, Moves: EncodeMoves(nil, seqMoves(2)), FullTurns: 1, WonBy: &won},
+		},
+		Finish: &SeriesFinish{SeriesID: sr.ID, Winner: &alice.ID, FinishedAt: time.Now().Unix()},
+	}); err != nil {
+		t.Fatalf("pvp completion: %v", err)
+	}
+	easy, err := s.store.UserByUsername(config.BotAccountName(0))
+	if err != nil {
+		t.Fatalf("easy bot account: %v", err)
+	}
+	botSr, err := s.store.CreateSeriesFor(context.Background(), 1, config.SeriesBO3, alice.ID, easy.ID, "")
+	if err != nil {
+		t.Fatalf("bot series: %v", err)
+	}
+	if err := s.store.ApplyCompletion(context.Background(), Completion{
+		Games: []Game{{SeriesID: botSr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: easy.ID,
+			Outcome: OutcomeRed, Moves: EncodeMoves(nil, seqMoves(2)), FullTurns: 1, WonBy: &won,
+			BotName:   "easy-1a2b3c4d",
+			StatLines: []GameStat{{MoveNo: 1, Line: "M1, Red, A1, d=9, n=45k"}}}},
+	}); err != nil {
+		t.Fatalf("bot completion: %v", err)
+	}
+	ta := mintSession(t, s.store, alice)
+
+	status, body := getRoomPage(t, srv, "/rooms/history/2", ta)
+	if status != http.StatusOK {
+		t.Fatalf("finisher playback: status = %d (body %s)", status, body)
+	}
+	for _, want := range []string{
+		`<p class="pstat">rating &#43;23</p>`,
+		`<p class="pstat">record &#43;1W</p>`,
+		`<p class="pstat">level &#43;1</p>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("human playback stats miss %q", want)
+		}
+	}
+	if strings.Contains(body, `class="mline"`) {
+		t.Error("human playback must not render engine m-lines")
+	}
+
+	status, body = getRoomPage(t, srv, "/rooms/history/1", ta)
+	if status != http.StatusOK {
+		t.Fatalf("opening playback: status = %d (body %s)", status, body)
+	}
+	if !strings.Contains(body, `<p class="pstat">level &#43;0</p>`) {
+		t.Error("a non-finishing game carries no level delta")
+	}
+
+	status, body = getRoomPage(t, srv, "/rooms/history/3", ta)
+	if status != http.StatusOK {
+		t.Fatalf("bot playback: status = %d (body %s)", status, body)
+	}
+	if !strings.Contains(body, `<p class="mline">M1, Red, A1, d=9, n=45k</p>`) {
+		t.Error("bot-seat playback misses its engine line")
+	}
+	if strings.Contains(body, `class="pstat"`) {
+		t.Error("bot-seat playback must not render player deltas")
 	}
 }

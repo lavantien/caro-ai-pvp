@@ -9,16 +9,6 @@ var total = Number(root.dataset.total || 0);
 var step = total;
 var timer = null;
 
-function indexHalves() {
-	var rows = list.children;
-	for (var r = 0; r < rows.length; r++) {
-		var halves = rows[r].getElementsByClassName('half');
-		for (var h = 0; h < halves.length; h++) {
-			if (halves[h].textContent) { halves[h].setAttribute('data-i', String(2 * r + h)); }
-		}
-	}
-}
-
 function render() {
 	var stones = board.querySelectorAll('.stone, .glyph');
 	for (var i = 0; i < stones.length; i++) {
@@ -26,16 +16,11 @@ function render() {
 		stones[i].classList.toggle('hidden', at >= step);
 		stones[i].classList.toggle('latest', at === step - 1);
 	}
-	var rows = list.children;
-	for (var r = 0; r < rows.length; r++) {
-		var halves = rows[r].getElementsByClassName('half');
-		var rowLatest = false;
-		for (var h = 0; h < halves.length; h++) {
-			var latest = halves[h].getAttribute('data-i') === String(step - 1);
-			halves[h].classList.toggle('latest', latest);
-			if (latest) { rowLatest = true; }
-		}
-		rows[r].classList.toggle('latest', rowLatest);
+	var items = list.querySelectorAll('.m');
+	for (var k = 0; k < items.length; k++) {
+		var latest = items[k].getAttribute('data-i') === String(step - 1);
+		items[k].classList.toggle('latest', latest);
+		items[k].parentNode.classList.toggle('latest', latest);
 	}
 	$('pb-counter').textContent = step + ' / ' + total;
 	$('pb-first').disabled = step === 0;
@@ -69,12 +54,13 @@ $('pb-play').addEventListener('click', function () {
 });
 
 list.addEventListener('click', function (e) {
-	var half = e.target.closest ? e.target.closest('.half[data-i]') : null;
-	if (!half) { return; }
+	var m = e.target.closest ? e.target.closest('.m[data-i]') : null;
+	if (!m) { return; }
 	stopPlay();
-	go(Number(half.getAttribute('data-i')) + 1);
+	go(Number(m.getAttribute('data-i')) + 1);
 });
 
-indexHalves();
+$('pb-top').addEventListener('click', function () { $('pb-scroll').scrollTop = 0; });
+
 render();
 })();

@@ -736,6 +736,29 @@ GROUP BY COALESCE(variant, 'square')`,
 	return out, rows.Err()
 }
 
+func (s *Store) gameRatingDelta(gameID, userID int64) (int, error) {
+	var delta int
+	err := s.db.QueryRow(
+		`SELECT delta FROM rating_events WHERE game_id = ? AND user_id = ?`, gameID, userID,
+	).Scan(&delta)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("server: game rating delta %d %d: %w", gameID, userID, err)
+	}
+	return delta, nil
+}
+
+func (s *Store) seriesGameCount(seriesID int64) (int, error) {
+	var count int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM games WHERE series_id = ?`, seriesID).
+		Scan(&count); err != nil {
+		return 0, fmt.Errorf("server: series game count %d: %w", seriesID, err)
+	}
+	return count, nil
+}
+
 func (s *Store) gameStatTail(gameID int64, limit int) ([]string, bool, error) {
 	var total int
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM game_stats WHERE game_id = ?`, gameID).

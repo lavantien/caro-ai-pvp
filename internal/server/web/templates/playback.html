@@ -21,17 +21,17 @@ body { margin: 0 auto; max-width: 68rem; padding: var(--space-2) }
 h1 { font-size: var(--text-xl); margin: .2rem 0 }
 h2 { font-size: var(--text-base); margin: .3rem 0 }
 #playback-root { display: grid; gap: var(--space-3) var(--space-4); align-content: start;
-	grid-template-areas: "result" "board" "transport" "moves" }
+	grid-template-areas: "result" "board" "transport" "rail" }
 #pb-result { grid-area: result }
 #board-section { grid-area: board }
 #pb-controls { grid-area: transport }
-#pb-moves-panel { grid-area: moves }
+#pb-moves-panel { grid-area: rail }
 @media (min-width: 62rem) {
 	#playback-root { grid-template-columns: minmax(0, 1fr) 21rem;
 		grid-template-areas:
 			"board result"
 			"board transport"
-			"board moves" }
+			"rail   rail" }
 }
 #pb-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; justify-content: center; margin: .6rem 0 }
 #pb-controls button { font: inherit; font-size: var(--text-l); padding: .4rem 1rem }
@@ -39,17 +39,6 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
 	font-variant-numeric: tabular-nums; margin-left: var(--space-2) }
 #pb-outcome, #won-by { font-weight: 700 }
 #won-by { color: var(--red) }
-#pb-moves { list-style: none; padding: 0; margin: 0; font-family: var(--font-mono);
-	font-size: var(--text-base); display: grid; gap: .1rem;
-	max-height: min(40vh, 24rem); overflow-y: auto }
-#pb-moves .pair { display: grid; grid-template-columns: 2.4rem 1fr 1fr;
-	gap: var(--space-2); padding: 0 .2rem }
-#pb-moves .pair.latest { background: var(--surface); border-radius: var(--radius-s) }
-#pb-moves .n { color: var(--text-muted) }
-#pb-moves .half { cursor: pointer }
-#pb-moves button.half { font: inherit; background: none; border: 0;
-	padding: .1rem .15rem; min-height: 0; color: inherit; text-align: inherit }
-#pb-moves .half.latest { font-weight: 700; text-decoration: underline }
 </style>
 </head>
 <body>
@@ -77,13 +66,26 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
 <span id="pb-counter">{{len .Moves}} / {{len .Moves}}</span>
 </div>
 
-<section id="pb-moves-panel">
+<section id="pb-moves-panel" class="rail">
+<div class="rail-moves">
 <h2>moves</h2>
-<ol id="pb-moves">
-{{- range .Pairs}}
-<li class="pair{{if or .RedLatest .BlueLatest}} latest{{end}}"><span class="n">{{.N}}</span>{{if .Red}}<button type="button" class="half red{{if .RedLatest}} latest{{end}}">{{.Red}}</button>{{else}}<span class="half red"></span>{{end}}{{if .Blue}}<button type="button" class="half blue{{if .BlueLatest}} latest{{end}}">{{.Blue}}</button>{{else}}<span class="half blue"></span>{{end}}</li>
+<div class="rail-scroll" id="pb-scroll">
+<ol id="pb-moves" class="mvlist">
+{{- range .MoveItems}}<li class="mv {{.SeatClass}}{{if .Latest}} latest{{end}}"><span class="n">{{.N}}.</span><button type="button" class="m" data-i="{{.Idx}}">{{.Name}}</button></li>
 {{- end}}
 </ol>
+<button type="button" id="pb-top" class="btn-quiet rail-top">to top</button>
+</div>
+</div>
+<div class="rail-stats">
+<h2>stats</h2>
+<div class="hstat">
+{{if .IsBotGame}}{{if .StatLines}}{{range .StatLines}}<p class="mline">{{.}}</p>
+{{end}}{{if .StatTruncated}}<p class="mline tmore">…</p>{{end}}{{else}}<p class="empty">no engine lines recorded.</p>{{end}}
+{{else}}{{range .Deltas}}<p class="pstat">{{.}}</p>
+{{end}}{{end}}
+</div>
+</div>
 </section>
 
 <script src="/static/playback.js"></script>

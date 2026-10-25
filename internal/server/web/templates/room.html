@@ -24,7 +24,7 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
 	color: var(--text-muted) }
 #room-status.err { color: var(--danger); font-weight: 700 }
 #room-root { display: grid; gap: var(--space-3) var(--space-4); align-content: start;
-	grid-template-areas: "status" "opp" "board" "you" "controls" "moves" "series" "logs" }
+	grid-template-areas: "status" "opp" "board" "you" "controls" "series" "rail" }
 #status-strip { grid-area: status }
 #card-red { grid-area: opp }
 #card-blue { grid-area: you }
@@ -34,17 +34,16 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
 #room-root[data-me-seat="blue"] #card-red { grid-area: opp }
 #board-section { grid-area: board }
 #controls, #join-section { grid-area: controls }
-#moves-panel { grid-area: moves }
+#moves-panel { grid-area: rail }
 #series-strip { grid-area: series }
-#bot-logs { grid-area: logs }
 @media (min-width: 62rem) {
 	#room-root { grid-template-columns: minmax(0, 1fr) 21rem;
 		grid-template-areas:
 			"status  opp"
-			"board   moves"
 			"board   series"
-			"controls you"
-			"logs    logs" }
+			"board   you"
+			"controls controls"
+			"rail    rail" }
 }
 #turn-line { font-size: var(--text-xl); font-weight: 600; margin: .3rem 0 }
 #ready-btn { font-size: var(--text-xl); padding: .6rem 2.4rem }
@@ -62,15 +61,6 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
 	font-size: 2.25rem; font-weight: 700; font-variant-numeric: tabular-nums;
 	color: var(--text-muted) }
 .seatcard.active .clock { color: var(--accent-strong) }
-#move-history { list-style: none; padding: 0; margin: 0; font-family: var(--font-mono);
-	font-size: var(--text-base); display: grid; gap: .1rem;
-	max-height: min(40vh, 24rem); overflow-y: auto }
-#move-history .pair { display: grid; grid-template-columns: 2.4rem 1fr 1fr;
-	gap: var(--space-2); padding: 0 .2rem }
-#move-history .pair.latest { background: var(--surface); border-radius: var(--radius-s) }
-#move-history .n { color: var(--text-muted) }
-#move-history .half.latest { font-weight: 700; text-decoration: underline }
-#bot-log-wrap summary { cursor: pointer; font-size: var(--text-base); font-weight: 600 }
 #bot-log { list-style: none; padding: 0; margin: 0; max-height: 24vh; overflow-y: auto;
 	font-family: var(--font-mono); font-size: var(--text-xs);
 	border: 1px solid var(--border); border-radius: var(--radius-s) }
@@ -116,22 +106,26 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
 {{end}}
 {{if .CanJoin}}<section id="join-section"><button id="join-btn">join</button></section>{{end}}
 
-<section id="moves-panel">
+<section id="moves-panel" class="rail">
+<div class="rail-moves">
 <h2>moves</h2>
-<ol id="move-history">
-{{- range .Pairs}}
-<li class="pair{{if or .RedLatest .BlueLatest}} latest{{end}}"><span class="n">{{.N}}</span><span class="half red{{if .RedLatest}} latest{{end}}">{{.Red}}</span><span class="half blue{{if .BlueLatest}} latest{{end}}">{{.Blue}}</span></li>
+<div class="rail-scroll" id="moves-scroll">
+<ol id="move-history" class="mvlist">
+{{- range .MoveItems}}<li class="mv {{.SeatClass}}{{if .Latest}} latest{{end}}"><span class="n">{{.N}}.</span><span class="m">{{.Name}}</span></li>
 {{- end}}
 </ol>
+<button type="button" id="moves-top" class="btn-quiet rail-top">to top</button>
+</div>
+</div>
+<div class="rail-stats">
+<h2>engine stats</h2>
+<ul id="bot-log"><li>no bot lines yet</li></ul>
+</div>
 </section>
 
 <section id="series-strip">
 <h2>series</h2>
 <p id="score-line" title="{{.HostName}} / {{.GuestName}}">{{disp .HostName}} {{.HostWins}} - {{.GuestWins}} {{disp .GuestName}}</p>
-</section>
-
-<section id="bot-logs">
-<details id="bot-log-wrap" open><summary>bot logs</summary><ul id="bot-log"><li>no bot lines yet</li></ul></details>
 </section>
 
 </div>
