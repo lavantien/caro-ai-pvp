@@ -18,18 +18,18 @@ Mobile-first web arena for a custom 16x16 gomoku variant and its hexagonal-board
 
 ## variant ruleset
 
-The game is a 16x16 gomoku variant with four rules on top of place-a-stone, alternate-turns play:
+Both boards share one ruleset, four rules on top of place-a-stone, alternate-turns play:
 
-- exactly five in a row horizontally, vertically, or diagonally wins
+- exactly five in a row along one of the board's line axes wins
 - a line of six or more stones (an overline) never wins
 - a line close-blocked at both ends by adjacent opponent stones is dead even when it holds five
-- red's second move must sit at Chebyshev distance 3 or more from red's first stone
+- red's second move must sit at distance 3 or more from red's first stone, Chebyshev distance on the square board, hex distance on the hexagon
 
 Red moves first, the first legal five ends the game, a full board draws. Matches run as best-of 3, 5, 7, or 11 games over the 1+0, 2+1, 3+2, and 10+5 time controls, with the loser of a decisive game taking red next and a draw retaining red.
 
-Two boards share that ruleset. The square grid is 16 by 16 with four line axes and the opening balance rule measured in Chebyshev distance. The hexagon has side 12, 397 playable cells, coordinates A..W by 1..23, three line axes, six-neighbor threat dilation, and the same opening balance rule measured in hex distance: red's second move sits at hex distance 3 or more from red's first stone, and a full 397-stone board draws. The engine cost is honest and asymmetric: the hexagon scans 9-word stone masks against the square's 4 and enumerates 1191 cell-direction evaluation windows against 1024, so legality, win-scan, and move-generation work runs 1.3 to 1.7 times the square cost at matched machine load, while the last-move win check and the incremental evaluation run cheaper on three axes, and solver and threat-cascade enumeration shrinks by the same axis cut (measured in playground/hex/out under an active arena batch, canaries recorded in the artifacts, all zero-alloc). Every surface plays either board: rooms, lobby, spectate, playback, tournaments, and profiles carry the variant, and the hexagon ships bookless, the opening book being a square artifact.
+The square board is a 16 by 16 grid with four line axes. The hexagon board has side 12, 397 playable cells, coordinates A..W by 1..23, three line axes, and six-neighbor threat dilation. The hexagon ships bookless, the opening book being a square artifact.
 
-Engine tiers are resource-only shapes of one search. This table is the demand spec set 2026-10-10: the sizes, the per-tier ponder widths, and the book ply bounds land in tree behind their gates, the ladder re-gate for the sizes and the arena pair for ponder, and the book column filled at v0.24 as one artifact probed to each tier's ply bound, then failed its strength gate at 3+2, so the build was rebuilt as fixed-budget tree expansion and waits on its first run plus the validation arms. The status section summarizes what is shipped today, with the wave-by-wave record in devlog.md.
+Engine tiers are resource-only shapes of one search. The table is the demand spec: thread counts, transposition sizes, solver capabilities, book probe bounds on the shared opening-book artifact, and ponder widths per tier. Shipped state lives in [status](#status), the wave-by-wave record in devlog.md.
 
 | tier | threads | tt | vcf | vct | book | ponder |
 | --- | --- | --- | --- | --- | --- | --- |
