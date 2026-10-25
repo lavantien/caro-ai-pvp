@@ -244,8 +244,8 @@ The design record and the wave-by-wave log live in [devlog.md](devlog.md).
 
 ## roadmap
 
-- v0.24 opening book: the fixed-budget tree-expansion build run, then the short, confirm, and cross validation arms, the master floors, and the strength gates rerun with the book in place (first 16 plies, entries backed by solver proofs or tree agreement over a visit floor, grandmaster probes 16 plies and master 8) before the tag.
-- v0.25 pondering: the ponder arena pair (noponder versus pondering seats at the gated control) and the tag.
-- v0.28 grandmaster pass gate: once the book and the weight chain land, grandmaster's W+D record across both red and blue seats must hold 2/3 or better versus master, 3/4 versus hard, 4/5 versus medium, and 9/10 versus easy, with screenshots from all supported flows including the ui-started tournament mid run with 2 grandmaster bots; anything below is a strength anomaly and reopens the tier behind the inversion research law.
-- v0.29 hexagon close: the hex gate chain verdict (master, master noise floors, the pass gates, ladder inversion checks at 2+1 and 3+2), then the full verification batch and the tag.
-- v0.30 final close: full gates, the closing ladder round-robin over all 4 time controls with 0 inversions at 2+1, 3+2, 10+5 (1+0 recorded as thread-decided), README final state, evidence bundle, tag.
+- v0.24 hexagon close: the hex gate chain verdict (master, master noise floors, the pass gates, ladder inversion checks at 2+1 and 3+2), then the full verification batch and the tag.
+- v0.25 opening book: the fixed-budget tree-expansion build run, then the short, confirm, and cross validation arms, the master floors, and the strength gates rerun with the book in place (first 16 plies, entries backed by solver proofs or tree agreement over a visit floor, grandmaster probes 16 plies and master 8) before the tag.
+- v0.26 pondering: the ponder arena pair (noponder versus pondering seats at the gated control) and the tag.
+- v0.27 grandmaster pass gate: once the book and the weight chain land, grandmaster's W+D record across both red and blue seats must hold 2/3 or better versus master, 3/4 versus hard, 4/5 versus medium, and 9/10 versus easy, with screenshots from all supported flows including the ui-started tournament mid run with 2 grandmaster bots. Anything below is a strength anomaly and reopens the tier behind the inversion research law.
+- v0.28 final close: full gates, the closing ladder round-robin over all 4 time controls with 0 inversions at 2+1, 3+2, 10+5 (1+0 recorded as thread-decided), README final state, evidence bundle, tag.
