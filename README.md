@@ -14,7 +14,7 @@ Mobile-first web arena for a custom 16x16 gomoku variant and its hexagonal-board
 6. [repository layout](#repository-layout)
 7. [diagrams](#diagrams)
 8. [status](#status)
-9. [roadmap v0.21 to v0.30](#roadmap-v021-to-v030)
+9. [roadmap](#roadmap)
 
 ## variant ruleset
 
@@ -248,16 +248,14 @@ The rebuild closed at v0.20 with the final issueless MVP. Landed since:
 
 The implemented design record and the full wave-by-wave log live in [devlog.md](devlog.md).
 
-## roadmap v0.21 to v0.30
+## roadmap
 
-v0.21 (10+5 time control) and v0.22 (TT round skipped by preregistered decision) are closed. v0.23 (the five-tier rescale) closed and tagged: the re-derivation round ran the preregistered re-gate chain, four floors plus three 2+1 repetitions plus one 3+2 arm, rule A stayed quiet in all 8 reads, so the demand re-spec of 2026-10-10 (five-tier shape, per-tier ponder widths, book ply bounds) shipped verified and the master tier's blocked strength gate closed with no tier constant moved. Every tier change rides the inversion research law the v0.20 program established: capability perturbation in the arena, self-play noise floors, and a ladder re-gate before any strength-bearing constant ships.
+Only the unlanded waves, the landed record lives in [status](#status) and devlog.md.
 
-- v0.24 opening book (master and grandmaster): a committed hybrid-law book over the first 16 plies, entries backed by solver proofs or deep self-play agreement over a visit floor, built offline in playground and never hand-curated; grandmaster probes it to 16 plies and master to 8, replies land instantly tagged [BOOK], and the 40-of-40 red-first 1+0 floor is the case for it: at fast clocks the opening decides the game. The reader and wiring shipped and the strength gate failed at 3+2, so the wave reopens at the builder: the self-play corpus regrow was rejected at 284 games and replaced by fixed-budget tree expansion (canonical-key expansion under fixed node budgets with negamax backup and solver-proven stopping, the old corpus kept as tie-break priors), the builder and its detached validation launchers sit in tree, and the build run, the short, confirm, and cross arms, the master floors, and the strength gates rerun before the tag.
-- v0.25 pondering: the pondering tiers (medium and up) search the predicted continuation on the opponent's clock at each tier's ponder width and adopt the tree only through the four-clause gated law (depth or time adequacy, best-move stability over recent iterations, no score drop beyond margin, no last-iteration change; solver proofs exempt), re-searching from scratch on a miss with the shared table keeping misses warm; adopted answers land tagged [PONDER]. Ponder budgets are machine time under an external stop, never the seat's own clock.
-- v0.26 admission control: seat-aware reservation of threads and table bytes across rooms and ponder lanes under the machine-wide budget.
-- v0.27 ui overhaul: the design system pass, PWA install shell, lobby and spectate browsing, player profiles, and the screenshot recapture of every surface against finished behavior.
-- v0.28 grandmaster pass gate: grandmaster complete with the opening book at its ply bound, full-width pondering, full VCF/VCT, 8 threads, 2 GiB TT. Pass threshold, rungs binding by tier distance: grandmaster's W+D record across both red and blue seats must hold 2/3 or better versus master, 3/4 versus hard, 4/5 versus medium, and 9/10 versus easy; anything below is a strength anomaly and reopens the tier behind the inversion research law. Evidence includes screenshots from all supported flows on real systems, including the ui-started tournament mid run with 2 grandmaster bots.
-- v0.29 reserve: consumed when an arena verdict fails its preregistered rule and demands a re-derivation round, or the runner migration produces the first timing flake.
+- v0.24 opening book: the fixed-budget tree-expansion build run, then the short, confirm, and cross validation arms, the master floors, and the strength gates rerun at the hybrid-law bar (first 16 plies, entries backed by solver proofs or tree agreement over a visit floor, grandmaster probes 16 plies and master 8) before the tag.
+- v0.25 pondering: the ponder arena pair (noponder versus pondering seats at the gated control) and the tag.
+- v0.28 grandmaster pass gate: once the book and the weight chain land, grandmaster's W+D record across both red and blue seats must hold 2/3 or better versus master, 3/4 versus hard, 4/5 versus medium, and 9/10 versus easy, with screenshots from all supported flows including the ui-started tournament mid run with 2 grandmaster bots; anything below is a strength anomaly and reopens the tier behind the inversion research law.
+- v0.29 hexagon close: the hex gate chain verdict (master, master noise floors, the pass gates, ladder inversion checks at 2+1 and 3+2), then the full verification batch and the tag.
 - v0.30 final close: full gates, the closing ladder round-robin over all 4 time controls with zero inversions at 2+1, 3+2, 10+5 (1+0 recorded as thread-decided), README final state, evidence bundle, tag.
 
 Concurrency and memory: an engine never runs below its tier's shape, no reduced parallelism, no width degradation on the search. The machine-wide core budget (MachineCores in the config hub, sized per machine, a budget decision rather than a hardware reading) holds every search at its full spec, and demand beyond it queues or fails loudly instead of shrinking the engine. Pondering holds the tier's spec'd ponder width through the opponent's turn (medium 1, hard 2, master 4, grandmaster 8 threads), so a bot room books the pair peak of one seat's search cores plus the other's ponder width: the ledger funds that peak or runs the game ponder-off, never a shrunken engine. The tournament's worst-case table footprint at the spec sizes (2x2 GiB grandmaster, 2x768 MiB master, 2x128 MiB hard, 2x32 MiB medium, easy tableless, about 5.8 GiB) stays inside the RAM/4 machine cap the same controller holds. Room creation reads the machine's available physical memory at request time and rejects outright when it cannot fund the room's engines, answering with a plain server-resources-full failure instead of parking or queuing.
