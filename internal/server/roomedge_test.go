@@ -88,9 +88,9 @@ func TestRoomListTiesBrokenByID(t *testing.T) {
 	if strings.Compare(higher, lower) < 0 {
 		lower, higher = higher, lower
 	}
-	if rooms[0].ID != lower || rooms[1].ID != higher {
-		t.Errorf("same-instant order = [%s %s], want the id order [%s %s]",
-			rooms[0].ID, rooms[1].ID, lower, higher)
+	if rooms[0].ID != higher || rooms[1].ID != lower {
+		t.Errorf("same-instant order = [%s %s], want the id-descending order [%s %s]",
+			rooms[0].ID, rooms[1].ID, higher, lower)
 	}
 }
 

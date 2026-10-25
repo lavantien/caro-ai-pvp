@@ -195,8 +195,9 @@ func TestRoomListOrderedByCreation(t *testing.T) {
 		t.Fatalf("list = %d rooms, want %d", len(rooms), len(hosts))
 	}
 	for i, info := range rooms {
-		if info.HostUserID != ids[i] {
-			t.Errorf("rooms[%d] host = %d, want %d in creation order", i, info.HostUserID, ids[i])
+		want := ids[len(ids)-1-i]
+		if info.HostUserID != want {
+			t.Errorf("rooms[%d] host = %d, want %d newest first", i, info.HostUserID, want)
 		}
 	}
 }

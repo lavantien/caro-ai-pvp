@@ -325,7 +325,8 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 	info, _ := r.Info()
 	easyName, mediumName := info.HostBotName, info.GuestBotName
 	easyShort, mediumShort := botNameDisplay(easyName), botNameDisplay(mediumName)
-	if !strings.Contains(body, `title="`+easyName+` / `+mediumName+`">`+easyShort+` vs `+mediumShort) {
+	if !strings.Contains(body, `title="`+easyName+` / `+mediumName+`"><span class="vname">`+easyShort+
+		`</span> vs <span class="vname">`+mediumShort+`</span>`) {
 		t.Errorf("home card misses %q under the full title", easyShort+" vs "+mediumShort)
 	}
 	if strings.Contains(body, "#-3") {
@@ -340,11 +341,13 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 		`title="` + easyName + `">red / ` + easyShort,
 		`title="` + mediumName + `">blue / ` + mediumShort,
 		`title="` + easyName + ` / ` + mediumName + `">` + easyShort + ` 0 - 0 ` + mediumShort,
-		"red to move (" + easyShort + ")",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("room page misses %q", want)
 		}
+	}
+	if strings.Contains(body, "to move") {
+		t.Error("the room page must not carry a mover text line")
 	}
 	if strings.Contains(body, "#-3") {
 		t.Error("room page leaks the synthetic host id")
