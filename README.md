@@ -189,71 +189,105 @@ docs/             rebuild plan, diagram sources and renders, screenshots
 
 Sources are PlantUML under docs/diagrams, rendered to png by `go run ./cmd/run diagrams`.
 
-**search-pipeline.** 1 pass per completed iteration: the soft stop is consulted at iteration heads only and only completed iterations become the answer.
+#### search pipeline
+
+1 pass per completed iteration: the soft stop is consulted at iteration heads only and only completed iterations become the answer.
 
 ![search pipeline](docs/diagrams/search-pipeline.png)
 
-**engine-searcher-stack.** The searcher composition per seat: the book probe on book tiers, VCF and VCT solver wrappers, and the SMP engine of 1 locked-thread worker per core over the shared transposition table, with the ponder lane beside the main worker.
+#### engine searcher stack
+
+The searcher composition per seat: the book probe on book tiers, VCF and VCT solver wrappers, and the SMP engine of 1 locked-thread worker per core over the shared transposition table, with the ponder lane beside the main worker.
 
 ![engine searcher stack](docs/diagrams/engine-searcher-stack.png)
 
-**threat-solver-harness.** The solvers generate only threat moves (fours for VCF, threes and fours for VCT) from the pattern tables, and the brute-force oracle fuzz cross-checks every claimed win in CI.
+#### threat solver harness
+
+The solvers generate only threat moves (fours for VCF, threes and fours for VCT) from the pattern tables, and the brute-force oracle fuzz cross-checks every claimed win in CI.
 
 ![threat-solver harness](docs/diagrams/threat-solver-harness.png)
 
-**clock-budget.** The PID-steered controller draws the per-move budget, spreads it over expected moves left plus the increment share, steers against the drain trajectory, and floors the grant so a drained clock still funds minimum moves and a timeout can never decide a game.
+#### clock budget
+
+The PID-steered controller draws the per-move budget, spreads it over expected moves left plus the increment share, steers against the drain trajectory, and floors the grant so a drained clock still funds minimum moves and a timeout can never decide a game.
 
 ![clock budget](docs/diagrams/clock-budget.png)
 
-**geometry-seam.** 1 Geometry descriptor carries the square and hexagon boards through rules, pattern tables, engine, solvers, and rendering. The hexagon ships bookless.
+#### geometry seam
+
+1 Geometry descriptor carries the square and hexagon boards through rules, pattern tables, engine, solvers, and rendering. The hexagon ships bookless.
 
 ![geometry seam](docs/diagrams/geometry-seam.png)
 
-**series-state-machine.** The host takes red first, the loser of a decisive game takes red next, a draw retains red, and quitting books a loss for every remaining game.
+#### series state machine
+
+The host takes red first, the loser of a decisive game takes red next, a draw retains red, and quitting books a loss for every remaining game.
 
 ![series state machine](docs/diagrams/series-state-machine.png)
 
-**room-lifecycle.** Room create, seats joining, the ready handshake, the turn loop of human moves and bot searches, ponder armed on the opponent's turn, SSE events fanning out to players and spectators, and the retire to the terminal verdict.
+#### room lifecycle
+
+Room create, seats joining, the ready handshake, the turn loop of human moves and bot searches, ponder armed on the opponent's turn, SSE events fanning out to players and spectators, and the retire to the terminal verdict.
 
 ![room lifecycle](docs/diagrams/room-lifecycle.png)
 
-**room-data-path.** Gameplay never blocks on the disk: moves apply in memory, mutations queue to the single SQLite writer, and telemetry fans out to every subscriber.
+#### room data path
+
+Gameplay never blocks on the disk: moves apply in memory, mutations queue to the single SQLite writer, and telemetry fans out to every subscriber.
 
 ![room data path](docs/diagrams/room-data-path.png)
 
-**admission-ledger.** The machine-wide ledger acquires cores and transposition bytes at the search window, books the ponder width for the opponent's turn, and rejects room creation with a server-resources-full failure when the machine cannot fund the engines.
+#### admission ledger
+
+The machine-wide ledger acquires cores and transposition bytes at the search window, books the ponder width for the opponent's turn, and rejects room creation with a server-resources-full failure when the machine cannot fund the engines.
 
 ![admission ledger](docs/diagrams/admission-ledger.png)
 
-**pwa-shell.** The service worker caches the static shell only, answers navigation network-first with the offline fallback, and never answers api calls or the event stream.
+#### pwa shell
+
+The service worker caches the static shell only, answers navigation network-first with the offline fallback, and never answers api calls or the event stream.
 
 ![pwa shell](docs/diagrams/pwa-shell.png)
 
-**auth-session.** Login-or-create runs argon2id on an equal-work path for existing and new accounts, issues the session token, and verifies the seeded admin at boot.
+#### auth session
+
+Login-or-create runs argon2id on an equal-work path for existing and new accounts, issues the session token, and verifies the seeded admin at boot.
 
 ![auth session](docs/diagrams/auth-session.png)
 
-**tournament-conductor.** Every series rides the same room surface a human match does: the conductor subscribes before the room can retire, reconciles each finished game against the authoritative move list, and fails the whole run on any divergence. 1 ongoing run at a time, per-run parallelism bounded by the tier cores, and only the admin starts or closes runs.
+#### tournament conductor
+
+Every series rides the same room surface a human match does: the conductor subscribes before the room can retire, reconciles each finished game against the authoritative move list, and fails the whole run on any divergence. 1 ongoing run at a time, per-run parallelism bounded by the tier cores, and only the admin starts or closes runs.
 
 ![tournament conductor](docs/diagrams/tournament-conductor.png)
 
-**move-stats.** Every bot move is captured once as a structured record before its M-line renders, so the text line and the stored row are 2 views of 1 lossless capture.
+#### move stats
+
+Every bot move is captured once as a structured record before its M-line renders, so the text line and the stored row are 2 views of 1 lossless capture.
 
 ![move stats](docs/diagrams/move-stats.png)
 
-**store-schema.** 1 sqlite database carries the casual and tournament tables, the per-move telemetry in tournament_game_stats beside its game, and the PV stored space-joined as text.
+#### store schema
+
+1 sqlite database carries the casual and tournament tables, the per-move telemetry in tournament_game_stats beside its game, and the PV stored space-joined as text.
 
 ![store schema](docs/diagrams/store-schema.png)
 
-**rating-flow.** Game completion writes the rating events, per-variant rating and WLD aggregate into the profile hero, the home stat lines, history rows, and playback deltas, and bot seats never carry a rating.
+#### rating flow
+
+Game completion writes the rating events, per-variant rating and WLD aggregate into the profile hero, the home stat lines, history rows, and playback deltas, and bot seats never carry a rating.
 
 ![rating flow](docs/diagrams/rating-flow.png)
 
-**evalfit-pipeline.** Tournament games replay under integrity checks into window-class features fitted by monotone-chain gradient descent cross-checked by differential evolution, and the weights reach the config hub only after the arena gate passes.
+#### evalfit pipeline
+
+Tournament games replay under integrity checks into window-class features fitted by monotone-chain gradient descent cross-checked by differential evolution, and the weights reach the config hub only after the arena gate passes.
 
 ![evalfit pipeline](docs/diagrams/evalfit-pipeline.png)
 
-**page-surface.** The shell and room pages are server-rendered html/template with vendored htmx 4, page routes mount beside the JSON API and win on their patterns, and the pure client functions ship as byte-pinned twins between the served JS and the Go tests.
+#### page surface
+
+The shell and room pages are server-rendered html/template with vendored htmx 4, page routes mount beside the JSON API and win on their patterns, and the pure client functions ship as byte-pinned twins between the served JS and the Go tests.
 
 ![page surface](docs/diagrams/page-surface.png)
 
