@@ -2,7 +2,7 @@
 
 [![ci](https://raw.githubusercontent.com/lavantien/caro-ai-pvp/coverage/ci.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml) [![global coverage](https://raw.githubusercontent.com/lavantien/caro-ai-pvp/coverage/coverage-global.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml) [![core coverage](https://raw.githubusercontent.com/lavantien/caro-ai-pvp/coverage/coverage-core.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml)
 
-Mobile-first web arena for a custom gomoku variant played on two boards, a 16 by 16 grid and a side-12 hexagon. Play from a phone browser against a person or an increment-safe bot on server-hosted rooms, watch live rooms as a guest, step through match history with a playback board, and run bot vs bot tournaments on the same room surface with per-move engine telemetry and a decay-scaled rating. The behavior contract is scenario 1 in [first-cause.md](first-cause.md).
+Mobile-first web arena for a custom gomoku variant played on 2 boards, a 16x16 grid and a side 12 hexagon. Play from a phone browser against a person or an increment-safe bot on server-hosted rooms, watch live rooms as a guest, step through match history with a playback board, and run bot vs bot tournaments on the same room surface with per-move engine telemetry and a decay-scaled rating.
 
 ## contents
 
@@ -18,18 +18,18 @@ Mobile-first web arena for a custom gomoku variant played on two boards, a 16 by
 
 ## variant ruleset
 
-Both boards share one ruleset, four rules on top of place-a-stone, alternate-turns play:
+Both boards share the same ruleset: 4 rules on top of gomoku.
 
-- exactly five in a row along one of the board's line axes wins
-- a line of six or more stones (an overline) never wins
-- a line close-blocked at both ends by adjacent opponent stones is dead even when it holds five
+- exactly 5 in a row along a line axis wins
+- a line of 6 or more stones (an overline) never wins
+- a line close-blocked at both ends by adjacent opponent stones is dead even when it holds 5
 - red's second move must sit at distance 3 or more from red's first stone, Chebyshev distance on the square board, hex distance on the hexagon
 
-Red moves first, the first legal five ends the game, a full board draws. Matches run as best-of 3, 5, 7, or 11 games over the 1+0, 2+1, 3+2, and 10+5 time controls, with the loser of a decisive game taking red next and a draw retaining red.
+Red moves first, the first legal 5 ends the game, a full board draws. Matches run as best-of 3, 5, 7, or 11 games over the 1+0, 2+1, 3+2, and 10+5 time controls, with the loser of a decisive game taking red next and a draw retaining red.
 
-The square board is a 16 by 16 grid with four line axes. The hexagon board has side 12, 397 playable cells, coordinates A..W by 1..23, three line axes, and six-neighbor threat dilation. The hexagon ships bookless, the opening book being a square artifact.
+The square board is a 16x16 grid with 4 line axes. The hexagon board has side 12, 397 playable cells, coordinates A..W by 1..23, 3 line axes, and 6-neighbor threat dilation. The hexagon ships bookless, the opening book being a square artifact.
 
-Engine tiers are resource-only shapes of one search. The table is the demand spec: thread counts, transposition sizes, solver capabilities, book probe bounds on the shared opening-book artifact, and ponder widths per tier. Shipped state lives in [status](#status), the wave-by-wave record in devlog.md.
+The engine tiers differ in thread count, transposition size, solver capabilities, book probe bound, and ponder width:
 
 | tier | threads | tt | vcf | vct | book | ponder |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -39,7 +39,9 @@ Engine tiers are resource-only shapes of one search. The table is the demand spe
 | master | 6 | 768 MiB | yes | yes | yes (8 plies) | yes (4 thr) |
 | grandmaster | 8 | 2 GiB | yes | yes | yes (16 plies) | yes (8 thr) |
 
-A series log opens with its pairing bookends and one M-line per bot move, closes each game with its verdict and the series with its tally. Real lines from a 10+5 hard-tier series, with the `[BOOK]` line real on the book tiers (no artifact ships yet, the tree-expansion build has not run) and the `[PONDER]` line an illustrative render of the adoption surface now live on master:
+Every tier always runs at its full shape: demand beyond the machine's core or memory budget waits or fails loudly, never a shrunken engine. A bot room books the peak of a seat's search cores plus the opponent's ponder width, and the tournament's worst-case transposition footprint stays inside the machine memory cap. Room creation reads the machine's available physical memory and rejects with a plain server-resources-full failure when it cannot fund the room's engines.
+
+A series log opens with the pairing and 1 M-line per bot move, closes each game with its verdict and the series with its tally. Real lines from a 10+5 hard-tier series, with the `[BOOK]` and `[PONDER]` lines illustrative:
 
 ```
 run 1 series 1
@@ -58,11 +60,9 @@ series hard-1 2-1
 
 Notation: `d` search depth, `n` nodes, `nps` nodes per second, `ebf` branching factor, `tt` transposition hit rate, `hf` table occupancy, `fh1` first-move fail-high rate, `s` score in thousands from the mover's side or M# for a solver-proven mate in #, `thr` worker threads, `t` actual wall spent on the move, `alloc` the clock's budget draw for the move, `pv` the principal variation. The trailing tag names the producer: empty for a normal search, `[VCF]` and `[VCT]` for threat-solver proofs, `[BOOK]` for an opening-book reply, `[PONDER]` for an answer adopted from a ponder search run on the opponent's clock. A game verdict names the winner with its seats, the move count, and the winning shape (an open four here), and the series line carries the final tally.
 
-Time controls 1+0, 2+1, 3+2, 10+5 each run the same PID-steered budget controller, the first three on bench-tuned gain rows and 10+5 on the 3+2 gains held provisionally: per-move grants spread the spendable remainder over expected moves left plus an increment share, steered against a planned drain trajectory, floored so a drained clock still funds minimum moves and a timeout can never decide a game.
+Time controls 1+0, 2+1, 3+2, 10+5 each run the same PID-steered budget controller, the first 3 on bench-tuned gain rows and 10+5 reusing the 3+2 row: per-move grants spread the spendable remainder over expected moves left plus an increment share, steered against a planned drain trajectory, floored so a drained clock still funds minimum moves and a timeout can never decide a game.
 
 ## ui/ux features
-
-The ui/ux table is the living surface inventory, rebuilt against the overhauled surfaces.
 
 | surface | capabilities | access |
 | --- | --- | --- |
@@ -70,17 +70,17 @@ The ui/ux table is the living surface inventory, rebuilt against the overhauled 
 | home | player stats, live rooms grid, create-room form (time control, best-of, tier, board), live-run banner | public |
 | lobby | quick-start create row (time control, best-of, opponent, board as segmented controls), live room cards with mini boards in play order, seat and tier chips, variant chips, spectator counts, join on open casual seats, watch into any live room | public, create and join signed-in |
 | room | square 256-cell grid or hexagon 397-cell SVG live board with the seat cards, paired move list, series strip and controls railed beside it at wide widths, tabular ticking clocks and tier chips with the mover's card emphasized, rules-legal playable mask, tap ghost, bot M-line telemetry panel, ready and forfeit handshake | players; live stream public |
-| terminal room | honest terminal state, mid-game reload rehydrates | public |
+| terminal room | finished verdict state, mid-game reload restores the game | public |
 | history | per-game score lines, turn counts, move previews | signed-in players |
-| playback | paired numbered move list, first, prev, next, last, autoplay, jump-to-move from keyboard-focusable move buttons | the game's two players |
+| playback | paired numbered move list, first, prev, next, last, autoplay, jump-to-move from keyboard-focusable move buttons | the game's 2 players |
 | profile | hero with rating, games, WLD bar and red/blue seat split, humans and bots records with per-tier bot rows, recent games with playback links | public |
 | tournament | admin setup with config-bounded roster and board choice, live board per series, frozen leaderboard, stalled-run close | public read, admin drives |
-| presentation | light pastel token layer (light pink page, one theme, color, type and space scales, two type voices: human prose and mono machine data), shared card, chip, field and button recipes, segmented controls for short option sets, amber reserved for live-attention data marks, accent-strong focus rings, 3:1 contrast floor on state-carrying boundaries, reduced-motion respected, 44px touch floor, two-tap select-then-confirm on coarse pointers | all |
+| presentation | light pastel token layer (light pink page, 1 theme, color, type and space scales, 2 type voices: human prose and mono machine data), shared card, chip, field and button recipes, segmented controls for short option sets, amber reserved for live-attention data marks, accent-strong focus rings, 3:1 contrast floor on state-carrying boundaries, reduced-motion respected, 44px touch floor, 2-tap select-then-confirm on coarse pointers | all |
 | install | PWA manifest with generated icon set, in-shell install action, offline fallback page; the service worker caches the static shell only and never answers api calls, the event stream, or live room and tournament state | all |
 
 ## screenshots
 
-Every picture renders at one 440x956 portrait viewport on the light theme, numbered pairs with the square member left and the hexagon member right, P01 through P26 the evidence ids the devlog carries. The bot rooms, the hexagon tournament run, and both banners are real engine activity: playground/shots hosts real easy-tier bot-versus-bot rooms at 1+0 bo3 and a real two-bot hexagon run, the operator polls the room endpoints and shoots at the stone thresholds, and terminal frames load before the finish so a retired room still holds its verdict. The bot-versus-bot pairs P05 and P06 close the founding readme's first required picture on both variants, the home pairs P01 and P02 the second, and the history pairs P17 and P18 with the playback close-ups P09 and P10 the third.
+Every picture renders at a 440x956 portrait viewport on the light theme, numbered pairs with the square member left and the hexagon member right. The bot rooms, the hexagon tournament run, and both banners are real engine activity: playground/shots hosts real easy-tier bot-versus-bot rooms at 1+0 bo3 and a real two-bot hexagon run, the operator polls the room endpoints and shoots at the stone thresholds, and terminal frames load before the finish so a retired room still holds its verdict.
 
 **P01, P02 home.** The signed-in home with per-variant WLD stat rows, the live-run banner, and the rooms grid, then the create form's board control with the hexagon variant checked.
 
@@ -90,7 +90,7 @@ Every picture renders at one 440x956 portrait viewport on the light theme, numbe
 
 ![square room live](docs/screenshots/p03-square-room-live.png) ![hex room live](docs/screenshots/p04-hex-room-live.png)
 
-**P05, P06 bot rooms.** Real easy-tier bot-versus-bot games at 1+0 bo3 mid-play with real searches running, full-board games on both variants, the founding readme's first required picture.
+**P05, P06 bot rooms.** Real easy-tier bot-versus-bot games at 1+0 bo3 mid-play with real searches running, full-board games on both variants.
 
 ![square bot room](docs/screenshots/p05-square-room-bot.png) ![hex bot room](docs/screenshots/p06-hex-room-bot.png)
 
@@ -98,15 +98,15 @@ Every picture renders at one 440x956 portrait viewport on the light theme, numbe
 
 ![square terminal room](docs/screenshots/p07-square-room-terminal.png) ![hex terminal room](docs/screenshots/p08-hex-room-terminal.png)
 
-**P09, P10 playback.** Finished games stepped to the final position, the winning five visible beside the playback rail.
+**P09, P10 playback.** Finished games stepped to the final position, the winning 5 visible beside the playback rail.
 
 ![square playback](docs/screenshots/p09-square-playback.png) ![hex playback](docs/screenshots/p10-hex-playback.png)
 
-**P11, P12 tournament run pages.** The scripted square run's frozen record with the filled square chip beside bo3 and the real two-bot hexagon run's page with its live boards.
+**P11, P12 tournament run pages.** The square run's frozen record with the filled square chip beside bo3 and the real two-bot hexagon run's page with its live boards.
 
 ![square tournament run](docs/screenshots/p11-square-tourney-run.png) ![hex tournament run](docs/screenshots/p12-hex-tourney-run.png)
 
-**P13, P14 tournament live boards.** The run page's live boards surface, one live bot card per member: P13 square-pure on the square run, P14 hexagon-pure on the real hex run.
+**P13, P14 tournament live boards.** The run page's live boards surface, 1 live bot card per member: P13 square-pure on the square run, P14 hexagon-pure on the real hex run.
 
 ![square live boards](docs/screenshots/p13-square-tourney-liveboards.png) ![hex live boards](docs/screenshots/p14-hex-tourney-liveboards.png)
 
@@ -114,7 +114,7 @@ Every picture renders at one 440x956 portrait viewport on the light theme, numbe
 
 ![square profile](docs/screenshots/p15-square-profile.png) ![hex profile](docs/screenshots/p16-hex-profile.png)
 
-**P17, P18 history.** Per-game rows with turn-item move lists and status boxes, engine M-line tails on bot rows and both players' WLD on human rows, the founding readme's third required picture with P09 and P10.
+**P17, P18 history.** Per-game rows with turn-item move lists and status boxes, engine M-line tails on bot rows and both players' WLD on human rows.
 
 ![square history](docs/screenshots/p17-square-history.png) ![hex history](docs/screenshots/p18-hex-history.png)
 
@@ -139,8 +139,8 @@ The capture contract, thresholds, and ordering live in [docs/design-system.md](d
 ## grounding
 
 - [first-cause.md](first-cause.md): the founding spec, rules, hardware budget, and match scenarios.
-- [docs/plans/first-cause-rebuild.md](docs/plans/first-cause-rebuild.md): milestone plan for the rebuild, updated as milestones land.
-- ref/: offline chessprogramming.org and gomocup grounding, browser-sourced.
+- [docs/plans/first-cause-rebuild.md](docs/plans/first-cause-rebuild.md): milestone plan for the rebuild.
+- ref/: offline chessprogramming.org and gomocup grounding.
 
 ## build and verify
 
@@ -154,7 +154,7 @@ go run ./cmd/run mutate-full LABEL=vX PARALLEL=4 CHALLENGE=1  # whole gate, auto
 go run ./cmd/run mutate-resume LOG=prior-run.log PARALLEL=4 CHALLENGE=1
 go run ./cmd/run bench           # engine, clock, rules benchmarks with allocs
 go run ./cmd/run fuzz            # rules differential fuzz target
-go run ./cmd/run clocktune       # PID gain sweep for one time control, artifact under playground/clocktune/out/
+go run ./cmd/run clocktune       # PID gain sweep for 1 time control, artifact under playground/clocktune/out/
 go run ./cmd/run booktree-run    # detached tree-expansion book build, resumable from its expansion log
 go run ./cmd/run bookval-short   # detached book validation arms (also bookval-confirm, bookval-cross), each resumable
 go run ./cmd/run diagrams        # render the PNG diagrams from the mermaid sources
@@ -187,11 +187,11 @@ docs/             rebuild plan, diagram sources and renders, screenshots
 
 ## diagrams
 
-Search pipeline, one pass per completed iteration. The soft stop is consulted at iteration heads only, and only completed iterations become the answer.
+Search pipeline, 1 pass per completed iteration. The soft stop is consulted at iteration heads only, and only completed iterations become the answer.
 
 ![search pipeline flowchart](docs/diagrams/search-pipeline.png)
 
-Lazy SMP wraps the same pipeline: one persistent locked-thread worker per core, parked between searches, all sharing one lockless direct-mapped transposition table; a worker's proven immediate win halts its siblings through a shared flag folded into their deadline.
+Lazy SMP wraps the same pipeline: 1 persistent locked-thread worker per core, parked between searches, all sharing 1 lockless direct-mapped transposition table; a worker's proven immediate win halts its siblings through a shared flag folded into their deadline.
 
 Threat-solver soundness harness. The solvers generate only threat moves (fours for VCF, threes and fours for VCT) from the init-computed pattern tables; a test-only brute-force oracle over the independent naive board cross-checks every claimed win, and that fuzz runs in CI permanently.
 
@@ -205,7 +205,7 @@ Room data path. Gameplay never blocks on the disk: moves apply in memory, mutati
 
 ![room data path flowchart](docs/diagrams/room-data-path.png)
 
-Move stats pipeline. Every bot move is captured once as a structured record before its M-line renders, so the text line and the stored row are two views of one lossless capture: the rendered payload reaches the SSE stream and the per-series text log, and the structured stat persists as one tournament_game_stats row per move, written in the same transaction as its game row under schema v11.
+Move stats pipeline. Every bot move is captured once as a structured record before its M-line renders, so the text line and the stored row are 2 views of 1 lossless capture: the rendered payload reaches the SSE stream and the per-series text log, and the structured stat persists as a tournament_game_stats row per move, written in the same transaction as its game row.
 
 ![move stats pipeline flowchart](docs/diagrams/move-stats.png)
 
@@ -213,9 +213,9 @@ The tournament conductor. Every series rides the same room surface a human match
 
 ![tournament conductor flowchart](docs/diagrams/tournament-conductor.png)
 
-The machine-wide core budget is held by the run gate: one ongoing run at a time, per-run parallelism bounded by the tier cores, and an undriven run (stalled or failed) closed explicitly from its page before another can start. Starting runs and closing them is the seeded admin account's alone; every page, the setup list, the run boards, and the home's live-run banner read public, guest included.
+The machine-wide core budget is held by the run gate: 1 ongoing run at a time, per-run parallelism bounded by the tier cores, and an undriven run (stalled or failed) closed explicitly from its page before another can start. Starting runs and closing them is the seeded admin account's alone; every page, the setup list, the run boards, and the home's live-run banner read public, guest included.
 
-Store schema. One sqlite database carries both sides: the casual tables behind human rooms and bot games, and the tournament tables behind the conductor, with the per-move telemetry in tournament_game_stats beside its game, mover red or blue per row, and the PV stored space-joined as text.
+Store schema. 1 sqlite database carries both sides: the casual tables behind human rooms and bot games, and the tournament tables behind the conductor, with the per-move telemetry in tournament_game_stats beside its game, mover red or blue per row, and the PV stored space-joined as text.
 
 ![store schema flowchart](docs/diagrams/store-schema.png)
 
@@ -233,23 +233,19 @@ The pure client functions (tap-to-preview selection, the M-line UI filter) ship 
 
 What ships today:
 
-- the five-tier engine at the demand-spec shapes: fail-soft PVS over lazy SMP, VCF and VCT threat solvers with the brute-force soundness oracle in CI, pondering at each tier's width behind the four-clause adoption gate, and the increment-safe clock over the four time controls
+- the 5-tier engine: fail-soft PVS over lazy SMP, VCF and VCT threat solvers with the brute-force soundness oracle in CI, pondering at each tier's width behind the 4-clause adoption gate, and the increment-safe clock over the 4 time controls
 - the CAROBOOK1 book reader and searcher wiring, with the fixed-budget tree-expansion builder
 - the hexagon variant on every playing surface, bookless
 - the machine-wide admission ledger: full tier width or off, never a shrunken engine
 - casual dual storage: every completion writes its series log as append-only text beside its sqlite rows
-- verification: 95 percent overall and 100 percent core coverage gates on the race suite, mutation gates closed over rules, engine, clock, and server, the differential and soundness fuzz corpora in CI
+- verification: 95% overall and 100% core coverage gates on the race suite, mutation gates closed over rules, engine, clock, and server, the differential and soundness fuzz corpora in CI
 
-The implemented design record and the full wave-by-wave log live in [devlog.md](devlog.md).
+The design record and the wave-by-wave log live in [devlog.md](devlog.md).
 
 ## roadmap
 
-Only the unlanded waves, the landed record lives in devlog.md.
-
-- v0.24 opening book: the fixed-budget tree-expansion build run, then the short, confirm, and cross validation arms, the master floors, and the strength gates rerun at the hybrid-law bar (first 16 plies, entries backed by solver proofs or tree agreement over a visit floor, grandmaster probes 16 plies and master 8) before the tag.
+- v0.24 opening book: the fixed-budget tree-expansion build run, then the short, confirm, and cross validation arms, the master floors, and the strength gates rerun with the book in place (first 16 plies, entries backed by solver proofs or tree agreement over a visit floor, grandmaster probes 16 plies and master 8) before the tag.
 - v0.25 pondering: the ponder arena pair (noponder versus pondering seats at the gated control) and the tag.
 - v0.28 grandmaster pass gate: once the book and the weight chain land, grandmaster's W+D record across both red and blue seats must hold 2/3 or better versus master, 3/4 versus hard, 4/5 versus medium, and 9/10 versus easy, with screenshots from all supported flows including the ui-started tournament mid run with 2 grandmaster bots; anything below is a strength anomaly and reopens the tier behind the inversion research law.
 - v0.29 hexagon close: the hex gate chain verdict (master, master noise floors, the pass gates, ladder inversion checks at 2+1 and 3+2), then the full verification batch and the tag.
-- v0.30 final close: full gates, the closing ladder round-robin over all 4 time controls with zero inversions at 2+1, 3+2, 10+5 (1+0 recorded as thread-decided), README final state, evidence bundle, tag.
-
-Concurrency and memory: an engine never runs below its tier's shape, no reduced parallelism, no width degradation on the search. The machine-wide core budget (MachineCores in the config hub, sized per machine, a budget decision rather than a hardware reading) holds every search at its full spec, and demand beyond it queues or fails loudly instead of shrinking the engine. Pondering holds the tier's spec'd ponder width through the opponent's turn (medium 1, hard 2, master 4, grandmaster 8 threads), so a bot room books the pair peak of one seat's search cores plus the other's ponder width: the ledger funds that peak or runs the game ponder-off, never a shrunken engine. The tournament's worst-case table footprint at the spec sizes (2x2 GiB grandmaster, 2x768 MiB master, 2x128 MiB hard, 2x32 MiB medium, easy tableless, about 5.8 GiB) stays inside the RAM/4 machine cap the same controller holds. Room creation reads the machine's available physical memory at request time and rejects outright when it cannot fund the room's engines, answering with a plain server-resources-full failure instead of parking or queuing.
+- v0.30 final close: full gates, the closing ladder round-robin over all 4 time controls with 0 inversions at 2+1, 3+2, 10+5 (1+0 recorded as thread-decided), README final state, evidence bundle, tag.
