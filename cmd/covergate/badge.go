@@ -159,3 +159,45 @@ func badgesCmd(profile, dir, sha, runID, verdict string, now time.Time) error {
 func verdictCmd(verdict, dir, sha, runID string, now time.Time) error {
 	return writeVerdict(dir, sha, runID, verdict, now)
 }
+
+func defaultsCmd(dir string, now time.Time) error {
+	return writeDefaults(dir, now)
+}
+
+func writeDefaults(dir string, now time.Time) error {
+	global, core := 0.0, 0.0
+	src, err := json.Marshal(badgeSource{
+		SchemaVersion: 1,
+		Sha:           "none",
+		RunId:         "none",
+		Verdict:       config.VerdictFailed,
+		Global:        &global,
+		Core:          &core,
+		Timestamp:     now.UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	for _, b := range []struct {
+		slug  string
+		label string
+		good  float64
+		warn  float64
+	}{
+		{"global", "global coverage", config.BadgeCoverageOverallGoodMin, config.BadgeCoverageOverallWarnMin},
+		{"core", "core coverage", config.BadgeCoverageCoreGoodMin, config.BadgeCoverageCoreWarnMin},
+	} {
+		fill, color := band(0, b.good, b.warn)
+		value := "0.0%"
+		if err := writeBadgeFile(filepath.Join(dir, "coverage-"+b.slug+".svg"), badgeSVG(b.label, value, fill)); err != nil {
+			return err
+		}
+		if err := writeBadgeFile(filepath.Join(dir, "coverage-"+b.slug+".json"), badgeJSON(b.label, value, color)); err != nil {
+			return err
+		}
+	}
+	return writeBadgeFiles(dir, config.VerdictFailed, string(src))
+}

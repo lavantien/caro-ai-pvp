@@ -198,8 +198,15 @@ func runCLI(args []string) int {
 		}
 		return 0
 	}
-	if len(args) != 1 || args[0] == "-pcts" || args[0] == "-badges" || args[0] == "-verdict" {
-		fmt.Fprintln(os.Stderr, "usage: covergate [-pcts] <coverprofile> | -badges <coverprofile> <outdir> <sha> <runid> <verdict> | -verdict <verdict> <outdir> <sha> <runid>")
+	if len(args) == 2 && args[0] == "-defaults" {
+		if err := defaultsCmd(args[1], time.Now()); err != nil {
+			fmt.Fprintln(os.Stderr, "covergate:", err)
+			return 1
+		}
+		return 0
+	}
+	if len(args) != 1 || args[0] == "-pcts" || args[0] == "-badges" || args[0] == "-verdict" || args[0] == "-defaults" {
+		fmt.Fprintln(os.Stderr, "usage: covergate [-pcts] <coverprofile> | -badges <coverprofile> <outdir> <sha> <runid> <verdict> | -verdict <verdict> <outdir> <sha> <runid> | -defaults <outdir>")
 		return 2
 	}
 	files, err := readProfile(args[0])

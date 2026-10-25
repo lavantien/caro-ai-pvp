@@ -294,6 +294,49 @@ func TestRunCLIVerdict(t *testing.T) {
 	}
 }
 
+func TestWriteDefaultsOutput(t *testing.T) {
+	dir := t.TempDir()
+	if err := writeDefaults(dir, pinnedNow); err != nil {
+		t.Fatalf("writeDefaults err = %v", err)
+	}
+	assertFile(t, filepath.Join(dir, "ci.svg"), ciFailedSVG)
+	assertFile(t, filepath.Join(dir, "coverage-global.svg"),
+		`<svg xmlns="http://www.w3.org/2000/svg" width="157" height="20" role="img" aria-label="global coverage: 0.0%"><linearGradient id="g" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="r"><rect width="157" height="20" rx="3"/></clipPath><g clip-path="url(#r)"><rect width="157" height="20" fill="#555"/><rect x="117" width="40" height="20" fill="#e05d44"/><rect width="157" height="20" fill="url(#g)"/></g><g fill="#fff" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11" text-anchor="middle"><text x="58" y="14">global coverage</text><text x="137" y="14">0.0%</text></g></svg>`)
+	assertFile(t, filepath.Join(dir, "coverage-global.json"),
+		`{"schemaVersion":1,"label":"global coverage","message":"0.0%","color":"red"}`)
+	assertFile(t, filepath.Join(dir, "coverage-core.svg"),
+		`<svg xmlns="http://www.w3.org/2000/svg" width="143" height="20" role="img" aria-label="core coverage: 0.0%"><linearGradient id="g" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="r"><rect width="143" height="20" rx="3"/></clipPath><g clip-path="url(#r)"><rect width="143" height="20" fill="#555"/><rect x="103" width="40" height="20" fill="#e05d44"/><rect width="143" height="20" fill="url(#g)"/></g><g fill="#fff" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11" text-anchor="middle"><text x="51" y="14">core coverage</text><text x="123" y="14">0.0%</text></g></svg>`)
+	assertFile(t, filepath.Join(dir, "coverage-core.json"),
+		`{"schemaVersion":1,"label":"core coverage","message":"0.0%","color":"red"}`)
+	assertFile(t, filepath.Join(dir, "source.json"),
+		`{"schemaVersion":1,"sha":"none","runId":"none","verdict":"failed","global":0,"core":0,"timestamp":"`+badgePinnedTime+`"}`)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir err = %v", err)
+	}
+	if len(entries) != 6 {
+		t.Errorf("writeDefaults wrote %d files, want 6", len(entries))
+	}
+}
+
+func TestRunCLIDefaults(t *testing.T) {
+	if code := runCLI([]string{"-defaults"}); code != 2 {
+		t.Errorf("runCLI(-defaults, no args) = %d, want 2", code)
+	}
+	if code := runCLI([]string{"-defaults", "a", "b"}); code != 2 {
+		t.Errorf("runCLI(-defaults, long args) = %d, want 2", code)
+	}
+	dir := t.TempDir()
+	if code := runCLI([]string{"-defaults", dir}); code != 0 {
+		t.Errorf("runCLI(-defaults, pass) = %d, want 0", code)
+	}
+	for _, name := range []string{"ci.svg", "coverage-global.svg", "coverage-global.json", "coverage-core.svg", "coverage-core.json", "source.json"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("%s missing after runCLI -defaults: %v", name, err)
+		}
+	}
+}
+
 func assertFile(t *testing.T, path, want string) {
 	t.Helper()
 	data, err := os.ReadFile(path)
