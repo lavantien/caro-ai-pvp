@@ -80,7 +80,7 @@ Time controls 1+0, 2+1, 3+2, 10+5 each run the same PID-steered budget controlle
 
 ## screenshots
 
-Every picture renders at a 440x956 portrait viewport on the light theme, numbered pairs with the square member left and the hexagon member right. The bot rooms, the hexagon tournament run, and both banners are real engine activity: playground/shots hosts real easy-tier bot-versus-bot rooms at 1+0 bo3 and a real two-bot hexagon run, the operator polls the room endpoints and shoots at the stone thresholds, and terminal frames load before the finish so a retired room still holds its verdict.
+Every picture renders at a 440x956 portrait viewport on the light theme, numbered pairs with the square member left and the hexagon member right. The bot rooms, the hexagon tournament run, and both banners are real engine activity: playground/shots hosts real easy-tier bot-versus-bot rooms at 1+0 bo3 and a real 2-bot hexagon run, the operator polls the room endpoints and shoots at the stone thresholds, and terminal frames load before the finish so a retired room still holds its verdict.
 
 **P01, P02 home.** The signed-in home with per-variant WLD stat rows, the live-run banner, and the rooms grid, then the create form's board control with the hexagon variant checked.
 
@@ -102,7 +102,7 @@ Every picture renders at a 440x956 portrait viewport on the light theme, numbere
 
 ![square playback](docs/screenshots/p09-square-playback.png) ![hex playback](docs/screenshots/p10-hex-playback.png)
 
-**P11, P12 tournament run pages.** The square run's frozen record with the filled square chip beside bo3 and the real two-bot hexagon run's page with its live boards.
+**P11, P12 tournament run pages.** The square run's frozen record with the filled square chip beside bo3 and the real 2-bot hexagon run's page with its live boards.
 
 ![square tournament run](docs/screenshots/p11-square-tourney-run.png) ![hex tournament run](docs/screenshots/p12-hex-tourney-run.png)
 
@@ -130,7 +130,7 @@ Every picture renders at a 440x956 portrait viewport on the light theme, numbere
 
 ![login](docs/screenshots/p23-square-login.png) ![offline fallback](docs/screenshots/p24-pwa-offline.png)
 
-**P25, P26 live-run banners.** The home banner over the scripted square run and over the real hexagon run.
+**P25, P26 live-run banners.** The home banner over the square run and over the real hexagon run.
 
 ![square banner](docs/screenshots/p25-square-banner.png) ![hex banner](docs/screenshots/p26-hex-banner.png)
 
