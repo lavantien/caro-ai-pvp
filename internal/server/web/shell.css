@@ -119,7 +119,7 @@ button[disabled] { opacity: .55 }
 	.btn, button:not(.linklike), .btn-quiet, .chip { transition:
 		background-color .12s, border-color .12s, color .12s }
 }
-h1, .who, .who-vs, #score-line, .p-name, #turn-line { overflow-wrap: anywhere }
+h1, .who, .who-vs, #score-line, .p-name { overflow-wrap: anywhere }
 @media (pointer: coarse) {
 	select, input, button:not(.linklike) { min-height: 44px }
 	header nav a, header nav button.linklike { padding: var(--space-3) 0 var(--space-3) var(--space-3) }

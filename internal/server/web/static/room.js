@@ -138,22 +138,18 @@ function paintActiveSeat() {
 	if (blue) { blue.classList.toggle('active', live && turn === 'blue'); }
 }
 
-function setTurnLine() {
-	var line = $('turn-line');
+function paintTurnState() {
 	var mine = participant && detail && detail.game && Number(detail.game.turnUserId) === myID;
 	if (terminal) {
-		line.textContent = '';
 		$('board').classList.remove('live');
 		paintActiveSeat();
 		return;
 	}
 	if (!turn || !detail || !detail.game) {
-		line.textContent = 'waiting for both to ready';
 		$('board').classList.remove('live');
 		paintActiveSeat();
 		return;
 	}
-	line.textContent = mine ? 'your move (' + turn + ')' : turn + ' to move (' + seatName(detail.game.turnUserId) + ')';
 	$('board').classList.toggle('live', mine && !terminal);
 	paintActiveSeat();
 }
@@ -189,7 +185,7 @@ function renderDetail(d) {
 		remMs.blue = 0;
 		paintClocks();
 		$('score-line').textContent = hostName + ' ' + d.hostWins + ' - ' + d.guestWins + ' ' + guestName;
-		setTurnLine();
+		paintTurnState();
 		return;
 	}
 	turn = d.game.turn;
@@ -198,7 +194,7 @@ function renderDetail(d) {
 	lastSync = Date.now();
 	rebuildBoard(d.game.moves);
 	paintClocks();
-	setTurnLine();
+	paintTurnState();
 	$('clock-who-red').textContent = 'red / ' + seatName(d.game.redUserId);
 	$('clock-who-blue').textContent = 'blue / ' + seatName(otherSeat(d.game.redUserId));
 	if (participant) {
@@ -250,7 +246,7 @@ function onMove(name) {
 	ol.insertBefore(li, ol.firstChild);
 	markLatestFirst(ol);
 	root.setAttribute('data-move-count', String(i + 1));
-	if (turn) { turn = turn === 'red' ? 'blue' : 'red'; setTurnLine(); }
+	if (turn) { turn = turn === 'red' ? 'blue' : 'red'; paintTurnState(); }
 	scheduleSync();
 }
 
@@ -291,7 +287,7 @@ function onTerminal(msg) {
 	terminal = true;
 	status(msg);
 	turn = '';
-	setTurnLine();
+	paintTurnState();
 	stopTimers();
 	if (es) { es.close(); es = null; }
 	var feed = $('sse-feed');

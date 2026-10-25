@@ -638,15 +638,16 @@ func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {
 			t.Fatalf("create bot %s: status = %d, want 303 (body %s)", config.Tiers[i].Name, status, body)
 		}
 		botIDs[i] = strings.TrimPrefix(h.Get("Location"), "/rooms/")
-		status, _, gridBody := doShell(t, c, http.MethodGet, srv.URL+"/", token, nil)
-		if status != http.StatusOK ||
-			!strings.Contains(gridBody, "alice vs "+config.Tiers[i].Name+"-"+shortID(botIDs[i])) {
-			t.Fatalf("grid after bot %s: status = %d, want the room card (body %s)",
-				config.Tiers[i].Name, status, gridBody)
-		}
 		room, err := s.rm.Get(botIDs[i])
 		if err != nil {
 			t.Fatalf("get the %s room: %v", config.Tiers[i].Name, err)
+		}
+		info, _ := room.Info()
+		status, _, gridBody := doShell(t, c, http.MethodGet, srv.URL+"/", token, nil)
+		if status != http.StatusOK ||
+			!strings.Contains(gridBody, "alice vs "+botNameDisplay(info.GuestBotName)) {
+			t.Fatalf("grid after bot %s: status = %d, want the room card (body %s)",
+				config.Tiers[i].Name, status, gridBody)
 		}
 		room.Close()
 	}

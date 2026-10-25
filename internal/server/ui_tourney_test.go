@@ -353,10 +353,13 @@ func TestTourneyRunPageRendersLiveBoardSection(t *testing.T) {
 		`href="/rooms/roomabc"`,
 		"easy-1 vs hard-1",
 		">1-2<",
-		"blue to move, 3 stones",
+		"hard-1 to move, 3 stones",
 		`class="board mini" aria-hidden="true" style="grid-template-columns:repeat(`+
 			strconv.Itoa(config.BoardSize)+`,1fr)"`,
 	)
+	if strings.Contains(body, "blue to move") || strings.Contains(body, "red to move") {
+		t.Error("the live card names the mover by bare color word")
+	}
 	if n := strings.Count(body, `class="stone red`); n != 2 {
 		t.Errorf("red mini stones = %d, want 2 (body %s)", n, body)
 	}

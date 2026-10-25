@@ -153,8 +153,8 @@ func TestRoomPageRendersDrivenPvPGame(t *testing.T) {
 	if !strings.Contains(body, `<h2>engine stats</h2>`) {
 		t.Error("rail stats column misses its heading")
 	}
-	if !strings.Contains(body, `id="turn-line"`) || !strings.Contains(body, "blue to move") {
-		t.Error("turn line misses the blue-to-move state")
+	if strings.Contains(body, `id="turn-line"`) || strings.Contains(body, "to move") {
+		t.Error("the room page still renders a mover text line, want the seat card emphasis alone")
 	}
 	for _, id := range []string{"clock-red", "clock-blue", "clock-who-red", "clock-who-blue",
 		"card-red", "card-blue", "score-line", "move-history", "bot-log", "room-status"} {
@@ -289,8 +289,20 @@ func TestRoomPageSeatCardsCarryNamesBeforeHandshake(t *testing.T) {
 	if !strings.Contains(body, `<span class="who" id="clock-who-blue" title="bob">blue / bob</span>`) {
 		t.Error("blue seat card renders blank before the game handshake")
 	}
-	if !strings.Contains(body, `<p id="turn-line" aria-live="polite">`) {
-		t.Error("turn line is not a polite live region")
+	if strings.Contains(body, `id="turn-line"`) || strings.Contains(body, "to move") {
+		t.Error("the pre-handshake room page still renders a mover text line")
+	}
+}
+
+func TestRoomJSDropsTheMoverLine(t *testing.T) {
+	src, err := fs.ReadFile(staticFS, "room.js")
+	if err != nil {
+		t.Fatalf("read room.js: %v", err)
+	}
+	for _, banned := range []string{"turn-line", "to move", "waiting for both to ready"} {
+		if strings.Contains(string(src), banned) {
+			t.Errorf("room.js still carries the mover-line wiring %q", banned)
+		}
 	}
 }
 
@@ -434,7 +446,7 @@ func TestRoomPagePreMatchReadyHandshake(t *testing.T) {
 	}
 	for _, want := range []string{
 		`id="ready-btn"`, `id="forfeit-btn"`, `id="ready-host"`, `id="ready-guest"`,
-		"alice: not ready", "bob: not ready", "waiting for both to ready",
+		"alice: not ready", "bob: not ready",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("pre-match body misses %q", want)

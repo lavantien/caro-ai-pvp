@@ -439,6 +439,7 @@ type liveBoardView struct {
 	Blue      string
 	Score     string
 	Turn      string
+	TurnName  string
 	MoveCount int
 	boardData
 }
@@ -451,9 +452,13 @@ func liveBoardsOf(boards []TourneyLiveBoard) []liveBoardView {
 	for i, b := range boards {
 		bd := boardDataFor(b.Variant, b.Moves, nil)
 		bd.Mini = true
+		turnName := b.BlueName
+		if b.Turn == "red" {
+			turnName = b.RedName
+		}
 		out[i] = liveBoardView{
 			RoomID: b.RoomID, Red: b.RedName, Blue: b.BlueName,
-			Turn: b.Turn, MoveCount: len(b.Moves),
+			Turn: b.Turn, TurnName: turnName, MoveCount: len(b.Moves),
 			Score:     strconv.Itoa(b.RedWins) + "-" + strconv.Itoa(b.BlueWins),
 			boardData: bd,
 		}
