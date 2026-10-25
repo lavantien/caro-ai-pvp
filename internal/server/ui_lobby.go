@@ -64,13 +64,17 @@ func (rm *RoomManager) LobbySnapshot() []LobbyRoom {
 		}
 		out = append(out, lr)
 	}
-	slices.SortFunc(out, func(a, b LobbyRoom) int {
-		if c := a.CreatedAt.Compare(b.CreatedAt); c != 0 {
+	sortLobbyRooms(out)
+	return out
+}
+
+func sortLobbyRooms(rooms []LobbyRoom) {
+	slices.SortFunc(rooms, func(a, b LobbyRoom) int {
+		if c := b.CreatedAt.Compare(a.CreatedAt); c != 0 {
 			return c
 		}
-		return strings.Compare(a.ID, b.ID)
+		return strings.Compare(b.ID, a.ID)
 	})
-	return out
 }
 
 func lobbyRoomOf(r *Room, hub *Hub, store *Store) (LobbyRoom, bool) {

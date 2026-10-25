@@ -243,13 +243,17 @@ func (rm *RoomManager) List() []RoomInfo {
 			infos = append(infos, info)
 		}
 	}
+	sortRoomInfos(infos)
+	return infos
+}
+
+func sortRoomInfos(infos []RoomInfo) {
 	slices.SortFunc(infos, func(a, b RoomInfo) int {
-		if c := a.CreatedAt.Compare(b.CreatedAt); c != 0 {
+		if c := b.CreatedAt.Compare(a.CreatedAt); c != 0 {
 			return c
 		}
-		return strings.Compare(a.ID, b.ID)
+		return strings.Compare(b.ID, a.ID)
 	})
-	return infos
 }
 
 type LiveBotBoard struct {

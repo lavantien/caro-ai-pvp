@@ -797,3 +797,30 @@ func assertBoard(t *testing.T, got, want []Standings) {
 		}
 	}
 }
+
+func TestSeriesAllListsNewestFirst(t *testing.T) {
+	ts, srv := newTestStore(t)
+	ctx := context.Background()
+	run, err := ts.CreateRun(ctx, 0, config.SeriesBO3, config.TournamentStartRating, roster(2), "test", "")
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	if err := srv.WithinTx(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx,
+			`UPDATE tournament_series SET created_at = 100 + pairing_slot WHERE run_id = ?`, run.ID)
+		return err
+	}); err != nil {
+		t.Fatalf("stamp created_at: %v", err)
+	}
+	series, err := ts.SeriesAll(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("series all: %v", err)
+	}
+	if len(series) != 2 {
+		t.Fatalf("series = %d, want 2", len(series))
+	}
+	if series[0].PairingSlot != 1 || series[1].PairingSlot != 0 {
+		t.Errorf("pairing order = %d, %d, want the newest created series first",
+			series[0].PairingSlot, series[1].PairingSlot)
+	}
+}

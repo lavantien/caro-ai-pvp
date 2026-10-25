@@ -419,7 +419,7 @@ func TestLobbyPagesRoutes(t *testing.T) {
 	}
 }
 
-func TestLobbySnapshotOrdersOldestRoomFirst(t *testing.T) {
+func TestLobbySnapshotOrdersNewestRoomFirst(t *testing.T) {
 	s := newStack(t)
 	alice := seedUser(t, s.store, "alice")
 	first, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
@@ -437,8 +437,8 @@ func TestLobbySnapshotOrdersOldestRoomFirst(t *testing.T) {
 	if len(snap) != 2 {
 		t.Fatalf("snapshot rooms = %d, want 2", len(snap))
 	}
-	if snap[0].ID != second.ID() || snap[1].ID != first.ID() {
-		t.Errorf("snapshot order = %s then %s, want the backdated room listed first", snap[0].ID, snap[1].ID)
+	if snap[0].ID != first.ID() || snap[1].ID != second.ID() {
+		t.Errorf("snapshot order = %s then %s, want the backdated room listed last", snap[0].ID, snap[1].ID)
 	}
 }
 
@@ -637,5 +637,22 @@ func TestJoinFailMessageCodes(t *testing.T) {
 		if got := joinFailMessage(row.code); got != row.want {
 			t.Errorf("joinFailMessage(%q) = %q, want %q", row.code, got, row.want)
 		}
+	}
+}
+
+func TestLobbyRoomsSortNewestFirst(t *testing.T) {
+	older := time.Unix(100, 0)
+	newer := time.Unix(200, 0)
+	rooms := []LobbyRoom{
+		{ID: "aa", CreatedAt: older},
+		{ID: "zz", CreatedAt: older},
+		{ID: "mm", CreatedAt: newer},
+	}
+	sortLobbyRooms(rooms)
+	if rooms[0].ID != "mm" {
+		t.Errorf("newest room sorts first, got %v", rooms)
+	}
+	if rooms[1].ID != "zz" || rooms[2].ID != "aa" {
+		t.Errorf("same-stamp rooms must tie-break on id descending, got %v", rooms)
 	}
 }

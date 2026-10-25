@@ -110,7 +110,7 @@ func TestPWAServiceWorkerServesWithUpdateSemantics(t *testing.T) {
 		t.Errorf("sw.js Cache-Control = %q, want no-cache", got)
 	}
 	for _, want := range []string{
-		"const CACHE = 'caro-static-v11'",
+		"const CACHE = 'caro-static-v12'",
 		"'/shell.css'",
 		"'/static/htmx.min.js'",
 		"'/static/hx-sse.min.js'",

@@ -92,6 +92,10 @@ Rail: `.rail` is the one two-column reading rail a paired surface uses, moves le
 
 Motion: the UI is near-zero motion. The only transitions are button and chip color fades, and they sit behind `prefers-reduced-motion: no-preference`.
 
+## Ordering
+
+Every list that accumulates over time renders newest first: the room grids on the home page and lobby (creation time, id descending as the tie-break), the history rows and profile recent games (already played_at descending), the tournament series list (creation time descending), the rail move lists, the room M-line panel, and every engine-stat tail (newest line first, so the ellipsis of a truncated tail falls at the bottom while a truncated opening preview puts its ellipsis first, at the cut).
+
 ## Contrast contract
 
 `go run ./cmd/run contrast` fails the build on any miss, recomputing every pair from `:root` at runtime. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (live-tournament line at `--text-xl` bold, large text, 3), `accent-strong` on `background` (focus ring over the page, 3). Boundaries split by meaning: a boundary that carries state must clear WCAG 1.4.11's 3:1 (`text-muted` on `background`, `surface`, and `accent-soft` for the chip state boundary), while decorative boundaries (the board lattice, hairlines) stay at the 2.5 floor. Tightest shipped margins on the light palette: `text-muted` on `background` 5.00, `border` on `surface` 2.64, `mark` on `background` 3.60.

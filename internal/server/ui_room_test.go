@@ -1578,3 +1578,16 @@ func TestPlaybackStatsColumnSplitsHumanDeltasFromEngineLines(t *testing.T) {
 		t.Error("bot-seat playback must not render player deltas")
 	}
 }
+
+func TestRoomJSMLinePanelPrependsNewest(t *testing.T) {
+	src, err := fs.ReadFile(staticFS, "room.js")
+	if err != nil {
+		t.Fatalf("read room.js: %v", err)
+	}
+	if !strings.Contains(string(src), "ul.insertBefore(li, ul.firstChild)") {
+		t.Error("the mline panel must prepend the newest line")
+	}
+	if strings.Contains(string(src), "ul.scrollTop = ul.scrollHeight") {
+		t.Error("the mline panel still scrolls to the bottom of an append-only list")
+	}
+}

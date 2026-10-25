@@ -272,8 +272,7 @@ function onMLine(line) {
 	}
 	var li = document.createElement('li');
 	li.textContent = uiMLine(line);
-	ul.appendChild(li);
-	ul.scrollTop = ul.scrollHeight;
+	ul.insertBefore(li, ul.firstChild);
 }
 
 function onGameEnd(outcome) {

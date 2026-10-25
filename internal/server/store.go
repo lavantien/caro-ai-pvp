@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -785,7 +784,6 @@ func (s *Store) gameStatTail(gameID int64, limit int) ([]string, bool, error) {
 	if err := rows.Err(); err != nil {
 		return nil, false, fmt.Errorf("server: game stat tail %d: %w", gameID, err)
 	}
-	slices.Reverse(lines)
 	return lines, total > len(lines), nil
 }
 

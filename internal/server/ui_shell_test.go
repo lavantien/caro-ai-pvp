@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -1223,5 +1224,85 @@ func TestTourneynowRendersAtLargeTextScale(t *testing.T) {
 	}
 	if !regexp.MustCompile(`font-weight:\s*700`).Match(rule) {
 		t.Fatalf(".tourneynow must stay bold for the large-text cutoff, got %s", rule)
+	}
+}
+
+func TestRoomInfosSortNewestFirst(t *testing.T) {
+	older := time.Unix(100, 0)
+	newer := time.Unix(200, 0)
+	infos := []RoomInfo{
+		{ID: "aa", CreatedAt: older},
+		{ID: "zz", CreatedAt: older},
+		{ID: "mm", CreatedAt: newer},
+	}
+	sortRoomInfos(infos)
+	if infos[0].ID != "mm" {
+		t.Errorf("newest room sorts first, got %v", infos)
+	}
+	if infos[1].ID != "zz" || infos[2].ID != "aa" {
+		t.Errorf("same-stamp rooms must tie-break on id descending, got %v", infos)
+	}
+}
+
+func TestShellRoomGridListsNewestRoomFirst(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	t.Cleanup(srv.Close)
+	alice := seedUser(t, s.store, "alice")
+	first, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
+	if err != nil {
+		t.Fatalf("create first: %v", err)
+	}
+	second, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, nil, "")
+	if err != nil {
+		t.Fatalf("create second: %v", err)
+	}
+	second.mu.Lock()
+	second.createdAt = second.createdAt.Add(-time.Minute)
+	second.mu.Unlock()
+
+	status, _, body := doShell(t, srv.Client(), http.MethodGet, srv.URL+"/partials/rooms", "", nil)
+	if status != http.StatusOK {
+		t.Fatalf("rooms partial: status = %d", status)
+	}
+	firstAt := strings.Index(body, `href="/rooms/`+first.ID()+`"`)
+	secondAt := strings.Index(body, `href="/rooms/`+second.ID()+`"`)
+	if firstAt < 0 || secondAt < 0 {
+		t.Fatalf("partial misses a room card (first %d, second %d)", firstAt, secondAt)
+	}
+	if firstAt > secondAt {
+		t.Error("the backdated room renders before the newer one, want newest first")
+	}
+}
+
+func TestGameStatTailLeadsWithNewestLine(t *testing.T) {
+	s := newStack(t)
+	alice, bob := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
+	sr := seedSeries(t, s.store, alice, bob)
+	var stats []GameStat
+	for i := 1; i <= 5; i++ {
+		stats = append(stats, GameStat{MoveNo: i, Line: "M" + strconv.Itoa(i) + ", Red, A1, d=9"})
+	}
+	if err := s.store.ApplyCompletion(context.Background(), Completion{Games: []Game{{
+		SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+		Outcome: OutcomeRed, Moves: EncodeMoves(nil, seqMoves(2)), FullTurns: 1,
+		StatLines: stats,
+	}}}); err != nil {
+		t.Fatalf("completion: %v", err)
+	}
+	var gameID int64
+	if err := s.store.db.QueryRow(`SELECT id FROM games WHERE series_id = ?`, sr.ID).Scan(&gameID); err != nil {
+		t.Fatalf("find game: %v", err)
+	}
+	lines, more, err := s.store.gameStatTail(gameID, 3)
+	if err != nil {
+		t.Fatalf("stat tail: %v", err)
+	}
+	want := []string{"M5, Red, A1, d=9", "M4, Red, A1, d=9", "M3, Red, A1, d=9"}
+	if !reflect.DeepEqual(lines, want) {
+		t.Errorf("tail = %v, want newest first %v", lines, want)
+	}
+	if !more {
+		t.Error("truncated tail reads as complete")
 	}
 }
