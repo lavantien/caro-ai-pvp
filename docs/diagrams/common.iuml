@@ -1,0 +1,64 @@
+skinparam backgroundColor #FFF7FB
+skinparam shadowing false
+skinparam dpi 150
+skinparam defaultFontSize 13
+skinparam defaultFontColor #2A2430
+skinparam defaultFontName Segoe UI
+skinparam arrowColor #5D3F9E
+skinparam arrowFontColor #6F5F75
+skinparam activity {
+  BackgroundColor #EAD9F7
+  BorderColor #7050B8
+  FontColor #2A2430
+  DiamondBackgroundColor #F9E8F1
+  DiamondBorderColor #7050B8
+  DiamondFontColor #2A2430
+  StartColor #7050B8
+  EndColor #5D3F9E
+}
+skinparam state {
+  BackgroundColor #EAD9F7
+  BorderColor #7050B8
+  FontColor #2A2430
+  StartColor #7050B8
+  EndColor #5D3F9E
+}
+skinparam sequence {
+  ArrowColor #5D3F9E
+  LifeLineBorderColor #C48BA1
+  LifeLineBackgroundColor #F9E8F1
+  ParticipantBackgroundColor #EAD9F7
+  ParticipantBorderColor #7050B8
+  ParticipantFontColor #2A2430
+  ActorBackgroundColor #F9E8F1
+  ActorBorderColor #7050B8
+  ActorFontColor #2A2430
+  GroupBackgroundColor #F9E8F1
+  GroupBorderColor #C48BA1
+  GroupHeaderFontColor #2A2430
+}
+skinparam component {
+  BackgroundColor #EAD9F7
+  BorderColor #7050B8
+  FontColor #2A2430
+}
+skinparam node {
+  BackgroundColor #F9E8F1
+  BorderColor #C48BA1
+  FontColor #2A2430
+}
+skinparam database {
+  BackgroundColor #FFF7FB
+  BorderColor #C48BA1
+  FontColor #2A2430
+}
+skinparam note {
+  BackgroundColor #FFF7FB
+  BorderColor #C48BA1
+  FontColor #2A2430
+}
+skinparam rectangle {
+  BackgroundColor #F9E8F1
+  BorderColor #C48BA1
+  FontColor #2A2430
+}
