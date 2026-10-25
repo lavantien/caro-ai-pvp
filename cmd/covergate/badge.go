@@ -1,0 +1,102 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
+)
+
+type badgeSource struct {
+	SchemaVersion int     `json:"schemaVersion"`
+	Sha           string  `json:"sha"`
+	RunId         string  `json:"runId"`
+	Global        float64 `json:"global"`
+	Core          float64 `json:"core"`
+	Timestamp     string  `json:"timestamp"`
+}
+
+func band(p, goodMin, warnMin float64) (fill, color string) {
+	switch {
+	case p >= goodMin:
+		return "#4c1", "brightgreen"
+	case p >= warnMin:
+		return "#dfb317", "yellow"
+	default:
+		return "#e05d44", "red"
+	}
+}
+
+func badgeSVG(label, value, fill string) string {
+	lw := len(label)*7 + 12
+	vw := len(value)*7 + 12
+	return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="20" role="img" aria-label="%s: %s"><linearGradient id="g" x2="0" y2="100%%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="r"><rect width="%d" height="20" rx="3"/></clipPath><g clip-path="url(#r)"><rect width="%d" height="20" fill="#555"/><rect x="%d" width="%d" height="20" fill="%s"/><rect width="%d" height="20" fill="url(#g)"/></g><g fill="#fff" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11" text-anchor="middle"><text x="%d" y="14">%s</text><text x="%d" y="14">%s</text></g></svg>`,
+		lw+vw, label, value, lw+vw, lw+vw, lw, vw, fill, lw+vw, lw/2, label, lw+vw/2, value)
+}
+
+func badgeJSON(label, value, color string) string {
+	return fmt.Sprintf(`{"schemaVersion":1,"label":"%s","message":"%s","color":"%s"}`, label, value, color)
+}
+
+func round1(v float64) float64 {
+	return math.Round(v*10) / 10
+}
+
+func writeBadges(files map[string]fileCov, dir, sha, runID string, now time.Time) error {
+	covered, total := overallCov(files)
+	if total == 0 {
+		return fmt.Errorf("empty profile, no statements counted")
+	}
+	global := round1(pct(covered, total))
+	core := round1(coreMinPct(files))
+	src, err := json.Marshal(badgeSource{
+		SchemaVersion: 1,
+		Sha:           sha,
+		RunId:         runID,
+		Global:        global,
+		Core:          core,
+		Timestamp:     now.UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	for _, b := range []struct {
+		slug  string
+		label string
+		value float64
+		good  float64
+		warn  float64
+	}{
+		{"global", "global coverage", global, config.BadgeCoverageOverallGoodMin, config.BadgeCoverageOverallWarnMin},
+		{"core", "core coverage", core, config.BadgeCoverageCoreGoodMin, config.BadgeCoverageCoreWarnMin},
+	} {
+		fill, color := band(b.value, b.good, b.warn)
+		value := fmt.Sprintf("%.1f%%", b.value)
+		if err := writeBadgeFile(filepath.Join(dir, "coverage-"+b.slug+".svg"), badgeSVG(b.label, value, fill)); err != nil {
+			return err
+		}
+		if err := writeBadgeFile(filepath.Join(dir, "coverage-"+b.slug+".json"), badgeJSON(b.label, value, color)); err != nil {
+			return err
+		}
+	}
+	return writeBadgeFile(filepath.Join(dir, "source.json"), string(src))
+}
+
+func writeBadgeFile(path, content string) error {
+	return os.WriteFile(path, []byte(content), 0o644)
+}
+
+func badgesCmd(profile, dir, sha, runID string, now time.Time) error {
+	files, err := readProfile(profile)
+	if err != nil {
+		return err
+	}
+	return writeBadges(files, dir, sha, runID, now)
+}

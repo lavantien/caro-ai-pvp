@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
@@ -96,12 +97,30 @@ func coreCoverage(files map[string]fileCov) map[string]*fileCov {
 	return core
 }
 
-func gate(files map[string]fileCov) error {
-	var total, covered int64
+func overallCov(files map[string]fileCov) (covered, total int64) {
 	for _, fc := range files {
 		total += fc.total
 		covered += fc.covered
 	}
+	return covered, total
+}
+
+func coreMinPct(files map[string]fileCov) float64 {
+	core := 0.0
+	coreSet := false
+	for _, c := range coreCoverage(files) {
+		if c.total == 0 {
+			continue
+		}
+		if cp := pct(c.covered, c.total); !coreSet || cp < core {
+			core, coreSet = cp, true
+		}
+	}
+	return core
+}
+
+func gate(files map[string]fileCov) error {
+	covered, total := overallCov(files)
 	if total == 0 {
 		return fmt.Errorf("empty profile, no statements counted")
 	}
@@ -129,24 +148,11 @@ func gate(files map[string]fileCov) error {
 }
 
 func pcts(files map[string]fileCov, w io.Writer) error {
-	var total, covered int64
-	for _, fc := range files {
-		total += fc.total
-		covered += fc.covered
-	}
+	covered, total := overallCov(files)
 	if total == 0 {
 		return fmt.Errorf("empty profile, no statements counted")
 	}
-	core := 0.0
-	coreSet := false
-	for _, c := range coreCoverage(files) {
-		if c.total == 0 {
-			continue
-		}
-		if cp := pct(c.covered, c.total); !coreSet || cp < core {
-			core, coreSet = cp, true
-		}
-	}
+	core := coreMinPct(files)
 	_, err := fmt.Fprintf(w, "global=%.1f core=%.1f global-good=%.1f global-warn=%.1f core-good=%.1f core-warn=%.1f\n",
 		pct(covered, total), core,
 		config.BadgeCoverageOverallGoodMin, config.BadgeCoverageOverallWarnMin,
@@ -178,8 +184,15 @@ func runCLI(args []string) int {
 		}
 		return 0
 	}
-	if len(args) != 1 || args[0] == "-pcts" {
-		fmt.Fprintln(os.Stderr, "usage: covergate [-pcts] <coverprofile>")
+	if len(args) == 5 && args[0] == "-badges" {
+		if err := badgesCmd(args[1], args[2], args[3], args[4], time.Now()); err != nil {
+			fmt.Fprintln(os.Stderr, "covergate:", err)
+			return 1
+		}
+		return 0
+	}
+	if len(args) != 1 || args[0] == "-pcts" || args[0] == "-badges" {
+		fmt.Fprintln(os.Stderr, "usage: covergate [-pcts] <coverprofile> | -badges <coverprofile> <outdir> <sha> <runid>")
 		return 2
 	}
 	files, err := readProfile(args[0])
