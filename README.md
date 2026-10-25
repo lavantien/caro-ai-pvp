@@ -1,6 +1,6 @@
 # caro-ai-pvp
 
-[![ci](https://raw.githubusercontent.com/lavantien/caro-ai-pvp/coverage/ci.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml) [![global coverage](https://raw.githubusercontent.com/lavantien/caro-ai-pvp/coverage/coverage-global.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml) [![core coverage](https://raw.githubusercontent.com/lavantien/caro-ai-pvp/coverage/coverage-core.svg)](https://github.com/lavantien/caro-ai-pvp/actions/workflows/ci.yml)
+[![ci](docs/badges/ci.svg)](.github/workflows/ci.yml) [![global coverage](docs/badges/coverage-global.svg)](#build-and-verify) [![core coverage](docs/badges/coverage-core.svg)](#build-and-verify)
 
 Mobile-first web arena for a custom gomoku variant played on 2 boards, a 16x16 grid and a side 12 hexagon. Play from a phone browser against a person or an increment-safe bot on server-hosted rooms, watch live rooms as a guest, step through match history with a playback board, and run bot vs bot tournaments on the same room surface with per-move engine telemetry and a decay-scaled rating.
 
