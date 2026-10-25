@@ -376,8 +376,34 @@ func TestTourneyRunPageRendersLiveBoardSection(t *testing.T) {
 	stalled := stalledSnapshot()
 	stalledSrv, _ := tourneySrv(t, &fakeTourney{snapshot: stalled, live: fake.live})
 	_, _, body = doShell(t, c, http.MethodGet, stalledSrv.URL+"/tourney/run/7", "", nil)
-	if strings.Contains(body, `class="liveboards"`) || strings.Contains(body, "board mini") {
-		t.Errorf("non-running run page carries the live section (body %s)", body)
+	if !strings.Contains(body, `class="liveboards"`) || !strings.Contains(body, "board mini") {
+		t.Errorf("idle run page drops the shared boards surface (body %s)", body)
+	}
+}
+
+func TestTourneyRunPageShowsBoardsSurfaceOnBothVariants(t *testing.T) {
+	square := &fakeTourney{snapshot: liveSnapshot(), live: []TourneyLiveBoard{{
+		RoomID: "squarecard", RedName: "easy-1", BlueName: "hard-1",
+		RedWins: 1, BlueWins: 0, Turn: "red", Moves: []string{"H8", "I9"},
+	}}}
+	squareSrv, _ := tourneySrv(t, square)
+	_, _, body := doShell(t, noRedirectClient(squareSrv), http.MethodGet, squareSrv.URL+"/tourney/run/7/board", "", nil)
+	if !strings.Contains(body, `class="board mini" aria-hidden="true" style="grid-template-columns:repeat(`+
+		strconv.Itoa(config.BoardSize)+`,1fr)"`) {
+		t.Errorf("square run board fragment misses the square mini board (body %s)", body)
+	}
+
+	hex := &fakeTourney{snapshot: liveSnapshot(), live: []TourneyLiveBoard{{
+		RoomID: "hexcard", RedName: "easy-1", BlueName: "hard-1",
+		RedWins: 1, BlueWins: 0, Turn: "red", Moves: []string{"L12"}, Variant: "hex",
+	}}}
+	hexSrv, _ := tourneySrv(t, hex)
+	_, _, body = doShell(t, noRedirectClient(hexSrv), http.MethodGet, hexSrv.URL+"/tourney/run/7/board", "", nil)
+	if !strings.Contains(body, `class="board hex mini"`) {
+		t.Errorf("hex run board fragment misses the hex mini board (body %s)", body)
+	}
+	if !strings.Contains(body, `<text class="glyph" dy=".35em" data-i="0">O</text>`) {
+		t.Errorf("hex run board loses its stone glyph markup (body %s)", body)
 	}
 }
 

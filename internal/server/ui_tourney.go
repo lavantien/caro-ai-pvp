@@ -443,8 +443,8 @@ type liveBoardView struct {
 	boardData
 }
 
-func liveBoardsOf(running bool, boards []TourneyLiveBoard) []liveBoardView {
-	if !running || len(boards) == 0 {
+func liveBoardsOf(boards []TourneyLiveBoard) []liveBoardView {
+	if len(boards) == 0 {
 		return nil
 	}
 	out := make([]liveBoardView, len(boards))
@@ -507,7 +507,7 @@ func (p *TournamentPages) renderRun(w http.ResponseWriter, status int, me *shell
 	renderShell(w, status, tourneyRunTmpl, "base", tourneyRunView{
 		Me: me, Header: header, RunID: runID,
 		PollMs:     int64(config.PagePollMs),
-		Board:      boardViewOf(snap, liveBoardsOf(snap.Run.Running, p.tourney.LiveBoards())),
+		Board:      boardViewOf(snap, liveBoardsOf(p.tourney.LiveBoards())),
 		CanClose:   (header.State == runStateStalled || header.State == "failed") && isAdmin(me),
 		CloseError: closeErr,
 	})
@@ -560,7 +560,7 @@ func (p *TournamentPages) handleBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	renderShell(w, http.StatusOK, tourneyBoardTmpl, "tourboard",
-		boardViewOf(snap, liveBoardsOf(snap.Run.Running, p.tourney.LiveBoards())))
+		boardViewOf(snap, liveBoardsOf(p.tourney.LiveBoards())))
 }
 
 func tourneyRunID(w http.ResponseWriter, r *http.Request) (int64, bool) {
