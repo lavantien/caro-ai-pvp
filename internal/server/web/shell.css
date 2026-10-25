@@ -38,10 +38,11 @@ body { font-family: var(--font-human); line-height: 1.45;
 a { color: var(--accent) }
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
 	outline: none; box-shadow: 0 0 0 3px var(--accent-strong) }
-header { display: flex; align-items: baseline; gap: var(--space-4); padding: .6rem 0;
-	border-bottom: 1px solid var(--border) }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-4);
+	padding: .6rem 0; border-bottom: 1px solid var(--border) }
 .brand { font-size: var(--text-2xl); font-weight: 800; text-decoration: none;
-	color: var(--text); display: inline-flex; align-items: center; gap: .18em }
+	color: var(--text); display: inline-flex; align-items: center; gap: .18em;
+	white-space: nowrap; flex: none }
 .vglyph { width: 1em; height: 1em; fill: none; stroke: currentColor;
 	stroke-width: 1.8; stroke-linejoin: round; flex: none }
 .brand .vglyph-square { color: var(--red) }

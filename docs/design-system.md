@@ -6,6 +6,8 @@ The v0.29 light contract. Light is the base presentation on every surface, a lig
 
 Caro is five-in-a-row on a grid. The board lattice, the red and blue stone discs, and the amber last-move ring are the product's identity; the UI is furniture around them. Flat borders carry structure. Zero box shadows except the amber ring. No gradients, no all-caps eyebrow labels, no numbered markers, no middle-dot meta strings, no monospace for human prose.
 
+The header brand, the word caro plus its two variant glyphs, is one unit that never shrinks and never wraps to separate rows at any width down to 320px: it holds `nowrap` and `flex: none`, and the header wraps the nav below it instead.
+
 The mover is never announced by a text line: no "red to move", "your move", or "blue to move" copy anywhere, the lit seat card carries whose turn it is. A surface that genuinely needs to name the mover in prose (the tournament live cards) prints the player's name, never a bare color word.
 
 ## Color tokens

@@ -1425,3 +1425,26 @@ func TestShellRoomCardRowsSplitChipsPlayersScore(t *testing.T) {
 		t.Errorf(`the series score must follow its versus row, gap %d`, scoreAt-vsAt)
 	}
 }
+
+func TestBrandRowNeverWraps(t *testing.T) {
+	css, err := os.ReadFile(`web/shell.css`)
+	if err != nil {
+		t.Fatalf(`read shell.css: %v`, err)
+	}
+	header := regexp.MustCompile(`(?m)^header \{[^}]*\}`).Find(css)
+	if header == nil {
+		t.Fatal(`shell.css loses the header rule`)
+	}
+	if !regexp.MustCompile(`flex-wrap:\s*wrap`).Match(header) {
+		t.Errorf(`the header must wrap the nav under the brand instead of shrinking it, got %s`, header)
+	}
+	brand := regexp.MustCompile(`(?m)^\.brand \{[^}]*\}`).Find(css)
+	if brand == nil {
+		t.Fatal(`shell.css loses the .brand rule`)
+	}
+	for _, want := range []string{`white-space:\s*nowrap`, `flex:\s*none`} {
+		if !regexp.MustCompile(want).Match(brand) {
+			t.Errorf(`the brand must never shrink or wrap at %s, got %s`, want, brand)
+		}
+	}
+}
