@@ -658,6 +658,11 @@ func TestQualityBadgeBands(t *testing.T) {
 		t.Errorf("core badge bands = %v %v, want 100 100", BadgeCoverageCoreGoodMin, BadgeCoverageCoreWarnMin)
 	}
 }
+func TestBadgeVerdicts(t *testing.T) {
+	if VerdictPassed != "passed" || VerdictFailed != "failed" {
+		t.Errorf("badge verdicts = %q %q, want passed failed", VerdictPassed, VerdictFailed)
+	}
+}
 func TestBookConstants(t *testing.T) {
 	if BookFileMagic != "CAROBOOK1" {
 		t.Errorf("BookFileMagic = %q, want CAROBOOK1", BookFileMagic)

@@ -184,15 +184,22 @@ func runCLI(args []string) int {
 		}
 		return 0
 	}
-	if len(args) == 5 && args[0] == "-badges" {
-		if err := badgesCmd(args[1], args[2], args[3], args[4], time.Now()); err != nil {
+	if len(args) == 6 && args[0] == "-badges" {
+		if err := badgesCmd(args[1], args[2], args[3], args[4], args[5], time.Now()); err != nil {
 			fmt.Fprintln(os.Stderr, "covergate:", err)
 			return 1
 		}
 		return 0
 	}
-	if len(args) != 1 || args[0] == "-pcts" || args[0] == "-badges" {
-		fmt.Fprintln(os.Stderr, "usage: covergate [-pcts] <coverprofile> | -badges <coverprofile> <outdir> <sha> <runid>")
+	if len(args) == 5 && args[0] == "-verdict" {
+		if err := verdictCmd(args[1], args[2], args[3], args[4], time.Now()); err != nil {
+			fmt.Fprintln(os.Stderr, "covergate:", err)
+			return 1
+		}
+		return 0
+	}
+	if len(args) != 1 || args[0] == "-pcts" || args[0] == "-badges" || args[0] == "-verdict" {
+		fmt.Fprintln(os.Stderr, "usage: covergate [-pcts] <coverprofile> | -badges <coverprofile> <outdir> <sha> <runid> <verdict> | -verdict <verdict> <outdir> <sha> <runid>")
 		return 2
 	}
 	files, err := readProfile(args[0])

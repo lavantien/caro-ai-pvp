@@ -12,12 +12,13 @@ import (
 )
 
 type badgeSource struct {
-	SchemaVersion int     `json:"schemaVersion"`
-	Sha           string  `json:"sha"`
-	RunId         string  `json:"runId"`
-	Global        float64 `json:"global"`
-	Core          float64 `json:"core"`
-	Timestamp     string  `json:"timestamp"`
+	SchemaVersion int      `json:"schemaVersion"`
+	Sha           string   `json:"sha"`
+	RunId         string   `json:"runId"`
+	Verdict       string   `json:"verdict"`
+	Global        *float64 `json:"global,omitempty"`
+	Core          *float64 `json:"core,omitempty"`
+	Timestamp     string   `json:"timestamp"`
 }
 
 func band(p, goodMin, warnMin float64) (fill, color string) {
@@ -28,6 +29,17 @@ func band(p, goodMin, warnMin float64) (fill, color string) {
 		return "#dfb317", "yellow"
 	default:
 		return "#e05d44", "red"
+	}
+}
+
+func verdictBand(verdict string) (fill, color string, err error) {
+	switch verdict {
+	case config.VerdictPassed:
+		return "#4c1", "brightgreen", nil
+	case config.VerdictFailed:
+		return "#e05d44", "red", nil
+	default:
+		return "", "", fmt.Errorf("unknown verdict %q, want %s or %s", verdict, config.VerdictPassed, config.VerdictFailed)
 	}
 }
 
@@ -42,11 +54,22 @@ func badgeJSON(label, value, color string) string {
 	return fmt.Sprintf(`{"schemaVersion":1,"label":"%s","message":"%s","color":"%s"}`, label, value, color)
 }
 
+func ciBadgeSVG(verdict string) (string, error) {
+	fill, _, err := verdictBand(verdict)
+	if err != nil {
+		return "", err
+	}
+	return badgeSVG("ci", verdict, fill), nil
+}
+
 func round1(v float64) float64 {
 	return math.Round(v*10) / 10
 }
 
-func writeBadges(files map[string]fileCov, dir, sha, runID string, now time.Time) error {
+func writeBadges(files map[string]fileCov, dir, sha, runID, verdict string, now time.Time) error {
+	if _, _, err := verdictBand(verdict); err != nil {
+		return err
+	}
 	covered, total := overallCov(files)
 	if total == 0 {
 		return fmt.Errorf("empty profile, no statements counted")
@@ -57,8 +80,9 @@ func writeBadges(files map[string]fileCov, dir, sha, runID string, now time.Time
 		SchemaVersion: 1,
 		Sha:           sha,
 		RunId:         runID,
-		Global:        global,
-		Core:          core,
+		Verdict:       verdict,
+		Global:        &global,
+		Core:          &core,
 		Timestamp:     now.UTC().Format(time.RFC3339),
 	})
 	if err != nil {
@@ -86,17 +110,52 @@ func writeBadges(files map[string]fileCov, dir, sha, runID string, now time.Time
 			return err
 		}
 	}
-	return writeBadgeFile(filepath.Join(dir, "source.json"), string(src))
+	return writeBadgeFiles(dir, verdict, string(src))
+}
+
+func writeVerdict(dir, sha, runID, verdict string, now time.Time) error {
+	if _, _, err := verdictBand(verdict); err != nil {
+		return err
+	}
+	src, err := json.Marshal(badgeSource{
+		SchemaVersion: 1,
+		Sha:           sha,
+		RunId:         runID,
+		Verdict:       verdict,
+		Timestamp:     now.UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	return writeBadgeFiles(dir, verdict, string(src))
+}
+
+func writeBadgeFiles(dir, verdict, src string) error {
+	svg, err := ciBadgeSVG(verdict)
+	if err != nil {
+		return err
+	}
+	if err := writeBadgeFile(filepath.Join(dir, "ci.svg"), svg); err != nil {
+		return err
+	}
+	return writeBadgeFile(filepath.Join(dir, "source.json"), src)
 }
 
 func writeBadgeFile(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
-func badgesCmd(profile, dir, sha, runID string, now time.Time) error {
+func badgesCmd(profile, dir, sha, runID, verdict string, now time.Time) error {
 	files, err := readProfile(profile)
 	if err != nil {
 		return err
 	}
-	return writeBadges(files, dir, sha, runID, now)
+	return writeBadges(files, dir, sha, runID, verdict, now)
+}
+
+func verdictCmd(verdict, dir, sha, runID string, now time.Time) error {
+	return writeVerdict(dir, sha, runID, verdict, now)
 }

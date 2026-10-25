@@ -278,6 +278,10 @@ const (
 	BadgeCoverageCoreGoodMin    = 100.0
 	BadgeCoverageCoreWarnMin    = 100.0
 )
+const (
+	VerdictPassed = "passed"
+	VerdictFailed = "failed"
+)
 
 var CorePackages = [...]string{"internal/rules", "internal/engine", "internal/clock"}
 
