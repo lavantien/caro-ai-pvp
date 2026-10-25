@@ -50,7 +50,8 @@ function stoneCount() { return $('board').querySelectorAll('.stone').length; }
 function status(msg, err) {
 	var el = $('room-status');
 	el.textContent = msg;
-	el.classList.toggle('err', Boolean(err));
+	el.classList.toggle('status', !err);
+	el.classList.toggle('error', Boolean(err));
 }
 
 function fmtClock(ms) {

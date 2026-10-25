@@ -80,7 +80,9 @@ Values finer than `--space-1` (card line gaps, control metrics) stay literal in 
 
 ## Components
 
-Card: `.card` is the one flat card recipe: surface fill, border, `--radius-m`, grid, tight gap, `--space-2 --space-3` padding. `.room`, `.hrow`, `.tourney-run`, and `.livecard` share the recipe through the selector list and keep only their layout extras (margins, link resets, mini board) in their own rules. The card grid makes every direct child its own row: a room card stacks its title row, its chips row, its players versus row, and its series score row in that order, the players line never rides the chips row and the score never renders as an orphan.
+Card: `.card` is the one flat card recipe: surface fill, border, `--radius-m`, grid, tight gap, `--space-2 --space-3` padding. `.room`, `.hrow`, `.tourney-run`, `.livecard`, and `.error` share the recipe through the selector list and keep only their layout extras (margins, link resets, mini board) in their own rules. The card grid makes every direct child its own row: a room card stacks its title row, its chips row, its players versus row, and its series score row in that order, the players line never rides the chips row and the score never renders as an orphan.
+
+Error: `.error` is the one error region, the offline banner's card shape carrying the error state: the card recipe with the boundary recolored `--danger` and the ink `--danger` at `--text-xl` weight 600. Every user-facing failure renders through it, login and create form errors, lobby join errors, tournament setup and close errors, the room action status failures, and the not-found page, and it never appears as bare colored text again.
 
 Chip: `.chip` is the small tag label: a `--text-muted` boundary (the boundary carries the state, so it clears the meaningful-boundary 3:1 instead of the decorative hairline floor), `--radius-s`, `--text-base` at padded density. `.chip.live` fills with `--accent-soft` and keeps its boundary: the live state reads as tint, terminal states as outline.
 

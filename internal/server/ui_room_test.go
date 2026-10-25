@@ -1627,3 +1627,65 @@ func TestHexBoardChromeMatchesTheSquareLattice(t *testing.T) {
 		}
 	}
 }
+
+func TestErrorComponentMatchesOfflineBannerStyle(t *testing.T) {
+	css, err := os.ReadFile(`web/shell.css`)
+	if err != nil {
+		t.Fatalf(`read shell.css: %v`, err)
+	}
+	recipe := regexp.MustCompile(`(?m)^\.card, \.room, [^{]*\.error \{[^}]*\}`).Find(css)
+	if recipe == nil {
+		t.Fatal(`shell.css must carry .error in the card recipe selector list`)
+	}
+	for _, want := range []string{`border-radius:\s*var\(--radius-m\)`, `padding: var\(--space-2\) var\(--space-3\)`, `background: var\(--surface\)`} {
+		if !regexp.MustCompile(want).Match(recipe) {
+			t.Errorf(`the error card must share the offline banner recipe at %s, got %s`, want, recipe)
+		}
+	}
+	rule := regexp.MustCompile(`(?m)^\.error \{[^}]*\}`).Find(css)
+	if rule == nil {
+		t.Fatal(`shell.css loses the .error rule`)
+	}
+	for _, want := range []string{`color:\s*var\(--danger\)`, `border-color:\s*var\(--danger\)`} {
+		if !regexp.MustCompile(want).Match(rule) {
+			t.Errorf(`.error must carry %s, got %s`, want, rule)
+		}
+	}
+}
+
+func TestRoomStatusFailureAppliesErrorComponent(t *testing.T) {
+	src, err := fs.ReadFile(staticFS, `room.js`)
+	if err != nil {
+		t.Fatalf(`read room.js: %v`, err)
+	}
+	want := `classList.toggle('error', Boolean(err))`
+	if !strings.Contains(string(src), want) {
+		t.Errorf(`room.js must toggle the shared error component class, want %s`, want)
+	}
+	tmpl, err := os.ReadFile(`web/templates/room.html`)
+	if err != nil {
+		t.Fatalf(`read room.html: %v`, err)
+	}
+	if strings.Contains(string(tmpl), `#room-status.err`) {
+		t.Error(`room.html still carries the local error styling instead of the shared component`)
+	}
+}
+
+func TestPageNotFoundRendersOfflineBannerStyle(t *testing.T) {
+	s := newStack(t)
+	srv := newPageServer(t, s)
+	status, body := getRoomPage(t, srv, `/rooms/doesnotexist1234567890abcdefab`, ``)
+	if status != http.StatusNotFound {
+		t.Fatalf(`missing room: status = %d, want 404`, status)
+	}
+	for _, want := range []string{
+		`<link rel=` + string(rune(34)) + `stylesheet` + string(rune(34)) + ` href=` + string(rune(34)) + `/shell.css` + string(rune(34)) + `>`,
+		`class=` + string(rune(34)) + `card` + string(rune(34)),
+		`class=` + string(rune(34)) + `error` + string(rune(34)),
+		`href=` + string(rune(34)) + `/` + string(rune(34)) + `>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf(`the 404 page misses %q`, want)
+		}
+	}
+}

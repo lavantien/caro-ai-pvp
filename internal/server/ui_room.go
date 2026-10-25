@@ -591,8 +591,20 @@ func writeHTML(w http.ResponseWriter, status int, body []byte) {
 
 const pageNotFoundHTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>caro: not found</title></head>
-<body><h1>not found</h1><p>no such live room or playable game.<br><a href="/">home</a></p></body></html>
+<title>caro: not found</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/shell.css">
+<style>body { max-width: 36rem } main { margin-top: var(--space-5) }
+h1 { font-size: var(--text-xl); margin: 0 0 var(--space-2) } p { margin: var(--space-2) 0 }</style>
+</head>
+<body>
+<main class="card">
+<h1>not found</h1>
+<p class="error">no such live room or playable game.</p>
+<p><a href="/">go back to caro</a></p>
+</main>
+</body>
+</html>
 `
 
 func writePageNotFound(w http.ResponseWriter) {
