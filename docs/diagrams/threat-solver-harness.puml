@@ -1,0 +1,14 @@
+@startuml threat-solver-harness
+!include common.iuml
+start
+:VCF / VCT threat-space search\nFAIL-only memo, deadline-driven;
+:claimed win + line\nbrute-force alpha-beta oracle\nnaive array board, shared code: none;
+if (oracle verdict?) then (win verifies)
+  :pass;
+elseif (refuted) then
+  #F8DFE6:defect: soundness broken;
+else (refutation only)
+  :ignored: soundness-only criterion;
+endif
+stop
+@enduml

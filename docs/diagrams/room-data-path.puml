@@ -1,0 +1,18 @@
+@startuml room-data-path
+!include common.iuml
+start
+:players / bot worker: PlayMove;
+:room + match driver\nboard, clocks, series machine;
+fork
+  :games, rating events, series updates;
+  :single-writer mutation queue\nblocks, never drops;
+  :game end: per-match rating law;
+  :SQLite WAL\nforward-only migrations;
+  stop
+fork again
+  :move, M-line, gameend events;
+  :pub-sub hub\nper-subscriber buffers, slow subscribers evicted;
+  :guests and players via SSE;
+  stop
+end fork
+@enduml

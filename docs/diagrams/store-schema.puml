@@ -1,0 +1,28 @@
+@startuml store-schema
+!include common.iuml
+database "users\nargon2id, seeded admin and bot seats" as users
+database "sessions" as sessions
+database "series" as series
+database "games\nmoves blob, outcome, bot seat" as games
+database "game_stats\nrendered m-line per move" as game_stats
+database "rating_events\ndecay-scaled deltas" as rating_events
+database "tournament_runs\ntc, bo, label, drive lease" as tournament_runs
+database "tournament_participants\nslot, name, tier" as tournament_participants
+database "tournament_series\npairing slots, wins" as tournament_series
+database "tournament_games\nmoves blob, outcome, seats" as tournament_games
+database "tournament_standings\nfrozen at finish" as tournament_standings
+database "tournament_game_stats v11\nmover red or blue, move, depth, nodes, nps,\nebf_milli, tt, hf, fh1 permilles, score,\nthreads, elapsed_ns, alloc_ns, tag,\npv space-joined text" as tournament_game_stats
+sessions --> users : user_id
+series --> users : red_user, blue_user
+games --> series : series_id
+game_stats --> games : game_id
+rating_events --> games : game_id
+rating_events --> users : user_id
+tournament_participants --> tournament_runs : run_id
+tournament_series --> tournament_runs : run_id
+tournament_series --> tournament_participants : red_first_slot, blue_first_slot
+tournament_games --> tournament_series : series_id
+tournament_games --> tournament_participants : red_slot, blue_slot
+tournament_standings --> tournament_participants : run_id, slot
+tournament_game_stats --> tournament_games : tournament_game_id, move_no
+@enduml

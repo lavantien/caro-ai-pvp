@@ -1,0 +1,22 @@
+@startuml tournament-conductor
+!include common.iuml
+start
+:setup page or caro tourney driver: startRun\ngate + persist schedule -> conductor;
+if (ongoing run row or over-budget cores?) then (yes)
+  :refuse: close or reconfigure;
+  stop
+endif
+:dispatch: TournamentParallel semaphore;
+fork
+  :room 1: CreateBotVsBot\nsubscribe, then drive;
+fork again
+  :room 2;
+end fork
+:move, mline, gameend, series events -> recorder;
+:gameend: delivered moves vs room truth\nmismatch fails the run;
+:tournament tables, schema v3;
+:every mline -> per-series txt log;
+:series event: settle, cross-check the room verdict;
+:all settled -> FinishRun: frozen standings snapshot;
+stop
+@enduml

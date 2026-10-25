@@ -1,0 +1,36 @@
+@startuml search-pipeline
+!include common.iuml
+start
+:search entry: fallback move precomputed;
+repeat
+  if (stopped or hard deadline?) then (yes)
+    :answer: best of last completed iteration;
+    stop
+  endif
+  if (soft stop: elapsed over 65% of grant?\nno clock reading counts as 1 16ms tick) then (yes)
+    :answer: best of last completed iteration;
+    stop
+  endif
+  :searchRoot: PVS over root moves;
+  repeat
+    :negamax: fail-soft alpha-beta;
+    if (TT probe: exact, lower, or upper cutoff?) then (cutoff)
+      :return stored score;
+    else (miss)
+      :movegen: ring candidates ordered by\nTT move, killers, threat score, history;
+      if (opponent holds a four and\nextension budget remains?) then (yes)
+        :extend depth by 1;
+      endif
+      :recurse scout window, re-search on fail-high;
+      :TT store with mate ply adjustment;
+    endif
+  repeat while (plies remain?) is (yes)
+  -> no;
+  if (mate score found?) then (yes)
+    :answer: best of last completed iteration;
+    stop
+  endif
+repeat while (depth 1..max) is (next)
+-> max;
+stop
+@enduml

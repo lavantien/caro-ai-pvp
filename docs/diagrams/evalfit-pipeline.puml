@@ -1,0 +1,21 @@
+@startuml evalfit-pipeline
+!include common.iuml
+start
+:sqlite tournament_games\njoined to participants for seat tiers\nmoves blob: little-endian uint16 cells;
+:decode\ncolors alternate from red;
+:replay with integrity checks\nwinner holds the final line, draws end full,\nover 2% rejected games aborts the fit;
+:side-to-move positions ->\nwindow-class histogram features\ninternal/pattern classes 1-5, class 0 pinned,\nown minus opp counts;
+:series-level 90/10 split\ntrain series, val series;
+:monotone-chain gradient descent\ncumulative exp increments keep weights increasing;
+if (differential evolution cross-check?\ngd must not lose beyond 2%) then (fail)
+  #F8DFE6:abort, no artifact;
+  stop
+endif
+:artifact file\nmachine-readable weights and scale lines;
+if (arena gate?) then (pass)
+  :config hub PatternClassWeights swap;
+else (fail)
+  :weights stay unshipped;
+endif
+stop
+@enduml

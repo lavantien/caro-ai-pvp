@@ -1,0 +1,21 @@
+@startuml move-stats
+!include common.iuml
+start
+:engine search\nSearchStats: depth, nodes, nps, ebf_milli,\ntt, hf, fh1 permilles, score, threads,\nelapsed_ns, alloc_ns, pv;
+:room: MoveStat capture\nmove number, side, move, tag\ncaptured before the M-line renders;
+:1 lossless record, no reparse\nM-line render: BotLogFormat text;
+:hub event: payload string + stat pointer;
+fork
+  :rendered payload as mline events;
+  :room SSE stream\nbot M-line log;
+  stop
+fork again
+  :rendered payload as series lines;
+  :per-series text log;
+  stop
+fork again
+  :structured stat buffered per game\n1 row per move, same transaction\nas the game row;
+  :tournament_game_stats\nschema v11;
+  stop
+end fork
+@enduml
