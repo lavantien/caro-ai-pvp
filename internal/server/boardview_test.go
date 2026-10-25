@@ -166,11 +166,16 @@ func TestMiniHexBoardStaysLegibleAtCaptureScale(t *testing.T) {
 	for _, want := range []string{
 		`.board.mini.hex .cell polygon { fill: none; stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke }`,
 		`.board.mini.hex .cell circle.stone.latest { stroke-width: 1.5; vector-effect: non-scaling-stroke }`,
-		`.board.mini.hex .cell text.glyph { display: none }`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("mini hex legibility rule missing: %s", want)
 		}
+	}
+	if strings.Contains(body, `text.glyph { display: none }`) {
+		t.Error("mini hex css hides the stone glyphs, want every hex render path to carry them")
+	}
+	if n := strings.Count(body, `<text class="glyph"`); n == 0 {
+		t.Error("mini hex board markup loses the glyph text nodes")
 	}
 }
 
