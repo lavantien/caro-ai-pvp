@@ -12,26 +12,26 @@ The v0.27 install surface: the web app manifest, the service worker, the offline
 | `/static/pwa.js` | `internal/server/web/static/pwa.js` | static mount, day cache |
 | `/static/icons/*.png` | `internal/server/web/static/icons/` | static mount, day cache |
 
-The worker sits at the root, so its scope covers the whole site with no `Service-Worker-Allowed` header. `theme_color` and `background_color` are `#f9e8f1`, the `--background` anchor of docs/design-system.md; they change together, and the pwa tests derive the expected color from shell.css's `--background`, so a drifted manifest or meta fails the suite. Every page head (base.tmpl, room.html, playback.html) carries the manifest link, the theme-color meta, the apple touch icon and meta set, and `/static/pwa.js` deferred.
+The worker sits at the root, so its scope covers the whole site with no `Service-Worker-Allowed` header. `theme_color` and `background_color` are `#f9e8f1`, the `--background` anchor of docs/design-system.md. They change together. The pwa tests derive the expected color from shell.css's `--background`, so a drifted manifest or meta fails the suite. Every page head (base.tmpl, room.html, playback.html) carries the manifest link, the theme-color meta, the apple touch icon and meta set, and `/static/pwa.js` deferred.
 
 ## The boundary law
 
-The worker holds an explicit `const ASSETS` allowlist and answers exactly two kinds of requests:
+The worker holds an explicit `const ASSETS` allowlist and answers exactly 2 kinds of requests:
 
 1. Exact pathname matches on the allowlist, cache-first with a network fallback: shell.css, the vendored htmx and hx-sse scripts, room.js, playback.js, favicon.svg, the icons, offline.html. A cache miss (a query-string variant, a non-GET request, an evicted entry) falls back to `fetch(e.request)` instead of answering a network error.
 2. Document navigations, network-first, falling back to the cached `/offline.html` when the fetch itself fails, and to a fresh network fetch of the offline page when even the cached copy is gone.
 
-Everything else passes through with no `respondWith` at all. In particular the worker never answers anything under `/api/`, which carries the JSON endpoints and the room SSE event streams (`/api/rooms/{id}/events`), and it never answers a room or tournament page: those are live state, the network is their only source. `ui_pwa_test.go` pins this textually: the `/api/` pass-through guard must precede every `e.respondWith(` in the served source, and the worker must carry exactly the two intended calls.
+Everything else passes through with no `respondWith` at all. The worker never answers anything under `/api/`, which carries the JSON endpoints and the room SSE event streams (`/api/rooms/{id}/events`). It never answers a room or tournament page. Those are live state, the network is their only source. `ui_pwa_test.go` pins this textually: the `/api/` pass-through guard must precede every `e.respondWith(` in the served source, and the worker must carry exactly the 2 intended calls.
 
 Never cached, by design: any `/api/` response, any SSE stream, every room (`/rooms/{id}`), playback, history, tournament, login, or home document (navigations are network-first, and the offline page is the only offline answer), `/static/pwa.js` itself, and the manifest.
 
 ## Cache bump law
 
-The cache name is `caro-static-v17`. Bump the version in `sw.js` whenever any allowlisted asset changes content under the same URL (a shell.css token edit, a re-vendored htmx, a regenerated icon). The activate step drops every cache whose name is not the current one, so the bump is the whole migration. The precache wraps every asset in `new Request(u, {cache: 'reload'})`: a bumped cache pulls fresh bytes past the browser's day-long HTTP cache for `/static` instead of baking stale ones in.
+The cache name is `caro-static-v17`. Bump the version in `sw.js` whenever any allowlisted asset changes content under the same URL (a shell.css token edit, a re-vendored htmx, a regenerated icon). The activate step drops every cache with a different name, so the bump is the whole migration. The precache wraps every asset in `new Request(u, {cache: 'reload'})`: a bumped cache pulls fresh bytes past the browser's day cache for `/static` instead of caching stale bytes.
 
 ## Icons
 
-`playground/icongen` regenerates the four committed PNG files (stdlib only), rasterizing the favicon.svg geometry with 4x supersampling:
+`playground/icongen` regenerates the 4 committed PNG files (stdlib only). It rasterizes the favicon.svg geometry with 4x supersampling:
 
 | file | size | law |
 | --- | --- | --- |
@@ -43,4 +43,4 @@ The background fill is opaque in every icon, so launcher masks crop onto the pag
 
 ## Registration and install action
 
-`/static/pwa.js` registers `/sw.js`, captures `beforeinstallprompt`, and surfaces the hidden `#install-btn` (a `.btn-quiet` in the base header nav) only when the browser offers the prompt; inside an installed display mode the button stays hidden. The standalone room and playback pages register the worker too but carry no button.
+`/static/pwa.js` registers `/sw.js`, captures `beforeinstallprompt`, and surfaces the hidden `#install-btn` (a `.btn-quiet` in the base header nav) only when the browser offers the prompt. Inside an installed display mode the button stays hidden. The standalone room and playback pages register the worker too but carry no button.

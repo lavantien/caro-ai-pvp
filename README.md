@@ -39,7 +39,7 @@ The engine tiers differ in thread count, transposition size, solver capabilities
 | master | 6 | 768 MiB | yes | yes | yes (8 plies) | yes (4 thr) |
 | grandmaster | 8 | 2 GiB | yes | yes | yes (16 plies) | yes (8 thr) |
 
-Every tier always runs at its full shape: demand beyond the machine's core or memory budget waits or fails loudly, never a shrunken engine. A bot room books the peak of a seat's search cores plus the opponent's ponder width, and the tournament's worst-case transposition footprint stays inside the machine memory cap. Room creation reads the machine's available physical memory and rejects with a plain server-resources-full failure when it cannot fund the room's engines.
+Every tier always runs at full capacity. A request beyond the machine's core or memory budget waits or fails with a clear error. A bot room books the peak of a seat's search cores plus the opponent's ponder width. The tournament's worst-case transposition footprint stays inside the machine memory cap. Room creation reads the machine's available physical memory and rejects with a plain server-resources-full failure when it cannot fund the room's engines.
 
 A series log opens with the pairing and 1 M-line per bot move, closes each game with its verdict and the series with its tally. Real lines from a 10+5 hard-tier series, with the `[BOOK]` and `[PONDER]` lines illustrative:
 
@@ -231,7 +231,7 @@ The pure client functions (tap-to-preview selection, the M-line UI filter) ship 
 
 ## status
 
-What ships today:
+Implemented:
 
 - the 5-tier engine: fail-soft PVS over lazy SMP, VCF and VCT threat solvers with the brute-force soundness oracle in CI, pondering at each tier's width behind the 4-clause adoption gate, and the increment-safe clock over the 4 time controls
 - the CAROBOOK1 book reader and searcher wiring, with the fixed-budget tree-expansion builder
