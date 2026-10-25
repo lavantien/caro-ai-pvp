@@ -38,8 +38,9 @@ hex-passgates: detached hex master pass gate chain, master vs each lower tier
   every engine invocation runs under GOMEMLIMIT $MemLimit
   relaunching resumes: DONE arms skip, FAILED arms re-mark their failure,
         pending arms run; an arm whose arena is already live is adopted and
-        waited on, never double-launched; a failed arena build is a loud
-        failure, never a loop
+        waited on, never double-launched; adopted and dead-predecessor arms
+        merge their redirected output into the arm log before the verdict
+        check; a failed arena build is a loud failure, never a loop
 '@
 
 if ($Help) { Write-Output $usage; exit 0 }
@@ -114,6 +115,14 @@ function Ensure-Arena([string]$pollLog) {
 	return $true
 }
 
+function Merge-ArmLog([string]$name) {
+	$log = Convert-ToRepoPath "$OutRoot/$name.log"
+	$raw = "$log.raw"
+	$err = "$log.err"
+	if (Test-Path $raw) { Add-Content -Path $log -Value (Get-Content $raw); Remove-Item $raw -Force -Confirm:$false }
+	if (Test-Path $err) { Add-Content -Path $log -Value (Get-Content $err); Remove-Item $err -Force -Confirm:$false }
+}
+
 function Invoke-Arm($arm, $pollLog) {
 	$log = Convert-ToRepoPath "$OutRoot/$($arm.Name).log"
 	New-Item -ItemType Directory -Force (Split-Path $log -Parent) | Out-Null
@@ -123,15 +132,22 @@ function Invoke-Arm($arm, $pollLog) {
 		Write-Host "arm $($arm.Name) adopting live arena pid $($live.ProcessId), waiting"
 		"$(Get-Date -Format s) arm $($arm.Name) adopt pid $($live.ProcessId)" | Add-Content -Path $pollLog
 		try { Wait-Process -Id $live.ProcessId -ErrorAction Stop } catch {}
+		Merge-ArmLog $arm.Name
+		Add-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) adopted"
 	} else {
+		Merge-ArmLog $arm.Name
+		$verdict = Get-ArmVerdict $arm.Name
+		if ($null -ne $verdict) {
+			if (Test-ArmDone $arm.Name) { Write-Host "arm $($arm.Name) complete via harvested log"; return $null }
+			return "failed $($arm.Name) $verdict"
+		}
 		if (-not (Ensure-Arena $pollLog)) { return "failed build $target" }
 		$raw = "$log.raw"
 		$err = "$log.err"
 		Set-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) start: bin\arena-freeze.exe $argText"
 		Write-Host "arm $($arm.Name) start, log $log"
 		$p = Start-Process -FilePath $arenaFreeze -ArgumentList $arm.Args -WorkingDirectory $repo -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $raw -RedirectStandardError $err
-		if (Test-Path $raw) { Add-Content -Path $log -Value (Get-Content $raw); Remove-Item $raw -Force -Confirm:$false }
-		if (Test-Path $err) { Add-Content -Path $log -Value (Get-Content $err); Remove-Item $err -Force -Confirm:$false }
+		Merge-ArmLog $arm.Name
 		Add-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) exit $($p.ExitCode)"
 		if ($p.ExitCode -ne 0) {
 			Write-Host "arm $($arm.Name) exited $($p.ExitCode), see $log"
@@ -172,6 +188,9 @@ if (-not $Foreground) {
 	Write-Output "hex-passgates detached, logs under $OutRoot"
 	exit 0
 }
+
+$twins = Get-CimInstance Win32_Process -Filter "Name = 'pwsh.exe'" | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.Contains($PSCommandPath) -and $_.CommandLine.Contains('-Foreground') }
+if ($twins) { Write-Output "hex-passgates: foreground instance already live, exiting"; exit 3 }
 
 $predStatus = Convert-ToRepoPath "$OutRoot/$Predecessor.status"
 $pollLog = Convert-ToRepoPath "$OutRoot/$target.poll.log"
