@@ -123,6 +123,12 @@ func registerGoTargets() {
 	register("cover-pcts", func(r *runner, v vars) ([]step, error) {
 		return []step{goStep("cover-pcts", "run", "./cmd/covergate", "-pcts", "coverage.out")}, nil
 	})
+	register("cover-badges", func(r *runner, v vars) ([]step, error) {
+		if !v.has("SHA") || !v.has("RUN_ID") {
+			return nil, fmt.Errorf("run: cover-badges needs SHA= and RUN_ID= provenance vars")
+		}
+		return []step{goStep("cover-badges", "run", "./cmd/covergate", "-badges", "coverage.out", v.get("OUT", "."), v["SHA"], v["RUN_ID"])}, nil
+	})
 	register("bench", func(r *runner, v vars) ([]step, error) {
 		return []step{goStep("bench", "test", "-run=^$", "-bench=.", "-benchmem", "./...")}, nil
 	})
