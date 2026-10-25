@@ -51,20 +51,40 @@ func TestCoverTarget(t *testing.T) {
 }
 
 func TestCoverBadgesTarget(t *testing.T) {
-	steps := specs(t, "cover-badges", vars{"SHA": "abc123", "RUN_ID": "42", "OUT": "badges"})
-	want := []string{"run", "./cmd/covergate", "-badges", "coverage.out", "badges", "abc123", "42"}
+	steps := specs(t, "cover-badges", vars{"SHA": "abc123", "RUN_ID": "42", "VERDICT": "failed", "OUT": "badges"})
+	want := []string{"run", "./cmd/covergate", "-badges", "coverage.out", "badges", "abc123", "42", "failed"}
 	if steps[0].path != "go" || !reflect.DeepEqual(steps[0].args, want) {
 		t.Fatalf("cover-badges = %v %v", steps[0].path, steps[0].args)
 	}
-	steps = specs(t, "cover-badges", vars{"SHA": "abc123", "RUN_ID": "42"})
-	if !reflect.DeepEqual(steps[0].args, []string{"run", "./cmd/covergate", "-badges", "coverage.out", ".", "abc123", "42"}) {
+	steps = specs(t, "cover-badges", vars{"SHA": "abc123", "RUN_ID": "42", "VERDICT": "passed"})
+	if !reflect.DeepEqual(steps[0].args, []string{"run", "./cmd/covergate", "-badges", "coverage.out", ".", "abc123", "42", "passed"}) {
 		t.Fatalf("cover-badges default out = %v", steps[0].args)
 	}
-	if _, err := buildSteps("cover-badges", testRunner(), vars{"SHA": "abc123"}); err == nil {
-		t.Fatal("cover-badges built without RUN_ID")
+	for _, missing := range []string{"RUN_ID", "SHA", "VERDICT"} {
+		v := vars{"SHA": "abc123", "RUN_ID": "42", "VERDICT": "passed"}
+		delete(v, missing)
+		if _, err := buildSteps("cover-badges", testRunner(), v); err == nil {
+			t.Fatalf("cover-badges built without %s", missing)
+		}
 	}
-	if _, err := buildSteps("cover-badges", testRunner(), vars{"RUN_ID": "42"}); err == nil {
-		t.Fatal("cover-badges built without SHA")
+}
+
+func TestCoverVerdictTarget(t *testing.T) {
+	steps := specs(t, "cover-verdict", vars{"VERDICT": "failed", "SHA": "abc123", "RUN_ID": "42", "OUT": "b"})
+	want := []string{"run", "./cmd/covergate", "-verdict", "failed", "b", "abc123", "42"}
+	if steps[0].path != "go" || !reflect.DeepEqual(steps[0].args, want) {
+		t.Fatalf("cover-verdict = %v %v", steps[0].path, steps[0].args)
+	}
+	steps = specs(t, "cover-verdict", vars{"VERDICT": "passed", "SHA": "abc123", "RUN_ID": "42"})
+	if !reflect.DeepEqual(steps[0].args, []string{"run", "./cmd/covergate", "-verdict", "passed", ".", "abc123", "42"}) {
+		t.Fatalf("cover-verdict default out = %v", steps[0].args)
+	}
+	for _, missing := range []string{"RUN_ID", "SHA", "VERDICT"} {
+		v := vars{"SHA": "abc123", "RUN_ID": "42", "VERDICT": "passed"}
+		delete(v, missing)
+		if _, err := buildSteps("cover-verdict", testRunner(), v); err == nil {
+			t.Fatalf("cover-verdict built without %s", missing)
+		}
 	}
 }
 
@@ -448,7 +468,7 @@ func TestChildEnvOverrides(t *testing.T) {
 func TestRunnerTargetSurface(t *testing.T) {
 	want := map[string]bool{
 		"all": true, "build": true, "lint": true, "vet": true, "test": true,
-		"test-race": true, "test-pkg": true, "cover": true, "cover-pcts": true, "cover-badges": true, "bench": true,
+		"test-race": true, "test-pkg": true, "cover": true, "cover-pcts": true, "cover-badges": true, "cover-verdict": true, "bench": true,
 		"tidy": true, "run": true, "migrate": true, "serve": true, "firewall": true,
 		"contrast": true, "icons": true, "shots": true, "playground-modules": true, "evalfit-test": true,
 		"arena-test": true, "bookgen-build": true, "bookgen": true, "booktree": true, "bookgen-test": true,

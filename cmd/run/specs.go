@@ -124,10 +124,16 @@ func registerGoTargets() {
 		return []step{goStep("cover-pcts", "run", "./cmd/covergate", "-pcts", "coverage.out")}, nil
 	})
 	register("cover-badges", func(r *runner, v vars) ([]step, error) {
-		if !v.has("SHA") || !v.has("RUN_ID") {
-			return nil, fmt.Errorf("run: cover-badges needs SHA= and RUN_ID= provenance vars")
+		if !v.has("SHA") || !v.has("RUN_ID") || !v.has("VERDICT") {
+			return nil, fmt.Errorf("run: cover-badges needs SHA=, RUN_ID= and VERDICT= provenance vars")
 		}
-		return []step{goStep("cover-badges", "run", "./cmd/covergate", "-badges", "coverage.out", v.get("OUT", "."), v["SHA"], v["RUN_ID"])}, nil
+		return []step{goStep("cover-badges", "run", "./cmd/covergate", "-badges", "coverage.out", v.get("OUT", "."), v["SHA"], v["RUN_ID"], v["VERDICT"])}, nil
+	})
+	register("cover-verdict", func(r *runner, v vars) ([]step, error) {
+		if !v.has("SHA") || !v.has("RUN_ID") || !v.has("VERDICT") {
+			return nil, fmt.Errorf("run: cover-verdict needs SHA=, RUN_ID= and VERDICT= provenance vars")
+		}
+		return []step{goStep("cover-verdict", "run", "./cmd/covergate", "-verdict", v["VERDICT"], v.get("OUT", "."), v["SHA"], v["RUN_ID"])}, nil
 	})
 	register("bench", func(r *runner, v vars) ([]step, error) {
 		return []step{goStep("bench", "test", "-run=^$", "-bench=.", "-benchmem", "./...")}, nil
