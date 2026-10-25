@@ -164,3 +164,29 @@ func TestStartRunBlockedByRealRun(t *testing.T) {
 		t.Errorf("start run err = %v, want block on 41", err)
 	}
 }
+
+func TestScriptedSnapshotsSetRealWinners(t *testing.T) {
+	tour := newScriptTourney(&stubRunSource{}, stubBoards{}, 41)
+	sn, err := tour.RunSnapshot(context.Background(), finishedRunID)
+	if err != nil {
+		t.Fatalf(`finished snapshot: %v`, err)
+	}
+	meets := finishedMeets()
+	if len(sn.Series) != len(meets) {
+		t.Fatalf(`series = %d, want %d`, len(sn.Series), len(meets))
+	}
+	for i, line := range sn.Series {
+		if !line.Finished || line.WinnerSlot == nil {
+			t.Fatalf(`series %d = %+v, want a finished series with a real winner`, i, line)
+		}
+		m := meets[i]
+		want := m.b
+		if m.redWins > m.blueWins {
+			want = m.a
+		}
+		if *line.WinnerSlot != want {
+			t.Errorf(`series %d winner = %d, want %d from the meet tally %d-%d`,
+				i, *line.WinnerSlot, want, m.redWins, m.blueWins)
+		}
+	}
+}

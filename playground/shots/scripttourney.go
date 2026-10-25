@@ -207,9 +207,14 @@ func (t *scriptTourney) finishedSnapshot() (server.TourneySnapshot, error) {
 		board[i] = server.TourneyStanding{Slot: i, Rating: ratings[i]}
 	}
 	for i, m := range finishedMeets() {
+		winner := m.b
+		if m.redWins > m.blueWins {
+			winner = m.a
+		}
 		series = append(series, server.TourneySeriesLine{
 			PairingSlot: i / 2, RedFirstSlot: m.a, BlueFirstSlot: m.b,
 			RedFirstWins: m.redWins, BlueFirstWins: m.blueWins, Finished: true,
+			WinnerSlot: &winner,
 		})
 		tallyMeet(&board[m.a], &board[m.b], m)
 	}
