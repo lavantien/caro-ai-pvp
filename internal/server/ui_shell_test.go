@@ -1394,3 +1394,34 @@ func TestVersusLinesWeightNamesOnly(t *testing.T) {
 		t.Error(`playback versus line must weight the names, plain vs`)
 	}
 }
+
+func TestShellRoomCardRowsSplitChipsPlayersScore(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	t.Cleanup(srv.Close)
+	alice, bob, r := newPvPRoom(t, s)
+	readyBoth(t, r, alice, bob)
+
+	status, _, body := doShell(t, srv.Client(), http.MethodGet, srv.URL+`/partials/rooms`, ``, nil)
+	if status != http.StatusOK {
+		t.Fatalf(`rooms partial: status = %d`, status)
+	}
+	for _, want := range []string{
+		`<span class="chip">ready</span></span><span class="who-vs" title="alice / bob">`,
+		`vs <span class="vname">bob</span></span><span class="score">0-0</span>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf(`room card rows miss %q`, want)
+		}
+	}
+	metaAt := strings.Index(body, `<span class="meta">`)
+	metaEnd := strings.Index(body[metaAt:], `</span></span><span class="who-vs`)
+	if metaAt < 0 || metaEnd < 0 || strings.Contains(body[metaAt:metaAt+metaEnd], ` vs `) {
+		t.Error(`the players line must ride its own row, not the chips row`)
+	}
+	scoreAt := strings.Index(body, `<span class="score">0-0</span>`)
+	vsAt := strings.Index(body, `<span class="who-vs" title="alice / bob">`)
+	if scoreAt < 0 || vsAt < 0 || scoreAt < vsAt || scoreAt-vsAt > 220 {
+		t.Errorf(`the series score must follow its versus row, gap %d`, scoreAt-vsAt)
+	}
+}
