@@ -84,23 +84,39 @@ func TestCreateBotVsBotValidation(t *testing.T) {
 		t.Errorf("grid after rejected creates = %d rooms, want 0", len(rooms))
 	}
 }
+func botSeatInstance(t *testing.T, name string) string {
+	t.Helper()
+	i := strings.LastIndexByte(name, '-')
+	if i < 0 {
+		t.Fatalf("bot name %q carries no instance suffix", name)
+	}
+	s := name[i+1:]
+	if !isRoomID(s) {
+		t.Fatalf("bot name %q carries suffix %q, want a fresh 32-hex instance id", name, s)
+	}
+	return s
+}
+
 func TestBotVsBotSeatNamesNeverCollide(t *testing.T) {
 	s := newStack(t)
 	named, err := s.rm.CreateBotVsBot(&config.TierEasy, "easy-a", &config.TierEasy, "easy-b", 0, config.SeriesBO3, "")
 	if err != nil {
 		t.Fatalf("create named same-tier: %v", err)
 	}
+	info, _ := named.Info()
+	if !strings.HasPrefix(info.HostBotName, "easy-a-") || !strings.HasPrefix(info.GuestBotName, "easy-b-") {
+		t.Errorf("named seat names = %q vs %q, want the roster identities under their own instance ids",
+			info.HostBotName, info.GuestBotName)
+	}
+	namedHost, namedGuest := botSeatInstance(t, info.HostBotName), botSeatInstance(t, info.GuestBotName)
+	if namedHost == namedGuest {
+		t.Errorf("named same-tier room seats one instance twice: %q", namedHost)
+	}
 	if b, ok := named.liveBotBoard(); !ok {
 		t.Fatal("named room has no live board")
-	} else if want := "easy-a-" + named.ID(); b.HostName != want {
-		t.Errorf("named host = %q, want %q", b.HostName, want)
-	} else if want := "easy-b-" + named.ID(); b.GuestName != want {
-		t.Errorf("named guest = %q, want %q", b.GuestName, want)
-	}
-	info, _ := named.Info()
-	if info.HostBotName != "easy-a-"+named.ID() || info.GuestBotName != "easy-b-"+named.ID() {
-		t.Errorf("info seat names = %q vs %q, want the roster identities stamped with the room id",
-			info.HostBotName, info.GuestBotName)
+	} else if b.HostName != info.HostBotName || b.GuestName != info.GuestBotName {
+		t.Errorf("named board names = %q vs %q, want the info names %q vs %q",
+			b.HostName, b.GuestName, info.HostBotName, info.GuestBotName)
 	}
 	unnamed, err := s.rm.CreateBotVsBot(&config.TierMedium, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {
@@ -108,10 +124,19 @@ func TestBotVsBotSeatNamesNeverCollide(t *testing.T) {
 	}
 	if b, ok := unnamed.liveBotBoard(); !ok {
 		t.Fatal("unnamed room has no live board")
-	} else if want := "medium-" + unnamed.ID(); b.HostName != want {
-		t.Errorf("unnamed host = %q, want %q", b.HostName, want)
-	} else if want := "medium-" + unnamed.ID() + "-2"; b.GuestName != want {
-		t.Errorf("unnamed guest = %q, want the colliding tier law plus -2 (%q)", b.GuestName, want)
+	} else if !strings.HasPrefix(b.HostName, "medium-") || !strings.HasPrefix(b.GuestName, "medium-") {
+		t.Errorf("unnamed seat names = %q vs %q, want the tier under each seat's own instance id",
+			b.HostName, b.GuestName)
+	} else {
+		unnamedHost, unnamedGuest := botSeatInstance(t, b.HostName), botSeatInstance(t, b.GuestName)
+		if unnamedHost == unnamedGuest {
+			t.Errorf("unnamed same-tier room seats one instance twice: %q", unnamedHost)
+		}
+		for _, inst := range []string{namedHost, namedGuest} {
+			if inst == unnamedHost || inst == unnamedGuest {
+				t.Errorf("a fresh mint reused instance %q across rooms", inst)
+			}
+		}
 	}
 	crossed, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {
@@ -119,10 +144,10 @@ func TestBotVsBotSeatNamesNeverCollide(t *testing.T) {
 	}
 	if b, ok := crossed.liveBotBoard(); !ok {
 		t.Fatal("cross-tier room has no live board")
-	} else if want := "easy-" + crossed.ID(); b.HostName != want {
-		t.Errorf("cross host = %q, want %q", b.HostName, want)
-	} else if want := "medium-" + crossed.ID(); b.GuestName != want {
-		t.Errorf("cross guest = %q, want %q (distinct tiers never take the suffix)", b.GuestName, want)
+	} else if !strings.HasPrefix(b.HostName, "easy-") || !strings.HasPrefix(b.GuestName, "medium-") {
+		t.Errorf("cross seat names = %q vs %q, want each tier under its own instance id", b.HostName, b.GuestName)
+	} else if host, guest := botSeatInstance(t, b.HostName), botSeatInstance(t, b.GuestName); host == guest {
+		t.Errorf("cross-tier room seats one instance twice: %q", host)
 	}
 }
 func TestCreateBotVsBotSeatingAndLiveGame(t *testing.T) {
@@ -297,7 +322,8 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("home: status = %d, want 200", status)
 	}
-	easyName, mediumName := botDisplayName("easy", r.ID()), botDisplayName("medium", r.ID())
+	info, _ := r.Info()
+	easyName, mediumName := info.HostBotName, info.GuestBotName
 	easyShort, mediumShort := botNameDisplay(easyName), botNameDisplay(mediumName)
 	if !strings.Contains(body, `title="`+easyName+` / `+mediumName+`">`+easyShort+` vs `+mediumShort) {
 		t.Errorf("home card misses %q under the full title", easyShort+" vs "+mediumShort)
@@ -369,9 +395,10 @@ func TestBotBoardsListLiveTournamentRooms(t *testing.T) {
 	if b.RoomID != r.ID() {
 		t.Fatalf("bot board room = %s, want %s", b.RoomID, r.ID())
 	}
-	if wantHost, wantGuest := botDisplayName(config.TierEasy.Name, r.ID()),
-		botDisplayName(config.TierMedium.Name, r.ID()); b.HostName != wantHost || b.GuestName != wantGuest {
-		t.Errorf("bot board names = %s vs %s, want %s vs %s", b.HostName, b.GuestName, wantHost, wantGuest)
+	boardInfo, _ := r.Info()
+	if b.HostName != boardInfo.HostBotName || b.GuestName != boardInfo.GuestBotName {
+		t.Errorf("bot board names = %s vs %s, want %s vs %s",
+			b.HostName, b.GuestName, boardInfo.HostBotName, boardInfo.GuestBotName)
 	}
 	if len(b.Moves) != 0 {
 		t.Errorf("gated bot board moves = %v, want the fresh game", b.Moves)

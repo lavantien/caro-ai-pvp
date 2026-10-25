@@ -267,7 +267,6 @@ func TestBotNameDisplayTrimsTheRoomIDSuffix(t *testing.T) {
 	rows := []struct{ in, want string }{
 		{"easy-" + id, "easy-" + shortID(id)},
 		{"easy-a-" + id, "easy-a-" + shortID(id)},
-		{"easy-b-" + id + "-2", "easy-b-" + shortID(id) + "-2"},
 		{"alice", "alice"},
 		{"easy-1a2b3c4d", "easy-1a2b3c4d"},
 		{"easy-2", "easy-2"},
@@ -308,16 +307,20 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("guest home: status = %d", status)
 	}
-	short := shortID(botRoom.ID())
+	info, _ := botRoom.Info()
+	hostFull, guestFull := info.HostBotName, info.GuestBotName
+	if botSeatInstance(t, hostFull) == botSeatInstance(t, guestFull) {
+		t.Errorf("bot room seats one instance twice: %q vs %q", hostFull, guestFull)
+	}
 	wantShellBody(t, body,
 		`id="rooms"`, `href="/rooms/`+room.ID()+`"`,
 		`href="/rooms/`+ghostRoom.ID()+`"`, "#777 vs open seat",
-		`title="easy-a-`+botRoom.ID()+` / easy-b-`+botRoom.ID()+`">easy-a-`+short+` vs easy-b-`+short,
+		`title="`+hostFull+` / `+guestFull+`">`+botNameDisplay(hostFull)+` vs `+botNameDisplay(guestFull),
 		"2&#43;1", "bo5", "created", "alice vs open seat",
 		`class="guestnote"`, `href="/login"`,
 	)
-	if strings.Contains(body, ">easy-a-"+botRoom.ID()+" vs ") {
-		t.Error("home card renders the full 32-char room id as visible text")
+	if strings.Contains(body, ">"+hostFull+" vs ") {
+		t.Error("home card renders the full 32-char instance id as visible text")
 	}
 	for _, banned := range []string{`class="me"`, `action="/rooms"`, `action="/logout"`, "W-0L-0D"} {
 		if strings.Contains(body, banned) {

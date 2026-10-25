@@ -113,6 +113,8 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve bot seat: %v", err)
 	}
+	botInfo, _ := r.Info()
+	botName := botInfo.GuestBotName
 	injectPerGameBot(t, r, botLoseScripts)
 	sub, err := r.Subscribe()
 	if err != nil {
@@ -185,7 +187,6 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 		t.Fatalf("history rows = %d, want 2", len(rows))
 	}
 	g2, g1 := rows[0], rows[1]
-	botName := botDisplayName(config.TierEasy.Name, r.ID())
 	if g1.Red != "alice" || g1.Blue != botName || g1.RedWins != 1 || g1.BlueWins != 0 {
 		t.Errorf("game 1 row = %s vs %s %d-%d, want alice over %s at 1-0",
 			g1.Red, g1.Blue, g1.RedWins, g1.BlueWins, botName)
@@ -395,6 +396,8 @@ func TestPlaybackBotGameOpensForTheHumanSeat(t *testing.T) {
 	s := newStack(t)
 	srv := newPageServer(t, s)
 	alice, r := botRoom(t, s, config.TierEasy)
+	botInfo, _ := r.Info()
+	botName := botInfo.GuestBotName
 	injectPerGameBot(t, r, botLoseScripts)
 	sub, err := r.Subscribe()
 	if err != nil {
@@ -415,7 +418,6 @@ func TestPlaybackBotGameOpensForTheHumanSeat(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("human playback status = %d, want 200 (body %s)", status, body)
 	}
-	botName := botDisplayName(config.TierEasy.Name, r.ID())
 	if !strings.Contains(body, `title="alice vs `+botName+`">red alice vs blue `+botNameDisplay(botName)) {
 		t.Errorf("playback body misses the trimmed bot seat name %q (body %s)", botName, body)
 	}

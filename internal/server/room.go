@@ -37,9 +37,10 @@ const (
 )
 
 type seat struct {
-	userID int64
-	bot    *config.Tier
-	name   string
+	userID   int64
+	bot      *config.Tier
+	name     string
+	instance string
 }
 type RoomManager struct {
 	mu           sync.Mutex
@@ -75,7 +76,7 @@ func (rm *RoomManager) Create(ownerUserID int64, tcIdx, boLen int, vsBot *config
 		if err != nil {
 			return nil, err
 		}
-		guest = seat{userID: botID, bot: vsBot}
+		guest = seat{userID: botID, bot: vsBot, instance: newBotInstanceID()}
 	}
 	series, err := NewSeriesFor(ownerUserID, guest.userID, tcIdx, boLen, v)
 	if err != nil {
@@ -132,8 +133,8 @@ func (rm *RoomManager) CreateBotVsBot(hostTier *config.Tier, hostName string, gu
 	r := &Room{
 		id: newRoomID(), hub: rm.hub, store: rm.store, wq: rm.wq, manager: rm,
 		tcIdx: tcIdx, boLen: boLen, createdAt: time.Now(),
-		host:    seat{userID: botHostUserID, bot: hostTier, name: hostName},
-		guest:   seat{userID: botGuestUserID, bot: guestTier, name: guestName},
+		host:    seat{userID: botHostUserID, bot: hostTier, name: hostName, instance: newBotInstanceID()},
+		guest:   seat{userID: botGuestUserID, bot: guestTier, name: guestName, instance: newBotInstanceID()},
 		variant: v, geom: g,
 		makeSearcher: rm.makeSearcher,
 		wake:         make(chan struct{}, 1), quit: make(chan struct{}),
@@ -425,17 +426,12 @@ func botTierName(t *config.Tier) string {
 	return t.Name
 }
 
-const botSeatTwinSuffix = "-2"
-
 func (r *Room) botSeatDisplaysLocked() (host, guest string) {
 	if r.host.bot != nil {
-		host = botDisplayName(r.seatInstanceName(&r.host), r.id)
+		host = botDisplayName(r.seatInstanceName(&r.host), r.host.instance)
 	}
 	if r.guest.bot != nil {
-		guest = botDisplayName(r.seatInstanceName(&r.guest), r.id)
-	}
-	if host != "" && host == guest {
-		guest += botSeatTwinSuffix
+		guest = botDisplayName(r.seatInstanceName(&r.guest), r.guest.instance)
 	}
 	return host, guest
 }
@@ -481,6 +477,13 @@ func newRoomID() string {
 	var b [roomIDBytes]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		panic("server: crypto/rand room id: " + err.Error())
+	}
+	return hex.EncodeToString(b[:])
+}
+func newBotInstanceID() string {
+	var b [roomIDBytes]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		panic("server: crypto/rand bot instance id: " + err.Error())
 	}
 	return hex.EncodeToString(b[:])
 }

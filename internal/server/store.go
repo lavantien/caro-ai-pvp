@@ -349,6 +349,7 @@ type Game struct {
 	Moves       []byte
 	FullTurns   int
 	WonBy       *string
+	RoomID      string
 	BotName     string
 	StatLines   []GameStat
 	PlayedAt    int64
@@ -498,9 +499,8 @@ func (s *Store) casualHeaderFor(ctx context.Context, g Game) (casualGameHeader, 
 	} else if redBot || blueBot {
 		mode = lobbyModeVsBot
 	}
-	_, roomID, _ := strings.Cut(g.BotName, "-")
 	h := casualGameHeader{
-		GameNo: g.IdxInSeries + 1, RoomID: roomID, Mode: mode,
+		GameNo: g.IdxInSeries + 1, RoomID: g.RoomID, Mode: mode,
 		TCIdx: sr.TCIdx, BOLen: sr.BOLen, Variant: sr.Variant, Outcome: g.Outcome,
 	}
 	h.SeriesID, h.Red, h.Blue = g.SeriesID, seriesRed, seriesBlue

@@ -315,7 +315,8 @@ func TestRoomPageTrimsRoomIDFromBotSeatNames(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("status = %d, want 200 (body %s)", status, body)
 	}
-	full, short := botDisplayName(config.TierEasy.Name, r.ID()), "easy-"+shortID(r.ID())
+	info, _ := r.Info()
+	full, short := info.GuestBotName, botNameDisplay(info.GuestBotName)
 	if !strings.Contains(body, `<span class="who" id="clock-who-blue" title="`+full+`">blue / `+short+`</span>`) {
 		t.Errorf("blue seat misses the trimmed bot name under the full title (body %s)", body)
 	}

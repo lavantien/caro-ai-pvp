@@ -301,7 +301,7 @@ func TestApplyCompletionWritesTheCasualTextFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed series: %v", err)
 	}
-	botName := botDisplayName(config.TierEasy.Name, "room42")
+	botName := botDisplayName(config.TierEasy.Name, "0123456789abcdef0123456789abcdef")
 	lines := []GameStat{
 		{MoveNo: 2, Line: "M2, Blue, P12, d=9"},
 		{MoveNo: 4, Line: "M4, Blue, P8, d=9"},
@@ -310,7 +310,7 @@ func TestApplyCompletionWritesTheCasualTextFile(t *testing.T) {
 		Games: []Game{{
 			SeriesID: sr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: botID,
 			Outcome: OutcomeRed, Moves: []byte{1, 0}, FullTurns: 1,
-			BotName: botName, StatLines: lines,
+			RoomID: "room42", BotName: botName, StatLines: lines,
 		}},
 	}); err != nil {
 		t.Fatalf("apply completion: %v", err)
@@ -414,6 +414,8 @@ func TestApplyCompletionCasualLogFailureNeverFailsTheUnit(t *testing.T) {
 func TestForfeitAfterALiveGameKeepsOneCasualFile(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
+	botInfo, _ := r.Info()
+	botName := botInfo.GuestBotName
 	injectPerGameBot(t, r, botLoseScripts)
 	sub, err := r.Subscribe()
 	if err != nil {
@@ -439,7 +441,6 @@ func TestForfeitAfterALiveGameKeepsOneCasualFile(t *testing.T) {
 	}
 	drainEvents(sub)
 
-	botName := botDisplayName(config.TierEasy.Name, r.ID())
 	entries, err := os.ReadDir(config.CasualLogRoot)
 	if err != nil {
 		t.Fatalf("list casual dir: %v", err)
@@ -554,7 +555,7 @@ func TestApplyCompletionSurvivesACanceledContextAfterCommit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed series: %v", err)
 	}
-	botName := botDisplayName(config.TierEasy.Name, "room7")
+	botName := botDisplayName(config.TierEasy.Name, "0123456789abcdef0123456789abcdef")
 	unit := func(idx int) Completion {
 		return Completion{Games: []Game{{
 			SeriesID: sr.ID, IdxInSeries: idx, RedUser: alice.ID, BlueUser: botID,
@@ -638,6 +639,8 @@ func TestApplyCompletionSkipsTheTextSideLoudlyOnACorruptTCIndex(t *testing.T) {
 func TestCasualRoomSweepRecordsBothStorageSides(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
+	botInfo, _ := r.Info()
+	botName := botInfo.GuestBotName
 	injectPerGameBot(t, r, botLoseScripts)
 	sub, err := r.Subscribe()
 	if err != nil {
@@ -649,7 +652,6 @@ func TestCasualRoomSweepRecordsBothStorageSides(t *testing.T) {
 	}
 	driveHumanWonBotSweep(t, r, alice, sub)
 
-	botName := botDisplayName(config.TierEasy.Name, r.ID())
 	path := filepath.Join(config.CasualLogRoot,
 		fmt.Sprintf("s%d_%s-vs-%s.txt", r.SeriesID(), "alice", botName))
 	var body string

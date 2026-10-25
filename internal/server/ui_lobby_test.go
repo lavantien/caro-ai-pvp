@@ -152,9 +152,10 @@ func TestLobbySeatTrimsRoomIDFromBotNames(t *testing.T) {
 		t.Fatalf("partial = %d", rec.Code)
 	}
 	body := rec.Body.String()
-	full := botDisplayName(config.TierEasy.Name, r.ID())
+	info, _ := r.Info()
+	full := info.GuestBotName
 	want := `<a href="/players/` + url.PathEscape(config.BotAccountName(0)) +
-		`" title="` + full + `">easy-` + shortID(r.ID()) + `</a>`
+		`" title="` + full + `">` + botNameDisplay(full) + `</a>`
 	if !strings.Contains(body, want) {
 		t.Errorf("lobby seat misses the trimmed bot name under the full title (body %s)", body)
 	}

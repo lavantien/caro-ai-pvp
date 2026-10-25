@@ -166,7 +166,7 @@ func (r *Room) persistGameLocked(redUser, blueUser int64, outcome Outcome, wonBy
 	unit := Completion{Games: []Game{{
 		SeriesID: seriesID, IdxInSeries: idx, RedUser: redUser, BlueUser: blueUser,
 		Outcome: outcome.String(), Moves: blob, FullTurns: fullTurns, WonBy: wonBy,
-		BotName: r.botDisplayNameLocked(), StatLines: append([]GameStat(nil), r.mlines...),
+		RoomID: r.id, BotName: r.botDisplayNameLocked(), StatLines: append([]GameStat(nil), r.mlines...),
 	}}}
 	if r.series.State() == SeriesFinished {
 		unit.Finish = &SeriesFinish{
@@ -178,16 +178,20 @@ func (r *Room) persistGameLocked(redUser, blueUser int64, outcome Outcome, wonBy
 	})
 }
 func (r *Room) botDisplayNameLocked() string {
-	if tier := botTierName(r.guest.bot); tier != "" {
-		return botDisplayName(tier, r.id)
+	s := &r.guest
+	if s.bot == nil {
+		s = &r.host
 	}
-	return botDisplayName(botTierName(r.host.bot), r.id)
-}
-func botDisplayName(tier, roomID string) string {
-	if tier == "" {
+	if s.bot == nil {
 		return ""
 	}
-	return tier + "-" + roomID
+	return botDisplayName(r.seatInstanceName(s), s.instance)
+}
+func botDisplayName(name, instance string) string {
+	if name == "" {
+		return ""
+	}
+	return name + "-" + instance
 }
 func (r *Room) Forfeit(userID int64) error {
 	r.mu.Lock()
@@ -235,7 +239,7 @@ func (r *Room) persistForfeitLocked(liveMoves []rules.Move) error {
 			SeriesID: seriesID, IdxInSeries: g.GameNo - 1,
 			RedUser: g.RedUserID, BlueUser: g.BlueUserID,
 			Outcome: g.Outcome.String(), Moves: blob, FullTurns: turns,
-			BotName: r.botDisplayNameLocked(), StatLines: stats,
+			RoomID: r.id, BotName: r.botDisplayNameLocked(), StatLines: stats,
 		})
 	}
 	unit.Finish = &SeriesFinish{

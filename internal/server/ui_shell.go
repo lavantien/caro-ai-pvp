@@ -37,16 +37,11 @@ func shortID(id string) string {
 }
 
 func botNameDisplay(name string) string {
-	suffix := ""
-	if strings.HasSuffix(name, botSeatTwinSuffix) {
-		suffix = botSeatTwinSuffix
-		name = name[:len(name)-len(botSeatTwinSuffix)]
-	}
 	i := strings.LastIndexByte(name, '-')
 	if i < 0 || !isRoomID(name[i+1:]) {
-		return name + suffix
+		return name
 	}
-	return name[:i+1] + shortID(name[i+1:]) + suffix
+	return name[:i+1] + shortID(name[i+1:])
 }
 
 var uiFuncs = template.FuncMap{"disp": botNameDisplay}
