@@ -82,55 +82,81 @@ Time controls 1+0, 2+1, 3+2, 10+5 each run the same PID-steered budget controlle
 
 Every picture renders at a 440x956 portrait viewport on the light theme, numbered pairs with the square member left and the hexagon member right. The bot rooms, the hexagon tournament run, and both banners are real engine activity: playground/shots hosts real easy-tier bot-versus-bot rooms at 1+0 bo3 and a real 2-bot hexagon run, the operator polls the room endpoints and shoots at the stone thresholds, and terminal frames load before the finish so a retired room still holds its verdict.
 
-**P01, P02 home.** The signed-in home with per-variant WLD stat rows, the live-run banner, and the rooms grid, then the create form's board control with the hexagon variant checked.
+#### P01, P02 home
+
+The signed-in home with per-variant WLD stat rows, the live-run banner, and the rooms grid, then the create form's board control with the hexagon variant checked.
 
 ![home, square variant](docs/screenshots/p01-square-home.png) ![home, hexagon variant](docs/screenshots/p02-hex-home.png)
 
-**P03, P04 live rooms.** Human rooms mid-game on both boards, the board the width hero beside the seat cards, clocks, and move list.
+#### P03, P04 live rooms
+
+Human rooms mid-game on both boards, the board the width hero beside the seat cards, clocks, and move list.
 
 ![square room live](docs/screenshots/p03-square-room-live.png) ![hex room live](docs/screenshots/p04-hex-room-live.png)
 
-**P05, P06 bot rooms.** Real easy-tier bot-versus-bot games at 1+0 bo3 mid-play with real searches running, full-board games on both variants.
+#### P05, P06 bot rooms
+
+Real easy-tier bot-versus-bot games at 1+0 bo3 mid-play with real searches running, full-board games on both variants.
 
 ![square bot room](docs/screenshots/p05-square-room-bot.png) ![hex bot room](docs/screenshots/p06-hex-room-bot.png)
 
-**P07, P08 terminal rooms.** Finished bo3 series holding the verdict on the open page after the room retired.
+#### P07, P08 terminal rooms
+
+Finished bo3 series holding the verdict on the open page after the room retired.
 
 ![square terminal room](docs/screenshots/p07-square-room-terminal.png) ![hex terminal room](docs/screenshots/p08-hex-room-terminal.png)
 
-**P09, P10 playback.** Finished games stepped to the final position, the winning 5 visible beside the playback rail.
+#### P09, P10 playback
+
+Finished games stepped to the final position, the winning 5 visible beside the playback rail.
 
 ![square playback](docs/screenshots/p09-square-playback.png) ![hex playback](docs/screenshots/p10-hex-playback.png)
 
-**P11, P12 tournament run pages.** The square run's frozen record with the filled square chip beside bo3 and the real 2-bot hexagon run's page with its live boards.
+#### P11, P12 tournament run pages
+
+The square run's frozen record with the filled square chip beside bo3 and the real 2-bot hexagon run's page with its live boards.
 
 ![square tournament run](docs/screenshots/p11-square-tourney-run.png) ![hex tournament run](docs/screenshots/p12-hex-tourney-run.png)
 
-**P13, P14 tournament live boards.** The run page's live boards surface, 1 live bot card per member: P13 square-pure on the square run, P14 hexagon-pure on the real hex run.
+#### P13, P14 tournament live boards
+
+The run page's live boards surface, 1 live bot card per member: P13 square-pure on the square run, P14 hexagon-pure on the real hex run.
 
 ![square live boards](docs/screenshots/p13-square-tourney-liveboards.png) ![hex live boards](docs/screenshots/p14-hex-tourney-liveboards.png)
 
-**P15, P16 profiles.** Public player pages with the rating hero, WLD bar, per-tier bot rows, and recent games; profile rows carry no variant naming.
+#### P15, P16 profiles
+
+Public player pages with the rating hero, WLD bar, per-tier bot rows, and recent games; profile rows carry no variant naming.
 
 ![square profile](docs/screenshots/p15-square-profile.png) ![hex profile](docs/screenshots/p16-hex-profile.png)
 
-**P17, P18 history.** Per-game rows with turn-item move lists and status boxes, engine M-line tails on bot rows and both players' WLD on human rows.
+#### P17, P18 history
+
+Per-game rows with turn-item move lists and status boxes, engine M-line tails on bot rows and both players' WLD on human rows.
 
 ![square history](docs/screenshots/p17-square-history.png) ![hex history](docs/screenshots/p18-hex-history.png)
 
-**P19, P20 lobby.** The play-and-watch hub: quick-start create row over live room cards with mini boards and variant chips.
+#### P19, P20 lobby
+
+The play-and-watch hub: quick-start create row over live room cards with mini boards and variant chips.
 
 ![square lobby](docs/screenshots/p19-square-lobby.png) ![hex lobby](docs/screenshots/p20-hex-lobby.png)
 
-**P21, P22 tournament setup.** The admin setup with the config-bounded roster and the board choice segmented: square checked, then hexagon checked.
+#### P21, P22 tournament setup
+
+The admin setup with the config-bounded roster and the board choice segmented: square checked, then hexagon checked.
 
 ![square tournament setup](docs/screenshots/p21-square-tourney-setup.png) ![hex tournament setup](docs/screenshots/p22-hex-tourney-setup.png)
 
-**P23, P24 login and offline.** The centered login-or-create card, and the PWA offline fallback served from the shell cache with the server process dead.
+#### P23, P24 login and offline
+
+The centered login-or-create card, and the PWA offline fallback served from the shell cache with the server process dead.
 
 ![login](docs/screenshots/p23-square-login.png) ![offline fallback](docs/screenshots/p24-pwa-offline.png)
 
-**P25, P26 live-run banners.** The home banner over the square run and over the real hexagon run.
+#### P25, P26 live-run banners
+
+The home banner over the square run and over the real hexagon run.
 
 ![square banner](docs/screenshots/p25-square-banner.png) ![hex banner](docs/screenshots/p26-hex-banner.png)
 
