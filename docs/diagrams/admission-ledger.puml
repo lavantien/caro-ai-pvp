@@ -1,0 +1,50 @@
+@startuml admission-ledger
+!include common.iuml
+title machine admission, full capacity or a clear failure
+
+start
+:ledger starts full:\ncoresFree = MachineCores,\nttFree = MachineTTBudgetBytes;
+partition "room creation" {
+  :read the machine's available physical memory;
+  if (reserve + bot TT bytes fit?) then (yes)
+  else (no)
+    :reject with server-resources-full;
+    stop
+  endif
+  if (TT bytes still in the budget?) then (yes)
+  else (no)
+    :reject with machine-busy;
+    stop
+  endif
+}
+partition "game start" {
+  :acquire each bot seat's TT bytes;
+}
+partition "bot turn" {
+  :acquire the seat's search cores,\nwait up to AdmissionWaitMaxMs,\nno partial grant;
+  if (cores granted in time?) then (yes)
+    :search runs at full tier capacity;
+    :release the cores at the answer;
+  else (no)
+    :fail the room loudly\nwith admission-timeout;
+    stop
+  endif
+}
+partition "ponder arm" {
+  :try acquire tier.PonderThreads cores,\nno wait;
+  if (cores free?) then (yes)
+    :ponder runs at the tier's full width;
+    :release on stop, adoption, or disarm;
+  else (no)
+    :the turn runs ponder off,\nnever a narrower engine;
+  endif
+}
+:TT bytes release when the engines close;
+note right
+  tournament rounds admit through
+  the same ledger, the run gate bounds
+  each round by the worst room pair
+  peak of the picked tiers
+end note
+stop
+@enduml

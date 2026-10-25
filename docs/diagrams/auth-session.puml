@@ -1,0 +1,36 @@
+@startuml auth-session
+!include common.iuml
+title login or create, one derivation either way
+
+actor "client" as client
+participant "server" as server
+database "store" as store
+
+client -> server : username and password
+server -> server : username validation
+server -> store : look up the user
+alt user missing
+  server -> server : fresh salt, argon2id derive\nwith the current parameters
+  server -> store : create the user if absent
+else user exists
+  server -> server : argon2id derive with the\nstored per user parameters,\nconstant time compare
+end
+note over server
+  both paths run exactly 1 argon2id
+  derivation, so timing does not
+  reveal whether the account exists
+end note
+alt credentials bad
+  server --> client : bad credentials
+else credentials good
+  server -> store : insert session,\ncrypto random token, TTL in hours
+  server --> client : session cookie
+  client -> server : requests carry the token,\nauthenticate by session
+end
+note over store
+  the seeded admin account is
+  verified at boot, a foreign row
+  holding the admin name warns
+  instead of logging in
+end note
+@enduml

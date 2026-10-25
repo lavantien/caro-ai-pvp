@@ -1,0 +1,36 @@
+@startuml room-lifecycle
+!include common.iuml
+title room lifecycle and the event stream
+
+actor player
+participant "room" as room
+participant "bot worker" as bot
+participant "ponder lane" as lane
+participant "hub" as hub
+participant "write queue" as wq
+database "store" as store
+
+player -> room : create (variant, tc, best of, tier)
+room -> room : memory and TT checks,\nseat instance ids minted
+player -> room : join, ready x 2
+room -> room : game start:\nboard from the geometry, 2 clocks,\nsearchers built per seat
+loop every turn until the series ends
+  alt human turn
+    player -> room : move
+    room -> room : turn and legality check,\nboard make, clock commit
+    room -> hub : move event
+    room -> bot : wake
+  else bot turn
+    bot -> bot : budget draw,\nponder adoption check first
+    bot -> bot : search at full tier capacity
+    bot -> room : move, M-line
+    room -> hub : move and M-line events
+    room -> lane : arm ponder for the opponent's reply
+    lane --> lane : ponder width try acquired,\nruns beside the turn loop
+  end
+  hub --> player : move, M-line, gameend, series events\n(players and spectators, slow consumers evicted)
+end
+room -> wq : game completion, moves blob, stat lines
+wq -> store : one transaction per game,\nseries finish row at the end
+room -> room : retire from the manager map,\nterminal state keeps the verdict,\nmid-game reload restores the game
+@enduml

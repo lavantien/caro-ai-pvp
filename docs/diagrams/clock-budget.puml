@@ -1,0 +1,29 @@
+@startuml clock-budget
+!include common.iuml
+title clock budget controller, one move
+
+start
+:side to move, bank = remaining, moves played = n;
+:budget draw (idempotent per move);
+:spendable = max(0, remaining - SearchSafetyMarginMs);
+:movesLeft = max(1, ClockExpectedMovesPerSide - n);
+:feedforward = spendable / movesLeft + increment x ClockIncrementShare;
+:error = remaining - target,\ntarget = drain trajectory\nfloored at SearchSafetyMarginMs;
+:correction = clamp(pid(error),\n+ or - ClockPIDClampFraction x feedforward);
+:grant = clamp(feedforward + correction,\nSearchMinMoveTimeMs,\nmax(spendable, SearchMinMoveTimeMs));
+note right
+  the floor wins over the reserve:
+  a fully drained 1+0 clock still
+  funds SearchMinMoveTimeMs moves,
+  remaining never goes negative, a
+  timeout can never decide a game
+end note
+:search runs on the grant;
+:commit: remaining = max(0, remaining - elapsed) + increment,\nn = n + 1;
+if (game continues?) then (yes)
+  :next move draws a fresh budget;
+  stop
+else (no)
+  stop
+endif
+@enduml

@@ -1,0 +1,24 @@
+@startuml rating-flow
+!include common.iuml
+title rating flow, human games
+
+start
+:game completes, one transaction writes\nthe game row and its stat lines;
+if (both seats human?) then (yes)
+else (no, a bot seat)
+  :no rating event, bot games\nstay outside the ladder;
+  stop
+endif
+if (decisive outcome?) then (yes)
+  :read both current ratings,\nlatest rating_after, RatingStart default;
+  :K = 10 ^ ((loser - winner) / D),\nD = full divisor on an upset,\nelse the decay band over the loser's rating;
+  :winner gains and loser loses\nthe same rounded delta;
+  :write 2 rating_events rows,\ndelta and rating_after per player;
+else (draw)
+  :rating moves nothing;
+  stop
+endif
+:aggregates read the same rows:\nper-variant latest rating,\nper-variant series won, WLD totals;
+:surfaces: profile hero and history,\nhome per-variant stat lines,\nplayback rating deltas;
+stop
+@enduml
