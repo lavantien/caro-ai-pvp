@@ -52,9 +52,15 @@ form.inline { display: inline; margin: 0 }
 button.linklike { background: none; border: none; padding: 0; font: inherit;
 	color: inherit; text-decoration: underline; cursor: pointer }
 h2 { font-size: var(--text-l); margin: 1.4rem 0 var(--space-2) }
-.me { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); align-items: baseline;
-	font-size: var(--text-l); margin-top: var(--space-4) }
+.me { display: grid; gap: var(--space-1); align-items: baseline;
+	margin-top: var(--space-4) }
 .me .name { font-size: var(--text-2xl); font-weight: 800 }
+.statline { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4);
+	align-items: baseline; font-size: var(--text-l) }
+.statline .vglyph { width: 1em; height: 1em; stroke-width: 2; flex: none;
+	vertical-align: -0.12em; margin-right: .15em }
+.statline .vglyph-square { color: var(--red) }
+.statline .vglyph-hex { color: var(--blue) }
 .me .wld { font-size: var(--text-xl); font-weight: 700; text-decoration: none;
 	border: 1px solid var(--border); border-radius: var(--radius-s); padding: .1rem var(--space-2);
 	background: var(--surface); color: var(--text) }

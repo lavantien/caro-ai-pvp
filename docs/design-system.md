@@ -80,6 +80,8 @@ Card: `.card` is the one flat card recipe: surface fill, border, `--radius-m`, g
 
 Chip: `.chip` is the small tag label: a `--text-muted` boundary (the boundary carries the state, so it clears the meaningful-boundary 3:1 instead of the decorative hairline floor), `--radius-s`, `--text-base` at padded density. `.chip.live` fills with `--accent-soft` and keeps its boundary: the live state reads as tint, terminal states as outline.
 
+Stat line: `.statline` is the per-variant identity row of the home stats block: one line per variant in config order, square above hex, each carrying only that variant's own rating, WLD record, and level. The line leads with the variant glyph at the stone colors (square red, hex blue) so the row identifies itself without a word; the record stays the `.wld` chip linking to that variant's history. Ratings come from the latest rating event whose game belongs to a series of that variant, levels from series won of that variant, and a variant with no games renders `RatingStart`.
+
 Field: `.field` is the label-plus-control pair: grid, hairline gap, `--text-s`. Bare `label` elements alias the recipe so the shipped forms need no markup change.
 
 Buttons: `.btn` is the primary (accent fill, `--accent-strong` on hover and active, background-colored label); the element alias `button:not(.linklike):not(.btn-quiet)` maps the shipped button elements onto it. `.btn-quiet` is the quiet variant (surface fill, border, text color, `--accent-soft` on hover), carried by the class on anchors and buttons alike (`a.btn-quiet`). `.linklike` stays a plain underlined text button. `button[disabled]` dims.

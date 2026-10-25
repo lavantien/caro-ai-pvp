@@ -186,11 +186,14 @@ func TestShellLoginCreateRoundTripRendersRealStats(t *testing.T) {
 		t.Errorf("home Content-Type = %q, want text/html", got)
 	}
 	wantShellBody(t, body,
-		">alice</span>", "rating 30", "level 0",
+		">alice</span>",
+		`<span class="statline" title="`+config.DefaultVariant+`">`,
+		"rating 30</span>", "level 0",
 		`href="/history?variant=`+config.DefaultVariant+`" title="`+config.DefaultVariant+
-			` match history"><svg class="vglyph vglyph-`+config.DefaultVariant+`"`,
+			` match history">1W-0L-0D</a>`,
 		`href="/history?variant=hex"`,
-		"</svg> 1W-0L-0D</a>",
+		`<span class="statline" title="hex">`,
+		"rating 0</span>", "level 0</span>",
 		`action="/logout"`, `action="/rooms"`,
 		`id="rooms"`, `hx-get="/partials/rooms"`, `hx-trigger="every `+
 			strconv.Itoa(config.PagePollMs)+`ms"`,
@@ -449,16 +452,88 @@ func TestShellHomeShowsPerVariantWLDRows(t *testing.T) {
 	wantShellBody(t, body,
 		`href="/history?variant=square"`,
 		`href="/history?variant=hex"`,
-		`title="square match history"><svg class="vglyph vglyph-square"`,
-		`title="hex match history"><svg class="vglyph vglyph-hex"`,
+		`<span class="statline" title="square">`,
+		`<span class="statline" title="hex">`,
 	)
 	for _, row := range []struct{ variant, wld string }{
 		{config.DefaultVariant, "0W-0L-0D"},
 		{"hex", "0W-0L-0D"},
 	} {
-		if !strings.Contains(body, `href="/history?variant=`+row.variant+`" title="`+row.variant+` match history"><svg class="vglyph vglyph-`+row.variant+`"`) {
+		if !strings.Contains(body, `href="/history?variant=`+row.variant+`" title="`+row.variant+` match history">`+row.wld+`</a>`) {
 			t.Errorf("home misses the %s wld row link", row.variant)
 		}
+	}
+}
+
+func TestShellHomeRendersPerVariantStatLines(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	t.Cleanup(srv.Close)
+	alice, bob := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
+	hx := mustHexGeometry(t)
+	sqCell, err := geom.Default().ParseCell("H8")
+	if err != nil {
+		t.Fatalf("parse square cell: %v", err)
+	}
+	hxCell, err := hx.ParseCell("L12")
+	if err != nil {
+		t.Fatalf("parse hex cell: %v", err)
+	}
+	sq, err := s.store.CreateSeriesFor(context.Background(), 1, config.SeriesBO3, alice.ID, bob.ID, config.DefaultVariant)
+	if err != nil {
+		t.Fatalf("square series: %v", err)
+	}
+	if err := s.store.ApplyCompletion(context.Background(), Completion{
+		Games: []Game{{
+			SeriesID: sq.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+			Outcome: OutcomeRed, Moves: EncodeMoves(nil, []rules.Move{rules.Move(sqCell)}),
+			FullTurns: 1,
+		}, {
+			SeriesID: sq.ID, IdxInSeries: 1, RedUser: alice.ID, BlueUser: bob.ID,
+			Outcome: OutcomeRed, Moves: EncodeMoves(nil, []rules.Move{rules.Move(sqCell)}),
+			FullTurns: 1,
+		}},
+		Finish: &SeriesFinish{SeriesID: sq.ID, Winner: &alice.ID, FinishedAt: time.Now().Unix()},
+	}); err != nil {
+		t.Fatalf("square completion: %v", err)
+	}
+	hxSr, err := s.store.CreateSeriesFor(context.Background(), 1, config.SeriesBO3, alice.ID, bob.ID, "hex")
+	if err != nil {
+		t.Fatalf("hex series: %v", err)
+	}
+	if err := s.store.ApplyCompletion(context.Background(), Completion{
+		Games: []Game{{
+			SeriesID: hxSr.ID, IdxInSeries: 0, RedUser: alice.ID, BlueUser: bob.ID,
+			Outcome: OutcomeBlue, Moves: EncodeMoves(nil, []rules.Move{rules.Move(hxCell)}),
+			FullTurns: 1,
+		}},
+	}); err != nil {
+		t.Fatalf("hex completion: %v", err)
+	}
+
+	ta := mintSession(t, s.store, alice)
+	status, body := getRoomPage(t, srv, "/", ta)
+	if status != http.StatusOK {
+		t.Fatalf("home: status = %d (body %s)", status, body)
+	}
+	squareLine := `<span class="statline" title="square">`
+	hexLine := `<span class="statline" title="hex">`
+	sqAt, hxAt := strings.Index(body, squareLine), strings.Index(body, hexLine)
+	if sqAt < 0 || hxAt < 0 {
+		t.Fatalf("home misses a per-variant stat line (square %d, hex %d)", sqAt, hxAt)
+	}
+	if sqAt > hxAt {
+		t.Fatal("square stat line must render above the hex line")
+	}
+	if sq := body[sqAt:hxAt]; !strings.Contains(sq, "rating 53</span>") ||
+		!strings.Contains(sq, "level 1</span>") ||
+		!strings.Contains(sq, `title="square match history">2W-0L-0D</a>`) {
+		t.Errorf("square stat line = %q, want rating 53, 2W-0L-0D, level 1", sq)
+	}
+	if tail := body[hxAt:]; !strings.Contains(tail, "rating 20</span>") ||
+		!strings.Contains(tail, "level 0</span>") ||
+		!strings.Contains(tail, `title="hex match history">0W-1L-0D</a>`) {
+		t.Errorf("hex stat line = %q, want rating 20, 0W-1L-0D, level 0", tail)
 	}
 }
 

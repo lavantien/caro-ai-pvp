@@ -101,18 +101,27 @@ type shellViewer struct {
 type viewerVariantStats struct {
 	Variant string
 	WLD     string
+	Rating  int
+	Level   int
 }
 
 func wldString(w, l, d int) string {
 	return strconv.Itoa(w) + "W-" + strconv.Itoa(l) + "L-" + strconv.Itoa(d) + "D"
 }
 
-func variantStatsOf(byVariant map[string]wldRecord) []viewerVariantStats {
+func variantStatsOf(byVariant map[string]wldRecord, ratings, levels map[string]int) []viewerVariantStats {
 	out := make([]viewerVariantStats, 0, len(config.Variants))
 	for i := range config.Variants {
 		name := config.Variants[i].Name
 		rec := byVariant[name]
-		out = append(out, viewerVariantStats{Variant: name, WLD: wldString(rec.Wins, rec.Losses, rec.Draws)})
+		rating := config.RatingStart
+		if r, ok := ratings[name]; ok {
+			rating = r
+		}
+		out = append(out, viewerVariantStats{
+			Variant: name, WLD: wldString(rec.Wins, rec.Losses, rec.Draws),
+			Rating: rating, Level: levels[name],
+		})
 	}
 	return out
 }
@@ -361,7 +370,15 @@ func (p *shellPages) variantRows(userID int64) ([]viewerVariantStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	return variantStatsOf(byVariant), nil
+	ratings, err := p.store.UserRatingByVariant(userID)
+	if err != nil {
+		return nil, err
+	}
+	levels, err := p.store.UserSeriesWonByVariant(userID)
+	if err != nil {
+		return nil, err
+	}
+	return variantStatsOf(byVariant, ratings, levels), nil
 }
 
 func (p *shellPages) handleHome(w http.ResponseWriter, r *http.Request) {

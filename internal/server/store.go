@@ -690,6 +690,52 @@ GROUP BY COALESCE(se.variant, 'square')`,
 	return out, rows.Err()
 }
 
+func (s *Store) UserRatingByVariant(userID int64) (map[string]int, error) {
+	rows, err := s.db.Query(`
+SELECT COALESCE(se.variant, 'square'), re.rating_after
+FROM rating_events re
+JOIN games g ON g.id = re.game_id
+JOIN series se ON se.id = g.series_id
+WHERE re.user_id = ?
+ORDER BY re.id`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("server: user variant ratings %d: %w", userID, err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := make(map[string]int)
+	for rows.Next() {
+		var variant string
+		var rating int
+		if err := rows.Scan(&variant, &rating); err != nil {
+			return nil, fmt.Errorf("server: user variant ratings %d: %w", userID, err)
+		}
+		out[variant] = rating
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) UserSeriesWonByVariant(userID int64) (map[string]int, error) {
+	rows, err := s.db.Query(`
+SELECT COALESCE(variant, 'square'), COUNT(*)
+FROM series WHERE state = ? AND winner = ?
+GROUP BY COALESCE(variant, 'square')`,
+		SeriesStateFinished, userID)
+	if err != nil {
+		return nil, fmt.Errorf("server: user series won by variant %d: %w", userID, err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := make(map[string]int)
+	for rows.Next() {
+		var variant string
+		var won int
+		if err := rows.Scan(&variant, &won); err != nil {
+			return nil, fmt.Errorf("server: user series won by variant %d: %w", userID, err)
+		}
+		out[variant] = won
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) gameStatTail(gameID int64, limit int) ([]string, bool, error) {
 	var total int
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM game_stats WHERE game_id = ?`, gameID).
