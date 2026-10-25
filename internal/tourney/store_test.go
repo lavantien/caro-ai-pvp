@@ -733,7 +733,7 @@ func TestDriveLeaseFencesSecondDrive(t *testing.T) {
 		t.Fatalf("claim: %v", err)
 	}
 	other := NewStore(srv)
-	other.fakePid = 4242 // stand in for a second process's drive
+	other.fakePid = 4242
 	if err := other.ClaimDrive(ctx, run.ID, 1001); err == nil || !strings.Contains(err.Error(), "driven by pid") {
 		t.Errorf("second claim = %v, want the live-drive refusal", err)
 	}
