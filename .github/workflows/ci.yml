@@ -52,29 +52,43 @@ jobs:
       - name: rules-core mutation smoke gate
         run: go run ./cmd/run mutate-smoke
 
-  badge:
-    needs: ci
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  publish:
+    needs: [ci, mutate-smoke]
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
+    env:
+      VERDICT: ${{ (needs.ci.result == 'success' && needs.mutate-smoke.result == 'success') && 'passed' || 'failed' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/download-artifact@v6
+      - name: download coverage profile
+        if: needs.ci.result == 'success'
+        uses: actions/download-artifact@v6
         with:
           name: coverage-profile
       - name: generate coverage badges
-        run: go run ./cmd/run cover-badges SHA=${{ github.sha }} RUN_ID=${{ github.run_id }}
-      - name: publish coverage badges
+        if: needs.ci.result == 'success'
+        run: go run ./cmd/run cover-badges SHA=${{ github.sha }} RUN_ID=${{ github.run_id }} VERDICT=${{ env.VERDICT }}
+      - name: generate verdict badge
+        if: needs.ci.result != 'success'
+        run: go run ./cmd/run cover-verdict SHA=${{ github.sha }} RUN_ID=${{ github.run_id }} VERDICT=${{ env.VERDICT }}
+      - name: publish badges
         run: |
           set -e
+          files="ci.svg source.json"
+          msg="badges: ci $VERDICT sha ${{ github.sha }} run ${{ github.run_id }}"
+          if [ "${{ needs.ci.result }}" = "success" ]; then
+            files="coverage-global.svg coverage-global.json coverage-core.svg coverage-core.json $files"
+            msg="$msg global ${{ needs.ci.outputs.global }}% core ${{ needs.ci.outputs.core }}%"
+          fi
           git checkout -q --orphan coverage
           git rm -rqf .
-          git add coverage-global.svg coverage-global.json coverage-core.svg coverage-core.json source.json
-          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "coverage: global ${{ needs.ci.outputs.global }}% core ${{ needs.ci.outputs.core }}% sha ${{ github.sha }} run ${{ github.run_id }}"
+          git add $files
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "$msg"
           git push -qf origin coverage
