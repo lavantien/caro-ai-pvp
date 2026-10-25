@@ -291,7 +291,7 @@ func TestHexLobbyCardRendersMiniHexBoard(t *testing.T) {
 	}
 	body := readAllBody(t, resp)
 	wantHexMiniBoard(t, body)
-	if !strings.Contains(body, `<span class="chip"><svg class="vglyph vglyph-hex"`) {
+	if !strings.Contains(body, `<span class="chip" title="hex"><svg class="vglyph vglyph-hex"`) {
 		t.Error("lobby hex card misses the variant chip")
 	}
 }

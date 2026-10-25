@@ -31,7 +31,7 @@ A second surface depth step (`--surface-raised`) is deliberately absent: depth i
 
 ### The amber law
 
-`--mark` is purely the data-attention color: latest stone on the room and playback boards, latest mini stone on the tournament live cards, and the live-tournament line on the rooms grid (its link text included, rendered at `--text-xl` bold so it qualifies as large text at the 3 floor). Amber carries no interaction-signal duty; the focus ring rides `--accent-strong`. Amber never decorates anything else. The old dark-theme amber `#ffb454` measured about 1.9 on the pink page and is retired; the `#b26a00` family carries the law on light.
+`--mark` is purely the data-attention color: latest stone on the room and playback boards, latest mini stone on the tournament live cards, the live-tournament line on the rooms grid (its link text included, rendered at `--text-xl` bold so it qualifies as large text at the 3 floor), and the head-to-head score figures (`.score`, the series tallies, room-card series scores, run leaders) wherever they sit beside versus text, bold at the 3 floor on both page and card surfaces. Amber carries no interaction-signal duty; the focus ring rides `--accent-strong`. Amber never decorates anything else. The old dark-theme amber `#ffb454` measured about 1.9 on the pink page and is retired; the `#b26a00` family carries the law on light.
 
 ## Type
 
@@ -43,6 +43,8 @@ Two voices over two tokens:
 | `--font-mono` | `ui-monospace, monospace` | machine data: room ids, run ids, bot names on bot-only surfaces, clocks, M-lines, move lists, playback counters |
 
 Mixed surfaces (room page seat labels, history rows, score lines) can carry a human or a bot name, so they stay in the human voice; only surfaces that always render bot data take the machine voice.
+
+Two typographic laws on versus text. A variant chip renders the glyph only, the words square and hex never appear as chip text, the `title` attribute carries the name for assistive tech. On a versus line only the names carry weight: `.vname` is the bold part, the `vs` between them stays plain. A head-to-head score beside versus text is data, so it rides `.score`: bold and amber per the amber law, never body ink.
 
 Scale, one step up from the v0.27 set so the board-first mobile layout reads larger:
 

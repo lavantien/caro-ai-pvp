@@ -78,7 +78,8 @@ h2 { font-size: var(--text-l); margin: 1.4rem 0 var(--space-2) }
 .room > a { font-size: var(--text-xl); font-weight: 700; text-decoration: none }
 .room .meta, .tourney-run .meta, .livecard .meta { display: flex; flex-wrap: wrap;
 	gap: var(--space-1) var(--space-4); color: var(--text-muted) }
-.score { font-weight: 700 }
+.score { font-weight: 700; color: var(--mark) }
+.vname { font-weight: 700 }
 .chip { border: 1px solid var(--text-muted); border-radius: var(--radius-s);
 	padding: .05rem var(--space-2); color: var(--text-muted);
 	font-size: var(--text-base) }
@@ -131,9 +132,8 @@ h1, .who, .who-vs, #score-line, .p-name { overflow-wrap: anywhere }
 .loginform button { justify-self: start }
 .hrow { margin-bottom: var(--space-3) }
 .hrow .top { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4) }
-.hrow .who-vs, .tseries .who-vs { font-size: var(--text-xl);
-	font-weight: 700 }
-.livecard .who-vs { font-size: var(--text-base); font-weight: 700;
+.hrow .who-vs, .tseries .who-vs { font-size: var(--text-xl) }
+.livecard .who-vs { font-size: var(--text-base);
 	overflow-wrap: normal }
 .livecard .who-vs a { white-space: nowrap }
 .livecard .who-vs, .tseries, .tboard td:nth-child(2),
@@ -189,7 +189,6 @@ h1, .who, .who-vs, #score-line, .p-name { overflow-wrap: anywhere }
 .tseries li { display: grid; align-items: baseline;
 	grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr) max-content;
 	gap: var(--space-1) var(--space-3) }
-.tseries .score { color: var(--mark) }
 .tboard { border-collapse: collapse; font-size: var(--text-base) }
 .tablewrap { overflow-x: auto }
 .tboard th, .tboard td { padding: .2rem .6rem; border-bottom: 1px solid var(--border);

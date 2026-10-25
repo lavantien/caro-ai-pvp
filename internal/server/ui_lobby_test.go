@@ -154,7 +154,7 @@ func TestLobbySeatTrimsRoomIDFromBotNames(t *testing.T) {
 	body := rec.Body.String()
 	info, _ := r.Info()
 	full := info.GuestBotName
-	want := `<a href="/players/` + url.PathEscape(config.BotAccountName(0)) +
+	want := `<a class="vname" href="/players/` + url.PathEscape(config.BotAccountName(0)) +
 		`" title="` + full + `">` + botNameDisplay(full) + `</a>`
 	if !strings.Contains(body, want) {
 		t.Errorf("lobby seat misses the trimmed bot name under the full title (body %s)", body)

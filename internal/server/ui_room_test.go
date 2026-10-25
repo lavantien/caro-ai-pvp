@@ -386,7 +386,7 @@ func TestPlaybackHumanNamedLikeBotSeatKeepsOwnName(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("playback status = %d, want 200 (body %s)", status, body)
 	}
-	if !strings.Contains(body, "red "+squatName+" vs blue easy-1a2b3c4d") {
+	if !strings.Contains(body, "red <span class=\"vname\">"+squatName+"</span> vs blue <span class=\"vname\">easy-1a2b3c4d</span>") {
 		t.Errorf("bot-shaped human name lost under the room bot name (body %s)", body)
 	}
 }
@@ -1431,7 +1431,7 @@ func TestPlaybackRedBotSeatCarriesRoomBotName(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("playback status = %d, want 200 (body %s)", status, body)
 	}
-	if !strings.Contains(body, "red easy-1a2b3c4d vs blue alice") {
+	if !strings.Contains(body, `red <span class="vname">easy-1a2b3c4d</span> vs blue <span class="vname">alice</span>`) {
 		t.Errorf("bot red seat body misses the room bot name: %s", body)
 	}
 }

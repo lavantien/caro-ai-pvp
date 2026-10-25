@@ -50,7 +50,7 @@ h2 { font-size: var(--text-base); margin: .3rem 0 }
 
 <section id="pb-result">
 <h1>game playback #<span class="mono" title="game {{.GameID}}">{{.ShortID}}</span></h1>
-<p title="{{.RedName}} vs {{.BlueName}}">red {{disp .RedName}} vs blue {{disp .BlueName}} / <span id="pb-outcome">{{.Outcome}}</span>{{if .WonBy}} / <span id="won-by">won by {{.WonBy}}</span>{{end}}</p>
+<p title="{{.RedName}} vs {{.BlueName}}">red <span class="vname">{{disp .RedName}}</span> vs blue <span class="vname">{{disp .BlueName}}</span> / <span id="pb-outcome">{{.Outcome}}</span>{{if .WonBy}} / <span id="won-by">won by {{.WonBy}}</span>{{end}}</p>
 </section>
 
 <section id="board-section">

@@ -418,7 +418,7 @@ func TestPlaybackBotGameOpensForTheHumanSeat(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("human playback status = %d, want 200 (body %s)", status, body)
 	}
-	if !strings.Contains(body, `title="alice vs `+botName+`">red alice vs blue `+botNameDisplay(botName)) {
+	if !strings.Contains(body, `title="alice vs `+botName+`">red <span class="vname">alice</span> vs blue <span class="vname">`+botNameDisplay(botName)+`</span>`) {
 		t.Errorf("playback body misses the trimmed bot seat name %q (body %s)", botName, body)
 	}
 	carol := seedUser(t, s.store, "carol")

@@ -3,7 +3,7 @@
 {{range .Rooms}}<li><div class="livecard">
 <div class="who-vs">{{template "lobbyseat" .Red}} vs {{template "lobbyseat" .Blue}}</div>
 <a class="watch" href="/rooms/{{.ID}}">
-<span class="meta"><span class="chip">{{.Mode}}</span><span class="chip">{{.TC}}</span><span class="chip">{{.BO}}</span><span class="chip">{{template "vglyph" .Variant}} {{.Variant}}</span><span class="chip">{{.Status}}</span>{{if .Spectators}}<span class="chip">{{.Spectators}} watching</span>{{end}}<span class="chip" title="room {{.ID}}">room <span class="mono">{{.ShortID}}</span></span></span>
+<span class="meta"><span class="chip">{{.Mode}}</span><span class="chip">{{.TC}}</span><span class="chip">{{.BO}}</span><span class="chip" title="{{.Variant}}">{{template "vglyph" .Variant}}</span><span class="chip">{{.Status}}</span>{{if .Spectators}}<span class="chip">{{.Spectators}} watching</span>{{end}}<span class="chip" title="room {{.ID}}">room <span class="mono">{{.ShortID}}</span></span></span>
 {{template "board-grid" .}}
 <span class="meta">{{.MoveCount}} stones</span>
 </a>
@@ -11,7 +11,7 @@
 </div></li>
 {{end}}</ul>{{else}}<p class="empty">no live rooms</p>{{end}}
 {{end}}
-{{define "lobbyseat"}}{{if .Profile}}<a href="{{.Profile}}" title="{{.Name}}">{{disp .Name}}</a>{{else}}{{disp .Name}}{{end}}{{if .Tier}} <span class="chip">{{.Tier}}</span>{{end}}{{end}}
+{{define "lobbyseat"}}{{if .Profile}}<a class="vname" href="{{.Profile}}" title="{{.Name}}">{{disp .Name}}</a>{{else}}<span class="vname">{{disp .Name}}</span>{{end}}{{if .Tier}} <span class="chip">{{.Tier}}</span>{{end}}{{end}}
 {{define "quickstart"}}
 {{if .Me}}
 <form class="actions quick" method="post" action="/rooms">

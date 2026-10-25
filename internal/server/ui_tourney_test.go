@@ -305,8 +305,8 @@ func TestTourneyRunPageRendersLiveBoard(t *testing.T) {
 		">running<",
 		`tournament <span class="mono" title="run 7">7</span>`,
 		"series 1/2 settled",
-		`<li><span class="who-vs">easy-1</span><span class="score">2-0</span><span class="who-vs">hard-1</span><span class="score">easy-1 wins</span></li>`,
-		`<li><span class="who-vs">hard-1</span><span class="score">0-0</span><span class="who-vs">easy-1</span><span class="chip live">playing</span></li>`,
+		`<li><span class="who-vs"><span class="vname">easy-1</span></span><span class="score">2-0</span><span class="who-vs"><span class="vname">hard-1</span></span><span class="score">easy-1 wins</span></li>`,
+		`<li><span class="who-vs"><span class="vname">hard-1</span></span><span class="score">0-0</span><span class="who-vs"><span class="vname">easy-1</span></span><span class="chip live">playing</span></li>`,
 		">playing<",
 		"<td>1</td><td>easy-1</td><td>"+config.TierEasy.Name+"</td><td>"+
 			strconv.Itoa(config.TournamentStartRating+40)+"</td>",
@@ -428,8 +428,8 @@ func TestLiveBoardCardsTrimRoomIDFromBotNames(t *testing.T) {
 	}}}
 	srv, _ := tourneySrv(t, fake)
 	_, _, body := doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/tourney/run/7/board", "", nil)
-	want := `<span class="who-vs" title="easy-a-` + id + ` vs easy-b-` + id + `">easy-a-` +
-		shortID(id) + ` vs easy-b-` + shortID(id) + `</span>`
+	want := `<span class="who-vs" title="easy-a-` + id + ` vs easy-b-` + id + `"><span class="vname">easy-a-` +
+		shortID(id) + `</span> vs <span class="vname">easy-b-` + shortID(id) + `</span></span>`
 	if !strings.Contains(body, want) {
 		t.Errorf("live card misses the trimmed names under the full title (body %s)", body)
 	}
@@ -605,11 +605,11 @@ func TestTourneyRunPageShowsVariantChipOnBothVariants(t *testing.T) {
 		if status != http.StatusOK {
 			t.Fatalf("%s run page: status = %d (body %s)", row.variant, status, body)
 		}
-		if !strings.Contains(body, `<span class="chip"><svg class="vglyph `+row.glyph+`"`) {
+		if !strings.Contains(body, `<span class="chip" title="`+row.variant+`"><svg class="vglyph `+row.glyph+`"`) {
 			t.Errorf("%s run page misses the glyph chip (body %s)", row.variant, body)
 		}
-		if !strings.Contains(body, `</svg> `+row.variant+`</span>`) {
-			t.Errorf("%s run page misses the chip label (body %s)", row.variant, body)
+		if !strings.Contains(body, `</svg></span>`) {
+			t.Errorf("%s run page misses the glyph-only chip (body %s)", row.variant, body)
 		}
 	}
 }
@@ -656,12 +656,12 @@ func TestTourneySeriesRowsTabIntoColumns(t *testing.T) {
 			t.Errorf(".tseries li must carry %s, got %s", want, row)
 		}
 	}
-	score := regexp.MustCompile(`(?m)^\.tseries \.score \{[^}]*\}`).Find(css)
+	score := regexp.MustCompile(`(?m)^\.score \{[^}]*\}`).Find(css)
 	if score == nil {
-		t.Fatal("shell.css loses the .tseries .score rule")
+		t.Fatal("shell.css loses the .score rule")
 	}
 	if !regexp.MustCompile(`color:\s*var\(--mark\)`).Match(score) {
-		t.Errorf(".tseries .score must carry color var(--mark), got %s", score)
+		t.Errorf(".score must carry color var(--mark), got %s", score)
 	}
 
 	srv, _ := tourneySrv(t, &fakeTourney{snapshot: liveSnapshot()})

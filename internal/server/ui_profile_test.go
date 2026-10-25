@@ -207,13 +207,6 @@ func TestProfileRecentRowsAlignTableLike(t *testing.T) {
 		!regexp.MustCompile(`grid-template-columns:`).Match(rule) {
 		t.Errorf(".grow must be a grid with fixed columns, got %s", rule)
 	}
-	turns := regexp.MustCompile(`(?m)^\.hturns \{[^}]*\}`).Find(css)
-	if turns == nil {
-		t.Fatal("shell.css loses the .hturns rule")
-	}
-	if !regexp.MustCompile(`grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)`).Match(turns) {
-		t.Errorf(".hturns must wrap at 4 turn items per line, got %s", turns)
-	}
 }
 
 func TestProfileStatsRowSeparatesParts(t *testing.T) {

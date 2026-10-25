@@ -251,11 +251,18 @@ func TestShellCSSHoldsLiveCardTitlesOnOneLine(t *testing.T) {
 		t.Fatal("shell.css loses the .livecard .who-vs rule")
 	}
 	for _, want := range []string{
-		`font-size:\s*var\(--text-base\)`, `font-weight:\s*700`, `overflow-wrap:\s*normal`,
+		`font-size:\s*var\(--text-base\)`, `overflow-wrap:\s*normal`,
 	} {
 		if !regexp.MustCompile(want).Match(rule) {
 			t.Errorf(".livecard .who-vs must carry %s, got %s", want, rule)
 		}
+	}
+	if regexp.MustCompile(`font-weight:\s*700`).Match(rule) {
+		t.Errorf("the vs text must stay plain, only names carry weight, got %s", rule)
+	}
+	vname := regexp.MustCompile(`(?m)^\.vname \{[^}]*\}`).Find(css)
+	if vname == nil || !regexp.MustCompile(`font-weight:\s*700`).Match(vname) {
+		t.Errorf("shell.css loses the weighted versus name rule, got %s", vname)
 	}
 	if nowrap := regexp.MustCompile(`\.livecard \.who-vs a \{[^}]*white-space:\s*nowrap`).Find(css); nowrap == nil {
 		t.Error("shell.css loses the live card name nowrap rule")
@@ -263,6 +270,25 @@ func TestShellCSSHoldsLiveCardTitlesOnOneLine(t *testing.T) {
 	shared := regexp.MustCompile(`\.hrow \.who-vs, \.tseries \.who-vs \{[^}]*var\(--text-xl\)`).Match(css)
 	if !shared {
 		t.Error("the history and series who-vs lines must keep the text-xl scale")
+	}
+}
+
+func TestScoreRendersAsDataColor(t *testing.T) {
+	css, err := os.ReadFile("web/shell.css")
+	if err != nil {
+		t.Fatalf("read shell.css: %v", err)
+	}
+	rule := regexp.MustCompile(`(?m)^\.score \{[^}]*\}`).Find(css)
+	if rule == nil {
+		t.Fatal("shell.css loses the .score rule")
+	}
+	for _, want := range []string{`font-weight:\s*700`, `color:\s*var\(--mark\)`} {
+		if !regexp.MustCompile(want).Match(rule) {
+			t.Errorf(".score must render as data in the mark color at %s, got %s", want, rule)
+		}
+	}
+	if strings.Contains(string(css), ".tseries .score") {
+		t.Error("the score color rule must be the one shared .score component, not a tseries local")
 	}
 }
 
@@ -318,9 +344,10 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 	}
 	wantShellBody(t, body,
 		`id="rooms"`, `href="/rooms/`+room.ID()+`"`,
-		`href="/rooms/`+ghostRoom.ID()+`"`, "#777 vs open seat",
-		`title="`+hostFull+` / `+guestFull+`">`+botNameDisplay(hostFull)+` vs `+botNameDisplay(guestFull),
-		"2&#43;1", "bo5", "created", "alice vs open seat",
+		`href="/rooms/`+ghostRoom.ID()+`"`, `<span class="vname">#777</span> vs <span class="vname">open seat</span>`,
+		`title="`+hostFull+` / `+guestFull+`"><span class="vname">`+botNameDisplay(hostFull)+
+			`</span> vs <span class="vname">`+botNameDisplay(guestFull)+`</span>`,
+		"2&#43;1", "bo5", "created", `<span class="vname">alice</span> vs <span class="vname">open seat</span>`,
 		`class="guestnote"`, `href="/login"`,
 	)
 	if strings.Contains(body, ">"+hostFull+" vs ") {
@@ -394,7 +421,7 @@ func TestHistoryListsFinishedSeriesOfBothVariants(t *testing.T) {
 		`<span class="n">2.</span><span class="m">I6</span>`,
 		`<span class="n">1.</span><span class="m">L12</span>`,
 		`<span class="n">2.</span><span class="m">M13</span>`,
-		`<span class="chip"><svg class="vglyph vglyph-hex"`,
+		`<span class="chip" title="hex"><svg class="vglyph vglyph-hex"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("history misses %q (body %s)", want, body)
@@ -589,7 +616,7 @@ func TestHistoryFiltersByVariantParam(t *testing.T) {
 	if !strings.Contains(body, "L12") || strings.Contains(body, "H8 I6") {
 		t.Error("hex history must carry only the hex game")
 	}
-	if !strings.Contains(body, `match history <span class="chip"><svg class="vglyph vglyph-hex"`) {
+	if !strings.Contains(body, `match history <span class="chip" title="hex"><svg class="vglyph vglyph-hex"`) {
 		t.Error("filtered history misses the active variant chip")
 	}
 
@@ -645,7 +672,7 @@ func TestShellCreateRoomAcceptsEveryConfigCombination(t *testing.T) {
 		info, _ := room.Info()
 		status, _, gridBody := doShell(t, c, http.MethodGet, srv.URL+"/", token, nil)
 		if status != http.StatusOK ||
-			!strings.Contains(gridBody, "alice vs "+botNameDisplay(info.GuestBotName)) {
+			!strings.Contains(gridBody, `<span class="vname">alice</span> vs <span class="vname">`+botNameDisplay(info.GuestBotName)+`</span>`) {
 			t.Fatalf("grid after bot %s: status = %d, want the room card (body %s)",
 				config.Tiers[i].Name, status, gridBody)
 		}
@@ -1305,5 +1332,65 @@ func TestGameStatTailLeadsWithNewestLine(t *testing.T) {
 	}
 	if !more {
 		t.Error("truncated tail reads as complete")
+	}
+}
+
+func TestVariantChipsRenderGlyphOnly(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	t.Cleanup(srv.Close)
+	alice, bob := seedUser(t, s.store, `alice`), seedUser(t, s.store, `bob`)
+	sr := seedSeries(t, s.store, alice, bob)
+	if _, err := s.store.AppendGame(Game{SeriesID: sr.ID, IdxInSeries: 0,
+		RedUser: alice.ID, BlueUser: bob.ID, Outcome: OutcomeRed,
+		Moves: EncodeMoves(nil, seqMoves(2)), FullTurns: 1}); err != nil {
+		t.Fatalf(`append game: %v`, err)
+	}
+
+	status, body := getRoomPage(t, srv, `/history`, mintSession(t, s.store, alice))
+	if status != http.StatusOK {
+		t.Fatalf(`history: status = %d`, status)
+	}
+	if !strings.Contains(body, `<span class="chip" title="square"><svg class="vglyph vglyph-square"`) {
+		t.Error(`the variant chip must lead with the glyph and carry the title`)
+	}
+	if !strings.Contains(body, `</svg></span>`) {
+		t.Error(`the variant chip must render the glyph only`)
+	}
+	for _, banned := range []string{`</svg> square</span>`, `</svg> hex</span>`} {
+		if strings.Contains(body, banned) {
+			t.Errorf(`the variant chip still prints the word %q`, banned)
+		}
+	}
+}
+
+func TestVersusLinesWeightNamesOnly(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
+	t.Cleanup(srv.Close)
+	pb := newPageServer(t, s)
+	alice, bob := seedUser(t, s.store, "alice"), seedUser(t, s.store, "bob")
+	sr := seedSeries(t, s.store, alice, bob)
+	if _, err := s.store.AppendGame(Game{SeriesID: sr.ID, IdxInSeries: 0,
+		RedUser: alice.ID, BlueUser: bob.ID, Outcome: OutcomeRed,
+		Moves: EncodeMoves(nil, seqMoves(2)), FullTurns: 1}); err != nil {
+		t.Fatalf(`append game: %v`, err)
+	}
+	ta := mintSession(t, s.store, alice)
+
+	status, body := getRoomPage(t, srv, `/history`, ta)
+	if status != http.StatusOK {
+		t.Fatalf(`history: status = %d`, status)
+	}
+	if !strings.Contains(body, `<span class="vname">alice</span> vs <span class="vname">bob</span>`) {
+		t.Error(`history versus line must weight the names, plain vs`)
+	}
+
+	status, body = getRoomPage(t, pb, "/rooms/history/1", ta)
+	if status != http.StatusOK {
+		t.Fatalf(`playback: status = %d`, status)
+	}
+	if !strings.Contains(body, `<span class="vname">alice</span> vs blue <span class="vname">bob</span>`) {
+		t.Error(`playback versus line must weight the names, plain vs`)
 	}
 }
