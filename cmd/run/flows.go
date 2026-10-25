@@ -331,20 +331,41 @@ func registerChain() {
 }
 
 const (
-	mermaidVersion   = "12.0.0"
-	puppeteerVersion = "25.12.0"
-	diagramsDir      = "docs/diagrams"
-	diagramBg        = "rgb(255,247,251)"
-	diagramScale     = "3"
+	diagramsDir       = "docs/diagrams"
+	plantumlLimitSize = "16384"
 )
 
-func diagramNeedsRender(png, mmd string) bool {
+var plantumlUnixDirs = []string{"/usr/share/plantuml", "/usr/share/java"}
+
+func findPlantumlJar() (string, error) {
+	if p := os.Getenv("PLANTUML_JAR"); p != "" {
+		return p, nil
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		if jars, err := filepath.Glob(filepath.Join(home, "scoop", "apps", "plantuml", "*", "plantuml.jar")); err == nil && len(jars) > 0 {
+			sort.Strings(jars)
+			return jars[len(jars)-1], nil
+		}
+	}
+	for _, dir := range plantumlUnixDirs {
+		p := filepath.Join(dir, "plantuml.jar")
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+	return "", fmt.Errorf("diagrams: plantuml.jar not found: set PLANTUML_JAR or install plantuml")
+}
+
+func diagramNeedsRender(png, src string) bool {
 	st, err := os.Stat(png)
 	if err != nil {
 		return true
 	}
-	for _, dep := range []string{mmd, filepath.Join(diagramsDir, "mermaid-config.json"), filepath.Join(diagramsDir, "puppeteer.json")} {
+	for _, dep := range []string{src, filepath.Join(diagramsDir, "common.iuml")} {
 		d, err := os.Stat(dep)
+		if os.IsNotExist(err) {
+			continue
+		}
 		if err != nil || d.ModTime().After(st.ModTime()) {
 			return true
 		}
@@ -354,35 +375,25 @@ func diagramNeedsRender(png, mmd string) bool {
 
 func registerDiagrams() {
 	registerFlow("diagrams", func(r *runner, v vars) error {
-		browserSteps, err := buildSteps("diagrams-browser", r, v)
+		jar, err := findPlantumlJar()
 		if err != nil {
 			return err
 		}
-		if err := r.run(browserSteps[0]); err != nil {
-			return err
-		}
-		mmds, err := filepath.Glob(filepath.Join(diagramsDir, "*.mmd"))
+		srcs, err := filepath.Glob(filepath.Join(diagramsDir, "*.puml"))
 		if err != nil {
 			return err
 		}
-		for _, mmd := range mmds {
-			png := strings.TrimSuffix(mmd, ".mmd") + ".png"
-			if !diagramNeedsRender(png, mmd) {
+		for _, src := range srcs {
+			png := strings.TrimSuffix(src, ".puml") + ".png"
+			if !diagramNeedsRender(png, src) {
 				continue
 			}
-			err := r.run(step{name: "diagram " + filepath.Base(mmd), path: "npx", args: []string{
-				"-y",
-				"-p", "@mermaid-js/mermaid-cli@" + mermaidVersion,
-				"-p", "puppeteer@" + puppeteerVersion,
-				"mmdc",
-				"-i", mmd,
-				"-o", png,
-				"-e", "png",
-				"-b", diagramBg,
-				"-s", diagramScale,
-				"-c", filepath.Join(diagramsDir, "mermaid-config.json"),
-				"-p", filepath.Join(diagramsDir, "puppeteer.json"),
-			}})
+			err := r.run(step{name: "diagram " + filepath.Base(src), path: "java", args: []string{
+				"-jar", jar,
+				"-charset", "UTF-8",
+				"-tpng",
+				src,
+			}, env: map[string]string{"PLANTUML_LIMIT_SIZE": plantumlLimitSize}})
 			if err != nil {
 				return err
 			}

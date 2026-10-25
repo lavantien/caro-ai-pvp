@@ -381,12 +381,6 @@ func registerTourneyTargets() {
 	}
 }
 
-func registerDiagramTargets() {
-	register("diagrams-browser", func(r *runner, v vars) ([]step, error) {
-		return []step{{name: "diagrams-browser", path: "npx", args: []string{"-y", "puppeteer@" + puppeteerVersion, "browsers", "install", "chrome-headless-shell"}}}, nil
-	})
-}
-
 func registerScriptTargets() {
 	script := func(name, file string) specBuilder {
 		return func(r *runner, v vars) ([]step, error) {
@@ -428,7 +422,6 @@ func init() {
 	registerPlaygroundTargets()
 	registerArenaTargets()
 	registerTourneyTargets()
-	registerDiagramTargets()
 	registerScriptTargets()
 	registerMutateTargets()
 }

@@ -403,40 +403,81 @@ func TestDiagramNeedsRender(t *testing.T) {
 	if err := os.MkdirAll(diagramsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	mmd := filepath.Join(diagramsDir, "a.mmd")
-	cfg := filepath.Join(diagramsDir, "mermaid-config.json")
-	pup := filepath.Join(diagramsDir, "puppeteer.json")
-	for _, f := range []string{mmd, cfg, pup} {
+	src := filepath.Join(diagramsDir, "a.puml")
+	common := filepath.Join(diagramsDir, "common.iuml")
+	for _, f := range []string{src, common} {
 		if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
 	png := filepath.Join(diagramsDir, "a.png")
-	if !diagramNeedsRender(png, mmd) {
+	if !diagramNeedsRender(png, src) {
 		t.Fatal("missing png must render")
 	}
 	if err := os.WriteFile(png, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(10 * time.Millisecond)
-	if diagramNeedsRender(png, mmd) {
+	if diagramNeedsRender(png, src) {
 		t.Fatal("fresh png must not render")
 	}
-	if err := os.Chtimes(mmd, time.Now(), time.Now()); err != nil {
+	if err := os.Chtimes(src, time.Now(), time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	if !diagramNeedsRender(png, mmd) {
-		t.Fatal("newer mmd must render")
+	if !diagramNeedsRender(png, src) {
+		t.Fatal("newer source must render")
 	}
 	past := time.Now().Add(-time.Hour)
 	if err := os.Chtimes(png, past, past); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chtimes(cfg, time.Now(), time.Now()); err != nil {
+	if err := os.Chtimes(common, time.Now(), time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	if !diagramNeedsRender(png, mmd) {
-		t.Fatal("newer config must render")
+	if !diagramNeedsRender(png, src) {
+		t.Fatal("newer common style must render")
+	}
+	if err := os.Chtimes(png, time.Now(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(common); err != nil {
+		t.Fatal(err)
+	}
+	if diagramNeedsRender(png, src) {
+		t.Fatal("absent common style must not force a render")
+	}
+}
+
+func TestFindPlantumlJar(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("PLANTUML_JAR", filepath.Join(dir, "custom.jar"))
+	jar, err := findPlantumlJar()
+	if err != nil || jar != filepath.Join(dir, "custom.jar") {
+		t.Fatalf("env override = %s, %v", jar, err)
+	}
+	home := t.TempDir()
+	old := filepath.Join(home, "scoop", "apps", "plantuml", "1.2026.8")
+	newest := filepath.Join(home, "scoop", "apps", "plantuml", "1.2026.9")
+	for _, v := range []string{old, newest} {
+		if err := os.MkdirAll(v, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(v, "plantuml.jar"), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	os.Unsetenv("PLANTUML_JAR")
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("HOME", home)
+	jar, err = findPlantumlJar()
+	if err != nil || jar != filepath.Join(newest, "plantuml.jar") {
+		t.Fatalf("scoop discovery = %s, %v", jar, err)
+	}
+	empty := t.TempDir()
+	t.Setenv("USERPROFILE", empty)
+	t.Setenv("HOME", empty)
+	if jar, err := findPlantumlJar(); err == nil {
+		t.Fatalf("missing jar resolved to %s", jar)
 	}
 }
 
@@ -473,7 +514,7 @@ func TestRunnerTargetSurface(t *testing.T) {
 		"contrast": true, "icons": true, "shots": true, "playground-modules": true, "evalfit-test": true,
 		"arena-test": true, "bookgen-build": true, "bookgen": true, "booktree": true, "bookgen-test": true,
 		"clocktune": true, "logstats": true, "crossarm": true, "db-checkpoint": true, "gpu-spike": true,
-		"arena": true, "hex-noise": true, "hex-passgates": true, "hex-ladder": true, "diagrams-browser": true,
+		"arena": true, "hex-noise": true, "hex-passgates": true, "hex-ladder": true,
 		"bookval-short": true, "bookval-confirm": true, "bookval-cross": true, "booktree-run": true, "evaladopt-arms": true,
 		"mutate": true, "mutate-smoke": true,
 		"tourney-smoke-32": true, "tourney-smoke-10": true, "tourney-smoke-105": true,
@@ -484,7 +525,7 @@ func TestRunnerTargetSurface(t *testing.T) {
 		"doctor": true, "fmt": true, "fmt-check": true, "fuzz": true,
 		"mutate-resume": true, "mutate-full": true, "tourney-regate-chain": true, "diagrams": true, "ci": true,
 	}
-	if len(want) < 66 {
+	if len(want) < 67 {
 		t.Fatalf("frozen surface holds only %d targets, the literal was truncated", len(want))
 	}
 	runnerNames := map[string]bool{}
