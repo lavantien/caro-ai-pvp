@@ -1,1 +1,1 @@
-{{define "seg"}}<span class="seg{{if .Tight}} tight{{end}}">{{range .Options}}<label><input type="radio" name="{{$.Name}}" value="{{.Value}}"{{if .Selected}} checked{{end}}><span>{{.Label}}</span></label>{{end}}</span>{{end}}
+{{define "seg"}}<span class="seg{{if .Tight}} tight{{end}}">{{range .Options}}<label{{if .Disabled}} class="off"{{end}}><input type="radio" name="{{$.Name}}" value="{{.Value}}"{{if .Selected}} checked{{end}}{{if .Disabled}} disabled{{end}}><span>{{.Label}}</span></label>{{end}}</span>{{end}}

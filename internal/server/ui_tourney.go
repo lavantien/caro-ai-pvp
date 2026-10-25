@@ -246,14 +246,56 @@ func (p *TournamentPages) runLines(r *http.Request) ([]tourneyRunLineView, error
 	return lines, nil
 }
 
+func worstRoomCores(tiers []*config.Tier) int {
+	worst := 0
+	for _, tier := range tiers {
+		worst = max(worst, tier.Cores)
+		for _, other := range tiers {
+			worst = max(worst, config.RoomCores(*tier, *other))
+		}
+	}
+	return worst
+}
+
+func parallelOptions(rows []tourneyRowView) []optionView {
+	picked := make([]*config.Tier, 0, len(rows))
+	for _, row := range rows {
+		if tier := tierByName(row.SegTier.selectedValue()); tier != nil {
+			picked = append(picked, tier)
+		}
+	}
+	worst := worstRoomCores(picked)
+	largestFeasible := 1
+	opts := make([]optionView, config.TournamentParallelChoices)
+	for n := range opts {
+		count := n + 1
+		feasible := count*worst <= config.MachineCores
+		opts[n] = optionView{Value: count, Label: strconv.Itoa(count),
+			Disabled: !feasible}
+		if feasible {
+			largestFeasible = count
+		}
+	}
+	defaultCount := config.TournamentParallelMatches
+	if defaultCount*worst > config.MachineCores {
+		defaultCount = largestFeasible
+	}
+	opts[defaultCount-1].Selected = true
+	return opts
+}
+
+func (v segView) selectedValue() string {
+	for _, o := range v.Options {
+		if o.Selected {
+			return o.Value
+		}
+	}
+	return ""
+}
+
 func (p *TournamentPages) renderSetup(w http.ResponseWriter, status int, me *shellViewer,
 	state *tourneySetupState, errMsg string, runs []tourneyRunLineView) {
 
-	parallelOpts := make([]optionView, config.TournamentParallelMatches)
-	for n := range parallelOpts {
-		parallelOpts[n] = optionView{Value: n + 1, Label: strconv.Itoa(n + 1),
-			Selected: n+1 == config.TournamentParallelMatches}
-	}
 	countOpts := make([]optionView, 0, config.TournamentMaxParticipants-1)
 	for n := 2; n <= config.TournamentMaxParticipants; n++ {
 		countOpts = append(countOpts, optionView{Value: n, Label: strconv.Itoa(n),
@@ -264,15 +306,16 @@ func (p *TournamentPages) renderSetup(w http.ResponseWriter, status int, me *she
 	if state != nil {
 		names, tiers, rating = state.names, state.tiers, state.rating
 	}
+	rows := tourneyRows(names, tiers)
 	renderShell(w, status, tourneyTmpl, "base", tourneySetupView{
 		Me:           me,
 		Admin:        isAdmin(me),
 		SegTC:        intSeg("tc", shellTCOptions()),
 		SegBO:        intSeg("bo", shellBOOptions()),
 		SegVariant:   stringSeg("variant", shellVariantOptions()),
-		SegParallel:  intSeg("parallel", parallelOpts),
+		SegParallel:  intSeg("parallel", parallelOptions(rows)),
 		CountOptions: countOpts,
-		Rows:         tourneyRows(names, tiers),
+		Rows:         rows,
 		StartRating:  rating, MaxNameLen: config.TournamentNameMaxBytes,
 		Error: errMsg, Runs: runs,
 	})
@@ -327,8 +370,8 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 	}
 	state.rating = rating
 	parallel, err := strconv.Atoi(r.PostFormValue("parallel"))
-	if err != nil || parallel < 1 || parallel > config.TournamentParallelMatches {
-		bad("parallel must sit between 1 and " + strconv.Itoa(config.TournamentParallelMatches))
+	if err != nil || parallel < 1 || parallel > config.TournamentParallelChoices {
+		bad("parallel must sit between 1 and " + strconv.Itoa(config.TournamentParallelChoices))
 		return
 	}
 	count, err := strconv.Atoi(r.PostFormValue("count"))
@@ -343,8 +386,7 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 	}
 	seats := make([]TourneySeat, count)
 	seen := make(map[string]bool, count)
-	worstRoom := 0
-	var picked []*config.Tier
+	picked := make([]*config.Tier, 0, count)
 	for i := range seats {
 		name := state.names[i]
 		if name == "" {
@@ -365,13 +407,10 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 			bad("bot " + strconv.Itoa(i+1) + " needs a tier from the list")
 			return
 		}
-		worstRoom = max(worstRoom, tier.Cores)
-		for _, other := range picked {
-			worstRoom = max(worstRoom, config.RoomCores(*tier, *other))
-		}
 		picked = append(picked, tier)
 		seats[i] = TourneySeat{Slot: i, Name: name, Tier: tier.Name}
 	}
+	worstRoom := worstRoomCores(picked)
 	if need := parallel * worstRoom; need > config.MachineCores {
 		bad(strconv.Itoa(parallel) + " parallel rooms at " + strconv.Itoa(worstRoom) +
 			" live-search cores each need " + strconv.Itoa(need) +

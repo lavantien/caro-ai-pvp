@@ -177,6 +177,7 @@ type optionView struct {
 	Value    int
 	Label    string
 	Selected bool
+	Disabled bool
 }
 
 type botOptionView struct {
@@ -189,6 +190,7 @@ type segOption struct {
 	Value    string
 	Label    string
 	Selected bool
+	Disabled bool
 }
 
 type segView struct {
@@ -213,7 +215,7 @@ func intSeg(name string, opts []optionView) segView {
 	seg := segView{Name: name, Options: make([]segOption, len(opts))}
 	for i, o := range opts {
 		seg.Options[i] = segOption{
-			Value: strconv.Itoa(o.Value), Label: o.Label, Selected: o.Selected,
+			Value: strconv.Itoa(o.Value), Label: o.Label, Selected: o.Selected, Disabled: o.Disabled,
 		}
 	}
 	return seg.defaultFirst()

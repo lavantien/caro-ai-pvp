@@ -27,7 +27,7 @@ Never cached, by design: any `/api/` response, any SSE stream, every room (`/roo
 
 ## Cache bump law
 
-The cache name is `caro-static-v15`. Bump the version in `sw.js` whenever any allowlisted asset changes content under the same URL (a shell.css token edit, a re-vendored htmx, a regenerated icon). The activate step drops every cache whose name is not the current one, so the bump is the whole migration. The precache wraps every asset in `new Request(u, {cache: 'reload'})`: a bumped cache pulls fresh bytes past the browser's day-long HTTP cache for `/static` instead of baking stale ones in.
+The cache name is `caro-static-v16`. Bump the version in `sw.js` whenever any allowlisted asset changes content under the same URL (a shell.css token edit, a re-vendored htmx, a regenerated icon). The activate step drops every cache whose name is not the current one, so the bump is the whole migration. The precache wraps every asset in `new Request(u, {cache: 'reload'})`: a bumped cache pulls fresh bytes past the browser's day-long HTTP cache for `/static` instead of baking stale ones in.
 
 ## Icons
 

@@ -90,6 +90,7 @@ h2 { font-size: var(--text-l); margin: 1.4rem 0 var(--space-2) }
 select, input { font: inherit; font-size: var(--text-l); padding: .3rem .4rem;
 	background: var(--background); color: var(--text);
 	border: 1px solid var(--border); border-radius: var(--radius-s) }
+.narrow { width: 7ch }
 .seg { display: flex; flex-wrap: wrap; gap: var(--space-1) }
 .seg label { position: relative; display: inline-flex }
 .seg input { position: absolute; inset: 0; opacity: 0; margin: 0;
@@ -100,6 +101,7 @@ select, input { font: inherit; font-size: var(--text-l); padding: .3rem .4rem;
 .seg input:checked + span { background: var(--accent); border-color: var(--accent);
 	color: var(--background) }
 .seg input:focus-visible + span { box-shadow: 0 0 0 3px var(--accent-strong) }
+.seg label.off span { opacity: .55 }
 .seg.tight span { padding: .1rem var(--space-2); font-size: var(--text-s) }
 @media (pointer: coarse) {
 	.seg span { padding: .55rem var(--space-3) }

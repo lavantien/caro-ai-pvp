@@ -142,10 +142,10 @@ func TestTourneySetupFormRendersConfigDefaults(t *testing.T) {
 	wants := []string{
 		`action="/tourney"`,
 		"1&#43;0", "2&#43;1", "3&#43;2", "bo3", "bo5", "bo7", "bo11",
-		`name="rating" type="number" value="` + strconv.Itoa(config.TournamentStartRating) + `"`,
+		`name="rating" type="number" class="narrow" value="` + strconv.Itoa(config.TournamentStartRating) + `"`,
 		`name="tc" value="0" checked`,
 		`name="bo" value="` + strconv.Itoa(config.SeriesLengths[0]) + `" checked`,
-		`name="parallel" value="` + strconv.Itoa(config.TournamentParallelMatches) + `" checked`,
+		`name="parallel" value="1" checked`,
 		`name="variant" value="square" checked`,
 		`<option value="` + strconv.Itoa(config.TournamentMaxParticipants) + `" selected>`,
 		`<select name="count"`,
@@ -710,5 +710,74 @@ func TestTourneySetupListsRuns(t *testing.T) {
 	status, _, _ = doShell(t, noRedirectClient(bad), http.MethodGet, bad.URL+"/tourney", badTok, nil)
 	if status != http.StatusInternalServerError {
 		t.Errorf("runs failure = %d, want 500", status)
+	}
+}
+
+func TestTourneyParallelOptionsListThreeThroughEight(t *testing.T) {
+	srv, store := tourneyMount(t, &fakeTourney{})
+	token := mintAdminSession(t, store)
+
+	status, _, body := doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+`/tourney`, token, nil)
+	if status != http.StatusOK {
+		t.Fatalf(`setup: status = %d (body %s)`, status, body)
+	}
+	for n := 3; n <= 8; n++ {
+		if !strings.Contains(body, `name="parallel" value="`+strconv.Itoa(n)+`"`) {
+			t.Errorf(`parallel option %d missing from the list`, n)
+		}
+	}
+	if !strings.Contains(body, `name="parallel" value="8" disabled`) {
+		t.Error(`the infeasible parallel count must render greyed and unselectable, not absent`)
+	}
+	if !strings.Contains(body, `name="parallel" value="2" disabled`) {
+		t.Error(`the default roster holds only one parallel room behind the pair-peak budget`)
+	}
+	if !strings.Contains(body, `name="parallel" value="1" checked`) {
+		t.Error(`the checked default must fall to the largest feasible count`)
+	}
+}
+
+func TestTourneyStartRatingInputFitsItsValue(t *testing.T) {
+	srv, store := tourneyMount(t, &fakeTourney{})
+	token := mintAdminSession(t, store)
+
+	status, _, body := doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+`/tourney`, token, nil)
+	if status != http.StatusOK {
+		t.Fatalf(`setup: status = %d`, status)
+	}
+	if !strings.Contains(body, `<input name="rating" type="number" class="narrow" value="`+
+		strconv.Itoa(config.TournamentStartRating)+`">`) {
+		t.Error(`the start rating input must carry the narrow fit class`)
+	}
+	css, err := os.ReadFile(`web/shell.css`)
+	if err != nil {
+		t.Fatalf(`read shell.css: %v`, err)
+	}
+	rule := regexp.MustCompile(`(?m)^\.narrow \{[^}]*\}`).Find(css)
+	if rule == nil || !regexp.MustCompile(`width:\s*7ch`).Match(rule) {
+		t.Errorf(`shell.css loses the narrow input rule, got %s`, rule)
+	}
+}
+
+func TestTourneyStartAcceptsFeasibleParallelBeyondTheDefault(t *testing.T) {
+	fake := &fakeTourney{startID: 7}
+	srv, store := tourneyMount(t, fake)
+	token := mintAdminSession(t, store)
+	form := url.Values{
+		`tc`: {`0`}, `bo`: {strconv.Itoa(config.SeriesBO3)},
+		`rating`:   {strconv.Itoa(config.TournamentStartRating)},
+		`parallel`: {`3`}, `count`: {`2`},
+		`name0`: {`a`}, `tier0`: {config.TierEasy.Name},
+		`name1`: {`b`}, `tier1`: {config.TierEasy.Name},
+	}
+	status, h, body := doShell(t, noRedirectClient(srv), http.MethodPost, srv.URL+`/tourney`, token, form)
+	if status != http.StatusSeeOther {
+		t.Fatalf(`parallel 3 over an easy roster: status = %d, want 303 (body %s)`, status, body)
+	}
+	if loc := h.Get(`Location`); loc != `/tourney/run/7` {
+		t.Errorf(`redirect = %q, want /tourney/run/7`, loc)
+	}
+	if got := fake.started[0].Parallel; got != 3 {
+		t.Errorf(`parallel reached the service as %d, want 3`, got)
 	}
 }

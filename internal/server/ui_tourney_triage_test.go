@@ -67,23 +67,23 @@ func TestTourneySetupSelectsRenderExactOptionLists(t *testing.T) {
 		mintAdminSession(t, store), nil)
 
 	parallel := `type="radio" name="parallel"`
-	if n := strings.Count(body, parallel); n != config.TournamentParallelMatches {
-		t.Errorf("parallel options = %d, want %d", n, config.TournamentParallelMatches)
+	if n := strings.Count(body, parallel); n != config.TournamentParallelChoices {
+		t.Errorf("parallel options = %d, want %d", n, config.TournamentParallelChoices)
 	}
 	if strings.Contains(body, `name="parallel" value="0"`) {
 		t.Error("parallel seg carries a zero option")
 	}
-	for v := 1; v <= config.TournamentParallelMatches; v++ {
-		mark := ""
-		if v == config.TournamentParallelMatches {
-			mark = ` value="` + strconv.Itoa(v) + `" checked`
-			if !strings.Contains(body, parallel+mark) {
-				t.Errorf("parallel seg misses its default on %d", v)
-			}
-			continue
-		}
+	for v := 1; v <= config.TournamentParallelChoices; v++ {
 		if !strings.Contains(body, parallel+` value="`+strconv.Itoa(v)+`"`) {
 			t.Errorf("parallel seg misses option %d", v)
+		}
+	}
+	if !strings.Contains(body, parallel+` value="1" checked`) {
+		t.Error("parallel seg default must fall to the largest feasible count for the default roster")
+	}
+	for v := 2; v <= config.TournamentParallelChoices; v++ {
+		if !strings.Contains(body, `name="parallel" value="`+strconv.Itoa(v)+`" disabled`) {
+			t.Errorf("infeasible parallel count %d must render disabled", v)
 		}
 	}
 
@@ -134,7 +134,7 @@ func TestTourneyStartReRenderKeepsParsedRating(t *testing.T) {
 	if status != http.StatusBadRequest {
 		t.Fatalf("re-render: status = %d, want 400 (body %s)", status, body)
 	}
-	want := `<input name="rating" type="number" value="` + strconv.Itoa(rating) + `">`
+	want := `<input name="rating" type="number" class="narrow" value="` + strconv.Itoa(rating) + `">`
 	if !strings.Contains(body, want) {
 		t.Errorf("re-rendered rating input misses the posted value %q (body %s)", want, body)
 	}
@@ -199,7 +199,7 @@ func TestTourneyStartBoundaryTable(t *testing.T) {
 		{"parallel not numeric", func(f url.Values) { f.Set("parallel", "abc") }, "parallel must sit between 1 and"},
 		{"parallel zero", func(f url.Values) { f.Set("parallel", "0") }, "parallel must sit between 1 and"},
 		{"parallel past the cap", func(f url.Values) {
-			f.Set("parallel", strconv.Itoa(config.TournamentParallelMatches+1))
+			f.Set("parallel", strconv.Itoa(config.TournamentParallelChoices+1))
 		}, "parallel must sit between 1 and"},
 		{"count not numeric", func(f url.Values) { f.Set("count", "abc") }, "participants must sit between 2 and"},
 		{"count one", func(f url.Values) { f.Set("count", "1") }, "participants must sit between 2 and"},

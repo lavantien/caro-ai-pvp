@@ -113,6 +113,7 @@ const (
 	MaxCoresPerInstance         = 8
 	MaxRAMPerInstanceBytes      = 16 << 30
 	TournamentParallelMatches   = 2
+	TournamentParallelChoices   = 8
 	MachineCores                = 16
 	MachineTTBudgetBytes        = 8 << 30
 	AdmissionMemoryReserveBytes = 1 << 30
