@@ -407,6 +407,14 @@ func TestTourneyRunPageShowsBoardsSurfaceOnBothVariants(t *testing.T) {
 	if !strings.Contains(body, `<text class="glyph" dy=".35em" data-i="0">O</text>`) {
 		t.Errorf("hex run board loses its stone glyph markup (body %s)", body)
 	}
+
+	_, _, page := doShell(t, noRedirectClient(hexSrv), http.MethodGet, hexSrv.URL+"/tourney/run/7", "", nil)
+	if !strings.Contains(page, `.board.mini.hex .cell polygon { fill: none; stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke }`) {
+		t.Errorf("run page board css loses the mini hex rule (body %s)", page)
+	}
+	if strings.Contains(page, `text.glyph { display: none }`) {
+		t.Error("run page board css hides the hex stone glyphs on its live boards")
+	}
 }
 
 func TestLiveBoardCardsTrimRoomIDFromBotNames(t *testing.T) {
