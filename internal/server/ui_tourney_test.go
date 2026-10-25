@@ -653,6 +653,13 @@ func TestTourneySeriesRowsTabIntoColumns(t *testing.T) {
 			t.Errorf(".tseries li must carry %s, got %s", want, row)
 		}
 	}
+	score := regexp.MustCompile(`(?m)^\.tseries \.score \{[^}]*\}`).Find(css)
+	if score == nil {
+		t.Fatal("shell.css loses the .tseries .score rule")
+	}
+	if !regexp.MustCompile(`color:\s*var\(--mark\)`).Match(score) {
+		t.Errorf(".tseries .score must carry color var(--mark), got %s", score)
+	}
 
 	srv, _ := tourneySrv(t, &fakeTourney{snapshot: liveSnapshot()})
 	_, _, body := doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/tourney/run/7", "", nil)
