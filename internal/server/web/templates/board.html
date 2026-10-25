@@ -23,9 +23,10 @@
 .board.live .cell.off { cursor: default; opacity: .22 }
 .board.mini { width: min(100%, 22rem); margin: var(--space-1) auto 0 }
 .board.mini .stone { font-size: var(--text-m) }
-.board.hex { display: block; position: relative; background: var(--background) }
+.board.hex { display: block; position: relative; background: var(--background); border: none }
 .board.hex > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block }
-.board.hex .cell polygon { fill: var(--surface); stroke: var(--border); stroke-width: .22 }
+.board.hex .cell polygon { fill: var(--surface); stroke: var(--border); stroke-width: 1;
+	vector-effect: non-scaling-stroke }
 .board.hex .cell circle.stone.red { fill: var(--red) }
 .board.hex .cell circle.stone.blue { fill: var(--blue) }
 .board.hex .cell circle.stone.latest { stroke: var(--mark); stroke-width: .55 }

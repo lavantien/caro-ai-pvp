@@ -104,7 +104,7 @@ Every list that accumulates over time renders newest first: the room grids on th
 
 ## Board
 
-The board frame takes `--radius-m`; cells and stones keep the lattice and disc language (border cells, circular stones with x/o glyphs, amber latest ring, color-mixed hover ghost). The board-css define in `board.html` consumes the tokens only; its markup classes are pinned by tests and do not change.
+The square board frame takes `--radius-m`; cells and stones keep the lattice and disc language (border cells, circular stones with x/o glyphs, amber latest ring, color-mixed hover ghost). The hex board is the same lattice in svg: cell polygons stroke `--border` at a non-scaling 1px, exactly the square cell's border weight, and the hex frame carries no outer border at all, the lattice alone draws the board. The board-css define in `board.html` consumes the tokens only; its markup classes are pinned by tests and do not change.
 
 ## Captures
 

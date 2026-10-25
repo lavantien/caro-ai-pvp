@@ -1603,3 +1603,27 @@ func TestRoomJSMLinePanelPrependsNewest(t *testing.T) {
 		t.Error("the mline panel still scrolls to the bottom of an append-only list")
 	}
 }
+
+func TestHexBoardChromeMatchesTheSquareLattice(t *testing.T) {
+	tmpl, err := os.ReadFile("web/templates/board.html")
+	if err != nil {
+		t.Fatalf("read board.html: %v", err)
+	}
+	src := string(tmpl)
+	hexRule := regexp.MustCompile(`(?m)^\.board\.hex \{[^}]*\}`).FindString(src)
+	if hexRule == "" {
+		t.Fatal("board.html loses the .board.hex rule")
+	}
+	if !regexp.MustCompile(`border:\s*none`).MatchString(hexRule) {
+		t.Errorf("the hex board must not render the square frame border, got %s", hexRule)
+	}
+	poly := regexp.MustCompile(`\.board\.hex \.cell polygon \{[^}]*\}`).FindString(src)
+	if poly == "" {
+		t.Fatal("board.html loses the hex cell polygon rule")
+	}
+	for _, want := range []string{`stroke:\s*var\(--border\)`, `stroke-width:\s*1`, `vector-effect:\s*non-scaling-stroke`} {
+		if !regexp.MustCompile(want).MatchString(poly) {
+			t.Errorf("hex cell borders must match the square lattice at %s, got %s", want, poly)
+		}
+	}
+}
