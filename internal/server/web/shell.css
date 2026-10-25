@@ -171,6 +171,9 @@ h1, .who, .who-vs, #score-line, .p-name, #turn-line { overflow-wrap: anywhere }
 .livecard { text-decoration: none }
 .tseries { display: grid; gap: var(--space-2); margin: var(--space-4) 0;
 	padding-left: 1.2rem }
+.tseries li { display: grid; align-items: baseline;
+	grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr) max-content;
+	gap: var(--space-1) var(--space-3) }
 .tboard { border-collapse: collapse; font-size: var(--text-base) }
 .tablewrap { overflow-x: auto }
 .tboard th, .tboard td { padding: .2rem .6rem; border-bottom: 1px solid var(--border);

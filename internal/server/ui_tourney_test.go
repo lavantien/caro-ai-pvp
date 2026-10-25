@@ -305,9 +305,8 @@ func TestTourneyRunPageRendersLiveBoard(t *testing.T) {
 		">running<",
 		`tournament <span class="mono" title="run 7">7</span>`,
 		"series 1/2 settled",
-		"easy-1 (red first) 2-0 hard-1",
-		"easy-1 wins",
-		"hard-1 (red first) 0-0 easy-1",
+		`<li><span class="who-vs">easy-1</span><span class="score">2-0</span><span class="who-vs">hard-1</span><span class="score">easy-1 wins</span></li>`,
+		`<li><span class="who-vs">hard-1</span><span class="score">0-0</span><span class="who-vs">easy-1</span><span class="chip live">playing</span></li>`,
 		">playing<",
 		"<td>1</td><td>easy-1</td><td>"+config.TierEasy.Name+"</td><td>"+
 			strconv.Itoa(config.TournamentStartRating+40)+"</td>",
@@ -317,6 +316,9 @@ func TestTourneyRunPageRendersLiveBoard(t *testing.T) {
 		`hx-trigger="every `+strconv.Itoa(config.PagePollMs)+`ms"`, `hx-swap="innerHTML"`,
 		`href="/tourney"`,
 	)
+	if strings.Contains(body, "(red first)") {
+		t.Error("series rows carry the red-first suffix")
+	}
 
 	status, h, frag := doShell(t, c, http.MethodGet, srv.URL+"/tourney/run/7/board", "", nil)
 	if status != http.StatusOK {
@@ -623,6 +625,34 @@ func TestTourneyRunPageSpacesRowGroups(t *testing.T) {
 	}
 	if !regexp.MustCompile(`margin:\s*var\(--space-4\) 0`).Match(live) {
 		t.Errorf(".liveboards margin must sit at var(--space-4) 0, got %s", live)
+	}
+}
+
+func TestTourneySeriesRowsTabIntoColumns(t *testing.T) {
+	css, err := os.ReadFile("web/shell.css")
+	if err != nil {
+		t.Fatalf("read shell.css: %v", err)
+	}
+	row := regexp.MustCompile(`(?m)^\.tseries li \{[^}]*\}`).Find(css)
+	if row == nil {
+		t.Fatal("shell.css loses the .tseries li rule")
+	}
+	for _, want := range []string{
+		`display:\s*grid`, `align-items:\s*baseline`,
+		`grid-template-columns:\s*minmax\(0, 1fr\) max-content minmax\(0, 1fr\) max-content`,
+	} {
+		if !regexp.MustCompile(want).Match(row) {
+			t.Errorf(".tseries li must carry %s, got %s", want, row)
+		}
+	}
+
+	srv, _ := tourneySrv(t, &fakeTourney{snapshot: liveSnapshot()})
+	_, _, body := doShell(t, noRedirectClient(srv), http.MethodGet, srv.URL+"/tourney/run/7", "", nil)
+	if n := strings.Count(body, `<span class="who-vs">`); n != 4 {
+		t.Errorf("series rows carry %d name columns, want 4 across the two rows (body %s)", n, body)
+	}
+	if strings.Contains(body, "(red first)") {
+		t.Error("columned series rows still carry the red-first suffix")
 	}
 }
 

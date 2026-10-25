@@ -11,7 +11,7 @@
 {{end}}
 <p class="progress">series {{.Done}}/{{.Total}} settled</p>
 <ol class="tseries">
-{{range .Series}}<li><span class="who-vs">{{.Red}} (red first) {{.Score}} {{.Blue}}</span> {{if .Finished}}<span class="score">{{if .Winner}}{{.Winner}}{{else}}drawn{{end}}</span>{{else}}<span class="chip live">playing</span>{{end}}</li>
+{{range .Series}}<li><span class="who-vs">{{.Red}}</span><span class="score">{{.Score}}</span><span class="who-vs">{{.Blue}}</span>{{if .Finished}}<span class="score">{{if .Winner}}{{.Winner}}{{else}}drawn{{end}}</span>{{else}}<span class="chip live">playing</span>{{end}}</li>
 {{end}}</ol>
 <div class="tablewrap">
 <table class="tboard">

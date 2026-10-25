@@ -1,4 +1,4 @@
-const CACHE = 'caro-static-v7';
+const CACHE = 'caro-static-v8';
 const ASSETS = [
 	'/shell.css',
 	'/static/htmx.min.js',
