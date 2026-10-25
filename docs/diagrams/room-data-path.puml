@@ -1,18 +1,20 @@
 @startuml room-data-path
 !include common.iuml
-start
-:players / bot worker: PlayMove;
-:room + match driver\nboard, clocks, series machine;
-fork
-  :games, rating events, series updates;
-  :single-writer mutation queue\nblocks, never drops;
-  :game end: per-match rating law;
-  :SQLite WAL\nforward-only migrations;
-  stop
-fork again
-  :move, M-line, gameend events;
-  :pub-sub hub\nper-subscriber buffers, slow subscribers evicted;
-  :guests and players via SSE;
-  stop
-end fork
+title Room data path, gameplay never blocks on the disk
+
+participant "player / bot worker" as player
+participant "room + match driver\nboard, clocks, series machine" as room
+queue "single-writer mutation queue\nblocks, never drops" as wq
+database "store\nsqlite WAL, forward-only migrations" as store
+participant "pub-sub hub\nper-subscriber buffers,\nslow subscribers evicted" as hub
+participant "players and guests via SSE" as sse
+
+player -> room : PlayMove
+par persistence
+  room -> wq : Games, rating events, series updates
+  wq -> store : One transaction per game,\nper-match rating law at game end
+else live updates
+  room -> hub : Move, M-line, gameend events
+  hub -> sse : Fan out to every subscriber
+end
 @enduml

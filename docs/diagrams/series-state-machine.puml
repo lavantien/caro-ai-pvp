@@ -1,15 +1,18 @@
 @startuml series-state-machine
 !include common.iuml
+left to right direction
+title Series state machine inside every room
+
 [*] --> Created : NewSeries(host, guest, tc, bo)
 state "Created" as Created
 state "Ready" as Ready
 state "InGame" as InGame
 state "Finished" as Finished
-Created --> Ready : both readied
-Ready --> InGame : game 1 live
-InGame --> InGame : RecordResult\nred passes to the loser, draws retain
-InGame --> Finished : majority reached\nor schedule exhausted (plurality)
-Created --> Finished : forfeit\ncharges every remaining game
-InGame --> Finished : forfeit\ncharges every remaining game
+Created --> Ready : Both readied
+Ready --> InGame : Game 1 live
+InGame --> InGame : RecordResult\nRed passes to the loser, draws retain
+InGame --> Finished : Majority reached\nor schedule exhausted (plurality)
+Created --> Finished : Forfeit\nCharges every remaining game
+InGame --> Finished : Forfeit\nCharges every remaining game
 Finished --> [*]
 @enduml

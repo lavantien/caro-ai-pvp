@@ -1,24 +1,21 @@
 @startuml rating-flow
 !include common.iuml
-title rating flow, human games
+title Rating flow, human games
 
-start
-:game completes, one transaction writes\nthe game row and its stat lines;
-if (both seats human?) then (yes)
-else (no, a bot seat)
-  :no rating event, bot games\nstay outside the ladder;
-  stop
-endif
-if (decisive outcome?) then (yes)
-  :read both current ratings,\nlatest rating_after, RatingStart default;
-  :K = 10 ^ ((loser - winner) / D),\nD = full divisor on an upset,\nelse the decay band over the loser's rating;
-  :winner gains and loser loses\nthe same rounded delta;
-  :write 2 rating_events rows,\ndelta and rating_after per player;
-else (draw)
-  :rating moves nothing;
-  stop
-endif
-:aggregates read the same rows:\nper-variant latest rating,\nper-variant series won, WLD totals;
-:surfaces: profile hero and history,\nhome per-variant stat lines,\nplayback rating deltas;
-stop
+participant "game completion\none transaction writes the game row\nand its stat lines" as done
+participant "rating law" as law
+database "rating_events" as events
+participant "aggregates\nper-variant latest rating, per-variant series won,\nWLD totals" as agg
+participant "surfaces\nprofile hero and history, home per-variant\nstat lines, playback rating deltas" as surfaces
+
+done -> done : Both seats human? No: a bot seat writes\nno rating event, bot games stay outside the ladder
+alt decisive outcome
+  done -> law : Read both current ratings,\nlatest rating_after, RatingStart default
+  law -> law : K = 10 ^ ((loser - winner) / D),\nD = full divisor on an upset,\nelse the decay band over the loser's rating
+  law -> events : Write 2 rows, winner gains and loser loses\nthe same rounded delta, delta and rating_after per player
+else draw
+  done -> done : The rating moves nothing
+end
+events -> agg : Aggregates read the same rows
+agg -> surfaces
 @enduml

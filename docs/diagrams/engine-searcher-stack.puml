@@ -1,36 +1,36 @@
 @startuml engine-searcher-stack
 !include common.iuml
 left to right direction
-title searcher stack per tier seat
+title Searcher stack per tier seat
 
-rectangle "room bot worker" as room
-rectangle "ponder lane\n(own goroutine, 1 buffer commands)" as lane
-package "searcher chain (newBotSearcherFor)" {
-  component "bookSearcher\nsquare artifact only,\nprobe under BookMaxPly,\n[BOOK] reply" as book
+rectangle "Room bot worker" as room
+rectangle "Ponder lane\nown goroutine, 1 buffer commands" as lane
+package "Searcher chain (newBotSearcherFor)" {
+  component "bookSearcher\nSquare artifact only,\nprobe under BookMaxPly,\n[BOOK] reply" as book
   component "solverSearcher\nVCF pass then VCT pass,\nsolver budget share of the grant,\nskipped under SolverMinGrantMs" as solver
   component "tierSearcher (cores > 1)\nSMP, TieredEval weights" as smp
-  component "singleSearcher (cores = 1)\nsingle engine" as single
+  component "singleSearcher (cores = 1)\nSingle engine" as single
 }
-package "engine core" {
+package "Engine core" {
   component "SMP workers\n1 locked thread per core,\nparked between searches" as workers
-  component "single engine" as eng
-  component "transposition table\ndirect mapped, generation bump,\nshared lockless" as tt
-  component "killer table" as killers
+  component "Single engine" as eng
+  component "Transposition table\nDirect mapped, generation bump,\nshared lockless" as tt
+  component "Killer table" as killers
 }
 room --> book
-book --> solver : past the ply bound\nor no hit
-solver --> smp : no proof, rest of grant
-solver --> single : no proof, rest of grant
+book --> solver : Past the ply bound\nor no hit
+solver --> smp : No proof, rest of grant
+solver --> single : No proof, rest of grant
 smp --> workers
 single --> eng
 workers --> tt
 workers --> killers
 eng --> tt
 eng --> killers
-room --> lane : arm after the bot move,\nponder width = tier.PonderThreads
+room --> lane : Arm after the bot move,\nponder width = tier.PonderThreads
 lane ..> solver : StartPonder: solver passes run off lane\nunder a stoppable deadline,\nproof adopted on StopPonder
 note bottom of solver
-  a proof returns [VCF] or [VCT]
+  A proof returns [VCF] or [VCT]
   and ends the turn without a search
 end note
 @enduml

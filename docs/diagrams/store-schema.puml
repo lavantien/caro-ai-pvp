@@ -1,10 +1,13 @@
 @startuml store-schema
 !include common.iuml
+left to right direction
+title Store schema, 1 sqlite database
+
 database "users\nargon2id, seeded admin and bot seats" as users
 database "sessions" as sessions
 database "series" as series
 database "games\nmoves blob, outcome, bot seat" as games
-database "game_stats\nrendered m-line per move" as game_stats
+database "game_stats\nrendered M-line per move" as game_stats
 database "rating_events\ndecay-scaled deltas" as rating_events
 database "tournament_runs\ntc, bo, label, drive lease" as tournament_runs
 database "tournament_participants\nslot, name, tier" as tournament_participants

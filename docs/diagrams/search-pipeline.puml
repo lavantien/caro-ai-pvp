@@ -1,36 +1,31 @@
 @startuml search-pipeline
 !include common.iuml
-start
-:search entry: fallback move precomputed;
-repeat
-  if (stopped or hard deadline?) then (yes)
-    :answer: best of last completed iteration;
-    stop
-  endif
-  if (soft stop: elapsed over 65% of grant?\nno clock reading counts as 1 16ms tick) then (yes)
-    :answer: best of last completed iteration;
-    stop
-  endif
-  :searchRoot: PVS over root moves;
-  repeat
-    :negamax: fail-soft alpha-beta;
-    if (TT probe: exact, lower, or upper cutoff?) then (cutoff)
-      :return stored score;
-    else (miss)
-      :movegen: ring candidates ordered by\nTT move, killers, threat score, history;
-      if (opponent holds a four and\nextension budget remains?) then (yes)
-        :extend depth by 1;
-      endif
-      :recurse scout window, re-search on fail-high;
-      :TT store with mate ply adjustment;
-    endif
-  repeat while (plies remain?) is (yes)
-  -> no;
-  if (mate score found?) then (yes)
-    :answer: best of last completed iteration;
-    stop
-  endif
-repeat while (depth 1..max) is (next)
--> max;
-stop
+title Search pipeline, 1 pass per completed iteration
+
+participant "search driver" as driver
+participant "root PVS over root moves" as root
+participant "negamax scout" as scout
+database "transposition table" as tt
+
+driver -> driver : Fallback move precomputed
+loop depth 1 .. max, stop consulted at iteration heads only
+  alt stop met: hard deadline, or soft stop (elapsed over 65% of the grant, an unread clock counts 1 16ms tick)
+    driver -> driver : Answer: best of last completed iteration
+  else mate score found
+    driver -> driver : Answer: best of last completed iteration
+  else iterate
+    driver -> root : Next iteration
+    loop plies remain
+      root -> tt : Probe
+      alt exact, lower, or upper cutoff
+        tt --> root : Stored score
+      else miss
+        root -> root : Movegen: ring candidates ordered by TT move, killers, threat score, history
+        root -> root : Extend depth by 1: opponent four, extension budget left
+        root -> scout : Recurse scout window, re-search on fail-high
+        scout -> tt : Store with mate ply adjustment
+      end
+    end
+  end
+end
 @enduml

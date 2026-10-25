@@ -1,27 +1,27 @@
 @startuml pwa-shell
 !include common.iuml
 left to right direction
-title pwa shell, offline boundary
+title Pwa shell, offline boundary
 
-actor "browser" as browser
-component "page surface\nserver rendered html, htmx" as pages
-component "service worker" as sw
-package "cache storage" as cache {
-  component "shell cache\nstylesheet, scripts, icons,\noffline page" as shell
+actor "Browser" as browser
+component "Page surface\nserver rendered html, htmx" as pages
+component "Service worker" as sw
+package "Cache storage" as cache {
+  component "Shell cache\nstylesheet, scripts, icons,\noffline page" as shell
 }
-component "server" as server
-component "event stream\n/api/rooms/{id}/events" as sse
+component "Server" as server
+component "Event stream\n/api/rooms/{id}/events" as sse
 
-browser --> pages : navigate
-pages --> sw : fetch passes through
-sw --> shell : shell assets, cache first
-sw --> server : navigation, network first
-sw ..> cache : install precaches the shell,\nactivate drops older cache versions
-sw --> server : offline fallback page\nwhen the network fails
-browser --> sse : live updates, always network
-sw ..x sse : the /api/ prefix is never\nanswered from the worker
+browser --> pages : Navigate
+pages --> sw : Fetch passes through
+sw --> shell : Shell assets, cache first
+sw --> server : Navigation, network first
+sw ..> cache : Install precaches the shell,\nactivate drops older cache versions
+sw --> server : Offline fallback page\nwhen the network fails
+browser --> sse : Live updates, always network
+sw ..x sse : The /api/ prefix is never\nanswered from the worker
 note bottom of server
-  the server is authoritative,
+  The server is authoritative,
   no offline gameplay, the api and
   the event stream bypass the worker
 end note

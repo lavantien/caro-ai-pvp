@@ -1,15 +1,15 @@
 @startuml geometry-seam
 !include common.iuml
 left to right direction
-title geometry seam, 2 boards one architecture
+title Geometry seam, 2 boards one architecture
 
 component "config.Variants\nsquare 16x16, hex side 12" as variants
 component "geom.Geometry\ndescriptor\nstride, cells, words, region mask,\ndirections with clear masks,\nneighbors, center, opening min,\ncell names and parsing" as geom
-component "rules\nboard, legality,\nwin scan over the directions" as rules
-component "pattern\nwindow extraction,\ncells off region map to Off" as pattern
-component "engine\nbitmask words and loops\nbound by the geometry" as engine
-component "vcf\nsolver threat walks" as vcf
-component "server\nboard rendering,\ncell names, variant routing" as server
+component "rules\nBoard, legality,\nwin scan over the directions" as rules
+component "pattern\nWindow extraction,\ncells off region map to Off" as pattern
+component "engine\nBitmask words and loops\nbound by the geometry" as engine
+component "vcf\nSolver threat walks" as vcf
+component "server\nBoard rendering,\ncell names, variant routing" as server
 
 variants --> geom : Square(16) and Hex(12)
 geom --> rules
@@ -18,7 +18,7 @@ geom --> engine
 geom --> vcf
 geom --> server
 note bottom of server
-  the opening book is a square
+  The opening book is a square
   artifact, the hexagon ships
   bookless
 end note

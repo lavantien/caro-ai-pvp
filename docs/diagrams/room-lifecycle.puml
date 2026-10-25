@@ -1,36 +1,35 @@
 @startuml room-lifecycle
 !include common.iuml
-title room lifecycle and the event stream
+title Room lifecycle and the event stream
 
-actor player
-participant "room" as room
-participant "bot worker" as bot
-participant "ponder lane" as lane
-participant "hub" as hub
-participant "write queue" as wq
-database "store" as store
+actor Player
+participant "Room" as room
+participant "Bot worker" as bot
+participant "Ponder lane" as lane
+participant "Hub" as hub
+participant "Write queue" as wq
+database "Store" as store
 
-player -> room : create (variant, tc, best of, tier)
-room -> room : memory and TT checks,\nseat instance ids minted
-player -> room : join, ready x 2
-room -> room : game start:\nboard from the geometry, 2 clocks,\nsearchers built per seat
+Player -> room : Create (variant, tc, best of, tier)
+room -> room : Memory and TT checks, seat instance ids minted
+Player -> room : Join, ready x 2
+room -> room : Game start: board from the geometry,\n2 clocks, searchers built per seat
 loop every turn until the series ends
   alt human turn
-    player -> room : move
-    room -> room : turn and legality check,\nboard make, clock commit
-    room -> hub : move event
-    room -> bot : wake
+    Player -> room : Move
+    room -> room : Turn and legality check,\nboard make, clock commit
+    room -> hub : Move event
+    room -> bot : Wake
   else bot turn
-    bot -> bot : budget draw,\nponder adoption check first
-    bot -> bot : search at full tier capacity
-    bot -> room : move, M-line
-    room -> hub : move and M-line events
-    room -> lane : arm ponder for the opponent's reply
-    lane --> lane : ponder width try acquired,\nruns beside the turn loop
+    bot -> bot : Budget draw, ponder adoption check first,\nsearch at full tier capacity
+    bot -> room : Move, M-line
+    room -> hub : Move and M-line events
+    room -> lane : Arm ponder for the opponent's reply
+    lane --> lane : Ponder width try acquired, runs beside the turn loop
   end
-  hub --> player : move, M-line, gameend, series events\n(players and spectators, slow consumers evicted)
+  hub --> Player : Move, M-line, gameend, series events\nto players and spectators
 end
-room -> wq : game completion, moves blob, stat lines
-wq -> store : one transaction per game,\nseries finish row at the end
-room -> room : retire from the manager map,\nterminal state keeps the verdict,\nmid-game reload restores the game
+room -> wq : Game completion, moves blob, stat lines
+wq -> store : One transaction per game,\nseries finish row at the end
+room -> room : Retire from the manager map, the terminal\nstate keeps the verdict, reload restores the game
 @enduml

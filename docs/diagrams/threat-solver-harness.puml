@@ -1,14 +1,18 @@
 @startuml threat-solver-harness
 !include common.iuml
-start
-:VCF / VCT threat-space search\nFAIL-only memo, deadline-driven;
-:claimed win + line\nbrute-force alpha-beta oracle\nnaive array board, shared code: none;
-if (oracle verdict?) then (win verifies)
-  :pass;
-elseif (refuted) then
-  #F8DFE6:defect: soundness broken;
-else (refutation only)
-  :ignored: soundness-only criterion;
-endif
-stop
+left to right direction
+title Threat solver soundness harness
+
+component "VCF / VCT solver\nthreat moves only,\nFAIL-only memo,\ndeadline driven" as solver
+component "Claimed win + line" as claim
+component "Brute-force oracle\nalpha-beta, naive array board,\nshared code: none" as oracle
+component "Pass" as pass
+rectangle "Defect: soundness broken" as defect #F8DFE6
+component "Ignored\nsoundness-only criterion" as ignored
+
+solver --> claim
+claim --> oracle : Verify the line
+oracle --> pass : The win verifies
+oracle --> defect : Refuted
+oracle --> ignored : Refutation only
 @enduml

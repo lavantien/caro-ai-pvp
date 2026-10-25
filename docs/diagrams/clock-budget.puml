@@ -1,29 +1,26 @@
 @startuml clock-budget
 !include common.iuml
-title clock budget controller, one move
+left to right direction
+title Clock budget controller, 1 move
 
-start
-:side to move, bank = remaining, moves played = n;
-:budget draw (idempotent per move);
-:spendable = max(0, remaining - SearchSafetyMarginMs);
-:movesLeft = max(1, ClockExpectedMovesPerSide - n);
-:feedforward = spendable / movesLeft + increment x ClockIncrementShare;
-:error = remaining - target,\ntarget = drain trajectory\nfloored at SearchSafetyMarginMs;
-:correction = clamp(pid(error),\n+ or - ClockPIDClampFraction x feedforward);
-:grant = clamp(feedforward + correction,\nSearchMinMoveTimeMs,\nmax(spendable, SearchMinMoveTimeMs));
-note right
-  the floor wins over the reserve:
-  a fully drained 1+0 clock still
-  funds SearchMinMoveTimeMs moves,
-  remaining never goes negative, a
-  timeout can never decide a game
+component "Side to move\nbank = remaining, moves played = n" as side
+component "Budget draw\nidempotent per move" as draw
+component "Feedforward\nspendable = max(0, remaining - SearchSafetyMarginMs),\nmovesLeft = max(1, ClockExpectedMovesPerSide - n),\nfeedforward = spendable / movesLeft\n+ increment x ClockIncrementShare" as ff
+component "PID controller\nerror = remaining - target,\ntarget = drain trajectory floored at SearchSafetyMarginMs,\ncorrection = clamp(pid(error),\n+ or - ClockPIDClampFraction x feedforward)" as pid
+component "Grant\nclamp(feedforward + correction,\nSearchMinMoveTimeMs, max(spendable, SearchMinMoveTimeMs))" as grant
+component "Search\nruns on the grant" as search
+component "Commit\nremaining = max(0, remaining - elapsed) + increment,\nn = n + 1, the next move draws a fresh budget" as commit
+
+side --> draw
+draw --> ff
+ff --> pid
+pid --> grant
+grant --> search
+search --> commit
+commit --> draw : Game continues
+note bottom of grant
+  The floor wins over the reserve: a fully drained 1+0
+  clock still funds SearchMinMoveTimeMs moves, remaining
+  never goes negative, a timeout can never decide a game
 end note
-:search runs on the grant;
-:commit: remaining = max(0, remaining - elapsed) + increment,\nn = n + 1;
-if (game continues?) then (yes)
-  :next move draws a fresh budget;
-  stop
-else (no)
-  stop
-endif
 @enduml

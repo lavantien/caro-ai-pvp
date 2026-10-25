@@ -1,22 +1,30 @@
 @startuml tournament-conductor
 !include common.iuml
-start
-:setup page or caro tourney driver: startRun\ngate + persist schedule -> conductor;
-if (ongoing run row or over-budget cores?) then (yes)
-  :refuse: close or reconfigure;
-  stop
-endif
-:dispatch: TournamentParallel semaphore;
-fork
-  :room 1: CreateBotVsBot\nsubscribe, then drive;
-fork again
-  :room 2;
-end fork
-:move, mline, gameend, series events -> recorder;
-:gameend: delivered moves vs room truth\nmismatch fails the run;
-:tournament tables, schema v3;
-:every mline -> per-series txt log;
-:series event: settle, cross-check the room verdict;
-:all settled -> FinishRun: frozen standings snapshot;
-stop
+title Tournament conductor
+
+participant "setup page or caro tourney driver" as setup
+participant "run gate" as gate
+participant "conductor" as conductor
+participant "rooms, TournamentParallel\nsemaphore bounded" as rooms
+participant "recorder" as recorder
+database "store\ntournament tables, schema v3" as store
+participant "per-series text log" as log
+
+setup -> gate : startRun
+alt ongoing run row or over-budget cores
+  gate --> setup : Refuse: close or reconfigure
+else admitted
+  gate -> conductor : Persist schedule
+  par parallel series
+    conductor -> rooms : Room 1: CreateBotVsBot,\nsubscribe, then drive
+  else
+    conductor -> rooms : Room 2
+  end
+  rooms -> recorder : Move, mline, gameend, series events
+  recorder -> recorder : Gameend: delivered moves vs room truth,\nmismatch fails the run
+  recorder -> store : Every mline and series event,\nsettle cross-checks the room verdict
+  recorder -> log : Every mline as series lines
+  recorder -> conductor : All settled
+  conductor -> store : FinishRun: frozen standings snapshot
+end
 @enduml

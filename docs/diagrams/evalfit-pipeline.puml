@@ -1,21 +1,31 @@
 @startuml evalfit-pipeline
 !include common.iuml
-start
-:sqlite tournament_games\njoined to participants for seat tiers\nmoves blob: little-endian uint16 cells;
-:decode\ncolors alternate from red;
-:replay with integrity checks\nwinner holds the final line, draws end full,\nover 2% rejected games aborts the fit;
-:side-to-move positions ->\nwindow-class histogram features\ninternal/pattern classes 1-5, class 0 pinned,\nown minus opp counts;
-:series-level 90/10 split\ntrain series, val series;
-:monotone-chain gradient descent\ncumulative exp increments keep weights increasing;
-if (differential evolution cross-check?\ngd must not lose beyond 2%) then (fail)
-  #F8DFE6:abort, no artifact;
-  stop
-endif
-:artifact file\nmachine-readable weights and scale lines;
-if (arena gate?) then (pass)
-  :config hub PatternClassWeights swap;
-else (fail)
-  :weights stay unshipped;
-endif
-stop
+title Evalfit pipeline
+
+participant "tournament_games\njoined to participants for seat tiers,\nmoves blob: little-endian uint16 cells" as games
+participant "decoder\ncolors alternate from red" as decode
+participant "replayer\nintegrity checks: winner holds the final line,\ndraws end full, over 2% rejected games aborts the fit" as replay
+participant "feature walk\nside-to-move positions into window-class\nhistogram features, internal/pattern classes 1-5,\nclass 0 pinned, own minus opp counts" as feats
+participant "series split\nseries-level 90/10, train series, val series" as split
+participant "fitter\nmonotone-chain gradient descent,\ncumulative exp increments keep weights increasing" as fit
+participant "differential evolution" as de
+participant "arena gate" as gate
+participant "config hub" as config
+
+games -> decode
+decode -> replay
+replay -> feats
+feats -> split
+split -> fit
+fit -> de : Cross-check, the gradient descent must not\nlose beyond 2%
+alt cross-check fails
+  de --> fit : Abort, no artifact
+else artifact written
+  fit -> gate : Machine-readable weights and scale lines
+  alt arena gate passes
+    gate -> config : PatternClassWeights swap
+  else gate fails
+    gate --> fit : The weights stay unshipped
+  end
+end
 @enduml

@@ -1,19 +1,22 @@
 @startuml page-surface
 !include common.iuml
-actor browser
-[shell pages\nstats, rooms grid, create form] as shell
-[room page\nboard, clocks, handshake, controls] as room
-[playback page\nfinal position, step controls] as playback
+left to right direction
+title Page surface
+
+actor Browser
+[shell pages\nStats, rooms grid, create form] as shell
+[room page\nBoard, clocks, handshake, controls] as room
+[playback page\nFinal position, step controls] as playback
 [SSE /api/rooms/{id}/events\nmove, mline, gameend, series] as sse
 [JSON API] as api
 [room manager] as manager
 database "sqlite" as store
-browser --> shell : GET /, /login, /history, /partials/rooms
-browser --> room : GET /rooms/{id}
-browser --> playback : GET /rooms/history/{id}
+Browser --> shell : GET /, /login, /history, /partials/rooms
+Browser --> room : GET /rooms/{id}
+Browser --> playback : GET /rooms/history/{id}
 room --> sse : hx-sse primary, EventSource fallback
 room --> api : fetch POST join, ready, move, forfeit
-shell --> api : create room
+shell --> api : Create room
 api --> manager
 manager --> store
 @enduml
