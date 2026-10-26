@@ -35,11 +35,13 @@ passgates-fill: detached fill batch for the missing master pass gate legs
         read nor written, so the hex-ladder poller stays dormant
   logs under $OutRoot/<arm>.log, every engine invocation runs under
         GOMEMLIMIT $MemLimit
-  relaunching resumes: DONE arms skip, FAILED arms re-mark their failure,
-        pending arms run; an arm whose arena is already live is adopted and
-        waited on, never double-launched; adopted and dead-predecessor arms
-        merge their redirected output into the arm log before the verdict
-        check; a failed arena build is a loud failure, never a loop
+  relaunching resumes: DONE arms skip, FAILED arms are recorded and the batch
+        continues to the next leg so every table cell gets its evidence, an
+        arm whose arena is already live is adopted and waited on, never
+        double-launched; adopted and dead-predecessor arms merge their
+        redirected output into the arm log before the verdict check; a failed
+        arena build is a loud failure, never a loop; the terminal marker is
+        all-done, or done-with-failures naming every failed arm, exit 2
 '@
 
 if ($Help) { Write-Output $usage; exit 0 }
@@ -202,16 +204,27 @@ $pollLog = Convert-ToRepoPath "$OutRoot/$target.poll.log"
 New-Item -ItemType Directory -Force (Split-Path $pollLog -Parent) | Out-Null
 "$(Get-Date -Format s) passgates-fill start" | Add-Content -Path $pollLog
 
+$failures = @()
 foreach ($arm in $arms) {
 	if (Test-ArmDone $arm.Name) { Write-Output "arm $($arm.Name) already complete, skipping"; continue }
 	if (Test-ArmFailed $arm.Name) {
 		$verdict = Get-ArmVerdict $arm.Name
-		Write-Status "failed $($arm.Name) $verdict"
-		exit 2
+		Write-Output "arm $($arm.Name) already failed, recording"
+		$failures += "$($arm.Name) $verdict"
+		continue
 	}
 	Write-Status "running $($arm.Name)"
 	$failure = Invoke-Arm $arm $pollLog
-	if ($null -ne $failure) { Write-Status $failure; exit 2 }
+	if ($null -ne $failure) {
+		Write-Status $failure
+		$failures += $failure
+		continue
+	}
+}
+if ($failures.Count -gt 0) {
+	Write-Status "done-with-failures $($failures -join '; ')"
+	Write-Output "passgates-fill complete with $($failures.Count) failed arms"
+	exit 2
 }
 Write-Status 'all-done'
 Write-Output 'passgates-fill complete'
